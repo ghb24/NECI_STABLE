@@ -1,0 +1,19 @@
+[main]
+fc = mpif90
+cc = mpiCC
+ld = mpif90
+ldflags =  -rdynamic
+compiler = INTEL-ifort9-on-LINUX
+cpp = cpp -C -traditional
+cppflags = -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2 -D__INT64
+libs = -lfftw3 -lacml -lstdc++ -lm
+module_flag = -J
+
+[dbg]
+fflags = -g -traceback 
+cflags = -g -traceback
+f90flags = -CB
+
+[opt]
+fflags = -O3
+cflags = -O

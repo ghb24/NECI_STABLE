@@ -6,6 +6,7 @@
 ! TODO: Use ilut_int/ilut_off here?
 #define IsOcc(ilut,orb) btest(ilut((orb-1)/bits_n_int), mod(orb-1,bits_n_int))
 #define IsNotOcc(ilut,orb) (.not.IsOcc(ilut,orb))
+#define IsUnoccDet(sgn) all(sgn==0)
 
 ! Is the specified orbital alpha or beta? Generate the appropriate pair.
 #define is_beta(orb) btest(orb, 0)
@@ -68,4 +69,38 @@ endif
 #else
 #define ARR_RE_OR_CPLX(arr) real(arr(1), dp)
 #define ARR_ABS(arr) abs(arr(1))
+#endif
+
+
+
+! Define types for C pointers to work between various compilers with
+! differing levels of brokenness.
+#if defined(__PATHSCALE__) || defined(__ISO_C_HACK) || defined(__OPEN64__) || defined(NAGF95)
+#define loc_neci loc
+#ifdef POINTER8
+#define c_ptr_t integer(int64)
+#else
+#define c_ptr_t integer(int32)
+#endif
+#elif defined(__GFORTRAN__)
+#define c_ptr_t type(c_ptr)
+#define loc_neci g_loc
+#else
+#define c_ptr_t type(c_ptr)
+#define loc_neci c_loc
+#endif
+
+! ***** HACK *****
+! gfortran was playing up using a parameter defined to equal C_NULL_PTR
+! --> use pre-processor defines instead!
+#ifdef CBINDMPI
+#if defined(__PATHSCALE__) || defined(__ISO_C_HACK) || defined(__OPEN64__)
+#ifdef POINTER8
+#define MPI_IN_PLACE (0_int64)
+#else
+#define MPI_IN_PLACE (0_int32)
+#endif
+#else
+#define MPI_IN_PLACE (C_NULL_PTR)
+#endif
 #endif

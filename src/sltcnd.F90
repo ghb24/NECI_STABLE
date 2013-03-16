@@ -13,10 +13,10 @@ module sltcnd_mod
     use UMatCache, only: GTID
     use IntegralsData, only: UMAT, ptr_getumatel
     use OneEInts, only: GetTMatEl
-    use Integrals, only: get_umat_el
+    use Integrals_neci, only: get_umat_el
     use DetBitOps, only: count_open_orbs, FindBitExcitLevel
     use csf_data, only: csf_sort_det_block
-    use timing
+    use timing_neci
     use bit_reps, only: NIfTot
     implicit none
 
@@ -167,6 +167,46 @@ contains
 
     end function
 
+    function CalcFockOrbEnergy (Orb,HFDet) result(hel)
+        ! This calculates the orbital fock energy from
+        ! the one- and two- electron integrals. This
+        ! requires a knowledge of the HF determinant.
+        !In: Orbital (Spin orbital notation)
+        !In: HFDet (HF Determinant)
+        integer, intent(in) :: HFDet(nel),Orb
+        integer :: idHF(NEl),idOrb,j,idN
+        HElement_t :: hel_sing,hel
+
+        !GetTMATEl works with spin orbitals
+        hel_sing = GetTMATEl(Orb,Orb)
+        
+        ! Obtain the spatial rather than spin indices if required
+        idOrb = gtID(Orb)
+        idHF = gtID(HFDet)
+        
+        ! Sum in the two electron contributions. 
+        hel = (0)
+        do j=1,nel
+            idN = idHF(j)
+            hel = hel + get_umat_el (ptr_getumatel, idOrb, idN, &
+                                               idOrb, idN)
+        enddo
+                
+        ! Exchange contribution only considered if tExch set.
+        ! This is only separated from the above loop to keep "if (tExch)" out
+        ! of the tight loop for efficiency.
+        do j=1,nel
+            ! Exchange contribution is zero if I,J are alpha/beta
+            if (G1(Orb)%Ms == G1(HFDet(j))%Ms) then
+                idN = idHF(j)
+                hel = hel - get_umat_el (ptr_getumatel, idOrb, &
+                                      idN, idN, idOrb)
+            endif
+        enddo
+        hel = hel + hel_sing
+
+    end function CalcFockOrbEnergy 
+
     function SumFock (nI,HFDet) result(hel)
 
         ! This just calculates the sum of the Fock energies
@@ -235,6 +275,7 @@ contains
 
         ! Obtain the spatial rather than spin indices if required
         id = gtID(nI)
+!        write(6,'(A,4I4)') "****",id(:)
 
         ! Sum in the two electron contributions. Use max(id...) as we cannot
         ! guarantee that if j>i then nI(j)>nI(i).
@@ -246,6 +287,7 @@ contains
                 idN = min(id(i), id(j))
                 hel_doub = hel_doub + get_umat_el (ptr_getumatel, idN, idX, &
                                                    idN, idX)
+!                write(6,'(4I4,G20.10)') idN,idX,idN,idX,get_umat_el (ptr_getumatel,idN,idX,idN,idX)
             enddo
         enddo
                 
@@ -261,6 +303,7 @@ contains
                         idN = min(id(i), id(j))
                         hel_tmp = hel_tmp - get_umat_el (ptr_getumatel, idN, &
                                               idX, idX, idN)
+!                write(6,'(4I4,G20.10)') idN,idX,idX,idN,get_umat_el (ptr_getumatel,idN,idX,idX,idN)
                     endif
                 enddo
             enddo

@@ -1,6 +1,6 @@
 module sym_mod
 
-use constants, only: dp,int64
+use constants, only: dp,int64,sizeof_int
 implicit none
 
 contains
@@ -113,7 +113,7 @@ contains
 !LSHIFT(,)
                 ! 1_8 is 1 in integer(int64): we need to have consistent
                 ! kinds for bit-wise operations.
-                IF(BTEST(s%s,0)) SymConj%s=IOR(SymConj%s,ISHFT(1_8,SymConjTab(I)-1))
+                IF(BTEST(s%s,0)) SymConj%s=IOR(SymConj%s,ISHFT(1_int64,int(SymConjTab(I)-1,int64)))
 !RSHIFT(,1)
                 s%s=ISHFT(s%s,-1)
                 i=i+1
@@ -178,7 +178,7 @@ contains
          character(*), parameter :: this_routine='GenMolPSymTable'
 
          TAbelian=.true.
-         nSymGen=INT(DLOG(NSYMMAX+0.D0)/DLOG(2.D0)+.4)
+         nSymGen=INT(log(NSYMMAX+0.0_dp)/log(2.0_dp)+.4)
          WRITE(6,"(A,I3,A)") "  Generating abelian symmetry table with",&
             nSymGen, " generators" 
          WRITE(6,'(A,'//int_fmt(nSymMax)//')')                          &
@@ -213,7 +213,7 @@ contains
 !   we don't have symmetry, so fake it.
                    SymClasses((I+1)/2)=1
                 ELSE
-              SymClasses((I+1)/2)=G1(I)%Sym%s+1
+              SymClasses((I+1)/2)=int(G1(I)%Sym%s,sizeof_int)+1
                 ENDIF
              ENDDO
 !   list the symmetry string of each sym label
@@ -342,7 +342,7 @@ contains
              !These symmetry routines only work for cases where all irreps are their
              !own inverse. In systems with multiple kpoints, this will not be the
              !case. Setup the symreps for non-abelian symmetries.
-             CALL GENSYMREPS(G1,NBASIS,ARR,1.d-6)
+             CALL GENSYMREPS(G1,NBASIS,ARR,1.e-6_dp)
              return
          endif
          
@@ -359,7 +359,7 @@ contains
                SYMREPS(2,J)=SYMREPS(2,J)+1
                tNew=.false.
             ELSEIF(I.gt.1) THEN
-                IF((ABS(ARR(I,1)-ARR(I-1,1)).LT.1.D-5) &
+                IF((ABS(ARR(I,1)-ARR(I-1,1)).LT.1.0e-5_dp) &
                    .AND.(G1(BRR(I))%Sym%s.EQ.G1(BRR(I-1))%Sym%s)) THEN
 !   we have the same degenerate rep as the previous entry
                     SYMREPS(2,J)=SYMREPS(2,J)+1
@@ -731,8 +731,8 @@ contains
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymPairProd
          implicit none
-         TYPE(SymPairProd) SymPairProds(nSymPairProds)
          INTEGER nSymPairProds,iProd
+         TYPE(SymPairProd) SymPairProds(nSymPairProds)
          TYPE(Symmetry) Prod
          DO iProd=1,nSymPairProds
             IF(SYMEQ(SymPairProds(iProd)%Sym,Prod)) EXIT
@@ -758,17 +758,17 @@ contains
       SUBROUTINE GETSYM(NI2,NEL,G1,NBASISMAX,ISYM)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,tFixLz
-         use SymData, only: SymReps
+         use SymData, only: SymReps,tAbelian
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),nBasisMax(5,*)
          TYPE(BasisFn) G1(*),ISym
          INTEGER I,J,NI2(NEL)
          INTEGER NREPS(NEL),NELECS(NEL),SSYM
-         LOGICAL ISCSF,ISC
+         LOGICAL iscsf_old,ISC
          I=1
          NREPS(1:NEL)=0
          CALL SETUPSYM(ISYM)
-         ISC=ISCSF(NI2,NEL)
+         ISC=iscsf_old(NI2,NEL)
          IF(tFixLz) THEN
             CALL GetLz(NI2,NEL,ISYM%Ml)
          ELSE
@@ -782,41 +782,49 @@ contains
 !            CALL NECI_ICOPY(NEL,NI2,1,NI,1)
             NI(1:NEL)=NI2(1:NEL)
          ENDIF
-         DO I=1,NEL
-!   Count all electrons in each rep
-!   NREPS(J) is the rep, and NELECS(J) is the number of electrons in that rep
-
-            J=1
-            DO WHILE(J.LT.NEL)
-               IF(NREPS(J).EQ.0) exit
-               IF(NREPS(J).EQ.SYMREPS(1,NI(I))) THEN
-!   We've found the slot for the rep.  increment it and leave.
-                  NELECS(J)=NELECS(J)+1
-                  J = NEL
-               ENDIF
-               J=J+1
-            ENDDO
-            IF(J.LE.NEL) THEN
-!   need to put the new rep in a new space
-               NREPS(J)=SYMREPS(1,NI(I))
-               NELECS(J)=1
-            ENDIF
-         END DO
-!   now go through and see which are closed and which open
-         DO I=1,NEL
-            J=1
-            DO WHILE(NREPS(J).NE.SYMREPS(1,NI(I)))
-               J=J+1
-            ENDDO
-!   electron NI(I) is in rep NREPS(J)
-            IF(NELECS(J).NE.SYMREPS(2,NREPS(J))) THEN
-!   we don't have a closed shell
-!   add the sym product
+         IF(tAbelian) THEN !For Abelian symmetry we don't need the symreps malarky.
+            DO I=1,NEL 
                ISYM%Sym=SYMPROD(ISYM%Sym,G1(NI(I))%Sym)
-            ENDIF
 !   add the momentum
-            CALL ADDELECSYM(NI(I),G1,NBASISMAX,ISYM)
-         ENDDO
+               CALL ADDELECSYM(NI(I),G1,NBASISMAX,ISYM)
+            ENDDO
+         ELSE
+               DO I=1,NEL
+      !   Count all electrons in each rep
+      !   NREPS(J) is the rep, and NELECS(J) is the number of electrons in that rep
+
+                  J=1
+                  DO WHILE(J.LT.NEL)
+                     IF(NREPS(J).EQ.0) exit
+                     IF(NREPS(J).EQ.SYMREPS(1,NI(I))) THEN
+      !   We've found the slot for the rep.  increment it and leave.
+                        NELECS(J)=NELECS(J)+1
+                        J = NEL
+                     ENDIF
+                     J=J+1
+                  ENDDO
+                  IF(J.LE.NEL) THEN
+      !   need to put the new rep in a new space
+                     NREPS(J)=SYMREPS(1,NI(I))
+                     NELECS(J)=1
+                  ENDIF
+               END DO
+      !   now go through and see which are closed and which open
+               DO I=1,NEL
+                  J=1
+                  DO WHILE(NREPS(J).NE.SYMREPS(1,NI(I)))
+                     J=J+1
+                  ENDDO
+      !   electron NI(I) is in rep NREPS(J)
+                  IF(NELECS(J).NE.SYMREPS(2,NREPS(J))) THEN
+      !   we don't have a closed shell
+      !   add the sym product
+                     ISYM%Sym=SYMPROD(ISYM%Sym,G1(NI(I))%Sym)
+                  ENDIF
+      !   add the momentum
+                  CALL ADDELECSYM(NI(I),G1,NBASISMAX,ISYM)
+               ENDDO
+         ENDIF
 !   round the momentum
          CALL ROUNDSYM(ISYM,NBASISMAX)
          IF(ISC) CALL CSFGETSPIN(NI2,NEL,ISYM%Ms) 
@@ -825,7 +833,8 @@ contains
 
       SUBROUTINE GetLz(nI,NElec,Lz)
         use SystemData , only : G1
-        INTEGER :: nI(NElec),NElec,Lz,i
+        INTEGER :: NElec
+        INTEGER :: nI(NElec),Lz,i
         Lz=0
         do i=1,NElec
             Lz=Lz+G1(nI(i))%Ml
@@ -883,7 +892,7 @@ contains
                   NREPS=NREPS+1
                   IF(NREPS.GT.NSYMLABELS*10) STOP 'TOO MANY REPS'
                   DO K=1,NROT
-                     REPCHARS(K,NREPS)=DCONJG(IRREPCHARS(K,I))*IRREPCHARS(K,J)
+                     REPCHARS(K,NREPS)=CONJG(IRREPCHARS(K,I))*IRREPCHARS(K,J)
                   ENDDO
                   
 !                  WRITE(6,*) NREPS,"PROD",I,J
@@ -891,7 +900,7 @@ contains
 !                  CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"ADDPRD")
                   IF(GETIRREPDECOMP(REPCHARS(1,NREPS),IRREPCHARS,NSYM,NROT,IDECOMP,NORM,TAbelian)) THEN
 !   CHARWORK now contains the remainder, which will be a new irrep (or combination or irreps), which we need to add
-                     IF(ABS(NORM-NROT).LE.1.D-2) THEN
+                     IF(ABS(NORM-NROT).LE.1.0e-2_dp) THEN
 !   if it's an irrep
                         NSYM=NSYM+1
                         IF(NSYM.GT.64) STOP "MORE than 64 irreps"
@@ -928,7 +937,7 @@ contains
 !               CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"ADDST ")
                IF(GETIRREPDECOMP(REPCHARS(1,NREPS),IRREPCHARS,NSYM,NROT,IDECOMP,NORM,TAbelian)) THEN
 !   CHARWORK now contains the remainder, which will be a new irrep (or combination or irreps), which we need to add
-                  IF(ABS(NORM-NROT).LE.1.D-2) THEN
+                  IF(ABS(NORM-NROT).LE.1.0e-2_dp) THEN
 !   if it's an irrep
                      NSYM=NSYM+1
                      IF(NSYM.GT.64) STOP "MORE than 64 irreps"
@@ -986,16 +995,16 @@ contains
          IMPLICIT NONE
          INTEGER IUNIT,NROT,NSYM
          complex(dp) CHARS(NROT,NSYM)
-         CHARACTER*6 STR
+         CHARACTER(6) STR
          INTEGER I,J
          LOGICAL LCOMP,LREAL
          LCOMP=.FALSE.
          LREAL=.FALSE.
          DO I=1,NSYM
             DO J=1,NROT
-               IF(ABS(REAL(CHARS(J,I))).GT.1.D-2.AND.ABS(DIMAG(CHARS(J,I))).GT.1.D-2) LCOMP=.TRUE.
-               IF(ABS(REAL(CHARS(J,I))-NINT(REAL(CHARS(J,I)))).GT.1.D-2) LREAL=.TRUE.
-               IF(ABS(DIMAG(CHARS(J,I))-NINT(DIMAG(CHARS(J,I)))).GT.1.D-2) LREAL=.TRUE.
+               IF(ABS(REAL(CHARS(J,I))).GT.1.0e-2_dp.AND.ABS(AIMAG(CHARS(J,I))).GT.1.0e-2_dp) LCOMP=.TRUE.
+               IF(ABS(REAL(CHARS(J,I))-NINT(REAL(CHARS(J,I)))).GT.1.0e-2_dp) LREAL=.TRUE.
+               IF(ABS(AIMAG(CHARS(J,I))-NINT(AIMAG(CHARS(J,I)))).GT.1.0e-2_dp) LREAL=.TRUE.
             ENDDO
          ENDDO
          DO I=1,NSYM
@@ -1010,15 +1019,15 @@ contains
          INTEGER IUNIT,NROT
          complex(dp) CHARS(NROT)
          INTEGER J
-         CHARACTER*6 STR
+         CHARACTER(6) STR
          LOGICAL LCOMP,LREAL
 !   First do a check for the format
             LCOMP=.FALSE.
             LREAL=.FALSE.
             DO J=1,NROT
-               IF(ABS(REAL(CHARS(J))).GT.1.D-2.AND.ABS(DIMAG(CHARS(J))).GT.1.D-2) LCOMP=.TRUE.
-               IF(ABS(REAL(CHARS(J))-NINT(REAL(CHARS(J)))).GT.1.D-2) LREAL=.TRUE.
-              IF(ABS(DIMAG(CHARS(J))-NINT(DIMAG(CHARS(J)))).GT.1.D-2) LREAL=.TRUE.
+               IF(ABS(REAL(CHARS(J))).GT.1.0e-2_dp.AND.ABS(AIMAG(CHARS(J))).GT.1.0e-2_dp) LCOMP=.TRUE.
+               IF(ABS(REAL(CHARS(J))-NINT(REAL(CHARS(J)))).GT.1.0e-2_dp) LREAL=.TRUE.
+              IF(ABS(AIMAG(CHARS(J))-NINT(AIMAG(CHARS(J)))).GT.1.0e-2_dp) LREAL=.TRUE.
             ENDDO
             CALL WRITECHARSF(IUNIT,CHARS,NROT,STR,LCOMP,LREAL)
       END SUBROUTINE WRITECHARS
@@ -1027,31 +1036,31 @@ contains
          INTEGER IUNIT,NROT
          complex(dp) CHARS(NROT)
          INTEGER J
-         CHARACTER*6 STR
+         CHARACTER(6) STR
          LOGICAL LCOMP,LREAL
             WRITE(IUNIT,"(A6,A)",advance='no') STR,":   "
             DO J=1,NROT
                IF(LCOMP) THEN
                   IF(LREAL) THEN
                      WRITE(IUNIT,"(A,2G16.9,A)",advance='no') "(",  &
-                       NINT(REAL(CHARS(J))*1000)/1000.D0,           &
-                       NINT(DIMAG(CHARS(J))*1000)/1000.D0           &
+                       NINT(REAL(CHARS(J))*1000)/1000.0_dp,           &
+                       NINT(AIMAG(CHARS(J))*1000)/1000.0_dp           &
                        ,")"
                   ELSE
                      WRITE(IUNIT,"(A,2F6.3,A)",advance='no') "(",CHARS(J),")"
                   ENDIF
                ELSE
-                  IF(ABS(DIMAG(CHARS(J))).GT.1.D-2) THEN
+                  IF(ABS(AIMAG(CHARS(J))).GT.1.0e-2_dp) THEN
 !   write in terms of I.
                      IF(LREAL) THEN
                         WRITE(IUNIT,"(G14.9,A)",advance='no') CHARS(J)," "
                      ELSE                        
-                        IF(ABS(DIMAG(CHARS(J))+1.D0).LT.1.D-2) THEN
+                        IF(ABS(AIMAG(CHARS(J))+1.0_dp).LT.1.0e-2_dp) THEN
                            WRITE(IUNIT,"(A)",advance='no') " -I "
-                        ELSEIF(ABS(DIMAG(CHARS(J))-1.D0).LT.1.D-2) THEN
+                        ELSEIF(ABS(AIMAG(CHARS(J))-1.0_dp).LT.1.0e-2_dp) THEN
                            WRITE(IUNIT,"(A)",advance='no') "  I "
                         ELSE 
-                         WRITE(IUNIT,"(I2,A)",advance='no') NINT(DIMAG(CHARS(J))), "I "
+                         WRITE(IUNIT,"(I2,A)",advance='no') NINT(AIMAG(CHARS(J))), "I "
                         ENDIF
                      ENDIF
                   ELSE
@@ -1090,40 +1099,40 @@ contains
 !,. First check norm of this state
          CNORM=0
          DO J=1,NROT
-            CNORM=CNORM+CHARS(J)*CHARS(J)
+            CNORM=CNORM+real(CHARS(J)*CHARS(J),dp)
          ENDDO
          DO I=1,NSYM
             TOT=0
 !            CALL WRITECHARS(6,IRREPCHARS(1,I),NROT,"IR")
 !            CALL WRITECHARS(6,CHARS(1),NROT,"CH")
             DO J=1,NROT
-               TOT=TOT+DCONJG(IRREPCHARS(J,I))*CHARS(J)
+               TOT=TOT+CONJG(IRREPCHARS(J,I))*CHARS(J)
             ENDDO
 !            WRITE(6,*) I,TOT
             IF(TOT.NE.0) THEN
 !   Calculate the normalization of the state I which matches (if it's an irrep, this will be 1)
                NORM=0
                DO J=1,NROT
-                  NORM=NORM+DCONJG(IRREPCHARS(J,I))*IRREPCHARS(J,I)
+                  NORM=NORM+real(CONJG(IRREPCHARS(J,I))*IRREPCHARS(J,I),dp)
                ENDDO
-!               WRITE(6,*) "IRREP ",I,(TOT+0.D0)/NORM
+!               WRITE(6,*) "IRREP ",I,(TOT+0.0_dp)/NORM
                DIFF=ABS(TOT-NINT(ABS(TOT/NORM))*NORM)
-               IF(DIFF.GT.1.D-2) THEN
+               IF(DIFF.GT.1.0e-2_dp) THEN
                   WRITE(6,*) 'Symmetry decomposition not complete'
                   CALL WRITECHARS(6,IRREPCHARS(1,I),NROT,"IRREP ")
                   CALL WRITECHARS(6,CHARS,NROT,"CHARS ")
-                  WRITE(6,*) "Dot product: ",(TOT+0.D0)/NORM,TOT,NORM
+                  WRITE(6,*) "Dot product: ",(TOT+0.0_dp)/NORM,TOT,NORM
                   STOP 'Incomplete symmetry decomposition'
 !   The given representation CHARS has fewer irreps in it than the one in IRREPCHARS, and is an irrep
 !   Hurrah!  Remove it from the one in IRREPCHARS, and keep on going)
-               ELSEIF(ABS(TOT).GT.1.D-2) THEN
+               ELSEIF(ABS(TOT).GT.1.0e-2_dp) THEN
 !   We've found an (ir)rep which is wholly in CHARS
                   IDECOMP%s=IBSET(IDECOMP%s,I-1)
                   CNORM=0
 !                  WRITE(6,*) I,DIFF,TOT,TOT/NORM
                   DO J=1,NROT
                      CHARS(J)=CHARS(J)-(IRREPCHARS(J,I)*TOT)/NORM
-                     CNORM=CNORM+DCONJG(CHARS(J))*CHARS(J)
+                     CNORM=CNORM+real(CONJG(CHARS(J))*CHARS(J),dp)
                   ENDDO
 !                  CALL WRITECHARS(6,IRREPCHARS(1,I),NROT,"DIRREP")
 !                  CALL WRITECHARS(6,CHARS,NROT,"DCHARS")
@@ -1157,44 +1166,44 @@ contains
 !,. First check norm of this state
          CNORM=0
          DO J=1,NROT
-            CNORM=CNORM+DCONJG(CHARS(J))*CHARS(J)
+            CNORM=CNORM+real(CONJG(CHARS(J))*CHARS(J),dp)
          ENDDO
          DO I=1,NIRREPS
             TOT=0
             DO J=1,NROT
-               TOT=TOT+DCONJG(IRREPCHARS(J,I))*CHARS(J)
+               TOT=TOT+CONJG(IRREPCHARS(J,I))*CHARS(J)
             ENDDO
-            IF(ABS(TOT).GE.1.D-2) THEN
+            IF(ABS(TOT).GE.1.0e-2_dp) THEN
 !   Calculate the normalization of the state I which matches (if it's an irrep, this will be 1)
                NORM=0
                DO J=1,NROT
-                  NORM=NORM+DCONJG(IRREPCHARS(J,I))*IRREPCHARS(J,I)
+                  NORM=NORM+real(CONJG(IRREPCHARS(J,I))*IRREPCHARS(J,I),dp)
                ENDDO
-!               WRITE(6,*) "IRREP ",I,(TOT+0.D0)/NORM
+!               WRITE(6,*) "IRREP ",I,(TOT+0.0_dp)/NORM
 !                CALL WRITECHARS(6,CHARS,NROT,"REP   ")
 !                CALL WRITECHARS(6,IRREPCHARS(1,I),NROT,"IRREP ")
                DIFF=ABS(TOT-NINT(ABS(TOT/NORM))*NORM)
-               IF(DIFF.GE.1.D-2.AND.CNORM.EQ.NROT) THEN
+               IF(DIFF.GE.1.0e-2_dp.AND.CNORM.EQ.NROT) THEN
 !   The given representation CHARS has fewer irreps in it than the one in IRREPCHARS, and is an irrep
 !   Hurrah!  Remove it from the one in IRREPCHARS, and keep on going)
 !                  DO J=1,NROT
 !                    IRREPCHARS(J,I)=IRREPCHARS(J,I)-CHARS(J)*TOT/CNORM
 !                  ENDDO
 !                  CALL WRITECHARS(6,IRREPCHARS(1,I),NROT,"NOW   ")
-               ELSEIF(DIFF.LT.1.D-2) THEN
+               ELSEIF(DIFF.LT.1.0e-2_dp) THEN
 !   We've found an (ir)rep which is wholly in CHARS
                   IDECOMP%s=IBSET(IDECOMP%s,I-1)
                   CNORM=0
                   DO J=1,NROT
                      CHARS(J)=CHARS(J)-(IRREPCHARS(J,I)*TOT)/NORM
-                     CNORM=CNORM+DCONJG(CHARS(J))*CHARS(J)
+                     CNORM=CNORM+real(CONJG(CHARS(J))*CHARS(J),dp)
                   ENDDO
                ENDIF
             ENDIF
          ENDDO
          GETIRREPDECOMP=.FALSE.
          DO J=1,NROT
-            IF(ABS(CHARS(J)).GT.1.D-2) GETIRREPDECOMP=.TRUE.
+            IF(ABS(CHARS(J)).GT.1.0e-2_dp) GETIRREPDECOMP=.TRUE.
          ENDDO
       END FUNCTION GETIRREPDECOMP
 
@@ -1217,7 +1226,7 @@ contains
          call LogMemAlloc('SymConjTab',nSym,4,this_routine,tagSymConjTab)
          DO I=1,NSYM
             DO K=1,NROT
-               CHARS(K)=DCONJG(IRREPCHARS(K,I))
+               CHARS(K)=CONJG(IRREPCHARS(K,I))
             ENDDO
             IF(GETIRREPDECOMP(CHARS,IRREPCHARS,NSYM,NROT,IDECOMP,CNORM,TAbelian)) THEN
                WRITE(6,*) "Conjugate of SYM ",I," not reducible,"
@@ -1262,8 +1271,8 @@ contains
          use global_utilities
          IMPLICIT NONE
          INTEGER I,J
-         TYPE(BasisFN) G1(nBasis)
          INTEGER NBASIS
+         TYPE(BasisFN) G1(nBasis)
          real(dp) ARR(NBASIS,2)
          real(dp) DEGENTOL
          logical lTmp
@@ -1493,13 +1502,13 @@ contains
             NORM=AX*AX+AY*AY
             R1=(AX*K1(1)+AY*K1(2))/NORM
             R2=(AX*K1(2)-AY*K1(1))/NORM
-            R1=R1/LENX+0.5D0
-            R2=R2/LENY+0.5D0
+            R1=R1/LENX+0.5_dp
+            R2=R2/LENY+0.5_dp
 !   R1 is now in terms of the shifted extended unit cell.  We want 0<R1<=1
 !   R2 is now in terms of the shifted extended unit cell.  We want 0<=R2<1
 !   T1 and T2 will be the vectors to translate the point K1 back into our cell
             T1=INT(ABS(R1))
-            IF(R1.LT.0.D0) THEN
+            IF(R1.LT.0.0_dp) THEN
                T1=-T1
                IF(T1.NE.R1) T1=T1-1
             ENDIF
@@ -1507,7 +1516,7 @@ contains
 !   We want to include R1=1, so we have one fewer translations in that case.
             IF(R1.EQ.T1) T1=T1-1
             T2=INT(ABS(R2))
-            IF(R2.LT.0.D0) THEN
+            IF(R2.LT.0.0_dp) THEN
                T2=-T2
                IF(T2.NE.R2) T2=T2-1
             ENDIF
@@ -1515,11 +1524,11 @@ contains
             IF(R1.EQ.T1) T1=T1-1
 !   Now T2= highest integer less than R2  (i.e. FLOOR)
 !   Do the translation
-            IF(R1.GT.1.D0.OR.R1.LE.0.D0) R1=R1-T1
-            IF(R2.GE.1.D0.OR.R2.LT.0.D0) R2=R2-T2
+            IF(R1.GT.1.0_dp.OR.R1.LE.0.0_dp) R1=R1-T1
+            IF(R2.GE.1.0_dp.OR.R2.LT.0.0_dp) R2=R2-T2
 !   Now convert back to the the Coords in the extended brillouin zone (ish)
-            R1=(R1-0.5D0)*LENX
-            R2=(R2-0.5D0)*LENY
+            R1=(R1-0.5_dp)*LENX
+            R2=(R2-0.5_dp)*LENY
 !   Now K1 is defined as the re-scaled (R1,R2) vector
             K1(1)=NINT(R1*AX-R2*AY)
             K1(2)=NINT(R1*AY+R2*AX)
@@ -1882,8 +1891,8 @@ contains
       use SymData, only: tagSymClasses
       use global_utilities
       IMPLICIT NONE
-      INTEGER nTranslat,nKps,KpntInd(nStates)
       INTEGER I,nStates
+      INTEGER nTranslat,nKps,KpntInd(nStates)
       character(*), parameter :: this_routine='GenKPtIrreps'
       nSymLabels=nKps
       nRot=nTranslat
@@ -1893,7 +1902,7 @@ contains
       call LogMemAlloc('SymLabels',nSymLabels,4,this_routine,tagSymLabels)
       allocate(SymClasses(nStates))
       call LogMemAlloc('SymClasses',nStates,4,this_routine,tagSymClasses)
-      SYMLABELCHARS=0.d0
+      SYMLABELCHARS=0.0_dp
       DO I=1,nStates
         SymClasses(I)=KpntInd(I)
         SymLabels(KPntInd(I))%s=ComposeAbelianSym(KpntSym(:,KPntInd(I)))
@@ -1948,10 +1957,10 @@ contains
       integer(int64) Isym
       integer  AbelSym(3)
 !RShift
-      AbelSym(3)=IShft(Isym,-(PropBitLen*2))
+      AbelSym(3)=int(IShft(Isym,-(PropBitLen*2)),sizeof_int)
 !RShift
-      AbelSym(2)=Iand(IShft(ISym,-PropBitLen),2_8**PropBitLen-1)
-      AbelSym(1)=Iand(Isym,2_8**PropBitLen-1)
+      AbelSym(2)=int(Iand(IShft(ISym,-PropBitLen),2_int64**PropBitLen-1),sizeof_int)
+      AbelSym(1)=int(Iand(Isym,2_int64**PropBitLen-1),sizeof_int)
       return
       end subroutine DecomposeAbelianSym
 
@@ -2057,7 +2066,7 @@ contains
         do i=1,Nirrep
             basirrep=SYMLABELCOUNTS(2,i)
             iSize=iSize+(basirrep*(basirrep+1))/2
-            SYMLABELINTSCUM(i)=iSize
+            SYMLABELINTSCUM(i)=int(iSize,sizeof_int)
             IF(i.eq.1) THEN
                 SYMLABELCOUNTSCUM(i)=0
             ELSE
@@ -2066,7 +2075,7 @@ contains
                 ENDDO
             ENDIF
             write(6,*) basirrep,SYMLABELINTSCUM(i),SYMLABELCOUNTSCUM(i)
-            call flush(6)
+            call neci_flush(6)
         enddo
         iSize=iSize+2
         !This is to allow the index of '-1' in the array to give a zero value

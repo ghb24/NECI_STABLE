@@ -5,7 +5,7 @@ module global_utilities
 != modules.  Rather than doing, say,::
 !=
 !=    use MemoryManager, only: LogMemAlloc
-!=    use timing, only: set_timer, halt_timer
+!=    use timing_neci, only: set_timer, halt_timer
 !=
 != we can just USE global_utilities without too much namespace pollution::
 !=
@@ -17,6 +17,6 @@ module global_utilities
 != which are typically only required once).
 
 use MemoryManager, only: LogMemAlloc,LogMemDealloc
-use timing, only: set_timer,halt_timer,get_total_time, timer
+use timing_neci, only: set_timer,halt_timer,get_total_time, timer
 
 end module global_utilities

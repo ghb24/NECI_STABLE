@@ -9,7 +9,7 @@
          use CPMDData, only: nStates,NKPTrans,nKPS,nRotOp
          use sym_mod
          IMPLICIT NONE
-         INTEGER nBasisMax(5,*), BRR(LEN),LEN
+         INTEGER LEN,nBasisMax(5,*), BRR(LEN)
          TYPE(BASISFN) G1(LEN)
          real(dp) ARR(LEN,2)
          INTEGER I,J
@@ -51,7 +51,7 @@ C.. set ISPINSKIP=0, to tell the SCRs that there's no UMAT
            else
                CALL DECOMPOSEREP(SYMLABELCHARS(1,SymClasses(I)),IDECOMP)
            end if
-            IF(ABS(SYMLABELCHARS(1,SymClasses(I))-1.D0).GE.1.D-6)
+            IF(ABS(SYMLABELCHARS(1,SymClasses(I))-1.0_dp).GE.1.0e-6_dp)
      &          ALL1D=.FALSE.
             G1(I*2-1)%SYM=IDECOMP
             G1(I*2)%SYM=IDECOMP
@@ -138,6 +138,7 @@ C.. group
          use CPMDData, only: nStates,Rot_Label,tSpaceGp,Group_Char
          use CPMDData, only: Rot_Char
          use sym_mod, only: WriteIrrepTab
+         use constants
          IMPLICIT NONE
          INTEGER I,J
          character(*), parameter :: this_routine='ExtractSymLabels'
@@ -148,7 +149,7 @@ C.. group
          allocate(SymLabelChars(nRot,nSymLabels))
          call LogMemAlloc('SymLabelChars',nSymLabels*nRot*2,16,
      &                                    this_routine,tagSymLabelChars)
-         SYMLABELCHARS=0.d0
+         SYMLABELCHARS=0.0_dp
          allocate(SymLabels(nSymLabels))
          call LogMemAlloc('SymLabels',nSymLabels,4,this_routine,
      &                                                     tagSymLabels)
@@ -162,7 +163,7 @@ C.. rotational labels.  We will need to compare each pair of t&r labels
 C.. with a stored list.
             WRITE(6,*) "Using space group representation."
             DO I=1,NSTATES
-               IF(SYMLABELCHARS(1,ROT_LABEL(I)).EQ.(0.D0,0.D0)) THEN
+               IF(SYMLABELCHARS(1,ROT_LABEL(I)).EQ.(0.0_dp,0.0_dp)) THEN
 C.. we've found an uninitialized symlabel - fill it
                   DO J=1,NROT
 C.. Indices need to be inverted so cannot straight ICOPY
@@ -175,7 +176,7 @@ C.. Indices need to be inverted so cannot straight ICOPY
 C.. point group
             WRITE(6,*) "Using point group representation."
             DO I=1,NSTATES
-               IF(SYMLABELCHARS(1,ROT_LABEL(I)).EQ.(0.D0,0.D0)) THEN
+               IF(SYMLABELCHARS(1,ROT_LABEL(I)).EQ.(0.0_dp,0.0_dp)) THEN
 C.. we've found an uninitialized symlabel - fill it
                   DO J=1,NROT
 C.. Indices need to be inverted so cannot straight ICOPY
@@ -206,7 +207,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          use constants, only: dp
          use CPMDData, only: nStates,PIInt,EIonIon,EigenValues,tagPIInt
          use SystemData, only: BasisFN
-         use Integrals, only: GetUMatEl
+         use Integrals_neci, only: GetUMatEl
          USE UMatCache, only: nstatesumat=>nstates,tUMAT2D
          USE UMatCache, only: SetUmatTrans,SetUMatCacheFlag,SetupUMat2D,
      &                        SetupUMatCache
@@ -280,7 +281,7 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
 !      = \epsilon_i \delta_ij - \sum_k <ik|kj>
 ! where h^{KS}_ij = < i | -1/2 \nabla^2 + v_ext + v_har + v_xc | j >
 ! and h^{KS}_ii = \epsilon_i
-!         FockMat(:,:)=dcmplx(0.d0,0.d0)
+!         FockMat(:,:)=dcmplx(0.0_dp,0.0_dp)
 
          WRITE(6,*) "Calculating TMAT"
          DO I=1,NSTATESUSED
@@ -290,13 +291,13 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
 
                IF(LCHKSYM(G1(II),G1(JJ))) THEN
 
-                  TOT=0.D0
+                  TOT=0.0_dp
                   IF(I.EQ.J) THEN
-                      TOT=TOT+(EIGENVALUES(I)+PIInt(I)/2.d0)
+                      TOT=TOT+(EIGENVALUES(I)+PIInt(I)/2.0_dp)
 !                      FockMat(I,J)=FockMat(I,J)+Eigenvalues(I)
                   END IF
                   TOT=TOT-CPMD1EINT(I,J)
-                  TOT=TOT-(HarInt(i,j))
+                  TOT=TOT-real(HarInt(i,j),dp)
 !                  FockMat(i,j)=FockMat(i,j)-dcmplx(CPMD1EInt(I,J))
                   IF (tCPMDSymTMat) THEN
                       TMATSYM(TMatInd(II+1,JJ+1))=TOT ! Indexing needs to be compatiable with TMatInd.
@@ -304,8 +305,8 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
                       TMAT2D(II,JJ)=TOT
                       TMAT2D(II+1,JJ+1)=TOT
 #ifdef __CMPLX
-                      TMAT2D(JJ,II)=dconjg(TOT)
-                      TMAT2D(JJ+1,II+1)=dconjg(TOT)
+                      TMAT2D(JJ,II)=conjg(TOT)
+                      TMAT2D(JJ+1,II+1)=conjg(TOT)
 #else
                       TMAT2D(JJ,II)=(TOT)
                       TMAT2D(JJ+1,II+1)=(TOT)
@@ -320,7 +321,7 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
                   ! Subtract exchange integrals from Fock matrix.
 !                 do K=1,nStates
 !                     call CPMDGetOcc(K,F) ! F is the occupation number of state K.
-!                      if (F.gt.1.d-5) then
+!                      if (F.gt.1.0e-5_dp) then
 !                          ! Get exchange integral <ik|kj>
 !                          if (K.gt.nStatesUsed) then
 !                              write (6,"(a,i4,a,f10.6)") 
@@ -333,7 +334,7 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
 !                          FockMat(i,j)=FockMat(i,j)-F*dcmplx(U)/2
 !                      end if
 !                  end do
-!                 FockMat(j,i)=dconjg(FockMat(i,j))
+!                 FockMat(j,i)=conjg(FockMat(i,j))
 
                ENDIF
 

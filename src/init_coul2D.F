@@ -5,24 +5,25 @@ C  ========================================================
       SUBROUTINE INITFOU2D(NMESHX,CK,NMAX,
      &     A,TALPHA,ALPHA,OMEGA,ZIA)
       use constants, only: dp,sp
+      use util_mod, only: neci_etime
 !      IMPLICIT real(dp)(A-H,O-Z)
       IMPLICIT NONE
+      integer :: NMESHX,NMAX
       complex(dp) CK(NMESHX,NMESHX,NMESHX)
       complex(dp) ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
       real(dp) A(3),OMEGA,ALPHA
-      real(sp) t1,t2,t3,t(2),etime
+      real(sp) t1,t2,t3,t(2)
       LOGICAL TALPHA
-      integer :: NMESHX,NMAX
       INTEGER, SAVE :: IFIRST=0
 !      SAVE IFIRST 
 C..
       IF(IFIRST.EQ.1) RETURN 
       IFIRST=1
 C..      
-      T1 = etime(t)
+      T1 = neci_etime(t)
       CALL GEN_CK_FFT2D(NMESHX,CK,A,TALPHA,ALPHA,OMEGA)
       CALL GEN_ZIA(NMESHX,NMAX,ZIA)
-      T2 = etime(t)
+      T2 = neci_etime(t)
       T3=(T2-T1)
       WRITE(6,*) 'V0=',CK(NMESHX/2+1,NMESHX/2+1,NMESHX/2+1)
       WRITE(6,*) ' TIME FOR INITIALISATION:',T3/1000.
@@ -100,20 +101,25 @@ C =========================================================
       !INTEGER FFTW_NO_SIMD
       !PARAMETER (FFTW_NO_SIMD=131072)
 #endif
+      integer :: i,j,k,n,n1,n2,n3,la1,la2
       complex(dp) DIST(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
       integer(int64) PLAN
       real(dp) A(3),x,y,z,aux,r,ALPHA,ALPHA2,OMEGA,OMEGAP
       LOGICAL TALPHA
       complex(dp) D(-N/2:N/2-1,-N/2:N/2-1)
-      integer :: i,j,k,n,n1,n2,n3,la1,la2
-      real(dp) :: HSTEPX,HSTEPY,HSTEPZ,gx,gy,gz,SUM,G,derf
+      real(dp) :: HSTEPX,HSTEPY,HSTEPZ,gx,gy,gz,SUM,G,DERF
+      character(len=*), parameter :: t_r="GEN_CK_FFT2D"
 C..
-!      PI=ACOS(-1.D0)
+!      PI=ACOS(-1.0_dp)
       ALPHA2=ALPHA*ALPHA
 C..
-      HSTEPX=2.D0*A(1)/N
-      HSTEPY=2.D0*A(2)/N
+      HSTEPX=2.0_dp*A(1)/N
+      HSTEPY=2.0_dp*A(2)/N
       HSTEPZ=0
+
+#if defined(NAGF95) || defined(__GFORTRAN__)
+      call stop_all(t_r,"No ERF in NAG?")
+#endif
     
 C..
       DO I=-N/2,N/2-1
@@ -124,21 +130,23 @@ c          DO K=-N/2,N/2-1
             Y=real(J,dp)*HSTEPY
             Z=real(K,dp)*HSTEPZ
             AUX=X*X+Y*Y+Z*Z
-            IF(AUX.NE.0.D0) THEN
+            IF(AUX.NE.0.0_dp) THEN
               IF(TALPHA) THEN 
                 R=SQRT(AUX) 
-                AUX=1.D0/R*(-1)**(I+J)*DERF(R/ALPHA)
+#if !defined(NAGF95) && !defined(__GFORTRAN__)                
+                AUX=1.0_dp/R*(-1)**(I+J)*DERF(R/ALPHA)
+#endif
               ELSE
-                AUX=1.D0/SQRT(AUX)*(-1)**(I+J)
+                AUX=1.0_dp/SQRT(AUX)*(-1)**(I+J)
               ENDIF
             ELSE
               IF(TALPHA) THEN 
-                AUX=(2.D0/SQRT(PI)/ALPHA)*(-1)**(I+J)
+                AUX=(2.0_dp/SQRT(PI)/ALPHA)*(-1)**(I+J)
               ELSE
-                AUX=DFLOAT(N/2)*(-1)**(I+J)
+                AUX=real(N/2,dp)*(-1)**(I+J)
               ENDIF
             ENDIF
-            D(I,J)=DCMPLX(AUX,0.D0)
+            D(I,J)=CMPLX(AUX,0.0_dp,dp)
 c            write(16,'(3i3,2e19.8)') i,j,k,d(i,j)
 
 c          ENDDO
@@ -193,7 +201,7 @@ C..Shift origin and normalise
         DO J=-N/2,N/2-1
 C          DO K=-N/2,N/2-1
             K=0
-            DIST(I,J,0)=DIST(I,J,0)*(-1)**(i+j+k)/dfloat(n1*n2)
+            DIST(I,J,0)=DIST(I,J,0)*(-1)**(i+j+k)/real(n1*n2,dp)
 C/dfloat(n1*n2)
 C          enddo
         enddo
@@ -201,7 +209,7 @@ C          enddo
 C..the short-range correction for alpha 
       IF(TALPHA) THEN 
 
-       OMEGAP=4.D0*OMEGA  
+       OMEGAP=4.0_dp*OMEGA  
         DO I=-N/2,N/2-1
           DO J=-N/2,N/2-1
 C           DO K=-N/2,N/2-1
@@ -211,16 +219,18 @@ C           DO K=-N/2,N/2-1
               GZ=0
 C..PI*K/A(3)
               G=SQRT(GX*GX+GY*GY+GZ*GZ)
-              IF(G.NE.0.D0) THEN 
+              IF(G.NE.0.0_dp) THEN 
 c sum=2 Pi * erf(a G/2)/G/omegap
-                SUM=2.D0*PI*DERF(ALPHA*G/2)/OMEGAP/G
-C                AUX=EXP(-G2*ALPHA2/4.D0)
-C                SUM=4.D0*PI*(1.D0-AUX)/OMEGAP/G2
+#if !defined(NAGF95) && !defined(__GFORTRAN__)                
+                SUM=2.0_dp*PI*DERF(ALPHA*G/2)/OMEGAP/G
+#endif
+C                AUX=EXP(-G2*ALPHA2/4.0_dp)
+C                SUM=4.0_dp*PI*(1.0_dp-AUX)/OMEGAP/G2
               ELSE
                  SUM=ALPHA/(SQRT(PI)*OMEGAP)
 C                SUM=PI*ALPHA2/OMEGAP 
               ENDIF
-              DIST(I,J,K)=DIST(I,J,K)+DCMPLX(SUM,0.D0)
+              DIST(I,J,K)=DIST(I,J,K)+CMPLX(SUM,0.0_dp,dp)
 C            ENDDO
           ENDDO
         ENDDO
@@ -231,22 +241,22 @@ C.test fft
 C       X=  0.2
 C       Y=  0.9
 C       Z=  0.0
-C       UIMAG=DCMPLX(0.D0,1.D0)
-C       CSUM=DCMPLX(0.D0,0.D0)
+C       UIMAG=DCMPLX(0.0_dp,1.0_dp)
+C       CSUM=DCMPLX(0.0_dp,0.0_dp)
 C       DO I=-N/2,N/2-1
 C         DO J=-N/2,N/2-1
 C             k=0
 C             GX=PI*I
 C             GY=PI*J
 C             GZ=PI*K
-C             CDOT=DCMPLX(0.D0,GX*X+GY*Y+GZ*Z)
+C             CDOT=DCMPLX(0.0_dp,GX*X+GY*Y+GZ*Z)
 C             CAUX= EXP(CDOT)*DIST(I,J,K)
 C             CSUM=CSUM+CAUX
 C               write(6,'(3i3,2e19.8)') i,j,k,dist(i,j,k)
 C         enddo
 C       enddo
 C       sum=sqrt(real(csum)**2+dimag(csum)**2)
-C       write(6,*) X,csum,1.D0/sqrt(x*x*a(1)**2+y*y*a(2)**2)
+C       write(6,*) X,csum,1.0_dp/sqrt(x*x*a(1)**2+y*y*a(2)**2)
 C       stop
       RETURN
       END

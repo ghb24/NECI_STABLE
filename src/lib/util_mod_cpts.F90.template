@@ -2,12 +2,14 @@
 type = integer(kind=int32)
 tmp_init = !
 tmp_destroy = !
+conditional_enable = !defined(SX)
 
 [int64]
 type = integer(kind=int64)
 
 [real]
 type = real(kind=sp)
+conditional_enable = !defined(SX)
 
 [doub]
 type = real(kind=dp)
@@ -16,10 +18,11 @@ type = real(kind=dp)
 type = logical
 
 [cplx]
-type = complex*8
+type = complex(kind=sp)
+conditional_enable = !defined(SX)
 
 [cplx_doub]
-type = complex*16
+type = complex(kind=dp)
 
 [sym]
 type = type(Symmetry)

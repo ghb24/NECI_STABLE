@@ -25,10 +25,12 @@ LOGICAL :: tCheckHighestPop,tRestartHighPop,tChangeProjEDet
 LOGICAL :: tRotoAnnihil,tRegenDiagHEls,tSpawnAsDet,tFindGroundDet
 LOGICAL :: tTruncCAS,tTruncInitiator,tDelayTruncInit,tAddtoInitiator    !Truncation the FCIMC excitation space by CAS
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange,tRetestAddtoInit
-logical :: tReadPopsRestart, tReadPopsChangeRef
+logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
+logical :: tRPA_QBA     !RPA calculation with QB approximation
 
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
 logical :: tPopsMapping !Map popsfile from smaller basis onto larger basis
+logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
 
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.
@@ -52,11 +54,14 @@ INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits,IterTruncInit,InitiatorWalk
 INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp,iFullSpaceIter
 INTEGER :: IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets,iDetGroup
 INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
-INTEGER :: InitWalkers,NMCyc,StepsSft,CLMax
+INTEGER :: NMCyc,StepsSft,CLMax
 INTEGER :: NEquilSteps,InitialPart
 INTEGER :: OccCASorbs,VirtCASorbs,iAnnInterval
 integer :: iPopsFileNoRead, iPopsFileNoWrite,iWeightPopRead,iRestartWalkNum
-INTEGER(int64) :: MaxNoatHF,HFPopThresh
+integer :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
+INTEGER(int64) :: MaxNoatHF,HFPopThresh,InitWalkers
+
+integer :: iReadWalkersRoot !The number of walkers to read in on the head node in each batch during a popsread
 
 real(dp) :: g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
 real(dp) :: G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
@@ -73,6 +78,8 @@ real(dp), target :: DiagSft
 real(dp) :: GraphEpsilon
 real(dp) :: PGenEpsilon
 real(dp) :: TargetGrowRate
+integer(int64) :: TargetGrowRateWalk    !Number of walkers before targetgrowrate kicks in
+integer(int64) :: iExitWalkers  !Exit criterion, based on total walker number
 
 
 !// additional from NECI.F
@@ -86,5 +93,7 @@ LOGICAL :: lNoTriples
 LOGICAL tUseProcsAsNodes  !Set if we treat each processor as its own node.
 INTEGER iLogicalNodeSize  !An alternative to the above, create logical nodes of at most this size.
                           ! 0 means use physical nodes.
+
+logical :: tContinueAfterMP2 ! UEG option only
 
 end module CalcData

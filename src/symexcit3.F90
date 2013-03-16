@@ -8,6 +8,8 @@ MODULE SymExcit3
     use bit_reps, only: NIfTot
     use constants, only: n_int
     USE GenRandSymExcitNUMod, only: SymLabelList2,SymLabelCounts2,ClassCountInd,ScratchSize
+    use SymExcitDataMod, only: SpinOrbSymLabel
+    use get_excit, only: make_double
     IMPLICIT NONE
 
 
@@ -43,11 +45,7 @@ MODULE SymExcit3
 ! Count the singles.            
 ! Take each electron and find out the number of symmetry allowed orbitals it may be excited to.
             do i=1,NEl
-                IF(tNoSymGenRandExcits) THEN
-                    Symi=0
-                ELSE
-                    Symi=INT(G1(nI(i))%Sym%S,4)
-                ENDIF
+                Symi=SpinOrbSymLabel(nI(i))
                 IF((G1(nI(i))%Ms).eq.-1) Spini=2        ! G1(i)%Ms is -1 for beta, and 1 for alpha.
                 IF((G1(nI(i))%Ms).eq.1) Spini=1         ! Translate this into 1 for alpha and 2 for beta
                                                         ! for the ClassCount arrays.
@@ -138,7 +136,7 @@ MODULE SymExcit3
 
 
 
-    SUBROUTINE GenExcitations3(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound)
+    SUBROUTINE GenExcitations3(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only)
 ! This routine finds in turn, every possible excitation from determinant nI.
 ! The excited determinant is then returned as nJ.
 ! exflag indicates which excitations we want to find.  exflag=1 - only singles are returned, exflag=2 - only
@@ -151,23 +149,27 @@ MODULE SymExcit3
 ! If tParity is true, two orbitals need to be switched in order to better represent the excitation, therefore a 
 ! negative sign must be included when finding the H element.
 ! When there are no more symmetry allowed excitations, tAllExcitFound becomes true.
-        INTEGER(KIND=n_int) :: iLut(0:NIfTot)
-        INTEGER :: nJ(NEl),ExcitMat3(2,2),exflag,nI(NEl)
-        LOGICAL :: tAllExcitFound,tParity
+        INTEGER(KIND=n_int), intent(in) :: iLut(0:NIfTot)
+        INTEGER, intent(in) :: nI(NEl),exflag
+        integer, intent(out) :: nJ(NEl)
+        integer, intent(inout) :: ExcitMat3(2,2)
+        LOGICAL, intent(out) :: tAllExcitFound,tParity
+        LOGICAL, intent(in) :: ti_lt_a_only
 
         IF(exflag.eq.2) THEN
 ! Just generate doubles            
 
-            CALL GenDoubleExcit(nI,iLut,nJ,ExcitMat3,tParity,tAllExcitFound)
+            CALL GenDoubleExcit(nI,iLut,nJ,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only)
 
         
         ELSE 
 ! Generate singles, returning Orbi and Orba as non-zero, but keeping the others 0.        
 
-            CALL GenSingleExcit(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound)
+            CALL GenSingleExcit(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only)
             
             ! When the last single is input, providing exflag is not 1, the first double is then found
             ! and from then on GenDoubleExcit is called.
+!            if(exflag.eq.2) write(6,*) "All singles generated"
 
         ENDIF
 
@@ -183,7 +185,7 @@ MODULE SymExcit3
 
 
 
-    SUBROUTINE GenSingleExcit(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound)
+    SUBROUTINE GenSingleExcit(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only)
 ! Despite being fed four indices, this routine finds single excitations.  Orbi -> Orba. (Orbj and Orbb remain 0).
 ! Feeding in 0 indices indicates it is the first excitation that needs to be found.
 ! The single excitation goes from orbital i to a, from determinant nI to nJ.
@@ -195,7 +197,7 @@ MODULE SymExcit3
         INTEGER :: nI(NEl),Orbi,Orba,Symi,nJ(NEl)
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: NoOcc,ExcitMat3(2,2),exflag,SymInd,Spina, Mla
-        LOGICAL :: tInitOrbsFound,tParity,tAllExcitFound,tEndaOrbs
+        LOGICAL :: tInitOrbsFound,tParity,tAllExcitFound,tEndaOrbs,ti_lt_a_only
         INTEGER , SAVE :: OrbiIndex,OrbaIndex,Spini,NewSym,Mli
 
 !        WRITE(6,*) 'Original Determinant',nI
@@ -211,11 +213,7 @@ MODULE SymExcit3
             OrbiIndex=1
             Orbi=nI(OrbiIndex)                              ! Take the first occupied orbital
 
-            IF(tNoSymGenRandExcits) THEN
-                Symi=0
-            ELSE
-                Symi=INT(G1(Orbi)%Sym%S,4)                      ! and find its spin and spat symmetries.
-            ENDIF
+            Symi=SpinOrbSymLabel(Orbi)                      ! and find its spin and spat symmetries.
             IF((G1(Orbi)%Ms).eq.-1) Spini=2  
             IF((G1(Orbi)%Ms).eq.1) Spini=1  
             IF(tFixLz) THEN
@@ -223,6 +221,7 @@ MODULE SymExcit3
             ELSE
                 Mli = 0
             ENDIF
+!            write(6,*) "***",Spini,Symi,Mli
             OrbaIndex=SymLabelCounts2(1,ClassCountInd(Spini,Symi,Mli))  ! Start considering a at the first allowed symmetry.
 
         ELSE
@@ -230,7 +229,8 @@ MODULE SymExcit3
                                                             ! more possible excitations from this.
 
 ! At this stage, OrbaIndex is the a from the previous excitation.
-            SymInd=ClassCountInd(Spini,G1(Orbi)%Sym%S,Mli)
+            SymInd=ClassCountInd(Spini,SpinOrbSymLabel(Orbi),Mli)
+!            write(6,*) "symind = ", symind
 
             IF(OrbaIndex.eq.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) THEN
                 !Orba was the last in the symmetry block. Do not allow OrbaIndex+1
@@ -240,11 +240,7 @@ MODULE SymExcit3
                 OrbiIndex=OrbiIndex+1
                 IF(OrbiIndex.le.NEl) THEN
                     Orbi=nI(OrbiIndex)
-                    IF(tNoSymGenRandExcits) THEN
-                        Symi=0
-                    ELSE
-                        Symi=INT(G1(Orbi)%Sym%S,4)                  
-                    ENDIF
+                    Symi=SpinOrbSymLabel(Orbi)                  
                     IF((G1(Orbi)%Ms).eq.-1) Spini=2  
                     IF((G1(Orbi)%Ms).eq.1) Spini=1  
                     IF(tFixLz) THEN
@@ -252,11 +248,12 @@ MODULE SymExcit3
                     ELSE
                         Mli = 0
                     ENDIF
+!                    write(6,*) "*****", ClassCountInd(Spini,Symi,Mli),Spini,Symi,Mli
                     OrbaIndex=SymLabelCounts2(1,ClassCountInd(Spini,Symi,Mli))
                 ELSE
                     IF(exflag.ne.1) THEN
                         ExcitMat3(:,:)=0
-                        CALL GenDoubleExcit(nI,iLut,nJ,ExcitMat3,tParity,tAllExcitFound)
+                        CALL GenDoubleExcit(nI,iLut,nJ,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only)
                         exflag=2
                     ELSE
                         tAllExcitFound=.true.
@@ -268,11 +265,7 @@ MODULE SymExcit3
 ! There are more possible excitations from orbital a, simply check the next orbital after the current a.
                 OrbaIndex=OrbaIndex+1
 
-                IF(tNoSymGenRandExcits) THEN
-                    Symi=0
-                ELSE
-                    Symi=INT(G1(Orbi)%Sym%S,4)           
-                ENDIF
+                Symi=SpinOrbSymLabel(Orbi)           
             ENDIF
         ENDIF
 
@@ -285,7 +278,7 @@ MODULE SymExcit3
 ! If we've read in the last single, set orbi, orbj, orba, and orbb to 0 and call gendoubleexcit.        
                 IF(exflag.ne.1) THEN
                     ExcitMat3(:,:)=0
-                    CALL GenDoubleExcit(nI,iLut,nJ,ExcitMat3,tParity,tAllExcitFound)
+                    CALL GenDoubleExcit(nI,iLut,nJ,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only)
                     exflag=2
                 ELSE
                     tAllExcitFound=.true.
@@ -302,12 +295,13 @@ MODULE SymExcit3
                 Orba=SymLabelList2(OrbaIndex)
             ENDIF
 
-            SymInd=ClassCountInd(Spini,G1(Orbi)%Sym%S,Mli)
+            SymInd=ClassCountInd(Spini,SpinOrbSymLabel(Orbi),Mli)
 
 ! Need to also make sure orbital a is unoccupied, so make sure the orbital is not in nI.
             NoOcc=0
             IF(.not.tEndaOrbs) THEN
-                do while (BTEST(iLut((Orba-1)/bits_n_int),MOD((Orba-1),bits_n_int)))
+                do while ((BTEST(iLut((Orba-1)/bits_n_int),MOD((Orba-1),bits_n_int))) .or. &
+                    (ti_lt_a_only .and. ( Orba .lt. Orbi )) )
 ! While this is true, Orba is occupied, so keep incrementing Orba until it is not.                    
                     NoOcc=NoOcc+1
                     IF(OrbaIndex+NoOcc.gt.nBasis) THEN
@@ -323,11 +317,7 @@ MODULE SymExcit3
 
             IF(.not.tEndaOrbs) THEN
 ! Then check we have not overrun the symmetry block while skipping the occupied orbitals.                
-                IF(tNoSymGenRandExcits) THEN
-                    NewSym=0
-                ELSE
-                    NewSym=INT(G1(Orba)%Sym%S,4)
-                ENDIF
+                NewSym=SpinOrbSymLabel(Orba)
                 IF((G1(Orba)%Ms).eq.-1) Spina=2  
                 IF((G1(Orba)%Ms).eq.1) Spina=1  
                 IF(tFixLz) THEN
@@ -347,11 +337,7 @@ MODULE SymExcit3
                 OrbiIndex=OrbiIndex+1
                 IF(OrbiIndex.le.NEl) THEN
                     Orbi=nI(OrbiIndex)
-                    IF(tNoSymGenRandExcits) THEN
-                        Symi=0
-                    ELSE
-                        Symi=INT(G1(Orbi)%Sym%S,4)                      ! and find its spin and spat symmetries.
-                    ENDIF
+                    Symi=SpinOrbSymLabel(Orbi)                      ! and find its spin and spat symmetries.
                     IF((G1(Orbi)%Ms).eq.-1) Spini=2  
                     IF((G1(Orbi)%Ms).eq.1) Spini=1  
                     IF(tFixLz) THEN
@@ -359,32 +345,33 @@ MODULE SymExcit3
                     ELSE
                         Mli = 0
                     ENDIF
+!                    write(6,*) "Symind3 = ",ClassCountInd(Spini,Symi,Mli)
                     OrbaIndex=SymLabelCounts2(1,ClassCountInd(Spini,Symi,Mli))
                 ENDIF
             ENDIF
 
         enddo
 
-        IF(ExcitMat3(1,2).eq.0) CALL FindNewSingDet(nI,nJ,OrbiIndex,OrbA,ExcitMat3,tParity)
+        IF((ExcitMat3(1,2).eq.0).and.(.not.tAllExcitFound)) CALL FindNewSingDet(nI,nJ,OrbiIndex,OrbA,ExcitMat3,tParity)
             
     ENDSUBROUTINE GenSingleExcit
 
 
 
-    SUBROUTINE GenDoubleExcit(nI,iLut,nJ,ExcitMat3,tParity,tAllExcitFound)
+    SUBROUTINE GenDoubleExcit(nI,iLut,nJ,ExcitMat3,tParity,tAllExcitFound,tij_lt_ab_only)
 ! This generates one by one, all possible double excitations.
 ! This involves a way of ordering the electron pairs i,j and a,b so that given an i,j and a,b we can find the next.
 ! The overall symmetry must also be maintained - i.e. if i and j are alpha and beta, a and b must be alpha and beta
 ! or vice versa.
         USE SystemData , only: ElecPairs, tFixLz, iMaxLz
-        USE GenRandSymExcitNUMod , only: PickElecPair,FindNewDet 
+        USE GenRandSymExcitNUMod , only: PickElecPair
         use constants, only: bits_n_int
         INTEGER :: nI(NEl),Orbj,Orbi,Orba,Orbb,Syma,Symb,NewSym
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: Elec1Ind,Elec2Ind,SymProduct,iSpn,Spinb,nJ(NEl),ExcitMat3(2,2),SumMl
         INTEGER , SAVE :: ijInd,OrbaChosen,OrbbIndex,Spina,SymInd
-        LOGICAL :: tDoubleExcitFound,tFirsta,tFirstb,tNewij,tNewa,tAllExcitFound,tParity
-        INTEGER :: Mli, Mla, Mlb
+        LOGICAL :: tDoubleExcitFound,tFirsta,tFirstb,tNewij,tNewa,tAllExcitFound,tParity,tij_lt_ab_only
+        INTEGER :: Mli, Mla, Mlb, Indij
 
 !        write(6,*) "SymLabelCounts2: ",SymLabelCounts2(1,:)
 !        write(6,*) "SymLabelCounts2: ",SymLabelCounts2(2,:)
@@ -415,6 +402,8 @@ MODULE SymExcit3
 ! SymProduct and the spin iSpn.
 ! iSpn=2 for alpha beta pair, ispn=3 for alpha alpha pair and ispn=1 for beta beta pair.
             CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,ijInd)
+
+            Indij = (( ( (nI(Elec2Ind)-2) * (nI(Elec2Ind)-1) ) / 2 ) + nI(Elec1Ind))
 
             tNewij=.false.
 ! This becomes true when we can no longer find an allowed orbital a for this ij pair and we need to move onto the next.
@@ -561,7 +550,8 @@ MODULE SymExcit3
 !                            write(6,"(B64.64)") iLut(0)
 !                            WRITE(6,*) 'chosen orbb',orbb
 ! Checking the orbital b is unoccupied and > a.                        
-                            do while ((BTEST(iLut((Orbb-1)/bits_n_int),MOD((Orbb-1),bits_n_int))).or.(Orbb.le.Orba))
+                            do while (((BTEST(iLut((Orbb-1)/bits_n_int),MOD((Orbb-1),bits_n_int))).or.(Orbb.le.Orba)) .or. &
+                                (tij_lt_ab_only .and. ( (( ( (Orbb-2) * (Orbb-1) ) / 2 ) + Orba) .lt. Indij )) )
                                 !Orbital is occupied - try again
 
                                 OrbbIndex=OrbbIndex+1
@@ -627,8 +617,9 @@ MODULE SymExcit3
 
         enddo lp
 
-        if(tDoubleExcitFound) then
-            CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Orba,Orbb,ExcitMat3,tParity)
+        if(tDoubleExcitFound.and.(.not.tAllExcitFound)) then
+            call make_double (nI, nJ, elec1ind, elec2ind, orbA, orbB, &
+                              ExcitMat3, tParity)
 !        else
 !            write(6,*) "Exiting loop with all excitations found: ",tAllExcitFound
         endif
@@ -640,7 +631,7 @@ MODULE SymExcit3
 !        WRITE(6,*) 'These have symmetries : ',INT(G1(ExcitMat3(1,1))%Sym%S,4),INT(G1(ExcitMat3(1,2))%Sym%S,4),' to ',INT(G1(Orba)%Sym%S,4),INT(G1(Orbb)%Sym%S,4)
 !        WRITE(6,*) 'These have symmetries : ',G1(ExcitMat3(1,1))%Ml,G1(ExcitMat3(1,2))%Ml,' to ',G1(Orba)%Ml,G1(Orbb)%Ml
 !        WRITE(6,*) 'The new determinant is : ',nJ(:)
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 
 
     ENDSUBROUTINE GenDoubleExcit

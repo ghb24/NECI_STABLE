@@ -86,43 +86,69 @@
 !   SPIN-PROJECT-GAMMA   Change the delta-gamma value used for stochastic
 !                        spin projection
 !   SPIN-PROJECT-SHIFT   Change the spin projection shift value.
+!   REFSHIFT             Change the default use of the shift to now keep HF populations constant.
+!   CALCRDMONFLY XXX XXX XXX  
+!                        Stochastically calculate the reduced density 
+!                        matrices.  The first integer specifies the 
+!                        XXX-electron RDM (3 for both 1 and 2).  The second 
+!                        is the number of iterations after the shift starts 
+!                        changing, to start filling the RDM, and the 
+!                        third is the frequency the energy is calculated 
+!                        and printed.
+!   CALCEXPLICITRDM XXX XXX XXX
+!                        Same as above, but the RDM is filled using the 
+!                        explicit algorithm.
+!   FILLRDMITER XXX      Change the number of iterations after the shift has 
+!                        changed that the RDM are filled from.
+!   DIAGFLYONERDM        Requests to diagonalise the 1-RDM at the end.
+!   REFSHIFT             Change the default use of the shift to now keep HF 
+!                        populations constant.
+!   TIME                 Specify a total elapsed-time before the calculation
+!                        performs an automatic soft-exit. If specified as -1,
+!                        we don't stop automatically. 
 ! **********************************************************
 
 module soft_exit
 
-    use SystemData, only: nel, nBasis
+    use SystemData, only: nel, nBasis, tHPHF
     use bit_reps, only: NIfTot
     use util_mod, only: binary_search, get_free_unit
     use FciMCData, only: iter, CASMin, CASMax, tTruncSpace, tSinglePartPhase,&
-                         SumENum, SumNoatHF, &
+                         SumENum, SumNoatHF, tTimeExit, &
                          AvAnnihil, VaryShiftCycles, SumDiagSft, &
                          VaryShiftIter, CurrentDets, iLutHF, HFDet, &
-                         TotWalkers,tPrintHighPop
+                         TotWalkers,tPrintHighPop, tSearchTau, MaxTimeExit, &
+                         n_proje_sum => nproje_sum, proje_update_comb
     use CalcData, only: DiagSft, SftDamp, StepsSft, OccCASOrbs, VirtCASOrbs, &
                         tTruncCAS,  NEquilSteps, tTruncInitiator, &
                         InitiatorWalkNo, tCheckHighestPop, tRestartHighPop, &
                         tChangeProjEDet, tCheckHighestPopOnce, FracLargerDet,&
                         SinglesBias_value => SinglesBias, tau_value => tau, &
                         nmcyc_value => nmcyc, tTruncNOpen, trunc_nopen_max, &
-                        target_grow_rate => TargetGrowRate
+                        target_grow_rate => TargetGrowRate, tShiftonHFPop
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
-    use Input
+    use Input_neci
     use Logging, only: tHistSpawn, tCalcFCIMCPsi, tIterStartBlock, &
-                       IterStartBlocking, tHFPopStartBlock, NHistEquilSteps
+                       IterStartBlocking, tHFPopStartBlock, NHistEquilSteps, &
+                       IterRDMonFly_value => IterRDMonFly, RDMExcitLevel, &
+                       tExplicitAllRDM, tRDMonFly, tChangeVarsRDM, &
+                       RDMEnergyIter, tDiagRDM
     use FCIMCLoggingMOD, only: PrintBlocking, RestartBlocking, &
                                PrintShiftBlocking_proc => PrintShiftBlocking,&
                                RestartShiftBlocking_proc=>RestartShiftBlocking
-    use AnnihilationMod, only: DetermineDetNode
+!    use AnnihilationMod, only: DetermineDetNode
     use constants, only: lenof_sign, int32, dp
     use bit_reps, only: extract_sign,encode_sign
     use spin_project, only: tSpinProject, spin_proj_gamma, &
                             spin_proj_interval, spin_proj_shift, &
                             spin_proj_cutoff, spin_proj_spawn_initiators, &
                             spin_proj_no_death, spin_proj_iter_count
+!    use DetBitOps, only: DetermineDetNode                        
+    use hash, only : DetermineDetNode
     use hist_data, only: Histogram
-    use Parallel
+    use Parallel_neci
     implicit none
 
 contains
@@ -159,10 +185,58 @@ contains
                               spin_project_spawn_initiators = 34, &
                               spin_project_no_death = 35, &
                               spin_project_iter_count = 36, trunc_nopen = 37, &
-                              targetgrowrate = 38
-
-        integer, parameter :: last_item = targetgrowrate
+                              targetgrowrate = 38, refshift = 39, & 
+                              calc_rdm = 40, calc_explic_rdm = 41, &
+                              fill_rdm_iter = 42, diag_one_rdm = 43, &
+                              nprojesum = 44, time = 45
+        integer, parameter :: last_item = time
         integer, parameter :: max_item_len = 30
+        character(max_item_len), parameter :: option_list_molp(last_item) &
+                               = (/"truncate                     ", &
+                                   "not_option                   ", &
+                                   "exit                         ", &
+                                   "writepopsfile                ", &
+                                   "varyshift                    ", &
+                                   "iterations                   ", &
+                                   "timestep                     ", &
+                                   "shift                        ", &
+                                   "shiftdamping                 ", &
+                                   "interval                     ", &
+                                   "singlesbias                  ", &
+                                   "zeroproje                    ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "initiator_thresh             ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "changeref                    ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
+                                   "not_option                   "/)
         character(max_item_len), parameter :: option_list(last_item) &
                                = (/"excite                       ", &
                                    "truncatecas                  ", &
@@ -201,14 +275,20 @@ contains
                                    "spin-project-no-death        ", &
                                    "spin-project-iter-count      ", &
                                    "trunc-nopen                  ", &
-                                   "targetgrowrate               "/)
-
+                                   "targetgrowrate               ", &
+                                   "refshift                     ", &
+                                   "calcrdmonfly                 ", &
+                                   "calcexplicitrdm              ", &
+                                   "fillrdmiter                  ", &
+                                   "diagflyonerdm                ", &
+                                   "nprojesum                    ", &
+                                   "time                         "/)
 
         logical :: exists, any_exist, eof, deleted, any_deleted, tSource
         logical :: opts_selected(last_item)
         logical, intent(out) :: tSingBiasChange, tSoftExitFound
         logical, intent(out) :: tWritePopsFound
-        integer :: i, proc, nmcyc_new, ios, pos, trunc_nop_new
+        integer :: i, proc, nmcyc_new, ios, pos, trunc_nop_new, IterRDMonFly_new
         integer, dimension(lenof_sign) :: hfsign
         real(dp) :: hfScaleFactor
         character(len=100) :: w
@@ -254,7 +334,7 @@ contains
 
                         ! Mark any selected options.
                         do i = 1, last_item
-                            if (trim(w) == trim(option_list(i))) then
+                            if ((trim(w) == trim(option_list(i))).or.(trim(w).eq.trim(option_list_molp(i)))) then
                                 opts_selected(i) = .true.
                                 exit
                             endif
@@ -263,6 +343,8 @@ contains
                         ! Do we have any other items to read in?
                         if (i == tau) then
                             call readf (tau_value)
+                        elseif (i == nprojesum) then     
+                            call readi (n_proje_sum)     
                         elseif (i == TargetGrowRate) then
                             call readf (target_grow_rate)
                         elseif (i == diagshift) then
@@ -310,6 +392,18 @@ contains
                             call readi (spin_proj_iter_count)
                         elseif (i == trunc_nopen) then
                             call readi (trunc_nop_new)
+                        elseif (i == calc_rdm) then
+                            call readi (RDMExcitLevel)
+                            call readi (IterRDMonFly_new)
+                            call readi (RDMEnergyIter)
+                        elseif (i == calc_explic_rdm) then
+                            call readi (RDMExcitLevel)
+                            call readi (IterRDMonFly_new)
+                            call readi (RDMEnergyIter)
+                        elseif (i == fill_rdm_iter) then
+                            call readi (IterRDMonFly_new)
+                        elseif (i == time) then
+                            call readf (MaxTimeExit)
                         endif
                     enddo
 
@@ -428,6 +522,17 @@ contains
             if (opts_selected(tau)) then
                 call MPIBCast (tau_value, tSource)
                 write(6,*) 'TAU changed to: ', tau_value, 'on iteration: ', iter
+                if (tSearchTau) then
+                    write(6,*) "Ceasing the searching for tau."
+                    tSearchTau = .false.
+                endif
+            endif
+
+            if(opts_selected(nprojesum)) then
+                call MPIBCast(n_proje_sum, tSource)
+                proje_update_comb=.true.
+                call MPIBCast(proje_update_comb, tSource)
+                write(6,*) "NPROJE_SUM changed to: ",n_proje_sum, "on iteration: ",iter
             endif
 
             if(opts_selected(targetgrowrate)) then
@@ -602,13 +707,13 @@ contains
                 root_print 'Number at Hartree-Fock scaled by factor: ', &
                            hfScaleFactor
 
-                SumNoatHF = SumNoatHF * hfScaleFactor
+                SumNoatHF = nint(real(SumNoatHF,dp) * hfScaleFactor,int64)
                 if (iNodeIndex == DetermineDetNode(HFDet,0).and. bNodeRoot) then
                     pos = binary_search (CurrentDets(:,1:TotWalkers), &
                                          iLutHF)
                     call extract_sign (CurrentDets(:,pos), hfsign)
                     do i = 1, lenof_sign
-                        hfsign(i) = hfsign(i) * hfScaleFactor
+                        hfsign(i) = nint(real(hfsign(i),dp) * hfScaleFactor,sizeof_int)
                     enddo
                     call encode_sign (CurrentDets(:,pos), HFSign)
                 endif
@@ -720,6 +825,132 @@ contains
                                &of unpaired electrons during a run.'
                 endif
             endif
+
+            ! varyshift according to reference population 
+            if (opts_selected(refshift)) then
+                tShiftonHFPop = .true.
+                write(6,*) 'Request to change default shift action to REFSHIFT &
+                &detected on a node on iteration: ',iter
+            endif
+
+            ! Initialise calculation of the stochastic RDM.
+            if (opts_selected(calc_rdm)) then
+                tChangeVarsRDM = .true. 
+                call MPIBCast (tChangeVarsRDM, tSource)
+                call MPIBCast (RDMExcitLevel, tSource)
+                call MPIBCast (IterRDMonFly_new, tSource)
+                call MPIBCast (RDMEnergyIter, tSource)
+
+                if (IterRDMonFly_new .le. (Iter - VaryShiftIter)) then
+                    root_print 'Request to initialise the STOCHASTIC &
+                               &calculation of the density matrices.'
+                    root_print 'However the iteration specified to start &
+                               &filling has already been.'
+                    root_print 'Beginning to fill RDMs in the next iteration.'
+                    IterRDMonFly_value = (Iter - VaryShiftIter) + 1
+
+                else
+                    root_print 'Initialising the STOCHASTIC calculation of &
+                               &the reduced density matrices'
+                    IterRDMonFly_value = IterRDMonFly_new
+                endif
+            endif
+
+            ! Initialise calculation of the explicit RDM.
+            if (opts_selected(calc_explic_rdm)) then
+                if(tHPHF) then
+                    root_print 'Trying to set up calculation of the &
+                               &EXPLICIT RDM.'
+                    root_print 'But the EXPLICIT method does not work with &
+                               &HPHF.'
+                    root_print 'Ignoring request.'
+                else
+                    tChangeVarsRDM = .true. 
+                    tExplicitAllRDM = .true.
+                    call MPIBCast (tChangeVarsRDM, tSource)
+                    call MPIBCast (tExplicitAllRDM, tSource)
+                    call MPIBCast (RDMExcitLevel, tSource)
+                    call MPIBCast (IterRDMonFly_new, tSource)
+                    call MPIBCast (RDMEnergyIter, tSource)
+
+                    if (IterRDMonFly_new .le. (Iter - VaryShiftIter)) then
+                        root_print 'Request to initialise the EXPLICIT &
+                                   &calculation of the density matrices.'
+                        root_print 'However the iteration specified to start &
+                                   &filling has already been.'
+                        root_print 'Beginning to fill RDMs in the next iteration.'
+                        IterRDMonFly_value = (Iter - VaryShiftIter) + 1
+
+                    else
+                        root_print 'Initialising the EXPLICIT calculation of &
+                                   &the reduced density matrices'
+                        IterRDMonFly_value = IterRDMonFly_new
+                    endif
+                endif
+            endif
+
+            ! Change the starting iteration for filling the rdm.
+            if (opts_selected(fill_rdm_iter)) then
+                call MPIBCast (IterRDMonFly_new, tSource)
+
+                if (IterRDMonFly_new .le. (Iter - VaryShiftIter)) then
+                    root_print 'New value of IterRDMonFly is LESS than or EQUAL TO &
+                               &the current iteration number'
+                    root_print 'The number of iterations after the shift change & 
+                               &to start filling the RDM has been left at ', IterRDMonFly_value
+                elseif(tRDMonFly) then
+                    IterRDMonFly_value = IterRDMonFly_new
+                    if(tExplicitAllRDM) then
+                        if(RDMExcitLevel.eq.3) then
+                            root_print 'The 1 and 2 electron reduced density matrices &
+                                      &will be EXPLICITLY filled ' 
+                            root_print 'from the following number of iterations after the &
+                                      &shift changes ', IterRDMonFly_value
+                        else
+                            root_print 'The ',RDMExcitLevel,' electron reduced density & 
+                                      &matrices will be EXPLICITLY filled '
+                            root_print 'from the following number of iterations after the &
+                                      &shift changes ', IterRDMonFly_value
+                        endif
+                    else
+                        if(RDMExcitLevel.eq.3) then
+                            root_print 'The 1 and 2 electron reduced density matrices &
+                                      &will be STOCHASTICALLY filled ' 
+                            root_print 'from the following number of iterations after the &
+                                      &shift changes ', IterRDMonFly_value
+                        else
+                            root_print 'The ',RDMExcitLevel,' electron reduced density & 
+                                      &matrices will be STOCHASTICALLY filled ' 
+                            root_print 'from the following number of iterations after the &
+                                      &shift changes ', IterRDMonFly_value
+                        endif
+                    endif
+                else
+                    root_print 'Attempt to start filling the reduced density matrices.'
+                    root_print 'This cannot be done, because the arrays have not &
+                               &been set up.'
+                    root_print 'Try CALC(EXPLICIT)RDM RDMExcitLevel RDMIter EnergyIter'
+                endif
+            endif
+
+            if (opts_selected(diag_one_rdm)) then
+                tDiagRDM = .true.
+                root_print 'Requesting to diagonalise the 1-RDM at the end of the &
+                           &calculation.'
+            endif
+
+            if (opts_selected(time)) then
+                call MPIBcast(MaxTimeExit, tSource)
+                if (MaxTimeExit <= 0) then
+                    tTimeExit = .false.
+                    root_print "Automatic time-based soft-exit disabled."
+                else
+                    tTimeExit = .true.
+                    root_print "Automatic soft-exit set to ", MaxTimeExit, &
+                               "mins"
+                    MaxTimeExit = MaxTimeExit * 60.0_dp
+                end if
+            end if
 
         endif
 

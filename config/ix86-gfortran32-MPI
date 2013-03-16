@@ -2,11 +2,12 @@
 fc = mpif90
 cc = mpic++
 ld = mpif90
-ldflags = -m32
+ldflags = -m32 -rdynamic
 compiler = GCC-f95-on-LINUX
 cpp = cpp -C -traditional
-cppflags = -D__Linux -DPARALLEL -D__INT64 -D__SHARED_MEM
-libs = -L ~/lib/fftw-3.1.2/lib -L ~/src/lib/fftw-3.1.2/lib -L /usr/lib/atlas -lfftw3 -llapack -lblas -lstdc++ -lrt
+cppflags = -D__Linux -DPARALLEL -D__INT64 -D__SHARED_MEM -D__GFORTRAN__ -DDISABLE_FFTW
+libs = -L /usr/lib/atlas -llapack -lblas -lstdc++ -lrt
+
 module_flag = -J
 
 [dbg]

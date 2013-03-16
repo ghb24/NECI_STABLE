@@ -1,4 +1,4 @@
-module timing
+module timing_neci
 != JSS.  Routines for timing code blocks.
 
 != To do: 
@@ -39,6 +39,7 @@ module timing
 != See the individual routines for more information.
 ! ========================================================================
 
+use constants
 implicit none
 save
 
@@ -54,18 +55,18 @@ end type
 type timer_object
     character(25) :: timer_name
     integer :: ncalls=0
-    real(4) :: time_cpu=0.0     ! For timing of the current
-    real(4) :: time_system=0.0  ! call to the procedure.
-    real(4) :: sum_time_cpu=0.0    ! Sum of time spent in the 
-    real(4) :: sum_time_system=0.0 ! procedure.
+    real(sp) :: time_cpu=0.0     ! For timing of the current
+    real(sp) :: time_system=0.0  ! call to the procedure.
+    real(sp) :: sum_time_cpu=0.0    ! Sum of time spent in the 
+    real(sp) :: sum_time_system=0.0 ! procedure.
     logical :: timing_on=.false.   ! true whilst the timer is active.
 end type timer_object
 
 type(timer_object),allocatable,target :: timers(:)
 
 ! For total calculation time.
-real(4) :: global_time_cpu=0.d0
-real(4) :: global_time_system=0.d0
+real(sp) :: global_time_cpu=0.0
+real(sp) :: global_time_system=0.0
 ! If global_timing_on is true, then handle the total time differently in the timing output,
 ! as then have requested timing output without halting the global timer.
 logical :: global_timing_on=.false. 
@@ -84,7 +85,7 @@ contains
       integer :: i
 
       call cpu_time(global_time_cpu)
-      global_time_system=0
+      global_time_system=real(0.0,sp)
       global_timing_on=.true.
 
       if (.not.allocated(timers)) allocate(timers(ntimer))
@@ -107,17 +108,17 @@ contains
       != Stop global timer for timing the total calculation time.
 
       implicit none
-      real(4) :: t(2)
+      real(sp) :: t(2)
 
       if (global_timing_on) then
           call cpu_time(t(1))
-          t(2)=0
+          t(2)=real(0.0,sp)
           
           global_time_cpu=t(1)-global_time_cpu
           global_time_system=t(2)-global_time_system
           global_timing_on=.false.
       else
-          call warning('end_timing','Global timing never initialised via call to init_timing.')
+          call warning_neci('end_timing','Global timing never initialised via call to init_timing.')
       end if
 
    end subroutine end_timing
@@ -143,7 +144,7 @@ contains
       implicit none
       type(timer) :: proc_timer
       integer, optional, intent(in) :: obj_level
-      real(4) :: t(2)
+      real(sp) :: t(2)
       integer :: timer_level
 
       if (.not.global_timing_on) then
@@ -166,7 +167,7 @@ contains
               ! Have a new object.
               itimer=itimer+1
               if (itimer.gt.ntimer) then
-                  call warning('set_timer','ntimer parameter too small for the number of objects to be timed.')
+                  call warning_neci('set_timer','ntimer parameter too small for the number of objects to be timed.')
                   proc_timer%time=.false.
                   timer_error=.true.
                   return
@@ -183,7 +184,7 @@ contains
               ! correct timings are obtained.
               ! Start the clock.
               call cpu_time(t(1))
-              t(2)=0
+              t(2)=real(0.0,sp)
               proc_timer%store%time_cpu=t(1)
               proc_timer%store%time_system=t(2)
               proc_timer%store%timing_on=.true.
@@ -205,18 +206,18 @@ contains
       implicit none
       type(timer), intent(inout) :: proc_timer
       integer :: i
-      real(4) :: t(2)
-      real(4) :: time_cpu,time_system
+      real(sp) :: t(2)
+      real(sp) :: time_cpu,time_system
 
       if (.not.proc_timer%time) then
           ! Not timing this object: its level is below that of the
           ! iGLobalTimerLevel given via the logging option TIMING.
       else if (.not.associated(proc_timer%store)) then
-          call warning('halt_timer','proc_timer not intialised: '//proc_timer%timer_name)
+          call warning_neci('halt_timer','proc_timer not intialised: '//proc_timer%timer_name)
           timer_error=.true.
       else
           call cpu_time(t(1))
-          t(2)=0
+          t(2)=real(0.0,sp)
           time_cpu=t(1)-proc_timer%store%time_cpu
           time_system=t(2)-proc_timer%store%time_system
           proc_timer%store%sum_time_cpu=proc_timer%store%sum_time_cpu+time_cpu
@@ -237,7 +238,7 @@ contains
 
 
 
-   real(4) function get_total_time(proc_timer,t_elapsed)
+   real(sp) function get_total_time(proc_timer,t_elapsed)
       != Return the (current) total time for a given timed procedure.
       != By default this does not include the elapsed time of the current
       != run of proc_timer's routine, so if proc_timer is active then
@@ -253,17 +254,17 @@ contains
       implicit none
       type(timer) :: proc_timer
       logical,optional :: t_elapsed
-      real(4) :: t(2)
+      real(sp) :: t(2)
 
       if (.not.associated(proc_timer%store)) then
-          call warning('get_total_time.','proc_timer not intialised: '//adjustl(proc_timer%timer_name))
+          call warning_neci('get_total_time.','proc_timer not intialised: '//adjustl(proc_timer%timer_name))
           get_total_time=-1000.0 ! Helpfully return insane value, so it is obvious something went wrong. ;-)
       else
           get_total_time=proc_timer%store%sum_time_cpu+proc_timer%store%sum_time_system
           if (present(t_elapsed)) then
               if (t_elapsed) then
                   call cpu_time(t(1))
-                  t(2)=0
+                  t(2)=real(0.0,sp)
                   get_total_time=get_total_time+t(1)+t(2)-proc_timer%store%time_cpu-proc_timer%store%time_system
               end if
           end if
@@ -292,15 +293,15 @@ contains
       integer :: io=6
       integer :: nobjs
       integer :: i,it,id(1)
-      real(4) :: t(2)
-      real(4) :: sum_times(ntimer),total_cpu,total_system
+      real(sp) :: t(2)
+      real(sp) :: sum_times(ntimer),total_cpu,total_system
       integer :: date_values(8)
 
       ! Add on a small perturbation for the cases where the total time is 
       ! zero to single-precision.  This forces the procedure times to be printed
       ! out, if required, even if they are 0.0000, by avoiding issues with
       ! maxloc as the elements of the sum_times array are set to zero.
-      sum_times=timers(:)%sum_time_system+timers(:)%sum_time_cpu+1.e-4
+      sum_times=timers(:)%sum_time_system+timers(:)%sum_time_cpu+real(1.e-4,sp)
 
       if (present(iunit)) io=iunit
       if (present(ntimer_objects)) then
@@ -310,27 +311,30 @@ contains
       end if
 
       write (io,'(/a65)') '================================================================'
+      
       write (io,'(a15/)') 'Timing report.'
       if (timer_error) write (io,'(a61/)') 'Timer encountered errors.  The following might be incorrect.'
       if (min(itimer,nobjs).gt.0) then
           write (io,'(a37/)') 'Timing of most expensive procedures.'
           write (io,'(a65)') 'Procedure                    Calls       CPU    system     total'
-          write (io,'(a65)') '----------------------------------------------------------------'
+          write (io,'(a65)') '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '
           
-          total_cpu=0.d0
-          total_system=0.d0
+          total_cpu=0.0_dp
+          total_system=0.0_dp
           do i=1,min(itimer,nobjs)
               ! Find i-th most expensive procedure.
               id=maxloc(sum_times)
               it=id(1)
-              sum_times(it)=0.d0 ! Don't find this object again.
-              write (io,'(1X,a25,i9,3f10.2)') adjustl(timers(it)%timer_name),timers(it)%ncalls,  &
-                                             timers(it)%sum_time_cpu,timers(it)%sum_time_system,&
-                                             timers(it)%sum_time_cpu+timers(it)%sum_time_system
+              sum_times(it)=0.0_dp ! Don't find this object again.
+              if(timers(it)%ncalls.gt.0) then
+                  write (io,'(1X,a25,i9,3f10.2)') adjustl(timers(it)%timer_name),timers(it)%ncalls,  &
+                                                 timers(it)%sum_time_cpu,timers(it)%sum_time_system,&
+                                                 timers(it)%sum_time_cpu+timers(it)%sum_time_system
+              endif
               total_cpu=total_cpu+timers(it)%sum_time_cpu
               total_system=total_system+timers(it)%sum_time_system
           end do
-          write (io,'(a65)') '----------------------------------------------------------------'
+          write (io,'(a65)') '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '
           write (io,'(a35,3f10.2/)') 'Total                             ',total_cpu,total_system,total_cpu+total_system
       end if
       if (.not.global_timing_on) then
@@ -339,7 +343,7 @@ contains
           write (io,'(a20,f10.2)')  'Global total time  ',global_time_cpu+global_time_system
       else
           call cpu_time(t(1))
-          t(2)=0
+          t(2)=real(0.0,sp)
           write (io,'(/a20,f10.2)') 'Global CPU time    ',t(1)-global_time_cpu
           write (io,'(a20,f10.2)') 'Global system time',t(2)-global_time_system
       end if
@@ -357,4 +361,4 @@ contains
 
 
 
-end module timing
+end module timing_neci

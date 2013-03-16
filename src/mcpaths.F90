@@ -1,5 +1,5 @@
 module mcpaths
-    use util_mod, only: isnan
+    use util_mod, only: isnan_neci, neci_etime
 contains
 
 !C.. Calculate RHO^(P)_II without having a stored H matrix
@@ -23,18 +23,19 @@ contains
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,       &
      &               WLRI,WLSI,DBETA,DLWDB)
          Use Determinants, only: get_helement, write_det
-         use constants, only: dp
+         use constants, only: dp,sp
          use SystemData, only: BasisFN
          USE STARDIAGMOD , only: fMCPR3StarNewExcit
          USE GraphMorph , only : MorphGraph
          USE StarDiagTripMod , only : StarDiagTrips
          USE FciMCParMod , only : FciMCPar
+         use RPA_Mod, only : RunRPA_QBA 
          USE ReturnPathMCMod , only : ReturnPathMC
          USE NODEDIAG , only : fMCPR3StarNodes
          use CalcData , only : G_VMC_FAC,CUR_VERT,g_MultiWeight,         &
      &          TMPTHEORY,TMCDIRECTSUM,TDIAGNODES,TGraphMorph,           &
      &          calcp_logweight,TFCIMC,TReturnPathMC
-         use CalcData, only: tCCMC
+         use CalcData, only: tCCMC,tRPA_QBA
          use CalcData, only: TStarTrips
          USE Logging , only : G_VMC_LOGCOUNT
          USE CCMC, only: CCMCStandalone,CCMCStandaloneParticle
@@ -44,7 +45,7 @@ contains
          use mcpathshdiag, only: fmcpr3b2
          use mcpathsismc, only: mcpathsr4, fmcpr4b,fmcpr4c
          use sym_mod, only: getsym
-         use util_mod, only: isnan, NECI_ICOPY
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          TYPE(BasisFN) :: G1(*),KSYM
          INTEGER I_VMAX,NEL,NBASIS
@@ -54,14 +55,14 @@ contains
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),NWHTAY(3,I_VMAX),ILOGGING,I,I_V
          INTEGER L,LT,J
-         real*4 otime,itime,etime,tarr(2)
+         real(sp) otime,itime,tarr(2)
          real(dp) BETA,ECORE
          real(dp) WLRI,WLSI
          HElement_t UMat(*),RH
          real(dp) NTOTAL
 
          real(dp) F(2:I_VMAX)
-         CHARACTER*40 STR
+         CHARACTER(40) STR
          real(dp) TOTAL,RHOII(0:I_VMAX)
          HElement_t RHOIJ(0:I_VMAX,0:I_VMAX)
          real(dp) ALAT(3),RHOEPS
@@ -95,7 +96,7 @@ contains
          WRITE(6,*) "Running Multi-level graph calculation."
 !C.. This will store the MP2 energy
          DO I=2,I_VMAX
-            MP2E(I)=0.D0
+            MP2E(I)=0.0_dp
          ENDDO
          ISEED=7
          TLOGP=BTEST(ILOGGING,14)
@@ -123,14 +124,14 @@ contains
          RHOII(0)=RH
          RHOIJ(0,0)=RH
          WLRI=LOG(RHOII(0))
-         TOTAL=1.D0
+         TOTAL=1.0_dp
          DLWDB=HIJS(0)
-         IF(TLOG) WRITE(11,"(I12,2G25.16,F19.7,2I12,2F19.7)") 1,TOTAL,TOTAL,0.D0,1,1,HIJS(0)
+         IF(TLOG) WRITE(11,"(I12,2G25.16,F19.7,2I12,2F19.7)") 1,TOTAL,TOTAL,0.0_dp,1,1,HIJS(0)
 
          CALL GETSYM(NI,NEL,G1,NBASISMAX,KSYM)
 
 
-         NTOTAL=1.D0
+         NTOTAL=1.0_dp
          I_V1=0
 
 !C.. I_V is the number of vertices in the path
@@ -143,11 +144,11 @@ contains
             WRITE(STR,"(A,I5)") "FMCPR",I_V
             proc_timer2%timer_name=trim(STR(1:25))
             call set_timer(proc_timer2)
-            OTIME=etime(tarr)
+            OTIME=neci_etime(tarr)
             L=0
             LT=0
             BTABLE(0)=-1
-            DLWDB2=0.D0
+            DLWDB2=0.0_dp
             I_CHMAX=NWHTAY(1,I)
             CNWHTAY=NWHTAY(2,I)
             IF(I_CHMAX.EQ.-1) THEN
@@ -168,7 +169,7 @@ contains
                F(I_V)=FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,                   &
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,        &
      &         RHOEPS,0,RHOII,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,                &
-     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,       &
+     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.0_dp,     &
      &         MP2E,NTOTAL,EREF,VARSUM,TOTAL)
             ELSEIF(I_CHMAX.EQ.-14) THEN
 !.. We read in this vertex level from the MCPATHS file
@@ -185,7 +186,7 @@ contains
                F(I_V)=FMCPR3B2(NI,BETA,I_P,IPATH,I_V,NEL,                  &
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,        &
      &         RHOEPS,0,RHOIJ,CNWHTAY,I_CHMAX,LOCTAB,                      &
-     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,       &
+     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.0_dp,     &
      &        MP2E,NTOTAL,I_VMAX,EREF,VARSUM,TOTAL)
             ELSEIF(I_CHMAX.EQ.-9) THEN
 !C.. This code generates a star consisting of all the two-vertex terms,
@@ -221,6 +222,9 @@ contains
                ELSEIF(TReturnPathMC) THEN
 !A MC simulation involving replicating particles, constrained to returning paths is run
                     CALL ReturnPathMC(F(I_V),DLWDB2)
+               elseif(tRPA_QBA) then
+!RPA calculation using the quasi-boson approximation
+                    call RunRPA_QBA(F(I_V),DLWDB2)
                ELSE
 !C.. This code generates a star consisting of all the two-vertex terms,
 !C.. forcing them to be disconnected. - this uses new excitation generators
@@ -232,26 +236,26 @@ contains
                IF(I_V.EQ.I_VMAX) THEN
                   STOP "FMCPR3NVSTAR has been removed."
                ELSE
-                  F(I_V)=0.D0
+                  F(I_V)=0.0_dp
                   L=0
                   LT=0
                ENDIF
             ELSEIF(I_CHMAX.EQ.-7.OR.I_CHMAX.EQ.-19) THEN
-             IF(G_VMC_FAC.NE.0.D0) THEN
+             IF(G_VMC_FAC.NE.0.0_dp) THEN
 !C..   We couple a vertex monte carlo at this vertex level (and subsequent is g_MultiWeight has non-zero values) to a known result at previous
 !C.. levels by regarding all previous levels as a composite object with the Et and wi
 !C.. we have already worked out.g_MultiWeight(0) contains the sum of the weightings of the levels 
-                g_MultiWeight(0)=0.D0
+                g_MultiWeight(0)=0.0_dp
                 DO J=1,I_VMAX
-                  IF(g_MultiWeight(J).NE.0.D0) THEN
-                      IF(g_MultiWeight(0).EQ.0.D0) THEN
+                  IF(g_MultiWeight(J).NE.0.0_dp) THEN
+                      IF(g_MultiWeight(0).EQ.0.0_dp) THEN
 !  The first of the multi - get its vertex level
                           I_V1=NWHTAY(3,J)
                       ENDIF
                       g_MultiWeight(0)=g_MultiWeight(0)+g_MultiWeight(J)
                   ENDIF
                 ENDDO
-              IF(g_MultiWeight(0).EQ.0.D0) THEN
+              IF(g_MultiWeight(0).EQ.0.0_dp) THEN
 ! In fact we're not doing a multi
                  I_V1=I_V
                  I_V2=I_V
@@ -290,15 +294,15 @@ contains
 !If the routine does many levels of MC, it rebiases them itself, taking into account 
 !the DLWDB2 we give it, and adds them into DLWDB.
 !If it just does a single level of MC, it does the same.
-               DLWDB2=0.D0
+               DLWDB2=0.0_dp
               CALL WRITECLASSPATHS()
             ELSE
-               F(I_V)=0.D0
-               FSQ(I_V)=0.D0
-               DLWDB3=0.D0
-               OSI=0.D0
+               F(I_V)=0.0_dp
+               FSQ(I_V)=0.0_dp
+               DLWDB3=0.0_dp
+               OSI=0.0_dp
                DO ICOUNT=1,CNWHTAY
-                  DLWDB2=0.D0
+                  DLWDB2=0.0_dp
                   IF(I_CHMAX.EQ.-3) THEN
                      FF=FMCPR4B(NI,BETA,I_P,IPATH,I_V,NEL,NBASISMAX,          &
      &                  G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,           &
@@ -317,7 +321,7 @@ contains
                     WRITE(12,"(I3,I10,4F19.7)") I_V,ICOUNT/1000,F(I_V)/ICOUNT,&
      &                   SQRT(FSQ(I_V)/ICOUNT-abs(F(I_V)**2/ICOUNT)),         &   
      &                   DLWDB3/ICOUNT,(DLWDB+DLWDB3/ICOUNT)/(F(I_V)/ICOUNT+TOTAL)
-                     CALL FLUSH(12)
+                     CALL neci_flush(12)
                   ENDIF
                ENDDO
                F(I_V)=F(I_V)/CNWHTAY
@@ -327,19 +331,19 @@ contains
             ENDIF
 
             call halt_timer(proc_timer2)
-            NTIME=etime(tarr)
+            NTIME=neci_etime(tarr)
             TOTAL=TOTAL+F(I_V)
             DLWDB=DLWDB+DLWDB2
 !            WRITE(6,*) "Get Here2: ",TOTAL,DLWDB
 !            WRITE(6,*) "MCP",I_V,TOTAL,DLWDB
             IF(TLOG.AND.I_V1.EQ.0) THEN
                 WRITE(11,"(I12,2G25.16,F19.7,I12,2G25.12)") I_V,F(I_V),TOTAL,NTIME-OTIME,L,STD,DLWDB2
-               CALL FLUSH(11)
+               CALL neci_flush(11)
             ENDIF
-            IF(ISNAN(TOTAL)) THEN
+            IF(ISNAN_neci(TOTAL)) THEN
 !C.. save all log files
-               ITIME=etime(tarr)
-               CALL FLUSH(11)
+               ITIME=neci_etime(tarr)
+               CALL neci_flush(11)
 !               CALL LOGNAN(NI,NEL,BETA,ITIME)
                WRITE(6,*) "WARNING: nan found at time",ITIME
                WRITE(6,"(A)",advance='no') "  nan det="
@@ -347,9 +351,9 @@ contains
             ENDIF
             CALL WRITECLASSPATHS()
 ! If we've done a multi, we don't need to do any more
-            IF(I_V1.NE.0.AND.G_VMC_FAC.NE.0.D0) EXIT
+            IF(I_V1.NE.0.AND.G_VMC_FAC.NE.0.0_dp) EXIT
 !  Write out partial MP energy info for every cycle
-         IF(abs(MP2E(2)).gt.0.D0) THEN
+         IF(abs(MP2E(2)).gt.0.0_dp) THEN
             TEMPTOT=HIJS(0)
             DO J=2,I_VMAX
                TEMPTOT=TEMPTOT+MP2E(J)
@@ -363,7 +367,7 @@ contains
             CLOSE(10)
             IF(TMPTHEORY) CLOSE(13)
          ENDIF
-         IF(abs(MP2E(2)).gt.0.D0) THEN
+         IF(abs(MP2E(2)).gt.0.0_dp) THEN
             FF=HIJS(0)
             DO I=2,I_VMAX
                FF=FF+MP2E(I)
@@ -408,7 +412,7 @@ contains
      &              NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,           &
      &               LSTE,ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,            &
      &               WLRI,WLSI,DBETA,DLWDB)
-         use constants, only: dp
+         use constants, only: dp,sp
          use SystemData, only: BasisFN
          Use Determinants, only: get_helement, write_det
          USE STARDIAGMOD , only : fMCPR3StarNewExcit
@@ -419,7 +423,8 @@ contains
          USE ReturnPathMCMod , only : ReturnPathMC
          use CalcData , only : TMPTHEORY,TDIAGNODES,TGraphMorph
          use CalcData, only : calcp_logweight,TFCIMC,TReturnPathMC
-         use CalcData, only: TStarTrips
+         use CalcData, only: TStarTrips,tRPA_QBA
+         use RPA_Mod, only: RunRPA_QBA 
          use global_utilities
          use mcpathsdata, only: EGP
          use mcpathshdiag, only: fmcpr3b2
@@ -435,12 +440,13 @@ contains
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),NWHTAY(3,I_VMAX),ILOGGING,I,I_V
          type(timer), save :: proc_timer,proc_timer2
-         INTEGER L,LT,ITIME
+         INTEGER L,LT
+         real(sp) ITIME(2)
          real(dp) BETA,ECORE
-         real*4 etime,tarr(2)
+         real(sp) tarr(2)
          real(dp) WLRI,WLSI
          real(dp) F(2:I_VMAX)
-         CHARACTER*40 STR
+         CHARACTER(40) STR
          HElement_t RHOIJ(0:I_VMAX,0:I_VMAX)
          real(dp) RHOII(0:I_VMAX),TOTAL
          real(dp) ALAT(3),RHOEPS
@@ -464,11 +470,11 @@ contains
          real(dp) FMCPR3STAR
          write(6,*) "MCPATHSR3:  I_HMAX=",I_HMAX
 ! Init the weight of the 1-v graph
-         WLSI=1.D0
+         WLSI=1.0_dp
 
 !C.. This is where we will store the MP2 energy
          DO I=2,I_VMAX
-            MP2E(I)=0.D0
+            MP2E(I)=0.0_dp
             
          ENDDO
 !C         CALL N_MEMORY_CHECK()
@@ -534,7 +540,7 @@ contains
          ENDIF
          proc_timer%timer_name='MCPATHSR3 '
          call set_timer(proc_timer)
-         OTIME=etime(tarr)
+         OTIME=neci_etime(tarr)
          TLOG=BTEST(ILOGGING,1)
          IF(TLOG) THEN
             OPEN(11,FILE="MCPATHS",STATUS="OLD",POSITION='APPEND')
@@ -554,11 +560,11 @@ contains
          RHOII(0)=RH
          RHOIJ(0,0)=RH
          WLRI=LOG(RHOII(0))
-         TOTAL=1.D0
-         NTOTAL=1.D0
+         TOTAL=1.0_dp
+         NTOTAL=1.0_dp
          DLWDB=HIJS(0)
          H00=HIJS(0)
-         IF(TLOG) WRITE(11,"(I12,2G25.16,F19.7,2I12,F19.7)") 1,TOTAL,TOTAL,0.D0,1,1,H00
+         IF(TLOG) WRITE(11,"(I12,2G25.16,F19.7,2I12,F19.7)") 1,TOTAL,TOTAL,0.0_dp,1,1,H00
 !c         WRITE(6,*) 0,TOTAL,TOTAL,0
 !C.. I_V is the number of vertices in the path
          DO I_V=2,I_VMAX
@@ -570,7 +576,7 @@ contains
             L=0
             LT=0
             BTABLE(0)=-1
-            DLWDB2=0.D0
+            DLWDB2=0.0_dp
             IF(I_HMAX.EQ.-1) THEN
 !C.. This code generates list of all excitations at each level
             WRITE(6,"(A,I3,A)") " Full Sum Old ",I_V," Vertex"
@@ -589,7 +595,7 @@ contains
                F(I_V)=FMCPR3B(NI,BETA,I_P,IPATH,I_V,NEL,                   &
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,        &
      &        RHOEPS,0,RHOII,RHOIJ,NWHTAY(1,1),I_HMAX,LOCTAB,                   &
-     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,       &
+     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.0_dp,       &
      &         MP2E,NTOTAL,EREF,VARSUM,TOTAL)
             ELSEIF(I_HMAX.EQ.-20) THEN 
 !C.. This code generates excitations on the fly, and diagonalizes a matrix of
@@ -601,7 +607,7 @@ contains
                F(I_V)=FMCPR3B2(NI,BETA,I_P,IPATH,I_V,NEL,                  &
      &        NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,        &
      &        RHOEPS,0,RHOIJ,NWHTAY(1,1),I_HMAX,LOCTAB,                         &
-     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.D0,       &
+     &         ILOGGING,TSYM,ECORE,DBETA,DLWDB2,HIJS,L,LT,IFRZ,1.0_dp,       &
      &        MP2E,NTOTAL,I_VMAX,EREF,VARSUM,TOTAL)
             ELSEIF(I_HMAX.EQ.-9) THEN
 !C.. This code generates a star consisting of all the two-vertex terms,
@@ -629,6 +635,9 @@ contains
                ELSEIF(TReturnPathMC) THEN
 !A MC simulation involving replicating particles, constrained to returning paths is run
                     CALL ReturnPathMC(F(I_V),DLWDB2)
+               elseif(tRPA_QBA) then
+!RPA calculation using the quasi-boson approximation
+                    call RunRPA_QBA(F(I_V),DLWDB2)
                ELSE
 !C.. This code generates a star consisting of all the two-vertex terms,
 !C.. forcing them to be disconnected. - this uses new excitation generators
@@ -638,7 +647,7 @@ contains
                ENDIF
             ENDIF
             call halt_timer(proc_timer2)
-            NTIME=etime(tarr)
+            NTIME=neci_etime(tarr)
             TOTAL=TOTAL+F(I_V)
             DLWDB=DLWDB+DLWDB2
 !c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(proc_timer2),L,LT
@@ -651,14 +660,14 @@ contains
                   ENDDO
                ENDIF
                WRITE(11,*)
-               CALL FLUSH(11)
+               CALL neci_flush(11)
             ENDIF
-            IF(ISNAN(TOTAL)) THEN
+            IF(ISNAN_neci(TOTAL)) THEN
 !C.. save all log files
-               ITIME=etime(tarr)
-               CALL FLUSH(11)
-!               CALL LOGNAN(NI,NEL,BETA,ITIME)
-               WRITE(6,*) "WARNING: nan found at time",ITIME
+               iTIME=neci_etime(tarr)
+               CALL neci_flush(11)
+!               CALL LOGNAN(NI,NEL,BETA,iTIME)
+               WRITE(6,*) "WARNING: nan found at time",iTIME
                WRITE(6,"(A)",advance='no') "  nan det="
                call write_det (6, NI, .true.)
             ENDIF
@@ -684,7 +693,7 @@ contains
          TOTAL=HIJS(0)
 ! Only print out MP energies if I_VMAX>1 [MP2E(2:I_VMAX)]
          IF (I_VMAX.gt.1) THEN 
-             IF(abs(MP2E(2)).gt.0.D0) THEN
+             IF(abs(MP2E(2)).gt.0.0_dp) THEN
                 FF=HIJS(0)
                 DO I=2,I_VMAX
                    FF=FF+MP2E(I)
@@ -755,7 +764,7 @@ contains
          TLOG=TLOG.AND..NOT.TLOG4
          LT=LT+1
  
-         TOTAL=0.D0
+         TOTAL=0.0_dp
 !C.. This is the current node (set by our parent)         
          CALL NECI_ICOPY(NEL,IPATH(1:NEL,I_VIND),1,INODE,1)
 !C.. Set the Zeroth node in our excitation list to be ourselves
@@ -765,14 +774,14 @@ contains
          ICE(0,I_VIND)=0
 !C.. Find RHO_II for this node
          IF(INODE(1).EQ.0) THEN
-            R=1.D0
+            R=1.0_dp
          ENDIF
          CALL CALCRHO2(INODE,INODE,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,RH,NTAY,0,ECORE)
          RHOII(I_VIND)=RH
          RHOIJ(I_VIND,I_VIND)=RH
 !C.. we note that if this node has rho=0 (i.e. RH=0) then we just return
-         IF(.not.abs(RH).gt.0.D0) THEN
-            FMCPR3RES=0.D0
+         IF(.not.abs(RH).gt.0.0_dp) THEN
+            FMCPR3RES=0.0_dp
             RETURN
          ENDIF
          IF(I_VIND.EQ.(I_V-1)) THEN
@@ -792,12 +801,12 @@ contains
 !C..
             ICLS=0 
             TOTAL=TOTAL+CALCPATHS_N(RHOII,RHOIJ,I_V,I_HMAX,             &
-     &         I_P,1.D0,DBETA,DLWDB2,HIJS,ICLS)  
+     &         I_P,1.0_dp,DBETA,DLWDB2,HIJS,ICLS)  
             NTOTAL=NTOTAL+TOTAL
 !C.. Sum up the components of <D|H exp(-b H)|D>
             DLWDB=DLWDB+DLWDB2
                IF(TLOG) WRITE(10,"(2E25.16, I7)") TOTAL,DLWDB2,ICLS
-!caa     call flush(10) 
+!caa     call neci_flush(10) 
             L=L+1
             FMCPR3RES=TOTAL
             IF(I_V.EQ.2.AND.TMPTHEORY) THEN
@@ -812,7 +821,7 @@ contains
                ELSE
                   WRITE(10,*) L,NTOTAL,DLWDB
                ENDIF
-               CALL FLUSH(10)
+               CALL neci_flush(10)
             ENDIF
             RETURN
          ENDIF
@@ -941,7 +950,7 @@ contains
 !C.. see if it's worth going further
                RHOIJ(IVLEVEL,I_VIND+1)=RH
 #ifdef __CMPLX
-               RHOIJ(I_VIND+1,IVLEVEL)=DCONJG(RH)
+               RHOIJ(I_VIND+1,IVLEVEL)=conjg(RH)
 #else
                RHOIJ(I_VIND+1,IVLEVEL)=(RH)
 #endif
@@ -959,7 +968,7 @@ contains
      &                   ALAT,UMAT,RH,NTAY,-1,ECORE)
                         IF(.NOT.(abs(RH).GE.RHOEPS)) THEN
 !C.. These two vertices are not connected, which is as we want
-                           RH=0.D0
+                           RH=0.0_dp
                         ENDIF
 !C                        ELSE
 !C.. These two vertices are connected
@@ -969,7 +978,7 @@ contains
 
 
 #ifdef __CMPLX
-                        RHOIJ(I_VIND+1,II)=DCONJG(RH)
+                        RHOIJ(I_VIND+1,II)=conjg(RH)
 #else
                         RHOIJ(I_VIND+1,II)=(RH)
 #endif
@@ -1061,7 +1070,7 @@ contains
          real(dp) DBETA
          INTEGER ICLS
          INTEGER,pointer :: NMEM(:)
-         INTEGER NMEMLEN
+         INTEGER NMEMLEN(1)
          INTEGER, pointer :: OGEN(:)
          INTEGER, pointer :: CURGEN(:)
 !C.. LOCTAB(1)%p is the address of the generator used to create node 1 in
@@ -1082,7 +1091,7 @@ contains
          INTEGER EXFLAG
          LOGICAL ISCONNECTEDDET
          real(dp) VARSUM,SumX,SumY,SumXY,SumXsq,SumYsq,SumP
-         DATA SumP/0.D0/
+         DATA SumP/0.0_dp/
          SAVE SumX,SumY,SumXY,SumXsq,SumYsq,SumP
 !         write(6, *) "FMCPR3B I_VIND:",I_VIND
          IF(BTEST(NWHTAY,0).AND.I_VIND.EQ.0) WRITE(6,*) "FMCPR3 ForceRoot."
@@ -1129,7 +1138,7 @@ contains
          TLOG4=BTEST(ILOGGING,9)
          TLOG5=BTEST(ILOGGING,6)
          TLOG=TLOG.AND..NOT.TLOG4
-         TOTAL=0.D0
+         TOTAL=0.0_dp
          LT=LT+1
 !C.. This is the current node (set by our parent)         
          CALL NECI_ICOPY(NEL,IPATH(1:NEL,I_VIND),1,INODE,1)
@@ -1138,8 +1147,8 @@ contains
          RHOII(I_VIND)=RH
          RHOIJ(I_VIND,I_VIND)=RH
 !C.. we note that if this node has rho_II=0 (i.e. RH=0) then we just return
-         IF(.not.abs(RH).gt.0.D0) THEN
-            FMCPR3BRES=0.D0
+         IF(.not.abs(RH).gt.0.0_dp) THEN
+            FMCPR3BRES=0.0_dp
             RETURN
          ENDIF
          IF(I_VIND.EQ.(I_V-1)) THEN
@@ -1192,7 +1201,7 @@ contains
                ELSE
                   WRITE(10,"(I10,2E25.16)") L,NTOTAL,DLWDB
                ENDIF
-               CALL FLUSH(10)
+               CALL neci_flush(10)
             ENDIF
 !C            WRITE(10,*) (LOCTAB(I)%v,I=1,I_V-1)
 !C            WRITE(6,*) "X"
@@ -1235,7 +1244,7 @@ contains
      &         .TRUE.,NMEMLEN,NJ,IC,STORE,EXFLAG)
 !C         CALL GENSYMEXCITIT(INODE,NEL,G1,NBASIS,NBASISMAX,.TRUE.,ISYM,
 !C     &         .TRUE.,NMEMLEN,NJ,IC,IFRZ(0,I_VIND+1))
-         allocate(NMEM(NMEMLEN))
+         allocate(NMEM(NMEMLEN(1)))
 !C         WRITE(6,"(A,I)") "NMEM",NMEMLEN
 !         write(6,*) "alloc NMEM", loc(NMEM)
          NMEM(1)=0
@@ -1288,7 +1297,7 @@ contains
 
 !C.. Set these just in case
          CURGEN=>NMEM
-         LOCTAB(I_VIND+1)%l=NMEMLEN
+         LOCTAB(I_VIND+1)%l=NMEMLEN(1)
          LOCTAB(I_VIND+1)%v=IVLEVEL-1
          
          DO WHILE (IVLEVEL.GT.IVLMIN)
@@ -1317,7 +1326,7 @@ contains
                LOCTAB2(I_VIND+1)%v=LOCTAB(IVLEVEL)%v
             ELSE
                CURGEN=>NMEM
-               LOCTAB2(I_VIND+1)%l=NMEMLEN
+               LOCTAB2(I_VIND+1)%l=NMEMLEN(1)
                LOCTAB2(I_VIND+1)%v=IVLEVEL-1
             ENDIF
             IEXFROM=LOCTAB2(I_VIND+1)%v
@@ -1358,11 +1367,11 @@ contains
      &                   ALAT,UMAT,RH,NTAY,IC,ECORE)
                   IF(.NOT.(abs(RH).GE.RHOEPS)) THEN
 !C.. if we're not connected to this node, we fail now
-                     RH=0.D0
+                     RH=0.0_dp
                      TFAIL=.TRUE.
                   ENDIF
 #ifdef __CMPLX
-                  RHOIJ(I_VIND+1,IEXFROM)=DCONJG(RH)
+                  RHOIJ(I_VIND+1,IEXFROM)=conjg(RH)
 #else
                   RHOIJ(I_VIND+1,IEXFROM)=(RH)
 #endif
@@ -1377,9 +1386,9 @@ contains
                      CALL CALCRHO2(IPATH(1,II),NJ,BETA,I_P,                      &
      &                   NEL,G1,NBASIS,NMSH,FCK,NMAX,              &
      &                   ALAT,UMAT,RH,NTAY,-1,ECORE)
-                     IF(.NOT.(abs(RH).GE.RHOEPS)) RH=0.D0
+                     IF(.NOT.(abs(RH).GE.RHOEPS)) RH=0.0_dp
 #ifdef __CMPLX
-                     RHOIJ(I_VIND+1,II)=DCONJG(RH)
+                     RHOIJ(I_VIND+1,II)=conjg(RH)
 #else
                      RHOIJ(I_VIND+1,II)=(RH)
 #endif
@@ -1390,13 +1399,13 @@ contains
 !C.. LOCTAB(2,V) is the length of the generator (i.e. the amount of memory used to store it)
 !C.. LOCTAB(3,V) is the vertex from which vertex V was excited
 !C.   The last node never has an excitation generator, as it never needs one in the full graph generation scheme.
-!                     IF(abs(RH ).gt. 0.D0) THEN
+!                     IF(abs(RH ).gt. 0.0_dp) THEN
                      IF(II<I_VIND) then
 !                      WRITE(6,*) "ICD", II
-!                      call flush(6)
+!                      call neci_flush(6)
                       IF(IsConnectedDet(IPATH(1,II),NJ)) THEN
 !if rhoeps is zero then always set TFAIL.  if rhoeps isn't zero, then set TFAIL if Rh isn't zero (i.e. we've included it before)
-                       IF(RH.NE.0.D0.OR.RHOEPS.EQ.0.D0) THEN
+                       IF(RH.NE.0.0_dp.OR.RHOEPS.EQ.0.0_dp) THEN
 !C.. If the node to which this node (NJ) is attached was known about at
 !C.. the time of node II, we are allowed to have a connection between
 !C.. node NJ and II.  Otherwise, this node must not be attached to II, as
@@ -1503,13 +1512,13 @@ contains
      &                      +SumYsq/SumY**2-2*SumXY/(SumX*SumY))           
             write(6,"(2A,G24.16)") "Sum of Pgens of graphs included",         &
      &         " in variance is ", SumP
-            SumP=0.D0
-            VARSUM=0.D0
-            SumX=0.D0
-            SumY=0.D0
-            SumXsq=0.D0
-            SumYsq=0.D0
-            SumXY=0.D0
+            SumP=0.0_dp
+            VARSUM=0.0_dp
+            SumX=0.0_dp
+            SumY=0.0_dp
+            SumXsq=0.0_dp
+            SumYsq=0.0_dp
+            SumXY=0.0_dp
         End If
                           
         IF (I_VIND.eq.0) THEN
@@ -1523,15 +1532,15 @@ contains
 !           WRITE(44,*) g_VMC_ExcitWeights
 !            WRITE(44,("6G25.16")) SumX,SumY,(SumXsq-(SumX**2)),
 !     &               (SumYsq-(SumY**2)),(SumXY-(SumX*SumY)),VARSUM
-           SumP=0.D0
-           SumX=0.D0
-           SumY=0.D0
-           SumXsq=0.D0
-           SumYsq=0.D0
-           SumXY=0.D0
+           SumP=0.0_dp
+           SumX=0.0_dp
+           SumY=0.0_dp
+           SumXsq=0.0_dp
+           SumYsq=0.0_dp
+           SumXY=0.0_dp
        ENDIF
 !       WRITE(6,*) "Leaving ",I_VIND
-!       call flush(6) 
+!       call neci_flush(6) 
        RETURN
       END FUNCTION
 
@@ -1540,7 +1549,7 @@ end module mcpaths
       SUBROUTINE WRITEPATH(NUNIT,IPATH,I_V,NEL,LTERM)
          use Determinants, only: write_det
          IMPLICIT NONE
-         INTEGER NUNIT,IPATH(NEL,0:I_V),I_V,NEL
+         INTEGER NUNIT,I_V,NEL,IPATH(NEL,0:I_V)
          LOGICAL LTERM
          INTEGER J
          
@@ -1556,7 +1565,8 @@ end module mcpaths
 
       SUBROUTINE WRITEPATHEX(NUNIT,IPATH,I_V,NEL,LTERM)
          IMPLICIT NONE
-         INTEGER NUNIT,IPATH(NEL,0:I_V),I_V,NEL
+         INTEGER I_V,NEL
+         INTEGER NUNIT,IPATH(NEL,0:I_V)
          LOGICAL LTERM,T
          INTEGER J,K,EX(2,2)
 !C.. First determine the excitation
@@ -1578,7 +1588,7 @@ end module mcpaths
          ENDDO
          WRITE(NUNIT,"(A)",advance='no') "]"
          IF(LTERM) WRITE(NUNIT,*)
-         CALL FLUSH(NUNIT)
+         CALL neci_flush(NUNIT)
          RETURN
       END
 
@@ -1605,10 +1615,10 @@ end module mcpaths
          RETURN
       END
       SUBROUTINE ELIMDUPS(LSTE,I_V,NEL,NLIST,NLISTMAX,NI)
+         INTEGER I_V,I,J,IND,NMAX,IC,NMAX2,K
          INTEGER NEL,NLISTMAX
          INTEGER LSTE(1:NEL,0:NLISTMAX,0:I_V)
          INTEGER NLIST(0:I_V),NI(1:NEL)
-         INTEGER I_V,I,J,IND,NMAX,IC,NMAX2,K
 !C.. First we check none of our list are NI
          NMAX=NLIST(I_V)
          J=1
@@ -1666,7 +1676,7 @@ end module mcpaths
          use constants, only: dp
          IMPLICIT NONE
          INTEGER iV,i1,i2,i3
-         CHARACTER*1 c
+         CHARACTER(1) c
          real(dp) r1,r2,r3,r4
          real(dp) wWeight,wETilde
          

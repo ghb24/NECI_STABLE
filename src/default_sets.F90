@@ -14,6 +14,7 @@ module default_sets
 !   * RhoEpsilon=10^-8, the threshold below which an element of the rho matrix
 !     is taken to be zero.
 !   * MCPATHS logging option is turned on.
-logical :: Feb08=.false.
+logical :: Feb08 = .false.
+logical :: Nov11 = .false.
 
 end module default_sets

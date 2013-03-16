@@ -6,23 +6,24 @@ C  ========================================================
      &     A,TALPHA,ALPHA,OMEGA,ZIA)
 !      IMPLICIT real(dp)(A-H,O-Z)
       use constants, only: dp,int64,sp
+      use util_mod, only: neci_etime
       IMPLICIT NONE
+      integer :: NMESHX,NMAX
       complex(dp) CK(NMESHX,NMESHX,NMESHX)
       complex(dp) ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
-      integer :: NMESHX,NMAX
       real(dp) :: ALPHA,OMEGA
       real(dp) A(3),t3
-      real(sp) etime,t(2),t1,t2
+      real(sp) t(2),t1,t2
       LOGICAL TALPHA
       INTEGER , SAVE :: IFIRST=0
 C..
       IF(IFIRST.EQ.1) RETURN 
       IFIRST=1
 C..      
-      T1 = etime(t)
+      T1 = neci_etime(t)
       CALL GEN_CK_FFT(NMESHX,CK,A,TALPHA,ALPHA,OMEGA)
       CALL GEN_ZIA(NMESHX,NMAX,ZIA)
-      T2 = etime(t)
+      T2 = neci_etime(t)
       T3=(T2-T1)
       WRITE(6,*) 'V0=',CK(NMESHX/2,NMESHX/2,NMESHX/2)
       WRITE(6,*) ' TIME FOR INITIALISATION:',T3/1000.
@@ -33,6 +34,7 @@ C =========================================================
       SUBROUTINE GEN_CK_FFT(N,DIST,A,TALPHA,ALPHA,OMEGA)
 !      IMPLICIT real(dp)(A-H,O-Z)
       use constants, only: dp,int64,pi
+
       IMPLICIT NONE
 #if !defined(__alpha) || !defined(__SGI) 
       !INTEGER FFTW_R2HC
@@ -100,20 +102,24 @@ C =========================================================
       !INTEGER FFTW_NO_SIMD
       !PARAMETER (FFTW_NO_SIMD=131072)
 #endif
+      integer :: N,I,J,K,N1,N2,N3
       complex(dp) DIST(-N/2:N/2-1,-N/2:N/2-1,-N/2:N/2-1)
       integer(int64) PLAN
-      real(dp) A(3),ALPHA2,ALPHA,HSTEPX,HSTEPY,HSTEPZ,derf
+      real(dp) A(3),ALPHA2,ALPHA,HSTEPX,HSTEPY,HSTEPZ,DERF
       real(dp) :: X,Y,Z,AUX,SUM,G2,GX,GY,GZ,OMEGA,OMEGAP,R
       LOGICAL TALPHA
-      integer :: N,I,J,K,N1,N2,N3
+      character(len=*), parameter :: t_r="GEN_CK_FFT"
 C..
-!      PI=ACOS(-1.D0)
+!      PI=ACOS(-1.0_dp)
       ALPHA2=ALPHA*ALPHA
 C..
-      HSTEPX=2.D0*A(1)/N
-      HSTEPY=2.D0*A(2)/N
-      HSTEPZ=2.D0*A(3)/N
+      HSTEPX=2.0_dp*A(1)/N
+      HSTEPY=2.0_dp*A(2)/N
+      HSTEPZ=2.0_dp*A(3)/N
 C..
+#if defined(NAGF95) || defined(__GFORTRAN__)
+      call stop_all(t_r,"No ERF in NAG/GFortran?")
+#endif
       DO I=-N/2,N/2-1
         DO J=-N/2,N/2-1
           DO K=-N/2,N/2-1
@@ -121,21 +127,23 @@ C..
             Y=real(J,dp)*HSTEPY
             Z=real(K,dp)*HSTEPZ
             AUX=X*X+Y*Y+Z*Z
-            IF(AUX.NE.0.D0) THEN
+            IF(AUX.NE.0.0_dp) THEN
               IF(TALPHA) THEN 
                 R=SQRT(AUX) 
-                AUX=1.D0/R*(-1)**(I+J+K)*DERF(R/ALPHA)
+#if !defined(NAGF95) && !defined(__GFORTRAN__)                
+                AUX=1.0_dp/R*(-1)**(I+J+K)*DERF(R/ALPHA)
+#endif                
               ELSE
-                AUX=1.D0/SQRT(AUX)*(-1)**(I+J+K)
+                AUX=1.0_dp/SQRT(AUX)*(-1)**(I+J+K)
               ENDIF
             ELSE
               IF(TALPHA) THEN 
-                AUX=2.D0/SQRT(PI)/ALPHA
+                AUX=2.0_dp/SQRT(PI)/ALPHA
               ELSE
-                AUX=DFLOAT(N/2)*(-1)**(I+J+K)
+                AUX=real(N/2,dp)*(-1)**(I+J+K)
               ENDIF
             ENDIF
-            DIST(I,J,K)=DCMPLX(AUX,0.D0)
+            DIST(I,J,K)=CMPLX(AUX,0.0_dp,dp)
 c            write(16,'(3i3,2e19.8)') i,j,k,dist(i,j,k)
           ENDDO
         ENDDO
@@ -177,13 +185,13 @@ C..Shift origin and normalise
       DO I=-N/2,N/2-1
         DO J=-N/2,N/2-1
           DO K=-N/2,N/2-1
-            DIST(I,J,K)=DIST(I,J,K)*(-1)**(i+j+k)/dfloat(n1*n2*n3)
+            DIST(I,J,K)=DIST(I,J,K)*(-1)**(i+j+k)/real(n1*n2*n3,dp)
           enddo
         enddo
       enddo      
 C..the short-range correction for alpha 
       IF(TALPHA) THEN 
-        OMEGAP=8.D0*OMEGA  
+        OMEGAP=8.0_dp*OMEGA  
         DO I=-N/2,N/2-1
           DO J=-N/2,N/2-1
             DO K=-N/2,N/2-1
@@ -191,13 +199,13 @@ C..the short-range correction for alpha
               GY=PI*J/A(2)
               GZ=PI*K/A(3)
               G2=GX*GX+GY*GY+GZ*GZ
-              IF(G2.NE.0.D0) THEN 
-                AUX=EXP(-G2*ALPHA2/4.D0)
-                SUM=4.D0*PI*(1.D0-AUX)/OMEGAP/G2
+              IF(G2.NE.0.0_dp) THEN 
+!                AUX=EXP(-G2*ALPHA2/4.0_dp)
+                SUM=4.0_dp*PI*(1.0_dp-AUX)/OMEGAP/G2
               ELSE
                 SUM=PI*ALPHA2/OMEGAP 
               ENDIF
-              DIST(I,J,K)=DIST(I,J,K)+DCMPLX(SUM,0.D0)
+              DIST(I,J,K)=DIST(I,J,K)+CMPLX(SUM,0.0_dp,dp)
             ENDDO
           ENDDO
         ENDDO
@@ -208,15 +216,15 @@ C.test fft
 c      X= .2
 c      Y= 0.9
 c      Z= -0.2
-c      UIMAG=DCMPLX(0.D0,1.D0)
-c      CSUM=DCMPLX(0.D0,0.D0)
+c      UIMAG=DCMPLX(0.0_dp,1.0_dp)
+c      CSUM=DCMPLX(0.0_dp,0.0_dp)
 c      DO I=-N/2,N/2-1
 c        DO J=-N/2,N/2-1
 c          DO K=-N/2,N/2-1
 c            GX=PI*I
 c            GY=PI*J
 c            GZ=PI*K
-c            CDOT=DCMPLX(0.D0,GX*X+GY*Y+GZ*Z)
+c            CDOT=DCMPLX(0.0_dp,GX*X+GY*Y+GZ*Z)
 c            CAUX=ZEXP(CDOT)*DIST(I,J,K)
 cc*(-1)**(i+j+k)
 c            CSUM=CSUM+CAUX
@@ -226,7 +234,7 @@ c        enddo
 c      enddo
 c      csum=csum/dfloat(n1*n2*n3)
 c      sum=sqrt(real(csum)**2+dimag(csum)**2)
-c      write(6,*) csum,1.D0/sqrt(x*x+y*y+z*z) 
+c      write(6,*) csum,1.0_dp/sqrt(x*x+y*y+z*z) 
 c      write(6,*) sum
 c      stop
       RETURN
@@ -236,12 +244,12 @@ C ============================================================
 !      IMPLICIT real(dp)(A-H,O-Z)
       use constants, only: dp
       IMPLICIT NONE
-      complex(dp) ZIA(-KMAX/2:KMAX/2,NMAX,NMAX),ZIO
       integer :: K,N,M,KMAX,NMAX
+      complex(dp) ZIA(-KMAX/2:KMAX/2,NMAX,NMAX),ZIO
       DO K=-KMAX/2,KMAX/2
         DO N=1,NMAX
           DO M=1,NMAX
-            ZIA(K,N,M)=0.25D0*(ZIO(N-M+K)+ZIO(-N+M+K)
+            ZIA(K,N,M)=0.25_dp*(ZIO(N-M+K)+ZIO(-N+M+K)
      &           -ZIO(N+M+K)-ZIO(-N-M+K))
           ENDDO
         ENDDO
@@ -257,13 +265,13 @@ C ============================================================
 !      real(dp) :: SAVE PI
       INTEGER :: K
 !      IF(IFIRST.EQ.0) THEN 
-!        PI=ACOS(-1.D0)
+!        PI=ACOS(-1.0_dp)
 !        IFIRST=1
 !      ENDIF
       IF(K.EQ.0) THEN 
-        ZIO=(1.D0,0.D0)
+        ZIO=(1.0_dp,0.0_dp)
       ELSE
-        ZIO=DCMPLX(0.D0,-((-1.D0)**K-1.D0)/(REAL(K,dp)*PI))
+        ZIO=CMPLX(0.0_dp,-((-1.0_dp)**K-1.0_dp)/(REAL(K,dp)*PI),dp)
       ENDIF
       RETURN
       END

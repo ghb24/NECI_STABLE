@@ -5,7 +5,7 @@ module Parallel_Calc
 != These routines are still in heavy development (i.e. may well contain numerous
 != bugs) and should not be used in production work blindly. :-)
 
-use Parallel
+use Parallel_neci
 
 implicit none
 
@@ -32,7 +32,7 @@ subroutine ParMP2(nI)
    use System, only: AreSameSpatialOrb
    use SystemData, only: nBasisMax,nEl,Beta,ARR,nBasis,ECore,G1,tCPMD,Symmetry
    use CalcData, only: NWHTAY
-   use Integrals, only: GetUMatEl2
+   use Integrals_neci, only: GetUMatEl2
    use UMatCache, only: GTID
    use OneEInts, only: GetTMatEl
    Use Determinants, only: get_helement, GetH0Element3
@@ -47,7 +47,7 @@ subroutine ParMP2(nI)
    integer :: i,j
    integer :: IA,JA,AA,BA,JJ
    integer :: store(6),Excit(2,2)
-   integer :: ic,exlen,iC0,ExLevel
+   integer :: ic,exlen(1),iC0,ExLevel
    integer, pointer :: Ex(:)
    integer :: nJ(nEl),weight
    HElement_t dU(2)
@@ -111,8 +111,8 @@ subroutine ParMP2(nI)
    STORE(1)=0
 !  IC is the excitation level (relative to the reverence det).
    CALL GENSYMEXCITIT3Par(NI,.TRUE.,EXLEN,nJ,IC,STORE,ExLevel,iMinElec,iMaxElec)
-   Allocate(Ex(exLen),stat=ierr)
-   call LogMemAlloc('Ex',Exlen,4,this_routine,tag_Ex,ierr)
+   Allocate(Ex(exLen(1)),stat=ierr)
+   call LogMemAlloc('Ex',Exlen(1),4,this_routine,tag_Ex,ierr)
    EX(1)=0
    CALL GENSYMEXCITIT3Par(NI, .TRUE.,EX,nJ,IC,STORE,ExLevel,iMinElec,iMaxElec)
 
@@ -120,7 +120,7 @@ subroutine ParMP2(nI)
    CALL GENSYMEXCITIT3Par(NI, .False.,EX,nJ,IC,STORE,ExLevel,iMinElec,iMaxElec)
    i=0
    j=0
-   dETot=(0.d0)
+   dETot=(0.0_dp)
 
    DO WHILE(NJ(1).NE.0)
 ! NJ(1) is zero when there are no more excitations.
@@ -265,7 +265,7 @@ subroutine ParMP2(nI)
 
             j=j+1
             dE2=(Arr(Excit(2,1),2)-Arr(Excit(1,1),2))
-            dU=(0.d0)
+            dU=(0.0_dp)
             if (Excit(2,2).eq.0) then
                 ! Single excitation.
                 ! dU=\sum_J 2<IJ|AJ>-<IJ|JA> (in terms of spatial orbitals).
@@ -315,20 +315,20 @@ subroutine ParMP2(nI)
 
             if (Excit(1,2).eq.0) then
                 ! Singles contribution.
-                call getMP2E(0.d0,dE2,dU(1),dE)
+                call getMP2E(0.0_dp,dE2,dU(1),dE)
                 dETot(1)=dETot(1)+(weight)*dE
             else
                 ! Doubles contributions.
-                if (abs(dU(2)).gt.0.d0) then
+                if (abs(dU(2)).gt.0.0_dp) then
                     ! Get e.g. (1a,2b)->(3a,4b) and (1a,2b)->(3b,4a) for "free"
                     ! when we evaluate (1a,2a)->(3a,4a).
-                    call getMP2E(0.d0,dE2,dU(1),dE)
+                    call getMP2E(0.0_dp,dE2,dU(1),dE)
                     dETot(2)=dETot(2)+(weight)*dE
-                    call getMP2E(0.d0,dE2,dU(2),dE)
+                    call getMP2E(0.0_dp,dE2,dU(2),dE)
                     dETot(2)=dETot(2)+(weight)*dE
                 end if
                 dU(1)=dU(1)-dU(2)
-                call getMP2E(0.d0,dE2,dU(1),dE)
+                call getMP2E(0.0_dp,dE2,dU(1),dE)
                 dETot(2)=dETot(2)+(weight)*dE
             end if
 
@@ -383,7 +383,7 @@ Subroutine Par2vSum(nI)
    integer iMinElec, iMaxElec
    integer i
    integer store(6)
-   integer ic,exlen,iC0
+   integer ic,exlen(1),iC0
    integer, pointer :: Ex(:)
    integer nJ(nEl)
    HElement_t dU
@@ -401,10 +401,10 @@ Subroutine Par2vSum(nI)
 !  Initialize.  If we're the first processor then we add in the 1-vertex graph.
    if(iProcIndex.EQ.0) THEN
       dEwTot=dE1
-      dwTot=(1.d0)
+      dwTot=(1.0_dp)
    ELSE
-      dEwTot=0.D0
-      dwTot=(0.d0)
+      dEwTot=0.0_dp
+      dwTot=(0.0_dp)
    ENDIF
 
 ! Now enumerate all 2v graphs
@@ -412,7 +412,7 @@ Subroutine Par2vSum(nI)
    STORE(1)=0
 !  IC is the excitation level (relative to the reverence det).
    CALL GENSYMEXCITIT3Par(NI,.TRUE.,EXLEN,nJ,IC,STORE,3,iMinElec,iMaxElec)
-   Allocate(Ex(exLen))
+   Allocate(Ex(exLen(1)))
    EX(1)=0
    CALL GENSYMEXCITIT3Par(NI, .TRUE.,EX,nJ,IC,STORE,3,iMinElec,iMaxElec)
 
@@ -490,11 +490,11 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
    HElement_t dU,dEt,dw
    real(dp) dBeta
    HElement_t dEp,dEm,dD,dEx,dD2,dTmp
-   if(abs(dU).eq.0.d0) then
+   if(abs(dU).eq.0.0_dp) then
       ! Determinants are not connected.
       ! => zero contribution.
-      dw=0.D0
-      dEt=0.D0
+      dw=0.0_dp
+      dEt=0.0_dp
       return 
    endif
 
@@ -524,7 +524,7 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
    dw=abs(dD)**2*dEx
    dEt=dE1*abs(dD)**2*dEx
 #ifdef __CMPLX
-   dEt=dEt+dU*dD*dconjg(dD2)*dEx
+   dEt=dEt+dU*dD*conjg(dD2)*dEx
 #else
    dEt=dEt+dU*dD*(dD2)*dEx
 #endif
@@ -539,8 +539,8 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
 !  Instead we just swap dD2 and dD around
    dTmp=dD
 #ifdef __CMPLX
-   dD=dconjg(dD2)
-   dD2=-dconjg(dTmp)
+   dD=conjg(dD2)
+   dD2=-conjg(dTmp)
 #else
    dD=(dD2)
    dD2=-(dTmp)
@@ -550,7 +550,7 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
 !   write(6,*) dEm,dD,dD2,dw,dEx
    dEt=dEt+(dE1*abs(dD)**2*dEx)
 #ifdef __CMPLX
-   dEt=dEt+dU*dD*dconjg(dD2)*dEx
+   dEt=dEt+dU*dD*conjg(dD2)*dEx
 #else
    dEt=dEt+dU*dD*(dD2)*dEx
 #endif

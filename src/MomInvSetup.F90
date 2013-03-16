@@ -5,7 +5,7 @@ Module MomInv
     use bit_reps, only: NIfD, NIfTot, NIfDBO, decode_bit_det
     use DetBitOps, only: DetBitEQ,DetBitLT
     use SystemData, only: NEl,G1,nBasis,Brr,Arr,tFixLz,LzTot,G1,tAntisym_MI
-    use Parallel
+    use Parallel_neci
     use sort_mod
     use SymExcitDataMod, only: MomInvSymOrb  
 
@@ -112,7 +112,7 @@ Module MomInv
                 endif
 
                 !Pairs should be (approximately) degenerate
-                if(abs(Arr(i,2)-Arr(MomInvSymOrb(i),2)).gt.2.D-4) then
+                if(abs(Arr(i,2)-Arr(MomInvSymOrb(i),2)).gt.2.0e-4_dp) then
                     call stop_all(t_r,"Ml pairs not degenerate")
                 endif
             enddo

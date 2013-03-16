@@ -11,6 +11,7 @@ module OneEInts
 use constants, only: dp
 use SystemData, only: TSTARSTORE
 use MemoryManager, only: TagIntType
+use util_mod, only: get_free_unit
 
 implicit none
 
@@ -184,10 +185,10 @@ contains
                 ret = TMatSym(TMatInd(i,j))
             else
                 ! Work around a bug in gfortran's parser: it doesn't like
-                ! doing dconjg(TMatSym).
+                ! doing conjg(TMatSym).
 #ifdef __CMPLX
                 t = TMatSym(TmatInd(i,j))
-                ret = dconjg(t)
+                ret = conjg(t)
 #else
                 ret = TMatSym(TmatInd(i,j))
 #endif
@@ -195,7 +196,7 @@ contains
         else
             if(tOneElecDiag) then
                 if(i.ne.j) then
-                    ret = 0.D0
+                    ret = 0.0_dp
                 else
                     ret = TMat2D(i,1)
                 endif
@@ -221,7 +222,7 @@ contains
             if (j.ge.i) then
                 GetNewTMatEl=TMATSYM2(TMatInd(I,J))
             else
-                GetNewTMatEl=dConjg(TMATSYM2(TMatInd(I,J)))
+                GetNewTMatEl=Conjg(TMATSYM2(TMatInd(I,J)))
             end if
 #else
             GetNewTMatEl=TMATSYM2(TMatInd(I,J))
@@ -229,7 +230,7 @@ contains
         ELSE
             if(tOneElecDiag) then
                 if(I.ne.J) then
-                    GetNEWTMATEl=0.D0
+                    GetNEWTMATEl=0.0_dp
                 else
                     GetNewTMATEl=TMAT2D2(I,1)
                 endif
@@ -247,7 +248,6 @@ contains
         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
         use SymData, only: SymLabelCounts,SymLabelCountsCum,nSymLabels
         use SymData, only: SymLabelIntsCum,SymLabelIntsCum2,SymLabelCountsCum2
-        use util_mod, only: get_free_unit
         IMPLICIT NONE
         INTEGER II,I,J,NBASIS,iunit
         
@@ -257,17 +257,17 @@ contains
             write(iunit,*) "SYMLABELCOUNTS,SYMLABELCOUNTSCUM,SYMLABELINTSCUM:"
             DO I=1,NSYMLABELS
                 WRITE(iunit,"(I5)",advance='no') SYMLABELCOUNTS(2,I)
-                CALL FLUSH(iunit)
+                CALL neci_flush(iunit)
             ENDDO
             WRITE(iunit,*) ""
             DO I=1,NSYMLABELS
                 WRITE(iunit,"(I5)",advance='no') SYMLABELCOUNTSCUM(I)
-                CALL FLUSH(iunit)
+                CALL neci_flush(iunit)
             ENDDO
             WRITE(iunit,*) ""
             DO I=1,NSYMLABELS
                 WRITE(iunit,"(I5)",advance='no') SYMLABELINTSCUM(I)
-                CALL FLUSH(iunit)
+                CALL neci_flush(iunit)
             ENDDO
             WRITE(iunit,*) ""
             WRITE(iunit,*) "**********************************"
@@ -276,21 +276,21 @@ contains
             write(iunit,*) "SYMLABELCOUNTS,SYMLABELCOUNTSCUM2,SYMLABELINTSCUM2:"
             DO I=1,NSYMLABELS
                 WRITE(iunit,"(I5)",advance='no') SYMLABELCOUNTS(2,I)
-                CALL FLUSH(iunit)
+                CALL neci_flush(iunit)
             ENDDO
             WRITE(iunit,*) ""
             DO I=1,NSYMLABELS
                 WRITE(iunit,"(I5)",advance='no') SYMLABELCOUNTSCUM2(I)
-                CALL FLUSH(iunit)
+                CALL neci_flush(iunit)
             ENDDO
             WRITE(iunit,*) ""
             DO I=1,NSYMLABELS
                 WRITE(iunit,"(I5)",advance='no') SYMLABELINTSCUM2(I)
-                CALL FLUSH(iunit)
+                CALL neci_flush(iunit)
             ENDDO
             WRITE(iunit,*) ""
             WRITE(iunit,*) "**********************************"
-            CALL FLUSH(iunit)
+            CALL neci_flush(iunit)
         ENDIF
         WRITE(iunit,*) "TMAT:"
         IF(TSTARSTORE) THEN
@@ -298,7 +298,7 @@ contains
                 DO I=SYMLABELCOUNTSCUM(II-1)+1,SYMLABELCOUNTSCUM(II)
                     DO J=SYMLABELCOUNTSCUM(II-1)+1,I
                         WRITE(iunit,*) I,J,GetTMATEl((2*I),(2*J))
-                        CALL FLUSH(iunit)
+                        CALL neci_flush(iunit)
                     ENDDO
                 ENDDO
             ENDDO
@@ -310,21 +310,21 @@ contains
             ENDDO
         ENDIF
         WRITE(iunit,*) "**********************************"
-        CALL FLUSH(iunit)
+        CALL neci_flush(iunit)
         IF(ASSOCIated(TMATSYM2).or.ASSOCIated(TMAT2D2)) THEN
             WRITE(iunit,*) "TMAT2:"
             DO II=1,NSYMLABELS
                 DO I=SYMLABELCOUNTSCUM(II-1)+1,SYMLABELCOUNTSCUM(II)
                     DO J=SYMLABELCOUNTSCUM(II-1)+1,I
                         WRITE(iunit,*) I,J,GetNEWTMATEl((2*I),(2*J))
-                        CALL FLUSH(iunit)
+                        CALL neci_flush(iunit)
                     ENDDO
                 ENDDO
             ENDDO
         ENDIF
         WRITE(iunit,*) "*********************************"
         WRITE(iunit,*) "*********************************"
-        CALL FLUSH(iunit)
+        CALL neci_flush(iunit)
       END SUBROUTINE WriteTMat
         
 !Routine to calculate number of elements allocated for TMAT matrix
@@ -367,7 +367,6 @@ contains
         use SymData, only: tagSymLabelIntsCum,tagStateSymMap,tagSymLabelCountsCum
         use HElem, only: HElement_t_size
         use global_utilities
-        use util_mod, only: get_free_unit
         IMPLICIT NONE
         integer Nirrep,nBasis,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
         integer iSize, iunit
@@ -443,7 +442,7 @@ contains
                 ENDDO
                 write(iunit,*) "***************"
                 write(iunit,*) NBI
-                CALL FLUSH(iunit)
+                CALL neci_flush(iunit)
                 close(iunit)
                 STOP 'Not all basis functions found while setting up TMAT'
             ENDIF
@@ -453,7 +452,7 @@ contains
             
             Allocate(TMATSYM(-1:iSize),STAT=ierr)
             Call LogMemAlloc('TMATSym',iSize+2,HElement_t_size*8,thisroutine,tagTMATSYM,ierr)
-            TMATSYM=(0.d0)
+            TMATSYM=(0.0_dp)
 
         ELSE
 
@@ -462,14 +461,14 @@ contains
                 iSize=nBasis
                 Allocate(TMAT2D(nBasis,1),STAT=ierr)
                 call LogMemAlloc('TMAT2D',nBasis,HElement_t_size*8,thisroutine,tagTMat2D)
-                TMAT2D=(0.d0)
+                TMAT2D=(0.0_dp)
             else
                 ! Using a square array to hold <i|h|j> (incl. elements which are
                 ! zero by symmetry).
                 iSize=nBasis*nBasis
                 Allocate(TMAT2D(nBasis,nBasis),STAT=ierr)
                 call LogMemAlloc('TMAT2D',nBasis*nBasis,HElement_t_size*8,thisroutine,tagTMat2D)
-                TMAT2D=(0.d0)
+                TMAT2D=(0.0_dp)
             endif
         
         ENDIF
@@ -494,7 +493,6 @@ contains
         use SymData, only: SymLabelIntsCum2,nSymLabels,StateSymMap2
         use SymData, only: tagSymLabelIntsCum2,tagStateSymMap2,tagSymLabelCountsCum2
         use global_utilities
-        use util_mod, only: get_free_unit
         use HElem, only: HElement_t_size
         IMPLICIT NONE
         integer Nirrep,nBasisfrz,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
@@ -545,7 +543,7 @@ contains
                     ENDDO
                 ENDIF
 !                write(6,*) basirrep,SYMLABELINTSCUM(i),SYMLABELCOUNTSCUM(i)
-!                call flush(6)
+!                call neci_flush(6)
                 ! JSS: Label states of symmetry i by the order in which they come.
                 nStateIrrep=0
                 do iState=1,nBi
@@ -560,7 +558,7 @@ contains
                 open(iunit, file="SYMLABELCOUNTS", status="unknown")
                 DO i=1,Nirrep
                     WRITE(iunit,*) SYMLABELCOUNTS(2,i)
-                    CALL FLUSH(iunit)
+                    CALL neci_flush(iunit)
                 ENDDO
                 STOP 'Not all basis functions found while setting up TMAT2'
             ENDIF
@@ -570,7 +568,7 @@ contains
             
             Allocate(TMATSYM2(-1:iSize),STAT=ierr)
             CALL LogMemAlloc('TMatSym2',iSize+2,HElement_t_size*8,thisroutine,tagTMATSYM2,ierr)
-            TMATSYM2=(0.d0)
+            TMATSYM2=(0.0_dp)
 
         ELSE
 
@@ -579,14 +577,14 @@ contains
                 iSize=nBasisFRZ
                 Allocate(TMAT2D2(nBasisFRZ,1),STAT=ierr)
                 call LogMemAlloc('TMAT2D2',nBasisFRZ,HElement_t_size*8,thisroutine,tagTMat2D2)
-                TMAT2D2=(0.d0)
+                TMAT2D2=(0.0_dp)
             else
                 ! Using a square array to hold <i|h|j> (incl. elements which are
                 ! zero by symmetry).
                 iSize=nBasisFRZ*nBasisFRZ
                 Allocate(TMAT2D2(nBasisFRZ,nBasisFRZ),STAT=ierr)
                 call LogMemAlloc('TMAT2D2',nBasisFRZ*nBasisFRZ,HElement_t_size*8,thisroutine,tagTMat2D2)
-                TMAT2D2=(0.d0)
+                TMAT2D2=(0.0_dp)
             endif
         
         ENDIF

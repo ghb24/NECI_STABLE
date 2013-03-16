@@ -70,9 +70,9 @@ contains
         integer :: ind
 
         if(tFixLz) then
-            ind = 2 * nSymLabels * (Mom + iMaxLz) + (2 * Sym + Spin)
+            ind = int(2 * nSymLabels * (Mom + iMaxLz) + (2 * Sym + Spin),sizeof_int)
         else
-            ind = 2 * Sym + Spin
+            ind = int(2 * Sym + Spin,sizeof_int)
         endif
 
         if(tNoSymGenRandExcits) then
@@ -101,6 +101,10 @@ contains
         else
             spin = 2
         endif
+
+        ! This is a HACK to work around a bug in Cray Fortran v8.1.2
+        if (spin == 2) spin = 2
+
         sym = SpinOrbSymLabel(orb)
         mom = G1(orb)%Ml
 

@@ -1,7 +1,7 @@
 module hphf_integrals
-    use constants, only: dp,n_int
+    use constants, only: dp,n_int,sizeof_int
     use SystemData, only: NEl, nBasisMax, G1, nBasis, Brr, tHub, ECore, &
-                          ALat, NMSH, tOddS_HPHF
+                          ALat, NMSH, tOddS_HPHF, modk_offdiag
     use IntegralsData, only: UMat,FCK,NMAX
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel, &
@@ -17,6 +17,7 @@ module hphf_integrals
 
     contains
 
+! NB AJWT has also cannibalized this for CCMC where he just passes in the HElGen.
     function hphf_spawn_sign (nI, nJ, iLutI, iLutJ, ic, ex, &
                                   tParity, HElGen) result (hel)
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
@@ -31,7 +32,8 @@ module hphf_integrals
 
         ! Avoid warnings
         iUnused = IC; iUnused = ex(1,1); iUnused = nI(1); iUnused = nJ(1)
-        iUnused = iLutI(0); iUnused = iLutJ(0); lUnused = tParity
+        iUnused = int(iLutI(0),sizeof_int); iUnused = int(iLutJ(0),sizeof_int)
+        lUnused = tParity
 
     end function
 
@@ -47,6 +49,9 @@ module hphf_integrals
         HElement_t , intent(in) :: HElGen
 
         hel = hphf_off_diag_helement_norm (nI, nJ, iLutI, iLutJ)
+
+        if (IC /= 0 .and. modk_offdiag) &
+            hel = -abs(hel)
 
         ! Avoid warnings
         iUnused = IC; iUnused = ex(1,1); lUnused = tParity
@@ -88,25 +93,25 @@ module hphf_integrals
         if (TestClosedShellDet(iLutnI)) then
             if(tOddS_HPHF) then
                 !For odd S states, all matrix elements to CS determinants should be 0
-                hel = 0.D0
+                hel = 0.0_dp
             elseif (.not. TestClosedShellDet(iLutnJ)) then
                 ! Closed shell --> Open shell, <X|H|Y> = 1/sqrt(2) [Hia + Hib]
                 ! or with minus if iLutnJ has an odd number of spin orbitals.
                 ! OTHERWISE Closed shell -> closed shell. Both the alpha and 
                 ! beta of the same orbital have been moved to the same new 
                 ! orbital. The matrix element is the same as before.
-                hel = hel * (sqrt(2.d0))
+                hel = hel * (sqrt(2.0_dp))
             endif
         else
             if (TestClosedShellDet(iLutnJ)) then
                 if(tOddS_HPHF) then
                     !For odd S states, all matrix elements to CS determinants should be 0
-                    hel = 0.D0
+                    hel = 0.0_dp
                 else
                     ! Open shell -> Closed shell. If one of
                     ! the determinants is connected, then the other is connected 
                     ! with the same IC & matrix element
-                    hel = hel * sqrt(2.d0)
+                    hel = hel * sqrt(2.0_dp)
                 endif
             else
                 ! Open shell -> Open shell. Find the spin pair of nJ.

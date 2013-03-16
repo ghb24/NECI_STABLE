@@ -73,8 +73,8 @@ C..
 C            CALL SLTCND(NEL,NBASISMAX,NHG,
 C     &     NMRKS(1:NEL,KI),NMRKS(1:NEL,KJ),G1,IC,NMSH,
 C     &     FCK,NMAX,ALAT,UMAT,TOTSUM)
-            IF(ABS(TOTSUM).LT.1.D-10) TOTSUM=0.D0
-            IF(TOTSUM.NE.0.D0.OR.KI.EQ.KJ) THEN
+            IF(ABS(TOTSUM).LT.1.0e-10_dp) TOTSUM=0.0_dp
+            IF(TOTSUM.NE.0.0_dp.OR.KI.EQ.KJ) THEN
                GC=GC+1
 C..   Stores the number of non-zero elements in each row
                NROW(KI)=NROW(KI)+1
@@ -88,7 +88,8 @@ C..   Stores the number of non-zero elements in each row
       ENDDO
 C..No. of columns
       IF(TCOUNT) THEN
-        IMAX=IDAMAX(NDET,DFLOAT(NROW),1)
+!        IMAX=MAXLOC(NROW)
+        IMAX=IDAMAX(NDET,real(NROW,dp),1)
         ICMAX=NROW(IMAX)
         WRITE(6,*) ' MAXIMUM WIDTH OF HAMIL : ' , ICMAX
         WRITE(6,*) ' TOTAL NUMBER OF NON-ZERO ELEMENTS : ' , GC

@@ -4,9 +4,9 @@ compiler = PGI-pgf95-on-LINUX
 cc = mpic++
 ccd = g++
 cpp = cpp -C -traditional
-cppflags =  -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2 -D__INT64 -D__PGI__ -D__SHARED_MEM
+cppflags =  -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2 -D__INT64 -D__PGI -D__SHARED_MEM
 ld = mpif90
-libs = -L ~/src/lib/fftw-3.1.2/lib -lfftw3 -lacml -pgcpplibs -lrt
+libs = -L ~/src/lib/fftw-3.1.2/lib -lfftw3 -lacml -pgcpplibs -lrt -lm
 module_flag = -module
 
 [dbg]

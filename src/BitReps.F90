@@ -3,7 +3,7 @@ module bit_reps
     use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level
     use CalcData, only: tTruncInitiator
     use csf_data, only: csf_yama_bit, csf_test_bit
-    use constants, only: lenof_sign, end_n_int, bits_n_int, n_int
+    use constants, only: lenof_sign, end_n_int, bits_n_int, n_int, dp,sizeof_int
     use DetBitOps, only: count_open_orbs
     use bit_rep_data
     use SymExcitDataMod, only: excit_gen_store_type, tBuildOccVirtList, &
@@ -34,80 +34,88 @@ module bit_reps
 !        module procedure decode_bit_det_bitwise
         module procedure decode_bit_det_chunks
     end interface
+        
+    integer, parameter :: l1(1:33)=(/0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,1,2,0,0,0,0,0,0,0,2,1,2,0,0,0/)
+    integer, parameter :: l2(1:33)=(/0,0,0,1,3,0,0,0,0,0,0,0,2,1,3,0,0,0,0,0,0,2,2,3,0,0,0,0,0,0,3,1,2/)
+    integer, parameter :: l3(1:33)=(/3,0,0,0,0,0,1,4,0,0,0,0,0,0,0,2,1,4,0,0,0,0,0,0,2,2,4,0,0,0,0,0,0/)
+    integer, parameter :: l4(1:33)=(/3,1,2,4,0,0,0,0,0,2,3,4,0,0,0,0,0,0,3,1,3,4,0,0,0,0,0,3,2,3,4,0,0/)
+    integer, parameter :: l5(1:33)=(/0,0,0,4,1,2,3,4,0,0,0,0,1,5,0,0,0,0,0,0,0,2,1,5,0,0,0,0,0,0,2,2,5/)
+    integer, parameter :: l6(1:33)=(/0,0,0,0,0,0,3,1,2,5,0,0,0,0,0,2,3,5,0,0,0,0,0,0,3,1,3,5,0,0,0,0,0/)
+    integer, parameter :: l7(1:33)=(/3,2,3,5,0,0,0,0,0,4,1,2,3,5,0,0,0,0,2,4,5,0,0,0,0,0,0,3,1,4,5,0,0/)
+    integer, parameter :: l8(1:33)=(/0,0,0,3,2,4,5,0,0,0,0,0,4,1,2,4,5,0,0,0,0,3,3,4,5,0,0,0,0,0,4,1,3/)
+    integer, parameter :: l9(1:33)=(/4,5,0,0,0,0,4,2,3,4,5,0,0,0,0,5,1,2,3,4,5,0,0,0,1,6,0,0,0,0,0,0,0/)
+    integer, parameter :: l10(1:33)=(/2,1,6,0,0,0,0,0,0,2,2,6,0,0,0,0,0,0,3,1,2,6,0,0,0,0,0,2,3,6,0,0,0/)
+    integer, parameter :: l11(1:33)=(/0,0,0,3,1,3,6,0,0,0,0,0,3,2,3,6,0,0,0,0,0,4,1,2,3,6,0,0,0,0,2,4,6/)
+    integer, parameter :: l12(1:33)=(/0,0,0,0,0,0,3,1,4,6,0,0,0,0,0,3,2,4,6,0,0,0,0,0,4,1,2,4,6,0,0,0,0/)
+    integer, parameter :: l13(1:33)=(/3,3,4,6,0,0,0,0,0,4,1,3,4,6,0,0,0,0,4,2,3,4,6,0,0,0,0,5,1,2,3,4,6/)
+    integer, parameter :: l14(1:33)=(/0,0,0,2,5,6,0,0,0,0,0,0,3,1,5,6,0,0,0,0,0,3,2,5,6,0,0,0,0,0,4,1,2/)
+    integer, parameter :: l15(1:33)=(/5,6,0,0,0,0,3,3,5,6,0,0,0,0,0,4,1,3,5,6,0,0,0,0,4,2,3,5,6,0,0,0,0/)
+    integer, parameter :: l16(1:33)=(/5,1,2,3,5,6,0,0,0,3,4,5,6,0,0,0,0,0,4,1,4,5,6,0,0,0,0,4,2,4,5,6,0/)
+    integer, parameter :: l17(1:33)=(/0,0,0,5,1,2,4,5,6,0,0,0,4,3,4,5,6,0,0,0,0,5,1,3,4,5,6,0,0,0,5,2,3/)
+    integer, parameter :: l18(1:33)=(/4,5,6,0,0,0,6,1,2,3,4,5,6,0,0,1,7,0,0,0,0,0,0,0,2,1,7,0,0,0,0,0,0/)
+    integer, parameter :: l19(1:33)=(/2,2,7,0,0,0,0,0,0,3,1,2,7,0,0,0,0,0,2,3,7,0,0,0,0,0,0,3,1,3,7,0,0/)
+    integer, parameter :: l20(1:33)=(/0,0,0,3,2,3,7,0,0,0,0,0,4,1,2,3,7,0,0,0,0,2,4,7,0,0,0,0,0,0,3,1,4/)
+    integer, parameter :: l21(1:33)=(/7,0,0,0,0,0,3,2,4,7,0,0,0,0,0,4,1,2,4,7,0,0,0,0,3,3,4,7,0,0,0,0,0/)
+    integer, parameter :: l22(1:33)=(/4,1,3,4,7,0,0,0,0,4,2,3,4,7,0,0,0,0,5,1,2,3,4,7,0,0,0,2,5,7,0,0,0/)
+    integer, parameter :: l23(1:33)=(/0,0,0,3,1,5,7,0,0,0,0,0,3,2,5,7,0,0,0,0,0,4,1,2,5,7,0,0,0,0,3,3,5/)
+    integer, parameter :: l24(1:33)=(/7,0,0,0,0,0,4,1,3,5,7,0,0,0,0,4,2,3,5,7,0,0,0,0,5,1,2,3,5,7,0,0,0/)
+    integer, parameter :: l25(1:33)=(/3,4,5,7,0,0,0,0,0,4,1,4,5,7,0,0,0,0,4,2,4,5,7,0,0,0,0,5,1,2,4,5,7/)
+    integer, parameter :: l26(1:33)=(/0,0,0,4,3,4,5,7,0,0,0,0,5,1,3,4,5,7,0,0,0,5,2,3,4,5,7,0,0,0,6,1,2/)
+    integer, parameter :: l27(1:33)=(/3,4,5,7,0,0,2,6,7,0,0,0,0,0,0,3,1,6,7,0,0,0,0,0,3,2,6,7,0,0,0,0,0/)
+    integer, parameter :: l28(1:33)=(/4,1,2,6,7,0,0,0,0,3,3,6,7,0,0,0,0,0,4,1,3,6,7,0,0,0,0,4,2,3,6,7,0/)
+    integer, parameter :: l29(1:33)=(/0,0,0,5,1,2,3,6,7,0,0,0,3,4,6,7,0,0,0,0,0,4,1,4,6,7,0,0,0,0,4,2,4/)
+    integer, parameter :: l30(1:33)=(/6,7,0,0,0,0,5,1,2,4,6,7,0,0,0,4,3,4,6,7,0,0,0,0,5,1,3,4,6,7,0,0,0/)
+    integer, parameter :: l31(1:33)=(/5,2,3,4,6,7,0,0,0,6,1,2,3,4,6,7,0,0,3,5,6,7,0,0,0,0,0,4,1,5,6,7,0/)
+    integer, parameter :: l32(1:33)=(/0,0,0,4,2,5,6,7,0,0,0,0,5,1,2,5,6,7,0,0,0,4,3,5,6,7,0,0,0,0,5,1,3/)
+    integer, parameter :: l33(1:33)=(/5,6,7,0,0,0,5,2,3,5,6,7,0,0,0,6,1,2,3,5,6,7,0,0,4,4,5,6,7,0,0,0,0/)
+    integer, parameter :: l34(1:33)=(/5,1,4,5,6,7,0,0,0,5,2,4,5,6,7,0,0,0,6,1,2,4,5,6,7,0,0,5,3,4,5,6,7/)
+    integer, parameter :: l35(1:33)=(/0,0,0,6,1,3,4,5,6,7,0,0,6,2,3,4,5,6,7,0,0,7,1,2,3,4,5,6,7,0,1,8,0/)
+    integer, parameter :: l36(1:33)=(/0,0,0,0,0,0,2,1,8,0,0,0,0,0,0,2,2,8,0,0,0,0,0,0,3,1,2,8,0,0,0,0,0/)
+    integer, parameter :: l37(1:33)=(/2,3,8,0,0,0,0,0,0,3,1,3,8,0,0,0,0,0,3,2,3,8,0,0,0,0,0,4,1,2,3,8,0/)
+    integer, parameter :: l38(1:33)=(/0,0,0,2,4,8,0,0,0,0,0,0,3,1,4,8,0,0,0,0,0,3,2,4,8,0,0,0,0,0,4,1,2/)
+    integer, parameter :: l39(1:33)=(/4,8,0,0,0,0,3,3,4,8,0,0,0,0,0,4,1,3,4,8,0,0,0,0,4,2,3,4,8,0,0,0,0/)
+    integer, parameter :: l40(1:33)=(/5,1,2,3,4,8,0,0,0,2,5,8,0,0,0,0,0,0,3,1,5,8,0,0,0,0,0,3,2,5,8,0,0/)
+    integer, parameter :: l41(1:33)=(/0,0,0,4,1,2,5,8,0,0,0,0,3,3,5,8,0,0,0,0,0,4,1,3,5,8,0,0,0,0,4,2,3/)
+    integer, parameter :: l42(1:33)=(/5,8,0,0,0,0,5,1,2,3,5,8,0,0,0,3,4,5,8,0,0,0,0,0,4,1,4,5,8,0,0,0,0/)
+    integer, parameter :: l43(1:33)=(/4,2,4,5,8,0,0,0,0,5,1,2,4,5,8,0,0,0,4,3,4,5,8,0,0,0,0,5,1,3,4,5,8/)
+    integer, parameter :: l44(1:33)=(/0,0,0,5,2,3,4,5,8,0,0,0,6,1,2,3,4,5,8,0,0,2,6,8,0,0,0,0,0,0,3,1,6/)
+    integer, parameter :: l45(1:33)=(/8,0,0,0,0,0,3,2,6,8,0,0,0,0,0,4,1,2,6,8,0,0,0,0,3,3,6,8,0,0,0,0,0/)
+    integer, parameter :: l46(1:33)=(/4,1,3,6,8,0,0,0,0,4,2,3,6,8,0,0,0,0,5,1,2,3,6,8,0,0,0,3,4,6,8,0,0/)
+    integer, parameter :: l47(1:33)=(/0,0,0,4,1,4,6,8,0,0,0,0,4,2,4,6,8,0,0,0,0,5,1,2,4,6,8,0,0,0,4,3,4/)
+    integer, parameter :: l48(1:33)=(/6,8,0,0,0,0,5,1,3,4,6,8,0,0,0,5,2,3,4,6,8,0,0,0,6,1,2,3,4,6,8,0,0/)
+    integer, parameter :: l49(1:33)=(/3,5,6,8,0,0,0,0,0,4,1,5,6,8,0,0,0,0,4,2,5,6,8,0,0,0,0,5,1,2,5,6,8/)
+    integer, parameter :: l50(1:33)=(/0,0,0,4,3,5,6,8,0,0,0,0,5,1,3,5,6,8,0,0,0,5,2,3,5,6,8,0,0,0,6,1,2/)
+    integer, parameter :: l51(1:33)=(/3,5,6,8,0,0,4,4,5,6,8,0,0,0,0,5,1,4,5,6,8,0,0,0,5,2,4,5,6,8,0,0,0/)
+    integer, parameter :: l52(1:33)=(/6,1,2,4,5,6,8,0,0,5,3,4,5,6,8,0,0,0,6,1,3,4,5,6,8,0,0,6,2,3,4,5,6/)
+    integer, parameter :: l53(1:33)=(/8,0,0,7,1,2,3,4,5,6,8,0,2,7,8,0,0,0,0,0,0,3,1,7,8,0,0,0,0,0,3,2,7/)
+    integer, parameter :: l54(1:33)=(/8,0,0,0,0,0,4,1,2,7,8,0,0,0,0,3,3,7,8,0,0,0,0,0,4,1,3,7,8,0,0,0,0/)
+    integer, parameter :: l55(1:33)=(/4,2,3,7,8,0,0,0,0,5,1,2,3,7,8,0,0,0,3,4,7,8,0,0,0,0,0,4,1,4,7,8,0/)
+    integer, parameter :: l56(1:33)=(/0,0,0,4,2,4,7,8,0,0,0,0,5,1,2,4,7,8,0,0,0,4,3,4,7,8,0,0,0,0,5,1,3/)
+    integer, parameter :: l57(1:33)=(/4,7,8,0,0,0,5,2,3,4,7,8,0,0,0,6,1,2,3,4,7,8,0,0,3,5,7,8,0,0,0,0,0/)
+    integer, parameter :: l58(1:33)=(/4,1,5,7,8,0,0,0,0,4,2,5,7,8,0,0,0,0,5,1,2,5,7,8,0,0,0,4,3,5,7,8,0/)
+    integer, parameter :: l59(1:33)=(/0,0,0,5,1,3,5,7,8,0,0,0,5,2,3,5,7,8,0,0,0,6,1,2,3,5,7,8,0,0,4,4,5/)
+    integer, parameter :: l60(1:33)=(/7,8,0,0,0,0,5,1,4,5,7,8,0,0,0,5,2,4,5,7,8,0,0,0,6,1,2,4,5,7,8,0,0/)
+    integer, parameter :: l61(1:33)=(/5,3,4,5,7,8,0,0,0,6,1,3,4,5,7,8,0,0,6,2,3,4,5,7,8,0,0,7,1,2,3,4,5/)
+    integer, parameter :: l62(1:33)=(/7,8,0,3,6,7,8,0,0,0,0,0,4,1,6,7,8,0,0,0,0,4,2,6,7,8,0,0,0,0,5,1,2/)
+    integer, parameter :: l63(1:33)=(/6,7,8,0,0,0,4,3,6,7,8,0,0,0,0,5,1,3,6,7,8,0,0,0,5,2,3,6,7,8,0,0,0/)
+    integer, parameter :: l64(1:33)=(/6,1,2,3,6,7,8,0,0,4,4,6,7,8,0,0,0,0,5,1,4,6,7,8,0,0,0,5,2,4,6,7,8/)
+    integer, parameter :: l65(1:33)=(/0,0,0,6,1,2,4,6,7,8,0,0,5,3,4,6,7,8,0,0,0,6,1,3,4,6,7,8,0,0,6,2,3/)
+    integer, parameter :: l66(1:33)=(/4,6,7,8,0,0,7,1,2,3,4,6,7,8,0,4,5,6,7,8,0,0,0,0,5,1,5,6,7,8,0,0,0/)
+    integer, parameter :: l67(1:33)=(/5,2,5,6,7,8,0,0,0,6,1,2,5,6,7,8,0,0,5,3,5,6,7,8,0,0,0,6,1,3,5,6,7/)
+    integer, parameter :: l68(1:33)=(/8,0,0,6,2,3,5,6,7,8,0,0,7,1,2,3,5,6,7,8,0,5,4,5,6,7,8,0,0,0,6,1,4/)
+    integer, parameter :: l69(1:33)=(/5,6,7,8,0,0,6,2,4,5,6,7,8,0,0,7,1,2,4,5,6,7,8,0,6,3,4,5,6,7,8,0,0/)
+    integer, parameter :: l70(1:27)=(/7,1,3,4,5,6,7,8,0,7,2,3,4,5,6,7,8,0,8,1,2,3,4,5,6,7,8/)
 
     ! Some (rather nasty) data for the chunkwise decoding
     integer, parameter :: decode_map_arr(0:8,0:255) = reshape(&
-        (/0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,1,2,0,0,0,0,0,0,0,2,1,2,0,0,0,&
-        0,0,0,1,3,0,0,0,0,0,0,0,2,1,3,0,0,0,0,0,0,2,2,3,0,0,0,0,0,0,3,1,2,&
-        3,0,0,0,0,0,1,4,0,0,0,0,0,0,0,2,1,4,0,0,0,0,0,0,2,2,4,0,0,0,0,0,0,&
-        3,1,2,4,0,0,0,0,0,2,3,4,0,0,0,0,0,0,3,1,3,4,0,0,0,0,0,3,2,3,4,0,0,&
-        0,0,0,4,1,2,3,4,0,0,0,0,1,5,0,0,0,0,0,0,0,2,1,5,0,0,0,0,0,0,2,2,5,&
-        0,0,0,0,0,0,3,1,2,5,0,0,0,0,0,2,3,5,0,0,0,0,0,0,3,1,3,5,0,0,0,0,0,&
-        3,2,3,5,0,0,0,0,0,4,1,2,3,5,0,0,0,0,2,4,5,0,0,0,0,0,0,3,1,4,5,0,0,&
-        0,0,0,3,2,4,5,0,0,0,0,0,4,1,2,4,5,0,0,0,0,3,3,4,5,0,0,0,0,0,4,1,3,&
-        4,5,0,0,0,0,4,2,3,4,5,0,0,0,0,5,1,2,3,4,5,0,0,0,1,6,0,0,0,0,0,0,0,&
-        2,1,6,0,0,0,0,0,0,2,2,6,0,0,0,0,0,0,3,1,2,6,0,0,0,0,0,2,3,6,0,0,0,&
-        0,0,0,3,1,3,6,0,0,0,0,0,3,2,3,6,0,0,0,0,0,4,1,2,3,6,0,0,0,0,2,4,6,&
-        0,0,0,0,0,0,3,1,4,6,0,0,0,0,0,3,2,4,6,0,0,0,0,0,4,1,2,4,6,0,0,0,0,&
-        3,3,4,6,0,0,0,0,0,4,1,3,4,6,0,0,0,0,4,2,3,4,6,0,0,0,0,5,1,2,3,4,6,&
-        0,0,0,2,5,6,0,0,0,0,0,0,3,1,5,6,0,0,0,0,0,3,2,5,6,0,0,0,0,0,4,1,2,&
-        5,6,0,0,0,0,3,3,5,6,0,0,0,0,0,4,1,3,5,6,0,0,0,0,4,2,3,5,6,0,0,0,0,&
-        5,1,2,3,5,6,0,0,0,3,4,5,6,0,0,0,0,0,4,1,4,5,6,0,0,0,0,4,2,4,5,6,0,&
-        0,0,0,5,1,2,4,5,6,0,0,0,4,3,4,5,6,0,0,0,0,5,1,3,4,5,6,0,0,0,5,2,3,&
-        4,5,6,0,0,0,6,1,2,3,4,5,6,0,0,1,7,0,0,0,0,0,0,0,2,1,7,0,0,0,0,0,0,&
-        2,2,7,0,0,0,0,0,0,3,1,2,7,0,0,0,0,0,2,3,7,0,0,0,0,0,0,3,1,3,7,0,0,&
-        0,0,0,3,2,3,7,0,0,0,0,0,4,1,2,3,7,0,0,0,0,2,4,7,0,0,0,0,0,0,3,1,4,&
-        7,0,0,0,0,0,3,2,4,7,0,0,0,0,0,4,1,2,4,7,0,0,0,0,3,3,4,7,0,0,0,0,0,&
-        4,1,3,4,7,0,0,0,0,4,2,3,4,7,0,0,0,0,5,1,2,3,4,7,0,0,0,2,5,7,0,0,0,&
-        0,0,0,3,1,5,7,0,0,0,0,0,3,2,5,7,0,0,0,0,0,4,1,2,5,7,0,0,0,0,3,3,5,&
-        7,0,0,0,0,0,4,1,3,5,7,0,0,0,0,4,2,3,5,7,0,0,0,0,5,1,2,3,5,7,0,0,0,&
-        3,4,5,7,0,0,0,0,0,4,1,4,5,7,0,0,0,0,4,2,4,5,7,0,0,0,0,5,1,2,4,5,7,&
-        0,0,0,4,3,4,5,7,0,0,0,0,5,1,3,4,5,7,0,0,0,5,2,3,4,5,7,0,0,0,6,1,2,&
-        3,4,5,7,0,0,2,6,7,0,0,0,0,0,0,3,1,6,7,0,0,0,0,0,3,2,6,7,0,0,0,0,0,&
-        4,1,2,6,7,0,0,0,0,3,3,6,7,0,0,0,0,0,4,1,3,6,7,0,0,0,0,4,2,3,6,7,0,&
-        0,0,0,5,1,2,3,6,7,0,0,0,3,4,6,7,0,0,0,0,0,4,1,4,6,7,0,0,0,0,4,2,4,&
-        6,7,0,0,0,0,5,1,2,4,6,7,0,0,0,4,3,4,6,7,0,0,0,0,5,1,3,4,6,7,0,0,0,&
-        5,2,3,4,6,7,0,0,0,6,1,2,3,4,6,7,0,0,3,5,6,7,0,0,0,0,0,4,1,5,6,7,0,&
-        0,0,0,4,2,5,6,7,0,0,0,0,5,1,2,5,6,7,0,0,0,4,3,5,6,7,0,0,0,0,5,1,3,&
-        5,6,7,0,0,0,5,2,3,5,6,7,0,0,0,6,1,2,3,5,6,7,0,0,4,4,5,6,7,0,0,0,0,&
-        5,1,4,5,6,7,0,0,0,5,2,4,5,6,7,0,0,0,6,1,2,4,5,6,7,0,0,5,3,4,5,6,7,&
-        0,0,0,6,1,3,4,5,6,7,0,0,6,2,3,4,5,6,7,0,0,7,1,2,3,4,5,6,7,0,1,8,0,&
-        0,0,0,0,0,0,2,1,8,0,0,0,0,0,0,2,2,8,0,0,0,0,0,0,3,1,2,8,0,0,0,0,0,&
-        2,3,8,0,0,0,0,0,0,3,1,3,8,0,0,0,0,0,3,2,3,8,0,0,0,0,0,4,1,2,3,8,0,&
-        0,0,0,2,4,8,0,0,0,0,0,0,3,1,4,8,0,0,0,0,0,3,2,4,8,0,0,0,0,0,4,1,2,&
-        4,8,0,0,0,0,3,3,4,8,0,0,0,0,0,4,1,3,4,8,0,0,0,0,4,2,3,4,8,0,0,0,0,&
-        5,1,2,3,4,8,0,0,0,2,5,8,0,0,0,0,0,0,3,1,5,8,0,0,0,0,0,3,2,5,8,0,0,&
-        0,0,0,4,1,2,5,8,0,0,0,0,3,3,5,8,0,0,0,0,0,4,1,3,5,8,0,0,0,0,4,2,3,&
-        5,8,0,0,0,0,5,1,2,3,5,8,0,0,0,3,4,5,8,0,0,0,0,0,4,1,4,5,8,0,0,0,0,&
-        4,2,4,5,8,0,0,0,0,5,1,2,4,5,8,0,0,0,4,3,4,5,8,0,0,0,0,5,1,3,4,5,8,&
-        0,0,0,5,2,3,4,5,8,0,0,0,6,1,2,3,4,5,8,0,0,2,6,8,0,0,0,0,0,0,3,1,6,&
-        8,0,0,0,0,0,3,2,6,8,0,0,0,0,0,4,1,2,6,8,0,0,0,0,3,3,6,8,0,0,0,0,0,&
-        4,1,3,6,8,0,0,0,0,4,2,3,6,8,0,0,0,0,5,1,2,3,6,8,0,0,0,3,4,6,8,0,0,&
-        0,0,0,4,1,4,6,8,0,0,0,0,4,2,4,6,8,0,0,0,0,5,1,2,4,6,8,0,0,0,4,3,4,&
-        6,8,0,0,0,0,5,1,3,4,6,8,0,0,0,5,2,3,4,6,8,0,0,0,6,1,2,3,4,6,8,0,0,&
-        3,5,6,8,0,0,0,0,0,4,1,5,6,8,0,0,0,0,4,2,5,6,8,0,0,0,0,5,1,2,5,6,8,&
-        0,0,0,4,3,5,6,8,0,0,0,0,5,1,3,5,6,8,0,0,0,5,2,3,5,6,8,0,0,0,6,1,2,&
-        3,5,6,8,0,0,4,4,5,6,8,0,0,0,0,5,1,4,5,6,8,0,0,0,5,2,4,5,6,8,0,0,0,&
-        6,1,2,4,5,6,8,0,0,5,3,4,5,6,8,0,0,0,6,1,3,4,5,6,8,0,0,6,2,3,4,5,6,&
-        8,0,0,7,1,2,3,4,5,6,8,0,2,7,8,0,0,0,0,0,0,3,1,7,8,0,0,0,0,0,3,2,7,&
-        8,0,0,0,0,0,4,1,2,7,8,0,0,0,0,3,3,7,8,0,0,0,0,0,4,1,3,7,8,0,0,0,0,&
-        4,2,3,7,8,0,0,0,0,5,1,2,3,7,8,0,0,0,3,4,7,8,0,0,0,0,0,4,1,4,7,8,0,&
-        0,0,0,4,2,4,7,8,0,0,0,0,5,1,2,4,7,8,0,0,0,4,3,4,7,8,0,0,0,0,5,1,3,&
-        4,7,8,0,0,0,5,2,3,4,7,8,0,0,0,6,1,2,3,4,7,8,0,0,3,5,7,8,0,0,0,0,0,&
-        4,1,5,7,8,0,0,0,0,4,2,5,7,8,0,0,0,0,5,1,2,5,7,8,0,0,0,4,3,5,7,8,0,&
-        0,0,0,5,1,3,5,7,8,0,0,0,5,2,3,5,7,8,0,0,0,6,1,2,3,5,7,8,0,0,4,4,5,&
-        7,8,0,0,0,0,5,1,4,5,7,8,0,0,0,5,2,4,5,7,8,0,0,0,6,1,2,4,5,7,8,0,0,&
-        5,3,4,5,7,8,0,0,0,6,1,3,4,5,7,8,0,0,6,2,3,4,5,7,8,0,0,7,1,2,3,4,5,&
-        7,8,0,3,6,7,8,0,0,0,0,0,4,1,6,7,8,0,0,0,0,4,2,6,7,8,0,0,0,0,5,1,2,&
-        6,7,8,0,0,0,4,3,6,7,8,0,0,0,0,5,1,3,6,7,8,0,0,0,5,2,3,6,7,8,0,0,0,&
-        6,1,2,3,6,7,8,0,0,4,4,6,7,8,0,0,0,0,5,1,4,6,7,8,0,0,0,5,2,4,6,7,8,&
-        0,0,0,6,1,2,4,6,7,8,0,0,5,3,4,6,7,8,0,0,0,6,1,3,4,6,7,8,0,0,6,2,3,&
-        4,6,7,8,0,0,7,1,2,3,4,6,7,8,0,4,5,6,7,8,0,0,0,0,5,1,5,6,7,8,0,0,0,&
-        5,2,5,6,7,8,0,0,0,6,1,2,5,6,7,8,0,0,5,3,5,6,7,8,0,0,0,6,1,3,5,6,7,&
-        8,0,0,6,2,3,5,6,7,8,0,0,7,1,2,3,5,6,7,8,0,5,4,5,6,7,8,0,0,0,6,1,4,&
-        5,6,7,8,0,0,6,2,4,5,6,7,8,0,0,7,1,2,4,5,6,7,8,0,6,3,4,5,6,7,8,0,0,&
-        7,1,3,4,5,6,7,8,0,7,2,3,4,5,6,7,8,0,8,1,2,3,4,5,6,7,8/),&
-        (/9,256/) )
+        (/l1,l2,l3,l4,l5,l6,l7,l8,l9,l10,l11,l12,l13,l14,l15,l16,l17,l18,l19,l20,&
+        l21,l22,l23,l24,l25,l26,l27,l28,l29,l30,l31,l32,l33,l34,l35,l36,l37,l38,l39,l40,&
+        l41,l42,l43,l44,l45,l46,l47,l48,l49,l50,l51,l52,l53,l54,l55,l56,l57,l58,l59,l60,&
+        l61,l62,l63,l64,l65,l66,l67,l68,l69,l70/),(/9,256/) )
+
+    private :: l1,l2,l3,l4,l5,l6,l7,l8,l9,l10,l11,l12,l13,l14,l15,l16,l17,l18,l19,l20,l21,l22,l23,l24,l25,l26
+    private :: l27,l28,l29,l30,l31,l32,l33,l34,l35,l36,l37,l38,l39,l40,l41,l42,l43,l44,l45,l46,l47,l48,l49,l50
+    private :: l51,l52,l53,l54,l55,l56,l57,l58,l59,l60,l61,l62,l63,l64,l65,l66,l67,l68,l69,l70
 
 contains
 
@@ -165,16 +173,32 @@ contains
         ! The number of integers used for sorting / other bit manipulations
         NIfDBO = NIfD + NIfY
 
-        ! Integers for flags
+        ! Do we have any flags to store?
         if (tTruncInitiator) then
-            !If there are other options which require flags, then this criteria must be extended.
-            !However, do not increase this value from one, since we should only need max one integer
-            !for flags, and this is hardcoded in elsewhere.
+            tUseFlags = .true.
+        else
+            tUseFlags = .false.
+        end if
+
+        ! If we are using 64-bit integers, we can put the flags into the same
+        ! integers as the signs, as there is plenty of redundancy. This avoids
+        ! using 1/3 of our communication to just say if we are spawning from
+        ! an initiator.
+#ifdef __INT64
+        NIfFlag = 0
+        NOffFlag = NOffSgn
+#else
+        if (tUseFlags) then
+            ! If there are other options which require flags, then this 
+            ! criteria must be extended. However, do not increase this value 
+            ! from one, since we should only need max one integer for flags, !
+            ! and this is hardcoded in elsewhere.
             NIfFlag = 1
         else
             NIfFlag = 0
         endif
         NOffFlag = NOffSgn + NIfSgn
+#endif
 
         ! N.B. Flags MUST be last!!!!!
         !      If we change this bit, then we need to adjust ilut_lt and 
@@ -183,8 +207,8 @@ contains
         ! The total number of bits_n_int-bit integers used - 1
         NIfTot = NIfD + NIfY + NIfSgn + NIfFlag
 
-        WRITE(6,*) "Setting integer length of determinants as bit-strings to: ", NIfTot + 1
-        WRITE(6,*) "Setting integer bit-length of determinants as bit-strings to: ", bits_n_int
+        WRITE(6,"(A,I6)") "Setting integer length of determinants as bit-strings to: ", NIfTot + 1
+        WRITE(6,"(A,I6)") "Setting integer bit-length of determinants as bit-strings to: ", bits_n_int
          
     end subroutine
 
@@ -203,12 +227,17 @@ contains
             call decode_bit_det (nI, ilut)
         endif
 
-        sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
-        IF(NifFlag.eq.1) THEN
-            flags = iLut(NOffFlag)
-        ELSE
-            flags = 0
-        ENDIF
+#ifdef __INT64
+        ! TODO: Should we inline the flag test
+        sgn(1) = int(iand(ilut(NOffSgn), sign_mask), sizeof_int)
+        if (test_flag(ilut, flag_negative_sign)) sgn(1) = -sgn(1)
+        if (lenof_sign == 2) then
+            sgn(lenof_sign) = int(ilut(NOffSgn+1), sizeof_int)
+        end if
+#else
+        sgn = int(iLut(NOffSgn:NOffSgn+lenof_sign-1), sizeof_int)
+#endif
+        flags = int(ishft(iLut(NOffFlag), -flag_bit_offset), sizeof_int)
 
     end subroutine extract_bit_rep
 
@@ -216,18 +245,23 @@ contains
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer, dimension(lenof_sign), intent(out) :: sgn
 
-        sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
+#ifdef __INT64
+        ! TODO: Should we inline the flag test
+        sgn(1) = int(iand(ilut(NOffSgn), sign_mask), sizeof_int)
+        if (test_flag(ilut, flag_negative_sign)) sgn(1) = -sgn(1)
+        if (lenof_sign == 2) then
+            sgn(lenof_sign) = int(ilut(NOffSgn+1), sizeof_int)
+        end if
+#else
+        sgn = int(iLut(NOffSgn:NOffSgn+lenof_sign-1), sizeof_int)
+#endif
     end subroutine extract_sign
 
-    function extract_flags (iLut)
+    function extract_flags (iLut) result(flags)
         integer(n_int), intent(in) :: ilut(0:nIfTot)
-        integer :: extract_flags
+        integer :: flags
 
-        IF(NIfFlag.eq.1) THEN
-            extract_flags = iLut(NOffFlag)
-        ELSE
-            extract_flags = 0
-        ENDIF
+        flags = int(ishft(ilut(NOffFlag), -flag_bit_offset), sizeof_int)
 
     end function extract_flags
 
@@ -237,21 +271,53 @@ contains
         integer, intent(in) :: part_type
         integer :: sgn
 
-        sgn = ilut(nOffSgn + part_type - 1)
+#ifdef __INT64
+        ! TODO: Should we inline the flag test
+        if (part_type == 1) then
+            sgn = int(iand(ilut(NOffSgn), sign_mask), sizeof_int)
+            if (test_flag(ilut, flag_negative_sign)) sgn = -sgn
+        else
+            sgn = int(ilut(NOffSgn+1), sizeof_int)
+        end if
+#else
+        sgn = int(ilut(nOffSgn + part_type - 1),sizeof_int)
+#endif
 
     end function
 
     subroutine encode_bit_rep (ilut, Det, sgn, flag)
-        integer(n_int), intent(inout) :: ilut(0:nIfTot)
+        integer(n_int), intent(out) :: ilut(0:nIfTot)
         integer, dimension(lenof_sign), intent(in) :: sgn
         integer(n_int), intent(in) :: Det(0:NIfDBO)
         integer, intent(in) :: flag
+        integer :: flag_local
         
         iLut(0:NIfDBO) = Det
+        flag_local = flag
+
+#ifdef __INT64
+        ! In this encode step we don't have to worry about trampling on
+        ! existing flags, as we are about to set them below.
+        ilut(NOffSgn) = abs(sgn(1))
+        if (sgn(1) < 0) then
+            flag_local = ibset(flag_local, flag_negative_sign)
+        else
+            flag_local = ibclr(flag_local, flag_negative_sign)
+        end if
+        if (lenof_sign == 2) then
+            ilut(NOffSgn+1) = sgn(lenof_sign)
+        end if
+#else
         iLut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
-        IF(NIfFlag.eq.1) THEN
-            iLut(NOffFlag) = flag
-        ENDIF
+#endif
+
+        ! We must make sure that we don't trample on sign data if we are
+        ! including both in the same integer.
+        !
+        ! We have ensured that the flags are correct INCLUDING the sign bit,
+        ! so we don't have to deal with that specially.
+        ilut(NOffFlag) = ior(iand(ilut(NOffFlag), sign_mask), &
+                             ishft(int(flag_local, n_int), flag_bit_offset))
 
     end subroutine encode_bit_rep
 
@@ -262,7 +328,13 @@ contains
         integer(n_int), intent(inout) :: ilut(0:nIfTot)
         integer, intent(in) :: flag
 
-        iLut(NOffFlag) = flag
+        ! We must make sure that we don't trample on sign data if we are
+        ! including both in the same integer.
+        !
+        ! This includes not trampling on the sign bit stored with the flags.
+        iLut(NOffFlag) = ior(iand(ilut(NOffFlag), sign_neg_mask), &
+                             ishft(int(ibclr(flag,flag_negative_sign), n_int),&
+                                   flag_bit_offset))
 
     end subroutine encode_flags
 
@@ -272,8 +344,8 @@ contains
 
         integer(n_int), intent(inout) :: ilut(0:niftot)
 
-        if (NIfFlag > 0) &
-            iLut(NOffFlag:NOffFlag+NIfFlag-1) = 0
+        ! Ensure this doesn't clear the 'sign' flag.
+        ilut(NOffFlag) = iand(ilut(NOffFlag), sign_neg_mask)
 
     end subroutine clear_all_flags
 
@@ -284,7 +356,16 @@ contains
         integer(n_int), intent(inout) :: ilut(0:nIfTot)
         integer, dimension(lenof_sign), intent(in) :: sgn
 
+#ifdef __INT64
+        ! Ensure that we don't trample on flags (which have already been set).
+        ilut(NOffSgn) = ior(iand(flags_mask, ilut(NOffSgn)), int(abs(sgn(1)),n_int))
+        call set_flag(ilut, flag_negative_sign, sgn(1) < 0)
+        if (lenof_sign == 2) then
+            ilut(NOffSgn+1) = sgn(lenof_sign)
+        end if
+#else
         iLut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
+#endif
 
     end subroutine encode_sign
 
@@ -296,7 +377,16 @@ contains
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
         integer, intent(in) :: sgn, part_type
 
+#ifdef __INT64
+        if (part_type == 1) then
+            ilut(NOffSgn) = ior(iand(flags_mask, ilut(NOffSgn)), int(abs(sgn),n_int))
+            call set_flag(ilut, flag_negative_sign, sgn < 0)
+        else
+            iLut(NOffSgn+1) = sgn
+        end if
+#else
         iLut(NOffSgn+part_type-1) = sgn
+#endif
 
     end subroutine encode_part_sign
         
@@ -336,8 +426,9 @@ contains
 !        off = mod(flg, bits_n_int)
 !        ilut(ind) = ibset(ilut(ind), off)
         
-!This now assumes that we do not have more flags than bits in an integer.
-         ilut(NOffFlag) = ibset(ilut(NOffFlag),flg)
+        ! This now assumes that we do not have more flags than bits in an 
+        ! integer.
+        ilut(NOffFlag) = ibset(ilut(NOffFlag), flg + flag_bit_offset)
 
     end subroutine set_flag_single
 
@@ -372,7 +463,7 @@ contains
 !        ilut(ind) = ibclr(ilut(ind), off)
 
 !This now assumes that we do not have more flags than bits in an integer.
-        ilut(NOffFlag) = ibclr(ilut(NOffFlag),flg)
+        ilut(NOffFlag) = ibclr(ilut(NOffFlag), flg + flag_bit_offset)
 
     end subroutine clr_flag
 
@@ -529,7 +620,8 @@ contains
             offset = 0
             do i = 0, NIfD
                 do j = 0, bits_n_int - 1, 8
-                    val = iand(ishft(ilut(i), -j), Z'FF')
+!                    val = iand(ishft(ilut(i), -j), Z'FF')
+                    val = int(iand(ishft(ilut(i), -j), int(255,n_int)),sizeof_int)
                     do k = 1, decode_map_arr(0, val)
                         elec = elec + 1
                         nI(elec) = offset + decode_map_arr(k, val)
@@ -544,7 +636,6 @@ contains
         endif
 
     end subroutine
-
 
     subroutine decode_bit_det_bitwise (nI, iLut)
 
@@ -625,7 +716,6 @@ contains
             enddo
         endif
     end subroutine decode_bit_det_bitwise
-
 
 !    subroutine init_excitations()
 !        ! Allocate and initialise data in excit_mask.

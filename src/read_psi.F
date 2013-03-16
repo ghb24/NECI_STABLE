@@ -4,9 +4,9 @@
       use constants, only: dp
       IMPLICIT NONE
       INTEGER nBasisMax(5,*)
+      integer :: NEVAL,NDET,I,J,NEL,NDETCK,NEVALCK,NELCK
       real(dp) :: CK(NDET,NEVAL)
       real(dp) :: W(NEVAL)
-      integer :: NEVAL,NDET,I,J,NEL,NDETCK,NEVALCK,NELCK
       integer :: NMAXCK,NMAYCK,NMAZCK
       real(dp) :: BOX,BOA,COA,C,BOXCK,BOACK,COACK
 C..
@@ -68,9 +68,9 @@ C ==----------------------------------------------------------------==
       use constants, only: dp
       IMPLICIT NONE
       INTEGER nBasisMax(5,*)
+      INTEGER I,NEVAL,NDET,NEL,J
       HElement_t CK(NDET,NEVAL)
       real(dp) W(NEVAL),BOA,BOX,COA
-      INTEGER I,NEVAL,NDET,NEL,J
 C..
       OPEN(10,FILE='PSI_LONG',STATUS='UNKNOWN')
       WRITE(10,*) NBASISMAX(1,2),NBASISMAX(2,2),NBASISMAX(3,2),
@@ -93,10 +93,10 @@ C..
      &    NBASISMAX,NEL,CK,W)
       use constants, only: dp
       IMPLICIT NONE
+      INTEGER I,NEVAL,NDET,NEL,J
       INTEGER nBasisMax(5,*)
       HElement_t CK(NDET,NEVAL)
       real(dp) W(NEVAL),BOA,BOX,COA
-      INTEGER I,NEVAL,NDET,NEL,J
 C..
       OPEN(10,FILE='PSI_COMP',STATUS='UNKNOWN')
       WRITE(10,*) NBASISMAX(1,2),NBASISMAX(2,2),NBASISMAX(3,2),
@@ -104,7 +104,7 @@ C..
       WRITE(10,*) BOX,BOA,COA
       DO I=1,NEVAL
         DO J=1,NDET
-          IF(abs(CK(J,I)).gt. 1.D-2) THEN
+          IF(abs(CK(J,I)).gt. 1.0e-2_dp) THEN
             WRITE(10,"(2I5)",advance='no') I,J
             WRITE(10,*) CK(J,I),ABS(CK(J,I))
          ENDIF

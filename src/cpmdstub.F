@@ -9,11 +9,23 @@ C.. A stub containing dummy functions in CPMD, which will appear on linking appr
 
          ! Make warnings go away
          i=i; j=j; k=k; l=l; gen2ints=gen2ints
-         UMATEL=0.D0
+         UMATEL=0.0_dp
       END
 
-      SUBROUTINE CPMDANTISYMINTEL 
+      SUBROUTINE CPMDANTISYMINTEL(G1,UMat2D,HarInt,NStates) 
+         use constants, only: dp
+         use SystemData, only: BasisFN
          IMPLICIT NONE
+         type(BasisFN) :: G1(*)
+         complex(dp) :: HarInt(*)
+         integer :: nStates
+         HElement_t :: UMat2D(*)
+         !eliminate warnings
+         G1(1)=G1(1)
+         nStates=nStates
+         UMat2D(1)=UMat2D(1)
+         HarInt(1)=HarInt(1)
+         call stop_all("CPMDANTISYMINTEL","Entering stub routine.")
       END SUBROUTINE
 
       SUBROUTINE CPMDGETOCC(ISTATE,OCC)
@@ -24,7 +36,7 @@ C         INCLUDE 'elct.inc'
          INTEGER ISTATE
 C         COMMON /ELCT/ F
 C         OCC=F(ISTATE)
-         OCC=0.D0
+         OCC=0.0_dp
          istate=istate
       END
       
@@ -34,7 +46,7 @@ C         OCC=F(ISTATE)
          IMPLICIT NONE
          real(dp) INTS(NSTATES,NSTATES)
          real(dp) XIS
-         INTS=0.d0
+         INTS=0.0_dp
          xis=xis
       END
 

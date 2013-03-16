@@ -41,7 +41,7 @@ C..Returned in sum
       AX=NBASISMAX(1,4)
       AY=NBASISMAX(2,4)
       IF(TREAL) THEN
-         TOTSUM=0.D0
+         TOTSUM=0.0_dp
       ELSE
        IF(TTILT) THEN
 CCCC.. NBASISMAX goes from -NMAXX+1 to MAXX so LX=2MAXX
@@ -53,7 +53,7 @@ CCCC.. NBASISMAX goes from -NMAXX+1 to MAXX so LX=2MAXX
          IF(LY.GT.1) TOTSUM=TOTSUM+COS(2*PI*J/(LY))
          IF(LZ.GT.1) TOTSUM=TOTSUM+COS(2*PI*K/(LZ))
        ENDIF
-       TOTSUM=TOTSUM*2.D0*BHUB
+       TOTSUM=TOTSUM*2.0_dp*BHUB
       ENDIF
       RETURN
       END
@@ -91,8 +91,8 @@ CCCC.. NBASISMAX goes from -NMAXX+1 to MAXX so LX=2MAXX
 C         IF(LY.GT.1) TOTSUM=TOTSUM+COS(PI*J/(LY+1))
 C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
       ENDIF
-      TOTSUM=TOTSUM*2.D0*BHUB
-      IF(TREAL) TOTSUM=0.D0
+      TOTSUM=TOTSUM*2.0_dp*BHUB
+      IF(TREAL) TOTSUM=0.0_dp
       RETURN
       END
 
@@ -100,7 +100,7 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
          use constants, only: dp
          use SystemData, only: BasisFN
          USE OneEInts,only : TMat2D,TMATSYM,TSTARSTORE,TMatInd,SetupTMAT
-         USE Parallel , only : iProcIndex
+         USE Parallel_neci , only : iProcIndex
          IMPLICIT NONE
          INTEGER NBASIS,nBasisMax(5,*)
          TYPE(BasisFN) G1(nBasis)
@@ -111,9 +111,9 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
          LOGICAL TTILT,TREAL,TPBC
          real(dp) TOTSUM
          IF(iProcIndex.eq.0) OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
-         IF(TSTARSTORE) STOP 'Using TSTARSTORE with HUB??!'
+         IF(TSTARSTORE) STOP 'Using TSTARSTORE with HUB?!'
          CALL SetupTMAT(NBASIS,2,iSize)
-         TOTSUM=0.D0
+         TOTSUM=0.0_dp
          LX=NBASISMAX(1,2)-NBASISMAX(1,1)
          LY=NBASISMAX(2,2)-NBASISMAX(2,1)
          LZ=NBASISMAX(3,2)-NBASISMAX(3,1)
@@ -241,6 +241,8 @@ C         ENDIF
 
       SUBROUTINE SETBASISLIM_HUBTILT(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,
      &         TPBC,ITILTX,ITILTY)
+         use constants, only : sizeof_int,dp
+         IMPLICIT NONE
          INTEGER nBasisMax(5,*),NMAXX,NMAXY,NMAXZ,LEN
          LOGICAL TPBC
          INTEGER ITILTX,ITILTY
@@ -251,12 +253,14 @@ C.. Indicate tilted
 C.. Not periodic boundaries
             NBASISMAX(1,3)=3
          ENDIF
-         NBASISMAX(1,2)=(NMAXX*((ITILTX+ITILTY)/2.D0))
+         NBASISMAX(1,2)=int(real(NMAXX,dp)*                          
+     &          (real(ITILTX+ITILTY,dp)/2.0_dp),sizeof_int)
          NBASISMAX(1,1)=-NBASISMAX(1,2)
 C+1-MOD(NMAXX,2)
          IF(NMAXY.NE.NMAXX)
      &      STOP 'CANNOT HANDLE NON-SQUARE TILTED HUBBARD'
-         NBASISMAX(2,2)=(NMAXX*((ITILTY+ITILTX)/2.D0))
+         NBASISMAX(2,2)=int(real(NMAXX,dp)*        
+     &          (real(ITILTY+ITILTX)/2.0_dp),sizeof_int)
          NBASISMAX(2,1)=-NBASISMAX(2,2)
 C+1-MOD(NMAXX,2)
          IF(NMAXZ.GT.1) STOP 'CANNOT HANDLE TILTED 3D HUBBARD'
@@ -403,7 +407,7 @@ C.. now work out which reps are degenerate and label them
          J=0
          
          DO I=1,NBASIS
-            IF(I.GT.1.AND.ABS(ARR(I)-ARR(I-1)).LT.1.D-5) THEN
+            IF(I.GT.1.AND.ABS(ARR(I)-ARR(I-1)).LT.1.0e-5_dp) THEN
 C.. we have the same degenerate rep as the previous entry
                SYMREPS(2,J)=SYMREPS(2,J)+1
             ELSE
@@ -418,3 +422,76 @@ C.. we have a new rep
 !         ENDDO
       END
 
+      LOGICAL FUNCTION KALLOWED(G,NBASISMAX)
+        ! See if a given G vector is within a (possibly tilted) unit cell.
+        ! Used to generate the basis functions for the hubbard model (or perhaps electrons in boxes)
+        use constants, only: dp
+        IMPLICIT NONE
+        INTEGER G(5),nBasisMax(5,*),NMAXX,I,J,AX,AY
+        INTEGER KX,KY
+        real(dp) MX,MY,XX,YY
+        LOGICAL TALLOW
+        TALLOW=.TRUE.
+        IF(NBASISMAX(3,3).EQ.1) THEN
+      !.. spatial symmetries
+            IF(G(1).NE.0) TALLOW=.FALSE.
+        ELSEIF(NBASISMAX(3,3).EQ.0) THEN
+      !.. Hubbard
+            IF(NBASISMAX(1,3).EQ.1) THEN
+      !.. Tilted hubbard
+                NMAXX=NBASISMAX(1,5)
+      !         NMAXY=
+                AX=NBASISMAX(1,4)
+                AY=NBASISMAX(2,4)
+      !.. (XX,YY) is the position of the bottom right corner of the unit cell
+                XX=((AX+AY)/2.0_dp)*NMAXX
+                YY=((AY-AX)/2.0_dp)*NMAXX
+                MX=XX*AX+YY*AY
+                MY=XX*AY-YY*AX
+                I=G(1)
+                J=G(2)
+                KX=I*AX+J*AY
+                KY=I*AY-J*AX
+                IF(KX.GT.MX) TALLOW=.FALSE.
+                IF(KY.GT.MY) TALLOW=.FALSE.
+                IF(KX.LE.-MX) TALLOW=.FALSE.
+                IF(KY.LE.-MY) TALLOW=.FALSE.
+            ELSEIF(NBASISMAX(1,3).GE.4.OR.NBASISMAX(1,3).EQ.2) THEN
+      !.. Real space Hubbard
+                IF(G(1).EQ.0.AND.G(2).EQ.0.AND.G(3).EQ.0) THEN
+                   TALLOW=.TRUE.
+                ELSE
+                    TALLOW=.FALSE.
+                ENDIF
+      !      ELSEIF(NBASISMAX(1,3).EQ.2) THEN
+      !.. mom space non-pbc non-tilt hub - parity sym
+      !          IF(  (G(1).EQ.0.OR.G(1).EQ.1)
+      !     &       .AND.(G(2).EQ.0.OR.G(2).EQ.1)
+      !     &       .AND.(G(3).EQ.0.OR.G(3).EQ.1)) THEN
+      !              TALLOW=.TRUE.
+      !          ELSE
+      !              TALLOW=.FALSE.
+      !          ENDIF
+      !      ELSEIF(NBASISMAX(1,3).EQ.2) THEN
+      !.. non-pbc hubbard
+      !          TALLOW=.TRUE.
+      !          IF(G(1).GT.NBASISMAX(1,2).OR.G(1).LT.NBASISMAX(1,1))
+      !     &       TALLOW=.FALSE.
+      !          IF(G(2).GT.NBASISMAX(2,2).OR.G(2).LT.NBASISMAX(2,1))
+      !     &       TALLOW=.FALSE.
+      !          IF(G(3).GT.NBASISMAX(3,2).OR.G(3).LT.NBASISMAX(3,1))
+      !     &       TALLOW=.FALSE.
+            ELSE
+      !.. Normal Hubbard
+                TALLOW=.TRUE.
+                IF(G(1).GT.NBASISMAX(1,2).OR.G(1).LT.NBASISMAX(1,1))    &
+     &               TALLOW=.FALSE.
+                IF(G(2).GT.NBASISMAX(2,2).OR.G(2).LT.NBASISMAX(2,1))    &
+     &               TALLOW=.FALSE.
+                IF(G(3).GT.NBASISMAX(3,2).OR.G(3).LT.NBASISMAX(3,1))    &
+     &              TALLOW=.FALSE.
+            ENDIF
+        ENDIF         
+        KALLOWED=TALLOW
+        RETURN
+      END FUNCTION KALLOWED

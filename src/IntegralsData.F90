@@ -1,6 +1,6 @@
 module IntegralsData
 
-use, intrinsic :: iso_c_binding
+use iso_c_hack
 use constants, only: dp
 use MemoryManager, only: TagIntType
 

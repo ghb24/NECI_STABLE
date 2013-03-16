@@ -11,7 +11,7 @@
 !This would reduce the scaling to M^6 - same as CID
 
     MODULE NODEDIAG
-      use constants, only: dp
+      use constants, only: dp,int32
       use SystemData, only: BasisFN
       use IntegralsData, only: tDiscoNodes
       use Determinants, only: get_helement, get_helement_excit
@@ -44,8 +44,8 @@
       FUNCTION fMCPR3StarNodes(nI,Beta,i_P,nEl,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,RhoEps,ECore,dBeta,dLWdb)
       use HElem
       TYPE(BasisFN) G1(*)
-      INTEGER nI(nEl),nEl,i_P,Brr(nBasis),nBasis,nMsh
-      INTEGER nMax,nTay(2),iMaxExcit,nExcitMemLen
+      INTEGER nEl,nI(nEl),nBasis,i_P,Brr(nBasis),nMsh
+      INTEGER nMax,nTay(2),iMaxExcit,nExcitMemLen(1)
       INTEGER noij,noab,ierr,totexcits,nJ(nEl),Orbchange(4),noexcits
       INTEGER Height,TRIIND,INDX,i,ExcitInfoElems,j,exFlag
       INTEGER nStore(6),iExcit,invsbrr(nBasis),orbone,orbtwo,t
@@ -102,7 +102,7 @@
 !      nExcitMemLen=0
       nStore(1)=0
       CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
-      Allocate(nExcit(nExcitMemLen))
+      Allocate(nExcit(nExcitMemLen(1)))
 
 !Second call to calculate theoretical max number of excitations (iMaxExcit)
       nExcit(1)=0
@@ -141,17 +141,17 @@
 !Allocate Memory for ExcitInfo
       ALLOCATE(EXCITINFO(0:totexcits,0:2),stat=ierr)
       CALL LogMemAlloc("EXCITINFO",3*(totexcits+1),8,t_r,tagEXCITINFO,iErr)
-      EXCITINFO=(0.d0)
+      EXCITINFO=(0.0_dp)
       
 !Calculate rho_ii and H_ii, and put into ExcitInfo. Again, we divide all rho elements through by rho_ii (Therefore rho_ii element=1)
       CALL CalcRho2(nI,nI,Beta,i_P,nEl,G1,nBasis,nMsh,fck,nMax,ALat,UMat,rhii,nTay,0,ECore)
       ExcitInfo(0,2) = get_helement (nI, nI, 0)
-      EXCITINFO(0,0)=1.D0
-      EXCITINFO(0,1)=1.D0
+      EXCITINFO(0,0)=1.0_dp
+      EXCITINFO(0,1)=1.0_dp
 
 !Go through all ij pairs, create the node matrix and diagonalise, then add elements to ExcitInfo.
       ExcitInfoElems=0
-      totlinks=0.D0
+      totlinks=0.0_dp
       crosslinks=0
       do i=1,noij
           IF(ABCOUNTER(i).eq.0) CYCLE
@@ -194,10 +194,10 @@
         Type(BasisFN) G1(*)
         complex(dp) fck(*)
         HElement_t UMat(*),rh,Hel
-        INTEGER novirt,ierr,i,j,ijpair(2),node,nI(nEl),nJ(nEl),nK(nEl),i_P
+        INTEGER novirt,nEl,ierr,i,j,ijpair(2),node,nI(nEl),nJ(nEl),nK(nEl),i_P
         INTEGER nBasis,nMsh,nMax,nTay(2),WORKMEM
-        INTEGER*4 INFO
-        INTEGER ExcitInfoElems,nEl,Orbchange(4),iExcit
+        INTEGER(int32) INFO
+        INTEGER ExcitInfoElems,Orbchange(4),iExcit
         real(dp) Beta,ALat(3),RhoEps,ECore
         real(dp), ALLOCATABLE :: NODERHOMAT(:),WLIST(:)
         INTEGER, ALLOCATABLE :: FULLPATHS(:,:)
@@ -218,7 +218,7 @@
 !Array to store rho elements of node - this is the matrix to be diagonalised.
         ALLOCATE(NODERHOMAT(novirt*novirt),stat=ierr)
         CALL LogMemAlloc("NODERHOMAT",novirt*novirt,8,t_r,tagNODERHOMAT,iErr)
-        NODERHOMAT=0.d0
+        NODERHOMAT=0.0_dp
 
 !First deal with diagonal elements
         do i=1,novirt
@@ -239,7 +239,7 @@
                 nJ(:)=FULLPATHS(:,i)
                 nK(:)=FULLPATHS(:,j)
                 IF(TDISCONODES) THEN
-                    rh=(0.D0)
+                    rh=(0.0_dp)
                 ELSE
                     CALL CalcRho2(nJ,nK,Beta,i_P,nEl,G1,nBasis,nMsh,fck,nMax,ALat,UMat,rh,nTay,2,ECore)
                 ENDIF
@@ -319,7 +319,7 @@
 
 !Diagonal elements of star graph are simply eigenvalues - add to ExcitInfo
         DO i=1,novirt
-            IF(WLIST(i).gt.1.D-09) THEN
+            IF(WLIST(i).gt.1.0e-9_dp) THEN
                 ExcitInfoElems=ExcitInfoElems+1
                 EXCITINFO(ExcitInfoElems,0)=WLIST(i)
                 

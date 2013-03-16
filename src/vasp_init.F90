@@ -4,6 +4,7 @@ subroutine VaspSystemInit(ArrLEN)
    use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,NullBasisFn
    use vasp_interface
    use SymData, only: nRot,PropBitLen,tAbelian,nProp,KPntSym,tagKPntSym
+   use constants, only: dp,sizeof_int
    implicit none
    integer :: ArrLEN
    integer :: i,ik
@@ -20,7 +21,7 @@ subroutine VaspSystemInit(ArrLEN)
    call LogMemAlloc('KPntSym',3*nKP,4,this_routine,tagKPntSym)
    do ik=1,nKP
       do i=1,3
-         KPntSym(i,ik)=kpnts(i,ik)*nProp(i)
+         KPntSym(i,ik)=int(kpnts(i,ik)*real(nProp(i),dp),sizeof_int)
       end do
    end do
 
@@ -47,18 +48,26 @@ subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
    proc_timer%timer_name='VASPInitInts'
    call set_timer(proc_timer)
    ! ECore=EIonIon???
-   ECore=0.d0
+   ECore=0.0_dp
    write (6,*) 'Core Energy: ',ECORE
    nStatesUsed=nOrbUsed/2
 
    call SetupUMatCache(nStatesUsed,NSTATESUSED.NE.NSTATES)
 
-   HarXCSum=dcmplx(0.d0,0.d0)
+#ifdef __CMPLX
+   HarXCSum=cmplx(0.0_dp,0.0_dp,dp)
+#else
+   HarXCSum=0.0_dp
+#endif
    write (6,*) "Calculating TMAT"
    open(10,file='TMAT',status='unknown')
    do I=1,nStatesUsed
       ! Subtract out the double counting. Assume closed-shell.
-      HarXC=dcmplx(0.d0,0.d0)
+#ifdef __CMPLX
+      HarXC=cmplx(0.0_dp,0.0_dp,dp)
+#else
+      HarXC=0.0_dp
+#endif
       do J=1,nEl/2
          if (I.ne.J) then
             A=min(I,J)
@@ -94,8 +103,9 @@ subroutine VASPBasisInit(ARR,BRR,G1,LEN)
    use constants, only: dp
    use sym_mod
    implicit none
+   integer :: LEN
    real(dp) :: ARR(LEN,2)
-   integer :: BRR(LEN),LEN
+   integer :: BRR(LEN)
    type(BasisFN) :: G1(LEN)
    integer :: i
    type(Symmetry) :: iDecomp

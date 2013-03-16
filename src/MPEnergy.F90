@@ -41,12 +41,12 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
    E1=E1-Fi(1)
    CALL CalcVij(Hij,V,Fi,E1,iV)
    DO iOrder=2,iMaxOrder
-      MPE=0.D0
+      MPE=0.0_dp
       SELECT CASE(iV)
       CASE(2)
          IF(iOrder.EQ.2) MPE=MPE+V(1,2)*V(2,1)/(Fi(1)-Fi(2))
-         IF(iOrder.EQ.3) MPE=MPE+V(1,2)*V(2,2)*V(2,1)/((Fi(1)-Fi(2))**2.D0)
-         IF(iOrder.EQ.4) MPE=MPE+V(1,2)*V(2,1)*(-V(2,1)*V(1,2)+V(2,2)**2.D0)/((Fi(1)-Fi(2))**3.D0)
+         IF(iOrder.EQ.3) MPE=MPE+V(1,2)*V(2,2)*V(2,1)/((Fi(1)-Fi(2))**2.0_dp)
+         IF(iOrder.EQ.4) MPE=MPE+V(1,2)*V(2,1)*(-V(2,1)*V(1,2)+V(2,2)**2.0_dp)/((Fi(1)-Fi(2))**3.0_dp)
       CASE(3)
          IF(iOrder.EQ.3) MPE=MPE+(V(1,2)*V(2,3)*V(3,1)+V(1,3)*V(3,2)*V(2,1)) &
                                              /((Fi(1)-Fi(2))*(Fi(1)-Fi(3)))
@@ -72,7 +72,7 @@ SUBROUTINE AddMPEnergy(Hij,iV,iMaxOrder,Arr,nBasis,iPath,nEl,tLog,ECore,MPEs)
       END SELECT
       E=MPE
       MPEs(iOrder)=MPEs(iOrder)+E
-      IF(TLOG.AND. ABS(E) .GT. 1.D-9) THEN
+      IF(TLOG.AND. ABS(E) .GT. 1.0e-9_dp) THEN
          IF(iOrder.EQ.2) CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
          WRITE(13,"(G25.16)",advance='no') E
          tLogged=.TRUE.
@@ -90,10 +90,10 @@ END
 SUBROUTINE CalcVij(Hij,Vij,Fi,E1,iV)
    use constants, only: dp
    IMPLICIT NONE
+   INTEGER iV,i,j
    HElement_t Hij(1:iV+1,1:iV+1)
    HElement_t Vij(1:iV,1:iV)
    HElement_t Fi(1:iV),E1
-   INTEGER iV,i,j
    DO i=1,iV
       DO j=1,iV
          Vij(i,j)=Hij(i,j)
@@ -110,26 +110,27 @@ END
          use CalcData , only : TLADDER
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
+         INTEGER NEL,NBASIS
          HElement_t HIJS(0:2)
          real(dp) ARR(NBASIS,2)
-         INTEGER IPATH(NEL,0:2),NEL,NBASIS
+         INTEGER IPATH(NEL,0:2)
          INTEGER NI(NEL),NJ(NEL)
          real(dp) MP2E
          real(dp) DENOM,CONTR
          INTEGER I,J,S
          LOGICAL TLOG
-         LOGICAL ISCSF
+         LOGICAL iscsf_old
 
 
 !.. If we have CSFs, unCSF the elecs
-         IF(ISCSF(IPATH(1,0),NEL)) THEN
+         IF(iscsf_old(IPATH(1,0),NEL)) THEN
             DO I=1,NEL
                CALL GETUNCSFELEC(IPATH(I,0),NI(I),S)
             ENDDO
          ELSE
             CALL NECI_ICOPY(NEL,IPATH(1,0),1,NI,1)
          ENDIF
-         IF(ISCSF(IPATH(1,1),NEL)) THEN
+         IF(iscsf_old(IPATH(1,1),NEL)) THEN
             DO I=1,NEL
                CALL GETUNCSFELEC(IPATH(I,1),NJ(I),S)
             ENDDO
@@ -141,7 +142,7 @@ END
 !.. First find which orbitals have been excited
          I=1
          J=1
-         DENOM=0.D0
+         DENOM=0.0_dp
          DO WHILE (I.LE.NEL.OR.J.LE.NEL)
 !            WRITE(13,*) I,J,NI(I),NJ(J)
             IF(J.GT.NEL) THEN
@@ -174,7 +175,7 @@ END
             DENOM=DENOM+abs(HIJS(1))**2
          ENDIF
          CONTR=abs(HIJS(1))**2/DENOM
-         IF(TLOG.AND.CONTR.GT.1.D-9) THEN
+         IF(TLOG.AND.CONTR.GT.1.0e-9_dp) THEN
             CALL WRITEPATH(13,IPATH,2,NEL,.FALSE.)
             WRITE(13,"(G25.16)",advance='no') -CONTR
             WRITE(13,*) HIJS(1),DENOM
@@ -184,7 +185,7 @@ END
       END
 
       Subroutine ModMPDiagElement(hEl,nI,nJ,nEl)
-         use Integrals, only : GetUMatEl
+         use Integrals_neci, only : GetUMatEl
          use constants, only: dp
          use SystemData, only: BasisFN
          implicit none
@@ -205,6 +206,6 @@ END
             if(mod(ex2(2,1)+ex2(2,2),2).eq.0)                                                         &
      &         hEl=hEl-GetUMatEl(ex(2,1),ex(2,2),ex(2,2),ex(2,1))
          else
-            hEl=0.d0
+            hEl=0.0_dp
          endif
       End Subroutine

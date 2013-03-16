@@ -227,7 +227,8 @@ C.. The new node is connected to this node
 
       LOGICAL FUNCTION ISVALIDDET(DET,NEL)
          IMPLICIT NONE
-         INTEGER NEL,DET(NEL)
+         INTEGER, intent(in) :: NEL
+         integer, intent(in) :: DET(NEL)
          INTEGER I
          IF(DET(1).LT.1) THEN
             ISVALIDDET=.FALSE.
@@ -357,6 +358,7 @@ C.. determinants within double excitations, which will end up fairly inefficient
          INTEGER nBRR(1)
          integer(int64) STORE(6)
          INTEGER ICOUNT,ILEVEL
+         character(*), parameter :: t_r="GENEXCIT"
 
 
          NO=NORDER
@@ -387,8 +389,10 @@ C.. use a new excitation routine - THIS DOES NOT PRODUCE AN ORDERED LIST
                      WRITE(6,*) "Requires size",ICOUNT
                      STOP "EXCITATIONS LIST NOT LARGE ENOUGH"
                   ENDIF
-                  CALL SYMGENEXCITS(NI,NEL,STORE,
-     &               LIST,ICLIST,ICOUNT)
+                  call stop_all(t_r,"Call to symgenexcits removed due   &
+     &                  to incorrect arguments passes")
+!                  CALL SYMGENEXCITS(NI,NEL,STORE,
+!     &               LIST,ICLIST,ICOUNT)
                ENDIF
                NLIST=ICOUNT
             ELSE

@@ -4,7 +4,7 @@
 MODULE FciMCLoggingMod
 
     USE Global_utilities
-    USE Parallel
+    USE Parallel_neci
     USE Logging , only : tSaveBlocking,tBlockEveryIteration,HistInitPops,HistInitPopsTag,AllHistInitPops,AllHistInitPopsTag
     use SystemData, only: NEl
     use bit_reps, only: NIfTot, NIfDBO
@@ -50,9 +50,9 @@ MODULE FciMCLoggingMod
         ! This is the iteration the blocking was started.
 
         IF(tBlockEveryIteration) THEN
-            TotNoBlockSizes=FLOOR( (LOG10(REAL(NMCyc-StartBlockIter))) / (LOG10(2.D0)) )
+            TotNoBlockSizes=FLOOR( (LOG10(REAL(NMCyc-StartBlockIter))) / (LOG10(2.0_dp)) )
         ELSE
-            TotNoBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartBlockIter))/(REAL(StepsSft)))) / (LOG10(2.D0)) )
+            TotNoBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartBlockIter))/(REAL(StepsSft)))) / (LOG10(2.0_dp)) )
         ENDIF
         WRITE(6,*) 'Beginning blocking analysis of the errors in the projected energies.'
         WRITE(6,"(A,I6)") "The total number of different block sizes possible is: ",TotNoBlockSizes
@@ -65,17 +65,17 @@ MODULE FciMCLoggingMod
         ALLOCATE(CurrBlockSum(0:TotNoBlockSizes),stat=ierr)
         CALL LogMemAlloc('CurrBlockSum',TotNoBlockSizes,8,this_routine,CurrBlockSumTag,ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating CurrBlockSum.')
-        CurrBlockSum(:)=0.D0
+        CurrBlockSum(:)=0.0_dp
  
         ALLOCATE(BlockSum(0:TotNoBlockSizes),stat=ierr)
         CALL LogMemAlloc('BlockSum',TotNoBlockSizes,8,this_routine,BlockSumTag,ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating BlockSum.')
-        BlockSum(:)=0.D0
+        BlockSum(:)=0.0_dp
  
         ALLOCATE(BlockSqrdSum(0:TotNoBlockSizes),stat=ierr)
         CALL LogMemAlloc('BlockSqrdSum',TotNoBlockSizes,8,this_routine,BlockSqrdSumTag,ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating BlockSqrdSum.')
-        BlockSqrdSum(:)=0.D0
+        BlockSqrdSum(:)=0.0_dp
 
     END SUBROUTINE InitErrorBlocking
 
@@ -90,7 +90,7 @@ MODULE FciMCLoggingMod
         StartShiftBlockIter=Iter 
         ! This is the iteration the blocking was started.
 
-        TotNoShiftBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartShiftBlockIter))/(REAL(StepsSft)))) / (LOG10(2.D0)) )
+        TotNoShiftBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartShiftBlockIter))/(REAL(StepsSft)))) / (LOG10(2.0_dp)) )
         WRITE(6,*) 'Beginning blocking analysis of the errors in the shift.'
         WRITE(6,"(A,I6)") "The total number of different block sizes possible is: ",TotNoShiftBlockSizes
         ! The blocks will have size 1,2,4,8,....,2**TotNoBlockSizes
@@ -102,17 +102,17 @@ MODULE FciMCLoggingMod
         ALLOCATE(CurrShiftBlockSum(0:TotNoShiftBlockSizes),stat=ierr)
         CALL LogMemAlloc('CurrShiftBlockSum',TotNoShiftBlockSizes,8,this_routine,CurrShiftBlockSumTag,ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating CurrShiftBlockSum.')
-        CurrShiftBlockSum(:)=0.D0
+        CurrShiftBlockSum(:)=0.0_dp
  
         ALLOCATE(ShiftBlockSum(0:TotNoShiftBlockSizes),stat=ierr)
         CALL LogMemAlloc('ShiftBlockSum',TotNoShiftBlockSizes,8,this_routine,ShiftBlockSumTag,ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating ShiftBlockSum.')
-        ShiftBlockSum(:)=0.D0
+        ShiftBlockSum(:)=0.0_dp
  
         ALLOCATE(ShiftBlockSqrdSum(0:TotNoShiftBlockSizes),stat=ierr)
         CALL LogMemAlloc('ShiftBlockSqrdSum',TotNoShiftBlockSizes,8,this_routine,ShiftBlockSqrdSumTag,ierr)
         IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating ShiftBlockSqrdSum.')
-        ShiftBlockSqrdSum(:)=0.D0
+        ShiftBlockSqrdSum(:)=0.0_dp
 
 
 
@@ -129,14 +129,14 @@ MODULE FciMCLoggingMod
 
         TotNoBlockSizes=0
         IF(tBlockEveryIteration) THEN
-            TotNoBlockSizes=FLOOR( (LOG10(REAL(NMCyc-StartBlockIter))) / (LOG10(2.D0)) )
+            TotNoBlockSizes=FLOOR( (LOG10(REAL(NMCyc-StartBlockIter))) / (LOG10(2.0_dp)) )
         ELSE
-            TotNoBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartBlockIter))/(REAL(StepsSft)))) / (LOG10(2.D0)) )
+            TotNoBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartBlockIter))/(REAL(StepsSft)))) / (LOG10(2.0_dp)) )
         ENDIF
 
-        if (allocated(CurrBlockSum)) CurrBlockSum(:)=0.D0
-        if (allocated(BlockSum)) BlockSum(:)=0.D0
-        if (allocated(BlockSqrdSum)) BlockSqrdSum(:)=0.D0
+        if (allocated(CurrBlockSum)) CurrBlockSum(:)=0.0_dp
+        if (allocated(BlockSum)) BlockSum(:)=0.0_dp
+        if (allocated(BlockSqrdSum)) BlockSqrdSum(:)=0.0_dp
 
     END SUBROUTINE RestartBlocking
  
@@ -150,11 +150,11 @@ MODULE FciMCLoggingMod
         ! ChangeVars gets called at the end of the run, wont actually start until the next iteration.
 
         TotNoShiftBlockSizes=0
-        TotNoShiftBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartShiftBlockIter))/(REAL(StepsSft)))) / (LOG10(2.D0)) )
+        TotNoShiftBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartShiftBlockIter))/(REAL(StepsSft)))) / (LOG10(2.0_dp)) )
 
-        if (allocated(CurrShiftBlockSum)) CurrShiftBlockSum(:)=0.D0
-        if (allocated(ShiftBlockSum)) ShiftBlockSum(:)=0.D0
-        if (allocated(ShiftBlockSqrdSum)) ShiftBlockSqrdSum(:)=0.D0
+        if (allocated(CurrShiftBlockSum)) CurrShiftBlockSum(:)=0.0_dp
+        if (allocated(ShiftBlockSum)) ShiftBlockSum(:)=0.0_dp
+        if (allocated(ShiftBlockSqrdSum)) ShiftBlockSqrdSum(:)=0.0_dp
 
     END SUBROUTINE RestartShiftBlocking
 
@@ -186,7 +186,7 @@ MODULE FciMCLoggingMod
             IF(MOD(NoContrib,(2**i)).eq.0) THEN
                 BlockSum(i)=BlockSum(i)+(CurrBlockSum(i)/(2**i))
                 BlockSqrdSum(i)=BlockSqrdSum(i)+((CurrBlockSum(i)/(2**i))**2)
-                CurrBlockSum(i)=0.D0
+                CurrBlockSum(i)=0.0_dp
             ENDIF
 
         enddo
@@ -217,7 +217,7 @@ MODULE FciMCLoggingMod
             IF(MOD(NoContrib,(2**i)).eq.0) THEN
                 ShiftBlockSum(i)=ShiftBlockSum(i)+(CurrShiftBlockSum(i)/(2**i))
                 ShiftBlockSqrdSum(i)=ShiftBlockSqrdSum(i)+((CurrShiftBlockSum(i)/(2**i))**2)
-                CurrShiftBlockSum(i)=0.D0
+                CurrShiftBlockSum(i)=0.0_dp
             ENDIF
 
         enddo
@@ -243,7 +243,7 @@ MODULE FciMCLoggingMod
         IF(NoContrib.eq.1) RETURN
 
         NoBlockSizes=0
-        NoBlockSizes=FLOOR( (LOG10(REAL(NoContrib-1)))/ (LOG10(2.D0)))
+        NoBlockSizes=FLOOR( (LOG10(REAL(NoContrib-1)))/ (LOG10(2.0_dp)))
 
         iunit = get_free_unit()
         IF(tSaveBlocking) THEN
@@ -272,12 +272,12 @@ MODULE FciMCLoggingMod
             MeanEnSqrd=BlockSqrdSum(i)/REAL(NoBlocks)
 
             StandardDev=SQRT(MeanEnSqrd-(MeanEn**2))
-            IF(StandardDev.eq.0.D0) THEN
-                Error=0.D0
-                ErrorinError=0.D0
+            IF(StandardDev.eq.0.0_dp) THEN
+                Error=0.0_dp
+                ErrorinError=0.0_dp
             ELSE
                 Error=StandardDev/SQRT(REAL(NoBlocks-1))
-                ErrorinError=Error/SQRT(2.D0*(REAL(NoBlocks-1)))
+                ErrorinError=Error/SQRT(2.0_dp*(REAL(NoBlocks-1)))
             ENDIF
 
 !This is from the blocking paper, and indicates the error in the blocking error, due to the limited number of blocks available.
@@ -303,7 +303,7 @@ MODULE FciMCLoggingMod
         NoContrib=((Iter-StartShiftBlockIter)/StepsSft)+1
 
         NoBlockSizes=0
-        NoBlockSizes=FLOOR( (LOG10(REAL(NoContrib-1)))/ (LOG10(2.D0)))
+        NoBlockSizes=FLOOR( (LOG10(REAL(NoContrib-1)))/ (LOG10(2.0_dp)))
 
         iunit = get_free_unit()
         OPEN(iunit,file='SHIFTBLOCKINGANALYSIS',status='unknown')
@@ -324,12 +324,12 @@ MODULE FciMCLoggingMod
             MeanShiftSqrd=ShiftBlockSqrdSum(i)/REAL(NoBlocks)
 
             StandardDev=SQRT(MeanShiftSqrd-(MeanShift**2))
-            IF(StandardDev.eq.0.D0) THEN
-                Error=0.D0
-                ErrorinError=0.D0
+            IF(StandardDev.eq.0.0_dp) THEN
+                Error=0.0_dp
+                ErrorinError=0.0_dp
             ELSE
                 Error=StandardDev/SQRT(REAL(NoBlocks-1))
-                ErrorinError=Error/SQRT(2.D0*(REAL(NoBlocks-1)))
+                ErrorinError=Error/SQRT(2.0_dp*(REAL(NoBlocks-1)))
             ENDIF
 
 !This is from the blocking paper, and indicates the error in the blocking error, due to the limited number of blocks available.
@@ -414,7 +414,7 @@ MODULE FciMCLoggingMod
         endif
 
         InitBinMin=log(REAL(InitiatorWalkNo+1))
-        InitBinMax=log(1000000.D0)
+        InitBinMax=log(1000000.0_dp)
         InitBinIter=ABS(InitBinMax-InitBinMin)/25000.0
 
 
@@ -469,7 +469,7 @@ MODULE FciMCLoggingMod
 !        WRITE(6,*) 'DetCurr',DetCurr
 !        WRITE(6,*) 'nJ',nJ
 !        WRITE(6,*) 'iLutnJ',iLutnJ
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !        stop
 
         ! Need to find the H element between the current determinant and that which we're trying to spawn on.
@@ -477,14 +477,14 @@ MODULE FciMCLoggingMod
             
         IF(Child.eq.0) THEN
             ! Spawn not accepted.
-            NoNotAccept=NoNotAccept+1.D0
+            NoNotAccept=NoNotAccept+1.0_dp
             TotHElNotAccept=TotHElNotAccept+ABS(REAL(HEl,dp))
             IF(ABS(REAL(HEl,dp)).gt.ABS(MaxHElNotAccept)) MaxHElNotAccept=ABS(REAL(HEl,dp))
         ELSE
             ! Spawn accepted.
-            NoAccept=NoAccept+1.D0
+            NoAccept=NoAccept+1.0_dp
             TotHElAccept=TotHElAccept+ABS(REAL(HEl,dp))
-            IF((MinHElAccept.eq.0.D0).or.(ABS(REAL(HEl,dp)).lt.ABS(MinHElAccept))) MinHElAccept=ABS(REAL(HEl,dp))
+            IF((MinHElAccept.eq.0.0_dp).or.(ABS(REAL(HEl,dp)).lt.ABS(MinHElAccept))) MinHElAccept=ABS(REAL(HEl,dp))
         ENDIF
 
     ENDSUBROUTINE TrackSpawnAttempts
@@ -500,9 +500,9 @@ MODULE FciMCLoggingMod
         AcceptStats(2)=TotHElAccept          ! Total accepted
         AcceptStats(3)=NoNotAccept
         AcceptStats(4)=NoAccept
-        AllStats(:)=0.D0
-        AllMaxHElNotAccept(:)=0.D0
-        AllMinHElAccept(:)=0.D0
+        AllStats(:)=0.0_dp
+        AllMaxHElNotAccept(:)=0.0_dp
+        AllMinHElAccept(:)=0.0_dp
 
         call MPIReduce(AcceptStats,MPI_Sum,AllStats)
         call MPIGather(MaxHElNotAccept,AllMaxHElNotAccept(1:nProcessors),error)
@@ -510,22 +510,22 @@ MODULE FciMCLoggingMod
 
         IF(iProcIndex.eq.Root) THEN 
 !            WRITE(6,*) 'AllMinHElAccept',AllMinHElAccept
-            CALL FLUSH(6)
+            CALL neci_flush(6)
             MaxHElNotAccept=ABS(AllMaxHElNotAccept(1))
             do i=2,nProcessors
                 IF(ABS(AllMaxHElNotAccept(i)).gt.ABS(MaxHElNotAccept)) MaxHElNotAccept=ABS(AllMaxHElNotAccept(i))
             enddo
 
-            MinHElAccept=0.D0
-            IF(AllStats(4).gt.0.D0) THEN
+            MinHElAccept=0.0_dp
+            IF(AllStats(4).gt.0.0_dp) THEN
                 do i=1,nProcessors
-                    IF(AllMinHElAccept(i).ne.0.D0) THEN
+                    IF(AllMinHElAccept(i).ne.0.0_dp) THEN
                         MinHElAccept=ABS(AllMinHElAccept(i))
                         EXIT
                     ENDIF
                 enddo
                 do i=1,nProcessors
-                    IF((AllMinHElAccept(i).ne.0.D0).and.(ABS(AllMinHElAccept(i)).lt.ABS(MinHElAccept))) &
+                    IF((AllMinHElAccept(i).ne.0.0_dp).and.(ABS(AllMinHElAccept(i)).lt.ABS(MinHElAccept))) &
                     MinHElAccept=ABS(AllMinHElAccept(i))
                 enddo
             ENDIF

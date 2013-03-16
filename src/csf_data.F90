@@ -2,7 +2,8 @@ module csf_data
     use SystemData, only: nel
     implicit none
 
-    integer, parameter :: csf_orbital_mask = Z'1fffffff'
+!    integer, parameter :: csf_orbital_mask = Z'1fffffff'
+    integer, parameter :: csf_orbital_mask = 536870911
     integer, parameter :: csf_test_bit = 31
     integer, parameter :: csf_yama_bit = 30
     integer, parameter :: csf_ms_bit = 29

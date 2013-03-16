@@ -1,29 +1,8 @@
-MODULE input
+!Original author: Anthony Stone, since modified by ajwt and ghb.
 
-!  Fortran90 input parsing module
-!
-!  Copyright (C) 2005 Anthony J. Stone
-!
-!  This program is free software; you can redistribute it and/or
-!  modify it under the terms of the GNU General Public License
-!  as published by the Free Software Foundation; either version 2
-!  of the License, or (at your option) any later version.
-!  
-!  This program is distributed in the hope that it will be useful,
-!  but WITHOUT ANY WARRANTY; without even the implied warranty of
-!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-!  GNU General Public License for more details.
-!  
-!  You should have received a copy of the GNU General Public License
-!  along with this program; if not, write to
-!  the Free Software Foundation, Inc., 51 Franklin Street,
-!  Fifth Floor, Boston, MA 02110-1301, USA, or see
-!  http://www.gnu.org/copyleft/gpl.html
+MODULE input_neci
 
 use constants, only: sp,dp,int64
-#ifdef NAGF95
-USe f90_unix_env, ONLY: getarg
-#endif
 
 IMPLICIT NONE
 
@@ -47,9 +26,13 @@ INTEGER, SAVE :: lc=3
 
 !INTEGER, PARAMETER :: sp=kind(1.0_4),dp=kind(1.0_8)!, qp=selected_real_kind(30)
 
-INTERFACE readf
-  MODULE    PROCEDURE read_single, read_double!, read_quad
-END INTERFACE
+interface readf
+#ifndef SX
+    module procedure read_single
+#endif
+    module procedure read_double
+!    module procedure read_quad
+end interface
 
 PRIVATE
 PUBLIC :: item, nitems, read_line, stream, reada, readu, readl,        &
@@ -135,7 +118,7 @@ PUBLIC :: item, nitems, read_line, stream, reada, readu, readl,        &
 !  (default) no skipping occurs and the next data line is returned
 !  regardless of what it contains.
 
-!  If CLEAR is set to TRUE (default) then null items will be returned 
+!  If CLEAR is set to TRUE (default) then null items will be returned
 !  as zero or blank. If an attempt is made to read more than
 !  NITEMS items from a line, the items are treated as null. If
 !  CLEAR is FALSE, a variable into which a null item is read is
@@ -225,7 +208,7 @@ lines: do
     go to 10
 !  End of file
 900 if (more .and. m .gt. 1) then
-      print "(a)", "Apparently concatenating at end-of-file"
+      write(6,"(a)") "Apparently concatenating at end-of-file"
       call report("Unexpected end of data file",.true.)
     endif
     if (level .gt. 0) then
@@ -246,7 +229,7 @@ lines: do
 
 !  Find last non-blank character
 10  last=verify(char,space//tab,back=.true.)
-    if (echo) print "(a)", char(m:last)
+    if (echo) write(6,"(a)") char(m:last)
 !  Look for concatenation string
     if (lc .gt. 0 .and. last .ge. lc) then
       more=(char(last-lc+1:last) .eq. concat)
@@ -349,11 +332,11 @@ end do lines
 if (debug) then
   !       print "(8(I6,I4))", (loc(i), end(i), i=1,nitems)
   if (echo .and. nitems .gt. 0) then
-    print "(100a1)", (" ", i=1,loc(1)-1),                              &
+    write(6,"(100a1)") (" ", i=1,loc(1)-1),                              &
         (("+", i=loc(k), end(k)), (" ", i=end(k)+1, loc(k+1)-1), k=1,nitems-1), &
         ("+", i=loc(nitems), end(nitems))
   endif
-  print "(I2,A)", nitems, " items"
+  write(6,"(I2,A)") nitems, " items"
 endif
 
 END SUBROUTINE read_line
@@ -387,7 +370,7 @@ nitems=0
 L=0            ! Position in input buffer
 tcomma=.true.  !  True if last item was terminated by comma
                !  and also at start of buffer
-      
+
 
 chars: do
 
@@ -434,7 +417,7 @@ chars: do
       loc(nitems)=L
       state=2
     end select
-    
+
   case(1)                ! Reading through quoted string
     if (c .eq. term) then ! Closing quote found
       end(nitems)=L
@@ -490,9 +473,9 @@ chars: do
     case default
       call report("Space or comma needed after quoted string",.true.)
     end select
-      
+
   end select
-    
+
 end do chars
 
 END SUBROUTINE parse
@@ -508,7 +491,7 @@ last=-1
 
 do
   nitems=nitems+1
-  call getarg(nitems,word)
+  call neci_getarg(nitems,word)
   if (word .eq. "") then
     nitems=nitems-1
     exit
@@ -605,21 +588,21 @@ END SUBROUTINE reada
 !-----------------------------------------------------------------------
 
 ! SUBROUTINE read_quad(A,factor)
-! 
+!
 ! !  Read the next item from the buffer as a real (quadruple precision) number.
 ! !  If the optional argument factor is present, the value read should be
 ! !  divided by it. (External value = factor*internal value)
-! 
+!
 ! REAL(KIND=qp), INTENT(INOUT) :: a
 ! REAL(KIND=qp), INTENT(IN), OPTIONAL :: factor
-! 
+!
 ! CHARACTER(LEN=50) :: string
-! 
+!
 ! if (clear) a=0.0_qp
-! 
+!
 ! !  If there are no more items on the line, I is unchanged
 ! if (item .ge. nitems) return
-! 
+!
 ! string=""
 ! call reada(string)
 ! !  If the item is null, I is unchanged
@@ -629,7 +612,7 @@ END SUBROUTINE reada
 !   a=a/factor
 ! endif
 ! return
-! 
+!
 ! 99 a=0.0_qp
 ! select case(nerror)
 ! case(-1,0)
@@ -639,7 +622,7 @@ END SUBROUTINE reada
 ! case(2)
 !   nerror=-1
 ! end select
-! 
+!
 ! END SUBROUTINE read_quad
 
 !-----------------------------------------------------------------------
@@ -650,9 +633,8 @@ SUBROUTINE read_double(A,factor)
 !  If the optional argument factor is present, the value read should be
 !  divided by it. (External value = factor*internal value)
 
-DOUBLE PRECISION, INTENT(INOUT) :: a
-DOUBLE PRECISION, INTENT(IN), OPTIONAL :: factor
-
+REAL(KIND=dp), INTENT(INOUT) :: a
+REAL(KIND=dp), INTENT(IN), OPTIONAL :: factor
 CHARACTER(LEN=50) :: string
 
 if (clear) a=0d0
@@ -675,7 +657,7 @@ select case(nerror)
 case(-1,0)
   call report("Error while reading real number",.true.)
 case(1)
-  print "(2a)", "Error while reading real number. Input is ", trim(string)
+  write(6,"(2a)") "Error while reading real number. Input is ", trim(string)
 case(2)
   nerror=-1
 end select
@@ -693,14 +675,14 @@ SUBROUTINE read_single(A,factor)
 REAL(kind=sp), INTENT(INOUT) :: a
 REAL(kind=sp), INTENT(IN), OPTIONAL :: factor
 
-DOUBLE PRECISION :: aa
+REAL(kind=dp) :: aa
 
 if (present(factor)) then
   call read_double(aa,real(factor,dp))
 else
   call read_double(aa)
 endif
-a=aa
+a=real(aa,sp)
 
 END SUBROUTINE read_single
 
@@ -730,7 +712,7 @@ select case(nerror)
 case(-1,0)
   call report("Error while reading integer",.true.)
 case(1)
-  print "(2a)", "Error while reading integer. Input is ", trim(string)
+  write(6,"(2a)") "Error while reading integer. Input is ", trim(string)
 case(2)
   nerror=-1
 end select
@@ -782,7 +764,7 @@ END SUBROUTINE readi
         endif
 
     end function
-                
+
 
 
 !-----------------------------------------------------------------------
@@ -811,7 +793,7 @@ select case(nerror)
 case(-1,0)
   call report("Error while reading long integer",.true.)
 case(1)
-  print "(2a)", "Error while reading long integer. Input is ", trim(string)
+  write(6,"(2a)") "Error while reading long integer. Input is ", trim(string)
 case(2)
   nerror=-1
 end select
@@ -846,8 +828,8 @@ SUBROUTINE getf(A,factor)
 !  If the optional argument factor is present, the value read should be
 !  divided by it. (External value = factor*internal value)
 
-DOUBLE PRECISION, INTENT(INOUT) :: A
-DOUBLE PRECISION, INTENT(IN), OPTIONAL :: factor
+REAL(kind=dp), INTENT(INOUT) :: A
+REAL(kind=dp), INTENT(IN), OPTIONAL :: factor
 
 LOGICAL :: eof
 
@@ -858,7 +840,7 @@ do
   else
     call read_line(eof)
     if (eof) then
-      print "(A)", "End of file while attempting to read a number"
+      write(6,"(A)") "End of file while attempting to read a number"
       stop
     endif
   endif
@@ -880,7 +862,7 @@ do
   else
     call read_line(eof)
     if (eof) then
-      print "(A)", "End of file while attempting to read a number"
+      write(6,"(A)") "End of file while attempting to read a number"
       stop
     endif
   endif
@@ -902,7 +884,7 @@ do
   else
     call read_line(eof)
     if (eof) then
-      print "(A)", "End of file while attempting to read a number"
+      write(6,"(A)") "End of file while attempting to read a number"
       stop
     endif
   endif
@@ -925,7 +907,7 @@ do
   else
     call read_line(eof)
     if (eof) then
-      print "(A)", "End of file while attempting to read a character string"
+      write(6,"(A)") "End of file while attempting to read a character string"
       stop
     endif
   endif
@@ -1000,7 +982,7 @@ INTEGER :: i, i1, i2, l
 
 CHARACTER(LEN=3) s1, s2
 
-print "(a)", c
+write(6,"(a)") c
 if (present(reflect)) then
   if (reflect) then
     l=loc(item)
@@ -1011,13 +993,13 @@ if (present(reflect)) then
     s2=" "
     if (i2 .lt. last) s2="..."
     if (level .gt. 0) then
-      print "(a, I5, a,a)", "Input line ", line(level),                &
+      write(6,"(a, I5, a,a)") "Input line ", line(level),                &
           " in file ", trim(file(level))
     else
-      print "(a, I5)", "Input line ", line(level)
+      write(6,"(a, I5)") "Input line ", line(level)
     endif
-    print "(a3,1x,a,1x,a3)", s1, char(i1:i2), s2
-    print "(3x,80a1)", (" ", i=i1,l), "*"
+    write(6,"(a3,1x,a,1x,a3)") s1, char(i1:i2), s2
+    write(6,"(3x,80a1)") (" ", i=i1,l), "*"
   end if
 end if
 stop
@@ -1083,12 +1065,12 @@ REAL(kind=sp), INTENT(OUT) :: colour(3)
 LOGICAL, INTENT(IN), OPTIONAL :: clamp
 CHARACTER(LEN=6) :: x
 INTEGER :: i, r, g, b
-DOUBLE PRECISION :: c
+REAL(kind=dp) :: c
 
 select case(fmt)
 case("GREY","GRAY")
   call readf(c)
-  colour(:)=c
+  colour(:)=real(c,sp)
 case("RGB")
   call readf(colour(1))
   call readf(colour(2))
@@ -1100,11 +1082,11 @@ case("RGB255")
 case("RGBX")
   call readu(x)
   read (x(1:2),"(z2)") r
-  colour(1)=r/255d0
+  colour(1)=real(real(r,dp)/255.0_dp,sp)
   read (x(3:4),"(z2)") g
-  colour(2)=g/255d0
+  colour(2)=real(real(g,dp)/255.0_dp,sp)
   read (x(5:6),"(z2)") b
-  colour(3)=b/255d0
+  colour(3)=real(real(b,dp)/255.0_dp,sp)
 case default
   call die('COLOUR keyword not recognised',.true.)
 end select
@@ -1120,4 +1102,4 @@ end if
 
 END SUBROUTINE read_colour
 
-END MODULE input
+END MODULE input_neci

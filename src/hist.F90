@@ -10,6 +10,7 @@ module hist
     use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
                          DetBitEq, count_open_orbs, TestClosedShellDet, &
                          CalcOpenOrbs, IsAllowedHPHF
+    use hash , only : DetermineDetNode                     
     use CalcData, only: tFCIMC, tTruncInitiator
     use DetCalcData, only: FCIDetIndex, det
     use FciMCData, only: tFlippedSign, TotWalkers, CurrentDets, iter, &
@@ -21,12 +22,12 @@ module hist
     use bit_rep_data, only: NIfTot, NIfD
     use bit_reps, only: extract_sign, encode_sign, extract_bit_rep, NOffSgn, &
                         decode_bit_det, flag_is_initiator, test_flag
-    use parallel
+    use parallel_neci
     use csf, only: get_num_csfs, csf_coeff, csf_get_yamas, write_yama, &
                    extract_dorder
-    use AnnihilationMod, only: DetermineDetNode
+!    use AnnihilationMod, only: DetermineDetNode
     use hist_data
-    use timing
+    use timing_neci
     use Determinants, only: write_det
 
     implicit none
@@ -122,7 +123,7 @@ contains
             nfound = nfound + tmp
         enddo
         if (nfound /= ncsf) &
-            call stop_all ("Incorrect number of CSFs found")
+            call stop_all (this_routine,"Incorrect number of CSFs found")
 
         ! Allocate list of csf coefficients
         if (allocated(hist_csf_coeffs)) deallocate(hist_csf_coeffs)
@@ -133,7 +134,7 @@ contains
         ! and value of Ms
         write(6,*) 'Initialising Spin distribution histogramming'
         write(fmt_str,'("(",i2,"i20,",i4,"f20.15)")') NIfD+1, ncsf
-        call flush(6)
+        call neci_flush(6)
         nfound = 0
         dorder(1) = -1
         call get_lexicographic (dorder, nopen, nup)
@@ -212,7 +213,7 @@ contains
                 call extract_sign (all_hist(:,i), sgn)
 
                 ! Output to file
-                write(fd, *) all_hist(0:NIfD, i), float(sgn)/nsteps
+                write(fd, *) all_hist(0:NIfD, i), dble(sgn)/nsteps
                 
                 ! Add csf contribs
                 do j = 1, ubound(csf_contrib, 2)
@@ -298,7 +299,7 @@ contains
             if (pos < 0) then
                 call writebitdet(6, ilut, .false.)
                 write(6,*) ilut
-                write(6,*) '----------------'
+                write(6,*) '================'
                 do i=1,ubound(hist_spin_dist, 2)
                     write(6,*) hist_spin_dist(:,i)
                 enddo
@@ -394,6 +395,34 @@ contains
 
     end subroutine
 
+    subroutine find_hist_coeff_explicit (ilut, ExcitLevel, PartInd, tSuccess)
+
+        implicit none
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: ExcitLevel
+        integer, intent(out) :: PartInd
+        logical , intent(out) :: tSuccess
+
+        integer :: open_orbs
+        integer(n_int) :: ilut_sym(0:NIfTot)
+        real(dp) :: delta(lenof_sign)
+        character(*), parameter :: t_r = 'add_hist_spawn'
+
+        tSuccess = .false.
+        if (ExcitLevel == nel) then
+            call BinSearchParts2 (ilut,  FCIDetIndex(ExcitLevel), det, PartInd,&
+                                  tSuccess)
+        elseif (ExcitLevel == 0) then
+            PartInd = 1
+            tSuccess = .true.
+        else
+            call BinSearchParts2 (ilut, FCIDetIndex(ExcitLevel), &
+                                  FCIDetIndex(ExcitLevel+1)-1, PartInd, &
+                                  tSuccess)
+        endif
+
+    end subroutine
+
     subroutine add_hist_energies (ilut, sgn, HDiag)
 
         ! This will histogram the energies of the particles, rather than the
@@ -463,7 +492,7 @@ contains
             enddo
         enddo
 
-        do j = 1, TotWalkers
+        do j = 1, int(TotWalkers,sizeof_int)
 
             ! Extract the current walker
             call extract_bit_rep (CurrentDets(:,j), nI, sgn, flg)
@@ -534,7 +563,7 @@ contains
         ! Initially, have no component on any of the spins
         spin_cpts = 0
 
-        do j = 1, TotWalkers
+        do j = 1, int(TotWalkers,sizeof_int)
 
             ! Extract the current walker
             call extract_bit_rep (CurrentDets(:,j), nI, sgn, flg)
@@ -609,7 +638,7 @@ contains
         call set_timer (s2_timer)
 
         ssq = 0
-        do i = 1, TotWalkers
+        do i = 1, int(TotWalkers,sizeof_int)
             ssq = ssq + ssquared_contrib (CurrentDets(:,i))
         enddo
 
@@ -664,8 +693,8 @@ contains
         integer(n_int) :: recv_dets(0:NIfTot, max_spawned)
         integer :: proc_pos (nProcessors), proc_pos_init(nProcessors)
         integer :: send_count(nProcessors), recv_count(nProcessors)
-        integer :: send_data(nProcessors), recv_data(nProcessors)
-        integer :: send_off(nProcessors), recv_off(nProcessors)
+        integer(MPIArg) :: send_data(nProcessors), recv_data(nProcessors)
+        integer(MPIArg) :: send_off(nProcessors), recv_off(nProcessors)
 
         running = (TotWalkers > 0)
         any_running = .true.
@@ -727,14 +756,14 @@ contains
 
             call MPIAlltoAll (send_count, 1, recv_count, 1, ierr)
 
-            send_off = (proc_pos_init - 1) * (NIfTot + 1)
+            send_off = int((proc_pos_init - 1) * (NIfTot + 1),MPIArg)
             recv_off(1) = 0
             do i = 2, nProcessors
-                recv_off(i) = recv_off(i - 1) + recv_count(i - 1)
+                recv_off(i) = recv_off(i - 1) + int(recv_count(i - 1),MPIArg)
             enddo
-            recv_off = recv_off * (NIfTot + 1)
-            send_data = send_count * (NIfTot + 1)
-            recv_data = recv_count * (NIfTot + 1)
+            recv_off = recv_off * int(NIfTot + 1,MPIArg)
+            send_data = int(send_count * (NIfTot + 1),MPIArg)
+            recv_data = int(recv_count * (NIfTot + 1),MPIArg)
 
             call MPIAlltoAllv (det_list, send_data, send_off, &
                                recv_dets, recv_data, recv_off, ierr)
@@ -777,9 +806,9 @@ contains
         integer, parameter :: max_per_proc = 1000
         integer(n_int) :: recv_dets(0:NIfTot,max_per_proc)
         integer :: proc_dets, start_pos, nsend, i, lms_tmp, p
-        integer :: bcast_tmp(2)
+        integer :: bcast_tmp(2), sgn_tmp(lenof_sign)
         type(timer), save :: s2_timer, s2_timer_init
-        integer(int64) :: ssq_sum
+        integer(int64) :: ssq_sum, psi_squared
         logical, intent(in) :: only_init
 
 
@@ -792,10 +821,11 @@ contains
         endif
 
         ssq_sum = 0
+        psi_squared = 0
         do p = 0, nProcessors-1
 
             ! How many dets are on processor p
-            proc_dets = TotWalkers
+            proc_dets = int(TotWalkers,sizeof_int)
             call MPIBcast (proc_dets, iProcIndex == p)
 
             ! Send the dets around bit by bit
@@ -806,7 +836,7 @@ contains
                     ! Loop over walkers and only add initiators to bcast list
                     nsend = 0
                     if (p == iProcIndex) then
-                        do i = start_pos, TotWalkers
+                        do i = start_pos, int(TotWalkers,sizeof_int)
                             ! Break up the list into correctly sized chunks
                             if (nsend == max_per_proc) exit
 
@@ -816,6 +846,12 @@ contains
                                           flag_is_initiator(lenof_sign))) then
                                 nsend = nsend + 1
                                 recv_dets(:,nsend) = CurrentDets(:,i)
+
+                                ! If we are using initiators only, keep track
+                                ! of the overall magnitude of the init-only
+                                ! wavefunction.
+                                call extract_sign (CurrentDets(:,i), sgn_tmp)
+                                psi_squared = psi_squared + sum(sgn_tmp ** 2)
                             endif
                         enddo
                         start_pos = i
@@ -851,7 +887,8 @@ contains
                     if (.not. TestClosedShellDet(recv_dets(:,i))) then
                         ! If nopen == 2, and tHPHF, then this can be
                         ! optimised further
-                        ssq_sum = ssq_sum + ssquared_contrib (recv_dets(:,i))
+                        ssq_sum = ssq_sum + ssquared_contrib (recv_dets(:,i),&
+                                                              only_init)
                     endif
                 enddo
 
@@ -861,8 +898,13 @@ contains
 
 
         ! Sum all of the s squared terms
+        if (tTruncInitiator .and. only_init) then
+            call MPISum_inplace (psi_squared)
+        else
+            psi_squared = norm_psi_squared
+        end if
         call MPISum_inplace (ssq_sum)
-        ssq = real(ssq_sum,dp) / norm_psi_squared
+        ssq = real(ssq_sum,dp) / psi_squared
          
         ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the system
         !            I am somewhat astounded I haven't noticed this before...
@@ -877,7 +919,7 @@ contains
 
     end function
 
-    function ssquared_contrib (ilut) result(ssq)
+    function ssquared_contrib (ilut, only_init_) result(ssq)
 
         ! Calculate the contribution to s-squared from the determinant
         ! provided (from walkers on this processor).
@@ -887,11 +929,19 @@ contains
         !      <Psi(iProcIndex) | S-S+ | D_i>
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
+        logical, intent(in), optional :: only_init_
         integer(n_int) :: splus(0:NIfD), sminus(0:NIfD)
         integer(n_int) :: ilut_srch(0:NIfD), ilut_sym(0:NIfD)
         integer :: sgn(lenof_sign), sgn2(lenof_sign), flg, nI(nel)
         integer :: j, k, orb2, pos, sgn_hphf, orb_tmp
         integer(int64) :: ssq
+        logical :: only_init, inc
+
+        if (present(only_init_)) then
+            only_init = only_init_
+        else
+            only_init = .false.
+        end if
 
         ! Extract details of determinant
         call extract_bit_rep (ilut, nI, sgn, flg)
@@ -933,6 +983,23 @@ contains
                         pos = binary_search (CurrentDets(:,1:TotWalkers), &
                                              ilut_srch, NIfD+1)
                         if (pos > 0) then
+
+                            ! If we are looking for the spin of the initiator
+                            ! only wavefunction, we need to ensure that we
+                            ! are projecting onto an initiator...
+                            inc = .true.
+                            if (tTruncInitiator .and. only_init) then
+                                if (test_flag(CurrentDets(:,pos), &
+                                              flag_is_initiator(1)) .or. &
+                                    test_flag(CurrentDets(:,pos), &
+                                              flag_is_initiator(lenof_sign)))&
+                                                                    then
+                                    inc = .true.
+                                else
+                                    inc = .false.
+                                end if
+                            end if
+
                             call extract_sign (CurrentDets(:,pos), sgn2)
                             ssq = ssq + (sgn(1) * sgn2(1) * sgn_hphf) 
                         endif

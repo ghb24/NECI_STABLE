@@ -3,9 +3,9 @@
 !      IMPLICIT real(dp) (A-H,O-Z)
       use constants, only: dp
       IMPLICIT NONE
+      integer :: NMESHX,NMESHY,NMESHZ,I,J,K,NC
       real(dp) :: RHO(NMESHX,NMESHY,NMESHZ),ALAT(3),SUM
       real(dp) :: rs,rs3
-      integer :: NMESHX,NMESHY,NMESHZ,I,J,K,NC
       LOGICAL TMOVIE,TGOPENMOL
       CHARACTER FILENM*10,FILENM2*16,FILENM3*14
       OPEN(10,FILE=FILENM,STATUS='UNKNOWN')
@@ -67,10 +67,10 @@ c        OPEN(12,FILE=FILENM3,STATUS='UNKNOWN',FORM='UNFORMATTED')
 c        WRITE(12,*) 3,2
         WRITE(12,'(3I3)') NMESHX,NMESHY,NMESHZ
 c        WRITE(12,*) NMESHX,NMESHY,NMESHZ
-        WRITE(12,'(6F13.6)') -ALAT(3)/2.,ALAT(3)/2.d0,-alat(2)/2.d0,
-     &    ALAT(2)/2.d0,-alat(1)/2.d0,ALAT(1)/2.d0
-c        WRITE(12,*)-ALAT(1)/2.,ALAT(1)/2.d0,-alat(2)/2.d0,
-c     &   ALAT(2)/2.d0,-alat(3)/2.d0,ALAT(3)/2.d0
+        WRITE(12,'(6F13.6)') -ALAT(3)/2.,ALAT(3)/2.0_dp,-alat(2)/2.0_dp,
+     &    ALAT(2)/2.0_dp,-alat(1)/2.0_dp,ALAT(1)/2.0_dp
+c        WRITE(12,*)-ALAT(1)/2.,ALAT(1)/2.0_dp,-alat(2)/2.0_dp,
+c     &   ALAT(2)/2.0_dp,-alat(3)/2.0_dp,ALAT(3)/2.0_dp
       ENDIF
       DO K=1,NMESHZ
         DO J=1,NMESHY

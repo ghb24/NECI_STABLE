@@ -1,8 +1,9 @@
     MODULE STARDIAGMOD
         use Determinants, only: get_helement
         use sort_mod
-        use constants, only: dp
+        use constants, only: dp,int32
         use MemoryManager, only: TagIntType
+        use util_mod, only: NECI_ICOPY,get_unique_filename
         IMPLICIT NONE
       
 !.. ExcitInfo will contain all the info needed to work out the value of the star
@@ -45,11 +46,10 @@
          use SystemData , only : TSTOREASEXCITATIONS,BasisFN
          use IntegralsData , only : TCalcRhoProd,TSumProd,TCalcRealProd,TCalcExcitStar,TDiagStarStars,TLinRootChange
          use global_utilities
-         use util_mod, only: NECI_ICOPY
          use HElem
          IMPLICIT NONE
          Type(BasisFN) G1(*)
-         INTEGER nI(nEl),nEl,i_P,nBasisMax(5,*),nBasis,nMsh
+         INTEGER nEl,nI(nEl),i_P,nBasisMax(5,*),nBasis,nMsh
          INTEGER nMax,nTay(2),L,LT,nWHTay,iLogging
          complex(dp) fck(*)
          HElement_t UMat(*)
@@ -70,7 +70,7 @@
 
          INTEGER exFlag
          INTEGER, allocatable :: nExcit(:)
-         INTEGER nExcitMemLen,nStore(6)
+         INTEGER nExcitMemLen(1),nStore(6)
          INTEGER nJ(nEl),iExcit,iMaxExcit,excitcount,Prodnum
          INTEGER iErr
          INTEGER nRoots,i
@@ -83,9 +83,9 @@
          
 !This needs to be removed, as it'll eventually be an input parameter
 
-!         LARGERHOJJ(:)=0.D0
+!         LARGERHOJJ(:)=0.0_dp
          hii = 0
-         fMCPR3StarNewExcit=(0.D0)
+         fMCPR3StarNewExcit=(0.0_dp)
          IF(tStoreAsExcitations) THEN
             nIExcitFormat(1)=-1
             nIExcitFormat(2)=0
@@ -112,7 +112,7 @@
 
          nStore(1)=0
          CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
-         Allocate(nExcit(nExcitMemLen))
+         Allocate(nExcit(nExcitMemLen(1)))
 !Second call calculates size of arrays needed to store all symmetry allowed excitations - further calls will generate excitation on-the-fly(shown by the false in arg(6)
          nExcit(1)=0
          CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.TRUE.,nExcit,nJ,iMaxExcit,nStore,exFlag)
@@ -138,9 +138,9 @@
             Deallocate(nExcit)
             nStore(1)=0
             CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
-            Allocate(nExcit(nExcitMemLen))
+            Allocate(nExcit(nExcitMemLen(1)))
             nExcit(1)=0
-            CALL GenSymExcitIt2(nI,nEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,nStore,exFlag)
+            CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.TRUE.,nExcit,nJ,iMaxExcit,nStore,exFlag)
 
             !set number of excitations to exact number there are
             iMaxExcit=excitcount
@@ -169,16 +169,16 @@
 !.. LIST(J,1) = RHOIJ
 !.. LIST(J,2) = HIJ
          i=0
-         ExcitInfo(i,0)=1.D0
-         ExcitInfo(i,1)=1.D0
+         ExcitInfo(i,0)=1.0_dp
+         ExcitInfo(i,1)=1.0_dp
          ExcitInfo(i,2) = get_helement (nI, nI, 0)
          IF(TMCStar) THEN
 !Hii is HF energy - <D0|H|D0>, ExcitInfo(i,1) now is <Di|H|Di>-Hii. 
 !All diagonal elements are therefore positive, and increasing down the leading diagonal.
 !MaxDiag is the largest diagonal element.
              Hii=ExcitInfo(0,2)
-             ExcitInfo(i,0)=0.D0
-             MaxDiag=0.D0
+             ExcitInfo(i,0)=0.0_dp
+             MaxDiag=0.0_dp
          ENDIF
          ehfdiff = 0
          if(BTEST(nWhTay,5)) then
@@ -237,7 +237,7 @@
                    ENDIF
                   
 !                  do j=1,10000
-!                    IF(abs((rh).gt.LARGERHOJJ(J)).or.(LARGERHOJJ(J).eq.0.D0)) THEN
+!                    IF(abs((rh).gt.LARGERHOJJ(J)).or.(LARGERHOJJ(J).eq.0.0_dp)) THEN
 !                        LARGERHOJJ(J)=rh
 !                        GOTO 765
 !                    ENDIF
@@ -266,7 +266,7 @@
 !Quick test to see range of Hij values
 !         ALLOCATE(SortedHij(iExcit))
 !         do l=1,iExcit
-!            SortedHij(l)=ABS(REAL(ExcitInfo(l,2),KIND(0.D0)))
+!            SortedHij(l)=ABS(REAL(ExcitInfo(l,2),KIND(0.0_dp)))
 !            Norm=Norm+SortedHij(l)**5
 !         enddo
 !         CALL SORT(iExcit,SortedHij)
@@ -411,12 +411,13 @@
             HElement_t :: rhii,UMat(*),rh,rhij,Hij
             complex(dp) :: fck(*)
             real(dp) :: Beta,ALat(3),ECore,RhoEps
-            INTEGER :: DoublePath(nEl),nStore2(6),exFlag2,iMaxExcit2,nJ(nEl),nExcitMemLen2
+            INTEGER :: nEl
+            INTEGER :: i,j,iExcit,nI(nEl),i_P,nBasis,nMsh
+            INTEGER :: DoublePath(nEl),nStore2(6),exFlag2,iMaxExcit2,nJ(nEl),nExcitMemLen2(1)
             INTEGER :: QuadExcits,iExcit2,TotExcits,NextVertex,NoExcitsInStar(iExcit)
-            INTEGER :: i,j,iExcit,nI(nEl),i_P,nEl,nBasis,nMsh
             type(timer), save :: proc_timer
             INTEGER :: nMax,nTay(2),iErr,ICMPDETS,iMaxExcit,temp,IGETEXCITLEVEL
-            INTEGER*4 Info
+            INTEGER(int32) Info
             INTEGER, ALLOCATABLE :: nExcit2(:)
             real(dp), ALLOCATABLE :: ExcitStarInfo(:,:),ExcitStarMat(:,:),WORK(:)
             real(dp), ALLOCATABLE :: ExcitStarVals(:),ExcitStarVecs(:)
@@ -452,8 +453,8 @@
                 nExcitMemLen2=0
                 nStore2(1:6)=0
                 CALL GenSymExcitIt2(DoublePath,nEl,g1,nBasis,.TRUE.,nExcitMemLen2,nJ,iMaxExcit2,nStore2,exFlag2)
-                ALLOCATE(nExcit2(nExcitMemLen2))
-                nExcit2(1:nExcitMemLen2)=0
+                ALLOCATE(nExcit2(nExcitMemLen2(1)))
+                nExcit2(1:nExcitMemLen2(1))=0
                 CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,.TRUE.,nExcit2,nJ,iMaxExcit2,nStore2,exFlag2)
 
                 lpcount: do while(.true.)
@@ -507,7 +508,7 @@
 !Now go through all excitations, finding the excited star, and diagonalising, adding the eigenvalues and vectors to ExcitInfo2(0:TotExcits,0:2)
             ALLOCATE(ExcitInfo2(0:TotExcits,0:2),stat=iErr)
             call LogMemAlloc('ExcitInfo2',3*(TotExcits+1),8*HElement_t_size,this_routine,tagExcitInfo2,iErr)
-            ExcitInfo2=(0.d0)
+            ExcitInfo2=(0.0_dp)
 
 !Fill original star matrix - INCORRECT - do not want to include original excitations - these are already included in the prediagonalised elements
 !            do i=0,iExcit
@@ -520,8 +521,8 @@
 !            NextVertex=iExcit+1
 
 !All that is not included is the original i spoke
-            ExcitInfo2(0,0)=(1.D0)
-            ExcitInfo2(0,1)=(1.D0)
+            ExcitInfo2(0,0)=(1.0_dp)
+            ExcitInfo2(0,1)=(1.0_dp)
             ExcitInfo2(0,2)=ExcitInfo(0,2)
             
             NextVertex=1
@@ -540,15 +541,15 @@
                 nExcitMemLen2=0
                 nStore2(1:6)=0
                 CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,.TRUE.,nExcitMemLen2,nJ,iMaxExcit2,nStore2,exFlag2)
-                ALLOCATE(nExcit2(nExcitMemLen2))
-                nExcit2(1:nExcitMemLen2)=0
+                ALLOCATE(nExcit2(nExcitMemLen2(1)))
+                nExcit2(1:nExcitMemLen2(1))=0
                 CALL GenSymExcitIt2(DoublePath,nEl,G1,nBasis,.TRUE.,nExcit2,nJ,iMaxExcit2,nStore2,exFlag2)
                 CALL CalcRho2(DoublePath,DoublePath,Beta,i_P,nEl,G1,nBasis,nMsh,fck,nMax,ALat,UMat,rh,nTay,0,ECore)
                 
 !Allocate Memory for excited star.
                 ALLOCATE(ExcitStarInfo(0:NoExcitsInStar(i),0:1),stat=iErr)
                 CALL LogMemAlloc("ExcitStarInfo",(NoExcitsInStar(i)+1)*2,8,this_routine,tagExcitStarInfo,iErr)
-                ExcitStarInfo=0.d0
+                ExcitStarInfo=0.0_dp
                 
                 ExcitStarInfo(0,0)=(rh/rhii)
                 ExcitStarInfo(0,1)=(rh/rhii)
@@ -601,7 +602,7 @@
 !Now need to prepare to diagonalise excited star
                 ALLOCATE(ExcitStarMat(j+1,j+1),stat=iErr)
                 CALL LogMemAlloc("ExcitStarMat",(j+1)*(j+1),8,this_routine,tagExcitStarMat,iErr)
-                ExcitStarMat=0.d0
+                ExcitStarMat=0.0_dp
 
                 do j=1,(NoExcitsInStar(i)+1)
                     ExcitStarMat(j,j)=ExcitStarInfo(j-1,0)
@@ -613,15 +614,15 @@
 
                 ALLOCATE(WORK(3*(NoExcitsInStar(i)+1)),stat=iErr)
                 CALL LogMemAlloc("WORK",3*(NoExcitsInStar(i)+1),8,this_routine,tagWORK,iErr)
-                WORK=0.d0
+                WORK=0.0_dp
 
                 ALLOCATE(ExcitStarVals(NoExcitsInStar(i)+1),stat=iErr)
                 CALL LogMemAlloc("ExcitStarVals",NoExcitsInStar(i)+1,8,this_routine,tagExcitStarVals,iErr)
-                ExcitStarVals=0.d0
+                ExcitStarVals=0.0_dp
 
                 ALLOCATE(ExcitStarVecs(NoExcitsInStar(i)+1),stat=iErr)
                 CALL LogMemAlloc("ExcitStarVecs",NoExcitsInStar(i)+1,8,this_routine,tagExcitStarVals,iErr)
-                ExcitStarVecs=0.d0
+                ExcitStarVecs=0.0_dp
 
                 CALL DSYEV('V','U',NoExcitsInStar(i)+1,ExcitStarMat,NoExcitsInStar(i)+1,ExcitStarVals, &
                     WORK,3*(NoExcitsInStar(i)+1),INFO)
@@ -707,7 +708,7 @@
                 ExcitInfo(i-1,2)=tmp(3)
             enddo
             
-            IF(.not.abs(ExcitInfo(iExcit,0)).gt.0.1d0) STOP 'Reordering incorrect'
+            IF(.not.abs(ExcitInfo(iExcit,0)).gt.0.1_dp) STOP 'Reordering incorrect'
             WRITE(6,*) "Minimum rho_jj is :", ExcitInfo(iExcit,0)
 
 ! Ensures that all determinants are non-degenerate - useful for testing
@@ -722,7 +723,7 @@
             do while(i.lt.iExcit)
                 i=i+1
                 degen=.true.
-                do while((REAL(ExcitInfo(i,0),8).eq.REAL(ExcitInfo(i+1,0),8)).and.(i.lt.iExcit))
+                do while((REAL(ExcitInfo(i,0),dp).eq.REAL(ExcitInfo(i+1,0),dp)).and.(i.lt.iExcit))
                     i=i+1
                 enddo
                 NoDegens=NoDegens+1
@@ -743,7 +744,7 @@
             j=0
             do while(i.lt.iExcit)
                 i=i+1
-                do while((REAL(ExcitInfo(i,0),8).eq.REAL(ExcitInfo(i+1,0),8)).and.(i.lt.iExcit))
+                do while((REAL(ExcitInfo(i,0),dp).eq.REAL(ExcitInfo(i+1,0),dp)).and.(i.lt.iExcit))
                     i=i+1
                 enddo
                 j=j+1
@@ -762,15 +763,15 @@
             ALLOCATE(Vals(iExcit+1))
             ALLOCATE(Vecs(iExcit+1))
             ALLOCATE(DiagRhos(iExcit+1))
-            Vals=0.d0
-            Vecs=0.d0
-            DiagRhos=0.d0
+            Vals=0.0_dp
+            Vecs=0.0_dp
+            DiagRhos=0.0_dp
 
             calcs=100
-            minimum=1.D0-((1.D0-REAL(ExcitInfo(iExcit,0),8))*2)
+            minimum=1.0_dp-((1.0_dp-REAL(ExcitInfo(iExcit,0),dp))*2)
             WRITE(6,*) "Minimum root value to search for is: ", minimum
-            CALL FLUSH(6)
-            gap=(1.D0-minimum)/(calcs-1)
+            CALL neci_flush(6)
+            gap=(1.0_dp-minimum)/(calcs-1)
             
 !This is the number of non-degenerate eigenvectors to print out.            
             toprint=25
@@ -782,12 +783,12 @@
 
 !Diffs can be used to calculate the gradient of the eigenvector/root line quickly
 !            ALLOCATE(Diffs(toprint,4))
-!            Diffs=0.d0
+!            Diffs=0.0_dp
 !Store value for eigenvalue/vector at largest rhovalue in 1:2 - the lowest rho value in 3:4
 
 !            ALLOCATE(TESTER(iExcit))
 !            do i=1,iExcit
-!                TESTER(i)=(0.D0)
+!                TESTER(i)=(0.0_dp)
 !            enddo
             
             j=0
@@ -802,11 +803,11 @@
                 DiagRhos(1)=r
 
                 WRITE(6,*) "Running calculation ",j, "out of ",calcs
-                CALL FLUSH(6)
+                CALL neci_flush(6)
                 CALL GetValsnVecs(iExcit+1,DiagRhos,ExcitInfo(1:iExcit,1),Vals,Vecs)
 !                CALL GetValsnVecs(iExcit+1,DiagRhos,TESTER,Vals,Vecs)
                 
-                IF(r.eq.1.D0) THEN
+                IF(r.eq.1.0_dp) THEN
                     WRITE(6,"(A,F15.11)") "For root equal to 1, highest eigenvalue is ", Vals(iExcit+1)
                     IF(j.ne.1) STOP 'Problem with counting'
                 ENDIF
@@ -842,8 +843,8 @@
                     WRITE(49,"(F13.9)",advance='no') Vals(iExcit+1-DegenPos(i-1))
                 enddo
                 WRITE(49,*) ""
-                CALL FLUSH(48)
-                CALL FLUSH(49)
+                CALL neci_flush(48)
+                CALL neci_flush(49)
 
 !To write out all possible eigenvalues/vectors
 !                WRITE(48,"(F11.7)",advance='no') r
@@ -856,8 +857,8 @@
 !                    WRITE(49,"(F13.9)",advance='no') Vals(i)
 !                enddo
 !                WRITE(49,*) ""
-!                CALL FLUSH(48)
-!                CALL FLUSH(49)
+!                CALL neci_flush(48)
+!                CALL neci_flush(49)
 
             enddo
 
@@ -939,14 +940,14 @@
             CALL LogMemAlloc("NewDiagRhos",iExcit+1,8,this_routine,tagNewDiagRhos,iErr)
             ALLOCATE(NewOffDiagRhos(iExcit),stat=iErr)
             CALL LogMemAlloc("NewOffDiagRhos",iExcit,8*HElement_t_size,this_routine,tagNewOffDiagRhos,iErr)
-            NewOffDiagRhos=(0.d0)
+            NewOffDiagRhos=(0.0_dp)
             ALLOCATE(ExcitInfo2(0:iExcit*(iExcit+1),0:2),stat=iErr)
             call LogMemAlloc('ExcitInfo2',(iExcit*(iExcit+1)+1)*3,8*HElement_t_size,this_routine,tagExcitInfo2,iErr)
-            ExcitInfo2=(0.d0)
+            ExcitInfo2=(0.0_dp)
             iMaxExcit=iExcit*(iExcit+1)
             
-            ExcitInfo2(0,0)=(1.D0)
-            ExcitInfo2(0,1)=(1.D0)
+            ExcitInfo2(0,0)=(1.0_dp)
+            ExcitInfo2(0,1)=(1.0_dp)
             ExcitInfo2(0,2)=ExcitInfo(0,2)
             NextVertex=1
             
@@ -964,9 +965,9 @@
                     NewOffDiagRhos(j)=ExcitInfo(j,1)
                 enddo
 
-                NewDiagRhos=0.d0
-                Vals=0.d0
-                Vecs=0.d0
+                NewDiagRhos=0.0_dp
+                Vals=0.0_dp
+                Vecs=0.0_dp
                 RhoValue=(ExcitInfo(i,0))
                 OffRhoValue=(ExcitInfo(i,1))
                 
@@ -981,8 +982,8 @@
                     ELSEIF(TRmRootExcitStarsRootChange) THEN
                         IF((REAL(ExcitInfo(j,0),dp).eq.RhoValue).and.(OffRhoValue.eq.REAL(ExcitInfo(j,1),dp)) &
                             .and.(.not.FoundRoot)) THEN
-                            NewDiagRhos(j+1)=0.D0
-                            NewOffDiagRhos(j+1)=(0.D0)
+                            NewDiagRhos(j+1)=0.0_dp
+                            NewOffDiagRhos(j+1)=(0.0_dp)
                             FoundRoot=.true.
                         ELSE
                             NewDiagRhos(j+1)=(ExcitInfo(j,0))
@@ -1083,10 +1084,10 @@
 !Take 'Linepoints' points along the change in rho_jj to calculate the gradient of the line for each eigenvalue, and the first element of the eigenvectors.
 !Only two points are strictly needed, but 'Linepoints' will be taken so that the validity of the linear approximation can be calculated.
 !Assign largest diagonal multiplicative constant to simply be the original star graph, i.e. rho_ii/rho_ii is the root
-            IF((ABS(REAL(ExcitInfo(0,0),dp)-1.D0)).gt.1.D-07) THEN
-                STOP 'First element of original star matrix should equal 1.D0'
+            IF((ABS(REAL(ExcitInfo(0,0),dp)-1.0_dp)).gt.1.0e-7_dp) THEN
+                STOP 'First element of original star matrix should equal 1.0_dp'
             ENDIF
-            LineRhoValues(1)=1.D0
+            LineRhoValues(1)=1.0_dp
 
 !ExcitInfo(iExcit,0) is the smallest rho_jj value.
             WRITE(6,*) "Smallest rho_jj value is ", REAL(ExcitInfo(iExcit,0),dp)
@@ -1124,10 +1125,10 @@
             
 !Try fitting not accros whole range of rho_jj values, but just the highest values - closer linear relationship
 !            lowerrhojj=INT(iExcit/50)
-!            RhoGap=(1.D0-REAL(ExcitInfo(lowerrhojj,0)))/(LinePoints-1)
+!            RhoGap=(1.0_dp-REAL(ExcitInfo(lowerrhojj,0)))/(LinePoints-1)
 !Instead of fitting to a certain distance down the list of rho_jjs, pick a minimum rootchange value directly from the spread.
-             lowrhojj=1.D0-((1.D0-REAL(ExcitInfo(iExcit,0),dp))/50)
-             RhoGap=(1.D0-lowrhojj)/(LinePoints-1)
+             lowrhojj=1.0_dp-((1.0_dp-REAL(ExcitInfo(iExcit,0),dp))/50)
+             RhoGap=(1.0_dp-lowrhojj)/(LinePoints-1)
 
 !Calculate the spread of Rho_jj values which the linear approximation will be based around. Initially, this is just a linear spread.
             do i=2,LinePoints
@@ -1135,7 +1136,7 @@
             enddo
 
 !LineRhoValues(LinePoints) should be the same as ExcitInfo(iExcit,0)
-!            IF(ABS(LineRhoValues(LinePoints)-(ExcitInfo(iExcit,0))).gt.1.D-09) THEN
+!            IF(ABS(LineRhoValues(LinePoints)-(ExcitInfo(iExcit,0))).gt.1.0e-9_dp) THEN
 !                STOP 'LineRhoValues(LinePoints) should be the same as the lowest rho_jj value'
 !            ENDIF
             IF(.NOT.BTEST(NWHTAY,0)) THEN
@@ -1166,10 +1167,10 @@
 !Find the values for eigenvalues and eigenvectors of this matrix, and put them into the relevant AlllVals and AllVecs
                     CALL GetValsnVecs(iExcit+1,DiagRhos,ExcitInfo(1:iExcit,1),AllVals,AllVecs)
 
-                    IF((RhoValue.eq.1.D0).and.(i.ne.1)) STOP 'Problem with assigning rho values for excited stars'
+                    IF((RhoValue.eq.1.0_dp).and.(i.ne.1)) STOP 'Problem with assigning rho values for excited stars'
 
 !Save largest eigenvalue
-                    IF(RhoValue.eq.1.D0) THEN
+                    IF(RhoValue.eq.1.0_dp) THEN
                         EigenMax=AllVals(iExcit+1)
                         WRITE(6,*) "Largest eigenvalue of original star: ", EigenMax
                     ENDIF
@@ -1201,21 +1202,21 @@
 !Use linear regression technique to find the best-fit gradient for the line for the eigenvalues
 
 !Mean x value is simply the average of the roots chosen
-            meanx=0.D0
+            meanx=0.0_dp
             do i=1,LinePoints
                 meanx=meanx+LineRhoValues(i)
             enddo
             meanx=meanx/LinePoints
 
 !Now need to calculate average eigenvalues
-            Meanval=0.D0
+            Meanval=0.0_dp
             do i=1,LinePoints
                 Meanval=Meanval+Vals(i)
             enddo
             Meanval=Meanval/Linepoints
 
 !Calculate Sxx
-            Sxx=0.D0
+            Sxx=0.0_dp
             do i=1,LinePoints
                 Sxx=Sxx+(LineRhoValues(i)-meanx)*(LineRhoValues(i)-meanx)
             enddo
@@ -1223,8 +1224,8 @@
 !Calculate Sxy and Syy (to find R^2)
 !Sxy = \sum{(x_i - X)(y_i - Y) where X and Y are the means of x and y respectivly
 
-            Sxy=0.D0
-            Syy=0.D0
+            Sxy=0.0_dp
+            Syy=0.0_dp
             do i=1,LinePoints
                 Sxy=Sxy+(LineRhoValues(i)-meanx)*(Vals(i)-Meanval)
                 Syy=Syy+(Vals(i)-Meanval)*(Vals(i)-Meanval)
@@ -1236,18 +1237,18 @@
             IncptVal=Meanval-GradVal*meanx
 
 !To calculate R^2, also need \sum{(y_i - Y)^2} - the expected y value from the gradient calculation at each point
-            ExpctVal=0.D0
+            ExpctVal=0.0_dp
             do i=1,LinePoints
                 ExpctVal=ExpctVal+(Vals(i)-(IncptVal+GradVal*LineRhoValues(i)))**2
             enddo
 
 !Calculate Rsq value
-            Rsq=1.D0-ExpctVal/Syy
+            Rsq=1.0_dp-ExpctVal/Syy
 
             IF(Rsq.lt.0.95) THEN
                 WRITE(6,*) "Problem with linear approximation of eigenvalues, R^2 value: ", Rsq
                 STOP
-            ELSEIF(Rsq.gt.1.D0) THEN
+            ELSEIF(Rsq.gt.1.0_dp) THEN
                 WRITE(6,*) "Fatal problem - R^2 value greater than 1!"
                 STOP
             ENDIF
@@ -1255,18 +1256,18 @@
 !Linearly change diagonal elements - rho_jj' = GradVal*(rho_jj - 1) + eigenmax
             ALLOCATE(ExcitInfo2(0:iExcit,0:2),stat=ierr)
             call LogMemAlloc('ExcitInfo2',3*(iExcit+1),8*HElement_t_size,this_routine,tagExcitInfo2,iErr)
-            ExcitInfo2=(0.d0)
+            ExcitInfo2=(0.0_dp)
             
 !Put HF determinant into element 0
-            ExcitInfo2(0,0)=(1.D0)
-            ExcitInfo2(0,1)=(1.D0)
+            ExcitInfo2(0,0)=(1.0_dp)
+            ExcitInfo2(0,1)=(1.0_dp)
             ExcitInfo2(0,2)=ExcitInfo(0,2)
 
 !Diagonal elements and Hamiltonian elements do not change, since assume eigenvectors are 1 or 0...
             do i=1,iExcit
                 ExcitInfo2(i,1)=ExcitInfo(i,1)
                 ExcitInfo2(i,2)=ExcitInfo(i,2)
-                ExcitInfo2(i,0)=EigenMax+(GradVal*((ExcitInfo(i,0))-1.D0))
+                ExcitInfo2(i,0)=EigenMax+(GradVal*((ExcitInfo(i,0))-1.0_dp))
             enddo
 
             CALL LogMemDealloc(this_routine,tagExcitInfo)
@@ -1372,14 +1373,14 @@
             ALLOCATE(LineRhoValues(LinePoints))
 
 !Assign largest diagonal multiplicative constant to simply be the original star graph, i.e. rho_ii/rho_ii is the root
-            IF((ABS(REAL(ExcitInfo(0,0),dp)-1.D0)).gt.1.D-07) THEN
-                STOP 'First element of original star matrix should equal 1.D0'
+            IF((ABS(REAL(ExcitInfo(0,0),dp)-1.0_dp)).gt.1.0e-7_dp) THEN
+                STOP 'First element of original star matrix should equal 1.0_dp'
             ENDIF
-            LineRhoValues(1)=1.D0
+            LineRhoValues(1)=1.0_dp
 
 !ExcitInfo(iExcit,0) is the smallest rho_jj value.
             WRITE(6,*) "Smallest rho_jj value is ", REAL(ExcitInfo(iExcit,0),dp)
-            RhoGap=(1.D0-ExcitInfo(iExcit,0))/(LinePoints-1)
+            RhoGap=(1.0_dp-ExcitInfo(iExcit,0))/(LinePoints-1)
 
 !Calculate the spread of Rho_jj values which the linear approximation will be based around. Initially, this is just a linear spread.
             do i=2,LinePoints
@@ -1387,7 +1388,7 @@
             enddo
 
 !LineRhoValues(LinePoints) should be the same as ExcitInfo(iExcit,0)
-            IF(ABS(LineRhoValues(LinePoints)-REAL(ExcitInfo(iExcit,0),dp)).gt.1.D-07) THEN
+            IF(ABS(LineRhoValues(LinePoints)-REAL(ExcitInfo(iExcit,0),dp)).gt.1.0e-7_dp) THEN
                 STOP 'LineRhoValues(LinePoints) should be the same as the lowest rho_jj value'
             ENDIF
 
@@ -1438,7 +1439,7 @@
 !Use linear regression technique to find the best-fit gradient for the line for each eigenvalue & vector
 
 !Mean x value is simply the average of the multiplicative constants, and is the same for all eigenvalues and vectors
-            meanx=0.D0
+            meanx=0.0_dp
             do i=1,LinePoints
                 meanx=meanx+LineRhoValues(i)
             enddo
@@ -1447,10 +1448,10 @@
 !Need to calculate the average for each eigenvalue & vector
             ALLOCATE(MeanVecs(iExcit+1),stat=iErr)
             CALL LogMemAlloc("MeanVecs",iExcit+1,8,this_routine,tagMeanVecs,iErr)
-            MeanVecs=0.d0
+            MeanVecs=0.0_dp
             ALLOCATE(MeanVals(iExcit+1),stat=iErr)
             CALL LogMemAlloc("MeanVals",iExcit+1,8,this_routine,tagMeanVals,iErr)
-            MeanVals=0.d0
+            MeanVals=0.0_dp
 
             do i=1,iExcit+1
                 do j=1,LinePoints
@@ -1464,7 +1465,7 @@
             enddo
 
 !Calculate Sxx - this is the same for all eigenvector/values
-            Sxx=0.D0
+            Sxx=0.0_dp
             do i=1,LinePoints
                 Sxx=Sxx+(LineRhoValues(i)-meanx)*(LineRhoValues(i)-meanx)
             enddo
@@ -1474,16 +1475,16 @@
 
             ALLOCATE(SxyVals(iExcit+1),stat=iErr)
             CALL LogMemAlloc("SxyVals",iExcit+1,8,this_routine,tagSxyVals,iErr)
-            SxyVals=0.d0
+            SxyVals=0.0_dp
             ALLOCATE(SxyVecs(iExcit+1),stat=iErr)
             CALL LogMemAlloc("SxyVecs",iExcit+1,8,this_routine,tagSxyVecs,iErr)
-            SxyVecs=0.d0
+            SxyVecs=0.0_dp
             ALLOCATE(SyyVals(iExcit+1),stat=iErr)
             CALL LogMemAlloc("SyyVals",iExcit+1,8,this_routine,tagSyyVals,iErr)
-            SyyVals=0.d0
+            SyyVals=0.0_dp
             ALLOCATE(SyyVecs(iExcit+1),stat=iErr)
             CALL LogMemAlloc("SyyVecs",iExcit+1,8,this_routine,tagSyyVecs,iErr)
-            SyyVecs=0.d0
+            SyyVecs=0.0_dp
 
             do i=1,iExcit+1
                 do j=1,LinePoints
@@ -1501,16 +1502,16 @@
 
             ALLOCATE(GradVals(iExcit+1),stat=iErr)
             CALL LogMemAlloc("GradVals",iExcit+1,8,this_routine,tagGradVals,iErr)
-            GradVals=0.d0
+            GradVals=0.0_dp
             ALLOCATE(GradVecs(iExcit+1),stat=iErr)
             CALL LogMemAlloc("GradVecs",iExcit+1,8,this_routine,tagGradVecs,iErr)
-            GradVecs=0.d0
+            GradVecs=0.0_dp
             ALLOCATE(IncptVals(iExcit+1),stat=iErr)
             CALL LogMemAlloc("IncptVals",iExcit+1,8,this_routine,tagIncptVals,iErr)
-            IncptVals=0.d0
+            IncptVals=0.0_dp
             ALLOCATE(IncptVecs(iExcit+1),stat=iErr)
             CALL LogMemAlloc("IncptVecs",iExcit+1,8,this_routine,tagIncptVecs,iErr)
-            IncptVecs=0.d0
+            IncptVecs=0.0_dp
 
             do i=1,iExcit+1
                 
@@ -1525,10 +1526,10 @@
 
             ALLOCATE(ExpctVals(iExcit+1),stat=iErr)
             CALL LogMemAlloc("ExpctVals",iExcit+1,8,this_routine,tagExpctVals,iErr)
-            ExpctVals=0.d0
+            ExpctVals=0.0_dp
             ALLOCATE(ExpctVecs(iExcit+1),stat=iErr)
             CALL LogMemAlloc("ExpctVecs",iExcit+1,8,this_routine,tagExpctVecs,iErr)
-            ExpctVecs=0.d0
+            ExpctVecs=0.0_dp
 
             do i=1,iExcit+1
                 do j=1,LinePoints
@@ -1543,20 +1544,20 @@
 
             ALLOCATE(RsqVals(iExcit+1),stat=iErr)
             CALL LogMemAlloc("RsqVals",iExcit+1,8,this_routine,tagRsqVals,iErr)
-            RsqVals=0.d0
+            RsqVals=0.0_dp
             ALLOCATE(RsqVecs(iExcit+1),stat=iErr)
             CALL LogMemAlloc("RsqVecs",iExcit+1,8,this_routine,tagRsqVecs,iErr)
-            RsqVecs=0.d0
+            RsqVecs=0.0_dp
 
             do i=1,iExcit+1
 
-                RsqVals(i)=1.D0-ExpctVals(i)/SyyVals(i)
-                RsqVecs(i)=1.D0-ExpctVecs(i)/SyyVecs(i)
+                RsqVals(i)=1.0_dp-ExpctVals(i)/SyyVals(i)
+                RsqVecs(i)=1.0_dp-ExpctVecs(i)/SyyVecs(i)
 
                 IF((RsqVals(i).lt.0.95).or.(RsqVecs(i).lt.0.95)) THEN
                     WRITE(6,*) "Problem with linear approximation, R^2 value: ", RsqVals(i)," or, " &
                         ,RsqVecs(i)," for eigenvalue/vector : ", i
-                ELSEIF((RsqVals(i).gt.1.D0).or.(RsqVecs(i).gt.1.D0)) THEN
+                ELSEIF((RsqVals(i).gt.1.0_dp).or.(RsqVecs(i).gt.1.0_dp)) THEN
                     WRITE(6,*) "Fatal problem in linear approximation, R^2 > 1 : ", RsqVals(i), &
                         " for eigenvalue/vector : ", i
                     STOP
@@ -1608,7 +1609,7 @@
 !Cycle through all possible eigenvectors of each excited star
                 do j=1,iExcit+1
 
-                    rhoia=(ExcitInfo(i,1))*(GradVecs(j)*((ExcitInfo(i,0))-1.D0)+StarEigens(j,2))
+                    rhoia=(ExcitInfo(i,1))*(GradVecs(j)*((ExcitInfo(i,0))-1.0_dp)+StarEigens(j,2))
                     
                     IF((ABS(rhoia).gt.RhoEps).and.(.not.TQuadValMax).and.(.not.TQuadVecMax)) THEN
                         !Include all quadruple excitations (ficticious and real)
@@ -1637,7 +1638,7 @@
             ALLOCATE(ExcitInfo2(0:TotExcits,0:2),stat=iErr)
             CALL LogMemAlloc("ExcitInfo2",(TotExcits+1)*3*HElement_t_size,8,this_routine,tagExcitInfo2,iErr)
             call LogMemAlloc('ExcitInfo2',3*(TotExcits+1),8*HElement_t_size,this_routine,tagExcitInfo2,iErr)
-            ExcitInfo2=(0.d0)
+            ExcitInfo2=(0.0_dp)
 
 !Fill original star matrix - NO!! Do not want to double count i --> j excitations.
 !Only need to include the original root, i
@@ -1650,8 +1651,8 @@
 !
 !            enddo
 
-             ExcitInfo2(0,0)=(1.D0)
-             ExcitInfo2(0,1)=(1.D0)
+             ExcitInfo2(0,0)=(1.0_dp)
+             ExcitInfo2(0,1)=(1.0_dp)
              ExcitInfo2(0,2)=ExcitInfo(0,2)
 
 !            WRITE(6,*) "Original Hij elements :"
@@ -1664,20 +1665,20 @@
 
             hmax = 0
             do i=1,iExcit
-                ValMax=0.D0
-                VecMax=0.D0
+                ValMax=0.0_dp
+                VecMax=0.0_dp
                 TVal=.false.
                 
                 do j=1,iExcit+1
 
-                    rhoia=(ExcitInfo(i,1))*(GradVecs(j)*((ExcitInfo(i,0))-1.D0)+StarEigens(j,2))
-                    rhoaa=GradVals(j)*(ExcitInfo(i,0)-1.D0)+StarEigens(j,1)
+                    rhoia=(ExcitInfo(i,1))*(GradVecs(j)*((ExcitInfo(i,0))-1.0_dp)+StarEigens(j,2))
+                    rhoaa=GradVals(j)*(ExcitInfo(i,0)-1.0_dp)+StarEigens(j,1)
                     
 !Include all quadruple excitations with large enough connection to root
                     IF((ABS(rhoia).gt.RhoEps).and.(.not.TQuadValMax).and.(.not.TQuadVecMax)) THEN
                         ExcitInfo2(NextVertex,1)=(rhoia)
-                        ExcitInfo2(NextVertex,0)=(GradVals(j))*(ExcitInfo(i,0)-(1.D0))+(StarEigens(j,1))
-                        ExcitInfo2(NextVertex,2)=ExcitInfo(i,2)*((GradVecs(j))*(ExcitInfo(i,0)-(1.D0))+(StarEigens(j,2)))
+                        ExcitInfo2(NextVertex,0)=(GradVals(j))*(ExcitInfo(i,0)-(1.0_dp))+(StarEigens(j,1))
+                        ExcitInfo2(NextVertex,2)=ExcitInfo(i,2)*((GradVecs(j))*(ExcitInfo(i,0)-(1.0_dp))+(StarEigens(j,2)))
                         NextVertex=NextVertex+1
                     
                     ELSEIF((ABS(rhoia).gt.RhoEps).and.(TQuadValMax.or.TQuadVecMax)) THEN
@@ -1686,22 +1687,22 @@
                         IF((rhoaa.gt.ValMax).and.(TQuadValMax)) THEN
                             ValMax=rhoaa
                             VecMax=rhoia
-                            HMax=(ExcitInfo(i,2))*(GradVecs(j)*((ExcitInfo(i,0))-1.D0)+StarEigens(j,2))
+                            HMax=(ExcitInfo(i,2))*(GradVecs(j)*((ExcitInfo(i,0))-1.0_dp)+StarEigens(j,2))
                             TVal=.true.
                         ELSEIF((ABS(rhoia).gt.VecMax).and.(TQuadVecMax)) THEN
                             ValMax=rhoaa
                             VecMax=rhoia
-                            HMax=(ExcitInfo(i,2))*(GradVecs(j)*((ExcitInfo(i,0))-1.D0)+StarEigens(j,2))
+                            HMax=(ExcitInfo(i,2))*(GradVecs(j)*((ExcitInfo(i,0))-1.0_dp)+StarEigens(j,2))
                             TVal=.true.
                         ENDIF
                     ENDIF
 
                 enddo
 
-                IF(TVal.and.(ValMax.lt.1.D-09)) STOP 'Error in collecting maximum values'
+                IF(TVal.and.(ValMax.lt.1.0e-9_dp)) STOP 'Error in collecting maximum values'
                 
 !Put largest values into ExcitInfo2
-                IF((TQuadValMax.or.TQuadVecMax).and.(ValMax.gt.1.D-09).and.TVal) THEN
+                IF((TQuadValMax.or.TQuadVecMax).and.(ValMax.gt.1.0e-9_dp).and.TVal) THEN
                     ExcitInfo2(NextVertex,0)=(ValMax)
                     ExcitInfo2(NextVertex,1)=(VecMax)
                     ExcitInfo2(NextVertex,2)=(HMax)
@@ -1745,9 +1746,10 @@
 !This subroutine simply forms a star matrix, diagonalises it, and returns the eigenvalues and first elements of the eigenvectors.
         SUBROUTINE GetValsnVecs(Dimen,DiagRhos,OffDiagRhos,Vals,Vecs)
             use global_utilities
+            use constants, only: int32
             IMPLICIT NONE
             INTEGER :: Dimen,i,iErr
-            INTEGER*4 INFO
+            INTEGER(int32) INFO
             real(dp) :: DiagRhos(1:Dimen),Vals(Dimen),Vecs(Dimen)
             HElement_t :: OffDiagRhos(2:Dimen)
             real(dp), ALLOCATABLE :: StarMat(:,:),WORK(:)
@@ -1759,9 +1761,9 @@
 
                 ALLOCATE(StarMat(Dimen,Dimen),stat=iErr)
                 CALL LogMemAlloc("StarMat",Dimen*Dimen,8,this_routine,tagStarMat,iErr)
-                StarMat=0.d0
-                Vals=0.d0
-                Vecs=0.d0
+                StarMat=0.0_dp
+                Vals=0.0_dp
+                Vecs=0.0_dp
 
                 do i=2,Dimen
                     StarMat(i,i)=DiagRhos(i)
@@ -1772,7 +1774,7 @@
 
                 ALLOCATE(WORK(3*Dimen),stat=iErr)
                 CALL LogMemAlloc("WORK",Dimen*3,8,this_routine,tagWORK,iErr)
-                WORK=0.d0
+                WORK=0.0_dp
 
 !                do i=1,
 !                    do j=1,Dimen
@@ -1824,7 +1826,7 @@
              IF(TCalcRealProd.and.TSumProd) THEN
 !TSumProd tries to find a way to resum the product excitations into the double excitations already available in the star graph.
 
-                rhiiadd=0.D0
+                rhiiadd=0.0_dp
                 ALLOCATE(Offrho(iExcit),stat=iErr)
                 CALL LogMemAlloc("OffRho",iExcit,8*HElement_t_size,this_routine,tagOffrho,iErr)
 
@@ -1852,7 +1854,7 @@
                     ExcitInfo(0,1)=ExcitInfo(0,1)+rhiiadd
                     WRITE(6,*) "New root is now ",ExcitInfo(0,0) 
                 ELSE
-                    IF(abs(rhiiadd).gt.(0.D0)) STOP 'rhiiadd should be zero as no products'
+                    IF(abs(rhiiadd).gt.(0.0_dp)) STOP 'rhiiadd should be zero as no products'
                 ENDIF
             ENDIF
 
@@ -1963,7 +1965,7 @@
 !                            QUADRHOS(1,nouniqprod)=ExcitInfo(I,0)*ExcitInfo(J,0)
 !                            QUADRHOS(2,nouniqprod)=(ExcitInfo(I,1)*ExcitInfo(J,1))/(ExcitInfo(I,1)+ExcitInfo(J,1))
 !                            !Let hamiltonian elements to these excitations = 0
-!                            QUADRHOS(3,nouniqprod)=0.D0
+!                            QUADRHOS(3,nouniqprod)=0.0_dp
 !                        ENDIF
 !                    ENDIF
 !                ENDIF
@@ -1988,7 +1990,7 @@
 
         countprods=0
         UniqProd=0
-        rhiiadd=0.D0
+        rhiiadd=0.0_dp
         !Cycle through all unique excitation products
         DO I=1,iExcit
             !Only allow one product excitation per original excitation attached to root
@@ -2034,16 +2036,19 @@
 FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,NTAY, &
                      RHOEPS,LSTE,ICE,L,LT,NWHTAY,TSYM,ECORE,ILMAX,DBETA,DLWDB)
          use constants, only: dp      
+         use SystemData, only: BasisFN
          use global_utilities
          use legacy_data, only: irat
          use HElem
-         use util_mod, only: NECI_ICOPY
-        use MemoryManager, only: TagIntType
+         use MemoryManager, only: TagIntType
+         use util_mod, only: neci_icopy
          IMPLICIT NONE
-         INTEGER NEL,I_P,NBASISMAX(*),G1(*),NBASIS,NMSH,NMAX
-         INTEGER NTAY,NWHTAY,LT
-         real(dp) FCK(*), ALAT(*),UMAT(*),ECORE
+         INTEGER NEL,I_P,NBASISMAX(*),NBASIS,NMSH,NMAX
+         INTEGER NTAY(2),NWHTAY,LT
+         real(dp) ALAT(*),UMAT(*),ECORE
+         complex(dp) FCK(*)
          INTEGER NI(NEL),ILMAX
+         type(BasisFN) G1(*)
 !.. These are old and no longer used
 !.. LSTE is a list of excitations (which we will generate)
 !.. ICE is the IC of each excitation (i.e. how much it differs from us (INODE)
@@ -2123,12 +2128,12 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          use constants, only: dp     
          use SystemData, only: BasisFN
          use Determinants, only: get_helement
-         use util_mod, only: NECI_ICOPY
+         use util_mod, only: neci_icopy
          IMPLICIT NONE
          real(dp) FMCPR3Star2
          TYPE(BasisFN) G1(*)
          INTEGER NEL,I_P,NBASIS,NMSH,NMAX
-         INTEGER NTAY,NWHTAY,LT
+         INTEGER NTAY(2),NWHTAY,LT
          real(dp) ALAT(*),ECORE
          HElement_t UMat(*)
          complex(dp) FCK(*)
@@ -2194,7 +2199,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 
       SUBROUTINE STARDIAGREALPROD(NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB,ProdNum,ProdPositions,OnDiagProdRho,OffDiagProdRho)
          !NLIST is now no. original excitations (+ root) - ILMAX is max possible excitations +1
-         use constants, only: dp
+         use constants, only: dp, int32
          use HElem
          use global_utilities
         use MemoryManager, only: TagIntType
@@ -2208,7 +2213,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 
          type(timer), save :: proc_timer
          INTEGER WORKL,ProdPositions(2,ProdNum)
-         INTEGER*4 INFO
+         INTEGER(int32) INFO
          real(dp) SI,DLWDB,DBETA
          INTEGER I,J,err
          character(*),parameter :: this_routine='STARDIAGREALPROD'
@@ -2223,7 +2228,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          TOTVERT=NLIST+ProdNum
          allocate(RIJMAT(TOTVERT**2),stat=err)
          call LogMemAlloc('RIJMAT',TOTVERT**2,8,this_routine,tagRIJMAT,err)
-         RIJMAT=0.d0
+         RIJMAT=0.0_dp
         
          !Fill RIJMAT
          DO I=1,TOTVERT
@@ -2273,10 +2278,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          WRITE(6,*)
          WRITE(6,*) "Highest root:",WLIST(TOTVERT)
 
-         SI=0.D0
+         SI=0.0_dp
          DO I=1,TOTVERT
             SI=SI+RIJMAT(((I-1)*TOTVERT)+1)*RIJMAT(((I-1)*TOTVERT)+1)*(WLIST(I)**I_P)
-            IF(DBETA.NE.0.D0) THEN
+            IF(DBETA.NE.0.0_dp) THEN
                 DO J=1,NLIST
                     !only sum over vertices linked to i?
                     DLWDB=DLWDB+RIJMAT(((I-1)*TOTVERT)+1)*RIJMAT(((I-1)*TOTVERT)+J)*(WLIST(I)**I_P)*LIST(J,2)
@@ -2284,7 +2289,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
             ENDIF
          ENDDO
          WRITE(6,*) "Final SI= ", SI
-         SI=SI-1.D0
+         SI=SI-1.0_dp
          DLWDB=DLWDB-LIST(1,2)
          deallocate(WLIST,RIJMAT)
          call LogMemDealloc(this_routine,tagWLIST)
@@ -2297,11 +2302,11 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          
          
       SUBROUTINE STARDIAGSC(NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
-         use constants, only: dp
+         use constants, only: dp,int32
          use global_utilities
          use sort_mod
          use helem, only: helement_t_size
-        use MemoryManager, only: TagIntType
+         use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER I_P
          INTEGER NLIST,ILMAX
@@ -2314,7 +2319,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          INTEGER IND,TOTVERT
          type(timer), save :: proc_timer
          INTEGER WORKL,PRODVERT,ierr
-         INTEGER*4 INFO
+         INTEGER(int32) INFO
          real(dp) SI,DLWDB,DBETA
          INTEGER I,J,err
          character(*),parameter :: this_routine='STARDIAGSC'
@@ -2332,10 +2337,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          
          ALLOCATE(AOFFDB(PRODVERT,NLIST-1),STAT=ierr)
          CALL LogMemAlloc('AOFFDB',(NLIST-1)*PRODVERT,8,this_routine,tagAOFFDB,ierr)
-         AOFFDB=0.d0
+         AOFFDB=0.0_dp
          ALLOCATE(AONDB(PRODVERT),STAT=ierr)
          CALL LogMemAlloc('AONDB',PRODVERT,8,this_routine,tagAONDB,ierr)
-         AONDB=0.d0
+         AONDB=0.0_dp
 
          IND=0
          DO I=2,NLIST
@@ -2351,7 +2356,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
         IF(PRODVERT.NE.IND) THEN
             WRITE(6,*) "EXPECTED EXTRA VERTICES = ", PRODVERT
             WRITE(6,*) "VERTICES ADDED = ", IND
-            CALL FLUSH(6)
+            CALL neci_flush(6)
             STOP 'WRONG NUMBER OF ADDED VERTICES'
         ENDIF
 
@@ -2365,7 +2370,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
         
         allocate(RIJMAT(TOTVERT**2),stat=err)
         call LogMemAlloc('RIJMAT',TOTVERT**2,8,this_routine,tagRIJMAT,err)
-        RIJMAT=0.d0
+        RIJMAT=0.0_dp
         
         DO I=1,TOTVERT
             IF(I.LE.NLIST) THEN
@@ -2412,10 +2417,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          WRITE(6,*)
          WRITE(6,*) "Highest root:",WLIST(TOTVERT)
 
-         SI=0.D0
+         SI=0.0_dp
          DO I=1,TOTVERT
             SI=SI+RIJMAT(((I-1)*TOTVERT)+1)*RIJMAT(((I-1)*TOTVERT)+1)*(WLIST(I)**I_P)
-            IF(DBETA.NE.0.D0) THEN
+            IF(DBETA.NE.0.0_dp) THEN
 !                OD=DLWDB
                 DO J=1,NLIST
                     !Is this a correct formulation for the hamiltonian elements - only sum over vertices linked to i
@@ -2424,7 +2429,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
             ENDIF
          ENDDO
          WRITE(6,*) "Final SI= ", SI
-         SI=SI-1.D0
+         SI=SI-1.0_dp
          DLWDB=DLWDB-LIST(1,2)
          deallocate(WLIST,RIJMAT)
          call LogMemDealloc(this_routine,tagRIJMAT)
@@ -2437,20 +2442,20 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !Use a MC sampling technique to find the eigenvector correesponding to the smallest eigenvalue.
 !List now contains diagonal hamiltonian matrix elements-Hii in the ExcitInfo(i,0), rather than rho elements.
       SUBROUTINE StarDiagMC(NList,List,ILMax,SI,DLWDB,MaxDiag)
-         use constants, only: dp
+         use constants, only: dp,int32,sizeof_int
          use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
          use CalcData , only : TReadPops,ScaleWalkers,TBinCancel, iPopsFileNoRead, iPopsFileNoWrite
          USE Logging , only : TPopsFile,TCalcWavevector,WavevectorPrint, tIncrementPops
          USE global_utilities
-         use util_mod, only: get_unique_filename
          use sort_mod
          use StarDiagData, only: star_walker
          use helem, only: helement_t_size
-        use MemoryManager, only: TagIntType
+         use MemoryManager, only: TagIntType
+         use util_mod, only: get_unique_filename
          IMPLICIT NONE
          CHARACTER(len=*), PARAMETER :: this_routine='StarDiagMC'
          INTEGER :: i,j,NList,ILMax,ierr,WorkL,toprint,PreviousNMCyc
-         INTEGER*4 Info
+         INTEGER(int32) Info
          type(timer), save :: proc_timer
          INTEGER :: TotWalkers,Seed,VecSlot,TotWalkersNew,DetCurr,ReadWalkers
          INTEGER :: MaxWalkers,TotWalkersOld,NWalk,k,l,TotWalkersDet
@@ -2470,7 +2475,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
              CALL Stop_All("StarDiagMC","StarDiagMC cannot function with complex orbitals.")
          ENDIF
          
-         IF(Tau.eq.0.D0) THEN
+         IF(Tau.eq.0.0_dp) THEN
             WRITE(6,*) "Choosing Tau so that Tau*Hii_max = 0.999 "
             Tau=0.999/MaxDiag
          ELSE
@@ -2500,7 +2505,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !Initialise random number seed
          Seed=G_VMC_Seed
          SumNoatHF=0
-         SumENum=0.D0
+         SumENum=0.0_dp
          OPEN(15,file='StarMCStats',status='unknown')
          IF(TCalcWavevector) THEN
              WRITE(6,*) "Writing first ",toprint," components of vector to file..."
@@ -2509,7 +2514,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 
          WRITE(6,*) "Diagonal root value is: ", List(1,0)
          WRITE(6,*) "Largest Diagonal value is: ", MaxDiag
-         IF(DiagSft.gt.0.D0) THEN
+         IF(DiagSft.gt.0.0_dp) THEN
              CALL Stop_All("StarDiagMC","Intial value of DiagSft should be negative.")
          ELSE
              WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
@@ -2521,10 +2526,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 
              ALLOCATE(HMat(NList,NList),stat=ierr)
              CALL LogMemAlloc('HMat',NList**2,8,this_routine,HMatTag,ierr)
-             HMat=0.d0
+             HMat=0.0_dp
              ALLOCATE(WList(NList),stat=ierr)
              CALL LogMemAlloc('WList',NList,8,this_routine,WListTag,ierr)
-             WList=0.d0
+             WList=0.0_dp
              WorkL=3*NList
              ALLOCATE(Work(WorkL),stat=ierr)
              CALL LogMemAlloc('Work',WorkL,8,this_routine,WorkTag,ierr)
@@ -2589,7 +2594,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          ENDIF
 
 !Set the maximum number of walkers allowed
-         MaxWalkers=1000*InitWalkers
+         MaxWalkers=int(1000*InitWalkers,sizeof_int)
 
 !Allocate memory to hold walkers
          ALLOCATE(WalkVec(MaxWalkers),stat=ierr)
@@ -2598,18 +2603,18 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          CALL LogMemAlloc('WalkVec2',MaxWalkers,5,this_routine,WalkVec2Tag,ierr)
 
          IF(TReadPops) THEN
-             IF((ABS(ScaleWalkers-1.D0)).lt.1.D-8) THEN
+             IF((ABS(ScaleWalkers-1.0_dp)).lt.1.0e-8_dp) THEN
 !Read in walker positions
-                 do i=1,InitWalkers
+                 do i=1,int(InitWalkers,sizeof_int)
                      READ(17,*) WalkVec(i)%Det,WalkVec(i)%WSign
                  enddo
              ELSE
 !Read in walker positions - we will scale these later...
-                 do i=1,InitWalkers
+                 do i=1,int(InitWalkers,sizeof_int)
                      READ(17,*) WalkVec2(i)%Det,WalkVec2(i)%WSign
                  enddo
                  WRITE(6,*) "Scaling number of walkers by: ",ScaleWalkers
-                 ReadWalkers=InitWalkers
+                 ReadWalkers=int(InitWalkers,sizeof_int)
                  InitWalkers=0
                  ! First, count the total number of initial walkers on each 
                  ! determinant - sort into list
@@ -2633,11 +2638,11 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
                      enddo
                      DetCurr=WalkVec2(j)%Det
 !Count total number of initial walkers
-                     InitWalkers=InitWalkers+abs(nint((TotWalkersDet+0.D0)*ScaleWalkers))
+                     InitWalkers=InitWalkers+abs(nint((TotWalkersDet+0.0_dp)*ScaleWalkers))
                  enddo
                  WRITE(6,*) "Total number of walkers is now: ",InitWalkers
 !Set the new maximum number of walkers allowed
-                 MaxWalkers=100*InitWalkers
+                 MaxWalkers=int(100*InitWalkers,sizeof_int)
 
 !Deallocate old memory block for WalkVec
                  DEALLOCATE(WalkVec)
@@ -2666,7 +2671,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
                          j=j+1
                      enddo
 !Now multiply up the number of walkers, and insert into WalkVec
-                     TotWalkersDet=nint((TotWalkersDet+0.D0)*ScaleWalkers)
+                     TotWalkersDet=nint((TotWalkersDet+0.0_dp)*ScaleWalkers)
                      IF(TotWalkersDet.gt.0) THEN
                          do l=1,abs(TotWalkersDet)
                              WalkVec(VecSlot)%Det=DetCurr
@@ -2701,14 +2706,14 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 
 !Setup initial trial walker position - already they are all set to be at HF to start (with positive sign)
 !TotWalkers contains the number of current walkers at each step
-         TotWalkers=InitWalkers
-         TotWalkersOld=InitWalkers
+         TotWalkers=int(InitWalkers,sizeof_int)
+         TotWalkersOld=int(InitWalkers,sizeof_int)
 
          IF(TCalcWavevector) THEN
 !If we want to write out first few
-             WRITE(14,*) 1,1.D0
+             WRITE(14,*) 1,1.0_dp
              do i=2,toprint
-                 WRITE(14,*) i,0.D0
+                 WRITE(14,*) i,0.0_dp
              enddo
              WRITE(14,*) ""
          ENDIF
@@ -2718,11 +2723,11 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          WRITE(6,*) "       Step  Shift  WalkerChange  GrowRate  TotWalkers"
          WRITE(15,*) "#       Step  Shift  WalkerChange  GrowRate  TotWalkers"
          IF(TReadPops) THEN
-             WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,0.D0
-             WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,0.D0
+             WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,0.0_dp
+             WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") PreviousNMCyc,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,0.0_dp
          ELSE
-             WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,0.D0
-             WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,0.D0
+             WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,0.0_dp
+             WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,0.0_dp
          ENDIF
 
 !Start MC run - NMCyc indicates the number of times to run through all walkers
@@ -2755,14 +2760,14 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !If product of signs is +ve, create -ve walker, else create +ve walker
                              IF(WalkVec(j)%WSign) THEN
 !Walker is positive
-                                 IF(List(k,2).gt.0.D0) THEN
+                                 IF(List(k,2).gt.0.0_dp) THEN
                                      WalkVec2(VecSlot)%WSign=.false. !-ve walker
                                  ELSE
                                      WalkVec2(VecSlot)%WSign=.true. !+ve walker
                                  ENDIF
                              ELSE
 !Walker is negative
-                                 IF(List(k,2).gt.0.D0) THEN
+                                 IF(List(k,2).gt.0.0_dp) THEN
                                      WalkVec2(VecSlot)%WSign=.true. !+ve walker
                                  ELSE
                                      WalkVec2(VecSlot)%WSign=.false. !-ve walker
@@ -2792,14 +2797,14 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !If product of signs is +ve, create -ve walker, else create +ve walker
                          IF(WalkVec(j)%WSign) THEN
 !Walker is positive
-                             IF(List(DetCurr,2).gt.0.D0) THEN
+                             IF(List(DetCurr,2).gt.0.0_dp) THEN
                                  WalkVec2(VecSlot)%WSign=.false. !-ve walker
                              ELSE
                                  WalkVec2(VecSlot)%WSign=.true. !+ve walker
                              ENDIF
                          ELSE
 !Walker is negative
-                             IF(List(DetCurr,2).gt.0.D0) THEN
+                             IF(List(DetCurr,2).gt.0.0_dp) THEN
                                  WalkVec2(VecSlot)%WSign=.true. !+ve walker
                              ELSE
                                  WalkVec2(VecSlot)%WSign=.false. !-ve walker
@@ -2828,7 +2833,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 
 !Since VecSlot holds the next vacant slot in the array, TotWalkersNew will be one less than this.
              TotWalkersNew=VecSlot-1
-             rat=(TotWalkersNew+0.D0)/(MaxWalkers+0.D0)
+             rat=(TotWalkersNew+0.0_dp)/(MaxWalkers+0.0_dp)
              IF(rat.gt.0.9) THEN
                  WRITE(6,*) "*WARNING* - Number of walkers has increased to over 90% of MaxWalkers"
              ENDIF
@@ -2889,18 +2894,18 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !We want to compare the evolution of wavefunction to exact wavefunction, so calculate it every WavevectorPrint
 !Use the redundant List(i,1) vector to store wavefunctions, depicted by the residual concentration of walkers - zero it
                           do j=1,NList
-                              List(j,1)=0.D0
+                              List(j,1)=0.0_dp
                           enddo
                           do j=1,TotWalkers
 !Run through all walkers, and bin walkers in the correct wavevector component
                               IF(WalkVec(j)%WSign) THEN
-                                  List(WalkVec(j)%Det,1)=List(WalkVec(j)%Det,1)+1.D0
+                                  List(WalkVec(j)%Det,1)=List(WalkVec(j)%Det,1)+1.0_dp
                               ELSE
-                                  List(WalkVec(j)%Det,1)=List(WalkVec(j)%Det,1)-1.D0
+                                  List(WalkVec(j)%Det,1)=List(WalkVec(j)%Det,1)-1.0_dp
                               ENDIF
                           enddo
 !Now, normalise wavevector
-                          Norm=0.D0
+                          Norm=0.0_dp
                           do j=1,NList
                               Norm=Norm+(List(j,1)**2)
                           enddo
@@ -2919,7 +2924,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !In this method of cancelling, we simply histogram the walkers according to the determinant they're on - scales with size of system - i.e. badly
 !Use the redundant List(i,1) vector to store wavefunctions, depicted by the residual concentration of walkers - zero it
                       do j=1,NList
-                          List(j,1)=0.D0
+                          List(j,1)=0.0_dp
                       enddo
                 
                       do j=1,TotWalkersNew
@@ -2932,23 +2937,23 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 
                           IF(WalkVec2(j)%WSign) THEN
 !Walker is positive - add to determinant contribution
-                              List((WalkVec2(j)%Det),1)=List((WalkVec2(j)%Det),1)+1.D0
+                              List((WalkVec2(j)%Det),1)=List((WalkVec2(j)%Det),1)+1.0_dp
                           ELSE
 !Walker is negative - subtract from determinant contribution
-                              List((WalkVec2(j)%Det),1)=List((WalkVec2(j)%Det),1)-1.D0
+                              List((WalkVec2(j)%Det),1)=List((WalkVec2(j)%Det),1)-1.0_dp
                           ENDIF
 
                       enddo
 
                       VecSlot=1
-                      Norm=0.D0
+                      Norm=0.0_dp
                       do j=1,NList
 !Run through all determinants - normalise, find new number of walkers, and find new WalkVec
                           NWalk=nint(List(j,1))
                           IF(NWalk.ne.0) THEN
 !Norm will be used to normalise the eigenvector
                               Norm=Norm+(List(j,1)**2)
-                              IF((List(j,1)/abs(List(j,1))).lt.0.D0) THEN
+                              IF((List(j,1)/abs(List(j,1))).lt.0.0_dp) THEN
 !Component has overall negative sign
                                   DetSign=.false.
                               ELSE
@@ -2991,10 +2996,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !             StepsSft=100
              IF(mod(i,StepsSft).eq.0) THEN
 
-                 ProjectionE=(SumENum/(SumNoatHF+0.D0))
+                 ProjectionE=(SumENum/(SumNoatHF+0.0_dp))
                  
-                 GrowRate=(TotWalkers+0.D0)/(TotWalkersOld+0.D0)
-                 DiagSft=DiagSft-(log(GrowRate)*SftDamp)/(Tau*(StepsSft+0.D0))
+                 GrowRate=(TotWalkers+0.0_dp)/(TotWalkersOld+0.0_dp)
+                 DiagSft=DiagSft-(log(GrowRate)*SftDamp)/(Tau*(StepsSft+0.0_dp))
 
 !Write out MC cycle number, Shift, Change in Walker no, Growthrate, New Total Walkers
                  IF(TReadPops) THEN
@@ -3006,9 +3011,9 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
                      WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7)") i,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
                      WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7)") i,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE
                  ENDIF
-                 CALL FLUSH(15)
-                 CALL FLUSH(6)
-                 IF((DiagSft).gt.0.D0) THEN
+                 CALL neci_flush(15)
+                 CALL neci_flush(6)
+                 IF((DiagSft).gt.0.0_dp) THEN
                      WRITE(6,*) "***WARNING*** - DiagSft trying to become positive...",DiagSft
                      STOP
                  ENDIF
@@ -3035,8 +3040,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
              CLOSE(16)
          ENDIF
 
-         SI=1.D0
-         DLWDB=-2.D0*DiagSft
+         SI=1.0_dp
+         DLWDB=-2.0_dp*DiagSft
 
 !Deallocate memory
          DEALLOCATE(WalkVec)
@@ -3088,7 +3093,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 
          ALLOCATE(Mat(LenMat),stat=ierr)
          CALL LogMemAlloc('Mat',LenMat,8,this_routine,MatTag,ierr)
-         Mat=0.d0
+         Mat=0.0_dp
          ALLOCATE(Lab(LenMat),stat=ierr)
          CALL LogMemAlloc('Lab',LenMat,4,this_routine,LabTag,ierr)
          Lab(1:LenMat)=0
@@ -3097,7 +3102,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          NRow(1:NList)=0
 
 !Fill compressed rho-matrix
-         IF((List(1,1).ne.List(1,0)).or.(List(1,1).ne.1.D0)) THEN
+         IF((List(1,1).ne.List(1,0)).or.(List(1,1).ne.1.0_dp)) THEN
              CALL Stop_All("StarDiagLanc","Error with rho matrix elements")
          ENDIF
          NRow(1)=NList
@@ -3133,25 +3138,25 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !Allocate memory for diagonaliser
          ALLOCATE(A(NEval,NEval),stat=ierr)
          CALL LogMemAlloc('A',NEval*NEval,8,this_routine,ATag,ierr)
-         A=0.d0
+         A=0.0_dp
          ALLOCATE(V(NList*NBlock*NKry1),stat=ierr)
          CALL LogMemAlloc('V',NList*NBlock*NKry1,8,this_routine,VTag,ierr)
-         V=0.d0
+         V=0.0_dp
          ALLOCATE(AM(NBlock*NBlock*NKry1),stat=ierr)
          CALL LogMemAlloc('AM',NBlock*NBlock*NKry1,8,this_routine,AMTag,ierr)
-         AM=0.d0
+         AM=0.0_dp
          ALLOCATE(BM(NBlock*NBlock*NKry),stat=ierr)
          CALL LogMemAlloc('BM',NBlock*NBlock*NKry,8,this_routine,BMTag,ierr)
-         BM=0.d0
+         BM=0.0_dp
          ALLOCATE(T(3*NBlock*NKry*NBlock*NKry),stat=ierr)
          CALL LogMemAlloc('T',NBlock*NKry*NBlock*NKry*3,8,this_routine,TTag,ierr)
-         T=0.d0
+         T=0.0_dp
          ALLOCATE(WT(NBlock*NKry),stat=ierr)
          CALL LogMemAlloc('WT',NBlock*NKry,8,this_routine,WTTag,ierr)
-         WT=0.d0
+         WT=0.0_dp
          ALLOCATE(SCR(LScr),stat=ierr)
          CALL LogMemAlloc('SCR',LScr,8,this_routine,SCRTag,ierr)
-         SCR=0.d0
+         SCR=0.0_dp
          ALLOCATE(ISCR(LIScr),stat=ierr)
          CALL LogMemAlloc('ISCR',LIScr,4,this_routine,ISCRTag,ierr)
          ISCR(1:LIScr)=0
@@ -3160,27 +3165,27 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          Index(1:NEval)=0
          ALLOCATE(WH(NList),stat=ierr)
          CALL LogMemAlloc('WH',NList,8,this_routine,WHTag,ierr)
-         WH=0.d0
+         WH=0.0_dp
          ALLOCATE(Work2(3*NList),stat=ierr)
          CALL LogMemAlloc('Work2',3*NList,8,this_routine,Work2Tag,ierr)
-         Work2=0.d0
+         Work2=0.0_dp
          ALLOCATE(V2(NList,NEval),stat=ierr)
          CALL LogMemAlloc('V2',NList*NEval,8,this_routine,V2Tag,ierr)
-         V2=0.d0
+         V2=0.0_dp
  
 !W holds the eigenvalues 
          ALLOCATE(W(NEval),stat=ierr)
          CALL LogMemAlloc('W',NEval,8,this_routine,WTag,ierr)
-         W=0.d0
+         W=0.0_dp
 
 !CK holds the eigenvectors
          ALLOCATE(CK(NList,NEval),stat=ierr)
          CALL LogMemAlloc('CK',NList*NEval,8,this_routine,CKTag,ierr)
 !The initial trial wavefuntion is set to zero        
-         CK=0.d0
+         CK=0.0_dp
          ALLOCATE(CKN(NList,NEval),stat=ierr)
          CALL LogMemAlloc('CKN',NList*NEval,8,this_routine,CKNTag,ierr)
-         CKN=0.d0
+         CKN=0.0_dp
 
          TSeeded=.false.
 
@@ -3214,7 +3219,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          CALL LogMemDealloc(this_routine,V2Tag)
  
          WRITE(6,*) "Highest root: ",W(1)
-         SI=0.D0
+         SI=0.0_dp
 
 !         do i=1,NEval
 !             WRITE(2,*) W(NEval-(i-1))
@@ -3230,7 +3235,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !infinite temperature (i.e. largest eigenvalue)
          do i=1,NEval
              SI=SI+(CK(1,i)**2)*(W(i)**i_P)
-             IF(DBeta.ne.0.D0) THEN
+             IF(DBeta.ne.0.0_dp) THEN
 !Calculate <D|H exp(-b H)|D>/Rho_ii^P
                  do j=1,NList
                      DLWDB=DLWDB+List(j,2)*CK(j,i)*(W(i)**i_P)*CK(1,i)
@@ -3239,7 +3244,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          enddo
 
          WRITE(6,*) "Final SI= ",SI
-         SI=SI-1.D0
+         SI=SI-1.0_dp
          DLWDB=DLWDB-LIST(1,2)
 
 
@@ -3250,7 +3255,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
         
       
       SUBROUTINE STARDIAG(NLIST,LIST,ILMAX,I_P,SI,DBETA,DLWDB)
-         use constants, only: dp
+         use constants, only: dp,int32
          use IntegralsData , only : TCalcRealProd
          use global_utilities
          use sort_mod
@@ -3264,7 +3269,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          INTEGER(TagIntType), SAVE :: tagRIJMAT=0,tagWLIST=0,tagWORK=0
          type(timer), save :: proc_timer
          INTEGER WORKL
-         INTEGER*4 INFO
+         INTEGER(int32) INFO
          real(dp) SI,DLWDB,DBETA,OD
          INTEGER I,J,err
          character(*),parameter :: this_routine='STARDIAG'
@@ -3286,7 +3291,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          ! Requires real integrals (not assuming helements)
          call sort (list(2:nList-1,0), list(2:nList-1,1), list(2:nList-1,2))
 
-         RIJMAT=0.d0
+         RIJMAT=0.0_dp
 !.. Now we fill the RIJ array
          DO I=0,NLIST-1
             RIJMAT(I*NLIST+I+1)=LIST(I+1,0)
@@ -3327,7 +3332,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          WRITE(6,*)
          WRITE(6,*) "Highest root:",WLIST(NLIST)
 !.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
-         SI=0.D0
+         SI=0.0_dp
         
 !         WRITE(67,*) "Eigenvalues are: "
 !         DO I=1,NLIST
@@ -3353,14 +3358,14 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !            WRITE(6,*) I+1,RIJMAT(I*NLIST+1)*RIJMAT(I*NLIST+1)*(WLIST(I+1)**I_P),RIJMAT(I*NLIST+1)*RIJMAT(I*NLIST+1)
 !         ENDDO
 !         DO I=NLIST,1,-1
-!            RR=1.d0
+!            RR=1.0_dp
 !            IF(I.LT.NLIST) RR=(WLIST(I)-LIST(I+1,0))
 !            write(6,"(I,3G)") I-1,WLIST(I),LIST(I+1,0),RR
-!            IF(abs(RR).gt.1.d-10)  WRITE(6,*) 1/(RIJMAT((I-1)*NLIST+1)**2),RIJMAT((I-1)*NLIST+1)**2
+!            IF(abs(RR).gt.1.0e-10_dp)  WRITE(6,*) 1/(RIJMAT((I-1)*NLIST+1)**2),RIJMAT((I-1)*NLIST+1)**2
 !         ENDDO
          DO I=0,NLIST-1
             SI=SI+RIJMAT(I*NLIST+1)*RIJMAT(I*NLIST+1)*(WLIST(I+1)**I_P)
-            IF(DBETA.NE.0.D0) THEN
+            IF(DBETA.NE.0.0_dp) THEN
 !.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                OD=DLWDB
                DO J=1,NLIST
@@ -3372,7 +3377,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
             ENDIF
          ENDDO
          WRITE(6,*) "Final SI=",SI
-         SI=SI-1.D0
+         SI=SI-1.0_dp
          DLWDB=DLWDB-LIST(1,2)
          deallocate(WLIST,RIJMAT)
          call LogMemDealloc(this_routine,tagWLIST)
@@ -3436,12 +3441,12 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !  Take into account the cumulative values as we go down the list, not just the absolute value of the rest
             i=nRoots-1
             si=1
-            do while (i.gt.0.and.abs((nRoots-i)*(List(i,0)**I_P)/si).ge.1.d-2)
+            do while (i.gt.0.and.abs((nRoots-i)*(List(i,0)**I_P)/si).ge.1.0e-2_dp)
                Si=SI+List(i,0)**I_P
                i=i-1
             enddo
             nRoots=nRoots-1-i
-            write(6,*) nRoots+1, " needed for method 2 convergence 1.d-3."
+            write(6,*) nRoots+1, " needed for method 2 convergence 1.0e-3_dp."
             nRoots=nRoots+1
          endif
 
@@ -3449,7 +3454,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !  NLIST is the number of elements in the list, but we need to give the index of the last element, NLIST-1
 !         CALL PLOTROOTSTAR(NLIST-1,LIST(0,0),LIST(0,1)) 
          CALL FINDROOTSTAR(NLIST-1,LIST(0,0),LIST(0,1),ROOTS,NROOTS)
-         SI=0.D0
+         SI=0.0_dp
 !         WRITE(6,*) "ROOTS ARE: " 
 !         WRITE(6,*) ROOTS(:)
          WRITE(6,*) "Highest root:",ROOTS(NROOTS)
@@ -3466,10 +3471,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          NORMCHECK=0
          DO I=NROOTS,1,-1
             iDegen=iDegen+1
-            RR=1.d0
+            RR=1.0_dp
             IF(I.LT.NROOTS) RR=(ROOTS(I))-LIST(NLIST-NROOTS+I,0)
 !            write(6,"(I,3G)") I,ROOTS(I),LIST(NLIST-NROOTS+I,0),RR
-            IF(ROOTS(I).EQ.LIST(NLIST-NROOTS+I-1,0).OR..NOT.abs(RR).gt.1.d-13) THEN
+            IF(ROOTS(I).EQ.LIST(NLIST-NROOTS+I-1,0).OR..NOT.abs(RR).gt.1.0e-13_dp) THEN
 !.. If we're in a degenerate set of eigenvectors, we calculate things a
 !.. little differently
 !.. k is the vertex which the degeneracies couple to
@@ -3484,7 +3489,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
             ELSE
 !.. We need to calculate the normalization of each eigenvector
                iEigv=iEigv+1
-               NORM=1.D0
+               NORM=1.0_dp
                if(iEigv.ge.1.and.iEigv.le.3) then
 !!!                  write(6,*) iDegen-1
                   iDegen=1
@@ -3506,16 +3511,16 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
                IF(TQUADRHO) THEN
                    !In order to stop it blowing up, divide through by r_max + r_max^2/2
                    NORMROOTS=(ROOTS(I)+(ROOTS(I)**2)/2)/(ROOTS(NROOTS)+(ROOTS(NROOTS)**2)/2)
-                   RPN=(NORMROOTS**I_P)*1.D0/NORM
+                   RPN=(NORMROOTS**I_P)*1.0_dp/NORM
                ELSEIF(TEXPRHO) THEN
                    NORMROOTS=(EXP(ROOTS(I))-1)/(EXP(ROOTS(NROOTS))-1)
-                   RPN=(NORMROOTS**I_P)*1.D0/NORM
+                   RPN=(NORMROOTS**I_P)*1.0_dp/NORM
                ELSE
-                   RPN=(ROOTS(I)**I_P)*1.D0/NORM
+                   RPN=(ROOTS(I)**I_P)*1.0_dp/NORM
                ENDIF
                
 !               write(6,*) NORM,RPN
-               IF(.not.lWarned.and.RPN/SI.LT.1.d-4) then
+               IF(.not.lWarned.and.RPN/SI.LT.1.0e-4_dp) then
                   lWarned=.true.
 !!!                  WRITE(6,*) "Root ",NROOTS-I," has low contribution."
 !!!                  WRITE(6,*) "SI=",SI
@@ -3527,12 +3532,12 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !!!                  write(6,"(A,I,A,2G)",advance='no') "Eigenvalue ",iEigv," = ",roots(i),E0-(i_P/Beta)*log(roots(i))
 !                  write(6,*) "***",E0
                endif
-               IF(DBETA.NE.0.D0) THEN
+               IF(DBETA.NE.0.0_dp) THEN
                   DLWDB2=LIST(0,2)
 !                  WRITE(6,*) LIST(1,2),SQRT(1/NORM)
                   DO J=1,NLIST-1
 #if __CMPLX
-                     DLWDB2=DLWDB2+LIST(J,2)*(DCONJG(LIST(J,1))/((ROOTS(I))-LIST(J,0)))
+                     DLWDB2=DLWDB2+LIST(J,2)*(conjg(LIST(J,1))/((ROOTS(I))-LIST(J,0)))
 #else
                      DLWDB2=DLWDB2+LIST(J,2)*((LIST(J,1))/((ROOTS(I))-LIST(J,0)))
 #endif
@@ -3559,7 +3564,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
              IF(ABS(NORMCHECK-1).gt.0.01) WRITE(6,*)  "WARNING: Norm differs from 1 by more than 0.01.  " &
                 & //"Convergence may not be reached."
          ENDIF
-         SI=SI-1.D0
+         SI=SI-1.0_dp
          DLWDB=DLWDB-LIST(0,2)
          call halt_timer(proc_timer)
          RETURN
@@ -3594,15 +3599,15 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !  i.e. if the double is (ij->ab), then singles (i->a),(i->b),(j->a) and (j->b) are created in a star with (ij->ab), the result diagonalized, and the eigenvalues and vectors used to create new spokes.  Only works with NEW
       SUBROUTINE StarAddSingles(nI,nJ,ExcitInfo,iExcit,iMaxExcit,rhii,rhoeps,Beta,i_P,nEl,G1, &
         nBasis,nMsh,fck,nMax,ALat,UMat,nTay,ECore)
-         use constants, only: dp      
+         use constants, only: dp,int32      
          use SystemData, only: BasisFN
          use sort_mod
          use helem, only: helement_t_size
-         use util_mod, only: NECI_ICOPY
+         use util_mod, only: neci_icopy
          IMPLICIT NONE
          Type(BasisFN) G1(*)
-         INTEGER nI(nEl),nEl,i_P,nBasis,nMsh
-         INTEGER nMax,nTay(2)
+         INTEGER nEl,nI(nEl),i_P,nBasis,nMsh
+         INTEGER nMax,nTay(2),iMaxExcit
          complex(dp) fck(*)
          HElement_t UMat(*)
          real(dp) Beta, ALat(3),RhoEps,ECore
@@ -3615,17 +3620,17 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !.. LIST(J,1) = RHOIJ
 !.. LIST(J,2) = HIJ
 
-         INTEGER nJ(nEl),iExcit,iEx(2,2),nK(nEl)
+         INTEGER nJ(nEl),iEx(2,2),nK(nEl)
          LOGICAL tDummy
          HElement_t StarMat(5,5),rh,rhii
-         integer i,iExc,iMaxExcit
+         integer i,iExcit,iExc
 
 !Needed for diagonalizer
          real(dp) WLIST(5),WORK(3*5)         
          HElement_t NWORK(4*5)
-         INTEGER*4 INFO
+         INTEGER(int32) INFO
 
-         StarMat=(0.d0)
+         StarMat=(0.0_dp)
          iEx(1,1)=2
 !.. Get the orbitals which are excited in going from I to J
 !.. IEX(1,*) are in I, and IEX(2,*) are in J
@@ -3735,7 +3740,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !  |v_{lj}|^2 is the amount of the original j there is in each of the new eigenvectors l.
                ExcitInfo(iExcit+i-1,0)=WList(i)
 #ifdef __CMPLX
-               rh=sqrt((StarMat(1,i)*DCONJG(StarMat(1,I))))
+               rh=sqrt((StarMat(1,i)*conjg(StarMat(1,I))))
 #else
                rh=sqrt((StarMat(1,i)*(StarMat(1,I))))
 #endif
@@ -3750,7 +3755,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
       SUBROUTINE GETFULLPATH(nI,nEl,noexcits,Orbchange,nJ)
         use sort_mod
         IMPLICIT NONE
-        INTEGER :: nI(nEl),nJ(nEl),nEl,noexcits,Orbchange(noexcits*noexcits)
+        INTEGER :: nEl,nI(nEl),nJ(nEl),noexcits,Orbchange(noexcits*noexcits)
         INTEGER :: I,J
         
         DO I=1,nEl
@@ -3771,7 +3776,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
      !This information is put into Orbchange(4), with the first two values being the excited from orbitals (ij), and the second two being the excited to orbitals (ab).
      SUBROUTINE GETEXCITSCHANGE(nI,nJ,nEl,Orbchange)
         IMPLICIT NONE
-        INTEGER :: nI(nEl),nJ(nEl),nEl,Orbchange(4),q,I,J
+        INTEGER :: nEl,nI(nEl),nJ(nEl),Orbchange(4),q,I,J
         LOGICAL :: FOUND
         LOGICAL :: ROOT(nEl),EXCIT(nEl)
         ROOT(:)=.TRUE.

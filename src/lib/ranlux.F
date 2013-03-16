@@ -5,14 +5,15 @@
          use constants, only: dp
          IMPLICIT NONE
          INTEGER ISEED
-         real(dp) :: RAN2
+         real(dp) :: RAN2_loc(1),RAN2
          IF(ISEED.NE.0) THEN
             !  Init RANLUX
             IF(ISEED.LT.0) ISEED=-ISEED
             CALL RLUXGO(3,ISEED,0,0)
             ISEED=0
          ENDIF
-         CALL RANLUX(RAN2,1)
+         CALL RANLUX(RAN2_loc(1),1)
+         RAN2=RAN2_loc(1)
       END FUNCTION RAN2
 
       SUBROUTINE RANLUX(RVEC,LENV)
@@ -66,13 +67,14 @@ C!!! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !      IMPLICIT real(dp)(A-H,O-Z)
       use constants, only: dp
       IMPLICIT NONE
+      integer :: I,K,LP,JSEED,LENV,IZIP2,IZIP,ISK,INNER
       real(dp) :: RVEC(LENV)
       real(dp) , save :: SEEDS(24) 
       integer :: ISEEDS(24), ISDEXT(25)
       integer , PARAMETER :: MAXLEV=4, LXDFLT=3
       integer , save :: NDSKIP(0:MAXLEV)
       integer , save :: NEXT(24)
-      real(dp) , PARAMETER :: TWOP12=4096.D0
+      real(dp) , PARAMETER :: TWOP12=4096.0_dp
       integer , parameter :: IGIGA=1000000000,JSDFLT=314159265
       integer , PARAMETER :: ITWO24=2**24, ICONS=2147483563
       integer , SAVE :: I24, J24, LUXLEV
@@ -80,8 +82,7 @@ C!!! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
       integer , SAVE :: NSKIP, IN24, KOUNT, MKOUNT, INSEED
       LOGICAL , save :: NOTYET
       DATA NOTYET, LUXLEV, IN24, KOUNT, MKOUNT /.TRUE., LXDFLT, 0,0,0/
-      DATA I24,J24,CARRY/24,10,0./
-      integer :: I,K,LP,JSEED,LENV,IZIP2,IZIP,ISK,INNER
+      DATA I24,J24,CARRY/24,10,0.0_dp/
       integer :: IOUTER,INS,ILX,K2,K1,INOUT,LOUT,ISD,LUX,IVEC
       real(dp) :: UNI
 C                               default

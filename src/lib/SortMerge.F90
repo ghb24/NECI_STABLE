@@ -15,10 +15,14 @@
 ! matrix elements for the elements it is merging into the main list.
 ! The list1 will be binary searched to find insertion points. Generally, if list2 > list1/2,
 ! a linear search would be quicker.
+!nlist1 = TotWalkersNew
+!nlist2 = ValidSpawned
+!list2 = SpawnedParts(:,1:nlist2)
     SUBROUTINE MergeListswH(nlist1,nlist2,list2)
         USE FciMCParMOD , only : Hii,CurrentDets,CurrentH
+        use FciMCData , only : tFillingStochRDMonFly, InstNoatHF
         use SystemData, only: nel, tHPHF,tMomInv
-        use bit_reps, only: NIfTot, NIfDBO, decode_bit_det
+        use bit_reps, only: NIfTot, NIfDBO, decode_bit_det, extract_sign
         USE Determinants , only : get_helement
         use DetBitOps, only: DetBitEQ
         use hphf_integrals, only: hphf_diag_helement
@@ -27,8 +31,8 @@
         USE HElem
         use constants, only: dp,n_int
         IMPLICIT NONE
-        INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
         INTEGER :: nlisto,nlist1,nlist2,i
+        INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
         INTEGER :: ips
         HElement_t :: HDiagTemp
         real(dp) :: HDiag
@@ -55,7 +59,7 @@
 ! inserted...
            do j=nlisto,ips,-1
               CurrentDets(:,j+i)=CurrentDets(:,j)
-              CurrentH(j+i)=CurrentH(j)
+              CurrentH(:,j+i)=CurrentH(:,j)
            enddo
            IF(tTruncInitiator) CALL FlagifDetisInitiator(list2(:,i))
 ! Insert DetCurr into its position in the completely merged list (i-1 elements
@@ -72,8 +76,11 @@
            else
                HDiagTemp = get_helement (nJ, nJ, 0)
            endif
-           HDiag=(REAL(HDiagTemp,8))-Hii
-           CurrentH(ips+i-1)=HDiag
+           HDiag=(REAL(HDiagTemp,dp))-Hii
+           CurrentH(1,ips+i-1)=HDiag
+           if(HDiag.eq.0.0_dp) &
+               call extract_sign(CurrentDets(:,ips+i-1),InstNoatHF)
+           if(tFillingStochRDMonFly) CurrentH(2:3,ips+i-1) = 0.0_dp
 ! Next element to be inserted must be smaller than DetCurr, so must be inserted
 ! at (at most) at ips-1.
 ! If nlisto=0 then all remaining elements in list2 must be inserted directly
@@ -84,9 +91,8 @@
         return
     END SUBROUTINE MergeListswH
 
-                              
-
-!This routine is the same as MergeListswH, but will not generate the diagonal hamiltonian matrix elements to go with the inserted determinants
+!This routine is the same as MergeListswH, but will not generate the diagonal 
+!hamiltonian matrix elements to go with the inserted determinants
     SUBROUTINE MergeLists(nlist1,nlist2,list2)
         USE FciMCParMOD , only : Hii,CurrentDets
         use SystemData, only: nel
@@ -95,8 +101,8 @@
         USE HElem
         use constants, only : n_int
         IMPLICIT NONE
-        INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
         INTEGER :: nlisto,nlist1,nlist2,i
+        INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
         INTEGER :: ips
         INTEGER :: j
 !        LOGICAL :: tbin
@@ -232,15 +238,15 @@
         endif
         goto 100
 !...........................................................................
-        continue
+!        continue
 !..simple linear search. At the moment, you cannot get here.
-        do i=1,n
-           if(DetBitLT(CurrentDets(0:NIfTot,i),DetCurr(:),NIfDBO).ne.1) then 
-             ipos=i
-             return
-           endif
-        enddo
-        ipos=n+1
+!        do i=1,n
+!           if(DetBitLT(CurrentDets(0:NIfTot,i),DetCurr(:),NIfDBO).ne.1) then 
+!             ipos=i
+!             return
+!           endif
+!        enddo
+!        ipos=n+1
     END SUBROUTINE Search
 !..............................................................................
 !..find the position in list such that 
@@ -252,8 +258,8 @@
         use DetBitOps, only: DetBitLT
         use constants, only: n_int
         IMPLICIT NONE
-        INTEGER(KIND=n_int) :: DetCurr(0:NIfTot),list(0:NIfTot,n)
         INTEGER :: nlo,nup,i,ipos,ncurr,CompPart,n
+        INTEGER(KIND=n_int) :: DetCurr(0:NIfTot),list(0:NIfTot,n)
 !        logical :: tbin
 !        if(.not.tbin) goto 200
 !.......................................................................
@@ -318,15 +324,15 @@
         endif
         goto 100
 !...........................................................................
-        continue
-!..simple linear search. At the moment, you cannot get here.
-        do i=1,n
-           if(DetBitLT(list(:,i),DetCurr(:),NIfDBO).ne.1) then 
-             ipos=i
-             return
-           endif
-        enddo
-        ipos=n+1
+!        continue
+!!..simple linear search. At the moment, you cannot get here.
+!        do i=1,n
+!           if(DetBitLT(list(:,i),DetCurr(:),NIfDBO).ne.1) then 
+!             ipos=i
+!             return
+!           endif
+!        enddo
+!        ipos=n+1
     END SUBROUTINE Searchgen
 
 
@@ -362,7 +368,8 @@
     end subroutine
 
 
-!This routine takes each determinant as it is about to be merged into the CurrentDets array, and determines whether or not it is an initiator.
+!This routine takes each determinant as it is about to be merged into the CurrentDets array, 
+!and determines whether or not it is an initiator.
     SUBROUTINE FlagifDetisInitiator(DetCurr)
         USE FciMCData , only : NoExtraInitDoubs,iLutRef,NoAddedInitiators,iLutHF,Iter
         USE FciMCParMOD , only : TestIfDetInCASBit
@@ -383,7 +390,8 @@
 
 !DetCurr has come from the spawning array.
 !The current flags at NIfTot therefore refer to the parent of the spawned walkers.
-!As we add these into the CurrentDets array we therefore want to convert these flag so that they refer to the present determinant.
+!As we add these into the CurrentDets array we therefore want to convert these flag so that they refer to 
+!the present determinant.
 
         call extract_sign (DetCurr, SignCurr)
 

@@ -1,0 +1,54 @@
+1. Compile molpro2dmrg and dmrg2molpro
+    These require the boost library which can be easily installed.
+    Compile with g++ molpro2dmrg.C -I 'path to boost installation' -o molpro2dmrg
+    Do the same for the dmrg2molpro executable
+
+2. Ensure you have the networkx python library
+    This is also easy to install, and required for the python scripts later on
+
+3. run './molpro2dmrg FCIDUMP qcdmrg.int1 qcdmrg.int2'
+    This just breaks up the FCIDUMP into seperate lists of 1 and 2 electron integrals
+
+4. run 'python make_dinfh_orbs.py'
+    This will group the orbitals together correctly ready for the transformation, and ensure that the signs of the orbitals are consistent.
+    Ensure that the list above the line 'Check if negatives work' is empty. Things get more complicated if it is not, since the orbitals
+    are then not consistently signed. For molpro, this should be fine, but it might be more difficult for FCIDUMPs from other sources. If this
+    list isn't empty, then get in contact with me (ghb24).
+    Under the line 'Check if negatives work' are the groups of orbitals which are to be transformed together.
+    [First list of 0-indexed orbital indices] => Lz = 0, inv = g
+    [Second list] => Lz = 0, inv = u
+    [[Third list is a double list],[ of orbitals to be mixed]] => Lz = \pm 1, inv = u
+    [ [] , [] ] => Lz = \pm 1, inv = g
+    [ [] , [] ] => Lz = \pm 2, inv = g
+    [ [] , [] ] => Lz = \pm 2, inv = u
+    [ [] , [] ] => Lz = \pm 3, inv = u
+    [ [] , [] ] => Lz = \pm 3, inv = g
+    [ [] , [] ] => Lz = \pm 4, inv = g
+    [ [] , [] ] => Lz = \pm 4, inv = u
+    ... etc. Note that the order of g and u are flipped each time Lz increases.
+
+5. Open the file makeLz_eigenfuncs.py
+    Change the variable 'norbs = ' at the top of the file to give the correct number of orbitals for the system
+    The list Lz0 now wants to be equal to the first and second lists of the output to the previous script, corresponding to
+    the list of orbitals with lz = 0, and add to it the list with inv = g. These orbitals are not altered.
+    The Lz1a wants to be set to the double list given by Lz = \pm 1, inv = u. Lz1b equal to the list Lz = \pm 1, inv = g, and
+    so on, in the same order as the outputted lists to the previous script.
+    The Larray then wants to be set to be a list of all the previous lists.
+    Finally, the mLz array should be set to the absolute values of the Lz quantum numbers for the previous lists.
+    The negatives list should remain empty.
+    Run the script
+
+6. Run './dmrg2molpro new.int1 new.int2 FCIDUMP.lz', which will combine the outputted transformed integrals from makeLz_eigenfuncs.py
+    back into an FCIDUMP file.
+
+7. The core energy has not been included - add the final line of the original FCIDUMP to the end of the new FCIDUMP
+
+8. The symmetry labels need to be added the new new FCIDUMP - they are not done automatically.
+    The orbitals are ordered in the order given by the makeLz_eigenfuncs script. The Larray gives the order of the the symmetries.
+    For the lists of \pm Lz orbitals, the orbitals will alternate consistently between +ml and -ml. In general then, the order of the
+    SYMLZ list will be 0,0,0,0,...,0,1,-1,1,-1,1,-1,....,-1,2,-2,2,-2,2,-2,...,-2,3,-3,.... 
+    The SYMORB list will then be 1,1,1,1,...,1,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1, where 1 = g and 2 = u. Again, remember that the 
+    order of u and g is flipped with each increasing Ml.
+
+9. Finally, since orbital order is not preserved, if using the MOLPROMIMIC keyword, the HF energies will not be computed correctly.
+    Instead, the initial determinant should be specified by hand.

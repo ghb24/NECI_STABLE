@@ -451,3 +451,146 @@ Rotate Orbs Options
     Qchem to get the cube files for the new orbitals.  NOTE: This file is only printed correctly if NECI
     is compiled using PGI when the file is printed. 
 
+Reduced Density Matrix (RDM) Options
+-------------------------------------
+
+Currently the 2-RDMs can only be calculated for closed shell systems.  However, calculation and 
+diagonalisation of only the 1-RDM is set up for either open shell or closed shell systems.
+
+The theory behind the calculation of the RDMs can be found in my (Deidre's) thesis (Chapter 7).
+
+The only thing that differs significantly in the more recent code is that, for efficiency, the 
+diagonal elements of the RDMs (and explicit connections to the HF determinant) 
+are only calculated during the iteration whereby the energy or RDM itself is required.  
+This is either every time the energy is printed, or at the very end of the calculation.  
+Therefore, for an expensive calculation, it is worth only 
+calculating the energy at the end, or only a few times throughout the calculation, to avoid the N^2 operation 
+required for each determinant to fill the diagonal RDM elements.
+
+The calculation of the diagonal elements is done by keeping track of the average walker populations of each 
+occupied determinant, and how long it has been occupied.  The diagonal element from Di is then calculated 
+as <Ni> x <Ni> x [No. of iterations Di has been occupied], and this is included every time a determinant becomes 
+unoccupied, at the end of the calculation, or if the energy from the RDMs is to be calculated. 
+
+Because the average occupation is accumulated while the RDMs are being calculated (and is not currently zero-ed 
+unless a determinant becomes unoccupied), calculations with the energy calculated at different frequencies will 
+have very slightly different RDMs.  
+This difference appears to be too small to be a problem, but is noted here to avoid unnecessary debugging. 
+
+The average populations are also used for the stochastic elements, which are accumulated throughout the 
+calculation of the RDMs.  Further explanation of how and why this is done can be found in my thesis.
+
+**CALCRDMONFLY** [RDMExcitLevel] [RDMIterStart] [RDMEnergyIter]
+    This is the main keyword for calculating the RDMs from an FCIQMC wavefunction.  It requires 3 integers.
+    The first refers to the type of RDMs to calculate.  A value of 1 will calculate only the 1-RDM.  Any other 
+    value will calculate the 2-RDM (which contains the information of the 1-RDM).  The second integer 
+    is the number of iterations after the shift has begun to change that we want to begin filling the RDMs.  
+    Finally, if the 2-RDMs are being calculated, the RDM energy will be automatically obtained at the 
+    end of the calculation.  The 3rd integer refers to how often (every RDMEnergyIter iterations) we want 
+    to additionally calculate and print the energy during the calculation.  This will be ignored if only 
+    calculating the 1-RDM. 
+    Clearly making RDMEnergyIter very large will mean the energy is only calculated with a softexit, or this can 
+    also be achieved by using **CALCRDMENERGY** OFF.
+
+    The RDM energy is one measure of the accuracy of the RDMs.  Also printed by default are the maximum error in the 
+    hermiticity (2-RDM(i,j;a,b) - 2-RDM(a,b;i,j)) and the sum of the absolute errors.  
+
+Types of RDM calculations
+
+    Using the above keyword, a stochastic RDM calculation on the entire space will be performed, but with 
+    the single and double connections to the HF included explicitly.  The type of calculation can be 
+    changed by including any of the following keywords.
+
+**EXPLICITALLRDM**
+    This performs a completely explicit calculation of the RDMs.  It considers all single and double excitations 
+    of each determinant and therefore adds in every occupied connection at each iteration.  It is very 
+    expensive and can only be done for very small systems.  Cannot use **HPHF** with this type of calculation.
+
+    If **HISTSPAWN** is also present in the Logging block, the wavefunction will be histogrammed from the same 
+    iteration we begin to fill the RDMs, and the RDMs will be constructed using these histogrammed coefficients.
+
+**HFREFRDMEXPLICIT**
+    This effectively calculates the matrix leading to the projected energy.  It considers the HF as a reference 
+    and explicitly considers all connections to it (in one direction only - so the matrix is not hermitian).  This 
+    will clearly not give a variational energy.  If this RDM was calculated using the instantaneous occupations 
+    (rather than the occupied average), the energy printed at every iteration would be the same as Eproj.
+
+**HFSDRDM**
+    This calculates the RDM amongst the HF and single and double excitations only.  The connections to the HF will 
+    be considered explicitly, but connections between singles and doubles stochastically.  This is hermitian, and 
+    should give a variational energy.  Cannot use **HPHF** with this type of calculation.
+
+**HFSDREFRDM**
+    This effectively calculates a multireference version of the projected energy, using the HF, singles and doubles 
+    as a reference.  Again the connections to the HF are explicit, but all others (up to 4-fold excitation) are 
+    included stochastically.  Like **HFREFRDMEXPLICIT**, this matrix will not be hermitian and the energy not variational.  
+    Cannot use **HPHF** with this type of calculation.
+
+**RDMGHOSTCHILD** REMOVED 
+    This option is discussed in my thesis, but has been removed because it is virtually never used, doesn't actually 
+    work very well for most systems, and complicated the code a bit.  The version where it is removed was noted in the 
+    logs if it needs to be put back in.
+
+Options referring to the 1-RDM.
+
+**DIAGFLYONERDM**
+    This option can be used when calculating either the 1- or 2-RDM.  If we're calculating the 2-RDM, the 1-RDM is 
+    constructed and then diagonalised (to get the natural orbital occupation numbers - NO_OCC_NUMBERS, and 
+    transformation matrix - NO_TRANSFORM).  This cannot be used with either of the non-hermitian options 
+    **HFREFRDMEXPLICIT** or **HFSDREFRDM**.
+    If this keyword is present the correlation entropy is also calculated and printed in the output.  
+
+**NONOTRANSFORM**
+    This option is used if we want to diagonalise the 1-RDM to get the correlation entropy, but don't want to 
+    print the NO_TRANSFORM matrix.
+
+**PRINTRODUMP**
+    If this keyword is present, the natural orbital transformation matrix will be used to transform the 4-index 
+    integrals etc, to produce a new FCIDUMP (ROFCIDUMP) in the natural orbital basis.
+    This is quite slow and expensive and probably wants to be avoided unless actually necessary.
+    Options for truncating the orbitals based on NO occupation number has been removed from this code, as well 
+    as rotating virtual and occupied orbitals separately.  On the todo list is to put this stuff back in and 
+    merge these routines with the old equivalents (in RotateOrbs and NatOrb).
+    Note: If you print this from a frozen core calculation, the ROFCIDUMP will be printed as though the
+    frozen electrons don't exist.  To restart in the rotated basis, you need to unfreeze the core, and reduce 
+    the number of electrons in the input by the number originally frozen.
+
+**PRINTONERDM**
+    This means the 1-RDM will be constructed and printed, even if we are only really calculating the 2-RDM.
+
+Reading in / Writing out the RDMs for restarting calculations.
+    
+    Two types of 2-RDMs can be printed out.  The final normalised hermitian 2-RDMs of the form TwoRDM_a***, or the 
+    binary files TwoRDM_POPS_a***, which are the unnormalised RDMs, before hermiticity has been enforced.  The 
+    first are the matrices to be used for F12 calculations etc (these 2-RDM(i,j;a,b) matrices are printed in 
+    spatial orbitals with i<j, a<b and i,j<a,b).  The second are the ones to read back in if a calculation 
+    is restarted (they are also printed in spatial orbitals with i<j and a<b, but for both i,j,a,b and a,b,i,j 
+    because they are not yet hermitian).  These are the matrices exactly as they are at that point in the calculation.  
+    By default the final normalised 2-RDMs will always be printed, and the TwoRDM_POPS_a*** files are connected to the 
+    POPSFILE/BINARYPOPS keywords - i.e. if a wavefunction POPSFILE is being printed and the RDMs are being filled, 
+    a RDM POPSFILE will be also.
+    If only the 1-RDM is being calculated, OneRDM_POPS/OneRDM files will be printed in the same way.
+    The following options can override/modify these defaults.
+
+**WRITERDMSTOREAD** [OFF]
+    The presence of this keyword overrides the default.  If the OFF word is present, the unnormalised TwoRDM_POPS_a*** 
+    files will definitely not be printed, otherwise they definitely will be, regardless of the state of the 
+    POPSFILE/BINARYPOPS keywords.  
+
+**READRDMS**
+    This keyword tells the calculation to read in the TwoRDM_POPS_a*** files from a previous calculation.  The 
+    restarted calc then continues to fill these RDMs from the very first iteration regardless of the value put with 
+    the **CALCRDMONFLY** keyword.  The calculation will crash if one of the TwoRDM_POPS_a*** files are missing.  If 
+    thisn **READRDMS** keyword is present, but the calc is doing a **STARTSINGLEPART** run, the TwoRDM_POPS_a*** files 
+    will be ignored.
+
+**NONORMRDMS**
+    This will prevent the final, normalised TwoRDM_a*** matrices from being printed.  These files can be quite 
+    large, so if the calculation is definitely not going to be converged, this keyword may be useful.
+
+**WRITERDMSEVERY** [IterWriteRDMs]
+    This will write the normalised TwoRDM_a*** matrices every IterWriteRDMs iterations while the RDMs are being 
+    filled.  At the moment, this must be a multiple of the frequency with which the energy is calculated.  The 
+    files will be labelled with incrementing values - TwoRDM_a***.1 is the first, and then next TwoRDM_a***.2 etc.
+    This option currently only works for the 2-RDMs.
+

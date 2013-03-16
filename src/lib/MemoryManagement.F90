@@ -91,7 +91,7 @@ logical, save :: MemUnitsBytes = .true. ! If true, then output object size in by
 
 logical, save :: err_output = .true. ! Print error messages.
 
-integer, parameter :: li = selected_int_kind(18) !ints between +-10^18
+integer, parameter :: li = selected_int_kind(15) !ints between +-10^18
 integer, parameter :: lr = selected_real_kind(1,18) !reals between +-10^18
 
 type MemLogEl
@@ -144,7 +144,11 @@ contains
     integer(li), intent(in), optional :: MemSize
     logical, intent(in), optional :: print_err
     integer(li) :: MaxMemBytes
+#ifdef MOLPRO
+    integer(li), parameter :: MaxMemLimit=8192   !It would be nice to get this straight from molpro.
+#else
     integer(li), parameter :: MaxMemLimit=MAXMEM ! Obtained via CPP in the makefile. MAXMEM in MB.
+#endif
 
 
     if (present(MemSize)) then
@@ -184,7 +188,9 @@ contains
 !       Deal with debug options at a later date.
 !       debug = gmemdebug
 
+#ifndef MOLPRO
         write (6,'(a33,f8.1,a3)') ' Memory Manager initialised with ',real(MaxMemBytes,dp)/(1024**2),' MB'
+#endif
     end if
 
     return
@@ -515,8 +521,8 @@ contains
     write (iunit,*)
     write (iunit,*) '================================================================'
     write (iunit,*) 'Memory usage'
-    write (iunit,'(a34,f9.1)') ' Maximum memory defined is (MB) : ',real(MaxMemory,lr)/1024**2
-    write (iunit,'(a34,f9.1)') ' Maximum memory used is    (MB) : ',real(MaxMemoryUsed,lr)/1024**2
+    write (iunit,'(a34,f9.1)') ' Maximum memory defined is (MB) : ',real(MaxMemory,lr)/1024.0_dp**2.0_dp
+    write (iunit,'(a34,f9.1)') ' Maximum memory used is    (MB) : ',real(MaxMemoryUsed,lr)/1024.0_dp**2.0_dp
     if (nWarn.gt.0) then
         write (iunit,*)'Maximum memory exceeded ',nWarn,' times.'
     endif
@@ -526,7 +532,7 @@ contains
         write (iunit,*) ''
     end if
     write (iunit,*) 'Name              Allocated in       Deallocated in         Size'
-    write (iunit,*) '----------------------------------------------------------------'
+    write (iunit,*) '- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - '
     return
     end subroutine WriteMemLogHeader
 

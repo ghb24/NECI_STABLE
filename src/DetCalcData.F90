@@ -16,6 +16,12 @@ module DetCalcData
       INTEGER(TagIntType) :: tagCK=0
       real(dp), pointer :: W(:)  ! (nEval) This will contain the eigenvalues
       INTEGER(TagIntType) tagW
+      HElement_t, pointer :: HAMIL(:)    !The Hamiltonian in compressed form.  Contains only non-zero elements.  The total number of elements is in LenHamil
+      INTEGER(TagIntType) :: tagHamil=0
+      INTEGER LenHamil                       !The Total number of non-zero elements in the compressed Hamiltonian
+
+      INTEGER , ALLOCATABLE :: LAB(:),NROW(:),ReIndex(:)
+      INTEGER(TagIntType) :: LabTag=0,NRowTag=0
       
       INTEGER NCYCLE !The Max number of Lanczos cycles
       real(dp) B2L  ! From Calc

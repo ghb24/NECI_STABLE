@@ -1,3 +1,8 @@
+!Molpro requires compilation with the NAG compiler.
+!This is not going to be possible without extensive rewriting to
+!get around ajwt's horrific hiding of variables inside other types.
+!Therefore, I am slashing all this file. GHB(24/8/11)
+#ifndef MOLPRO
 
 C.. Calculate RHO^(P)_II without having a stored H matrix
 C.. SAMPLE over distinct nodes, e.g. IJKLI, with paths up to I_HMAX
@@ -12,13 +17,13 @@ C.. This is an approach based on Markov Chains
      &               NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
      &               NWHTAY,ILOGGING,ECORE, WLRI,WLSI)
          use global_utilities
-         use util_mod, only: isnan
+         use util_mod, only: isnan_neci, neci_etime
          use util_mod, only: NECI_ICOPY
          use constants, only: dp,sp
 !         IMPLICIT real(dp) (A-H,O-Z)
          IMPLICIT NONE
-         integer :: IPATH(NEL,0:I_VMAX),NEL
-         INTEGER NI(NEL),I_VMAX
+         INTEGER NEL,NI(NEL),I_VMAX
+         integer :: IPATH(NEL,0:I_VMAX)
          real(dp) F(2:I_VMAX),FSQ(2:I_VMAX),UMAT(*)
          CHARACTER(20) STR
          real(dp) TOTAL
@@ -35,7 +40,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_VMAX-1)
          LOGICAL LCANMOVE
          EXTERNAL FMCPR4WFUNC,FMCPR4VFUNC,FMCPR4UFUNC
          real(dp) RNORM,ND,STD,GETNLOOPS,FMCPR5,WLRI,ECORE
-         real(sp) itime,etime,tarr(2)
+         real(sp) itime,tarr(2)
          type(timer), save :: proc_timer
          type(timer), save :: proc_timer2
          proc_timer%timer_name='MCPATHSR5 '
@@ -61,9 +66,9 @@ C.. Set the first node to I_I
          RHOIJ(0,0)=RH
          IADJ(0,0)=1
          WLRI=LOG(RHOII(0))
-         TOTAL=1.D0
+         TOTAL=1.0_dp
          IF(TLOG) WRITE(11,"(I12,2G25.16,F19.7,2I12)") 
-     &         1,TOTAL,TOTAL,0.D0,1,1
+     &         1,TOTAL,TOTAL,0.0_dp,1,1
 c         WRITE(6,*) 0,TOTAL,TOTAL,0
 C.. I_V is the number of vertices in the path
          DO I_V=2,I_VMAX
@@ -73,8 +78,8 @@ C.. I_V is the number of vertices in the path
             L=0
             LT=0
             BTABLE(0)=0
-            F(I_V)=0.D0
-            FSQ(I_V)=0.D0
+            F(I_V)=0.0_dp
+            FSQ(I_V)=0.0_dp
             ISEED=7
 C.. I_VMOVE=0 indicates we need to generate a valid path.
             CALL GENVALIDPATH(BETA,I_P,IPATH,I_V,NEL,
@@ -82,7 +87,7 @@ C.. I_VMOVE=0 indicates we need to generate a valid path.
      &         RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,
      &         ECORE,ISEED,I_VMOVE,NVALUE,IADJ,ADJ,LCANMOVE,
      &         FMCPR4WFUNC,FMCPR4VFUNC,WEIGHT)
-            IF(WEIGHT.GT.0.D0) THEN
+            IF(WEIGHT.GT.0.0_dp) THEN
             DO ICOUNT=1,NWHTAY
                OVALUE=NVALUE
                NVALUE=
@@ -102,7 +107,7 @@ C.. I_VMOVE=0 indicates we need to generate a valid path.
      &         RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,
      &         ECORE,ISEED,I_VMOVE,NVALUE,IADJ,ADJ,LCANMOVE,
      &         FMCPR4UFUNC,FMCPR4WFUNC,WEIGHT)
-            RNORM=0.D0
+            RNORM=0.0_dp
             DO ICOUNT=1,NWHTAY
                OVALUE=NVALUE
                NVALUE=
@@ -120,7 +125,7 @@ C            WRITE(6,*) F(I_V),F(I_V)*RNORM*ND,RNORM,ND,RNORM*ND
             F(I_V)=F(I_V)*RNORM
             FSQ(I_V)=FSQ(I_V)*RNORM*RNORM
             ELSE
-               F(I_V)=0.D0
+               F(I_V)=0.0_dp
             ENDIF
             call halt_timer(proc_timer2)
             TOTAL=TOTAL+F(I_V)
@@ -129,10 +134,10 @@ c            WRITE(6,*) I_V,F(I_V),TOTAL,get_total_time(proc_timer2),L,LT
             IF(TLOG)
      &         WRITE(11,"(I12,2G25.16,F19.7,I12,F19.7)")
      &            I_V,F(I_V),TOTAL,get_total_time(proc_timer2),L,STD
-            IF(ISNAN(F(I_V))) THEN
+            IF(ISNAN_neci(F(I_V))) THEN
 C.. save all log files
-               ITIME=etime(tarr)
-               CALL FLUSH(11)
+               ITIME=neci_etime(tarr)
+               CALL neci_flush(11)
                CALL LOGNAN(NI,NEL,BETA,ITIME)
                WRITE(6,*) "WARNING: nan found at time",ITIME
                WRITE(6,"(A)",advance='no') "  nan det=("
@@ -149,35 +154,6 @@ C.. save all log files
          RETURN
       END
 
-      FUNCTION GETNLOOPS(I_V,NBASIS,NEL)
-        use util_mod, only: factrl
-         use constants, only: dp
-         IMPLICIT NONE
-         INTEGER I_V,NBASIS,NEL,I
-         real(dp) NL,FNCR,NL2
-         real(dp) N,E,GETNLOOPS
-         N=NEL
-         E=NBASIS-NEL
-         IF(I_V.EQ.2) THEN
-            NL=N*E*(4+(N-1)*(E-1))/4
-         ELSEIF(I_V.EQ.3) THEN
-            NL=N*E*(8*(N+E-2)+(N-1)*(E-1)*(12*(N+E-2)+
-     &         (N-2)*(N-3)+(E-2)*(E-3)+
-     &         (N-2)*(E-2)*(16 +4*(N+E-6)+(N-3)*(E-3))))/16.D0
-         ELSEIF(NBASIS.GT.30) THEN
-            NL=(FNCR(NBASIS,NEL)**I_V)/FACTRL(I_V)
-         ELSE
-            NL=1.D0
-            NL2=NEL*(NBASIS-NEL)
-     &         +(NBASIS-NEL)*(NBASIS-NEL-1)*NEL*(NEL-1)/4
-            DO I=2,I_V
-               NL=NL*NL2
-               NL2=NL2-1
-            ENDDO
-         ENDIF
-         GETNLOOPS=NL
-         RETURN
-      END
 
 
 C.. A function which chooses a random set of I_V connected dets, working out
@@ -195,7 +171,7 @@ C.. form a loop of length I_V.  If not it will probably hang.
          use constants, only: dp
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
-         INTEGER NEL,NI(NEL),I_P,IPATH(NEL,0:I_V),I_V
+         INTEGER NEL,NI(NEL),I_P,I_V,IPATH(NEL,0:I_V)
          INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
          INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
          real(dp) BETA,FCK(*),ALAT(*),UMAT(*),ECORE,FMCPR5
@@ -217,7 +193,7 @@ C.. form a loop of length I_V.  If not it will probably hang.
          TLOG2=BTEST(ILOGGING,3)
 C.. First decide what MC move - either change the moving vertex or
 C.. move the moving vertex.
-         IF(RAN2(ISEED).LT.0.25D0) THEN
+         IF(RAN2(ISEED).LT.0.25_dp) THEN
 C.. Our move just involves changing which vertex we move 1 in 4 times
             CALL GENNEWVMOVE(I_V,I_VMOVE,IADJ,ADJ,LCANMOVE,ISEED)
             FMCPR5=VALUE
@@ -244,7 +220,7 @@ C.. We now must calculate the weight of the new move
      &            I_P,NWHTAY,NEL,ILOGGING,I_NVMOVE)
             RAT=NWEIGHT*NADJ/(WEIGHT*ADJ)
 C.. Check for acceptance
-            IF(RAT.GE.1.D0) THEN
+            IF(RAT.GE.1.0_dp) THEN
                LACC=.TRUE.
             ELSE
                IF(RAN2(ISEED).LE.RAT) LACC=.TRUE.
@@ -274,27 +250,6 @@ C.. Now calculate a new value if required
          ENDIF
          FMCPR5=VALUE
          IF(TLOG) WRITE(10,*) FMCPR5,ICOUNT 
-         RETURN
-      END
-      SUBROUTINE MODIFYPATH(IPATH,I_VMOVE,RHOII,RHOIJ,IADJ,INODE,
-     &               NRHOII,NRHOIJ,NIADJ,I_NVMOVE,NEL,INPATH,I_V)
-         use util_mod, only: NECI_ICOPY
-         use constants, only: dp
-         IMPLICIT NONE
-         INTEGER NEL,I_V,IPATH(NEL,0:I_V),IADJ(0:I_V-1,0:I_V-1)
-         INTEGER INPATH(NEL,0:I_V),NIADJ(0:I_V-1,0:I_V-1)
-         INTEGER I_VMOVE,I_NVMOVE,INODE(NEL)
-         real(dp) RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
-         real(dp) NRHOII(0:I_V),NRHOIJ(0:I_V,0:I_V)
-
-C.. In fact, the path does not need to be lexically ordered, so we just
-C.. copy
-         CALL NECI_ICOPY(NEL*(I_V+1),IPATH,1,INPATH,1)
-         CALL NECI_ICOPY(NEL,INODE,1,INPATH(1,I_VMOVE),1)
-         CALL NECI_ICOPY(I_V*I_V,IADJ,1,NIADJ,1)
-         CALL DCOPY((I_V+1)**2,RHOIJ,1,NRHOIJ,1)
-         CALl DCOPY(I_V+1,RHOII,1,NRHOII,1)
-         I_NVMOVE=I_VMOVE
          RETURN
       END
 
@@ -343,46 +298,13 @@ C.. root to any other node)
          RETURN
       END
 
-C.. calculates B=A**N where B and A are LxL matrices
-      SUBROUTINE MATPOWER(A,L,B,N)
-         use constants, only: dp
-         real(dp) A(L,L),B(L,L)
-         real(dp) C(L,L,0:1)
-         INTEGER N,N2
-         INTEGER I,S
-         LOGICAL LM
-         N2=N
-         S=0
-         LM=BTEST(N2,0)
-         N2=N2/2
-         IF(LM) THEN
-            CALL DCOPY(L*L,A,1,B,1)
-         ELSE
-            B(1:L,1:L)=0
-            DO I=1,L
-               B(I,I)=1.D0
-            ENDDO
-         ENDIF
-         DO WHILE(N2.NE.0)
-            LM=BTEST(N2,0)
-            N2=N2/2
-            CALL DGEMM('N','N',L,L,L,1.D0,C(1,1,S),L,C(1,1,S),L,0.D0,
-     &         C(1,1,1-S),L)
-            S=1-S
-            IF(LM) THEN
-               CALL DGEMM('N','N',L,L,L,1.D0,C(1,1,S),L,B,L,0.D0,
-     &            C(1,1,1-S),L)
-               CALL DCOPY(L*L,C(1,1,1-S),1,B,1)
-            ENDIF
-         ENDDO
-      END
       SUBROUTINE GENPATHEXCIT(IPATH,I_VMOVE,NEL,NBASIS,NTAY,ISEED,INODE,
      &         IADJ,I_V)
          use mcpathsismc, only: genrandomexcit
          use constants, only: dp
          IMPLICIT NONE
-         INTEGER IPATH(NEL,0:I_V),NEL,I_VMOVE,NBASIS,NTAY,ISEED
-         INTEGER IADJ(0:I_V-1,0:I_V-1),I_V,INODE(NEL)
+         INTEGER I_V,NEL,I_VMOVE,NBASIS,NTAY,ISEED,IPATH(NEL,0:I_V)
+         INTEGER IADJ(0:I_V-1,0:I_V-1),INODE(NEL)
          INTEGER IEXCITS(0:I_V-1),I,J,IEX,IEXNODE,E
          LOGICAL BR,LISINPATH
          real(dp) RAN2
@@ -446,13 +368,280 @@ C.. Now generate all the RHOIJ elements for this new node
                ICE=0
             ENDIF
             NADJ=NADJ+ICE
-            IF(ABS(RH).LE.RHOEPS) RH=0.D0
+            IF(ABS(RH).LE.RHOEPS) RH=0.0_dp
             NIADJ(I_NVMOVE,J)=ICE
             NIADJ(J,I_NVMOVE)=ICE
             NRHOIJ(I_NVMOVE,J)=RH
             NRHOIJ(J,I_NVMOVE)=RH
             IF(I_NVMOVE.EQ.J) NRHOII(J)=RH
          ENDDO   
+         RETURN
+      END
+
+      
+
+      SUBROUTINE GENVALIDPATH(BETA,I_P,IPATH,I_V,NEL,
+     &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
+     &         RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,
+     &         ECORE,ISEED,I_VMOVE,OVALUE,IADJ,ADJ,LCANMOVE,
+     &         WFUNC,VFUNC,WEIGHT)
+         use util_mod, only: NECI_ICOPY
+         use constants, only: dp
+         use mcpathsismc, only: genrandomexcit
+         IMPLICIT NONE
+         INTEGER I_V,NEL,I_P,IPATH(NEL,0:I_V)
+         INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
+         INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
+         real(dp) BETA,FCK(*),ALAT(*),UMAT(*),ECORE
+         real(dp) RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
+         INTEGER I,K,INODE(NEL),I_VMOVE,ADJ
+         INTEGER IADJ(0:I_V-1,0:I_V-1)
+         real(dp) RH,OVALUE,WEIGHT
+         INTEGER ICOUNT
+         LOGICAL BR
+         LOGICAL LCANMOVE
+         real(dp) VFUNC,WFUNC
+         LOGICAL LISINPATH
+         real(dp) RAN2
+C.. we need to generate a valid path
+         DO I=1,I_V-1
+            BR=.TRUE.
+            K=INT(RAN2(ISEED)*I)
+            ICOUNT=0
+            DO WHILE(BR)
+               CALL GENRANDOMEXCIT(IPATH(1,K),NEL,NBASIS,
+     &            ABS(NTAY*2),ISEED,INODE)
+               IF(.NOT.LISINPATH(INODE,IPATH,NEL,I,-1)) THEN
+                  CALL CALCRHO2(IPATH(1,K),INODE,BETA,I_P,NEL,
+     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
+     &             RH,NTAY,-1,ECORE)
+                  IF(ABS(RH).GT.RHOEPS) BR=.FALSE.
+                  ICOUNT=ICOUNT+1
+C.. If we cannot find a det that's connected, we give up
+                  IF(ICOUNT.GT.10000) BR=.FALSE.
+               ENDIF
+            ENDDO
+            CALL NECI_ICOPY(NEL,INODE,1,IPATH(1,I),1)
+            CALL MODIFYADJCONMAT(IPATH,I,RHOIJ,RHOII,IADJ,
+     &               INODE,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,RHOEPS,
+     &               NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE,I_V,ADJ,I)
+         ENDDO
+         I_VMOVE=I_V-1
+         OVALUE=VFUNC(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
+     &         I_P,NWHTAY,NEL,ILOGGING,I_VMOVE)
+         WEIGHT=WFUNC(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
+     &         I_P,NWHTAY,NEL,ILOGGING,I_VMOVE)
+         LCANMOVE=.TRUE.
+         RETURN
+      END
+#else
+      SUBROUTINE  MCPATHSR5(NI,BETA,I_P,I_HMAX,I_VMAX,NEL,NBASISMAX,G1,
+     &               NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,RHOEPS,
+     &               NWHTAY,ILOGGING,ECORE, WLRI,WLSI)
+        use constants, only: dp
+        IMPLICIT NONE
+        INTEGER NEL,NI(NEl),I_P,I_VMAX,I_HMAX
+        INTEGER nBasisMax(5,*),NMAX,NBASIS,NMSH,NTAY,NWHTAY,ILOGGING
+        real(dp) Beta,Brr(*),fck,ALAT(3),UMAT(*),RHOEPS,ECORE,WLRI,WLSI
+        integer G1(*)
+        character(*), parameter :: t_r="MCPATHSR5"
+        call stop_all(t_r,"Routine depreciated. See mcpathsmcmc.F head")
+      end subroutine MCPATHSR5
+
+
+      SUBROUTINE GENNEWVMOVE(I_V,I_VMOVE,IADJ,ADJ,LCANMOVE,ISEED)
+        IMPLICIT NONE
+        INTEGER :: I_V,I_VMOVE,IADJ(0:I_V-1,0:I_V-1),ISEED,ADJ
+        LOGICAL :: LCANMOVE
+        character(*), parameter :: t_r="GENNEWVMOVE"
+
+        call stop_all(t_r,"Routine depreciated. See mcpathsmcmc.F head")
+
+      end subroutine GenNewVMove
+
+        
+      SUBROUTINE GENPATHEXCIT(IPATH,I_VMOVE,NEL,NBASIS,NTAY,ISEED,INODE,
+     &         IADJ,I_V)
+        IMPLICIT NONE
+        INTEGER :: I_V,NEL,I_VMOVE,NBASIS,NTAY,ISEED,IPATH(NEL,0:I_V)
+        INTEGER :: IADJ(0:I_V-1,0:I_V-1),INODE(NEL)
+        character(*), parameter :: t_r="GENPATHEXCIT"
+        call stop_all(t_r,"Routine depreciated. See mcpathsmcmc.F head")
+
+      END SUBROUTINE GENPATHEXCIT
+
+
+
+      SUBROUTINE MODIFYADJCONMAT(IPATH,I_NVMOVE,NRHOIJ,NRHOII,NIADJ,
+     &               INODE,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,RHOEPS,
+     &               NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE,I_V,NADJ,
+     &               I_VMAX)
+        use constants, only: dp
+        IMPLICIT NONE
+        INTEGER NEL,I_V,IPATH(NEL,0:I_V),NIADJ(0:I_V-1,0:I_V-1),NADJ
+        INTEGER INODE(NEL),I_P,NBASISMAX(*),G1(*),NBASIS,BRR(*)
+        INTEGER NMSH,NMAX,NTAY,I_NVMOVE,I_VMAX
+        real(dp) NRHOIJ(0:I_V,0:I_V),NRHOII(0:I_V),RHOEPS
+        real(dp) BETA,FCK(*),ALAT(*),UMAT(*),ECORE
+        character(*), parameter :: t_r="MODIFYADJCONMAT"
+        call stop_all(t_r,"Routine depreciated. See mcpathsmcmc.F head")
+
+      END SUBROUTINE MODIFYADJCONMAT
+
+
+      SUBROUTINE GENVALIDPATH(BETA,I_P,IPATH,I_V,NEL,
+     &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
+     &         RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,
+     &         ECORE,ISEED,I_VMOVE,OVALUE,IADJ,ADJ,LCANMOVE,
+     &         WFUNC,VFUNC,WEIGHT)
+        use constants, only: dp
+        IMPLICIT NONE
+        INTEGER I_V,NEL,I_P,IPATH(NEL,0:I_V)
+        INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
+        INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
+        real(dp) BETA,FCK(*),ALAT(*),UMAT(*),ECORE
+        real(dp) RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
+        real(dp) VFUNC,WFUNC
+        LOGICAL LCANMOVE
+        real(dp) OVALUE,WEIGHT
+        INTEGER IADJ(0:I_V-1,0:I_V-1),ADJ
+        INTEGER I_VMOVE
+        character(*), parameter :: t_r="GENVALIDPATH"
+        call stop_all(t_r,"Routine depreciated. See mcpathsmcmc.F head")
+      END SUBROUTINE GENVALIDPATH
+      
+      FUNCTION FMCPR5(NI,BETA,I_P,IPATH,I_V,NEL,
+     &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
+     &   RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,
+     &   ECORE,ISEED,I_VMOVE,VALUE,WEIGHT,IADJ,ADJ,LCANMOVE,
+     &   WFUNC,VFUNC)
+         use constants, only: dp
+         IMPLICIT NONE
+         INTEGER NEL,NI(NEL),I_P,I_V,IPATH(NEL,0:I_V)
+         INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
+         INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
+         real(dp) BETA,FCK(*),ALAT(*),UMAT(*),ECORE,FMCPR5
+         real(dp) RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
+         INTEGER I_VMOVE
+         INTEGER IADJ(0:I_V-1,0:I_V-1),ADJ
+         LOGICAL LCANMOVE
+         real(dp) WEIGHT,VALUE
+         real(dp) WFUNC,VFUNC
+         character(*), parameter :: t_r="FMCPR5"
+         FMCPR5=0.0_dp
+        call stop_all(t_r,"Routine depreciated. See mcpathsmcmc.F head")
+
+       END FUNCTION FMCPR5
+#endif
+      SUBROUTINE MODIFYPATH(IPATH,I_VMOVE,RHOII,RHOIJ,IADJ,INODE,
+     &               NRHOII,NRHOIJ,NIADJ,I_NVMOVE,NEL,INPATH,I_V)
+         use util_mod, only: NECI_ICOPY
+         use constants, only: dp
+         IMPLICIT NONE
+         INTEGER NEL,I_V,IPATH(NEL,0:I_V),IADJ(0:I_V-1,0:I_V-1)
+         INTEGER INPATH(NEL,0:I_V),NIADJ(0:I_V-1,0:I_V-1)
+         INTEGER I_VMOVE,I_NVMOVE,INODE(NEL)
+         real(dp) RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
+         real(dp) NRHOII(0:I_V),NRHOIJ(0:I_V,0:I_V)
+
+C.. In fact, the path does not need to be lexically ordered, so we just
+C.. copy
+         CALL NECI_ICOPY(NEL*(I_V+1),IPATH,1,INPATH,1)
+         CALL NECI_ICOPY(NEL,INODE,1,INPATH(1,I_VMOVE),1)
+         CALL NECI_ICOPY(I_V*I_V,IADJ,1,NIADJ,1)
+         CALL DCOPY((I_V+1)**2,RHOIJ,1,NRHOIJ,1)
+         CALl DCOPY(I_V+1,RHOII,1,NRHOII,1)
+         I_NVMOVE=I_VMOVE
+         RETURN
+      END
+
+C.. calculates B=A**N where B and A are LxL matrices
+      SUBROUTINE MATPOWER(A,L,B,N)
+         use constants, only: dp
+         real(dp) A(L,L),B(L,L)
+         real(dp) C(L,L,0:1)
+         INTEGER N,N2
+         INTEGER I,S
+         LOGICAL LM
+         N2=N
+         S=0
+         LM=BTEST(N2,0)
+         N2=N2/2
+         IF(LM) THEN
+            CALL DCOPY(L*L,A,1,B,1)
+         ELSE
+            B(1:L,1:L)=0
+            DO I=1,L
+               B(I,I)=1.0_dp
+            ENDDO
+         ENDIF
+         DO WHILE(N2.NE.0)
+            LM=BTEST(N2,0)
+            N2=N2/2
+            CALL DGEMM('N','N',L,L,L,1.0_dp,C(1,1,S),L,C(1,1,S),L,
+     &        0.0_dp, C(1,1,1-S),L)
+            S=1-S
+            IF(LM) THEN
+               CALL DGEMM('N','N',L,L,L,1.0_dp,C(1,1,S),L,B,L,0.0_dp,
+     &            C(1,1,1-S),L)
+               CALL DCOPY(L*L,C(1,1,1-S),1,B,1)
+            ENDIF
+         ENDDO
+      END
+      
+      FUNCTION GETNLOOPS(I_V,NBASIS,NEL)
+        use util_mod, only: factrl
+         use constants, only: dp
+         IMPLICIT NONE
+         INTEGER I_V,NBASIS,NEL,I
+         real(dp) NL,FNCR,NL2
+         real(dp) N,E,GETNLOOPS
+         N=NEL
+         E=NBASIS-NEL
+         IF(I_V.EQ.2) THEN
+            NL=N*E*(4+(N-1)*(E-1))/4
+         ELSEIF(I_V.EQ.3) THEN
+            NL=N*E*(8*(N+E-2)+(N-1)*(E-1)*(12*(N+E-2)+
+     &         (N-2)*(N-3)+(E-2)*(E-3)+
+     &         (N-2)*(E-2)*(16 +4*(N+E-6)+(N-3)*(E-3))))/16.0_dp
+         ELSEIF(NBASIS.GT.30) THEN
+            NL=(FNCR(NBASIS,NEL)**I_V)/FACTRL(I_V)
+         ELSE
+            NL=1.0_dp
+            NL2=NEL*(NBASIS-NEL)
+     &         +(NBASIS-NEL)*(NBASIS-NEL-1)*NEL*(NEL-1)/4
+            DO I=2,I_V
+               NL=NL*NL2
+               NL2=NL2-1
+            ENDDO
+         ENDIF
+         GETNLOOPS=NL
+         RETURN
+      END
+      
+      LOGICAL FUNCTION LISINPATH(NI,IPATH,NEL,I_V,I_NV)
+         IMPLICIT NONE
+         INTEGER I,I_NV
+         INTEGER NEL,I_V,NI(NEL),IPATH(NEL,0:I_V-1)
+         INTEGER ICMPDETS
+         LISINPATH=.FALSE.
+         DO I=0,I_V-1
+            IF(I.NE.I_NV.AND.ICMPDETS(NI,IPATH(1,I),NEL).EQ.0)
+     &          LISINPATH=.TRUE.
+         ENDDO
+         RETURN
+      END
+
+      INTEGER FUNCTION IISINPATH(NI,IPATH,NEL,I_V,I_NV)
+         IMPLICIT NONE
+         INTEGER I,I_NV
+         INTEGER NEL,I_V,NI(NEL),IPATH(NEL,0:I_V-1)
+         INTEGER ICMPDETS
+         IISINPATH=-1
+         DO I=0,I_V-1
+            IF(I.NE.I_NV.AND.ICMPDETS(NI,IPATH(1,I),NEL).EQ.0)
+     &          IISINPATH=I
+         ENDDO
          RETURN
       END
 
@@ -464,15 +653,15 @@ C.. Now generate all the RHOIJ elements for this new node
          real(dp) RHOII(0:I_V),RHOIJ(0:I_V,0:I_V),FMCPR4WFUNC
          INTEGER I,J
          LOGICAL L
-         FMCPR4WFUNC=1.D0
+         FMCPR4WFUNC=1.0_dp
          DO I=0,I_V-1
             L=.FALSE.
             DO J=0,I_V-1
                IF(I.NE.J) THEN
-                  IF(ABS(RHOIJ(I,J)).GT.0.D0) L=.TRUE.
+                  IF(ABS(RHOIJ(I,J)).GT.0.0_dp) L=.TRUE.
                ENDIF
             ENDDO
-            IF(.NOT.L) FMCPR4WFUNC=0.D0
+            IF(.NOT.L) FMCPR4WFUNC=0.0_dp
          ENDDO
 
          ! Avoid warnings
@@ -500,7 +689,7 @@ C.. Now generate all the RHOIJ elements for this new node
          INTEGER NEL,I_V,I_HMAX,I_P,IPATH(NEL,0:I_V),ILOGGING
          INTEGER NWHTAY
          real(dp) RHOII(0:I_V),RHOIJ(0:I_V,0:I_V),FMCPR4UFUNC
-         FMCPR4UFUNC=1.D0
+         FMCPR4UFUNC=1.0_dp
 
          ! Avoid warnings
          ipath=ipath; rhoii(0)=rhoii(0); i_v=i_v; i_hmax=i_hmax
@@ -511,8 +700,8 @@ C.. Now generate all the RHOIJ elements for this new node
      &    RESULT (IMCPR4NCRES)
          use constants, only: dp
          IMPLICIT NONE
-         INTEGER IADJ(0:I_V-1,0:I_V-1),I_V,IPATH(0:I_V-1),IND
          INTEGER I,J,INODE,ITOT
+         INTEGER I_V,IADJ(0:I_V-1,0:I_V-1),IPATH(0:I_V-1),IND
          LOGICAL BR
 C.. Go through all the nodes currently in the path, and through each
 C.. possible attachment for each node
@@ -566,84 +755,3 @@ C.. add that node to the path, and recurse
          ENDIF
          RETURN
       END
-
-      LOGICAL FUNCTION LISINPATH(NI,IPATH,NEL,I_V,I_NV)
-         IMPLICIT NONE
-         INTEGER NI(NEL),IPATH(NEL,0:I_V-1),NEL,I_V
-         INTEGER I,I_NV
-         INTEGER ICMPDETS
-         LISINPATH=.FALSE.
-         DO I=0,I_V-1
-            IF(I.NE.I_NV.AND.ICMPDETS(NI,IPATH(1,I),NEL).EQ.0)
-     &          LISINPATH=.TRUE.
-         ENDDO
-         RETURN
-      END
-
-      INTEGER FUNCTION IISINPATH(NI,IPATH,NEL,I_V,I_NV)
-         IMPLICIT NONE
-         INTEGER NI(NEL),IPATH(NEL,0:I_V-1),NEL,I_V
-         INTEGER I,I_NV
-         INTEGER ICMPDETS
-         IISINPATH=-1
-         DO I=0,I_V-1
-            IF(I.NE.I_NV.AND.ICMPDETS(NI,IPATH(1,I),NEL).EQ.0)
-     &          IISINPATH=I
-         ENDDO
-         RETURN
-      END
-      SUBROUTINE GENVALIDPATH(BETA,I_P,IPATH,I_V,NEL,
-     &         NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &         RHOEPS,RHOII,RHOIJ,NWHTAY,I_HMAX,ILOGGING,
-     &         ECORE,ISEED,I_VMOVE,OVALUE,IADJ,ADJ,LCANMOVE,
-     &         WFUNC,VFUNC,WEIGHT)
-         use util_mod, only: NECI_ICOPY
-         use constants, only: dp
-         use mcpathsismc, only: genrandomexcit
-         IMPLICIT NONE
-         INTEGER NEL,I_P,IPATH(NEL,0:I_V),I_V
-         INTEGER nBasisMax(5,*),G1,NBASIS,BRR(NBASIS),NMAX
-         INTEGER NTAY,NWHTAY,I_HMAX,ILOGGING,ISEED,NMSH
-         real(dp) BETA,FCK(*),ALAT(*),UMAT(*),ECORE
-         real(dp) RHOEPS,RHOII(0:I_V),RHOIJ(0:I_V,0:I_V)
-         INTEGER I,K,INODE(NEL),I_VMOVE,ADJ
-         INTEGER IADJ(0:I_V-1,0:I_V-1)
-         real(dp) RH,OVALUE,WEIGHT
-         INTEGER ICOUNT
-         LOGICAL BR
-         LOGICAL LCANMOVE
-         real(dp) VFUNC,WFUNC
-         LOGICAL LISINPATH
-         real(dp) RAN2
-C.. we need to generate a valid path
-         DO I=1,I_V-1
-            BR=.TRUE.
-            K=INT(RAN2(ISEED)*I)
-            ICOUNT=0
-            DO WHILE(BR)
-               CALL GENRANDOMEXCIT(IPATH(1,K),NEL,NBASIS,
-     &            ABS(NTAY*2),ISEED,INODE)
-               IF(.NOT.LISINPATH(INODE,IPATH,NEL,I,-1)) THEN
-                  CALL CALCRHO2(IPATH(1,K),INODE,BETA,I_P,NEL,
-     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
-     &             RH,NTAY,-1,ECORE)
-                  IF(ABS(RH).GT.RHOEPS) BR=.FALSE.
-                  ICOUNT=ICOUNT+1
-C.. If we cannot find a det that's connected, we give up
-                  IF(ICOUNT.GT.10000) BR=.FALSE.
-               ENDIF
-            ENDDO
-            CALL NECI_ICOPY(NEL,INODE,1,IPATH(1,I),1)
-            CALL MODIFYADJCONMAT(IPATH,I,RHOIJ,RHOII,IADJ,
-     &               INODE,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,BRR,RHOEPS,
-     &               NMSH,FCK,NMAX,ALAT,UMAT,NTAY,ECORE,I_V,ADJ,I)
-         ENDDO
-         I_VMOVE=I_V-1
-         OVALUE=VFUNC(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
-     &         I_P,NWHTAY,NEL,ILOGGING,I_VMOVE)
-         WEIGHT=WFUNC(IPATH,RHOII,RHOIJ,I_V,I_HMAX,
-     &         I_P,NWHTAY,NEL,ILOGGING,I_VMOVE)
-         LCANMOVE=.TRUE.
-         RETURN
-      END
-

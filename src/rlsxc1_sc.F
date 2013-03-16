@@ -4,11 +4,11 @@
 !      IMPLICIT real(dp) (A-H,O-Z)
       use constants, only: dp
       IMPLICIT NONE
+      integer :: NEL,NHG,NMSH,NMAX
       real(dp) :: AUXC(NMSH,NMSH,NMSH)
       integer :: NDET1(NEL),NDET2(NEL)
 C..Cube array
       real(dp) :: SITAB(NMSH,NMAX) 
-      integer :: NEL,NHG,NMSH,NMAX
       TYPE(BasisFN) G1(NHG)
       INTEGER TMP1(NEL),TMP2(NEL)
       INTEGER IDS1(NEL-1),IDS2(NEL-1)
@@ -19,7 +19,7 @@ C..Cube array
 C..
       TMP1(1:NEL)=0
       TMP2(1:NEL)=0
-      AUXC=0.d0
+      AUXC=0.0_dp
 C..Compare NDET1 to NDET2
       IQ=0
       DO I=1,NEL

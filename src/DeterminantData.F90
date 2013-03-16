@@ -10,9 +10,9 @@ module DeterminantData
     integer(TagIntType) :: tagFDet
 
     type lexicographic_store
-        integer, allocatable :: dorder(:)
-        integer, allocatable :: open_orbs(:)
-        integer, allocatable :: open_indices(:)
+        integer, pointer :: dorder(:) => null()
+        integer, pointer :: open_orbs(:) => null()
+        integer, pointer :: open_indices(:) => null()
         integer :: nopen, nup
     end type
 

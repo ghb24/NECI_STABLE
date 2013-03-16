@@ -30,6 +30,7 @@ tmp_init5 = !
 tmp_destroy5 = !
 tmp_init6 = !
 tmp_destroy6 = !
+conditional_enable = !defined(SX)
 
 [int64]
 type1 = integer(kind=int64)
@@ -52,21 +53,22 @@ type1 = complex(dp)
 ##############################################
 ############### Sort arrays ##################
 ##############################################
-[arr_int]
+[a_i]
 type1 = integer(kind=int32), dimension(:)
 op_gt = .arrgt.
 op_lt = .arrlt.
+conditional_enable = !defined(SX)
 
-[arr_int64]
+[a_i64]
 type1 = integer(kind=int64), dimension(:)
 
-[arr_int64_custom]
+[a_i64_custom]
 custom_comparisons = custom_lt, custom_gt,
 custom_compare_prefix = 
 op_gt = .localgt.
 op_lt = .locallt.
 
-[arr_doub]
+[a_d]
 type1 = real(dp), dimension(:)
 custom_comparisons =
 custom_compare_prefix = !
@@ -76,97 +78,159 @@ op_lt = .arrlt.
 ##############################################
 ############ Sort by scalars #################
 ##############################################
-[int_int]
+[i_i]
 type1 = integer(kind=int32)
 type2 = integer(kind=int32)
 arr2_prefix = 
 extra_arrs = arr2,
 op_gt = >
 op_lt = <
+conditional_enable = !defined(SX)
 
-[int_doub]
+[i_d]
 type2 = real(dp)
+conditional_enable = !defined(SX)
 
-[int_arr_int]
+[i_a_i]
 type2 = integer(kind=int32), dimension(:)
 
-[int_arr_int64]
+[i_a_i64]
 type2 = integer(kind=int64), dimension(:)
+conditional_enable = !defined(SX)
 
-[int_arr_doub]
+[i_a_d]
 type2 = real(dp), dimension(:)
+conditional_enable = !defined(SX)
 
-[int_arr_complex]
+[i_a_c]
 type2 = complex(dp), dimension(:)
+conditional_enable = !defined(SX)
 
-[doub_int]
+[d_i]
 type1 = real(dp)
 type2 = integer(kind=int32)
+conditional_enable = !defined(SX)
 
-[doub_doub]
+[d_d]
 type2 = real(dp)
 
-[doub_int64]
+[d_i64]
 type2 = integer(kind=int64)
 
-[doub_arr_int]
+[d_a_i]
 type2 = integer(kind=int32), dimension(:)
+conditional_enable = !defined(SX)
 
-[doub_arr_int64]
+[d_a_i64]
 type2 = integer(kind=int64), dimension(:)
 
-[doub_arr_doub]
+[d_a_d]
 type2 = real(dp), dimension(:)
 
-[sym_arr_int]
+[sym_a_i]
 type1 = type(Symmetry)
 type2 = integer(kind=int32), dimension(:)
+conditional_enable = !defined(SX)
 
-[sym_arr_int64]
+[sym_a_i64]
 type1 = type(Symmetry)
 type2 = integer(kind=int64), dimension(:)
 
-[int64_int64]
+[i64_i64]
 type1 = integer(kind=int64)
 type2 = integer(kind=int64)
 
-[int64_doub]
+[i64_d]
 type2 = real(kind=dp)
 
-[int64_arr_int]
+[i64_a_i]
 type2 = integer(kind=int32), dimension(:)
+conditional_enable = !defined(SX)
 
 [int64_arr_int64]
 type2 = integer(kind=int64), dimension(:)
 
-[int64_arr_doub]
+[i64_a_d]
 type2 = real(dp), dimension(:)
 
-[int64_arr_complex]
+[i64_a_c]
 type2 = complex(dp), dimension(:)
+
+[i_d_d]
+type1 = integer(kind=int32)
+type2 = real(kind=dp)
+type3 = real(kind=dp)
+arr3_prefix = 
+extra_arrs = arr2, arr3,
+conditional_enable = !defined(SX)
+
+[i64_d_d]
+type1 = integer(kind=int64)
+type2 = real(kind=dp)
+type3 = real(kind=dp)
+conditional_enable = !defined(SX)
+
+[i_a_i_d_i]
+type1 = integer(kind=int32)
+type2 = integer(kind=int32), dimension(:)
+type3 = real(kind=dp)
+type4 = integer(kind=int32)
+arr4_prefix = 
+extra_arrs = arr2, arr3, arr4,
+conditional_enable = !defined(SX)
+
+[i64_a_i64_d_i64]
+type1 = integer(kind=int64)
+type2 = integer(kind=int64), dimension(:)
+type3 = real(kind=dp)
+type4 = integer(kind=int64)
+conditional_enable = !defined(SX)
+
+[i_a_i64_d_i]
+type1 = integer(kind=int32)
+type2 = integer(kind=int64), dimension(:)
+type3 = real(kind=dp)
+type4 = integer(kind=int32)
+conditional_enable = !defined(SX)
+
+[i64_a_i_d_i64]
+type1 = integer(kind=int64)
+type2 = integer(kind=int32), dimension(:)
+type3 = real(kind=dp)
+type4 = integer(kind=int64)
+conditional_enable = !defined(SX)
 
 ###############################################
 ########## Sort by integer array ##############
 ###############################################
-[arr_int_arr_int]
+[a_i_a_i]
 type1 = integer(kind=int32), dimension(:)
 type2 = integer(kind=int32), dimension(:)
+extra_arrs = arr2,
+arr3_prefix = ! 
+arr4_prefix = !
+type3 = !
+type4 = !
 op_gt = .arrgt.
 op_lt = .arrlt.
+conditional_enable = !defined(SX)
 
-[arr_int_arr_doub]
+[a_i_a_d]
 type2 = real(dp), dimension(:)
+conditional_enable = !defined(SX)
 
-[arr_int_int]
+[a_i_i]
 type2 = integer(kind=int32)
+conditional_enable = !defined(SX)
 
-[arr_int_doub]
+[a_i_d]
 type2 = real(dp)
+conditional_enable = !defined(SX)
 
 ###############################################
 ############# 64-bit integers #################
 ###############################################
-[arr_int64_arr_int64]
+[a_i64_a_i64]
 type1 = integer(kind=int64), dimension(:)
 type2 = integer(kind=int64), dimension(:)
 op_gt = .arrgt.
@@ -175,131 +239,178 @@ op_lt = .arrlt.
 [arr_int64_arr_doub]
 type2 = real(dp), dimension(:)
 
-[arr_int64_int]
+[a_i64_i]
 type2 = integer(kind=int32)
+conditional_enable = !defined(SX)
 
-[arr_int64_inti64]
+[a_i64_i64]
 type2 = integer(kind=int64)
 
-[arr_int64_doub]
+[a_i64_d]
 type2 = real(dp)
 
 
 #################################################
 ############# Sort by double array ##############
 #################################################
-[arr_doub_doub]
+[a_d_d]
 type1 = real(dp), dimension(:)
 
-[arr_doub_int]
+[a_d_i]
 type2 = integer(kind=int32)
+conditional_enable = !defined(SX)
 
-[arr_doub_arr_doub]
+[a_d_a_d]
 type2 = real(dp), dimension(:)
 
-[arr_doub_arr_int]
+[a_d_a_i]
 type2 = integer(kind=int32), dimension(:)
+conditional_enable = !defined(SX)
 
-[arr_doub_arr_int64]
+[a_d_a_i64]
 type2 = integer(kind=int64), dimension(:)
 ################################################
 ############ More specific sorts ###############
 ################################################
-[arr_int_int_doub]
+[a_i_i_d]
 type1 = integer(kind=int32), dimension(:)
 type2 = integer(kind=int32)
 type3 = real(kind=dp)
 arr3_prefix = 
 extra_arrs = arr2, arr3,
+conditional_enable = !defined(SX)
 
-[arr_int_int64_doub]
+[a_i_i64_d]
 type2 = integer(kind=int64)
+conditional_enable = !defined(SX)
 
-[arr_int64_int_doub]
+[a_i64_i_d]
 type1 = integer(kind=int64), dimension(:)
 type2 = integer(kind=int32)
+conditional_enable = !defined(SX)
 
-[arr_int64_int64_doub]
+[a_i64_i64_d]
 type1 = integer(kind=int64), dimension(:)
 type2 = integer(kind=int64)
 type3 = real(kind=dp)
 
-[int_arr_int64_logical]
+[i_a_i64_l]
 type1 = integer(kind=int32)
 type2 = integer(kind=int64), dimension(:)
 type3 = logical
 op_gt = >
 op_lt = <
+conditional_enable = !defined(SX)
 
-[int64_arr_int64_logical]
+[i64_a_i64_l]
 type1 = integer(kind=int64)
 
-[int_arr_int_doub]
+[i_a_i_d]
 type1 = integer(kind=int32)
 type2 = integer(kind=int32), dimension(:)
 type3 = real(kind=dp)
+conditional_enable = !defined(SX)
 
-[int64_arr_int_doub]
+[i64_a_i_d]
 type1 = integer(kind=int64)
+conditional_enable = !defined(SX)
 
-[int_arr_int64_doub]
+[i_a_i64_d]
 type1 = integer(kind=int32)
 type2 = integer(kind=int64), dimension(:)
+conditional_enable = !defined(SX)
 
-[int64_arr_int64_doub]
+[i64_a_i64_d]
 type1 = integer(kind=int64)
 
-[doub_doub_doub]
+[d_d_d]
 type1 = real(kind=dp)
 type2 = real(kind=dp)
 type3 = real(kind=dp)
 
-[doub_arr_doub_int]
+[d_a_d_i]
 type2 = real(kind=dp), dimension(:)
 type3 = integer(kind=int32)
+conditional_enable = !defined(SX)
 
-[doub_arr_doub_int64]
+[d_a_d_i64]
 type3 = integer(kind=int64)
 
-[cmplx_cmplx_cmplx]
+[c_c_c]
 type1 = complex(dp)
 type2 = complex(dp)
 type3 = complex(dp)
 
-[int_int_int64_int]
+[i_i_i64_i]
 type1 = integer(kind=int32)
 type2 = integer(kind=int32)
 type3 = integer(kind=int64)
 type4 = integer(kind=int32)
 arr4_prefix = 
 extra_arrs = arr2, arr3, arr4,
+conditional_enable = !defined(SX)
 
-[doub_doub_doub_int]
+[d_d_d_i]
 type1 = real(kind=dp)
 type2 = real(kind=dp)
 type3 = real(kind=dp)
 type4 = integer(kind=int32)
+conditional_enable = !defined(SX)
 
-[doub_doub_doub_inti64]
+[d_d_d_i64]
 type1 = real(kind=dp)
 type2 = real(kind=dp)
 type3 = real(kind=dp)
 type4 = integer(kind=int64)
 
-[int64_int_int_int]
+[i64_i_i_i]
 type1 = integer(kind=int64)
 type2 = integer(kind=int32)
 type3 = integer(kind=int32)
 type4 = integer(kind=int32)
+conditional_enable = !defined(SX)
 
-[int64_int64_int_int_int]
+[a_i64_i_d_i]
+type1 = integer(kind=int64), dimension(:)
+type2 = integer(kind=int32)
+type3 = real(kind=dp)
+type4 = integer(kind=int32)
+op_gt = .arrgt.
+op_lt = .arrlt.
+conditional_enable = !defined(SX)
+
+[a_i64_i64_d_i64]
+type1 = integer(kind=int64), dimension(:)
+type2 = integer(kind=int64)
+type3 = real(kind=dp)
+type4 = integer(kind=int64)
+conditional_enable = !defined(SX)
+
+[a_i_i_d_i]
+type1 = integer(kind=int32), dimension(:)
+type2 = integer(kind=int32)
+type3 = real(kind=dp)
+type4 = integer(kind=int32)
+conditional_enable = !defined(SX)
+
+[a_i_i64_d_i64]
+type1 = integer(kind=int32), dimension(:)
+type2 = integer(kind=int64)
+type3 = real(kind=dp)
+type4 = integer(kind=int64)
+conditional_enable = !defined(SX)
+
+[i64_i64_i_i_i]
 type1 = integer(kind=int64)
 type2 = integer(kind=int64)
 type3 = integer(kind=int32)
 type4 = integer(kind=int32)
 type5 = integer(kind=int32)
+op_gt = >
+op_lt = <
 arr5_prefix = 
 extra_arrs = arr2, arr3, arr4, arr5,
+conditional_enable = !defined(SX)
 
 
 ===================
@@ -334,6 +445,25 @@ contains
         ! sample code in NumericalRecipies as a base.
         ! Optionally sort arr2 in parallel (in the routines it is enabled)
 
+        ! Custom comparisons. Use the operator .locallt. & .localgt.
+        %(custom_compare_prefix)s interface operator(.locallt.)
+        %(custom_compare_prefix)s     pure function custom_lt (b, c) result (ret)
+        %(custom_compare_prefix)s         use constants
+        %(custom_compare_prefix)s         %(type1)s, intent(in) :: b(:)
+        %(custom_compare_prefix)s         %(type1)s, intent(in) :: c(:)
+        %(custom_compare_prefix)s         logical :: ret
+        %(custom_compare_prefix)s     end function 
+        %(custom_compare_prefix)s end interface    
+        %(custom_compare_prefix)s interface operator(.localgt.)
+        %(custom_compare_prefix)s     pure function custom_gt (b, c) result (ret)
+        %(custom_compare_prefix)s         use constants
+        %(custom_compare_prefix)s         %(type1)s, intent(in) :: b(:)
+        %(custom_compare_prefix)s         %(type1)s, intent(in) :: c(:)
+        %(custom_compare_prefix)s         logical :: ret
+        %(custom_compare_prefix)s     end function 
+        %(custom_compare_prefix)s end interface    
+
+
         ! sort needs auxiliary storage of length 2*log_2(n).
         integer, parameter :: nStackMax = 50
         integer, parameter :: nInsertionSort = 7
@@ -367,24 +497,6 @@ contains
         %(type6)s :: tmp6(size(arr6(1)))
         character(*), parameter :: this_routine = 'sort'
 
-        ! Custom comparisons. Use the operator .locallt. & .localgt.
-        %(custom_compare_prefix)s interface operator(.locallt.)
-        %(custom_compare_prefix)s     pure function custom_lt (b, c) result (ret)
-        %(custom_compare_prefix)s         use constants
-        %(custom_compare_prefix)s         %(type1)s, intent(in) :: b(:)
-        %(custom_compare_prefix)s         %(type1)s, intent(in) :: c(:)
-        %(custom_compare_prefix)s         logical :: ret
-        %(custom_compare_prefix)s     end function 
-        %(custom_compare_prefix)s end interface    
-        %(custom_compare_prefix)s interface operator(.localgt.)
-        %(custom_compare_prefix)s     pure function custom_gt (b, c) result (ret)
-        %(custom_compare_prefix)s         use constants
-        %(custom_compare_prefix)s         %(type1)s, intent(in) :: b(:)
-        %(custom_compare_prefix)s         %(type1)s, intent(in) :: c(:)
-        %(custom_compare_prefix)s         logical :: ret
-        %(custom_compare_prefix)s     end function 
-        %(custom_compare_prefix)s end interface    
-
 
         ! Initialise temporary variables if required
         %(tmp_init1)s(a)
@@ -402,6 +514,8 @@ contains
         
         ! *** HACK ***
         ! Workaround for gfortran compiler bug
+        ! n.b. This will produce spurious warnings if run in valgrind, as
+        !      a is not initialised. Not a problem in optimised build.
         %(custom_compare_prefix)s if (custom_lt(a, a)) i = i
         %(custom_compare_prefix)s if (custom_gt(a, a)) i = i
 
@@ -604,7 +718,6 @@ contains
                 ! --> need fewest stack elements. 
                 nstack = nstack + 2
                 if (nstack > nStackMax) then
-                        write(6,*) nstack,nStackMax,n
                         call stop_all (this_routine, &
                                         "parameter nStackMax too small")
                 endif

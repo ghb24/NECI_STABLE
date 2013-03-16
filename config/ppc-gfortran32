@@ -3,9 +3,10 @@ fc = gfortran
 cc = g++
 ld = gfortran
 cpp = cpp -C -traditional
-cppflags = -D__Linux -DGFORTRAN
+cppflags = -D__Linux -D__GFORTRAN__
 fflags = -fcray-pointer -ffree-line-length-none -J$(DEST)
-libs = -L/sw/lib/ -lfftw3 -framework vecLib -lstdc++ -lrt
+ldflags = -rdynamic
+libs = -L/sw/lib/ -lfftw3 -framework vecLib -lstdc++ -lrt -lm
 
 [dbg]
 fflags = -g 

@@ -1,42 +1,3 @@
-
-!! NB SYMSETUPEXCITS uses a store which has integer(int64) to cope with 64-bit machines, and passes this directly to SYMSETUPEXCITS2
-!!  Iterators which use GENSYMEXCITIT2 use an INTEGER STORE, and create an integer(int64) STORE2 internally, and pass this to SYMSETUPEXCITS2
-
-!! SYMSETUPEXCITS takes an integer(int64) STORE(6) which stores the pointers used by SYMSETUPEXCITS2
-!!   This STORE can then be passed to SYMGENEXCITS.
-C.. Setup for symmetry routine below.
-      SUBROUTINE SYMSETUPEXCITS(NI,NEL,NBASIS,STORE,TCOUNT,
-     &      ICOUNT,ILEVEL,iMinElec1,iMaxElec1)
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,g1
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use SymData, only: SymClassSize
-         use legacy_data, only: irat
-         IMPLICIT NONE
-         INTEGER NEL,NI(NEL),NBASIS
-         integer, POINTER :: DSTORE(:)
-         INTEGER STORE(6)
-         INTEGER ICOUNT
-         LOGICAL TCOUNT
-         INTEGER ILEVEL
-         INTEGER iMinElec1,iMaxElec1
-
-         STORE(1:6)=0
-         allocate(DSTORE(SymClassSize*NEL+(nBasis/32)+1
-     &      +SymmetrySize*(NEL*NEL+1)))
-         STORE(1)=1 !Meaning the first element of DSTORE
-         ! STORE(1) --> 
-         CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,STORE,STORE(1),
-     &      STORE(1),STORE(1),STORE(1),TCOUNT,
-     &      ICOUNT,DSTORE(1),
-     &      DSTORE(SymClassSize*NEL+1),
-     &      DSTORE(SymClassSize*NEL+1+(nBasis/32)+1),ILEVEL,iMinElec1,
-     &      iMaxElec1)
-C.. If we're just counting, we don't need to keep DSTORE
-         IF(TCOUNT) deallocate(dstore)
-      END
-
-
-
       ! A wrapper routine to allow symsetupexcit3_worker to be called
       ! with incorrect arguments --> Allows Alex's hacking!!
       SUBROUTINE SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,STORE,SPIin,ETin,
@@ -52,7 +13,7 @@ C.. If we're just counting, we don't need to keep DSTORE
           type(basisfn) G1(nBasis)
           logical :: tCount
           type(symclass) :: classes(*)
-          type(symmetry) :: symprods(0:nel*nel)
+          type(symmetry) :: symprods(0:nel*nel)  !This nel*nel is the maximum it could possibly be
 
           integer :: SPIin(1:2,1:3,1:*), ETin(1:5,*), NAPin(1:3,*)
           integer :: OPin(1:2,*)
@@ -177,7 +138,7 @@ C.. NPairs totals all SymProdCounts.
 
 C.. For each pair of symmetry classes, determine its symmetry product.
 C.. We list them and then sort them
-      Subroutine SymSetupExcits_CreateClassSymProds(nPr,nPairs,nCl,
+      Subroutine SymSetupExcits_CreateCSProds(nPr,nPairs,nCl,
      &   SymProds, ThisClassCount, PrevClassCount, ClassCount,Classes,
      &   SymProdCount)
          use SystemData, only: Symmetry,SymmetrySize, nel
@@ -300,12 +261,11 @@ C.. The first free space is at SYMPRODIND(1,ISPN,I)+SYMPRODIND(2,ISPN,I)+1.
          use SystemData, only: Symmetry,BasisFN,SymmetrySize
          use sym_mod
          IMPLICIT NONE
-         INTEGER ORBPAIRS(2,nPairs)
          INTEGER nPairs
+         INTEGER ORBPAIRS(2,nPairs)
          INTEGER nPr
          INTEGER iMinElec1, iMaxElec1,nEl,nI(nEl)
          TYPE(Symmetry) SymProds(0:*)
-
          INTEGER I,J,K,L
          Type(Symmetry) Pr
          INTEGER iSpn
@@ -458,7 +418,7 @@ C     &                     ,L1B,L1A,L2B,L2A
 !         WRITE(6,*) "Number of double excitations: ",NDOUB
       End Subroutine
 
-      Subroutine SymSetupExcitsAbelian_CountVirtProds(nDoub,nExcitTypes,
+      Subroutine SymSetupExcitsAb_CountVProds(nDoub,nExcitTypes,
      &            nCl,nPr,SymProds,SymProdInd,Classes,ClassCount,
      &            nAllowPPS) ! Calculated not enumerated
          use SymData, only: SymPairProds,nSymPairProds,SymmetrySize
@@ -647,7 +607,7 @@ C     &                  (SYMLABELCOUNTS(2,J)-CLASSCOUNT(ISPN,I))
 !orbital 'a' must have the same symmetry and spin as orbital 'b'
 !Simply run through symmetry classes in NI to count these.
 !NExcitTypes counts the number of different ways of getting an excitation, i.e. Different spin or symmetry
-      Subroutine SymSetupExcitsAbelian_CountSingles(nSing,nCl,
+      Subroutine SymSetupExcitsAb_CountSing(nSing,nCl,
      &      nExcitTypes,ThisClassCount,Classes)
          use SystemData, only: Symmetry
          use SymData, only: SymClass,SymLabelCounts,nSymLabels,SymLabels
@@ -693,11 +653,11 @@ C     &                  (SYMLABELCOUNTS(2,J)-CLASSCOUNT(ISPN,I))
 
          ENDDO
 
-      End Subroutine SymSetupExcitsAbelian_CountSingles
+      End Subroutine SymSetupExcitsAb_CountSing
 
 !Based on the Count singles analogue, this fills the ExcitTypes array with
 !symmetry and excitation type information.
-      Subroutine SymSetupExcitsAbelian_StoreSingles(nExcitTypes,nCl,
+      Subroutine SymSetupExcitsAb_StoreSing(nExcitTypes,nCl,
      &      Classes,ThisClassCount,ExcitTypes)
          use SystemData, only: Symmetry
          use SymData, only: SymClass,SymLabelCounts,nSymLabels,SymLabels
@@ -758,7 +718,7 @@ C     &                  (SYMLABELCOUNTS(2,J)-CLASSCOUNT(ISPN,I))
 
          ENDDO
 
-      End Subroutine SymSetupExcitsAbelian_StoreSingles
+      End Subroutine SymSetupExcitsAb_StoreSing
 
       
       Subroutine SymSetupExcits_StoreSingles(nExcitTypes,nCl,
@@ -867,41 +827,6 @@ C.. And the doubles
       End Subroutine
 
 
-!  Must be called after SYMSETUPEXCITS.  Needs integer(int64) STORE and frees memory therein
-      SUBROUTINE SYMGENEXCITS(NI,NEL,STORE,LSTE,DSTORE,ExcitTypes,
-     &   nAllowPPS,OrbPairs,SymProdInd,
-     &   ICLIST,ICOUNT)
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use SymData, only: SymClassSize
-         use global_utilities
-         IMPLICIT NONE
-         INTEGER NEL,NI(NEL)
-         INTEGER STORE(6)
-         INTEGER  ORBPAIRS(2,*)
-         INTEGER SYMPRODIND(2,3,1:*)
-         INTEGER NALLOWPPS(3,*)
-
-         INTEGER EXCITTYPES(5,*)
-         INTEGER DSTORE(*)
-         type(timer), save :: proc_timer
-         INTEGER LSTE(NEL,*),ICLIST(*),ICOUNT
-         proc_timer%timer_name='SYMGNEXCIT'
-         call set_timer(proc_timer,65)
-
-         CALL SYMGENALLEXCITS(NI,NEL,EXCITTYPES,STORE(6),DSTORE(1),
-     &        SymProdInd,DSTORE(SymClassSize*NEL+1),ORBPAIRS,
-     &            LSTE,ICLIST,ICOUNT)
-   
-!         CALL N_FREEM(IP_EXCITTYPES)
-!         CALL N_FREEM(IP_NALLOWPPS)
-!         CALL N_FREEM(IP_ORBPAIRS)
-!         CALL N_FREEM(IP_SYMPRODIND)
-!         CALL N_FREEM(IP_DSTORE)
-
-         call halt_timer(proc_timer)
- 
-      END
       SUBROUTINE SYMGENALLEXCITS(NI,NEL,EXCITTYPES,NEXCITTYPES,CLASSES,
      &               SYMPRODIND,ILUT,ORBPAIRS,LSTE,ICLIST,ICOUNT)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
@@ -910,8 +835,8 @@ C.. And the doubles
          use SymData, only: SymLabelList,SymPairProds
          use SymData, only: tAbelianFastExcitGen
          IMPLICIT NONE
-         INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES),NEXCITTYPES
-         
+         INTEGER NEXCITTYPES
+         INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES)
          INTEGER I,J,K,L
          INTEGER NK(NEL)
          TYPE(SymClass) CLASSES(*)
@@ -1196,33 +1121,6 @@ C         WRITE(6,*) "COUNT:",ICOUNT
          RETURN
       END SUBROUTINE GetSymExcitCount
 
-C.. IF(TSETUP) Generate an iterator which allows up to double excitations to be generated
-C.. one at a time (in an unordered fashion) from a given det.  THis needs to be called twice,
-C.. first with STORE(1)=0, and then again.  Finally it can be called with TSETUP=.FALSE. 
-C.. to actually generate the excitations
-!! First run.  TSETUP=.TRUE.  STORE(1)=0.  NMEM can just be an INTEGER
-!!  requires INTEGER STORE(6) to hold initialization data.  NMEM is returned containing the memory required to hold the excitation generator (call this nLength)
-!! Second run,  TSETUP=.TRUE.  STORE(:) contains data from first run.  NMEM now is an array of nLenght INTEGERs.  The excitation generator data is stored in this.
-!! Third run,   TSETUP=.FALSE.  will generate an excitation of NI, and put it in NEL.  
-
-      SUBROUTINE GENSYMEXCITIT2(NI,NEL,G1,NBASIS,
-     &         TSETUP,NMEM,NJ,IC,STORE,ILEVEL)
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use legacy_data, only: irat
-         IMPLICIT NONE
-         INTEGER NEL,NI(NEL),NBASIS
-         INTEGER G1(nBasis)
-!  STORE contains lengths of various components of the excitation generator
-         INTEGER STORE(6)
-!  STORE will contain the addesses of various components of the excitation generator, and is passed to SYMSETUPEXCITS2
-         INTEGER, target :: NMEM(*)
-         INTEGER NJ(NEL),IC
-         LOGICAL TSETUP
-         INTEGER ILEVEL
-         CALL GenSymExcitIt2Par(NI,NEL,G1,NBASIS,
-     &         TSETUP,NMEM,NJ,IC,STORE,ILEVEL,1,NEL)
-      END
 
 !GenSymExcitIt3Par and GenSymExcitIt3 are versions GenSymExcitIt2 which do not require information taken from System and Integrals modules to be specified on the command line
       SUBROUTINE GENSYMEXCITIT3(NI,TSETUP,NMEM,NJ,IC,STORE,ILEVEL)
@@ -1305,8 +1203,8 @@ C     &               NBASIS,NBASISMAX,CURGEN,IFRZ2)
       use SymData, only: SymLabelCounts,SymStatePairs,SymClass
       use SymData, only: SymLabelList,SymPairProds
       IMPLICIT NONE
-      INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES),NEXCITTYPES
-      
+      INTEGER NEXCITTYPES
+      INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES)
       INTEGER I,J,K,L
       INTEGER NK(NEL)
       TYPE(SymClass) CLASSES(*)
@@ -1696,8 +1594,8 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
          use SymData, only: SymLabelCounts,SymStatePairs,SymClass
          use SymData, only: SymLabelList,SymPairProds
          IMPLICIT NONE
-         INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES),NEXCITTYPES
-         
+         INTEGER NEXCITTYPES
+         INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES)
          INTEGER I,J,K,L
          INTEGER NK(NEL)
          TYPE(SymClass) CLASSES(*)
@@ -2137,9 +2035,9 @@ C.. If both virtuals aren't the same and neither are in NI, then allow
                iLabel2Index=-1
                iLooped=-1 !indicate we've reset from nothing
             else
-               iLabelPairIndexOff=IShft(IAND(K,'7F000000'X),-24)
-               iLabel1Index=IShft(IAND(K,'FFF000'X),-12)
-               iLabel2Index=IAND(K,'FFF'X)
+               iLabelPairIndexOff = ishft(iand(K, 2130706432), -24)
+               iLabel1Index = ishft(iand(K, 16773120), -12)
+               iLabel2Index = iand(K, 4095)
             endif
             iLabelPairBase=SymPairProds(iTo)%nIndex
             iLabel1=SymStatePairs(1,iLabelPairBase+iLabelPairIndexOff)
@@ -2365,7 +2263,8 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
             DO J=1,NEL
                IF(NI(J).EQ.iFrom1) THEN
                   IF(tDebugPrint)
-     &               WRITE(6,"(A,I3,A,I3,A,$)") "[",iFrom1,"->",
+     &               WRITE(6,"(A,I3,A,I3,A)",advance='no') 
+     &                  "[",iFrom1,"->",
      &                   iTo1,","
                   ExcitMat(1,1)=J
                   ExcitMat(2,1)=iTo1
@@ -2403,30 +2302,6 @@ C                     CALL WRITEDET(6,NK,NEL,.TRUE.)
          CALL IsConnectedDetInternal(nI,nJ,tIsConnected)
       END
 
-!We wish to calculate what excitation class the excitation NI->NJ falls into, with the appropriate 
-! IFROM class and index within that, IFROMINDEX, and ITO class, and index within that. ITOINDEX
-! After that, we generate the probability that nJ would be an excitation from nI.
-! We require the excitation generator of I, which is used to pass info to GenExcitProbInternal (in symexcit2.F90)
-      SUBROUTINE GenExcitProb(nI,nJ,nEl,nIExcitor,G1,nBasisMax,Arr,
-     &      nBasis,pGen)
-         use constants, only: dp
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use SymData, only: SymClassSize
-         IMPLICIT NONE
-         INTEGER nEl,nI(nEl),nJ(nEl),nBasis,nBasisMax(*)
-         INTEGER, target :: nIExcitor(*)
-         TYPE(BasisFN) G1(nBasis) 
-         INTEGER, pointer :: DStore(:)
-         real(dp) pGen
-         real(dp) Arr(nBasis,2)
-         DSTORE=>nIExcitor(nIExcitor(1):2)
-         CALL GenExcitProb2(nI,nJ,nEl,G1,nBasisMax,Arr,nBasis,
-     &      nIExcitor(nIExcitor(4)),nIExcitor(nIExcitor(5)),
-     &      DStore(SymClassSize*nEl+1),
-     &      DStore(SymClassSize*nEl+1+(nBasis/32)+1),
-     &      nIExcitor(nIExcitor(2)),nIExcitor(23),pGen)
-      END
 ! For reference below is the call and declaration of SYMGENRANDEXCITIT to extract the locations of teh variables.
 !  NMEM is nIExcitor
 !         CALL SYMGENRANDEXCITIT(NI,NEL,NMEM(NMEM(2)),NMEM(6),DSTORE(1),

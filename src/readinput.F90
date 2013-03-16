@@ -3,34 +3,36 @@
 !               If Filename=="" then we check to see if there's a filename on the command line.
 !               Failing that, we use stdin
 !   ios is an Integer which is set to 0 on a successful return, or is non-zero if a file error has occurred, where it is the iostat.
-MODULE ReadInput 
+MODULE ReadInput_neci 
     Implicit none
 !   Used to specify which default set of inputs to use
 !    An enum would be nice, but is sadly not supported
-    integer, parameter :: idDefault=0
-    integer, parameter :: idFeb08=1
+    integer, parameter :: idDefault = 0
+    integer, parameter :: idFeb08 = 1
+    integer, parameter :: idNov11 = 2
 
     contains
 
-    Subroutine ReadInputMain(cFilename,ios)
-        USE input
+    Subroutine ReadInputMain(cFilename,ios,tOverride_input)
+        USE input_neci
+        use SystemData, only : tMolpro
         use System,     only : SysReadInput,SetSysDefaults
         use Calc,       only : CalcReadInput,SetCalcDefaults
-        use Integrals,  only : IntReadInput,SetIntDefaults
+        use Integrals_neci,  only : IntReadInput,SetIntDefaults
         Use Logging,    only : LogReadInput,SetLogDefaults
-        use Parallel,   only : iProcIndex
+        use Parallel_neci,   only : iProcIndex
         use default_sets
         use util_mod, only: get_free_unit
-#ifdef NAGF95
-    !  USe doesn't get picked up by the make scripts
-        USe f90_unix_env, ONLY: getarg,iargc
-#endif
+!#ifdef NAGF95
+!    !  USe doesn't get picked up by the make scripts
+!        USe f90_unix_env, ONLY: getarg,iargc
+!#endif
         Implicit none
-#ifndef NAGF95
-        Integer :: iargc
-#endif
+!#ifndef NAGF95
+!        Integer :: iargc
+!#endif
     !  INPUT/OUTPUT params
-        Character(len=255)  cFilename    !Input  filename or "" if we check arg list or stdin
+        Character(len=64)  cFilename    !Input  filename or "" if we check arg list or stdin
         Integer             ios         !Output 0 if no error or nonzero iostat if error
 
         Character(len=255)  cInp         !temp storage for command line params
@@ -41,6 +43,8 @@ MODULE ReadInput
         Logical             tEof        !set when read_line runs out of lines
         logical             tExists     !test for existence of input file.
         Integer             idDef       !What default set do we use
+        integer neci_iargc
+        logical, intent(in) :: tOverride_input  !If running through molpro, is this an override input?
         
         cTitle=""
         idDef=idDefault                 !use the Default defaults (pre feb08)
@@ -50,9 +54,9 @@ MODULE ReadInput
             inquire(file=cFilename,exist=tExists)
             if (.not.tExists) call stop_all('ReadInputMain','File '//Trim(cFilename)//' does not exist.')
             Open(ir,File=cFilename,Status='OLD',err=99,iostat=ios)
-        ElseIf(iArgC().gt.0) then
+        ElseIf(neci_iArgC().gt.0) then
     ! We have some arguments we can process instead
-            Call GetArg(1,cInp)      !Read argument 1 into inp
+            Call neci_GetArg(1,cInp)      !Read argument 1 into inp
             Write(6,*) "Reading from file: ", Trim(cInp)
             inquire(file=cInp,exist=tExists)
             if (.not.tExists) call stop_all('ReadInputMain','File '//Trim(cInp)//' does not exist.')
@@ -65,7 +69,6 @@ MODULE ReadInput
             open(7,status='scratch',iostat=ios) 
         Endif
         Call input_options(echo_lines=.false.,skip_blank_lines=.true.)
-
 
     !Look to find default options (line can be added anywhere in input)
         Do
@@ -82,6 +85,8 @@ MODULE ReadInput
                     idDef=idDefault
                 case("FEB08")
                     idDef=idFeb08
+                case("NOV11")
+                    idDef=idNov11
                 case default
                     write(6,*) "No defaults selected - using 'default' defaults"
                     idDef=idDefault
@@ -94,9 +99,12 @@ MODULE ReadInput
         select case(idDef)
         case(0)
             write (6,*) 'Using the default set of defaults.'
-        case(1)
-            Feb08=.true.
+        case(idFeb08)
+            Feb08 = .true.
             write (6,*) 'Using the Feb08 set of defaults.'
+        case(idNov11)
+            Nov11 = .true.
+            write(6,*) 'Using the November 2011 set of defaults'
         end select
 
         ! Set up defaults.
@@ -108,9 +116,14 @@ MODULE ReadInput
 !Now return to the beginning and process the whole input file
         if (ir.eq.5) ir=7 ! If read from STDIN, re-read from our temporary scratch file.
         Rewind(ir)
-        Call input_options(echo_lines=iProcIndex.eq.0,skip_blank_lines=.true.)
+        if(tMolpro.and.(.not.tOverride_input)) then
+!Molpro writes out its own input file
+            Call input_options(echo_lines=.false.,skip_blank_lines=.true.)
+        else
+            Call input_options(echo_lines=iProcIndex.eq.0,skip_blank_lines=.true.)
+            Write (6,'(/,64("*"),/)')
+        endif
 
-        Write (6,'(/,64("*"),/)')
 
         Do
             Call read_line(tEof)
@@ -139,7 +152,8 @@ MODULE ReadInput
             end select
         end do
         write (6,'(/,64("*"),/)')
-        IF(IR.EQ.1.or.IR.EQ.7) CLOSE(ir)
+!        IF(IR.EQ.1.or.IR.EQ.7) CLOSE(ir)
+        CLOSE(ir)
    99   IF (ios.gt.0) THEN
             WRITE (6,*) 'Problem reading input file ',TRIM(cFilename)
             call stop_all('ReadInputMain','Input error.')
@@ -156,13 +170,13 @@ MODULE ReadInput
 
         use SystemData, only: nel, tStarStore, tUseBrillouin, beta, &
                               tFindCINatOrbs, tNoRenormRandExcits, LMS, STOT,&
-                              tCSF, tSpn
+                              tCSF, tSpn, tUHF
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
                             TNoSameExcit, TInitStar, tMP2Standalone, &
                             GrowMaxFactor, MemoryFacPart, tTruncInitiator, &
-                            tSpawnSpatialInit, tSpatialOnlyHash
+                            tSpawnSpatialInit, tSpatialOnlyHash, InitWalkers
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -170,17 +184,35 @@ MODULE ReadInput
         use IntegralsData, only: tDiagStarStars, tExcitStarsRootChange, &
                                  tRmRootExcitStarsRootChange, tLinRootChange
         use Logging, only: iLogging, tCalcFCIMCPsi, tHistSpawn, tHistHamil, &
-                           tCalcInstantS2
+                           tCalcInstantS2, tDiagAllSpaceEver, &
+                           tCalcVariationalEnergy, tCalcInstantS2Init
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
-        USE input
+        use input_neci
+        use constants
         use global_utilities
         use spin_project, only: tSpinProject, spin_proj_nopen_max
+        use FciMCData, only: nWalkerHashes,HashLengthFrac,tHashWalkerList
 
         implicit none
 
         integer :: vv, kk, cc, ierr
         logical :: check
         character(*), parameter :: t_r='checkinput'
+
+        if(tDiagAllSpaceEver.and..not.tHistSpawn) then
+            call stop_all(t_r,"DIAGALLSPACEEVER requires HISTSPAWN option")
+        endif
+        if(tCalcVariationalEnergy.and..not.tHistSpawn) then
+            call stop_all(t_r,"CALCVARIATIONALENERGY requires HISTSPAWN option")
+        endif
+        if(tCalcVariationalEnergy.and..not.tEnergy) then
+            call stop_all(t_r,"CALCVARIATIONALENERGY requires initial FCI calculation")
+        endif
+
+        if(tHashWalkerList) then
+            nWalkerHashes=nint(HashLengthFrac*InitWalkers)
+        endif
+
 
         ! Turn on histogramming of fcimc wavefunction in order to find density
         ! matrix, or the orbital occupations
@@ -311,7 +343,7 @@ MODULE ReadInput
         endif
   
         !Ensure beta is set.
-        if (beta < 1.d-6 .and. .not. tMP2Standalone) then
+        if (beta < 1.0e-6_dp .and. .not. tMP2Standalone) then
             call report("No beta value provided.", .true.)
         endif
         
@@ -364,19 +396,17 @@ MODULE ReadInput
                                     & (SPATIAL-ONLY-HASH)")
         endif
   
-        if (tCalcInstantS2) then
-!            if (.not. tSpatialOnlyHash) &
-!                call stop_all (t_r, "Calculating the instantaneous value of &
-!                                   &S^2 in each iterataion requires spatial-&
-!                                   &only hash to be used (SPATIAL-ONLY-HASH)")
-!            else
-                write(6,*) 'Enabling calculation of instantaneous S^2 each &
-                           &iteration.'
+        if (tCalcInstantS2 .or. tCalcInstantS2Init) then
+            if (tUHF) &
+                call stop_all (t_r, 'Cannot calculate instantaneous values of&
+                              & S^2 with UF enabled.')
+            write(6,*) 'Enabling calculation of instantaneous S^2 each &
+                       &iteration.'
         endif
 
     end subroutine checkinput
 
-end Module ReadInput
+end Module ReadInput_neci
 
         
 

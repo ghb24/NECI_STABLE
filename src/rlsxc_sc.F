@@ -4,15 +4,15 @@
       use constants, only: dp
 !      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
+      integer :: NHG,NMAX,NMSH,NEL,KI,KJ,IX,IY,IZ,IDS
       integer :: NDET1(NEL)
       real(dp) :: AUXC(NMSH,NMSH,NMSH)
       real(dp) :: SITAB(NMSH,NMAX)
       TYPE(BasisFN) G1(NHG)
-      integer :: NHG,NMAX,NMSH,NEL,KI,KJ,IX,IY,IZ,IDS
       real(dp) :: U1KIR1,U2KJR2,U1KJR1,U2KIR2,U1
       integer :: IOBS,JOBS,KOBS
 C..
-      AUXC=0.d0
+      AUXC=0.0_dp
       DO KI=1,NEL-1
         DO KJ=KI+1,NEL
 C..
@@ -51,8 +51,8 @@ C ==-----------------------------------------------------------------==
 !      IMPLICIT real(dp) (A-H,O-Z)
       use constants, only: dp
       IMPLICIT NONE
-      real(dp) :: SITAB(NMSH,NX),U1
       integer :: NMSH,NX,NHG,I,J,K,ND
+      real(dp) :: SITAB(NMSH,NX),U1
       TYPE(BasisFN) G1(NHG)
 C..
       U1=

@@ -46,7 +46,7 @@ MODULE SymExcit2
 !.. SYMPRODS(I) in ORBPAIRS
 !.. SYMPRODIND(2,ISPN,I) contains the number of such elements
          iCount=0
-         Norm=0.D0
+         Norm=0.0_dp
          DO I=1,SYMPRODIND(2,iSpn,iFrom)
             iFromIndex=I+SymProdInd(1,iSpn,iFrom)
             CALL AddExcitFromWeight(                                    &
@@ -151,8 +151,8 @@ MODULE SymExcit2
          INTEGER I,J,A,B
          real(dp) R,Norm
          INTEGER nBasisMax(5,*),NBASIS
-         TYPE(ExcitWeight) ExWeights(iCount+1)
          INTEGER iCount
+         TYPE(ExcitWeight) ExWeights(iCount+1)
          real(dp) Arr(nBasis,2)
          CALL ExcitWeighting(I,J,A,B,R,NBASISMAX,Arr,NBASIS)
          iCount=iCount+1
@@ -171,8 +171,8 @@ MODULE SymExcit2
          INTEGER I,J
          real(dp) R,Norm
          INTEGER nBasis
-         TYPE(ExcitWeight) ExWeights(iCount+1)
          INTEGER iCount
+         TYPE(ExcitWeight) ExWeights(iCount+1)
          real(dp) Arr(nBasis,2)
          CALL ExcitFromWeighting(I,J,R,Arr,nBasis)
          iCount=iCount+1
@@ -194,7 +194,7 @@ MODULE SymExcit2
          real(dp) Arr(nBasis,2)
          !No weighting
          IF(EXCITFUNCS(10)) THEN
-            Weight=1.D0
+            Weight=1.0_dp
          !Exponential weighting
          ELSEIF(EXCITFUNCS(1)) THEN
             Weight=EXP((Arr(I,2)+Arr(J,2))*g_VMC_ExcitWeights(1,CUR_VERT))
@@ -205,32 +205,32 @@ MODULE SymExcit2
             IF(Arr(I,2).lt.CHEMPOT) THEN
                 Weight=g_VMC_ExcitWeights(1,CUR_VERT)
             ELSE
-                Weight=1.D0
+                Weight=1.0_dp
             ENDIF
 !Then J...
             IF(Arr(J,2).lt.CHEMPOT) THEN
                 Weight=Weight+g_VMC_ExcitWeights(1,CUR_VERT)
             ELSE
-                Weight=Weight+1.D0
+                Weight=Weight+1.0_dp
             ENDIF
          ELSEIF(EXCITFUNCS(4)) THEN
-            IF((Arr(I,2)+Arr(J,2)).GT.(2.D0*CHEMPOT)) Weight=1.D0
-            IF((Arr(I,2)+Arr(J,2)).LE.(2.D0*CHEMPOT)) THEN
-                Weight=(1.D0/((-(Arr(I,2)+Arr(J,2))+(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(1,CUR_VERT)))
+            IF((Arr(I,2)+Arr(J,2)).GT.(2.0_dp*CHEMPOT)) Weight=1.0_dp
+            IF((Arr(I,2)+Arr(J,2)).LE.(2.0_dp*CHEMPOT)) THEN
+                Weight=(1.0_dp/((-(Arr(I,2)+Arr(J,2))+(2.0_dp*CHEMPOT)+1.0_dp)**g_VMC_ExcitWeights(1,CUR_VERT)))
             ENDIF
          !CHEMPOT-TWOFROM
          ELSEIF(EXCITFUNCS(5)) THEN
-            IF((Arr(I,2)+Arr(J,2)).GT.(2.D0*CHEMPOT)) THEN
-                Weight=(1.D0/(((Arr(I,2)+Arr(J,2))-(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(2,CUR_VERT)))
+            IF((Arr(I,2)+Arr(J,2)).GT.(2.0_dp*CHEMPOT)) THEN
+                Weight=(1.0_dp/(((Arr(I,2)+Arr(J,2))-(2.0_dp*CHEMPOT)+1.0_dp)**g_VMC_ExcitWeights(2,CUR_VERT)))
             ENDIF
-            IF((Arr(I,2)+Arr(J,2)).LE.(2.D0*CHEMPOT)) THEN
-                Weight=(1.D0/((-(Arr(I,2)+Arr(J,2))+(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(1,CUR_VERT)))
+            IF((Arr(I,2)+Arr(J,2)).LE.(2.0_dp*CHEMPOT)) THEN
+                Weight=(1.0_dp/((-(Arr(I,2)+Arr(J,2))+(2.0_dp*CHEMPOT)+1.0_dp)**g_VMC_ExcitWeights(1,CUR_VERT)))
             ENDIF
          !PolyExcitWeighting (for both real & virtual orbs)
          ELSEIF(EXCITFUNCS(3)) THEN
-            IF((Arr(I,2)+Arr(J,2)).GT.g_VMC_ExcitWeights(1,CUR_VERT)) Weight=1.D0
+            IF((Arr(I,2)+Arr(J,2)).GT.g_VMC_ExcitWeights(1,CUR_VERT)) Weight=1.0_dp
             IF((Arr(I,2)+Arr(J,2)).LE.g_VMC_ExcitWeights(1,CUR_VERT)) THEN
-                Weight=(1.D0/((-(Arr(I,2)+Arr(J,2))+g_VMC_ExcitWeights(1,CUR_VERT)+1.D0)**g_VMC_ExcitWeights(2,CUR_VERT)))
+                Weight=(1.0_dp/((-(Arr(I,2)+Arr(J,2))+g_VMC_ExcitWeights(1,CUR_VERT)+1.0_dp)**g_VMC_ExcitWeights(2,CUR_VERT)))
             ENDIF
          ENDIF
 !         write(83,"(4G25.16)") (Arr(I,2)+Arr(J,2)), g_VMC_ExcitWeights(1,CUR_VERT), g_VMC_ExcitWeights(2,CUR_VERT), Weight
@@ -240,7 +240,7 @@ MODULE SymExcit2
 !          We return a function of the U matrix element (|<ij|u|kl>|^2)^G_VMC_EXCITWEIGHT
       SUBROUTINE EXCITWEIGHTING(I,J,K,L,WEIGHT,NBASISMAX,Arr,NBASIS)
          USE UMatCache , only : GTID
-         use Integrals, only : GetUMatEl
+         use Integrals_neci, only : GetUMatEl
          use SystemData, only: BasisFN
          use global_utilities
          IMPLICIT NONE
@@ -253,8 +253,8 @@ MODULE SymExcit2
          real(dp) WEIGHT,W2
          HElement_t W
          real(dp) Arr(nBasis,2)
-         IF(G_VMC_EXCITWEIGHT(CUR_VERT).EQ.0.D0) THEN
-            WEIGHT=1.D0
+         IF(G_VMC_EXCITWEIGHT(CUR_VERT).EQ.0.0_dp) THEN
+            WEIGHT=1.0_dp
          ELSE
 !            proc_timer%timer_name='UMATELWT'
 !            call set_timer(proc_timer)
@@ -265,16 +265,16 @@ MODULE SymExcit2
             IDL = GTID(L)
             W=GetUMatEl(IDI,IDJ,IDK,IDL)
             IF(TUPOWER) THEN
-                WEIGHT=1.D0+(abs(W))**(G_VMC_EXCITWEIGHT(CUR_VERT))
+                WEIGHT=1.0_dp+(abs(W))**(G_VMC_EXCITWEIGHT(CUR_VERT))
             ELSE
                 WEIGHT=EXP(abs(W)*G_VMC_EXCITWEIGHT(CUR_VERT))
             ENDIF
 !            call halt_timer(proc_timer)
          ENDIF
          IF(.not.EXCITFUNCS(10)) THEN
-             IF((EXCITFUNCS(1)).and.(g_VMC_ExcitWeights(3,CUR_VERT).NE.0.D0)) THEN
+             IF((EXCITFUNCS(1)).and.(g_VMC_ExcitWeights(3,CUR_VERT).NE.0.0_dp)) THEN
                 W2=ABS(((Arr(I,2)+Arr(J,2))-(Arr(K,2)+Arr(L,2))))
-                IF(ABS(W2).LT.1.D-2) W2=1.D-2
+                IF(ABS(W2).LT.1.0e-2_dp) W2=1.0e-2_dp
                 Weight=Weight*W2**g_VMC_ExcitWeights(3,CUR_VERT)
              ELSEIF(EXCITFUNCS(1)) THEN
                 Weight=Weight*EXP(-(Arr(K,2)+Arr(L,2))*g_VMC_ExcitWeights(2,CUR_VERT))
@@ -283,32 +283,32 @@ MODULE SymExcit2
                  IF(Arr(K,2).gt.CHEMPOT) THEN
                      W2=g_VMC_ExcitWeights(2,CUR_VERT)
                  ELSE
-                     W2=1.D0
+                     W2=1.0_dp
                  ENDIF
                  IF(Arr(L,2).gt.CHEMPOT) THEN
                      W2=W2+g_VMC_ExcitWeights(2,CUR_VERT)
                  ELSE
-                     W2=W2+1.D0
+                     W2=W2+1.0_dp
                  ENDIF
                  Weight=Weight*W2
 !chempotweighting - using a chemical potential cut-off
              ELSEIF(EXCITFUNCS(4)) THEN
-                 IF((Arr(K,2)+Arr(L,2)).LT.(CHEMPOT*2.D0)) Weight=Weight
-                 IF((Arr(K,2)+Arr(L,2)).GE.(CHEMPOT*2.D0)) THEN
-                    Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(2,CUR_VERT)))
+                 IF((Arr(K,2)+Arr(L,2)).LT.(CHEMPOT*2.0_dp)) Weight=Weight
+                 IF((Arr(K,2)+Arr(L,2)).GE.(CHEMPOT*2.0_dp)) THEN
+                    Weight=Weight*(1.0_dp/(((Arr(K,2)+Arr(L,2))-(2.0_dp*CHEMPOT)+1.0_dp)**g_VMC_ExcitWeights(2,CUR_VERT)))
                  ENDIF
 !CHEMPOT-TWOFROM
              ELSEIF(EXCITFUNCS(5)) THEN
-                 IF((Arr(K,2)+Arr(L,2)).LT.(CHEMPOT*2.D0)) Weight=Weight
-                 IF((Arr(K,2)+Arr(L,2)).GE.(CHEMPOT*2.D0)) THEN
-                     Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-(2.D0*CHEMPOT)+1.D0)**g_VMC_ExcitWeights(3,CUR_VERT)))
+                 IF((Arr(K,2)+Arr(L,2)).LT.(CHEMPOT*2.0_dp)) Weight=Weight
+                 IF((Arr(K,2)+Arr(L,2)).GE.(CHEMPOT*2.0_dp)) THEN
+                     Weight=Weight*(1.0_dp/(((Arr(K,2)+Arr(L,2))-(2.0_dp*CHEMPOT)+1.0_dp)**g_VMC_ExcitWeights(3,CUR_VERT)))
                  ENDIF
 !PolyExcitWeighting
              ELSEIF(EXCITFUNCS(2)) THEN
                  IF((Arr(K,2)+Arr(L,2)).LT.g_VMC_ExcitWeights(2,CUR_VERT)) Weight=Weight
                  IF((Arr(K,2)+Arr(L,2)).GE.g_VMC_ExcitWeights(2,CUR_VERT)) THEN
-                     Weight=Weight*(1.D0/(((Arr(K,2)+Arr(L,2))-                         &
-                     & g_VMC_ExcitWeights(2,CUR_VERT)+1.D0)**g_VMC_ExcitWeights(3,CUR_VERT)))
+                     Weight=Weight*(1.0_dp/(((Arr(K,2)+Arr(L,2))-                         &
+                     & g_VMC_ExcitWeights(2,CUR_VERT)+1.0_dp)**g_VMC_ExcitWeights(3,CUR_VERT)))
                  ENDIF
              ENDIF
          ENDIF
@@ -330,7 +330,7 @@ MODULE SymExcit2
          IMPLICIT NONE
          INTEGER iExcit(2,2)
          LOGICAL L
-         INTEGER nI(nEl),nJ(nEl),nEl,nBasis
+         INTEGER nEl,nI(nEl),nJ(nEl),nBasis
          INTEGER iFrom,iFromIndex,iTo
          TYPE(BasisFn) G1(nBasis)
          TYPE(Symmetry) Sym
@@ -361,11 +361,11 @@ MODULE SymExcit2
 !  See if we have a single
          IF(iExcit(1,2).EQ.0) THEN
             if(isUHFDet(nI,nEl)) then
-               pGen=0.D0      !HF -> single has 0 prob
+               pGen=0.0_dp      !HF -> single has 0 prob
             ELSE
 !  The UHF det isn't set if Brillouin's Theorem is disabled, and we end up here.
 !  NB we can still generate the HF det from a single excitation, and that would end up here.
-               pGen=1.D0/iTotal
+               pGen=1.0_dp/iTotal
             ENDIF
             RETURN
          ENDIF
@@ -393,7 +393,7 @@ MODULE SymExcit2
          ENDDO
 !.. K is now the excitation
          iExcitType=K
-         pGen=(ExcitTypes(5,iExcitType)+0.D0)/iTotal  ! pGen is the prob of choosing excit iExcitType
+         pGen=(ExcitTypes(5,iExcitType)+0.0_dp)/iTotal  ! pGen is the prob of choosing excit iExcitType
 
 
 !.. We've worked out what class the IFROM was.  Now work out which member of the class it is
@@ -402,7 +402,7 @@ MODULE SymExcit2
          allocate(ews(nFromPairs))
          call LogMemAlloc('ExcitWGEPI',nFromPairs,8*ExcitWeightSize,thisroutine,tagEWS)
          iCount=0
-         Norm=0.D0
+         Norm=0.0_dp
          CALL EnumExcitFromWeights(ExcitTypes(1,iExcitType),ews,OrbPairs,SymProdInd,Norm,iCount,Arr,nBasis)
          pGen=pGen/Norm    ! divide through by the Norm of the FROMs
          DO I=1,nFromPairs
@@ -422,7 +422,7 @@ MODULE SymExcit2
          allocate(ews(nToPairs))
          call LogMemAlloc('ExcitWGEPI',nToPairs,8*ExcitWeightSize,thisroutine,tagEWS)
          iCount=0
-         Norm=0.D0
+         Norm=0.0_dp
          CALL EnumExcitWeights(ExcitTypes(1,iExcitType),iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,nBasisMax,Arr,nBasis)
 !.. Find the (a,b) pair
 !.. The prob of all possible excitations in this iTo 
@@ -447,7 +447,7 @@ MODULE SymExcit2
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          IMPLICIT NONE
          INTEGER iExcit(2,2)
-         INTEGER L
+         LOGICAL L
          INTEGER nI(nEl),nJ(nEl)
          LOGICAL tIsConnectedDet
          LOGICAL IsUHFDet
@@ -565,7 +565,7 @@ MODULE SymExcit2
          INTEGER iMinElec1,iMaxElec1
 
          TYPE(SymClass) CLASSES(*)
-         TYPE(Symmetry) SYMPRODS(0:NEL*NEL)
+         TYPE(Symmetry) SYMPRODS(0:NEL*NEL) !nel*nel is the max it could be
          INTEGER CLASSCOUNT(2,NEL)
          INTEGER THISCLASSCOUNT(2,NEL)
 !  ThisClassCount is used to list only electrons which this processor deals with
@@ -595,9 +595,10 @@ MODULE SymExcit2
       iMinElec1, iMaxElec1, ThisClassCount, PrevClassCount,ClassCount, &
       G1, nCl)
          SYMPRODCOUNT(:,:)=0
-         Call SymSetupExcits_CreateClassSymProds(nPr,nPairs,nCl, &
+         Call SymSetupExcits_CreateCSProds(nPr,nPairs,nCl, &
         SymProds, ThisClassCount, PrevClassCount, ClassCount,Classes, &
         SymProdCount)
+!nPr now contains the number of items in SymProds
 !.. Allocate enough memory to store the index
          IF(STORE(5).EQ.0) THEN
             allocate(SYMPRODIND(2,3,1:NPR))
@@ -659,7 +660,7 @@ MODULE SymExcit2
          nExcitTypes=0
          if(.not.tStoreStateList) then
 !We can calculate the virtual pairs more easily in abelian symmetry.
-            Call SymSetupExcitsAbelian_CountVirtProds(nDoub,nExcitTypes,&
+            Call SymSetupExcitsAb_CountVProds(nDoub,nExcitTypes,&
                 nCl,nPr,SymProds,SymProdInd(1:2,1:3,1:NPR),Classes,&
                 ClassCount,  &
                 nAllowPPS) ! Calculated not enumerated
@@ -670,7 +671,7 @@ MODULE SymExcit2
          IF(.NOT.ISUHFDET(NI,NEL)) THEN
             if(tAbelianFastExcitGen) then
 !This can be done quicker for abelian symmetry, whether or not the state pairs are stored or not.
-                CALL SymSetupExcitsAbelian_CountSingles(nSing,nCl,&
+                CALL SymSetupExcitsAb_CountSing(nSing,nCl,&
                    nExcitTypes,ThisClassCount,Classes)
             else
                 Call SymSetupExcits_CountSingles(nSing,nCl,nExcitTypes,&
@@ -726,7 +727,7 @@ MODULE SymExcit2
              IF(.NOT.ISUHFDET(NI,NEL)) THEN
                 IF(BTEST(ILEVEL,0)) THEN
                     IF(tAbelianFastExcitGen) THEN
-                        Call SymSetupExcitsAbelian_StoreSingles(&
+                        Call SymSetupExcitsAb_StoreSing(&
                                 nExcitTypes,nCl,Classes,ThisClassCount,&
                                ExcitTypes)
                     ELSE
@@ -780,7 +781,7 @@ MODULE SymExcit2
          LOGICAL TSETUP
          INTEGER ILEVEL,Pos1,Pos2,Pos3
          INTEGER iMinElec1, iMaxElec1
-
+         
          IF(TSETUP) THEN
 !.. This is the first time we've been called for setup.
 !  We pass information back in STORE, but actually hold it in STORE2 during the SYMSETUPEXCITS2
@@ -820,7 +821,7 @@ MODULE SymExcit2
                  CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,STORE2,&
                  STORE2(1),STORE2(1),STORE2(1),STORE2(1),&
                  .TRUE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),&
-               DSTORE(SymClassSize*NEL+1+(nBasis/32)+1),&
+               DSTORE(SymClassSize*NEL+1+(nBasis/32)+1:),&
                    ILEVEL,iMinElec1,iMaxElec1)
 
                  deallocate(DSTORE)
@@ -910,9 +911,13 @@ MODULE SymExcit2
 !..   STORE(4)    -  STORE(5)-1  ORBPAIRS
 !..   STORE(5)    -  ...         SYMPRODIND
 
-!..   DSTORE(1)   -  DSTORE(NEL*SymClassSize) CLASSES
-!..   DSTORE(NEL*SymClassSize+1) - ,,,        ILUT
+!..   DSTORE(1)   -  DSTORE(NEL*SymClassSize)      CLASSES
+!..   DSTORE(NEL*SymClassSize+1)                   ILUT
+!..                            - DSTORE(NEL*SymClassSize+1 +nBasis/32+1)
 
+!..   DSTORE(NEL*SymClassSize+1 +nBasis/32+2)      SymProds
+!..                            - DSTORE(NEL*SymClassSize+1 +nBasis/32+2+ SymmetrySize*(1+nPr)
+!..                              This last is the end of DSTORE i.e. MEM(STORE(2)-1)
 
                    NMEM(1:23)=0
                    ICOUNT=24  
@@ -925,9 +930,10 @@ MODULE SymExcit2
                    STORE2(6)=0
                    NMEM(11)=-1
                    NMEM(7)=0
-                  DSTORE=>NMEM(STORE2(1):STORE2(1)+&
-                     SymClassSize*NEL+(nBasis/32)+1&
-                          +SymmetrySize*(NEL*NEL+1))  !Point to DSTORE
+!                  DSTORE=>NMEM(STORE2(1):STORE2(1)+&
+!                     SymClassSize*NEL+(nBasis/32)+1&
+!                          +SymmetrySize*(NEL*NEL+1))  !Point to DSTORE
+                  DSTORE=>NMEM(STORE2(1):STORE2(2)-1) !point to DSTORE
 !                   CALL DUMPIMEMORY(6,NMEM,ICOUNT-1)
 !!      SUBROUTINE SYMSETUPEXCITS2(NI,NEL,G1,NBASIS,NBASISMAX,STORE,
 !!     &   TCOUNT,ICOUNT,CLASSES,ILUT,SYMPRODS,ILEVEL)
@@ -935,7 +941,8 @@ MODULE SymExcit2
                        NMEM(STORE2(5)),NMEM(STORE2(2)),NMEM(STORE2(3)),&
                        NMEM(STORE2(4)),&
                   .FALSE.,ICOUNT,DSTORE(1), DSTORE(SymClassSize*NEL+1),&
-             DSTORE(SymClassSize*NEL+1+(nBasis/32)+1),ILEVEL,iMinElec1,&
+             DSTORE(SymClassSize*NEL+1+(nBasis/32)+1:),&
+     &       ILEVEL,iMinElec1,&
                    iMaxElec1)
                    NMEM(6)=STORE2(6)
                    NMEM(23)=ICOUNT
@@ -961,9 +968,10 @@ MODULE SymExcit2
 !.. Actually generate a det
 !            WRITE(6,"(A,Z10,8I4)",advance='no') "GET",LOC(NMEM(1)),
 !     &         (NMEM(I),I=7,14)
-                  DSTORE=>NMEM(NMEM(1):NMEM(1)+&
-                     SymClassSize*NEL+(nBasis/32)+1&
-                          +SymmetrySize*(NEL*NEL+1))  !Point to DSTORE
+!                  DSTORE=>NMEM(NMEM(1):NMEM(1)+&
+!                     SymClassSize*NEL+(nBasis/32)+1&
+!                          +SymmetrySize*(NEL*NEL+1))  !Point to DSTORE
+                  DSTORE=>NMEM(NMEM(1):NMEM(2)-1) !Point to DStore
 !!      SUBROUTINE SYMGENEXCITIT(NI,NEL,EXCITTYPES,NEXCITTYPES,CLASSES,
 !!     &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,
 !!     &               I,J,K,L,ICC,LS,

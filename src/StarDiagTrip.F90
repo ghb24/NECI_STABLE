@@ -131,11 +131,11 @@
 !                        CALL GenSymExcitIt2(nJ,NEl,G1,nBasis,nBasisMax,.false.,nExcit2,nK,iExcit2,0,nStore2,exFlagDoub)
 !                        IF(nK(1).eq.0) exit lp1
 !!                        CALL CalcRho2(nJ,nK,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,iExcit2,ECore)
-!                        rh=(0.D0)
+!                        rh=(0.0_dp)
 !!Uncomment this code if you want to only allow triple excitations from each double
 !!                        IC=iGetExcitLevel(FDet,nK,NEl)
 !!                        IF(IC.ne.3) THEN
-!!                            rh=(0.D0)
+!!                            rh=(0.0_dp)
 !!                        ENDIF
 !                        IF(abs(rh).gt.RhoEps) THEN
 !                            i=i+1
@@ -168,13 +168,13 @@
 !        IF(TFullDiag) THEN
 !            ALLOCATE(ExcitMat(ExcitCount+1,ExcitCount+1),stat=ierr)
 !            CALL LogMemAlloc('ExcitMat',(ExcitCount+1)**2,8,this_routine,ExcitMatTag)
-!            ExcitMat=0.d0
+!            ExcitMat=0.0_dp
 !
-!            ExcitMat(1,1)=1.D0
+!            ExcitMat(1,1)=1.0_dp
 !
 !            ALLOCATE(HamMat(ExcitCount+1),stat=ierr)
 !            CALL LogMemAlloc('HamMat',ExcitCount+1,8,this_routine,HamMatTag)
-!            HamMat=0.d0
+!            HamMat=0.0_dp
 !            Hii=GetHElement2(FDet,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
 !            HamMat(1)=Hii
 !            
@@ -182,11 +182,11 @@
 !
 !        ALLOCATE(ExcitInfo(0:ExcitCount,0:2),stat=ierr)
 !        CALL LogMemAlloc('ExcitInfo',(ExcitCount+1)*3,8*HElement_t_size,this_routine,ExcitInfoTag)
-!        ExcitInfo=(0.d0)
+!        ExcitInfo=(0.0_dp)
 !
 !!Still divide all elements by rhii
-!        ExcitInfo(0,0)=(1.D0)
-!        ExcitInfo(0,1)=(1.D0)
+!        ExcitInfo(0,0)=(1.0_dp)
+!        ExcitInfo(0,1)=(1.0_dp)
 !        ExcitInfo(0,2)=GetHElement2(FDet,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
 !        
 !!Reinitialise HF excitation generator
@@ -223,11 +223,11 @@
 !!Allocate memory for triples star
 !                ALLOCATE(TripsInfo(0:Triples(j),0:1),stat=ierr)
 !                CALL LogMemAlloc('TripsInfo',(Triples(j)+1)*2,8*HElement_t_size,this_routine,TripsInfoTag)
-!                TripsInfo=(0.d0)
+!                TripsInfo=(0.0_dp)
 !
 !!Need to divide everything by the rhjj element. The final eigenvalues will need to be multiplied by them at the end
-!                TripsInfo(0,0)=(1.D0)
-!                TripsInfo(0,1)=(1.D0)
+!                TripsInfo(0,0)=(1.0_dp)
+!                TripsInfo(0,1)=(1.0_dp)
 !
 !!Now, setup excitation generators from each double excitation
 !                nStore2(1)=0
@@ -247,12 +247,12 @@
 !           lp4: do while(.true.)
 !                    CALL GenSymExcitIt2(nJ,NEl,G1,nBasis,nBasisMax,.false.,nExcit2,nK,iExcit2,0,nStore2,exFlagDoub)
 !                    IF(nK(1).eq.0) exit lp4
-!                    rhjk=(0.D0)
+!                    rhjk=(0.0_dp)
 !!                    CALL CalcRho2(nJ,nK,Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rhjk,nTay,iExcit2,ECore)
 !!Uncomment this code if you want to only allow triple excitations from each double
 !!                    IC=iGetExcitLevel(FDet,nK,NEl)
 !!                    IF(IC.ne.3) THEN
-!!                        rh=(0.D0)
+!!                        rh=(0.0_dp)
 !!                    ENDIF
 !                    IF(abs(rhjk).gt.RhoEps) THEN
 !                        i=i+1
@@ -375,7 +375,7 @@
 !                    ELSEIF(J.eq.I) THEN
 !                        WRITE(65,"(E14.6)",advance='no') ExcitInfo(I-1,0)
 !                    ELSE
-!                        WRITE(65,"(E14.6)",advance='no') 0.D0
+!                        WRITE(65,"(E14.6)",advance='no') 0.0_dp
 !                    ENDIF
 !                ENDDO
 !                WRITE(65,*) ""
@@ -450,7 +450,7 @@
 !            ENDDO
 !                
 !            
-!            Energy=0.D0
+!            Energy=0.0_dp
 !            do i=2,ExcitCount+1
 !                Energy=Energy+HamMat(i)*ABS(ExcitMat(i,ExcitCount+1))
 !            enddo

@@ -83,7 +83,7 @@ module mcpathshdiag
 
          LOGICAL ISCONNECTEDDET
          real(dp) VARSUM,SumX,SumY,SumXY,SumXsq,SumYsq,SumP
-         DATA SumP/0.D0/
+         DATA SumP/0.0_dp/
          SAVE SumX,SumY,SumXY,SumXsq,SumYsq,SumP
 
          integer iGetExcitLevel
@@ -128,15 +128,15 @@ module mcpathshdiag
          TLOG4=BTEST(ILOGGING,9)
          TLOG5=BTEST(ILOGGING,6)
          TLOG=TLOG.AND..NOT.TLOG4
-         TOTAL=0.D0
+         TOTAL=0.0_dp
          LT=LT+1
 !C.. This is the current node (set by our parent)         
          CALL NECI_ICOPY(NEL,IPATH(1:NEL,I_VIND),1,INODE,1)
          rh = get_helement(INODE, INODE, 0)
          HIJ(I_VIND,I_VIND)=RH
 !C.. we note that if this node has rho_II=0 (i.e. RH=0) then we just return
-         IF(.not.abs(RH).gt.0.D0) THEN
-            FMCPR3B2RES=0.D0
+         IF(.not.abs(RH).gt.0.0_dp) THEN
+            FMCPR3B2RES=0.0_dp
             RETURN
          ENDIF
          IF(I_VIND.EQ.(I_V-1)) THEN
@@ -173,9 +173,9 @@ module mcpathshdiag
                   CALL ModMPDiagElement(Hij(i_V-1,i_V-1),iPath(1,0),       &
      &             iPath(1,i_V-1),NEL)
                Endif
-               MPEs=(0.d0)
+               MPEs=(0.0_dp)
                CALL AddMPEnergy(Hij,i_V,i_vmax,NMAX,nBasis,iPath,nEl,tLog,ECORE,MPEs)
-               MPEn=0.D0
+               MPEn=0.0_dp
                DO i=2,i_VMax
                   MP2E(i)=MP2E(i)+MPEs(i)
                   MPEn=MPEn+MPEs(i)
@@ -183,7 +183,7 @@ module mcpathshdiag
             ENDIF
                 
                    !WRITE(43,*) DLWDB2, EREF
-                   !CALL FLUSH(43)
+                   !CALL neci_flush(43)
 !        write (6,*) "from mcpathshdiag, EREF=",EREF
 !            IF (TVARCALC(I_V)) THEN
 !                CALL WRITEPATH(43,IPATH,I_V,NEL,.TRUE.)
@@ -231,7 +231,7 @@ module mcpathshdiag
             IF(TLOG4.AND.MOD(L,G_VMC_LOGCOUNT).EQ.0) THEN
 !C.. log every 1000
                WRITE(10,"(I10,3E25.16)") L,NTOTAL,DLWDB,MP2E(2)
-               CALL FLUSH(10)
+               CALL neci_flush(10)
             ENDIF
             RETURN
          ENDIF
@@ -362,11 +362,11 @@ module mcpathshdiag
                  RH = get_helement (iPath(:, iExFrom), nJ, ic)
                   IF(.NOT.(abs(RH).GE.RHOEPS)) THEN
 !C.. if we're not connected to this node, we fail now
-                     RH=0.D0
+                     RH=0.0_dp
                      TFAIL=.TRUE.
                   ENDIF
 #ifdef __CMPLX
-                  HIJ(I_VIND+1,IEXFROM)=DCONJG(RH)
+                  HIJ(I_VIND+1,IEXFROM)=conjg(RH)
 #else
                   HIJ(I_VIND+1,IEXFROM)=(RH)
 #endif
@@ -385,9 +385,9 @@ module mcpathshdiag
 !C.. because we've just done that
                   IF(.NOT.TFAIL.AND.II.NE.IEXFROM) THEN
                      rh = get_helement(iPath(:, iI), nJ)
-                     IF(.NOT.(abs(RH).GE.RHOEPS)) RH=0.D0
+                     IF(.NOT.(abs(RH).GE.RHOEPS)) RH=0.0_dp
 #ifdef __CMPLX
-                     HIJ(I_VIND+1,II)=DCONJG(RH)
+                     HIJ(I_VIND+1,II)=conjg(RH)
 #else
                      HIJ(I_VIND+1,II)=(RH)
 #endif
@@ -395,7 +395,7 @@ module mcpathshdiag
                      IF(II<I_VIND) then
                    IF(IsConnectedDet(IPATH(1,II),NJ)) THEN
 !if rhoeps is zero then always set TFAIL.  if rhoeps isn't zero, then set TFAIL if Rh isn't zero (i.e. we've included it before)
-                     IF(RH.NE.0.D0.OR.RHOEPS.EQ.0.D0) THEN
+                     IF(RH.NE.0.0_dp.OR.RHOEPS.EQ.0.0_dp) THEN
 !C.. If the node to which this node (NJ) is attached was known about at
 !C.. the time of node II, we are allowed to have a connection between
 !C.. node NJ and II.  Otherwise, this node must not be attached to II, as
@@ -495,13 +495,13 @@ module mcpathshdiag
      &                      +SumYsq/SumY**2-2*SumXY/(SumX*SumY))
 
           write(6,"(2A,G24.16)") "Sum of Pgens of graphs included", " in variance is ", SumP
-          SumP=0.D0
-          VARSUM=0.D0
-          SumX=0.D0
-          SumY=0.D0
-          SumXsq=0.D0
-          SumYsq=0.D0
-          SumXY=0.D0
+          SumP=0.0_dp
+          VARSUM=0.0_dp
+          SumX=0.0_dp
+          SumY=0.0_dp
+          SumXsq=0.0_dp
+          SumYsq=0.0_dp
+          SumXY=0.0_dp
     
         End If
         
@@ -512,16 +512,17 @@ end module
 
       Subroutine WriteGraphEnergies(IPATH, I_V, nEl,nBasis,Arr,Weight)
          use constants, only: dp
-         Integer I_V, nEl, nBasis, IPATH(nEl,0:I_V), EX(2,2), T
+         Integer I_V, nEl, nBasis, IPATH(nEl,0:I_V), EX(2,2)
          real(dp) Arr(nBasis, 2),Energyfromnew
          real(dp) Energyfromold
          real(dp) totWeight,avWeight
          real(dp) Weight
+         LOGICAL T
          INTEGER g
          DATA g/0/
-         DATA totWeight/0.D0/
-!         DATA Energytoold/0.D0/
-         DATA Energyfromold/0.D0/
+         DATA totWeight/0.0_dp/
+!         DATA Energytoold/0.0_dp/
+         DATA Energyfromold/0.0_dp/
          SAVE g,Energyfromold,totWeight
          OPEN(56,FILE="WEIGHTDATA",STATUS="UNKNOWN")
          EX(1,1)=2
@@ -543,7 +544,7 @@ end module
          ELSE
              avWeight=totWeight/g
              Write(56, "(G25.16,I9,G25.16)") avWeight,g, Energyfromold
-             avWeight=0.D0
+             avWeight=0.0_dp
              totWeight=Weight
              g=1
          ENDIF
@@ -554,16 +555,16 @@ end module
          Subroutine GetGraphstats(IPATH, I_V, nEl,nBasis,Arr,Weight,NBASISMAX,DLWDB2)
          use constants, only: dp,int64
          USE UMatCache , only : GTID
-         use Integrals, only : GetUMatEl
+         use Integrals_neci, only : GetUMatEl
          use SystemData, only: BasisFN
          IMPLICIT NONE
-         Integer I_V,nEl,nBasis,IPATH(nEl,0:I_V),EX(2,2),T
+         Integer I_V,nEl,nBasis,IPATH(nEl,0:I_V),EX(2,2)
          real(dp) ARR(nBasis,2),EnergyTo,EnergyFrom
          INTEGER I,J,K,L,ISS,IDI,IDJ,IDL,IDK,nBasisMax(5,*)
          INTEGER EXCITLEV
          real(dp) Weight,DLWDB2
          HElement_t ME
-         LOGICAL AREDETSEXCITS,CONNECT23
+         LOGICAL AREDETSEXCITS,CONNECT23, T
          integer c
          integer(int64) SINGLE,DOUBLE,histogram(-20:3)
          SAVE c,SINGLE,DOUBLE,histogram
@@ -578,7 +579,7 @@ end module
             OPEN(56,FILE="GRAPHSTATS",STATUS="UNKNOWN")
             CALL GetEXCITATION(IPATH(1:NEL,0),IPATH(1:NEL,1),NEL,EX,T)
          
-            IF((EX(1,2).eq.0).and.(Weight.gt.0.D0)) THEN
+            IF((EX(1,2).eq.0).and.(Weight.gt.0.0_dp)) THEN
 !               Energy=Arr(Ex(1,1),2)
                 STOP 'Should not be here for 2v graphs'
                 RETURN
@@ -695,7 +696,7 @@ end module
                 ENDIF
 ! Looks like debug output...
 !                IF((MOD(c,100000).eq.0)) THEN
-!                    Percendoub=((DOUBLE+0.D0)/(DOUBLE+SINGLE+0.D0))*100
+!                    Percendoub=((DOUBLE+0.0_dp)/(DOUBLE+SINGLE+0.0_dp))*100
 !                    WRITE(124,*) c,(SINGLE+DOUBLE),Percendoub
 !                ENDIF
             ENDIF

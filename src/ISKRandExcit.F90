@@ -76,7 +76,7 @@ MODULE ISKRandExcit
             if(tSame_ISK) then
                 !We have created the same ISK - return null ISK
                 nJ(1)=0
-                if(tGenMatHEl) HEl=0.D0
+                if(tGenMatHEl) HEl=0.0_dp
             elseif(tCrossConnected) then
                 !The cross-term is connected. Calculate the probability that we created this det instead (in same ISK)
                 CALL CalcNonUniPGen(nI, CrossEx, CrossIC, &
@@ -341,7 +341,7 @@ MODULE ISKRandExcit
         use util_mod, only: get_free_unit
         use sort_mod
         use HPHFRandExcitMod, only: BinSearchListHPHF
-        use Parallel
+        use Parallel_neci
         IMPLICIT NONE
         INTEGER :: nIX(NEl)
         INTEGER :: i,Iterations,nI(NEl),nJ(NEl),DetConn,nI2(NEl),nJ2(NEl),DetConn2
@@ -352,7 +352,7 @@ MODULE ISKRandExcit
         INTEGER(KIND=n_int), ALLOCATABLE :: ConnsAlpha(:,:),ConnsBeta(:,:),UniqueHPHFList(:,:)
         INTEGER , ALLOCATABLE :: ExcitGen(:)
         real(dp) , ALLOCATABLE :: Weights(:),AllWeights(:)
-        INTEGER :: iMaxExcit,nStore(6),nExcitMemLen,j,k,l, iunit
+        INTEGER :: iMaxExcit,nStore(6),nExcitMemLen(1),j,k,l, iunit
         integer :: icunused, exunused(2,2)
         logical :: tParityunused, tTmp
         type(excit_gen_store_type) :: store
@@ -392,7 +392,7 @@ MODULE ISKRandExcit
         WRITE(6,*) "***"
         WRITE(6,*) Iterations,pDoub
 !        WRITE(6,*) "nSymLabels: ",nSymLabels
-        CALL FLUSH(6)
+        CALL neci_flush(6)
 
 !First, we need to enumerate all possible ISK wavefunctions from each inverse-pair of determinants.
 !These need to be stored in an array
@@ -402,7 +402,7 @@ MODULE ISKRandExcit
         iMaxExcit=0
         nStore(1:6)=0
         CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,3)
-        ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
+        ALLOCATE(EXCITGEN(nExcitMemLen(1)),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
         EXCITGEN(:)=0
         CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,3)
@@ -433,7 +433,7 @@ MODULE ISKRandExcit
         DEALLOCATE(EXCITGEN)
         
         CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,3)
-        ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
+        ALLOCATE(EXCITGEN(nExcitMemLen(1)),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
         EXCITGEN(:)=0
         CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,3)
@@ -510,7 +510,7 @@ MODULE ISKRandExcit
         & //"which are not in the alpha version."
         IF(iUniqueBeta.ne.0) THEN
             WRITE(6,*) "ISK from beta, but not from alpha!"
-            CALL FLUSH(6)
+            CALL neci_flush(6)
             STOP
         ENDIF
 
@@ -573,8 +573,8 @@ MODULE ISKRandExcit
 
         ALLOCATE(Weights(iUniqueHPHF))
         ALLOCATE(AllWeights(iUniqueHPHF))
-        AllWeights(:)=0.D0
-        Weights(:)=0.D0
+        AllWeights(:)=0.0_dp
+        Weights(:)=0.0_dp
         store%tFilled = .false.
 
         write(6,*) "Generating ISK random excitations..."
@@ -599,7 +599,7 @@ MODULE ISKRandExcit
                 CALL Stop_All("TestGenRandISKExcit","Cannot find excitation in list of allowed excitations")
             ENDIF
 
-            Weights(PartInd)=Weights(PartInd)+(1.D0/pGen)
+            Weights(PartInd)=Weights(PartInd)+(1.0_dp/pGen)
              
 !Check excitation
 !            CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
@@ -616,8 +616,8 @@ MODULE ISKRandExcit
     !normalise excitation probabilities
             Die=.false.
             do i=1,iUniqueHPHF
-                AllWeights(i)=AllWeights(i)/(real(Iterations,8)*real(nNodes,8))
-                IF(abs(AllWeights(i)-1.D0).gt.0.1) THEN
+                AllWeights(i)=AllWeights(i)/(real(Iterations,dp)*real(nNodes,dp))
+                IF(abs(AllWeights(i)-1.0_dp).gt.0.1) THEN
                     WRITE(6,*) "Error here!",i
                     Die=.true.
                 ENDIF

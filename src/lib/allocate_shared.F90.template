@@ -4,36 +4,37 @@ sizeof = sizeof_int32
 dim = :
 elem1 = 
 alloc_str = dims(1)
+conditional_enable = !defined(SX)
 
 [int2]
 dim = :,:
 elem1 = ,1
 alloc_str = dims(1), dims(2)
+conditional_enable = !defined(SX)
 
 [int3]
 dim = :,:,:
 elem1 = ,1,1
 alloc_str = dims(1), dims(2), dims(3)
+conditional_enable = !defined(SX)
 
 [int4]
 dim = :,:,:,:
 elem1 = ,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4)
+conditional_enable = !defined(SX)
 
 [int5]
 dim = :,:,:,:,:
 elem1 = ,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5)
+conditional_enable = !defined(SX)
 
 [int6]
 dim = :,:,:,:,:,:
 elem1 = ,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
-
-[int7]
-dim = :,:,:,:,:,:,:
-elem1 = ,1,1,1,1,1,1
-alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
+conditional_enable = !defined(SX)
 
 [int64_1]
 type = integer(int64)
@@ -67,11 +68,6 @@ dim = :,:,:,:,:,:
 elem1 = ,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
 
-[int64_7]
-dim = :,:,:,:,:,:,:
-elem1 = ,1,1,1,1,1,1
-alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
-
 [doub1]
 type = real(dp)
 sizeof = sizeof_dp
@@ -104,47 +100,43 @@ dim = :,:,:,:,:,:
 elem1 = ,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
 
-[doub7]
-dim = :,:,:,:,:,:,:
-elem1 = ,1,1,1,1,1,1
-alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
-
 [real1]
 type = real(sp)
 sizeof = sizeof_sp
 dim = :
 elem1 = 
 alloc_str = dims(1)
+conditional_enable = !defined(SX)
 
 [real2]
 dim = :,:
 elem1 = ,1
 alloc_str = dims(1), dims(2)
+conditional_enable = !defined(SX)
 
 [real3]
 dim = :,:,:
 elem1 = ,1,1
 alloc_str = dims(1), dims(2), dims(3)
+conditional_enable = !defined(SX)
 
 [real4]
 dim = :,:,:,:
 elem1 = ,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4)
+conditional_enable = !defined(SX)
 
 [real5]
 dim = :,:,:,:,:
 elem1 = ,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5)
+conditional_enable = !defined(SX)
 
 [real6]
 dim = :,:,:,:,:,:
 elem1 = ,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
-
-[real7]
-dim = :,:,:,:,:,:,:
-elem1 = ,1,1,1,1,1,1
-alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
+conditional_enable = !defined(SX)
 
 [complex1]
 type = complex(dp)
@@ -178,37 +170,52 @@ dim = :,:,:,:,:,:
 elem1 = ,1,1,1,1,1
 alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
 
-[complex7]
-dim = :,:,:,:,:,:,:
-elem1 = ,1,1,1,1,1,1
-alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6), dims(7)
+[log1]
+type = logical
+sizeof = sizeof_log
+dim = :
+elem1 = 
+alloc_str = dims(1)
+
+[log2]
+dim = :,:
+elem1 = ,1
+alloc_str = dims(1), dims(2)
+
+[log3]
+dim = :,:,:
+elem1 = ,1,1
+alloc_str = dims(1), dims(2), dims(3)
 
 =========================
 
 
 module shared_alloc
-    use, intrinsic :: iso_c_binding
+    use iso_c_hack
     use constants
     use HElem
-    use Parallel
+    use ParallelHelper, only: iProcIndex
     implicit none
 
+#ifndef __PGI
     private
     public :: shared_allocate, shared_deallocate, shared_allocate_iluts
+#endif
     
     interface
-        subroutine alloc_shared_worker (nm, pt, sz) bind(c)
-            use, intrinsic :: iso_c_binding
+        subroutine alloc_shared_worker (nm, pt, sz, proc) bind(c)
+            use iso_c_hack
             implicit none
             character(c_char), intent(in) :: nm
             type(c_ptr), intent(inout) :: pt
             integer(c_size_t), value :: sz
+            integer(c_int), value :: proc
         end subroutine
         subroutine dealloc_shared_worker (ptr) bind(c)
-            use, intrinsic :: iso_c_binding
+            use iso_c_hack
             use constants, only: int32, int64
             implicit none
-#ifdef __PATHSCALE__
+#if defined(__PATHSCALE__) || defined(__ISO_C_HACK)
 #ifdef POINTER8
             integer(int64), value :: ptr
 #else
@@ -219,14 +226,14 @@ module shared_alloc
 #endif
         end subroutine
         subroutine shm_unlink_shared_worker (ptr) bind(c)
-            use, intrinsic :: iso_c_binding
+            use iso_c_hack
             implicit none
             type(c_ptr), value :: ptr
         end subroutine
         function test_shared_permissions () result(bAvail) bind(c)
-            use, intrinsic :: iso_c_binding
+            use iso_c_hack
             implicit none
-#ifdef __PGI__
+#if defined __PGI || defined __G95__
             logical :: bAvail
 #else
             logical(c_bool) :: bAvail
@@ -277,7 +284,8 @@ contains
         sz = %(sizeof)s * product(int(dims,int64))
 
         ! Allocate the shared memory
-        call alloc_shared_worker (name_tmp, tmp, int(sz, kind=c_size_t))
+        call alloc_shared_worker (name_tmp, tmp, int(sz, kind=c_size_t), &
+                                  int(iProcIndex, kind=c_int))
 
         ! Assign to a fortran pointer.
         ! Use of ptr_tmp to work around a compiler bug in ifort < 11
@@ -326,7 +334,8 @@ contains
         sz = %(sizeof)s * product(int(dims_tmp,int64))
 
         ! Allocate the shared memory
-        call alloc_shared_worker (name_tmp, tmp, int(sz, kind=c_size_t))
+        call alloc_shared_worker (name_tmp, tmp, int(sz, kind=c_size_t), &
+                                  int(iProcIndex, kind=c_int))
 
         ! Assign to a fortran pointer.
         call c_f_pointer (tmp, ptr_tmp, dims_tmp)
@@ -364,7 +373,7 @@ contains
         %(type)s, pointer :: pt1
 
         ! Sigh, a hack to get pathscale to work
-#ifdef __PATHSCALE__
+#if defined(__PATHSCALE__) || defined(__ISO_C_HACK)
 #ifdef POINTER8
         integer(int64) :: tmp
 #else
@@ -378,7 +387,7 @@ contains
         ! be a scalar variable.
         pt1 => ptr(lbound(ptr,1) %(elem1)s)
 
-#ifdef __PATHSCALE__
+#if defined(__PATHSCALE__) || defined(__ISO_C_HACK)
         tmp = loc(ptr(:%(elem1)s))
 #else
         tmp = c_loc(pt1)

@@ -1,6 +1,6 @@
 
 MODULE UMatCache
-    use constants, only: dp
+    use constants, only: dp,sizeof_int
     use SystemData , only : TSTARSTORE, tROHF,tStoreSpinOrbs
     use util_mod, only: swap
     use sort_mod
@@ -17,12 +17,12 @@ MODULE UMatCache
 ! For real systems, nTypes=1, and we have a single value for each unique ordered pair of ordered pairs (i,k), (j,l)
 ! out of <ij|u|kl> (where i,j,k,l are state labels).
 ! For complex systems, nTypes=2, giving two possible values.
-! For each nPairs (which corresponds to the greater of the two pairs), there  are nSlots, with the other pair label in 
+! For each nPairs (which corresponds to the greater of the two pairs), there  are nSlots, with the other pair label in
 ! UMatLabels, and the values in UMatCache.
 ! nStates is the maximum number of states stored in the cache (which may not be all the states if there are frozen virtuals).
 
-      HElement_t, Pointer :: UMatCacheData(:,:,:) !(0:nTypes-1,nSlots,nPairs)
-      INTEGER, Pointer :: UMatLabels(:,:) !(nSlots,nPairs)
+      HElement_t, Pointer :: UMatCacheData(:,:,:) => null() !(0:nTypes-1,nSlots,nPairs)
+      INTEGER, Pointer :: UMatLabels(:,:) => null() !(nSlots,nPairs)
       INTEGER :: nSlots, nPairs, nTypes
       INTEGER :: nStates
 
@@ -46,14 +46,14 @@ MODULE UMatCache
 !     UMAT2D : Stores the integrals of the form <ij|ij> and <ij|ji>
 !     <ij|ij> is stored in the upper diagaonal, <ij|ji> in the
 !     off-diagonal elements of the lower triangle.
-      HElement_t, Pointer :: UMat2D(:,:) !(nStates,nStates)
+      HElement_t, Pointer :: UMat2D(:,:) => null() !(nStates,nStates)
       LOGICAL :: tUMat2D
 
 ! This vector stores the energy ordering for each spatial orbital, which is the inverse of the BRR vector
 ! This is needed for the memory saving star indexing system.
 ! E.g. Element 4 will give the the order in the energy of element 4
-     INTEGER, DIMENSION(:), POINTER :: INVBRR
-     INTEGER, DIMENSION(:), POINTER :: INVBRR2
+     INTEGER, DIMENSION(:), POINTER :: INVBRR => null()
+     INTEGER, DIMENSION(:), POINTER :: INVBRR2 => null()
 
 !NOCC is number of occupied spatial orbitals - needed for test in UMATInd, thought would be quicker than passing it in each time.
 !Freezetransfer is a temporary measure to tell UMATIND when the freezing of orbitals is occuring.
@@ -84,16 +84,16 @@ MODULE UMatCache
 
 ! Some various translation tables to convert between different orderings of states.
       LOGICAL :: tTransGTID, tTransFindx
-      INTEGER, Pointer :: TransTable(:) !(NSTATES)
-      INTEGER, Pointer :: InvTransTable(:) !(NSTATES)
+      INTEGER, Pointer :: TransTable(:) => null() !(NSTATES)
+      INTEGER, Pointer :: InvTransTable(:) => null() !(NSTATES)
 
 ! Density fitting cache information: for generating integrals on the fly from density fitting.
       integer nAuxBasis,nBasisPairs
-      logical tDFInts      
-      real(dp),Pointer :: DFCoeffs(:,:) !(nAuxBasis,nBasisPairs)
-      real(dp),Pointer :: DFInts(:,:) !(nAuxBasis,nBasisPairs)
-      real(dp),Pointer :: DFFitInts(:,:) !(nAuxBasis,nAuxBasis)
-      real(dp),Pointer :: DFInvFitInts(:,:) !(nAuxBasis,nAuxBasis)
+      logical tDFInts
+      real(dp),Pointer :: DFCoeffs(:,:) => null() !(nAuxBasis,nBasisPairs)
+      real(dp),Pointer :: DFInts(:,:) => null() !(nAuxBasis,nBasisPairs)
+      real(dp),Pointer :: DFFitInts(:,:) => null() !(nAuxBasis,nAuxBasis)
+      real(dp),Pointer :: DFInvFitInts(:,:) => null() !(nAuxBasis,nAuxBasis)
       INTEGER iDFMethod
 !Some possible DFMethods sums over P, Q implied.  All precontracted to run in order(X) except DFOVERLAP2NDORD
 ! 0 - no DF
@@ -130,7 +130,7 @@ MODULE UMatCache
          nOcc=nOccSpatOrbs
          nStates=nSpatOrbs
       End Subroutine InitStarStoreUMat
-     
+
 
       SUBROUTINE CreateInvBRR2(BRR2,NBASIS)
       ! Create new INVBRR for the freezing process
@@ -141,7 +141,8 @@ MODULE UMatCache
       ! orbital corresponds to the i-th orbital in the original basis.
         use global_utilities
         IMPLICIT NONE
-        INTEGER BRR2(NBASIS),NBASIS,ierr,I,t
+        INTEGER NBASIS
+        INTEGER BRR2(NBASIS),ierr,I,t
         character(*), parameter :: t_r='CreateInvBRR2'
 
 !        WRITE(6,*) "================================"
@@ -156,11 +157,11 @@ MODULE UMatCache
             t=t+1
             INVBRR2(BRR2(I)/2)=t
         ENDDO
-       
+
 !        WRITE(6,*) "================================"
 !        WRITE(6,*) "InvBRR2 is "
 !        WRITE(6,*) INVBRR2(:)
-        
+
         RETURN
       END SUBROUTINE CreateInvBRR2
 
@@ -174,7 +175,8 @@ MODULE UMatCache
       ! orbital corresponds to the i-th orbital in the original basis.
         use global_utilities
         IMPLICIT NONE
-        INTEGER BRR(NBASIS),NBASIS,ierr,I,t
+        INTEGER NBASIS
+        INTEGER BRR(NBASIS),ierr,I,t
         character(*), parameter :: t_r='CreateInvBRR'
 
         IF(ASSOCIATED(INVBRR)) THEN
@@ -192,11 +194,11 @@ MODULE UMatCache
         RETURN
       END SUBROUTINE CreateInvBRR
 
-      
+
 
       INTEGER FUNCTION UMatInd(I,J,K,L,NBASIS,NOCCUPIED)
-         ! Get the index of physical order UMAT element <IJ|KL>.  
-         ! Indices are internally reordered such that I>K, J>L,(I,K)>(J,L) 
+         ! Get the index of physical order UMAT element <IJ|KL>.
+         ! Indices are internally reordered such that I>K, J>L,(I,K)>(J,L)
          ! Note: (i,k)>(j,l) := (k>l) || ((k==l)&&(i>j))
          ! In:
          !    I,J,K,L: orbital indices. These refer to spin orbitals in
@@ -260,7 +262,7 @@ MODULE UMatCache
                     WRITE(6,*) "USING ORIGINAL UMAT AND STORED NOCC"
                     WRITE(6,*) "NOCC is: ",NOCC
                     WRITE(6,*) "SPIN-ORBITALS ",I*2,", ", J*2,", ",K*2,", ",L*2," requested."
-                    CALL FLUSH(6)
+                    CALL neci_flush(6)
                     STOP 'NO OCCUPIED ORBITAL PAIR REQUESTED'
                 ENDIF
             ELSE
@@ -269,12 +271,12 @@ MODULE UMatCache
                     WRITE(6,*) "USING UMAT2 AND NOCC FROM ARGUMENT"
                     WRITE(6,*) "NOCC is: ",NOCC
                     WRITE(6,*) "SPIN-ORBITALS ",I*2,", ", J*2,", ",K*2,", ",L*2," requested."
-                    CALL FLUSH(6)
+                    CALL neci_flush(6)
                     STOP 'NO OCCUPIED ORBITAL PAIR REQUESTED'
                 ENDIF
             ENDIF
-                
-                
+
+
             IF(NBASIS.ne.0) THEN
                 BB=((S-1)*NBASIS)+U
                 AA=((R-1)*NBASIS)+T
@@ -282,7 +284,7 @@ MODULE UMatCache
                 BB=((S-1)*nStates)+U
                 AA=((R-1)*nStates)+T
             ENDIF
-                
+
             UMatInd=((BB*(BB-1))/2)+AA
             RETURN
 
@@ -294,10 +296,10 @@ MODULE UMatCache
             ELSE
                 A=(K*(K-1))/2+I
             ENDIF
-         
+
             !Combine indices J and L, ensuring J>K
             IF(J.GT.L) THEN
-                B=(J*(J-1))/2+L 
+                B=(J*(J-1))/2+L
             ELSE
                 B=(L*(L-1))/2+J
             ENDIF
@@ -308,8 +310,8 @@ MODULE UMatCache
             ELSE
                 UMatInd=(B*(B-1))/2+A
             ENDIF
-#ifdef __CMPLX            
-            UMatInd = (UmatInd-1)*2 + 1 
+#ifdef __CMPLX
+            UMatInd = (UmatInd-1)*2 + 1
             !We need to test whether we have swapped i and k or j and l independantly of each other
             !If we have done this, it is one of the 'other' integrals - add one.
             if (((I.gt.K).and.(J.lt.L)) .or. ((I.lt.K).and.(J.gt.L))) then
@@ -330,24 +332,24 @@ MODULE UMatCache
          IDJ=J
          IDK=K
          IDL=L
- 
+
          !First find rearranged indices.
          IF(idi.lt.idk) then
              !swap idi and idk
              call swap(idi,idk)
          ENDIF
- 
+
          IF(idj.lt.idl) then
              !swap idj and idl
              call swap(idj,idl)
          ENDIF
- 
+
          IF((idl.lt.idk).or.((idl.eq.idk).and.(idi.lt.idj))) THEN
              !We would want to swap the (ik) and (jl) pair.
              call swap(idi,idj)
              call swap(idk,idl)
          ENDIF
- 
+
          !Indices now permuted to the real case ordering. Is this now the same integral?
          if (((I.gt.K).and.(J.lt.L)) .or. ((I.lt.K).and.(J.gt.L))) then
              !Type II integral - reducing to lowest ordering will give 'other'
@@ -355,7 +357,7 @@ MODULE UMatCache
              !If i = k, or j = l, we do not go through here.
              call swap(idi,idk)  !Revert back to the correct integral by swapping just i and k.
          endif
- 
+
          !Want to see if the pairs of indices have swapped sides.
          !Make unique index from the ij and kl pairs
          IF(IDI.gt.IDJ) THEN
@@ -363,7 +365,7 @@ MODULE UMatCache
          ELSE
              A=IDJ*(IDJ-1)/2+IDI
          ENDIF
- 
+
          !Create uniques indices from the original pairs of indices.
          !We only need to consider whether the (ij) pair has swapped sides, since
          !the <ij|ij> and <ij|ji> integrals are real by construction, and so we do not
@@ -373,7 +375,7 @@ MODULE UMatCache
          ELSE
              NewA=J*(J-1)/2+I
          ENDIF
- 
+
          !Check whether pairs of indices have swapped sides.
          IF(NewA.ne.A) THEN
              UMatConj=CONJG(val) !Index pair i and j have swapped sides - take CC.
@@ -394,7 +396,7 @@ MODULE UMatCache
 
       SUBROUTINE GetUMatSize(nBasis,nEl,iSize)
         use SystemData, only: tStoreSpinOrbs
-      ! Get the prospective size of a UMat (not a UMatCache) for completely 
+      ! Get the prospective size of a UMat (not a UMatCache) for completely
       ! storing FCIDUMP 2-e integrals
       ! In:
       !    nBasis: as above.
@@ -418,7 +420,7 @@ MODULE UMatCache
 
          nBi=nBasis/iSS
 !         WRITE(6,*) iSS,nBasis,nBi
-!         CALL FLUSH(6)
+!         CALL neci_flush(6)
          IF(TSTARSTORE) THEN
             IF(MOD(nel,2).ne.0) THEN
                 noccup=(nel+1)/iSS
@@ -426,7 +428,7 @@ MODULE UMatCache
                 noccup=nel/iSS
             ENDIF
             iPairs=noccup*nBi
-            iSize=(iPairs*(iPairs+1))/2 
+            iSize=(iPairs*(iPairs+1))/2
          ELSE
             iPairs=(nBi*(nBi+1))/2
             iSize=(iPairs*(iPairs+1))/2
@@ -435,7 +437,7 @@ MODULE UMatCache
 #endif
          ENDIF
       END SUBROUTINE GetUMatSize
-      
+
 
 
       SUBROUTINE SETUPUMATCACHE(NSTATE,TSMALL)
@@ -468,7 +470,7 @@ MODULE UMatCache
             ELSE
                IF(nMemInit.NE.0) THEN
                   WRITE(6,*) "Allocating ",nMemInit,"Mb for UMatCache+Labels."
-                  nSlotsInit=(nMemInit*1048576/8)/(nPairs*(nTypes*HElement_t_size+1.D0/irat))
+                  nSlotsInit=nint((nMemInit*1048576/8)/(nPairs*(nTypes*HElement_t_size+1.0_dp/irat)),sizeof_int)
                ENDIF
                NSLOTS=MIN(NPAIRS, NSLOTSINIT)
                tSmallUMat=.FALSE.
@@ -484,10 +486,10 @@ MODULE UMatCache
             call LogMemAlloc('UMatCache',nTypes*nSlots*nPairs,8*HElement_t_size,thisroutine,tagUMatCacheData)
             Allocate(UMatLabels(nSlots,nPairs), STAT=ierr)
             CALL LogMemAlloc('UMATLABELS',nSlots*nPairs,4,thisroutine,tagUMatLabels)
-            Memory=(REAL(nTypes*nSlots,8)*nPairs*8.D0*HElement_t_size+nSlots*nPairs*4.D0)*9.536743316D-7
+            Memory=(REAL(nTypes*nSlots,dp)*nPairs*8.0_dp*HElement_t_size+nSlots*nPairs*4.0_dp)*9.536743316e-7_dp
             WRITE(6,"(A,G20.10,A)") "Total memory allocated for storage of integrals in cache is: ",Memory,"Mb/Processor"
 
-            UMatCacheData=(0.d0)
+            UMatCacheData=(0.0_dp)
             UMATLABELS(1:nSlots,1:nPairs)=0
 !If tSmallUMat is set here, and have set tCacheFCIDUMPInts, then we need to read in the <ik|u|jk> integrals from the FCIDUMP file, then disperse them using the
 !FillUMatCache routine. Otherwise, we need to read in all the integrals.
@@ -530,7 +532,7 @@ MODULE UMatCache
 
 
       SUBROUTINE SETUPUMAT2D_DF()
-         ! Set up UMat2D for storing the <ij|u|ij> and <ij|u|ji> integrals for 
+         ! Set up UMat2D for storing the <ij|u|ij> and <ij|u|ji> integrals for
          ! density fitting calculations.
          use SystemData, only: tRIIntegrals,tCacheFCIDUMPInts
          use global_utilities
@@ -558,7 +560,7 @@ MODULE UMatCache
       END SUBROUTINE SetupUMat2D_DF
 
 
-     
+
       SUBROUTINE SETUMATTRANS(TRANS)
          ! In:
          !    Trans: Translation list of orbitrals from one ordering to a new one.
@@ -575,9 +577,9 @@ MODULE UMatCache
          CALL NECI_ICOPY(NSTATES,TRANS,1,TransTable,1)
          TTRANSGTID=.TRUE.
       END SUBROUTINE SetUMatTrans
- 
- 
- 
+
+
+
       SUBROUTINE SetupUMatTransTable(OldNew,nOld,nNew)
          ! Set up translational table for freezing.
          ! In:
@@ -614,7 +616,7 @@ MODULE UMatCache
       END SUBROUTINE SetupUMatTransTable
 
 
-      
+
       SUBROUTINE DESTROYUMATCACHE
          use global_utilities
          IMPLICIT NONE
@@ -628,7 +630,7 @@ MODULE UMatCache
             Deallocate(UMatLabels)
             IF(ASSOCIated(UMat2D)) THEN
                CALL LogMemDealloc(thisroutine,tagUMat2D)
-               Deallocate(UMat2D) 
+               Deallocate(UMat2D)
             ENDIF
             IF(ASSOCIated(TransTable)) THEN
                CALL LogMemDealloc(thisroutine,tagTransTable)
@@ -650,7 +652,9 @@ MODULE UMatCache
             WRITE(6,*) NHITS, " hits"
             WRITE(6,*) NMISSES, " misses"
             WRITE(6,*) iCacheOvCount, " overwrites"
-            WRITE(6,"(F6.2,A)") (NHITS/(NHITS+NMISSES+0.D0))*100,"% success"
+            if(NHITS+NMISSES.gt.0) then
+                WRITE(6,"(F6.2,A)") (NHITS/(NHITS+NMISSES+0.0_dp))*100,"% success"
+            endif
          ENDIF
       END SUBROUTINE WriteUMatCacheStats
 
@@ -722,8 +726,8 @@ MODULE UMatCache
 
       SUBROUTINE BINARYSEARCH(VAL,TAB,A,B,LOC,LOC1,LOC2)
 !   A binary search to find VAL in TAB.  TAB is sorted, but can have
-!   multiple entries being the same.  If the search terminated unsuccessfully, 
-!   the entry indicated is one after half-way through the set of entries which 
+!   multiple entries being the same.  If the search terminated unsuccessfully,
+!   the entry indicated is one after half-way through the set of entries which
 !   would be immediately prior to it.  From here until the label changes
 !   should be filled with VAL if it is to be entered into the table.
 !   A and B are the limits of the table.
@@ -814,7 +818,7 @@ MODULE UMatCache
 
 
 
-! Example: calculating int(sqrt(2*ind)) from 2*ind.      
+! Example: calculating int(sqrt(2*ind)) from 2*ind.
 !    2ind                    sqrt(2ind)
 !     2  4  8 14 22... 92  -> 1  2  2  3  4 ... 9
 !        6 10 16 24    94        2  3  4  4     9
@@ -842,7 +846,7 @@ MODULE UMatCache
          ! Reverse of GetCacheIndex.
          IMPLICIT NONE
          INTEGER I,J,IND
-         J=SQRT(2.0*IND)
+         J=int(SQRT(2.0*IND))
          IF(J*(J+1)/2.LT.IND) J=J+1
          I=IND-J*(J-1)/2
       END SUBROUTINE GetCacheIndexStates
@@ -876,7 +880,7 @@ MODULE UMatCache
 
          Allocate(NUMat2D(NewBasis/iSS,NewBasis/iSS),STAT=ierr)
          call LogMemAlloc('UMat2D',(NewBasis/iSS)**2,8*HElement_t_size,thisroutine,tagNUMat2D,ierr)
-         NUMat2D(:,:)=(0.D0)
+         NUMat2D(:,:)=(0.0_dp)
          DO i=1,OldBasis/2
             IF(OrbTrans(i*2).NE.0) THEN
                 DO j=1,OldBasis/2
@@ -893,7 +897,7 @@ MODULE UMatCache
         tagUMat2D=tagNUMat2D
         RETURN
       END SUBROUTINE FreezeUMAT2D
-                
+
 
 
       SUBROUTINE FreezeUMatCacheInt(OrbTrans,nOld,nNew,onSlots,onPairs)
@@ -908,11 +912,11 @@ MODULE UMatCache
          INTEGER ni,nj,nk,nl,nm,nn,A,B,iType
          HElement_t,Pointer :: OUMatCacheData(:,:,:) !(0:nTypes-1,onSlots,onPairs)
          INTEGER,Pointer :: OUMatLabels(:,:) !(onSlots,onPairs)
-         
+
          INTEGER onSlots,onPairs,ierr
          LOGICAL toSmallUMat,tlog,toUMat2D,tmpl
          character(len=*),parameter :: thisroutine='FreezeUMatCacheInt'
-                  
+
          toUMat2D=tUMat2D
          IF(tUMat2D) then
             Allocate(NUMat2D(nNew/2,nNew/2),STAT=ierr)
@@ -926,7 +930,7 @@ MODULE UMatCache
                      ENDIF
                   ENDDO
                ENDIF
-            ENDDO    
+            ENDDO
             CALL LogMemDealloc(thisroutine,tagUMat2D)
             Deallocate(UMat2D)
             UMat2D=>NUMat2D
@@ -978,10 +982,10 @@ MODULE UMatCache
                 nl=OrbTrans(l*2)/2
                 IF(nj.NE.0.AND.nl.NE.0) THEN
                    ! JSS: Alex, please check!
-                   ! GetCachedUMatEl called for cache indices: El(O) is 
+                   ! GetCachedUMatEl called for cache indices: El(O) is
                    ! a dummy argument.
                    Tlog=GetCachedUmatEl(ni,nj,nk,nl,El(0),nm,nn,A,B,iType)
-                   CALL CacheUMatEl(B,OUMatCacheData(0,n,m),nm,nn,iType)
+                   CALL CacheUMatEl(B,OUMatCacheData(0,n:n+nTypes,m:m+nTypes),nm,nn,iType)
                 ENDIF
                ENDIF
               ENDIF
@@ -990,11 +994,11 @@ MODULE UMatCache
            ENDDO
           ENDIF
          ENDDO
-         CALL LogMemDealloc(thisroutine,tagOUMatLabels) 
+         CALL LogMemDealloc(thisroutine,tagOUMatLabels)
          Deallocate(OUMatLabels)
-         CALL LogMemDealloc(thisroutine,tagOUMatCacheData) 
+         CALL LogMemDealloc(thisroutine,tagOUMatCacheData)
          Deallocate(OUMatCacheData)
-         CALL SetUMatCacheFlag(0)               
+         CALL SetUMatCacheFlag(0)
       END SUBROUTINE FreezeUMatCacheInt
 
 
@@ -1004,7 +1008,7 @@ MODULE UMatCache
           IMPLICIT NONE
           INTEGER :: I,J,K,L,CacheInd(nPairs),ZeroedInt,NonZeroInt,A,B
           HElement_t :: Z
-          
+
           IF(abs(Z).lt.UMatEps) THEN
 !We have an epsilon cutoff for the size of the two-electron integrals - UMatEps
               ZeroedInt=ZeroedInt+1
@@ -1037,10 +1041,10 @@ MODULE UMatCache
               WRITE(6,*) "nPairs,nSlots: ", nPairs,nSlots
               CALL Stop_All("CacheFCIDUMP","Error in caching")
           ENDIF
-          
+
 !Store the integral in a contiguous fashion. A is the index for the i,k pair
           IF(UMATLABELS(CacheInd(A),A).ne.0) THEN
-              IF((abs(REAL(UMatCacheData(nTypes-1,CacheInd(A),A),8)-Z)).gt.1.D-7) THEN
+              IF((abs(REAL(UMatCacheData(nTypes-1,CacheInd(A),A),dp)-Z)).gt.1.0e-7_dp) THEN
                   WRITE(6,*) i,j,k,l,z,UMatCacheData(nTypes-1,CacheInd(A),A)
                   CALL Stop_All("CacheFCIDUMP","Same integral cached in same place with different value")
               ENDIF
@@ -1048,7 +1052,7 @@ MODULE UMatCache
               CALL Stop_All("CacheFCIDUMP","Overwriting UMATLABELS")
           ENDIF
           UMATLABELS(CacheInd(A),A)=B
-          IF(REAL(UMatCacheData(nTypes-1,CacheInd(A),A)).ne.0.D0) THEN
+          IF(REAL(UMatCacheData(nTypes-1,CacheInd(A),A)).ne.0.0_dp) THEN
               CALL Stop_All("CacheFCIDUMP","Overwriting when trying to fill cache.")
           ENDIF
           UMatCacheData(nTypes-1,CacheInd(A),A)=Z
@@ -1060,7 +1064,7 @@ MODULE UMatCache
 
 !After we have filled all of the cache, this will want to be sorted.
       END SUBROUTINE CacheFCIDUMP
-      
+
 
 !This is a routine to calculate the maximum size needed for nSlotsInit to hold all the needed two-electron
 !integrals in the cache.
@@ -1070,10 +1074,10 @@ MODULE UMatCache
           use SystemData, only : UMatEps,tROHF
           use constants, only: dp
           IMPLICIT NONE
-          INTEGER :: I,J,K,L,MaxSlots(1:nPairs2),A,B,C,D,X,Y,nPairs2
+          INTEGER :: I,J,K,L,nPairs2,MaxSlots(1:nPairs2),A,B,C,D,X,Y
           HElement_t :: Z
-          
-!The (ii|jj) and (ij|ij) integrals are not stored in the cache (they are stored in UMAT2D, so 
+
+!The (ii|jj) and (ij|ij) integrals are not stored in the cache (they are stored in UMAT2D, so
 !we do not want to include them in the consideration of the size of the cache.
           IF((I.eq.J).and.(K.eq.L)) THEN
               RETURN
@@ -1130,7 +1134,7 @@ MODULE UMatCache
       end if
       iunit = get_free_unit()
       open (iunit,file="CacheDump",status="old",iostat=readerr)
-      if (readerr.ne.0) then 
+      if (readerr.ne.0) then
           write (6,*) 'Error reading CacheDump.'
           return
       end if
@@ -1146,7 +1150,7 @@ MODULE UMatCache
             l=TransTable(l)
         end if
         if (min(i,j,k,l).gt.0.and.max(i,j,k,l).le.nStates) then
-            ! Need to get cache indices before we cache the integral: 
+            ! Need to get cache indices before we cache the integral:
             ! a dummy call to GetCachedUMatEl returns the needed indices and
             ! integral type information.
             tDummy=GetCachedUMatEl(i,j,k,l,DummyUmatEl(0),iCache1,iCache2,A,B,iType)
@@ -1217,12 +1221,12 @@ MODULE UMatCache
             HasKPoints=.FALSE.
          ENDIF
       end function HasKPoints
- 
+
 
 
     elemental function GTID (gInd) result(id)
-        
-        ! Convert spin orbital index to spacial orbital index if required 
+
+        ! Convert spin orbital index to spacial orbital index if required
         ! (e.g. for restricted calculation)
         !
         ! In:  gInd - Spin orbital index
@@ -1240,7 +1244,7 @@ MODULE UMatCache
         endif
         if (tTransGTID) id = TransTable(id)
     end function
-      
+
       LOGICAL FUNCTION GETCACHEDUMATEL(IDI,IDJ,IDK,IDL,UMATEL,ICACHE,ICACHEI,A,B,ITYPE)
          ! In:
          !    IDI,IDJ,IDK,IDL: orbitals indices of the integral(s). These are
@@ -1421,7 +1425,7 @@ MODULE UMatCache
                ICACHEI=ICACHEI1
                ICACHEI2=ICACHEI1
                IF(UMatLabels(iCacheI,A).NE.0) iCacheOvCount=iCacheOvCount+1
-   
+
 !WRITE(6,*) "Cache Overwrite", A,B
 !                  WRITE(6,*) IDI,IDJ,IDK,IDL
 !                  WRITE(6,*) A,B,NSLOTS,NPAIRS
@@ -1441,7 +1445,7 @@ MODULE UMatCache
             !WRITE(6,*) "C",IDI,IDJ,IDK,IDL,ITYPE,UMatCacheData(0:nTypes-1,ICACHEI,ICACHE)
             UMATEL=UMatCacheData(IAND(ITYPE,1),ICACHEI,ICACHE)
 #ifdef __CMPLX
-            IF(BTEST(ITYPE,1)) UMATEL=DCONJG(UMATEL)  ! Bit 1 tells us whether we need to complex conjg the integral
+            IF(BTEST(ITYPE,1)) UMATEL=CONJG(UMATEL)  ! Bit 1 tells us whether we need to complex conjg the integral
 #endif
 !   signal success
             GETCACHEDUMATEL=.FALSE.
@@ -1452,7 +1456,7 @@ MODULE UMatCache
          ENDIF
          RETURN
       END FUNCTION GETCACHEDUMATEL
-      
+
 END MODULE UMatCache
 ! Still useful to keep CacheUMatEl and GetCachedUMatEl outside of the module for
 ! CPMD interaction (though this should be fixed: the problem lies with the type
@@ -1473,7 +1477,7 @@ END MODULE UMatCache
          !            <ij|u|kl> integral (nTypes=1).  For calculations involving
          !            complex orbtials, this is an array of size 2 containing
          !            the <ij|u|kl> and <il|u|jk> integrals (nTypes=2).
-         !    ICache: Segment index of the cache for storing integrals involving 
+         !    ICache: Segment index of the cache for storing integrals involving
          !            index A (often equal to A).
          !    ICacheI: Slot within ICache segment for storing UMatEl involving
          !             B.
@@ -1494,11 +1498,11 @@ END MODULE UMatCache
          if(nTypes.gt.1) then
 ! A number of different cases to deal with depending on the order the integral came in (see GetCachedUMatEl for details)
 !  First get which pos in the slot will be the new first pos
-            iIntPos=iand(iType,1) 
+            iIntPos=iand(iType,1)
 !  If bit 1 is set we must conjg the (to-be-)first integral
 #ifdef __CMPLX
             if(btest(iType,1)) then
-               Tmp(0)=dconjg(UMatEl(iIntPos))
+               Tmp(0)=conjg(UMatEl(iIntPos))
             else
                Tmp(0)=UMatEl(iIntPos)
             endif
@@ -1508,7 +1512,7 @@ END MODULE UMatCache
 !  If bit 2 is set we must conjg the (to-be-)second integral
 #ifdef __CMPLX
             if(btest(iType,2)) then
-               Tmp(1)=dconjg(UMatEl(1-iIntPos))
+               Tmp(1)=conjg(UMatEl(1-iIntPos))
             else
                Tmp(1)=UMatEl(1-iIntPos)
             endif
@@ -1560,3 +1564,37 @@ END MODULE UMatCache
 
 
 
+! See Integrals.F90 for an interface for this function.
+function get_umat_el (fn, i, j, k, l) result(hel)
+    ! Obtains the Coulomb integral <ij|kl> from the UMat array.
+    ! In:
+    !    fn: pointer to the system-specific get_umat_el_* function.
+    !      fn should always be the variable ptr_getumatel.
+    !    i,j,k,l: orbital indices. These refer to spin orbitals in
+    !      unrestricted calculations and spatial orbitals in restricted
+    !      calculations.
+    use iso_c_hack
+    use constants, only: dp
+    use IntegralsData, only: ptr_getumatel_2
+    implicit none
+
+    interface
+        function fn (i, j, k, l, fn2) result(hel)
+            use constants, only: dp
+            use iso_c_hack
+            implicit none
+            integer, intent(in) :: i, j, k, l
+#ifdef SX
+            type(c_ptr), intent(in) :: fn2
+#else
+            type(c_ptr), intent(in), value :: fn2
+#endif
+            HElement_t :: hel
+        end function
+    end interface
+
+    integer, intent(in) :: i, j, k, l
+    HElement_t :: hel
+
+    hel = fn (i, j, k, l, ptr_getumatel_2)
+end function

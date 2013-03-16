@@ -2,19 +2,19 @@
 fc = mpif90
 cc = mpic++
 ld = mpif90
-ldflags = -i-dynamic -L $(LD_LIBRARY_PATH)
+ldflags = -i-dynamic -L $(LD_LIBRARY_PATH) -rdynamic
 compiler = INTEL-ifort9-on-LINUX
 cpp = cpp -C -traditional
-cppflags = -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2 -D__INT64 -D__SHARED_MEM
-libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3  -llapack -lblas -cxxlib -lrt
+cppflags = -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2 -D__INT64 -D__SHARED_MEM -D__IFORT
+libs = -lfftw3 -lacml -cxxlib -lrt -lm
 module_flag = -module
 
 [dbg]
 fflags = -r8 -g -traceback -i8 -pc64 -auto -vec-report0 -warn nousage
-cflags = -g -C -traceback -ftz -vec-report0 -DZLIB
+cflags = -g -C -traceback -vec-report0 -DZLIB
 f90flags = -check bounds -stand f03
 
 [opt]
 fflags = -r8 -O3 -i8 -pc64 -auto -vec-report0 -warn nousage
-cflags = -O -ftz -vec-report0 -DZLIB
+cflags = -O -vec-report0 -DZLIB
 f90flags = -stand f03

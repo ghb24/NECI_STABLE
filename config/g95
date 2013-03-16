@@ -1,0 +1,19 @@
+[main]
+fc = g95
+cc = g++
+ld = g95
+ldflags = -m64 -rdynamic
+compiler = G95-on-LINUX
+cpp = cpp -C -traditional
+cppflags = -D__Linux -DPOINTER8 -D__INT64 -DDISABLE_FFTW -D__G95__
+libs = -lacml -L /usr/lib/gcc/x86_64-linux-gnu/4.4/ -lstdc++ -lrt -lm
+module_flag = -fmod=
+
+[dbg]
+fflags = -g -i8 -fno-second-underscore -r8 -fsloppy-char -m64 -cpp
+cflags = -g -m64 
+f90flags = -fbounds-check
+
+[opt]
+fflags = -i8 -fno-second-underscore -r8 -fsloppy-char -O3 -m64 -cpp
+cflags = -O -m64 

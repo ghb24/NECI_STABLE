@@ -1,5 +1,6 @@
       SUBROUTINE NECI_RHOOFR(NHG,CK,G1,RHO,NMSH,SITAB,NMAX,NMRKS,
      &                       NEL,NDET,NEVAL,RS,ALAT,OMEGA)
+      use SystemData, only: BasisFN
       use global_utilities
       use MemoryManager, only: TagIntType
       use constants, only: dp
@@ -8,29 +9,28 @@
 C..
       real(dp), allocatable, save :: CFS(:) ! NDET
       integer(TagIntType), save :: tagCFS=0
-C..
-      INTEGER G1(*)
+      Type(BasisFN) G1(*)
+      integer :: NMAX,NMSH,NEL,NDET,NEVAL,ICC,KI,KJ,IC,I,J,K,NHG
       real(dp) :: CK(NDET,NEVAL)
       integer :: NMRKS(NEL,*)
       real(dp) :: RHO(NMSH,NMSH,NMSH),AUX(NMSH,NMSH,NMSH)
       real(dp) :: SITAB(NMSH,NMAX),ALAT(3),RS,SUM,OMEGA,CST,CF
-      integer :: NMAX,NMSH,NEL,NDET,NEVAL,ICC,KI,KJ,IC,I,J,K,NHG
-      REAL(dp) :: EPS=1.D-8
+      REAL(dp) :: EPS=1.0e-8_dp
       real(dp) , SAVE :: IFIRST=0
 C..
       IF(IFIRST.EQ.0) THEN
         IFIRST=1
-        SITAB=0.d0
+        SITAB=0.0_dp
         CALL GEN_SITAB(NMAX,NMSH,SITAB)
       ENDIF
 C..
       allocate(CFS(NDET))
       call LogMemAlloc('CFS',NDET,8,'NECI_RHOOFR',tagCFS)
-      CFS=0.d0
+      CFS=0.0_dp
       CALL DCOPY(NDET,CK(1,1),1,CFS,1)
 C..
-      AUX=0.d0
-      RHO=0.d0
+      AUX=0.0_dp
+      RHO=0.0_dp
 C..
       DO KI=1,NDET
         IF(ABS(CFS(KI)).LT.EPS) GOTO 300
@@ -50,7 +50,7 @@ C..If determinants differ by more than 1 spin orbital IC < (NEL-1)
           IF(IC.LT.(NEL-1)) GOTO 500
           CALL RLS(NEL,NMSH,NHG,NMRKS(1:NEL,KI),
      &             NMRKS(1:NEL,KJ),G1,SITAB,NMAX,IC,AUX)
-          CF=CFS(KI)*CFS(KJ)*DFLOAT(ICC)
+          CF=CFS(KI)*CFS(KJ)*real(ICC,dp)
           DO K=1,NMSH-1
             DO J=1,NMSH-1
               DO I=1,NMSH-1
@@ -62,10 +62,10 @@ C..If determinants differ by more than 1 spin orbital IC < (NEL-1)
         ENDDO
 300   CONTINUE
       ENDDO
-      CST=1.D0/OMEGA
+      CST=1.0_dp/OMEGA
       CALL DSCAL(NMSH*NMSH*NMSH,CST,RHO,1)
 C..Calculate integral of RHO 
-      SUM=0.D0
+      SUM=0.0_dp
       DO K=1,NMSH-1
         DO J=1,NMSH-1
           DO I=1,NMSH-1
@@ -73,7 +73,7 @@ C..Calculate integral of RHO
           ENDDO
         ENDDO
       ENDDO
-      SUM=SUM*OMEGA/DFLOAT(NMSH*NMSH*NMSH)
+      SUM=SUM*OMEGA/real(NMSH*NMSH*NMSH,dp)
       WRITE(6,'(A,F12.6)') ' INTEGRATED DENSITY : ' , SUM
       CALL WRITE_RHO(9,'DENSITY.1',RHO,NMSH,NMSH,NMSH,ALAT,
      &    .FALSE.,.TRUE.,RS)
@@ -87,12 +87,12 @@ C ==---------------------------------------------------------==
 !      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
 C..
-      integer :: NDET1(NEL),NDET2(NEL)
+      integer :: NMSH,NEL,NMAX,ND1,ND2,IC,IQ,I,J,K,ID,IPTOT,IFLAG
+      integer :: NDET1(NEL),NDET2(NEL),NHG
       real(dp) :: AUX(NMSH,NMSH,NMSH)
       real(dp) :: SITAB(NMSH,NMAX),AUXX(NEL),AUXY(NEL),AUXZ(NEL)
       TYPE(BasisFN) G1(NHG)
-      INTEGER N1E(NHG),N2E(NHG),NHG
-      integer :: NMSH,NEL,NMAX,ND1,ND2,IC,IQ,I,J,K,ID,IPTOT,IFLAG
+      INTEGER N1E(NHG),N2E(NHG)
       integer :: IJK,II,IJ,IK
       real(dp) :: AUXZ1,AUXX1,AUXX2,AUXY1,AUXY2,AUXZ2
 C..
@@ -102,12 +102,12 @@ C..
       ND1=0
       ND2=0
 C..
-      AUXX=0.d0
-      AUXY=0.d0
-      AUXZ=0.d0
+      AUXX=0.0_dp
+      AUXY=0.0_dp
+      AUXZ=0.0_dp
 C..
       IF(IC.EQ.(NEL-1)) THEN
-        AUX=0.d0
+        AUX=0.0_dp
 C..The determinants differ by ONE spin orbital
         ND1=0
         ND2=0
@@ -161,11 +161,11 @@ C..
             ENDDO
           ENDDO
         ELSE
-          AUX=0.d0
+          AUX=0.0_dp
           RETURN
         ENDIF
       ELSEIF(IC.EQ.NEL) THEN
-        AUX=0.d0
+        AUX=0.0_dp
 C..Differ by none
         DO K=1,NMSH-1
           DO IK=1,NEL
@@ -191,11 +191,11 @@ C..
           ENDDO
         ENDDO
       ELSE
-        AUX=0.d0
+        AUX=0.0_dp
         RETURN
       ENDIF
 C..
-      CALL DSCAL(NMSH*NMSH*NMSH,DFLOAT(IPTOT),AUX,1)
+      CALL DSCAL(NMSH*NMSH*NMSH,real(IPTOT,dp),AUX,1)
       RETURN
       END
 C ==---------------------------------------------------------==
@@ -203,14 +203,14 @@ C ==---------------------------------------------------------==
 !      IMPLICIT real(dp) (A-H,O-Z)
       use constants, only: dp,pi
       IMPLICIT NONE
-      real(dp) :: SITAB(NMSH,NMAX),X
       integer :: NMSH,NMAX,I,J
+      real(dp) :: SITAB(NMSH,NMAX),X
 C..
-!      PI=ACOS(-1.D0)
+!      PI=ACOS(-1.0_dp)
       DO I=1,NMAX
         DO J=1,NMSH
           X=real(J,dp)/real(NMSH,dp)
-          SITAB(J,I)=SIN(PI*I*X)*SQRT(2.D0)
+          SITAB(J,I)=SIN(PI*I*X)*SQRT(2.0_dp)
         ENDDO
       ENDDO
       RETURN
@@ -220,8 +220,8 @@ C ==---------------------------------------------------------==
       use SystemData, only: BasisFN
 !      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
-      TYPE(BasisFN) G1(NHG)
       integer :: NHG,ND1,ND2,ID
+      TYPE(BasisFN) G1(NHG)
 C..
       ID=0
       IF(G1(ND1)%Ms.EQ.G1(ND2)%Ms) ID=1

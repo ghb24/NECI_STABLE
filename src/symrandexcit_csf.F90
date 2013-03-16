@@ -18,7 +18,7 @@ module GenRandSymExcitCSF
     use DetBitOps, only: EncodeBitDet, is_canonical_ms_order, &
                          shift_det_bit_singles_to_beta, count_open_orbs
     use Determinants, only: write_det
-    use Parallel
+    use Parallel_neci
     use constants, only: n_int, bits_n_int
     use bit_reps, only: NIfTot,NIfD
     use sym_general_mod, only: CCIndS
@@ -125,7 +125,7 @@ contains
                 write(6,'("If you want to use these excitation generators &
                           &then add NOSYMGEN to the input to ignore symmetry &
                           &while generating excitations.")')
-                call flush(6)
+                call neci_flush(6)
                 call stop_all(this_routine,"GenRandsymExcitCSF can only be &
                                   &used for molecular systems using symmetry")
             endif
@@ -386,7 +386,7 @@ contains
                 symProd
             write(6,*) 'src', orbs(1), orbs(2)
             call write_det (6, nI, .true.)
-            call flush(6)
+            call neci_flush(6)
             call stop_all(this_routine, "Cannot find an unoccupied orbital &
                          &for a double excitation after 250 attempts.")
         endif
@@ -455,7 +455,7 @@ contains
             write(6,*) 'src', orbs(1), orbs(2)
             write(6,*) 'tgt', orbA
             write(6,*) 'num orbs', nbasis
-            call flush(6)
+            call neci_flush(6)
             call stop_all(this_routine, "Cannot find an unoccupied orbital &
                          &for a double excitation after 250 attempts.")
         endif
@@ -594,7 +594,7 @@ contains
         pGen = pGen * pElec
 
         ! Generate the symmetry product of these two electrons
-        symProd = ieor(G1(orbs(1))%Sym%S,G1(orbs(2))%Sym%S)
+        symProd = int(ieor(G1(orbs(1))%Sym%S,G1(orbs(2))%Sym%S),sizeof_int)
 
         ! Sum the Mls if required.
         if (tFixLz) sumMl = G1(orbs(1))%Ml + G1(orbs(2))%Ml
@@ -688,7 +688,7 @@ contains
         if (i > 250) then
             write(6,'("Cannot find single excitation after 250 attempts")')
             call write_det (6, nI, .true.)
-            call flush(6)
+            call neci_flush(6)
             call stop_all(this_routine, "Cannot find single excitation after &
                                         &250 attempts")
         endif
@@ -737,7 +737,7 @@ contains
             print*, SymLabelList2(SymLabelCounts2(1,symEx):SymLabelCounts2(1,symEx)+OrbClassCount(symEx)-1)
             write(6,'("Number of orbitals to legitimately pick =",i4)') nexcit
             call write_det (6, nI, .true.)
-            call flush(6)
+            call neci_flush(6)
             call stop_all(this_routine, "Cannot find an unoccupied orbital &
                          &for a single excitation after 250 attempts.")
         endif
@@ -810,10 +810,10 @@ contains
     ! returns the new value of nopen.
     subroutine csf_find_excit_det_general (ExcitMat, nJ, iLut, nopen, IC, &
                                            ncsf, nopen2, yamas)
+        integer, intent(inout) :: ncsf
         integer, intent(in) :: nopen, IC
         integer(kind=n_int), intent(in) :: iLut(0:NIfTot)
         integer, intent(inout) :: nJ(ncsf,nel), ExcitMat(2,1:IC)
-        integer, intent(inout) :: ncsf
         integer, intent(inout) :: nopen2
         integer, intent(in), optional :: yamas(ncsf, nopen2)
         character(*), parameter :: this_routine = 'csf_find_excit_det_general'
@@ -1090,9 +1090,10 @@ contains
     subroutine csf_find_excit_det (ExcitMat, nJ, iLut, nopen, nopen_new,&
                                    ncsf, bApplyYama, yama)
         integer, intent(in) :: nopen, nopen_new 
+        integer, intent(inout) :: ncsf
         integer(kind=n_int), intent(in) :: iLut(0:nIfTot)
         integer, intent(in), optional :: yama(ncsf, nopen_new)
-        integer, intent(inout) :: ncsf, nJ(ncsf,nel), ExcitMat(2)
+        integer, intent(inout) :: nJ(ncsf,nel), ExcitMat(2)
         integer :: i, pos, exbeta, exalpha, sralpha, srbeta
         integer :: ins(4), nclosed, src
         logical, intent(in) :: bApplyYama
@@ -1291,7 +1292,7 @@ contains
     !       specifing a maximum number to generate, generating iteratively (ie
     !       generate next excit given current), or by looping twice.
     subroutine csf_gen_excits (nI, iLut, nopen, exFlag, CCSglS, CCUnS, &
-                               nexcit, nJ)
+                               nexcit, nJ, return_excits)
         use symexcit3, only: GenExcitations3
         integer, intent(in) :: nI(nel), nopen
         integer(kind=n_int), intent(in) :: ilut(0:NIfTot)
@@ -1303,7 +1304,8 @@ contains
         integer :: i, j, ierr, excit, ndets
 
         ! The outputted excitations if required.
-        integer, intent(out), dimension(:,:), allocatable, optional :: nJ
+        integer, intent(out), dimension(:,:), allocatable :: nJ
+        logical :: return_excits
 
         ! What are we intending to generate
         logical :: bYama, bDouble, bSingle
@@ -1383,7 +1385,7 @@ contains
             do while (elecA /= -1)
                 orbs(1) = iand(nI(elecA), csf_orbital_mask)
                 orbs(2) = iand(nI(elecB), csf_orbital_mask)
-                syms = G1(orbs)%Sym%S
+                syms = int(G1(orbs)%Sym%S,sizeof_int)
                 symProd = ieor(syms(1), syms(2))
                 sumMl = G1(orbs(1))%Ml + G1(orbs(2))%Ml
                 !paircount = paircount + 1
@@ -1471,7 +1473,7 @@ contains
             enddo
         endif
 
-        if (present(nJ) .and. nexcit /= 0) then
+        if (return_excits .and. nexcit /= 0) then
             ! Allocate the required memory, init. and get Yamanouchi symbols
             allocate(nJ(nexcit,nel), csf0(numcsfs(0),nopen), stat=ierr)
             forall (i=1:nexcit) nJ(i,:) = nI
@@ -1608,7 +1610,7 @@ contains
                         call stop_all(this_routine, "Generated too many csfs")
                     orbs(1) = iand(nI(elecA), csf_orbital_mask)
                     orbs(2) = iand(nI(elecB), csf_orbital_mask)
-                    syms = G1(orbs)%Sym%S
+                    syms = int(G1(orbs)%Sym%S,sizeof_int)
                     symProd = ieor(syms(1), syms(2))
                     sumMl = G1(orbs(1))%Ml + G1(orbs(2))%Ml
 
@@ -1768,7 +1770,7 @@ contains
 
         ! Enumerate all possible excitations
         call csf_gen_excits (nI, iLut, nopen, 7, CCSglS, CCUnS, &
-                             nexcit, nK)
+                             nexcit, nK, .true.)
 
         ! Run the testing routine or all of the excitatitons of the starting
         ! CSF. Currently counts the number of excitations frozen out if 
@@ -1783,7 +1785,7 @@ contains
 
             write (6, '(i6,": ")', advance='no') i
             call write_det (6, nK(i,:), .true.)
-            call TestGenRandSymCSFExcit (nK(i,:), 4000000, 0.2d0, 0.75d0, 7, &
+            call TestGenRandSymCSFExcit (nK(i,:), 4000000, 0.2_dp, 0.75_dp, 7, &
                                          10000)
         enddo
         deallocate(nK)
@@ -1793,7 +1795,7 @@ contains
         write (6, '("Num remaining: ", i5)') nexcit - nFreeze
 
         ! Test the starting determinants excitations
-        call TestGenRandSymCSFExcit (nI, 4000000, 0.d0, 1.0d0, 4, 10000)
+        call TestGenRandSymCSFExcit (nI, 4000000, 0.0_dp, 1.0_dp, 4, 10000)
         call stop_all(this_routine, 'end of test')
     end subroutine
 
@@ -1812,7 +1814,7 @@ contains
         real(dp)  :: pGen, avContrib, avContribAll
         ! Store the generated excitations and if they have been generated.
         integer, allocatable, dimension(:,:) :: nK
-        logical, allocatable, dimension(:)   :: ex_list(:)
+        logical, allocatable, dimension(:)   :: ex_list
         ! Histogram the generation probabilities.
         real(dp),  allocatable, dimension(:,:) :: SinglesHist, AllSinglesHist
         real(dp),  allocatable, dimension(:,:,:,:) :: DoublesHist,AllDoublesHist
@@ -1844,7 +1846,7 @@ contains
         bTestList = .true.
         if (bTestList) then
             call csf_gen_excits (nI, iLut, nopen, exFlag, CCSglS, CCUnS, &
-                                 nexcit, nK)
+                                 nexcit, nK, .true.)
             if (nexcit > 0) then
                 allocate(ex_list(nexcit), stat=ierr)
                 if (ierr /= 0) call stop_all (this_routine, &
@@ -1858,12 +1860,12 @@ contains
                 do i=1,nexcit
                     call write_det (9, nK(i,:), .true.)
                 enddo
-                write(9,'("------------------")')
+                write(9,'("==================")')
                 close(9)
             endif
         else
             call csf_gen_excits (nI, iLut, nopen, exFlag, CCSglS, CCUnS, &
-                                 nexcit)
+                                 nexcit, nK, .false.)
         endif
 
         ! If there are no possible excitations, don't mess around.

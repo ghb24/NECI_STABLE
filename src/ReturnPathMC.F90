@@ -123,11 +123,11 @@ MODULE ReturnPathMCMod
 !                WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,G16.7,2I6)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,MeanExit,MinExit,MaxExit
 !                WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,G16.7,2I6)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,MeanExit,MinExit,MaxExit
 !
-!                CALL FLUSH(15)
-!                CALL FLUSH(6)       !Probably remove flushes for big systems
+!                CALL neci_flush(15)
+!                CALL neci_flush(6)       !Probably remove neci_flushes for big systems
 !
 !                TotWalkersOld=TotWalkers    !Reset 'old' number of walkers for next shift update cycle
-!                MeanExit=0.D0
+!                MeanExit=0.0_dp
 !                MinExit=NEl+10
 !                MaxExit=0
 !                SumWalkersCyc=0
@@ -137,7 +137,7 @@ MODULE ReturnPathMCMod
 !
 !        enddo   !End MC Cycle
 !
-!        Weight=(0.D0)
+!        Weight=(0.0_dp)
 !        Energyxw=(SumENum/REAL(SumNoatHF,dp))
 !
 !!Deallocate Memory
@@ -182,7 +182,7 @@ MODULE ReturnPathMCMod
 !!Now attempt to spawn from the determinant we are on - this can involve attempting to spawn back, with prob PRet, or to an excit
 !            Preturn=FindPRet(ActiveVec(j))       !The PReturn may change depending on various parameters - calculate it here
 !
-!            IF((Preturn.eq.1.D0).or.(Preturn.gt.Ran2(Seed))) THEN
+!            IF((Preturn.eq.1.0_dp).or.(Preturn.gt.Ran2(Seed))) THEN
 !!We are only allowed to generate the return determinant
 !
 !                ToSpawn=SpawnReturn(ActiveVec(j),Preturn)   !This tells us how many particles to spawn back, and their sign
@@ -278,7 +278,7 @@ MODULE ReturnPathMCMod
 !        
 !!Since VecSlot holds the next vacant slot in the array, TotWalkers will be one less than this.
 !        TotWalkers=VecSlot-1
-!        rat=(TotWalkers+0.D0)/(MaxWalkers+0.D0)
+!        rat=(TotWalkers+0.0_dp)/(MaxWalkers+0.0_dp)
 !        IF(rat.gt.0.9) THEN
 !            WRITE(6,*) "*WARNING* - Number of walkers has increased to over 90% of MaxWalkers"
 !        ENDIF
@@ -379,13 +379,13 @@ MODULE ReturnPathMCMod
 !!The population is too large - cull TotWalkers/CullFactor randomly selected particles
 !
 !            OrigWalkers=TotWalkers
-!            ToCull=TotWalkers-nint((TotWalkers+0.D0)/CullFactor)
+!            ToCull=TotWalkers-nint((TotWalkers+0.0_dp)/CullFactor)
 !            Culled=0
 !
 !            do while (Culled.lt.ToCull)
 !
 !!Pick a random walker between 1 and TotWalkers
-!                Chosen=int((Ran2(Seed)*TotWalkers)+1.D0)
+!                Chosen=int((Ran2(Seed)*TotWalkers)+1.0_dp)
 !
 !!Move the particle at the end of the list to the position of the walker we have chosen to destroy
 !                CALL CopyParticle(ActiveVec(TotWalkers),ActiveVec(Chosen))
@@ -462,7 +462,7 @@ MODULE ReturnPathMCMod
 !                NewVec(VecSlot)%WSign=WSign
 !                IF(NewChainLength.eq.1) THEN
 !!Do not need to zero here, but may be useful for debugging purposes - only creating at a double excit, so no history
-!                    NewVec(VecSlot)%History(:,:)=0.D0
+!                    NewVec(VecSlot)%History(:,:)=0.0_dp
 !                ELSE
 !                    NewVec(VecSlot)%History(:,1:(NewChainLength-1))=Particle%History(:,1:(NewChainLength-1))
 !                ENDIF
@@ -488,7 +488,7 @@ MODULE ReturnPathMCMod
 !                
 !                IF(Particle%IC0(NewChainLength).gt.2) THEN
 !!Excitation is more than a double, so connection to HF = 0
-!                    NewVec(VecSlot)%Hi0=0.D0
+!                    NewVec(VecSlot)%Hi0=0.0_dp
 !                ELSE
 !!Need calculate the connection to HF - we are at a double excitation
 !                    ConntoHF=GetHElement2(NewVec(VecSlot)%Det,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,Particle%IC0(NewChainLength),ECore)
@@ -499,7 +499,7 @@ MODULE ReturnPathMCMod
 !                NewVec(VecSlot)%WSign=WSign
 !                IF(NewChainLength.eq.1) THEN
 !!Again, do not have to zero this...
-!                    NewVec(VecSlot)%History(:,:)=0.D0
+!                    NewVec(VecSlot)%History(:,:)=0.0_dp
 !                ELSE
 !                    NewVec(VecSlot)%History(:,1:(NewChainLength-1))=Particle%History(:,1:(NewChainLength-1))
 !                ENDIF
@@ -570,10 +570,10 @@ MODULE ReturnPathMCMod
 !        Particle%ChainLength=0      !Initial Chain Length = 0 as at HF
 !        Particle%WSign=WSign
 !!Can remove the subsequent zeroing if we are sure that the code is bug-free. Otherwise, it may help for debugging        
-!        Particle%History(:,:)=0.D0
+!        Particle%History(:,:)=0.0_dp
 !        Particle%HistExcit(:)=0
 !        Particle%IC0(:)=0
-!        Particle%Kii(:)=0.D0
+!        Particle%Kii(:)=0.0_dp
 !        CALL CopyExGen(FDetExGen,Particle%ExGen)
 !
 !    END SUBROUTINE SetupHFParticle
@@ -637,7 +637,7 @@ MODULE ReturnPathMCMod
 !                rat=GetSpawnRhoEl(Particle%Det,Particle%Det,.true.,Particle%Kii(Particle%ChainLength))
 !            ENDIF
 !!GetSpawnRhoEl will recover the spawning rate. The death rate will be 1 - this.
-!            rat=1.D0-rat
+!            rat=1.0_dp-rat
 !
 !        ELSE
 !            IF(Particle%ChainLength.eq.0) THEN
@@ -653,7 +653,7 @@ MODULE ReturnPathMCMod
 !        rat=rat-REAL(AttemptDestruct,dp)
 !
 !        IF(abs(rat).gt.Ran2(Seed)) THEN
-!            IF(rat.ge.0.D0) THEN
+!            IF(rat.ge.0.0_dp) THEN
 !                AttemptDestruct=AttemptDestruct+1
 !            ELSE
 !                AttemptDestruct=AttemptDestruct-1
@@ -690,7 +690,7 @@ MODULE ReturnPathMCMod
 !!We want a diagonal element - this is exactly the same as in calcrho2
 !            call GetH0Element(nI,nEl,Arr,nBasis,ECore,EDiag2)
 !            call GetH0Element(nJ,nEl,Arr,nBasis,ECore,EDiag)
-!            EDiag=(EDiag2+EDiag)/(2.D0)
+!            EDiag=(EDiag2+EDiag)/(2.0_dp)
 !            UExp=-Tau*Conn
 !            RH=EXP(-Tau*REAL(EDiag,dp))*UExp
 !
@@ -708,7 +708,7 @@ MODULE ReturnPathMCMod
 !        real(dp) :: Preturn,Hij,rat,Ran2,rhoel
 !        INTEGER :: nJ(:),IC
 !
-!        IF(Preturn.eq.1.D0) CALL Stop_All("SpawnForward","Preturn=1, but trying to spawn forward")
+!        IF(Preturn.eq.1.0_dp) CALL Stop_All("SpawnForward","Preturn=1, but trying to spawn forward")
 !
 !!First calculate connection to parent determinant - this is the hamiltonian matrix element
 !        Hij=GetConnection(Particle%Det,nJ,IC)
@@ -716,9 +716,9 @@ MODULE ReturnPathMCMod
 !        IF(TRhoElems) THEN
 !            IF(IC.eq.0) CALL Stop_All("SpawnForward","IC should not be zero")
 !            rhoel=GetSpawnRhoEl(Particle%Det,nJ,.false.,Hij)
-!            rat=abs(rhoel)/(1.D0-Preturn)
+!            rat=abs(rhoel)/(1.0_dp-Preturn)
 !        ELSE
-!            rat=Tau*abs(Hij)/(1.D0-Preturn)
+!            rat=Tau*abs(Hij)/(1.0_dp-Preturn)
 !        ENDIF
 !        SpawnForward=INT(rat)
 !        rat=rat-REAL(SpawnForward,dp)
@@ -728,11 +728,11 @@ MODULE ReturnPathMCMod
 !!Attempt to spawn at return determinant is successful - determine sign of new particles
 !            IF(TRhoElems) THEN
 !                IF(.not.Particle%WSign) SpawnForward=-SpawnForward
-!                IF(rhoel.lt.0.D0) SpawnForward=-SpawnForward
+!                IF(rhoel.lt.0.0_dp) SpawnForward=-SpawnForward
 !            ELSE
-!                IF((Particle%WSign).and.(Hij.gt.0.D0)) THEN             !Positive particle & connection
+!                IF((Particle%WSign).and.(Hij.gt.0.0_dp)) THEN             !Positive particle & connection
 !                    SpawnForward=-SpawnForward                          !New particles negative
-!                ELSEIF((.not.Particle%WSign).and.(Hij.lt.0.D0)) THEN    !Negative particle & connection
+!                ELSEIF((.not.Particle%WSign).and.(Hij.lt.0.0_dp)) THEN    !Negative particle & connection
 !                    SpawnForward=-SpawnForward                          !New particles negative
 !                ENDIF
 !            ENDIF
@@ -793,11 +793,11 @@ MODULE ReturnPathMCMod
 !!Attempt to spawn at return determinant is successful - determine sign of new particles
 !            IF(TRhoElems) THEN
 !                IF(.not.Particle%WSign) SpawnReturn=-SpawnReturn
-!                IF(rhoel.lt.0.D0) SpawnReturn=-SpawnReturn
+!                IF(rhoel.lt.0.0_dp) SpawnReturn=-SpawnReturn
 !            ELSE
-!                IF((Particle%WSign).and.(Hij.gt.0.D0)) THEN             !Positive particle & connection
+!                IF((Particle%WSign).and.(Hij.gt.0.0_dp)) THEN             !Positive particle & connection
 !                    SpawnReturn=-SpawnReturn                            !New particles negative
-!                ELSEIF((.not.Particle%WSign).and.(Hij.lt.0.D0)) THEN    !Negative particle & connection
+!                ELSEIF((.not.Particle%WSign).and.(Hij.lt.0.0_dp)) THEN    !Negative particle & connection
 !                    SpawnReturn=-SpawnReturn                            !New particles negative
 !                ENDIF
 !            ENDIF
@@ -852,15 +852,15 @@ MODULE ReturnPathMCMod
 !
 !        IF(Particle%ChainLength.eq.0) THEN
 !!We are at the HF - there is no possibility to 'return' - set Pret to zero
-!            FindPRet=0.D0
+!            FindPRet=0.0_dp
 !            RETURN
 !        ELSEIF(Particle%ChainLength.eq.CLMax) THEN
 !!Length of chain is the maximum allowed chain length - force the particle to attempt to return - set PRet to one
-!            FindPRet=1.D0
+!            FindPRet=1.0_dp
 !            RETURN
 !        ELSEIF(Particle%IC0(Particle%ChainLength).eq.NEl) THEN
 !!Particle is already at the highest excitation level possible - it has to return as it can no longer increase its excitation level
-!            FindPRet=1.D0
+!            FindPRet=1.0_dp
 !            RETURN
 !        ELSEIF(Particle%IC0(Particle%ChainLength).eq.0) THEN
 !!Particle says it is at the HF - however, it should only be allowed to go deeper into excit space, and so chainlength should be 0 - error here
@@ -881,7 +881,7 @@ MODULE ReturnPathMCMod
 !        HElement_t :: HiiHel,rhiiHel
 !
 !        SumWalkersCyc=0
-!        MeanExit=0.D0
+!        MeanExit=0.0_dp
 !        MaxExit=0
 !        MinExit=NEl+10
 !
@@ -892,7 +892,7 @@ MODULE ReturnPathMCMod
 !        enddo
 !
 !!Provide various tests that variables are within allowed ranges
-!        IF((PRet.gt.1.D0).or.(PRet.lt.0.D0)) CALL Stop_All("ReturnPathMC","PRet must be a normalised probability")
+!        IF((PRet.gt.1.0_dp).or.(PRet.lt.0.0_dp)) CALL Stop_All("ReturnPathMC","PRet must be a normalised probability")
 !        IF(HElement_t_size.gt.1) CALL Stop_All("ReturnPathMC","ReturnPathMC cannot function with complex orbitals.")
 !
 !        MaxWalkers=InitWalkers*MemoryFac    !Set maximum number of allowed walkers
@@ -913,7 +913,7 @@ MODULE ReturnPathMCMod
 !        PartSize=((CLMax*(NEl+4))+4)*4      !This is the size of a particle (without exgen stuff)
 !
 !        WRITE(6,"(A)",advance='no') "Attempting to allocate initial memory....."
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !
 !!Allocate memory to hold all walkers
 !        ALLOCATE(WalkVec(MaxWalkers),stat=ierr)
@@ -940,7 +940,7 @@ MODULE ReturnPathMCMod
 !        NewVec=>WalkVec2
 !
 !        WRITE(6,*) "DONE"
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !
 !        FDetExGen%ForCurrentDet=.false.
 !        CALL SetupExitGen(HFDet,FDetExGen)
@@ -954,12 +954,12 @@ MODULE ReturnPathMCMod
 !        
 !!Initialise other variables needed
 !        Seed=G_VMC_Seed     !Initialise random number seed
-!        GrowRate=0.D0
+!        GrowRate=0.0_dp
 !        CullInfo=0
 !        NoCulls=0
 !!Initialise variables for calculation of the running average
-!        ProjectionE=0.D0
-!        SumENum=0.D0
+!        ProjectionE=0.0_dp
+!        SumENum=0.0_dp
 !        SumNoatHF=0
 !
 !        RETURN
@@ -1007,33 +1007,33 @@ MODULE ReturnPathMCMod
 !        INTEGER :: j,k,GrowthSteps
 !
 !        IF(NoCulls.eq.0) THEN
-!            GrowRate=(TotWalkers+0.D0)/(TotWalkersOld+0.D0)
+!            GrowRate=(TotWalkers+0.0_dp)/(TotWalkersOld+0.0_dp)
 !        ELSEIF(NoCulls.eq.1) THEN
 !!GrowRate is the sum of the individual grow rates for each uninterrupted growth sequence, multiplied by the fraction of the cycle which was spent on it
-!            GrowRate=((CullInfo(1,3)+0.D0)/(StepsSft+0.D0))*((CullInfo(1,1)+0.D0)/(TotWalkersOld+0.D0))
-!            GrowRate=GrowRate+(((StepsSft-CullInfo(1,3))+0.D0)/(StepsSft+0.D0))*((TotWalkers+0.D0)/(CullInfo(1,2)+0.D0))
+!            GrowRate=((CullInfo(1,3)+0.0_dp)/(StepsSft+0.0_dp))*((CullInfo(1,1)+0.0_dp)/(TotWalkersOld+0.0_dp))
+!            GrowRate=GrowRate+(((StepsSft-CullInfo(1,3))+0.0_dp)/(StepsSft+0.0_dp))*((TotWalkers+0.0_dp)/(CullInfo(1,2)+0.0_dp))
 !
 !            NoCulls=0
 !            CullInfo=0
 !        ELSE
-!            GrowRate=((CullInfo(1,3)+0.D0)/(StepsSft+0.D0))*((CullInfo(1,1)+0.D0)/(TotWalkersOld+0.D0))
+!            GrowRate=((CullInfo(1,3)+0.0_dp)/(StepsSft+0.0_dp))*((CullInfo(1,1)+0.0_dp)/(TotWalkersOld+0.0_dp))
 !            do j=2,NoCulls
 !
 !!This is needed since the steps between culls are stored cumulatively
 !                GrowthSteps=CullInfo(j,3)-CullInfo(j-1,3)
-!                GrowRate=GrowRate+((GrowthSteps+0.D0)/(StepsSft+0.D0))*((CullInfo(j,1)+0.D0)/(CullInfo(j-1,2)+0.D0))
+!                GrowRate=GrowRate+((GrowthSteps+0.0_dp)/(StepsSft+0.0_dp))*((CullInfo(j,1)+0.0_dp)/(CullInfo(j-1,2)+0.0_dp))
 !
 !            enddo
 !
 !            GrowthSteps=StepsSft-CullInfo(NoCulls,3)
-!            GrowRate=GrowRate+((GrowthSteps+0.D0)/(StepsSft+0.D0))*((TotWalkers+0.D0)/(CullInfo(NoCulls,2)+0.D0))
+!            GrowRate=GrowRate+((GrowthSteps+0.0_dp)/(StepsSft+0.0_dp))*((TotWalkers+0.0_dp)/(CullInfo(NoCulls,2)+0.0_dp))
 !
 !            NoCulls=0
 !            CullInfo=0
 !
 !        ENDIF
-!        DiagSft=DiagSft-(log(GrowRate)*SftDamp)/(Tau*(StepsSft+0.D0))
-!!        IF((DiagSft).gt.0.D0) THEN
+!        DiagSft=DiagSft-(log(GrowRate)*SftDamp)/(Tau*(StepsSft+0.0_dp))
+!!        IF((DiagSft).gt.0.0_dp) THEN
 !!            WRITE(6,*) "***WARNING*** - DiagSft trying to become positive..."
 !!            STOP
 !!        ENDIF

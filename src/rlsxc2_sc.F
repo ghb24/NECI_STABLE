@@ -3,19 +3,19 @@
 !      IMPLICIT real(dp) (A-H,O-Z)
       use constants, only: dp
       IMPLICIT NONE
+      INTEGER IDS(4),NMSH,NMAX,NEL
       integer :: NDET1(NEL),NDET2(NEL)
       real(dp) :: AUXC(NMSH,NMSH,NMSH)
 C..Cube array
       real(dp) :: SITAB(NMSH,NMAX)
       INTEGER G1(*),ND1(2),ND2(2)
-      INTEGER IDS(4),NMSH,NMAX,NEL
       EXTERNAL U1
       INTEGER :: IQ,I,J,K,IOBS,JOBS,KOBS,NHG,IX,IY,IZ
       real(dp) :: U2ND22R2,U2ND21R2,U2ND12R2,U2ND11R2
       real(dp) :: U1ND22R1,U1ND21R1,U1ND12R1,U1ND11R1,U1
 
 C..Zero ND1 and ND2
-      AUXC=0.d0
+      AUXC=0.0_dp
       ND1(1:2)=0
       ND2(1:2)=0
 C..IQ ensures that only two differences are recorded
@@ -52,7 +52,7 @@ C..This routine compares NDET2 to NDET1
 C.. 
       IDS(1:4)=0
       CALL GENKRON2(G1,NHG,ND1,ND2,IDS)
-      AUXC=0.d0
+      AUXC=0.0_dp
 C..
 C..electron in orbital ND1(1) at position R1Z, 0 
       U1ND11R1=U1(ND1(1),NMAX,NMSH,NHG,G1,SITAB,IOBS,JOBS,KOBS)
@@ -76,14 +76,14 @@ C..electron in orbital ND2(2) at position R2, THT
             U2ND22R2=U1(ND2(2),NMAX,NMSH,NHG,G1,SITAB,IX,IY,IZ)
 C..
             AUXC(IX,IY,IZ)=AUXC(IX,IY,IZ)+(
-     &    U1ND12R1*U1ND22R1*U2ND11R2*U2ND21R2*DFLOAT(
-     &    IDS(1)*IDS(2))+
-     &          U1ND11R1*U1ND21R1*U2ND12R2*U2ND22R2*DFLOAT(
-     &          IDS(1)*IDS(2))-
-     &    U1ND12R1*U1ND21R1*U2ND11R2*U2ND22R2*DFLOAT(
-     &    IDS(3)*IDS(4))-
-     &    U1ND11R1*U1ND22R1*U2ND12R2*U2ND21R2*DFLOAT(
-     &    IDS(3)*IDS(4)))    
+     &    U1ND12R1*U1ND22R1*U2ND11R2*U2ND21R2*real(
+     &    IDS(1)*IDS(2),dp)+
+     &          U1ND11R1*U1ND21R1*U2ND12R2*U2ND22R2*real(
+     &          IDS(1)*IDS(2),dp)-
+     &    U1ND12R1*U1ND21R1*U2ND11R2*U2ND22R2*real(
+     &    IDS(3)*IDS(4),dp)-
+     &    U1ND11R1*U1ND22R1*U2ND12R2*U2ND21R2*real(
+     &    IDS(3)*IDS(4),dp))    
           ENDDO
         ENDDO
       ENDDO
@@ -93,7 +93,7 @@ C ==--------------------------------------------------------==
       SUBROUTINE GENKRON2(G,NHG,ND1,ND2,IDS)
 !      IMPLICIT real(dp) (A-H,O-Z)
       IMPLICIT NONE
-      INTEGER G(4,NHG),NHG
+      INTEGER NHG,G(4,NHG)
       INTEGER ND1(2),ND2(2),IDS(4)
 C..
       CALL CHK(G(4,ND1(2)),G(4,ND2(2)),IDS(1))

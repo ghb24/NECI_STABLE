@@ -2,8 +2,8 @@
          IMPLICIT NONE
          INTEGER NEL,I
          INTEGER D1(1:NEL),D2(1:NEL),ICMPCSFS
-         LOGICAL ISCSF
-         IF(ISCSF(D1,NEL).OR.ISCSF(D2,NEL)) THEN
+         LOGICAL iscsf_old
+         IF(iscsf_old(D1,NEL).OR.iscsf_old(D2,NEL)) THEN
             ICMPDETS=ICMPCSFS(D1,D2,NEL)
             RETURN
          ENDIF
@@ -23,8 +23,8 @@
       INTEGER FUNCTION IGETEXCITLEVEL(NI,NJ,NEL)
          IMPLICIT NONE
          INTEGER I,J,NEL,NI(NEL),NJ(NEL),IC
-         LOGICAL ISCSF
-         IF(ISCSF(NI,NEL).OR.ISCSF(NJ,NEL)) THEN
+         LOGICAL iscsf_old
+         IF(iscsf_old(NI,NEL).OR.iscsf_old(NJ,NEL)) THEN
             CALL GETCSFEXCITLEVEL(NI,NJ,NEL,IGETEXCITLEVEL)
 C            IGETEXCITLEVEL=2
             RETURN
@@ -51,11 +51,11 @@ C            IGETEXCITLEVEL=2
 !0, 1, 2, or 3 if the distance is more than a double excitation.
       INTEGER FUNCTION IGetExcitLevel_2(NI,NJ,NEL,MaxExcit)
         IMPLICIT NONE
-        INTEGER :: NI(NEl),NJ(NEl),NEl,MaxExcit,I,IC,j,MaxIC
+        INTEGER :: NEL,NI(NEl),NJ(NEl),MaxExcit,I,IC,j,MaxIC
         LOGICAL :: CommonOrb
-        LOGICAL :: ISCSF
+        LOGICAL :: iscsf_old
 
-        IF(ISCSF(NI,NEL).OR.ISCSF(NJ,NEL)) THEN
+        IF(iscsf_old(NI,NEL).OR.iscsf_old(NJ,NEL)) THEN
             CALL GETCSFEXCITLEVEL(NI,NJ,NEL,IGETEXCITLEVEL_2)
             RETURN
         ENDIF
@@ -142,7 +142,7 @@ C               IC=IC+1
      &           RHOMAX,ECORE)
          use constants, only: dp
          INTEGER IDET(NEL),I_P,NEL
-         real(dp) :: Beta
+         real(dp) :: Beta,RhoMax,ECore
          CALL CALCRHOIIMAXR(BETA,I_P,NEL,
      &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,NTAY,
      &           RHOMAX,IDET,1,0,ECORE)
@@ -155,17 +155,19 @@ C               IC=IC+1
      &           RHOMAX,IDET,NTHISEL,ILASTBASIS,ECORE)
          use constants, only : dp
          INTEGER IDET(NEL),NTHISEL,I,ILASTBASIS
-         real(dp) RH,RHOMAX
+         real(dp) RH,RHOMAX,BETA,ECORE
+         CHARACTER(*), PARAMETER :: t_r="CALCRHOIIMAXR"
          DO I=ILASTBASIS+1,NBASIS
             IDET(NTHISEL)=I
+            call stop_all(t_r,"Inconsistent arguments")
             IF(NTHISEL.EQ.NEL) THEN
-               CALL CALCRHO2(IDET,IDET,BETA,I_P,NEL,NBASISMAX,
-     &            G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,RH,NTAY,0,ECORE)
-               IF(RH.GT.RHOMAX) RHOMAX=RH
+!               CALL CALCRHO2(IDET,IDET,BETA,I_P,NEL,NBASISMAX,
+!     &            G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,RH,NTAY,0,ECORE)
+!               IF(RH.GT.RHOMAX) RHOMAX=RH
             ELSE
-               CALL CALCRHOIIMAXR(BETA,I_P,NEL,
-     &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,NTAY,
-     &           RHOMAX,IDET,NTHISEL+1,I,ECORE)
+!               CALL CALCRHOIIMAXR(BETA,I_P,NEL,
+!     &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,NTAY,
+!     &           RHOMAX,IDET,NTHISEL+1,I,ECORE)
             ENDIF
          ENDDO
          RETURN
@@ -178,15 +180,18 @@ C               IC=IC+1
          INTEGER NI(NEL)
          real(dp) RHOMAX
          INTEGER BRR(NBASIS)
-         RHOMAX=0.D0
+         character(*), parameter :: t_r="CALCRHOIIMAX2"
+         RHOMAX=0.0_dp
          DO I=1,NEL
             NI(I)=BRR(I)
          ENDDO
          DO I=1,ISTEPS
-            CALL GENNEWDET2(NI,NI,NEL,NBASIS,NBASISMAX,G1,ISEED)
-            CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,
-     &            G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,RH,NTAY,0,ECORE)
-            IF(RH.GT.RHOMAX) RHOMAX=RH
+             call stop_all(t_r,"Call to GenNewDet2 removed due to       &
+     &          incorrect number of arguments")
+!            CALL GENNEWDET2(NI,NI,NEL,NBASIS,NBASISMAX,G1,ISEED)
+!            CALL CALCRHO2(NI,NI,BETA,I_P,NEL,NBASISMAX,
+!     &            G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,RH,NTAY,0,ECORE)
+!            IF(RH.GT.RHOMAX) RHOMAX=RH
          ENDDO
          RETURN
       END
@@ -199,7 +204,7 @@ C.. Get matrix element of the hamiltonian
       IMPLICIT NONE
       real(dp) HAMIL(*),GETHELEMENT
       INTEGER LAB(*)
-      INTEGER NROW(NDET),IJ,II,I,J,INDXROW,IMAX,NDET,K
+      INTEGER NDET,NROW(NDET),IJ,II,I,J,INDXROW,IMAX,K
 C.. We only have half of H, so if J<I, return the symmetrical (J,I) element
 C.. Or if we have the whole H, it's quicker to look closer to its beginning
       IF(IJ.LT.II) THEN
@@ -209,7 +214,7 @@ C.. Or if we have the whole H, it's quicker to look closer to its beginning
          I=II
          J=IJ
       ENDIF
-      GETHELEMENT=0.D0
+      GETHELEMENT=0.0_dp
       INDXROW=1
 C.. Find the Ith row
       DO K=1,I-1
@@ -230,7 +235,7 @@ C.. GETHROW
 C.. Get the index within HAMIL of a row II of the H matrix
       INTEGER FUNCTION IGETHROW(II,NROW,NDET)
       IMPLICIT NONE
-      INTEGER NROW(NDET),K,II,NDET
+      INTEGER NDET,NROW(NDET),K,II
       IGETHROW=1
 C.. Find the Ith row
       DO K=1,II-1

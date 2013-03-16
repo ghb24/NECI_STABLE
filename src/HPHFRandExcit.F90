@@ -7,7 +7,8 @@ MODULE HPHFRandExcitMod
 ![ P(i->a) + P(i->b) + P(j->a) + P(j->b) ]/2
 !We therefore need to find the excitation matrix between the determinant which wasn't excited and the determinant which was created.
 
-    use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr, tOddS_HPHF
+    use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr, &
+                          tOddS_HPHF, modk_offdiag
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
     use dSFMT_interface, only : genrand_real2_dSFMT
@@ -28,6 +29,82 @@ MODULE HPHFRandExcitMod
 !    INTEGER :: Count=0
 
     contains
+
+!Calculate probability of exciting from HPHF nI to HPHF nJ
+!It is imperative that when using this routine, the 'correct' determinant is sent in
+!i.e. the unique determinant representation of the two HPHF functions. This is because
+!the classcount arrays will be different for the two determinants.
+!tSameFunc will be returned as true if the two HPHF functions are the same
+    subroutine CalcPGenHPHF (nI,iLutnI,nJ,iLutnJ,ex,ClassCount,ClassCountUnocc,pDoubles,pGen,tSameFunc)
+        integer, intent(in) :: nI(nel)
+        integer(kind=n_int), intent(in) :: iLutnI(0:niftot),iLutnJ(0:niftot)
+        integer, intent(in) :: ClassCount(ScratchSize),ClassCountUnocc(ScratchSize)
+        integer, intent(in) :: nJ(nel),ex(2,2)
+        real(dp), intent(in) :: pDoubles
+        real(dp), intent(out) :: pGen
+        logical, intent(out) :: tSameFunc
+        logical :: tSign,tSwapped
+        real(dp) :: pGen2
+        integer :: ic
+        integer :: Ex2(2,2),nJ_loc(nel),nJ2(nel)
+        integer(kind=n_int) :: iLutnJ_loc(0:niftot),iLutnJ2(0:niftot)
+
+        tSameFunc = .false.
+        pGen = 0.0_dp
+
+        IF(TestClosedShellDet(iLutnJ)) THEN
+            !nJ is CS, therefore, only one way of generating it.
+            ic = FindBitExcitLevel(iLutnI, iLutnJ, 2)
+            if(ic.eq.0) then
+                tSameFunc=.true. 
+                return
+            endif
+            if(ic.le.2) then
+                call CalcNonUniPGen(nI,ex,ic,ClassCount,ClassCountUnocc,pDoubles,pGen)
+            endif
+        else
+            !nJ is openshell. Add the probabilities of generating each pair (if both connected)
+            nJ_loc = nJ
+            iLutnJ_loc = iLutnJ
+            CALL ReturnAlphaOpenDet(nJ_loc,nJ2,iLutnJ_loc,iLutnJ2,.true.,.true.,tSwapped)
+            
+            !First find nI -> nJ
+            ic = FindBitExcitLevel(iLutnI, iLutnJ_loc, 2)
+            if(ic.eq.0) then
+                tSameFunc=.true. 
+                return
+            endif
+            if(ic.le.2) then
+                if(.not.tSwapped) then
+                    !ex is correct for this excitation
+                    call CalcNonUnipGen(nI,ex,ic,ClassCount,ClassCountUnocc,pDoubles,pGen)
+                else
+                    Ex2(1,1)=ic
+                    call GetBitExcitation(iLutnI,iLutnJ_loc,Ex2,tSign)
+                    call CalcNonUnipGen(nI,Ex2,ic,ClassCount,ClassCountUnocc,pDoubles,pGen)
+                endif
+            endif
+
+            !Now consider nI -> nJ2 and add the probabilities
+            ic = FindBitExcitLevel(iLutnI, iLutnJ2, 2)
+            if(ic.eq.0) then
+                tSameFunc=.true. 
+                return
+            endif
+            if(ic.le.2) then
+                if(tSwapped) then
+                    !ex is correct for this excitation
+                    call CalcNonUnipGen(nI,ex,ic,ClassCount,ClassCountUnocc,pDoubles,pGen2)
+                else
+                    Ex2(1,1)=ic
+                    call GetBitExcitation(iLutnI,iLutnJ2,Ex2,tSign)
+                    call CalcNonUnipGen(nI,Ex2,ic,ClassCount,ClassCountUnocc,pDoubles,pGen2)
+                endif
+                pGen = pGen + pGen2
+            endif
+        endif
+
+    end subroutine CalcPGenHPHF
 
     subroutine gen_hphf_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
                                tParity, pGen, HEl, store)
@@ -71,7 +148,7 @@ MODULE HPHFRandExcitMod
 
 !        Count=Count+1
 !        WRITE(6,*) "COUNT: ",Count
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 
 !Create excitation of uniquely chosen determinant in this HPHF function.
         IF(IsNullDet(nJ)) RETURN
@@ -80,7 +157,7 @@ MODULE HPHFRandExcitMod
             
 !Test!
 !        CALL CalcNonUniPGen(ExcitMat,IC,ClassCount2,ClassCountUnocc2,pDoub,pGen2)
-!        IF(abs(pGen-pGen2).gt.1.D-7) THEN
+!        IF(abs(pGen-pGen2).gt.1.0e-7_dp_dp) THEN
 !            WRITE(6,*) "*******, PGens Incorrect"
 !            CALL Stop_All("ouvbou","OUBOU")
 !        ENDIF
@@ -100,12 +177,13 @@ MODULE HPHFRandExcitMod
                     !Open shell -> Closed Shell
                     if(tOddS_HPHF) then
                         !Odd S States cannot have CS components
-                        HEl=0.D0
+                        HEl=0.0_dp
                     else
                         MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
-                        HEl=MatEl*SQRT(2.D0)
+                        HEl=MatEl*SQRT(2.0_dp)
                     endif
                 ENDIF
+                if (IC /= 0 .and. modk_offdiag) hel = -abs(hel)
             ENDIF
         ELSE
 !Open shell excitation - could we have generated the spin-coupled determinant instead?
@@ -143,7 +221,7 @@ MODULE HPHFRandExcitMod
                     IF(TestClosedShellDet(iLutnI)) THEN    !Closed shell -> Open shell : Want to sum in SQRT(2)* Hij
                         if(tOddS_HPHF) then
                             !Cannot have CS components
-                            HEl=0.D0
+                            HEl=0.0_dp
                         else
                             IF(tSwapped) THEN
                                 MatEl = sltcnd_excit (nI, IC, Ex2, tSign)
@@ -151,7 +229,7 @@ MODULE HPHFRandExcitMod
                                 MatEl = sltcnd_excit (nI, IC, ExcitMat, &
                                                       tSignOrig)
                             ENDIF
-                            HEl=MatEl*SQRT(2.D0)
+                            HEl=MatEl*SQRT(2.0_dp)
                         endif
                     ELSE     !Open shell -> Open shell
 
@@ -206,6 +284,7 @@ MODULE HPHFRandExcitMod
                         HEl=MatEl
                     
                     ENDIF   !Endif from open/closed shell det
+                    if (IC /= 0 .and. modk_offdiag) hel = -abs(hel)
 
                 ENDIF   !Endif want to generate matrix element
 
@@ -215,7 +294,7 @@ MODULE HPHFRandExcitMod
 !We have generated the same HPHF. MatEl wants to be zero.
                 nJ(1)=0
                 IF(tGenMatHEl) THEN
-                    HEl=0.D0
+                    HEl=0.0_dp
                 ENDIF
 
             ELSE    !Open-shell to Open-shell, but with no cross-connection.
@@ -245,6 +324,7 @@ MODULE HPHFRandExcitMod
                     ENDIF
 
                     HEl=MatEl
+                    if (IC /= 0 .and. modk_offdiag) hel = -abs(hel)
                         
                 ENDIF
 
@@ -254,7 +334,7 @@ MODULE HPHFRandExcitMod
         ENDIF
 
 !        CALL HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl2)
-!        IF((MatEl2-MatEl).gt.1.D-7) THEN
+!        IF((MatEl2-MatEl).gt.1.0e-7_dp_dp) THEN
 !            WRITE(6,*) MatEl2,MatEl
 !            CALL Stop_All("ikb","Error in getting correct HEl - 2")
 !        ENDIF
@@ -264,8 +344,8 @@ MODULE HPHFRandExcitMod
 !            write(6,*) "***"
 !            write(6,*) iLutnI
 !            write(6,*) "HEl: ",HEl
-!            if(HEl.ne.0.D0) call stop_all("gen_hphf_excit","WHY?!")
-!            call flush(6)
+!            if(HEl.ne.0.0_dp) call stop_all("gen_hphf_excit","WHY?!")
+!            call neci_flush(6)
 !        endif
 
     end subroutine
@@ -278,13 +358,12 @@ MODULE HPHFRandExcitMod
 !iLutnI (nI) is returned as this determinant, with iLutSym (nJ) being the other.
 !If tCalciLutSym is false, iLutSym will be calculated from iLutnI. Otherwise, it won't.
     SUBROUTINE ReturnAlphaOpenDet(nI,nJ,iLutnI,iLutSym,tCalciLutSym,tCalcnISym,tSwapped)
-        INTEGER(KIND=n_int) :: iLutSym(0:NIfTot),iLutnI(0:NIfTot),iLutTemp(0:NIfTot)
-        INTEGER :: i,nTemp(NEl),nJ(NEl),nI(NEl)
-        LOGICAL :: tCalciLutSym,tCalcnISym,tSwapped
-
-        if (tCSF) then
-            call stop_all ("ReturnAlphaOpenDet","This doesn't work with csfs")
-        endif
+        INTEGER(KIND=n_int), intent(inout) :: iLutSym(0:NIfTot),iLutnI(0:NIfTot)
+        integer(kind=n_int) :: iLutTemp(0:NIfTot)
+        INTEGER :: i,nTemp(NEl)
+        integer, intent(inout) :: nJ(NEl),nI(NEl)
+        LOGICAL, intent(in) :: tCalciLutSym,tCalcnISym
+        logical, intent(out) :: tSwapped
 
         IF(tCalciLutSym) THEN
             CALL FindExcitBitDetSym(iLutnI,iLutSym)
@@ -317,7 +396,7 @@ MODULE HPHFRandExcitMod
         
 !This create the spin-coupled determinant of nI in nJ in natural ordered form.
     PURE SUBROUTINE FindDetSpinSym(nI,nJ,NEl)
-        INTEGER, intent(in) :: nI(NEl),NEl
+        INTEGER, intent(in) :: NEl,nI(NEl)
         integer, intent(out) :: nJ(NEl)
         integer :: i
 
@@ -326,14 +405,18 @@ MODULE HPHFRandExcitMod
             ! If electron is an alpha electron, change it to a beta (unless
             ! it is part of a closed pair of electrons).
             if (is_alpha(nI(i))) then
-                if (i == 1 .or. (get_beta(nI(i)) /= nI(i-1))) then
+                if (i == 1) then
+                    nJ(i) = nI(i) - 1
+                elseif(get_beta(nI(i)) /= nI(i-1)) then
                     nJ(i) = nI(i) - 1
                 else
                     nJ(i) = nI(i)
                 endif
             ! vice-versa for beta.
             else
-                if (i == nel .or. (get_alpha(nI(i)) /= nI(i+1))) then
+                if (i == nel) then
+                    nJ(i) = nI(i) + 1
+                elseif(get_alpha(nI(i)) /= nI(i+1)) then
                     nJ(i) = nI(i) + 1
                 else
                     nJ(i) = nI(i)
@@ -441,7 +524,7 @@ MODULE HPHFRandExcitMod
 !        WRITE(6,*) "***"
 !        WRITE(6,*) Iterations,pDoub
 !!        WRITE(6,*) "nSymLabels: ",nSymLabels
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
 !
 !!First, we need to enumerate all possible HPHF wavefunctions from each spin-pair of determinants.
 !!These need to be stored in an array
@@ -548,7 +631,7 @@ MODULE HPHFRandExcitMod
 !        WRITE(6,*) "There are ",iUniqueBeta," unique HPHF wavefunctions from the spin-coupled determinant, which are not in a alpha version."
 !        IF(iUniqueBeta.ne.0) THEN
 !            WRITE(6,*) "HPHF from beta, but not from alpha!"
-!            CALL FLUSH(6)
+!            CALL neci_flush(6)
 !            STOP
 !        ENDIF
 !
@@ -610,7 +693,7 @@ MODULE HPHFRandExcitMod
 !        enddo
 !
 !        ALLOCATE(Weights(iUniqueHPHF))
-!        Weights(:)=0.D0
+!        Weights(:)=0.0_dp
 !        tGenClassCountnI=.false.
 !
 !        do i=1,Iterations
@@ -634,7 +717,7 @@ MODULE HPHFRandExcitMod
 !                CALL Stop_All("TestGenRandHPHFExcit","Cannot find excitation in list of allowed excitations")
 !            ENDIF
 !
-!            Weights(PartInd)=Weights(PartInd)+(1.D0/pGen)
+!            Weights(PartInd)=Weights(PartInd)+(1.0_dp/pGen)
 !             
 !!Check excitation
 !!            CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
@@ -648,7 +731,7 @@ MODULE HPHFRandExcitMod
 !        Die=.false.
 !        do i=1,iUniqueHPHF
 !            Weights(i)=Weights(i)/real(Iterations,8)
-!            IF(abs(Weights(i)-1.D0).gt.0.1) THEN
+!            IF(abs(Weights(i)-1.0_dp).gt.0.1) THEN
 !                WRITE(6,*) "Error here!"
 !                Die=.true.
 !            ENDIF
@@ -670,13 +753,13 @@ MODULE HPHFRandExcitMod
 !    END SUBROUTINE TestGenRandHPHFExcit
 
     SUBROUTINE BinSearchListHPHF(iLut,List,Length,MinInd,MaxInd,PartInd,tSuccess)
-        INTEGER(KIND=n_int) :: iLut(0:NIfTot),List(0:NIfTot,Length)
         INTEGER :: Length,MinInd,MaxInd,PartInd
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot),List(0:NIfTot,Length)
         INTEGER :: i,j,N,Comp
         LOGICAL :: tSuccess
 
 !        WRITE(6,*) "Binary searching between ",MinInd, " and ",MaxInd
-!        CALL FLUSH(6)
+!        CALL neci_flush(6)
         i=MinInd
         j=MaxInd
         IF(i-j.eq.0) THEN

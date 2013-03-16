@@ -423,7 +423,7 @@ PROGRAM TransLz
         endif
     enddo
 
-    if((iSyms.lt.4).or.tNoSym) then
+    if((iSyms.le.4).or.tNoSym) then
         !Heteronuclear - Remove all sym - all calculated in Lz and now redundant, and can't keep +/- sym (unless kept in dets)
         if(tNoSym) then
             write(6,'(a)') "Symmetry irreps missing - removing all symmetry"
