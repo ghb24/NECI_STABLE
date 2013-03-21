@@ -1131,6 +1131,9 @@ INITIATOR OPTIONS
     builds up a significant population (greater than InitiatorWalkerNo), it is treated as being in the initiator
     space and may spawn on occupied or unoccupied determinants as it likes.  This is reassessed at each iteration
     however, so determinant may move in and out of the initiator space as the populations vary.
+      In CCMC, if InitiatorWalkerNo is positive, then all excips which make up a cluster must have this population if
+    it is to be an initiator (i.e. can spawn and 'die').  If InitiatorWalkerNo is negative, then its magnitude is used
+    and only one of the excips making up a cluster need be an initiator.
 
 **INCLDOUBSINITIATOR**
     This keyword also goes with **TRUNCINITIATOR**, and is a parallel FCIMC option.  When it is present, all doubly
