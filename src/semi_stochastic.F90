@@ -29,7 +29,8 @@ module semi_stochastic
     use HPHFRandExcitMod, only: FindExcitBitDetSym
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, MPIArg, &
-                             MPIAllGatherV, MPIAllGather
+                             MPIAllGatherV, MPIAllGather, MPIScatter, MPIScatterV
+    use ParallelHelper, only: root
     use sort_mod, only: sort
     use sym_mod, only: getsym
     use SystemData, only: nel, tHPHF, tCSFCore, tDeterminantCore, tDoublesCore, tCASCore, &
@@ -129,8 +130,10 @@ contains
             space_size = determ_proc_sizes(iProcIndex)
             call remove_high_energy_states(SpawnedParts(:, 1:space_size), space_size, &
                                            max_determ_size, .true.)
-            call MPIAllGather(int(space_size, MPIArg), determ_proc_sizes, ierr)
+        else
+            space_size = determ_proc_sizes(iProcIndex)
         end if
+        call MPIAllGather(int(space_size, MPIArg), determ_proc_sizes, ierr)
 
         ! We now know the size of the deterministic space on each processor, so now find
         ! the total size of the space and also allocate vectors to store psip amplitudes
@@ -494,159 +497,211 @@ contains
         integer :: counter, i, j, k, ierr
         integer :: old_num_states, new_num_states, max_space_size, comp
         integer :: num_generation_loops, array_size
+        integer(MPIArg) :: proc_space_sizes(0:nProcessors-1), disps(0:nProcessors-1), &
+                           sendcounts(0:nProcessors-1), recvcount, this_proc_size
         integer, allocatable, dimension(:) :: space_cutoff_num
         real(dp), allocatable, dimension(:) :: space_cutoff_amp
         logical :: tAmplitudeCutoff, tLimitSpace
-        integer(TagIntType) :: IlutTag, TempTag
+        integer(TagIntType) :: IlutTag, TempTag, FinalTag
         character (len=*), parameter :: this_routine = "generate_optimised_core"
 
-        ! Use the correct set of parameters, depending this function was called from for
-        ! generating the deterministic space or the trial space:
-        if (called_from == called_from_semistoch) then
-            num_generation_loops = num_det_generation_loops
-            tAmplitudeCutoff = tDetermAmplitudeCutoff
-            max_space_size = max_determ_size
-            tLimitSpace = tLimitDetermSpace
-            if (tAmplitudeCutoff) then
-                array_size = size(determ_space_cutoff_amp,1)
-                allocate(space_cutoff_amp(array_size))
-                space_cutoff_amp = determ_space_cutoff_amp
-            else
-                array_size = size(determ_space_cutoff_num,1)
-                allocate(space_cutoff_num(array_size))
-                space_cutoff_num = determ_space_cutoff_num
+        if (iProcIndex == root) then
+
+            ! Use the correct set of parameters, depending this function was called
+            ! from for generating the deterministic space or the trial space:
+            if (called_from == called_from_semistoch) then
+                num_generation_loops = num_det_generation_loops
+                tAmplitudeCutoff = tDetermAmplitudeCutoff
+                max_space_size = max_determ_size
+                tLimitSpace = tLimitDetermSpace
+                if (tAmplitudeCutoff) then
+                    array_size = size(determ_space_cutoff_amp,1)
+                    allocate(space_cutoff_amp(array_size))
+                    space_cutoff_amp = determ_space_cutoff_amp
+                else
+                    array_size = size(determ_space_cutoff_num,1)
+                    allocate(space_cutoff_num(array_size))
+                    space_cutoff_num = determ_space_cutoff_num
+                end if
+
+            elseif (called_from == called_from_trial) then
+                num_generation_loops = num_trial_generation_loops
+                tAmplitudeCutoff = tTrialAmplitudeCutoff
+                max_space_size = max_trial_size
+                tLimitSpace = tLimitTrialSpace
+                if (tAmplitudeCutoff) then
+                    array_size = size(trial_space_cutoff_amp,1)
+                    allocate(space_cutoff_amp(array_size))
+                    space_cutoff_amp = trial_space_cutoff_amp
+                else
+                    array_size = size(trial_space_cutoff_num,1)
+                    allocate(space_cutoff_num(array_size))
+                    space_cutoff_num = trial_space_cutoff_num
+                end if
             end if
 
-        elseif (called_from == called_from_trial) then
-            num_generation_loops = num_trial_generation_loops
-            tAmplitudeCutoff = tTrialAmplitudeCutoff
-            max_space_size = max_trial_size
-            tLimitSpace = tLimitTrialSpace
-            if (tAmplitudeCutoff) then
-                array_size = size(trial_space_cutoff_amp,1)
-                allocate(space_cutoff_amp(array_size))
-                space_cutoff_amp = trial_space_cutoff_amp
-            else
-                array_size = size(trial_space_cutoff_num,1)
-                allocate(space_cutoff_num(array_size))
-                space_cutoff_num = trial_space_cutoff_num
+            ! Allocate the stores of ilut's that will hold these deterministic states.
+            ! For now, assume that we won't have a deterministic space of more than one
+            ! million states. Could make this user-specified later.
+            allocate(ilut_store(0:NIfTot, 1000000), stat=ierr)
+            call LogMemAlloc("ilut_store", 1000000*(NIfTot+1), size_n_int, this_routine, &
+                             IlutTag, ierr)
+            allocate(temp_space(0:NIfTot, 1000000), stat=ierr)
+            call LogMemAlloc("temp_store", 1000000*(NIfTot+1), size_n_int, this_routine, &
+                             TempTag, ierr)
+            ilut_store = 0
+            temp_space = 0
+
+            ! Put the Hartree-Fock state in the old list first.
+            ilut_store(0:NIfTot, 1) = ilutHF(0:NIfTot)
+
+            ! old_num_states will hold the number of deterministic states in the current
+            ! space. This is just 1 for now, with only the Hartree-Fock.
+            old_num_states = 1
+
+            ! Now we start the iterating loop. Find all states which are either a single or
+            ! double excitation from each state in the old ilut store, and then see if they
+            ! have a non-zero Hamiltonian matrix element with any state in the old ilut store:
+
+            ! Over the total number of iterations.
+            do i = 1, num_generation_loops
+
+                write(6,'(a37,1X,i2)') "Optimised space generation: Iteration", i
+                call neci_flush(6)
+
+                ! Find all states connected to the states currently in ilut_store.
+                write(6,'(a29)') "Generating connected space..."
+                call neci_flush(6)
+                call generate_connected_space(old_num_states, ilut_store(:, 1:old_num_states), &
+                                              new_num_states, temp_space(:, 1:1000000), 1000000)
+                write(6,'(a26)') "Connected space generated."
+                call neci_flush(6)
+
+                ! Add these states to the ones already in the ilut stores.
+                ilut_store(:, old_num_states+1:old_num_states+new_num_states) = &
+                    temp_space(:, 1:new_num_states)
+
+                new_num_states = new_num_states + old_num_states
+
+                call remove_repeated_states(ilut_store(:, 1:new_num_states), new_num_states)
+
+                write(6,'(i8,1X,a13)') new_num_states, "states found."
+                call neci_flush(6)
+
+                if (tLimitSpace) call remove_high_energy_states(ilut_store(:, 1:new_num_states), &
+                                                                new_num_states, max_space_size, .false.)
+
+                write(6,'(a27)') "Constructing Hamiltonian..."
+                call neci_flush(6)
+
+                call calculate_sparse_hamiltonian(new_num_states, ilut_store(:,1:new_num_states))
+
+                write (6,'(a29)') "Performing diagonalisation..."
+                call neci_flush(6)
+
+                ! Now that the Hamiltonian is generated, we can finally find the ground state of it:
+                call perform_davidson(sparse_hamil_type, .false.)
+
+                ! davidson_eigenvector now stores the ground state eigenvector. We want to use the
+                ! vector whose components are the absolute values of this state:
+                davidson_eigenvector = abs(davidson_eigenvector)
+                ! Multiply by -1.0_dp so that the sort operation later is the right way around.
+                davidson_eigenvector = -1.0_dp*davidson_eigenvector
+
+                ! Now decide which states to keep for the next iteration. There are two ways of
+                ! doing this, as decided by the user. Either all basis states with an amplitude
+                ! in the ground state greater than a given value are kept (tAmplitudeCutoff =
+                ! .true.), or a number of states to keep is specified and we pick the states with
+                ! the biggest amplitudes (tAmplitudeCutoff = .false.).
+                if (tAmplitudeCutoff) then
+                    counter = 0
+                    do j = 1, new_num_states
+                        if (davidson_eigenvector(j) > space_cutoff_amp(i)) then
+                            counter = counter + 1
+                            ilut_store(:, counter) = ilut_store(:, j)
+                        end if
+                    end do
+                    old_num_states = counter
+                else
+                    ! Sort the list in order of the amplitude of the states in the ground state,
+                    ! from smallest to largest.
+                    call sort(davidson_eigenvector(:), ilut_store(:, 1:new_num_states))
+
+                    ! Set old_num_states to specify the number of states which should be kept.
+                    old_num_states = space_cutoff_num(i)
+                    if (old_num_states > new_num_states) old_num_states = new_num_states
+                end if
+
+                write(6,'(i8,1X,a12)') old_num_states, "states kept."
+                call neci_flush(6)
+
+                call deallocate_sparse_hamil()
+                deallocate(hamil_diag, stat=ierr)
+                call LogMemDealloc(this_routine, HDiagTag, ierr)
+
+            end do
+
+        end if ! If on root.
+
+        ! When used for generating the deterministic space, send each processor the
+        ! states which belong to that processor only.
+        ! When used for generating the trial space, send each processor every state.
+        if (called_from == called_from_semistoch) then
+
+            if (iProcIndex == root) then
+                ! Find which core each state belongs to and sort accordingly.
+                call sort_space_by_proc(ilut_store, old_num_states, proc_space_sizes)
+
+                ! Create displacement and sendcount arrays for MPIScatterV later:
+                sendcounts = proc_space_sizes*(NIfTot+1)
+                disps(0) = 0
+                do i = 1, nProcessors
+                    disps(i) = sum(proc_space_sizes(0:i-1))*(NIfTot+1)
+                end do
             end if
+
+            ! Send the number of states on each processor to the corresponding processor.
+            call MPIScatter(proc_space_sizes, this_proc_size, ierr)
+            recvcount = this_proc_size*(NIfTot+1)
+            ! Finally send the actual states to the SpawnedParts array.
+            call MPIScatterV(ilut_store, sendcounts, disps, &
+                             SpawnedParts(:, 1:this_proc_size), recvcount, ierr)
+
+            determ_proc_sizes(iProcIndex) = this_proc_size
+
+            ! Set the flags and the amplitude on the HF.
+            do i = 1, this_proc_size
+                call set_flag(SpawnedParts(:,i), flag_deterministic)
+                if (tTruncInitiator) then
+                    call set_flag(SpawnedParts(:,i), flag_is_initiator(1))
+                    call set_flag(SpawnedParts(:,i), flag_is_initiator(2))
+                end if
+                comp = DetBitLT(SpawnedParts(:,i), ilutHF, NIfD, .false.)
+                if (comp == 0) SpawnedParts(nOffSgn,i) = CurrentDets(nOffSgn,1)
+            end do
+
+        else if (called_from == called_from_trial) then
+
+           if (iProcIndex == root) then
+               trial_space(:, 1:old_num_states) = ilut_store(:, 1:old_num_states)
+               trial_space_size = old_num_states
+           end if
+
+           call MPIBCast(trial_space_size, 1, root)
+           call MPIBCast(trial_space(:, 1:trial_space_size), &
+                         trial_space_size*(NIfTot+1), root)
+
         end if
 
-        ! Allocate the stores of ilut's that will hold these deterministic states.
-        ! For now, assume that we won't have a deterministic space of more than one
-        ! million states. Could make this user-specified later.
-        allocate(ilut_store(0:NIfTot, 1000000), stat=ierr)
-        call LogMemAlloc("ilut_store", 1000000*(NIfTot+1), size_n_int, this_routine, &
-                         IlutTag, ierr)
-        allocate(temp_space(0:NIfTot, 1000000), stat=ierr)
-        call LogMemAlloc("temp_store", 1000000*(NIfTot+1), size_n_int, this_routine, &
-                         TempTag, ierr)
-        ilut_store = 0
-        temp_space = 0
-
-        ! Put the Hartree-Fock state in the old list first.
-        ilut_store(0:NIfTot, 1) = ilutHF(0:NIfTot)
-
-        ! old_num_states will hold the number of deterministic states in the current
-        ! space. This is just 1 for now, with only the Hartree-Fock.
-        old_num_states = 1
-
-        ! Now we start the iterating loop. Find all states which are either a single or
-        ! double excitation from each state in the old ilut store, and then see if they
-        ! have a non-zero Hamiltonian matrix element with any state in the old ilut store:
-
-        ! Over the total number of iterations.
-        do i = 1, num_generation_loops
-
-            write(6,'(a37,1X,i2)') "Optimised space generation: Iteration", i
-            call neci_flush(6)
-
-            ! Find all states connected to the states currently in ilut_store.
-            write(6,'(a29)') "Generating connected space..."
-            call neci_flush(6)
-            call generate_connected_space(old_num_states, ilut_store(:, 1:old_num_states), &
-                                          new_num_states, temp_space(:, 1:1000000), 1000000)
-            write(6,'(a26)') "Connected space generated."
-            call neci_flush(6)
-
-            ! Add these states to the ones already in the ilut stores.
-            ilut_store(:, old_num_states+1:old_num_states+new_num_states) = &
-                temp_space(:, 1:new_num_states)
-
-            new_num_states = new_num_states + old_num_states
-
-            call remove_repeated_states(ilut_store(:, 1:new_num_states), new_num_states)
-
-            write(6,'(i8,1X,a13)') new_num_states, "states found."
-            call neci_flush(6)
-
-            if (tLimitSpace) call remove_high_energy_states(ilut_store(:, 1:new_num_states), &
-                                                            new_num_states, max_space_size, .false.)
-
-            write(6,'(a27)') "Constructing Hamiltonian..."
-            call neci_flush(6)
-
-            call calculate_sparse_hamiltonian(new_num_states, ilut_store(:,1:new_num_states))
-
-            write (6,'(a29)') "Performing diagonalisation..."
-            call neci_flush(6)
-
-            ! Now that the Hamiltonian is generated, we can finally find the ground state of it:
-            call perform_davidson(sparse_hamil_type, .false.)
-
-            ! davidson_eigenvector now stores the ground state eigenvector. We want to use the
-            ! vector whose components are the absolute values of this state:
-            davidson_eigenvector = abs(davidson_eigenvector)
-            ! Multiply by -1.0_dp so that the sort operation later is the right way around.
-            davidson_eigenvector = -1.0_dp*davidson_eigenvector
-
-            ! Now decide which states to keep for the next iteration. There are two ways of
-            ! doing this, as decided by the user. Either all basis states with an amplitude
-            ! in the ground state greater than a given value are kept (tAmplitudeCutoff =
-            ! .true.), or a number of states to keep is specified and we pick the states with
-            ! the biggest amplitudes (tAmplitudeCutoff = .false.).
-            if (tAmplitudeCutoff) then
-                counter = 0
-                do j = 1, new_num_states
-                    if (davidson_eigenvector(j) > space_cutoff_amp(i)) then
-                        counter = counter + 1
-                        ilut_store(:, counter) = ilut_store(:, j)
-                    end if
-                end do
-                old_num_states = counter
-            else
-                ! Sort the list in order of the amplitude of the states in the ground state,
-                ! from smallest to largest.
-                call sort(davidson_eigenvector(:), ilut_store(:, 1:new_num_states))
-
-                ! Set old_num_states to specify the number of states which should be kept.
-                old_num_states = space_cutoff_num(i)
-                if (old_num_states > new_num_states) old_num_states = new_num_states
-            end if
-
-            write(6,'(i8,1X,a12)') old_num_states, "states kept."
-            call neci_flush(6)
-
-            call deallocate_sparse_hamil()
-            deallocate(hamil_diag, stat=ierr)
-            call LogMemDealloc(this_routine, HDiagTag, ierr)
-
-        end do
-
-        ! At this point, all iterations have finished, so add these basis states to SpawnedParts.
-        do i = 1, old_num_states
-            comp = DetBitLT(ilut_store(:, i), ilutHF, NIfD, .false.)
-            if (comp == 0) cycle
-            call add_basis_state_to_list(ilut_store(:, i), called_from)
-        end do
-
+        ! Finally, deallocate arrays.
         if (allocated(space_cutoff_num)) deallocate(space_cutoff_num)
         if (allocated(space_cutoff_amp)) deallocate(space_cutoff_amp)
-        deallocate(temp_space, stat=ierr)
-        call LogMemDealloc(this_routine, TempTag, ierr)
-        deallocate(ilut_store, stat=ierr)
-        call LogMemDealloc(this_routine, IlutTag, ierr)
+        if (iProcIndex == root) then
+            deallocate(temp_space, stat=ierr)
+            call LogMemDealloc(this_routine, TempTag, ierr)
+            deallocate(ilut_store, stat=ierr)
+            call LogMemDealloc(this_routine, IlutTag, ierr)
+        end if
 
     end subroutine generate_optimised_core
 
@@ -1206,8 +1261,8 @@ contains
             ! Find the processor which this state belongs to.
             proc = DetermineDetNode(nI,0)
 
-            ! Increase the size of the deterministic space on the correct processor.
-            determ_proc_sizes(proc) = determ_proc_sizes(proc) + 1
+            ! Keep track of the size of the deterministic space on this processor.
+            if (proc == iProcIndex) determ_proc_sizes(proc) = determ_proc_sizes(proc) + 1
 
             ! If this determinant belongs to this processor, add it to the main list.
             if (proc == iProcIndex) call encode_bit_rep(SpawnedParts(0:NIfTot, &
@@ -1219,6 +1274,7 @@ contains
                 if (.not. IsAllowedHPHF(ilut)) return
             end if
 
+            ! Keep track of the size of the trial space on this processor.
             trial_space_size = trial_space_size + 1
 
             trial_space(0:NIfTot, trial_space_size) = ilut(0:NIfTot)
@@ -1291,6 +1347,31 @@ contains
         call sort(ilut_list, ilut_lt, ilut_gt)
 
     end subroutine find_determ_states_and_sort
+
+    subroutine sort_space_by_proc(ilut_list, ilut_list_size, num_states_procs)
+
+        ! And also output the number of states on each processor in the space...
+
+        integer, intent(in) :: ilut_list_size
+        integer(n_int) :: ilut_list(0:NIfTot, 1:ilut_list_size)
+        integer(MPIArg), intent(out) :: num_states_procs(0:nProcessors-1)
+        integer :: proc_list(ilut_list_size)
+        integer :: nI(nel)
+        integer :: i
+
+        num_states_procs = 0
+
+        ! Create a list, proc_list, with the processor numbers of the corresponding iluts.
+        do i = 1, ilut_list_size
+            call decode_bit_det(nI, ilut_list(:,i))
+            proc_list(i) = DetermineDetNode(nI,0)
+            num_states_procs(proc_list(i)) = num_states_procs(proc_list(i)) + 1
+        end do
+
+        ! Now sort the list according to this processor number.
+        call sort(proc_list, ilut_list(0:NIfTot, 1:ilut_list_size))
+
+    end subroutine sort_space_by_proc
 
     subroutine deterministic_projection()
 

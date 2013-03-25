@@ -71,8 +71,8 @@ contains
                          TrialWFTag, ierr)
 
         ! To allocate storage space for the connected space states, assume that each state
-        ! in the trial space has roughly the same number as connected states as the HF state
-        ! (nSingles+nDoubles). Also divide by the number of processors.
+        ! in the trial space has roughly as many connected states as the HF state (nSingles+
+        ! nDoubles), and a factor of 1.2 for safety. Also divide by the number of processors.
         con_storage_space_size = &
             ceiling(1.2*real(trial_space_size)/real(nProcessors))*(nSingles+nDoubles)
         allocate(con_space(0:NIfTot, con_storage_space_size), stat=ierr)
@@ -80,7 +80,7 @@ contains
                                            size_n_int, this_routine, ConTag, ierr)
         con_space = 0
         
-        call find_elements_on_proc(trial_space_size, min_element, max_element, num_elements)
+        call find_elements_on_procs(trial_space_size, min_element, max_element, num_elements)
 
         if (num_elements > 0) then
 
@@ -131,10 +131,11 @@ contains
         con_space = temp_space
         deallocate(temp_space, stat=ierr)
         call LogMemDealloc(this_routine, TempTag, ierr)
+        ! Finished sending to states to their processors.
 
         call remove_repeated_states(con_space, con_space_size)
 
-        ! Remove states in the connected space which are also in the trial space:
+        ! Remove states in the connected space which are also in the trial space.
         call remove_list1_states_from_list2(trial_space, con_space, &
             trial_space_size, con_space_size)
 
@@ -321,7 +322,7 @@ contains
 
     end subroutine generate_connected_space_vector
 
-    subroutine find_elements_on_proc(list_length, min_element, max_element, num_elements)
+    subroutine find_elements_on_procs(list_length, min_element, max_element, num_elements)
 
         ! Split list_length into nProcessor parts. Note that this is not done based on any hash.
 
@@ -342,7 +343,7 @@ contains
         num_elements = num_elem_all_procs(iProcIndex)
 
         if (num_elements == 0) then
-            if (iProcIndex == 0) call stop_all("find_elements_on_proc","There are no states &
+            if (iProcIndex == 0) call stop_all("find_elements_on_procs","There are no states &
                                                &in the trial space.")
             min_element = 0
             max_element = 0
@@ -357,31 +358,6 @@ contains
             max_element = sum(num_elem_all_procs(0:iProcIndex))
         end if
 
-    end subroutine find_elements_on_proc
-
-    subroutine sort_space_by_proc(ilut_list, ilut_list_size, num_states_procs)
-
-        ! And also output the number of states on each processor in the space...
-
-        integer, intent(in) :: ilut_list_size
-        integer(n_int) :: ilut_list(0:NIfTot, 1:ilut_list_size)
-        integer(MPIArg), intent(out) :: num_states_procs(0:nProcessors-1)
-        integer :: proc_list(ilut_list_size)
-        integer :: nI(nel)
-        integer :: i
-
-        num_states_procs = 0
-
-        ! Create a list, proc_list, with the processor numbers of the corresponding iluts.
-        do i = 1, ilut_list_size
-            call decode_bit_det(nI, ilut_list(:,i))
-            proc_list(i) = DetermineDetNode(nI,0)
-            num_states_procs(proc_list(i)) = num_states_procs(proc_list(i)) + 1
-        end do
-
-        ! Now sort the list according to this processor number.
-        call sort(proc_list, ilut_list(0:NIfTot, 1:ilut_list_size))
-
-    end subroutine sort_space_by_proc
+    end subroutine find_elements_on_procs
 
 end module trial_wavefunction_gen
