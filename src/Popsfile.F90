@@ -923,7 +923,7 @@ outer_map:      do i = 0, MappingNIfD
         INTEGER(TagIntType) :: PartsTag=0
         integer :: nMaxDets, TempDet(0:NIfTot), TempFlags
         integer :: iunit, iunit_2, Initiator_Count
-        integer(int64) :: write_count
+        integer(int64) :: write_count, write_count_sum
         CHARACTER(len=*) , PARAMETER :: this_routine='WriteToPopsfileParOneArr'
         character(255) :: popsfile
         real(dp) :: TempSign(lenof_sign)
@@ -1121,11 +1121,11 @@ outer_map:      do i = 0, MappingNIfD
         if (tBinPops) then
 
             ! Get a count of the number of particles written
-            call MPISum_inplace(write_count)
+            call MPISum(write_count, write_count_sum)
             if (binarypops_min_weight == 0 .and. &
-                    write_count /= AllTotwalkers) then
+                    write_count_sum /= AllTotwalkers) then
                 write(6,*) 'WARNING: Number of particles written (', &
-                    write_count, ') does not equal AllTotWalkers (', &
+                    write_count_sum, ') does not equal AllTotWalkers (', &
                     AllTotWalkers, ')'
             end if
 
@@ -1135,7 +1135,7 @@ outer_map:      do i = 0, MappingNIfD
                                          .true., iPopsFileNoWrite, popsfile)
                 iunit = get_free_unit()
                 open(iunit, file=popsfile, status='replace')
-                call write_popsfile_header (iunit, write_count)
+                call write_popsfile_header (iunit, write_count_sum)
             end if
         end if
 
@@ -1245,8 +1245,9 @@ outer_map:      do i = 0, MappingNIfD
                     ! Testing using the sign now, because after annihilation
                     ! the current flag will not necessarily be correct.
                     ex_level = FindBitExcitLevel(ilutRef, det, nel)
-                    write(iunit_2, '(f30.8,a20)', advance='no') &
                         abs(real_sgn(1)), ''
+                    write(iunit_2, '(f20.10,a20)', advance='no') &
+                        abs(sgn(1)), ''
                     call writebitdet (iunit_2, det, .false.)
                     write(iunit_2, '(i30)') ex_level
 

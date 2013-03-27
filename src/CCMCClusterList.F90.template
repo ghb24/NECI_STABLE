@@ -475,7 +475,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
 !   call set_timer(CCMC_time,20)
 
    ilutFlag=0
-   if(CS%%tInitiators) call set_flag(ilutFlag,flag_parent_initiator(1))
+   if(CS%%tInitiators.and.CS%%dInitiatorThresh>0) call set_flag(ilutFlag,flag_parent_initiator(1))
    !This indicates it's going to be an initiator, but we can change that later by looking at the populations.
    if(CS%%tDynamic.and.CS%%iIndex.eq.0) then
       CS%%nSelects=int((dTotAbsAmpl+abs(dNorm))/nProcessors+1,sizeof_int)
@@ -533,11 +533,23 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
                CS%%C%%dAbsAmplitude=CS%%C%%dAbsAmplitude*sum(abs(amp)) &
                   &  /sum(abs(GetAmpl(AL,CS%%iRefPos,iCurAmpList)))
 !               WRITE(6,*) i,CS%%C%%dAbsAmplitude
-               if(CS%%tInitiators.and.sum(abs(amp))<CS%%dInitiatorThresh) then
+               if(CS%%tInitiators) then
+!If dInitiatorThresh>0 all excips in a cluster must be an initiator if it is to spawn.
+!If dInitiatorThresh<0 any one excips in a cluster allows it to be an initiator.
+                  if(CS%%dInitiatorThresh>0) then
+                     if(sum(abs(amp))<CS%%dInitiatorThresh) then
 ! This won't be an initiator
-                  call clr_flag(ilutFlag,flag_parent_initiator(1))
+                        call clr_flag(ilutFlag,flag_parent_initiator(1))
+                     endif
+                  else
+                     if(sum(abs(amp))>=abs(CS%%dInitiatorThresh)) then
+! This will be an initiator
+                        call set_flag(ilutFlag,flag_parent_initiator(1))
+                     endif
+                  endif
                endif
             enddo
+            if(CS%%tInitiators.and.CS%%C%%iSize==0) call set_flag(ilutFlag,flag_parent_initiator(1))
          endif
          if(CS%%C%%dAbsAmplitude.ne.0) exit
       enddo
@@ -620,9 +632,20 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
             CS%%C%%SelectedExcitorIndices(i)=k
             CS%%C%%SelectedExcitors(:,i)=Dets(:,k)
             CS%%C%%dAbsAmplitude=CS%%C%%dAbsAmplitude*abs(dCurAmpl)/abs(dNorm)  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
-            if(CS%%tInitiators.and.abs(dCurAmpl)<CS%%dInitiatorThresh) then
-               !This won't be an initiator
-               call clr_flag(ilutFlag,flag_parent_initiator(1))
+            if(CS%%tInitiators) then
+!If dInitiatorThresh>0 all excips in a cluster must be an initiator if it is to spawn.
+!If dInitiatorThresh<0 any one excips in a cluster allows it to be an initiator.
+               if(CS%%dInitiatorThresh>0) then
+                  if(abs(dCurAmpl)<CS%%dInitiatorThresh) then
+! This won't be an initiator
+                     call clr_flag(ilutFlag,flag_parent_initiator(1))
+                  endif
+               else
+                  if(abs(dCurAmpl)>=abs(CS%%dInitiatorThresh)) then
+! This will be an initiator
+                     call set_flag(ilutFlag,flag_parent_initiator(1))
+                  endif
+               endif
             endif
             if(tCCNoCuml) then 
                CS%%C%%dClusterProb=CS%%C%%dClusterProb*i*dCumlFactor  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
@@ -671,6 +694,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
 !/CS%%C%%dSelectionNorm
       endif
    endif
+   if(CS%%tInitiators.and.CS%%C%%iSize==0) call set_flag(ilutFlag,flag_parent_initiator(1))
    if(CS%%tInitiators) then
       CS%%C%%initFlag = extract_flags(ilutFlag)
    else
