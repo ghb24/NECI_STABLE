@@ -585,7 +585,7 @@ contains
 
     end subroutine find_next_summation_pair
 
-    subroutine remove_high_energy_states(ilut_list, num_states, target_num_states, tParallel)
+    subroutine remove_high_energy_orbs(ilut_list, num_states, target_num_states, tParallel)
 
         integer, intent(inout) :: num_states
         integer(n_int), intent(inout) :: ilut_list(0:NIfTot, 1:num_states)
@@ -658,7 +658,7 @@ contains
             end if
         end do
         if (counter /= num_states-states_rmvd_this_proc) &
-            call stop_all("remove_high_energy_states", &
+            call stop_all("remove_high_energy_orbs", &
                           "Wrong number of states found.")
         num_states = counter
 
@@ -676,6 +676,6 @@ contains
         write(6,'(i6,1x,a17)') tot_num_states-states_rmvd_all_procs, "states were kept."
         call neci_flush(6)
 
-    end subroutine remove_high_energy_states
+    end subroutine remove_high_energy_orbs
 
 end module enumerate_excitations

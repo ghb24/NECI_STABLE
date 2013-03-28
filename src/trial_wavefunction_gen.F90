@@ -58,11 +58,13 @@ contains
             call generate_cas(called_from_trial)
         elseif (tOptimisedTrial) then
             call generate_optimised_core(called_from_trial)
+        elseif (tLowETrial) then
+            call generate_low_energy_core(called_from_trial)
         end if
 
         call sort(trial_space(0:NIfTot, 1:trial_space_size), ilut_lt, ilut_gt)
 
-        if (tLimitTrialSpace) call remove_high_energy_states&
+        if (tLimitTrialSpace) call remove_high_energy_orbs&
                                        (trial_space(:, 1:trial_space_size), &
                                         trial_space_size, max_trial_size, .false.)
 

@@ -244,7 +244,7 @@ integer(TagIntType) :: ResidualTag
         allocate(work(lwork))
 
         ! This routine diagonalises a symmetric matrix, A.
-        ! V specifies tells the routine to calculate eigenvalues *and* eigenvectors.
+        ! V tells the routine to calculate eigenvalues *and* eigenvectors.
         ! U tells the routine to get the upper half of A (it is symmetric).
         ! basis_index is the number of rows and columns in A.
         ! A = projected_hamil_scrap. This matrix stores the eigenvectors in its columns on output.

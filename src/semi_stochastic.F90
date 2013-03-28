@@ -33,15 +33,7 @@ module semi_stochastic
     use ParallelHelper, only: root
     use sort_mod, only: sort
     use sym_mod, only: getsym
-    use SystemData, only: nel, tHPHF, tCSFCore, tDeterminantCore, tDoublesCore, tCASCore, &
-                          tOptimisedCore, Stot, lms, BasisFN, nBasisMax, BRR, tSpn, &
-                          cas_determ_bitmask, cas_determ_not_bitmask, &
-                          num_det_generation_loops, determ_space_cutoff_amp, &
-                          determ_space_cutoff_num, tDetermAmplitudeCutoff, &
-                          num_trial_generation_loops, trial_space_cutoff_amp, &
-                          trial_space_cutoff_num, tTrialAmplitudeCutoff, OccDetermCASOrbs, &
-                          VirtDetermCASOrbs, OccTrialCasOrbs, VirtTrialCasOrbs, &
-                          tLimitDetermSpace, tLimitTrialSpace, max_determ_size, max_trial_size
+    use SystemData
 
     implicit none
 
@@ -112,6 +104,8 @@ contains
                 call generate_cas(called_from_semistoch)
             else if (tOptimisedCore) then
                 call generate_optimised_core(called_from_semistoch)
+            else if (tLowECore) then
+                call generate_low_energy_core(called_from_semistoch)
             end if
         else if (tCSFCore) then
             if (tDoublesCore) then
@@ -122,13 +116,16 @@ contains
             else if (tOptimisedCore) then
                 call stop_all("init_semi_stochastic", "Optimised core space with CSFs is not &
                               &currently implemented.")
+            else if (tLowECore) then
+                call stop_all("init_semi_stochastic", "Low energy core space with CSFs is not &
+                              &currently implemented.")
             end if
         end if
 
         if (tLimitDetermSpace) then
             tSortDetermToTop = .false.
             space_size = determ_proc_sizes(iProcIndex)
-            call remove_high_energy_states(SpawnedParts(:, 1:space_size), space_size, &
+            call remove_high_energy_orbs(SpawnedParts(:, 1:space_size), space_size, &
                                            max_determ_size, .true.)
         else
             space_size = determ_proc_sizes(iProcIndex)
@@ -552,7 +549,7 @@ contains
             ilut_store = 0
             temp_space = 0
 
-            ! Put the Hartree-Fock state in the old list first.
+            ! Put the Hartree-Fock state in the list first.
             ilut_store(0:NIfTot, 1) = ilutHF(0:NIfTot)
 
             ! old_num_states will hold the number of deterministic states in the current
@@ -588,8 +585,8 @@ contains
                 write(6,'(i8,1X,a13)') new_num_states, "states found."
                 call neci_flush(6)
 
-                if (tLimitSpace) call remove_high_energy_states(ilut_store(:, 1:new_num_states), &
-                                                                new_num_states, max_space_size, .false.)
+                if (tLimitSpace) call remove_high_energy_orbs(ilut_store(:, 1:new_num_states), &
+                                                              new_num_states, max_space_size, .false.)
 
                 write(6,'(a27)') "Constructing Hamiltonian..."
                 call neci_flush(6)
@@ -624,7 +621,7 @@ contains
                     old_num_states = counter
                 else
                     ! Sort the list in order of the amplitude of the states in the ground state,
-                    ! from smallest to largest.
+                    ! from largest to smallest.
                     call sort(davidson_eigenvector(:), ilut_store(:, 1:new_num_states))
 
                     ! Set old_num_states to specify the number of states which should be kept.
@@ -706,20 +703,28 @@ contains
     end subroutine generate_optimised_core
 
     subroutine generate_connected_space(original_space_size, original_space, connected_space_size, &
-        connected_space, storage_space_size)
+        connected_space, storage_space_size, tSinglesOnly)
 
         integer, intent(in) :: original_space_size
         integer(n_int), intent(in) :: original_space(0:NIfTot, original_space_size)
         integer, intent(in) :: storage_space_size
         integer, intent(out) :: connected_space_size
         integer(n_int), intent(out) :: connected_space(0:NIfTot, storage_space_size)
+        logical, intent(in), optional :: tSinglesOnly
 
         integer(n_int) :: ilut(0:NIfTot), ilut_tmp(0:NIfTot)
         integer :: nI(nel)
         integer :: i, counter
-        logical :: first_loop, connected
+        logical :: first_loop, connected, tSkipDoubles
         type(excit_store), target :: gen_store
         character (len=1024) :: storage_space_string
+
+        ! By default, generate both singles and doubles (the whole connected space).
+        if (present(tSinglesOnly)) then
+            tSkipDoubles = tSinglesOnly
+        else
+            tSkipDoubles = .false.
+        end if
 
         connected_space_size = 0
 
@@ -776,6 +781,9 @@ contains
                 if (connected) connected_space(0:NIfD, connected_space_size) = ilut(0:NIfD)
 
             end do
+
+            ! If only generating the singles space.
+            if (tSkipDoubles) cycle
 
             ! The doubles:
 
@@ -931,7 +939,7 @@ contains
         end do
 
         if (called_from == called_from_trial) then
-            if (tLimitTrialSpace) call remove_high_energy_states(trial_space(:, 1:trial_space_size), &
+            if (tLimitTrialSpace) call remove_high_energy_orbs(trial_space(:, 1:trial_space_size), &
                                                              trial_space_size, max_trial_size, .false.)
         end if
 
@@ -1123,6 +1131,173 @@ contains
         call LogMemDealloc(this_routine, IlutTag, ierr)
 
     end subroutine generate_cas
+
+    subroutine generate_low_energy_core(called_from)
+
+        ! In: called_from - Integer to specify whether this routine was called from the
+        !     the semi-stochastic generation code or the trial vector generation code.
+
+        integer, intent(in) :: called_from
+        integer :: i, num_loops, num_states_keep, comp, ierr
+        integer :: old_num_states, new_num_states, max_space_size, low_e_excit
+        logical :: tAllDoubles, tSinglesOnly
+        integer(n_int), allocatable, dimension(:,:) :: ilut_store, temp_space
+        integer(TagIntType) :: IlutTag, TempTag
+        character (len=*), parameter :: this_routine = "generate_low_energy_core"
+
+        ! Use the correct set of parameters, depending this function was called
+        ! from for generating the deterministic space or the trial space:
+        if (called_from == called_from_semistoch) then
+            low_e_excit = low_e_core_excit
+            tAllDoubles = tLowECoreAllDoubles
+            num_states_keep = low_e_core_num_keep
+            max_space_size = max_determ_size
+        elseif (called_from == called_from_trial) then
+            low_e_excit = low_e_trial_excit
+            tAllDoubles = tLowETrialAllDoubles
+            num_states_keep = low_e_trial_num_keep
+            max_space_size = max_trial_size
+        end if
+
+        ! low_e_excit holds the maximum excitation level to go to. In the first loop,
+        ! generate both single and double excitations.
+        num_loops = max(low_e_excit-1, 1)
+
+        if (low_e_excit == 1) call warning_neci("generate_low_energy_core", "You asked for &
+                                                &singles only, but both singles and doubles &
+                                                &will be generated in the first iteration.")
+
+        allocate(ilut_store(0:NIfTot, 1000000), stat=ierr)
+        call LogMemAlloc("ilut_store", 1000000*(NIfTot+1), size_n_int, this_routine, &
+                         IlutTag, ierr)
+        allocate(temp_space(0:NIfTot, 1000000), stat=ierr)
+        call LogMemAlloc("temp_store", 1000000*(NIfTot+1), size_n_int, this_routine, &
+                         TempTag, ierr)
+        ilut_store = 0
+        temp_space = 0
+
+        ! Put the Hartree-Fock state in the list first.
+        ilut_store(0:NIfTot, 1) = ilutHF(0:NIfTot)
+
+        ! old_num_states will hold the number of deterministic states in the current
+        ! space. This is just 1 for now, with only the Hartree-Fock.
+        old_num_states = 1
+        new_num_states = 1
+
+        do i = 1, num_loops
+
+            write(6,'(a38,1X,i2)') "Low energy space generation: Iteration", i
+            call neci_flush(6)
+
+            ! The number of states in the list to work with, after the last iteration.
+            old_num_states = min(new_num_states, num_states_keep)
+
+            ! In the first iteration, generate all singles and doubles.
+            if (i == 1) then
+                tSinglesOnly = .false.
+            else
+                tSinglesOnly = .true.
+            end if
+
+            ! Find all *single* excitations (not doubles) to the states in ilut_store.
+            call generate_connected_space(old_num_states, ilut_store(:, 1:old_num_states), &
+                                          new_num_states, temp_space(:, 1:1000000), &
+                                          1000000, tSinglesOnly)
+
+            ! Add these states to the ones already in the ilut stores.
+            ilut_store(:, old_num_states+1:old_num_states+new_num_states) = &
+                temp_space(:, 1:new_num_states)
+
+            new_num_states = new_num_states + old_num_states
+
+            call remove_repeated_states(ilut_store(:, 1:new_num_states), new_num_states)
+
+            write(6,'(i8,1X,a13)') new_num_states, "states found."
+            call neci_flush(6)
+
+            call sort_states_by_energy(ilut_store, new_num_states, tAllDoubles)
+
+            ! If user has asked to keep all singles and doubles but has not asked for enough
+            ! states to be kept.
+            if (i == 1 .and. new_num_states > num_states_keep .and. tAllDoubles) &
+                call warning_neci("generate_low_energy_core", "You have asked to keep all &
+                                   &singles and doubles, but the maximum number of states &
+                                   &you have asked to keep is to small for this. Some singles &
+                                   &or doubles will not be kept.")
+
+        end do
+
+        if (max_space_size /= 0) new_num_states = min(new_num_states, max_space_size)
+
+        ! Add all states (except for the HF state, included already) to the appropriate
+        ! space.
+        do i = 1, new_num_states
+            comp = DetBitLT(ilut_store(:, i), ilutHF, NIfD, .false.)
+            if (comp == 0) cycle
+            call add_basis_state_to_list(ilut_store(:, i), called_from)
+        end do
+
+        deallocate(temp_space, stat=ierr)
+        call LogMemDealloc(this_routine, TempTag, ierr)
+        deallocate(ilut_store, stat=ierr)
+        call LogMemDealloc(this_routine, IlutTag, ierr)
+
+    end subroutine generate_low_energy_core
+
+    subroutine sort_states_by_energy(ilut_list, num_states, tSortDoubles)
+
+        ! Note: If requested, sort doubles to the top, then sort by energy.
+
+        use bit_reps, only: decode_bit_det
+        use Determinants, only: get_helement
+        use hphf_integrals, only: hphf_diag_helement
+        use SystemData, only: tHPHF
+
+        integer, intent(in) :: num_states
+        integer(n_int), intent(inout) :: ilut_list(0:NIfTot, 1:num_states)
+        logical, intent(in) :: tSortDoubles
+        integer(n_int) :: temp_ilut(0:NIfTot)
+        integer :: nI(nel)
+        integer :: i, excit_level, num_sing_doub, block_size
+        real(dp) :: energies(num_states)
+
+        do i = 1, num_states
+            call decode_bit_det(nI, ilut_list(:,i))
+            if (tHPHF) then
+                energies(i) = hphf_diag_helement(nI, ilut_list(:,i))
+            else
+                energies(i) = get_helement(nI, nI, 0)
+            end if
+        end do
+
+        ! Sort the states in order of energy, from smallest to largest.
+        call sort(energies, ilut_list(0:NIfTot, 1:num_states))
+
+        ! If requested, sort singles and doubles to the top, keeping the rest of
+        ! the ordering the same.
+        if (tSortDoubles) then
+            num_sing_doub = 0
+            block_size = 0
+            do i = 1, num_states
+                excit_level = FindBitExcitLevel(ilut_list(:,i), ilutHF)
+                if (excit_level <= 2) then
+                    num_sing_doub = num_sing_doub + 1
+                    temp_ilut = ilut_list(:,i)
+
+                    ! Move block of non-singles or doubles down one in ilut_list.
+                    ilut_list(:, num_sing_doub+1:num_sing_doub+block_size) = &
+                        ilut_list(:, num_sing_doub:num_sing_doub+block_size-1)
+
+                    ! Then move the single or double just found into the space
+                    ! created above this block.
+                    ilut_list(:, num_sing_doub) = temp_ilut
+                else
+                    block_size = block_size + 1
+                end if
+            end do
+        end if
+
+    end subroutine sort_states_by_energy
 
     subroutine create_CAS_csfs(ilut_store, num_dets, called_from)
 

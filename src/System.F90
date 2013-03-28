@@ -87,7 +87,11 @@ MODULE System
       tDoublesCore = .false.
       tCASCore = .false.
       tOptimisedCore = .false.
+      tLowECore = .false.
       num_det_generation_loops = 1
+      low_e_core_excit = 0
+      low_e_core_num_keep = 0
+      tLowECoreAllDoubles = .false.
       tLimitDetermSpace = .false.
       tLimitTrialSpace = .false.
       max_determ_size = 0
@@ -97,7 +101,11 @@ MODULE System
       tDoublesTrial = .false.
       tCASTrial = .false.
       tOptimisedTrial =.false.
+      tLowETrial = .false.
       num_trial_generation_loops = 1
+      low_e_trial_excit = 0
+      low_e_trial_num_keep = 0
+      tLowETrialAllDoubles = .false.
       tTrialAmplitudeCutoff = .false.
       STOT=0
       TPARITY = .false.
@@ -205,6 +213,7 @@ MODULE System
       IMPLICIT NONE
       LOGICAL eof
       CHARACTER (LEN=100) w
+      CHARACTER (LEN=100) input_string
       INTEGER I,Odd_EvenHPHF,Odd_EvenMI
       
       ! The system block is specified with at least one keyword on the same
@@ -395,6 +404,23 @@ system: do
             do I = 1, num_det_generation_loops
                 call geti(determ_space_cutoff_num(I))
             end do
+        case("LOW-ENERGY-CORE")
+! Input values: The first integer is the maximum excitation level to go up to.
+!               The second integer is the maximum number of states to keep for a subsequent iteration.
+!               If desired, you can put "All-Doubles" after these two integers to keep all singles and doubles.
+!               If max-core-size is specified then this value will be used to select the number of states kept after the *final* iteration.
+            tLowECore = .true.
+            tSortDetermToTop = .false.
+            call geti(low_e_core_excit)
+            call geti(low_e_core_num_keep)
+            if (nitems > 3) then
+                call geta(input_string)
+                if (trim(input_string) == "All-Doubles") then
+                    tLowECoreAllDoubles = .true.
+                else
+                    call stop_all("SysReadInput","Input string is not recognised.")
+                end if
+            end if
         case("TRIAL-WAVEFUNCTION")
             tTrialWavefunction = .true.
         case("DOUBLES-TRIAL")
@@ -420,6 +446,22 @@ system: do
             do I = 1, num_trial_generation_loops
                 call geti(trial_space_cutoff_num(I))
             end do
+        case("LOW-ENERGY-TRIAL")
+! Input values: The first integer is the maximum excitation level to go up to.
+!               The second integer is the maximum number of states to keep for a subsequent iteration.
+!               If desired, you can put "All-Doubles" after these two integers to keep all singles and doubles.
+!               If max-trial-size is specified then this value will be used to select the number of states kept after the *final* iteration.
+            tLowETrial = .true.
+            call geti(low_e_trial_excit)
+            call geti(low_e_trial_num_keep)
+            if (nitems > 3) then
+                call geta(input_string)
+                if (trim(input_string) == "All-Doubles") then
+                    tLowETrialAllDoubles = .true.
+                else
+                    call stop_all("SysReadInput","Input string is not recognised.")
+                end if
+            end if
         case("SYMIGNOREENERGIES")
             tSymIgnoreEnergies=.true.
         case("NOSYMMETRY")
