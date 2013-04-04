@@ -1367,10 +1367,7 @@ MODULE FciMCParMod
                                     ! stochastic space to the deterministic space, then we will set the 
                                     ! flag to specify that the new state is in the deterministic space.
                                     call check_if_in_determ_space(ilutnJ, tInDetermSpace)
-                                    !write(6,*) "--State------"
-                                    !write(6,*) ilutnJ
-                                    !call write_det(6, nJ, .true.)
-                                    !write(6,*) "In determ space?", tInDetermSpace
+
                                     if (test_flag(CurrentDets(:,j), flag_deterministic)) then
                                         if (tInDetermSpace) cycle
                                     else
@@ -4664,6 +4661,9 @@ MODULE FciMCParMod
         AnnSpawned_time%timer_name='AnnSpawnedTime'
         AnnMain_time%timer_name='AnnMainTime'
         BinSearch_time%timer_name='BinSearchTime'
+        SemiStoch_Comms_Time%timer_name='SemiStochCommsTime'
+        SemiStoch_Multiply_Time%timer_name='SemiStochMultiplyTime'
+        Trial_Search_Time%timer_name='TrialSearchTime'
 
         IF(TDebug) THEN
 !This will open a file called LOCALPOPS-"iprocindex" on unit number 11 on every node.
@@ -6646,6 +6646,8 @@ MODULE FciMCParMod
 
         if (tTrialWavefunction) then
 
+            call set_timer(Trial_Search_Time)
+
             ! Search both the trial space and connected space to see if this state exists in either list.
             ! First the trial space:
             pos = binary_search_custom(trial_space(:, min_trial_ind:trial_space_size), ilut, NIfTot+1, ilut_gt)
@@ -6680,6 +6682,8 @@ MODULE FciMCParMod
                     min_connected_ind = min_connected_ind - pos - 1
                 end if
             end if
+
+            call halt_timer(Trial_Search_Time)
         end if
 
         if (proje_linear_comb .and. nproje_sum > 1) then

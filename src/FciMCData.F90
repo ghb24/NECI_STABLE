@@ -181,7 +181,8 @@ MODULE FciMCData
 
       type(timer) :: Walker_Time, Annihil_Time,ACF_Time, Sort_Time, &
                            Comms_Time, AnnSpawned_time, AnnMain_time, &
-                           BinSearch_time
+                           BinSearch_time, SemiStoch_Comms_Time, &
+                           SemiStoch_Multiply_Time, Trial_Search_Time
       
       ! Store the current value of S^2 between update cycles
       real(dp) :: curr_S2, curr_S2_init

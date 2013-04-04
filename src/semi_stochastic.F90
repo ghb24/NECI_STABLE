@@ -22,7 +22,8 @@ module semi_stochastic
                          determ_space_size, TotWalkers, TotWalkersOld, &
                          indices_of_determ_states, ProjEDet, SpawnedParts, SparseHamilTags, &
                          HDiagTag, CoreTag, FDetermTag, PDetermTag, &
-                         trial_space, trial_space_size
+                         trial_space, trial_space_size, SemiStoch_Comms_Time, &
+                         SemiStoch_Multiply_Time
     use gndts_mod, only: gndts
     use hash , only: DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
@@ -34,6 +35,7 @@ module semi_stochastic
     use sort_mod, only: sort
     use sym_mod, only: getsym
     use SystemData
+    use timing_neci
 
     implicit none
 
@@ -1556,8 +1558,14 @@ contains
 
         integer :: i, info
 
+        call set_timer(SemiStoch_Comms_Time)
+
         call MPIAllGatherV(partial_determ_vector, full_determ_vector, determ_proc_sizes, &
                             determ_proc_indices)
+
+        call halt_timer(SemiStoch_Comms_Time)
+
+        call set_timer(SemiStoch_Multiply_Time)
 
         if (determ_proc_sizes(iProcIndex) >= 1) then
 
@@ -1593,6 +1601,8 @@ contains
 
             ! Now multiply the vector by tau to get the final projected vector.
             partial_determ_vector = partial_determ_vector * tau
+
+            call halt_timer(SemiStoch_Multiply_Time)
 
         end if
 
