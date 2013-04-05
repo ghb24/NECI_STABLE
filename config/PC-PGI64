@@ -1,12 +1,12 @@
 [main]
 fc = pgf90
 compiler = PGI-pgf95-on-LINUX
-cc = pgCC
+cc = g++
 ccd = g++
 cpp = cpp -C -traditional
 cppflags =  -D__Linux -DPOINTER8 -DHAVE_SSE2 -D__INT64 -D__PGI
 ld = pgf90
-libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3 -llapack -lblas -pgcpplibs -lrt -lm
+libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib -lfftw3 -llapack -lblas -lstdc++ -lrt -lm
 module_flag = -module
 
 [dbg]
