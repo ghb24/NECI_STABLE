@@ -7141,6 +7141,8 @@ MODULE FciMCParMod
         integer(TagIntType) :: ISCRTag=0,IndexTag=0,AMTag=0
         integer(TagIntType) :: WorkTag=0
         real(dp) :: CASRefEnergy,TotWeight,PartFac,amp,rat,r,GetHElement
+        real(dp) :: energytmp(nel)
+        integer  :: tmp_det(nel)
         integer , dimension(lenof_sign) :: temp_sign
         character(len=*) , parameter :: this_routine='InitFCIMC_CAS'
         
@@ -7223,13 +7225,17 @@ MODULE FciMCParMod
         if(ierr.ne.0) call stop_all(this_routine,"Error allocating CASFullDets")
         CASFullDets(:,:)=0
 
+        ! Get the first part of a determinant with the lowest energy, rather
+        ! than lowest index number orbitals
+        energytmp = ARR(ProjEDet, 2)
+        tmp_det = ProjEDet
+        call sort(energytmp, tmp_det)
+
+        ! Construct the determinants resulting from the CAS expansion.
         do i=1,nCASDet
-            do j=1,NEl-OccCASorbs
-                CASFullDets(j,i)=ProjEDet(j)
-            enddo
-            do j=NEl-OccCASorbs+1,NEl
-                CASFullDets(j,i)=CASDetList(j-(NEl-OccCASorbs),i)
-            enddo
+            CASFullDets(1:nel-OccCASorbs,i) = tmp_det(1:nel-OccCASOrbs)
+            CASFullDets(nel-OccCASorbs+1:nel,i) = CASDetList(1:OccCASorbs, i)
+            call sort(CASFullDets(:,i))
         enddo
         deallocate(CASDetList)
 
