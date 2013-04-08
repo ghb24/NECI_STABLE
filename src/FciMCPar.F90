@@ -1355,29 +1355,33 @@ MODULE FciMCParMod
                         if (tSemiStochastic) then
                             call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
 
+                            !call set_timer(SemiStoch_Walker_Time)
+
                             ! Temporary fix: FindExcitBitDet copies the flags of the parent onto the
                             ! child, which causes semi-stochastic simulations to crash. Should it copy
                             ! these flags? There are comments questioning this in create_particle, too.
                             iLutnJ(nOffFlag) = 0
                             
-                                if (tSortDetermToTop) then
-                                    ! For the case where we are sorting deterministic states to the top
-                                    ! of the list, if spawning occurs from the deterministic space to the
-                                    ! deterministic space, abort it now. If the spawning occurs from the
-                                    ! stochastic space to the deterministic space, then we will set the 
-                                    ! flag to specify that the new state is in the deterministic space.
-                                    call check_if_in_determ_space(ilutnJ, tInDetermSpace)
+                            if (tSortDetermToTop) then
+                                ! For the case where we are sorting deterministic states to the top
+                                ! of the list, if spawning occurs from the deterministic space to the
+                                ! deterministic space, abort it now. If the spawning occurs from the
+                                ! stochastic space to the deterministic space, then we will set the 
+                                ! flag to specify that the new state is in the deterministic space.
+                                call check_if_in_determ_space(ilutnJ, tInDetermSpace)
 
-                                    if (test_flag(CurrentDets(:,j), flag_deterministic)) then
-                                        if (tInDetermSpace) cycle
-                                    else
-                                        if (tInDetermSpace) call set_flag(iLutnJ, flag_deterministic)
-                                    end if
+                                if (test_flag(CurrentDets(:,j), flag_deterministic)) then
+                                    if (tInDetermSpace) cycle
+                                else
+                                    if (tInDetermSpace) call set_flag(iLutnJ, flag_deterministic)
                                 end if
-                                ! If the psip being spawned is spawned from the deterministic space,
-                                ! then set the corresponding flag to specify this.
-                                if (test_flag(CurrentDets(:,j), flag_deterministic)) &
-                                call set_flag(iLutnJ, flag_determ_parent)
+                            end if
+                            ! If the psip being spawned is spawned from the deterministic space,
+                            ! then set the corresponding flag to specify this.
+                            if (test_flag(CurrentDets(:,j), flag_deterministic)) &
+                            call set_flag(iLutnJ, flag_determ_parent)
+
+                            !call halt_timer(SemiStoch_Walker_Time)
                         end if
 
                         child = attempt_create (get_spawn_helement, DetCurr, &
@@ -3792,7 +3796,7 @@ MODULE FciMCParMod
         real(dp), dimension(lenof_sign), intent(out) :: tot_parts_new_all
         character(len=*), parameter :: this_routine='collate_iter_data'
         real(dp), dimension(lenof_sign) :: RealAllHFCyc
-        real(dp) :: all_norm_psi_squared
+        real(dp) :: all_norm_psi_squared, all_norm_semistoch_squared
     
         ! Communicate the integers needing summation
 
@@ -3838,9 +3842,11 @@ MODULE FciMCParMod
         TotWalkersTemp=TotWalkers-HolesInList
         call MPIReduce(TotwalkersTemp, MPI_SUM, AllTotWalkers)
         call MPIReduce(norm_psi_squared,MPI_SUM,all_norm_psi_squared)
+        call MPIReduce(norm_semistoch_squared,MPI_SUM,all_norm_semistoch_squared)
         call MPIReduce(Totparts,MPI_SUM,AllTotParts)
         call MPIReduce(tot_parts_new,MPI_SUM,tot_parts_new_all)
         norm_psi = sqrt(all_norm_psi_squared)
+        norm_semistoch = sqrt(all_norm_semistoch_squared)
         call MPIReduce(SumNoatHF, MPI_SUM, AllSumNoAtHF)
         ! HElement_t values (Calculates the energy by summing all on HF and 
         ! doubles)
@@ -4333,13 +4339,14 @@ MODULE FciMCParMod
                   &20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  &
                   &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
                   &26.HF weight    27.|Psi|     28.Inst S^2 29.Inst S^2 30.AbsProjE &
-                  &31.SpawnedParts  32.MergedParts  33.WalkersToSpawn  34.ZeroMatrixElements"
+                  &31.SpawnedParts  32.MergedParts  33.WalkersToSpawn  34.ZeroMatrixElements &
+                  &35.|Semistoch|/|Psi|"
            if (tTrialWavefunction) then 
-                  write(fcimcstats_unit, "(A)", advance = 'yes') &
-                  "  35.TrialNumerator  36.TrialDenom  37.TrialOverlap"
-           else
-                  write(fcimcstats_unit, "()", advance = 'yes')
+                  write(fcimcstats_unit, "(A)", advance = 'no') &
+                  "  36.TrialNumerator  37.TrialDenom  38.TrialOverlap"
            end if
+
+           write(fcimcstats_unit, "()", advance = 'yes')
 
            if(tSplitProjEHist) then
                if(tSplitProjEHistG) then
@@ -4463,7 +4470,8 @@ MODULE FciMCParMod
             endif
             
             write(fcimcstats_unit,"(I12,G16.7,3G16.7,3G16.7,5G17.9,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9, 4I13)", advance = 'no') &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9, 4I13, G16.7)", &
+                                  advance = 'no') &
                 Iter + PreviousCycles, &
                 DiagSft, &
                 sum(AllTotParts) - sum(AllTotPartsOld), &
@@ -4496,15 +4504,16 @@ MODULE FciMCParMod
                 AllNumSpawnedEntries, &
                 AllNumMerged, &
                 AllTotWalkersToSpawn, &
-                AllZeroMatrixElem
+                AllZeroMatrixElem, &
+                norm_semistoch/norm_psi
                 if (tTrialWavefunction) then
-                    write(fcimcstats_unit, "(3G16.7)", advance = 'yes') &
+                    write(fcimcstats_unit, "(3G16.7)", advance = 'no') &
                     (tot_trial_numerator / StepsSft), &
                     (tot_trial_denom / StepsSft), &
                     abs((tot_trial_denom / (norm_psi*StepsSft)))
-                else
-                    write(fcimcstats_unit, "()", advance = 'yes')
                 end if
+                
+                write(fcimcstats_unit, "()", advance = 'yes')
 
             if(tMCOutput) then
                 write (iout, "(I12,10G16.7)", advance = 'no') &
@@ -4663,6 +4672,7 @@ MODULE FciMCParMod
         BinSearch_time%timer_name='BinSearchTime'
         SemiStoch_Comms_Time%timer_name='SemiStochCommsTime'
         SemiStoch_Multiply_Time%timer_name='SemiStochMultiplyTime'
+        SemiStoch_Walker_Time%timer_name='SemiStochWalkerTime'
         Trial_Search_Time%timer_name='TrialSearchTime'
 
         IF(TDebug) THEN

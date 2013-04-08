@@ -89,7 +89,10 @@ MODULE FciMCData
       integer(int64) :: TotWalkers, TotWalkersOld
       real(dp), dimension(lenof_sign) :: TotParts, TotPartsOld
       real(dp) :: norm_psi_squared
+      real(dp) :: norm_semistoch_squared
       real(dp) :: norm_psi
+      ! The norm of the wavefunction in just the semi-stochastic space.
+      real(dp) :: norm_semistoch
       INTEGER :: exFlag=3
       real(dp) :: AccumRDMNorm, AccumRDMNorm_Inst, AllAccumRDMNorm
       
@@ -182,7 +185,8 @@ MODULE FciMCData
       type(timer) :: Walker_Time, Annihil_Time,ACF_Time, Sort_Time, &
                            Comms_Time, AnnSpawned_time, AnnMain_time, &
                            BinSearch_time, SemiStoch_Comms_Time, &
-                           SemiStoch_Multiply_Time, Trial_Search_Time
+                           SemiStoch_Multiply_Time, Trial_Search_Time, &
+                           SemiStoch_Walker_Time
       
       ! Store the current value of S^2 between update cycles
       real(dp) :: curr_S2, curr_S2_init

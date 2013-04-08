@@ -1677,6 +1677,7 @@ MODULE AnnihilationMod
 !Surely we only need to perform this loop if the number of annihilated particles > 0?
         TotParts=0.0
         norm_psi_squared = 0.0
+        norm_semistoch_squared = 0.0
         DetsMerged=0
         iHighestPop=0
         InstNoatHF = 0.0
@@ -1746,6 +1747,7 @@ MODULE AnnihilationMod
                     TotParts=TotParts+abs(CurrentSign)
                     ! CMO
                     norm_psi_squared = norm_psi_squared + sum(CurrentSign**2)
+                    if(tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + sum(CurrentSign**2)
                     IF(tCheckHighestPop) THEN
 !If this option is on, then we want to compare the weight on each determinant to the weight at the HF determinant.
 !Record the highest weighted determinant on each processor.
