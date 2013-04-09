@@ -158,10 +158,6 @@ contains
             end do
         end do
 
-        do i = 1, num_ras_classes
-            call print_matrix(ras_classes(i)%vertex_weights, tot_norbs, tot_nelec)
-        end do
-
         ! Find the allowed combinations of classes in the full RAS space.
         do i = 1, num_ras_classes
             counter = 0
@@ -594,24 +590,5 @@ contains
         end do
 
     end subroutine find_sym_combinations
-
-    subroutine print_matrix(matrix, N, M)
-
-        integer :: I, J
-        integer, intent(in) :: N, M
-        integer, intent(in) :: matrix(0:N, 0:M)
-
-        write(6,*)
-
-        do I = 0, N
-            do J = 0, M
-                write(6, fmt = '(I4,A1)', advance = 'no') matrix(I,J), ' '
-            end do
-            print *,
-        end do
-
-        write(6,*)
-
-    end subroutine print_matrix
 
 end module ras
