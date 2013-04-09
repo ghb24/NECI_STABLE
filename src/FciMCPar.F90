@@ -7099,6 +7099,8 @@ MODULE FciMCParMod
         integer(TagIntType) :: WorkTag=0
         real(dp) :: CASRefEnergy,TotWeight,PartFac,amp,rat,r,GetHElement
         real(dp), dimension(lenof_sign) :: temp_sign
+        real(dp) :: energytmp(nel), max_wt
+        integer  :: tmp_det(nel), det_max
         character(len=*) , parameter :: this_routine='InitFCIMC_CAS'
         
         if(lenof_sign.ne.1) call stop_all(this_routine,"StartCAS currently does not work with complex walkers")
@@ -7180,13 +7182,17 @@ MODULE FciMCParMod
         if(ierr.ne.0) call stop_all(this_routine,"Error allocating CASFullDets")
         CASFullDets(:,:)=0
 
+        ! Get the first part of a determinant with the lowest energy, rather
+        ! than lowest index number orbitals
+        energytmp = ARR(ProjEDet, 2)
+        tmp_det = ProjEDet
+        call sort(energytmp, tmp_det)
+
+        ! Construct the determinants resulting from the CAS expansion.
         do i=1,nCASDet
-            do j=1,NEl-OccCASorbs
-                CASFullDets(j,i)=ProjEDet(j)
-            enddo
-            do j=NEl-OccCASorbs+1,NEl
-                CASFullDets(j,i)=CASDetList(j-(NEl-OccCASorbs),i)
-            enddo
+            CASFullDets(1:nel-OccCASorbs,i) = tmp_det(1:nel-OccCASOrbs)
+            CASFullDets(nel-OccCASorbs+1:nel,i) = CASDetList(1:OccCASorbs, i)
+            call sort(CASFullDets(:,i))
         enddo
         deallocate(CASDetList)
 
@@ -7233,9 +7239,9 @@ MODULE FciMCParMod
         !Turn back on HPHF integrals if needed.
         if(tHPHF) tHPHFInts=.true.
 
-        if(abs(CASRefEnergy-Hii).gt.1.0e-7_dp) then
-            call stop_all(this_routine,"CAS reference energy does not match reference energy of full space")
-        endif
+!        if(abs(CASRefEnergy-Hii).gt.1.0e-7_dp) then
+!            call stop_all(this_routine,"CAS reference energy does not match reference energy of full space")
+!        endif
 
         if(nCASDet.gt.1300) then
             !Lanczos
@@ -7329,6 +7335,8 @@ MODULE FciMCParMod
 
         TotWeight=0.0_dp
         nHPHFCAS=0
+        max_wt = 0
+        det_max = 0
         do i=1,nCASDet
             if(tHPHF) then
                 !Only allow valid HPHF functions
@@ -7363,8 +7371,28 @@ MODULE FciMCParMod
             else
                 TotWeight=TotWeight+abs(CK(i,1))
             endif
+
+            ! Find the maximum weighted determinant.
+            if (abs(ck(i, 1)) > max_wt) then
+                max_wt = abs(ck(i, 1))
+                det_max = i
+            end if
         enddo
-        write(iout,*) "Total weight of lowest eigenfunction: ",TotWeight
+
+        ! Output details
+        write(iout,*) "Total weight of lowest eigenfunction: ", TotWeight
+        write(iout,*) "Maximum weighted det: ", det_max, max_wt
+
+        ! If the reference det is not the maximum weighted det, suggest that
+        ! we change it!
+        if (.not. all(CASFullDets(:, det_max) == ProjEDet)) then
+            write(iout,*) 'The specified reference determinant is not the &
+                       &maximum weighted determinant in the CAS expansion'
+            write(iout,*) 'Use following det as reference:'
+            call write_det(6, CASFullDets(:, det_max), .true.)
+            call stop_all(this_routine, "Poor reference chosen")
+        end if
+
         if(tMomInv) write(iout,*) "Converting into momentum-coupled space. Total MI functions: ",nHPHFCAS
         if(tHPHF) write(iout,*) "Converting into HPHF space. Total HPHF CAS functions: ",nHPHFCAS
 
