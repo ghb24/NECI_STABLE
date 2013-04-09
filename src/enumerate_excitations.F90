@@ -620,7 +620,7 @@ contains
             bit = mod(orb-1, bits_n_int)
             elem = (orb-1-bit)/bits_n_int
 
-            ! Loop through all states and remove those states with orbital orb&
+            ! Loop through all states and remove those states with orbital orb
             ! occupied.
             do j = 1, num_states
                 occupied = btest(ilut_list(elem, j), bit)
@@ -637,7 +637,7 @@ contains
             end if
 
             ! If there are degenerate orbitals, then cycle to remove the
-            ! degenrate orbitals too, before giving the program chance to quit.
+            ! degenerate orbitals too, before giving the program chance to quit.
             if (i > 1) then
                 ! If the orbitals energies are the same:
                 if ( Arr(i, 1) == Arr((i-1), 1) ) cycle

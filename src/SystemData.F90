@@ -77,11 +77,15 @@ logical :: tDeterminantCore ! Use determinants for the core states.
 logical :: tOptimisedCore ! Generate an optimised deterministic space by diagonalising part of the space.
 logical :: tDoublesCore ! Use single and double excitations for the core states.
 logical :: tCASCore ! Use Determinants where orbitals within an active space can differ from the Hartree-Fock for core states.
+logical :: tRASCore ! Use a RAS space for the core space (see ras.F90 for definition).
 logical :: tLowECore ! Like the optimised core space, but instead of diagonalising the space each iteration to find which states to keep, we keep the states with the lowest energies.
 ! cas_determ_bitmask has all bits that refer to the active space set, and all other bits unset.
 ! cas_not_determ_bitmask is simply the result after the not operation is applied to cas_determ_bitmask.
 integer(n_int), allocatable, dimension(:) :: cas_determ_bitmask
 integer(n_int), allocatable, dimension(:) :: cas_determ_not_bitmask
+! Bitmasks with all bits corresponding to orbitals in RAS1 and RAS3, repectively, set.
+integer(n_int), allocatable, dimension(:) :: core_ras1_bitmask
+integer(n_int), allocatable, dimension(:) :: core_ras3_bitmask
 ! When using a CAS deterministic space, these integers store the number of orbitals above and below the Fermi energy to
 ! include in the CAS active space (the occupied and virtual orbitals).
 integer :: OccDetermCASOrbs

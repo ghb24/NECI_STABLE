@@ -12,7 +12,8 @@ module semi_stochastic
     use csf_data, only: iscsf, csf_orbital_mask
     use constants
     use DetBitOps, only: ilut_lt, ilut_gt, count_open_orbs, FindBitExcitLevel, DetBitLT, &
-                         count_set_bits, IsAllowedHPHF, DetBitEq, TestClosedShellDet
+                         count_set_bits, IsAllowedHPHF, DetBitEq, TestClosedShellDet, &
+                         EncodeBitDet
     use DeterminantData, only: write_det
     use Determinants, only: get_helement
     use enumerate_excitations
@@ -32,6 +33,7 @@ module semi_stochastic
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, MPIArg, &
                              MPIAllGatherV, MPIAllGather, MPIScatter, MPIScatterV
     use ParallelHelper, only: root
+    use ras
     use sort_mod, only: sort
     use sym_mod, only: getsym
     use SystemData
@@ -44,6 +46,8 @@ module semi_stochastic
     ! following integers may be input to these subroutines to tell them what to do.
     integer :: called_from_semistoch = 1
     integer :: called_from_trial = 2
+
+    type(ras_parameters) :: core_ras
 
 contains
 
@@ -104,6 +108,8 @@ contains
                 call generate_sing_doub_determinants(called_from_semistoch)
             else if (tCASCore) then
                 call generate_cas(called_from_semistoch)
+            else if (tRASCore) then
+                call generate_ras(called_from_semistoch)
             else if (tOptimisedCore) then
                 call generate_optimised_core(called_from_semistoch)
             else if (tLowECore) then
@@ -115,6 +121,9 @@ contains
             else if (tCASCore) then
                 call stop_all("init_semi_stochastic", "CAS core space with CSFs is not &
                               &currently implemented.")
+            else if (tCASCore) then
+                call stop_all("init_semi_stochastic", "Cannot use a RAS core space with &
+                              &CSFs.")
             else if (tOptimisedCore) then
                 call stop_all("init_semi_stochastic", "Optimised core space with CSFs is not &
                               &currently implemented.")
@@ -999,6 +1008,61 @@ contains
 
     end subroutine generate_sing_doub_csfs
 
+    subroutine generate_ras(called_from)
+
+        ! In: called_from - Integer to specify whether this routine was called from the
+        !     the semi-stochastic generation code or the trial vector generation code.
+
+        integer, intent(in) :: called_from
+        type(ras_class_data), allocatable, dimension(:) :: core_classes
+        integer(n_int), allocatable, dimension(:,:) :: ilut_list
+        integer :: nI(nel)
+        integer :: space_size, i, comp
+
+        tot_nelec = nel/2
+        tot_norbs = nbasis/2
+
+        ! Do a check that the RAS parameters are possible.
+        if (core_ras%size_1+core_ras%size_2+core_ras%size_3 /= tot_norbs .or. &
+            core_ras%min_1 > core_ras%size_1*2 .or. &
+            core_ras%max_3 > core_ras%size_3*2) &
+            call stop_all("generate_ras", "RAS parameters are not possible.")
+
+        if (mod(nel, 2) /= 0) call stop_all("generate_ras", "RAS-core only implmented for &
+                                            & closed shell molecules.")
+
+        ! Crate bitmasks, used in check_if_in_determ_space
+        allocate(core_ras1_bitmask(0:NIfD))
+        core_ras1_bitmask = 0
+        do i = 1, core_ras%size_1*2
+            set_orb(core_ras1_bitmask, Brr(i))
+        end do
+
+        allocate(core_ras3_bitmask(0:NIfD))
+        core_ras3_bitmask = 0
+        do i = (core_ras%size_1+core_ras%size_2)*2+1, nbasis
+            set_orb(core_ras3_bitmask, Brr(i))
+        end do
+
+        call initialise_ras_space(core_ras, core_classes)
+
+        call find_ras_size(core_ras, core_classes, space_size)
+
+        allocate(ilut_list(0:NIfTot, space_size))
+
+        call generate_entire_ras_space(core_ras, core_classes, space_size, ilut_list)
+
+        do i = 1, space_size
+            comp = DetBitLT(ilut_list(:,i), ilutHF, NIfD, .false.)
+            if (comp == 0) cycle
+            call add_basis_state_to_list(ilut_list(:,i), called_from)
+        end do
+
+        deallocate(core_classes)
+        deallocate(ilut_list)
+
+    end subroutine generate_ras
+
     subroutine generate_cas(called_from)
 
         ! In: called_from - Integer to specify whether this routine was called from the
@@ -1504,6 +1568,19 @@ contains
 
             ! If both of the above occupation criteria are met, then the state is in the
             ! deterministic space.
+            tInDetermSpace = .true.
+        else if (tRASCore) then
+            ! Check that the minimum number of electrons in RAS1 is obeyed.
+            ilut_temp1 = iand(core_ras1_bitmask, ilut(0:NIfD))
+            bits_set = sum(count_set_bits(ilut_temp1))
+            if (bits_set < core_ras%min_1) return
+
+            ! Check that the maximum number of electrons in RAS3 is not exceeded.
+            ilut_temp2 = iand(core_ras3_bitmask, ilut(0:NIfD))
+            bits_set = sum(count_set_bits(ilut_temp2))
+            if (bits_set > core_ras%max_3) return
+
+            ! If both of the above conditions were met.
             tInDetermSpace = .true.
         end if
 

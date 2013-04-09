@@ -4,6 +4,7 @@ MODULE System
     use SystemData
     use CalcData, only: tRotoAnnihil, TAU, tTruncInitiator, InitiatorWalkNo, &
                         occCASorbs, virtCASorbs, tSortDetermToTop
+    use semi_stochastic, only: core_ras
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList
     use constants, only: dp,int64, Pi, third
@@ -86,6 +87,7 @@ MODULE System
       tDeterminantCore = .false.
       tDoublesCore = .false.
       tCASCore = .false.
+      tRASCore = .false.
       tOptimisedCore = .false.
       tLowECore = .false.
       num_det_generation_loops = 1
@@ -387,6 +389,14 @@ system: do
             tSpn = .true.
             call geti(OccDetermCASOrbs)  !Number of electrons in CAS 
             call geti(VirtDetermCASOrbs)  !Number of virtual spin-orbitals in CAS
+        case("RAS-CORE")
+            tSortDetermToTop = .true.
+            tRASCore = .true.
+            call geti(core_ras%size_1)  ! Number of spatial orbitals in RAS1.
+            call geti(core_ras%size_2)  ! Number of spatial orbitals in RAS2.
+            call geti(core_ras%size_3)  ! Number of spatial orbitals in RAS3.
+            call geti(core_ras%min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs. 
+            call geti(core_ras%max_3)  ! Max number of electrons (alpha and beta) in RAS3 orbs.
         case("OPTIMISED-CORE")
             tSortDetermToTop = .false.
             tOptimisedCore = .true.

@@ -741,7 +741,37 @@ contains
 
     end function error_function
 
+    subroutine find_next_comb(comb, k, n, finish)
 
+        integer, intent(in) :: k, n
+        integer, intent(inout) :: comb(k)
+        logical, intent(out) :: finish
+        integer :: i
+
+        if (k == 0 .or. n == 0) then
+            finish = .true.
+            return
+        else if (comb(1) > n-k) then
+            finish = .true.
+            return
+        else
+            finish = .false.
+        end if
+
+        i = k
+        comb(i) = comb(i) + 1
+
+        do
+            if (i < 1 .or. comb(i) < n-k+i+1) exit
+            i = i-1
+            comb(i) = comb(i) + 1
+        end do
+
+        do i = i+1, k
+            comb(i) = comb(i-1) + 1
+        end do
+
+    end subroutine find_next_comb
 
     function neci_etime(time) result(ret)
 

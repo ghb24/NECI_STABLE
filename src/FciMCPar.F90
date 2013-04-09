@@ -1355,7 +1355,7 @@ MODULE FciMCParMod
                         if (tSemiStochastic) then
                             call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
 
-                            !call set_timer(SemiStoch_Walker_Time)
+                            call set_timer(SemiStoch_Walker_Time)
 
                             ! Temporary fix: FindExcitBitDet copies the flags of the parent onto the
                             ! child, which causes semi-stochastic simulations to crash. Should it copy
@@ -1381,7 +1381,7 @@ MODULE FciMCParMod
                             if (test_flag(CurrentDets(:,j), flag_deterministic)) &
                             call set_flag(iLutnJ, flag_determ_parent)
 
-                            !call halt_timer(SemiStoch_Walker_Time)
+                            call halt_timer(SemiStoch_Walker_Time)
                         end if
 
                         child = attempt_create (get_spawn_helement, DetCurr, &
