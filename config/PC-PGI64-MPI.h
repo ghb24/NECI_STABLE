@@ -1,7 +1,7 @@
 [main]
 fc = pgf90 
 compiler = PGI-pgf95-on-LINUX
-cc = mpic++
+cc = g++
 ccd = g++
 cpp = cpp -C -traditional
 cppflags =  -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2 -D__INT64 -D__PGI -D__SHARED_MEM -DCBINDMPI
