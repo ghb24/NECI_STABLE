@@ -241,7 +241,7 @@ contains
           tReadPopsChangeRef = .false.
           tReadPopsRestart = .false.
           iLogicalNodeSize = 0 !Meaning use the physical node size
-
+          tJumpShift = .false.
 !Feb 08 default set.
           IF(Feb08) THEN
               RhoEpsilon=1.0e-8_dp
@@ -1512,6 +1512,13 @@ contains
                 ! unpaired electrons.
                 tTruncNOpen = .true.
                 call geti (trunc_nopen_max)
+
+            case("JUMP-SHIFT")
+                ! When variable shift is enabled, jump the shift to the value
+                ! predicted by the projected energy!
+                ! --> Reduce the waiting time while the number of particles is
+                !     growing.
+                tJumpShift = .true.
 
             case default
                 call report("Keyword "                                &
