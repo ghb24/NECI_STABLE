@@ -1170,7 +1170,7 @@ end module
 
         use SystemData, only: nel
         use bit_rep_data, only: NIfD
-        use DetBitOps, only: CountBits_nifty
+        use DetBitOps, only: count_set_bits
         use constants, only: n_int,bits_n_int,end_n_int
         implicit none
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
@@ -1178,6 +1178,7 @@ end module
         logical, intent(out) :: tSign
         integer :: i, j, iexcit1, iexcit2, perm, iel1, iel2, max_excit
         logical :: testI, testJ
+        integer :: num_set_bits
 
         tSign=.true.
         max_excit = Ex(1,1)
@@ -1223,7 +1224,16 @@ end module
             !shift = nel - max_excit
 
             do i = 0, NIfD
-                if (iLutnI(i) == iLutnJ(i)) cycle
+                
+                if (ilutnI(i) == ilutnJ(i)) then
+                    if (iexcit1 /= iexcit2) then
+                        num_set_bits = count_set_bits(iLutnI(i))
+                        iel1 = iel1 + num_set_bits
+                        iel2 = iel2 + num_set_bits
+                    end if
+                    cycle
+                end if
+
                 do j = 0, end_n_int
 
                     testI = btest(iLutnI(i),j)

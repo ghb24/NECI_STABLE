@@ -473,8 +473,7 @@ contains
         ilut_list = 0
         ! Loop over all classes, call it class_i.
         do i = 1, num_ras_classes
-            ! For this class, loop over all classes which can be combined with this one, call
-            ! it class_j.
+            ! For class_i, loop over all classes which can be combined with this one.
             do j = 1, ras_classes(i)%num_comb
                 temp_class = ras_classes(i)%allowed_combns(j)
                 ! Loop over all symmetries.
