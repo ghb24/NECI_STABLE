@@ -444,7 +444,7 @@ module sort_mod
     end interface
 
 contains
-    subroutine sort (arr, %(extra_arrs)s%(custom_comparisons)snskip)
+    subroutine sort (arr, %(extra_arrs)s%(custom_comparisons)snskip, par)
 
         ! Perform a quicksort on an array of integers, arr(n). Uses the 
         ! sample code in NumericalRecipies as a base.
@@ -473,6 +473,7 @@ contains
         integer, parameter :: nStackMax = 50
         integer, parameter :: nInsertionSort = 7
         integer, intent(in), optional :: nskip
+        integer, intent(out), optional :: par
 
         %(type1)s, intent(inout) :: arr(:)
         %(type2)s, intent(inout) :: arr2(:)
@@ -484,7 +485,7 @@ contains
         ! Oh, how lovely it would be to be able to use push/pop and not need
         ! to guess a size of the stack to start with
         integer :: stack(nStackMax), nstack, nskip_
-        integer :: pivot, lo, hi, n, i, j
+        integer :: pivot, lo, hi, n, i, j, par_
         ! n.b. This size statement is removed if type1 is scalar ...
         %(type1)s :: a(size(arr(1)))
         %(type2)s :: a2(size(arr2(1)))
@@ -531,6 +532,9 @@ contains
             nskip_ = 1
         endif
 
+        ! Initialise parity calculation
+        par_ = 0
+
         ! The size of the array to sort. 
         ! N.B. Use zero based indices. To obtain ! the entry into the actual 
         ! array, multiply indices by nskip and add ! 1 (hence zero based)
@@ -559,6 +563,7 @@ contains
                         %(arr4_prefix)s arr4(srt_ind(i+1)) = arr4(srt_ind(i))
                         %(arr5_prefix)s arr5(srt_ind(i+1)) = arr5(srt_ind(i))
                         %(arr6_prefix)s arr6(srt_ind(i+1)) = arr6(srt_ind(i))
+                        par_ = par_ + 1
                     enddo
                     arr(srt_ind(i+1)) = a
                     %(arr2_prefix)s arr2(srt_ind(i+1)) = a2
@@ -566,6 +571,7 @@ contains
                     %(arr4_prefix)s arr4(srt_ind(i+1)) = a4
                     %(arr5_prefix)s arr5(srt_ind(i+1)) = a5
                     %(arr6_prefix)s arr6(srt_ind(i+1)) = a6
+                    par_ = par_ + (i+1) - j
                 enddo
 
                 if (nstack == 0) exit
@@ -596,6 +602,7 @@ contains
                 %(arr6_prefix)s tmp6 = arr6(srt_ind(pivot))
                 %(arr6_prefix)s arr6(srt_ind(pivot)) = arr6(srt_ind(lo+1))
                 %(arr6_prefix)s arr6(srt_ind(lo+1)) = tmp6
+                par_ = par_ + pivot - (lo+1)
 
                 if (arr(srt_ind(lo)) %(op_gt)s arr(srt_ind(hi))) then
                     tmp1 = arr(srt_ind(lo))
@@ -616,6 +623,7 @@ contains
                     %(arr6_prefix)s tmp6 = arr6(srt_ind(lo))
                     %(arr6_prefix)s arr6(srt_ind(lo)) = arr6(srt_ind(hi))
                     %(arr6_prefix)s arr6(srt_ind(hi)) = tmp6
+                    par_ = par_ + hi - lo
                 endif
                 if (arr(srt_ind(lo+1)) %(op_gt)s arr(srt_ind(hi))) then
                     tmp1 = arr(srt_ind(lo+1))
@@ -636,6 +644,7 @@ contains
                     %(arr6_prefix)s tmp6 = arr6(srt_ind(lo+1))
                     %(arr6_prefix)s arr6(srt_ind(lo+1)) = arr6(srt_ind(hi))
                     %(arr6_prefix)s arr6(srt_ind(hi)) = tmp6
+                    par_ = par_ + hi - (lo+1)
                 endif
                 if (arr(srt_ind(lo)) %(op_gt)s arr(srt_ind(lo+1))) then
                     tmp1 = arr(srt_ind(lo))
@@ -656,6 +665,7 @@ contains
                     %(arr6_prefix)s tmp6 = arr6(srt_ind(lo))
                     %(arr6_prefix)s arr6(srt_ind(lo)) = arr6(srt_ind(lo+1))
                     %(arr6_prefix)s arr6(srt_ind(lo+1)) = tmp6
+                    par_ = par_ + 1
                 endif
 
                 i = lo + 1
@@ -702,6 +712,7 @@ contains
                     %(arr6_prefix)s tmp6 = arr6(srt_ind(i))
                     %(arr6_prefix)s arr6(srt_ind(i)) = arr6(srt_ind(j))
                     %(arr6_prefix)s arr6(srt_ind(j)) = tmp6
+                    par_ = j - i
                 enddo;
 
                 ! Insert partitioning element 
@@ -717,6 +728,7 @@ contains
                 %(arr4_prefix)s arr4(srt_ind(j)) = a4
                 %(arr5_prefix)s arr5(srt_ind(j)) = a5
                 %(arr6_prefix)s arr6(srt_ind(j)) = a6
+                par_ = j - (lo+1)
 
                 ! Push the larger of the partitioned sections onto the stack
                 ! of sections to look at later.
@@ -751,6 +763,11 @@ contains
         %(tmp_destroy5)s(tmp5)
         %(tmp_destroy6)s(a6)
         %(tmp_destroy6)s(tmp6)
+
+        ! Return the parity if required
+        if (present(par)) then
+            par = 1 - 2 * iand(par_, 1)
+        end if
 
     end subroutine
 
