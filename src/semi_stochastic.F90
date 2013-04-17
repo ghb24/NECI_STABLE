@@ -5,7 +5,8 @@ module semi_stochastic
     use bit_rep_data, only: flag_deterministic, nIfDBO, nOffY, nIfY, nOffFlag, &
                             flag_determ_parent, deterministic_mask, determ_parent_mask, &
                             flag_is_initiator, flag_bit_offset, NOffSgn
-    use bit_reps, only: NIfD, NIfTot, decode_bit_det, encode_bit_rep, set_flag
+    use bit_reps, only: NIfD, NIfTot, decode_bit_det, encode_bit_rep, set_flag, &
+                        extract_sign, test_flag
     use CalcData, only: tRegenDiagHEls, tau, tSortDetermToTop, tTruncInitiator, DiagSft, &
                         tStartCAS, tReadPops
     use csf, only: csf_get_yamas, get_num_csfs, get_csf_bit_yama, csf_apply_yama
@@ -103,6 +104,8 @@ contains
                 call set_flag(CurrentDets(:, i), flag_is_initiator(2))
             end do
             call MPIAllGather(int(TotWalkers, MPIArg), determ_proc_sizes, ierr)
+        else if (tPopsCore) then
+            call generate_space_from_pops(called_from_semistoch)
         else if (tDeterminantCore) then
             if (tDoublesCore) then
                 call generate_sing_doub_determinants(called_from_semistoch)
@@ -187,6 +190,13 @@ contains
         ! order which is always kept throughout the simulation.
         call sort(SpawnedParts(:,1:determ_proc_sizes(iProcIndex)), ilut_lt, ilut_gt)
 
+        write(6,*) "determ_proc_sizes", determ_proc_sizes
+
+        write(6,*) "SpawnedParts:"
+        do i = 1, determ_proc_sizes(iProcIndex)
+            write(6,*) SpawnedParts(:,i)
+        end do
+
         ! Do a check that no states are in the deterministic space twice. The list is sorted
         ! already so simply check states next to each other in the list:
         do i = 2, determ_proc_sizes(iProcIndex)
@@ -220,6 +230,12 @@ contains
         end if
 
         write(6,'(a40)') "Semi-stochastic initialisation complete."
+        call neci_flush(6)
+
+        write(6,*) "CurrentDets:"
+        do i = 1, TotWalkers
+            write (6,*) CurrentDets(:,i), test_flag(CurrentDets(:,i), flag_deterministic)
+        end do
         call neci_flush(6)
 
     end subroutine init_semi_stochastic
@@ -925,7 +941,7 @@ contains
         ! Find the first single excitation.
         call enumerate_all_single_excitations (ilutHF, HFDet, ilut, gen_store)
         ! Subroutine to add this state to the spawned list if on this processor.
-        call add_basis_state_to_list(ilut, called_from)
+        call add_state_to_space(ilut, called_from)
 
         ! When no more basis functions are found, this value is returned and the loop
         ! is exited.
@@ -933,7 +949,7 @@ contains
             call enumerate_all_single_excitations (ilutHF, HFDet, ilut, gen_store)
 
             ! If a determinant is returned (if we did not find the final one last time.)
-            if (ilut(0) /= -1) call add_basis_state_to_list(ilut, called_from)
+            if (ilut(0) /= -1) call add_state_to_space(ilut, called_from)
         end do
 
         ! Now generate the double excitations...
@@ -941,12 +957,12 @@ contains
         ilut(0) = -1
         ! The first double excitation.
         call enumerate_all_double_excitations (ilutHF, HFDet, ilut, gen_store)
-        call add_basis_state_to_list(ilut, called_from)
+        call add_state_to_space(ilut, called_from)
 
         do while(ilut(0) /= -1)
             call enumerate_all_double_excitations (ilutHF, HFDet, ilut, gen_store)
 
-            if (ilut(0) /= -1) call add_basis_state_to_list(ilut, called_from)
+            if (ilut(0) /= -1) call add_state_to_space(ilut, called_from)
         end do
 
         if (called_from == called_from_trial) then
@@ -1055,7 +1071,7 @@ contains
         do i = 1, space_size
             comp = DetBitLT(ilut_list(:,i), ilutHF, NIfD, .false.)
             if (comp == 0) cycle
-            call add_basis_state_to_list(ilut_list(:,i), called_from)
+            call add_state_to_space(ilut_list(:,i), called_from)
         end do
 
         deallocate(core_classes)
@@ -1172,7 +1188,7 @@ contains
 
             if (tDeterminantCore) then
                 ! Now that we have fully generated the determinant, add it to the main list.
-                call add_basis_state_to_list(ilut, called_from)
+                call add_state_to_space(ilut, called_from)
             else if (tCSFCore) then
                 ilut_store(counter, 0:NifD) = ilut(0:NifD)
                 counter = counter + 1
@@ -1197,6 +1213,118 @@ contains
         call LogMemDealloc(this_routine, IlutTag, ierr)
 
     end subroutine generate_cas
+
+    subroutine generate_space_from_pops(called_from)
+
+        ! In: called_from - Integer to specify whether this routine was called from the
+        !     the semi-stochastic generation code or the trial vector generation code.
+
+        integer, intent(in) :: called_from
+        real(dp), allocatable, dimension(:) :: amps_this_proc, amps_all_procs
+        integer(MPIArg) :: length_this_proc, total_length
+        integer(MPIArg) :: lengths(0:nProcessors-1), disps(0:nProcessors-1)
+        integer(n_int) :: temp_ilut(0:NIfTot)
+        integer, allocatable, dimension(:) :: ind_this_proc
+        integer, allocatable, dimension(:) :: procs_list
+        integer :: i, ierr, comp, n_pops_keep, min_ind, max_ind, n_states_this_proc
+
+        if (called_from == called_from_semistoch) then
+            n_pops_keep = n_core_pops
+        elseif (called_from == called_from_trial) then
+            n_pops_keep = n_trial_pops
+        end if
+
+        if (.not. tReadPops) call stop_all("generate_space_from_pops", "NECI must be started &
+                                           &from a popsfile to use the pops-core option.")
+
+        length_this_proc = min(n_pops_keep, TotWalkers)
+
+        allocate(amps_this_proc(TotWalkers))
+        allocate(ind_this_proc(TotWalkers))
+        allocate(amps_all_procs(n_pops_keep*nProcessors))
+        allocate(procs_list(n_pops_keep*nProcessors))
+
+        ! Get the absolute values of the amplitudes represented as real numbers.
+        do i = 1, TotWalkers
+            call extract_sign(CurrentDets(:,i), amps_this_proc(i)) 
+            ! Actually get minus the absolute value so that the sort operation will put the
+            ! most significant states at the top.
+            amps_this_proc(i) = -abs(amps_this_proc(i))
+            ! Also define the following array for the sort.
+            ind_this_proc(i) = i
+        end do
+
+        write(6,*) "before:"
+        do i = 1, TotWalkers
+            write(6,*) CurrentDets(:,ind_this_proc(i)), amps_this_proc(i)
+        end do
+
+        ! Sort all the states in order of amplitude along with the indices.
+        call sort(amps_this_proc, ind_this_proc)
+
+        write(6,*) "after:"
+        do i = 1, TotWalkers
+            write(6,*) CurrentDets(:,ind_this_proc(i)), amps_this_proc(i)
+        end do
+
+        call MPIAllGather(length_this_proc, lengths, ierr)
+        total_length = sum(lengths)
+        if (total_length < n_pops_keep) then
+            call warning_neci("generate_space_from_pops", "The number of states in &
+                              &POPSFILE is less than the number you requested. All states &
+                              &will be used.")
+            n_pops_keep = total_length
+        end if
+
+        do i = 0, nProcessors-1
+            if (i == 0) then
+                disps(i) = 0
+            else
+                disps(i) = disps(i-1) + lengths(i-1)
+            end if
+        end do
+
+        ! Take the top length_this_proc states from each processor.
+        call MPIAllGatherV(amps_this_proc(1:length_this_proc), &
+                           amps_all_procs(1:total_length), lengths, disps)
+
+        max_ind = 0
+        do i = 0, nProcessors-1
+            min_ind = max_ind + 1
+            max_ind = min_ind + lengths(i) - 1
+            procs_list(min_ind:max_ind) = i
+        end do
+
+        ! Sort the big list from all processors along with the processor labels.
+        call sort(amps_all_procs, procs_list)
+
+        n_states_this_proc = 0
+        do i = 1, n_pops_keep
+            if (procs_list(i) == iProcIndex) n_states_this_proc = n_states_this_proc + 1
+        end do
+
+        ! Add the states to the SpawnedParts array so that they can be processed for the
+        ! semi-stochastic space in the standard, consistent way.
+        temp_ilut = 0
+        do i = 1, n_states_this_proc
+            ! Set deterministic flags in CurrentDets.
+            if (called_from == called_from_semistoch) then
+                call set_flag(CurrentDets(:, ind_this_proc(i)), flag_deterministic)
+                if (tTruncInitiator) then
+                    call set_flag(CurrentDets(:, ind_this_proc(i)), flag_is_initiator(1))
+                    call set_flag(CurrentDets(:, ind_this_proc(i)), flag_is_initiator(2))
+                end if
+            end if
+
+            write(6,*) "Kept:", CurrentDets(:, ind_this_proc(i))
+
+            comp = DetBitLT(CurrentDets(:, ind_this_proc(i)), ilutHF, NIfD, .false.)
+            if (comp == 0) cycle
+            temp_ilut(0:NIfD) = CurrentDets(0:NIfD, ind_this_proc(i))
+            call add_state_to_space(temp_ilut, called_from)
+        end do
+
+    end subroutine generate_space_from_pops
 
     subroutine generate_low_energy_core(called_from)
 
@@ -1300,7 +1428,7 @@ contains
         do i = 1, new_num_states
             comp = DetBitLT(ilut_store(:, i), ilutHF, NIfD, .false.)
             if (comp == 0) cycle
-            call add_basis_state_to_list(ilut_store(:, i), called_from)
+            call add_state_to_space(ilut_store(:, i), called_from)
         end do
 
         deallocate(temp_space, stat=ierr)
@@ -1447,12 +1575,12 @@ contains
                 call get_csf_bit_yama(nI, ilut(nOffY:nOffY+nIfY-1))
             end if
             ! Finally add the CSF to the SpawnedParts list.
-            call add_basis_state_to_list(ilut, called_from, nI)
+            call add_state_to_space(ilut, called_from, nI)
         end do
 
     end subroutine generate_all_csfs_from_orb_config
 
-    subroutine add_basis_state_to_list(ilut, called_from, nI_in)
+    subroutine add_state_to_space(ilut, called_from, nI_in)
 
         ! This subroutine, when called from init_semi_stochastic, takes a bitstring,
         ! finds the nI representation, decides if the basis state lives on this
@@ -1483,6 +1611,17 @@ contains
                 if (.not. IsAllowedHPHF(ilut(0:NIfD))) return
             end if
 
+            ! Find the nI representation of determinant.
+            if (present(nI_in)) then
+                nI = nI_in
+            else
+                call decode_bit_det(nI, ilut)
+            end if
+
+            proc = DetermineDetNode(nI,0)
+
+            if (.not. (proc == iProcIndex)) return
+
             sgn = 0.0_dp
             ! Flag to specify that these basis states are in the deterministic space.
             flags = 0
@@ -1492,22 +1631,12 @@ contains
                 flags = ibset(flags, flag_is_initiator(2))
             end if
 
-            ! Find the nI representation of determinant.
-            if (present(nI_in)) then
-                nI = nI_in
-            else
-                call decode_bit_det(nI, ilut)
-            end if
-
-            ! Find the processor which this state belongs to.
-            proc = DetermineDetNode(nI,0)
-
             ! Keep track of the size of the deterministic space on this processor.
-            if (proc == iProcIndex) determ_proc_sizes(proc) = determ_proc_sizes(proc) + 1
+            determ_proc_sizes(proc) = determ_proc_sizes(proc) + 1
 
-            ! If this determinant belongs to this processor, add it to the main list.
-            if (proc == iProcIndex) call encode_bit_rep(SpawnedParts(0:NIfTot, &
-                determ_proc_sizes(iProcIndex)), ilut(0:nIfDBO), sgn, flags)
+            ! Add the state to the space.
+            call encode_bit_rep(SpawnedParts(0:NIfTot, determ_proc_sizes(iProcIndex)), &
+                                ilut(0:nIfDBO), sgn, flags)
 
         else if (called_from == called_from_trial) then
 
@@ -1522,7 +1651,7 @@ contains
 
         end if
 
-    end subroutine add_basis_state_to_list
+    end subroutine add_state_to_space
 
     subroutine check_if_in_determ_space(ilut, tInDetermSpace)
 

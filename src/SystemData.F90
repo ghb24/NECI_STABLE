@@ -78,6 +78,7 @@ logical :: tOptimisedCore ! Generate an optimised deterministic space by diagona
 logical :: tDoublesCore ! Use single and double excitations for the core states.
 logical :: tCASCore ! Use Determinants where orbitals within an active space can differ from the Hartree-Fock for core states.
 logical :: tRASCore ! Use a RAS space for the core space (see ras.F90 for definition).
+logical :: tPopsCore ! Use the most populated states from a POPSFILE for the core space.
 logical :: tLowECore ! Like the optimised core space, but instead of diagonalising the space each iteration to find which states to keep, we keep the states with the lowest energies.
 ! cas_determ_bitmask has all bits that refer to the active space set, and all other bits unset.
 ! cas_not_determ_bitmask is simply the result after the not operation is applied to cas_determ_bitmask.
@@ -108,6 +109,8 @@ integer :: num_det_generation_loops
 logical :: tLimitDetermSpace
 ! This is maximum number of elements in the deterministic space, if tLimitDetermSpace is true.
 integer :: max_determ_size
+! The number of states to use from a POPSFILE for the core space.
+integer :: n_core_pops
 ! This option gives the maximum excitation level to go up to when generating the low energy deterministic space.
 integer :: low_e_core_excit
 ! This integer specifies the number of states to keep for each iteration of the low energy core generation.
@@ -122,6 +125,7 @@ logical :: tCASTrial ! Use a CAS space for the trial space.
 logical :: tOptimisedTrial ! Generate an optimised trial space by diagonalisaing part of the space.
 ! As for determ_space_cutoff_amp and determ_space_cutoff_num above, but the following two quantities refer to the trial space
 ! generation rather than the deterministic space generation.
+logical :: tPopsTrial ! Use the most populated states from a POPSFILE for the trial space.
 logical :: tLowETrial ! Like the optimised trial space, but instead of diagonalising the space each iteration to find which states to keep, we keep the states with the lowest energies.
 real(dp), allocatable, dimension(:) :: trial_space_cutoff_amp
 integer, allocatable, dimension(:) :: trial_space_cutoff_num
@@ -137,6 +141,8 @@ integer :: num_trial_generation_loops
 logical :: tLimitTrialSpace
 ! This is maximum number of elements in the trial space, if tLimitDetermSpace is true.
 integer :: max_trial_size
+! The number of states to use from a POPSFILE for the trial space.
+integer :: n_trial_pops
 ! This option gives the maximum excitation level to go up to when generating the low energy trial space.
 integer :: low_e_trial_excit
 ! This integer specifies the number of states to keep for each iteration of the low energy trial generation.

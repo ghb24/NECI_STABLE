@@ -311,7 +311,7 @@ r_loop: do while(.not.tReadAllPops)
 
         if(tHashWalkerList) then
             do i=1,CurrWalkers
-                call decode_bit_det (nJ, dets(:,i))              
+                call decode_bit_det (nJ, dets(:,i))
                 DetHash=FindWalkerHash(nJ)
                 Slot=HashIndex(0,DetHash)
                 HashIndex(Slot,DetHash)=i

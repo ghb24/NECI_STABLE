@@ -89,8 +89,10 @@ MODULE System
       tCASCore = .false.
       tRASCore = .false.
       tOptimisedCore = .false.
+      tPopsCore = .false.
       tLowECore = .false.
       num_det_generation_loops = 1
+      n_core_pops = 0
       low_e_core_excit = 0
       low_e_core_num_keep = 0
       tLowECoreAllDoubles = .false.
@@ -103,8 +105,10 @@ MODULE System
       tDoublesTrial = .false.
       tCASTrial = .false.
       tOptimisedTrial =.false.
+      tPopsTrial = .false.
       tLowETrial = .false.
       num_trial_generation_loops = 1
+      n_trial_pops = 0
       low_e_trial_excit = 0
       low_e_trial_num_keep = 0
       tLowETrialAllDoubles = .false.
@@ -414,6 +418,10 @@ system: do
             do I = 1, num_det_generation_loops
                 call geti(determ_space_cutoff_num(I))
             end do
+        case("POPS-CORE")
+            tPopsCore = .true.
+            tSortDetermToTop = .false.
+            call geti(n_core_pops)
         case("LOW-ENERGY-CORE")
 ! Input values: The first integer is the maximum excitation level to go up to.
 !               The second integer is the maximum number of states to keep for a subsequent iteration.
@@ -456,6 +464,9 @@ system: do
             do I = 1, num_trial_generation_loops
                 call geti(trial_space_cutoff_num(I))
             end do
+        case("POPS-TRIAL")
+            tPopsTrial = .true.
+            call geti(n_trial_pops)
         case("LOW-ENERGY-TRIAL")
 ! Input values: The first integer is the maximum excitation level to go up to.
 !               The second integer is the maximum number of states to keep for a subsequent iteration.

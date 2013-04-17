@@ -213,6 +213,7 @@ module Parallel_neci
     interface MPIAllGather
         module procedure MPIAllGather_len_%(name)s
         module procedure MPIAllGather_auto_%(name)s
+        module procedure MPIAllGather_auto2_%(name)s
     end interface
 
     interface MPIAllGatherV
@@ -1045,6 +1046,43 @@ contains
         ierr = err
 #else
         ret(1) = v
+        ierr = 0
+#endif
+    end subroutine
+
+
+    ! v is the Send Buffer
+    ! ret is the Receive Buffer
+    Subroutine MPIAllGather_auto2(v, ret, ierr, Node)
+
+        %(type1)s, intent(in), target :: v()
+        %(type1)s, intent(inout), target :: ret()
+        integer, intent(out) :: ierr
+        type(CommI), intent(in), optional :: Node
+        integer(MPIArg) :: Comm, rt, err
+
+#ifdef PARALLEL
+#ifdef CBINDMPI
+#ifdef __GFORTRAN__
+        type(c_ptr) :: g_loc
+#endif
+        c_ptr_t :: vptr, rptr
+        vptr = loc_neci(v)
+        rptr = loc_neci(ret)
+#endif
+
+        call GetComm (Comm, Node, rt)
+
+        call MPI_Allgather (val_in, &
+                int(%(mpilen)s, MPIArg), &
+                %(mpitype)s, &
+                val_out, &
+                int(%(mpilen)s, MPIArg), &
+                %(mpitype)s, &
+                comm, err)
+        ierr = err
+#else
+        ret(1:%(mpilen)s) = v(1:%(mpilen)s)
         ierr = 0
 #endif
     end subroutine
