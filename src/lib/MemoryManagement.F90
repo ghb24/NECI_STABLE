@@ -79,7 +79,7 @@ public :: TagIntType
 
 integer, parameter :: TagIntType = sizeof_int   !This is for CPMD which needs to know what type of integer to pass as a tag
 ! Configuration.
-integer, parameter :: MaxLen = 1000000 ! size of memory log (max number of arrays
+integer, parameter :: MaxLen = 50000   ! size of memory log (max number of arrays
                                        ! that can be logged at any one time if 
                                        ! CachingMemLog=.true., else max total number of 
                                        ! arrays that can be logged in a calculation).
