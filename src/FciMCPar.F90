@@ -39,7 +39,8 @@ MODULE FciMCParMod
                         tContinueAfterMP2,iExitWalkers,MemoryFacPart, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tPopsMapping, &
                         tSpawn_Only_Init_Grow, RealCoeffExcitThresh, &
-                        tRealSpawnCutoff, RealSpawnCutoff, tSortDetermToTop
+                        tRealSpawnCutoff, RealSpawnCutoff, tSortDetermToTop, &
+                        tDetermProj
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
@@ -142,7 +143,7 @@ MODULE FciMCParMod
                          fill_rdm_diag_currdet_norm, &
                          fill_rdm_diag_currdet_hfsd, calc_rdmbiasfac
     use semi_stochastic, only: init_semi_stochastic, deterministic_projection, &
-                               check_if_in_determ_space
+                               check_if_in_determ_space, determ_projection_only
     use trial_wavefunction_gen, only: init_trial_wavefunction
 
     use gndts_mod, only: gndts
@@ -223,6 +224,12 @@ MODULE FciMCParMod
         if(n_int.eq.4) CALL Stop_All('Setup Parameters', &
                 'Use of RealCoefficients does not work with 32 bit integers due to the use &
                 & of the transfer operation from dp reals to 64 bit integers.')
+
+        ! If performing a deterministic projection instead of an FCIQMC calc:
+        if (tDetermProj) then
+            call determ_projection_only()
+            return
+        end if
         
         ! Initial output
         call WriteFciMCStatsHeader()

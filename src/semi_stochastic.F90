@@ -6,9 +6,9 @@ module semi_stochastic
                             flag_determ_parent, deterministic_mask, determ_parent_mask, &
                             flag_is_initiator, flag_bit_offset, NOffSgn
     use bit_reps, only: NIfD, NIfTot, decode_bit_det, encode_bit_rep, set_flag, &
-                        extract_sign, test_flag
+                        extract_sign, test_flag, extract_part_sign
     use CalcData, only: tRegenDiagHEls, tau, tSortDetermToTop, tTruncInitiator, DiagSft, &
-                        tStartCAS, tReadPops
+                        tStartCAS, tReadPops, NMCyc
     use csf, only: csf_get_yamas, get_num_csfs, get_csf_bit_yama, csf_apply_yama
     use csf_data, only: iscsf, csf_orbital_mask
     use constants
@@ -32,7 +32,7 @@ module semi_stochastic
     use HPHFRandExcitMod, only: FindExcitBitDetSym
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, MPIArg, &
-                             MPIAllGatherV, MPIAllGather, MPIScatter, MPIScatterV
+                             MPIAllGatherV, MPIAllGather, MPIScatter, MPIScatterV, MPISum
     use ParallelHelper, only: root
     use ras
     use sort_mod, only: sort
@@ -85,7 +85,13 @@ contains
             end if
         end if
 
-        if (.not. (tDeterminantCore .or. tCSFCore)) then
+        if (.not. (tStartCAS .or. tPopsCore .or. tDoublesCore .or. tCASCore .or. tRASCore .or. &
+                   tOptimisedCore .or. tLowECore)) then
+            call stop_all("init_semi_stochastic", "You have not selected a semi-stochastic core &
+                          &space to use.")
+        end if
+
+        if (.not. (tDeterminantCore .or. tCSFCore) .or. tStartCAS .or. tPopsCore) then
             call warning_neci("init_semi_stochastic", "You have not selected to use either &
                               &determinants or CSFs for the deterministic space. Determinants &
                               &will be used.")
@@ -190,13 +196,6 @@ contains
         ! order which is always kept throughout the simulation.
         call sort(SpawnedParts(:,1:determ_proc_sizes(iProcIndex)), ilut_lt, ilut_gt)
 
-        write(6,*) "determ_proc_sizes", determ_proc_sizes
-
-        write(6,*) "SpawnedParts:"
-        do i = 1, determ_proc_sizes(iProcIndex)
-            write(6,*) SpawnedParts(:,i)
-        end do
-
         ! Do a check that no states are in the deterministic space twice. The list is sorted
         ! already so simply check states next to each other in the list:
         do i = 2, determ_proc_sizes(iProcIndex)
@@ -232,12 +231,6 @@ contains
         write(6,'(a40)') "Semi-stochastic initialisation complete."
         call neci_flush(6)
 
-        write(6,*) "CurrentDets:"
-        do i = 1, TotWalkers
-            write (6,*) CurrentDets(:,i), test_flag(CurrentDets(:,i), flag_deterministic)
-        end do
-        call neci_flush(6)
-
     end subroutine init_semi_stochastic
 
     subroutine calculate_det_hamiltonian_normal()
@@ -248,6 +241,7 @@ contains
         real(dp), allocatable, dimension(:,:) :: test_hamiltonian
         integer(TagIntType) :: TempStoreTag
         character (len=*), parameter :: this_routine = "calculate_det_hamiltonian_normal"
+        integer :: counter
 
         ! temp_store is storage space for bitstrings so that the Hamiltonian matrix
         ! elements can be calculated.
@@ -272,6 +266,7 @@ contains
             ! Hamiltonian currently being calculated.
             col_index = determ_proc_indices(iproc)
 
+            counter = 0
             ! Loop over all the elements in the block of the Hamiltonian corresponding
             ! to these two prcoessors.
             do i = 1, determ_proc_sizes(iProcIndex)
@@ -289,6 +284,8 @@ contains
                         else
                             core_hamiltonian(i, col_index + j) = &
                                 get_helement(nI, nJ, 0) - Hii
+                            counter = counter + 1
+                            !write(6,*) counter, get_helement(nI, nJ, 0)
                         end if
                         ! We calculate and store CurrentH at this point for ease.
                         if (.not.tRegenDiagHEls) CurrentH(1,i) = &
@@ -301,6 +298,11 @@ contains
                         else
                             core_hamiltonian(i, col_index + j) = &
                                 get_helement(nI, nJ, SpawnedParts(:, i), temp_store(:, j))
+                                if (i > j) then
+                                    counter = counter + 1
+                                    !write(6,*) counter, get_helement(nI, nJ, SpawnedParts(:, i), &
+                                                                   !temp_store(:, j))
+                                end if
                         end if
                     end if
 
@@ -1254,18 +1256,8 @@ contains
             ind_this_proc(i) = i
         end do
 
-        write(6,*) "before:"
-        do i = 1, TotWalkers
-            write(6,*) CurrentDets(:,ind_this_proc(i)), amps_this_proc(i)
-        end do
-
         ! Sort all the states in order of amplitude along with the indices.
         call sort(amps_this_proc, ind_this_proc)
-
-        write(6,*) "after:"
-        do i = 1, TotWalkers
-            write(6,*) CurrentDets(:,ind_this_proc(i)), amps_this_proc(i)
-        end do
 
         call MPIAllGather(length_this_proc, lengths, ierr)
         total_length = sum(lengths)
@@ -1315,8 +1307,6 @@ contains
                     call set_flag(CurrentDets(:, ind_this_proc(i)), flag_is_initiator(2))
                 end if
             end if
-
-            write(6,*) "Kept:", CurrentDets(:, ind_this_proc(i))
 
             comp = DetBitLT(CurrentDets(:, ind_this_proc(i)), ilutHF, NIfD, .false.)
             if (comp == 0) cycle
@@ -1755,6 +1745,88 @@ contains
         call sort(proc_list, ilut_list(0:NIfTot, 1:ilut_list_size))
 
     end subroutine sort_space_by_proc
+
+    subroutine determ_projection_only()
+
+        integer :: i, counter, iter, comp, hf_index, ierr
+        real(dp), allocatable, dimension(:) :: wavefunction
+        real(dp), allocatable, dimension(:) :: ham_times_hf
+        real(dp) :: energy_num, energy_denom, tot_e_num, tot_e_denom
+        real(dp) :: sgn
+
+        if ((.not. tSemiStochastic) .or. (.not. allocated(core_hamiltonian))) &
+            call stop_all("determ_projection_only", "You must use the semi-stochastic &
+                &option and define a core space to use the determ-proj option.") 
+
+        allocate(wavefunction(determ_proc_sizes(iProcIndex)))
+        allocate(ham_times_hf(determ_proc_sizes(iProcIndex)))
+
+        write(6,'()')
+        write(6,'(a83)') "Performing a deterministic projection using the defined &
+                         &semi-stochastic core space."
+        write(6,'()')
+
+        iter = 1
+        energy_denom = 0.0_dp
+
+        ! Find the index of the HF state in the vectors of the HF processor.
+        if (iProcIndex == iHFProc) then
+            counter = 0
+            do i = 1, TotWalkers
+                if (test_flag(CurrentDets(:,i),flag_deterministic)) then
+                    counter = counter + 1
+                    comp = DetBitLT(CurrentDets(:,i), ilutHF, NIfD, .false.)
+                    if (comp == 0) hf_index = counter
+                end if
+            end do
+        end if
+
+        wavefunction = 0.0_dp
+        if (iProcIndex == iHFProc) wavefunction(hf_index) = 1.0_dp
+
+        call MPIAllGatherV(wavefunction, full_determ_vector, determ_proc_sizes, &
+                            determ_proc_indices)
+
+        call dgemv('N', &
+                   determ_proc_sizes(iProcIndex), &
+                   determ_space_size, &
+                   1.0_dp, &
+                   core_hamiltonian, &
+                   determ_proc_sizes(iProcIndex), &
+                   full_determ_vector, &
+                   1, &
+                   0.0_dp, &
+                   ham_times_hf, &
+                   1)
+
+        write(6,'(a9,7X,a6)') "Iteration", "Energy"
+        call neci_flush(6)
+
+        do while(iter <= NMCyc .or. NMCyc == -1)
+
+            partial_determ_vector = wavefunction
+
+            call deterministic_projection()
+
+            wavefunction = wavefunction + partial_determ_vector
+
+            energy_num = dot_product(ham_times_hf, wavefunction)
+            if (iProcIndex == iHFProc) energy_denom = wavefunction(hf_index)
+
+            call MPISum(energy_num, tot_e_num)
+            call MPISum(energy_denom, tot_e_denom)
+
+            write(6,'(i9,7X,f13.10)') iter, tot_e_num/tot_e_denom
+            call neci_flush(6)
+
+            iter = iter + 1
+
+        end do
+
+        deallocate(wavefunction)
+        deallocate(ham_times_hf)
+
+    end subroutine determ_projection_only
 
     subroutine deterministic_projection()
 

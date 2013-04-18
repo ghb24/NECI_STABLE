@@ -22,6 +22,7 @@ MODULE Calc
                         dClustSelectionRatio,tSharedExcitors
     use FciMCData, only: proje_update_comb,proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
                          InputDiagSft,tSearchTau,proje_spatial,nWalkerHashes,tHashWalkerList,HashLengthFrac
+    use semi_stochastic, only: determ_projection_only
 
     implicit none
 
@@ -1926,7 +1927,7 @@ call neci_flush(6)
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,tCCMC
-         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes,tRPA_QBA
+         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes,tRPA_QBA, tDetermProj
          use RPA_Mod, only : tDirectRPA
          use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer,tCCNoCuml
          use Logging, only: tCalcFCIMCPsi
@@ -2127,6 +2128,11 @@ call neci_flush(6)
                   if(i_hmax.eq.0)                              &
      &          call report("OLD/NEW not specified for STAR",  &
      &                 .true.)
+               case("DETERM-PROJ")
+                   tDetermProj = .true.
+                   I_HMAX=-21
+                   TFCIMC=.true.
+                   tUseProcsAsNodes=.true.
                case default
                call report("Keyword error with "//trim(w),     &
      &                 .true.)
