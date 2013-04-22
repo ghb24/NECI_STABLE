@@ -89,6 +89,9 @@ module ras
     ! that can be treated so far...)
     integer :: HFSym
 
+    ! For a semi-stochastic ras core space.
+    type(ras_parameters) :: core_ras
+
 contains
 
     subroutine initialise_ras_space(ras, ras_classes)

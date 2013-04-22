@@ -5,9 +5,9 @@ module davidson
 ! http://web.mit.edu/bolin/www/Project-Report-18.335J.pdf
 
 use constants
-use FciMCData, only: hamiltonian, sparse_matrix_info, sparse_hamil, hamil_diag, &
-                     DavidsonTag, HDiagTag
+use FciMCData, only: hamiltonian, DavidsonTag
 use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
+use sparse_hamil, only: sparse_matrix_info, sparse_ham, hamil_diag, HDiagTag
 
 implicit none
 
@@ -378,10 +378,10 @@ integer(TagIntType) :: ResidualTag
         output_vector = 0.0_dp
 
         do i = 1, space_size
-            do j = 1, sparse_hamil(i)%num_elements
+            do j = 1, sparse_ham(i)%num_elements
                 output_vector(i) = output_vector(i) + &
-                    sparse_hamil(i)%elements(j) * &
-                    input_vector(sparse_hamil(i)%positions(j))
+                    sparse_ham(i)%elements(j) * &
+                    input_vector(sparse_ham(i)%positions(j))
             end do
         end do
 

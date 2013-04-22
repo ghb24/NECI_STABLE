@@ -7,15 +7,19 @@
 ! generate all states in the deterministic space.
 module enumerate_excitations
 
-    use bit_reps, only: NIfTot
+    use bit_rep_data, only: NIfD, NIfTot
+    use bit_reps, only: decode_bit_det
     use constants
+    use DetBitOps, only: IsAllowedHPHF, TestClosedShellDet
     use FciMCData, only: SpinInvBRR
+    use HPHFRandExcitMod, only: FindExcitBitDetSym
     use Parallel_neci, only: MPISumAll
+    use semi_stoch_procs, only: check_if_connected_to_old_space
     use sort_mod, only: sort
     use SymData, only: nSymLabels
     use SymExcitDataMod
     use sym_general_mod
-    use SystemData, only: nel, nBasis, G1, tFixLz, Arr, Brr
+    use SystemData, only: nel, nBasis, G1, tFixLz, Arr, Brr, tHPHF
 
     implicit none
 
@@ -511,6 +515,131 @@ contains
 
     end subroutine enumerate_spatial_excitations
 
+    subroutine generate_connected_space(original_space_size, original_space, connected_space_size, &
+        connected_space, storage_space_size, tSinglesOnly)
+
+        integer, intent(in) :: original_space_size
+        integer(n_int), intent(in) :: original_space(0:NIfTot, original_space_size)
+        integer, intent(in) :: storage_space_size
+        integer, intent(out) :: connected_space_size
+        integer(n_int), intent(out) :: connected_space(0:NIfTot, storage_space_size)
+        logical, intent(in), optional :: tSinglesOnly
+
+        integer(n_int) :: ilut(0:NIfTot), ilut_tmp(0:NIfTot)
+        integer :: nI(nel)
+        integer :: i, counter
+        logical :: first_loop, connected, tSkipDoubles
+        type(excit_store), target :: gen_store
+        character (len=1024) :: storage_space_string
+
+        ! By default, generate both singles and doubles (the whole connected space).
+        if (present(tSinglesOnly)) then
+            tSkipDoubles = tSinglesOnly
+        else
+            tSkipDoubles = .false.
+        end if
+
+        connected_space_size = 0
+
+        ! Over all the states in the original list:
+        do i = 1, original_space_size
+
+            call decode_bit_det(nI, original_space(:,i))
+
+            ! The singles:
+
+            ! Ensure ilut(0) \= -1 so that the loop can be entered.
+            ilut(0) = 0
+            first_loop = .true.
+
+            ! When no more basis functions are found, this value is returned and the
+            ! loop is exited.
+            do while(ilut(0) /= -1)
+
+                ! The first time the enumerating subroutine is called, setting ilut(0)
+                ! to -1 tells it to  initialise everything first.
+                if (first_loop) then
+                    ilut(0) = -1
+                    first_loop = .false.
+                end if
+
+                ! Find the next state.
+                call enumerate_all_single_excitations (original_space(:,i), nI, ilut, &
+                                                                             gen_store)
+
+                ! If a new state was not found.
+                if (ilut(0) == -1) exit
+
+                ! If using HPHFs, and if this isn't the allowed state for this HPHF, find
+                ! the the allowed state and continue with this as ilut.
+                if (tHPHF .and. (.not. TestClosedShellDet(ilut))) then
+                    if (.not. IsAllowedHPHF(ilut(0:NIfD))) then
+                        ilut_tmp = ilut
+                        call FindExcitBitDetSym(ilut_tmp, ilut)
+                    end if
+                end if
+
+                ! Check if any of the states in the old space is connected to the state
+                ! just generated. If so, this function returns the value true for the
+                ! logical connected. In this case, this state is then added to the new ilut
+                ! store.
+                call check_if_connected_to_old_space(original_space, nI, ilut, &
+                    original_space_size, connected_space_size, connected)
+                if (connected_space_size > storage_space_size) then
+                    write (storage_space_string, '(I10)') storage_space_size
+                    call stop_all("generate_connected_space","No space left in storage array &
+                    &for the next connected space state. "//trim(storage_space_string)//" &
+                    &elements were allocated and this number has been exceeded.")
+                end if
+                if (connected) connected_space(0:NIfD, connected_space_size) = ilut(0:NIfD)
+
+            end do
+
+            ! If only generating the singles space.
+            if (tSkipDoubles) cycle
+
+            ! The doubles:
+
+            ilut(0) = 0
+            first_loop = .true.
+
+            do while(ilut(0) /= -1)
+
+                if (first_loop) then
+                    ilut(0) = -1
+                    first_loop = .false.
+                end if
+
+                call enumerate_all_double_excitations (original_space(:,i), nI, ilut, &
+                                                                             gen_store)
+
+                if (ilut(0) == -1) exit
+
+                ! If using HPHFs, and if this isn't the allowed state for this HPHF, find
+                ! the the allowed state and continue with this as ilut.
+                if (tHPHF .and. (.not. TestClosedShellDet(ilut))) then
+                    if (.not. IsAllowedHPHF(ilut(0:NIfD))) then
+                        ilut_tmp = ilut
+                        call FindExcitBitDetSym(ilut_tmp, ilut)
+                    end if
+                end if
+
+                call check_if_connected_to_old_space(original_space, nI, ilut, &
+                    original_space_size, connected_space_size, connected)
+                if (connected_space_size > storage_space_size) then
+                    write (storage_space_string, '(I10)') storage_space_size
+                    call stop_all("generate_connected_space","No space left in storage array &
+                    &for the next connected space state. "//trim(storage_space_string)//" &
+                    &elements were allocated and this number has been exceeded.")
+                end if
+                if (connected) connected_space(0:NIfD, connected_space_size) = ilut(0:NIfD)
+
+            end do
+
+        end do
+
+    end subroutine generate_connected_space
+
     subroutine find_number_summation_possibilities(target_integer, min_integer, max_integer, &
         num_pairs, ms_values)
 
@@ -584,98 +713,5 @@ contains
         end do
 
     end subroutine find_next_summation_pair
-
-    subroutine remove_high_energy_orbs(ilut_list, num_states, target_num_states, tParallel)
-
-        integer, intent(inout) :: num_states
-        integer(n_int), intent(inout) :: ilut_list(0:NIfTot, 1:num_states)
-        integer, intent(in) :: target_num_states
-        logical, intent(in) :: tParallel
-        integer, allocatable, dimension(:) :: orbitals_rmvd
-        integer :: i, j, orb, num_orbs_rmvd
-        integer :: bit, elem
-        integer :: states_rmvd_this_proc, counter
-        integer(MPIArg) :: tot_num_states, states_rmvd_all_procs
-        logical :: occupied
-
-        states_rmvd_this_proc = 0
-
-        if (tParallel) then
-            call MPISumAll(int(num_states, MPIArg), tot_num_states)
-        else
-            tot_num_states = num_states
-        end if
-
-        if (tot_num_states <= target_num_states) return
-
-        write(6,'(a32)') "Removing high energy orbitals..."
-
-        ! Loop through all orbitals, from highest energy to lowest.
-        do i = nBasis, 1, -1
-
-            num_orbs_rmvd = nBasis-i+1
-
-            orb = BRR(i)
-
-            bit = mod(orb-1, bits_n_int)
-            elem = (orb-1-bit)/bits_n_int
-
-            ! Loop through all states and remove those states with orbital orb
-            ! occupied.
-            do j = 1, num_states
-                occupied = btest(ilut_list(elem, j), bit)
-                if (occupied) then
-                    ilut_list(:, j) = 0
-                    states_rmvd_this_proc = states_rmvd_this_proc + 1
-                end if
-            end do
-
-            if (tParallel) then
-                call MPISumAll(int(states_rmvd_this_proc, MPIArg), states_rmvd_all_procs)
-            else
-                states_rmvd_all_procs = states_rmvd_this_proc
-            end if
-
-            ! If there are degenerate orbitals, then cycle to remove the
-            ! degenerate orbitals too, before giving the program chance to quit.
-            if (i > 1) then
-                ! If the orbitals energies are the same:
-                if ( Arr(i, 1) == Arr((i-1), 1) ) cycle
-            end if
-
-            if (tot_num_states-states_rmvd_all_procs <= target_num_states) exit
-
-        end do
-
-        ! Loop through the list and shuffle states down to fill in the gaps
-        ! created above.
-        counter = 0
-        do i = 1, num_states
-            ! If the state wasn't set to 0:
-            if (.not. all(ilut_list(:,i) == 0)) then
-                counter = counter + 1
-                ilut_list(:, counter) = ilut_list(:, i)
-            end if
-        end do
-        if (counter /= num_states-states_rmvd_this_proc) &
-            call stop_all("remove_high_energy_orbs", &
-                          "Wrong number of states found.")
-        num_states = counter
-
-        ! Finally, output information:
-        write(6,'(a36)',advance='no') "The following orbitals were removed:"
-        allocate(orbitals_rmvd(num_orbs_rmvd))
-        orbitals_rmvd = BRR(nBasis-num_orbs_rmvd+1:nBasis)
-        call sort(orbitals_rmvd)
-        do i = 1, num_orbs_rmvd
-            write(6,'(i5)',advance='no') orbitals_rmvd(i)
-            if (i == num_orbs_rmvd) write(6,'()',advance='yes')
-        end do
-        deallocate(orbitals_rmvd)
-        write(6,'(i6,1x,a29)') states_rmvd_all_procs, "states were removed in total."
-        write(6,'(i6,1x,a17)') tot_num_states-states_rmvd_all_procs, "states were kept."
-        call neci_flush(6)
-
-    end subroutine remove_high_energy_orbs
 
 end module enumerate_excitations

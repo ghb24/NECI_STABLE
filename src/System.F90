@@ -4,7 +4,7 @@ MODULE System
     use SystemData
     use CalcData, only: tRotoAnnihil, TAU, tTruncInitiator, InitiatorWalkNo, &
                         occCASorbs, virtCASorbs, tSortDetermToTop
-    use semi_stochastic, only: core_ras
+    use semi_stoch_gen, only: core_ras
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList
     use constants, only: dp,int64, Pi, third

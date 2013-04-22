@@ -10,14 +10,15 @@ module trial_wavefunction_gen
     use FciMCData, only: trial_space, trial_space_size, con_space, &
                          con_space_size, trial_wavefunction, trial_energy, &
                          con_space_vector, ilutHF, Hii, nSingles, nDoubles, &
-                         hamil_diag, ConTag, DavidsonTag, HDiagtag, TempTag, &
-                         TrialTag, TrialWFTag
+                         ConTag, DavidsonTag, TempTag, TrialTag, TrialWFTag
     use hphf_integrals, only: hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier, MPIAllToAll, MPISumAll, &
                              MPIAllToAllV, MPIArg
     use ParallelHelper, only: root
-    use semi_stochastic
+    use semi_stoch_gen
+    use semi_stoch_procs
+    use sparse_hamil
     use SystemData, only: nel, tDoublesTrial, tOptimisedTrial, tCASTrial, tHPHF
 
     implicit none
@@ -168,7 +169,7 @@ contains
             trial_wavefunction = davidson_eigenvector
             trial_energy = davidson_eigenvalue
 
-            call deallocate_sparse_hamil()
+            call deallocate_sparse_ham()
             deallocate(hamil_diag, stat=ierr)
             call LogMemDealloc(this_routine, HDiagTag, ierr)
         else

@@ -142,8 +142,9 @@ MODULE FciMCParMod
                          zero_rdms, fill_rdm_softexit, store_parent_with_spawned, &
                          fill_rdm_diag_currdet_norm, &
                          fill_rdm_diag_currdet_hfsd, calc_rdmbiasfac
-    use semi_stochastic, only: init_semi_stochastic, deterministic_projection, &
-                               check_if_in_determ_space, determ_projection_only
+    use determ_proj, only: perform_determ_proj
+    use semi_stoch_gen, only: init_semi_stochastic
+    use semi_stoch_procs, only: check_if_in_determ_space, deterministic_projection
     use trial_wavefunction_gen, only: init_trial_wavefunction
 
     use gndts_mod, only: gndts
@@ -227,7 +228,7 @@ MODULE FciMCParMod
 
         ! If performing a deterministic projection instead of an FCIQMC calc:
         if (tDetermProj) then
-            call determ_projection_only()
+            call perform_determ_proj()
             return
         end if
         
