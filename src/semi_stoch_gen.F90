@@ -783,7 +783,7 @@ contains
                 ! Create displacement and sendcount arrays for MPIScatterV later:
                 sendcounts = proc_space_sizes*(NIfTot+1)
                 disps(0) = 0
-                do i = 1, nProcessors
+                do i = 1, nProcessors-1
                     disps(i) = sum(proc_space_sizes(0:i-1))*(NIfTot+1)
                 end do
             end if
