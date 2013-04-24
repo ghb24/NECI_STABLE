@@ -355,7 +355,7 @@ MODULE AnnihilationMod
         integer :: No_Spawned_Parents
         LOGICAL :: tSuc, tInc
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
-        integer(n_int) :: cum_det (0:niftot)
+        integer(n_int) :: cum_det (0:niftot), temp_det(0:niftot)
         CHARACTER(len=*), parameter :: this_routine='CompressSpawnedList'
         TYPE(timer),save :: Sort_time
 
@@ -473,6 +473,16 @@ MODULE AnnihilationMod
                 ! been set.
                 if (tSemiStochastic) then
                     if (test_flag(SpawnedParts(:,BeginningBlockDet), flag_deterministic)) index_of_first_non_determ = VecInd + 1
+
+                    if ((.not. tSortDetermToTop)) then
+                        ! If the last state was the same then set this state's initiator flag.
+                        if (all(temp_det(0:NIfDBO) == SpawnedParts2(0:NIfDBO,VecInd))) then
+                            call set_flag(SpawnedParts2(:,VecInd), flag_is_initiator(1))
+                            call set_flag(SpawnedParts2(:,VecInd), flag_is_initiator(2))
+                        end if
+
+                        temp_det = SpawnedParts2(:,VecInd)
+                    end if
                 end if
 
                 VecInd=VecInd+1
@@ -545,6 +555,12 @@ MODULE AnnihilationMod
             ! Copy details into the final array
             call extract_sign (cum_det, temp_sign)
 
+            ! If this state and the previous one are the same then the previous state was spawned from the
+            ! deterministic space, so had its initiator flag set. So set this state's flag too.
+            if (tSemiStochastic .and. (.not. tSortDetermToTop)) then
+                if (all(temp_det(0:NIfDBO) == cum_det(0:NIfDBO))) call set_flag(cum_det, flag_is_initiator(part_type))
+            end if
+
             if ((sum(abs(temp_sign)) > 0.0_dp).or.(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit))) then
                 ! Transfer all info into the other array.
                 ! Usually this is only done if the final sign on the compressed Dj is not equal to zero.
@@ -574,6 +590,10 @@ MODULE AnnihilationMod
                 DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet + 1
                 ! This spawned entry will be removed - don't want to store any parents.
                 ! Reset Parent_Array_Ind so that the parents will be written over.
+
+                ! To account for the case with tSortDetermToTop = .false., store this state so that we can set the
+                ! flags of the next state to be the same, if it is the same state.
+                temp_det(0:NIfTot) = cum_det(0:NIfTot)
             endif
 
             BeginningBlockDet=CurrentBlockDet           !Move onto the next block of determinants
