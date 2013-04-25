@@ -476,7 +476,7 @@ MODULE AnnihilationMod
 
                     if ((.not. tSortDetermToTop)) then
                         ! If the last state was the same then set this state's initiator flag.
-                        if (all(temp_det(0:NIfDBO) == SpawnedParts2(0:NIfDBO,VecInd))) then
+                        if (DetBitEq(temp_det(0:NIfTot), SpawnedParts2(0:NIfTot,VecInd), NIfDBO)) then
                             call set_flag(SpawnedParts2(:,VecInd), flag_is_initiator(1))
                             call set_flag(SpawnedParts2(:,VecInd), flag_is_initiator(2))
                         end if
@@ -558,7 +558,10 @@ MODULE AnnihilationMod
             ! If this state and the previous one are the same then the previous state was spawned from the
             ! deterministic space, so had its initiator flag set. So set this state's flag too.
             if (tSemiStochastic .and. (.not. tSortDetermToTop)) then
-                if (all(temp_det(0:NIfDBO) == cum_det(0:NIfDBO))) call set_flag(cum_det, flag_is_initiator(part_type))
+                if (DetBitEQ(cum_det(0:NIfTot), temp_det(0:NIfTot), NIfDBO)) then
+                    call set_flag(cum_det, flag_is_initiator(1))
+                    call set_flag(cum_det, flag_is_initiator(2))
+                end if
             end if
 
             if ((sum(abs(temp_sign)) > 0.0_dp).or.(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit))) then
