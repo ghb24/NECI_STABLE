@@ -7,7 +7,7 @@ module semi_stoch_procs
 
     use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot
     use bit_reps, only: decode_bit_det, set_flag, extract_part_sign
-    use CalcData, only: tRegenDiagHEls, tau, DiagSft
+    use CalcData, only: tRegenDiagHEls, tau, DiagSft, tReadPops
     use constants
     use DetBitOps, only: ilut_lt, ilut_gt, FindBitExcitLevel, DetBitLT, &
                          count_set_bits, DetBitEq
@@ -200,8 +200,8 @@ contains
                                 get_helement(nI, nJ, 0) - Hii
                         end if
                         ! We calculate and store CurrentH at this point for ease.
-                        if (.not.tRegenDiagHEls) CurrentH(1,i) = &
-                                             core_hamiltonian(i, col_index + j)
+                        if ((.not. tRegenDiagHEls) .and. (.not. tReadPops)) &
+                            CurrentH(1,i) = core_hamiltonian(i, col_index + j)
                     else
                         if (tHPHF) then
                             core_hamiltonian(i, col_index + j) = &
