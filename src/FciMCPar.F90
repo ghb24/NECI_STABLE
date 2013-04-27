@@ -1406,7 +1406,7 @@ MODULE FciMCParMod
 
                     ! Children have been chosen to be spawned.
                     if (any(child /= 0)) then
-                        
+
                         !Encode child if not done already
                         if(.not. (tSemiStochastic)) call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
 
@@ -1997,7 +1997,7 @@ MODULE FciMCParMod
         if ((tTruncCas .and. (.not. tTruncInitiator)) .or. tTruncSpace .or. &
             tPartFreezeCore .or. tPartFreezeVirt .or. tFixLz .or. &
             (tUEG .and. .not. tLatticeGens) .or. tTruncNOpen) then
-            if (tHPHF .or. tCSF .or. tMomInv) then
+            if (tHPHF .or. tCSF .or. tMomInv .or. tSemiStochastic) then
                 call set_attempt_create (attempt_create_trunc_spawn)
             else
                 call set_attempt_create (att_create_trunc_spawn_enc)

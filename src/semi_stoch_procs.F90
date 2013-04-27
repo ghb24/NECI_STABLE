@@ -184,10 +184,11 @@ contains
             ! Loop over all the elements in the block of the Hamiltonian corresponding
             ! to these two prcoessors.
             do i = 1, determ_proc_sizes(iProcIndex)
+
+                call decode_bit_det(nI, SpawnedParts(:, i))
+
                 do j = 1, determ_proc_sizes(iproc)
 
-                    ! Get nI form of the basis functions.
-                    call decode_bit_det(nI, SpawnedParts(:, i))
                     call decode_bit_det(nJ, temp_store(:, j))
 
                     ! If on the diagonal of the Hamiltonian.

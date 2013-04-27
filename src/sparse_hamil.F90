@@ -141,7 +141,7 @@ contains
                 sparse_ham(sparse_ham(i)%positions(j))%&
                     &elements(indices(sparse_ham(i)%positions(j))) = sparse_ham(i)%elements(j)
 
-                indices(sparse_ham(i)%positions(j)) = indices(sparse_ham(i)%positions(j))+ 1
+                indices(sparse_ham(i)%positions(j)) = indices(sparse_ham(i)%positions(j)) + 1
 
             end do
         end do
