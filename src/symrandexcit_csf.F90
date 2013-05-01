@@ -1395,7 +1395,6 @@ contains
                     ! If this is doubly occupied, we cannot excite to it.
                     if(IsOcc(ilut,i).and. &
                     IsOcc(ilut,ab_pair(i))) cycle
-!                    if (IsDoub(ilut, i)) cycle
 
                     ! If we are exciting from it, we cannot excite to it.
                     if (is_in_pair(orbs(1), i) .or. is_in_pair(orbs(2), i)) &
@@ -1435,7 +1434,6 @@ contains
                         ! If this is doubly occupied, we cannot excite to it
                         if(IsOcc(ilut,orb2).and. &
                          IsOcc(ilut,ab_pair(orb2))) cycle
-!                        if (IsDoub(ilut, orb2)) cycle
 
                         ! If we are exciting from it, we cannot excite to it.
                         if (is_in_pair(orbs(1), orb2) .or. &
@@ -1619,7 +1617,6 @@ contains
                         ! If this is doubly occupied, we cannot excite to it.
                         if(IsOcc(ilut,i).and. &
                          IsOcc(ilut,ab_pair(i))) cycle
-!                        if (IsDoub(ilut, i)) cycle
 
                         ! If we are exciting from it, we cannot excite to it.
                         if (is_in_pair(orbs(1), i).or.is_in_pair(orbs(2), i))&
@@ -1658,7 +1655,6 @@ contains
                             ! it.
                             if(IsOcc(ilut,orb2).and. &
                              IsOcc(ilut,ab_pair(orb2))) cycle
-!                            if (IsDoub(ilut, orb2)) cycle
 
                             ! If we are exciting from it, we cannot excite 
                             ! to it.
@@ -1753,7 +1749,8 @@ contains
         integer :: CCUnS(ScratchSize/2)
         integer :: nexcit, i, nFreeze
         integer, allocatable, dimension(:,:) :: nK
-        !integer, dimension(10) :: nJ=(/-2147483631,-2147483630,-2147483615,-2147483614,-1073741823,-2147483645,-1073741805,-1073741803,-2147483625,-2147483623/)
+        !integer, dimension(10) :: nJ=(/-2147483631,-2147483630,-2147483615,-2147483614,
+        !-1073741823,-2147483645,-1073741805,-1073741803,-2147483625,-2147483623/)
         !integer, dimension(10) :: nJ=(/1,2,3,4,17,18,21,22,33,34/)
         !integer, dimension(10) :: nJ=(/3,4,17,18,23,24,31,32,33,34/)
         character(*), parameter :: this_routine = 'TestGenRandSymCSFExcit'

@@ -7,8 +7,11 @@ module DetCalcData
       INTEGER Det   ! The number of determinants with the same sym
                     ! as the reference det.  This is the number of
                     ! dets in FCIDets
-      INTEGER(kind=n_int), Allocatable :: FCIDets(:,:)  !This will contain a list of determinants of the same symmetry as the reference det, with dets in compressed form.  Usually (NIfTot, Det)
-      INTEGER, Allocatable :: FCIDetIndex(:)!This indicates where the excitation levels start in the FCIDets array(will go from 0->NEl+1).
+!This will contain a list of determinants of the same symmetry as the reference det, with dets 
+!in compressed form.  Usually (NIfTot, Det)
+      INTEGER(kind=n_int), Allocatable :: FCIDets(:,:)  
+!This indicates where the excitation levels start in the FCIDets array(will go from 0->NEl+1).
+      INTEGER, Allocatable :: FCIDetIndex(:)
       INTEGER ICILEVEL ! The maximum excitation level up to which to enumerate dets.  
       INTEGER(TagIntType) :: tagNMRKS=0
       INTEGER, pointer :: NMRKS(:,:)=>null() !(NEL-NFROZEN,nDet)  A list of all determinants which have been enumerated.  
@@ -16,7 +19,8 @@ module DetCalcData
       INTEGER(TagIntType) :: tagCK=0
       real(dp), pointer :: W(:)  ! (nEval) This will contain the eigenvalues
       INTEGER(TagIntType) tagW
-      HElement_t, pointer :: HAMIL(:)    !The Hamiltonian in compressed form.  Contains only non-zero elements.  The total number of elements is in LenHamil
+      HElement_t, pointer :: HAMIL(:)    !The Hamiltonian in compressed form.  
+      !Contains only non-zero elements.  The total number of elements is in LenHamil
       INTEGER(TagIntType) :: tagHamil=0
       INTEGER LenHamil                       !The Total number of non-zero elements in the compressed Hamiltonian
 

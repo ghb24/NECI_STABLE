@@ -422,7 +422,8 @@ MODULE AnnihilationMod
                         ! No point in doing anything more with it.
 
                         Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = SpawnedParts(NIfTot+1:NIfTot+NIfDBO+2,BeginningBlockDet)
-                        ! The first NIfDBO of the Spawned_Parents entry is the parent determinant, the NIfDBO + 1 entry is the biased Ci.
+                        ! The first NIfDBO of the Spawned_Parents entry is the parent determinant, 
+                        !the NIfDBO + 1 entry is the biased Ci.
                         ! Parent_Array_Ind keeps track of the position in Spawned_Parents.
                         Spawned_Parents_Index(1,VecInd) = Parent_Array_Ind
                         Spawned_Parents_Index(2,VecInd) = 1
@@ -805,7 +806,7 @@ MODULE AnnihilationMod
                 FinalVal=HashIndex(0,DetHash)-1
 !                write(6,*) "FinalVal: ",FinalVal
                 do clash=1,FinalVal
-                    ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
+ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                     if(DetBitEQ(SpawnedParts(:,i),CurrentDets(:,HashIndex(clash,DetHash)),NIfDBO)) then
                         !We have found the matching determinant
                         tSuccess=.true.
@@ -1038,12 +1039,14 @@ MODULE AnnihilationMod
 
         if(.not.tHashWalkerList) then
 
-!Now we have to remove the annihilated particles from the spawned list. They will be removed from the main list at the end of the annihilation process.
+!Now we have to remove the annihilated particles from the spawned list. They will be 
+!removed from the main list at the end of the annihilation process.
 !It may actually be easier to just move the annihilated particles to the end of the list and resort the list?
 !Or, the removed indices could be found on the fly? This may have little benefit though if the memory isn't needed.
             IF((ToRemove+Spawned_Parts_Zero).gt.0) THEN
 
-!Since reading and writing from the same array is slow, copy the information accross to the other spawned array, and just swap the pointers around after.
+!Since reading and writing from the same array is slow, copy the information accross to the 
+!other spawned array, and just swap the pointers around after.
                 DetsMerged=0
                 do i=1,ValidSpawned
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
@@ -1284,11 +1287,14 @@ MODULE AnnihilationMod
     end subroutine RemoveDetHashIndex
 
     
-!This routine will run through the total list of particles (TotWalkersNew in CurrentDets with sign CurrentSign) and the list of newly-spawned but
-!non annihilated particles (ValidSpawned in SpawnedParts and SpawnedSign) and move the new particles into the correct place in the new list,
+!This routine will run through the total list of particles (TotWalkersNew in CurrentDets 
+!with sign CurrentSign) and the list of newly-spawned but
+!non annihilated particles (ValidSpawned in SpawnedParts and SpawnedSign) and move the 
+!new particles into the correct place in the new list,
 !while removing the particles with sign = 0 from CurrentDets. 
 !Binary searching can be used to speed up this transfer substantially.
-!The key feature which makes this work, is that it is impossible for the same determinant to be specified in both the spawned and main list at the end of
+!The key feature which makes this work, is that it is impossible for the same determinant 
+!to be specified in both the spawned and main list at the end of
 !the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
     SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew)
         use util_mod, only: abs_int_sign
@@ -1560,7 +1566,8 @@ MODULE AnnihilationMod
                 PartInd=N
                 RETURN
             ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
-!The value of the determinant at N is LESS than the determinant we're looking for. Therefore, move the lower bound of the search up to N.
+!The value of the determinant at N is LESS than the determinant we're looking for. 
+!Therefore, move the lower bound of the search up to N.
 !However, if the lower bound is already equal to N then the two bounds are consecutive and we have failed...
                 i=N
             ELSEIF(i.eq.N) THEN

@@ -387,7 +387,7 @@ contains
                                             fcimc_excit_gen_store%nopen)
 
         if (tHPHF) then
-            ASSERT(count_open_orbs(ilutI) /= 0)
+ASSERT(count_open_orbs(ilutI) /= 0)
             hel = 2 * hel
         endif
 
