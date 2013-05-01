@@ -444,11 +444,12 @@ module errors
     end subroutine automatic_reblocking_analysis
 
     subroutine read_fcimcstats(iShiftVary,tFailRead)
-        use SystemData, only: tMolpro
+        use SystemData, only: tMolpro,MolproID
         integer, intent(inout) :: iShiftVary
         logical, intent(out) :: tFailRead
         character(len=1) :: readline
         character(len=*), parameter :: t_r="read_fcimcstats"
+        character(len=24) :: filename
         logical :: exists,tRefToZero
         integer :: eof,comments,i,ierr
         integer :: iunit,doubs,WalkersDiffProc,change,Ann,Died,Born
@@ -462,7 +463,8 @@ module errors
         !Open file (FCIMCStats or FCIQMCStats)
         iunit = get_free_unit()
         if(tMolpro) then
-            inquire(file='FCIQMCStats',exist=exists)
+            filename = 'FCIQMCStats_' // adjustl(MolproID) 
+            inquire(file=filename,exist=exists)
             if(.not.exists) call stop_all(t_r,'No FCIQMCStats file found for error analysis')
             OPEN(iunit,file='FCIQMCStats',status='old',action='read',position='rewind')
             write(6,"(A)") "Reading back in FCIQMCStats datafile..."

@@ -12,7 +12,8 @@ MODULE FciMCParMod
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
                           LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
                           tNoBrillouin, tKPntSym, tPickVirtUniform, &
-                          tMomInv, tRef_Not_HF, tMolpro, tAntiSym_MI
+                          tMomInv, tRef_Not_HF, tMolpro, tAntiSym_MI, &
+                          MolproID
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
@@ -4471,6 +4472,7 @@ MODULE FciMCParMod
         real(dp) :: TotDets,SymFactor,r,Gap,UpperTau
         CHARACTER(len=*), PARAMETER :: t_r='SetupParameters'
         CHARACTER(len=12) :: abstr
+        character(len=24) :: filename
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,tAlreadyOcc
         INTEGER :: HFLz,ChosenOrb,KPnt(3), step,FindProjEBins,SymFinal
         integer(int64) :: ExcitLevPop,SymHF
@@ -4507,6 +4509,7 @@ MODULE FciMCParMod
             if (tReadPops) then
                 ! Restart calculation.  Append to stats file (if it exists).
                 if(tMolpro) then
+                    filename = 'FCIQMCStats_' // adjustl(MolproID)
                     OPEN(fcimcstats_unit,file='FCIQMCStats',status='unknown',position='append')
                 else
                     OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown',position='append')
@@ -4514,7 +4517,8 @@ MODULE FciMCParMod
             else
                 call MoveFCIMCStatsFiles()          !This ensures that FCIMCStats files are not overwritten
                 if(tMolpro) then
-                    OPEN(fcimcstats_unit,file='FCIQMCStats',status='unknown')
+                    filename = 'FCIQMCStats_' // adjustl(MolproID)
+                    OPEN(fcimcstats_unit,file=filename,status='unknown')
                 else
                     OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown')
                 endif
