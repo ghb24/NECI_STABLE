@@ -1077,13 +1077,14 @@ end module
 
         use SystemData, only: nel
         use bit_rep_data, only: NIfD
-        use DetBitOps, only: CountBits_nifty
+        use DetBitOps, only: CountBits_nifty, count_set_bits
         use constants, only: n_int,bits_n_int,end_n_int
         implicit none
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
         integer, intent(inout) :: Ex(2,*)
         logical, intent(out) :: tSign
         integer :: i, j, iexcit1, iexcit2, perm, iel1, iel2, max_excit
+        integer :: set_bits
         logical :: testI, testJ
 
         tSign=.true.
@@ -1130,6 +1131,16 @@ end module
             !shift = nel - max_excit
 
             do i = 0, NIfD
+
+                ! If this integer will make no difference to the overall counts, 
+                ! then minimise effort...
+                if (ilutnI(i) == ilutnJ(i)) then
+                    if (iexcit1 /= iexcit2) then
+                        set_bits = count_set_bits(ilutnI(i))
+                        iel1 = iel1 + set_bits
+                        iel2 = iel2 + set_bits
+                    end if
+                end if
                 if (iLutnI(i) == iLutnJ(i)) cycle
                 do j = 0, end_n_int
 
