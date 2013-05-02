@@ -5,10 +5,14 @@
 !Go to larger graphs, and look at possible convergence
 !Look into MC sampling of rest of excitation space to aid convergence
 
-!This code it designed to generate a random graph, with Ndets distinct determinants in it (including HF), and improve it in an iterative fashion.
-!Once a graph is found, all possible excitations from each determinant  in the graph are found, and then the rho matrix from these additional
-!excitations operate on the original eigenvector of the graph (null padded). This produces a much larger vector (not eigenvector), from which
-!excitations which have a strong connection can be chosen stochastically. This process is then repeated with the new graph, 
+!This code it designed to generate a random graph, with Ndets distinct 
+!determinants in it (including HF), and improve it in an iterative fashion.
+!Once a graph is found, all possible excitations from each determinant  in the 
+!graph are found, and then the rho matrix from these additional
+!excitations operate on the original eigenvector of the graph (null padded). 
+!This produces a much larger vector (not eigenvector), from which
+!excitations which have a strong connection can be chosen stochastically. This 
+!process is then repeated with the new graph, 
 !chosen from the vector (ensuring connectivity). This will improve the connections between the determinants, 
 !which will hopefully lower the energy after only a few iterations.
 
@@ -168,7 +172,7 @@ MODULE GraphMorph
 !        IF(TBiasing) THEN
 !            WRITE(6,"(A,F10.7)") "Graph growing biased towards original determinants with probability ", GraphBias
 !        ELSEIF(TMoveDets) THEN
-!            WRITE(6,"(A,I3,A)") "Choosing new graph by moving ", NoMoveDets," determinants in previous graph to their excitations..."
+! WRITE(6,"(A,I3,A)") "Choosing new graph by moving ", NoMoveDets," determinants in previous graph to their excitations..."
 !        ENDIF
 !
 !!Once the graph is found, the loop over the morphing iterations can begin
@@ -436,7 +440,7 @@ MODULE GraphMorph
 !                        IF(THDiag) THEN
 !                            rh=GetHElement2(GraphDets(j,:),nJ(:),NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,-1,ECore)
 !                        ELSE
-!                            CALL CalcRho2(GraphDets(j,:),nJ(:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,-1,ECore)
+!  CALL CalcRho2(GraphDets(j,:),nJ(:),Beta,i_P,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,Arr,ALat,UMat,rh,nTay,-1,ECore)
 !                        ENDIF
 !                        IF(abs(rh).gt.0.0_dp) THEN
 !!A connection has been found - we do not need to look for any others

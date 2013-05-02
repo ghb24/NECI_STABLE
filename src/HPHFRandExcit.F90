@@ -645,7 +645,8 @@ MODULE HPHFRandExcitMod
 !
 !        WRITE(6,*) "There are ",iUniqueHPHF," unique HPHF wavefunctions from the HPHF given."
 !        
-!        WRITE(6,*) "There are ",iUniqueBeta," unique HPHF wavefunctions from the spin-coupled determinant, which are not in a alpha version."
+!        WRITE(6,*) "There are ",iUniqueBeta," unique HPHF wavefunctions from the spin-coupled 
+!determinant, which are not in a alpha version."
 !        IF(iUniqueBeta.ne.0) THEN
 !            WRITE(6,*) "HPHF from beta, but not from alpha!"
 !            CALL neci_flush(6)

@@ -23,7 +23,8 @@ MODULE ReturnPathMCMod
 !        INTEGER , ALLOCATABLE :: ExcitData(:)   !This is the actual excitation generator data
 !        INTEGER :: nStore(6)                    !This holds the nStore for the generator
 !        INTEGER :: ExcitLen                     !This is the length of the excitation generator
-!        LOGICAL :: ForCurrentDet                !This is a logical which tells us whether the excitation generator stored is for use with the current det.
+!        LOGICAL :: ForCurrentDet                !This is a logical which tells us whether the 
+                                        !excitation generator stored is for use with the current det.
 !    END TYPE
 !
 !    TYPE Part                   !This is the type for a spawning particle
@@ -105,8 +106,10 @@ MODULE ReturnPathMCMod
 !        WRITE(6,*) "       Step  Shift  WalkerChange  GrowRate  TotWalkers        Proj.E   MeanExit   MinExit   MaxExit"
 !        WRITE(15,*) "#       Step  Shift  WalkerChange  GrowRate  TotWalkers         Proj.E   MeanExit   MinExit   MaxExit"
 !
-!        WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,G16.7,2I6)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,MeanExit,0,MaxExit
-!        WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,G16.7,2I6)") 0,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,MeanExit,0,MaxExit
+!        WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,G16.7,2I6)") 0,DiagSft,TotWalkers-TotWalkersOld,
+                !GrowRate,TotWalkers,ProjectionE,MeanExit,0,MaxExit
+!        WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,G16.7,2I6)") 0,DiagSft,TotWalkers-TotWalkersOld,
+                !GrowRate,TotWalkers,ProjectionE,MeanExit,0,MaxExit
 !
 !!Start MC simulation
 !        do Iter=1,NMCyc
@@ -205,10 +208,12 @@ MODULE ReturnPathMCMod
 !            ELSE
 !!We are now going to attempt to spawn to all neighbours, rather than attempting to return to a previous determinant in the chain
 !            
-!                CALL SetupExitGen(ActiveVec(j)%Det,ActiveVec(j)%ExGen)      !Setup the excitation generator for this particle if it isn't already there
+!                CALL SetupExitGen(ActiveVec(j)%Det,ActiveVec(j)%ExGen)      !Setup the excitation generator for this particle 
+!if it isn't already there
 !
 !                do while(.true.)
-!                    CALL GenSymExcitIt2(ActiveVec(j)%Det,NEl,G1,nBasis,nBasisMax,.FALSE.,ActiveVec(j)%ExGen%ExcitData,nJ,IC,0,ActiveVec(j)%ExGen%nStore,exFlag)
+!                    CALL GenSymExcitIt2(ActiveVec(j)%Det,NEl,G1,nBasis,nBasisMax,.FALSE.,  
+                                !ActiveVec(j)%ExGen%ExcitData,nJ,IC,0,ActiveVec(j)%ExGen%nStore,exFlag)
 !                    IF(nJ(1).eq.0) EXIT
 !                    ExcitLevel=iGetExcitLevel(HFDet,nJ,NEl)
 !                    IF((ActiveVec(j)%ChainLength.eq.0).or.(ExcitLevel.gt.ActiveVec(j)%IC0(ActiveVec(j)%ChainLength))) THEN

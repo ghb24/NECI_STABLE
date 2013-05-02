@@ -36,11 +36,11 @@
 #ifdef __DEBUG
 #define ASSERT(x) \
 if (.not. (x)) then; \
- call stop_all (this_routine, "Assertation failed: "//"x"); \
+ call stop_all (this_routine, "Assert fail: "//"x"); \
 endif
 #define ASSERTROOT(x) \
 if ((iProcIndex.eq.Root).and.(.not. (x))) then; \
- call stop_all (this_routine, "Assertation failed: "//"x"); \
+ call stop_all (this_routine, "Assert fail: "//"x"); \
 endif
 ! Do some debugging if X>=Y
 #define IFDEBUG(PrintLevel,ThisLevel) if (PrintLevel>=ThisLevel)
