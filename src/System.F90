@@ -378,12 +378,6 @@ system: do
             tCSFCore = .true.
             tCSF = .true.
             LMS = STOT
-        case("MAX-CORE-SIZE")
-            tLimitDetermSpace = .true.
-            call geti(max_determ_size)
-        case("MAX-TRIAL-SIZE")
-            tLimitTrialSpace = .true.
-            call geti(max_trial_size)
         case("DOUBLES-CORE")
             tSortDetermToTop = .true.
             tDoublesCore = .true.
@@ -439,6 +433,13 @@ system: do
                     call stop_all("SysReadInput","Input string is not recognised.")
                 end if
             end if
+        case("MAX-CORE-SIZE")
+            tSortDetermToTop = .false.
+            tLimitDetermSpace = .true.
+            call geti(max_determ_size)
+        case("MAX-TRIAL-SIZE")
+            tLimitTrialSpace = .true.
+            call geti(max_trial_size)
         case("TRIAL-WAVEFUNCTION")
             tTrialWavefunction = .true.
         case("DOUBLES-TRIAL")

@@ -359,11 +359,12 @@ MODULE AnnihilationMod
         CHARACTER(len=*), parameter :: this_routine='CompressSpawnedList'
         TYPE(timer),save :: Sort_time
 
-        !print *, "SpawnedParts before:"
+        !write(6,*) "SpawnedParts before:"
         !do j = 1, ValidSpawned
-        !    print *, SpawnedParts(:,j), test_flag(SpawnedParts(:,j),flag_deterministic)
+        !    write(6,*) SpawnedParts(:,j), test_flag(SpawnedParts(:,j),flag_deterministic), &
+        !                                  test_flag(SpawnedParts(:,j),flag_determ_parent)
         !end do
-        !print *,
+        !write(6,*)
 
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. 
 !(this is not essential, but should proove faster)
@@ -924,11 +925,12 @@ MODULE AnnihilationMod
         character(len=*), parameter :: this_routine="AnnihilateSpawnedParts"
         integer :: comp
 
-        !print *, "SpawnedParts after:"
+        !write(6,*) "SpawnedParts after:"
         !do j = 1, ValidSpawned
-        !    print *, SpawnedParts(:,j), test_flag(SpawnedParts(:,j),flag_deterministic)
+        !    write(6,*) SpawnedParts(:,j), test_flag(SpawnedParts(:,j),flag_deterministic), &
+        !                                  test_flag(SpawnedParts(:,j),flag_determ_parent)
         !end do
-        !print *,
+        !write(6,*)
 
         if(.not.bNodeRoot) return  !Only node roots to do this.
 

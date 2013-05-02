@@ -1154,11 +1154,12 @@ MODULE FciMCParMod
             endif
         endif
 
-        !print *, "CurrentDets before:"
+        !write(6,*) "CurrentDets before:"
         !do j = 1, TotWalkers
-        !    print *, CurrentDets(:,j), test_flag(CurrentDets(:,j),flag_deterministic)
+        !    write(6,*) j, CurrentDets(:,j), test_flag(CurrentDets(:,j),flag_deterministic), &
+        !                                 test_flag(CurrentDets(:,j),flag_determ_parent)
         !end do
-        !print *,
+        !write(6,*)
 
         do j=1,int(TotWalkers,sizeof_int)
             ! N.B. j indicates the number of determinants, not the number
