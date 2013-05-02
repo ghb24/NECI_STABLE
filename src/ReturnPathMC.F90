@@ -30,18 +30,23 @@ MODULE ReturnPathMCMod
 !    TYPE Part                   !This is the type for a spawning particle
 !        INTEGER , ALLOCATABLE :: Det(:)     !This is the current determinant of the particle - (NEl)
 !        INTEGER :: ChainLength  !This is the current length of the chain back to HF (If at HF, ChainLength = 0)
-!        INTEGER , ALLOCATABLE :: IC0(:)   !This is the excitation level of the particle w.r.t. HF determinant for now (IC0(ChainLength)) and all its histories - (CLMax)
-!        real(dp) , ALLOCATABLE :: Kii(:)    !This is the diagonal K-matrix element: Hii-H00 for now (Kii(CLMax)) and all its histories - (CLMax)
-!        INTEGER , ALLOCATABLE :: HistExcit(:)             !HistExcit(i) is the number of excitations between the determinant at History(:,i) and History(:,i-1) - size(CLMax)
+!        INTEGER , ALLOCATABLE :: IC0(:)   !This is the excitation level of the particle w.r.t. HF determinant for 
+!now (IC0(ChainLength)) and all its histories - (CLMax)
+!        real(dp) , ALLOCATABLE :: Kii(:)    !This is the diagonal K-matrix element: Hii-H00 for now (Kii(CLMax)) 
+!and all its histories - (CLMax)
+!        INTEGER , ALLOCATABLE :: HistExcit(:)             !HistExcit(i) is the number of excitations between the 
+!determinant at History(:,i) and History(:,i-1) - size(CLMax)
 !!The number of excitations between the current determinant the one it was spawned from is given in HistExcit(ChainLength)
 !        real(dp) :: Hi0           !This is the off-diagonal hamiltonian matrix element between the determinant and HF
 !!IC0(1) contains information about the double excitation
 !        LOGICAL :: WSign        !This is the sign of the particle
-!        INTEGER , ALLOCATABLE :: History(:,:)         !This is the history of the particle. HF is not included in the history - this is the start for all particles
+!        INTEGER , ALLOCATABLE :: History(:,:)         !This is the history of the particle. HF is not 
+!included in the history - this is the start for all particles
 !!The first double excitation from HF is stored in History(:,1)
 !!The previous excitation (i.e. the one the particle was spawned from) is stored in History(:,ChainLength-1)
 !!Is of size History(NEl,CLMax-1)
-!        TYPE(ExcitGenerator) :: ExGen           !This is the excitation generator for the determinant the particle is currently at
+!        TYPE(ExcitGenerator) :: ExGen           !This is the excitation generator for the determinant 
+!the particle is currently at
 !
 !!Might also be worth saving the excitation generators for all previous determinants
 !    END TYPE
@@ -62,11 +67,13 @@ MODULE ReturnPathMCMod
 !    INTEGER :: Seed,MaxWalkers,TotWalkers,TotWalkersOld,Iter
 !    INTEGER :: exFlag=3
 !
-!    !This is information needed by the thermostating, so that the correct change in walker number can be calculated, and hence the correct shift change.
+!    !This is information needed by the thermostating, so that the correct change in walker number can 
+!be calculated, and hence the correct shift change.
 !    !NoCulls is the number of culls in a given shift update cycle
 !    INTEGER :: NoCulls=0
 !    
-!    !CullInfo is the number of walkers before and after the cull (elements 1&2), and the third element is the previous number of steps before this cull...
+!    !CullInfo is the number of walkers before and after the cull (elements 1&2), and the third element is 
+!the previous number of steps before this cull...
 !    !Only 15 culls/growth increases are allowed in a given shift cycle
 !    INTEGER :: CullInfo(15,3)
 !
@@ -123,8 +130,10 @@ MODULE ReturnPathMCMod
 !!Write out info
 !                ProjectionE=SumENum/REAL(SumNoatHF,dp)
 !                MeanExit=MeanExit/real(SumWalkersCyc,dp)
-!                WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,G16.7,2I6)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,MeanExit,MinExit,MaxExit
-!                WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,G16.7,2I6)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,TotWalkers,ProjectionE,MeanExit,MinExit,MaxExit
+!                WRITE(15,"(I9,G16.7,I9,G16.7,I9,G16.7,G16.7,2I6)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,
+                            !TotWalkers,ProjectionE,MeanExit,MinExit,MaxExit
+!                WRITE(6,"(I9,G16.7,I9,G16.7,I9,G16.7,G16.7,2I6)") Iter,DiagSft,TotWalkers-TotWalkersOld,GrowRate,
+                                !TotWalkers,ProjectionE,MeanExit,MinExit,MaxExit
 !
 !                CALL neci_flush(15)
 !                CALL neci_flush(6)       !Probably remove neci_flushes for big systems
@@ -232,9 +241,11 @@ MODULE ReturnPathMCMod
 !                            do k=1,abs(ToSpawn)
 !!We have succesfully spawned deeper into excit space - copy these accross
 !                                IF(ToSpawn.gt.0) THEN
-!                                    CALL CreateParticle(ActiveVec(j),ActiveVec(j)%ChainLength+1,.true.,VecSlot,nJ,DiagElem,ExcitLevel,IC,hHi0)
+!                                    CALL CreateParticle(ActiveVec(j),ActiveVec(j)%ChainLength+1,.true.,
+                                                !VecSlot,nJ,DiagElem,ExcitLevel,IC,hHi0)
 !                                ELSE
-!                                    CALL CreateParticle(ActiveVec(j),ActiveVec(j)%ChainLength+1,.false.,VecSlot,nJ,DiagElem,ExcitLevel,IC,hHi0)
+!                                    CALL CreateParticle(ActiveVec(j),ActiveVec(j)%ChainLength+1,.false.,i
+                                            !VecSlot,nJ,DiagElem,ExcitLevel,IC,hHi0)
 !                                ENDIF
 !                    
 !                                VecSlot=VecSlot+1
@@ -246,8 +257,8 @@ MODULE ReturnPathMCMod
 !                    ENDIF   !End if excit is deeper into the space
 !
 !                enddo
-!
-!                CALL ResetExIt2(ActiveVec(j)%Det,NEl,G1,nBasis,nBasisMax,ActiveVec(j)%ExGen%ExcitData,0)    !Reset exgen so we can run through it again
+! !Reset exgen so we can run through it again
+!                CALL ResetExIt2(ActiveVec(j)%Det,NEl,G1,nBasis,nBasisMax,ActiveVec(j)%ExGen%ExcitData,0)   
 !
 !            ENDIF   !End of attempted spawning
 !
@@ -257,7 +268,8 @@ MODULE ReturnPathMCMod
 !!Particle survives (or possibly increases in number), and wants to be copied across to NewVec
 !
 !                do k=1,abs(iDie)+1
-!                    CALL CreateParticle(ActiveVec(j),ActiveVec(j)%ChainLength,ActiveVec(j)%WSign,VecSlot,nJ,DiagElem,ExcitLevel,IC,hHi0)
+!                    CALL CreateParticle(ActiveVec(j),ActiveVec(j)%ChainLength,ActiveVec(j)%WSign,VecSlot,
+                                                !nJ,DiagElem,ExcitLevel,IC,hHi0)
 !                    VecSlot=VecSlot+1
 !                enddo
 !            
@@ -442,9 +454,11 @@ MODULE ReturnPathMCMod
 !    END SUBROUTINE ThermostatParticles
 ! 
 !
-!!This subroutine will create a particle on the NewVec array, given an initial template from ActiveVec, which it may modify if it has moved up/down the chain
+!!This subroutine will create a particle on the NewVec array, given an initial template from ActiveVec, i
+!which it may modify if it has moved up/down the chain
 !!The routine will create a particle at the same place in a chain, the next link, or the previous history determinant.
-!!If we want to create at a new determinant, further into excitation space than the Particle, then we have to provide the extra information in the last 5 arguments
+!!If we want to create at a new determinant, further into excitation space than the Particle, then we have to 
+!provide the extra information in the last 5 arguments
 !    SUBROUTINE CreateParticle(Particle,NewChainLength,WSign,VecSlot,nJ,DiagElem,ExcitLevel,IC,hHi0)
 !        TYPE(Part) :: Particle
 !        INTEGER :: NewChainLength,VecSlot,nJ(NEl),ExcitLevel,IC
@@ -462,7 +476,7 @@ MODULE ReturnPathMCMod
 !!Simply copy the data from Particle into an identical copy in NewVec
 !                NewVec(VecSlot)%Kii(1:NewChainLength)=Particle%Kii(1:NewChainLength)
 !                NewVec(VecSlot)%Hi0=Particle%Hi0
-!                NewVec(VecSlot)%ChainLength=NewChainLength      !Though this should obviously be the same as the original particle
+!                NewVec(VecSlot)%ChainLength=NewChainLength    !Though this should obviously be the same as the original particle
 !                NewVec(VecSlot)%IC0(1:NewChainLength)=Particle%IC0(1:NewChainLength)
 !                NewVec(VecSlot)%WSign=WSign
 !                IF(NewChainLength.eq.1) THEN
@@ -475,7 +489,7 @@ MODULE ReturnPathMCMod
 !                NewVec(VecSlot)%Det(:)=Particle%Det(:)
 !
 !!Need to also copy accross the excitation generator for Det.
-!                CALL CopyExGen(Particle%ExGen,NewVec(VecSlot)%ExGen)      !This will copy the information exactly - IF it is correct
+!                CALL CopyExGen(Particle%ExGen,NewVec(VecSlot)%ExGen) !This will copy the information exactly - IF it is correct
 !
 !            ENDIF
 !
@@ -496,7 +510,8 @@ MODULE ReturnPathMCMod
 !                    NewVec(VecSlot)%Hi0=0.0_dp
 !                ELSE
 !!Need calculate the connection to HF - we are at a double excitation
-!                    ConntoHF=GetHElement2(NewVec(VecSlot)%Det,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,Particle%IC0(NewChainLength),ECore)
+!                    ConntoHF=GetHElement2(NewVec(VecSlot)%Det,FDet,NEl,nBasisMax,G1,nBasis,Brr,
+                    !nMsh,fck,NMax,ALat,UMat,Particle%IC0(NewChainLength),ECore)
 !                    NewVec(VecSlot)%Hi0=REAL(ConntoHF,dp)
 !                ENDIF
 !                
@@ -517,7 +532,8 @@ MODULE ReturnPathMCMod
 !
 !
 !        ELSEIF(Particle%ChainLength.eq.(NewChainLength-1)) THEN
-!!We want to create a new particle which is one link further away from HF than Particle. We need the additional information for this
+!!We want to create a new particle which is one link further away from HF than Particle. We i
+!need the additional information for this
 !
 !            NewVec(VecSlot)%Det=nJ(:)   !This is the new determinant
 !
@@ -554,7 +570,8 @@ MODULE ReturnPathMCMod
 !            NewVec(VecSlot)%ExGen%ForCurrentDet=.false.
 !
 !        ELSE
-!!Not sure what we are trying to do here - we are creating a particle which is > 1 link away from the original - should not be possible
+!!Not sure what we are trying to do here - we are creating a particle which is > 1 link away 
+!from the original - should not be possible
 !            CALL Stop_All("CreateParticle","Trying to create a particle which is > 1 link away - error")
 !        ENDIF
 !
@@ -603,7 +620,8 @@ MODULE ReturnPathMCMod
 !
 !    END SUBROUTINE CopyParticle
 !
-!!This routine will copy an exgen from OrigExGen to NewExGen, providing that OrigExGen is said to be allocated for the 'correct' determinant
+!!This routine will copy an exgen from OrigExGen to NewExGen, providing that OrigExGen is said i
+!to be allocated for the 'correct' determinant
 !    SUBROUTINE CopyExGen(OrigExGen,NewExGen)
 !        TYPE(ExcitGenerator) :: OrigExGen,NewExGen
 !        INTEGER :: ierr,i
@@ -629,7 +647,8 @@ MODULE ReturnPathMCMod
 !    END SUBROUTINE CopyExGen
 !
 !!Function which returns the number of particles to kill (or birth if -ve - possible if shift is positive)    
-!!Zero indicates keep particle. One is destroy particle. -1 is create extra particle. >1 is destroy particle, and create anti-particles
+!!Zero indicates keep particle. One is destroy particle. -1 is create extra particle. >1 is destroy i
+!particle, and create anti-particles
 !    INTEGER FUNCTION AttemptDestruct(Particle)
 !        TYPE(Part) :: Particle
 !        real(dp) :: rat,Ran2
@@ -706,8 +725,10 @@ MODULE ReturnPathMCMod
 !    END FUNCTION GetSpawnRhoEl
 !
 !
-!!Call this function when we have decided to spawn to a determinant further down the chain and have decided that it is deeper into excitation space w.r.t HF
-!!Will return the number and sign of the particles spawned there (nJ). IC is the no. of excitations between particle and nJ.
+!!Call this function when we have decided to spawn to a determinant further down the chain and have 
+!decided that it is deeper into excitation space w.r.t HF
+!!Will return the number and sign of the particles spawned there (nJ). IC is the no. of 
+!excitations between particle and nJ.
 !    INTEGER FUNCTION SpawnForward(Particle,Preturn,nJ,IC,Hij)
 !        TYPE(Part) :: Particle
 !        real(dp) :: Preturn,Hij,rat,Ran2,rhoel
@@ -749,7 +770,8 @@ MODULE ReturnPathMCMod
 !
 !                
 !!Call this function after we have decided to attempt to spawn at the determinant that we ourselves were spawned from.
-!!SpawnReturn will then tell us if the attempt is successful by indicating the number of particles spawned and sign of the resultant particle(s)
+!!SpawnReturn will then tell us if the attempt is successful by indicating the number of particles 
+!spawned and sign of the resultant particle(s)
 !    INTEGER FUNCTION SpawnReturn(Particle,Preturn)
 !        TYPE(Part) :: Particle
 !        real(dp) :: Hij,Ran2,Preturn,rat,rhoel
@@ -770,7 +792,8 @@ MODULE ReturnPathMCMod
 !
 !        ELSEIF(Particle%ChainLength.gt.1) THEN
 !!Particle is some way along a chain. Its previous determinant can be ascertained from its history.
-!!The previous determinant is stored in History(:,ChainLength-1), and the number of excitations between them in HistExcit(ChainLength)
+!!The previous determinant is stored in History(:,ChainLength-1), and the number of excitations 
+!between them in HistExcit(ChainLength)
 !
 !            Hij=GetConnection(Particle%Det,Particle%History(:,(Particle%ChainLength)-1),Particle%HistExcit(Particle%ChainLength))
 !            IF(TRhoElems) THEN
@@ -789,7 +812,8 @@ MODULE ReturnPathMCMod
 !        ELSE
 !            rat=Tau*abs(Hij)/Preturn
 !        ENDIF
-!        SpawnReturn=INT(rat)              !Number of particles we are definatly creating (can create multiple new particles if prob > 1)
+!        SpawnReturn=INT(rat)              !Number of particles we are definatly creating 
+!(can create multiple new particles if prob > 1)
 !        rat=rat-REAL(SpawnReturn,dp)
 !
 !        IF(rat.gt.Ran2(Seed)) SpawnReturn=SpawnReturn+1     !Create an extra particle from stochastic step
@@ -864,11 +888,13 @@ MODULE ReturnPathMCMod
 !            FindPRet=1.0_dp
 !            RETURN
 !        ELSEIF(Particle%IC0(Particle%ChainLength).eq.NEl) THEN
-!!Particle is already at the highest excitation level possible - it has to return as it can no longer increase its excitation level
+!!Particle is already at the highest excitation level possible - it has to return as it can no longer increase its 
+!excitation level
 !            FindPRet=1.0_dp
 !            RETURN
 !        ELSEIF(Particle%IC0(Particle%ChainLength).eq.0) THEN
-!!Particle says it is at the HF - however, it should only be allowed to go deeper into excit space, and so chainlength should be 0 - error here
+!!Particle says it is at the HF - however, it should only be allowed to go deeper into excit space, and so 
+!chainlength should be 0 - error here
 !            CALL Stop_All("FindPRet","Particle should only be allowed to go deeper into excit space")
 !        ELSE
 !!Particle is free to attempt to return, or proceed further into excit space
@@ -1014,7 +1040,8 @@ MODULE ReturnPathMCMod
 !        IF(NoCulls.eq.0) THEN
 !            GrowRate=(TotWalkers+0.0_dp)/(TotWalkersOld+0.0_dp)
 !        ELSEIF(NoCulls.eq.1) THEN
-!!GrowRate is the sum of the individual grow rates for each uninterrupted growth sequence, multiplied by the fraction of the cycle which was spent on it
+!!GrowRate is the sum of the individual grow rates for each uninterrupted growth sequence, multiplied by the 
+!fraction of the cycle which was spent on it
 !            GrowRate=((CullInfo(1,3)+0.0_dp)/(StepsSft+0.0_dp))*((CullInfo(1,1)+0.0_dp)/(TotWalkersOld+0.0_dp))
 !            GrowRate=GrowRate+(((StepsSft-CullInfo(1,3))+0.0_dp)/(StepsSft+0.0_dp))*((TotWalkers+0.0_dp)/(CullInfo(1,2)+0.0_dp))
 !

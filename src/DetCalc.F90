@@ -28,9 +28,11 @@ MODULE DetCalc
       HElement_t, pointer :: CKN(:,:) !  (nDet,nEval)  Temporary storage for the Lanczos routine
       INTEGER(TagIntType) :: tagCKN=0
 
-      real(dp) , ALLOCATABLE :: ExpandedHamil(:,:)    ! (NDet,NDet) This is the hamiltonian in expanded form, so that it can be histogrammed against.
+      real(dp) , ALLOCATABLE :: ExpandedHamil(:,:)    ! (NDet,NDet) This is the hamiltonian in expanded form, 
+                                                      !so that it can be histogrammed against.
 
-      INTEGER iExcitLevel                 ! The excitation level at which determinants are cut off.  This differs from ICILevel for tCCBuffer.
+      INTEGER iExcitLevel                 ! The excitation level at which determinants are cut off.  
+                                          !This differs from ICILevel for tCCBuffer.
     
 CONTAINS
     Subroutine DetCalcInit
@@ -691,7 +693,8 @@ CONTAINS
                 else
                     call sort (temp(1:Det), FCIDets(:,1:Det), FCIGS(1:Det))
                 endif
-!                CALL Stop_All("DetCalc","Cannot do histogramming FCI without JUSTFINDDETS at the moment (need new sorting - bug ghb24)")
+!                CALL Stop_All("DetCalc","Cannot do histogramming FCI without JUSTFINDDETS at the 
+                    !moment (need new sorting - bug ghb24)")
             ENDIF
 
 !Test that HF determinant is the first determinant
@@ -775,7 +778,8 @@ CONTAINS
 !                        call stop_all(this_routine,"Sym partner not found")
 !                    endif
 !                    ICConnect = FindBitExcitLevel(FCIDets(:,i),iLutMomSym,nel)
-!                    write(PairedUnit,"(2I16,15I4,2G19.8)") FCIDets(0:NIfD,i),iLutMomSym(0:NIfD),TempnI(:),MomSymDet(:),IC,ICSym,ICConnect,FCIGS(i),FCIGS(Ind)
+!                    write(PairedUnit,"(2I16,15I4,2G19.8)") FCIDets(0:NIfD,i),
+                        !iLutMomSym(0:NIfD),TempnI(:),MomSymDet(:),IC,ICSym,ICConnect,FCIGS(i),FCIGS(Ind)
 !                enddo
 !                close(PairedUnit)
 !                close(SelfInvUnit)
@@ -821,8 +825,10 @@ CONTAINS
 !                                CALL HPHFGetOffDiagHElement(NMRKS(1:NEl,1),nK,MatEl)
 !                            ENDIF
 !                            CALL HPHFGetDiagHElement(nK,MatEl2)
-!!                            WRITE(23,"(A,2I14,3G20.10,I5,2G20.10)") "Closed ",FCIDets(0:NIfD,i),iLutSym(:),FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs,MatEl,MatEl2
-!!                        WRITE(23,"(A,2I14,3G20.10,I5)") "Closed ",FCIDets(0:NIfD,i),iLutSym(:),FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs
+!!                            WRITE(23,"(A,2I14,3G20.10,I5,2G20.10)") "Closed ",FCIDets(0:NIfD,i),iLutSym(:),
+                            !FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs,MatEl,MatEl2
+!!                        WRITE(23,"(A,2I14,3G20.10,I5)") "Closed ",FCIDets(0:NIfD,i),iLutSym(:),FCIGS(i),
+                                !FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs
 !                    ELSE
 !                        IF(abs(FCIGS(i)).gt.1.0e-5_dp) THEN 
 !!Find Hi0 element
@@ -832,7 +838,8 @@ CONTAINS
 !                            CALL HPHFGetDiagHElement(nK,MatEl2)
 !!                            Ex(1,1)=NEl
 !!                            CALL GETEXCITATION(nJ,nK,NEl,Ex,TSign)
-!                            WRITE(23,"(A,3I14,3G20.10,I5,2G20.10)") "Open   ",i,FCIDets(0:NIfD,i),iLutSym(:),FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs,MatEl,MatEl2
+!                            WRITE(23,"(A,3I14,3G20.10,I5,2G20.10)") "Open   ",i,FCIDets(0:NIfD,i),iLutSym(:),i
+                                        !FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs,MatEl,MatEl2
 !                        ENDIF
 !                    ENDIF
 !                ENDIF
