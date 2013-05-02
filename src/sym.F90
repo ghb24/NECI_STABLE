@@ -251,7 +251,8 @@ contains
              end do
 !             WRITE(6,*) "Label, Sym, SymConjLabel, SymConj, SymProd"
 !             do i=1,nsymlabels
-!                 WRITE(6,"(5I12)") i,symlabels(i),SymConjTab(i),symlabels(SymConjTab(i)),SYMPROD(symlabels(i),symlabels(SymConjTab(i)))
+!                 WRITE(6,"(5I12)") i,symlabels(i),SymConjTab(i),symlabels(SymConjTab(i)),
+!SYMPROD(symlabels(i),symlabels(SymConjTab(i)))
 !             enddo
          end if
       END SUBROUTINE GENMOLPSYMTABLE
@@ -742,7 +743,8 @@ contains
 !.. (e.g. the six orbitals which might make up a T2g set), and is used for working 
 !.. out the symmetry of a determinant in GETSYM
 !.. It uses that fact that even for non-abelian groups a completely filled degenerate symmetry set is totally symmetric.
-!..  Thus each member of a set of states which when completely filled gives a totally symmetric det should be labelled with the same symrep
+!..  Thus each member of a set of states which when completely filled gives a totally 
+!symmetric det should be labelled with the same symrep
 !     SYMREPS(2,*) has two sets of data:
 !   SYMREPS(1,IBASISFN) contains the numnber of the representation
 !   of which IBASISFN is a part.
@@ -960,7 +962,8 @@ contains
                ENDIF
                NEXTSYMLAB=NEXTSYMLAB+1
                IF(.NOT.LDO) THEN
-!   We've not manage to add any more irreps, so we have achieved self-consistency.  Do one more pass to check, saving all C.. non-reducible reps
+!   We've not manage to add any more irreps, so we have achieved self-consistency.  
+!Do one more pass to check, saving all C.. non-reducible reps
                   LDO=.TRUE.
                   LDO2=.FALSE.
                   NREPS=0
@@ -1479,7 +1482,8 @@ contains
          INTEGER K1(3),nBasisMax(5,*)
          INTEGER J,LDIM,AX,AY,LENX,LENY,KK2,T1,T2
          real(dp) R1,R2,NORM
-!   (AX,AY) is the tilt of the lattice, and corresponds to the lattice vector of the cell.  The other lattice vector is (-AY,AX).  These are expressed in terms of the primitive Hubbard lattice vectors
+!   (AX,AY) is the tilt of the lattice, and corresponds to the lattice vector of the cell.  The other lattice vector is (-AY,AX).
+!These are expressed in terms of the primitive Hubbard lattice vectors
          AX=NBASISMAX(1,4)
          AY=NBASISMAX(2,4)
 !   LENX is the length (i.e. number of lattice vectors) in direction (AX,AY).  LENY is in the other lattice vector direction

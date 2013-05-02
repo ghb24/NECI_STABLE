@@ -1,11 +1,13 @@
 #include "macros.h"
 
 MODULE HPHFRandExcitMod
-!Half-projected HF wavefunctions are a linear combination of two HF determinants, where all alphas -> betas and betas -> alpha to create the pair.
+!Half-projected HF wavefunctions are a linear combination of two HF determinants, 
+!where all alphas -> betas and betas -> alpha to create the pair.
 !In closed-shell systems, these two determinants have the same FCI amplitude, and so it is easier to treat them as a pair.
 !The probability of creating this HPHF where both are from pairs of spin-coupled determinants (i & j -> a & b):
 ![ P(i->a) + P(i->b) + P(j->a) + P(j->b) ]/2
-!We therefore need to find the excitation matrix between the determinant which wasn't excited and the determinant which was created.
+!We therefore need to find the excitation matrix between the determinant which wasn't 
+!excited and the determinant which was created.
 
     use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr, &
                           tOddS_HPHF, modk_offdiag
@@ -163,7 +165,8 @@ MODULE HPHFRandExcitMod
 !        ENDIF
 
         IF(TestClosedShellDet(iLutnJ)) THEN
-!There is only one way which we could have generated the excitation nJ since it has no spin-partner. Also, we will always return the 'correct' version.
+!There is only one way which we could have generated the excitation nJ since it has 
+!no spin-partner. Also, we will always return the 'correct' version.
             IF(tGenMatHEl) THEN
 !Generate matrix element -> HPHF to closed shell det.
                 IF(TestClosedShellDet(iLutnI)) THEN
@@ -254,26 +257,29 @@ MODULE HPHFRandExcitMod
                             CALL CalcOpenOrbs(iLutnI,OpenOrbsI)
 
                             IF(tSwapped) THEN
-                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSignOrig=.not.tSignOrig  !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
+                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSignOrig=.not.tSignOrig  
+ !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
 
                                 MatEl2 = sltcnd_excit (nI, IC, ExcitMat, &
                                                        tSignOrig)
                             ELSE
-                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSign=.not.tSign     !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
+!I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
+                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSign=.not.tSign     
 
                                 MatEl2 = sltcnd_excit (nI,  ExcitLevel, &
                                                        Ex2, tSign)
                             ENDIF
 
                             IF(tOddS_HPHF) THEN
-                                IF(OpenOrbsI.eq.2) THEN     !again, since these can only be at max quads, then they can only have 1/2 open orbs...
+!again, since these can only be at max quads, then they can only have 1/2 open orbs...
+                                IF(OpenOrbsI.eq.2) THEN     
                                     MatEl=MatEl-MatEl2
                                 ELSE
                                     MatEl=MatEl+MatEl2
                                 ENDIF
                             ELSE
-
-                                IF(OpenOrbsI.eq.2) THEN     !again, since these can only be at max quads, then they can only have 1/2 open orbs...
+!again, since these can only be at max quads, then they can only have 1/2 open orbs...
+                                IF(OpenOrbsI.eq.2) THEN     
                                     MatEl=MatEl+MatEl2
                                 ELSE
                                     MatEl=MatEl-MatEl2
@@ -288,7 +294,8 @@ MODULE HPHFRandExcitMod
 
                 ENDIF   !Endif want to generate matrix element
 
-!                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.false.,.false.,tSwapped)  !Here, we actually know nJ, so don't need to regenerate it...
+!                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.false.,.false.,tSwapped)  
+!Here, we actually know nJ, so don't need to regenerate it...
 
             ELSEIF(ExcitLevel.eq.0) THEN
 !We have generated the same HPHF. MatEl wants to be zero.
@@ -302,11 +309,12 @@ MODULE HPHFRandExcitMod
 !                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.false.,.true.,tSwapped)
 
                 IF(tGenMatHEl) THEN
-!iLutnI MUST be open-shell here, since otherwise it would have been connected to iLutnJ2. Also, we know the cross connection (i.e. MatEl2 = 0)
+!iLutnI MUST be open-shell here, since otherwise it would have been connected to 
+!iLutnJ2. Also, we know the cross connection (i.e. MatEl2 = 0)
                     IF(tSwapped) THEN
                         CALL CalcOpenOrbs(iLutnJ,OpenOrbsJ)
 !                        CALL CalcOpenOrbs(iLutnI,OpenOrbsI)
-!                        IF(((mod(OpenOrbsI,2).eq.1).and.(mod(OpenOrbsJ,2).eq.1)).or.((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.1))) THEN
+!     IF(((mod(OpenOrbsI,2).eq.1).and.(mod(OpenOrbsJ,2).eq.1)).or.((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.1))) THEN
                         IF(tOddS_HPHF) then
                             IF(mod(OpenOrbsJ,2).eq.0) THEN
     !                            WRITE(6,*) "Swapped parity"
@@ -350,10 +358,14 @@ MODULE HPHFRandExcitMod
 
     end subroutine
 
-!This routine will take a determinant, and create the determinant whose final open-shell spatial orbital contains an alpha electron.
-!If the final open-shell electron is a beta orbital, then the balue of the bit-string will be smaller. We are interested in returning
-!the larger of the open-shell bit strings since this will correspond to the final open-shell electron being an alpha.
-!This rationalization may well break down when it comes to the negative bit (32), however, this may not matter, since all we really
+!This routine will take a determinant, and create the determinant whose final open-shell 
+!spatial orbital contains an alpha electron.
+!If the final open-shell electron is a beta orbital, then the balue of the bit-string 
+!will be smaller. We are interested in returning
+!the larger of the open-shell bit strings since this will correspond to the final 
+!open-shell electron being an alpha.
+!This rationalization may well break down when it comes to the negative bit (32), 
+!however, this may not matter, since all we really
 !need is a unique description of a HPHF...?
 !iLutnI (nI) is returned as this determinant, with iLutSym (nJ) being the other.
 !If tCalciLutSym is false, iLutSym will be calculated from iLutnI. Otherwise, it won't.
@@ -434,9 +446,12 @@ MODULE HPHFRandExcitMod
 
     END SUBROUTINE FindDetSpinSym
 
-!In closed-shell systems with equal number of alpha and beta strings, the amplitude of a determinant in the final CI wavefunction is the same
-!when the alpha and beta electrons are swapped (for S=0, see Helgakker for more details). It will sometimes be necessary to find this other
-!determinant when spawning. This routine will find the bit-representation of an excitation by constructing the symmetric iLut from the its
+!In closed-shell systems with equal number of alpha and beta strings, the amplitude of a 
+!determinant in the final CI wavefunction is the same
+!when the alpha and beta electrons are swapped (for S=0, see Helgakker for more details). 
+!It will sometimes be necessary to find this other
+!determinant when spawning. This routine will find the bit-representation of an excitation 
+!by constructing the symmetric iLut from the its
 !symmetric partner, also in bit form.
     PURE SUBROUTINE FindExcitBitDetSym(iLut,iLutSym)
         IMPLICIT NONE
@@ -483,8 +498,10 @@ MODULE HPHFRandExcitMod
     END SUBROUTINE FindExcitBitDetSym
 
     
-!!This routine will take a HPHF nI, and find Iterations number of excitations of it. It will then histogram these, summing in 1/pGen for every occurance of
-!!the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the excitations and compare the number to the
+!!This routine will take a HPHF nI, and find Iterations number of excitations of it. 
+!It will then histogram these, summing in 1/pGen for every occurance of
+!!the excitation. This means that all excitations should be 0 or 1 after enough iterations. 
+!It will then count the excitations and compare the number to the
 !!number of excitations generated using the full enumeration excitation generation.
 !    SUBROUTINE TestGenRandHPHFExcit(nI,Iterations,pDoub)
 !        Use SystemData , only : NEl,nBasis,G1,nBasisMax
@@ -786,7 +803,8 @@ MODULE HPHFRandExcitMod
                 PartInd=N
                 RETURN
             ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
-!The value of the determinant at N is LESS than the determinant we're looking for. Therefore, move the lower bound of the search up to N.
+!The value of the determinant at N is LESS than the determinant we're looking for. 
+!Therefore, move the lower bound of the search up to N.
 !However, if the lower bound is already equal to N then the two bounds are consecutive and we have failed...
                 i=N
             ELSEIF(i.eq.N) THEN

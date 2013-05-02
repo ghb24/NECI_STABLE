@@ -10,6 +10,7 @@ save
 logical :: tMolpro  !True if the code has been called from Molpro
 logical :: tMolproMimic !True if the code is being run from standalone neci, but designed to mimic the runtime 
                         !behaviour of molpro
+character(12) :: MolproID
 
 logical :: tNoSingExcits    !True if there are no single excitations in the system
 

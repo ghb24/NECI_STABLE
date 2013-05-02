@@ -54,8 +54,9 @@ MODULE Logging
     LOGICAL tMCOutput
     logical :: tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
     integer :: iProjEBins
-    logical :: tDumpForcesInfo, tPrintLagrangian  !Print out the 1RDM,2RDM and Lagrangian to file at the end of a run as long as 2RDM is calculated
-
+    logical :: tDumpForcesInfo, 
+    logical :: tPrintLagrangian  !Print out the 1RDM,2RDM and Lagrangian to file 
+                                 !at the end of a run as long as 2RDM is calculated
     logical :: tCalcInstantS2, tCalcInstSCpts, tCalcInstantS2Init
     integer :: instant_s2_multiplier, instant_s2_multiplier_init
     integer :: iHighPopWrite
@@ -537,8 +538,10 @@ MODULE Logging
             call readi(HistInitPopsIter)
 
         case("CALCRDMONFLY")
-!This keyword sets the calculation to calculate the reduced density matrix on the fly.  This starts at IterRDMonFly iterations after the shift changes.
-!If RDMExcitLevel = 1, only the 1 electron RDM is found, if RDMExcitLevel = 2, only the 2 electron RDM is found and if RDMExcitLevel = 3, both are found. 
+!This keyword sets the calculation to calculate the reduced density matrix on the fly.  
+!This starts at IterRDMonFly iterations after the shift changes.
+!If RDMExcitLevel = 1, only the 1 electron RDM is found, if RDMExcitLevel = 2, only 
+!the 2 electron RDM is found and if RDMExcitLevel = 3, both are found. 
             tRDMonFly=.true.
             call readi(RDMExcitLevel)
             call readi(IterRDMonFly)
@@ -561,14 +564,18 @@ MODULE Logging
         case("PRINTRODUMP")
             tPrintRODump=.true.
             tROFciDump = .true.
-! This is to do with the calculation of the MP2 or CI natural orbitals.  This should be used if we want the transformation matrix of the              
-! natural orbitals to be found, but no ROFCIDUMP file to be printed (i.e. the integrals don't need to be transformed).  This is so that at the end 
-! of a calculation, we may get the one body reduced density matrix from the wavefunction we've found, and then use the MOTRANSFORM file printed to 
+! This is to do with the calculation of the MP2 or CI natural orbitals.  
+!This should be used if we want the transformation matrix of the 
+! natural orbitals to be found, but no ROFCIDUMP file to be printed (i.e. 
+!the integrals don't need to be transformed).  This is so that at the end 
+! of a calculation, we may get the one body reduced density matrix from the 
+!wavefunction we've found, and then use the MOTRANSFORM file printed to 
 ! visualise the natural orbitals with large occupation numbers.
 
         case("CALCRDMENERGY")
 !This takes the 1 and 2 electron RDM and calculates the energy using the RDM expression.            
-!For this to be calculated, RDMExcitLevel must be = 3, so there is a check to make sure this is so if the CALCRDMENERGY keyword is present.
+!For this to be calculated, RDMExcitLevel must be = 3, so there is a check to make sure this 
+!is so if the CALCRDMENERGY keyword is present.
             IF(item.lt.nitems) THEN
                 call readu(w)
                 select case(w)
@@ -601,7 +608,7 @@ MODULE Logging
             tPrintInitiators = .true.
         
         case("WRITERDMSTOREAD")
-! Writes out the unnormalised RDMs (in binary), so they can be read back in, and the calculations restarted at a later point.            
+! Writes out the unnormalised RDMs (in binary), so they can be read back in, and the calculations restarted at a later point 
 ! This is also tied to the POPSFILE/BINARYPOPS keyword - so if we're writing a normal POPSFILE, we'll write this too, 
 ! unless **WRITERDMSTOREAD** OFF is used.
             IF(item.lt.nitems) THEN
@@ -622,7 +629,7 @@ MODULE Logging
             twrite_normalised_RDMs = .false.
 
         case("READRDMS")
-! Read in the RDMs from a previous calculation, and continue accumulating the RDMs from the very beginning of this restart.            
+! Read in the RDMs from a previous calculation, and continue accumulating the RDMs from the very beginning of this restart. 
             tReadRDMs = .true.
 
         case("WRITERDMSEVERY")
@@ -636,7 +643,8 @@ MODULE Logging
 
 
         case("DUMPFORCESINFO")
-! Using the finalised 2RDM, calculate the Lagrangian X used for the calculation of the forces, and dump all these in Molpro-friendly format
+! Using the finalised 2RDM, calculate the Lagrangian X used for the calculation of the forces, 
+!and dump all these in Molpro-friendly format
 ! Note that this currently requires calculation of *both* the 1 and 2 body RDMS (i.e. CALCRDMONFLY 3 .. ... )
 ! I will eventually reorganise so it can work with just the calculation of the two body RDM.
             tDumpForcesInfo = .true.
@@ -704,7 +712,8 @@ MODULE Logging
             tPrintDoubsUEG=.true.
             IF(item.lt.nitems) call readi(StartPrintDoubsUEG)
         case("PRINTORBOCCSINIT")
-!This option initiates the above histogramming of determinant populations and then at the end of the spawning uses these to find the normalised  
+!This option initiates the above histogramming of determinant populations and then 
+!at the end of the spawning uses these to find the normalised  
 !contribution of each orbital to the total wavefunction.  
             tPrintOrbOcc=.true.
             tPrintOrbOccInit=.true.

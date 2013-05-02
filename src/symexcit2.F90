@@ -414,7 +414,8 @@ MODULE SymExcit2
          iFromIndex=I
          deallocate(ews)
          call LogMemDealloc(thisroutine,tagEWS)
-!  pGen is the prob of choosing a specific FROM (given having chosen iExcitType proportional to the number of excitations in each iExcitType)
+!  pGen is the prob of choosing a specific FROM (given having chosen iExcitType proportional 
+!to the number of excitations in each iExcitType)
 !           times the prob of choosing iExcitType
 
 !.. Now work out the index of the (a,b) pair within the prod
@@ -434,7 +435,8 @@ MODULE SymExcit2
          ENDDO
          pGen=pGen/Norm    ! The norm of the TOs
 !  pGen is the prob of choosing a specific TO (given the FROM, and the iExcitType)
-!           times prob of choosing a specific FROM (given having chosen iExcitType proportional to the number of excitations in each iExcitType)
+!           times prob of choosing a specific FROM (given having chosen iExcitType 
+!proportional to the number of excitations in each iExcitType)
 !           times the prob of choosing iExcitType
          deallocate(ews)
          call LogMemDealloc(thisroutine,tagEWS)
@@ -773,7 +775,8 @@ MODULE SymExcit2
          INTEGER, pointer :: DSTORE(:)
 !  STORE contains lengths of various components of the excitation generator
          INTEGER STORE(6)
-!  STORE2 will contain the indices of various components of the excitation generator within the memory NMEM, and is passed to SYMSETUPEXCITS2
+!  STORE2 will contain the indices of various components of the excitation 
+!generator within the memory NMEM, and is passed to SYMSETUPEXCITS2
          INTEGER STORE2(6)
          INTEGER ICOUNT
          INTEGER, target :: NMEM(*)
@@ -837,15 +840,18 @@ MODULE SymExcit2
             ELSE    !Second setup excitgen run - fill memory
 
                IF(tAssumeSizeExcitgen) THEN
-!If we have an assumed size excitgen, things are a little different. We can only use these assumed sized excitation generators, if we are only
+!If we have an assumed size excitgen, things are a little different. We can only use these 
+!assumed sized excitation generators, if we are only
 ! using them to create random excitations as we are not storing iterator information to save space.
 
 ! 1         NEXCIT
 ! 2         NEXCITTYPES
 ! 3                                 -    SymClassSize*NEL+NIfTot+3                                 DSTORE
 ! SymClassSize*NEL+NIfTot+4      -    SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+2  EXCITTYPES
-! SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+3      -    SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+2  ORBPAIRS
-! SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+3   -   SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+(nSymLabels+1)*6+2  SYMPRODIND
+! SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+3      -    
+!SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+2  ORBPAIRS
+! SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+3   -   
+!SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+(nSymLabels+1)*6+2  SYMPRODIND
 
 ! DSTORE(1)      -   SymClassSize*NEL         CLASSES
 ! DSTORE(NEL*SymClassSize+1)                     ILUT
@@ -874,7 +880,8 @@ MODULE SymExcit2
                             &allocate SymProdsTemp Memory")
                    ENDIF
 
-!Call SymSetupExcits3. Since we are not storing symprods, DStore is shorter than normal, and we just pass through a temporary array to hold it.
+!Call SymSetupExcits3. Since we are not storing symprods, DStore is shorter than normal, 
+!and we just pass through a temporary array to hold it.
                     ! n.b. nAllowPPS not extant
                     CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,STORE2,&
                        NMEM(STORE2(5)),NMEM(STORE2(2)),NMEM(1),&

@@ -137,10 +137,13 @@ MODULE GenRandSymExcitNUMod
                                     tParity, pGen)
 
 !            IF(pGen.eq.-1.0_dp) THEN
-!NOTE: ghb24 5/6/09 Cannot choose to create double instead, since you could have chosen a double first and it would have a different pGen.
+!NOTE: ghb24 5/6/09 Cannot choose to create double instead, since you could have chosen 
+!a double first and it would have a different pGen.
 !                IF((ExFlag.ne.3).or.tHPHF) THEN
-!If using HPHF wavefunctions, then we do not want to do this, since it will affect the generation probabilities calculated using CalcNonUniPGens.
-!                    CALL Stop_All("GenRandSymExcitNU","Found determinant with no singles, but can only have got here from single. Should never be in this position! (or HPHF is on and this will screw with pGens)")
+!If using HPHF wavefunctions, then we do not want to do this, since it will affect the 
+!generation probabilities calculated using CalcNonUniPGens.
+!                    CALL Stop_All("GenRandSymExcitNU","Found determinant with no singles, 
+!but can only have got here from single. Should never be in this position! (or HPHF is on and this will screw with pGens)")
 !                ENDIF
 !                pDoubNew=1.0_dp
 !                IC=2
@@ -235,7 +238,8 @@ MODULE GenRandSymExcitNUMod
 !NOTE: ghb24 5/6/09 Cannot choose to create double instead, 
 ! since you could have chosen a double first and it would have a different pGen.
 !                IF(ExFlag.ne.3) THEN
-!                    CALL Stop_All("GenRandSymExcitNU","Found determinant with no singles, but can only have got here from single. Should never be in this position!")
+!                    CALL Stop_All("GenRandSymExcitNU","Found determinant with no singles, 
+!but can only have got here from single. Should never be in this position!")
 !                ENDIF
 !                pDoubNew=1.0_dp
 !                IC=2
@@ -384,8 +388,10 @@ MODULE GenRandSymExcitNUMod
 
 !        IF(Counter.eq.3) WRITE(6,*) "NExcit, NExcitOtherWay: ",NExcit, NExcitOtherWay
 
-!All orbitals with the specified symmetry and spin should be allowed unless it is OrbA. There will be NExcit of these. Pick one at random.
-!Check that orbital is not in ILUT and is not = OrbA (Although this can only happen in the circumstance indicated earlier).
+!All orbitals with the specified symmetry and spin should be allowed unless it is OrbA. 
+!There will be NExcit of these. Pick one at random.
+!Check that orbital is not in ILUT and is not = OrbA (Although this can only happen 
+!in the circumstance indicated earlier).
 !Now we need to choose the final unoccupied orbital.
 !There are two ways to do this.
 !  We can either choose the orbital we want out of the NExcit possible unoccupied orbitals.
@@ -652,18 +658,24 @@ MODULE GenRandSymExcitNUMod
                 Ind=1
 
                 do i=0,nSymLabels-1
-!Run though all symmetries of possible "a" orbital syms. If there aren't any, then we know the corresponding "b" orbitals are excluded.
+!Run though all symmetries of possible "a" orbital syms. If there aren't any, then we 
+!know the corresponding "b" orbitals are excluded.
                     IF(ClassCountUnocc2(Ind).eq.0) THEN
-!This symmetry has no unoccupied alpha orbitals - does its symmetry conjugate have any unoccupied beta orbitals which are now forbidden?
-!If there are no unoccupied orbitals in this conjugate symmetry, then it won't increase the forbidden orbital number, since it can never be chosen.
+!This symmetry has no unoccupied alpha orbitals - does its symmetry conjugate have any 
+!unoccupied beta orbitals which are now forbidden?
+!If there are no unoccupied orbitals in this conjugate symmetry, then it won't increase 
+!the forbidden orbital number, since it can never be chosen.
 !                        ConjSym=IEOR(SymProduct,i)
                         ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(2,   &
-                &           RandExcitSymLabelProd(SymProduct,SymInvLabel(i)),0)) !No unocc alphas in i, therefore all betas in ConjSym are forbidden
+                &           RandExcitSymLabelProd(SymProduct,SymInvLabel(i)),0)) 
+                !No unocc alphas in i, therefore all betas in ConjSym are forbidden
 !                        WRITE(6,*) ClassCountUnocc2(2,ConjSym),i,ConjSym
                     ENDIF
                     IF(ClassCountUnocc2(Ind+1).eq.0) THEN
-!This symmetry has no unoccupied beta orbitals - does its symmetry conjugate have any unoccupied alpha orbitals which are now forbidden?
-!If there are no unoccupied orbitals in this conjugate symmetry, then it won't increase the forbidden orbital number, since it can never be chosen.
+!This symmetry has no unoccupied beta orbitals - does its symmetry conjugate have any 
+!unoccupied alpha orbitals which are now forbidden?
+!If there are no unoccupied orbitals in this conjugate symmetry, then it won't increase 
+!the forbidden orbital number, since it can never be chosen.
 !                        ConjSym=IEOR(SymProduct,i)
                         ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,   &
                 &           RandExcitSymLabelProd(SymProduct,SymInvLabel(i)),0))
@@ -768,7 +780,8 @@ MODULE GenRandSymExcitNUMod
                                 IF(ClassCountUnocc2(Ind).eq.0) THEN
                                     !There aren't any a's in this pair of syms, so the b's are forbidden
         !                            ConjSym=IEOR(SymProduct,i)
-!                                    WRITE(6,*) "No a's of this sym found. # of b's = ",ClassCountUnocc2(ClassCountInd(1,ConjSym,0)),
+!                                    WRITE(6,*) "No a's of this sym found. # 
+!of b's = ",ClassCountUnocc2(ClassCountInd(1,ConjSym,0)),
                                     ForbiddenOrbs=ForbiddenOrbs+ClassCountUnocc2(ClassCountInd(1,ConjSym,0))
                                 ENDIF
                             ENDIF
@@ -832,7 +845,8 @@ MODULE GenRandSymExcitNUMod
 !Electrons chosen were an alpha/beta pair, therefore first randomly chosen orbital can be an alpha OR beta orbital - no restriction.
             
                 IF(tCycleOrbs.or.((NExcit-ForbiddenOrbs).le.3)) THEN
-! METHOD 1 (Run though all orbitals to find desired one out of NExcit-ForbiddenOrbs...now only one random number needed, and guarenteed to find excitation.)
+! METHOD 1 (Run though all orbitals to find desired one out of NExcit-ForbiddenOrbs...now 
+!only one random number needed, and guarenteed to find excitation.)
 ! ==========================
 
 !Choose the unoccupied orbital to excite to
@@ -862,7 +876,8 @@ MODULE GenRandSymExcitNUMod
                     CALL Stop_All("PickAOrb","Should not get here - have not found allowed A Orb")
 
                 ELSE
-! METHOD 2 (Keep drawing orbitals randomly until we find one unoccupied). This should be more efficient, unless we have v. small basis sets.
+! METHOD 2 (Keep drawing orbitals randomly until we find one unoccupied). This should 
+!be more efficient, unless we have v. small basis sets.
 ! =========================
 
                     Attempts=0
@@ -995,7 +1010,8 @@ MODULE GenRandSymExcitNUMod
     END SUBROUTINE PickAOrb
 
     
-!This routine will look at an orbital (OrbA) and check whether it is an allowed A orbital to pick, i.e. it has allowed B orbitals, given the i,js.
+!This routine will look at an orbital (OrbA) and check whether it is an allowed A orbital to 
+!pick, i.e. it has allowed B orbitals, given the i,js.
     LOGICAL FUNCTION IsAOrbSymAllowed(iSpn,OrbA,SpinOrbA,SymProduct,SumMl,SymA,SymB,MlA,MlB,ClassCountUnocc2)
         INTEGER , INTENT(IN) :: iSpn,OrbA,SpinOrbA,SymProduct,SumMl,ClassCountUnocc2(ScratchSize)
         INTEGER , INTENT(OUT) :: SymA,SymB,MlA,MlB
@@ -1090,15 +1106,22 @@ MODULE GenRandSymExcitNUMod
 !           34  35      =>          8   9
 !               45                      10
 
-!For a given index, ind, there are [N(N-1)/2 - ind] elements at positions larger than ind. Call this number X.
-!We want to find out how many rows there are after the row containing the element ind. t rows has t(t+1)/2 elements in it.
+!For a given index, ind, there are [N(N-1)/2 - ind] elements at positions larger 
+!than ind. Call this number X.
+!We want to find out how many rows there are after the row containing the element 
+!ind. t rows has t(t+1)/2 elements in it.
 !Therefore, to find out the number of rows after ind, we want to find the largest K, such that K(K+1)/2 =< X
-!The solution to this is that K =< (SQRT(8*X+1)-1)/2, therefore we can find K (the largest integer which satisfies this).
-!We then know the number of rows after the element ind. Therefore, since there are N-1 rows in total, we know we are on row N-1-K.
+!The solution to this is that K =< (SQRT(8*X+1)-1)/2, therefore we can find K (the 
+!largest integer which satisfies this).
+!We then know the number of rows after the element ind. Therefore, since there are N-1 
+!rows in total, we know we are on row N-1-K.
 !This gives us the index of the first electron.
-!To find the second electron (i.e. the column), we know that out of the X elements in positions larger than ind, K(K+1)/2 are in the next rows.
-!This means that X - K(K+1)/2 are in the same row. There are N-(N-1-K) = 1+K elements in the row chosen, and so the number of elements into the 
-!row it is, is given by (1+K) - (X-K(K+1)/2). However, in row z, the first column index is z+1. Therefore the index of the second electron is
+!To find the second electron (i.e. the column), we know that out of the X elements in 
+!positions larger than ind, K(K+1)/2 are in the next rows.
+!This means that X - K(K+1)/2 are in the same row. There are N-(N-1-K) = 1+K elements
+!in the row chosen, and so the number of elements into the 
+!row it is, is given by (1+K) - (X-K(K+1)/2). However, in row z, the first column 
+!index is z+1. Therefore the index of the second electron is
 !(1+K) - (X-K(K+1)/2) + N-K-1 = N-X+(K(K+1)/2).
 
 !        ElecPairs=(NEl*(NEl-1))/2
@@ -1171,7 +1194,8 @@ MODULE GenRandSymExcitNUMod
 !            do i=1,ScratchSize
 !!Run through all labels
 !                IF((ClassCount2(i).ne.0).and.(ClassCountUnocc2(i).eq.0)) THEN
-!!If there are electrons in this class with no possible unoccupied orbitals in the same class, these electrons have no single excitations.
+!!If there are electrons in this class with no possible unoccupied orbitals in the 
+!same class, these electrons have no single excitations.
 !                    ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i)
 !                ENDIF
 !            enddo
@@ -1181,7 +1205,8 @@ MODULE GenRandSymExcitNUMod
             do i=1,ScratchSize
 !Run through all labels
                 IF((ClassCount2(i).ne.0).and.(ClassCountUnocc2(i).eq.0)) THEN
-!If there are electrons in this class with no possible unoccupied orbitals in the same class, these electrons have no single excitations.
+!If there are electrons in this class with no possible unoccupied orbitals in the same 
+!class, these electrons have no single excitations.
                     ElecsWNoExcits=ElecsWNoExcits+ClassCount2(i)
                 ENDIF
             enddo
@@ -1189,7 +1214,8 @@ MODULE GenRandSymExcitNUMod
 
 !Rather than choosing a double now if there are no singles, just return a null det.
 !        IF(ElecsWNoExcits.eq.NEl) THEN
-!!There are no single excitations from this determinant at all. This means the probability to create a double excitation = 1
+!!There are no single excitations from this determinant at all. This means the 
+!probability to create a double excitation = 1
 !!Then we will create a double excitation instead.
 !            pDoubNew=1.0_dp
 !            RETURN
@@ -1263,9 +1289,12 @@ MODULE GenRandSymExcitNUMod
         enddo
 
 !Now we need to choose the unoccupied orbital for the chosen electron.
-!There are two ways to do this. We can either choose the orbital we want out of the NExcit possible unoccupied orbitals.
-!It would then be necessary to cycle through all orbitals of that symmetry and spin, only counting the unoccupied ones to find the correct determinant.
-!Alternatively, we could pick orbitals at random and redraw until we find an allowed one. This would probably be preferable for larger systems.
+!There are two ways to do this. We can either choose the orbital we want out of the 
+!NExcit possible unoccupied orbitals.
+!It would then be necessary to cycle through all orbitals of that symmetry and spin, 
+!only counting the unoccupied ones to find the correct determinant.
+!Alternatively, we could pick orbitals at random and redraw until we find an allowed 
+!one. This would probably be preferable for larger systems.
         IF(tCycleOrbs) THEN
 ! METHOD 1 (Run though all orbitals in symmetry class with needed spin to find allowed one out of NExcit)
 ! ==========================
@@ -1422,11 +1451,13 @@ MODULE GenRandSymExcitNUMod
     end subroutine
 
 
-!This routine will calculate the PGen between two connected determinants, nI and nJ which are IC excitations of each other, using the unbiased scheme.
+!This routine will calculate the PGen between two connected determinants, nI and nJ which 
+!are IC excitations of each other, using the unbiased scheme.
 !Only the excitation matrix is needed (1,*) are the i,j orbs, and (2,*) are the a,b orbs.
 !This is the prob of generating nJ FROM nI, not the other way round.
 !Passed in is also the ClassCount2 arrays for nI, and the probability of picking a double.
-!A word of warning: The routine does not check that the determinants are indeed connected, and may well return a non-zero probability even if they arent.
+!A word of warning: The routine does not check that the determinants are indeed connected, 
+!and may well return a non-zero probability even if they arent.
 !Therefore, make sure that they are at most double excitations of each other.
 !nI is the determinant from which the excitation comes from.
     SUBROUTINE CalcNonUniPGen(nI,Ex,IC,ClassCount2,ClassCountUnocc2,pDoub,pGen)
@@ -1442,7 +1473,8 @@ MODULE GenRandSymExcitNUMod
 
         IF(IC.eq.1) THEN
 
-!First, we need to find out if there are any electrons which have no possible excitations. This is because these will need to be redrawn and so 
+!First, we need to find out if there are any electrons which have no possible excitations. 
+!This is because these will need to be redrawn and so 
 !will affect the probabilities.
             CALL CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2,nI)
 
@@ -1528,7 +1560,8 @@ MODULE GenRandSymExcitNUMod
 
 
 !We want to calculate the number of possible B's given the symmetry and spin it has to be since we have already picked A.
-!We have calculated in NExcit the number of orbitals available for B given A, but we also need to know the number of orbitals to choose from for A IF
+!We have calculated in NExcit the number of orbitals available for B given A, 
+!but we also need to know the number of orbitals to choose from for A IF
 !we had picked B first.
             IF(iSpn.eq.2) THEN
 !If iSpn=2, then we want to find a spinorbital of the opposite spin of SpinOrbA
@@ -1552,8 +1585,10 @@ MODULE GenRandSymExcitNUMod
             ENDIF
 
             IF((iSpn.ne.2).and.(SymA.eq.SymB).and.(MlB.eq.MlA)) THEN
-!In this case, we need to check that we do not pick the same orbital as OrbA. If we do this, then we need to redraw.
-!Only when ElecSym=0 will the classes of a and b be the same, and the spins will be different if iSpn=2, so this is the only possibility of a clash.
+!In this case, we need to check that we do not pick the same orbital as OrbA. 
+!If we do this, then we need to redraw.
+!Only when ElecSym=0 will the classes of a and b be the same, and the spins will 
+!be different if iSpn=2, so this is the only possibility of a clash.
                 NExcitB=NExcitB-1     !Subtract 1 from the number of possible orbitals since we cannot choose orbital A.
                 NExcitOtherWay=NExcitOtherWay-1     !The same goes for the probabilities the other way round.
             ENDIF
@@ -1679,15 +1714,16 @@ MODULE GenRandSymExcitNUMod
 !This could be stored to save doing this multiple times, but shouldn't be too costly an operation.
         CALL construct_class_counts(nI,ClassCount2,ClassCountUnocc2)
 
-!We need to find out if there are any electrons which have no possible excitations. This is because these will need to be redrawn and so 
-!will affect the probabilities.
+!We need to find out if there are any electrons which have no possible excitations. 
+!This is because these will need to be redrawn and so will affect the probabilities.
         ElecsWNoExcits=0
 
 !Need to look for forbidden electrons through all the irreps.
         do i=0,nSymLabels-1
 !Run through all labels
             IF((ClassCount2(ClassCountInd(1,i,0)).ne.0).and.(ClassCountUnocc2(ClassCountInd(1,i,0)).eq.0)) THEN
-!If there are alpha electrons in this class with no possible unoccupied alpha orbitals in the same class, these alpha electrons have no single excitations.
+!If there are alpha electrons in this class with no possible unoccupied alpha orbitals 
+!in the same class, these alpha electrons have no single excitations.
                 ElecsWNoExcits=ElecsWNoExcits+ClassCount2(ClassCountInd(1,i,0))
             ENDIF
             IF((ClassCount2(ClassCountInd(2,i,0)).ne.0).and.(ClassCountUnocc2(ClassCountInd(2,i,0)).eq.0)) THEN
@@ -1743,7 +1779,8 @@ MODULE GenRandSymExcitNUMod
 !Now we want to run through all sym+spin allowed excitations of the chosen electron, and determine their matrix elements
 !To run just through the states of the required symmetry we want to use SymLabelCounts.
 
-!We also want to take into account spin. We want the spin of the chosen unoccupied orbital to be the same as the chosen occupied orbital.
+!We also want to take into account spin. We want the spin of the chosen unoccupied 
+!orbital to be the same as the chosen occupied orbital.
 !Run over all possible a orbitals
         Ind=ClassCountInd(ispn,ElecSym,0)
         EndSymState=SymLabelCounts2(1,Ind)+SymLabelCounts2(2,Ind)-1
@@ -1797,7 +1834,8 @@ MODULE GenRandSymExcitNUMod
         ENDIF
 
         IF(iCreate.gt.0) THEN
-!We want to spawn particles. This only question now is where. Run through the ab pairs again and choose based on the SpawnProb element.
+!We want to spawn particles. This only question now is where. Run 
+!through the ab pairs again and choose based on the SpawnProb element.
             r = genrand_real2_dSFMT()
             r=r*NormProb
 
@@ -2015,7 +2053,8 @@ MODULE GenRandSymExcitNUMod
         ENDIF
 
         IF(iCreate.gt.0) THEN
-!We want to spawn particles. This only question now is where. Run through the ab pairs again and choose based on the SpawnProb element.
+!We want to spawn particles. This only question now is where. Run through the 
+!ab pairs again and choose based on the SpawnProb element.
             r = genrand_real2_dSFMT()
             r=r*NormProb
 
@@ -2177,7 +2216,8 @@ MODULE GenRandSymExcitNUMod
 !            ! Debug to test that this corresponds to a look-up
 !            iSpinIndex=(kb_ms+1)/2+1
 !            write(6,*) Hole2BasisNum,kPointToBasisFn(G1(Hole2BasisNum)%k(1),G1(Hole2BasisNum)%k(2),iSpinIndex)
-!            IF(Hole2BasisNum.ne.kPointToBasisFn(kb(1),kb(2),iSpinIndex)) CALL Stop_All("Hubbard excitation generator","Hubbard failed to find kb correctly")
+!            IF(Hole2BasisNum.ne.kPointToBasisFn(kb(1),kb(2),iSpinIndex)) 
+!CALL Stop_All("Hubbard excitation generator","Hubbard failed to find kb correctly")
 
             ! This is the look-up table method of finding the kb orbital
             iSpinIndex=(kb_ms+1)/2+1
@@ -2217,9 +2257,11 @@ MODULE GenRandSymExcitNUMod
             
             ! Which orbital has momentum kb?
             !IF (iSpn.eq.2) THEN
-            !    Hole2BasisNum=2*((NMAXZ*2+1)*(NMAXY*2+1)*(kb(1)+NMAXX)+(NMAXZ*2+1)*(kb(2)+NMAXY)+(kb(3)+NMAXZ)+1)-(1+G1(Hole1BasisNum)%Ms)/2
+            !    Hole2BasisNum=2*((NMAXZ*2+1)*(NMAXY*2+1)*(kb(1)+NMAXX)+(NMAXZ*2+1)*
+            !(kb(2)+NMAXY)+(kb(3)+NMAXZ)+1)-(1+G1(Hole1BasisNum)%Ms)/2
             !ELSE
-            !    Hole2BasisNum=2*((NMAXZ*2+1)*(NMAXY*2+1)*(kb(1)+NMAXX)+(NMAXZ*2+1)*(kb(2)+NMAXY)+(kb(3)+NMAXZ)+1)-1+iSpn/3
+            !    Hole2BasisNum=2*((NMAXZ*2+1)*(NMAXY*2+1)*(kb(1)+NMAXX)+(NMAXZ*2+1)*
+            !(kb(2)+NMAXY)+(kb(3)+NMAXZ)+1)-1+iSpn/3
             !ENDIF
             
             iSpinIndex=(kb_ms+1)/2+1
@@ -2286,9 +2328,11 @@ MODULE GenRandSymExcitNUMod
 
     END SUBROUTINE CreateDoubExcitLattice
 
-    ! This creates a general excitation for the UEG and Hubbard model. Each ij pair is picked with equal probability, and then
+    ! This creates a general excitation for the UEG and Hubbard model. Each ij pair is 
+    !picked with equal probability, and then
     ! each ab is picked for that ij pair with equal probability.
-    ! For UEG there is a more sophisticated algorithm that allows more ijab choices to be rejected before going back to the main
+    ! For UEG there is a more sophisticated algorithm that allows more ijab choices to be 
+    !rejected before going back to the main
     ! code.
     SUBROUTINE CreateExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
         Use SystemData , only : NMAXX,NMAXY,NMAXZ, tUEG2, kvec
@@ -2305,7 +2349,8 @@ MODULE GenRandSymExcitNUMod
 
 !        CALL PickElecPair(nI,Elec1Ind,Elec2Ind,SymProduct,iSpn,SumMl,-1)
          
-        ! Completely random ordering of electrons is important when considering ij->ab ij/->ba. This affects pgens for alpha/beta pairs.
+        ! Completely random ordering of electrons is important when considering ij->ab ij/->ba. 
+        !This affects pgens for alpha/beta pairs.
         kaxrange = 0
         ielecinexcitrange = 0
         kazrange = 0
@@ -2475,7 +2520,8 @@ MODULE GenRandSymExcitNUMod
         rejections=-1
 
         DO
-            ! Completely random ordering of electrons is important when considering ij->ab ij/->ba. This affects pgens for alpha/beta pairs.
+            ! Completely random ordering of electrons is important when considering ij->ab ij/->ba. 
+            !This affects pgens for alpha/beta pairs.
             r(1) = genrand_real2_dSFMT()
             Elec1=INT(r(1)*NEl+1)
             DO
@@ -2531,7 +2577,8 @@ MODULE GenRandSymExcitNUMod
     END SUBROUTINE CreateExcitLattice2
 
     !As with CalcNonUniPgens:
-    !This routine will calculate the PGen between two connected determinants, nI and nJ which are IC excitations of each other, using the unbiased scheme.
+    !This routine will calculate the PGen between two connected determinants, nI and nJ which 
+    !are IC excitations of each other, using the unbiased scheme.
     !Only the excitation matrix is needed (1,*) are the i,j orbs, and (2,*) are the a,b orbs
     !This routine does it for the lattice models: UEG and hubbard model
     SUBROUTINE CalcPGenLattice(Ex,pGen)
@@ -2633,9 +2680,12 @@ MODULE GenRandSymExcitNUMod
 
     END FUNCTION IsMomentumAllowed
 
-    !This routine will take a determinant nI, and find Iterations number of excitations of it. It will then histogram these, summing in 1/pGen for every occurance of
-    !the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the excitations and compare the number to the
-    !number of excitations generated using the full enumeration excitation generation. This can be done for both doubles and singles, or one of them.
+    !This routine will take a determinant nI, and find Iterations number of excitations of it. It will 
+    !then histogram these, summing in 1/pGen for every occurance of
+    !the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will 
+    !then count the excitations and compare the number to the
+    !number of excitations generated using the full enumeration excitation generation. This can be 
+    !done for both doubles and singles, or one of them.
     SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
 
         use SystemData, only: tUEG2, kvec
@@ -3031,7 +3081,8 @@ MODULE GenRandSymExcitNUMod
 END MODULE GenRandSymExcitNUMod
 
 
-!Sometimes (especially UHF orbitals), the symmetry routines will not set up the orbitals correctly. Therefore, this routine will set up symlabellist and symlabelcounts
+!Sometimes (especially UHF orbitals), the symmetry routines will not set up the orbitals correctly. 
+!Therefore, this routine will set up symlabellist and symlabelcounts
 !to be cast in terms of spin orbitals, and the symrandexcit2 routines will use these arrays.
 SUBROUTINE SpinOrbSymSetup()
     use SymExcitDataMod, only:  ScratchSize, ScratchSize1, ScratchSize2, &
@@ -3251,7 +3302,8 @@ SUBROUTINE SpinOrbSymSetup()
 !SymLabelCounts is of size (2,ScratchSize), where 1,x gives the index in SymlabelList2 where the orbitals of symmetry x start.
 !SymLabelCounts(2,x) tells us the number of orbitals of spin & symmetry x there are.
 
-!Therefore, if you want to run over all orbitals of a specific symmetry, you want to run over SymLabelList from SymLabelCounts(1,sym) to SymLabelCounts(1,sym)+SymLabelCounts(2,sym)-1
+!Therefore, if you want to run over all orbitals of a specific symmetry, you want to run over 
+!SymLabelList from SymLabelCounts(1,sym) to SymLabelCounts(1,sym)+SymLabelCounts(2,sym)-1
 
     Allocate(SymLabelList2(nBasis))
     Allocate(SymLabelCounts2(2,ScratchSize))
@@ -3386,7 +3438,8 @@ SUBROUTINE SpinOrbSymSetup()
     end if
     !======================================================
 
-    ! This makes a 3D lookup table kPointToBasisFn(kx,ky,kz,ms_index) which gives the orbital number for a given kx, ky, kz and ms_index
+    ! This makes a 3D lookup table kPointToBasisFn(kx,ky,kz,ms_index) which 
+    !gives the orbital number for a given kx, ky, kz and ms_index
     IF(tUEG)THEN
         kmaxX=0
         kminX=0

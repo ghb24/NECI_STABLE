@@ -2800,6 +2800,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
 ! Find the largest 10 amplitudes in each level
 !   call WriteMaxExcitorList(iout,AL%Amplitude(:,iCurAmpList),DetList,FCIDetIndex,iMaxAmpLevel,10)
+
+   nullify(SpawnedParts)
    LogDealloc(tagSpawnList)
    Deallocate(SpawnList)
    call DeallocateAmplitudeList(AL)
