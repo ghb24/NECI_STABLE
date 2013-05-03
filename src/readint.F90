@@ -821,7 +821,8 @@ contains
          ENDIF
          IF((.not.tRIIntegrals).and.(.not.tCacheFCIDUMPInts)) THEN
              CALL GetUMATSize(nBasis,NEl,UMatSize)
-             CALL MPIBCast(UMAT,UMatSize)    !This is not an , as it is actually passed in as a real(dp), even though it is HElem in IntegralsData
+!This is not an , as it is actually passed in as a real(dp), even though it is HElem in IntegralsData
+             CALL MPIBCast(UMAT,UMatSize)    
          ENDIF
          IF(tCacheFCIDUMPInts) THEN
 !Need to broadcast the cache...

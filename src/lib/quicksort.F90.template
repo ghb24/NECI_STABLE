@@ -517,9 +517,9 @@ contains
         ! Workaround for gfortran compiler bug
         ! n.b. This will produce spurious warnings if run in valgrind, as
         !      a is not initialised. Not a problem in optimised build.
+        i = 0
         %(custom_compare_prefix)s if (custom_lt(a, a)) i = i
         %(custom_compare_prefix)s if (custom_gt(a, a)) i = i
-
 
         if (present(nskip)) then
             nskip_ = nskip

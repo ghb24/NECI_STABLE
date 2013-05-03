@@ -15,13 +15,14 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,int_name,filename_in)
     !=    filename is the name of the input file to read in if necessary
 
     use ReadInput_neci, only : ReadInputMain
-    use SystemData, only : tMolpro,tMolproMimic
+    use SystemData, only : tMolpro,tMolproMimic,MolproID
 
     ! main-level modules.
     use Calc, only: CalcDoCalc
     use CalcData, only: tUseProcsAsNodes
     use Parallel_neci, only: MPINodes, iProcIndex
     use read_fci, only: FCIDUMP_name
+    use ParallelHelper, only: Root
 
     ! Utility modules.
     use global_utilities
@@ -32,10 +33,15 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,int_name,filename_in)
     logical,intent(in) :: tCPMD,tVASP,tMolpro_local
     character(64), intent(in) :: filename_in,int_name
     type(timer), save :: proc_timer
-    integer :: ios,iunit
+    integer :: ios,iunit,i,j
     character(*), parameter :: this_routine = 'NECICore'
     character(64) :: Filename
     logical :: toverride_input,tFCIDUMP_exist
+#ifdef MOLPRO
+    include "common/tapes"
+#else
+    integer, parameter :: iout = 6
+#endif
     
     tMolpro = tMolpro_local
 
@@ -57,7 +63,19 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,int_name,filename_in)
         if(toverride_input) then
             Filename="FCIQMC_input_override"
         else
-            filename=filename_in
+            !filename=filename_in
+            MolproID = ''
+            if(iProcIndex.eq.Root) then
+            !Now, extract the unique identifier for the input file that is read in.
+                i=14
+                j=1
+                do while(filename(i:i).ne.' ')
+                    MolproID(j:j) = filename(i:i)
+                    i=i+1
+                    j=j+1
+                enddo
+                write(iout,"(A,A)") "Molpro unique filename suffix: ",MolproID
+            endif
         endif
     else
         Filename='' 
@@ -157,7 +175,8 @@ subroutine NECICodeEnd(tCPMD,tVASP)
     logical, intent(in) :: tCPMD,tVASP
 
 #ifdef PARALLEL
-    call MPIEnd((tMolpro.and.(.not.tMolproMimic)).or.tCPMD.or.tVASP) ! CPMD and VASP have their own MPI initialisation and termination routines.
+! CPMD and VASP have their own MPI initialisation and termination routines.
+    call MPIEnd((tMolpro.and.(.not.tMolproMimic)).or.tCPMD.or.tVASP) 
 #endif
 
 !    CALL N_MEMORY_CHECK

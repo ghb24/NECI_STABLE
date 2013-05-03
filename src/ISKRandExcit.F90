@@ -329,8 +329,10 @@ MODULE ISKRandExcit
 
     end subroutine find_invsym_det
 
-!This routine will take an ISK nI, and find Iterations number of excitations of it. It will then histogram these, summing in 1/pGen for every occurance of
-!the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the excitations and compare the number to the
+!This routine will take an ISK nI, and find Iterations number of excitations of it. It will then histogram these, 
+!summing in 1/pGen for every occurance of
+!the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the 
+!excitations and compare the number to the
 !number of excitations generated using the full enumeration excitation generation.
     SUBROUTINE TestGenRandISKExcit(nI,Iterations,pDoub)
         Use SystemData , only : NEl,nBasis,G1,nBasisMax,tUseBrillouin

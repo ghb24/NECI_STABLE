@@ -125,6 +125,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         ! then we abort the excitation
         if (tot_pairs == 0) then
             nJ(1) = 0
+            pGen = 0.0_dp
             return
         endif
 
@@ -376,7 +377,6 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         ! We still do not work with lz symmetry
         ASSERT(.not. tFixLz)
 
-
         ! Find the number of available pairs in each symmetry & overall
         if (pair_list(1) == -1) then
             pair_list(1) = CCOcc(1) * CCUnocc(1)
@@ -389,6 +389,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         ! If there are no possible singles, then abandon.
         if (npairs == 0) then
             nJ(1) = 0
+            pGen = 0.0_dp
             return
         endif
 
