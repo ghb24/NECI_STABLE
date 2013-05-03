@@ -54,7 +54,7 @@ MODULE Logging
     LOGICAL tMCOutput
     logical :: tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
     integer :: iProjEBins
-    logical :: tDumpForcesInfo, 
+    logical :: tDumpForcesInfo
     logical :: tPrintLagrangian  !Print out the 1RDM,2RDM and Lagrangian to file 
                                  !at the end of a run as long as 2RDM is calculated
     logical :: tCalcInstantS2, tCalcInstSCpts, tCalcInstantS2Init
@@ -728,7 +728,8 @@ MODULE Logging
             IF(item.lt.nitems) THEN
                 call readi(iWritePopsEvery)
                 IF(iWritePopsEvery.lt.0) THEN
-!If a negative argument is supplied to iWritePopsEvery, then the POPSFILE will never be written out, even at the end of a simulation.
+!If a negative argument is supplied to iWritePopsEvery, then the POPSFILE will 
+!never be written out, even at the end of a simulation.
 !If it is exactly zero, this will be the same as without any argument, and a
 !popsfile will only be written out in the instance of a clean exit
                     TPopsFile=.false.

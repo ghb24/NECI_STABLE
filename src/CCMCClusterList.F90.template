@@ -147,7 +147,8 @@ SUBROUTINE GetNextNonZeroExcitor (Pos,AL,iAmplList,iMax)
    enddo
 END SUBROUTINE !GetNextNonZeroExcitor 
 
-!This runs over all singles and doubles in the list of excitors and calls SumEContrib for them appropriately to give the projected energy. It requires a excitation-sorted list of excitors.
+!This runs over all singles and doubles in the list of excitors and calls SumEContrib for them appropriately 
+!to give the projected energy. It requires a excitation-sorted list of excitors.
 
 ! tFCI                         If set, then use (1+T)|D_0> rather than (1+T+T^2 /2)|D0> as the wavefunction
 ! Amplitude(nExcit)            is the amplitude of each excitor
@@ -276,7 +277,8 @@ SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,
    ProjE=ENumCyc/(HFCyc(1)+0.0_dp)
 END SUBROUTINE !CalcClusterEnergy
 
-!This runs over all singles and doubles in the list of excitors and calls SumEContrib for them appropriately to give the projected energy.  The excitor list need not be sorted.
+!This runs over all singles and doubles in the list of excitors and calls SumEContrib for them appropriately 
+!to give the projected energy.  The excitor list need not be sorted.
 
 ! tFCI                         If set, then use (1+T)|D_0> rather than (1+T+T^2 /2)|D0> as the wavefunction
 ! Amplitude(nExcit)            is the amplitude of each excitor
@@ -627,7 +629,8 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
             dCurAmpl=sum(abs(amp))
             CS%%C%%SelectedExcitorIndices(i)=k
             CS%%C%%SelectedExcitors(:,i)=Dets(:,k)
-            CS%%C%%dAbsAmplitude=CS%%C%%dAbsAmplitude*abs(dCurAmpl)/abs(dNorm)  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
+!For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
+            CS%%C%%dAbsAmplitude=CS%%C%%dAbsAmplitude*abs(dCurAmpl)/abs(dNorm)  
             if(CS%%tInitiators) then
 !If dInitiatorThresh>0 all excips in a cluster must be an initiator if it is to spawn.
 !If dInitiatorThresh<0 any one excips in a cluster allows it to be an initiator.
@@ -644,13 +647,15 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
                endif
             endif
             if(tCCNoCuml) then 
-               CS%%C%%dClusterProb=CS%%C%%dClusterProb*i*dCumlFactor  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
+!For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
+               CS%%C%%dClusterProb=CS%%C%%dClusterProb*i*dCumlFactor  
    !ClusterNorm is used for BIRTH
                CS%%C%%dClusterNorm=CS%%C%%dClusterNorm*i*dCumlFactor
 !*dCumlFactor
             else
    !ClusterProb is used for DEATH
-               CS%%C%%dClusterProb=(CS%%C%%dClusterProb/nNodes)*i*abs(dCurAmpl)/dTotLocAbsAmpl  !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
+   !For each new excit added to the composite, we multiply up to count the number of ways we could've generated it.
+               CS%%C%%dClusterProb=(CS%%C%%dClusterProb/nNodes)*i*abs(dCurAmpl)/dTotLocAbsAmpl  
    ! This is the probability that this cluster was chosen (in any order), given (i.e. irrespective of)
    !  the number of selections and the level choice
    !ClusterNorm is used for BIRTH
@@ -681,7 +686,8 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
          NextCluster=.true.
          CS%%C%%dSelectionProb=CS%%C%%dProbNorm*CS%%C%%dClusterProb
    ! We normalize such that the normalization factor for the zero-excitor cluster is 1
-   !  dSelectionNorm = ( Amplitude of this cluster / Amplitude of zero-excitor cluster) * ( probability of generating zero-excitor / probability of generating us)
+   !  dSelectionNorm = ( Amplitude of this cluster / Amplitude of zero-excitor cluster) 
+   !    * ( probability of generating zero-excitor / probability of generating us)
    !
    !                 = (dAbsAmplitude / N0) * ( P_norm(0) / (n! P_norm(n) (dAbsAmplitude/N0))
          r=CS%%dProbSelNewExcitor
@@ -842,10 +848,12 @@ subroutine CalcTotals (iNumExcitors,dTotAbsAmpl,dNorm,AL,iAmpList,nAmpl,dTol,Wal
 !
 !  Psi_CC = N_0 exp( T / N_0) = N_0 + T + T^2 / (2! N_0) + T^3 / (3! (N_0)^2) + ...
 !
-!  Instead of the full Psi_CC, we use |_ Psi_CC _| which is truncated at the excitation level corresponding to the number of excitation operators.
+!  Instead of the full Psi_CC, we use |_ Psi_CC _| which is truncated at the excitation level 
+!corresponding to the number of excitation operators.
 !
 !  We pick clusters from each level of excitation separately.
-!  Were we to use Psi_CC, each level n would have an sum absolute amplitude of N_0 (T/N_0)^n, so the total sum absolute amplitude is N_0 exp(T/N_0).
+!  Were we to use Psi_CC, each level n would have an sum absolute amplitude of N_0 (T/N_0)^n, 
+!so the total sum absolute amplitude is N_0 exp(T/N_0).
 !  For |_ Psi_CC _| we must truncate this sum manually.
    dPsiTotAbsAmpl=0
    if(nAmpl>0) then

@@ -175,7 +175,8 @@ subroutine NECICodeEnd(tCPMD,tVASP)
     logical, intent(in) :: tCPMD,tVASP
 
 #ifdef PARALLEL
-    call MPIEnd((tMolpro.and.(.not.tMolproMimic)).or.tCPMD.or.tVASP) ! CPMD and VASP have their own MPI initialisation and termination routines.
+! CPMD and VASP have their own MPI initialisation and termination routines.
+    call MPIEnd((tMolpro.and.(.not.tMolproMimic)).or.tCPMD.or.tVASP) 
 #endif
 
 !    CALL N_MEMORY_CHECK

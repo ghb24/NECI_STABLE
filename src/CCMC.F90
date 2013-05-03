@@ -2890,7 +2890,8 @@ subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
             iNext=1
             do i=0,nCores-1
                p=(Ends(i)-Starts(i))+1
-               DetList(:,iNext:iNext+p-1)=DetList(:,Starts(i):Ends(i))  !This is potentially overlapping, but is allowed in Fortran90+
+!This is potentially overlapping, but is allowed in Fortran90+
+               DetList(:,iNext:iNext+p-1)=DetList(:,Starts(i):Ends(i))  
                iNext=iNext+int(p,MPIArg)
             enddo
             nAmpl=iNext-1

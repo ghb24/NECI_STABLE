@@ -948,7 +948,8 @@ MODULE GenRandSymExcitNUMod
                     CALL Stop_All("PickAOrb","Should not get here - have not found allowed A Orb")
 
                 ELSE
-! METHOD 2 (Keep drawing orbitals randomly until we find one unoccupied). This should be more efficient, unless we have small basis sets.
+! METHOD 2 (Keep drawing orbitals randomly until we find one unoccupied). This should be more 
+!efficient, unless we have small basis sets.
 ! =========================
 
                     Attempts=0
