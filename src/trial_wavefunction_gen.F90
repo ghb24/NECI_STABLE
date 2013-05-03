@@ -10,7 +10,7 @@ module trial_wavefunction_gen
     use FciMCData, only: trial_space, trial_space_size, con_space, &
                          con_space_size, trial_wavefunction, trial_energy, &
                          con_space_vector, ilutHF, Hii, nSingles, nDoubles, &
-                         ConTag, DavidsonTag, TempTag, TrialTag, TrialWFTag
+                         ConTag, DavidsonTag, TempTag, TrialTag, TrialWFTag, iHFProc
     use hphf_integrals, only: hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier, MPIAllToAll, MPISumAll, &
@@ -19,7 +19,8 @@ module trial_wavefunction_gen
     use semi_stoch_gen
     use semi_stoch_procs
     use sparse_hamil
-    use SystemData, only: nel, tDoublesTrial, tOptimisedTrial, tCASTrial, tHPHF
+    use SystemData, only: nel, tDoublesTrial, tOptimisedTrial, tCASTrial, tPopsTrial, &
+                          tLowETrial, tHPHF
 
     implicit none
 
@@ -44,10 +45,11 @@ contains
         call LogMemAlloc('trial_space', 1000000*(NIfTot+1), size_n_int, this_routine, &
                                                                       TrialTag, ierr)
         trial_space = 0
+        trial_space_size = 0
 
         ! Encode the Hartree-Fock state first.
         call encode_det(trial_space(:,1), ilutHF)
-        trial_space_size = 1
+        if (iProcIndex == iHFProc) trial_space_size = 1
 
         write(6,'(a29)') "Generating the trial space..."
         call neci_flush(6)
@@ -59,9 +61,28 @@ contains
             call generate_cas(called_from_trial)
         elseif (tOptimisedTrial) then
             call generate_optimised_core(called_from_trial)
+        elseif (tPopsTrial) then
+            call generate_space_from_pops(called_from_trial)
         elseif (tLowETrial) then
             call generate_low_energy_core(called_from_trial)
         end if
+
+        ! At this point, each processor has only those states which reside on them, and
+        ! have only counted those states. Send all states to all processors for the next bit.
+        call MPIAllGather(int(trial_space_size,MPIArg), recvcounts, ierr)
+        tot_trial_space_size = int(sum(recvcounts),4)
+        recvdisps(0) = 0
+        do i = 1, nProcessors-1
+            recvdisps(i) = sum(recvcounts(:i-1))
+        end do
+
+        ! Use SpawnedParts as temporary space:
+        SpawnedParts(:, 1:trial_space_size) = trial_space(:, 1:trial_space_size)
+        call MPIAllGatherV(SpawnedParts(:, 1:trial_space_size), &
+                           trial_space(:, 1:tot_trial_space_size), recvcounts, recvdisps)
+        SpawnedParts = 0
+
+        trial_space_size = tot_trial_space_size
 
         call sort(trial_space(0:NIfTot, 1:trial_space_size), ilut_lt, ilut_gt)
 
@@ -75,15 +96,15 @@ contains
 
         ! To allocate storage space for the connected space states, assume that each state
         ! in the trial space has roughly as many connected states as the HF state (nSingles+
-        ! nDoubles), and a factor of 1.2 for safety. Also divide by the number of processors.
+        ! nDoubles), and a factor of 2.0 for safety. Also divide by the number of processors.
         con_storage_space_size = &
-            ceiling(1.2*real(trial_space_size)/real(nProcessors))*(nSingles+nDoubles)
+            ceiling(2.0*real(trial_space_size)/real(nProcessors))*(nSingles+nDoubles)
         allocate(con_space(0:NIfTot, con_storage_space_size), stat=ierr)
         call LogMemAlloc('con_space', con_storage_space_size*(NIfTot+1), &
                                            size_n_int, this_routine, ConTag, ierr)
         con_space = 0
         
-        call find_elements_on_procs(trial_space_size, min_element, max_element, num_elements)
+        call assign_elements_on_procs(trial_space_size, min_element, max_element, num_elements)
 
         if (num_elements > 0) then
 
@@ -325,7 +346,7 @@ contains
 
     end subroutine generate_connected_space_vector
 
-    subroutine find_elements_on_procs(list_length, min_element, max_element, num_elements)
+    subroutine assign_elements_on_procs(list_length, min_element, max_element, num_elements)
 
         ! Split list_length into nProcessor parts. Note that this is not done based on any hash.
 
@@ -346,7 +367,7 @@ contains
         num_elements = num_elem_all_procs(iProcIndex)
 
         if (num_elements == 0) then
-            if (iProcIndex == 0) call stop_all("find_elements_on_procs","There are no states &
+            if (iProcIndex == 0) call stop_all("assign_elements_on_procs","There are no states &
                                                &in the trial space.")
             min_element = 0
             max_element = 0
@@ -361,6 +382,6 @@ contains
             max_element = sum(num_elem_all_procs(0:iProcIndex))
         end if
 
-    end subroutine find_elements_on_procs
+    end subroutine assign_elements_on_procs
 
 end module trial_wavefunction_gen

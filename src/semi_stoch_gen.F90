@@ -44,10 +44,10 @@ contains
 
     subroutine init_semi_stochastic()
 
-        ! Initialise the semi-stochastic information. This includes enumerating a list
-        ! of all determinants or CSFs in the deterministic space and calculating and
-        ! storing the resulting Hamiltonian matrix elements. The lists which will store
-        ! the psip vectors in the deterministic space are also allocated.
+        ! Initialise the semi-stochastic information. This includes enumerating a list of all
+        ! determinants or CSFs in the deterministic space and calculating and storing the resulting
+        ! Hamiltonian matrix elements. The lists which will store the walker amplitude vectors in
+        ! the deterministic space are also allocated.
 
         integer :: i, j, IC, ierr, comp
         integer :: nI(nel)
@@ -63,14 +63,12 @@ contains
         determ_proc_sizes = 0
         determ_proc_indices = 0
 
-        ! Checks that a generating routine has been specified.
         if (.not. (tStartCAS .or. tPopsCore .or. tDoublesCore .or. tCASCore .or. tRASCore .or. &
                    tOptimisedCore .or. tLowECore)) then
             call stop_all("init_semi_stochastic", "You have not selected a semi-stochastic core &
                           &space to use.")
         end if
-
-        if (.not. (tDeterminantCore .or. tCSFCore) .or. tStartCAS .or. tPopsCore) then
+        if (.not. (tDeterminantCore .or. tCSFCore .or. tStartCAS .or. tPopsCore)) then
             call warning_neci("init_semi_stochastic", "You have not selected to use either &
                               &determinants or CSFs for the deterministic space. Determinants &
                               &will be used.")
@@ -84,7 +82,7 @@ contains
         call neci_flush(6)
         call generate_space()
 
-        ! So all procs store the size of the deterministic space on all procs.
+        ! So that all procs store the size of the deterministic spaces on all procs.
         mpi_temp = determ_proc_sizes(iProcIndex)
         call MPIAllGather(mpi_temp, determ_proc_sizes, ierr)
 
@@ -114,24 +112,18 @@ contains
         call LogMemAlloc('indices_of_determ_states', int(determ_proc_sizes(iProcIndex), &
                          sizeof_int), bytes_int, this_routine, FDetermTag, ierr)
 
-        ! Calculate the indices in the full vector at which the various processors take
-        ! over, relative to the first index position in the vector (i.e. the array
-        ! disps in MPI routines).
-        do i = 0, nProcessors-1
-            if (i == 0) then
-                determ_proc_indices(i) = 0
-            else
-                determ_proc_indices(i) = determ_proc_indices(i-1) + &
-                                                  determ_proc_sizes(i-1)
-            end if
+        ! Calculate the indices in the full vector at which the various processors take over, relative
+        ! to the first index position in the vector (i.e. the array disps in MPI routines).
+        determ_proc_indices(0) = 0
+        do i = 1, nProcessors-1
+            determ_proc_indices(i) = sum(determ_proc_sizes(:i-1))
         end do
 
-        ! Sort the list of states so that it is correctly ordered in the order which is
-        ! always kept throughout the simulation.
+        ! Sort the states to the order that is kept throughout the simulation.
         call sort(SpawnedParts(:,1:determ_proc_sizes(iProcIndex)), ilut_lt, ilut_gt)
 
         ! Do a check that no states are in the deterministic space twice. The list is sorted
-        ! already so simply check states next to each other in the list:
+        ! already so simply check states next to each other in the list.
         do i = 2, determ_proc_sizes(iProcIndex)
             comp = DetBitLT(SpawnedParts(:, i-1), SpawnedParts(:, i), NIfD, .false.)
             if (comp == 0) then
@@ -226,8 +218,6 @@ contains
 
         ! If requested, remove high energy orbitals so that the space size is below some max.
         if (tLimitDetermSpace) then
-            tSortDetermToTop = .false.
-
             space_size = determ_proc_sizes(iProcIndex)
             call remove_high_energy_orbs(SpawnedParts(:, 1:space_size), space_size, &
                                            max_determ_size, .true.)
@@ -244,7 +234,7 @@ contains
 
         ! When called from the trial wavefunction generation code, only the root
         ! processor accesses this code, and each state is added to the list of iluts,
-        ! trial_space on this one processor.
+        ! trial_space.
 
         ! In: ilut - The determinant in a bitstring form.
         ! In: called_from - Integer to specify which part of the code this routine was
@@ -258,23 +248,23 @@ contains
         integer :: flags, proc
         real(dp) :: sgn(lenof_sign)
 
+        ! If using HPHFs then only allow the correct HPHFs to be added to the list.
+        if (tHPHF) then
+            if (.not. IsAllowedHPHF(ilut(0:NIfD))) return
+        end if
+
+        ! Find the nI representation of determinant.
+        if (present(nI_in)) then
+            nI = nI_in
+        else
+            call decode_bit_det(nI, ilut)
+        end if
+
+        proc = DetermineDetNode(nI,0)
+
+        if (.not. (proc == iProcIndex)) return
+
         if (called_from == called_from_semistoch) then
-
-            ! If using HPHFs then only allow the correct HPHFs to be added to the list.
-            if (tHPHF) then
-                if (.not. IsAllowedHPHF(ilut(0:NIfD))) return
-            end if
-
-            ! Find the nI representation of determinant.
-            if (present(nI_in)) then
-                nI = nI_in
-            else
-                call decode_bit_det(nI, ilut)
-            end if
-
-            proc = DetermineDetNode(nI,0)
-
-            if (.not. (proc == iProcIndex)) return
 
             sgn = 0.0_dp
             ! Flag to specify that these basis states are in the deterministic space.
@@ -293,10 +283,6 @@ contains
                                 ilut(0:nIfDBO), sgn, flags)
 
         else if (called_from == called_from_trial) then
-
-            if (tHPHF) then
-                if (.not. IsAllowedHPHF(ilut)) return
-            end if
 
             ! Keep track of the size of the trial space on this processor.
             trial_space_size = trial_space_size + 1
@@ -771,54 +757,43 @@ contains
         ! At this point, the space has been generated on the root processor. The rest is
         ! just sending the right info to the right processors...
 
-        ! When used for generating the deterministic space, send each processor the
-        ! states which belong to that processor only.
-        ! When used for generating the trial space, send each processor every state.
-        if (called_from == called_from_semistoch) then
+        if (iProcIndex == root) then
+            ! Find which core each state belongs to and sort accordingly.
+            call sort_space_by_proc(ilut_store, old_num_states, proc_space_sizes)
 
-            if (iProcIndex == root) then
-                ! Find which core each state belongs to and sort accordingly.
-                call sort_space_by_proc(ilut_store, old_num_states, proc_space_sizes)
-
-                ! Create displacement and sendcount arrays for MPIScatterV later:
-                sendcounts = proc_space_sizes*(NIfTot+1)
-                disps(0) = 0
-                do i = 1, nProcessors-1
-                    disps(i) = sum(proc_space_sizes(0:i-1))*(NIfTot+1)
-                end do
-            end if
-
-            ! Send the number of states on each processor to the corresponding processor.
-            call MPIScatter(proc_space_sizes, this_proc_size, ierr)
-            recvcount = this_proc_size*(NIfTot+1)
-            ! Finally send the actual states to the SpawnedParts array.
-            call MPIScatterV(ilut_store, sendcounts, disps, &
-                             SpawnedParts(:, 1:this_proc_size), recvcount, ierr)
-
-            determ_proc_sizes(iProcIndex) = this_proc_size
-
-            ! Set the flags and the amplitude on the HF.
-            do i = 1, this_proc_size
-                call set_flag(SpawnedParts(:,i), flag_deterministic)
-                if (tTruncInitiator) then
-                    call set_flag(SpawnedParts(:,i), flag_is_initiator(1))
-                    call set_flag(SpawnedParts(:,i), flag_is_initiator(2))
-                end if
-                comp = DetBitLT(SpawnedParts(:,i), ilutHF, NIfD, .false.)
-                if (comp == 0) SpawnedParts(nOffSgn,i) = CurrentDets(nOffSgn,1)
+            ! Create displacement and sendcount arrays for MPIScatterV later:
+            sendcounts = proc_space_sizes*(NIfTot+1)
+            disps(0) = 0
+            do i = 1, nProcessors-1
+                disps(i) = sum(proc_space_sizes(0:i-1))*(NIfTot+1)
             end do
+        end if
 
-        else if (called_from == called_from_trial) then
+        ! Send the number of states on each processor to the corresponding processor.
+        call MPIScatter(proc_space_sizes, this_proc_size, ierr)
+        recvcount = this_proc_size*(NIfTot+1)
+        ! Finally send the actual states to the SpawnedParts array.
+        call MPIScatterV(ilut_store, sendcounts, disps, &
+                         SpawnedParts(:, 1:this_proc_size), recvcount, ierr)
 
-           if (iProcIndex == root) then
-               trial_space(:, 1:old_num_states) = ilut_store(:, 1:old_num_states)
-               trial_space_size = old_num_states
-           end if
+        determ_proc_sizes(iProcIndex) = this_proc_size
 
-           call MPIBCast(trial_space_size, 1, root)
-           call MPIBCast(trial_space(:, 1:trial_space_size), &
-                         trial_space_size*(NIfTot+1), root)
+        ! Set the flags and the amplitude on the HF.
+        do i = 1, this_proc_size
+            call set_flag(SpawnedParts(:,i), flag_deterministic)
+            if (tTruncInitiator) then
+                call set_flag(SpawnedParts(:,i), flag_is_initiator(1))
+                call set_flag(SpawnedParts(:,i), flag_is_initiator(2))
+            end if
+            comp = DetBitLT(SpawnedParts(:,i), ilutHF, NIfD, .false.)
+            if (comp == 0) SpawnedParts(nOffSgn,i) = CurrentDets(nOffSgn,1)
+        end do
 
+        ! If being called for the trial space, we want the states to be stored in the
+        ! trial_space array, not SpawnedParts.
+        if (called_from == called_from_trial) then
+            trial_space(:, 1:this_proc_size) = SpawnedParts(:, 1:this_proc_size)
+            SpawnedParts = 0
         end if
 
         ! Finally, deallocate arrays.
@@ -849,12 +824,19 @@ contains
 
         if (called_from == called_from_semistoch) then
             n_pops_keep = n_core_pops
-        elseif (called_from == called_from_trial) then
+        else if (called_from == called_from_trial) then
             n_pops_keep = n_trial_pops
         end if
 
-        if (.not. tReadPops) call stop_all("generate_space_from_pops", "NECI must be started &
-                                           &from a popsfile to use the pops-core option.")
+        if (.not. tReadPops) then
+            if (called_from == called_from_semistoch) then
+                call stop_all("generate_space_from_pops", "NECI must be started &
+                               &from a popsfile to use the pops-core option.")
+            else if (called_from == called_from_trial) then
+                call stop_all("generate_space_from_pops", "NECI must be started &
+                               &from a popsfile to use the pops-trial option.")
+            end if
+        end if
 
         length_this_proc = min(n_pops_keep, TotWalkers)
 
@@ -885,12 +867,9 @@ contains
             n_pops_keep = total_length
         end if
 
+        disps(0) = 0
         do i = 0, nProcessors-1
-            if (i == 0) then
-                disps(i) = 0
-            else
-                disps(i) = disps(i-1) + lengths(i-1)
-            end if
+            disps(i) = sum(lengths(:i-1))
         end do
 
         ! Take the top length_this_proc states from each processor.
