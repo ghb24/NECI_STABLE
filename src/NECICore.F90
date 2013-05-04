@@ -63,7 +63,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,int_name,filename_in)
         if(toverride_input) then
             Filename="FCIQMC_input_override"
         else
-            !filename=filename_in
+            filename=filename_in
             MolproID = ''
             if(iProcIndex.eq.Root) then
             !Now, extract the unique identifier for the input file that is read in.
