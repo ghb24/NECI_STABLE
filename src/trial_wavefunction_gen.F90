@@ -12,15 +12,17 @@ module trial_wavefunction_gen
                          con_space_vector, ilutHF, Hii, nSingles, nDoubles, &
                          ConTag, DavidsonTag, TempTag, TrialTag, TrialWFTag, iHFProc
     use hphf_integrals, only: hphf_off_diag_helement
+    use Logging, only: tWriteTrial
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier, MPIAllToAll, MPISumAll, &
-                             MPIAllToAllV, MPIArg
+                             MPIAllToAllV, MPIArg, MPIBCast
     use ParallelHelper, only: root
     use semi_stoch_gen
     use semi_stoch_procs
     use sparse_hamil
     use SystemData, only: nel, tDoublesTrial, tOptimisedTrial, tCASTrial, tPopsTrial, &
                           tLowETrial, tHPHF
+    use util_mod, only: get_free_unit
 
     implicit none
 
@@ -63,6 +65,8 @@ contains
             call generate_optimised_core(called_from_trial)
         elseif (tPopsTrial) then
             call generate_space_from_pops(called_from_trial)
+        elseif (tReadTrial) then
+            call generate_space_from_file(called_from_trial)
         elseif (tLowETrial) then
             call generate_low_energy_core(called_from_trial)
         end if
@@ -235,6 +239,8 @@ contains
 
         call MPIBarrier(ierr)
 
+        if (tWriteTrial) call write_trial_space()
+
         write(6,'(a30,1X,i8)') "Total size of the trial space:", tot_trial_space_size
         write(6,'(a38,1X,i8)') "Size of trial space on this processor:", trial_space_size
         write(6,'(a30,1X,i8)') "Total size of connected space:", tot_con_space_size
@@ -383,5 +389,43 @@ contains
         end if
 
     end subroutine assign_elements_on_procs
+
+    subroutine write_trial_space()
+
+        integer :: i, j, k, iunit, ierr
+
+        write(6,'(a36)') "Writing the trial space to a file..."
+
+        ! Let each processor write its trial states to the file. Each processor waits for
+        ! the processor before it to finish before starting.
+        do i = 0, nProcessors-1
+
+            if (iProcIndex == i) then
+
+                if (i == 0) then
+                    iunit = get_free_unit()
+                    open(iunit, file='TRIALSPACE', status='replace')
+                else
+                    open(iunit, file='TRIALSPACE', status='old', position='append')
+                end if
+                
+                do j = 1, trial_space_size 
+                    do k = 0, NIfDBO
+                        write(iunit, '(i24)', advance = 'no') trial_space(k,j)
+                    end do
+                    write(iunit, *)
+                end do
+
+                close(iunit)
+
+            end if
+
+            call MPIBarrier(ierr)
+
+            if (i == 0) call MPIBCast(iunit, 0)
+
+        end do
+
+    end subroutine write_trial_space
 
 end module trial_wavefunction_gen

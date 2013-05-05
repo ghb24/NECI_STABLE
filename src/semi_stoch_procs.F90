@@ -5,9 +5,11 @@
 
 module semi_stoch_procs
 
-    use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot
+    use AnnihilationMod, only: BinSearchParts
+    use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag, &
+                            flag_is_initiator
     use bit_reps, only: decode_bit_det, set_flag, extract_part_sign
-    use CalcData, only: tRegenDiagHEls, tau, DiagSft, tReadPops
+    use CalcData, only: tRegenDiagHEls, tau, DiagSft, tReadPops, tTruncInitiator
     use constants
     use DetBitOps, only: ilut_lt, ilut_gt, FindBitExcitLevel, DetBitLT, &
                          count_set_bits, DetBitEq
@@ -15,7 +17,7 @@ module semi_stoch_procs
     use FciMCData, only: ilutHF, Hii, CurrentH, determ_proc_sizes, determ_proc_indices, &
                          full_determ_vector, partial_determ_vector, core_hamiltonian, &
                          determ_space_size, SpawnedParts, SemiStoch_Comms_Time, &
-                         SemiStoch_Multiply_Time
+                         SemiStoch_Multiply_Time, TotWalkers, CurrentDets
     use hash, only: DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
@@ -28,6 +30,7 @@ module semi_stoch_procs
                           core_ras3_bitmask, nel, OccDetermCASOrbs, tHPHF, nBasis, BRR, &
                           ARR
     use timing_neci
+    use util_mod, only: get_free_unit
 
     implicit none
 
@@ -483,5 +486,100 @@ contains
         call sort(proc_list, ilut_list(0:NIfTot, 1:ilut_list_size))
 
     end subroutine sort_space_by_proc
+
+    subroutine fill_in_CurrentH()
+
+        integer :: i
+        integer :: nI(nel)
+
+        CurrentH = 0
+
+        do i = 1, TotWalkers
+
+            call decode_bit_det(nI, CurrentDets(:,i))
+
+            if (tHPHF) then
+                CurrentH(1,i) = hphf_diag_helement(nI, CurrentDets(:,i)) - Hii
+            else
+                CurrentH(1,i) = get_helement(nI, nI, 0) - Hii
+            end if
+
+        end do
+
+    end subroutine fill_in_CurrentH
+
+    subroutine write_core_space()
+
+        integer :: i, j, k, iunit, ierr
+
+        write(6,'(a35)') "Writing the core space to a file..."
+
+        iunit = get_free_unit()
+
+        ! Let each processor write its core states to the file. Each processor waits for
+        ! the processor before it to finish before starting.
+        do i = 0, nProcessors-1
+
+            if (iProcIndex == i) then
+
+                if (i == 0) then
+                    open(iunit, file='CORESPACE', status='replace')
+                else
+                    open(iunit, file='CORESPACE', status='old', position='append')
+                end if
+                
+                do j = 1, TotWalkers 
+                    if (test_flag(CurrentDets(:,j), flag_deterministic)) then
+                        do k = 0, NIfDBO
+                            write(iunit, '(i24)', advance='no') CurrentDets(k,j)
+                        end do
+                        write(iunit, *)
+                    end if
+                end do
+
+                close(iunit)
+
+            end if
+
+            call MPIBarrier(ierr)
+
+        end do
+
+    end subroutine write_core_space
+
+    subroutine add_semistoch_states_to_currentdets()
+
+        ! And if the state is already present, simply set its flag.
+        ! And also sort the states afterwards.
+
+        integer :: i, MinInd, PartInd
+        logical :: tSuccess
+
+        MinInd = 1
+
+        do i = 1, determ_proc_sizes(iProcIndex)
+
+            call BinSearchParts(SpawnedParts(:,i), MinInd, TotWalkers, PartInd, tSuccess)
+
+            if (tSuccess) then
+                call set_flag(CurrentDets(:,PartInd), flag_deterministic)
+                if (tTruncInitiator) then
+                    call set_flag(CurrentDets(:,PartInd), flag_is_initiator(1))
+                    call set_flag(CurrentDets(:,PartInd), flag_is_initiator(2))
+                end if
+                MinInd = PartInd
+            else
+                ! Move all states below PartInd down one and insert the new state in the slot.
+                CurrentDets(:, PartInd+2:TotWalkers+1) = CurrentDets(:, PartInd+1:TotWalkers)
+                CurrentDets(:, PartInd+1) = SpawnedParts(:,i)
+                TotWalkers = TotWalkers + 1
+                MinInd = PartInd + 1
+            end if
+
+        end do
+
+        call sort(CurrentDets(:,1:TotWalkers), ilut_lt, ilut_gt)
+
+    end subroutine add_semistoch_states_to_currentdets
 
 end module semi_stoch_procs

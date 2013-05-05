@@ -3,10 +3,11 @@
 module semi_stoch_gen
 
     use bit_rep_data, only: flag_deterministic, nIfDBO, nOffY, nIfY, NIfD, &
-                            flag_is_initiator, NOffSgn, NIfTot
-    use bit_reps, only: decode_bit_det, encode_bit_rep, set_flag, extract_sign
+                            flag_is_initiator, flag_determ_parent, NOffSgn, NIfTot
+    use bit_reps, only: decode_bit_det, encode_bit_rep, set_flag, extract_sign, &
+                        clr_flag
     use CalcData, only: tSortDetermToTop, tTruncInitiator, &
-                        tStartCAS, tReadPops
+                        tStartCAS, tReadPops, tRegenDiagHels
     use csf, only: csf_get_yamas, get_num_csfs, get_csf_bit_yama, csf_apply_yama
     use csf_data, only: csf_orbital_mask
     use constants
@@ -20,6 +21,7 @@ module semi_stoch_gen
                          PDetermTag, trial_space, trial_space_size
     use gndts_mod, only: gndts
     use hash, only: DetermineDetNode
+    use Logging, only: tWriteCore
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIArg, MPIAllGatherV, &
                              MPIAllGather, MPIScatter, MPIScatterV
@@ -64,11 +66,11 @@ contains
         determ_proc_indices = 0
 
         if (.not. (tStartCAS .or. tPopsCore .or. tDoublesCore .or. tCASCore .or. tRASCore .or. &
-                   tOptimisedCore .or. tLowECore)) then
+                   tOptimisedCore .or. tLowECore .or. tReadCore)) then
             call stop_all("init_semi_stochastic", "You have not selected a semi-stochastic core &
                           &space to use.")
         end if
-        if (.not. (tDeterminantCore .or. tCSFCore .or. tStartCAS .or. tPopsCore)) then
+        if (.not. (tDeterminantCore .or. tCSFCore .or. tStartCAS .or. tPopsCore .or. tReadCore)) then
             call warning_neci("init_semi_stochastic", "You have not selected to use either &
                               &determinants or CSFs for the deterministic space. Determinants &
                               &will be used.")
@@ -150,8 +152,12 @@ contains
             TotWalkers = int(determ_proc_sizes(iProcIndex), int64)
             TotWalkersOld = int(determ_proc_sizes(iProcIndex), int64)
         else
+            call add_semistoch_states_to_currentdets()
+            if (.not. tRegenDiagHels) call fill_in_CurrentH()
             SpawnedParts = 0
         end if
+
+        if (tWriteCore) call write_core_space()
 
         write(6,'(a40)') "Semi-stochastic initialisation complete."
         call neci_flush(6)
@@ -186,6 +192,8 @@ contains
             call MPIAllGather(int(TotWalkers, MPIArg), determ_proc_sizes, ierr)
         else if (tPopsCore) then
             call generate_space_from_pops(called_from_semistoch)
+        else if (tReadCore) then
+            call generate_space_from_file(called_from_semistoch)
         else if (tDeterminantCore) then
             if (tDoublesCore) then
                 call generate_sing_doub_determinants(called_from_semistoch)
@@ -222,6 +230,7 @@ contains
             call remove_high_energy_orbs(SpawnedParts(:, 1:space_size), space_size, &
                                            max_determ_size, .true.)
             determ_proc_sizes(iProcIndex) = space_size
+            tSortDetermToTop = .false.
         end if
 
     end subroutine generate_space
@@ -245,8 +254,12 @@ contains
         integer, intent(in) :: called_from
         integer, optional :: nI_in(nel)
         integer :: nI(nel)
-        integer :: flags, proc
+        integer :: flags, proc, comp
         real(dp) :: sgn(lenof_sign)
+
+        ! If the state is the Hartree-Fock state then it is in SpawnedParts already.
+        comp = DetBitLT(ilut, ilutHF, NIfD, .false.)
+        if (comp == 0) return
 
         ! If using HPHFs then only allow the correct HPHFs to be added to the list.
         if (tHPHF) then
@@ -399,7 +412,7 @@ contains
         type(ras_class_data), allocatable, dimension(:) :: core_classes
         integer(n_int), allocatable, dimension(:,:) :: ilut_list
         integer :: nI(nel)
-        integer :: space_size, i, comp
+        integer :: space_size, i
 
         tot_nelec = nel/2
         tot_norbs = nbasis/2
@@ -435,8 +448,6 @@ contains
         call generate_entire_ras_space(core_ras, core_classes, space_size, ilut_list)
 
         do i = 1, space_size
-            comp = DetBitLT(ilut_list(:,i), ilutHF, NIfD, .false.)
-            if (comp == 0) cycle
             call add_state_to_space(ilut_list(:,i), called_from)
         end do
 
@@ -838,6 +849,17 @@ contains
             end if
         end if
 
+        ! In case the run which generated the popsfile had semi-stochastic turned on,
+        ! unset all the flags. Also sort in case tSortDetermToTop was .true. before.
+        if (called_from == called_from_semistoch) then
+            do i = 1, TotWalkers
+                call clr_flag(CurrentDets(:,i), flag_deterministic)
+                ! Shouldn't be set, but just in case...
+                call clr_flag(CurrentDets(:,i), flag_determ_parent)
+            end do
+            call sort(CurrentDets(:,1:TotWalkers), ilut_lt, ilut_gt)
+        end if
+
         length_this_proc = min(n_pops_keep, TotWalkers)
 
         allocate(amps_this_proc(TotWalkers))
@@ -895,22 +917,46 @@ contains
         ! semi-stochastic space in the standard, consistent way.
         temp_ilut = 0
         do i = 1, n_states_this_proc
-            ! Set deterministic flags in CurrentDets.
-            if (called_from == called_from_semistoch) then
-                call set_flag(CurrentDets(:, ind_this_proc(i)), flag_deterministic)
-                if (tTruncInitiator) then
-                    call set_flag(CurrentDets(:, ind_this_proc(i)), flag_is_initiator(1))
-                    call set_flag(CurrentDets(:, ind_this_proc(i)), flag_is_initiator(2))
-                end if
-            end if
 
-            comp = DetBitLT(CurrentDets(:, ind_this_proc(i)), ilutHF, NIfD, .false.)
-            if (comp == 0) cycle
             temp_ilut(0:NIfD) = CurrentDets(0:NIfD, ind_this_proc(i))
             call add_state_to_space(temp_ilut, called_from)
         end do
 
     end subroutine generate_space_from_pops
+
+    subroutine generate_space_from_file(called_from)
+
+        integer, intent(in) :: called_from
+        integer :: iunit, stat
+        integer(n_int) :: ilut(0:NIfTot)
+        logical :: does_exist
+        character(10) :: filename
+
+        if (called_from == called_from_semistoch) then
+            filename = 'CORESPACE'
+        else if (called_from == called_from_trial) then
+            filename = 'TRIALSPACE'
+        end if
+
+        inquire(file=filename, exist=does_exist)
+        if (.not. does_exist) call stop_all("generate_space_from_file", &
+                                            "No "//trim(filename)//" file detected.")
+
+        iunit = get_free_unit()
+        open(iunit, file=filename, status='old')
+
+        ilut = 0
+
+        do
+            read(iunit, *, iostat=stat) ilut(0:NIfDBO)
+
+            ! If the end of the file.
+            if (stat < 0) exit
+
+            call add_state_to_space(ilut, called_from)
+        end do
+
+    end subroutine generate_space_from_file
 
     subroutine generate_low_energy_core(called_from)
 
@@ -918,7 +964,7 @@ contains
         !     the semi-stochastic generation code or the trial vector generation code.
 
         integer, intent(in) :: called_from
-        integer :: i, num_loops, num_states_keep, comp, ierr
+        integer :: i, num_loops, num_states_keep, ierr
         integer :: old_num_states, new_num_states, max_space_size, low_e_excit
         logical :: tAllDoubles, tSinglesOnly
         integer(n_int), allocatable, dimension(:,:) :: ilut_store, temp_space
@@ -1009,11 +1055,7 @@ contains
 
         if (max_space_size /= 0) new_num_states = min(new_num_states, max_space_size)
 
-        ! Add all states (except for the HF state, included already) to the appropriate
-        ! space.
         do i = 1, new_num_states
-            comp = DetBitLT(ilut_store(:, i), ilutHF, NIfD, .false.)
-            if (comp == 0) cycle
             call add_state_to_space(ilut_store(:, i), called_from)
         end do
 

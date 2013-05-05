@@ -72,6 +72,10 @@ MODULE Logging
     ! included in a binary pops file?
     real(dp) :: binarypops_min_weight
 
+    ! If true, output the core/trial spaces to a file.
+    logical :: tWriteCore
+    logical :: tWriteTrial
+
     contains
 
     subroutine SetLogDefaults()
@@ -194,8 +198,9 @@ MODULE Logging
       tPrintLagrangian = .false.
       instant_s2_multiplier_init = 1
       binarypops_min_weight = 0
-
       tSplitPops = .false.
+      tWriteCore = .false.
+      tWriteTrial = .false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -919,6 +924,13 @@ MODULE Logging
             tSplitPops = .true.
             tBinPops = .true.
 
+        case("WRITE-CORE")
+            ! Output the semi-stochastic core space to a file.
+            tWriteCore = .true.
+
+        case("WRITE-TRIAL")
+            ! Output the trial wavefunction space to a file.
+            tWriteTrial = .true.
 
         case("ENDLOG")
             exit logging

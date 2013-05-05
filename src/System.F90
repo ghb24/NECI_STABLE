@@ -90,6 +90,7 @@ MODULE System
       tRASCore = .false.
       tOptimisedCore = .false.
       tPopsCore = .false.
+      tReadCore = .false.
       tLowECore = .false.
       num_det_generation_loops = 1
       n_core_pops = 0
@@ -106,6 +107,7 @@ MODULE System
       tCASTrial = .false.
       tOptimisedTrial =.false.
       tPopsTrial = .false.
+      tReadTrial = .false.
       tLowETrial = .false.
       num_trial_generation_loops = 1
       n_trial_pops = 0
@@ -416,6 +418,9 @@ system: do
             tPopsCore = .true.
             tSortDetermToTop = .false.
             call geti(n_core_pops)
+        case("READ-CORE")
+            tReadCore = .true.
+            tSortDetermToTop = .false.
         case("LOW-ENERGY-CORE")
 ! Input values: The first integer is the maximum excitation level to go up to.
 !               The second integer is the maximum number of states to keep for a subsequent iteration.
@@ -468,6 +473,8 @@ system: do
         case("POPS-TRIAL")
             tPopsTrial = .true.
             call geti(n_trial_pops)
+        case("READ-TRIAL")
+            tReadTrial = .true.
         case("LOW-ENERGY-TRIAL")
 ! Input values: The first integer is the maximum excitation level to go up to.
 !               The second integer is the maximum number of states to keep for a subsequent iteration.

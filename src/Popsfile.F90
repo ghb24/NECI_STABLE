@@ -3,7 +3,7 @@
 MODULE PopsfileMod
 
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin, &
-                          tMomInv
+                          tMomInv, tSemiStochastic
     use CalcData, only: tTruncInitiator, DiagSft, tWalkContGrow, nEquilSteps, &
                         ScaleWalkers, tReadPopsRestart, tRegenDiagHEls, &
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
@@ -306,6 +306,16 @@ r_loop: do while(.not.tReadAllPops)
             call LogMemDealloc (this_routine, BatchReadTag)
         end if
 
+        ! If restarting from a popsfile, clear all deterministic states so that they can be
+        ! changed later, for generality..
+        if (tSemiStochastic) then
+            do i = 1, CurrWalkers
+                call clr_flag(CurrentDets(:,i), flag_deterministic)
+                call clr_flag(CurrentDets(:,i), flag_determ_parent)
+            end do
+        end if
+
+
         write(6,"(A,I8)") "Number of batches required to distribute all determinants in POPSFILE: ",nBatches
         write(6,*) "Number of configurations read in to this process: ",CurrWalkers 
 
@@ -335,9 +345,9 @@ r_loop: do while(.not.tReadAllPops)
                     call stop_all(this_routine,"HF already found, but shouldn't have")
                 endif
                 CurrHF=CurrHF+SignTemp 
-                IF(.not.tRegenDiagHEls) CurrentH(1,i)=0.0_dp
+                if ((.not.tRegenDiagHEls) .and. (.not. tSemiStochastic)) CurrentH(1,i)=0.0_dp
             else
-                if(.not.tRegenDiagHEls) THEN
+                if((.not.tRegenDiagHEls) .and. (.not. tSemiStochastic)) THEN
                 !Calculate diagonal matrix element
                     call decode_bit_det (TempnI, currentDets(:,i))
                     if (tHPHF) then
