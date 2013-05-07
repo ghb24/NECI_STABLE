@@ -12,7 +12,8 @@ MODULE FciMCParMod
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
                           LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
                           tNoBrillouin, tKPntSym, tPickVirtUniform, &
-                          tMomInv, tRef_Not_HF, tMolpro, tAntiSym_MI
+                          tMomInv, tRef_Not_HF, tMolpro, tAntiSym_MI, &
+                          MolproID
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
@@ -4471,6 +4472,7 @@ MODULE FciMCParMod
         real(dp) :: TotDets,SymFactor,r,Gap,UpperTau
         CHARACTER(len=*), PARAMETER :: t_r='SetupParameters'
         CHARACTER(len=12) :: abstr
+        character(len=24) :: filename
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,tAlreadyOcc
         INTEGER :: HFLz,ChosenOrb,KPnt(3), step,FindProjEBins,SymFinal
         integer(int64) :: ExcitLevPop,SymHF
@@ -4507,6 +4509,7 @@ MODULE FciMCParMod
             if (tReadPops) then
                 ! Restart calculation.  Append to stats file (if it exists).
                 if(tMolpro) then
+                    filename = 'FCIQMCStats_' // adjustl(MolproID)
                     OPEN(fcimcstats_unit,file='FCIQMCStats',status='unknown',position='append')
                 else
                     OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown',position='append')
@@ -4514,7 +4517,8 @@ MODULE FciMCParMod
             else
                 call MoveFCIMCStatsFiles()          !This ensures that FCIMCStats files are not overwritten
                 if(tMolpro) then
-                    OPEN(fcimcstats_unit,file='FCIQMCStats',status='unknown')
+                    filename = 'FCIQMCStats_' // adjustl(MolproID)
+                    OPEN(fcimcstats_unit,file=filename,status='unknown')
                 else
                     OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown')
                 endif
@@ -7141,6 +7145,8 @@ MODULE FciMCParMod
         integer(TagIntType) :: ISCRTag=0,IndexTag=0,AMTag=0
         integer(TagIntType) :: WorkTag=0
         real(dp) :: CASRefEnergy,TotWeight,PartFac,amp,rat,r,GetHElement
+        real(dp) :: energytmp(nel), max_wt
+        integer  :: tmp_det(nel), det_max
         integer , dimension(lenof_sign) :: temp_sign
         character(len=*) , parameter :: this_routine='InitFCIMC_CAS'
         
@@ -7223,13 +7229,17 @@ MODULE FciMCParMod
         if(ierr.ne.0) call stop_all(this_routine,"Error allocating CASFullDets")
         CASFullDets(:,:)=0
 
+        ! Get the first part of a determinant with the lowest energy, rather
+        ! than lowest index number orbitals
+        energytmp = ARR(ProjEDet, 2)
+        tmp_det = ProjEDet
+        call sort(energytmp, tmp_det)
+
+        ! Construct the determinants resulting from the CAS expansion.
         do i=1,nCASDet
-            do j=1,NEl-OccCASorbs
-                CASFullDets(j,i)=ProjEDet(j)
-            enddo
-            do j=NEl-OccCASorbs+1,NEl
-                CASFullDets(j,i)=CASDetList(j-(NEl-OccCASorbs),i)
-            enddo
+            CASFullDets(1:nel-OccCASorbs,i) = tmp_det(1:nel-OccCASOrbs)
+            CASFullDets(nel-OccCASorbs+1:nel,i) = CASDetList(1:OccCASorbs, i)
+            call sort(CASFullDets(:,i))
         enddo
         deallocate(CASDetList)
 
@@ -7276,9 +7286,9 @@ MODULE FciMCParMod
         !Turn back on HPHF integrals if needed.
         if(tHPHF) tHPHFInts=.true.
 
-        if(abs(CASRefEnergy-Hii).gt.1.0e-7_dp) then
-            call stop_all(this_routine,"CAS reference energy does not match reference energy of full space")
-        endif
+!        if(abs(CASRefEnergy-Hii).gt.1.0e-7_dp) then
+!            call stop_all(this_routine,"CAS reference energy does not match reference energy of full space")
+!        endif
 
         if(nCASDet.gt.1300) then
             !Lanczos
@@ -7372,6 +7382,8 @@ MODULE FciMCParMod
 
         TotWeight=0.0_dp
         nHPHFCAS=0
+        max_wt = 0
+        det_max = 0
         do i=1,nCASDet
             if(tHPHF) then
                 !Only allow valid HPHF functions
@@ -7406,8 +7418,28 @@ MODULE FciMCParMod
             else
                 TotWeight=TotWeight+abs(CK(i,1))
             endif
+
+            ! Find the maximum weighted determinant.
+            if (abs(ck(i, 1)) > max_wt) then
+                max_wt = abs(ck(i, 1))
+                det_max = i
+            end if
         enddo
-        write(iout,*) "Total weight of lowest eigenfunction: ",TotWeight
+
+        ! Output details
+        write(iout,*) "Total weight of lowest eigenfunction: ", TotWeight
+        write(iout,*) "Maximum weighted det: ", det_max, max_wt
+
+        ! If the reference det is not the maximum weighted det, suggest that
+        ! we change it!
+        if (.not. all(CASFullDets(:, det_max) == ProjEDet)) then
+            write(iout,*) 'The specified reference determinant is not the &
+                       &maximum weighted determinant in the CAS expansion'
+            write(iout,*) 'Use following det as reference:'
+            call write_det(6, CASFullDets(:, det_max), .true.)
+            call stop_all(this_routine, "Poor reference chosen")
+        end if
+
         if(tMomInv) write(iout,*) "Converting into momentum-coupled space. Total MI functions: ",nHPHFCAS
         if(tHPHF) write(iout,*) "Converting into HPHF space. Total HPHF CAS functions: ",nHPHFCAS
 
