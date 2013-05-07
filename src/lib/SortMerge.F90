@@ -22,7 +22,8 @@
         USE FciMCParMOD , only : Hii,CurrentDets,CurrentH
         use FciMCData , only : tFillingStochRDMonFly, InstNoatHF
         use SystemData, only: nel, tHPHF,tMomInv
-        use bit_reps, only: NIfTot, NIfDBO, decode_bit_det, extract_sign
+        use bit_rep_data, only: extract_sign
+        use bit_reps, only: NIfTot, NIfDBO, decode_bit_det
         USE Determinants , only : get_helement
         use DetBitOps, only: DetBitEQ
         use hphf_integrals, only: hphf_diag_helement
