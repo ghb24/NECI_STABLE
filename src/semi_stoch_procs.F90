@@ -550,16 +550,17 @@ contains
     subroutine add_semistoch_states_to_currentdets()
 
         ! And if the state is already present, simply set its flag.
-        ! And also sort the states afterwards.
+        ! Also sort the states afterwards.
 
-        integer :: i, MinInd, PartInd
+        integer :: i, MinInd, PartInd, n_walkers
         logical :: tSuccess
 
         MinInd = 1
+        n_walkers = int(TotWalkers,sizeof_int)
 
         do i = 1, determ_proc_sizes(iProcIndex)
 
-            call BinSearchParts(SpawnedParts(:,i), MinInd, TotWalkers, PartInd, tSuccess)
+            call BinSearchParts(SpawnedParts(:,i), MinInd, n_walkers, PartInd, tSuccess)
 
             if (tSuccess) then
                 call set_flag(CurrentDets(:,PartInd), flag_deterministic)
@@ -570,15 +571,17 @@ contains
                 MinInd = PartInd
             else
                 ! Move all states below PartInd down one and insert the new state in the slot.
-                CurrentDets(:, PartInd+2:TotWalkers+1) = CurrentDets(:, PartInd+1:TotWalkers)
+                CurrentDets(:, PartInd+2:n_walkers+1) = CurrentDets(:, PartInd+1:n_walkers)
                 CurrentDets(:, PartInd+1) = SpawnedParts(:,i)
-                TotWalkers = TotWalkers + 1
+                n_walkers = n_walkers + 1
                 MinInd = PartInd + 1
             end if
 
         end do
 
-        call sort(CurrentDets(:,1:TotWalkers), ilut_lt, ilut_gt)
+        call sort(CurrentDets(:,1:n_walkers), ilut_lt, ilut_gt)
+
+        TotWalkers = int(n_walkers, int64)
 
     end subroutine add_semistoch_states_to_currentdets
 
