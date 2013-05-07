@@ -2370,7 +2370,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use FciMCParMod, only: ChangeVars
    use FciMCData, only: SpawnedParts,ValidSpawnedList,InitialSpawnedSlots
    use FciMCData, only: hash_shift, hash_iter !For cycle-dependent hashes
-   use CalcData, only: MemoryFacPart
+   use CalcData, only: MemoryFacPart,tInstGrowthRate
    use FciMCData, only: tTimeExit,MaxTimeExit !For TIME command
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
@@ -2449,6 +2449,11 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !   Etime%timer_name='ETime'
    iDebug=CCMCDebug
 
+
+   If(.not.tInstGrowthRate) then
+      write(iout,*) "AVGROWTHRATE is ON, but is not compatible with CCMC. Turning it off."
+      tInstGrowthRate=.true.
+   endif
    Call SetupParameters()
 !Init hash shifting data
    hash_iter=0
