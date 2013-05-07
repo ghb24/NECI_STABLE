@@ -18,6 +18,7 @@ MODULE PopsfileMod
     use MI_integrals, only: MI_diag_helement
     USE dSFMT_interface , only : genrand_real2_dSFMT
     use FciMCData
+    use bit_rep_data, only: extract_sign
     use bit_reps
     use constants
     use Parallel_neci

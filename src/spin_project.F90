@@ -4,9 +4,9 @@ module spin_project
     use CalcData, only: tau, tTruncInitiator, tAlLRealCoeff, &
                         tRealCoeffByExcitLevel, RealCoeffExcitThresh
     use SymExcitDataMod, only: scratchsize
-    use bit_reps, only: NIfD, NIfTot, extract_sign, flag_is_initiator, &
-                        flag_make_initiator, test_flag, set_flag, &
-                        flag_parent_initiator
+    use bit_rep_data, only: extract_sign
+    use bit_reps, only: NIfD, NIfTot, flag_is_initiator, flag_make_initiator, &
+                        test_flag, set_flag, flag_parent_initiator
     use csf, only: csf_get_yamas, get_num_csfs, csf_coeff, random_spin_permute
     use constants, only: dp, bits_n_int, lenof_sign, n_int, end_n_int, int32,sizeof_int
     use FciMCData, only: TotWalkers, CurrentDets, fcimc_iter_data, &

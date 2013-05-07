@@ -257,7 +257,7 @@ contains
         integer :: flags, proc, comp
         real(dp) :: sgn(lenof_sign)
 
-        ! If the state is the Hartree-Fock state then it is in SpawnedParts already.
+        ! If the state is the Hartree-Fock state then it is in the space already.
         comp = DetBitLT(ilut, ilutHF, NIfD, .false.)
         if (comp == 0) return
 
@@ -829,7 +829,7 @@ contains
         integer(MPIArg) :: length_this_proc, total_length
         integer(MPIArg) :: lengths(0:nProcessors-1), disps(0:nProcessors-1)
         integer(n_int) :: temp_ilut(0:NIfTot)
-        integer, allocatable, dimension(:) :: ind_this_proc
+        integer(n_int), dimension(:,:), allocatable :: largest_states
         integer, allocatable, dimension(:) :: procs_list
         integer :: i, ierr, comp, n_pops_keep, min_ind, max_ind, n_states_this_proc
 
@@ -849,36 +849,12 @@ contains
             end if
         end if
 
-        ! In case the run which generated the popsfile had semi-stochastic turned on,
-        ! unset all the flags. Also sort in case tSortDetermToTop was .true. before.
-        if (called_from == called_from_semistoch) then
-            do i = 1, TotWalkers
-                call clr_flag(CurrentDets(:,i), flag_deterministic)
-                ! Shouldn't be set, but just in case...
-                call clr_flag(CurrentDets(:,i), flag_determ_parent)
-            end do
-            call sort(CurrentDets(:,1:TotWalkers), ilut_lt, ilut_gt)
-        end if
-
         length_this_proc = min(n_pops_keep, TotWalkers)
 
-        allocate(amps_this_proc(TotWalkers))
-        allocate(ind_this_proc(TotWalkers))
+        allocate(amps_this_proc(length_this_proc))
         allocate(amps_all_procs(n_pops_keep*nProcessors))
         allocate(procs_list(n_pops_keep*nProcessors))
-
-        ! Get the absolute values of the amplitudes represented as real numbers.
-        do i = 1, TotWalkers
-            call extract_sign(CurrentDets(:,i), amps_this_proc(i)) 
-            ! Actually get minus the absolute value so that the sort operation will put the
-            ! most significant states at the top.
-            amps_this_proc(i) = -abs(amps_this_proc(i))
-            ! Also define the following array for the sort.
-            ind_this_proc(i) = i
-        end do
-
-        ! Sort all the states in order of amplitude along with the indices.
-        call sort(amps_this_proc, ind_this_proc)
+        allocate(largest_states(0:NIfTot, length_this_proc))
 
         call MPIAllGather(length_this_proc, lengths, ierr)
         total_length = sum(lengths)
@@ -894,10 +870,24 @@ contains
             disps(i) = sum(lengths(:i-1))
         end do
 
+        ! Return the most populated states in CurrentDets on *this* processor.
+        call return_most_populated_states(length_this_proc, largest_states)
+
+        ! Store the amplitudes in their real form.
+        do i = 1, length_this_proc
+            call extract_sign(largest_states(:,i), amps_this_proc(i))
+            ! Take the negative absolute value for the sort operation later.
+            amps_this_proc(i) = -abs(amps_this_proc(i))
+        end do
+
+        ! Now we want to combine all the most populated states from each processor to find
+        ! how many states to keep from each processor.
+
         ! Take the top length_this_proc states from each processor.
         call MPIAllGatherV(amps_this_proc(1:length_this_proc), &
                            amps_all_procs(1:total_length), lengths, disps)
 
+        ! Get procs_list to store the processor labels of the amplitudes in amps_all_procs.
         max_ind = 0
         do i = 0, nProcessors-1
             min_ind = max_ind + 1
@@ -905,7 +895,8 @@ contains
             procs_list(min_ind:max_ind) = i
         end do
 
-        ! Sort the big list from all processors along with the processor labels.
+        ! Sort the list from all processors along with the processor labels, and then
+        ! count how many states from each processor are in the top n_pops_keep states.
         call sort(amps_all_procs, procs_list)
 
         n_states_this_proc = 0
@@ -917,10 +908,15 @@ contains
         ! semi-stochastic space in the standard, consistent way.
         temp_ilut = 0
         do i = 1, n_states_this_proc
-
-            temp_ilut(0:NIfD) = CurrentDets(0:NIfD, ind_this_proc(i))
+            ! The states in largest_states are sorted from smallest to largest.
+            temp_ilut(0:NIfD) = largest_states(0:NIfD, length_this_proc-i+1)
             call add_state_to_space(temp_ilut, called_from)
         end do
+
+        deallocate(amps_this_proc)
+        deallocate(amps_all_procs)
+        deallocate(procs_list)
+        deallocate(largest_states)
 
     end subroutine generate_space_from_pops
 

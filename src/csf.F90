@@ -20,7 +20,8 @@ module csf
     use csf_data
     use timing_neci
     use util_mod, only: swap, choose
-    use bit_reps, only: NIfD, NIfTot, NIfY, extract_sign
+    use bit_rep_data, only: extract_sign
+    use bit_reps, only: NIfD, NIfTot, NIfY
 
     implicit none
 

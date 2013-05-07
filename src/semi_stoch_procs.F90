@@ -8,11 +8,11 @@ module semi_stoch_procs
     use AnnihilationMod, only: BinSearchParts
     use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag, &
                             flag_is_initiator
-    use bit_reps, only: decode_bit_det, set_flag, extract_part_sign
+    use bit_reps, only: decode_bit_det, set_flag, extract_part_sign, extract_sign
     use CalcData, only: tRegenDiagHEls, tau, DiagSft, tReadPops, tTruncInitiator
     use constants
     use DetBitOps, only: ilut_lt, ilut_gt, FindBitExcitLevel, DetBitLT, &
-                         count_set_bits, DetBitEq
+                         count_set_bits, DetBitEq, sign_lt, sign_gt
     use Determinants, only: get_helement
     use FciMCData, only: ilutHF, Hii, CurrentH, determ_proc_sizes, determ_proc_indices, &
                          full_determ_vector, partial_determ_vector, core_hamiltonian, &
@@ -581,5 +581,72 @@ contains
         call sort(CurrentDets(:,1:TotWalkers), ilut_lt, ilut_gt)
 
     end subroutine add_semistoch_states_to_currentdets
+
+    subroutine return_most_populated_states(n_keep, largest_walkers, norm)
+
+        ! Return the most populated states in CurrentDets on *this* processor only. 
+        ! Also return the norm of these states, if requested.
+
+        integer, intent(in) :: n_keep
+        integer(n_int), intent(out) :: largest_walkers(0:NIfTot, n_keep)
+        real(dp), intent(out), optional :: norm
+        integer :: i, j, smallest_pos
+        real(dp) :: smallest_sign, sign_curr_real
+        real(dp), dimension(lenof_sign) :: sign_curr, low_sign
+
+        largest_walkers = 0
+        smallest_sign = 0.0_dp
+        smallest_pos = 1
+        if (present(norm)) norm = 0.0_dp
+
+        ! Run through all walkers on process.
+        do i = 1, int(TotWalkers,sizeof_int)
+            call extract_sign(CurrentDets(:,i), sign_curr)
+
+            if (lenof_sign == 1) then
+                sign_curr_real = real(abs(sign_curr(1)),dp)
+            else
+                sign_curr_real = sqrt(real(sign_curr(1),dp)**2 + real(sign_curr(lenof_sign),dp)**2)
+            endif
+
+            if (present(norm)) norm = norm + (sign_curr_real**2.0)
+
+            ! Is this determinant more populated than the smallest. First in the list is always
+            ! the smallest.
+            if (sign_curr_real > smallest_sign) then
+                largest_walkers(:,smallest_pos) = CurrentDets(:,i)
+
+                ! Instead of resorting, just find new smallest sign and position.
+                call extract_sign(largest_walkers(:,1),low_sign)
+
+                if (lenof_sign == 1) then
+                    smallest_sign = real(abs(low_sign(1)),dp)
+                else
+                    smallest_sign = sqrt(real(low_sign(1),dp)**2+real(low_sign(lenof_sign),dp)**2)
+                endif
+
+                smallest_pos = 1
+                do j = 2, n_keep
+                    if (smallest_sign < 1.0e-7_dp) exit
+                        call extract_sign(largest_walkers(:,j), low_sign)
+                    if (lenof_sign == 1) then
+                        sign_curr_real = real(abs(low_sign(1)), dp)
+                    else
+                        sign_curr_real = sqrt(real(low_sign(1),dp)**2 + real(low_sign(lenof_sign),dp)**2)
+                    end if
+
+                    if (sign_curr_real < smallest_sign) then
+                        smallest_pos = j
+                        smallest_sign = sign_curr_real
+                    end if
+                end do
+
+            endif
+
+        enddo
+
+        call sort(largest_walkers(:,1:n_keep), sign_lt, sign_gt)
+
+    end subroutine return_most_populated_states
 
 end module semi_stoch_procs

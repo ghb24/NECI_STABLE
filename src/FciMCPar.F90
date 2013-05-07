@@ -144,7 +144,8 @@ MODULE FciMCParMod
                          fill_rdm_diag_currdet_hfsd, calc_rdmbiasfac
     use determ_proj, only: perform_determ_proj
     use semi_stoch_gen, only: init_semi_stochastic
-    use semi_stoch_procs, only: check_if_in_determ_space, deterministic_projection
+    use semi_stoch_procs, only: check_if_in_determ_space, deterministic_projection, &
+                                return_most_populated_states
     use trial_wavefunction_gen, only: init_trial_wavefunction
 
     use gndts_mod, only: gndts
@@ -8890,68 +8891,23 @@ MODULE FciMCParMod
         use Logging, only: iHighPopWrite
         real(dp), dimension(lenof_sign) :: SignCurr, LowSign
         integer :: ierr,i,j,counter,ExcitLev,SmallestPos,HighPos
-        real(dp) :: SmallestSign,SignCurrReal,HighSign,reduce_in(1:2),reduce_out(1:2),Norm,AllNorm
+        real(dp) :: HighSign,reduce_in(1:2),reduce_out(1:2),Norm,AllNorm
         integer(n_int) , allocatable :: LargestWalkers(:,:)
         integer(n_int) , allocatable :: GlobalLargestWalkers(:,:)
         integer(n_int) :: HighestDet(0:NIfTot)
-        integer , allocatable :: GlobalProc(:)
+        integer, allocatable :: GlobalProc(:)
         character(len=*), parameter :: t_r='PrintHighPops'
 
         !Allocate memory to hold highest iHighPopWrite determinants
         allocate(LargestWalkers(0:NIfTot,iHighPopWrite),stat=ierr)
         if(ierr.ne.0) call stop_all(t_r,"error allocating here")
-        LargestWalkers(:,:)=0
 
-        SmallestSign=0.0_dp !Real, so can deal with complex amplitudes
-        SmallestPos = 1
-        Norm=0.0_dp
-        !Run through all walkers on process
-        do i=1,int(TotWalkers,sizeof_int)
-!            write(iout,*) "Smallest sign is: ",SmallestSign
-            call extract_sign(CurrentDets(:,i),SignCurr)
-!            write(iout,*) "***",i,SignCurr,CurrentDets(0:NIfDBO,i)
+        ! Return the most populated states in CurrentDets on *this* processor only.
+        call return_most_populated_states(iHighPopWrite, LargestWalkers, norm)
 
-            if(lenof_sign.eq.1) then
-                SignCurrReal=real(abs(SignCurr(1)),dp)
-            else
-                SignCurrReal=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
-            endif
-            Norm=Norm+(SignCurrReal**2.0)
-
-            !Is this determinant more populated than the smallest  !!first in the list (which is always the smallest)
-            if(SignCurrReal.gt.SmallestSign) then
-                LargestWalkers(:,SmallestPos) = CurrentDets(:,i)
-
-                ! Instead of resorting, just find new smallest sign and
-                ! position.
-                call extract_sign(LargestWalkers(:,1),LowSign)
-                if(lenof_sign.eq.1) then
-                    SmallestSign=real(abs(LowSign(1)),dp)
-                else
-                    SmallestSign=sqrt(real(LowSign(1),dp)**2+real(LowSign(lenof_sign),dp)**2)
-                endif
-                SmallestPos = 1
-                do j=2,iHighPopWrite
-                    ! ExtractSign
-                    if (SmallestSign < 1.0e-7_dp) exit
-                    call extract_sign(LargestWalkers(:,j), LowSign)
-                    if (lenof_sign == 1) then
-                        SignCurrReal = real(abs(LowSign(1)), dp)
-                    else
-                        SignCurrReal = sqrt(real(LowSign(1),dp)**2 + real(LowSign(lenof_sign),dp)**2)
-                    end if
-                    if (SignCurrReal < SmallestSign) then
-                        SmallestPos = j
-                        SmallestSign = SignCurrReal
-                    end if
-                end do
-
-            endif
-        enddo
         call MpiSum(norm,allnorm)
         norm=sqrt(allnorm)
 
-        call sort(LargestWalkers(:,1:iHighPopWrite), sign_lt, sign_gt)
 !        write(iout,*) "Highest weighted dets on this process:"
 !        do i=1,iHighPopWrite
 !            write(iout,*) LargestWalkers(:,i)
