@@ -14,12 +14,13 @@ MODULE FciMCParMod
                           tNoBrillouin, tKPntSym, tPickVirtUniform, &
                           tMomInv, tRef_Not_HF, tMolpro, tAntiSym_MI, &
                           MolproID
+    use bit_rep_data, only: extract_sign
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
                         flag_is_initiator, clear_all_flags,&
-                        extract_sign, nOffSgn, flag_make_initiator, &
-                        flag_parent_initiator, encode_sign
+                        nOffSgn, flag_make_initiator, flag_parent_initiator, &
+                        encode_sign
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
                         tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&

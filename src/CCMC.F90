@@ -4,8 +4,8 @@ MODULE CCMC
     use constants
     use CCMCData
     use ClusterList
-    use bit_rep_data, only: NIfDBO, NIfTot
-    use bit_reps, only: encode_det, extract_sign, encode_sign
+    use bit_rep_data, only: NIfDBO, NIfTot, extract_sign
+    use bit_reps, only: encode_det, encode_sign
     use Parallel_neci
     use DetBitOps, only: FindBitExcitLevel, FindExcitBitDet
     use FciMCParMod, only: calculate_new_shift_wrapper, AttemptCreatePar, &

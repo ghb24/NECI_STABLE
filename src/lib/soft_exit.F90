@@ -142,7 +142,8 @@ module soft_exit
                                RestartShiftBlocking_proc=>RestartShiftBlocking
 !    use AnnihilationMod, only: DetermineDetNode
     use constants, only: lenof_sign, int32, dp
-    use bit_reps, only: extract_sign,encode_sign
+    use bit_rep_data, only: extract_sign
+    use bit_reps, only: encode_sign
     use spin_project, only: tSpinProject, spin_proj_gamma, &
                             spin_proj_interval, spin_proj_shift, &
                             spin_proj_cutoff, spin_proj_spawn_initiators, &
