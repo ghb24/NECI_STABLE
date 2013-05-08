@@ -1,6 +1,7 @@
 module bit_rep_data
 
     use constants
+    use CalcData, only: tUseRealCoeffs
 
     implicit none
 
@@ -72,5 +73,31 @@ contains
         bSet = btest(ilut(NOffFlag), flg + flag_bit_offset)
 
     end function test_flag
+
+    pure subroutine extract_sign (ilut, real_sgn)
+        integer(n_int), intent(in) :: ilut(0:nIfTot)
+        real(dp), intent(out) :: real_sgn(lenof_sign)
+        integer(n_int) :: sgn(lenof_sign)
+
+#ifdef __INT64
+        if (tUseRealCoeffs) then
+            sgn = ilut(NOffSgn:NOffSgn+lenof_sign-1)
+            real_sgn = transfer(sgn, real_sgn)
+        else
+            ! TODO: Should we inline the flag test
+            sgn(1) = int(iand(ilut(NOffSgn), sign_mask), sizeof_int)
+            if (test_flag(ilut, flag_negative_sign)) sgn(1) = -sgn(1)
+            if (lenof_sign == 2) then
+                sgn(lenof_sign) = int(ilut(NOffSgn+1), sizeof_int)
+            end if
+            real_sgn = real(sgn, dp)
+        end if
+#else
+        sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
+        real_sgn = transfer(sgn, real_sgn)
+#endif
+    end subroutine extract_sign
+
+
 
 end module

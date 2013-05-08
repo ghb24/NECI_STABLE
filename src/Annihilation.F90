@@ -17,7 +17,7 @@ MODULE AnnihilationMod
     use sort_mod
     use constants, only: n_int,lenof_sign,null_part,sizeof_int
     use bit_rep_data
-    use bit_reps, only: decode_bit_det, extract_sign, extract_flags, &
+    use bit_reps, only: decode_bit_det, extract_flags, &
                         encode_sign, encode_flags, test_flag, set_flag, &
                         clr_flag, flag_parent_initiator, encode_part_sign, &
                         extract_part_sign, copy_flag, nullify_ilut, &
@@ -420,7 +420,8 @@ MODULE AnnihilationMod
                         ! No point in doing anything more with it.
 
                         Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = SpawnedParts(NIfTot+1:NIfTot+NIfDBO+2,BeginningBlockDet)
-                        ! The first NIfDBO of the Spawned_Parents entry is the parent determinant, the NIfDBO + 1 entry 
+                        ! The first NIfDBO of the Spawned_Parents entry is the parent determinant, 
+                        ! the NIfDBO + 1 entry 
                         ! is the biased Ci. Parent_Array_Ind keeps track of the position in Spawned_Parents.
                         Spawned_Parents_Index(1,VecInd) = Parent_Array_Ind
                         Spawned_Parents_Index(2,VecInd) = 1
@@ -807,7 +808,7 @@ MODULE AnnihilationMod
                 FinalVal=HashIndex(0,DetHash)-1
 !                write(6,*) "FinalVal: ",FinalVal
                 do clash=1,FinalVal
-                    ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
+ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                     if(DetBitEQ(SpawnedParts(:,i),CurrentDets(:,HashIndex(clash,DetHash)),NIfDBO)) then
                         !We have found the matching determinant
                         tSuccess=.true.
@@ -1357,12 +1358,15 @@ MODULE AnnihilationMod
     end subroutine RemoveDetHashIndex
 
     
-!This routine will run through the total list of particles (TotWalkersNew in CurrentDets with sign CurrentSign) and the list of 
-!newly-spawned but non annihilated particles (ValidSpawned in SpawnedParts and SpawnedSign) and move the new particles into the
-!correct place in the new list, while removing the particles with sign = 0 from CurrentDets. 
+!This routine will run through the total list of particles (TotWalkersNew in CurrentDets 
+!with sign CurrentSign) and the list of newly-spawned but
+!non annihilated particles (ValidSpawned in SpawnedParts and SpawnedSign) and move the 
+!new particles into the correct place in the new list,
+!while removing the particles with sign = 0 from CurrentDets. 
 !Binary searching can be used to speed up this transfer substantially.
-!The key feature which makes this work, is that it is impossible for the same determinant to be specified in both the spawned 
-!and main list at the end of the annihilation process. Therefore we won't multiply specify determinants when we merge the lists.
+!The key feature which makes this work, is that it is impossible for the same determinant 
+!to be specified in both the spawned and main list at the end of
+!the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
     SUBROUTINE InsertRemoveParts(ValidSpawned, TotWalkersNew, iter_data)
         use util_mod, only: abs_sign
         use SystemData, only: tHPHF, tRef_Not_HF

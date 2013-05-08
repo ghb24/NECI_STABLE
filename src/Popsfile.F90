@@ -17,6 +17,7 @@ MODULE PopsfileMod
     use MI_integrals, only: MI_diag_helement
     USE dSFMT_interface , only : genrand_real2_dSFMT
     use FciMCData
+    use bit_rep_data, only: extract_sign
     use bit_reps
     use constants
     use Parallel_neci
@@ -493,7 +494,7 @@ outer_map:      do i = 0, MappingNIfD
             end if
 
             ! Store the sign and flag information in the determinant.
-            flg = flg_read
+            flg = int(flg_read,sizeof_int)
             call encode_sign (WalkerTemp, sgn)
             if (tUseFlags) call encode_flags (WalkerTemp, flg)
 

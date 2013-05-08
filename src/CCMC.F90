@@ -4,8 +4,8 @@ MODULE CCMC
     use constants
     use CCMCData
     use ClusterList
-    use bit_rep_data, only: NIfDBO, NIfTot
-    use bit_reps, only: encode_det, extract_sign, encode_sign
+    use bit_rep_data, only: NIfDBO, NIfTot, extract_sign
+    use bit_reps, only: encode_det, encode_sign
     use Parallel_neci
     use DetBitOps, only: FindBitExcitLevel, FindExcitBitDet
     use FciMCParMod, only: calculate_new_shift_wrapper, AttemptCreatePar, &
@@ -2368,6 +2368,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use PopsFileMod, only: WriteToPopsFileParOneArr, ReadFromPopsfileOnly
    use FciMCData, only: SpawnedParts,ValidSpawnedList,InitialSpawnedSlots
    use FciMCData, only: hash_shift, hash_iter !For cycle-dependent hashes
+   use CalcData, only: MemoryFacPart,tInstGrowthRate
    use FciMCData, only: tTimeExit,MaxTimeExit !For TIME command
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
@@ -2446,6 +2447,11 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !   Etime%timer_name='ETime'
    iDebug=CCMCDebug
 
+
+   If(.not.tInstGrowthRate) then
+      write(iout,*) "AVGROWTHRATE is ON, but is not compatible with CCMC. Turning it off."
+      tInstGrowthRate=.true.
+   endif
    Call SetupParameters()
 !Init hash shifting data
    hash_iter=0
@@ -2461,7 +2467,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    else
       iMaxAmpLevel=nEl
    endif
-   nMaxAmpl=int(InitWalkers,sizeof_int)
+   nMaxAmpl=int(InitWalkers*MemoryFacPart,sizeof_int)
    WalkerScale=1
 ! Setup Memory
 #ifndef __SHARED_MEM
@@ -2800,6 +2806,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
 ! Find the largest 10 amplitudes in each level
 !   call WriteMaxExcitorList(iout,AL%Amplitude(:,iCurAmpList),DetList,FCIDetIndex,iMaxAmpLevel,10)
+
+   nullify(SpawnedParts)
    LogDealloc(tagSpawnList)
    Deallocate(SpawnList)
    call DeallocateAmplitudeList(AL)
@@ -2888,7 +2896,8 @@ subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
             iNext=1
             do i=0,nCores-1
                p=(Ends(i)-Starts(i))+1
-               DetList(:,iNext:iNext+p-1)=DetList(:,Starts(i):Ends(i))  !This is potentially overlapping, but is allowed in Fortran90+
+!This is potentially overlapping, but is allowed in Fortran90+
+               DetList(:,iNext:iNext+p-1)=DetList(:,Starts(i):Ends(i))  
                iNext=iNext+int(p,MPIArg)
             enddo
             nAmpl=iNext-1

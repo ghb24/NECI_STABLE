@@ -8,7 +8,8 @@ module DetBitOps
     use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level
     use CalcData, only: tTruncInitiator
     use bit_rep_data, only: NIfY, NIfTot, NIfD, NOffFlag, NIfFlag, &
-                            test_flag, flag_is_initiator,NIfDBO,NOffSgn
+                            test_flag, flag_is_initiator,NIfDBO,NOffSgn, &
+                            extract_sign
     use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
     use constants, only: n_int,bits_n_int,end_n_int,dp,lenof_sign,sizeof_int
 
@@ -408,24 +409,19 @@ module DetBitOps
 
         integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
         logical :: bLt
-        integer :: SignI(lenof_sign), SignJ(lenof_sign)
-        real(dp) :: RealSignI(lenof_sign), RealSignJ(lenof_sign)
+        real(dp) :: SignI(lenof_sign), SignJ(lenof_sign)
         real(dp) :: WeightI,WeightJ
 
-        ! Extract the sign. Ensure that we convert to a real, as the integers
-        ! themselves mean nothing.
-        SignI = int(iLutI(NOffSgn:NOffSgn+lenof_sign-1),sizeof_int)
-        SignJ = int(iLutJ(NOffSgn:NOffSgn+lenof_sign-1),sizeof_int)
-        RealSignI = transfer(SignI, RealSignI)
-        RealSignJ = transfer(SignJ, RealSignJ)
+        call extract_sign(ilutI, SignI)
+        call extract_sign(ilutJ, SignJ)
 
         if(lenof_sign == 1) then
-            bLt = abs(RealSignI(1)) < abs(RealSignJ(1))
+            bLt = abs(SignI(1)) < abs(SignJ(1))
         else
-            WeightI = sqrt(real(RealSignI(1), dp)**2 + &
-                           real(RealSignI(lenof_sign), dp)**2)
-            WeightJ = sqrt(real(RealSignJ(1), dp)**2 + &
-                           real(RealSignJ(lenof_sign), dp)**2)
+            WeightI = sqrt(real(SignI(1), dp)**2 + &
+                           real(SignI(lenof_sign), dp)**2)
+            WeightJ = sqrt(real(SignJ(1), dp)**2 + &
+                           real(SignJ(lenof_sign), dp)**2)
 
             bLt = WeightI < WeightJ
         endif
@@ -439,21 +435,18 @@ module DetBitOps
 
         integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
         logical :: bGt
-        integer :: SignI(lenof_sign), SignJ(lenof_sign)
-        real(dp) :: RealSignI(lenof_sign), RealSignJ(lenof_sign)
+        real(dp) :: SignI(lenof_sign), SignJ(lenof_sign)
         real(dp) :: WeightI, WeightJ
 
-        SignI = int(iLutI(NOffSgn:NOffSgn+lenof_sign-1),sizeof_int)
-        SignJ = int(iLutJ(NOffSgn:NOffSgn+lenof_sign-1),sizeof_int)
-        RealSignI = transfer(SignI, RealSignI)
-        RealSignJ = transfer(SignJ, RealSignJ)
+        call extract_sign(ilutI, SignI)
+        call extract_sign(ilutJ, SignJ)
 
         if(lenof_sign == 1) then
-            bGt = abs(RealSignI(1)) > abs(RealSignJ(1))
+            bGt = abs(SignI(1)) > abs(SignJ(1))
         else
-            WeightI = sqrt(real(RealSignI(1), dp)**2 + &
-                           real(RealSignI(lenof_sign), dp)**2)
-            WeightJ = sqrt(real(RealSignJ(1), dp)**2 + &
+            WeightI = sqrt(real(SignI(1), dp)**2 + &
+                           real(SignI(lenof_sign), dp)**2)
+            WeightJ = sqrt(real(SignJ(1), dp)**2 + &
                            real(SignJ(lenof_sign), dp)**2)
 
             bGt = WeightI > WeightJ

@@ -16,7 +16,8 @@ module errors
 
     contains
 
-    !Perform automatic FCIMC blocking analysis, reading in whether we have started varying the shift or not, and which iteration we did so, and
+    !Perform automatic FCIMC blocking analysis, reading in whether we have started varying the shift or not, 
+    !and which iteration we did so, and
     !returning the mean and error for all energy estimates.
     subroutine error_analysis(tSingPartPhase,iShiftVary,mean_ProjE_re,ProjE_Err_re, &
         mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue, &
@@ -260,7 +261,8 @@ module errors
                     " Relative error: ", abs(error_num/mean_num)
             endif
         endif
-        ! write(6,*) "OVERALL", mean2/mean1, "+-", abs(mean2/mean1)*((abs(error1/mean1))**2.0_dp+(abs(error2/mean2))**2.0_dp)**0.5_dp
+        ! write(6,*) "OVERALL", mean2/mean1, "+-", 
+        !abs(mean2/mean1)*((abs(error1/mean1))**2.0_dp+(abs(error2/mean2))**2.0_dp)**0.5_dp
         ! this is before the covariance, so don't print it now
 
         if(.not.tNoShiftValue) then
@@ -444,11 +446,12 @@ module errors
     end subroutine automatic_reblocking_analysis
 
     subroutine read_fcimcstats(iShiftVary,tFailRead)
-        use SystemData, only: tMolpro
+        use SystemData, only: tMolpro,MolproID
         integer, intent(inout) :: iShiftVary
         logical, intent(out) :: tFailRead
         character(len=1) :: readline
         character(len=*), parameter :: t_r="read_fcimcstats"
+        character(len=24) :: filename
         logical :: exists,tRefToZero
         integer :: eof,comments,i,ierr
         integer :: iunit,WalkersDiffProc
@@ -463,7 +466,8 @@ module errors
         !Open file (FCIMCStats or FCIQMCStats)
         iunit = get_free_unit()
         if(tMolpro) then
-            inquire(file='FCIQMCStats',exist=exists)
+            filename = 'FCIQMCStats_' // adjustl(MolproID) 
+            inquire(file=filename,exist=exists)
             if(.not.exists) call stop_all(t_r,'No FCIQMCStats file found for error analysis')
             OPEN(iunit,file='FCIQMCStats',status='old',action='read',position='rewind')
             write(6,"(A)") "Reading back in FCIQMCStats datafile..."

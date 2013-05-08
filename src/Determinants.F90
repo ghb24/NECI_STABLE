@@ -632,7 +632,8 @@ END MODULE Determinants
          integer i
          if(tStoreAsExcitations.and.nI(1).eq.-1) then
 !The excitation storage starts with -1.  The next number is the excitation level,L .  
-!Next is the parity of the permutation required to lineup occupied->excited.  Then follows a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
+!Next is the parity of the permutation required to lineup occupied->excited.  Then follows 
+!a list of the indexes of the L occupied orbitals within the HFDET, and then L virtual spinorbitals.
             hEl=0.0_dp
             do i=4,nI(2)+4-1
                hEl=hEl-(Arr(nI(i),2))
@@ -1086,7 +1087,8 @@ END MODULE Determinants
                     call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
                 endif
                 iSpinIndex=(G1(j)%Ms+1)/2+1     ! Spin of the new orbital is the same as the old
-                det_sorted(j)=kPointToBasisFn(k_new,G1(det_sorted(j))%k(2),G1(det_sorted(j))%k(3),iSpinIndex) ! Finds basis number for the new momentum
+! Finds basis number for the new momentum
+                det_sorted(j)=kPointToBasisFn(k_new,G1(det_sorted(j))%k(2),G1(det_sorted(j))%k(3),iSpinIndex) 
             enddo
         else if (delta_k(1).lt.0) then ! For the negative case, i must run through negative numbers
             do i=-1,delta_k(1),-1
@@ -1100,7 +1102,8 @@ END MODULE Determinants
                     call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
                 endif
                 iSpinIndex=(G1(j)%Ms+1)/2+1 ! Spin of the new orbital is the same as the old
-                det_sorted(j)=kPointToBasisFn(k_new,G1(det_sorted(j))%k(2),G1(det_sorted(j))%k(3),iSpinIndex) ! Finds basis number for the new momentum
+! Finds basis number for the new momentum
+                det_sorted(j)=kPointToBasisFn(k_new,G1(det_sorted(j))%k(2),G1(det_sorted(j))%k(3),iSpinIndex) 
             enddo
         endif
 
@@ -1134,7 +1137,8 @@ END MODULE Determinants
                     call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
                 endif
                 iSpinIndex=(G1(j)%Ms+1)/2+1     ! Spin of the new orbital is the same as the old
-                det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),k_new,G1(det_sorted(j))%k(3),iSpinIndex) ! Finds basis number for the new momentum
+! Finds basis number for the new momentum
+                det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),k_new,G1(det_sorted(j))%k(3),iSpinIndex) 
             enddo
         else if (delta_k(2).lt.0) then ! For the negative case, i must run through negative numbers
             do i=-1,delta_k(2),-1
@@ -1148,7 +1152,8 @@ END MODULE Determinants
                     call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
                 endif
                 iSpinIndex=(G1(j)%Ms+1)/2+1 ! Spin of the new orbital is the same as the old
-                det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),k_new,G1(det_sorted(j))%k(3),iSpinIndex) ! Finds basis number for the new momentum
+! Finds basis number for the new momentum
+                det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),k_new,G1(det_sorted(j))%k(3),iSpinIndex) 
             enddo
         endif
 
@@ -1182,7 +1187,8 @@ END MODULE Determinants
                     call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
                 endif
                 iSpinIndex=(G1(j)%Ms+1)/2+1     ! Spin of the new orbital is the same as the old
-                det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),G1(det_sorted(j))%k(2),k_new,iSpinIndex) ! Finds basis number for the new momentum
+! Finds basis number for the new momentum
+                det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),G1(det_sorted(j))%k(2),k_new,iSpinIndex) 
             enddo
         else if (delta_k(3).lt.0) then ! For the negative case, i must run through negative numbers
             do i=-1,delta_k(3),-1
@@ -1196,7 +1202,8 @@ END MODULE Determinants
                     call stop_all("ModifyMomentum", "Electron moved outside of the cell limits")
                 endif
                 iSpinIndex=(G1(j)%Ms+1)/2+1 ! Spin of the new orbital is the same as the old
-                det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),G1(det_sorted(j))%k(2),k_new,iSpinIndex) ! Finds basis number for the new momentum
+                ! Finds basis number for the new momentum
+                det_sorted(j)=kPointToBasisFn(G1(det_sorted(j))%k(1),G1(det_sorted(j))%k(2),k_new,iSpinIndex) 
             enddo
         endif
 
