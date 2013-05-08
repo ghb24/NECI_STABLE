@@ -17,7 +17,7 @@ MODULE AnnihilationMod
     use sort_mod
     use constants, only: n_int,lenof_sign,null_part,sizeof_int
     use bit_rep_data
-    use bit_reps, only: decode_bit_det, extract_sign, extract_flags, &
+    use bit_reps, only: decode_bit_det, extract_flags, &
                         encode_sign, encode_flags, test_flag, set_flag, &
                         clr_flag, flag_parent_initiator, encode_part_sign, &
                         extract_part_sign, copy_flag

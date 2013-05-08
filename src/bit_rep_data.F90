@@ -73,4 +73,20 @@ contains
 
     end function test_flag
 
+    pure subroutine extract_sign (ilut,sgn)
+        integer(n_int), intent(in) :: ilut(0:nIfTot)
+        integer, dimension(lenof_sign), intent(out) :: sgn
+
+#ifdef __INT64
+        ! TODO: Should we inline the flag test
+        sgn(1) = int(iand(ilut(NOffSgn), sign_mask), sizeof_int)
+        if (test_flag(ilut, flag_negative_sign)) sgn(1) = -sgn(1)
+        if (lenof_sign == 2) then
+            sgn(lenof_sign) = int(ilut(NOffSgn+1), sizeof_int)
+        end if
+#else
+        sgn = int(iLut(NOffSgn:NOffSgn+lenof_sign-1), sizeof_int)
+#endif
+    end subroutine extract_sign
+
 end module

@@ -248,8 +248,8 @@ Contains
 !Writes out a compressed excitor list where signs are contained within the Particles and whose values are >=dTol
 subroutine WriteExcitorList_btrp(iUnit,AL,iAmpList,Dets,offset,nDet,dTol,Title)
    use FciMCData, only: iLutHF
-   use bit_reps, only: extract_sign,extract_flags
-   use bit_rep_data, only: nIfTot
+   use bit_reps, only: extract_flags
+   use bit_rep_data, only: nIfTot, extract_sign
    use constants, only: lenof_sign
    IMPLICIT NONE
    INTEGER iUnit,nDet
