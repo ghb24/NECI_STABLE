@@ -146,7 +146,7 @@ MODULE FciMCParMod
     use semi_stoch_gen, only: init_semi_stochastic
     use semi_stoch_procs, only: check_if_in_determ_space, deterministic_projection, &
                                 return_most_populated_states
-    use trial_wavefunction_gen, only: init_trial_wavefunction
+    use trial_wf_gen, only: init_trial_wf
 
     use gndts_mod, only: gndts
     use sort_mod
@@ -6671,7 +6671,7 @@ MODULE FciMCParMod
             if (pos > 0) then
                 ! This state is in the trial space. Add the contribution to the demoninator and update
                 ! min_trial_ind so that a shorter list is searched next time.
-                current_contribution = RealwSign(1)*trial_wavefunction(pos+min_trial_ind-1)
+                current_contribution = RealwSign(1)*trial_wf(pos+min_trial_ind-1)
                 trial_denom = trial_denom + current_contribution
 
                 min_trial_ind = min_trial_ind + pos
@@ -7380,7 +7380,7 @@ MODULE FciMCParMod
         ! This includes generating the trial space, generating the space connected to the trial space,
         ! diagonalising the trial space to find the trial wavefunction and calculating the vector
         ! in the connected space, required for the energy estimator.
-        if (tTrialWavefunction) call init_trial_wavefunction()
+        if (tTrialWavefunction) call init_trial_wf()
 
     end subroutine InitFCIMCCalcPar
 

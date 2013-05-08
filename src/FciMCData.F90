@@ -393,7 +393,7 @@ MODULE FciMCData
       integer :: con_space_size = 0
 
       ! This vector stores the trial wavefunction itself.
-      real(dp), allocatable, dimension(:) :: trial_wavefunction
+      real(dp), allocatable, dimension(:) :: trial_wf
       real(dp) :: trial_energy
       ! This vector's elements store the quantity
       ! \sum_j H_{ij} \psi^T_j,
