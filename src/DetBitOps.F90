@@ -8,7 +8,8 @@ module DetBitOps
     use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level
     use CalcData, only: tTruncInitiator
     use bit_rep_data, only: NIfY, NIfTot, NIfD, NOffFlag, NIfFlag, &
-                            test_flag, flag_is_initiator,NIfDBO,NOffSgn
+                            test_flag, flag_is_initiator,NIfDBO,NOffSgn, &
+                            extract_sign
     use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
     use constants, only: n_int,bits_n_int,end_n_int,dp,lenof_sign,sizeof_int
 
@@ -408,8 +409,8 @@ module DetBitOps
         integer, dimension(lenof_sign) :: SignI, SignJ
         real(dp) :: WeightI,WeightJ
 
-        SignI = int(iLutI(NOffSgn:NOffSgn+lenof_sign-1),sizeof_int)
-        SignJ = int(iLutJ(NOffSgn:NOffSgn+lenof_sign-1),sizeof_int)
+        call extract_sign(ilutI, SignI)
+        call extract_sign(ilutJ, SignJ)
 
         if(lenof_sign.eq.1) then
             if(abs(SignI(1)).lt.abs(SignJ(1))) then
@@ -436,8 +437,8 @@ module DetBitOps
         integer, dimension(lenof_sign) :: SignI, SignJ
         real(dp) :: WeightI,WeightJ
 
-        SignI = int(iLutI(NOffSgn:NOffSgn+lenof_sign-1),sizeof_int)
-        SignJ = int(iLutJ(NOffSgn:NOffSgn+lenof_sign-1),sizeof_int)
+        call extract_sign(ilutI, SignI)
+        call extract_sign(ilutJ, SignJ)
 
         if(lenof_sign.eq.1) then
             if(abs(SignI(1)).gt.abs(SignJ(1))) then
