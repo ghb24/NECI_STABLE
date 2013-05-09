@@ -142,20 +142,12 @@ contains
         call neci_flush(6)
         call calculate_det_hamiltonian_normal()
 
-        ! If not reading from a popsfile, move the deterministic states to CurrentDets ready for
-        ! FCIQMC spawning to start. If reading from a popsfile then CurrenDets will have been
-        ! initialised already.
-        if (.not. tReadPops) then
-            CurrentDets(:,1:determ_proc_sizes(iProcIndex)) = &
-                SpawnedParts(:,1:determ_proc_sizes(iProcIndex))
-            SpawnedParts = 0
-            TotWalkers = int(determ_proc_sizes(iProcIndex), int64)
-            TotWalkersOld = int(determ_proc_sizes(iProcIndex), int64)
-        else
-            call add_semistoch_states_to_currentdets()
-            if (.not. tRegenDiagHels) call fill_in_CurrentH()
-            SpawnedParts = 0
-        end if
+        ! Finally, move the states to CurrentDets.
+        call add_semistoch_states_to_currentdets()
+        ! If starting from a popsfile then CurrentH won't have been filled in yet.
+        if ((.not. tRegenDiagHels) .and. tReadPops) call fill_in_CurrentH()
+        SpawnedParts = 0
+        TotWalkersOld = TotWalkers
 
         if (tWriteCore) call write_core_space()
 
@@ -169,18 +161,6 @@ contains
         ! A wrapper to call the correct generating routine.
 
         integer :: i, space_size, ierr
-
-        ! Count the HF state and add it to SpawnedParts.
-        if (iProcIndex == iHFProc) determ_proc_sizes(iProcIndex) = 1
-        if (.not. tReadPops) then
-            SpawnedParts(:,1) = CurrentDets(:,1)
-        else
-            if (iProcIndex == iHFProc) then
-                SpawnedParts(:,1) = 0
-                SpawnedParts(0:NIfTot,1) = ilutHF(0:NIfTot)
-                call set_flag(SpawnedParts(:,1), flag_deterministic)
-            end if
-        end if
 
         ! Choose the correct generating routine.
         if (tStartCAS) then
@@ -256,10 +236,6 @@ contains
         integer :: nI(nel)
         integer :: flags, proc, comp
         real(dp) :: sgn(lenof_sign)
-
-        ! If the state is the Hartree-Fock state then it is in the space already.
-        comp = DetBitLT(ilut, ilutHF, NIfD, .false.)
-        if (comp == 0) return
 
         ! If using HPHFs then only allow the correct HPHFs to be added to the list.
         if (tHPHF) then

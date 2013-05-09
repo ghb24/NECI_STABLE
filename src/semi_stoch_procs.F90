@@ -560,7 +560,12 @@ contains
 
         do i = 1, determ_proc_sizes(iProcIndex)
 
-            call BinSearchParts(SpawnedParts(:,i), MinInd, n_walkers, PartInd, tSuccess)
+            if (n_walkers > 0) then
+                call BinSearchParts(SpawnedParts(:,i), MinInd, n_walkers, PartInd, tSuccess)
+            else
+                tSuccess = .false.
+                PartInd = 0
+            end if
 
             if (tSuccess) then
                 call set_flag(CurrentDets(:,PartInd), flag_deterministic)
@@ -580,6 +585,11 @@ contains
         end do
 
         call sort(CurrentDets(:,1:n_walkers), ilut_lt, ilut_gt)
+
+        write(6,*) "n_walkers:", n_walkers
+        do i = 1, n_walkers
+            write(6,*) CurrentDets(:,i)
+        end do
 
         TotWalkers = int(n_walkers, int64)
 
