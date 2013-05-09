@@ -3482,6 +3482,9 @@ MODULE FciMCParMod
                ! Check how balanced the load on each processor is (even though
                ! we cannot load balance with direct annihilation).
                WalkersDiffProc = int(MaxWalkersProc - MinWalkersProc,sizeof_int)
+               ! Do the same for number of particles
+               PartsDiffProc = int(MaxPartsProc - MinPartsProc, sizeof_int)
+
                mean_walkers = AllTotWalkers / real(nNodes,dp)
                if (WalkersDiffProc > nint(mean_walkers / 10.0_dp) .and. &
                    sum(AllTotParts) > real(nNodes * 500, dp)) then
@@ -3766,6 +3769,8 @@ MODULE FciMCParMod
         ! Max/Min values (check load balancing)
         call MPIReduce (TotWalkersTemp, MPI_MAX, MaxWalkersProc)
         call MPIReduce (TotWalkersTemp, MPI_MIN, MinWalkersProc)
+        call MPIReduce (sum(TotParts), MPI_MAX, MaxPartsProc)
+        call MPIReduce (sum(TotParts), MPI_MIN, MinPartsProc)
 
         ! We need the total number on the HF and SumWalkersCyc to be valid on
         ! ALL processors (n.b. one of these is 32bit, the other 64)
@@ -4191,7 +4196,7 @@ MODULE FciMCParMod
                    &22.HFContribtoE(Both)  &
                    &23.NumContribtoE(Re)  &
                    &24.NumContribtoE(Im)  25.HF weight   26.|Psi|    &
-                   &28.Inst S^2"
+                   &28.Inst S^2   29.PartsDiffProc"
 #else
             if(tMCOutput) then
                 write(iout,"(A)") "       Step     Shift      WalkerCng    &
@@ -4211,7 +4216,8 @@ MODULE FciMCParMod
                   &17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  &
                   &20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  &
                   &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
-                  &26.HF weight    27.|Psi|     28.Inst S^2 29.Inst S^2 30.AbsProjE"
+                  &26.HF weight    27.|Psi|     28.Inst S^2 &
+                  &29.Inst S^2 30.AbsProjE 31.PartsDiffProc"
 
            if(tSplitProjEHist) then
                if(tSplitProjEHistG) then
@@ -4285,7 +4291,8 @@ MODULE FciMCParMod
                 aimag(AllENumCyc * conjg(AllHFCyc)), &       !23.    Im[\sum njH0j] x Re[n0] - Re[\sum njH0j] x Im[n0]   since no physicality
                 sqrt(float(sum(AllNoatHF**2))) / norm_psi, &
                 norm_psi, &
-                curr_S2
+                curr_S2, &
+                PartsDiffProc
 
             if(tMCOutput) then
                 write (iout, "(I12,G16.7,2I10,2I12,4G17.9,3I10,G13.5,I12,G13.5)") &
@@ -4354,7 +4361,8 @@ MODULE FciMCParMod
                 real(AllNoatHF, dp) / norm_psi, &
                 norm_psi, &
                 curr_S2, curr_S2_init, &
-                AbsProjE
+                AbsProjE, &
+                PartsDiffProc
 
             if(tMCOutput) then
                 write (iout, "(I12,G16.7,I10,G16.7,I13,3I13,3G17.9,2I10,G13.5,I12,&
