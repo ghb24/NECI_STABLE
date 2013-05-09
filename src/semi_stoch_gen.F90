@@ -871,7 +871,7 @@ contains
         end do
 
         ! Return the most populated states in CurrentDets on *this* processor.
-        call return_most_populated_states(length_this_proc, largest_states)
+        call return_most_populated_states(int(length_this_proc,sizeof_int), largest_states)
 
         ! Store the amplitudes in their real form.
         do i = 1, length_this_proc
