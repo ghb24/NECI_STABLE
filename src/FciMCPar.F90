@@ -178,6 +178,7 @@ MODULE FciMCParMod
         real(dp) :: ProjE_Err_re,ProjE_Err_im,Shift_Err
         logical :: tNoProjEValue,tNoShiftValue
         real(dp) :: BestErr
+        real(dp) :: start_time, stop_time
 #ifdef MOLPRO
         real(dp) :: get_scalar
         include "common/molen"
@@ -234,6 +235,9 @@ MODULE FciMCParMod
 
         SumSigns = 0.0_dp
         SumSpawns = 0.0_dp
+
+        ! In we go - start the timer for scaling curve!
+        start_time = neci_etime(tstart)
 
         do while (Iter <= NMCyc .or. NMCyc == -1)
 !Main iteration loop...
@@ -429,6 +433,12 @@ MODULE FciMCParMod
 
 !End of MC cycle
         enddo
+
+        ! We are at the end - get the stop-time. Output the timing details
+        stop_time = neci_etime(tend)
+        write(iout,*) '-----------------------------------------------'
+        write(iout,*) 'Total loop-time: ', stop_time - start_time
+        write(iout,*) '-----------------------------------------------'
 
         ! Reduce the iteration count fro the POPSFILE since it is incremented
         ! upon leaving the loop (If done naturally).
