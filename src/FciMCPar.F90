@@ -14,12 +14,13 @@ MODULE FciMCParMod
                           tNoBrillouin, tKPntSym, tPickVirtUniform, &
                           tMomInv, tRef_Not_HF, tMolpro, tAntiSym_MI, &
                           MolproID
+    use bit_rep_data, only: extract_sign
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
                         flag_is_initiator, clear_all_flags,&
-                        extract_sign, nOffSgn, flag_make_initiator, &
-                        flag_parent_initiator, encode_sign
+                        nOffSgn, flag_make_initiator, flag_parent_initiator, &
+                        encode_sign
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
                         tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&
@@ -35,7 +36,8 @@ MODULE FciMCParMod
                         MemoryFacInit, tMaxBloom, tTruncNOpen, tFCIMC, &
                         trunc_nopen_max, tSpawn_Only_Init, tPopsMapping, &
                         TargetGrowRate, TargetGrowRateWalk, tShiftonHFPop, &
-                        tContinueAfterMP2, iExitWalkers, tSpawn_Only_Init_Grow
+                        tContinueAfterMP2, iExitWalkers, tJumpShift, &
+                        tSpawn_Only_Init_Grow
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
@@ -3811,6 +3813,11 @@ MODULE FciMCParMod
         real(dp) :: AllGrowRateRe, AllGrowRateIm, AllHFGrowRate
         real(dp), dimension(lenof_sign) :: denominator, all_denominator
         integer :: error, i, proc, sgn(lenof_sign), pos
+        logical :: defer_update
+
+        ! Normally we allow the shift to vary depending on the conditions
+        ! tested. Sometimes we want to defer this to the next cycle...
+        defer_update = .false.
 
 !        call neci_flush(iout)
 !        CALL MPIBarrier(error)
@@ -3894,6 +3901,14 @@ MODULE FciMCParMod
                         write(iout,*) "All determinants now with the ability to spawn new walkers."
                         tSpawn_Only_Init=.false.
                     endif
+
+                    ! If enabled, jump the shift to the value preducted by the
+                    ! projected energy!
+                    if (tJumpShift) then
+                        DiagSft = real(proje_iter)
+                        defer_update = .true.
+                    end if
+
                 endif
             elseif (abs_int_sign(AllNoatHF) < (MaxNoatHF - HFPopThresh)) then
                 write (iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
@@ -3905,7 +3920,8 @@ MODULE FciMCParMod
 
             ! How should the shift change for the entire ensemble of walkers 
             ! over all processors.
-            if ((.not. tSinglePartPhase).or.(TargetGrowRate.ne.0.0_dp)) then
+            if (((.not. tSinglePartPhase).or.(TargetGrowRate.ne.0.0_dp)) .and.&
+                .not. defer_update) then
 
                 !In case we want to continue growing, TargetGrowRate > 0.0_dp
                 ! New shift value
