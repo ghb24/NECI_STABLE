@@ -1142,37 +1142,36 @@ MODULE FciMCParMod
             ! excite from the first particle on a determinant).
             fcimc_excit_gen_store%tFilled = .false.
 
-            if (tSpawn_Only_Init) then
-                call extract_sign (CurrentDets(:,j), SignCurr)
+!            if (tSpawn_Only_Init) then
+!                call extract_sign (CurrentDets(:,j), SignCurr)
+!
+!                ! TODO: Ensure that the HF determinant has its flags setup
+!                !       correctly at the start of a run.
+!                call CalcParentFlag (j, VecSlot, parent_flags)
+!
+!                ! If we are only spawning from initiators, we don't need to do this decoding
+!                ! if CurrentDet is a non-initiator otherwise it is necessary either way.
+!
+!                if (tcurr_initiator)                                         & 
+!                    ! tcurr_initiator is a global variable which indicates that at least one of the 
+!                    ! 'types' of walker on this determinant is an initiator.
+!                    ! Decode determinant from (stored) bit-representation.
+!                    call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
+!                                      FlagsCurr, fcimc_excit_gen_store)
+!            else                                      
 
-                ! TODO: Ensure that the HF determinant has its flags setup
-                !       correctly at the start of a run.
-                call CalcParentFlag (j, VecSlot, parent_flags)
+            ! If we're not calculating the RDM (or we're calculating some HFSD combination of the 
+            ! RDM) this just extracts info from the bit representation like normal.
+            ! IterRDMStartCurr and AvSignCurr just come out as 1.0_dp.  
+            ! Otherwise, it extracts the Curr info, and calculates the iteration this determinant 
+            ! became occupied (IterRDMStartCurr) and the average population during that time 
+            ! (AvSignCurr).
 
-                ! If we are only spawning from initiators, we don't need to do this decoding
-                ! if CurrentDet is a non-initiator otherwise it is necessary either way.
+            call extract_bit_rep_avsign (CurrentDets(:,j), CurrentH(1:NCurrH,j), &
+                                        DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
+                                        AvSignCurr, fcimc_excit_gen_store)
 
-                if (tcurr_initiator)                                         & 
-                    ! tcurr_initiator is a global variable which indicates that at least one of the 
-                    ! 'types' of walker on this determinant is an initiator.
-                    ! Decode determinant from (stored) bit-representation.
-                    call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
-                                      FlagsCurr, fcimc_excit_gen_store)
-            else                                      
-                ! If we're not calculating the RDM (or we're calculating some HFSD combination of the 
-                ! RDM) this just extracts info from the bit representation like normal.
-                ! IterRDMStartCurr and AvSignCurr just come out as 1.0_dp.  
-                ! Otherwise, it extracts the Curr info, and calculates the iteration this determinant 
-                ! became occupied (IterRDMStartCurr) and the average population during that time 
-                ! (AvSignCurr).
-
-                call extract_bit_rep_avsign (CurrentDets(:,j), CurrentH(1:NCurrH,j), &
-                                            DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
-                                            AvSignCurr, fcimc_excit_gen_store)
-
-                if (tTruncInitiator) call CalcParentFlag (j, VecSlot, parent_flags)
-
-            endif                                                          
+            if (tTruncInitiator) call CalcParentFlag (j, VecSlot, parent_flags)
 
             if(tHashWalkerList) then
                 !Test here as to whether this is a "hole" or not...
@@ -1189,9 +1188,9 @@ MODULE FciMCParMod
             !Debug output.
             IFDEBUGTHEN(FCIMCDebug,3)
                 if(lenof_sign.eq.2) then
-                    write(iout,"(A,I10,2I7,I5)",advance='no') "TW:", j,SignCurr,FlagsCurr
+                    write(iout,"(A,I10,2I7,I5)",advance='no') "TW:", j,SignCurr,parent_flags
                 else
-                    write(iout,"(A,I10,I7,I5)",advance='no') "TW:", j,SignCurr,FlagsCurr
+                    write(iout,"(A,I10,I7,I5)",advance='no') "TW:", j,SignCurr,parent_flags
                 endif
                 call WriteBitDet(iout,CurrentDets(:,j),.true.)
                 call neci_flush(iout) 
