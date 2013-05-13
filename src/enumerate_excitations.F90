@@ -42,6 +42,10 @@ module enumerate_excitations
         integer :: ms_1, ms_2, ml_1, ml_2
         logical :: gen_singles
     end type
+
+    type simple_excit_store
+        integer :: i, j
+    end type
     
 contains
 

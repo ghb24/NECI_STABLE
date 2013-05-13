@@ -42,6 +42,10 @@ module ras
         ! The minimum number of electrons (both alpha and beta) in RAS1,
         ! and the maximum number in RAS3.
         integer :: min_1, max_3
+        ! If you input the number of electrons in RAS1 as the first index
+        ! and the number of electrons in RAS3 as the second index then
+        ! this array will give you the label of corresponding class.
+        integer, allocatable, dimension(:,:) :: class_label
     end type
 
     ! A RAS class refers to a collection of strings with an fixed number
@@ -69,16 +73,15 @@ module ras
         integer :: non_zero_sym
     end type
 
-    type sym_combinations
-        ! The number of symmetry values which can be combined with another
-        ! symmetry to get the correct total symmetry for the full determinant.
-        integer :: num_comb
-        ! The symmetry labels which can be combined correctly. This has 8
-        ! elements, but not all will be used.
-        integer :: allowed_combns(8)
+    type ras_vector
+        ! The elements of a single block of a vector.
+        real(dp), allocatable, dimension(:,:) :: elements
     end type
 
-    type(sym_combinations) :: sym_combs(0:7)
+    type ras_factors
+        ! The elements of a single block of a vector.
+        real(dp), allocatable, dimension(:) :: elements
+    end type
 
     ! The number of electrons occupying one alpha or beta string. As only
     ! Ms=0 is implemented, this is just nOccAlpha=nOccBeta=nEl/2
@@ -94,98 +97,134 @@ module ras
 
 contains
 
-    subroutine initialise_ras_space(ras, ras_classes)
+    subroutine initialise_ras_space(ras, classes)
 
         ! Given the five defining parameters for a RAS space, initialise the ras
         ! space by finding the ras classes corresponding to the ras space.
 
-        type(ras_parameters), intent(in) :: ras
-        type(ras_class_data), intent(inout), allocatable, dimension(:) :: ras_classes
+        type(ras_parameters), intent(inout) :: ras
+        type(ras_class_data), intent(inout), allocatable, dimension(:) :: classes
         integer :: i, j, k, counter
-        integer :: num_ras_classes, class_size
+        integer :: num_classes
         type(basisfn) :: hfbasisfn
         integer :: string(tot_nelec)
-        integer :: space_size
+        integer :: space_size, lower_ras1, upper_ras1, lower_ras3, upper_ras3
 
         ! First we need to find the different classes. A class is defined by the number
         ! of electrons in RAS1 and RAS3. Thus, we need to find all possible allowed
         ! combinations.
 
+        lower_ras1 = max(0, ras%min_1-ras%size_1)
+        upper_ras1 = min(tot_nelec, ras%size_1)
+
+        allocate(ras%class_label(lower_ras1:upper_ras1, 0:tot_nelec))
+        ras%class_label = 0
+
         ! First count the number of RAS classes...
         counter = 0
-        do i = max(0, ras%min_1-ras%size_1), min(tot_nelec, ras%size_1)
-            do j = max(0, tot_nelec-i-2*ras%size_2) , min(tot_nelec-i, ras%max_3)
+        do i = lower_ras1, upper_ras1
+            lower_ras3 = max(0, tot_nelec-i-2*ras%size_2)
+            upper_ras3 = min(tot_nelec-i, ras%max_3)
+            do j = lower_ras3, upper_ras3
                 counter = counter + 1
+                ras%class_label(i,j) = counter
             end do
         end do
 
-        num_ras_classes = counter
+        num_classes = counter
         counter = 0
 
         ! ...then fill the classes in.
-        allocate(ras_classes(num_ras_classes))
-        do i = max(0, ras%min_1-ras%size_1), min(tot_nelec, ras%size_1)
-            do j = max(0, tot_nelec-i-ras%size_2) , min(tot_nelec-i, ras%max_3)
+        allocate(classes(num_classes))
+        do i = lower_ras1, upper_ras1
+            lower_ras3 = max(0, tot_nelec-i-2*ras%size_2)
+            upper_ras3 = min(tot_nelec-i, ras%max_3)
+            do j = lower_ras3, upper_ras3
                 counter = counter + 1
-                ras_classes(counter)%nelec_1 = i
-                ras_classes(counter)%nelec_3 = j
-                ras_classes(counter)%nelec_2 = tot_nelec-i-j
-                if (ras_classes(counter)%nelec_2 < 0) then
-                    write(6,*) "nelec_1, nelec_2, nelec_3:", ras_classes(counter)%nelec_1, &
-                        ras_classes(counter)%nelec_2, ras_classes(counter)%nelec_3
+                classes(counter)%nelec_1 = i
+                classes(counter)%nelec_3 = j
+                classes(counter)%nelec_2 = tot_nelec-i-j
+                if (classes(counter)%nelec_2 < 0) then
+                    write(6,*) "nelec_1, nelec_2, nelec_3:", classes(counter)%nelec_1, &
+                        classes(counter)%nelec_2, classes(counter)%nelec_3
                     call stop_all("initialise_ras_space", &
                                   "Current RAS combination is not possible.")
                 end if
-                allocate(ras_classes(counter)%vertex_weights(0:tot_norbs, 0:tot_nelec))
-                ras_classes(counter)%vertex_weights = 0
+                allocate(classes(counter)%vertex_weights(0:tot_norbs, 0:tot_nelec))
+                classes(counter)%vertex_weights = 0
             end do
         end do
 
         ! Form the vertex weights for each class.
-        do i = 1, num_ras_classes
-            ras_classes(i)%vertex_weights(0, 0) = 1
+        do i = 1, num_classes
+            classes(i)%vertex_weights(0, 0) = 1
             do j = 1, tot_norbs
                 do k = 0, tot_nelec
                     ! If vertex not allowed then leave the corresponding vertex weight as 0.
-                    if (vertex_not_allowed(ras_classes(i)%nelec_1, &
-                                           ras_classes(i)%nelec_3, j, k, ras)) cycle
+                    if (vertex_not_allowed(classes(i)%nelec_1, &
+                                           classes(i)%nelec_3, j, k, ras)) cycle
                     ! (Eq. 11.8.2)
                     if (k == 0) then
                         ! The first columns will always contain 1's.
-                        ras_classes(i)%vertex_weights(j,k) = 1
+                        classes(i)%vertex_weights(j,k) = 1
                     else
-                        ras_classes(i)%vertex_weights(j,k) = ras_classes(i)%vertex_weights(j-1,k) + &
-                                                              ras_classes(i)%vertex_weights(j-1,k-1)
+                        classes(i)%vertex_weights(j,k) = classes(i)%vertex_weights(j-1,k) + &
+                                                              classes(i)%vertex_weights(j-1,k-1)
                     end if
                 end do
             end do
         end do
 
         ! Find the allowed combinations of classes in the full RAS space.
-        do i = 1, num_ras_classes
+        do i = 1, num_classes
             counter = 0
-            allocate(ras_classes(i)%allowed_combns(num_ras_classes))
-            ras_classes(i)%allowed_combns = 0
-            do j = 1, num_ras_classes
+            allocate(classes(i)%allowed_combns(num_classes))
+            classes(i)%allowed_combns = 0
+            do j = 1, num_classes
                 ! If the total number of electrons in the RAS spaces are correct with
                 ! this combination.
-                if (ras_classes(i)%nelec_1+ras_classes(j)%nelec_1 >= ras%min_1 .and. &
-                    ras_classes(i)%nelec_3+ras_classes(j)%nelec_3 <= ras%max_3) then
+                if (class_comb_allowed(ras, classes(i), classes(j))) then
                     counter = counter + 1
-                    ras_classes(i)%allowed_combns(counter) = j
+                    classes(i)%allowed_combns(counter) = j
                 end if
             end do
-            ras_classes(i)%num_comb = counter
+            write(6,*) "class:", i, "allowed_combns:", classes(i)%allowed_combns
+            classes(i)%num_comb = counter
         end do
 
-        do i = 1, num_ras_classes
-            call setup_ras_class(ras, ras_classes(i))
+        do i = 1, num_classes
+            call setup_ras_class(ras, classes(i))
         end do
 
         call getsym(HFDet, nel, G1, nbasismax, hfbasisfn)
         HFSym = hfbasisfn%Sym%S
 
     end subroutine initialise_ras_space
+
+    function class_allowed(ras, n_elec_1, n_elec_3) result (allowed)
+
+        ! This function assumes that the total number of electrons is equal to tot_nelec, so
+        ! that we don't have to check the number of electrons in RAS2. It also assumes
+        ! obvious things like the numbers of electrons not being negative.
+
+        type(ras_parameters), intent(in) :: ras
+        integer, intent(in) :: n_elec_1, n_elec_3
+        logical :: allowed
+
+        allowed = (n_elec_1 > ras%min_1 .and. n_elec_1 < ras%size_1 .and. n_elec_3 < ras%max_3)
+
+    end function class_allowed
+
+    function class_comb_allowed(ras, class_1, class_2) result (allowed)
+
+        type(ras_parameters), intent(in) :: ras
+        type(ras_class_data), intent(in) :: class_1, class_2
+        logical :: allowed
+
+        allowed = (class_1%nelec_1+class_2%nelec_1 >= ras%min_1 .and. &
+                    class_1%nelec_3+class_2%nelec_3 <= ras%max_3)
+
+    end function class_comb_allowed
 
     function vertex_not_allowed(n_elec_1, n_elec_3, orb, elec, ras) result(not_allowed)
 
@@ -310,7 +349,7 @@ contains
             ras_class%address_map(addresses(i)) = i
         end do
 
-        ! Finally, count the number of states with each symmetry label.
+        ! Count the number of states with each symmetry label.
         ras_class%num_sym = 0
         do i = 1, ras_class%class_size
             ras_class%num_sym(symmetries(i)) = ras_class%num_sym(symmetries(i)) + 1
@@ -417,54 +456,54 @@ contains
 
     end subroutine generate_next_string
 
-    subroutine generate_entire_ras_space(ras, ras_classes, space_size, ilut_list)
+    subroutine generate_entire_ras_space(ras, classes, space_size, ilut_list)
 
         type(ras_parameters), intent(in) :: ras
-        type(ras_class_data), intent(in) :: ras_classes(:)
+        type(ras_class_data), intent(in) :: classes(:)
         integer, intent(in) :: space_size
         integer(n_int), intent(out) :: ilut_list(0:NIfTot, space_size)
         integer :: nI(nel)
         integer :: string(tot_nelec)
         integer, allocatable, dimension(:,:) :: string_list
         integer, allocatable, dimension(:,:) :: min_indices
-        integer :: num_ras_classes, num_strings, temp_class
+        integer :: num_classes, num_strings, temp_class
         integer :: string_address, block_address
         integer :: i, j, k, l, m, n, o, counter
         logical :: none_left
 
         ! Calculate the total number of alpha/beta strings.
-        num_ras_classes = size(ras_classes)
+        num_classes = size(classes)
         num_strings = 0
-        do i = 1, num_ras_classes
-            num_strings = num_strings + ras_classes(i)%class_size
+        do i = 1, num_classes
+            num_strings = num_strings + classes(i)%class_size
         end do
 
         allocate(string_list(tot_nelec, num_strings))
 
         ! min_indices(i,j) stores the index of the first state in class i with symmetry label j.
-        allocate(min_indices(num_ras_classes, 0:7))
+        allocate(min_indices(num_classes, 0:7))
 
         ! Loop over all classes, and for each, generate all states in that class. Store all these
         ! states in blocks, one after another, in a 1d array (sting_list). Within each block
-        ! find_address and ras_classes(i)%address_map are used to to find an address *relative to
+        ! find_address and classes(i)%address_map are used to to find an address *relative to
         ! the first state* in that class.
         block_address = 0
-        do i = 1, num_ras_classes
+        do i = 1, num_classes
             ! Address of the last string in the last class.
-            if (i > 1) block_address = block_address + ras_classes(i-1)%class_size
+            if (i > 1) block_address = block_address + classes(i-1)%class_size
 
             do j = 0, 7
-                min_indices(i,j) = block_address + sum(ras_classes(i)%num_sym(0:j-1)) + 1
+                min_indices(i,j) = block_address + sum(classes(i)%num_sym(0:j-1)) + 1
             end do
 
-            call generate_first_full_string(string, ras, ras_classes(i))
-            string_address = ras_classes(i)%address_map(get_address(ras_classes(i), string)) + &
+            call generate_first_full_string(string, ras, classes(i))
+            string_address = classes(i)%address_map(get_address(classes(i), string)) + &
                              block_address
             string_list(:, string_address) = string
 
-            do j = 2, ras_classes(i)%class_size
-                call generate_next_string(string, ras, ras_classes(i), none_left)
-                string_address = ras_classes(i)%address_map(get_address(ras_classes(i), string)) + &
+            do j = 2, classes(i)%class_size
+                call generate_next_string(string, ras, classes(i), none_left)
+                string_address = classes(i)%address_map(get_address(classes(i), string)) + &
                                  block_address
                 string_list(:, string_address) = string
             end do
@@ -475,41 +514,36 @@ contains
         counter = 0
         ilut_list = 0
         ! Loop over all classes, call it class_i.
-        do i = 1, num_ras_classes
+        do i = 1, num_classes
             ! For class_i, loop over all classes which can be combined with this one.
-            do j = 1, ras_classes(i)%num_comb
-                temp_class = ras_classes(i)%allowed_combns(j)
+            do j = 1, classes(i)%num_comb
+                temp_class = classes(i)%allowed_combns(j)
                 ! Loop over all symmetries.
                 do k = 0, 7
-                    ! Loop over all symmetries.
-                    do l = 0, 7
-                        ! If these two symmetries give the correct total symmetry then add all
-                        ! combinations of states in these symmetry blocks to ilut_list.
-                        if (ieor(k, l) == HFSym) then
-                            do m = min_indices(i,k), min_indices(i,k)+&
-                                    ras_classes(i)%num_sym(k)-1
-                                do n = min_indices(temp_class,l), min_indices(temp_class,l)+&
-                                        ras_classes(temp_class)%num_sym(l)-1
+                    l = ieor(HFSym, k)
+                    ! Add all combinations of states in these symmetry blocks to ilut_list.
+                    do m = min_indices(i,k), min_indices(i,k)+&
+                            classes(i)%num_sym(k)-1
+                        do n = min_indices(temp_class,l), min_indices(temp_class,l)+&
+                                classes(temp_class)%num_sym(l)-1
 
-                                    ! Beta string.
-                                    nI(1:tot_nelec) = string_list(:, m)*2-1
-                                    ! Alpha string.
-                                    nI(tot_nelec+1:nel) = string_list(:, n)*2
+                            ! Beta string.
+                            nI(1:tot_nelec) = string_list(:, m)*2-1
+                            ! Alpha string.
+                            nI(tot_nelec+1:nel) = string_list(:, n)*2
 
-                                    ! Replace all orbital numbers, orb, with the true orbital
-                                    ! numbers, BRR(orb). Also, sort this list.
-                                    do o = 1, nel
-                                        nI(o) = BRR(nI(o))
-                                    end do
-                                    call sort(nI)
-
-                                    ! Find bitstring representation.
-                                    counter = counter+1
-                                    call EncodeBitDet(nI, ilut_list(:,counter))
-
-                                end do
+                            ! Replace all orbital numbers, orb, with the true orbital
+                            ! numbers, BRR(orb). Also, sort this list.
+                            do o = 1, nel
+                                nI(o) = BRR(nI(o))
                             end do
-                        end if
+                            call sort(nI)
+
+                            ! Find bitstring representation.
+                            counter = counter+1
+                            call EncodeBitDet(nI, ilut_list(:,counter))
+
+                        end do
                     end do
                 end do
             end do
@@ -540,57 +574,35 @@ contains
 
     end function get_abelian_sym
 
-    subroutine find_ras_size(ras, ras_classes, space_size)
+    subroutine find_ras_size(ras, classes, space_size)
 
         type(ras_parameters), intent(in) :: ras
-        type(ras_class_data), intent(in) :: ras_classes(:)
+        type(ras_class_data), intent(in) :: classes(:)
         integer, intent(out) :: space_size
         integer :: i, j, k, l
-        integer :: num_ras_classes, temp_class
+        integer :: num_classes, temp_class
 
         space_size = 0
-        num_ras_classes = size(ras_classes)
+        num_classes = size(classes)
 
         ! Loop over all classes, call it class_i.
-        do i = 1, num_ras_classes
+        do i = 1, num_classes
             ! For this class, loop over all classes which can be combined with this one,
             ! call it class_j.
-            do j = 1, ras_classes(i)%num_comb
-                temp_class = ras_classes(i)%allowed_combns(j)
+            do j = 1, classes(i)%num_comb
+                temp_class = classes(i)%allowed_combns(j)
                 ! Loop over all symmetries for class_i.
                 do k = 0, 7
-                    ! Loop over all symmetries for class_j.
-                    do l = 0, 7
-                        ! Finally, if these two symmetries combine to give the correct
-                        ! overall symmetry then add the total number of combinations of
-                        ! strings from the two classes with these symmetry labels.
-                        if (ieor(k, l) == HFSym) space_size = space_size + &
-                            ras_classes(i)%num_sym(k)*ras_classes(temp_class)%num_sym(l)
-                    end do
+                    ! Required symmetry for class_j.
+                    l = ieor(HFSym, k)
+                    ! Finally, add the total number of combinations of strings from the two
+                    ! classes with these symmetry labels.
+                    space_size = space_size + &
+                        classes(i)%num_sym(k)*classes(temp_class)%num_sym(l)
                 end do
             end do
         end do
 
     end subroutine find_ras_size
-
-    subroutine find_sym_combinations()
-
-        ! Fill in suym_combs variable. sym_combs(i) stores the symmetry labels which can
-        ! be combined with label i to give the same overall symmetry as the HF state.
-
-        integer :: i, j, counter
-
-        do i = 0, 7
-            counter = 0
-            do j = 0, 7
-                if (ieor(i,j) == HFSym) then
-                    counter = counter + 1
-                    sym_combs(i)%allowed_combns(counter) = j
-                end if
-            end do
-            sym_combs(i)%num_comb = counter
-        end do
-
-    end subroutine find_sym_combinations
 
 end module ras
