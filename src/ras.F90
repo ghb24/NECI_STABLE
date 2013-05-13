@@ -211,7 +211,7 @@ contains
         integer, intent(in) :: n_elec_1, n_elec_3
         logical :: allowed
 
-        allowed = (n_elec_1 > ras%min_1 .and. n_elec_1 < ras%size_1 .and. n_elec_3 < ras%max_3)
+        allowed = (n_elec_1 >= ras%min_1 .and. n_elec_1 <= ras%size_1 .and. n_elec_3 <= ras%max_3)
 
     end function class_allowed
 

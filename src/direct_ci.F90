@@ -32,6 +32,8 @@ contains
         type(simple_excit_store), target :: gen_store
         logical :: none_left
 
+        integer :: counter
+
         num_classes = size(classes)
 
         do class_i = 1, num_classes
@@ -56,13 +58,13 @@ contains
             end do
         end do
 
-        write(6,*) "Sigma 1 and 2:"
+        !write(6,*) "Sigma 1 and 2:"
         call neci_flush(6)
 
         ! Loop over all classes.
         do i = 1, num_classes
 
-            write(6,*) "Class:", i
+            !write(6,*) "Class:", i
             call neci_flush(6)
 
             call generate_first_full_string(string_i, ras, classes(i))
@@ -76,7 +78,7 @@ contains
                 sym_i = get_abelian_sym(string_i)
                 ! Shift the addresses so that each block of symmetries start with address 1.
                 ind_i = classes(i)%address_map(get_address(classes(i), string_i))
-                write(6,*) "ind:", ind_i
+                !write(6,*) "ind:", ind_i
                 call neci_flush(6)
                 ind_i = ind_i - sum(classes(i)%num_sym(0:sym_i-1))
 
@@ -96,14 +98,14 @@ contains
                     sym_k = get_abelian_sym(string_k)
                     par_1 = get_single_parity(ilut_i, ex1(1), ex1(2)) 
 
-                    ind_k = classes(k)%address_map(get_address(classes(k), string_k))
-                    ind_k = ind_k - sum(classes(k)%num_sym(0:sym_k-1))
+                    ind_k = classes(class_k)%address_map(get_address(classes(class_k), string_k))
+                    ind_k = ind_k - sum(classes(class_k)%num_sym(0:sym_k-1))
 
                     factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) + &
-                            par_1*GetTMatEl(BRR(2*ex1(i)),BRR(2*ex1(j)))
+                            par_1*GetTMatEl(BRR(2*ex1(2)),BRR(2*ex1(1)))
 
                     do j = 1, tot_norbs
-                        factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) + &
+                        factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) - &
                                 0.5_dp*par_1*get_umat_el(ptr_getumatel, ex1(2), j, j, ex1(1))
                     end do
 
@@ -125,8 +127,8 @@ contains
                         sym_j = get_abelian_sym(string_j)
                         par_2 = get_single_parity(ilut_j, ex2(1), ex2(2)) 
 
-                        ind_j = classes(j)%address_map(get_address(classes(j), string_j))
-                        ind_j = ind_j - sum(classes(j)%num_sym(0:sym_j-1))
+                        ind_j = classes(class_j)%address_map(get_address(classes(class_j), string_j))
+                        ind_j = ind_j - sum(classes(class_j)%num_sym(0:sym_j-1))
 
                         ! Avoid overcounting for the case that the indices are the same.
                         if (ex1(1) == ex2(1) .and. ex1(2) == ex2(2)) then
@@ -168,10 +170,14 @@ contains
                                 vec_out(class_j, i, sym_j)%elements(:, ind_i) + &
                                 matmul(vec_in(class_j, class_k, sym_j)%elements(:,:), factors(class_k, sym_k)%elements(:))
 
+                            !write(6,*) "factors:", vec_out(class_j, i, sym_j)%elements(:, ind_i)
+
                             ! Add in sigma_1.
                             vec_out(i, class_j, sym_i)%elements(ind_i, :) = &
                                 vec_out(i, class_j, sym_i)%elements(ind_i, :) + &
                                 matmul(factors(class_k, sym_k)%elements(:), vec_in(class_k, class_j, sym_k)%elements(:,:))
+
+                            !write(6,*) "factors:", factors(class_k, sym_k)%elements(:)
 
                         end do ! Over all classes connected to string_j.
                     
@@ -187,21 +193,23 @@ contains
 
         ! Next, calculate contirbution from the alpha-beta term, sigma_3.
 
-        write(6,*) "sigma 3:"
+        !write(6,*) "sigma 3:"
         call neci_flush(6)
         
         ! Loop over all combinations of two spatial indices, (kl).
         do k = 1, tot_norbs
             do l = 1, tot_norbs
 
-                write(6,*) "k, l:", k, l
+                if (G1(BRR(2*k))%Sym%S /= G1(BRR(2*l))%Sym%S) cycle
+
+                !write(6,*) "k, l:", k, l
                 call neci_flush(6)
 
                 ex1(1) = k
                 ex1(2) = l
 
                 do i = 1, num_classes
-                    write(6,*) "class:", i
+                    !write(6,*) "class:", i
                     call neci_flush(6)
                     call generate_first_full_string(string_i, ras, classes(i))
 
@@ -212,7 +220,7 @@ contains
                     do
                         sym_i = get_abelian_sym(string_i)
                         ind_i = classes(i)%address_map(get_address(classes(i), string_i))
-                        write(6,*) "ind:", ind_i
+                        !write(6,*) "ind:", ind_i
                         call neci_flush(6)
                         ind_i = ind_i - sum(classes(i)%num_sym(0:sym_i-1))
                         call encode_string(string_i, ilut_i)
@@ -240,9 +248,9 @@ contains
                                 if (.not. class_comb_allowed(ras, classes(class_j), classes(class_m))) cycle
                                 if (classes(class_m)%num_sym(sym_m) == 0) cycle 
 
-                                write(6,*) "i, class_m, sym_i", i, class_m, sym_i
-                                write(6,*) "size1:", size(c(i,class_m,sym_i)%elements, 2)
-                                write(6,*) "size2:", size(vec_in(class_j,class_m,sym_j)%elements, 2)
+                                !write(6,*) "i, class_m, sym_i", i, class_m, sym_i
+                                !write(6,*) "size1:", size(c(i,class_m,sym_i)%elements, 2)
+                                !write(6,*) "size2:", size(vec_in(class_j,class_m,sym_j)%elements, 2)
                                 call neci_flush(6)
                                 c(i,class_m,sym_i)%elements(ind_i,:) = &
                                     vec_in(class_j,class_m,sym_j)%elements(ind_j,:)*r(i, sym_i)%elements(ind_i)
@@ -255,7 +263,7 @@ contains
                     end do
                 end do
 
-                write(6,*) "init done."
+                !write(6,*) "init done."
                 call neci_flush(6)
 
                 do i = 1, num_classes
@@ -270,7 +278,7 @@ contains
 
                         sym_i = get_abelian_sym(string_i)
                         ind_i = classes(i)%address_map(get_address(classes(i), string_i))
-                        write(6,*) "ind:", ind_i
+                        !write(6,*) "ind:", ind_i
                         call neci_flush(6)
                         ind_i = ind_i - sum(classes(i)%num_sym(0:sym_i-1))
 
@@ -290,8 +298,8 @@ contains
                             sym_j = get_abelian_sym(string_k)
                             par_1 = get_single_parity(ilut_i, ex1(1), ex1(2)) 
 
-                            ind_j = classes(j)%address_map(get_address(classes(j), string_j))
-                            ind_j = ind_j - sum(classes(j)%num_sym(0:sym_j-1))
+                            ind_j = classes(class_j)%address_map(get_address(classes(class_j), string_j))
+                            ind_j = ind_j - sum(classes(class_j)%num_sym(0:sym_j-1))
 
                             factors(class_j, sym_j)%elements(ind_j) = factors(class_j, sym_j)%elements(ind_j) + &
                               par_1*get_umat_el(ptr_getumatel, ex1(2), ex1(1), k, l)
@@ -417,7 +425,7 @@ contains
         integer, intent(in) :: string_i(tot_nelec)
         integer(n_int), intent(in) :: ilut_i(0:NIfTot)
         integer, intent(out) :: string_k(tot_nelec)
-        integer(n_int), intent(out) :: ilut_k(0:NIfTot)
+        integer(n_int), intent(inout) :: ilut_k(0:NIfTot)
         integer, intent(out) :: ex(2)
         integer, intent(inout) :: nras1, nras3
         type(ras_parameters), intent(in) :: ras
@@ -453,6 +461,9 @@ contains
                 ! exciting from.
                 if (IsOcc(ilut_i, orb2) .and. (string_i(i) /= j)) cycle
 
+                ex(1) = string_i(i)
+                ex(2) = j
+
                 temp_1 = nras1
                 temp_3 = nras3
 
@@ -481,9 +492,6 @@ contains
                 ilut_k = ilut_i
                 clr_orb(ilut_k, orb1)
                 set_orb(ilut_k, orb2)
-
-                ex(1) = string_i(i)
-                ex(2) = j
 
                 ! Encode new string.
                 string_k = string_i
