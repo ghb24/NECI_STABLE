@@ -241,7 +241,6 @@ contains
           tReadPopsChangeRef = .false.
           tReadPopsRestart = .false.
           iLogicalNodeSize = 0 !Meaning use the physical node size
-
           tAllRealCoeff=.false.
           tEnhanceRemainder=.true.
           tUseRealCoeffs = .false.
@@ -250,7 +249,7 @@ contains
           tRealSpawnCutoff=.false.
           RealSpawnCutoff=1.0e-5
           OccupiedThresh=1.0_dp
-
+          tJumpShift = .false.
 !Feb 08 default set.
           IF(Feb08) THEN
               RhoEpsilon=1.0e-8_dp
@@ -1541,6 +1540,13 @@ contains
                 call Getf(RealSpawnCutoff)
             case("SETOCCUPIEDTHRESH")
                 call Getf(OccupiedThresh)
+
+            case("JUMP-SHIFT")
+                ! When variable shift is enabled, jump the shift to the value
+                ! predicted by the projected energy!
+                ! --> Reduce the waiting time while the number of particles is
+                !     growing.
+                tJumpShift = .true.
 
             case default
                 call report("Keyword "                                &

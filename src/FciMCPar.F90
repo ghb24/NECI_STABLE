@@ -39,7 +39,7 @@ MODULE FciMCParMod
                         tContinueAfterMP2,iExitWalkers,MemoryFacPart, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tPopsMapping, &
                         tSpawn_Only_Init_Grow, RealCoeffExcitThresh, &
-                        tRealSpawnCutoff, RealSpawnCutoff
+                        tRealSpawnCutoff, RealSpawnCutoff, tJumpShift
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
@@ -1145,37 +1145,36 @@ MODULE FciMCParMod
             ! excite from the first particle on a determinant).
             fcimc_excit_gen_store%tFilled = .false.
 
-            if (tSpawn_Only_Init) then
-                call extract_sign (CurrentDets(:,j), SignCurr)
+!            if (tSpawn_Only_Init) then
+!                call extract_sign (CurrentDets(:,j), SignCurr)
+!
+!                ! TODO: Ensure that the HF determinant has its flags setup
+!                !       correctly at the start of a run.
+!                call CalcParentFlag (j, VecSlot, parent_flags)
+!
+!                ! If we are only spawning from initiators, we don't need to do this decoding
+!                ! if CurrentDet is a non-initiator otherwise it is necessary either way.
+!
+!                if (tcurr_initiator)                                         & 
+!                    ! tcurr_initiator is a global variable which indicates that at least one of the 
+!                    ! 'types' of walker on this determinant is an initiator.
+!                    ! Decode determinant from (stored) bit-representation.
+!                    call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
+!                                      FlagsCurr, fcimc_excit_gen_store)
+!            else                                      
 
-                ! TODO: Ensure that the HF determinant has its flags setup
-                !       correctly at the start of a run.
-                call CalcParentFlag (j, VecSlot, parent_flags)
+            ! If we're not calculating the RDM (or we're calculating some HFSD combination of the 
+            ! RDM) this just extracts info from the bit representation like normal.
+            ! IterRDMStartCurr and AvSignCurr just come out as 1.0_dp.  
+            ! Otherwise, it extracts the Curr info, and calculates the iteration this determinant 
+            ! became occupied (IterRDMStartCurr) and the average population during that time 
+            ! (AvSignCurr).
 
-                ! If we are only spawning from initiators, we don't need to do this decoding
-                ! if CurrentDet is a non-initiator otherwise it is necessary either way.
+            call extract_bit_rep_avsign (CurrentDets(:,j), CurrentH(1:NCurrH,j), &
+                                        DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
+                                        AvSignCurr, fcimc_excit_gen_store)
 
-                if (tcurr_initiator)                                         & 
-                    ! tcurr_initiator is a global variable which indicates that at least one of the 
-                    ! 'types' of walker on this determinant is an initiator.
-                    ! Decode determinant from (stored) bit-representation.
-                    call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
-                                      FlagsCurr, fcimc_excit_gen_store)
-            else                                      
-                ! If we're not calculating the RDM (or we're calculating some HFSD combination of the 
-                ! RDM) this just extracts info from the bit representation like normal.
-                ! IterRDMStartCurr and AvSignCurr just come out as 1.0_dp.  
-                ! Otherwise, it extracts the Curr info, and calculates the iteration this determinant 
-                ! became occupied (IterRDMStartCurr) and the average population during that time 
-                ! (AvSignCurr).
-
-                call extract_bit_rep_avsign (CurrentDets(:,j), CurrentH(1:NCurrH,j), &
-                                            DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
-                                            AvSignCurr, fcimc_excit_gen_store)
-
-                if (tTruncInitiator) call CalcParentFlag (j, VecSlot, parent_flags)
-
-            endif                                                          
+            if (tTruncInitiator) call CalcParentFlag (j, VecSlot, parent_flags)
 
             if(tHashWalkerList) then
                 !Test here as to whether this is a "hole" or not...
@@ -3739,7 +3738,11 @@ MODULE FciMCParMod
         real(dp) :: AllGrowRateRe, AllGrowRateIm, AllHFGrowRate
         real(dp), dimension(lenof_sign) :: denominator, all_denominator
         integer :: error, i, proc, pos
+        logical :: defer_update
 
+        ! Normally we allow the shift to vary depending on the conditions
+        ! tested. Sometimes we want to defer this to the next cycle...
+        defer_update = .false.
 
 !        call neci_flush(iout)
 !        CALL MPIBarrier(error)
@@ -3823,6 +3826,14 @@ MODULE FciMCParMod
                         write(iout,*) "All determinants now with the ability to spawn new walkers."
                         tSpawn_Only_Init=.false.
                     endif
+
+                    ! If enabled, jump the shift to the value preducted by the
+                    ! projected energy!
+                    if (tJumpShift) then
+                        DiagSft = real(proje_iter)
+                        defer_update = .true.
+                    end if
+
                 endif
             elseif (abs_sign(AllNoatHF) < (MaxNoatHF - HFPopThresh)) then
                 write (iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
@@ -3834,7 +3845,8 @@ MODULE FciMCParMod
 
             ! How should the shift change for the entire ensemble of walkers 
             ! over all processors.
-            if ((.not. tSinglePartPhase).or.(TargetGrowRate.ne.0.0_dp)) then
+            if (((.not. tSinglePartPhase).or.(TargetGrowRate.ne.0.0_dp)) .and.&
+                .not. defer_update) then
 
                 !In case we want to continue growing, TargetGrowRate > 0.0_dp
                 ! New shift value

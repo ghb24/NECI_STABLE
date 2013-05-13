@@ -1189,8 +1189,10 @@ MODULE GenRandSymExcitNUMod
     END SUBROUTINE PickElecPair
 
     SUBROUTINE CheckIfSingleExcits(ElecsWNoExcits,ClassCount2,ClassCountUnocc2,nI)
-        INTEGER :: ElecsWNoExcits,ClassCount2(ScratchSize),ClassCountUnocc2(ScratchSize),i
-        INTEGER :: nI(NEl)
+        INTEGER, intent(out) :: ElecsWNoExcits
+        integer, intent(in) :: ClassCount2(ScratchSize),ClassCountUnocc2(ScratchSize)
+        INTEGER, intent(in) :: nI(NEl)
+        integer :: i
 
 !First, we need to find out if there are any electrons which have no possible excitations. 
 !This is because these will need to be redrawn and so will affect the probabilities.

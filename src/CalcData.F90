@@ -102,5 +102,6 @@ INTEGER iLogicalNodeSize  !An alternative to the above, create logical nodes of 
                           ! 0 means use physical nodes.
 
 logical :: tContinueAfterMP2 ! UEG option only
+    logical :: tJumpShift
 
 end module CalcData
