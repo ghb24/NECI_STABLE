@@ -954,7 +954,7 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                 endif
             endif
                 
-            if((.not.tSuccess).or.(sum(abs(CurrentSign)) .eq. 0)) then
+            if((.not.tSuccess).or.(tSuccess.and.(sum(abs(CurrentSign)) .eq. 0))) then
                 if(tTruncInitiator) then
                     ! Determinant in newly spawned list is not found in currentdets - usually this 
                     ! would mean the walkers just stay in this list and get merged later - but in 
@@ -995,7 +995,7 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                             SignTemp(j) = 0
                             call encode_part_sign (SpawnedParts(:,i), 0, j)
 
-                            if(tHashWalkerList.and.(sum(abs(CurrentSign)) .eq. 0)) then
+                            if(tHashWalkerList.and.(tSuccess.and.sum(abs(CurrentSign)).eq.0)) then
                                 !All walkers in this main list have died, and none have been spawned onto it.
                                 !Remove it from the hash index array so that no others find it (it is impossible to have
                                 !another spawned walker yet to find this determinant)
@@ -1271,6 +1271,7 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
 !            write(6,*) "i, HashIndex(i,DetHash): ",i, HashIndex(i,DetHash)
             if(HashIndex(i,DetHash).eq.DetPosition) exit
         enddo
+!        write(6,*) "Det: ",nI(:)
 !        write(6,*) "DetHash: ",DetHash
 !        write(6,*) "FinalVal: ",FinalVal
 !        write(6,*) "DetPosition: ",DetPosition
