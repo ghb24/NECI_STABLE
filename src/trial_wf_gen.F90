@@ -32,20 +32,20 @@ contains
 
         integer :: i, ierr, num_states_on_proc
         integer :: excit, tot_trial_space_size, tot_con_space_size
-        integer :: con_storage_space_size, min_element, max_element, num_elements
+        integer :: min_element, max_element, num_elements
         integer(MPIArg) :: sendcounts(0:nProcessors-1), recvcounts(0:nProcessors-1)
         integer(MPIArg) :: senddisps(0:nProcessors-1), recvdisps(0:nProcessors-1)
         integer(n_int), allocatable, dimension(:,:) :: temp_space
         integer :: nI(nel)
-        character (len=*), parameter :: this_routine = "init_trial_wf"
+        character (len=*), parameter :: t_r = "init_trial_wf"
 
         write(6,'()')
         write(6,'(a56)') "=========== Trial wavefunction initialisation =========="
 
         ! Simply allocate the trial vector to have up to 1 million elements for now...
         allocate(trial_space(0:NIfTot, 1000000), stat=ierr)
-        call LogMemAlloc('trial_space', 1000000*(NIfTot+1), size_n_int, this_routine, &
-                                                                      TrialTag, ierr)
+        call LogMemAlloc('trial_space', 1000000*(NIfTot+1), size_n_int, t_r, TrialTag, ierr)
+
         trial_space = 0
         trial_space_size = 0
 
@@ -67,6 +67,13 @@ contains
             call generate_low_energy_core(called_from_trial)
         end if
 
+        if (tLimitTrialSpace) call remove_high_energy_orbs&
+                                       (trial_space(:, 1:trial_space_size), &
+                                        trial_space_size, max_trial_size, .true.)
+
+        write(6,'(a38,1X,i8)') "Size of trial space on this processor:", trial_space_size
+        call neci_flush(6)
+
         ! At this point, each processor has only those states which reside on them, and
         ! have only counted those states. Send all states to all processors for the next bit.
         call MPIAllGather(int(trial_space_size,MPIArg), recvcounts, ierr)
@@ -76,33 +83,22 @@ contains
             recvdisps(i) = sum(recvcounts(:i-1))
         end do
 
+        write(6,'(a30,1X,i8)') "Total size of the trial space:", tot_trial_space_size
+        call neci_flush(6)
+
         ! Use SpawnedParts as temporary space:
         SpawnedParts(:, 1:trial_space_size) = trial_space(:, 1:trial_space_size)
         call MPIAllGatherV(SpawnedParts(:, 1:trial_space_size), &
                            trial_space(:, 1:tot_trial_space_size), recvcounts, recvdisps)
         SpawnedParts = 0
 
+        ! Temporarily set this to be the case.
         trial_space_size = tot_trial_space_size
 
         call sort(trial_space(0:NIfTot, 1:trial_space_size), ilut_lt, ilut_gt)
 
-        if (tLimitTrialSpace) call remove_high_energy_orbs&
-                                       (trial_space(:, 1:trial_space_size), &
-                                        trial_space_size, max_trial_size, .false.)
-
         allocate(trial_wf(trial_space_size), stat=ierr)
-        call LogMemAlloc('trial_wf', trial_space_size, 8, this_routine, &
-                         TrialWFTag, ierr)
-
-        ! To allocate storage space for the connected space states, assume that each state
-        ! in the trial space has roughly as many connected states as the HF state (nSingles+
-        ! nDoubles), and a factor of 2.0 for safety. Also divide by the number of processors.
-        con_storage_space_size = &
-            ceiling(2.0*real(trial_space_size)/real(nProcessors))*(nSingles+nDoubles)
-        allocate(con_space(0:NIfTot, con_storage_space_size), stat=ierr)
-        call LogMemAlloc('con_space', con_storage_space_size*(NIfTot+1), &
-                                           size_n_int, this_routine, ConTag, ierr)
-        con_space = 0
+        call LogMemAlloc('trial_wf', trial_space_size, 8, t_r, TrialWFTag, ierr)
         
         call assign_elements_on_procs(trial_space_size, min_element, max_element, num_elements)
 
@@ -111,20 +107,38 @@ contains
             ! Find the states connected to the trial space. This typically takes a long time, so
             ! it is done in parallel by letting each processor find the states connected to a
             ! portion of the trial space.
-            write(6,'(a33)') "Generating the connected space..."
+            write(6,'(a58)') "Calculating the number of states in the connected space..."
             call neci_flush(6)
+
             call generate_connected_space(num_elements, trial_space(:, min_element:max_element), &
-                                          con_space_size, con_space, con_storage_space_size)
+                                          con_space_size)
+
+            allocate(con_space(0:NIfTot, con_space_size), stat=ierr)
+            call LogMemAlloc('con_space', con_space_size*(NIfTot+1), size_n_int, t_r, ConTag, ierr)
+            con_space = 0
+
+            write(6,'(a50,1X,i8)') "States found on this processor, including repeats:", con_space_size
+
+            write(6,'(a45)') "Generating and storing the connected space..."
+            call neci_flush(6)
+
+            call generate_connected_space(num_elements, trial_space(:, min_element:max_element), &
+                                          con_space_size, con_space)
+
+            write(6,'(a52)') "Removing repeated states and sorting by processor..."
+            call neci_flush(6)
 
             call remove_repeated_states(con_space, con_space_size)
 
-            call sort_space_by_proc(con_space(:, 1:con_space_size), &
-                                    con_space_size, sendcounts)
+            call sort_space_by_proc(con_space(:, 1:con_space_size), con_space_size, sendcounts)
 
         else
             con_space_size = 0
             sendcounts = 0
         end if
+
+        write(6,'(a51)') "Performing MPI communication of connected states..."
+        call neci_flush(6)
 
         ! Send the connected states to their processors.
         ! sendcounts holds the number of states to send to other processors from this one.
@@ -142,29 +156,30 @@ contains
         end do
 
         allocate(temp_space(0:NIfTot, con_space_size), stat=ierr)
-        call LogMemAlloc('temp_space', con_space_size*(NIfTot+1), size_n_int, &
-                                                        this_routine, TempTag, ierr)
+        call LogMemAlloc('temp_space', con_space_size*(NIfTot+1), size_n_int, t_r, TempTag, ierr)
 
         call MPIAlltoAllV(con_space, sendcounts, senddisps, temp_space, recvcounts, recvdisps, ierr)
 
         deallocate(con_space, stat=ierr)
-        call LogMemDealloc(this_routine, ConTag, ierr)
+        call LogMemDealloc(t_r, ConTag, ierr)
         allocate(con_space(0:NIfTot, 1:con_space_size), stat=ierr)
-        call LogMemAlloc('con_space', con_space_size*(NIfTot+1), size_n_int, &
-                                                        this_routine, ConTag, ierr)
+        call LogMemAlloc('con_space', con_space_size*(NIfTot+1), size_n_int, t_r, ConTag, ierr)
         con_space = temp_space
         deallocate(temp_space, stat=ierr)
-        call LogMemDealloc(this_routine, TempTag, ierr)
+        call LogMemDealloc(t_r, TempTag, ierr)
         ! Finished sending to states to their processors.
 
         call remove_repeated_states(con_space, con_space_size)
 
         ! Remove states in the connected space which are also in the trial space.
         call remove_list1_states_from_list2(trial_space, con_space, &
-            trial_space_size, con_space_size)
+                                            trial_space_size, con_space_size)
 
-        tot_trial_space_size = trial_space_size
         call MPISumAll(con_space_size, tot_con_space_size)
+
+        write(6,'(a30,1X,i8)') "Total size of connected space:", tot_con_space_size
+        write(6,'(a42,1X,i8)') "Size of connected space on this processor:", con_space_size
+        call neci_flush(6)
 
         ! Now the correct states in both the trial space and connected space have been fully
         ! generated. We want both lists to be sorted in the same order as CurrentDets (to use
@@ -192,15 +207,14 @@ contains
 
             call deallocate_sparse_ham()
             deallocate(hamil_diag, stat=ierr)
-            call LogMemDealloc(this_routine, HDiagTag, ierr)
+            call LogMemDealloc(t_r, HDiagTag, ierr)
         else
             if (allocated(davidson_eigenvector)) then
                 deallocate(davidson_eigenvector, stat=ierr)
-                call LogMemDealloc(this_routine, DavidsonTag, ierr)
+                call LogMemDealloc(t_r, DavidsonTag, ierr)
             end if
             allocate(davidson_eigenvector(trial_space_size), stat=ierr)
-            call LogMemAlloc("davidson_eigenvector", trial_space_size, 8, this_routine, &
-                             DavidsonTag, ierr)
+            call LogMemAlloc("davidson_eigenvector", trial_space_size, 8, t_r, DavidsonTag, ierr)
         end if
 
         call MPIBCast(trial_energy, 1, root)
@@ -213,43 +227,37 @@ contains
         ! Remove all states in trial_space that do not belong to this processor (and move the
         ! amplitudes in trial_wf at the same time).
         allocate(temp_space(0:NIfTot, trial_space_size), stat=ierr)
-        call LogMemAlloc('temp_space', trial_space_size*(NIfTot+1), size_n_int, this_routine, &
-                                                                                TempTag, ierr)
+        call LogMemAlloc('temp_space', trial_space_size*(NIfTot+1), size_n_int, t_r, TempTag, ierr)
         temp_space = trial_space(0:NIfTot, 1:trial_space_size)
         call remove_states_not_on_proc(temp_space, trial_space_size, .true.)
         deallocate(trial_space, stat=ierr)
-        call LogMemDealloc(this_routine, TrialTag, ierr)
+        call LogMemDealloc(t_r, TrialTag, ierr)
         allocate(trial_space(0:NIfTot, trial_space_size), stat=ierr)
-        call LogMemAlloc('trial_space', trial_space_size*(NIfTot+1), size_n_int, this_routine, &
-                                                                                TrialTag, ierr)
+        call LogMemAlloc('trial_space', trial_space_size*(NIfTot+1), size_n_int, t_r, TrialTag, ierr)
         trial_space = temp_space(0:NIfTot, 1:trial_space_size)
 
         ! Finally, correct the size of the trial_wf array. Use Davidson eigenvector
         ! as temporary space.
         davidson_eigenvector = trial_wf
         deallocate(trial_wf, stat=ierr)
-        call LogMemDealloc(this_routine, TrialWFTag, ierr)
+        call LogMemDealloc(t_r, TrialWFTag, ierr)
         allocate(trial_wf(trial_space_size), stat=ierr)
-        call LogMemAlloc('trial_wf', trial_space_size, 8, this_routine, TrialWFTag, ierr)
+        call LogMemAlloc('trial_wf', trial_space_size, 8, t_r, TrialWFTag, ierr)
         trial_wf = davidson_eigenvector(1:trial_space_size)
 
         call MPIBarrier(ierr)
 
         if (tWriteTrial) call write_trial_space()
 
-        write(6,'(a30,1X,i8)') "Total size of the trial space:", tot_trial_space_size
-        write(6,'(a38,1X,i8)') "Size of trial space on this processor:", trial_space_size
-        write(6,'(a30,1X,i8)') "Total size of connected space:", tot_con_space_size
-        write(6,'(a42,1X,i8)') "Size of connected space on this processor:", con_space_size
+        ! Deallocate remaining arrays.
+        deallocate(temp_space, stat=ierr)
+        call LogMemDealloc(t_r, TempTag, ierr)
+        deallocate(davidson_eigenvector, stat=ierr)
+        call LogMemDealloc(t_r, DavidsonTag, ierr)
+
         write(6,'(a37,1X,f13.7)') "Energy eigenvalue of the trial space:", trial_energy
         write(6,'(a43)') "Trial wavefunction initialisation complete."
         call neci_flush(6)
-
-        ! Deallocate remaining arrays.
-        deallocate(temp_space, stat=ierr)
-        call LogMemDealloc(this_routine, TempTag, ierr)
-        deallocate(davidson_eigenvector, stat=ierr)
-        call LogMemDealloc(this_routine, DavidsonTag, ierr)
 
     end subroutine init_trial_wf
 

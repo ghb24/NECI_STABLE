@@ -14,7 +14,6 @@ module enumerate_excitations
     use FciMCData, only: SpinInvBRR
     use HPHFRandExcitMod, only: FindExcitBitDetSym
     use Parallel_neci, only: MPISumAll
-    use semi_stoch_procs, only: check_if_connected_to_old_space
     use sort_mod, only: sort
     use SymData, only: nSymLabels
     use SymExcitDataMod
@@ -520,18 +519,17 @@ contains
     end subroutine enumerate_spatial_excitations
 
     subroutine generate_connected_space(original_space_size, original_space, connected_space_size, &
-        connected_space, storage_space_size, tSinglesOnly)
+        connected_space, tSinglesOnly)
 
         integer, intent(in) :: original_space_size
         integer(n_int), intent(in) :: original_space(0:NIfTot, original_space_size)
-        integer, intent(in) :: storage_space_size
-        integer, intent(out) :: connected_space_size
-        integer(n_int), intent(out) :: connected_space(0:NIfTot, storage_space_size)
+        integer, intent(inout) :: connected_space_size
+        integer(n_int), optional, intent(out) :: connected_space(0:NIfTot, connected_space_size)
         logical, intent(in), optional :: tSinglesOnly
 
         integer(n_int) :: ilut(0:NIfTot), ilut_tmp(0:NIfTot)
         integer :: nI(nel)
-        integer :: i, counter
+        integer :: i, counter, storage_space_size
         logical :: first_loop, connected, tSkipDoubles
         type(excit_store), target :: gen_store
         character (len=1024) :: storage_space_string
@@ -583,19 +581,9 @@ contains
                     end if
                 end if
 
-                ! Check if any of the states in the old space is connected to the state
-                ! just generated. If so, this function returns the value true for the
-                ! logical connected. In this case, this state is then added to the new ilut
-                ! store.
-                call check_if_connected_to_old_space(original_space, nI, ilut, &
-                    original_space_size, connected_space_size, connected)
-                if (connected_space_size > storage_space_size) then
-                    write (storage_space_string, '(I10)') storage_space_size
-                    call stop_all("generate_connected_space","No space left in storage array &
-                    &for the next connected space state. "//trim(storage_space_string)//" &
-                    &elements were allocated and this number has been exceeded.")
-                end if
-                if (connected) connected_space(0:NIfD, connected_space_size) = ilut(0:NIfD)
+                connected_space_size = connected_space_size + 1
+
+                if (present(connected_space)) connected_space(0:NIfD, connected_space_size) = ilut(0:NIfD)
 
             end do
 
@@ -628,15 +616,9 @@ contains
                     end if
                 end if
 
-                call check_if_connected_to_old_space(original_space, nI, ilut, &
-                    original_space_size, connected_space_size, connected)
-                if (connected_space_size > storage_space_size) then
-                    write (storage_space_string, '(I10)') storage_space_size
-                    call stop_all("generate_connected_space","No space left in storage array &
-                    &for the next connected space state. "//trim(storage_space_string)//" &
-                    &elements were allocated and this number has been exceeded.")
-                end if
-                if (connected) connected_space(0:NIfD, connected_space_size) = ilut(0:NIfD)
+                connected_space_size = connected_space_size + 1
+
+                if (present(connected_space)) connected_space(0:NIfD, connected_space_size) = ilut(0:NIfD)
 
             end do
 

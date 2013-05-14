@@ -54,7 +54,7 @@ contains
         integer :: i, j, IC, ierr, comp
         integer :: nI(nel)
         integer(MPIArg) :: mpi_temp
-        character (len=*), parameter :: this_routine = "init_semi_stochastic"
+        character (len=*), parameter :: t_r = "init_semi_stochastic"
 
         write(6,'()')
         write(6,'(a56)') "============ Semi-stochastic initialisation ============"
@@ -97,14 +97,14 @@ contains
 
         ! Allocate the vectors to store the psip amplitudes and the deterministic Hamiltonian.
         allocate(full_determ_vector(determ_space_size), stat=ierr)
-        call LogMemAlloc('full_determ_vector', int(determ_space_size,sizeof_int), 8, this_routine, &
+        call LogMemAlloc('full_determ_vector', int(determ_space_size,sizeof_int), 8, t_r, &
                          FDetermTag, ierr)
         allocate(partial_determ_vector(determ_proc_sizes(iProcIndex)), stat=ierr)
         call LogMemAlloc('partial_determ_vector', int(determ_proc_sizes(iProcIndex), &
-                         sizeof_int), 8, this_routine, PDetermTag, ierr)
+                         sizeof_int), 8, t_r, PDetermTag, ierr)
         allocate(core_hamiltonian(determ_proc_sizes(iProcIndex), determ_space_size), stat=ierr)
         call LogMemAlloc('core_hamiltonian', int(determ_space_size*&
-                         &determ_proc_sizes(iProcIndex),sizeof_int), 8, this_routine, CoreTag, ierr)
+                         &determ_proc_sizes(iProcIndex),sizeof_int), 8, t_r, CoreTag, ierr)
 
         full_determ_vector = 0.0_dp
         partial_determ_vector = 0.0_dp
@@ -112,7 +112,7 @@ contains
         ! This array will hold the positions of the deterministic states in CurrentDets.
         allocate(indices_of_determ_states(determ_proc_sizes(iProcIndex)), stat=ierr)
         call LogMemAlloc('indices_of_determ_states', int(determ_proc_sizes(iProcIndex), &
-                         sizeof_int), bytes_int, this_routine, FDetermTag, ierr)
+                         sizeof_int), bytes_int, t_r, FDetermTag, ierr)
 
         ! Calculate the indices in the full vector at which the various processors take over, relative
         ! to the first index position in the vector (i.e. the array disps in MPI routines).
@@ -451,7 +451,7 @@ contains
         integer, pointer :: CASDets(:,:) => null()
         integer :: OccOrbs, VirtOrbs, iCASDet
         integer(TagIntType) :: CASDetsTag, IlutTag
-        character (len=*), parameter :: this_routine = "generate_cas"
+        character (len=*), parameter :: t_r = "generate_cas"
 
         if (called_from == called_from_semistoch) then
             OccOrbs = OccDetermCASOrbs
@@ -513,13 +513,12 @@ contains
         ! Now allocate the array CASDets. CASDets(:,i) will store the orbitals in the active space
         ! which are occupied in the i'th determinant generated.
         allocate(CASDets(OccOrbs, nCASDet), stat=ierr)
-        call LogMemAlloc("CASDets", OccOrbs*nCASDet, 8, this_routine, CASDetsTag, ierr)
+        call LogMemAlloc("CASDets", OccOrbs*nCASDet, 8, t_r, CASDetsTag, ierr)
         CASDets(:,:) = 0
 
         if (tCASCore) then
             allocate(ilut_store(nCASDet-1, 0:NIfTot), stat=ierr)
-            call LogMemAlloc("ilut_store", (nCASDet-1)*(NIfTot+1), size_n_int, this_routine, &
-                             IlutTag, ierr)
+            call LogMemAlloc("ilut_store", (nCASDet-1)*(NIfTot+1), size_n_int, t_r, IlutTag, ierr)
             ilut_store = 0
             counter = 1
         end if
@@ -565,9 +564,9 @@ contains
         deallocate(CASBrr)
         deallocate(CASRef)
         deallocate(CASDets, stat=ierr)
-        call LogMemDealloc(this_routine, CASDetsTag, ierr)
+        call LogMemDealloc(t_r, CASDetsTag, ierr)
         deallocate(ilut_store, stat=ierr)
-        call LogMemDealloc(this_routine, IlutTag, ierr)
+        call LogMemDealloc(t_r, IlutTag, ierr)
 
     end subroutine generate_cas
 
@@ -607,7 +606,7 @@ contains
         real(dp), allocatable, dimension(:) :: space_cutoff_amp
         logical :: tAmplitudeCutoff, tLimitSpace
         integer(TagIntType) :: IlutTag, TempTag, FinalTag
-        character (len=*), parameter :: this_routine = "generate_optimised_core"
+        character (len=*), parameter :: t_r = "generate_optimised_core"
 
         if (iProcIndex == root) then
 
@@ -648,11 +647,9 @@ contains
             ! For now, assume that we won't have a deterministic space of more than one
             ! million states. Could make this user-specified later.
             allocate(ilut_store(0:NIfTot, 1000000), stat=ierr)
-            call LogMemAlloc("ilut_store", 1000000*(NIfTot+1), size_n_int, this_routine, &
-                             IlutTag, ierr)
+            call LogMemAlloc("ilut_store", 1000000*(NIfTot+1), size_n_int, t_r, IlutTag, ierr)
             allocate(temp_space(0:NIfTot, 1000000), stat=ierr)
-            call LogMemAlloc("temp_store", 1000000*(NIfTot+1), size_n_int, this_routine, &
-                             TempTag, ierr)
+            call LogMemAlloc("temp_store", 1000000*(NIfTot+1), size_n_int, t_r, TempTag, ierr)
             ilut_store = 0
             temp_space = 0
 
@@ -676,8 +673,10 @@ contains
                 ! Find all states connected to the states currently in ilut_store.
                 write(6,'(a29)') "Generating connected space..."
                 call neci_flush(6)
+                ! Allow for up to 1 million connected states to be created.
+                new_num_states = 1000000
                 call generate_connected_space(old_num_states, ilut_store(:, 1:old_num_states), &
-                                              new_num_states, temp_space(:, 1:1000000), 1000000)
+                                              new_num_states, temp_space(:, 1:1000000))
                 write(6,'(a26)') "Connected space generated."
                 call neci_flush(6)
 
@@ -741,7 +740,7 @@ contains
 
                 call deallocate_sparse_ham()
                 deallocate(hamil_diag, stat=ierr)
-                call LogMemDealloc(this_routine, HDiagTag, ierr)
+                call LogMemDealloc(t_r, HDiagTag, ierr)
 
             end do
 
@@ -794,9 +793,9 @@ contains
         if (allocated(space_cutoff_amp)) deallocate(space_cutoff_amp)
         if (iProcIndex == root) then
             deallocate(temp_space, stat=ierr)
-            call LogMemDealloc(this_routine, TempTag, ierr)
+            call LogMemDealloc(t_r, TempTag, ierr)
             deallocate(ilut_store, stat=ierr)
-            call LogMemDealloc(this_routine, IlutTag, ierr)
+            call LogMemDealloc(t_r, IlutTag, ierr)
         end if
 
     end subroutine generate_optimised_core
@@ -947,7 +946,7 @@ contains
         logical :: tAllDoubles, tSinglesOnly
         integer(n_int), allocatable, dimension(:,:) :: ilut_store, temp_space
         integer(TagIntType) :: IlutTag, TempTag
-        character (len=*), parameter :: this_routine = "generate_low_energy_core"
+        character (len=*), parameter :: t_r = "generate_low_energy_core"
 
         ! Use the correct set of parameters, depending this function was called
         ! from for generating the deterministic space or the trial space:
@@ -972,11 +971,9 @@ contains
                                                 &will be generated in the first iteration.")
 
         allocate(ilut_store(0:NIfTot, 1000000), stat=ierr)
-        call LogMemAlloc("ilut_store", 1000000*(NIfTot+1), size_n_int, this_routine, &
-                         IlutTag, ierr)
+        call LogMemAlloc("ilut_store", 1000000*(NIfTot+1), size_n_int, t_r, IlutTag, ierr)
         allocate(temp_space(0:NIfTot, 1000000), stat=ierr)
-        call LogMemAlloc("temp_store", 1000000*(NIfTot+1), size_n_int, this_routine, &
-                         TempTag, ierr)
+        call LogMemAlloc("temp_store", 1000000*(NIfTot+1), size_n_int, t_r, TempTag, ierr)
         ilut_store = 0
         temp_space = 0
 
@@ -1004,9 +1001,10 @@ contains
             end if
 
             ! Find all *single* excitations (not doubles) to the states in ilut_store.
+            ! Allow for up to 1 million connected states.
+            new_num_states = 1000000
             call generate_connected_space(old_num_states, ilut_store(:, 1:old_num_states), &
-                                          new_num_states, temp_space(:, 1:1000000), &
-                                          1000000, tSinglesOnly)
+                                          new_num_states, temp_space(:, 1:1000000), tSinglesOnly)
 
             ! Add these states to the ones already in the ilut stores.
             ilut_store(:, old_num_states+1:old_num_states+new_num_states) = &
@@ -1038,9 +1036,9 @@ contains
         end do
 
         deallocate(temp_space, stat=ierr)
-        call LogMemDealloc(this_routine, TempTag, ierr)
+        call LogMemDealloc(t_r, TempTag, ierr)
         deallocate(ilut_store, stat=ierr)
-        call LogMemDealloc(this_routine, IlutTag, ierr)
+        call LogMemDealloc(t_r, IlutTag, ierr)
 
     end subroutine generate_low_energy_core
 

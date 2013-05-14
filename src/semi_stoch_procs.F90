@@ -160,13 +160,13 @@ contains
         integer(n_int), allocatable, dimension(:,:) :: temp_store
         real(dp), allocatable, dimension(:,:) :: test_hamiltonian
         integer(TagIntType) :: TempStoreTag
-        character (len=*), parameter :: this_routine = "calculate_det_hamiltonian_normal"
+        character (len=*), parameter :: t_r = "calculate_det_hamiltonian_normal"
 
         ! temp_store is storage space for bitstrings so that the Hamiltonian matrix
         ! elements can be calculated.
         allocate(temp_store(0:NIfTot, maxval(determ_proc_sizes)), stat=ierr)
-        call LogMemAlloc('temp_store', maxval(determ_proc_sizes)*(NIfTot+1), 8, &
-                         this_routine, TempStoreTag, ierr)
+        call LogMemAlloc('temp_store', maxval(determ_proc_sizes)*(NIfTot+1), 8, t_r, &
+                         TempStoreTag, ierr)
 
         ! Loop over each processor in order and broadcast the sorted vector of bitstrings
         ! from the processor to all other processors so that all matrix elements can be found.
@@ -225,55 +225,9 @@ contains
         call MPIBarrier(ierr)
 
         deallocate(temp_store, stat=ierr)
-        call LogMemDealloc(this_routine, TempStoreTag, ierr)
+        call LogMemDealloc(t_r, TempStoreTag, ierr)
 
     end subroutine calculate_det_hamiltonian_normal
-
-    subroutine check_if_connected_to_old_space(ilut_store_old, nI, ilut, num_states, &
-                                               counter, connected)
-
-        ! This subroutine loops over all states in the old space and sees if any of them is
-        ! connected to the state ilut. If so, it also adds one to counter.
-
-        integer(n_int), intent(in) :: ilut_store_old(0:NIfTot, 1000000)
-        integer, intent(in) :: nI(nel)
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer, intent(in) :: num_states
-        integer, intent(inout) :: counter
-        logical, intent(inout) :: connected
-        integer :: nJ(nel)
-        real(dp) :: matrix_element
-        integer :: i
-
-        connected = .false.
-
-        ! Loop over all states in the old space and see if any of them is connected
-        ! to the state just generated.
-        do i = 1, num_states
-            ! If this is true then the state is *in* the old space. These states
-            ! aren't required in the defined space generated, so we can skip them
-            ! (although they can be included too, as most will be, and removed afterwards
-            ! with an annihilation-like step, for simplicity).
-            if (DetBitEQ(ilut, ilut_store_old(:, i), NIfDBO)) return
-
-            call decode_bit_det(nJ, ilut_store_old(0:NIfD, i))
-
-            if (.not. tHPHF) then
-                matrix_element = get_helement(nI, nJ, ilut, ilut_store_old(:, i))
-            else
-                matrix_element = hphf_off_diag_helement(nI, nJ, ilut, ilut_store_old(:, i))
-            end if
-
-            ! If true, then this state should be added to the new ilut store, so
-            ! return connected as true.
-            if (abs(matrix_element) > 0.0_dp) then
-                counter = counter + 1 
-                connected = .true.
-                return
-            end if
-        end do
-
-    end subroutine check_if_connected_to_old_space
 
     subroutine remove_repeated_states(list, list_size)
 
@@ -469,9 +423,17 @@ contains
         integer, intent(in) :: ilut_list_size
         integer(n_int) :: ilut_list(0:NIfTot, 1:ilut_list_size)
         integer(MPIArg), intent(out) :: num_states_procs(0:nProcessors-1)
+        integer, allocatable, dimension(:,:) :: temp_list
         integer :: proc_list(ilut_list_size)
         integer :: nI(nel)
-        integer :: i
+        integer :: i, ierr
+        integer :: counter(0:nProcessors-1)
+        integer(TagIntType) :: TempConTag
+        character (len=*), parameter :: t_r = "sort_space_by_proc"
+
+        allocate(temp_list(0:NIfTot, ilut_list_size), stat=ierr)
+        call LogMemAlloc('con_space_temp', ilut_list_size*(NIfTot+1), size_n_int, t_r, &
+                         TempConTag, ierr)
 
         num_states_procs = 0
 
@@ -482,8 +444,20 @@ contains
             num_states_procs(proc_list(i)) = num_states_procs(proc_list(i)) + 1
         end do
 
-        ! Now sort the list according to this processor number.
-        call sort(proc_list, ilut_list(0:NIfTot, 1:ilut_list_size))
+        counter(0) = 0
+        do i = 1, nProcessors-1
+            counter(i) = sum(num_states_procs(:i-1))
+        end do
+
+        do i = 1, ilut_list_size
+            counter(proc_list(i)) = counter(proc_list(i)) + 1 
+            temp_list(:, counter(proc_list(i))) = ilut_list(:,i)
+        end do
+
+        ilut_list = temp_list
+
+        deallocate(temp_list, stat=ierr)
+        call LogMemDealloc(t_r, TempConTag, ierr)
 
     end subroutine sort_space_by_proc
 
