@@ -293,6 +293,8 @@ contains
         integer :: nI(nel)
         integer :: space_size
         integer :: i, ierr
+
+        write(6,*) "ilutHF:", ilutHF
  
         ! Start by adding the HF state.
         call add_state_to_space(ilutHF, called_from)

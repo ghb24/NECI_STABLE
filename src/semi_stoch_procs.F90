@@ -526,8 +526,10 @@ contains
         ! And if the state is already present, simply set its flag.
         ! Also sort the states afterwards.
 
-        integer :: i, MinInd, PartInd, n_walkers
+        integer :: i, comp, MinInd, PartInd, n_walkers
         logical :: tSuccess
+
+        integer :: j
 
         MinInd = 1
         n_walkers = int(TotWalkers,sizeof_int)
@@ -535,7 +537,23 @@ contains
         do i = 1, determ_proc_sizes(iProcIndex)
 
             if (n_walkers > 0) then
-                call BinSearchParts(SpawnedParts(:,i), MinInd, n_walkers, PartInd, tSuccess)
+                ! If there is only one state in CurrentDets to check then BinSearchParts doesn't
+                ! return the desired value for PartInd, so do this separately...
+                if (MinInd == n_walkers) then
+                    comp = DetBitLT(CurrentDets(:,MinInd), SpawnedParts(:,i), NIfDBO, .false.)
+                    if (comp == 0) then
+                        tSuccess = .true.
+                        PartInd = MinInd
+                    else if (comp == 1) then
+                        tSuccess = .false.
+                        PartInd = MinInd
+                    else if (comp == -1) then
+                        tSuccess = .false.
+                        PartInd = MinInd - 1
+                    end if
+                else
+                    call BinSearchParts(SpawnedParts(:,i), MinInd, n_walkers, PartInd, tSuccess)
+                end if
             else
                 tSuccess = .false.
                 PartInd = 0
