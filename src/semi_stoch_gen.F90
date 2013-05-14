@@ -293,6 +293,9 @@ contains
         integer :: nI(nel)
         integer :: space_size
         integer :: i, ierr
+ 
+        ! Start by adding the HF state.
+        call add_state_to_space(ilutHF, called_from)
 
         ! This condition tells the enumerating subroutines to initialise the loop.
         ilut(0) = -1
@@ -457,6 +460,9 @@ contains
             OccOrbs = OccTrialCASOrbs
             VirtOrbs = VirtTrialCASOrbs
         end if
+
+        ! Start by adding the HF state.
+        call add_state_to_space(ilutHF, called_from)
 
         ! This option should be true. It tells the subroutine gndts to only consider states
         ! with an Ms value in the correct spin subspace.

@@ -49,10 +49,6 @@ contains
         trial_space = 0
         trial_space_size = 0
 
-        ! Encode the Hartree-Fock state first.
-        call encode_det(trial_space(:,1), ilutHF)
-        if (iProcIndex == iHFProc) trial_space_size = 1
-
         write(6,'(a29)') "Generating the trial space..."
         call neci_flush(6)
 

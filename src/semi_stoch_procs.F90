@@ -586,11 +586,6 @@ contains
 
         call sort(CurrentDets(:,1:n_walkers), ilut_lt, ilut_gt)
 
-        write(6,*) "n_walkers:", n_walkers
-        do i = 1, n_walkers
-            write(6,*) CurrentDets(:,i)
-        end do
-
         TotWalkers = int(n_walkers, int64)
 
     end subroutine add_semistoch_states_to_currentdets
