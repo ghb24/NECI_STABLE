@@ -37,7 +37,7 @@ contains
      &          calcp_logweight,TFCIMC,TReturnPathMC
          use CalcData, only: tCCMC,tRPA_QBA
          use CalcData, only: TStarTrips
-         USE Logging , only : G_VMC_LOGCOUNT
+         USE LoggingData , only : G_VMC_LOGCOUNT
          USE CCMC, only: CCMCStandalone,CCMCStandaloneParticle
          use CCMCData, only:  tAmplitudes
          use global_utilities
@@ -719,7 +719,7 @@ contains
          use constants, only: dp
          use SystemData, only: BasisFN
          Use Determinants, only: get_helement
-         USE Logging , only : G_VMC_LOGCOUNT
+         USE LoggingData , only : G_VMC_LOGCOUNT
          use CalcData , only : TMPTHEORY
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
@@ -1043,7 +1043,7 @@ contains
          use SystemData, only: BasisFN
          Use Determinants, only: get_helement
          use CalcData , only : TVARCALC,TMPTHEORY
-         USE Logging , only : G_VMC_LOGCOUNT
+         USE LoggingData , only : G_VMC_LOGCOUNT
          use mcpathsdata, only: EGP
          use sym_mod, only: getsym
          use legacy_data, only: irat

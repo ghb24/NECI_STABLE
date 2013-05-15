@@ -48,7 +48,7 @@ MODULE nElRDMMod
                                Spawned_Parents_Index, Spawned_ParentsTag, AccumRDMNorm_Inst,&
                                Spawned_Parents_IndexTag, Iter, AccumRDMNorm, AvNoatHF,&
                                tSinglePartPhase, AllAccumRDMNorm, iLutRef, HFDet_True, NCurrH
-        USE Logging , only : RDMExcitLevel, tROFciDUmp, NoDumpTruncs, tExplicitAllRDM, &
+        USE LoggingData , only : RDMExcitLevel, tROFciDUmp, NoDumpTruncs, tExplicitAllRDM, &
                              tHF_S_D_Ref, tHF_Ref_Explicit, tHF_S_D, tPrint1RDM, tInitiatorRDM, &
                              RDMEnergyIter
         USE RotateOrbsData , only : CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt, &
@@ -80,7 +80,7 @@ MODULE nElRDMMod
         USE NatOrbsMod , only : SetupNatOrbLabels 
         USE RotateOrbsMod , only : SymLabelCounts2_rotTag,NoRotOrbs
         USE RotateOrbsMod , only : SymLabelList2_rotTag,SymLabelListInv_rotTag
-        USE Logging , only : tDo_Not_Calc_RDMEnergy, tDiagRDM, tReadRDMs, &
+        USE LoggingData , only : tDo_Not_Calc_RDMEnergy, tDiagRDM, tReadRDMs, &
                             TPopsFile, tno_RDMs_to_read, twrite_RDMs_to_read,&
                             tWriteMultRDMs, tDumpForcesInfo
         USE CalcData , only : tRegenDiagHEls
@@ -473,7 +473,7 @@ MODULE nElRDMMod
 ! Reads in the arrays to restart the RDM calculation (and continue accumulating).
 ! These arrays are not normalised, so the trace is also calculated.
 ! The energy is then calculated (if required) from the RDMs read in only.
-        use Logging , only : IterRDMonFly
+        use LoggingData , only : IterRDMonFly
         implicit none
         logical :: exists_aaaa,exists_abab,exists_abba,exists_one
         integer :: RDM_unit, FileEnd
@@ -584,7 +584,7 @@ MODULE nElRDMMod
 ! This routine just sets up the symmetry labels so that
 ! the orbitals are ordered according to symmetry (all beta then all alpha if spin orbs).
         USE sort_mod
-        USE Logging , only : tDiagRDM
+        USE LoggingData , only : tDiagRDM
         IMPLICIT NONE
         INTEGER , ALLOCATABLE :: SymOrbs_rot(:)
         INTEGER :: LabOrbsTag, SymOrbs_rotTag, ierr, i , j, SpatSym, LzSym 
@@ -1353,7 +1353,7 @@ MODULE nElRDMMod
 ! cj - and therefore the Di.Dj pair will have a non-zero ci.cj to contribute to the RDM.
 ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
         use CalcData , only : InitiatorWalkNo
-        use Logging , only : tInitiatorRDM
+        use LoggingData , only : tInitiatorRDM
         USE DetBitOps , only : DetBitEQ, FindBitExcitLevel
         use FciMCData , only : iLutHF_True
         implicit none
@@ -3123,7 +3123,7 @@ MODULE nElRDMMod
 ! This routine finalises the one electron reduced density matrix stuff at the point of a softexit.
 ! This includes summing each of the individual matrices from each processor,
 ! and calling the diagonalisation routines if we want to get the occupation numbers.
-        USE Logging , only : tDiagRDM, tDumpForcesInfo
+        USE LoggingData , only : tDiagRDM, tDumpForcesInfo
         implicit none
         INTEGER :: error
         real(dp) :: Norm_2RDM, Norm_2RDM_Inst
@@ -3184,7 +3184,7 @@ MODULE nElRDMMod
 ! This routine takes the 1-RDM (NatOrbMat), normalises it, makes it 
 ! hermitian if required, and prints out the versions we're interested in.    
 ! This is only ever called at the very end of a calculation.
-        use Logging , only : twrite_RDMs_to_read, twrite_normalised_RDMs, &
+        use LoggingData , only : twrite_RDMs_to_read, twrite_normalised_RDMs, &
                              tDumpForcesInfo
         implicit none
         integer :: i
@@ -3232,7 +3232,7 @@ MODULE nElRDMMod
 ! But we know that the trace of the one electron reduced density matrix must be equal to 
 ! the number of the electrons.
 ! We can use this to find the factor we must divide the 1RDM through by.
-        USE Logging , only : tDiagRDM
+        USE LoggingData , only : tDiagRDM
         implicit none                            
         real(dp) , intent(out) :: Trace_1RDM, Norm_1RDM, SumN_Rho_ii
         integer :: i, HFDet_ID, BRR_ID
@@ -3403,7 +3403,7 @@ MODULE nElRDMMod
     subroutine Finalise_2e_RDM(Norm_2RDM_Inst, Norm_2RDM) 
 ! This routine sums, normalises, hermitian-ises, and prints the 2-RDMs.    
 ! This may be called multiple times if we want to print multiple 2-RDMs.
-        use Logging , only : twrite_RDMs_to_read, twrite_normalised_RDMs, &
+        use LoggingData , only : twrite_RDMs_to_read, twrite_normalised_RDMs, &
                                 IterWriteRDMs, tWriteMultRDMs
         use FciMCData , only : IterRDMStart
         implicit none
@@ -3593,7 +3593,7 @@ MODULE nElRDMMod
 ! While, for instance, the TwoRDM_aaaa so far has actually been a sum of the aaaa elements and 
 ! the bbbb elements.  We only want to print the aaaa elements.
         use util_mod , only : get_unique_filename
-        use Logging , only : tWriteMultRDMs
+        use LoggingData , only : tWriteMultRDMs
         implicit none
         real(dp) , intent(in) :: Norm_2RDM
         logical , intent(in) :: tNormalise, tmake_herm
@@ -4001,7 +4001,7 @@ MODULE nElRDMMod
         ! want to calculate:    gamma(i,j) * h_ij
         ! h_ij => TMAT2D(iSpin,jSpin)
         USE OneEInts , only : TMAT2D
-        USE Logging , only : tDiagRDM, tDumpForcesInfo
+        USE LoggingData , only : tDiagRDM, tDumpForcesInfo
         implicit none
         integer , intent(in) :: i,j,a,iSpin,jSpin
         real(dp) , intent(in) :: Norm_2RDM, Norm_2RDM_Inst
@@ -4153,7 +4153,7 @@ MODULE nElRDMMod
 ! Diagonalises the 1-RDM (NatOrbMat), so that after this routine NatOrbMat is the 
 ! eigenfunctions of the 1-RDM (the matrix transforming the MO's into the NOs).
 ! This also gets the NO occupation numbers (evaluse) and correlation entropy.
-        USE Logging , only : tPrintRODump
+        USE LoggingData , only : tPrintRODump
         USE RotateOrbsMod , only : FourIndInts, FourIndIntsTag
         USE RotateOrbsData , only : NoOrbs
         implicit none
@@ -4199,7 +4199,7 @@ MODULE nElRDMMod
     end subroutine find_nat_orb_occ_numbers
 
     subroutine write_evales_and_transform_mat(SumDiag)
-        USE Logging , only : tNoNOTransform
+        USE LoggingData , only : tNoNOTransform
         USE RotateOrbsData , only : NoOrbs
         implicit none
         real(dp) , intent(in) :: SumDiag
@@ -4570,7 +4570,7 @@ MODULE nElRDMMod
 
     SUBROUTINE OrderNatOrbMat()
         USE sort_mod
-        USE Logging , only : tTruncRODump
+        USE LoggingData , only : tTruncRODump
         IMPLICIT NONE
         INTEGER :: spin,i,j,ierr,StartSort,EndSort
         CHARACTER(len=*), PARAMETER :: this_routine='OrderRDM'
@@ -4749,7 +4749,7 @@ MODULE nElRDMMod
 
     SUBROUTINE CalcFOCKMatrix_RDM()
 ! Calculate the fock matrix in the nat orb basis.    
-        USE Logging , only : tRDMonfly
+        USE LoggingData , only : tRDMonfly
         implicit none
         INTEGER :: i,j,k,l,a,b,ierr,ArrDiagNewTag
         REAL(dp) :: FOCKDiagSumHF,FOCKDiagSumNew
@@ -5094,7 +5094,7 @@ MODULE nElRDMMod
                                    SymLabelListInv_rotTag,SymLabelList2_rotTag,&
                                    FourIndInts, FourIndIntsTag, &
                                    SymLabelCounts2_rot, SymLabelCounts2_rotTag
-        USE Logging , only : tDiagRDM, tPrintRODump
+        USE LoggingData , only : tDiagRDM, tPrintRODump
         implicit none
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocateRDM'
 

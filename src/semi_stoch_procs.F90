@@ -42,7 +42,9 @@ contains
         ! that the full vector for the whole deterministic space is stored on each processor.
         ! It then performs the deterministic multiplication of the projector on this full vector.
 
-        integer :: i, info
+        integer :: i, info, ierr
+
+        call MPIBarrier(ierr)
 
         call set_timer(SemiStoch_Comms_Time)
 
@@ -50,6 +52,8 @@ contains
                             determ_proc_indices)
 
         call halt_timer(SemiStoch_Comms_Time)
+
+        call MPIBarrier(ierr)
 
         call set_timer(SemiStoch_Multiply_Time)
 

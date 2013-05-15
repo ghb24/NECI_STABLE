@@ -26,7 +26,7 @@ MODULE AnnihilationMod
                         nullify_ilut_part
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
-    use Logging , only : tHF_Ref_Explicit
+    use LoggingData , only : tHF_Ref_Explicit
     IMPLICIT NONE
 
     contains
@@ -1679,7 +1679,7 @@ MODULE AnnihilationMod
         use SystemData, only: tHPHF, tRef_Not_HF
         use bit_reps, only: NIfD
         use CalcData , only : tCheckHighestPop, NMCyc, InitiatorWalkNo
-        use Logging , only : tRDMonFly, tExplicitAllRDM, tInitiatorRDM
+        use LoggingData , only : tRDMonFly, tExplicitAllRDM, tInitiatorRDM
         use nElRDMMod , only : det_removed_fill_diag_rdm 
         INTEGER, intent(in) :: ValidSpawned
         integer, intent(inout) :: TotWalkersNew

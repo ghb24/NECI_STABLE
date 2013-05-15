@@ -58,9 +58,9 @@ MODULE FciMCParMod
     use IntegralsData, only: fck, NMax, UMat, tPartFreezeCore, NPartFrozen, &
                              NHolesFrozen, tPartFreezeVirt, NVirtPartFrozen, &
                              NElVirtFrozen
-    use Logging, only: iWritePopsEvery, TPopsFile, iPopsPartEvery, tBinPops, &
+    use LoggingData, only: iWritePopsEvery, TPopsFile, iPopsPartEvery, tBinPops, &
                        iWriteHistEvery, tHistEnergies, FCIMCDebug, &
-                       IterShiftBlock, AllHistInitPops, BinRange, iNoBins, &
+                       IterShiftBlock, AllHistInitPops, &
                        OffDiagBinRange, OffDiagMax, AllHistInitPopsTag, &
                        tLogComplexPops, tPrintFCIMCPsi, tCalcFCIMCPsi, &
                        NHistEquilSteps, tPrintOrbOcc, StartPrintOrbOcc, &
@@ -91,8 +91,8 @@ MODULE FciMCParMod
                     InstHist, HistMinInd, project_spins, calc_s_squared, &
                     project_spin_csfs, calc_s_squared_multi, &
                     calc_s_squared_star
-    use hist_data, only: beforenormhist, HistMinInd2
-    use hist_data, only: HistMinInd2
+    use hist_data, only: beforenormhist, HistMinInd2, HistMinInd2, BinRange, &
+                         iNoBins
     USE SymData , only : nSymLabels, Sym_Psi
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE Parallel_neci
@@ -166,7 +166,7 @@ MODULE FciMCParMod
     contains
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
-        use Logging, only: PopsfileTimer
+        use LoggingData, only: PopsfileTimer
         use util_mod, only: get_free_unit
         use nElRDMMod, only: InitRDM
         use sym_mod, only: getsym
@@ -2409,7 +2409,7 @@ MODULE FciMCParMod
     ! particle
     INTEGER FUNCTION AttemptCreatePar(DetCurr,iLutCurr,RealWSign,nJ,iLutnJ,Prob,IC,Ex,tParity)
         use GenRandSymExcitNUMod , only : GenRandSymExcitBiased
-        use Logging, only : CCMCDebug
+        use LoggingData, only : CCMCDebug
         INTEGER :: DetCurr(NEl),nJ(NEl),IC,ExtraCreate,Ex(2,2),Bin
         INTEGER(KIND=n_int) :: iLutCurr(0:NIfTot),iLutnJ(0:NIfTot)
         logical :: tParity
@@ -4640,7 +4640,7 @@ MODULE FciMCParMod
         use Determinants , only : GetH0Element3,GetH0Element4
         use SymData , only : SymLabelList,SymLabelCounts,TwoCycleSymGens
         use DeterminantData , only : write_det
-        use Logging , only : tTruncRODump,tCalcVariationalEnergy,tDiagAllSpaceEver
+        use LoggingData , only : tTruncRODump,tCalcVariationalEnergy,tDiagAllSpaceEver
         use DetCalcData, only : NMRKS,tagNMRKS,FCIDets
         use SymExcit3, only : CountExcitations3 
         use constants, only: bits_n_int
@@ -4677,6 +4677,7 @@ MODULE FciMCParMod
         AnnSpawned_time%timer_name='AnnSpawnedTime'
         AnnMain_time%timer_name='AnnMainTime'
         BinSearch_time%timer_name='BinSearchTime'
+        Sync_Time%timer_name='SyncTime'
         SemiStoch_Comms_Time%timer_name='SemiStochCommsTime'
         SemiStoch_Multiply_Time%timer_name='SemiStochMultiplyTime'
         Trial_Search_Time%timer_name='TrialSearchTime'
@@ -6916,7 +6917,7 @@ MODULE FciMCParMod
         use constants , only : size_n_int
         use DeterminantData , only : write_det
         use nElRDMMod, only: InitRDM
-        use Logging , only : tReadRDMs
+        use LoggingData , only : tReadRDMs
         INTEGER :: ierr,iunithead,DetHash,Slot,MemTemp
         LOGICAL :: formpops,binpops
         INTEGER :: error,MemoryAlloc,PopsVersion,j,iLookup,WalkerListSize
@@ -8888,7 +8889,7 @@ MODULE FciMCParMod
     !Routine to print the highest populated determinants at the end of a run
     SUBROUTINE PrintHighPops()
         use DetBitOps, only : sign_lt,sign_gt
-        use Logging, only: iHighPopWrite
+        use LoggingData, only: iHighPopWrite
         real(dp), dimension(lenof_sign) :: SignCurr, LowSign
         integer :: ierr,i,j,counter,ExcitLev,SmallestPos,HighPos
         real(dp) :: HighSign,reduce_in(1:2),reduce_out(1:2),Norm,AllNorm
@@ -9169,7 +9170,7 @@ SUBROUTINE ChangeRefDet(DetCurr)
                          complexstats_unit
     use CalcData, only: tTruncInitiator, tDelayTruncInit
     use SystemData, only: NEl
-    use Logging, only: tLogComplexPops
+    use LoggingData, only: tLogComplexPops
     use Parallel_neci, only: iProcIndex, root
     IMPLICIT NONE
     INTEGER :: DetCurr(NEl),i
@@ -9296,7 +9297,7 @@ END SUBROUTINE BinSearchParts2
    
 integer function FindProjEBins ()
     
-    use Logging, only : tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
+    use LoggingData, only : tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
     use SystemData, only : NMAXX,NMAXY,NMAXZ, OrbECutoff, gCutoff 
     integer :: CutoffAim
 
@@ -9317,7 +9318,7 @@ end function FindProjEBins
     
 integer function FindSplitProjEBinG(Ex)
                        
-    use Logging, only : tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
+    use LoggingData, only : tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
     use SystemData, only : G1 , kvec , tUEG2
 
     integer :: ki(3),kj(3),ka(3),kb(3)
@@ -9347,7 +9348,7 @@ end function FindSplitProjEBinG
 
 integer function FindSplitProjEBinK3(Ex)
                        
-    use Logging, only : tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
+    use LoggingData, only : tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
     use SystemData, only : G1 , kvec , tUEG2 ,OrbECutOff
 
     integer :: ki(3),kj(3),ka(3),kb(3)

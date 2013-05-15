@@ -15,9 +15,9 @@ MODULE RotateOrbsMod
     use SystemData, only : tMaxHLGap,tHijSqrdMin,OneElWeight,DiagMaxMinFac,OneElMaxMinFac
     USE SystemData, only : tDiagonalizehij,tHFSingDoubExcMax,tSpinOrbs,tReadInCoeff,tUseMP2VarDenMat
     use SystemData, only : tStoreSpinOrbs,tROHF,tFindCINatOrbs,tUseHFOrbs,tUEG
-    USE Logging , only : tROHistogramAll,tROFciDump,tROHistER,tROHistOffDiag,tROHistDoubExc, tPrintRODump
-    use Logging, only : tROHistSingExc,tROHistOnePartOrbEn,tROHistOneElInts,tROHistVirtCoulomb
-    USE Logging , only : tPrintInts,tTruncRODump,NoTruncOrbs,NoDumpTruncs,tTruncDumpbyVal,TruncEvalues,tWriteTransMat
+    USE LoggingData , only : tROHistogramAll,tROFciDump,tROHistER,tROHistOffDiag,tROHistDoubExc, tPrintRODump
+    use LoggingData, only : tROHistSingExc,tROHistOnePartOrbEn,tROHistOneElInts,tROHistVirtCoulomb
+    USE LoggingData , only : tPrintInts,tTruncRODump,NoTruncOrbs,NoDumpTruncs,tTruncDumpbyVal,TruncEvalues,tWriteTransMat
     USE OneEInts , only : TMAT2D
     USE SymData , only : TwoCycleSymGens,SymLabelList,SymLabelCounts
     USE Timing_neci , only : end_timing,print_timing_report
@@ -4886,7 +4886,7 @@ MODULE RotateOrbsMod
 
     SUBROUTINE CalcFOCKMatrix()
         USE SystemData , only : nBasis
-        USE Logging , only : tRDMonfly
+        USE LoggingData , only : tRDMonfly
         INTEGER :: i,j,k,l,a,b,ierr
         real(dp) :: FOCKDiagSumHF,FOCKDiagSumNew
         CHARACTER(len=*) , PARAMETER :: this_routine='CalcFOCKMatrix'

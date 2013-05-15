@@ -300,7 +300,7 @@ contains
           use FciMCData, only: hash_shift
           use global_utilities
           use Parallel_neci, only : nProcessors
-          use Logging, only: tLogDets
+          use LoggingData, only: tLogDets
           IMPLICIT NONE
           LOGICAL eof
           CHARACTER (LEN=100) w
@@ -1655,7 +1655,7 @@ call neci_flush(6)
           Use Determinants, only: FDet, nActiveBasis, SpecDet, tSpecDet
           use IntegralsData, only: FCK, NMAX, UMat, FCK
           use IntegralsData, only: HFEDelta, HFMix,nTay
-          Use Logging, only: iLogging
+          Use LoggingData, only: iLogging
           use Parallel_Calc
           use util_mod, only: get_free_unit, NECI_ICOPY
           use sym_mod
@@ -1803,7 +1803,7 @@ call neci_flush(6)
           use IntegralsData, only: fck, nMax, UMat,nTay
           Use DetCalc, only: cK, nDet, nEval, tEnergy, tRead, W, NMRKS, DetInv
           Use Determinants, only: specdet, tSpecDet
-          Use Logging, only: iLogging
+          Use LoggingData, only: iLogging
           Use util_mod, only: get_free_unit
           Use DetCalc, only: tFindDets
           use sym_mod
@@ -1930,7 +1930,7 @@ call neci_flush(6)
          use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes,tRPA_QBA, tDetermProj
          use RPA_Mod, only : tDirectRPA
          use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer,tCCNoCuml
-         use Logging, only: tCalcFCIMCPsi
+         use LoggingData, only: tCalcFCIMCPsi
          implicit none
          integer I_HMAX,NWHTAY,I_V
          CHARACTER(LEN=16) w

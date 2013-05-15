@@ -12,7 +12,7 @@ module trial_wf_gen
                          con_space_vector, ilutHF, Hii, nSingles, nDoubles, &
                          ConTag, DavidsonTag, TempTag, TrialTag, TrialWFTag, iHFProc
     use hphf_integrals, only: hphf_off_diag_helement
-    use Logging, only: tWriteTrial
+    use LoggingData, only: tWriteTrial
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier, MPIAllToAll, MPISumAll, &
                              MPIAllToAllV, MPIArg, MPIBCast

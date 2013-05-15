@@ -20,7 +20,7 @@ MODULE GraphMorph
     use CalcData , only : Iters,NDets,GraphBias,TBiasing,NoMoveDets,TMoveDets,TInitStar
     use CalcData , only : TNoSameExcit,TLanczos,TMaxExcit,iMaxExcitLevel,TOneExcitConn,THdiag
     use CalcData , only : TSinglesExcitSpace,TMCExcits,NoMCExcits,TGrowInitGraph,GrowGraphsExpo
-    USE Logging , only : TDistrib
+    USE LoggingData , only : TDistrib
     USE global_utilities
     use constants, only: dp
     IMPLICIT NONE

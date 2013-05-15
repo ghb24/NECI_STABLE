@@ -2445,7 +2445,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          use constants, only: dp,int32,sizeof_int
          use CalcData , only : InitWalkers,NMCyc,G_VMC_Seed,DiagSft,Tau,SftDamp,StepsSft
          use CalcData , only : TReadPops,ScaleWalkers,TBinCancel, iPopsFileNoRead, iPopsFileNoWrite
-         USE Logging , only : TPopsFile,TCalcWavevector,WavevectorPrint, tIncrementPops
+         USE LoggingData , only : TPopsFile,TCalcWavevector,WavevectorPrint, tIncrementPops
          USE global_utilities
          use sort_mod
          use StarDiagData, only: star_walker

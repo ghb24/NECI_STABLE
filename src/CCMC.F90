@@ -23,7 +23,7 @@ MODULE CCMC
     use SystemData, only: tHPHF, nel
     use Determinants, only: get_helement
     use DetCalcData, only: FCIDetIndex, ICILevel
-    use Logging, only: CCMCDebug, tCalcFCIMCPsi
+    use LoggingData, only: CCMCDebug, tCalcFCIMCPsi
     use GenRandSymExcitNUMod, only: gen_rand_excit
     use dSFMT_interface, only: genrand_real2_dSFMT
     use AnnihilationMod, only: BinSearchParts, DirectAnnihilation
@@ -1502,7 +1502,7 @@ subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,WalkerScale,iDebug)
    use DetCalcData, only: FCIDets   ! (0:NIfDBO, Det).  Lists all allowed excitors in compressed form
    use DetCalcData, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
    use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
-   Use Logging, only: tCCMCLogTransitions
+   Use LoggingData, only: tCCMCLogTransitions
    use FciMCData, only: Iter,iLutHF
    use CalcData, only: NEquilSteps
    implicit none
@@ -1584,7 +1584,7 @@ subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,WalkerScale,iDebug)
    use DetCalcData, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
    use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
    use constants, only: dp
-   Use Logging, only: lLogTransitions=>tCCMCLogTransitions
+   Use LoggingData, only: lLogTransitions=>tCCMCLogTransitions
    use CalcData, only: NEquilSteps
    use FciMCParMod, only: BinSearchParts3
    use dSFMT_interface , only : genrand_real2_dSFMT
@@ -1972,8 +1972,8 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    use FciMCParMod, only: InitHistMin, calculate_new_shift_wrapper
    use FciMCData, only: NoatHF,NoatDoubs
    use FciMCParMod, only: WriteHistogram,SumEContrib
-   Use Logging, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
-   USE Logging , only : tHistSpawn,iWriteHistEvery
+   Use LoggingData, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
+   USE LoggingData , only : iWriteHistEvery
    USE DetCalcData , only : ICILevel
    use CalcData, only: NEquilSteps
    use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
@@ -1982,6 +1982,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    use ClusterList
    use CalcData, only: DiagSft
    use CalcData, only: tAddToInitiator,InitiatorWalkNo,tTruncInitiator
+   use hist_data, only: tHistSpawn
    IMPLICIT NONE
    character(len=*), parameter :: this_routine="CCMCStandalone"
    real(dp) Weight,EnergyxW
@@ -2349,8 +2350,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
    use FciMCParMod, only: InitHistMin, calculate_new_shift_wrapper
    use FciMCParMod, only: WriteHistogram,SumEContrib
-   Use Logging, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
-   USE Logging , only : tHistSpawn,iWriteHistEvery,tPopsFile
+   Use LoggingData, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
+   USE LoggingData , only : iWriteHistEvery,tPopsFile
    USE DetCalcData , only : ICILevel
    use CalcData, only: InitWalkers, NEquilSteps, tReadPops
    use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
@@ -2369,6 +2370,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use FciMCData, only: SpawnedParts,ValidSpawnedList,InitialSpawnedSlots
    use FciMCData, only: hash_shift, hash_iter !For cycle-dependent hashes
    use FciMCData, only: tTimeExit,MaxTimeExit !For TIME command
+   use hist_data, only: tHistSpawn
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
    CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandaloneParticle'

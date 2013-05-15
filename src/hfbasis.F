@@ -509,7 +509,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
       END
       SUBROUTINE GENDMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,LTRANS)
          use Integrals_neci, only: GetUMatEl
-         USE Logging, only: HFLogLevel
+         USE LoggingData, only: HFLogLevel
          use SystemData, only: BasisFN
          use constants, only: dp
          IMPLICIT NONE
@@ -556,7 +556,7 @@ C.. vector
          USE OneEInts, only: GetTMATEl
          USE UMatCache, only: GTID
          use Integrals_neci, only: GetUMatEl
-         USE Logging, only: HFLogLevel
+         USE LoggingData, only: HFLogLevel
          use constants, only: dp
          use SystemData, only: BasisFN
          use IntegralsData, only: DMatEpsilon
@@ -622,7 +622,7 @@ C.. Now sum in the alpha and beta block of u matrix
       SUBROUTINE DIAGFMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,HFES,WORK,
      &         ECORE,ECUR)
          USE OneEInts, only : GetTMatEl
-         USE Logging, only :HFLogLevel
+         USE LoggingData, only :HFLogLevel
          use constants, only: dp
          use HElem, only: HElement_t_size
          IMPLICIT NONE

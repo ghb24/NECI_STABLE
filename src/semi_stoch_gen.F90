@@ -21,7 +21,7 @@ module semi_stoch_gen
                          PDetermTag, trial_space, trial_space_size
     use gndts_mod, only: gndts
     use hash, only: DetermineDetNode
-    use Logging, only: tWriteCore
+    use LoggingData, only: tWriteCore
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIArg, MPIAllGatherV, &
                              MPIAllGather, MPIScatter, MPIScatterV
