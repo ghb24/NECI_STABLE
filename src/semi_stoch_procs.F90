@@ -425,15 +425,18 @@ contains
         ! And also output the number of states on each processor in the space.
 
         integer, intent(in) :: ilut_list_size
-        integer(n_int) :: ilut_list(0:NIfTot, 1:ilut_list_size)
+        integer(n_int), intent(inout) :: ilut_list(0:NIfTot, 1:ilut_list_size)
         integer(MPIArg), intent(out) :: num_states_procs(0:nProcessors-1)
-        integer, allocatable, dimension(:,:) :: temp_list
-        integer :: proc_list(ilut_list_size)
+        integer(n_int), allocatable, dimension(:,:) :: temp_list
+        integer, allocatable, dimension(:) :: proc_list
         integer :: nI(nel)
         integer :: i, ierr
         integer :: counter(0:nProcessors-1)
-        integer(TagIntType) :: TempConTag
+        integer(TagIntType) :: TempConTag, ProcListTag
         character (len=*), parameter :: t_r = "sort_space_by_proc"
+
+        allocate(proc_list(ilut_list_size), stat=ierr)
+        call LogMemAlloc('proc_list', ilut_list_size, sizeof_int, t_r, ProcListTag, ierr)
 
         allocate(temp_list(0:NIfTot, ilut_list_size), stat=ierr)
         call LogMemAlloc('con_space_temp', ilut_list_size*(NIfTot+1), size_n_int, t_r, &
@@ -461,7 +464,9 @@ contains
         ilut_list = temp_list
 
         deallocate(temp_list, stat=ierr)
+        deallocate(proc_list, stat=ierr)
         call LogMemDealloc(t_r, TempConTag, ierr)
+        call LogMemDealloc(t_r, ProcListTag, ierr)
 
     end subroutine sort_space_by_proc
 
