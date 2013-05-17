@@ -637,7 +637,7 @@ contains
                 smallest_pos = 1
                 do j = 2, n_keep
                     if (smallest_sign < 1.0e-7_dp) exit
-                        call extract_sign(largest_walkers(:,j), low_sign)
+                    call extract_sign(largest_walkers(:,j), low_sign)
                     if (lenof_sign == 1) then
                         sign_curr_real = real(abs(low_sign(1)), dp)
                     else
@@ -652,10 +652,59 @@ contains
 
             endif
 
-        enddo
+        end do
 
         call sort(largest_walkers(:,1:n_keep), sign_lt, sign_gt)
 
     end subroutine return_most_populated_states
+
+    subroutine return_largest_indices(n_keep, list_size, list, largest_indices)
+
+        ! Return the indices of the largest elements in list.
+
+        integer, intent(in) :: n_keep, list_size
+        real(dp), intent(in) :: list(list_size)
+        integer, intent(out) :: largest_indices(n_keep)
+        integer :: i, j, ind, smallest_pos
+        real(dp) :: smallest_sign, sign_curr, sign_curr_abs, low_sign
+
+        largest_indices = 0
+        smallest_sign = 0.0_dp
+        smallest_pos = 1
+
+        do i = 1, list_size
+            sign_curr = list(i)
+            sign_curr_abs = abs(sign_curr)
+
+            if (sign_curr_abs > smallest_sign) then
+                largest_indices(smallest_pos) = i
+
+                low_sign = list(largest_indices(1))
+
+                smallest_sign = abs(low_sign)
+
+                smallest_pos = 1
+                do j = 2, n_keep
+                    if (smallest_sign < 1.0e-7_dp) exit
+                    ind = largest_indices(j)
+                    if (ind == 0) then
+                        low_sign = 0.0_dp
+                    else
+                        low_sign = list(ind)
+                    end if
+
+                    sign_curr_abs = abs(low_sign)
+
+                    if (sign_curr_abs < smallest_sign) then
+                        smallest_pos = j
+                        smallest_sign = sign_curr_abs
+                    end if
+                end do
+
+            endif
+
+        end do
+
+    end subroutine return_largest_indices
 
 end module semi_stoch_procs

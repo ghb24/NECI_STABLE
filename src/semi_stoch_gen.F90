@@ -813,8 +813,10 @@ contains
         integer(MPIArg) :: lengths(0:nProcessors-1), disps(0:nProcessors-1)
         integer(n_int) :: temp_ilut(0:NIfTot)
         integer(n_int), dimension(:,:), allocatable :: largest_states
-        integer, allocatable, dimension(:) :: procs_list
-        integer :: i, ierr, comp, n_pops_keep, min_ind, max_ind, n_states_this_proc
+        integer, allocatable, dimension(:) :: indices_to_keep
+        integer :: i, j, ierr, comp, ind, n_pops_keep, min_ind, max_ind, n_states_this_proc
+        integer(TagIntType) :: TagA, TagB, TagC, TagD
+        character (len=*), parameter :: t_r = "generate_space_from_pops"
 
         if (called_from == called_from_semistoch) then
             n_pops_keep = n_core_pops
@@ -834,11 +836,6 @@ contains
 
         length_this_proc = min(n_pops_keep, TotWalkers)
 
-        allocate(amps_this_proc(length_this_proc))
-        allocate(amps_all_procs(n_pops_keep*nProcessors))
-        allocate(procs_list(n_pops_keep*nProcessors))
-        allocate(largest_states(0:NIfTot, length_this_proc))
-
         call MPIAllGather(length_this_proc, lengths, ierr)
         total_length = sum(lengths)
         if (total_length < n_pops_keep) then
@@ -847,6 +844,17 @@ contains
                               &will be used.")
             n_pops_keep = total_length
         end if
+
+        ! Allocate necessary arrays and log the memory used.
+        allocate(amps_this_proc(length_this_proc))
+        call LogMemAlloc("amps_this_proc", int(length_this_proc, sizeof_int), 8, t_r, TagA, ierr)
+        allocate(amps_all_procs(total_length))
+        call LogMemAlloc("amps_all_procs", int(total_length, sizeof_int), 8, t_r, TagB, ierr)
+        allocate(indices_to_keep(n_pops_keep))
+        call LogMemAlloc("amps_all_procs", n_pops_keep, sizeof_int, t_r, TagC, ierr)
+        allocate(largest_states(0:NIfTot, length_this_proc))
+        call LogMemAlloc("largest_states", int(length_this_proc,sizeof_int)*(NIfTot+1), &
+                         size_n_int, t_r, TagD, ierr)
 
         disps(0) = 0
         do i = 0, nProcessors-1
@@ -859,8 +867,8 @@ contains
         ! Store the amplitudes in their real form.
         do i = 1, length_this_proc
             call extract_sign(largest_states(:,i), amps_this_proc(i))
-            ! Take the negative absolute value for the sort operation later.
-            amps_this_proc(i) = -abs(amps_this_proc(i))
+            ! We are interested in the absolute values of the ampltiudes.
+            amps_this_proc(i) = abs(amps_this_proc(i))
         end do
 
         ! Now we want to combine all the most populated states from each processor to find
@@ -870,21 +878,29 @@ contains
         call MPIAllGatherV(amps_this_proc(1:length_this_proc), &
                            amps_all_procs(1:total_length), lengths, disps)
 
-        ! Get procs_list to store the processor labels of the amplitudes in amps_all_procs.
-        max_ind = 0
-        do i = 0, nProcessors-1
-            min_ind = max_ind + 1
-            max_ind = min_ind + lengths(i) - 1
-            procs_list(min_ind:max_ind) = i
-        end do
-
-        ! Sort the list from all processors along with the processor labels, and then
-        ! count how many states from each processor are in the top n_pops_keep states.
-        call sort(amps_all_procs, procs_list)
+        ! This routine returns indices_to_keep, which will store the indices in amps_all_procs
+        ! of those amplitudes which are among the n_pops_keep largest (but not sorted).
+        call return_largest_indices(n_pops_keep, int(total_length, sizeof_int), &
+                                    amps_all_procs, indices_to_keep)
 
         n_states_this_proc = 0
         do i = 1, n_pops_keep
-            if (procs_list(i) == iProcIndex) n_states_this_proc = n_states_this_proc + 1
+
+            ind = indices_to_keep(i)
+
+            ! Find the processor label for this state. The states of the ampltidues in
+            ! amps_all_procs are together in blocks, in order of the corresponding processor
+            ! label. Hence, if a state has index <= lengths(0) then it is on processor 0.
+            do j = 0, nProcessors-1
+                ind = ind - lengths(j)
+                if (ind <= 0) then
+                    ! j now gives the processor label. If the state is on *this* processor,
+                    ! update n_states_this_proc.
+                    if (j == iProcIndex) n_states_this_proc = n_states_this_proc + 1
+                    exit
+                end if
+            end do
+
         end do
 
         ! Add the states to the SpawnedParts array so that they can be processed for the
@@ -897,9 +913,13 @@ contains
         end do
 
         deallocate(amps_this_proc)
+        call LogMemDealloc(t_r, TagA, ierr)
         deallocate(amps_all_procs)
-        deallocate(procs_list)
+        call LogMemDealloc(t_r, TagB, ierr)
+        deallocate(indices_to_keep)
+        call LogMemDealloc(t_r, TagC, ierr)
         deallocate(largest_states)
+        call LogMemDealloc(t_r, TagD, ierr)
 
     end subroutine generate_space_from_pops
 
