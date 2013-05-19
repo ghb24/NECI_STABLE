@@ -1188,6 +1188,7 @@ MODULE FciMCParMod
                     ! the amplitude is zero. Hence we must check if the amplitude is zero,
                     ! and if so, skip the state.
                     if (.not.(abs(SignCurr(1)) > 0.0_dp)) then
+                        CurrentDets(:,VecSlot) = CurrentDets(:,j)
                         VecSlot = VecSlot + 1
                         cycle
                     end if
@@ -1440,6 +1441,7 @@ MODULE FciMCParMod
                 else
                     ! We never overwrite the deterministic states, so move the next spawning slot
                     ! in CurrentDets to the next state.
+                    CurrentDets(:,VecSlot) = CurrentDets(:,j)
                     VecSlot = VecSlot + 1
                 end if
             else

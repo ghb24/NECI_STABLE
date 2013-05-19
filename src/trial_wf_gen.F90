@@ -135,6 +135,8 @@ contains
         else
             con_space_size = 0
             sendcounts = 0
+            write(6,'(a52)') "This processor will not search for connected states."
+            call neci_flush(6)
         end if
 
         write(6,'(a51)') "Performing MPI communication of connected states..."
@@ -160,8 +162,10 @@ contains
 
         call MPIAlltoAllV(con_space, sendcounts, senddisps, temp_space, recvcounts, recvdisps, ierr)
 
-        deallocate(con_space, stat=ierr)
-        call LogMemDealloc(t_r, ConTag, ierr)
+        if (allocated(con_space)) then
+            deallocate(con_space, stat=ierr)
+            call LogMemDealloc(t_r, ConTag, ierr)
+        end if
         allocate(con_space(0:NIfTot, 1:con_space_size), stat=ierr)
         call LogMemAlloc('con_space', con_space_size*(NIfTot+1), size_n_int, t_r, ConTag, ierr)
         con_space = temp_space
