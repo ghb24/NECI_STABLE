@@ -6850,7 +6850,8 @@ MODULE FciMCParMod
                 write(iout,"(A)") "Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number"
                 write(iout,"(A,I15)") "Length of hash-table: ",nWalkerHashes
                 write(iout,"(A,F20.5)") "Length of hash-table as a fraction of targetwalkers: ",HashLengthFrac
-                nClashMax=int(real(WalkerListSize,dp)/real(nWalkerHashes,dp))+1
+                nclashmax = max(nClashMax, &
+                                int(real(WalkerListSize,dp)/real(nWalkerHashes,dp))+1)
 !                write(iout,*) MaxWalkersPart,nWalkerHashes,nClashMax
                 write(iout,"(A,I7,A)") "Initially allocating memory in hash table for a maximum of ",   &
                             nClashMax," walker hash clashes"

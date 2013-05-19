@@ -21,7 +21,7 @@ MODULE Calc
                         tSpawnProp, nClustSelections, tExactEnergy,     &
                         dClustSelectionRatio,tSharedExcitors
     use FciMCData, only: proje_update_comb,proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
-                         InputDiagSft,tSearchTau,proje_spatial,nWalkerHashes,tHashWalkerList,HashLengthFrac
+                         InputDiagSft,tSearchTau,proje_spatial,nWalkerHashes,tHashWalkerList,HashLengthFrac,nClashMax
 
     implicit none
 
@@ -271,6 +271,7 @@ contains
           proje_spatial = .false.
           hash_shift=0
           tContinueAfterMP2=.false.
+          nclashmax = 1
       
         end subroutine SetCalcDefaults
 
@@ -1519,6 +1520,11 @@ contains
                 ! --> Reduce the waiting time while the number of particles is
                 !     growing.
                 tJumpShift = .true.
+
+            case("NCLASH-MAX")
+                ! Allow us to manually specify a (minumim) value of nclashmax
+                ! --> Try and avoid some of the out-of-memory issues
+                call geti(nclashmax)
 
             case default
                 call report("Keyword "                                &
