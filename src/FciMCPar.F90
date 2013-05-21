@@ -4683,6 +4683,8 @@ MODULE FciMCParMod
         SemiStoch_Comms_Time%timer_name='SemiStochCommsTime'
         SemiStoch_Multiply_Time%timer_name='SemiStochMultiplyTime'
         Trial_Search_Time%timer_name='TrialSearchTime'
+        SemiStoch_Init_Time%timer_name='SemiStochInitTime'
+        Trial_Init_Time%timer_name='TrialInitTime'
 
         IF(TDebug) THEN
 !This will open a file called LOCALPOPS-"iprocindex" on unit number 11 on every node.

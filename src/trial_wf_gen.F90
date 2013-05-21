@@ -10,7 +10,7 @@ module trial_wf_gen
     use FciMCData, only: trial_space, trial_space_size, con_space, &
                          con_space_size, trial_wf, trial_energy, &
                          con_space_vector, ilutHF, Hii, nSingles, nDoubles, &
-                         ConTag, DavidsonTag, TempTag, TrialTag, TrialWFTag, iHFProc
+                         ConTag, DavidsonTag, TempTag, TrialTag, TrialWFTag, iHFProc, Trial_Init_Time
     use hphf_integrals, only: hphf_off_diag_helement
     use LoggingData, only: tWriteTrial
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
@@ -38,6 +38,8 @@ contains
         integer(n_int), allocatable, dimension(:,:) :: temp_space
         integer :: nI(nel)
         character (len=*), parameter :: t_r = "init_trial_wf"
+
+        call set_timer(Trial_Init_Time)
 
         write(6,'()')
         write(6,'(a56)') "=========== Trial wavefunction initialisation =========="
@@ -181,8 +183,8 @@ contains
 
         call MPISumAll(con_space_size, tot_con_space_size)
 
-        write(6,'(a30,1X,i8)') "Total size of connected space:", tot_con_space_size
-        write(6,'(a42,1X,i8)') "Size of connected space on this processor:", con_space_size
+        write(6,'(a30,1X,i10)') "Total size of connected space:", tot_con_space_size
+        write(6,'(a42,1X,i10)') "Size of connected space on this processor:", con_space_size
         call neci_flush(6)
 
         ! Now the correct states in both the trial space and connected space have been fully
@@ -259,8 +261,12 @@ contains
         deallocate(davidson_eigenvector, stat=ierr)
         call LogMemDealloc(t_r, DavidsonTag, ierr)
 
+        call halt_timer(Trial_Init_Time)
+
         write(6,'(a37,1X,f13.7)') "Energy eigenvalue of the trial space:", trial_energy
         write(6,'(a43)') "Trial wavefunction initialisation complete."
+        write(6,'(a65, f9.3)') "Total time (seconds) taken for trial wavefunction initialisation:", &
+                   get_total_time(Trial_Init_Time)
         call neci_flush(6)
 
     end subroutine init_trial_wf

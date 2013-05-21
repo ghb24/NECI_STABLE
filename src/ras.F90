@@ -188,7 +188,6 @@ contains
                     classes(i)%allowed_combns(counter) = j
                 end if
             end do
-            write(6,*) "class:", i, "allowed_combns:", classes(i)%allowed_combns
             classes(i)%num_comb = counter
         end do
 

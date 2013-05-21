@@ -18,7 +18,7 @@ module semi_stoch_gen
                          determ_proc_indices, full_determ_vector, partial_determ_vector, &
                          core_hamiltonian, determ_space_size, TotWalkers, TotWalkersOld, &
                          indices_of_determ_states, SpawnedParts, CoreTag, FDetermTag, &
-                         PDetermTag, trial_space, trial_space_size
+                         PDetermTag, trial_space, trial_space_size, SemiStoch_Init_Time
     use gndts_mod, only: gndts
     use hash, only: DetermineDetNode
     use LoggingData, only: tWriteCore
@@ -55,6 +55,8 @@ contains
         integer :: nI(nel)
         integer(MPIArg) :: mpi_temp
         character (len=*), parameter :: t_r = "init_semi_stochastic"
+
+        call set_timer(SemiStoch_Init_Time)
 
         write(6,'()')
         write(6,'(a56)') "============ Semi-stochastic initialisation ============"
@@ -151,7 +153,11 @@ contains
 
         if (tWriteCore) call write_core_space()
 
+        call halt_timer(SemiStoch_Init_Time)
+
         write(6,'(a40)') "Semi-stochastic initialisation complete."
+        write(6,'(a62, f9.3)') "Total time (seconds) taken for semi-stochastic initialisation:", &
+                   get_total_time(SemiStoch_Init_Time)
         call neci_flush(6)
 
     end subroutine init_semi_stochastic
