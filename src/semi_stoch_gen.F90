@@ -959,6 +959,8 @@ contains
             call add_state_to_space(ilut, called_from)
         end do
 
+        close(iunit)
+
     end subroutine generate_space_from_file
 
     subroutine generate_low_energy_core(called_from)

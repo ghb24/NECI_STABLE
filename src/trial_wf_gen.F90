@@ -32,7 +32,7 @@ contains
 
         integer :: i, ierr, num_states_on_proc
         integer :: excit, tot_trial_space_size, tot_con_space_size
-        integer :: min_element, max_element, num_elements
+        integer :: min_elem, max_elem, num_elem
         integer(MPIArg) :: sendcounts(0:nProcessors-1), recvcounts(0:nProcessors-1)
         integer(MPIArg) :: senddisps(0:nProcessors-1), recvdisps(0:nProcessors-1)
         integer(n_int), allocatable, dimension(:,:) :: temp_space
@@ -102,9 +102,9 @@ contains
         allocate(trial_wf(trial_space_size), stat=ierr)
         call LogMemAlloc('trial_wf', trial_space_size, 8, t_r, TrialWFTag, ierr)
         
-        call assign_elements_on_procs(trial_space_size, min_element, max_element, num_elements)
+        call assign_elements_on_procs(trial_space_size, min_elem, max_elem, num_elem)
 
-        if (num_elements > 0) then
+        if (num_elem > 0) then
 
             ! Find the states connected to the trial space. This typically takes a long time, so
             ! it is done in parallel by letting each processor find the states connected to a
@@ -112,8 +112,7 @@ contains
             write(6,'(a58)') "Calculating the number of states in the connected space..."
             call neci_flush(6)
 
-            call generate_connected_space(num_elements, trial_space(:, min_element:max_element), &
-                                          con_space_size)
+            call generate_connected_space(num_elem, trial_space(:,min_elem:max_elem), con_space_size)
 
             allocate(con_space(0:NIfTot, con_space_size), stat=ierr)
             call LogMemAlloc('con_space', con_space_size*(NIfTot+1), size_n_int, t_r, ConTag, ierr)
@@ -124,7 +123,7 @@ contains
             write(6,'(a45)') "Generating and storing the connected space..."
             call neci_flush(6)
 
-            call generate_connected_space(num_elements, trial_space(:, min_element:max_element), &
+            call generate_connected_space(num_elem, trial_space(:, min_elem:max_elem), &
                                           con_space_size, con_space)
 
             write(6,'(a52)') "Removing repeated states and sorting by processor..."
@@ -366,12 +365,12 @@ contains
 
     end subroutine generate_connected_space_vector
 
-    subroutine assign_elements_on_procs(list_length, min_element, max_element, num_elements)
+    subroutine assign_elements_on_procs(list_length, min_elem, max_elem, num_elem)
 
         ! Split list_length into nProcessor parts. Note that this is not done based on any hash.
 
         integer, intent(in) :: list_length
-        integer, intent(out) :: min_element, max_element, num_elements
+        integer, intent(out) :: min_elem, max_elem, num_elem
         integer :: floor_div_list_length, mod_list_length
         integer :: num_elem_all_procs(0:nProcessors-1)
         integer :: i
@@ -384,22 +383,22 @@ contains
             if (i < mod_list_length) num_elem_all_procs(i) = num_elem_all_procs(i) + 1
         end do
 
-        num_elements = num_elem_all_procs(iProcIndex)
+        num_elem = num_elem_all_procs(iProcIndex)
 
-        if (num_elements == 0) then
+        if (num_elem == 0) then
             if (iProcIndex == 0) call stop_all("assign_elements_on_procs","There are no states &
                                                &in the trial space.")
-            min_element = 0
-            max_element = 0
+            min_elem = 0
+            max_elem = 0
             return
         end if
 
         if (iProcIndex == 0) then
-            min_element = 1
-            max_element = num_elements
+            min_elem = 1
+            max_elem = num_elem
         else
-            min_element = sum(num_elem_all_procs(0:iProcIndex-1)) + 1
-            max_element = sum(num_elem_all_procs(0:iProcIndex))
+            min_elem = sum(num_elem_all_procs(0:iProcIndex-1)) + 1
+            max_elem = sum(num_elem_all_procs(0:iProcIndex))
         end if
 
     end subroutine assign_elements_on_procs
