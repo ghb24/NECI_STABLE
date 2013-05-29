@@ -1,5 +1,6 @@
 ! Copyright (c) 2013, Ali Alavi
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
+ 
       SUBROUTINE XCHOLES(EVEC,PSIR,IX,IY,IZ,G1,SITAB,NMAX,NMSH,
      &    NHG,RHO,XCHOLE,SPAC,RS,ALAT,OMEGA,NMRKS,NDET,NEL,NEVAL)
 !      IMPLICIT real(dp) (A-H,O-Z)

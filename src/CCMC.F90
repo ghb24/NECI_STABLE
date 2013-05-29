@@ -1,5 +1,6 @@
 ! Copyright (c) 2013, Ali Alavi
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
+ 
 MODULE CCMC
     use Determinants, only: get_helement, write_det, write_det_len
     use sort_mod

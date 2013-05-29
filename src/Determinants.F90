@@ -1,5 +1,6 @@
 ! Copyright (c) 2013, Ali Alavi
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
+ 
 #include "macros.h"
 MODULE Determinants
     use constants, only: dp, n_int, bits_n_int

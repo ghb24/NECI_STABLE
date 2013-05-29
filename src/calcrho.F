@@ -1,5 +1,6 @@
 ! Copyright (c) 2013, Ali Alavi
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
+ 
       INTEGER FUNCTION ICMPDETS(D1,D2,NEL)
          IMPLICIT NONE
          INTEGER NEL,I

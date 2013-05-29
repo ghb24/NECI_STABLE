@@ -1,5 +1,6 @@
 ! Copyright (c) 2013, Ali Alavi
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
+ 
 !TODO: Make sure everything has an ierr argument when allocating, and that everything is deallocated at end
 !TODO: Add symmetry information by using singles excitation generators (store excitations)? (Not urgent) 
 !Module to non-iteratively calculate the RPA energy under the quasi-boson approximation

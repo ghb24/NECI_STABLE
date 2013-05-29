@@ -1,5 +1,6 @@
 ! Copyright (c) 2013, Ali Alavi
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
+ 
 MODULE NatOrbsMod
 ! This file is primarily concerned with finding the one electron reduced density matrix, from the wavefunction
 ! constructed by a previous spawning calculation.

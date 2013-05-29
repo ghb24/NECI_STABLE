@@ -1,5 +1,6 @@
 ! Copyright (c) 2013, Ali Alavi
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
+ 
       SUBROUTINE LINEUP(N,LST1,LST2,NBASIS,L1E,L2E,IFLAG,IPTOT)
       use util_mod, only: NECI_ICOPY
       INTEGER N, LST1(N), LST2(N)

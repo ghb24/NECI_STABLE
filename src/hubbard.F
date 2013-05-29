@@ -1,5 +1,6 @@
 ! Copyright (c) 2013, Ali Alavi
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
+ 
 C ===================================================================
       SUBROUTINE CALCUMATHUBREAL(NBASIS,UHUB, UMAT)
          use UMatCache , only : UMatInd

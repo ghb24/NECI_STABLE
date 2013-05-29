@@ -1,5 +1,6 @@
 ! Copyright (c) 2013, Ali Alavi
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
+ 
       SUBROUTINE GEN_XCHOLE(CIJKL,PSIR,IOBS,JOBS,KOBS,G1,SITAB,
      &    NMAX,NMSH,
      &    NHG,IXD,IYD,IZD,RHO,TCOMPLETE,XCHOLE,SPAC,ALAT,OMEGA,

@@ -1,5 +1,6 @@
 ! Copyright (c) 2013, Ali Alavi
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
+ 
       SUBROUTINE RLSXC2_SC(NEL,NMSH,NMAX,SITAB,IOBS,JOBS,KOBS,
      &  NDET1,NDET2,G1,NHG,AUXC)
 !      IMPLICIT real(dp) (A-H,O-Z)

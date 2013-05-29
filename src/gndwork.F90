@@ -1,5 +1,6 @@
 ! Copyright (c) 2013, Ali Alavi
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
+ 
 module gnd_work_type
 
 use SystemData, only: BasisFn, BasisFNSize

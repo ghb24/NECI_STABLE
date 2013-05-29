@@ -1,5 +1,6 @@
 ! Copyright (c) 2013, Ali Alavi
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
+ 
 !This function takes all {a,b} excitations from each i,j pair, and prediagonalises them, fully connecting all the 
 !determinants to each other. This is what is meant by a 'node' - a set of double excitations, 
 !all of which are excited from the same {i,j}. 

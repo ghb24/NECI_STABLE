@@ -1,5 +1,6 @@
 ! Copyright (c) 2013, Ali Alavi
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
+ 
 module bit_reps
     use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart
     use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level

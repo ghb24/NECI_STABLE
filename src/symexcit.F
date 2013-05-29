@@ -1,5 +1,6 @@
 ! Copyright (c) 2013, Ali Alavi
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
+ 
       ! A wrapper routine to allow symsetupexcit3_worker to be called
       ! with incorrect arguments --> Allows Alex's hacking!!
       SUBROUTINE SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,STORE,SPIin,ETin,

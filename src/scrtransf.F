@@ -1,5 +1,6 @@
 ! Copyright (c) 2013, Ali Alavi
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
+ 
 C.. GETHELEMENT2T
 C.. Get matrix element of the hamiltonian
 C.. IC is the number of basis fns that differ in NI and NJ (or -1 if not

@@ -1,3 +1,6 @@
+// Copyright (c) 2013, Ali Alavi
+// This program is integrated in Molpro with the permission of George Booth and Ali Alavi
+  
 #ifdef CBINDMPI
 #define OMPI_SKIP_MPICXX
 #define MPICH_SKIP_MPICXX
