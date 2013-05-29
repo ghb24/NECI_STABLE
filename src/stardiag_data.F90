@@ -1,3 +1,5 @@
+! Copyright (c) 2013, Ali Alavi
+! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
 module StarDiagData
     type star_walker
         ! Det indicates the determinant that the walker is currently at. 

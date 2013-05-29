@@ -1,3 +1,5 @@
+! Copyright (c) 2013, Ali Alavi
+! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
 module gen_coul_ueg_mod
     use UMatCache, only: UMatInd, GTID
     use SystemData, only: BasisFN, nel, nBasisMax, nBasis, G1, NMSH, nMax, &

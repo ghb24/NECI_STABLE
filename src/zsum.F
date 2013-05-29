@@ -1,3 +1,5 @@
+! Copyright (c) 2013, Ali Alavi
+! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
 C.. Perform the contour integration to calculate the Z-sum
       SUBROUTINE ZSUM(XIS,I_H,I_P,I_POINTS,R,SUM,SUMI)
          use constants, only: dp,pi

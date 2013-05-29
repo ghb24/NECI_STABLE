@@ -1,3 +1,5 @@
+! Copyright (c) 2013, Ali Alavi
+! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
     MODULE StarDiagTripMod
       use constants, only: dp
 !      USE global_utilities

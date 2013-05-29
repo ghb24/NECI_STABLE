@@ -1,3 +1,5 @@
+! Copyright (c) 2013, Ali Alavi
+! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
 !Molpro requires compilation with the NAG compiler.
 !This is not going to be possible without extensive rewriting to
 !get around ajwt's horrific hiding of variables inside other types.

@@ -1,3 +1,5 @@
+! Copyright (c) 2013, Ali Alavi
+! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
 MODULE nElRDMMod
 ! This file contains the routines used to find the full n electron reduced density matrix (nElRDM).
 ! This is done on the fly to avoid having to histogram the full wavefunction which is extremely 

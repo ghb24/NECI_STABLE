@@ -1,3 +1,5 @@
+! Copyright (c) 2013, Ali Alavi
+! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
 module mcpathshdiag
 !C.. 29/6/06  Based on FMCPR3B.
 !C.. This function does not calculate RHO elements, but instead calculates

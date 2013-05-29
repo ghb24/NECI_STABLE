@@ -1,3 +1,5 @@
+! Copyright (c) 2013, Ali Alavi
+! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
 module OneEInts
 
 ! For calculating, storing and retrieving the one electron integrals, <i|h|j>, where 

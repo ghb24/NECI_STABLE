@@ -1,3 +1,5 @@
+! Copyright (c) 2013, Ali Alavi
+! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
       SUBROUTINE WIRHODIAG(NI,BETA,I_P,NEL,
      &      NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &      ECORE,WLRI,WLSI)

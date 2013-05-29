@@ -1,3 +1,5 @@
+! Copyright (c) 2013, Ali Alavi
+! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
       SUBROUTINE RLSXC_SC(NEL,NMSH,NMAX,SITAB,IOBS,JOBS,KOBS,
      &    NDET1,G1,NHG,AUXC)
       use SystemData, only: BasisFN

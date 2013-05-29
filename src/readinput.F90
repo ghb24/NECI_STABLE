@@ -1,3 +1,5 @@
+! Copyright (c) 2013, Ali Alavi
+! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
 ! ReadInput is called to read the input.
 !   Filename is a Character(255) string which contains a filename to read.
 !               If Filename=="" then we check to see if there's a filename on the command line.

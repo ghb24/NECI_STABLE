@@ -1,3 +1,5 @@
+! Copyright (c) 2013, Ali Alavi
+! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
       SUBROUTINE GNDTS_BLK(NEL,NBASIS,BRR,NBASISMAX,NMRKS,TCOUNT,
      &         NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS,
      &         TPARITY,SymRestrict,IFDET,TGENFDET,NDETTOT,BLOCKSYM

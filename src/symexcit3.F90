@@ -1,3 +1,5 @@
+! Copyright (c) 2013, Ali Alavi
+! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
 MODULE SymExcit3
 ! This module contains excitation generators able to enumerate all possible excitations given a starting determinant.
 ! Unlike symexcit.F90 however, these excitation generators are able to deal with cases where the alpha and beta orbitals 

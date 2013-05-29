@@ -1,3 +1,5 @@
+! Copyright (c) 2013, Ali Alavi
+! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
 !! NB SYMSETUPEXCITS uses a store which has integer(int64) to cope with 64-bit machines, and passes this directly to SYMSETUPEXCITS2
 !!  Iterators which use GENSYMEXCITIT2 use an INTEGER STORE, and create an integer(int64) STORE2 internally, and pass this to SYMSETUPEXCITS2
 

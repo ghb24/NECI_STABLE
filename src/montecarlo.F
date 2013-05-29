@@ -1,3 +1,5 @@
+! Copyright (c) 2013, Ali Alavi
+! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
       INTEGER FUNCTION IFINDBASISFN(NQNS,G1,NBASIS)
          use SystemData, only: BasisFN
 !         IMPLICIT real(dp) (A-H,O-Z)

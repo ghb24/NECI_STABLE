@@ -1,3 +1,5 @@
+! Copyright (c) 2013, Ali Alavi
+! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
       SUBROUTINE FODMAT(NEL,NHG,NDET,NEVAL,ISTATE,
      &    NMRKS,G1,CK,NMAXX,NMAXY,NMAXZ,SUMA)
       use constants, only: dp
