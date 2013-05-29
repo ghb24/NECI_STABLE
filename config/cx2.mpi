@@ -1,0 +1,19 @@
+[main]
+fc = mpif90
+cc = mpic++
+ld = mpif90
+ldflags = -i-dynamic -rdynamic
+compiler = INTEL-ifort9-on-LINUX
+cpp = cpp -C -traditional
+cppflags = -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2 -D__INT64  -D__SHARED_MEM
+libs = -L /apps/fftw/3.2.2/lib/ -L $(MKL_HOME)/lib/64 -Wl,--start-group -lmkl_intel_lp64 -lmkl_sequential -lmkl_core -lmkl_blacs_sgimpt_lp64 -Wl,--end-group -lpthread -lm -cxxlib
+#-L ~/local/lib -llapack -lblas -lfftw3 -cxxlib -lrt
+module_flag = -module
+
+[dbg]
+fflags = -r8 -g -warn
+cflags = -g -warn
+
+[opt]
+fflags = -r8 -O3 
+cflags = -O

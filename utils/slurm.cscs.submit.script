@@ -1,0 +1,52 @@
+#!/bin/bash
+#SBATCH --ntasks=480        
+#SBATCH --time=24:00:00
+#SBATCH --job-name="CO.VQZ.30thouHF"
+
+# ntasks replaces mppwidth
+# time replaces walltime
+
+# sbatch    -  submit a batch script
+# squeue    -  check the status of jobs on the system
+# scancel   -  delete one of your jobs from the queue
+
+# NOTE: This script has soft_exit.py commented out, it is 
+# assuming we're using the TIME keyword.
+# It also does not delete the scratch folder at the end of 
+# the calculation, just the FCIDUMP file in scratch.
+
+scratchname="CO.VQZ.30thouHF"
+# the folder in the scratch directory will be named this
+# followed by the job number
+
+# Make unique scratch directory
+mkdir $SCRATCH/$scratchname.job-$SLURM_JOB_ID
+
+#Set working directory and unique scratch directory
+wd=`pwd`
+scratch=$SCRATCH/$scratchname.job-$SLURM_JOB_ID
+
+set -ex
+
+# Copy input, FCIDUMP and POPSFILES to scratch
+cp $wd/input.FCIMC $scratch/.
+cp $wd/FCIDUMP $scratch/.
+cd $scratch
+ls
+pwd
+
+#/users/dmc/NECI/SOURCEgit/utils/send_softexit.py -g 00:45:00 24:00:00 &
+
+aprun -n 480 /users/dmc/NECI/SOURCEgit/bin/neci.x input.FCIMC > output.FCIMC
+
+# Copy output files from scratch back to the working directory, and delete the unique scratch directory
+# rm $scratch/neci.x
+echo "attempting to copy back to home directory"
+rcp $scratch/* $wd
+rm -fr $scratch/FCIDUMP
+# rm -fr $scratch
+
+#killall -2 send_softexit.py
+
+exit
+

@@ -1,0 +1,36 @@
+Codebase for NECI. 
+Developed by George Booth and Ali Alavi, 2013                                
+Copyright (c) 2013, Ali Alavi                                                
+                                                                             
+This program is integrated in Molpro with the permission of 
+George Booth and Ali Alavi            
+
+Please feel free to contact myself (George Booth) or Ali Alavi for 
+queries or help at ghb24@cam.ac.uk and asa10@cam.ac.uk.
+
+Compilation
+-----------
+
+To compile NECI run
+
+    $ ./tools/mkconfig.py platform
+    $ make
+
+The platform is a filename in the config directory.  The mkconfig.py script
+has some useful options.  Run
+
+    $ ./tools/mkconfig.py --help
+
+to see information on them.
+
+The objects are compiled to dest/platform/optimised/real (or complex, for
+compiling the complex version for libraries).  The resultant executable,
+neci.platform.optimised.x, is placed in the exe directory.
+
+If the debug flag [-g] is given to mkconfig.py, then the debug configuration is used and 
+the filenames and paths contain debug rather than optimised.
+
+For convenience, bin/neci.x is a symbolic link to the most recently compiled
+executable.
+
+

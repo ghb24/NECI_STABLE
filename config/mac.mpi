@@ -1,0 +1,20 @@
+[main]
+cpp = cpp -P -C -traditional 
+cppflags = -D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8 -DPARALLEL -D__INT64 -D__SHARED_MEM
+compiler = GCC-f95-on-LINUX
+fc = mpif90
+f77flags = -m64 -fcray-pointer
+f90flags = -m64 -fcray-pointer -ffree-line-length-none
+cc = mpic++
+ld = mpif90
+ldflags = -m64 -rdynamic
+libs = -L~/local/lib/fftw-3.2/64/gfortran/lib -lfftw3 -framework Accelerate -lstdc++ -lm
+module_flag = -J
+
+[dbg]
+cflags = -m64 -g
+fflags = -g
+
+[opt]
+cflags = -m64 -O3
+fflags = -O3

@@ -1,0 +1,84 @@
+[int]
+type1=integer(kind=int32)
+op_gt= >
+op_lt= <
+
+[int64]
+type1=integer(kind=int64)
+
+[double]
+type1=real(dp)
+
+[int_arr]
+type1=integer(kind=int32), dimension(:)
+op_gt = .arrgt.
+op_lt = .arrlt.
+
+[int64_arr]
+type1=integer(kind=int64), dimension(:)
+
+===================
+
+module BinSearch
+
+   use constants
+   use util_mod, only: operator(.arrlt.), operator(.arrgt.)
+   implicit none
+
+contains
+
+!A binary search
+! List is an ordered list of length Length
+! MinInd and MaxInd are the bounds within this list of the search
+! We search for Value in this list.
+!  If it is found, its location is placed in FoundIndex and tSuccess is set to .TRUE.
+!  If not, then the index of the largest item less than Value is placed in FoundIndex, and tSuccess is set to .FALSE.
+
+    SUBROUTINE BinarySearch(Value,List,MinInd,MaxInd,FoundIndex,tSuccess)
+        INTEGER :: MinInd,MaxInd,FoundIndex
+        %(type1)s :: Value()
+        %(type1)s :: List(:)
+        INTEGER :: i,j,N
+        LOGICAL :: CompLT,CompGT
+        LOGICAL :: tSuccess
+
+        i=MinInd
+        j=MaxInd
+        tSuccess=.false.
+        do while(j-i.gt.0)  !End when the upper and lower bound are the same.
+            N=(i+j)/2       !Find the midpoint of the two indices
+
+            CompLT=List(N) %(op_lt)s Value()
+            CompGT=List(N) %(op_gt)s Value()
+
+            IF(.not.(CompLT.or.CompGT)) THEN ! If it's neither larger or smaller, it's there.
+!Praise the Lord, we've found it!
+                tSuccess=.true.
+                FoundIndex=N
+                RETURN
+            ELSEIF(CompLT) THEN
+               if(i.eq.N) THEN
+                  !This happens when j=i+1.  See if j==Value
+                  CompLT=List(j) %(op_lt)s Value()
+                  CompGT=List(j) %(op_gt)s Value()
+                  if(.not.CompGT) then 
+                     tSuccess=.not.CompLT !If j's not > or <, it must be ==
+                     i=j                  !j's not >, so we move up to it.
+                  endif
+                  FoundIndex=i
+                  RETURN
+               ENDIF
+               !move the lower bound up
+               i=N
+            ELSE !it must be larger!
+               !move the upper bound down
+               j=N
+            ENDIF
+         enddo
+
+!Here i=j=N, but .not.CompLT.  We signal failure and set FoundIndex to 1 before Min.
+         FoundIndex=i-1
+         RETURN
+    END SUBROUTINE 
+
+end module

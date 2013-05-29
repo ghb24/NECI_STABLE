@@ -1,0 +1,409 @@
+[int1]
+type = integer(int32)
+sizeof = sizeof_int32
+dim = :
+elem1 = 
+alloc_str = dims(1)
+conditional_enable = !defined(SX)
+
+[int2]
+dim = :,:
+elem1 = ,1
+alloc_str = dims(1), dims(2)
+conditional_enable = !defined(SX)
+
+[int3]
+dim = :,:,:
+elem1 = ,1,1
+alloc_str = dims(1), dims(2), dims(3)
+conditional_enable = !defined(SX)
+
+[int4]
+dim = :,:,:,:
+elem1 = ,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4)
+conditional_enable = !defined(SX)
+
+[int5]
+dim = :,:,:,:,:
+elem1 = ,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5)
+conditional_enable = !defined(SX)
+
+[int6]
+dim = :,:,:,:,:,:
+elem1 = ,1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
+conditional_enable = !defined(SX)
+
+[int64_1]
+type = integer(int64)
+sizeof = sizeof_int64
+dim = :
+elem1 = 
+alloc_str = dims(1)
+
+[int64_2]
+dim = :,:
+elem1 = ,1
+alloc_str = dims(1), dims(2)
+
+[int64_3]
+dim = :,:,:
+elem1 = ,1,1
+alloc_str = dims(1), dims(2), dims(3)
+
+[int64_4]
+dim = :,:,:,:
+elem1 = ,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4)
+
+[int64_5]
+dim = :,:,:,:,:
+elem1 = ,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5)
+
+[int64_6]
+dim = :,:,:,:,:,:
+elem1 = ,1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
+
+[doub1]
+type = real(dp)
+sizeof = sizeof_dp
+dim = :
+elem1 = 
+alloc_str = dims(1)
+
+[doub2]
+dim = :,:
+elem1 = ,1
+alloc_str = dims(1), dims(2)
+
+[doub3]
+dim = :,:,:
+elem1 = ,1,1
+alloc_str = dims(1), dims(2), dims(3)
+
+[doub4]
+dim = :,:,:,:
+elem1 = ,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4)
+
+[doub5]
+dim = :,:,:,:,:
+elem1 = ,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5)
+
+[doub6]
+dim = :,:,:,:,:,:
+elem1 = ,1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
+
+[real1]
+type = real(sp)
+sizeof = sizeof_sp
+dim = :
+elem1 = 
+alloc_str = dims(1)
+conditional_enable = !defined(SX)
+
+[real2]
+dim = :,:
+elem1 = ,1
+alloc_str = dims(1), dims(2)
+conditional_enable = !defined(SX)
+
+[real3]
+dim = :,:,:
+elem1 = ,1,1
+alloc_str = dims(1), dims(2), dims(3)
+conditional_enable = !defined(SX)
+
+[real4]
+dim = :,:,:,:
+elem1 = ,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4)
+conditional_enable = !defined(SX)
+
+[real5]
+dim = :,:,:,:,:
+elem1 = ,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5)
+conditional_enable = !defined(SX)
+
+[real6]
+dim = :,:,:,:,:,:
+elem1 = ,1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
+conditional_enable = !defined(SX)
+
+[complex1]
+type = complex(dp)
+sizeof = sizeof_complexdp
+dim = :
+elem1 = 
+alloc_str = dims(1)
+
+[complex2]
+dim = :,:
+elem1 = ,1
+alloc_str = dims(1), dims(2)
+
+[complex3]
+dim = :,:,:
+elem1 = ,1,1
+alloc_str = dims(1), dims(2), dims(3)
+
+[complex4]
+dim = :,:,:,:
+elem1 = ,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4)
+
+[complex5]
+dim = :,:,:,:,:
+elem1 = ,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5)
+
+[complex6]
+dim = :,:,:,:,:,:
+elem1 = ,1,1,1,1,1
+alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
+
+[log1]
+type = logical
+sizeof = sizeof_log
+dim = :
+elem1 = 
+alloc_str = dims(1)
+
+[log2]
+dim = :,:
+elem1 = ,1
+alloc_str = dims(1), dims(2)
+
+[log3]
+dim = :,:,:
+elem1 = ,1,1
+alloc_str = dims(1), dims(2), dims(3)
+
+=========================
+
+
+module shared_alloc
+    use iso_c_hack
+    use constants
+    use HElem
+    use ParallelHelper, only: iProcIndex
+    implicit none
+
+#ifndef __PGI
+    private
+    public :: shared_allocate, shared_deallocate, shared_allocate_iluts
+#endif
+    
+    interface
+        subroutine alloc_shared_worker (nm, pt, sz, proc) bind(c)
+            use iso_c_hack
+            implicit none
+            character(c_char), intent(in) :: nm
+            type(c_ptr), intent(inout) :: pt
+            integer(c_size_t), value :: sz
+            integer(c_int), value :: proc
+        end subroutine
+        subroutine dealloc_shared_worker (ptr) bind(c)
+            use iso_c_hack
+            use constants, only: int32, int64
+            implicit none
+#if defined(__PATHSCALE__) || defined(__ISO_C_HACK)
+#ifdef POINTER8
+            integer(int64), value :: ptr
+#else
+            integer(int32), value :: ptr
+#endif
+#else
+            type(c_ptr), value :: ptr
+#endif
+        end subroutine
+        subroutine shm_unlink_shared_worker (ptr) bind(c)
+            use iso_c_hack
+            implicit none
+            type(c_ptr), value :: ptr
+        end subroutine
+        function test_shared_permissions () result(bAvail) bind(c)
+            use iso_c_hack
+            implicit none
+#if defined __PGI || defined __G95__
+            logical :: bAvail
+#else
+            logical(c_bool) :: bAvail
+#endif
+        end function
+    end interface
+
+contains
+
+    subroutine conv_name(nm, name_tmp, node)
+
+        ! Generate the name for a shared memory object, such that it varies
+        ! depending on the node, if the node is specified.
+
+        character(*), intent(in) :: nm
+        integer, intent(in), optional :: node
+        character(*), intent(inout) :: name_tmp
+        character(10) :: name_tmp2
+
+        if (present(node)) then
+            write(name_tmp2, "(i6)") node
+            name_tmp = trim(nm) // adjustl(name_tmp2)
+        else
+            name_tmp = trim(nm)
+        endif
+
+    end subroutine
+
+
+    subroutine shared_allocate (nm, ptr, dims, node)
+
+        character(*), intent(in) :: nm
+        %(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
+        integer, intent(in) :: dims((len_trim('%(dim)s') + 1) / 2)
+        integer, intent(in),optional :: node
+        character(len_trim(nm) + 10) :: name_tmp
+
+#ifdef __SHARED_MEM
+        integer(int64) :: sz
+        type(c_ptr) :: tmp
+        %(type)s, dimension(%(dim)s), pointer :: ptr_tmp
+        integer :: error
+
+        ! Prepare name of shared memory object to pass to C.
+        call conv_name (nm, name_tmp, node)
+        name_tmp = trim(name_tmp)//c_null_char
+
+        sz = %(sizeof)s * product(int(dims,int64))
+
+        ! Allocate the shared memory
+        call alloc_shared_worker (name_tmp, tmp, int(sz, kind=c_size_t), &
+                                  int(iProcIndex, kind=c_int))
+
+        ! Assign to a fortran pointer.
+        ! Use of ptr_tmp to work around a compiler bug in ifort < 11
+        call c_f_pointer (tmp, ptr_tmp, dims)
+        ptr => ptr_tmp
+        nullify(ptr_tmp)
+
+        write (6, '("Allocated ", i10, &
+                  &" bytes of shared memory named: ", a)') sz, nm
+
+#else
+        ! Non-shared memory also used if __SHARED_MEM is not defined
+        allocate(ptr(%(alloc_str)s))
+#endif
+    end subroutine
+
+
+    subroutine shared_allocate_iluts (nm, ptr, dims, node)
+
+        ! This is a horrible hack for Alex.
+        ! The array will be allocated such that the first dimension goes is
+        ! such that (0:dim1, dim2, dim3 ...)
+        !
+        ! i.e. use call shared_allocate_iluts (nm, ptr, (/NifTot, num/))
+
+        character(*), intent(in) :: nm
+        %(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
+        %(type)s, dimension(%(dim)s), pointer :: ptr_tmp, ptr_tmp2
+        integer, intent(in) :: dims((len_trim('%(dim)s') + 1) / 2) ! compile time const.
+        integer :: dims_tmp((len_trim('%(dim)s') + 1) / 2)
+        character(len=len_trim(nm)+10) :: name_tmp
+        integer, intent(in),optional :: node
+
+#ifdef __SHARED_MEM
+        integer(int64) :: sz
+        type(c_ptr) :: tmp
+        integer :: error
+
+        ! Prepare name of shared memory object to pass to C.
+        call conv_name(nm,name_tmp,node)
+        name_tmp = trim(name_tmp)//c_null_char
+
+        ! Obtain size of array to allocate
+        dims_tmp = dims
+        dims_tmp(1) = dims_tmp(1) + 1
+        sz = %(sizeof)s * product(int(dims_tmp,int64))
+
+        ! Allocate the shared memory
+        call alloc_shared_worker (name_tmp, tmp, int(sz, kind=c_size_t), &
+                                  int(iProcIndex, kind=c_int))
+
+        ! Assign to a fortran pointer.
+        call c_f_pointer (tmp, ptr_tmp, dims_tmp)
+
+        ! Jiggle the pointers, so that the first dimension of the first 
+        ! one goes from 0:dims(1), rather than 1:dims(1)+1
+        call iluts_pointer_jig_%(name)s (ptr_tmp2, ptr_tmp, dims)
+        ptr => ptr_tmp2
+        nullify(ptr_tmp2)
+        nullify(ptr_tmp)
+
+        write (6, '("Allocated ", i10, &
+                  &" bytes of shared memory named: ", a)') sz, nm
+
+#else
+        ! Non-shared memory also used if __SHARED_MEM is not defined
+        allocate(ptr(0:%(alloc_str)s))
+#endif
+    end subroutine
+
+    subroutine iluts_pointer_jig (ptr, arr, dims)
+        use constants
+        integer, intent(in) :: dims((len_trim('%(dim)s') + 1) / 2)
+        %(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
+        %(type)s, dimension(0:%(alloc_str)s), intent(inout), target :: arr
+
+        ptr => arr
+    end subroutine
+
+    subroutine shared_deallocate (ptr)
+        %(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
+
+#ifdef __SHARED_MEM
+
+        %(type)s, pointer :: pt1
+
+        ! Sigh, a hack to get pathscale to work
+#if defined(__PATHSCALE__) || defined(__ISO_C_HACK)
+#ifdef POINTER8
+        integer(int64) :: tmp
+#else
+        integer(int32) :: tmp
+#endif
+#else
+        type(c_ptr) :: tmp
+#endif
+
+        ! Get a pointer to the first element. c_loc requries its argument to
+        ! be a scalar variable.
+        pt1 => ptr(lbound(ptr,1) %(elem1)s)
+
+#if defined(__PATHSCALE__) || defined(__ISO_C_HACK)
+        tmp = loc(ptr(:%(elem1)s))
+#else
+        tmp = c_loc(pt1)
+#endif
+        call dealloc_shared_worker (tmp)
+#else
+        deallocate(ptr)
+#endif
+        nullify(ptr)
+    end subroutine
+end module
+
+
+supermodule shared_alloc
+    interface
+        subroutine cleanup_shared_alloc () bind(c)
+        end subroutine
+    end interface
+end supermodule

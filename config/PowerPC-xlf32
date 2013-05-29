@@ -1,0 +1,17 @@
+[main]
+fc = /opt/ibmcmp/xlf/8.1/bin/xlf90 
+f77flags = -fcray-pointer -ffree-line-length-none -qfixed
+f90flags = -fcray-pointer -ffree-line-length-none -qsuffix=f=f90 
+cc = cc
+ld = /opt/ibmcmp/xlf/8.1/bin/xlf90
+ldflags = -rdynamic
+cpp = cpp -C -traditional
+cppflags =  -D__Linux 
+libs = -L ~/lib/fftw-3.1.2/lib -lfftw3 -L /usr/local/shared/acml/4.0/gfortran64/lib -llapack -lblas /usr/lib/gcc/i686-pcygwin/3.4.4/libg2c.a  -lrt -lm
+
+[dbg]
+fflags = -g
+cflags = -g -C
+
+[opt]
+cflags = -O

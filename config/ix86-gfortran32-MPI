@@ -1,0 +1,20 @@
+[main]
+fc = mpif90
+cc = mpic++
+ld = mpif90
+ldflags = -m32 -rdynamic
+compiler = GCC-f95-on-LINUX
+cpp = cpp -C -traditional
+cppflags = -D__Linux -DPARALLEL -D__INT64 -D__SHARED_MEM -D__GFORTRAN__ -DDISABLE_FFTW
+libs = -L /usr/lib/atlas -llapack -lblas -lstdc++ -lrt
+
+module_flag = -J
+
+[dbg]
+fflags = -fcray-pointer -ffree-line-length-none -g -m32
+cflags = -g -m32
+f90flags = -fbounds-check
+
+[opt]
+fflags = -fcray-pointer -ffree-line-length-none -O4 -m32
+cflags = -O -m32

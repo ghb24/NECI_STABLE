@@ -1,0 +1,101 @@
+[int]
+type = integer(kind=int32)
+conditional_enable = !defined(SX)
+
+[int64]
+type = integer(kind=int64)
+
+[real]
+type = real(kind=sp)
+conditional_enable = !defined(SX)
+
+[doub]
+type = real(kind=dp)
+
+[sym]
+type = type(Symmetry)
+
+[spp]
+type = type(SymPairProd)
+
+=========================
+
+module util_mod_comparisons
+    use constants
+    use helem
+    use SystemData, only: Symmetry, operator(.eq.), operator(.ne.), &
+                          operator(.gt.), operator(.lt.)
+    use symdata, only: SymPairProd, operator(.eq.), operator(.ne.), &
+                       operator(.gt.), operator(.lt.)
+    use StarDiagData
+    implicit none
+
+    ! Operator and function to test if arr1 > arr2 (if the first differing
+    ! element is larger)
+    interface operator(.arrgt.)
+        module procedure arr_gt_%(name)s
+    end interface
+
+    ! Operator and function to test if arr1 < arr2 (if the first differing
+    ! element is larger)
+    interface operator(.arrlt.)
+        module procedure arr_lt_%(name)s
+    end interface
+
+contains
+
+    pure function arr_gt (a, b) result (bGt)
+
+        ! Make a comparison we can sort arrays by. Return true if the
+        ! first differing items of a, b is such that a(i) > b(i).
+        !
+        ! In:  a, b - The arrays to compare
+        ! Ret: bGt  - a > b
+
+        %(type)s, intent(in), dimension(:) :: a, b
+        logical :: bGt
+        integer :: i, length
+
+        length = min(size(a), size(b))
+
+        ! Sort by the first item first...
+        do i = 1, length
+            if (a(i) /= b(i)) exit
+        enddo
+
+        ! Make the comparison
+        if (i > length) then
+            bGt = .false.
+        else
+            bGt = a(i) > b(i)
+        endif
+    end function
+
+    pure function arr_lt (a, b) result (bLt)
+        
+        ! Make a comparison we can sort arrays by. Return true if the first
+        ! differing items of a, b is such that a(i) < b(i).
+        !
+        ! In:  a, b - The arrays to compare
+        ! Ret: bLt  - a < b
+
+        %(type)s, intent(in), dimension(:) :: a, b
+        logical :: bLt
+        integer :: I, length
+
+        length = min(size(a), size(b))
+
+        ! Sort by the first item first...
+        do i = 1, length
+            if (a(i) /= b(i)) exit
+        enddo
+
+        ! Make the comparison
+        if (i > length) then
+            bLt = .false.
+        else
+            bLt = a(i) < b(i)
+        endif
+    end function
+
+end module

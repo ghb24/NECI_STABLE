@@ -1,0 +1,311 @@
+!This code takes a trial CI vector/Graph, and then systematically improves it.
+!The aim is to apply (exp[-Delta*H])^P, which is expanded out as iterative application of
+!Psi(t+1)=Psi(t)-Delta*HPsi(t). This H is applied locally to every determinant in the graph.
+!This was a precursor to the FCIMC algorithm, but crucially it still holds the vector of all components,
+!so is effectivly no better than the GraphMorph algorithm.
+!This was never worked on for very long, so is incomplete and possibly buggy.
+
+MODULE GraphMorph2
+
+    use SystemData , only : NEl
+    USE Determinants , only : FDet
+!Iters is the number of interations of morphing the graph, DetsMax is the maximum size of the CI vector
+!iTStoch indicates whether the determinants to apply the hamiltonian to locally are picked stochastically, or whether to run through all of them
+    use CalcData , only : Iters,DetsMax,DeltaH,TStoch,SampDets
+    USE global_utilities
+    USE HElem
+
+    IMPLICIT NONE
+    SAVE
+
+!Array to hold CI vector
+    REAL*8 , ALLOCATABLE :: CIVect(:)
+    INTEGER :: CIVectTag=0
+
+!ChangeVect hold the values of the elements of the H*Psi(t) vector, before the full wavevector is updated
+    REAL*8 , ALLOCATABLE :: ChangeVect(:)
+    INTEGER :: ChangeVectTag=0
+
+!Array to hold configuration of each determinant in the CIvect
+!The zeroth element of each determinant holds the excitation level from the HF determinant
+    INTEGER , ALLOCATABLE :: CIConfig(:)
+    INTEGER :: CIConfigTag=0
+
+    INTEGER , ALLOCATABLE :: ExcitConfig(:,:)
+    INTEGER :: ExcitConfigTag=0
+
+    REAL*8 , ALLOCATABLE :: ExcitVect(:)
+    INTEGER :: ExcitVectTag=0
+
+    INTEGER :: Seed
+
+!Dets is the current number of excited determinants in the CIvector
+    INTEGER :: Dets
+
+!Doubs is the number of double excitations connected to the HF determinant
+    INTEGER :: Doubs
+
+!TempEnergyxw and TempWeight are the weight and energyxw of the current CI vector
+    REAL*8 :: TempEnergyxw,TempWeight
+
+    REAL*8 :: Hii
+
+    contains
+
+    SUBROUTINE MorphGraph2(Weight,Energyxw)
+        use SystemData, only: Alat,Beta,Brr,ECore,G1,nBasis,nBasisMax
+        use CalcData , only : G_VMC_Seed
+        use IntegralsData, only : fck,nMax,nMsh,UMat
+        USE Determinants , only : GetHElement2
+        IMPLICIT NONE
+        TYPE(HDElement) :: Weight,Energyxw
+        TYPE(HElement) :: Helii
+        INTEGER :: ierr,i,Iteration
+        CHARACTER(len=*), PARAMETER :: this_routine='MorphGraph2'
+    
+        OPEN(64,file='MCMorphStats',Status='unknown')
+        
+        IF(HElementSize.ne.1) STOP 'Only real orbitals allowed in GraphMorph2 so far'
+
+        Weight=HDElement(0.D0)
+        Energyxw=HDElement(0.D0)
+    
+!Initialise random number generator
+        Seed=G_VMC_Seed
+        Helii=GetHElement2(FDet,FDet,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,0,ECore)
+        Hii=Helii%v
+
+!Calculate number of double excitations of HF there are.
+        CALL CalcNumDoubs()
+        WRITE(6,*) "Total number of double excitations is: ",Doubs
+
+!Allocate memory to hold CI vector
+        ALLOCATE(CIConfig(0:DetsMax,0:NEl),stat=ierr)
+        CALL LogMemAlloc('CIConfig',(DetsMax+1)*(NEl+1),4,this_routine,CIConfigTag)
+        CALL IAZZERO(CIConfig,(DetsMax+1)*(NEl+1))
+        ALLOCATE(CIVect(0:DetsMax),stat=ierr)
+        CALL LogMemAlloc('CIVect',DetsMax+1,8,this_routine,CIVectTag)
+        CALL AZZERO(CIVect,DetsMax+1)
+        IF(ierr.ne.0) STOP 'Problem in allocating memory for GraphMorph2'
+
+!Create initial normalised trial CI vector
+        CALL CreateInitTrialWavevect()
+
+        do Iteration=1,Iters
+            
+            CALL ApplyHMat()
+
+        enddo
+
+        RETURN
+    END SUBROUTINE MorphGraph2
+    
+
+    SUBROUTINE ApplyHMat()
+        IMPLICIT NONE
+        CHARACTER(len=*), PARAMETER :: this_routine='ApplyHMat'
+        INTEGER :: ExcitSpace,ierr
+
+!First we need to know how much memory to allocate to hold the excitations of each of the determinants in the CI vector.
+        CALL CalcNumExcits(ExcitSpace)
+
+!Allocate memory to hold excitations of determinants in the CI vector
+!ExcitConfig will hold the configurations, while ExcitVect will hold the values of Hij
+        WRITE(6,*) "Allocating memory to hold ", ExcitSpace, "excitations of determinants in the graph"
+        ALLOCATE(ExcitConfig(ExcitSpace,1:NEl),stat=ierr)
+        CALL LogMemAlloc('ExcitConfig',ExcitSpace*NEl,4,this_routine,ExcitConfigTag)
+        CALL IAZZERO(ExcitConfig,ExcitSpace*NEl)
+        ALLOCATE(ExcitVect(ExcitSpace),stat=ierr)
+        CALL LogMemAlloc('ExcitVect',ExcitSpace,8,this_routine,ExcitVectTag)
+        CALL AZZERO(ExcitVect,ExcitSpace)
+
+!It is also necessary to allocate memory to hold to value of the H*Psi(t) elements, before the wavevector is updated
+        ALLOCATE(ChangeVect(0:Dets),stat=ierr)
+        CALL LogMemAlloc('ChangeVect',Dets+1,8,this_routine,ChangeVectTag)
+        CALL AZZERO(ChangeVect,Dets+1)
+
+        do i=0,Dets
+!Cycle through all determinant currently in the graph, including the HF determinant
+            
+            CALL CalcHDet(i)
+
+!This routine calculates the change in the weight of a determinant due to the neighbouring determinants, which can either
+!be treated stochastically or exactly. Any excitation created, is checked against the list of excitations already in the
+!graph to see if it is already included. If it isn't, and there is space for more determinants in the vector, then it is
+!added. If not, then it is added to the ExcitVect array, for the possibility to be included at a later date.
+    SUBROUTINE CalcHDet(i)
+        use SystemData, only: Alat,Beta,Brr,ECore,G1,nBasis,nBasisMax
+        use CalcData , only : G_VMC_Seed
+        use IntegralsData, only : fck,nMax,nMsh,UMat
+        USE Determinants , only : GetHElement2
+        IMPLICIT NONE
+        INTEGER :: i
+        REAL*8 :: Hij
+        TYPE(HElement) :: Helij
+
+        IF(i.eq.0) THEN
+!This means we are dealing with the HF determinant. This is special, since we know that double excitations are stongly
+!coupled, so whether we are doing stochastic application of H, or exact, we want to include all double excitations
+!which are included in the CI vector
+
+!First deal with the action of the HF vector on itself
+            ChangeVect(0)=Hii*CIVect(0)
+  
+            do j=1,Dets
+                IF(CIConfig(j,0).eq.2) THEN
+!Check for components in vector which are double excitations
+                    Helij=GetHElement2(FDet,CIConfig(j,1:NEl),nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,2,ECore)
+                    Hij=Helij%v
+                    ChangeVect(0)=ChangeVect(0)+Hij*CIVect(j)
+                ENDIF
+            enddo
+
+!Need to have the ability to include double excitations which are not in the list...
+
+            
+
+!This routine calculates the number of excitations which are going to be generated by applying HMat to the graph
+!The original determinants do not need to be counted, since these will be able to be directly updated within the 
+!Original CI vector
+    SUBROUTINE CalcNumExcits(ExcitSpace)
+        IMPLICIT NONE
+        INTEGER :: ExcitSpace,exFlag,iMaxExcit,nStore(6),nExcitTag,nExcitMemLen,nJ(NEl),i,ierr
+        INTEGER :: DetCurr(NEl),j
+        CHARACTER(len=*) :: this_routine='CalcNumExcits'
+        INTEGER , ALLOCATABLE :: nExcit(:)
+
+!The HF determinant is going to connect to all double excitations, so this needs to be included in the space of double excitations
+        ExcitSpace=Doubs
+
+        IF(TStoch) THEN
+!If we are stochastically sampling the excitations of each determinant, then we only need to consider that each determinant samples
+!the effect of SampDets connected determinants.
+!However, in addition to this, all double excitations sample the root, however the root is definitely in the CI vector, and so doesn't
+!need to be included in the memory to store the excitations
+            ExcitSpace=ExcitSpace+(DetsMax*SampDets)
+
+        ELSE
+!If we are calculating the full affect of all connected excitations on each determinant, then we need to calculate the total number of excitations.
+            exFlag=2
+            nExcitTag=0
+
+!Cycle over all vertices currently in graph
+            do i=1,Dets
+              
+!Find configuration of chosen determinant
+                do j=1,NEl
+                    DetCurr(j)=CIConfig(i,j)
+                enddo
+
+!Create excitation generator
+                iMaxExcit=0
+                CALL IAZZERO(nStore,6)
+                CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
+                ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
+                CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag)
+                CALL IAZZERO(nExcit,nExcitMemLen)
+                CALL GenSymExcitIt2(DetCurr,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
+                
+!Sum number of excitations from each determinant
+                ExcitSpace=ExcitSpace+iMaxExcit
+
+!Destroy excitation generator
+                DEALLOCATE(nExcit)
+                CALL LogMemDealloc(this_routine,nExcitTag)
+                CALL IAZZERO(nStore,6)
+
+            enddo
+
+        ENDIF
+
+        RETURN
+    END SUBROUTINE CalcNumExcits
+
+!This routine simple calculates the number of double excitations of the HF there are.
+    SUBROUTINE CalcNumDoubs()
+        IMPLICIT NONE
+        INTEGER :: exFlag,iMaxExcit,nStore(6),nExcitTag,nExcitMemLen,nJ(NEl),i,ierr
+        CHARACTER(len=*) :: this_routine='CalcNumDoubs'
+        INTEGER , ALLOCATABLE :: nExcit(:)
+
+!Only allow double excitations
+        exFlag=2
+        nExcitTag=0
+!Create excitation generator
+        iMaxExcit=0
+        CALL IAZZERO(nStore,6)
+        CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,exFlag)
+        ALLOCATE(nExcit(nExcitMemLen),stat=ierr)
+        CALL LogMemAlloc('nExcit',nExcitMemLen,4,this_routine,nExcitTag)
+        CALL IAZZERO(nExcit,nExcitMemLen)
+        CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlag)
+              
+!Store number of excitations
+        Doubs=iMaxExcit
+
+!Destroy excitation generator
+        DEALLOCATE(nExcit)
+        CALL LogMemDealloc(this_routine,nExcitTag)
+        CALL IAZZERO(nStore,6)
+
+        RETURN
+    END SUBROUTINE CalcNumDoubs
+
+
+
+    SUBROUTINE CreateInitTrialWavevect()
+        IMPLICIT NONE
+        INTEGER :: iErr,i
+        REAL*8 :: StarEnergy,NormCheck
+        TYPE(HElement) :: NormCons
+
+!Just let the initial CI vector be the HF determinant
+        CIVect(0)=1.D0
+!No excitations in current vector, therefore Dets=0
+        Dets=0
+!Store the HF determinant
+        do i=1,NEl
+            CIConfig(0,i)=FDet(i)
+        enddo
+!Set the excitation level for the HF determinant equal to 0
+        CIConfig(0,0)=0
+
+!Calculate initial energy of trial wavevector
+        CALL CalcCIVectE()
+
+        WRITE(64,"(I15,2G22.14)") 1,TempEnergyxw/TempWeight,TempWeight
+
+        RETURN
+    END SUBROUTINE CreateInitTrialWavevect
+
+!This simply calculates the energy of a CI vector
+    SUBROUTINE CalcCIVectE()
+        use SystemData, only: Alat,Beta,Brr,ECore,G1,nBasis,nBasisMax
+        use IntegralsData, only : fck,nMax,nMsh,UMat
+        USE Determinants , only : GetHElement2
+        IMPLICIT NONE
+        TYPE(HElement) :: Hij
+        INTEGER :: i
+
+        TempEnergyxw=0.D0
+        TempWeight=0.D0
+
+!Search through the CI vector for double excitations
+        do i=1,Dets
+            IF(CIConfig(i,0).eq.2) THEN
+!Double excitation found - calculate Hij value
+                Hij=GetHElement2(FDet,CIConfig(i,1:NEl),NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,NMax,ALat,UMat,2,ECore)
+                TempEnergyxw=TempEnergyxw+(Hij%v*CIVect(i))
+            ENDIF
+        enddo
+        TempWeight=CIVect(0)
+
+        RETURN
+    END SUBROUTINE CalcCIVectE
+
+
+
+END MODULE GraphMorph2
+
+
+

@@ -1,0 +1,21 @@
+Fortran 2003 features
+---------------------
+
+1. Use ieee_arithmetic for isnan and get_nan.
+2. Fortran function pointers rather than using c_ptrs from iso_c_binding.
+
+Compiler bugs
+-------------
+
+1. Remove the pathscale hack in fcimc_wrapper.F90
+2. gfortran has a bug sorting module locations. Changing to the -J rather than
+   -M flag fixes this for versions .ge. 4.4, but breaks it otherwise. For these
+   versions, it is necessary to manually link to the mpi.mod file for it to find it
+   while retaining the path to put compiled .mod files.
+   An alternative workaround is to manually add the MPI library path to the
+   search path using -I.
+3. PGI has issues with custom operators and public/private declarations in modules.
+   If these go away, remove the comments from the relevant sections of util_mod.
+4. gfortran throws a wobbly about labelling a past function as an operator unless
+   the passed function is also called directly. See the workaround in 
+   lib/quicksort.F90.template

@@ -1,0 +1,20 @@
+[main]
+fc = sunf90
+cc = sunCC
+ld = sunf90
+ldflags = -Bstatic -rdynamic
+compiler = INTEL-ifort9-on-LINUX
+cpp = cpp -C -traditional
+cppflags = -D__Linux -DPOINTER8 -DHAVE_SSE2 -D__INT64 -DDISABLE_FFTW
+libs = -L ~/src/lib/fftw-3.1.2/lib -L ~/lib/fftw-3.1.2/lib  -llapack -lblas -lrt -L/usr/lib64  -lm
+module_flag = -moddir=
+
+[dbg]
+fflags = -xtypemap=real:64,double:64,integer:64 -xopenmp=none -O3
+cflags = -xopenmp=none -mt -features=zla -O3
+f90flags = -xtypemap=real:64,double:64,integer:64 -xopenmp=none -O3
+
+[opt]
+fflags = -xtypemap=real:64,double:64,integer:64 -xopenmp=none -O3
+cflags = -xopenmp=none -mt -features=zla -O3
+f90flags = -xtypemap=real:64,double:64,integer:64 -xopenmp=none -O3

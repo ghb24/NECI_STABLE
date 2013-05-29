@@ -1,0 +1,19 @@
+[main]
+fc = gfortran
+cc = g++
+ld = gfortran
+ldflags = -m32 -rdynamic
+compiler = GCC-f95-on-LINUX
+cpp = cpp -C -traditional
+cppflags = -D__Linux -D__INT64 -D__GFORTRAN__
+libs = /usr/lib/i386-linux-gnu/libstdc++.so.6 -lfftw3 -llapack -lblas -lrt -lm
+module_flag = -J
+
+[dbg]
+fflags = -fcray-pointer -ffree-line-length-none -g -m32
+cflags = -g -m32
+f90flags = -fbound-check
+
+[opt]
+fflags = -fcray-pointer -ffree-line-length-none -O4 -m32
+cflags = -O -m32

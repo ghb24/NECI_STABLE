@@ -1,0 +1,68 @@
+[int]
+type = integer(kind=int32)
+tmp_init = !
+tmp_destroy = !
+conditional_enable = !defined(SX)
+
+[int64]
+type = integer(kind=int64)
+
+[real]
+type = real(kind=sp)
+conditional_enable = !defined(SX)
+
+[doub]
+type = real(kind=dp)
+
+[logical]
+type = logical
+
+[cplx]
+type = complex(kind=sp)
+conditional_enable = !defined(SX)
+
+[cplx_doub]
+type = complex(kind=dp)
+
+[sym]
+type = type(Symmetry)
+
+[sympairprod]
+type = type(SymPairProd)
+
+[starwalker]
+type = type(star_walker)
+
+=========================
+
+module util_mod_cpts
+    use constants
+    use helem
+    use SystemData, only: Symmetry, assignment(=)
+    use symdata, only: SymPairProd, assignment(=)
+    use StarDiagData
+    implicit none
+
+    private
+    public :: swap
+
+contains
+
+    ! Swap the  specified variables
+    elemental subroutine swap (a, b)
+
+        ! Sway the element a with the element b via a temporary variable.
+        !
+        ! InOut: a, b - The elements to swap.
+
+        %(type)s, intent(inout) :: a, b
+        %(type)s :: tmp
+
+        %(tmp_init)s(tmp)
+        tmp = a
+        a = b
+        b = tmp
+        %(tmp_destroy)s(tmp)
+    end subroutine
+
+end module

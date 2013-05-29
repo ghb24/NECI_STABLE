@@ -1,0 +1,783 @@
+#############################################
+############## Sort scalars #################
+#############################################
+[int]
+type1 = integer(kind=int32)
+extra_arrs = 
+op_gt = >
+op_lt = <
+custom_comparisons = 
+custom_compare_prefix = !
+type2 = !
+type3 = !
+type4 = !
+type5 = !
+type6 = !
+arr2_prefix = !
+arr3_prefix = !
+arr4_prefix = !
+arr5_prefix = !
+arr6_prefix = !
+tmp_init1 = !
+tmp_destroy1 = !
+tmp_init2 = !
+tmp_destroy2 = !
+tmp_init3 = !
+tmp_destroy3 = !
+tmp_init4 = !
+tmp_destroy4 = !
+tmp_init5 = !
+tmp_destroy5 = !
+tmp_init6 = !
+tmp_destroy6 = !
+conditional_enable = !defined(SX)
+
+[int64]
+type1 = integer(kind=int64)
+
+[doub]
+type1 = real(dp)
+
+[sym]
+type1 = type(Symmetry)
+
+[sympairprod]
+type1 = type(SymPairProd)
+
+[starwalker]
+type1 = type(star_walker)
+
+[cmplx]
+type1 = complex(dp)
+
+##############################################
+############### Sort arrays ##################
+##############################################
+[a_i]
+type1 = integer(kind=int32), dimension(:)
+op_gt = .arrgt.
+op_lt = .arrlt.
+conditional_enable = !defined(SX)
+
+[a_i64]
+type1 = integer(kind=int64), dimension(:)
+
+[a_i64_custom]
+custom_comparisons = custom_lt, custom_gt,
+custom_compare_prefix = 
+op_gt = .localgt.
+op_lt = .locallt.
+
+[a_d]
+type1 = real(dp), dimension(:)
+custom_comparisons =
+custom_compare_prefix = !
+op_gt = .arrgt.
+op_lt = .arrlt.
+
+##############################################
+############ Sort by scalars #################
+##############################################
+[i_i]
+type1 = integer(kind=int32)
+type2 = integer(kind=int32)
+arr2_prefix = 
+extra_arrs = arr2,
+op_gt = >
+op_lt = <
+conditional_enable = !defined(SX)
+
+[i_d]
+type2 = real(dp)
+conditional_enable = !defined(SX)
+
+[i_a_i]
+type2 = integer(kind=int32), dimension(:)
+
+[i_a_i64]
+type2 = integer(kind=int64), dimension(:)
+conditional_enable = !defined(SX)
+
+[i_a_d]
+type2 = real(dp), dimension(:)
+conditional_enable = !defined(SX)
+
+[i_a_c]
+type2 = complex(dp), dimension(:)
+conditional_enable = !defined(SX)
+
+[d_i]
+type1 = real(dp)
+type2 = integer(kind=int32)
+conditional_enable = !defined(SX)
+
+[d_d]
+type2 = real(dp)
+
+[d_i64]
+type2 = integer(kind=int64)
+
+[d_a_i]
+type2 = integer(kind=int32), dimension(:)
+conditional_enable = !defined(SX)
+
+[d_a_i64]
+type2 = integer(kind=int64), dimension(:)
+
+[d_a_d]
+type2 = real(dp), dimension(:)
+
+[sym_a_i]
+type1 = type(Symmetry)
+type2 = integer(kind=int32), dimension(:)
+conditional_enable = !defined(SX)
+
+[sym_a_i64]
+type1 = type(Symmetry)
+type2 = integer(kind=int64), dimension(:)
+
+[i64_i64]
+type1 = integer(kind=int64)
+type2 = integer(kind=int64)
+
+[i64_d]
+type2 = real(kind=dp)
+
+[i64_a_i]
+type2 = integer(kind=int32), dimension(:)
+conditional_enable = !defined(SX)
+
+[int64_arr_int64]
+type2 = integer(kind=int64), dimension(:)
+
+[i64_a_d]
+type2 = real(dp), dimension(:)
+
+[i64_a_c]
+type2 = complex(dp), dimension(:)
+
+[i_d_d]
+type1 = integer(kind=int32)
+type2 = real(kind=dp)
+type3 = real(kind=dp)
+arr3_prefix = 
+extra_arrs = arr2, arr3,
+conditional_enable = !defined(SX)
+
+[i64_d_d]
+type1 = integer(kind=int64)
+type2 = real(kind=dp)
+type3 = real(kind=dp)
+conditional_enable = !defined(SX)
+
+[i_a_i_d_i]
+type1 = integer(kind=int32)
+type2 = integer(kind=int32), dimension(:)
+type3 = real(kind=dp)
+type4 = integer(kind=int32)
+arr4_prefix = 
+extra_arrs = arr2, arr3, arr4,
+conditional_enable = !defined(SX)
+
+[i64_a_i64_d_i64]
+type1 = integer(kind=int64)
+type2 = integer(kind=int64), dimension(:)
+type3 = real(kind=dp)
+type4 = integer(kind=int64)
+conditional_enable = !defined(SX)
+
+[i_a_i64_d_i]
+type1 = integer(kind=int32)
+type2 = integer(kind=int64), dimension(:)
+type3 = real(kind=dp)
+type4 = integer(kind=int32)
+conditional_enable = !defined(SX)
+
+[i64_a_i_d_i64]
+type1 = integer(kind=int64)
+type2 = integer(kind=int32), dimension(:)
+type3 = real(kind=dp)
+type4 = integer(kind=int64)
+conditional_enable = !defined(SX)
+
+###############################################
+########## Sort by integer array ##############
+###############################################
+[a_i_a_i]
+type1 = integer(kind=int32), dimension(:)
+type2 = integer(kind=int32), dimension(:)
+extra_arrs = arr2,
+arr3_prefix = ! 
+arr4_prefix = !
+type3 = !
+type4 = !
+op_gt = .arrgt.
+op_lt = .arrlt.
+conditional_enable = !defined(SX)
+
+[a_i_a_d]
+type2 = real(dp), dimension(:)
+conditional_enable = !defined(SX)
+
+[a_i_i]
+type2 = integer(kind=int32)
+conditional_enable = !defined(SX)
+
+[a_i_d]
+type2 = real(dp)
+conditional_enable = !defined(SX)
+
+###############################################
+############# 64-bit integers #################
+###############################################
+[a_i64_a_i64]
+type1 = integer(kind=int64), dimension(:)
+type2 = integer(kind=int64), dimension(:)
+op_gt = .arrgt.
+op_lt = .arrlt.
+
+[arr_int64_arr_doub]
+type2 = real(dp), dimension(:)
+
+[a_i64_i]
+type2 = integer(kind=int32)
+conditional_enable = !defined(SX)
+
+[a_i64_i64]
+type2 = integer(kind=int64)
+
+[a_i64_d]
+type2 = real(dp)
+
+
+#################################################
+############# Sort by double array ##############
+#################################################
+[a_d_d]
+type1 = real(dp), dimension(:)
+
+[a_d_i]
+type2 = integer(kind=int32)
+conditional_enable = !defined(SX)
+
+[a_d_a_d]
+type2 = real(dp), dimension(:)
+
+[a_d_a_i]
+type2 = integer(kind=int32), dimension(:)
+conditional_enable = !defined(SX)
+
+[a_d_a_i64]
+type2 = integer(kind=int64), dimension(:)
+################################################
+############ More specific sorts ###############
+################################################
+[a_i_i_d]
+type1 = integer(kind=int32), dimension(:)
+type2 = integer(kind=int32)
+type3 = real(kind=dp)
+arr3_prefix = 
+extra_arrs = arr2, arr3,
+conditional_enable = !defined(SX)
+
+[a_i_i64_d]
+type2 = integer(kind=int64)
+conditional_enable = !defined(SX)
+
+[a_i64_i_d]
+type1 = integer(kind=int64), dimension(:)
+type2 = integer(kind=int32)
+conditional_enable = !defined(SX)
+
+[a_i64_i64_d]
+type1 = integer(kind=int64), dimension(:)
+type2 = integer(kind=int64)
+type3 = real(kind=dp)
+
+[i_a_i64_l]
+type1 = integer(kind=int32)
+type2 = integer(kind=int64), dimension(:)
+type3 = logical
+op_gt = >
+op_lt = <
+conditional_enable = !defined(SX)
+
+[i64_a_i64_l]
+type1 = integer(kind=int64)
+
+[i_a_i_d]
+type1 = integer(kind=int32)
+type2 = integer(kind=int32), dimension(:)
+type3 = real(kind=dp)
+conditional_enable = !defined(SX)
+
+[i64_a_i_d]
+type1 = integer(kind=int64)
+conditional_enable = !defined(SX)
+
+[i_a_i64_d]
+type1 = integer(kind=int32)
+type2 = integer(kind=int64), dimension(:)
+conditional_enable = !defined(SX)
+
+[i64_a_i64_d]
+type1 = integer(kind=int64)
+
+[d_d_d]
+type1 = real(kind=dp)
+type2 = real(kind=dp)
+type3 = real(kind=dp)
+
+[d_a_d_i]
+type2 = real(kind=dp), dimension(:)
+type3 = integer(kind=int32)
+conditional_enable = !defined(SX)
+
+[d_a_d_i64]
+type3 = integer(kind=int64)
+
+[c_c_c]
+type1 = complex(dp)
+type2 = complex(dp)
+type3 = complex(dp)
+
+[i_i_i64_i]
+type1 = integer(kind=int32)
+type2 = integer(kind=int32)
+type3 = integer(kind=int64)
+type4 = integer(kind=int32)
+arr4_prefix = 
+extra_arrs = arr2, arr3, arr4,
+conditional_enable = !defined(SX)
+
+[d_d_d_i]
+type1 = real(kind=dp)
+type2 = real(kind=dp)
+type3 = real(kind=dp)
+type4 = integer(kind=int32)
+conditional_enable = !defined(SX)
+
+[d_d_d_i64]
+type1 = real(kind=dp)
+type2 = real(kind=dp)
+type3 = real(kind=dp)
+type4 = integer(kind=int64)
+
+[i64_i_i_i]
+type1 = integer(kind=int64)
+type2 = integer(kind=int32)
+type3 = integer(kind=int32)
+type4 = integer(kind=int32)
+conditional_enable = !defined(SX)
+
+[a_i64_i_d_i]
+type1 = integer(kind=int64), dimension(:)
+type2 = integer(kind=int32)
+type3 = real(kind=dp)
+type4 = integer(kind=int32)
+op_gt = .arrgt.
+op_lt = .arrlt.
+conditional_enable = !defined(SX)
+
+[a_i64_i64_d_i64]
+type1 = integer(kind=int64), dimension(:)
+type2 = integer(kind=int64)
+type3 = real(kind=dp)
+type4 = integer(kind=int64)
+conditional_enable = !defined(SX)
+
+[a_i_i_d_i]
+type1 = integer(kind=int32), dimension(:)
+type2 = integer(kind=int32)
+type3 = real(kind=dp)
+type4 = integer(kind=int32)
+conditional_enable = !defined(SX)
+
+[a_i_i64_d_i64]
+type1 = integer(kind=int32), dimension(:)
+type2 = integer(kind=int64)
+type3 = real(kind=dp)
+type4 = integer(kind=int64)
+conditional_enable = !defined(SX)
+
+[i64_i64_i_i_i]
+type1 = integer(kind=int64)
+type2 = integer(kind=int64)
+type3 = integer(kind=int32)
+type4 = integer(kind=int32)
+type5 = integer(kind=int32)
+op_gt = >
+op_lt = <
+arr5_prefix = 
+extra_arrs = arr2, arr3, arr4, arr5,
+conditional_enable = !defined(SX)
+
+
+===================
+
+#define srt_ind(i) (((i)*nskip_)+1)
+
+module sort_mod
+    use util_mod, only: operator(.arrlt.), operator(.arrgt.)
+    use constants
+    use SystemData, only: Symmetry, operator(.eq.), operator(.ne.), &
+                          operator(.gt.), operator(.lt.), assignment(=)
+    use symdata, only: SymPairProd, operator(.eq.), operator(.ne.), &
+                       operator(.gt.), operator(.lt.), assignment(=)
+    use StarDiagData
+    implicit none
+    
+    private
+    public :: sort
+
+    ! Private operator for sorting complex numbers by their real values
+    interface operator(.gt.)
+        module procedure cmplx_gt_%(name)s
+    end interface
+    interface operator(.lt.)
+        module procedure cmplx_lt_%(name)s
+    end interface
+
+contains
+    subroutine sort (arr, %(extra_arrs)s%(custom_comparisons)snskip, par)
+
+        ! Perform a quicksort on an array of integers, arr(n). Uses the 
+        ! sample code in NumericalRecipies as a base.
+        ! Optionally sort arr2 in parallel (in the routines it is enabled)
+
+        ! Custom comparisons. Use the operator .locallt. & .localgt.
+        %(custom_compare_prefix)s interface operator(.locallt.)
+        %(custom_compare_prefix)s     pure function custom_lt (b, c) result (ret)
+        %(custom_compare_prefix)s         use constants
+        %(custom_compare_prefix)s         %(type1)s, intent(in) :: b(:)
+        %(custom_compare_prefix)s         %(type1)s, intent(in) :: c(:)
+        %(custom_compare_prefix)s         logical :: ret
+        %(custom_compare_prefix)s     end function 
+        %(custom_compare_prefix)s end interface    
+        %(custom_compare_prefix)s interface operator(.localgt.)
+        %(custom_compare_prefix)s     pure function custom_gt (b, c) result (ret)
+        %(custom_compare_prefix)s         use constants
+        %(custom_compare_prefix)s         %(type1)s, intent(in) :: b(:)
+        %(custom_compare_prefix)s         %(type1)s, intent(in) :: c(:)
+        %(custom_compare_prefix)s         logical :: ret
+        %(custom_compare_prefix)s     end function 
+        %(custom_compare_prefix)s end interface    
+
+
+        ! sort needs auxiliary storage of length 2*log_2(n).
+        integer, parameter :: nStackMax = 50
+        integer, parameter :: nInsertionSort = 7
+        integer, intent(in), optional :: nskip
+        integer, intent(out), optional :: par
+
+        %(type1)s, intent(inout) :: arr(:)
+        %(type2)s, intent(inout) :: arr2(:)
+        %(type3)s, intent(inout) :: arr3(:)
+        %(type4)s, intent(inout) :: arr4(:)
+        %(type5)s, intent(inout) :: arr5(:)
+        %(type6)s, intent(inout) :: arr6(:)
+
+        ! Oh, how lovely it would be to be able to use push/pop and not need
+        ! to guess a size of the stack to start with
+        integer :: stack(nStackMax), nstack, nskip_
+        integer :: pivot, lo, hi, n, i, j, par_
+        ! n.b. This size statement is removed if type1 is scalar ...
+        %(type1)s :: a(size(arr(1)))
+        %(type2)s :: a2(size(arr2(1)))
+        %(type3)s :: a3(size(arr3(1)))
+        %(type4)s :: a4(size(arr4(1)))
+        %(type5)s :: a5(size(arr5(1)))
+        %(type6)s :: a6(size(arr6(1)))
+
+        ! Temporary variables for swapping
+        %(type1)s :: tmp1(size(arr(1)))
+        %(type2)s :: tmp2(size(arr2(1)))
+        %(type3)s :: tmp3(size(arr3(1)))
+        %(type4)s :: tmp4(size(arr4(1)))
+        %(type5)s :: tmp5(size(arr5(1)))
+        %(type6)s :: tmp6(size(arr6(1)))
+        character(*), parameter :: this_routine = 'sort'
+
+
+        ! Initialise temporary variables if required
+        %(tmp_init1)s(a)
+        %(tmp_init1)s(tmp1)
+        %(tmp_init2)s(a2)
+        %(tmp_init2)s(tmp2)
+        %(tmp_init3)s(a3)
+        %(tmp_init3)s(tmp3)
+        %(tmp_init4)s(a4)
+        %(tmp_init4)s(tmp4)
+        %(tmp_init5)s(a5)
+        %(tmp_init5)s(tmp5)
+        %(tmp_init6)s(a6)
+        %(tmp_init6)s(tmp6)
+        
+        ! *** HACK ***
+        ! Workaround for gfortran compiler bug
+        ! n.b. This will produce spurious warnings if run in valgrind, as
+        !      a is not initialised. Not a problem in optimised build.
+        i = 0
+        %(custom_compare_prefix)s if (custom_lt(a, a)) i = i
+        %(custom_compare_prefix)s if (custom_gt(a, a)) i = i
+
+        if (present(nskip)) then
+            nskip_ = nskip
+        else
+            nskip_ = 1
+        endif
+
+        ! Initialise parity calculation
+        par_ = 1
+
+        ! The size of the array to sort. 
+        ! N.B. Use zero based indices. To obtain ! the entry into the actual 
+        ! array, multiply indices by nskip and add ! 1 (hence zero based)
+        ! **** See local macro srt_ind() ******
+        lo = lbound(arr, %(dim-arr)s) - 1
+        n = ((ubound(arr, %(dim-arr)s) - lo -1)/nskip_) + 1
+        hi = lo + n - 1
+
+        nstack = 0
+        do while (.true.)
+            ! If the section/partition we are looking at is smaller than
+            ! nInsertSort then perform an insertion sort 
+            if (hi - lo < nInsertionSort) then
+                do j = lo + 1, hi
+                    a = arr(srt_ind(j))
+                    %(arr2_prefix)s a2 = arr2(srt_ind(j))
+                    %(arr3_prefix)s a3 = arr3(srt_ind(j))
+                    %(arr4_prefix)s a4 = arr4(srt_ind(j))
+                    %(arr5_prefix)s a5 = arr5(srt_ind(j))
+                    %(arr6_prefix)s a6 = arr6(srt_ind(j))
+                    do i = j - 1, 0, -1
+                        if (arr(srt_ind(i)) %(op_lt)s a) exit
+                        arr(srt_ind(i+1)) = arr(srt_ind(i))
+                        %(arr2_prefix)s arr2(srt_ind(i+1)) = arr2(srt_ind(i))
+                        %(arr3_prefix)s arr3(srt_ind(i+1)) = arr3(srt_ind(i))
+                        %(arr4_prefix)s arr4(srt_ind(i+1)) = arr4(srt_ind(i))
+                        %(arr5_prefix)s arr5(srt_ind(i+1)) = arr5(srt_ind(i))
+                        %(arr6_prefix)s arr6(srt_ind(i+1)) = arr6(srt_ind(i))
+                        par_ = -par_
+                    enddo
+                    arr(srt_ind(i+1)) = a
+                    %(arr2_prefix)s arr2(srt_ind(i+1)) = a2
+                    %(arr3_prefix)s arr3(srt_ind(i+1)) = a3
+                    %(arr4_prefix)s arr4(srt_ind(i+1)) = a4
+                    %(arr5_prefix)s arr5(srt_ind(i+1)) = a5
+                    %(arr6_prefix)s arr6(srt_ind(i+1)) = a6
+                enddo
+
+                if (nstack == 0) exit
+                hi = stack(nstack)
+                lo = stack(nstack-1)
+                nstack = nstack - 2
+
+            ! Otherwise start partitioning with quicksort. 
+            else
+                ! Pick a partitioning element, and arrange such that
+                ! arr(lo) <= arr(lo+1) <= arr(hi) 
+                pivot = (lo + hi) / 2
+                tmp1 = arr(srt_ind(pivot))
+                arr(srt_ind(pivot)) = arr(srt_ind(lo + 1))
+                arr(srt_ind(lo + 1)) = tmp1
+                %(arr2_prefix)s tmp2 = arr2(srt_ind(pivot))
+                %(arr2_prefix)s arr2(srt_ind(pivot)) = arr2(srt_ind(lo+1))
+                %(arr2_prefix)s arr2(srt_ind(lo+1)) = tmp2
+                %(arr3_prefix)s tmp3 = arr3(srt_ind(pivot))
+                %(arr3_prefix)s arr3(srt_ind(pivot)) = arr3(srt_ind(lo+1))
+                %(arr3_prefix)s arr3(srt_ind(lo+1)) = tmp3
+                %(arr4_prefix)s tmp4 = arr4(srt_ind(pivot))
+                %(arr4_prefix)s arr4(srt_ind(pivot)) = arr4(srt_ind(lo+1))
+                %(arr4_prefix)s arr4(srt_ind(lo+1)) = tmp4
+                %(arr5_prefix)s tmp5 = arr5(srt_ind(pivot))
+                %(arr5_prefix)s arr5(srt_ind(pivot)) = arr5(srt_ind(lo+1))
+                %(arr5_prefix)s arr5(srt_ind(lo+1)) = tmp5
+                %(arr6_prefix)s tmp6 = arr6(srt_ind(pivot))
+                %(arr6_prefix)s arr6(srt_ind(pivot)) = arr6(srt_ind(lo+1))
+                %(arr6_prefix)s arr6(srt_ind(lo+1)) = tmp6
+                par_ = -par_
+
+                if (arr(srt_ind(lo)) %(op_gt)s arr(srt_ind(hi))) then
+                    tmp1 = arr(srt_ind(lo))
+                    arr(srt_ind(lo)) = arr(srt_ind(hi))
+                    arr(srt_ind(hi)) = tmp1
+                    %(arr2_prefix)s tmp2 = arr2(srt_ind(lo))
+                    %(arr2_prefix)s arr2(srt_ind(lo)) = arr2(srt_ind(hi))
+                    %(arr2_prefix)s arr2(srt_ind(hi)) = tmp2
+                    %(arr3_prefix)s tmp3 = arr3(srt_ind(lo))
+                    %(arr3_prefix)s arr3(srt_ind(lo)) = arr3(srt_ind(hi))
+                    %(arr3_prefix)s arr3(srt_ind(hi)) = tmp3
+                    %(arr4_prefix)s tmp4 = arr4(srt_ind(lo))
+                    %(arr4_prefix)s arr4(srt_ind(lo)) = arr4(srt_ind(hi))
+                    %(arr4_prefix)s arr4(srt_ind(hi)) = tmp4
+                    %(arr5_prefix)s tmp5 = arr5(srt_ind(lo))
+                    %(arr5_prefix)s arr5(srt_ind(lo)) = arr5(srt_ind(hi))
+                    %(arr5_prefix)s arr5(srt_ind(hi)) = tmp5
+                    %(arr6_prefix)s tmp6 = arr6(srt_ind(lo))
+                    %(arr6_prefix)s arr6(srt_ind(lo)) = arr6(srt_ind(hi))
+                    %(arr6_prefix)s arr6(srt_ind(hi)) = tmp6
+                    par_ = -par_
+                endif
+                if (arr(srt_ind(lo+1)) %(op_gt)s arr(srt_ind(hi))) then
+                    tmp1 = arr(srt_ind(lo+1))
+                    arr(srt_ind(lo+1)) = arr(srt_ind(hi))
+                    arr(srt_ind(hi)) = tmp1
+                    %(arr2_prefix)s tmp2 = arr2(srt_ind(lo+1))
+                    %(arr2_prefix)s arr2(srt_ind(lo+1)) = arr2(srt_ind(hi))
+                    %(arr2_prefix)s arr2(srt_ind(hi)) = tmp2
+                    %(arr3_prefix)s tmp3 = arr3(srt_ind(lo+1))
+                    %(arr3_prefix)s arr3(srt_ind(lo+1)) = arr3(srt_ind(hi))
+                    %(arr3_prefix)s arr3(srt_ind(hi)) = tmp3
+                    %(arr4_prefix)s tmp4 = arr4(srt_ind(lo+1))
+                    %(arr4_prefix)s arr4(srt_ind(lo+1)) = arr4(srt_ind(hi))
+                    %(arr4_prefix)s arr4(srt_ind(hi)) = tmp4
+                    %(arr5_prefix)s tmp5 = arr5(srt_ind(lo+1))
+                    %(arr5_prefix)s arr5(srt_ind(lo+1)) = arr5(srt_ind(hi))
+                    %(arr5_prefix)s arr5(srt_ind(hi)) = tmp5
+                    %(arr6_prefix)s tmp6 = arr6(srt_ind(lo+1))
+                    %(arr6_prefix)s arr6(srt_ind(lo+1)) = arr6(srt_ind(hi))
+                    %(arr6_prefix)s arr6(srt_ind(hi)) = tmp6
+                    par_ = -par_
+                endif
+                if (arr(srt_ind(lo)) %(op_gt)s arr(srt_ind(lo+1))) then
+                    tmp1 = arr(srt_ind(lo))
+                    arr(srt_ind(lo)) = arr(srt_ind(lo+1))
+                    arr(srt_ind(lo+1)) = tmp1
+                    %(arr2_prefix)s tmp2 = arr2(srt_ind(lo))
+                    %(arr2_prefix)s arr2(srt_ind(lo)) = arr2(srt_ind(lo+1))
+                    %(arr2_prefix)s arr2(srt_ind(lo+1)) = tmp2
+                    %(arr3_prefix)s tmp3 = arr3(srt_ind(lo))
+                    %(arr3_prefix)s arr3(srt_ind(lo)) = arr3(srt_ind(lo+1))
+                    %(arr3_prefix)s arr3(srt_ind(lo+1)) = tmp3
+                    %(arr4_prefix)s tmp4 = arr4(srt_ind(lo))
+                    %(arr4_prefix)s arr4(srt_ind(lo)) = arr4(srt_ind(lo+1))
+                    %(arr4_prefix)s arr4(srt_ind(lo+1)) = tmp4
+                    %(arr5_prefix)s tmp5 = arr5(srt_ind(lo))
+                    %(arr5_prefix)s arr5(srt_ind(lo)) = arr5(srt_ind(lo+1))
+                    %(arr5_prefix)s arr5(srt_ind(lo+1)) = tmp5
+                    %(arr6_prefix)s tmp6 = arr6(srt_ind(lo))
+                    %(arr6_prefix)s arr6(srt_ind(lo)) = arr6(srt_ind(lo+1))
+                    %(arr6_prefix)s arr6(srt_ind(lo+1)) = tmp6
+                    par_ = -par_
+                endif
+
+                i = lo + 1
+                j = hi
+                a = arr(srt_ind(lo + 1)) !! a is the pivot value
+                %(arr2_prefix)s a2 = arr2(srt_ind(lo + 1))
+                %(arr3_prefix)s a3 = arr3(srt_ind(lo + 1))
+                %(arr4_prefix)s a4 = arr4(srt_ind(lo + 1))
+                %(arr5_prefix)s a5 = arr5(srt_ind(lo + 1))
+                %(arr6_prefix)s a6 = arr6(srt_ind(lo + 1))
+                do while (.true.)
+                    ! Scand down list to find element > a 
+                    i = i + 1
+                    do while (arr(srt_ind(i)) %(op_lt)s a)
+                        i = i + 1
+                    enddo
+
+                    ! Scan down list to find element < a 
+                    j = j - 1
+                    do while (arr(srt_ind(j)) %(op_gt)s a)
+                        j = j - 1
+                    enddo
+
+                    ! When the pointers crossed, partitioning is complete. 
+                    if (j < i) exit
+
+                    ! Swap the elements, so that all elements < a end up
+                    ! in lower indexed variables. 
+                    tmp1 = arr(srt_ind(i))
+                    arr(srt_ind(i)) = arr(srt_ind(j))
+                    arr(srt_ind(j)) = tmp1
+                    %(arr2_prefix)s tmp2 = arr2(srt_ind(i))
+                    %(arr2_prefix)s arr2(srt_ind(i)) = arr2(srt_ind(j))
+                    %(arr2_prefix)s arr2(srt_ind(j)) = tmp2
+                    %(arr3_prefix)s tmp3 = arr3(srt_ind(i))
+                    %(arr3_prefix)s arr3(srt_ind(i)) = arr3(srt_ind(j))
+                    %(arr3_prefix)s arr3(srt_ind(j)) = tmp3
+                    %(arr4_prefix)s tmp4 = arr4(srt_ind(i))
+                    %(arr4_prefix)s arr4(srt_ind(i)) = arr4(srt_ind(j))
+                    %(arr4_prefix)s arr4(srt_ind(j)) = tmp4
+                    %(arr5_prefix)s tmp5 = arr5(srt_ind(i))
+                    %(arr5_prefix)s arr5(srt_ind(i)) = arr5(srt_ind(j))
+                    %(arr5_prefix)s arr5(srt_ind(j)) = tmp5
+                    %(arr6_prefix)s tmp6 = arr6(srt_ind(i))
+                    %(arr6_prefix)s arr6(srt_ind(i)) = arr6(srt_ind(j))
+                    %(arr6_prefix)s arr6(srt_ind(j)) = tmp6
+                    par_ = -par_
+                enddo;
+
+                ! Insert partitioning element 
+                arr(srt_ind(lo + 1)) = arr(srt_ind(j))
+                arr(srt_ind(j)) = a
+                %(arr2_prefix)s arr2(srt_ind(lo + 1)) = arr2(srt_ind(j))
+                %(arr3_prefix)s arr3(srt_ind(lo + 1)) = arr3(srt_ind(j))
+                %(arr4_prefix)s arr4(srt_ind(lo + 1)) = arr4(srt_ind(j))
+                %(arr5_prefix)s arr5(srt_ind(lo + 1)) = arr5(srt_ind(j))
+                %(arr6_prefix)s arr6(srt_ind(lo + 1)) = arr6(srt_ind(j))
+                %(arr2_prefix)s arr2(srt_ind(j)) = a2
+                %(arr3_prefix)s arr3(srt_ind(j)) = a3
+                %(arr4_prefix)s arr4(srt_ind(j)) = a4
+                %(arr5_prefix)s arr5(srt_ind(j)) = a5
+                %(arr6_prefix)s arr6(srt_ind(j)) = a6
+                par_ = -par_
+
+                ! Push the larger of the partitioned sections onto the stack
+                ! of sections to look at later.
+                ! --> need fewest stack elements. 
+                nstack = nstack + 2
+                if (nstack > nStackMax) then
+                        call stop_all (this_routine, &
+                                        "parameter nStackMax too small")
+                endif
+                if (hi - i + 1 >= j - lo) then
+                    stack(nstack) = hi
+                    stack(nstack-1) = i
+                    hi = j - 1
+                else
+                    stack(nstack) = j - 1
+                    stack(nstack-1) = lo
+                    lo = i
+                endif
+            endif
+        enddo
+
+        ! Destroy temporary variables if required
+        %(tmp_destroy1)s(a)
+        %(tmp_destroy1)s(tmp1)
+        %(tmp_destroy2)s(a2)
+        %(tmp_destroy2)s(tmp2)
+        %(tmp_destroy3)s(a3)
+        %(tmp_destroy3)s(tmp3)
+        %(tmp_destroy4)s(a4)
+        %(tmp_destroy4)s(tmp4)
+        %(tmp_destroy5)s(a5)
+        %(tmp_destroy5)s(tmp5)
+        %(tmp_destroy6)s(a6)
+        %(tmp_destroy6)s(tmp6)
+
+        ! Return the parity if required
+        if (present(par)) &
+            par = par_
+
+    end subroutine
+
+    ! A private comparison. This should not be available outside of the
+    ! module!
+    elemental function cmplx_gt (a, b) result (bGt)
+        complex(dp), intent(in) :: a, b
+        logical :: bGt
+
+        bGt = real(a, dp) > real(b, dp)
+    end function
+
+    elemental function cmplx_lt (a, b) result (bLt)
+        complex(dp), intent(in) :: a, b
+        logical :: bLt
+
+        bLt = real(a, dp) < real(b, dp)
+    end function
+        
+end module

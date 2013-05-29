@@ -1,0 +1,28 @@
+Code
+====
+
+???
+
+Documentation
+=============
+
+* Document existing options which are not documented (they're listed in the input/overview.rst file).
+* Review and clarify existing documentation for the input options (as noted in the documentation).
+* Expand the theory section.
+* Example input files.
+
+Platforms
+=========
+
+* ifort, parallel (MPI).
+
+Testing
+=======
+
+* Fill in test_notes to give information regarding what part of the code each test tests.
+* Clean-up tests: improve coverage by making the tests more varied.
+
+Workflow
+========
+
+* python interface/job manager (not so short!).
