@@ -533,7 +533,7 @@ contains
         endif
 
         ! Initialise parity calculation
-        par_ = 0
+        par_ = 1
 
         ! The size of the array to sort. 
         ! N.B. Use zero based indices. To obtain ! the entry into the actual 
@@ -563,7 +563,7 @@ contains
                         %(arr4_prefix)s arr4(srt_ind(i+1)) = arr4(srt_ind(i))
                         %(arr5_prefix)s arr5(srt_ind(i+1)) = arr5(srt_ind(i))
                         %(arr6_prefix)s arr6(srt_ind(i+1)) = arr6(srt_ind(i))
-                        par_ = par_ + 1
+                        par_ = -par_
                     enddo
                     arr(srt_ind(i+1)) = a
                     %(arr2_prefix)s arr2(srt_ind(i+1)) = a2
@@ -571,7 +571,6 @@ contains
                     %(arr4_prefix)s arr4(srt_ind(i+1)) = a4
                     %(arr5_prefix)s arr5(srt_ind(i+1)) = a5
                     %(arr6_prefix)s arr6(srt_ind(i+1)) = a6
-                    par_ = par_ + (i+1) - j
                 enddo
 
                 if (nstack == 0) exit
@@ -602,7 +601,7 @@ contains
                 %(arr6_prefix)s tmp6 = arr6(srt_ind(pivot))
                 %(arr6_prefix)s arr6(srt_ind(pivot)) = arr6(srt_ind(lo+1))
                 %(arr6_prefix)s arr6(srt_ind(lo+1)) = tmp6
-                par_ = par_ + pivot - (lo+1)
+                par_ = -par_
 
                 if (arr(srt_ind(lo)) %(op_gt)s arr(srt_ind(hi))) then
                     tmp1 = arr(srt_ind(lo))
@@ -623,7 +622,7 @@ contains
                     %(arr6_prefix)s tmp6 = arr6(srt_ind(lo))
                     %(arr6_prefix)s arr6(srt_ind(lo)) = arr6(srt_ind(hi))
                     %(arr6_prefix)s arr6(srt_ind(hi)) = tmp6
-                    par_ = par_ + hi - lo
+                    par_ = -par_
                 endif
                 if (arr(srt_ind(lo+1)) %(op_gt)s arr(srt_ind(hi))) then
                     tmp1 = arr(srt_ind(lo+1))
@@ -644,7 +643,7 @@ contains
                     %(arr6_prefix)s tmp6 = arr6(srt_ind(lo+1))
                     %(arr6_prefix)s arr6(srt_ind(lo+1)) = arr6(srt_ind(hi))
                     %(arr6_prefix)s arr6(srt_ind(hi)) = tmp6
-                    par_ = par_ + hi - (lo+1)
+                    par_ = -par_
                 endif
                 if (arr(srt_ind(lo)) %(op_gt)s arr(srt_ind(lo+1))) then
                     tmp1 = arr(srt_ind(lo))
@@ -665,7 +664,7 @@ contains
                     %(arr6_prefix)s tmp6 = arr6(srt_ind(lo))
                     %(arr6_prefix)s arr6(srt_ind(lo)) = arr6(srt_ind(lo+1))
                     %(arr6_prefix)s arr6(srt_ind(lo+1)) = tmp6
-                    par_ = par_ + 1
+                    par_ = -par_
                 endif
 
                 i = lo + 1
@@ -712,7 +711,7 @@ contains
                     %(arr6_prefix)s tmp6 = arr6(srt_ind(i))
                     %(arr6_prefix)s arr6(srt_ind(i)) = arr6(srt_ind(j))
                     %(arr6_prefix)s arr6(srt_ind(j)) = tmp6
-                    par_ = j - i
+                    par_ = -par_
                 enddo;
 
                 ! Insert partitioning element 
@@ -728,7 +727,7 @@ contains
                 %(arr4_prefix)s arr4(srt_ind(j)) = a4
                 %(arr5_prefix)s arr5(srt_ind(j)) = a5
                 %(arr6_prefix)s arr6(srt_ind(j)) = a6
-                par_ = j - (lo+1)
+                par_ = -par_
 
                 ! Push the larger of the partitioned sections onto the stack
                 ! of sections to look at later.
@@ -765,9 +764,8 @@ contains
         %(tmp_destroy6)s(tmp6)
 
         ! Return the parity if required
-        if (present(par)) then
-            par = 1 - 2 * iand(par_, 1)
-        end if
+        if (present(par)) &
+            par = par_
 
     end subroutine
 
