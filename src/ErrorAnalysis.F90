@@ -468,7 +468,7 @@ module errors
             filename = 'FCIQMCStats_' // adjustl(MolproID) 
             inquire(file=filename,exist=exists)
             if(.not.exists) call stop_all(t_r,'No FCIQMCStats file found for error analysis')
-            OPEN(iunit,file='FCIQMCStats',status='old',action='read',position='rewind')
+            OPEN(iunit,file=filename,status='old',action='read',position='rewind')
             write(6,"(A)") "Reading back in FCIQMCStats datafile..."
         else
             inquire(file='FCIMCStats',exist=exists)
