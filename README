@@ -1,5 +1,5 @@
 Codebase for NECI. 
-Developed by George Booth and Ali Alavi, 2013                                
+FCIQMC code developed by George Booth and Ali Alavi, 2013                                
 Copyright (c) 2013, Ali Alavi                                                
                                                                              
 This program is integrated in Molpro with the permission of 
@@ -7,6 +7,11 @@ George Booth and Ali Alavi
 
 Please feel free to contact myself (George Booth) or Ali Alavi for 
 queries or help at ghb24@cam.ac.uk and asa10@cam.ac.uk.
+
+Contributers to the Alavi group NECI codebase, in alphebetical order;
+
+Ali Alavi, George Booth, Deirdre Cleland, Catherine Overy, Simon Smart, 
+James Shepherd, James Spencer, Anthony Stone, Alex Thom, Robert Thomas, David Thompson.
 
 Compilation
 -----------
