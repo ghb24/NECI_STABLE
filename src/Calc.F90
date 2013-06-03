@@ -272,6 +272,7 @@ contains
           hash_shift=0
           tContinueAfterMP2=.false.
           nclashmax = 1
+          tUniqueHFNode = .false.
       
         end subroutine SetCalcDefaults
 
@@ -1525,6 +1526,11 @@ contains
                 ! Allow us to manually specify a (minumim) value of nclashmax
                 ! --> Try and avoid some of the out-of-memory issues
                 call geti(nclashmax)
+
+            case("UNIQUE-HF-NODE")
+                ! Assign the HF processor to a unique node.
+                ! TODO: Set a default cutoff criterion for this
+                tUniqueHFNode = .true.
 
             case default
                 call report("Keyword "                                &
