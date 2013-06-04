@@ -406,7 +406,7 @@ MODULE ReadInput_neci
                        &iteration.'
         endif
 
-        if (tUniqueHFDet .and. nNodes < 2) then
+        if (tUniqueHFNode .and. nNodes < 2) then
             call stop_all (t_r, 'At least two nodes required to designate &
                           &a node uniquely to the HF determinant')
         end if
