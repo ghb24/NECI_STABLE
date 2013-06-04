@@ -176,7 +176,8 @@ MODULE ReadInput_neci
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
                             TNoSameExcit, TInitStar, tMP2Standalone, &
                             GrowMaxFactor, MemoryFacPart, tTruncInitiator, &
-                            tSpawnSpatialInit, tSpatialOnlyHash, InitWalkers
+                            tSpawnSpatialInit, tSpatialOnlyHash, InitWalkers, &
+                            tUniqueHFNode
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -192,6 +193,7 @@ MODULE ReadInput_neci
         use global_utilities
         use spin_project, only: tSpinProject, spin_proj_nopen_max
         use FciMCData, only: nWalkerHashes,HashLengthFrac,tHashWalkerList
+        use Parallel_neci, only: nNodes
 
         implicit none
 
@@ -403,6 +405,11 @@ MODULE ReadInput_neci
             write(6,*) 'Enabling calculation of instantaneous S^2 each &
                        &iteration.'
         endif
+
+        if (tUniqueHFDet .and. nNodes < 2) then
+            call stop_all (t_r, 'At least two nodes required to designate &
+                          &a node uniquely to the HF determinant')
+        end if
 
     end subroutine checkinput
 
