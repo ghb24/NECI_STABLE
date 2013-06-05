@@ -1164,12 +1164,12 @@ MODULE nElRDMMod
     end subroutine Add_RDM_HFConnections_HF_S_D
 
 
-    subroutine calc_rdmbiasfac(mult_child,rat_remain,p_gen,AvSignCurr,SignCurr,RDMBiasFacCurr)
-        integer, intent(in) :: mult_child
-        real(dp), intent(in) :: rat_remain, p_gen, AvSignCurr
+    subroutine calc_rdmbiasfac(p_spawn_rdmfac,p_gen,AvSignCurr,SignCurr,RDMBiasFacCurr)
+        real(dp), intent(in) :: p_gen, AvSignCurr
         real(dp), dimension(lenof_sign), intent(in) :: SignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
-        real(dp) :: p_spawn_rdmfac, p_notlist_rdmfac
+        real(dp), intent(in) :: p_spawn_rdmfac
+        real(dp) :: p_notlist_rdmfac, p_spawn, p_not_spawn, p_max_walktospawn
 
         ! We eventually turn this real bias factor into an integer to be passed around 
         ! with the spawned children and their parents - this only works with 64 bit at the mo.
@@ -1187,32 +1187,38 @@ MODULE nElRDMMod
         ! This requires either not generating j, or generating j and not succesfully spawning, n_i times.
         ! P_not_spawn(j | i )[n_i] = [(1 - P_gen(j | i)) + ( P_gen( j | i ) * (1 - P_spawn(j | i))]^n_i
 
-        if(mult_child.ne.0) then
-            ! This is the special case whereby if P_spawn(j | i) > 1, then we will definitely spawn from i -> j.
-            ! I.e. the pair Di,Dj will definitely be in the SpawnedParts list.
-            ! We don't care about multiple spawns - if it's in the list, it gets added in regardless of 
-            ! the number spawned - so if P_spawn(j | i) > 1, we treat it as = 1.
-            p_spawn_rdmfac = 1.0_dp
-        else
-            p_spawn_rdmfac = rat_remain
-        endif
         p_notlist_rdmfac = ( 1.0_dp - p_gen ) + ( p_gen * (1.0_dp - p_spawn_rdmfac) )
 
         ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
+        
+        if(real(int(SignCurr(1)),dp).ne.SignCurr(1)) then
+            !There's a non-integer population on this determinant
+            !We need to consider both possibilities - whether we attempted to spawn 
+            !int(SignCurr) times or int(SignCurr)+1 times
+            p_max_walktospawn=abs(SignCurr(1)-real(int(SignCurr(1)),dp))
+            p_not_spawn = p_max_walktospawn*(p_notlist_rdmfac**abs(int(SignCurr(1)))) + &
+                        (1.0_dp-p_max_walktospawn)*(p_notlist_rdmfac**(abs(int(SignCurr(1)))+1))
+
+        else
+            p_not_spawn=p_notlist_rdmfac**(abs(SignCurr(1)))
+        endif
+
+        p_spawn=abs(1.0_dp - p_not_spawn)
+        
         if(tInitiatorRDM) then
             if(abs(AvSignCurr).gt.real(InitiatorWalkNo,dp)) then
                 ! The Di is an initiator (on average) - keep passing around its sign until we 
                 ! know if the Dj is an initiator.
-                RDMBiasFacCurr = AvSignCurr / abs( 1.0_dp - ( p_notlist_rdmfac ** (abs(SignCurr(1))) ) )   
+                RDMBiasFacCurr = AvSignCurr / p_spawn   
             else
                 ! The determinant we are spawning from is not an initiator (on average) 
                 ! - do not want to add this Di.Dj contribution into the RDM.
                 RDMBiasFacCurr = 0.0_dp
             endif
         else
-            RDMBiasFacCurr = AvSignCurr / abs( 1.0_dp - ( p_notlist_rdmfac ** (abs(SignCurr(1))) ) )   
+            RDMBiasFacCurr = AvSignCurr / p_spawn   
         endif
-
+        
     end subroutine calc_rdmbiasfac
 
     subroutine store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, DetSpawningAttempts, iLutJ, procJ)
@@ -1227,7 +1233,6 @@ MODULE nElRDMMod
         integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
         logical :: tRDMStoreParent
         integer :: j
-
 
         if(RDMBiasFacCurr.eq.0.0_dp) then
             ! If RDMBiasFacCurr is exactly zero, any contribution from Ci.Cj will be zero 
@@ -1278,6 +1283,7 @@ MODULE nElRDMMod
                 ! This RDMBiasFacCurr factor is turned into an integer to pass around to the relevant processors.
                 SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(procJ)) = &
                     transfer(RDMBiasFacCurr,SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(procJ)))
+
             else
                 ! This Di has already spawned on this Dj - don't store the Di parent with this child, 
                 ! so that the pair is not double counted.  

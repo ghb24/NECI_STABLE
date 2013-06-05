@@ -25,7 +25,9 @@ MODULE AnnihilationMod
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
     use Logging , only : tHF_Ref_Explicit
+    use nElRDMMod, only: aaaa_RDM, All_aaaa_RDM
     IMPLICIT NONE
+
 
     contains
 

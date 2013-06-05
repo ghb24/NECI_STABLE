@@ -141,7 +141,6 @@ MODULE FciMCParMod
                          zero_rdms, fill_rdm_softexit, store_parent_with_spawned, &
                          fill_rdm_diag_currdet_norm, &
                          fill_rdm_diag_currdet_hfsd, calc_rdmbiasfac
-
     use gndts_mod, only: gndts
     use sort_mod
     use get_excit, only: make_double
@@ -2142,7 +2141,7 @@ MODULE FciMCParMod
             end function
         end interface
         
-        real(dp) :: rat, r, walkerweight, pSpawn, nSpawn, MatEl
+        real(dp) :: rat, r, walkerweight, pSpawn, nSpawn, MatEl, p_spawn_rdmfac
         integer :: extracreate, tgt_cpt, component, i, iUnused
         integer :: TargetExcitLevel
         logical :: tRealSpawning
@@ -2220,11 +2219,24 @@ MODULE FciMCParMod
                 
                 if (tRealSpawnCutoff .and. &
                     abs(nSpawn) < RealSpawnCutoff) then
-
+                    p_spawn_rdmfac=nSpawn
                     nSpawn = RealSpawnCutoff &
                            * stochastic_round (nSpawn / RealSpawnCutoff)
-                end if
+               else
+                    p_spawn_rdmfac=1.0_dp !The acceptance probability of some kind of child was equal to 1
+               endif
             else
+                if(nSpawn.ge.1) then
+                    p_spawn_rdmfac=1.0_dp !We were certain to create a child here.
+                    ! This is the special case whereby if P_spawn(j | i) > 1, 
+                    ! then we will definitely spawn from i->j.
+                    ! I.e. the pair Di,Dj will definitely be in the SpawnedParts list.
+                    ! We don't care about multiple spawns - if it's in the list, an RDM contribution will result
+                    ! regardless of the number spawned - so if P_spawn(j | i) > 1, we treat it as = 1.
+                else
+                    p_spawn_rdmfac=nSpawn
+                endif
+                
                 ! How many children should we spawn?
 
                 ! And round this to an integer in the usual way
@@ -2239,7 +2251,7 @@ MODULE FciMCParMod
 
         if(tFillingStochRDMonFly) then
             if((child(1).ne.0).and.(.not.tHF_Ref_Explicit)) then
-                call calc_rdmbiasfac(extraCreate, rat, prob, AvSignCurr, realwSign, RDMBiasFacCurr) 
+                call calc_rdmbiasfac(p_spawn_rdmfac, prob, AvSignCurr, realwSign, RDMBiasFacCurr) 
             else
                 RDMBiasFacCurr = 0.0_dp
             endif
