@@ -1,4 +1,4 @@
-! Copyright (c) 2013, Ali Alavi
+! Copyright (c) 2013, Ali Alavi unless otherwise noted.
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
  
 Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,int_name,filename_in)

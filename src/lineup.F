@@ -1,4 +1,4 @@
-! Copyright (c) 2013, Ali Alavi
+! Copyright (c) 2013, Ali Alavi unless otherwise noted.
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
  
       SUBROUTINE LINEUP(N,LST1,LST2,NBASIS,L1E,L2E,IFLAG,IPTOT)

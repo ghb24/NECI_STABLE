@@ -1,4 +1,4 @@
-! Copyright (c) 2013, Ali Alavi
+! Copyright (c) 2013, Ali Alavi unless otherwise noted.
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
  
 !This wrapper also passes back the excitation matrix and parity of excitation permutation, so that matrix elements can be worked out simply between the original determinant

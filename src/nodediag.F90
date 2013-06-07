@@ -1,4 +1,4 @@
-! Copyright (c) 2013, Ali Alavi
+! Copyright (c) 2013, Ali Alavi unless otherwise noted.
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
  
 !This function takes all {a,b} excitations from each i,j pair, and prediagonalises them, fully connecting all the 
