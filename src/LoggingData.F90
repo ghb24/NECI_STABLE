@@ -69,4 +69,9 @@ module LoggingData
     logical :: tWriteCore
     logical :: tWriteTrial
 
+    ! If true, output to a file the FCIQMC amplitudes in the trial space against the amplitudes of the trial wavefunction.
+    logical :: tCompareTrialAmps
+    ! Output the above data to a file every compare_amps_period iterations.
+    integer :: compare_amps_period
+
 end module LoggingData

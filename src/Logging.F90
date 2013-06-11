@@ -141,6 +141,8 @@ MODULE Logging
       tSplitPops = .false.
       tWriteCore = .false.
       tWriteTrial = .false.
+      tCompareTrialAmps = .false.
+      compare_amps_period = 0
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -871,6 +873,10 @@ MODULE Logging
         case("WRITE-TRIAL")
             ! Output the trial wavefunction space to a file.
             tWriteTrial = .true.
+
+        case("COMPARE-TRIAL-AND-FCIQMC-AMPS")
+            tCompareTrialAmps = .true.
+            call readi(compare_amps_period)
 
         case("ENDLOG")
             exit logging

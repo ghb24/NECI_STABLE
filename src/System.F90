@@ -425,7 +425,8 @@ system: do
 ! Input values: The first integer is the maximum excitation level to go up to.
 !               The second integer is the maximum number of states to keep for a subsequent iteration.
 !               If desired, you can put "All-Doubles" after these two integers to keep all singles and doubles.
-!               If max-core-size is specified then this value will be used to select the number of states kept after the *final* iteration.
+!               If max-core-size is specified then this value will be used to select the number of states kept
+!               after the *final* iteration.
             tLowECore = .true.
             tSortDetermToTop = .false.
             call geti(low_e_core_excit)

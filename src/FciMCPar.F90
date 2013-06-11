@@ -81,7 +81,8 @@ MODULE FciMCParMod
                        tDiagWalkerSubspace, iDiagSubspaceIter, &
                        tCalcInstantS2Init, instant_s2_multiplier_init, &
                        tJustBlocking, iBlockEquilShift, iBlockEquilProjE, &
-                       tDiagAllSpaceEver, tCalcVariationalEnergy
+                       tDiagAllSpaceEver, tCalcVariationalEnergy, tCompareTrialAmps, &
+                       compare_amps_period
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -146,7 +147,7 @@ MODULE FciMCParMod
     use semi_stoch_gen, only: init_semi_stochastic
     use semi_stoch_procs, only: check_if_in_determ_space, deterministic_projection, &
                                 return_most_populated_states
-    use trial_wf_gen, only: init_trial_wf
+    use trial_wf_gen, only: init_trial_wf, update_compare_trial_file
 
     use gndts_mod, only: gndts
     use sort_mod
@@ -452,6 +453,10 @@ MODULE FciMCParMod
                 !Diagonalise a subspace consisting of the occupied determinants
                 call DiagWalkerSubspace()
             endif
+
+            ! If requested and on a correct iteration, update the COMPARETRIAL file.
+            if (tCompareTrialAmps .and. mod(Iter, compare_amps_period) == 0) &
+                call update_compare_trial_file(.false.)
 
             Iter=Iter+1
 

@@ -1,5 +1,6 @@
 module trial_wf_gen
 
+    use AnnihilationMod, only: BinSearchParts
     use bit_rep_data, only: NIfTot, NIfD
     use bit_reps, only: encode_det
     use CalcData, only: tSortDetermToTop
@@ -12,10 +13,10 @@ module trial_wf_gen
                          con_space_vector, ilutHF, Hii, nSingles, nDoubles, &
                          ConTag, DavidsonTag, TempTag, TrialTag, TrialWFTag, iHFProc, Trial_Init_Time
     use hphf_integrals, only: hphf_off_diag_helement
-    use LoggingData, only: tWriteTrial
+    use LoggingData, only: tWriteTrial, tCompareTrialAmps
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier, MPIAllToAll, MPISumAll, &
-                             MPIAllToAllV, MPIArg, MPIBCast
+                             MPIAllToAllV, MPIArg, MPIBCast, MPIAllReduce
     use ParallelHelper, only: root
     use semi_stoch_gen
     use semi_stoch_procs
@@ -253,6 +254,7 @@ contains
         call MPIBarrier(ierr)
 
         if (tWriteTrial) call write_trial_space()
+        if (tCompareTrialAmps) call update_compare_trial_file(.true.)
 
         ! Deallocate remaining arrays.
         deallocate(temp_space, stat=ierr)
@@ -440,5 +442,75 @@ contains
         end do
 
     end subroutine write_trial_space
+
+    subroutine update_compare_trial_file(tFirstCall)
+
+        ! Routine to output the trial wavefunction amplitudes and FCIQMC amplitudes in the trial
+        ! space. This is a test routine and is very unoptimised.
+
+        logical, intent(in) :: tFirstCall
+        logical :: tSuccess
+        integer :: i, j, k, comp, MinInd, PartInd, n_walkers, iunit, ierr
+        real(dp) :: temp_sign(lenof_sign)
+        real(dp) :: all_norm_squared, norm_squared, norm
+
+        MinInd = 1
+        n_walkers = int(TotWalkers,sizeof_int)
+
+        if (tFirstCall) then
+            if (iProcIndex == root) then
+                iunit = get_free_unit()
+                open(iunit, file='TRIALCOMPARE', status='replace')
+                close(iunit)
+            end if
+            call MPIBCast(iunit, root)
+        else
+            ! Calculate the norm of the wavefunction.
+            norm = 0.0_dp
+            do i = 1, n_walkers
+                call extract_sign(CurrentDets(:,i), temp_sign)
+                norm_squared = norm_squared + sum(temp_sign**2)
+            end do
+            call MPIAllReduce(norm_squared, MPI_SUM, all_norm_squared)
+            norm = sqrt(all_norm_squared)
+
+            ! Let each processor write its amplitudes to the file. Each processor waits for
+            ! the processor before it to finish before starting.
+            do i = 0, nProcessors-1
+
+                if (iProcIndex == i) then
+
+                    if (iProcIndex == 0) then
+                        open(iunit, file='TRIALCOMPARE', status='old', position='rewind')
+                        write(iunit, '(a14,5x,a6)') "Trial function", "FCIQMC"
+                    else
+                        open(iunit, file='TRIALCOMPARE', status='old', position='append')
+                    end if
+
+                    do j = 1, trial_space_size 
+                        write(iunit, '(es15.8,3x)', advance = 'no') trial_wf(j)
+
+                        call BinSearchParts(trial_space(:,j), MinInd, n_walkers, PartInd, tSuccess)
+
+                        if (tSuccess) then
+                            call extract_sign (CurrentDets(:,PartInd), temp_sign)
+                            write(iunit, '(es15.8)', advance = 'yes') temp_sign/norm
+                        else
+                            write(iunit, '(es15.8)', advance = 'yes') 0.0_dp
+                        end if
+
+                        MinInd = PartInd
+                    end do
+
+                    close(iunit)
+
+                end if
+
+                call MPIBarrier(ierr)
+
+            end do
+        end if
+
+    end subroutine update_compare_trial_file
 
 end module trial_wf_gen
