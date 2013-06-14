@@ -57,9 +57,11 @@ MODULE FciMCLoggingMod
         WRITE(6,*) 'Beginning blocking analysis of the errors in the projected energies.'
         WRITE(6,"(A,I6)") "The total number of different block sizes possible is: ",TotNoBlockSizes
         ! The blocks will have size 1,2,4,8,....,2**TotNoBlockSizes
-        ! In the below arrays, the element i will correspond to block size 2**(i), but the arrays go from 0 -> TotNoBlockSizes.
+        ! In the below arrays, the element i will correspond to block size 2**(i), 
+        !but the arrays go from 0 -> TotNoBlockSizes.
 
-! Then need to allocate three arrays of this size - one for the current block, one for the sum of the blocks over the elapsed cycles,
+! Then need to allocate three arrays of this size - one for the current block, 
+!one for the sum of the blocks over the elapsed cycles,
 ! and one for the sum of the squares of the blocks over the elapsed iterations.
 
         ALLOCATE(CurrBlockSum(0:TotNoBlockSizes),stat=ierr)
@@ -94,9 +96,11 @@ MODULE FciMCLoggingMod
         WRITE(6,*) 'Beginning blocking analysis of the errors in the shift.'
         WRITE(6,"(A,I6)") "The total number of different block sizes possible is: ",TotNoShiftBlockSizes
         ! The blocks will have size 1,2,4,8,....,2**TotNoBlockSizes
-        ! In the below arrays, the element i will correspond to block size 2**(i), but the arrays go from 0 -> TotNoBlockSizes.
+        ! In the below arrays, the element i will correspond to block size 2**(i), 
+        !but the arrays go from 0 -> TotNoBlockSizes.
 
-! Then need to allocate three arrays of this size - one for the current block, one for the sum of the blocks over the elapsed cycles,
+! Then need to allocate three arrays of this size - one for the current block, 
+!one for the sum of the blocks over the elapsed cycles,
 ! and one for the sum of the squares of the blocks over the elapsed iterations.
 
         ALLOCATE(CurrShiftBlockSum(0:TotNoShiftBlockSizes),stat=ierr)

@@ -6,7 +6,7 @@ module ParallelHelper
    use timing_neci, only: timer, set_timer, halt_timer
     implicit none
 
-    type(timer) :: Sync_Time
+    type(timer), save :: Sync_Time
 
     !
     ! If we are using C-bindings, certain things need to be defined

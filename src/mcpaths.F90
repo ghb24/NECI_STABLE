@@ -242,7 +242,8 @@ contains
                ENDIF
             ELSEIF(I_CHMAX.EQ.-7.OR.I_CHMAX.EQ.-19) THEN
              IF(G_VMC_FAC.NE.0.0_dp) THEN
-!C..   We couple a vertex monte carlo at this vertex level (and subsequent is g_MultiWeight has non-zero values) to a known result at previous
+!C..   We couple a vertex monte carlo at this vertex level (and subsequent is g_MultiWeight 
+!has non-zero values) to a known result at previous
 !C.. levels by regarding all previous levels as a composite object with the Et and wi
 !C.. we have already worked out.g_MultiWeight(0) contains the sum of the weightings of the levels 
                 g_MultiWeight(0)=0.0_dp

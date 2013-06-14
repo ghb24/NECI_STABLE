@@ -143,11 +143,13 @@ module MomInvRandExcit
 !                            CALL CalcOpenOrbs(iLutnI,OpenOrbsI)
 
                             IF(tSwapped) THEN
-!                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSignOrig=.not.tSignOrig  !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
+!                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSignOrig=.not.tSignOrig  !I.e. J odd and I even or vice versa, 
+                                          !but since these can only be at max quads, then they can only have 1/2 open orbs
                                 MatEl2 = sltcnd_excit (nI, IC, ExcitMat, &
                                                        tSignOrig)
                             ELSE
-!                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSign=.not.tSign     !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
+!I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
+!                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSign=.not.tSign     
                                 MatEl2 = sltcnd_excit (nI,  ExcitLevel, &
                                                        Ex2, tSign)
                             ENDIF
@@ -176,7 +178,8 @@ module MomInvRandExcit
             ELSE    !MI func to MI func, but with no cross-connection.
                 
                 IF(tGenMatHEl) THEN
-!iLutnI MUST be an MI func here, since otherwise it would have been connected to iLutnJ2. Also, we know the cross connection (i.e. MatEl2 = 0)
+!iLutnI MUST be an MI func here, since otherwise it would have been connected to iLutnJ2. 
+!Also, we know the cross connection (i.e. MatEl2 = 0)
                     IF(tSwapped) THEN
                         if(tAntisym_MI) tSignOrig=.not.tSignOrig
                         MatEl = sltcnd_excit(nI,  IC, ExcitMat, tSignOrig)
@@ -230,7 +233,8 @@ module MomInvRandExcit
 !        iLut=0
 !        iLut2=0
 !        do while(.true.)
-!            read(PairedDetsUnit,"(2I16,15I4,2G19.8)",end=99) iLut(0),iLut2(0),TempnI(1:NEl),TempnI2(1:NEl),IC,ICSym,ICConnect,State1,State2
+!            read(PairedDetsUnit,"(2I16,15I4,2G19.8)",end=99) iLut(0),iLut2(0),TempnI(1:NEl),
+                !TempnI2(1:NEl),IC,ICSym,ICConnect,State1,State2
 !            nPairedDets=nPairedDets+1
 !        enddo
 !99      continue
@@ -239,7 +243,8 @@ module MomInvRandExcit
 !        PairedDets=0
 !        i=0
 !        do while(.true.)
-!            read(PairedDetsUnit,"(2I16,15I4,2G19.8)",end=199) iLut(0),iLut2(0),TempnI(1:NEl),TempnI2(1:NEl),IC,ICSym,ICConnect,State1,State2
+!            read(PairedDetsUnit,"(2I16,15I4,2G19.8)",end=199) iLut(0),iLut2(0),TempnI(1:NEl),i
+                    !TempnI2(1:NEl),IC,ICSym,ICConnect,State1,State2
 !            i=i+1
 !            call ReturnMomAllowedDet(TempnI,TempnI2,iLut,iLut2,tSwapped)
 !!            write(6,*) tSwapped

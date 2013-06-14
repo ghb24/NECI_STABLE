@@ -118,7 +118,8 @@ module soft_exit
                          AvAnnihil, VaryShiftCycles, SumDiagSft, &
                          VaryShiftIter, CurrentDets, iLutHF, HFDet, &
                          TotWalkers,tPrintHighPop, tSearchTau, MaxTimeExit, &
-                         n_proje_sum => nproje_sum, proje_update_comb
+                         n_proje_sum => nproje_sum, proje_update_comb, &
+                         proje_iter
     use CalcData, only: DiagSft, SftDamp, StepsSft, OccCASOrbs, VirtCASOrbs, &
                         tTruncCAS,  NEquilSteps, tTruncInitiator, &
                         InitiatorWalkNo, tCheckHighestPop, tRestartHighPop, &
@@ -126,7 +127,7 @@ module soft_exit
                         SinglesBias_value => SinglesBias, tau_value => tau, &
                         nmcyc_value => nmcyc, tTruncNOpen, trunc_nopen_max, &
                         target_grow_rate => TargetGrowRate, tShiftonHFPop, &
-                        tAllRealCoeff, tRealSpawnCutoff
+                        tAllRealCoeff, tRealSpawnCutoff, tJumpShift
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
@@ -501,6 +502,11 @@ contains
                     tSinglePartPhase = .false.
                     VaryShiftIter = iter
                     write(6,*) 'Request to vary the shift detected on a node on iteration: ',iter
+                    
+                    ! If specified, jump the value of the shift to that
+                    ! predicted by the projected energy
+                    if (tJumpShift) &
+                        DiagSft = proje_iter
                 endif
             endif
 

@@ -14,7 +14,8 @@ module CCMCData
    real(dp)   dProbSelNewExcitor !The probability that the cluster selection algorithm terminates after each addition of an excitor.
    LOGICAL  tSpawnProp     ! Set if we use spawning proportional to the cluster amplitude rather than equally
 
-   LOGICAL  tCCBuffer      ! Buffer the CC Amplitudes - this is useful when there are many cluster selections which lead to the same collapsed det. It creates a combined amplitude of the det first and spawns from that.
+   LOGICAL  tCCBuffer      ! Buffer the CC Amplitudes - this is useful when there are many cluster selections which 
+                !lead to the same collapsed det. It creates a combined amplitude of the det first and spawns from that.
    LOGICAL  tExactEnergy   ! Do we calculate projected energy exactly rather than through sampling?
    LOGICAL  tSharedExcitors !Do we use shared memory for the excitor list?
    LOGICAL  tCCNoCuml        ! Do we use a new algorithm which doesn't create a cumulative amplitude list
@@ -23,8 +24,10 @@ module CCMCData
 !This contains information as to a chosen Cluster
 TYPE Cluster 
    INTEGER(KIND=n_int), allocatable :: SelectedExcitors(:,:)      !(0:NIfTot,nEl)  !The excitors which make up this cluster
-   INTEGER, allocatable :: SelectedExcitorIndices(:)  !(nEl)     !The indices in a list of excitors, of the excitors which make up this cluster
-   INTEGER(KIND=n_int), allocatable :: iLutDetCurr(:)             !(0:NIfTot) The determinant made from collapsing this cluster in bit representation
+   INTEGER, allocatable :: SelectedExcitorIndices(:)  !(nEl)     !The indices in a list of excitors, of the excitors 
+                                                                !which make up this cluster
+   INTEGER(KIND=n_int), allocatable :: iLutDetCurr(:)             !(0:NIfTot) The determinant made from 
+                                                                !collapsing this cluster in bit representation
    INTEGER, allocatable :: DetCurr(:)                 !(nEl) The determinant made from collapsing this cluster.
    INTEGER  iSize
    real(dp) :: iSgn(lenof_sign)    !The sign of the determinant after collapsing the cluster
@@ -47,7 +50,8 @@ TYPE Cluster
    real(dp)   dClusterProb
 !dClusterProb is the Probability of having chosen this cluster excitor (normalized such that <1/dClusterProb> = 1)
    real(dp)   dClusterNorm                           
-!  dClusterNorm is the probability that this cluster was chosen, given the level had already been selected.  This includes multiple selections of the same excitor as well as combinations of excitors which produce a 0 sign.
+!  dClusterNorm is the probability that this cluster was chosen, given the level had already 
+!been selected.  This includes multiple selections of the same excitor as well as combinations of excitors which produce a 0 sign.
 END TYPE Cluster
 
 TYPE ClustSelector 

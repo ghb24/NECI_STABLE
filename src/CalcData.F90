@@ -102,6 +102,7 @@ INTEGER iLogicalNodeSize  !An alternative to the above, create logical nodes of 
                           ! 0 means use physical nodes.
 
 logical :: tContinueAfterMP2 ! UEG option only
+    logical :: tJumpShift
 
 ! This option relates to the semi-stochastic code. If this option is true then the deterministic states are sorted to
 ! the top of CurrentDets. This leads to an optimisation, but only when there is a quick check to see if a state is in

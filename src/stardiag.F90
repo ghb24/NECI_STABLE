@@ -17,16 +17,19 @@
          integer(TagIntType) :: tagExcitInfo2=0
          HElement_t, ALLOCATABLE :: temprhos(:,:)
 
-!Offrho is used with TSumProd to store the original star off-diagonal elements when using TSumProd, which changes the values in EXCITINFO
+!Offrho is used with TSumProd to store the original star off-diagonal elements when using i
+!TSumProd, which changes the values in EXCITINFO
          HElement_t, ALLOCATABLE :: Offrho(:)
 
-!If we are keeping a list of excitations in the star, then allocate EXCITSTORE to hold the excitations, in the form of o o v v orbitals
+!If we are keeping a list of excitations in the star, then allocate EXCITSTORE to hold the i
+!excitations, in the form of o o v v orbitals
          INTEGER, ALLOCATABLE :: EXCITSTORE(:,:)
 
 !Prodpositions stores the position of the two excitations in EXCITSTORE which give rise to a real product excitation
          INTEGER, ALLOCATABLE :: ProdPositions(:,:)
 
-! When calculating full products, the rho elements for these quadruple product excitations are given in OnDiagProdRho and OffDiagProdRho.
+! When calculating full products, the rho elements for these quadruple product excitations are 
+!given in OnDiagProdRho and OffDiagProdRho.
          real(dp), ALLOCATABLE :: OnDiagProdRho(:)
          real(dp), ALLOCATABLE :: OffDiagProdRho(:,:)
 
@@ -113,7 +116,8 @@
          nStore(1)=0
          CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
          Allocate(nExcit(nExcitMemLen(1)))
-!Second call calculates size of arrays needed to store all symmetry allowed excitations - further calls will generate excitation on-the-fly(shown by the false in arg(6)
+!Second call calculates size of arrays needed to store all symmetry allowed excitations - further 
+!calls will generate excitation on-the-fly(shown by the false in arg(6)
          nExcit(1)=0
          CALL GenSymExcitIt2(nI,nEl,G1,nBasis,.TRUE.,nExcit,nJ,iMaxExcit,nStore,exFlag)
 
@@ -155,7 +159,8 @@
          Write(6,*) "Allocating storage for ",iMaxExcit," excitations."
          Allocate(ExcitInfo(0:iMaxExcit,0:2),stat=iErr)
          call LogMemAlloc('ExcitInfo',3*(iMaxExcit+1),8*HElement_t_size,this_routine,tagExcitInfo,iErr)
-!If we are keeping a list of excitations in the star, then allocate EXCITSTORE to hold the excitations, in the form of o o v v orbitals
+!If we are keeping a list of excitations in the star, then allocate EXCITSTORE to hold 
+!the excitations, in the form of o o v v orbitals
          IF(TCalcRealProd.or.TSumProd.or.TCalcExcitStar) THEN
              ALLOCATE(EXCITSTORE(4,iMaxExcit),stat=iErr)
              CALL LogMemAlloc("EXCITSTORE",(iMaxExcit*2),4,this_routine,tagEXCITSTORE,iErr)
@@ -227,7 +232,8 @@
                else
                   !RHO_JJ elements
                    IF(TMCStar) THEN
-!If we are solving star using MC, then we want the Hamiltonian matrix, rather than rho matrix elements for diagonal elements, and subtract the HF energy from them all
+!If we are solving star using MC, then we want the Hamiltonian matrix, rather than rho matrix 
+!elements for diagonal elements, and subtract the HF energy from them all
                        ExcitInfo(i,0) = get_helement (nJ, nJ, 0)
                        ExcitInfo(i,0)=ExcitInfo(i,0)-Hii
                        IF(abs(ExcitInfo(i,0)).gt.MaxDiag) MaxDiag=ExcitInfo(i,0)
@@ -279,11 +285,13 @@
 !.. Call a routine to generate the value of the star
          WRITE(6,*) iExcit," excited determinants in star"
 
-!Routine for debugging/dev research to graph various eigenvalues and eigenvectors of varying star matrices - should generally be commented out.
+!Routine for debugging/dev research to graph various eigenvalues and eigenvectors of varying star 
+!matrices - should generally be commented out.
 !         CALL GraphRootChange(iMaxExcit,iExcit)
 
          
-!If starprod is set, it means that one of a number of methods is used to attempt to indroduce quadruple excitations into the star in an approximate way to achieve size consistency for dissociation into two fragments.
+!If starprod is set, it means that one of a number of methods is used to attempt to indroduce 
+!quadruple excitations into the star in an approximate way to achieve size consistency for dissociation into two fragments.
          IF(StarProd) THEN
              CALL GetStarProds(iExcit,ProdNum,UniqProd,rhii,Beta,i_P,nEl,G1,nBasis,nMsh,fck,nMax,ALat,UMat,rh,nTay,ECore)
          ENDIF
@@ -299,7 +307,8 @@
              
              ELSEIF(TDiagStarStars) THEN
 
-!GetStarStars approximates excited stars as having the same connections as the original star, and so simply multiplies the diagonal elements by rho_jj and then diagonalises them.
+!GetStarStars approximates excited stars as having the same connections as the original star, and so simply 
+!multiplies the diagonal elements by rho_jj and then diagonalises them.
                  CALL GetStarStars(iMaxExcit,iExcit,RhoEps)
              ELSEIF(TLinRootChange) THEN
  
@@ -315,7 +324,8 @@
                  CALL GetLinRootChangeStars(iMaxExcit,iExcit,nWHTay)
              ELSE
 
-!GetLinStarStars assumes a linear variation of the star eigenvalues and vectors, and so uses this to approximate the diagonalised form for excited star matrices, given by multiplying the original star matrix by the rho_jj values.
+!GetLinStarStars assumes a linear variation of the star eigenvalues and vectors, and so uses this to approximate the 
+!diagonalised form for excited star matrices, given by multiplying the original star matrix by the rho_jj values.
                  CALL GetLinStarStars(iMaxExcit,iExcit,RhoEps)
                  
              ENDIF
@@ -505,12 +515,14 @@
 
             WRITE(6,"(I10,A)") QuadExcits," extra excitations to attach to the HF-rooted star graph"
 
-!Now go through all excitations, finding the excited star, and diagonalising, adding the eigenvalues and vectors to ExcitInfo2(0:TotExcits,0:2)
+!Now go through all excitations, finding the excited star, and diagonalising, adding the eigenvalues 
+!and vectors to ExcitInfo2(0:TotExcits,0:2)
             ALLOCATE(ExcitInfo2(0:TotExcits,0:2),stat=iErr)
             call LogMemAlloc('ExcitInfo2',3*(TotExcits+1),8*HElement_t_size,this_routine,tagExcitInfo2,iErr)
             ExcitInfo2=(0.0_dp)
 
-!Fill original star matrix - INCORRECT - do not want to include original excitations - these are already included in the prediagonalised elements
+!Fill original star matrix - INCORRECT - do not want to include original excitations - these are already 
+!included in the prediagonalised elements
 !            do i=0,iExcit
 !
 !                ExcitInfo2(i,0)=ExcitInfo(i,0)
@@ -689,12 +701,14 @@
             OPEN(48,FILE='FirstElemVecs',STATUS='UNKNOWN')
             OPEN(49,FILE='Vals',STATUS='UNKNOWN')
             
-!First it is necessary to order the rho_jj elements, so that the range that the linear approximation needs to hold can be worked out.
+!First it is necessary to order the rho_jj elements, so that the range that the linear approximation needs 
+!to hold can be worked out.
 !This routine sorts into ASCENDING order of rho_jj - therefore rho_jj max = ExcitInfo(iMaxExcit,0) = 1
             ! Sort elements 0:iMaxExcit.
             call sort (excitInfo(:,0), excitInfo(:,1), excitInfo(:,2))
 
-!Reverse order of array ExcitInfo, as have coded up the other way round! - rho_jj max = ExcitInfo(0,0) = 1, and then in decending order.
+!Reverse order of array ExcitInfo, as have coded up the other way round! - rho_jj max = 
+!ExcitInfo(0,0) = 1, and then in decending order.
             HalfiExcit=INT((iMaxExcit+1)/2)
             do i=1,HalfiExcit
                 tmp(1)=ExcitInfo((iMaxExcit+1)-i,0)
@@ -883,7 +897,8 @@
             WRITE(26,"(A,I3,A,I3,A)") "'' u 1:(abs($",toprint+1,")) w lp t 'Val",DegenPos(toprint-1)+1,"'"
 !            WRITE(26,*) "pause -1"
 !            WRITE(26,*) "set xlabel 'Non-zero Eigenvector number'"
-!            WRITE(26,*) "plot 'Differences' u :(abs($2)) w lp t 'Difference in Eigenvector', '' u :(abs($3)) w lp t 'Difference in Eigenvalue'"
+!            WRITE(26,*) "plot 'Differences' u :(abs($2)) w lp t 'Difference in 
+                !Eigenvector', '' u :(abs($3)) w lp t 'Difference in Eigenvalue'"
             CLOSE(26)
 !
 !Write out gnuscript for all eigenvectors
@@ -911,7 +926,8 @@
         END SUBROUTINE GraphRootChange
 
         
-!GetStarStars approximates excited stars as having the same connections as the original star, and so simply multiplies the diagonal elements by rho_jj and then diagonalises them.
+!GetStarStars approximates excited stars as having the same connections as the original star, 
+!and so simply multiplies the diagonal elements by rho_jj and then diagonalises them.
         SUBROUTINE GetStarStars(iMaxExcit,iExcit,RhoEps)
             use IntegralsData , only : TExcitStarsRootChange,TRmRootExcitStarsRootChange
             use global_utilities
@@ -1060,11 +1076,13 @@
             IF(HElement_t_size.ne.1) STOP 'Only real orbitals allowed'
             WRITE(6,*) "Stars where only root changes to be included, using a linear approximation of eigenvalues"
             
-!First it is necessary to order the rho_jj elements, so that the range that the linear approximation needs to hold can be worked out.
+!First it is necessary to order the rho_jj elements, so that the range that the linear approximation 
+!needs to hold can be worked out.
 !This routine sorts into ASCENDING order of rho_jj - therefore rho_jj max = ExcitInfo(iMaxExcit,0) = 1
             call sort (excitInfo(:,0), excitInfo(:,1), excitInfo(:,2))
 
-!Reverse order of array ExcitInfo, as have coded up the other way round! - rho_jj max = ExcitInfo(0,0) = 1 - rho_jj elements then decrease
+!Reverse order of array ExcitInfo, as have coded up the other way round! - rho_jj max = 
+!ExcitInfo(0,0) = 1 - rho_jj elements then decrease
             HalfiExcit=INT((iMaxExcit+1)/2)
             do i=1,HalfiExcit
                 tmp(1)=ExcitInfo((iMaxExcit+1)-i,0)
@@ -1081,8 +1099,10 @@
             WRITE(6,*) "Total number of points from which to form linear approximation = ", LinePoints
             IF(LinePoints.lt.2) STOP 'LinePoints cannot be less than two'
 
-!Take 'Linepoints' points along the change in rho_jj to calculate the gradient of the line for each eigenvalue, and the first element of the eigenvectors.
-!Only two points are strictly needed, but 'Linepoints' will be taken so that the validity of the linear approximation can be calculated.
+!Take 'Linepoints' points along the change in rho_jj to calculate the gradient of the line for 
+!each eigenvalue, and the first element of the eigenvectors.
+!Only two points are strictly needed, but 'Linepoints' will be taken so that the validity of the linear 
+!approximation can be calculated.
 !Assign largest diagonal multiplicative constant to simply be the original star graph, i.e. rho_ii/rho_ii is the root
             IF((ABS(REAL(ExcitInfo(0,0),dp)-1.0_dp)).gt.1.0e-7_dp) THEN
                 STOP 'First element of original star matrix should equal 1.0_dp'
@@ -1318,7 +1338,8 @@
             real(dp) :: RhoGap,RhoValue,RhoEps,Rhoia,StarEigens(iExcit+1,2)
             real(dp) :: meanx,Sxx,ValMax,VecMax,HMax,Rhoaa
 
-!LineRhoValues gives the values of the diagonal elements multiplicative constant, over which the gradient of the linear approximation will be calculated.
+!LineRhoValues gives the values of the diagonal elements multiplicative constant, over 
+!which the gradient of the linear approximation will be calculated.
             real(dp), ALLOCATABLE :: LineRhoValues(:)
 
 !VecsDODMS is the array to hold the first elements of the eigenvectors from the diagonalisation of 
@@ -1330,7 +1351,8 @@
 !NewDiagRhos holds the diagonal rho elements after they have been multiplied by the constant
             real(dp), ALLOCATABLE :: NewDiagRhos(:)
 
-!These arrays hold various data for calculating the gradient, and R^2 value for the linear approximation for each eigenvalue & vector.
+!These arrays hold various data for calculating the gradient, and R^2 value for the linear 
+!approximation for each eigenvalue & vector.
             real(dp), ALLOCATABLE :: RsqVals(:),RsqVecs(:),ExpctVals(:),ExpctVecs(:),IncptVals(:)
             real(dp), ALLOCATABLE :: IncptVecs(:),SxyVals(:),SxyVecs(:)
             real(dp), ALLOCATABLE :: SyyVals(:),SyyVecs(:),MeanVals(:),MeanVecs(:),GradVals(:),GradVecs(:)
@@ -1348,7 +1370,8 @@
             WRITE(6,*) "Stars of double excitations to be included in calculation using a linear approximation of eigenvalues"
             WRITE(6,*) iExcit*(iExcit+1)," possible extra excitations"
             
-!First it is necessary to order the rho_jj elements, so that the range that the linear approximation needs to hold can be worked out.
+!First it is necessary to order the rho_jj elements, so that the range that the 
+!linear approximation needs to hold can be worked out.
 !This routine sorts into ASCENDING order of rho_jj - therefore rho_jj max = ExcitInfo(iMaxExcit,0) = 1
             call sort (excitInfo(:,0), excitInfo(:,1), excitInfo(:,1))
 
@@ -1368,8 +1391,10 @@
 
             WRITE(6,*) "Total number of points from which to form linear approximation = ", LinePoints
 
-!Take 'Linepoints' points along the change in rho_jj to calculate the gradient of the line for each eigenvalue, and the first element of the eigenvectors.
-!Only two points are strictly needed, but 'Linepoints' will be taken so that the validity of the linear approximation can be calculated.
+!Take 'Linepoints' points along the change in rho_jj to calculate the gradient of the line for each eigenvalue, 
+!and the first element of the eigenvectors.
+!Only two points are strictly needed, but 'Linepoints' will be taken so that the validity of the 
+!linear approximation can be calculated.
             ALLOCATE(LineRhoValues(LinePoints))
 
 !Assign largest diagonal multiplicative constant to simply be the original star graph, i.e. rho_ii/rho_ii is the root
@@ -1392,7 +1417,8 @@
                 STOP 'LineRhoValues(LinePoints) should be the same as the lowest rho_jj value'
             ENDIF
 
-!The values for the calculated eigenvectors (first elements) and eigenvalues for the 'LinePoints' points are put into ValsDODMS and VecsDODMS respectivly.
+!The values for the calculated eigenvectors (first elements) and eigenvalues for the 'LinePoints' 
+!points are put into ValsDODMS and VecsDODMS respectivly.
             ALLOCATE(ValsDODMS(LinePoints,(iExcit+1)),stat=ierr)
             CALL LogMemAlloc("ValsDODMS",(iExcit+1)*LinePoints,8,this_routine,tagValsDODMS,iErr)
             ALLOCATE(VecsDODMS(Linepoints,(iExcit+1)),stat=ierr)
@@ -1522,7 +1548,8 @@
 
             enddo
 
-!To calculate the R^2 value for the linear regression, also need to calculate \sum{(y_i - Y)^2} - the expected y value from the gradient calculation at each point
+!To calculate the R^2 value for the linear regression, also need to calculate \sum{(y_i - Y)^2} - 
+!the expected y value from the gradient calculation at each point
 
             ALLOCATE(ExpctVals(iExcit+1),stat=iErr)
             CALL LogMemAlloc("ExpctVals",iExcit+1,8,this_routine,tagExpctVals,iErr)
@@ -1540,7 +1567,8 @@
                 enddo
             enddo
 
-            !Now, calculate R^2 value at for each eigenvalue/vector. This has been quite a time-consuming operation as need to calculate Syy..,Incpt..,Expct.. however,does not increase scaling.
+            !Now, calculate R^2 value at for each eigenvalue/vector. This has been quite a 
+            !time-consuming operation as need to calculate Syy..,Incpt..,Expct.. however,does not increase scaling.
 
             ALLOCATE(RsqVals(iExcit+1),stat=iErr)
             CALL LogMemAlloc("RsqVals",iExcit+1,8,this_routine,tagRsqVals,iErr)
@@ -1597,10 +1625,12 @@
             DEALLOCATE(LineRhoValues)
 
 !Count all diagonalised eigenvectors from excited stars which are attached back to the root.
-!The offdiagonal elements from the HF root to the spokes of each excited determinant, a,  with root at j, are given by rho_ij * <j|a>
+!The offdiagonal elements from the HF root to the spokes of each excited determinant, a,  
+!with root at j, are given by rho_ij * <j|a>
 !Since <j|a> is linearly related to <i|j> with the gradient calculated above, no more diagonalisations need to be performed.
 !Cycle through all excitations of the root, and then all diagonalised eigenvectors of a star from each excitation.
-!Taking the original star matrix eigenvectors, with rho_jj=1, and using the calculated gradient, the off diagonal element to any of these eigenvectors from the HF root can be calculated.
+!Taking the original star matrix eigenvectors, with rho_jj=1, and using the calculated gradient, the 
+!off diagonal element to any of these eigenvectors from the HF root can be calculated.
 
             CSE=0
 !Cycle through excitations of the HF det
@@ -1658,7 +1688,8 @@
 !            WRITE(6,*) "Original Hij elements :"
 !            WRITE(6,*) ExcitInfo(:,2)
 
-!Add contributions from excited stars - offdiagonal elements as above - diagonal elements are linearly scaled eigenvalues, and the Hamiltonian elements are similarly scaled.
+!Add contributions from excited stars - offdiagonal elements as above - diagonal elements are linearly 
+!scaled eigenvalues, and the Hamiltonian elements are similarly scaled.
 
 !            NextVertex=iExcit+1
             NextVertex=1
@@ -1682,7 +1713,8 @@
                         NextVertex=NextVertex+1
                     
                     ELSEIF((ABS(rhoia).gt.RhoEps).and.(TQuadValMax.or.TQuadVecMax)) THEN
-!Only include from the quadruple excitations, the connection resulting from the largest eigenvector(TQuadVecMax),or the largest eigenvalue(TQuadValMax) - therefore only one quad contribution per double, and O[N^2M^2] scaling.
+!Only include from the quadruple excitations, the connection resulting from the largest eigenvector(TQuadVecMax),or 
+!the largest eigenvalue(TQuadValMax) - therefore only one quad contribution per double, and O[N^2M^2] scaling.
                         
                         IF((rhoaa.gt.ValMax).and.(TQuadValMax)) THEN
                             ValMax=rhoaa
@@ -1756,8 +1788,10 @@
             integer(TagIntType), save :: tagStarMat=0,tagWORK=0
             character(*), parameter :: this_routine='GetValsnVecs'
 
-!Construct matrix - remember that the first element of OffDiagRhos now is the first offdiagonal element for the excitation, not root.
-!For ease, this diagonalisation is to be done initially with DSYEV, though it is possible to reduce the scaling to N^2 rather than N^3
+!Construct matrix - remember that the first element of OffDiagRhos now is the 
+!first offdiagonal element for the excitation, not root.
+!For ease, this diagonalisation is to be done initially with DSYEV, though it 
+!is possible to reduce the scaling to N^2 rather than N^3
 
                 ALLOCATE(StarMat(Dimen,Dimen),stat=iErr)
                 CALL LogMemAlloc("StarMat",Dimen*Dimen,8,this_routine,tagStarMat,iErr)
@@ -1793,7 +1827,8 @@
                 ENDIF
 
 !Store first elements of eigenvectors in 'Vecs'
-!The Absolute value of the first element of the eigenvectors is taken - this *should* be ok, since the eigenvectors can always be multiplied by -1 without changing the validity of them.
+!The Absolute value of the first element of the eigenvectors is taken - this *should* be 
+!ok, since the eigenvectors can always be multiplied by -1 without changing the validity of them.
                 do i=1,Dimen
                     Vecs(i)=ABS(StarMat(1,i))
                 enddo
@@ -1821,8 +1856,10 @@
             real(dp) :: Beta,ALat(3),ECore
             character(*), parameter :: this_routine='GetStarProds'
 
-!TCalcRealProd explicitly calculates 'real' quadruple product excitations i.e. neither of the two 'from' or 'to' orbitals are the same in the two excitations from which the product excitation is composed.
-!Once found, these can be used in different ways - either they can be explicitly added to the original star graph, or they try to be resummed in to the original graph (TSumProd). 
+!TCalcRealProd explicitly calculates 'real' quadruple product excitations i.e. neither of the two 'from' or 
+!'to' orbitals are the same in the two excitations from which the product excitation is composed.
+!Once found, these can be used in different ways - either they can be explicitly added to the original star 
+!graph, or they try to be resummed in to the original graph (TSumProd). 
              IF(TCalcRealProd.and.TSumProd) THEN
 !TSumProd tries to find a way to resum the product excitations into the double excitations already available in the star graph.
 
@@ -1830,12 +1867,14 @@
                 ALLOCATE(Offrho(iExcit),stat=iErr)
                 CALL LogMemAlloc("OffRho",iExcit,8*HElement_t_size,this_routine,tagOffrho,iErr)
 
-!   Temporarily fill Offrho with the original off-diagonal rho elements, which can be used in countprodexcits, since the rhoelements in EXCITINFO are modified in the routine.
+!   Temporarily fill Offrho with the original off-diagonal rho elements, which can be used in 
+!countprodexcits, since the rhoelements in EXCITINFO are modified in the routine.
                 DO I=1,iExcit
                     Offrho(I)=ExcitInfo(I,1)
                 ENDDO
 
-                !This routine finds all real quadruple excitations which are products of double excitations, add resums values from these.
+                !This routine finds all real quadruple excitations which are products of double 
+                !excitations, add resums values from these.
                 CALL CountProdExcits(ProdNum,.FALSE.,iExcit,UniqProd)
                 WRITE(6,*) ProdNum, "product excitations found, and summed in..."
                 Call LogMemDealloc(this_routine,tagOffrho)
@@ -1845,7 +1884,8 @@
                     WRITE(6,*) "Sum of product diagonal rho elements is ", rhiiadd
                     WRITE(6,*) "Number of unique products is ", UniqProd
 !                    rhiiadd=(rhiiadd+(UniqProd))/(2*UniqProd)
-!   rhiiadd now in divided by the number of product excitations we are resumming in, to give an average value for the diagonal rho elements for the quadruple product excitations.
+!   rhiiadd now in divided by the number of product excitations we are resumming in, to give an average value for the 
+!diagonal rho elements for the quadruple product excitations.
                     rhiiadd=rhiiadd/ProdNum
 !                    ExcitInfo(0,0)=rhiiadd
 !                    ExcitInfo(0,1)=rhiiadd
@@ -1896,7 +1936,8 @@
                         OffDiagProdRho(2,I)=(rh/rhii)
                     ELSE
                         IF(I.eq.1) WRITE(6,*) "Approximating off-diagonal elements for product excitations"
-!Approximate the off-diag rho elements between product excitation and constituent determinant as being equal to the rho element between the root and other constituent determinant.
+!Approximate the off-diag rho elements between product excitation and constituent determinant as being equal 
+!to the rho element between the root and other constituent determinant.
                         OffDiagProdRho(1,I)=ExcitInfo(ProdPositions(2,I),1)
                         OffDiagProdRho(2,I)=ExcitInfo(ProdPositions(1,I),1)
                     ENDIF
@@ -1918,7 +1959,8 @@
 !        INTEGER, ALLOCATABLE :: UNIQPRODS(:,:)
 !!        INTEGER, POINTER :: tempprods(:,:)
 !
-!        !Space allocated to store the excitations of the unique products, so we can search through them to ensure they are not being duplicated
+!        !Space allocated to store the excitations of the unique products, so we can search through 
+!them to ensure they are not being duplicated
 !        ALLOCATE(UNIQPRODS(8,(iExcit*(iExcit-1)/2)),stat=ierr)
 !        CALL LogMemAlloc("UNIQPRODSALL",iExcit*(iExcit-1)*2,8,this_routine,tagUNIQPRODS,ierr)
 !        
@@ -1927,7 +1969,8 @@
 !        DO I=1,iExcit
 !            DO J=(I+1),iExcit
 !                UNIQPROD=.TRUE.
-!                ! Again, the criteria for a product excitation are that none of the "ij" or "ab" orbitals match in the constituent excitations
+!                ! Again, the criteria for a product excitation are that none of the "ij" or "ab" orbitals match 
+                    !in the constituent excitations
 !                IF((EXCITSTORE(1,I).NE.EXCITSTORE(1,J)).AND.(EXCITSTORE(1,I).NE.EXCITSTORE(2,J))                   &
 !                .AND.(EXCITSTORE(2,I).NE.EXCITSTORE(2,J)).AND.(EXCITSTORE(2,I).NE.EXCITSTORE(1,J))) THEN
 !                    IF((EXCITSTORE(3,I).NE.EXCITSTORE(3,J)).AND.(EXCITSTORE(3,I).NE.EXCITSTORE(4,J))               &
@@ -2009,7 +2052,8 @@
                         ProdPositions(2,countprods)=J
                     ENDIF
                     IF(TSumProd) THEN
-                        !Add the diagonal rho elements to the quadruple excitation back into the offdiagonal rho elements of the original matrix
+                        !Add the diagonal rho elements to the quadruple excitation back into the 
+                        !offdiagonal rho elements of the original matrix
                         ExcitInfo(I,1)=ExcitInfo(I,1)+Offrho(J)
                         ExcitInfo(J,1)=ExcitInfo(J,1)+Offrho(I)
                         !Only sum in the diagonal product rho element once per excitation
@@ -2839,7 +2883,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
              ENDIF
 
 !In this next section, we annihilate pairs of walkers on the same determinant with opposing signs
-!This does not have to be performed every cycle - however, we have to at the moment,since it is the only way we transfer the determinants between arrays
+!This does not have to be performed every cycle - however, we have to at the moment,since it is 
+!the only way we transfer the determinants between arrays
 !              IF(mod(i,1).eq.0) THEN
               IF(.true.) THEN
 
@@ -2921,7 +2966,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
                       ENDIF
 
                   ELSE
-!In this method of cancelling, we simply histogram the walkers according to the determinant they're on - scales with size of system - i.e. badly
+!In this method of cancelling, we simply histogram the walkers according to the determinant they're on - 
+!scales with size of system - i.e. badly
 !Use the redundant List(i,1) vector to store wavefunctions, depicted by the residual concentration of walkers - zero it
                       do j=1,NList
                           List(j,1)=0.0_dp
@@ -3570,7 +3616,8 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          RETURN
       END
 !Comment on numerical stability  AJWT 30/10/07
-!It seems that we're going to have to be very careful about numerical stability for the 2-vertex star if we wish to use anything but the highest eigenvalue.
+!It seems that we're going to have to be very careful about numerical stability for the 2-vertex star 
+!if we wish to use anything but the highest eigenvalue.
 !
 !The Newton-Raphson problems are now contained, and if a NR step takes us out of the search region, we revert to regular falsi.
 !The best precision we can achieve is a convergence of about 1e-15 on the eigenvalue.
@@ -3581,12 +3628,15 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !v_aj = v_ai * rho_ji/(r_a-rho_jj)
 
 !where v_ai is the component of the HF det in the eigenvector (which we set to 1).  From this we can normalize the eigenvector.
-!However, if rho_ji is very small (say 1e-14), then its coupling with i is very small - i.e. the eigenvector will likely have a large component of j, and a small component of i.
+!However, if rho_ji is very small (say 1e-14), then its coupling with i is very small - i.e. the eigenvector will likely i
+!have a large component of j, and a small component of i.
 !  This will manifest itself as a near-degeneracy of the eigenvalue r_a to the pole rho_jj of the polynomial.
-!  However, as our accuracy in calculating the eigenvectors is limited to a little more than machine precision, we cannot calculate r_a-rho_jj very precisely at all, and so the eigenvector normalization gets very inaccurate.
+!  However, as our accuracy in calculating the eigenvectors is limited to a little more than machine precision, we cannot 
+!calculate r_a-rho_jj very precisely at all, and so the eigenvector normalization gets very inaccurate.
 
 !I've put a test in to check when r_a-rho_jj is <1e-13, and it will print a warning in this case.
-!To remedy the solution is simple.  SInce the coupling to j is small, we can ignore it.  This is done by setting rhoepsilon to a value like 1e-12.
+!To remedy the solution is simple.  SInce the coupling to j is small, we can ignore it.  This is done i
+!by setting rhoepsilon to a value like 1e-12.
 
 !Alex
 
@@ -3595,8 +3645,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !-----
 
 
-!        ADDSINGLES specifies to add the singles which are en-route to each double to that double as spokes, and prediagonalize them.
-!  i.e. if the double is (ij->ab), then singles (i->a),(i->b),(j->a) and (j->b) are created in a star with (ij->ab), the result diagonalized, and the eigenvalues and vectors used to create new spokes.  Only works with NEW
+!        ADDSINGLES specifies to add the singles which are en-route to each double to that double as spokes, 
+    !and prediagonalize them.
+!  i.e. if the double is (ij->ab), then singles (i->a),(i->b),(j->a) and (j->b) are created in a star with 
+    !(ij->ab), the result diagonalized, and the eigenvalues and vectors used to create new spokes.  Only works with NEW
       SUBROUTINE StarAddSingles(nI,nJ,ExcitInfo,iExcit,iMaxExcit,rhii,rhoeps,Beta,i_P,nEl,G1, &
         nBasis,nMsh,fck,nMax,ALat,UMat,nTay,ECore)
          use constants, only: dp,int32      
@@ -3772,8 +3824,10 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
         call sort (nJ)
       END
       
-     !Routine which takes a root determinant (nI), and a double excitation (nJ), and calculates the orbitals which have been excited.
-     !This information is put into Orbchange(4), with the first two values being the excited from orbitals (ij), and the second two being the excited to orbitals (ab).
+     !Routine which takes a root determinant (nI), and a double excitation (nJ), 
+     !and calculates the orbitals which have been excited.
+     !This information is put into Orbchange(4), with the first two values being 
+     !the excited from orbitals (ij), and the second two being the excited to orbitals (ab).
      SUBROUTINE GETEXCITSCHANGE(nI,nJ,nEl,Orbchange)
         IMPLICIT NONE
         INTEGER :: nEl,nI(nEl),nJ(nEl),Orbchange(4),q,I,J

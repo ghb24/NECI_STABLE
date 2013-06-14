@@ -241,7 +241,8 @@ contains
                      !Electron picked must not be one which has been picked before
                      !i.e. it must be occupied in iLut
                      if(IsOcc(iLut,Orb)) then
-                        clr_orb(iLut,Orb)   !Clear orbital to indicate it is gone. 
+                        !Clear orbital to indicate it is gone. 
+                        clr_orb(iLut,Orb)   
                         tNotAllowed=.false.
                         !Deal with totting up the symmetry for the now unocc orbital
                         TotalSym=IEOR(TotalSym,INT((G1(Orb)%Sym%S),sizeof_int))
@@ -265,9 +266,11 @@ contains
                      Hole = int(nBasis*r)+1
 
                      if(IsNotOcc(iLut,Hole)) then
-                         set_orb(iLut,Hole) !Set orbital to indicate it is now occupied
+                         !Set orbital to indicate it is now occupied
+                         set_orb(iLut,Hole) 
                          tNotAllowed=.false.
-                         if(IsNotOcc(FDetiLut,Hole)) ExcitLev=ExcitLev+1    !Increase excitation level
+                         !Increase excitation level
+                         if(IsNotOcc(FDetiLut,Hole)) ExcitLev=ExcitLev+1    
                          !Deal with totting up the symmetry for the now occ orbital
                          TotalSym=IEOR(TotalSym,INT((G1(Hole)%Sym%S),sizeof_int))
                          TotalMom=TotalMom-G1(Hole)%Ml

@@ -505,7 +505,7 @@ outer_map:      do i = 0, MappingNIfD
             end if
 
             ! Store the sign and flag information in the determinant.
-            flg = flg_read
+            flg = int(flg_read,sizeof_int)
             call encode_sign (WalkerTemp, sgn)
             if (tUseFlags) call encode_flags (WalkerTemp, flg)
 

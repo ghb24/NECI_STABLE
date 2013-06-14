@@ -414,7 +414,8 @@ module mcpathsismc
      &                          BTEST(ILOGGING,13))
 !                              WRITE(39,*) I_OVCUR,1,LP,0
                            ENDIF
-!C.. Now if we generate a 1, we accept with prob p1 pa (out of p1 pa + pV=1-(1-pV)*pr), but we need to consider any V's separately, with prob p1
+!C.. Now if we generate a 1, we accept with prob p1 pa (out of p1 pa + pV=1-(1-pV)*pr), 
+!but we need to consider any V's separately, with prob p1
 !                   !
 !Either we've disallowed V->V' transitions or we generate a 1-v graph
                            IF(TVVDISALLOW.OR.                                &

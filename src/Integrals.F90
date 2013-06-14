@@ -515,8 +515,8 @@ contains
          call SetupUMat2D_df()  !This needs to be changed
 !The actual UMat2D integrals are read here into UMat2D here, as well as the integrals needed into the cache.
          CALL READFCIINT(UMAT,NBASIS,ECORE,tReadFreezeInts)
-
-         NBASISMAX(2,3)=0   !This is generally iSpinSkp, but stupidly, needs to be .le.0 to indicate that we want to look up the integral.
+!This is generally iSpinSkp, but stupidly, needs to be .le.0 to indicate that we want to look up the integral.
+         NBASISMAX(2,3)=0   
          WRITE(6,*) ' ECORE=',ECORE
       ELSEIF(TREADINT.AND.TSTARSTORE) THEN
          WRITE(6,'(A)') '*** READING DOUBLES 2-VERTEX INTEGRALS FROM FCIDUMP ***'
@@ -675,7 +675,8 @@ contains
 !                     IDk = GTID(k)
 !                     IDl = GTID(l)
 !                     Index1=UMatInd(idi,idj,idk,idl,0,0)
-!                     WRITE(37,"(9I5,G25.10)") i,j,k,l,idi,idj,idk,idl,Index1,GetUMatEl(NBasisMax,UMAT,ALAT,nBasis,ISpinSkip,G1,idi,idj,idk,idl)
+!                     WRITE(37,"(9I5,G25.10)") i,j,k,l,
+!idi,idj,idk,idl,Index1,GetUMatEl(NBasisMax,UMAT,ALAT,nBasis,ISpinSkip,G1,idi,idj,idk,idl)
 !                 enddo
 !             enddo
 !         enddo

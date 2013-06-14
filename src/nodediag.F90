@@ -1,13 +1,20 @@
-!This function takes all {a,b} excitations from each i,j pair, and prediagonalises them, fully connecting all the determinants to each other. This is what is meant by a 'node' - a set of double excitations, all of which are excited from the same {i,j}. 
+!This function takes all {a,b} excitations from each i,j pair, and prediagonalises them, fully connecting all the 
+!determinants to each other. This is what is meant by a 'node' - a set of double excitations, 
+!all of which are excited from the same {i,j}. 
 !The transformed objects from this diagonalisation of each node are then attached back to root in a star and solved.
-!This should approximate CID, although O[N^2 M] connections are missing throughout the structure, correponding to the few connections there are between nodes.
-!Current scaling is N^12 if the final star is explicitly diagonalised, or N^8 if it is done solving the polynomial (to do!).
+!This should approximate CID, although O[N^2 M] connections are missing throughout the structure, correponding to 
+!the few connections there are between nodes.
+!Current scaling is N^12 if the final star is explicitly diagonalised, or N^8 if it is 
+!done solving the polynomial (to do!).
 
-!!BEWARE!! Bugs expected in code - should NOT reattach the original determinants - have already included them in the prediagonalisation when
+!!BEWARE!! Bugs expected in code - should NOT reattach the original determinants - have already 
+!included them in the prediagonalisation when
 !considering the projection of the original determinant. Needs fixing
 
-!Also to do : consider the linear approximation of eigenvectors, which would mean that only a few of the nodes would need to be explicitly diagonalised, before a linear approximation
-!could be taken to approximate the eigensystems from the other nodes. This would rely on the matrices begin the same, and simply the diagonal elements being multiplied by a constant
+!Also to do : consider the linear approximation of eigenvectors, which would mean that only a few of the nodes would 
+!need to be explicitly diagonalised, before a linear approximation
+!could be taken to approximate the eigensystems from the other nodes. This would rely on the matrices begin the same, 
+!and simply the diagonal elements being multiplied by a constant
 !This would reduce the scaling to M^6 - same as CID
 
     MODULE NODEDIAG
@@ -77,7 +84,9 @@
       CALL LogMemAlloc("ABCOUNTER",noij/2,8,t_r,tagABCOUNTER,iErr)
       ABCOUNTER(1:noij)=0
 
-!Create inversebrr for indexing purposes. Brr gives the orbitals in order of energy. If we create an inverse of this array, then we can order the occupied orbitals in ascending order, and so create an indexing scheme for the {i,j} pairs, which need to be stored.
+!Create inversebrr for indexing purposes. Brr gives the orbitals in order of energy. If we create an inverse of this array, 
+!then we can order the occupied orbitals in ascending order, and so create an indexing scheme for the {i,j} pairs, 
+!which need to be stored.
       CALL CREATEINVSBRR(Brr,invsBrr,nBasis)
 
 !Array to detail the ij orbs being excited from in each node
@@ -186,7 +195,8 @@
 
       
       
-!From a given {i,j}, and a list of all {a,b}'s which result in possible double excitations from the HF, find all the connections between them, and diagonalise the resulting matrix from this 'node'. 
+!From a given {i,j}, and a list of all {a,b}'s which result in possible double excitations from the HF, find 
+!all the connections between them, and diagonalise the resulting matrix from this 'node'. 
 !Finally, attach the resultant structures back to the HF in EXCITINFO star matrix.      
       SUBROUTINE CONSTRUCTNODE(novirt,nEl,node,nI,Beta,i_P,G1,nBasis,nMsh,fck,nMax,ALat,UMat,nTay,ECore,RhoEps,ExcitInfoElems)
         use MemoryManager, only: TagIntType
@@ -323,8 +333,10 @@
                 ExcitInfoElems=ExcitInfoElems+1
                 EXCITINFO(ExcitInfoElems,0)=WLIST(i)
                 
-!For offdiagonal elements sum over rho element of each determinant (k) to root, times projection of that determinant onto eigenvector j.
-! rho_ij = sum_k{ <D_0|rho|k><k|j> } where k are the original determinants in the node, j are the eigenvectors from the diagonalisation, and D_0 is the root.
+!For offdiagonal elements sum over rho element of each determinant (k) to root, 
+!times projection of that determinant onto eigenvector j.
+! rho_ij = sum_k{ <D_0|rho|k><k|j> } where k are the original determinants in the 
+!node, j are the eigenvectors from the diagonalisation, and D_0 is the root.
 
                 DO j=1,novirt
                     nJ(:)=FULLPATHS(:,j)

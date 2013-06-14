@@ -71,9 +71,12 @@ MODULE RotateOrbsMod
     TYPE(timer), save :: Rotation_Time,FullShake_Time,Shake_Time,Findtheforce_Time,Transform2ElInts_Time
     type(timer), save :: findandusetheforce_time,CalcDerivConstr_Time,TestOrthoConver_Time
     TYPE(timer), save :: RefillUMAT_Time,PrintROFCIDUMP_Time
-! In this routine, alpha (a), beta (b), gamma (g) and delta (d) refer to the unrotated (HF) orbitals where possible such that < a b | g d > is an unrotated four index integral.   
-! For the rotated orbitals, the letter i,j,k and l are generally used, i.e. < i j | k l > refers to a transformed four index integral.
-! Differentiation of the potential energy (to find the force) is done with respect to coefficient c(z,m) (or c(a,m)), where zeta (z) or a refers to the HF index, and m to the rotated.
+! In this routine, alpha (a), beta (b), gamma (g) and delta (d) refer to the unrotated (HF) orbitals where 
+!possible such that < a b | g d > is an unrotated four index integral.   
+! For the rotated orbitals, the letter i,j,k and l are generally used, i.e. < i j | k l > refers to 
+!a transformed four index integral.
+! Differentiation of the potential energy (to find the force) is done with respect to coefficient 
+!c(z,m) (or c(a,m)), where zeta (z) or a refers to the HF index, and m to the rotated.
     
 
     contains
@@ -93,7 +96,8 @@ MODULE RotateOrbsMod
 ! Need to actually find the coefficient matrix and then use it.
 
                 tNotConverged=.true.
-                CALL InitLocalOrbs()        ! Set defaults, allocate arrays, write out headings for OUTPUT, set integarals to HF values.
+                CALL InitLocalOrbs()        ! Set defaults, allocate arrays, write out headings 
+                                            ! for OUTPUT, set integarals to HF values.
 
                 IF(tDiagonalizehij) THEN
 
@@ -113,12 +117,14 @@ MODULE RotateOrbsMod
                    
                     CALL set_timer(Rotation_Time,30)
 
-                    do while(tNotConverged)     ! rotate the orbitals until the sum of the four index integral falls below a chose convergence value.
+                    do while(tNotConverged)     ! rotate the orbitals until the sum of the four index 
+                                                ! integral falls below a chose convergence value.
 
                         Iteration=Iteration+1
                         
                         CALL FindNewOrbs()      ! bulk of the calculation.
-                                                ! do the actual transformations, moving the coefficients by a timestep according to the calculated force. 
+                                                ! do the actual transformations, moving the coefficients by 
+                                                !a timestep according to the calculated force. 
 
                         CALL WriteStats()       ! write out the stats for this iteration.
 
@@ -182,7 +188,8 @@ MODULE RotateOrbsMod
         IF(tTruncRODump.and.(.not.tTruncDumpbyVal)) THEN 
             NoFrozenVirt=NoTruncOrbs(1)
         ELSEIF(tTruncRODump) THEN
-            ! If the 'number of frozen orbitals' is given as a cutoff - take NoFrozenVirt to be 0 for all the allocation purposes - will set this later when
+            ! If the 'number of frozen orbitals' is given as a cutoff - take NoFrozenVirt to be 0 
+            !for all the allocation purposes - will set this later when
             ! we have the eigenvalues and know how many orbitals lie below it.
             NoFrozenVirt=0
             TruncEval=TruncEvalues(1)
@@ -286,11 +293,15 @@ MODULE RotateOrbsMod
 
 ! Yet another labelling system, SymLabelList3_rot is created here.
 ! This indicates the label of the transformed orbital.
-! In the case where we are truncating the space, the transformed orbitals are ordered according to the size of the eigenvalues of the MP2VDM
-! matrix when it is diagonalised.  We wish to keep them in this order when transforming the integrals etc, so that when we truncate the last 
+! In the case where we are truncating the space, the transformed orbitals are ordered according 
+!to the size of the eigenvalues of the MP2VDM
+! matrix when it is diagonalised.  We wish to keep them in this order when transforming 
+!the integrals etc, so that when we truncate the last 
 ! NoFrozenVirt orbitals, we are removing those with the smallest MP2VDM eigenvalues (occupation numbers).
-! In the case where no truncation is made however, SymLabelList3_rot is the same as SymLabelList2_rot, so that the indexes remain the same as previously.
-! This allows for the option of going straight into a spawning calc from the rotation, which is not possible when a truncation is performed 
+! In the case where no truncation is made however, SymLabelList3_rot is the same as SymLabelList2_rot, 
+!so that the indexes remain the same as previously.
+! This allows for the option of going straight into a spawning calc from the rotation, which is not 
+!possible when a truncation is performed 
 ! because of the messed up indices.
         IF(tTruncRODump) THEN
             IF(MOD(NoFrozenVirt,2).ne.0) CALL Stop_All(this_routine,"Must freeze virtual spin orbitals in pairs of 2.")
@@ -1035,7 +1046,8 @@ MODULE RotateOrbsMod
 !           
 !                do m=MinMZ,MaxMZ
 !                    SymM=INT(G1(SymLabelList2_rot(m)*2)%sym%S)
-!                    do z=SymLabelCounts2_rot(1,SymM+SymMin),(SymLabelCounts2_rot(1,SymM+SymMin)+SymLabelCounts2_rot(2,SymM+SymMin)-1)
+!                    do z=SymLabelCounts2_rot(1,SymM+SymMin),
+!(SymLabelCounts2_rot(1,SymM+SymMin)+SymLabelCounts2_rot(2,SymM+SymMin)-1)
 !                        CoeffT1(z,m)=RAN2(iseed)*(1E-01)
 !                    enddo
 !                enddo
@@ -1450,7 +1462,8 @@ MODULE RotateOrbsMod
 !                                CoeffT1(Orbi,Orbj)=1.0_dp/SQRT(REAL(2*NumInSym,8))*2.0_dp*COS(Angle)
 !                                CoeffT1(ConjOrb,Orbj)=1.0_dp/SQRT(REAL(2*NumInSym,8))*2.0_dp*SIN(Angle)
 !                                WRITE(6,*) "Ind = ",i," J= ",j, "ConjInd = ",ConjInd, " N = ",NumInSym, " Orbj = ",Orbj
-!                                WRITE(6,*) "Angle = ",Angle, " CoeffT1(Orbi,Orbj) = ", CoeffT1(Orbi,Orbj), "CoeffT1(ConjOrb,Orbj) = ", CoeffT1(ConjOrb,Orbj)
+!                                WRITE(6,*) "Angle = ",Angle, " CoeffT1(Orbi,Orbj) = ", 
+!CoeffT1(Orbi,Orbj), "CoeffT1(ConjOrb,Orbj) = ", CoeffT1(ConjOrb,Orbj)
 !
 !                            ENDIF
 !
@@ -1848,7 +1861,8 @@ MODULE RotateOrbsMod
         IF(tERLocalization.and.(.not.tStoreSpinOrbs)) THEN
             CALL Transform2ElIntsERlocal()
         ELSE
-            CALL Transform2ElInts()     ! Find the partially (and completely) transformed 4 index integrals to be used in further calcs.
+! Find the partially (and completely) transformed 4 index integrals to be used in further calcs.
+            CALL Transform2ElInts()     
         ENDIF
 
 
@@ -2676,7 +2690,8 @@ MODULE RotateOrbsMod
                     ! DIAG TERMS
                     ! Maximise <ii|ii>, self interaction terms. 
                     IF(tERLocalization.and.(.not.tStoreSpinOrbs)) THEN
-!                        DiagForcemz=DiagForcemz+ThreeIndInts01(m,m,m,z)+ThreeIndInts02(m,m,m,z)+ThreeIndInts03(m,m,m,z)+ThreeIndInts04(m,m,m,z)
+!                        DiagForcemz=DiagForcemz+ThreeIndInts01(m,m,m,z)+
+!ThreeIndInts02(m,m,m,z)+ThreeIndInts03(m,m,m,z)+ThreeIndInts04(m,m,m,z)
                         DiagForcemz=DiagForcemz+(2*ThreeIndInts01ER(z,m))+(2*ThreeIndInts02ER(z,m))
                         ! Derivative of <ii|ii> only non-zero when i=m.
                         ! each of the four terms then correspond to zeta = a, b, g, then d in the unrotated basis.
@@ -2822,12 +2837,14 @@ MODULE RotateOrbsMod
                                     ELSE
                                         keqm=.false.
                                     ENDIF
-!                                    Symi=IEOR(INT(G1(SymLabelList2_rot(k)*2)%sym%S),IEOR(INT(G1(SymLabelList2_rot(j)*2)%sym%S),INT(G1(SymLabelList2_rot(l)*2)%sym%S)))
+!                                    Symi=IEOR(INT(G1(SymLabelList2_rot(k)*2)%sym%S),
+!IEOR(INT(G1(SymLabelList2_rot(j)*2)%sym%S),INT(G1(SymLabelList2_rot(l)*2)%sym%S)))
                                     ! only i with symmetry equal to j x k x l will have integrals with overall
                                     ! symmetry A1 and therefore be non-zero.
 
 
-                                    ! Running across i, ThreeIndInts01 only contributes if i.eq.m (which will happen once for each m)
+                                    ! Running across i, ThreeIndInts01 only contributes 
+                                    !if i.eq.m (which will happen once for each m)
                                     IF((m.le.k-1).and.(m.ne.j).and.((i.ne.k).or.(j.ne.l))) THEN
 !                                    IF((m.le.k-1)) THEN
                                         IF(tOffDiagSqrdMin.or.tOffDiagSqrdMax) OffDiagForcemz=OffDiagForcemz+2* &
@@ -2840,7 +2857,8 @@ MODULE RotateOrbsMod
                                     IF(jeqm) THEN
                                         do i=1,k-1
                                             IF((i.ne.j).and.((i.ne.k).or.(j.ne.l))) THEN
-!                                        do i=SymLabelCounts2_rot(1,Symi+SymMin),(SymLabelCounts2_rot(1,Symi+SymMin)+SymLabelCounts2_rot(2,Symi+SymMin)-1)
+!                                        do i=SymLabelCounts2_rot(1,Symi+SymMin),
+!(SymLabelCounts2_rot(1,Symi+SymMin)+SymLabelCounts2_rot(2,Symi+SymMin)-1)
                                                 IF(tOffDiagSqrdMin.or.tOffDiagSqrdMax) OffDiagForcemz=OffDiagForcemz+2* &
                                                     (FourIndInts(i,j,k,l)*ThreeIndInts02(i,k,l,z))
                                                 IF(tOffDiagMin.or.tOffDiagMax) OffDiagForcemz=OffDiagForcemz+ThreeIndInts02(i,k,l,z)
@@ -2851,7 +2869,8 @@ MODULE RotateOrbsMod
                                     ENDIF
 
                                     IF(keqm) THEN
-!                                        do i=SymLabelCounts2_rot(1,Symi+SymMin),(SymLabelCounts2_rot(1,Symi+SymMin)+SymLabelCounts2_rot(2,Symi+SymMin)-1)
+!                                        do i=SymLabelCounts2_rot(1,Symi+SymMin),
+!(SymLabelCounts2_rot(1,Symi+SymMin)+SymLabelCounts2_rot(2,Symi+SymMin)-1)
                                         do i=1,k-1
                                             IF((i.ne.j).and.((i.ne.k).or.(j.ne.l))) THEN
                                                 IF(tOffDiagSqrdMin.or.tOffDiagSqrdMax) OffDiagForcemz=OffDiagForcemz+2* &
@@ -2865,7 +2884,8 @@ MODULE RotateOrbsMod
                                     ENDIF
 
                                     IF(leqm) THEN
-!                                        do i=SymLabelCounts2_rot(1,Symi+SymMin),(SymLabelCounts2_rot(1,Symi+SymMin)+SymLabelCounts2_rot(2,Symi+SymMin)-1)
+!                                        do i=SymLabelCounts2_rot(1,Symi+SymMin),
+!(SymLabelCounts2_rot(1,Symi+SymMin)+SymLabelCounts2_rot(2,Symi+SymMin)-1)
                                         do i=1,k-1
                                             IF((i.ne.j).and.((i.ne.k).or.(j.ne.l))) THEN
                                                 IF(tOffDiagSqrdMin.or.tOffDiagSqrdMin) OffDiagForcemz=OffDiagForcemz+2* &
@@ -3232,7 +3252,8 @@ MODULE RotateOrbsMod
                     TotCorConstraints,ConvergeCount 
             ENDIF
 
-! If the convergence criteria is not met, use either the full matrix inversion method to find a new set of lambdas, or the shake algorithm 
+! If the convergence criteria is not met, use either the full matrix inversion method to 
+!find a new set of lambdas, or the shake algorithm 
 ! (in which case SHAKEAPPROX is required in the system block of the input).
 
             IF(tShakeApprox.and.tShakeNotConverged) THEN
@@ -3346,7 +3367,8 @@ MODULE RotateOrbsMod
 
 !        do w=MinOccVirt,MaxOccVirt
         do w=1,TempMaxOccVirt
-! the force will be zero on those coefficients not being mixed, but still want to run over all, so that the diagonal 1 values are maintained.
+! the force will be zero on those coefficients not being mixed, but still want to run over 
+!all, so that the diagonal 1 values are maintained.
             IF(w.eq.1) THEN
                 SymMin=1
                 MinMZ=1
@@ -3372,9 +3394,12 @@ MODULE RotateOrbsMod
                             SymLabelCounts2_rot(2,SymM+SymMin)-1)
 !               
                 ! FIND THE FORCE 
-                    ! find the corrected force. (in the case where the uncorrected force is required, correction is set to 0.
-                    ! DerivCoeff(m,a) is the derivative of the relevant potential energy w.r.t cm without any constraints (no lambda terms).
-                    ! ForceCorrect is then the latest force on coefficients.  This is iteratively being corrected so that
+                    ! find the corrected force. (in the case where the uncorrected force 
+                    !is required, correction is set to 0.
+                    ! DerivCoeff(m,a) is the derivative of the relevant potential energy w.r.t 
+                    !cm without any constraints (no lambda terms).
+                    ! ForceCorrect is then the latest force on coefficients.  This is 
+                    !iteratively being corrected so that
                     ! it will finally move the coefficients so that they remain orthonormal.
                 
                 ! USE THE FORCE
@@ -3615,8 +3640,10 @@ MODULE RotateOrbsMod
   
 
     SUBROUTINE FinalizeNewOrbs()
-! At the end of the orbital rotation, have a set of coefficients CoeffT1 which transform the HF orbitals into a set of linear
-! combinations ui which minimise |<ij|kl>|^2.  This is the final subroutine after all iterations (but before the memory deallocation)
+! At the end of the orbital rotation, have a set of coefficients CoeffT1 which transform 
+!the HF orbitals into a set of linear
+! combinations ui which minimise |<ij|kl>|^2.  This is the final subroutine after 
+!all iterations (but before the memory deallocation)
 ! that calculates the final 4 index integrals to be used in the NECI calculation.
         use sym_mod, only: GenSymStatePairs
         INTEGER :: i,a,j
@@ -4163,7 +4190,8 @@ MODULE RotateOrbsMod
 !            do k=1,l
 !                do j=1,NoOrbs
 !                    do i=1,NoOrbs
-!                        WRITE(34,'(I10,A1,I2,A1,I2,A1,I2,F20.10,I10,A1,I2,A1,I2,A1,I2,F20.10)') i,',',j,',',k,',',l,FourIndInts(i,j,k,l)-FourIndInts(i,j,l,k),&
+!                        WRITE(34,'(I10,A1,I2,A1,I2,A1,I2,F20.10,I10,A1,I2,A1,I2,A1,I2,F20.10)') 
+!i,',',j,',',k,',',l,FourIndInts(i,j,k,l)-FourIndInts(i,j,l,k),&
 !                        &i,',',j,',',l,',',k,FourIndInts(i,j,l,k)-FourIndInts(i,j,k,l)
 !                    enddo
 !                enddo
@@ -4368,7 +4396,8 @@ MODULE RotateOrbsMod
    
 
 
-! Histogramming all one particle orbital energies (occupied and virtual) even though we are not changing occupied.  Would like to see HOMO-LUMO gap etc.
+! Histogramming all one particle orbital energies (occupied and virtual) even 
+!though we are not changing occupied.  Would like to see HOMO-LUMO gap etc.
         IF(tROHistOneElInts) THEN
 
             ROHistHijVirt(:,:)=0.0_dp
@@ -5327,7 +5356,8 @@ MODULE RotateOrbsMod
             do k=1,i
                 do j=1,(NoOrbs-(NoFrozenVirt))
 !                    Sym=IEOR(INT(G1(j*2)%sym%S),IEOR(INT(G1(k*2)%sym%S),INT(G1(i*2)%sym%S)))
-                    ! Potential to put symmetry in here, have currently taken it out, because when we're only printing non-zero values,
+                    ! Potential to put symmetry in here, have currently taken it out, because 
+                    !when we're only printing non-zero values,
                     ! it is kind of unnecessary - although it may be used to speed things up.
                     do l=1,j
 !                        Syml=INT(G1(l*2)%sym%S)
@@ -5344,7 +5374,8 @@ MODULE RotateOrbsMod
 !            do j=1,SpatOrbs
 !                do l=j,SpatOrbs
 !                    Sym=IEOR(INT(G1(l*2)%sym%S),IEOR(INT(G1(j*2)%sym%S),INT(G1(i*2)%sym%S)))
-!                    do l=SymLabelCounts2_rot(1,Sym+SymMin),(SymLabelCounts2_rot(1,Sym+SymMin)+SymLabelCounts2_rot(2,Sym+SymMin)-1)
+!                    do l=SymLabelCounts2_rot(1,Sym+SymMin),
+!(SymLabelCounts2_rot(1,Sym+SymMin)+SymLabelCounts2_rot(2,Sym+SymMin)-1)
                    ! Potential to put symmetry in here.
 !                    do k=i,SpatOrbs
 !                        Symk=INT(G1(k*2)%sym%S)
@@ -5446,7 +5477,8 @@ MODULE RotateOrbsMod
                 do j=1,(NoOrbs-(NoFrozenVirt))
                     b=SymLabelList3_rotInv(j)
 !                    Sym=IEOR(INT(G1(j*2)%sym%S),IEOR(INT(G1(k*2)%sym%S),INT(G1(i*2)%sym%S)))
-                    ! Potential to put symmetry in here, have currently taken it out, because when we're only printing non-zero values,
+                    ! Potential to put symmetry in here, have currently taken it out, 
+                    !because when we're only printing non-zero values,
                     ! it is kind of unnecessary - although it may be used to speed things up.
                     do l=1,j
                         d=SymLabelList3_rotInv(l)

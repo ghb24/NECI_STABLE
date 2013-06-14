@@ -27,7 +27,9 @@ MODULE AnnihilationMod
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData , only : tHF_Ref_Explicit
+    use nElRDMMod, only: aaaa_RDM, All_aaaa_RDM
     IMPLICIT NONE
+
 
     contains
 
@@ -452,7 +454,8 @@ MODULE AnnihilationMod
                         ! No point in doing anything more with it.
 
                         Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = SpawnedParts(NIfTot+1:NIfTot+NIfDBO+2,BeginningBlockDet)
-                        ! The first NIfDBO of the Spawned_Parents entry is the parent determinant, the NIfDBO + 1 entry 
+                        ! The first NIfDBO of the Spawned_Parents entry is the parent determinant, 
+                        ! the NIfDBO + 1 entry 
                         ! is the biased Ci. Parent_Array_Ind keeps track of the position in Spawned_Parents.
                         Spawned_Parents_Index(1,VecInd) = Parent_Array_Ind
                         Spawned_Parents_Index(2,VecInd) = 1
@@ -1024,7 +1027,7 @@ MODULE AnnihilationMod
                 FinalVal=HashIndex(0,DetHash)-1
 !                write(6,*) "FinalVal: ",FinalVal
                 do clash=1,FinalVal
-                    ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
+ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                     if(DetBitEQ(SpawnedParts(:,i),CurrentDets(:,HashIndex(clash,DetHash)),NIfDBO)) then
                         !We have found the matching determinant
                         tSuccess=.true.
@@ -1258,7 +1261,7 @@ MODULE AnnihilationMod
                 endif
             endif
                 
-            if((.not.tSuccess).or.(sum(abs(CurrentSign)) .eq. 0)) then
+            if((.not.tSuccess).or.(tSuccess.and.(sum(abs(CurrentSign)) .eq. 0))) then
 
                 if (tSemiStochastic) then
                     ! If performing a semi-stochastic simulation and spawning from the deterministic
@@ -1310,7 +1313,7 @@ MODULE AnnihilationMod
                             SignTemp(j) = 0.0_dp
                             call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
 
-                            if(tHashWalkerList.and.(sum(abs(CurrentSign)) .eq. 0)) then
+                            if(tHashWalkerList.and.(tSuccess.and.sum(abs(CurrentSign)).eq.0)) then
                                 !All walkers in this main list have died, and none have been spawned onto it.
                                 !Remove it from the hash index array so that no others find it (it is impossible to have
                                 !another spawned walker yet to find this determinant)
@@ -1652,6 +1655,7 @@ MODULE AnnihilationMod
 !            write(6,*) "i, HashIndex(i,DetHash): ",i, HashIndex(i,DetHash)
             if(HashIndex(i,DetHash).eq.DetPosition) exit
         enddo
+!        write(6,*) "Det: ",nI(:)
 !        write(6,*) "DetHash: ",DetHash
 !        write(6,*) "FinalVal: ",FinalVal
 !        write(6,*) "DetPosition: ",DetPosition
@@ -1668,12 +1672,15 @@ MODULE AnnihilationMod
     end subroutine RemoveDetHashIndex
 
     
-!This routine will run through the total list of particles (TotWalkersNew in CurrentDets with sign CurrentSign) and the list of 
-!newly-spawned but non annihilated particles (ValidSpawned in SpawnedParts and SpawnedSign) and move the new particles into the
-!correct place in the new list, while removing the particles with sign = 0 from CurrentDets. 
+!This routine will run through the total list of particles (TotWalkersNew in CurrentDets 
+!with sign CurrentSign) and the list of newly-spawned but
+!non annihilated particles (ValidSpawned in SpawnedParts and SpawnedSign) and move the 
+!new particles into the correct place in the new list,
+!while removing the particles with sign = 0 from CurrentDets. 
 !Binary searching can be used to speed up this transfer substantially.
-!The key feature which makes this work, is that it is impossible for the same determinant to be specified in both the spawned 
-!and main list at the end of the annihilation process. Therefore we won't multiply specify determinants when we merge the lists.
+!The key feature which makes this work, is that it is impossible for the same determinant 
+!to be specified in both the spawned and main list at the end of
+!the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
     SUBROUTINE InsertRemoveParts(ValidSpawned, TotWalkersNew, iter_data)
         use util_mod, only: abs_sign
         use SystemData, only: tHPHF, tRef_Not_HF
