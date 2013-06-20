@@ -1191,7 +1191,8 @@ MODULE nElRDMMod
         p_notlist_rdmfac = ( 1.0_dp - p_gen ) + ( p_gen * (1.0_dp - p_spawn_rdmfac) )
 
         ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
-        
+       
+
         if(real(int(SignCurr(1)),dp).ne.SignCurr(1)) then
             !There's a non-integer population on this determinant
             !We need to consider both possibilities - whether we attempted to spawn 
@@ -1382,7 +1383,7 @@ MODULE nElRDMMod
 
             ! Ci and Cj.
             realSignI = transfer( Spawned_Parents(NIfDBO+1,i), realSignI )
-
+            
             !SignJ passed in as real (realSignJ)
 
             ! Given the Di,Dj and Ci,Cj - find the orbitals involved in the excitation, 

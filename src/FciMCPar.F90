@@ -2343,7 +2343,7 @@ MODULE FciMCParMod
                     ! We don't care about multiple spawns - if it's in the list, an RDM contribution will result
                     ! regardless of the number spawned - so if P_spawn(j | i) > 1, we treat it as = 1.
                 else
-                    p_spawn_rdmfac=nSpawn
+                    p_spawn_rdmfac=abs(nSpawn)
                 endif
                 
                 ! How many children should we spawn?

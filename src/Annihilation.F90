@@ -27,7 +27,6 @@ MODULE AnnihilationMod
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData , only : tHF_Ref_Explicit
-    use nElRDMMod, only: aaaa_RDM, All_aaaa_RDM
     IMPLICIT NONE
 
 
@@ -452,7 +451,7 @@ MODULE AnnihilationMod
                     if(.not.(DetBitZero(SpawnedParts(NIfTot+1:NIfTot+NIfDBO+1,BeginningBlockDet),NIfDBO))) then
                         ! If the parent determinant is null, the contribution to the RDM is zero.  
                         ! No point in doing anything more with it.
-
+                        
                         Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = SpawnedParts(NIfTot+1:NIfTot+NIfDBO+2,BeginningBlockDet)
                         ! The first NIfDBO of the Spawned_Parents entry is the parent determinant, 
                         ! the NIfDBO + 1 entry 
