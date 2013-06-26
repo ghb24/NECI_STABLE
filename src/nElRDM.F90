@@ -1053,7 +1053,7 @@ MODULE nElRDMMod
                 write(6,*) 'iLutJ',iLutJ
                 write(6,*) 'AvSignJ',AvSignJ
                 write(6,*) 'AvNoatHF',AvNoatHF
-                CALL Stop_All('PerformFCIMCycPar','Incorrect instantaneous HF population.')
+                CALL Stop_All('Add_RDM_HFConnections_Norm','Incorrect instantaneous HF population.')
             endif
         endif
 
@@ -1080,7 +1080,7 @@ MODULE nElRDMMod
             if(AvSignJ.ne.AvNoatHF) then
                 write(6,*) 'AvSignJ',AvSignJ
                 write(6,*) 'AvNoatHF',AvNoatHF
-                CALL Stop_All('PerformFCIMCycPar','Incorrect instantaneous HF population.')
+                CALL Stop_All('Add_RDM_HFConnections_HPHF','Incorrect instantaneous HF population.')
             endif
         endif
 

@@ -1224,6 +1224,12 @@ MODULE FciMCParMod
             !    ! Otherwise, it extracts the Curr info, and calculates the iteration this determinant 
             !    ! became occupied (IterRDMStartCurr) and the average population during that time 
             !    ! (AvSignCurr).
+            
+            ! We only need to find out if determinant is connected to the
+            ! reference (so no ex. level above 2 required, 
+            ! truncated etc.)
+            walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
+                                                max_calc_ex_level)
 
             call extract_bit_rep_avsign (CurrentDets(:,j), CurrentH(1:NCurrH,j), &
                                         DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
@@ -1258,11 +1264,6 @@ MODULE FciMCParMod
 
             ! TODO: The next couple of bits could be done automatically
 
-            ! We only need to find out if determinant is connected to the
-            ! reference (so no ex. level above 2 required, 
-            ! truncated etc.)
-            walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
-                                                max_calc_ex_level)
 
             if(tRef_Not_HF) then
                 walkExcitLevel_toHF = FindBitExcitLevel (iLutHF_true, CurrentDets(:,j), &
@@ -1445,7 +1446,12 @@ MODULE FciMCParMod
                     ! We never overwrite the deterministic states, so move the next spawning slot
                     ! in CurrentDets to the next state.
                     CurrentDets(:,VecSlot) = CurrentDets(:,j)
+                    if (tFillingStochRDMonFly) then
+                        CurrentH(2,VecSlot) = AvSignCurr
+                        CurrentH(3,VecSlot) = IterRDMStartCurr
+                    endif
                     VecSlot = VecSlot + 1
+                
                 end if
             else
                 call walker_death (attempt_die, iter_data, DetCurr, &

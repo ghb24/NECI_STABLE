@@ -1067,7 +1067,7 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                         ! even if it is the same state.
                         call extract_sign(SpawnedParts(:, i), SpawnedSign)
                         call encode_sign(SpawnedParts(:, i), null_part)
-                        ToRemove = ToRemove + 1
+                        if (sum(abs(SpawnedSign)).ne.0) ToRemove = ToRemove + 1 !Otherwise already counted in Spawned_Parts_Zero
                         MinInd = PartInd
 
                         ! Update stats:
@@ -1083,7 +1083,7 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                             call extract_sign(SpawnedParts(:, i+1), SignTemp)
                             call encode_sign(SpawnedParts(:, i), SpawnedSign + SignTemp)
                             call encode_sign(SpawnedParts(:, i+1), null_part)
-                            ToRemove = ToRemove + 1
+                            if ((sum(abs(SpawnedSign)).ne.0).and.(sum(abs(SignTemp)).ne.0)) ToRemove = ToRemove + 1
                             tSkip = .true.
 
                             ! Update stats:
@@ -1094,7 +1094,7 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                             if (IsUnoccDet(SpawnedSign + SignTemp)) then
                                 ! If no amplitude remaining after the states are merged.
                                 MinInd = PartInd
-                                ToRemove = ToRemove + 1
+                                if((sum(abs(SpawnedSign)).ne.0).or.(sum(abs(SignTemp)).ne.0)) ToRemove = ToRemove + 1
                                 cycle
                             end if
                         end if
@@ -1117,6 +1117,15 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
 !                                   It will remain 0 if we find not complimentary particle.
 !                WRITE(6,'(3I20,A,3I20)') SpawnedParts(:,i),' equals ',CurrentDets(:,PartInd)
 
+!                WRITE(6,*) 'DET FOUND in list'
+
+                ! The spawned parts contain the Dj's spawned by the Di's in CurrentDets.
+                ! If the SpawnedPart is found in the CurrentDets list, it means that the Dj has a non-zero 
+                ! cj - and therefore the Di.Dj pair will have a non-zero ci.cj to contribute to the RDM.
+                ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
+                if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) &
+                    call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
+                
                 ! If spawning has occured from the deterministic (even partially) or to the deterministic space,
                 ! then we always allow the spawning to occur. Then simply cycle.
                 if (tSemiStochastic) then
@@ -1126,7 +1135,7 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                         call extract_sign(SpawnedParts(:, i), SpawnedSign)
                         call encode_sign(CurrentDets(:, PartInd), SpawnedSign + CurrentSign)
                         call encode_sign(SpawnedParts(:,i),null_part)
-                        ToRemove = ToRemove + 1
+                        if (sum(abs(SpawnedSign)).ne.0) ToRemove = ToRemove + 1
                         MinInd = PartInd
 
                         ! Update stats:
@@ -1142,15 +1151,6 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                 call extract_sign(SpawnedParts(:,i),SpawnedSign)
 
                 SignProd=CurrentSign*SpawnedSign
-
-!                WRITE(6,*) 'DET FOUND in list'
-
-                ! The spawned parts contain the Dj's spawned by the Di's in CurrentDets.
-                ! If the SpawnedPart is found in the CurrentDets list, it means that the Dj has a non-zero 
-                ! cj - and therefore the Di.Dj pair will have a non-zero ci.cj to contribute to the RDM.
-                ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
-                if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) &
-                    call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
 
                 if(sum(abs(CurrentSign)) .ne. 0) then
                     !Transfer across
@@ -1423,7 +1423,6 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
 !It may actually be easier to just move the annihilated particles to the end of the list and resort the list?
 !Or, the removed indices could be found on the fly? This may have little benefit though if the memory isn't needed.
             IF((ToRemove+Spawned_Parts_Zero).gt.0) THEN
-
 !Since reading and writing from the same array is slow, copy the information
 !accross to the other spawned array, and just swap the pointers around after.
                 DetsMerged=0
