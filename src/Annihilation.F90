@@ -12,7 +12,7 @@ MODULE AnnihilationMod
                          ilut_gt, DetBitZero
     use spatial_initiator, only: add_initiator_list, rm_initiator_list, &
                                  is_spatial_init
-    use CalcData , only : tTruncInitiator, tSpawnSpatialInit, tSortDetermToTop
+    use CalcData , only : tTruncInitiator, tSpawnSpatialInit
     use DeterminantData, only: write_det
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
@@ -373,18 +373,14 @@ MODULE AnnihilationMod
         if(.not.bNodeRoot) return
 !        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"UnOrdered")
 
-        index_of_first_non_determ = 1
-
         Sort_time%timer_name='Compress Sort interface'
         call set_timer(Sort_time,20)
 
-        ! Note: If tSortDetermToTop is true then the sorting routine moves all deterministic states
-        ! to the top of the list, for optimisation elsewhere. If tSortDetermToTop is false but we are
-        ! still performing a semi-stochastic calculation, we want to sort the spawned list so that psips
-        ! which are spawned from deterministic parents are separated from psips which aren't, so that they
-        ! can be considered separately later (if a psip is spawned from a deterministic parent into the
+        ! Note: If performing a semi-stochastic calculation, we want to sort the spawned list so that walkers
+        ! which are spawned from deterministic parents are separated from walkers which aren't, so that they
+        ! can be considered separately later (if a walker is spawned from a deterministic parent into the
         ! deterministic space then it should be aborted - we only know if the state it occupies is
-        ! deterministic later on, if tSortDetermToTop is false).
+        ! deterministic later on).
         ! If not performing a semi-stochastic simulation then these conditions are just ignored.
         call sort(SpawnedParts(:,1:ValidSpawned), ilut_lt, ilut_gt)
         
@@ -419,7 +415,7 @@ MODULE AnnihilationMod
 
             do while(CurrentBlockDet.le.ValidSpawned)
                 if(.not.(DetBitEQ(SpawnedParts(0:NIfTot,BeginningBlockDet),SpawnedParts(0:NIfTot,CurrentBlockDet),NIfDBO))) exit
-                if (tSemiStochastic .and. (.not. tSortDetermToTop)) then
+                if (tSemiStochastic) then
                     if (.not. (test_flag(SpawnedParts(0:NIfTot,BeginningBlockDet), flag_determ_parent) .eqv. &
                                test_flag(SpawnedParts(0:NIfTot,CurrentBlockDet), flag_determ_parent))) exit
                 end if
@@ -470,22 +466,14 @@ MODULE AnnihilationMod
                     endif
                 ENDIF
 
-                ! If this is a deterministic state then update the value of index_of_first_non_determ, which we eventually
-                ! want to store the index of the first non-deterministic state in the space.
-                ! Note, this is only used if tSortDetermToTop is true. If not true then the deterministic flag won't have
-                ! been set.
                 if (tSemiStochastic) then
-                    if (test_flag(SpawnedParts(:,BeginningBlockDet), flag_deterministic)) index_of_first_non_determ = VecInd + 1
-
-                    if ((.not. tSortDetermToTop)) then
-                        ! If the last state was the same then set this state's initiator flag.
-                        if (DetBitEq(temp_det(0:NIfTot), SpawnedParts2(0:NIfTot,VecInd), NIfDBO)) then
-                            call set_flag(SpawnedParts2(:,VecInd), flag_is_initiator(1))
-                            call set_flag(SpawnedParts2(:,VecInd), flag_is_initiator(2))
-                        end if
-
-                        temp_det = SpawnedParts2(:,VecInd)
+                    ! If the last state was the same then set this state's initiator flag.
+                    if (DetBitEq(temp_det(0:NIfTot), SpawnedParts2(0:NIfTot,VecInd), NIfDBO)) then
+                        call set_flag(SpawnedParts2(:,VecInd), flag_is_initiator(1))
+                        call set_flag(SpawnedParts2(:,VecInd), flag_is_initiator(2))
                     end if
+
+                    temp_det = SpawnedParts2(:,VecInd)
                 end if
 
                 VecInd=VecInd+1
@@ -560,7 +548,7 @@ MODULE AnnihilationMod
 
             ! If this state and the previous one are the same then the previous state was spawned from the
             ! deterministic space, so had its initiator flag set. So set this state's flag too.
-            if (tSemiStochastic .and. (.not. tSortDetermToTop)) then
+            if (tSemiStochastic) then
                 if (DetBitEQ(cum_det(0:NIfTot), temp_det(0:NIfTot), NIfDBO)) then
                     call set_flag(cum_det, flag_is_initiator(1))
                     call set_flag(cum_det, flag_is_initiator(2))
@@ -574,14 +562,6 @@ MODULE AnnihilationMod
                 ! array - not the newly spawned sign.  We still want to check if Dj has a non-zero Cj in Current Dets - 
                 ! so we need to carry this Dj through to the stage of checking CurrentDets regardless of the sign here. 
                 ! Also getting rid of them here would make the biased sign of Ci slightly wrong.
-
-                ! If this is a deterministic state then update the value of index_of_first_non_determ, which we eventually
-                ! want to store the index of the first non-deterministic state in the space.
-                ! Note, this is only used if tSortDetermToTop is true. If not true then the deterministic flag won't have
-                ! been set.
-                if (tSemiStochastic) then
-                    if (test_flag(SpawnedParts(:,BeginningBlockDet), flag_deterministic)) index_of_first_non_determ = VecInd + 1
-                end if
 
                 SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
                 VecInd = VecInd + 1
@@ -597,8 +577,8 @@ MODULE AnnihilationMod
                 ! This spawned entry will be removed - don't want to store any parents.
                 ! Reset Parent_Array_Ind so that the parents will be written over.
 
-                ! To account for the case with tSortDetermToTop = .false., store this state so that we can set the
-                ! flags of the next state to be the same, if it is the same state.
+                ! For semi-stochastic simulations, store this state so that we can set the flags of the next
+                ! state to be the same, if it is the same state.
                 temp_det(0:NIfTot) = cum_det(0:NIfTot)
             endif
 
@@ -814,42 +794,30 @@ MODULE AnnihilationMod
         ! A general explanation of this routine, and also the changes made in other annihilation
         ! routines for the semi-stochastic code:
 
-        ! We have two sets of psips spawned onto the deterministic states. Firstly, those which
+        ! We have two sets of walkers spawned onto the deterministic states. Firstly, those which
         ! are stored in the vector partial_determ_vector, which comes from the deterministic projection.
-        ! Secondly, some of the states in the SpawnedParts, spawned from outside of the deterministic
-        ! space, may also be in the deterministic space. *All* of the psips spawned onto the
-        ! deterministic space are kept, even if they are not spawned from initiators. We therefore
-        ! can simply move all of the states from both lists into the main list.
+        ! These amplitudes are added into CurrentDets in this list routine.
 
         ! partial_determ_vector is already in the same order as the the states in the main list (note
         ! that *all* deterministic states are always kept in the main list, even if they have zero
         ! weight). It is straightforward therefore to loop through these states and add in the
         ! correct weights.
 
-        ! There are two ways that the annihilation of the SpawnedParts psips can occur, depending on
-        ! the deterministic states being used. If it can be checked quickly if a state is in the
-        ! deterministic space then the deterministic flag is already set in SpawnedParts and the
-        ! ordering of the states is defined so that all the deterministic states are at the top of
-        ! the list (tSortDetermToTop is true). In this case, index_of_first_non_determ denotes the index
-        ! in SpawnedParts of the first non-deterministic state, and therefore index_of_first_non_determ-1
-        ! is the index of the last deterministic state. Hence, we only need to perform a binary search
-        ! over these states in the main list, and can skip these states out in AnnihilateSpawnedParts
-        ! as an optimisation, as in that routine we the only deal with non-deterministic states.
+        ! Secondly, some of the states in SpawnedParts may also be in the deterministic space. Those
+        ! spawned from inside the deterministic space must be cancelled. Those from outside the
+        ! deterministic space must be allowed to survive. Because in general there is no quick way
+        ! to check if a newly spawned state is in the deterministic space, this check is performed
+        ! only in AnnihilateSpawnedParts, where a search against CurrentDets is peformed for each
+        ! state in SpanwedParts anyway. All deterministic states are always in CurrentDets and have
+        ! a deterministic flag set, so it is simple to check if a state in SpawnedParts is a
+        ! deterministic state or not. In order to cancel only those states which are spawned from
+        ! the deterministic space, states with the determ_parent flag set are sorted separately
+        ! from those with the determ_parent flag unset in CompressSpawnedList. Thus, the same state
+        ! may appear twice in a row in SpawnedParts in AnnihilateSpawnedParts, so this is checked.
 
-        ! If the deterministic states are not sorted to the top (if tSortDetermToTop is false), then
-        ! this optimisation is not possible, so we simply check in AnnihilateSpawnedParts if each
-        ! state is deterministic. Because it is not possible to check if a state is deterministic
-        ! earlier, it is also not possible to abort it ealier if it is spawned from the deterministic
-        ! space (this type of spawning is done deterministically). Hence, in CompressSpawned list, we
-        ! separate out states which do and do not have flag_determ_parent set. Then, in
-        ! AnnihilateSpawnedParts, once the state is found in CurrentDets, we check if the state is
-        ! deterministic and can then cancel the spawning. Also, because the same state can be
-        ! specified twice in SpawnedParts, once with the determ_parent flag set, and once with it
-        ! not set, when not spawning to the deterministic space, we merge these two states together.
-
-        ! Also, regarding the initiator approximation, all spawning attempts to the deterministic
-        ! space are allowed, and if any of the psips spawned on a site are from the deterministic space
-        ! then the spawning is always allowed.
+        ! Regarding the initiator approximation, all spawnings to or from the deterministic space
+        ! are allowed (and if a non-deterministic state is spawned onto from both a core state and a
+        ! non-deterministic state, both spawnings are always allowed).
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer :: i, MinInd, MaxInd, PartInd
@@ -857,7 +825,8 @@ MODULE AnnihilationMod
         real(dp), dimension(lenof_sign) :: SpawnedSign, CurrentSign, SignProd
         logical :: tSuccess
 
-        ! First, copy across the weights from partial_determ_vector:
+        ! Copy across the weights from partial_determ_vector (the result of the deterministic projection)
+        ! to CurrentDets:
         do i = 1, determ_proc_sizes(iProcIndex)
             call extract_sign(CurrentDets(:, indices_of_determ_states(i)), CurrentSign)
             SpawnedSign = partial_determ_vector(i)
@@ -871,38 +840,6 @@ MODULE AnnihilationMod
             if (SignProd(1) < 0.0_dp) iter_data%nannihil(1) = iter_data%nannihil(1) + &
                 2*(min(abs(CurrentSign(1)), abs(SpawnedSign(1))))
         end do
-
-        ! Second, *if* the deterministic states are sorted to the top, copy across the weights from
-        ! SpawnedParts to CurrentDets here:
-
-        if (tSortDetermToTop) then
-            ! We only need to search the deterministic part of CurrentDets.
-            MinInd = 1
-            MaxInd = determ_proc_sizes(iProcIndex)
-            do i = 1, index_of_first_non_determ-1
-                ! Search the CurrentDets list for this state.
-                call BinSearchParts(SpawnedParts(:, i), MinInd, MaxInd, PartInd, tSuccess)
-                if (tSuccess) then
-                    call extract_sign(CurrentDets(:, PartInd), CurrentSign)
-                    call extract_sign(SpawnedParts(:, i), SpawnedSign)
-                    call encode_sign(CurrentDets(:, PartInd), SpawnedSign + CurrentSign)
-                    call encode_sign(SpawnedParts(:, i), null_part)
-
-                    ! Update stats:
-                    SignProd = CurrentSign*SpawnedSign
-                    if (SignProd(1) < 0.0_dp) iter_data%nannihil(1) = iter_data%nannihil(1) + &
-                        2*(min(abs(CurrentSign(1)), abs(SpawnedSign(1))))
-                else
-                    ! All deterministic states should be kept in CurrentDets always, so if this search
-                    ! does not return a state then something has gone badly wrong!
-                    write(6,*) "Deterministic state not found:"
-                    call decode_bit_det(nI, SpawnedParts(:, i))
-                    call write_det(6, nI, .true.)
-                    write(6,*) SpawnedParts(:, i)
-                    call stop_all("deterministic_annihilation","Deterministic state not found in main list.")
-                end if
-            end do
-        end if
 
     end subroutine
     
@@ -947,31 +884,11 @@ MODULE AnnihilationMod
         tSkip = .false.
         tAlwaysAllow = .false.
 
-        ! If we are performing a semi-stochastic simulation *where the deterministic states
-        ! are sorted to the top*, then annihilation in the deterministic space has already
-        ! been taken care of. Therefore we should only loop over the non-deterministic states.
-        ! In this case, index_of_first_non_determ gives the index of the first state in SpawnedParts
-        ! which is not in the deterministic space, and therefore the first state to loop over. If
-        ! not performing a semi-stochastic simulation then we want to loop over all states, so
-        ! simply set this to 1.
-        if (.not. tSortDetermToTop) then
-            index_of_first_non_determ = 1
-        else
-            ToRemove = index_of_first_non_determ - 1
-        end if
-
 !MinInd indicates the minimum bound of the main array in which the particle can be found.
 !Since the spawnedparts arrays are ordered in the same fashion as the main array, 
 !we can find the particle position in the main array by only searching a subset.
 
-        ! As noted above, if we are performing a semi-stochastic simulation with tSortDetermToTop
-        ! true, then the deterministic states have been taken care of. So, we only need to perform the
-        ! binary search over the non-deterministic states, so set MinInd to ignore deterministic states.
-        if (tSortDetermToTop) then
-            MinInd = determ_proc_sizes(iProcIndex) + 1
-        else
-            MinInd = 1
-        end if
+        MinInd = 1
 
         IF(tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
 
@@ -999,7 +916,7 @@ MODULE AnnihilationMod
 
         CALL set_timer(BinSearch_time,45)
 
-        do i = index_of_first_non_determ, ValidSpawned
+        do i = 1, ValidSpawned
 
             if (tSkip) then
                 tSkip = .false.
@@ -1048,9 +965,9 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
             ! Abort spawning from the deterministic space to the deterministic space, and also
             ! merge this state and next state in SpawnedParts if they are the same states but
             ! with the determ_parent flag set in the first state and not set in the second state.
-            if (tSemiStochastic .and. (.not. tSortDetermToTop)) then
+            if (tSemiStochastic) then
                 if (test_flag(SpawnedParts(:,i), flag_determ_parent)) then
-                    ! If psips spawned onto this state from within the deterministic space.
+                    ! If walkers spawned onto this state from within the deterministic space.
                     if (i < ValidSpawned) then
                         ! If not on the last state.
                         ! Is this state the same as the next state in SpawnedParts?

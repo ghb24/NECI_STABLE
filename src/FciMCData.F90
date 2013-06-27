@@ -391,7 +391,7 @@ MODULE FciMCData
 
       ! The core Hamiltonian (with the Hartree-Fock energy removed from the diagonal) is stored in this array for the whole simulation.
       real(dp), allocatable, dimension(:,:) :: core_hamiltonian 
-      real(dp), allocatable, dimension(:) :: full_determ_vector ! This stores all the amplitudes of the psips in the deterministic space.
+      real(dp), allocatable, dimension(:) :: full_determ_vector ! This stores all the amplitudes of the walkers in the deterministic space.
 
       ! This vector has the size of the part of the deterministic space stored on *this* processor only. It is therefore used to store
       ! the deterministic vector on this processor, before it is combined to give the whole vector, which is stored in full_determ_vector.

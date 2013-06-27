@@ -40,8 +40,8 @@ MODULE FciMCParMod
                         tContinueAfterMP2,iExitWalkers,MemoryFacPart, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tPopsMapping, &
                         tSpawn_Only_Init_Grow, RealCoeffExcitThresh, &
-                        tRealSpawnCutoff, RealSpawnCutoff, tSortDetermToTop, &
-                        tDetermProj, tJumpShift
+                        tRealSpawnCutoff, RealSpawnCutoff, tDetermProj, &
+                        tJumpShift
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
@@ -146,8 +146,7 @@ MODULE FciMCParMod
                          fill_rdm_diag_currdet_hfsd, calc_rdmbiasfac
     use determ_proj, only: perform_determ_proj
     use semi_stoch_gen, only: init_semi_stochastic
-    use semi_stoch_procs, only: check_if_in_determ_space, deterministic_projection, &
-                                return_most_populated_states
+    use semi_stoch_procs, only: deterministic_projection, return_most_populated_states
     use trial_wf_gen, only: init_trial_wf, update_compare_trial_file
     use gndts_mod, only: gndts
     use sort_mod
@@ -1091,9 +1090,6 @@ MODULE FciMCParMod
 
         ! Index for counting deterministic states.
         determ_index = 1
-        ! For cases when tSortDetermToTop is false, make sure tInDetermSpace is always false
-        ! (since we don't check if a state is in the deterministic space here in this case.)
-        tInDetermSpace = .false.
         
         call rezero_iter_stats_each_iter (iter_data)
 
@@ -1375,21 +1371,7 @@ MODULE FciMCParMod
                             ! these flags? There are comments questioning this in create_particle, too.
                             iLutnJ(nOffFlag) = 0
                             
-                            if (tSortDetermToTop) then
-                                ! For the case where we are sorting deterministic states to the top
-                                ! of the list, if spawning occurs from the deterministic space to the
-                                ! deterministic space, abort it now. If the spawning occurs from the
-                                ! stochastic space to the deterministic space, then we will set the 
-                                ! flag to specify that the new state is in the deterministic space.
-                                call check_if_in_determ_space(ilutnJ, tInDetermSpace)
-
-                                if (test_flag(CurrentDets(:,j), flag_deterministic)) then
-                                    if (tInDetermSpace) cycle
-                                else
-                                    if (tInDetermSpace) call set_flag(iLutnJ, flag_deterministic)
-                                end if
-                            end if
-                            ! If the psip being spawned is spawned from the deterministic space,
+                            ! If the walker being spawned is spawned from the deterministic space,
                             ! then set the corresponding flag to specify this.
                             if (test_flag(CurrentDets(:,j), flag_deterministic)) &
                             call set_flag(iLutnJ, flag_determ_parent)

@@ -6,8 +6,7 @@ module semi_stoch_gen
                             flag_is_initiator, flag_determ_parent, NOffSgn, NIfTot
     use bit_reps, only: decode_bit_det, encode_bit_rep, set_flag, extract_sign, &
                         clr_flag
-    use CalcData, only: tSortDetermToTop, tTruncInitiator, &
-                        tStartCAS, tReadPops, tRegenDiagHels
+    use CalcData, only: tTruncInitiator, tStartCAS, tReadPops, tRegenDiagHels
     use csf, only: csf_get_yamas, get_num_csfs, get_csf_bit_yama, csf_apply_yama
     use csf_data, only: csf_orbital_mask
     use constants
@@ -97,7 +96,7 @@ contains
                     determ_proc_sizes(iProcIndex)
         call neci_flush(6)
 
-        ! Allocate the vectors to store the psip amplitudes and the deterministic Hamiltonian.
+        ! Allocate the vectors to store the walker amplitudes and the deterministic Hamiltonian.
         allocate(full_determ_vector(determ_space_size), stat=ierr)
         call LogMemAlloc('full_determ_vector', int(determ_space_size,sizeof_int), 8, t_r, &
                          FDetermTag, ierr)
@@ -216,7 +215,6 @@ contains
             call remove_high_energy_orbs(SpawnedParts(:, 1:space_size), space_size, &
                                            max_determ_size, .true.)
             determ_proc_sizes(iProcIndex) = space_size
-            tSortDetermToTop = .false.
         end if
 
     end subroutine generate_space

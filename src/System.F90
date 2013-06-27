@@ -3,7 +3,7 @@ MODULE System
 
     use SystemData
     use CalcData, only: tRotoAnnihil, TAU, tTruncInitiator, InitiatorWalkNo, &
-                        occCASorbs, virtCASorbs, tSortDetermToTop
+                        occCASorbs, virtCASorbs
     use semi_stoch_gen, only: core_ras
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList
@@ -82,7 +82,6 @@ MODULE System
       csf_trunc_level = 0
       tTruncateCSF = .false.
       tSemiStochastic = .false.
-      tSortDetermToTop = .false.
       tCSFCore = .false.
       tDeterminantCore = .false.
       tDoublesCore = .false.
@@ -381,16 +380,13 @@ system: do
             tCSF = .true.
             LMS = STOT
         case("DOUBLES-CORE")
-            tSortDetermToTop = .true.
             tDoublesCore = .true.
         case("CAS-CORE")
-            tSortDetermToTop = .true.
             tCASCore = .true.
             tSpn = .true.
             call geti(OccDetermCASOrbs)  !Number of electrons in CAS 
             call geti(VirtDetermCASOrbs)  !Number of virtual spin-orbitals in CAS
         case("RAS-CORE")
-            tSortDetermToTop = .true.
             tRASCore = .true.
             call geti(core_ras%size_1)  ! Number of spatial orbitals in RAS1.
             call geti(core_ras%size_2)  ! Number of spatial orbitals in RAS2.
@@ -398,7 +394,6 @@ system: do
             call geti(core_ras%min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs. 
             call geti(core_ras%max_3)  ! Max number of electrons (alpha and beta) in RAS3 orbs.
         case("OPTIMISED-CORE")
-            tSortDetermToTop = .false.
             tOptimisedCore = .true.
         case("OPTIMISED-CORE-CUTOFF-AMP")
             tDetermAmplitudeCutoff = .true.
@@ -416,11 +411,9 @@ system: do
             end do
         case("POPS-CORE")
             tPopsCore = .true.
-            tSortDetermToTop = .false.
             call geti(n_core_pops)
         case("READ-CORE")
             tReadCore = .true.
-            tSortDetermToTop = .false.
         case("LOW-ENERGY-CORE")
 ! Input values: The first integer is the maximum excitation level to go up to.
 !               The second integer is the maximum number of states to keep for a subsequent iteration.
@@ -428,7 +421,6 @@ system: do
 !               If max-core-size is specified then this value will be used to select the number of states kept
 !               after the *final* iteration.
             tLowECore = .true.
-            tSortDetermToTop = .false.
             call geti(low_e_core_excit)
             call geti(low_e_core_num_keep)
             if (nitems > 3) then
@@ -440,7 +432,6 @@ system: do
                 end if
             end if
         case("MAX-CORE-SIZE")
-            tSortDetermToTop = .false.
             tLimitDetermSpace = .true.
             call geti(max_determ_size)
         case("MAX-TRIAL-SIZE")

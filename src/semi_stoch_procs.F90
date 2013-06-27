@@ -98,65 +98,6 @@ contains
 
     end subroutine deterministic_projection
 
-    subroutine check_if_in_determ_space(ilut, tInDetermSpace)
-
-        ! In: ilut - The state that we will check, in a bitstring form.
-        ! Out: tInDetermSpace - This will be set to true if the state (ilut) is in the
-        !                       deterministic space, and false if not.
-
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer(n_int) :: ilut_temp1(0:NIfD), ilut_temp2(0:NIfD)
-        logical, intent(out) :: tInDetermSpace
-        integer :: IC, bits_set
-
-        tInDetermSpace = .false.
-
-        if (tDoublesCore) then
-            if (tDeterminantCore) then
-                IC = FindBitExcitLevel(ilut, ilutHF)
-                if (IC <= 2) tInDetermSpace = .true.
-            else if (tCSFCore) then
-                IC = FindBitExcitLevel(ilut, ilutHF)
-                if (IC <= 2) tInDetermSpace = .true.
-            end if
-        else if (tCASCore) then
-            ! The state ilut, but with all active space orbitals unoccupied.
-            ilut_temp1 = iand(cas_determ_not_bitmask, ilut(0:NIfD))
-
-            ! The state ilut, but with all active space orbitals and all orbitals not occupied
-            ! in the HF determinant unoccupied.
-            ilut_temp2 = iand(ilut_temp1, ilutHF(0:NIfD))
-            ! All these orbitals should be occupied if the state is in the deterministic space.
-            bits_set = sum(count_set_bits(ilut_temp2))
-            if (bits_set /= nel - OccDetermCASOrbs) return
-
-            ! The state ilut, but with all active space orbitals and all orbitals in the HF
-            ! determinant unoccupied.
-            ilut_temp2 = iand(ilut_temp1, not(ilutHF(0:NIfD)))
-            ! All these orbitals should be unoccupied if the state is in the deterministic space.
-            bits_set = sum(count_set_bits(ilut_temp2))
-            if (bits_set /= 0) return
-
-            ! If both of the above occupation criteria are met, then the state is in the
-            ! deterministic space.
-            tInDetermSpace = .true.
-        else if (tRASCore) then
-            ! Check that the minimum number of electrons in RAS1 is obeyed.
-            ilut_temp1 = iand(core_ras1_bitmask, ilut(0:NIfD))
-            bits_set = sum(count_set_bits(ilut_temp1))
-            if (bits_set < core_ras%min_1) return
-
-            ! Check that the maximum number of electrons in RAS3 is not exceeded.
-            ilut_temp2 = iand(core_ras3_bitmask, ilut(0:NIfD))
-            bits_set = sum(count_set_bits(ilut_temp2))
-            if (bits_set > core_ras%max_3) return
-
-            ! If both of the above conditions were met.
-            tInDetermSpace = .true.
-        end if
-
-    end subroutine check_if_in_determ_space
-
     subroutine calculate_det_hamiltonian_normal()
 
         integer :: i, j, iproc, col_index, ierr
@@ -403,22 +344,6 @@ contains
         end if
 
     end subroutine sort_states_by_energy
-
-    subroutine find_determ_states_and_sort(ilut_list, ilut_list_size)
-
-        integer, intent(in) :: ilut_list_size
-        integer(n_int), intent(inout) :: ilut_list(0:NIfTot, ilut_list_size)
-        integer :: i
-        logical :: in_determ_space
-
-        do i = 1, ilut_list_size
-            call check_if_in_determ_space(ilut_list(0:NIfTot, i), in_determ_space)
-            if (in_determ_space) call set_flag(ilut_list(0:NIfTot, i), flag_deterministic)
-        end do
-
-        call sort(ilut_list, ilut_lt, ilut_gt)
-
-    end subroutine find_determ_states_and_sort
 
     subroutine sort_space_by_proc(ilut_list, ilut_list_size, num_states_procs)
 

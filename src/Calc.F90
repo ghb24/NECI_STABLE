@@ -279,7 +279,6 @@ contains
           proje_spatial = .false.
           hash_shift=0
           tContinueAfterMP2=.false.
-          tSortDetermToTop = .false.
       
         end subroutine SetCalcDefaults
 

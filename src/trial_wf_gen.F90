@@ -3,7 +3,6 @@ module trial_wf_gen
     use AnnihilationMod, only: BinSearchParts
     use bit_rep_data, only: NIfTot, NIfD
     use bit_reps, only: encode_det
-    use CalcData, only: tSortDetermToTop
     use davidson, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
                         sparse_hamil_type
     use DetBitOps, only: FindBitExcitLevel, ilut_lt, ilut_gt
@@ -175,6 +174,7 @@ contains
         call LogMemDealloc(t_r, TempTag, ierr)
         ! Finished sending to states to their processors.
 
+        ! This will also sort the connected space.
         call remove_repeated_states(con_space, con_space_size)
 
         ! Remove states in the connected space which are also in the trial space.
@@ -186,16 +186,6 @@ contains
         write(6,'(a30,1X,i10)') "Total size of connected space:", tot_con_space_size
         write(6,'(a42,1X,i10)') "Size of connected space on this processor:", con_space_size
         call neci_flush(6)
-
-        ! Now the correct states in both the trial space and connected space have been fully
-        ! generated. We want both lists to be sorted in the same order as CurrentDets (to use
-        ! binary searching later). If tSortDetermToTop is true then deterministic states are
-        ! sorted to the top in CurrentDets. Hence, we must find any deterministic states and
-        ! sort them as such in the trial and connected spaces.
-        if (tSortDetermToTop) then
-            call find_determ_states_and_sort(trial_space, trial_space_size)
-            call find_determ_states_and_sort(con_space, con_space_size)
-        end if
 
         ! Only perform this on the root processor, due to memory demands.
         if (iProcindex == root ) then
