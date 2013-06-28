@@ -16,7 +16,7 @@ module semi_stoch_gen
     use FciMCData, only: HFDet, ilutHF, iHFProc, CurrentDets, determ_proc_sizes, &
                          determ_proc_indices, full_determ_vector, partial_determ_vector, &
                          core_hamiltonian, determ_space_size, TotWalkers, TotWalkersOld, &
-                         indices_of_determ_states, SpawnedParts, CoreTag, FDetermTag, &
+                         indices_of_determ_states, SpawnedParts, FDetermTag, &
                          PDetermTag, trial_space, trial_space_size, SemiStoch_Init_Time
     use gndts_mod, only: gndts
     use hash, only: DetermineDetNode
@@ -103,9 +103,6 @@ contains
         allocate(partial_determ_vector(determ_proc_sizes(iProcIndex)), stat=ierr)
         call LogMemAlloc('partial_determ_vector', int(determ_proc_sizes(iProcIndex), &
                          sizeof_int), 8, t_r, PDetermTag, ierr)
-        allocate(core_hamiltonian(determ_proc_sizes(iProcIndex), determ_space_size), stat=ierr)
-        call LogMemAlloc('core_hamiltonian', int(determ_space_size*&
-                         &determ_proc_sizes(iProcIndex),sizeof_int), 8, t_r, CoreTag, ierr)
 
         full_determ_vector = 0.0_dp
         partial_determ_vector = 0.0_dp
@@ -141,7 +138,11 @@ contains
 
         write(6,'(a56)') "Generating the Hamiltonian in the deterministic space..."
         call neci_flush(6)
-        call calculate_det_hamiltonian_normal()
+        if (tSparseCoreHamil) then
+            call calculate_determ_hamiltonian_sparse()
+        else
+            call calculate_determ_hamiltonian_normal()
+        end if
 
         ! Finally, move the states to CurrentDets.
         call add_semistoch_states_to_currentdets()

@@ -17,7 +17,7 @@ module semi_stoch_procs
     use FciMCData, only: ilutHF, Hii, CurrentH, determ_proc_sizes, determ_proc_indices, &
                          full_determ_vector, partial_determ_vector, core_hamiltonian, &
                          determ_space_size, SpawnedParts, SemiStoch_Comms_Time, &
-                         SemiStoch_Multiply_Time, TotWalkers, CurrentDets
+                         SemiStoch_Multiply_Time, TotWalkers, CurrentDets, CoreTag
     use hash, only: DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
@@ -25,10 +25,11 @@ module semi_stoch_procs
                              MPIAllGatherV, MPISum, MPISumAll
     use ras, only: core_ras
     use sort_mod, only: sort
+    use sparse_hamil, only: sparse_matrix_info, sparse_core_ham
     use SystemData, only: tSemiStochastic, tCSFCore, tDeterminantCore, tDoublesCore, &
                           tCASCore, tRASCore, cas_determ_not_bitmask, core_ras1_bitmask, &
                           core_ras3_bitmask, nel, OccDetermCASOrbs, tHPHF, nBasis, BRR, &
-                          ARR
+                          ARR, tSparseCoreHamil
     use timing_neci
     use util_mod, only: get_free_unit
 
@@ -42,7 +43,7 @@ contains
         ! that the full vector for the whole deterministic space is stored on each processor.
         ! It then performs the deterministic multiplication of the projector on this full vector.
 
-        integer :: i, info, ierr
+        integer :: i, j, info, ierr
 
         call MPIBarrier(ierr)
 
@@ -59,29 +60,46 @@ contains
 
         if (determ_proc_sizes(iProcIndex) >= 1) then
 
-            ! This function performs y := alpha*A*x + beta*y
-            ! N specifies not to use the transpose of A.
-            ! determ_proc_sizes(iProcIndex) is the number of rows in A.
-            ! determ_space_size is the number of columns of A.
-            ! alpha = -1.0_dp.
-            ! A = core_hamiltonian.
-            ! determ_proc_sizes(iProcIndex) is the first dimension of A.
-            ! input x = full_determ_vector.
-            ! 1 is the increment of the elements of x.
-            ! beta = 0.0_dp.
-            ! output y = partial_determ_vector.
-            ! 1 is the incremenet of the elements of y.
-            call dgemv('N', &
-                       determ_proc_sizes(iProcIndex), &
-                       determ_space_size, &
-                       -1.0_dp, &
-                       core_hamiltonian, &
-                       determ_proc_sizes(iProcIndex), &
-                       full_determ_vector, &
-                       1, &
-                       0.0_dp, &
-                       partial_determ_vector, &
-                       1)
+            ! Perform the multiplication. This can be done in two ways depending on
+            ! whether the the core Hamiltonian uses a sparse representation or not.
+            if (tSparseCoreHamil) then
+
+                partial_determ_vector = 0.0_dp
+
+                do i = 1, determ_proc_sizes(iProcIndex)
+                    do j = 1, sparse_core_ham(i)%num_elements
+                        partial_determ_vector(i) = partial_determ_vector(i) - &
+                            sparse_core_ham(i)%elements(j)*full_determ_vector(sparse_core_ham(i)%positions(j))
+                    end do
+                end do
+
+            else
+
+                ! This function performs y := alpha*A*x + beta*y
+                ! N specifies not to use the transpose of A.
+                ! determ_proc_sizes(iProcIndex) is the number of rows in A.
+                ! determ_space_size is the number of columns of A.
+                ! alpha = -1.0_dp.
+                ! A = core_hamiltonian.
+                ! determ_proc_sizes(iProcIndex) is the first dimension of A.
+                ! input x = full_determ_vector.
+                ! 1 is the increment of the elements of x.
+                ! beta = 0.0_dp.
+                ! output y = partial_determ_vector.
+                ! 1 is the incremenet of the elements of y.
+                call dgemv('N', &
+                           determ_proc_sizes(iProcIndex), &
+                           determ_space_size, &
+                           -1.0_dp, &
+                           core_hamiltonian, &
+                           determ_proc_sizes(iProcIndex), &
+                           full_determ_vector, &
+                           1, &
+                           0.0_dp, &
+                           partial_determ_vector, &
+                           1)
+
+            end if
 
             ! Now add shift*full_determ_vector, to account for the shift, not stored in
             ! core_hamiltonian.
@@ -92,20 +110,24 @@ contains
             ! Now multiply the vector by tau to get the final projected vector.
             partial_determ_vector = partial_determ_vector * tau
 
-            call halt_timer(SemiStoch_Multiply_Time)
-
         end if
+
+        call halt_timer(SemiStoch_Multiply_Time)
 
     end subroutine deterministic_projection
 
-    subroutine calculate_det_hamiltonian_normal()
+    subroutine calculate_determ_hamiltonian_normal()
 
         integer :: i, j, iproc, col_index, ierr
         integer :: nI(nel), nJ(nel)
         integer(n_int), allocatable, dimension(:,:) :: temp_store
-        real(dp), allocatable, dimension(:,:) :: test_hamiltonian
         integer(TagIntType) :: TempStoreTag
-        character (len=*), parameter :: t_r = "calculate_det_hamiltonian_normal"
+        character(len=*), parameter :: t_r = "calculate_determ_hamiltonian_normal"
+
+        ! Allocate the core hamiltonian.
+        allocate(core_hamiltonian(determ_proc_sizes(iProcIndex), determ_space_size), stat=ierr)
+        call LogMemAlloc('core_hamiltonian', int(determ_space_size*&
+                         &determ_proc_sizes(iProcIndex),sizeof_int), 8, t_r, CoreTag, ierr)
 
         ! temp_store is storage space for bitstrings so that the Hamiltonian matrix
         ! elements can be calculated.
@@ -130,7 +152,7 @@ contains
             col_index = determ_proc_indices(iproc)
 
             ! Loop over all the elements in the block of the Hamiltonian corresponding
-            ! to these two prcoessors.
+            ! to these two processors.
             do i = 1, determ_proc_sizes(iProcIndex)
 
                 call decode_bit_det(nI, SpawnedParts(:, i))
@@ -172,7 +194,7 @@ contains
         deallocate(temp_store, stat=ierr)
         call LogMemDealloc(t_r, TempStoreTag, ierr)
 
-    end subroutine calculate_det_hamiltonian_normal
+    end subroutine calculate_determ_hamiltonian_normal
 
     subroutine remove_repeated_states(list, list_size)
 
@@ -358,7 +380,7 @@ contains
         integer :: i, ierr
         integer :: counter(0:nProcessors-1)
         integer(TagIntType) :: TempConTag, ProcListTag
-        character (len=*), parameter :: t_r = "sort_space_by_proc"
+        character(len=*), parameter :: t_r = "sort_space_by_proc"
 
         allocate(proc_list(ilut_list_size), stat=ierr)
         call LogMemAlloc('proc_list', ilut_list_size, sizeof_int, t_r, ProcListTag, ierr)

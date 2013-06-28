@@ -82,6 +82,7 @@ logical :: tRASCore ! Use a RAS space for the core space (see ras.F90 for defini
 logical :: tPopsCore ! Use the most populated states from a POPSFILE for the core space.
 logical :: tReadCore ! Read in the core space from the CORESPACE file.
 logical :: tLowECore ! Like the optimised core space, but instead of diagonalising the space each iteration to find which states to keep, we keep the states with the lowest energies.
+logical :: tSparseCoreHamil ! Use a sparse representation of the core Hamiltonian.
 ! cas_determ_bitmask has all bits that refer to the active space set, and all other bits unset.
 ! cas_not_determ_bitmask is simply the result after the not operation is applied to cas_determ_bitmask.
 integer(n_int), allocatable, dimension(:) :: cas_determ_bitmask

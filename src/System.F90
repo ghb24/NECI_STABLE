@@ -91,6 +91,7 @@ MODULE System
       tPopsCore = .false.
       tReadCore = .false.
       tLowECore = .false.
+      tSparseCoreHamil = .true.
       num_det_generation_loops = 1
       n_core_pops = 0
       low_e_core_excit = 0
@@ -414,6 +415,8 @@ system: do
             call geti(n_core_pops)
         case("READ-CORE")
             tReadCore = .true.
+        case("FULL-CORE-HAMIL")
+            tSparseCoreHamil = .false.
         case("LOW-ENERGY-CORE")
 ! Input values: The first integer is the maximum excitation level to go up to.
 !               The second integer is the maximum number of states to keep for a subsequent iteration.
