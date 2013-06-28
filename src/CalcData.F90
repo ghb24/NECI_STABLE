@@ -6,7 +6,7 @@ module CalcData
 
     save
 
-LOGICAL :: TSTAR,TTROT,TMCExcits,TGrowInitGraph
+LOGICAL :: TSTAR,TTROT,TGrowInitGraph
 LOGICAL :: TNEWEXCITATIONS,TVARCALC(0:10),TBIN,TVVDISALLOW
 LOGICAL :: TMCDIRECTSUM,TMPTHEORY,TMODMPTHEORY,TUPOWER,tMP2Standalone
 LOGICAL :: EXCITFUNCS(10),TNPDERIV,TMONTE,TMCDET
@@ -55,7 +55,7 @@ integer :: trunc_nopen_max
 
 logical :: tMaxBloom    !If this is on, then we only print out a bloom warning if it is the biggest to date.
 
-INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits,IterTruncInit,InitiatorWalkNo,NShiftEquilSteps
+INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,IterTruncInit,InitiatorWalkNo,NShiftEquilSteps
 INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp,iFullSpaceIter
 INTEGER :: IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets,iDetGroup
 INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
@@ -67,6 +67,9 @@ integer :: iPopsFileNoRead, iPopsFileNoWrite,iWeightPopRead,iRestartWalkNum
 integer :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
 INTEGER(int64) :: HFPopThresh
 real(dp) :: InitWalkers, maxnoathf
+
+! The average number of excitations to be performed from each walker.
+real(dp) :: AvMCExcits
 
 integer :: iReadWalkersRoot !The number of walkers to read in on the head node in each batch during a popsread
 

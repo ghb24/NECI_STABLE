@@ -139,8 +139,7 @@ contains
           THDiag=.false.
           GrowGraphsExpo=2.0_dp
           TGrowInitGraph=.false.
-          NoMCExcits=1
-          TMCExcits=.false.
+          AvMCExcits=1.0_dp
           TMaxExcit=.false.
           TFullDiag=.false.
           TSinglesExcitSpace=.false.
@@ -804,12 +803,9 @@ contains
 !When constructing a star of triples from each double star, then this tag results in a full 
 !diagonalisation of this matrix.
                 TFullDiag=.true.
-            case("MCEXCITS")
-!In GraphMorph, this means that the space of excitations is chosen randomly
-!It is also an option in FCIMC, where it indicates the number of excitations to be chosen randomly 
-!from each chosen walker
-                TMCExcits=.true.
-                call geti(NoMCExcits)
+            case("AVERAGEMCEXCITS")
+! This sets the average number of spawning attempts from each walker.
+                call getf(AvMCExcits)
             case("GROWINITGRAPH")
 !In GraphMorph, this means that the initial graph is grown non-stochastically from the excitations 
 !of consecutive determinants

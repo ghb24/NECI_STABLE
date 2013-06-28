@@ -26,9 +26,9 @@ MODULE FciMCParMod
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
                         tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&
                         GrowMaxFactor, CullFactor, tStartSinglePart, tCCMC, &
-                        ScaleWalkers, HFPopThresh, tTruncCAS, NoMCExcits, &
+                        ScaleWalkers, HFPopThresh, tTruncCAS, AvMCExcits, &
                         tTruncInitiator, tDelayTruncInit, IterTruncInit, &
-                        NShiftEquilSteps, tWalkContGrow, tMCExcits, &
+                        NShiftEquilSteps, tWalkContGrow, &
                         tAddToInitiator, InitiatorWalkNo, tInitIncDoubs, &
                         tRetestAddtoInit, tReadPopsChangeRef, &
                         tReadPopsRestart, tCheckHighestPopOnce, &
@@ -1336,12 +1336,12 @@ MODULE FciMCParMod
 
                 ! Loop over all the particles of a given type on the 
                 ! determinant. CurrentSign gives number of walkers. Multiply 
-                ! up by noMCExcits if attempting multiple excitations from 
-                ! each walker (default 1)
+                ! up by AvMCExcits if attempting multiple excitations from 
+                ! each walker (default 1.0_dp).
 
-                WalkersToSpawn=abs(int(SignCurr(part_type)))
-                if ((abs(SignCurr(part_type))-real(WalkersToSpawn,dp)).gt.0) then
-                    prob_extra_walker=abs(SignCurr(part_type)) - real(WalkersToSpawn,dp)
+                WalkersToSpawn=abs(int(SignCurr(part_type)*AvMCExcits))
+                if ((abs(SignCurr(part_type)*AvMCExcits)-real(WalkersToSpawn,dp)).gt.0) then
+                    prob_extra_walker=abs(SignCurr(part_type)*AvMCExcits) - real(WalkersToSpawn,dp)
                     r = genrand_real2_dSFMT ()
                     if (prob_extra_walker > r) then
                         WalkersToSpawn=WalkersToSpawn+1
@@ -1350,7 +1350,7 @@ MODULE FciMCParMod
 
                 TotWalkersToSpawn=TotWalkersToSpawn+WalkersToSpawn
 
-                do p = 1, WalkersToSpawn * noMCExcits
+                do p = 1, WalkersToSpawn
                     ! Zero the bit representation, to ensure no extraneous
                     ! data gets through.
                     ilutnJ = 0
@@ -1403,8 +1403,7 @@ MODULE FciMCParMod
                         call create_particle (nJ, iLutnJ, child, &
                                               parent_flags, part_type,& 
                                               CurrentDets(:,j),SignCurr,p,&
-                                              RDMBiasFacCurr, WalkersToSpawn, &
-                                              NoMCExcits)
+                                              RDMBiasFacCurr, WalkersToSpawn)
                                               ! RDMBiasFacCurr is only used if we're 
                                               ! doing an RDM calculation.
 
@@ -1602,7 +1601,7 @@ MODULE FciMCParMod
     end subroutine
 
     subroutine create_particle (nJ, iLutJ, child, parent_flags, part_type, iLutI, SignI, &
-                                WalkerNumber, RDMBiasFacCurr, WalkersToSpawn, NoMCExcits)
+                                WalkerNumber, RDMBiasFacCurr, WalkersToSpawn)
 
         ! Create a child in the spawned particles arrays. We spawn particles
         ! into a separate array, but non-contiguously. The processor that the
@@ -1618,7 +1617,6 @@ MODULE FciMCParMod
         integer, intent(in) :: parent_flags
         integer, intent(in), optional :: WalkerNumber
         integer, intent(in), optional :: WalkersToSpawn
-        integer, intent(in), optional :: NoMCExcits
         ! 'type' of the particle - i.e. real/imag
         integer, intent(in) :: part_type
         real(dp) , intent(in) , optional :: RDMBiasFacCurr
@@ -1648,7 +1646,7 @@ MODULE FciMCParMod
                             child, flags)
 
         IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) &
-                call store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, WalkersToSpawn*NoMCExcits, iLutJ, proc)
+                call store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, WalkersToSpawn, iLutJ, proc)
         !We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
         !We want to store the parent (D_i) with the spawned child (D_j) so that we can
         !add in Ci.Cj to the RDM later on.
@@ -2247,13 +2245,10 @@ MODULE FciMCParMod
         ! Just in case
         child = 0
 
-        ! If we are generating multiple excitations, then the probability of
-        ! spawning on them must be reduced by the number of excitations
-        ! generated (i.e. the excitation is likely to arise a factor of
-        ! NoMCExcits more often)
-        if(NoMCExcits.ne.1) then
-            prob = prob * real(NoMCExcits, dp)
-        endif
+        ! If each walker does not have exactly one spawning attempt
+        ! (if AvMCExcits /= 1.0_dp) then the probability of an excitation
+        ! having been chosen, prob, must be altered accordingly.
+        prob = prob * AvMCExcits
 
         ! In the case of using HPHF, and when tGenMatHEl is on, the matrix
         ! element is calculated at the time of the excitation generation, 
@@ -2379,13 +2374,10 @@ MODULE FciMCParMod
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         HElement_t :: rh
 
-        IF(tMCExcits) THEN
-        ! If we are generating multiple excitations, then the probability of 
-        ! spawning on them must be reduced by the number of excitations 
-        ! generated. This is equivalent to saying that the excitation is 
-        ! likely to arise a factor of NoMCExcits more often.
-            Prob=Prob*REAL(NoMCExcits,dp)
-        ENDIF
+        ! If each walker does not have exactly one spawning attempt
+        ! (if AvMCExcits /= 1.0_dp) then the probability of an excitation
+        ! having been chosen, prob, must be altered accordingly.
+        prob = prob * AvMCExcits
             
 
 !Calculate off diagonal hamiltonian matrix element between determinants
