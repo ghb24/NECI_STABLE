@@ -404,34 +404,34 @@ r_loop: do while(.not.tStoreDet)
                 if (tRealPOPSfile) then
                     if (BinPops) then
                         if (tUseFlags) then
-                            read(iunit, iostat=stat) WalkerTemp(0:NIfD), sgn,&
+                            read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), sgn,&
                                                      flg_read
                         else
-                            read(iunit, iostat=stat) WalkerTemp(0:NIfD), sgn
+                            read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), sgn
                         end if
                     else
                         if (tUseFlags) then
-                            read(iunit,*, iostat=stat) WalkerTemp(0:NIfD), &
+                            read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
                                                        sgn, flg_read
                         else
-                            read(iunit,*, iostat=stat) WalkerTemp(0:NIfD), sgn
+                            read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), sgn
                         end if
                     end if
                 else
                     if (BinPops) then
                         if (tUseFlags) then
-                            read(iunit, iostat=stat) WalkerTemp(0:NIfD), &
+                            read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), &
                                                      sgn_int, flg_read
                         else
-                            read(iunit, iostat=stat) WalkerTemp(0:NIfD), &
+                            read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), &
                                                      sgn_int
                         end if
                     else
                         if (tUseFlags) then
-                            read(iunit,*, iostat=stat) WalkerTemp(0:NIfD), &
+                            read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
                                                        sgn_int, flg_read
                         else
-                            read(iunit,*, iostat=stat) WalkerTemp(0:NIfD), &
+                            read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
                                                        sgn_int
                         end if
                     end if
@@ -1242,7 +1242,7 @@ outer_map:      do i = 0, MappingNIfD
                         write(iunit) det(0:NIfD), real_sgn
                     end if
                 else
-                    do k = 0, NIfD
+                    do k = 0, NIfDBO
                         write(iunit, '(i24)', advance='no') det(k)
                     end do
                     do k = 1, lenof_sign

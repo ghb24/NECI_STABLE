@@ -125,7 +125,7 @@ contains
         ! Do a check that no states are in the deterministic space twice. The list is sorted
         ! already so simply check states next to each other in the list.
         do i = 2, determ_proc_sizes(iProcIndex)
-            comp = DetBitLT(SpawnedParts(:, i-1), SpawnedParts(:, i), NIfD, .false.)
+            comp = DetBitLT(SpawnedParts(:, i-1), SpawnedParts(:, i), NIfDBO, .false.)
             if (comp == 0) then
                 call decode_bit_det(nI, SpawnedParts(:,i))
                 write(6,'(a18)') "State found twice:"
@@ -743,7 +743,7 @@ contains
                 write(6,'(i8,1X,a12)') old_num_states, "states kept."
                 call neci_flush(6)
 
-                call deallocate_sparse_ham()
+                call deallocate_sparse_ham(sparse_ham, 'sparse_ham', SparseHamilTags)
                 deallocate(hamil_diag, stat=ierr)
                 call LogMemDealloc(t_r, HDiagTag, ierr)
 
@@ -911,7 +911,7 @@ contains
         temp_ilut = 0
         do i = 1, n_states_this_proc
             ! The states in largest_states are sorted from smallest to largest.
-            temp_ilut(0:NIfD) = largest_states(0:NIfD, length_this_proc-i+1)
+            temp_ilut(0:NIfDBO) = largest_states(0:NIfDBO, length_this_proc-i+1)
             call add_state_to_space(temp_ilut, called_from)
         end do
 

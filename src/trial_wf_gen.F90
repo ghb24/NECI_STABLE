@@ -201,7 +201,7 @@ contains
             trial_wf = davidson_eigenvector
             trial_energy = davidson_eigenvalue
 
-            call deallocate_sparse_ham()
+            call deallocate_sparse_ham(sparse_ham, 'sparse_ham', SparseHamilTags)
             deallocate(hamil_diag, stat=ierr)
             call LogMemDealloc(t_r, HDiagTag, ierr)
         else
