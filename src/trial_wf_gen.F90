@@ -10,7 +10,8 @@ module trial_wf_gen
     use FciMCData, only: trial_space, trial_space_size, con_space, &
                          con_space_size, trial_wf, trial_energy, &
                          con_space_vector, ilutHF, Hii, nSingles, nDoubles, &
-                         ConTag, DavidsonTag, TempTag, TrialTag, TrialWFTag, iHFProc, Trial_Init_Time
+                         ConTag, ConVecTag, DavidsonTag, TempTag, TrialTag, TrialWFTag, iHFProc, &
+                         Trial_Init_Time
     use hphf_integrals, only: hphf_off_diag_helement
     use LoggingData, only: tWriteTrial, tCompareTrialAmps
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
@@ -333,11 +334,13 @@ contains
         ! where \psi^T is the trial vector, j runs over all trial space vectors and i runs over
         ! all connected space vectors. This quantity is stored in the con_space_vector array.
 
-        integer :: i, j
+        integer :: i, j, ierr
         integer :: nI(nel), nJ(nel)
         real(dp) :: H_ij
+        character (len=*), parameter :: t_r = "generate_connected_space_vector"
 
-        allocate(con_space_vector(con_space_size))
+        allocate(con_space_vector(con_space_size), stat=ierr)
+        call LogMemAlloc('con_space_vector', con_space_size, 8, t_r, ConVecTag, ierr)
         con_space_vector = 0.0_dp
 
         do i = 1, con_space_size
@@ -502,5 +505,29 @@ contains
         end if
 
     end subroutine update_compare_trial_file
+
+    subroutine end_trial_wf()
+
+        character(len=*), parameter :: t_r = "end_trial_wf"
+        integer :: ierr
+
+        if (allocated(trial_space)) then
+            deallocate(trial_space, stat=ierr)
+            call LogMemDealloc(t_r, TrialTag, ierr)
+        end if
+        if (allocated(trial_wf)) then
+            deallocate(trial_wf, stat=ierr)
+            call LogMemDealloc(t_r, TrialWFTag, ierr)
+        end if
+        if (allocated(con_space)) then
+            deallocate(con_space, stat=ierr)
+            call LogMemDealloc(t_r, ConTag, ierr)
+        end if
+        if (allocated(con_space_vector)) then
+            deallocate(con_space_vector, stat=ierr)
+            call LogMemDealloc(t_r, ConVecTag, ierr)
+        end if
+
+    end subroutine end_trial_wf
 
 end module trial_wf_gen

@@ -434,7 +434,10 @@ MODULE FciMCData
       integer :: min_trial_ind = 1
       integer :: min_connected_ind = 1
 
-      ! Semi-stochastic and trial-wavefunction tags:
-      integer(TagIntType) :: TrialTag, ConTag, TrialWFTag, TempTag, CoreTag, FDetermTag, PDetermTag
+      ! Semi-stochastic tags:
+      integer(TagIntType) :: CoreTag, FDetermTag, PDetermTag, IDetermTag
+
+      ! Trial wavefunction tags:
+      integer(TagIntType) :: TrialTag, ConTag, ConVecTag, TrialWFTag, TempTag
 
 END MODULE FciMCData

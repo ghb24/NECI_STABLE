@@ -17,7 +17,8 @@ module semi_stoch_procs
     use FciMCData, only: ilutHF, Hii, CurrentH, determ_proc_sizes, determ_proc_indices, &
                          full_determ_vector, partial_determ_vector, core_hamiltonian, &
                          determ_space_size, SpawnedParts, SemiStoch_Comms_Time, &
-                         SemiStoch_Multiply_Time, TotWalkers, CurrentDets, CoreTag
+                         SemiStoch_Multiply_Time, TotWalkers, CurrentDets, CoreTag, &
+                         PDetermTag, FDetermTag, IDetermTag, indices_of_determ_states
     use hash, only: DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
@@ -25,7 +26,8 @@ module semi_stoch_procs
                              MPIAllGatherV, MPISum, MPISumAll
     use ras, only: core_ras
     use sort_mod, only: sort
-    use sparse_hamil, only: sparse_matrix_info, sparse_core_ham
+    use sparse_hamil, only: sparse_matrix_info, sparse_core_ham, SparseCoreHamilTags, &
+                            deallocate_sparse_ham
     use SystemData, only: tSemiStochastic, tCSFCore, tDeterminantCore, tDoublesCore, &
                           tCASCore, tRASCore, cas_determ_not_bitmask, core_ras1_bitmask, &
                           core_ras3_bitmask, nel, OccDetermCASOrbs, tHPHF, nBasis, BRR, &
@@ -653,5 +655,32 @@ contains
         end do
 
     end subroutine return_largest_indices
+
+    subroutine end_semistoch()
+
+        character(len=*), parameter :: t_r = "end_semistoch"
+        integer :: ierr
+
+        if (tSparseCoreHamil) call deallocate_sparse_ham(sparse_core_ham, 'sparse_core_ham', &
+                                                         SparseCoreHamilTags)
+
+        if (allocated(core_hamiltonian)) then
+            deallocate(core_hamiltonian, stat=ierr)
+            call LogMemDealloc(t_r, CoreTag, ierr)
+        end if
+        if (allocated(full_determ_vector)) then
+            deallocate(full_determ_vector, stat=ierr)
+            call LogMemDealloc(t_r, FDetermTag, ierr)
+        end if
+        if (allocated(partial_determ_vector)) then
+            deallocate(partial_determ_vector, stat=ierr)
+            call LogMemDealloc(t_r, PDetermTag, ierr)
+        end if
+        if (allocated(indices_of_determ_states)) then
+            deallocate(indices_of_determ_states, stat=ierr)
+            call LogMemDealloc(t_r, IDetermTag, ierr)
+        end if
+
+    end subroutine end_semistoch
 
 end module semi_stoch_procs

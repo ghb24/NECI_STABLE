@@ -146,8 +146,9 @@ MODULE FciMCParMod
                          fill_rdm_diag_currdet_hfsd, calc_rdmbiasfac
     use determ_proj, only: perform_determ_proj
     use semi_stoch_gen, only: init_semi_stochastic
-    use semi_stoch_procs, only: deterministic_projection, return_most_populated_states
-    use trial_wf_gen, only: init_trial_wf, update_compare_trial_file
+    use semi_stoch_procs, only: deterministic_projection, return_most_populated_states, &
+                                end_semistoch
+    use trial_wf_gen, only: init_trial_wf, update_compare_trial_file, end_trial_wf
     use gndts_mod, only: gndts
     use sort_mod
     use get_excit, only: make_double
@@ -8476,6 +8477,10 @@ MODULE FciMCParMod
 
         ! Cleanup storage for spin projection
         call clean_yama_store ()
+
+        if (tSemiStochastic) call end_semistoch()
+
+        if (tTrialWavefunction) call end_trial_wf()
 
 
 !There seems to be some problems freeing the derived mpi type.

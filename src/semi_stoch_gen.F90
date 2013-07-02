@@ -17,7 +17,7 @@ module semi_stoch_gen
                          determ_proc_indices, full_determ_vector, partial_determ_vector, &
                          core_hamiltonian, determ_space_size, TotWalkers, TotWalkersOld, &
                          indices_of_determ_states, SpawnedParts, FDetermTag, &
-                         PDetermTag, trial_space, trial_space_size, SemiStoch_Init_Time
+                         PDetermTag, IDetermTag, trial_space, trial_space_size, SemiStoch_Init_Time
     use gndts_mod, only: gndts
     use hash, only: DetermineDetNode
     use LoggingData, only: tWriteCore
@@ -110,7 +110,7 @@ contains
         ! This array will hold the positions of the deterministic states in CurrentDets.
         allocate(indices_of_determ_states(determ_proc_sizes(iProcIndex)), stat=ierr)
         call LogMemAlloc('indices_of_determ_states', int(determ_proc_sizes(iProcIndex), &
-                         sizeof_int), bytes_int, t_r, FDetermTag, ierr)
+                         sizeof_int), bytes_int, t_r, IDetermTag, ierr)
 
         ! Calculate the indices in the full vector at which the various processors take over, relative
         ! to the first index position in the vector (i.e. the array disps in MPI routines).
