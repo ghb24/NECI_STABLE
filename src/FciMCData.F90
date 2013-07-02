@@ -88,7 +88,7 @@ MODULE FciMCData
       INTEGER :: MaxWalkersPart,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
       integer(int64) :: TotWalkers, TotWalkersOld
       real(dp), dimension(lenof_sign) :: TotParts, TotPartsOld
-      real(dp) :: norm_psi_squared
+      real(dp) :: norm_psi_squared, all_norm_psi_squared
       real(dp) :: norm_psi
       INTEGER :: exFlag=3
       real(dp) :: AccumRDMNorm, AccumRDMNorm_Inst, AllAccumRDMNorm
