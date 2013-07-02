@@ -15,7 +15,7 @@ module hist
     use DetCalcData, only: FCIDetIndex, det
     use FciMCData, only: tFlippedSign, TotWalkers, CurrentDets, iter, &
                          all_norm_psi_squared
-    use util_mod, only: choose, get_free_unit, binary_search, tbs_
+    use util_mod, only: choose, get_free_unit, binary_search
     use HPHFRandExcitMod, only: FindExcitBitDetSym
     use hphf_integrals, only: hphf_sign
     use constants, only: n_int, bits_n_int, size_n_int, lenof_sign
