@@ -4666,7 +4666,7 @@ MODULE FciMCParMod
                 ! Restart calculation.  Append to stats file (if it exists).
                 if(tMolpro) then
                     filename = 'FCIQMCStats_' // adjustl(MolproID)
-                    OPEN(fcimcstats_unit,file='FCIQMCStats',status='unknown',position='append')
+                    OPEN(fcimcstats_unit,file=filename,status='unknown',position='append')
                 else
                     OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown',position='append')
                 endif
