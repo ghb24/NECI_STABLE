@@ -1173,6 +1173,10 @@ MODULE FciMCParMod
             ! excite from the first particle on a determinant).
             fcimc_excit_gen_store%tFilled = .false.
 
+            call extract_bit_rep_avsign (CurrentDets(:,j), CurrentH(1:NCurrH,j), &
+                                        DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
+                                        AvSignCurr, fcimc_excit_gen_store)
+            
             ! If this state is in the deterministic space.
             if (tSemiStochastic) then
                 if (test_flag(CurrentDets(:,j), flag_deterministic)) then
@@ -1180,7 +1184,7 @@ MODULE FciMCParMod
                     ! use VecSlot, *not* j, as VecSlot stores the new index after death.
                     indices_of_determ_states(determ_index) = VecSlot
 
-                    call extract_sign (CurrentDets(:,j), SignCurr)
+                    !call extract_sign (CurrentDets(:,j), SignCurr) (Already done above)
                     ! Add this amplitude to the deterministic vector.
                     partial_determ_vector(determ_index) =  SignCurr(1)
 
@@ -1191,7 +1195,22 @@ MODULE FciMCParMod
                     ! and if so, skip the state.
                     if (.not.(abs(SignCurr(1)) > 0.0_dp)) then
                         CurrentDets(:,VecSlot) = CurrentDets(:,j)
+                        if (tFillingStochRDMonFly) then
+                            CurrentH(2,VecSlot) = AvSignCurr
+                            CurrentH(3,VecSlot) = IterRDMStartCurr
+                        endif
                         VecSlot = VecSlot + 1
+                        if(tFill_RDM) then 
+                            ! If tFill_RDM is true, this is an iteration where the diagonal 
+                            ! RDM elements are calculated, along with the contributions from 
+                            ! connections to the (true) HF determinant.
+
+                            if((abs(CurrentH(2,VecSlot-1)).gt.real(InitiatorWalkNo,dp)).or.(.not.tInitiatorRDM)) & 
+                            ! If we are only using initiators to calculate the RDMs, only add in the diagonal and 
+                            ! explicit contributions if the average population is greater than n_a = InitiatorWalkNo.
+                                call fill_rdm_diag_currdet(CurrentDets(:,VecSlot-1), DetCurr, &
+                                        CurrentH(1:NCurrH,VecSlot-1), walkExcitLevel_toHF, IterLastRDMFill)  
+                        endif
                         cycle
                     end if
                  
@@ -1227,10 +1246,6 @@ MODULE FciMCParMod
             ! truncated etc.)
             walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
                                                 max_calc_ex_level)
-
-            call extract_bit_rep_avsign (CurrentDets(:,j), CurrentH(1:NCurrH,j), &
-                                        DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
-                                        AvSignCurr, fcimc_excit_gen_store)
 
             if (tTruncInitiator) call CalcParentFlag (j, VecSlot, parent_flags)
 

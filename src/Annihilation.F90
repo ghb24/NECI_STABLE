@@ -920,6 +920,14 @@ MODULE AnnihilationMod
 
             if (tSkip) then
                 tSkip = .false.
+                !Use the tSuccess value from the last iteration of i
+                !These two entries in SpawnedParts only differ in the deterministic parent flags, and the
+                !associated Spawned Parents entries for the RDMs, so if tSuccess was true for the previous entry
+                !it will be true here too.  We still need to add in its RDM contribution as each SpawnedParts entry
+                !after the compress has a separate list of spawnedparents, so we can't ignore one set.
+                if(tSuccess .and. tFillingStochRDMonFly .and.(.not.tHF_Ref_Explicit)) then
+                    call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
+                endif
                 cycle
             end if
 
@@ -961,6 +969,14 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
 !            call WriteBitDet(6,CurrentDets(:,PartInd),.true.)
 
 !            WRITE(6,*) 'i,SpawnedParts(:,i)',i,SpawnedParts(:,i)
+
+            ! The spawned parts contain the Dj's spawned by the Di's in CurrentDets.
+            ! If the SpawnedPart is found in the CurrentDets list, it means that the Dj has a non-zero 
+            ! cj - and therefore the Di.Dj pair will have a non-zero ci.cj to contribute to the RDM.
+            ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
+            if(tSuccess .and. tFillingStochRDMonFly .and.(.not.tHF_Ref_Explicit)) then
+                call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
+            endif
 
             ! Abort spawning from the deterministic space to the deterministic space, and also
             ! merge this state and next state in SpawnedParts if they are the same states but
@@ -1036,13 +1052,6 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
 
 !                WRITE(6,*) 'DET FOUND in list'
 
-                ! The spawned parts contain the Dj's spawned by the Di's in CurrentDets.
-                ! If the SpawnedPart is found in the CurrentDets list, it means that the Dj has a non-zero 
-                ! cj - and therefore the Di.Dj pair will have a non-zero ci.cj to contribute to the RDM.
-                ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
-                if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) &
-                    call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
-                
                 ! If spawning has occured from the deterministic (even partially) or to the deterministic space,
                 ! then we always allow the spawning to occur. Then simply cycle.
                 if (tSemiStochastic) then
