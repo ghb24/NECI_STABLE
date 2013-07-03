@@ -14,7 +14,7 @@ module hist
     use CalcData, only: tFCIMC, tTruncInitiator
     use DetCalcData, only: FCIDetIndex, det
     use FciMCData, only: tFlippedSign, TotWalkers, CurrentDets, iter, &
-                         norm_psi_squared
+                         all_norm_psi_squared
     use util_mod, only: choose, get_free_unit, binary_search
     use HPHFRandExcitMod, only: FindExcitBitDetSym
     use hphf_integrals, only: hphf_sign
@@ -533,7 +533,7 @@ contains
             
             write(6,*) 'Scoeffs', iter, S_coeffs
             write(6,*) 'Scsf2', S2
-            write(6,*) 'norm compare', norm, norm_psi_squared
+            write(6,*) 'norm compare', norm, all_norm_psi_squared
         endif
 
         ! Deallocate stuff
@@ -644,7 +644,7 @@ contains
 
         ! Sum over all processors and normalise
         call MPISum_inplace (ssq)
-        ssq = ssq / norm_psi_squared
+        ssq = ssq / all_norm_psi_squared
 
         ! TODO: n.b. This is a hack. LMS appears to contain -2*Ms of the system
         !            I am somewhat astounded I haven't noticed this before...
@@ -790,7 +790,7 @@ contains
         enddo
 
         call MPISum_inplace (ssq)
-        ssq = ssq / norm_psi_squared
+        ssq = ssq / all_norm_psi_squared
 
         ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the system
         !            I am somewhat astounded I haven't noticed this before...
@@ -901,7 +901,7 @@ contains
         if (tTruncInitiator .and. only_init) then
             call MPISum_inplace (psi_squared)
         else
-            psi_squared = norm_psi_squared
+            psi_squared = all_norm_psi_squared
         end if
         call MPISum_inplace (ssq_sum)
         ssq = real(ssq_sum,dp) / psi_squared
