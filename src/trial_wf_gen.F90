@@ -1,8 +1,8 @@
 module trial_wf_gen
 
     use AnnihilationMod, only: BinSearchParts
-    use bit_rep_data, only: NIfTot, NIfD
-    use bit_reps, only: encode_det
+    use bit_rep_data, only: NIfTot, NIfD, flag_trial, flag_connected
+    use bit_reps, only: encode_det, set_flag
     use davidson, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
                         sparse_hamil_type
     use DetBitOps, only: FindBitExcitLevel, ilut_lt, ilut_gt
@@ -10,8 +10,10 @@ module trial_wf_gen
     use FciMCData, only: trial_space, trial_space_size, con_space, &
                          con_space_size, trial_wf, trial_energy, &
                          con_space_vector, ilutHF, Hii, nSingles, nDoubles, &
-                         ConTag, ConVecTag, DavidsonTag, TempTag, TrialTag, TrialWFTag, iHFProc, &
-                         Trial_Init_Time
+                         ConTag, ConVecTag, DavidsonTag, TempTag, TrialTag, TrialWFTag, &
+                         iHFProc, Trial_Init_Time, trial_temp, con_temp, occ_trial_amps, &
+                         occ_con_amps, TrialTempTag, ConTempTag, OccTrialTag, OccConTag, &
+                         ntrial_occ, ncon_occ, Trial_Search_Time
     use hphf_integrals, only: hphf_off_diag_helement
     use LoggingData, only: tWriteTrial, tCompareTrialAmps
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
@@ -23,7 +25,7 @@ module trial_wf_gen
     use sparse_hamil
     use SystemData, only: nel, tDoublesTrial, tOptimisedTrial, tCASTrial, tPopsTrial, &
                           tLowETrial, tHPHF
-    use util_mod, only: get_free_unit
+    use util_mod, only: get_free_unit, binary_search_custom
 
     implicit none
 
@@ -247,6 +249,30 @@ contains
         if (tWriteTrial) call write_trial_space()
         if (tCompareTrialAmps) call update_compare_trial_file(.true.)
 
+        ! Allocate the arrays which will store the trial and connected vector amplitudes of the
+        ! occupied trial and connected states.
+        allocate(trial_temp(trial_space_size))
+        call LogMemAlloc('trial_temp', trial_space_size, 8, t_r, TrialTempTag, ierr)
+        allocate(con_temp(con_space_size))
+        call LogMemAlloc('con_temp', con_space_size, 8, t_r, ConTempTag, ierr)
+        allocate(occ_trial_amps(trial_space_size))
+        call LogMemAlloc('occ_trial_amps', trial_space_size, 8, t_r, OccTrialTag, ierr)
+        allocate(occ_con_amps(con_space_size))
+        call LogMemAlloc('occ_con_amps', con_space_size, 8, t_r, OccConTag, ierr)
+
+        trial_temp = 0.0_dp
+        con_temp = 0.0_dp
+        occ_trial_amps = 0.0_dp
+        occ_con_amps = 0.0_dp
+
+        ! Find which states in CurrentDets are in the trial and connected states, set the corresponding
+        ! flags and return the corresponding trial and connected vector amplitudes to trial_temp and
+        ! con_temp. These are then copied across to the vectors below.
+        call find_trial_and_con_states(TotWalkers, CurrentDets, ntrial_occ, ncon_occ)
+        write(6,*) "ntrial_occ:", ntrial_occ, "ncon_occ:", ncon_occ
+        occ_trial_amps(1:ntrial_occ) = trial_temp(1:ntrial_occ)
+        occ_con_amps(1:ncon_occ) = con_temp(1:ncon_occ)
+
         ! Deallocate remaining arrays.
         deallocate(temp_space, stat=ierr)
         call LogMemDealloc(t_r, TempTag, ierr)
@@ -397,6 +423,58 @@ contains
         end if
 
     end subroutine assign_elements_on_procs
+
+    subroutine find_trial_and_con_states(num_states, ilut_list, ntrial, ncon)
+
+        integer, intent(in) :: num_states
+        integer(n_int), intent(inout) :: ilut_list(:,:)
+        integer, intent(out) :: ntrial, ncon
+        integer :: i, pos, min_trial_ind, min_connected_ind
+
+        min_trial_ind = 1
+        min_connected_ind = 1
+        ntrial = 0
+        ncon = 0
+
+        call set_timer(Trial_Search_Time)
+
+        do i = 1, num_states
+            ! Search both the trial space and connected space to see if this state exists in either list.
+            ! First the trial space:
+            pos = binary_search_custom(trial_space(:, min_trial_ind:trial_space_size), &
+                                       ilut_list(:,i), NIfTot+1, ilut_gt)
+
+            if (pos > 0) then
+                ntrial = ntrial + 1
+                trial_temp(ntrial) = trial_wf(pos+min_trial_ind-1)
+                min_trial_ind = min_trial_ind + pos
+                call set_flag(ilut_list(:,i), flag_trial)
+            else
+                ! The state is not in the trial space. Just update min_trial_ind accordingly.
+                min_trial_ind = min_trial_ind - pos - 1
+            end if
+
+            ! If pos > 0 then the state is in the trial space. A state cannot be in both the trial and
+            ! connected space, so, unless pos < 0, don't bother doing the following binary search.
+            if (pos < 0) then
+
+                pos = binary_search_custom(con_space(:, min_connected_ind:con_space_size), &
+                                           ilut_list(:,i), NIfTot+1, ilut_gt)
+
+                if (pos > 0) then
+                    ncon = ncon + 1
+                    con_temp(ncon) = con_space_vector(pos+min_connected_ind-1)
+                    min_connected_ind = min_connected_ind + pos
+                    call set_flag(ilut_list(:,i), flag_connected)
+                else
+                    min_connected_ind = min_connected_ind - pos - 1
+                end if
+            end if
+        end do
+
+        call halt_timer(Trial_Search_Time)
+
+    end subroutine find_trial_and_con_states
 
     subroutine write_trial_space()
 

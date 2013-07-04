@@ -422,22 +422,41 @@ MODULE FciMCData
 
       ! This vector stores the trial wavefunction itself.
       real(dp), allocatable, dimension(:) :: trial_wf
+      ! This vector stores the values of trial_wf for the occupied trial state in CurrentDets, in the same order as these
+      ! states in CurrentDets. If not all trial states are occupied then the final elements store junk and aren't used.
+      real(dp), allocatable, dimension(:) :: occ_trial_amps
+      ! Holds the number of occupied trial states in CurrentDets.
+      integer :: ntrial_occ
+      ! Holds the index of the element in occ_trial_amps to access when the next trial space state is found.
+      integer :: trial_ind
+      ! When new states are about to inserted into CurrentDets, a search is performed to see if any of them are in the
+      ! trial space. If they are then the corresponding amplitudes are stored in this vector until they are merged
+      ! into occ_trial_amps, to prevent overwriting during the merging process.
+      real(dp), allocatable, dimension(:) :: trial_temp
+
       real(dp) :: trial_energy
       ! This vector's elements store the quantity
       ! \sum_j H_{ij} \psi^T_j,
       ! where \psi is the trial wavefunction. These elements are stored only in the space of states which are connected to *but included in*
       ! the trial vector space.
       real(dp), allocatable, dimension(:) :: con_space_vector
-
-      ! These indices specify the minimum index in the trial and connected spaces from which to search, when binary searching these
-      ! lists. This binary search is done when updating the contibutions to the energy estimate in FciMCPar.
-      integer :: min_trial_ind = 1
-      integer :: min_connected_ind = 1
+      ! This vector stores the values of con_space_vector for the occupied connected state in CurrentDets, in the same order as
+      ! these states in CurrentDets. If not all connected states are occupied then the final elements store junk and aren't used.
+      real(dp), allocatable, dimension(:) :: occ_con_amps
+      ! Holds the number of occupied connected states in CurrentDets.
+      integer :: ncon_occ
+      ! Holds the index of the element in occ_con_amps to access when the next connected space state is found.
+      integer :: con_ind
+      ! When new states are about to inserted into CurrentDets, a search is performed to see if any of them are in the
+      ! connected space. If they are then the corresponding amplitudes are stored in this vector until they are merged
+      ! into occ_con_amps, to prevent overwriting during the merging process.
+      real(dp), allocatable, dimension(:) :: con_temp
 
       ! Semi-stochastic tags:
       integer(TagIntType) :: CoreTag, FDetermTag, PDetermTag, IDetermTag
 
       ! Trial wavefunction tags:
       integer(TagIntType) :: TrialTag, ConTag, ConVecTag, TrialWFTag, TempTag
+      integer(TagIntType) :: TrialTempTag, ConTempTag, OccTrialTag, OccConTag
 
 END MODULE FciMCData

@@ -3,7 +3,7 @@
 MODULE PopsfileMod
 
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin, &
-                          tMomInv, tSemiStochastic
+                          tMomInv, tSemiStochastic, tTrialWavefunction
     use CalcData, only: tTruncInitiator, DiagSft, tWalkContGrow, nEquilSteps, &
                         ScaleWalkers, tReadPopsRestart, tRegenDiagHEls, &
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
@@ -307,8 +307,7 @@ r_loop: do while(.not.tReadAllPops)
             call LogMemDealloc (this_routine, BatchReadTag)
         end if
 
-        ! If restarting from a popsfile, clear all deterministic states so that they can be
-        ! changed later, for generality..
+        ! Clear all deterministic states so that they can be changed later.
         if (tSemiStochastic) then
             do i = 1, CurrWalkers
                 call clr_flag(CurrentDets(:,i), flag_deterministic)
@@ -316,6 +315,13 @@ r_loop: do while(.not.tReadAllPops)
             end do
         end if
 
+        ! Clear all trial and connected states so that they can be changed later.
+        if (tTrialWavefunction) then
+            do i = 1, CurrWalkers
+                call clr_flag(CurrentDets(:,i), flag_trial)
+                call clr_flag(CurrentDets(:,i), flag_connected)
+            end do
+        end if
 
         write(6,"(A,I8)") "Number of batches required to distribute all determinants in POPSFILE: ",nBatches
         write(6,*) "Number of configurations read in to this process: ",CurrWalkers 

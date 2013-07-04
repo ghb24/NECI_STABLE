@@ -14,14 +14,14 @@ MODULE FciMCParMod
                           tNoBrillouin, tKPntSym, tPickVirtUniform, &
                           tMomInv, tRef_Not_HF, tMolpro, tSemiStochastic, &
                           tTrialWavefunction, tAntiSym_MI, MolproID
-    use bit_rep_data, only: extract_sign
+    use bit_rep_data, only: extract_sign, flag_trial, flag_connected
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
                         flag_is_initiator, clear_all_flags,&
                         nOffSgn, flag_make_initiator, &
                         flag_parent_initiator, encode_sign, flag_deterministic, &
-                        flag_determ_parent, nOffFlag
+                        flag_determ_parent, nOffFlag, clr_flag
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
                         tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&
@@ -1055,6 +1055,7 @@ MODULE FciMCParMod
         integer :: proc, pos
         real(dp) :: r, sgn(lenof_sign), prob_extra_walker
         integer :: determ_index
+        integer :: counter
 
         call set_timer(Walker_Time,30)
 
@@ -1157,12 +1158,21 @@ MODULE FciMCParMod
             endif
         endif
 
-        !write(6,*) "CurrentDets before:"
+        !counter = 0
+        !!write(6,*) "CurrentDets before:"
         !do j = 1, TotWalkers
-        !    write(6,*) j, CurrentDets(:,j), test_flag(CurrentDets(:,j),flag_deterministic), &
-        !                                 test_flag(CurrentDets(:,j),flag_determ_parent)
+        !    !write(6,*) j, CurrentDets(:,j), test_flag(CurrentDets(:,j),flag_trial), &
+        !    !                             test_flag(CurrentDets(:,j),flag_connected)
+        !    if (test_flag(CurrentDets(:,j),flag_trial)) then
+        !        pos = binary_search_custom(trial_space(:, 1:trial_space_size), &
+        !                                   CurrentDets(:,j), NIfTot+1, ilut_gt)
+        !        counter = counter + 1
+        !        if (trial_wf(pos) /= occ_trial_amps(counter)) then
+        !            call stop_all("here","here")
+        !        end if
+        !    end if
         !end do
-        !write(6,*)
+        !!write(6,*)
 
         do j=1,int(TotWalkers,sizeof_int)
             ! N.B. j indicates the number of determinants, not the number
@@ -1375,7 +1385,7 @@ MODULE FciMCParMod
                             ! If the walker being spawned is spawned from the deterministic space,
                             ! then set the corresponding flag to specify this.
                             if (test_flag(CurrentDets(:,j), flag_deterministic)) &
-                            call set_flag(iLutnJ, flag_determ_parent)
+                                call set_flag(iLutnJ, flag_determ_parent)
 
                         end if
 
@@ -1396,6 +1406,10 @@ MODULE FciMCParMod
 
                         !Encode child if not done already
                         if(.not. (tSemiStochastic)) call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
+                        ! FindExcitBitDet copies the parent flags so that unwanted flags must be unset.
+                        ! Should it really do this?
+                        call clr_flag(iLutnJ, flag_trial)
+                        call clr_flag(iLutnJ, flag_connected)
 
                         call new_child_stats (iter_data, CurrentDets(:,j), &
                                               nJ, iLutnJ, ic, walkExcitLevel,&
@@ -1834,6 +1848,10 @@ MODULE FciMCParMod
         ! would set the same flag in the child in create_particle, which we don't
         ! want in general.
         parent_flags = ibclr(parent_flags, flag_deterministic)
+
+        ! We don't want the child to have trial or connected flags.
+        parent_flags = ibclr(parent_flags, flag_trial)
+        parent_flags = ibclr(parent_flags, flag_connected)
 
         if ((tHistInitPops .and. mod(iter, histInitPopsIter) == 0) &
             .or. tPrintHighPop) then
@@ -4150,9 +4168,9 @@ MODULE FciMCParMod
             endif
         endif
         HFInd = 0            
-
-        min_trial_ind = 1
-        min_connected_ind = 1
+        
+        trial_ind = 0
+        con_ind = 0
 
     end subroutine
 
@@ -6634,46 +6652,18 @@ MODULE FciMCParMod
 
         HOffDiag = 0
 
+        ! Add in the contributions to the numerator and denominator of the trial
+        ! estimatior, if it is being used.
         if (tTrialWavefunction) then
-
-            call set_timer(Trial_Search_Time)
-
-            ! Search both the trial space and connected space to see if this state exists in either list.
-            ! First the trial space:
-            pos = binary_search_custom(trial_space(:, min_trial_ind:trial_space_size), ilut, NIfTot+1, ilut_gt)
-
-            if (pos > 0) then
-                ! This state is in the trial space. Add the contribution to the demoninator and update
-                ! min_trial_ind so that a shorter list is searched next time.
-                current_contribution = RealwSign(1)*trial_wf(pos+min_trial_ind-1)
-                trial_denom = trial_denom + current_contribution
-
-                min_trial_ind = min_trial_ind + pos
-            else
-                ! The state is not in the trial space. Just update min_trial_ind accordingly.
-                min_trial_ind = min_trial_ind - pos - 1
+            if (test_flag(ilut, flag_trial)) then
+                ! Take the next element in the occupied trial vector.
+                trial_ind = trial_ind + 1
+                trial_denom = trial_denom + occ_trial_amps(trial_ind)*RealwSign(1)
+            else if (test_flag(ilut, flag_connected)) then
+                ! Take the next element in the occupied connected vector.
+                con_ind = con_ind + 1
+                trial_numerator = trial_numerator + occ_con_amps(con_ind)*RealwSign(1)
             end if
-
-            ! If pos > 0 then the state is in the trial space. A state cannot be in both the trial and connected
-            ! space, so, unless pos < 0, don't bother doing the following binary search.
-            if (pos < 0) then
-
-                pos = binary_search_custom(con_space(:, min_connected_ind:con_space_size), &
-                    ilut, NIfTot+1, ilut_gt)
-
-                if (pos > 0) then
-                    ! This state is in the connected space. Add the contribution to the numerator and update
-                    ! min_connected_ind.
-                    current_contribution = RealwSign(1)*con_space_vector(pos+min_connected_ind-1)
-                    trial_numerator = trial_numerator + current_contribution
-
-                    min_connected_ind = min_connected_ind + pos
-                else
-                    min_connected_ind = min_connected_ind - pos - 1
-                end if
-            end if
-
-            call halt_timer(Trial_Search_Time)
         end if
 
         if (proje_linear_comb .and. nproje_sum > 1) then

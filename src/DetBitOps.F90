@@ -10,7 +10,7 @@ module DetBitOps
     use CalcData, only: tTruncInitiator
     use bit_rep_data, only: NIfY, NIfTot, NIfD, NOffFlag, NIfFlag, &
                             test_flag, flag_is_initiator,NIfDBO,NOffSgn, &
-                            deterministic_mask, determ_parent_mask, extract_sign
+                            determ_parent_mask, extract_sign
     use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
     use constants, only: n_int,bits_n_int,end_n_int,dp,lenof_sign,sizeof_int
 

@@ -40,19 +40,19 @@ module bit_rep_data
                           flag_make_initiator(2) = (/2,3/), &
                           flag_deterministic = 4, &
                           flag_determ_parent = 5, &
-                          flag_negative_sign = 6
+                          flag_trial = 6, &
+                          flag_connected = 7, &
+                          flag_negative_sign = 8
 
     ! IMPORTANT
-    integer, parameter :: num_flags = 7, &
+    integer, parameter :: num_flags = 9, &
                           flag_bit_offset = bits_n_int - num_flags
     integer(n_int), parameter :: sign_mask = ishft(not(0_n_int), -num_flags), &
                                  flags_mask = not(sign_mask), &
                                  sign_neg_mask = ibset(sign_mask, &
                                           flag_bit_offset + flag_negative_sign)
 
-    ! Bit masks with all bits unset except those corresponding to the flags in the names.
-    integer(n_int) :: deterministic_mask = ibset(0_n_int, &
-                                                 flag_deterministic + flag_bit_offset)
+    ! Bit mask with all bits unset except the one corresponding to the determ_parent flag.
     integer(n_int) :: determ_parent_mask = ibset(0_n_int, &
                                                  flag_determ_parent + flag_bit_offset)
 

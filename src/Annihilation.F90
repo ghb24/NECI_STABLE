@@ -1,7 +1,7 @@
 #include "macros.h"
 !This module is to be used for various types of walker MC annihilation in serial and parallel.
 MODULE AnnihilationMod
-    use SystemData , only : NEl, tHPHF, nBasis, tCSF, tSemiStochastic
+    use SystemData , only : NEl, tHPHF, nBasis, tCSF, tSemiStochastic, tTrialWavefunction
     use CalcData , only : TRegenExcitgens,tRegenDiagHEls, tEnhanceRemainder, &
                           tTruncInitiator, tSpawnSpatialInit, OccupiedThresh
     USE DetCalcData , only : Det,FCIDetIndex
@@ -1608,26 +1608,34 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
         real(dp) :: CurrentSign(lenof_sign), SpawnedSign(lenof_sign)
         real(dp) :: HDiag, pRemove, r
         INTEGER :: i,DetsMerged,nJ(NEl),part_type, ExcitLevelCurr, j
-        LOGICAL :: TestClosedShellDet, tIsStateDeterm
+        integer :: trial_merged, con_merged, i_trial, i_conn
+        LOGICAL :: TestClosedShellDet
+        logical :: tIsStateDeterm, tTrialState, tConState
         type(fcimc_iter_data), intent(inout) :: iter_data
         character(*), parameter :: this_routine = 'InsertRemoveParts'
         HElement_t :: HDiagTemp
 
 !It appears that the rest of this routine isn't thread-safe if ValidSpawned is zero.
+
+    if(.not.bNodeRoot) return
         
     ! This logical is only used for the semi-stochastic code. If true then we don't
     ! try to remove the state.
     tIsStateDeterm = .false.
 
-    if(.not.bNodeRoot) return
 !Annihilated determinants first are removed from the main array (zero sign). 
 !Surely we only need to perform this loop if the number of annihilated particles > 0?
         TotParts=0.0
         norm_psi_squared = 0.0
         norm_semistoch_squared = 0.0
         DetsMerged=0
+        trial_merged = 0
+        i_trial = 0
+        con_merged = 0
+        i_conn = 0
         iHighestPop=0
         InstNoatHF = 0.0
+
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
@@ -1660,8 +1668,30 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                 
                 if(i.eq.HFInd)  InstNoatHF = CurrentSign
 
+                ! Is this state a trial or connected state, or neither?
+                if (tTrialWavefunction) then
+                    if (test_flag(CurrentDets(:,i), flag_trial)) then
+                        i_trial = i_trial + 1
+                        tTrialState = .true.
+                        tConState = .false.
+                    else if (test_flag(CurrentDets(:,i), flag_connected)) then
+                        i_conn = i_conn + 1
+                        tConState = .true.
+                        tTrialState = .false.
+                    else
+                        tTrialState = .false.
+                        tConState = .false.
+                    end if
+                end if
+
                 IF(IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) THEN
+
                     DetsMerged=DetsMerged+1
+                    if (tTrialWavefunction) then
+                        if (tTrialState) trial_merged = trial_merged + 1
+                        if (tConState) con_merged = con_merged + 1
+                    end if
+
                     if(tFillingStochRDMonFly) &
                         call det_removed_fill_diag_rdm(CurrentDets(:,i), CurrentH(1:NCurrH,i))
                     if(i.eq.HFInd) then
@@ -1690,7 +1720,16 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                         CurrentDets(0:NIfTot,i-DetsMerged)=CurrentDets(0:NIfTot,i)
                         IF(.not.tRegenDiagHEls) &
                             CurrentH(:,i-DetsMerged)=CurrentH(:,i)
+
+                        ! Move the elements in the occupied trial and connected vectors to fill in
+                        ! the values of the annihilated determinants.
+                        if (tTrialWavefunction) then
+                            if (tTrialState) occ_trial_amps(i_trial-trial_merged) = occ_trial_amps(i_trial)
+                            if (tConState) occ_con_amps(i_conn-con_merged) = occ_con_amps(i_conn)
+                        end if
+
                     ENDIF
+
                     TotParts=TotParts+abs(CurrentSign)
                     ! CMO
                     norm_psi_squared = norm_psi_squared + sum(CurrentSign**2)
@@ -1706,6 +1745,8 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                 ENDIF
             enddo
             TotWalkersNew=TotWalkersNew-DetsMerged
+            ntrial_occ = ntrial_occ-trial_merged
+            ncon_occ = ncon_occ-con_merged
         ENDIF
 
 !        do i=1,TotWalkersNew
