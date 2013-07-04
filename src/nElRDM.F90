@@ -1198,8 +1198,8 @@ MODULE nElRDMMod
             !We need to consider both possibilities - whether we attempted to spawn 
             !int(SignCurr) times or int(SignCurr)+1 times
             p_max_walktospawn=abs(SignCurr(1)-real(int(SignCurr(1)),dp))
-            p_not_spawn = p_max_walktospawn*(p_notlist_rdmfac**abs(int(SignCurr(1)))) + &
-                        (1.0_dp-p_max_walktospawn)*(p_notlist_rdmfac**(abs(int(SignCurr(1)))+1))
+            p_not_spawn = (1.0_dp - p_max_walktospawn)*(p_notlist_rdmfac**abs(int(SignCurr(1)))) + &
+                        p_max_walktospawn*(p_notlist_rdmfac**(abs(int(SignCurr(1)))+1))
 
         else
             p_not_spawn=p_notlist_rdmfac**(abs(SignCurr(1)))
