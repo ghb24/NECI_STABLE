@@ -20,7 +20,7 @@ module semi_stoch_gen
                          PDetermTag, IDetermTag, trial_space, trial_space_size, SemiStoch_Init_Time
     use gndts_mod, only: gndts
     use hash, only: DetermineDetNode
-    use LoggingData, only: tWriteCore
+    use LoggingData, only: tWriteCore, tRDMonFly
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIArg, MPIAllGatherV, &
                              MPIAllGather, MPIScatter, MPIScatterV
@@ -143,6 +143,8 @@ contains
         else
             call calculate_determ_hamiltonian_normal()
         end if
+
+        if (tRDMonFly) call generate_core_connections()
 
         ! Finally, move the states to CurrentDets.
         call add_semistoch_states_to_currentdets()
@@ -596,7 +598,7 @@ contains
 
         use davidson, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
                             sparse_hamil_type
-        use sparse_hamil, only: sparse_matrix_info, sparse_ham, hamil_diag
+        use sparse_hamil, only: sparse_ham, hamil_diag
 
         integer, intent(in) :: called_from
         integer(n_int), allocatable, dimension(:,:) :: ilut_store, temp_space

@@ -1,8 +1,8 @@
 #include  "macros.h"
 
 ! This module contains a type and routines for defining and creating a sparse Hamiltonian.
-! The type created to store this information is sparse_matrix_info. For an N-by-N matrix,
-! one creates a 1d array of type sparse_matrix_info. Each element of this array stores the
+! The type created to store this information is sparse_matrix_real. For an N-by-N matrix,
+! one creates a 1d array of type sparse_matrix_real. Each element of this array stores the
 ! information on one single row of the matrix - the positions of the non-zero elements
 ! and their values, in the same order. This completley defines the matrix.
 
@@ -25,13 +25,19 @@ module sparse_hamil
 
     implicit none
 
-    type sparse_matrix_info
+    type sparse_matrix_real
         real(dp), allocatable, dimension(:) :: elements
         integer, allocatable, dimension(:) :: positions
         integer :: num_elements
-    end type sparse_matrix_info
+    end type sparse_matrix_real
 
-    type(sparse_matrix_info), allocatable, dimension(:) :: sparse_ham
+    type sparse_matrix_int
+        integer(sp), allocatable, dimension(:) :: elements
+        integer(sp), allocatable, dimension(:) :: positions
+        integer :: num_elements
+    end type sparse_matrix_int
+
+    type(sparse_matrix_real), allocatable, dimension(:) :: sparse_ham
     integer(TagIntType), allocatable, dimension(:,:) :: SparseHamilTags
 
     ! For quick access it is often useful to have just the diagonal elements. Note,
@@ -40,8 +46,11 @@ module sparse_hamil
     integer(TagIntType) :: HDiagTag
 
     ! The core Hamiltonian for semi-stochastiic simulations.
-    type(sparse_matrix_info), allocatable, dimension(:) :: sparse_core_ham
+    type(sparse_matrix_real), allocatable, dimension(:) :: sparse_core_ham
     integer(TagIntType), allocatable, dimension(:,:) :: SparseCoreHamilTags
+
+    ! Stores the parities for all connected pairs of states in the core space.
+    type(sparse_matrix_int), allocatable, dimension(:) :: core_connections
 
 contains
 
@@ -250,7 +259,7 @@ contains
 
         ! Allocate a single row and add it to the memory manager.
 
-        type(sparse_matrix_info), intent(inout) :: sparse_matrix(:)
+        type(sparse_matrix_real), intent(inout) :: sparse_matrix(:)
         integer, intent(in) :: row, sparse_row_size
         character(len=*), intent(in) :: sparse_matrix_name
         integer(TagIntType), intent(inout) :: sparse_tags(2)
@@ -275,7 +284,7 @@ contains
 
         ! Deallocate the whole array, and remove all rows from the memory manager.
 
-        type(sparse_matrix_info), intent(inout), allocatable :: sparse_matrix(:)
+        type(sparse_matrix_real), intent(inout), allocatable :: sparse_matrix(:)
         character(len=*), intent(in) :: sparse_matrix_name
         integer(TagIntType), intent(inout), allocatable :: sparse_tags(:,:)
         integer :: sparse_matrix_size, i, ierr

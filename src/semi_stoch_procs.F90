@@ -26,8 +26,8 @@ module semi_stoch_procs
                              MPIAllGatherV, MPISum, MPISumAll
     use ras, only: core_ras
     use sort_mod, only: sort
-    use sparse_hamil, only: sparse_matrix_info, sparse_core_ham, SparseCoreHamilTags, &
-                            deallocate_sparse_ham
+    use sparse_hamil, only: sparse_core_ham, SparseCoreHamilTags, deallocate_sparse_ham, &
+                            core_connections
     use SystemData, only: tSemiStochastic, tCSFCore, tDeterminantCore, tDoublesCore, &
                           tCASCore, tRASCore, cas_determ_not_bitmask, core_ras1_bitmask, &
                           core_ras3_bitmask, nel, OccDetermCASOrbs, tHPHF, nBasis, BRR, &
@@ -197,6 +197,70 @@ contains
         call LogMemDealloc(t_r, TempStoreTag, ierr)
 
     end subroutine calculate_determ_hamiltonian_normal
+
+    subroutine generate_core_connections()
+
+        if (tSparseCoreHamil) then
+            call generate_core_connections_sparse()
+        else
+            ! To be implemented.
+            ! call generate_core_connections_full()
+        end if
+
+    end subroutine generate_core_connections
+
+    subroutine generate_core_connections_sparse()
+
+        integer :: i, j, ierr
+        integer :: Ex(2,nel)
+        logical :: tSign
+        integer(n_int), allocatable, dimension(:,:) :: temp_store
+        integer(TagIntType) :: TempStoreTag
+        character(len=*), parameter :: t_r = "calculate_det_hamiltonian_sparse"
+
+        Ex = 0
+        Ex(1,1) = nel
+
+        allocate(core_connections(determ_proc_sizes(iProcIndex)))
+
+        allocate(temp_store(0:NIfTot, determ_space_size), stat=ierr)
+        call LogMemAlloc('temp_store', maxval(determ_proc_sizes)*(NIfTot+1), 8, t_r, &
+                         TempStoreTag, ierr)
+
+        ! Stick together the deterministic states from all processors, on all processors.
+        call MPIAllGatherV(SpawnedParts(:,1:determ_proc_sizes(iProcIndex)), temp_store, &
+                       determ_proc_sizes, determ_proc_indices)
+
+        ! Over all core states on this processor.
+        do i = 1, determ_proc_sizes(iProcIndex)
+
+            ! The number of non-zero elements in this array will be the same as in the
+            ! core Hamiltonian array, so reuse this information to allocate these arrays.
+            allocate(core_connections(i)%elements(sparse_core_ham(i)%num_elements)) 
+            allocate(core_connections(i)%positions(sparse_core_ham(i)%num_elements))
+
+            ! The total number of non-zero elements in row i.
+            core_connections(i)%num_elements = sparse_core_ham(i)%num_elements
+            ! The positions of the non-zero elements in this row i.
+            core_connections(i)%positions = sparse_core_ham(i)%positions 
+
+            ! Over all core states.
+            do j = 1, core_connections(i)%num_elements
+
+                call GetBitExcitation(SpawnedParts(0:NIfD,i), temp_store(0:NIfD, core_connections(i)%positions(j)), &
+                                      Ex,tSign)
+                if (tSign) then
+                    ! Odd number of permutations.
+                    core_connections(i)%elements(j) = -1
+                else
+                    ! Even number of permutations.
+                    core_connections(i)%elements(j) = 1
+                end if
+
+            end do
+        end do
+
+    end subroutine generate_core_connections_sparse
 
     subroutine remove_repeated_states(list, list_size)
 

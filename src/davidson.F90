@@ -7,7 +7,7 @@ module davidson
 use constants
 use FciMCData, only: hamiltonian, DavidsonTag
 use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
-use sparse_hamil, only: sparse_matrix_info, sparse_ham, hamil_diag, HDiagTag
+use sparse_hamil, only: sparse_ham, hamil_diag, HDiagTag
 
 implicit none
 
