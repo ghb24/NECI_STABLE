@@ -1,5 +1,5 @@
 module mcpaths
-    use util_mod, only: isnan_neci
+    use util_mod, only: isnan_neci, neci_etime
 contains
 
 !C.. Calculate RHO^(P)_II without having a stored H matrix
@@ -55,7 +55,7 @@ contains
          INTEGER I_P,I_HMAX,BRR(*),NMSH,NMAX
          INTEGER NTAY(2),NWHTAY(3,I_VMAX),ILOGGING,I,I_V
          INTEGER L,LT,J
-         real(sp) otime,itime,tarr(2),neci_etime
+         real(sp) otime,itime,tarr(2)
          real(dp) BETA,ECORE
          real(dp) WLRI,WLSI
          HElement_t UMat(*),RH
@@ -242,7 +242,8 @@ contains
                ENDIF
             ELSEIF(I_CHMAX.EQ.-7.OR.I_CHMAX.EQ.-19) THEN
              IF(G_VMC_FAC.NE.0.0_dp) THEN
-!C..   We couple a vertex monte carlo at this vertex level (and subsequent is g_MultiWeight has non-zero values) to a known result at previous
+!C..   We couple a vertex monte carlo at this vertex level (and subsequent is g_MultiWeight 
+!has non-zero values) to a known result at previous
 !C.. levels by regarding all previous levels as a composite object with the Et and wi
 !C.. we have already worked out.g_MultiWeight(0) contains the sum of the weightings of the levels 
                 g_MultiWeight(0)=0.0_dp
@@ -443,7 +444,7 @@ contains
          INTEGER L,LT
          real(sp) ITIME(2)
          real(dp) BETA,ECORE
-         real(sp) tarr(2),neci_etime
+         real(sp) tarr(2)
          real(dp) WLRI,WLSI
          real(dp) F(2:I_VMAX)
          CHARACTER(40) STR

@@ -54,8 +54,9 @@ MODULE Logging
     LOGICAL tMCOutput
     logical :: tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
     integer :: iProjEBins
-    logical :: tDumpForcesInfo, tPrintLagrangian 
-        !Print out the 1RDM,2RDM and Lagrangian to file at the end of a run as long as 2RDM is calculated
+    logical :: tDumpForcesInfo
+    logical :: tPrintLagrangian  !Print out the 1RDM,2RDM and Lagrangian to file 
+                                 !at the end of a run as long as 2RDM is calculated
     logical :: tCalcInstantS2, tCalcInstSCpts, tCalcInstantS2Init
     integer :: instant_s2_multiplier, instant_s2_multiplier_init
     integer :: iHighPopWrite
@@ -64,6 +65,13 @@ MODULE Logging
     logical :: tJustBlocking
     integer :: iBlockEquilShift,iBlockEquilProjE
     logical :: tDiagAllSpaceEver,tCalcVariationalEnergy
+
+    ! Do we want to split the popsfile up into multiple bits?
+    logical :: tSplitPops
+
+    ! What is the mininum weight on a determinant required for it to be
+    ! included in a binary pops file?
+    real(dp) :: binarypops_min_weight
 
     contains
 
@@ -186,6 +194,9 @@ MODULE Logging
       tDumpForcesInfo = .false.
       tPrintLagrangian = .false.
       instant_s2_multiplier_init = 1
+      binarypops_min_weight = 0
+
+      tSplitPops = .false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -553,16 +564,18 @@ MODULE Logging
         case("PRINTRODUMP")
             tPrintRODump=.true.
             tROFciDump = .true.
-! This is to do with the calculation of the MP2 or CI natural orbitals.  This should be used if we want 
-! the transformation matrix of the natural orbitals to be found, but no ROFCIDUMP file to be printed 
-! (i.e. the integrals don't need to be transformed).  This is so that at the end of a calculation, we 
-! may get the one body reduced density matrix from the wavefunction we've found, and then use the 
-! MOTRANSFORM file printed to visualise the natural orbitals with large occupation numbers.
+! This is to do with the calculation of the MP2 or CI natural orbitals.  
+!This should be used if we want the transformation matrix of the 
+! natural orbitals to be found, but no ROFCIDUMP file to be printed (i.e. 
+!the integrals don't need to be transformed).  This is so that at the end 
+! of a calculation, we may get the one body reduced density matrix from the 
+!wavefunction we've found, and then use the MOTRANSFORM file printed to 
+! visualise the natural orbitals with large occupation numbers.
 
         case("CALCRDMENERGY")
 !This takes the 1 and 2 electron RDM and calculates the energy using the RDM expression.            
-!For this to be calculated, RDMExcitLevel must be = 3, so there is a check to make sure 
-!this is so if the CALCRDMENERGY keyword is present.
+!For this to be calculated, RDMExcitLevel must be = 3, so there is a check to make sure this 
+!is so if the CALCRDMENERGY keyword is present.
             IF(item.lt.nitems) THEN
                 call readu(w)
                 select case(w)
@@ -595,7 +608,7 @@ MODULE Logging
             tPrintInitiators = .true.
         
         case("WRITERDMSTOREAD")
-! Writes out the unnormalised RDMs (in binary), so they can be read back in, and the calculations restarted at a later point.            
+! Writes out the unnormalised RDMs (in binary), so they can be read back in, and the calculations restarted at a later point 
 ! This is also tied to the POPSFILE/BINARYPOPS keyword - so if we're writing a normal POPSFILE, we'll write this too, 
 ! unless **WRITERDMSTOREAD** OFF is used.
             IF(item.lt.nitems) THEN
@@ -616,7 +629,7 @@ MODULE Logging
             twrite_normalised_RDMs = .false.
 
         case("READRDMS")
-! Read in the RDMs from a previous calculation, and continue accumulating the RDMs from the very beginning of this restart.            
+! Read in the RDMs from a previous calculation, and continue accumulating the RDMs from the very beginning of this restart. 
             tReadRDMs = .true.
 
         case("WRITERDMSEVERY")
@@ -629,8 +642,8 @@ MODULE Logging
             tInitiatorRDM = .true.
 
         case("DUMPFORCESINFO")
-! Using the finalised 2RDM, calculate the Lagrangian X used for the calculation of the forces, and dump all 
-! these in Molpro-friendly format.
+! Using the finalised 2RDM, calculate the Lagrangian X used for the calculation of the forces, 
+!and dump all these in Molpro-friendly format
             tDumpForcesInfo = .true.
         
         case("PRINTLAGRANGIAN")
@@ -696,8 +709,9 @@ MODULE Logging
             tPrintDoubsUEG=.true.
             IF(item.lt.nitems) call readi(StartPrintDoubsUEG)
         case("PRINTORBOCCSINIT")
-! This option initiates the above histogramming of determinant populations and then at the end of the spawning uses 
-! these to find the normalised contribution of each orbital to the total wavefunction.  
+!This option initiates the above histogramming of determinant populations and then 
+!at the end of the spawning uses these to find the normalised  
+!contribution of each orbital to the total wavefunction.  
             tPrintOrbOcc=.true.
             tPrintOrbOccInit=.true.
             IF(item.lt.nitems) call readi(StartPrintOrbOcc)
@@ -711,7 +725,8 @@ MODULE Logging
             IF(item.lt.nitems) THEN
                 call readi(iWritePopsEvery)
                 IF(iWritePopsEvery.lt.0) THEN
-!If a negative argument is supplied to iWritePopsEvery, then the POPSFILE will never be written out, even at the end of a simulation.
+!If a negative argument is supplied to iWritePopsEvery, then the POPSFILE will 
+!never be written out, even at the end of a simulation.
 !If it is exactly zero, this will be the same as without any argument, and a
 !popsfile will only be written out in the instance of a clean exit
                     TPopsFile=.false.
@@ -727,10 +742,20 @@ MODULE Logging
             call readi(iPopsPartEvery)
         case("POPSFILETIMER")
             call readf(PopsfileTimer)   !Write out a POPSFILE every "PopsfileTimer" hours.
+
         case("BINARYPOPS")
-!This means that the popsfile (full or reduced) will now be written out in binary format. 
-!This should now take up less space, and be written quicker.
-            tBinPops=.true.
+            ! This means that the popsfile (full or reduced) will now be 
+            ! written out in binary format. This should now take up less 
+            ! space, and be written quicker.
+            !
+            ! By default, all particles are written into the popsfile. If 
+            ! a minimum weight is proveded, only those particles with at ]east
+            ! that weight are included.
+            tBinPops= .true.
+            if (item < nitems) then
+                call readf(binarypops_min_weight)
+            end if
+
         case("INCREMENTPOPS")
 ! Don't overwrite existing POPSFILES.
             tIncrementPops = .true.
@@ -892,6 +917,14 @@ MODULE Logging
             ! n.b. This is NOT quantitatively correct.
             !      --> Only of QUALITATIVE utility.
             tCalcInstSCpts = .true.
+
+        case ("SPLIT-POPS")
+            ! Do we want to split a popfile up into multiple parts which are
+            ! output on each of the nodes, and need to be combined/split-up and
+            ! distributed to the nodes on our (sequential) time rather than
+            ! on multi-processor time?
+            tSplitPops = .true.
+            tBinPops = .true.
 
 
         case("ENDLOG")

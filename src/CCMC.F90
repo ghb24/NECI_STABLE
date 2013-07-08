@@ -4,14 +4,14 @@ MODULE CCMC
     use constants
     use CCMCData
     use ClusterList
-    use bit_rep_data, only: NIfDBO, NIfTot
-    use bit_reps, only: encode_det, extract_sign, encode_sign
+    use bit_rep_data, only: NIfDBO, NIfTot, extract_sign
+    use bit_reps, only: encode_det, encode_sign
     use Parallel_neci
     use DetBitOps, only: FindBitExcitLevel, FindExcitBitDet
     use FciMCParMod, only: calculate_new_shift_wrapper, AttemptCreatePar, &
                            CheckAllowedTruncSpawn, SumEContrib
     use FciMCData, only: iter, tDebug, TotWalkers, NoatHF, Noatdoubs, &
-                         MaxIndex, TotParts, Walker_time, iPartBloom, &
+                         MaxIndex, TotParts, Walker_time, &
                          ValidSpawnedList, InitialSpawnedSlots, ilutHF, &
                          CurrentDets, iter_data_ccmc, fcimc_excit_gen_store, &
                          tTruncSpace, CurrentH, NoBorn, SpawnedParts, NoDied,&
@@ -36,6 +36,7 @@ MODULE CCMC
 #else
     integer, parameter :: iout = 6
 #endif
+    integer :: iPartBloom
    CONTAINS
 
 #include "macros.h"
@@ -2353,7 +2354,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    Use Logging, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
    USE Logging , only : tHistSpawn,iWriteHistEvery,tPopsFile
    USE DetCalcData , only : ICILevel
-   use CalcData, only: InitWalkers,NEquilSteps
+   use CalcData, only: InitWalkers, NEquilSteps, tReadPops
    use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
    USE dSFMT_interface , only : genrand_real2_dSFMT
    use CalcData, only: MemoryFacSpawn
@@ -2365,9 +2366,11 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use shared_alloc, only: shared_allocate_iluts, shared_deallocate
    use CalcData, only: tAddToInitiator,InitiatorWalkNo,tTruncInitiator
    use bit_reps, only: encode_sign,extract_sign
-   use FciMCParMod, only: ChangeVars,WriteToPopsFileParOneArr ,tReadPops,ReadFromPopsfileOnly
+   use PopsFileMod, only: WriteToPopsFileParOneArr, ReadFromPopsfileOnly
+   use FciMCParMod, only: ChangeVars
    use FciMCData, only: SpawnedParts,ValidSpawnedList,InitialSpawnedSlots
    use FciMCData, only: hash_shift, hash_iter !For cycle-dependent hashes
+   use CalcData, only: MemoryFacPart,tInstGrowthRate
    use FciMCData, only: tTimeExit,MaxTimeExit !For TIME command
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
@@ -2446,6 +2449,11 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 !   Etime%timer_name='ETime'
    iDebug=CCMCDebug
 
+
+   If(.not.tInstGrowthRate) then
+      write(iout,*) "AVGROWTHRATE is ON, but is not compatible with CCMC. Turning it off."
+      tInstGrowthRate=.true.
+   endif
    Call SetupParameters()
 !Init hash shifting data
    hash_iter=0
@@ -2461,7 +2469,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    else
       iMaxAmpLevel=nEl
    endif
-   nMaxAmpl=int(InitWalkers,sizeof_int)
+   nMaxAmpl=int(InitWalkers*MemoryFacPart,sizeof_int)
    WalkerScale=1
 ! Setup Memory
 #ifndef __SHARED_MEM
@@ -2798,6 +2806,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
 
 ! Find the largest 10 amplitudes in each level
 !   call WriteMaxExcitorList(iout,AL%Amplitude(:,iCurAmpList),DetList,FCIDetIndex,iMaxAmpLevel,10)
+
+   nullify(SpawnedParts)
    LogDealloc(tagSpawnList)
    Deallocate(SpawnList)
    call DeallocateAmplitudeList(AL)
@@ -2886,7 +2896,8 @@ subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
             iNext=1
             do i=0,nCores-1
                p=(Ends(i)-Starts(i))+1
-               DetList(:,iNext:iNext+p-1)=DetList(:,Starts(i):Ends(i))  !This is potentially overlapping, but is allowed in Fortran90+
+!This is potentially overlapping, but is allowed in Fortran90+
+               DetList(:,iNext:iNext+p-1)=DetList(:,Starts(i):Ends(i))  
                iNext=iNext+int(p,MPIArg)
             enddo
             nAmpl=iNext-1

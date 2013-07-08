@@ -55,15 +55,18 @@ MODULE UMatCache
      INTEGER, DIMENSION(:), POINTER :: INVBRR => null()
      INTEGER, DIMENSION(:), POINTER :: INVBRR2 => null()
 
-!NOCC is number of occupied spatial orbitals - needed for test in UMATInd, thought would be quicker than passing it in each time.
+!NOCC is number of occupied spatial orbitals - needed for test in UMATInd, thought would be quicker 
+!than passing it in each time.
 !Freezetransfer is a temporary measure to tell UMATIND when the freezing of orbitals is occuring.
       INTEGER :: NOCC
       LOGICAL :: FREEZETRANSFER
 
 
 ! Book-keeping information
-! nSlotsInit is the number of slots requested on input.  If the number required is less, then the lower value is allocated
-! If nSlotsInit is set to 0, then general <ij|u|kl> element caching is not performed, but UMat2D <ij|u|ij> and <ij|u|ji> is.  For nSlotsInit=-1 neither is performed.
+! nSlotsInit is the number of slots requested on input.  If the number required is less, 
+!then the lower value is allocated
+! If nSlotsInit is set to 0, then general <ij|u|kl> element caching is not performed, but 
+!UMat2D <ij|u|ij> and <ij|u|ji> is.  For nSlotsInit=-1 neither is performed.
       INTEGER nSlotsInit,nMemInit
 
 ! UMatCacheFlag=0 is normal operation
@@ -212,7 +215,8 @@ MODULE UMatCache
          INTEGER R,S,T,U,A,B,C,D,AA,BB
          IF(TSTARSTORE) THEN
             !Rearrange, so that orbitals ordered over energy, and first two indices are occupied
-            !Could be a problem in the future r.e. partially filled degenerate fermi levels - is BRR then the best way to determine if an orbital is occupied or not??
+            !Could be a problem in the future r.e. partially filled degenerate fermi levels - 
+            !is BRR then the best way to determine if an orbital is occupied or not??
             IF(NOCCUPIED.EQ.0) THEN
                 R=INVBRR(I)
                 S=INVBRR(J)
@@ -251,7 +255,8 @@ MODULE UMatCache
                 T=D
                 U=C
             ENDIF
-            !During the freezing routine, it tries to lookup <ia|ib>, for the h_ab integrals where a & b are distinct and virtual, but these are unneeded if just considering double excitations.
+            !During the freezing routine, it tries to lookup <ia|ib>, for the h_ab integrals 
+ !where a & b are distinct and virtual, but these are unneeded if just considering double excitations.
             IF(FREEZETRANSFER.and.(S.gt.NOCC)) THEN
                 UMatInd=-1
                 RETURN
@@ -491,7 +496,8 @@ MODULE UMatCache
 
             UMatCacheData=(0.0_dp)
             UMATLABELS(1:nSlots,1:nPairs)=0
-!If tSmallUMat is set here, and have set tCacheFCIDUMPInts, then we need to read in the <ik|u|jk> integrals from the FCIDUMP file, then disperse them using the
+!If tSmallUMat is set here, and have set tCacheFCIDUMPInts, then we need to read in 
+!the <ik|u|jk> integrals from the FCIDUMP file, then disperse them using the
 !FillUMatCache routine. Otherwise, we need to read in all the integrals.
             if (.not.tSmallUMat.and.tReadInCache) then
                 write (6,*) 'reading in cache'
@@ -1357,7 +1363,8 @@ MODULE UMatCache
 ! \|/
 !  adcb .* -> dabc .*<>
 
-!Now consider what must occur to the other integral in the slot to recover pair (abcd,cbad).  0 indicates 1st in slot, 1 means 2nd.  * indicated conjg.
+!Now consider what must occur to the other integral in the slot to recover pair 
+!(abcd,cbad).  0 indicates 1st in slot, 1 means 2nd.  * indicated conjg.
 !
 !  ..    abcd  cbad  0  1
 !  *.    cbad  abcd  1  0
@@ -1369,8 +1376,10 @@ MODULE UMatCache
 !  **<>  dcba  bcda  0* 1
 
 
-! Of the type, bit zero indicates which of the two integrals in a slot to use.  Bit 1 is set if the integral should be complex conjugated.
-!   Bit 2 is set if the other integral in the slot should be complex conjugated if we are to have the structure (<ij|kl>,<kj|il>) in the slot.
+! Of the type, bit zero indicates which of the two integrals in a slot to use.  
+!Bit 1 is set if the integral should be complex conjugated.
+!   Bit 2 is set if the other integral in the slot should be complex conjugated 
+!if we are to have the structure (<ij|kl>,<kj|il>) in the slot.
 !      This is only used by CacheUMatEl when adding a slot to the cache.
 !
 !  <ij|u|kl> and <kj|u|il> (which are distinct when complex orbitals are used).

@@ -9,6 +9,7 @@ MODULE SymExcit3
     use constants, only: n_int
     USE GenRandSymExcitNUMod, only: SymLabelList2,SymLabelCounts2,ClassCountInd,ScratchSize
     use SymExcitDataMod, only: SpinOrbSymLabel
+    use get_excit, only: make_double
     IMPLICIT NONE
 
 
@@ -173,9 +174,11 @@ MODULE SymExcit3
         ENDIF
 
 !        IF(ExcitMat3(2,2).eq.0) THEN
-!            WRITE(6,"(A,I3,A,I3,L)") "GENERATED SINGLE EXCITATION: ",ExcitMat3(1,1)," -> ",ExcitMat3(2,1),tAllExcitFound
+!            WRITE(6,"(A,I3,A,I3,L)") "GENERATED SINGLE EXCITATION: ",
+!ExcitMat3(1,1)," -> ",ExcitMat3(2,1),tAllExcitFound
 !        ELSE
-!            WRITE(6,"(A,2I3,A,2I3,L)") "GENERATED DOUBLE EXCITATION: ",ExcitMat3(1,1),ExcitMat3(1,2)," -> ",ExcitMat3(2,1),ExcitMat3(2,2),tAllExcitFound
+!            WRITE(6,"(A,2I3,A,2I3,L)") "GENERATED DOUBLE EXCITATION: ",
+!ExcitMat3(1,1),ExcitMat3(1,2)," -> ",ExcitMat3(2,1),ExcitMat3(2,2),tAllExcitFound
 !        ENDIF
 
 
@@ -234,7 +237,8 @@ MODULE SymExcit3
             IF(OrbaIndex.eq.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) THEN
                 !Orba was the last in the symmetry block. Do not allow OrbaIndex+1
 
-! Either we're got to the final spin symmetry, or the next orbital after Orba does not have the same symmetry as Orbi.                
+! Either we're got to the final spin symmetry, or the next orbital after 
+!Orba does not have the same symmetry as Orbi.                
 ! Need to move onto the next i, and find a new a to match.
                 OrbiIndex=OrbiIndex+1
                 IF(OrbiIndex.le.NEl) THEN
@@ -363,7 +367,7 @@ MODULE SymExcit3
 ! The overall symmetry must also be maintained - i.e. if i and j are alpha and beta, a and b must be alpha and beta
 ! or vice versa.
         USE SystemData , only: ElecPairs, tFixLz, iMaxLz
-        USE GenRandSymExcitNUMod , only: PickElecPair,FindNewDet 
+        USE GenRandSymExcitNUMod , only: PickElecPair
         use constants, only: bits_n_int
         INTEGER :: nI(NEl),Orbj,Orbi,Orba,Orbb,Syma,Symb,NewSym
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
@@ -453,7 +457,8 @@ MODULE SymExcit3
                     ENDIF
 
                     IF(OrbaChosen.gt.nBasis) THEN
-!We have reached the end of all allowed symmetries for the a orbital, only taking into account spin symmetry. Choose new ij pair now.
+!We have reached the end of all allowed symmetries for the a orbital, only taking 
+!into account spin symmetry. Choose new ij pair now.
                         tNewij=.true.
                         EXIT
                     ENDIF
@@ -590,7 +595,8 @@ MODULE SymExcit3
                         tFirstb=.true.
 !                        write(6,*) "New OrbaChosen: ",OrbaChosen
                         IF(OrbaChosen.gt.nBasis) THEN
-!We have reached the end of all allowed symmetries for the a orbital, only taking into account spin symmetry. Choose new ij pair now.
+!We have reached the end of all allowed symmetries for the a orbital, only taking 
+!into account spin symmetry. Choose new ij pair now.
                             tNewij=.true.
                             ijInd=ijInd+1
 !                            write(6,*) "ijInd: ",ijInd
@@ -617,7 +623,8 @@ MODULE SymExcit3
         enddo lp
 
         if(tDoubleExcitFound.and.(.not.tAllExcitFound)) then
-            CALL FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,Orba,Orbb,ExcitMat3,tParity)
+            call make_double (nI, nJ, elec1ind, elec2ind, orbA, orbB, &
+                              ExcitMat3, tParity)
 !        else
 !            write(6,*) "Exiting loop with all excitations found: ",tAllExcitFound
         endif
@@ -626,7 +633,8 @@ MODULE SymExcit3
 !        WRITE(6,*) 'From',ExcitMat3(1,:),'To',ExcitMat3(2,:)
 !
 !        WRITE(6,*) 'Excitation from : ',ExcitMat3(1,1),ExcitMat3(1,2),' to ',Orba,Orbb
-!        WRITE(6,*) 'These have symmetries : ',INT(G1(ExcitMat3(1,1))%Sym%S,4),INT(G1(ExcitMat3(1,2))%Sym%S,4),' to ',INT(G1(Orba)%Sym%S,4),INT(G1(Orbb)%Sym%S,4)
+!        WRITE(6,*) 'These have symmetries : ',INT(G1(ExcitMat3(1,1))%Sym%S,4),
+!INT(G1(ExcitMat3(1,2))%Sym%S,4),' to ',INT(G1(Orba)%Sym%S,4),INT(G1(Orbb)%Sym%S,4)
 !        WRITE(6,*) 'These have symmetries : ',G1(ExcitMat3(1,1))%Ml,G1(ExcitMat3(1,2))%Ml,' to ',G1(Orba)%Ml,G1(Orbb)%Ml
 !        WRITE(6,*) 'The new determinant is : ',nJ(:)
 !        CALL neci_flush(6)

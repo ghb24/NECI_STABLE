@@ -6,6 +6,7 @@
 ! TODO: Use ilut_int/ilut_off here?
 #define IsOcc(ilut,orb) btest(ilut((orb-1)/bits_n_int), mod(orb-1,bits_n_int))
 #define IsNotOcc(ilut,orb) (.not.IsOcc(ilut,orb))
+#define IsUnoccDet(sgn) all(sgn==0)
 
 ! Is the specified orbital alpha or beta? Generate the appropriate pair.
 #define is_beta(orb) btest(orb, 0)
@@ -35,11 +36,11 @@
 #ifdef __DEBUG
 #define ASSERT(x) \
 if (.not. (x)) then; \
- call stop_all (this_routine, "Assertation failed: "//"x"); \
+ call stop_all (this_routine, "Assert fail: "//"x"); \
 endif
 #define ASSERTROOT(x) \
 if ((iProcIndex.eq.Root).and.(.not. (x))) then; \
- call stop_all (this_routine, "Assertation failed: "//"x"); \
+ call stop_all (this_routine, "Assert fail: "//"x"); \
 endif
 ! Do some debugging if X>=Y
 #define IFDEBUG(PrintLevel,ThisLevel) if (PrintLevel>=ThisLevel)

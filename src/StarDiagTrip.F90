@@ -197,7 +197,8 @@
 !        nExcit(1)=0
 !        CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcit,nJ,iMaxExcit,0,nStore,exFlagHF)
 !
-!!Run through all possible excitations from HF. j counts the double excitations, while Vert counts the vertex which is being reattached to HF
+!!Run through all possible excitations from HF. j counts the double excitations, while Vert counts the 
+!vertex which is being reattached to HF
 !        j=0
 !        Vert=0
 !        TotElem=1
@@ -289,7 +290,8 @@
 !                ALLOCATE(Vecs(i+1),stat=ierr)
 !                CALL LogMemAlloc('Vecs',i+1,8,this_routine,VecsTag)
 !
-!!Next, we need to diagonalise this excited star matrix. ALL eigenvalues, and the first element of all the eigenvectors needed...bummer...
+!!Next, we need to diagonalise this excited star matrix. ALL eigenvalues, and the first 
+!element of all the eigenvectors needed...bummer...
 !                IF(.NOT.BTEST(Meth,0)) THEN
 !!This will diagonalise each excited star fully - v. slow - order N^3
 !!For some annoying reason, DiagRhos needs to be of type real(dp)...

@@ -77,7 +77,8 @@ contains
         integer A,B,symI,symJ,Block,ind,K,L
         A=mod(I,2)
         B=mod(J,2)
-        !If TMatInd = -1, then the spin-orbitals have different spins, or are symmetry disallowed therefore have a zero integral (apart from in UHF - might cause problem if we want this)
+        !If TMatInd = -1, then the spin-orbitals have different spins, or are symmetry disallowed 
+!therefore have a zero integral (apart from in UHF - might cause problem if we want this)
         IF(A.ne.B) THEN
             TMatInd=-1
             RETURN
@@ -129,7 +130,8 @@ contains
         INTEGER I,J,A,B,symI,symJ,Block,ind,K,L
         A=mod(I,2)
         B=mod(J,2)
-        ! If TMatInd = -1, then the spin-orbitals have different spins, or are symmetry disallowed therefore have a zero integral (apart from in UHF - might cause problem if we want this)
+        ! If TMatInd = -1, then the spin-orbitals have different spins, or are symmetry 
+!disallowed therefore have a zero integral (apart from in UHF - might cause problem if we want this)
         IF(A.ne.B) THEN
             NEWTMatInd=-1
             RETURN

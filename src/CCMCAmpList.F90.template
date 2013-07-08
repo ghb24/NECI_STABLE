@@ -139,17 +139,21 @@ pure function GetAmpl(AL,iIndex,iAmpList) result(r)
    type(AmplitudeList_%(name)s), intent(in) :: AL
    INTEGER, intent(in) ::  iAmpList,iIndex
    %(type1)s, dimension(lenof_sign) :: r
+   
+   if (iIndex > 0) then
 #ifdef __CMPLX
-   r=0
-   if(AL%%IsImag(iIndex,iAmpList)) then
-      r(1)=AL%%Amplitude(iIndex,iAmpList)
-   else
-      r(2)=AL%%Amplitude(iIndex,iAmpList)
-   endif
+       r = 0
+       if(AL%%IsImag(iIndex,iAmpList)) then
+          r(1)=AL%%Amplitude(iIndex,iAmpList)
+       else
+          r(2)=AL%%Amplitude(iIndex,iAmpList)
+       endif
 #else
-   r(1)=AL%%Amplitude(iIndex,iAmpList)
+       r(1)=AL%%Amplitude(iIndex,iAmpList)
 #endif
-   return 
+    else
+        r = 0
+    end if
 end function !GetAmpl
 
 subroutine SetAmpl(AL,iIndex,iAmpList,r)
@@ -244,8 +248,8 @@ Contains
 !Writes out a compressed excitor list where signs are contained within the Particles and whose values are >=dTol
 subroutine WriteExcitorList_btrp(iUnit,AL,iAmpList,Dets,offset,nDet,dTol,Title)
    use FciMCData, only: iLutHF
-   use bit_reps, only: extract_sign,extract_flags
-   use bit_rep_data, only: nIfTot
+   use bit_reps, only: extract_flags
+   use bit_rep_data, only: nIfTot, extract_sign
    use constants, only: lenof_sign
    IMPLICIT NONE
    INTEGER iUnit,nDet
@@ -277,8 +281,11 @@ pure function GetAmpl_btrp(AL,iIndex,iAmpList) result(r)
    type(AmplitudeList_btrp), intent(in) :: AL
    INTEGER, intent(in) ::  iAmpList,iIndex
    integer,dimension(lenof_sign) :: r
-   call extract_sign(AL%BitReps(:,iIndex),r)
-   return 
+   if (iIndex < 0) then
+       r = 0
+   else
+       call extract_sign(AL%BitReps(:,iIndex),r)
+   end if
 end function !GetAmpl
 
 subroutine SetAmpl_btrp(AL,iIndex,iAmpList,r)

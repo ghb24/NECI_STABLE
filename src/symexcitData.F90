@@ -16,9 +16,11 @@ MODULE SymExcitDataMod
     ! Do we want to extract lists of occupied / unoccupied orbitals when
     ! decoding bit determinants in the main FCIMC loop?
     logical :: tBuildOccVirtList = .false.
-
-    INTEGER , ALLOCATABLE :: OrbClassCount(:)  !This is set up in SpinOrbSymSetup, and is a default ClassCount excitation generator, from which it is then easier to set up the determinant specific ones.
-    INTEGER , ALLOCATABLE :: kPointToBasisFn(:,:,:,:) !This is set up in SpinOrbSymSetup for the hubbard model, indicies are kx, ky, kz and a spin index value
+!This is set up in SpinOrbSymSetup, and is a default ClassCount excitation generator, 
+!from which it is then easier to set up the determinant specific ones.
+    INTEGER , ALLOCATABLE :: OrbClassCount(:)  
+    !This is set up in SpinOrbSymSetup for the hubbard model, indicies are kx, ky, kz and a spin index value
+    INTEGER , ALLOCATABLE :: kPointToBasisFn(:,:,:,:) 
     INTEGER :: kTotal(3) !This is the total momentum of the reference configuration
 
     INTEGER , ALLOCATABLE :: SpinOrbSymLabel(:)        !Find symmetry label (for symexcit routines: 0 -> nSymLabels-1) from BasisFn

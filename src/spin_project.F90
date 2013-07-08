@@ -3,7 +3,8 @@ module spin_project
     use SystemData, only: LMS, STOT, nel, nbasis, tHPHF
     use CalcData, only: tau, tTruncInitiator
     use SymExcitDataMod, only: scratchsize
-    use bit_reps, only: NIfD, NIfTot, extract_sign, flag_is_initiator, &
+    use bit_rep_data, only: extract_sign
+    use bit_reps, only: NIfD, NIfTot, flag_is_initiator, &
                         flag_make_initiator, test_flag, set_flag, &
                         flag_parent_initiator
     use csf, only: csf_get_yamas, get_num_csfs, csf_coeff, random_spin_permute
@@ -387,7 +388,7 @@ contains
                                             fcimc_excit_gen_store%nopen)
 
         if (tHPHF) then
-            ASSERT(count_open_orbs(ilutI) /= 0)
+ASSERT(count_open_orbs(ilutI) /= 0)
             hel = 2 * hel
         endif
 

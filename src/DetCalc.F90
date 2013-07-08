@@ -5,6 +5,7 @@ MODULE DetCalc
         use sort_mod
         use DetCalcData
         use MemoryManager, only: TagIntType
+        use gndts_mod, only: gndts
         
     IMPLICIT NONE
      save
@@ -27,9 +28,11 @@ MODULE DetCalc
       HElement_t, pointer :: CKN(:,:) !  (nDet,nEval)  Temporary storage for the Lanczos routine
       INTEGER(TagIntType) :: tagCKN=0
 
-      real(dp) , ALLOCATABLE :: ExpandedHamil(:,:)    ! (NDet,NDet) This is the hamiltonian in expanded form, so that it can be histogrammed against.
+      real(dp) , ALLOCATABLE :: ExpandedHamil(:,:)    ! (NDet,NDet) This is the hamiltonian in expanded form, 
+                                                      !so that it can be histogrammed against.
 
-      INTEGER iExcitLevel                 ! The excitation level at which determinants are cut off.  This differs from ICILevel for tCCBuffer.
+      INTEGER iExcitLevel                 ! The excitation level at which determinants are cut off.  
+                                          !This differs from ICILevel for tCCBuffer.
     
 CONTAINS
     Subroutine DetCalcInit
@@ -71,17 +74,24 @@ CONTAINS
       ENDIF
 
 !Copied Specdet information from Calc.F, so if inspect is present, but no determinant/csf specified, it will still run.
-      IF(TCSFOLD.AND.TSPECDET) THEN
-         WRITE(6,*) "TSPECDET set.  SPECDET is"
-         call write_det (6, SPECDET, .true.)
-         CALL NECI_ICOPY(NEL,SPECDET,1,FDET,1)
-         CALL GETCSFFROMDET(FDET,SPECDET,NEL,STOT,LMS)
-         WRITE(6,*) "CSF with 2S=",STOT," and 2Sz=",LMS," now in SPECDET is"
-         call write_det (6, SPECDET, .true.)
-      ELSEIF(TSPECDET.AND.(.not.ISVALIDDET(SPECDET,NEL))) THEN
-         WRITE(6,*) "TSPECDET set, but invalid.  using FDET"
-!         tSpecDet=.false.
-         CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
+      if(TSPECDET) then
+         if(TCSFOLD) then
+             WRITE(6,*) "TSPECDET set.  SPECDET is"
+             call write_det (6, SPECDET, .true.)
+             CALL NECI_ICOPY(NEL,SPECDET,1,FDET,1)
+             CALL GETCSFFROMDET(FDET,SPECDET,NEL,STOT,LMS)
+             WRITE(6,*) "CSF with 2S=",STOT," and 2Sz=",LMS," now in SPECDET is"
+             call write_det (6, SPECDET, .true.)
+         elseif(.not.associated(specdet)) then
+            !specdet not allocated. Allocate it and copy fdet
+             allocate(specdet(nel))
+             WRITE(6,*) "TSPECDET set, but not allocated.  using FDET"
+             CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
+         elseif(.not.ISVALIDDET(SPECDET,NEL)) then
+             WRITE(6,*) "TSPECDET set, but invalid.  using FDET"
+!             tSpecDet=.false.
+             CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
+         endif
       ELSEIF(TCSFOLD) THEN  !No help given on generating this CSF.  Let's just get a single one out of GNCSFs
          NDET=1
          CALL GNCSFS(NEL,nBasis,BRR,NBASISMAX,FDET,.FALSE.,G1,TSPN,LMS2,TPARITY, &
@@ -683,7 +693,8 @@ CONTAINS
                 else
                     call sort (temp(1:Det), FCIDets(:,1:Det), FCIGS(1:Det))
                 endif
-!                CALL Stop_All("DetCalc","Cannot do histogramming FCI without JUSTFINDDETS at the moment (need new sorting - bug ghb24)")
+!                CALL Stop_All("DetCalc","Cannot do histogramming FCI without JUSTFINDDETS at the 
+                    !moment (need new sorting - bug ghb24)")
             ENDIF
 
 !Test that HF determinant is the first determinant
@@ -767,7 +778,8 @@ CONTAINS
 !                        call stop_all(this_routine,"Sym partner not found")
 !                    endif
 !                    ICConnect = FindBitExcitLevel(FCIDets(:,i),iLutMomSym,nel)
-!                    write(PairedUnit,"(2I16,15I4,2G19.8)") FCIDets(0:NIfD,i),iLutMomSym(0:NIfD),TempnI(:),MomSymDet(:),IC,ICSym,ICConnect,FCIGS(i),FCIGS(Ind)
+!                    write(PairedUnit,"(2I16,15I4,2G19.8)") FCIDets(0:NIfD,i),
+                        !iLutMomSym(0:NIfD),TempnI(:),MomSymDet(:),IC,ICSym,ICConnect,FCIGS(i),FCIGS(Ind)
 !                enddo
 !                close(PairedUnit)
 !                close(SelfInvUnit)
@@ -813,8 +825,10 @@ CONTAINS
 !                                CALL HPHFGetOffDiagHElement(NMRKS(1:NEl,1),nK,MatEl)
 !                            ENDIF
 !                            CALL HPHFGetDiagHElement(nK,MatEl2)
-!!                            WRITE(23,"(A,2I14,3G20.10,I5,2G20.10)") "Closed ",FCIDets(0:NIfD,i),iLutSym(:),FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs,MatEl,MatEl2
-!!                        WRITE(23,"(A,2I14,3G20.10,I5)") "Closed ",FCIDets(0:NIfD,i),iLutSym(:),FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs
+!!                            WRITE(23,"(A,2I14,3G20.10,I5,2G20.10)") "Closed ",FCIDets(0:NIfD,i),iLutSym(:),
+                            !FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs,MatEl,MatEl2
+!!                        WRITE(23,"(A,2I14,3G20.10,I5)") "Closed ",FCIDets(0:NIfD,i),iLutSym(:),FCIGS(i),
+                                !FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs
 !                    ELSE
 !                        IF(abs(FCIGS(i)).gt.1.0e-5_dp) THEN 
 !!Find Hi0 element
@@ -824,7 +838,8 @@ CONTAINS
 !                            CALL HPHFGetDiagHElement(nK,MatEl2)
 !!                            Ex(1,1)=NEl
 !!                            CALL GETEXCITATION(nJ,nK,NEl,Ex,TSign)
-!                            WRITE(23,"(A,3I14,3G20.10,I5,2G20.10)") "Open   ",i,FCIDets(0:NIfD,i),iLutSym(:),FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs,MatEl,MatEl2
+!                            WRITE(23,"(A,3I14,3G20.10,I5,2G20.10)") "Open   ",i,FCIDets(0:NIfD,i),iLutSym(:),i
+                                        !FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs,MatEl,MatEl2
 !                        ENDIF
 !                    ENDIF
 !                ENDIF

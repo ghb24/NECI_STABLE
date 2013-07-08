@@ -17,7 +17,7 @@ MODULE AnnihilationMod
     use sort_mod
     use constants, only: n_int,lenof_sign,null_part,sizeof_int
     use bit_rep_data
-    use bit_reps, only: decode_bit_det, extract_sign, extract_flags, &
+    use bit_reps, only: decode_bit_det, extract_flags, &
                         encode_sign, encode_flags, test_flag, set_flag, &
                         clr_flag, flag_parent_initiator, encode_part_sign, &
                         extract_part_sign, copy_flag
@@ -422,7 +422,8 @@ MODULE AnnihilationMod
                         ! No point in doing anything more with it.
 
                         Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = SpawnedParts(NIfTot+1:NIfTot+NIfDBO+2,BeginningBlockDet)
-                        ! The first NIfDBO of the Spawned_Parents entry is the parent determinant, the NIfDBO + 1 entry is the biased Ci.
+                        ! The first NIfDBO of the Spawned_Parents entry is the parent determinant, 
+                        !the NIfDBO + 1 entry is the biased Ci.
                         ! Parent_Array_Ind keeps track of the position in Spawned_Parents.
                         Spawned_Parents_Index(1,VecInd) = Parent_Array_Ind
                         Spawned_Parents_Index(2,VecInd) = 1
@@ -805,7 +806,7 @@ MODULE AnnihilationMod
                 FinalVal=HashIndex(0,DetHash)-1
 !                write(6,*) "FinalVal: ",FinalVal
                 do clash=1,FinalVal
-                    ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
+ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                     if(DetBitEQ(SpawnedParts(:,i),CurrentDets(:,HashIndex(clash,DetHash)),NIfDBO)) then
                         !We have found the matching determinant
                         tSuccess=.true.
@@ -953,7 +954,7 @@ MODULE AnnihilationMod
                 endif
             endif
                 
-            if((.not.tSuccess).or.(sum(abs(CurrentSign)) .eq. 0)) then
+            if((.not.tSuccess).or.(tSuccess.and.(sum(abs(CurrentSign)) .eq. 0))) then
                 if(tTruncInitiator) then
                     ! Determinant in newly spawned list is not found in currentdets - usually this 
                     ! would mean the walkers just stay in this list and get merged later - but in 
@@ -994,7 +995,7 @@ MODULE AnnihilationMod
                             SignTemp(j) = 0
                             call encode_part_sign (SpawnedParts(:,i), 0, j)
 
-                            if(tHashWalkerList.and.(sum(abs(CurrentSign)) .eq. 0)) then
+                            if(tHashWalkerList.and.(tSuccess.and.sum(abs(CurrentSign)).eq.0)) then
                                 !All walkers in this main list have died, and none have been spawned onto it.
                                 !Remove it from the hash index array so that no others find it (it is impossible to have
                                 !another spawned walker yet to find this determinant)
@@ -1038,12 +1039,14 @@ MODULE AnnihilationMod
 
         if(.not.tHashWalkerList) then
 
-!Now we have to remove the annihilated particles from the spawned list. They will be removed from the main list at the end of the annihilation process.
+!Now we have to remove the annihilated particles from the spawned list. They will be 
+!removed from the main list at the end of the annihilation process.
 !It may actually be easier to just move the annihilated particles to the end of the list and resort the list?
 !Or, the removed indices could be found on the fly? This may have little benefit though if the memory isn't needed.
             IF((ToRemove+Spawned_Parts_Zero).gt.0) THEN
 
-!Since reading and writing from the same array is slow, copy the information accross to the other spawned array, and just swap the pointers around after.
+!Since reading and writing from the same array is slow, copy the information accross to the 
+!other spawned array, and just swap the pointers around after.
                 DetsMerged=0
                 do i=1,ValidSpawned
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
@@ -1198,20 +1201,6 @@ MODULE AnnihilationMod
 
     end subroutine EnlargeHashTable
 
-    PURE LOGICAL FUNCTION IsUnoccDet(CurrentSign)
-        INTEGER, DIMENSION(lenof_sign), INTENT(IN) :: CurrentSign
-
-        IF(lenof_sign.eq.1) THEN
-            IsUnoccDet=CurrentSign(1).eq.0
-        ELSE
-            IF((CurrentSign(1).eq.0).and.(CurrentSign(lenof_sign).eq.0)) THEN
-                IsUnoccDet=.true.
-            ELSE
-                IsUnoccDet=.false.
-            ENDIF
-        ENDIF
-    END FUNCTION IsUnoccDet
-    
     
     SUBROUTINE CalcHashTableStats(TotWalkersNew)
         use util_mod, only: abs_int_sign
@@ -1282,6 +1271,7 @@ MODULE AnnihilationMod
 !            write(6,*) "i, HashIndex(i,DetHash): ",i, HashIndex(i,DetHash)
             if(HashIndex(i,DetHash).eq.DetPosition) exit
         enddo
+!        write(6,*) "Det: ",nI(:)
 !        write(6,*) "DetHash: ",DetHash
 !        write(6,*) "FinalVal: ",FinalVal
 !        write(6,*) "DetPosition: ",DetPosition
@@ -1298,11 +1288,14 @@ MODULE AnnihilationMod
     end subroutine RemoveDetHashIndex
 
     
-!This routine will run through the total list of particles (TotWalkersNew in CurrentDets with sign CurrentSign) and the list of newly-spawned but
-!non annihilated particles (ValidSpawned in SpawnedParts and SpawnedSign) and move the new particles into the correct place in the new list,
+!This routine will run through the total list of particles (TotWalkersNew in CurrentDets 
+!with sign CurrentSign) and the list of newly-spawned but
+!non annihilated particles (ValidSpawned in SpawnedParts and SpawnedSign) and move the 
+!new particles into the correct place in the new list,
 !while removing the particles with sign = 0 from CurrentDets. 
 !Binary searching can be used to speed up this transfer substantially.
-!The key feature which makes this work, is that it is impossible for the same determinant to be specified in both the spawned and main list at the end of
+!The key feature which makes this work, is that it is impossible for the same determinant 
+!to be specified in both the spawned and main list at the end of
 !the annihilation process. Therefore we will not multiply specify determinants when we merge the lists.
     SUBROUTINE InsertRemoveParts(ValidSpawned,TotWalkersNew)
         use util_mod, only: abs_int_sign
@@ -1573,7 +1566,8 @@ MODULE AnnihilationMod
                 PartInd=N
                 RETURN
             ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
-!The value of the determinant at N is LESS than the determinant we're looking for. Therefore, move the lower bound of the search up to N.
+!The value of the determinant at N is LESS than the determinant we're looking for. 
+!Therefore, move the lower bound of the search up to N.
 !However, if the lower bound is already equal to N then the two bounds are consecutive and we have failed...
                 i=N
             ELSEIF(i.eq.N) THEN

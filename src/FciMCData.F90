@@ -72,8 +72,9 @@ MODULE FciMCData
       !as free slots are used up for *newly spawned* walkers onto previously unoccupied determinants only
       integer :: iEndFreeSlot   !Position of last free slot, so after we exceed this, just add the the end of the main list.
  
-!      real(dp) :: AvDiagSftAbort,SumDiagSftAbort,DiagSftAbort     !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying, and
-                                                                !the instantaneous shift, including the number of aborted as though they had lived.
+!      real(dp) :: AvDiagSftAbort,SumDiagSftAbort,DiagSftAbort     
+!This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying, and
+                                     !the instantaneous shift, including the number of aborted as though they had lived.
 
       real(dp) :: DiagSftRe,DiagSftIm     !For complex walkers - this is just for info - not used for population control.
     
@@ -83,7 +84,7 @@ MODULE FciMCData
       INTEGER :: MaxWalkersPart,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
       integer(int64) :: TotWalkers, TotWalkersOld
       integer(int64), dimension(lenof_sign) :: TotParts, TotPartsOld
-      integer(int64) :: norm_psi_squared
+      integer(int64) :: norm_psi_squared, all_norm_psi_squared
       real(dp) :: norm_psi
       INTEGER :: exFlag=3
       real(dp) :: AccumRDMNorm, AccumRDMNorm_Inst, AllAccumRDMNorm
@@ -94,7 +95,8 @@ MODULE FciMCData
       integer :: nClashMax,nWalkerHashes    !Number of hash clashes allowed, and length of hash table respectively
       real(dp) :: HashLengthFrac
 
-!The following variables are calculated as per processor, but at the end of each update cycle, are combined to the root processor
+!The following variables are calculated as per processor, but at the end of each update cycle, 
+!are combined to the root processor
       real(dp) :: GrowRate,DieRat
       HElement_t :: SumENum
 
@@ -107,8 +109,8 @@ MODULE FciMCData
       ! The averaged 'absolute' projected energy - calculated over the last update cycle
       ! The magnitude of each contribution is taken before it is summed in
       HElement_t :: AbsProjE
-
-      integer(int64), dimension(lenof_sign) :: SumNoatHF      !This is the sum over all previous cycles of the number of particles at the HF determinant
+!This is the sum over all previous cycles of the number of particles at the HF determinant
+      integer(int64), dimension(lenof_sign) :: SumNoatHF      
       real(dp) :: AvSign           !This is the average sign of the particles on each node
       real(dp) :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
       INTEGER(KIND=int64) :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
@@ -117,23 +119,25 @@ MODULE FciMCData
       INTEGER :: NoatDoubs
       INTEGER :: Acceptances      !This is the number of accepted spawns - this is only calculated per node.
       real(dp) :: AccRat            !Acceptance ratio for each node over the update cycle
-      INTEGER :: PreviousCycles   !This is just for the head node, so that it can store the number of previous cycles when reading from POPSFILE
+!This is just for the head node, so that it can store the number of previous cycles when reading from POPSFILE
+      INTEGER :: PreviousCycles   
       INTEGER :: NoBorn,NoDied
-      INTEGER :: SpawnFromSing  !These will output the number of particles in the last update cycle which have been spawned by a single excitation.
+ !These will output the number of particles in the last update cycle which have been spawned by a single excitation.
+      INTEGER :: SpawnFromSing  
       INTEGER :: AllSpawnFromSing
-      INTEGER, DIMENSION(lenof_sign) :: HFCyc            !This is the number of HF*sign particles on a given processor over the course of the update cycle
-      HElement_t :: AllHFCyc          !This is the sum of HF*sign particles over all processors over the course of the update cycle
+      INTEGER, DIMENSION(lenof_sign) :: HFCyc            !This is the number of HF*sign particles on a given processor over th
+      HElement_t :: AllHFCyc          !This is the sum of HF*sign particles over all processors over the course of the update c
       HElement_t :: OldAllHFCyc       !This is the old *average* (not sum) of HF*sign over all procs over previous update cycle
-      HElement_t :: ENumCyc           !This is the sum of doubles*sign*Hij on a given processor over the course of the update cycle
-      HElement_t :: AllENumCyc        !This is the sum of double*sign*Hij over all processors over the course of the update cycle
-      HElement_t :: ENumCycAbs        !This is the sum of abs(doubles*sign*Hij) on a given processor over the course of the update cycle
-      HElement_t :: AllENumCycAbs     !This is the sum of abs(double*sign*Hij) over all processors over the course of the update cycle
+      HElement_t :: ENumCyc           !This is the sum of doubles*sign*Hij on a given processor over the course of the update c
+      HElement_t :: AllENumCyc        !This is the sum of double*sign*Hij over all processors over the course of the update cyc
+      HElement_t :: ENumCycAbs        !This is the sum of abs(doubles*sign*Hij) on a given processor "" "" "" 
+      HElement_t :: AllENumCycAbs     !This is the sum of abs(double*sign*Hij) over all processors over the course of the updat
 
       ! The projected energy over the current update cycle.
       HElement_t :: ProjECyc
 
-      integer :: iPartBloom   ! The maximum number of children spawned from a
-                              ! single excitation. Used to calculate blooms.
+      real(dp) :: bloom_sizes(0:2), bloom_max(0:2)
+      integer :: bloom_count(0:2), all_bloom_count(0:2)
 
 !These are the global variables, calculated on the root processor, from the values above
       real(dp) :: AllGrowRate
@@ -154,8 +158,9 @@ MODULE FciMCData
   
       HElement_t :: rhii
       real(dp) :: Hii,Fii
-
-      LOGICAL :: TSinglePartPhase                 !This is true if TStartSinglePart is true, and we are still in the phase where the shift is fixed and particle numbers are growing
+!This is true if TStartSinglePart is true, and we are still in the phase where the 
+!shift is fixed and particle numbers are growing
+      LOGICAL :: TSinglePartPhase                 
 
 !      INTEGER :: mpilongintegertype               !This is used to create an MPI derived type to cope with 8 byte integers
 
@@ -163,11 +168,13 @@ MODULE FciMCData
       INTEGER :: MaxIndex
 
       integer :: iBlockingIter                    !The iteration to begin the automatic blocking from 
-      LOGICAL :: tErrorBlocking=.false.           !This becomes true when the blocking error analysis begins, and initiates the calling of the blocking routine.
+ !This becomes true when the blocking error analysis begins, and initiates the calling of the blocking routine.
+      LOGICAL :: tErrorBlocking=.false.           
       LOGICAL :: tShiftBlocking=.false.
 
-      LOGICAL :: TTruncSpace=.false.              !This is a flag set as to whether the excitation space should be truncated or not.
-      LOGICAL :: TFlippedSign=.false.             !This is to indicate when the sign of the particles have been flipped. This is needed for the calculation of the ACF
+      LOGICAL :: TTruncSpace=.false.      !This is a flag set as to whether the excitation space should be truncated or not.
+!This is to indicate when the sign of the particles have been flipped. This is needed for the calculation of the ACF
+      LOGICAL :: TFlippedSign=.false.             
 
       type(timer) :: Walker_Time, Annihil_Time,ACF_Time, Sort_Time, &
                            Comms_Time, AnnSpawned_time, AnnMain_time, &
@@ -178,7 +185,8 @@ MODULE FciMCData
 
       integer :: HolesInList    !This is for tHashWalkerList and indicates the number of holes in the main list this iter
 
-!These are variables needed for the FixCASshift option in which an active space is chosen and the shift fixed only for determinants within this space
+!These are variables needed for the FixCASshift option in which an active space is chosen and the 
+!shift fixed only for determinants within this space
 !The SpinInvBRR vector stores the energy ordering for each spatial orbital, which is the inverse of the BRR vector
       INTEGER, ALLOCATABLE :: SpinInvBRR(:)
       INTEGER(TagIntType) :: SpinInvBRRTag=0
@@ -209,9 +217,11 @@ MODULE FciMCData
       INTEGER , ALLOCATABLE :: DoublesDets(:,:)
       INTEGER(TagIntType) :: DoublesDetsTag
       INTEGER :: NoDoubs
-
-      INTEGER , ALLOCATABLE :: ValidSpawnedList(:) !This is used for the direct annihilation, and ValidSpawnedList(i) indicates the next free slot in the processor iProcIndex ( 0 -> nProcessors-1 )
-      INTEGER , ALLOCATABLE :: InitialSpawnedSlots(:) !This is set up as the initial ValidSpawnedList elements, so that it does not need to be reevaluated each time.
+!This is used for the direct annihilation, and ValidSpawnedList(i) indicates the next 
+!free slot in the processor iProcIndex ( 0 -> nProcessors-1 )
+      INTEGER , ALLOCATABLE :: ValidSpawnedList(:) 
+ !This is set up as the initial ValidSpawnedList elements, so that it does not need to be reevaluated each time.
+      INTEGER , ALLOCATABLE :: InitialSpawnedSlots(:) 
 
       INTEGER :: WalkersDiffProc
 
@@ -220,29 +230,38 @@ MODULE FciMCData
 
       INTEGER :: VaryShiftCycles                    !This is the number of update cycles that the shift has allowed to vary for.
       INTEGER :: VaryShiftIter                     !This is the iteration that the shift can vary.
-      real(dp) :: AvDiagSft,SumDiagSft                !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying.
+      !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying.
+      real(dp) :: AvDiagSft,SumDiagSft                
 
-      real(dp) , ALLOCATABLE :: HistHamil(:,:),AllHistHamil(:,:),AvHistHamil(:,:),AllAvHistHamil(:,:) !These arrays are for histogramming the hamiltonian when tHistHamil is set.
+!These arrays are for histogramming the hamiltonian when tHistHamil is set.
+      real(dp) , ALLOCATABLE :: HistHamil(:,:),AllHistHamil(:,:),AvHistHamil(:,:),AllAvHistHamil(:,:) 
       real(dp) :: TotImagTime
             
-      INTEGER(KIND=n_int) , ALLOCATABLE :: CASMask(:)        !These are masking arrays for the core and external orbitals in the cas space
+      INTEGER(KIND=n_int) , ALLOCATABLE :: CASMask(:)        !These are masking arrays for the core 
+                                                             !and external orbitals in the cas space
       INTEGER(KIND=n_int) , ALLOCATABLE :: CoreMask(:)       !These are masking arrays for the Core orbitals in the cas space
 
-      INTEGER , ALLOCATABLE :: RandomHash(:)    !This is a random indexing scheme by which the orbital indices are randomised to attempt to provide a better hashing performance
+      INTEGER , ALLOCATABLE :: RandomHash(:)    !This is a random indexing scheme by which the orbital indices 
+                                                !are randomised to attempt to provide a better hashing performance
       integer, allocatable :: RandomHash2(:)    !Another random index scheme for the hashing used by tHashWalkerList
 
-      real(dp) :: HFShift     !A 'shift'-like value for the total energy which is taken from the growth of walkers on the HF determinant.
+      real(dp) :: HFShift     !A 'shift'-like value for the total energy which is taken 
+                              !from the growth of walkers on the HF determinant.
       real(dp) :: InstShift   !An instantaneous value for the shift from the growth of walkers.
       INTEGER, DIMENSION(lenof_sign) :: OldAllNoatHF
 
       INTEGER :: iHFProc    !Processor index for HF determinant
 
-      !This data is for calculating the highest population determinant, and potentially restarting the calculation based on this determinant, or changing the determiant which the energy is calculated from.
+      !This data is for calculating the highest population determinant, 
+      !and potentially restarting the calculation based on this determinant, 
+      !or changing the determiant which the energy is calculated from.
       INTEGER :: iHighestPop
       INTEGER , ALLOCATABLE :: ProjEDet(:)
       INTEGER(KIND=n_int) , ALLOCATABLE :: HighestPopDet(:),iLutRef(:)
-      INTEGER(n_int) , ALLOCATABLE :: iLutRefFlip(:)     !If we are using HPHF and projecting onto an open-shell determinant, then it is useful
-                                                        !to store the spin-coupled determinant, so we can calculate projection onto both.
+      INTEGER(n_int) , ALLOCATABLE :: iLutRefFlip(:)     !If we are using HPHF and projecting onto 
+                                                        !an open-shell determinant, then it is useful
+                                                        !to store the spin-coupled determinant, 
+                                                        !so we can calculate projection onto both.
       INTEGER , ALLOCATABLE :: RefDetFlip(:)
       LOGICAL :: tSpinCoupProjE
 
@@ -322,7 +341,8 @@ MODULE FciMCData
 
       !*****************  Yucky globals for AJWT iter-dependent hashes ***********
       integer :: hash_iter       ! An iteration number added to make iteration-dependent hashes
-      integer :: hash_shift      ! -Ln_2 (Cycletime), where CycleTime is the average number of cycles until a det returns to its processor
+! -Ln_2 (Cycletime), where CycleTime is the average number of cycles until a det returns to its processor
+      integer :: hash_shift      
 
       !Variables for very useful histogramming of projected energy contributions
       real(dp), allocatable :: ENumCycHistG(:),AllENumCycHistG(:),ENumCycHistK3(:),AllENumCycHistK3(:)

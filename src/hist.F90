@@ -14,13 +14,13 @@ module hist
     use CalcData, only: tFCIMC, tTruncInitiator
     use DetCalcData, only: FCIDetIndex, det
     use FciMCData, only: tFlippedSign, TotWalkers, CurrentDets, iter, &
-                         norm_psi_squared
+                         all_norm_psi_squared
     use util_mod, only: choose, get_free_unit, binary_search
     use HPHFRandExcitMod, only: FindExcitBitDetSym
     use hphf_integrals, only: hphf_sign
     use constants, only: n_int, bits_n_int, size_n_int, lenof_sign
-    use bit_rep_data, only: NIfTot, NIfD
-    use bit_reps, only: extract_sign, encode_sign, extract_bit_rep, NOffSgn, &
+    use bit_rep_data, only: NIfTot, NIfD, extract_sign
+    use bit_reps, only: encode_sign, extract_bit_rep, NOffSgn, &
                         decode_bit_det, flag_is_initiator, test_flag
     use parallel_neci
     use csf, only: get_num_csfs, csf_coeff, csf_get_yamas, write_yama, &
@@ -536,7 +536,7 @@ contains
             
             write(6,*) 'Scoeffs', iter, S_coeffs
             write(6,*) 'Scsf2', S2
-            write(6,*) 'norm compare', norm, norm_psi_squared
+            write(6,*) 'norm compare', norm, all_norm_psi_squared
         endif
 
         ! Deallocate stuff
@@ -648,9 +648,8 @@ contains
         enddo
 
         ! Sum over all processors and normalise
-        call MPISum(ssq, Allssq)
-        ssq=Allssq
-        ssq = ssq / norm_psi_squared
+        call MPISum_inplace (ssq)
+        ssq = ssq / all_norm_psi_squared
 
         ! TODO: n.b. This is a hack. LMS appears to contain -2*Ms of the system
         !            I am somewhat astounded I haven't noticed this before...
@@ -795,9 +794,8 @@ contains
 
         enddo
 
-        call MPISum(ssq, Allssq)
-        ssq=Allssq
-        ssq = ssq / norm_psi_squared
+        call MPISum_inplace (ssq)
+        ssq = ssq / all_norm_psi_squared
 
         ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the system
         !            I am somewhat astounded I haven't noticed this before...
@@ -910,7 +908,7 @@ contains
             call MPISum(psi_squared, All_psi_squared)
             psi_squared=All_psi_squared
         else
-            psi_squared = norm_psi_squared
+            psi_squared = all_norm_psi_squared
         end if
         call MPISum(ssq_sum, All_ssq_sum)
         ssq_sum=All_ssq_sum

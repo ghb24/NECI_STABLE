@@ -214,7 +214,8 @@ MODULE MCStat
 !               std1=sqrt(M%wDeltaSq(0)/M%nGraphs(0)-ave1*ave1)
                !M%wWeighting(0) gives the running sum of the weightings for the vertex level begin sampled
                 ave2=M%wWeighting(0)/M%nGraphs(0)
-               !bot is Wref + running average of the weighting - wRefWeight is the running sum of weights over all previous vertex levels
+               !bot is Wref + running average of the weighting - wRefWeight is the running sum 
+               !of weights over all previous vertex levels
                bot=M%wRefWeight+ave2
 !               std2=sqrt(1.0_dp-ave2*ave2)
 !               cc=std1/ave1+std2/ave2
@@ -317,7 +318,8 @@ MODULE MCStat
             nBlocks=Int(nGraphs/2**i)
             blockAvg=M%wBlockSum(i)/nBlocks
             blockVar=M%wBlockSumSq(i)/nBlocks-blockAvg**2
-!This /(nBlocks-1) comes from Flyvbjerg's paper, and is because we are working out the best estimator of the stdev,not the actual stdev.
+!This /(nBlocks-1) comes from Flyvbjerg's paper, and is because we are working out 
+!the best estimator of the stdev,not the actual stdev.
             blockError=SQRT(ABS(blockVar/(nBlocks-1.0_dp)))
             blockErrorError=blockError/SQRT(ABS(2.0_dp*(nBlocks-1.0_dp)))
             WRITE(iUnit,"(I7,4G25.16)") i,blockError,blockErrorError,blockAvg,blockVar
@@ -453,7 +455,8 @@ MODULE MCStat
 !1     2        0          0                       26/2
 !0     1        0          0                       26
 
-!i=3.  As we're about to go over length 8, we extend the 8 values into the 16s before we lose them. One of the 5s is added to wCurBlock, and then averaged.  The other two form a remainder.
+!i=3.  As we're about to go over length 8, we extend the 8 values into the 16s before we lose them. 
+!One of the 5s is added to wCurBlock, and then averaged.  The other two form a remainder.
 !i  2**i   wCurBlock(i)   n in wCurBlock(i)    wBlockSum(i)
 !4    16       11          7                       0
 !3     8       5+5         2                       (11+5)/8

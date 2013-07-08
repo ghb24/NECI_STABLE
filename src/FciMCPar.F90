@@ -12,12 +12,15 @@ MODULE FciMCParMod
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
                           LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
                           tNoBrillouin, tKPntSym, tPickVirtUniform, &
-                          tMomInv, tRef_Not_HF, tMolpro
+                          tMomInv, tRef_Not_HF, tMolpro, tAntiSym_MI, &
+                          MolproID
+    use bit_rep_data, only: extract_sign
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
                         flag_is_initiator, clear_all_flags,&
-                        extract_sign, nOffSgn
+                        nOffSgn, flag_make_initiator, flag_parent_initiator, &
+                        encode_sign
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
                         tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&
@@ -31,11 +34,14 @@ MODULE FciMCParMod
                         iRestartWalkNum, tRestartHighPop, FracLargerDet, &
                         tChangeProjEDet, tCheckHighestPop, tSpawnSpatialInit,&
                         MemoryFacInit, tMaxBloom, tTruncNOpen, tFCIMC, &
-                        trunc_nopen_max, tSpawn_Only_Init, tSpawn_Only_Init_Grow, &
+                        trunc_nopen_max, tSpawn_Only_Init, tPopsMapping, &
                         TargetGrowRate, TargetGrowRateWalk, tShiftonHFPop, &
-                        tContinueAfterMP2,iExitWalkers
+                        tContinueAfterMP2, iExitWalkers, tJumpShift, &
+                        tSpawn_Only_Init_Grow
+    use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
+    use MomInv, only: IsMomSelfInv, CalcMomAllowedBitDet
     use Determinants, only: FDet, get_helement, write_det, &
                             get_helement_det_only, lexicographic_store, &
                             get_lexicographic_dets, DefDet
@@ -45,7 +51,9 @@ MODULE FciMCParMod
                                     ScratchSize1, ScratchSize2, ScratchSize3,&
                                     init_excit_gen_store,clean_excit_gen_store
     use GenRandSymExcitCSF, only: gen_csf_excit
-    use IntegralsData , only : fck,NMax,UMat,tPartFreezeCore,NPartFrozen,NHolesFrozen,tPartFreezeVirt,NVirtPartFrozen,NElVirtFrozen
+    use IntegralsData, only: fck, NMax, UMat, tPartFreezeCore, NPartFrozen, &
+                             NHolesFrozen, tPartFreezeVirt, NVirtPartFrozen, &
+                             NElVirtFrozen
     use Logging, only: iWritePopsEvery, TPopsFile, iPopsPartEvery, tBinPops, &
                        iWriteHistEvery, tHistEnergies, FCIMCDebug, &
                        IterShiftBlock, AllHistInitPops, BinRange, iNoBins, &
@@ -78,21 +86,29 @@ MODULE FciMCParMod
                     InstHist, HistMinInd, project_spins, calc_s_squared, &
                     project_spin_csfs, calc_s_squared_multi, &
                     calc_s_squared_star
+    use hist_data, only: HistMinInd2
     USE SymData , only : nSymLabels, Sym_Psi
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE Parallel_neci
     USE FciMCData
-    USE AnnihilationMod
-    use PopsfileMod
+    USE AnnihilationMod, only: DirectAnnihilation, FindWalkerHash, &
+                               RemoveDetHashIndex, EnlargeHashTable
+    use PopsfileMod, only: ReadFromPopsfilePar, FindPopsfileVersion, &
+                           WriteToPopsFileParOneArr, open_pops_head, &
+                           readpopsheadv3, readpopsheadv4, CheckPopsParams, &
+                           ReadFromPopsFile
     use DetBitops, only: EncodeBitDet, DetBitEQ, DetBitLT, FindExcitBitDet, &
                          FindBitExcitLevel, countbits, TestClosedShellDet, &
-                         FindSpatialBitExcitLevel, IsAllowedHPHF
+                         FindSpatialBitExcitLevel, IsAllowedHPHF, &
+                         count_open_orbs
     use hash , only : DetermineDetNode                     
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
-    use MI_integrals
-    use util_mod, only: choose, abs_int_sign, abs_int8_sign, binary_search
+    use MI_integrals, only: MI_diag_helement, MI_spawn_sign, &
+                            MI_off_diag_helement_spawn, MI_off_diag_helement
+    use util_mod, only: choose, abs_int_sign, abs_int8_sign, binary_search, &
+                        neci_etime
     use constants, only: dp, int64, n_int, lenof_sign, sizeof_int
     use soft_exit, only: ChangeVars 
     use FciMCLoggingMod, only: FinaliseBlocking, FinaliseShiftBlocking, &
@@ -118,6 +134,10 @@ MODULE FciMCParMod
                          zero_rdms, fill_rdm_softexit, store_parent_with_spawned, &
                          fill_rdm_diag_currdet_norm, &
                          fill_rdm_diag_currdet_hfsd, calc_rdmbiasfac
+
+    use gndts_mod, only: gndts
+    use sort_mod
+    use get_excit, only: make_double
 
 #ifdef __DEBUG                            
     use DeterminantData, only: write_det
@@ -146,12 +166,12 @@ MODULE FciMCParMod
         real(dp) :: Weight, Energyxw,BestEnergy
         INTEGER :: error
         LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange,tPrintWarn
-        REAL(sp) :: s_start,s_end,tstart(2),tend(2),totaltime,neci_etime
+        REAL(sp) :: s_start,s_end,tstart(2),tend(2),totaltime
         real(dp) :: TotalTime8
         INTEGER(int64) :: MaxWalkers,MinWalkers
         real(dp) :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
         integer, dimension(lenof_sign) :: tmp_sgn
-        integer :: tmp_int(lenof_sign), i
+        integer :: tmp_int(lenof_sign), i, istart
         real(dp) :: grow_rate,EnergyDiff,Norm_2RDM
         TYPE(BasisFn) RefSym
         real(dp) :: mean_ProjE_re,mean_ProjE_im,mean_Shift
@@ -162,6 +182,10 @@ MODULE FciMCParMod
         real(dp) :: get_scalar
         include "common/molen"
 #endif
+
+        character(*), parameter :: this_routine = 'FciMCPar'
+        character(6), parameter :: excit_descriptor(0:2) = &
+                                        (/"IC0   ", "single", "double"/)
 
         if(tJustBlocking) then
             !Just reblock the current data, and do not perform an fcimc calculation
@@ -259,36 +283,34 @@ MODULE FciMCParMod
             
             if (mod(Iter, StepsSft) == 0) then
 
-                ! Has there been a particle bloom this update cycle?
-                if(iProcIndex.eq.Root) then
-                    if(tMaxBloom) then
-                        ! Only print out warnings if it is a larger bloom that has been experienced before.
-                        if(abs(iPartBloom) > iMaxBloom) then
-                            if(abs(iPartBloom) > InitiatorWalkNo) tPrintWarn=.true.
-                            iMaxBloom=abs(iPartBloom)
-                        else
-                            tPrintWarn=.false.
-                        endif
-                    else
-                        if(abs(iPartBloom) > InitiatorWalkNo) then
-                            tPrintWarn=.true.
-                        else
-                            tPrintWarn=.false.
-                        endif
-                    endif
-                    if (tPrintWarn) then
-                        write (iout, bloom_warn_string, advance='no') abs(iPartBloom)
-                        if (iPartBloom > 0) then
-                            write (iout, '("double excit.")')
-                        else
-                            write (iout, '("single excit.")')
-                        endif
-                        if (tUEG2) then
-                            call stop_all("FCIMCPar","Should never bloom in UEG2")
-                        endif
-                    endif
-                    iPartBloom = 0 ! Max number spawned from an excitation
+                ! Has there been a particle bloom this update cycle? Loop
+                ! through the spawned particle types, and output details.
+                ! If outputting only the biggest blooms to date, keep
+                ! track of that.
+                if (iProcIndex == Root) then
+                    istart = 1
+                   ! if (tSpinProjDets) istart = 0
+                    do i = istart, 2
+                        if (bloom_count(i) /= 0) then
+                            if (.not. tMaxBloom .or. &
+                                    bloom_sizes(i) > bloom_max(i)) then
+                                bloom_max(i) = bloom_sizes(i)
+
+                                write(iout, bloom_warn_string) &
+                                    trim(excit_descriptor(i)), bloom_sizes(i),&
+                                    bloom_count(i)
+
+                                if (tUEG2) &
+                                    call stop_all(this_routine, "Should never &
+                                                 &bloom in UEG2")
+
+                            end if
+                        end if
+                    end do
                 endif
+                ! Zero the accumulators
+                bloom_sizes = 0
+                bloom_count = 0
 
                 ! Calculate the a new value for the shift (amongst other
                 ! things). Generally, collate information from all processors,
@@ -334,6 +356,7 @@ MODULE FciMCParMod
                     !Is it time to exit yet?
                     write(iout,"(A,F8.2,A)") "Time limit reached for simulation of: ",MaxTimeExit/60.0," minutes - exiting..."
                     tIncrement=.false.
+                    if(tFillingStochRDMonFly) call fill_rdm_softexit(TotWalkers)
                     EXIT
                 ENDIF
                 IF (proje_update_comb) CALL update_linear_comb_coeffs()
@@ -1109,37 +1132,36 @@ MODULE FciMCParMod
             ! excite from the first particle on a determinant).
             fcimc_excit_gen_store%tFilled = .false.
 
-            if (tSpawn_Only_Init) then
-                call extract_sign (CurrentDets(:,j), SignCurr)
+!            if (tSpawn_Only_Init) then
+!                call extract_sign (CurrentDets(:,j), SignCurr)
+!
+!                ! TODO: Ensure that the HF determinant has its flags setup
+!                !       correctly at the start of a run.
+!                call CalcParentFlag (j, VecSlot, parent_flags)
+!
+!                ! If we are only spawning from initiators, we don't need to do this decoding
+!                ! if CurrentDet is a non-initiator otherwise it is necessary either way.
+!
+!                if (tcurr_initiator)                                         & 
+!                    ! tcurr_initiator is a global variable which indicates that at least one of the 
+!                    ! 'types' of walker on this determinant is an initiator.
+!                    ! Decode determinant from (stored) bit-representation.
+!                    call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
+!                                      FlagsCurr, fcimc_excit_gen_store)
+!            else                                      
 
-                ! TODO: Ensure that the HF determinant has its flags setup
-                !       correctly at the start of a run.
-                call CalcParentFlag (j, VecSlot, parent_flags)
+            ! If we're not calculating the RDM (or we're calculating some HFSD combination of the 
+            ! RDM) this just extracts info from the bit representation like normal.
+            ! IterRDMStartCurr and AvSignCurr just come out as 1.0_dp.  
+            ! Otherwise, it extracts the Curr info, and calculates the iteration this determinant 
+            ! became occupied (IterRDMStartCurr) and the average population during that time 
+            ! (AvSignCurr).
 
-                ! If we are only spawning from initiators, we don't need to do this decoding
-                ! if CurrentDet is a non-initiator otherwise it is necessary either way.
+            call extract_bit_rep_avsign (CurrentDets(:,j), CurrentH(1:NCurrH,j), &
+                                        DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
+                                        AvSignCurr, fcimc_excit_gen_store)
 
-                if (tcurr_initiator)                                         & 
-                    ! tcurr_initiator is a global variable which indicates that at least one of the 
-                    ! 'types' of walker on this determinant is an initiator.
-                    ! Decode determinant from (stored) bit-representation.
-                    call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
-                                      FlagsCurr, fcimc_excit_gen_store)
-            else                                      
-                ! If we're not calculating the RDM (or we're calculating some HFSD combination of the 
-                ! RDM) this just extracts info from the bit representation like normal.
-                ! IterRDMStartCurr and AvSignCurr just come out as 1.0_dp.  
-                ! Otherwise, it extracts the Curr info, and calculates the iteration this determinant 
-                ! became occupied (IterRDMStartCurr) and the average population during that time 
-                ! (AvSignCurr).
-
-                call extract_bit_rep_avsign (CurrentDets(:,j), CurrentH(1:NCurrH,j), &
-                                            DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
-                                            AvSignCurr, fcimc_excit_gen_store)
-
-                if (tTruncInitiator) call CalcParentFlag (j, VecSlot, parent_flags)
-
-            endif                                                          
+            if (tTruncInitiator) call CalcParentFlag (j, VecSlot, parent_flags)
 
             if(tHashWalkerList) then
                 !Test here as to whether this is a "hole" or not...
@@ -1156,9 +1178,9 @@ MODULE FciMCParMod
             !Debug output.
             IFDEBUGTHEN(FCIMCDebug,3)
                 if(lenof_sign.eq.2) then
-                    write(iout,"(A,I10,2I7,I5)",advance='no') "TW:", j,SignCurr,FlagsCurr
+                    write(iout,"(A,I10,2I7,I5)",advance='no') "TW:", j,SignCurr,parent_flags
                 else
-                    write(iout,"(A,I10,I7,I5)",advance='no') "TW:", j,SignCurr,FlagsCurr
+                    write(iout,"(A,I10,I7,I5)",advance='no') "TW:", j,SignCurr,parent_flags
                 endif
                 call WriteBitDet(iout,CurrentDets(:,j),.true.)
                 call neci_flush(iout) 
@@ -1448,11 +1470,11 @@ MODULE FciMCParMod
 
         if (ic == 1) SpawnFromSing = SpawnFromSing + sum(abs(child))
 
-        if(iProcIndex.eq.Root) then
-            if (sum(abs(child)) > abs(iPartBloom)) then
-                iPartBloom = sign(sum(abs(child)), 2*ic - 3)
-            endif
-        endif
+        ! Count particle blooms, and their sources
+        if (sum(abs(child)) > INitiatorWalkNo) then
+            bloom_count(ic) = bloom_count(ic) + 1
+            bloom_sizes(ic) = max(real(sum(abs(child)), dp), bloom_sizes(ic))
+        end if
 
         ! Avoid compiler warnings
         iUnused = iLutI(0); iUnused = iLutJ(0); iUnused = walkExLevel
@@ -1874,17 +1896,17 @@ MODULE FciMCParMod
 
         ! What message should we display for a particle bloom?
         if (tAddToInitiator) then
-            bloom_warn_string = '("Bloom of more than n_add: &
-                                &A max of ", i8, &
-                                &" particles created from ")'
+            bloom_warn_string = '("Bloom of more than n_add on ", a, " excit: &
+                                &A max of ", f10.2, " particles created. ", &
+                                &i8, " blooms occurred.")'
         else
             ! Use this variable to store the bloom cutoff level.
             InitiatorWalkNo = 25
-            bloom_warn_string = '("Particle blooms of more than 25 in &
-                                &iteration ", i14, ": A max of ", i8, &
-                                &" particles created in one attempt from ")'
+            bloom_warn_string = '("Bloom of more than 25 on ", a, " excit: &
+                                &A max of ", f10.2, " particles created. ", &
+                                &i8, " blooms occurred.")'
         endif
-        iMaxBloom=0 !The largest bloom to date.
+        bloom_max = 0
 
         ! Perform the correct statistics on new child particles
         if (tHistHamil) then
@@ -2327,7 +2349,9 @@ MODULE FciMCParMod
             ENDIF
         elseif(tMomInv) then
 
-            write(iout,*) "AttemptCreatePar is a depreciated routine, and is not compatible with MomInv - use attempt_create_normal"
+            write(iout,*) "AttemptCreatePar is a depreciated routine, and is &
+                          &not compatible with MomInv - use &
+                          &attempt_create_normal"
             call stop_all("AttemptCreatePar","This is a depreciated routine.")
         ELSE
 !Normal determinant spawn
@@ -3724,6 +3748,15 @@ MODULE FciMCParMod
             endif
         endif
 
+        ! Deal with particle blooms
+!        if (tSpinProjDets) then
+!            call MPISum(bloom_count(0:2), all_bloom_count(0:2))
+!            call MPIReduce_inplace(bloom_sizes(0:2), MPI_MAX)
+!        else
+            call MPISum(bloom_count(1:2), all_bloom_count(1:2))
+            call MPIReduce_inplace(bloom_sizes(1:2), MPI_MAX)
+!        end if
+
         ! real(dp) values
         call MPISum((/cyc_proje_denominator, sum_proje_denominator/),real_tmp)
         all_cyc_proje_denominator = real_tmp(1)!(1:lenof_sign)
@@ -3779,6 +3812,11 @@ MODULE FciMCParMod
         real(dp) :: AllGrowRateRe, AllGrowRateIm, AllHFGrowRate
         real(dp), dimension(lenof_sign) :: denominator, all_denominator
         integer :: error, i, proc, sgn(lenof_sign), pos
+        logical :: defer_update
+
+        ! Normally we allow the shift to vary depending on the conditions
+        ! tested. Sometimes we want to defer this to the next cycle...
+        defer_update = .false.
 
 !        call neci_flush(iout)
 !        CALL MPIBarrier(error)
@@ -3862,6 +3900,14 @@ MODULE FciMCParMod
                         write(iout,*) "All determinants now with the ability to spawn new walkers."
                         tSpawn_Only_Init=.false.
                     endif
+
+                    ! If enabled, jump the shift to the value preducted by the
+                    ! projected energy!
+                    if (tJumpShift) then
+                        DiagSft = real(proje_iter)
+                        defer_update = .true.
+                    end if
+
                 endif
             elseif (abs_int_sign(AllNoatHF) < (MaxNoatHF - HFPopThresh)) then
                 write (iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
@@ -3873,7 +3919,8 @@ MODULE FciMCParMod
 
             ! How should the shift change for the entire ensemble of walkers 
             ! over all processors.
-            if ((.not. tSinglePartPhase).or.(TargetGrowRate.ne.0.0_dp)) then
+            if (((.not. tSinglePartPhase).or.(TargetGrowRate.ne.0.0_dp)) .and.&
+                .not. defer_update) then
 
                 !In case we want to continue growing, TargetGrowRate > 0.0_dp
                 ! New shift value
@@ -4442,6 +4489,7 @@ MODULE FciMCParMod
         real(dp) :: TotDets,SymFactor,r,Gap,UpperTau
         CHARACTER(len=*), PARAMETER :: t_r='SetupParameters'
         CHARACTER(len=12) :: abstr
+        character(len=24) :: filename
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,tAlreadyOcc
         INTEGER :: HFLz,ChosenOrb,KPnt(3), step,FindProjEBins,SymFinal
         integer(int64) :: ExcitLevPop,SymHF
@@ -4478,6 +4526,7 @@ MODULE FciMCParMod
             if (tReadPops) then
                 ! Restart calculation.  Append to stats file (if it exists).
                 if(tMolpro) then
+                    filename = 'FCIQMCStats_' // adjustl(MolproID)
                     OPEN(fcimcstats_unit,file='FCIQMCStats',status='unknown',position='append')
                 else
                     OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown',position='append')
@@ -4485,7 +4534,8 @@ MODULE FciMCParMod
             else
                 call MoveFCIMCStatsFiles()          !This ensures that FCIMCStats files are not overwritten
                 if(tMolpro) then
-                    OPEN(fcimcstats_unit,file='FCIQMCStats',status='unknown')
+                    filename = 'FCIQMCStats_' // adjustl(MolproID)
+                    OPEN(fcimcstats_unit,file=filename,status='unknown')
                 else
                     OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown')
                 endif
@@ -6702,7 +6752,9 @@ MODULE FciMCParMod
                     call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                             iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                             PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
-                    !The only difference between 3 & 4 is just that 4 reads in via a namelist, so that we can add more details whenever we want.
+                    ! The only difference between 3 & 4 is just that 4 reads 
+                    ! in via a namelist, so that we can add more details 
+                    ! whenever we want.
                 else
                     call stop_all(this_routine,"Popsfile version invalid")
                 endif
@@ -6838,20 +6890,29 @@ MODULE FciMCParMod
                                  ierr)
             endif
 
-!If we have a popsfile, read the walkers in now.
+            !
+            ! If we have a popsfile, read the walkers in now.
             if(tReadPops.and..not.tPopsAlreadyRead) then
 
                 if(iReadWalkersRoot.eq.0) then
-                    ReadBatch=MaxSpawned    !ReadBatch is the number of walkers to read in from the popsfile at one time.
-                                        !The larger it is, the fewer communications will be needed to scatter the particles.
-                                        !By default, the new array (which is only created on the root processors) is the
-                                        !same length as the spawning arrays.
+
+                    ! ReadBatch is the number of walkers to read in from the 
+                    ! popsfile at one time. The larger it is, the fewer
+                    ! communictions will be needed to scatter the particles.
+                    !
+                    ! By default, the new array (which is only created on the 
+                    ! root processors) is the same length as the spawning 
+                    ! arrays.
+                    ReadBatch=MaxSpawned
                 else
                     ReadBatch = iReadWalkersRoot
                 endif
 
-                !TotWalkers and TotParts are returned as the dets and parts on each processor.
-                call ReadFromPopsfile(iPopAllTotWalkers,ReadBatch,TotWalkers,TotParts,NoatHF,CurrentDets,MaxWalkersPart)
+                ! TotWalkers and TotParts are returned as the dets and parts 
+                ! on each processor.
+                call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, &
+                                      TotWalkers ,TotParts, NoatHF, &
+                                      CurrentDets, MaxWalkersPart)
 
                 !Setup global variables
                 TotWalkersOld=TotWalkers
@@ -7094,8 +7155,10 @@ MODULE FciMCParMod
         use sym_mod , only : Getsym, writesym
         use MomInv, only: IsAllowedMI 
         type(BasisFN) :: CASSym
-        integer :: i,j,ierr,nEval,NKRY1,NBLOCK,LSCR,LISCR,DetIndex,iNode,NoWalkers,nBlocks,nBlockStarts(2)
-        integer :: CASSpinBasisSize,elec,nCASDet,ICMax,GC,LenHamil,iInit,nHPHFCAS,Slot,DetHash
+        integer :: i, j, ierr, nEval, NKRY1, NBLOCK, LSCR, LISCR, DetIndex
+        integer :: iNode, NoWalkers, nBlocks, nBlockStarts(2), DetHash, Slot
+        integer :: CASSpinBasisSize, elec, nCASDet, ICMax, GC, LenHamil, iInit
+        integer :: nHPHFCAS, iCasDet
         integer , allocatable :: CASBrr(:),CASDet(:),CASFullDets(:,:),nRow(:),Lab(:),ISCR(:),INDEX(:)
         integer , pointer :: CASDetList(:,:) => null()
         integer(n_int) :: iLutnJ(0:NIfTot)
@@ -7108,6 +7171,8 @@ MODULE FciMCParMod
         integer(TagIntType) :: ISCRTag=0,IndexTag=0,AMTag=0
         integer(TagIntType) :: WorkTag=0
         real(dp) :: CASRefEnergy,TotWeight,PartFac,amp,rat,r,GetHElement
+        real(dp) :: energytmp(nel), max_wt
+        integer  :: tmp_det(nel), det_max
         integer , dimension(lenof_sign) :: temp_sign
         character(len=*) , parameter :: this_routine='InitFCIMC_CAS'
         
@@ -7161,6 +7226,7 @@ MODULE FciMCParMod
         if(tFixLz) then
             write(iout,*) "Ml of CAS determinants: ",CASSym%Ml
         endif
+        call neci_flush(iout)
 
         if(CASSym%Ml.ne.LzTot) call stop_all(this_routine,"Ml of CAS ref det does not match Ml of full reference det")
         if(CASSym%Ms.ne.0) call stop_all(this_routine,"CAS diagonalisation can only work with closed shell CAS spaces initially")
@@ -7169,7 +7235,7 @@ MODULE FciMCParMod
         endif
 
         !First, we need to generate all the excitations.
-        call gndts(OccCASorbs,CASSpinBasisSize,CASBrr,nBasisMax,CASDetList,.true.,G1,tSpn,LMS,.true.,CASSym,nCASDet,CASDet)
+        call gndts(OccCASorbs,CASSpinBasisSize,CASBrr,nBasisMax,CASDetList,.true.,G1,tSpn,LMS,.true.,CASSym,nCASDet,iCASDet)
 
         if(nCASDet.eq.0) call stop_all(this_routine,"No CAS determinants found.")
         write(iout,*) "Number of symmetry allowed CAS determinants found to be: ",nCASDet
@@ -7178,7 +7244,9 @@ MODULE FciMCParMod
         CASDetList(:,:)=0
 
         !Now fill up CASDetList...
-        call gndts(OccCASorbs,CASSpinBasisSize,CASBrr,nBasisMax,CASDetList,.false.,G1,tSpn,LMS,.true.,CASSym,nCASDet,CASDet)
+        call gndts (OccCASorbs, CASSpinBasisSize, CASBrr, nBasisMax, &
+                    CASDetList, .false., G1, tSpn, LMS, .true., CASSym, &
+                    nCASDet, iCASDet)
 
         !We have a complication here. If we calculate the hamiltonian from these CAS determinants, then we are not
         !including the mean-field generated from the other occupied orbitals. We need to either 'freeze' the occupied
@@ -7187,13 +7255,17 @@ MODULE FciMCParMod
         if(ierr.ne.0) call stop_all(this_routine,"Error allocating CASFullDets")
         CASFullDets(:,:)=0
 
+        ! Get the first part of a determinant with the lowest energy, rather
+        ! than lowest index number orbitals
+        energytmp = ARR(ProjEDet, 2)
+        tmp_det = ProjEDet
+        call sort(energytmp, tmp_det)
+
+        ! Construct the determinants resulting from the CAS expansion.
         do i=1,nCASDet
-            do j=1,NEl-OccCASorbs
-                CASFullDets(j,i)=ProjEDet(j)
-            enddo
-            do j=NEl-OccCASorbs+1,NEl
-                CASFullDets(j,i)=CASDetList(j-(NEl-OccCASorbs),i)
-            enddo
+            CASFullDets(1:nel-OccCASorbs,i) = tmp_det(1:nel-OccCASOrbs)
+            CASFullDets(nel-OccCASorbs+1:nel,i) = CASDetList(1:OccCASorbs, i)
+            call sort(CASFullDets(:,i))
         enddo
         deallocate(CASDetList)
 
@@ -7240,9 +7312,9 @@ MODULE FciMCParMod
         !Turn back on HPHF integrals if needed.
         if(tHPHF) tHPHFInts=.true.
 
-        if(abs(CASRefEnergy-Hii).gt.1.0e-7_dp) then
-            call stop_all(this_routine,"CAS reference energy does not match reference energy of full space")
-        endif
+!        if(abs(CASRefEnergy-Hii).gt.1.0e-7_dp) then
+!            call stop_all(this_routine,"CAS reference energy does not match reference energy of full space")
+!        endif
 
         if(nCASDet.gt.1300) then
             !Lanczos
@@ -7336,6 +7408,8 @@ MODULE FciMCParMod
 
         TotWeight=0.0_dp
         nHPHFCAS=0
+        max_wt = 0
+        det_max = 0
         do i=1,nCASDet
             if(tHPHF) then
                 !Only allow valid HPHF functions
@@ -7370,8 +7444,28 @@ MODULE FciMCParMod
             else
                 TotWeight=TotWeight+abs(CK(i,1))
             endif
+
+            ! Find the maximum weighted determinant.
+            if (abs(ck(i, 1)) > max_wt) then
+                max_wt = abs(ck(i, 1))
+                det_max = i
+            end if
         enddo
-        write(iout,*) "Total weight of lowest eigenfunction: ",TotWeight
+
+        ! Output details
+        write(iout,*) "Total weight of lowest eigenfunction: ", TotWeight
+        write(iout,*) "Maximum weighted det: ", det_max, max_wt
+
+        ! If the reference det is not the maximum weighted det, suggest that
+        ! we change it!
+        if (.not. all(CASFullDets(:, det_max) == ProjEDet)) then
+            write(iout,*) 'The specified reference determinant is not the &
+                       &maximum weighted determinant in the CAS expansion'
+            write(iout,*) 'Use following det as reference:'
+            call write_det(6, CASFullDets(:, det_max), .true.)
+            call stop_all(this_routine, "Poor reference chosen")
+        end if
+
         if(tMomInv) write(iout,*) "Converting into momentum-coupled space. Total MI functions: ",nHPHFCAS
         if(tHPHF) write(iout,*) "Converting into HPHF space. Total HPHF CAS functions: ",nHPHFCAS
 
@@ -7755,7 +7849,6 @@ MODULE FciMCParMod
         use SystemData, only: ElecPairs,NMAXX,NMAXY,NMAXZ,OrbECutOff,tGCutoff,GCutoff, &
                                 tMP2UEGRestrict,kiRestrict,kiMsRestrict,kjRestrict,kjMsRestrict, &
                                 Madelung,tMadelung,tUEGFreeze,FreezeCutoff, kvec, tUEG2
-        use GenRandSymExcitNUMod, only: FindNewDet
         use Determinants, only: GetH0Element4, get_helement_excit
         integer :: Ki(3),Kj(3),Ka(3),LowLoop,HighLoop,X,i,Elec1Ind,Elec2Ind,K,Orbi,Orbj
         integer :: iSpn,FirstA,nJ(NEl),a_loc,Ex(2,2),kx,ky,kz,OrbB,FirstB
@@ -7876,7 +7969,8 @@ MODULE FciMCParMod
 
                     !Find det
 !                    write(iout,*) "OrbB: ",OrbB
-                    call FindNewDet(HFDet,nJ,Elec1Ind,Elec2Ind,a_loc,OrbB,Ex,tParity)
+                    call make_double (HFDet, nJ, elec1ind, elec2ind, a_loc, &
+                                      orbB, ex, tParity)
                     !Sum in mp2 contrib
                     hel=get_helement_excit(HFDet,nJ,2,Ex,tParity)
 
@@ -7934,7 +8028,8 @@ MODULE FciMCParMod
 
 !                    write(iout,*) "OrbB: ",OrbB
                     !Find det
-                    call FindNewDet(HFDet,nJ,Elec1Ind,Elec2Ind,a_loc,OrbB,Ex,tParity)
+                    call make_double (HFDet, nJ, elec1ind, elec2ind, a_loc, &
+                                      orbB, ex, tParity)
                     !Sum in mp2 contrib
                     hel=get_helement_excit(HFDet,nJ,2,Ex,tParity)
                     H0tmp=getH0Element4(nJ,HFDet)
@@ -8874,8 +8969,15 @@ END MODULE FciMCParMod
 ! also re-zero all the energy estimators, since they now correspond to
 ! projection onto a different determinant.
 SUBROUTINE ChangeRefDet(DetCurr)
-    use FciMCParMod
-    use SystemData , only : NEl
+    use FciMCParMod, only: DeallocFCIMCMemPar, SetupParameters, &
+                           InitFCIMCCalcPar, iout
+    use DeterminantData, only: FDet
+    use FciMCData, only: initiatorstats_unit, tDebug, iter, fcimcstats_unit, &
+                         complexstats_unit
+    use CalcData, only: tTruncInitiator, tDelayTruncInit
+    use SystemData, only: NEl
+    use Logging, only: tLogComplexPops
+    use Parallel_neci, only: iProcIndex, root
     IMPLICIT NONE
     INTEGER :: DetCurr(NEl),i
 

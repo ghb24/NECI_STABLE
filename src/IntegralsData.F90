@@ -45,6 +45,7 @@ real(dp) :: CST
 
 ! from Calc      
 real(dp) :: ChemPot
-Logical :: tNeedsVirts  ! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
+! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
+Logical :: tNeedsVirts  
 
 end module IntegralsData

@@ -2,10 +2,10 @@
 fc = mpif90
 cc = mpicxx
 ld = mpif90
-ldflags = -i-dynamic
+ldflags = -i-dynamic -rdynamic
 compiler = INTEL-ifort9-on-LINUX
 cpp = cpp -C -traditional
-cppflags = -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2 -D__INT64 -D__SHARED_MEM -DDISABLE_FFTW
+cppflags = -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2 -D__INT64 -D__SHARED_MEM -DDISABLE_FFTW -D__IFORT
 libs = -lacml -cxxlib -lrt -lm
 module_flag = -module
 
@@ -18,3 +18,4 @@ f90flags = -check bounds -stand f03
 fflags = -r8 -O3 -ipo -i8 -pc64 -auto -vec-report0 -warn nousage -ftz -vec-report0 
 cflags = -O -DZLIB
 f90flags = -stand f03
+

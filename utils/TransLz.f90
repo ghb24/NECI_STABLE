@@ -203,7 +203,7 @@ PROGRAM TransLz
             do i=1,NORB
                 IF(SYMLz(i).eq.0) THEN
                     LzPairs(i)=i
-                ELSEIF(SYMLz(i).gt.0) THEN
+                ELSEIF(LzPairs(i).gt.0) THEN !If we've already been allocated, continue
                     CYCLE
                 ELSE
                     !cycle up through the orbitals until the positive value which corresponds is found.
@@ -213,8 +213,10 @@ PROGRAM TransLz
 !                            IF(LzPairs(j).ne.0) STOP 'Pair wanted already taken'
                             LzPairs(i)=j
                             LzPairs(j)=i
+!                            write(6,*) "Pair", i,j
                             EXIT
                         ELSEIF(j.eq.NORB) THEN
+                            write(6,*) "Cannot find pair for orbital ", i
                             STOP 'Cannot pair all orbitals'
                         ENDIF
                     enddo

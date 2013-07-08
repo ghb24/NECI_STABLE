@@ -179,7 +179,8 @@ contains
           I_HMAX=0
           I_VMAX=0
           g_MultiWeight(:)=0
-          TVARCALC(:)=.false.              !This is whether to calculate the expected variance for a MC run when doing full sum (seperate denominator and numerator at present)
+!This is whether to calculate the expected variance for a MC run when doing full sum (seperate denominator and numerator at present
+          TVARCALC(:)=.false.              
           TBIN=.false.
           TVVDISALLOW=.false.
           tMCDirectSum=.FALSE.
@@ -233,13 +234,14 @@ contains
           tSpatialOnlyHash = .false.
           tSpawn_Only_Init = .false.
           tSpawn_Only_Init_Grow = .false.
-          tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
+          tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset 
+          !(by Calc readinput) if I_VMAX=1 and TENERGY is false
 
           lNoTriples=.false.
           tReadPopsChangeRef = .false.
           tReadPopsRestart = .false.
           iLogicalNodeSize = 0 !Meaning use the physical node size
-
+          tJumpShift = .false.
 !Feb 08 default set.
           IF(Feb08) THEN
               RhoEpsilon=1.0e-8_dp
@@ -563,10 +565,13 @@ contains
                 EXCITFUNCS(1)=.true.
 
              case("STEPEXCITWEIGHTING")
-!This excitation weighting involves a step function between the virtual and occupied electon manifold (i.e. step is at the chemical potential)
+!This excitation weighting involves a step function between the virtual and occupied electon 
+!manifold (i.e. step is at the chemical potential)
 !When choosing an electron to move, the probability of selecting it is 1 if the electron is in the virtual manifold
-!and (g_VMC_ExcitWeights(1,1) if in the virtual manifold. When choosing where to excite to, the situation is reversed, and the probability of selecting it is
-!1 if the electron is in the occupied manifold and g_VMC_ExcitWeights(2,1) if in the occupied manifold. U-weighting is the third parameter as before.
+!and (g_VMC_ExcitWeights(1,1) if in the virtual manifold. When choosing where to excite to, the situation is reversed, 
+!and the probability of selecting it is
+!1 if the electron is in the occupied manifold and g_VMC_ExcitWeights(2,1) if in the occupied manifold. 
+!U-weighting is the third parameter as before.
                 call readf(g_VMC_ExcitWeights(1,1))
                 call readf(g_VMC_ExcitWeights(2,1))
                 call readf(G_VMC_EXCITWEIGHT(1))
@@ -699,8 +704,10 @@ contains
 !                tSpawnDominant=.true.
 
             case("PRINTDOMINANTDETS")
-! This option finds the iNoDominantDets most populated determinants with excitation level between MinExcDom and MaxExcDom and
-! prints them to a file named DOMINANTDETS.  This can be later read in as the allowed determinants for spawing in a restricted calc.
+! This option finds the iNoDominantDets most populated determinants with excitation level 
+!between MinExcDom and MaxExcDom and
+! prints them to a file named DOMINANTDETS.  This can be later read in as the allowed determinants 
+!for spawing in a restricted calc.
                 CALL Stop_All(t_r,"PRINTDOMINANTDETS option depreciated")
 !                tPrintDominant=.true.
 !                call geti(iNoDominantDets)
@@ -708,8 +715,10 @@ contains
 !                call geti(MaxExcDom)
 
             case("PRINTDOMSPINCOUPLED")
-! This option finds the iNoDominantDets most populated determinants with excitation level between MinExcDom and MaxExcDom and
-! prints them to a file named DOMINANTDETS.  This can be later read in as the allowed determinants for spawing in a restricted calc.
+! This option finds the iNoDominantDets most populated determinants with excitation level between 
+!MinExcDom and MaxExcDom and
+! prints them to a file named DOMINANTDETS.  This can be later read in as the allowed determinants 
+!for spawing in a restricted calc.
                 CALL Stop_All(t_r,"PRINTDOMSPINCOUPLED option depreciated")
 !                if(item.lt.nitems) then
 !                    call readu(w)
@@ -724,9 +733,12 @@ contains
             case("STARMINORDETERMINANTS")
                 CALL Stop_All(t_r,"STARMINORDETERMINANTS option depreciated")
 !                tMinorDetsStar=.true.
-! This option goes along with the SPAWNDOMINANTONLY option.  However, if this keyword is present, spawning onto determinants that are not in the 
-! dominant determinants list is allowed, however once spawned into this "insignificant" region, walkers may only spawn back onto the determinant 
-! from which they came.  In the mean time, walkers on "insignificant" determinants may live/die and annihilate like any others.
+! This option goes along with the SPAWNDOMINANTONLY option.  However, if this keyword is present, 
+!spawning onto determinants that are not in the 
+! dominant determinants list is allowed, however once spawned into this "insignificant" region, 
+!walkers may only spawn back onto the determinant 
+! from which they came.  In the mean time, walkers on "insignificant" determinants may live/die 
+!and annihilate like any others.
 ! This is a second order perturbation to the SPAWNDOMINANTONLY approximation.
 
             case("TROTTER")
@@ -750,10 +762,12 @@ contains
                 call getf(GraphEpsilon)
             case("PGENEPSILON")
                 call getf(PGenEpsilon)
-!This indicates the number of times the eigenvalues of the star matrix should be evaluated to achieve the linear approximation when STARSTARS set,
+!This indicates the number of times the eigenvalues of the star matrix should be evaluated to 
+!achieve the linear approximation when STARSTARS set,
             case("LINEPOINTSSTAR")
                 call geti(LinePoints)
-!This is the number of vertices in the Graph Morph graph. Alternativly, it is used by ResumFCIMC, as the size of their graphs. Then, if it is negative, the graph is all possible connections
+!This is the number of vertices in the Graph Morph graph. Alternativly, it is used by ResumFCIMC, as the 
+!size of their graphs. Then, if it is negative, the graph is all possible connections
             case("GRAPHSIZE")
                 call geti(NDets)
 !This is the number of times to systematically improve the Graph using the morphing algorithm
@@ -775,27 +789,34 @@ contains
 !This means that determinants can only be attached to each other if they differ by one excitation level from HF
                 TOneExcitConn=.true.
             case("SINGLESEXCITSPACE")
-!This means that the space accessible to the morphing algorithm is the space of single excitations of the determinants in the graph.
+!This means that the space accessible to the morphing algorithm is the space of single 
+!excitations of the determinants in the graph.
                 TSinglesExcitSpace=.true.
             case("FULLDIAGTRIPS")
-!When constructing a star of triples from each double star, then this tag results in a full diagonalisation of this matrix.
+!When constructing a star of triples from each double star, then this tag results in a full 
+!diagonalisation of this matrix.
                 TFullDiag=.true.
             case("MCEXCITS")
 !In GraphMorph, this means that the space of excitations is chosen randomly
-!It is also an option in FCIMC, where it indicates the number of excitations to be chosen randomly from each chosen walker
+!It is also an option in FCIMC, where it indicates the number of excitations to be chosen randomly 
+!from each chosen walker
                 TMCExcits=.true.
                 call geti(NoMCExcits)
             case("GROWINITGRAPH")
-!In GraphMorph, this means that the initial graph is grown non-stochastically from the excitations of consecutive determinants
+!In GraphMorph, this means that the initial graph is grown non-stochastically from the excitations 
+!of consecutive determinants
                 TGrowInitGraph=.true.
             case("GROWGRAPHSEXPO")
-!In GraphMorph, this is the exponent to which the components of the excitation vector and eigenvector will be raised to turn them into probabilities.
+!In GraphMorph, this is the exponent to which the components of the excitation vector and eigenvector 
+!will be raised to turn them into probabilities.
                 call getf(GrowGraphsExpo)
             case("HAPP")
-!For graph MC, this indicates the number of local applications of the hamiltonian to random determinants before the trial eigenvector is updated
+!For graph MC, this indicates the number of local applications of the hamiltonian to random determinants 
+!before the trial eigenvector is updated
                 call geti(HApp)
             case("MAXEXCIT")
-!This imposes a maximum excitation level to the space that GraphMorph can explore. Note: FCIMC uses EXCIT to indicate a maximum excit level.
+!This imposes a maximum excitation level to the space that GraphMorph can explore. Note: FCIMC uses EXCIT 
+!to indicate a maximum excit level.
                 TMaxExcit=.true.
                 call geti(iMaxExcitLevel)
             case("INITWALKERS")
@@ -811,8 +832,10 @@ contains
                 MaxTimeExit=MaxTimeExit*60.0_dp    !Change straightaway so that MaxTimeExit corresponds to SECONDS!
                 tTimeExit=.true.
             case("MAXNOATHF")
-!If the number of walkers at the HF determinant reaches this number, the shift is allowed to change. (This is the total number across all processors).                
-!If a second integer is present, this determinants the threshhold for the HF population.  If the HF population drops below MaxNoatHF-HFPopThresh, the
+!If the number of walkers at the HF determinant reaches this number, the shift is allowed to change. 
+!(This is the total number across all processors).                
+!If a second integer is present, this determinants the threshhold for the HF population.  If the HF 
+!population drops below MaxNoatHF-HFPopThresh, the
 !number of walkers is allowed to grow again until MaxNoatHF is reachieved.
 !Without the second integer, MaxNoatHF-HFPopThresh=0, and the HF population can drop to 0 without any consequences.
                 call geti(tempMaxNoatHF)
@@ -850,7 +873,8 @@ contains
 !For FCIMC, this is the number of MC cycles to perform
                 call geti(NMCyc)
             case("DIAGSHIFT")
-!For FCIMC, this is the amount extra the diagonal elements will be shifted. This is proportional to the deathrate of walkers on the determinant
+!For FCIMC, this is the amount extra the diagonal elements will be shifted. This is proportional to the deathrate of 
+!walkers on the determinant
                 call getf(DiagSft)
                 InputDiagSft = DiagSft
             case("TAUFACTOR")
@@ -858,7 +882,8 @@ contains
                 tSearchTau=.false.  !Tau is set, so don't search for it.
                 call getf(TauFactor)
             case("TAU")
-!For FCIMC, this can be considered the timestep of the simulation. It is a constant which will increase/decrease the rate of spawning/death for a given iteration.
+!For FCIMC, this can be considered the timestep of the simulation. It is a constant which will increase/decrease the rate 
+!of spawning/death for a given iteration.
                 tSearchTau=.false.  !Tau is set, so don't search for it.
                 call getf(Tau)
             case("MAXWALKERBLOOM")
@@ -908,7 +933,8 @@ contains
 !Requires a "mapping" file.
                 tPopsMapping=.true.
             case("READPOPSTHRESH")
-!When reading in a popsfile, this will only save the determinant, if the number of particles on this determinant is greater than iWeightPopRead.
+!When reading in a popsfile, this will only save the determinant, if the number of particles on this 
+!determinant is greater than iWeightPopRead.
                 tReadPops=.true.
                 call readi(iWeightPopRead)
                 if (item.lt.nitems) then
@@ -929,17 +955,21 @@ contains
                 ! determinant.
                 tReadPopsRestart = .true.
             case("WALKCONTGROW")
-!This option goes with the above READPOPS option.  If this is present - the INITWALKERS value is not overwritten, and the walkers are continued to be allowed to grow before reaching                
-!this value.  Without this keyword, when a popsfile is read in, the number of walkers is kept at the number in the POPSFILE regardless of whether the shift had been allowed to change in the previous calc.
+!This option goes with the above READPOPS option.  If this is present - the INITWALKERS value is not 
+!overwritten, and the walkers are continued to be allowed to grow before reaching                
+!this value.  Without this keyword, when a popsfile is read in, the number of walkers is kept at the number 
+!in the POPSFILE regardless of whether the shift had been allowed to change in the previous calc.
                 tWalkContGrow=.true.
             case("SCALEWALKERS")
 !For FCIMC, if this is a way to scale up the number of walkers, after having read in a POPSFILE
                 call getf(ScaleWalkers)
             case("BINCANCEL")
-!This is a seperate method to cancel down to find the residual walkers from a list, involving binning the walkers into their determinants. This has to refer to the whole space, and so is much slower.
+!This is a seperate method to cancel down to find the residual walkers from a list, involving binning the walkers 
+!into their determinants. This has to refer to the whole space, and so is much slower.
                 TBinCancel=.true.
             case("REFSHIFT")
-!With this, the shift is changed in order to keep the population on the reference determinant fixed, rather than the total population.
+!With this, the shift is changed in order to keep the population on the reference determinant fixed, rather 
+!than the total population.
                 tShiftonHFPop=.true.
             case("STARTMP1")
 !For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
@@ -980,7 +1010,8 @@ contains
 !This is the number of steps after the shift is allowed to change that it begins averaging the shift value.                
                 call geti(NShiftEquilSteps)
             case("NOBIRTH")
-!For FCIMC, this means that the off-diagonal matrix elements become zero, and so all we get is an exponential decay of the initial populations on the determinants, at a rate which can be exactly calculated and compared against.
+!For FCIMC, this means that the off-diagonal matrix elements become zero, and so all we get is an exponential 
+!decay of the initial populations on the determinants, at a rate which can be exactly calculated and compared against.
                 CALL Stop_All(t_r,"NOBIRTH option depreciated")
 !                TNoBirth=.true.
             case("MCDIFFUSE")
@@ -989,12 +1020,14 @@ contains
 !Lambda indicates the amount of diffusion compared to spawning in the FCIMC algorithm.
 !                call getf(Lambda)
             case("FLIPTAU")
-!This indicates that time is to be reversed every FlipTauCyc cycles in the FCIMC algorithm. This might help with undersampling problems.
+!This indicates that time is to be reversed every FlipTauCyc cycles in the FCIMC algorithm. This might 
+!help with undersampling problems.
                 CALL Stop_All(t_r,"FLIPTAU option depreciated")
 !                TFlipTau=.true.
 !                call geti(FlipTauCyc)
             case("NON-PARTCONSDIFF")
-!This is a seperate partitioning of the diffusion matrices in FCIMC in which the antidiffusion matrix (+ve connections) create a net increase of two particles.
+!This is a seperate partitioning of the diffusion matrices in FCIMC in which the antidiffusion matrix (+ve connections) 
+!create a net increase of two particles.
                 CALL Stop_All(t_r,"NON-PARTCONSDIFF option depreciated")
 !                TExtraPartDiff=.true.
             case("FULLUNBIASDIFF")
@@ -1002,7 +1035,8 @@ contains
                 CALL Stop_All(t_r,"FULLUNBIASDIFF option depreciated")
 !                TFullUnbias=.true.
             case("NODALCUTOFF")
-!This is for all types of FCIMC, and constrains a determinant to be of the same sign as the MP1 wavefunction at that determinant, if the normalised component of the MP1 wavefunction is greater than the NodalCutoff value.
+!This is for all types of FCIMC, and constrains a determinant to be of the same sign as the MP1 wavefunction at 
+!that determinant, if the normalised component of the MP1 wavefunction is greater than the NodalCutoff value.
                 CALL Stop_All(t_r,"NODALCUTOFF option depreciated")
 !                TNodalCutoff=.true.
 !                call getf(NodalCutoff)
@@ -1016,20 +1050,24 @@ contains
 !For closed path MC, this is the return bias at any point to spawn at the parent determinant
                 call getf(PRet)
             case("RHOAPP")
-!This is for resummed FCIMC, it indicates the number of propagation steps around each subgraph before particles are assigned to the nodes
+!This is for resummed FCIMC, it indicates the number of propagation steps around each subgraph before 
+!particles are assigned to the nodes
                 CALL Stop_All(t_r,"RHOAPP option depreciated")
 !                call geti(RhoApp)
             case("SIGNSHIFT")
-!This is for FCIMC and involves calculating the change in shift depending on the absolute value of the sum of the signs of the walkers.
+!This is for FCIMC and involves calculating the change in shift depending on the absolute value of the 
+!sum of the signs of the walkers.
 !This should hopefully mean that annihilation is implicitly taken into account.
                 TSignShift=.true.
             case("HFRETBIAS")
-!This is a simple guiding function for FCIMC - if we are at a double excitation, then we return to the HF determinant with a probability PRet.
+!This is a simple guiding function for FCIMC - if we are at a double excitation, then we return to the HF 
+!determinant with a probability PRet.
 !This is unbiased by the acceptance probability of returning to HF.
                 THFRetBias=.true.
                 call getf(PRet)
             case("EXCLUDERANDGUIDE")
-!This is an alternative method to unbias for the HFRetBias. It invloves disallowing random excitations back to the guiding function (HF Determinant)
+!This is an alternative method to unbias for the HFRetBias. It invloves disallowing random 
+!excitations back to the guiding function (HF Determinant)
                 CALL Stop_All(t_r,"EXCLUDERANDGUIDE option depreciated")
 !                TExcludeRandGuide=.true.
             case("PROJECTE-MP2")
@@ -1087,17 +1125,20 @@ contains
                     call Geti(iRestartWalkNum)
                 ENDIF
             case("FIXPARTICLESIGN")
-!This uses a modified hamiltonian, whereby all the positive off-diagonal hamiltonian matrix elements are zero. Instead, their diagonals are modified to change the
+!This uses a modified hamiltonian, whereby all the positive off-diagonal hamiltonian matrix elements are zero. 
+!Instead, their diagonals are modified to change the
 !on-site death rate. Particles now have a fixed (positive) sign which cannot be changed and so no annihilation occurs.
                 TFixParticleSign=.true.
             case("MAXBLOOMWARNONLY")
                 !This means that we only get a particle bloom warning if the bloom is larger than any previous blooming event.
                 tMaxBloom=.true.
             case("STARTSINGLEPART")
-!A FCIMC option - this will start the simulation with a single positive particle at the HF, and fix the shift at its initial value, until the number of particles gets to the INITPARTICLES value.
+!A FCIMC option - this will start the simulation with a single positive particle at the HF, and fix the 
+!shift at its initial value, until the number of particles gets to the INITPARTICLES value.
                 TStartSinglePart=.true.
                 IF(item.lt.nitems) THEN
-                    !If an optional integer keyword is added, then InitialPart will indicate the number of particles to start at the HF determinant.
+                    !If an optional integer keyword is added, then InitialPart will indicate the number of 
+                    !particles to start at the HF determinant.
                     call readi(InitialPart)
                     if (InitialPart < 0) then
                         ! Turn StartSinglePart off.
@@ -1109,12 +1150,16 @@ contains
 !An FCIMC option - MemoryFac is the factor by which space will be made available for extra walkers compared to InitWalkers
                 CALL Getf(MemoryFacPart)
             case("MEMORYFACANNIHIL")
-!!An FCIMC option - MemoryFac is the factor by which space will be made available for particles sent to the processor during annihilation compared to InitWalkers. This will generally want to be larger than
-!memoryfacPart, because the parallel annihilation may not be exactly load-balanced because of differences in the wavevector and uniformity of the hashing algorithm.
+!!An FCIMC option - MemoryFac is the factor by which space will be made available for particles sent to 
+!the processor during annihilation compared to InitWalkers. This will generally want to be larger than
+!memoryfacPart, because the parallel annihilation may not be exactly load-balanced because of differences 
+!in the wavevector and uniformity of the hashing algorithm.
                 CALL Getf(MemoryFacAnnihil)
             case("MEMORYFACSPAWN")
-!A parallel FCIMC option for use with ROTOANNIHILATION. This is the factor by which space will be made available for spawned particles each iteration. 
-!Several of these arrays are needed for the annihilation process. With ROTOANNIHILATION, MEMORYFACANNIHIL is redundant, but MEMORYFACPART still need to be specified.
+!A parallel FCIMC option for use with ROTOANNIHILATION. This is the factor by which space will be made 
+!available for spawned particles each iteration. 
+!Several of these arrays are needed for the annihilation process. With ROTOANNIHILATION, MEMORYFACANNIHIL 
+!is redundant, but MEMORYFACPART still need to be specified.
                 CALL Getf(MemoryFacSpawn)
             case("MEMORYFACINIT")
                 ! If we are maintaining a list of initiators on each
@@ -1122,14 +1167,18 @@ contains
                 ! used for the size
                 call getf(MemoryFacInit)
             case("REGENEXCITGENS")
-!An FCIMC option. With this, the excitation generators for the walkers will NOT be stored, and regenerated each time. This will be slower, but save on memory.
+!An FCIMC option. With this, the excitation generators for the walkers will NOT be stored, and regenerated 
+!each time. This will be slower, but save on memory.
                 TRegenExcitGens=.true.
             case("REGENDIAGHELS")
-!A parallel FCIMC option. With this, the diagonal elements of the hamiltonian matrix will not be stored with each particle. This will generally be slower, but save on memory.
+!A parallel FCIMC option. With this, the diagonal elements of the hamiltonian matrix will not be stored with 
+!each particle. This will generally be slower, but save on memory.
                 tRegenDiagHEls=.true.
             case("FIXSHELLSHIFT")
-!An FCIMC option. With this, the shift is fixed at a value given here, but only for excitations which are less than <ShellFix>. This will almost definitly give the wrong answers for both the energy
-!and the shift, but may be of use in equilibration steps to maintain particle density at low excitations, before writing out the data and letting the shift change.
+!An FCIMC option. With this, the shift is fixed at a value given here, but only for excitations which are less than 
+!<ShellFix>. This will almost definitly give the wrong answers for both the energy
+!and the shift, but may be of use in equilibration steps to maintain particle density at low excitations, before writing 
+!out the data and letting the shift change.
                 CALL Stop_All(t_r,"FIXSHELLSHIFT option depreciated")
 !                TFixShiftShell=.true.
 !                CALL Geti(ShellFix)
@@ -1155,7 +1204,8 @@ contains
 !                call Getf(FixShift)
 
             case("TRUNCATECAS")
-!A Parallel FCIMC option. With this, the excitation space of the determinants will only include the determinants accessible to the CAS
+!A Parallel FCIMC option. With this, the excitation space of the determinants will only include 
+!the determinants accessible to the CAS
 !space as specified here. 
 !In this option, an active space is chosen containing a certain number of highest occupied spin orbitals (OccCASorbs) and
 !lowest unoccupied spin orbitals (VirtCASorbs).  The determinant only for determinants 
@@ -1166,13 +1216,16 @@ contains
                 call Geti(VirtCASOrbs)
 
             case("TRUNCINITIATOR")
-!This option goes along with the above TRUNCATECAS option.  This means that walkers are allowed to spawn on determinants outside the active space, however if this is done, they
+!This option goes along with the above TRUNCATECAS option.  This means that walkers are allowed to spawn on 
+!determinants outside the active space, however if this is done, they
 !can only spawn back on to the determinant from which they came.  This is the star approximation from the CAS space. 
                 tTruncInitiator=.true.
 
             case("DELAYTRUNCINITIATOR")
-!This keyword is used if we are eventually going to want to include the inactive space in a truncinitiator kind of way, but we want to start off by just doing a truncated calculation.                
-!Because we are simply using a larger NIfTot - this needs to be changed at the very beginning of a calculation - then we can either set the iteration at which we want to start including 
+!This keyword is used if we are eventually going to want to include the inactive space in a 
+!truncinitiator kind of way, but we want to start off by just doing a truncated calculation.                
+!Because we are simply using a larger NIfTot - this needs to be changed at the very beginning of 
+!a calculation - then we can either set the iteration at which we want to start including 
 !the rest of the space or we can do this dynamically.
                 tDelayTruncInit=.true.
                 IF(item.lt.nitems) then
@@ -1180,19 +1233,22 @@ contains
                 ENDIF
 
             case("KEEPDOUBSPAWNS")
-!This means that two sets of walkers spawned on the same determinant with the same sign will live, whether they've come from inside or outside the CAS space.  Before, if both of these
+!This means that two sets of walkers spawned on the same determinant with the same sign will live, 
+!whether they've come from inside or outside the CAS space.  Before, if both of these
 !were from outside the space, they would've been aborted.
 !                tKeepDoubleSpawns=.true.
 !This option is now on permanently by default and cannot be turned off.
 
             case("ADDTOINITIATOR")
-!This option means that if a determinant outside the initiator space becomes significantly populated - it is essentially added to the initiator space and is allowed to spawn where it likes.
+!This option means that if a determinant outside the initiator space becomes significantly populated - 
+!it is essentially added to the initiator space and is allowed to spawn where it likes.
 !The minimum walker population for a determinant to be added to the initiator space is InitiatorWalkNo.
                 tAddtoInitiator=.true.
                 call Geti(InitiatorWalkNo)
 
             case("SPAWNONLYINIT")
-!This option means only the initiators have the ability to spawn.  The non-initiators can live/die but not spawn walkers of their own.                
+!This option means only the initiators have the ability to spawn.  The non-initiators can live/die but not 
+!spawn walkers of their own.
                 tSpawn_Only_Init = .true.
 
             case("SPAWNONLYINITGROWTH")
@@ -1206,9 +1262,11 @@ contains
 
 
             case("RETESTINITPOP")                
-!This keyword is on by default.  It corresponds to the original initiator algorithm whereby a determinant may be added to the initiator space if its population becomes higher 
+!This keyword is on by default.  It corresponds to the original initiator algorithm whereby a determinant may 
+!be added to the initiator space if its population becomes higher 
 !than InitiatorWalkNo (above), but if the pop then drops below this, the determinant is removed again from the initiator space.
-!Having this on means the population is tested at every iteration, turning it off means that once a determinant becomes an initiator by virtue of its population, it remains an initiator 
+!Having this on means the population is tested at every iteration, turning it off means that once a determinant 
+!becomes an initiator by virtue of its population, it remains an initiator 
 !for the rest of the simulation.
                 if(item.lt.nitems) then
                     call readu(w)
@@ -1227,19 +1285,22 @@ contains
                 tInitIncDoubs=.true.
 
             case("UNBIASPGENINPROJE")
-!A FCIMC serial option. With this, walkers will be accepted with probability tau*hij. i.e. they will not unbias for PGen in the acceptance criteria, but in the term for the projected energy.
+!A FCIMC serial option. With this, walkers will be accepted with probability tau*hij. i.e. they will not unbias 
+!for PGen in the acceptance criteria, but in the term for the projected energy.
                 TUnbiasPGeninProjE=.true.
             case("ANNIHILATEONPROCS")
 !A parallel FCIMC option. With this, walkers will only be annihilated with other walkers on the same processor. 
                 CALL Stop_All(t_r,"ANNIHILATEONPROCS option depreciated")
 !                TAnnihilonproc=.true.
             case("ANNIHILATDISTANCE")
-!A Serial FCIMC experimental option. With this, walkers have the ability to annihilate each other as long as they are connected, which they will do with probability = Lambda*Hij
+!A Serial FCIMC experimental option. With this, walkers have the ability to annihilate each other as long as 
+!they are connected, which they will do with probability = Lambda*Hij
                 CALL Stop_All(t_r,"ANNIHILATEONPROCS option depreciated")
 !                TDistAnnihil=.true.
 !                call Getf(Lambda)
             case("ANNIHILATERANGE")
-!This option should give identical results whether on or off. It means that hashes are histogrammed and sent to processors, rather than sent due to the value of mod(hash,nprocs).
+!This option should give identical results whether on or off. It means that hashes are histogrammed and sent 
+!to processors, rather than sent due to the value of mod(hash,nprocs).
 !This removes the need for a second full sorting of the list of hashes, but may have load-balancing issues for the algorithm.
 !This now is on by default, and can only be turned off by specifying OFF after the input.
                 CALL Stop_All(t_r,"ANNIHILATEONPROCS option depreciated")
@@ -1253,18 +1314,24 @@ contains
 !                    tAnnihilatebyrange=.true.
 !                ENDIF
             case("ROTOANNIHILATION")
-!A parallel FCIMC option which is a different - and hopefully better scaling - algorithm. This is substantially different to previously. It should involve much less memory.
-!MEMORYFACANNIHIL is no longer needed (MEMORYFACPART still is), and you will need to specift a MEMORYFACSPAWN since newly spawned walkers are held on a different array each iteration.
-!Since the newly-spawned particles are annihilated initially among themselves, you can still specift ANNIHILATEATRANGE as a keyword, which will change things.
+!A parallel FCIMC option which is a different - and hopefully better scaling - algorithm. This is substantially 
+!different to previously. It should involve much less memory.
+!MEMORYFACANNIHIL is no longer needed (MEMORYFACPART still is), and you will need to specift a MEMORYFACSPAWN 
+!since newly spawned walkers are held on a different array each iteration.
+!Since the newly-spawned particles are annihilated initially among themselves, you can still specift 
+!ANNIHILATEATRANGE as a keyword, which will change things.
                 CALL Stop_All(t_r,"ROTOANNIHILATION option depreciated")
 !                tRotoAnnihil=.true.
             case("DIRECTANNIHILATION")
-!A parallel FCIMC option which is a different annihilation algorithm. It has elements in common with both rotoannihilation and the hashing annihilation, but hopefully will be quicker and
+!A parallel FCIMC option which is a different annihilation algorithm. It has elements in common with both 
+!rotoannihilation and the hashing annihilation, but hopefully will be quicker and
 !better scaling with number of processors. It has no explicit loop over processors.
                 tDirectAnnihil=.true.
             case("LOCALANNIHIL")
-!A parallel FCIMC experimental option. This will attempt to compensate for undersampled systems, by including extra annihilation for walkers which are the sole occupier of determiants
-!This annihilation is governed by the parameter Lambda, which is also used in other circumstances as a variable, but should not be used at the same time.
+!A parallel FCIMC experimental option. This will attempt to compensate for undersampled systems, by 
+!including extra annihilation for walkers which are the sole occupier of determiants
+!This annihilation is governed by the parameter Lambda, which is also used in other circumstances 
+!as a variable, but should not be used at the same time.
                 CALL Stop_All(t_r,"LOCALANNIHIL option depreciated")
 !                TLocalAnnihilation=.true.
 !                call Getf(Lambda)
@@ -1289,11 +1356,13 @@ contains
                 tSpatialOnlyHash = .true.
 
             case("SPAWNASDETS")
-!This is a parallel FCIMC option, which means that the particles at the same determinant on each processor, will choose the same determinant to attempt spawning to and the 
+!This is a parallel FCIMC option, which means that the particles at the same determinant on each processor, 
+!will choose the same determinant to attempt spawning to and the 
 !probability of a successful spawn will be multiplied by the number of particles on the determinant.
                 tSpawnAsDet=.true.
             case("MAGNETIZE")
-!This is a parallel FCIMC option. It chooses the largest weighted MP1 components and records their sign. If then a particle occupies this determinant and is of the opposite sign, it energy,
+!This is a parallel FCIMC option. It chooses the largest weighted MP1 components and records their sign. 
+!If then a particle occupies this determinant and is of the opposite sign, it energy,
 !i.e. diagonal matrix element is raised by an energy given by BField.
                 CALL Stop_All(t_r,"MAGNETIZE option depreciated")
 !                tMagnetize=.true.
@@ -1301,21 +1370,25 @@ contains
 !                call Geti(NoMagDets)
 !                call Getf(BField)
             case("FINDGROUNDDET")
-!A parallel FCIMC option. If this is on, then if a determinant is found with an energy lower than the energy of the current reference determinant, the energies are rezeroed and the
+!A parallel FCIMC option. If this is on, then if a determinant is found with an energy lower than the energy of the 
+!current reference determinant, the energies are rezeroed and the
 !reference changed to the new determinant. For a HF basis, this cannot happen, but with rotated orbital will be important.
                 tFindGroundDet=.true.
             case("STARORBS")
-!A parallel FCIMC option. Star orbs means that determinants which contain these orbitals can only be spawned at from the HF determinant, and conversly, can only spawn back at the HF determinant.
+!A parallel FCIMC option. Star orbs means that determinants which contain these orbitals can only be spawned 
+!at from the HF determinant, and conversly, can only spawn back at the HF determinant.
                 CALL Stop_All(t_r,"STARORBS option depreciated")
 !                call geti(iStarOrbs)
 !                if(item.lt.nitems) then
 !                    call readu(w)
 !                    select case(w)
 !                    case("NORETURN")
-!!This option will mean that particles spawned at these high energy determinants will not be allowed to spawn back at HF, but will be left to die.
+!!This option will mean that particles spawned at these high energy determinants will not be allowed to 
+!spawn back at HF, but will be left to die.
 !                        tNoReturnStarDets=.true.
 !                    case("ALLSPAWNSTARDETS")
-!!This option will mean that all particles can spawn at the star determinants and annihilation will take place there. Once there however, they are left to die, and cannot spawn anywhere else.
+!!This option will mean that all particles can spawn at the star determinants and annihilation will take place 
+!there. Once there however, they are left to die, and cannot spawn anywhere else.
 !                        tAllSpawnStarDets=.true.
 !                    end select
 !                else
@@ -1323,12 +1396,14 @@ contains
 !                endif
 !                tStarOrbs=.true.
             case("EXCITETRUNCSING")
-!This is a parallel FCIMC option, where excitations between determinants where at least one of the determinants is above iHighExcitsSing will be restricted to be single excitations.
+!This is a parallel FCIMC option, where excitations between determinants where at least one of the determinants 
+!is above iHighExcitsSing will be restricted to be single excitations.
                 CALL Stop_All(t_r,"EXCITETRUNCSING option depreciated")
 !                tHighExcitsSing=.true.
 !                call readi(iHighExcitsSing)
             case("MAGNETIZESYM")
-!A parallel FCIMC option. Similar to the MAGNETIZE option, but in addition to the energy being raised for particles of the opposite sign, the energy is lowered by the same amount for particles
+!A parallel FCIMC option. Similar to the MAGNETIZE option, but in addition to the energy being raised for 
+!particles of the opposite sign, the energy is lowered by the same amount for particles
 !of 'parallel' sign.
                 CALL Stop_All(t_r,"MAGNETIZESYM option depreciated")
 !                call Geti(NoMagDets)
@@ -1336,10 +1411,12 @@ contains
 !                tSymmetricField=.true.
 !                tMagnetize=.true.
             case("SINGLESBIAS")
-!This is a parallel FCIMC option, where the single excitations from any determinant will be favoured compared to the simple ratio of number of doubles to singles from HF by multiplying the number of singles by this factor.
+!This is a parallel FCIMC option, where the single excitations from any determinant will be favoured compared 
+!to the simple ratio of number of doubles to singles from HF by multiplying the number of singles by this factor.
                 call Getf(SinglesBias)
             case("JUSTFINDDETS")
-!This option is to be used in conjunction with the diagonalization methods. With this, all the determinants will be enumerated, but the hamiltonian will not be calculated,
+!This option is to be used in conjunction with the diagonalization methods. With this, all the determinants 
+!will be enumerated, but the hamiltonian will not be calculated,
 !and the energies not calculated. This is needed when the full list of determinants is needed for later on.
                 tFindDets=.true.
             case("EXPANDSPACE")
@@ -1348,7 +1425,8 @@ contains
 !Read in a value of the iteration to expand to the full space.
                 call geti(iFullSpaceIter)
             case("MULTIPLEDETSSPAWN")
-!This option creates connections from iDetGroup randomly chosen determinants and attempts to spawn from them all at once. This should hopefully mean that annihilations are implicitly done.
+!This option creates connections from iDetGroup randomly chosen determinants and attempts to spawn from them 
+!all at once. This should hopefully mean that annihilations are implicitly done.
                 CALL Stop_All(t_r,"MULTIPLEDETSSPAWN option depreciated")
 !                tMultipleDetsSpawn=.true.
 !                call Geti(iDetGroup)
@@ -1434,6 +1512,13 @@ contains
                 ! unpaired electrons.
                 tTruncNOpen = .true.
                 call geti (trunc_nopen_max)
+
+            case("JUMP-SHIFT")
+                ! When variable shift is enabled, jump the shift to the value
+                ! predicted by the projected energy!
+                ! --> Reduce the waiting time while the number of particles is
+                !     growing.
+                tJumpShift = .true.
 
             case default
                 call report("Keyword "                                &
@@ -1732,7 +1817,6 @@ contains
                 WRITE(6,*) "Using approx RHOs generated on the fly, NTAY=",NTAY(1)
 !C.. NMAX is now ARR
                 STOP "DMONTECARLO2 is now non-functional."
-!                EN=DMONTECARLO2(MCDET,I_P,BETA,DBETA,I_HMAX,I_VMAX,IMCSTEPS,G1,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS,NMSH,FCK,ARR,ALAT,UMAT,NTAY,RHOEPS,NWHTAY,ILOGGING,ECORE,BETAEQ) 
              ELSEIF(NTAY(1).EQ.0) THEN
                 IF(TENERGY) THEN
                    WRITE(6,*) "Using exact RHOs generated on the fly"
@@ -2024,7 +2108,8 @@ contains
                    call readu(w)
                    select case(w)
                    case("HDIAG")
-                       !If this is true, then it uses the hamiltonian matrix to determinant coupling to excitations, and to diagonalise to calculate the energy
+                       !If this is true, then it uses the hamiltonian matrix to determinant coupling to excitations, 
+                       !and to diagonalise to calculate the energy
                        THDiag=.true.
                    endselect
                case("STAR")

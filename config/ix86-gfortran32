@@ -2,11 +2,11 @@
 fc = gfortran
 cc = g++
 ld = gfortran
-ldflags = -m32
+ldflags = -m32 -rdynamic
 compiler = GCC-f95-on-LINUX
 cpp = cpp -C -traditional
 cppflags = -D__Linux -D__INT64 -D__GFORTRAN__
-libs = /usr/lib32/libstdc++.so.6 -lfftw3 -llapack -lblas -lrt -lm
+libs = /usr/lib/i386-linux-gnu/libstdc++.so.6 -lfftw3 -llapack -lblas -lrt -lm
 module_flag = -J
 
 [dbg]

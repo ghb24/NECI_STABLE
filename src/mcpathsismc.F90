@@ -1,6 +1,6 @@
 module mcpathsismc
     use constants, only: dp,int64,sp,sizeof_int
-    use util_mod, only: NECI_ICOPY,isnan_neci
+    use util_mod, only: NECI_ICOPY,isnan_neci, neci_etime
    contains
 !C.. Calculate RHO^(P)_II without having a stored H matrix
 !C.. SAMPLE over distinct nodes, e.g. IJKLI, with paths up to I_HMAX
@@ -72,7 +72,7 @@ module mcpathsismc
          INTEGER IOV,IGV,IACC
          LOGICAL TSEQ,TBLOCKING
          real(dp) PREJ,PGR
-         REAL(sp) OTIME,NTIME,tarr(2),neci_etime
+         REAL(sp) OTIME,NTIME,tarr(2)
          integer(int64) LP
          HElement_t :: hel
 
@@ -414,7 +414,8 @@ module mcpathsismc
      &                          BTEST(ILOGGING,13))
 !                              WRITE(39,*) I_OVCUR,1,LP,0
                            ENDIF
-!C.. Now if we generate a 1, we accept with prob p1 pa (out of p1 pa + pV=1-(1-pV)*pr), but we need to consider any V's separately, with prob p1
+!C.. Now if we generate a 1, we accept with prob p1 pa (out of p1 pa + pV=1-(1-pV)*pr), 
+!but we need to consider any V's separately, with prob p1
 !                   !
 !Either we've disallowed V->V' transitions or we generate a 1-v graph
                            IF(TVVDISALLOW.OR.                                &

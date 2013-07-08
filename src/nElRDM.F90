@@ -33,29 +33,59 @@ MODULe nElRDMMod
 ! By finding the full 1RDM, we have the ability to derive the natural orbitals as well as electron 
 ! densities etc.
         
-        USE Global_Utilities
-        USE Parallel_neci
-        USE bit_reps , only : NIfTot, NIfDBO, decode_bit_det
-        USE IntegralsData , only : UMAT
-        USE UMatCache , only : UMatInd, GTID
-        USE SystemData , only : NEl,nBasis,tStoreSpinOrbs, G1, BRR, lNoSymmetry, ARR, &
-                                tUseMP2VarDenMat, Ecore, LMS, tHPHF, tFixLz, iMaxLz
-        USE NatOrbsMod , only : NatOrbMat,NatOrbMatTag,Evalues,EvaluesTag
-        USE CalcData , only : MemoryFacPart
-        USE constants , only : n_int, dp, Root2, sizeof_int, lenof_sign
-        USE OneEInts , only : TMAT2D
-        USE FciMCData , only : MaxWalkersPart, MaxSpawned, Spawned_Parents, PreviousCycles,&
-                               Spawned_Parents_Index, Spawned_ParentsTag, AccumRDMNorm_Inst,&
-                               Spawned_Parents_IndexTag, Iter, AccumRDMNorm, AvNoatHF,&
-                               tSinglePartPhase, AllAccumRDMNorm, iLutRef, HFDet_True, NCurrH
-        USE Logging , only : RDMExcitLevel, tROFciDUmp, NoDumpTruncs, tExplicitAllRDM, &
-                             tHF_S_D_Ref, tHF_Ref_Explicit, tHF_S_D, tPrint1RDM, tInitiatorRDM, &
-                             RDMEnergyIter
-        USE RotateOrbsData , only : CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt, &
-                                    SymLabelCounts2_rot,SymLabelList2_rot, &
-                                    SymLabelListInv_rot,NoOrbs, SpatOrbs
-        USE util_mod , only : get_free_unit
-        use hash , only : DetermineDetNode
+    use Global_Utilities
+    use Parallel_neci
+    use bit_reps, only: NIfTot, NIfDBO, decode_bit_det, extract_bit_rep, &
+                        encode_sign, extract_sign
+    use IntegralsData, only: UMAT
+    use UMatCache, only: UMatInd, GTID
+    use SystemData, only: NEl, nBasis, tStoreSpinOrbs, G1, BRR, lNoSymmetry, &
+                          ARR, tUseMP2VarDenMat, Ecore, LMS, tHPHF, tFixLz, &
+                          iMaxLz, tRef_Not_HF, tOddS_hphf
+    use NatOrbsMod, only: NatOrbMat, NatOrbMatTag, Evalues, EvaluesTag, &
+                          SetupNatOrbLabels
+    use CalcData, only: MemoryFacPart, tRegenDiagHEls, NMCyc, InitiatorWalkNo
+    use OneEInts, only: TMAT2D
+    use FciMCData, only: MaxWalkersPart, MaxSpawned, Spawned_Parents, &
+                         PreviousCycles, Spawned_Parents_Index, &
+                         Spawned_ParentsTag, AccumRDMNorm_Inst, &
+                         Spawned_Parents_IndexTag, Iter, AccumRDMNorm, &
+                         AvNoatHF, tSinglePartPhase, AllAccumRDMNorm, iLutRef,&
+                         HFDet_True, NCurrH, ilutHF_True, SpawnVec, &
+                         SpawnVec2, SpawnVecTag, SpawnVec2Tag, SpawnedParts, &
+                         SpawnedParts2, excit_gen_store_type, CurrentDets, &
+                         CurrentH, IterRDMStart, ValidSpawnedList, &
+                         TempSpawnedPartsInd, TempSpawnedParts, TotParts, &
+                         TotWalkers
+    use Logging, only: RDMExcitLevel, tROFciDump, NoDumpTruncs, tHF_S_D, &
+                       tExplicitAllRDM, tHF_S_D_Ref, tHF_Ref_Explicit, &
+                       tHF_S_D, tPrint1RDM, tInitiatorRDM, RDMEnergyIter, &
+                       tDo_Not_Calc_RDMEnergy, tDiagRDM, tReadRDMs, &
+                       tPopsfile, tNo_RDMs_to_read, twrite_RDMs_to_read, &
+                       tWriteMultRDMs, tDumpForcesInfo, IterRDMonFly, &
+                       tWrite_normalised_RDMs, IterWriteRDMs, tPrintRODump, &
+                       tNoNOTransform, tTruncRODump, tRDMonfly
+    use RotateOrbsData, only: CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt, &
+                              SymLabelCounts2_rot,SymLabelList2_rot, &
+                              SymLabelListInv_rot,NoOrbs, SpatOrbs, &
+                              SymLabelCounts2_rotTag, SymLabelList2_rotTag, &
+                              NoRotOrbs, SymLabelListInv_rotTag, NoOrbs
+    use DeterminantData, only: write_det
+    use hphf_integrals, only: hphf_sign
+    use HPHFRandExcitMod, only: FindExcitBitDetSym, FindDetSpinSym
+    use DetBitOps, only: TestClosedShellDet, FindBitExcitLevel, DetBitEQ, &
+                         EncodeBitDet, DetBitLT
+    use DetCalcData, only: Det, FCIDets
+    use hist_data, only: AllHistogram, Histogram
+    use RotateOrbsMod, only: FourIndInts, FourIndIntsTag, PrintROFCIDUMP, &
+                             PrintRepeatROFCIDUMP
+    use hist, only: find_hist_coeff_explicit
+    use SymExcit3, only: GenExcitations3
+    use OneEInts, only: TMAT2D
+    use hash, only: DetermineDetNode
+    use constants
+    use util_mod
+    use sort_mod
         IMPLICIT NONE
         INTEGER , ALLOCATABLE :: Sing_InitExcSlots(:),Sing_ExcList(:)
         INTEGER , ALLOCATABLE :: Doub_InitExcSlots(:),Doub_ExcList(:)
@@ -78,17 +108,6 @@ MODULe nElRDMMod
     SUBROUTINE InitRDM()
 ! This routine initialises any of the arrays needed to calculate the reduced density matrix.    
 ! It is used for both the explicit and stochastic RDMs.
-        USE NatOrbsMod , only : SetupNatOrbLabels 
-        USE RotateOrbsMod , only : SymLabelCounts2_rotTag,NoRotOrbs
-        USE RotateOrbsMod , only : SymLabelList2_rotTag,SymLabelListInv_rotTag
-        USE Logging , only : tDo_Not_Calc_RDMEnergy, tDiagRDM, tReadRDMs, &
-                            TPopsFile, tno_RDMs_to_read, twrite_RDMs_to_read,&
-                            tWriteMultRDMs, tDumpForcesInfo
-        USE CalcData , only : tRegenDiagHEls
-        use DetBitOps , only : TestClosedShellDet
-        use FciMCData , only : iLutHF_True
-        use Determinants , only : write_det
-        implicit none
         INTEGER :: ierr,i, MemoryAlloc, MemoryAlloc_Root
         CHARACTER(len=*), PARAMETER :: this_routine='InitRDM'
 
@@ -450,7 +469,6 @@ MODULe nElRDMMod
     END SUBROUTINE InitRDM
 
     subroutine zero_rdms()
-        implicit none
 
         if(RDMExcitLevel.eq.1) then
             NatOrbMat(:,:) = 0.0_dp
@@ -474,8 +492,6 @@ MODULe nElRDMMod
 ! Reads in the arrays to restart the RDM calculation (and continue accumulating).
 ! These arrays are not normalised, so the trace is also calculated.
 ! The energy is then calculated (if required) from the RDMs read in only.
-        use Logging , only : IterRDMonFly
-        implicit none
         logical :: exists_aaaa,exists_abab,exists_abba,exists_one
         integer :: RDM_unit, FileEnd
         integer :: i,j,a,b,Ind1,Ind2
@@ -584,9 +600,6 @@ MODULe nElRDMMod
     SUBROUTINE SetUpSymLabels_RDM() 
 ! This routine just sets up the symmetry labels so that
 ! the orbitals are ordered according to symmetry (all beta then all alpha if spin orbs).
-        USE sort_mod
-        USE Logging , only : tDiagRDM
-        IMPLICIT NONE
         INTEGER , ALLOCATABLE :: SymOrbs_rot(:)
         INTEGER :: LabOrbsTag, SymOrbs_rotTag, ierr, i , j, SpatSym, LzSym 
         INTEGER :: lo, hi, Symi, SymCurr, Symi2, SymCurr2
@@ -753,9 +766,6 @@ MODULe nElRDMMod
 ! for the first part of the calculation.
 ! When we start calculating the RDMs this routine is called and the SpawnedParts array is made larger to 
 ! accommodate the parents.
-        USE FciMCData , only : SpawnVec, SpawnVec2, SpawnVecTag, SpawnVec2Tag, &
-                               SpawnedParts, SpawnedParts2
-        implicit none                               
         INTEGER :: ierr                               
         CHARACTER(len=*), PARAMETER :: this_routine='DeAlloc_Alloc_SpawnedParts'
 
@@ -785,12 +795,6 @@ MODULe nElRDMMod
     subroutine extract_bit_rep_avsign_no_rdm(iLutnI, CurrH_I, nI, SignI, &
                                                 FlagsI, IterRDMStartI, AvSignI, Store)
 ! This is just the standard extract_bit_rep routine for when we're not calculating the RDMs.    
-        use constants , only : dp, n_int, lenof_sign
-        use SystemData , only : NEl
-        use bit_reps , only : NIfTot, extract_bit_rep
-        use FciMCData , only : excit_gen_store_type, NCurrH
-        use DetBitOps , only : TestClosedShellDet
-        implicit none
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         real(dp) , intent(in) :: CurrH_I(NCurrH)
         integer, intent(out) :: nI(nel), FlagsI
@@ -818,12 +822,6 @@ MODULe nElRDMMod
 ! Output:   nI, SignI, FlagsI after extract.                                              
 !           IterRDMStartI - new iteration the determinant became occupied (as a real).
 !           AvSignI - the new average walker population during this time (also real).
-        use constants , only : dp, n_int, lenof_sign
-        use SystemData , only : NEl
-        use bit_reps , only : NIfTot, extract_bit_rep
-        use FciMCData , only : excit_gen_store_type, NCurrH
-        use DetBitOps , only : TestClosedShellDet
-        implicit none
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         real(dp) , intent(in) :: CurrH_I(NCurrH)
         integer, intent(out) :: nI(nel), FlagsI
@@ -857,15 +855,6 @@ MODULe nElRDMMod
 ! (often the frequency of the RDM energy calculation). 
 ! We need to multiply the RDM contributions by either this, or the number of iterations 
 ! the determinant has been occupied, which ever is fewer.
-        use constants , only : dp, n_int
-        use SystemData , only : NEl
-        use bit_reps , only : NIfTot 
-        use FciMCData , only : NCurrH
-        use DetBitOps , only : TestClosedShellDet
-        use hphf_integrals , only : hphf_sign
-        use HPHFRandExcitMod , only : FindExcitBitDetSym
-        use DetBitOps , only : FindBitExcitLevel
-        implicit none
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         real(dp) , intent(in) :: CurrH_I(NCurrH)
         integer, intent(in) :: nI(nel), ExcitLevelI, IterLastRDMFill
@@ -932,15 +921,6 @@ MODULe nElRDMMod
 ! (often the frequency of the RDM energy calculation). 
 ! We need to multiply the RDM contributions by either this, or the number of iterations 
 ! the determinant has been occupied, which ever is fewer.
-        use constants , only : dp, n_int
-        use SystemData , only : NEl
-        use bit_reps , only : NIfTot 
-        use FciMCData , only : NCurrH
-        use DetBitOps , only : TestClosedShellDet
-        use hphf_integrals , only : hphf_sign
-        use HPHFRandExcitMod , only : FindExcitBitDetSym
-        use DetBitOps , only : FindBitExcitLevel
-        implicit none
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         real(dp) , intent(in) :: CurrH_I(NCurrH)
         integer, intent(in) :: nI(nel), ExcitLevelI, IterLastRDMFill
@@ -965,10 +945,6 @@ MODULe nElRDMMod
 ! Need to run over the occupied determinants and do so now. 
 ! This is clearly not all that efficient, and so could be incorporated into the popsfile write out 
 ! if it becomes an issue.
-        use SystemData , only : tRef_Not_HF
-        use FciMCData , only : iLutHF_true, CurrentDets, CurrentH, IterRDMStart
-        use DetBitOps , only : FindBitExcitLevel
-        use CalcData , only : NMCyc, InitiatorWalkNo
         integer(int64) , intent(in) :: nDets
         integer :: nI(nel), ExcitLevel, i, IterLastRDMFill
 
@@ -1016,10 +992,6 @@ MODULe nElRDMMod
 ! This routine is called if a determinant is removed from the list of currently occupied.  
 ! At this point we need to add in its diagonal contribution for the number of iterations it has 
 ! been occupied (or since the contribution was last included). 
-        use SystemData , only : tRef_Not_HF
-        use FciMCData , only : iLutHF_true, IterRDMStart
-        use DetBitOps , only : FindBitExcitLevel
-        use CalcData , only : NMCyc, InitiatorWalkNo
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         real(dp) , intent(in) :: CurrH_I(NCurrH)
         integer :: nI(nel), ExcitLevel, IterLastRDMFill
@@ -1066,14 +1038,6 @@ MODULe nElRDMMod
 ! the single or double D_j.
 ! This is the standard full space RDM calc (No HPHF).
 ! In this case the diagonal elements wll already be taken care of.
-        USE constants , only : n_int, dp
-        use SystemData , only : NEl
-        use bit_reps , only : NIfTot
-        use FciMCData , only : AvNoatHF, iLutHF_True
-        use hphf_integrals , only : hphf_sign
-        use HPHFRandExcitMod , only : FindExcitBitDetSym
-        use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
-        implicit none
         integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
         integer , intent(in) :: nJ(NEl)
         real(dp) , intent(in) :: AvSignJ, IterRDM
@@ -1105,14 +1069,6 @@ MODULe nElRDMMod
 ! It is called for each CurrentDet which is a single or double of the HF.
 ! It adds in the HF - S/D connection.
 ! The diagonal elements will already have been taken care of by the extract routine.
-        use constants , only : n_int, dp
-        use SystemData , only : NEl
-        use bit_reps , only : NIfTot
-        use FciMCData , only : AvNoatHF, iLutHF_True
-        use hphf_integrals , only : hphf_sign
-        use HPHFRandExcitMod , only : FindExcitBitDetSym
-        use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
-        implicit none
         integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
         integer , intent(in) :: nJ(NEl)
         real(dp) , intent(in) :: AvSignJ, IterRDM
@@ -1142,14 +1098,6 @@ MODULe nElRDMMod
 ! calculation.
 ! Here, the diagonal elements will not have been added in by the extract routines.
 ! In the case of HF_Ref_Explicit, this routine does all the work.
-        use constants , only : n_int, dp
-        use SystemData , only : NEl
-        use bit_reps , only : NIfTot
-        use FciMCData , only : AvNoatHF, iLutHF_True
-        use hphf_integrals , only : hphf_sign
-        use HPHFRandExcitMod , only : FindExcitBitDetSym
-        use DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
-        implicit none
         integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
         integer , intent(in) :: nJ(NEl)
         real(dp) , intent(in) :: AvSignJ, IterRDM
@@ -1218,8 +1166,6 @@ MODULe nElRDMMod
 
 
     subroutine calc_rdmbiasfac(mult_child,rat_remain,p_gen,AvSignCurr,SignCurr,RDMBiasFacCurr)
-        use CalcData , only : InitiatorWalkNo
-        implicit none
         integer, intent(in) :: mult_child
         real(dp), intent(in) :: rat_remain, p_gen, AvSignCurr
         integer, dimension(lenof_sign), intent(in) :: SignCurr
@@ -1276,9 +1222,6 @@ MODULe nElRDMMod
     !add in Ci.Cj to the RDM later on.
     !The parent is NIfDBO integers long, and stored in the second part of the SpawnedParts array 
     !from NIfTot+1 -> NIfTot+1 + NIfDBO.
-        USE DetBitOps , only : DetBitEQ
-        use FciMCData, only: SpawnedParts, ValidSpawnedList, TempSpawnedPartsInd, TempSpawnedParts
-        implicit none
         real(dp), intent(in) :: RDMBiasFacCurr
         integer, intent(in) :: WalkerNumber, procJ
         integer, dimension(lenof_sign), intent(in) :: SignI
@@ -1353,11 +1296,6 @@ MODULe nElRDMMod
 ! If the SpawnedPart is found in the CurrentDets list, it means that the Dj has a non-zero 
 ! cj - and therefore the Di.Dj pair will have a non-zero ci.cj to contribute to the RDM.
 ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
-        use CalcData , only : InitiatorWalkNo
-        use Logging , only : tInitiatorRDM
-        USE DetBitOps , only : DetBitEQ, FindBitExcitLevel
-        use FciMCData , only : iLutHF_True
-        implicit none
         integer , intent(in) :: Spawned_No
         integer(kind=n_int) , intent(in) :: iLutJ(0:NIfTot)
         real(dp) , intent(in) :: realSignJ
@@ -1397,9 +1335,6 @@ MODULe nElRDMMod
 ! with sign /= 0 (i.e. occupied).
 ! We then want to run through all the Di, Dj pairs and add their coefficients 
 ! (with appropriate de-biasing factors) into the 1 and 2 electron RDM.
-        USE FciMCData , only : iLutHF_True
-        USE DetBitOps , only : DetBitEQ, FindBitExcitLevel
-        IMPLICIT NONE
         integer , intent(in) :: Spawned_No
         integer(kind=n_int) , intent(in) :: iLutJ(0:NIfTot)
         real(dp) , intent(in) :: realSignJ
@@ -1460,11 +1395,6 @@ MODULe nElRDMMod
 ! This routine does the same as Fill_Spin_Coupled_RDM, but hopefully more efficiently!
 ! It takes to HPHF functions, and calculate what needs to be summed into the RDMs
     subroutine Fill_Spin_Coupled_RDM_v2(iLutnI,iLutnJ,nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
-        use systemData, only: tOddS_hphf
-        use HPHFRandExcitMod, only: FindExcitBitDetSym,FindDetSpinSym
-        use HPHF_Integrals , only : hphf_sign
-        USE DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
-        implicit none
         integer(n_int), intent(in) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
         real(dp) , intent(in) :: realSignI, realSignJ
         integer, intent(in) :: nI(NEl),nJ(NEl)
@@ -1544,10 +1474,6 @@ MODULe nElRDMMod
 !And if I and J are connected by a double excitation, tDoubleConnection is true and we have 
 !also considered I' -> J'.
 !But we need to also account for I -> J' and I' -> J.
-        use HPHFRandExcitMod, only: FindExcitBitDetSym
-        use HPHF_Integrals , only : hphf_sign
-        USE DetBitOps , only : FindBitExcitLevel, TestClosedShellDet
-        implicit none
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
         integer , intent(in) :: nI(NEl), nJ(NEl)
         real(dp) , intent(in) :: realSignI, realSignJ
@@ -1709,7 +1635,6 @@ MODULe nElRDMMod
     subroutine Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
 ! This routine takes a pair of different determinants Di and Dj, and figures out which type 
 ! of elements need to be added in to the RDM.
-        implicit none
         integer , intent(in) :: nI(NEl), nJ(NEl)
         real(dp) , intent(in) :: realSignI, realSignJ
         logical , intent(in) :: tFill_CiCj_Symm
@@ -1760,9 +1685,6 @@ MODULe nElRDMMod
 ! EXPLICIT ROUTINES    
 ! =======================================================================================    
     SUBROUTINE Fill_ExplicitRDM_this_Iter(TotWalkers)
-        USE FciMCData , only : CurrentDets,TotParts 
-        USE bit_reps , only : encode_sign, extract_sign
-        implicit none
         INTEGER(int64) , INTENT(IN) :: TotWalkers
         INTEGER(kind=n_int) :: iLutnI(0:NIfTot)
         INTEGER(int64) :: MaxTotWalkers,TotWalkIn(2),TotWalkOut(2)
@@ -1833,12 +1755,6 @@ MODULe nElRDMMod
 
 
     SUBROUTINE Fill_Hist_ExplicitRDM_this_Iter(TotWalkers)
-        USE FciMCData , only : CurrentDets,TotParts 
-        USE bit_reps , only : encode_sign, extract_sign
-        USE DetCalcData , only : Det
-        use hist_data, only: AllHistogram, Histogram
-        use DetCalcData , only : FCIDets
-        implicit none
         INTEGER(int64) , INTENT(IN) :: TotWalkers
         INTEGER(kind=n_int) :: iLutnI(0:NIfTot)
         INTEGER :: i,error
@@ -1927,7 +1843,6 @@ MODULe nElRDMMod
     SUBROUTINE Add_ExplicitRDM_Contrib(iLutnI,blank_det)
 ! This is the general routine for taking a particular determinant in the spawned list, 
 ! D_i and adding it's contribution to the reduced density matrix.
-        implicit none
         INTEGER(kind=n_int), INTENT(IN) :: iLutnI(0:NIfTot)
         LOGICAL, INTENT(IN) :: blank_det
         INTEGER :: i
@@ -1973,7 +1888,6 @@ MODULe nElRDMMod
     SUBROUTINE Add_Hist_ExplicitRDM_Contrib(iLutnI,blank_det)
 ! This is the general routine for taking a particular determinant in the spawned list, 
 ! D_i and adding it's contribution to the reduced density matrix.
-        implicit none
         INTEGER(kind=n_int), INTENT(IN) :: iLutnI(0:NIfTot)
         LOGICAL, INTENT(IN) :: blank_det
         INTEGER :: i
@@ -2021,12 +1935,6 @@ MODULe nElRDMMod
 ! This uses GenExcitations3 in symexcit3.F90 to generate all the possible either 
 ! single or double excitations from D_i, finds the processor they would be on if occupied, 
 ! and puts them in the SingExcDjs array according to that processor.
-        USE DetBitOps , only : EncodeBitDet
-!        USE AnnihilationMod , only : DetermineDetNode
-        USE SymExcit3 , only : GenExcitations3
-        USE RotateOrbsData , only : SymLabelListInv_rot
-        USE bit_reps , only : extract_bit_rep
-        implicit none
         INTEGER(kind=n_int) , INTENT(IN) :: iLutnI(0:NIfTot)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: SignDi, SignDi2
@@ -2140,13 +2048,6 @@ MODULe nElRDMMod
 ! This uses GenExcitations3 in symexcit3.F90 to generate all the possible either 
 ! single or double excitations from D_i, finds the processor they would be on if occupied, 
 ! and puts them in the SingExcDjs array according to that processor.
-        USE DetBitOps , only : EncodeBitDet
-!        USE AnnihilationMod , only : DetermineDetNode
-        USE SymExcit3 , only : GenExcitations3
-        USE RotateOrbsData , only : SymLabelListInv_rot
-        USE bit_reps , only : extract_bit_rep
-        use hist_data, only: AllHistogram
-        implicit none
         INTEGER(kind=n_int) , INTENT(IN) :: iLutnI(0:NIfTot)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: HistPos
@@ -2265,7 +2166,6 @@ MODULe nElRDMMod
 ! Each processor will receive nProcessor number of lists with different Di determinants.
 ! The original Di's will (I think) still be in the original InitSingExcSlots positions.
 ! This follows the directannihilation algorithm closely.
-        implicit none
         INTEGER :: i,j
         INTEGER(MPIArg) :: sendcounts(nProcessors),disps(nProcessors)
         INTEGER(MPIArg) :: sing_recvcounts(nProcessors)
@@ -2365,7 +2265,6 @@ MODULe nElRDMMod
 ! Each processor will receive nProcessor number of lists with different Di determinants.
 ! The original Di's will (I think) still be in the original InitSingExcSlots positions.
 ! This follows the directannihilation algorithm closely.
-        implicit none
         INTEGER :: i,j
         INTEGER(MPIArg) :: sendcounts(nProcessors),disps(nProcessors)
         INTEGER(MPIArg) :: sing_recvcounts(nProcessors)
@@ -2465,11 +2364,6 @@ MODULe nElRDMMod
 ! each processor.
 ! These number sent from processor i is recvcounts(i), and the first 2 have information 
 ! about the determinant Di from which the Dj's are single excitations (and it's sign).
-!        USE AnnihilationMod , only : BinSearchParts
-        USE FciMCData , only : TotWalkers,CurrentDets
-        USE RotateOrbsData , only : SymLabelListInv_rot
-        USE bit_reps , only : extract_bit_rep
-        implicit none
         INTEGER(MPIArg), INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: SignDi,SignDj, SignDi2,SignDj2
@@ -2539,11 +2433,6 @@ MODULe nElRDMMod
 ! from each processor.
 ! These number sent from processor i is recvcounts(i), and the first 2 have information 
 ! about the determinant Di from which the Dj's are single excitations (and it's sign).
-!        USE AnnihilationMod , only : BinSearchParts
-        USE FciMCData , only : TotWalkers,CurrentDets
-        USE RotateOrbsData , only : SymLabelListInv_rot
-        USE bit_reps , only : extract_bit_rep
-        implicit none
         INTEGER(MPIArg), INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: SignDi,SignDj, SignDi2, SignDj2
@@ -2618,13 +2507,6 @@ MODULe nElRDMMod
 ! These number sent from processor i is recvcounts(i), and the first 2 have information 
 ! about the determinant Di from which the Dj's are single excitations (and it's sign).
 !        USE AnnihilationMod , only : BinSearchParts
-        USE FciMCData , only : TotWalkers,CurrentDets, iluthf_true
-        USE RotateOrbsData , only : SymLabelListInv_rot
-        USE bit_reps , only : extract_bit_rep
-        use DetBitOps , only : FindBitExcitLevel
-        use hist_data, only: AllHistogram
-        use hist , only : find_hist_coeff_explicit
-        implicit none
         INTEGER(MPIArg), INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: HistPos
@@ -2701,14 +2583,6 @@ MODULe nElRDMMod
 ! from each processor.
 ! These number sent from processor i is recvcounts(i), and the first 2 have information 
 ! about the determinant Di from which the Dj's are single excitations (and it's sign).
-!        USE AnnihilationMod , only : BinSearchParts
-        USE FciMCData , only : TotWalkers,CurrentDets, iluthf_true
-        USE RotateOrbsData , only : SymLabelListInv_rot
-        USE bit_reps , only : extract_bit_rep
-        use DetBitOps , only : FindBitExcitLevel
-        use hist_data, only: AllHistogram
-        use hist , only : find_hist_coeff_explicit
-        implicit none
         INTEGER(MPIArg), INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         INTEGER, dimension(lenof_sign) :: HistPos
@@ -2789,7 +2663,6 @@ MODULe nElRDMMod
     subroutine Fill_Diag_RDM(nI,realSignDi,RDMItersIn)
 ! Fill diagonal elements of 1- and 2-RDM.
 ! These are < Di | a_i+ a_i | Di > and < Di | a_i+ a_j+ a_j a_i | Di >.
-        implicit none
         integer , intent(in) :: nI(NEl)
         real(dp) , intent(in) :: realSignDi
         real(dp) , intent(in) , optional :: RDMItersIn
@@ -2854,7 +2727,6 @@ MODULe nElRDMMod
     subroutine Fill_Sings_RDM(nI,Ex,tParity,realSignDi,realSignDj,tFill_CiCj_Symm)
 ! This routine adds in the contribution to the 1- and 2-RDM from determinants connected
 ! by a single excitation.
-        implicit none
         integer , intent(in) :: nI(NEl), Ex(2,2)
         logical , intent(in) :: tParity
         real(dp) , intent(in) :: realSignDi, realSignDj
@@ -3007,7 +2879,6 @@ MODULe nElRDMMod
     subroutine Fill_Doubs_RDM(Ex,tParity,realSignDi,realSignDj,tFill_CiCj_Symm)
 ! This routine adds in the contribution to the 2-RDM from determinants connected
 ! by a double excitation.
-        implicit none
         integer , intent(in) :: Ex(2,2)
         logical , intent(in) :: tParity
         real(dp) , intent(in) :: realSignDi, realSignDj
@@ -3118,8 +2989,6 @@ MODULe nElRDMMod
 ! This routine finalises the one electron reduced density matrix stuff at the point of a softexit.
 ! This includes summing each of the individual matrices from each processor,
 ! and calling the diagonalisation routines if we want to get the occupation numbers.
-        USE Logging , only : tDiagRDM, tDumpForcesInfo
-        implicit none
         INTEGER :: error
         real(dp) :: Norm_2RDM, Norm_2RDM_Inst
         real(dp) :: Norm_1RDM, Trace_1RDM, SumN_Rho_ii
@@ -3188,7 +3057,7 @@ MODULe nElRDMMod
 ! This is only ever called at the very end of a calculation.
         use Logging , only : twrite_RDMs_to_read, twrite_normalised_RDMs, &
                              tDumpForcesInfo
-        implicit none
+        !implicit none
         integer :: i, ierr
         real(dp), intent(out) :: Norm_1RDM
         real(dp) :: Trace_1RDM, SumN_Rho_ii
@@ -3243,8 +3112,6 @@ MODULe nElRDMMod
 ! But we know that the trace of the one electron reduced density matrix must be equal to 
 ! the number of the electrons.
 ! We can use this to find the factor we must divide the 1RDM through by.
-        USE Logging , only : tDiagRDM
-        implicit none                            
         real(dp) , intent(out) :: Trace_1RDM, Norm_1RDM, SumN_Rho_ii
         integer :: i, HFDet_ID, BRR_ID
 
@@ -3311,8 +3178,7 @@ MODULe nElRDMMod
 
     subroutine make_1e_rdm_hermitian(Norm_1RDM)
 ! Simply average the 1-RDM(i,j) and 1-RDM(j,i) elements which should be equal in a perfect world.    
-        implicit none 
-        real(dp) , intent(in) :: Norm_1RDM        
+        real(dp) , intent(in) :: Norm_1RDM
         real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity 
         integer :: i, j
         real(dp) :: Temp
@@ -3349,7 +3215,6 @@ MODULe nElRDMMod
 ! If tNormalise is true, we are printing the normalised, hermitian matrix.
 ! Otherwise, Norm_1RDM is ignored and we print both 1-RDM(i,j) and 1-RDM(j,i) (in binary) 
 ! for the OneRDM_POPS file to be read in in a restart calculation.
-        implicit none
         real(dp) , intent(in) :: Norm_1RDM
         logical , intent(in) :: tNormalise
         integer :: i, j, iSpat, jSpat
@@ -3415,10 +3280,6 @@ MODULe nElRDMMod
     subroutine Finalise_2e_RDM(Norm_2RDM_Inst, Norm_2RDM) 
 ! This routine sums, normalises, hermitian-ises, and prints the 2-RDMs.    
 ! This may be called multiple times if we want to print multiple 2-RDMs.
-        use Logging , only : twrite_RDMs_to_read, twrite_normalised_RDMs, &
-                                IterWriteRDMs, tWriteMultRDMs
-        use FciMCData , only : IterRDMStart
-        implicit none
         real(dp) , intent(out) :: Norm_2RDM_Inst, Norm_2RDM
         real(dp) :: AllAccumRDMNorm_Inst
         logical :: tmake_herm
@@ -3516,7 +3377,6 @@ MODULe nElRDMMod
 !
 ! We also know that the trace of the two electron reduced density matrix must be equal to the 
 ! number of electron pairs in the system = 1/2 N ( N - 1), so we can do the same for the 2RDM.
-        implicit none                            
         real(dp) , intent(in) :: AllAccumRDMNorm_Inst
         real(dp) , intent(out) :: Norm_2RDM_Inst, Norm_2RDM
         integer :: i
@@ -3563,7 +3423,6 @@ MODULe nElRDMMod
 
     subroutine make_2e_rdm_hermitian(Norm_2RDM, Max_Error_Hermiticity, Sum_Error_Hermiticity)
 ! This averages 2-RDM(i,j;a,b) and 2-RDM(a,b;i,j) or equivalently 2-RDM(Ind1,Ind2) and 2-RDM(Ind2,Ind1).
-        implicit none 
         real(dp) , intent(in) :: Norm_2RDM
         real(dp) , intent(out) :: Max_Error_Hermiticity, Sum_Error_Hermiticity 
         integer :: i, j
@@ -3625,9 +3484,6 @@ MODULe nElRDMMod
 
 ! While, for instance, the TwoRDM_aaaa so far has actually been a sum of the aaaa elements and 
 ! the bbbb elements.  We only want to print the aaaa elements.
-        use util_mod , only : get_unique_filename
-        use Logging , only : tWriteMultRDMs
-        implicit none
         real(dp) , intent(in) :: Norm_2RDM
         logical , intent(in) :: tNormalise, tmake_herm
         real(dp) :: Tot_Spin_Projection, SpinPlus, SpinMinus
@@ -3886,9 +3742,6 @@ MODULe nElRDMMod
 ! are given by:
 !   Tr(h1 1RDM) = Sum_i,j [ h1(i,j) 1RDM(j,i) ]
 !   Tr(h2 2RDM) = Sum_i,j;k,l [ h2(i,j;k,l) 2RDM(k,l;i,j) ]
-        USE IntegralsData , only : UMAT
-        USE RotateOrbsMod , only : SymLabelList2_rot
-        implicit none
         real(dp), intent(out) :: Norm_2RDM
         real(dp) :: Norm_2RDM_Inst
         INTEGER :: i,j,a,b,Ind1_aa,Ind1_ab,Ind2_aa,Ind2_ab,ierr
@@ -4145,7 +3998,6 @@ MODULe nElRDMMod
     
         USE OneEInts , only : TMAT2D
         USE Logging , only : tDiagRDM, tDumpForcesInfo
-        implicit none
         integer , intent(in) :: i,j,a,iSpin,jSpin
         real(dp) , intent(in) :: Norm_2RDM, Norm_2RDM_Inst
         real(dp) , intent(inout) :: RDMEnergy_Inst, RDMEnergy1
@@ -4228,7 +4080,7 @@ MODULe nElRDMMod
                                                     * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
 
-                if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
+                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then                                              
                     NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
                                 NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
                                             - ( All_abba_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
@@ -4243,7 +4095,7 @@ MODULe nElRDMMod
                                                         * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                         * (1.0_dp / real(NEl - 1,dp)) )
 
-                    if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
+                    if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then                                          
                         NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                                 NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                             - ( ( All_abba_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
@@ -4266,7 +4118,7 @@ MODULe nElRDMMod
                                                 * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
 
-            if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
+            if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then                                                
                 NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
                             NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
                                         + ( All_aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
@@ -4281,7 +4133,7 @@ MODULe nElRDMMod
                                                 * REAL(TMAT2D(jSpin,iSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
 
-                if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
+                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then                                              
                     NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                             NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                         + ( All_aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
@@ -4296,10 +4148,6 @@ MODULe nElRDMMod
 ! Diagonalises the 1-RDM (NatOrbMat), so that after this routine NatOrbMat is the 
 ! eigenfunctions of the 1-RDM (the matrix transforming the MO's into the NOs).
 ! This also gets the NO occupation numbers (evaluse) and correlation entropy.
-        USE Logging , only : tPrintRODump
-        USE RotateOrbsMod , only : FourIndInts, FourIndIntsTag
-        USE RotateOrbsData , only : NoOrbs
-        implicit none
         integer :: ierr
         REAL(dp) :: SumDiag
         CHARACTER(len=*), PARAMETER :: this_routine='find_nat_orb_occ_numbers'
@@ -4342,9 +4190,6 @@ MODULe nElRDMMod
     end subroutine find_nat_orb_occ_numbers
 
     subroutine write_evales_and_transform_mat(SumDiag)
-        USE Logging , only : tNoNOTransform
-        USE RotateOrbsData , only : NoOrbs
-        implicit none
         real(dp) , intent(in) :: SumDiag
         integer :: i, j, Evalues_unit, NatOrbs_unit, jSpat, jInd, NO_Number
         REAL(dp) :: Corr_Entropy, Norm_Evalues, SumN_NO_Occ
@@ -4476,7 +4321,6 @@ MODULe nElRDMMod
 ! and the virtual second, also ordered by symmetry.
 ! This gives us flexibility w.r.t rotating only the occupied or only virtual and 
 ! looking at high spin states.
-        IMPLICIT NONE
         REAL(dp) , intent(out) :: SumTrace
         REAL(dp) :: SumDiagTrace
         REAL(dp) , ALLOCATABLE :: WORK2(:),EvaluesSym(:),NOMSym(:,:)
@@ -4712,9 +4556,6 @@ MODULe nElRDMMod
 
 
     SUBROUTINE OrderNatOrbMat()
-        USE sort_mod
-        USE Logging , only : tTruncRODump
-        IMPLICIT NONE
         INTEGER :: spin,i,j,ierr,StartSort,EndSort
         CHARACTER(len=*), PARAMETER :: this_routine='OrderRDM'
         INTEGER , ALLOCATABLE :: SymLabelList3_rot(:)
@@ -4808,8 +4649,6 @@ MODULe nElRDMMod
 ! This is v memory inefficient and currently does not use any spatial 
 ! symmetry information.
     SUBROUTINE Transform2ElIntsMemSave_RDM()
-        USE RotateOrbsMod , only : FourIndInts
-        implicit none
         INTEGER :: i,j,k,l,a,b,g,d,ierr,Temp4indintsTag,a2,d2,b2,g2
         REAL(dp) , ALLOCATABLE :: Temp4indints(:,:)
         CHARACTER(len=*), PARAMETER :: this_routine='Transform2ElIntsMemSave_RDM'
@@ -4892,8 +4731,6 @@ MODULe nElRDMMod
 
     SUBROUTINE CalcFOCKMatrix_RDM()
 ! Calculate the fock matrix in the nat orb basis.    
-        USE Logging , only : tRDMonfly
-        implicit none
         INTEGER :: i,j,k,l,a,b,ierr,ArrDiagNewTag
         REAL(dp) :: FOCKDiagSumHF,FOCKDiagSumNew
         CHARACTER(len=*) , PARAMETER :: this_routine='CalcFOCKMatrix_RDM'
@@ -5005,8 +4842,6 @@ MODULe nElRDMMod
 ! UMat is in spin or spatial orbitals, TMAT2D only spin.
 ! This routine refills these to more easily write out the ROFCIDUMP, and originally 
 ! to be able to continue a calculation (although I doubt this works at the moment).
-        USE RotateOrbsMod , only : FourIndInts, PrintROFCIDUMP, PrintRepeatROFCIDUMP
-        implicit none
         INTEGER :: l,k,j,i,a,b,g,d,c,nBasis2,TMAT2DPartTag,ierr
         REAL(dp) :: NewTMAT
         REAL(dp) , ALLOCATABLE :: TMAT2DPart(:,:)
@@ -5122,7 +4957,6 @@ MODULe nElRDMMod
 
     SUBROUTINE PrintROFCIDUMP_RDM()
 !This prints out a new FCIDUMP file in the same format as the old one.
-        implicit none
         INTEGER :: i,j,k,l,iunit
 
 !        PrintROFCIDUMP_Time%timer_name='PrintROFCIDUMP'
@@ -5233,12 +5067,6 @@ MODULe nElRDMMod
 ! This routine just deallocates the arrays allocated in InitRDM.
 ! If the NECI calculation softexits before the RDMs start to fill, this is all that 
 ! is called at the end.
-        USE RotateOrbsMod , only : SymLabelList2_rot,SymLabelListInv_rot,&
-                                   SymLabelListInv_rotTag,SymLabelList2_rotTag,&
-                                   FourIndInts, FourIndIntsTag, &
-                                   SymLabelCounts2_rot, SymLabelCounts2_rotTag
-        USE Logging , only : tDiagRDM, tPrintRODump
-        implicit none
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocateRDM'
 
         IF(tExplicitAllRDM) THEN
@@ -5677,8 +5505,6 @@ MODULe nElRDMMod
 !If failure, then the index will be one less than the index that the particle would be in if it was present in the list.
 !(or close enough!)
     SUBROUTINE BinSearchParts_rdm(iLut,MinInd,MaxInd,PartInd,tSuccess)
-        USE FciMCData , only : CurrentDets 
-        use DetBitOps , only: DetBitLT
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: MinInd,MaxInd,PartInd
         INTEGER :: i,j,N,Comp
