@@ -1255,8 +1255,9 @@ end module
     SUBROUTINE FindSingleOrbs(iLutnI,iLutnJ,NIfD,Orbs)
         use constants, only: n_int,bits_n_int
         IMPLICIT NONE
-        INTEGER :: NIfD,Orbs(2)
-        INTEGER(KIND=n_int) :: iLutnI(0:NIfD),iLutnJ(0:NIfD)
+        integer, intent(in) :: NIfD
+        INTEGER, intent(out) :: Orbs(2)
+        INTEGER(KIND=n_int), intent(in) :: iLutnI(0:NIfD),iLutnJ(0:NIfD)
         INTEGER(kind=n_int) :: iLutExcited(0:NIfD)
 
         iLutExcited(:)=IEOR(iLutnI(:),iLutnJ(:))

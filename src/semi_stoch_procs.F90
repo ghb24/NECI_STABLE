@@ -74,6 +74,19 @@ contains
                             sparse_core_ham(i)%elements(j)*full_determ_vector(sparse_core_ham(i)%positions(j))
                     end do
                 end do
+                
+!                if(tRDM) then
+!                    do i = 1, determ_proc_sizes(iProcIndex) !Core dets on proc
+!                        do j = 1, sparse_core_ham(i)%num_elements   !Connections to whole space (1 row)
+!                            !TODO: Get two determinants
+!                            !Find excitation matrix from bit representation
+!                            !Eg use FindSingleOrbs for singles and something similar for doubles
+!
+!                            partial_determ_vector(i) = partial_determ_vector(i) - &
+!                                sparse_core_ham(i)%elements(j)*full_determ_vector(sparse_core_ham(i)%positions(j))
+!                        end do
+!                    end do
+!                endif
 
             else
 
@@ -100,6 +113,7 @@ contains
                            0.0_dp, &
                            partial_determ_vector, &
                            1)
+
 
             end if
 
