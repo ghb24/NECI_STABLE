@@ -2700,13 +2700,25 @@ MODULE FciMCParMod
                     call encode_sign(CurrentDets(:,DetPosition),NullSign)
                 endif
             else
-                call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
-                if(.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
-                if (tFillingStochRDMonFly) then
-                    CurrentH(2,VecSlot) = wAvSign
-                    CurrentH(3,VecSlot) = IterRDMStartCurr
+                !Normally we will go in this block. Some may have died,
+                !but putting det back with new sign overall
+                if(tHashWalkerList) then
+                    !Here, determinants always stay in the same place
+                    !Therefore, only need to encode sign, and not to worry about helement or anything else
+                    call encode_sign(CurrentDets(:,DetPosition),CopySign)
+                    if (tFillingStochRDMonFly) then
+                        CurrentH(2,DetPosition) = wAvSign
+                        CurrentH(3,DetPosition) = IterRDMStartCurr
+                    endif
+                else
+                    call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
+                    if(.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
+                    if (tFillingStochRDMonFly) then
+                        CurrentH(2,VecSlot) = wAvSign
+                        CurrentH(3,VecSlot) = IterRDMStartCurr
+                    endif
+                    VecSlot = VecSlot + 1
                 endif
-                Vecslot = Vecslot + 1
             endif
         else
             !All walkers died
