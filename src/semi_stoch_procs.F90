@@ -5,10 +5,12 @@
 
 module semi_stoch_procs
 
-    use AnnihilationMod, only: BinSearchParts
+    use AnnihilationMod, only: BinSearchParts, RemoveDetHashIndex, FindWalkerHash, &
+                               EnlargeHashTable
     use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag, &
-                            flag_is_initiator
-    use bit_reps, only: decode_bit_det, set_flag, extract_part_sign, extract_sign
+                            flag_is_initiator, NOffSgn, NIfSgn
+    use bit_reps, only: decode_bit_det, set_flag, extract_part_sign, extract_sign, &
+                        encode_sign
     use CalcData, only: tRegenDiagHEls, tau, DiagSft, tReadPops, tTruncInitiator
     use constants
     use DetBitOps, only: ilut_lt, ilut_gt, FindBitExcitLevel, DetBitLT, &
@@ -18,7 +20,8 @@ module semi_stoch_procs
                          full_determ_vector, partial_determ_vector, core_hamiltonian, &
                          determ_space_size, SpawnedParts, SemiStoch_Comms_Time, &
                          SemiStoch_Multiply_Time, TotWalkers, CurrentDets, CoreTag, &
-                         PDetermTag, FDetermTag, IDetermTag, indices_of_determ_states
+                         PDetermTag, FDetermTag, IDetermTag, indices_of_determ_states, &
+                         HashIndex, nClashMax
     use hash, only: DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
@@ -131,6 +134,35 @@ contains
         call halt_timer(SemiStoch_Multiply_Time)
 
     end subroutine deterministic_projection
+
+    !function is_core_state(ilut) result (core_state)
+
+    !    integer(n_int), intent(in) :: ilut(0:NIfTot)
+    !    integer :: nI(nel)
+    !    integer :: DetHash, FinalVal, PartInd, clash
+    !    logical :: core_state, tSuccess
+
+    !    core_state = .false.
+    !    tSuccess = .false.
+
+    !    call decode_bit_det(nI, ilut)
+    !    DetHash = FindWalkerHash(nI)
+    !    FinalVal = HashIndex(0,DetHash)-1
+    !    do clash = 1, FinalVal
+    !        if (DetBitEQ(ilut,CurrentDets(:,HashIndex(clash,DetHash)),NIfDBO)) then
+    !            tSuccess = .true.
+    !            PartInd = HashIndex(clash, DetHash)
+    !            exit
+    !        end if
+    !    end do
+
+    !    ! The state is a core state if and only if it is both in CurrentDets and has its
+    !    ! deterministic flag set.
+    !    if (tSuccess) then
+    !        core_state = test_flag(CurrentDets(:,PartInd), flag_deterministic)
+    !    end if
+
+    !end function is_core_state
 
     subroutine calculate_determ_hamiltonian_normal()
 
@@ -274,7 +306,35 @@ contains
             end do
         end do
 
+        deallocate(temp_store, stat=ierr)
+        call LogMemDealloc(t_r, TempStoreTag, ierr)
+
     end subroutine generate_core_connections_sparse
+
+    !subroutine store_whole_core_space()
+
+    !    integer :: i, DetHash, Slot
+    !    integer :: nI(nel)
+
+    !    allocate(core_space(0:NIfTot, determ_space_size), stat=ierr)
+    !    call LogMemAlloc('core_space', maxval(determ_proc_sizes)*(NIfTot+1), 8, t_r, &
+    !                     CoreSpace, ierr)
+
+    !    call MPIAllGatherV(SpawnedParts(:,1:determ_proc_sizes(iProcIndex)), core_space, &
+    !                   determ_proc_sizes, determ_proc_indices)
+
+    !    do i = 1, determ_space_size
+    !        call decode_bit_det (nI, core_space(:,i))
+    !        DetHash = FindCoreHash(nI)
+    !        Slot = CoreHashIndex(0,DetHash)
+    !        CoreHashIndex(Slot,DetHash) = i
+    !        CoreHashIndex(0,DetHash) = CoreHashIndex(0,DetHash) + 1
+    !        if(CoreHashIndex(0,DetHash).gt.nCoreClashMax) then
+    !            call EnlargeCoreHashTable()
+    !        endif
+    !    end do
+
+    !end subroutine store_whole_core_space
 
     subroutine remove_repeated_states(list, list_size)
 
@@ -557,25 +617,25 @@ contains
 
     end subroutine write_core_space
 
-    subroutine add_semistoch_states_to_currentdets()
+    subroutine add_core_states_currentdets()
 
         ! And if the state is already present, simply set its flag.
         ! Also sort the states afterwards.
 
-        integer :: i, comp, MinInd, PartInd, n_walkers
+        integer :: i, comp, MinInd, PartInd, nwalkers
         logical :: tSuccess
 
         integer :: j
 
         MinInd = 1
-        n_walkers = int(TotWalkers,sizeof_int)
+        nwalkers = int(TotWalkers,sizeof_int)
 
         do i = 1, determ_proc_sizes(iProcIndex)
 
-            if (n_walkers > 0) then
+            if (nwalkers > 0) then
                 ! If there is only one state in CurrentDets to check then BinSearchParts doesn't
                 ! return the desired value for PartInd, so do this separately...
-                if (MinInd == n_walkers) then
+                if (MinInd == nwalkers) then
                     comp = DetBitLT(CurrentDets(:,MinInd), SpawnedParts(:,i), NIfDBO, .false.)
                     if (comp == 0) then
                         tSuccess = .true.
@@ -588,7 +648,7 @@ contains
                         PartInd = MinInd - 1
                     end if
                 else
-                    call BinSearchParts(SpawnedParts(:,i), MinInd, n_walkers, PartInd, tSuccess)
+                    call BinSearchParts(SpawnedParts(:,i), MinInd, nwalkers, PartInd, tSuccess)
                 end if
             else
                 tSuccess = .false.
@@ -604,19 +664,107 @@ contains
                 MinInd = PartInd
             else
                 ! Move all states below PartInd down one and insert the new state in the slot.
-                CurrentDets(:, PartInd+2:n_walkers+1) = CurrentDets(:, PartInd+1:n_walkers)
+                CurrentDets(:, PartInd+2:nwalkers+1) = CurrentDets(:, PartInd+1:nwalkers)
                 CurrentDets(:, PartInd+1) = SpawnedParts(:,i)
-                n_walkers = n_walkers + 1
+                nwalkers = nwalkers + 1
                 MinInd = PartInd + 1
             end if
 
         end do
 
-        call sort(CurrentDets(:,1:n_walkers), ilut_lt, ilut_gt)
+        call sort(CurrentDets(:,1:nwalkers), ilut_lt, ilut_gt)
 
-        TotWalkers = int(n_walkers, int64)
+        TotWalkers = int(nwalkers, int64)
 
-    end subroutine add_semistoch_states_to_currentdets
+    end subroutine add_core_states_currentdets
+
+    subroutine add_core_states_currentdet_hash
+
+        ! This routine adds the core states in SpawnedParts into CurrentDets. For all
+        ! such states already in CurrentDets, we want to keep the amplitude (which
+        ! may have come from a popsfile).
+
+        ! This routine is for when the tHashWalkerList option is used. In this case,
+        ! as all core states are always kept in the list, it is beneficial to keep
+        ! them at the top always. So, in this routine, we move the non-core states
+        ! in CurrentDets to the end and add the new core states in the gaps.
+
+        integer :: i, DetHash, FinalVal, clash, PartInd, Slot, nwalkers, i_non_core
+        integer :: nI(nel)
+        real(dp) :: walker_sign(lenof_sign)
+        integer(n_int) :: temp_ilut(0:NIfTot)
+        logical :: tSuccess
+
+        nwalkers = int(TotWalkers,sizeof_int)
+
+        ! First find which CurrentDet states are in the core space.
+        do i = 1, determ_proc_sizes(iProcIndex)
+
+            tSuccess = .false.
+            call decode_bit_det (nI, SpawnedParts(:,i))
+            DetHash = FindWalkerHash(nI)
+            FinalVal = HashIndex(0,DetHash)-1
+            do clash = 1, FinalVal
+                if (DetBitEQ(SpawnedParts(:,i),CurrentDets(:,HashIndex(clash,DetHash)),NIfDBO)) then
+                    tSuccess = .true.
+                    PartInd = HashIndex(clash, DetHash)
+                    exit
+                end if
+            end do
+
+            ! Core state i is in CurrentDets.
+            if (tSuccess) then
+                call set_flag(CurrentDets(:,PartInd), flag_deterministic)
+                ! Copy the amplitude of the state across to SpawnedParts.
+                call extract_sign(CurrentDets(:,PartInd), walker_sign)
+                call encode_sign(SpawnedParts(:,i), walker_sign)
+            else
+                ! This will be a new state added to CurrentDets.
+                nwalkers = nwalkers + 1
+            end if
+
+        end do
+
+        ! Next loop through CurrentDets and move all non-core states to after the last
+        ! core state slot in SpawnedParts.
+        i_non_core = determ_proc_sizes(iProcIndex)
+        do i = 1, int(TotWalkers,sizeof_int)
+            if (.not. test_flag(CurrentDets(:,i), flag_deterministic)) then
+                i_non_core = i_non_core + 1
+                temp_ilut = CurrentDets(:,i)
+                SpawnedParts(:,i_non_core) = temp_ilut
+            end if
+        end do
+
+        ! Now copy all the core states in SpawnedParts into CurrentDets.
+        ! Note that the amplitude in CurrentDets was copied across, so this is fine.
+        do i = 1, nwalkers
+            temp_ilut = SpawnedParts(:,i)
+            CurrentDets(:,i) = temp_ilut
+        end do
+
+        ! Reset the hash index array.
+        HashIndex(:,:) = 0
+        HashIndex(0,:) = 1
+
+        ! Finally, add the indices back into the hash index array.
+        do i = 1, nwalkers
+            call decode_bit_det(nI, CurrentDets(:,i))
+            DetHash = FindWalkerHash(nI)
+            Slot = HashIndex(0,DetHash)
+            HashIndex(Slot,DetHash) = i
+            HashIndex(0,DetHash) = HashIndex(0,DetHash) + 1
+            if(HashIndex(0,DetHash).gt.nClashMax) then
+                call EnlargeHashTable()
+            endif
+
+            ! These core states will always stay in the same position.
+            if (i <= determ_proc_sizes(iProcIndex)) indices_of_determ_states(i) = i
+        end do
+
+        TotWalkers = int(nwalkers, int64)
+
+    end subroutine add_core_states_currentdet_hash
 
     subroutine return_most_populated_states(n_keep, largest_walkers, norm)
 

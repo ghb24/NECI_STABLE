@@ -17,7 +17,8 @@ module semi_stoch_gen
                          determ_proc_indices, full_determ_vector, partial_determ_vector, &
                          core_hamiltonian, determ_space_size, TotWalkers, TotWalkersOld, &
                          indices_of_determ_states, SpawnedParts, FDetermTag, &
-                         PDetermTag, IDetermTag, trial_space, trial_space_size, SemiStoch_Init_Time
+                         PDetermTag, IDetermTag, trial_space, trial_space_size, &
+                         SemiStoch_Init_Time, tHashWalkerList
     use gndts_mod, only: gndts
     use hash, only: DetermineDetNode
     use LoggingData, only: tWriteCore, tRDMonFly
@@ -136,6 +137,8 @@ contains
             end if
         end do
 
+        !if (tRDMonFly .or. tHashWalkerList) call store_whole_core_space()
+
         write(6,'(a56)') "Generating the Hamiltonian in the deterministic space..."
         call neci_flush(6)
         if (tSparseCoreHamil) then
@@ -146,8 +149,13 @@ contains
 
         if (tRDMonFly) call generate_core_connections()
 
-        ! Finally, move the states to CurrentDets.
-        call add_semistoch_states_to_currentdets()
+        ! Move the states to CurrentDets.
+        if (tHashWalkerList) then
+            call add_core_states_currentdet_hash()
+        else
+            call add_core_states_currentdets()
+        end if
+
         ! If starting from a popsfile then CurrentH won't have been filled in yet.
         if ((.not. tRegenDiagHels) .and. tReadPops) call fill_in_CurrentH()
         SpawnedParts = 0

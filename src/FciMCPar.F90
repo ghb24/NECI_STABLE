@@ -263,6 +263,7 @@ MODULE FciMCParMod
 !Main iteration loop...
 !            WRITE(iout,*) 'Iter',Iter
 
+
             if(iProcIndex.eq.root) s_start=neci_etime(tstart)
 
             if(tRDMonFly.and.(.not.tSinglePartPhase)) call check_start_rdm()
@@ -310,7 +311,7 @@ MODULE FciMCParMod
                 s_end=neci_etime(tend)
                 IterTime=IterTime+(s_end-s_start)
             endif
-            
+
             if (mod(Iter, StepsSft) == 0) then
 
                 ! Has there been a particle bloom this update cycle? Loop
@@ -417,7 +418,7 @@ MODULE FciMCParMod
                         write(iout,"(A,F7.3,A)") "Time taken to write out POPSFILE: ",real(s_end,dp)-TotalTime8," seconds."
                     endif
                 endif
-            
+
             ENDIF   !Endif end of update cycle
 
             if (tHistSpinDist .and. (mod(iter, hist_spin_dist_iter) == 0)) &
@@ -1054,8 +1055,8 @@ MODULE FciMCParMod
         integer :: IterLastRDMFill
         integer :: proc, pos
         real(dp) :: r, sgn(lenof_sign), prob_extra_walker
-        integer :: determ_index
-        integer :: counter
+        integer :: determ_index, gen_ind
+        integer :: DetHash, FinalVal, clash, PartInd
 
         call set_timer(Walker_Time,30)
 
@@ -1158,21 +1159,11 @@ MODULE FciMCParMod
             endif
         endif
 
-        !counter = 0
-        !!write(6,*) "CurrentDets before:"
+        !write(6,*) "CurrentDets before:"
         !do j = 1, TotWalkers
-        !    !write(6,*) j, CurrentDets(:,j), test_flag(CurrentDets(:,j),flag_trial), &
-        !    !                             test_flag(CurrentDets(:,j),flag_connected)
-        !    if (test_flag(CurrentDets(:,j),flag_trial)) then
-        !        pos = binary_search_custom(trial_space(:, 1:trial_space_size), &
-        !                                   CurrentDets(:,j), NIfTot+1, ilut_gt)
-        !        counter = counter + 1
-        !        if (trial_wf(pos) /= occ_trial_amps(counter)) then
-        !            call stop_all("here","here")
-        !        end if
-        !    end if
-        !end do
-        !!write(6,*)
+        !    write(6,*) j, CurrentDets(:,j), test_flag(CurrentDets(:,j),flag_deterministic), &
+        !                                 test_flag(CurrentDets(:,j),flag_determ_parent)
+        !write(6,*)
 
         do j=1,int(TotWalkers,sizeof_int)
             ! N.B. j indicates the number of determinants, not the number
@@ -1190,13 +1181,18 @@ MODULE FciMCParMod
             ! If this state is in the deterministic space.
             if (tSemiStochastic) then
                 if (test_flag(CurrentDets(:,j), flag_deterministic)) then
-                    ! Store the index of this state, for use in annihilation later. Note, we
-                    ! use VecSlot, *not* j, as VecSlot stores the new index after death.
-                    indices_of_determ_states(determ_index) = VecSlot
+                    ! A general index whose value depends on whether the following option is used.
+                    if (tHashWalkerList) then
+                        gen_ind = j
+                    else
+                        gen_ind = VecSlot
+                    end if
 
-                    !call extract_sign (CurrentDets(:,j), SignCurr) (Already done above)
+                    ! Store the index of this state, for use in annihilation later.
+                    indices_of_determ_states(determ_index) = gen_ind
+
                     ! Add this amplitude to the deterministic vector.
-                    partial_determ_vector(determ_index) =  SignCurr(1)
+                    partial_determ_vector(determ_index) = SignCurr(1)
 
                     determ_index = determ_index + 1
 
@@ -1204,10 +1200,10 @@ MODULE FciMCParMod
                     ! the amplitude is zero. Hence we must check if the amplitude is zero,
                     ! and if so, skip the state.
                     if (.not.(abs(SignCurr(1)) > 0.0_dp)) then
-                        CurrentDets(:,VecSlot) = CurrentDets(:,j)
+                        CurrentDets(:,gen_ind) = CurrentDets(:,j)
                         if (tFillingStochRDMonFly) then
-                            CurrentH(2,VecSlot) = AvSignCurr
-                            CurrentH(3,VecSlot) = IterRDMStartCurr
+                            CurrentH(2,gen_ind) = AvSignCurr
+                            CurrentH(3,gen_ind) = IterRDMStartCurr
                         endif
                         VecSlot = VecSlot + 1
                         if(tFill_RDM) then 
@@ -1215,11 +1211,11 @@ MODULE FciMCParMod
                             ! RDM elements are calculated, along with the contributions from 
                             ! connections to the (true) HF determinant.
 
-                            if((abs(CurrentH(2,VecSlot-1)).gt.real(InitiatorWalkNo,dp)).or.(.not.tInitiatorRDM)) & 
+                            if((abs(CurrentH(2,gen_ind-1)).gt.real(InitiatorWalkNo,dp)).or.(.not.tInitiatorRDM)) & 
                             ! If we are only using initiators to calculate the RDMs, only add in the diagonal and 
                             ! explicit contributions if the average population is greater than n_a = InitiatorWalkNo.
-                                call fill_rdm_diag_currdet(CurrentDets(:,VecSlot-1), DetCurr, &
-                                        CurrentH(1:NCurrH,VecSlot-1), walkExcitLevel_toHF, IterLastRDMFill)  
+                                call fill_rdm_diag_currdet(CurrentDets(:,gen_ind-1), DetCurr, &
+                                        CurrentH(1:NCurrH,gen_ind-1), walkExcitLevel_toHF, IterLastRDMFill)  
                         endif
                         cycle
                     end if
@@ -1347,6 +1343,7 @@ MODULE FciMCParMod
             ! lenof_sign == 1 --> Only real particles
             ! lenof_sign == 2 --> complex walkers
             !                 --> part_type == 1, 2; real and complex walkers
+
             do part_type=1,lenof_sign
 
                 !The logic here is a little messy, but relates to the tSpawn_only_init option.
@@ -1397,6 +1394,19 @@ MODULE FciMCParMod
                             ! these flags? There are comments questioning this in create_particle, too.
                             iLutnJ(nOffFlag) = 0
                             
+                            !if (tHashWalkerList) then
+                            !    ! Is the spawned state in the core space?
+                            !    tInDetermSpace = is_core_state(iLutnJ)
+
+                            !    ! Is the parent state in the core space?
+                            !    if (test_flag(CurrentDets(:,j), flag_deterministic)) then
+                            !        ! If spawning is from and to the core space, cancel it.
+                            !        if (tInDetermSpace) cycle
+                            !    else
+                            !        if (tInDetermSpace) call set_flag(iLutnJ, flag_deterministic)
+                            !    end if
+                            !end if
+
                             ! If the walker being spawned is spawned from the deterministic space,
                             ! then set the corresponding flag to specify this.
                             if (test_flag(CurrentDets(:,j), flag_deterministic)) &
@@ -1442,7 +1452,7 @@ MODULE FciMCParMod
                 enddo ! Cycling over mulitple particles on same determinant.
 
             enddo   ! Cycling over 'type' of particle on a given determinant.
-            
+
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
 
@@ -1454,13 +1464,13 @@ MODULE FciMCParMod
                                        CurrentDets(:,j), HDiagCurr, SignCurr, &
                                        AvSignCurr, IterRDMStartCurr, VecSlot, j, WalkExcitLevel)
                 else
+                    if (.not. tHashWalkerList) CurrentDets(:,VecSlot) = CurrentDets(:,j)
+                    if (tFillingStochRDMonFly) then
+                        CurrentH(2,gen_ind) = AvSignCurr
+                        CurrentH(3,gen_ind) = IterRDMStartCurr
+                    endif
                     ! We never overwrite the deterministic states, so move the next spawning slot
                     ! in CurrentDets to the next state.
-                    CurrentDets(:,VecSlot) = CurrentDets(:,j)
-                    if (tFillingStochRDMonFly) then
-                        CurrentH(2,VecSlot) = AvSignCurr
-                        CurrentH(3,VecSlot) = IterRDMStartCurr
-                    endif
                     VecSlot = VecSlot + 1
                 
                 end if
@@ -1504,7 +1514,7 @@ MODULE FciMCParMod
         ! For semi-stochastic calculations only: Gather together the parts of the deterministic vector stored
         ! on each processor, and then perform the multiplication of the exact projector on this vector.
         if (tSemiStochastic) call deterministic_projection()
-            
+
         ! Update the statistics for the end of an iteration.
         ! Why is this done here - before annihilation!
         call end_iter_stats(TotWalkersNew)
@@ -1520,6 +1530,7 @@ MODULE FciMCParMod
         !HolesInList is returned from direct annihilation with the number of unoccupied determinants in the list
         !They have already been removed from the hash table though.
         call DirectAnnihilation (totWalkersNew, iter_data,.false.) !.false. for not single processor
+
         TotWalkers=TotWalkersNew    !with tHashWalkerList this indicates the number of determinants 
                                     !in list + holes from annihilation
         CALL halt_timer(Annihil_Time)
@@ -4267,7 +4278,7 @@ MODULE FciMCParMod
         type(fcimc_iter_data) :: iter_data
         real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
         real(dp), dimension(lenof_sign) :: tot_parts_new_all
-       
+
         call collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
         call iter_diagnostics ()
         if(tRestart) return
