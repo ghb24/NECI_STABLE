@@ -389,14 +389,22 @@ MODULE FciMCData
 
       ! Semi-stochastic data.
 
-      ! The core Hamiltonian (with the Hartree-Fock energy removed from the diagonal) is stored in this array for the whole simulation.
+      ! The core Hamiltonian (with the Hartree-Fock energy removed from the diagonal) is stored in this array for
+      ! the whole simulation.
       real(dp), allocatable, dimension(:,:) :: core_hamiltonian 
-      real(dp), allocatable, dimension(:) :: full_determ_vector ! This stores all the amplitudes of the walkers in the deterministic space.
+            
+      ! This stores the entire core space from all processes, on each process. However, this is only allocated in specific
+      ! situations (when calculating RDMs and when using the tCoreHash option) and not generally.
+      integer(n_int), allocatable, dimension(:,:) :: core_space
 
-      ! This vector has the size of the part of the deterministic space stored on *this* processor only. It is therefore used to store
-      ! the deterministic vector on this processor, before it is combined to give the whole vector, which is stored in full_determ_vector.
-      ! Later in the iteration, it is also used to store the result of the multiplication by core_hamiltonian on full_determ_vector.
+      ! This stores all the amplitudes of the walkers in the deterministic space. This vector has the size of the part
+      ! of the deterministic space stored on *this* processor only. It is therefore used to store the deterministic vector
+      ! on this processor, before it is combined to give the whole vector, which is stored in full_determ_vector.
+      ! Later in the iteration, it is also used to store the result of the multiplication by core_hamiltonian on
+      ! full_determ_vector.
       real(dp), allocatable, dimension(:) :: partial_determ_vector
+      real(dp), allocatable, dimension(:) :: full_determ_vector 
+
       integer(MPIArg), allocatable, dimension(:) :: determ_proc_sizes
       integer(MPIArg), allocatable, dimension(:) :: determ_proc_indices
       integer(MPIArg) :: determ_space_size
@@ -404,10 +412,16 @@ MODULE FciMCData
       ! This vector will store the indicies of the deterministic states in CurrentDets. This is worked out in the main loop.
       integer, allocatable, dimension(:) :: indices_of_determ_states
 
-      ! This integer is used in the Annnihilation routines. It denotes the index of the first non deterministic state in the spawned list
-      ! (once this list has been compressed). This is used to skip over performing certain annihilation routines on the deterministic
-      ! state, which are not removed from the list.
+      ! This integer is used in the Annnihilation routines. It denotes the index of the first non deterministic state in
+      ! the spawned list (once this list has been compressed). This is used to skip over performing certain annihilation
+      ! routines on the deterministic state, which are not removed from the list.
       integer :: index_of_first_non_determ
+
+      ! For using the hashing trick to search the core space.
+      integer, pointer :: CoreHashIndex(:,:)
+      integer, allocatable, target :: CoreHashIndexArr1(:,:), CoreHashIndexArr2(:,:)
+      integer :: nCoreClashMax
+      logical :: tCoreHash
 
       ! Trial wavefunction data.
 
@@ -453,7 +467,7 @@ MODULE FciMCData
       real(dp), allocatable, dimension(:) :: con_temp
 
       ! Semi-stochastic tags:
-      integer(TagIntType) :: CoreTag, FDetermTag, PDetermTag, IDetermTag
+      integer(TagIntType) :: CoreTag, FDetermTag, PDetermTag, IDetermTag, CoreSpaceTag
 
       ! Trial wavefunction tags:
       integer(TagIntType) :: TrialTag, ConTag, ConVecTag, TrialWFTag, TempTag

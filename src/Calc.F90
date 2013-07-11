@@ -21,7 +21,8 @@ MODULE Calc
                         tSpawnProp, nClustSelections, tExactEnergy,     &
                         dClustSelectionRatio,tSharedExcitors
     use FciMCData, only: proje_update_comb,proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
-                         InputDiagSft,tSearchTau,proje_spatial,nWalkerHashes,tHashWalkerList,HashLengthFrac
+                         InputDiagSft,tSearchTau,proje_spatial,nWalkerHashes,tHashWalkerList,HashLengthFrac, &
+                         tCoreHash
 
     implicit none
 
@@ -58,6 +59,7 @@ contains
           tHashWalkerList=.false.
           HashLengthFrac=0.0_dp
           nWalkerHashes=0
+          tCoreHash=.false.
           iExitWalkers=-1
           FracLargerDet=1.2
           iReadWalkersRoot=0 
@@ -906,6 +908,8 @@ contains
                 else
                     HashLengthFrac=0.7
                 endif
+            case("SEMISTOCHHASH")
+                tCoreHash = .true.
             case("STEPSSHIFTIMAG")
 !For FCIMC, this is the amount of imaginary time which will elapse between updates of the shift.
                 call getf(StepsSftImag)

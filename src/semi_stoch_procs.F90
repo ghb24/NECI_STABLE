@@ -21,7 +21,7 @@ module semi_stoch_procs
                          determ_space_size, SpawnedParts, SemiStoch_Comms_Time, &
                          SemiStoch_Multiply_Time, TotWalkers, CurrentDets, CoreTag, &
                          PDetermTag, FDetermTag, IDetermTag, indices_of_determ_states, &
-                         HashIndex, nClashMax
+                         HashIndex, nClashMax, core_space, CoreSpaceTag, tCoreHash
     use hash, only: DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
@@ -135,34 +135,28 @@ contains
 
     end subroutine deterministic_projection
 
-    !function is_core_state(ilut) result (core_state)
+    function is_core_state(ilut) result (core_state)
 
-    !    integer(n_int), intent(in) :: ilut(0:NIfTot)
-    !    integer :: nI(nel)
-    !    integer :: DetHash, FinalVal, PartInd, clash
-    !    logical :: core_state, tSuccess
+        use semi_stoch_hash
 
-    !    core_state = .false.
-    !    tSuccess = .false.
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer :: nI(nel)
+        integer :: DetHash, FinalVal, PartInd, clash
+        logical :: core_state
 
-    !    call decode_bit_det(nI, ilut)
-    !    DetHash = FindWalkerHash(nI)
-    !    FinalVal = HashIndex(0,DetHash)-1
-    !    do clash = 1, FinalVal
-    !        if (DetBitEQ(ilut,CurrentDets(:,HashIndex(clash,DetHash)),NIfDBO)) then
-    !            tSuccess = .true.
-    !            PartInd = HashIndex(clash, DetHash)
-    !            exit
-    !        end if
-    !    end do
+        core_state = .false.
 
-    !    ! The state is a core state if and only if it is both in CurrentDets and has its
-    !    ! deterministic flag set.
-    !    if (tSuccess) then
-    !        core_state = test_flag(CurrentDets(:,PartInd), flag_deterministic)
-    !    end if
+        call decode_bit_det(nI, ilut)
+        DetHash = FindCoreHash(nI)
+        FinalVal = CoreHashIndex(0,DetHash)-1
+        do clash = 1, FinalVal
+            if (DetBitEQ(ilut,core_space(:,CoreHashIndex(clash,DetHash)),NIfDBO)) then
+                core_state = .true.
+                exit
+            end if
+        end do
 
-    !end function is_core_state
+    end function is_core_state
 
     subroutine calculate_determ_hamiltonian_normal()
 
@@ -311,30 +305,23 @@ contains
 
     end subroutine generate_core_connections_sparse
 
-    !subroutine store_whole_core_space()
+    subroutine store_whole_core_space()
 
-    !    integer :: i, DetHash, Slot
-    !    integer :: nI(nel)
+        use semi_stoch_hash, only: InitialiseCoreHashTable
 
-    !    allocate(core_space(0:NIfTot, determ_space_size), stat=ierr)
-    !    call LogMemAlloc('core_space', maxval(determ_proc_sizes)*(NIfTot+1), 8, t_r, &
-    !                     CoreSpace, ierr)
+        integer :: ierr
+        character(len=*), parameter :: t_r = "store_whole_core_space"
 
-    !    call MPIAllGatherV(SpawnedParts(:,1:determ_proc_sizes(iProcIndex)), core_space, &
-    !                   determ_proc_sizes, determ_proc_indices)
+        allocate(core_space(0:NIfTot, determ_space_size), stat=ierr)
+        call LogMemAlloc('core_space', maxval(determ_proc_sizes)*(NIfTot+1), 8, t_r, &
+                         CoreSpaceTag, ierr)
 
-    !    do i = 1, determ_space_size
-    !        call decode_bit_det (nI, core_space(:,i))
-    !        DetHash = FindCoreHash(nI)
-    !        Slot = CoreHashIndex(0,DetHash)
-    !        CoreHashIndex(Slot,DetHash) = i
-    !        CoreHashIndex(0,DetHash) = CoreHashIndex(0,DetHash) + 1
-    !        if(CoreHashIndex(0,DetHash).gt.nCoreClashMax) then
-    !            call EnlargeCoreHashTable()
-    !        endif
-    !    end do
+        call MPIAllGatherV(SpawnedParts(:,1:determ_proc_sizes(iProcIndex)), core_space, &
+                       determ_proc_sizes, determ_proc_indices)
 
-    !end subroutine store_whole_core_space
+        if (tCoreHash) call InitialiseCoreHashTable()
+
+    end subroutine store_whole_core_space
 
     subroutine remove_repeated_states(list, list_size)
 

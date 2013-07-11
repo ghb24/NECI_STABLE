@@ -147,7 +147,7 @@ MODULE FciMCParMod
     use determ_proj, only: perform_determ_proj
     use semi_stoch_gen, only: init_semi_stochastic
     use semi_stoch_procs, only: deterministic_projection, return_most_populated_states, &
-                                end_semistoch
+                                end_semistoch, is_core_state
     use trial_wf_gen, only: init_trial_wf, update_compare_trial_file, end_trial_wf
     use gndts_mod, only: gndts
     use sort_mod
@@ -1394,18 +1394,18 @@ MODULE FciMCParMod
                             ! these flags? There are comments questioning this in create_particle, too.
                             iLutnJ(nOffFlag) = 0
                             
-                            !if (tHashWalkerList) then
-                            !    ! Is the spawned state in the core space?
-                            !    tInDetermSpace = is_core_state(iLutnJ)
+                            if (tCoreHash) then
+                                ! Is the spawned state in the core space?
+                                tInDetermSpace = is_core_state(iLutnJ)
 
-                            !    ! Is the parent state in the core space?
-                            !    if (test_flag(CurrentDets(:,j), flag_deterministic)) then
-                            !        ! If spawning is from and to the core space, cancel it.
-                            !        if (tInDetermSpace) cycle
-                            !    else
-                            !        if (tInDetermSpace) call set_flag(iLutnJ, flag_deterministic)
-                            !    end if
-                            !end if
+                                ! Is the parent state in the core space?
+                                if (test_flag(CurrentDets(:,j), flag_deterministic)) then
+                                    ! If spawning is from and to the core space, cancel it.
+                                    if (tInDetermSpace) cycle
+                                else
+                                    if (tInDetermSpace) call set_flag(iLutnJ, flag_deterministic)
+                                end if
+                            end if
 
                             ! If the walker being spawned is spawned from the deterministic space,
                             ! then set the corresponding flag to specify this.

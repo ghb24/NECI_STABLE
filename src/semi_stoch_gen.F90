@@ -18,7 +18,7 @@ module semi_stoch_gen
                          core_hamiltonian, determ_space_size, TotWalkers, TotWalkersOld, &
                          indices_of_determ_states, SpawnedParts, FDetermTag, &
                          PDetermTag, IDetermTag, trial_space, trial_space_size, &
-                         SemiStoch_Init_Time, tHashWalkerList
+                         SemiStoch_Init_Time, tHashWalkerList, tCoreHash
     use gndts_mod, only: gndts
     use hash, only: DetermineDetNode
     use LoggingData, only: tWriteCore, tRDMonFly
@@ -137,7 +137,7 @@ contains
             end if
         end do
 
-        !if (tRDMonFly .or. tHashWalkerList) call store_whole_core_space()
+        if (tRDMonFly .or. tCoreHash) call store_whole_core_space()
 
         write(6,'(a56)') "Generating the Hamiltonian in the deterministic space..."
         call neci_flush(6)

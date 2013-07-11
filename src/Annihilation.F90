@@ -416,8 +416,7 @@ MODULE AnnihilationMod
 
             do while(CurrentBlockDet.le.ValidSpawned)
                 if(.not.(DetBitEQ(SpawnedParts(0:NIfTot,BeginningBlockDet),SpawnedParts(0:NIfTot,CurrentBlockDet),NIfDBO))) exit
-                !if (tSemiStochastic .and. (.not. tHashWalkerList)) then
-                if (tSemiStochastic) then
+                if (tSemiStochastic .and. (.not. tCoreHash)) then
                     if (.not. (test_flag(SpawnedParts(0:NIfTot,BeginningBlockDet), flag_determ_parent) .eqv. &
                                test_flag(SpawnedParts(0:NIfTot,CurrentBlockDet), flag_determ_parent))) exit
                 end if
@@ -468,8 +467,7 @@ MODULE AnnihilationMod
                     endif
                 ENDIF
 
-                !if (tSemiStochastic .and. (.not. tHashWalkerList)) then
-                if (tSemiStochastic) then
+                if (tSemiStochastic .and. (.not. tCoreHash)) then
                     ! If the last state was the same then set this state's initiator flag.
                     if (DetBitEq(temp_det(0:NIfTot), SpawnedParts2(0:NIfTot,VecInd), NIfDBO)) then
                         call set_flag(SpawnedParts2(:,VecInd), flag_is_initiator(1))
@@ -551,8 +549,7 @@ MODULE AnnihilationMod
 
             ! If this state and the previous one are the same then the previous state was spawned from the
             ! deterministic space, so had its initiator flag set. So set this state's flag too.
-            !if (tSemiStochastic .and. (.not. tHashWalkerList)) then
-            if (tSemiStochastic) then
+            if (tSemiStochastic .and. (.not. tCoreHash)) then
                 if (DetBitEQ(cum_det(0:NIfTot), temp_det(0:NIfTot), NIfDBO)) then
                     call set_flag(cum_det, flag_is_initiator(1))
                     call set_flag(cum_det, flag_is_initiator(2))
@@ -986,8 +983,7 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
             ! Abort spawning from the deterministic space to the deterministic space, and also
             ! merge this state and next state in SpawnedParts if they are the same states but
             ! with the determ_parent flag set in the first state and not set in the second state.
-            !if (tSemiStochastic .and. (.not. tHashWalkerList)) then
-            if (tSemiStochastic) then
+            if (tSemiStochastic .and. (.not. tCoreHash)) then
                 if (test_flag(SpawnedParts(:,i), flag_determ_parent)) then
                     ! If walkers spawned onto this state from within the deterministic space.
                     if (i < ValidSpawned) then
