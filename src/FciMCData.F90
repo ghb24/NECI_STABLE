@@ -418,8 +418,8 @@ MODULE FciMCData
       integer :: index_of_first_non_determ
 
       ! For using the hashing trick to search the core space.
-      integer, pointer :: CoreHashIndex(:,:)
-      integer, allocatable, target :: CoreHashIndexArr1(:,:), CoreHashIndexArr2(:,:)
+      integer(4), pointer :: CoreHashIndex(:,:)
+      integer(4), allocatable, target :: CoreHashIndexArr1(:,:), CoreHashIndexArr2(:,:)
       integer :: nCoreClashMax
       logical :: tCoreHash
 
