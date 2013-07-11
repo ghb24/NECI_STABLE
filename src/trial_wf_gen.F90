@@ -269,7 +269,6 @@ contains
         ! flags and return the corresponding trial and connected vector amplitudes to trial_temp and
         ! con_temp. These are then copied across to the vectors below.
         call find_trial_and_con_states(TotWalkers, CurrentDets, ntrial_occ, ncon_occ)
-        write(6,*) "ntrial_occ:", ntrial_occ, "ncon_occ:", ncon_occ
         occ_trial_amps(1:ntrial_occ) = trial_temp(1:ntrial_occ)
         occ_con_amps(1:ncon_occ) = con_temp(1:ncon_occ)
 
