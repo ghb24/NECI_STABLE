@@ -22,7 +22,7 @@ module trial_wf_gen
     use ParallelHelper, only: root
     use semi_stoch_gen
     use semi_stoch_procs
-    use sparse_hamil
+    use sparse_arrays
     use SystemData, only: nel, tDoublesTrial, tOptimisedTrial, tCASTrial, tPopsTrial, &
                           tLowETrial, tHPHF
     use util_mod, only: get_free_unit, binary_search_custom

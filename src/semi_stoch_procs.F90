@@ -29,7 +29,7 @@ module semi_stoch_procs
                              MPIAllGatherV, MPISum, MPISumAll
     use ras, only: core_ras
     use sort_mod, only: sort
-    use sparse_hamil, only: sparse_core_ham, SparseCoreHamilTags, deallocate_sparse_ham, &
+    use sparse_arrays, only: sparse_core_ham, SparseCoreHamilTags, deallocate_sparse_ham, &
                             core_connections
     use SystemData, only: tSemiStochastic, tCSFCore, tDeterminantCore, tDoublesCore, &
                           tCASCore, tRASCore, cas_determ_not_bitmask, core_ras1_bitmask, &
@@ -137,24 +137,29 @@ contains
 
     function is_core_state(ilut) result (core_state)
 
+        use FciMCData, only: ll_node
         use semi_stoch_hash
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer :: nI(nel)
-        integer :: DetHash, FinalVal, PartInd, clash
+        integer :: DetHash, PartInd
+        type(ll_node), pointer :: temp
         logical :: core_state
 
         core_state = .false.
 
         call decode_bit_det(nI, ilut)
         DetHash = FindCoreHash(nI)
-        FinalVal = CoreHashIndex(0,DetHash)-1
-        do clash = 1, FinalVal
-            if (DetBitEQ(ilut,core_space(:,CoreHashIndex(clash,DetHash)),NIfDBO)) then
+        temp => CoreHashIndex(DetHash)
+        do while (associated(temp))
+            if (DetBitEQ(ilut, core_space(:,temp%ind),NIfDBO)) then
                 core_state = .true.
                 exit
             end if
+            temp => temp%next
         end do
+
+        nullify(temp)
 
     end function is_core_state
 

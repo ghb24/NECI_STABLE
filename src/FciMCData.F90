@@ -10,6 +10,12 @@ MODULE FciMCData
       implicit none
       save
 
+      ! Type for creating linked lists for the linear scaling algorithm.
+      type ll_node
+          integer(sp) :: ind
+          type(ll_node), pointer :: next => null()
+      end type
+
       !Variables for popsfile mapping
       integer, allocatable :: PopsMapping(:)    !Mapping function between old basis and new basis
       integer :: MappingNIfD,MappingNIfTot      !Original basis NIfD and NIfTot
@@ -381,8 +387,8 @@ MODULE FciMCData
       real(dp), allocatable :: ENumCycHistG(:),AllENumCycHistG(:),ENumCycHistK3(:),AllENumCycHistK3(:)
       integer :: unit_splitprojEHistG,unit_splitprojEHistK3
 
-      ! This array stores the Hamiltonian matrix, or part of it, when performing a diagonalisation. It is currently only used for the
-      ! code for the Davidson method and semi-stochastic method.
+      ! This array stores the Hamiltonian matrix, or part of it, when performing a diagonalisation. It is currently
+      ! only used for the code for the Davidson method and semi-stochastic method.
       real(dp), allocatable, dimension(:,:) :: hamiltonian
 
       integer(TagIntType) :: HamTag, DavidsonTag
@@ -418,9 +424,7 @@ MODULE FciMCData
       integer :: index_of_first_non_determ
 
       ! For using the hashing trick to search the core space.
-      integer(4), pointer :: CoreHashIndex(:,:)
-      integer(4), allocatable, target :: CoreHashIndexArr1(:,:), CoreHashIndexArr2(:,:)
-      integer :: nCoreClashMax
+      type(ll_node), pointer :: CoreHashIndex(:)
       logical :: tCoreHash
 
       ! Trial wavefunction data.
@@ -451,8 +455,8 @@ MODULE FciMCData
       real(dp) :: trial_energy
       ! This vector's elements store the quantity
       ! \sum_j H_{ij} \psi^T_j,
-      ! where \psi is the trial wavefunction. These elements are stored only in the space of states which are connected to *but included in*
-      ! the trial vector space.
+      ! where \psi is the trial wavefunction. These elements are stored only in the space of states which are connected
+      ! to *but not included in* the trial vector space.
       real(dp), allocatable, dimension(:) :: con_space_vector
       ! This vector stores the values of con_space_vector for the occupied connected state in CurrentDets, in the same order as
       ! these states in CurrentDets. If not all connected states are occupied then the final elements store junk and aren't used.

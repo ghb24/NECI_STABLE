@@ -29,7 +29,7 @@ module semi_stoch_gen
     use ras
     use semi_stoch_procs
     use sort_mod, only: sort
-    use sparse_hamil
+    use sparse_arrays
     use sym_mod, only: getsym
     use SystemData
     use timing_neci
@@ -606,7 +606,7 @@ contains
 
         use davidson, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
                             sparse_hamil_type
-        use sparse_hamil, only: sparse_ham, hamil_diag
+        use sparse_arrays, only: sparse_ham, hamil_diag
 
         integer, intent(in) :: called_from
         integer(n_int), allocatable, dimension(:,:) :: ilut_store, temp_space
