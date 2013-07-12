@@ -184,6 +184,7 @@ MODULE FciMCParMod
         real(dp) :: ProjE_Err_re,ProjE_Err_im,Shift_Err
         logical :: tNoProjEValue,tNoShiftValue
         real(dp) :: BestErr
+        real(dp) :: start_time, stop_time
 #ifdef MOLPRO
         real(dp) :: get_scalar
         include "common/molen"
@@ -244,6 +245,9 @@ MODULE FciMCParMod
 
         SumSigns = 0.0_dp
         SumSpawns = 0.0_dp
+
+        ! In we go - start the timer for scaling curve!
+        start_time = neci_etime(tstart)
 
         do while (Iter <= NMCyc .or. NMCyc == -1)
 !Main iteration loop...
@@ -444,6 +448,12 @@ MODULE FciMCParMod
 
 !End of MC cycle
         enddo
+
+        ! We are at the end - get the stop-time. Output the timing details
+        stop_time = neci_etime(tend)
+        write(iout,*) '-----------------------------------------------'
+        write(iout,*) 'Total loop-time: ', stop_time - start_time
+        write(iout,*) '-----------------------------------------------'
 
         ! Reduce the iteration count fro the POPSFILE since it is incremented
         ! upon leaving the loop (If done naturally).
@@ -3409,6 +3419,9 @@ MODULE FciMCParMod
                ! Check how balanced the load on each processor is (even though
                ! we cannot load balance with direct annihilation).
                WalkersDiffProc = int(MaxWalkersProc - MinWalkersProc,sizeof_int)
+               ! Do the same for number of particles
+               PartsDiffProc = int(MaxPartsProc - MinPartsProc, sizeof_int)
+
                mean_walkers = AllTotWalkers / real(nNodes,dp)
                if (WalkersDiffProc > nint(mean_walkers / 10.0_dp) .and. &
                    sum(AllTotParts) > real(nNodes * 500, dp)) then
@@ -3703,6 +3716,8 @@ MODULE FciMCParMod
         ! Max/Min values (check load balancing)
         call MPIReduce (TotWalkersTemp, MPI_MAX, MaxWalkersProc)
         call MPIReduce (TotWalkersTemp, MPI_MIN, MinWalkersProc)
+        call MPIReduce (sum(TotParts), MPI_MAX, MaxPartsProc)
+        call MPIReduce (sum(TotParts), MPI_MIN, MinPartsProc)
 
         ! We need the total number on the HF and SumWalkersCyc to be valid on
         ! ALL processors (Both double precision reals)
@@ -4137,7 +4152,8 @@ MODULE FciMCParMod
                    &22.HFContribtoE(Both)  &
                    &23.NumContribtoE(Re)  &
                    &24.NumContribtoE(Im)  25.HF weight   26.|Psi|    &
-                   &28.Inst S^2  29.SpawnedParts  30.MergedParts"
+                   &28.Inst S^2  29.SpawnedParts  30.MergedParts  &
+                   &31.PartsDiffProc"
 #else
             if(tMCOutput) then
                 write(iout,"(A)") "       Step     Shift      WalkerCng    &
@@ -4158,7 +4174,8 @@ MODULE FciMCParMod
                   &20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  &
                   &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
                   &26.HF weight    27.|Psi|     28.Inst S^2 29.Inst S^2 30.AbsProjE &
-                  &31.SpawnedParts  32.MergedParts  33.WalkersToSpawn  34.ZeroMatrixElements"
+                  &31.SpawnedParts  32.MergedParts  33.WalkersToSpawn  &
+                  &34.ZeroMatrixElements  35.PartsDiffProc"
 
            if(tSplitProjEHist) then
                if(tSplitProjEHistG) then
@@ -4205,7 +4222,7 @@ MODULE FciMCParMod
 
 #ifdef __CMPLX
             write(fcimcstats_unit,"(I12,5G16.7,7G17.9,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9,3I13)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9,4I13)") &
                 Iter + PreviousCycles, &                !1.
                 DiagSft, &                              !2.
                 AllTotParts(1) - AllTotPartsOld(1), &   !3.
@@ -4235,7 +4252,8 @@ MODULE FciMCParMod
                 curr_S2, &                            !27
                 AllNumSpawnedEntries, &               !28
                 AllNumMerged, &                       !29
-                AllZeroMatrixElem                     !230
+                AllZeroMatrixElem, &                  !230
+                PartsDiffProc
 
             if(tMCOutput) then
                 write (iout, "(I12,13G16.7,I12,G13.5)") &
@@ -4276,7 +4294,7 @@ MODULE FciMCParMod
             endif
             
             write(fcimcstats_unit,"(I12,G16.7,3G16.7,3G16.7,5G17.9,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9, 4I13)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9, 5I13)") &
                 Iter + PreviousCycles, &
                 DiagSft, &
                 sum(AllTotParts) - sum(AllTotPartsOld), &
@@ -4309,7 +4327,8 @@ MODULE FciMCParMod
                 AllNumSpawnedEntries, &
                 AllNumMerged, &
                 AllTotWalkersToSpawn, &
-                AllZeroMatrixElem
+                AllZeroMatrixElem, &
+                PartsDiffProc
 
             if(tMCOutput) then
                 write (iout, "(I12,13G16.7,I12,G13.5)") &
@@ -6791,7 +6810,8 @@ MODULE FciMCParMod
                 write(iout,"(A)") "Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number"
                 write(iout,"(A,I15)") "Length of hash-table: ",nWalkerHashes
                 write(iout,"(A,F20.5)") "Length of hash-table as a fraction of targetwalkers: ",HashLengthFrac
-                nClashMax=int(real(WalkerListSize,dp)/real(nWalkerHashes,dp))+1
+                nclashmax = max(nClashMax, &
+                                int(real(WalkerListSize,dp)/real(nWalkerHashes,dp))+1)
 !                write(iout,*) MaxWalkersPart,nWalkerHashes,nClashMax
                 write(iout,"(A,I7,A)") "Initially allocating memory in hash table for a maximum of ",   &
                             nClashMax," walker hash clashes"
