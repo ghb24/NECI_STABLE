@@ -100,4 +100,7 @@ INTEGER iLogicalNodeSize  !An alternative to the above, create logical nodes of 
 logical :: tContinueAfterMP2 ! UEG option only
     logical :: tJumpShift
 
+    ! Should the HF determinant be put on its own processor?
+    logical :: tUniqueHFNode
+
 end module CalcData

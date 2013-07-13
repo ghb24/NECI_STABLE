@@ -5,11 +5,12 @@
 
 module hash
 
-    use FciMCData , only : hash_iter, hash_shift, RandomHash
+    use FciMCData , only : hash_iter, hash_shift, RandomHash, HFDet
     use Parallel_neci , only : nNodes
     use constants , only : int64,sizeof_int
     use csf_data, only: csf_orbital_mask
     use Systemdata, only: nel, tCSF, nBasis
+    use CalcData, only: tUniqueHFNode
 
     implicit none
 
@@ -32,6 +33,14 @@ module hash
         integer :: i
         integer(int64) :: acc
         integer(int64) :: offset
+        integer(int64), parameter :: large_prime = 1099511628211_int64
+
+        ! If we are assigning the HF to a unique processor, then put it 
+        ! on the last available processor.
+        if (tUniqueHFNode .and. all(nI == HFDet)) then
+            node = nNodes-1
+            return
+        end if
 
 !sum(nI) ensures that a random number is generated for each different nI, which is then added to the iteration,
 !  and the result shifted.  Consequently, the less significant bits (but not the least, as these have been shifted away)
@@ -39,7 +48,7 @@ module hash
         if (hash_iter>0) then  !generate a hash to work out an offset.  Probably very inefficient
            acc = 0
            do i = 1, nel
-               acc = (1099511628211_int64 * acc) + &
+               acc = (large_prime * acc) + &
                        (RandomHash(mod(iand(nI(i), csf_orbital_mask)-1,nBasis)+1) * i)
            enddo
            offset=ishft(abs(ishft(acc+hash_iter+iIterOffset, -hash_shift) ),-4)
@@ -49,16 +58,24 @@ module hash
         acc = 0
         if(tCSF) then
             do i = 1, nel
-                acc = (1099511628211_int64 * acc) + &
+                acc = (large_prime * acc) + &
                         (RandomHash(mod(iand(nI(i), csf_orbital_mask)+offset-1,int(nBasis,int64))+1) * i)
             enddo
         else
             do i = 1, nel
-                acc = (1099511628211_int64 * acc) + &
+                acc = (large_prime * acc) + &
                         (RandomHash(mod(nI(i)+offset-1,int(nBasis,int64))+1) * i)
             enddo
         endif
-        node = int(abs(mod(acc, int(nNodes, int64))),sizeof_int)
+
+        ! If the last available processor is being used for the HF det, then
+        ! we can only use the the remaining (nNodes-1) processors to
+        ! distribute the rest ofthe particles
+        if (tUniqueHFNode) then
+            node = int(abs(mod(acc, int(nNodes-1, int64))),sizeof_int)
+        else
+            node = int(abs(mod(acc, int(nNodes, int64))),sizeof_int)
+        end if
 
     end function
 
