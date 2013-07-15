@@ -22,7 +22,7 @@ MODULE PopsfileMod
     use bit_reps
     use constants
     use Parallel_neci
-    use AnnihilationMod, only: FindWalkerHash,EnlargeHashTable
+    use AnnihilationMod, only: FindWalkerHash
     use LoggingData, only: iWritePopsEvery, tPopsFile, iPopsPartEvery, tBinPops, &
                        tPrintPopsDefault, tIncrementPops, tPrintInitiators, &
                        tSplitPops, tZeroProjE, tRDMonFly, tExplicitAllRDM, &
@@ -75,8 +75,8 @@ MODULE PopsfileMod
         character(12) :: tmp_num
         character(255) :: tmp_char
         HElement_t :: PopAllSumENum
-
         integer :: sgn(lenof_sign), flg
+        type(ll_node), pointer :: Temp
 
         sendcounts=0
         disps=0
@@ -327,16 +327,22 @@ r_loop: do while(.not.tReadAllPops)
         write(6,*) "Number of configurations read in to this process: ",CurrWalkers 
 
         if(tHashWalkerList) then
-            do i=1,CurrWalkers
+            do i = 1, determ_space_size
                 call decode_bit_det (nJ, dets(:,i))
                 DetHash=FindWalkerHash(nJ)
-                Slot=HashIndex(0,DetHash)
-                HashIndex(Slot,DetHash)=i
-                HashIndex(0,DetHash)=HashIndex(0,DetHash)+1
-                if(HashIndex(0,DetHash).gt.nClashMax) then
-                    call EnlargeHashTable()
-                endif
-            enddo
+                Temp => HashIndex(DetHash)
+                ! If the first element in the list has not been used.
+                if (Temp%Ind == 0) then
+                    Temp%Ind = i
+                else
+                    do while (associated(Temp%Next))
+                        Temp => Temp%Next
+                    end do
+                    allocate(Temp%Next)
+                    Temp%Next%Ind = i
+                end if
+            end do
+            nullify(Temp)
         else
             !Order the determinants on all the lists.
             call sort (dets(:,1:CurrWalkers), ilut_lt, ilut_gt)

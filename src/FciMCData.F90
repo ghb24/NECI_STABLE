@@ -104,9 +104,8 @@ MODULE FciMCData
       real(dp) :: AccumRDMNorm, AccumRDMNorm_Inst, AllAccumRDMNorm
       
       !Hash tables to point to the correct determinants in CurrentDets
-      integer , allocatable , target :: HashIndexArr2(:,:),HashIndexArr1(:,:)
-      integer , pointer :: HashIndex(:,:) 
-      integer :: nClashMax,nWalkerHashes    !Number of hash clashes allowed, and length of hash table respectively
+      type(ll_node) , pointer :: HashIndex(:) 
+      integer :: nWalkerHashes    ! The length of hash table.
       real(dp) :: HashLengthFrac
 
 !The following variables are calculated as per processor, but at the end of each update cycle, 

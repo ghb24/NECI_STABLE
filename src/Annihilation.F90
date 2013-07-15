@@ -829,6 +829,7 @@ MODULE AnnihilationMod
         ! Copy across the weights from partial_determ_vector (the result of the deterministic projection)
         ! to CurrentDets:
         do i = 1, determ_proc_sizes(iProcIndex)
+            call neci_flush(6)
             call extract_sign(CurrentDets(:, indices_of_determ_states(i)), CurrentSign)
             SpawnedSign = partial_determ_vector(i)
             call encode_sign(CurrentDets(:, indices_of_determ_states(i)), SpawnedSign + CurrentSign)
@@ -864,6 +865,7 @@ MODULE AnnihilationMod
         LOGICAL :: tSuccess,tSuc,tPrevOcc, tSkip, tAlwaysAllow
         character(len=*), parameter :: this_routine="AnnihilateSpawnedParts"
         integer :: comp
+        type(ll_node), pointer :: TempNode
 
         !write(6,*) "SpawnedParts after:"
         !do j = 1, ValidSpawned
@@ -950,18 +952,21 @@ MODULE AnnihilationMod
 !                write(6,*) "Sending to hash func 1: ",nJ(:)
                 DetHash=FindWalkerHash(nJ)
 !                write(6,*) "DetHash: ",DetHash
-                FinalVal=HashIndex(0,DetHash)-1
-!                write(6,*) "FinalVal: ",FinalVal
-                do clash=1,FinalVal
-ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
-                    if(DetBitEQ(SpawnedParts(:,i),CurrentDets(:,HashIndex(clash,DetHash)),NIfDBO)) then
-                        !We have found the matching determinant
-                        tSuccess=.true.
-                        PartInd=HashIndex(clash,DetHash)
-!                        write(6,*) "Found it at: ",PartInd
-                        exit
-                    endif
-                enddo
+                TempNode => HashIndex(DetHash)
+                ! If there is atleast one state in CurrentDets with this hash value.
+                if (TempNode%Ind /= 0) then
+                    do while (associated(TempNode))
+                        ASSERT(TempNode%Ind.le.TotWalkersNew)
+                        if(DetBitEQ(SpawnedParts(:,i),CurrentDets(:,TempNode%Ind),NIfDBO)) then
+                            ! We have found the matching determinant
+                            tSuccess=.true.
+                            PartInd=TempNode%Ind
+!                           write(6,*) "Found it at: ",PartInd
+                            exit
+                        endif
+                        TempNode => TempNode%Next
+                    enddo
+                end if
             else
                 CALL BinSearchParts(SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
             endif
@@ -1408,6 +1413,7 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
         integer, intent(in) :: DetHash, nJ(nel)
         integer :: DetPosition
         HElement_t :: HDiag
+        type(ll_node), pointer :: TempNode
         character(len=*), parameter :: t_r="AddNewHashDet"
 
         !update its flag
@@ -1415,7 +1421,7 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
 
         if(iStartFreeSlot.le.iEndFreeSlot) then
             !We can slot it into a free slot in the main list, rather than increase its length
-            DetPosition =  FreeSlot(iStartFreeSlot)
+            DetPosition=FreeSlot(iStartFreeSlot)
             CurrentDets(:,DetPosition)=iLutCurr(:)
             iStartFreeSlot=iStartFreeSlot+1
         else
@@ -1440,80 +1446,27 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
             CurrentH(1,DetPosition)=real(HDiag,dp)-Hii
         endif
 
-        HashIndex(HashIndex(0,DetHash),DetHash)=DetPosition
-!        write(6,*) "Adding index to hash position: ",HashIndex(0,DetHash)
-        HashIndex(0,DetHash)=HashIndex(0,DetHash)+1
-!        write(6,*) "DetHash: ",DetHash
-!        write(6,*) "HashIndex(0,DetHash): ",HashIndex(0,DetHash)
-!        write(6,*) "nClashMax: ",nClashMax
-        if(HashIndex(0,DetHash).gt.nClashMax) then
-            call EnlargeHashTable()
-        endif
+        TempNode => HashIndex(DetHash)
+        if (TempNode%Ind == 0) then
+            TempNode%Ind = DetPosition
+        else
+            do while (associated(TempNode%Next))
+                TempNode => TempNode%Next
+            end do
+            allocate(TempNode%Next)
+            TempNode%Next%Ind = DetPosition
+        end if
+        nullify(TempNode)
 
     end subroutine AddNewHashDet
 
-    subroutine EnlargeHashTable()
-        implicit none
-        integer :: ierr,i,FinalVal
-        character(len=*), parameter :: t_r="EnlargeHashTable"
-
-        nClashMax=nClashMax+1
-        write(6,"(A)") "Enlarging hash table since it is not optimally load balanced."
-        write(6,"(A,I5,A,I14,A)") "Allowing for a maximum of ",nClashMax," hash clashes, and potential storage for "&
-                            ,nClashMax*nWalkerHashes," occupied determinants"
-
-        if(allocated(HashIndexArr1)) then
-!            write(6,*) "HashIndexArr1 allocated"
-            allocate(HashIndexArr2(0:nClashMax,nWalkerHashes),stat=ierr)
-!            write(6,*) "Ierr: ",ierr
-            if(ierr.ne.0) then
-                call stop_all(t_r,"Error reallocating HashIndexArr2")
-            endif
-!            write(6,*) "Zeroing array"
-!            call flush(6)
-            HashIndexArr2(:,:)=0
-!            write(6,*) "Filling new hash array"
-            do i=1,nWalkerHashes
-!                write(6,*) i
-!                call flush(6)
-                FinalVal=HashIndex(0,i)-1
-                HashIndexArr2(0:FinalVal,i) = HashIndex(0:FinalVal,i)
-            enddo
-!            write(6,*) "Deallocating old hash array"
-            deallocate(HashIndexArr1)
-            nullify(HashIndex)
-            HashIndex => HashIndexArr2
-        else
-!            write(6,*) "HashIndexArr2 allocated"
-            if(.not.allocated(HashIndexArr2)) then
-                call stop_all(t_r,"HashIndexArr2 should be allocated")
-            endif
-            if(allocated(HashIndexArr1)) then
-                call stop_all(t_r,"HashIndexArr1 should not be allocated")
-            endif
-            allocate(HashIndexArr1(0:nClashMax,nWalkerHashes),stat=ierr)
-            if(ierr.ne.0) then
-                call stop_all(t_r,"Error reallocating HashIndexArr2")
-            endif
-            HashIndexArr1(:,:)=0
-            do i=1,nWalkerHashes
-                FinalVal=HashIndex(0,i)-1
-                HashIndexArr1(0:FinalVal,i)=HashIndex(0:FinalVal,i)
-            enddo
-            deallocate(HashIndexArr2)
-            nullify(HashIndex)
-            HashIndex => HashIndexArr1
-        endif
-
-    end subroutine EnlargeHashTable
-
-    
     SUBROUTINE CalcHashTableStats(TotWalkersNew)
         use util_mod, only: abs_sign
         use CalcData , only : tCheckHighestPop
         integer, intent(in) :: TotWalkersNew
         INTEGER :: i,part_type,AnnihilatedDet
         real(dp) :: CurrentSign(lenof_sign), SpawnedSign(lenof_sign)
+        logical :: tIsStateDeterm
         character(*), parameter :: t_r = 'CalcHashTableStats'
 
         if(.not.bNodeRoot) return
@@ -1521,10 +1474,12 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
         norm_psi_squared = 0.0
         iHighestPop=0
         AnnihilatedDet=0
+        tIsStateDeterm = .false.
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
-                IF(IsUnoccDet(CurrentSign) .and. (.not. test_flag(CurrentDets(:,i), flag_deterministic)) ) then
+                if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
+                IF(IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
                     AnnihilatedDet=AnnihilatedDet+1 
                     IF(tTruncInitiator) THEN
                         do part_type=1,lenof_sign
@@ -1564,36 +1519,61 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
 
     END SUBROUTINE CalcHashTableStats
     
-    !routine to find and remove the index to a determinant from the HashIndex array
+    !Routine to find and remove the index to a determinant from the HashIndex array
     !This could potentially be speeded up by an ordered HashIndex array, and binary searching
     subroutine RemoveDetHashIndex(nI,DetPosition)
         implicit none
-!        integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: nI(nel) 
         integer, intent(in) :: DetPosition
-        integer :: DetHash,FinalVal,i
+        integer :: DetHash
+        type(ll_node), pointer :: Curr, Prev
+        logical :: tStateFound
         character(*), parameter :: this_routine="RemoveDetHashIndex"
 
-!        write(6,*) "Sending to hash func 2: ",nI(:)
-        DetHash=FindWalkerHash(nI)
-        FinalVal=HashIndex(0,DetHash)-1
-        do i=1,FinalVal !Run through all indices
-!            write(6,*) "i, HashIndex(i,DetHash): ",i, HashIndex(i,DetHash)
-            if(HashIndex(i,DetHash).eq.DetPosition) exit
-        enddo
+        tStateFound = .false.
+        DetHash = FindWalkerHash(nI)
+        Curr => HashIndex(DetHash)
+        Prev => null()
+        do while (associated(Curr))
+            if (Curr%Ind == DetPosition) then
+                ! If this is the state to be removed.
+                tStateFound = .true.
+                if (associated(Prev)) then
+                    ! If not the first state in the list.
+                    Prev%Next => Curr%Next
+                    deallocate(Curr)
+                    exit
+                else
+                    ! If the first state in the list.
+                    if (associated(Curr%Next)) then
+                        ! If the first but not the only state in the list.
+                        ! Move the details of the second entry in the list to the
+                        ! first entry, and then deallocate it.
+                        Curr => Curr%Next
+                        HashIndex(DetHash)%Ind = Curr%Ind
+                        HashIndex(DetHash)%Next => Curr%Next
+                        deallocate(Curr)
+                        exit
+                    else
+                        ! If the first and only state in the list.
+                        Curr%Ind = 0
+                        Curr%Next => null()
+                        exit
+                    end if
+                end if
+            end if
+            Prev => Curr
+            Curr => Curr%Next
+        end do
+
+        nullify(Curr)
+        nullify(Prev)
+
+        ASSERT(tStateFound)
+
 !        write(6,*) "Det: ",nI(:)
 !        write(6,*) "DetHash: ",DetHash
-!        write(6,*) "FinalVal: ",FinalVal
 !        write(6,*) "DetPosition: ",DetPosition
-        ASSERT(i.le.FinalVal)
-
-        !i is now the position of the determinant to remove
-        !Indicate that there is now one less determinant at this hash value
-        HashIndex(0,DetHash)=HashIndex(0,DetHash)-1
-        !Move everything from i+1 -> HashIndex(0,DetHash) down one
-        if(i.ne.FinalVal) then
-            HashIndex(i:FinalVal-1,DetHash)=HashIndex(i+1:FinalVal,DetHash)
-        endif
 
     end subroutine RemoveDetHashIndex
 

@@ -5,8 +5,7 @@
 
 module semi_stoch_procs
 
-    use AnnihilationMod, only: BinSearchParts, RemoveDetHashIndex, FindWalkerHash, &
-                               EnlargeHashTable
+    use AnnihilationMod, only: BinSearchParts, RemoveDetHashIndex, FindWalkerHash
     use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag, &
                             flag_is_initiator, NOffSgn, NIfSgn
     use bit_reps, only: decode_bit_det, set_flag, extract_part_sign, extract_sign, &
@@ -21,7 +20,8 @@ module semi_stoch_procs
                          determ_space_size, SpawnedParts, SemiStoch_Comms_Time, &
                          SemiStoch_Multiply_Time, TotWalkers, CurrentDets, CoreTag, &
                          PDetermTag, FDetermTag, IDetermTag, indices_of_determ_states, &
-                         HashIndex, nClashMax, core_space, CoreSpaceTag, tCoreHash
+                         HashIndex, core_space, CoreSpaceTag, tCoreHash, ll_node, &
+                         nWalkerHashes
     use hash, only: DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
@@ -143,23 +143,29 @@ contains
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer :: nI(nel)
         integer :: DetHash, PartInd
-        type(ll_node), pointer :: temp
+        type(ll_node), pointer :: temp_node
         logical :: core_state
 
         core_state = .false.
 
         call decode_bit_det(nI, ilut)
         DetHash = FindCoreHash(nI)
-        temp => CoreHashIndex(DetHash)
-        do while (associated(temp))
-            if (DetBitEQ(ilut, core_space(:,temp%ind),NIfDBO)) then
-                core_state = .true.
-                exit
-            end if
-            temp => temp%next
-        end do
+        temp_node => CoreHashIndex(DetHash)
 
-        nullify(temp)
+        if (temp_node%ind == 0) then
+            ! If there are no core states with this hash value.
+            nullify(temp_node)
+            return
+        else
+            do while (associated(temp_node))
+                if (DetBitEQ(ilut, core_space(:,temp_node%ind),NIfDBO)) then
+                    core_state = .true.
+                    nullify(temp_node)
+                    return
+                end if
+                temp_node => temp_node%next
+            end do
+        end if
 
     end function is_core_state
 
@@ -681,10 +687,10 @@ contains
         ! them at the top always. So, in this routine, we move the non-core states
         ! in CurrentDets to the end and add the new core states in the gaps.
 
-        integer :: i, DetHash, FinalVal, clash, PartInd, Slot, nwalkers, i_non_core
+        integer :: i, DetHash, PartInd, nwalkers, i_non_core
         integer :: nI(nel)
         real(dp) :: walker_sign(lenof_sign)
-        integer(n_int) :: temp_ilut(0:NIfTot)
+        type(ll_node), pointer :: temp_node, curr, prev
         logical :: tSuccess
 
         nwalkers = int(TotWalkers,sizeof_int)
@@ -695,14 +701,18 @@ contains
             tSuccess = .false.
             call decode_bit_det (nI, SpawnedParts(:,i))
             DetHash = FindWalkerHash(nI)
-            FinalVal = HashIndex(0,DetHash)-1
-            do clash = 1, FinalVal
-                if (DetBitEQ(SpawnedParts(:,i),CurrentDets(:,HashIndex(clash,DetHash)),NIfDBO)) then
-                    tSuccess = .true.
-                    PartInd = HashIndex(clash, DetHash)
-                    exit
-                end if
-            end do
+            temp_node => HashIndex(DetHash)
+            if (temp_node%ind /= 0) then
+                do while (associated(temp_node))
+                    if (DetBitEQ(SpawnedParts(:,i), CurrentDets(:,temp_node%ind),NIfDBO)) then
+                        tSuccess = .true.
+                        PartInd = temp_node%ind
+                        exit
+                    end if
+                    temp_node => temp_node%next
+                end do
+            end if
+            nullify(temp_node)
 
             ! Core state i is in CurrentDets.
             if (tSuccess) then
@@ -723,32 +733,47 @@ contains
         do i = 1, int(TotWalkers,sizeof_int)
             if (.not. test_flag(CurrentDets(:,i), flag_deterministic)) then
                 i_non_core = i_non_core + 1
-                temp_ilut = CurrentDets(:,i)
-                SpawnedParts(:,i_non_core) = temp_ilut
+                SpawnedParts(:,i_non_core) = CurrentDets(:,i)
             end if
         end do
 
         ! Now copy all the core states in SpawnedParts into CurrentDets.
         ! Note that the amplitude in CurrentDets was copied across, so this is fine.
         do i = 1, nwalkers
-            temp_ilut = SpawnedParts(:,i)
-            CurrentDets(:,i) = temp_ilut
+            CurrentDets(:,i) = SpawnedParts(:,i)
         end do
 
         ! Reset the hash index array.
-        HashIndex(:,:) = 0
-        HashIndex(0,:) = 1
+        do i = 1, nWalkerHashes
+            curr => HashIndex(i)%next
+            prev => HashIndex(i)
+            prev%ind = 0
+            nullify(prev%next)
+            do while (associated(curr))
+                prev => curr
+                curr => curr%next
+                deallocate(prev)
+            end do
+        end do
+        nullify(curr)
+        nullify(prev)
 
         ! Finally, add the indices back into the hash index array.
         do i = 1, nwalkers
             call decode_bit_det(nI, CurrentDets(:,i))
             DetHash = FindWalkerHash(nI)
-            Slot = HashIndex(0,DetHash)
-            HashIndex(Slot,DetHash) = i
-            HashIndex(0,DetHash) = HashIndex(0,DetHash) + 1
-            if(HashIndex(0,DetHash).gt.nClashMax) then
-                call EnlargeHashTable()
-            endif
+            temp_node => HashIndex(DetHash)
+            ! If the first element in the list has not been used.
+            if (temp_node%ind == 0) then
+                temp_node%ind = i
+            else
+                do while (associated(temp_node%next))
+                    temp_node => temp_node%next
+                end do
+                allocate(temp_node%next)
+                temp_node%next%ind = i
+            end if
+            nullify(temp_node)
 
             ! These core states will always stay in the same position.
             if (i <= determ_proc_sizes(iProcIndex)) indices_of_determ_states(i) = i

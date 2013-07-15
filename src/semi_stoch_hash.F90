@@ -48,8 +48,8 @@ contains
         use SystemData, only: nel
 
         integer :: nI(nel)
-        integer :: i, ierr, DetHash
-        type(ll_node), pointer :: temp
+        integer :: i, ierr, DetHash, counter, total
+        type(ll_node), pointer :: temp_node
         character(len=*), parameter :: t_r = "InitialiseCoreHashTable"
 
         allocate(CoreHashIndex(determ_space_size), stat=ierr)
@@ -61,16 +61,20 @@ contains
         do i = 1, determ_space_size
             call decode_bit_det(nI, core_space(:,i))
             DetHash = FindCoreHash(nI)
-
-            temp => CoreHashIndex(DetHash)
-            do while (associated(temp%next))
-                temp => temp%next
-            end do
-            allocate(temp%next)
-            temp%next%ind = i
+            temp_node => CoreHashIndex(DetHash)
+            ! If the first element in the list has not been used.
+            if (temp_node%ind == 0) then
+                temp_node%ind = i
+            else
+                do while (associated(temp_node%next))
+                    temp_node => temp_node%next
+                end do
+                allocate(temp_node%next)
+                temp_node%next%ind = i
+            end if
         end do
 
-        nullify(temp)
+        nullify(temp_node)
 
     end subroutine InitialiseCoreHashTable
 

@@ -100,7 +100,7 @@ MODULE FciMCParMod
     USE Parallel_neci
     USE FciMCData
     USE AnnihilationMod, only: DirectAnnihilation, FindWalkerHash, &
-                               RemoveDetHashIndex, EnlargeHashTable
+                               RemoveDetHashIndex
     use PopsfileMod, only: ReadFromPopsfilePar, FindPopsfileVersion, &
                            WriteToPopsFileParOneArr, open_pops_head, &
                            readpopsheadv3, readpopsheadv4, CheckPopsParams, &
@@ -1057,6 +1057,7 @@ MODULE FciMCParMod
         real(dp) :: r, sgn(lenof_sign), prob_extra_walker
         integer :: determ_index, gen_ind
         integer :: DetHash, FinalVal, clash, PartInd
+        type(ll_node), pointer :: TempNode
 
         call set_timer(Walker_Time,30)
 
@@ -1131,10 +1132,17 @@ MODULE FciMCParMod
             if(tHashWalkerList) then
                 write(iout,"(A)") "Hash Table: "
                 do j=1,nWalkerHashes
-                    if(HashIndex(0,j).eq.1) cycle
-                    write(iout,*) j,HashIndex(0:HashIndex(0,j),j)
-                enddo
-            endif
+                    TempNode => HashIndex(j)
+                    if (TempNode%Ind /= 0) then
+                        write(iout,'(i9)',advance='no') j
+                        do while (associated(TempNode))
+                            write(iout,'(i9)',advance='no') TempNode%Ind
+                            TempNode => TempNode%Next
+                        end do
+                        write(iout,'()',advance='yes')
+                    end if
+                end do
+            end if
         ENDIFDEBUG
 
         IFDEBUG(FCIMCDebug,3) write(iout,"(A,I12)") "Walker list length: ",TotWalkers
@@ -1161,9 +1169,22 @@ MODULE FciMCParMod
 
         !write(6,*) "CurrentDets before:"
         !do j = 1, TotWalkers
-        !    write(6,*) j, CurrentDets(:,j), test_flag(CurrentDets(:,j),flag_deterministic), &
-        !                                 test_flag(CurrentDets(:,j),flag_determ_parent)
+        !    write(6,*) j, CurrentDets(:,j)
+        !end do
         !write(6,*)
+
+        !write(iout,"(A)") "Hash Table: "
+        !do j=1,nWalkerHashes
+        !    TempNode => HashIndex(j)
+        !    if (TempNode%Ind /= 0) then
+        !        write(iout,'(i9)',advance='no') j
+        !        do while (associated(TempNode))
+        !            write(iout,'(i9)',advance='no') TempNode%Ind
+        !            TempNode => TempNode%Next
+        !        end do
+        !        write(iout,'()',advance='yes')
+        !    end if
+        !end do
 
         do j=1,int(TotWalkers,sizeof_int)
             ! N.B. j indicates the number of determinants, not the number
@@ -1433,8 +1454,10 @@ MODULE FciMCParMod
                         if(.not. (tSemiStochastic)) call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
                         ! FindExcitBitDet copies the parent flags so that unwanted flags must be unset.
                         ! Should it really do this?
-                        call clr_flag(iLutnJ, flag_trial)
-                        call clr_flag(iLutnJ, flag_connected)
+                        if (tTrialWavefunction) then
+                            call clr_flag(iLutnJ, flag_trial)
+                            call clr_flag(iLutnJ, flag_connected)
+                        end if
 
                         call new_child_stats (iter_data, CurrentDets(:,j), &
                                               nJ, iLutnJ, ic, walkExcitLevel,&
@@ -1464,7 +1487,7 @@ MODULE FciMCParMod
                                        CurrentDets(:,j), HDiagCurr, SignCurr, &
                                        AvSignCurr, IterRDMStartCurr, VecSlot, j, WalkExcitLevel)
                 else
-                    if (.not. tHashWalkerList) CurrentDets(:,VecSlot) = CurrentDets(:,j)
+                    CurrentDets(:,gen_ind) = CurrentDets(:,j)
                     if (tFillingStochRDMonFly) then
                         CurrentH(2,gen_ind) = AvSignCurr
                         CurrentH(3,gen_ind) = IterRDMStartCurr
@@ -7062,24 +7085,20 @@ MODULE FciMCParMod
                 write(iout,"(A)") "Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number"
                 write(iout,"(A,I15)") "Length of hash-table: ",nWalkerHashes
                 write(iout,"(A,F20.5)") "Length of hash-table as a fraction of targetwalkers: ",HashLengthFrac
-                nClashMax=int(real(WalkerListSize,dp)/real(nWalkerHashes,dp))+1
-!                write(iout,*) MaxWalkersPart,nWalkerHashes,nClashMax
-                write(iout,"(A,I7,A)") "Initially allocating memory in hash table for a maximum of ",   &
-                            nClashMax," walker hash clashes"
-                MemTemp=2*(8*(nClashMax+1)*nWalkerHashes)+8*MaxWalkersPart
-                write(iout,"(A,F10.3,A)") "This will use ",real(MemTemp,dp)/1048576.0_dp,&
-                    " Mb of memory per process, although this is likely to increase as it expands"
-                !HashIndex: (0,:) is first free slot in the hash list.
-                allocate(HashIndexArr1(0:nClashMax,nWalkerHashes),stat=ierr)
+                ! TODO: Correct the memory usage.
+                !MemTemp=2*(8*(nClashMax+1)*nWalkerHashes)+8*MaxWalkersPart
+                !write(iout,"(A,F10.3,A)") "This will use ",real(MemTemp,dp)/1048576.0_dp,&
+                !    " Mb of memory per process, although this is likely to increase as it expands"
+                allocate(HashIndex(nWalkerHashes),stat=ierr)
                 if(ierr.ne.0) call stop_all(this_routine,"Error in allocation")
-                HashIndex => HashIndexArr1
-                HashIndex(:,:)=0
-                HashIndex(0,:)=1    !First free slot is first slot
+                do i = 1, nWalkerHashes
+                    HashIndex(i)%ind = 0
+                end do
                 !Also need to allocate memory for the freeslot array
                 allocate(FreeSlot(MaxWalkersPart),stat=ierr)
                 if(ierr.ne.0) call stop_all(this_routine,"Error in allocation")
                 freeslot(:)=0
-                MemoryAlloc=MemoryAlloc+MemTemp
+                !MemoryAlloc=MemoryAlloc+MemTemp
             endif
 
 !Allocate pointers to the correct walker arrays
@@ -7199,11 +7218,8 @@ MODULE FciMCParMod
                         call encode_det(CurrentDets(:,1), iLutHF)
                         if(tHashWalkerList) then
                             !Point at the correct position for the first walker
-
                             DetHash=FindWalkerHash(HFDet)    !Find det hash position
-                            Slot=HashIndex(0,DetHash)               !Find which free slot is next in the clashes
-                            HashIndex(Slot,DetHash)=1               !Index the position of the determinant in CurrentDets
-                            HashIndex(0,DetHash)=HashIndex(0,DetHash)+1 !Increment the number of hash clashes here
+                            HashIndex(DetHash)%Ind = 1
                         endif
 
                         ! Clear the flags
@@ -7417,6 +7433,7 @@ MODULE FciMCParMod
         real(dp), dimension(lenof_sign) :: temp_sign
         real(dp) :: energytmp(nel), max_wt
         integer  :: tmp_det(nel), det_max
+        type(ll_node), pointer :: TempNode
         character(len=*) , parameter :: this_routine='InitFCIMC_CAS'
         
         if(lenof_sign.ne.1) call stop_all(this_routine,"StartCAS currently does not work with complex walkers")
@@ -7788,16 +7805,23 @@ MODULE FciMCParMod
                         endif
                         CurrentH(1,DetIndex)=real(HDiagTemp,dp)-Hii
                     endif
-                    if(tHashWalkerList) then
-                        !Now need to index this determinant
-                        DetHash=FindWalkerHash(CASFullDets(:,i))  !Find det hash position
-                        Slot=HashIndex(0,DetHash)   !Find which free slot is next in the clashes
-                        HashIndex(Slot,DetHash)=DetIndex    !Index the position of the determinant in CurrentDets
-                        HashIndex(0,DetHash)=HashIndex(0,DetHash)+1 !Increment the number of hash clashes here
-                        if(HashIndex(0,DetHash).gt.nClashMax) then
-                            call EnlargeHashTable()
-                        endif
-                    endif
+
+                    if (tHashWalkerList) then
+                        DetHash = FindWalkerHash(CASFullDets(:,i))
+                        TempNode => HashIndex(DetHash)
+                        ! If the first element in the list has not been used.
+                        if (TempNode%Ind == 0) then
+                            TempNode%Ind = DetIndex
+                        else
+                            do while (associated(TempNode%Next))
+                                TempNode => TempNode%Next
+                            end do
+                            allocate(TempNode%Next)
+                            TempNode%Next%Ind = DetIndex
+                        end if
+                        nullify(TempNode)
+                    end if
+
                     DetIndex=DetIndex+1
                     TotParts(1)=TotParts(1)+abs(NoWalkers)
                 endif
@@ -7841,6 +7865,7 @@ MODULE FciMCParMod
         integer(n_int) :: iLutnJ(0:NIfTot)
         real(dp) :: NoWalkers, temp_sign(lenof_sign)
         logical :: tAllExcitsFound, tParity
+        type(ll_node), pointer :: TempNode
         character(len=*), parameter :: this_routine="InitFCIMC_MP1"
 
         if(lenof_sign.ne.1) call stop_all(this_routine,"StartMP1 currently does not work with complex walkers")
@@ -8024,16 +8049,23 @@ MODULE FciMCParMod
                         endif
                         CurrentH(1,DetIndex)=real(HDiagTemp,dp)-Hii
                     endif
-                    if(tHashWalkerList) then
-                        !Now need to index this determinant
-                        DetHash=FindWalkerHash(nJ)  !Find det hash position
-                        Slot=HashIndex(0,DetHash)   !Find which free slot is next in the clashes
-                        HashIndex(Slot,DetHash)=DetIndex    !Index the position of the determinant in CurrentDets
-                        HashIndex(0,DetHash)=HashIndex(0,DetHash)+1 !Increment the number of hash clashes here
-                        if(HashIndex(0,DetHash).gt.nClashMax) then
-                            call EnlargeHashTable()
-                        endif
-                    endif
+
+                    if (tHashWalkerList) then
+                        DetHash = FindWalkerHash(nJ)
+                        TempNode => HashIndex(DetHash)
+                        ! If the first element in the list has not been used.
+                        if (TempNode%Ind == 0) then
+                            TempNode%Ind = DetIndex
+                        else
+                            do while (associated(TempNode%Next))
+                                TempNode => TempNode%Next
+                            end do
+                            allocate(TempNode%Next)
+                            TempNode%Next%Ind = DetIndex
+                        end if
+                        nullify(TempNode)
+                    end if
+
                     DetIndex=DetIndex+1
                     TotParts(1)=TotParts(1)+abs(NoWalkers)
                 endif
@@ -8065,16 +8097,22 @@ MODULE FciMCParMod
                     call set_flag(CurrentDets(:,DetIndex),flag_is_initiator(2))
                 endif
                 if(.not.tRegenDiagHEls) CurrentH(1,DetIndex)=0.0_dp
-                if(tHashWalkerList) then
-                    !Now need to index HF. Note that this is *not* slot 1 now, though this shouldn't be a problem. 
-                    DetHash=FindWalkerHash(HFDet)  !Find det hash position
-                    Slot=HashIndex(0,DetHash)   !Find which free slot is next in the clashes
-                    HashIndex(Slot,DetHash)=DetIndex    !Index the position of the determinant in CurrentDets
-                    HashIndex(0,DetHash)=HashIndex(0,DetHash)+1 !Increment the number of hash clashes here
-                    if(HashIndex(0,DetHash).gt.nClashMax) then
-                        call EnlargeHashTable()
-                    endif
-                endif
+                if (tHashWalkerList) then
+                    ! Now add the Hartree-Fock determinant (not with index 1).
+                    DetHash = FindWalkerHash(HFDet)
+                    TempNode => HashIndex(DetHash)
+                    ! If the first element in the list has not been used.
+                    if (TempNode%Ind == 0) then
+                        TempNode%Ind = DetIndex
+                    else
+                        do while (associated(TempNode%Next))
+                            TempNode => TempNode%Next
+                        end do
+                        allocate(TempNode%Next)
+                        TempNode%Next%Ind = DetIndex
+                    end if
+                    nullify(TempNode)
+                end if
                 DetIndex=DetIndex+1
                 TotParts(1)=TotParts(1)+abs(NoWalkers)
                 NoatHF(1) = NoWalkers
@@ -8375,16 +8413,30 @@ MODULE FciMCParMod
     SUBROUTINE DeallocFCIMCMemPar()
         use nElRDMMod, only: DeallocateRDM
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocFciMCMemPar'
-        integer :: ierr
+        type(ll_node), pointer :: Curr, Prev
+        integer :: i, ierr
 
         if(tHashWalkerList) then
             deallocate(RandomHash2,stat=ierr)
             if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
-            if(allocated(HashIndexArr1)) deallocate(HashIndexArr1,stat=ierr)
+
+            ! Deallocate the linked list
+            do i = 1, nWalkerHashes
+                Curr => HashIndex(i)%Next
+                Prev => HashIndex(i)
+                nullify(Prev%Next)
+                do while (associated(Curr))
+                    Prev => Curr
+                    Curr => Curr%Next
+                    deallocate(Prev)
+                    if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
+                end do
+            end do
+            deallocate(HashIndex,stat=ierr)
             if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
-            if(allocated(HashIndexArr2)) deallocate(HashIndexArr2,stat=ierr)
-            if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
-            nullify(HashIndex)
+            nullify(Curr)
+            nullify(Prev)
+
             deallocate(FreeSlot,stat=ierr)
             if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
         endif
