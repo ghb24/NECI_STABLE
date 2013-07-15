@@ -117,7 +117,6 @@ contains
                            partial_determ_vector, &
                            1)
 
-
             end if
 
             ! Now add shift*full_determ_vector, to account for the shift, not stored in

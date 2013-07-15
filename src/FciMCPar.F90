@@ -1169,7 +1169,8 @@ MODULE FciMCParMod
 
         !write(6,*) "CurrentDets before:"
         !do j = 1, TotWalkers
-        !    write(6,*) j, CurrentDets(:,j)
+        !    write(6,*) j, CurrentDets(:,j), test_flag(CurrentDets(:,j), flag_deterministic), &
+        !                                    test_flag(CurrentDets(:,j), flag_determ_parent)
         !end do
         !write(6,*)
 

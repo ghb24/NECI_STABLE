@@ -1418,6 +1418,7 @@ MODULE AnnihilationMod
 
         !update its flag
         if(tTruncInitiator) call FlagifDetisInitiator(iLutCurr)
+        if (tSemiStochastic) call clr_flag(iLutCurr, flag_determ_parent)
 
         if(iStartFreeSlot.le.iEndFreeSlot) then
             !We can slot it into a free slot in the main list, rather than increase its length
