@@ -3034,7 +3034,7 @@ MODULe nElRDMMod
             if (tDumpForcesInfo) then
                 if (.not. tPrint1RDM) call Finalise_1e_RDM(Norm_1RDM)
                 CALL Calc_Lagrangian_from_RDM(Norm_1RDM, Norm_2RDM)
-                call convert_matrices_for_Molpro_forces(Norm_1RDM, Norm_2RDM)
+                call convert_mats_Molpforces(Norm_1RDM, Norm_2RDM)
             endif
 
         endif
@@ -5181,7 +5181,7 @@ MODULe nElRDMMod
 
     END SUBROUTINE DeallocateRDM
 
-    subroutine convert_matrices_for_Molpro_forces(Norm_1RDM, Norm_2RDM)
+    subroutine convert_mats_Molpforces(Norm_1RDM, Norm_2RDM)
     use SystemData, only : nEl,nbasis,LMS,ECore
     use IntegralsData, only : nFrozen
     use NatOrbsMod, only : NatOrbMat
