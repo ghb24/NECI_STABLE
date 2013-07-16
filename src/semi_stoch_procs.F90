@@ -261,15 +261,14 @@ contains
 
     subroutine generate_core_connections_sparse()
 
-        integer :: i, j, ierr
+        integer :: i, j, ic, counter, ierr
         integer :: Ex(2,nel)
         logical :: tSign
         integer(n_int), allocatable, dimension(:,:) :: temp_store
         integer(TagIntType) :: TempStoreTag
         character(len=*), parameter :: t_r = "calculate_det_hamiltonian_sparse"
 
-        Ex = 0
-        Ex(1,1) = nel
+        integer :: nI(nel), nJ(nel)
 
         allocate(core_connections(determ_proc_sizes(iProcIndex)))
 
@@ -284,30 +283,38 @@ contains
         ! Over all core states on this processor.
         do i = 1, determ_proc_sizes(iProcIndex)
 
-            ! The number of non-zero elements in this array will be the same as in the
-            ! core Hamiltonian array, so reuse this information to allocate these arrays.
-            allocate(core_connections(i)%elements(sparse_core_ham(i)%num_elements)) 
-            allocate(core_connections(i)%positions(sparse_core_ham(i)%num_elements))
+            ! The number of non-zero elements in this array will be almost the same as in
+            ! the core Hamiltonian array, except the diagonal element is not considered,
+            ! so there will actually be one less.
+            allocate(core_connections(i)%elements(sparse_core_ham(i)%num_elements-1)) 
+            allocate(core_connections(i)%positions(sparse_core_ham(i)%num_elements-1))
 
             ! The total number of non-zero elements in row i.
-            core_connections(i)%num_elements = sparse_core_ham(i)%num_elements
-            ! The positions of the non-zero elements in this row i.
-            core_connections(i)%positions = sparse_core_ham(i)%positions 
+            core_connections(i)%num_elements = sparse_core_ham(i)%num_elements-1
 
-            ! Over all core states.
-            do j = 1, core_connections(i)%num_elements
+            counter = 0
+            do j = 1, sparse_core_ham(i)%num_elements
+                ! If not the diagonal element.
+                if (sparse_core_ham(i)%positions(j) /= i) then
+                    Ex = 0
+                    Ex(1,1) = nel
+                    counter = counter + 1
+                    ! The positions of the non-zero and non-diagonal elements in this row i.
+                    core_connections(i)%positions(counter) = sparse_core_ham(i)%positions(j)
 
-                call GetBitExcitation(SpawnedParts(0:NIfD,i), temp_store(0:NIfD, core_connections(i)%positions(j)), &
-                                      Ex,tSign)
-                if (tSign) then
-                    ! Odd number of permutations.
-                    core_connections(i)%elements(j) = -1
-                else
-                    ! Even number of permutations.
-                    core_connections(i)%elements(j) = 1
+                    ic = FindBitExcitLevel(SpawnedParts(:,i), temp_store(:, sparse_core_ham(i)%positions(j)))
+                    call GetBitExcitation(SpawnedParts(0:NIfD,i), temp_store(0:NIfD, &
+                                          sparse_core_ham(i)%positions(j)),Ex,tSign)
+                    if (tSign) then
+                        ! Odd number of permutations. Minus the excitation level.
+                        core_connections(i)%elements(counter) = -ic
+                    else
+                        ! Even number of permutations. The excitation level.
+                        core_connections(i)%elements(counter) = ic
+                    end if
                 end if
-
             end do
+
         end do
 
         deallocate(temp_store, stat=ierr)
