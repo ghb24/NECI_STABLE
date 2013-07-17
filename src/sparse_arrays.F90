@@ -215,15 +215,16 @@ contains
                     end if
                     ! We calculate and store CurrentH at this point for ease.
                     if ((.not. tRegenDiagHEls) .and. (.not. tReadPops)) CurrentH(1,i) = hamiltonian_row(j)
+                    ! Always include the diagonal elements.
+                    row_size = row_size + 1
                 else
                     if (tHPHF) then
                         hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, SpawnedParts(:,i), temp_store(:,j))
                     else
                         hamiltonian_row(j) = get_helement(nI, nJ, SpawnedParts(:, i), temp_store(:, j))
                     end if
+                    if (abs(hamiltonian_row(j)) > 0.0_dp) row_size = row_size + 1
                 end if
-
-                if (abs(hamiltonian_row(j)) > 0.0_dp) row_size = row_size + 1
 
             end do
 
@@ -236,7 +237,8 @@ contains
 
             counter = 1
             do j = 1, determ_space_size
-                if (abs(hamiltonian_row(j)) > 0.0_dp) then
+                ! If non-zero or a diagonal element.
+                if (abs(hamiltonian_row(j)) > 0.0_dp .or. (j == i + determ_proc_indices(iProcIndex)) ) then
                     sparse_core_ham(i)%positions(counter) = j
                     sparse_core_ham(i)%elements(counter) = hamiltonian_row(j)
                     counter = counter + 1

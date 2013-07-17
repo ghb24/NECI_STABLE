@@ -295,7 +295,7 @@ contains
             counter = 0
             do j = 1, sparse_core_ham(i)%num_elements
                 ! If not the diagonal element.
-                if (sparse_core_ham(i)%positions(j) /= i) then
+                if (sparse_core_ham(i)%positions(j) /= i + determ_proc_indices(iProcIndex)) then
                     Ex = 0
                     Ex(1,1) = nel
                     counter = counter + 1
