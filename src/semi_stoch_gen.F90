@@ -5,8 +5,9 @@ module semi_stoch_gen
     use bit_rep_data, only: flag_deterministic, nIfDBO, nOffY, nIfY, NIfD, &
                             flag_is_initiator, flag_determ_parent, NOffSgn, NIfTot
     use bit_reps, only: decode_bit_det, encode_bit_rep, set_flag, extract_sign, &
-                        clr_flag
-    use CalcData, only: tTruncInitiator, tStartCAS, tReadPops, tRegenDiagHels
+                        clr_flag, create_nsteps_mask
+    use CalcData, only: tTruncInitiator, tStartCAS, tReadPops, tRegenDiagHels, &
+                        tVaryInitThresh
     use csf, only: csf_get_yamas, get_num_csfs, get_csf_bit_yama, csf_apply_yama
     use csf_data, only: csf_orbital_mask
     use constants
@@ -138,6 +139,8 @@ contains
         end do
 
         if (tRDMonFly .or. tCoreHash) call store_whole_core_space()
+
+        if (tVaryInitThresh) call create_nsteps_mask()
 
         write(6,'(a56)') "Generating the Hamiltonian in the deterministic space..."
         call neci_flush(6)

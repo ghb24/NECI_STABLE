@@ -56,6 +56,7 @@ contains
           end if
 
 !       Calc defaults 
+          tVaryInitThresh=.false.
           tHashWalkerList=.false.
           HashLengthFrac=0.0_dp
           nWalkerHashes=0
@@ -908,8 +909,10 @@ contains
                 else
                     HashLengthFrac=0.7
                 endif
-            case("SEMISTOCHHASH")
+            case("SEMI-STOCH-HASH")
                 tCoreHash = .true.
+            case("CORE-INIT-THRESH")
+                tVaryInitThresh = .true.
             case("STEPSSHIFTIMAG")
 !For FCIMC, this is the amount of imaginary time which will elapse between updates of the shift.
                 call getf(StepsSftImag)

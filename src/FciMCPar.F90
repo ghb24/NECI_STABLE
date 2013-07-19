@@ -21,7 +21,8 @@ MODULE FciMCParMod
                         flag_is_initiator, clear_all_flags,&
                         nOffSgn, flag_make_initiator, &
                         flag_parent_initiator, encode_sign, flag_deterministic, &
-                        flag_determ_parent, nOffFlag, clr_flag
+                        flag_determ_parent, nOffFlag, clr_flag, return_nsteps, &
+                        update_nsteps_flag
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
                         tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&
@@ -41,7 +42,7 @@ MODULE FciMCParMod
                         tAllRealCoeff, tRealCoeffByExcitLevel, tPopsMapping, &
                         tSpawn_Only_Init_Grow, RealCoeffExcitThresh, &
                         tRealSpawnCutoff, RealSpawnCutoff, tDetermProj, &
-                        tJumpShift
+                        tJumpShift, tVaryInitThresh
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
@@ -1353,8 +1354,7 @@ MODULE FciMCParMod
             ! Sum in any energy contribution from the determinant, including 
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
-            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, &
-                              CurrentDets(:,j), HDiagCurr, 1.0_dp)
+            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, j, HDiagCurr, 1.0_dp)
 
 !            ! If we're filling the RDM, this calculates the explicitly connected singles and doubles.
 !            ! Or in the case of HFSD (or some combination of this), it calculates the 
@@ -1674,6 +1674,8 @@ MODULE FciMCParMod
         ! and then it will be put into the appropriate element determined by
         ! ValidSpawnedList
 
+        use bit_rep_data, only: nsteps_mask, flag_bit_offset, flag_nsteps1
+
         integer, intent(in) :: nJ(nel)
         integer(kind=n_int), intent(in) :: iLutJ(0:niftot)
         real(dp), dimension(lenof_sign), intent(in) :: child
@@ -1703,12 +1705,16 @@ MODULE FciMCParMod
         ! flag. Otherwise, this will trip many people up in the future.
         flags = ior(parent_flags, extract_flags(ilutJ))
 
+        !write(6,*) "Before:", ishft(iand(int(ishft(nsteps_mask, -flag_bit_offset),sizeof_int),flags),-flag_nsteps1)
+        if (tVaryInitThresh) call update_nsteps_flag(flags, iLutI)
+
 !        WRITE(6,*) 'Encoding',iLutJ
 !        WRITE(6,*) 'To position',ValidSpawnedList(proc)
 !        WRITE(6,*) 'Parent',iLutI
 
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, flags)
+        !write(6,*) "After:", return_nsteps(SpawnedParts(:, ValidSpawnedList(proc)))
 
         IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) &
                 call store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, WalkersToSpawn, iLutJ, proc)
@@ -1820,10 +1826,16 @@ MODULE FciMCParMod
         integer, intent(in) :: j, VecSlot
         integer, intent(out) :: parent_flags
         real(dp), dimension(lenof_sign) :: CurrentSign
-        integer :: part_type
+        integer :: part_type, init_thresh
         logical :: tDetinCAS, parent_init
 
         call extract_sign (CurrentDets(:,j), CurrentSign)
+
+        if (tVaryInitThresh) then
+            init_thresh = return_nsteps(CurrentDets(:,j))
+        else
+            init_thresh = InitiatorWalkNo
+        end if
 
         tcurr_initiator = .false.
         do part_type=1,lenof_sign
@@ -1839,7 +1851,7 @@ MODULE FciMCParMod
                     ! Determinant wasn't previously initiator 
                     ! - want to test if it has now got a large enough 
                     !   population to become an initiator.
-                    if (abs(CurrentSign(part_type)) > InitiatorWalkNo) then
+                    if (abs(CurrentSign(part_type)) > init_thresh) then
                         parent_init = .true.
                         NoAddedInitiators = NoAddedInitiators + 1
                         if (tSpawnSpatialInit) &
@@ -1859,7 +1871,7 @@ MODULE FciMCParMod
                     if (.not. tDetInCas .and. &
                         .not. (DetBitEQ(CurrentDets(:,j), iLutHF, NIfDBO)) &
                         .and. .not. test_flag(CurrentDets(:,j), flag_deterministic) &
-                        .and. abs(CurrentSign(part_type)) <= InitiatorWalkNo &
+                        .and. abs(CurrentSign(part_type)) <= init_thresh &
                         .and. .not. test_flag(CurrentDets(:,j), &
                         flag_make_initiator(part_type))) then
                         ! Population has fallen too low. Initiator status 
@@ -4233,6 +4245,8 @@ MODULE FciMCParMod
         
         trial_ind = 0
         con_ind = 0
+        min_trial_ind = 0
+        min_conn_ind = 0
 
     end subroutine
 
@@ -6688,14 +6702,15 @@ MODULE FciMCParMod
     ! was generated. It defaults to 1, and weights the contribution of this 
     ! det (only in the projected energy) by dividing its contribution by this
     ! number 
-    subroutine SumEContrib (nI, ExcitLevel, RealWSign, ilut, HDiagCurr, dProbFin)
+    subroutine SumEContrib (nI, ExcitLevel, RealWSign, ind, HDiagCurr, dProbFin)
 
         integer, intent(in) :: nI(nel), ExcitLevel
         real(dp), intent(in) :: RealwSign(lenof_sign)
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: ind
         real(dp), intent(in) :: HDiagCurr, dProbFin
 
         integer :: i, bin, pos, ExcitLevel_local, ExcitLevelSpinCoup
+        integer(n_int) :: ilut(0:NIfTot)
         integer :: PartInd, OpenOrbs, spatial_ic
         integer(n_int) :: iLutSym(0:NIfTot)
         logical tSuccess
@@ -6709,6 +6724,8 @@ MODULE FciMCParMod
         integer :: comp
         logical :: found
 
+        ilut = CurrentDets(:,ind)
+
         ! Are we performing a linear sum over various determinants?
         ! TODO: If we use this, function pointer it.
 
@@ -6717,14 +6734,22 @@ MODULE FciMCParMod
         ! Add in the contributions to the numerator and denominator of the trial
         ! estimatior, if it is being used.
         if (tTrialWavefunction) then
-            if (test_flag(ilut, flag_trial)) then
-                ! Take the next element in the occupied trial vector.
-                trial_ind = trial_ind + 1
-                trial_denom = trial_denom + occ_trial_amps(trial_ind)*RealwSign(1)
-            else if (test_flag(ilut, flag_connected)) then
-                ! Take the next element in the occupied connected vector.
-                con_ind = con_ind + 1
-                trial_numerator = trial_numerator + occ_con_amps(con_ind)*RealwSign(1)
+            if (tHashWalkerlist) then
+                if (test_flag(ilut, flag_trial)) then
+                    trial_denom = trial_denom + current_trial_amps(ind)*RealwSign(1)
+                else if (test_flag(ilut, flag_connected)) then
+                    trial_numerator = trial_numerator + current_trial_amps(ind)*RealwSign(1)
+                end if
+            else
+                if (test_flag(ilut, flag_trial)) then
+                    ! Take the next element in the occupied trial vector.
+                    trial_ind = trial_ind + 1
+                    trial_denom = trial_denom + occ_trial_amps(trial_ind)*RealwSign(1)
+                else if (test_flag(ilut, flag_connected)) then
+                    ! Take the next element in the occupied connected vector.
+                    con_ind = con_ind + 1
+                    trial_numerator = trial_numerator + occ_con_amps(con_ind)*RealwSign(1)
+                end if
             end if
         end if
 

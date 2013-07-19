@@ -42,15 +42,21 @@ module bit_rep_data
                           flag_determ_parent = 5, &
                           flag_trial = 6, &
                           flag_connected = 7, &
-                          flag_negative_sign = 8
+                          flag_nsteps1 = 8, &
+                          flag_nsteps2 = 9, &
+                          flag_nsteps3 = 10, &
+                          flag_nsteps4 = 11, &
+                          flag_negative_sign = 12
 
     ! IMPORTANT
-    integer, parameter :: num_flags = 9, &
+    integer, parameter :: num_flags = 13, &
                           flag_bit_offset = bits_n_int - num_flags
     integer(n_int), parameter :: sign_mask = ishft(not(0_n_int), -num_flags), &
                                  flags_mask = not(sign_mask), &
                                  sign_neg_mask = ibset(sign_mask, &
                                           flag_bit_offset + flag_negative_sign)
+    integer(n_int) :: nsteps_mask, nsteps_not_mask
+    integer(sizeof_int) :: nsteps_not_mask_unsft
 
     ! Bit mask with all bits unset except the one corresponding to the determ_parent flag.
     integer(n_int) :: determ_parent_mask = ibset(0_n_int, &

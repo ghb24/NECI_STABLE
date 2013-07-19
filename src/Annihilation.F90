@@ -3,7 +3,8 @@
 MODULE AnnihilationMod
     use SystemData , only : NEl, tHPHF, nBasis, tCSF, tSemiStochastic, tTrialWavefunction
     use CalcData , only : TRegenExcitgens,tRegenDiagHEls, tEnhanceRemainder, &
-                          tTruncInitiator, tSpawnSpatialInit, OccupiedThresh
+                          tTruncInitiator, tSpawnSpatialInit, OccupiedThresh, &
+                          tVaryInitThresh
     USE DetCalcData , only : Det,FCIDetIndex
     USE Parallel_neci
     USE dSFMT_interface , only : genrand_real2_dSFMT
@@ -23,10 +24,11 @@ MODULE AnnihilationMod
                         encode_sign, encode_flags, test_flag, set_flag, &
                         clr_flag, flag_parent_initiator, encode_part_sign, &
                         extract_part_sign, copy_flag, nullify_ilut, &
-                        nullify_ilut_part
+                        nullify_ilut_part, keep_smallest_nsteps, return_nsteps
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData , only : tHF_Ref_Explicit
+    use util_mod, only: get_free_unit, binary_search_custom
     IMPLICIT NONE
 
 
@@ -766,6 +768,8 @@ MODULE AnnihilationMod
             if (test_flag(new_det, flag_determ_parent)) call set_flag(cum_det, flag_determ_parent)
         end if
 
+        if (tVaryInitThresh) call keep_smallest_nsteps(cum_det(0:NIfTot), new_det(0:NIfTot))
+
         ! Update annihilation statistics (is this really necessary?)
         if (sgn_prod < 0.0_dp) then
             Annihilated = Annihilated + 2*min(abs(cum_sgn), abs(new_sgn))
@@ -843,7 +847,7 @@ MODULE AnnihilationMod
                 2*(min(abs(CurrentSign(1)), abs(SpawnedSign(1))))
         end do
 
-    end subroutine
+    end subroutine deterministic_annihilation
     
 !In this routine, we want to search through the list of spawned particles. For each spawned particle, 
 !we binary search the list of particles on the processor
@@ -1413,6 +1417,7 @@ MODULE AnnihilationMod
         integer, intent(in) :: DetHash, nJ(nel)
         integer :: DetPosition
         HElement_t :: HDiag
+        real(dp) :: trial_amp
         type(ll_node), pointer :: TempNode
         character(len=*), parameter :: t_r="AddNewHashDet"
 
@@ -1446,6 +1451,14 @@ MODULE AnnihilationMod
             endif
             CurrentH(1,DetPosition)=real(HDiag,dp)-Hii
         endif
+
+        ! If using a trial wavefunction, search to see if this state is in either the trial or
+        ! connected space. If so, bin_search_trial sets the correct flag and returns the corresponding
+        ! amplitude, which is stored.
+        if (tTrialWavefunction) then
+            call bin_search_trial(CurrentDets(:,DetPosition), trial_amp)
+            current_trial_amps(DetPosition) = trial_amp
+        end if
 
         TempNode => HashIndex(DetHash)
         if (TempNode%Ind == 0) then
@@ -1987,6 +2000,44 @@ MODULE AnnihilationMod
         PartInd=MAX(MinInd,i-1)
 
     END SUBROUTINE BinSearchParts
+
+    subroutine bin_search_trial(ilut, amp)
+
+        integer(n_int), intent(inout) :: ilut(:)
+        real(dp), intent(out) :: amp
+        integer :: i, pos
+
+        amp = 0.0_dp
+
+        ! Search both the trial space and connected space to see if this state exists in either list.
+        ! First the trial space:
+        pos = binary_search_custom(trial_space(:, min_trial_ind:trial_space_size), ilut, NIfTot+1, ilut_gt)
+
+        if (pos > 0) then
+            amp = trial_wf(pos+min_trial_ind-1)
+            min_trial_ind = min_trial_ind + pos
+            call set_flag(ilut, flag_trial)
+        else
+            ! The state is not in the trial space. Just update min_trial_ind accordingly.
+            min_trial_ind = min_trial_ind - pos - 1
+        end if
+
+        ! If pos > 0 then the state is in the trial space. A state cannot be in both the trial and
+        ! connected space, so, unless pos < 0, don't bother doing the following binary search.
+        if (pos < 0) then
+
+            pos = binary_search_custom(con_space(:, min_conn_ind:con_space_size), ilut, NIfTot+1, ilut_gt)
+
+            if (pos > 0) then
+                amp = con_space_vector(pos+min_conn_ind-1)
+                min_conn_ind = min_conn_ind + pos
+                call set_flag(ilut, flag_connected)
+            else
+                min_conn_ind = min_conn_ind - pos - 1
+            end if
+        end if
+
+    end subroutine bin_search_trial
     
 END MODULE AnnihilationMod
 

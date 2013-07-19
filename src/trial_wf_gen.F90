@@ -1,6 +1,6 @@
 module trial_wf_gen
 
-    use AnnihilationMod, only: BinSearchParts
+    use AnnihilationMod, only: BinSearchParts, bin_search_trial
     use bit_rep_data, only: NIfTot, NIfD, flag_trial, flag_connected
     use bit_reps, only: encode_det, set_flag
     use davidson, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
@@ -13,7 +13,8 @@ module trial_wf_gen
                          ConTag, ConVecTag, DavidsonTag, TempTag, TrialTag, TrialWFTag, &
                          iHFProc, Trial_Init_Time, trial_temp, con_temp, occ_trial_amps, &
                          occ_con_amps, TrialTempTag, ConTempTag, OccTrialTag, OccConTag, &
-                         ntrial_occ, ncon_occ, Trial_Search_Time
+                         ntrial_occ, ncon_occ, Trial_Search_Time, CurrentTrialTag, &
+                         current_trial_amps, MaxWalkersPart, min_trial_ind, min_conn_ind
     use hphf_integrals, only: hphf_off_diag_helement
     use LoggingData, only: tWriteTrial, tCompareTrialAmps
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
@@ -40,6 +41,7 @@ contains
         integer(MPIArg) :: senddisps(0:nProcessors-1), recvdisps(0:nProcessors-1)
         integer(n_int), allocatable, dimension(:,:) :: temp_space
         integer :: nI(nel)
+        real(dp) :: trial_amp
         character (len=*), parameter :: t_r = "init_trial_wf"
 
         call set_timer(Trial_Init_Time)
@@ -249,28 +251,41 @@ contains
         if (tWriteTrial) call write_trial_space()
         if (tCompareTrialAmps) call update_compare_trial_file(.true.)
 
-        ! Allocate the arrays which will store the trial and connected vector amplitudes of the
-        ! occupied trial and connected states.
-        allocate(trial_temp(trial_space_size))
-        call LogMemAlloc('trial_temp', trial_space_size, 8, t_r, TrialTempTag, ierr)
-        allocate(con_temp(con_space_size))
-        call LogMemAlloc('con_temp', con_space_size, 8, t_r, ConTempTag, ierr)
-        allocate(occ_trial_amps(trial_space_size))
-        call LogMemAlloc('occ_trial_amps', trial_space_size, 8, t_r, OccTrialTag, ierr)
-        allocate(occ_con_amps(con_space_size))
-        call LogMemAlloc('occ_con_amps', con_space_size, 8, t_r, OccConTag, ierr)
+        if (tHashWalkerList) then
+            allocate(current_trial_amps(MaxWalkersPart))
+            call LogMemAlloc('current_trial_amps', MaxWalkersPart, 8, t_r, CurrentTrialTag, ierr)
+            current_trial_amps = 0.0_dp
 
-        trial_temp = 0.0_dp
-        con_temp = 0.0_dp
-        occ_trial_amps = 0.0_dp
-        occ_con_amps = 0.0_dp
-
-        ! Find which states in CurrentDets are in the trial and connected states, set the corresponding
-        ! flags and return the corresponding trial and connected vector amplitudes to trial_temp and
-        ! con_temp. These are then copied across to the vectors below.
-        call find_trial_and_con_states(TotWalkers, CurrentDets, ntrial_occ, ncon_occ)
-        occ_trial_amps(1:ntrial_occ) = trial_temp(1:ntrial_occ)
-        occ_con_amps(1:ncon_occ) = con_temp(1:ncon_occ)
+            min_trial_ind = 0
+            min_conn_ind = 0
+            do i = 1, TotWalkers
+                ! Find which states in CurrentDets are in the trial and connected states, set the corresponding
+                ! flags and return the corresponding amplitude (zero if neither a trial or connected state).
+                call bin_search_trial(CurrentDets(:,i), trial_amp)
+                current_trial_amps(i) = trial_amp
+            end do
+        else
+            ! Allocate the arrays which will store the trial and connected vector amplitudes of the
+            ! occupied trial and connected states.
+            allocate(trial_temp(trial_space_size))
+            call LogMemAlloc('trial_temp', trial_space_size, 8, t_r, TrialTempTag, ierr)
+            allocate(con_temp(con_space_size))
+            call LogMemAlloc('con_temp', con_space_size, 8, t_r, ConTempTag, ierr)
+            allocate(occ_trial_amps(trial_space_size))
+            call LogMemAlloc('occ_trial_amps', trial_space_size, 8, t_r, OccTrialTag, ierr)
+            allocate(occ_con_amps(con_space_size))
+            call LogMemAlloc('occ_con_amps', con_space_size, 8, t_r, OccConTag, ierr)
+            trial_temp = 0.0_dp
+            con_temp = 0.0_dp
+            occ_trial_amps = 0.0_dp
+            occ_con_amps = 0.0_dp
+            ! Find which states in CurrentDets are in the trial and connected states, set the corresponding
+            ! flags and return the corresponding trial and connected vector amplitudes to trial_temp and
+            ! con_temp. These are then copied across to the vectors below.
+            call find_trial_and_con_states(TotWalkers, CurrentDets, ntrial_occ, ncon_occ)
+            occ_trial_amps(1:ntrial_occ) = trial_temp(1:ntrial_occ)
+            occ_con_amps(1:ncon_occ) = con_temp(1:ncon_occ)
+        end if
 
         ! Deallocate remaining arrays.
         deallocate(temp_space, stat=ierr)
@@ -428,10 +443,10 @@ contains
         integer, intent(in) :: num_states
         integer(n_int), intent(inout) :: ilut_list(:,:)
         integer, intent(out) :: ntrial, ncon
-        integer :: i, pos, min_trial_ind, min_connected_ind
+        integer :: i, pos
 
         min_trial_ind = 1
-        min_connected_ind = 1
+        min_conn_ind = 1
         ntrial = 0
         ncon = 0
 
@@ -457,16 +472,16 @@ contains
             ! connected space, so, unless pos < 0, don't bother doing the following binary search.
             if (pos < 0) then
 
-                pos = binary_search_custom(con_space(:, min_connected_ind:con_space_size), &
+                pos = binary_search_custom(con_space(:, min_conn_ind:con_space_size), &
                                            ilut_list(:,i), NIfTot+1, ilut_gt)
 
                 if (pos > 0) then
                     ncon = ncon + 1
-                    con_temp(ncon) = con_space_vector(pos+min_connected_ind-1)
-                    min_connected_ind = min_connected_ind + pos
+                    con_temp(ncon) = con_space_vector(pos+min_conn_ind-1)
+                    min_conn_ind = min_conn_ind + pos
                     call set_flag(ilut_list(:,i), flag_connected)
                 else
-                    min_connected_ind = min_connected_ind - pos - 1
+                    min_conn_ind = min_conn_ind - pos - 1
                 end if
             end if
         end do
@@ -516,7 +531,8 @@ contains
     subroutine update_compare_trial_file(tFirstCall)
 
         ! Routine to output the trial wavefunction amplitudes and FCIQMC amplitudes in the trial
-        ! space. This is a test routine and is very unoptimised.
+        ! space. This is a test routine and is very unoptimised. Placed here to avoid circular
+        ! dependency...
 
         logical, intent(in) :: tFirstCall
         logical :: tSuccess
@@ -603,6 +619,26 @@ contains
         if (allocated(con_space_vector)) then
             deallocate(con_space_vector, stat=ierr)
             call LogMemDealloc(t_r, ConVecTag, ierr)
+        end if
+        if (allocated(current_trial_amps)) then
+            deallocate(current_trial_amps, stat=ierr)
+            call LogMemDealloc(t_r, CurrentTrialTag, ierr)
+        end if
+        if (allocated(trial_temp)) then
+            deallocate(trial_temp, stat=ierr)
+            call LogMemDealloc(t_r, TrialTempTag, ierr)
+        end if
+        if (allocated(con_temp)) then
+            deallocate(con_temp, stat=ierr)
+            call LogMemDealloc(t_r, ConTempTag, ierr)
+        end if
+        if (allocated(occ_trial_amps)) then
+            deallocate(occ_trial_amps, stat=ierr)
+            call LogMemDealloc(t_r, OccTrialTag, ierr)
+        end if
+        if (allocated(occ_con_amps)) then
+            deallocate(occ_con_amps, stat=ierr)
+            call LogMemDealloc(t_r, OccConTag, ierr)
         end if
 
     end subroutine end_trial_wf
