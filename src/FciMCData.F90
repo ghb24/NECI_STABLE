@@ -473,8 +473,6 @@ MODULE FciMCData
       ! trial_wf. If index i in the CurrentDets is a connected state then index i of this array stores the corresponding
       ! amplitude of con_space_vector. Else, it will be zero.
       real(dp), allocatable, dimension(:) :: current_trial_amps
-      ! The same as the above array, but stores the values for newly spawned states.
-      real(dp), allocatable, dimension(:) :: spawned_trial_amps
       ! Only used with the linscalefcimcalgo option: Because in AnnihilateSpawendParts trial and connected states are
       ! sorted in the same order, a smaller section of the trial and connected space can be searched for each state.
       ! These indices hold the indices to be searched from next time.

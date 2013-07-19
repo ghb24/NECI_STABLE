@@ -440,7 +440,7 @@ contains
 
     subroutine find_trial_and_con_states(num_states, ilut_list, ntrial, ncon)
 
-        integer, intent(in) :: num_states
+        integer(int64), intent(in) :: num_states
         integer(n_int), intent(inout) :: ilut_list(:,:)
         integer, intent(out) :: ntrial, ncon
         integer :: i, pos

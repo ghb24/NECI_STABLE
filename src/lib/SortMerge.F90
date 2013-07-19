@@ -49,7 +49,7 @@
             ! in which are in the trial and connected space. This routine also stores
             ! the corresponding amplitudes from trial_wf and con_space_vector in the
             ! arrays trial_temp and con_temp, and sets the flags of the new states.
-            call find_trial_and_con_states(nlist2, list2, ntrial, ncon)
+            call find_trial_and_con_states(int(nlist2,8), list2, ntrial, ncon)
             ! The number of trial and connected states currently in CurrentDets.
             ntrial_old = ntrial_occ
             ncon_old = ncon_occ

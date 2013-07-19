@@ -1354,7 +1354,7 @@ MODULE FciMCParMod
             ! Sum in any energy contribution from the determinant, including 
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
-            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, j, HDiagCurr, 1.0_dp)
+            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, j)
 
 !            ! If we're filling the RDM, this calculates the explicitly connected singles and doubles.
 !            ! Or in the case of HFSD (or some combination of this), it calculates the 
@@ -6702,15 +6702,15 @@ MODULE FciMCParMod
     ! was generated. It defaults to 1, and weights the contribution of this 
     ! det (only in the projected energy) by dividing its contribution by this
     ! number 
-    subroutine SumEContrib (nI, ExcitLevel, RealWSign, ind, HDiagCurr, dProbFin)
+    subroutine SumEContrib (nI, ExcitLevel, RealWSign, ilut, HDiagCurr, dProbFin, ind)
 
         integer, intent(in) :: nI(nel), ExcitLevel
         real(dp), intent(in) :: RealwSign(lenof_sign)
-        integer, intent(in) :: ind
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
         real(dp), intent(in) :: HDiagCurr, dProbFin
+        integer, intent(in), optional :: ind
 
         integer :: i, bin, pos, ExcitLevel_local, ExcitLevelSpinCoup
-        integer(n_int) :: ilut(0:NIfTot)
         integer :: PartInd, OpenOrbs, spatial_ic
         integer(n_int) :: iLutSym(0:NIfTot)
         logical tSuccess
@@ -6724,8 +6724,6 @@ MODULE FciMCParMod
         integer :: comp
         logical :: found
 
-        ilut = CurrentDets(:,ind)
-
         ! Are we performing a linear sum over various determinants?
         ! TODO: If we use this, function pointer it.
 
@@ -6733,7 +6731,7 @@ MODULE FciMCParMod
 
         ! Add in the contributions to the numerator and denominator of the trial
         ! estimatior, if it is being used.
-        if (tTrialWavefunction) then
+        if (tTrialWavefunction .and. present(ind)) then
             if (tHashWalkerlist) then
                 if (test_flag(ilut, flag_trial)) then
                     trial_denom = trial_denom + current_trial_amps(ind)*RealwSign(1)
