@@ -4245,8 +4245,8 @@ MODULE FciMCParMod
         
         trial_ind = 0
         con_ind = 0
-        min_trial_ind = 0
-        min_conn_ind = 0
+        min_trial_ind = 1
+        min_conn_ind = 1
 
     end subroutine
 

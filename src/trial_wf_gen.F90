@@ -256,11 +256,14 @@ contains
             call LogMemAlloc('current_trial_amps', MaxWalkersPart, 8, t_r, CurrentTrialTag, ierr)
             current_trial_amps = 0.0_dp
 
-            min_trial_ind = 0
-            min_conn_ind = 0
+            min_trial_ind = 1
+            min_conn_ind = 1
             do i = 1, TotWalkers
                 ! Find which states in CurrentDets are in the trial and connected states, set the corresponding
                 ! flags and return the corresponding amplitude (zero if neither a trial or connected state).
+                ! First, clear the flags in case they were set when read in from a popsfile.
+                call clr_flag(CurrentDets(:,i), flag_trial)
+                call clr_flag(CurrentDets(:,i), flag_connected)
                 call bin_search_trial(CurrentDets(:,i), trial_amp)
                 current_trial_amps(i) = trial_amp
             end do
@@ -351,6 +354,7 @@ contains
             else
                 min_ind = min_ind - pos - 1
             end if
+            if (min_ind > list_1_size) exit
         end do
 
         ! Now compress the new list by overwriting the removed states:
