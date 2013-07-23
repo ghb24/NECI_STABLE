@@ -5,7 +5,7 @@ module trial_wf_gen
     use bit_reps, only: encode_det, set_flag
     use davidson, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
                         sparse_hamil_type
-    use DetBitOps, only: FindBitExcitLevel, ilut_lt, ilut_gt
+    use DetBitOps, only: FindBitExcitLevel, ilut_lt, ilut_gt, DetBitEq
     use DeterminantData, only: write_det
     use FciMCData, only: trial_space, trial_space_size, con_space, &
                          con_space_size, trial_wf, trial_energy, &
@@ -14,7 +14,8 @@ module trial_wf_gen
                          iHFProc, Trial_Init_Time, trial_temp, con_temp, occ_trial_amps, &
                          occ_con_amps, TrialTempTag, ConTempTag, OccTrialTag, OccConTag, &
                          ntrial_occ, ncon_occ, Trial_Search_Time, CurrentTrialTag, &
-                         current_trial_amps, MaxWalkersPart, min_trial_ind, min_conn_ind
+                         current_trial_amps, MaxWalkersPart, min_trial_ind, min_conn_ind, &
+                         HashIndex
     use hphf_integrals, only: hphf_off_diag_helement
     use LoggingData, only: tWriteTrial, tCompareTrialAmps
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
@@ -40,7 +41,6 @@ contains
         integer(MPIArg) :: sendcounts(0:nProcessors-1), recvcounts(0:nProcessors-1)
         integer(MPIArg) :: senddisps(0:nProcessors-1), recvdisps(0:nProcessors-1)
         integer(n_int), allocatable, dimension(:,:) :: temp_space
-        integer :: nI(nel)
         real(dp) :: trial_amp
         character (len=*), parameter :: t_r = "init_trial_wf"
 
@@ -255,18 +255,7 @@ contains
             allocate(current_trial_amps(MaxWalkersPart))
             call LogMemAlloc('current_trial_amps', MaxWalkersPart, 8, t_r, CurrentTrialTag, ierr)
             current_trial_amps = 0.0_dp
-
-            min_trial_ind = 1
-            min_conn_ind = 1
-            do i = 1, TotWalkers
-                ! Find which states in CurrentDets are in the trial and connected states, set the corresponding
-                ! flags and return the corresponding amplitude (zero if neither a trial or connected state).
-                ! First, clear the flags in case they were set when read in from a popsfile.
-                call clr_flag(CurrentDets(:,i), flag_trial)
-                call clr_flag(CurrentDets(:,i), flag_connected)
-                call bin_search_trial(CurrentDets(:,i), trial_amp)
-                current_trial_amps(i) = trial_amp
-            end do
+            call initialise_trial_hash()
         else
             ! Allocate the arrays which will store the trial and connected vector amplitudes of the
             ! occupied trial and connected states.
@@ -305,6 +294,48 @@ contains
         call neci_flush(6)
 
     end subroutine init_trial_wf
+
+    subroutine initialise_trial_hash()
+
+        integer :: i, DetHash
+        integer :: nI(nel)
+        type(ll_node), pointer :: temp_node
+
+        do i = 1, trial_space_size
+            call decode_bit_det(nI, trial_space(:,i))
+            DetHash = FindWalkerHash(nI)
+            temp_node => HashIndex(DetHash)
+            if (temp_node%ind /= 0) then
+                do while (associated(temp_node))
+                    if (DetBitEQ(trial_space(:,i), CurrentDets(:,temp_node%ind),NIfDBO)) then
+                        call set_flag(CurrentDets(:,temp_node%ind), flag_trial)
+                        current_trial_amps(temp_node%ind) = trial_wf(i)
+                        exit
+                    end if
+                    temp_node => temp_node%next
+                end do
+            end if
+            nullify(temp_node)
+        end do
+
+        do i = 1, con_space_size
+            call decode_bit_det(nI, con_space(:,i))
+            DetHash = FindWalkerHash(nI)
+            temp_node => HashIndex(DetHash)
+            if (temp_node%ind /= 0) then
+                do while (associated(temp_node))
+                    if (DetBitEQ(con_space(:,i), CurrentDets(:,temp_node%ind),NIfDBO)) then
+                        call set_flag(CurrentDets(:,temp_node%ind), flag_connected)
+                        current_trial_amps(temp_node%ind) = con_space_vector(i)
+                        exit
+                    end if
+                    temp_node => temp_node%next
+                end do
+            end if
+            nullify(temp_node)
+        end do
+
+    end subroutine initialise_trial_hash
 
     subroutine remove_states_not_on_proc(ilut_list, ilut_list_size, update_trial_vector)
 

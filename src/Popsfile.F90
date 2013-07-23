@@ -307,17 +307,11 @@ r_loop: do while(.not.tReadAllPops)
             call LogMemDealloc (this_routine, BatchReadTag)
         end if
 
-        ! Clear all deterministic states so that they can be changed later.
-        if (tSemiStochastic) then
+        ! Clear all deterministic and trial flags so that they can be changed later.
+        if (tUseFlags) then
             do i = 1, CurrWalkers
                 call clr_flag(CurrentDets(:,i), flag_deterministic)
                 call clr_flag(CurrentDets(:,i), flag_determ_parent)
-            end do
-        end if
-
-        ! Clear all trial and connected states so that they can be changed later.
-        if (tTrialWavefunction) then
-            do i = 1, CurrWalkers
                 call clr_flag(CurrentDets(:,i), flag_trial)
                 call clr_flag(CurrentDets(:,i), flag_connected)
             end do
@@ -327,7 +321,7 @@ r_loop: do while(.not.tReadAllPops)
         write(6,*) "Number of configurations read in to this process: ",CurrWalkers 
 
         if(tHashWalkerList) then
-            do i = 1, determ_space_size
+            do i = 1, CurrWalkers
                 call decode_bit_det (nJ, dets(:,i))
                 DetHash=FindWalkerHash(nJ)
                 Temp => HashIndex(DetHash)
