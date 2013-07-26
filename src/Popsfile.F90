@@ -258,7 +258,7 @@ r_loop: do while(.not.tReadAllPops)
                 ! Transfer the walkers.
                 call MPIScatterV (BatchRead(:,1:MaxSendIndex), sendcounts, &
                                   disps, &
-                                  Dets(:,CurrWalkers+1:(recvcount/NIfTot+1)), &
+                                  Dets(:,CurrWalkers+1:CurrWalkers+1+(recvcount/(NIfTot+1))), &
                                   recvcount, err, Roots)
                 if (err /= 0) &
                     call stop_all (this_routine, "MPI scatterV error")
