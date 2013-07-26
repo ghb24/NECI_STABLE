@@ -110,7 +110,8 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,int_name,filename_in)
             if(tFCIDUMP_exist) then
                 iunit = get_free_unit()
                 open(iunit,file=FCIDUMP_name,status='old',form='formatted')
-                close(iunit,status='delete')
+                close(iunit)
+                !close(iunit,status='delete')
             endif
         endif
     endif
