@@ -406,11 +406,11 @@ MODULE ReadInput_neci
                        &iteration.'
         endif
 
-        if (tUniqueHFNode .and. nNodes < 2) then
-            write(6,*) "nNodes: ",nNodes
-            call stop_all (t_r, 'At least two nodes required to designate &
-                          &a node uniquely to the HF determinant')
-        end if
+!        if (tUniqueHFNode .and. nNodes < 2) then
+!            write(6,*) "nNodes: ",nNodes
+!            call stop_all (t_r, 'At least two nodes required to designate &
+!                          &a node uniquely to the HF determinant')
+!        end if
 
     end subroutine checkinput
 
