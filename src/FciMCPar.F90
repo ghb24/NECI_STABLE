@@ -264,9 +264,8 @@ MODULE FciMCParMod
 !Main iteration loop...
 !            WRITE(iout,*) 'Iter',Iter
 
-
             if(iProcIndex.eq.root) s_start=neci_etime(tstart)
-
+            
             if(tRDMonFly.and.(.not.tSinglePartPhase)) call check_start_rdm()
 
             if (tCCMC) then
@@ -378,18 +377,25 @@ MODULE FciMCParMod
 !This routine will check for a CHANGEVARS file and change the parameters of the calculation accordingly.
                 CALL ChangeVars(tSingBiasChange,tSoftExitFound,tWritePopsFound)
                 IF(tSoftExitFound) THEN
-                    TIncrement=.false.
-                    ! The diagonal elements of the RDM will not have been calculated (as we didn't know 
-                    ! it was the last iteration), so this must be done now.
-                    if(tFillingStochRDMonFly) call fill_rdm_softexit(TotWalkers)
-                    EXIT
+                    !Now changed such that we do one more block of iterations and then exit, to allow for proper
+                    !inclusion of all the RDM elements
+                    NMCyc=Iter+StepsSft  
+                    
+                    !TIncrement=.false.
+                    !! The diagonal elements of the RDM will not have been calculated (as we didn't know 
+                    !! it was the last iteration), so this must be done now.
+                    !It's problematic trying to det the core space off-diags done here too, hence my change
+                    !to the way softexit is handled.
+                    !if(tFillingStochRDMonFly) call fill_rdm_softexit(TotWalkers)
+                    !EXIT
                 ENDIF
                 IF(tTimeExit.and.(TotalTime8.ge.MaxTimeExit)) THEN
                     !Is it time to exit yet?
                     write(iout,"(A,F8.2,A)") "Time limit reached for simulation of: ",MaxTimeExit/60.0," minutes - exiting..."
-                    tIncrement=.false.
-                    if(tFillingStochRDMonFly) call fill_rdm_softexit(TotWalkers)
-                    EXIT
+                    NMCyc=Iter+StepsSft  
+                    !tIncrement=.false.
+                    !if(tFillingStochRDMonFly) call fill_rdm_softexit(TotWalkers)
+                    !EXIT
                 ENDIF
                 IF (proje_update_comb) CALL update_linear_comb_coeffs()
                 IF((iExitWalkers.ne.-1.0).and.(sum(AllTotParts).gt.iExitWalkers)) THEN
@@ -861,8 +867,7 @@ MODULE FciMCParMod
         use, intrinsic :: iso_c_binding
         implicit none
         interface
-            subroutine fill_rdm_diag_currdet (iLutnI, nI, CurrH_I, &
-                                              ExcitLevelI, IterLastRDMFill) 
+            subroutine fill_rdm_diag_currdet (iLutnI, nI, CurrH_I, ExcitLevelI) 
                 use constants
                 use SystemData, only: nel
                 use bit_reps, only: NIfTot 
@@ -870,7 +875,7 @@ MODULE FciMCParMod
                 implicit none
                 integer(n_int), intent(in) :: iLutnI(0:nIfTot)
                 real(dp), intent(in) :: CurrH_I(NCurrH)
-                integer, intent(in) :: nI(nel), ExcitLevelI, IterLastRDMFill
+                integer, intent(in) :: nI(nel), ExcitLevelI
                 real(dp) :: IterDetOcc, IterRDM
                 integer(n_int) :: SpinCoupDet(0:nIfTot)
                 integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
@@ -1021,7 +1026,7 @@ MODULE FciMCParMod
                 type(excit_gen_store_type), intent(inout), optional :: Store
             end subroutine
             subroutine fill_rdm_diag_currdet (iLutnI, nI, CurrH_I, &
-                                              ExcitLevelI, IterLastRDMFill) 
+                                              ExcitLevelI) 
                 use constants
                 use SystemData, only: nel
                 use bit_reps, only: NIfTot 
@@ -1029,7 +1034,7 @@ MODULE FciMCParMod
                 implicit none
                 integer(n_int), intent(in) :: iLutnI(0:nIfTot)
                 real(dp) , intent(in) :: CurrH_I(NCurrH)
-                integer, intent(in) :: nI(nel), ExcitLevelI, IterLastRDMFill
+                integer, intent(in) :: nI(nel), ExcitLevelI
                 real(dp) :: IterDetOcc, IterRDM
                 integer(n_int) :: SpinCoupDet(0:nIfTot)
                 integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
@@ -1047,13 +1052,12 @@ MODULE FciMCParMod
         integer(kind=n_int) :: iLutnJ(0:niftot)
         integer :: IC, walkExcitLevel, walkExcitLevel_toHF, ex(2,2), TotWalkersNew, part_type
         integer(int64) :: tot_parts_tmp(lenof_sign)
-        logical :: tParity, tSuccess, tFill_RDM, tInDetermSpace
+        logical :: tParity, tSuccess, tInDetermSpace
         real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp
         real(dp) :: AvSignCurr, IterRDMStartCurr, RDMBiasFacCurr
         HElement_t :: HDiagTemp,HElGen
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
         HElement_t :: delta
-        integer :: IterLastRDMFill
         integer :: proc, pos
         real(dp) :: r, sgn(lenof_sign), prob_extra_walker
         integer :: determ_index, gen_ind
@@ -1238,7 +1242,7 @@ MODULE FciMCParMod
                             ! If we are only using initiators to calculate the RDMs, only add in the diagonal and 
                             ! explicit contributions if the average population is greater than n_a = InitiatorWalkNo.
                                 call fill_rdm_diag_currdet(CurrentDets(:,gen_ind-1), DetCurr, &
-                                        CurrentH(1:NCurrH,gen_ind-1), walkExcitLevel_toHF, IterLastRDMFill)  
+                                        CurrentH(1:NCurrH,gen_ind-1), walkExcitLevel_toHF)  
                         endif
                         cycle
                     end if
@@ -1312,7 +1316,9 @@ MODULE FciMCParMod
             else
                 walkExcitLevel_toHF = walkExcitLevel
             endif
-            if(walkExcitLevel_toHF.eq.0) HFInd = VecSlot     
+
+            if(walkExcitLevel_toHF.eq.0) HFInd = VecSlot
+            
             IFDEBUGTHEN(FCIMCDebug,1)
                 if(j.gt.1) then
                     if(DetBitEQ(CurrentDets(:,j-1),CurrentDets(:,j),NIfDBO)) then
@@ -1513,7 +1519,7 @@ MODULE FciMCParMod
                 ! If we are only using initiators to calculate the RDMs, only add in the diagonal and 
                 ! explicit contributions if the average population is greater than n_a = InitiatorWalkNo.
                     call fill_rdm_diag_currdet(CurrentDets(:,VecSlot-1), DetCurr, &
-                            CurrentH(1:NCurrH,VecSlot-1), walkExcitLevel_toHF, IterLastRDMFill)  
+                            CurrentH(1:NCurrH,VecSlot-1), walkExcitLevel_toHF)  
             endif
 
         enddo ! Loop over determinants.
@@ -4323,6 +4329,7 @@ MODULE FciMCParMod
         call population_check ()
         call update_shift (iter_data)
         call WriteFCIMCStats ()
+        
         call rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
 
     end subroutine calculate_new_shift_wrapper
@@ -5738,6 +5745,7 @@ MODULE FciMCParMod
         IF((.not.tSinglePartPhase).and.((Iter - VaryShiftIter).eq.(IterRDMonFly+1))) THEN
         ! IterRDMonFly is the number of iterations after the shift has changed that we want 
         ! to fill the RDMs.  If this many iterations have passed, start accumulating the RDMs! 
+        
             IterRDMStart = Iter
             IterRDM_HF = Iter
             !We have reached the iteration where we want to start filling the RDM.

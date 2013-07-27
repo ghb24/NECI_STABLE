@@ -21,10 +21,11 @@ module semi_stoch_procs
                          SemiStoch_Multiply_Time, TotWalkers, CurrentDets, CoreTag, &
                          PDetermTag, FDetermTag, IDetermTag, indices_of_determ_states, &
                          HashIndex, core_space, CoreSpaceTag, tCoreHash, ll_node, &
-                         nWalkerHashes
+                         nWalkerHashes, tFill_RDM, IterLastRDMFill
     use hash, only: DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
+    use nElRDMMod, only: fill_RDM_offdiag_deterministic
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, MPIArg, &
                              MPIAllGatherV, MPISum, MPISumAll
     use ras, only: core_ras
@@ -68,6 +69,12 @@ contains
             ! Perform the multiplication. This can be done in two ways depending on
             ! whether the the core Hamiltonian uses a sparse representation or not.
             if (tSparseCoreHamil) then
+                
+                if(tFill_RDM) call fill_RDM_offdiag_deterministic()
+
+                    !For the moment, we're only adding in these contributions when we need the energy
+                    !This will need refinement if we want to continue with the option of inst vs true full RDMs
+                    ! (as in another CMO branch).
 
                 partial_determ_vector = 0.0_dp
 
@@ -77,19 +84,6 @@ contains
                             sparse_core_ham(i)%elements(j)*full_determ_vector(sparse_core_ham(i)%positions(j))
                     end do
                 end do
-                
-!                if(tRDM) then
-!                    do i = 1, determ_proc_sizes(iProcIndex) !Core dets on proc
-!                        do j = 1, sparse_core_ham(i)%num_elements   !Connections to whole space (1 row)
-!                            !TODO: Get two determinants
-!                            !Find excitation matrix from bit representation
-!                            !Eg use FindSingleOrbs for singles and something similar for doubles
-!
-!                            partial_determ_vector(i) = partial_determ_vector(i) - &
-!                                sparse_core_ham(i)%elements(j)*full_determ_vector(sparse_core_ham(i)%positions(j))
-!                        end do
-!                    end do
-!                endif
 
             else
 
@@ -931,5 +925,5 @@ contains
         end if
 
     end subroutine end_semistoch
-
+    
 end module semi_stoch_procs

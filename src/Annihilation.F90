@@ -933,9 +933,6 @@ MODULE AnnihilationMod
                 !associated Spawned Parents entries for the RDMs, so if tSuccess was true for the previous entry
                 !it will be true here too.  We still need to add in its RDM contribution as each SpawnedParts entry
                 !after the compress has a separate list of spawnedparents, so we can't ignore one set.
-                if(tSuccess .and. tFillingStochRDMonFly .and.(.not.tHF_Ref_Explicit)) then
-                    call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
-                endif
                 cycle
             end if
 
@@ -981,14 +978,6 @@ MODULE AnnihilationMod
 
 !            WRITE(6,*) 'i,SpawnedParts(:,i)',i,SpawnedParts(:,i)
 
-            ! The spawned parts contain the Dj's spawned by the Di's in CurrentDets.
-            ! If the SpawnedPart is found in the CurrentDets list, it means that the Dj has a non-zero 
-            ! cj - and therefore the Di.Dj pair will have a non-zero ci.cj to contribute to the RDM.
-            ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
-            if(tSuccess .and. tFillingStochRDMonFly .and.(.not.tHF_Ref_Explicit)) then
-                call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
-            endif
-
             ! Abort spawning from the deterministic space to the deterministic space, and also
             ! merge this state and next state in SpawnedParts if they are the same states but
             ! with the determ_parent flag set in the first state and not set in the second state.
@@ -1008,7 +997,8 @@ MODULE AnnihilationMod
                     if (test_flag(CurrentDets(:,PartInd), flag_deterministic) .and. tSuccess) then
                         ! If this state is in the deterministic space then abort it, as it was also spawned
                         ! from the deterministic space. Then simply move onto the next state in SpawnedParts,
-                        ! even if it is the same state.
+                        ! even if it is the same state.  Also no need to include RDM off-diagonal component,
+                        ! as this will already have been done explicitly.
                         call extract_sign(SpawnedParts(:, i), SpawnedSign)
                         call encode_sign(SpawnedParts(:, i), null_part)
                         if (sum(abs(SpawnedSign)).ne.0) ToRemove = ToRemove + 1 !Otherwise already counted in Spawned_Parts_Zero
@@ -1019,6 +1009,11 @@ MODULE AnnihilationMod
 
                         cycle
                     else
+                        !The parent determinants were in the deterministic space, but this target det is not.
+                        !Therefore, we need to add in off-diagonal RDM elements
+                        if(tSuccess .and. tFillingStochRDMonFly .and.(.not.tHF_Ref_Explicit)) then
+                            call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
+                        endif
                         if (comp == 0) then
                             ! If the next state is the same, and this state is not in the deterministic space
                             ! then merge the two amplitudes onto this one state, and then skip the next state
@@ -1029,6 +1024,15 @@ MODULE AnnihilationMod
                             call encode_sign(SpawnedParts(:, i+1), null_part)
                             if ((sum(abs(SpawnedSign)).ne.0).and.(sum(abs(SignTemp)).ne.0)) ToRemove = ToRemove + 1
                             tSkip = .true.
+                            
+                            ! Two adjacent entries in SpawnedParts corresponding to the same determinant
+                            ! (which is not in the core space).  The first entry had parents from the deterministic space
+                            ! whilst the second (i+1) has parents which are from outside the core space.
+                            ! Both sets need to be added in to RDM off-diagonal elements.  The first set has
+                            ! been done above.  The second is now done here:
+                            if(tSuccess .and. tFillingStochRDMonFly .and.(.not.tHF_Ref_Explicit)) then
+                                call check_fillRDM_DiDj(i+1,CurrentDets(:,PartInd),CurrentH(2,PartInd))
+                            endif
 
                             ! Update stats:
                             SignProd = SpawnedSign*SignTemp
@@ -1043,8 +1047,22 @@ MODULE AnnihilationMod
                             end if
                         end if
                     end if
+                else
+                    ! Walkers spawned onto this state from outside the deterministic space.
+                    ! We do need to include this off-diagonal contribution to the RDMs
+                    if(tSuccess .and. tFillingStochRDMonFly .and.(.not.tHF_Ref_Explicit)) then
+                        call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
+                    endif
                 end if
-            end if
+            else
+                ! The spawned parts contain the Dj's spawned by the Di's in CurrentDets.
+                ! If the SpawnedPart is found in the CurrentDets list, it means that the Dj has a non-zero 
+                ! cj - and therefore the Di.Dj pair will have a non-zero ci.cj to contribute to the RDM.
+                ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
+                if(tSuccess .and. tFillingStochRDMonFly .and.(.not.tHF_Ref_Explicit)) then
+                    call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
+                endif
+            endif
 
             IF(tSuccess) THEN
 

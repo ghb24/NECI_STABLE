@@ -49,6 +49,8 @@ MODULE FciMCData
       INTEGER :: Spawned_ParentsTag, Spawned_Parents_IndexTag
       REAL(dp) :: SumSigns, SumSpawns, AvNoatHF
       LOGICAL :: tFillingStochRDMonFly, tFillingExplicRDMonFly
+      logical :: tFill_RDM
+      integer :: IterLastRDMFill
       integer :: Spawned_Parts_Zero, HFInd, NCurrH, IterRDMStart, IterRDM_HF
       real(dp), dimension(lenof_sign) :: InstNoatHf
 
@@ -408,7 +410,7 @@ MODULE FciMCData
       ! Later in the iteration, it is also used to store the result of the multiplication by core_hamiltonian on
       ! full_determ_vector.
       real(dp), allocatable, dimension(:) :: partial_determ_vector
-      real(dp), allocatable, dimension(:) :: full_determ_vector 
+      real(dp), allocatable, dimension(:) :: full_determ_vector
 
       integer(MPIArg), allocatable, dimension(:) :: determ_proc_sizes
       integer(MPIArg), allocatable, dimension(:) :: determ_proc_indices
