@@ -193,7 +193,7 @@ MODULE ReadInput_neci
         use global_utilities
         use spin_project, only: tSpinProject, spin_proj_nopen_max
         use FciMCData, only: nWalkerHashes,HashLengthFrac,tHashWalkerList
-        use Parallel_neci, only: nNodes
+        use Parallel_neci, only: nNodes,nProcessors
 
         implicit none
 
@@ -406,7 +406,7 @@ MODULE ReadInput_neci
                        &iteration.'
         endif
 
-        if (tUniqueHFNode .and. nNodes < 2) then
+        if (tUniqueHFNode .and. nProcessors < 2) then
             call stop_all (t_r, 'At least two nodes required to designate &
                           &a node uniquely to the HF determinant')
         end if
