@@ -1028,6 +1028,7 @@ endif
                                 iter_data%nremoved = iter_data%nremoved + abs(SignTemp(j))
                                 SignTemp(j) = 0
                                 call nullify_ilut_part (SpawnedParts(:,i), j)
+                                DetsRoundedToZero=DetsRoundedToZero+1
                             elseif (tEnhanceRemainder) then
                                 NoBorn = NoBorn + OccupiedThresh - abs(SignTemp(j))
                                 iter_data%nborn = iter_data%nborn + OccupiedThresh - abs(SignTemp(j))
@@ -1069,6 +1070,7 @@ endif
                                 !Annihilated = Annihilated + abs(SignTemp(j))
                                 !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
                                 iter_data%nremoved = iter_data%nremoved + abs(SignTemp(j))
+                                DetsRoundedToZero=DetsRoundedToZero+1
                                 SignTemp(j) = 0
                                 call nullify_ilut_part (SpawnedParts(:,i), j)
                             elseif (tEnhanceRemainder) then
@@ -1414,6 +1416,7 @@ endif
                             iter_data%nremoved = iter_data%nremoved + abs(CurrentSign(j))
                             CurrentSign(j) = 0
                             call nullify_ilut_part (CurrentDets(:,i), j)
+                            DetsRoundedToZero=DetsRoundedToZero+1
                         elseif (tEnhanceRemainder) then
                             ! SDS: TODO: Account for the TotParts Changes
                             ! Should we always do this here? Probably. Should

@@ -39,7 +39,8 @@ MODULE FciMCParMod
                         tContinueAfterMP2,iExitWalkers,MemoryFacPart, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tPopsMapping, &
                         tSpawn_Only_Init_Grow, RealCoeffExcitThresh, &
-                        tRealSpawnCutoff, RealSpawnCutoff, tJumpShift
+                        tRealSpawnCutoff, RealSpawnCutoff, tJumpShift, &
+                        tUseRealCoeffs
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
@@ -254,7 +255,7 @@ MODULE FciMCParMod
             if(tRDMonFly.and.(.not.tSinglePartPhase)) call check_start_rdm()
 
             if (tCCMC) then
-                if (tAllRealCoeff .or. tRealCoeffByExcitLevel) &
+                if (tUseRealCoeffs) &
                     call stop_all("FciMCPar", "Continuous spawning not yet set up to work &
                     & with CCMC.  Attention will be required in a number of routines, &
                     & including AttemptCreatePar and PerformCCMCCycParInt")
@@ -1670,6 +1671,7 @@ MODULE FciMCParMod
 
         call extract_sign (CurrentDets(:,j), CurrentSign)
 
+
         tcurr_initiator = .false.
         do part_type=1,lenof_sign
             ! By default, the parent_flags are the flags of the parent...
@@ -2169,6 +2171,7 @@ MODULE FciMCParMod
         !write(6,*) 'p,rh', prob, rh
 
         ! Are we doing real spawning?
+        
         tRealSpawning = .false.
         if (tAllRealCoeff) then
             tRealSpawning = .true.
@@ -2495,7 +2498,7 @@ MODULE FciMCParMod
 
     subroutine walker_death (attempt_die, iter_data, DetCurr, iLutCurr, Kii, &
                              RealwSign, wAvSign, IterRDMStartCurr, VecSlot, &
-                             walkExcitLevel, DetPosition)
+                             DetPosition, walkExcitLevel)
         interface
             function attempt_die (nI, Kii, realwSign, walkExcitLevel) result(ndie)
                 use SystemData, only: nel
@@ -2658,7 +2661,9 @@ MODULE FciMCParMod
             endif
         endif
 
-        if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)).or. tAllRealCoeff) then
+        if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)) &
+            .or. tAllRealCoeff ) then
+            OccRealDets=OccRealDets+1
             do i=1, lenof_sign
                 ndie(i)=fac*abs(realwSign(i))
             enddo
@@ -3627,6 +3632,8 @@ MODULE FciMCParMod
         call MPIReduce(NoDied, MPI_SUM, AllNoDied)
         call MPIReduce(HFCyc, MPI_SUM, RealAllHFCyc)
         call MPIReduce(NoAtDoubs, MPI_SUM, AllNoAtDoubs)
+        call MPIReduce(OccRealDets, MPI_SUM, AllOccRealDets)
+        call MPIReduce(DetsRoundedToZero, MPI_SUM, AllDetsRoundedToZero)
         call MPIReduce(Annihilated, MPI_SUM, AllAnnihilated)
         call MPIReduce(NuMSpawnedEntries, MPI_SUM, AllNumSpawnedEntries)
         call MPIReduce(ZeroMatrixElem, MPI_SUM, AllZeroMatrixElem)
@@ -3983,6 +3990,8 @@ MODULE FciMCParMod
         ZeroMatrixElem=0
         NoatHF = 0.0_dp     ! Number at HF and doubles for stats
         NoatDoubs = 0.0_dp
+        OccRealDets = 0
+        DetsRoundedToZero = 0
         TotWalkersToSpawn=0
 
         iter_data%nborn = 0.0
@@ -4158,7 +4167,8 @@ MODULE FciMCParMod
                   &20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  &
                   &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
                   &26.HF weight    27.|Psi|     28.Inst S^2 29.Inst S^2 30.AbsProjE &
-                  &31.SpawnedParts  32.MergedParts  33.WalkersToSpawn  34.ZeroMatrixElements"
+                  &31.SpawnedParts  32.MergedParts  33.WalkersToSpawn &
+                  &34.ZeroMatrixElements 35.OccRealDets 36.DetsRoundedToZero"
 
            if(tSplitProjEHist) then
                if(tSplitProjEHistG) then
@@ -4276,7 +4286,7 @@ MODULE FciMCParMod
             endif
             
             write(fcimcstats_unit,"(I12,G16.7,3G16.7,3G16.7,5G17.9,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9, 4I13)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9, 6I13)") &
                 Iter + PreviousCycles, &
                 DiagSft, &
                 sum(AllTotParts) - sum(AllTotPartsOld), &
@@ -4309,7 +4319,9 @@ MODULE FciMCParMod
                 AllNumSpawnedEntries, &
                 AllNumMerged, &
                 AllTotWalkersToSpawn, &
-                AllZeroMatrixElem
+                AllZeroMatrixElem, &
+                AllOccRealDets, &
+                AllDetsRoundedToZero
 
             if(tMCOutput) then
                 write (iout, "(I12,13G16.7,I12,G13.5)") &
@@ -5105,6 +5117,8 @@ MODULE FciMCParMod
         AllSumENum=0.0_dp
         AllNoatHF=0
         AllNoatDoubs=0
+        AllOccRealDets=0
+        AllDetsRoundedToZero=0
         AllSumNoatHF = 0
         AllGrowRate=0.0_dp
         AllGrowRateAbort=0
@@ -6571,7 +6585,7 @@ MODULE FciMCParMod
 
         ! Are we doing a spin-projection histogram?
         if (tHistSpinDist) then
-            if (tRealCoeffByExcitLevel) call stop_all("SumEContrib", "Not set up to use real coeffs with tHistSpinDist")
+            if (tUseRealCoeffs) call stop_all("SumEContrib", "Not set up to use real coeffs with tHistSpinDist")
             call test_add_hist_spin_dist_det (ilut, RealwSign)
         endif
 
@@ -7079,7 +7093,7 @@ MODULE FciMCParMod
 
         if (tSpinProject) call init_yama_store ()
     
-        if (tRealCoeffByExcitLevel .and. (lenof_sign.ne.1)) &
+        if (tUseRealCoeffs .and. (lenof_sign.ne.1)) &
             CALL stop_all(this_routine,"Code not yet setup to store complex coefficients as reals &
                                         & - attempt_create_normal is an example")
 
@@ -7136,6 +7150,7 @@ MODULE FciMCParMod
         if(tReadPops) call stop_all(this_routine,"StartCAS cannot work with with ReadPops")
         if(tStartSinglePart) call stop_all(this_routine,"StartCAS cannot work with StartSinglePart")
         if(tRestartHighPop) call stop_all(this_routine,"StartCAS cannot with with dynamically restarting calculations")
+
 
         write(iout,*) "Initialising walkers proportional to a CAS diagonalisation..."
         write(iout,'(A,I2,A,I2,A)') " In CAS notation, (spatial orbitals, electrons), this has been chosen as: (" &
