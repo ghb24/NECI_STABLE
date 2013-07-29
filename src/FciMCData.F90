@@ -238,7 +238,7 @@ MODULE FciMCData
  !This is set up as the initial ValidSpawnedList elements, so that it does not need to be reevaluated each time.
       INTEGER , ALLOCATABLE :: InitialSpawnedSlots(:) 
 
-      INTEGER :: WalkersDiffProc
+      integer :: WalkersDiffProc, PartsDiffProc
 
       !This is whether to generate matrix elements as generating excitations for the HPHF/MI/ISK options
       LOGICAL , PARAMETER :: tGenMatHEl=.true.      
@@ -293,6 +293,7 @@ MODULE FciMCData
 
       ! Store data about all processors for calculating load balancing
       integer(int64) :: MaxWalkersProc, MinWalkersProc
+      integer(int64) :: MaxPartsProc, MinPartsProc
 
       TYPE(BasisFN) :: HFSym
       integer :: iMaxBloom !If tMaxBloom is on, this stores the largest bloom to date.
