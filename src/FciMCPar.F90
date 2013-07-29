@@ -4298,11 +4298,8 @@ MODULE FciMCParMod
                 endif
             endif
             
-            write(fcimcstats_unit,"(I12,G16.7,3G16.7,3G16.7,5G17.9,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9, 3I13)") &
-
             write(fcimcstats_unit,"(I12,G16.7,I10,G16.7,I13,3I15,3G17.9,2I10,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9,i13)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9,4i13)") &
                 Iter + PreviousCycles, &
                 DiagSft, &
                 sum(AllTotParts) - sum(AllTotPartsOld), &
