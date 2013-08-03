@@ -1,7 +1,9 @@
 // Copyright (c) 2013, Ali Alavi unless otherwise noted.
 // This program is integrated in Molpro with the permission of George Booth and Ali Alavi
   
+#ifndef __CYGWIN__
 #include <execinfo.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -9,6 +11,7 @@
 
 extern "C" void print_backtrace_neci ()
 {
+#ifndef __CYGWIN__
 	void * buf[30];
 	int n = backtrace (buf, lenof(buf));
 	char ** strs = backtrace_symbols (buf, n);
@@ -21,5 +24,6 @@ extern "C" void print_backtrace_neci ()
 		printf("%d: %s\n", i-1, strs[i]);
 	printf ("-----------------------------------\n");
 	free (strs);
+#endif
 }
 
