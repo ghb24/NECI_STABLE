@@ -59,7 +59,7 @@ MODULE nElRDMMod
                          TempSpawnedPartsInd, TempSpawnedParts, TotParts, &
                          TotWalkers, iLutHF, core_space, IterLastRDMFill, &
                          determ_proc_sizes,determ_proc_indices, partial_determ_vector, &
-                         full_determ_vector
+                         full_determ_vector, full_determ_vector_av
     use LoggingData, only: RDMExcitLevel, tROFciDump, NoDumpTruncs, tHF_S_D, &
                        tExplicitAllRDM, tHF_S_D_Ref, tHF_Ref_Explicit, &
                        tHF_S_D, tPrint1RDM, tInitiatorRDM, RDMEnergyIter, &
@@ -872,7 +872,7 @@ MODULE nElRDMMod
 
         ! IterRDM is then the number of iterations we want to multiply the contributions by.
         IterRDM = min(IterDetOcc,real(IterLastRDMFill,dp))
-
+        
         if(tHPHF) then
             if(.not.TestClosedShellDet(iLutnI)) then
                 call Fill_Diag_RDM(nI, CurrH_I(2)/SQRT(2.0_dp), IterRDM)
@@ -5131,12 +5131,19 @@ MODULE nElRDMMod
         integer, dimension(2) :: SingEx
         integer, dimension(2,2) :: Ex
         real(dp) :: InstSignI, InstSignJ
+        real(dp) :: AvSignI, AvSignJ
         logical :: tParity
         integer(kind=n_int) :: iLutI(0:niftot), iLutJ(0:niftot)
         integer :: nI(nel), IC
         integer :: IterRDM, connect_elem
-    
-        IterRDM=IterLastRDMFill 
+   
+        if(mod((Iter - IterRDMStart + 1),RDMEnergyIter).eq.0) then
+            IterRDM=RDMEnergyIter
+        else
+            !This must be the final iteration, as we've got tFill_RDM=.true.
+            !for an iteration where we wouldn't normally need the energy
+            IterRDM=mod((Iter - IterRDMStart + 1),RDMEnergyIter)
+        endif
 
         Ex(:,:)=0
 
@@ -5144,8 +5151,10 @@ MODULE nElRDMMod
             iLutI=core_space(:,determ_proc_indices(iProcIndex)+i)
                          
             if(DetBitEq(iLutI,iLutHF_True,NifDBO)) cycle  !Connections to HF done elsewhere.
-            
-            InstSignI=partial_determ_vector(i)
+           
+!            InstSignI=partial_determ_vector(i)
+            AvSignI=full_determ_vector_av(determ_proc_indices(iProcIndex)+i)
+
             CALL decode_bit_det(nI,iLutI)
                         
             do j = 1, sparse_core_ham(i)%num_elements-1   
@@ -5165,7 +5174,8 @@ MODULE nElRDMMod
                  if(DetBitEq(iLutJ,iLutHF_True,NifDBO)) cycle
                  !Connections to HF done elsewhere.
                  
-                 InstSignJ=full_determ_vector(core_connections(i)%positions(j))
+!                 InstSignJ=full_determ_vector(core_connections(i)%positions(j))
+                 AvSignJ=full_determ_vector_av(core_connections(i)%positions(j))
                  
                  connect_elem=core_connections(i)%elements(j)
 
@@ -5186,7 +5196,7 @@ MODULE nElRDMMod
                     
                      !No need to explicitly fill symmetrically as we'll generate pairs of 
                      ! determinants both ways around using the connectivity matrix.
-                     call Fill_Sings_RDM(nI,Ex,tParity,InstSignI*IterRDM,InstSignJ,.false.)
+                     call Fill_Sings_RDM(nI,Ex,tParity,AvSignI*IterRDM,AvSignJ,.false.)
 
                  elseif(abs(connect_elem) .eq. 2) then
                      !Double excitation - only contributes to 2-RDM
@@ -5194,7 +5204,7 @@ MODULE nElRDMMod
                      !Note: get_bit_excitmat may be buggy (DetBitOps), but will do for now as we need the Ex...
                      call get_bit_excitmat(iLutI,iLutJ,Ex,IC)
                                  
-                     call Fill_Doubs_RDM(Ex,tParity,InstSignI*IterRDM,InstSignJ,.false.)
+                     call Fill_Doubs_RDM(Ex,tParity,AvSignI*IterRDM,AvSignJ,.false.)
                  endif
              end do
         end do

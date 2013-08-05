@@ -21,7 +21,8 @@ module semi_stoch_procs
                          SemiStoch_Multiply_Time, TotWalkers, CurrentDets, CoreTag, &
                          PDetermTag, FDetermTag, IDetermTag, indices_of_determ_states, &
                          HashIndex, core_space, CoreSpaceTag, tCoreHash, ll_node, &
-                         nWalkerHashes, tFill_RDM, IterLastRDMFill
+                         nWalkerHashes, tFill_RDM, IterLastRDMFill, full_determ_vector_av, &
+                         tFillingStochRDMonFly, Iter, IterRDMStart
     use hash, only: DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
@@ -64,6 +65,11 @@ contains
 
         call set_timer(SemiStoch_Multiply_Time)
 
+        if(tFillingStochRDMonFly) then !Update the average signs in full_determ_vector_av
+            full_determ_vector_av(:)=(((real(Iter,dp)-IterRDMStart)*full_determ_vector_av(:)) &
+                                      + full_determ_vector(:))/(real(Iter,dp) - IterRDMStart + 1.0_dp)
+        endif
+            
         if (determ_proc_sizes(iProcIndex) >= 1) then
 
             ! Perform the multiplication. This can be done in two ways depending on

@@ -20,7 +20,8 @@ module semi_stoch_gen
                          core_hamiltonian, determ_space_size, TotWalkers, TotWalkersOld, &
                          indices_of_determ_states, SpawnedParts, FDetermTag, &
                          PDetermTag, IDetermTag, trial_space, trial_space_size, &
-                         SemiStoch_Init_Time, tHashWalkerList, tCoreHash
+                         SemiStoch_Init_Time, tHashWalkerList, tCoreHash, &
+                         full_determ_vector_av
     use gndts_mod, only: gndts
     use hash, only: DetermineDetNode
     use LoggingData, only: tWriteCore, tRDMonFly
@@ -103,11 +104,15 @@ contains
         allocate(full_determ_vector(determ_space_size), stat=ierr)
         call LogMemAlloc('full_determ_vector', int(determ_space_size,sizeof_int), 8, t_r, &
                          FDetermTag, ierr)
+        allocate(full_determ_vector_av(determ_space_size), stat=ierr)
+        call LogMemAlloc('full_determ_vector_av', int(determ_space_size,sizeof_int), 8, t_r, &
+                         FDetermTag, ierr)
         allocate(partial_determ_vector(determ_proc_sizes(iProcIndex)), stat=ierr)
         call LogMemAlloc('partial_determ_vector', int(determ_proc_sizes(iProcIndex), &
                          sizeof_int), 8, t_r, PDetermTag, ierr)
 
         full_determ_vector = 0.0_dp
+        full_determ_vector_av = 0.0_dp
         partial_determ_vector = 0.0_dp
 
         ! This array will hold the positions of the deterministic states in CurrentDets.

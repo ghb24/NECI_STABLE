@@ -411,6 +411,7 @@ MODULE FciMCData
       ! full_determ_vector.
       real(dp), allocatable, dimension(:) :: partial_determ_vector
       real(dp), allocatable, dimension(:) :: full_determ_vector
+      real(dp), allocatable, dimension(:) :: full_determ_vector_av
 
       integer(MPIArg), allocatable, dimension(:) :: determ_proc_sizes
       integer(MPIArg), allocatable, dimension(:) :: determ_proc_indices
