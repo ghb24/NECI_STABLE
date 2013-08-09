@@ -1356,7 +1356,7 @@ MODULE FciMCParMod
                 call ChangeRefDet (DetCurr)
                 exit
             endif
-            
+
             ! Sum in any energy contribution from the determinant, including 
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
@@ -2718,7 +2718,6 @@ MODULE FciMCParMod
         ! Calculate new number of signed particles on the det.
         CopySign = RealwSign - (iDie * sign(1.0_dp, RealwSign))
 
-        
         !DMC: TO WORRY ABOUT!
 
         !Test - testsuite, RDM still work, both still work with Linscalealgo (all in debug)

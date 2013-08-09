@@ -587,7 +587,7 @@ contains
             call MPIBCast(iunit, root)
         else
             ! Calculate the norm of the wavefunction.
-            norm = 0.0_dp
+            norm_squared = 0.0_dp
             do i = 1, n_walkers
                 call extract_sign(CurrentDets(:,i), temp_sign)
                 norm_squared = norm_squared + sum(temp_sign**2)

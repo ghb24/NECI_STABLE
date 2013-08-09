@@ -203,7 +203,7 @@ MODULE AnnihilationMod
 
         CALL set_timer(Sort_Time,30)
         if(tHashWalkerList) then
-            call CalcHashTableStats(TotWalkersNew) 
+            call CalcHashTableStats(TotWalkersNew, iter_data) 
         else
 !Put the surviving particles in the main list, maintaining order of the main list (unless tHashWalkerList specified).
 !Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), 
@@ -1504,12 +1504,15 @@ MODULE AnnihilationMod
 
     end subroutine AddNewHashDet
 
-    SUBROUTINE CalcHashTableStats(TotWalkersNew)
+    SUBROUTINE CalcHashTableStats(TotWalkersNew, iter_data)
         use util_mod, only: abs_sign
         use CalcData , only : tCheckHighestPop
         integer, intent(in) :: TotWalkersNew
-        INTEGER :: i,part_type,AnnihilatedDet
+        type(fcimc_iter_data), intent(inout) :: iter_data
+        INTEGER :: i, j, AnnihilatedDet
         real(dp) :: CurrentSign(lenof_sign), SpawnedSign(lenof_sign)
+        real(dp) :: pRemove, r
+        integer :: nI(nel)
         logical :: tIsStateDeterm
         character(*), parameter :: t_r = 'CalcHashTableStats'
 
@@ -1519,26 +1522,44 @@ MODULE AnnihilationMod
         iHighestPop=0
         AnnihilatedDet=0
         tIsStateDeterm = .false.
+
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
                 if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
+
                 IF(IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
                     AnnihilatedDet=AnnihilatedDet+1 
-                    IF(tTruncInitiator) THEN
-                        do part_type=1,lenof_sign
-                            if (test_flag(CurrentDets(:,i),flag_parent_initiator(part_type))) then
-                                !determinant was an initiator...it obviously isn't any more...
-                                NoAddedInitiators=NoAddedInitiators-1
-                                if (tSpawnSpatialInit) &
-                                    call rm_initiator_list (CurrentDets(:,i))
-                            endif
-                        enddo
-                    ENDIF
                 ELSE
-!We want to move all the elements above this point down to 'fill in' the annihilated determinant.
+                    do j=1, lenof_sign
+                        if (.not. tIsStateDeterm) then
+                            if ((abs(CurrentSign(j)).gt.0.0) .and. (abs(CurrentSign(j)).lt.OccupiedThresh)) then
+                                !We remove this walker with probability 1-RealSignTemp
+                                pRemove=(OccupiedThresh-abs(CurrentSign(j)))/OccupiedThresh
+                                r = genrand_real2_dSFMT ()
+                                if (pRemove .gt. r) then
+                                    !Remove this walker
+                                    NoRemoved = NoRemoved + abs(CurrentSign(j))
+                                    iter_data%nremoved = iter_data%nremoved + abs(CurrentSign(j))
+                                    CurrentSign(j) = 0.0_dp
+                                    call nullify_ilut_part(CurrentDets(:,i), j)
+                                    call decode_bit_det(nI, CurrentDets(:,i))
+                                    call RemoveDetHashIndex(nI,i)
+                                    iEndFreeSlot=iEndFreeSlot+1
+                                    FreeSlot(iEndFreeSlot)=i
+                                elseif (tEnhanceRemainder) then
+                                    NoBorn = NoBorn + OccupiedThresh - abs(CurrentSign(j))
+                                    iter_data%nborn = iter_data%nborn + OccupiedThresh - abs(CurrentSign(j))
+                                    CurrentSign(j) = sign(OccupiedThresh, CurrentSign(j))
+                                    call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
+                                endif
+                            endif
+                        endif
+                    enddo
+
                     TotParts=TotParts+abs(CurrentSign)
                     norm_psi_squared = norm_psi_squared + sum(CurrentSign**2)
+                    if(tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + sum(CurrentSign**2)
                     IF(tCheckHighestPop) THEN
                         ! If this option is on, then we want to compare the 
                         ! weight on each determinant to the weight at the HF 
@@ -1552,8 +1573,21 @@ MODULE AnnihilationMod
                         end if
                     ENDIF
                 ENDIF
+
+                IF(IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm) .and. tTruncInitiator) then
+                    do j=1,lenof_sign
+                        if (test_flag(CurrentDets(:,i),flag_parent_initiator(j))) then
+                            !determinant was an initiator...it obviously isn't any more...
+                            NoAddedInitiators=NoAddedInitiators-1
+                            if (tSpawnSpatialInit) &
+                                call rm_initiator_list (CurrentDets(:,i))
+                        endif
+                    enddo
+                ENDIF
+
             enddo
         ENDIF
+
         if(AnnihilatedDet.ne.HolesInList) then
             write(6,*) "TotWalkersNew: ",TotWalkersNew
             write(6,*) "AnnihilatedDet: ",AnnihilatedDet
