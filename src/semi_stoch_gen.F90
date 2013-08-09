@@ -18,7 +18,7 @@ module semi_stoch_gen
     use FciMCData, only: HFDet, ilutHF, iHFProc, CurrentDets, determ_proc_sizes, &
                          determ_proc_indices, full_determ_vector, partial_determ_vector, &
                          core_hamiltonian, determ_space_size, TotWalkers, TotWalkersOld, &
-                         indices_of_determ_states, SpawnedParts, FDetermTag, &
+                         indices_of_determ_states, SpawnedParts, FDetermTag, FDetermAvTag, &
                          PDetermTag, IDetermTag, trial_space, trial_space_size, &
                          SemiStoch_Init_Time, tHashWalkerList, tCoreHash, &
                          full_determ_vector_av
@@ -106,7 +106,7 @@ contains
                          FDetermTag, ierr)
         allocate(full_determ_vector_av(determ_space_size), stat=ierr)
         call LogMemAlloc('full_determ_vector_av', int(determ_space_size,sizeof_int), 8, t_r, &
-                         FDetermTag, ierr)
+                         FDetermAvTag, ierr)
         allocate(partial_determ_vector(determ_proc_sizes(iProcIndex)), stat=ierr)
         call LogMemAlloc('partial_determ_vector', int(determ_proc_sizes(iProcIndex), &
                          sizeof_int), 8, t_r, PDetermTag, ierr)
