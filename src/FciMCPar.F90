@@ -1226,7 +1226,7 @@ MODULE FciMCParMod
                     ! The deterministic states are always kept in CurrentDets, even when
                     ! the amplitude is zero. Hence we must check if the amplitude is zero,
                     ! and if so, skip the state.
-                    if (.not.(abs(SignCurr(1)) > 0.0_dp)) then
+                    if (IsUnoccDet(SignCurr)) then
                         CurrentDets(:,gen_ind) = CurrentDets(:,j)
                         if (tFillingStochRDMonFly) then
                             CurrentH(2,gen_ind) = AvSignCurr

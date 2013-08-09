@@ -489,23 +489,28 @@ contains
 
         do i = 1, num_states
             ! Search both the trial space and connected space to see if this state exists in either list.
-            ! First the trial space:
-            pos = binary_search_custom(trial_space(:, min_trial_ind:trial_space_size), &
-                                       ilut_list(:,i), NIfTot+1, ilut_gt)
+            if (min_trial_ind <= trial_space_size) then
+                ! First the trial space:
+                pos = binary_search_custom(trial_space(:, min_trial_ind:trial_space_size), &
+                                           ilut_list(:,i), NIfTot+1, ilut_gt)
 
-            if (pos > 0) then
-                ntrial = ntrial + 1
-                trial_temp(ntrial) = trial_wf(pos+min_trial_ind-1)
-                min_trial_ind = min_trial_ind + pos
-                call set_flag(ilut_list(:,i), flag_trial)
+                if (pos > 0) then
+                    ntrial = ntrial + 1
+                    trial_temp(ntrial) = trial_wf(pos+min_trial_ind-1)
+                    min_trial_ind = min_trial_ind + pos
+                    call set_flag(ilut_list(:,i), flag_trial)
+                else
+                    ! The state is not in the trial space. Just update min_trial_ind accordingly.
+                    min_trial_ind = min_trial_ind - pos - 1
+                end if
             else
-                ! The state is not in the trial space. Just update min_trial_ind accordingly.
-                min_trial_ind = min_trial_ind - pos - 1
+                ! To make sure that the connected space can be searched next.
+                pos = -1
             end if
 
             ! If pos > 0 then the state is in the trial space. A state cannot be in both the trial and
             ! connected space, so, unless pos < 0, don't bother doing the following binary search.
-            if (pos < 0) then
+            if (pos < 0 .and. min_conn_ind <= con_space_size) then
 
                 pos = binary_search_custom(con_space(:, min_conn_ind:con_space_size), &
                                            ilut_list(:,i), NIfTot+1, ilut_gt)

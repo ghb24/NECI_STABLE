@@ -44,7 +44,7 @@
         INTEGER :: nJ(NEl),j,ntrial,ncon,ncon_old,ntrial_old
         logical :: tTrialState, tConState
 
-        if (tTrialWavefunction) then
+        if (tTrialWavefunction .and. nlist2 > 0) then
             ! If using a trial wavefunction, count the number of states to be merged
             ! in which are in the trial and connected space. This routine also stores
             ! the corresponding amplitudes from trial_wf and con_space_vector in the
@@ -144,7 +144,7 @@
         enddo
         nlist1=nlist1+nlist2
 
-        if (tTrialWavefunction) then
+        if (tTrialWavefunction .and. nlist2 > 0) then
             if (ntrial /= 0 .or. ncon /= 0) then
                 write(6,'(a7,i7,a5,i7)') "ntrial:", ntrial, "ncon:", ncon
                 call neci_flush(6)
