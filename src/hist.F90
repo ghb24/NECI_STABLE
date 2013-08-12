@@ -458,6 +458,7 @@ contains
         integer :: nopen, ntot, S, ncsf, off, flg, j, k, epos
         integer :: sgn(lenof_sign), dorder(nel), nI(nel)
         real(dp) :: coeff, S_coeffs(LMS:nel), norm, S2, S22
+        real(dp) :: AllNode_S_coeffs(LMS:nel)
 
         ! TODO: This bit could be done just once, couldn't it...
         !       We could store all the intermediates.
@@ -524,7 +525,9 @@ contains
             enddo
         enddo
 
-        call MPISum_inplace (S_coeffs)
+        call MPISum(S_coeffs, AllNode_S_coeffs)
+        S_coeffs=AllNode_S_coeffs
+
         if (iProcIndex == Root) then
             norm = sum(S_coeffs)
             S_coeffs = sqrt(S_coeffs / norm)
@@ -560,6 +563,7 @@ contains
         ! Sum the squares of all of the components.
 
         real(dp) :: spin_cpts (0:nel), norm
+        real(dp) :: AllNode_spin_cpts (0:nel)
         integer :: j, nup, S, flg, ncsf, nopen
         integer :: nI(nel), sgn(lenof_sign), dorder(nel)
 
@@ -583,7 +587,8 @@ contains
 
         enddo
 
-        call MPISum_inplace (spin_cpts)
+        call MPISum(spin_cpts,AllNode_spin_cpts)
+        spin_cpts=AllNode_spin_cpts
 
         if (iProcIndex == Root) then
             norm = sum(spin_cpts)
@@ -625,7 +630,7 @@ contains
         ! --> This could be generalised to an arbitrary list of iluts. We 
         !     would also then need to calculate the value of psi_squared
 
-        real(dp) :: ssq
+        real(dp) :: ssq, Allssq
         integer :: i, j, k, l, orb, orb2, pos, pair_sgn, nop_pairs
         integer :: sgn_carry
         integer(n_int) :: splus(0:nifd), sminus(0:nifd), detsym(0:nifd)
@@ -685,7 +690,7 @@ contains
         integer(n_int), pointer :: detcurr(:)
         integer(n_int) :: splus(0:NIfTot), sminus(0:NIfTot)
         logical :: running, any_running
-        real(dp) :: ssq
+        real(dp) :: ssq, Allssq
         integer :: max_per_proc, max_spawned
         integer :: sgn1(lenof_sign), sgn2(lenof_sign)
 
@@ -812,6 +817,7 @@ contains
         integer :: bcast_tmp(2), sgn_tmp(lenof_sign)
         type(timer), save :: s2_timer, s2_timer_init
         integer(int64) :: ssq_sum, psi_squared
+        integer(int64) :: All_ssq_sum, All_psi_squared
         logical, intent(in) :: only_init
 
 
@@ -902,11 +908,13 @@ contains
 
         ! Sum all of the s squared terms
         if (tTruncInitiator .and. only_init) then
-            call MPISum_inplace (psi_squared)
+            call MPISum(psi_squared, All_psi_squared)
+            psi_squared=All_psi_squared
         else
             psi_squared = all_norm_psi_squared
         end if
-        call MPISum_inplace (ssq_sum)
+        call MPISum(ssq_sum, All_ssq_sum)
+        ssq_sum=All_ssq_sum
         ssq = real(ssq_sum,dp) / psi_squared
          
         ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the system

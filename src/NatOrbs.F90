@@ -1412,7 +1412,7 @@ MODULE NatOrbsMod
                 enddo
             ENDIF
 
-!            WRITE(6,*) SymOrbs(:)
+!            WRITE(6,*) SymOrbs_rot(:)
 !            CALL neci_flush(6)
 !            CALL Stop_All('','')
 
