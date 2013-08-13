@@ -5418,7 +5418,7 @@ MODULe nElRDMMod
     !  would have dumped from a MCSCF calculation.  When interfaced with Molpro,
     !  I understand that the molpro equivalent of this routine should be called. 
     
-      implicit double precision (a-h,o-z)
+    !  implicit double precision (a-h,o-z)
       integer,                            intent(inout) :: name
       integer,                            intent(inout) :: ifil
       integer, dimension(8),              intent(in)    :: icore
@@ -5431,13 +5431,13 @@ MODULe nElRDMMod
       integer,                            intent(in)    :: iseccr
       integer,                            intent(in)    :: istat1
       integer,                            intent(in)    :: lden1
-      double precision, dimension(lden1), intent(in)    :: den1
+      real(dp), dimension(lden1), intent(in)    :: den1
       integer,                            intent(in)    :: lden2
-      double precision, dimension(lden2), intent(in)    :: den2
+      real(dp), dimension(lden2), intent(in)    :: den2
       integer,                            intent(in)    :: leps
-      double precision, dimension(leps),  intent(in)    :: eps
+      real(dp), dimension(leps),  intent(in)    :: eps
       integer,                            intent(in)    :: lepsc
-      double precision, dimension(lepsc), intent(in)    :: epsc
+      real(dp), dimension(lepsc), intent(in)    :: epsc
       integer,                            intent(in)    :: iout
       integer,                            intent(in)    :: intrel
       integer,                            intent(out)   :: igrsav
