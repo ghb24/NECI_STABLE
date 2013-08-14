@@ -1,0 +1,469 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Installation &mdash; NECI v0.1 documentation</title>
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '#',
+        VERSION:     '0.1',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="NECI v0.1 documentation" href="index.html" />
+    <link rel="next" title="Run" href="run.html" />
+    <link rel="prev" title="Graph evaluation" href="theory/graph_evaluation.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="run.html" title="Run"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="theory/graph_evaluation.html" title="Graph evaluation"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">NECI v0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h3><a href="index.html">Table Of Contents</a></h3>
+            <ul>
+<li><a class="reference external" href="#">Installation</a><ul>
+<li><a class="reference external" href="#download">Download</a><ul>
+<li><a class="reference external" href="#neci">NECI</a></li>
+<li><a class="reference external" href="#cpmd">CPMD</a></li>
+</ul>
+</li>
+<li><a class="reference external" href="#file-structure">File structure</a><ul>
+<li><a class="reference external" href="#id2">NECI</a></li>
+<li><a class="reference external" href="#id3">CPMD</a></li>
+</ul>
+</li>
+<li><a class="reference external" href="#compilation">Compilation</a><ul>
+<li><a class="reference external" href="#id4">NECI</a></li>
+<li><a class="reference external" href="#id5">CPMD</a><ul>
+<li><a class="reference external" href="#compileconf">.compileconf</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference external" href="#developing-neci">Developing NECI</a><ul>
+<li><a class="reference external" href="#default-platform">Default platform</a></li>
+<li><a class="reference external" href="#working-in-the-src-subdirectory">Working in the src subdirectory</a></li>
+<li><a class="reference external" href="#adding-new-files">Adding new files</a></li>
+<li><a class="reference external" href="#updating-dependencies">Updating dependencies</a></li>
+<li><a class="reference external" href="#testing-on-different-platforms">Testing on different platforms</a></li>
+<li><a class="reference external" href="#tags">tags</a></li>
+</ul>
+</li>
+<li><a class="reference external" href="#testcode">testcode</a></li>
+</ul>
+</li>
+</ul>
+
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="theory/graph_evaluation.html"
+                                  title="previous chapter">Graph evaluation</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="run.html"
+                                  title="next chapter">Run</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="_sources/installation.txt"
+                     rel="nofollow">Show Source</a></li>
+            </ul>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="installation">
+<span id="id1"></span><h1>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h1>
+<p>Requirements:</p>
+<ul>
+<li><dl class="first docutils">
+<dt>git.</dt>
+<dd><p class="first last">The NECI codebase, documentation and test suite are currently distributed
+only from git repositories hosted on CUC3 workstations (account required).</p>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>subversion.</dt>
+<dd><p class="first last">Legacy code and a modified version of CPMD are distributed via the wwmm
+subversion repository (account required), which is kindly hosted by the
+Unilever Centre.</p>
+</dd>
+</dl>
+</li>
+<li><p class="first">LAPACK.</p>
+</li>
+<li><p class="first">BLAS.</p>
+</li>
+<li><p class="first">FFTW 3.x.</p>
+</li>
+</ul>
+<div class="section" id="download">
+<h2>Download<a class="headerlink" href="#download" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="neci">
+<h3>NECI<a class="headerlink" href="#neci" title="Permalink to this headline">¶</a></h3>
+<p>The NECI source code can be checked out using:</p>
+<div class="highlight-python"><pre>.. code-block:: bash</pre>
+</div>
+<blockquote>
+$ git clone scepter:/home/ajwt3/NECI.git</blockquote>
+<p>Various branches also exist, but they may or may not be stable or under
+active development.</p>
+</div>
+<div class="section" id="cpmd">
+<h3>CPMD<a class="headerlink" href="#cpmd" title="Permalink to this headline">¶</a></h3>
+<p>Our modified version of CPMD (containing the necessary routines for
+integration with NECI) can be downloaded from:</p>
+<div class="highlight-python"><pre>.. code-block:: bash</pre>
+</div>
+<blockquote>
+$ svn checkout <a class="reference external" href="https://wwmm.ch.cam.ac.uk/svn2/groups/alavi/CPMD/branches/QMC/trunk">https://wwmm.ch.cam.ac.uk/svn2/groups/alavi/CPMD/branches/QMC/trunk</a> CPMD</blockquote>
+<p>Again, there exist various branches and they may or may not be stable.</p>
+<p>The default setting used in the compilation scripts assumes that the NECI
+source is in a subdirectory of the CPMD source directory.  This can be changed
+by using the command line options or setting them in the .compileconf file (see
+below).</p>
+<p>Note that the codebase is not currently under active development.</p>
+</div>
+</div>
+<div class="section" id="file-structure">
+<h2>File structure<a class="headerlink" href="#file-structure" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="id2">
+<h3>NECI<a class="headerlink" href="#id2" title="Permalink to this headline">¶</a></h3>
+<dl class="docutils">
+<dt>config/</dt>
+<dd>Directory containing configuration files used for building NECI on a
+variety of platforms and compilers.</dd>
+<dt>docs/</dt>
+<dd>Documentation.</dd>
+<dt>src/</dt>
+<dd>Source files.</dd>
+<dt>tools/</dt>
+<dd>Tools which are useful for running and analysing NECI output.  These
+include a histogramming script and scripts which automate sending a
+<strong>SOFTEXIT</strong> signal to a running instance of NECI after a set amount
+of time.</dd>
+<dt>utils/</dt>
+<dd>Useful scripts for compiling and working on the code base.</dd>
+</dl>
+<p>The following directories are created during compilation</p>
+<dl class="docutils">
+<dt>dest/</dt>
+<dd>Compiled objects.</dd>
+<dt>bin/</dt>
+<dd>Executables.</dd>
+<dt>lib/</dt>
+<dd>NECI libraries for linking to VASP/NECI.</dd>
+</dl>
+<p>The major compiled files are:</p>
+<dl class="docutils">
+<dt>NECI/bin/neci.x</dt>
+<dd>Standalone neci executable.</dd>
+<dt>NECI/lib/neci-cpmd.a</dt>
+<dd>NECI library for integration with the CPMD gamma-point code.</dd>
+<dt>NECI/lib/neci-vasp.a</dt>
+<dd>NECI library for integration with the CPMD k-point code.</dd>
+<dt>NECI/lib/neci-cpmd.a</dt>
+<dd>NECI library for integration with the VASP gamma-point code.</dd>
+<dt>NECI/lib/neci-vasp.a</dt>
+<dd>NECI library for integration with the VASP k-point code.</dd>
+</dl>
+<p>All of these are actually symbolic links.  The binaries and libraries are
+unique to the optimisation level and configuration used.  The above files
+merely point to the most recent appropriate binary or library.</p>
+</div>
+<div class="section" id="id3">
+<h3>CPMD<a class="headerlink" href="#id3" title="Permalink to this headline">¶</a></h3>
+<dl class="docutils">
+<dt>CONFIGURE/</dt>
+<dd>Directory containing the configuration files for a variety of platforms.</dd>
+<dt>dest/</dt>
+<dd>Build directory for gamma-point code.</dd>
+<dt>kdest/</dt>
+<dd>Build directory for k-point code.</dd>
+<dt>gcpmd.x</dt>
+<dd>Gamma-point executable of the CPMD-NECI code (links to CPMD/dest/cpmd.x).
+Must not be used for k-point calculations!</dd>
+<dt>kcpmd.x</dt>
+<dd>k-point executable of the CPMD-NECI code (links to CPMD/kdest/cpmd.x).
+Must not be used for gamma-point calculations!</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="compilation">
+<h2>Compilation<a class="headerlink" href="#compilation" title="Permalink to this headline">¶</a></h2>
+<p>The settings provided are mainly for CUC3 machines and other computer clusters
+that the Alavi group has access to and these might need to be adjusted in order
+to compile in different environments.  Most of the time only the paths and
+flags for the FFTW, LAPACK and BLAS libraries, given in the LFLAGS variable,
+will need to be adjusted (if that).  It is necessary to use the same compiler
+to compile CPMD as was used to produce the NECI library for CPMD and similarly
+for integration with VASP.</p>
+<p>We have compiled and tested the codebases with the gfortran (4.2 and later),
+Portland, Pathscale and Intel compilers in 32 and 64 bit.</p>
+<div class="section" id="id4">
+<h3>NECI<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h3>
+<p>To compile NECI run:</p>
+<div class="highlight-python"><pre>.. code-block:: bash</pre>
+</div>
+<blockquote>
+$ ./tools/mkconfig.py platform
+$ make</blockquote>
+<p>The platform is a filename in the config directory.  The mkconfig.py script
+has some useful options.  Run:</p>
+<div class="highlight-python"><pre>.. code-block:: bash</pre>
+</div>
+<blockquote>
+$ ./tools/mkconfig.py &#8211;help</blockquote>
+<p>to see information on them.</p>
+<p>The objects are compiled to dest/platform/optimised/real (or complex, for
+compiling the complex version for libraries).  The resultant executable,
+neci.platform.optimised.x, is placed in the exe directory.</p>
+<p>If the debug flag [-g] is given to mkconfig.py, then the debug configuration is used and
+the filenames and paths contain debug rather than optimised.</p>
+<p>For convenience, bin/neci.x is a symbolic link to the most recently compiled
+executable.</p>
+<p>Compiling libraries works in much the same way.</p>
+<p>There are several goals defined in the makefile.  Run</p>
+<div class="highlight-bash"><div class="highlight"><pre><span class="nv">$ </span>make <span class="nb">help</span>
+</pre></div>
+</div>
+<p>to see the most useful.</p>
+<p>Configuration files use a simple ini format and adding a new configuration is
+easy. See the supplied configurations for examples and/or comments at the start
+of the mkconfig.py script.</p>
+</div>
+<div class="section" id="id5">
+<h3>CPMD<a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h3>
+<p>For historical reasons, CPMD and NECI are much more closely interwoven
+than NECI is with VASP.</p>
+<p>The repository version of CPMD depends upon NECI, thus NECI must be
+compiled first.  Various scripts take care of this for us.</p>
+<p>CPMD and NECI have CONFIGURE subdirectories.  Each file in a CONFIGURE
+subdirector contains the necessary information to compile the code using
+a certain compiler.</p>
+<p>Please note that not all the CPMD configure scripts will work: many of
+them were supplied with CPMD and have never been used with our modified
+version.  Please only use platforms that exist in the NECI/config directory as
+well as the CPMD/CONFIGURE directory.  It is easy to make your own
+configuration files using existing ones as a template.</p>
+<p>Note that some of the platforms obtain LAPACK and BLAS as part of atlas,
+ACML or MKL, so this will need to be changed if different source libraries
+are used.</p>
+<p>Two versions of CPMD (and the corresponding NECI library) exist, gcpmd.x
+(for gamma-point calculations) and kcpmd.x (for k-point calculations),
+to take advantage of some substantial memory savings when running
+gamma-point calculations, as all wavefunctions are then real.  This is
+controlled via a C pre-processing statement.  As neci.x is only for
+molecular calculations, it only exists in one form.</p>
+<p>runmake.sh is a script for CPMD which controls the process of creating
+makefiles and compiling the NECI/CPMD hybrid.  A &#8220;platform&#8221; is just the name of
+one of the configuration files in the CONFIGURE subdirectories.</p>
+<p>Run:</p>
+<div class="highlight-python"><pre>.. code-block:: bash</pre>
+</div>
+<blockquote>
+$ ./runmake.sh -h</blockquote>
+<p>to see the various options and default behaviour of the runmake.sh script.</p>
+<p>Note that runmake.sh produces new makefiles for CPMD <strong>and</strong> for NECI,
+and compiles neci.x, the NECI libraries needed for CPMD, and gcpmd.x
+and kcpmd.x.  To aid the speed of recompilation, the real and complex
+objects are compiled into separate directories.</p>
+<p>runmake.sh defaults to compiling the codebases using the Portland 64-bit
+compiler, if a platform is not specified either via the command line or given
+in .compileconf, a text file which contains the name of the desired platform.
+Note that runmake.sh will use the same platform for both the CPMD and NECI
+makefiles.</p>
+<p>The CPMD source directory also contains a controlling Makefile
+to further help the make process (and generally just acts as a wrapper
+for the runmake.sh script).  Run:</p>
+<div class="highlight-python"><pre>make help</pre>
+</div>
+<p>in each directory to see the various targets available.</p>
+<p>To quickest way to compile both CPMD and NECI is to run:</p>
+<div class="highlight-python"><pre>[CPMD]$ make all</pre>
+</div>
+<p>from within the CPMD source directory.</p>
+<div class="section" id="compileconf">
+<h4>.compileconf<a class="headerlink" href="#compileconf" title="Permalink to this headline">¶</a></h4>
+<p>The .compileconf file is not under source code management and allow local defaults
+to be set.</p>
+<p>When running runmake.sh, please note that it uses the CPMD .compileconf
+information for compiling NECI, rather than the user&#8217;s default NECI platform.
+This is to ensure that the same platform is used for both.</p>
+<p>The settings in .compileconf are overridden by command line options but override
+any defaults in the runmake.sh script.</p>
+<p>.compileconf in its simplest (and oldest) form simply contains the name of the desired
+platform, e.g.:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">PC</span><span class="o">-</span><span class="n">ifort64</span>
+</pre></div>
+</div>
+<p>will use the PC-ifort64 platform as the default.</p>
+<p>.compileconf can also be used to set local defaults for more variables&#8212;see
+the comments in runmake.sh for more details.  Defaults are used for any
+variables not set in the .compileconf file.</p>
+<p>For example, to set different defaults for the platform and the location of the
+NECI source, .compileconf in the CPMD directory would look like:</p>
+<div class="highlight-python"><pre>platform=PC-ifort64
+NECIsrc=~/NECI/source</pre>
+</div>
+</div>
+</div>
+</div>
+<div class="section" id="developing-neci">
+<h2>Developing NECI<a class="headerlink" href="#developing-neci" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="default-platform">
+<h3>Default platform<a class="headerlink" href="#default-platform" title="Permalink to this headline">¶</a></h3>
+<p>If no platform is given on the command line to the mkconfig.py script, then it
+looks for a .default file in the config subdirectory, which is used if it exists.</p>
+<p>It is thus simple to set a local default platform by creating a symbolic link from
+the desired platform file to config/default.</p>
+</div>
+<div class="section" id="working-in-the-src-subdirectory">
+<h3>Working in the src subdirectory<a class="headerlink" href="#working-in-the-src-subdirectory" title="Permalink to this headline">¶</a></h3>
+<p>Note that any goal defined in the Makefile in the root NECI directory can also
+be run from the src directory (see src/Makefile for how this is achieved).</p>
+</div>
+<div class="section" id="adding-new-files">
+<h3>Adding new files<a class="headerlink" href="#adding-new-files" title="Permalink to this headline">¶</a></h3>
+<p>Just create the new source file in the src subdirectory.  The makefile will
+pick it up automatically.  Note that <em>all</em> .F, .F90, .c and .C files in src
+will be compiled and linked to form neci.</p>
+</div>
+<div class="section" id="updating-dependencies">
+<h3>Updating dependencies<a class="headerlink" href="#updating-dependencies" title="Permalink to this headline">¶</a></h3>
+<p>The dependency list is created automatically if it does not exist using.  If this
+needs to be updated (e.g. due to a new source file or because development results in
+additional dependencies), run:</p>
+<div class="highlight-python"><pre>.. code-block:: bash</pre>
+</div>
+<blockquote>
+$ make depend</blockquote>
+<p>Note that this causes an infinite loop if make 3.80 or earlier is used.  As an alternative:</p>
+<div class="highlight-python"><pre>.. code-block:: bash</pre>
+</div>
+<blockquote>
+$ make rmdeps</blockquote>
+<p>deletes all dependency files, which are then automatically regenerated the next time make
+is run to produce any target.  This should be used on older systems.</p>
+<p>Note that all platforms share the same set of dependency files.</p>
+</div>
+<div class="section" id="testing-on-different-platforms">
+<h3>Testing on different platforms<a class="headerlink" href="#testing-on-different-platforms" title="Permalink to this headline">¶</a></h3>
+<p>Because each neci executable is given a file name dependent upon the
+configuration and optimisation level used, it is easy to test multiple
+configurations (e.g. parallel and serial) within one local repository.</p>
+<div class="highlight-bash"><div class="highlight"><pre><span class="nv">$ </span>./tools/mkconfig.py -f Makefile.serial PC-ifort64
+<span class="nv">$ </span>./tools/mkconfig.py -f Makefile.mpi PC-ifort64-MPI
+<span class="nv">$ </span>make -f Makefile.serial
+<span class="nv">$ </span>make -f Makefile.mpi
+</pre></div>
+</div>
+<p>This will compile 2 executables.  Recompiling will only involve recompiling
+any changed files.</p>
+</div>
+<div class="section" id="tags">
+<h3>tags<a class="headerlink" href="#tags" title="Permalink to this headline">¶</a></h3>
+<p>Thanks to Alex for pointing this out.  It is useful to be able to work on the
+source code both from the main directory and the src directory and have the
+same tags file work in both cases.</p>
+<p>You can create a tags file by running:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span class="nv">$ </span>make tags
+</pre></div>
+</div>
+<p>and tell vim to search the current directory and parent directory (which
+amounts to working in the main and src directories respectively for our case)
+by doing:</p>
+<div class="highlight-python"><pre>:set tags=./tags,../tags</pre>
+</div>
+<p>within vim or placing:</p>
+<div class="highlight-python"><pre>set tags=./tags,../tags</pre>
+</div>
+<p>in your $HOME/.vimrc</p>
+</div>
+</div>
+<div class="section" id="testcode">
+<h2>testcode<a class="headerlink" href="#testcode" title="Permalink to this headline">¶</a></h2>
+<p>testcode is a set of scripts written by James Spencer that is used to
+check that our programs produce the same results as they did before.
+It is useful both for development work, to ensure that regression issues
+are avoided, and testing successful compilations.</p>
+<p>Every night the latest version of the codebase is checked out of the
+subversion repository and tested against a variety of compilers, giving
+confidence in the continued stability of the codebase.</p>
+<p>The testcode scripts, NECI test suite and NECI/CPMD test suite can
+be obtained respectively via:</p>
+<div class="highlight-python"><pre>.. code-block:: bash</pre>
+</div>
+<blockquote>
+$ git clone scepter:/home/jss43/alavi_group/testcode.git
+$ git clone scepter:/home/jss43/alavi_group/testsuite_neci.git
+$ git clone scepter:/home/jss43/alavi_group/testsuite_cpmd.git</blockquote>
+<p>Please see the testcode documentation for more details.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="run.html" title="Run"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="theory/graph_evaluation.html" title="Graph evaluation"
+             >previous</a> |</li>
+        <li><a href="index.html">NECI v0.1 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright 2010, Alavi Group.
+      Last updated on Feb 21, 2010.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.4.
+    </div>
+  </body>
+</html>

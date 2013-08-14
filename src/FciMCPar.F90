@@ -195,7 +195,6 @@ MODULE FciMCParMod
             return
         endif
 
-
         TDebug=.false.  !Set debugging flag
                     
 !OpenMPI does not currently support MPI_Comm_set_errhandler - a bug in its F90 interface code.
@@ -444,6 +443,7 @@ MODULE FciMCParMod
         ! upon leaving the loop (If done naturally).
         IF(TIncrement) Iter=Iter-1
         IF(TPopsFile) THEN
+            WRITE(6,*) "Totwalkers", TotWalkers
             CALL WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
         ENDIF
         IF(tCalcFCIMCPsi) THEN
@@ -4045,6 +4045,7 @@ MODULE FciMCParMod
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp) :: TempTotParts
+        integer, dimension(lenof_sign) :: AllInstNoatHF
         real(dp) :: Prev_AvNoatHF
 
         NoInitDets = 0
@@ -4061,7 +4062,8 @@ MODULE FciMCParMod
         iter_data%naborted = 0
 
         if(tFillingStochRDMonFly) then
-            call MPISumAll_inplace (InstNoatHF)
+            call MPISumAll (InstNoatHF,AllInstNoatHF)
+            InstNoatHF = AllInstNoatHF
             if(InstNoatHF(1).eq.0) then
                 IterRDM_HF = Iter + 1 
                 AvNoatHF = 0.0_dp
@@ -6342,6 +6344,7 @@ MODULE FciMCParMod
             allocate(proje_ref_dets(nel, nproje_sum))
             allocate(proje_ref_iluts(0:NIfTot, nproje_sum))
             allocate(proje_ref_coeffs(nproje_sum))
+            allocate(All_proje_ref_coeffs(nproje_sum))
             proje_ref_coeffs = 0
 
             ! Get all the dets
@@ -6370,7 +6373,9 @@ MODULE FciMCParMod
                 call stop_all (t_r, 'Incorrect number of determinants found')
 
             ! Get the total number of walkers on each site
-            call MPISumAll_inplace (proje_ref_coeffs)
+            call MPISumAll(proje_ref_coeffs, All_proje_ref_coeffs)
+            proje_ref_coeffs=All_proje_ref_coeffs
+            
             norm = sqrt(sum(proje_ref_coeffs**2))
             if (norm == 0) norm = 1
             proje_ref_coeffs = proje_ref_coeffs / norm
@@ -6383,6 +6388,8 @@ MODULE FciMCParMod
 
         integer :: i, pos, sgn(lenof_sign),nfound,ierr
         real(dp) :: norm,reduce_in(1:2),reduce_out(1:2)
+                
+        allocate(All_proje_ref_coeffs(nproje_sum))
 
         if(nproje_sum>1) then
            if(proje_spatial) then
@@ -6397,7 +6404,9 @@ MODULE FciMCParMod
                  endif
               enddo
               
-              call MPISumAll_inplace (proje_ref_coeffs)
+              call MPISumAll(proje_ref_coeffs, All_proje_ref_coeffs)
+              proje_ref_coeffs=All_proje_ref_coeffs
+              
               norm = sqrt(sum(proje_ref_coeffs**2))
               if (norm == 0) norm = 1
               proje_ref_coeffs = proje_ref_coeffs / norm
@@ -6464,6 +6473,8 @@ MODULE FciMCParMod
             deallocate(proje_ref_iluts)
         if (allocated(proje_ref_coeffs)) &
             deallocate(proje_ref_coeffs)
+        if (allocated(All_proje_ref_coeffs)) &
+            deallocate(All_proje_ref_coeffs)
 
     end subroutine clean_linear_comb
 

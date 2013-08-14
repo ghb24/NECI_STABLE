@@ -829,8 +829,8 @@ outer_map:      do i = 0, MappingNIfD
 !This routine will write out to a popsfile. It transfers all walkers to the 
 ! head node sequentially, so does not want to be called too often
     SUBROUTINE WriteToPopsfileParOneArr(Dets,nDets)
-        use CalcData, only: iPopsFileNoWrite
         use constants, only: size_n_int,n_int
+        use CalcData, only: iPopsFileNoWrite, InitiatorWalkNo
         use MemoryManager, only: TagIntType
         integer(int64),intent(in) :: nDets !The number of occupied entries in Dets
         integer(kind=n_int),intent(in) :: Dets(0:nIfTot,1:nDets)
