@@ -15,10 +15,10 @@ module enumerate_excitations
     use HPHFRandExcitMod, only: FindExcitBitDetSym
     use Parallel_neci, only: MPISumAll
     use sort_mod, only: sort
-    use SymData, only: nSymLabels
+    use SymData, only: nSymLabels, SymTable, SymLabels, SymClasses
     use SymExcitDataMod
     use sym_general_mod
-    use SystemData, only: nel, nBasis, G1, tFixLz, Arr, Brr, tHPHF
+    use SystemData, only: nel, nBasis, G1, tFixLz, Arr, Brr, tHPHF, tHub
 
     implicit none
 
@@ -174,6 +174,13 @@ contains
             j = 0
             ms_combination = 1
             ml_combination = 1
+
+            do i = 1, nbasis
+                write(6,*) i, G1(i)%Sym%S
+            end do
+            write(6,*) "SymClasses:"
+            write(6,*) SymClasses
+            i = 1
         endif
 
         if (tFixLz) then
@@ -188,11 +195,17 @@ contains
                 ! Pick electrons uniformly
                 e1 = ceiling((1.0 + sqrt(real(1 + 8*i))) / 2)
                 e2 = i - ((e1 - 1) * (e1 - 2)) / 2
-                orb1 = nI(e1);
-                orb2 = nI(e2);
+                orb1 = nI(e1)
+                orb2 = nI(e2)
+
+                write(6,*) "orbs:", orb1, orb2
+                write(6,*) "syms:", G1(orb1)%Sym%S, G1(orb2)%Sym%S
 
                 sym_prod = ieor(G1(orb1)%Sym%S, G1(orb2)%Sym%S)
+
                 total_ms = G1(orb1)%Ms + G1(orb2)%Ms
+
+                write(6,*) "sym_prod:", sym_prod
 
                 ! Find the number of different pairs of ms values that two electrons
                 ! can have such that their total ms value is total_ms:
@@ -213,6 +226,8 @@ contains
             end if
 
             do sym1 = sym1, nSymLabels - 1
+
+                write(6,*) "sym1, sym2:", sym1, sym2
 
                 ! Generate the paired symmetry.
                 sym2 = ieor(sym_prod, sym1)
@@ -255,6 +270,7 @@ contains
                             count2 = OrbClasscount(sym_ind2)
                             ! The total number of pairs of orbitals with these symmetries.
                             norb_sym = count1 * count2
+                            write(6,*) "norb_sym:", norb_sym
                         end if
 
                         j = j + 1
@@ -266,6 +282,7 @@ contains
                             i2 = (j-1-i1)/count1
                             orbI = SymLabelList2(ind1 + i1)
                             orbJ = SymLabelList2(ind2 + i2)
+                            write(6,*) "orbI, orbJ:", orbI, orbJ
 
                             ! If the two symmetries are the same (not including Ml or Ms)
                             ! only generate each pair one way around.

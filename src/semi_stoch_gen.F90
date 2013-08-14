@@ -327,13 +327,21 @@ contains
         call enumerate_all_single_excitations (ilutHF, HFDet, ilut, gen_store)
         call add_state_to_space(ilut, called_from)
 
+        write(6,*) "Singles:"
+        call decode_bit_det(nI,ilut)
+        call write_det(6, nI, .true.)
+
         ! When no more basis functions are found, this value is returned and the loop
         ! is exited.
         do while(ilut(0) /= -1)
             call enumerate_all_single_excitations (ilutHF, HFDet, ilut, gen_store)
 
             ! If a determinant is returned (if we did not find the final one last time.)
-            if (ilut(0) /= -1) call add_state_to_space(ilut, called_from)
+            if (ilut(0) /= -1) then
+                call add_state_to_space(ilut, called_from)
+                call decode_bit_det(nI,ilut)
+                call write_det(6, nI, .true.)
+            end if
         end do
 
         ! Now generate the double excitations...
@@ -342,10 +350,18 @@ contains
         call enumerate_all_double_excitations (ilutHF, HFDet, ilut, gen_store)
         call add_state_to_space(ilut, called_from)
 
+        write(6,*) "Doubles:"
+        call decode_bit_det(nI,ilut)
+        call write_det(6, nI, .true.)
+
         do while(ilut(0) /= -1)
             call enumerate_all_double_excitations (ilutHF, HFDet, ilut, gen_store)
 
-            if (ilut(0) /= -1) call add_state_to_space(ilut, called_from)
+            if (ilut(0) /= -1) then
+                call add_state_to_space(ilut, called_from)
+                call decode_bit_det(nI,ilut)
+                call write_det(6, nI, .true.)
+            end if
         end do
 
         if (called_from == called_from_trial) then
