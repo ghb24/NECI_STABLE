@@ -1136,6 +1136,7 @@ outer_map:      do i = 0, MappingNIfD
         ! With binary popsfiles, the header is written once the popsfiles
         ! have been created, so that we can store the number of particles
         ! actually written, rather than the total within the system.
+        ! Note that for non-binary popsfiles, all particles are written.
         if (tBinPops) then
 
             ! Get a count of the number of particles written
@@ -1221,61 +1222,66 @@ outer_map:      do i = 0, MappingNIfD
         integer :: flg, j, k, ex_level
         logical :: bWritten
 
-        ! Note, we don't want to bother outputting empty particles, or those
-        ! with a weight which is lower than specified as the cutoff
         bWritten = .false.
+
         call extract_sign(det, real_sgn)
-        !if (.not. IsUnoccDet(sgn)) then
-        if (sum(abs(real_sgn)) > binarypops_min_weight) then
 
-            ! If we are using a reduced
-            if (mod(j, iPopsPartEvery) == 0) then
+        if (tBinPops) then
+            ! We don't want to bother outputting empty particles, or those
+            ! with a weight which is lower than specified as the cutoff
+            if (sum(abs(real_sgn)) > binarypops_min_weight) then
+                if (mod(j, iPopsPartEvery) == 0) then 
+                    bWritten = .true.
+                end if
+            end if
+        else
+            ! If not using a binary popsfile, the header has already been written,
+            ! and the total number of determinants was written out. Therefore, all
+            ! determinants must be printed out, else there will be an error reading
+            ! them in again.
+            bWritten = .true.
+        end if
 
-                ! We are including this particle now, so say so!
-                bWritten = .true.
+        if (bWritten) then
 
-                ! Write output in the desired format. If __INT64, we are 
-                ! including the flag information with the signs in storage in
-                ! memory --> need to extract these before outputting them.
-                flg = extract_flags(det)
-                if (tBinPops) then
-                    ! All write statements MUST be on the same line, or we end
-                    ! up with multiple records.
-                    ! TODO: For POPSFILE V5 --> stream output.
-                    if (tUseFlags) then
-                        write(iunit) det(0:NIfD), real_sgn, int(flg, n_int)
-                    else
-                        write(iunit) det(0:NIfD), real_sgn
-                    end if
+            ! Write output in the desired format. If __INT64, we are 
+            ! including the flag information with the signs in storage in
+            ! memory --> need to extract these before outputting them.
+            flg = extract_flags(det)
+            if (tBinPops) then
+                ! All write statements MUST be on the same line, or we end
+                ! up with multiple records.
+                ! TODO: For POPSFILE V5 --> stream output.
+                if (tUseFlags) then
+                    write(iunit) det(0:NIfD), real_sgn, int(flg, n_int)
                 else
-                    do k = 0, NIfDBO
-                        write(iunit, '(i24)', advance='no') det(k)
-                    end do
-                    do k = 1, lenof_sign
-                        write(iunit, '(f30.8)', advance='no') real_sgn(k)
-                    end do
-                    if (tUseFlags) write(iunit, '(i24)', advance='no') flg
-                    write(iunit, *)
+                    write(iunit) det(0:NIfD), real_sgn
                 end if
+            else
+                do k = 0, NIfDBO
+                    write(iunit, '(i24)', advance='no') det(k)
+                end do
+                do k = 1, lenof_sign
+                    write(iunit, '(f30.8)', advance='no') real_sgn(k)
+                end do
+                if (tUseFlags) write(iunit, '(i24)', advance='no') flg
+                write(iunit, *)
+            end if
 
-                if (tPrintInitiators .and. &
-                    abs(real_sgn(1)) > InitiatorWalkNo) then
-                    ! Testing using the sign now, because after annihilation
-                    ! the current flag will not necessarily be correct.
-                    ex_level = FindBitExcitLevel(ilutRef, det, nel)
-                    write(iunit_2, '(f20.10,a20)', advance='no') &
-                        abs(real_sgn(1)), ''
-                    call writebitdet (iunit_2, det, .false.)
-                    write(iunit_2, '(i30)') ex_level
+            if (tPrintInitiators .and. &
+                abs(real_sgn(1)) > InitiatorWalkNo) then
+                ! Testing using the sign now, because after annihilation
+                ! the current flag will not necessarily be correct.
+                ex_level = FindBitExcitLevel(ilutRef, det, nel)
+                write(iunit_2, '(f20.10,a20)', advance='no') &
+                    abs(real_sgn(1)), ''
+                call writebitdet (iunit_2, det, .false.)
+                write(iunit_2, '(i30)') ex_level
 
-                end if
             end if
         end if
 
-    end function
-
-
-
+    end function write_pops_det
 
 !This routine reads in particle configurations from a POPSFILE.
     SUBROUTINE ReadFromPopsfilePar()
