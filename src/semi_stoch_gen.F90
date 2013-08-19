@@ -179,6 +179,26 @@ contains
                    get_total_time(SemiStoch_Init_Time)
         call neci_flush(6)
 
+        full_determ_vector = 1.0_dp
+
+        call dgemv('N', &
+                   determ_proc_sizes(iProcIndex), &
+                   determ_space_size, &
+                   1.0_dp, &
+                   core_hamiltonian, &
+                   determ_proc_sizes(iProcIndex), &
+                   full_determ_vector, &
+                   1, &
+                   0.0_dp, &
+                   partial_determ_vector, &
+                   1)
+
+        write(6,*)
+        write(6,*) "Correct answer:"
+        do i = 1, determ_space_size
+            write(6,*) partial_determ_vector
+        end do
+
     end subroutine init_semi_stochastic
 
     subroutine generate_space()
@@ -411,11 +431,16 @@ contains
         ! In: called_from - Integer to specify whether this routine was called from the
         !     the semi-stochastic generation code or the trial vector generation code.
 
+        use direct_ci, only: perform_multiplication
+
         integer, intent(in) :: called_from
         type(ras_class_data), allocatable, dimension(:) :: core_classes
         integer(n_int), allocatable, dimension(:,:) :: ilut_list
         integer :: nI(nel)
         integer :: space_size, i
+
+        integer :: j, k, l, m, n, temp_class
+        type(ras_vector), allocatable, dimension(:,:,:) :: vec_in, vec_out
 
         tot_nelec = nel/2
         tot_norbs = nbasis/2
@@ -452,6 +477,37 @@ contains
 
         do i = 1, space_size
             call add_state_to_space(ilut_list(:,i), called_from)
+        end do
+
+        !-----------------------------------------------------------------------------
+
+        allocate(vec_in(size(core_classes),size(core_classes),0:7))
+        allocate(vec_out(size(core_classes),size(core_classes),0:7))
+
+        do i = 1, size(core_classes)
+            do j = 1, size(core_classes)
+                do k = 0, 7
+                    vec_in(i,j,k)%elements = 1.0_dp
+                end do
+            end do
+        end do
+
+        call perform_multiplication(core_ras, core_classes, vec_in, vec_out)
+
+        write(6,*)
+        write(6,*) "Direct ci answer:"
+        do i = 1, size(core_classes)
+            do j = 1, core_classes(i)%num_comb
+                temp_class = core_classes(i)%allowed_combns(j)
+                do k = 0, 7
+                    l = ieor(HFSym, k)
+                    do m = 1, core_classes(i)%num_sym(k)
+                        do n = 1, core_classes(temp_class)%num_sym(l)
+                            write(6,*) vec_out(i,j,k)%elements(m,n)
+                        end do
+                    end do
+                end do
+            end do
         end do
 
         deallocate(core_classes)

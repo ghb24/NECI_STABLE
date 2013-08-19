@@ -221,7 +221,7 @@ contains
                         sym_i = get_abelian_sym(string_i)
                         ind_i = classes(i)%address_map(get_address(classes(i), string_i))
                         !write(6,*) "ind:", ind_i
-                        call neci_flush(6)
+                        !call neci_flush(6)
                         ind_i = ind_i - sum(classes(i)%num_sym(0:sym_i-1))
                         call encode_string(string_i, ilut_i)
 
@@ -251,7 +251,7 @@ contains
                                 !write(6,*) "i, class_m, sym_i", i, class_m, sym_i
                                 !write(6,*) "size1:", size(c(i,class_m,sym_i)%elements, 2)
                                 !write(6,*) "size2:", size(vec_in(class_j,class_m,sym_j)%elements, 2)
-                                call neci_flush(6)
+                                !call neci_flush(6)
                                 c(i,class_m,sym_i)%elements(ind_i,:) = &
                                     vec_in(class_j,class_m,sym_j)%elements(ind_j,:)*r(i, sym_i)%elements(ind_i)
                             end do
@@ -302,7 +302,7 @@ contains
                             ind_j = ind_j - sum(classes(class_j)%num_sym(0:sym_j-1))
 
                             factors(class_j, sym_j)%elements(ind_j) = factors(class_j, sym_j)%elements(ind_j) + &
-                              par_1*get_umat_el(ptr_getumatel, ex1(2), ex1(1), k, l)
+                              par_1*get_umat_el(ptr_getumatel, ex1(2), ex1(1), l, k)
 
                         end do
 
