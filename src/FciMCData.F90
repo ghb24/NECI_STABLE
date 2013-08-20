@@ -291,7 +291,7 @@ MODULE FciMCData
 
       ! Store data about all processors for calculating load balancing
       integer(int64) :: MaxWalkersProc, MinWalkersProc
-      integer(int64) :: MaxPartsProc, MinPartsProc
+      real(dp) :: MaxPartsProc, MinPartsProc
 
       TYPE(BasisFN) :: HFSym
       integer :: iMaxBloom !If tMaxBloom is on, this stores the largest bloom to date.
