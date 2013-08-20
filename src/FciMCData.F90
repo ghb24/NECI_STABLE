@@ -121,6 +121,8 @@ MODULE FciMCData
       Real(dp) :: Annihilated      !This is the number annihilated on one processor
       REAL(dp), DIMENSION(lenof_sign) :: NoatHF           !This is the instantaneous number of particles at the HF determinant
       REAL(dp) :: NoatDoubs
+      INTEGER :: OccRealDets, AllOccRealDets
+      INTEGER :: DetsRoundedToZero, AllDetsRoundedToZero
       INTEGER :: Acceptances      !This is the number of accepted spawns - this is only calculated per node.
       real(dp) :: AccRat            !Acceptance ratio for each node over the update cycle
       INTEGER :: PreviousCycles   
