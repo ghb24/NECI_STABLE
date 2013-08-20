@@ -146,7 +146,7 @@ MODULE FciMCParMod
                          fill_rdm_diag_currdet_norm, &
                          fill_rdm_diag_currdet_hfsd, calc_rdmbiasfac
     use determ_proj, only: perform_determ_proj
-    use semi_stoch_gen, only: init_semi_stochastic
+    use semi_stoch_gen, only: init_semi_stochastic, enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: deterministic_projection, return_most_populated_states, &
                                 end_semistoch, is_core_state
     use trial_wf_gen, only: init_trial_wf, update_compare_trial_file, end_trial_wf
@@ -5096,8 +5096,8 @@ MODULE FciMCParMod
 !TODO: Get CountExcitations3 working with tKPntSym
             CALL CountExcitations3(iand(HFDet, csf_orbital_mask),exflag,nSingles,nDoubles)
         ELSE
-            !use Alex's old excitation generators to enumerate all excitations.
-            CALL CountExcitsOld(HFDet,exflag,nSingles,nDoubles)
+            ! Use Alex's old excitation generators to enumerate all excitations.
+            call enumerate_sing_doub_kpnt(exflag,nSingles,nDoubles)
         ENDIF
         HFConn=nSingles+nDoubles
 
@@ -6301,12 +6301,7 @@ MODULE FciMCParMod
         use SymData , only : SymClassSize
         use SymExcit3 , only : CountExcitations3
         INTEGER :: iTotal
-        integer :: nSing, nDoub, ncsf, excitcount, ierr, iExcit
-        integer :: nStore(6), iMaxExcit, nExcitMemLen(1), nJ(nel)
-        integer, allocatable :: EXCITGEN(:)
-        character(*), parameter :: this_routine = 'CalcApproxpDoubles'
-        logical :: TempUseBrill
-
+        integer :: nSing, nDoub, ncsf, ierr
         integer :: hfdet_loc(nel)
 
         ! A quick hack. Count excitations as though we were a determinant.
@@ -6346,37 +6341,7 @@ MODULE FciMCParMod
                        &reference."
         exflag=3
         IF(tKPntSym) THEN
-            !use Alex's old excitation generators.
-            !However, we have to ensure that brillouins theorem isn't on!
-            IF(tUseBrillouin) THEN
-                TempUseBrill=.true.
-                tUseBrillouin=.false.
-            ELSE
-                TempUseBrill=.false.
-            ENDIF
-
-            iMaxExcit=0
-            nStore(1:6)=0
-            CALL GenSymExcitIt2(HFDet_loc,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
-            ALLOCATE(EXCITGEN(nExcitMemLen(1)),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating excitation generator")
-            EXCITGEN(:)=0
-            CALL GenSymExcitIt2(HFDet_loc,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,exFlag)
-        !    CALL GetSymExcitCount(EXCITGEN,DetConn)
-            excitcount=0
-
-        lp2: do while(.true.)
-                CALL GenSymExcitIt2(HFDet_loc,nEl,G1,nBasis,.false.,EXCITGEN,nJ,iExcit,nStore,exFlag)
-                IF(nJ(1).eq.0) exit lp2
-                IF(iExcit.eq.1) THEN
-                    nSing=nSing+1
-                ELSEIF(iExcit.eq.2) THEN
-                    nDoub=nDoub+1
-                ELSE
-                    CALL Stop_All(this_routine,"Trying to generate more than doubles!")
-                ENDIF
-            enddo lp2
-            tUseBrillouin=TempUseBrill
+            call enumerate_sing_doub_kpnt(exFlag, nSing, nDoub) 
         ELSE
             CALL CountExcitations3(HFDet_loc,exflag,nSing,nDoub)
         ENDIF
@@ -8390,59 +8355,6 @@ MODULE FciMCParMod
 
     end subroutine CalcUEGMP2
             
-    !Count excitations using ajwt3's old excitation generators which can handle non-abelian and
-    !k-point symmetry
-    SUBROUTINE CountExcitsOld(HFDet,exflag,nSing,nDoub)
-        use SystemData , only : tUseBrillouin
-        INTEGER , INTENT(IN) :: HFDet(NEl),exflag
-        INTEGER , INTENT(OUT) :: nSing,nDoub
-        LOGICAL :: TempUseBrill
-        INTEGER :: nExcitMemLen(1),nJ(NEl),iMaxExcit,nStore(6),ierr,excitcount,iExcit
-        INTEGER , ALLOCATABLE :: EXCITGEN(:)
-        character(len=*) , parameter :: this_routine='CountExcitsOld'
-
-        nSing=0
-        nDoub=0
-
-        !However, we have to ensure that brillouins theorem isn't on!
-        IF(tUseBrillouin) THEN
-            TempUseBrill=.true.
-            tUseBrillouin=.false.
-        ELSE
-            TempUseBrill=.false.
-        ENDIF
-
-        iMaxExcit=0
-        nStore(1:6)=0
-        nJ(:)=0
-        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
-        ALLOCATE(EXCITGEN(nExcitMemLen(1)),stat=ierr)
-        IF(ierr.ne.0) CALL Stop_All(this_routine,"Problem allocating excitation generator")
-        EXCITGEN(:)=0
-        nJ(:)=0
-        CALL GenSymExcitIt2(HFDet,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,exFlag)
-    !    CALL GetSymExcitCount(EXCITGEN,DetConn)
-        excitcount=0
-
-    lp2: do while(.true.)
-            CALL GenSymExcitIt2(HFDet,nEl,G1,nBasis,.false.,EXCITGEN,nJ,iExcit,nStore,exFlag)
-            IF(nJ(1).eq.0) exit lp2
-            IF(iExcit.eq.1) THEN
-                nSing=nSing+1
-            ELSEIF(iExcit.eq.2) THEN
-                nDoub=nDoub+1
-            ELSE
-                CALL Stop_All(this_routine,"Trying to generate more than doubles!")
-            ENDIF
-        enddo lp2
-        tUseBrillouin=TempUseBrill
-
-        if(iMaxExcit.ne.(nSing+nDoub)) then
-            call stop_all("CountExcitsOld","Error in counting old excitations")
-        endif
-
-    END SUBROUTINE CountExcitsOld
-
     SUBROUTINE DeallocFCIMCMemPar()
         use nElRDMMod, only: DeallocateRDM
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocFciMCMemPar'

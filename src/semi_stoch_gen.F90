@@ -315,58 +315,52 @@ contains
         type(excit_store), target :: gen_store
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel)
-        integer :: space_size
-        integer :: i, ierr
+        integer :: space_size, nsing, ndoub, ex_flag
 
         ! Start by adding the HF state.
         call add_state_to_space(ilutHF, called_from)
 
-        ! This condition tells the enumerating subroutines to initialise the loop.
-        ilut(0) = -1
-        ! Find the first single excitation.
-        call enumerate_all_single_excitations (ilutHF, HFDet, ilut, gen_store)
-        call add_state_to_space(ilut, called_from)
+        if (tKPntSym) then
+            ex_flag = 3
+            call enumerate_sing_doub_kpnt(ex_flag, nsing, ndoub, called_from)
+        else
 
-        write(6,*) "Singles:"
-        call decode_bit_det(nI,ilut)
-        call write_det(6, nI, .true.)
-
-        ! When no more basis functions are found, this value is returned and the loop
-        ! is exited.
-        do while(ilut(0) /= -1)
+            ! This condition tells the enumerating subroutines to initialise the loop.
+            ilut(0) = -1
+            ! Find the first single excitation.
             call enumerate_all_single_excitations (ilutHF, HFDet, ilut, gen_store)
+            call add_state_to_space(ilut, called_from)
 
-            ! If a determinant is returned (if we did not find the final one last time.)
-            if (ilut(0) /= -1) then
-                call add_state_to_space(ilut, called_from)
-                call decode_bit_det(nI,ilut)
-                call write_det(6, nI, .true.)
-            end if
-        end do
+            ! When no more basis functions are found, this value is returned and the loop
+            ! is exited.
+            do while(ilut(0) /= -1)
+                call enumerate_all_single_excitations (ilutHF, HFDet, ilut, gen_store)
 
-        ! Now generate the double excitations...
+                ! If a determinant is returned (if we did not find the final one last time.)
+                if (ilut(0) /= -1) then
+                    call add_state_to_space(ilut, called_from)
+                end if
+            end do
 
-        ilut(0) = -1
-        call enumerate_all_double_excitations (ilutHF, HFDet, ilut, gen_store)
-        call add_state_to_space(ilut, called_from)
+            ! Now generate the double excitations...
 
-        write(6,*) "Doubles:"
-        call decode_bit_det(nI,ilut)
-        call write_det(6, nI, .true.)
-
-        do while(ilut(0) /= -1)
+            ilut(0) = -1
             call enumerate_all_double_excitations (ilutHF, HFDet, ilut, gen_store)
+            call add_state_to_space(ilut, called_from)
 
-            if (ilut(0) /= -1) then
-                call add_state_to_space(ilut, called_from)
-                call decode_bit_det(nI,ilut)
-                call write_det(6, nI, .true.)
+            do while(ilut(0) /= -1)
+                call enumerate_all_double_excitations (ilutHF, HFDet, ilut, gen_store)
+
+                if (ilut(0) /= -1) then
+                    call add_state_to_space(ilut, called_from)
+                end if
+            end do
+
+            if (called_from == called_from_trial) then
+                if (tLimitTrialSpace) call remove_high_energy_orbs(trial_space(:, 1:trial_space_size), &
+                                                                 trial_space_size, max_trial_size, .false.)
             end if
-        end do
 
-        if (called_from == called_from_trial) then
-            if (tLimitTrialSpace) call remove_high_energy_orbs(trial_space(:, 1:trial_space_size), &
-                                                             trial_space_size, max_trial_size, .false.)
         end if
 
     end subroutine generate_sing_doub_determinants
@@ -1144,5 +1138,69 @@ contains
         end do
 
     end subroutine generate_all_csfs_from_orb_config
+
+    subroutine enumerate_sing_doub_kpnt(exFlag, nSing, nDoub, called_from)
+
+        integer, intent(in) :: exFlag
+        integer, intent(out) :: nSing, nDoub
+        integer, optional, intent(in) :: called_from
+        integer, allocatable :: excit_gen(:)
+        integer(n_int) :: ilut(0:NIfTot)
+        integer :: iExcit, iMaxExcit, ierr
+        integer :: nJ(nel), hfdet_loc(nel), nStore(6), nExcitMemLen(1)
+        logical :: tTempUseBrill
+        character(*), parameter :: t_r = 'enumerate_doubles_kpnt'
+
+        ! A quick hack. Count excitations as though we were a determinant.
+        ! We could fix this later...
+        hfdet_loc = iand(hfdet, csf_orbital_mask)
+
+        nSing = 0
+        nDoub = 0
+        iMaxExcit = 0
+        nStore(1:6) = 0
+
+        ! Use Alex's old excitation generators. However, we have to ensure
+        ! that brillouins theorem isn't on!
+        if (tUseBrillouin) then
+            tTempUseBrill = .true.
+            tUseBrillouin = .false.
+        else
+            tTempUseBrill = .false.
+        end if
+
+        call GenSymExcitIt2(HFDet_loc, nel, G1, nBasis, .true., nExcitMemLen, &
+                nJ, iMaxExcit, nStore, exFlag)
+
+        allocate(excit_gen(nExcitMemLen(1)),stat=ierr)
+        if (ierr .ne. 0) call Stop_All(t_r, "Problem allocating excitation generator")
+        excit_gen(:) = 0
+
+        call GenSymExcitIt2(HFDet_loc, nel, G1, nBasis, .true., excit_gen, nJ, &
+                iMaxExcit, nStore, exFlag)
+
+        lp: do while(.true.)
+            call GenSymExcitIt2(HFDet_loc, nel, G1, nBasis, .false., excit_gen, &
+                    nJ, iExcit, nStore, exFlag)
+
+            if (nJ(1).eq.0) exit lp
+
+            if (present(called_from)) then
+                call EncodeBitDet(nJ,ilut)
+                call add_state_to_space(ilut, called_from, nJ)
+            end if
+
+            if (iExcit.eq.1) then
+                nSing = nSing + 1
+            else if (iExcit.eq.2) then
+                nDoub = nDoub + 1
+            else
+                call stop_all(t_r, "Trying to generate more than doubles!")
+            end if
+        end do lp
+
+        tUseBrillouin = tTempUseBrill
+
+    end subroutine enumerate_sing_doub_kpnt
 
 end module semi_stoch_gen
