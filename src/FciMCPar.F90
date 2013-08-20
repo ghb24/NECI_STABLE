@@ -4257,7 +4257,7 @@ MODULE FciMCParMod
                 real((AllHFCyc * conjg(AllHFCyc)),dp), &     !22     |n0|^2  This is the denominator for both calcs
                 real((AllENumCyc * conjg(AllHFCyc)),dp), &   !23.    Re[\sum njH0j] x Re[n0] + Im[\sum njH0j] x Im[n0]   No div by StepsSft
                 aimag(AllENumCyc * conjg(AllHFCyc)), &       !24.    Im[\sum njH0j] x Re[n0] - Re[\sum njH0j] x Im[n0]   since no physicality
-                sqrt(float(sum(AllNoatHF**2))) / norm_psi, & !25
+                sqrt(sum(AllNoatHF**2)) / norm_psi, & !25
                 norm_psi, &                           !26
                 curr_S2, &                            !27
                 AllNumSpawnedEntries, &               !28
@@ -4304,7 +4304,7 @@ MODULE FciMCParMod
             endif
             
             write(fcimcstats_unit,"(i12,7g16.7,5g17.9,g13.5,i12,g13.5,g17.5,&
-                                  i13,g13.5,11g17.9,7i13)") &
+                                  &i13,g13.5,11g17.9,7i13)") &
                 Iter + PreviousCycles, &                   ! 1.
                 DiagSft, &                                 ! 2.
                 sum(AllTotParts) - sum(AllTotPartsOld), &  ! 3.
