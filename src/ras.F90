@@ -134,6 +134,7 @@ contains
         num_classes = counter
         counter = 0
 
+        write(6,*) "Classes:"
         ! ...then fill the classes in.
         allocate(classes(num_classes))
         do i = lower_ras1, upper_ras1

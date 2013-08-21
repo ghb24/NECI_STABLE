@@ -179,7 +179,11 @@ contains
                    get_total_time(SemiStoch_Init_Time)
         call neci_flush(6)
 
-        full_determ_vector = 1.0_dp
+        full_determ_vector(1) = 1.0_dp
+        full_determ_vector(2) = 1.0_dp
+
+        write(6,*) "Hamiltonian:"
+        write(6,*) core_hamiltonian
 
         call dgemv('N', &
                    determ_proc_sizes(iProcIndex), &
@@ -196,7 +200,7 @@ contains
         write(6,*)
         write(6,*) "Correct answer:"
         do i = 1, determ_space_size
-            write(6,*) partial_determ_vector
+            write(6,*) partial_determ_vector(i)
         end do
 
     end subroutine init_semi_stochastic
@@ -485,12 +489,25 @@ contains
         allocate(vec_out(size(core_classes),size(core_classes),0:7))
 
         do i = 1, size(core_classes)
-            do j = 1, size(core_classes)
+            do j = 1, core_classes(i)%num_comb
+                temp_class = core_classes(i)%allowed_combns(j)
                 do k = 0, 7
-                    vec_in(i,j,k)%elements = 1.0_dp
+                    l = ieor(HFSym, k)
+
+                    if (core_classes(i)%num_sym(k) == 0 .or. core_classes(temp_class)%num_sym(l) == 0) cycle
+
+                    allocate(vec_in(i,temp_class,k)%elements(1:core_classes(i)%num_sym(k), &
+                            1:core_classes(temp_class)%num_sym(l)))
+
+                    allocate(vec_out(i,temp_class,k)%elements(1:core_classes(i)%num_sym(k), &
+                            1:core_classes(temp_class)%num_sym(l)))
+                    vec_out(i,temp_class,k)%elements(:,:) = 0.0_dp
                 end do
             end do
         end do
+
+        vec_in(1,1,5)%elements(:,:) = 1.0_dp
+        vec_in(2,2,0)%elements(:,:) = 1.0_dp
 
         call perform_multiplication(core_ras, core_classes, vec_in, vec_out)
 
@@ -503,12 +520,14 @@ contains
                     l = ieor(HFSym, k)
                     do m = 1, core_classes(i)%num_sym(k)
                         do n = 1, core_classes(temp_class)%num_sym(l)
-                            write(6,*) vec_out(i,j,k)%elements(m,n)
+                            write(6,*) vec_out(i,temp_class,k)%elements(m,n)
                         end do
                     end do
                 end do
             end do
         end do
+
+        write(6,*)
 
         deallocate(core_classes)
         deallocate(ilut_list)

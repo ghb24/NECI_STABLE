@@ -19,7 +19,8 @@ contains
         type(ras_class_data), intent(inout), allocatable, dimension(:) :: classes
         type(ras_vector), intent(in) :: vec_in(size(classes), size(classes), 0:7)
         type(ras_vector), intent(inout) :: vec_out(size(classes), size(classes), 0:7)
-        type(ras_vector) :: c(size(classes), size(classes), 0:7)
+        !type(ras_vector) :: c(size(classes), size(classes), 0:7)
+        type(ras_vector) :: c(size(classes), size(classes))
         integer :: num_classes, class_i, class_j, class_k, class_m, par_1, par_2
         integer :: i, j, k, l, m, ind_i, ind_j, ind_k, temp_1, temp_2, nras1, nras3
         integer :: sym_i, sym_j, sym_k, sym_m, sym_prod1, sym_prod2
@@ -29,10 +30,12 @@ contains
         integer(n_int) :: ilut_i(0:NIfTot), ilut_j(0:NIfTot), ilut_k(0:NIfTot)
         type(ras_factors) :: factors(size(classes), 0:7), r(size(classes), 0:7), &
                              v(size(classes), 0:7)
-        type(simple_excit_store), target :: gen_store
+        type(simple_excit_store), target :: gen_store_1, gen_store_2
         logical :: none_left
 
         integer :: counter
+
+        integer :: n
 
         num_classes = size(classes)
 
@@ -51,21 +54,29 @@ contains
                     sym_j = ieor(HFSym, sym_i)
 
                     if (classes(class_i)%num_sym(sym_i) == 0 .or. classes(class_j)%num_sym(sym_j) == 0) cycle
-                    allocate(c(class_i,class_j,sym_i)%elements(1:classes(class_i)%num_sym(sym_i), &
-                                                               1:classes(class_j)%num_sym(sym_j)))
+                    !allocate(c(class_i,class_j,sym_i)%elements(1:classes(class_i)%num_sym(sym_i), &
+                    !                                           1:classes(class_j)%num_sym(sym_j)))
                     vec_out(class_i,class_j,sym_i)%elements(:,:) = 0.0_dp
                 end do
             end do
         end do
+       
+        do class_i = 1, num_classes
+            do class_j = 1, num_classes
+                allocate(c(class_i,class_j)%elements(1:classes(class_i)%class_size, &
+                           1:classes(class_j)%class_size))
+                c(class_i,class_j)%elements = 0.0_dp
+            end do
+        end do
 
         !write(6,*) "Sigma 1 and 2:"
-        call neci_flush(6)
+        !call neci_flush(6)
 
         ! Loop over all classes.
         do i = 1, num_classes
 
             !write(6,*) "Class:", i
-            call neci_flush(6)
+            !call neci_flush(6)
 
             call generate_first_full_string(string_i, ras, classes(i))
 
@@ -75,11 +86,13 @@ contains
 
                 call encode_string(string_i, ilut_i)
 
-                sym_i = get_abelian_sym(string_i)
-                ! Shift the addresses so that each block of symmetries start with address 1.
-                ind_i = classes(i)%address_map(get_address(classes(i), string_i))
-                !write(6,*) "ind:", ind_i
+                write(6,*) "string_i:", string_i
+                write(6,*)
                 call neci_flush(6)
+
+                sym_i = get_abelian_sym(string_i)
+                ind_i = classes(i)%address_map(get_address(classes(i), string_i))
+                ! Shift the addresses so that each block of symmetries start with address 1.
                 ind_i = ind_i - sum(classes(i)%num_sym(0:sym_i-1))
 
                 ! To initialise the excitation generator in the first cycle.
@@ -90,7 +103,12 @@ contains
                     nras1 = classes(i)%nelec_1
                     nras3 = classes(i)%nelec_3
                     
-                    call gen_next_single_ex(string_i, ilut_i, string_k, ilut_k, ex1, nras1, nras3, ras, gen_store)
+                    call gen_next_single_ex(string_i, ilut_i, string_k, ilut_k, ex1, nras1, nras3, ras, gen_store_1)
+
+                    !write(6,*) "string_k:", string_k
+                    !call neci_flush(6)
+                    !write(6,*) "ilut_k:", ilut_k
+                    !call neci_flush(6)
 
                     if (ilut_k(0) == -1) exit
 
@@ -104,10 +122,18 @@ contains
                     factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) + &
                             par_1*GetTMatEl(BRR(2*ex1(2)),BRR(2*ex1(1)))
 
-                    do j = 1, tot_norbs
+                    do j = 1, ex1(2)-1
                         factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) - &
-                                0.5_dp*par_1*get_umat_el(ptr_getumatel, ex1(2), j, j, ex1(1))
+                                par_1*get_umat_el(ptr_getumatel, ex1(2), j, j, ex1(1))
                     end do
+
+                    if (ex1(2) > ex1(1)) then
+                        factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) - &
+                                par_1*get_umat_el(ptr_getumatel, ex1(2), ex1(2), ex1(2), ex1(1))
+                    else if (ex1(2) == ex1(1)) then
+                        factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) - &
+                                0.5_dp*par_1*get_umat_el(ptr_getumatel, ex1(2), ex1(2), ex1(2), ex1(1))
+                    end if
 
                     ! To initialise the excitation generator in the first cycle.
                     ilut_j(0) = -1
@@ -117,9 +143,13 @@ contains
                         nras1 = classes(class_k)%nelec_1
                         nras3 = classes(class_k)%nelec_3
                     
-                        call gen_next_single_ex(string_k, ilut_k, string_j, ilut_j, ex2, nras1, nras3, ras, gen_store)
+                        call gen_next_single_ex(string_k, ilut_k, string_j, ilut_j, ex2, nras1, nras3, ras, gen_store_2)
 
                         if (ilut_j(0) == -1) exit
+
+                        !write(6,*) "string_j:", string_j
+                        !call neci_flush(6)
+
                         ! Only need to consider excitations where (ij) >= (jk).
                         if ( (ex2(2)-1)*tot_norbs + ex2(1) < (ex1(2)-1)*tot_norbs + ex1(1)) cycle
 
@@ -143,6 +173,11 @@ contains
 
                 end do
 
+                write(6,*) "factors:"
+                write(6,*) factors(1,5)%elements
+                write(6,*) factors(2,0)%elements
+                write(6,*)
+
                 ! The factors array has now been fully generated for string_i. Now we just have to add in the
                 ! contirbution to vec_out from this state.
 
@@ -155,34 +190,33 @@ contains
                     ! If there are no states in this class with the required symmetry.
                     if (classes(class_j)%num_sym(sym_j) == 0) cycle
 
-                        ! Loop over all classes connected to string_j.
-                        do k = 1, classes(class_j)%num_comb
-                            class_k = classes(class_j)%allowed_combns(k)
-                            ! The *required* symmetry, sym_k = ieor(HFSym, sym_j) = sym_i.
-                            sym_k = sym_i
+                    ! Loop over all classes connected to string_j.
+                    do k = 1, classes(class_j)%num_comb
+                        class_k = classes(class_j)%allowed_combns(k)
+                        ! The *required* symmetry, sym_k = ieor(HFSym, sym_j) = sym_i.
+                        sym_k = sym_i
 
-                            ! If there are no states in this class with the required symmetry.
-                            if (classes(class_k)%num_sym(sym_k) == 0) cycle
+                        ! If there are no states in this class with the required symmetry.
+                        if (classes(class_k)%num_sym(sym_k) == 0) cycle
 
-                            ! Finally, update the output vector.
-                            ! Add in sigma_2.
-                            vec_out(class_j, i, sym_j)%elements(:, ind_i) = &
-                                vec_out(class_j, i, sym_j)%elements(:, ind_i) + &
-                                matmul(vec_in(class_j, class_k, sym_j)%elements(:,:), factors(class_k, sym_k)%elements(:))
+                        ! Finally, update the output vector.
+                        ! Add in sigma_2.
+                        vec_out(class_j, i, sym_j)%elements(:, ind_i) = &
+                            vec_out(class_j, i, sym_j)%elements(:, ind_i) + &
+                            matmul(vec_in(class_j, class_k, sym_j)%elements(:,:), factors(class_k, sym_k)%elements(:))
 
-                            !write(6,*) "factors:", vec_out(class_j, i, sym_j)%elements(:, ind_i)
+                        !write(6,*) "factors:", vec_out(class_j, i, sym_j)%elements(:, ind_i)
 
-                            ! Add in sigma_1.
-                            vec_out(i, class_j, sym_i)%elements(ind_i, :) = &
-                                vec_out(i, class_j, sym_i)%elements(ind_i, :) + &
-                                matmul(factors(class_k, sym_k)%elements(:), vec_in(class_k, class_j, sym_k)%elements(:,:))
+                        ! Add in sigma_1.
+                        vec_out(i, class_j, sym_i)%elements(ind_i, :) = &
+                            vec_out(i, class_j, sym_i)%elements(ind_i, :) + &
+                            matmul(factors(class_k, sym_k)%elements(:), vec_in(class_k, class_j, sym_k)%elements(:,:))
 
-                            !write(6,*) "factors:", factors(class_k, sym_k)%elements(:)
+                        !write(6,*) "factors:", factors(class_k, sym_k)%elements(:)
 
-                        end do ! Over all classes connected to string_j.
+                    end do ! Over all classes connected to string_j.
                     
                 end do ! Over all classes connected to string_i.
-
 
                 call generate_next_string(string_i, ras, classes(i), none_left)
                 ! If no strings left in this class, go to the next class.
@@ -190,27 +224,54 @@ contains
             end do ! Over all strings in this class.
         end do ! Over all classes.
 
+        ! Test code - print out vec_out.
+        do i = 1, size(classes)
+            do j = 1, classes(i)%num_comb
+                class_j = classes(i)%allowed_combns(j)
+                do k = 0, 7
+                    l = ieor(HFSym, k)
+                    do m = 1, classes(i)%num_sym(k)
+                        do n = 1, classes(class_j)%num_sym(l)
+                            write(6,*) vec_out(i,class_j,k)%elements(m,n)
+                        end do
+                    end do
+                end do
+            end do
+        end do
 
         ! Next, calculate contirbution from the alpha-beta term, sigma_3.
 
-        !write(6,*) "sigma 3:"
-        call neci_flush(6)
-        
         ! Loop over all combinations of two spatial indices, (kl).
         do k = 1, tot_norbs
             do l = 1, tot_norbs
 
-                if (G1(BRR(2*k))%Sym%S /= G1(BRR(2*l))%Sym%S) cycle
+                !if (G1(BRR(2*k))%Sym%S /= G1(BRR(2*l))%Sym%S) cycle
 
-                !write(6,*) "k, l:", k, l
+                !do class_i = 1, num_classes
+                !    do j = 1, classes(class_i)%num_comb
+                !        class_j = classes(class_i)%allowed_combns(j)
+                !        do sym_i = 0, 7
+                !            sym_j = ieor(HFSym, sym_i)
+
+                !            if (classes(class_i)%num_sym(sym_i) == 0 .or. classes(class_j)%num_sym(sym_j) == 0) cycle
+                !            c(class_i,class_j,sym_i)%elements(:,:) = 0.0_dp
+                !        end do
+                !    end do
+                !end do
+
+                do class_i = 1, num_classes
+                    do class_j = 1, num_classes
+                        c(class_i,class_j)%elements = 0.0_dp
+                    end do
+                end do
+
+                write(6,*) "k, l:", k, l
                 call neci_flush(6)
 
                 ex1(1) = k
                 ex1(2) = l
 
                 do i = 1, num_classes
-                    !write(6,*) "class:", i
-                    call neci_flush(6)
                     call generate_first_full_string(string_i, ras, classes(i))
 
                     nras1 = classes(i)%nelec_1
@@ -220,15 +281,13 @@ contains
                     do
                         sym_i = get_abelian_sym(string_i)
                         ind_i = classes(i)%address_map(get_address(classes(i), string_i))
-                        !write(6,*) "ind:", ind_i
-                        !call neci_flush(6)
                         ind_i = ind_i - sum(classes(i)%num_sym(0:sym_i-1))
                         call encode_string(string_i, ilut_i)
 
                         if ((.not. IsOcc(ilut_i,BRR(2*k))) .or. &
                                 (IsOcc(ilut_i,BRR(2*l)) .and. k /= l)) then
                             r(i, sym_i)%elements(ind_i) = 0.0_dp
-                            do m = 1, classes(i)%num_comb
+                            do class_m = 1, num_classes
                                 class_m = classes(i)%allowed_combns(m)
                                 sym_m = ieor(HFSym, sym_i)
                                 if (classes(class_m)%num_sym(sym_m) == 0) cycle
@@ -240,7 +299,7 @@ contains
                             ind_j = classes(class_j)%address_map(get_address(classes(class_j), string_j))
                             ind_j = ind_j - sum(classes(class_j)%num_sym(0:sym_j-1))
 
-                            r(i, sym_i)%elements(ind_i) = real(get_single_parity(ilut_i, k, l), dp)
+                            r(i, sym_i)%elements(ind_i) = real(get_single_parity(ilut_i, l, k), dp)
 
                             do m = 1, classes(i)%num_comb
                                 class_m = classes(i)%allowed_combns(m)
@@ -248,10 +307,8 @@ contains
                                 if (.not. class_comb_allowed(ras, classes(class_j), classes(class_m))) cycle
                                 if (classes(class_m)%num_sym(sym_m) == 0) cycle 
 
-                                !write(6,*) "i, class_m, sym_i", i, class_m, sym_i
-                                !write(6,*) "size1:", size(c(i,class_m,sym_i)%elements, 2)
-                                !write(6,*) "size2:", size(vec_in(class_j,class_m,sym_j)%elements, 2)
-                                !call neci_flush(6)
+                                write(6,*) "i, class_m, sym_i", i, class_m, sym_i
+                                call neci_flush(6)
                                 c(i,class_m,sym_i)%elements(ind_i,:) = &
                                     vec_in(class_j,class_m,sym_j)%elements(ind_j,:)*r(i, sym_i)%elements(ind_i)
                             end do
@@ -264,7 +321,7 @@ contains
                 end do
 
                 !write(6,*) "init done."
-                call neci_flush(6)
+                !call neci_flush(6)
 
                 do i = 1, num_classes
 
@@ -279,7 +336,7 @@ contains
                         sym_i = get_abelian_sym(string_i)
                         ind_i = classes(i)%address_map(get_address(classes(i), string_i))
                         !write(6,*) "ind:", ind_i
-                        call neci_flush(6)
+                        !call neci_flush(6)
                         ind_i = ind_i - sum(classes(i)%num_sym(0:sym_i-1))
 
                         ! To initialise the excitation generator in the first cycle.
@@ -290,12 +347,12 @@ contains
                             nras1 = classes(i)%nelec_1
                             nras3 = classes(i)%nelec_3
                             
-                            call gen_next_single_ex(string_i, ilut_i, string_j, ilut_j, ex1, nras1, nras3, ras, gen_store)
+                            call gen_next_single_ex(string_i, ilut_i, string_j, ilut_j, ex1, nras1, nras3, ras, gen_store_1)
 
                             if (ilut_j(0) == -1) exit
 
                             class_j = ras%class_label(nras1, nras3)
-                            sym_j = get_abelian_sym(string_k)
+                            sym_j = get_abelian_sym(string_j)
                             par_1 = get_single_parity(ilut_i, ex1(1), ex1(2)) 
 
                             ind_j = classes(class_j)%address_map(get_address(classes(class_j), string_j))
@@ -315,6 +372,8 @@ contains
 
                                 if (.not. abs(r(class_j, sym_j)%elements(ind_j)) > 0.0_dp) cycle
 
+                                call zero_factors_array(num_classes, v)
+
                                 do m = 1, classes(class_j)%num_comb
 
                                     class_m = classes(class_j)%allowed_combns(m)
@@ -333,7 +392,6 @@ contains
                             end do ! Over all states in class_j with symmetry sym_j.
 
                         end do ! Over all classes.
-
 
                         call generate_next_string(string_i, ras, classes(i), none_left)
                         ! If no strings left in this class, go to the next class.
@@ -444,13 +502,14 @@ contains
             j = 0
         end if
 
+        !write(6,*) "i, j:", i, j
+        !call neci_flush(6)
+
         ! Find the next possible single excitation. Loop over electrons and vacant orbitals.
         ! Interrupt loop when we find what we need.
         do i = i, tot_nelec
 
-            if (j == 0) then
-                orb1 = BRR(string_i(i)*2)
-            end if
+            orb1 = BRR(string_i(i)*2)
 
             j = j + 1
             do j = j, tot_norbs
@@ -459,6 +518,10 @@ contains
 
                 ! Cannot excite to an occupied orbital, unless it is the orbital that we are
                 ! exciting from.
+                !write(6,*) "j:", j, "string_i(i):", string_i(i)
+                !call neci_flush(6)
+                !write(6,*) "IsOcc:", IsOcc(ilut_i, orb2)
+                !call neci_flush(6)
                 if (IsOcc(ilut_i, orb2) .and. (string_i(i) /= j)) cycle
 
                 ex(1) = string_i(i)
