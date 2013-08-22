@@ -179,11 +179,7 @@ contains
                    get_total_time(SemiStoch_Init_Time)
         call neci_flush(6)
 
-        full_determ_vector(1) = 1.0_dp
-        full_determ_vector(2) = 1.0_dp
-
-        write(6,*) "Hamiltonian:"
-        write(6,*) core_hamiltonian
+        full_determ_vector = 1.0_dp
 
         call dgemv('N', &
                    determ_proc_sizes(iProcIndex), &
@@ -498,6 +494,7 @@ contains
 
                     allocate(vec_in(i,temp_class,k)%elements(1:core_classes(i)%num_sym(k), &
                             1:core_classes(temp_class)%num_sym(l)))
+                    vec_in(i,temp_class,k)%elements(:,:) = 1.0_dp
 
                     allocate(vec_out(i,temp_class,k)%elements(1:core_classes(i)%num_sym(k), &
                             1:core_classes(temp_class)%num_sym(l)))
@@ -505,9 +502,6 @@ contains
                 end do
             end do
         end do
-
-        vec_in(1,1,5)%elements(:,:) = 1.0_dp
-        vec_in(2,2,0)%elements(:,:) = 1.0_dp
 
         call perform_multiplication(core_ras, core_classes, vec_in, vec_out)
 
