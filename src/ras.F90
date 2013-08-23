@@ -33,6 +33,8 @@ module ras
     use SystemData, only: G1, nbasismax, nel, basisfn, BRR
     use util_mod, only: find_next_comb
 
+    use DeterminantData, only: write_det
+
     implicit none
 
     ! The five parameters defining a RAS space.
@@ -42,6 +44,9 @@ module ras
         ! The minimum number of electrons (both alpha and beta) in RAS1,
         ! and the maximum number in RAS3.
         integer :: min_1, max_3
+        ! The lower and upper bounds on the number of electrons that occupy
+        ! be in ras1 orbitals for each string.
+        integer :: lower_ras1, upper_ras1
         ! If you input the number of electrons in RAS1 as the first index
         ! and the number of electrons in RAS3 as the second index then
         ! this array will give you the label of corresponding class.
@@ -108,22 +113,22 @@ contains
         integer :: num_classes
         type(basisfn) :: hfbasisfn
         integer :: string(tot_nelec)
-        integer :: space_size, lower_ras1, upper_ras1, lower_ras3, upper_ras3
+        integer :: space_size, lower_ras3, upper_ras3
 
         ! First we need to find the different classes. A class is defined by the number
         ! of electrons in RAS1 and RAS3. Thus, we need to find all possible allowed
         ! combinations.
 
-        lower_ras1 = max(0, ras%min_1-ras%size_1)
-        upper_ras1 = min(tot_nelec, ras%size_1)
+        ras%lower_ras1 = max(0, ras%min_1-ras%size_1)
+        ras%upper_ras1 = min(tot_nelec, ras%size_1)
 
-        allocate(ras%class_label(lower_ras1:upper_ras1, 0:tot_nelec))
+        allocate(ras%class_label(ras%lower_ras1:ras%upper_ras1, 0:tot_nelec))
         ras%class_label = 0
 
         ! First count the number of RAS classes...
         counter = 0
-        do i = lower_ras1, upper_ras1
-            lower_ras3 = max(0, tot_nelec-i-2*ras%size_2)
+        do i = ras%lower_ras1, ras%upper_ras1
+            lower_ras3 = max(0, tot_nelec-i-ras%size_2)
             upper_ras3 = min(tot_nelec-i, ras%max_3)
             do j = lower_ras3, upper_ras3
                 counter = counter + 1
@@ -134,10 +139,9 @@ contains
         num_classes = counter
         counter = 0
 
-        write(6,*) "Classes:"
         ! ...then fill the classes in.
         allocate(classes(num_classes))
-        do i = lower_ras1, upper_ras1
+        do i = ras%lower_ras1, ras%upper_ras1
             lower_ras3 = max(0, tot_nelec-i-2*ras%size_2)
             upper_ras3 = min(tot_nelec-i, ras%max_3)
             do j = lower_ras3, upper_ras3
@@ -145,6 +149,8 @@ contains
                 classes(counter)%nelec_1 = i
                 classes(counter)%nelec_3 = j
                 classes(counter)%nelec_2 = tot_nelec-i-j
+                write(6,*) "Class:", counter
+                write(6,*) "1, 2, 3:", i, tot_nelec-i-j, j
                 if (classes(counter)%nelec_2 < 0) then
                     write(6,*) "nelec_1, nelec_2, nelec_3:", classes(counter)%nelec_1, &
                         classes(counter)%nelec_2, classes(counter)%nelec_3
@@ -209,9 +215,18 @@ contains
 
         type(ras_parameters), intent(in) :: ras
         integer, intent(in) :: n_elec_1, n_elec_3
+        integer :: lower_ras3, upper_ras3
         logical :: allowed
 
-        allowed = (n_elec_1 >= ras%min_1 .and. n_elec_1 <= ras%size_1 .and. n_elec_3 <= ras%max_3)
+        allowed = .false.
+
+        if (n_elec_1 >= ras%lower_ras1 .and. n_elec_1 <= ras%upper_ras1) then
+            lower_ras3 = max(0, tot_nelec-n_elec_1-ras%size_2)
+            upper_ras3 = min(tot_nelec-n_elec_1, ras%max_3)
+            if (n_elec_3 >= lower_ras3 .and. n_elec_3 <= upper_ras3) then
+                allowed = .true.
+            end if
+        end if
 
     end function class_allowed
 
@@ -538,6 +553,10 @@ contains
                                 nI(o) = BRR(nI(o))
                             end do
                             call sort(nI)
+
+                            if (i == 3 .and. temp_class == 3 .and. k == 0) then
+                                call write_det(6,nI,.true.)
+                            end if
 
                             ! Find bitstring representation.
                             counter = counter+1

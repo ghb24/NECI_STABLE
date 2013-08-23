@@ -179,7 +179,13 @@ contains
                    get_total_time(SemiStoch_Init_Time)
         call neci_flush(6)
 
-        full_determ_vector = 1.0_dp
+        !write(6,*) "Hamiltonian:"
+        !do i = 1, determ_space_size
+        !    write(6,*) core_hamiltonian(i,:)
+        !end do
+
+        full_determ_vector = 0.0_dp
+        full_determ_vector(125) = 1.0_dp
 
         call dgemv('N', &
                    determ_proc_sizes(iProcIndex), &
@@ -197,6 +203,13 @@ contains
         write(6,*) "Correct answer:"
         do i = 1, determ_space_size
             write(6,*) partial_determ_vector(i)
+        end do
+
+        write(6,*)
+        do i = 1, determ_space_size
+            call decode_bit_det(nI, CurrentDets(:,i))
+            write(6,*) i
+            call write_det(6,nI,.true.)
         end do
 
     end subroutine init_semi_stochastic
@@ -494,7 +507,7 @@ contains
 
                     allocate(vec_in(i,temp_class,k)%elements(1:core_classes(i)%num_sym(k), &
                             1:core_classes(temp_class)%num_sym(l)))
-                    vec_in(i,temp_class,k)%elements(:,:) = 1.0_dp
+                    vec_in(i,temp_class,k)%elements(:,:) = 0.0_dp
 
                     allocate(vec_out(i,temp_class,k)%elements(1:core_classes(i)%num_sym(k), &
                             1:core_classes(temp_class)%num_sym(l)))
@@ -502,6 +515,8 @@ contains
                 end do
             end do
         end do
+
+        vec_in(3,3,7)%elements(1,1) = 1.0_dp
 
         call perform_multiplication(core_ras, core_classes, vec_in, vec_out)
 

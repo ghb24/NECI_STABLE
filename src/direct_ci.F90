@@ -31,7 +31,7 @@ contains
         type(ras_factors) :: factors(size(classes), 0:7), v(size(classes), 0:7)
         type(ras_factors) :: r(size(classes))
         type(simple_excit_store), target :: gen_store_1, gen_store_2
-        logical :: none_left
+        logical :: none_left, in_ras_space
 
         integer :: counter
 
@@ -112,6 +112,9 @@ contains
 
                     if (ilut_k(0) == -1) exit
 
+                    !write(6,*) "k, l:", ex1(2), ex1(1)
+                    !write(6,*) 
+
                     class_k = ras%class_label(nras1, nras3)
                     sym_k = get_abelian_sym(string_k)
                     par_1 = get_single_parity(ilut_i, ex1(1), ex1(2)) 
@@ -121,18 +124,27 @@ contains
 
                     factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) + &
                             par_1*GetTMatEl(BRR(2*ex1(2)),BRR(2*ex1(1)))
+                    !write(6,*) ex1(2), ex1(1)
+                    !write(6,*) GetTMatEl(BRR(2*ex1(2)),BRR(2*ex1(1)))
+                    !write(6,*)
 
                     do j = 1, ex1(2)-1
                         factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) - &
-                                par_1*get_umat_el(ptr_getumatel, ex1(2), j, j, ex1(1))
+                                par_1*get_umat_el(ptr_getumatel, BRR(2*ex1(2))/2, BRR(2*j)/2, BRR(2*j)/2, BRR(2*ex1(1))/2)
                     end do
 
                     if (ex1(2) > ex1(1)) then
                         factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) - &
-                                par_1*get_umat_el(ptr_getumatel, ex1(2), ex1(2), ex1(2), ex1(1))
+                                par_1*get_umat_el(ptr_getumatel, BRR(2*ex1(2))/2, BRR(2*ex1(2))/2, BRR(2*ex1(2))/2, BRR(2*ex1(1))/2)
+                        !write(6,*) ex1(2), ex1(2), ex1(2), ex1(1)
+                        !write(6,*) get_umat_el(ptr_getumatel, ex1(2), ex1(2), ex1(2), ex1(1))
+                        !write(6,*)
                     else if (ex1(2) == ex1(1)) then
                         factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) - &
-                                0.5_dp*par_1*get_umat_el(ptr_getumatel, ex1(2), ex1(2), ex1(2), ex1(1))
+                                0.5_dp*par_1*get_umat_el(ptr_getumatel, BRR(2*ex1(2))/2, BRR(2*ex1(2))/2, BRR(2*ex1(2))/2, BRR(2*ex1(1))/2)
+                        !write(6,*) ex1(2), ex1(2), ex1(2), ex1(1)
+                        !write(6,*) get_umat_el(ptr_getumatel, ex1(2), ex1(2), ex1(2), ex1(1))
+                        !write(6,*)
                     end if
 
                     ! To initialise the excitation generator in the first cycle.
@@ -146,11 +158,14 @@ contains
                         call gen_next_single_ex(string_k, ilut_k, string_j, ilut_j, ex2, nras1, nras3, ras, gen_store_2)
 
                         if (ilut_j(0) == -1) exit
+                        
+                        !write(6,*) "i, j:", ex2(2), ex2(1)
+                        !write(6,*) 
 
                         !write(6,*) "string_j:", string_j
                         !call neci_flush(6)
 
-                        ! Only need to consider excitations where (ij) >= (jk).
+                        ! Only need to consider excitations where (ij) >= (kl).
                         if ( (ex2(2)-1)*tot_norbs + ex2(1) < (ex1(2)-1)*tot_norbs + ex1(1)) cycle
 
                         class_j = ras%class_label(nras1, nras3)
@@ -163,19 +178,33 @@ contains
                         ! Avoid overcounting for the case that the indices are the same.
                         if (ex1(1) == ex2(1) .and. ex1(2) == ex2(2)) then
                             factors(class_j, sym_j)%elements(ind_j) = factors(class_j, sym_j)%elements(ind_j) + &
-                              0.5_dp*par_1*par_2*get_umat_el(ptr_getumatel, ex2(2), ex1(2), ex2(1), ex1(1))
+                              0.5_dp*par_1*par_2*get_umat_el(ptr_getumatel, BRR(2*ex2(2))/2, BRR(2*ex1(2))/2, BRR(2*ex2(1))/2, BRR(2*ex1(1))/2)
+                            !write(6,*) ex2(2), ex2(1), ex1(2), ex1(1)
+                            !write(6,*) get_umat_el(ptr_getumatel, ex2(2), ex1(2), ex2(1), ex1(1))
+                            !write(6,*)
+                            !write(6,*) "Here2!"
+                            !write(6,*) "integral:", get_umat_el(ptr_getumatel, ex2(2), ex1(2), ex2(1), ex1(1))
+                            !write(6,*) "factor:", factors(class_j, sym_j)%elements(ind_j)
                         else
                             factors(class_j, sym_j)%elements(ind_j) = factors(class_j, sym_j)%elements(ind_j) + &
-                              par_1*par_2*get_umat_el(ptr_getumatel, ex2(2), ex1(2), ex2(1), ex1(1))
+                              par_1*par_2*get_umat_el(ptr_getumatel, BRR(2*ex2(2))/2, BRR(2*ex1(2))/2, BRR(2*ex2(1))/2, BRR(2*ex1(1))/2)
+                            !write(6,*) ex2(2), ex2(1), ex1(2), ex1(1)
+                            !write(6,*) get_umat_el(ptr_getumatel, ex2(2), ex1(2), ex2(1), ex1(1))
+                            !write(6,*)
+                            !write(6,*) "Here3!"
+                            !write(6,*) "integral:", get_umat_el(ptr_getumatel, ex2(2), ex1(2), ex2(1), ex1(1))
+                            !write(6,*) "factor:", factors(class_j, sym_j)%elements(ind_j)
                         end if
 
                     end do
 
                 end do
 
+                !write(6,*) "string_i:", string_i
                 !write(6,*) "factors:"
-                !write(6,*) factors(1,5)%elements
-                !write(6,*) factors(2,0)%elements
+                !do class_i = 1, num_classes
+                !    write(6,*) factors(class_i,0)%elements
+                !end do
                 !write(6,*)
 
                 ! The factors array has now been fully generated for string_i. Now we just have to add in the
@@ -199,20 +228,21 @@ contains
                         ! If there are no states in this class with the required symmetry.
                         if (classes(class_k)%num_sym(sym_k) == 0) cycle
 
+                        !write(6,*) "string_i:", string_i
+                        !write(6,*)
+
                         ! Finally, update the output vector.
                         ! Add in sigma_2.
                         vec_out(class_j, i, sym_j)%elements(:, ind_i) = &
                             vec_out(class_j, i, sym_j)%elements(:, ind_i) + &
                             matmul(vec_in(class_j, class_k, sym_j)%elements(:,:), factors(class_k, sym_k)%elements(:))
-
-                        !write(6,*) "factors:", vec_out(class_j, i, sym_j)%elements(:, ind_i)
+                        !write(6,*) "class_j, class_i:", class_j, i
+                        !write(6,*) vec_out(class_j, i, sym_j)%elements(:, ind_i)
 
                         ! Add in sigma_1.
                         vec_out(i, class_j, sym_i)%elements(ind_i, :) = &
                             vec_out(i, class_j, sym_i)%elements(ind_i, :) + &
                             matmul(factors(class_k, sym_k)%elements(:), vec_in(class_k, class_j, sym_k)%elements(:,:))
-
-                        !write(6,*) "factors:", factors(class_k, sym_k)%elements(:)
 
                     end do ! Over all classes connected to string_j.
                     
@@ -225,19 +255,21 @@ contains
         end do ! Over all classes.
 
         ! Test code - print out vec_out.
-        do i = 1, size(classes)
-            do j = 1, classes(i)%num_comb
-                class_j = classes(i)%allowed_combns(j)
-                do k = 0, 7
-                    l = ieor(HFSym, k)
-                    do m = 1, classes(i)%num_sym(k)
-                        do n = 1, classes(class_j)%num_sym(l)
-                            !write(6,*) vec_out(i,class_j,k)%elements(m,n)
-                        end do
-                    end do
-                end do
-            end do
-        end do
+        !write(6,*)
+        !write(6,*) "vec_out:"
+        !do i = 1, size(classes)
+        !    do j = 1, classes(i)%num_comb
+        !        class_j = classes(i)%allowed_combns(j)
+        !        do k = 0, 7
+        !            l = ieor(HFSym, k)
+        !            do m = 1, classes(i)%num_sym(k)
+        !                do n = 1, classes(class_j)%num_sym(l)
+        !                    write(6,*) vec_out(i,class_j,k)%elements(m,n)
+        !                end do
+        !            end do
+        !        end do
+        !    end do
+        !end do
 
         ! Next, calculate contirbution from the alpha-beta term, sigma_3.
 
@@ -255,8 +287,12 @@ contains
                 !write(6,*) "k, l:", k, l
                 !call neci_flush(6)
 
-                ex1(1) = k
-                ex1(2) = l
+                ex1(1) = l
+                ex1(2) = k
+
+                !write(6,*)
+                !write(6,*) "k,l:", k, l
+                !write(6,*)
 
                 do i = 1, num_classes
                     call generate_first_full_string(string_i, ras, classes(i))
@@ -270,10 +306,11 @@ contains
                         ind_i = classes(i)%address_map(get_address(classes(i), string_i))
                         call encode_string(string_i, ilut_i)
 
-                        if ((.not. IsOcc(ilut_i,BRR(2*k))) .or. &
-                                (IsOcc(ilut_i,BRR(2*l)) .and. k /= l)) then
+                        call get_excit_details(string_i, ex1, ras, nras1, nras3, string_j, sym_j, class_j, in_ras_space)
+
+                        if ((.not. IsOcc(ilut_i,l)) .or. (IsOcc(ilut_i,k) .and. k /= l) .or. (.not. in_ras_space)) then
                         else
-                            call get_excit_details(string_i, ilut_i, ex1, ras, nras1, nras3, string_j, sym_j, class_j)
+                            !write(6,*) "first string_i:", string_i
                             ind_j = classes(class_j)%address_map(get_address(classes(class_j), string_j))
                             ind_j = ind_j - sum(classes(class_j)%num_sym(0:sym_j-1))
 
@@ -300,8 +337,8 @@ contains
                     end do
                 end do
 
-                write(6,*) c(2,2)%elements, c(2,1)%elements
-                write(6,*) c(1,2)%elements, c(1,1)%elements
+                !write(6,*) c(2,2)%elements, c(2,1)%elements
+                !write(6,*) c(1,2)%elements, c(1,1)%elements
 
                 do i = 1, num_classes
 
@@ -313,7 +350,7 @@ contains
 
                         call encode_string(string_i, ilut_i)
 
-                        write(6,*) "string_i:", string_i
+                        !write(6,*) "string_i:", string_i
 
                         sym_i = get_abelian_sym(string_i)
                         ind_i = classes(i)%address_map(get_address(classes(i), string_i))
@@ -339,13 +376,11 @@ contains
                             ind_j = ind_j - sum(classes(class_j)%num_sym(0:sym_j-1))
 
                             factors(class_j, sym_j)%elements(ind_j) = factors(class_j, sym_j)%elements(ind_j) + &
-                              par_1*get_umat_el(ptr_getumatel, k, ex1(1), l, ex1(2))
+                              par_1*get_umat_el(ptr_getumatel, BRR(2*ex1(2))/2, BRR(2*k)/2, BRR(2*ex1(1))/2, BRR(2*l)/2)
+                              !write(6,*) ex1(2), ex1(1), k, l
+                              !write(6,*) get_umat_el(ptr_getumatel, ex1(2), k, ex1(1), l)
 
                         end do
-
-                        write(6,*) "factors:"
-                        write(6,*) factors(2,0)%elements, factors(1,5)%elements
-                        write(6,*)
 
                         do j = 1, classes(i)%num_comb
 
@@ -372,22 +407,23 @@ contains
                                             dot_product(factors(class_m,sym_m)%elements(:), &
                                             c(class_j, class_m)%elements(ind_j, min_ind:max_ind))
 
-                                        !write(6,*) "v:", v(class_j, sym_j)%elements(ind_j_sym)
-
                                     end do
 
                                 end do ! Over all classes connected to class_j.
+
+                                !write(6,*) "class_j, class_i:", class_j, i
+                                !write(6,*) "v:", v(class_j, sym_j)%elements(ind_j_sym)
 
                                 vec_out(class_j, i, sym_j)%elements(ind_j_sym, ind_i) = &
                                     vec_out(class_j, i, sym_j)%elements(ind_j_sym, ind_i) + &
                                     v(class_j, sym_j)%elements(ind_j_sym)
 
-                                    write(6,*) "class_j:", class_j, "string_j:", string_j
-                                    write(6,*) "addition:", v(class_j, sym_j)%elements(ind_j_sym)
+                                    !write(6,*) "class_j:", class_j, "string_j:", string_j
+                                    !write(6,*) "addition:", v(class_j, sym_j)%elements(ind_j_sym)
 
                             end do ! Over all states in class_j with symmetry sym_j.
 
-                        end do ! Over all classes.
+                        end do ! Over all classes allowed with class_i.
 
                         call generate_next_string(string_i, ras, classes(i), none_left)
                         ! If no strings left in this class, go to the next class.
@@ -411,21 +447,21 @@ contains
         ilut = 0
 
         do i = 1, tot_nelec
-            pos = (BRR(string(i)*2) - 1) / bits_n_int
-            ilut(pos) = ibset(ilut(pos), mod(BRR(string(i)*2)-1, bits_n_int))
+            pos = (string(i)-1)/bits_n_int
+            ilut(pos) = ibset(ilut(pos), mod(string(i)-1, bits_n_int))
         end do
                 
     end subroutine encode_string
 
-    subroutine get_excit_details(string_i, ilut_i, ex, ras, nras1, nras3, string_j, sym_j, class_j)
+    subroutine get_excit_details(string_i, ex, ras, nras1, nras3, string_j, sym_j, class_j, in_ras_space)
 
         integer, intent(in) :: string_i(tot_nelec)
-        integer(n_int), intent(in) :: ilut_i(0:NIfTot)
         integer, intent(in) :: ex(2)
         type(ras_parameters), intent(in) :: ras
         integer, intent(in) :: nras1, nras3
         integer, intent(out) :: string_j(tot_nelec)
         integer, intent(out) :: sym_j, class_j
+        logical, intent(out) :: in_ras_space
         integer :: i, new_1, new_3
 
         new_1 = nras1
@@ -443,11 +479,18 @@ contains
             new_3 = new_3 + 1
         end if
 
+        if (class_allowed(ras, new_1, new_3)) then
+            in_ras_space = .true.
+        else
+            in_ras_space = .false.
+            return
+        end if
+
         class_j = ras%class_label(new_1, new_3)
 
         string_j = string_i
         do i = 1, tot_nelec
-            if (string_j(i) == ex(1))then
+            if (string_j(i) == ex(1)) then
                 string_j(i) = ex(2)
                 exit
             end if
@@ -505,12 +548,12 @@ contains
         ! Interrupt loop when we find what we need.
         do i = i, tot_nelec
 
-            orb1 = BRR(string_i(i)*2)
+            orb1 = string_i(i)
 
             j = j + 1
             do j = j, tot_norbs
 
-                orb2 = BRR(2*j)
+                orb2 = j
 
                 ! Cannot excite to an occupied orbital, unless it is the orbital that we are
                 ! exciting from.
