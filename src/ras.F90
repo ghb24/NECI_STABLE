@@ -598,7 +598,7 @@ contains
         type(ras_class_data), intent(in) :: classes(:)
         integer, intent(out) :: space_size
         integer :: i, j, k, l
-        integer :: ras%num_classes, temp_class
+        integer :: temp_class
 
         space_size = 0
 

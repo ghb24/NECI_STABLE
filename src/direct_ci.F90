@@ -15,7 +15,7 @@ module direct_ci
         integer(sp), allocatable, dimension(:) :: excit_ind
         integer(sp), allocatable, dimension(:) :: par
         integer(sp), allocatable, dimension(:,:) :: orbs
-        integer :: num_excit
+        integer :: nexcit
     end type direct_ci_excit
 
 contains
@@ -28,7 +28,7 @@ contains
         type(ras_vector), intent(inout) :: vec_out(size(classes), size(classes), 0:7)
         type(ras_vector) :: c(size(classes), size(classes))
         integer :: num_classes, class_i, class_j, class_k, class_m, par_1, par_2
-        integer :: i, j, k, l, m, ind_i, ind_j, ind_k, temp_1, temp_2, nras1, nras3
+        integer :: i, j, k, l, m, ind_i, ind_j, ind_k, nras1, nras3
         integer :: sym_i, sym_j, sym_k, sym_m, sym_prod1, sym_prod2
         integer :: ex1(2), ex2(2)
         real(dp), allocatable, dimension(:) :: factor
@@ -354,7 +354,7 @@ contains
     subroutine encode_string(string, ilut)
 
         integer, intent(in) :: string(tot_nelec)
-        integer(n_int), intent(out) :: ilut(0:NIfTot)
+        integer(n_int), intent(out) :: ilut(0:NIfD)
         integer :: i, pos
 
         ilut = 0
@@ -429,29 +429,31 @@ contains
 
     end subroutine zero_factors_array
 
-    subroutine gen_next_single_ex(string_i, ilut_i, string_k, ilut_k, &
-                                  ex, nras1, nras3, ras, gen_store)
+    subroutine gen_next_single_ex(string_i, ilut_i, nras1, nras3, ind, par, ex, ras, gen_store, tgen, tcount)
 
         integer, intent(in) :: string_i(tot_nelec)
-        integer(n_int), intent(in) :: ilut_i(0:NIfTot)
-        integer, intent(out) :: string_k(tot_nelec)
-        integer(n_int), intent(inout) :: ilut_k(0:NIfTot)
+        integer(n_int), intent(in) :: ilut_i(0:NIfD)
+        integer, intent(in) :: nras1, nras3
+        integer, intent(out) :: ind, par
         integer, intent(out) :: ex(2)
-        integer, intent(inout) :: nras1, nras3
         type(ras_parameters), intent(in) :: ras
         type(simple_excit_store), intent(inout), target :: gen_store
+        integer, intent(inout) tgen
+        logical, intent(in) :: tcount
 
         integer, pointer :: i, j
-        integer :: orb1, orb2, temp_1, temp_3
+        integer :: orb1, orb2, temp1, temp3, class_k
+        integer :: string_k(tot_nelec)
 
         ! Map the local variables onto the store.
         i => gen_store%i;
         j => gen_store%j
 
         ! Initialise the generator.
-        if (ilut_k(0) == -1) then
+        if (tgen) then
             i = 1
             j = 0
+            tgen = .false.
         end if
 
         ! Find the next possible single excitation. Loop over electrons and vacant orbitals.
@@ -472,85 +474,117 @@ contains
                 ex(1) = string_i(i)
                 ex(2) = j
 
-                temp_1 = nras1
-                temp_3 = nras3
+                temp1 = nras1
+                temp3 = nras3
 
                 ! Store the values of nras1 and nras 3 for the new string.
                 if (ex(1) <= ras%size_1) then
-                    temp_1 = temp_1 - 1
+                    temp1 = temp1 - 1
                 else if (ex(1) > ras%size_1 + ras%size_2) then
-                    temp_3 = temp_3 - 1
+                    temp3 = temp3 - 1
                 end if
 
                 if (ex(2) <= ras%size_1) then
-                    temp_1 = temp_1 + 1
+                    temp1 = temp1 + 1
                 else if (ex(2) > ras%size_1 + ras%size_2) then
-                    temp_3 = temp_3 + 1
+                    temp3 = temp3 + 1
                 end if
 
                 ! We don't have to consider excitations to outside the ras space.
-                if (.not. class_allowed(ras, temp_1, temp_3)) cycle
+                if (.not. class_allowed(ras, temp1, temp3)) cycle
 
-                ! If the class is allowed then the final test is passed, so update nras1 and nras3
-                ! ready to be output.
-                nras1 = temp_1
-                nras3 = temp_3
-
-                ! Generate the determinant and interrupt the loop.
-                ilut_k = ilut_i
-                clr_orb(ilut_k, orb1)
-                set_orb(ilut_k, orb2)
+                ! If we get to this point then (orb1, orb2) is a valid excitation. As an
+                ! optimisation, if we are only counting the excitations then return now.
+                if (tcount) return
 
                 ! Encode new string.
                 string_k = string_i
                 string_k(i) = j
                 call sort(string_k)
 
+                class_k = ras%class_label(temp1, temp3)
+                ind = classes(class_k)%address_map(get_address(classes(class_k), string_k))
+                ind = ind + sum(classes(1:class_k-1)%class_size
+                par = get_single_parity(ilut_i, ex(1), ex(2)) 
+
                 return
             end do
             j = 0 ! Reset loop.
         end do
 
-        ilut_k(0) = -1
+        tgen = .true.
 
     end subroutine gen_next_single_ex
 
-    subroutine create_direct_ci_arrays(ras, classes)
+    subroutine create_direct_ci_arrays(ras, classes, ras_strings, ras_iluts, ras_excit)
 
         type(ras_parameters), intent(in) :: ras
         type(ras_class_data), intent(inout), allocatable, dimension(:) :: classes
-        integer, allocatable, dimension(:,:) :: ras_strings
-        integer :: class_i, itot
+        integer, intent(out), allocatable, dimension(:,:) :: ras_strings
+        integer(n_int), intent(out), allocatable, dimension(:,:) :: ras_iluts
+        type(direct_ci_excit), intent(out), allocatable, dimension(:) :: ras_excit
+        integer(n_int) :: ilut_i(0:NIfD)
+        integer :: class_i, ind, new_ind, counter
+        integer :: nras1, nras3
         integer :: string_i(tot_nelec)
-        logical :: non_left
+        logical :: none_left, tgen
+        type(simple_excit_store), target :: gen_store_1
 
         allocate(ras_strings(-1:tot_nelec, ras%num_strings))
+        allocate(ras_iluts(0:NIfD, ras%num_strings))
+        allocate(ras_excit(ras%num_strings))
 
-        itot = 0
+        ilut_i = 0
 
         ! Loop over all classes.
         do class_i = 1, ras%num_classes
+            nras1 = classes(i)%nelec_1
+            nras3 = classes(i)%nelec_3
             call generate_first_full_string(string_i, ras, classes(class_i))
             do
-                itot = itot + 1
+                ind = classes(class_i)%address_map(get_address(classes(class_i), string_i))
+                ind = ind + sum(classes(1:class_i-1)%class_size
 
-                ras_strings(1:tot_nelec,itot) = string_i
-                ras_strings(-1,itot) = get_abelian_sym(string_i)
-                ras_strings(0,itot) = class_i
+                ras_strings(1:tot_nelec,ind) = string_i
+                ras_strings(-1,ind) = get_abelian_sym(string_i)
+                ras_strings(0,ind) = class_i
+                call encode_string(string_i, ilut_i)
+                ras_iluts(:,ind) = ilut_i
 
                 ! Now count the number of excitations.
+                counter = 0
+                ! Initialise the excitation generator.
+                tgen = .true.
                 do
-                    call gen_next_single_ex(string_i, ilut_i, new_ind, ex, nras1, nras3, ras, gen_store_1)
-                    if (ilut_k(0) == -1) exit
+                    call gen_next_single_ex(string_i, ilut_i, nras1, nras3, new_ind, par, ex, ras, gen_store_1, tgen, .true.)
+                    if (tgen) exit
+                    counter = counter + 1
                 end do
 
+                ras_excit(ind)%nexcit = counter
 
-                call generate_next_string(string_i, ras, classes(i), none_left)
+                ! Now that they have been counted, allocate the excitation array and store them.
+                allocate(ras_excit(ind)%excit_ind(counter))
+                allocate(ras_excit(ind)%par(counter))
+                allocate(ras_excit(ind)%orbs(2,counter))
+
+                counter = 0
+                tgen = .true.
+                do
+                    call gen_next_single_ex(string_i, ilut_i, nras1, nras3, new_ind, par, ex, ras, gen_store_1, tgen, .false.)
+                    if (tgen) exit
+                    counter = counter + 1
+                    ras_excit(ind)%excit_ind(counter) = new_ind
+                    ras_excit(ind)%par(counter) = par
+                    ras_excit(ind)%orbs(:,counter) = ex
+                end do
+
+                call generate_next_string(string_i, ras, classes(class_i), none_left)
                 ! If no strings left in this class, go to the next class.
                 if (none_left) exit
             end do
         end do
 
-    end subroutine create_direct_ci
+    end subroutine create_direct_ci_arrays
 
 end module direct_ci
