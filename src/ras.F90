@@ -581,14 +581,17 @@ contains
         ! mnultiply these by 2 when used in G1.
 
         integer, intent(in) :: string(:)
-        integer :: sym
+        integer(sp) :: sym
+        integer(int64) :: temp_sym
         integer :: i
 
-        sym = G1(BRR(string(1)*2))%Sym%S
+        temp_sym = G1(BRR(string(1)*2))%Sym%S
 
         do i = 2, size(string)
-            sym = ieor(sym, G1(BRR(string(i)*2))%Sym%S)
+            temp_sym = ieor(sym, G1(BRR(string(i)*2))%Sym%S)
         end do
+
+        sym = int(temp_sym,sp)
 
     end function get_abelian_sym
 
