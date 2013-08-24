@@ -743,10 +743,10 @@ contains
 
     subroutine find_next_comb(comb, k, n, finish)
 
-        integer, intent(in) :: k, n
-        integer, intent(inout) :: comb(k)
+        integer(sp), intent(in) :: k, n
+        integer(sp), intent(inout) :: comb(k)
         logical, intent(out) :: finish
-        integer :: i
+        integer(sp) :: i
 
         if (k == 0 .or. n == 0) then
             finish = .true.

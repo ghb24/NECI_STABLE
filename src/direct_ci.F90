@@ -25,23 +25,23 @@ contains
 
         type(ras_parameters), intent(in) :: ras
         type(ras_class_data), intent(in) :: classes(ras%num_classes)
-        integer(sp), intent(inout), allocatable, dimension(:,:) :: ras_strings
-        integer(n_int), intent(inout), allocatable, dimension(:,:) :: ras_iluts
-        type(direct_ci_excit), intent(inout), allocatable, dimension(:) :: ras_excit
+        integer(sp), intent(in) :: ras_strings(-1:tot_nelec, core_ras%num_strings)
+        integer(n_int), intent(in) :: ras_iluts(0:NIfD, core_ras%num_strings)
+        type(direct_ci_excit), intent(in) :: ras_excit(core_ras%num_strings)
         type(ras_vector), intent(in) :: vec_in(ras%num_classes, ras%num_classes, 0:7)
         type(ras_vector), intent(inout) :: vec_out(ras%num_classes, ras%num_classes, 0:7)
 
-        integer :: class_i, class_j, class_k, class_m, par_1, par_2
-        integer :: i, j, k, l, m
-        integer :: excit_j, excit_k
-        integer :: ind_i, ind_j, ind_k, full_ind_j, full_ind_k
-        integer :: nras1, nras3, min_ind, max_ind
+        integer(sp) :: class_i, class_j, class_k, class_m, par_1, par_2
+        integer(sp) :: i, j, k, l, m
+        integer(sp) :: excit_j, excit_k
+        integer(sp) :: ind_i, ind_j, ind_k, full_ind_j, full_ind_k
+        integer(sp) :: nras1, nras3, min_ind, max_ind
         integer(sp) :: sym_i, sym_j, sym_k, sym_m, HFSym_sp
-        integer :: ex1(2), ex2(2)
+        integer(sp) :: ex1(2), ex2(2)
 
         type(ras_vector) :: c(ras%num_classes, ras%num_classes)
         real(dp), allocatable, dimension(:) :: factor
-        integer :: string_i(tot_nelec), string_j(tot_nelec), string_k(tot_nelec)
+        integer(sp) :: string_i(tot_nelec), string_j(tot_nelec), string_k(tot_nelec)
         integer(n_int) :: ilut_i(0:NIfD), ilut_j(0:NIfD), ilut_k(0:NIfD)
         type(ras_factors) :: factors(ras%num_classes, 0:7), v(ras%num_classes, 0:7)
         type(ras_factors) :: r(ras%num_classes)
@@ -226,7 +226,7 @@ contains
                             ind_j = classes(class_j)%address_map(get_address(classes(class_j), string_j))
                             ind_j = ind_j - sum(classes(class_j)%num_sym(0:sym_j-1))
 
-                            r(i)%elements(ind_i) = real(get_single_parity(ilut_i, l, k), dp)
+                            r(i)%elements(ind_i) = real(get_single_parity(ilut_i, int(l,sizeof_int), int(k,sizeof_int)), dp)
 
                             do m = 1, classes(class_j)%num_comb
                                 class_m = classes(class_j)%allowed_combns(m)
@@ -317,9 +317,9 @@ contains
 
     subroutine encode_string(string, ilut)
 
-        integer, intent(in) :: string(tot_nelec)
+        integer(sp), intent(in) :: string(tot_nelec)
         integer(n_int), intent(out) :: ilut(0:NIfD)
-        integer :: i, pos
+        integer(sp) :: i, pos
 
         ilut = 0
 
@@ -332,15 +332,15 @@ contains
 
     subroutine get_excit_details(string_i, ex, ras, nras1, nras3, string_j, sym_j, class_j, in_ras_space)
 
-        integer, intent(in) :: string_i(tot_nelec)
-        integer, intent(in) :: ex(2)
+        integer(sp), intent(in) :: string_i(tot_nelec)
+        integer(sp), intent(in) :: ex(2)
         type(ras_parameters), intent(in) :: ras
-        integer, intent(in) :: nras1, nras3
-        integer, intent(out) :: string_j(tot_nelec)
+        integer(sp), intent(in) :: nras1, nras3
+        integer(sp), intent(out) :: string_j(tot_nelec)
         integer(sp), intent(inout) :: sym_j
-        integer, intent(out) :: class_j
+        integer(sp), intent(out) :: class_j
         logical, intent(out) :: in_ras_space
-        integer :: i, new1, new3
+        integer(sp) :: i, new1, new3
         integer(sp) :: sym_prod
 
         new1 = nras1
@@ -383,9 +383,9 @@ contains
 
     subroutine zero_factors_array(num_classes, factors)
 
-        integer, intent(in) :: num_classes
+        integer(sp), intent(in) :: num_classes
         type(ras_factors), intent(inout) :: factors(num_classes, 0:7)
-        integer :: class_i, sym_i
+        integer(sp) :: class_i, sym_i
 
         do class_i = 1, num_classes
             do sym_i = 0, 7
@@ -398,11 +398,11 @@ contains
 
     subroutine gen_next_single_ex(string_i, ilut_i, nras1, nras3, ind, par, ex, ras, classes, gen_store, tgen, tcount)
 
-        integer, intent(in) :: string_i(tot_nelec)
+        integer(sp), intent(in) :: string_i(tot_nelec)
         integer(n_int), intent(in) :: ilut_i(0:NIfD)
-        integer, intent(in) :: nras1, nras3
-        integer, intent(out) :: ind, par
-        integer, intent(out) :: ex(2)
+        integer(sp), intent(in) :: nras1, nras3
+        integer(sp), intent(out) :: ind, par
+        integer(sp), intent(out) :: ex(2)
         type(ras_parameters), intent(in) :: ras
         type(ras_class_data), intent(in) :: classes(ras%num_classes)
         type(simple_excit_store), intent(inout), target :: gen_store
@@ -410,8 +410,8 @@ contains
         logical, intent(in) :: tcount
 
         integer, pointer :: i, j
-        integer :: orb1, orb2, temp1, temp3, class_k
-        integer :: string_k(tot_nelec)
+        integer(sp) :: orb1, orb2, temp1, temp3, class_k
+        integer(sp) :: string_k(tot_nelec)
 
         ! Map the local variables onto the store.
         i => gen_store%i;
@@ -473,7 +473,7 @@ contains
                 class_k = ras%class_label(temp1, temp3)
                 ind = classes(class_k)%address_map(get_address(classes(class_k), string_k))
                 ind = ind + sum(classes(1:class_k-1)%class_size)
-                par = get_single_parity(ilut_i, ex(1), ex(2)) 
+                par = get_single_parity(ilut_i, int(ex(1),sizeof_int), int(ex(2),sizeof_int)) 
 
                 return
             end do
@@ -488,20 +488,16 @@ contains
 
         type(ras_parameters), intent(in) :: ras
         type(ras_class_data), intent(inout), allocatable, dimension(:) :: classes
-        integer, intent(out), allocatable, dimension(:,:) :: ras_strings
-        integer(n_int), intent(out), allocatable, dimension(:,:) :: ras_iluts
-        type(direct_ci_excit), intent(out), allocatable, dimension(:) :: ras_excit
+        integer(sp), intent(out) :: ras_strings(-1:tot_nelec, core_ras%num_strings)
+        integer(n_int), intent(out) :: ras_iluts(0:NIfD, core_ras%num_strings)
+        type(direct_ci_excit), intent(out) :: ras_excit(core_ras%num_strings)
         integer(n_int) :: ilut_i(0:NIfD)
-        integer :: class_i, ind, new_ind, counter
-        integer :: nras1, nras3, par
-        integer :: ex(2)
-        integer :: string_i(tot_nelec)
+        integer(sp) :: class_i, ind, new_ind, counter
+        integer(sp) :: nras1, nras3, par
+        integer(sp) :: ex(2)
+        integer(sp) :: string_i(tot_nelec)
         logical :: none_left, tgen
         type(simple_excit_store), target :: gen_store_1
-
-        allocate(ras_strings(-1:tot_nelec, ras%num_strings))
-        allocate(ras_iluts(0:NIfD, ras%num_strings))
-        allocate(ras_excit(ras%num_strings))
 
         ilut_i = 0
 

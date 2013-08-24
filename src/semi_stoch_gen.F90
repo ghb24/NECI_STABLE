@@ -432,7 +432,8 @@ contains
         ! In: called_from - Integer to specify whether this routine was called from the
         !     the semi-stochastic generation code or the trial vector generation code.
 
-        use direct_ci, only: perform_multiplication
+        use direct_ci, only: perform_multiplication, direct_ci_excit, create_direct_ci_arrays
+        use ras, only: tot_nelec
 
         integer, intent(in) :: called_from
         type(ras_class_data), allocatable, dimension(:) :: core_classes
@@ -442,6 +443,9 @@ contains
 
         integer :: j, k, l, m, n, temp_class
         type(ras_vector), allocatable, dimension(:,:,:) :: vec_in, vec_out
+        integer(sp), allocatable, dimension(:,:) :: ras_strings
+        integer(n_int), allocatable, dimension(:,:) :: ras_iluts
+        type(direct_ci_excit), allocatable, dimension(:) :: ras_excit
 
         tot_nelec = nel/2
         tot_norbs = nbasis/2
@@ -482,6 +486,12 @@ contains
 
         !-----------------------------------------------------------------------------
 
+        allocate(ras_strings(-1:tot_nelec, core_ras%num_strings))
+        allocate(ras_iluts(0:NIfD, core_ras%num_strings))
+        allocate(ras_excit(core_ras%num_strings))
+
+        call create_direct_ci_arrays(core_ras, core_classes, ras_strings, ras_iluts, ras_excit)
+
         allocate(vec_in(size(core_classes),size(core_classes),0:7))
         allocate(vec_out(size(core_classes),size(core_classes),0:7))
 
@@ -489,7 +499,7 @@ contains
             do j = 1, core_classes(i)%num_comb
                 temp_class = core_classes(i)%allowed_combns(j)
                 do k = 0, 7
-                    l = ieor(HFSym, k)
+                    l = ieor(int(HFSym,sizeof_int), k)
 
                     if (core_classes(i)%num_sym(k) == 0 .or. core_classes(temp_class)%num_sym(l) == 0) cycle
 
@@ -506,7 +516,7 @@ contains
 
         vec_in(3,3,0)%elements(1,1) = 1.0_dp
 
-        call perform_multiplication(core_ras, core_classes, vec_in, vec_out)
+        call perform_multiplication(core_ras, core_classes, ras_strings, ras_iluts, ras_excit, vec_in, vec_out)
 
         write(6,*)
         write(6,*) "Direct ci answer:"
@@ -514,7 +524,7 @@ contains
             do j = 1, core_classes(i)%num_comb
                 temp_class = core_classes(i)%allowed_combns(j)
                 do k = 0, 7
-                    l = ieor(HFSym, k)
+                    l = ieor(int(HFSym,sizeof_int), k)
                     do m = 1, core_classes(i)%num_sym(k)
                         do n = 1, core_classes(temp_class)%num_sym(l)
                             write(6,*) vec_out(i,temp_class,k)%elements(m,n)
