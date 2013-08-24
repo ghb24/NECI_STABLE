@@ -47,6 +47,11 @@ module ras
         ! The lower and upper bounds on the number of electrons that occupy
         ! be in ras1 orbitals for each string.
         integer :: lower_ras1, upper_ras1
+        ! The total number of ras classes.
+        integer :: num_classes
+        ! The total number of strings (there are the same number of alpha
+        ! and beta strings for now).
+        integer :: num_strings
         ! If you input the number of electrons in RAS1 as the first index
         ! and the number of electrons in RAS3 as the second index then
         ! this array will give you the label of corresponding class.
@@ -110,10 +115,9 @@ contains
         type(ras_parameters), intent(inout) :: ras
         type(ras_class_data), intent(inout), allocatable, dimension(:) :: classes
         integer :: i, j, k, counter
-        integer :: num_classes
         type(basisfn) :: hfbasisfn
         integer :: string(tot_nelec)
-        integer :: space_size, lower_ras3, upper_ras3
+        integer :: lower_ras3, upper_ras3
 
         ! First we need to find the different classes. A class is defined by the number
         ! of electrons in RAS1 and RAS3. Thus, we need to find all possible allowed
@@ -136,11 +140,11 @@ contains
             end do
         end do
 
-        num_classes = counter
+        ras%num_classes = counter
         counter = 0
 
         ! ...then fill the classes in.
-        allocate(classes(num_classes))
+        allocate(classes(ras%num_classes))
         do i = ras%lower_ras1, ras%upper_ras1
             lower_ras3 = max(0, tot_nelec-i-2*ras%size_2)
             upper_ras3 = min(tot_nelec-i, ras%max_3)
@@ -163,7 +167,7 @@ contains
         end do
 
         ! Form the vertex weights for each class.
-        do i = 1, num_classes
+        do i = 1, ras%num_classes
             classes(i)%vertex_weights(0, 0) = 1
             do j = 1, tot_norbs
                 do k = 0, tot_nelec
@@ -183,11 +187,11 @@ contains
         end do
 
         ! Find the allowed combinations of classes in the full RAS space.
-        do i = 1, num_classes
+        do i = 1, ras%num_classes
             counter = 0
-            allocate(classes(i)%allowed_combns(num_classes))
+            allocate(classes(i)%allowed_combns(ras%num_classes))
             classes(i)%allowed_combns = 0
-            do j = 1, num_classes
+            do j = 1, ras%num_classes
                 ! If the total number of electrons in the RAS spaces are correct with
                 ! this combination.
                 if (class_comb_allowed(ras, classes(i), classes(j))) then
@@ -198,8 +202,10 @@ contains
             classes(i)%num_comb = counter
         end do
 
-        do i = 1, num_classes
+        ras%num_strings = 0
+        do i = 1, ras%num_classes
             call setup_ras_class(ras, classes(i))
+            ras%num_strings = ras%num_strings + classes(i)%class_size
         end do
 
         call getsym(HFDet, nel, G1, nbasismax, hfbasisfn)
@@ -481,29 +487,22 @@ contains
         integer :: string(tot_nelec)
         integer, allocatable, dimension(:,:) :: string_list
         integer, allocatable, dimension(:,:) :: min_indices
-        integer :: num_classes, num_strings, temp_class
+        integer :: temp_class
         integer :: string_address, block_address
         integer :: i, j, k, l, m, n, o, counter
         logical :: none_left
 
-        ! Calculate the total number of alpha/beta strings.
-        num_classes = size(classes)
-        num_strings = 0
-        do i = 1, num_classes
-            num_strings = num_strings + classes(i)%class_size
-        end do
-
-        allocate(string_list(tot_nelec, num_strings))
+        allocate(string_list(tot_nelec, ras%num_strings))
 
         ! min_indices(i,j) stores the index of the first state in class i with symmetry label j.
-        allocate(min_indices(num_classes, 0:7))
+        allocate(min_indices(ras%num_classes, 0:7))
 
         ! Loop over all classes, and for each, generate all states in that class. Store all these
         ! states in blocks, one after another, in a 1d array (sting_list). Within each block
         ! find_address and classes(i)%address_map are used to to find an address *relative to
         ! the first state* in that class.
         block_address = 0
-        do i = 1, num_classes
+        do i = 1, ras%num_classes
             ! Address of the last string in the last class.
             if (i > 1) block_address = block_address + classes(i-1)%class_size
 
@@ -529,7 +528,7 @@ contains
         counter = 0
         ilut_list = 0
         ! Loop over all classes, call it class_i.
-        do i = 1, num_classes
+        do i = 1, ras%num_classes
             ! For class_i, loop over all classes which can be combined with this one.
             do j = 1, classes(i)%num_comb
                 temp_class = classes(i)%allowed_combns(j)
@@ -599,13 +598,12 @@ contains
         type(ras_class_data), intent(in) :: classes(:)
         integer, intent(out) :: space_size
         integer :: i, j, k, l
-        integer :: num_classes, temp_class
+        integer :: ras%num_classes, temp_class
 
         space_size = 0
-        num_classes = size(classes)
 
         ! Loop over all classes, call it class_i.
-        do i = 1, num_classes
+        do i = 1, ras%num_classes
             ! For this class, loop over all classes which can be combined with this one,
             ! call it class_j.
             do j = 1, classes(i)%num_comb
