@@ -39,28 +39,19 @@ contains
         integer(sp) :: sym_i, sym_j, sym_k, sym_m
         integer(sp) :: ex1(2), ex2(2)
 
-        type(ras_vector) :: c(ras%num_classes, ras%num_classes)
         real(dp), allocatable, dimension(:) :: factor
         integer(sp) :: string_i(tot_nelec), string_j(tot_nelec), string_k(tot_nelec)
         integer(n_int) :: ilut_i(0:NIfD), ilut_j(0:NIfD), ilut_k(0:NIfD)
-        type(ras_factors) :: factors(ras%num_classes, 0:7), v(ras%num_classes, 0:7)
-        type(ras_factors) :: r(ras%num_classes)
-        type(simple_excit_store), target :: gen_store_1, gen_store_2
-        logical :: none_left, in_ras_space
+        type(ras_factors) :: factors(ras%num_classes, 0:7)
+        real(dp), allocatable, dimension(:) :: alpha_beta_fac
+        integer(sp), allocatable, dimension(:) :: r
+        real(dp), allocatable, dimension(:,:) :: c
+        real(dp) :: v
+        logical :: in_ras_space
 
         do class_i = 1, ras%num_classes
             do sym_i = 0, 7
                 allocate(factors(class_i,sym_i)%elements(1:classes(class_i)%num_sym(sym_i)))
-                allocate(v(class_i,sym_i)%elements(1:classes(class_i)%num_sym(sym_i)))
-            end do
-            allocate(r(class_i)%elements(1:classes(class_i)%class_size))
-        end do
-
-        do class_i = 1, ras%num_classes
-            do class_j = 1, ras%num_classes
-                allocate(c(class_i,class_j)%elements(1:classes(class_i)%class_size, &
-                           1:classes(class_j)%class_size))
-                c(class_i,class_j)%elements = 0.0_dp
             end do
         end do
 
@@ -69,12 +60,19 @@ contains
                 class_j = classes(class_i)%allowed_combns(j)
                 do sym_i = 0, 7
                     sym_j = ieor(HFSym, sym_i)
-
-                    if (classes(class_i)%num_sym(sym_i) == 0 .or. classes(class_j)%num_sym(sym_j) == 0) cycle
+                    if (classes(class_i)%num_sym(sym_i) == 0 .or. &
+                        classes(class_j)%num_sym(sym_j) == 0) cycle
                     vec_out(class_i,class_j,sym_i)%elements(:,:) = 0.0_dp
                 end do
             end do
         end do
+
+        allocate(alpha_beta_fac(ras%num_strings))
+        allocate(r(ras%num_strings))
+        allocate(c(ras%num_strings,ras%num_strings))
+        alpha_beta_fac = 0.0_dp
+        r = 0
+        c = 0.0_dp
 
         ! Loop over all strings.
         do i = 1, ras%num_strings
@@ -84,7 +82,7 @@ contains
             ! Get info for string_i.
             sym_i = ras_strings(-1,i)
             class_i = ras_strings(0,i)
-            ind_i = i - sum(classes(1:class_i-1)%class_size) - sum(classes(class_i)%num_sym(0:sym_i-1))
+            ind_i = i - ras%cum_classes(class_i) - classes(class_i)%cum_sym(sym_i)
 
             ! Loop over all single excitations from string_i (-> string_k).
             do excit_k = 1, ras_excit(i)%nexcit
@@ -96,7 +94,7 @@ contains
                 par_1 = ras_excit(i)%par(excit_k)
                 ex1 = ras_excit(i)%orbs(:,excit_k)
 
-                ind_k = full_ind_k - sum(classes(1:class_k-1)%class_size) - sum(classes(class_k)%num_sym(0:sym_k-1))
+                ind_k = full_ind_k - ras%cum_classes(class_k) - classes(class_k)%cum_sym(sym_k)
 
                 factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) + &
                         par_1*GetTMatEl(BRR(2*ex1(2)),BRR(2*ex1(1)))
@@ -131,7 +129,7 @@ contains
                     class_j = ras_strings(0,full_ind_j)
                     par_2 = ras_excit(full_ind_k)%par(excit_j)
 
-                    ind_j = full_ind_j - sum(classes(1:class_j-1)%class_size) - sum(classes(class_j)%num_sym(0:sym_j-1))
+                    ind_j = full_ind_j - ras%cum_classes(class_j) - classes(class_j)%cum_sym(sym_j)
 
                     ! Avoid overcounting for the case that the indices are the same.
                     if (ex1(1) == ex2(1) .and. ex1(2) == ex2(2)) then
@@ -149,7 +147,7 @@ contains
             end do
 
             ! The factors array has now been fully generated for string_i. Now we just have to
-            ! add in the contribution to vec_out from this state.
+            ! add in the contribution to vec_out from this string.
 
             ! Loop over all classes connected to the class of string_i.
             do j = 1, classes(class_i)%num_comb
@@ -213,19 +211,15 @@ contains
         write(6,*) "Completed alpha, beta, alpha-alpha and beta-beta terms."
         call neci_flush(6)
 
-        ! Next, calculate contirbution from the alpha-beta term, sigma_3.
+        ! Next, calculate the contribution from the alpha-beta term, sigma_3.
 
         ! Loop over all combinations of two spatial indices, (kl).
         do k = 1, tot_norbs
             do l = 1, tot_norbs
 
                 ! Zero arrays.
-                do class_i = 1, ras%num_classes
-                    r(class_i)%elements = 0.0_dp
-                    do class_j = 1, ras%num_classes
-                        c(class_i,class_j)%elements = 0.0_dp
-                    end do
-                end do
+                r = 0.0_dp
+                c = 0.0_dp
 
                 ex1(1) = l
                 ex1(2) = k
@@ -240,7 +234,6 @@ contains
                     nras3 = classes(class_i)%nelec_3
                     string_i = ras_strings(1:tot_nelec,i)
                     ilut_i = ras_iluts(:,i)
-                    ind_i = i - sum(classes(1:class_i-1)%class_size)
 
                     if ( IsOcc(ilut_i,l) .and. &
                             (.not. (IsOcc(ilut_i,k) .and. k /= l)) ) then
@@ -249,18 +242,17 @@ contains
                         call get_excit_details(string_i, ex1, ras, nras1, nras3, string_j, sym_j, class_j, in_ras_space)
                         if (in_ras_space) then
                             ind_j = classes(class_j)%address_map(get_address(classes(class_j), string_j))
-                            ind_j = ind_j - sum(classes(class_j)%num_sym(0:sym_j-1))
+                            ind_j = ind_j - classes(class_j)%cum_sym(sym_j)
 
-                            r(class_i)%elements(ind_i) = real(get_single_parity(ilut_i, int(l,sizeof_int), int(k,sizeof_int)), dp)
+                            r(i) = int(get_single_parity(ilut_i, int(l,sizeof_int), int(k,sizeof_int)), sp)
 
                             do m = 1, classes(class_j)%num_comb
                                 class_m = classes(class_j)%allowed_combns(m)
                                 sym_m = ieor(HFSym, sym_j)
                                 if (classes(class_m)%num_sym(sym_m) /= 0) then
-                                    min_ind = sum(classes(class_m)%num_sym(0:sym_m-1)) + 1
-                                    max_ind = sum(classes(class_m)%num_sym(0:sym_m))
-                                    c(class_i,class_m)%elements(ind_i,min_ind:max_ind) = &
-                                        vec_in(class_j,class_m,sym_j)%elements(ind_j,:)*r(class_i)%elements(ind_i)
+                                    min_ind = ras%cum_classes(class_m) + classes(class_m)%cum_sym(sym_m) + 1
+                                    max_ind = min_ind + classes(class_m)%num_sym(sym_m) - 1
+                                    c(min_ind:max_ind, i) = real(r(i),dp)*vec_in(class_j,class_m,sym_j)%elements(ind_j,:)
                                 end if
                             end do
                         end if
@@ -271,26 +263,23 @@ contains
                 ! Loop over all strings.
                 do i = 1, ras%num_strings
 
-                    call zero_factors_array(ras%num_classes, factors)
+                    alpha_beta_fac = 0.0_dp
 
                     ! Get info for string_i.
                     sym_i = ras_strings(-1,i)
                     class_i = ras_strings(0,i)
-                    ind_i = i - sum(classes(1:class_i-1)%class_size) - sum(classes(class_i)%num_sym(0:sym_i-1))
+                    ind_i = i - ras%cum_classes(class_i) - classes(class_i)%cum_sym(sym_i)
 
                     ! Loop over all single excitations from string_i (-> string_j).
                     do excit_j = 1, ras_excit(i)%nexcit
 
                         full_ind_j = ras_excit(i)%excit_ind(excit_j)
                         
-                        sym_j = ras_strings(-1,full_ind_j)
                         class_j = ras_strings(0,full_ind_j)
                         par_1 = ras_excit(i)%par(excit_j)
                         ex1 = ras_excit(i)%orbs(:,excit_j)
 
-                        ind_j = full_ind_j - sum(classes(1:class_j-1)%class_size) - sum(classes(class_j)%num_sym(0:sym_j-1))
-
-                        factors(class_j, sym_j)%elements(ind_j) = factors(class_j, sym_j)%elements(ind_j) + &
+                        alpha_beta_fac(full_ind_j) = alpha_beta_fac(full_ind_j) + &
                           par_1*get_umat_el(ptr_getumatel, BRR(2*ex1(2))/2, BRR(2*k)/2, BRR(2*ex1(1))/2, BRR(2*l)/2)
 
                     end do
@@ -303,32 +292,18 @@ contains
 
                         do ind_j = 1, classes(class_j)%num_sym(sym_j)
 
-                            full_ind_j = ind_j + sum(classes(class_j)%num_sym(0:sym_j-1))
+                            full_ind_j = ind_j + ras%cum_classes(class_j) + classes(class_j)%cum_sym(sym_j)
 
-                            if (.not. abs(r(class_j)%elements(full_ind_j)) > 0.0_dp) cycle
+                            if (.not. abs(r(full_ind_j)) > 0) cycle
 
-                            call zero_factors_array(ras%num_classes, v)
-
-                            do class_m = 1, ras%num_classes
-
-                                do sym_m = 0, 7
-
-                                    min_ind = sum(classes(class_m)%num_sym(0:sym_m-1)) + 1
-                                    max_ind = sum(classes(class_m)%num_sym(0:sym_m))
-
-                                    v(class_j, sym_j)%elements(ind_j) = v(class_j, sym_j)%elements(ind_j) + &
-                                        dot_product(factors(class_m,sym_m)%elements(:), &
-                                        c(class_j, class_m)%elements(full_ind_j, min_ind:max_ind))
-
-                                end do
-
-                            end do ! Over all classes connected to class_j.
+                            v = dot_product(alpha_beta_fac, c(:, full_ind_j))
 
                             vec_out(class_j, class_i, sym_j)%elements(ind_j, ind_i) = &
-                                vec_out(class_j, class_i, sym_j)%elements(ind_j, ind_i) + &
-                                v(class_j, sym_j)%elements(ind_j)
+                                vec_out(class_j, class_i, sym_j)%elements(ind_j, ind_i) + v
+                                
+                            !ddot(ras%num_strings, alpha_beta_fac, 1, c(:, full_ind_j), 1)
 
-                        end do ! Over all states in class_j with symmetry sym_j.
+                        end do ! Over all strings in class_j with symmetry sym_j.
 
                     end do ! Over all classes allowed with class_i.
 
@@ -497,7 +472,7 @@ contains
                 class_k = ras%class_label(temp1, temp3)
                 ind = classes(class_k)%address_map(get_address(classes(class_k), string_k))
                 ind = ind + sum(classes(1:class_k-1)%class_size)
-                par = get_single_parity(ilut_i, int(ex(1),sizeof_int), int(ex(2),sizeof_int)) 
+                par = int(get_single_parity(ilut_i, int(ex(1),sizeof_int), int(ex(2),sizeof_int)),sp)
 
                 return
             end do

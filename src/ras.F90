@@ -49,6 +49,9 @@ module ras
         integer(sp) :: lower_ras1, upper_ras1
         ! The total number of ras classes.
         integer(sp) :: num_classes
+        ! cum_clasees(i) holds the cumulative number of strings in classes
+        ! up to (and *not* including) class i.
+        integer(sp), allocatable, dimension(:) :: cum_classes
         ! The total number of strings (there are the same number of alpha
         ! and beta strings for now).
         integer(sp) :: num_strings
@@ -78,9 +81,9 @@ module ras
         integer(sp), allocatable, dimension(:) :: address_map ! (class_size)
         ! The number of strings in this class with each of the symmetry labels.
         integer(sp) :: num_sym(0:7)
-        ! The number of symmetry labels which have atleast one string in this
-        ! class (i.e. the number of non-zero elements in num_sym).
-        integer(sp) :: non_zero_sym
+        ! cum_sym(i) holds the cumulative number of strings in this class with
+        ! symmetry labels up to (and *not* including) i.
+        integer(sp) :: cum_sym(0:7)
     end type
 
     type ras_vector
@@ -202,10 +205,14 @@ contains
             classes(i)%num_comb = counter
         end do
 
+        allocate(ras%cum_classes(ras%num_classes))
+        ras%cum_classes(1) = 0
+
         ras%num_strings = 0
         do i = 1, ras%num_classes
             call setup_ras_class(ras, classes(i))
             ras%num_strings = ras%num_strings + classes(i)%class_size
+            if (i > 1) ras%cum_classes(i) = ras%cum_classes(i-1) + classes(i-1)%class_size
         end do
 
         call getsym(HFDet, nel, G1, nbasismax, hfbasisfn)
@@ -374,6 +381,10 @@ contains
         ras_class%num_sym = 0
         do i = 1, ras_class%class_size
             ras_class%num_sym(symmetries(i)) = ras_class%num_sym(symmetries(i)) + 1
+        end do
+
+        do i = 0, 7
+            ras_class%cum_sym(i) = sum(ras_class%num_sym(0:i-1))
         end do
 
         deallocate(symmetries)
