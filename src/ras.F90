@@ -614,7 +614,7 @@ contains
                     ! Finally, add the total number of combinations of strings from the two
                     ! classes with these symmetry labels.
                     space_size = space_size + &
-                        int(classes(i)%num_sym(k)*classes(temp_class)%num_sym(l),sp)
+                        int(classes(i)%num_sym(k)*classes(temp_class)%num_sym(l),sizeof_int)
                 end do
             end do
         end do

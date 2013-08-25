@@ -36,7 +36,7 @@ contains
         integer(sp) :: excit_j, excit_k
         integer(sp) :: ind_i, ind_j, ind_k, full_ind_j, full_ind_k
         integer(sp) :: nras1, nras3, min_ind, max_ind
-        integer(sp) :: sym_i, sym_j, sym_k, sym_m, HFSym_sp
+        integer(sp) :: sym_i, sym_j, sym_k, sym_m
         integer(sp) :: ex1(2), ex2(2)
 
         type(ras_vector) :: c(ras%num_classes, ras%num_classes)
@@ -68,15 +68,13 @@ contains
             do j = 1, classes(class_i)%num_comb
                 class_j = classes(class_i)%allowed_combns(j)
                 do sym_i = 0, 7
-                    sym_j = ieor(HFSym_sp, sym_i)
+                    sym_j = ieor(HFSym, sym_i)
 
                     if (classes(class_i)%num_sym(sym_i) == 0 .or. classes(class_j)%num_sym(sym_j) == 0) cycle
                     vec_out(class_i,class_j,sym_i)%elements(:,:) = 0.0_dp
                 end do
             end do
         end do
-
-        HFSym_sp = int(HFSym,sp)
 
         ! Loop over all strings.
         do i = 1, ras%num_strings
@@ -98,7 +96,7 @@ contains
                 par_1 = ras_excit(i)%par(excit_k)
                 ex1 = ras_excit(i)%orbs(:,excit_k)
 
-                ind_k = full_ind_k - sum(classes(class_k)%num_sym(0:sym_k-1))
+                ind_k = full_ind_k - sum(classes(1:class_k-1)%class_size) - sum(classes(class_k)%num_sym(0:sym_k-1))
 
                 factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) + &
                         par_1*GetTMatEl(BRR(2*ex1(2)),BRR(2*ex1(1)))
@@ -123,17 +121,17 @@ contains
                 do excit_j = 1, ras_excit(full_ind_k)%nexcit
 
                     ex2 = ras_excit(full_ind_k)%orbs(:,excit_j)
-                
+
                     ! Only need to consider excitations where (ij) >= (kl).
                     if ( (ex2(2)-1)*tot_norbs + ex2(1) < (ex1(2)-1)*tot_norbs + ex1(1)) cycle
 
                     full_ind_j = ras_excit(full_ind_k)%excit_ind(excit_j)
                     
-                    sym_k = ras_strings(-1,full_ind_j)
-                    class_k = ras_strings(0,full_ind_j)
-                    par_1 = ras_excit(full_ind_k)%par(excit_j)
+                    sym_j = ras_strings(-1,full_ind_j)
+                    class_j = ras_strings(0,full_ind_j)
+                    par_2 = ras_excit(full_ind_k)%par(excit_j)
 
-                    ind_j = full_ind_j - sum(classes(class_j)%num_sym(0:sym_j-1))
+                    ind_j = full_ind_j - sum(classes(1:class_j-1)%class_size) - sum(classes(class_j)%num_sym(0:sym_j-1))
 
                     ! Avoid overcounting for the case that the indices are the same.
                     if (ex1(1) == ex2(1) .and. ex1(2) == ex2(2)) then
@@ -158,14 +156,14 @@ contains
                 class_j = classes(class_i)%allowed_combns(j)
 
                 ! The *required* symmetry,
-                sym_j = ieor(HFSym_sp, sym_i)
+                sym_j = ieor(HFSym, sym_i)
                 ! If there are no states in this class with the required symmetry.
                 if (classes(class_j)%num_sym(sym_j) == 0) cycle
 
                 ! Loop over all classes connected to string_j.
                 do k = 1, classes(class_j)%num_comb
                     class_k = classes(class_j)%allowed_combns(k)
-                    ! The *required* symmetry, sym_k = ieor(HFSym_sp, sym_j) = sym_i.
+                    ! The *required* symmetry, sym_k = ieor(HFSym, sym_j) = sym_i.
                     sym_k = sym_i
 
                     ! If there are no states in this class with the required symmetry.
@@ -177,16 +175,43 @@ contains
                         vec_out(class_j, class_i, sym_j)%elements(:, ind_i) + &
                         matmul(vec_in(class_j, class_k, sym_j)%elements(:,:), factors(class_k, sym_k)%elements(:))
 
+                    !call dgemv('N', &
+                    !           classes(class_j)%num_sym(sym_j), &
+                    !           classes(class_k)%num_sym(sym_k), &
+                    !           1.0_dp, &
+                    !           vec_in(class_j, class_k, sym_j)%elements(:,:), &
+                    !           classes(class_j)%num_sym(sym_j), &
+                    !           factors(class_k, sym_k)%elements, &
+                    !           1, &
+                    !           1.0_dp, &
+                    !           vec_out(class_j, class_i, sym_j)%elements(:, ind_i), &
+                    !           1)
+
                     ! Add in sigma_1.
                     vec_out(class_i, class_j, sym_i)%elements(ind_i, :) = &
                         vec_out(class_i, class_j, sym_i)%elements(ind_i, :) + &
                         matmul(factors(class_k, sym_k)%elements(:), vec_in(class_k, class_j, sym_k)%elements(:,:))
+
+                    !call dgemv('T', &
+                    !           classes(class_k)%num_sym(sym_k), &
+                    !           classes(class_j)%num_sym(sym_j), &
+                    !           1.0_dp, &
+                    !           vec_in(class_k, class_j, sym_k)%elements(:,:), &
+                    !           classes(class_k)%num_sym(sym_k), &
+                    !           factors(class_k, sym_k)%elements, &
+                    !           1, &
+                    !           1.0_dp, &
+                    !           vec_out(class_i, class_j, sym_i)%elements(ind_i, :), &
+                    !           1)
 
                 end do ! Over all classes connected to string_j.
                 
             end do ! Over all classes connected to string_i.
 
         end do ! Over all strings.
+
+        write(6,*) "Completed alpha, beta, alpha-alpha and beta-beta terms."
+        call neci_flush(6)
 
         ! Next, calculate contirbution from the alpha-beta term, sigma_3.
 
@@ -215,7 +240,7 @@ contains
                     nras3 = classes(class_i)%nelec_3
                     string_i = ras_strings(1:tot_nelec,i)
                     ilut_i = ras_iluts(:,i)
-                    ind_i = i - sum(classes(1:class_i-1)%class_size) - sum(classes(class_i)%num_sym(0:sym_i-1))
+                    ind_i = i - sum(classes(1:class_i-1)%class_size)
 
                     if ( IsOcc(ilut_i,l) .and. &
                             (.not. (IsOcc(ilut_i,k) .and. k /= l)) ) then
@@ -226,17 +251,16 @@ contains
                             ind_j = classes(class_j)%address_map(get_address(classes(class_j), string_j))
                             ind_j = ind_j - sum(classes(class_j)%num_sym(0:sym_j-1))
 
-                            r(i)%elements(ind_i) = real(get_single_parity(ilut_i, int(l,sizeof_int), int(k,sizeof_int)), dp)
+                            r(class_i)%elements(ind_i) = real(get_single_parity(ilut_i, int(l,sizeof_int), int(k,sizeof_int)), dp)
 
                             do m = 1, classes(class_j)%num_comb
                                 class_m = classes(class_j)%allowed_combns(m)
-                                sym_m = ieor(HFSym_sp, sym_j)
+                                sym_m = ieor(HFSym, sym_j)
                                 if (classes(class_m)%num_sym(sym_m) /= 0) then
                                     min_ind = sum(classes(class_m)%num_sym(0:sym_m-1)) + 1
                                     max_ind = sum(classes(class_m)%num_sym(0:sym_m))
-                                    c(i,class_m)%elements(ind_i,min_ind:max_ind) = &
-                                        c(i,class_m)%elements(ind_i,min_ind:max_ind) + &
-                                        vec_in(class_j,class_m,sym_j)%elements(ind_j,:)*r(i)%elements(ind_i)
+                                    c(class_i,class_m)%elements(ind_i,min_ind:max_ind) = &
+                                        vec_in(class_j,class_m,sym_j)%elements(ind_j,:)*r(class_i)%elements(ind_i)
                                 end if
                             end do
                         end if
@@ -264,7 +288,7 @@ contains
                         par_1 = ras_excit(i)%par(excit_j)
                         ex1 = ras_excit(i)%orbs(:,excit_j)
 
-                        ind_j = full_ind_j - sum(classes(class_j)%num_sym(0:sym_j-1))
+                        ind_j = full_ind_j - sum(classes(1:class_j-1)%class_size) - sum(classes(class_j)%num_sym(0:sym_j-1))
 
                         factors(class_j, sym_j)%elements(ind_j) = factors(class_j, sym_j)%elements(ind_j) + &
                           par_1*get_umat_el(ptr_getumatel, BRR(2*ex1(2))/2, BRR(2*k)/2, BRR(2*ex1(1))/2, BRR(2*l)/2)
@@ -275,7 +299,7 @@ contains
                     do j = 1, classes(class_i)%num_comb
 
                         class_j = classes(class_i)%allowed_combns(j)
-                        sym_j = ieor(HFSym_sp, sym_i)
+                        sym_j = ieor(HFSym, sym_i)
 
                         do ind_j = 1, classes(class_j)%num_sym(sym_j)
 
@@ -310,8 +334,8 @@ contains
 
                 end do ! Over all strings.
 
-            end do
-        end do
+            end do ! Over all orbitals, l.
+        end do ! Over all orbitals, k.
 
     end subroutine perform_multiplication
 
@@ -376,7 +400,7 @@ contains
         end do
         call sort(string_j)
 
-        sym_prod = int(ieor(G1(BRR(ex(1)*2))%Sym%S, G1(BRR(ex(1)*2))%Sym%S),sp)
+        sym_prod = int(ieor(G1(BRR(ex(1)*2))%Sym%S, G1(BRR(ex(2)*2))%Sym%S),sp)
         sym_j = ieor(sym_j,sym_prod)
 
     end subroutine get_excit_details
