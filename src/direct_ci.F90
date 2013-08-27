@@ -31,6 +31,16 @@ contains
         type(ras_vector), intent(in) :: vec_in(ras%num_classes, ras%num_classes, 0:7)
         type(ras_vector), intent(inout) :: vec_out(ras%num_classes, ras%num_classes, 0:7)
 
+        real(dp), allocatable, dimension(:) :: factor
+        type(ras_factors) :: factors(ras%num_classes, 0:7)
+        real(dp), allocatable, dimension(:) :: alpha_beta_fac
+        integer(sp), allocatable, dimension(:) :: r
+        real(dp), allocatable, dimension(:,:) :: c
+        integer(sp) :: string_i(tot_nelec), string_j(tot_nelec)
+        integer(n_int) :: ilut_i(0:NIfD)
+        logical :: in_ras_space
+        real(dp) :: ddot
+
         integer(sp) :: class_i, class_j, class_k, class_m, par_1, par_2
         integer(sp) :: i, j, k, l, m
         integer(sp) :: excit_j, excit_k
@@ -38,16 +48,6 @@ contains
         integer(sp) :: nras1, nras3, min_ind, max_ind
         integer(sp) :: sym_i, sym_j, sym_k, sym_m
         integer(sp) :: ex1(2), ex2(2)
-
-        real(dp), allocatable, dimension(:) :: factor
-        integer(sp) :: string_i(tot_nelec), string_j(tot_nelec), string_k(tot_nelec)
-        integer(n_int) :: ilut_i(0:NIfD), ilut_j(0:NIfD), ilut_k(0:NIfD)
-        type(ras_factors) :: factors(ras%num_classes, 0:7)
-        real(dp), allocatable, dimension(:) :: alpha_beta_fac
-        integer(sp), allocatable, dimension(:) :: r
-        real(dp), allocatable, dimension(:,:) :: c
-        real(dp) :: v
-        logical :: in_ras_space
 
         do class_i = 1, ras%num_classes
             do sym_i = 0, 7
@@ -68,11 +68,11 @@ contains
         end do
 
         allocate(alpha_beta_fac(ras%num_strings))
-        allocate(r(ras%num_strings))
         allocate(c(ras%num_strings,ras%num_strings))
+        allocate(r(ras%num_strings))
         alpha_beta_fac = 0.0_dp
-        r = 0
         c = 0.0_dp
+        r = 0
 
         ! Loop over all strings.
         do i = 1, ras%num_strings
@@ -169,38 +169,30 @@ contains
 
                     ! Finally, update the output vector.
                     ! Add in sigma_2.
-                    vec_out(class_j, class_i, sym_j)%elements(:, ind_i) = &
-                        vec_out(class_j, class_i, sym_j)%elements(:, ind_i) + &
-                        matmul(vec_in(class_j, class_k, sym_j)%elements(:,:), factors(class_k, sym_k)%elements(:))
-
-                    !call dgemv('N', &
-                    !           classes(class_j)%num_sym(sym_j), &
-                    !           classes(class_k)%num_sym(sym_k), &
-                    !           1.0_dp, &
-                    !           vec_in(class_j, class_k, sym_j)%elements(:,:), &
-                    !           classes(class_j)%num_sym(sym_j), &
-                    !           factors(class_k, sym_k)%elements, &
-                    !           1, &
-                    !           1.0_dp, &
-                    !           vec_out(class_j, class_i, sym_j)%elements(:, ind_i), &
-                    !           1)
+                    call dgemv('N', &
+                               classes(class_j)%num_sym(sym_j), &
+                               classes(class_k)%num_sym(sym_k), &
+                               1.0_dp, &
+                               vec_in(class_j, class_k, sym_j)%elements(:,:), &
+                               classes(class_j)%num_sym(sym_j), &
+                               factors(class_k, sym_k)%elements, &
+                               1, &
+                               1.0_dp, &
+                               vec_out(class_j, class_i, sym_j)%elements(:, ind_i), &
+                               1)
 
                     ! Add in sigma_1.
-                    vec_out(class_i, class_j, sym_i)%elements(ind_i, :) = &
-                        vec_out(class_i, class_j, sym_i)%elements(ind_i, :) + &
-                        matmul(factors(class_k, sym_k)%elements(:), vec_in(class_k, class_j, sym_k)%elements(:,:))
-
-                    !call dgemv('T', &
-                    !           classes(class_k)%num_sym(sym_k), &
-                    !           classes(class_j)%num_sym(sym_j), &
-                    !           1.0_dp, &
-                    !           vec_in(class_k, class_j, sym_k)%elements(:,:), &
-                    !           classes(class_k)%num_sym(sym_k), &
-                    !           factors(class_k, sym_k)%elements, &
-                    !           1, &
-                    !           1.0_dp, &
-                    !           vec_out(class_i, class_j, sym_i)%elements(ind_i, :), &
-                    !           1)
+                    call dgemv('T', &
+                               classes(class_k)%num_sym(sym_k), &
+                               classes(class_j)%num_sym(sym_j), &
+                               1.0_dp, &
+                               vec_in(class_k, class_j, sym_k)%elements(:,:), &
+                               classes(class_k)%num_sym(sym_k), &
+                               factors(class_k, sym_k)%elements, &
+                               1, &
+                               1.0_dp, &
+                               vec_out(class_i, class_j, sym_i)%elements(ind_i, :), &
+                               1)
 
                 end do ! Over all classes connected to string_j.
                 
@@ -218,7 +210,7 @@ contains
             do l = 1, tot_norbs
 
                 ! Zero arrays.
-                r = 0.0_dp
+                r = 0
                 c = 0.0_dp
 
                 ex1(1) = l
@@ -296,12 +288,9 @@ contains
 
                             if (.not. abs(r(full_ind_j)) > 0) cycle
 
-                            v = dot_product(alpha_beta_fac, c(:, full_ind_j))
-
                             vec_out(class_j, class_i, sym_j)%elements(ind_j, ind_i) = &
-                                vec_out(class_j, class_i, sym_j)%elements(ind_j, ind_i) + v
-                                
-                            !ddot(ras%num_strings, alpha_beta_fac, 1, c(:, full_ind_j), 1)
+                                vec_out(class_j, class_i, sym_j)%elements(ind_j, ind_i) + &
+                                ddot(ras%num_strings, alpha_beta_fac, 1, c(:, full_ind_j), 1)
 
                         end do ! Over all strings in class_j with symmetry sym_j.
 
@@ -491,12 +480,16 @@ contains
         integer(n_int), intent(out) :: ras_iluts(0:NIfD, core_ras%num_strings)
         type(direct_ci_excit), intent(out) :: ras_excit(core_ras%num_strings)
         integer(n_int) :: ilut_i(0:NIfD)
-        integer(sp) :: class_i, ind, new_ind, counter
+        integer(sp) :: i, j, class_i, class_j, sym_i, sym_j, ind, new_ind, counter
         integer(sp) :: nras1, nras3, par
         integer(sp) :: ex(2)
         integer(sp) :: string_i(tot_nelec)
+        integer :: memory_required
         logical :: none_left, tgen
         type(simple_excit_store), target :: gen_store_1
+
+        memory_required = (2+tot_nelec)*core_ras%num_strings*4
+        memory_required = memory_required + (1+NIfD)*core_ras%num_strings*size_n_int
 
         ilut_i = 0
 
@@ -529,9 +522,11 @@ contains
                 ras_excit(ind)%nexcit = counter
 
                 ! Now that they have been counted, allocate the excitation array and store them.
-                allocate(ras_excit(ind)%excit_ind(counter))
-                allocate(ras_excit(ind)%par(counter))
-                allocate(ras_excit(ind)%orbs(2,counter))
+                allocate(ras_excit(ind)%excit_ind(ras_excit(ind)%nexcit))
+                allocate(ras_excit(ind)%par(ras_excit(ind)%nexcit))
+                allocate(ras_excit(ind)%orbs(2,ras_excit(ind)%nexcit))
+
+                memory_required = memory_required + 4*ras_excit(ind)%nexcit*4 + 4
 
                 counter = 0
                 tgen = .true.
@@ -550,6 +545,20 @@ contains
                 if (none_left) exit
             end do
         end do
+
+        do class_i = 1, ras%num_classes
+            do j = 1, classes(class_i)%num_comb
+                class_j = classes(class_i)%allowed_combns(j)
+                do sym_i = 0, 7
+                    sym_j = ieor(HFSym, sym_i)
+                    memory_required = memory_required + &
+                        8*classes(class_i)%num_sym(sym_i)*classes(class_j)%num_sym(sym_j)
+                end do
+            end do
+        end do
+
+        write(6,'(a48,i6,a3)') "Total memory required for direct CI calculation:", &
+                memory_required/10**6, "MB." 
 
     end subroutine create_direct_ci_arrays
 
