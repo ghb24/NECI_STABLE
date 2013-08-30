@@ -519,7 +519,7 @@ contains
             do j = 1, core_classes(i)%num_comb
                 temp_class = core_classes(i)%allowed_combns(j)
                 do k = 0, 7
-                    l = ieor(int(HFSym,sizeof_int), k)
+                    l = ieor(int(HFSym_sp,sizeof_int), k)
 
                     if (core_classes(i)%num_sym(k) == 0 .or. core_classes(temp_class)%num_sym(l) == 0) cycle
 

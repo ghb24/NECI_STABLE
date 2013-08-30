@@ -19,6 +19,7 @@ integer :: hamil_type
 ! The following options are currently available:
 integer :: full_hamil_type = 1
 integer :: sparse_hamil_type = 2
+integer :: direct_ci_type = 3
 
 ! The dimension of the vector space we are working in, as determined by the number
 ! of rows and columns in the Hamiltonian matrix.
@@ -93,25 +94,31 @@ integer(TagIntType) :: ResidualTag
         ! guess at the ground state eigenvalue. It also calculates the corresponding residual
         ! which is needed to expand the space.
 
-        use Determinants, only: get_helement
-        use FciMCData, only: HFDet
+        use direct_ci, only: create_ham_diag_direct_ci
+        use FciMCData, only: davidson_ras, davidson_classes, davidson_strings
+        use ras, only: find_ras_size
 
-        integer :: i, HFindex, ierr
+        integer :: i, space_size, HFindex, ierr
         character (len=*), parameter :: this_routine = "init_davidson"
 
         ! Allocate and define the Hamiltonian diagonal, if not done so already.
         if (.not. allocated(hamil_diag)) then
-            allocate(hamil_diag(size(hamiltonian,1)), stat=ierr)
-            call LogMemAlloc("hamil_diag", size(hamiltonian,1), 8, this_routine, HDiagTag, ierr)
-            do i = 1, size(hamiltonian,1)
-                hamil_diag(i) = hamiltonian(i,i)
-            end do
+            if (hamil_type == direct_ci_type) then
+                call find_ras_size(davidson_ras, davidson_classes, space_size)
+                allocate(hamil_diag(space_size), stat=ierr)
+                call LogMemAlloc("hamil_diag", space_size, 8, this_routine, HDiagTag, ierr)
+                call create_ham_diag_direct_ci(davidson_ras, davidson_classes, davidson_strings, hamil_diag)
+            else
+                space_size = size(hamiltonian,1)
+                allocate(hamil_diag(space_size), stat=ierr)
+                call LogMemAlloc("hamil_diag", space_size, 8, this_routine, HDiagTag, ierr)
+                do i = 1, space_size
+                    hamil_diag(i) = hamiltonian(i,i)
+                end do
+            end if
         end if
 
         HFindex = maxloc((-hamil_diag),1)
-
-        ! The space size is determined by the size of the Hamiltonian matrix:
-        space_size = size(hamil_diag)
 
         ! Allocate the necessary arrays:
         allocate(basis_vectors(space_size, max_num_davidson_iters))
@@ -137,7 +144,6 @@ integer(TagIntType) :: ResidualTag
             davidson_eigenvector(1) = 1.0_dp
             davidson_eigenvalue = hamil_diag(1)
             max_num_davidson_iters = 0
-            call neci_flush(6)
             return
         end if
 
@@ -162,7 +168,7 @@ integer(TagIntType) :: ResidualTag
 
         integer, intent(in) :: basis_index
         integer :: i
-        real(dp) :: dot_prod, norm
+        real(dp) :: dot_prod, ddot, norm, dnrm2
 
         ! Create the new basis state from the residual. This step performs
         ! t = (D - EI)^(-1) r,
@@ -176,18 +182,13 @@ integer(TagIntType) :: ResidualTag
         ! t <- t - (t,v)v
         ! for each basis vector v, where (t,v) denotes the dot product.
         do i = 1, basis_index - 1
-            dot_prod = dot_product(basis_vectors(:,basis_index), basis_vectors(:,i))
+            dot_prod = ddot(space_size, basis_vectors(:,basis_index), 1, basis_vectors(:,i), 1)
             basis_vectors(:, basis_index) = basis_vectors(:, basis_index) - dot_prod*basis_vectors(:,i)
         end do
 
         ! Finally we calculate the norm of the new basis vector and then normalise it to have a norm of 1.
-        norm = 0.0_dp
-        do i = 1, space_size
-            norm = norm + basis_vectors(i, basis_index)*basis_vectors(i, basis_index)
-        end do
-        norm = sqrt(norm)
-
-        ! The new basis vector is stored in the next avaliable column in the basis_vectors array.
+        ! The new basis vector is stored in the next available column in the basis_vectors array.
+        norm = dnrm2(space_size, basis_vectors(i,:), 1)
         basis_vectors(:, basis_index) = basis_vectors(:, basis_index)/norm
 
     end subroutine subspace_expansion
@@ -196,7 +197,7 @@ integer(TagIntType) :: ResidualTag
 
         integer, intent(in) :: basis_index
         integer :: i
-        real(dp) :: multiplied_basis_vector(space_size)
+        real(dp) :: multiplied_basis_vector(space_size), ddot
 
         ! Slightly hacky: Store projected_hamil in the scrap space and then reallocate
         ! projected_hamil to be of a larger size. Then reallocate the scrap space too.
@@ -220,7 +221,7 @@ integer(TagIntType) :: ResidualTag
         ! row also.
         do i = 1, basis_index
             projected_hamil(i, basis_index) = projected_hamil(i, basis_index) + &
-                dot_product(basis_vectors(:, i), multiplied_basis_vector)
+                ddot(space_size, basis_vectors(:, i), 1, multiplied_basis_vector, 1)
             projected_hamil(basis_index, i) = projected_hamil(i, basis_index)
         end do
 
@@ -264,7 +265,7 @@ integer(TagIntType) :: ResidualTag
 
         ! eigenvector_proj stores the eigenstate in the basis of vectors stored in the array
         ! basis_vectors. We now want it in terms of the original basis. To get this, multiply
-        ! eigenvector_proj by basis_vectors(:, 1:Basis_index):
+        ! eigenvector_proj by basis_vectors(:, 1:basis_index):
 
         ! This function performs y := alpha*a*x + beta*y
         ! N specifies not to use the transpose of a.
@@ -313,15 +314,10 @@ integer(TagIntType) :: ResidualTag
         ! This subroutine calculates the Euclidean norm of the reisudal vector, r:
         ! residual_norm^2 = \sum_i r_i^2
 
-        integer :: i
+        real(dp) :: dnrm2
 
-        residual_norm = 0.0_dp
-
-        do i = 1, space_size
-            residual_norm = residual_norm + residual(i)*residual(i)
-        end do
-
-        residual_norm = sqrt(residual_norm)
+        ! Use the BLAS routine, dnrm2, to calculate the norm.
+        residual_norm = dnrm2(space_size, residual, 1)
 
     end subroutine calculate_residual_norm
 
@@ -334,6 +330,8 @@ integer(TagIntType) :: ResidualTag
             call multiply_hamil_and_vector_full(input_vector, output_vector)
         else if (hamil_type == sparse_hamil_type) then
             call multiply_hamil_and_vector_sparse(input_vector, output_vector)
+        else if (hamil_type == direct_ci_type) then
+            call multiply_hamil_and_vector_direct_ci(input_vector, output_vector)
         end if
 
     end subroutine multiply_hamil_and_vector
@@ -386,6 +384,28 @@ integer(TagIntType) :: ResidualTag
         end do
 
     end subroutine multiply_hamil_and_vector_sparse
+
+    subroutine multiply_hamil_and_vector_direct_ci(input_vector, output_vector)
+
+        use direct_ci, only: perform_multiplication, transfer_from_block_form, transfer_to_block_form
+        use FciMCData, only: davidson_ras, davidson_classes, davidson_strings, davidson_iluts, davidson_excits
+        use ras_data, only: ras_vector
+        use SystemData, only: ecore
+
+        real(dp), intent(in) :: input_vector(space_size)
+        real(dp), intent(out) :: output_vector(space_size)
+        type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
+
+        call transfer_to_block_form(davidson_ras, davidson_classes, input_vector, direct_ci_inp)
+
+        call perform_multiplication(davidson_ras, davidson_classes, davidson_strings, davidson_iluts, davidson_excits, &
+                direct_ci_inp, direct_ci_out)
+
+        call transfer_from_block_form(davidson_ras, davidson_classes, output_vector, direct_ci_out)
+
+        output_vector = output_vector*(1+ecore)
+
+    end subroutine multiply_hamil_and_vector_direct_ci
 
     subroutine end_davidson()
 

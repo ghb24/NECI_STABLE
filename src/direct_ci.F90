@@ -9,15 +9,11 @@ module direct_ci
     use IntegralsData, only: ptr_getumatel
     use OneEInts, only: GetTMatEl
     use ras
+    use ras_data
+    use SystemData, only: tOddS_HPHF
+    use timing_neci
 
     implicit none
-
-    type direct_ci_excit
-        integer(sp), allocatable, dimension(:) :: excit_ind
-        integer(sp), allocatable, dimension(:) :: par
-        integer(sp), allocatable, dimension(:,:) :: orbs
-        integer(sp) :: nexcit
-    end type direct_ci_excit
 
 contains
 
@@ -39,7 +35,7 @@ contains
         integer(sp) :: string_i(tot_nelec), string_j(tot_nelec)
         integer(n_int) :: ilut_i(0:NIfD)
         logical :: in_ras_space
-        real(dp) :: ddot
+        real(dp) :: ddot, v
 
         integer(sp) :: class_i, class_j, class_k, class_m, par_1, par_2
         integer(sp) :: i, j, k, l, m
@@ -48,6 +44,10 @@ contains
         integer(sp) :: nras1, nras3, min_ind, max_ind
         integer(sp) :: sym_i, sym_j, sym_k, sym_m
         integer(sp) :: ex1(2), ex2(2)
+        integer :: BRR_ex1(2), BRR_ex2(2)
+        integer(sp) :: spin01
+
+        ! Initialisation.
 
         do class_i = 1, ras%num_classes
             do sym_i = 0, 7
@@ -59,7 +59,7 @@ contains
             do j = 1, classes(class_i)%num_comb
                 class_j = classes(class_i)%allowed_combns(j)
                 do sym_i = 0, 7
-                    sym_j = ieor(HFSym, sym_i)
+                    sym_j = ieor(HFSym_sp, sym_i)
                     if (classes(class_i)%num_sym(sym_i) == 0 .or. &
                         classes(class_j)%num_sym(sym_j) == 0) cycle
                     vec_out(class_i,class_j,sym_i)%elements(:,:) = 0.0_dp
@@ -73,6 +73,14 @@ contains
         alpha_beta_fac = 0.0_dp
         c = 0.0_dp
         r = 0
+
+        if (tOddS_HPHF) then
+            spin01 = -1
+        else
+            spin01 = 1
+        end if
+
+        ! Beta and beta-beta (sigma_1) and alpha and alpha-alpha (sigma_2) contributions.
 
         ! Loop over all strings.
         do i = 1, ras%num_strings
@@ -93,26 +101,28 @@ contains
                 class_k = ras_strings(0,full_ind_k)
                 par_1 = ras_excit(i)%par(excit_k)
                 ex1 = ras_excit(i)%orbs(:,excit_k)
+                BRR_ex1(1) = int(BRR(2*ex1(1))/2,sizeof_int)
+                BRR_ex1(2) = int(BRR(2*ex1(2))/2,sizeof_int)
 
                 ind_k = full_ind_k - ras%cum_classes(class_k) - classes(class_k)%cum_sym(sym_k)
 
                 factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) + &
-                        par_1*GetTMatEl(BRR(2*ex1(2)),BRR(2*ex1(1)))
+                        par_1*GetTMatEl(BRR_ex1(2)*2,BRR_ex1(1)*2)
 
                 do j = 1, ex1(2)-1
                     factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) - &
-                            par_1*get_umat_el(ptr_getumatel, BRR(2*ex1(2))/2, BRR(2*j)/2, &
-                                                             BRR(2*j)/2, BRR(2*ex1(1))/2)
+                            par_1*get_umat_el(ptr_getumatel, BRR_ex1(2), BRR(2*j)/2, &
+                                                             BRR(2*j)/2, BRR_ex1(1))
                 end do
 
                 if (ex1(2) > ex1(1)) then
                     factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) - &
-                            par_1*get_umat_el(ptr_getumatel, BRR(2*ex1(2))/2, BRR(2*ex1(2))/2, &
-                                                             BRR(2*ex1(2))/2, BRR(2*ex1(1))/2)
+                            par_1*get_umat_el(ptr_getumatel, BRR_ex1(2), BRR_ex1(2), &
+                                                             BRR_ex1(2), BRR_ex1(1))
                 else if (ex1(2) == ex1(1)) then
                     factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) - &
-                            0.5_dp*par_1*get_umat_el(ptr_getumatel, BRR(2*ex1(2))/2, BRR(2*ex1(2))/2, &
-                                                                    BRR(2*ex1(2))/2, BRR(2*ex1(1))/2)
+                            0.5_dp*par_1*get_umat_el(ptr_getumatel, BRR_ex1(2), BRR_ex1(2), &
+                                                                    BRR_ex1(2), BRR_ex1(1))
                 end if
 
                 ! Loop over all single excitations from string_k (-> string_j).
@@ -121,7 +131,10 @@ contains
                     ex2 = ras_excit(full_ind_k)%orbs(:,excit_j)
 
                     ! Only need to consider excitations where (ij) >= (kl).
-                    if ( (ex2(2)-1)*tot_norbs + ex2(1) < (ex1(2)-1)*tot_norbs + ex1(1)) cycle
+                    if ((ex2(2)-1)*tot_norbs + ex2(1) < (ex1(2)-1)*tot_norbs + ex1(1)) cycle
+
+                    BRR_ex2(1) = int(BRR(2*ex2(1))/2,sizeof_int)
+                    BRR_ex2(2) = int(BRR(2*ex2(2))/2,sizeof_int)
 
                     full_ind_j = ras_excit(full_ind_k)%excit_ind(excit_j)
                     
@@ -134,12 +147,12 @@ contains
                     ! Avoid overcounting for the case that the indices are the same.
                     if (ex1(1) == ex2(1) .and. ex1(2) == ex2(2)) then
                         factors(class_j, sym_j)%elements(ind_j) = factors(class_j, sym_j)%elements(ind_j) + &
-                          0.5_dp*par_1*par_2*get_umat_el(ptr_getumatel, BRR(2*ex2(2))/2, BRR(2*ex1(2))/2, &
-                                                                        BRR(2*ex2(1))/2, BRR(2*ex1(1))/2)
+                          0.5_dp*par_1*par_2*get_umat_el(ptr_getumatel, BRR_ex2(2), BRR_ex1(2), &
+                                                                        BRR_ex2(1), BRR_ex1(1))
                     else
                         factors(class_j, sym_j)%elements(ind_j) = factors(class_j, sym_j)%elements(ind_j) + &
-                          par_1*par_2*get_umat_el(ptr_getumatel, BRR(2*ex2(2))/2, BRR(2*ex1(2))/2, &
-                                                                 BRR(2*ex2(1))/2, BRR(2*ex1(1))/2)
+                          par_1*par_2*get_umat_el(ptr_getumatel, BRR_ex2(2), BRR_ex1(2), &
+                                                                 BRR_ex2(1), BRR_ex1(1))
                     end if
 
                 end do
@@ -154,14 +167,14 @@ contains
                 class_j = classes(class_i)%allowed_combns(j)
 
                 ! The *required* symmetry,
-                sym_j = ieor(HFSym, sym_i)
+                sym_j = ieor(HFSym_sp, sym_i)
                 ! If there are no states in this class with the required symmetry.
                 if (classes(class_j)%num_sym(sym_j) == 0) cycle
 
                 ! Loop over all classes connected to string_j.
                 do k = 1, classes(class_j)%num_comb
                     class_k = classes(class_j)%allowed_combns(k)
-                    ! The *required* symmetry, sym_k = ieor(HFSym, sym_j) = sym_i.
+                    ! The *required* symmetry, sym_k = ieor(HFSym_sp, sym_j) = sym_i.
                     sym_k = sym_i
 
                     ! If there are no states in this class with the required symmetry.
@@ -181,29 +194,35 @@ contains
                                vec_out(class_j, class_i, sym_j)%elements(:, ind_i), &
                                1)
 
-                    ! Add in sigma_1.
-                    call dgemv('T', &
-                               classes(class_k)%num_sym(sym_k), &
-                               classes(class_j)%num_sym(sym_j), &
-                               1.0_dp, &
-                               vec_in(class_k, class_j, sym_k)%elements(:,:), &
-                               classes(class_k)%num_sym(sym_k), &
-                               factors(class_k, sym_k)%elements, &
-                               1, &
-                               1.0_dp, &
-                               vec_out(class_i, class_j, sym_i)%elements(ind_i, :), &
-                               1)
-
                 end do ! Over all classes connected to string_j.
                 
             end do ! Over all classes connected to string_i.
 
         end do ! Over all strings.
 
-        write(6,*) "Completed alpha, beta, alpha-alpha and beta-beta terms."
-        call neci_flush(6)
+        ! Now use HPHF symmetry to add in sigma_1.
+        do class_i = 1, ras%num_classes
+            do j = 1, classes(class_i)%num_comb
+                class_j = classes(class_i)%allowed_combns(j)
+                if (class_j < class_i) cycle
+                do sym_i = 0, 7
+                    ! The *required* symmetry.
+                    sym_j = ieor(HFSym_sp, sym_i)
 
-        ! Next, calculate the contribution from the alpha-beta term, sigma_3.
+                    if (sym_j < sym_i) cycle
+                    if (classes(class_i)%num_sym(sym_i) == 0) cycle
+                    if (classes(class_j)%num_sym(sym_j) == 0) cycle
+
+                    vec_out(class_i, class_j, sym_i)%elements = vec_out(class_i, class_j, sym_i)%elements + &
+                            spin01*transpose(vec_out(class_j, class_i, sym_j)%elements(:,:))
+
+                    vec_out(class_j, class_i, sym_j)%elements = transpose(vec_out(class_i, class_j, sym_i)%elements)
+
+                end do ! Over all symmetry labels.
+            end do ! Over all classes allowed with class_i.
+        end do ! Over all classes.
+
+        ! Next, calculate the contribution from the alpha-beta term (sigma_3).
 
         ! Loop over all combinations of two spatial indices, (kl).
         do k = 1, tot_norbs
@@ -215,6 +234,8 @@ contains
 
                 ex1(1) = l
                 ex1(2) = k
+                BRR_ex1(1) = int(BRR(2*l)/2,sizeof_int)
+                BRR_ex1(2) = int(BRR(2*k)/2,sizeof_int)
 
                 ! Loop over all strings.
                 do i = 1, ras%num_strings
@@ -240,7 +261,7 @@ contains
 
                             do m = 1, classes(class_j)%num_comb
                                 class_m = classes(class_j)%allowed_combns(m)
-                                sym_m = ieor(HFSym, sym_j)
+                                sym_m = ieor(HFSym_sp, sym_j)
                                 if (classes(class_m)%num_sym(sym_m) /= 0) then
                                     min_ind = ras%cum_classes(class_m) + classes(class_m)%cum_sym(sym_m) + 1
                                     max_ind = min_ind + classes(class_m)%num_sym(sym_m) - 1
@@ -269,10 +290,12 @@ contains
                         
                         class_j = ras_strings(0,full_ind_j)
                         par_1 = ras_excit(i)%par(excit_j)
-                        ex1 = ras_excit(i)%orbs(:,excit_j)
+                        ex2 = ras_excit(i)%orbs(:,excit_j)
+                        BRR_ex2(1) = int(BRR(2*ex2(1))/2,sizeof_int)
+                        BRR_ex2(2) = int(BRR(2*ex2(2))/2,sizeof_int)
 
                         alpha_beta_fac(full_ind_j) = alpha_beta_fac(full_ind_j) + &
-                          par_1*get_umat_el(ptr_getumatel, BRR(2*ex1(2))/2, BRR(2*k)/2, BRR(2*ex1(1))/2, BRR(2*l)/2)
+                          par_1*get_umat_el(ptr_getumatel, BRR_ex2(2), BRR_ex1(2), BRR_ex2(1), BRR_ex1(1))
 
                     end do
 
@@ -280,17 +303,24 @@ contains
                     do j = 1, classes(class_i)%num_comb
 
                         class_j = classes(class_i)%allowed_combns(j)
-                        sym_j = ieor(HFSym, sym_i)
+                        sym_j = ieor(HFSym_sp, sym_i)
 
                         do ind_j = 1, classes(class_j)%num_sym(sym_j)
 
                             full_ind_j = ind_j + ras%cum_classes(class_j) + classes(class_j)%cum_sym(sym_j)
 
+                            if (full_ind_j < i) cycle
                             if (.not. abs(r(full_ind_j)) > 0) cycle
 
+                            v = ddot(ras%num_strings, alpha_beta_fac, 1, c(:, full_ind_j), 1)
+
                             vec_out(class_j, class_i, sym_j)%elements(ind_j, ind_i) = &
-                                vec_out(class_j, class_i, sym_j)%elements(ind_j, ind_i) + &
-                                ddot(ras%num_strings, alpha_beta_fac, 1, c(:, full_ind_j), 1)
+                                vec_out(class_j, class_i, sym_j)%elements(ind_j, ind_i) + v
+
+                            if (i == full_ind_j) cycle
+
+                            vec_out(class_i, class_j, sym_i)%elements(ind_i, ind_j) = &
+                                vec_out(class_i, class_j, sym_i)%elements(ind_i, ind_j) + spin01*v
 
                         end do ! Over all strings in class_j with symmetry sym_j.
 
@@ -300,6 +330,16 @@ contains
 
             end do ! Over all orbitals, l.
         end do ! Over all orbitals, k.
+
+        ! Deallocate arrays.
+        do class_i = 1, ras%num_classes
+            do sym_i = 0, 7
+               deallocate(factors(class_i,sym_i)%elements)
+            end do
+        end do
+        deallocate(alpha_beta_fac)
+        deallocate(c)
+        deallocate(r)
 
     end subroutine perform_multiplication
 
@@ -475,7 +515,7 @@ contains
     subroutine create_direct_ci_arrays(ras, classes, ras_strings, ras_iluts, ras_excit)
 
         type(ras_parameters), intent(in) :: ras
-        type(ras_class_data), intent(inout), allocatable, dimension(:) :: classes
+        type(ras_class_data), intent(in) :: classes(ras%num_classes)
         integer(sp), intent(out) :: ras_strings(-1:tot_nelec, core_ras%num_strings)
         integer(n_int), intent(out) :: ras_iluts(0:NIfD, core_ras%num_strings)
         type(direct_ci_excit), intent(out) :: ras_excit(core_ras%num_strings)
@@ -550,7 +590,7 @@ contains
             do j = 1, classes(class_i)%num_comb
                 class_j = classes(class_i)%allowed_combns(j)
                 do sym_i = 0, 7
-                    sym_j = ieor(HFSym, sym_i)
+                    sym_j = ieor(HFSym_sp, sym_i)
                     memory_required = memory_required + &
                         8*classes(class_i)%num_sym(sym_i)*classes(class_j)%num_sym(sym_j)
                 end do
@@ -561,5 +601,164 @@ contains
                 memory_required/10**6, "MB." 
 
     end subroutine create_direct_ci_arrays
+
+    subroutine create_vector_mapping(ras, classes, ras_strings, ras_mapping)
+
+        type(ras_parameters), intent(in) :: ras
+        type(ras_class_data), intent(in) :: classes(ras%num_classes)
+        integer(sp), intent(in) :: ras_strings(-1:tot_nelec, core_ras%num_strings)
+        type(ras_vector), intent(out) :: ras_mapping(ras%num_classes, ras%num_classes, 0:7)
+        integer(sp) :: class_i_ind, class_j_ind, sym_i_ind, sym_j_ind
+        integer(sp) :: class_i, class_j, j, sym_i, sym_j
+        integer(sp) :: ind_i, ind_j, full_ind_i, full_ind_j
+        integer :: counter
+        integer(sp) :: string_i(tot_nelec), string_j(tot_nelec)
+
+        counter = 0
+
+        do class_i = 1, ras%num_classes
+            class_i_ind = ras%cum_classes(class_i)
+            do j = 1, classes(class_i)%num_comb
+                class_j = classes(class_i)%allowed_combns(j)
+                class_j_ind = ras%cum_classes(class_j)
+                do sym_i = 0, 7
+                    sym_j = ieor(HFSym_sp, sym_i)
+                    sym_i_ind = class_i_ind + classes(class_i)%cum_sym(sym_i)
+                    sym_j_ind = class_j_ind + classes(class_j)%cum_sym(sym_j)
+                    if (classes(class_i)%num_sym(sym_i) == 0) cycle
+                    if (classes(class_j)%num_sym(sym_j) == 0) cycle
+                    allocate(ras_mapping(class_i, class_j, sym_i)%elements(1:classes(class_i)%num_sym(sym_i), &
+                            1:classes(class_j)%num_sym(sym_j)))
+
+                    do ind_i = 1, classes(class_i)%num_sym(sym_i)
+                        full_ind_i = sym_i_ind + ind_i
+                        string_i = ras_strings(1:tot_nelec,full_ind_i)
+                        do ind_j = 1, classes(class_j)%num_sym(sym_j)
+                            counter = counter + 1
+                            full_ind_j = sym_j_ind + ind_j
+                            string_j = ras_strings(1:tot_nelec,full_ind_j)
+                            ras_mapping(class_i, class_j, sym_i)%elements(ind_i,ind_j) = counter
+                        end do
+                    end do
+
+                end do
+            end do
+        end do
+
+    end subroutine create_vector_mapping
+
+    subroutine transfer_to_block_form(ras, classes, full_vec, ras_vec)
+
+        type(ras_parameters), intent(in) :: ras
+        type(ras_class_data), intent(in) :: classes(ras%num_classes)
+        real(dp), intent(in) :: full_vec(:)
+        type(ras_vector), intent(out) :: ras_vec(ras%num_classes, ras%num_classes, 0:7)
+        integer(sp) :: class_i, class_j, j, sym_i, sym_j, ind_i, ind_j
+        integer :: counter
+
+        counter = 0
+
+        do class_i = 1, ras%num_classes
+            do j = 1, classes(class_i)%num_comb
+                class_j = classes(class_i)%allowed_combns(j)
+                do sym_i = 0, 7
+                    sym_j = ieor(HFSym_sp, sym_i)
+                    if (classes(class_i)%num_sym(sym_i) == 0) cycle
+                    if (classes(class_j)%num_sym(sym_j) == 0) cycle
+                    do ind_i = 1, classes(class_i)%num_sym(sym_i)
+                        do ind_j = 1, classes(class_j)%num_sym(sym_j)
+                            counter = counter + 1
+                            ras_vec(class_i, class_j, sym_i)%elements(ind_i, ind_j) = full_vec(counter)
+                        end do
+                    end do
+                end do
+            end do
+        end do
+
+    end subroutine transfer_to_block_form
+
+    subroutine transfer_from_block_form(ras, classes, full_vec, ras_vec)
+
+        type(ras_parameters), intent(in) :: ras
+        type(ras_class_data), intent(in) :: classes(ras%num_classes)
+        real(dp), intent(out) :: full_vec(:)
+        type(ras_vector), intent(in) :: ras_vec(ras%num_classes, ras%num_classes, 0:7)
+        integer(sp) :: class_i, class_j, j, sym_i, sym_j, ind_i, ind_j
+        integer :: counter
+
+        counter = 0
+
+        do class_i = 1, ras%num_classes
+            do j = 1, classes(class_i)%num_comb
+                class_j = classes(class_i)%allowed_combns(j)
+                do sym_i = 0, 7
+                    sym_j = ieor(HFSym_sp, sym_i)
+                    if (classes(class_i)%num_sym(sym_i) == 0) cycle
+                    if (classes(class_j)%num_sym(sym_j) == 0) cycle
+                    do ind_i = 1, classes(class_i)%num_sym(sym_i)
+                        do ind_j = 1, classes(class_j)%num_sym(sym_j)
+                            counter = counter + 1
+                            full_vec(counter) = ras_vec(class_i, class_j, sym_i)%elements(ind_i, ind_j)
+                        end do
+                    end do
+                end do
+            end do
+        end do
+
+    end subroutine transfer_from_block_form
+
+    subroutine create_ham_diag_direct_ci(ras, classes, ras_strings, hamil_diag)
+
+        use Determinants, only: get_helement
+        use SystemData, only: nel
+
+        type(ras_parameters), intent(in) :: ras
+        type(ras_class_data), intent(in) :: classes(ras%num_classes)
+        integer(sp), intent(in) :: ras_strings(-1:tot_nelec, core_ras%num_strings)
+        real(dp), intent(out) :: hamil_diag(:)
+        integer(sp) :: class_i_ind, class_j_ind, sym_i_ind, sym_j_ind
+        integer(sp) :: class_i, class_j, j, sym_i, sym_j
+        integer(sp) :: ind_i, ind_j, full_ind_i, full_ind_j
+        integer :: counter, k
+        integer :: string_i(tot_nelec), string_j(tot_nelec), nI(nel)
+
+        counter = 0
+
+        do class_i = 1, ras%num_classes
+            class_i_ind = ras%cum_classes(class_i)
+            do j = 1, classes(class_i)%num_comb
+                class_j = classes(class_i)%allowed_combns(j)
+                class_j_ind = ras%cum_classes(class_j)
+                do sym_i = 0, 7
+                    sym_j = ieor(HFSym_sp, sym_i)
+                    sym_i_ind = class_i_ind + classes(class_i)%cum_sym(sym_i)
+                    sym_j_ind = class_j_ind + classes(class_j)%cum_sym(sym_j)
+                    if (classes(class_i)%num_sym(sym_i) == 0) cycle
+                    if (classes(class_j)%num_sym(sym_j) == 0) cycle
+                    do ind_i = 1, classes(class_i)%num_sym(sym_i)
+                        full_ind_i = sym_i_ind + ind_i
+                        string_i = int(ras_strings(1:tot_nelec,full_ind_i),sizeof_int)
+                        do ind_j = 1, classes(class_j)%num_sym(sym_j)
+                            counter = counter + 1
+                            full_ind_j = sym_j_ind + ind_j
+                            string_j = int(ras_strings(1:tot_nelec,full_ind_j),sizeof_int)
+                            ! Beta string.
+                            nI(1:tot_nelec) = string_i*2-1
+                            ! Alpha string.
+                            nI(tot_nelec+1:nel) = string_j*2
+                            ! Replace all orbital numbers, orb, with the true orbital
+                            ! numbers, BRR(orb). Also, sort this list.
+                            do k = 1, nel
+                                nI(k) = BRR(nI(k))
+                            end do
+                            call sort(nI)
+                            hamil_diag(counter) = get_helement(nI, nI, 0)
+                        end do
+                    end do
+                end do
+            end do
+        end do
+
+    end subroutine create_ham_diag_direct_ci
 
 end module direct_ci
