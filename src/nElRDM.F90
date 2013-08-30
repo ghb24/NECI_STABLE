@@ -5179,7 +5179,7 @@ MODULE nElRDMMod
                  
                  connect_elem=core_connections(i)%elements(j)
 
-                 IC=abs(core_connections(i)%elements(j))
+                 IC=abs(connect_elem)
 
                  if(sign(1, connect_elem).gt.0) then
                      tParity=.false.
@@ -5187,7 +5187,7 @@ MODULE nElRDMMod
                      tParity=.true.
                  endif
 
-                 if(abs(connect_elem) .eq. 1) then
+                 if(IC.eq.1) then
                      !Single excitation - contributes to 1- and 2-RDM (if calculated)
                      
                      !Note: get_bit_excitmat may be buggy (DetBitOps), but will do for now as we need the Ex...
@@ -5198,7 +5198,7 @@ MODULE nElRDMMod
                      ! determinants both ways around using the connectivity matrix.
                      call Fill_Sings_RDM(nI,Ex,tParity,AvSignI*IterRDM,AvSignJ,.false.)
 
-                 elseif(abs(connect_elem) .eq. 2) then
+                 elseif((IC.eq.2).and.(RDMExcitLevel.ne.1)) then
                      !Double excitation - only contributes to 2-RDM
                      
                      !Note: get_bit_excitmat may be buggy (DetBitOps), but will do for now as we need the Ex...
