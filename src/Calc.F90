@@ -149,6 +149,7 @@ contains
           TOneExcitConn=.false.
           TStarTrips=.false.
           TLanczos=.false.
+          tDavidson=.false.
           TNoSameExcit=.false.
           TInitStar=.false.
           NoMoveDets=1
@@ -298,7 +299,8 @@ contains
           use UMatCache, only: gen2CPMDInts
           use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp,nClustSelections
           use CCMCData, only: tExactEnergy,tSharedExcitors
-          use FciMCData, only: hash_shift
+          use FciMCData, only: hash_shift, davidson_ras
+          use ras_data
           use global_utilities
           use Parallel_neci, only : nProcessors
           use LoggingData, only: tLogDets
@@ -309,6 +311,7 @@ contains
           INTEGER :: l,i,ierr
           INTEGER :: tempMaxNoatHF,tempHFPopThresh
           logical :: tExitNow
+          integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
 
           calc: do
             call read_line(eof)
@@ -336,7 +339,7 @@ contains
                 tLogDets=.true.
             case("LANCZOS")
 !Sets the diagonaliser for the GraphMorph algorithm to be Lanczos
-                TLanczos=.true.
+                tLanczos=.true.
             case("EIGENVALUES")
                 call readi(NEVAL)
             case("READ")
@@ -379,7 +382,6 @@ contains
                 call geti(KOBS)
             case("WORKOUT")
                 call geti(NDETWORK)
-
 ! Using the keyword CONSTRUCTNATORBS includes a calculation of the 1 electron reduced 
 ! density matrix (1-RDM) as the FCIMC calculation progresses.
 ! Diagonalisation of this matrix gives linear combinations of the HF orbitals which 
@@ -389,7 +391,6 @@ contains
             case("CONSTRUCTNATORBS")
                 CALL Stop_All(t_r,"CONSTRUCTNATORBS option depreciated")
 !                tConstructNOs = .true.
-            
             case("ENDCALC")
                 exit calc
             case("METHODS")
@@ -430,7 +431,19 @@ contains
                        else
                       TVARCALC(I_VMAX)=.true.
                        end if
-
+                    case("DAVIDSON")
+                        I_VMAX = I_VMAX + 1
+                        tDavidson = .true.
+                        call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
+                        call geti(ras_size_2)  ! Number of spatial orbitals in RAS2.
+                        call geti(ras_size_3)  ! Number of spatial orbitals in RAS3.
+                        call geti(ras_min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs. 
+                        call geti(ras_max_3)  ! Max number of electrons (alpha and beta) in RAS3 orbs.
+                        davidson_ras%size_1 = int(ras_size_1,sp)
+                        davidson_ras%size_2 = int(ras_size_2,sp)
+                        davidson_ras%size_3 = int(ras_size_3,sp)
+                        davidson_ras%min_1 = int(ras_min_1,sp)
+                        davidson_ras%max_3 = int(ras_max_3,sp)
                     case("ENDMETHODS")
                        tExitNow = .true.
 
@@ -1744,6 +1757,8 @@ call neci_flush(6)
           use Parallel_Calc
           use util_mod, only: get_free_unit, NECI_ICOPY
           use sym_mod
+          use davidson, only: davidson_direct_ci_init, davidson_direct_ci_end, perform_davidson
+          use davidson, only: direct_ci_type
 
 !Calls
 !          real(dp) DMonteCarlo2
@@ -1761,6 +1776,10 @@ call neci_flush(6)
               call ParMP2(FDet)
 ! Parallal 2v sum currently for testing only.
 !          call Par2vSum(FDet)
+          ELSE IF(tDavidson) then
+              call davidson_direct_ci_init()
+              call perform_davidson(direct_ci_type, .true.)
+              call davidson_direct_ci_end()
           ELSE IF(NPATHS.NE.0.OR.DETINV.GT.0) THEN
 !Old and obsiolecte
 !             IF(TRHOIJND) THEN
@@ -1879,7 +1898,7 @@ call neci_flush(6)
           ENDIF
          
 !C.. /AJWT
-        End Subroutine
+        End Subroutine CalcDoCalc
 
         Subroutine DoExactVertexCalc()
           use SystemData, only: Alat, Beta, Brr, ECORE, G1, nBasis, nBasisMax,nMsh, Arr,nEl

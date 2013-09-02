@@ -492,7 +492,6 @@ MODULE FciMCData
       ! Data for performing the direct-ci Davidson algorithm.
       type(ras_parameters) :: davidson_ras
       type(ras_class_data), allocatable, dimension(:) :: davidson_classes
-      type(ras_vector), allocatable, dimension(:,:) :: davidson_mapping
       integer(sp), allocatable, dimension(:,:) :: davidson_strings
       integer(n_int), allocatable, dimension(:,:) :: davidson_iluts
       type(direct_ci_excit), allocatable, dimension(:) :: davidson_excits

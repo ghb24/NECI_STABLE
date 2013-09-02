@@ -27,11 +27,11 @@ module ras
     use bit_reps, only: NIfTot
     use constants
     use DetBitOps, only: EncodeBitDet
-    use FciMCData, only: HFDet
+    use FciMCData, only: HFSym
     use ras_data
     use sort_mod, only: sort
     use sym_mod, only: getsym
-    use SystemData, only: G1, nbasismax, nel, basisfn, BRR
+    use SystemData, only: G1, nbasismax, nel, nbasis, basisfn, BRR
     use util_mod, only: find_next_comb
 
     implicit none
@@ -49,6 +49,16 @@ contains
         type(basisfn) :: hfbasisfn
         integer(sp) :: string(tot_nelec)
         integer(sp) :: lower_ras3, upper_ras3
+
+        tot_nelec = int(nel,sp)/2
+        tot_norbs = int(nbasis,sp)/2
+
+        ! Check that the RAS parameters are possible.
+        if (ras%size_1+ras%size_2+ras%size_3 /= tot_norbs .or. &
+            ras%min_1 > ras%size_1*2 .or. ras%max_3 > ras%size_3*2) &
+            call stop_all("generate_ras", "RAS parameters are not possible.")
+        if (mod(nel, 2) /= 0) call stop_all("generate_ras", "RAS-core only implmented for &
+                                            & closed shell molecules.")
 
         ! First we need to find the different classes. A class is defined by the number
         ! of electrons in RAS1 and RAS3. Thus, we need to find all possible allowed
@@ -84,11 +94,7 @@ contains
                 classes(counter)%nelec_1 = i
                 classes(counter)%nelec_3 = j
                 classes(counter)%nelec_2 = tot_nelec-i-j
-                write(6,*) "Class:", counter
-                write(6,*) "1, 2, 3:", i, tot_nelec-i-j, j
                 if (classes(counter)%nelec_2 < 0) then
-                    write(6,*) "nelec_1, nelec_2, nelec_3:", classes(counter)%nelec_1, &
-                        classes(counter)%nelec_2, classes(counter)%nelec_3
                     call stop_all("initialise_ras_space", &
                                   "Current RAS combination is not possible.")
                 end if
@@ -143,8 +149,7 @@ contains
             if (i > 1) ras%cum_classes(i) = ras%cum_classes(i-1) + classes(i-1)%class_size
         end do
 
-        call getsym(HFDet, nel, G1, nbasismax, hfbasisfn)
-        HFSym_sp = int(hfbasisfn%Sym%S,sp)
+        HFSym_sp = int(HFSym%Sym%S,sp)
 
     end subroutine initialise_ras_space
 

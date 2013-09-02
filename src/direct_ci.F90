@@ -21,9 +21,9 @@ contains
 
         type(ras_parameters), intent(in) :: ras
         type(ras_class_data), intent(in) :: classes(ras%num_classes)
-        integer(sp), intent(in) :: ras_strings(-1:tot_nelec, core_ras%num_strings)
-        integer(n_int), intent(in) :: ras_iluts(0:NIfD, core_ras%num_strings)
-        type(direct_ci_excit), intent(in) :: ras_excit(core_ras%num_strings)
+        integer(sp), intent(in) :: ras_strings(-1:tot_nelec, ras%num_strings)
+        integer(n_int), intent(in) :: ras_iluts(0:NIfD, ras%num_strings)
+        type(direct_ci_excit), intent(in) :: ras_excit(ras%num_strings)
         type(ras_vector), intent(in) :: vec_in(ras%num_classes, ras%num_classes, 0:7)
         type(ras_vector), intent(inout) :: vec_out(ras%num_classes, ras%num_classes, 0:7)
 
@@ -516,9 +516,9 @@ contains
 
         type(ras_parameters), intent(in) :: ras
         type(ras_class_data), intent(in) :: classes(ras%num_classes)
-        integer(sp), intent(out) :: ras_strings(-1:tot_nelec, core_ras%num_strings)
-        integer(n_int), intent(out) :: ras_iluts(0:NIfD, core_ras%num_strings)
-        type(direct_ci_excit), intent(out) :: ras_excit(core_ras%num_strings)
+        integer(sp), intent(out) :: ras_strings(-1:tot_nelec, ras%num_strings)
+        integer(n_int), intent(out) :: ras_iluts(0:NIfD, ras%num_strings)
+        type(direct_ci_excit), intent(out) :: ras_excit(ras%num_strings)
         integer(n_int) :: ilut_i(0:NIfD)
         integer(sp) :: i, j, class_i, class_j, sym_i, sym_j, ind, new_ind, counter
         integer(sp) :: nras1, nras3, par
@@ -528,8 +528,8 @@ contains
         logical :: none_left, tgen
         type(simple_excit_store), target :: gen_store_1
 
-        memory_required = (2+tot_nelec)*core_ras%num_strings*4
-        memory_required = memory_required + (1+NIfD)*core_ras%num_strings*size_n_int
+        memory_required = (2+tot_nelec)*ras%num_strings*4
+        memory_required = memory_required + (1+NIfD)*ras%num_strings*size_n_int
 
         ilut_i = 0
 
@@ -602,57 +602,12 @@ contains
 
     end subroutine create_direct_ci_arrays
 
-    subroutine create_vector_mapping(ras, classes, ras_strings, ras_mapping)
-
-        type(ras_parameters), intent(in) :: ras
-        type(ras_class_data), intent(in) :: classes(ras%num_classes)
-        integer(sp), intent(in) :: ras_strings(-1:tot_nelec, core_ras%num_strings)
-        type(ras_vector), intent(out) :: ras_mapping(ras%num_classes, ras%num_classes, 0:7)
-        integer(sp) :: class_i_ind, class_j_ind, sym_i_ind, sym_j_ind
-        integer(sp) :: class_i, class_j, j, sym_i, sym_j
-        integer(sp) :: ind_i, ind_j, full_ind_i, full_ind_j
-        integer :: counter
-        integer(sp) :: string_i(tot_nelec), string_j(tot_nelec)
-
-        counter = 0
-
-        do class_i = 1, ras%num_classes
-            class_i_ind = ras%cum_classes(class_i)
-            do j = 1, classes(class_i)%num_comb
-                class_j = classes(class_i)%allowed_combns(j)
-                class_j_ind = ras%cum_classes(class_j)
-                do sym_i = 0, 7
-                    sym_j = ieor(HFSym_sp, sym_i)
-                    sym_i_ind = class_i_ind + classes(class_i)%cum_sym(sym_i)
-                    sym_j_ind = class_j_ind + classes(class_j)%cum_sym(sym_j)
-                    if (classes(class_i)%num_sym(sym_i) == 0) cycle
-                    if (classes(class_j)%num_sym(sym_j) == 0) cycle
-                    allocate(ras_mapping(class_i, class_j, sym_i)%elements(1:classes(class_i)%num_sym(sym_i), &
-                            1:classes(class_j)%num_sym(sym_j)))
-
-                    do ind_i = 1, classes(class_i)%num_sym(sym_i)
-                        full_ind_i = sym_i_ind + ind_i
-                        string_i = ras_strings(1:tot_nelec,full_ind_i)
-                        do ind_j = 1, classes(class_j)%num_sym(sym_j)
-                            counter = counter + 1
-                            full_ind_j = sym_j_ind + ind_j
-                            string_j = ras_strings(1:tot_nelec,full_ind_j)
-                            ras_mapping(class_i, class_j, sym_i)%elements(ind_i,ind_j) = counter
-                        end do
-                    end do
-
-                end do
-            end do
-        end do
-
-    end subroutine create_vector_mapping
-
     subroutine transfer_to_block_form(ras, classes, full_vec, ras_vec)
 
         type(ras_parameters), intent(in) :: ras
         type(ras_class_data), intent(in) :: classes(ras%num_classes)
         real(dp), intent(in) :: full_vec(:)
-        type(ras_vector), intent(out) :: ras_vec(ras%num_classes, ras%num_classes, 0:7)
+        type(ras_vector), intent(inout) :: ras_vec(ras%num_classes, ras%num_classes, 0:7)
         integer(sp) :: class_i, class_j, j, sym_i, sym_j, ind_i, ind_j
         integer :: counter
 
@@ -682,7 +637,7 @@ contains
         type(ras_parameters), intent(in) :: ras
         type(ras_class_data), intent(in) :: classes(ras%num_classes)
         real(dp), intent(out) :: full_vec(:)
-        type(ras_vector), intent(in) :: ras_vec(ras%num_classes, ras%num_classes, 0:7)
+        type(ras_vector), intent(inout) :: ras_vec(ras%num_classes, ras%num_classes, 0:7)
         integer(sp) :: class_i, class_j, j, sym_i, sym_j, ind_i, ind_j
         integer :: counter
 
@@ -707,15 +662,15 @@ contains
 
     end subroutine transfer_from_block_form
 
-    subroutine create_ham_diag_direct_ci(ras, classes, ras_strings, hamil_diag)
+    subroutine create_ham_diag_direct_ci(ras, classes, ras_strings, ham_diag)
 
         use Determinants, only: get_helement
         use SystemData, only: nel
 
         type(ras_parameters), intent(in) :: ras
         type(ras_class_data), intent(in) :: classes(ras%num_classes)
-        integer(sp), intent(in) :: ras_strings(-1:tot_nelec, core_ras%num_strings)
-        real(dp), intent(out) :: hamil_diag(:)
+        integer(sp), intent(in) :: ras_strings(-1:tot_nelec, ras%num_strings)
+        real(dp), intent(inout) :: ham_diag(:)
         integer(sp) :: class_i_ind, class_j_ind, sym_i_ind, sym_j_ind
         integer(sp) :: class_i, class_j, j, sym_i, sym_j
         integer(sp) :: ind_i, ind_j, full_ind_i, full_ind_j
@@ -752,7 +707,7 @@ contains
                                 nI(k) = BRR(nI(k))
                             end do
                             call sort(nI)
-                            hamil_diag(counter) = get_helement(nI, nI, 0)
+                            ham_diag(counter) = get_helement(nI, nI, 0)
                         end do
                     end do
                 end do

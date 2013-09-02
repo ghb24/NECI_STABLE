@@ -7,12 +7,13 @@ module davidson
 use constants
 use FciMCData, only: hamiltonian, DavidsonTag
 use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
+use ras_data
 use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
 
 implicit none
 
 integer :: max_num_davidson_iters = 50
-real(dp) :: residual_norm_target = 0.000000001
+real(dp) :: residual_norm_target = 0.00000001
 
 integer :: hamil_type
 ! The value of hamil_type specifies what form the Hamiltonian is stored in.
@@ -47,6 +48,8 @@ real(dp), allocatable, dimension(:) :: residual
 real(dp) :: residual_norm
 real(dp) :: davidson_eigenvalue
 
+type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
+
 integer(TagIntType) :: ResidualTag
 
     contains
@@ -73,8 +76,8 @@ integer(TagIntType) :: ResidualTag
 
             call calculate_residual_norm()
 
-            if (print_info) write(6,'(a19,1X,i2,5X,a14,1X,f12.10)') &
-                "Davidson iteration:", i-1, "residual norm:", residual_norm
+            if (print_info) write(6,'(a10,1X,i2,5X,a14,1X,f12.10,5x,a7,1x,f15.10)') &
+                "Iteration:", i-1, "residual norm:", residual_norm, "energy:", davidson_eigenvalue
 
             if (residual_norm < residual_norm_target) exit
             
@@ -98,13 +101,12 @@ integer(TagIntType) :: ResidualTag
         use FciMCData, only: davidson_ras, davidson_classes, davidson_strings
         use ras, only: find_ras_size
 
-        integer :: i, space_size, HFindex, ierr
+        integer :: i, HFindex, ierr
         character (len=*), parameter :: this_routine = "init_davidson"
 
         ! Allocate and define the Hamiltonian diagonal, if not done so already.
         if (.not. allocated(hamil_diag)) then
             if (hamil_type == direct_ci_type) then
-                call find_ras_size(davidson_ras, davidson_classes, space_size)
                 allocate(hamil_diag(space_size), stat=ierr)
                 call LogMemAlloc("hamil_diag", space_size, 8, this_routine, HDiagTag, ierr)
                 call create_ham_diag_direct_ci(davidson_ras, davidson_classes, davidson_strings, hamil_diag)
@@ -157,7 +159,7 @@ integer(TagIntType) :: ResidualTag
         ! Take the initial eigenvalue to be the Hartree-Fock energy minus some small
         ! amount. This value cannot be exactly the Hartree-Fock energy, as this will
         ! result in dividing by zero in the subspace expansion step.
-        davidson_eigenvalue = hamil_diag(1) - 0.001
+        davidson_eigenvalue = hamil_diag(HFindex) - 0.001
 
         ! Calculate the corresponding residual:
         call calculate_residual()
@@ -168,7 +170,7 @@ integer(TagIntType) :: ResidualTag
 
         integer, intent(in) :: basis_index
         integer :: i
-        real(dp) :: dot_prod, ddot, norm, dnrm2
+        real(dp) :: dot_prod, ddot, norm
 
         ! Create the new basis state from the residual. This step performs
         ! t = (D - EI)^(-1) r,
@@ -188,8 +190,9 @@ integer(TagIntType) :: ResidualTag
 
         ! Finally we calculate the norm of the new basis vector and then normalise it to have a norm of 1.
         ! The new basis vector is stored in the next available column in the basis_vectors array.
-        norm = dnrm2(space_size, basis_vectors(i,:), 1)
-        basis_vectors(:, basis_index) = basis_vectors(:, basis_index)/norm
+        norm = ddot(space_size, basis_vectors(:,basis_index), 1, basis_vectors(:,basis_index), 1)
+        norm = sqrt(norm)
+        basis_vectors(:,basis_index) = basis_vectors(:,basis_index)/norm
 
     end subroutine subspace_expansion
 
@@ -314,10 +317,11 @@ integer(TagIntType) :: ResidualTag
         ! This subroutine calculates the Euclidean norm of the reisudal vector, r:
         ! residual_norm^2 = \sum_i r_i^2
 
-        real(dp) :: dnrm2
+        real(dp) :: ddot
 
         ! Use the BLAS routine, dnrm2, to calculate the norm.
-        residual_norm = dnrm2(space_size, residual, 1)
+        residual_norm = ddot(space_size, residual, 1, residual, 1)
+        residual_norm = sqrt(residual_norm)
 
     end subroutine calculate_residual_norm
 
@@ -377,9 +381,7 @@ integer(TagIntType) :: ResidualTag
 
         do i = 1, space_size
             do j = 1, sparse_ham(i)%num_elements
-                output_vector(i) = output_vector(i) + &
-                    sparse_ham(i)%elements(j) * &
-                    input_vector(sparse_ham(i)%positions(j))
+                output_vector(i) = output_vector(i) + sparse_ham(i)%elements(j)*input_vector(sparse_ham(i)%positions(j))
             end do
         end do
 
@@ -389,13 +391,14 @@ integer(TagIntType) :: ResidualTag
 
         use direct_ci, only: perform_multiplication, transfer_from_block_form, transfer_to_block_form
         use FciMCData, only: davidson_ras, davidson_classes, davidson_strings, davidson_iluts, davidson_excits
-        use ras_data, only: ras_vector
         use SystemData, only: ecore
 
         real(dp), intent(in) :: input_vector(space_size)
         real(dp), intent(out) :: output_vector(space_size)
-        type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
 
+        ! The davidson code uses a single vector to store amplitudes. However, the direct CI code
+        ! works in terms of alpha and beta strings and so uses block matrices. This routine will
+        ! transfer the vector to block form.
         call transfer_to_block_form(davidson_ras, davidson_classes, input_vector, direct_ci_inp)
 
         call perform_multiplication(davidson_ras, davidson_classes, davidson_strings, davidson_iluts, davidson_excits, &
@@ -403,7 +406,9 @@ integer(TagIntType) :: ResidualTag
 
         call transfer_from_block_form(davidson_ras, davidson_classes, output_vector, direct_ci_out)
 
-        output_vector = output_vector*(1+ecore)
+        ! The above multiplication does not include the nuclear-nuclear energy, so add this
+        ! contribution now.
+        output_vector = output_vector + ecore*input_vector
 
     end subroutine multiply_hamil_and_vector_direct_ci
 
@@ -420,5 +425,57 @@ integer(TagIntType) :: ResidualTag
         call LogMemDealloc("end_davidson", ResidualTag, ierr)
 
     end subroutine end_davidson
+
+    subroutine davidson_direct_ci_init()
+
+        use bit_rep_data, only: NIfD
+        use direct_ci, only: create_direct_ci_arrays
+        use FciMCData, only: davidson_ras, davidson_classes, davidson_strings, davidson_iluts, davidson_excits
+        use ras, only: initialise_ras_space, find_ras_size
+
+        integer :: class_i, class_j, j, sym_i, sym_j
+
+        call initialise_ras_space(davidson_ras, davidson_classes)
+        ! The total hilbert space dimension of calculation to be performed.
+        call find_ras_size(davidson_ras, davidson_classes, space_size)
+
+        allocate(davidson_strings(-1:tot_nelec, davidson_ras%num_strings))
+        allocate(davidson_iluts(0:NIfD, davidson_ras%num_strings))
+        allocate(davidson_excits(davidson_ras%num_strings))
+
+        ! Create the arrays used by the direct CI multiplication.
+        call create_direct_ci_arrays(davidson_ras, davidson_classes, davidson_strings, &
+                davidson_iluts, davidson_excits)
+
+        ! Allocate input and output direct CI vectors.
+        allocate(direct_ci_inp(size(davidson_classes),size(davidson_classes),0:7))
+        allocate(direct_ci_out(size(davidson_classes),size(davidson_classes),0:7))
+        do class_i = 1, size(davidson_classes)
+            do j = 1, davidson_classes(class_i)%num_comb
+                class_j = davidson_classes(class_i)%allowed_combns(j)
+                do sym_i = 0, 7
+                    sym_j = ieor(int(HFSym_sp,sizeof_int), sym_i)
+                    if (davidson_classes(class_i)%num_sym(sym_i) == 0) cycle
+                    if (davidson_classes(class_j)%num_sym(sym_j) == 0) cycle
+                    allocate(direct_ci_inp(class_i,class_j,sym_i)%&
+                        elements(1:davidson_classes(class_i)%num_sym(sym_i),1:davidson_classes(class_j)%num_sym(sym_j)))
+                    allocate(direct_ci_out(class_i,class_j,sym_i)%&
+                        elements(1:davidson_classes(class_i)%num_sym(sym_i),1:davidson_classes(class_j)%num_sym(sym_j)))
+                end do
+            end do
+        end do
+
+    end subroutine davidson_direct_ci_init
+
+    subroutine davidson_direct_ci_end()
+
+        integer :: ierr
+
+        deallocate(hamil_diag, stat=ierr)
+        call LogMemDealloc("davidson_direct_ci_end", HDiagTag, ierr)
+        deallocate(davidson_eigenvector, stat=ierr)
+        call LogMemDealloc("davidson_direct_ci_end", DavidsonTag, ierr)
+
+    end subroutine davidson_direct_ci_end
 
 end module davidson

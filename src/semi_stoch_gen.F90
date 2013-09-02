@@ -461,18 +461,6 @@ contains
         integer(n_int), allocatable, dimension(:,:) :: ras_iluts
         type(direct_ci_excit), allocatable, dimension(:) :: ras_excit
 
-        tot_nelec = int(nel,sp)/2
-        tot_norbs = int(nbasis,sp)/2
-
-        ! Do a check that the RAS parameters are possible.
-        if (core_ras%size_1+core_ras%size_2+core_ras%size_3 /= tot_norbs .or. &
-            core_ras%min_1 > core_ras%size_1*2 .or. &
-            core_ras%max_3 > core_ras%size_3*2) &
-            call stop_all("generate_ras", "RAS parameters are not possible.")
-
-        if (mod(nel, 2) /= 0) call stop_all("generate_ras", "RAS-core only implmented for &
-                                            & closed shell molecules.")
-
         ! Create bitmasks, used in check_if_in_determ_space.
         allocate(core_ras1_bitmask(0:NIfD))
         core_ras1_bitmask = 0
@@ -500,68 +488,68 @@ contains
 
         !-----------------------------------------------------------------------------
 
-        allocate(ras_strings(-1:tot_nelec, core_ras%num_strings))
-        allocate(ras_iluts(0:NIfD, core_ras%num_strings))
-        allocate(ras_excit(core_ras%num_strings))
+        !allocate(ras_strings(-1:tot_nelec, core_ras%num_strings))
+        !allocate(ras_iluts(0:NIfD, core_ras%num_strings))
+        !allocate(ras_excit(core_ras%num_strings))
 
-        write(6,*) "init..."
-        call neci_flush(6)
+        !write(6,*) "init..."
+        !call neci_flush(6)
 
-        call create_direct_ci_arrays(core_ras, core_classes, ras_strings, ras_iluts, ras_excit)
+        !call create_direct_ci_arrays(core_ras, core_classes, ras_strings, ras_iluts, ras_excit)
 
-        write(6,*) "init complete"
-        call neci_flush(6)
+        !write(6,*) "init complete"
+        !call neci_flush(6)
 
-        allocate(vec_in(size(core_classes),size(core_classes),0:7))
-        allocate(vec_out(size(core_classes),size(core_classes),0:7))
+        !allocate(vec_in(size(core_classes),size(core_classes),0:7))
+        !allocate(vec_out(size(core_classes),size(core_classes),0:7))
 
-        do i = 1, size(core_classes)
-            do j = 1, core_classes(i)%num_comb
-                temp_class = core_classes(i)%allowed_combns(j)
-                do k = 0, 7
-                    l = ieor(int(HFSym_sp,sizeof_int), k)
-
-                    if (core_classes(i)%num_sym(k) == 0 .or. core_classes(temp_class)%num_sym(l) == 0) cycle
-
-                    allocate(vec_in(i,temp_class,k)%elements(1:core_classes(i)%num_sym(k), &
-                            1:core_classes(temp_class)%num_sym(l)))
-                    vec_in(i,temp_class,k)%elements(:,:) = 1.0_dp
-
-                    allocate(vec_out(i,temp_class,k)%elements(1:core_classes(i)%num_sym(k), &
-                            1:core_classes(temp_class)%num_sym(l)))
-                    vec_out(i,temp_class,k)%elements(:,:) = 0.0_dp
-                end do
-            end do
-        end do
-
-        write(6,*) "Starting direct ci..."
-        call neci_flush(6)
-
-        call perform_multiplication(core_ras, core_classes, ras_strings, ras_iluts, ras_excit, vec_in, vec_out)
-
-        write(6,*) "Done!"
-        call neci_flush(6)
-
-        !write(6,*)
-        !write(6,*) "Direct ci answer:"
         !do i = 1, size(core_classes)
         !    do j = 1, core_classes(i)%num_comb
         !        temp_class = core_classes(i)%allowed_combns(j)
         !        do k = 0, 7
-        !            l = ieor(int(HFSym,sizeof_int), k)
-        !            do m = 1, core_classes(i)%num_sym(k)
-        !                do n = 1, core_classes(temp_class)%num_sym(l)
-        !                    write(6,*) vec_out(i,temp_class,k)%elements(m,n)
-        !                end do
-        !            end do
+        !            l = ieor(int(HFSym_sp,sizeof_int), k)
+
+        !            if (core_classes(i)%num_sym(k) == 0 .or. core_classes(temp_class)%num_sym(l) == 0) cycle
+
+        !            allocate(vec_in(i,temp_class,k)%elements(1:core_classes(i)%num_sym(k), &
+        !                    1:core_classes(temp_class)%num_sym(l)))
+        !            vec_in(i,temp_class,k)%elements(:,:) = 1.0_dp
+
+        !            allocate(vec_out(i,temp_class,k)%elements(1:core_classes(i)%num_sym(k), &
+        !                    1:core_classes(temp_class)%num_sym(l)))
+        !            vec_out(i,temp_class,k)%elements(:,:) = 0.0_dp
         !        end do
         !    end do
         !end do
 
-        !write(6,*)
+        !write(6,*) "Starting direct ci..."
+        !call neci_flush(6)
 
-        deallocate(core_classes)
-        deallocate(ilut_list)
+        !call perform_multiplication(core_ras, core_classes, ras_strings, ras_iluts, ras_excit, vec_in, vec_out)
+
+        !write(6,*) "Done!"
+        !call neci_flush(6)
+
+        !!write(6,*)
+        !!write(6,*) "Direct ci answer:"
+        !!do i = 1, size(core_classes)
+        !!    do j = 1, core_classes(i)%num_comb
+        !!        temp_class = core_classes(i)%allowed_combns(j)
+        !!        do k = 0, 7
+        !!            l = ieor(int(HFSym,sizeof_int), k)
+        !!            do m = 1, core_classes(i)%num_sym(k)
+        !!                do n = 1, core_classes(temp_class)%num_sym(l)
+        !!                    write(6,*) vec_out(i,temp_class,k)%elements(m,n)
+        !!                end do
+        !!            end do
+        !!        end do
+        !!    end do
+        !!end do
+
+        !!write(6,*)
+
+        !deallocate(core_classes)
+        !deallocate(ilut_list)
 
     end subroutine generate_ras
 
