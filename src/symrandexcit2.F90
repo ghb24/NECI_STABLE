@@ -836,7 +836,6 @@ MODULE GenRandSymExcitNUMod
         real(dp) :: r
 
 !        WRITE(6,*) "FORBIDDEN ORBS: ",ForbiddenOrbs,Counter
-
         IF(iSpn.eq.2) THEN
 !There is no restriction on whether we choose an alpha or beta spin, so there are nBasis-NEl possible spinorbitals to choose from.
 !Therefore the spinOrbA variable has to be set after we have chosen one. For the other iSpn types, we can set it now.
@@ -949,7 +948,7 @@ MODULE GenRandSymExcitNUMod
 !We want to run through all alpha orbitals (odd numbered basis functions)
                             OrbA=(2*i)
                         ENDIF
-
+                        
                         !We need to find if allowed
                         IF(.not.BTEST(ILUT((OrbA-1)/bits_n_int),MOD((OrbA-1),bits_n_int))) THEN
                             !Is not in the original determinant - allow

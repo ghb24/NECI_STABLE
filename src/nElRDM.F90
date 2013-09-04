@@ -1007,7 +1007,7 @@ MODULE nElRDMMod
         ! already being calculated, it will already have been counted.
         if(.not.((Iter.eq.NMCyc).or.(mod((Iter - IterRDMStart + 1),RDMEnergyIter).eq.0))) then
 
-            if((abs(CurrH_I(2)).gt.real(InitiatorWalkNo,dp)).or.(.not.tInitiatorRDM)) then
+            if((abs(CurrH_I(2)).gt.InitiatorWalkNo).or.(.not.tInitiatorRDM)) then
 
                 ! IterLastRDMFill is the number of iterations from the last time the RDM elements 
                 ! were included.
@@ -1213,7 +1213,7 @@ MODULE nElRDMMod
         p_spawn=abs(1.0_dp - p_not_spawn)
         
         if(tInitiatorRDM) then
-            if(abs(AvSignCurr).gt.real(InitiatorWalkNo,dp)) then
+            if(abs(AvSignCurr).gt.InitiatorWalkNo) then
                 ! The Di is an initiator (on average) - keep passing around its sign until we 
                 ! know if the Dj is an initiator.
                 RDMBiasFacCurr = AvSignCurr / p_spawn   
@@ -1332,7 +1332,7 @@ MODULE nElRDMMod
                 CALL DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
         elseif(.not.DetBitEQ(iLutHF_True,iLutJ,NIfDBO)) then
             if(tInitiatorRDM) then
-                if(abs(realSignJ).gt.real(InitiatorWalkNo,dp)) &
+                if(abs(realSignJ).gt.InitiatorWalkNo) &
                     CALL DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
             else
                 CALL DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)

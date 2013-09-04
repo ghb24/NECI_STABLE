@@ -1240,7 +1240,7 @@ MODULE FciMCParMod
                             ! RDM elements are calculated, along with the contributions from 
                             ! connections to the (true) HF determinant.
 
-                            if((abs(CurrentH(2,gen_ind-1)).gt.real(InitiatorWalkNo,dp)).or.(.not.tInitiatorRDM)) & 
+                            if((abs(CurrentH(2,gen_ind-1)).gt.InitiatorWalkNo).or.(.not.tInitiatorRDM)) & 
                             ! If we are only using initiators to calculate the RDMs, only add in the diagonal and 
                             ! explicit contributions if the average population is greater than n_a = InitiatorWalkNo.
                                 call fill_rdm_diag_currdet(CurrentDets(:,gen_ind-1), DetCurr, &
@@ -1517,7 +1517,7 @@ MODULE FciMCParMod
                 ! RDM elements are calculated, along with the contributions from 
                 ! connections to the (true) HF determinant.
 
-                if((abs(CurrentH(2,VecSlot-1)).gt.real(InitiatorWalkNo,dp)).or.(.not.tInitiatorRDM)) & 
+                if((abs(CurrentH(2,VecSlot-1)).gt.InitiatorWalkNo).or.(.not.tInitiatorRDM)) & 
                 ! If we are only using initiators to calculate the RDMs, only add in the diagonal and 
                 ! explicit contributions if the average population is greater than n_a = InitiatorWalkNo.
                     call fill_rdm_diag_currdet(CurrentDets(:,VecSlot-1), DetCurr, &
@@ -1834,13 +1834,14 @@ MODULE FciMCParMod
         integer, intent(in) :: j, VecSlot
         integer, intent(out) :: parent_flags
         real(dp), dimension(lenof_sign) :: CurrentSign
-        integer :: part_type, init_thresh
+        integer :: part_type
+        real(dp) :: init_thresh
         logical :: tDetinCAS, parent_init
 
         call extract_sign (CurrentDets(:,j), CurrentSign)
 
         if (tVaryInitThresh) then
-            init_thresh = return_nsteps(CurrentDets(:,j))
+            init_thresh = real(return_nsteps(CurrentDets(:,j)),dp)
         else
             init_thresh = InitiatorWalkNo
         end if
@@ -2119,7 +2120,7 @@ MODULE FciMCParMod
                                 &i8, " blooms occurred.")'
         else
             ! Use this variable to store the bloom cutoff level.
-            InitiatorWalkNo = 25
+            InitiatorWalkNo = 25.0_dp
             bloom_warn_string = '("Bloom of more than 25 on ", a, " excit: &
                                 &A max of ", f10.2, " particles created. ", &
                                 &i8, " blooms occurred.")'
@@ -5593,7 +5594,7 @@ MODULE FciMCParMod
                 !Therefore, assume that we do not want blooms larger than n_add if initiator,
                 !or 5 if non-initiator calculation.
                 if(tTruncInitiator) then
-                    MaxAllowedSpawnProb = real(InitiatorWalkNo,dp)
+                    MaxAllowedSpawnProb = InitiatorWalkNo
                 else
                     MaxAllowedSpawnProb = 5.0_dp    !Won't allow more than 5 particles at a time
                 endif
@@ -5802,7 +5803,7 @@ MODULE FciMCParMod
             !Therefore, assume that we do not want blooms larger than n_add if initiator,
             !or 5 if non-initiator calculation.
             if(tTruncInitiator) then
-                nAddFac = real(InitiatorWalkNo,dp)
+                nAddFac = InitiatorWalkNo
             else
                 nAddFac = 5.0_dp    !Won't allow more than 5 particles at a time
             endif
