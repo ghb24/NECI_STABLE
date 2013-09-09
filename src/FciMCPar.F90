@@ -393,6 +393,8 @@ MODULE FciMCParMod
                     !Is it time to exit yet?
                     write(iout,"(A,F8.2,A)") "Time limit reached for simulation of: ",MaxTimeExit/60.0," minutes - exiting..."
                     NMCyc=Iter+StepsSft  
+                    ! Set this to false so that this if statement won't be entered next time.
+                    tTimeExit = .false.
                     !tIncrement=.false.
                     !if(tFillingStochRDMonFly) call fill_rdm_softexit(TotWalkers)
                     !EXIT

@@ -376,7 +376,7 @@ contains
                             call readi (nVirtPartFrozen)
                             call readi (nElVirtFrozen)
                         elseif (i == addtoinit) then
-                            call readi (InitiatorWalkNo)
+                            call readf (InitiatorWalkNo)
                         elseif (i == scalehf) then
                             call readf (hfScaleFactor)
                         elseif (i == spin_project) then

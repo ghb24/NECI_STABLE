@@ -5221,7 +5221,7 @@ MODULE nElRDMMod
                      ! determinants both ways around using the connectivity matrix.
                      call Fill_Sings_RDM(nI,Ex,tParity,AvSignI*IterRDM,AvSignJ,.false.)
 
-                 elseif((IC .eq. 2).and.(RDMExcitLevel.ne.1)) then
+                 elseif((IC.eq.2).and.(RDMExcitLevel.ne.1)) then
                      !Double excitation - only contributes to 2-RDM
                      
                      !Note: get_bit_excitmat may be buggy (DetBitOps), but will do for now as we need the Ex...
