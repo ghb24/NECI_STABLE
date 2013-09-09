@@ -49,6 +49,8 @@ module LoggingData
     integer :: iProjEBins
     logical :: tDumpForcesInfo
     logical :: tPrintLagrangian  !Print out the 1RDM,2RDM and Lagrangian to file at the end of a run as long as 2RDM is calculated
+    real(dp) :: ThreshOccRDM, erf_factor1, erf_factor2
+    logical :: tCorrectRDMErf, tThreshOccRDMDiag, tTaperDiagRDM, tTaperSQDiagRDM, tInitiatorRDMDiag
 
     logical :: tCalcInstantS2, tCalcInstSCpts, tCalcInstantS2Init
     integer :: instant_s2_multiplier, instant_s2_multiplier_init

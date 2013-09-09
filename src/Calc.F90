@@ -228,7 +228,7 @@ contains
 !          tKeepDoubleSpawns=.false.
           tAddtoInitiator=.false.
           tRetestAddtoInit=.true.
-          InitiatorWalkNo=10
+          InitiatorWalkNo=10.0_dp
           IterTruncInit=0
           tInitIncDoubs=.false.
           MaxNoatHF=0
@@ -1255,7 +1255,7 @@ contains
 !it is essentially added to the initiator space and is allowed to spawn where it likes.
 !The minimum walker population for a determinant to be added to the initiator space is InitiatorWalkNo.
                 tAddtoInitiator=.true.
-                call Geti(InitiatorWalkNo)
+                call Getf(InitiatorWalkNo)
 
             case("SPAWNONLYINIT")
 !This option means only the initiators have the ability to spawn.  The non-initiators can live/die but not 

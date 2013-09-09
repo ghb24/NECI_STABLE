@@ -134,6 +134,12 @@ MODULE Logging
       IterWriteRDMs = 10000
       tWriteMultRDMs = .false.
       tInitiatorRDM = .false.
+      tInitiatorRDMDiag = .false.
+      tCorrectRDMErf=.false.
+      tThreshOccRDMDiag=.false.
+      tTaperDiagRDM=.false.
+      tTaperSQDiagRDM=.false.
+      ThreshOccRDM=2.0_dp
       tDumpForcesInfo = .false.
       tPrintLagrangian = .false.
       instant_s2_multiplier_init = 1
@@ -586,7 +592,37 @@ MODULE Logging
         case("INITIATORRDM")
 ! Use only the determinants that are (on average) initiators to calculate the RDMs.
             tInitiatorRDM = .true.
-
+        
+        case("INITIATORRDMDIAG")
+! Use only the determinants that are (on average) initiators to calculate diagonal elements of the RDMs.
+! For off-diagonal elements, allow any contributions
+            tInitiatorRDMDiag = .true.
+        
+        case("CORRECTRDMERF")
+!Use an error function fitted to previous data to scale down the contributions to the density matrix from low weight determinants.  Provide a small step cutoff (ThreshOccRDM), and then a value of b for the function erf(bx).  Currently, this value will be taken from a fit  -- we histogram a small system and calculate the factor by which we'd have to multiply an RDM contribution to achieve the correct result, and plot this against average absolute population at the time of the contribution.
+            tCorrectRDMErf=.true.
+            call Getf(ThreshOccRDM)
+            call Getf(erf_factor1)
+            call Getf(erf_factor2)
+        
+        case("THRESHOCCONLYRDMDIAG")
+            !Only add in a contribution to the diagonal elements of the RDM if the average sign of the determinant is greater than [ThreshOccRDM]
+            tThreshOccRDMDiag=.true.
+            call Getf(ThreshOccRDM)
+            
+        case("TAPERDIAGRDM")
+            !If average coefficient is less than ThreshOccRDM, linearly taper its contribution to zero according to its coefficient -- ie, rescale the contribution by <c_i>/ThreshOccRDM
+            !This is only applied to diagonal elements of the RDM
+            !This should have a similar effect to THRESHOCCONLYRDMDIAG, but be less sensitive to the cutoff choice.
+            tTaperDiagRDM=.true.
+            call Getf(ThreshOccRDM)
+        
+        case("TAPERSQDIAGRDM")
+            !If average coefficient is less than ThreshOccRDM, linearly taper its contribution to zero according to its coefficient -- ie, rescale the contribution by (<c_i>/ThreshOccRDM)^2
+            !This is only applied to diagonal elements of the RDM
+            !This should have a similar effect to THRESHOCCONLYRDMDIAG, but be less sensitive to the cutoff choice.
+            tTaperSQDiagRDM=.true.
+            call Getf(ThreshOccRDM)
 
         case("DUMPFORCESINFO")
 ! Using the finalised 2RDM, calculate the Lagrangian X used for the calculation of the forces, 

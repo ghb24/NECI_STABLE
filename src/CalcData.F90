@@ -55,7 +55,8 @@ integer :: trunc_nopen_max
 
 logical :: tMaxBloom    !If this is on, then we only print out a bloom warning if it is the biggest to date.
 
-INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,IterTruncInit,InitiatorWalkNo,NShiftEquilSteps
+INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,IterTruncInit,NShiftEquilSteps
+REAL(dp) :: InitiatorWalkNo
 INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp,iFullSpaceIter
 INTEGER :: IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets,iDetGroup
 INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
