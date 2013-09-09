@@ -226,7 +226,7 @@ contains
 !          tKeepDoubleSpawns=.false.
           tAddtoInitiator=.false.
           tRetestAddtoInit=.true.
-          InitiatorWalkNo=10
+          InitiatorWalkNo=10.0_dp
           IterTruncInit=0
           tInitIncDoubs=.false.
           MaxNoatHF=0
