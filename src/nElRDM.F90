@@ -5157,7 +5157,7 @@ MODULE nElRDMMod
         real(dp) :: AvSignI, AvSignJ
         logical :: tParity
         integer(kind=n_int) :: iLutI(0:niftot), iLutJ(0:niftot)
-        integer :: nI(nel), IC
+        integer :: nI(nel), nJ(nel), IC
         integer :: IterRDM, connect_elem
    
         if(mod((Iter - IterRDMStart + 1),RDMEnergyIter).eq.0) then
@@ -5189,10 +5189,6 @@ MODULE nElRDMMod
                  !to shuffle up to the range of indices corresponding to this proc
                  ! (using determ_proc_indices) and then select the correct one, i
                  
-                 !For now, I'm using the INSTANTANEOUS sign -- TODO: rework to use an averaged sign
-                 !as for CurrentH(2,..) as used for non-deterministic states
-                             
-                           
                  iLutJ=core_space(:,core_connections(i)%positions(j))
                  if(DetBitEq(iLutJ,iLutHF_True,NifDBO)) cycle
                  !Connections to HF done elsewhere.
@@ -5210,24 +5206,32 @@ MODULE nElRDMMod
                      tParity=.true.
                  endif
 
-                 if(IC.eq.1) then
-                     !Single excitation - contributes to 1- and 2-RDM (if calculated)
-                     
-                     !Note: get_bit_excitmat may be buggy (DetBitOps), but will do for now as we need the Ex...
-                     call get_bit_excitmat(iLutI,iLutJ,SingEx,IC)
-                     Ex(:,1)=SingEx(:)
-                    
-                     !No need to explicitly fill symmetrically as we'll generate pairs of 
-                     ! determinants both ways around using the connectivity matrix.
-                     call Fill_Sings_RDM(nI,Ex,tParity,AvSignI*IterRDM,AvSignJ,.false.)
+                 if(tHPHF) then
 
-                 elseif((IC.eq.2).and.(RDMExcitLevel.ne.1)) then
-                     !Double excitation - only contributes to 2-RDM
-                     
-                     !Note: get_bit_excitmat may be buggy (DetBitOps), but will do for now as we need the Ex...
-                     call get_bit_excitmat(iLutI,iLutJ,Ex,IC)
-                                 
-                     call Fill_Doubs_RDM(Ex,tParity,AvSignI*IterRDM,AvSignJ,.false.)
+                     call decode_bit_det(nJ, iLutJ)
+
+                     call Fill_Spin_Coupled_RDM_v2(iLutI, iLutJ, nI, nJ, AvSignI*IterRDM, AvSignJ, .false.)
+                     !if(IC.eq.1) then
+
+                 else
+                     if(IC.eq.1) then
+                         !Single excitation - contributes to 1- and 2-RDM (if calculated)
+                          
+                         !Note: get_bit_excitmat may be buggy (DetBitOps), but will do for now as we need the Ex...
+                         call get_bit_excitmat(iLutI,iLutJ,SingEx,IC)
+                         Ex(:,1)=SingEx(:)
+                        
+                         !No need to explicitly fill symmetrically as we'll generate pairs of 
+                         ! determinants both ways around using the connectivity matrix.
+                         call Fill_Sings_RDM(nI,Ex,tParity,AvSignI*IterRDM,AvSignJ,.false.)
+
+                     elseif((IC.eq.2).and.(RDMExcitLevel.ne.1)) then
+                         
+                         !Note: get_bit_excitmat may be buggy (DetBitOps), but will do for now as we need the Ex...
+                         call get_bit_excitmat(iLutI,iLutJ,Ex,IC)
+                                     
+                         call Fill_Doubs_RDM(Ex,tParity,AvSignI*IterRDM,AvSignJ,.false.)
+                     endif
                  endif
              end do
         end do

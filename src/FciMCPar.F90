@@ -5240,8 +5240,6 @@ MODULE FciMCParMod
         IF(tHPHF) THEN
             !IF(tLatticeGens) CALL Stop_All("SetupParameters","Cannot use HPHF with model systems currently.")
             IF(tROHF.or.(LMS.ne.0)) CALL Stop_All("SetupParameters","Cannot use HPHF with high-spin systems.")
-            If(tSemiStochastic .and. tRDMOnFly) CALL Stop_all("SetupParameters", "We're not yet set up to accumulate &
-                    & semi-stochastic RDMs within HPHF -- TODO: fix for core-space off-diagonal elements")
             tHPHFInts=.true.
         ENDIF
 
