@@ -1,7 +1,7 @@
 module trial_wf_gen
 
-    use AnnihilationMod, only: BinSearchParts, bin_search_trial
-    use bit_rep_data, only: NIfTot, NIfD, flag_trial, flag_connected
+    use AnnihilationMod, only: BinSearchParts, FindWalkerHash, hash_search_trial
+    use bit_rep_data, only: NIfTot, NIfDBO, flag_trial, flag_connected
     use bit_reps, only: encode_det, set_flag
     use davidson, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
                         sparse_hamil_type
@@ -15,7 +15,7 @@ module trial_wf_gen
                          occ_con_amps, TrialTempTag, ConTempTag, OccTrialTag, OccConTag, &
                          ntrial_occ, ncon_occ, Trial_Search_Time, CurrentTrialTag, &
                          current_trial_amps, MaxWalkersPart, min_trial_ind, min_conn_ind, &
-                         HashIndex
+                         HashIndex, tTrialHash
     use hphf_integrals, only: hphf_off_diag_helement
     use LoggingData, only: tWriteTrial, tCompareTrialAmps
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
@@ -255,7 +255,7 @@ contains
             allocate(current_trial_amps(MaxWalkersPart))
             call LogMemAlloc('current_trial_amps', MaxWalkersPart, 8, t_r, CurrentTrialTag, ierr)
             current_trial_amps = 0.0_dp
-            call initialise_trial_hash()
+            call initialise_trial_linscale()
         else
             ! Allocate the arrays which will store the trial and connected vector amplitudes of the
             ! occupied trial and connected states.
@@ -274,10 +274,12 @@ contains
             ! Find which states in CurrentDets are in the trial and connected states, set the corresponding
             ! flags and return the corresponding trial and connected vector amplitudes to trial_temp and
             ! con_temp. These are then copied across to the vectors below.
-            call find_trial_and_con_states(TotWalkers, CurrentDets, ntrial_occ, ncon_occ)
+            call find_trial_and_con_states_bin(TotWalkers, CurrentDets, ntrial_occ, ncon_occ)
             occ_trial_amps(1:ntrial_occ) = trial_temp(1:ntrial_occ)
             occ_con_amps(1:ncon_occ) = con_temp(1:ncon_occ)
         end if
+
+        if (tTrialHash) call create_trial_hashtables()
 
         ! Deallocate remaining arrays.
         deallocate(temp_space, stat=ierr)
@@ -295,16 +297,16 @@ contains
 
     end subroutine init_trial_wf
 
-    subroutine initialise_trial_hash()
+    subroutine initialise_trial_linscale()
 
-        integer :: i, DetHash
+        integer :: i, hash_val
         integer :: nI(nel)
         type(ll_node), pointer :: temp_node
 
         do i = 1, trial_space_size
             call decode_bit_det(nI, trial_space(:,i))
-            DetHash = FindWalkerHash(nI)
-            temp_node => HashIndex(DetHash)
+            hash_val = FindWalkerHash(nI,nWalkerHashes)
+            temp_node => HashIndex(hash_val)
             if (temp_node%ind /= 0) then
                 do while (associated(temp_node))
                     if (DetBitEQ(trial_space(:,i), CurrentDets(:,temp_node%ind),NIfDBO)) then
@@ -320,8 +322,8 @@ contains
 
         do i = 1, con_space_size
             call decode_bit_det(nI, con_space(:,i))
-            DetHash = FindWalkerHash(nI)
-            temp_node => HashIndex(DetHash)
+            hash_val = FindWalkerHash(nI,nWalkerHashes)
+            temp_node => HashIndex(hash_val)
             if (temp_node%ind /= 0) then
                 do while (associated(temp_node))
                     if (DetBitEQ(con_space(:,i), CurrentDets(:,temp_node%ind),NIfDBO)) then
@@ -335,7 +337,7 @@ contains
             nullify(temp_node)
         end do
 
-    end subroutine initialise_trial_hash
+    end subroutine initialise_trial_linscale
 
     subroutine remove_states_not_on_proc(ilut_list, ilut_list_size, update_trial_vector)
 
@@ -473,7 +475,7 @@ contains
 
     end subroutine assign_elements_on_procs
 
-    subroutine find_trial_and_con_states(num_states, ilut_list, ntrial, ncon)
+    subroutine find_trial_and_con_states_bin(num_states, ilut_list, ntrial, ncon)
 
         integer(int64), intent(in) :: num_states
         integer(n_int), intent(inout) :: ilut_list(:,:)
@@ -528,7 +530,38 @@ contains
 
         call halt_timer(Trial_Search_Time)
 
-    end subroutine find_trial_and_con_states
+    end subroutine find_trial_and_con_states_bin
+
+    subroutine find_trial_and_con_states_hash(num_states, ilut_list, ntrial, ncon)
+
+        integer(int64), intent(in) :: num_states
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
+        integer, intent(out) :: ntrial, ncon
+        integer :: i, pos
+        integer :: nI(nel)
+        real(dp) :: amp
+
+        ntrial = 0
+        ncon = 0
+
+        call set_timer(Trial_Search_Time)
+
+        do i = 1, num_states
+            call decode_bit_det(nI, ilut_list(:,i))
+            call hash_search_trial(ilut_list(:,i), nI, amp)
+
+            if (test_flag(ilut_list(:,i),flag_trial)) then
+                ntrial = ntrial + 1
+                trial_temp(ntrial) = amp
+            else if(test_flag(ilut_list(:,i),flag_connected)) then
+                ncon = ncon + 1
+                con_temp(ncon) = amp
+            end if
+        end do
+
+        call halt_timer(Trial_Search_Time)
+
+    end subroutine find_trial_and_con_states_hash
 
     subroutine write_trial_space()
 
@@ -571,8 +604,7 @@ contains
     subroutine update_compare_trial_file(tFirstCall)
 
         ! Routine to output the trial wavefunction amplitudes and FCIQMC amplitudes in the trial
-        ! space. This is a test routine and is very unoptimised. Placed here to avoid circular
-        ! dependency...
+        ! space. This is a test routine and is very unoptimised.
 
         logical, intent(in) :: tFirstCall
         logical :: tSuccess
@@ -638,6 +670,97 @@ contains
         end if
 
     end subroutine update_compare_trial_file
+
+    subroutine create_trial_hashtables()
+    
+        integer :: i, nclash, hash_val, ierr
+        integer :: nI(nel)
+        integer(n_int), allocatable, dimension(:,:) :: temp_states
+        integer(n_int) :: temp
+        character(len=*), parameter :: t_r = "create_trial_hashtables"
+
+        ! Assume no more than 1000 hash clashes.
+        allocate(temp_states(0:NIfDBO+1, 100))
+
+        ! Create the trial space hash table.
+
+        allocate(trial_ht(trial_space_size), stat=ierr)
+
+        do i = 1, trial_space_size
+            trial_ht(i)%nclash = 0
+        end do
+
+        do i = 1, trial_space_size
+            call decode_bit_det(nI, trial_space(:,i))
+            hash_val = FindWalkerHash(nI, trial_space_size)
+
+            if (trial_ht(hash_val)%nclash == 0) then
+                allocate(trial_ht(hash_val)%states(0:NIfDBO+1,1))
+                trial_ht(hash_val)%nclash = 1
+                trial_ht(hash_val)%states(0:NIfDBO,1) = trial_space(0:NIfDBO,i)
+                trial_ht(hash_val)%states(NIfDBO+1:,1) = transfer(trial_wf(i), temp)
+            else
+                nclash = trial_ht(hash_val)%nclash
+                temp_states(:,1:nclash) = trial_ht(hash_val)%states(:,1:nclash)
+                deallocate(trial_ht(hash_val)%states, stat=ierr)
+                allocate(trial_ht(hash_val)%states(0:NIfDBO+1,nclash+1))
+                trial_ht(hash_val)%nclash = nclash + 1
+                trial_ht(hash_val)%states(:,1:nclash) = temp_states(:, 1:nclash)
+                trial_ht(hash_val)%states(0:NIfDBO,nclash+1) = trial_space(0:NIfDBO,i)
+                trial_ht(hash_val)%states(NIfDBO+1,nclash+1) = transfer(trial_wf(i), temp)
+            end if
+        end do
+
+        ! Create the connected space hash table.
+
+        allocate(con_ht(con_space_size), stat=ierr)
+
+        do i = 1, con_space_size
+            con_ht(i)%nclash = 0
+        end do
+
+        do i = 1, con_space_size
+            call decode_bit_det(nI, con_space(:,i))
+            hash_val = FindWalkerHash(nI, con_space_size)
+
+            if (con_ht(hash_val)%nclash == 0) then
+                allocate(con_ht(hash_val)%states(0:NIfDBO+1,1))
+                con_ht(hash_val)%nclash = 1
+                con_ht(hash_val)%states(0:NIfDBO,1) = con_space(0:NIfDBO,i)
+                con_ht(hash_val)%states(NIfDBO+1:,1) = transfer(con_space_vector(i), temp)
+            else
+                nclash = con_ht(hash_val)%nclash
+                temp_states(:,1:nclash) = con_ht(hash_val)%states(:,1:nclash)
+                deallocate(con_ht(hash_val)%states, stat=ierr)
+                allocate(con_ht(hash_val)%states(0:NIfDBO+1,nclash+1))
+                con_ht(hash_val)%nclash = nclash + 1
+                con_ht(hash_val)%states(:,1:nclash) = temp_states(:, 1:nclash)
+                con_ht(hash_val)%states(0:NIfDBO,nclash+1) = con_space(0:NIfDBO,i)
+                con_ht(hash_val)%states(NIfDBO+1,nclash+1) = transfer(con_space_vector(i), temp)
+            end if
+        end do
+
+        deallocate(temp_states)
+
+        ! No longer need these trial and connected spaces stored in this form.
+        if (allocated(trial_space)) then
+            deallocate(trial_space, stat=ierr)
+            call LogMemDealloc(t_r, TrialTag, ierr)
+        end if
+        if (allocated(trial_wf)) then
+            deallocate(trial_wf, stat=ierr)
+            call LogMemDealloc(t_r, TrialWFTag, ierr)
+        end if
+        if (allocated(con_space)) then
+            deallocate(con_space, stat=ierr)
+            call LogMemDealloc(t_r, ConTag, ierr)
+        end if
+        if (allocated(con_space_vector)) then
+            deallocate(con_space_vector, stat=ierr)
+            call LogMemDealloc(t_r, ConVecTag, ierr)
+        end if
+
+    end subroutine create_trial_hashtables
 
     subroutine end_trial_wf()
 

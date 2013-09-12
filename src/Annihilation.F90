@@ -29,6 +29,7 @@ MODULE AnnihilationMod
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData , only : tHF_Ref_Explicit
     use util_mod, only: get_free_unit, binary_search_custom
+    use sparse_arrays, only: trial_ht, con_ht
     IMPLICIT NONE
 
 
@@ -951,7 +952,7 @@ MODULE AnnihilationMod
                 tSuccess=.false.
                 call decode_bit_det (nJ, SpawnedParts(:,i))              
 !                write(6,*) "Sending to hash func 1: ",nJ(:)
-                DetHash=FindWalkerHash(nJ)
+                DetHash=FindWalkerHash(nJ,nWalkerHashes)
 !                write(6,*) "DetHash: ",DetHash
                 TempNode => HashIndex(DetHash)
                 ! If there is atleast one state in CurrentDets with this hash value.
@@ -1486,7 +1487,11 @@ MODULE AnnihilationMod
         ! connected space. If so, bin_search_trial sets the correct flag and returns the corresponding
         ! amplitude, which is stored.
         if (tTrialWavefunction) then
-            call bin_search_trial(CurrentDets(:,DetPosition), trial_amp)
+            if (tTrialHash) then
+                call hash_search_trial(CurrentDets(:,DetPosition), nJ, trial_amp)
+            else
+                call bin_search_trial(CurrentDets(:,DetPosition), trial_amp)
+            end if
             current_trial_amps(DetPosition) = trial_amp
         end if
 
@@ -1609,7 +1614,7 @@ MODULE AnnihilationMod
         character(*), parameter :: this_routine="RemoveDetHashIndex"
 
         tStateFound = .false.
-        DetHash = FindWalkerHash(nI)
+        DetHash = FindWalkerHash(nI,nWalkerHashes)
         Curr => HashIndex(DetHash)
         Prev => null()
         do while (associated(Curr))
@@ -1908,9 +1913,10 @@ MODULE AnnihilationMod
     END SUBROUTINE InsertRemoveParts
 
     !Another hashing routine - this time to find the correct position in the hash table
-    pure function FindWalkerHash(nJ) result(hashInd)
+    pure function FindWalkerHash(nJ, HashIndexLength) result(hashInd)
         implicit none
         integer, intent(in) :: nJ(nel)
+        integer, intent(in) :: HashIndexLength
         integer :: hashInd
         integer :: i
         integer(int64) :: hash
@@ -1929,7 +1935,7 @@ MODULE AnnihilationMod
 !                        (RandomHash(mod(nI(i)+offset-1,int(nBasis,int64))+1) * i)
             enddo
         endif
-        hashInd = int(abs(mod(hash, int(nWalkerHashes, int64))),sizeof_int)+1
+        hashInd = int(abs(mod(hash, int(HashIndexLength, int64))),sizeof_int)+1
     end function FindWalkerHash
 
     
@@ -2067,7 +2073,7 @@ MODULE AnnihilationMod
 
     subroutine bin_search_trial(ilut, amp)
 
-        integer(n_int), intent(inout) :: ilut(:)
+        integer(n_int), intent(inout) :: ilut(0:)
         real(dp), intent(out) :: amp
         integer :: i, pos
 
@@ -2102,6 +2108,38 @@ MODULE AnnihilationMod
         end if
 
     end subroutine bin_search_trial
+
+    subroutine hash_search_trial(ilut, nI, amp)
+
+        integer(n_int), intent(inout) :: ilut(0:)
+        integer, intent(in) :: nI(nel)
+        real(dp), intent(out) :: amp
+        integer :: i, hash_val
+
+        amp = 0.0_dp
+        
+        ! Find the hash value of this state.
+        hash_val = FindWalkerHash(nI, con_space_size)
+        ! Loop over all hash clashes for this hash value.
+        do i = 1, con_ht(hash_val)%nclash
+            if (DetBitEq(ilut, con_ht(hash_val)%states(0:NIfDBO,i))) then
+                call set_flag(ilut, flag_connected)
+                amp = transfer(con_ht(hash_val)%states(NIfDBO+1,i), amp)
+                return
+            end if
+        end do
+
+        ! If it wasn't in the connected space, check to see if it is in the trial space.
+        hash_val = FindWalkerHash(nI, trial_space_size)
+        do i = 1, trial_ht(hash_val)%nclash
+            if (DetBitEq(ilut, trial_ht(hash_val)%states(0:NIfDBO,i))) then
+                call set_flag(ilut, flag_trial)
+                amp = transfer(trial_ht(hash_val)%states(NIfDBO+1,i), amp)
+                return
+            end if
+        end do
+
+    end subroutine hash_search_trial
     
 END MODULE AnnihilationMod
 

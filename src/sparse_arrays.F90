@@ -37,6 +37,13 @@ module sparse_arrays
         integer :: num_elements
     end type sparse_matrix_int
 
+    type trial_hashtable
+        ! All the states with this hash value.
+        integer(n_int), allocatable, dimension(:,:) :: states
+        ! The number of clashes for ths hash value.
+        integer :: nclash
+    end type trial_hashtable
+
     type(sparse_matrix_real), allocatable, dimension(:) :: sparse_ham
     integer(TagIntType), allocatable, dimension(:,:) :: SparseHamilTags
 
@@ -51,6 +58,9 @@ module sparse_arrays
 
     ! Stores the parities for all connected pairs of states in the core space.
     type(sparse_matrix_int), allocatable, dimension(:) :: core_connections
+
+    type(trial_hashtable), allocatable, dimension(:) :: trial_ht
+    type(trial_hashtable), allocatable, dimension(:) :: con_ht
 
 contains
 

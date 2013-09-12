@@ -432,15 +432,18 @@ MODULE FciMCData
       ! Trial wavefunction data.
 
       ! This list stores the iluts from which the trial wavefunction is formed, but only those that reside on this processor.
+      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
       integer(n_int), allocatable, dimension(:,:) :: trial_space
       ! The number of states in the trial vector space.
       integer :: trial_space_size = 0
       ! This list stores the iluts from which the trial wavefunction is formed, but only those that reside on this processor.
+      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
       integer(n_int), allocatable, dimension(:,:) :: con_space
       ! The number of states in the space connected to (but not including) the trial vector space.
       integer :: con_space_size = 0
 
       ! This vector stores the trial wavefunction itself.
+      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
       real(dp), allocatable, dimension(:) :: trial_wf
       ! This vector stores the values of trial_wf for the occupied trial state in CurrentDets, in the same order as these
       ! states in CurrentDets. If not all trial states are occupied then the final elements store junk and aren't used.
@@ -459,6 +462,7 @@ MODULE FciMCData
       ! \sum_j H_{ij} \psi^T_j,
       ! where \psi is the trial wavefunction. These elements are stored only in the space of states which are connected
       ! to *but not included in* the trial vector space.
+      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
       real(dp), allocatable, dimension(:) :: con_space_vector
       ! This vector stores the values of con_space_vector for the occupied connected state in CurrentDets, in the same order as
       ! these states in CurrentDets. If not all connected states are occupied then the final elements store junk and aren't used.
@@ -480,6 +484,10 @@ MODULE FciMCData
       ! sorted in the same order, a smaller section of the trial and connected space can be searched for each state.
       ! These indices hold the indices to be searched from next time.
       integer :: min_trial_ind, min_conn_ind
+
+      ! IF true (which it is by default) then the trial and connected space states are stored in a trial_ht and
+      ! con_ht and are accessed by a hash lookup.
+      logical :: tTrialHash
 
       ! Semi-stochastic tags:
       integer(TagIntType) :: CoreTag, FDetermTag, FDetermAvTag, PDetermTag, IDetermTag, CoreSpaceTag

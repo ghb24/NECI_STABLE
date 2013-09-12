@@ -22,7 +22,7 @@
         USE FciMCParMOD , only : Hii,CurrentDets,CurrentH
         use FciMCData , only : tFillingStochRDMonFly, InstNoatHF, ntrial_occ, &
                                ncon_occ, occ_trial_amps, occ_con_amps, &
-                               trial_temp, con_temp
+                               trial_temp, con_temp, tTrialHash
         use SystemData, only: nel, tHPHF,tMomInv, tTrialWavefunction
         use bit_rep_data, only: extract_sign, flag_trial, flag_connected
         use bit_reps, only: NIfTot, NIfDBO, decode_bit_det, test_flag
@@ -34,7 +34,7 @@
         USE HElem
         use constants, only: dp,n_int
         use util_mod, only: binary_search_custom
-        use trial_wf_gen, only: find_trial_and_con_states
+        use trial_wf_gen, only: find_trial_and_con_states_bin, find_trial_and_con_states_hash
         IMPLICIT NONE
         INTEGER :: nlisto,nlist1,nlist2,i
         INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
@@ -49,7 +49,11 @@
             ! in which are in the trial and connected space. This routine also stores
             ! the corresponding amplitudes from trial_wf and con_space_vector in the
             ! arrays trial_temp and con_temp, and sets the flags of the new states.
-            call find_trial_and_con_states(int(nlist2,8), list2, ntrial, ncon)
+            if (tTrialHash) then
+                call find_trial_and_con_states_hash(int(nlist2,8), list2, ntrial, ncon)
+            else
+                call find_trial_and_con_states_bin(int(nlist2,8), list2, ntrial, ncon)
+            end if
             ! The number of trial and connected states currently in CurrentDets.
             ntrial_old = ntrial_occ
             ncon_old = ncon_occ

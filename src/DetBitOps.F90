@@ -378,7 +378,7 @@ module DetBitOps
     ! false otherwise.
     pure function DetBitEQ(iLutI,iLutJ,nLast) result(res)
         integer, intent(in), optional :: nLast
-        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer(kind=n_int), intent(in) :: iLutI(0:), iLutJ(0:)
         logical :: res
         integer :: i, lnLast
 

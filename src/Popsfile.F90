@@ -323,7 +323,7 @@ r_loop: do while(.not.tReadAllPops)
         if(tHashWalkerList) then
             do i = 1, CurrWalkers
                 call decode_bit_det (nJ, dets(:,i))
-                DetHash=FindWalkerHash(nJ)
+                DetHash=FindWalkerHash(nJ, nWalkerHashes)
                 Temp => HashIndex(DetHash)
                 ! If the first element in the list has not been used.
                 if (Temp%Ind == 0) then

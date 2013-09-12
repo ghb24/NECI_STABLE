@@ -1404,6 +1404,11 @@ MODULE FciMCParMod
                 TotWalkersToSpawn=TotWalkersToSpawn+WalkersToSpawn
 
                 do p = 1, WalkersToSpawn
+                    if (abs(SignCurr(part_type)) <= 3.0_dp) then
+                        r = genrand_real2_dSFMT()
+                        if (r > 0.01) cycle
+                    end if
+
                     ! Zero the bit representation, to ensure no extraneous
                     ! data gets through.
                     ilutnJ = 0
@@ -5139,7 +5144,7 @@ MODULE FciMCParMod
             CALL Stop_All(t_r,"Error in allocating RandomHash")
         ENDIF
         RandomHash(:)=0
-        if(tHashWalkerList) then
+        if(tHashWalkerList .or. tCoreHash .or. tTrialHash) then
             !We want another independent randomizing array for the hash table, so we do not introduce
             !correlations between the two
             ALLOCATE(RandomHash2(nBasis),stat=ierr)
@@ -5175,7 +5180,7 @@ MODULE FciMCParMod
                     RandomHash(i) = ChosenOrb
                 enddo
             enddo
-            if(tHashWalkerList) then
+            if(tHashWalkerList .or. tCoreHash .or. tTrialHash) then
                 !Do again for RandomHash2
                 do i=1,nBasis
                     ! If we want to hash only by spatial orbitals, then the
@@ -6732,7 +6737,7 @@ MODULE FciMCParMod
         integer :: ExMat(2,2),FindSplitProjEBinG,FindSplitProjEBinK3
         logical :: tDoubParity,tDoubParity2,tSign ! As above
         real(dp) :: current_contribution
-        integer :: comp
+        integer :: comp, hash_val
         logical :: found
 
         ! Are we performing a linear sum over various determinants?
@@ -6741,7 +6746,7 @@ MODULE FciMCParMod
         HOffDiag = 0
 
         ! Add in the contributions to the numerator and denominator of the trial
-        ! estimatior, if it is being used.
+        ! estimator, if it is being used.
         if (tTrialWavefunction .and. present(ind)) then
             if (tHashWalkerlist) then
                 if (test_flag(ilut, flag_trial)) then
@@ -7253,7 +7258,7 @@ MODULE FciMCParMod
                         call encode_det(CurrentDets(:,1), iLutHF)
                         if(tHashWalkerList) then
                             !Point at the correct position for the first walker
-                            DetHash=FindWalkerHash(HFDet)    !Find det hash position
+                            DetHash=FindWalkerHash(HFDet, nWalkerHashes)    !Find det hash position
                             HashIndex(DetHash)%Ind = 1
                         endif
 
@@ -7842,7 +7847,7 @@ MODULE FciMCParMod
                     endif
 
                     if (tHashWalkerList) then
-                        DetHash = FindWalkerHash(CASFullDets(:,i))
+                        DetHash = FindWalkerHash(CASFullDets(:,i), nWalkerHashes)
                         TempNode => HashIndex(DetHash)
                         ! If the first element in the list has not been used.
                         if (TempNode%Ind == 0) then
@@ -8086,7 +8091,7 @@ MODULE FciMCParMod
                     endif
 
                     if (tHashWalkerList) then
-                        DetHash = FindWalkerHash(nJ)
+                        DetHash = FindWalkerHash(nJ, nWalkerHashes)
                         TempNode => HashIndex(DetHash)
                         ! If the first element in the list has not been used.
                         if (TempNode%Ind == 0) then
@@ -8134,7 +8139,7 @@ MODULE FciMCParMod
                 if(.not.tRegenDiagHEls) CurrentH(1,DetIndex)=0.0_dp
                 if (tHashWalkerList) then
                     ! Now add the Hartree-Fock determinant (not with index 1).
-                    DetHash = FindWalkerHash(HFDet)
+                    DetHash = FindWalkerHash(HFDet, nWalkerHashes)
                     TempNode => HashIndex(DetHash)
                     ! If the first element in the list has not been used.
                     if (TempNode%Ind == 0) then

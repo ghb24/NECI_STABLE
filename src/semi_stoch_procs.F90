@@ -22,7 +22,8 @@ module semi_stoch_procs
                          PDetermTag, FDetermTag, IDetermTag, indices_of_determ_states, &
                          HashIndex, core_space, CoreSpaceTag, tCoreHash, ll_node, &
                          nWalkerHashes, tFill_RDM, IterLastRDMFill, full_determ_vector_av, &
-                         tFillingStochRDMonFly, Iter, IterRDMStart
+                         tFillingStochRDMonFly, Iter, IterRDMStart, CoreHashIndex
+
     use hash, only: DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
@@ -137,7 +138,6 @@ contains
     function is_core_state(ilut) result (core_state)
 
         use FciMCData, only: ll_node
-        use semi_stoch_hash
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer :: nI(nel)
@@ -148,7 +148,7 @@ contains
         core_state = .false.
 
         call decode_bit_det(nI, ilut)
-        DetHash = FindCoreHash(nI)
+        DetHash = FindWalkerHash(nI, int(determ_space_size,sizeof_int))
         temp_node => CoreHashIndex(DetHash)
 
         if (temp_node%ind == 0) then
@@ -324,8 +324,6 @@ contains
 
     subroutine store_whole_core_space()
 
-        use semi_stoch_hash, only: InitialiseCoreHashTable
-
         integer :: ierr
         character(len=*), parameter :: t_r = "store_whole_core_space"
 
@@ -339,6 +337,43 @@ contains
         if (tCoreHash) call InitialiseCoreHashTable()
 
     end subroutine store_whole_core_space
+
+    subroutine InitialiseCoreHashTable()
+
+        use bit_reps, only: decode_bit_det
+        use FciMCData, only: core_space
+        use SystemData, only: nel
+
+        integer :: nI(nel)
+        integer :: i, ierr, DetHash, counter, total
+        type(ll_node), pointer :: temp_node
+        character(len=*), parameter :: t_r = "InitialiseCoreHashTable"
+
+        allocate(CoreHashIndex(determ_space_size), stat=ierr)
+
+        do i = 1, determ_space_size
+            CoreHashIndex(i)%ind = 0
+        end do
+
+        do i = 1, determ_space_size
+            call decode_bit_det(nI, core_space(:,i))
+            DetHash = FindWalkerHash(nI, int(determ_space_size,sizeof_int))
+            temp_node => CoreHashIndex(DetHash)
+            ! If the first element in the list has not been used.
+            if (temp_node%ind == 0) then
+                temp_node%ind = i
+            else
+                do while (associated(temp_node%next))
+                    temp_node => temp_node%next
+                end do
+                allocate(temp_node%next)
+                temp_node%next%ind = i
+            end if
+        end do
+
+        nullify(temp_node)
+
+    end subroutine InitialiseCoreHashTable
 
     subroutine remove_repeated_states(list, list_size)
 
@@ -706,7 +741,7 @@ contains
 
             tSuccess = .false.
             call decode_bit_det (nI, SpawnedParts(:,i))
-            DetHash = FindWalkerHash(nI)
+            DetHash = FindWalkerHash(nI, nWalkerHashes)
             temp_node => HashIndex(DetHash)
             if (temp_node%ind /= 0) then
                 do while (associated(temp_node))
@@ -767,7 +802,7 @@ contains
         ! Finally, add the indices back into the hash index array.
         do i = 1, nwalkers
             call decode_bit_det(nI, CurrentDets(:,i))
-            DetHash = FindWalkerHash(nI)
+            DetHash = FindWalkerHash(nI,nWalkerHashes)
             temp_node => HashIndex(DetHash)
             ! If the first element in the list has not been used.
             if (temp_node%ind == 0) then
