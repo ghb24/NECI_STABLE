@@ -1404,11 +1404,6 @@ MODULE FciMCParMod
                 TotWalkersToSpawn=TotWalkersToSpawn+WalkersToSpawn
 
                 do p = 1, WalkersToSpawn
-                    if (abs(SignCurr(part_type)) <= 3.0_dp) then
-                        r = genrand_real2_dSFMT()
-                        if (r > 0.01) cycle
-                    end if
-
                     ! Zero the bit representation, to ensure no extraneous
                     ! data gets through.
                     ilutnJ = 0
