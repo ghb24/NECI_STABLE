@@ -594,3 +594,24 @@ Reading in / Writing out the RDMs for restarting calculations.
     files will be labelled with incrementing values - TwoRDM_a***.1 is the first, and then next TwoRDM_a***.2 etc.
     This option currently only works for the 2-RDMs.
 
+**INITIATORRDM** 
+    This option ensures that only determinants that are (on average) initiators may contribute to the RDM - otherwise
+    their contributions are not included.  This change improves the diagonal elements (due to their inherent systematic bias)
+    but makes the off-diagonal elements a lot worse.  Not recommended.  INITIATORRDMDIAG is a better choice. Designed to be 
+    in conjunction with CalcRDMOnFly.
+
+**INITIATORRDMDIAG**
+    This option ensures that only determinants that are (on average) initiators may contribute to the diagonal elements
+    of the RDM.  The calculation of off-diagonal elements is unaffected.  This should result in a much better quality
+    RDM for a given N_w as we remove the bulk of the systematic error previously in the diagonal elements that comes about
+    from determinant population averages being reset when a determinant becomes unoccupied.  If running with integers, this is 
+    probably the best RDM option to use.  Use in conjunction with CalcRDMOnFly
+
+**THRESHOCCONLYRDMDIAG** [ThreshOccRDM]
+    This is a broader version of INITIATORRDMDIAG.  Here, contributions to RDM diagonal elements are only included if the
+    average population of a determinant exceeds a real value ThreshOccRDM.  Typically, the most appropriate value here to
+    achieve rapid convergence of the E_RDM will be between 1.0 and 3.0, depending on the system and the size of the real
+    space.  For example, if allowing real coefficients up to quadruple excitations (REALCOEFFBYEXCITLEVEL 4), ThreshOccRDM=1.3
+    seems appropriate (NB: only minimal testing conducted so far).  E_RDM will always converge eventually, in the high N_w limit,
+    so the choice of this value is not too crucial.
+

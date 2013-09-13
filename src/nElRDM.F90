@@ -67,7 +67,9 @@ MODULE nElRDMMod
                        tPopsfile, tNo_RDMs_to_read, twrite_RDMs_to_read, &
                        tWriteMultRDMs, tDumpForcesInfo, IterRDMonFly, &
                        tWrite_normalised_RDMs, IterWriteRDMs, tPrintRODump, &
-                       tNoNOTransform, tTruncRODump, tRDMonfly
+                       tNoNOTransform, tTruncRODump, tRDMonfly, tInitiatorRDMDiag, &
+                       tTaperDiagRDM, tTaperSQDiagRDM, tCorrectRDMErf, erf_factor1, &
+                       erf_factor2, ThreshOccRDM, tThreshOccRDMDiag
     use RotateOrbsData, only: CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt, &
                               SymLabelCounts2_rot,SymLabelList2_rot, &
                               SymLabelListInv_rot,NoOrbs, SpatOrbs, &
@@ -192,6 +194,7 @@ MODULE nElRDMMod
 ! First for the storage of the actual 1- or 2-RMD.
 
         IF(RDMExcitLevel.eq.1) THEN
+
 ! This is the AllnElRDM, called NatOrbMat simply because we use the natural 
 ! orbital routines to diagonalise etc.        
 ! We don't have an instantaneous 1-RDM.
@@ -1007,7 +1010,7 @@ MODULE nElRDMMod
         ! already being calculated, it will already have been counted.
         if(.not.((Iter.eq.NMCyc).or.(mod((Iter - IterRDMStart + 1),RDMEnergyIter).eq.0))) then
 
-            if((abs(CurrH_I(2)).gt.real(InitiatorWalkNo,dp)).or.(.not.tInitiatorRDM)) then
+            if((abs(CurrH_I(2)).gt.InitiatorWalkNo).or.(.not.tInitiatorRDM)) then
 
                 ! IterLastRDMFill is the number of iterations from the last time the RDM elements 
                 ! were included.
@@ -1213,7 +1216,7 @@ MODULE nElRDMMod
         p_spawn=abs(1.0_dp - p_not_spawn)
         
         if(tInitiatorRDM) then
-            if(abs(AvSignCurr).gt.real(InitiatorWalkNo,dp)) then
+            if(abs(AvSignCurr).gt.InitiatorWalkNo) then
                 ! The Di is an initiator (on average) - keep passing around its sign until we 
                 ! know if the Dj is an initiator.
                 RDMBiasFacCurr = AvSignCurr / p_spawn   
@@ -1332,7 +1335,7 @@ MODULE nElRDMMod
                 CALL DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
         elseif(.not.DetBitEQ(iLutHF_True,iLutJ,NIfDBO)) then
             if(tInitiatorRDM) then
-                if(abs(realSignJ).gt.real(InitiatorWalkNo,dp)) &
+                if(abs(realSignJ).gt.InitiatorWalkNo) &
                     CALL DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
             else
                 CALL DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
@@ -2684,7 +2687,7 @@ MODULE nElRDMMod
         real(dp) , intent(in) :: realSignDi
         real(dp) , intent(in) , optional :: RDMItersIn
         integer :: i, j, iSpat, jSpat, Ind, iInd
-        real(dp) :: RDMIters
+        real(dp) :: RDMIters, ScaleContribFac
 
 ! Need to add in the diagonal elements.
         
@@ -2693,49 +2696,69 @@ MODULE nElRDMMod
         else
             RDMIters=RDMItersIn
         endif
+        
+        ScaleContribFac=1.0
 
-        if(RDMExcitLevel.eq.1) then
-            do i=1,NEl
-                if(tStoreSpinOrbs) then
-                    iInd = SymLabelListInv_rot(nI(i))
-                else
-                    ! SymLabelListInv_rot will be in spat orbitals too.
-                    iInd = SymLabelListInv_rot(gtID(nI(i)))
-                endif
-                NatOrbMat(iInd,iInd) = NatOrbMat(iInd,iInd) &
-                                          + ( realSignDi * realSignDi * RDMIters) 
-            enddo
-        else
-            ! Only calculating 2-RDM.
-            do i=1,NEl - 1
-                iSpat = gtID(nI(i))
+        if (((.not. tInitiatorRDMDiag) .and. (.not. tThreshOccRDMDiag)) .or. &
+                (tInitiatorRDMDiag .and. (abs(RealSignDi) .gt. InitiatorWalkNo)) .or. &
+                (tThreshOccRDMDiag .and. (abs(RealSignDi) .gt. ThreshOccRDM))) then
+                
 
-                ! Orbitals in nI ordered lowest to highest so nI(j) > nI(i), 
-                ! and jSpat >= iSpat (can only be equal if different spin).
-                do j=i+1,NEl
-                    jSpat = gtID(nI(j))
-
-                    ! either alpha alpha or beta beta -> aaaa array.
-                    if( ((mod(nI(i),2).ne.0).and.(mod(nI(j),2).ne.0)) .or. &
-                        ((mod(nI(i),2).eq.0).and.(mod(nI(j),2).eq.0)) ) then
-
-                        ! Ind doesn't include diagonal terms (when iSpat = jSpat).
-                        Ind=( ( (jSpat-2) * (jSpat-1) ) / 2 ) + iSpat
-                        aaaa_RDM( Ind , Ind ) = aaaa_RDM( Ind , Ind ) &
-                                          + ( realSignDi * realSignDi * RDMIters) 
-
-                    ! either alpha beta or beta alpha -> abab array.                                              
+                if (tTaperDiagRDM .and. (abs(RealSignDi) .lt. ThreshOccRDM)) ScaleContribFac=abs(RealSignDi)/ThreshOccRDM
+                if (tTaperSQDiagRDM .and. (abs(RealSignDi) .lt. ThreshOccRDM)) ScaleContribFac=(abs(RealSignDi)/ThreshOccRDM)**2
+               
+                if (tCorrectRDMErf) then
+                    if (abs(RealSignDi) .le. ThreshOccRDM) then
+                        ScaleContribFac=0.0_dp
                     else
-
-                        ! Ind does include diagonal terms (when iSpat = jSpat)
-                        Ind=( ( (jSpat-1) * jSpat ) / 2 ) + iSpat
-                        abab_RDM( Ind , Ind ) = abab_RDM( Ind , Ind ) &
-                                          + ( realSignDi * realSignDi * RDMIters) 
+                        !ScaleContribFac=DERF(erf_factor*abs(RealSignDi))
+                        ScaleContribFac=erf(erf_factor1*(abs(RealSignDi)+erf_factor2))
                     endif
+                endif
+                
+                if(RDMExcitLevel.eq.1) then
+                    do i=1,NEl
+                        if(tStoreSpinOrbs) then
+                            iInd = SymLabelListInv_rot(nI(i))
+                        else
+                            ! SymLabelListInv_rot will be in spat orbitals too.
+                            iInd = SymLabelListInv_rot(gtID(nI(i)))
+                        endif
+                        NatOrbMat(iInd,iInd) = NatOrbMat(iInd,iInd) &
+                                                  + ( realSignDi * realSignDi * RDMIters) 
+                    enddo
+                else
+                    ! Only calculating 2-RDM.
+                    do i=1,NEl - 1
+                        iSpat = gtID(nI(i))
 
-                enddo
-            enddo
-        endif
+                        ! Orbitals in nI ordered lowest to highest so nI(j) > nI(i), 
+                        ! and jSpat >= iSpat (can only be equal if different spin).
+                        do j=i+1,NEl
+                            jSpat = gtID(nI(j))
+
+                            ! either alpha alpha or beta beta -> aaaa array.
+                            if( ((mod(nI(i),2).ne.0).and.(mod(nI(j),2).ne.0)) .or. &
+                                ((mod(nI(i),2).eq.0).and.(mod(nI(j),2).eq.0)) ) then
+
+                                ! Ind doesn't include diagonal terms (when iSpat = jSpat).
+                                Ind=( ( (jSpat-2) * (jSpat-1) ) / 2 ) + iSpat
+                                aaaa_RDM( Ind , Ind ) = aaaa_RDM( Ind , Ind ) &
+                                                  + ( realSignDi * realSignDi * RDMIters) 
+
+                            ! either alpha beta or beta alpha -> abab array.                                              
+                            else
+
+                                ! Ind does include diagonal terms (when iSpat = jSpat)
+                                Ind=( ( (jSpat-1) * jSpat ) / 2 ) + iSpat
+                                abab_RDM( Ind , Ind ) = abab_RDM( Ind , Ind ) &
+                                                  + ( realSignDi * realSignDi * RDMIters) 
+                            endif
+
+                        enddo
+                    enddo
+                endif
+            endif
 
     end subroutine Fill_Diag_RDM
 
@@ -5134,7 +5157,7 @@ MODULE nElRDMMod
         real(dp) :: AvSignI, AvSignJ
         logical :: tParity
         integer(kind=n_int) :: iLutI(0:niftot), iLutJ(0:niftot)
-        integer :: nI(nel), IC
+        integer :: nI(nel), nJ(nel), IC
         integer :: IterRDM, connect_elem
    
         if(mod((Iter - IterRDMStart + 1),RDMEnergyIter).eq.0) then
@@ -5166,10 +5189,6 @@ MODULE nElRDMMod
                  !to shuffle up to the range of indices corresponding to this proc
                  ! (using determ_proc_indices) and then select the correct one, i
                  
-                 !For now, I'm using the INSTANTANEOUS sign -- TODO: rework to use an averaged sign
-                 !as for CurrentH(2,..) as used for non-deterministic states
-                             
-                           
                  iLutJ=core_space(:,core_connections(i)%positions(j))
                  if(DetBitEq(iLutJ,iLutHF_True,NifDBO)) cycle
                  !Connections to HF done elsewhere.
@@ -5179,7 +5198,7 @@ MODULE nElRDMMod
                  
                  connect_elem=core_connections(i)%elements(j)
 
-                 IC=abs(core_connections(i)%elements(j))
+                 IC=abs(connect_elem)
 
                  if(sign(1, connect_elem).gt.0) then
                      tParity=.false.
@@ -5187,24 +5206,32 @@ MODULE nElRDMMod
                      tParity=.true.
                  endif
 
-                 if(abs(connect_elem) .eq. 1) then
-                     !Single excitation - contributes to 1- and 2-RDM (if calculated)
-                     
-                     !Note: get_bit_excitmat may be buggy (DetBitOps), but will do for now as we need the Ex...
-                     call get_bit_excitmat(iLutI,iLutJ,SingEx,IC)
-                     Ex(:,1)=SingEx(:)
-                    
-                     !No need to explicitly fill symmetrically as we'll generate pairs of 
-                     ! determinants both ways around using the connectivity matrix.
-                     call Fill_Sings_RDM(nI,Ex,tParity,AvSignI*IterRDM,AvSignJ,.false.)
+                 if(tHPHF) then
 
-                 elseif(abs(connect_elem) .eq. 2) then
-                     !Double excitation - only contributes to 2-RDM
-                     
-                     !Note: get_bit_excitmat may be buggy (DetBitOps), but will do for now as we need the Ex...
-                     call get_bit_excitmat(iLutI,iLutJ,Ex,IC)
-                                 
-                     call Fill_Doubs_RDM(Ex,tParity,AvSignI*IterRDM,AvSignJ,.false.)
+                     call decode_bit_det(nJ, iLutJ)
+
+                     call Fill_Spin_Coupled_RDM_v2(iLutI, iLutJ, nI, nJ, AvSignI*IterRDM, AvSignJ, .false.)
+                     !if(IC.eq.1) then
+
+                 else
+                     if(IC.eq.1) then
+                         !Single excitation - contributes to 1- and 2-RDM (if calculated)
+                          
+                         !Note: get_bit_excitmat may be buggy (DetBitOps), but will do for now as we need the Ex...
+                         call get_bit_excitmat(iLutI,iLutJ,SingEx,IC)
+                         Ex(:,1)=SingEx(:)
+                        
+                         !No need to explicitly fill symmetrically as we'll generate pairs of 
+                         ! determinants both ways around using the connectivity matrix.
+                         call Fill_Sings_RDM(nI,Ex,tParity,AvSignI*IterRDM,AvSignJ,.false.)
+
+                     elseif((IC.eq.2).and.(RDMExcitLevel.ne.1)) then
+                         
+                         !Note: get_bit_excitmat may be buggy (DetBitOps), but will do for now as we need the Ex...
+                         call get_bit_excitmat(iLutI,iLutJ,Ex,IC)
+                                     
+                         call Fill_Doubs_RDM(Ex,tParity,AvSignI*IterRDM,AvSignJ,.false.)
+                     endif
                  endif
              end do
         end do
