@@ -15,7 +15,7 @@ module trial_wf_gen
                          occ_con_amps, TrialTempTag, ConTempTag, OccTrialTag, OccConTag, &
                          ntrial_occ, ncon_occ, Trial_Search_Time, CurrentTrialTag, &
                          current_trial_amps, MaxWalkersPart, min_trial_ind, min_conn_ind, &
-                         HashIndex, tTrialHash
+                         HashIndex, tTrialHash, tIncCancelledInitEnergy
     use hphf_integrals, only: hphf_off_diag_helement
     use LoggingData, only: tWriteTrial, tCompareTrialAmps
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
@@ -43,6 +43,11 @@ contains
         integer(n_int), allocatable, dimension(:,:) :: temp_space
         real(dp) :: trial_amp
         character (len=*), parameter :: t_r = "init_trial_wf"
+
+        ! Perform checks.
+        if (tIncCancelledInitEnergy .and. (.not. tTrialHash)) &
+            call stop_all(t_r, "The inc-cancelled-init-energy option cannot be used with the &
+                               &trial-bin-search option.")
 
         call set_timer(Trial_Init_Time)
 
@@ -548,12 +553,17 @@ contains
 
         do i = 1, num_states
             call decode_bit_det(nI, ilut_list(:,i))
+            ! Search the trial and connected list to see if this state exists in
+            ! either. If it is, this routine sets the corresponding flag and returns the
+            ! corresponding amplitude.
             call hash_search_trial(ilut_list(:,i), nI, amp)
 
             if (test_flag(ilut_list(:,i),flag_trial)) then
+                ! If this state is in the trial space.
                 ntrial = ntrial + 1
                 trial_temp(ntrial) = amp
             else if(test_flag(ilut_list(:,i),flag_connected)) then
+                ! If this state is in the connected space.
                 ncon = ncon + 1
                 con_temp(ncon) = amp
             end if
@@ -673,7 +683,7 @@ contains
 
     subroutine create_trial_hashtables()
     
-        integer :: i, nclash, hash_val, ierr
+        integer :: i, n_clash, hash_val, ierr
         integer :: nI(nel)
         integer(n_int), allocatable, dimension(:,:) :: temp_states
         integer(n_int) :: temp
@@ -685,7 +695,6 @@ contains
         ! Create the trial space hash table.
 
         allocate(trial_ht(trial_space_size), stat=ierr)
-
         do i = 1, trial_space_size
             trial_ht(i)%nclash = 0
         end do
@@ -695,26 +704,27 @@ contains
             hash_val = FindWalkerHash(nI, trial_space_size)
 
             if (trial_ht(hash_val)%nclash == 0) then
+                ! If there are no states currently with this hash value.
                 allocate(trial_ht(hash_val)%states(0:NIfDBO+1,1))
                 trial_ht(hash_val)%nclash = 1
                 trial_ht(hash_val)%states(0:NIfDBO,1) = trial_space(0:NIfDBO,i)
+                ! Store the amplitude as an integer.
                 trial_ht(hash_val)%states(NIfDBO+1:,1) = transfer(trial_wf(i), temp)
             else
-                nclash = trial_ht(hash_val)%nclash
-                temp_states(:,1:nclash) = trial_ht(hash_val)%states(:,1:nclash)
+                n_clash = trial_ht(hash_val)%nclash
+                temp_states(:,1:n_clash) = trial_ht(hash_val)%states(:,1:n_clash)
                 deallocate(trial_ht(hash_val)%states, stat=ierr)
-                allocate(trial_ht(hash_val)%states(0:NIfDBO+1,nclash+1))
-                trial_ht(hash_val)%nclash = nclash + 1
-                trial_ht(hash_val)%states(:,1:nclash) = temp_states(:, 1:nclash)
-                trial_ht(hash_val)%states(0:NIfDBO,nclash+1) = trial_space(0:NIfDBO,i)
-                trial_ht(hash_val)%states(NIfDBO+1,nclash+1) = transfer(trial_wf(i), temp)
+                allocate(trial_ht(hash_val)%states(0:NIfDBO+1,n_clash+1))
+                trial_ht(hash_val)%nclash = n_clash + 1
+                trial_ht(hash_val)%states(:,1:n_clash) = temp_states(:, 1:n_clash)
+                trial_ht(hash_val)%states(0:NIfDBO,n_clash+1) = trial_space(0:NIfDBO,i)
+                trial_ht(hash_val)%states(NIfDBO+1,n_clash+1) = transfer(trial_wf(i), temp)
             end if
         end do
 
         ! Create the connected space hash table.
 
         allocate(con_ht(con_space_size), stat=ierr)
-
         do i = 1, con_space_size
             con_ht(i)%nclash = 0
         end do
@@ -724,19 +734,21 @@ contains
             hash_val = FindWalkerHash(nI, con_space_size)
 
             if (con_ht(hash_val)%nclash == 0) then
+                ! If there are no states currently with this hash value.
                 allocate(con_ht(hash_val)%states(0:NIfDBO+1,1))
                 con_ht(hash_val)%nclash = 1
                 con_ht(hash_val)%states(0:NIfDBO,1) = con_space(0:NIfDBO,i)
+                ! Store the amplitude as an integer.
                 con_ht(hash_val)%states(NIfDBO+1:,1) = transfer(con_space_vector(i), temp)
             else
-                nclash = con_ht(hash_val)%nclash
-                temp_states(:,1:nclash) = con_ht(hash_val)%states(:,1:nclash)
+                n_clash = con_ht(hash_val)%nclash
+                temp_states(:,1:n_clash) = con_ht(hash_val)%states(:,1:n_clash)
                 deallocate(con_ht(hash_val)%states, stat=ierr)
-                allocate(con_ht(hash_val)%states(0:NIfDBO+1,nclash+1))
-                con_ht(hash_val)%nclash = nclash + 1
-                con_ht(hash_val)%states(:,1:nclash) = temp_states(:, 1:nclash)
-                con_ht(hash_val)%states(0:NIfDBO,nclash+1) = con_space(0:NIfDBO,i)
-                con_ht(hash_val)%states(NIfDBO+1,nclash+1) = transfer(con_space_vector(i), temp)
+                allocate(con_ht(hash_val)%states(0:NIfDBO+1,n_clash+1))
+                con_ht(hash_val)%nclash = n_clash + 1
+                con_ht(hash_val)%states(:,1:n_clash) = temp_states(:, 1:n_clash)
+                con_ht(hash_val)%states(0:NIfDBO,n_clash+1) = con_space(0:NIfDBO,i)
+                con_ht(hash_val)%states(NIfDBO+1,n_clash+1) = transfer(con_space_vector(i), temp)
             end if
         end do
 

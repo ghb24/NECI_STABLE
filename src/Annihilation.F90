@@ -30,8 +30,8 @@ MODULE AnnihilationMod
     use LoggingData , only : tHF_Ref_Explicit
     use util_mod, only: get_free_unit, binary_search_custom
     use sparse_arrays, only: trial_ht, con_ht
-    IMPLICIT NONE
 
+    IMPLICIT NONE
 
     contains
 
@@ -1258,6 +1258,9 @@ MODULE AnnihilationMod
                                 endif
                             endif
 
+                            ! If this option is on, include the walker to be cancelled in the trial energy estimate.
+                            if (tIncCancelledInitEnergy) call add_trial_energy_contrib(SpawnedParts(:,i), SignTemp(j))
+
                             ! Walkers came from outside initiator space.
                             NoAborted = NoAborted + abs(SignTemp(j))
                             iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
@@ -2140,6 +2143,38 @@ MODULE AnnihilationMod
         end do
 
     end subroutine hash_search_trial
+
+    subroutine add_trial_energy_contrib(ilut, RealwSign)
+    
+        integer(n_int), intent(in) :: ilut(0:)
+        real(dp), intent(in) :: RealwSign
+        integer :: i, hash_val
+        integer :: nI(nel)
+        real(dp) :: amp
+
+        call decode_bit_det(nI, ilut)
+
+        ! First search the connected space.
+        hash_val = FindWalkerHash(nI, con_space_size)
+        do i = 1, con_ht(hash_val)%nclash
+            if (DetBitEq(con_ht(hash_val)%states(0:NIfDBO,i), ilut)) then
+                amp = transfer(con_ht(hash_val)%states(NIfDBO+1,i), amp)
+                trial_numerator = trial_numerator + amp*RealwSign
+                return
+            end if
+        end do
+
+        ! If not in the connected space, search the trial space.
+        hash_val = FindWalkerHash(nI, trial_space_size)
+        do i = 1, trial_ht(hash_val)%nclash
+            if (DetBitEq(trial_ht(hash_val)%states(0:NIfDBO,i), ilut)) then
+                amp = transfer(trial_ht(hash_val)%states(NIfDBO+1,i), amp)
+                trial_denom = trial_denom + amp*RealwSign
+                return
+            end if
+        end do
+
+    end subroutine add_trial_energy_contrib
     
 END MODULE AnnihilationMod
 

@@ -5215,7 +5215,7 @@ MODULE FciMCParMod
                 IF((RandomHash(i).eq.0).or.(RandomHash(i).gt.nBasis*1000)) THEN
                     CALL Stop_All(t_r,"Random Hash incorrectly calculated")
                 ENDIF
-                if(tHashWalkerList) then
+                if(tHashWalkerList .or. tCoreHash .or. tTrialHash) then
                     IF((RandomHash2(i).eq.0).or.(RandomHash2(i).gt.nBasis*1000)) THEN
                         CALL Stop_All(t_r,"Random Hash 2 incorrectly calculated")
                     ENDIF
@@ -5224,7 +5224,7 @@ MODULE FciMCParMod
                     IF(RandomHash(i).eq.RandomHash(j)) THEN
                         CALL Stop_All(t_r,"Random Hash incorrectly calculated")
                     ENDIF
-                    if(tHashWalkerList) then
+                    if(tHashWalkerList .or. tCoreHash .or. tTrialHash) then
                         IF(RandomHash2(i).eq.RandomHash2(j)) THEN
                             CALL Stop_All(t_r,"Random Hash 2 incorrectly calculated")
                         ENDIF
@@ -5234,7 +5234,7 @@ MODULE FciMCParMod
         ENDIF
         !Now broadcast to all processors
         CALL MPIBCast(RandomHash,nBasis)
-        if(tHashWalkerList) call MPIBCast(RandomHash2,nBasis)
+        if(tHashWalkerList .or. tCoreHash .or. tTrialHash) call MPIBCast(RandomHash2,nBasis)
 
         IF(tHPHF) THEN
             !IF(tLatticeGens) CALL Stop_All("SetupParameters","Cannot use HPHF with model systems currently.")
@@ -8451,10 +8451,11 @@ MODULE FciMCParMod
         type(ll_node), pointer :: Curr, Prev
         integer :: i, ierr
 
-        if(tHashWalkerList) then
+        if(tHashWalkerList .or. tCoreHash .or. tTrialHash) then
             deallocate(RandomHash2,stat=ierr)
             if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
-
+        end if
+        if (tHashWalkerList) then
             ! Deallocate the linked list
             do i = 1, nWalkerHashes
                 Curr => HashIndex(i)%Next

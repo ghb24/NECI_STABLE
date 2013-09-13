@@ -485,9 +485,12 @@ MODULE FciMCData
       ! These indices hold the indices to be searched from next time.
       integer :: min_trial_ind, min_conn_ind
 
-      ! IF true (which it is by default) then the trial and connected space states are stored in a trial_ht and
+      ! If true (which it is by default) then the trial and connected space states are stored in a trial_ht and
       ! con_ht and are accessed by a hash lookup.
       logical :: tTrialHash
+      ! If true, include the walkers that get cancelled by the initiator criterion in the trial energy estimate.
+      ! tTrialHash needs to be used for this option.
+      logical :: tIncCancelledInitEnergy
 
       ! Semi-stochastic tags:
       integer(TagIntType) :: CoreTag, FDetermTag, FDetermAvTag, PDetermTag, IDetermTag, CoreSpaceTag
