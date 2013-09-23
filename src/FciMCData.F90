@@ -6,6 +6,7 @@ MODULE FciMCData
       use MemoryManager, only: TagIntType
       use global_utilities         
       use Parallel_neci, only: MPIArg
+      use ras_data
 
       implicit none
       save
@@ -498,5 +499,12 @@ MODULE FciMCData
       ! Trial wavefunction tags:
       integer(TagIntType) :: TrialTag, ConTag, ConVecTag, TrialWFTag, TempTag, CurrentTrialTag
       integer(TagIntType) :: TrialTempTag, ConTempTag, OccTrialTag, OccConTag
+
+      ! Data for performing the direct-ci Davidson algorithm.
+      type(ras_parameters) :: davidson_ras
+      type(ras_class_data), allocatable, dimension(:) :: davidson_classes
+      integer(sp), allocatable, dimension(:,:) :: davidson_strings
+      integer(n_int), allocatable, dimension(:,:) :: davidson_iluts
+      type(direct_ci_excit), allocatable, dimension(:) :: davidson_excits
 
 END MODULE FciMCData

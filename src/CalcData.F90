@@ -112,4 +112,7 @@ logical :: tContinueAfterMP2 ! UEG option only
 ! attempts away from the core space it took to create the state.
 logical :: tVaryInitThresh
 
+! Perform a Davidson calculation if true.
+logical :: tDavidson
+
 end module CalcData

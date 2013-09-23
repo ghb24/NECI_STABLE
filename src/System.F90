@@ -7,7 +7,7 @@ MODULE System
     use semi_stoch_gen, only: core_ras
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList
-    use constants, only: dp,int64, Pi, third
+    use constants, only: sp,dp,int64, Pi, third
     use iso_c_hack
     use util_mod, only: error_function, error_function_c
 
@@ -223,6 +223,7 @@ MODULE System
       CHARACTER (LEN=100) w
       CHARACTER (LEN=100) input_string
       INTEGER I,Odd_EvenHPHF,Odd_EvenMI
+      integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
       
       ! The system block is specified with at least one keyword on the same
       ! line, giving the system type being used.
@@ -389,11 +390,16 @@ system: do
             call geti(VirtDetermCASOrbs)  !Number of virtual spin-orbitals in CAS
         case("RAS-CORE")
             tRASCore = .true.
-            call geti(core_ras%size_1)  ! Number of spatial orbitals in RAS1.
-            call geti(core_ras%size_2)  ! Number of spatial orbitals in RAS2.
-            call geti(core_ras%size_3)  ! Number of spatial orbitals in RAS3.
-            call geti(core_ras%min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs. 
-            call geti(core_ras%max_3)  ! Max number of electrons (alpha and beta) in RAS3 orbs.
+            call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
+            call geti(ras_size_2)  ! Number of spatial orbitals in RAS2.
+            call geti(ras_size_3)  ! Number of spatial orbitals in RAS3.
+            call geti(ras_min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs. 
+            call geti(ras_max_3)  ! Max number of electrons (alpha and beta) in RAS3 orbs.
+            core_ras%size_1 = int(ras_size_1,sp)
+            core_ras%size_2 = int(ras_size_2,sp)
+            core_ras%size_3 = int(ras_size_3,sp)
+            core_ras%min_1 = int(ras_min_1,sp)
+            core_ras%max_3 = int(ras_max_3,sp)
         case("OPTIMISED-CORE")
             tOptimisedCore = .true.
         case("OPTIMISED-CORE-CUTOFF-AMP")
