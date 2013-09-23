@@ -6730,9 +6730,6 @@ MODULE FciMCParMod
         integer :: DoubEx(2,2),DoubEx2(2,2),kDoub(3) ! For histogramming UEG doubles
         integer :: ExMat(2,2),FindSplitProjEBinG,FindSplitProjEBinK3
         logical :: tDoubParity,tDoubParity2,tSign ! As above
-        real(dp) :: current_contribution
-        integer :: comp, hash_val
-        logical :: found
 
         ! Are we performing a linear sum over various determinants?
         ! TODO: If we use this, function pointer it.

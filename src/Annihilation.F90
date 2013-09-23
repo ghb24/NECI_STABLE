@@ -2121,26 +2121,30 @@ MODULE AnnihilationMod
 
         amp = 0.0_dp
         
-        ! Find the hash value of this state.
-        hash_val = FindWalkerHash(nI, con_space_size)
-        ! Loop over all hash clashes for this hash value.
-        do i = 1, con_ht(hash_val)%nclash
-            if (DetBitEq(ilut, con_ht(hash_val)%states(0:NIfDBO,i))) then
-                call set_flag(ilut, flag_connected)
-                amp = transfer(con_ht(hash_val)%states(NIfDBO+1,i), amp)
-                return
-            end if
-        end do
+        if (con_space_size > 0) then
+            ! Find the hash value of this state.
+            hash_val = FindWalkerHash(nI, con_space_size)
+            ! Loop over all hash clashes for this hash value.
+            do i = 1, con_ht(hash_val)%nclash
+                if (DetBitEq(ilut, con_ht(hash_val)%states(0:NIfDBO,i))) then
+                    call set_flag(ilut, flag_connected)
+                    amp = transfer(con_ht(hash_val)%states(NIfDBO+1,i), amp)
+                    return
+                end if
+            end do
+        end if
 
-        ! If it wasn't in the connected space, check to see if it is in the trial space.
-        hash_val = FindWalkerHash(nI, trial_space_size)
-        do i = 1, trial_ht(hash_val)%nclash
-            if (DetBitEq(ilut, trial_ht(hash_val)%states(0:NIfDBO,i))) then
-                call set_flag(ilut, flag_trial)
-                amp = transfer(trial_ht(hash_val)%states(NIfDBO+1,i), amp)
-                return
-            end if
-        end do
+        if (trial_space_size > 0) then
+            ! If it wasn't in the connected space, check to see if it is in the trial space.
+            hash_val = FindWalkerHash(nI, trial_space_size)
+            do i = 1, trial_ht(hash_val)%nclash
+                if (DetBitEq(ilut, trial_ht(hash_val)%states(0:NIfDBO,i))) then
+                    call set_flag(ilut, flag_trial)
+                    amp = transfer(trial_ht(hash_val)%states(NIfDBO+1,i), amp)
+                    return
+                end if
+            end do
+        end if
 
     end subroutine hash_search_trial
 
@@ -2155,27 +2159,29 @@ MODULE AnnihilationMod
         call decode_bit_det(nI, ilut)
 
         ! First search the connected space.
-        hash_val = FindWalkerHash(nI, con_space_size)
-        do i = 1, con_ht(hash_val)%nclash
-            if (DetBitEq(con_ht(hash_val)%states(0:NIfDBO,i), ilut)) then
-                amp = transfer(con_ht(hash_val)%states(NIfDBO+1,i), amp)
-                trial_numerator = trial_numerator + amp*RealwSign
-                return
-            end if
-        end do
+        if (con_space_size > 0) then
+            hash_val = FindWalkerHash(nI, con_space_size)
+            do i = 1, con_ht(hash_val)%nclash
+                if (DetBitEq(con_ht(hash_val)%states(0:NIfDBO,i), ilut)) then
+                    amp = transfer(con_ht(hash_val)%states(NIfDBO+1,i), amp)
+                    trial_numerator = trial_numerator + amp*RealwSign
+                    return
+                end if
+            end do
+        end if
 
         ! If not in the connected space, search the trial space.
-        hash_val = FindWalkerHash(nI, trial_space_size)
-        do i = 1, trial_ht(hash_val)%nclash
-            if (DetBitEq(trial_ht(hash_val)%states(0:NIfDBO,i), ilut)) then
-                amp = transfer(trial_ht(hash_val)%states(NIfDBO+1,i), amp)
-                trial_denom = trial_denom + amp*RealwSign
-                return
-            end if
-        end do
+        if (trial_space_size > 0) then
+            hash_val = FindWalkerHash(nI, trial_space_size)
+            do i = 1, trial_ht(hash_val)%nclash
+                if (DetBitEq(trial_ht(hash_val)%states(0:NIfDBO,i), ilut)) then
+                    amp = transfer(trial_ht(hash_val)%states(NIfDBO+1,i), amp)
+                    trial_denom = trial_denom + amp*RealwSign
+                    return
+                end if
+            end do
+        end if
 
     end subroutine add_trial_energy_contrib
     
 END MODULE AnnihilationMod
-
-
