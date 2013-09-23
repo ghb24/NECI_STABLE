@@ -223,8 +223,7 @@ integer(TagIntType) :: ResidualTag
         ! Hence, we only need to calculate the final column, and use this to update the final
         ! row also.
         do i = 1, basis_index
-            projected_hamil(i, basis_index) = projected_hamil(i, basis_index) + &
-                ddot(space_size, basis_vectors(:, i), 1, multiplied_basis_vector, 1)
+            projected_hamil(i, basis_index) = ddot(space_size, basis_vectors(:, i), 1, multiplied_basis_vector, 1)
             projected_hamil(basis_index, i) = projected_hamil(i, basis_index)
         end do
 
@@ -319,7 +318,6 @@ integer(TagIntType) :: ResidualTag
 
         real(dp) :: ddot
 
-        ! Use the BLAS routine, dnrm2, to calculate the norm.
         residual_norm = ddot(space_size, residual, 1, residual, 1)
         residual_norm = sqrt(residual_norm)
 

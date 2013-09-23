@@ -36,7 +36,7 @@ module semi_stoch_procs
     use SystemData, only: tSemiStochastic, tCSFCore, tDeterminantCore, tDoublesCore, &
                           tCASCore, tRASCore, cas_determ_not_bitmask, core_ras1_bitmask, &
                           core_ras3_bitmask, nel, OccDetermCASOrbs, tHPHF, nBasis, BRR, &
-                          ARR, tSparseCoreHamil, ECORE
+                          ARR, tSparseCoreHamil
     use timing_neci
     use util_mod, only: get_free_unit
 
@@ -217,10 +217,10 @@ contains
                     if ((iProcIndex == iproc) .and. (i == j)) then
                         if (tHPHF) then
                             core_hamiltonian(i, col_index + j) = &
-                                hphf_diag_helement(nI, SpawnedParts(:,i)) - ECORE
+                                hphf_diag_helement(nI, SpawnedParts(:,i)) - Hii
                         else
                             core_hamiltonian(i, col_index + j) = &
-                                get_helement(nI, nJ, 0) - ECORE
+                                get_helement(nI, nJ, 0) - Hii
                         end if
                         ! We calculate and store CurrentH at this point for ease.
                         if ((.not. tRegenDiagHEls) .and. (.not. tReadPops)) &

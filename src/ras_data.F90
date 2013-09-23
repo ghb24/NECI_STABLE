@@ -66,9 +66,13 @@ module ras_data
     end type
 
     type direct_ci_excit
+        ! The addresses of the excitations.
         integer(sp), allocatable, dimension(:) :: excit_ind
+        ! The corresponding parities for the excitations.
         integer(sp), allocatable, dimension(:) :: par
+        ! orb(1:2,i) holds the orbitals involved in excitation i.
         integer(sp), allocatable, dimension(:,:) :: orbs
+        ! The total number of excitations.
         integer(sp) :: nexcit
     end type direct_ci_excit
 
