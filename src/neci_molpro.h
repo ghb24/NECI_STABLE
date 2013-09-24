@@ -13,7 +13,8 @@
 #endif
 
 /* Parallel compilation in molpro with MPI */
-#if defined(_MOLCAS_MPP_) && !defined(GA_TCGMSG) && !defined(GA_TCGMSG5)
+/* #if defined(_MOLCAS_MPP_) && !defined(GA_TCGMSG) && !defined(GA_TCGMSG5) - TCGMSG GA no longer supported */
+#if defined(_MOLCAS_MPP_)
 
 #define PARALLEL
 #define CBINDMPI
