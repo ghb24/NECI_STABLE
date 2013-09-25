@@ -107,7 +107,7 @@ MODULE FciMCData
       real(dp) :: AccumRDMNorm, AccumRDMNorm_Inst, AllAccumRDMNorm
       
       !Hash tables to point to the correct determinants in CurrentDets
-      type(ll_node) , pointer :: HashIndex(:) 
+      type(ll_node), pointer :: HashIndex(:) 
       integer :: nWalkerHashes    ! The length of hash table.
       real(dp) :: HashLengthFrac
 
@@ -400,6 +400,9 @@ MODULE FciMCData
       ! The core Hamiltonian (with the Hartree-Fock energy removed from the diagonal) is stored in this array for
       ! the whole simulation.
       real(dp), allocatable, dimension(:,:) :: core_hamiltonian 
+
+      ! The diagonal elements of the core-space Hamiltonian (with Hii taken away).
+      real(dp), allocatable, dimension(:) :: core_ham_diag
             
       ! This stores the entire core space from all processes, on each process. However, this is only allocated in specific
       ! situations (when calculating RDMs and when using the tCoreHash option) and not generally.
@@ -429,6 +432,10 @@ MODULE FciMCData
       ! For using the hashing trick to search the core space.
       type(ll_node), pointer :: CoreHashIndex(:)
       logical :: tCoreHash
+
+      ! If true (as is the case by default) then semi-stochastic calculations will start from the ground state
+      ! of the core space.
+      logical :: tStartCoreGroundState
 
       ! Trial wavefunction data.
 

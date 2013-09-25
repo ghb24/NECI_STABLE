@@ -306,7 +306,8 @@ contains
                     ilut_i = ras_iluts(:,i)
 
                     ! This is the condition for (kl) to be an allowed excitation from the current string. 
-                    if ( IsOcc(ilut_i,l) .and. (.not. (IsOcc(ilut_i,k) .and. k /= l)) ) then
+                    if ( IsOcc(ilut_i,l) .and. &
+                        (.not. (IsOcc(ilut_i,k) .and. k /= l)) ) then
                         ! Temporarily set this for get_excit_details to use.
                         sym_j = sym_i
                         call get_excit_details(string_i, ex1, ras, nras1, nras3, string_j, sym_j, class_j, in_ras_space)

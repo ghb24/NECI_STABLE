@@ -1,7 +1,7 @@
 #include "macros.h"
 
 ! This module contains the routine which is used when NECI is run with the option
-! determ-proj. This takes the HF state as an initial state and applied the
+! determ-proj. This takes the HF state as an initial state and applies the
 ! deterministic part of the full projection operator *only*. So, it is different
 ! to a normal FCIQMC run where the rest of the space is projected out stochastically.
 ! Only the iteration number and energy is output.

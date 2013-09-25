@@ -188,8 +188,7 @@ contains
         call remove_repeated_states(con_space, con_space_size)
 
         ! Remove states in the connected space which are also in the trial space.
-        call remove_list1_states_from_list2(trial_space, con_space, &
-                                            trial_space_size, con_space_size)
+        call remove_list1_states_from_list2(trial_space, con_space, trial_space_size, con_space_size)
 
         call MPISumAll(con_space_size, tot_con_space_size)
 
@@ -198,11 +197,10 @@ contains
         call neci_flush(6)
 
         ! Only perform this on the root processor, due to memory demands.
-        if (iProcindex == root ) then
+        if (iProcindex == root) then
             write(6,'(a50)') "Calculating the Hamiltonian for the trial space..."
             call neci_flush(6)
-            call calculate_sparse_hamiltonian(trial_space_size, &
-                                              trial_space(0:NIfTot, 1:trial_space_size))
+            call calculate_sparse_hamiltonian(trial_space_size, trial_space(0:NIfTot, 1:trial_space_size))
 
             write(6,'(a50)') "Calculating the ground state in the trial space..."
             call neci_flush(6)

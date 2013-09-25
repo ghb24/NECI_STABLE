@@ -22,7 +22,7 @@ MODULE Calc
                         dClustSelectionRatio,tSharedExcitors
     use FciMCData, only: proje_update_comb,proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
                          InputDiagSft,tSearchTau,proje_spatial,nWalkerHashes,tHashWalkerList,HashLengthFrac, &
-                         tCoreHash, tTrialHash, tIncCancelledInitEnergy
+                         tCoreHash, tTrialHash, tIncCancelledInitEnergy, tStartCoreGroundState
 
     implicit none
 
@@ -56,6 +56,7 @@ contains
           end if
 
 !       Calc defaults 
+          tStartCoreGroundState = .true.
           tVaryInitThresh=.false.
           tHashWalkerList=.false.
           HashLengthFrac=0.0_dp
@@ -928,6 +929,8 @@ contains
                 tCoreHash = .true.
             case("TRIAL-BIN-SEARCH")
                 tTrialHash = .false.
+            case("START-FROM-HF")
+                tStartCoreGroundState = .false.
             case("INC-CANCELLED-INIT-ENERGY")
 !If true, include the spawnings cancelled due the the initiator criterion in the trial energy.
                 tIncCancelledInitEnergy = .true.

@@ -10,8 +10,10 @@ module semi_stoch_procs
                             flag_is_initiator, NOffSgn, NIfSgn
     use bit_reps, only: decode_bit_det, set_flag, extract_part_sign, extract_sign, &
                         encode_sign
-    use CalcData, only: tRegenDiagHEls, tau, DiagSft, tReadPops, tTruncInitiator
+    use CalcData, only: tRegenDiagHEls, tau, DiagSft, tReadPops, tTruncInitiator, &
+                        InitialPart, InitWalkers, tStartSinglePart
     use constants
+    use davidson, only: davidson_eigenvector, parallel_sparse_hamil_type, perform_davidson
     use DetBitOps, only: ilut_lt, ilut_gt, FindBitExcitLevel, DetBitLT, &
                          count_set_bits, DetBitEq, sign_lt, sign_gt
     use Determinants, only: get_helement
@@ -22,18 +24,20 @@ module semi_stoch_procs
                          PDetermTag, FDetermTag, IDetermTag, indices_of_determ_states, &
                          HashIndex, core_space, CoreSpaceTag, tCoreHash, ll_node, &
                          nWalkerHashes, tFill_RDM, IterLastRDMFill, full_determ_vector_av, &
-                         tFillingStochRDMonFly, Iter, IterRDMStart, CoreHashIndex
-
+                         tFillingStochRDMonFly, Iter, IterRDMStart, CoreHashIndex, &
+                         core_ham_diag, DavidsonTag
     use hash, only: DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use nElRDMMod, only: fill_RDM_offdiag_deterministic
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, MPIArg, &
-                             MPIAllGatherV, MPISum, MPISumAll
+                             MPIAllGatherV, MPISum, MPISumAll, MPIScatterV
+    use ParallelHelper, only: root
     use ras, only: core_ras
     use sort_mod, only: sort
     use sparse_arrays, only: sparse_core_ham, SparseCoreHamilTags, deallocate_sparse_ham, &
-                            core_connections
+                            core_connections, sparse_ham, hamil_diag, HDiagTag, &
+                            SparseHamilTags, allocate_sparse_ham_row
     use SystemData, only: tSemiStochastic, tCSFCore, tDeterminantCore, tDoublesCore, &
                           tCASCore, tRASCore, cas_determ_not_bitmask, core_ras1_bitmask, &
                           core_ras3_bitmask, nel, OccDetermCASOrbs, tHPHF, nBasis, BRR, &
@@ -180,6 +184,7 @@ contains
         allocate(core_hamiltonian(determ_proc_sizes(iProcIndex), determ_space_size), stat=ierr)
         call LogMemAlloc('core_hamiltonian', int(determ_space_size*&
                          &determ_proc_sizes(iProcIndex),sizeof_int), 8, t_r, CoreTag, ierr)
+        allocate(core_ham_diag(determ_proc_sizes(iProcIndex)), stat=ierr)
 
         ! temp_store is storage space for bitstrings so that the Hamiltonian matrix
         ! elements can be calculated.
@@ -222,6 +227,7 @@ contains
                             core_hamiltonian(i, col_index + j) = &
                                 get_helement(nI, nJ, 0) - Hii
                         end if
+                        core_ham_diag(i) = core_hamiltonian(i, col_index + j)
                         ! We calculate and store CurrentH at this point for ease.
                         if ((.not. tRegenDiagHEls) .and. (.not. tReadPops)) &
                             CurrentH(1,i) = core_hamiltonian(i, col_index + j)
@@ -933,20 +939,86 @@ contains
                         smallest_sign = sign_curr_abs
                     end if
                 end do
-
             endif
-
         end do
 
     end subroutine return_largest_indices
+
+    subroutine start_walkers_from_core_ground()
+
+        integer :: i, counter, ierr
+        real(dp) :: eigenvec_pop
+        character(len=*), parameter :: t_r = "start_walkers_from_core_ground"
+
+        ! Create the arrays used by the Davidson routine.
+        ! First, the whole Hamiltonian in sparse form.
+        allocate(sparse_ham(determ_proc_sizes(iProcIndex)))
+        allocate(SparseHamilTags(2, determ_proc_sizes(iProcIndex)))
+        do i = 1, determ_proc_sizes(iProcIndex)
+            call allocate_sparse_ham_row(sparse_ham, i, sparse_core_ham(i)%num_elements, "sparse_ham", SparseHamilTags(:,i)) 
+            sparse_ham(i)%elements = sparse_core_ham(i)%elements
+            sparse_ham(i)%positions = sparse_core_ham(i)%positions
+            sparse_ham(i)%num_elements = sparse_core_ham(i)%num_elements
+        end do
+
+        ! Next create the diagonal used by Davidson by copying the core one.
+        allocate(hamil_diag(determ_proc_sizes(iProcIndex)),stat=ierr)
+        call LogMemAlloc('hamil_diag', int(determ_proc_sizes(iProcIndex),sizeof_int), 8, t_r, HDiagTag, ierr)
+        hamil_diag = core_ham_diag
+
+        write(6,'(a69)') "Using the deterministic ground state as initial walker configuration."
+        write(6,'(a34)') "Performing Davidson calculation..."
+        call neci_flush(6)
+
+        ! Call the Davidson routine to find the ground state of the core space. 
+        call perform_davidson(parallel_sparse_hamil_type, .false.)
+
+        write(6,'(a30)') "Davidson calculation complete."
+        call neci_flush(6)
+
+        ! The ground state compnents are now stored in davidson_eigenvector on the root.
+        ! First, we need to normalise this vector to have the correct 'number of walkers'.
+        if (iProcIndex == root) then
+            eigenvec_pop = 0.0_dp
+            do i = 1, determ_space_size
+                eigenvec_pop = eigenvec_pop + abs(davidson_eigenvector(i))
+            end do
+            if (tStartSinglePart) then
+                davidson_eigenvector = davidson_eigenvector*InitialPart/eigenvec_pop
+            else
+                davidson_eigenvector = davidson_eigenvector*InitWalkers/eigenvec_pop
+            end if
+        end if
+
+        ! Send the components to the correct processors and use partial_determ_vector as
+        ! temporary space.
+        call MPIScatterV(davidson_eigenvector, determ_proc_sizes, determ_proc_indices, &
+                         partial_determ_vector, determ_proc_sizes(iProcIndex), ierr)
+
+        ! Finally, copy these amplitudes across to the corresponding states in CurrentDets.
+        counter = 0
+        do i = 1, TotWalkers
+            if (test_flag(CurrentDets(:,i), flag_deterministic)) then
+                counter = counter + 1
+                call encode_sign(CurrentDets(:,i), partial_determ_vector(counter))
+            end if
+        end do
+
+        partial_determ_vector = 0.0_dp
+        deallocate(davidson_eigenvector)
+        call LogMemDealloc(t_r, DavidsonTag, ierr)
+        deallocate(hamil_diag, stat=ierr)
+        call LogMemDealloc(t_r, HDiagTag, ierr)
+        call deallocate_sparse_ham(sparse_ham, 'sparse_ham', SparseHamilTags)
+
+    end subroutine start_walkers_from_core_ground
 
     subroutine end_semistoch()
 
         character(len=*), parameter :: t_r = "end_semistoch"
         integer :: ierr
 
-        if (tSparseCoreHamil) call deallocate_sparse_ham(sparse_core_ham, 'sparse_core_ham', &
-                                                         SparseCoreHamilTags)
+        if (tSparseCoreHamil) call deallocate_sparse_ham(sparse_core_ham, 'sparse_core_ham', SparseCoreHamilTags)
 
         if (allocated(core_hamiltonian)) then
             deallocate(core_hamiltonian, stat=ierr)

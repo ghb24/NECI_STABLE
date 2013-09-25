@@ -21,7 +21,7 @@ module semi_stoch_gen
                          indices_of_determ_states, SpawnedParts, FDetermTag, FDetermAvTag, &
                          PDetermTag, IDetermTag, trial_space, trial_space_size, &
                          SemiStoch_Init_Time, tHashWalkerList, tCoreHash, &
-                         full_determ_vector_av
+                         full_determ_vector_av, tStartCoreGroundState
     use gndts_mod, only: gndts
     use hash, only: DetermineDetNode
     use LoggingData, only: tWriteCore, tRDMonFly
@@ -169,6 +169,8 @@ contains
         if ((.not. tRegenDiagHels) .and. tReadPops) call fill_in_CurrentH()
         SpawnedParts = 0
         TotWalkersOld = TotWalkers
+
+        if (tStartCoreGroundState) call start_walkers_from_core_ground()
 
         if (tWriteCore) call write_core_space()
 
