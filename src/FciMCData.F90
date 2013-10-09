@@ -483,6 +483,7 @@ MODULE FciMCData
 
       ! Semi-stochastic tags:
       integer(TagIntType) :: CoreTag, FDetermTag, FDetermAvTag, PDetermTag, IDetermTag, CoreSpaceTag
+      logical :: tInDetermSpace
 
       ! Trial wavefunction tags:
       integer(TagIntType) :: TrialTag, ConTag, ConVecTag, TrialWFTag, TempTag, CurrentTrialTag

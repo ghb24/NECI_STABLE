@@ -869,7 +869,7 @@ MODULE FciMCParMod
         use, intrinsic :: iso_c_binding
         implicit none
         interface
-            subroutine fill_rdm_diag_currdet (iLutnI, nI, CurrH_I, ExcitLevelI) 
+            subroutine fill_rdm_diag_currdet (iLutnI, nI, CurrH_I, ExcitLevelI, tCoreSpaceDet) 
                 use constants
                 use SystemData, only: nel
                 use bit_reps, only: NIfTot 
@@ -878,6 +878,7 @@ MODULE FciMCParMod
                 integer(n_int), intent(in) :: iLutnI(0:nIfTot)
                 real(dp), intent(in) :: CurrH_I(NCurrH)
                 integer, intent(in) :: nI(nel), ExcitLevelI
+                logical, intent(in), optional :: tCoreSpaceDet
                 real(dp) :: IterDetOcc, IterRDM
                 integer(n_int) :: SpinCoupDet(0:nIfTot)
                 integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
@@ -1028,7 +1029,7 @@ MODULE FciMCParMod
                 type(excit_gen_store_type), intent(inout), optional :: Store
             end subroutine
             subroutine fill_rdm_diag_currdet (iLutnI, nI, CurrH_I, &
-                                              ExcitLevelI) 
+                                              ExcitLevelI, tCoreSpaceDet) 
                 use constants
                 use SystemData, only: nel
                 use bit_reps, only: NIfTot 
@@ -1037,6 +1038,7 @@ MODULE FciMCParMod
                 integer(n_int), intent(in) :: iLutnI(0:nIfTot)
                 real(dp) , intent(in) :: CurrH_I(NCurrH)
                 integer, intent(in) :: nI(nel), ExcitLevelI
+                logical, intent(in), optional :: tCoreSpaceDet
                 real(dp) :: IterDetOcc, IterRDM
                 integer(n_int) :: SpinCoupDet(0:nIfTot)
                 integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
@@ -1054,7 +1056,7 @@ MODULE FciMCParMod
         integer(kind=n_int) :: iLutnJ(0:niftot)
         integer :: IC, walkExcitLevel, walkExcitLevel_toHF, ex(2,2), TotWalkersNew, part_type
         integer(int64) :: tot_parts_tmp(lenof_sign)
-        logical :: tParity, tSuccess, tInDetermSpace
+        logical :: tParity, tSuccess
         real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp
         real(dp) :: AvSignCurr, IterRDMStartCurr, RDMBiasFacCurr
         HElement_t :: HDiagTemp,HElGen
@@ -1244,7 +1246,8 @@ MODULE FciMCParMod
                             ! If we are only using initiators to calculate the RDMs, only add in the diagonal and 
                             ! explicit contributions if the average population is greater than n_a = InitiatorWalkNo.
                                 call fill_rdm_diag_currdet(CurrentDets(:,gen_ind-1), DetCurr, &
-                                        CurrentH(1:NCurrH,gen_ind-1), walkExcitLevel_toHF)  
+                                        CurrentH(1:NCurrH,gen_ind-1), walkExcitLevel_toHF, &
+                                        test_flag(CurrentDets(:,j), flag_deterministic))  
                         endif
                         cycle
                     end if
@@ -1521,7 +1524,8 @@ MODULE FciMCParMod
                 ! If we are only using initiators to calculate the RDMs, only add in the diagonal and 
                 ! explicit contributions if the average population is greater than n_a = InitiatorWalkNo.
                     call fill_rdm_diag_currdet(CurrentDets(:,VecSlot-1), DetCurr, &
-                            CurrentH(1:NCurrH,VecSlot-1), walkExcitLevel_toHF)  
+                            CurrentH(1:NCurrH,VecSlot-1), walkExcitLevel_toHF,& 
+                            test_flag(CurrentDets(:,j), flag_deterministic))  
             endif
 
         enddo ! Loop over determinants.

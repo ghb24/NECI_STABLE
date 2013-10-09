@@ -854,7 +854,7 @@ MODULE nElRDMMod
 
     end subroutine extract_bit_rep_avsign_norm
 
-    subroutine fill_rdm_diag_currdet_norm(iLutnI, nI, CurrH_I, ExcitLevelI) 
+    subroutine fill_rdm_diag_currdet_norm(iLutnI, nI, CurrH_I, ExcitLevelI,tCoreSpaceDet) 
 ! This routine calculates the diagonal RDM contribution, and explicit connections to the HF, from the 
 ! current determinant. 
 ! Each determinant (iLutnI/nI), has Hii element CurrH_I(1), average 
@@ -866,6 +866,7 @@ MODULE nElRDMMod
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         real(dp) , intent(in) :: CurrH_I(NCurrH)
         integer, intent(in) :: nI(nel), ExcitLevelI
+        logical, intent(in), optional :: tCoreSpaceDet
         real(dp) :: IterDetOcc, IterRDM
         integer(n_int) :: SpinCoupDet(0:nIfTot)
         integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
@@ -878,7 +879,7 @@ MODULE nElRDMMod
         
         if(tHPHF) then
             if(.not.TestClosedShellDet(iLutnI)) then
-                call Fill_Diag_RDM(nI, CurrH_I(2)/SQRT(2.0_dp), IterRDM)
+                call Fill_Diag_RDM(nI, CurrH_I(2)/SQRT(2.0_dp), IterRDM,tCoreSpaceDet)
                 
 ! C_X D_X = C_X / SQRT(2) [ D_I +/- D_I'] - for open shell dets, divide stored C_X by SQRT(2). 
 ! Add in I.
@@ -887,7 +888,7 @@ MODULE nElRDMMod
                 ! Find out if it's + or - in the above expression.                
                 SignFac = hphf_sign(iLutnI)
 
-                call Fill_Diag_RDM(nSpinCoup, (real(SignFac,dp)*CurrH_I(2))/SQRT(2.0_dp), IterRDM)
+                call Fill_Diag_RDM(nSpinCoup, (real(SignFac,dp)*CurrH_I(2))/SQRT(2.0_dp), IterRDM,tCoreSpaceDet)
 
 ! For HPHF we're considering < D_I + D_I' | a_a+ a_b+ a_j a_i | D_I + D_I' >
 ! Not only do we have diagonal < D_I | a_a+ a_b+ a_j a_i | D_I > terms, but also cross terms
@@ -903,7 +904,7 @@ MODULE nElRDMMod
             else
 
                 ! HPHF on, but determinant closed shell.
-                call Fill_Diag_RDM(nI, CurrH_I(2), IterRDM)
+                call Fill_Diag_RDM(nI, CurrH_I(2), IterRDM,tCoreSpaceDet)
 
             endif
 
@@ -912,7 +913,7 @@ MODULE nElRDMMod
         else
             ! No HPHF
 
-            call Fill_Diag_RDM(nI, CurrH_I(2), IterRDM)
+            call Fill_Diag_RDM(nI, CurrH_I(2), IterRDM, tCoreSpaceDet)
             
             call Add_RDM_HFConnections_Norm(iLutnI, nI, CurrH_I(2), ExcitLevelI, IterRDM)   
 
@@ -920,7 +921,7 @@ MODULE nElRDMMod
 
     end subroutine fill_rdm_diag_currdet_norm
 
-    subroutine fill_rdm_diag_currdet_hfsd(iLutnI, nI, CurrH_I, ExcitLevelI) 
+    subroutine fill_rdm_diag_currdet_hfsd(iLutnI, nI, CurrH_I, ExcitLevelI, tCoreSpaceDet) 
 ! This routine calculates the diagonal RDM contribution, and explicit connections to the HF, from the 
 ! current determinant. 
 ! Each determinant (iLutnI/nI), has Hii element CurrH_I(1), average 
@@ -932,6 +933,7 @@ MODULE nElRDMMod
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         real(dp) , intent(in) :: CurrH_I(NCurrH)
         integer, intent(in) :: nI(nel), ExcitLevelI
+        logical, intent(in), optional :: tCoreSpaceDet
         real(dp) :: IterDetOcc, IterRDM
         integer(n_int) :: SpinCoupDet(0:nIfTot)
         integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
@@ -1026,7 +1028,7 @@ MODULE nElRDMMod
                 if(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
                     call fill_rdm_diag_currdet_hfsd(iLutnI, nI, CurrH_I, ExcitLevel)
                 else
-                    call fill_rdm_diag_currdet_norm(iLutnI, nI, CurrH_I, ExcitLevel)
+                    call fill_rdm_diag_currdet_norm(iLutnI, nI, CurrH_I, ExcitLevel, .false.)
                 endif
 
             endif
@@ -2680,12 +2682,13 @@ MODULE nElRDMMod
 ! THESE NEXT ROUTINES ARE GENERAL TO BOTH STOCHASTIC AND EXPLICIT    
 ! =======================================================================================    
 
-    subroutine Fill_Diag_RDM(nI,realSignDi,RDMItersIn)
+    subroutine Fill_Diag_RDM(nI,realSignDi,RDMItersIn,tCoreSpaceDet)
 ! Fill diagonal elements of 1- and 2-RDM.
 ! These are < Di | a_i+ a_i | Di > and < Di | a_i+ a_j+ a_j a_i | Di >.
         integer , intent(in) :: nI(NEl)
         real(dp) , intent(in) :: realSignDi
         real(dp) , intent(in) , optional :: RDMItersIn
+        logical , intent(in) , optional :: tCoreSpaceDet
         integer :: i, j, iSpat, jSpat, Ind, iInd
         real(dp) :: RDMIters, ScaleContribFac
 
@@ -2696,69 +2699,68 @@ MODULE nElRDMMod
         else
             RDMIters=RDMItersIn
         endif
-        
+
         ScaleContribFac=1.0
 
-        if (((.not. tInitiatorRDMDiag) .and. (.not. tThreshOccRDMDiag)) .or. &
-                (tInitiatorRDMDiag .and. (abs(RealSignDi) .gt. InitiatorWalkNo)) .or. &
-                (tThreshOccRDMDiag .and. (abs(RealSignDi) .gt. ThreshOccRDM))) then
-                
-
-                if (tTaperDiagRDM .and. (abs(RealSignDi) .lt. ThreshOccRDM)) ScaleContribFac=abs(RealSignDi)/ThreshOccRDM
-                if (tTaperSQDiagRDM .and. (abs(RealSignDi) .lt. ThreshOccRDM)) ScaleContribFac=(abs(RealSignDi)/ThreshOccRDM)**2
-               
-                if (tCorrectRDMErf) then
-                    if (abs(RealSignDi) .le. ThreshOccRDM) then
-                        ScaleContribFac=0.0_dp
-                    else
-                        !ScaleContribFac=DERF(erf_factor*abs(RealSignDi))
-                        ScaleContribFac=erf(erf_factor1*(abs(RealSignDi)+erf_factor2))
-                    endif
-                endif
-                
-                if(RDMExcitLevel.eq.1) then
-                    do i=1,NEl
-                        if(tStoreSpinOrbs) then
-                            iInd = SymLabelListInv_rot(nI(i))
-                        else
-                            ! SymLabelListInv_rot will be in spat orbitals too.
-                            iInd = SymLabelListInv_rot(gtID(nI(i)))
-                        endif
-                        NatOrbMat(iInd,iInd) = NatOrbMat(iInd,iInd) &
-                                                  + ( realSignDi * realSignDi * RDMIters) 
-                    enddo
+        if ((.not. tCoreSpaceDet) .or. .not.present(tCoreSpaceDet)) then
+            !Dets in the core space are never removed from main list, so strictly do not require corrections
+            if (tInitiatorRDMDiag .and. (abs(RealSignDi) .le. InitiatorWalkNo)) ScaleContribFac=0.0_dp
+            if (tThreshOccRDMDiag .and. (abs(RealSignDi) .le. ThreshOccRDM)) ScaleContribFac=0.0_dp
+            if (tTaperDiagRDM .and. (abs(RealSignDi) .lt. ThreshOccRDM)) ScaleContribFac=abs(RealSignDi)/ThreshOccRDM
+            if (tTaperSQDiagRDM .and. (abs(RealSignDi) .lt. ThreshOccRDM)) ScaleContribFac=(abs(RealSignDi)/ThreshOccRDM)**2
+           
+            if (tCorrectRDMErf) then
+                if (abs(RealSignDi) .le. ThreshOccRDM) then
+                    ScaleContribFac=0.0_dp
                 else
-                    ! Only calculating 2-RDM.
-                    do i=1,NEl - 1
-                        iSpat = gtID(nI(i))
-
-                        ! Orbitals in nI ordered lowest to highest so nI(j) > nI(i), 
-                        ! and jSpat >= iSpat (can only be equal if different spin).
-                        do j=i+1,NEl
-                            jSpat = gtID(nI(j))
-
-                            ! either alpha alpha or beta beta -> aaaa array.
-                            if( ((mod(nI(i),2).ne.0).and.(mod(nI(j),2).ne.0)) .or. &
-                                ((mod(nI(i),2).eq.0).and.(mod(nI(j),2).eq.0)) ) then
-
-                                ! Ind doesn't include diagonal terms (when iSpat = jSpat).
-                                Ind=( ( (jSpat-2) * (jSpat-1) ) / 2 ) + iSpat
-                                aaaa_RDM( Ind , Ind ) = aaaa_RDM( Ind , Ind ) &
-                                                  + ( realSignDi * realSignDi * RDMIters) 
-
-                            ! either alpha beta or beta alpha -> abab array.                                              
-                            else
-
-                                ! Ind does include diagonal terms (when iSpat = jSpat)
-                                Ind=( ( (jSpat-1) * jSpat ) / 2 ) + iSpat
-                                abab_RDM( Ind , Ind ) = abab_RDM( Ind , Ind ) &
-                                                  + ( realSignDi * realSignDi * RDMIters) 
-                            endif
-
-                        enddo
-                    enddo
+                    !ScaleContribFac=DERF(erf_factor*abs(RealSignDi))
+                    ScaleContribFac=erf(erf_factor1*(abs(RealSignDi)+erf_factor2))
                 endif
             endif
+        endif
+        
+        if(RDMExcitLevel.eq.1) then
+            do i=1,NEl
+                if(tStoreSpinOrbs) then
+                    iInd = SymLabelListInv_rot(nI(i))
+                else
+                    ! SymLabelListInv_rot will be in spat orbitals too.
+                    iInd = SymLabelListInv_rot(gtID(nI(i)))
+                endif
+                NatOrbMat(iInd,iInd) = NatOrbMat(iInd,iInd) &
+                                          + ( realSignDi * realSignDi * RDMIters)*ScaleContribFac 
+            enddo
+        else
+            ! Only calculating 2-RDM.
+            do i=1,NEl - 1
+                iSpat = gtID(nI(i))
+
+                ! Orbitals in nI ordered lowest to highest so nI(j) > nI(i), 
+                ! and jSpat >= iSpat (can only be equal if different spin).
+                do j=i+1,NEl
+                    jSpat = gtID(nI(j))
+
+                    ! either alpha alpha or beta beta -> aaaa array.
+                    if( ((mod(nI(i),2).ne.0).and.(mod(nI(j),2).ne.0)) .or. &
+                        ((mod(nI(i),2).eq.0).and.(mod(nI(j),2).eq.0)) ) then
+
+                        ! Ind doesn't include diagonal terms (when iSpat = jSpat).
+                        Ind=( ( (jSpat-2) * (jSpat-1) ) / 2 ) + iSpat
+                        aaaa_RDM( Ind , Ind ) = aaaa_RDM( Ind , Ind ) &
+                                          + ( realSignDi * realSignDi * RDMIters)*ScaleContribFac
+
+                    ! either alpha beta or beta alpha -> abab array.                                              
+                    else
+
+                        ! Ind does include diagonal terms (when iSpat = jSpat)
+                        Ind=( ( (jSpat-1) * jSpat ) / 2 ) + iSpat
+                        abab_RDM( Ind , Ind ) = abab_RDM( Ind , Ind ) &
+                                          + ( realSignDi * realSignDi * RDMIters)*ScaleContribFac
+                    endif
+
+                enddo
+            enddo
+        endif
 
     end subroutine Fill_Diag_RDM
 
