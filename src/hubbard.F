@@ -429,15 +429,17 @@ C.. we have a new rep
         ! See if a given G vector is within a (possibly tilted) unit cell.
         ! Used to generate the basis functions for the hubbard model (or perhaps electrons in boxes)
         use constants, only: dp
+        use SystemData, only: BasisFN
         IMPLICIT NONE
-        INTEGER G(5),nBasisMax(5,*),NMAXX,I,J,AX,AY
+        Type(BasisFN), intent(in) :: G
+        INTEGER nBasisMax(5,*),NMAXX,I,J,AX,AY
         INTEGER KX,KY
         real(dp) MX,MY,XX,YY
         LOGICAL TALLOW
         TALLOW=.TRUE.
         IF(NBASISMAX(3,3).EQ.1) THEN
       !.. spatial symmetries
-            IF(G(1).NE.0) TALLOW=.FALSE.
+            IF(G%k(1).NE.0) TALLOW=.FALSE.
         ELSEIF(NBASISMAX(3,3).EQ.0) THEN
       !.. Hubbard
             IF(NBASISMAX(1,3).EQ.1) THEN
@@ -451,8 +453,8 @@ C.. we have a new rep
                 YY=((AY-AX)/2.0_dp)*NMAXX
                 MX=XX*AX+YY*AY
                 MY=XX*AY-YY*AX
-                I=G(1)
-                J=G(2)
+                I=G%k(1)
+                J=G%k(2)
                 KX=I*AX+J*AY
                 KY=I*AY-J*AX
                 IF(KX.GT.MX) TALLOW=.FALSE.
@@ -461,7 +463,7 @@ C.. we have a new rep
                 IF(KY.LE.-MY) TALLOW=.FALSE.
             ELSEIF(NBASISMAX(1,3).GE.4.OR.NBASISMAX(1,3).EQ.2) THEN
       !.. Real space Hubbard
-                IF(G(1).EQ.0.AND.G(2).EQ.0.AND.G(3).EQ.0) THEN
+                IF(G%k(1).EQ.0.AND.G%k(2).EQ.0.AND.G%k(3).EQ.0) THEN
                    TALLOW=.TRUE.
                 ELSE
                     TALLOW=.FALSE.
@@ -487,11 +489,11 @@ C.. we have a new rep
             ELSE
       !.. Normal Hubbard
                 TALLOW=.TRUE.
-                IF(G(1).GT.NBASISMAX(1,2).OR.G(1).LT.NBASISMAX(1,1))    &
+                IF(G%k(1).GT.NBASISMAX(1,2).OR.G%k(1).LT.NBASISMAX(1,1))&
      &               TALLOW=.FALSE.
-                IF(G(2).GT.NBASISMAX(2,2).OR.G(2).LT.NBASISMAX(2,1))    &
+                IF(G%k(2).GT.NBASISMAX(2,2).OR.G%k(2).LT.NBASISMAX(2,1))&
      &               TALLOW=.FALSE.
-                IF(G(3).GT.NBASISMAX(3,2).OR.G(3).LT.NBASISMAX(3,1))    &
+                IF(G%k(3).GT.NBASISMAX(3,2).OR.G%k(3).LT.NBASISMAX(3,1))&
      &              TALLOW=.FALSE.
             ENDIF
         ENDIF         

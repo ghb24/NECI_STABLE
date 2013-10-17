@@ -438,9 +438,9 @@ MODULE FciMCParMod
 
         ! We are at the end - get the stop-time. Output the timing details
         stop_time = neci_etime(tend)
-        write(iout,*) '-----------------------------------------------'
+        write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
         write(iout,*) 'Total loop-time: ', stop_time - start_time
-        write(iout,*) '-----------------------------------------------'
+        write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
 
         ! Reduce the iteration count fro the POPSFILE since it is incremented
         ! upon leaving the loop (If done naturally).

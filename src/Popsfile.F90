@@ -1057,6 +1057,7 @@ outer_map:      do i = 0, MappingNIfD
                 iunit = get_free_unit()
                 open(iunit, file=popsfile, status='replace')
                 call write_popsfile_header (iunit, write_count_sum)
+                close(iunit)
             end if
         end if
 
