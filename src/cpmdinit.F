@@ -263,7 +263,8 @@ C.. We have to cache all states, as we don't, as yet, know which ones we're goin
 C.. If we're freezing we allocate a small cache first to store the <ij|kj> integrals, which will be deallocated and a larger cache made later.
             CALL SETUPUMATCACHE(NSTATESUSED,NSTATESUSED.NE.NSTATES)
          ENDIF
-         CALL CPMDGEN1EINTS(NStatesUsed,G1,CPMD1EINT)
+         call stop_all(this_routine,'Code depricated')
+         !CALL CPMDGEN1EINTS(NStatesUsed,G1,CPMD1EINT)
 !         CALL N_MEMORY_CHECK()
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
          IF(.NOT.BTEST(iCacheFlag,1)) THEN

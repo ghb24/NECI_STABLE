@@ -134,17 +134,17 @@ END TYPE
 integer, PARAMETER :: SymmetrySize=2
 integer, PARAMETER :: SymmetrySizeB=SymmetrySize*8
 TYPE BasisFN
-   SEQUENCE
    TYPE(Symmetry) :: sym
    INTEGER :: k(3)
    INTEGER :: Ms
    INTEGER :: Ml            !This is the Ml symmetry of the orbital
+   INTEGER :: Dummy         !Rather than use SEQUENCE which has caused endless bother...
 END TYPE
 
 ! Empty basis function is used in many places.
 ! This is useful so if BasisFn changes, we don't have to go
 ! through the code and change the explicit null statements.
-type(BasisFn) :: NullBasisFn=BasisFn(Symmetry(0),(/0,0,0/),0,0)
+type(BasisFn) :: NullBasisFn=BasisFn(Symmetry(0),(/0,0,0/),0,0,0)
 
 integer, PARAMETER :: BasisFNSize=SymmetrySize+5
 integer, PARAMETER :: BasisFNSizeB=BasisFNSize*8

@@ -265,13 +265,13 @@ C.. Check the connectivity
                      NLIST=NLIST+1
                      IF(RP.NE.0.0_dp) THEN
                         CALL CALCRHO2(NI,NN,BETA,I_P,NEL,
-     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
+     &             G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
      &             RH2,NTAY,ICE,ECORE)
                         IF(RP.GE.0.0_dp) THEN
                            RN=RN+RH2**RP
                         ELSEIF(ABS(RH2).GT.RHOEPS) THEN
                            CALL CALCRHO2(NN,NN,BETA,I_P,NEL,
-     &             NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
+     &             G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
      &             RH,NTAY,0,ECORE)
                            RN=RN+RH**ABS(RP)
                         ENDIF

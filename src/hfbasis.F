@@ -83,7 +83,7 @@ C..Symmetries not needed by UMatInd
          TYPE(BasisFN) G1(nBasis)
          real(dp) ARR(NBASIS,2)
          real(dp) HFE(NBASIS)
-         INTEGER BRR(NBASIS),ORBORDER(8)
+         INTEGER BRR(NBASIS),ORBORDER(8,2)
          INTEGER I
 #ifdef __CMPLX
          call stop_all('SETUPHFBASIS', 
