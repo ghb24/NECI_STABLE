@@ -619,7 +619,7 @@ contains
     
     end subroutine
 
-    function calc_s_squared () result (ssq)
+    function calc_s_squared (only_init) result (ssq)
 
         ! Calculate the instantaneous value of S^2 for the walkers stored
         ! in CurrentDets
@@ -627,6 +627,7 @@ contains
         ! --> This could be generalised to an arbitrary list of iluts. We 
         !     would also then need to calculate the value of psi_squared
 
+        logical, intent(in) :: only_init
         real(dp) :: ssq, Allssq
         integer :: i, j, k, l, orb, orb2, pos, pair_sgn, nop_pairs
         integer :: sgn_carry
@@ -644,7 +645,11 @@ contains
 
         ssq = 0
         do i = 1, int(TotWalkers,sizeof_int)
-            ssq = ssq + ssquared_contrib (CurrentDets(:,i))
+            if ((test_flag(CurrentDets(:,i), flag_is_initiator(1)) .or. &
+                 test_flag(CurrentDets(:,i), flag_is_initiator(lenof_sign)))&
+                 .and. .not. TestClosedShellDet(CurrentDets(:,i))) then
+                ssq = ssq + ssquared_contrib (CurrentDets(:,i), only_init)
+            end if
         enddo
 
         ! Sum over all processors and normalise
@@ -917,6 +922,7 @@ contains
         ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the system
         !            I am somewhat astounded I haven't noticed this before...
         lms_tmp = -LMS
+        write(6,*) 'SSQ', ssq, lms, lms_tmp
         ssq = ssq + real(lms_tmp * (lms_tmp + 2), dp) / 4
 
         if (only_init) then
