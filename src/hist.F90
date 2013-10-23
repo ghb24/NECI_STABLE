@@ -922,7 +922,6 @@ contains
         ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the system
         !            I am somewhat astounded I haven't noticed this before...
         lms_tmp = -LMS
-        write(6,*) 'SSQ', ssq, lms, lms_tmp
         ssq = ssq + real(lms_tmp * (lms_tmp + 2), dp) / 4
 
         if (only_init) then
