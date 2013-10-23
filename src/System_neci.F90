@@ -1401,7 +1401,8 @@ MODULE System
           ELSEIF(TCPMD) THEN
       !C.. If TCPMD, then we've generated the symmetry table earlier,
       !C.. but we still need the sym reps table.
-              CALL GENCPMDSYMREPS(G1,NBASIS,ARR,1.e-5_dp)
+              call stop_all(this_routine,'CPMD interface depricated')
+!              CALL GENCPMDSYMREPS(G1,NBASIS,ARR,1.e-5_dp)
           ELSEIF(tVASP) THEN
       !C.. If VASP-based calculation, then we've generated the symmetry table earlier,
       !C.. but we still need the sym reps table. DEGENTOL=1.0e-6_dp. CHECK w/AJWT.
@@ -1785,7 +1786,7 @@ MODULE System
       ELSEIF(TCPMD) THEN
 !C.. If TCPMD, then we've generated the symmetry table earlier,
 !C.. but we still need the sym reps table.
-         CALL GENCPMDSYMREPS(G1,NBASIS,ARR,1.e-5_dp)
+         CALL GENCPMDSYMREPS(G1,NBASIS,ARR)
       ELSEIF(tVASP) THEN
 !C.. If VASP-based calculation, then we've generated the symmetry table earlier,
 !C.. but we still need the sym reps table. DEGENTOL=1.0e-6_dp. CHECK w/AJWT.

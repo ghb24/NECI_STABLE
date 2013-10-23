@@ -40,7 +40,7 @@ MODULE FciMCParMod
                         tAllRealCoeff, tRealCoeffByExcitLevel, tPopsMapping, &
                         tSpawn_Only_Init_Grow, RealCoeffExcitThresh, &
                         tRealSpawnCutoff, RealSpawnCutoff, tJumpShift, &
-                        tUseRealCoeffs
+                        tUseRealCoeffs, tSpatialOnlyHash
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
@@ -201,7 +201,6 @@ MODULE FciMCParMod
             call Standalone_Errors()
             return
         endif
-
 
         TDebug=.false.  !Set debugging flag
                     
@@ -452,14 +451,15 @@ MODULE FciMCParMod
 
         ! We are at the end - get the stop-time. Output the timing details
         stop_time = neci_etime(tend)
-        write(iout,*) '-----------------------------------------------'
+        write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
         write(iout,*) 'Total loop-time: ', stop_time - start_time
-        write(iout,*) '-----------------------------------------------'
+        write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
 
         ! Reduce the iteration count fro the POPSFILE since it is incremented
         ! upon leaving the loop (If done naturally).
         IF(TIncrement) Iter=Iter-1
         IF(TPopsFile) THEN
+            WRITE(6,*) "Totwalkers", TotWalkers
             CALL WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
         ENDIF
         IF(tCalcFCIMCPsi) THEN
@@ -3991,6 +3991,7 @@ MODULE FciMCParMod
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp) :: TempTotParts
+        integer, dimension(lenof_sign) :: AllInstNoatHF
         real(dp) :: Prev_AvNoatHF
 
         NoInitDets = 0
@@ -4207,16 +4208,26 @@ MODULE FciMCParMod
 
         ! What is the current value of S2
         if (tCalcInstantS2) then
-            if (mod(iter / StepsSft, instant_s2_multiplier) == 0) &
-                curr_S2 = calc_s_squared_star (.false.)
+            if (mod(iter / StepsSft, instant_s2_multiplier) == 0) then
+                if (tSpatialOnlyhash) then
+                    curr_S2 = calc_s_squared (.false.)
+                else
+                    curr_S2 = calc_s_squared_star (.false.)
+                end if
+            end if
         else
             curr_S2 = -1
         end if
 
         ! What is the current value of S2 considering only initiators
         if (tCalcInstantS2Init) then
-            if (mod(iter / StepsSft, instant_s2_multiplier_init) == 0) &
-                curr_S2_init = calc_s_squared_star (.true.)
+            if (mod(iter / StepsSft, instant_s2_multiplier_init) == 0) then
+                if (tSpatialOnlyhash) then
+                    curr_S2_init = calc_s_squared (.true.)
+                else
+                    curr_S2_init = calc_s_squared_star (.true.)
+                end if
+            end if
         else
             curr_S2_init = -1
         endif
@@ -6313,6 +6324,7 @@ MODULE FciMCParMod
             allocate(proje_ref_dets(nel, nproje_sum))
             allocate(proje_ref_iluts(0:NIfTot, nproje_sum))
             allocate(proje_ref_coeffs(nproje_sum))
+            allocate(All_proje_ref_coeffs(nproje_sum))
             proje_ref_coeffs = 0
 
             ! Get all the dets
@@ -6341,7 +6353,9 @@ MODULE FciMCParMod
                 call stop_all (t_r, 'Incorrect number of determinants found')
 
             ! Get the total number of walkers on each site
-            call MPISumAll_inplace (proje_ref_coeffs)
+            call MPISumAll(proje_ref_coeffs, All_proje_ref_coeffs)
+            proje_ref_coeffs=All_proje_ref_coeffs
+            
             norm = sqrt(sum(proje_ref_coeffs**2))
             if (norm == 0) norm = 1
             proje_ref_coeffs = proje_ref_coeffs / norm
@@ -6354,6 +6368,8 @@ MODULE FciMCParMod
 
         integer :: i, pos, nfound, ierr
         real(dp) :: norm,reduce_in(1:2),reduce_out(1:2), sgn(lenof_sign)
+                
+        allocate(All_proje_ref_coeffs(nproje_sum))
 
         if(nproje_sum>1) then
            if(proje_spatial) then
@@ -6368,7 +6384,9 @@ MODULE FciMCParMod
                  endif
               enddo
               
-              call MPISumAll_inplace (proje_ref_coeffs)
+              call MPISumAll(proje_ref_coeffs, All_proje_ref_coeffs)
+              proje_ref_coeffs=All_proje_ref_coeffs
+              
               norm = sqrt(sum(proje_ref_coeffs**2))
               if (norm == 0) norm = 1
               proje_ref_coeffs = proje_ref_coeffs / norm
@@ -6435,6 +6453,8 @@ MODULE FciMCParMod
             deallocate(proje_ref_iluts)
         if (allocated(proje_ref_coeffs)) &
             deallocate(proje_ref_coeffs)
+        if (allocated(All_proje_ref_coeffs)) &
+            deallocate(All_proje_ref_coeffs)
 
     end subroutine clean_linear_comb
 

@@ -540,8 +540,8 @@ MODULE Logging
         case("CALCRDMONFLY")
 !This keyword sets the calculation to calculate the reduced density matrix on the fly.  
 !This starts at IterRDMonFly iterations after the shift changes.
-!If RDMExcitLevel = 1, only the 1 electron RDM is found, if RDMExcitLevel = 2, only 
-!the 2 electron RDM is found and if RDMExcitLevel = 3, both are found. 
+!If RDMExcitLevel = 1, only the 1 electron RDM is found, if RDMExcitLevel = 2, 
+! only the 2 electron RDM is found and if RDMExcitLevel = 3, both are found. 
             tRDMonFly=.true.
             call readi(RDMExcitLevel)
             call readi(IterRDMonFly)
@@ -641,18 +641,15 @@ MODULE Logging
 ! Use only the determinants that are (on average) initiators to calculate the RDMs.
             tInitiatorRDM = .true.
 
-
         case("DUMPFORCESINFO")
 ! Using the finalised 2RDM, calculate the Lagrangian X used for the calculation of the forces, 
 !and dump all these in Molpro-friendly format
-! Note that this currently requires calculation of *both* the 1 and 2 body RDMS (i.e. CALCRDMONFLY 3 .. ... )
-! I will eventually reorganise so it can work with just the calculation of the two body RDM.
             tDumpForcesInfo = .true.
         
         case("PRINTLAGRANGIAN")
             ! Print out the Lagrangian X to file (Only works in conjuction with DUMPFORCESINFO: otherwise, this option does nothing)
             tPrintLagrangian = .true.
-
+        
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them
 !HF Determinant is always histogrammed. NoACDets(2) is number of doubles. NoACDets(3) is number of triples and NoACDets(4) is 
