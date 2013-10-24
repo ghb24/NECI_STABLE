@@ -40,7 +40,7 @@ MODULE FciMCParMod
                         trunc_nopen_max, tSpawn_Only_Init, tPopsMapping, &
                         TargetGrowRate, TargetGrowRateWalk, tShiftonHFPop, &
                         tContinueAfterMP2, iExitWalkers, tJumpShift, &
-                        tSpawn_Only_Init_Grow
+                        tSpawn_Only_Init_Grow, tSpatialOnlyHash
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
@@ -4253,16 +4253,26 @@ MODULE FciMCParMod
 
         ! What is the current value of S2
         if (tCalcInstantS2) then
-            if (mod(iter / StepsSft, instant_s2_multiplier) == 0) &
-                curr_S2 = calc_s_squared_star (.false.)
+            if (mod(iter / StepsSft, instant_s2_multiplier) == 0) then
+                if (tSpatialOnlyhash) then
+                    curr_S2 = calc_s_squared (.false.)
+                else
+                    curr_S2 = calc_s_squared_star (.false.)
+                end if
+            end if
         else
             curr_S2 = -1
         end if
 
         ! What is the current value of S2 considering only initiators
         if (tCalcInstantS2Init) then
-            if (mod(iter / StepsSft, instant_s2_multiplier_init) == 0) &
-                curr_S2_init = calc_s_squared_star (.true.)
+            if (mod(iter / StepsSft, instant_s2_multiplier_init) == 0) then
+                if (tSpatialOnlyhash) then
+                    curr_S2_init = calc_s_squared (.true.)
+                else
+                    curr_S2_init = calc_s_squared_star (.true.)
+                end if
+            end if
         else
             curr_S2_init = -1
         endif

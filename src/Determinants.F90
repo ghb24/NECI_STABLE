@@ -62,7 +62,7 @@ contains
         use sym_mod
         use util_mod, only: NECI_ICOPY
         use sltcnd_mod, only: CalcFockOrbEnergy 
-        integer ierr
+        integer ierr, ms
         integer i,Lz,OrbOrder(8,2),FDetTemp(NEl)
         type(BasisFn) s
         HElement_t :: OrbE
@@ -74,6 +74,16 @@ contains
             do i=1,NEl
                 FDet(i)=DefDet(i)
             enddo
+
+            ! A quick check that we have defined a reasonable det.
+            ms = sum(get_spin_pn(fdet(1:nel)))
+            if (abs(ms) /= abs(lms) .and. .not. tCSF) then
+                write(6,*) 'LMS', lms
+                write(6,*) 'Calculated Ms', ms
+                call stop_all (this_routine, "Defined determinant has the &
+                              &wrong Ms value. Change DEFINEDET or &
+                              &SPIN-RESTRICT")
+            end if
             tRef_Not_HF = .true.
         ELSE
              CALL GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
