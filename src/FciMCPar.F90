@@ -142,10 +142,6 @@ MODULE FciMCParMod
     use sort_mod
     use get_excit, only: make_double
 
-#ifdef __DEBUG                            
-    use DeterminantData, only: write_det
-#endif
-
     implicit none
 #ifdef MOLPRO
     include "common/tapes"
