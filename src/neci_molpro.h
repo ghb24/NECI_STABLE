@@ -34,4 +34,11 @@
 #define __ISO_C_HACK
 #endif
 
+#if defined (__INTEL_COMPILER)
+#if __INTEL_COMPILER >= 1400 && __INTEL_COMPILER < 1500
+/* Bug in intel 14. See Bugzilla 4168. */
+#define __ISO_C_HACK
+#endif
+#endif
+
 #endif
