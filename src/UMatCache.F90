@@ -1574,7 +1574,7 @@ END MODULE UMatCache
 
 
 ! See Integrals.F90 for an interface for this function.
-function get_umat_el (fn, i, j, k, l) result(hel)
+function get_umat_el (fn, i, j, k, l) result(hel) bind(c)
     ! Obtains the Coulomb integral <ij|kl> from the UMat array.
     ! In:
     !    fn: pointer to the system-specific get_umat_el_* function.
@@ -1588,7 +1588,7 @@ function get_umat_el (fn, i, j, k, l) result(hel)
     implicit none
 
     interface
-        function fn (i, j, k, l, fn2) result(hel)
+        function fn (i, j, k, l, fn2) result(hel) bind(c)
             use constants, only: dp
             use iso_c_hack
             implicit none
