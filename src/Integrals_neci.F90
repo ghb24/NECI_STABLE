@@ -21,7 +21,7 @@ module Integrals_neci
     implicit none
 
     interface
-        function get_umat_el (fn, i, j, k, l) result(hel)
+        function get_umat_el (fn, i, j, k, l) result(hel) bind(c)
             ! Obtains the Coulomb integral <ij|kl> from the UMat array.
             ! In:
             !    fn: pointer to the system-specific get_umat_el_* function.
@@ -41,39 +41,17 @@ contains
 
     subroutine set_getumatel_fn (fn)
         implicit none
-        interface
-            function fn (i, j, k, l) result(hel)
-                use constants, only: dp
-                implicit none
-                integer, intent(in) :: i, j, k, l
-                HElement_t :: hel
-            end function
-        end interface
+#include "umat_ptr.h"
 
         call assign_proc (ptr_getumatel, fn)
     end subroutine
 
-    subroutine set_getumatel_stack (fn)
+    subroutine set_getumatel_stack (fn2)
         implicit none
-        interface
-            function fn (i, j, k, l, fn2) result(hel)
-                use constants, only: dp
-                implicit none
-                interface
-                    function fn2 (i, j, k, l) result (hel)
-                        use constants, only: dp
-                        implicit none
-                        integer, intent(in) :: i, j, k, l
-                        HElement_t :: hel
-                    end function
-                end interface
-                integer, intent(in) :: i, j, k, l
-                HElement_t :: hel
-            end function
-        end interface
+#include "umat_ptr_stack.h"
 
         ptr_getumatel_2 = ptr_getumatel
-        call assign_proc (ptr_getumatel, fn)
+        call assign_proc (ptr_getumatel, fn2)
     end subroutine
 
     subroutine SetIntDefaults()
@@ -1466,7 +1444,7 @@ contains
 
     end subroutine
 
-    function get_umat_el_tumat2d (idi, idj, idk, idl) result (hel)
+    function get_umat_el_tumat2d (idi, idj, idk, idl, fn) result (hel) bind(c)
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -1484,6 +1462,8 @@ contains
         integer, intent(in) :: idi, idj, idk, idl
         integer :: i, j
         HElement_t :: hel
+        type(c_ptr), intent(in), value :: fn
+
 
         if ( (idi == idj) .and. (idi == idk) .and. (idi == idl) ) then
             ! <ii|ii>
@@ -1507,12 +1487,12 @@ contains
             j = min (idi, idk)
             hel = umat2d (i, j)
         else
-            hel = get_umat_el_cache (idi, idj, idk, idl)
+            hel = get_umat_el_cache (idi, idj, idk, idl, ptr_getumatel)
         endif
 
     end function get_umat_el_tumat2d
 
-    function get_umat_el_cache (idi, idj, idk, idl) result (hel)
+    function get_umat_el_cache (idi, idj, idk, idl, fn) result (hel) bind(c)
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -1541,6 +1521,8 @@ contains
         HElement_t :: hel, UElems(0:nTypes-1)
         logical :: calc2ints
         complex(dp) :: vasp_int(1, 0:1)
+        type(c_ptr), intent(in), value :: fn
+
 
         i = idi
         j = idj
@@ -1681,14 +1663,7 @@ contains
         ! In:
         !    i,j,k,l: spin-orbital indices.
         
-        interface
-            function fn2 (i, j, k, l) result (hel)
-                use constants, only: dp
-                implicit none
-                integer, intent(in) :: i, j, k, l
-                HElement_t :: hel
-            end function
-        end interface
+#include "umat_ptr_stack.h"
 
         integer, intent(in) :: i, j, k, l
         HElement_t :: hel
@@ -1699,7 +1674,8 @@ contains
         if ( (G1(i)%Ml + G1(j)%Ml) /= (G1(k)%Ml + G1(l)%Ml) ) then
             hel = 0
         else
-            hel = fn2 (i, j, k, l)
+            ! get_umat_el_normal is a dummy argument
+            hel = fn2 (i, j, k, l, get_umat_el_normal)
         endif
 
     end function
@@ -1717,14 +1693,7 @@ contains
         ! In:
         !    i,j,k,l: spatial orbital indices.
         
-        interface
-            function fn2 (i, j, k, l) result (hel)
-                use constants, only: dp
-                implicit none
-                integer, intent(in) :: i, j, k, l
-                HElement_t :: hel
-            end function
-        end interface
+#include "umat_ptr_stack.h"
 
         integer, intent(in) :: i, j, k, l
         HElement_t :: hel
@@ -1735,12 +1704,13 @@ contains
         if ( (G1(2*i)%Ml + G1(2*j)%Ml) /= (G1(2*k)%Ml + G1(2*l)%Ml) ) then
             hel = 0
         else
-            hel = fn2 (i, j, k, l)
+            ! get_umat_el_normal is a dummy argument
+            hel = fn2 (i, j, k, l, get_umat_el_normal)
         endif
 
     end function
 
-    function get_umat_el_normal (idi, idj, idk, idl) result(hel)
+    function get_umat_el_normal (idi, idj, idk, idl, fn) result(hel) bind(c)
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -1757,6 +1727,7 @@ contains
 
         integer, intent(in) :: idi, idj, idk, idl
         HElement_t :: hel
+        type(c_ptr), intent(in), value :: fn
 
         hel = UMAT (UMatInd(idi, idj, idk, idl, 0, 0))
 #ifdef __CMPLX
@@ -1765,7 +1736,7 @@ contains
 
     end function
 
-    function get_umat_el_starstore (idi, idj, idk, idl) result(hel)
+    function get_umat_el_starstore (idi, idj, idk, idl, fn) result(hel) bind(c)
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -1785,6 +1756,7 @@ contains
         integer, intent(in) :: idi, idj, idk, idl
         integer :: i, j
         HElement_t :: hel
+        type(c_ptr), intent(in), value :: fn
 
         if ( (idi == idj) .and. (idi == idk) .and. (idi == idl) ) then
             hel = umat2d (idi, idi)
