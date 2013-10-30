@@ -21,7 +21,7 @@ module Integrals_neci
     implicit none
 
     interface
-        function get_umat_el (fn, i, j, k, l) result(hel)
+        function get_umat_el (fn, i, j, k, l) result(hel) bind(c)
             ! Obtains the Coulomb integral <ij|kl> from the UMat array.
             ! In:
             !    fn: pointer to the system-specific get_umat_el_* function.
