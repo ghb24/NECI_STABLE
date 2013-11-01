@@ -629,7 +629,7 @@ contains
         ! --> This could be generalised to an arbitrary list of iluts. We 
         !     would also then need to calculate the value of psi_squared
 
-        real(dp) :: ssq
+        real(dp), dimension(inum_runs) :: ssq
         integer :: i, lms_tmp
         type(timer), save :: s2_timer
 
@@ -660,7 +660,7 @@ contains
     function calc_s_squared_multi () result (ssq)
     
         integer :: max_linked, max_per_proc, max_spawned
-        real(dp) :: ssq
+        real(dp), dimension(inum_runs) :: ssq
         type(timer), save :: s2_timer
 
         s2_timer%timer_name = 'S^2'
@@ -684,7 +684,7 @@ contains
         integer(n_int), pointer :: detcurr(:)
         integer(n_int) :: splus(0:NIfTot), sminus(0:NIfTot)
         logical :: running, any_running
-        real(dp) :: ssq
+        real(dp), dimension(inum_runs) :: ssq
         integer :: max_per_proc, max_spawned
         real(dp) :: sgn1(lenof_sign), sgn2(lenof_sign)
 
@@ -804,14 +804,14 @@ contains
 
     function calc_s_squared_star (only_init) result (ssq)
 
-        real(dp) :: ssq
+        real(dp), dimension(inum_runs) :: ssq
         integer, parameter :: max_per_proc = 1000
         integer(n_int) :: recv_dets(0:NIfTot,max_per_proc)
         integer :: proc_dets, start_pos, nsend, i, lms_tmp, p
         integer :: bcast_tmp(2)
         real(dp) :: sgn_tmp(lenof_sign)
         type(timer), save :: s2_timer, s2_timer_init
-        real(dp) :: ssq_sum, psi_squared
+        real(dp), dimension(inum_runs) :: ssq_sum, psi_squared
         logical, intent(in) :: only_init
 
 

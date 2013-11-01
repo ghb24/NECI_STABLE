@@ -71,7 +71,7 @@ MODULE CCMC
         real(dp), intent(in) :: wSign(lenof_sign)
 
 !If there are multiple particles, decide how many to kill in total...
-        rat=Tau*(Kii-DiagSft)*abs(WSign(1))*dProb
+        rat=Tau*(Kii-DiagSft(1))*abs(WSign(1))*dProb
 
         iKill=INT(rat)
         rat=rat-REAL(iKill)
@@ -1652,7 +1652,7 @@ subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,WalkerScale,iDebug)
 !  This will be the amount we wish to subtract from t_x
 
 !dProb = 1
-   rat=Tau*(HDiagCurr-DiagSft)/(C%dProbNorm*C%dClusterProb) !(dProb*dProbNorm)  !The old version
+   rat=Tau*(HDiagCurr-DiagSft(1))/(C%dProbNorm*C%dClusterProb) !(dProb*dProbNorm)  !The old version
 #ifdef __CMPLX
    call stop_all("CCMC::AttemptDie","Amplitude CCMC not fully complex.") 
    rat=rat*(C%dAbsAmplitude*C%iSgn(1))
@@ -1732,6 +1732,7 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
    integer iDebug
 
    real(dp) rat,r,prob,RDMBias
+   real(dp), dimension(lenof_sign) :: NullAvSign
    integer i
    integer IC
    integer part_type
@@ -1772,12 +1773,14 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
    prob=(S%dProbSpawn*C%dProbNorm*C%dClusterNorm)/C%dAbsAmplitude
 
    TempSign=C%iSgn
+
+   NullAvSign(:)=0.0_dp
    
    iSpawnAmp=attempt_create_normal(hphf_spawn_sign,  & !this version of the get_spawn_helement just uses the passed-in version
                               C%DetCurr,C%iLutDetCurr, &
                               C%iSgn,S%nJ,S%iLutnJ,prob,S%HIJ, &
                               S%iExcitLevel,S%ExcitMat,.false., & !.false. indicates we've dealt with parit
-                              S%iExcitLevel,part_type,0.0_dp,RDMBias) 
+                              S%iExcitLevel,part_type,NullAvSign,RDMBias) 
 !   Here we convert nJ from a det back to an excitor.
    IC = FindBitExcitLevel(iLutHF, S%iLutnJ(:), nEl)
    iSpawnAmp=iSpawnAmp*ExcitToDetSign(iLutHF,S%iLutnJ,IC)
@@ -1871,7 +1874,7 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,nSpawned)
 !  This will be the amount we wish to subtract from t_x
 
 !dProb = 1
-   rat=Tau*(HDiagCurr-DiagSft)/(C%dProbNorm*C%dClusterProb) !(dProb*dProbNorm)  !The old version
+   rat=Tau*(HDiagCurr-DiagSft(1))/(C%dProbNorm*C%dClusterProb) !(dProb*dProbNorm)  !The old version
    IsImag=.false.
 #ifdef __CMPLX
    if(C%iSgn(1).eq.0) then
@@ -2002,7 +2005,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    INTEGER iShiftLeft            ! Number of steps left until we recalculate shift
    real(dp) dNorm
    real(dp) WalkerScale            ! Scale factor for turning floating point amplitudes into integer walkers.
-   real(dp) dProjE                 ! Stores the Projected Energy
+   real(dp), dimension(inum_runs) ::dProjE                 ! Stores the Projected Energy
    real(dp) dTolerance             ! The tolerance for when to regard a value as zero
    real(dp) dAveTotAbsAmp          ! Average of Total absolute amplitude over all post-equil cycles
    real(dp) dAveNorm               ! Average of Normalization (ampl of Ref) over all post-equil cycles
@@ -2327,7 +2330,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
       call DeAllocateAmplitudeList(ALBuffer)
    endif
    Weight=0.0_dp
-   Energyxw=ProjectionE+Hii
+   Energyxw=ProjectionE(1)+Hii
    call halt_timer(CCMC_time)
 END SUBROUTINE CCMCStandalone
 
@@ -2820,7 +2823,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       deallocate(DetList)
    endif 
    Weight=0.0_dp
-   Energyxw=ProjectionE+Hii
+   Energyxw=ProjectionE(1)+Hii
    call halt_timer(CCMC_time)
 END SUBROUTINE CCMCStandaloneParticle
 

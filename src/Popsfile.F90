@@ -694,7 +694,7 @@ outer_map:      do i = 0, MappingNIfD
         else
             !Using popsfile v.4, where tau is written out and read in
             if(tSearchTau) then
-                if(.not.tSinglePartPhase) then
+                if((.not.tSinglePartPhase(1)).or.(.not.tSinglePartPhase(inum_runs))) then
                     tSearchTau=.false.
                 endif
                 Tau=read_tau

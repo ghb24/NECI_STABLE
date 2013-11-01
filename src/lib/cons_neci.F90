@@ -41,10 +41,19 @@ integer, parameter :: sizeof_sp = 4
 integer, parameter :: sizeof_helement = 16
 integer, parameter :: lenof_sign = 2
 real(dp), dimension(2), parameter :: null_part = 0.0_dp
+integer, parameter :: inum_runs = 1
+#else
+#ifdef __DOUBLERUN
+integer, parameter :: sizeof_helement = 8
+integer, parameter :: lenof_sign = 2
+integer, parameter :: inum_runs = 2
+real(dp), dimension(2), parameter :: null_part = 0.0_dp
 #else
 integer, parameter :: sizeof_helement = 8
 integer, parameter :: lenof_sign = 1
 real(dp), dimension(1), parameter :: null_part = 0.0_dp
+integer, parameter :: inum_runs = 1
+#endif
 #endif
 
 !This is the integer type which is used in MPI call arguments

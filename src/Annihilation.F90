@@ -187,6 +187,7 @@ MODULE AnnihilationMod
 
         CALL CompressSpawnedList(MaxIndex, iter_data)  
 
+
 !        if(bNodeRoot) call sort(SpawnedParts(:,1:MaxIndex), ilut_lt, ilut_gt)
         call halt_timer(Compress_time)
 
@@ -430,8 +431,7 @@ MODULE AnnihilationMod
             enddo
 
             EndBlockDet=CurrentBlockDet-1 !EndBlockDet indicates that we have reached the end of the block of similar dets
-!            WRITE(6,*) "Found Block: ",BeginningBlockDet," -> ",EndBlockDet
-
+            
             if(EndBlockDet.eq.BeginningBlockDet) then
                 !Optimisation: This block only consists of one entry. Simply copy it across rather than 
                 !               explicitly searching the list.
@@ -487,7 +487,7 @@ MODULE AnnihilationMod
             ! Reset the cumulative determinant
             cum_det = 0
             cum_det (0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
-
+        
             IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) THEN
                 ! This is the first Dj determinant - set the index for the beginning of where 
                 ! the parents for this Dj can be found in Spawned_Parents.
@@ -497,14 +497,12 @@ MODULE AnnihilationMod
                 ! described above. We first just initialise the position in the Spawned_Parents array to enter the Di's.
                 Spawned_Parents_Index(2,VecInd) = 0
             ENDIF
-            
+           
             do part_type=1,lenof_sign   !Annihilate in this block seperately for real and imag walkers
 
                 ! How many of either real/imaginary spawns are there onto each det
                 cum_count = 0
                 
-!                WRITE(6,*) "Testing particle types: ",part_type
-                    
                 if(tTruncInitiator) then
                     !Need to find if there are any initiators in this block
                     do i=BeginningBlockDet,EndBlockDet  !Loop over the block
@@ -521,8 +519,6 @@ MODULE AnnihilationMod
                         endif
                     enddo
                 endif
-
-!                WRITE(6,*) "After initiators: ",Cum_Sign(part_type),Cum_Flag
 
                 !Now loop over the same block again, but this time calculating the contribution from non-initiators
                 !We want to loop over the whole block.
@@ -545,6 +541,7 @@ MODULE AnnihilationMod
                 enddo
 
             enddo ! End loop over particle type
+
 
             ! Copy details into the final array
             call extract_sign (cum_det, temp_sign)
@@ -702,7 +699,7 @@ MODULE AnnihilationMod
         ! Obtain the signs and sign product. Ignore new particle if zero.
         new_sgn = extract_part_sign (new_det, part_type)
 
-        if (new_sgn == 0) then
+        if (new_sgn == 0.0_dp) then
             ! New sign is just an entry from SpawnedParts - this should only ever be zero
             ! in the complex case. 
             ! If it is 0 and we're not filling the RDM (and therefore filling up the 
@@ -710,7 +707,7 @@ MODULE AnnihilationMod
             if(.not.tFillingStochRDMonFly) return
         endif
         cum_sgn = extract_part_sign (cum_det, part_type)
-        
+
         sgn_prod = cum_sgn * new_sgn
 
         ! If we are including this det, then increment the count
@@ -744,8 +741,11 @@ MODULE AnnihilationMod
                 endif
             else
                 ! cum_sgn == 0, new_sgn /= 0, therefore just take the flags
-                ! from the new particles.
-                call encode_flags (cum_det, extract_flags (new_det))
+                ! from the new particles (of that type).
+                call copy_flag(new_det,cum_det,flag_is_initiator(part_type))
+                !Below is what we were previously doing, but we don't want to copy both
+                !flags, since the 'other' type may well be non-zero.
+                !call encode_flags (cum_det, extract_flags (new_det))
             endif
 
             ! If we have set the make_initiator flag, then the target
@@ -1119,11 +1119,32 @@ MODULE AnnihilationMod
                     if(sum(abs(SpawnedSign)) .ne. 0) ToRemove=ToRemove+1
 
                     do j=1,lenof_sign   !Run over real (& imag ) components
+#ifdef __DOUBLERUN
+                        if (CurrentSign(j).eq.0) then
+                            !This determinant is actually /unoccupied/ for the walker type/set we're considering
+                            !We need to decide whether to abort it or not
+                            if (tTruncInitiator.and.(.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j)) .and. &
+                                .not. test_flag (SpawnedParts(:,i), flag_make_initiator(j)))) then
+                                if (tSpawnSpatialInit) then
+                                    if (is_spatial_init(SpawnedParts(:,i))) then
+                                        call set_flag (SpawnedParts(:,i), &
+                                                       flag_parent_initiator(j))
+                                    endif
+                                endif
+                                ! Walkers came from outside initiator space.
+                                NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
+                                iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
+                                call encode_part_sign (CurrentDets(:,PartInd), 0.0_dp, j)
+                            endif
+                        elseif(SignProd(j) < 0) then
+#else
+                        if(SignProd(j) < 0) then
+#endif
 
-                        if (SignProd(j) < 0) then
+
                             ! This indicates that the particle has found the same particle of 
                             ! opposite sign to annihilate with
-                            Annihilated=Annihilated+2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
+                            Annihilated(j)=Annihilated(j)+2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
                             iter_data%nannihil(j) = iter_data%nannihil(j) + &
                                                2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
 
@@ -1140,7 +1161,7 @@ MODULE AnnihilationMod
                                     if (test_flag (SpawnedParts(:,i), flag_make_initiator(j))) then
                                         call set_flag (CurrentDets(:,PartInd), flag_is_initiator(j))
                                         call set_flag (CurrentDets(:,PartInd), flag_make_initiator(j))
-                                        NoAddedInitiators = NoAddedInitiators + 1
+                                        NoAddedInitiators(j) = NoAddedInitiators(j) + 1
                                         if (tSpawnSpatialInit) &
                                             call add_initiator_list (CurrentDets(:,PartInd))
                                     else
@@ -1148,7 +1169,7 @@ MODULE AnnihilationMod
                                         ! particles, abort them. Encode only the correct 'type'
                                         ! of sign.
                                         if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j))) then
-                                            NoAborted = NoAborted + abs(SpawnedSign(j)) - abs(CurrentSign(j))
+                                            NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j)) - abs(CurrentSign(j))
                                             iter_data%naborted(j) = iter_data%naborted(j) + &
                                                                     abs(SpawnedSign(j)) - abs(CurrentSign(j))
                                             call encode_part_sign (CurrentDets(:,PartInd), 0.0_dp , j)
@@ -1204,7 +1225,7 @@ MODULE AnnihilationMod
                                     .not. test_flag(CurrentDets(:,PartInd), flag_is_initiator(j))) then
                                     call set_flag (CurrentDets(:,PartInd), flag_is_initiator(j))
                                     call set_flag (CurrentDets(:,PartInd), flag_make_initiator(j))
-                                    NoAddedInitiators = NoAddedInitiators + 1
+                                    NoAddedInitiators(j) = NoAddedInitiators(j) + 1
                                     if (tSpawnSpatialInit) &
                                         call add_initiator_list (CurrentDets(:,PartInd))
                                 endif
@@ -1258,7 +1279,7 @@ MODULE AnnihilationMod
                             endif
 
                             ! Walkers came from outside initiator space.
-                            NoAborted = NoAborted + abs(SignTemp(j))
+                            NoAborted(j) = NoAborted(j) + abs(SignTemp(j))
                             iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
                             ! We've already counted the walkers where SpawnedSign become zero in the compress,
                             ! and in the merge, all that's left is those which get aborted which are counted here
@@ -1293,15 +1314,15 @@ MODULE AnnihilationMod
                             r = genrand_real2_dSFMT ()
                             if (pRemove .gt. r) then
                                 !Remove this walker
-                                NoRemoved = NoRemoved + abs(SignTemp(j))
+                                NoRemoved(j) = NoRemoved(j) + abs(SignTemp(j))
                                 !Annihilated = Annihilated + abs(SignTemp(j))
                                 !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
-                                iter_data%nremoved = iter_data%nremoved + abs(SignTemp(j))
+                                iter_data%nremoved(j) = iter_data%nremoved(j) + abs(SignTemp(j))
                                 SignTemp(j) = 0
                                 call nullify_ilut_part (SpawnedParts(:,i), j)
                             elseif (tEnhanceRemainder) then
-                                NoBorn = NoBorn + OccupiedThresh - abs(SignTemp(j))
-                                iter_data%nborn = iter_data%nborn + OccupiedThresh - abs(SignTemp(j))
+                                NoBorn(j) = NoBorn(j) + OccupiedThresh - abs(SignTemp(j))
+                                iter_data%nborn(j) = iter_data%nborn(j) + OccupiedThresh - abs(SignTemp(j))
                                 SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
                                 call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
                             endif
@@ -1338,15 +1359,15 @@ MODULE AnnihilationMod
                             r = genrand_real2_dSFMT ()
                             if (pRemove .gt. r) then
                                 !Remove this walker
-                                NoRemoved = NoRemoved + abs(SignTemp(j))
+                                NoRemoved(j) = NoRemoved(j) + abs(SignTemp(j))
                                 !Annihilated = Annihilated + abs(SignTemp(j))
                                 !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
-                                iter_data%nremoved = iter_data%nremoved + abs(SignTemp(j))
+                                iter_data%nremoved(j) = iter_data%nremoved(j) + abs(SignTemp(j))
                                 SignTemp(j) = 0
                                 call nullify_ilut_part (SpawnedParts(:,i), j)
                             elseif (tEnhanceRemainder) then
-                                NoBorn = NoBorn + OccupiedThresh - abs(SignTemp(j))
-                                iter_data%nborn = iter_data%nborn + OccupiedThresh - abs(SignTemp(j))
+                                NoBorn(j) = NoBorn(j) + OccupiedThresh - abs(SignTemp(j))
+                                iter_data%nborn(j) = iter_data%nborn(j) + OccupiedThresh - abs(SignTemp(j))
                                 SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
                                 call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
                             endif
@@ -1539,8 +1560,8 @@ MODULE AnnihilationMod
                                 r = genrand_real2_dSFMT ()
                                 if (pRemove .gt. r) then
                                     !Remove this walker
-                                    NoRemoved = NoRemoved + abs(CurrentSign(j))
-                                    iter_data%nremoved = iter_data%nremoved + abs(CurrentSign(j))
+                                    NoRemoved(j) = NoRemoved(j) + abs(CurrentSign(j))
+                                    iter_data%nremoved(j) = iter_data%nremoved(j) + abs(CurrentSign(j))
                                     CurrentSign(j) = 0.0_dp
                                     call nullify_ilut_part(CurrentDets(:,i), j)
                                     call decode_bit_det(nI, CurrentDets(:,i))
@@ -1548,8 +1569,8 @@ MODULE AnnihilationMod
                                     iEndFreeSlot=iEndFreeSlot+1
                                     FreeSlot(iEndFreeSlot)=i
                                 elseif (tEnhanceRemainder) then
-                                    NoBorn = NoBorn + OccupiedThresh - abs(CurrentSign(j))
-                                    iter_data%nborn = iter_data%nborn + OccupiedThresh - abs(CurrentSign(j))
+                                    NoBorn(j) = NoBorn(j) + OccupiedThresh - abs(CurrentSign(j))
+                                    iter_data%nborn(j) = iter_data%nborn(j) + OccupiedThresh - abs(CurrentSign(j))
                                     CurrentSign(j) = sign(OccupiedThresh, CurrentSign(j))
                                     call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
                                 endif
@@ -1558,15 +1579,21 @@ MODULE AnnihilationMod
                     enddo
 
                     TotParts=TotParts+abs(CurrentSign)
+#ifdef __CMPLX
                     norm_psi_squared = norm_psi_squared + sum(CurrentSign**2)
                     if(tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + sum(CurrentSign**2)
+#else
+                    norm_psi_squared = norm_psi_squared + CurrentSign**2
+                    if(tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + CurrentSign**2
+#endif
+                    
                     IF(tCheckHighestPop) THEN
                         ! If this option is on, then we want to compare the 
                         ! weight on each determinant to the weight at the HF 
                         ! determinant.
                         !
                         ! Record the highest weighted determinant on each 
-                        ! processor.
+                        ! processor. If double run, only consider set 1 to keep things simple.
                         if (abs_sign(ceiling(CurrentSign)) > iHighestPop) then
                             iHighestPop = abs_sign(ceiling(CurrentSign))
                             HighestPopDet(:)=CurrentDets(:,i)
@@ -1578,7 +1605,7 @@ MODULE AnnihilationMod
                     do j=1,lenof_sign
                         if (test_flag(CurrentDets(:,i),flag_parent_initiator(j))) then
                             !determinant was an initiator...it obviously isn't any more...
-                            NoAddedInitiators=NoAddedInitiators-1
+                            NoAddedInitiators(j)=NoAddedInitiators(j)-1
                             if (tSpawnSpatialInit) &
                                 call rm_initiator_list (CurrentDets(:,i))
                         endif
@@ -1717,17 +1744,17 @@ MODULE AnnihilationMod
                             r = genrand_real2_dSFMT ()
                             if (pRemove .gt. r) then
                                 !Remove this walker
-                                NoRemoved = NoRemoved + abs(CurrentSign(j))
+                                NoRemoved(j) = NoRemoved(j) + abs(CurrentSign(j))
                                 !Annihilated = Annihilated + abs(CurrentSign(j))
                                 !iter_data%nannihil = iter_data%nannihil + abs(CurrentSign(j))
-                                iter_data%nremoved = iter_data%nremoved + abs(CurrentSign(j))
+                                iter_data%nremoved(j) = iter_data%nremoved(j) + abs(CurrentSign(j))
                                 CurrentSign(j) = 0
                                 call nullify_ilut_part (CurrentDets(:,i), j)
                             elseif (tEnhanceRemainder) then
                                 ! SDS: TODO: Account for the TotParts Changes
                                 ! Should we always do this here? Probably. Should
-                                NoBorn = NoBorn + OccupiedThresh - abs(CurrentSign(j))
-                                iter_data%nborn = iter_data%nborn + OccupiedThresh - abs(CurrentSign(j))
+                                NoBorn(j) = NoBorn(j) + OccupiedThresh - abs(CurrentSign(j))
+                                iter_data%nborn(j) = iter_data%nborn(j) + OccupiedThresh - abs(CurrentSign(j))
                                 CurrentSign(j) = sign(OccupiedThresh, CurrentSign(j))
                                 call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
                             endif
@@ -1777,7 +1804,7 @@ MODULE AnnihilationMod
                         do part_type=1,lenof_sign
                             if (test_flag(CurrentDets(:,i),flag_parent_initiator(part_type))) then
                                 !determinant was an initiator...it obviously isn't any more...
-                                NoAddedInitiators=NoAddedInitiators-1
+                                NoAddedInitiators(part_type)=NoAddedInitiators(part_type)-1
                                 if (tSpawnSpatialInit) &
                                     call rm_initiator_list (CurrentDets(:,i))
                             endif
@@ -1800,16 +1827,21 @@ MODULE AnnihilationMod
                     ENDIF
 
                     TotParts=TotParts+abs(CurrentSign)
-                    ! CMO
+#ifdef __CMPLX
                     norm_psi_squared = norm_psi_squared + sum(CurrentSign**2)
                     if(tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + sum(CurrentSign**2)
+#else
+                    norm_psi_squared = norm_psi_squared + CurrentSign**2
+                    if(tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + CurrentSign**2
+#endif
+                    
                     IF(tCheckHighestPop) THEN
 !If this option is on, then we want to compare the weight on each determinant to the weight at the HF determinant.
 !Record the highest weighted determinant on each processor.
                         if (abs_sign(ceiling(CurrentSign)) > iHighestPop) then
                             iHighestPop = abs_sign(ceiling(CurrentSign))
                             HighestPopDet(:)=CurrentDets(:,i)
-                        endif
+                        end if
                     ENDIF
                 ENDIF
             enddo
@@ -1827,17 +1859,24 @@ MODULE AnnihilationMod
 
 !We now calculate the contribution to the total number of particles from the spawned lists.
 !The list has previously been compressed.
-        NumMerged=ValidSpawned        
-
         IF(ValidSpawned.gt.0) THEN
             call extract_sign(SpawnedParts(:,1),SpawnedSign)
             TotParts=TotParts+abs(SpawnedSign)
+#ifdef __CMPLX
             norm_psi_squared = norm_psi_squared + sum(SpawnedSign**2)
+#else
+            norm_psi_squared = norm_psi_squared + SpawnedSign**2
+#endif
+
         ENDIF
         do i=2,ValidSpawned
             call extract_sign(SpawnedParts(:,i),SpawnedSign)
             TotParts=TotParts+abs(SpawnedSign)
+#ifdef __CMPLX
             norm_psi_squared = norm_psi_squared + sum(SpawnedSign**2)
+#else
+            norm_psi_squared = norm_psi_squared + SpawnedSign**2
+#endif
         enddo
 
 !        CALL CheckOrdering(SpawnedParts,SpawnedSign(1:ValidSpawned),ValidSpawned,.true.)

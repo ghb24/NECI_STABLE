@@ -455,7 +455,7 @@ MODULE nElRDMMod
         ! Reads in the RDMs from a previous calculation, sets the accumulating normalisations, 
         ! writes out the starting energy.
         if(tReadRDMs) then
-            if(tSinglePartPhase) then
+            if(tSinglePartPhase(1) .or. tSinglePartPhase(inum_runs)) then
                 write(6,'(A)') 'WARNING - Asking to read in the RDMs, but not varying shift from &
                                 & the beginning of the calculation.'
                 write(6,'(A)') 'Ignoring the request to read in the RDMs and starting again.'
@@ -807,13 +807,14 @@ MODULE nElRDMMod
         real(dp) , intent(in) :: CurrH_I(NCurrH)
         integer, intent(out) :: nI(nel), FlagsI
         real(dp), dimension(lenof_sign), intent(out) :: SignI
-        real(dp) , intent(out) :: IterRDMStartI, AvSignI
+        real(dp) , dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
         type(excit_gen_store_type), intent(inout), optional :: Store
+        integer :: part_ind
 
         call extract_bit_rep (iLutnI, nI, SignI, FlagsI, Store)
 
-        IterRDMStartI = 0.0_dp
-        AvSignI = 0.0_dp
+        IterRDMStartI(:)= 0.0_dp
+        AvSignI(:) = 0.0_dp
 
     end subroutine extract_bit_rep_avsign_no_rdm
 
@@ -834,23 +835,29 @@ MODULE nElRDMMod
         real(dp) , intent(in) :: CurrH_I(NCurrH)
         integer, intent(out) :: nI(nel), FlagsI
         real(dp), dimension(lenof_sign), intent(out) :: SignI
-        real(dp) , intent(out) :: IterRDMStartI, AvSignI
+        real(dp) , dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
         type(excit_gen_store_type), intent(inout), optional :: Store
+        integer :: part_ind
 
         ! This is the iteration from which this determinant has been occupied.
-        IterRDMStartI = CurrH_I(3)
-        ! If there is nothing stored there yet, the first iteration the determinant 
-        ! became occupied is this one.
-        IF(IterRDMStartI.eq.0.0_dp) IterRDMStartI = real(Iter, dp)
+
+        IterRDMStartI(1:lenof_sign) = CurrH_I(2+lenof_sign:1+2*lenof_sign)
 
         ! This extracts everything.
         call extract_bit_rep (iLutnI, nI, SignI, FlagsI)
+        
+        ! If there is nothing stored there yet, the first iteration the determinant 
+        ! became occupied is this one.
+        do part_ind=1,lenof_sign
+            IF(IterRDMStartI(part_ind).eq.0.0_dp) IterRDMStartI(part_ind) = real(Iter, dp)
+        
+            ! Update the average population.
+            ! This just comes out as the current population (SignI) if this is the first 
+            ! time the determinant has become occupied.
+            AvSignI(part_ind) = ( ((real(Iter,dp) - IterRDMStartI(part_ind)) * CurrH_I(1+part_ind)) &
+                            + SignI(part_ind) ) / ( real(Iter,dp) - IterRDMStartI(part_ind) + 1.0_dp )
+        enddo
 
-        ! Update the average population.
-        ! This just comes out as the current population (SignI) if this is the first 
-        ! time the determinant has become occupied.
-        AvSignI = ( ((real(Iter,dp) - IterRDMStartI) * CurrH_I(2)) &
-                        + SignI(1) ) / ( real(Iter,dp) - IterRDMStartI + 1.0_dp )
 
     end subroutine extract_bit_rep_avsign_norm
 
@@ -1057,7 +1064,8 @@ MODULE nElRDMMod
 
 ! Quick check that the HF population is being calculated correctly.
         if(walkExcitLevel.eq.0) then
-            if(AvSignJ.ne.AvNoatHF) then
+            !TODO CMO: Figure this all out
+            if(AvSignJ.ne.AvNoatHF(1)) then
                 write(6,*) 'HFDet_True',HFDet_True
                 write(6,*) 'nJ',nJ
                 write(6,*) 'iLutJ',iLutJ
@@ -1069,7 +1077,8 @@ MODULE nElRDMMod
 
 ! If we have a single or double, add in the connection to the HF, symmetrically.        
         if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
-            call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF,IterRDM * AvSignJ,.true.)
+            call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF(1),IterRDM * AvSignJ,.true.)
+        !TODO CMO: DEFINITELY sort out this line above so we get cross terms
 
     end subroutine Add_RDM_HFConnections_Norm
 
@@ -1087,7 +1096,8 @@ MODULE nElRDMMod
         integer :: nSpinCoup(NEl), HPHFExcitLevel
 
         if(walkExcitLevel.eq.0) then
-            if(AvSignJ.ne.AvNoatHF) then
+            if(AvSignJ.ne.AvNoatHF(1)) then
+                !TODO: CMO
                 write(6,*) 'AvSignJ',AvSignJ
                 write(6,*) 'AvNoatHF',AvNoatHF
                 CALL Stop_All('Add_RDM_HFConnections_HPHF','Incorrect instantaneous HF population.')
@@ -1098,7 +1108,7 @@ MODULE nElRDMMod
 ! of this connection as well - symmetrically because no probabilities are involved.
         if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
             call Fill_Spin_Coupled_RDM_v2(iLutHF_True,iLutJ,HFDet_True,nJ,&
-                                            AvNoatHF,IterRDM * AvSignJ,.true.)
+                                            AvNoatHF(1),IterRDM * AvSignJ,.true.)
 
     end subroutine Add_RDM_HFConnections_HPHF
 
@@ -1128,7 +1138,8 @@ MODULE nElRDMMod
             AccumRDMNorm = AccumRDMNorm + (AvSignJ * AvSignJ * IterRDM)
             AccumRDMNorm_Inst = AccumRDMNorm_Inst + (AvSignJ * AvSignJ * IterRDM)
     
-            if(AvSignJ.ne.AvNoatHF) then
+            if(AvSignJ.ne.AvNoatHF(1)) then
+        !TODO CMO: DEFINITELY sort out this line above so we get cross terms
                 write(6,*) 'AvSignJ',AvSignJ
                 write(6,*) 'HF Sign',AvNoatHF
                 call stop_all('Add_RDM_HFConnections_HF_S_D','HF population is incorrect.')
@@ -1147,14 +1158,16 @@ MODULE nElRDMMod
                     ! add in the elements of this connection as well - symmetrically 
                     ! because no probabilities are involved.
                     call Fill_Spin_Coupled_RDM_v2(iLutHF_True,iLutJ,HFDet_True,nJ,&
-                                AvNoatHF,AvSignJ * IterRDM,.false.)
+                                AvNoatHF(1),AvSignJ * IterRDM,.false.)
+        !TODO CMO: DEFINITELY sort out this line above so we get cross terms
 
                 else
 
                     ! The singles and doubles are connected and explicitly calculated 
                     ! - but not symmetrically.
-                    call Add_RDM_From_IJ_Pair(HFDet_True, nJ, AvNoatHF, &
+                    call Add_RDM_From_IJ_Pair(HFDet_True, nJ, AvNoatHF(1), &
                                                 AvSignJ * IterRDM,.false.)
+        !TODO CMO: DEFINITELY sort out this line above so we get cross terms
 
                 endif
 
@@ -1166,7 +1179,8 @@ MODULE nElRDMMod
                 AccumRDMNorm = AccumRDMNorm + (AvSignJ * AvSignJ * IterRDM)
                 AccumRDMNorm_Inst = AccumRDMNorm_Inst + (AvSignJ * AvSignJ * IterRDM)
 
-                call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF,AvSignJ * IterRDM,.true.)
+                call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF(1),AvSignJ * IterRDM,.true.)
+        !TODO CMO: DEFINITELY sort out this line above so we get cross terms
 
             endif
 
@@ -1177,7 +1191,7 @@ MODULE nElRDMMod
 
     subroutine calc_rdmbiasfac(p_spawn_rdmfac,p_gen,AvSignCurr,SignCurr,RDMBiasFacCurr)
         real(dp), intent(in) :: p_gen, AvSignCurr
-        real(dp), dimension(lenof_sign), intent(in) :: SignCurr
+        real(dp), intent(in) :: SignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: p_spawn_rdmfac
         real(dp) :: p_notlist_rdmfac, p_spawn, p_not_spawn, p_max_walktospawn
@@ -1203,16 +1217,16 @@ MODULE nElRDMMod
         ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
        
 
-        if(real(int(SignCurr(1)),dp).ne.SignCurr(1)) then
+        if(real(int(SignCurr),dp).ne.SignCurr) then
             !There's a non-integer population on this determinant
             !We need to consider both possibilities - whether we attempted to spawn 
             !int(SignCurr) times or int(SignCurr)+1 times
-            p_max_walktospawn=abs(SignCurr(1)-real(int(SignCurr(1)),dp))
-            p_not_spawn = (1.0_dp - p_max_walktospawn)*(p_notlist_rdmfac**abs(int(SignCurr(1)))) + &
-                        p_max_walktospawn*(p_notlist_rdmfac**(abs(int(SignCurr(1)))+1))
+            p_max_walktospawn=abs(SignCurr-real(int(SignCurr),dp))
+            p_not_spawn = (1.0_dp - p_max_walktospawn)*(p_notlist_rdmfac**abs(int(SignCurr))) + &
+                        p_max_walktospawn*(p_notlist_rdmfac**(abs(int(SignCurr))+1))
 
         else
-            p_not_spawn=p_notlist_rdmfac**(abs(SignCurr(1)))
+            p_not_spawn=p_notlist_rdmfac**(abs(SignCurr))
         endif
 
         p_spawn=abs(1.0_dp - p_not_spawn)

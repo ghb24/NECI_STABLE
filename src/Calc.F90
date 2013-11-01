@@ -36,8 +36,8 @@ contains
         ! Values for old parameters.
         ! These have no input options to change the defaults, but are used in
         ! the code.
-          TargetGrowRateWalk=500000
-          TargetGrowRate=0.0_dp
+          TargetGrowRateWalk(:)=500000
+          TargetGrowRate(:)=0.0_dp
           InitialPart=1
           TRHOOFR = .false.
           TCORR = .false.
@@ -882,8 +882,10 @@ contains
             case("DIAGSHIFT")
 !For FCIMC, this is the amount extra the diagonal elements will be shifted. This is proportional to the deathrate of 
 !walkers on the determinant
-                call getf(DiagSft)
+                call getf(DiagSft(1))
+                if(inum_runs.eq.2) DiagSft(2)=DiagSft(1)
                 InputDiagSft = DiagSft
+
             case("TAUFACTOR")
 !For FCIMC, this is the factor by which 1/(HF connectivity) will be multiplied by to give the timestep for the calculation.
                 tSearchTau=.false.  !Tau is set, so don't search for it.
@@ -924,8 +926,12 @@ contains
                 call getiLong(iExitWalkers)
             case("TARGETGROWRATE")
 !For FCIMC, this is the target growth rate once in vary shift mode.
-                call getf(TargetGrowRate)
-                call getiLong(TargetGrowRateWalk)
+                call getf(TargetGrowRate(1))
+                call getiLong(TargetGrowRateWalk(1))
+                if(inum_runs.eq.2) then
+                    TargetGrowRate(2)=TargetGrowRate(1)
+                    TargetGrowRateWalk(2)=TargetGrowRateWalk(1)
+                endif
             case("READPOPS")
 !For FCIMC, this indicates that the initial walker configuration will be read in from the file POPSFILE, which must be present.
 !DiagSft and InitWalkers will be overwritten with the values in that file.

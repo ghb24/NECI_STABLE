@@ -1,6 +1,6 @@
 module CalcData
 
-    use constants, only: dp,int64
+    use constants, only: dp,int64, lenof_sign, inum_runs
     use MemoryManager, only: TagIntType
     implicit none
 
@@ -63,6 +63,7 @@ INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
 INTEGER :: NMCyc,StepsSft,CLMax
 INTEGER :: NEquilSteps
 real(dp) :: InitialPart
+real(dp), dimension(lenof_sign) :: InitialPartVec
 INTEGER :: OccCASorbs,VirtCASorbs,iAnnInterval
 integer :: iPopsFileNoRead, iPopsFileNoWrite,iWeightPopRead,iRestartWalkNum
 integer :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
@@ -84,12 +85,12 @@ real(dp) :: MemoryFacSpawn,SinglesBias,TauFactor,StepsSftImag
 
 real(dp) :: MemoryFacInit
 
-real(dp), target :: DiagSft
+real(dp), dimension(inum_runs), target :: DiagSft
 
 real(dp) :: GraphEpsilon
 real(dp) :: PGenEpsilon
-real(dp) :: TargetGrowRate
-integer(int64) :: TargetGrowRateWalk    !Number of walkers before targetgrowrate kicks in
+real(dp), dimension(inum_runs) :: TargetGrowRate
+integer(int64), dimension(inum_runs) :: TargetGrowRateWalk    !Number of walkers before targetgrowrate kicks in
 integer(int64) :: iExitWalkers  !Exit criterion, based on total walker number
 
 

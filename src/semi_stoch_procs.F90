@@ -810,12 +810,12 @@ contains
         do i = 1, int(TotWalkers,sizeof_int)
             call extract_sign(CurrentDets(:,i), sign_curr)
 
-            if (lenof_sign == 1) then
-                sign_curr_real = real(abs(sign_curr(1)),dp)
-            else
-                sign_curr_real = sqrt(real(sign_curr(1),dp)**2 + real(sign_curr(lenof_sign),dp)**2)
-            endif
-
+#ifdef __CMPLX
+            sign_curr_real = sqrt(real(sign_curr(1),dp)**2 + real(sign_curr(lenof_sign),dp)**2)
+#else
+            !Just return most populated states for set1 if doing a doublerun
+            sign_curr_real = real(abs(sign_curr(1)),dp)
+#endif
             if (present(norm)) norm = norm + (sign_curr_real**2.0)
 
             ! Is this determinant more populated than the smallest. First in the list is always
@@ -826,22 +826,21 @@ contains
                 ! Instead of resorting, just find new smallest sign and position.
                 call extract_sign(largest_walkers(:,1),low_sign)
 
-                if (lenof_sign == 1) then
-                    smallest_sign = real(abs(low_sign(1)),dp)
-                else
-                    smallest_sign = sqrt(real(low_sign(1),dp)**2+real(low_sign(lenof_sign),dp)**2)
-                endif
+#ifdef __CMPLX
+                smallest_sign = sqrt(real(low_sign(1),dp)**2+real(low_sign(lenof_sign),dp)**2)
+#else
+                smallest_sign = real(abs(low_sign(1)),dp)
+#endif
 
                 smallest_pos = 1
                 do j = 2, n_keep
                     if (smallest_sign < 1.0e-7_dp) exit
                     call extract_sign(largest_walkers(:,j), low_sign)
-                    if (lenof_sign == 1) then
-                        sign_curr_real = real(abs(low_sign(1)), dp)
-                    else
-                        sign_curr_real = sqrt(real(low_sign(1),dp)**2 + real(low_sign(lenof_sign),dp)**2)
-                    end if
-
+#ifdef __CMPLX
+                        sign_curr_real = sqrt(real(low_sign(1),dp)**2+real(low_sign(lenof_sign),dp)**2)
+#else
+                        sign_curr_real = real(abs(low_sign(1)),dp)
+#endif
                     if (sign_curr_real < smallest_sign) then
                         smallest_pos = j
                         smallest_sign = sign_curr_real
