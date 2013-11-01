@@ -42,7 +42,8 @@ MODULE FciMCParMod
                         tAllRealCoeff, tRealCoeffByExcitLevel, tPopsMapping, &
                         tSpawn_Only_Init_Grow, RealCoeffExcitThresh, &
                         tRealSpawnCutoff, RealSpawnCutoff, tDetermProj, &
-                        tJumpShift, tVaryInitThresh
+                        tJumpShift, tVaryInitThresh, tUseRealCoeffs, &
+                        tSpatialOnlyHash
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
@@ -154,10 +155,6 @@ MODULE FciMCParMod
     use sort_mod
     use get_excit, only: make_double
 
-#ifdef __DEBUG                            
-    use DeterminantData, only: write_det
-#endif
-
     implicit none
 #ifdef MOLPRO
     include "common/tapes"
@@ -193,6 +190,7 @@ MODULE FciMCParMod
         real(dp) :: ProjE_Err_re,ProjE_Err_im,Shift_Err
         logical :: tNoProjEValue,tNoShiftValue
         real(dp) :: BestErr
+        real(dp) :: start_time, stop_time
 #ifdef MOLPRO
         real(dp) :: get_scalar
         include "common/molen"
@@ -208,7 +206,6 @@ MODULE FciMCParMod
             call Standalone_Errors()
             return
         endif
-
 
         TDebug=.false.  !Set debugging flag
                     
@@ -260,6 +257,9 @@ MODULE FciMCParMod
         SumSigns = 0.0_dp
         SumSpawns = 0.0_dp
 
+        ! In we go - start the timer for scaling curve!
+        start_time = neci_etime(tstart)
+
         do while (Iter <= NMCyc .or. NMCyc == -1)
 !Main iteration loop...
 !            WRITE(iout,*) 'Iter',Iter
@@ -269,7 +269,7 @@ MODULE FciMCParMod
             if(tRDMonFly.and.(.not.tSinglePartPhase)) call check_start_rdm()
 
             if (tCCMC) then
-                if (tAllRealCoeff .or. tRealCoeffByExcitLevel) &
+                if (tUseRealCoeffs) &
                     call stop_all("FciMCPar", "Continuous spawning not yet set up to work &
                     & with CCMC.  Attention will be required in a number of routines, &
                     & including AttemptCreatePar and PerformCCMCCycParInt")
@@ -473,10 +473,17 @@ MODULE FciMCParMod
 !End of MC cycle
         enddo
 
+        ! We are at the end - get the stop-time. Output the timing details
+        stop_time = neci_etime(tend)
+        write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
+        write(iout,*) 'Total loop-time: ', stop_time - start_time
+        write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
+
         ! Reduce the iteration count fro the POPSFILE since it is incremented
         ! upon leaving the loop (If done naturally).
         IF(TIncrement) Iter=Iter-1
         IF(TPopsFile) THEN
+            WRITE(6,*) "Totwalkers", TotWalkers
             CALL WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
         ENDIF
         IF(tCalcFCIMCPsi) THEN
@@ -2351,6 +2358,7 @@ MODULE FciMCParMod
         !write(6,*) 'p,rh', prob, rh
 
         ! Are we doing real spawning?
+        
         tRealSpawning = .false.
         if (tAllRealCoeff) then
             tRealSpawning = .true.
@@ -2673,7 +2681,8 @@ MODULE FciMCParMod
     END FUNCTION AttemptCreatePar
 
     subroutine walker_death (attempt_die, iter_data, DetCurr, iLutCurr, Kii, &
-                             RealwSign, wAvSign, IterRDMStartCurr, VecSlot, DetPosition, WalkExcitLevel)
+                             RealwSign, wAvSign, IterRDMStartCurr, VecSlot, &
+                             DetPosition, walkExcitLevel)
         interface
             function attempt_die (nI, Kii, realwSign, WalkExcitLevel) result(ndie)
                 use SystemData, only: nel
@@ -2899,7 +2908,9 @@ MODULE FciMCParMod
             endif
         endif
 
-        if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)).or. tAllRealCoeff) then
+        if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)) &
+            .or. tAllRealCoeff ) then
+            OccRealDets=OccRealDets+1
             do i=1, lenof_sign
                 ndie(i)=fac*abs(realwSign(i))
             enddo
@@ -3650,6 +3661,9 @@ MODULE FciMCParMod
                ! Check how balanced the load on each processor is (even though
                ! we cannot load balance with direct annihilation).
                WalkersDiffProc = int(MaxWalkersProc - MinWalkersProc,sizeof_int)
+               ! Do the same for number of particles
+               PartsDiffProc = int(MaxPartsProc - MinPartsProc, sizeof_int)
+
                mean_walkers = AllTotWalkers / real(nNodes,dp)
                if (WalkersDiffProc > nint(mean_walkers / 10.0_dp) .and. &
                    sum(AllTotParts) > real(nNodes * 500, dp)) then
@@ -3868,6 +3882,8 @@ MODULE FciMCParMod
         call MPIReduce(NoDied, MPI_SUM, AllNoDied)
         call MPIReduce(HFCyc, MPI_SUM, RealAllHFCyc)
         call MPIReduce(NoAtDoubs, MPI_SUM, AllNoAtDoubs)
+        call MPIReduce(OccRealDets, MPI_SUM, AllOccRealDets)
+        call MPIReduce(DetsRoundedToZero, MPI_SUM, AllDetsRoundedToZero)
         call MPIReduce(Annihilated, MPI_SUM, AllAnnihilated)
         call MPIReduce(NuMSpawnedEntries, MPI_SUM, AllNumSpawnedEntries)
         call MPIReduce(ZeroMatrixElem, MPI_SUM, AllZeroMatrixElem)
@@ -3946,6 +3962,8 @@ MODULE FciMCParMod
         ! Max/Min values (check load balancing)
         call MPIReduce (TotWalkersTemp, MPI_MAX, MaxWalkersProc)
         call MPIReduce (TotWalkersTemp, MPI_MIN, MinWalkersProc)
+        !call MPIReduce (sum(TotParts), MPI_MAX, MaxPartsProc)
+        !call MPIReduce (sum(TotParts), MPI_MIN, MinPartsProc)
 
         ! We need the total number on the HF and SumWalkersCyc to be valid on
         ! ALL processors (Both double precision reals)
@@ -3977,7 +3995,7 @@ MODULE FciMCParMod
 #ifdef __DEBUG
         !Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
         if ((iProcIndex == root) .and. .not. tSpinProject .and. &
-         all(abs(iter_data%update_growth_tot-((AllTotParts)-(AllTotPartsOld))) > 1.0e-6)) then
+         all(abs(iter_data%update_growth_tot-(AllTotParts-AllTotPartsOld)) > 1.0e-5)) then
             write(iout,*) "update_growth: ",iter_data%update_growth_tot
             write(iout,*) "AllTotParts: ",AllTotParts
             write(iout,*) "AllTotPartsOld: ", AllTotPartsOld
@@ -4216,6 +4234,7 @@ MODULE FciMCParMod
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp) :: TempTotParts
+        integer, dimension(lenof_sign) :: AllInstNoatHF
         real(dp) :: Prev_AvNoatHF
 
         NoInitDets = 0
@@ -4230,6 +4249,8 @@ MODULE FciMCParMod
         ZeroMatrixElem=0
         NoatHF = 0.0_dp     ! Number at HF and doubles for stats
         NoatDoubs = 0.0_dp
+        OccRealDets = 0
+        DetsRoundedToZero = 0
         TotWalkersToSpawn=0
 
         iter_data%nborn = 0.0
@@ -4392,7 +4413,8 @@ MODULE FciMCParMod
                    &22.HFContribtoE(Both)  &
                    &23.NumContribtoE(Re)  &
                    &24.NumContribtoE(Im)  25.HF weight   26.|Psi|    &
-                   &28.Inst S^2  29.SpawnedParts  30.MergedParts"
+                   &27.Inst S^2  28.SpawnedParts  29.MergedParts  &
+                   &30.Zero elems   31.PartsDiffProc"
 #else
             if(tMCOutput) then
                 write(iout, "(A)", advance = 'no') "        Step    Shift           &
@@ -4416,12 +4438,14 @@ MODULE FciMCParMod
                   &17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  &
                   &20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  &
                   &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
-                  &26.HF weight    27.|Psi|     28.Inst S^2 29.Inst S^2 30.AbsProjE &
-                  &31.SpawnedParts  32.MergedParts  33.WalkersToSpawn  34.ZeroMatrixElements &
-                  &35.|Semistoch|/|Psi|"
+                  &26.HF weight    27.|Psi|     28.Inst S^2 &
+                  &29.Inst S^2   30.AbsProjE   31.PartsDiffProc &
+                  &32.ZeroMatrixElements 33.OccRealDets 34.DetsRoundedToZero &
+                  &35.SpawnedParts  36.MergedParts  37.WalkersToSpawn  &
+                  &38.|Semistoch|/|Psi|"
            if (tTrialWavefunction) then 
                   write(fcimcstats_unit, "(A)", advance = 'no') &
-                  "  36.TrialNumerator  37.TrialDenom  38.TrialOverlap"
+                  "  39.TrialNumerator  40.TrialDenom  41.TrialOverlap"
            end if
 
            write(fcimcstats_unit, "()", advance = 'yes')
@@ -4446,16 +4470,26 @@ MODULE FciMCParMod
 
         ! What is the current value of S2
         if (tCalcInstantS2) then
-            if (mod(iter / StepsSft, instant_s2_multiplier) == 0) &
-                curr_S2 = calc_s_squared_star (.false.)
+            if (mod(iter / StepsSft, instant_s2_multiplier) == 0) then
+                if (tSpatialOnlyhash) then
+                    curr_S2 = calc_s_squared (.false.)
+                else
+                    curr_S2 = calc_s_squared_star (.false.)
+                end if
+            end if
         else
             curr_S2 = -1
         end if
 
         ! What is the current value of S2 considering only initiators
         if (tCalcInstantS2Init) then
-            if (mod(iter / StepsSft, instant_s2_multiplier_init) == 0) &
-                curr_S2_init = calc_s_squared_star (.true.)
+            if (mod(iter / StepsSft, instant_s2_multiplier_init) == 0) then
+                if (tSpatialOnlyhash) then
+                    curr_S2_init = calc_s_squared (.true.)
+                else
+                    curr_S2_init = calc_s_squared_star (.true.)
+                end if
+            end if
         else
             curr_S2_init = -1
         endif
@@ -4477,7 +4511,7 @@ MODULE FciMCParMod
 
 #ifdef __CMPLX
             write(fcimcstats_unit,"(I12,5G16.7,7G17.9,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9,3I13)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9,4I13)") &
                 Iter + PreviousCycles, &                !1.
                 DiagSft, &                              !2.
                 AllTotParts(1) - AllTotPartsOld(1), &   !3.
@@ -4507,7 +4541,8 @@ MODULE FciMCParMod
                 curr_S2, &                            !27
                 AllNumSpawnedEntries, &               !28
                 AllNumMerged, &                       !29
-                AllZeroMatrixElem                     !230
+                AllZeroMatrixElem, &                  !30
+                PartsDiffProc                         !31
 
             if(tMCOutput) then
                 write (iout, "(I12,13G16.7,I12,G13.5)") &
@@ -4547,50 +4582,51 @@ MODULE FciMCParMod
                 endif
             endif
             
-            write(fcimcstats_unit,"(I12,G16.7,3G16.7,3G16.7,5G17.9,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9, 4I13, G16.7)", &
-                                  advance = 'no') &
-                Iter + PreviousCycles, &
-                DiagSft, &
-                sum(AllTotParts) - sum(AllTotPartsOld), &
-                AllGrowRate, &
-                sum(AllTotParts), &
-                AllAnnihilated, &
-                AllNoDied, &
-                AllNoBorn, &
-                ProjectionE, &
-                AvDiagSft, &
-                proje_iter, &
-                AllNoatHF, &
-                AllNoatDoubs, &
-                AccRat, &
-                AllTotWalkers, &
-                IterTime, &
-                FracFromSing, &
-                WalkersDiffProc, &
-                TotImagTime, &
-                0.0_dp, &
-                HFShift, &
-                InstShift, &
-                proje_iter + Hii, &
-                (AllHFCyc / StepsSft), &
-                (AllENumCyc / StepsSft), &
-                AllNoatHF / norm_psi, &
-                norm_psi, &
-                curr_S2, curr_S2_init, &
-                AbsProjE, &
-                AllNumSpawnedEntries, &
-                AllNumMerged, &
-                AllTotWalkersToSpawn, &
-                AllZeroMatrixElem, &
-                norm_semistoch/norm_psi
+            write(fcimcstats_unit,"(i12,7g16.7,5g17.9,g13.5,i12,g13.5,g17.5,&
+                                  &i13,g13.5,11g17.9,7i13,g16.7)",advance = 'no') &
+                Iter + PreviousCycles, &                   ! 1.
+                DiagSft, &                                 ! 2.
+                sum(AllTotParts) - sum(AllTotPartsOld), &  ! 3.
+                AllGrowRate, &                             ! 4.
+                sum(AllTotParts), &                        ! 5.
+                AllAnnihilated, &                          ! 6.
+                AllNoDied, &                               ! 7.
+                AllNoBorn, &                               ! 8.
+                ProjectionE, &                             ! 9.
+                AvDiagSft, &                               ! 10.
+                proje_iter, &                              ! 11.
+                AllNoatHF, &                               ! 12.
+                AllNoatDoubs, &                            ! 13.
+                AccRat, &                                  ! 14.
+                AllTotWalkers, &                           ! 15.
+                IterTime, &                                ! 16.
+                FracFromSing, &                            ! 17.
+                WalkersDiffProc, &                         ! 18.
+                TotImagTime, &                             ! 19.
+                0.0_dp, &                                  ! 20.
+                HFShift, &                                 ! 21.
+                InstShift, &                               ! 22.
+                proje_iter + Hii, &                        ! 23.
+                (AllHFCyc / StepsSft), &                   ! 24.
+                (AllENumCyc / StepsSft), &                 ! 25.
+                AllNoatHF / norm_psi, &                    ! 26.
+                norm_psi, &                                ! 27.
+                curr_S2, curr_S2_init, &                   ! 28, 29.
+                AbsProjE, &                                ! 30.
+                PartsDiffProc, &                           ! 31.
+                AllZeroMatrixElem, &                       ! 32.
+                AllOccRealDets, &                          ! 33.
+                AllDetsRoundedToZero, &                    ! 34.
+                AllNumSpawnedEntries, &                    ! 35.
+                AllNumMerged, &                            ! 36.
+                AllTotWalkersToSpawn, &                    ! 37.
+                norm_semistoch/norm_psi                    ! 38.
                 if (tTrialWavefunction) then
-                    write(fcimcstats_unit, "(3G16.7)", advance = 'no') &
-                    (tot_trial_numerator / StepsSft), &
-                    (tot_trial_denom / StepsSft), &
-                    abs((tot_trial_denom / (norm_psi*StepsSft)))
+                    write(fcimcstats_unit, "(3g16.7)", advance = 'no') &
+                    (tot_trial_numerator / StepsSft), &             ! 39.
+                    (tot_trial_denom / StepsSft), &                 ! 40.
+                    abs((tot_trial_denom / (norm_psi*StepsSft)))    ! 41.
                 end if
-                
                 write(fcimcstats_unit, "()", advance = 'yes')
 
             if(tMCOutput) then
@@ -5399,6 +5435,8 @@ MODULE FciMCParMod
         AllSumENum=0.0_dp
         AllNoatHF=0
         AllNoatDoubs=0
+        AllOccRealDets=0
+        AllDetsRoundedToZero=0
         AllSumNoatHF = 0
         AllGrowRate=0.0_dp
         AllGrowRateAbort=0
@@ -6581,6 +6619,7 @@ MODULE FciMCParMod
             allocate(proje_ref_dets(nel, nproje_sum))
             allocate(proje_ref_iluts(0:NIfTot, nproje_sum))
             allocate(proje_ref_coeffs(nproje_sum))
+            allocate(All_proje_ref_coeffs(nproje_sum))
             proje_ref_coeffs = 0
 
             ! Get all the dets
@@ -6609,7 +6648,9 @@ MODULE FciMCParMod
                 call stop_all (t_r, 'Incorrect number of determinants found')
 
             ! Get the total number of walkers on each site
-            call MPISumAll_inplace (proje_ref_coeffs)
+            call MPISumAll(proje_ref_coeffs, All_proje_ref_coeffs)
+            proje_ref_coeffs=All_proje_ref_coeffs
+            
             norm = sqrt(sum(proje_ref_coeffs**2))
             if (norm == 0) norm = 1
             proje_ref_coeffs = proje_ref_coeffs / norm
@@ -6622,6 +6663,8 @@ MODULE FciMCParMod
 
         integer :: i, pos, nfound, ierr
         real(dp) :: norm,reduce_in(1:2),reduce_out(1:2), sgn(lenof_sign)
+                
+        allocate(All_proje_ref_coeffs(nproje_sum))
 
         if(nproje_sum>1) then
            if(proje_spatial) then
@@ -6636,7 +6679,9 @@ MODULE FciMCParMod
                  endif
               enddo
               
-              call MPISumAll_inplace (proje_ref_coeffs)
+              call MPISumAll(proje_ref_coeffs, All_proje_ref_coeffs)
+              proje_ref_coeffs=All_proje_ref_coeffs
+              
               norm = sqrt(sum(proje_ref_coeffs**2))
               if (norm == 0) norm = 1
               proje_ref_coeffs = proje_ref_coeffs / norm
@@ -6703,6 +6748,8 @@ MODULE FciMCParMod
             deallocate(proje_ref_iluts)
         if (allocated(proje_ref_coeffs)) &
             deallocate(proje_ref_coeffs)
+        if (allocated(All_proje_ref_coeffs)) &
+            deallocate(All_proje_ref_coeffs)
 
     end subroutine clean_linear_comb
 
@@ -6896,7 +6943,7 @@ MODULE FciMCParMod
 
         ! Are we doing a spin-projection histogram?
         if (tHistSpinDist) then
-            if (tRealCoeffByExcitLevel) call stop_all("SumEContrib", "Not set up to use real coeffs with tHistSpinDist")
+            if (tUseRealCoeffs) call stop_all("SumEContrib", "Not set up to use real coeffs with tHistSpinDist")
             call test_add_hist_spin_dist_det (ilut, RealwSign)
         endif
 
@@ -7401,7 +7448,7 @@ MODULE FciMCParMod
 
         if (tSpinProject) call init_yama_store ()
     
-        if (tRealCoeffByExcitLevel .and. (lenof_sign.ne.1)) &
+        if (tUseRealCoeffs .and. (lenof_sign.ne.1)) &
             CALL stop_all(this_routine,"Code not yet setup to store complex coefficients as reals &
                                         & - attempt_create_normal is an example")
 
@@ -7471,6 +7518,7 @@ MODULE FciMCParMod
         if(tReadPops) call stop_all(this_routine,"StartCAS cannot work with with ReadPops")
         if(tStartSinglePart) call stop_all(this_routine,"StartCAS cannot work with StartSinglePart")
         if(tRestartHighPop) call stop_all(this_routine,"StartCAS cannot with with dynamically restarting calculations")
+
 
         write(iout,*) "Initialising walkers proportional to a CAS diagonalisation..."
         write(iout,'(A,I2,A,I2,A)') " In CAS notation, (spatial orbitals, electrons), this has been chosen as: (" &

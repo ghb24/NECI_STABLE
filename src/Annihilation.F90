@@ -1108,6 +1108,16 @@ MODULE AnnihilationMod
 
                 SignProd=CurrentSign*SpawnedSign
 
+!                WRITE(6,*) 'DET FOUND in list'
+
+                ! The spawned parts contain the Dj's spawned by the Di's in CurrentDets.
+                ! If the SpawnedPart is found in the CurrentDets list, it means that the Dj has a non-zero 
+                ! cj - and therefore the Di.Dj pair will have a non-zero ci.cj to contribute to the RDM.
+                ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
+                if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then
+                    call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
+                endif 
+
                 if(sum(abs(CurrentSign)) .ne. 0) then
                     !Transfer across
                     call encode_sign(CurrentDets(:,PartInd),SpawnedSign+CurrentSign)
@@ -1303,6 +1313,7 @@ MODULE AnnihilationMod
                                 iter_data%nremoved = iter_data%nremoved + abs(SignTemp(j))
                                 SignTemp(j) = 0
                                 call nullify_ilut_part (SpawnedParts(:,i), j)
+                                DetsRoundedToZero=DetsRoundedToZero+1
                             elseif (tEnhanceRemainder) then
                                 NoBorn = NoBorn + OccupiedThresh - abs(SignTemp(j))
                                 iter_data%nborn = iter_data%nborn + OccupiedThresh - abs(SignTemp(j))
@@ -1346,6 +1357,7 @@ MODULE AnnihilationMod
                                 !Annihilated = Annihilated + abs(SignTemp(j))
                                 !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
                                 iter_data%nremoved = iter_data%nremoved + abs(SignTemp(j))
+                                DetsRoundedToZero=DetsRoundedToZero+1
                                 SignTemp(j) = 0
                                 call nullify_ilut_part (SpawnedParts(:,i), j)
                             elseif (tEnhanceRemainder) then
@@ -1525,8 +1537,9 @@ MODULE AnnihilationMod
         character(*), parameter :: t_r = 'CalcHashTableStats'
 
         if(.not.bNodeRoot) return
-        TotParts=0.0
-        norm_psi_squared = 0.0
+        TotParts=0.0_dp
+        norm_psi_squared = 0.0_dp
+        norm_semistoch_squared = 0.0_dp
         iHighestPop=0
         AnnihilatedDet=0
         tIsStateDeterm = .false.
@@ -1941,7 +1954,6 @@ MODULE AnnihilationMod
         hashInd = int(abs(mod(hash, int(HashIndexLength, int64))),sizeof_int)+1
     end function FindWalkerHash
 
-    
     FUNCTION CreateHash(DetCurr)
         INTEGER :: DetCurr(NEl),i
         INTEGER(KIND=int64) :: CreateHash

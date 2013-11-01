@@ -55,8 +55,7 @@ integer :: trunc_nopen_max
 
 logical :: tMaxBloom    !If this is on, then we only print out a bloom warning if it is the biggest to date.
 
-INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,IterTruncInit,NShiftEquilSteps
-REAL(dp) :: InitiatorWalkNo
+INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits,IterTruncInit,NShiftEquilSteps
 INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp,iFullSpaceIter
 INTEGER :: IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets,iDetGroup
 INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
@@ -67,7 +66,7 @@ INTEGER :: OccCASorbs,VirtCASorbs,iAnnInterval
 integer :: iPopsFileNoRead, iPopsFileNoWrite,iWeightPopRead,iRestartWalkNum
 integer :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
 INTEGER(int64) :: HFPopThresh
-real(dp) :: InitWalkers, maxnoathf
+real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo
 
 ! The average number of excitations to be performed from each walker.
 real(dp) :: AvMCExcits
@@ -114,5 +113,7 @@ logical :: tVaryInitThresh
 
 ! Perform a Davidson calculation if true.
 logical :: tDavidson
+! Should the HF determinant be put on its own processor?
+logical :: tUniqueHFNode
 
 end module CalcData

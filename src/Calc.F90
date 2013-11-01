@@ -285,6 +285,7 @@ contains
           proje_spatial = .false.
           hash_shift=0
           tContinueAfterMP2=.false.
+          tUniqueHFNode = .false.
       
         end subroutine SetCalcDefaults
 
@@ -1278,7 +1279,7 @@ contains
 !it is essentially added to the initiator space and is allowed to spawn where it likes.
 !The minimum walker population for a determinant to be added to the initiator space is InitiatorWalkNo.
                 tAddtoInitiator=.true.
-                call Getf(InitiatorWalkNo)
+                call getf(InitiatorWalkNo)
 
             case("SPAWNONLYINIT")
 !This option means only the initiators have the ability to spawn.  The non-initiators can live/die but not 
@@ -1573,6 +1574,11 @@ contains
                 ! --> Reduce the waiting time while the number of particles is
                 !     growing.
                 tJumpShift = .true.
+
+            case("UNIQUE-HF-NODE")
+                ! Assign the HF processor to a unique node.
+                ! TODO: Set a default cutoff criterion for this
+                tUniqueHFNode = .true.
 
             case default
                 call report("Keyword "                                &
@@ -1954,7 +1960,7 @@ call neci_flush(6)
                       ENDIF
                    ENDIF
                    IF(.NOT.TREAD) THEN
-                   CALL CALCRHO2(NMRKS(1,III),NMRKS(1,III),BETA,I_P,NEL, NBASISMAX,G1,NBASIS,BRR,NMSH, &
+                   CALL CALCRHO2(NMRKS(1:NEl,III),NMRKS(1:NEl,III),BETA,I_P,NEL, G1,NBASIS,NMSH, &
                     FCK,NMAX,ALAT,UMAT,RH,1,0,ECORE)
 !C                   WRITE(6,*) RH
                    FLRI=LOG(RH)

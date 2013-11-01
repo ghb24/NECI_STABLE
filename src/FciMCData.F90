@@ -100,6 +100,7 @@ MODULE FciMCData
       real(dp), dimension(lenof_sign) :: TotParts, TotPartsOld
       real(dp) :: norm_psi_squared
       real(dp) :: norm_semistoch_squared
+      real(dp) :: all_norm_psi_squared
       real(dp) :: norm_psi
       ! The norm of the wavefunction in just the semi-stochastic space.
       real(dp) :: norm_semistoch
@@ -136,6 +137,8 @@ MODULE FciMCData
       Real(dp) :: Annihilated      !This is the number annihilated on one processor
       REAL(dp), DIMENSION(lenof_sign) :: NoatHF           !This is the instantaneous number of particles at the HF determinant
       REAL(dp) :: NoatDoubs
+      INTEGER :: OccRealDets, AllOccRealDets
+      INTEGER :: DetsRoundedToZero, AllDetsRoundedToZero
       INTEGER :: Acceptances      !This is the number of accepted spawns - this is only calculated per node.
       real(dp) :: AccRat            !Acceptance ratio for each node over the update cycle
       INTEGER :: PreviousCycles   
@@ -253,7 +256,7 @@ MODULE FciMCData
  !This is set up as the initial ValidSpawnedList elements, so that it does not need to be reevaluated each time.
       INTEGER , ALLOCATABLE :: InitialSpawnedSlots(:) 
 
-      INTEGER :: WalkersDiffProc
+      integer :: WalkersDiffProc, PartsDiffProc
 
       !This is whether to generate matrix elements as generating excitations for the HPHF/MI/ISK options
       LOGICAL , PARAMETER :: tGenMatHEl=.true.      
@@ -308,6 +311,7 @@ MODULE FciMCData
 
       ! Store data about all processors for calculating load balancing
       integer(int64) :: MaxWalkersProc, MinWalkersProc
+      real(dp) :: MaxPartsProc, MinPartsProc
 
       TYPE(BasisFN) :: HFSym
       integer :: iMaxBloom !If tMaxBloom is on, this stores the largest bloom to date.
@@ -320,6 +324,7 @@ MODULE FciMCData
       integer :: nproje_sum
       integer, allocatable :: proje_ref_dets(:,:), proje_ref_det_init(:)
       real(dp), allocatable :: proje_ref_coeffs(:)
+      real(dp), allocatable :: All_proje_ref_coeffs(:)
       integer(TagIntType) :: tag_ref_iluts = 0, tag_ref_dets = 0, tag_ref_coeffs = 0
       real(dp) :: proje_denominator_cyc(lenof_sign)
       real(dp) :: proje_denominator_sum(lenof_sign)
