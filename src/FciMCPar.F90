@@ -1473,13 +1473,6 @@ MODULE FciMCParMod
 
     subroutine init_fcimc_fn_pointers ()
 
-        ! Call wrapper functions in C to assign a collection of function 
-        ! pointers. These will be passed as arguments to FciMCycPar, allowing
-        ! it to directly call the correct subroutines for various actions.
-        !
-        ! The main advantage of this is that it avoids testing all of the
-        ! conditionals for every single particle, during every iteration.
-
         ! Select the excitation generator
         if (tHPHF) then
             generate_excitation => gen_hphf_excit
