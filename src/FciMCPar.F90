@@ -973,7 +973,7 @@ MODULE FciMCParMod
 
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
-            call walker_death (attempt_die, iter_data, DetCurr, &
+            call walker_death (iter_data, DetCurr, &
                                CurrentDets(:,j), HDiagCurr, SignCurr, &
                                AvSignCurr, IterRDMStartCurr, VecSlot, j)
 
@@ -2108,19 +2108,8 @@ MODULE FciMCParMod
 
     END FUNCTION AttemptCreatePar
 
-    subroutine walker_death (attempt_die, iter_data, DetCurr, iLutCurr, Kii, &
+    subroutine walker_death (iter_data, DetCurr, iLutCurr, Kii, &
                              wSign, wAvSign, IterRDMStartCurr, VecSlot, DetPosition)
-        interface
-            function attempt_die (nI, Kii, wSign) result(ndie)
-                use SystemData, only: nel
-                use constants, only: lenof_sign, dp
-                implicit none
-                integer, intent(in) :: nI(nel)
-                integer, dimension(lenof_sign), intent(in) :: wSign
-                real(dp), intent(in) :: Kii
-                integer, dimension(lenof_sign) :: ndie
-            end function
-        end interface
 
         integer, intent(in) :: DetCurr(nel) 
         integer, dimension(lenof_sign), intent(in) :: wSign
