@@ -185,7 +185,7 @@ END
       END
 
       Subroutine ModMPDiagElement(hEl,nI,nJ,nEl)
-         use Integrals_neci, only : GetUMatEl
+         use Integrals_neci, only: get_umat_el
          use constants, only: dp
          use SystemData, only: BasisFN
          implicit none
@@ -199,12 +199,12 @@ END
          ex=ex+1
          ex=ex/2
          if(Ex(1,2).gt.0) then
-            hEl= GetUMatEl(ex(1,1),ex(1,2),ex(1,1),ex(1,2))
+            hEl= get_umat_el(ex(1,1),ex(1,2),ex(1,1),ex(1,2))
             if(mod(ex2(1,1)+ex2(1,2),2).eq.0)                                                         & 
-     &         hEl=hEl-GetUMatEl(ex(1,1),ex(1,2),ex(1,2),ex(1,1))
-            hEl=hEl+GetUMatEl(ex(2,1),ex(2,2),ex(2,1),ex(2,2))
+     &         hEl=hEl-get_umat_el(ex(1,1),ex(1,2),ex(1,2),ex(1,1))
+            hEl=hEl+get_umat_el(ex(2,1),ex(2,2),ex(2,1),ex(2,2))
             if(mod(ex2(2,1)+ex2(2,2),2).eq.0)                                                         &
-     &         hEl=hEl-GetUMatEl(ex(2,1),ex(2,2),ex(2,2),ex(2,1))
+     &         hEl=hEl-get_umat_el(ex(2,1),ex(2,2),ex(2,2),ex(2,1))
          else
             hEl=0.0_dp
          endif
