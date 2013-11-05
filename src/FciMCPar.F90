@@ -2108,20 +2108,9 @@ MODULE FciMCParMod
 
     END FUNCTION AttemptCreatePar
 
-    subroutine walker_death (attempt_die, iter_data, DetCurr, iLutCurr, Kii, &
+    subroutine walker_death (attempt_die_arg, iter_data, DetCurr, iLutCurr, Kii, &
                              wSign, wAvSign, IterRDMStartCurr, VecSlot, DetPosition)
-        interface
-            function attempt_die (nI, Kii, wSign) result(ndie)
-                use SystemData, only: nel
-                use constants, only: lenof_sign, dp
-                implicit none
-                integer, intent(in) :: nI(nel)
-                integer, dimension(lenof_sign), intent(in) :: wSign
-                real(dp), intent(in) :: Kii
-                integer, dimension(lenof_sign) :: ndie
-            end function
-        end interface
-
+        procedure(attempt_die_t), pointer, intent(in) :: attempt_die_arg
         integer, intent(in) :: DetCurr(nel) 
         integer, dimension(lenof_sign), intent(in) :: wSign
         integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
@@ -2136,7 +2125,7 @@ MODULE FciMCParMod
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
-        iDie = attempt_die (DetCurr, Kii, wSign)
+        iDie = attempt_die_arg (DetCurr, Kii, wSign)
 
 !        IF(iDie.ne.0) WRITE(iout,*) "Death: ",iDie
         
