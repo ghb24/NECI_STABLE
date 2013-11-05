@@ -973,7 +973,7 @@ MODULE FciMCParMod
 
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
-            call walker_death (attempt_die, iter_data, DetCurr, &
+            call walker_death (iter_data, DetCurr, &
                                CurrentDets(:,j), HDiagCurr, SignCurr, &
                                AvSignCurr, IterRDMStartCurr, VecSlot, j)
 
@@ -2108,9 +2108,9 @@ MODULE FciMCParMod
 
     END FUNCTION AttemptCreatePar
 
-    subroutine walker_death (attempt_die_arg, iter_data, DetCurr, iLutCurr, Kii, &
+    subroutine walker_death (iter_data, DetCurr, iLutCurr, Kii, &
                              wSign, wAvSign, IterRDMStartCurr, VecSlot, DetPosition)
-        procedure(attempt_die_t), pointer, intent(in) :: attempt_die_arg
+
         integer, intent(in) :: DetCurr(nel) 
         integer, dimension(lenof_sign), intent(in) :: wSign
         integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
@@ -2125,7 +2125,7 @@ MODULE FciMCParMod
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
-        iDie = attempt_die_arg (DetCurr, Kii, wSign)
+        iDie = attempt_die (DetCurr, Kii, wSign)
 
 !        IF(iDie.ne.0) WRITE(iout,*) "Death: ",iDie
         
