@@ -2,6 +2,8 @@
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
  
 module mcpathshdiag
+     implicit none
+
 !C.. 29/6/06  Based on FMCPR3B.
 !C.. This function does not calculate RHO elements, but instead calculates
 !C.. H elements.  These are then sent to a different diagonalizer, which allows
@@ -558,8 +560,8 @@ end module
          Subroutine GetGraphstats(IPATH, I_V, nEl,nBasis,Arr,Weight,NBASISMAX,DLWDB2)
          use constants, only: dp,int64
          USE UMatCache , only : GTID
-         use Integrals_neci, only : GetUMatEl
          use SystemData, only: BasisFN
+         use procedure_pointers, only: get_umat_el
          IMPLICIT NONE
          Integer I_V,nEl,nBasis,IPATH(nEl,0:I_V),EX(2,2)
          real(dp) ARR(nBasis,2),EnergyTo,EnergyFrom
@@ -596,7 +598,7 @@ end module
                 IDJ = GTID(J)
                 IDK = GTID(K)
                 IDL = GTID(L)
-                ME=GetUMatEl(IDI,IDJ,IDK,IDL)
+                ME=get_umat_el(IDI,IDJ,IDK,IDL)
                 EnergyFrom=Arr(EX(1,1),2)+Arr(EX(1,2),2)
                 EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)
             ENDIF
@@ -633,7 +635,7 @@ end module
                         IDJ = GTID(J)
                         IDK = GTID(K)
                         IDL = GTID(L)
-                     ME=GetUMatEl(IDI,IDJ,IDK,IDL)
+                     ME=get_umat_el(IDI,IDJ,IDK,IDL)
                         EnergyFrom=Arr(EX(1,1),2)+Arr(EX(1,2),2)
                         EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)
                         IF(MOD(c,75).eq.0) THEN
@@ -682,7 +684,7 @@ end module
                         IDJ = GTID(J)
                         IDK = GTID(K)
                         IDL = GTID(L)
-                     ME=GetUMatEl(IDI,IDJ,IDK,IDL)
+                     ME=get_umat_el(IDI,IDJ,IDK,IDL)
                         EnergyFrom=Arr(EX(1,1),2)+Arr(EX(1,2),2)
                         EnergyTo=Arr(EX(2,1),2)+Arr(EX(2,2),2)
                         IF(MOD(c,75).eq.0) THEN

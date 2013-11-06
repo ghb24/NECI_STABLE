@@ -142,6 +142,15 @@ MODULE FciMCParMod
     use sort_mod
     use get_excit, only: make_double
 
+    ! And nice clear include of the procedure pointers
+    use procedure_pointers, only: generate_excitation, attempt_create, &
+                                  get_spawn_helement, encode_child, &
+                                  new_child_stats, attempt_die, &
+                                  extract_bit_rep_avsign, attempt_die_t, &
+                                  fill_rdm_diag_currdet, get_spawn_helement_t,&
+                                  generate_excitation_t
+
+
     implicit none
 #ifdef MOLPRO
     include "common/tapes"
@@ -182,6 +191,11 @@ MODULE FciMCParMod
         real(dp) :: get_scalar
         include "common/molen"
 #endif
+
+        ! Procedure pointer temporaries
+        procedure(generate_excitation_t), pointer :: ge_tmp
+        procedure(get_spawn_helement_t), pointer :: gs_tmp
+        procedure(attempt_die_t), pointer :: ad_tmp
 
         character(*), parameter :: this_routine = 'FciMCPar'
         character(6), parameter :: excit_descriptor(0:2) = &
@@ -248,35 +262,31 @@ MODULE FciMCParMod
             if (tCCMC) then
                 CALL PerformCCMCCycPar()
             else
-                if (.not. (tSpinProject .and. spin_proj_interval == -1)) then
-                    call sub_dispatcher_10 (PerformFciMCycPar, &
-                                           ptr_excit_generator, &
-                                           ptr_attempt_create, &
-                                           ptr_get_spawn_helement, &
-                                           ptr_encode_child, &
-                                           ptr_new_child_stats, &
-                                           ptr_attempt_die, &
-                                           ptr_iter_data, &
-                                           ptr_extract_bit_rep_avsign, &
-                                           ptr_fill_rdm_diag_currdet) 
-                endif
+                if (.not. (tSpinProject .and. spin_proj_interval == -1)) &
+                    call PerformFciMCycPar(iter_data_fciqmc)
             endif
 
             ! Are we projecting the spin out between iterations?
             if (tSpinProject .and. (mod(Iter, spin_proj_interval) == 0 .or. &
                                     spin_proj_interval == -1) .and. &
                 (tSinglePartPhase .or. .not. disable_spin_proj_varyshift))then
+
+                ! Set this up for a different type of iteration
+                ge_tmp => generate_excitation
+                gs_tmp => get_spawn_helement
+                ad_tmp => attempt_die
+                generate_excitation => generate_excit_spin_proj
+                get_spawn_helement => get_spawn_helement_spin_proj
+                attempt_die => attempt_die_spin_proj
+
                 do i = 1, max(spin_proj_iter_count, 1)
-                    call PerformFciMCycPar (generate_excit_spin_proj, &
-                                           attempt_create_normal, &
-                                           get_spawn_helement_spin_proj, &
-                                           null_encode_child, &
-                                           new_child_stats_normal, &
-                                           attempt_die_spin_proj, &
-                                           iter_data_spin_proj, &
-                                           extract_bit_rep_avsign_no_rdm, &
-                                           fill_rdm_diag_currdet_norm) 
+                    call PerformFciMCycPar (iter_data_spin_proj)
                 enddo
+
+                ! Return to prior config
+                generate_excitation => ge_tmp
+                get_spawn_helement => gs_tmp
+                attempt_die => ad_tmp
             endif
 
             if(iProcIndex.eq.root) then
@@ -617,132 +627,11 @@ MODULE FciMCParMod
 
     END SUBROUTINE FciMCPar
 
-    ! **********************************************************
-    ! ************************* NOTE ***************************
-    ! ANY changes to the following interfaces MUST be replicated in the
-    ! interface declarations for the function pointers passed into
-    ! FciMCycPar
-    ! --> Otherwise BAD things (may) happen at runtime, in a
-    !     non-deterministic (but probably segfault) manner.
-    ! **********************************************************
 
-    ! These wrapper functions exist only to enforce interfaces at compile
-    ! time. And to contain the access to the (slightly hackish) assign_proc
-    subroutine set_excit_generator (gen)
-        use iso_c_hack
-        implicit none
-        interface
-            subroutine gen (nI, iLutI, nJ, iLutJ, exFlag, IC, ex, tParity, &
-                            pGen, HEl, store)
 
-                use SystemData, only: nel
-                use bit_reps, only: niftot
-                use GenRandSymExcitNUMod, only: scratchsize
-                use constants, only: n_int,dp
-                use FciMCData, only: excit_gen_store_type
-                implicit none
-
-                integer, intent(in) :: nI(nel) 
-                integer(kind=n_int), intent(in) :: iLutI(0:niftot)
-                integer, intent(in) :: exFlag
-                integer, intent(out) :: nJ(nel) 
-                integer(kind=n_int), intent(out) :: iLutJ(0:niftot)
-                integer, intent(out) :: ic, ex(2,2)
-                real(dp), intent(out) :: pGen
-                logical, intent(out) :: tParity
-                HElement_t, intent(out) :: HEl
-                type(excit_gen_store_type), intent(inout), target :: store
-            end subroutine
-        end interface
-
-        call assign_proc (ptr_excit_generator, gen)
-    end subroutine
-
-    subroutine set_attempt_create (attempt_create)
-        use iso_c_hack
-        implicit none
-        interface
-            function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
-                                     nJ, iLutJ, prob, HElGen, ic, ex, tPar, exLevel, &
-                                     part_type, AvSignCurr, RDMBiasFacCurr) result(child)
-                use SystemData, only: nel
-                use bit_reps, only: niftot
-                use constants, only: n_int, dp, lenof_sign
-                implicit none
-                integer, intent(in) :: nI(nel), nJ(nel), part_type 
-                integer(kind=n_int), intent(in) :: iLutI(0:nIfTot)
-                integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
-                integer, intent(in) :: ic, ex(2,2), exLevel
-                integer, dimension(lenof_sign), intent(in) :: wSign
-                logical, intent(in) :: tPar
-                real(dp), intent(inout) :: prob
-                real(dp) , intent(in) :: AvSignCurr
-                real(dp) , intent(out) :: RDMBiasFacCurr
-                integer , dimension(lenof_sign) :: child      
-                HElement_t , intent(in) :: HElGen
-
-                interface
-                    function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
-                                                 ex, tParity, HElGen) &
-                                                 result (hel)
-                        use SystemData, only: nel
-                        use bit_reps, only: niftot
-                        use constants, only: n_int,dp
-                        implicit none
-                        integer, intent(in) :: nI(nel), nJ(nel)
-                        integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
-                        integer, intent(in) :: ic, ex(2,2)
-                        logical, intent(in) :: tParity
-                        HElement_t, intent(in) :: HElGen
-                        HElement_t :: hel
-                    end function
-                end interface
-            end function
-        end interface
-    
-        call assign_proc (ptr_attempt_create, attempt_create)
-    end subroutine
-
-    subroutine set_get_spawn_helement (get_spawn_helement)
-        use iso_c_hack
-        implicit none
-        interface
-            function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
-                                         ex, tParity, HElGen) result (hel)
-                use SystemData, only: nel
-                use bit_reps, only: niftot
-                use constants, only: n_int,dp
-                implicit none
-                integer, intent(in) :: nI(nel), nJ(nel)
-                integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
-                integer, intent(in) :: ic, ex(2,2)
-                logical, intent(in) :: tParity
-                HElement_t, intent(in) :: HElGen
-                HElement_t :: hel
-            end function
-        end interface
-
-        call assign_proc (ptr_get_spawn_helement, get_spawn_helement)
-    end subroutine
-
-    subroutine set_encode_child (encode_child)
-        use iso_c_hack
-        implicit none
-        interface
-            subroutine encode_child (ilutI, ilutJ, ic, ex)
-                use SystemData, only: nel
-                use bit_reps, only: niftot
-                use constants, only: n_int
-                implicit none
-                integer(kind=n_int), intent(in) :: iLutI(0:nifTot)
-                integer, intent(in) :: ic, ex(2,2)
-                integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
-            end subroutine
-        end interface
-    
-        call assign_proc (ptr_encode_child, encode_child)
-    end subroutine
-
+    ! 
+    ! This is a null routine for encoding spawned sites
+    ! --> DOES NOTHING!!!
     subroutine null_encode_child (ilutI, ilutJ, ic, ex)
         use SystemData, only: nel
         use bit_reps, only: niftot
@@ -759,258 +648,13 @@ MODULE FciMCParMod
         iUnused2 = iLutI(0)
     end subroutine
 
-    subroutine set_new_child_stats (new_child_stats)
-        use iso_c_hack
-        implicit none
-        interface
-            subroutine new_child_stats (iter_data, iLutI, nJ, iLutJ, ic, &
-                                        walkExLevel, child, parent_flags, &
-                                        part_type)
-                use SystemData, only: nel
-                use bit_reps, only: niftot
-                use constants, only: n_int, lenof_sign
-                use FciMCData, only: fcimc_iter_data
-                implicit none
-                integer(kind=n_int), intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
-                integer, intent(in) :: ic, walkExLevel, parent_flags, nJ(nel)
-                integer, intent(in) :: part_type
-                integer, dimension(lenof_sign) , intent(in) :: child
-                type(fcimc_iter_data), intent(inout) :: iter_data
-            end subroutine
-        end interface
 
-        call assign_proc (ptr_new_child_stats, new_child_stats)
-    end subroutine
 
-    subroutine set_attempt_die (attempt_die)
-        use iso_c_hack
-        implicit none
-        interface
-            function attempt_die (nI, Kii, wSign) result(ndie)
-                use SystemData, only: nel
-                use constants, only: lenof_sign, dp
-                implicit none
-                integer, intent(in) :: nI(nel)
-                integer, dimension(lenof_sign), intent(in) :: wSign
-                real(dp), intent(in) :: Kii
-                integer, dimension(lenof_sign) :: ndie
-            end function
-        end interface
-
-        call assign_proc (ptr_attempt_die, attempt_die)
-    end subroutine
-
-    subroutine set_fcimc_iter_data (data_struct)
-        use iso_c_hack
-        implicit none
-        type(fcimc_iter_data), target :: data_struct
-
-        call assign_data (ptr_iter_data, data_struct)
-    end subroutine
-
-    subroutine set_extract_bit_rep_avsign(extract_bit_rep_avsign)
-        use, intrinsic :: iso_c_binding
-        implicit none
-        interface
-            subroutine extract_bit_rep_avsign(iLutnI, CurrH_I, nI, SignI, &
-                                              FlagsI, IterRDMStartI, AvSignI, &
-                                              Store)
-                use constants
-                use SystemData, only: nel
-                use bit_reps, only: NIfTot
-                use FciMCData, only : excit_gen_store_type, NCurrH
-                implicit none
-                integer(n_int), intent(in) :: iLutnI(0:nIfTot)
-                real(dp), intent(in) :: CurrH_I(NCurrH)
-                real(dp), intent(out) :: IterRDMStartI, AvSignI
-                integer, intent(out) :: nI(nel), FlagsI
-                integer, dimension(lenof_sign), intent(out) :: SignI
-                type(excit_gen_store_type), intent(inout), optional :: Store
-            end subroutine
-        end interface
-
-        call assign_proc (ptr_extract_bit_rep_avsign, extract_bit_rep_avsign)
-    end subroutine
-
-    subroutine set_fill_rdm_diag_currdet(fill_rdm_diag_currdet)
-        use, intrinsic :: iso_c_binding
-        implicit none
-        interface
-            subroutine fill_rdm_diag_currdet (iLutnI, nI, CurrH_I, &
-                                              ExcitLevelI, IterLastRDMFill) 
-                use constants
-                use SystemData, only: nel
-                use bit_reps, only: NIfTot 
-                use FciMCData, only: NCurrH
-                implicit none
-                integer(n_int), intent(in) :: iLutnI(0:nIfTot)
-                real(dp), intent(in) :: CurrH_I(NCurrH)
-                integer, intent(in) :: nI(nel), ExcitLevelI, IterLastRDMFill
-                real(dp) :: IterDetOcc, IterRDM
-                integer(n_int) :: SpinCoupDet(0:nIfTot)
-                integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
-            end subroutine
-        end interface
-
-        call assign_proc (ptr_fill_rdm_diag_currdet, &
-                                        fill_rdm_diag_currdet)
-    end subroutine
-
-    ! This is the heart of FCIMC, where the MC Cycles are performed.
-    !
-    ! Note: This should only be called indirectly:
-    !       call fn_dispatcher_5 (PerformFCIMCycPar, ptr_...)
-    subroutine PerformFCIMCycPar(generate_excitation, attempt_create, &
-                                 get_spawn_helement, encode_child, &
-                                 new_child_stats, attempt_die, &
-                                 iter_data, extract_bit_rep_avsign, &
-                                 fill_rdm_diag_currdet)
+    subroutine PerformFCIMCycPar(iter_data)
         
          use sym_mod
          use IntegralsData, only : Nfrozen
 
-        ! **********************************************************
-        ! ************************* NOTE ***************************
-        ! ANY changes to the following interfaces MUST be replicated in the
-        ! interface declarations for the function pointer setting functions
-        ! at the top of the module.
-        ! --> Otherwise BAD things (may) happen at runtime, in a
-        !     non-deterministic (but probably segfault) manner.
-        ! **********************************************************
-        interface
-            subroutine generate_excitation (nI, iLutI, nJ, iLutJ, &
-                             exFlag, IC, ex, tParity, pGen, HEl, store)
-                use SystemData, only: nel
-                use bit_reps, only: niftot
-                use GenRandSymExcitNUMod, only: scratchsize
-                use constants, only: dp,n_int
-                use FciMCData, only: excit_gen_store_type
-                implicit none
-                integer, intent(in) :: nI(nel)
-                integer(kind=n_int), intent(in) :: iLutI(0:niftot)
-                integer, intent(in) :: exFlag
-                integer, intent(out) :: nJ(nel) 
-                integer(kind=n_int), intent(out) :: iLutJ(0:niftot)
-                integer, intent(out) :: ic, ex(2,2)
-                real(dp), intent(out) :: pGen
-                logical, intent(out) :: tParity
-                HElement_t, intent(out) :: HEl
-                type(excit_gen_store_type), intent(inout), target :: store
-            end subroutine
-            function attempt_create (get_spawn_helement, nI, iLutI, wSign, &
-                                     nJ, iLutJ, prob, HElGen, ic, ex, tPar, exLevel, &
-                                     part_type, AvSignCurr, RDMBiasFacCurr) result(child)
-                use systemdata, only: nel
-                use bit_reps, only: niftot
-                use constants, only: dp, n_int, lenof_sign
-                implicit none
-                integer, intent(in) :: nI(nel), nJ(nel), part_type
-                integer(kind=n_int), intent(in) :: iLutI(0:nifTot)
-                integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
-                integer, intent(in) :: ic, ex(2,2), exLevel
-                integer, dimension(lenof_sign), intent(in) :: wSign
-                logical, intent(in) :: tPar
-                real(dp), intent(inout) :: prob
-                real(dp) , intent(in) :: AvSignCurr
-                real(dp) , intent(out) :: RDMBiasFacCurr
-                integer, dimension(lenof_sign) :: child
-                HElement_t , intent(in) :: HElGen
-
-                interface
-                    function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
-                                                 ex, tParity, HElGen) &
-                                                 result (hel)
-                        use systemdata, only: nel
-                        use bit_reps, only: niftot
-                        use constants, only: dp,n_int
-                        implicit none
-                        integer, intent(in) :: nI(nel), nJ(nel)
-                        integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
-                        integer, intent(in) :: ic, ex(2,2)
-                        logical, intent(in) :: tParity
-                        HElement_t, intent(in) :: HElGen
-                        HElement_t :: hel
-                    end function
-                end interface
-            end function
-            function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, &
-                                         ex, tParity, HElGen) &
-                                         result (hel)
-                use systemdata, only: nel
-                use bit_reps, only: niftot
-                use constants, only: dp,n_int
-                implicit none
-                integer, intent(in) :: nI(nel), nJ(nel)
-                integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
-                integer, intent(in) :: ic, ex(2,2)
-                logical, intent(in) :: tParity
-                HElement_t, intent(in) :: HElGen
-                HElement_t :: hel
-            end function
-            subroutine encode_child (ilutI, ilutJ, ic, ex)
-                use systemdata, only: nel
-                use bit_reps, only: niftot
-                use constants, only: n_int
-                implicit none
-                integer(kind=n_int), intent(in) :: ilutI(0:niftot)
-                integer, intent(in) :: ic, ex(2,2)
-                integer(kind=n_int), intent(inout) :: iLutJ(0:nIfTot)
-            end subroutine
-            subroutine new_child_stats (iter_data, iLutI, nJ, iLutJ, ic, &
-                                        walkExLevel, child, parent_flags, &
-                                        part_type)
-                use SystemData, only: nel
-                use bit_reps, only: niftot
-                use constants, only: n_int, lenof_sign
-                use FciMCData, only: fcimc_iter_data
-                implicit none
-                integer(kind=n_int), intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
-                integer, intent(in) :: ic, walkExLevel, parent_flags, nJ(nel)
-                integer, intent(in) :: part_type
-                integer, dimension(lenof_sign), intent(in) :: child
-                type(fcimc_iter_data), intent(inout) :: iter_data
-            end subroutine
-            function attempt_die (nI, Kii, wSign) result(ndie)
-                use SystemData, only: nel
-                use constants, only: lenof_sign, dp
-                implicit none
-                integer, intent(in) :: nI(nel)
-                integer, dimension(lenof_sign), intent(in) :: wSign
-                real(dp), intent(in) :: Kii
-                integer, dimension(lenof_sign) :: ndie
-            end function
-            subroutine extract_bit_rep_avsign (iLutnI, CurrH_I, nI, SignI, &
-                                               FlagsI, IterRDMStartI, &
-                                               AvSignI, Store)
-                use constants
-                use SystemData, only: nel
-                use bit_reps, only: NIfTot
-                use FciMCData, only: excit_gen_store_type, NCurrH
-                implicit none
-                integer(n_int), intent(in) :: iLutnI(0:nIfTot)
-                real(dp) , intent(in) :: CurrH_I(NCurrH)
-                integer, intent(out) :: nI(nel), FlagsI
-                integer, dimension(lenof_sign), intent(out) :: SignI
-                real(dp) , intent(out) :: IterRDMStartI, AvSignI
-                type(excit_gen_store_type), intent(inout), optional :: Store
-            end subroutine
-            subroutine fill_rdm_diag_currdet (iLutnI, nI, CurrH_I, &
-                                              ExcitLevelI, IterLastRDMFill) 
-                use constants
-                use SystemData, only: nel
-                use bit_reps, only: NIfTot 
-                use FciMCData, only: NCurrH
-                implicit none
-                integer(n_int), intent(in) :: iLutnI(0:nIfTot)
-                real(dp) , intent(in) :: CurrH_I(NCurrH)
-                integer, intent(in) :: nI(nel), ExcitLevelI, IterLastRDMFill
-                real(dp) :: IterDetOcc, IterRDM
-                integer(n_int) :: SpinCoupDet(0:nIfTot)
-                integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
-            end subroutine
-
-        end interface
-        
         ! Iteration specific data
         type(fcimc_iter_data), intent(inout) :: iter_data
 
@@ -1294,7 +938,7 @@ MODULE FciMCParMod
 
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
-                        child = attempt_create (get_spawn_helement, DetCurr, &
+                        child = attempt_create (DetCurr, &
                                             CurrentDets(:,j), SignCurr, &
                                             nJ,iLutnJ, Prob, HElGen, IC, ex, &
                                             tParity, walkExcitLevel,part_type, &
@@ -1332,7 +976,7 @@ MODULE FciMCParMod
 
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
-            call walker_death (attempt_die, iter_data, DetCurr, &
+            call walker_death (iter_data, DetCurr, &
                                CurrentDets(:,j), HDiagCurr, SignCurr, &
                                AvSignCurr, IterRDMStartCurr, VecSlot, j)
 
@@ -1832,24 +1476,17 @@ MODULE FciMCParMod
 
     subroutine init_fcimc_fn_pointers ()
 
-        ! Call wrapper functions in C to assign a collection of function 
-        ! pointers. These will be passed as arguments to FciMCycPar, allowing
-        ! it to directly call the correct subroutines for various actions.
-        !
-        ! The main advantage of this is that it avoids testing all of the
-        ! conditionals for every single particle, during every iteration.
-
         ! Select the excitation generator
         if (tHPHF) then
-            call set_excit_generator (gen_hphf_excit)
+            generate_excitation => gen_hphf_excit
         elseif (tCSF) then
-            call set_excit_generator (gen_csf_excit)
+            generate_excitation => gen_csf_excit
         elseif (tPickVirtUniform) then
-            call set_excit_generator (gen_rand_excit3)
+            generate_excitation => gen_rand_excit3
         elseif (tMomInv) then
-            call set_excit_generator (gen_MI_excit)
+            generate_excitation => gen_MI_excit
         else
-            call set_excit_generator (gen_rand_excit)
+            generate_excitation => gen_rand_excit
         endif
 
         ! In the main loop, we only need to find out if a determinant is
@@ -1868,39 +1505,39 @@ MODULE FciMCParMod
             tPartFreezeCore .or. tPartFreezeVirt .or. tFixLz .or. &
             (tUEG .and. .not. tLatticeGens) .or. tTruncNOpen) then
             if (tHPHF .or. tCSF .or. tMomInv) then
-                call set_attempt_create (attempt_create_trunc_spawn)
+                attempt_create => attempt_create_trunc_spawn
             else
-                call set_attempt_create (att_create_trunc_spawn_enc)
+                attempt_create => att_create_trunc_spawn_enc
             endif
         else
-            call set_attempt_create (attempt_create_normal)
+            attempt_create => attempt_create_normal
         endif
 
         ! In attempt create, how should we evaluate the off diagonal matrix
         ! elements between a parent and its (potentially) spawned offspring?
         if (tCSF) then
-            call set_get_spawn_helement (get_csf_helement)
+            get_spawn_helement => get_csf_helement
         elseif (tHPHF) then
             if (tGenMatHEL) then
-                call set_get_spawn_helement (hphf_spawn_sign)
+                get_spawn_helement => hphf_spawn_sign
             else
-                call set_get_spawn_helement (hphf_off_diag_helement_spawn)
+                get_spawn_helement => hphf_off_diag_helement_spawn
             endif
         elseif (tMomInv) then
             if (tGenMatHEl) then
-                call set_get_spawn_helement (MI_spawn_sign)
+                get_spawn_helement => MI_spawn_sign
             else
-                call set_get_spawn_helement (MI_off_diag_helement_spawn)
+                get_spawn_helement => MI_off_diag_helement_spawn
             endif
         else
-            call set_get_spawn_helement (get_helement_det_only)
+            get_spawn_helement => get_helement_det_only
         endif
 
         ! Once we have generated the children, do we need to encode them?
         if (.not. (tCSF .or. tHPHF .or. tMomInv)) then
-            call set_encode_child (FindExcitBitDet)
+            encode_child => FindExcitBitDet
         else
-            call set_encode_child (null_encode_child)
+            encode_child => null_encode_child
         endif
 
         ! What message should we display for a particle bloom?
@@ -1919,21 +1556,19 @@ MODULE FciMCParMod
 
         ! Perform the correct statistics on new child particles
         if (tHistHamil) then
-            call set_new_child_stats (new_child_stats_hist_hamil)
+            new_child_stats => new_child_stats_hist_hamil
         else
-            call set_new_child_stats (new_child_stats_normal)
+            new_child_stats => new_child_stats_normal
         endif
 
-        call set_attempt_die (attempt_die_normal)
+        attempt_die => attempt_die_normal
 
-        call set_fcimc_iter_data (iter_data_fciqmc)
-
-        call set_extract_bit_rep_avsign(extract_bit_rep_avsign_no_rdm)
+        extract_bit_rep_avsign => extract_bit_rep_avsign_no_rdm
 
         if(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
-            call set_fill_rdm_diag_currdet(fill_rdm_diag_currdet_hfsd)
+            fill_rdm_diag_currdet => fill_rdm_diag_currdet_hfsd
         else
-            call set_fill_rdm_diag_currdet(fill_rdm_diag_currdet_norm)
+            fill_rdm_diag_currdet => fill_rdm_diag_currdet_norm
         endif
 
     end subroutine
@@ -1984,7 +1619,7 @@ MODULE FciMCParMod
 
     END SUBROUTINE CheckOrdering
         
-    function attempt_create_trunc_spawn (get_spawn_helement, DetCurr,&
+    function attempt_create_trunc_spawn (DetCurr,&
                                          iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, &
                                          ic, ex, tparity, walkExcitLevel, part_type, &
                                          AvSignCurr, RDMBiasFacCurr) result(child)
@@ -2000,24 +1635,8 @@ MODULE FciMCParMod
         integer, dimension(lenof_sign) :: child
         HElement_t, intent(in) :: HElGen
 
-        interface
-            function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
-                                         tParity, HElGen) result (hel)
-                use SystemData, only: nel
-                use bit_reps, only: niftot
-                use constants, only: dp,n_int
-                implicit none
-                integer, intent(in) :: nI(nel), nJ(nel)
-                integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
-                integer, intent(in) :: ic, ex(2,2)
-                logical, intent(in) :: tParity
-                HElement_t :: hel
-                HElement_t , intent(in) :: HElGen 
-            end function
-        end interface
-
         if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
-            child = attempt_create_normal (get_spawn_helement, DetCurr, &
+            child = attempt_create_normal (DetCurr, &
                                iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
                                tParity, walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr)
         else
@@ -2039,7 +1658,7 @@ MODULE FciMCParMod
 !  walkExcitLevel:      Is Unused
 ! 
 !  child:      A lenof_sign array containing the particles spawned.
-    function att_create_trunc_spawn_enc (get_spawn_helement, DetCurr,&
+    function att_create_trunc_spawn_enc (DetCurr,&
                                          iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, &
                                          ic, ex, tparity, walkExcitLevel, part_type, &
                                          AvSignCurr,RDMBiasFacCurr) result(child)
@@ -2056,25 +1675,9 @@ MODULE FciMCParMod
         integer, dimension(lenof_sign) :: child
         HElement_t , intent(in) :: HElGen
 
-        interface
-            function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
-                                         tParity, HElGen) result (hel)
-                use SystemData, only: nel
-                use bit_reps, only: niftot
-                use constants, only: dp,n_int
-                implicit none
-                integer, intent(in) :: nI(nel), nJ(nel)
-                integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
-                integer, intent(in) :: ic, ex(2,2)
-                logical, intent(in) :: tParity
-                HElement_t, intent(in) :: HElGen
-                HElement_t :: hel
-            end function
-        end interface
-
         call EncodeBitDet (nJ, iLutnJ)
         if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
-            child = attempt_create_normal (get_spawn_helement, DetCurr, &
+            child = attempt_create_normal (DetCurr, &
                                iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
                                tParity, walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr)
         else
@@ -2083,7 +1686,7 @@ MODULE FciMCParMod
     end function
 
 
-    function attempt_create_normal (get_spawn_helement, DetCurr, iLutCurr, &
+    function attempt_create_normal (DetCurr, iLutCurr, &
                                     wSign, nJ, iLutnJ, prob, HElGen, ic, ex, tparity,&
                                     walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr) result(child)
 
@@ -2100,22 +1703,6 @@ MODULE FciMCParMod
         integer, dimension(lenof_sign) :: child
         HElement_t , intent(in) :: HElGen
 
-        interface
-            function get_spawn_helement (nI, nJ, ilutI, ilutJ, ic, ex, &
-                                         tParity, HElGen) result (hel)
-                use SystemData, only: nel
-                use bit_reps, only: niftot
-                use constants, only: dp,n_int
-                implicit none
-                integer, intent(in) :: nI(nel), nJ(nel)
-                integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
-                integer, intent(in) :: ic, ex(2,2)
-                logical, intent(in) :: tParity
-                HElement_t, intent(in) :: HElGen
-                HElement_t :: hel
-            end function
-        end interface
-        
         real(dp) :: rat, r
         integer :: extracreate, iUnused
         HElement_t :: rh
@@ -2524,19 +2111,8 @@ MODULE FciMCParMod
 
     END FUNCTION AttemptCreatePar
 
-    subroutine walker_death (attempt_die, iter_data, DetCurr, iLutCurr, Kii, &
+    subroutine walker_death (iter_data, DetCurr, iLutCurr, Kii, &
                              wSign, wAvSign, IterRDMStartCurr, VecSlot, DetPosition)
-        interface
-            function attempt_die (nI, Kii, wSign) result(ndie)
-                use SystemData, only: nel
-                use constants, only: lenof_sign, dp
-                implicit none
-                integer, intent(in) :: nI(nel)
-                integer, dimension(lenof_sign), intent(in) :: wSign
-                real(dp), intent(in) :: Kii
-                integer, dimension(lenof_sign) :: ndie
-            end function
-        end interface
 
         integer, intent(in) :: DetCurr(nel) 
         integer, dimension(lenof_sign), intent(in) :: wSign
@@ -5534,7 +5110,7 @@ MODULE FciMCParMod
                 tFillingExplicRDMonFly = .true.
                 if(tHistSpawn) NHistEquilSteps = Iter
             else
-                call set_extract_bit_rep_avsign(extract_bit_rep_avsign_norm)
+                extract_bit_rep_avsign => extract_bit_rep_avsign_norm
                 !By default - we will do a stochastic calculation of the RDM.
                 tFillingStochRDMonFly = .true.
                 if(.not.tHF_Ref_Explicit) call DeAlloc_Alloc_SpawnedParts()

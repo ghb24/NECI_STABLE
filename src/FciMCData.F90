@@ -311,22 +311,6 @@ MODULE FciMCData
       type(fcimc_iter_data), target :: iter_data_fciqmc
       type(fcimc_iter_data), target :: iter_data_ccmc
 
-
-
-      ! Here are the FUNCTION POINTERS for use with PerformFciMCycPar
-      ! Use with extreme care, and keep your interfaces up to date or bad
-      ! things (namely segfaults) will happen
-
-      type(c_ptr) :: ptr_excit_generator
-      type(c_ptr) :: ptr_attempt_create
-      type(c_ptr) :: ptr_get_spawn_helement
-      type(c_ptr) :: ptr_new_child_stats
-      type(c_ptr) :: ptr_encode_child
-      type(c_ptr) :: ptr_attempt_die
-      type(c_ptr) :: ptr_iter_data
-      type(c_ptr) :: ptr_extract_bit_rep_avsign
-      type(c_ptr) :: ptr_fill_rdm_diag_currdet
-
       integer :: yama_global (4)
 
       ! Used for modifying the ReadPops procedures, so that we can call 

@@ -243,7 +243,7 @@ MODULE SymExcit2
 !          We return a function of the U matrix element (|<ij|u|kl>|^2)^G_VMC_EXCITWEIGHT
       SUBROUTINE EXCITWEIGHTING(I,J,K,L,WEIGHT,NBASISMAX,Arr,NBASIS)
          USE UMatCache , only : GTID
-         use Integrals_neci, only : GetUMatEl
+         use procedure_pointers, only: get_umat_el
          use SystemData, only: BasisFN
          use global_utilities
          IMPLICIT NONE
@@ -266,7 +266,7 @@ MODULE SymExcit2
             IDJ = GTID(J)
             IDK = GTID(K)
             IDL = GTID(L)
-            W=GetUMatEl(IDI,IDJ,IDK,IDL)
+            W=get_umat_el(IDI,IDJ,IDK,IDL)
             IF(TUPOWER) THEN
                 WEIGHT=1.0_dp+(abs(W))**(G_VMC_EXCITWEIGHT(CUR_VERT))
             ELSE

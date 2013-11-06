@@ -14,7 +14,7 @@ module sltcnd_mod
     !       which are floating around.
     use constants, only: dp,n_int
     use UMatCache, only: GTID
-    use IntegralsData, only: UMAT, ptr_getumatel
+    use IntegralsData, only: UMAT
     use OneEInts, only: GetTMatEl
     use Integrals_neci, only: get_umat_el
     use DetBitOps, only: count_open_orbs, FindBitExcitLevel
@@ -191,8 +191,7 @@ contains
         hel = (0)
         do j=1,nel
             idN = idHF(j)
-            hel = hel + get_umat_el (ptr_getumatel, idOrb, idN, &
-                                               idOrb, idN)
+            hel = hel + get_umat_el (idOrb, idN, idOrb, idN)
         enddo
                 
         ! Exchange contribution only considered if tExch set.
@@ -202,8 +201,7 @@ contains
             ! Exchange contribution is zero if I,J are alpha/beta
             if (G1(Orb)%Ms == G1(HFDet(j))%Ms) then
                 idN = idHF(j)
-                hel = hel - get_umat_el (ptr_getumatel, idOrb, &
-                                      idN, idN, idOrb)
+                hel = hel - get_umat_el (idOrb, idN, idN, idOrb)
             endif
         enddo
         hel = hel + hel_sing
@@ -239,8 +237,7 @@ contains
             do j=1,nel
                 idX = id(i)
                 idN = idHF(j)
-                hel_doub = hel_doub + get_umat_el (ptr_getumatel, idX, idN, &
-                                                   idX, idN)
+                hel_doub = hel_doub + get_umat_el (idX, idN, idX, idN)
             enddo
         enddo
                 
@@ -254,8 +251,7 @@ contains
                     if (G1(nI(i))%Ms == G1(HFDet(j))%Ms) then
                         idX = id(i)
                         idN = idHF(j)
-                        hel_tmp = hel_tmp - get_umat_el (ptr_getumatel, idX, &
-                                              idN, idN, idX)
+                        hel_tmp = hel_tmp - get_umat_el (idX, idN, idN, idX)
                     endif
                 enddo
             enddo
@@ -288,9 +284,8 @@ contains
             do j=i+1,nel
                 idX = max(id(i), id(j))
                 idN = min(id(i), id(j))
-                hel_doub = hel_doub + get_umat_el (ptr_getumatel, idN, idX, &
-                                                   idN, idX)
-!                write(6,'(4I4,G20.10)') idN,idX,idN,idX,get_umat_el (ptr_getumatel,idN,idX,idN,idX)
+                hel_doub = hel_doub + get_umat_el (idN, idX, idN, idX)
+!                write(6,'(4I4,G20.10)') idN,idX,idN,idX,get_umat_el (idN,idX,idN,idX)
             enddo
         enddo
                 
@@ -304,9 +299,8 @@ contains
                     if (G1(nI(i))%Ms == G1(nI(j))%Ms) then
                         idX = max(id(i), id(j))
                         idN = min(id(i), id(j))
-                        hel_tmp = hel_tmp - get_umat_el (ptr_getumatel, idN, &
-                                              idX, idX, idN)
-!                write(6,'(4I4,G20.10)') idN,idX,idX,idN,get_umat_el (ptr_getumatel,idN,idX,idX,idN)
+                        hel_tmp = hel_tmp - get_umat_el (idN, idX, idX, idN)
+!                write(6,'(4I4,G20.10)') idN,idX,idX,idN,get_umat_el (idN,idX,idX,idN)
                     endif
                 enddo
             enddo
@@ -336,8 +330,7 @@ contains
             do i=1,nel
                 if (ex(1) /= nI(i)) then
                     id = gtID(nI(i))
-                    hel = hel + get_umat_el (ptr_getumatel, id_ex(1), id, &
-                                             id_ex(2), id)
+                    hel = hel + get_umat_el (id_ex(1), id, id_ex(2), id)
                 endif
             enddo
         endif
@@ -350,8 +343,7 @@ contains
                 if (ex(1) /= nI(i)) then
                     if (G1(ex(1))%Ms == G1(nI(i))%Ms) then
                         id = gtID(nI(i))
-                        hel = hel - get_umat_el (ptr_getumatel, id_ex(1), id,&
-                                                 id, id_ex(2))
+                        hel = hel - get_umat_el (id_ex(1), id, id, id_ex(2))
                     endif
                 endif
             enddo
@@ -382,16 +374,14 @@ contains
         ! physical notation).
         if ( (G1(ex(1,1))%Ms == G1(ex(2,1))%Ms) .and. &
              (G1(ex(1,2))%Ms == G1(ex(2,2))%Ms) ) then
-             hel = get_umat_el (ptr_getumatel, id(1,1), id(1,2), id(2,1), &
-                                id(2,2))
+             hel = get_umat_el (id(1,1), id(1,2), id(2,1), id(2,2))
         else
             hel = (0)
         endif
 
         if ( (G1(ex(1,1))%Ms == G1(ex(2,2))%Ms) .and. &
              (G1(ex(1,2))%Ms == G1(Ex(2,1))%Ms) ) then
-             hel = hel - get_umat_el (ptr_getumatel, id(1,1), id(1,2), &
-                                      id(2,2), id(2,1))
+             hel = hel - get_umat_el (id(1,1), id(1,2), id(2,2), id(2,1))
         endif
 
         if (tSign) hel = -hel

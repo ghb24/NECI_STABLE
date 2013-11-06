@@ -52,6 +52,7 @@ MODULE GenRandSymExcitNUMod
     use sym_general_mod
     use spin_project, only: tSpinProject
     use get_excit, only: make_single, make_double
+    use procedure_pointers, only: get_umat_el
     IMPLICIT NONE
 !    INTEGER , SAVE :: Counter=0
 
@@ -1926,7 +1927,6 @@ MODULE GenRandSymExcitNUMod
     END SUBROUTINE CreateDoubExcitBiased
 
     SUBROUTINE CalcAllab(nI,ILUT,Elec1Ind,Elec2Ind,SymProduct,iSpn,OrbA,OrbB,nParts,iCreate,Tau)
-        use Integrals_neci , only : GetUMatEl
         INTEGER :: nI(NEl),Elec1Ind,Elec2Ind,SymProduct,iSpn,OrbA,OrbB,iCreate
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: SpatOrbi,SpatOrbj,Spini,Spinj,i,aspn,bspn,SymA,SymB,SpatOrba,EndSymState,VecInd
@@ -2022,12 +2022,12 @@ MODULE GenRandSymExcitNUMod
 
 !We have now found an allowed ab pair to go with the ij pair chosen previously - record its stats.
                 IF( Spini.EQ.aspn.and.Spinj.eq.bspn) THEN
-                    Hel=GETUMATEL(SpatOrbi,SpatOrbj,SpatOrba,j)
+                    Hel=get_umat_el(SpatOrbi,SpatOrbj,SpatOrba,j)
                 ELSE
                     Hel=(0.0_dp)
                 ENDIF
                 IF(Spini.EQ.bspn.and.Spinj.EQ.aspn) THEN
-                    Hel=Hel-GETUMATEL(SpatOrbi,SpatOrbj,j,SpatOrba)
+                    Hel=Hel-get_umat_el(SpatOrbi,SpatOrbj,j,SpatOrba)
                 ENDIF
 
                 SpawnProb(VecInd)=abs(REAL(Hel,dp))

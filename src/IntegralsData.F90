@@ -27,10 +27,6 @@ real(dp) :: HFRand
 real(dp) :: DMatEpsilon !  The cutoff for density matrix elements
 Logical :: tPostFreezeHF ! Do we do HF after freezing
 
-! Function pointers to control the behaviour of get_umat_el
-type(c_ptr) :: ptr_getumatel
-type(c_ptr) :: ptr_getumatel_2
-
 
 !  From NECI.F
 ! UMAT stores 4-index, 2-electron integrals.  Lookup is via the UMATIND function

@@ -13,7 +13,6 @@ module RPA_Mod
     use Determinants, only: GetH0Element3
     use bit_reps, only: NIfTot
     use DetBitops, only: EncodeBitDet
-    use IntegralsData, only: ptr_getumatel
     use Integrals_neci, only: get_umat_el
     use UMatCache, only: GTID
     use util_mod, only: get_free_unit
@@ -130,7 +129,7 @@ module RPA_Mod
                             ! physical notation).
                             if ( (G1(ex(1,1))%Ms == G1(ex(2,1))%Ms) .and.                   &
                                  (G1(ex(1,2))%Ms == G1(ex(2,2))%Ms) ) then
-                                hel1 = get_umat_el (ptr_getumatel, id(1,1), id(1,2), id(2,1), &
+                                hel1 = get_umat_el (id(1,1), id(1,2), id(2,1), &
                                                     id(2,2))
                             else
                                 hel1 = (0)
@@ -142,7 +141,7 @@ module RPA_Mod
                             ! physical notation).
                             if ( (G1(ex2(1,1))%Ms == G1(ex2(2,1))%Ms) .and. &
                                  (G1(ex2(1,2))%Ms == G1(ex2(2,2))%Ms) ) then
-                                hel1 = get_umat_el (ptr_getumatel, id(1,1), id(1,2), id(2,1), &
+                                hel1 = get_umat_el (id(1,1), id(1,2), id(2,1), &
                                                     id(2,2))
                             else
                                 hel1 = (0)

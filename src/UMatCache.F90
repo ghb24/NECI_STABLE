@@ -1575,38 +1575,3 @@ END MODULE UMatCache
       END SUBROUTINE CacheUMatEl
 
 
-
-! See Integrals.F90 for an interface for this function.
-function get_umat_el (fn, i, j, k, l) result(hel)
-    ! Obtains the Coulomb integral <ij|kl> from the UMat array.
-    ! In:
-    !    fn: pointer to the system-specific get_umat_el_* function.
-    !      fn should always be the variable ptr_getumatel.
-    !    i,j,k,l: orbital indices. These refer to spin orbitals in
-    !      unrestricted calculations and spatial orbitals in restricted
-    !      calculations.
-    use iso_c_hack
-    use constants, only: dp
-    use IntegralsData, only: ptr_getumatel_2
-    implicit none
-
-    interface
-        function fn (i, j, k, l, fn2) result(hel)
-            use constants, only: dp
-            use iso_c_hack
-            implicit none
-            integer, intent(in) :: i, j, k, l
-#ifdef SX
-            type(c_ptr), intent(in) :: fn2
-#else
-            type(c_ptr), intent(in), value :: fn2
-#endif
-            HElement_t :: hel
-        end function
-    end interface
-
-    integer, intent(in) :: i, j, k, l
-    HElement_t :: hel
-
-    hel = fn (i, j, k, l, ptr_getumatel_2)
-end function

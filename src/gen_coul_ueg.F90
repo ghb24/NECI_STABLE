@@ -9,6 +9,7 @@ module gen_coul_ueg_mod
     use IntegralsData, only: UMat, FCK
     use global_utilities
     use constants, only: dp, pi, pi2, THIRD
+    use iso_c_hack
     implicit none
 
 contains

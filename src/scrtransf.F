@@ -317,7 +317,7 @@ C         SUM2=SUM2-UMAT(ID(I),ID(J),ID(J),ID(I))
 C.. Calculate <phi_a phi_b | U | phi_c phi_d> from <u_i u_j|U|u_k u_l>
       SUBROUTINE GETTRUMATEL(A,B,C,D,BTRANS,NSBASIS,NSPINS,TOTSUM)
          use constants, only: dp
-         use Integrals_neci, Only : GetUMatEl
+         use procedure_pointers, only: get_umat_el
          USE UMatCache , Only : GTID
          use SystemData, only: BasisFN
          IMPLICIT NONE
@@ -358,7 +358,7 @@ C.. and then from it get the ID within UMAT
                   DO L=1,NSBASIS
                      IDL = GTID((L-1)*NSPINS+1+DSPN-1)
                      SUM3=SUM3+(BTRANS(DE,L,DSPN))*
-     &       GETUMATEL(IDI,IDJ,IDK,IDL)
+     &       get_umat_el(IDI,IDJ,IDK,IDL)
 C     &                  UMAT(IDI,IDJ,IDK,IDL)
                   ENDDO
                   SUM2=SUM2+SUM3*(BTRANS(CE,K,CSPN))
