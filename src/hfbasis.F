@@ -508,7 +508,6 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          RETURN
       END
       SUBROUTINE GENDMAT(NSPINS,NSBASIS,NELS,FMAT,DMAT,LTRANS)
-         use Integrals_neci, only: GetUMatEl
          USE Logging, only: HFLogLevel
          use SystemData, only: BasisFN
          use constants, only: dp
@@ -555,7 +554,7 @@ C.. vector
       SUBROUTINE GENFMAT(FMAT,DMAT,NSBASIS,NSPINS)
          USE OneEInts, only: GetTMATEl
          USE UMatCache, only: GTID
-         use Integrals_neci, only: GetUMatEl
+         use procedure_pointers, only: get_umat_el
          USE Logging, only: HFLogLevel
          use constants, only: dp
          use SystemData, only: BasisFN
@@ -592,7 +591,7 @@ C.. Now sum in the alpha and beta block of u matrix
                            ID4 = GTID((L-1)*NSPINS+ISPN2)
                            IF(abs(DMAT(K,L,ISPN2)).gt.DmatEpsilon)
      &                      TOT=TOT+(RHFMUL)*
-     &                  DMAT(K,L,ISPN2)*GetUMatEl(ID1,ID3,ID2,ID4)
+     &                  DMAT(K,L,ISPN2)*get_umat_el(ID1,ID3,ID2,ID4)
 !                           WRITE(6,"(4I3)", advance='no') I,J,K,L
 !                           WRITE(6,*) (RHFMUL)*
 !     &                  DMAT(K,L,ISPN2)*GetUMatEl(NBasisMax,UMat,ALAT,
@@ -600,7 +599,7 @@ C.. Now sum in the alpha and beta block of u matrix
                            IF(ISPN2.EQ.ISPN
      &                       .AND.(abs(DMAT(K,L,ISPN2)).gt.DmatEpsilon))
      &                        TOT=TOT-
-     &                  DMAT(K,L,ISPN2)*GetUMatEl(ID1,ID3,ID4,ID2)
+     &                  DMAT(K,L,ISPN2)*get_umat_el(ID1,ID3,ID4,ID2)
 !                           IF(ISPN2.EQ.ISPN)
 !     &                        WRITE(6,*)
 !     &                  DMAT(K,L,ISPN2)*GetUMatEl(NBasisMax,UMat,ALat,

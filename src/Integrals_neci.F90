@@ -17,42 +17,11 @@ module Integrals_neci
     use HElem, only: HElement_t_size, HElement_t_sizeB
     use Parallel_neci, only: iProcIndex
     use bit_reps, only: init_bit_rep
+    use procedure_pointers, only: get_umat_el, get_umat_el_secondary
 
     implicit none
 
-    interface
-        function get_umat_el (fn, i, j, k, l) result(hel) bind(c)
-            ! Obtains the Coulomb integral <ij|kl> from the UMat array.
-            ! In:
-            !    fn: pointer to the system-specific get_umat_el_* function.
-            !    i,j,k,l: orbital indices. These refer to spin orbitals in
-            !      unrestricted calculations and spatial orbitals in restricted
-            !      calculations.
-            use iso_c_hack
-            use constants, only: dp
-            implicit none
-            type(c_ptr), intent(in), value :: fn
-            integer, intent(in) :: i, j, k, l
-            HElement_t :: hel
-        end function
-    end interface
-
 contains
-
-    subroutine set_getumatel_fn (fn)
-        implicit none
-#include "umat_ptr.h"
-
-        call assign_proc (ptr_getumatel, fn)
-    end subroutine
-
-    subroutine set_getumatel_stack (fn2)
-        implicit none
-#include "umat_ptr_stack.h"
-
-        ptr_getumatel_2 = ptr_getumatel
-        call assign_proc (ptr_getumatel, fn2)
-    end subroutine
 
     subroutine SetIntDefaults()
       != Set defaults for Calc data items.
@@ -997,11 +966,11 @@ contains
              IDA = GTID(AB)
              IDB = GTID(BB)
 !C.. No sign problems from permuations here as all perms even
-             ECORE=ECORE+GETUMATEL(IDA,IDB,IDA,IDB)
+             ECORE=ECORE + get_umat_el(IDA,IDB,IDA,IDB)
 !C.. If we have spin-independent integrals, or 
 !C.. if the spins are the same
              IF(G1(AB)%MS.EQ.G1(BB)%MS)                               &
-   &            ECORE=ECORE-GETUMATEL(IDA,IDB,IDB,IDA)
+   &            ECORE=ECORE - get_umat_el(IDA,IDB,IDB,IDA)
           ENDDO
 
 !The sum over b runs over all frozen orbitals > a, so the inner frozen orbitals too.          
@@ -1010,11 +979,11 @@ contains
              IDA = GTID(AB)
              IDB = GTID(BB)
 !C.. No sign problems from permuations here as all perms even
-             ECORE=ECORE+GETUMATEL(IDA,IDB,IDA,IDB)
+             ECORE=ECORE + get_umat_el(IDA,IDB,IDA,IDB)
 !C.. If we have spin-independent integrals, or 
 !C.. if the spins are the same
              IF(G1(AB)%MS.EQ.G1(BB)%MS)                               &
-   &            ECORE=ECORE-GETUMATEL(IDA,IDB,IDB,IDA)
+   &            ECORE=ECORE - get_umat_el(IDA,IDB,IDB,IDA)
           ENDDO
        ENDDO
 
@@ -1028,11 +997,11 @@ contains
              IDA = GTID(AB)
              IDB = GTID(BB)
 !C.. No sign problems from permuations here as all perms even
-             ECORE=ECORE+GETUMATEL(IDA,IDB,IDA,IDB)
+             ECORE=ECORE + get_umat_el(IDA,IDB,IDA,IDB)
 !C.. If we have spin-independent integrals, or 
 !C.. if the spins are the same
              IF(G1(AB)%MS.EQ.G1(BB)%MS)                               &
-   &            ECORE=ECORE-GETUMATEL(IDA,IDB,IDB,IDA)
+   &            ECORE=ECORE - get_umat_el(IDA,IDB,IDB,IDA)
           ENDDO
        ENDDO
 
@@ -1103,19 +1072,19 @@ contains
                        IF(G1(IB)%MS.EQ.G1(JB)%MS) THEN
                           IF(TSTARSTORE.or.tCPMDSymTMat) THEN
                              TMATSYM2(NEWTMATInd(IPB,JPB))=                  &
-   &                         GetNEWTMATEl(IPB,JPB)+GETUMATEL(IDA,IDI,IDA,IDJ)
+   &                         GetNEWTMATEl(IPB,JPB) + get_umat_el(IDA,IDI,IDA,IDJ)
                           ELSE
 !                             IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 02")
                              if(tOneElecDiag) then
                                  if(IPB.eq.JPB) then
-                                     TMAT2D2(IPB,1)=TMAT2D2(IPB,1)+GETUMATEL(IDA,IDI,IDA,IDJ)
+                                     TMAT2D2(IPB,1)=TMAT2D2(IPB,1) + get_umat_el(IDA,IDI,IDA,IDJ)
                                  else
-                                     if(abs(GETUMATEL(IDA,IDI,IDA,IDJ)).gt.1.0e-8_dp) then
+                                     if(abs(get_umat_el(IDA,IDI,IDA,IDJ)).gt.1.0e-8_dp) then
                                          call stop_all("","Error here in freezing for UEG")
                                      endif
                                  endif
                              else
-                                 TMAT2D2(IPB,JPB)=TMAT2D2(IPB,JPB)+GETUMATEL(IDA,IDI,IDA,IDJ)
+                                 TMAT2D2(IPB,JPB)=TMAT2D2(IPB,JPB) + get_umat_el(IDA,IDI,IDA,IDJ)
                              endif
                           ENDIF
                        ENDIF
@@ -1124,21 +1093,21 @@ contains
                        IF(G1(IB)%MS.EQ.G1(AB)%MS.AND.G1(AB)%MS.EQ.G1(JB)%MS) THEN
                           IF(TSTARSTORE.or.tCPMDSymTMat) THEN
                              TMATSYM2(NEWTMATInd(IPB,JPB))=GetNEWTMATEl(IPB,JPB) &
-   &                         -GETUMATEL(IDA,IDI,IDJ,IDA)        
+   &                          - get_umat_el(IDA,IDI,IDJ,IDA)        
                           ELSE
                               if(tOneElecDiag) then
                                   if(IPB.eq.JPB) then
                                       TMAT2D2(IPB,1)=GetNEWTMATEl(IPB,JPB)              &
-   &                                  -GETUMATEL(IDA,IDI,IDJ,IDA)
+   &                                   - get_umat_el(IDA,IDI,IDJ,IDA)
                                   else
-                                      if(abs(GETUMATEL(IDA,IDI,IDJ,IDA)).gt.1.0e-8_dp) then
+                                      if(abs(get_umat_el(IDA,IDI,IDJ,IDA)).gt.1.0e-8_dp) then
                                          call stop_all("","Error here in freezing for UEG")
                                       endif
                                   endif
                               else
     !                             IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 03")
                                  TMAT2D2(IPB,JPB)=GetNEWTMATEl(IPB,JPB)              &
-   &                             -GETUMATEL(IDA,IDI,IDJ,IDA)
+   &                              - get_umat_el(IDA,IDI,IDJ,IDA)
                               endif
                           ENDIF
                        ENDIF
@@ -1153,19 +1122,19 @@ contains
                        IF(G1(IB)%MS.EQ.G1(JB)%MS) THEN
                           IF(TSTARSTORE.or.tCPMDSymTMat) THEN
                              TMATSYM2(NEWTMATInd(IPB,JPB))=                  &
-   &                         GetNEWTMATEl(IPB,JPB)+GETUMATEL(IDA,IDI,IDA,IDJ)
+   &                         GetNEWTMATEl(IPB,JPB) + get_umat_el(IDA,IDI,IDA,IDJ)
                           ELSE
                               if(tOneElecDiag) then
                                   if(IPB.eq.JPB) then
-                                     TMAT2D2(IPB,1)=TMAT2D2(IPB,1)+GETUMATEL(IDA,IDI,IDA,IDJ)
+                                     TMAT2D2(IPB,1)=TMAT2D2(IPB,1) + get_umat_el(IDA,IDI,IDA,IDJ)
                                  else
-                                     if(abs(GETUMATEL(IDA,IDI,IDA,IDJ)).gt.1.0e-8_dp) then
+                                     if(abs(get_umat_el(IDA,IDI,IDA,IDJ)).gt.1.0e-8_dp) then
                                          call stop_all("","Error here in freezing for UEG")
                                      endif
                                  endif
                               else
 !                                 IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 04")
-                                 TMAT2D2(IPB,JPB)=TMAT2D2(IPB,JPB)+GETUMATEL(IDA,IDI,IDA,IDJ)
+                                 TMAT2D2(IPB,JPB)=TMAT2D2(IPB,JPB) + get_umat_el(IDA,IDI,IDA,IDJ)
                              endif
                           ENDIF
                        ENDIF
@@ -1174,21 +1143,21 @@ contains
                        IF(G1(IB)%MS.EQ.G1(AB)%MS.AND.G1(AB)%MS.EQ.G1(JB)%MS) THEN
                           IF(TSTARSTORE.or.tCPMDSymTMat) THEN
                              TMATSYM2(NEWTMATInd(IPB,JPB))=GetNEWTMATEl(IPB,JPB) &
-   &                         -GETUMATEL(IDA,IDI,IDJ,IDA)        
+   &                          - get_umat_el(IDA,IDI,IDJ,IDA)        
                           ELSE
                               if(tOneElecDiag) then
                                   if(IPB.eq.JPB) then
                                      TMAT2D2(IPB,1)=GetNEWTMATEl(IPB,JPB)              &
-   &                                 -GETUMATEL(IDA,IDI,IDJ,IDA)
+   &                                  - get_umat_el(IDA,IDI,IDJ,IDA)
                                   else
-                                      if(abs(GETUMATEL(IDA,IDI,IDJ,IDA)).gt.1.0e-8_dp) then
+                                      if(abs(get_umat_el(IDA,IDI,IDJ,IDA)).gt.1.0e-8_dp) then
                                          call stop_all("","Error here in freezing for UEG")
                                       endif
                                   endif
                               else
 !                                 IF(IPB.eq.0.or.JPB.eq.0) CALL Stop_All("","here 05")
                                  TMAT2D2(IPB,JPB)=GetNEWTMATEl(IPB,JPB)              &
-   &                             -GETUMATEL(IDA,IDI,IDJ,IDA)
+   &                              - get_umat_el(IDA,IDI,IDJ,IDA)
                               endif
                           ENDIF
                        ENDIF
@@ -1373,7 +1342,7 @@ contains
        HElement_t GetUMatEl2
        integer :: I,J,A,B
        
-       GetUMatEl2=GetUMatEl(I,J,A,B)
+       GetUMatEl2 = get_umat_el(I,J,A,B)
 
     end function GetUMatEl2
 
@@ -1400,31 +1369,30 @@ contains
 
                 if (tumat2d) then
                     ! call umat2d routine
-                    call set_getumatel_fn (get_umat_el_tumat2d)
-
+                    get_umat_el => get_umat_el_tumat2d
                 else
                     ! see if in the cache. This is the fallback if ids are
                     ! such that umat2d canot be used anyway.
-                    call set_getumatel_fn (get_umat_el_cache)
+                    get_umat_el => get_umat_el_cache
                 endif
             else if (iss == -1) then
                 ! Non-stored hubbard integral
-                call set_getumatel_fn (get_hub_umat_el)
+                get_umat_el => get_hub_umat_el
             else
                 if (tStarStore) then
                     if (.not. tumat2d) &
                         call stop_all (this_routine, &
                                        'UMat2D is required for tStarStore')
                     write (6, '(" Setting StarStore GetUMatEl routine")')
-                    call set_getumatel_fn (get_umat_el_starstore)
+                    get_umat_el => get_umat_el_starstore
                 else
                     write (6, '(" Setting normal GetUMatEl routine")')
-                    call set_getumatel_fn (get_umat_el_normal)
+                    get_umat_el => get_umat_el_normal
                 endif
             endif
         else if (nBasisMax(1,3) == -1) then
             ! UEG integral
-            call set_getumatel_fn (get_ueg_umat_el)
+            get_umat_el => get_ueg_umat_el
         endif
 
         ! Note that this comes AFTER the above tests
@@ -1434,17 +1402,19 @@ contains
             if (tStoreSpinOrbs) then
                 write (6, '(" Setting GetUmatEl to use fixed lz with &
                             &tStoreSpinOrbs set")')
-                call set_getumatel_stack (get_umat_el_fixlz_storespinorbs)
+                get_umat_el_secondary => get_umat_el
+                get_umat_el => get_umat_el_fixlz_storespinorbs
             else
                 write (6, '(" Setting GetUmatEl to use fixed lz without &
                             &tStoreSpinOrbs set")')
-                call set_getumatel_stack (get_umat_el_fixlz_notspinorbs)
+                get_umat_el_secondary => get_umat_el
+                get_umat_el => get_umat_el_fixlz_notspinorbs
             endif
         endif
 
     end subroutine
 
-    function get_umat_el_tumat2d (idi, idj, idk, idl, fn) result (hel) bind(c)
+    function get_umat_el_tumat2d (idi, idj, idk, idl) result (hel)
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -1462,7 +1432,6 @@ contains
         integer, intent(in) :: idi, idj, idk, idl
         integer :: i, j
         HElement_t :: hel
-        type(c_ptr), intent(in), value :: fn
 
 
         if ( (idi == idj) .and. (idi == idk) .and. (idi == idl) ) then
@@ -1487,12 +1456,12 @@ contains
             j = min (idi, idk)
             hel = umat2d (i, j)
         else
-            hel = get_umat_el_cache (idi, idj, idk, idl, ptr_getumatel)
+            hel = get_umat_el_cache (idi, idj, idk, idl)
         endif
 
     end function get_umat_el_tumat2d
 
-    function get_umat_el_cache (idi, idj, idk, idl, fn) result (hel) bind(c)
+    function get_umat_el_cache (idi, idj, idk, idl) result (hel)
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -1521,7 +1490,6 @@ contains
         HElement_t :: hel, UElems(0:nTypes-1)
         logical :: calc2ints
         complex(dp) :: vasp_int(1, 0:1)
-        type(c_ptr), intent(in), value :: fn
 
 
         i = idi
@@ -1650,7 +1618,7 @@ contains
         
     end function
 
-    function get_umat_el_fixlz_storespinorbs (i, j, k, l, fn2) result(hel)
+    function get_umat_el_fixlz_storespinorbs (i, j, k, l) result(hel)
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -1663,8 +1631,6 @@ contains
         ! In:
         !    i,j,k,l: spin-orbital indices.
         
-#include "umat_ptr_stack.h"
-
         integer, intent(in) :: i, j, k, l
         HElement_t :: hel
 
@@ -1675,12 +1641,12 @@ contains
             hel = 0
         else
             ! get_umat_el_normal is a dummy argument
-            hel = fn2 (i, j, k, l, get_umat_el_normal)
+            hel = get_umat_el_secondary(i, j, k, l)
         endif
 
     end function
 
-    function get_umat_el_fixlz_notspinorbs (i, j, k, l, fn2) result(hel)
+    function get_umat_el_fixlz_notspinorbs (i, j, k, l) result(hel)
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -1692,8 +1658,6 @@ contains
 
         ! In:
         !    i,j,k,l: spatial orbital indices.
-        
-#include "umat_ptr_stack.h"
 
         integer, intent(in) :: i, j, k, l
         HElement_t :: hel
@@ -1705,12 +1669,12 @@ contains
             hel = 0
         else
             ! get_umat_el_normal is a dummy argument
-            hel = fn2 (i, j, k, l, get_umat_el_normal)
+            hel = get_umat_el_secondary(i, j, k, l)
         endif
 
     end function
 
-    function get_umat_el_normal (idi, idj, idk, idl, fn) result(hel) bind(c)
+    function get_umat_el_normal (idi, idj, idk, idl) result(hel)
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -1727,7 +1691,6 @@ contains
 
         integer, intent(in) :: idi, idj, idk, idl
         HElement_t :: hel
-        type(c_ptr), intent(in), value :: fn
 
         hel = UMAT (UMatInd(idi, idj, idk, idl, 0, 0))
 #ifdef __CMPLX
@@ -1736,7 +1699,7 @@ contains
 
     end function
 
-    function get_umat_el_starstore (idi, idj, idk, idl, fn) result(hel) bind(c)
+    function get_umat_el_starstore (idi, idj, idk, idl) result(hel)
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -1756,7 +1719,6 @@ contains
         integer, intent(in) :: idi, idj, idk, idl
         integer :: i, j
         HElement_t :: hel
-        type(c_ptr), intent(in), value :: fn
 
         if ( (idi == idj) .and. (idi == idk) .and. (idi == idl) ) then
             hel = umat2d (idi, idi)
@@ -1784,31 +1746,6 @@ contains
             endif
         endif
     end function
-
-
-    FUNCTION GetUMatEl(IDI,IDJ,IDK,IDL)
-        use systemdata, only: basisfn
-      ! Get a U matrix element <ij|u|kl> in multifarious ways, where orbitals
-      ! are spatial orbitals.  Either from a passed-in UMAT, or ALAT parameters
-      ! (Hubbard, UEG, particle in a box), or from UMatcache (CPMD, DF).
-      ! In:
-      !    nBasisMax: legacy.  Contains some information that Alex is not clear on (rant at will).
-      !    UMatstore: Store of <ij|u|kl> integrals.
-      !    ALAT: Size of cell/box for Hubbard/UEG/particle in a box.
-      !    iSS: as above in GetUMatSize.
-      !    NHG: # basis functions.`
-      !    G1: symmetry and momentum information on the basis functions.
-      !    IDI,IDJ,IDK,IDL: indices for integral.
-
-      ! This function only exists for backward compatibility, and acts as
-      ! another layer of wrapper
-      ! --> For Speed call the get_umat_el function directly.
-
-      HElement_t GetUMatEl
-      INTEGER IDI,IDJ,IDK,IDL
-
-      getumatel = get_umat_el (ptr_getumatel, idi, idj, idk, idl)
-    END FUNCTION GetUMatEl
 
 
 
