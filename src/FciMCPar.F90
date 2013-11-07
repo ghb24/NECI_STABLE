@@ -656,81 +656,6 @@ MODULE FciMCParMod
         iUnused2 = iLutI(0)
     end subroutine
 
-<<<<<<< HEAD
-    subroutine set_new_child_stats (new_child_stats)
-        use iso_c_hack
-        implicit none
-        interface
-            subroutine new_child_stats (iter_data, iLutI, nJ, iLutJ, ic, &
-                                        walkExLevel, realchild, parent_flags, &
-                                        part_type)
-                use SystemData, only: nel
-                use bit_reps, only: niftot
-                use constants, only: n_int, lenof_sign, dp
-                use FciMCData, only: fcimc_iter_data
-                implicit none
-                integer(kind=n_int), intent(in) :: ilutI(0:niftot), iLutJ(0:niftot)
-                integer, intent(in) :: ic, walkExLevel, parent_flags, nJ(nel)
-                integer, intent(in) :: part_type
-                real(dp), dimension(lenof_sign) , intent(in) :: realchild
-                type(fcimc_iter_data), intent(inout) :: iter_data
-            end subroutine
-        end interface
-
-        call assign_proc (ptr_new_child_stats, new_child_stats)
-    end subroutine
-
-    subroutine set_attempt_die (attempt_die)
-        use iso_c_hack
-        implicit none
-        interface
-            function attempt_die (nI, Kii, RealwSign, WalkExcitLevel) result(ndie)
-                use SystemData, only: nel
-                use constants, only: lenof_sign, dp
-                implicit none
-                integer, intent(in) :: nI(nel)
-                real(dp), dimension(lenof_sign), intent(in) :: realwSign
-                real(dp), intent(in) :: Kii
-                real(dp), dimension(lenof_sign) :: ndie
-                integer, intent(in) :: WalkExcitLevel
-            end function
-        end interface
-
-        call assign_proc (ptr_attempt_die, attempt_die)
-    end subroutine
-
-    subroutine set_fcimc_iter_data (data_struct)
-        use iso_c_hack
-        implicit none
-        type(fcimc_iter_data), target :: data_struct
-
-        call assign_data (ptr_iter_data, data_struct)
-    end subroutine
-
-    subroutine set_extract_bit_rep_avsign(extract_bit_rep_avsign)
-        use, intrinsic :: iso_c_binding
-        implicit none
-        interface
-            subroutine extract_bit_rep_avsign(iLutnI, CurrH_I, nI, SignI, &
-                                              FlagsI, IterRDMStartI, AvSignI, &
-                                              Store)
-                use constants
-                use SystemData, only: nel
-                use bit_reps, only: NIfTot
-                use FciMCData, only : excit_gen_store_type, NCurrH
-                implicit none
-                integer(n_int), intent(in) :: iLutnI(0:nIfTot)
-                real(dp), intent(in) :: CurrH_I(NCurrH)
-                integer, intent(out) :: nI(nel), FlagsI
-                real(dp), dimension(lenof_sign), intent(out) :: SignI
-                real(dp), intent(out) :: IterRDMStartI, AvSignI
-                type(excit_gen_store_type), intent(inout), optional :: Store
-            end subroutine
-        end interface
-
-        call assign_proc (ptr_extract_bit_rep_avsign, extract_bit_rep_avsign)
-    end subroutine
-
 
     subroutine PerformFCIMCycPar(iter_data)
         
@@ -1731,7 +1656,6 @@ MODULE FciMCParMod
         
     function attempt_create_trunc_spawn (DetCurr,&
                                          iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, &
-                                         iLutCurr, wSign, nJ, iLutnJ, prob, HElGen, &
                                          ic, ex, tparity, walkExcitLevel, part_type, &
                                          AvSignCurr, RDMBiasFacCurr) result(child)
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type 
@@ -1788,6 +1712,7 @@ MODULE FciMCParMod
 
         call EncodeBitDet (nJ, iLutnJ)
         if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
+            child = attempt_create_normal (DetCurr, &
                                iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
                                tParity, walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr)
         else
