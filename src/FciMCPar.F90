@@ -1843,7 +1843,7 @@ MODULE FciMCParMod
 
                 ! And round this to an integer in the usual way
                 ! HACK: To use the same number of random numbers for the tests.
-                if (nspawn == 0) r = genrand_real2_dSFMT()
+                if (nspawn - real(int(nspawn)) == 0) r = genrand_real2_dSFMT()
                 nSpawn = real(stochastic_round (nSpawn), dp)
             endif
 
