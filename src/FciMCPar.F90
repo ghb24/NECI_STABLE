@@ -142,6 +142,15 @@ MODULE FciMCParMod
     use sort_mod
     use get_excit, only: make_double
 
+    ! And nice clear include of the procedure pointers
+    use procedure_pointers, only: generate_excitation, attempt_create, &
+                                  get_spawn_helement, encode_child, &
+                                  new_child_stats, attempt_die, &
+                                  extract_bit_rep_avsign, attempt_die_t, &
+                                  fill_rdm_diag_currdet, get_spawn_helement_t,&
+                                  generate_excitation_t
+
+
     implicit none
 #ifdef MOLPRO
     include "common/tapes"
@@ -152,12 +161,6 @@ MODULE FciMCParMod
     contains
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
-
-        ! Use statements are here to keep g95 happy.
-        use procedure_pointers, only: generate_excitation_t, attempt_die_t, &
-                                      get_spawn_helement_t, attempt_die, &
-                                      generate_excitation, get_spawn_helement
-
         use Logging, only: PopsfileTimer
         use util_mod, only: get_free_unit
         use nElRDMMod, only: InitRDM
@@ -189,7 +192,7 @@ MODULE FciMCParMod
         include "common/molen"
 #endif
 
-        ! Procedure pointer temporaries.
+        ! Procedure pointer temporaries
         procedure(generate_excitation_t), pointer :: ge_tmp
         procedure(get_spawn_helement_t), pointer :: gs_tmp
         procedure(attempt_die_t), pointer :: ad_tmp
@@ -649,12 +652,8 @@ MODULE FciMCParMod
 
     subroutine PerformFCIMCycPar(iter_data)
         
-        ! This is a hack to make g95 happy. Really it would be better to
-        ! include this at the module level, but the compiler gets confused.
-        use procedure_pointers, only: encode_child, extract_bit_rep_avsign, &
-                                      generate_excitation, new_child_stats, &
-                                      fill_rdm_diag_currdet, attempt_create
-
+         use sym_mod
+         use IntegralsData, only : Nfrozen
 
         ! Iteration specific data
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -1477,13 +1476,6 @@ MODULE FciMCParMod
 
     subroutine init_fcimc_fn_pointers ()
 
-        ! Use statements are here to keep g95 happy. Really it would be better
-        ! to have them at the module level, but oh well...
-        use procedure_pointers, only: generate_excitation, attempt_create, &
-                                      get_spawn_helement, encode_child, &
-                                      new_child_stats, extract_bit_rep_avsign,&
-                                      attempt_die, fill_rdm_diag_currdet
-
         ! Select the excitation generator
         if (tHPHF) then
             generate_excitation => gen_hphf_excit
@@ -1697,9 +1689,6 @@ MODULE FciMCParMod
     function attempt_create_normal (DetCurr, iLutCurr, &
                                     wSign, nJ, iLutnJ, prob, HElGen, ic, ex, tparity,&
                                     walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr) result(child)
-
-        ! Keep g95 happy
-        use procedure_pointers, only: get_spawn_helement
 
         integer, intent(in) :: DetCurr(nel), nJ(nel)
         integer, intent(in) :: part_type    ! 1 = Real parent particle, 2 = Imag parent particle
@@ -2124,7 +2113,6 @@ MODULE FciMCParMod
 
     subroutine walker_death (iter_data, DetCurr, iLutCurr, Kii, &
                              wSign, wAvSign, IterRDMStartCurr, VecSlot, DetPosition)
-        use procedure_pointers, only: attempt_die
 
         integer, intent(in) :: DetCurr(nel) 
         integer, dimension(lenof_sign), intent(in) :: wSign
@@ -5107,10 +5095,6 @@ MODULE FciMCParMod
     END SUBROUTINE SetupParameters
 
     subroutine check_start_rdm()
-
-        ! This use statement is here to keep g95 happy.
-        use procedure_pointers, only: extract_bit_rep_avsign
-
 ! This routine checks if we should start filling the RDMs - and does so if we should.        
         use nElRDMMod , only : DeAlloc_Alloc_SpawnedParts
         implicit none
