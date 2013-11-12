@@ -1626,7 +1626,7 @@ contains
     end function
 
     function get_umat_el_comporb_storespinorbs (i, j, k, l) result(hel)
-        use sym_mod, only: symProd, symConj
+        use sym_mod, only: symProd, symConj, decomposeabeliansym,totsymrep
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -1643,7 +1643,8 @@ contains
         
         integer, intent(in) :: i, j, k, l
         HElement_t :: hel
-        type(Symmetry) :: SymX,SymY,SymX_C
+        type(Symmetry) :: SymX,SymY,SymX_C,symtot,sym_sym
+!        integer, dimension(3) :: ksymx,ksymy,ksymx_c
         character(len=*), parameter :: t_r='get_umat_el_comporb_storespinorbs'
 
         ! If we have complex orbitals, then <ij|kl> != <kj|il> necessarily, since we
@@ -1656,20 +1657,33 @@ contains
         SymX = SymProd(G1(i)%sym,G1(j)%sym)
         SymY = SymProd(G1(k)%sym,G1(l)%sym)
         SymX_C = SymConj(SymX)
-        if(SymX_C%S.eq.SymY%S) then
+        symtot = SymProd(SymX_C,SymY)
+        sym_sym = totsymrep()
+        
+!        call decomposeAbelianSym(SymX%s,ksymx)
+!        call decomposeAbelianSym(SymY%s,ksymy)
+!        call decomposeAbelianSym(SymX_C%s,ksymx_c)
+!        write(6,*) "SymX: ",ksymx(:)
+!        write(6,*) "SymY: ",ksymy(:)
+!        write(6,*) "SymX_C: ",ksymx_c(:)
+        
+        if(symtot%s.eq.sym_sym%s) then
+!        if(SymX_C%S.eq.SymY%S) then
             !Symmetry allowed
             hel = get_umat_el_secondary(i, j, k, l)
+!            write(6,*) "symmetry allowed",i,j,k,l,hel
         else
-            hel = 0
+!            write(6,*) "Symmetry forbidden", i,j,k,l
+           hel = 0
         endif
 #ifdef __CMPLX
-        call stop_all(t_r,"Should not be requesting a real integral")
+        call stop_all(t_r,"Should not be requesting a complex integral")
 #endif
 
     end function
 
     function get_umat_el_comporb_notspinorbs (i, j, k, l) result(hel)
-        use sym_mod, only: symProd, symConj
+        use sym_mod, only: symProd, symConj, totsymrep
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -1687,7 +1701,7 @@ contains
 
         integer, intent(in) :: i, j, k, l
         HElement_t :: hel
-        type(Symmetry) :: SymX,SymY,SymX_C
+        type(Symmetry) :: SymX,SymY,SymX_C,symtot,sym_sym
         character(len=*), parameter :: t_r='get_umat_el_comporb_notspinorbs'
         
         ! If we have complex orbitals, then <ij|kl> != <kj|il> necessarily, since we
@@ -1700,7 +1714,11 @@ contains
         SymX = SymProd(G1(2*i)%sym,G1(2*j)%sym)
         SymY = SymProd(G1(2*k)%sym,G1(2*l)%sym)
         SymX_C = SymConj(SymX)
-        if(SymX_C%S.eq.SymY%S) then
+        symtot = SymProd(SymX_C,SymY)
+        sym_sym = totsymrep()
+        
+        if(symtot%s.eq.sym_sym%s) then
+        !if(SymX_C%S.eq.SymY%S) then
             !Symmety allowed
             ! get_umat_el_normal is a dummy argument
             hel = get_umat_el_secondary(i, j, k, l)
@@ -1708,7 +1726,7 @@ contains
             hel = 0
         endif
 #ifdef __CMPLX
-        call stop_all(t_r,"Should not be requesting a real integral")
+        call stop_all(t_r,"Should not be requesting a complex integral")
 #endif
 
     end function
