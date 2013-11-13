@@ -1219,10 +1219,11 @@ MODULE FciMCParMod
             ! Otherwise, it extracts the Curr info, and calculates the iteration this determinant 
             ! became occupied (IterRDMStartCurr) and the average population during that time 
             ! (AvSignCurr).
+
             call extract_bit_rep_avsign (CurrentDets(:,j), CurrentH(1:NCurrH,j), &
                                         DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
                                         AvSignCurr, fcimc_excit_gen_store)
-           
+            
             ! If this state is in the deterministic space.
             !TODO CMO: Sort the combination of Semi-stochastic and double run
             if (tSemiStochastic) then
@@ -1369,7 +1370,6 @@ MODULE FciMCParMod
             !                 --> part_type == 1, 2; real and complex walkers
             !                 --> OR double run
             !                 --> part_type == 1, 2; population sets 1 and 2, both real
-
             do part_type=1,lenof_sign
 
                 !The logic here is a little messy, but relates to the tSpawn_only_init option.
@@ -1398,6 +1398,7 @@ MODULE FciMCParMod
                         WalkersToSpawn=WalkersToSpawn+1
                     endif
                 endif
+                    
 
                 do p = 1, WalkersToSpawn
                     ! Zero the bit representation, to ensure no extraneous
@@ -1509,18 +1510,18 @@ MODULE FciMCParMod
                 CurrentDets(:,j), HDiagCurr, SignCurr, &
                 AvSignCurr, IterRDMStartCurr, VecSlot, j, WalkExcitLevel)
             end if
-
             if(tFill_RDM) then 
                 ! If tFill_RDM is true, this is an iteration where the diagonal 
                 ! RDM elements are calculated, along with the contributions from 
                 ! connections to the (true) HF determinant.
 
-                if((abs(CurrentH(2,VecSlot-1)).gt.InitiatorWalkNo).or.(.not.tInitiatorRDM)) & 
+                if((abs(CurrentH(2,VecSlot-1)).gt.InitiatorWalkNo).or.(.not.tInitiatorRDM)) then 
                 ! If we are only using initiators to calculate the RDMs, only add in the diagonal and 
                 ! explicit contributions if the average population is greater than n_a = InitiatorWalkNo.
                     call fill_rdm_diag_currdet(CurrentDets(:,VecSlot-1), DetCurr, &
                             CurrentH(1:NCurrH,VecSlot-1), walkExcitLevel_toHF,& 
-                            test_flag(CurrentDets(:,j), flag_deterministic))  
+                            test_flag(CurrentDets(:,j), flag_deterministic)) 
+                    endif
             endif
 
         enddo ! Loop over determinants.
@@ -1732,13 +1733,16 @@ MODULE FciMCParMod
 !        WRITE(6,*) 'Encoding',iLutJ
 !        WRITE(6,*) 'To position',ValidSpawnedList(proc)
 !        WRITE(6,*) 'Parent',iLutI
-
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, flags)
         !write(6,*) "After:", return_nsteps(SpawnedParts(:, ValidSpawnedList(proc)))
 
-        IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) &
-                call store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, WalkersToSpawn, iLutJ, proc)
+        ! For double run, we're going to try only including off-diagonal elements from
+        ! successful spawning attempts within part_type=1.  Later, we should include both,
+        ! but for now, this may be simplest.
+        IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then
+            call store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, WalkersToSpawn, iLutJ, proc, part_type)
+        endif
         !We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
         !We want to store the parent (D_i) with the spawned child (D_j) so that we can
         !add in Ci.Cj to the RDM later on.
@@ -2457,7 +2461,7 @@ MODULE FciMCParMod
             child(part_type) = nSpawn
 #endif
         enddo
-
+       
         if(tFillingStochRDMonFly) then
             if((child(part_type).ne.0).and.(.not.tHF_Ref_Explicit)) then
                 call calc_rdmbiasfac(p_spawn_rdmfac, prob, AvSignCurr(part_type), realwSign(part_type), RDMBiasFacCurr) 
@@ -2770,7 +2774,6 @@ MODULE FciMCParMod
         ! haven't got to yet).
         ! This does not hold with tHashWalkerList, since the determinants do
         ! not move
-
         if(lenof_sign.eq.2) then
             !In complex case or double run, fill slot if either real or imaginary particle still there.
             IF((CopySign(1).ne.0.0_dp).or.(CopySign(2).ne.0.0_dp)) THEN
@@ -2855,17 +2858,17 @@ MODULE FciMCParMod
                     ! their walkers have all died.
                     ! This is because we're using the sign of each determinant before death.
                     ! But if the walker is removed from the list altogether, this would be lost too.
-                    if(tHashWalkerList) then
-                        call encode_sign(CurrentDets(:,DetPosition),NullSign)
-                        CurrentH(2:1+lenof_sign,DetPosition) = wAvSign
-                        CurrentH(2+lenof_sign:1+2*lenof_sign,DetPosition) = IterRDMStartCurr
-                    else
-                        call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,NullSign,extract_flags(iLutCurr))
-                        if (.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
-                        CurrentH(2:1+lenof_sign,VecSlot) = wAvSign
-                        CurrentH(2+lenof_sign:1+2*lenof_sign,VecSlot) = IterRDMStartCurr
-                        VecSlot = VecSlot + 1
-                    endif
+                    call encode_sign(CurrentDets(:,DetPosition),NullSign)
+                    CurrentH(2:1+lenof_sign,DetPosition) = wAvSign
+                    CurrentH(2+lenof_sign:1+2*lenof_sign,DetPosition) = IterRDMStartCurr
+                else
+                    !Remove the determinant from the indexing list
+                    call RemoveDetHashIndex(DetCurr,DetPosition)
+                    !Add to the "freeslot" list
+                    iEndFreeSlot=iEndFreeSlot+1
+                    FreeSlot(iEndFreeSlot)=DetPosition
+                    !Encode a null det to be picked up
+                    call encode_sign(CurrentDets(:,DetPosition),NullSign)
                 endif
                 if(tTruncInitiator) then
                     ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
@@ -2877,14 +2880,27 @@ MODULE FciMCParMod
                         if (tSpawnSpatialInit) call rm_initiator_list (ilutCurr)
                     endif
                 endif
-                if(tHashWalkerList.and.(.not.tFillingStochRDMonFly)) then
-                    !Remove the determinant from the indexing list
-                    call RemoveDetHashIndex(DetCurr,DetPosition)
-                    !Add to the "freeslot" list
-                    iEndFreeSlot=iEndFreeSlot+1
-                    FreeSlot(iEndFreeSlot)=DetPosition
-                    !Encode a null det to be picked up
-                    call encode_sign(CurrentDets(:,DetPosition),NullSign)
+            ELSE
+                if(tFillingStochRDMonFly) then
+                    ! If we're stochastically filling the RDMs, we want to keep determinants even if 
+                    ! their walkers have all died.
+                    ! This is because we're using the sign of each determinant before death.
+                    ! But if the walker is removed from the list altogether, this would be lost too.
+                    call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
+                    if (.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
+                    CurrentH(2:1+lenof_sign,VecSlot) = wAvSign
+                    CurrentH(2+lenof_sign:1+2*lenof_sign,VecSlot) = IterRDMStartCurr
+                    VecSlot = VecSlot + 1
+                endif
+                if(tTruncInitiator) then
+                    ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
+                    if(test_flag(iLutCurr,flag_is_initiator(1))) then
+                        NoAddedInitiators(1)=NoAddedInitiators(1)-1
+                        if (tSpawnSpatialInit) call rm_initiator_list (ilutCurr)
+                    elseif(test_flag(iLutCurr,flag_is_initiator(lenof_sign))) then
+                        NoAddedInitiators(inum_runs)=NoAddedInitiators(inum_runs)-1
+                        if (tSpawnSpatialInit) call rm_initiator_list (ilutCurr)
+                    endif
                 endif
             ENDIF
         else
@@ -6038,6 +6054,9 @@ MODULE FciMCParMod
             !We have reached the iteration where we want to start filling the RDM.
             if(tExplicitAllRDM) then
                 ! Explicitly calculating all connections - expensive...
+                if(inum_runs.eq.2) call stop_all('check_start_rdm',"Cannot yet do replica RDM sampling with explicit RDMs. &
+                    & e.g Hacky bit in Gen_Hist_ExcDjs to make it compile")
+                
                 tFillingExplicRDMonFly = .true.
                 if(tHistSpawn) NHistEquilSteps = Iter
             else
@@ -7346,7 +7365,7 @@ MODULE FciMCParMod
                     MemoryAlloc=MemoryAlloc+8*MaxWalkersPart*(1+2*lenof_sign)
                     WRITE(6,"(A)") " The average current signs before death will be stored for use in the RDMs."
                     WRITE(6,"(A,F14.6,A)") " This requires ", REAL(MaxWalkersPart*8*2*lenof_sign,dp)/1048576.0_dp," Mb/Processor"
-                    NCurrH = 3
+                    NCurrH = 1+2*lenof_sign
                 else
                     ALLOCATE(WalkVecH(1,MaxWalkersPart),stat=ierr)
                     CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
@@ -7714,7 +7733,8 @@ MODULE FciMCParMod
         ! CurrentDets, calculating and storing all Hamiltonian matrix elements and initalising all
         ! arrays required to store and distribute the vectors in the deterministic space later.
         if (tSemiStochastic) then
-            if(inum_runs.eq.2) call stop_all('InitFCIMCCalcPar','Cannot yet do SS and double run simultaneously')
+            if(inum_runs.eq.2) call stop_all('InitFCIMCCalcPar','Cannot yet do SS and double run simultaneously. &
+                    & In addition to other things, need to deal with fill_RDM_offdiag_deterministic().')
             call init_semi_stochastic()
         endif
 

@@ -386,6 +386,7 @@ MODULE AnnihilationMod
         ! deterministic space then it should be aborted - we only know if the state it occupies is
         ! deterministic later on).
         ! If not performing a semi-stochastic simulation then these conditions are just ignored.
+
         call sort(SpawnedParts(:,1:ValidSpawned), ilut_lt, ilut_gt)
         
         CALL halt_timer(Sort_time)
@@ -416,7 +417,7 @@ MODULE AnnihilationMod
 
             FirstInitIndex=0
             CurrentBlockDet=BeginningBlockDet+1
-
+    
             do while(CurrentBlockDet.le.ValidSpawned)
                 if(.not.(DetBitEQ(SpawnedParts(0:NIfTot,BeginningBlockDet),SpawnedParts(0:NIfTot,CurrentBlockDet),NIfDBO))) exit
                 if (tSemiStochastic .and. (.not. tCoreHash)) then
@@ -783,8 +784,8 @@ MODULE AnnihilationMod
 
         ! Obviously only add the parent determinant into the parent array if it is 
         ! actually being stored - and is therefore not zero.
-        if((tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)).and.&
-            (.not.DetBitZero(new_det(NIfTot+1:NIfTot+NIfDBO+1),NIfDBO))) then
+        if(((tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)).and.&
+            (.not.DetBitZero(new_det(NIfTot+1:NIfTot+NIfDBO+1),NIfDBO)).and.(part_type.eq.1))) then
             ! No matter what the final sign is, always want to add any Di stored in 
             ! SpawnedParts to the parent array.
             Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = new_det(NIfTot+1:NIfTot+NIfDBO+2)
@@ -1012,7 +1013,9 @@ MODULE AnnihilationMod
                         !The parent determinants were in the deterministic space, but this target det is not.
                         !Therefore, we need to add in off-diagonal RDM elements
                         if(tSuccess .and. tFillingStochRDMonFly .and.(.not.tHF_Ref_Explicit)) then
-                            call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
+                            !In Double run, the information in SpawnedParents comes from part_type 1
+                            !Therefore, the information from Current Dets should come from part_type 2
+                            call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(1+lenof_sign,PartInd))
                         endif
                         if (comp == 0) then
                             ! If the next state is the same, and this state is not in the deterministic space
@@ -1031,7 +1034,7 @@ MODULE AnnihilationMod
                             ! Both sets need to be added in to RDM off-diagonal elements.  The first set has
                             ! been done above.  The second is now done here:
                             if(tSuccess .and. tFillingStochRDMonFly .and.(.not.tHF_Ref_Explicit)) then
-                                call check_fillRDM_DiDj(i+1,CurrentDets(:,PartInd),CurrentH(2,PartInd))
+                                call check_fillRDM_DiDj(i+1,CurrentDets(:,PartInd),CurrentH(1+lenof_sign,PartInd))
                             endif
 
                             ! Update stats:
@@ -1051,7 +1054,7 @@ MODULE AnnihilationMod
                     ! Walkers spawned onto this state from outside the deterministic space.
                     ! We do need to include this off-diagonal contribution to the RDMs
                     if(tSuccess .and. tFillingStochRDMonFly .and.(.not.tHF_Ref_Explicit)) then
-                        call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
+                        call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(1+lenof_sign,PartInd))
                     endif
                 end if
             else
@@ -1060,7 +1063,7 @@ MODULE AnnihilationMod
                 ! cj - and therefore the Di.Dj pair will have a non-zero ci.cj to contribute to the RDM.
                 ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
                 if(tSuccess .and. tFillingStochRDMonFly .and.(.not.tHF_Ref_Explicit)) then
-                    call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
+                    call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(1+lenof_sign,PartInd))
                 endif
             endif
 

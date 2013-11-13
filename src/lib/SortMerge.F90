@@ -32,7 +32,7 @@
         use MI_integrals, only: MI_diag_helement
         USE CalcData , only : tTruncInitiator
         USE HElem
-        use constants, only: dp,n_int
+        use constants, only: dp,n_int,lenof_sign
         use util_mod, only: binary_search_custom
         use trial_wf_gen, only: find_trial_and_con_states
         IMPLICIT NONE
@@ -135,7 +135,7 @@
            CurrentH(1,ips+i-1)=HDiag
            if(HDiag.eq.0.0_dp) &
                call extract_sign(CurrentDets(:,ips+i-1),InstNoatHF)
-           if(tFillingStochRDMonFly) CurrentH(2:3,ips+i-1) = 0.0_dp
+           if(tFillingStochRDMonFly) CurrentH(2:1+2*lenof_sign,ips+i-1) = 0.0_dp
 ! Next element to be inserted must be smaller than DetCurr, so must be inserted
 ! at (at most) at ips-1.
 ! If nlisto=0 then all remaining elements in list2 must be inserted directly
