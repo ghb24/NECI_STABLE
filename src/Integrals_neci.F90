@@ -1411,7 +1411,7 @@ contains
             if(tStoreSpinOrbs) then
                 write(6,'("Setting GetUMatEl to use momentum checking with spinorbital storage")')
                 get_umat_el_secondary => get_umat_el
-                get_umat_el => get_umat_el_comporb_storespinorbs
+                get_umat_el => get_umat_el_comporb_spinorbs
             else
                 write(6,'("Setting GetUMatEl to use momentum checking without spinorbital storage")')
                 get_umat_el_secondary => get_umat_el
@@ -1625,7 +1625,7 @@ contains
         
     end function
 
-    function get_umat_el_comporb_storespinorbs (i, j, k, l) result(hel)
+    function get_umat_el_comporb_spinorbs (i, j, k, l) result(hel)
         use sym_mod, only: symProd, symConj, decomposeabeliansym,totsymrep
 
         ! Obtains the Coulomb integral <ij|kl>.
@@ -1645,7 +1645,7 @@ contains
         HElement_t :: hel
         type(Symmetry) :: SymX,SymY,SymX_C,symtot,sym_sym
 !        integer, dimension(3) :: ksymx,ksymy,ksymx_c
-        character(len=*), parameter :: t_r='get_umat_el_comporb_storespinorbs'
+        character(len=*), parameter :: t_r='get_umat_el_comporb_spinorbs'
 
         ! If we have complex orbitals, then <ij|kl> != <kj|il> necessarily, since we
         ! have complex orbitals (though real integrals) and want to ensure
