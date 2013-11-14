@@ -6,7 +6,7 @@ module Integrals_neci
 
     use SystemData, only: tStoreSpinOrbs, tStarStore, nBasisMax, iSpinSkip, &
                           tFixLz, nBasis, G1, Symmetry, tCacheFCIDUMPInts, &
-                          tRIIntegrals, tVASP
+                          tRIIntegrals, tVASP,tComplexOrbs_RealInts
     use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
                          nTypes, gen2CPMDInts, tDFInts
@@ -1382,16 +1382,8 @@ contains
                 ! Non-stored hubbard integral
                 get_umat_el => get_hub_umat_el
             else
-                if (tStarStore) then
-                    if (.not. tumat2d) &
-                        call stop_all (this_routine, &
-                                       'UMat2D is required for tStarStore')
-                    write (6, '(" Setting StarStore GetUMatEl routine")')
-                    get_umat_el => get_umat_el_starstore
-                else
-                    write (6, '(" Setting normal GetUMatEl routine")')
-                    get_umat_el => get_umat_el_normal
-                endif
+                write (6, '(" Setting normal GetUMatEl routine")')
+                get_umat_el => get_umat_el_normal
             endif
         else if (nBasisMax(1,3) == -1) then
             ! UEG integral
@@ -1412,6 +1404,21 @@ contains
                             &tStoreSpinOrbs set")')
                 get_umat_el_secondary => get_umat_el
                 get_umat_el => get_umat_el_fixlz_notspinorbs
+            endif
+        endif
+
+        !If we have complex orbitals (i.e. k-point symmetry), but real integrals, we need to check
+        !the symmetry before looking up the integral. This is because there is only 4x permutational
+        !symmetry, and one version will be zero, while the other is non-zero
+        if(tComplexOrbs_RealInts) then
+            if(tStoreSpinOrbs) then
+                write(6,'("Setting GetUMatEl to use momentum checking with spinorbital storage")')
+                get_umat_el_secondary => get_umat_el
+                get_umat_el => get_umat_el_comporb_spinorbs
+            else
+                write(6,'("Setting GetUMatEl to use momentum checking without spinorbital storage")')
+                get_umat_el_secondary => get_umat_el
+                get_umat_el => get_umat_el_comporb_notspinorbs
             endif
         endif
 
@@ -1619,6 +1626,112 @@ contains
             nHits = nHits + 1
         endif
         
+    end function
+
+    function get_umat_el_comporb_spinorbs (i, j, k, l) result(hel)
+        use sym_mod, only: symProd, symConj, decomposeabeliansym,totsymrep
+
+        ! Obtains the Coulomb integral <ij|kl>.
+
+        ! This version considers the case where we are fixing momentum symmetry, and
+        ! are storing spin orbitals. Therefore, we need to check momentum
+        ! before searching for the integral, since there is only 4x perm symmetry,
+        ! with the other 'half' being zero by symmetry.
+
+        ! It is safest to use the get_umat_el wrapper function to access
+        ! get_umat_el_* functions.
+
+        ! In:
+        !    i,j,k,l: spin-orbital indices.
+        
+        integer, intent(in) :: i, j, k, l
+        HElement_t :: hel
+        type(Symmetry) :: SymX,SymY,SymX_C,symtot,sym_sym
+!        integer, dimension(3) :: ksymx,ksymy,ksymx_c
+        character(len=*), parameter :: t_r='get_umat_el_comporb_spinorbs'
+
+        ! If we have complex orbitals, then <ij|kl> != <kj|il> necessarily, since we
+        ! have complex orbitals (though real integrals) and want to ensure
+        ! that we conserve momentum. i.e. momentum of bra = mom of ket.
+        ! Check momentum here.
+
+        !TODO: This should be sped up, by using the k-point labels,
+        !so that they don't need to be decomposed and repackaged each time.
+        SymX = SymProd(G1(i)%sym,G1(j)%sym)
+        SymY = SymProd(G1(k)%sym,G1(l)%sym)
+        SymX_C = SymConj(SymX)
+        symtot = SymProd(SymX_C,SymY)
+        sym_sym = totsymrep()
+        
+!        call decomposeAbelianSym(SymX%s,ksymx)
+!        call decomposeAbelianSym(SymY%s,ksymy)
+!        call decomposeAbelianSym(SymX_C%s,ksymx_c)
+!        write(6,*) "SymX: ",ksymx(:)
+!        write(6,*) "SymY: ",ksymy(:)
+!        write(6,*) "SymX_C: ",ksymx_c(:)
+        
+        if(symtot%s.eq.sym_sym%s) then
+!        if(SymX_C%S.eq.SymY%S) then
+            !Symmetry allowed
+            hel = get_umat_el_secondary(i, j, k, l)
+!            write(6,*) "symmetry allowed",i,j,k,l,hel
+        else
+!            write(6,*) "Symmetry forbidden", i,j,k,l
+           hel = 0
+        endif
+#ifdef __CMPLX
+        call stop_all(t_r,"Should not be requesting a complex integral")
+#endif
+
+    end function
+
+    function get_umat_el_comporb_notspinorbs (i, j, k, l) result(hel)
+        use sym_mod, only: symProd, symConj, totsymrep
+
+        ! Obtains the Coulomb integral <ij|kl>.
+
+        ! This version considers the case where we are fixing momentum symmetry, and
+        ! are storing spatial orbitals. Therefore, we need to check momentum
+        ! before searching for the integral, since there is only 4x perm symmetry,
+        ! with the other 'half' being zero by symmetry.
+        ! are not storing spin orbitals.
+
+        ! It is safest to use the get_umat_el wrapper function to access
+        ! get_umat_el_* functions.
+
+        ! In:
+        !    i,j,k,l: spatial orbital indices.
+
+        integer, intent(in) :: i, j, k, l
+        HElement_t :: hel
+        type(Symmetry) :: SymX,SymY,SymX_C,symtot,sym_sym
+        character(len=*), parameter :: t_r='get_umat_el_comporb_notspinorbs'
+        
+        ! If we have complex orbitals, then <ij|kl> != <kj|il> necessarily, since we
+        ! have complex orbitals (though real integrals) and want to ensure
+        ! that we conserve momentum. i.e. momentum of bra = mom of ket.
+        ! Check momentum here.
+
+        !TODO: This should be sped up, by using the k-point labels,
+        !so that they don't need to be decomposed and repackaged each time.
+        SymX = SymProd(G1(2*i)%sym,G1(2*j)%sym)
+        SymY = SymProd(G1(2*k)%sym,G1(2*l)%sym)
+        SymX_C = SymConj(SymX)
+        symtot = SymProd(SymX_C,SymY)
+        sym_sym = totsymrep()
+        
+        if(symtot%s.eq.sym_sym%s) then
+        !if(SymX_C%S.eq.SymY%S) then
+            !Symmety allowed
+            ! get_umat_el_normal is a dummy argument
+            hel = get_umat_el_secondary(i, j, k, l)
+        else
+            hel = 0
+        endif
+#ifdef __CMPLX
+        call stop_all(t_r,"Should not be requesting a complex integral")
+#endif
+
     end function
 
     function get_umat_el_fixlz_storespinorbs (i, j, k, l) result(hel)
