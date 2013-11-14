@@ -22,6 +22,7 @@ MODULE NatOrbsMod
         use bit_reps, only: decode_bit_det
         use MemoryManager, only: TagIntType
         use util_mod, only: get_free_unit
+        use procedure_pointers, only: get_umat_el
         IMPLICIT NONE
         INTEGER(TagIntType) :: NoSpinCyc,SymOrbs_rotTempTag
         real(dp) , ALLOCATABLE :: NatOrbMat(:,:),Evalues(:)
@@ -612,7 +613,6 @@ MODULE NatOrbsMod
 ! MP2VDM = D2_ab = sum_ijc [ t_ij^ac ( 2 t_ij^bc - t_ji^bc ) ]
 ! Where :  t_ij^ac = - < ab | ij > / ( E_a - E_i + E_b - Ej )
 ! Ref : J. Chem. Phys. 131, 034113 (2009) - note: in Eqn 1, the cb indices are the wrong way round (should be bc).
-        USE Integrals_neci , only : GetUMatEl
         USE SystemData , only : tUEG
         use constants, only: dp
         INTEGER :: a,b,c,i,j,a2,b2,c2,i2,j2,x,y,z,w
@@ -740,14 +740,14 @@ MODULE NatOrbsMod
                                             j=SymLabelList2_rot(j2)
 
                                             IF(tUEG) THEN
-                                                HEl01=GETUMATEL(a,c,i,j)
-                                                HEl02=GETUMATEL(b,c,i,j)
+                                                HEl01=get_umat_el(a,c,i,j)
+                                                HEl02=get_umat_el(b,c,i,j)
                                                 MP2VDMSum=MP2VDMSum+&
                                                     &(( (REAL(HEl01,dp)) * (2.0_dp*(REAL(HEl02,dp))) )/&
                                                     &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) &
                                                     &* (ARR(2*i,2)+ARR(2*j,2)-ARR(2*b,2)-ARR(2*c,2)) ) )
 
-                                                HEl02=GETUMATEL(c,b,i,j)
+                                                HEl02=get_umat_el(c,b,i,j)
                                                 MP2VDMSum=MP2VDMSum-&
                                                     &(( (REAL(HEl01,dp)) * (REAL(HEl02,dp)) )/&
                                                     &( (ARR(2*i,2)+ARR(2*j,2)-ARR(2*a,2)-ARR(2*c,2)) * &

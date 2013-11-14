@@ -324,12 +324,11 @@ contains
         IF(KDIM.EQ.4.AND.K1(4).NE.K2(4)) LCMP=.FALSE.
     end function ChkMomEq
  
-    function get_hub_umat_el (i, j, k, l, fn) result(hel) bind(c)
+    function get_hub_umat_el (i, j, k, l) result(hel)
         use sym_mod, only: roundsym, addelecsym, setupsym, lchksym
         integer, intent(in) :: i, j, k, l
         HElement_t :: hel
         type(BasisFn) :: ka, kb
-        type(c_ptr), intent(in), value :: fn
 
         call SetupSym (ka)
         call SetupSym (kb)
@@ -346,7 +345,7 @@ contains
         endif
     end function
 
-    function get_ueg_umat_el (idi, idj, idk, idl, fn) result(hel) bind(c)
+    function get_ueg_umat_el (idi, idj, idk, idl) result(hel)
 
         use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen, Madelung
         integer, intent(in) :: idi, idj, idk, idl
@@ -356,7 +355,6 @@ contains
         logical :: tCoulomb, tExchange          
         real(dp), parameter :: EulersConst = 0.5772156649015328606065120900824024_dp
         character(*), parameter :: this_routine = 'get_ueg_umat_el'
-        type(c_ptr), intent(in), value :: fn
 
         !==================================================      
         if (tUEG2) then

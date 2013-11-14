@@ -855,7 +855,7 @@ MODULe nElRDMMod
 
     end subroutine extract_bit_rep_avsign_norm
 
-    subroutine fill_rdm_diag_currdet_norm(iLutnI, nI, CurrH_I, ExcitLevelI) 
+    subroutine fill_rdm_diag_currdet_norm(iLutnI, nI, CurrH_I, ExcitLevelI, IterLastRDMFill) 
 ! This routine calculates the diagonal RDM contribution, and explicit connections to the HF, from the 
 ! current determinant. 
 ! Each determinant (iLutnI/nI), has Hii element CurrH_I(1), average 
@@ -866,7 +866,7 @@ MODULe nElRDMMod
 ! the determinant has been occupied, which ever is fewer.
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         real(dp) , intent(in) :: CurrH_I(NCurrH)
-        integer, intent(in) :: nI(nel), ExcitLevelI
+        integer, intent(in) :: nI(nel), ExcitLevelI, IterLastRDMFill
         real(dp) :: IterDetOcc, IterRDM
         integer(n_int) :: SpinCoupDet(0:nIfTot)
         integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
@@ -921,7 +921,7 @@ MODULe nElRDMMod
 
     end subroutine fill_rdm_diag_currdet_norm
 
-    subroutine fill_rdm_diag_currdet_hfsd(iLutnI, nI, CurrH_I, ExcitLevelI) 
+    subroutine fill_rdm_diag_currdet_hfsd(iLutnI, nI, CurrH_I, ExcitLevelI, IterLastRDMFill) 
 ! This routine calculates the diagonal RDM contribution, and explicit connections to the HF, from the 
 ! current determinant. 
 ! Each determinant (iLutnI/nI), has Hii element CurrH_I(1), average 
@@ -932,7 +932,7 @@ MODULe nElRDMMod
 ! the determinant has been occupied, which ever is fewer.
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         real(dp) , intent(in) :: CurrH_I(NCurrH)
-        integer, intent(in) :: nI(nel), ExcitLevelI
+        integer, intent(in) :: nI(nel), ExcitLevelI, IterLastRDMFill
         real(dp) :: IterDetOcc, IterRDM
         integer(n_int) :: SpinCoupDet(0:nIfTot)
         integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
@@ -1025,9 +1025,9 @@ MODULe nElRDMMod
                 endif
 
                 if(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
-                    call fill_rdm_diag_currdet_hfsd(iLutnI, nI, CurrH_I, ExcitLevel)
+                    call fill_rdm_diag_currdet_hfsd(iLutnI, nI, CurrH_I, ExcitLevel, IterLastRDMFill)
                 else
-                    call fill_rdm_diag_currdet_norm(iLutnI, nI, CurrH_I, ExcitLevel)
+                    call fill_rdm_diag_currdet_norm(iLutnI, nI, CurrH_I, ExcitLevel, IterLastRDMFill)
                 endif
 
             endif

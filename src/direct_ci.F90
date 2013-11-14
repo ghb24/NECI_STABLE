@@ -37,8 +37,7 @@ module direct_ci
     use bit_rep_data, only: NIfD
     use DetBitOps, only: get_single_parity
     use enumerate_excitations, only: simple_excit_store
-    use Integrals_neci, only: get_umat_el
-    use IntegralsData, only: ptr_getumatel
+    use procedure_pointers, only: get_umat_el
     use OneEInts, only: GetTMatEl
     use ras
     use ras_data
@@ -162,18 +161,15 @@ contains
                 ! The following lines add in g_{kl} from Eq. 29.
                 do j = 1, ex1(2)-1
                     factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) - &
-                            par_1*get_umat_el(ptr_getumatel, BRR_ex1(2), BRR(2*j)/2, &
-                                                             BRR(2*j)/2, BRR_ex1(1))
+                            par_1*get_umat_el(BRR_ex1(2), BRR(2*j)/2, BRR(2*j)/2, BRR_ex1(1))
                 end do
 
                 if (ex1(2) > ex1(1)) then
                     factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) - &
-                            par_1*get_umat_el(ptr_getumatel, BRR_ex1(2), BRR_ex1(2), &
-                                                             BRR_ex1(2), BRR_ex1(1))
+                            par_1*get_umat_el(BRR_ex1(2), BRR_ex1(2), BRR_ex1(2), BRR_ex1(1))
                 else if (ex1(2) == ex1(1)) then
                     factors(class_k, sym_k)%elements(ind_k) = factors(class_k, sym_k)%elements(ind_k) - &
-                            0.5_dp*par_1*get_umat_el(ptr_getumatel, BRR_ex1(2), BRR_ex1(2), &
-                                                                    BRR_ex1(2), BRR_ex1(1))
+                            0.5_dp*par_1*get_umat_el(BRR_ex1(2), BRR_ex1(2), BRR_ex1(2), BRR_ex1(1))
                 end if
 
                 ! Loop over all single excitations from string_k (-> string_j).
@@ -201,12 +197,10 @@ contains
                     ! Avoid overcounting for the case that the indices are the same.
                     if (ex1(1) == ex2(1) .and. ex1(2) == ex2(2)) then
                         factors(class_j, sym_j)%elements(ind_j) = factors(class_j, sym_j)%elements(ind_j) + &
-                          0.5_dp*par_1*par_2*get_umat_el(ptr_getumatel, BRR_ex2(2), BRR_ex1(2), &
-                                                                        BRR_ex2(1), BRR_ex1(1))
+                          0.5_dp*par_1*par_2*get_umat_el(BRR_ex2(2), BRR_ex1(2), BRR_ex2(1), BRR_ex1(1))
                     else
                         factors(class_j, sym_j)%elements(ind_j) = factors(class_j, sym_j)%elements(ind_j) + &
-                          par_1*par_2*get_umat_el(ptr_getumatel, BRR_ex2(2), BRR_ex1(2), &
-                                                                 BRR_ex2(1), BRR_ex1(1))
+                          par_1*par_2*get_umat_el(BRR_ex2(2), BRR_ex1(2), BRR_ex2(1), BRR_ex1(1))
                     end if
 
                 end do
@@ -359,7 +353,7 @@ contains
                         BRR_ex2(2) = int(BRR(2*ex2(2))/2,sizeof_int)
 
                         alpha_beta_fac(full_ind_j) = alpha_beta_fac(full_ind_j) + &
-                          par_1*get_umat_el(ptr_getumatel, BRR_ex2(2), BRR_ex1(2), BRR_ex2(1), BRR_ex1(1))
+                          par_1*get_umat_el(BRR_ex2(2), BRR_ex1(2), BRR_ex2(1), BRR_ex1(1))
 
                     end do
 
