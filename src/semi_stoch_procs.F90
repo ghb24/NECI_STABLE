@@ -626,6 +626,8 @@ contains
     subroutine write_core_space()
 
         integer :: i, j, k, iunit, ierr
+        logical :: texist
+        character(len=*), parameter :: t_r='write_core_space'
 
         write(6,'(a35)') "Writing the core space to a file..."
 
@@ -640,6 +642,8 @@ contains
                 if (i == 0) then
                     open(iunit, file='CORESPACE', status='replace')
                 else
+                    inquire(file='CORESPACE',exist=texist)
+                    if(.not.texist) call stop_all(t_r,'"CORESPACE" file cannot be found')
                     open(iunit, file='CORESPACE', status='old', position='append')
                 end if
                 
