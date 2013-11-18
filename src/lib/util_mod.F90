@@ -428,10 +428,6 @@ contains
         lo = lbound(arr,2)
         hi = ubound(arr,2)
 
-        ! The search range
-        lo = lbound(arr,2)
-        hi = ubound(arr,2)
-
         ! Account for poor usage (i.e. array len == 0)
         if (hi < lo) then
             pos = -lo
@@ -488,6 +484,65 @@ contains
 
     end function binary_search
 
+    function binary_search_real (arr, val) &
+                                 result(pos)
+        use constants, only: n_int
+
+        real(dp), intent(in) :: arr(:)
+        real(dp), intent(in) :: val
+        integer :: pos
+
+        integer :: hi, lo
+
+        ! The search range
+        lo = lbound(arr,1)
+        hi = ubound(arr,1)
+
+        ! Account for poor usage (i.e. array len == 0)
+        if (hi < lo) then
+            pos = -lo
+            return
+        endif
+
+        ! Narrow the search range down in steps.
+        do while (hi /= lo)
+            pos = int(real(hi + lo) / 2)
+
+            if (arr(pos) == val) then
+                exit
+            else if (val > arr(pos)) then
+                ! val is "greater" than arr(:len,pos).
+                ! The lowest position val can take is hence pos + 1 (i.e. if
+                ! val is greater than pos by smaller than pos + 1).
+                lo = pos + 1
+            else
+                ! arr(:,pos) is "greater" than val.
+                ! The highest position val can take is hence pos (i.e. if val is
+                ! smaller than pos but greater than pos - 1).  This is why
+                ! we differ slightly from a standard binary search (where lo
+                ! is set to be pos+1 and hi to be pos-1 accordingly), as
+                ! a standard binary search assumes that the element you are
+                ! searching for actually appears in the array being
+                ! searched...
+                hi = pos
+            endif
+        enddo
+
+        ! If we have narrowed down to one position, and it is not the item,
+        ! then return -pos to indicate that the item is not present, but that
+        ! this is the location it should be in.
+        if (hi == lo) then
+            if (arr(hi) == val) then
+                pos = hi
+            else if (val > arr(hi)) then
+                pos = -hi - 1
+            else
+                pos = -hi
+            endif
+        endif
+
+    end function binary_search_real
+
     function binary_search_custom (arr, val, cf_len, custom_gt) &
                                                      result(pos)
         !use bit_reps, only: NIfD
@@ -509,10 +564,6 @@ contains
         integer :: pos
 
         integer :: hi, lo
-
-        ! The search range
-        lo = lbound(arr,2)
-        hi = ubound(arr,2)
 
         ! The search range
         lo = lbound(arr,2)

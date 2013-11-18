@@ -26,7 +26,7 @@ module trial_wf_gen
     use semi_stoch_procs
     use sparse_arrays
     use SystemData, only: nel, tDoublesTrial, tOptimisedTrial, tCASTrial, tPopsTrial, &
-                          tLowETrial, tHPHF
+                          tLowETrial, tHPHF, tMP1Trial, trial_mp1_ndets
     use util_mod, only: get_free_unit, binary_search_custom
 
     implicit none
@@ -77,6 +77,8 @@ contains
             call generate_space_from_file(called_from_trial)
         elseif (tLowETrial) then
             call generate_low_energy_core(called_from_trial)
+        else if (tMP1Trial) then
+            call generate_using_mp1_criterion(called_from_trial)
         end if
 
         if (tLimitTrialSpace) call remove_high_energy_orbs&

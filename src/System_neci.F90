@@ -91,11 +91,13 @@ MODULE System
       tPopsCore = .false.
       tReadCore = .false.
       tLowECore = .false.
+      tMP1Core = .false.
       tSparseCoreHamil = .true.
       num_det_generation_loops = 1
       n_core_pops = 0
       low_e_core_excit = 0
       low_e_core_num_keep = 0
+      semistoch_mp1_ndets = 0
       tLowECoreAllDoubles = .false.
       tLimitDetermSpace = .false.
       tLimitTrialSpace = .false.
@@ -109,10 +111,12 @@ MODULE System
       tPopsTrial = .false.
       tReadTrial = .false.
       tLowETrial = .false.
+      tMP1Trial = .false.
       num_trial_generation_loops = 1
       n_trial_pops = 0
       low_e_trial_excit = 0
       low_e_trial_num_keep = 0
+      trial_mp1_ndets = 0
       tLowETrialAllDoubles = .false.
       tTrialAmplitudeCutoff = .false.
       STOT=0
@@ -370,6 +374,10 @@ system: do
             TCSFOLD = .true.
         case("SEMI-STOCHASTIC")
             tSemiStochastic = .true.
+            if (item < nitems) then
+                call geti(semistoch_mp1_ndets)
+                tMP1Core = .true.
+            end if
         case("DETERMINANT-CORE")
             tDeterminantCore = .true.
         case("CSF-CORE")
@@ -448,6 +456,10 @@ system: do
             call geti(max_trial_size)
         case("TRIAL-WAVEFUNCTION")
             tTrialWavefunction = .true.
+            if (item < nitems) then
+                call geti(trial_mp1_ndets)
+                tMP1Trial = .true.
+            end if
         case("DOUBLES-TRIAL")
             tDoublesTrial = .true.
         case("CAS-TRIAL")

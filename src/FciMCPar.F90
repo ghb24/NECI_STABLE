@@ -149,7 +149,7 @@ MODULE FciMCParMod
     use determ_proj, only: perform_determ_proj
     use semi_stoch_gen, only: init_semi_stochastic
     use semi_stoch_procs, only: deterministic_projection, return_most_populated_states, &
-                                end_semistoch, is_core_state
+                                end_semistoch, is_core_state, return_mp1_amp_and_mp2_energy
     use trial_wf_gen, only: init_trial_wf, update_compare_trial_file, end_trial_wf
     use gndts_mod, only: gndts
     use sort_mod
@@ -7504,7 +7504,7 @@ MODULE FciMCParMod
         use Determinants, only: GetH0Element3,GetH0Element4
         use SymExcit3 , only : GenExcitations3
         use CalcData , only : InitialPart
-        real(dp) :: TotMP1Weight,amp,MP2Energy,PartFac,H0tmp,rat,r
+        real(dp) :: TotMP1Weight,amp,MP2Energy,PartFac,H0tmp,rat,r,energy_contrib
         HElement_t :: hel,HDiagtemp
         integer :: iExcits, exflag, Ex(2,2), nJ(NEl), ic, DetIndex, iNode
         integer :: iInit, Slot, DetHash, ExcitLevel
@@ -7546,42 +7546,20 @@ MODULE FciMCParMod
         do while(.true.)
             call GenExcitations3(HFDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound,.false.)
             if(tAllExcitsFound) exit !All excits found
+
+            call EncodeBitDet(nJ,iLutnJ)
             if(tHPHF) then
                 !Working in HPHF Space. Check whether determinant generated is an 'HPHF'
-                call EncodeBitDet(nJ,iLutnJ)
                 if(.not.IsAllowedHPHF(iLutnJ)) cycle
             elseif(tMomInv) then
                 !Working in MI space, Check whether determinant generated is allowed
-                call EncodeBitDet(nJ,iLutnJ)
                 if(.not.IsAllowedMI(nJ,iLutnJ)) cycle
             endif
-            iExcits=iExcits+1
-            if(Ex(1,2).eq.0) then
-                ic=1
-            else
-                ic=2
-            endif
-            if(tHPHF) then
-                !Assume since we are using HPHF that the alpha and
-                !beta orbitals of the same spatial orbital have the same
-                !fock energies, so can consider either.
-                hel=hphf_off_diag_helement(HFDet,nJ,iLutHF,iLutnJ)
-            elseif(tMomInv) then
-                hel=MI_off_diag_helement(HFDet,nJ,iLutHF,iLutnJ)
-            else
-                hel=get_helement(HFDet,nJ,ic,Ex,tParity)
-            endif
-            if(tUEG) then
-                !This will calculate the MP2 energies without having to use the fock eigenvalues.
-                !This is done via the diagonal determinant hamiltonian energies.
-                H0tmp=getH0Element4(nJ,HFDet)
-            else
-                H0tmp=getH0Element3(nJ)
-            endif
-            H0tmp=Fii-H0tmp
-            amp=hel/H0tmp
+            iExcits = iExcits + 1
+
+            call return_mp1_amp_and_mp2_energy(nJ,iLutnJ,Ex,tParity,amp,energy_contrib)
             TotMP1Weight=TotMP1Weight+abs(amp)
-            MP2Energy=MP2Energy+(hel**2)/H0tmp
+            MP2Energy=MP2Energy+energy_contrib
         enddo
 
         if((.not.tHPHF).and.(.not.tMomInv).and.(iExcits.ne.(nDoubles+nSingles))) then
@@ -7625,39 +7603,20 @@ MODULE FciMCParMod
         do while(.true.)
             call GenExcitations3(HFDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound,.false.)
             if(tAllExcitsFound) exit !All excits found
+            call EncodeBitDet(nJ,iLutnJ)
             if(tHPHF) then
-                call EncodeBitDet(nJ,iLutnJ)
+                !Working in HPHF Space. Check whether determinant generated is an 'HPHF'
                 if(.not.IsAllowedHPHF(iLutnJ)) cycle
             elseif(tMomInv) then
-                call EncodeBitDet(nJ,iLutnJ)
+                !Working in MI space, Check whether determinant generated is allowed
                 if(.not.IsAllowedMI(nJ,iLutnJ)) cycle
             endif
 
             iNode=DetermineDetNode(nJ,0)
             if(iProcIndex.eq.iNode) then
-                if(Ex(1,2).eq.0) then
-                    ic=1
-                else
-                    ic=2
-                endif
-                if(tHPHF) then
-                    hel=hphf_off_diag_helement(HFDet,nJ,iLutHF,iLutnJ)
-                elseif(tMomInv) then
-                    hel=MI_off_diag_helement(HFDet,nJ,iLutHF,iLutnJ)
-                else
-                    hel=get_helement(HFDet,nJ,ic,Ex,tParity)
-                endif
-                if(tUEG) then
-                    !This will calculate the MP2 energies without having to use the fock eigenvalues.
-                    !This is done via the diagonal determinant hamiltonian energies.
-                    H0tmp=getH0Element4(nJ,HFDet)
-                else
-                    H0tmp=getH0Element3(nJ)
-                endif
-                H0tmp=Fii-H0tmp
-                !No parts on this det = PartFac*Amplitude
-                amp=(hel/H0tmp)*PartFac
-                
+                call return_mp1_amp_and_mp2_energy(nJ,iLutnJ,Ex,tParity,amp,energy_contrib)
+                if (.not. (amp > 0.0_dp)) cycle
+
                 if (tRealCoeffByExcitLevel) ExcitLevel=FindBitExcitLevel(iLutnJ, iLutRef, nEl)
                 if (tAllRealCoeff .or. &
                     & (tRealCoeffByExcitLevel.and.(ExcitLevel.le.RealCoeffExcitThresh))) then
@@ -7676,7 +7635,6 @@ MODULE FciMCParMod
                 end if
                 
                 if(NoWalkers.ne.0.0) then
-                    call EncodeBitDet(nJ,iLutnJ)
                     call encode_det(CurrentDets(:,DetIndex),iLutnJ)
                     call clear_all_flags(CurrentDets(:,DetIndex))
                     temp_sign(1) = NoWalkers
