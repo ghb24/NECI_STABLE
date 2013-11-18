@@ -124,6 +124,9 @@ contains
 
             call generate_connected_space(num_elem, trial_space(:,min_elem:max_elem), con_space_size)
 
+            write(6,"(A,F12.3,A)") "Attempting to allocate con_space. Size = ", &
+                    real(con_space_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp," Mb"
+            call flush(6)
             allocate(con_space(0:NIfTot, con_space_size), stat=ierr)
             call LogMemAlloc('con_space', con_space_size*(NIfTot+1), size_n_int, t_r, ConTag, ierr)
             con_space = 0
@@ -168,6 +171,9 @@ contains
             recvdisps(i) = sum(recvcounts(:i-1))
         end do
 
+        write(6,"(A,F12.3,A)") "Attempting to allocate temp_space. Size = ",    &
+            real(con_space_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp," Mb"
+        call flush(6)
         allocate(temp_space(0:NIfTot, con_space_size), stat=ierr)
         call LogMemAlloc('temp_space', con_space_size*(NIfTot+1), size_n_int, t_r, TempTag, ierr)
 
@@ -177,6 +183,9 @@ contains
             deallocate(con_space, stat=ierr)
             call LogMemDealloc(t_r, ConTag, ierr)
         end if
+        write(6,"(A,F12.3,A)") "Attempting to allocate con_space. Size = ",     &
+            real(con_space_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp," Mb"
+        call flush(6)
         allocate(con_space(0:NIfTot, 1:con_space_size), stat=ierr)
         call LogMemAlloc('con_space', con_space_size*(NIfTot+1), size_n_int, t_r, ConTag, ierr)
         con_space = temp_space
@@ -574,8 +583,11 @@ contains
     subroutine write_trial_space()
 
         integer :: i, j, k, iunit, ierr
+        logical :: texist
+        character(len=*), parameter :: t_r='write_trial_space'
 
         write(6,'(a36)') "Writing the trial space to a file..."
+        iunit = get_free_unit()
 
         ! Let each processor write its trial states to the file. Each processor waits for
         ! the processor before it to finish before starting.
@@ -584,9 +596,10 @@ contains
             if (iProcIndex == i) then
 
                 if (i == 0) then
-                    iunit = get_free_unit()
                     open(iunit, file='TRIALSPACE', status='replace')
                 else
+                    inquire(file='TRIALSPACE',exist=texist)
+                    if(.not.texist) call stop_all(t_r,'"TRIALSPACE" file not found')
                     open(iunit, file='TRIALSPACE', status='old', position='append')
                 end if
                 
