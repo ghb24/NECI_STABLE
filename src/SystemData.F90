@@ -81,7 +81,13 @@ logical :: tCASCore ! Use Determinants where orbitals within an active space can
 logical :: tRASCore ! Use a RAS space for the core space (see ras.F90 for definition).
 logical :: tPopsCore ! Use the most populated states from a POPSFILE for the core space.
 logical :: tReadCore ! Read in the core space from the CORESPACE file.
-logical :: tLowECore ! Like the optimised core space, but instead of diagonalising the space each iteration to find which states to keep, we keep the states with the lowest energies.
+! Like the optimised core space, but instead of diagonalising the space each iteration to find which states to keep, we
+! keep the states with the lowest energies.
+logical :: tLowECore
+! If a number of determinants smaller than the number of singles and doubles to the HF is requested, then the amplitude
+! of the determinants in the MP1 wave function will be used to determine which to keep. Otherwise all singles and
+! doubles are kept.
+logical :: tMP1Core 
 logical :: tSparseCoreHamil ! Use a sparse representation of the core Hamiltonian.
 ! cas_determ_bitmask has all bits that refer to the active space set, and all other bits unset.
 ! cas_not_determ_bitmask is simply the result after the not operation is applied to cas_determ_bitmask.
@@ -120,6 +126,8 @@ integer :: low_e_core_excit
 integer :: low_e_core_num_keep
 ! When using tLowECore, if this option is true then all doubles will be kept.
 logical :: tLowECoreAllDoubles
+! When using the tMP1Core option, this specifies how many determinants to keep.
+integer :: semistoch_mp1_ndets
 
 ! Options relating to the trial wavefunction.
 logical :: tTrialWavefunction ! Use a trial wavefunction-based energy estimator.
@@ -130,7 +138,13 @@ logical :: tOptimisedTrial ! Generate an optimised trial space by diagonalisaing
 ! generation rather than the deterministic space generation.
 logical :: tReadTrial ! Read in the trial space from the TRIALSPACE file.
 logical :: tPopsTrial ! Use the most populated states from a POPSFILE for the trial space.
-logical :: tLowETrial ! Like the optimised trial space, but instead of diagonalising the space each iteration to find which states to keep, we keep the states with the lowest energies.
+! Like the optimised trial space, but instead of diagonalising the space each iteration to find which states to keep, we
+! keep the states with the lowest energies.
+logical :: tLowETrial
+! If a number of determinants smaller than the number of singles and doubles to the HF is requested, then the amplitude
+! of the determinants in the MP1 wave function will be used to determine which to keep. Otherwise all singles and
+! doubles are kept.
+logical :: tMP1Trial
 real(dp), allocatable, dimension(:) :: trial_space_cutoff_amp
 integer, allocatable, dimension(:) :: trial_space_cutoff_num
 ! When using a CAS trial space, these integers store the number of orbitals above and below the Fermi energy to
@@ -153,6 +167,8 @@ integer :: low_e_trial_excit
 integer :: low_e_trial_num_keep
 ! When using tLowETrial, if this option is true then all doubles will be kept.
 logical :: tLowETrialAllDoubles
+! When using the tMP1Trial option, this specifies how many determinants to keep.
+integer :: trial_mp1_ndets
 
 ! Calculate size of FCI determinant space using MC
 logical :: tMCSizeSpace,tMCSizeTruncSpace

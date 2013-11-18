@@ -15,8 +15,9 @@ module semi_stoch_procs
     use constants
     use davidson, only: davidson_eigenvector, parallel_sparse_hamil_type, perform_davidson
     use DetBitOps, only: ilut_lt, ilut_gt, FindBitExcitLevel, DetBitLT, &
-                         count_set_bits, DetBitEq, sign_lt, sign_gt
-    use Determinants, only: get_helement
+                         count_set_bits, DetBitEq, sign_lt, sign_gt, IsAllowedHPHF, &
+                         EncodeBitDet
+    use Determinants, only: get_helement, GetH0Element3, GetH0Element4
     use FciMCData, only: ilutHF, Hii, CurrentH, determ_proc_sizes, determ_proc_indices, &
                          full_determ_vector, partial_determ_vector, core_hamiltonian, &
                          determ_space_size, SpawnedParts, SemiStoch_Comms_Time, &
@@ -25,10 +26,12 @@ module semi_stoch_procs
                          HashIndex, core_space, CoreSpaceTag, tCoreHash, ll_node, &
                          nWalkerHashes, tFill_RDM, IterLastRDMFill, full_determ_vector_av, &
                          tFillingStochRDMonFly, Iter, IterRDMStart, CoreHashIndex, &
-                         core_ham_diag, DavidsonTag
+                         core_ham_diag, DavidsonTag, Fii, HFDet
     use hash, only: DetermineDetNode
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
+    use MI_integrals, only: MI_off_diag_helement
+    use MomInv, only: IsAllowedMI
     use nElRDMMod, only: fill_RDM_offdiag_deterministic
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, MPIArg, &
                              MPIAllGatherV, MPISum, MPISumAll, MPIScatterV
@@ -41,7 +44,7 @@ module semi_stoch_procs
     use SystemData, only: tSemiStochastic, tCSFCore, tDeterminantCore, tDoublesCore, &
                           tCASCore, tRASCore, cas_determ_not_bitmask, core_ras1_bitmask, &
                           core_ras3_bitmask, nel, OccDetermCASOrbs, tHPHF, nBasis, BRR, &
-                          ARR, tSparseCoreHamil
+                          ARR, tSparseCoreHamil, tUEG, tMomInv
     use timing_neci
     use util_mod, only: get_free_unit
 
@@ -1016,6 +1019,62 @@ contains
         call deallocate_sparse_ham(sparse_ham, 'sparse_ham', SparseHamilTags)
 
     end subroutine start_walkers_from_core_ground
+
+    subroutine return_mp1_amp_and_mp2_energy(nI, ilut, ex, tParity, amp, energy_contrib)
+
+        ! For a given determinant (input as nI), find the amplitude of it in the MP1 wavefunction.
+        ! Also return the contribution from this determinant in the MP2 energy.
+
+        ! To use this routine, generate an excitation from the Hartree-Fock determinant using the
+        ! GenExcitations3 routine. This will return nI, ex and tParity which can be input into this
+        ! routine.
+
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: ex(2,2)
+        logical, intent(in) :: tParity
+        real(dp), intent(out) :: amp, energy_contrib
+        integer :: ic
+        real(dp) :: hel, H0tmp, denom
+
+        amp = 0.0_dp
+        energy_contrib = 0.0_dp
+
+        if (ex(1,2) == 0) then
+            ic = 1
+        else
+            ic = 2
+        end if
+
+        if (tHPHF) then
+            ! Assume since we are using HPHF that the alpha and
+            ! beta orbitals of the same spatial orbital have the same
+            ! fock energies, so can consider either.
+            hel = hphf_off_diag_helement(HFDet, nI, iLutHF, ilut)
+        else if (tMomInv) then
+            hel = MI_off_diag_helement(HFDet, nI, iLutHF, ilut)
+        else
+            hel = get_helement(HFDet, nI, ic, ex, tParity)
+        end if
+
+        if (tUEG) then
+            ! This will calculate the MP2 energies without having to use the fock eigenvalues.
+            ! This is done via the diagonal determinant hamiltonian energies.
+            H0tmp = getH0Element4(nI, HFDet)
+        else
+            H0tmp = getH0Element3(nI)
+        end if
+
+        ! If the relevant excitation from the Hartree-Fock takes electrons from orbitals
+        ! (i,j) to (a,b), then denom will be equal to 
+        ! \epsilon_a + \epsilon_b - \epsilon_i - \epsilon_j
+        ! as required in the denominator of the MP1 amplitude and MP2 energy.
+        denom = Fii - H0tmp
+
+        amp = hel/denom
+        energy_contrib = (hel**2)/denom
+
+    end subroutine return_mp1_amp_and_mp2_energy
 
     subroutine end_semistoch()
 

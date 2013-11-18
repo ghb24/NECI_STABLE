@@ -26,6 +26,7 @@ module semi_stoch_gen
     use hash, only: DetermineDetNode
     use LoggingData, only: tWriteCore, tRDMonFly
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
+
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIArg, MPIAllGatherV, &
                              MPIAllGather, MPIScatter, MPIScatterV
     use ParallelHelper, only: root
@@ -34,8 +35,10 @@ module semi_stoch_gen
     use sort_mod, only: sort
     use sparse_arrays
     use sym_mod, only: getsym
+    use SymExcit3 , only : GenExcitations3
     use SystemData
     use timing_neci
+    use util_mod, only: binary_search_real
 
     implicit none
 
@@ -71,7 +74,7 @@ contains
         determ_proc_indices = 0
 
         if (.not. (tStartCAS .or. tPopsCore .or. tDoublesCore .or. tCASCore .or. tRASCore .or. &
-                   tOptimisedCore .or. tLowECore .or. tReadCore)) then
+                   tOptimisedCore .or. tLowECore .or. tReadCore .or. tMP1Core)) then
             call stop_all("init_semi_stochastic", "You have not selected a semi-stochastic core &
                           &space to use.")
         end if
@@ -212,6 +215,8 @@ contains
                 call generate_optimised_core(called_from_semistoch)
             else if (tLowECore) then
                 call generate_low_energy_core(called_from_semistoch)
+            else if (tMP1Core) then
+                call generate_using_mp1_criterion(called_from_semistoch)
             end if
         else if (tCSFCore) then
             if (tDoublesCore) then
@@ -228,6 +233,9 @@ contains
             else if (tLowECore) then
                 call stop_all("init_semi_stochastic", "Low energy core space with CSFs is not &
                               &currently implemented.")
+            else if (tMP1Core) then
+                call stop_all("init_semi_stochastic", "The use of the MP1 wave function criterion &
+                              &with CSFs is not implemented.")
             end if
         end if
 
@@ -482,7 +490,7 @@ contains
         if (called_from == called_from_semistoch) then
             OccOrbs = OccDetermCASOrbs
             VirtOrbs = VirtDetermCASOrbs
-        elseif (called_from == called_from_trial) then
+        else if (called_from == called_from_trial) then
             OccOrbs = OccTrialCASOrbs
             VirtOrbs = VirtTrialCASOrbs
         end if
@@ -653,7 +661,7 @@ contains
                     space_cutoff_num = determ_space_cutoff_num
                 end if
 
-            elseif (called_from == called_from_trial) then
+            else if (called_from == called_from_trial) then
                 num_generation_loops = num_trial_generation_loops
                 tAmplitudeCutoff = tTrialAmplitudeCutoff
                 max_space_size = max_trial_size
@@ -1003,7 +1011,7 @@ contains
             tAllDoubles = tLowECoreAllDoubles
             num_states_keep = low_e_core_num_keep
             max_space_size = max_determ_size
-        elseif (called_from == called_from_trial) then
+        else if (called_from == called_from_trial) then
             low_e_excit = low_e_trial_excit
             tAllDoubles = tLowETrialAllDoubles
             num_states_keep = low_e_trial_num_keep
@@ -1130,5 +1138,115 @@ contains
         end do
 
     end subroutine generate_all_csfs_from_orb_config
+
+    subroutine generate_using_mp1_criterion(called_from)
+
+        integer, intent(in) :: called_from
+        integer(n_int), allocatable :: ilut_list(:,:)
+        real(dp), allocatable :: amp_list(:)
+        integer(n_int) :: ilut(0:NIfTot)
+        integer :: nI(nel)
+        integer :: ex(2,2), ex_flag, ndets, target_ndets
+        integer :: pos, i
+        real(dp) :: amp, energy_contrib
+        logical :: tAllExcitFound, tParity
+
+        if (called_from == called_from_semistoch) then
+            target_ndets = semistoch_mp1_ndets
+        else if (called_from == called_from_trial) then
+            target_ndets = trial_mp1_ndets
+        end if
+
+        allocate(amp_list(target_ndets))
+        allocate(ilut_list(0:NIfD, target_ndets))
+        amp_list = 0
+        ilut_list = 0.0_dp
+
+        ! Should we generate just singles (1), just doubles (2), or both (3)?
+        if (tUEG .or. tNoSingExcits) then
+            ex_flag = 2
+        else if (tHub) then
+            if (tReal) then
+                ex_flag = 1
+            else
+                ex_flag = 2
+            end if
+        else
+            ! Generate both the single and double excitations.
+            ex_flag = 3
+        end if
+
+        tAllExcitFound = .false.
+        ! Count the HF determinant.
+        ndets = 1
+        ex = 0
+        ilut = 0
+
+        ! Start by adding the HF state.
+        ilut_list(0:NIfD, 1) = ilutHF(0:NIfD)
+        ! Set this amplitude to be the lowest possible number so that it doesn't get removed from
+        ! the list in the following selection - we always want to keep the HF determinant.
+        amp_list(1) = -huge(amp)
+
+        ! Loop through all connections to the HF determinant and keep the required number which
+        ! have the largest MP1 weights.
+
+        do while (.true.)
+            call GenExcitations3(HFDet, ilutHF, nI, ex_flag, ex, tParity, tAllExcitFound, .false.)
+            ! When no more basis functions are found, this value is returned and the loop is exited.
+            if (tAllExcitFound) exit
+
+            call EncodeBitDet(nI, ilut)
+            if (tHPHF) then
+                if (.not. IsAllowedHPHF(ilut(0:NIfD))) cycle
+            end if
+            ndets = ndets + 1
+
+            ! If a determinant is returned (if we did not find the final one last time.)
+            if (.not. tAllExcitFound) then
+                call return_mp1_amp_and_mp2_energy(nI, ilut, ex, tParity, amp, energy_contrib)
+                
+                pos = binary_search_real(amp_list, -abs(amp))
+
+                ! If pos is less then there isn't another determinant with the same amplitude
+                ! (which will be common), but -pos specifies where in the list it should be
+                ! inserted to keep amp_list in order.
+                if (pos < 0) pos = -pos
+
+                if (pos > 0 .and. pos <= target_ndets) then
+                    ! Shuffle all less significant determinants down one slot, and throw away the
+                    ! previous least significant determinant.
+                    ilut_list(0:NIfD, pos+1:target_ndets) = ilut_list(0:NIfD, pos:target_ndets-1)
+                    amp_list(pos+1:target_ndets) = amp_list(pos:target_ndets-1)
+
+                    ! Add in the new ilut and amplitude in the correct position.
+                    ilut_list(0:NIfD, pos) = ilut(0:NIfD)
+                    ! Store the negative absolute value, because the binary search sorts from
+                    ! lowest (most negative) to highest.
+                    amp_list(pos) = -abs(amp)
+                end if
+
+            end if
+        end do
+
+        if (called_from == called_from_semistoch) then
+            if (ndets < target_ndets) call warning_neci("generate_using_mp1_criterion", &
+                "Note that there are less connections to the Hartree-Fock than the requested &
+                &size of the semi-stochastic space. The semi-stochastic space will therefore be &
+                &smaller than requested, containing all connections.")
+        else if (called_from == called_from_trial) then
+            if (ndets < target_ndets) call warning_neci("generate_using_mp1_criterion", &
+                "Note that there are less connections to the Hartree-Fock than the requested &
+                &size of the trial space. The trial space will therefore be smaller than requested, &
+                &containing all connections.")
+        end if
+
+        ! Now that the correct determinants have been selected, add them to the desired space.
+        do i = 1, min(ndets, target_ndets)
+            ilut(0:NIfD) = ilut_list(0:NIfD, i)
+            call add_state_to_space(ilut, called_from)
+        end do
+
+    end subroutine generate_using_mp1_criterion
 
 end module semi_stoch_gen
