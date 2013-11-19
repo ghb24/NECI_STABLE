@@ -2,7 +2,7 @@
 MODULE System
 
     use SystemData
-    use CalcData, only: tRotoAnnihil, TAU, tTruncInitiator, InitiatorWalkNo, &
+    use CalcData, only: TAU, tTruncInitiator, InitiatorWalkNo, &
                         occCASorbs, virtCASorbs
     use semi_stoch_gen, only: core_ras
     use sort_mod
@@ -30,6 +30,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tComplexOrbs_RealInts = .false.
       tReadFreeFormat=.false.
       tMolproMimic=.false.
       tAntisym_MI=.false.
@@ -1056,6 +1057,10 @@ system: do
             !Mimic the run-time behaviour of molpros NECI implementation
             tMolpro=.true.
             tMolproMimic=.true.
+        case("COMPLEXORBS_REALINTS")
+            !We have complex orbitals, but real integrals. This means that we only have 4x permutational symmetry,
+            !so we need to check the (momentum) symmetry before we look up any integrals
+            tComplexOrbs_RealInts = .true.
         case("ENDSYS") 
             exit system
         case default
@@ -1224,20 +1229,10 @@ system: do
 
           if (LMS > STOT) call stop_all (this_routine, "Cannot have LMS>STOT")
 
-          if (.not. tNonUniRandExcits) then
-              call stop_all (this_routine, "Non uniform excitation generators&
-                                           & required for CSFs")
-          endif
-
           if (tHPHF) then
               call stop_all (this_routine, "CSFs not compatible with HPHF")
           endif
 
-          if (tRotoAnnihil) then
-              ! See Annihilation.F90:4240. Call to get_helement.
-              call stop_all (this_routine, "CSFs not compatible with &
-                                           &roto-annihilation")
-          endif
       endif
 
       if (tTruncateCSF .and. (.not. tCSF)) then
