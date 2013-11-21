@@ -142,8 +142,8 @@ MODULE FciMCParMod
                          extract_bit_rep_avsign_norm, &
                          extract_bit_rep_avsign_no_rdm, &
                          zero_rdms, fill_rdm_softexit, store_parent_with_spawned, &
-                         fill_rdm_diag_currdet_norm, &
-                         fill_rdm_diag_currdet_hfsd, calc_rdmbiasfac
+                         fill_rdm_diag_currdet_norm, transfer_rdm_to_temp, &
+                         fill_rdm_diag_currdet_hfsd, calc_rdmbiasfac, tFinalRDMIter
     use determ_proj, only: perform_determ_proj
     use semi_stoch_gen, only: init_semi_stochastic
     use semi_stoch_procs, only: deterministic_projection, return_most_populated_states, &
@@ -881,7 +881,8 @@ MODULE FciMCParMod
         use, intrinsic :: iso_c_binding
         implicit none
         interface
-            subroutine fill_rdm_diag_currdet (iLutnI, nI, CurrH_I, ExcitLevelI, tCoreSpaceDet) 
+            subroutine fill_rdm_diag_currdet (iLutnI, nI, CurrH_I, ExcitLevelI, tCoreSpaceDet, &
+                                                IterLastRDMFill, tFinalRDMContrib, tDetRemoved) 
                 use constants
                 use SystemData, only: nel
                 use bit_reps, only: NIfTot 
@@ -889,11 +890,13 @@ MODULE FciMCParMod
                 implicit none
                 integer(n_int), intent(in) :: iLutnI(0:nIfTot)
                 real(dp), intent(in) :: CurrH_I(NCurrH)
-                integer, intent(in) :: nI(nel), ExcitLevelI
+                integer, intent(in) :: nI(nel), ExcitLevelI, IterLastRDMFill
                 logical, intent(in), optional :: tCoreSpaceDet
-                real(dp) :: IterDetOcc, IterRDM
+                logical, intent(in) :: tFinalRDMContrib, tDetRemoved
+                real(dp), dimension(lenof_sign) :: IterDetOcc
+                real(dp) :: IterRDM_Inst, IterRDM_Full, RDMAccumIters, AvSignIters
                 integer(n_int) :: SpinCoupDet(0:nIfTot)
-                integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
+                integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel, part_type
             end subroutine
         end interface
 
@@ -1040,8 +1043,8 @@ MODULE FciMCParMod
                 real(dp) , dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
                 type(excit_gen_store_type), intent(inout), optional :: Store
             end subroutine
-            subroutine fill_rdm_diag_currdet (iLutnI, nI, CurrH_I, &
-                                              ExcitLevelI, tCoreSpaceDet) 
+            subroutine fill_rdm_diag_currdet (iLutnI, nI, CurrH_I, ExcitLevelI, tCoreSpaceDet, &
+                                                IterLastRDMFill, tFinalRDMContrib, tDetRemoved) 
                 use constants
                 use SystemData, only: nel
                 use bit_reps, only: NIfTot 
@@ -1051,9 +1054,12 @@ MODULE FciMCParMod
                 real(dp) , intent(in) :: CurrH_I(NCurrH)
                 integer, intent(in) :: nI(nel), ExcitLevelI
                 logical, intent(in), optional :: tCoreSpaceDet
-                real(dp) :: IterDetOcc, IterRDM
+                integer, intent(in) :: IterLastRDMFill
+                logical, intent(in) :: tFinalRDMContrib, tDetRemoved
+                real(dp), dimension(lenof_sign) :: IterDetOcc
+                real(dp) :: IterRDM_Full, IterRDM_Inst, RDMAccumIters, AvSignIters
                 integer(n_int) :: SpinCoupDet(0:nIfTot)
-                integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
+                integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel, part_type
             end subroutine
 
         end interface
@@ -1183,13 +1189,16 @@ MODULE FciMCParMod
                 ! the last RDMEnergyIter iterations.
                 tFill_RDM = .true.
                 IterLastRDMFill = RDMEnergyIter
+                tFinalRDMIter=.false.
             elseif(Iter.eq.NMCyc) then
                 ! Last iteration, calculate the diagonal element for the iterations 
                 ! since the last time they were included.
                 tFill_RDM = .true.
+                tFinalRDMIter=.true.
                 IterLastRDMFill = mod((Iter - IterRDMStart + 1),RDMEnergyIter)
             endif
         endif
+        
 
         !write(iout,"(A)") "Hash Table: "
         !do j=1,nWalkerHashes
@@ -1258,12 +1267,18 @@ MODULE FciMCParMod
                             ! RDM elements are calculated, along with the contributions from 
                             ! connections to the (true) HF determinant.
 
+                            if (j==1) then
+                                WRITE(6,*) "Here 1, tFillRDM true in tSemiStoch block"
+                                call transfer_RDM_to_TEMP()
+                            endif
+
                             if((abs(CurrentH(2,gen_ind-1)).gt.InitiatorWalkNo).or.(.not.tInitiatorRDM)) & 
                             ! If we are only using initiators to calculate the RDMs, only add in the diagonal and 
                             ! explicit contributions if the average population is greater than n_a = InitiatorWalkNo.
                                 call fill_rdm_diag_currdet(CurrentDets(:,gen_ind-1), DetCurr, &
                                         CurrentH(1:NCurrH,gen_ind-1), walkExcitLevel_toHF, &
-                                        test_flag(CurrentDets(:,j), flag_deterministic))  
+                                        test_flag(CurrentDets(:,j), flag_deterministic), &
+                                            IterLastRDMFill, tFinalRDMIter, .false.)  
                         endif
                         cycle
                     end if
@@ -1514,13 +1529,15 @@ MODULE FciMCParMod
                 ! If tFill_RDM is true, this is an iteration where the diagonal 
                 ! RDM elements are calculated, along with the contributions from 
                 ! connections to the (true) HF determinant.
+                if (j==1) call transfer_RDM_to_TEMP()
 
                 if((abs(CurrentH(2,VecSlot-1)).gt.InitiatorWalkNo).or.(.not.tInitiatorRDM)) then 
                 ! If we are only using initiators to calculate the RDMs, only add in the diagonal and 
                 ! explicit contributions if the average population is greater than n_a = InitiatorWalkNo.
                     call fill_rdm_diag_currdet(CurrentDets(:,VecSlot-1), DetCurr, &
-                            CurrentH(1:NCurrH,VecSlot-1), walkExcitLevel_toHF,& 
-                            test_flag(CurrentDets(:,j), flag_deterministic)) 
+                            CurrentH(1:NCurrH,VecSlot-1), walkExcitLevel_toHF, & 
+                            test_flag(CurrentDets(:,j), flag_deterministic), & 
+                                    IterLastRDMFill, tFinalRDMIter, .false.)  
                     endif
             endif
 
@@ -8957,9 +8974,9 @@ MODULE FciMCParMod
       integer ierr,i,j
       real(dp) Gap
 
-      !When running normall, WalkerListSize will be equal to initwalkers
+      !When running normally, WalkerListSize will be equal to initwalkers
       !However, when reading in (and not continuing to grow) it should be equal to the number of dets in the popsfile
-      MaxSpawned=NINT(MemoryFacSpawn*WalkerListSize)
+      MaxSpawned=NINT(MemoryFacSpawn*WalkerListSize*inum_runs)
 !            WRITE(iout,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
             
 !      WRITE(iout,"(A)") "*Direct Annihilation* in use...Explicit load-balancing disabled."
