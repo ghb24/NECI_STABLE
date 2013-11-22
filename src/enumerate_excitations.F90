@@ -1,24 +1,21 @@
 #include "macros.h"
 
-! This module contains subroutines which generate all excitations from a given
-! determinant, up to a certain excitation level. They output excitations one
-! at a time, so that each time the subroutine is called the next excitation
-! is generated. This is currently used by the semi-stochastic code to
-! generate all states in the deterministic space.
 module enumerate_excitations
 
     use bit_rep_data, only: NIfD, NIfTot
     use bit_reps, only: decode_bit_det
     use constants
-    use DetBitOps, only: IsAllowedHPHF, TestClosedShellDet
+    use DetBitOps, only: IsAllowedHPHF, TestClosedShellDet, EncodeBitDet
     use FciMCData, only: SpinInvBRR
     use HPHFRandExcitMod, only: FindExcitBitDetSym
     use Parallel_neci, only: MPISumAll
     use sort_mod, only: sort
     use SymData, only: nSymLabels, SymTable, SymLabels, SymClasses
+    use SymExcit3, only: GenExcitations3
     use SymExcitDataMod
     use sym_general_mod
-    use SystemData, only: nel, nBasis, G1, tFixLz, Arr, Brr, tHPHF, tHub
+    use SystemData, only: nel, nBasis, G1, tFixLz, Arr, Brr, tHPHF, tHub, &
+                          tUEG, tKPntSym, tReal, tUseBrillouin
 
     implicit none
 
@@ -35,10 +32,6 @@ module enumerate_excitations
         integer :: norb_sym
         integer :: sym_prod
         integer :: npairs
-        integer :: ms_combination, ml_combination
-        integer :: ms_num_combinations, ml_num_combinations
-        integer :: total_ms, total_ml
-        integer :: ms_1, ms_2, ml_1, ml_2
         logical :: gen_singles
     end type
 
@@ -47,280 +40,6 @@ module enumerate_excitations
     end type
     
 contains
-
-    subroutine enumerate_all_single_excitations(ilutI, nI, ilut_ret, gen_store)
-  
-        ! This subroutine generates all possible single excitations from a given determinant,
-        ! within symmetry and spin restrictions. It will output a single determinant each time
-        ! it is called. It uses a type to store the previous state of the variables in the
-        ! subroutine so that the next time it is called it will generate the next determinant.
-
-        ! In: ilutI, nI - The determinant to excite from.
-        ! IO: gen_store - Stores the state of the generator.
-        ! Out: ilut_ret - Returns the determinants produced. ilut_ret(0)
-        ! should be set to -1 to initialise, and will return
-        ! this once generation is complete.
-
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer(n_int), intent(inout) :: ilut_ret(0:NIfTot)
-        integer, intent(in) :: nI(nel)
-        type(excit_store), intent(inout), target :: gen_store
-
-        integer, pointer :: i, j, orb1, ind1, norb_sym, sym_ind1
-        integer :: orbI, ms_1_2, ml_1
-
-        ! Map the local variables onto the store.
-        i => gen_store%i;                j => gen_store%j
-        orb1 => gen_store%orb1;          ind1 => gen_store%ind1;
-        sym_ind1 => gen_store%sym_ind1;  norb_sym => gen_store%norb_sym
-
-        ! Initialise the generator.
-        if (ilut_ret(0) == -1) then
-            i = 1
-            j = 0
-        endif
-
-        ! Find the next possible single excitation. Loop over 
-        ! electrons, and vacant orbitals. Interrupt loop when we
-        ! find what we need.
-        do i = i, nel
-
-            if (j == 0) then
-                orb1 = nI(i)
-                ! This gets Ms such that beta is represented by 1 and
-                ! alpha by 2, as required.
-                if (tFixLz) then
-                    ml_1 = G1(orb1)%Ml
-                else
-                    ml_1 = 0
-                end if
-                ms_1_2 = 1 + iand(1, orb1)
-                sym_ind1 = ClassCountInd(ms_1_2, G1(orb1)%Sym%S, ml_1)
-                ind1 = SymLabelCounts2(1, sym_ind1)
-                norb_sym = OrbClasscount(sym_ind1)
-            end if
-
-            j = j + 1
-            do j = j, norb_sym
-
-                orbI = SymLabelList2(ind1 + j - 1)
-
-                ! Cannot excite to an occupied orbital
-                if (IsOcc(ilutI, orbI)) cycle
-
-                ! Generate the determinant and interrupt the loop.
-                ilut_ret = ilutI
-                clr_orb(ilut_ret, orb1)
-                set_orb(ilut_ret, orbI)
-                return
-            end do
-            j = 0 ! Reset loop
-        end do
-
-        ilut_ret(0) = -1
-
-    end subroutine enumerate_all_single_excitations
-
-    subroutine enumerate_all_double_excitations(ilutI, nI, ilut_ret, gen_store)
-
-        ! This subroutine generates all possible double excitations from a given determinant,
-        ! within symmetry and spin restrictions. It will output a single determinant each time
-        ! it is called. It uses a type to store the previous state of the variables in the
-        ! subroutine so that the next time it is called it will generate the next determinant.
-
-        ! In: ilutI, nI - The determinant to excite from
-        ! IO: gen_store - Stores the state of the generator.
-        ! Out: ilut_ret - Returns the determinants produced. ilut_ret(0)
-        ! should be set to -1 to initialise, and will return
-        ! this once generation is complete.
-
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer(n_int), intent(inout) :: ilut_ret(0:NIfTot)
-        integer, intent(in) :: nI(nel)
-        type(excit_store), intent(inout), target :: gen_store
-
-        integer, pointer :: i, j, orb1, ind1, norb_sym, sym_ind1
-        integer, pointer :: ms_combination, orb2, ind2, sym1, sym2
-        integer, pointer :: count1, count2, npairs, sym_ind2, sym_prod
-        integer, pointer :: ms_num_combinations, total_ms, ms_1, ms_2
-        integer, pointer :: ms_combination_number, ml_combination_number
-        integer, pointer :: ml_1, ml_2, total_ml, ml_num_combinations
-        integer, pointer :: ml_combination
-        integer :: min_ml, max_ml
-        integer :: orbI, e1, e2, i1, i2, orb1a, orb2a, orbJ, lz_1, lz_2
-
-        ! Map the local variables onto the store
-        i => gen_store%i;                j => gen_store%j
-        orb1 => gen_store%orb1;          orb2 => gen_store%orb2
-        ind1 => gen_store%ind1;          ind2 => gen_store%ind2
-        sym1 => gen_store%sym1;          sym2 => gen_store%sym2
-        count1 => gen_store%count1;      count2 => gen_store%count2
-        sym_ind1 => gen_store%sym_ind1;  sym_ind2 => gen_store%sym_ind2
-        norb_sym => gen_store%norb_sym;  ms_combination => gen_store%ms_&
-                                                              &combination
-        sym_prod => gen_store%sym_prod;  npairs => gen_store%npairs
-        total_ms => gen_store%total_ms;  ms_num_combinations => gen_store%&
-                                                       &ms_num_combinations
-        ms_1 => gen_store%ms_1;          ms_2 => gen_store%ms_2
-        total_ml => gen_store%total_ml;  ml_num_combinations => gen_store%&
-                                                       &ml_num_combinations
-        ml_1 => gen_store%ml_1;          ml_2 => gen_store%ml_2
-        ml_combination => gen_store%ml_combination
-
-        ! Initialise the generator.
-        if (ilut_ret(0) == -1) then
-            sym1 = -1
-            i = 1
-            j = 0
-            ms_combination = 1
-            ml_combination = 1
-
-            do i = 1, nbasis
-                write(6,*) i, G1(i)%Sym%S
-            end do
-            write(6,*) "SymClasses:"
-            write(6,*) SymClasses
-            i = 1
-        endif
-
-        if (tFixLz) then
-            min_ml = minval(G1(:)%Ml)
-            max_ml = maxval(G1(:)%Ml)
-        end if
-
-        npairs = nel * (nel - 1) / 2
-        do i = i, npairs
-
-            if (sym1 == -1) then
-                ! Pick electrons uniformly
-                e1 = ceiling((1.0 + sqrt(real(1 + 8*i))) / 2)
-                e2 = i - ((e1 - 1) * (e1 - 2)) / 2
-                orb1 = nI(e1)
-                orb2 = nI(e2)
-
-                write(6,*) "orbs:", orb1, orb2
-                write(6,*) "syms:", G1(orb1)%Sym%S, G1(orb2)%Sym%S
-
-                sym_prod = ieor(G1(orb1)%Sym%S, G1(orb2)%Sym%S)
-
-                total_ms = G1(orb1)%Ms + G1(orb2)%Ms
-
-                write(6,*) "sym_prod:", sym_prod
-
-                ! Find the number of different pairs of ms values that two electrons
-                ! can have such that their total ms value is total_ms:
-                call find_number_summation_possibilities(total_ms, -1, 1, &
-                    ms_num_combinations, .true.)
-
-                ! If applying Lz symmetry, find the number of pairs of ml values so
-                ! that the total ml value is total_ml, as for ms above.
-                if (tFixLz) then
-                    total_ml = G1(orb1)%Ml + G1(orb2)%Ml
-                    call find_number_summation_possibilities(total_ml, min_ml,&
-                        max_ml, ml_num_combinations, .false.)
-                else
-                    ml_num_combinations = 1
-                end if
-
-                sym1 = 0
-            end if
-
-            do sym1 = sym1, nSymLabels - 1
-
-                write(6,*) "sym1, sym2:", sym1, sym2
-
-                ! Generate the paired symmetry.
-                sym2 = ieor(sym_prod, sym1)
-                ! Don't overcount.
-                if (sym2 < sym1) cycle
-
-                do ms_combination = ms_combination, ms_num_combinations
-
-                    do ml_combination = ml_combination, ml_num_combinations
-
-                        ! If on the first loop of both this loop and the parent loop.
-                        if (j == 0) then
-
-                            ! Find the next pair of ms values that add up to total_ms.
-                            call find_next_summation_pair(total_ms, -1, 1, ms_combination, &
-                                .true., ms_1, ms_2)
-
-                            ! Convert the ms values from +1 and -1 to 1 and 2 for alpha and
-                            ! beta, respectively. This is required for ClassCoundInd.
-                            ms_1 = (-ms_1+3)/2
-                            ms_2 = (-ms_2+3)/2
-
-                            ! If applying Lz symmetry, find the next pair of ml values that
-                            ! add up to total_ml.
-                            if (tFixLz) then
-                                call find_next_summation_pair(total_ml, min_ml, max_ml, &
-                                    ml_combination, .false., ml_1, ml_2)
-                            else
-                                ml_1 = 0
-                                ml_2 = 0
-                            end if
-
-                            ! Finally, find the symmetry index for this specific (ms, sym, ml)
-                            ! combination, for both electrons.
-                            sym_ind1 = ClassCountInd(ms_1, sym1, ml_1)
-                            sym_ind2 = ClassCountInd(ms_2, sym2, ml_2)
-                            ind1 = SymLabelCounts2(1, sym_ind1)
-                            ind2 = SymLabelCounts2(1, sym_ind2)
-                            count1 = OrbClasscount(sym_ind1)
-                            count2 = OrbClasscount(sym_ind2)
-                            ! The total number of pairs of orbitals with these symmetries.
-                            norb_sym = count1 * count2
-                            write(6,*) "norb_sym:", norb_sym
-                        end if
-
-                        j = j + 1
-                        ! Loop over all possble pairs of orbitals with the symmetries generated above.
-                        do j = j, norb_sym
-
-                            ! Direct mapping to orbitals.
-                            i1 = mod(j-1, count1)
-                            i2 = (j-1-i1)/count1
-                            orbI = SymLabelList2(ind1 + i1)
-                            orbJ = SymLabelList2(ind2 + i2)
-                            write(6,*) "orbI, orbJ:", orbI, orbJ
-
-                            ! If the two symmetries are the same (not including Ml or Ms)
-                            ! only generate each pair one way around.
-                            if (sym1 == sym2 .and. orbJ < orbI) cycle
-
-                            ! We don't want to put two electrons into the same
-                            ! spin orbital.
-                            if (orbI == orbJ) cycle
-
-                            ! Cannot excite to occupied orbitals.
-                            if (IsOcc(ilutI, orbI)) cycle
-                            if (IsOcc(ilutI, orbJ)) cycle
-
-                            ! Now we can generate the determinant, and interrupt
-                            ! the loop.
-                            ilut_ret = ilutI
-                            clr_orb(ilut_ret, orb1)
-                            clr_orb(ilut_ret, orb2)
-                            set_orb(ilut_ret, orbI)
-                            set_orb(ilut_ret, orbJ)
-                            return
-                        end do
-                        j = 0
-
-                    end do
-                    ml_combination = 1
-
-                end do
-                ms_combination = 1
-
-            end do
-            sym1 = -1
-
-        end do
-
-        ilut_ret(0) = -1
-
-    end subroutine enumerate_all_double_excitations
 
     subroutine enumerate_spatial_excitations (ilutI, nI, ilut_ret, exflag, &
                                              gen_store)
@@ -535,27 +254,75 @@ contains
 
     end subroutine enumerate_spatial_excitations
 
-    subroutine generate_connected_space(original_space_size, original_space, connected_space_size, &
-        connected_space, tSinglesOnly)
+    subroutine generate_connected_space(original_space_size, original_space, &
+            connected_space_size, connected_space, tSinglesOnlyOpt)
+
+        ! A wrapper function to call the correct generation routine.
 
         integer, intent(in) :: original_space_size
         integer(n_int), intent(in) :: original_space(0:NIfTot, original_space_size)
         integer, intent(inout) :: connected_space_size
         integer(n_int), optional, intent(out) :: connected_space(0:NIfTot, connected_space_size)
-        logical, intent(in), optional :: tSinglesOnly
+        logical, intent(in), optional :: tSinglesOnlyOpt
+
+        if (tKPntSym) then
+            call generate_connected_space_kpnt(original_space_size, original_space, &
+                    connected_space_size, connected_space, tSinglesOnlyOpt)
+        else
+            call generate_connected_space_normal(original_space_size, original_space, &
+                    connected_space_size, connected_space, tSinglesOnlyOpt)
+        end if
+
+    end subroutine generate_connected_space
+
+    subroutine generate_connected_space_normal(original_space_size, original_space, &
+            connected_space_size, connected_space, tSinglesOnlyOpt)
+
+        ! This routine either counts or generates all the determinants connected to those in
+        ! original_space. If connected_space is not present then they will only be counted,
+        ! else they will be stored in connected_space. If tSinglesOnlyOpt is present and
+        ! also .true. then actually this routine will only generate all single excitations
+        ! (regardless of the system being studied), otherwise it will generate all connected
+        ! determinants.
+
+        integer, intent(in) :: original_space_size
+        integer(n_int), intent(in) :: original_space(0:NIfTot, original_space_size)
+        integer, intent(inout) :: connected_space_size
+        integer(n_int), optional, intent(out) :: connected_space(0:NIfTot, connected_space_size)
+        logical, intent(in), optional :: tSinglesOnlyOpt
 
         integer(n_int) :: ilut(0:NIfTot), ilut_tmp(0:NIfTot)
-        integer :: nI(nel)
-        integer :: i, counter, storage_space_size
-        logical :: first_loop, connected, tSkipDoubles
-        type(excit_store), target :: gen_store
-        character (len=1024) :: storage_space_string
+        integer :: nI(nel), nJ(nel)
+        integer :: i, excit(2,2), ex_flag
+        logical :: tAllExcitFound, tParity, tStoreConnSpace, tSinglesOnly
 
-        ! By default, generate both singles and doubles (the whole connected space).
-        if (present(tSinglesOnly)) then
-            tSkipDoubles = tSinglesOnly
+        if (present(connected_space)) then
+            tStoreConnSpace = .true.
         else
-            tSkipDoubles = .false.
+            tStoreConnSpace = .false.
+        end if
+
+        tSinglesOnly = .false.
+        if (present(tSinglesOnlyOpt)) then
+            if (tSinglesOnlyOpt) tSinglesOnly = .true.
+        end if
+
+        ! Which excitations levels should be considered?
+        ! Singles only (1), doubles only (2) or singles and doubles (3).
+        if (tSinglesOnly) then
+            ex_flag = 1
+        else
+            if (tHub) then
+                if (tReal) then
+                    ex_flag = 1
+                else
+                    ex_flag = 2
+                end if
+            else if (tUEG) then
+                ex_flag = 2
+            else
+                ex_flag = 3
+            end if
         end if
 
         connected_space_size = 0
@@ -565,29 +332,18 @@ contains
 
             call decode_bit_det(nI, original_space(:,i))
 
-            ! The singles:
+            tAllExcitFound = .false.
+            excit = 0
 
-            ! Ensure ilut(0) \= -1 so that the loop can be entered.
-            ilut(0) = 0
-            first_loop = .true.
+            do while(.true.)
 
-            ! When no more basis functions are found, this value is returned and the
-            ! loop is exited.
-            do while(ilut(0) /= -1)
+                ! Generate the next determinant.
+                call GenExcitations3(nI, original_space(:,i), nJ, ex_flag, excit, tParity, &
+                                      tAllExcitFound, .false.)
+                if (tAllExcitFound) exit
 
-                ! The first time the enumerating subroutine is called, setting ilut(0)
-                ! to -1 tells it to  initialise everything first.
-                if (first_loop) then
-                    ilut(0) = -1
-                    first_loop = .false.
-                end if
-
-                ! Find the next state.
-                call enumerate_all_single_excitations (original_space(:,i), nI, ilut, &
-                                                                             gen_store)
-
-                ! If a new state was not found.
-                if (ilut(0) == -1) exit
+                ! Encode nJ in ilut.
+                call EncodeBitDet(nJ, ilut)
 
                 ! If using HPHFs, and if this isn't the allowed state for this HPHF, find
                 ! the the allowed state and continue with this as ilut.
@@ -600,29 +356,112 @@ contains
 
                 connected_space_size = connected_space_size + 1
 
-                if (present(connected_space)) connected_space(0:NIfD, connected_space_size) = ilut(0:NIfD)
+                if (tStoreConnSpace) connected_space(0:NIfD, connected_space_size) = ilut(0:NIfD)
 
             end do
 
-            ! If only generating the singles space.
-            if (tSkipDoubles) cycle
+        end do
 
-            ! The doubles:
+    end subroutine generate_connected_space_normal
 
-            ilut(0) = 0
-            first_loop = .true.
+    subroutine generate_connected_space_kpnt(original_space_size, original_space, &
+            connected_space_size, connected_space, tSinglesOnlyOpt)
 
-            do while(ilut(0) /= -1)
+        ! This is the same as generate_connected_space, but using the old excitations
+        ! generators because the new ones don't work with the tKPntSym option.
 
-                if (first_loop) then
-                    ilut(0) = -1
-                    first_loop = .false.
+        ! This routine either counts or generates all the determinants connected to those in
+        ! original_space. If connected_space is not present then they will only be counted,
+        ! else they will be stored in connected_space. If tSinglesOnlyOpt is present and
+        ! also .true. then actually this routine will only generate all single excitations
+        ! (regardless of the system being studied), otherwise it will generate all connected
+        ! determinants.
+
+        integer, intent(in) :: original_space_size
+        integer(n_int), intent(in) :: original_space(0:NIfTot, original_space_size)
+        integer, intent(inout) :: connected_space_size
+        integer(n_int), optional, intent(out) :: connected_space(0:NIfTot, connected_space_size)
+        logical, intent(in), optional :: tSinglesOnlyOpt
+
+        integer(n_int) :: ilut(0:NIfTot), ilut_tmp(0:NIfTot)
+        integer :: nI(nel), nJ(nel)
+        integer :: i, excit(2,2), ex_flag
+        integer :: nStore(6), nExcitMemLen(1), iExcit, iMaxExcit, ierr
+        integer, allocatable :: excit_gen(:)
+        logical :: tStoreConnSpace, tSinglesOnly, tTempUseBrill
+        character(*), parameter :: t_r = 'generate_connected_space_kpnt'
+
+        if (present(connected_space)) then
+            tStoreConnSpace = .true.
+        else
+            tStoreConnSpace = .false.
+        end if
+
+        tSinglesOnly = .false.
+        if (present(tSinglesOnlyOpt)) then
+            if (tSinglesOnlyOpt) tSinglesOnly = .true.
+        end if
+
+        ! Which excitations levels should be considered?
+        ! Singles only (1), doubles only (2) or singles and doubles (3).
+        if (tSinglesOnly) then
+            ex_flag = 1
+        else
+            if (tHub) then
+                if (tReal) then
+                    ex_flag = 1
+                else
+                    ex_flag = 2
                 end if
+            else if (tUEG) then
+                ex_flag = 2
+            else
+                ex_flag = 3
+            end if
+        end if
 
-                call enumerate_all_double_excitations (original_space(:,i), nI, ilut, &
-                                                                             gen_store)
+        ! We have to ensure that brillouins theorem isn't on for the excitation
+        ! generator.
+        if (tUseBrillouin) then
+            tTempUseBrill = .true.
+            tUseBrillouin = .false.
+        else
+            tTempUseBrill = .false.
+        end if
 
-                if (ilut(0) == -1) exit
+        connected_space_size = 0
+
+        ! Over all the states in the original list:
+        do i = 1, original_space_size
+
+            call decode_bit_det(nI, original_space(:,i))
+
+            ! This is all initialisation stuff for the excitation generator:
+
+            iMaxExcit = 0
+            nStore(1:6) = 0
+
+            call GenSymExcitIt2(nI, nel, G1, nBasis, .true., nExcitMemLen, nJ, iMaxExcit, &
+                                 nStore, ex_flag)
+
+            allocate(excit_gen(nExcitMemLen(1)), stat=ierr)
+            if (ierr .ne. 0) call Stop_All(t_r, "Problem allocating excitation generator")
+            excit_gen = 0
+
+            call GenSymExcitIt2(nI, nel, G1, nBasis, .true., excit_gen, nJ, iMaxExcit, &
+                                 nStore, ex_flag)
+
+            ! Initialisation finished.
+
+            do while(.true.)
+
+                ! Generate the next determinant.
+                call GenSymExcitIt2(nI, nel, G1, nBasis, .false., excit_gen, nJ, iExcit, &
+                                     nStore, ex_flag)
+                if (nJ(1) == 0) exit
+
+                ! Encode nJ in ilut.
+                call EncodeBitDet(nJ, ilut)
 
                 ! If using HPHFs, and if this isn't the allowed state for this HPHF, find
                 ! the the allowed state and continue with this as ilut.
@@ -635,86 +474,14 @@ contains
 
                 connected_space_size = connected_space_size + 1
 
-                if (present(connected_space)) connected_space(0:NIfD, connected_space_size) = ilut(0:NIfD)
+                if (tStoreConnSpace) connected_space(0:NIfD, connected_space_size) = ilut(0:NIfD)
 
             end do
 
+            deallocate(excit_gen)
+
         end do
 
-    end subroutine generate_connected_space
-
-    subroutine find_number_summation_possibilities(target_integer, min_integer, max_integer, &
-        num_pairs, ms_values)
-
-        ! This routine finds the number of pairs of integers which sum to some given
-        ! value, given that the two integers have a minimum and maximum size. If ms_values is
-        ! true then the only the integers corresponding to actual ms values are cycled through.
-
-        integer, intent(in) :: target_integer, min_integer, max_integer
-        logical, intent(in) :: ms_values
-        integer, intent(out) :: num_pairs
-        integer :: i, j
-        integer :: interval
-
-        num_pairs = 0
-
-        if (ms_values) then
-            interval = 2
-        else
-            interval = 1
-        end if
-
-        ! Loop over all values for the first integer.
-        do i = min_integer, max_integer, interval
-            ! Loop over all values for the second integer.
-            do j = min_integer, max_integer
-                ! If the two integers add up to the target value.
-                if ((i+j) == target_integer) num_pairs = num_pairs + 1
-            end do
-        end do
-
-    end subroutine find_number_summation_possibilities
-
-    subroutine find_next_summation_pair(target_integer, min_integer, max_integer, pair_number, &
-        ms_values, number_1, number_2)
-
-        ! This routine finds the next pair of numbers which add up to target_integer, given
-        ! the maximum and minimum values of the induvidual numbers are min_integer and
-        ! max_integer. pair_number specifies which generated pair should be returned.
-        ! If ms_values is true then the only the integers corresponding to actual ms values
-        ! are cycled through.
-
-        integer, intent(in) :: target_integer, min_integer, max_integer, pair_number
-        logical, intent(in) :: ms_values
-        integer, intent(out) :: number_1, number_2
-        integer :: i, j, counter
-        integer :: interval = 1
-
-        counter = 0
-
-        if (ms_values) then
-            interval = 2
-        else
-            interval = 1
-        end if
-
-        ! Loop over all values for the first integer.
-        do i = min_integer, max_integer, interval
-            ! Loop over all values for the second integer.
-            do j = min_integer, max_integer
-                ! If the two integers add up to the target value.
-                if ((i+j) == target_integer) then
-                    counter = counter+1
-                    ! If on the pair specified by the user.
-                    if (counter == pair_number) then
-                        number_1 = i
-                        number_2 = j
-                        return
-                    end if
-                end if
-            end do
-        end do
-
-    end subroutine find_next_summation_pair
+    end subroutine generate_connected_space_kpnt
 
 end module enumerate_excitations

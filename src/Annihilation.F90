@@ -1278,16 +1278,7 @@ MODULE AnnihilationMod
                             endif
                         endif
 
-                        !If tSuccess, the SignCurr must be zero due to the loop that we're in.  If the target
-                        !determinant is in the deterministic space we don't want to apply this occupied threshold
-                        !as we're hanging on to the entry in currentdets anyway, so there's no advantage in rounding
-                        !the small walker fractions up/down to reduce memory/time demands.  So, if tSuccess, we only
-                        !want to do the rounding is the target determinant is not in the core space.  If .not.
-                        !tSuccess, then the target determinant cannot be in the core space anyway, as such
-                        !determinants are always retained in current dets.
-                        if ((tSuccess .and. (.not. test_flag(CurrentDets(:,PartInd),flag_deterministic)) &
-                            .or. (.not. tSuccess)) .and. ((abs(SignTemp(j)).gt.0.0) & 
-                                            .and. (abs(SignTemp(j)).lt.OccupiedThresh))) then
+                        if ((abs(SignTemp(j)).gt.0.0) .and. (abs(SignTemp(j)).lt.OccupiedThresh)) then
                             !We remove this walker with probability 1-RealSignTemp
                             pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
                             r = genrand_real2_dSFMT ()
@@ -1327,12 +1318,10 @@ MODULE AnnihilationMod
                     
                     !If we abort these particles, we'll still need to add them to ToRemove
                     tPrevOcc=.false.
-                    if (.not. IsUnoccDet(SignTemp)) tPrevOcc=.true.   
+                    if (.not. IsUnoccDet(SignTemp)) tPrevOcc=.true. 
                     
                     do j = 1, lenof_sign
-                        if ((tSuccess .and. (.not. test_flag(CurrentDets(:,PartInd),flag_deterministic)) &
-                            .or. (.not. tSuccess)) .and. ((abs(SignTemp(j)).gt.0.0) & 
-                                            .and. (abs(SignTemp(j)).lt.OccupiedThresh))) then
+                        if ((abs(SignTemp(j)).gt.0.0) .and. (abs(SignTemp(j)).lt.OccupiedThresh)) then
                             !We remove this walker with probability 1-RealSignTemp
                             pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
                             r = genrand_real2_dSFMT ()
