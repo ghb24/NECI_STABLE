@@ -12,7 +12,8 @@ module semi_stoch_gen
     use csf, only: csf_get_yamas, get_num_csfs, get_csf_bit_yama, csf_apply_yama
     use csf_data, only: csf_orbital_mask
     use constants
-    use DetBitOps, only: ilut_lt, ilut_gt, count_open_orbs, DetBitLT, IsAllowedHPHF
+    use DetBitOps, only: ilut_lt, ilut_gt, count_open_orbs, DetBitLT, IsAllowedHPHF, &
+                         EncodeBitDet
     use DeterminantData, only: write_det
     use enumerate_excitations
     use FciMCData, only: HFDet, ilutHF, iHFProc, CurrentDets, determ_proc_sizes, &
@@ -35,7 +36,7 @@ module semi_stoch_gen
     use sort_mod, only: sort
     use sparse_arrays
     use sym_mod, only: getsym
-    use SymExcit3 , only : GenExcitations3
+    use SymExcit3, only: GenExcitations3
     use SystemData
     use timing_neci
     use util_mod, only: binary_search_real
@@ -78,10 +79,9 @@ contains
             call stop_all("init_semi_stochastic", "You have not selected a semi-stochastic core &
                           &space to use.")
         end if
+
         if (.not. (tDeterminantCore .or. tCSFCore .or. tStartCAS .or. tPopsCore .or. tReadCore)) then
-            call warning_neci("init_semi_stochastic", "You have not selected to use either &
-                              &determinants or CSFs for the deterministic space. Determinants &
-                              &will be used.")
+            ! Assume that we are using determinants (or HPHFs) rather than CSFs, by default.
             tDeterminantCore = .true.
         end if
 
@@ -322,46 +322,39 @@ contains
         !     the semi-stochastic generation code or the trial vector generation code.
 
         integer, intent(in) :: called_from
-        type(excit_store), target :: gen_store
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel)
-        integer :: space_size
-        integer :: i, ierr
+        integer :: excit(2,2)
+        integer :: nsing, ndoub, ex_flag
+        logical :: tAllExcitFound, tParity
+
+        ! Always generate both the single and double excitations.
+        ex_flag = 3
 
         ! Start by adding the HF state.
         call add_state_to_space(ilutHF, called_from)
 
-        ! This condition tells the enumerating subroutines to initialise the loop.
-        ilut(0) = -1
-        ! Find the first single excitation.
-        call enumerate_all_single_excitations (ilutHF, HFDet, ilut, gen_store)
-        call add_state_to_space(ilut, called_from)
+        if (tKPntSym) then
+            call enumerate_sing_doub_kpnt(ex_flag, nsing, ndoub, called_from)
+        else
 
-        ! When no more basis functions are found, this value is returned and the loop
-        ! is exited.
-        do while(ilut(0) /= -1)
-            call enumerate_all_single_excitations (ilutHF, HFDet, ilut, gen_store)
+            tAllExcitFound = .false.
+            excit = 0
 
-            ! If a determinant is returned (if we did not find the final one last time.)
-            if (ilut(0) /= -1) call add_state_to_space(ilut, called_from)
-        end do
+            do while(.true.)
+                ! Generate the next determinant.
+                call GenExcitations3(HFDet, ilutHF, nI, ex_flag, excit, tParity, tAllExcitFound, .false.)
+                if (tAllExcitFound) exit
 
-        ! Now generate the double excitations...
+                call EncodeBitDet(nI, ilut)
+                call add_state_to_space(ilut, called_from, nI)
+            end do
 
-        ilut(0) = -1
-        call enumerate_all_double_excitations (ilutHF, HFDet, ilut, gen_store)
-        call add_state_to_space(ilut, called_from)
-
-        do while(ilut(0) /= -1)
-            call enumerate_all_double_excitations (ilutHF, HFDet, ilut, gen_store)
-
-            if (ilut(0) /= -1) call add_state_to_space(ilut, called_from)
-        end do
-
-        if (called_from == called_from_trial) then
-            if (tLimitTrialSpace) call remove_high_energy_orbs(trial_space(:, 1:trial_space_size), &
-                                                             trial_space_size, max_trial_size, .false.)
         end if
+
+        if (called_from == called_from_trial .and. tLimitTrialSpace) &
+            call remove_high_energy_orbs(trial_space(:, 1:trial_space_size), trial_space_size, &
+                                          max_trial_size, .false.)
 
     end subroutine generate_sing_doub_determinants
 
@@ -374,7 +367,7 @@ contains
         type(excit_store), target :: gen_store
         integer(n_int) :: ilutHF_loc(0:NIfTot), ilut(0:NIfTot)
         integer :: HFDet_loc(nel), nI(nel)
-        integer :: exflag
+        integer :: ex_flag
         logical :: first_loop
 
         if (tFixLz) call stop_all("generate_sing_doub_csfs", "The CSF generating routine &
@@ -382,9 +375,9 @@ contains
 
         ! Setting the first two bits of this flag tells the generating subroutine to
         ! generate both single and double spatial excitations.
-        exflag = 0
-        exflag = ibset(exflag, 0)
-        exflag = ibset(exflag, 1)
+        ex_flag = 0
+        ex_flag = ibset(ex_flag, 0)
+        ex_flag = ibset(ex_flag, 1)
 
         ! For Stot /= 0, the HF state will be a CSF. For the purpose of
         ! generating all spatial orbitals we just want a determinant, so use a
@@ -404,7 +397,7 @@ contains
             end if
 
             ! Generate the next spatial excitation (orbital configuration).
-            call enumerate_spatial_excitations(ilutHF_loc, HFDet_loc, ilut, exflag, gen_store)
+            call enumerate_spatial_excitations(ilutHF_loc, HFDet_loc, ilut, ex_flag, gen_store)
 
             if (ilut(0) == -1) exit
 
@@ -1248,5 +1241,69 @@ contains
         end do
 
     end subroutine generate_using_mp1_criterion
+
+    subroutine enumerate_sing_doub_kpnt(ex_flag, nSing, nDoub, called_from)
+
+        integer, intent(in) :: ex_flag
+        integer, intent(out) :: nSing, nDoub
+        integer, optional, intent(in) :: called_from
+        integer, allocatable :: excit_gen(:)
+        integer(n_int) :: ilut(0:NIfTot)
+        integer :: iExcit, iMaxExcit, ierr
+        integer :: nJ(nel), hfdet_loc(nel), nStore(6), nExcitMemLen(1)
+        logical :: tTempUseBrill
+        character(*), parameter :: t_r = 'enumerate_doubles_kpnt'
+
+        ! A quick hack. Count excitations as though we were a determinant.
+        ! We could fix this later...
+        hfdet_loc = iand(hfdet, csf_orbital_mask)
+
+        nSing = 0
+        nDoub = 0
+        iMaxExcit = 0
+        nStore(1:6) = 0
+
+        ! Use Alex's old excitation generators. However, we have to ensure
+        ! that brillouins theorem isn't on!
+        if (tUseBrillouin) then
+            tTempUseBrill = .true.
+            tUseBrillouin = .false.
+        else
+            tTempUseBrill = .false.
+        end if
+
+        call GenSymExcitIt2(HFDet_loc, nel, G1, nBasis, .true., nExcitMemLen, &
+                nJ, iMaxExcit, nStore, ex_flag)
+
+        allocate(excit_gen(nExcitMemLen(1)), stat=ierr)
+        if (ierr .ne. 0) call Stop_All(t_r, "Problem allocating excitation generator")
+        excit_gen = 0
+
+        call GenSymExcitIt2(HFDet_loc, nel, G1, nBasis, .true., excit_gen, nJ, &
+                iMaxExcit, nStore, ex_flag)
+
+        do while(.true.)
+            call GenSymExcitIt2(HFDet_loc, nel, G1, nBasis, .false., excit_gen, &
+                    nJ, iExcit, nStore, ex_flag)
+
+            if (nJ(1).eq.0) exit
+
+            if (present(called_from)) then
+                call EncodeBitDet(nJ,ilut)
+                call add_state_to_space(ilut, called_from, nJ)
+            end if
+
+            if (iExcit.eq.1) then
+                nSing = nSing + 1
+            else if (iExcit.eq.2) then
+                nDoub = nDoub + 1
+            else
+                call stop_all(t_r, "Trying to generate more than doubles!")
+            end if
+        end do
+
+        tUseBrillouin = tTempUseBrill
+
+    end subroutine enumerate_sing_doub_kpnt
 
 end module semi_stoch_gen

@@ -427,26 +427,43 @@ contains
 
         integer :: i, j, ierr
         integer :: nI(nel), nJ(nel)
-        real(dp) :: H_ij
+        integer :: ex(2,2), ic
+        real(dp) :: H_ij, temp1, temp2
         character (len=*), parameter :: t_r = "generate_connected_space_vector"
 
         allocate(con_space_vector(con_space_size), stat=ierr)
         call LogMemAlloc('con_space_vector', con_space_size, 8, t_r, ConVecTag, ierr)
         con_space_vector = 0.0_dp
 
+        write(6,*) "con_space_vector:"
+
         do i = 1, con_space_size
             call decode_bit_det(nI, con_space(0:NIfTot, i))
             do j = 1, trial_space_size
                 call decode_bit_det(nJ, trial_space(0:NIfTot, j))
+                !ic = FindBitExcitLevel(con_space(0:NIfD, i), trial_space(0:NIfD, j), nel)
+                !ex(1,1) = ic
+                !call GetExcitation(nI, nJ, nel, ex, tParity)
                 ! Note that, because the connected and trial spaces do not contain any common
                 ! states, we never have diagonal Hamiltonian elements.
                 if (.not. tHPHF) then
                     H_ij = get_helement(nI, nJ, con_space(:,i), trial_space(:,j))
+                    !write(6,*) "Normal:", H_ij
+                    !if (ic > 2) then
+                    !    write(6,*) "Excit: 0.0"
+                    !else
+                    !    temp2 = get_helement(nI, nJ, ic, ex, tParity)
+                    !    write(6,*) "Excit:", temp2
+                    !    if (temp2 /= H_ij) call stop_all("here","here")
+                    !end if
+                    !temp2 = get_helement(nI, nJ, ic, con_space(:,i), trial_space(:,j))
+                    !write(6,*) "Compat:", temp2
                 else
                     H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                 end if
                 con_space_vector(i) = con_space_vector(i) + H_ij*trial_wf(j)
             end do
+            write(6,*) con_space(0:NIfD, i), con_space_vector(i)
         end do
 
     end subroutine generate_connected_space_vector
