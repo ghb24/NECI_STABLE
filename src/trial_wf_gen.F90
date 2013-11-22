@@ -463,7 +463,7 @@ contains
                 end if
                 con_space_vector(i) = con_space_vector(i) + H_ij*trial_wf(j)
             end do
-            write(6,*) con_space(0:NIfD, i), con_space_vector(i)
+            !write(6,*) con_space(0:NIfD, i), con_space_vector(i)
         end do
 
     end subroutine generate_connected_space_vector
