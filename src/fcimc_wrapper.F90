@@ -52,6 +52,9 @@
 ! Copyright (c) 2013, Ali Alavi unless otherwise noted.
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
  
+! Copyright (c) 2013, Ali Alavi unless otherwise noted.
+! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
+ 
 ! This routine intentionally does not have a declared interface. This does
 ! leave it a little bit open to abuse, but that is what we want in this case.
 !
