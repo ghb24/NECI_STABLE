@@ -12,7 +12,7 @@ MODULE PopsfileMod
                         MemoryFacSpawn
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt
-    use hash , only : DetermineDetNode
+    use hash , only : DetermineDetNode, FindWalkerHash
     use Determinants, only : get_helement,write_det
     use hphf_integrals, only: hphf_diag_helement
     use MI_integrals, only: MI_diag_helement
@@ -22,7 +22,6 @@ MODULE PopsfileMod
     use bit_reps
     use constants
     use Parallel_neci
-    use AnnihilationMod, only: FindWalkerHash
     use LoggingData, only: iWritePopsEvery, tPopsFile, iPopsPartEvery, tBinPops, &
                        tPrintPopsDefault, tIncrementPops, tPrintInitiators, &
                        tSplitPops, tZeroProjE, tRDMonFly, tExplicitAllRDM, &

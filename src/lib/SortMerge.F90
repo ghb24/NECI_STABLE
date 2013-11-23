@@ -34,7 +34,7 @@
         USE HElem
         use constants, only: dp,n_int
         use util_mod, only: binary_search_custom
-        use trial_wf_gen, only: find_trial_and_con_states_bin, find_trial_and_con_states_hash
+        use searching, only: find_trial_and_con_states_bin, find_trial_and_con_states_hash
         IMPLICIT NONE
         INTEGER :: nlisto,nlist1,nlist2,i
         INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
@@ -43,6 +43,8 @@
         real(dp) :: HDiag
         INTEGER :: nJ(NEl),j,ntrial,ncon,ncon_old,ntrial_old
         logical :: tTrialState, tConState
+
+        !write(6,*) "Here!"
 
         if (tTrialWavefunction .and. nlist2 > 0) then
             ! If using a trial wavefunction, count the number of states to be merged

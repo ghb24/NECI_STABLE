@@ -1,6 +1,5 @@
 module trial_wf_gen
 
-    use AnnihilationMod, only: BinSearchParts, FindWalkerHash, hash_search_trial
     use bit_rep_data, only: NIfTot, NIfDBO, flag_trial, flag_connected
     use bit_reps, only: encode_det, set_flag
     use davidson, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
@@ -13,15 +12,17 @@ module trial_wf_gen
                          ConTag, ConVecTag, DavidsonTag, TempTag, TrialTag, TrialWFTag, &
                          iHFProc, Trial_Init_Time, trial_temp, con_temp, occ_trial_amps, &
                          occ_con_amps, TrialTempTag, ConTempTag, OccTrialTag, OccConTag, &
-                         ntrial_occ, ncon_occ, Trial_Search_Time, CurrentTrialTag, &
+                         ntrial_occ, ncon_occ, CurrentTrialTag, &
                          current_trial_amps, MaxWalkersPart, min_trial_ind, min_conn_ind, &
                          HashIndex, tTrialHash, tIncCancelledInitEnergy
+    use hash, only: FindWalkerHash
     use hphf_integrals, only: hphf_off_diag_helement
     use LoggingData, only: tWriteTrial, tCompareTrialAmps
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier, MPIAllToAll, MPISumAll, &
                              MPIAllToAllV, MPIArg, MPIBCast, MPIAllReduce
     use ParallelHelper, only: root
+    use searching, only: BinSearchParts, hash_search_trial, find_trial_and_con_states_bin
     use semi_stoch_gen
     use semi_stoch_procs
     use sparse_arrays
@@ -64,7 +65,7 @@ contains
         write(6,'(a29)') "Generating the trial space..."
         call neci_flush(6)
 
-        ! Generate the trial space and place the corresponding states in trial_space.
+         Generate the trial space and place the corresponding states in trial_space.
         if (tDoublesTrial) then
             call generate_sing_doub_determinants(called_from_trial)
         elseif (tCASTrial) then
@@ -427,8 +428,7 @@ contains
 
         integer :: i, j, ierr
         integer :: nI(nel), nJ(nel)
-        integer :: ex(2,2), ic
-        real(dp) :: H_ij, temp1, temp2
+        real(dp) :: H_ij
         character (len=*), parameter :: t_r = "generate_connected_space_vector"
 
         allocate(con_space_vector(con_space_size), stat=ierr)
@@ -441,29 +441,15 @@ contains
             call decode_bit_det(nI, con_space(0:NIfTot, i))
             do j = 1, trial_space_size
                 call decode_bit_det(nJ, trial_space(0:NIfTot, j))
-                !ic = FindBitExcitLevel(con_space(0:NIfD, i), trial_space(0:NIfD, j), nel)
-                !ex(1,1) = ic
-                !call GetExcitation(nI, nJ, nel, ex, tParity)
                 ! Note that, because the connected and trial spaces do not contain any common
                 ! states, we never have diagonal Hamiltonian elements.
                 if (.not. tHPHF) then
                     H_ij = get_helement(nI, nJ, con_space(:,i), trial_space(:,j))
-                    !write(6,*) "Normal:", H_ij
-                    !if (ic > 2) then
-                    !    write(6,*) "Excit: 0.0"
-                    !else
-                    !    temp2 = get_helement(nI, nJ, ic, ex, tParity)
-                    !    write(6,*) "Excit:", temp2
-                    !    if (temp2 /= H_ij) call stop_all("here","here")
-                    !end if
-                    !temp2 = get_helement(nI, nJ, ic, con_space(:,i), trial_space(:,j))
-                    !write(6,*) "Compat:", temp2
                 else
                     H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                 end if
                 con_space_vector(i) = con_space_vector(i) + H_ij*trial_wf(j)
             end do
-            !write(6,*) con_space(0:NIfD, i), con_space_vector(i)
         end do
 
     end subroutine generate_connected_space_vector
@@ -505,99 +491,6 @@ contains
         end if
 
     end subroutine assign_elements_on_procs
-
-    subroutine find_trial_and_con_states_bin(num_states, ilut_list, ntrial, ncon)
-
-        integer(int64), intent(in) :: num_states
-        integer(n_int), intent(inout) :: ilut_list(:,:)
-        integer, intent(out) :: ntrial, ncon
-        integer :: i, pos
-
-        min_trial_ind = 1
-        min_conn_ind = 1
-        ntrial = 0
-        ncon = 0
-
-        call set_timer(Trial_Search_Time)
-
-        do i = 1, num_states
-            ! Search both the trial space and connected space to see if this state exists in either list.
-            if (min_trial_ind <= trial_space_size) then
-                ! First the trial space:
-                pos = binary_search_custom(trial_space(:, min_trial_ind:trial_space_size), &
-                                           ilut_list(:,i), NIfTot+1, ilut_gt)
-
-                if (pos > 0) then
-                    ntrial = ntrial + 1
-                    trial_temp(ntrial) = trial_wf(pos+min_trial_ind-1)
-                    min_trial_ind = min_trial_ind + pos
-                    call set_flag(ilut_list(:,i), flag_trial)
-                else
-                    ! The state is not in the trial space. Just update min_trial_ind accordingly.
-                    min_trial_ind = min_trial_ind - pos - 1
-                end if
-            else
-                ! To make sure that the connected space can be searched next.
-                pos = -1
-            end if
-
-            ! If pos > 0 then the state is in the trial space. A state cannot be in both the trial and
-            ! connected space, so, unless pos < 0, don't bother doing the following binary search.
-            if (pos < 0 .and. min_conn_ind <= con_space_size) then
-
-                pos = binary_search_custom(con_space(:, min_conn_ind:con_space_size), &
-                                           ilut_list(:,i), NIfTot+1, ilut_gt)
-
-                if (pos > 0) then
-                    ncon = ncon + 1
-                    con_temp(ncon) = con_space_vector(pos+min_conn_ind-1)
-                    min_conn_ind = min_conn_ind + pos
-                    call set_flag(ilut_list(:,i), flag_connected)
-                else
-                    min_conn_ind = min_conn_ind - pos - 1
-                end if
-            end if
-        end do
-
-        call halt_timer(Trial_Search_Time)
-
-    end subroutine find_trial_and_con_states_bin
-
-    subroutine find_trial_and_con_states_hash(num_states, ilut_list, ntrial, ncon)
-
-        integer(int64), intent(in) :: num_states
-        integer(n_int), intent(inout) :: ilut_list(0:,:)
-        integer, intent(out) :: ntrial, ncon
-        integer :: i, pos
-        integer :: nI(nel)
-        real(dp) :: amp
-
-        ntrial = 0
-        ncon = 0
-
-        call set_timer(Trial_Search_Time)
-
-        do i = 1, num_states
-            call decode_bit_det(nI, ilut_list(:,i))
-            ! Search the trial and connected list to see if this state exists in
-            ! either. If it is, this routine sets the corresponding flag and returns the
-            ! corresponding amplitude.
-            call hash_search_trial(ilut_list(:,i), nI, amp)
-
-            if (test_flag(ilut_list(:,i),flag_trial)) then
-                ! If this state is in the trial space.
-                ntrial = ntrial + 1
-                trial_temp(ntrial) = amp
-            else if(test_flag(ilut_list(:,i),flag_connected)) then
-                ! If this state is in the connected space.
-                ncon = ncon + 1
-                con_temp(ncon) = amp
-            end if
-        end do
-
-        call halt_timer(Trial_Search_Time)
-
-    end subroutine find_trial_and_con_states_hash
 
     subroutine write_trial_space()
 

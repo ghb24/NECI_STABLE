@@ -101,8 +101,7 @@ MODULE FciMCParMod
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE Parallel_neci
     USE FciMCData
-    USE AnnihilationMod, only: DirectAnnihilation, FindWalkerHash, &
-                               RemoveDetHashIndex
+    USE AnnihilationMod, only: DirectAnnihilation, RemoveDetHashIndex
     use PopsfileMod, only: ReadFromPopsfilePar, FindPopsfileVersion, &
                            WriteToPopsFileParOneArr, open_pops_head, &
                            readpopsheadv3, readpopsheadv4, CheckPopsParams, &
@@ -112,7 +111,7 @@ MODULE FciMCParMod
                          FindBitExcitLevel, countbits, TestClosedShellDet, &
                          FindSpatialBitExcitLevel, IsAllowedHPHF, count_open_orbs, &
                          ilut_gt
-    use hash , only : DetermineDetNode                     
+    use hash , only : DetermineDetNode, FindWalkerHash
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
@@ -819,8 +818,8 @@ MODULE FciMCParMod
 
         !write(6,*) "CurrentDets before:"
         !do j = 1, TotWalkers
-        !    write(6,*) j, CurrentDets(:,j), test_flag(CurrentDets(:,j), flag_deterministic), &
-        !                                    test_flag(CurrentDets(:,j), flag_determ_parent)
+        !    write(6,*) j, CurrentDets(0:NIfD,j), test_flag(CurrentDets(:,j), flag_trial), &
+        !                                    test_flag(CurrentDets(:,j), flag_connected)
         !end do
         !write(6,*)
 

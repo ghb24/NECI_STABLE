@@ -5,7 +5,7 @@
 
 module semi_stoch_procs
 
-    use AnnihilationMod, only: BinSearchParts, RemoveDetHashIndex, FindWalkerHash
+    use AnnihilationMod, only: RemoveDetHashIndex
     use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag, &
                             flag_is_initiator, NOffSgn, NIfSgn
     use bit_reps, only: decode_bit_det, set_flag, extract_part_sign, extract_sign, &
@@ -27,7 +27,7 @@ module semi_stoch_procs
                          nWalkerHashes, tFill_RDM, IterLastRDMFill, full_determ_vector_av, &
                          tFillingStochRDMonFly, Iter, IterRDMStart, CoreHashIndex, &
                          core_ham_diag, DavidsonTag, Fii, HFDet
-    use hash, only: DetermineDetNode
+    use hash, only: DetermineDetNode, FindWalkerHash
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use MI_integrals, only: MI_off_diag_helement
@@ -37,6 +37,7 @@ module semi_stoch_procs
                              MPIAllGatherV, MPISum, MPISumAll, MPIScatterV
     use ParallelHelper, only: root
     use ras, only: core_ras
+    use searching, only: BinSearchParts
     use sort_mod, only: sort
     use sparse_arrays, only: sparse_core_ham, SparseCoreHamilTags, deallocate_sparse_ham, &
                             core_connections, sparse_ham, hamil_diag, HDiagTag, &

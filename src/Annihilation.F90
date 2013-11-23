@@ -7,13 +7,13 @@ MODULE AnnihilationMod
                           tVaryInitThresh
     USE DetCalcData , only : Det,FCIDetIndex
     USE Parallel_neci
-    USE dSFMT_interface , only : genrand_real2_dSFMT
+    USE dSFMT_interface, only : genrand_real2_dSFMT
     USE FciMCData
     use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel, ilut_lt, &
                          ilut_gt, DetBitZero
     use spatial_initiator, only: add_initiator_list, rm_initiator_list, &
                                  is_spatial_init
-    use CalcData , only : tTruncInitiator, tSpawnSpatialInit
+    use CalcData, only : tTruncInitiator, tSpawnSpatialInit
     use DeterminantData, only: write_det
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
@@ -30,6 +30,8 @@ MODULE AnnihilationMod
     use LoggingData , only : tHF_Ref_Explicit
     use util_mod, only: get_free_unit, binary_search_custom
     use sparse_arrays, only: trial_ht, con_ht
+    use searching
+    use hash
 
     IMPLICIT NONE
 
@@ -1888,6 +1890,24 @@ MODULE AnnihilationMod
             IF(TotWalkersNew.eq.0) THEN
 !Merging algorithm will not work with no determinants in the main list.
                 TotWalkersNew=ValidSpawned
+
+                ! If using a trial wavefunction then call a routine to set the trial and connected
+                ! flags for the determinants in SpawnedParts, where necessary, and to also count and
+                ! return the number of trial and connected determinants. The corresponding trial
+                ! and connected vector amplitudes are stored in trial_temp and con_temp on output.
+                ! These are then copied across to occ_trial_amps and con_trial_amps.
+                if (tTrialWavefunction) then
+                    if (tTrialHash) then
+                        call find_trial_and_con_states_hash(int(ValidSpawned,8), &
+                                    SpawnedParts(0:NIfTot,1:ValidSpawned), ntrial_occ, ncon_occ)
+                    else
+                        call find_trial_and_con_states_bin(int(ValidSpawned,8), &
+                                    SpawnedParts(0:NIfTot,1:ValidSpawned), ntrial_occ, ncon_occ)
+                    end if
+                    occ_trial_amps(1:ntrial_occ) = trial_temp(1:ntrial_occ)
+                    occ_con_amps(1:ncon_occ) = con_temp(1:ncon_occ)
+                end if
+
                 do i=1,ValidSpawned
                     CurrentDets(:,i)=SpawnedParts(:,i)
                     IF(tTruncInitiator) CALL FlagifDetisInitiator(CurrentDets(0:NIfTot,i))
@@ -1917,272 +1937,4 @@ MODULE AnnihilationMod
 
     END SUBROUTINE InsertRemoveParts
 
-    !Another hashing routine - this time to find the correct position in the hash table
-    pure function FindWalkerHash(nJ, HashIndexLength) result(hashInd)
-        implicit none
-        integer, intent(in) :: nJ(nel)
-        integer, intent(in) :: HashIndexLength
-        integer :: hashInd
-        integer :: i
-        integer(int64) :: hash
-        hash = 0
-!        write(6,*) "nJ: ",nJ(:)
-        if(tCSF) then
-            do i = 1, nel
-                hash = (1099511628211_int64 * hash) + &
-                        int(RandomHash2(mod(iand(nJ(i), csf_orbital_mask)-1,nBasis)+1) * i,int64)
-            enddo
-        else
-            do i = 1, nel
-                hash = (1099511628211_int64 * hash) + &
-                        int(RandomHash2(nJ(i))*i,int64)
-
-!                        (RandomHash(mod(nI(i)+offset-1,int(nBasis,int64))+1) * i)
-            enddo
-        endif
-        hashInd = int(abs(mod(hash, int(HashIndexLength, int64))),sizeof_int)+1
-    end function FindWalkerHash
-
-    FUNCTION CreateHash(DetCurr)
-        INTEGER :: DetCurr(NEl),i
-        INTEGER(KIND=int64) :: CreateHash
-
-        CreateHash=0
-        do i=1,NEl
-!            CreateHash=13*CreateHash+i*DetCurr(i)
-            CreateHash=(1099511628211_int64*CreateHash)+i*DetCurr(i)
-            
-!            CreateHash=mod(1099511628211*CreateHash,2**64)
-!            CreateHash=XOR(CreateHash,DetCurr(i))
-        enddo
-!        WRITE(6,*) CreateHash
-        RETURN
-
-    END FUNCTION CreateHash
-
-    SUBROUTINE LinSearchParts(DetArray,iLut,MinInd,MaxInd,PartInd,tSuccess)
-        INTEGER :: MinInd,MaxInd,PartInd
-        INTEGER(KIND=n_int) :: iLut(0:NIfTot),DetArray(0:NIfTot,1:MaxInd)
-        INTEGER :: N,Comp
-        LOGICAL :: tSuccess
-
-        N=MinInd
-        do while(N.le.MaxInd)
-            Comp=DetBitLT(DetArray(:,N),iLut(:),NIfDBO)
-            IF(Comp.eq.1) THEN
-                N=N+1
-            ELSEIF(Comp.eq.-1) THEN
-                PartInd=N-1
-                tSuccess=.false.
-                RETURN
-            ELSE
-                tSuccess=.true.
-                PartInd=N
-                RETURN
-            ENDIF
-        enddo
-        tSuccess=.false.
-        PartInd=MaxInd-1
-
-    END SUBROUTINE LinSearchParts
-
-!Do a binary search in CurrentDets, between the indices of MinInd and MaxInd. If successful, tSuccess will be true and 
-!PartInd will be a coincident determinant. If there are multiple values, the chosen one may be any of them...
-!If failure, then the index will be one less than the index that the particle would be in if it was present in the list.
-!(or close enough!)
-    SUBROUTINE BinSearchParts(iLut,MinInd,MaxInd,PartInd,tSuccess)
-        INTEGER(KIND=n_int) :: iLut(0:NIfTot)
-        INTEGER :: MinInd,MaxInd,PartInd
-        INTEGER :: i,j,N,Comp
-        LOGICAL :: tSuccess
-
-        i=MinInd
-        j=MaxInd
-        IF(i-j.eq.0) THEN
-            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:),NIfDBO,.false.)
-            IF(Comp.eq.0) THEN
-                tSuccess=.true.
-                PartInd=MaxInd
-                RETURN
-            ELSE
-                tSuccess=.false.
-                PartInd=MinInd
-            ENDIF
-        ENDIF
-
-        do while(j-i.gt.0)  !End when the upper and lower bound are the same.
-            N=(i+j)/2       !Find the midpoint of the two indices
-!            WRITE(6,*) i,j,n
-
-!Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(CurrentDets(:,N),iLut(:),NIfDBO,.false.)
-
-            IF(Comp.eq.0) THEN
-!Praise the lord, we've found it!
-                tSuccess=.true.
-                PartInd=N
-                RETURN
-            ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
-!The value of the determinant at N is LESS than the determinant we're looking for. Therefore, move the lower
-!bound of the search up to N.  However, if the lower bound is already equal to N then the two bounds are 
-!consecutive and we have failed...
-                i=N
-            ELSEIF(i.eq.N) THEN
-
-
-                IF(i.eq.MaxInd-1) THEN
-!This deals with the case where we are interested in the final/first entry in the list. Check the final entry 
-!of the list and leave.  We need to check the last index.
-                    Comp=DetBitLT(CurrentDets(:,i+1),iLut(:),NIfDBO,.false.)
-                    IF(Comp.eq.0) THEN
-                        tSuccess=.true.
-                        PartInd=i+1
-                        RETURN
-                    ELSEIF(Comp.eq.1) THEN
-!final entry is less than the one we want.
-                        tSuccess=.false.
-                        PartInd=i+1
-                        RETURN
-                    ELSE
-                        tSuccess=.false.
-                        PartInd=i
-                        RETURN
-                    ENDIF
-
-                ELSEIF(i.eq.MinInd) THEN
-                    tSuccess=.false.
-                    PartInd=i
-                    RETURN
-
-                ELSE
-                    i=j
-                ENDIF
-
-
-            ELSEIF(Comp.eq.-1) THEN
-!The value of the determinant at N is MORE than the determinant we're looking for. Move the upper bound of the search down to N.
-                j=N
-            ELSE
-!We have failed - exit loop
-                i=j
-            ENDIF
-
-        enddo
-
-!If we have failed, then we want to find the index that is one less than where the particle would have been.
-        tSuccess=.false.
-        PartInd=MAX(MinInd,i-1)
-
-    END SUBROUTINE BinSearchParts
-
-    subroutine bin_search_trial(ilut, amp)
-
-        integer(n_int), intent(inout) :: ilut(0:)
-        real(dp), intent(out) :: amp
-        integer :: i, pos
-
-        amp = 0.0_dp
-
-        ! Search both the trial space and connected space to see if this state exists in either list.
-        ! First the trial space:
-        pos = binary_search_custom(trial_space(:, min_trial_ind:trial_space_size), ilut, NIfTot+1, ilut_gt)
-
-        if (pos > 0) then
-            amp = trial_wf(pos+min_trial_ind-1)
-            min_trial_ind = min_trial_ind + pos
-            call set_flag(ilut, flag_trial)
-        else
-            ! The state is not in the trial space. Just update min_trial_ind accordingly.
-            min_trial_ind = min_trial_ind - pos - 1
-        end if
-
-        ! If pos > 0 then the state is in the trial space. A state cannot be in both the trial and
-        ! connected space, so, unless pos < 0, don't bother doing the following binary search.
-        if (pos < 0) then
-
-            pos = binary_search_custom(con_space(:, min_conn_ind:con_space_size), ilut, NIfTot+1, ilut_gt)
-
-            if (pos > 0) then
-                amp = con_space_vector(pos+min_conn_ind-1)
-                min_conn_ind = min_conn_ind + pos
-                call set_flag(ilut, flag_connected)
-            else
-                min_conn_ind = min_conn_ind - pos - 1
-            end if
-        end if
-
-    end subroutine bin_search_trial
-
-    subroutine hash_search_trial(ilut, nI, amp)
-
-        integer(n_int), intent(inout) :: ilut(0:)
-        integer, intent(in) :: nI(nel)
-        real(dp), intent(out) :: amp
-        integer :: i, hash_val
-
-        amp = 0.0_dp
-        
-        if (con_space_size > 0) then
-            ! Find the hash value of this state.
-            hash_val = FindWalkerHash(nI, con_space_size)
-            ! Loop over all hash clashes for this hash value.
-            do i = 1, con_ht(hash_val)%nclash
-                if (DetBitEq(ilut, con_ht(hash_val)%states(0:NIfDBO,i))) then
-                    call set_flag(ilut, flag_connected)
-                    amp = transfer(con_ht(hash_val)%states(NIfDBO+1,i), amp)
-                    return
-                end if
-            end do
-        end if
-
-        if (trial_space_size > 0) then
-            ! If it wasn't in the connected space, check to see if it is in the trial space.
-            hash_val = FindWalkerHash(nI, trial_space_size)
-            do i = 1, trial_ht(hash_val)%nclash
-                if (DetBitEq(ilut, trial_ht(hash_val)%states(0:NIfDBO,i))) then
-                    call set_flag(ilut, flag_trial)
-                    amp = transfer(trial_ht(hash_val)%states(NIfDBO+1,i), amp)
-                    return
-                end if
-            end do
-        end if
-
-    end subroutine hash_search_trial
-
-    subroutine add_trial_energy_contrib(ilut, RealwSign)
-    
-        integer(n_int), intent(in) :: ilut(0:)
-        real(dp), intent(in) :: RealwSign
-        integer :: i, hash_val
-        integer :: nI(nel)
-        real(dp) :: amp
-
-        call decode_bit_det(nI, ilut)
-
-        ! First search the connected space.
-        if (con_space_size > 0) then
-            hash_val = FindWalkerHash(nI, con_space_size)
-            do i = 1, con_ht(hash_val)%nclash
-                if (DetBitEq(con_ht(hash_val)%states(0:NIfDBO,i), ilut)) then
-                    amp = transfer(con_ht(hash_val)%states(NIfDBO+1,i), amp)
-                    trial_numerator = trial_numerator + amp*RealwSign
-                    return
-                end if
-            end do
-        end if
-
-        ! If not in the connected space, search the trial space.
-        if (trial_space_size > 0) then
-            hash_val = FindWalkerHash(nI, trial_space_size)
-            do i = 1, trial_ht(hash_val)%nclash
-                if (DetBitEq(trial_ht(hash_val)%states(0:NIfDBO,i), ilut)) then
-                    amp = transfer(trial_ht(hash_val)%states(NIfDBO+1,i), amp)
-                    trial_denom = trial_denom + amp*RealwSign
-                    return
-                end if
-            end do
-        end if
-
-    end subroutine add_trial_energy_contrib
-    
 END MODULE AnnihilationMod
