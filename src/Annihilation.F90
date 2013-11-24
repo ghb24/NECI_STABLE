@@ -396,10 +396,10 @@ MODULE AnnihilationMod
 !        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"Ordered")
 
 
-!!        WRITE(6,*) "************ - Ordered",ValidSpawned,NIfTot,Iter
-!!        do i=1,ValidSpawned
-!!            WRITE(6,*) i,SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
-!!        enddo
+        !WRITE(6,*) "************ - Ordered",ValidSpawned,NIfTot,Iter
+        !do i=1,ValidSpawned
+            !WRITE(6,*) i,SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
+        !enddo
 
 !First, we compress the list of spawned particles, so that they are only specified at most once in each processors list.
 !During this, we transfer the particles from SpawnedParts to SpawnedParts2

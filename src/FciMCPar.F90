@@ -1232,7 +1232,7 @@ MODULE FciMCParMod
             call extract_bit_rep_avsign (CurrentDets(:,j), CurrentH(1:NCurrH,j), &
                                         DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
                                         AvSignCurr, fcimc_excit_gen_store)
-            
+           
             ! If this state is in the deterministic space.
             !TODO CMO: Sort the combination of Semi-stochastic and double run
             if (tSemiStochastic) then
@@ -4713,8 +4713,6 @@ MODULE FciMCParMod
                 write(iout, "(A)", advance = 'yes') "      NoatHF          NoatDoubs       &
                 &AccRat        UniqueDets   IterTime"
             endif
-            WRITE(11,*) "Does this work?"
-            WRITE(6,*) "fcimcstats_unit", fcimcstats_unit
             write(fcimcstats_unit, "(a,i4,a,l1,a,l1,a,l1)") &
                   "# FCIMCStats VERSION 2 - REAL : NEl=", nel, &
                   " HPHF=", tHPHF, ' Lz=', tFixLz, &
@@ -7297,7 +7295,8 @@ MODULE FciMCParMod
         integer(int64) :: iPopAllTotWalkers
         integer :: i
         real(dp) :: PopDiagSft
-        real(dp) , dimension(lenof_sign) :: PopSumNoatHF, InitialSign
+        real(dp) , dimension(lenof_sign) :: InitialSign
+        real(dp) , dimension(lenof_sign/inum_runs) :: PopSumNoatHF
         HElement_t :: PopAllSumENum
 
         if(tReadPops.and..not.tPopsAlreadyRead) then
@@ -7493,7 +7492,7 @@ MODULE FciMCParMod
                 ! on each processor.
                 call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, &
                                       TotWalkers ,TotParts, NoatHF, &
-                                      CurrentDets, MaxWalkersPart)
+                                      CurrentDets, MaxWalkersPart, PopNifSgn)
 
                 !Setup global variables
                 TotWalkersOld=TotWalkers

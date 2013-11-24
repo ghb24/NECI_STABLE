@@ -40,7 +40,7 @@ MODULE PopsfileMod
 !This routine reads in particle configurations from a POPSFILE v.3-4.
 !EndPopsList is the number of entries in the POPSFILE to read, and ReadBatch is the number of determinants
 !which can be read in in a single batch.
-    SUBROUTINE ReadFromPopsfile(EndPopsList,ReadBatch,CurrWalkers64,CurrParts,CurrHF,Dets,DetsLen)
+    SUBROUTINE ReadFromPopsfile(EndPopsList,ReadBatch,CurrWalkers64,CurrParts,CurrHF,Dets,DetsLen,PopNifSgn)
         use MemoryManager, only: TagIntType
         integer(int64) , intent(in) :: EndPopsList  !Number of entries in the POPSFILE.
         integer , intent(in) :: ReadBatch       !Size of the batch of determinants to read in in one go.
@@ -69,7 +69,7 @@ MODULE PopsfileMod
         integer :: PopBlockingIter
         integer(int64) :: iPopAllTotWalkers
         real(dp) :: PopDiagSft,read_tau
-        real(dp) , dimension(lenof_sign) :: PopSumNoatHF
+        real(dp) , dimension(lenof_sign/inum_runs) :: PopSumNoatHF
         integer, intent(in) :: DetsLen
         INTEGER(kind=n_int), intent(out) :: Dets(0:nIfTot,DetsLen)
         character(12) :: tmp_num
@@ -197,7 +197,7 @@ r_loop: do while(.not.tReadAllPops)
                     ! Read the next entry, and store the walker in WalkerTemp 
                     ! and TempnI
                     tEOF = read_popsfile_det (iunit, Det, BinPops, &
-                                              WalkerTemp, TempnI)
+                                              WalkerTemp, TempnI, PopNifSgn)
 
                     ! When we have got to the end of the file, we are done.
                     if (tEOF) then
@@ -346,6 +346,7 @@ r_loop: do while(.not.tReadAllPops)
         do i=1,CurrWalkers
 !            WRITE(6,*) i,Dets(:,i)
             call extract_sign(Dets(:,i),SignTemp)
+            
             CurrParts=CurrParts+abs(SignTemp)
             if(DetBitEQ(Dets(:,i),iLutRef,NIfDBO)) then
                 if(CurrHF(1).ne.0) then
@@ -385,7 +386,7 @@ r_loop: do while(.not.tReadAllPops)
     !Det = Current determinant entry in popsfile list
     !BinPops = Binary popsfile or formatted
     !WalkerTemp = Determinant entry returned (in new basis if using mapping)
-    function read_popsfile_det (iunit, Det, BinPops, WalkerTemp, nI) &
+    function read_popsfile_det (iunit, Det, BinPops, WalkerTemp, nI, PopNifSgn) &
                                result(tEOF)
 
         integer, intent(in) :: iunit
@@ -395,8 +396,10 @@ r_loop: do while(.not.tReadAllPops)
         integer(n_int), intent(out) :: WalkerTemp(0:NIfTot)
         integer(n_int) :: WalkerToMap(0:MappingNIfD), WalkerTemp2(0:NIfTot)
         integer(n_int) :: sgn_int(lenof_sign)
-        integer :: elec, flg, i, j, stat
-        real(dp) :: sgn(lenof_sign)
+        integer :: elec, flg, i, j, stat, k
+        integer :: PopNifSgn
+        real(dp) :: sgn(PopNifSgn)
+        real(dp) :: new_sgn(lenof_sign)
         integer(n_int) :: flg_read
         logical :: tStoreDet, tEOF
 
@@ -493,6 +496,7 @@ r_loop: do while(.not.tStoreDet)
                     exit r_loop
                 end if
 
+
                 ! Decode to natural ordered integers, and then re-encode to
                 ! the new representation.
                 elec = 0
@@ -509,12 +513,38 @@ outer_map:      do i = 0, MappingNIfD
                 ! Encode this new determinant.
                 call EncodeBitDet(nI, WalkerTemp)
             end if
+            
+            if((inum_runs.eq.2).and.(PopNifSgn.eq.1)) then
+                !Read in pops from a single run. Distribute an identical set of walkers to each walker set
+                !and then propagate the two independently
+                new_sgn(1)=sgn(1)
+                new_sgn(2)=sgn(1)
+            else
+                do k=1,lenof_sign
+                    new_sgn(k)=sgn(k)
+                enddo
+            endif
 
             ! Store the sign and flag information in the determinant.
             flg = int(flg_read,sizeof_int)
-            call encode_sign (WalkerTemp, sgn)
+
+            call encode_sign (WalkerTemp, new_sgn)
             if (tUseFlags) call encode_flags (WalkerTemp, flg)
 
+            if((inum_runs.eq.2).and.(PopNifSgn.eq.1)) then
+                if (test_flag(WalkerTemp, flag_is_initiator(1))) then
+                    call set_flag(WalkerTemp, flag_is_initiator(2))
+                else
+                    call clr_flag(WalkerTemp, flag_is_initiator(2))
+                endif
+
+                if (test_flag(WalkerTemp, flag_make_initiator(1))) then
+                    call set_flag(WalkerTemp, flag_make_initiator(2)) 
+                else
+                    call clr_flag(WalkerTemp, flag_make_initiator(2)) 
+                endif
+            endif
+            
             ! Increment the determinant counter
             det = det + 1
 
@@ -601,10 +631,11 @@ outer_map:      do i = 0, MappingNIfD
         integer , intent(in) :: PopBlockingIter
         integer(int64) , intent(in) :: iPopAllTotWalkers
         real(dp) , intent(in) :: PopDiagSft,read_tau
-        real(dp) , dimension(lenof_sign) , intent(in) :: PopSumNoatHF
+        real(dp) , dimension(lenof_sign/inum_runs) , intent(in) :: PopSumNoatHF
         HElement_t , intent(in) :: PopAllSumENum
         integer , intent(out) :: WalkerListSize
         character(len=*) , parameter :: this_routine='CheckPopsParams'
+        integer :: k
 
         !Ensure all NIF and symmetry options the same as when popsfile was written out.
 #ifdef __INT64
@@ -614,7 +645,6 @@ outer_map:      do i = 0, MappingNIfD
 #endif
         if(tPopHPHF.neqv.tHPHF) call stop_all(this_routine,"Popsfile HPHF and input HPHF not same")
         if(tPopLz.neqv.tFixLz) call stop_all(this_routine,"Popsfile Lz and input Lz not same")
-        if(iPopLenof_sign.ne.lenof_sign) call stop_all(this_routine,"Popsfile lenof_sign and input lenof_sign not same")
         if(iPopNEl.ne.NEl) call stop_all(this_routine,"Popsfile NEl and input NEl not same")
         if(.not.tPopsMapping) then
             if(PopNIfD.ne.NIfD) call stop_all(this_routine,"Popsfile NIfD and calculated NIfD not same")
@@ -622,39 +652,58 @@ outer_map:      do i = 0, MappingNIfD
             MappingNIfD=PopNIfD
         endif
         if(PopNIfY.ne.NIfY) call stop_all(this_routine,"Popsfile NIfY and calculated NIfY not same")
-        if(PopNIfSgn.ne.NIfSgn) call stop_all(this_routine,"Popsfile NIfSgn and calculated NIfSgn not same")
+        if(inum_runs.eq.1) then
+            !We allow these two values to be different if we're reading in a popsfile fine inum_runs=1 and we want to
+            !continue the calculation with inum_runs=2
+            if(iPopLenof_sign.ne.lenof_sign) call stop_all(this_routine,"Popsfile lenof_sign and input lenof_sign not same")
+            if(PopNIfSgn.ne.NIfSgn) call stop_all(this_routine,"Popsfile NIfSgn and calculated NIfSgn not same")
+        endif
 
         ! This test is no longer needed. NIfFlag depends on how we represent
         ! the flags in memory, PopsNIfFlag depends on tUseFlags. The are 
         ! allowed to differ.
 !        if(PopNIfFlag.ne.NIfFlag) call stop_all(this_routine,"Popsfile NIfFlag and calculated NIfFlag not same")
-        if(.not.tPopsMapping) then
-            if (tUseFlags .and. NIfFlag == 0) then
-                if (PopNIFTot /= NIfTot + 1) &
-                    call stop_all(this_routine, "Popsfile NIfTot and &
-                                 &calculated NIfTot don't match.")
+        if (inum_runs.eq.1) then
+            if(.not.tPopsMapping) then
+                if (tUseFlags .and. NIfFlag == 0) then
+                    if (PopNIFTot /= NIfTot + 1) &
+                        call stop_all(this_routine, "Popsfile NIfTot and &
+                                     &calculated NIfTot don't match.")
+                else
+                    if (PopNIfTot /= NIfTot) &
+                        call stop_all(this_routine,"Popsfile NIfTot and calculated&
+                                                   & NIfTot not same")
+                end if
             else
-                if (PopNIfTot /= NIfTot) &
-                    call stop_all(this_routine,"Popsfile NIfTot and calculated&
-                                               & NIfTot not same")
-            end if
-
-
-
-        else
-            MappingNIfTot=PopNIfTot
+                MappingNIfTot=PopNIfTot
+            endif
         endif
 
 
         IF(.not.tWalkContGrow) THEN
 !If we want the walker number to be stable, take the shift from the POPSFILE, otherwise, keep the input value.
-            DiagSft=PopDiagSft
+            if (inum_runs.eq.2) then
+                !There's a minor issue here -- if we do a double run, we have 2 separate shifts, but currently only
+                !write out one of these to the popsfile.  Therefore, when we read it back in, we need to assign this
+                !shift to both sets.  This will obviously cause set 2 to follow a slightly different trajectory than
+                !it would have done if we hadn't restarted via a Popsfile. This can be sorted out later if restarting
+                !FROM a double run popsfile is something we want to do
+                DiagSft(1)=PopDiagSft
+                DiagSft(2)=PopDiagSft
+            else
+                DiagSft=PopDiagSft
+            endif
         ENDIF
 
         if(PopDiagSft.eq.0.0_dp) then
             !If the popsfile has a shift of zero, continue letting the population grow
             tWalkContGrow=.true.
-            DiagSft=PopDiagSft
+            if (inum_runs.eq.2) then
+                DiagSft(1)=PopDiagSft
+                DiagSft(2)=PopDiagSft
+            else
+                DiagSft=PopDiagSft
+            endif
         endif
 
         if(tWalkContGrow) then
@@ -667,8 +716,21 @@ outer_map:      do i = 0, MappingNIfD
             WalkerListSize=NINT(real(iPopAllTotWalkers,dp)/real(nNodes,dp))
         endif
 
-        AllSumNoatHF=PopSumNoatHF
-        AllSumENum=PopAllSumENum
+        if(inum_runs.eq.2) then
+            AllSumNoatHF(1)=PopSumNoatHF(1)
+            AllSumNoatHF(2)=PopSumNoatHF(1)
+            AllSumENum(1)=PopAllSumENum
+            AllSumENum(2)=PopAllSumENum
+        elseif(lenof_sign.eq.2) then
+            AllSumNoatHF(1)=PopSumNoatHF(1)
+            AllSumNoatHF(2)=PopSumNoatHF(2)
+            AllSumENum=PopAllSumENum
+        else
+            AllSumNoatHF(1)=PopSumNoatHF(1)
+            AllSumENum=PopAllSumENum
+        endif
+
+        
         PreviousCycles=iPopIter
         WRITE(6,*) "Number of iterations in previous simulation: ",PreviousCycles
         IF(NEquilSteps.gt.0) THEN
@@ -722,8 +784,8 @@ outer_map:      do i = 0, MappingNIfD
         integer , intent(out) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
         integer(int64) , intent(out) :: iPopAllTotWalkers
         real(dp) , intent(out) :: PopDiagSft
-        real(dp) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
-        HElement_t , intent(out) :: PopAllSumENum
+        real(dp) , dimension(lenof_sign/inum_runs) , intent(out) :: PopSumNoatHF
+        HElement_t, intent(out) :: PopAllSumENum
         character(len=24) :: junk,junk2,junk3,junk4,junk5
         integer :: PopsVersion
 
@@ -773,7 +835,7 @@ outer_map:      do i = 0, MappingNIfD
         integer , intent(out) :: PopBlockingIter
         integer(int64) , intent(out) :: iPopAllTotWalkers
         real(dp) , intent(out) :: PopDiagSft,read_tau
-        real(dp) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
+        real(dp) , dimension(lenof_sign/inum_runs) , intent(out) :: PopSumNoatHF
         HElement_t , intent(out) :: PopAllSumENum
         integer :: PopsVersion
         integer :: PopRandomHash(1024)
@@ -1189,16 +1251,16 @@ outer_map:      do i = 0, MappingNIfD
             'PopHPHF=', tHPHF, ',PopLz=', tFixLz, ',PopLensign=', &
             lenof_sign, ',PopNEl=', NEl, ','
         write(iunit, '(a,i15,a,f18.12,a)') &
-            'PopTotwalk=', num_walkers, ',PopSft=', DiagSft, ','
-        write(iunit, *) 'PopSumNoatHF=', AllSumNoatHF, ','
-        write(iunit, *) 'PopSumENum=', AllSumENum, ','
+            'PopTotwalk=', num_walkers, ',PopSft=', DiagSft(1), ','
+        write(iunit, *) 'PopSumNoatHF=', AllSumNoatHF(1), ','
+        write(iunit, *) 'PopSumENum=', AllSumENum(1), ','
         write(iunit, '(a,i16,a,i2,a,i2,a,i2,a)') &
             'PopCyc=', Iter+PreviousCycles, ',PopNIfD=', NIfD, &
             ',PopNIfY=', NIfY, ',PopNIfSgn=' ,NIfSgn, ','
         write(iunit, '(a,i2,a,i2,a,f18.12,a)') &
             'PopNIfFlag=', pops_nifflag, ',PopNIfTot=', pops_niftot, &
             ',PopTau=', Tau, ','
-        write(iunit, '(a,i16)') 'PopiBlockingIter=', iBlockingIter
+        write(iunit, '(a,i16)') 'PopiBlockingIter=', iBlockingIter(1)
 
         ! Store the random hash in the header to allow later processing
         write(iunit, '(a)', advance='no') "PopRandomHash= "
@@ -1484,7 +1546,7 @@ outer_map:      do i = 0, MappingNIfD
 !Now we want to allocate memory on all nodes.
 !InitWalkers here is simply the average number of walkers per node, not actual
         MaxWalkersPart=NINT(MemoryFacPart*(NINT(InitWalkers*ScaleWalkers)))
-        MaxSpawned=NINT(MemoryFacSpawn*(NINT(InitWalkers*ScaleWalkers)))
+        MaxSpawned=NINT(MemoryFacSpawn*(NINT(InitWalkers*ScaleWalkers*inum_runs)))
 
         Gap=REAL(MaxSpawned)/REAL(nProcessors)
         do i=0,nProcessors-1
@@ -1617,7 +1679,12 @@ outer_map:      do i = 0, MappingNIfD
                     READ(iunit,*) iLutTemp32(0:NIfWriteOut),TempSign
                 ENDIF
             ENDIF
-            RealTempSign = transfer(TempSign, RealTempSign)
+            if(inum_runs.eq.1) then
+                RealTempSign = transfer(TempSign, RealTempSign)
+            else
+                RealTempSign(1) = transfer(TempSign, RealTempSign(1))
+                RealTempSign(2) = RealTempSign(1)
+            endif
 
 #ifdef __INT64
             if (.not.tPop64BitDets) then
@@ -1740,7 +1807,7 @@ outer_map:      do i = 0, MappingNIfD
 
         ENDIF
 
-        WRITE(6,*) "Initial Diagonal Shift (ECorr guess) is now: ",DiagSft
+        WRITE(6,*) "Initial Diagonal Shift (ECorr guess) is now: ",DiagSft(1)
         WRITE(6,"(A,F14.6,A)") " Initial memory (without excitgens) consists of : ",REAL(MemoryAlloc,dp)/1048576.0_dp," Mb"
         WRITE(6,*) "Initial memory allocation successful..."
         WRITE(6,*) "Excitgens will be regenerated when they are needed..."
@@ -1801,8 +1868,8 @@ outer_map:      do i = 0, MappingNIfD
 
             ENDIF
             call extract_sign(CurrentDets(:,j),RealTempSign)
-            TotParts=TotParts+abs(RealTempSign(1))
-
+            TotParts(1)=TotParts(1)+abs(RealTempSign(1))
+            TotParts(2)=TotParts(1)
         enddo
 
         CALL MPIBarrier(error)  !Sync
