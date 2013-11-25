@@ -1171,6 +1171,8 @@ contains
 
         ! Start by adding the HF state.
         ilut_list(0:NIfD, 1) = ilutHF(0:NIfD)
+
+        amp_list = huge(amp)
         ! Set this amplitude to be the lowest possible number so that it doesn't get removed from
         ! the list in the following selection - we always want to keep the HF determinant.
         amp_list(1) = -huge(amp)

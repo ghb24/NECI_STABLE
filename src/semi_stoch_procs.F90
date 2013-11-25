@@ -1068,8 +1068,17 @@ contains
         ! as required in the denominator of the MP1 amplitude and MP2 energy.
         denom = Fii - H0tmp
 
-        amp = hel/denom
-        energy_contrib = (hel**2)/denom
+        if (.not. (abs(denom) > 0.0_dp)) then
+            call warning_neci("return_mp1_amp_and_mp2_energy", &
+            "One of the determinants under consideration for the MP1 wave function is degenerate &
+            &with the Hartree-Fock determinant. Degenerate perturbation theory has not been &
+            &considered, but the amplitude of this determinant will be returned as huge(0.0_dp) &
+            &so that it should be included in the space.")
+            amp = huge(0.0_dp)
+        else
+            amp = hel/denom
+            energy_contrib = (hel**2)/denom
+        end if
 
     end subroutine return_mp1_amp_and_mp2_energy
 
