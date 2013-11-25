@@ -23,14 +23,14 @@
         use FciMCData , only : tFillingStochRDMonFly, InstNoatHF, ntrial_occ, &
                                ncon_occ, occ_trial_amps, occ_con_amps, &
                                trial_temp, con_temp, tTrialHash
-        use SystemData, only: nel, tHPHF,tMomInv, tTrialWavefunction
+        use SystemData, only: nel, tHPHF,tMomInv
         use bit_rep_data, only: extract_sign, flag_trial, flag_connected
         use bit_reps, only: NIfTot, NIfDBO, decode_bit_det, test_flag
         USE Determinants , only : get_helement
         use DetBitOps, only: DetBitEQ
         use hphf_integrals, only: hphf_diag_helement
         use MI_integrals, only: MI_diag_helement
-        USE CalcData , only : tTruncInitiator
+        USE CalcData , only : tTruncInitiator, tTrialWavefunction
         USE HElem
         use constants, only: dp,n_int
         use util_mod, only: binary_search_custom

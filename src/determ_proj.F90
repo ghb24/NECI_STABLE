@@ -12,7 +12,7 @@ module determ_proj
 
     use bit_rep_data, only: flag_deterministic, NIfD
     use bit_reps, only: test_flag
-    use CalcData, only: NMCyc
+    use CalcData, only: NMCyc, tSemiStochastic
     use constants
     use DetBitOps, only: DetBitLT
     use FciMCData, only: HFDet, ilutHF, iHFProc, CurrentDets, core_hamiltonian, &
@@ -20,7 +20,6 @@ module determ_proj
                          full_determ_vector, determ_proc_indices, TotWalkers
     use Parallel_neci, only: iProcIndex, MPIAllGatherV, MPISum
     use semi_stoch_procs, only: deterministic_projection
-    use SystemData, only: tSemiStochastic
 
     implicit none
 

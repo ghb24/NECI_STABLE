@@ -3,13 +3,13 @@
 MODULE PopsfileMod
 
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin, &
-                          tMomInv, tSemiStochastic, tTrialWavefunction
+                          tMomInv 
     use CalcData, only: tTruncInitiator, DiagSft, tWalkContGrow, nEquilSteps, &
                         ScaleWalkers, tReadPopsRestart, tRegenDiagHEls, &
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
                         iWeightPopRead, iPopsFileNoRead, tPopsMapping, Tau, &
                         InitiatorWalkNo, MemoryFacPart, MemoryFacAnnihil, &
-                        MemoryFacSpawn
+                        MemoryFacSpawn, tSemiStochastic, tTrialWavefunction
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt
     use hash , only : DetermineDetNode, FindWalkerHash

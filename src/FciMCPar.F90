@@ -12,8 +12,8 @@ MODULE FciMCParMod
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
                           LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
                           tNoBrillouin, tKPntSym, tPickVirtUniform, &
-                          tMomInv, tRef_Not_HF, tMolpro, tSemiStochastic, &
-                          tTrialWavefunction, tAntiSym_MI, MolproID
+                          tMomInv, tRef_Not_HF, tMolpro, tAntiSym_MI, &
+                          MolproID
     use bit_rep_data, only: extract_sign, flag_trial, flag_connected
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
@@ -43,7 +43,7 @@ MODULE FciMCParMod
                         tSpawn_Only_Init_Grow, RealCoeffExcitThresh, &
                         tRealSpawnCutoff, RealSpawnCutoff, tDetermProj, &
                         tJumpShift, tVaryInitThresh, tUseRealCoeffs, &
-                        tSpatialOnlyHash
+                        tSpatialOnlyHash, tSemiStochastic, tTrialWavefunction
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit

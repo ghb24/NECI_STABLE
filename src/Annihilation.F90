@@ -1,10 +1,10 @@
 #include "macros.h"
 !This module is to be used for various types of walker MC annihilation in serial and parallel.
 MODULE AnnihilationMod
-    use SystemData , only : NEl, tHPHF, nBasis, tCSF, tSemiStochastic, tTrialWavefunction
+    use SystemData , only : NEl, tHPHF, nBasis, tCSF
     use CalcData , only : TRegenExcitgens,tRegenDiagHEls, tEnhanceRemainder, &
                           tTruncInitiator, tSpawnSpatialInit, OccupiedThresh, &
-                          tVaryInitThresh
+                          tVaryInitThresh, tSemiStochastic, tTrialWavefunction
     USE DetCalcData , only : Det,FCIDetIndex
     USE Parallel_neci
     USE dSFMT_interface, only : genrand_real2_dSFMT

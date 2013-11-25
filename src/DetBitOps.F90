@@ -5,9 +5,8 @@ module DetBitOps
     ! A collection of useful operations to perform on the bit-representation
     ! of determinants.
 
-    use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level, &
-                          tSemiStochastic
-    use CalcData, only: tTruncInitiator
+    use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level
+    use CalcData, only: tTruncInitiator, tSemiStochastic
     use bit_rep_data, only: NIfY, NIfTot, NIfD, NOffFlag, NIfFlag, &
                             test_flag, flag_is_initiator,NIfDBO,NOffSgn, &
                             determ_parent_mask, extract_sign

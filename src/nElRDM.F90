@@ -42,7 +42,7 @@ MODULe nElRDMMod
     use UMatCache, only: UMatInd, GTID
     use SystemData, only: NEl, nBasis, tStoreSpinOrbs, G1, BRR, lNoSymmetry, &
                           ARR, tUseMP2VarDenMat, Ecore, LMS, tHPHF, tFixLz, &
-                          iMaxLz, tRef_Not_HF, tOddS_hphf, tSemiStochastic
+                          iMaxLz, tRef_Not_HF, tOddS_hphf
     use NatOrbsMod, only: NatOrbMat, NatOrbMatTag, Evalues, EvaluesTag, &
                           SetupNatOrbLabels
     use CalcData, only: MemoryFacPart, tRegenDiagHEls, NMCyc, InitiatorWalkNo

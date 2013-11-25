@@ -7,8 +7,7 @@ module semi_stoch_gen
                             flag_connected, flag_trial
     use bit_reps, only: decode_bit_det, encode_bit_rep, set_flag, extract_sign, &
                         clr_flag, create_nsteps_mask
-    use CalcData, only: tTruncInitiator, tStartCAS, tReadPops, tRegenDiagHels, &
-                        tVaryInitThresh
+    use CalcData
     use csf, only: csf_get_yamas, get_num_csfs, get_csf_bit_yama, csf_apply_yama
     use csf_data, only: csf_orbital_mask
     use constants

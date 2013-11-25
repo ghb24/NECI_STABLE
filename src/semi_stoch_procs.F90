@@ -10,8 +10,7 @@ module semi_stoch_procs
                             flag_is_initiator, NOffSgn, NIfSgn
     use bit_reps, only: decode_bit_det, set_flag, extract_part_sign, extract_sign, &
                         encode_sign
-    use CalcData, only: tRegenDiagHEls, tau, DiagSft, tReadPops, tTruncInitiator, &
-                        InitialPart, InitWalkers, tStartSinglePart
+    use CalcData
     use constants
     use davidson, only: davidson_eigenvector, parallel_sparse_hamil_type, perform_davidson
     use DetBitOps, only: ilut_lt, ilut_gt, FindBitExcitLevel, DetBitLT, &
@@ -42,10 +41,7 @@ module semi_stoch_procs
     use sparse_arrays, only: sparse_core_ham, SparseCoreHamilTags, deallocate_sparse_ham, &
                             core_connections, sparse_ham, hamil_diag, HDiagTag, &
                             SparseHamilTags, allocate_sparse_ham_row
-    use SystemData, only: tSemiStochastic, tCSFCore, tDeterminantCore, tDoublesCore, &
-                          tCASCore, tRASCore, cas_determ_not_bitmask, core_ras1_bitmask, &
-                          core_ras3_bitmask, nel, OccDetermCASOrbs, tHPHF, nBasis, BRR, &
-                          ARR, tSparseCoreHamil, tUEG, tMomInv
+    use SystemData, only: nel, tHPHF, nBasis, BRR, ARR, tUEG, tMomInv
     use timing_neci
     use util_mod, only: get_free_unit
 

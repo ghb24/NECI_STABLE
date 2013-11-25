@@ -2,6 +2,7 @@ module trial_wf_gen
 
     use bit_rep_data, only: NIfTot, NIfDBO, flag_trial, flag_connected
     use bit_reps, only: encode_det, set_flag
+    use CalcData
     use davidson, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
                         sparse_hamil_type
     use DetBitOps, only: FindBitExcitLevel, ilut_lt, ilut_gt, DetBitEq
@@ -26,8 +27,7 @@ module trial_wf_gen
     use semi_stoch_gen
     use semi_stoch_procs
     use sparse_arrays
-    use SystemData, only: nel, tDoublesTrial, tOptimisedTrial, tCASTrial, tPopsTrial, &
-                          tLowETrial, tHPHF, tMP1Trial, trial_mp1_ndets
+    use SystemData, only: nel, tHPHF
     use util_mod, only: get_free_unit, binary_search_custom
 
     implicit none
@@ -65,7 +65,7 @@ contains
         write(6,'(a29)') "Generating the trial space..."
         call neci_flush(6)
 
-         Generate the trial space and place the corresponding states in trial_space.
+        ! Generate the trial space and place the corresponding states in trial_space.
         if (tDoublesTrial) then
             call generate_sing_doub_determinants(called_from_trial)
         elseif (tCASTrial) then
@@ -434,8 +434,6 @@ contains
         allocate(con_space_vector(con_space_size), stat=ierr)
         call LogMemAlloc('con_space_vector', con_space_size, 8, t_r, ConVecTag, ierr)
         con_space_vector = 0.0_dp
-
-        write(6,*) "con_space_vector:"
 
         do i = 1, con_space_size
             call decode_bit_det(nI, con_space(0:NIfTot, i))
