@@ -1,7 +1,7 @@
 MODULE Calc
         
     use CalcData
-    use SystemData, only: beta, nel
+    use SystemData, only: beta, nel, STOT, tCSF, LMS, tSpn
     use Determinants, only: write_det
     use spin_project, only: spin_proj_interval, tSpinProject, &
                             spin_proj_gamma, spin_proj_shift, &
@@ -22,7 +22,8 @@ MODULE Calc
                         dClustSelectionRatio,tSharedExcitors
     use FciMCData, only: proje_update_comb,proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
                          InputDiagSft,tSearchTau,proje_spatial,nWalkerHashes,tHashWalkerList,HashLengthFrac, &
-                         tCoreHash
+                         tCoreHash, tTrialHash, tIncCancelledInitEnergy, tStartCoreGroundState
+    use semi_stoch_gen, only: core_ras
 
     implicit none
 
@@ -56,11 +57,14 @@ contains
           end if
 
 !       Calc defaults 
+          tStartCoreGroundState = .true.
           tVaryInitThresh=.false.
           tHashWalkerList=.false.
           HashLengthFrac=0.0_dp
           nWalkerHashes=0
           tCoreHash=.false.
+          tTrialHash=.true.
+          tIncCancelledInitEnergy = .false.
           iExitWalkers=-1
           FracLargerDet=1.2
           iReadWalkersRoot=0 
@@ -149,6 +153,7 @@ contains
           TOneExcitConn=.false.
           TStarTrips=.false.
           TLanczos=.false.
+          tDavidson=.false.
           TNoSameExcit=.false.
           TInitStar=.false.
           NoMoveDets=1
@@ -281,10 +286,48 @@ contains
           proje_spatial = .false.
           hash_shift=0
           tContinueAfterMP2=.false.
+          tUniqueHFNode = .false.
+
+          ! Semi-stochastic and trial wavefunction options.
+          tSemiStochastic = .false.
+          tCSFCore = .false.
+          tDoublesCore = .false.
+          tCASCore = .false.
+          tRASCore = .false.
+          tOptimisedCore = .false.
+          tPopsCore = .false.
+          tReadCore = .false.
+          tLowECore = .false.
+          tMP1Core = .false.
+          tSparseCoreHamil = .true.
+          num_det_generation_loops = 1
+          n_core_pops = 0
+          low_e_core_excit = 0
+          low_e_core_num_keep = 0
+          semistoch_mp1_ndets = 0
+          tLowECoreAllDoubles = .false.
+          tLimitDetermSpace = .false.
+          tLimitTrialSpace = .false.
+          max_determ_size = 0
+          max_trial_size = 0
+          tDetermAmplitudeCutoff = .false.
+          tTrialWavefunction = .false.
+          tDoublesTrial = .false.
+          tCASTrial = .false.
+          tOptimisedTrial =.false.
+          tPopsTrial = .false.
+          tReadTrial = .false.
+          tLowETrial = .false.
+          tMP1Trial = .false.
+          num_trial_generation_loops = 1
+          n_trial_pops = 0
+          low_e_trial_excit = 0
+          low_e_trial_num_keep = 0
+          trial_mp1_ndets = 0
+          tLowETrialAllDoubles = .false.
+          tTrialAmplitudeCutoff = .false.
       
         end subroutine SetCalcDefaults
-
-
 
         SUBROUTINE CalcReadInput()
           USE input_neci
@@ -298,17 +341,20 @@ contains
           use UMatCache, only: gen2CPMDInts
           use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp,nClustSelections
           use CCMCData, only: tExactEnergy,tSharedExcitors
-          use FciMCData, only: hash_shift
+          use FciMCData, only: hash_shift, davidson_ras
+          use ras_data
           use global_utilities
           use Parallel_neci, only : nProcessors
           use LoggingData, only: tLogDets
           IMPLICIT NONE
           LOGICAL eof
           CHARACTER (LEN=100) w
+          CHARACTER (LEN=100) input_string
           CHARACTER(*),PARAMETER :: t_r='CalcReadInput'
           INTEGER :: l,i,ierr
           INTEGER :: tempMaxNoatHF,tempHFPopThresh
           logical :: tExitNow
+          integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
 
           calc: do
             call read_line(eof)
@@ -336,7 +382,7 @@ contains
                 tLogDets=.true.
             case("LANCZOS")
 !Sets the diagonaliser for the GraphMorph algorithm to be Lanczos
-                TLanczos=.true.
+                tLanczos=.true.
             case("EIGENVALUES")
                 call readi(NEVAL)
             case("READ")
@@ -379,7 +425,6 @@ contains
                 call geti(KOBS)
             case("WORKOUT")
                 call geti(NDETWORK)
-
 ! Using the keyword CONSTRUCTNATORBS includes a calculation of the 1 electron reduced 
 ! density matrix (1-RDM) as the FCIMC calculation progresses.
 ! Diagonalisation of this matrix gives linear combinations of the HF orbitals which 
@@ -389,7 +434,6 @@ contains
             case("CONSTRUCTNATORBS")
                 CALL Stop_All(t_r,"CONSTRUCTNATORBS option depreciated")
 !                tConstructNOs = .true.
-            
             case("ENDCALC")
                 exit calc
             case("METHODS")
@@ -430,7 +474,19 @@ contains
                        else
                       TVARCALC(I_VMAX)=.true.
                        end if
-
+                    case("DAVIDSON")
+                        I_VMAX = I_VMAX + 1
+                        tDavidson = .true.
+                        call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
+                        call geti(ras_size_2)  ! Number of spatial orbitals in RAS2.
+                        call geti(ras_size_3)  ! Number of spatial orbitals in RAS3.
+                        call geti(ras_min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs. 
+                        call geti(ras_max_3)  ! Max number of electrons (alpha and beta) in RAS3 orbs.
+                        davidson_ras%size_1 = int(ras_size_1,sp)
+                        davidson_ras%size_2 = int(ras_size_2,sp)
+                        davidson_ras%size_3 = int(ras_size_3,sp)
+                        davidson_ras%min_1 = int(ras_min_1,sp)
+                        davidson_ras%max_3 = int(ras_max_3,sp)
                     case("ENDMETHODS")
                        tExitNow = .true.
 
@@ -909,8 +965,146 @@ contains
                 else
                     HashLengthFrac=0.7
                 endif
+            case("SEMI-STOCHASTIC")
+                tSemiStochastic = .true.
+                if (item < nitems) then
+                    call geti(semistoch_mp1_ndets)
+                    tMP1Core = .true.
+                end if
+            case("CSF-CORE")
+                if(item.lt.nitems) then
+                   call geti(STOT)
+                else
+                   STOT=0
+                endif
+                tCSFCore = .true.
+                tCSF = .true.
+                LMS = STOT
+            case("DOUBLES-CORE")
+                tDoublesCore = .true.
+            case("CAS-CORE")
+                tCASCore = .true.
+                tSpn = .true.
+                call geti(OccDetermCASOrbs)  !Number of electrons in CAS 
+                call geti(VirtDetermCASOrbs)  !Number of virtual spin-orbitals in CAS
+            case("RAS-CORE")
+                tRASCore = .true.
+                call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
+                call geti(ras_size_2)  ! Number of spatial orbitals in RAS2.
+                call geti(ras_size_3)  ! Number of spatial orbitals in RAS3.
+                call geti(ras_min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs. 
+                call geti(ras_max_3)  ! Max number of electrons (alpha and beta) in RAS3 orbs.
+                core_ras%size_1 = int(ras_size_1,sp)
+                core_ras%size_2 = int(ras_size_2,sp)
+                core_ras%size_3 = int(ras_size_3,sp)
+                core_ras%min_1 = int(ras_min_1,sp)
+                core_ras%max_3 = int(ras_max_3,sp)
+            case("OPTIMISED-CORE")
+                tOptimisedCore = .true.
+            case("OPTIMISED-CORE-CUTOFF-AMP")
+                tDetermAmplitudeCutoff = .true.
+                num_det_generation_loops = nitems - 1
+                allocate(determ_space_cutoff_amp(num_det_generation_loops))
+                do I = 1, num_det_generation_loops
+                    call getf(determ_space_cutoff_amp(I))
+                end do
+            case("OPTIMISED-CORE-CUTOFF-NUM")
+                tDetermAmplitudeCutoff = .false.
+                num_det_generation_loops = nitems - 1
+                allocate(determ_space_cutoff_num(num_det_generation_loops))
+                do I = 1, num_det_generation_loops
+                    call geti(determ_space_cutoff_num(I))
+                end do
+            case("POPS-CORE")
+                tPopsCore = .true.
+                call geti(n_core_pops)
+            case("READ-CORE")
+                tReadCore = .true.
+            case("FULL-CORE-HAMIL")
+                tSparseCoreHamil = .false.
+            case("LOW-ENERGY-CORE")
+    ! Input values: The first integer is the maximum excitation level to go up to.
+    !               The second integer is the maximum number of states to keep for a subsequent iteration.
+    !               If desired, you can put "All-Doubles" after these two integers to keep all singles and doubles.
+    !               If max-core-size is specified then this value will be used to select the number of states kept
+    !               after the *final* iteration.
+                tLowECore = .true.
+                call geti(low_e_core_excit)
+                call geti(low_e_core_num_keep)
+                if (nitems > 3) then
+                    call geta(input_string)
+                    if (trim(input_string) == "All-Doubles") then
+                        tLowECoreAllDoubles = .true.
+                    else
+                        call stop_all("SysReadInput","Input string is not recognised.")
+                    end if
+                end if
+            case("MAX-CORE-SIZE")
+                tLimitDetermSpace = .true.
+                call geti(max_determ_size)
+            case("MAX-TRIAL-SIZE")
+                tLimitTrialSpace = .true.
+                call geti(max_trial_size)
+            case("TRIAL-WAVEFUNCTION")
+                tTrialWavefunction = .true.
+                if (item < nitems) then
+                    call geti(trial_mp1_ndets)
+                    tMP1Trial = .true.
+                end if
+            case("DOUBLES-TRIAL")
+                tDoublesTrial = .true.
+            case("CAS-TRIAL")
+                tCASTrial = .true.
+                tSpn = .true.
+                call geti(OccTrialCASOrbs)  !Number of electrons in CAS 
+                call geti(VirtTrialCASOrbs)  !Number of virtual spin-orbitals in CAS
+            case("OPTIMISED-TRIAL")
+                tOptimisedTrial = .true.
+            case("OPTIMISED-TRIAL-CUTOFF-AMP")
+                tTrialAmplitudeCutoff = .true.
+                num_trial_generation_loops = nitems - 1
+                allocate(trial_space_cutoff_amp(num_trial_generation_loops))
+                do I = 1, num_trial_generation_loops
+                    call getf(trial_space_cutoff_amp(I))
+                end do
+            case("OPTIMISED-TRIAL-CUTOFF-NUM")
+                tTrialAmplitudeCutoff = .false.
+                num_trial_generation_loops = nitems - 1
+                allocate(trial_space_cutoff_num(num_trial_generation_loops))
+                do I = 1, num_trial_generation_loops
+                    call geti(trial_space_cutoff_num(I))
+                end do
+            case("POPS-TRIAL")
+                tPopsTrial = .true.
+                call geti(n_trial_pops)
+            case("READ-TRIAL")
+                tReadTrial = .true.
+            case("LOW-ENERGY-TRIAL")
+    ! Input values: The first integer is the maximum excitation level to go up to.
+    !               The second integer is the maximum number of states to keep for a subsequent iteration.
+    !               If desired, you can put "All-Doubles" after these two integers to keep all singles and doubles.
+    !               If max-trial-size is specified then this value will be used to select the number of states kept
+    !               after the *final* iteration.
+                tLowETrial = .true.
+                call geti(low_e_trial_excit)
+                call geti(low_e_trial_num_keep)
+                if (nitems > 3) then
+                    call geta(input_string)
+                    if (trim(input_string) == "All-Doubles") then
+                        tLowETrialAllDoubles = .true.
+                    else
+                        call stop_all("SysReadInput","Input string is not recognised.")
+                    end if
+                end if
             case("SEMI-STOCH-HASH")
                 tCoreHash = .true.
+            case("TRIAL-BIN-SEARCH")
+                tTrialHash = .false.
+            case("START-FROM-HF")
+                tStartCoreGroundState = .false.
+            case("INC-CANCELLED-INIT-ENERGY")
+!If true, include the spawnings cancelled due the the initiator criterion in the trial energy.
+                tIncCancelledInitEnergy = .true.
             case("CORE-INIT-THRESH")
                 tVaryInitThresh = .true.
             case("STEPSSHIFTIMAG")
@@ -1255,7 +1449,7 @@ contains
 !it is essentially added to the initiator space and is allowed to spawn where it likes.
 !The minimum walker population for a determinant to be added to the initiator space is InitiatorWalkNo.
                 tAddtoInitiator=.true.
-                call Getf(InitiatorWalkNo)
+                call getf(InitiatorWalkNo)
 
             case("SPAWNONLYINIT")
 !This option means only the initiators have the ability to spawn.  The non-initiators can live/die but not 
@@ -1551,6 +1745,11 @@ contains
                 !     growing.
                 tJumpShift = .true.
 
+            case("UNIQUE-HF-NODE")
+                ! Assign the HF processor to a unique node.
+                ! TODO: Set a default cutoff criterion for this
+                tUniqueHFNode = .true.
+
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)
@@ -1744,6 +1943,8 @@ call neci_flush(6)
           use Parallel_Calc
           use util_mod, only: get_free_unit, NECI_ICOPY
           use sym_mod
+          use davidson, only: davidson_direct_ci_init, davidson_direct_ci_end, perform_davidson
+          use davidson, only: direct_ci_type
 
 !Calls
 !          real(dp) DMonteCarlo2
@@ -1761,6 +1962,10 @@ call neci_flush(6)
               call ParMP2(FDet)
 ! Parallal 2v sum currently for testing only.
 !          call Par2vSum(FDet)
+          ELSE IF(tDavidson) then
+              call davidson_direct_ci_init()
+              call perform_davidson(direct_ci_type, .true.)
+              call davidson_direct_ci_end()
           ELSE IF(NPATHS.NE.0.OR.DETINV.GT.0) THEN
 !Old and obsiolecte
 !             IF(TRHOIJND) THEN
@@ -1879,7 +2084,7 @@ call neci_flush(6)
           ENDIF
          
 !C.. /AJWT
-        End Subroutine
+        End Subroutine CalcDoCalc
 
         Subroutine DoExactVertexCalc()
           use SystemData, only: Alat, Beta, Brr, ECORE, G1, nBasis, nBasisMax,nMsh, Arr,nEl
@@ -1925,7 +2130,7 @@ call neci_flush(6)
                       ENDIF
                    ENDIF
                    IF(.NOT.TREAD) THEN
-                   CALL CALCRHO2(NMRKS(1,III),NMRKS(1,III),BETA,I_P,NEL, NBASISMAX,G1,NBASIS,BRR,NMSH, &
+                   CALL CALCRHO2(NMRKS(1:NEl,III),NMRKS(1:NEl,III),BETA,I_P,NEL, G1,NBASIS,NMSH, &
                     FCK,NMAX,ALAT,UMAT,RH,1,0,ECORE)
 !C                   WRITE(6,*) RH
                    FLRI=LOG(RH)

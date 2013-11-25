@@ -192,6 +192,7 @@ contains
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          UHF=.FALSE.
          IUHF=0
+         SYMLZ(:) = 0
          IF(iProcIndex.eq.0) THEN
              iunit = get_free_unit()
              IF(TBIN) THEN
