@@ -79,11 +79,6 @@ contains
                           &space to use.")
         end if
 
-        if (.not. (tDeterminantCore .or. tCSFCore .or. tStartCAS .or. tPopsCore .or. tReadCore)) then
-            ! Assume that we are using determinants (or HPHFs) rather than CSFs, by default.
-            tDeterminantCore = .true.
-        end if
-
         ! Call the enumerating subroutines to create all excitations and add these states to
         ! SpawnedParts on the correct processor. As they do this, they count the size of the
         ! deterministic space (on their own processor only).
@@ -203,7 +198,7 @@ contains
             call generate_space_from_pops(called_from_semistoch)
         else if (tReadCore) then
             call generate_space_from_file(called_from_semistoch)
-        else if (tDeterminantCore) then
+        else if (.not. tCSFCore) then
             if (tDoublesCore) then
                 call generate_sing_doub_determinants(called_from_semistoch)
             else if (tCASCore) then
@@ -570,12 +565,12 @@ contains
             comp = DetBitLT(ilut, ilutHF, NIfD, .false.)
             if (comp == 0) cycle
 
-            if (tDeterminantCore) then
-                ! Now that we have fully generated the determinant, add it to the main list.
-                call add_state_to_space(ilut, called_from)
-            else if (tCSFCore) then
+            if (tCSFCore) then
                 ilut_store(counter, 0:NifD) = ilut(0:NifD)
                 counter = counter + 1
+            else
+                ! Now that we have fully generated the determinant, add it to the main list.
+                call add_state_to_space(ilut, called_from)
             end if
 
         end do

@@ -291,7 +291,6 @@ contains
           ! Semi-stochastic and trial wavefunction options.
           tSemiStochastic = .false.
           tCSFCore = .false.
-          tDeterminantCore = .false.
           tDoublesCore = .false.
           tCASCore = .false.
           tRASCore = .false.
@@ -972,8 +971,6 @@ contains
                     call geti(semistoch_mp1_ndets)
                     tMP1Core = .true.
                 end if
-            case("DETERMINANT-CORE")
-                tDeterminantCore = .true.
             case("CSF-CORE")
                 if(item.lt.nitems) then
                    call geti(STOT)
