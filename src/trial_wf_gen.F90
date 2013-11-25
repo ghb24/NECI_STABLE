@@ -613,11 +613,22 @@ contains
         character(len=*), parameter :: t_r = "create_trial_hashtables"
 
         ! Assume no more than 1000 hash clashes.
-        allocate(temp_states(0:NIfDBO+1, 100))
+        allocate(temp_states(0:NIfDBO+1, 100), stat=ierr)
+        if (ierr /= 0) then
+            write(6,*) "ierr:", ierr
+            call neci_flush(6)
+            call stop_all("t_r", "Error in allocating temp_states array.")
+        end if
 
         ! Create the trial space hash table.
 
         allocate(trial_ht(trial_space_size), stat=ierr)
+        if (ierr /= 0) then
+            write(6,*) "ierr:", ierr
+            call neci_flush(6)
+            call stop_all("t_r", "Error in allocating trial_ht array.")
+        end if
+
         do i = 1, trial_space_size
             trial_ht(i)%nclash = 0
         end do
@@ -648,6 +659,12 @@ contains
         ! Create the connected space hash table.
 
         allocate(con_ht(con_space_size), stat=ierr)
+        if (ierr /= 0) then
+            write(6,*) "ierr:", ierr
+            call neci_flush(6)
+            call stop_all("t_r", "Error in allocating con_ht array.")
+        end if
+
         do i = 1, con_space_size
             con_ht(i)%nclash = 0
         end do
