@@ -393,8 +393,7 @@ MODULE FciMCData
       ! The diagonal elements of the core-space Hamiltonian (with Hii taken away).
       real(dp), allocatable, dimension(:) :: core_ham_diag
             
-      ! This stores the entire core space from all processes, on each process. However, this is only allocated in specific
-      ! situations (when calculating RDMs and when using the tCoreHash option) and not generally.
+      ! This stores the entire core space from all processes, on each process.
       integer(n_int), allocatable, dimension(:,:) :: core_space
 
       ! This stores all the amplitudes of the walkers in the deterministic space. This vector has the size of the part
@@ -420,7 +419,6 @@ MODULE FciMCData
 
       ! For using the hashing trick to search the core space.
       type(ll_node), pointer :: CoreHashIndex(:)
-      logical :: tCoreHash
 
       ! If true (as is the case by default) then semi-stochastic calculations will start from the ground state
       ! of the core space.

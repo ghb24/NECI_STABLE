@@ -421,10 +421,6 @@ MODULE AnnihilationMod
 
             do while(CurrentBlockDet.le.ValidSpawned)
                 if(.not.(DetBitEQ(SpawnedParts(0:NIfTot,BeginningBlockDet),SpawnedParts(0:NIfTot,CurrentBlockDet),NIfDBO))) exit
-                if (tSemiStochastic .and. (.not. tCoreHash)) then
-                    if (.not. (test_flag(SpawnedParts(0:NIfTot,BeginningBlockDet), flag_determ_parent) .eqv. &
-                               test_flag(SpawnedParts(0:NIfTot,CurrentBlockDet), flag_determ_parent))) exit
-                end if
                 ! Loop over walkers on the same determinant in SpawnedParts.
                 ! Also, seperate out states which are and aren't spawned from the deterministic space.
                 ! (Ignore the options relating to these deterministic flags if not concerned with the
@@ -471,16 +467,6 @@ MODULE AnnihilationMod
                         Spawned_Parts_Zero = Spawned_Parts_Zero + 1
                     endif
                 ENDIF
-
-                if (tSemiStochastic .and. (.not. tCoreHash)) then
-                    ! If the last state was the same then set this state's initiator flag.
-                    if (DetBitEq(temp_det(0:NIfTot), SpawnedParts2(0:NIfTot,VecInd), NIfDBO)) then
-                        call set_flag(SpawnedParts2(:,VecInd), flag_is_initiator(1))
-                        call set_flag(SpawnedParts2(:,VecInd), flag_is_initiator(2))
-                    end if
-
-                    temp_det = SpawnedParts2(:,VecInd)
-                end if
 
                 VecInd=VecInd+1
                 BeginningBlockDet=CurrentBlockDet           !Move onto the next block of determinants
@@ -551,15 +537,6 @@ MODULE AnnihilationMod
 
             ! Copy details into the final array
             call extract_sign (cum_det, temp_sign)
-
-            ! If this state and the previous one are the same then the previous state was spawned from the
-            ! deterministic space, so had its initiator flag set. So set this state's flag too.
-            if (tSemiStochastic .and. (.not. tCoreHash)) then
-                if (DetBitEQ(cum_det(0:NIfTot), temp_det(0:NIfTot), NIfDBO)) then
-                    call set_flag(cum_det, flag_is_initiator(1))
-                    call set_flag(cum_det, flag_is_initiator(2))
-                end if
-            end if
 
             if ((sum(abs(temp_sign)) > 0.0_dp).or.(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit))) then
                 ! Transfer all info into the other array.
@@ -980,92 +957,6 @@ MODULE AnnihilationMod
 !            call WriteBitDet(6,CurrentDets(:,PartInd),.true.)
 
 !            WRITE(6,*) 'i,SpawnedParts(:,i)',i,SpawnedParts(:,i)
-
-            ! Abort spawning from the deterministic space to the deterministic space, and also
-            ! merge this state and next state in SpawnedParts if they are the same states but
-            ! with the determ_parent flag set in the first state and not set in the second state.
-            if (tSemiStochastic .and. (.not. tCoreHash)) then
-                if (test_flag(SpawnedParts(:,i), flag_determ_parent)) then
-                    ! If walkers spawned onto this state from within the deterministic space.
-                    if (i < ValidSpawned) then
-                        ! If not on the last state.
-                        ! Is this state the same as the next state in SpawnedParts?
-                        ! (comp is returned as 0 if true)
-                        comp = DetBitLT(SpawnedParts(:, i), SpawnedParts(:, i+1), NIfDBO, .false.)
-                    else
-                        ! Set comp to anything but 0 in this case.
-                        comp = 1
-                    end if
-
-                    if (test_flag(CurrentDets(:,PartInd), flag_deterministic) .and. tSuccess) then
-                        ! If this state is in the deterministic space then abort it, as it was also spawned
-                        ! from the deterministic space. Then simply move onto the next state in SpawnedParts,
-                        ! even if it is the same state.  Also no need to include RDM off-diagonal component,
-                        ! as this will already have been done explicitly.
-                        call extract_sign(SpawnedParts(:, i), SpawnedSign)
-                        call encode_sign(SpawnedParts(:, i), null_part)
-                        if (sum(abs(SpawnedSign)).ne.0) ToRemove = ToRemove + 1 !Otherwise already counted in Spawned_Parts_Zero
-                        MinInd = PartInd
-
-                        ! Update stats:
-                        iter_data%naborted(1) = iter_data%naborted(1) + abs(SpawnedSign(1))
-
-                        cycle
-                    else
-                        !The parent determinants were in the deterministic space, but this target det is not.
-                        !Therefore, we need to add in off-diagonal RDM elements
-                        if(tSuccess .and. tFillingStochRDMonFly .and.(.not.tHF_Ref_Explicit)) then
-                            call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
-                        endif
-                        if (comp == 0) then
-                            ! If the next state is the same, and this state is not in the deterministic space
-                            ! then merge the two amplitudes onto this one state, and then skip the next state
-                            ! in SpawnedParts on the next loop.
-                            call extract_sign(SpawnedParts(:, i), SpawnedSign)
-                            call extract_sign(SpawnedParts(:, i+1), SignTemp)
-                            call encode_sign(SpawnedParts(:, i), SpawnedSign + SignTemp)
-                            call encode_sign(SpawnedParts(:, i+1), null_part)
-                            if ((sum(abs(SpawnedSign)).ne.0).and.(sum(abs(SignTemp)).ne.0)) ToRemove = ToRemove + 1
-                            tSkip = .true.
-                            
-                            ! Two adjacent entries in SpawnedParts corresponding to the same determinant
-                            ! (which is not in the core space).  The first entry had parents from the deterministic space
-                            ! whilst the second (i+1) has parents which are from outside the core space.
-                            ! Both sets need to be added in to RDM off-diagonal elements.  The first set has
-                            ! been done above.  The second is now done here:
-                            if(tSuccess .and. tFillingStochRDMonFly .and.(.not.tHF_Ref_Explicit)) then
-                                call check_fillRDM_DiDj(i+1,CurrentDets(:,PartInd),CurrentH(2,PartInd))
-                            endif
-
-                            ! Update stats:
-                            SignProd = SpawnedSign*SignTemp
-                            if (SignProd(1) < 0.0_dp) iter_data%nannihil(1) = iter_data%nannihil(1) + &
-                                2*(min(abs(SpawnedSign(1)), abs(SignTemp(1))))
-
-                            if (IsUnoccDet(SpawnedSign + SignTemp)) then
-                                ! If no amplitude remaining after the states are merged.
-                                MinInd = PartInd
-                                if((sum(abs(SpawnedSign)).ne.0).or.(sum(abs(SignTemp)).ne.0)) ToRemove = ToRemove + 1
-                                cycle
-                            end if
-                        end if
-                    end if
-                else
-                    ! Walkers spawned onto this state from outside the deterministic space.
-                    ! We do need to include this off-diagonal contribution to the RDMs
-                    if(tSuccess .and. tFillingStochRDMonFly .and.(.not.tHF_Ref_Explicit)) then
-                        call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
-                    endif
-                end if
-            else
-                ! The spawned parts contain the Dj's spawned by the Di's in CurrentDets.
-                ! If the SpawnedPart is found in the CurrentDets list, it means that the Dj has a non-zero 
-                ! cj - and therefore the Di.Dj pair will have a non-zero ci.cj to contribute to the RDM.
-                ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
-                if(tSuccess .and. tFillingStochRDMonFly .and.(.not.tHF_Ref_Explicit)) then
-                    call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
-                endif
-            endif
 
             IF(tSuccess) THEN
 

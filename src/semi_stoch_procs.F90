@@ -22,8 +22,8 @@ module semi_stoch_procs
                          determ_space_size, SpawnedParts, SemiStoch_Comms_Time, &
                          SemiStoch_Multiply_Time, TotWalkers, CurrentDets, CoreTag, &
                          PDetermTag, FDetermTag, IDetermTag, indices_of_determ_states, &
-                         HashIndex, core_space, CoreSpaceTag, tCoreHash, ll_node, &
-                         nWalkerHashes, tFill_RDM, IterLastRDMFill, full_determ_vector_av, &
+                         HashIndex, core_space, CoreSpaceTag, ll_node, nWalkerHashes, &
+                         tFill_RDM, IterLastRDMFill, full_determ_vector_av, &
                          tFillingStochRDMonFly, Iter, IterRDMStart, CoreHashIndex, &
                          core_ham_diag, DavidsonTag, Fii, HFDet
     use hash, only: DetermineDetNode, FindWalkerHash
@@ -340,11 +340,9 @@ contains
         call MPIAllGatherV(SpawnedParts(:,1:determ_proc_sizes(iProcIndex)), core_space, &
                        determ_proc_sizes, determ_proc_indices)
 
-        if (tCoreHash) call InitialiseCoreHashTable()
-
     end subroutine store_whole_core_space
 
-    subroutine InitialiseCoreHashTable()
+    subroutine initialise_core_hash_table()
 
         use bit_reps, only: decode_bit_det
         use FciMCData, only: core_space
@@ -353,7 +351,7 @@ contains
         integer :: nI(nel)
         integer :: i, ierr, DetHash, counter, total
         type(ll_node), pointer :: temp_node
-        character(len=*), parameter :: t_r = "InitialiseCoreHashTable"
+        character(len=*), parameter :: t_r = "initialise_core_hash_table"
 
         allocate(CoreHashIndex(determ_space_size), stat=ierr)
 
@@ -379,7 +377,7 @@ contains
 
         nullify(temp_node)
 
-    end subroutine InitialiseCoreHashTable
+    end subroutine initialise_core_hash_table
 
     subroutine remove_repeated_states(list, list_size)
 
