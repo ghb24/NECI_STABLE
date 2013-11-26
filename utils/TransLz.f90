@@ -24,7 +24,7 @@ PROGRAM TransLz
     READ(8,FCI)
 
     IF(NORB.gt.1000) STOP 'Too Many Orbitals'
-!    IF(UHF) STOP 'Cannot cope with UHF initially'
+    IF(UHF) STOP 'Cannot cope with qchem UHF integrals (ROHF should be ok). Bug ajwt if needed. Remove this stop only if you know what you are doing'
     
 
     Norm=1.D0/sqrt(2.D0)
