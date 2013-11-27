@@ -1436,13 +1436,6 @@ MODULE nElRDMMod
             endif
         else
             RDMBiasFacCurr = AvSignCurr / p_spawn   
-        if((RDMBiasFacCurr.gt.335.79).and.(RDMBiasFacCurr.lt.335.80)) then
-            WRITE(6,*) "AvSignCurr", AvSignCurr
-            WRITE(6,*) "p_notlist_rdmfac", p_notlist_rdmfac
-            WRITE(6,*) "p_gen", p_gen
-            WRITE(6,*) "p_spawn_rdmfac", p_spawn_rdmfac
-            WRITE(6,*) "p_not_spawn", p_not_spawn
-        endif
         endif
         
     end subroutine calc_rdmbiasfac
