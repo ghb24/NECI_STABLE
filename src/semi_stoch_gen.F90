@@ -62,6 +62,10 @@ contains
         integer(MPIArg) :: mpi_temp
         character (len=*), parameter :: t_r = "init_semi_stochastic"
 
+#ifdef __CMPLX
+        call stop_all(t_r, "Semi-stochastic has not been implemented with complex coefficients.")
+#endif
+
         call set_timer(SemiStoch_Init_Time)
 
         write(6,'()')

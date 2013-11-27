@@ -45,6 +45,11 @@ contains
         real(dp) :: trial_amp
         character (len=*), parameter :: t_r = "init_trial_wf"
 
+#ifdef __CMPLX
+        call stop_all(t_r, "Trial wave function-based estimators have not been implemented with &
+                           &complex coefficients.")
+#endif
+
         ! Perform checks.
         if (tIncCancelledInitEnergy .and. (.not. tTrialHash)) &
             call stop_all(t_r, "The inc-cancelled-init-energy option cannot be used with the &
