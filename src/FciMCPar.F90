@@ -4677,7 +4677,7 @@ MODULE FciMCParMod
             CALL Stop_All(t_r,"Error in allocating RandomHash")
         ENDIF
         RandomHash(:)=0
-        if(tHashWalkerList .or. tSemiStochastic .or. tTrialHash) then
+        if(tHashWalkerList .or. tSemiStochastic .or. (tTrialWavefunction .and. tTrialHash)) then
             !We want another independent randomizing array for the hash table, so we do not introduce
             !correlations between the two
             ALLOCATE(RandomHash2(nBasis),stat=ierr)
@@ -4713,7 +4713,7 @@ MODULE FciMCParMod
                     RandomHash(i) = ChosenOrb
                 enddo
             enddo
-            if(tHashWalkerList .or. tSemiStochastic .or. tTrialHash) then
+            if(tHashWalkerList .or. tSemiStochastic .or. (tTrialWavefunction .and. tTrialHash)) then
                 !Do again for RandomHash2
                 do i=1,nBasis
                     ! If we want to hash only by spatial orbitals, then the
@@ -4753,7 +4753,7 @@ MODULE FciMCParMod
                 IF((RandomHash(i).eq.0).or.(RandomHash(i).gt.nBasis*1000)) THEN
                     CALL Stop_All(t_r,"Random Hash incorrectly calculated")
                 ENDIF
-                if(tHashWalkerList .or. tSemiStochastic .or. tTrialHash) then
+                if(tHashWalkerList .or. tSemiStochastic .or. (tTrialWavefunction .and. tTrialHash)) then
                     IF((RandomHash2(i).eq.0).or.(RandomHash2(i).gt.nBasis*1000)) THEN
                         CALL Stop_All(t_r,"Random Hash 2 incorrectly calculated")
                     ENDIF
@@ -4762,7 +4762,7 @@ MODULE FciMCParMod
                     IF(RandomHash(i).eq.RandomHash(j)) THEN
                         CALL Stop_All(t_r,"Random Hash incorrectly calculated")
                     ENDIF
-                    if(tHashWalkerList .or. tSemiStochastic .or. tTrialHash) then
+                    if(tHashWalkerList .or. tSemiStochastic .or. (tTrialWavefunction .and. tTrialHash)) then
                         IF(RandomHash2(i).eq.RandomHash2(j)) THEN
                             CALL Stop_All(t_r,"Random Hash 2 incorrectly calculated")
                         ENDIF
@@ -4772,7 +4772,7 @@ MODULE FciMCParMod
         ENDIF
         !Now broadcast to all processors
         CALL MPIBCast(RandomHash,nBasis)
-        if(tHashWalkerList .or. tSemiStochastic .or. tTrialHash) call MPIBCast(RandomHash2,nBasis)
+        if(tHashWalkerList .or. tSemiStochastic .or. (tTrialWavefunction .and. tTrialHash)) call MPIBCast(RandomHash2,nBasis)
 
         IF(tHPHF) THEN
             !IF(tLatticeGens) CALL Stop_All("SetupParameters","Cannot use HPHF with model systems currently.")
@@ -7866,7 +7866,7 @@ MODULE FciMCParMod
         type(ll_node), pointer :: Curr, Prev
         integer :: i, ierr
 
-        if(tHashWalkerList .or. tSemiStochastic .or. tTrialHash) then
+        if(tHashWalkerList .or. tSemiStochastic .or. (tTrialWavefunction .and. tTrialHash)) then
             deallocate(RandomHash2,stat=ierr)
             if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
         end if
