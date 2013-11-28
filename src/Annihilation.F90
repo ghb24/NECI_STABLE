@@ -1400,6 +1400,7 @@ MODULE AnnihilationMod
                 TempNode => TempNode%Next
             end do
             allocate(TempNode%Next)
+            nullify(TempNode%Next%Next)
             TempNode%Next%Ind = DetPosition
         end if
         nullify(TempNode)

@@ -7362,6 +7362,7 @@ MODULE FciMCParMod
                                 TempNode => TempNode%Next
                             end do
                             allocate(TempNode%Next)
+                            nullify(TempNode%Next%Next)
                             TempNode%Next%Ind = DetIndex
                         end if
                         nullify(TempNode)
@@ -7564,6 +7565,7 @@ MODULE FciMCParMod
                                 TempNode => TempNode%Next
                             end do
                             allocate(TempNode%Next)
+                            nullify(TempNode%Next%Next)
                             TempNode%Next%Ind = DetIndex
                         end if
                         nullify(TempNode)
@@ -7612,6 +7614,7 @@ MODULE FciMCParMod
                             TempNode => TempNode%Next
                         end do
                         allocate(TempNode%Next)
+                        nullify(TempNode%Next%Next)
                         TempNode%Next%Ind = DetIndex
                     end if
                     nullify(TempNode)

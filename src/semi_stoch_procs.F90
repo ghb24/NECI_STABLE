@@ -357,6 +357,7 @@ contains
 
         do i = 1, determ_space_size
             CoreHashIndex(i)%ind = 0
+            nullify(CoreHashIndex(i)%next)
         end do
 
         do i = 1, determ_space_size
@@ -371,6 +372,7 @@ contains
                     temp_node => temp_node%next
                 end do
                 allocate(temp_node%next)
+                nullify(temp_node%next%next)
                 temp_node%next%ind = i
             end if
         end do
@@ -820,6 +822,7 @@ contains
                     temp_node => temp_node%next
                 end do
                 allocate(temp_node%next)
+                nullify(temp_node%next%next)
                 temp_node%next%ind = i
             end if
             nullify(temp_node)
