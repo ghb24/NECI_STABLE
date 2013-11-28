@@ -20,8 +20,8 @@ module semi_stoch_gen
                          core_hamiltonian, determ_space_size, TotWalkers, TotWalkersOld, &
                          indices_of_determ_states, SpawnedParts, FDetermTag, FDetermAvTag, &
                          PDetermTag, IDetermTag, trial_space, trial_space_size, &
-                         SemiStoch_Init_Time, tHashWalkerList, tCoreHash, &
-                         full_determ_vector_av, tStartCoreGroundState
+                         SemiStoch_Init_Time, tHashWalkerList, full_determ_vector_av, &
+                         tStartCoreGroundState
     use gndts_mod, only: gndts
     use hash, only: DetermineDetNode
     use LoggingData, only: tWriteCore, tRDMonFly
@@ -61,6 +61,10 @@ contains
         integer :: nI(nel)
         integer(MPIArg) :: mpi_temp
         character (len=*), parameter :: t_r = "init_semi_stochastic"
+
+#ifdef __CMPLX
+        call stop_all(t_r, "Semi-stochastic has not been implemented with complex coefficients.")
+#endif
 
         call set_timer(SemiStoch_Init_Time)
 
@@ -141,7 +145,10 @@ contains
             end if
         end do
 
-        if (tRDMonFly .or. tCoreHash) call store_whole_core_space()
+        ! Store every core determinant from all processors on all processors, in core_space.
+        call store_whole_core_space()
+        ! Create the hash table to address the core determinants.
+        call initialise_core_hash_table()
 
         if (tVaryInitThresh) call create_nsteps_mask()
 

@@ -22,7 +22,7 @@ MODULE Calc
                         dClustSelectionRatio,tSharedExcitors
     use FciMCData, only: proje_update_comb,proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
                          InputDiagSft,tSearchTau,proje_spatial,nWalkerHashes,tHashWalkerList,HashLengthFrac, &
-                         tCoreHash, tTrialHash, tIncCancelledInitEnergy, tStartCoreGroundState
+                         tTrialHash, tIncCancelledInitEnergy, tStartCoreGroundState
     use semi_stoch_gen, only: core_ras
 
     implicit none
@@ -62,7 +62,6 @@ contains
           tHashWalkerList=.false.
           HashLengthFrac=0.0_dp
           nWalkerHashes=0
-          tCoreHash=.false.
           tTrialHash=.true.
           tIncCancelledInitEnergy = .false.
           iExitWalkers=-1
@@ -1096,8 +1095,6 @@ contains
                         call stop_all("SysReadInput","Input string is not recognised.")
                     end if
                 end if
-            case("SEMI-STOCH-HASH")
-                tCoreHash = .true.
             case("TRIAL-BIN-SEARCH")
                 tTrialHash = .false.
             case("START-FROM-HF")

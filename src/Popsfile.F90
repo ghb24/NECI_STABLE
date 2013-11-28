@@ -332,6 +332,7 @@ r_loop: do while(.not.tReadAllPops)
                         Temp => Temp%Next
                     end do
                     allocate(Temp%Next)
+                    nullify(Temp%Next%Next)
                     Temp%Next%Ind = i
                 end if
             end do

@@ -1065,17 +1065,15 @@ MODULE FciMCParMod
                             ! these flags? There are comments questioning this in create_particle, too.
                             iLutnJ(nOffFlag) = 0
                             
-                            if (tCoreHash) then
-                                ! Is the spawned state in the core space?
-                                tInDetermSpace = is_core_state(iLutnJ)
+                            ! Is the spawned state in the core space?
+                            tInDetermSpace = is_core_state(iLutnJ)
 
-                                ! Is the parent state in the core space?
-                                if (test_flag(CurrentDets(:,j), flag_deterministic)) then
-                                    ! If spawning is from and to the core space, cancel it.
-                                    if (tInDetermSpace) cycle
-                                else
-                                    if (tInDetermSpace) call set_flag(iLutnJ, flag_deterministic)
-                                end if
+                            ! Is the parent state in the core space?
+                            if (test_flag(CurrentDets(:,j), flag_deterministic)) then
+                                ! If spawning is from and to the core space, cancel it.
+                                if (tInDetermSpace) cycle
+                            else
+                                if (tInDetermSpace) call set_flag(iLutnJ, flag_deterministic)
                             end if
 
                             ! If the walker being spawned is spawned from the deterministic space,
@@ -2263,16 +2261,16 @@ MODULE FciMCParMod
                              DetPosition, walkExcitLevel)
 
         integer, intent(in) :: DetCurr(nel) 
-        real(dp), dimension(lenof_sign), intent(in) :: realwSign
+        real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
         integer, intent(inout) :: VecSlot
         real(dp), intent(in) :: wAvSign, IterRDMStartCurr, Kii
         integer, intent(in) :: DetPosition
-        integer, intent(in) :: WalkExcitLevel
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp), dimension(lenof_sign) :: iDie
         real(dp), dimension(lenof_sign) :: CopySign
-        real(dp), dimension(lenof_sign), parameter :: NullSign=0.0_dp
+        integer, intent(in) :: walkExcitLevel
+        integer :: i
         character(len=*), parameter :: t_r="walker_death"
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
@@ -2286,69 +2284,56 @@ MODULE FciMCParMod
         endif
 
         ! Update death counter
-        iter_data%ndied = iter_data%ndied + min(iDie, abs(RealwSign))
-        NoDied = NoDied + sum(min(iDie, abs(RealwSign)))
+        iter_data%ndied = iter_data%ndied + min(iDie, abs(realwSign))
+        NoDied = NoDied + sum(min(iDie, abs(realwSign)))
 
         ! Count any antiparticles
-        iter_data%nborn = iter_data%nborn + max(iDie - abs(RealwSign), 0.0_dp)
-        NoBorn = NoBorn + sum(max(iDie - abs(RealwSign), 0.0_dp))
+        iter_data%nborn = iter_data%nborn + max(iDie - abs(realwSign), 0.0_dp)
+        NoBorn = NoBorn + sum(max(iDie - abs(realwSign), 0.0_dp))
 
         ! Calculate new number of signed particles on the det.
         CopySign = RealwSign - (iDie * sign(1.0_dp, RealwSign))
 
+        ! In the initiator approximation, abort any anti-particles.
+        if (tTruncInitiator .and. any(CopySign /= 0)) then
+            do i = 1, lenof_sign
+                if (sign(1.0_dp, CopySign(i)) /= &
+                        sign(1.0_dp, RealwSign(i))) then
+                    NoAborted = NoAborted + abs(CopySign(i))
+                    iter_data%naborted(i) = iter_data%naborted(i) &
+                                          + abs(CopySign(i))
+                    if (test_flag(ilutCurr, flag_is_initiator(i))) &
+                        NoAddedInitiators = NoAddedInitiators - 1
+                    CopySign(i) = 0
+                end if
+            end do
+        end if
+        
         !DMC: TO WORRY ABOUT!
 
         !Test - testsuite, RDM still work, both still work with Linscalealgo (all in debug)
         !Null particle not kept if antiparticles aborted.
         !When are the null particles removed?
-
-
-        ! Normally slot particles back into main array at position vecslot.
-        ! This will normally increment with j, except when a particle dies
-        ! completely (so VecSlot <= j, and we can't overwrite a walker we
-        ! haven't got to yet).
-        ! This does not hold with tHashWalkerList, since the determinants do
-        ! not move
-#ifndef __CMPLX            
-        if (CopySign(1).ne.0) then
-            IF(tTruncInitiator.and.(sign(1.0_dp,CopySign(1)).ne.sign(1.0_dp,RealwSign(1)))) THEN
-                !Abort creation of antiparticles if using initiator
-!                WRITE(iout,*) "Creating Antiparticles"
-                NoAborted=NoAborted+abs(CopySign(1)) 
-                iter_data%naborted(1) = iter_data%naborted(1) + abs(CopySign(1))
-                if(test_flag(iLutCurr,flag_is_initiator(1))) then
-                    NoAddedInitiators=NoAddedInitiators-1
-                    if (tSpawnSpatialInit) call rm_initiator_list (ilutCurr)
-                endif
-                if(tHashWalkerList) then
-                    !We need to remove this determinant from the hashindex array
-                    call RemoveDetHashIndex(DetCurr,DetPosition)
-                    !Add to the "freeslot" list
-                    iEndFreeSlot=iEndFreeSlot+1
-                    FreeSlot(iEndFreeSlot)=DetPosition
-                    !Encode a null det to be picked up
-                    call encode_sign(CurrentDets(:,DetPosition),NullSign)
+        
+        if (any(CopySign /= 0)) then
+            ! Normal method slots particles back in main array at position
+            ! vecslot. The list is shuffled up if a particle is destroyed.
+            ! For HashWalkerList, the particles don't move, so just adjust
+            ! the weight.
+            if (tHashWalkerList) then
+                call encode_sign (CurrentDets(:,DetPosition), CopySign)
+                if (tFillingStochRDMonFly) then
+                    CurrentH(2,DetPosition) = wAvSign
+                    CurrentH(3,DetPosition) = IterRDMStartCurr
                 endif
             else
-                !Normally we will go in this block. Some may have died,
-                !but putting det back with new sign overall
-                if(tHashWalkerList) then
-                    !Here, determinants always stay in the same place
-                    !Therefore, only need to encode sign, and not to worry about helement or anything else
-                    call encode_sign(CurrentDets(:,DetPosition),CopySign)
-                    if (tFillingStochRDMonFly) then
-                        CurrentH(2,DetPosition) = wAvSign
-                        CurrentH(3,DetPosition) = IterRDMStartCurr
-                    endif
-                else
-                    call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
-                    if(.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
-                    if (tFillingStochRDMonFly) then
-                        CurrentH(2,VecSlot) = wAvSign
-                        CurrentH(3,VecSlot) = IterRDMStartCurr
-                    endif
-                    VecSlot = VecSlot + 1
+                call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
+                if(.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
+                if (tFillingStochRDMonFly) then
+                    CurrentH(2,VecSlot) = wAvSign
+                    CurrentH(3,VecSlot) = IterRDMStartCurr
                 endif
+                Vecslot = Vecslot + 1
             endif
         else
             !All walkers died
@@ -2386,57 +2371,7 @@ MODULE FciMCParMod
                 call encode_sign(CurrentDets(:,DetPosition),null_part)
             endif
         endif
-#else
-        !In complex case, fill slot if either real or imaginary particle still there.
-        IF((CopySign(1).ne.0).or.(CopySign(2).ne.0)) THEN
-            if(tTruncInitiator.and.(sign(1,CopySign(1)).ne.sign(1,RealwSign(1)))) then
-                !Remove the real anti-particle
-                NoAborted=NoAborted+abs(CopySign(1))
-                iter_data%naborted(1) = iter_data%naborted(1) + abs(CopySign(1))
-                if(test_flag(iLutCurr,flag_is_initiator(1))) NoAddedInitiators=NoAddedInitiators-1
-                CopySign(1)=0
-            endif
-            if(tTruncInitiator.and.(sign(1,CopySign(lenof_sign)).ne.sign(1,RealwSign(lenof_sign)))) then
-                !Remove the imaginary anti-particle
-                NoAborted=NoAborted+abs(CopySign(lenof_sign))
-                iter_data%naborted(lenof_sign) = iter_data%naborted(lenof_sign) + abs(CopySign(lenof_sign))
-                if(test_flag(iLutCurr,flag_is_initiator(lenof_sign))) NoAddedInitiators=NoAddedInitiators-1
-                CopySign(lenof_sign)=0.0_dp
-            endif
-            if((CopySign(1).ne.0.0_dp).or.(CopySign(lenof_sign).ne.0.0_dp)) then
-                !These could have both been aborted for being antiparitlces
-                !Here, some survive - put them back in the list
-                if(tHashWalkerList) then
-                    !Here, determinants always stay in the same place
-                    !Therefore, only need to encode sign, and not to worry about helement or anything else
-                    call encode_sign(CurrentDets(:,DetPosition),CopySign)
-                else
-                    call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
-                    if (.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
-                    VecSlot=VecSlot+1
-                endif
-            else
-                !All walkers have been aborted
-                if(tHashWalkerList) then
-                    !Remove the determinant from the indexing list
-                    call RemoveDetHashIndex(DetCurr,DetPosition)
-                    !Add to the "freeslot" list
-                    iEndFreeSlot=iEndFreeSlot+1
-                    FreeSlot(iEndFreeSlot)=DetPosition
-                    !Encode a null det to be picked up
-                    call encode_sign(CurrentDets(:,DetPosition),NullSign)
-                endif
-            endif
-        ELSEIF(tHashWalkerList) then
-            !Remove the determinant from the indexing list
-            call RemoveDetHashIndex(DetCurr,DetPosition)
-            !Add to the "freeslot" list
-            iEndFreeSlot=iEndFreeSlot+1
-            FreeSlot(iEndFreeSlot)=DetPosition
-            !Encode a null det to be picked up
-            call encode_sign(CurrentDets(:,DetPosition),NullSign)
-        ENDIF
-#endif
+
 
     end subroutine
 
@@ -4742,7 +4677,7 @@ MODULE FciMCParMod
             CALL Stop_All(t_r,"Error in allocating RandomHash")
         ENDIF
         RandomHash(:)=0
-        if(tHashWalkerList .or. tCoreHash .or. tTrialHash) then
+        if(tHashWalkerList .or. tSemiStochastic .or. (tTrialWavefunction .and. tTrialHash)) then
             !We want another independent randomizing array for the hash table, so we do not introduce
             !correlations between the two
             ALLOCATE(RandomHash2(nBasis),stat=ierr)
@@ -4778,7 +4713,7 @@ MODULE FciMCParMod
                     RandomHash(i) = ChosenOrb
                 enddo
             enddo
-            if(tHashWalkerList .or. tCoreHash .or. tTrialHash) then
+            if(tHashWalkerList .or. tSemiStochastic .or. (tTrialWavefunction .and. tTrialHash)) then
                 !Do again for RandomHash2
                 do i=1,nBasis
                     ! If we want to hash only by spatial orbitals, then the
@@ -4818,7 +4753,7 @@ MODULE FciMCParMod
                 IF((RandomHash(i).eq.0).or.(RandomHash(i).gt.nBasis*1000)) THEN
                     CALL Stop_All(t_r,"Random Hash incorrectly calculated")
                 ENDIF
-                if(tHashWalkerList .or. tCoreHash .or. tTrialHash) then
+                if(tHashWalkerList .or. tSemiStochastic .or. (tTrialWavefunction .and. tTrialHash)) then
                     IF((RandomHash2(i).eq.0).or.(RandomHash2(i).gt.nBasis*1000)) THEN
                         CALL Stop_All(t_r,"Random Hash 2 incorrectly calculated")
                     ENDIF
@@ -4827,7 +4762,7 @@ MODULE FciMCParMod
                     IF(RandomHash(i).eq.RandomHash(j)) THEN
                         CALL Stop_All(t_r,"Random Hash incorrectly calculated")
                     ENDIF
-                    if(tHashWalkerList .or. tCoreHash .or. tTrialHash) then
+                    if(tHashWalkerList .or. tSemiStochastic .or. (tTrialWavefunction .and. tTrialHash)) then
                         IF(RandomHash2(i).eq.RandomHash2(j)) THEN
                             CALL Stop_All(t_r,"Random Hash 2 incorrectly calculated")
                         ENDIF
@@ -4837,7 +4772,7 @@ MODULE FciMCParMod
         ENDIF
         !Now broadcast to all processors
         CALL MPIBCast(RandomHash,nBasis)
-        if(tHashWalkerList .or. tCoreHash .or. tTrialHash) call MPIBCast(RandomHash2,nBasis)
+        if(tHashWalkerList .or. tSemiStochastic .or. (tTrialWavefunction .and. tTrialHash)) call MPIBCast(RandomHash2,nBasis)
 
         IF(tHPHF) THEN
             !IF(tLatticeGens) CALL Stop_All("SetupParameters","Cannot use HPHF with model systems currently.")
@@ -7427,6 +7362,7 @@ MODULE FciMCParMod
                                 TempNode => TempNode%Next
                             end do
                             allocate(TempNode%Next)
+                            nullify(TempNode%Next%Next)
                             TempNode%Next%Ind = DetIndex
                         end if
                         nullify(TempNode)
@@ -7629,6 +7565,7 @@ MODULE FciMCParMod
                                 TempNode => TempNode%Next
                             end do
                             allocate(TempNode%Next)
+                            nullify(TempNode%Next%Next)
                             TempNode%Next%Ind = DetIndex
                         end if
                         nullify(TempNode)
@@ -7677,6 +7614,7 @@ MODULE FciMCParMod
                             TempNode => TempNode%Next
                         end do
                         allocate(TempNode%Next)
+                        nullify(TempNode%Next%Next)
                         TempNode%Next%Ind = DetIndex
                     end if
                     nullify(TempNode)
@@ -7931,7 +7869,7 @@ MODULE FciMCParMod
         type(ll_node), pointer :: Curr, Prev
         integer :: i, ierr
 
-        if(tHashWalkerList .or. tCoreHash .or. tTrialHash) then
+        if(tHashWalkerList .or. tSemiStochastic .or. (tTrialWavefunction .and. tTrialHash)) then
             deallocate(RandomHash2,stat=ierr)
             if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
         end if
