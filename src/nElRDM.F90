@@ -1027,7 +1027,7 @@ MODULe nElRDMMod
                 endif
 
                 if(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
-                    call fill_rdm_diag_currdet_hfsd(iLutnI, nI, CurrH_I, ExcitLevel, IterLastRDMFill)
+                    call fill_rdm_diag_currdet_hfsd(iLutnI, nI, CurrH_I, ExcitLevel, .false., IterLastRDMFill)
                 else
                     call fill_rdm_diag_currdet_norm(iLutnI, nI, CurrH_I, ExcitLevel, .false., IterLastRDMFill)
                 endif
@@ -1068,7 +1068,7 @@ MODULe nElRDMMod
             endif
         endif
 
-! If we have a single or double, add in the connection to the HF, symmetrically.        
+! If we have a single or double, add in the connection to the HF, symmetrically.       
         if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
             call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF,IterRDM * AvSignJ,.true.)
 

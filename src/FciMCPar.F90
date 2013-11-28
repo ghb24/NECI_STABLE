@@ -849,6 +849,19 @@ MODULE FciMCParMod
                                         DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
                                         AvSignCurr, fcimc_excit_gen_store)
             
+            ! We only need to find out if determinant is connected to the
+            ! reference (so no ex. level above 2 required, 
+            ! truncated etc.)
+            walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
+                                                max_calc_ex_level)
+            
+            if(tRef_Not_HF) then
+                walkExcitLevel_toHF = FindBitExcitLevel (iLutHF_true, CurrentDets(:,j), &
+                                                max_calc_ex_level)
+            else
+                walkExcitLevel_toHF = walkExcitLevel
+            endif
+            
             ! If this state is in the deterministic space.
             if (tSemiStochastic) then
                 if (test_flag(CurrentDets(:,j), flag_deterministic)) then
@@ -919,11 +932,6 @@ MODULE FciMCParMod
             !    ! became occupied (IterRDMStartCurr) and the average population during that time 
             !    ! (AvSignCurr).
             
-            ! We only need to find out if determinant is connected to the
-            ! reference (so no ex. level above 2 required, 
-            ! truncated etc.)
-            walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
-                                                max_calc_ex_level)
 
             if (tTruncInitiator) call CalcParentFlag (j, VecSlot, parent_flags)
 
@@ -951,16 +959,6 @@ MODULE FciMCParMod
             ENDIFDEBUG
 
 !            call test_sym_excit3 (DetCurr, 1000000, pDoubles, 3)
-
-            ! TODO: The next couple of bits could be done automatically
-
-
-            if(tRef_Not_HF) then
-                walkExcitLevel_toHF = FindBitExcitLevel (iLutHF_true, CurrentDets(:,j), &
-                                                max_calc_ex_level)
-            else
-                walkExcitLevel_toHF = walkExcitLevel
-            endif
 
             if(walkExcitLevel_toHF.eq.0) HFInd = VecSlot
             
