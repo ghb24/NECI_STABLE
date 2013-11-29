@@ -7515,7 +7515,7 @@ MODULE FciMCParMod
             iNode=DetermineDetNode(nJ,0)
             if(iProcIndex.eq.iNode) then
                 call return_mp1_amp_and_mp2_energy(nJ,iLutnJ,Ex,tParity,amp,energy_contrib)
-                if (.not. (amp > 0.0_dp)) cycle
+                amp = amp*PartFac
 
                 if (tRealCoeffByExcitLevel) ExcitLevel=FindBitExcitLevel(iLutnJ, iLutRef, nEl)
                 if (tAllRealCoeff .or. &
