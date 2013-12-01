@@ -306,6 +306,7 @@ MODULE FciMCData
       integer :: nproje_sum
       integer, allocatable :: proje_ref_dets(:,:), proje_ref_det_init(:)
       real(dp), allocatable :: proje_ref_coeffs(:)
+      real(dp), allocatable :: All_proje_ref_coeffs(:)
       integer(TagIntType) :: tag_ref_iluts = 0, tag_ref_dets = 0, tag_ref_coeffs = 0
       real(dp) :: proje_denominator_cyc(lenof_sign)
       real(dp) :: proje_denominator_sum(lenof_sign)
@@ -333,22 +334,6 @@ MODULE FciMCData
       integer :: max_calc_ex_level
       type(fcimc_iter_data), target :: iter_data_fciqmc
       type(fcimc_iter_data), target :: iter_data_ccmc
-
-
-
-      ! Here are the FUNCTION POINTERS for use with PerformFciMCycPar
-      ! Use with extreme care, and keep your interfaces up to date or bad
-      ! things (namely segfaults) will happen
-
-      type(c_ptr) :: ptr_excit_generator
-      type(c_ptr) :: ptr_attempt_create
-      type(c_ptr) :: ptr_get_spawn_helement
-      type(c_ptr) :: ptr_new_child_stats
-      type(c_ptr) :: ptr_encode_child
-      type(c_ptr) :: ptr_attempt_die
-      type(c_ptr) :: ptr_iter_data
-      type(c_ptr) :: ptr_extract_bit_rep_avsign
-      type(c_ptr) :: ptr_fill_rdm_diag_currdet
 
       integer :: yama_global (4)
 

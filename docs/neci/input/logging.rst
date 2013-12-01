@@ -558,6 +558,12 @@ Options referring to the 1-RDM.
 **PRINTONERDM**
     This means the 1-RDM will be constructed and printed, even if we are only really calculating the 2-RDM.
 
+**DUMPFORCESINFO**
+    This constructs the symmetry-packed arrays of density matrices required for molpro force calculations, along
+    with the Lagrangian term, printed in binary to fciqmc_forces_info.  The readable version is also currently written
+    to the end of the OUTPUT file.  We also print out information on the 'hermiticity error' in the Lagrangian
+    which we explicitely symmetrise.
+
 Reading in / Writing out the RDMs for restarting calculations.
     
     Two types of 2-RDMs can be printed out.  The final normalised hermitian 2-RDMs of the form TwoRDM_a***, or the 

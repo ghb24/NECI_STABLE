@@ -1,4 +1,4 @@
-MODULE nElRDMMod
+MODULe nElRDMMod
 ! This file contains the routines used to find the full n electron reduced density matrix (nElRDM).
 ! This is done on the fly to avoid having to histogram the full wavefunction which is extremely 
 ! time and memory inefficient.
@@ -98,6 +98,7 @@ MODULE nElRDMMod
         REAL(dp) , ALLOCATABLE :: aaaa_RDM(:,:), abab_RDM(:,:), abba_RDM(:,:)
         REAL(dp) , ALLOCATABLE :: All_aaaa_RDM(:,:),All_abab_RDM(:,:), All_abba_RDM(:,:)
         REAL(dp) , ALLOCATABLE :: UMATTemp(:,:), Rho_ii(:)
+        REAL(dp) , ALLOCATABLE :: Lagrangian(:,:)
         REAL(dp) :: OneEl_Gap,TwoEl_Gap, Normalisation,Trace_2RDM_Inst, Trace_2RDM, Trace_1RDM, norm
         LOGICAL :: tFinalRDMEnergy, tCalc_RDMEnergy
         type(timer), save :: nElRDM_Time, FinaliseRDM_time, RDMEnergy_time
@@ -1763,7 +1764,7 @@ MODULE nElRDMMod
         INTEGER(int64) , INTENT(IN) :: TotWalkers
         INTEGER(kind=n_int) :: iLutnI(0:NIfTot)
         INTEGER :: i,error
-        REAL(dp) :: TempTotParts, NormalisationTemp, Sum_Coeffs
+        REAL(dp) :: TempTotParts, NormalisationTemp, Sum_Coeffs,AllNode_norm
         LOGICAL :: blank_det
         REAL(dp), DIMENSION(lenof_sign) :: TempSign
 
@@ -1818,7 +1819,8 @@ MODULE nElRDMMod
             norm=SQRT(norm)
         endif
 
-        CALL MPISumAll_inplace(norm)
+        CALL MPISumAll(norm,allNode_norm)
+        norm=allNode_norm
  
         do i=1,Det
 
@@ -3029,6 +3031,8 @@ MODULE nElRDMMod
 
             ! Calculate the energy one last time - and write out everything we need.
             tFinalRDMEnergy = .true.
+
+            !1RDM is contructed here (in calc_1RDM_energy)
             CALL Calc_Energy_from_RDM(Norm_2RDM)
 
             if(tPrint1RDM) then
@@ -3038,6 +3042,11 @@ MODULE nElRDMMod
                 write(6,*) ''
                 write(6,'(A55,F30.20)') ' SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY &
                                             &HF ORBITALS: ',SumN_Rho_ii
+            endif
+            if (tDumpForcesInfo) then
+                if (.not. tPrint1RDM) call Finalise_1e_RDM(Norm_1RDM)
+                CALL Calc_Lagrangian_from_RDM(Norm_1RDM, Norm_2RDM)
+                call convert_mats_Molpforces(Norm_1RDM, Norm_2RDM)
             endif
 
         endif
@@ -3058,16 +3067,29 @@ MODULE nElRDMMod
 ! This routine takes the 1-RDM (NatOrbMat), normalises it, makes it 
 ! hermitian if required, and prints out the versions we're interested in.    
 ! This is only ever called at the very end of a calculation.
-        integer :: i
+        use Logging , only : twrite_RDMs_to_read, twrite_normalised_RDMs, &
+                             tDumpForcesInfo
+        !implicit none
+        integer :: i, ierr
         real(dp), intent(out) :: Norm_1RDM
         real(dp) :: Trace_1RDM, SumN_Rho_ii
+        real(dp), allocatable :: AllNode_NatOrbMat(:,:)
 
         Norm_1RDM = 0.0_dp
         AllAccumRDMNorm = 0.0_dp
         IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) &
             CALL MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
 
-        if(RDMExcitLevel.eq.1) CALL MPISum_inplace(NatOrbMat)
+        if(RDMExcitLevel.eq.1) then
+
+            ALLOCATE(AllNode_NatOrbMat(NoOrbs,NoOrbs),stat=ierr)
+            
+            CALL MPISumAll(NatOrbMat,AllNode_NatOrbMat)
+            NatOrbMat=AllNode_NatOrbMat
+            
+            DEALLOCATE(AllNode_NatOrbMat)
+
+        endif
 
         if(iProcIndex.eq.0) then 
 
@@ -3081,8 +3103,7 @@ MODULE nElRDMMod
             ! 1-RDM has been constructed from the hermitian 2-RDM, so this will not 
             ! be necessary.
             ! The HF_Ref and HF_S_D_Ref cases are not hermitian by definition.
-            if((RDMExcitLevel.eq.1).and.(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) .or. &
-                                                                    tDumpForcesInfo) then
+            if((RDMExcitLevel.eq.1).and.(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref))) then
                 call make_1e_rdm_hermitian(Norm_1RDM)
             endif
 
@@ -3231,6 +3252,7 @@ MODULE nElRDMMod
                 if(tStoreSpinOrbs) then
                     if(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)).ne.0.0_dp) then 
                         if(tNormalise.and.((i.le.j).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                            WRITE(6,*) "Written * 1.75"
                             write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
                                 NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) * Norm_1RDM
                         elseif(.not.tNormalise) then
@@ -3273,6 +3295,11 @@ MODULE nElRDMMod
         real(dp) , intent(out) :: Norm_2RDM_Inst, Norm_2RDM
         real(dp) :: AllAccumRDMNorm_Inst
         logical :: tmake_herm
+        real(dp), allocatable :: AllNodes_aaaa_RDM(:,:)
+        real(dp), allocatable :: AllNodes_abab_RDM(:,:)
+        real(dp), allocatable :: AllNodes_abba_RDM(:,:)
+        integer :: ierr
+
 !        real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity
 
         ! If Iter = 0, this means we have just read in the TwoRDM_POPS_a*** matrices into All_a***_RDM, and 
@@ -3280,10 +3307,26 @@ MODULE nElRDMMod
         ! Don't need to do all this stuff here, because a***_RDM will be empty.
         if(Iter.ne.0) then
 
-            ! All the arrays are summed into the one on processor 0.
-            CALL MPISum_inplace(aaaa_RDM(:,:))
-            CALL MPISum_inplace(abab_RDM(:,:))
-            CALL MPISum_inplace(abba_RDM(:,:))
+            ALLOCATE(AllNodes_aaaa_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+            ALLOCATE(AllNodes_abba_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+            ALLOCATE(AllNodes_abab_RDM(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
+
+            CALL MPISumAll(aaaa_RDM(:,:),AllNodes_aaaa_RDM(:,:))
+            aaaa_RDM(:,:) = AllNodes_aaaa_RDM(:,:)
+
+            CALL MPISumAll(abab_RDM(:,:),AllNodes_abab_RDM(:,:))
+            abab_RDM(:,:) = AllNodes_abab_RDM(:,:)
+
+            CALL MPISumAll(abba_RDM(:,:),AllNodes_abba_RDM(:,:))
+            abba_RDM(:,:) = AllNodes_abba_RDM(:,:)
+
+            DEALLOCATE(AllNodes_aaaa_RDM)
+            DEALLOCATE(AllNodes_abab_RDM)
+            DEALLOCATE(AllNodes_abba_RDM)
+
+            !CALL MPISum_inplace(aaaa_RDM(:,:))
+            !CALL MPISum_inplace(abab_RDM(:,:))
+            !CALL MPISum_inplace(abba_RDM(:,:))
 
             ! The TwoElRDM on the root is now the sum of all 'instantaneous' RDMs (summed over 
             ! the energy update cycle).
@@ -3848,13 +3891,125 @@ MODULE nElRDMMod
 
     END SUBROUTINE Calc_Energy_from_RDM
     
+    SUBROUTINE Calc_Lagrangian_from_RDM(Norm_1RDM,Norm_2RDM)
+! CMO
+! This routine takes the 1 electron and 2 electron reduced density matrices 
+! and calculated the Lagrangian term, X, required for the calculation of forces.    
+! The equation for X is as follows:
+!
+!   X_pq = Sum_r[h_pr 1RDM_qr] + 0.5*Sum_rst[(pr|st)[2RDM_qrst + 2RDM_rqst]]
+!        where 2RDM is defined in chemical notation sense: 2RDM_ijkl = <Psi| a_i+ a_k+ a_l a_j|Psi>
+!
+        USE IntegralsData , only : UMAT
+        USE UMatCache , only : UMatInd
+        USE RotateOrbsMod , only : SymLabelList2_rot
+        USE UMatCache , only : GTID
+        USE Logging, only : tDumpForcesInfo, tPrintLagrangian
+        implicit none
+        real(dp), intent(in) :: Norm_2RDM
+        real(dp), intent(in) :: Norm_1RDM
+        real(dp) :: Norm_2RDM_Inst
+        INTEGER :: p,q,r,s,t,ierr,stat
+        INTEGER :: pSpin, qSpin, rSpin, error
+        REAL(dp) :: RDMEnergy_Inst, RDMEnergy, Coul, Exch, Parity_Factor 
+        REAL(dp) :: Trace_2RDM_New, RDMEnergy1, RDMEnergy2
+        REAL(dp) :: qrst, rqst
+        REAL(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity, Temp
+
+        ALLOCATE(Lagrangian(SpatOrbs,SpatOrbs),stat=ierr)
+        Lagrangian(:,:)=0.D0
+        
+        ! We will begin by calculating the Lagrangian in chemical notation - we will explicitely calculate
+        ! both halves (X_pq and X_qp) in order to check if it is symmetric or not.
+        !  - a symmetric Lagrangian is important in allowing us to use the derivative overlap matrix rather than the 
+        !    coupled-perturbed coefficients when calculating the Forces later on 
+        !    (see Sherrill, Analytic Gradients of CI Energies eq38)
+
+        write(6,*) ''
+        write(6,*) 'Calculating the Lagrangian X from the final density matrices'
+
+        !Calculating the Lagrangian X in terms of spatial orbitals
+        if(iProcIndex.eq.0) then
+
+            do p = 1, SpatOrbs  !Run over spatial orbitals
+                pSpin = 2*p    ! Picks out beta component
+                do q = 1, SpatOrbs  !Want to calculate X(p,q) separately from X(q,p) for now to see if we're symmetric
+                    do r = 1, SpatOrbs
+                        rSpin=2*r
+                        ! Adding in contributions effectively from the 1-RDM
+                        ! We made sure earlier that the 1RDM is contructed, so we can call directly from this
+                        if(tStoreSpinOrbs) then
+                            ! Include both aa and bb contributions
+                            Lagrangian(p,q)=Lagrangian(p,q)+2.0_dp*(NatOrbMat(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r)))* &
+                                                                REAL(TMAT2D(pSpin,rSpin),8)*Norm_1RDM
+                        else
+                            !We will be here most often (?)
+                            Lagrangian(p,q)=Lagrangian(p,q)+NatOrbMat(SymLabelListInv_rot(q),SymLabelListInv_rot(r))* &
+                                                                REAL(TMAT2D(pSpin,rSpin),8)*Norm_1RDM
+                        endif
+
+                        do s = 1, SpatOrbs
+                
+                            ! Here we're looking to start adding on the contributions from the 2-RDM and the 2-el integrals
+                            ! For X(p,q), these have the form 0.5*Sum_rst[(pr|st)[2RDM_qrst + 2RDM_rqst]]
+                            
+                            ! NOTE: In some notations, the factor of a half goes *inside* the 2RDM - 
+                            ! consistent with Yamaguchi etc (see eq 11 in Sherrill, Analytic Gradients
+                            ! of CI energies).  We will keep it outside for now, consistent with the storage
+                            ! within neci
+
+                            do t=1, SpatOrbs
+                                
+                                !Integral (pr|st) = <ps|rt>
+                                !Give indices in PHYSICAL NOTATION
+                                !NB, FCIDUMP is labelled in chemical notation
+                                Coul = REAL(UMAT(UMatInd(p,s,r,t,0,0)),8)
+
+                                qrst=Find_Spatial_2RDM_Chem(q,r,s,t, Norm_2RDM)
+                                rqst=Find_Spatial_2RDM_Chem(r,q,s,t, Norm_2RDM)
+                                
+                                Lagrangian(p,q)=Lagrangian(p,q) + 0.5_dp*Coul*(qrst+rqst)
+                            enddo
+                        enddo
+                    enddo
+                enddo
+            enddo
+       
+            !! Now symmetrise (make hermitian, such that X_pq = X_qp) the Lagrangian X
+
+            Max_Error_Hermiticity = 0.D0
+            Sum_Error_Hermiticity = 0.D0
+            do p = 1, SpatOrbs
+                do q = p, SpatOrbs
+                    IF(abs(Lagrangian(p,q) - Lagrangian(q,p)).gt.Max_Error_Hermiticity) &
+                        Max_Error_Hermiticity = abs(Lagrangian(p,q)-Lagrangian(q,p))
+
+                    Sum_Error_Hermiticity = Sum_Error_Hermiticity+abs(Lagrangian(p,q) - Lagrangian(q,p))
+
+                    Temp = (Lagrangian(p,q) + Lagrangian(q,p))/2.D0
+                    Lagrangian(p,q) = Temp
+                    Lagrangian(q,p) = Temp
+                enddo
+            enddo
+
+            ! Output the hermiticity errors.
+            write(6,'(A40,F30.20)') ' MAX ABS ERROR IN Lagrangian HERMITICITY', Max_Error_Hermiticity
+            write(6,'(A40,F30.20)') ' SUM ABS ERROR IN Lagrangian HERMITICITY', Sum_Error_Hermiticity
+
+        endif
+
+    end subroutine
+
     subroutine calc_1RDM_energy(i,j,a,iSpin,jSpin,Norm_2RDM,Norm_2RDM_Inst,&
-                                                    RDMEnergy_Inst,RDMEnergy1)
-! This routine calculates the 1-RDM part of the RDM energy, and constructs the 
-! 1-RDM if required for diagonalisation or something.
-        ! gamma(i,j) = [1/(NEl - 1)] * SUM_a Gamma(i,a,j,a) 
-        ! want to calculate:    gamma(i,j) * h_ij
-        ! h_ij => TMAT2D(iSpin,jSpin)
+                                                        RDMEnergy_Inst,RDMEnergy1)
+    ! This routine calculates the 1-RDM part of the RDM energy, and constructs the 
+    ! 1-RDM if required for diagonalisation or something.
+    ! gamma(i,j) = [1/(NEl - 1)] * SUM_a Gamma(i,a,j,a) 
+    ! want to calculate:    gamma(i,j) * h_ij
+    ! h_ij => TMAT2D(iSpin,jSpin)
+    
+        USE OneEInts , only : TMAT2D
+        USE Logging , only : tDiagRDM, tDumpForcesInfo
         integer , intent(in) :: i,j,a,iSpin,jSpin
         real(dp) , intent(in) :: Norm_2RDM, Norm_2RDM_Inst
         real(dp) , intent(inout) :: RDMEnergy_Inst, RDMEnergy1
@@ -3937,7 +4092,7 @@ MODULE nElRDMMod
                                                     * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
 
-                if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
+                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then                                              
                     NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
                                 NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
                                             - ( All_abba_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
@@ -3952,7 +4107,7 @@ MODULE nElRDMMod
                                                         * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                         * (1.0_dp / real(NEl - 1,dp)) )
 
-                    if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
+                    if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then                                          
                         NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                                 NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                             - ( ( All_abba_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
@@ -3975,7 +4130,7 @@ MODULE nElRDMMod
                                                 * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
 
-            if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
+            if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then                                                
                 NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
                             NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
                                         + ( All_aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
@@ -3990,7 +4145,7 @@ MODULE nElRDMMod
                                                 * REAL(TMAT2D(jSpin,iSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
 
-                if((tDiagRDM.or.tPrint1RDM).and.tFinalRDMEnergy) then                                                
+                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then                                              
                     NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                             NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                         + ( All_aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
@@ -5038,6 +5193,325 @@ MODULE nElRDMMod
 
     END SUBROUTINE DeallocateRDM
 
+    subroutine convert_mats_Molpforces(Norm_1RDM, Norm_2RDM)
+    use SystemData, only : nEl,nbasis,LMS,ECore
+    use IntegralsData, only : nFrozen
+    use NatOrbsMod, only : NatOrbMat
+    use SymData, only : Sym_Psi, SymLabelCounts,nSymLabels
+    use SymExcitDataMod, only: SpinOrbSymLabel,SymLabelCounts2
+    use GenRandSymExcitNUMod , only : ClassCountInd, RandExcitSymLabelProd
+    use sym_mod
+    use UMatCache, only: GTID
+    
+    integer :: iblkq, iseccr, istat1, isyref, ms2
+    integer :: posn1, posn2
+    integer :: i, j, k, l
+    integer :: myname, ifil, intrel, iout, igrsav
+    integer :: orb1, orb2, Sym_i, Sym_j, Sym_ij
+    integer :: Sym_k, Sym_l, Sym_kl
+    integer, dimension(8) :: iact, ldact !iact(:) # of active orbs per sym, 
+                                         !ldact(:) - # Pairs of orbs that multiply to give given sym
+    integer, dimension(8) :: icore, iclos 
+    integer, dimension(nSymLabels):: blockstart1, blockstart2
+    integer, dimension(nSymLabels) :: elements_assigned1, elements_assigned2
+    integer :: FC_Lag_Len  !Length of the Frozen Core Lagrangian
+    integer :: Len_1RDM, Len_2RDM, FCLag_Len
+    real(dp) :: ijkl, jikl
+    real(dp), intent(in) :: Norm_1RDM, Norm_2RDM
+    real(dp), allocatable :: SymmetryPacked2RDM(:), SymmetryPacked1RDM(:) !SymPacked2RDM in CHEMICAL Notation
+    real(dp), allocatable :: SymmetryPackedLagrangian(:)
+    real(dp), allocatable :: FC_Lagrangian(:)
+
+#ifdef __INT64
+    intrel=1
+#else
+    intrel=2
+#endif
+
+    if (iProcIndex .eq. 0) then
+        !Calculating header information needed for the molpro dump routine
+        !Considering all electron for now
+        icore(:)=0  !Number of frozen orbitals per symmetry
+        iclos(:)=0  !icore(i) + Number of 'closed' orbitals per symmetry (iclos is the same as icore for us)
+        iblkq=21402
+        iseccr=21102    !both required for molpro read in
+        istat1=1        !ground state
+        isyref=Sym_Psi  !spatial symmetry of the wavefunction
+        ms2=LMS  !2 * M_s
+        myname=60 !Arbitrary file names
+        ifil=50
+        iout=6
+        ldact(:)=0
+        iact(:)=0
+        Len_1RDM=0
+        Len_2RDM=0
+        blockstart1(:)=0
+        blockstart2(:)=0
+        elements_assigned1(:)=0
+        elements_assigned2(:)=0
+        
+        
+        ! Find out the number of orbital pairs that multiply to a given sym (ldact)
+        do i=1,SpatOrbs  
+            !run over spatial orbitals
+            do j=1,  i    ! i .ge. j
+                Sym_i=SpinOrbSymLabel(2*i)  !Consider only alpha orbitals
+                Sym_j=SpinOrbSymLabel(2*j)
+                Sym_ij=RandExcitSymLabelProd(Sym_i, Sym_j)
+                ldact(Sym_ij+1)=ldact(Sym_ij+1)+1
+            enddo
+        enddo
+
+        !Calculate lengths of arrays, and where each sym block starts
+        do i=0,nSymLabels-1
+
+            !CMO: Check if Sym_i goes 0-->7 or 1-->8
+            !Find position of each symmetry block in sym-packed forms of RDMS 1 & 2
+            blockstart1(i+1)=Len_1RDM+1 !N.B. Len_1RDM still being updated in this loop
+            blockstart2(i+1)=Len_2RDM+1 !N.B. Len_2RDM still being updated in this loop
+            
+            ! Count the number of active orbitals of the given symmetry
+            iact(i+1)=SymLabelCounts2(2,ClassCountInd(1,i,0)) !Count the number of active orbitals of the given symmetry
+            Len_1RDM=Len_1RDM+(iact(i+1)*(iact(i+1)+1)/2) ! add on # entries in sym-packed 1RDM for sym i
+            
+            Len_2RDM=Len_2RDM+(ldact(i+1))**2 !Assumes no frozen orbitals
+        enddo
+
+        FCLag_Len=SpatOrbs**2  !! Arbitrarily set this for now - we will not be printing it whilst nfrozen=0
+        
+        !Allocate arrays accordingly
+        allocate(SymmetryPacked1RDM(Len_1RDM))
+        allocate(SymmetryPackedLagrangian(Len_1RDM))
+        allocate(SymmetryPacked2RDM(Len_2RDM))
+        allocate(FC_Lagrangian(FCLag_Len))
+
+        FC_Lagrangian(:)=0  !Frozen-core Lagrandian -- whilst we do all electron calcs
+        
+        ! Constructing the Symmetry Packed arrays
+        ! We convert our 1RDM, Lagrangian and  2RDM into the required Molpro symmetry-packed format
+        ! 2RDM is stored as a full square matrix, separated into symmetry blocks
+        ! We store D_ijkl (chemical notation, spatial orbs) where (i .ge. j) and (k .ge. l)
+        ! For each symmetry X, there will be a block where (i,j) and (k,l) both have symmetry X
+        ! making (ij,kl) totally symmetric, and D_ijkl (potentially) non-zero.
+        ! 1RDM and Lagrangian are stored as upper triangles, separated by symmetry block
+
+        SymmetryPacked2RDM(:)=0.D0
+        SymmetryPacked1RDM(:)=0.D0
+
+        do i=1, SpatOrbs  !run over spatial orbitals, ALL ELECTRON ONLY
+            do j=1,  i    ! i .ge. j
+                Sym_i=SpinOrbSymLabel(2*i)  !Consider only alpha orbitals
+                Sym_j=SpinOrbSymLabel(2*j)
+                Sym_ij=RandExcitSymLabelProd(Sym_i, Sym_j)
+                if (Sym_ij .eq. 0) then
+                    posn1=blockstart1(Sym_i+1)+elements_assigned1(Sym_i+1)
+                    ! Add pre-symmetrised contribution to the symmetry-packed 1RDM
+                    if(tStoreSpinOrbs) then
+                        !Include both aa and bb contributions
+                        SymmetryPacked1RDM(posn1)=2.0_dp*&
+                                (NatOrbMat(SymLabelListInv_rot(2*i),SymLabelListInv_rot(2*j)))*Norm_1RDM
+                    else
+                        SymmetryPacked1RDM(posn1)=NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM
+                    endif
+
+                    !Add in the symmetrised Lagrangian contribution to the sym-packed Lagrangian
+                    SymmetryPackedLagrangian(posn1)=Lagrangian(i,j)
+                    elements_assigned1(Sym_i+1)=elements_assigned1(Sym_i+1)+1
+                endif
+                do k=1, SpatOrbs
+                    do l=1, k
+                        Sym_k=SpinOrbSymLabel(2*k)  !Consider only alpha orbitals
+                        Sym_l=SpinOrbSymLabel(2*l)
+                        Sym_kl=RandExcitSymLabelProd(Sym_k, Sym_l)
+
+                        if(Sym_kl .eq. Sym_ij) then
+                            posn2=blockstart2(Sym_ij+1)+elements_assigned2(Sym_ij+1)
+                        
+                            !Extracts spat orb chemical notation term from spin separated physical notation RDMs 
+                            ijkl=Find_Spatial_2RDM_Chem(i,j,k,l, Norm_2RDM)
+                            jikl=Find_Spatial_2RDM_Chem(j,i,k,l, Norm_2RDM)
+
+                            SymmetryPacked2RDM(posn2)=0.5*(ijkl+jikl)
+                            elements_assigned2(Sym_ij+1)=elements_assigned2(Sym_ij+1)+1
+                        endif
+                    enddo
+                enddo
+            enddo
+        enddo
+        
+        call molpro_dump_mcscf_dens_for_grad(myname,ifil, &
+            icore, iclos, iact, nEL, isyref, ms2, iblkq,&
+            iseccr, istat1, SymmetryPacked1RDM, Len_1RDM, &
+            SymmetryPacked2RDM, Len_2RDM, SymmetryPackedLagrangian, &
+            Len_1RDM, FC_Lagrangian, FC_Lag_Len, &
+            iout, intrel, igrsav)
+        
+    endif
+        
+    end subroutine
+
+   function Find_Spatial_2RDM_Chem(p,q,r,s, Norm_2RDM) result(pqrs)
+
+   !This routine calculates the spatial orbital, chemical notation 2RDM component
+   !                 D_pqrs = <Psi | p+ r+ s q | Psi>
+   !This is achieved by looking up the D_pr,qs component in the various spin-separated
+   !versions of the 2RDM that are currently stored with spatial orb numbering, in 
+   !physical notation (e.g. All_aaaa_RDM etc).
+
+   !To convert from spin to spatial orbitals, we need to apply the following:
+   !D_pr,qs = D_pr,qs(aaaa) + D_pr,qs(bbbb) + D_pr,qs(abab) + D_pr,qs(baba) (Eq. ***)
+
+   !We note now the following quirks of the All_aaaa_RDM-type arrays for the manner in
+   !which they store these components
+   !    1. In most cases the current RDMs store the *sum* of the spin-inverted terms
+   !         - ie, All_aaaa_RDM(pr,qs) contains the sum of the aaaa and bbbb contributions
+   !    2. When p=r and q=s, there is only one contribution generated in NECI
+   !         - ie, All_abab_RDM(pp,qq) contains only one of the two identical abab and baba contributions
+   !         - Terms of this kind but be explicitly multiplied by two to satisfy Eq. *** above
+   !         - This is stored in the "Mult_Factor"
+   !    3. The existing 2RDMs only store terms with r>=p and s>=q
+   !         - If we wish to look up a term with a different order to this, we must swap the
+   !           order of the indices, considering the swapped spin and introducing appropriate signs
+   !         - ie if p>r and s>q, D_pr,qs(abab) is found by looking up -D_rp,qs(abba)
+    
+   integer, intent(in) :: p,q,r,s
+   real(dp), intent(in) :: Norm_2RDM
+   real(dp) :: pqrs
+   real(dp) :: Mult_Factor
+    integer :: Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab 
+   pqrs=0.0_dp
+
+    if((p.eq.r).and.(q.eq.s)) then
+        Mult_Factor = 2.0_dp
+    else
+        Mult_Factor = 1.0_dp
+    endif
+    
+    if ((r.ge.p) .and. (s.ge.q)) then !D_pr,qs correctly ordered
+        Ind1_aa = ( ( (r-2) * (r-1) ) / 2 ) + p
+        Ind1_ab = ( ( (r-1) * r ) / 2 ) + p
+        Ind2_aa = ( ( (s-2) * (s-1) ) / 2 ) + q
+        Ind2_ab = ( ( (s-1) * s ) / 2 ) + q
+        pqrs=pqrs+Mult_Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM
+        if ((p.ne.r) .and. (q.ne.s)) pqrs=pqrs+Mult_Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
+    elseif ((p.gt.r) .and. (s.gt.q)) then !Need to reorder D_pr,qs to -D_rp,qs
+        Ind1_aa = ( ( (p-2) * (p-1) ) / 2 ) + r
+        Ind2_aa = ( ( (s-2) * (s-1) ) / 2 ) + q
+        pqrs=pqrs-Mult_Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
+        pqrs=pqrs-Mult_Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
+    elseif ((r.gt.p) .and. (q.gt.s)) then !Need to reorder D_pr,qs to -D_pr,sq
+        Ind1_aa = ( ( (r-2) * (r-1) ) / 2 ) + p
+        Ind2_aa = ( ( (q-2) * (q-1) ) / 2 ) + s
+        pqrs=pqrs-Mult_Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
+        pqrs=pqrs-Mult_Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
+    else !Must need to reorder D_pr,qs to D_rp,sq
+        Ind1_aa = ( ( (p-2) * (p-1) ) / 2 ) + r
+        Ind1_ab = ( ( (p-1) * p ) / 2 ) + r
+        Ind2_aa = ( ( (q-2) * (q-1) ) / 2 ) + s
+        Ind2_ab = ( ( (q-1) * q ) / 2 ) + s
+        pqrs=pqrs+Mult_Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM
+        if ((p.ne.r) .and. (q.ne.s)) pqrs=pqrs+Mult_Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
+    endif
+        
+    end function
+
+    subroutine molpro_dump_mcscf_dens_for_grad(name,ifil, &
+          icore,iclos,iact,nelec,isyref,ms2,iblkq,iseccr,istat1, &
+          den1,lden1, &
+          den2,lden2, &
+          eps,leps, &
+          epsc,lepsc,iout,intrel,igrsav)
+    
+    !  Use the following subroutine to dump the information needed for molpro
+    !  forces calculations, such that it is in the exact format that molpro
+    !  would have dumped from a MCSCF calculation.  When interfaced with Molpro,
+    !  I understand that the molpro equivalent of this routine should be called. 
+    
+    !  implicit double precision (a-h,o-z)
+      integer,                            intent(inout) :: name
+      integer,                            intent(inout) :: ifil
+      integer, dimension(8),              intent(in)    :: icore
+      integer, dimension(8),              intent(in)    :: iclos
+      integer, dimension(8),              intent(in)    :: iact
+      integer,                            intent(in)    :: nelec
+      integer,                            intent(in)    :: isyref
+      integer,                            intent(in)    :: ms2
+      integer,                            intent(in)    :: iblkq
+      integer,                            intent(in)    :: iseccr
+      integer,                            intent(in)    :: istat1
+      integer,                            intent(in)    :: lden1
+      real(dp), dimension(lden1), intent(in)    :: den1
+      integer,                            intent(in)    :: lden2
+      real(dp), dimension(lden2), intent(in)    :: den2
+      integer,                            intent(in)    :: leps
+      real(dp), dimension(leps),  intent(in)    :: eps
+      integer,                            intent(in)    :: lepsc
+      real(dp), dimension(lepsc), intent(in)    :: epsc
+      integer,                            intent(in)    :: iout
+      integer,                            intent(in)    :: intrel
+      integer,                            intent(out)   :: igrsav
+
+    !> Write mcscf density in format needed for gradient program.
+    !> \param[in,out] name record number to be written
+    !> \param[in,out] ifil file number to be written
+    !> \param[in] icore numbers of frozen core orbitals in each symmetry
+    !> \param[in] iclos plus numbers of closed-shell orbitals in each symmetry
+    !> \param[in] iact numbers of active orbitals in each symmetry
+    !> \param[in] nelec number of active electrons -- DONE
+    !> \param[in] isyref spatial symmetry of wavefunction -- DONE
+    !> \param[in] ms2 spin quauntum number times 2 -- DONE
+    !> \param[in] iblkq record number * 10 + file number for orbitals (typically 21402) -- DONE
+    !> \param[in] iseccr record number * 10 + file number for frozen orbitals (typically 21002) -- DONE
+    !> \param[in] istat1 state number (1 for ground state) -- DONE
+    !> \param[in] den1 1-particle density matrix
+    !> \param[in] lden1 size of den1
+    !> \param[in] den2 2-particle density matrix
+    !> \param[in] lden2 size of den2
+    !> \param[in] eps Lagrangian
+    !> \param[in] leps size of leps
+    !> \param[in] epsc Lagrangian for frozen core
+    !> \param[in] lepsc size of epsc
+    !> \param[in] iout unit for output, eg. 6
+    !> \param[in] intrel byte size ratio of integer to double precision, normally 1 or 2
+    !> \param[out] igrsav where the record was written (needed in common/cwsave)
+
+      integer, dimension(30)      :: header
+      integer :: i, ncore
+      character(len=6), parameter :: label='MCGRAD'
+
+
+      ncore = 0
+      do i=1,8
+       ncore = ncore + icore(i)
+       header(1-1+i)=icore(i)
+       header(1+7+i)=iclos(i)
+       header(1+15+i)=iact(i)
+      enddo
+      header(1+24)=nelec
+      header(1+25)=isyref
+      header(1+26)=ms2
+      header(1+27)=iabs(iblkq)
+      header(1+28)=iabs(iseccr)
+      header(1+29)=iabs(istat1)
+      !lhead=30/intrel
+      igrsav=10*(name-1)+ifil
+      !igrsav=nexfre(igrsav)
+      !name=igrsav/10
+      !ifil=igrsav-10*name
+      !call reserv(lhead+lden1+lden2+leps+lepsc,ifil,name,-1)
+      open (unit = ifil, file = "fciqmc_forces_info", form='UNFORMATTED', access='sequential')
+      write(ifil) header, den1, den2, eps
+      !call writem(den2,lden2,ifil,name,lhead+lden1,label)
+      !call writem(eps,leps,ifil,name,lhead+lden1+lden2,label)
+      !if(ncore.ne.0) call writem(epsc,lepsc,ifil,name,
+      !>                          lhead+lden1+lden2+leps,label)
+      write(iout,*) "istat1, isyref, name, ifil", istat1,isyref,name,ifil
+      write(iout,*) "header, den1, den2, eps", header, den1, den2, eps
+!20    format(/' Gradient information for state',i2,'.',i1,
+     !>        ' saved on record  ',i8,'.',i1)
+     ! return
+      end subroutine
+
 !Do a binary search in CurrentDets, between the indices of MinInd and MaxInd. If successful, tSuccess will be true and 
 !PartInd will be a coincident determinant. If there are multiple values, the chosen one may be any of them...
 !If failure, then the index will be one less than the index that the particle would be in if it was present in the list.
@@ -5106,7 +5580,6 @@ MODULE nElRDMMod
                     tSuccess=.false.
                     PartInd=i
                     RETURN
-
                 ELSE
                     i=j
                 ENDIF
@@ -5129,4 +5602,5 @@ MODULE nElRDMMod
     END SUBROUTINE BinSearchParts_rdm
 
 END MODULE nElRDMMod
+
 

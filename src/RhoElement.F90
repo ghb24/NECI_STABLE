@@ -215,7 +215,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
 !   with the double counting subtracted, Sum_i eps_i - 1/2 Sum_i,j <ij|ij>-<ij|ji>.  (i in HF det, j in excited det)
       subroutine GetH0ElementDCCorr(nHFDet,nJ,nEl,G1,nBasis,NMAX,ECore,hEl)
          use constants, only: dp
-         use Integrals_neci, only: GetUMatEl
+         use Integrals_neci, only: get_umat_el
          use UMatCache
          use SystemData, only: BasisFN,Arr
          implicit none
@@ -235,10 +235,10 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
          do i=1,nEl
             do j=1,nEl
 !Coulomb term
-               hEl=hEl-(0.5_dp)*GetUMatEl(IDHF(i),IDJ(j),IDHF(i),IDJ(j))
+               hEl=hEl-(0.5_dp)*get_umat_el(IDHF(i),IDJ(j),IDHF(i),IDJ(j))
                if(G1(nHFDet(i))%Ms.eq.G1(nJ(j))%Ms) then
 !Exchange term
-                  hEl=hEl+(0.5_dp)*GetUMatEl(IDHF(i),IDJ(j),IDJ(j),IDHF(i))
+                  hEl=hEl+(0.5_dp)*get_umat_el(IDHF(i),IDJ(j),IDJ(j),IDHF(i))
                endif
             enddo
          enddo

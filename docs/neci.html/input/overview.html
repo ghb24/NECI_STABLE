@@ -1,0 +1,188 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Overview &mdash; NECI v0.1 documentation</title>
+    <link rel="stylesheet" href="../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.1',
+        COLLAPSE_MODINDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="NECI v0.1 documentation" href="../index.html" />
+    <link rel="up" title="Input options" href="index.html" />
+    <link rel="next" title="Non-block level options" href="non-block.html" />
+    <link rel="prev" title="Input options" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="non-block.html" title="Non-block level options"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Input options"
+             accesskey="P">previous</a> |</li>
+        <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Input options</a> &raquo;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+            <h4>Previous topic</h4>
+            <p class="topless"><a href="index.html"
+                                  title="previous chapter">Input options</a></p>
+            <h4>Next topic</h4>
+            <p class="topless"><a href="non-block.html"
+                                  title="next chapter">Non-block level options</a></p>
+            <h3>This Page</h3>
+            <ul class="this-page-menu">
+              <li><a href="../_sources/input/overview.txt"
+                     rel="nofollow">Show Source</a></li>
+            </ul>
+          <div id="searchbox" style="display: none">
+            <h3>Quick search</h3>
+              <form class="search" action="../search.html" method="get">
+                <input type="text" name="q" size="18" />
+                <input type="submit" value="Go" />
+                <input type="hidden" name="check_keywords" value="yes" />
+                <input type="hidden" name="area" value="default" />
+              </form>
+              <p class="searchtip" style="font-size: 90%">
+              Enter search terms or a module, class or function name.
+              </p>
+          </div>
+          <script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="overview">
+<span id="input-overview"></span><h1>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h1>
+<p>The NECI input file is keyword driven and requires a minimal amount of information.</p>
+<p>The NECI input file is divided into various sections, or input blocks: system, precalc, calc, integral and logging.  Of these, only the system and calc blocks are compulsory: all others are optional.  Inside each input block, it is possible to set a variety of options.  There are also three types of keywords that exist outside of an input block.</p>
+<p>The order of the input blocks is not important (but certain orders are more logical than others), and nor is the order within a block, unless an option is only valid when a logical statement is true, in which case the relevant keyword for the logical statement must precede its related keywords.</p>
+<p>General points to note:</p>
+<ul class="simple">
+<li>The input file is not case sensitive.  In the input documentation, the keywords are given in capitals and <strong>emphasised</strong> for clarity and options or data required are in square brackets.</li>
+<li>Parameters which follow a keyword ought to be on the same line as the keyword,but this isn&#8217;t a strict requirement.</li>
+<li>A new line is required for each keyword, unless the keyword is an option of another keyword, in which case it ought to be on the same line.</li>
+<li>Blank lines are ignored.</li>
+<li>Comments are enclosed in parentheses.</li>
+<li>Data items are terminated by space or comma.</li>
+<li>Only the variables relevant to the desired run are required.</li>
+<li>Unknown keywords return an error message and stop the run.</li>
+<li>Sensible defaults are set, reducing the amount of information required from the input file.  There exist different sets of default options, allowing a large set of variables to be set with one command.</li>
+</ul>
+<p>The overall structure, with a reasonably logical layout, is:</p>
+<p><strong>TITLE</strong></p>
+<p><strong>DEFAULTS</strong></p>
+<p><strong>SYSTEM</strong> [system type]</p>
+<p>[System options]</p>
+<p><strong>ENDSYS</strong></p>
+<p><strong>PRECALC</strong></p>
+<p>[PreCalc options]</p>
+<p><strong>ENDPRECALC</strong></p>
+<p><strong>CALC</strong></p>
+<p>[Calc options]</p>
+<p><strong>ENDCALC</strong></p>
+<p><strong>INTEGRAL</strong></p>
+<p>[Integral options]</p>
+<p><strong>ENDINT</strong></p>
+<p><strong>LOGGING</strong></p>
+<p>[Integral options]</p>
+<p><strong>ENDLOG</strong></p>
+<p><strong>END</strong></p>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p>This is a work in progress.  Many places (especially, but not
+exclusively, where noted) need to be expanded and/or improved.</p>
+<p>In addition, the following keywords are valid options, but are
+<em>not</em> documented:</p>
+<blockquote class="last">
+<blockquote>
+<ul class="simple">
+<li>CALCREALPROD</li>
+<li>CALCRHOPROD</li>
+<li>DELTAH</li>
+<li>DERIV</li>
+<li>DETPOPS</li>
+<li>DIAGSHIFT</li>
+<li>EQUILSTEPS</li>
+<li>EXCHANGE-ATTENUATE</li>
+<li>HAPP</li>
+<li>LINROOTCHANGE</li>
+<li>MAXVERTICES</li>
+<li>MODMPTHEORY</li>
+<li>RESUMFCIMC</li>
+<li>RHOAPP</li>
+<li>RHOELEMS</li>
+<li>SAVEPREVARLOGGING</li>
+<li>SHIFTDAMP</li>
+<li>STARPROD</li>
+<li>STEPSSHIFT</li>
+<li>SUMPRODII</li>
+</ul>
+</blockquote>
+<p>In contrast, the following options are documented, but are <em>not</em> valid
+input options:</p>
+<blockquote>
+<ul class="simple">
+<li>BANDGAP</li>
+<li>EXCHANGE-DAMPING</li>
+<li>STOCHASTICTIME</li>
+<li>MPMODTHEORY</li>
+<li>SAVEPRECALCLOGGING</li>
+</ul>
+</blockquote>
+</blockquote>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="non-block.html" title="Non-block level options"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Input options"
+             >previous</a> |</li>
+        <li><a href="../index.html">NECI v0.1 documentation</a> &raquo;</li>
+          <li><a href="index.html" >Input options</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+      &copy; Copyright 2010, Alavi Group.
+      Last updated on Feb 20, 2010.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 0.6.4.
+    </div>
+  </body>
+</html>

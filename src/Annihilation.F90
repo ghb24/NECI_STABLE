@@ -1592,7 +1592,6 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
         hashInd = int(abs(mod(hash, int(nWalkerHashes, int64))),sizeof_int)+1
     end function FindWalkerHash
 
-    
     FUNCTION CreateHash(DetCurr)
         INTEGER :: DetCurr(NEl),i
         INTEGER(KIND=int64) :: CreateHash
