@@ -1279,6 +1279,7 @@ MODULE FciMCParMod
             ! lenof_sign == 1 --> Only real particles
             ! lenof_sign == 2 --> complex walkers
             !                 --> part_type == 1, 2; real and complex walkers
+
             do part_type=1,lenof_sign
 
                 !The logic here is a little messy, but relates to the tSpawn_only_init option.
@@ -1317,7 +1318,7 @@ MODULE FciMCParMod
                     call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
                                    ilutnJ, exFlag, IC, ex, tParity, prob, &
                                    HElGen, fcimc_excit_gen_store)
-                    
+                   
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
                         child = attempt_create (get_spawn_helement, DetCurr, &
@@ -1342,7 +1343,6 @@ MODULE FciMCParMod
                         call new_child_stats (iter_data, CurrentDets(:,j), &
                                               nJ, iLutnJ, ic, walkExcitLevel,&
                                               child, parent_flags, part_type)
-
                         call create_particle (nJ, iLutnJ, child, &
                                               parent_flags, part_type,& 
                                               CurrentDets(:,j),SignCurr,p,&
@@ -1359,7 +1359,6 @@ MODULE FciMCParMod
             
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
-          
             call walker_death (attempt_die, iter_data, DetCurr, &
                                CurrentDets(:,j), HDiagCurr, SignCurr, &
                                AvSignCurr, IterRDMStartCurr, VecSlot, j, WalkExcitLevel)
@@ -1394,7 +1393,9 @@ MODULE FciMCParMod
             ! in the main array, before annihilation
             TotWalkersNew = VecSlot - 1
         endif
-            
+        
+
+
         ! Update the statistics for the end of an iteration.
         ! Why is this done here - before annihilation!
         call end_iter_stats(TotWalkersNew)
@@ -2239,7 +2240,7 @@ MODULE FciMCParMod
                     p_spawn_rdmfac=1.0_dp !The acceptance probability of some kind of child was equal to 1
                endif
             else
-                if(nSpawn.ge.1) then
+                if(abs(nSpawn).ge.1) then
                     p_spawn_rdmfac=1.0_dp !We were certain to create a child here.
                     ! This is the special case whereby if P_spawn(j | i) > 1, 
                     ! then we will definitely spawn from i->j.

@@ -8,7 +8,7 @@ MODULE FciMCData
 
       implicit none
       save
-
+        
       !Variables for popsfile mapping
       integer, allocatable :: PopsMapping(:)    !Mapping function between old basis and new basis
       integer :: MappingNIfD,MappingNIfTot      !Original basis NIfD and NIfTot

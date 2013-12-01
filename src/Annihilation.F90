@@ -789,6 +789,7 @@ MODULE AnnihilationMod
 
         CALL set_timer(BinSearch_time,45)
 
+
         do i=1,ValidSpawned
 
 !This will binary search the CurrentDets array to find the desired particle. 
@@ -846,7 +847,7 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                 call extract_sign(SpawnedParts(:,i),SpawnedSign)
 
                 SignProd=CurrentSign*SpawnedSign
-
+                
 !                WRITE(6,*) 'DET FOUND in list'
 
                 ! The spawned parts contain the Dj's spawned by the Di's in CurrentDets.
@@ -855,7 +856,7 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                 ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
                 if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then
                     call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
-endif 
+                endif 
 
                 if(sum(abs(CurrentSign)) .ne. 0) then
                     !Transfer across
