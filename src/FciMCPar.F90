@@ -568,7 +568,11 @@ MODULE FciMCParMod
         call MPIBCast(tNoProjEValue)
         call MPIBCast(tNoShiftValue)
         Weight=(0.0_dp)
-        Energyxw=(ProjectionE+Hii)
+        if (tTrialWavefunction) then
+            Energyxw = tot_trial_numerator/tot_trial_denom + Hii
+        else
+            Energyxw=(ProjectionE+Hii)
+        end if
         
         iroot=1
         CALL GetSym(ProjEDet,NEl,G1,NBasisMax,RefSym)
@@ -7515,7 +7519,7 @@ MODULE FciMCParMod
             iNode=DetermineDetNode(nJ,0)
             if(iProcIndex.eq.iNode) then
                 call return_mp1_amp_and_mp2_energy(nJ,iLutnJ,Ex,tParity,amp,energy_contrib)
-                if (.not. (amp > 0.0_dp)) cycle
+                amp = amp*PartFac
 
                 if (tRealCoeffByExcitLevel) ExcitLevel=FindBitExcitLevel(iLutnJ, iLutRef, nEl)
                 if (tAllRealCoeff .or. &

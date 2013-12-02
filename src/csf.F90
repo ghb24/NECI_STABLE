@@ -1493,25 +1493,25 @@ contains
         ncsf = size(yamas(:,1))-1
         call csf_get_yamas (nopen, S, yamas(1:,:), ncsf)
 
-        if (tForceChange .and. ncsf > 1) then
-            call get_csf_yama (nI, yamas(0,:), nopen)
-        endif
+        if (ncsf == 1) then
+            call csf_apply_yama (nI, yamas(1, :))
+        else
+            if (tForceChange .and. ncsf > 1) then
+                call get_csf_yama (nI, yamas(0,:), nopen)
+            endif
 
-        ! Pick and apply a random one
-        do while (.true.)
-            if (ncsf == 1) then
-                num = 1
-            else
+            ! Pick and apply a random one
+            do while (.true.)
                 r = genrand_real2_dSFMT()
                 num = int(r*ncsf) + 1
-            end if
-            if ((.not.tForceChange) .or. (ncsf<2) .or. &
-                any(yamas(num,:) /= yamas(0,:))) then
+                if ((.not.tForceChange) .or. (ncsf<2) .or. &
+                    any(yamas(num,:) /= yamas(0,:))) then
 
-                call csf_apply_yama (nI, yamas(num, :))
-                exit
-            endif
-        enddo
+                    call csf_apply_yama (nI, yamas(num, :))
+                    exit
+                endif
+            enddo
+        end if
     end subroutine
 
     subroutine csf_apply_yama (NI, csf)
