@@ -207,6 +207,8 @@ LOGICAL :: tSymIgnoreEnergies
     ! Should we use |K| for FCIQMC?
     logical :: modk_offdiag
 
+    logical :: tGenHelWeighted
+
 ! Operators for type(symmetry)
 interface assignment (=)
     module procedure SymAssign

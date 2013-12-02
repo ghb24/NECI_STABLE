@@ -168,6 +168,7 @@ MODULE System
       tSymIgnoreEnergies=.false.
       tPickVirtUniform = .false.
       modk_offdiag = .false.
+      tGenHelWeighted = .true.
 
 !Feb08 defaults:
       IF(Feb08) THEN
@@ -846,6 +847,13 @@ system: do
                         ! (symrandexcit3.F90)
                         tPickVirtUniform = .true.
                         tBuildOccVirtList = .true.
+                    case("HEL-WEIGHTED-SLOW")
+                        ! Pick excitations from any site with a generation
+                        ! probability proportional to the connectiong HElement
+                        ! --> Lots of enumeration
+                        ! --> Very slow
+                        ! --> Maximal possible values of tau.
+                        tGenHelWeighted = .true.
                     case default
                         call Stop_All("ReadSysInp",trim(w)//" not a valid keyword")
                 end select
