@@ -2992,7 +2992,7 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
 
          if(iProcIndex.eq.root) close(iunithead)
          tmp_dp = CurrParts
-         call ReadFromPopsfile(iPopAllTotWalkers,ReadBatch,TotWalkers,tmp_dp,NoatHF,DetList,nMaxAmpl)
+         call ReadFromPopsfile(iPopAllTotWalkers,ReadBatch,TotWalkers,tmp_dp,NoatHF,DetList,nMaxAmpl, PopNifSgn)
          CurrParts = tmp_dp
          nAmpl=int(TotWalkers,sizeof_int)
          dNorm=NoatHF(1)
