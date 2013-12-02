@@ -568,7 +568,11 @@ MODULE FciMCParMod
         call MPIBCast(tNoProjEValue)
         call MPIBCast(tNoShiftValue)
         Weight=(0.0_dp)
-        Energyxw=(ProjectionE+Hii)
+        if (tTrialWavefunction) then
+            Energyxw = tot_trial_numerator/tot_trial_denom + Hii
+        else
+            Energyxw=(ProjectionE+Hii)
+        end if
         
         iroot=1
         CALL GetSym(ProjEDet,NEl,G1,NBasisMax,RefSym)
