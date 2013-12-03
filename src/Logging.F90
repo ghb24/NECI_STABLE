@@ -134,11 +134,7 @@ MODULE Logging
       IterWriteRDMs = 10000
       tWriteMultRDMs = .false.
       tInitiatorRDM = .false.
-      tInitiatorRDMDiag = .false.
-      tCorrectRDMErf=.false.
       tThreshOccRDMDiag=.false.
-      tTaperDiagRDM=.false.
-      tTaperSQDiagRDM=.false.
       ThreshOccRDM=2.0_dp
       tDumpForcesInfo = .false.
       tPrintLagrangian = .false.
@@ -592,6 +588,11 @@ MODULE Logging
         case("INITIATORRDM")
 ! Use only the determinants that are (on average) initiators to calculate the RDMs.
             tInitiatorRDM = .true.
+        
+        case("THRESHOCCONLYRDMDIAG")
+            !Only add in a contribution to the diagonal elements of the RDM if the average sign of the determinant is greater than [ThreshOccRDM]
+            tThreshOccRDMDiag=.true.
+            call Getf(ThreshOccRDM)
 
         case("DUMPFORCESINFO")
 ! Using the finalised 2RDM, calculate the Lagrangian X used for the calculation of the forces, 

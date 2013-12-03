@@ -59,7 +59,7 @@ MODULe nElRDMMod
                          TempSpawnedPartsInd, TempSpawnedParts, TotParts, &
                          TotWalkers, iLutHF, core_space, IterLastRDMFill, &
                          determ_proc_sizes,determ_proc_indices, partial_determ_vector, &
-                         full_determ_vector, full_determ_vector_av
+                         full_determ_vector, full_determ_vector_av, tHashWalkerList
     use LoggingData, only: RDMExcitLevel, tROFciDump, NoDumpTruncs, tHF_S_D, &
                        tExplicitAllRDM, tHF_S_D_Ref, tHF_Ref_Explicit, &
                        tHF_S_D, tPrint1RDM, tInitiatorRDM, RDMEnergyIter, &
@@ -125,6 +125,14 @@ MODULe nElRDMMod
         CAll Stop_All(this_routine,'Filling of reduced density matrices not working with &
                                     &complex walkers yet.')
 #endif
+        if(tRDMonFly.and.tHashWalkerList) &
+            call stop_all("FciMCPar", "Linear scaling + RDMs doesn't give the correct &
+            & solution yet. If realcoeffs are turned on, it runs but gives the wrong RDM energy, &
+            & but in a very non-obvious way.  No particular elements or groups of elements &
+            & seem especially wrong, but the RDM energy is clearly incorrect.  If using integer &
+            & coefficients it doesn't even run -- this is a problem somewhere in annihilation &
+            & that comes about from the sign and flag being stored together")
+        
         ! Only spatial orbitals for the 2-RDMs (and F12).
         if((.not.TestClosedShellDet(iLutRef)).and.(RDMExcitLevel.ne.1)) &
             call stop_all(this_routine,'2-RDM calculations not set up for open shell systems.')
@@ -1056,6 +1064,9 @@ MODULe nElRDMMod
         integer(kind=n_int) :: SpinCoupDet(0:niftot)
         integer :: nSpinCoup(NEl), HPHFExcitLevel
 
+! The two measures are calculated and updated at different places in the code, so it's not necessarily
+! an issue that they don't agree.  E.g. whether or not you rezero the stats if the sign goes to 
+! zero instantaneously during annihilation or not.
 ! Quick check that the HF population is being calculated correctly.
         if(walkExcitLevel.eq.0) then
             if(AvSignJ.ne.AvNoatHF) then
@@ -1253,7 +1264,6 @@ MODULe nElRDMMod
             ! This happens when we are only using initiators for the RDM, and Di is a non-initiator.
 
             SpawnedParts(niftot+1:niftot+nifdbo+2, ValidSpawnedList(procJ)) = 0
-
         else
 
             ! First we want to check if this Di.Dj pair has already been accounted for.
@@ -1368,7 +1378,6 @@ MODULe nElRDMMod
 ! which spawned on the Dj in SpawnedParts(Spawned_No)
 ! There are Spawned_Parents_Index(2,Spawned_No) of these parent Di's.
 ! Spawned_Parents(0:NIfDBO,x) is the determinant Di, Spawned_Parents(NIfDBO+1,x) is the un-biased ci.
-
         ! Run through all Di's.
         do i = Spawned_Parents_Index(1,Spawned_No), &
                 Spawned_Parents_Index(1,Spawned_No) + Spawned_Parents_Index(2,Spawned_No) - 1 
@@ -2706,19 +2715,8 @@ MODULe nElRDMMod
 
         if ((.not. tCoreSpaceDet) .or. .not.present(tCoreSpaceDet)) then
             !Dets in the core space are never removed from main list, so strictly do not require corrections
-            if (tInitiatorRDMDiag .and. (abs(RealSignDi) .le. InitiatorWalkNo)) ScaleContribFac=0.0_dp
             if (tThreshOccRDMDiag .and. (abs(RealSignDi) .le. ThreshOccRDM)) ScaleContribFac=0.0_dp
-            if (tTaperDiagRDM .and. (abs(RealSignDi) .lt. ThreshOccRDM)) ScaleContribFac=abs(RealSignDi)/ThreshOccRDM
-            if (tTaperSQDiagRDM .and. (abs(RealSignDi) .lt. ThreshOccRDM)) ScaleContribFac=(abs(RealSignDi)/ThreshOccRDM)**2
            
-            if (tCorrectRDMErf) then
-                if (abs(RealSignDi) .le. ThreshOccRDM) then
-                    ScaleContribFac=0.0_dp
-                else
-                    !ScaleContribFac=DERF(erf_factor*abs(RealSignDi))
-                    ScaleContribFac=erf(erf_factor1*(abs(RealSignDi)+erf_factor2))
-                endif
-            endif
         endif
         
         if(RDMExcitLevel.eq.1) then
@@ -2750,7 +2748,6 @@ MODULe nElRDMMod
                         Ind=( ( (jSpat-2) * (jSpat-1) ) / 2 ) + iSpat
                         aaaa_RDM( Ind , Ind ) = aaaa_RDM( Ind , Ind ) &
                                           + ( realSignDi * realSignDi * RDMIters)*ScaleContribFac
-
                     ! either alpha beta or beta alpha -> abab array.                                              
                     else
 
@@ -4115,7 +4112,7 @@ MODULe nElRDMMod
                                                     * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
 
-                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then                                              
+                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then  
                     NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
                                 NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
                                             - ( All_abba_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
@@ -4130,7 +4127,7 @@ MODULe nElRDMMod
                                                         * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                         * (1.0_dp / real(NEl - 1,dp)) )
 
-                    if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then                                          
+                    if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then 
                         NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                                 NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                             - ( ( All_abba_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
@@ -4168,7 +4165,7 @@ MODULe nElRDMMod
                                                 * REAL(TMAT2D(jSpin,iSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
 
-                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then                                              
+                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then  
                     NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                             NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                         + ( All_aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &

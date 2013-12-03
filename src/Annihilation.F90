@@ -618,7 +618,7 @@ MODULE AnnihilationMod
 !!        enddo
 !!        WRITE(6,*) "***","iter_data%naborted: ",iter_data%naborted
 !!        CALL neci_flush(6)
-        
+
     END SUBROUTINE CompressSpawnedList
 
 !Histogram a possible annihilation event
@@ -957,7 +957,6 @@ MODULE AnnihilationMod
 !            call WriteBitDet(6,CurrentDets(:,PartInd),.true.)
 
 !            WRITE(6,*) 'i,SpawnedParts(:,i)',i,SpawnedParts(:,i)
-
             IF(tSuccess) THEN
 
                  !Our SpawnedParts determinant is found in CurrentDets
@@ -984,13 +983,17 @@ MODULE AnnihilationMod
                         call extract_sign(SpawnedParts(:, i), SpawnedSign)
                         call encode_sign(CurrentDets(:, PartInd), SpawnedSign + CurrentSign)
                         call encode_sign(SpawnedParts(:,i),null_part)
-                        if (sum(abs(SpawnedSign)).ne.0) ToRemove = ToRemove + 1
+                        if (sum(abs(SpawnedSign)).ne.0.0_dp) ToRemove = ToRemove + 1
                         MinInd = PartInd
 
                         ! Update stats:
                         SignProd = CurrentSign*SpawnedSign
                         if (SignProd(1) < 0.0_dp) iter_data%nannihil(1) = iter_data%nannihil(1) + &
                             2*(min(abs(CurrentSign(1)), abs(SpawnedSign(1))))
+                        
+                        if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then
+                            call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
+                        endif 
 
                         cycle
                     end if
@@ -1011,7 +1014,7 @@ MODULE AnnihilationMod
                     call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
                 endif 
 
-                if(sum(abs(CurrentSign)) .ne. 0) then
+                if(sum(abs(CurrentSign)) .ne. 0.0_dp) then
                     !Transfer across
                     call encode_sign(CurrentDets(:,PartInd),SpawnedSign+CurrentSign)
                     call encode_sign(SpawnedParts(:,i),null_part)
@@ -1020,11 +1023,11 @@ MODULE AnnihilationMod
                     ! If this is the case, we would have already added the SpawnedDet to Spawned_Parts_Zero
                     ! when it was compressed and all walkers were annihilated.
                     ! This only counts the walkers where the SpawnedSign has newly become zero, by merging with CurrentDets.
-                    if(sum(abs(SpawnedSign)) .ne. 0) ToRemove=ToRemove+1
+                    if(sum(abs(SpawnedSign)) .ne. 0.0_dp) ToRemove=ToRemove+1
 
                     do j=1,lenof_sign   !Run over real (& imag ) components
 
-                        if (SignProd(j) < 0) then
+                        if (SignProd(j) < 0.0_dp) then
                             ! This indicates that the particle has found the same particle of 
                             ! opposite sign to annihilate with
                             Annihilated=Annihilated+2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
@@ -1119,8 +1122,7 @@ MODULE AnnihilationMod
                 endif
             endif
                 
-            if((.not.tSuccess).or.(tSuccess.and.(sum(abs(CurrentSign)) .eq. 0))) then
-
+            if((.not.tSuccess).or.(tSuccess.and.(sum(abs(CurrentSign)) .eq. 0.0_dp))) then
                 if (tSemiStochastic) then
                     ! If performing a semi-stochastic simulation and spawning from the deterministic
                     ! space always allow the spawning.
@@ -1174,7 +1176,7 @@ MODULE AnnihilationMod
                             SignTemp(j) = 0.0_dp
                             call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
 
-                            if(tHashWalkerList.and.(tSuccess.and.sum(abs(CurrentSign)).eq.0)) then
+                            if(tHashWalkerList.and.(tSuccess.and.sum(abs(CurrentSign)).eq.0.0_dp)) then
                                 !All walkers in this main list have died, and none have been spawned onto it.
                                 !Remove it from the hash index array so that no others find it (it is impossible to have
                                 !another spawned walker yet to find this determinant)
@@ -1185,7 +1187,7 @@ MODULE AnnihilationMod
                             endif
                         endif
 
-                        if ((abs(SignTemp(j)).gt.0.0) .and. (abs(SignTemp(j)).lt.OccupiedThresh)) then
+                        if ((abs(SignTemp(j)).gt.0.0_dp) .and. (abs(SignTemp(j)).lt.OccupiedThresh)) then
                             !We remove this walker with probability 1-RealSignTemp
                             pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
                             r = genrand_real2_dSFMT ()
@@ -1195,7 +1197,7 @@ MODULE AnnihilationMod
                                 !Annihilated = Annihilated + abs(SignTemp(j))
                                 !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
                                 iter_data%nremoved = iter_data%nremoved + abs(SignTemp(j))
-                                SignTemp(j) = 0
+                                SignTemp(j) = 0.0_dp
                                 call nullify_ilut_part (SpawnedParts(:,i), j)
                                 DetsRoundedToZero=DetsRoundedToZero+1
                             elseif (tEnhanceRemainder) then
@@ -1212,7 +1214,7 @@ MODULE AnnihilationMod
 !                        The zero sign has already been taken into account in Spawned_Parts_Zero, if it was zero
 !                        directly after the compress. Only add in here if not already taken care of there.
                          ToRemove = ToRemove + 1
-                    elseif(tHashWalkerList) then
+                    elseif(tHashWalkerList.and.(.not.(IsUnoccDet(SignTemp)))) then
                         !Walkers have not been aborted, and so we should copy the determinant straight over to the main list
                         !We do not need to recompute the hash, since this should be the same one as was generated at the
                         !beginning of the loop
@@ -1256,7 +1258,7 @@ MODULE AnnihilationMod
 !                        The zero sign has already been taken into account in Spawned_Parts_Zero, if it was zero
 !                        directly after the compress. Only add in here if not already taken care of there.
                          ToRemove = ToRemove + 1
-                    elseif(tHashWalkerList) then
+                    elseif(tHashWalkerList.and.(.not.(IsUnoccDet(SignTemp)))) then
                         !Walkers have not been aborted, and so we should copy the determinant straight over to the main list
                         !We do not need to recompute the hash, since this should be the same one as was generated at the
                         !beginning of the loop

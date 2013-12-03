@@ -278,7 +278,7 @@ MODULE FciMCParMod
 !            WRITE(iout,*) 'Iter',Iter
 
             if(iProcIndex.eq.root) s_start=neci_etime(tstart)
-            
+           
             if(tRDMonFly.and.(.not.tSinglePartPhase)) call check_start_rdm()
 
             if (tCCMC) then
@@ -866,15 +866,16 @@ MODULE FciMCParMod
                 walkExcitLevel_toHF = walkExcitLevel
             endif
             
+            ! A general index whose value depends on whether the following option is used.
+            if (tHashWalkerList) then
+                gen_ind = j
+            else
+                gen_ind = VecSlot
+            end if
+            
             ! If this state is in the deterministic space.
             if (tSemiStochastic) then
                 if (test_flag(CurrentDets(:,j), flag_deterministic)) then
-                    ! A general index whose value depends on whether the following option is used.
-                    if (tHashWalkerList) then
-                        gen_ind = j
-                    else
-                        gen_ind = VecSlot
-                    end if
 
                     ! Store the index of this state, for use in annihilation later.
                     indices_of_determ_states(determ_index) = gen_ind
@@ -899,11 +900,11 @@ MODULE FciMCParMod
                             ! RDM elements are calculated, along with the contributions from 
                             ! connections to the (true) HF determinant.
 
-                            if((abs(CurrentH(2,gen_ind-1)).gt.InitiatorWalkNo).or.(.not.tInitiatorRDM)) & 
+                            if((abs(CurrentH(2,gen_ind)).gt.InitiatorWalkNo).or.(.not.tInitiatorRDM)) & 
                             ! If we are only using initiators to calculate the RDMs, only add in the diagonal and 
                             ! explicit contributions if the average population is greater than n_a = InitiatorWalkNo.
-                                call fill_rdm_diag_currdet(CurrentDets(:,gen_ind-1), DetCurr, &
-                                        CurrentH(1:NCurrH,gen_ind-1), walkExcitLevel_toHF, &
+                                call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, &
+                                        CurrentH(1:NCurrH,gen_ind), walkExcitLevel_toHF, &
                                         test_flag(CurrentDets(:,j), flag_deterministic), IterLastRDMFill)  
                         endif
                         cycle
@@ -1144,10 +1145,6 @@ MODULE FciMCParMod
                         CurrentH(2,gen_ind) = AvSignCurr
                         CurrentH(3,gen_ind) = IterRDMStartCurr
                     endif
-                    ! We never overwrite the deterministic states, so move the next spawning slot
-                    ! in CurrentDets to the next state.
-                    VecSlot = VecSlot + 1
-                
                 end if
             else
                 call walker_death (iter_data, DetCurr, &
@@ -1155,16 +1152,20 @@ MODULE FciMCParMod
                                    AvSignCurr, IterRDMStartCurr, VecSlot, j, WalkExcitLevel)
             end if
 
+            ! NB We never overwrite the deterministic states, so move the next spawning slot
+            ! in CurrentDets to the next state.
+            if(.not.tHashWalkerList) VecSlot=VecSlot+1
+
             if(tFill_RDM) then 
                 ! If tFill_RDM is true, this is an iteration where the diagonal 
                 ! RDM elements are calculated, along with the contributions from 
                 ! connections to the (true) HF determinant.
 
-                if((abs(CurrentH(2,VecSlot-1)).gt.InitiatorWalkNo).or.(.not.tInitiatorRDM)) & 
+                if((abs(CurrentH(2,gen_ind)).gt.InitiatorWalkNo).or.(.not.tInitiatorRDM)) & 
                 ! If we are only using initiators to calculate the RDMs, only add in the diagonal and 
                 ! explicit contributions if the average population is greater than n_a = InitiatorWalkNo.
-                    call fill_rdm_diag_currdet(CurrentDets(:,VecSlot-1), DetCurr, &
-                            CurrentH(1:NCurrH,VecSlot-1), walkExcitLevel_toHF,& 
+                    call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, &
+                            CurrentH(1:NCurrH,gen_ind), walkExcitLevel_toHF,& 
                             test_flag(CurrentDets(:,j), flag_deterministic), IterLastRDMFill)  
             endif
 
@@ -2337,7 +2338,6 @@ MODULE FciMCParMod
                     CurrentH(2,VecSlot) = wAvSign
                     CurrentH(3,VecSlot) = IterRDMStartCurr
                 endif
-                Vecslot = Vecslot + 1
             endif
         else
             !All walkers died
@@ -2355,7 +2355,6 @@ MODULE FciMCParMod
                     if (.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
                     CurrentH(2,VecSlot) = wAvSign
                     CurrentH(3,VecSlot) = IterRDMStartCurr
-                    VecSlot = VecSlot + 1
                 endif
             endif
             if(tTruncInitiator) then
