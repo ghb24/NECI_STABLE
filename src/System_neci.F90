@@ -168,7 +168,7 @@ MODULE System
       tSymIgnoreEnergies=.false.
       tPickVirtUniform = .false.
       modk_offdiag = .false.
-      tGenHelWeighted = .true.
+      tGenHelWeighted = .false.
 
 !Feb08 defaults:
       IF(Feb08) THEN
