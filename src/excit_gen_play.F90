@@ -4,7 +4,7 @@ module excit_gens
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use procedure_pointers, only: excit_gen_store_type, spawned_info_t
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use Determinants, only: get_helement
+    use Determinants, only: get_helement, write_det
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use bit_rep_data, only: NIfTot
     use bit_reps, only: decode_bit_det
@@ -60,7 +60,7 @@ contains
 
         integer(n_int) :: iluts(0:NIfTot, nexcit)
         HElement_t :: hels(nexcit), hel_sum, hel_cum
-        integer :: excit_count, ex(2,2), i
+        integer :: excit_count, ex(2,2), i, flag
         logical :: found_all, par
 
         ! Generate two lists. One with all of the available excitations, and
@@ -68,12 +68,18 @@ contains
         excit_count = 0
         found_all = .false.
         hel_sum = 0
+        nJ = 0
+        flag = 3
+        ex = 0
+        call GenExcitations3(nI, ilutI, nJ, flag, ex, par, found_all, &
+                             .false.)
         do while (.not. found_all)
-            call GenExcitations3(nI, ilutI, nJ, 3, ex, par, found_all, .false.)
             excit_count = excit_count + 1
             call EncodeBitDet(nJ, iluts(:, excit_count))
             hels(excit_count) = abs(get_helement(nI, nJ))
             hel_sum = hel_sum + hels(excit_count)
+            call GenExcitations3(nI, ilutI, nJ, flag, ex, par, found_all, &
+                                 .false.)
         end do
 
         if (excit_count /= nexcit) &
@@ -97,6 +103,7 @@ contains
         ! Now we know what we are returning
         ilutJ = iluts(:, i)
         call decode_bit_det (nJ, ilutJ)
+        spawned_info%ex(1,1) = 2
         call GetBitExcitation (ilutI, ilutJ, spawned_info%ex, &
                                spawned_info%tParity)
         spawned_info%ic = FindBitExcitLevel(ilutI, ilutJ, 2)
