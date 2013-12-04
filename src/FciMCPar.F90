@@ -4522,7 +4522,6 @@ MODULE FciMCParMod
 
         if(tFillingStochRDMonFly) then
             call MPISumAll_inplace (InstNoatHF)
-            !TODO CMO: Check out this IterRDM_HF thing -- do we want the same iter labels for both pops?
             if(InstNoatHF(1).eq.0.0) then
                 IterRDM_HF(1) = Iter + 1 
                 AvNoatHF(1) = 0.0_dp

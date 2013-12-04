@@ -1212,18 +1212,18 @@ MODULE nElRDMMod
         integer :: nSpinCoup(NEl), HPHFExcitLevel, part_type
 
 ! Quick check that the HF population is being calculated correctly.
-        !if(walkExcitLevel.eq.0) then
-        !    do part_type=1,lenof_sign
-        !        if(AvSignJ(part_type).ne.AvNoatHF(part_type)) then
-        !            write(6,*) 'HFDet_True',HFDet_True
-        !            write(6,*) 'nJ',nJ
-        !            write(6,*) 'iLutJ',iLutJ
-        !            write(6,*) 'AvSignJ',AvSignJ
-        !            write(6,*) 'AvNoatHF',AvNoatHF
-        !            CALL Stop_All('Add_RDM_HFConnections_Norm','Incorrect instantaneous HF population.')
-        !        endif
-        !    enddo
-        !endif
+        if(walkExcitLevel.eq.0) then
+            do part_type=1,lenof_sign
+                if(AvSignJ(part_type).ne.AvNoatHF(part_type)) then
+                    write(6,*) 'HFDet_True',HFDet_True
+                    write(6,*) 'nJ',nJ
+                    write(6,*) 'iLutJ',iLutJ
+                    write(6,*) 'AvSignJ',AvSignJ
+                    write(6,*) 'AvNoatHF',AvNoatHF
+                    CALL Stop_All('Add_RDM_HFConnections_Norm','Incorrect instantaneous HF population.')
+                endif
+            enddo
+        endif
 
 ! If we have a single or double, add in the connection to the HF, symmetrically.        
         if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
@@ -1246,15 +1246,15 @@ MODULE nElRDMMod
         integer(kind=n_int) :: SpinCoupDet(0:niftot)
         integer :: nSpinCoup(NEl), HPHFExcitLevel, part_type
 
-        !if(walkExcitLevel.eq.0) then
-        !    do part_type=1,lenof_sign
-        !        if(AvSignJ(part_type).ne.AvNoatHF(part_type)) then
-        !            write(6,*) 'AvSignJ',AvSignJ
-        !            write(6,*) 'AvNoatHF',AvNoatHF
-        !            CALL Stop_All('Add_RDM_HFConnections_HPHF','Incorrect instantaneous HF population.')
-        !        endif
-        !    enddo
-        !endif
+        if(walkExcitLevel.eq.0) then
+            do part_type=1,lenof_sign
+                if(AvSignJ(part_type).ne.AvNoatHF(part_type)) then
+                    write(6,*) 'AvSignJ',AvSignJ
+                    write(6,*) 'AvNoatHF',AvNoatHF
+                    CALL Stop_All('Add_RDM_HFConnections_HPHF','Incorrect instantaneous HF population.')
+                endif
+            enddo
+        endif
 
 ! Now if the determinant is connected to the HF (i.e. single or double), add in the diagonal elements
 ! of this connection as well - symmetrically because no probabilities are involved.
@@ -1315,13 +1315,13 @@ MODULE nElRDMMod
             endif
 
     
-            !do part_type=1,lenof_sign
-            !    if(AvSignJ(part_type).ne.AvNoatHF(part_type)) then
-            !        write(6,*) 'AvSignJ',AvSignJ
-            !        write(6,*) 'AvNoatHF',AvNoatHF
-            !        call stop_all('Add_RDM_HFConnections_HF_S_D','HF population is incorrect.')
-            !    endif
-            !enddo
+            do part_type=1,lenof_sign
+                if(AvSignJ(part_type).ne.AvNoatHF(part_type)) then
+                    write(6,*) 'AvSignJ',AvSignJ
+                    write(6,*) 'AvNoatHF',AvNoatHF
+                    call stop_all('Add_RDM_HFConnections_HF_S_D','HF population is incorrect.')
+                endif
+            enddo
 
             ! The HF is always closed shell (at the moment), 
             ! so don't need to account for HPHF here.
