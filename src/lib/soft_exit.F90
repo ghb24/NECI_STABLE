@@ -132,7 +132,7 @@ module soft_exit
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
     use Input_neci
-    use Logging, only: tHistSpawn, tCalcFCIMCPsi, tIterStartBlock, &
+    Use LoggingData, only: tCalcFCIMCPsi, tIterStartBlock, &
                        IterStartBlocking, tHFPopStartBlock, NHistEquilSteps, &
                        IterRDMonFly_value => IterRDMonFly, RDMExcitLevel, &
                        tExplicitAllRDM, tRDMonFly, tChangeVarsRDM, &
@@ -150,7 +150,7 @@ module soft_exit
                             spin_proj_no_death, spin_proj_iter_count
 !    use DetBitOps, only: DetermineDetNode                        
     use hash, only : DetermineDetNode
-    use hist_data, only: Histogram
+    use hist_data, only: Histogram, tHistSpawn
     use Parallel_neci
     implicit none
 

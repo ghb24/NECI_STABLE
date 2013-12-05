@@ -11,7 +11,7 @@ MODULE HFCalc
       use IntegralsData, only: HFRand, tRHF, ntFrozen, tReadTUMat
       use SystemData, only : tCPMD,  tHFOrder,nBasisMax, G1, Arr, Brr, ECore, nEl, nBasis, iSpinSkip, LMS
       use SystemData, only : tHub, lmsbasis
-      Use Logging, only: iLogging
+      Use LoggingData, only: iLogging
       Use Determinants, only: FDet, nUHFDet, write_det
       use IntegralsData, only: UMat, tagUMat
       Use UMatCache, only: GetUMatSize

@@ -12,66 +12,9 @@ MODULE Logging
     use DetBitOps, only: EncodeBitDet
     use hist_data, only: iNoBins, tHistSpawn, BinRange
     use errors, only: Errordebug 
+    use LoggingData
 
     IMPLICIT NONE
-    Save
-
-    INTEGER :: iDiagSubspaceIter
-    LOGICAL :: tDiagWalkerSubspace
-    INTEGER ILOGGING,ILOGGINGDef
-    INTEGER :: iGlobalTimerLevel=40
-    INTEGER nPrintTimer,G_VMC_LOGCOUNT
-    INTEGER HFLOGLEVEL,iWritePopsEvery,StartPrintOrbOcc,StartPrintDoubsUEG
-    INTEGER PreVarLogging,WavevectorPrint,NoHistBins,HistInitPopsIter
-    real(dp) MaxHistE,OffDiagMax,OffDiagBinRange,PopsfileTimer
-    LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
-    LOGICAL tPrintPopsDefault
-    LOGICAL TZeroProjE,TWriteDetE,TAutoCorr,tBinPops,tIncrementPops,tROHistogramAll,tROHistER,tROHistSingExc
-    LOGICAL tRoHistOneElInts
-    LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tDo_Not_Calc_RDMEnergy
-    LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
-    LOGICAL tTruncDumpbyVal, tChangeVarsRDM, tPrintRODump, tno_RDMs_to_read, tReadRDMs
-    LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG, tWriteMultRDMs
-    LOGICAL tHF_S_D_Ref, tHF_S_D, tHF_Ref_Explicit, tExplicitAllRDM, twrite_normalised_RDMs, twrite_RDMs_to_read 
-    LOGICAL tNoNOTransform, tPrint1RDM, tPrintInitiators, tInitiatorRDM
-    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock
-    INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter, IterWriteRDMs 
-    INTEGER CCMCDebug  !CCMC Debugging Level 0-6.  Default 0
-    INTEGER FCIMCDebug !FciMC Debugging Level 0-6.  Default 0
-
-    LOGICAL tCCMCLogTransitions !Do we log transitions?  Only possible for very small systems
-    LOGICAL tCCMCLogUniq !Do we log only unique clusters
-    LOGICAL tSaveBlocking !Do not overwrite blocking files
-    INTEGER iWriteBlockingEvery !How often to write out blocking files
-    INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,iWriteHamilEvery
-    INTEGER(TagIntType)  OrbOccsTag,HistInitPopsTag,AllHistInitPopsTag,NoTruncOrbsTag,TruncEvaluesTag
-    INTEGER , ALLOCATABLE :: NoTruncOrbs(:),HistInitPops(:,:),AllHistInitPops(:,:)
-    real(dp) , ALLOCATABLE :: TruncEvalues(:),OrbOccs(:),DoubsUEG(:,:,:,:),DoubsUEGLookup(:)
-    LOGICAL, ALLOCATABLE :: DoubsUEGStore(:,:,:)
-    LOGICAL :: tBlockEveryIteration
-    LOGICAL tLogDets       ! Write out the DETS and SymDETS files.
-    LOGICAL tLogComplexPops     ! Write out complex walker information 
-    LOGICAL tMCOutput
-    logical :: tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
-    integer :: iProjEBins
-    logical :: tDumpForcesInfo
-    logical :: tPrintLagrangian  !Print out the 1RDM,2RDM and Lagrangian to file 
-                                 !at the end of a run as long as 2RDM is calculated
-    logical :: tCalcInstantS2, tCalcInstSCpts, tCalcInstantS2Init
-    integer :: instant_s2_multiplier, instant_s2_multiplier_init
-    integer :: iHighPopWrite
-
-    !Just do a blocking analysis on previous data
-    logical :: tJustBlocking
-    integer :: iBlockEquilShift,iBlockEquilProjE
-    logical :: tDiagAllSpaceEver,tCalcVariationalEnergy
-
-    ! Do we want to split the popsfile up into multiple bits?
-    logical :: tSplitPops
-
-    ! What is the mininum weight on a determinant required for it to be
-    ! included in a binary pops file?
-    real(dp) :: binarypops_min_weight
 
     contains
 
@@ -191,12 +134,17 @@ MODULE Logging
       IterWriteRDMs = 10000
       tWriteMultRDMs = .false.
       tInitiatorRDM = .false.
+      tThreshOccRDMDiag=.false.
+      ThreshOccRDM=2.0_dp
       tDumpForcesInfo = .false.
       tPrintLagrangian = .false.
       instant_s2_multiplier_init = 1
       binarypops_min_weight = 0
-
       tSplitPops = .false.
+      tWriteCore = .false.
+      tWriteTrial = .false.
+      tCompareTrialAmps = .false.
+      compare_amps_period = 0
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -640,6 +588,11 @@ MODULE Logging
         case("INITIATORRDM")
 ! Use only the determinants that are (on average) initiators to calculate the RDMs.
             tInitiatorRDM = .true.
+        
+        case("THRESHOCCONLYRDMDIAG")
+            !Only add in a contribution to the diagonal elements of the RDM if the average sign of the determinant is greater than [ThreshOccRDM]
+            tThreshOccRDMDiag=.true.
+            call Getf(ThreshOccRDM)
 
         case("DUMPFORCESINFO")
 ! Using the finalised 2RDM, calculate the Lagrangian X used for the calculation of the forces, 
@@ -926,6 +879,17 @@ MODULE Logging
             tSplitPops = .true.
             tBinPops = .true.
 
+        case("WRITE-CORE")
+            ! Output the semi-stochastic core space to a file.
+            tWriteCore = .true.
+
+        case("WRITE-TRIAL")
+            ! Output the trial wavefunction space to a file.
+            tWriteTrial = .true.
+
+        case("COMPARE-TRIAL-AND-FCIQMC-AMPS")
+            tCompareTrialAmps = .true.
+            call readi(compare_amps_period)
 
         case("ENDLOG")
             exit logging

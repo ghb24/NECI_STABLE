@@ -482,7 +482,150 @@ contains
             endif
         endif
 
-    end function
+    end function binary_search
+
+    function binary_search_real (arr, val) &
+                                 result(pos)
+        use constants, only: n_int
+
+        real(dp), intent(in) :: arr(:)
+        real(dp), intent(in) :: val
+        integer :: pos
+
+        integer :: hi, lo
+
+        ! The search range
+        lo = lbound(arr,1)
+        hi = ubound(arr,1)
+
+        ! Account for poor usage (i.e. array len == 0)
+        if (hi < lo) then
+            pos = -lo
+            return
+        endif
+
+        ! Narrow the search range down in steps.
+        do while (hi /= lo)
+            pos = int(real(hi + lo) / 2)
+
+            if (arr(pos) == val) then
+                exit
+            else if (val > arr(pos)) then
+                ! val is "greater" than arr(:len,pos).
+                ! The lowest position val can take is hence pos + 1 (i.e. if
+                ! val is greater than pos by smaller than pos + 1).
+                lo = pos + 1
+            else
+                ! arr(:,pos) is "greater" than val.
+                ! The highest position val can take is hence pos (i.e. if val is
+                ! smaller than pos but greater than pos - 1).  This is why
+                ! we differ slightly from a standard binary search (where lo
+                ! is set to be pos+1 and hi to be pos-1 accordingly), as
+                ! a standard binary search assumes that the element you are
+                ! searching for actually appears in the array being
+                ! searched...
+                hi = pos
+            endif
+        enddo
+
+        ! If we have narrowed down to one position, and it is not the item,
+        ! then return -pos to indicate that the item is not present, but that
+        ! this is the location it should be in.
+        if (hi == lo) then
+            if (arr(hi) == val) then
+                pos = hi
+            else if (val > arr(hi)) then
+                pos = -hi - 1
+            else
+                pos = -hi
+            endif
+        endif
+
+    end function binary_search_real
+
+    function binary_search_custom (arr, val, cf_len, custom_gt) &
+                                                     result(pos)
+        !use bit_reps, only: NIfD
+        use constants, only: n_int
+        use DetBitOps, only: DetBitLt
+
+        interface
+            pure function custom_gt(a, b) result (ret)
+                use constants, only: n_int
+                logical :: ret
+                integer(kind=n_int), intent(in) :: a(:), b(:)
+            end function
+        end interface
+
+        integer(kind=n_int), intent(in) :: arr(:,:)
+        integer(kind=n_int), intent(in) :: val(:)
+        integer, intent(in), optional :: cf_len
+        integer :: data_lo, data_hi, val_lo, val_hi
+        integer :: pos
+
+        integer :: hi, lo
+
+        ! The search range
+        lo = lbound(arr,2)
+        hi = ubound(arr,2)
+
+        ! Account for poor usage (i.e. array len == 0)
+        if (hi < lo) then
+            pos = -lo
+            return
+        endif
+
+        ! Have we specified how much to look at?
+        data_lo = lbound(arr, 1)
+        val_lo = lbound(val, 1)
+        if (present(cf_len)) then
+            data_hi = data_lo + cf_len - 1
+            val_hi = val_lo + cf_len - 1
+        else
+            data_hi = ubound(arr, 1)
+            val_hi = ubound(val, 1)
+        endif
+
+        ! Narrow the search range down in steps.
+        do while (hi /= lo)
+            pos = int(real(hi + lo) / 2)
+
+            if (DetBitLT(arr(data_lo:data_hi,pos), val(val_lo:val_hi), &
+                    use_flags_opt = .false.) == 0) then
+                exit
+            else if (custom_gt(val(val_lo:val_hi), arr(data_lo:data_hi,pos))) then
+                ! val is "greater" than arr(:len,pos).
+                ! The lowest position val can take is hence pos + 1 (i.e. if
+                ! val is greater than pos by smaller than pos + 1).
+                lo = pos + 1
+            else
+                ! arr(:,pos) is "greater" than val.
+                ! The highest position val can take is hence pos (i.e. if val is
+                ! smaller than pos but greater than pos - 1).  This is why
+                ! we differ slightly from a standard binary search (where lo
+                ! is set to be pos+1 and hi to be pos-1 accordingly), as
+                ! a standard binary search assumes that the element you are
+                ! searching for actually appears in the array being
+                ! searched...
+                hi = pos
+            endif
+        enddo
+
+        ! If we have narrowed down to one position, and it is not the item,
+        ! then return -pos to indicate that the item is not present, but that
+        ! this is the location it should be in.
+        if (hi == lo) then
+            if (DetBitLT(arr(data_lo:data_hi,hi), val(val_lo:val_hi), &
+                    use_flags_opt = .false.) == 0) then
+                pos = hi
+            else if (custom_gt(val(val_lo:val_hi), arr(data_lo:data_hi,hi))) then
+                pos = -hi - 1
+            else
+                pos = -hi
+            endif
+        endif
+
+    end function binary_search_custom
 
 !--- File utilities ---
 
@@ -649,7 +792,37 @@ contains
 
     end function error_function
 
+    subroutine find_next_comb(comb, k, n, finish)
 
+        integer(sp), intent(in) :: k, n
+        integer(sp), intent(inout) :: comb(k)
+        logical, intent(out) :: finish
+        integer(sp) :: i
+
+        if (k == 0 .or. n == 0) then
+            finish = .true.
+            return
+        else if (comb(1) > n-k) then
+            finish = .true.
+            return
+        else
+            finish = .false.
+        end if
+
+        i = k
+        comb(i) = comb(i) + 1
+
+        do
+            if (i < 1 .or. comb(i) < n-k+i+1) exit
+            i = i-1
+            comb(i) = comb(i) + 1
+        end do
+
+        do i = i+1, k
+            comb(i) = comb(i-1) + 1
+        end do
+
+    end subroutine find_next_comb
 
     function neci_etime(time) result(ret)
 

@@ -2,10 +2,12 @@
 MODULE System
 
     use SystemData
-    use CalcData, only: tRotoAnnihil, TAU, tTruncInitiator, InitiatorWalkNo
+    use CalcData, only: TAU, tTruncInitiator, InitiatorWalkNo, &
+                        occCASorbs, virtCASorbs
+
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList
-    use constants, only: dp,int64, Pi, third
+    use constants, only: sp,dp,int64, Pi, third
     use iso_c_hack
     use util_mod, only: error_function, error_function_c
 
@@ -28,6 +30,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tComplexOrbs_RealInts = .false.
       tReadFreeFormat=.false.
       tMolproMimic=.false.
       tAntisym_MI=.false.
@@ -186,6 +189,7 @@ MODULE System
       LOGICAL eof
       CHARACTER (LEN=100) w
       INTEGER I,Odd_EvenHPHF,Odd_EvenMI
+      integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
       
       ! The system block is specified with at least one keyword on the same
       ! line, giving the system type being used.
@@ -272,7 +276,7 @@ MODULE System
       end select
       
       ! Now parse the rest of the system block.
-      system: do
+system: do
         call read_line(eof)
         if (eof) then
             call report("Incomplete input file",.true.)
@@ -882,6 +886,10 @@ MODULE System
             !Mimic the run-time behaviour of molpros NECI implementation
             tMolpro=.true.
             tMolproMimic=.true.
+        case("COMPLEXORBS_REALINTS")
+            !We have complex orbitals, but real integrals. This means that we only have 4x permutational symmetry,
+            !so we need to check the (momentum) symmetry before we look up any integrals
+            tComplexOrbs_RealInts = .true.
         case("ENDSYS") 
             exit system
         case default
@@ -1050,20 +1058,10 @@ MODULE System
 
           if (LMS > STOT) call stop_all (this_routine, "Cannot have LMS>STOT")
 
-          if (.not. tNonUniRandExcits) then
-              call stop_all (this_routine, "Non uniform excitation generators&
-                                           & required for CSFs")
-          endif
-
           if (tHPHF) then
               call stop_all (this_routine, "CSFs not compatible with HPHF")
           endif
 
-          if (tRotoAnnihil) then
-              ! See Annihilation.F90:4240. Call to get_helement.
-              call stop_all (this_routine, "CSFs not compatible with &
-                                           &roto-annihilation")
-          endif
       endif
 
       if (tTruncateCSF .and. (.not. tCSF)) then

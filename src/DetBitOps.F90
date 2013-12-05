@@ -6,10 +6,10 @@ module DetBitOps
     ! of determinants.
 
     use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level
-    use CalcData, only: tTruncInitiator
+    use CalcData, only: tTruncInitiator, tSemiStochastic
     use bit_rep_data, only: NIfY, NIfTot, NIfD, NOffFlag, NIfFlag, &
                             test_flag, flag_is_initiator,NIfDBO,NOffSgn, &
-                            extract_sign
+                            determ_parent_mask, extract_sign
     use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
     use constants, only: n_int,bits_n_int,end_n_int,dp,lenof_sign,sizeof_int
 
@@ -377,7 +377,7 @@ module DetBitOps
     ! false otherwise.
     pure function DetBitEQ(iLutI,iLutJ,nLast) result(res)
         integer, intent(in), optional :: nLast
-        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer(kind=n_int), intent(in) :: iLutI(0:), iLutJ(0:)
         logical :: res
         integer :: i, lnLast
 
@@ -454,38 +454,41 @@ module DetBitOps
     end function sign_gt
 
     pure function ilut_lt (ilutI, ilutJ) result (bLt)
-!        use util_mod, only: operator(.arrlt.)
 
-        ! A slightly subtler sort than DetBitLt.
-        ! Sort the iluts integer by integer, up to the determinant. 
-        ! Ignore flag and sign differences.
+        ! This sorting function returns true if iLutI is less than iLutJ,
+        ! else it returns false. For non-semi-stochastic simulations, this is
+        ! decided by comparing the integers that the bitstring represent.
+
+        ! For semi-stochastic simulations, when sorting the SpawnedParts list
+        ! we need to separate the states which have deterministic parents from
+        ! those which don't. This is so that the walkers with deterministic
+        ! parents can be aborted later if it turns out that the state that
+        ! they reside on is in the deterministic space.
 
         integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
+        integer(n_int) :: det_flag_I, det_flag_J
         integer :: i
-        logical :: bLt
+        logical :: bLt, compare_det_flags
 
-        ! Sort by the first item first ...
-        do i = 0, NIfDBO    !   NOffFlag - 1
+        compare_det_flags = .false.
+
+        if (tSemiStochastic) then
+            det_flag_I = iand(determ_parent_mask, iLutI(nOffFlag))
+            det_flag_J = iand(determ_parent_mask, iLutJ(nOffFlag))
+            compare_det_flags = .not. (det_flag_I .eq. det_flag_J)
+        end if
+
+        do i = 0, NIfDBO
             if (iLutI(i) /= iLutJ(i)) exit
         enddo
 
-        !! Make the comparison
-!        if (i >= NOffFlag) then
         if (i > NIfDBO) then
-            bLt = .false.
-!            if (tTruncInitiator) then
-!                !if initiator, sort first by real flag, the imaginary.
-!                if (test_flag(ilutI, flag_is_initiator(1)) .and. &
-!                    .not. test_flag(ilutJ, flag_is_initiator(1))) then
-!                        !I<J if real i is initiator, and j is not
-!                        bLt = .true.
-!                elseif((test_flag(ilutI, flag_is_initiator(1)).eqv. test_flag(ilutJ, flag_is_initiator(1))) &
-!                    .and.(test_flag(ilutI, flag_is_initiator(2))).and..not.test_flag(ilutJ, flag_is_initiator(2))) then
-!                        !if real flags the same, I<J if imaginary i is initiator and j is not.
-!                        bLt = .true.
-!                endif
-!
-!            endif
+            ! If the states themselves are the same.
+            if (compare_det_flags) then
+                bLt = det_flag_I > det_flag_J
+            else
+                bLt = .false.
+            end if
         else
             bLt = ilutI(i) < ilutJ(i)
         endif
@@ -493,40 +496,41 @@ module DetBitOps
     end function
 
     pure function ilut_gt (iLutI, iLutJ) result(bGt)
-!        use util_mod, only: operator(.arrgt.)
 
-        ! A slightly subtler sort than DetBitGt.
-        ! Sort the iluts integer by integer. If we get to the flags, and they
-        ! are occupied, then sort initiators as 'less than' non-initiators
-        !
-        ! --> Initiators appear earlier in a list than non-initiators
+        ! This sorting function returns true if iLutI is greater than iLutJ,
+        ! else it returns false. For non-semi-stochastic simulations, this is
+        ! decided by comparing the integers that the bitstring represent.
+
+        ! For semi-stochastic simulations, when sorting the SpawnedParts list
+        ! we need to separate the states which have deterministic parents from
+        ! those which don't. This is so that the walkers with deterministic
+        ! parents can be aborted later if it turns out that the state that
+        ! they reside on is in the deterministic space.
 
         integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
+        integer(n_int) :: det_flag_I, det_flag_J
         integer :: i
-        logical :: bGt
+        logical :: bGt, compare_det_flags
 
+        compare_det_flags = .false.
 
-        !bGt = iLutI .arrgt. iLutJ
-        
-        ! Sort by the first item first ...
-        do i = 0, NIfDBO    !   NOffFlag - 1
+        if (tSemiStochastic) then
+            det_flag_I = iand(determ_parent_mask, iLutI(nOffFlag))
+            det_flag_J = iand(determ_parent_mask, iLutJ(nOffFlag))
+            compare_det_flags = .not. (det_flag_I .eq. det_flag_J)
+        end if
+
+        do i = 0, NIfDBO
             if (ilutI(i) /= iLutJ(i)) exit
         enddo
 
-        ! Make the comparison
-!        if (i >= NOffFlag) then
         if (i > NIfDBO) then
-            bGt = .false.
-!            if (tTruncInitiator) then
-!                if (.not. test_flag(ilutI, flag_is_initiator(1)) .and. &
-!                    test_flag(ilutJ, flag_is_initiator(1))) then
-!                    bGt = .true.
-!                elseif ((test_flag(ilutI, flag_is_initiator(1)) .eqv. test_flag(ilutJ, flag_is_initiator(1))) &
-!                    .and. (.not. test_flag(ilutI, flag_is_initiator(2)).and.test_flag(ilutJ, flag_is_initiator(2)))) then
-!                    !If real flags same, sort by imaginary flags.
-!                    bGt = .true.
-!                endif
-!            endif
+            ! If the states themselves are the same.
+            if (compare_det_flags) then
+                bGt = det_flag_I < det_flag_J
+            else
+                bGt = .false.
+            end if
         else
             bGt = ilutI(i) > ilutJ(i)
         endif
@@ -558,13 +562,34 @@ module DetBitOps
         DetBitZero=.true.
     end function DetBitZero
 
-
     ! This will return 1 if iLutI is "less" than iLutJ, 0 if the determinants
     ! are identical, or -1 if iLutI is "more" than iLutJ
-    pure integer function DetBitLT(iLutI,iLutJ,nLast)
+    pure integer function DetBitLT(iLutI,iLutJ,nLast,use_flags_opt)
         integer, intent(in), optional :: nLast
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        logical, intent(in), optional :: use_flags_opt
         integer :: i, lnLast
+        integer(kind=n_int) :: det_flag_I, det_flag_J
+        logical :: compare_det_flags, use_flags
+
+        ! Deterministic flags for semi-stochastic.
+        compare_det_flags = .false.
+
+        if (tSemiStochastic) then
+            ! By default, compare these flags. However, there are some cases in the
+            ! the semi-stochastic code where we don't want to.
+            if (present(use_flags_opt)) then
+                use_flags = use_flags_opt
+            else
+                use_flags = .true.
+            end if
+
+            if (use_flags) then
+                det_flag_I = iand(determ_parent_mask, iLutI(nOffFlag))
+                det_flag_J = iand(determ_parent_mask, iLutJ(nOffFlag))
+                compare_det_flags = .not. (det_flag_I .eq. det_flag_J)
+            end if
+        end if
 
         !First, compare first integers
         IF(iLutI(0).lt.iLutJ(0)) THEN
@@ -578,7 +603,6 @@ module DetBitOps
             else
                 lnLast = NIfDBO
             endif
-
             do i=1,lnLast
                 IF(iLutI(i).lt.iLutJ(i)) THEN
                     DetBitLT=1
@@ -588,11 +612,26 @@ module DetBitOps
                     RETURN
                 ENDIF
             enddo
+            
+            ! If we get to this point then the states themselves are the same.
+
+            if (compare_det_flags) then
+                if (det_flag_I > det_flag_J) then
+                    DetBitLT = 1
+                    return
+                else
+                    DetBitLT = -1
+                    return
+                end if
+            end if
+
             DetBitLT=0
         ELSE
             DetBitLT=-1
         ENDIF
+
     END FUNCTION DetBitLT
+    
 
     ! This will return 1 if iLutI is "less" than iLutJ, or -1 if iLutI is 
     ! "more" than iLutJ.  If these are identical, this routine looks at 
@@ -940,7 +979,7 @@ module DetBitOps
             bAllowed = .true.
         else
             call spin_sym_ilut (ilut, ilut_tmp)
-            if (DetBitLt(ilut, ilut_tmp, NIfD) > 0) then
+            if (DetBitLt(ilut, ilut_tmp, NIfD, .false.) > 0) then
                 bAllowed = .false.
             else
                 bAllowed = .true.
@@ -1074,7 +1113,7 @@ end module
 
         use SystemData, only: nel
         use bit_rep_data, only: NIfD
-        use DetBitOps, only: CountBits_nifty, count_set_bits
+        use DetBitOps, only: count_set_bits
         use constants, only: n_int,bits_n_int,end_n_int
         implicit none
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
@@ -1083,6 +1122,7 @@ end module
         integer :: i, j, iexcit1, iexcit2, perm, iel1, iel2, max_excit
         integer :: set_bits
         logical :: testI, testJ
+        integer :: num_set_bits
 
         tSign=.true.
         max_excit = Ex(1,1)
@@ -1128,7 +1168,6 @@ end module
             !shift = nel - max_excit
 
             do i = 0, NIfD
-
                 ! If this integer will make no difference to the overall counts, 
                 ! then minimise effort...
                 if (ilutnI(i) == ilutnJ(i)) then
@@ -1215,8 +1254,9 @@ end module
     SUBROUTINE FindSingleOrbs(iLutnI,iLutnJ,NIfD,Orbs)
         use constants, only: n_int,bits_n_int
         IMPLICIT NONE
-        INTEGER :: NIfD,Orbs(2)
-        INTEGER(KIND=n_int) :: iLutnI(0:NIfD),iLutnJ(0:NIfD)
+        integer, intent(in) :: NIfD
+        INTEGER, intent(out) :: Orbs(2)
+        INTEGER(KIND=n_int), intent(in) :: iLutnI(0:NIfD),iLutnJ(0:NIfD)
         INTEGER(kind=n_int) :: iLutExcited(0:NIfD)
 
         iLutExcited(:)=IEOR(iLutnI(:),iLutnJ(:))

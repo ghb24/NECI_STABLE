@@ -3,15 +3,18 @@
 MODULE AnnihilationMod
     use SystemData , only : NEl, tHPHF, nBasis, tCSF
     use CalcData , only : TRegenExcitgens,tRegenDiagHEls, tEnhanceRemainder, &
-                          tTruncInitiator, tSpawnSpatialInit, OccupiedThresh
+                          tTruncInitiator, tSpawnSpatialInit, OccupiedThresh, &
+                          tVaryInitThresh, tSemiStochastic, tTrialWavefunction
     USE DetCalcData , only : Det,FCIDetIndex
     USE Parallel_neci
-    USE dSFMT_interface , only : genrand_real2_dSFMT
+    USE dSFMT_interface, only : genrand_real2_dSFMT
     USE FciMCData
     use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel, ilut_lt, &
                          ilut_gt, DetBitZero
     use spatial_initiator, only: add_initiator_list, rm_initiator_list, &
                                  is_spatial_init
+    use CalcData, only : tTruncInitiator, tSpawnSpatialInit
+    use DeterminantData, only: write_det
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use sort_mod
@@ -21,13 +24,16 @@ MODULE AnnihilationMod
                         encode_sign, encode_flags, test_flag, set_flag, &
                         clr_flag, flag_parent_initiator, encode_part_sign, &
                         extract_part_sign, copy_flag, nullify_ilut, &
-                        nullify_ilut_part
+                        nullify_ilut_part, keep_smallest_nsteps, return_nsteps
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
-    use Logging , only : tHF_Ref_Explicit
-    use nElRDMMod, only: aaaa_RDM, All_aaaa_RDM
-    IMPLICIT NONE
+    use LoggingData , only : tHF_Ref_Explicit
+    use util_mod, only: get_free_unit, binary_search_custom
+    use sparse_arrays, only: trial_ht, con_ht
+    use searching
+    use hash
 
+    IMPLICIT NONE
 
     contains
 
@@ -158,12 +164,14 @@ MODULE AnnihilationMod
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
         logical, intent(in) :: tSingleProc
         TYPE(timer),save :: Compress_time
+        integer :: i
 
 !This routine will send all the newly-spawned particles to their correct processor. 
 !MaxIndex is returned as the new number of newly-spawned particles on the processor. May have duplicates.
 !The particles are now stored in SpawnedParts2/SpawnedSign2.
 !        call WriteExcitorListP2(6,SpawnedParts,InitialSpawnedSlots,ValidSpawnedList,0,"Local")
 !        if(bNodeRoot) 
+
         CALL SendProcNewParts(MaxIndex,tSingleProc)
 
 !CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
@@ -187,13 +195,18 @@ MODULE AnnihilationMod
 
 !        WRITE(6,*) "List compressed",MaxIndex,TotWalkersNew
 
+         ! If the semi-stochastic approach is being used then the following routine performs the
+         ! annihilation of the deterministic states. These states are subsequently skipped in the
+         ! AnnihilateSpawnedParts routine.
+         if (tSemiStochastic) call deterministic_annihilation(iter_data)
+
 !Binary search the main list and copy accross/annihilate determinants which are found.
 !This will also remove the found determinants from the spawnedparts lists.
         CALL AnnihilateSpawnedParts(MaxIndex,TotWalkersNew, iter_data)  
-        
+
         CALL set_timer(Sort_Time,30)
         if(tHashWalkerList) then
-            call CalcHashTableStats(TotWalkersNew) 
+            call CalcHashTableStats(TotWalkersNew, iter_data) 
         else
 !Put the surviving particles in the main list, maintaining order of the main list (unless tHashWalkerList specified).
 !Now we insert the remaining newly-spawned particles back into the original list (keeping it sorted), 
@@ -207,13 +220,12 @@ MODULE AnnihilationMod
 !This routine is used for sending the determinants to the correct processors. 
     SUBROUTINE SendProcNewParts(MaxIndex,tSingleProc)
         REAL :: Gap
-        integer :: i, error
+        integer :: i, j, error
         integer(MPIArg), dimension(nProcessors) :: sendcounts, disps, &
                                                    recvcounts, recvdisps
         INTEGER :: MaxSendIndex
         INTEGER, INTENT(OUT) :: MaxIndex
         LOGICAL, intent(in) :: tSingleProc
-      
 
         if(tSingleProc) then
 !Put all particles and gap on one proc.
@@ -350,9 +362,16 @@ MODULE AnnihilationMod
         integer :: No_Spawned_Parents
         LOGICAL :: tSuc, tInc
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
-        integer(n_int) :: cum_det (0:niftot)
+        integer(n_int) :: cum_det (0:niftot), temp_det(0:niftot)
         CHARACTER(len=*), parameter :: this_routine='CompressSpawnedList'
         TYPE(timer),save :: Sort_time
+
+        !write(6,*) "SpawnedParts before:"
+        !do j = 1, ValidSpawned
+        !    write(6,*) SpawnedParts(:,j), test_flag(SpawnedParts(:,j),flag_deterministic), &
+        !                                  test_flag(SpawnedParts(:,j),flag_determ_parent)
+        !end do
+        !write(6,*)
 
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. 
 !(this is not essential, but should proove faster)
@@ -362,6 +381,13 @@ MODULE AnnihilationMod
 
         Sort_time%timer_name='Compress Sort interface'
         call set_timer(Sort_time,20)
+
+        ! Note: If performing a semi-stochastic calculation, we want to sort the spawned list so that walkers
+        ! which are spawned from deterministic parents are separated from walkers which aren't, so that they
+        ! can be considered separately later (if a walker is spawned from a deterministic parent into the
+        ! deterministic space then it should be aborted - we only know if the state it occupies is
+        ! deterministic later on).
+        ! If not performing a semi-stochastic simulation then these conditions are just ignored.
         call sort(SpawnedParts(:,1:ValidSpawned), ilut_lt, ilut_gt)
         
         CALL halt_timer(Sort_time)
@@ -395,7 +421,10 @@ MODULE AnnihilationMod
 
             do while(CurrentBlockDet.le.ValidSpawned)
                 if(.not.(DetBitEQ(SpawnedParts(0:NIfTot,BeginningBlockDet),SpawnedParts(0:NIfTot,CurrentBlockDet),NIfDBO))) exit
-                !loop over walkers on the same determinant in SpawnedParts
+                ! Loop over walkers on the same determinant in SpawnedParts.
+                ! Also, seperate out states which are and aren't spawned from the deterministic space.
+                ! (Ignore the options relating to these deterministic flags if not concerned with the
+                ! deterministic code).
                 CurrentBlockDet=CurrentBlockDet+1
             enddo
 
@@ -420,7 +449,7 @@ MODULE AnnihilationMod
                     if(.not.(DetBitZero(SpawnedParts(NIfTot+1:NIfTot+NIfDBO+1,BeginningBlockDet),NIfDBO))) then
                         ! If the parent determinant is null, the contribution to the RDM is zero.  
                         ! No point in doing anything more with it.
-
+                        
                         Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = SpawnedParts(NIfTot+1:NIfTot+NIfDBO+2,BeginningBlockDet)
                         ! The first NIfDBO of the Spawned_Parents entry is the parent determinant, 
                         ! the NIfDBO + 1 entry 
@@ -438,6 +467,7 @@ MODULE AnnihilationMod
                         Spawned_Parts_Zero = Spawned_Parts_Zero + 1
                     endif
                 ENDIF
+
                 VecInd=VecInd+1
                 BeginningBlockDet=CurrentBlockDet           !Move onto the next block of determinants
                 CYCLE   !Skip the rest of this block
@@ -446,6 +476,7 @@ MODULE AnnihilationMod
             ! Reset the cumulative determinant
             cum_det = 0
             cum_det (0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
+
             IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) THEN
                 ! This is the first Dj determinant - set the index for the beginning of where 
                 ! the parents for this Dj can be found in Spawned_Parents.
@@ -514,6 +545,7 @@ MODULE AnnihilationMod
                 ! array - not the newly spawned sign.  We still want to check if Dj has a non-zero Cj in Current Dets - 
                 ! so we need to carry this Dj through to the stage of checking CurrentDets regardless of the sign here. 
                 ! Also getting rid of them here would make the biased sign of Ci slightly wrong.
+
                 SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
                 VecInd = VecInd + 1
                 DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet
@@ -527,6 +559,10 @@ MODULE AnnihilationMod
                 DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet + 1
                 ! This spawned entry will be removed - don't want to store any parents.
                 ! Reset Parent_Array_Ind so that the parents will be written over.
+
+                ! For semi-stochastic simulations, store this state so that we can set the flags of the next
+                ! state to be the same, if it is the same state.
+                temp_det(0:NIfTot) = cum_det(0:NIfTot)
             endif
 
             BeginningBlockDet=CurrentBlockDet           !Move onto the next block of determinants
@@ -582,7 +618,7 @@ MODULE AnnihilationMod
 !!        enddo
 !!        WRITE(6,*) "***","iter_data%naborted: ",iter_data%naborted
 !!        CALL neci_flush(6)
-        
+
     END SUBROUTINE CompressSpawnedList
 
 !Histogram a possible annihilation event
@@ -707,6 +743,13 @@ MODULE AnnihilationMod
             endif
         endif
 
+        if (tSemiStochastic) then
+            if (test_flag(new_det, flag_deterministic)) call set_flag(cum_det, flag_deterministic)
+            if (test_flag(new_det, flag_determ_parent)) call set_flag(cum_det, flag_determ_parent)
+        end if
+
+        if (tVaryInitThresh) call keep_smallest_nsteps(cum_det(0:NIfTot), new_det(0:NIfTot))
+
         ! Update annihilation statistics (is this really necessary?)
         if (sgn_prod < 0.0_dp) then
             Annihilated = Annihilated + 2*min(abs(cum_sgn), abs(new_sgn))
@@ -731,6 +774,32 @@ MODULE AnnihilationMod
 
     end subroutine FindResidualParticle
 
+    subroutine deterministic_annihilation(iter_data)
+
+        type(fcimc_iter_data), intent(inout) :: iter_data
+        integer :: i, MinInd, MaxInd, PartInd
+        integer :: nI(nel)
+        real(dp), dimension(lenof_sign) :: SpawnedSign, CurrentSign, SignProd
+        logical :: tSuccess
+
+        ! Copy across the weights from partial_determ_vector (the result of the deterministic projection)
+        ! to CurrentDets:
+        do i = 1, determ_proc_sizes(iProcIndex)
+            call neci_flush(6)
+            call extract_sign(CurrentDets(:, indices_of_determ_states(i)), CurrentSign)
+            SpawnedSign = partial_determ_vector(i)
+            call encode_sign(CurrentDets(:, indices_of_determ_states(i)), SpawnedSign + CurrentSign)
+
+            ! Update stats:
+            ! Number born:
+            iter_data%nborn(1) = iter_data%nborn(1) + abs(SpawnedSign(1))
+            ! Number annihilated:
+            SignProd = CurrentSign*SpawnedSign
+            if (SignProd(1) < 0.0_dp) iter_data%nannihil(1) = iter_data%nannihil(1) + &
+                2*(min(abs(CurrentSign(1)), abs(SpawnedSign(1))))
+        end do
+
+    end subroutine deterministic_annihilation
     
 !In this routine, we want to search through the list of spawned particles. For each spawned particle, 
 !we binary search the list of particles on the processor
@@ -749,8 +818,17 @@ MODULE AnnihilationMod
         REAL(dp) :: pRemove, r
         INTEGER :: ExcitLevel, nJ(NEl),DetHash,FinalVal,clash,walkExcitLevel, dettemp(NEl)
         INTEGER(KIND=n_int) , POINTER :: PointTemp(:,:)
-        LOGICAL :: tSuccess,tSuc,tPrevOcc
+        LOGICAL :: tSuccess,tSuc,tPrevOcc, tAlwaysAllow
         character(len=*), parameter :: this_routine="AnnihilateSpawnedParts"
+        integer :: comp
+        type(ll_node), pointer :: TempNode
+
+        !write(6,*) "SpawnedParts after:"
+        !do j = 1, ValidSpawned
+        !    write(6,*) SpawnedParts(:,j), test_flag(SpawnedParts(:,j),flag_deterministic), &
+        !                                  test_flag(SpawnedParts(:,j),flag_determ_parent)
+        !end do
+        !write(6,*)
 
         if(.not.bNodeRoot) return  !Only node roots to do this.
 
@@ -759,12 +837,20 @@ MODULE AnnihilationMod
 !        write(6,*) "Entering AnnihilateSpawnedParts"
 !        call flush(6)
 
+        ToRemove=0  !The number of particles to annihilate
+
+        ! Logical for semi-stochastic code.
+        tAlwaysAllow = .false.
+
 !MinInd indicates the minimum bound of the main array in which the particle can be found.
 !Since the spawnedparts arrays are ordered in the same fashion as the main array, 
 !we can find the particle position in the main array by only searching a subset.
-        MinInd=1
+
+        MinInd = 1
+        PartInd = 1
+
         IF(tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
-        ToRemove=0  !The number of particles to annihilate
+
 !        WRITE(6,*) "Annihilating between ",ValidSpawned, " spawned particles and ",TotWalkersNew," original particles..."
 !        WRITE(6,*) "SpawnedParts: "
 !        do i=1,ValidSpawned
@@ -789,7 +875,6 @@ MODULE AnnihilationMod
 
         CALL set_timer(BinSearch_time,45)
 
-
         do i=1,ValidSpawned
 
 !This will binary search the CurrentDets array to find the desired particle. 
@@ -801,34 +886,38 @@ MODULE AnnihilationMod
 !               write(6,"(I5)",advance='no') j 
 !               call WriteBitDet(6,CurrentDets(:,j),.true.)
 !            enddo
+
             if(tHashWalkerList) then
                 !Do not need to binary search list. It is not sorted, but there is a hash table to it.
                 tSuccess=.false.
                 call decode_bit_det (nJ, SpawnedParts(:,i))              
 !                write(6,*) "Sending to hash func 1: ",nJ(:)
-                DetHash=FindWalkerHash(nJ)
+                DetHash=FindWalkerHash(nJ,nWalkerHashes)
 !                write(6,*) "DetHash: ",DetHash
-                FinalVal=HashIndex(0,DetHash)-1
-!                write(6,*) "FinalVal: ",FinalVal
-                do clash=1,FinalVal
-ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
-                    if(DetBitEQ(SpawnedParts(:,i),CurrentDets(:,HashIndex(clash,DetHash)),NIfDBO)) then
-                        !We have found the matching determinant
-                        tSuccess=.true.
-                        PartInd=HashIndex(clash,DetHash)
-!                        write(6,*) "Found it at: ",PartInd
-                        exit
-                    endif
-                enddo
+                TempNode => HashIndex(DetHash)
+                ! If there is atleast one state in CurrentDets with this hash value.
+                if (TempNode%Ind /= 0) then
+                    do while (associated(TempNode))
+                        ASSERT(TempNode%Ind.le.TotWalkersNew)
+                        if(DetBitEQ(SpawnedParts(:,i),CurrentDets(:,TempNode%Ind),NIfDBO)) then
+                            ! We have found the matching determinant
+                            tSuccess=.true.
+                            PartInd=TempNode%Ind
+!                           write(6,*) "Found it at: ",PartInd
+                            exit
+                        endif
+                        TempNode => TempNode%Next
+                    enddo
+                end if
             else
                 CALL BinSearchParts(SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
             endif
+
 !            WRITE(6,"(A,2I6,L)",advance="no") "Binary search complete: ",i,PartInd,tSuccess
 !            call WriteBitDet(6,SpawnedParts(:,i),.true.)
 !            call WriteBitDet(6,CurrentDets(:,PartInd),.true.)
 
 !            WRITE(6,*) 'i,SpawnedParts(:,i)',i,SpawnedParts(:,i)
-
             IF(tSuccess) THEN
 
                  !Our SpawnedParts determinant is found in CurrentDets
@@ -843,6 +932,34 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
 !                AnnihilateInd=0    !AnnihilateInd indicates the index in CurrentDets of the particle we want to annihilate. 
 !                                   It will remain 0 if we find not complimentary particle.
 !                WRITE(6,'(3I20,A,3I20)') SpawnedParts(:,i),' equals ',CurrentDets(:,PartInd)
+
+!                WRITE(6,*) 'DET FOUND in list'
+
+                ! If spawning has occured from the deterministic (even partially) or to the deterministic space,
+                ! then we always allow the spawning to occur. Then simply cycle.
+                if (tSemiStochastic) then
+                    if (test_flag(CurrentDets(:,PartInd), flag_deterministic) .or. &
+                        test_flag(SpawnedParts(:, i), flag_determ_parent)) then
+                        call extract_sign(CurrentDets(:, PartInd), CurrentSign)
+                        call extract_sign(SpawnedParts(:, i), SpawnedSign)
+                        call encode_sign(CurrentDets(:, PartInd), SpawnedSign + CurrentSign)
+                        call encode_sign(SpawnedParts(:,i),null_part)
+                        if (sum(abs(SpawnedSign)).ne.0.0_dp) ToRemove = ToRemove + 1
+                        MinInd = PartInd
+
+                        ! Update stats:
+                        SignProd = CurrentSign*SpawnedSign
+                        if (SignProd(1) < 0.0_dp) iter_data%nannihil(1) = iter_data%nannihil(1) + &
+                            2*(min(abs(CurrentSign(1)), abs(SpawnedSign(1))))
+                        
+                        if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then
+                            call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
+                        endif 
+
+                        cycle
+                    end if
+                end if
+
                 call extract_sign(CurrentDets(:,PartInd),CurrentSign)
                 call extract_sign(SpawnedParts(:,i),SpawnedSign)
 
@@ -858,7 +975,7 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                     call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
                 endif 
 
-                if(sum(abs(CurrentSign)) .ne. 0) then
+                if(sum(abs(CurrentSign)) .ne. 0.0_dp) then
                     !Transfer across
                     call encode_sign(CurrentDets(:,PartInd),SpawnedSign+CurrentSign)
                     call encode_sign(SpawnedParts(:,i),null_part)
@@ -867,11 +984,11 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                     ! If this is the case, we would have already added the SpawnedDet to Spawned_Parts_Zero
                     ! when it was compressed and all walkers were annihilated.
                     ! This only counts the walkers where the SpawnedSign has newly become zero, by merging with CurrentDets.
-                    if(sum(abs(SpawnedSign)) .ne. 0) ToRemove=ToRemove+1
+                    if(sum(abs(SpawnedSign)) .ne. 0.0_dp) ToRemove=ToRemove+1
 
                     do j=1,lenof_sign   !Run over real (& imag ) components
 
-                        if (SignProd(j) < 0) then
+                        if (SignProd(j) < 0.0_dp) then
                             ! This indicates that the particle has found the same particle of 
                             ! opposite sign to annihilate with
                             Annihilated=Annihilated+2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
@@ -966,8 +1083,18 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                 endif
             endif
                 
-            if((.not.tSuccess).or.(tSuccess.and.(sum(abs(CurrentSign)) .eq. 0))) then
-                if(tTruncInitiator) then
+            if((.not.tSuccess).or.(tSuccess.and.(sum(abs(CurrentSign)) .eq. 0.0_dp))) then
+                if (tSemiStochastic) then
+                    ! If performing a semi-stochastic simulation and spawning from the deterministic
+                    ! space always allow the spawning.
+                    if (test_flag(SpawnedParts(:,i), flag_determ_parent)) then
+                        tAlwaysAllow = .true.
+                    else
+                        tAlwaysAllow = .false.
+                    end if
+                end if
+
+                if(tTruncInitiator .and. (.not. tAlwaysAllow)) then
                     ! Determinant in newly spawned list is not found in currentdets - usually this 
                     ! would mean the walkers just stay in this list and get merged later - but in 
                     ! this case we want to check where the walkers came from - because if the newly 
@@ -997,6 +1124,9 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                                 endif
                             endif
 
+                            ! If this option is on, include the walker to be cancelled in the trial energy estimate.
+                            if (tIncCancelledInitEnergy) call add_trial_energy_contrib(SpawnedParts(:,i), SignTemp(j))
+
                             ! Walkers came from outside initiator space.
                             NoAborted = NoAborted + abs(SignTemp(j))
                             iter_data%naborted(j) = iter_data%naborted(j) + abs(SignTemp(j))
@@ -1007,7 +1137,7 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                             SignTemp(j) = 0.0_dp
                             call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
 
-                            if(tHashWalkerList.and.(tSuccess.and.sum(abs(CurrentSign)).eq.0)) then
+                            if(tHashWalkerList.and.(tSuccess.and.sum(abs(CurrentSign)).eq.0.0_dp)) then
                                 !All walkers in this main list have died, and none have been spawned onto it.
                                 !Remove it from the hash index array so that no others find it (it is impossible to have
                                 !another spawned walker yet to find this determinant)
@@ -1017,7 +1147,8 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                                 FreeSlot(iEndFreeSlot)=PartInd
                             endif
                         endif
-                        if ((abs(SignTemp(j)).gt.0.0) .and. (abs(SignTemp(j)).lt.OccupiedThresh)) then
+
+                        if ((abs(SignTemp(j)).gt.0.0_dp) .and. (abs(SignTemp(j)).lt.OccupiedThresh)) then
                             !We remove this walker with probability 1-RealSignTemp
                             pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
                             r = genrand_real2_dSFMT ()
@@ -1027,7 +1158,7 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                                 !Annihilated = Annihilated + abs(SignTemp(j))
                                 !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
                                 iter_data%nremoved = iter_data%nremoved + abs(SignTemp(j))
-                                SignTemp(j) = 0
+                                SignTemp(j) = 0.0_dp
                                 call nullify_ilut_part (SpawnedParts(:,i), j)
                                 DetsRoundedToZero=DetsRoundedToZero+1
                             elseif (tEnhanceRemainder) then
@@ -1044,7 +1175,7 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
 !                        The zero sign has already been taken into account in Spawned_Parts_Zero, if it was zero
 !                        directly after the compress. Only add in here if not already taken care of there.
                          ToRemove = ToRemove + 1
-                    elseif(tHashWalkerList) then
+                    elseif(tHashWalkerList.and.(.not.(IsUnoccDet(SignTemp)))) then
                         !Walkers have not been aborted, and so we should copy the determinant straight over to the main list
                         !We do not need to recompute the hash, since this should be the same one as was generated at the
                         !beginning of the loop
@@ -1058,7 +1189,7 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                     
                     !If we abort these particles, we'll still need to add them to ToRemove
                     tPrevOcc=.false.
-                    if (.not. IsUnoccDet(SignTemp)) tPrevOcc=.true.   
+                    if (.not. IsUnoccDet(SignTemp)) tPrevOcc=.true. 
                     
                     do j = 1, lenof_sign
                         if ((abs(SignTemp(j)).gt.0.0) .and. (abs(SignTemp(j)).lt.OccupiedThresh)) then
@@ -1088,7 +1219,7 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
 !                        The zero sign has already been taken into account in Spawned_Parts_Zero, if it was zero
 !                        directly after the compress. Only add in here if not already taken care of there.
                          ToRemove = ToRemove + 1
-                    elseif(tHashWalkerList) then
+                    elseif(tHashWalkerList.and.(.not.(IsUnoccDet(SignTemp)))) then
                         !Walkers have not been aborted, and so we should copy the determinant straight over to the main list
                         !We do not need to recompute the hash, since this should be the same one as was generated at the
                         !beginning of the loop
@@ -1100,6 +1231,9 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
             ! Even if a corresponding particle wasn't found, we can still
             ! search a smaller list next time....so not all bad news then...
             MinInd=PartInd
+
+            ! We don't want the determ_parent flag to ever be set in CurrentDets, so make sure it is unset now.
+            if (tSemiStochastic) call clr_flag(SpawnedParts(:,i), flag_determ_parent)
 
         enddo
 
@@ -1117,7 +1251,6 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
 !It may actually be easier to just move the annihilated particles to the end of the list and resort the list?
 !Or, the removed indices could be found on the fly? This may have little benefit though if the memory isn't needed.
             IF((ToRemove+Spawned_Parts_Zero).gt.0) THEN
-
 !Since reading and writing from the same array is slow, copy the information
 !accross to the other spawned array, and just swap the pointers around after.
                 DetsMerged=0
@@ -1175,14 +1308,17 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
         integer, intent(in) :: DetHash, nJ(nel)
         integer :: DetPosition
         HElement_t :: HDiag
+        real(dp) :: trial_amp
+        type(ll_node), pointer :: TempNode
         character(len=*), parameter :: t_r="AddNewHashDet"
 
         !update its flag
         if(tTruncInitiator) call FlagifDetisInitiator(iLutCurr)
+        if (tSemiStochastic) call clr_flag(iLutCurr, flag_determ_parent)
 
         if(iStartFreeSlot.le.iEndFreeSlot) then
             !We can slot it into a free slot in the main list, rather than increase its length
-            DetPosition =  FreeSlot(iStartFreeSlot)
+            DetPosition=FreeSlot(iStartFreeSlot)
             CurrentDets(:,DetPosition)=iLutCurr(:)
             iStartFreeSlot=iStartFreeSlot+1
         else
@@ -1207,106 +1343,90 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
             CurrentH(1,DetPosition)=real(HDiag,dp)-Hii
         endif
 
-        HashIndex(HashIndex(0,DetHash),DetHash)=DetPosition
-!        write(6,*) "Adding index to hash position: ",HashIndex(0,DetHash)
-        HashIndex(0,DetHash)=HashIndex(0,DetHash)+1
-!        write(6,*) "DetHash: ",DetHash
-!        write(6,*) "HashIndex(0,DetHash): ",HashIndex(0,DetHash)
-!        write(6,*) "nClashMax: ",nClashMax
-        if(HashIndex(0,DetHash).gt.nClashMax) then
-            call EnlargeHashTable()
-        endif
+        ! If using a trial wavefunction, search to see if this state is in either the trial or
+        ! connected space. If so, bin_search_trial sets the correct flag and returns the corresponding
+        ! amplitude, which is stored.
+        if (tTrialWavefunction) then
+            if (tTrialHash) then
+                call hash_search_trial(CurrentDets(:,DetPosition), nJ, trial_amp)
+            else
+                call bin_search_trial(CurrentDets(:,DetPosition), trial_amp)
+            end if
+            current_trial_amps(DetPosition) = trial_amp
+        end if
+
+        TempNode => HashIndex(DetHash)
+        if (TempNode%Ind == 0) then
+            TempNode%Ind = DetPosition
+        else
+            do while (associated(TempNode%Next))
+                TempNode => TempNode%Next
+            end do
+            allocate(TempNode%Next)
+            nullify(TempNode%Next%Next)
+            TempNode%Next%Ind = DetPosition
+        end if
+        nullify(TempNode)
 
     end subroutine AddNewHashDet
 
-    subroutine EnlargeHashTable()
-        implicit none
-        integer :: ierr,i,FinalVal
-        character(len=*), parameter :: t_r="EnlargeHashTable"
-
-        nClashMax=nClashMax+1
-        write(6,"(A)") "Enlarging hash table since it is not optimally load balanced."
-        write(6,"(A,I5,A,I14,A)") "Allowing for a maximum of ",nClashMax," hash clashes, and potential storage for "&
-                            ,nClashMax*nWalkerHashes," occupied determinants"
-
-        if(allocated(HashIndexArr1)) then
-!            write(6,*) "HashIndexArr1 allocated"
-            allocate(HashIndexArr2(0:nClashMax,nWalkerHashes),stat=ierr)
-!            write(6,*) "Ierr: ",ierr
-            if(ierr.ne.0) then
-                call stop_all(t_r,"Error reallocating HashIndexArr2")
-            endif
-!            write(6,*) "Zeroing array"
-!            call flush(6)
-            HashIndexArr2(:,:)=0
-!            write(6,*) "Filling new hash array"
-            do i=1,nWalkerHashes
-!                write(6,*) i
-!                call flush(6)
-                FinalVal=HashIndex(0,i)-1
-                HashIndexArr2(0:FinalVal,i) = HashIndex(0:FinalVal,i)
-            enddo
-!            write(6,*) "Deallocating old hash array"
-            deallocate(HashIndexArr1)
-            nullify(HashIndex)
-            HashIndex => HashIndexArr2
-        else
-!            write(6,*) "HashIndexArr2 allocated"
-            if(.not.allocated(HashIndexArr2)) then
-                call stop_all(t_r,"HashIndexArr2 should be allocated")
-            endif
-            if(allocated(HashIndexArr1)) then
-                call stop_all(t_r,"HashIndexArr1 should not be allocated")
-            endif
-            allocate(HashIndexArr1(0:nClashMax,nWalkerHashes),stat=ierr)
-            if(ierr.ne.0) then
-                call stop_all(t_r,"Error reallocating HashIndexArr2")
-            endif
-            HashIndexArr1(:,:)=0
-            do i=1,nWalkerHashes
-                FinalVal=HashIndex(0,i)-1
-                HashIndexArr1(0:FinalVal,i)=HashIndex(0:FinalVal,i)
-            enddo
-            deallocate(HashIndexArr2)
-            nullify(HashIndex)
-            HashIndex => HashIndexArr1
-        endif
-
-    end subroutine EnlargeHashTable
-
-    
-    SUBROUTINE CalcHashTableStats(TotWalkersNew)
+    SUBROUTINE CalcHashTableStats(TotWalkersNew, iter_data)
         use util_mod, only: abs_sign
         use CalcData , only : tCheckHighestPop
         integer, intent(in) :: TotWalkersNew
-        INTEGER :: i,part_type,AnnihilatedDet
+        type(fcimc_iter_data), intent(inout) :: iter_data
+        INTEGER :: i, j, AnnihilatedDet
         real(dp) :: CurrentSign(lenof_sign), SpawnedSign(lenof_sign)
+        real(dp) :: pRemove, r
+        integer :: nI(nel)
+        logical :: tIsStateDeterm
         character(*), parameter :: t_r = 'CalcHashTableStats'
 
         if(.not.bNodeRoot) return
-        TotParts=0.0
-        norm_psi_squared = 0.0
+        TotParts=0.0_dp
+        norm_psi_squared = 0.0_dp
+        norm_semistoch_squared = 0.0_dp
         iHighestPop=0
         AnnihilatedDet=0
+        tIsStateDeterm = .false.
+
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
-                IF(IsUnoccDet(CurrentSign)) then
+                if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
+
+                IF(IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
                     AnnihilatedDet=AnnihilatedDet+1 
-                    IF(tTruncInitiator) THEN
-                        do part_type=1,lenof_sign
-                            if (test_flag(CurrentDets(:,i),flag_parent_initiator(part_type))) then
-                                !determinant was an initiator...it obviously isn't any more...
-                                NoAddedInitiators=NoAddedInitiators-1
-                                if (tSpawnSpatialInit) &
-                                    call rm_initiator_list (CurrentDets(:,i))
-                            endif
-                        enddo
-                    ENDIF
                 ELSE
-!We want to move all the elements above this point down to 'fill in' the annihilated determinant.
+                    do j=1, lenof_sign
+                        if (.not. tIsStateDeterm) then
+                            if ((abs(CurrentSign(j)).gt.0.0) .and. (abs(CurrentSign(j)).lt.OccupiedThresh)) then
+                                !We remove this walker with probability 1-RealSignTemp
+                                pRemove=(OccupiedThresh-abs(CurrentSign(j)))/OccupiedThresh
+                                r = genrand_real2_dSFMT ()
+                                if (pRemove .gt. r) then
+                                    !Remove this walker
+                                    NoRemoved = NoRemoved + abs(CurrentSign(j))
+                                    iter_data%nremoved = iter_data%nremoved + abs(CurrentSign(j))
+                                    CurrentSign(j) = 0.0_dp
+                                    call nullify_ilut_part(CurrentDets(:,i), j)
+                                    call decode_bit_det(nI, CurrentDets(:,i))
+                                    call RemoveDetHashIndex(nI,i)
+                                    iEndFreeSlot=iEndFreeSlot+1
+                                    FreeSlot(iEndFreeSlot)=i
+                                elseif (tEnhanceRemainder) then
+                                    NoBorn = NoBorn + OccupiedThresh - abs(CurrentSign(j))
+                                    iter_data%nborn = iter_data%nborn + OccupiedThresh - abs(CurrentSign(j))
+                                    CurrentSign(j) = sign(OccupiedThresh, CurrentSign(j))
+                                    call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
+                                endif
+                            endif
+                        endif
+                    enddo
+
                     TotParts=TotParts+abs(CurrentSign)
                     norm_psi_squared = norm_psi_squared + sum(CurrentSign**2)
+                    if(tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + sum(CurrentSign**2)
                     IF(tCheckHighestPop) THEN
                         ! If this option is on, then we want to compare the 
                         ! weight on each determinant to the weight at the HF 
@@ -1320,8 +1440,21 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                         end if
                     ENDIF
                 ENDIF
+
+                IF(IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm) .and. tTruncInitiator) then
+                    do j=1,lenof_sign
+                        if (test_flag(CurrentDets(:,i),flag_parent_initiator(j))) then
+                            !determinant was an initiator...it obviously isn't any more...
+                            NoAddedInitiators=NoAddedInitiators-1
+                            if (tSpawnSpatialInit) &
+                                call rm_initiator_list (CurrentDets(:,i))
+                        endif
+                    enddo
+                ENDIF
+
             enddo
         ENDIF
+
         if(AnnihilatedDet.ne.HolesInList) then
             write(6,*) "TotWalkersNew: ",TotWalkersNew
             write(6,*) "AnnihilatedDet: ",AnnihilatedDet
@@ -1331,36 +1464,61 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
 
     END SUBROUTINE CalcHashTableStats
     
-    !routine to find and remove the index to a determinant from the HashIndex array
+    !Routine to find and remove the index to a determinant from the HashIndex array
     !This could potentially be speeded up by an ordered HashIndex array, and binary searching
     subroutine RemoveDetHashIndex(nI,DetPosition)
         implicit none
-!        integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: nI(nel) 
         integer, intent(in) :: DetPosition
-        integer :: DetHash,FinalVal,i
+        integer :: DetHash
+        type(ll_node), pointer :: Curr, Prev
+        logical :: tStateFound
         character(*), parameter :: this_routine="RemoveDetHashIndex"
 
-!        write(6,*) "Sending to hash func 2: ",nI(:)
-        DetHash=FindWalkerHash(nI)
-        FinalVal=HashIndex(0,DetHash)-1
-        do i=1,FinalVal !Run through all indices
-!            write(6,*) "i, HashIndex(i,DetHash): ",i, HashIndex(i,DetHash)
-            if(HashIndex(i,DetHash).eq.DetPosition) exit
-        enddo
+        tStateFound = .false.
+        DetHash = FindWalkerHash(nI,nWalkerHashes)
+        Curr => HashIndex(DetHash)
+        Prev => null()
+        do while (associated(Curr))
+            if (Curr%Ind == DetPosition) then
+                ! If this is the state to be removed.
+                tStateFound = .true.
+                if (associated(Prev)) then
+                    ! If not the first state in the list.
+                    Prev%Next => Curr%Next
+                    deallocate(Curr)
+                    exit
+                else
+                    ! If the first state in the list.
+                    if (associated(Curr%Next)) then
+                        ! If the first but not the only state in the list.
+                        ! Move the details of the second entry in the list to the
+                        ! first entry, and then deallocate it.
+                        Curr => Curr%Next
+                        HashIndex(DetHash)%Ind = Curr%Ind
+                        HashIndex(DetHash)%Next => Curr%Next
+                        deallocate(Curr)
+                        exit
+                    else
+                        ! If the first and only state in the list.
+                        Curr%Ind = 0
+                        Curr%Next => null()
+                        exit
+                    end if
+                end if
+            end if
+            Prev => Curr
+            Curr => Curr%Next
+        end do
+
+        nullify(Curr)
+        nullify(Prev)
+
+        ASSERT(tStateFound)
+
 !        write(6,*) "Det: ",nI(:)
 !        write(6,*) "DetHash: ",DetHash
-!        write(6,*) "FinalVal: ",FinalVal
 !        write(6,*) "DetPosition: ",DetPosition
-        ASSERT(i.le.FinalVal)
-
-        !i is now the position of the determinant to remove
-        !Indicate that there is now one less determinant at this hash value
-        HashIndex(0,DetHash)=HashIndex(0,DetHash)-1
-        !Move everything from i+1 -> HashIndex(0,DetHash) down one
-        if(i.ne.FinalVal) then
-            HashIndex(i:FinalVal-1,DetHash)=HashIndex(i+1:FinalVal,DetHash)
-        endif
 
     end subroutine RemoveDetHashIndex
 
@@ -1379,60 +1537,97 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
         use SystemData, only: tHPHF, tRef_Not_HF
         use bit_reps, only: NIfD
         use CalcData , only : tCheckHighestPop, NMCyc, InitiatorWalkNo
-        use Logging , only : tRDMonFly, tExplicitAllRDM, tInitiatorRDM
+        use LoggingData , only : tRDMonFly, tExplicitAllRDM, tInitiatorRDM
         use nElRDMMod , only : det_removed_fill_diag_rdm 
         INTEGER, intent(in) :: ValidSpawned
         integer, intent(inout) :: TotWalkersNew
         real(dp) :: CurrentSign(lenof_sign), SpawnedSign(lenof_sign)
         real(dp) :: HDiag, pRemove, r
         INTEGER :: i,DetsMerged,nJ(NEl),part_type, ExcitLevelCurr, j
+        integer :: trial_merged, con_merged, i_trial, i_conn
         LOGICAL :: TestClosedShellDet
+        logical :: tIsStateDeterm, tTrialState, tConState
         type(fcimc_iter_data), intent(inout) :: iter_data
         character(*), parameter :: this_routine = 'InsertRemoveParts'
         HElement_t :: HDiagTemp
 
 !It appears that the rest of this routine isn't thread-safe if ValidSpawned is zero.
-        
+
     if(.not.bNodeRoot) return
+        
+    ! This logical is only used for the semi-stochastic code. If true then we don't
+    ! try to remove the state.
+    tIsStateDeterm = .false.
+
 !Annihilated determinants first are removed from the main array (zero sign). 
 !Surely we only need to perform this loop if the number of annihilated particles > 0?
         TotParts=0.0
         norm_psi_squared = 0.0
+        norm_semistoch_squared = 0.0
         DetsMerged=0
+        trial_merged = 0
+        i_trial = 0
+        con_merged = 0
+        i_conn = 0
         iHighestPop=0
         InstNoatHF = 0.0
+
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
+                if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
                 do j=1, lenof_sign
-                    if ((abs(CurrentSign(j)).gt.0.0) .and. (abs(CurrentSign(j)).lt.OccupiedThresh)) then
-                        !We remove this walker with probability 1-RealSignTemp
-                        pRemove=(OccupiedThresh-abs(CurrentSign(j)))/OccupiedThresh
-                        r = genrand_real2_dSFMT ()
-                        if (pRemove .gt. r) then
-                            !Remove this walker
-                            NoRemoved = NoRemoved + abs(CurrentSign(j))
-                            !Annihilated = Annihilated + abs(CurrentSign(j))
-                            !iter_data%nannihil = iter_data%nannihil + abs(CurrentSign(j))
-                            iter_data%nremoved = iter_data%nremoved + abs(CurrentSign(j))
-                            CurrentSign(j) = 0
-                            call nullify_ilut_part (CurrentDets(:,i), j)
-                            DetsRoundedToZero=DetsRoundedToZero+1
-                        elseif (tEnhanceRemainder) then
-                            ! SDS: TODO: Account for the TotParts Changes
-                            ! Should we always do this here? Probably. Should
-                            NoBorn = NoBorn + OccupiedThresh - abs(CurrentSign(j))
-                            iter_data%nborn = iter_data%nborn + OccupiedThresh - abs(CurrentSign(j))
-                            CurrentSign(j) = sign(OccupiedThresh, CurrentSign(j))
-                            call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
+                    if (.not. tIsStateDeterm) then
+                        if ((abs(CurrentSign(j)).gt.0.0) .and. (abs(CurrentSign(j)).lt.OccupiedThresh)) then
+                            !We remove this walker with probability 1-RealSignTemp
+                            pRemove=(OccupiedThresh-abs(CurrentSign(j)))/OccupiedThresh
+                            r = genrand_real2_dSFMT ()
+                            if (pRemove .gt. r) then
+                                !Remove this walker
+                                NoRemoved = NoRemoved + abs(CurrentSign(j))
+                                !Annihilated = Annihilated + abs(CurrentSign(j))
+                                !iter_data%nannihil = iter_data%nannihil + abs(CurrentSign(j))
+                                iter_data%nremoved = iter_data%nremoved + abs(CurrentSign(j))
+                                CurrentSign(j) = 0
+                                call nullify_ilut_part (CurrentDets(:,i), j)
+                            elseif (tEnhanceRemainder) then
+                                ! SDS: TODO: Account for the TotParts Changes
+                                ! Should we always do this here? Probably. Should
+                                NoBorn = NoBorn + OccupiedThresh - abs(CurrentSign(j))
+                                iter_data%nborn = iter_data%nborn + OccupiedThresh - abs(CurrentSign(j))
+                                CurrentSign(j) = sign(OccupiedThresh, CurrentSign(j))
+                                call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
+                            endif
                         endif
                     endif
                 enddo
                 
                 if(i.eq.HFInd)  InstNoatHF = CurrentSign
 
-                IF(IsUnoccDet(CurrentSign)) THEN
+                ! Is this state a trial or connected state, or neither?
+                if (tTrialWavefunction) then
+                    if (test_flag(CurrentDets(:,i), flag_trial)) then
+                        i_trial = i_trial + 1
+                        tTrialState = .true.
+                        tConState = .false.
+                    else if (test_flag(CurrentDets(:,i), flag_connected)) then
+                        i_conn = i_conn + 1
+                        tConState = .true.
+                        tTrialState = .false.
+                    else
+                        tTrialState = .false.
+                        tConState = .false.
+                    end if
+                end if
+
+                IF(IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) THEN
+
                     DetsMerged=DetsMerged+1
+                    if (tTrialWavefunction) then
+                        if (tTrialState) trial_merged = trial_merged + 1
+                        if (tConState) con_merged = con_merged + 1
+                    end if
+
                     if(tFillingStochRDMonFly) &
                         call det_removed_fill_diag_rdm(CurrentDets(:,i), CurrentH(1:NCurrH,i))
                     if(i.eq.HFInd) then
@@ -1461,10 +1656,20 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                         CurrentDets(0:NIfTot,i-DetsMerged)=CurrentDets(0:NIfTot,i)
                         IF(.not.tRegenDiagHEls) &
                             CurrentH(:,i-DetsMerged)=CurrentH(:,i)
+
+                        ! Move the elements in the occupied trial and connected vectors to fill in
+                        ! the values of the annihilated determinants.
+                        if (tTrialWavefunction) then
+                            if (tTrialState) occ_trial_amps(i_trial-trial_merged) = occ_trial_amps(i_trial)
+                            if (tConState) occ_con_amps(i_conn-con_merged) = occ_con_amps(i_conn)
+                        end if
+
                     ENDIF
+
                     TotParts=TotParts+abs(CurrentSign)
                     ! CMO
                     norm_psi_squared = norm_psi_squared + sum(CurrentSign**2)
+                    if(tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + sum(CurrentSign**2)
                     IF(tCheckHighestPop) THEN
 !If this option is on, then we want to compare the weight on each determinant to the weight at the HF determinant.
 !Record the highest weighted determinant on each processor.
@@ -1476,6 +1681,8 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
                 ENDIF
             enddo
             TotWalkersNew=TotWalkersNew-DetsMerged
+            ntrial_occ = ntrial_occ-trial_merged
+            ncon_occ = ncon_occ-con_merged
         ENDIF
 
 !        do i=1,TotWalkersNew
@@ -1538,6 +1745,24 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
             IF(TotWalkersNew.eq.0) THEN
 !Merging algorithm will not work with no determinants in the main list.
                 TotWalkersNew=ValidSpawned
+
+                ! If using a trial wavefunction then call a routine to set the trial and connected
+                ! flags for the determinants in SpawnedParts, where necessary, and to also count and
+                ! return the number of trial and connected determinants. The corresponding trial
+                ! and connected vector amplitudes are stored in trial_temp and con_temp on output.
+                ! These are then copied across to occ_trial_amps and con_trial_amps.
+                if (tTrialWavefunction) then
+                    if (tTrialHash) then
+                        call find_trial_and_con_states_hash(int(ValidSpawned,8), &
+                                    SpawnedParts(0:NIfTot,1:ValidSpawned), ntrial_occ, ncon_occ)
+                    else
+                        call find_trial_and_con_states_bin(int(ValidSpawned,8), &
+                                    SpawnedParts(0:NIfTot,1:ValidSpawned), ntrial_occ, ncon_occ)
+                    end if
+                    occ_trial_amps(1:ntrial_occ) = trial_temp(1:ntrial_occ)
+                    occ_con_amps(1:ncon_occ) = con_temp(1:ncon_occ)
+                end if
+
                 do i=1,ValidSpawned
                     CurrentDets(:,i)=SpawnedParts(:,i)
                     IF(tTruncInitiator) CALL FlagifDetisInitiator(CurrentDets(0:NIfTot,i))
@@ -1566,164 +1791,5 @@ ASSERT(HashIndex(clash,DetHash).le.TotWalkersNew)
 !        CALL CheckOrdering(CurrentDets,CurrentSign(1:TotWalkers),TotWalkers,.true.)
 
     END SUBROUTINE InsertRemoveParts
-    
-    !Another hashing routine - this time to find the correct position in the hash table
-    pure function FindWalkerHash(nJ) result(hashInd)
-        implicit none
-        integer, intent(in) :: nJ(nel)
-        integer :: hashInd
-        integer :: i
-        integer(int64) :: hash
-        hash = 0
-!        write(6,*) "nJ: ",nJ(:)
-        if(tCSF) then
-            do i = 1, nel
-                hash = (1099511628211_int64 * hash) + &
-                        int(RandomHash2(mod(iand(nJ(i), csf_orbital_mask)-1,nBasis)+1) * i,int64)
-            enddo
-        else
-            do i = 1, nel
-                hash = (1099511628211_int64 * hash) + &
-                        int(RandomHash2(nJ(i))*i,int64)
 
-!                        (RandomHash(mod(nI(i)+offset-1,int(nBasis,int64))+1) * i)
-            enddo
-        endif
-        hashInd = int(abs(mod(hash, int(nWalkerHashes, int64))),sizeof_int)+1
-    end function FindWalkerHash
-
-    FUNCTION CreateHash(DetCurr)
-        INTEGER :: DetCurr(NEl),i
-        INTEGER(KIND=int64) :: CreateHash
-
-        CreateHash=0
-        do i=1,NEl
-!            CreateHash=13*CreateHash+i*DetCurr(i)
-            CreateHash=(1099511628211_int64*CreateHash)+i*DetCurr(i)
-            
-!            CreateHash=mod(1099511628211*CreateHash,2**64)
-!            CreateHash=XOR(CreateHash,DetCurr(i))
-        enddo
-!        WRITE(6,*) CreateHash
-        RETURN
-
-    END FUNCTION CreateHash
-
-    SUBROUTINE LinSearchParts(DetArray,iLut,MinInd,MaxInd,PartInd,tSuccess)
-        INTEGER :: MinInd,MaxInd,PartInd
-        INTEGER(KIND=n_int) :: iLut(0:NIfTot),DetArray(0:NIfTot,1:MaxInd)
-        INTEGER :: N,Comp
-        LOGICAL :: tSuccess
-
-        N=MinInd
-        do while(N.le.MaxInd)
-            Comp=DetBitLT(DetArray(:,N),iLut(:),NIfDBO)
-            IF(Comp.eq.1) THEN
-                N=N+1
-            ELSEIF(Comp.eq.-1) THEN
-                PartInd=N-1
-                tSuccess=.false.
-                RETURN
-            ELSE
-                tSuccess=.true.
-                PartInd=N
-                RETURN
-            ENDIF
-        enddo
-        tSuccess=.false.
-        PartInd=MaxInd-1
-
-    END SUBROUTINE LinSearchParts
-
-!Do a binary search in CurrentDets, between the indices of MinInd and MaxInd. If successful, tSuccess will be true and 
-!PartInd will be a coincident determinant. If there are multiple values, the chosen one may be any of them...
-!If failure, then the index will be one less than the index that the particle would be in if it was present in the list.
-!(or close enough!)
-    SUBROUTINE BinSearchParts(iLut,MinInd,MaxInd,PartInd,tSuccess)
-        INTEGER(KIND=n_int) :: iLut(0:NIfTot)
-        INTEGER :: MinInd,MaxInd,PartInd
-        INTEGER :: i,j,N,Comp
-        LOGICAL :: tSuccess
-
-        i=MinInd
-        j=MaxInd
-        IF(i-j.eq.0) THEN
-            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:),NIfDBO)
-            IF(Comp.eq.0) THEN
-                tSuccess=.true.
-                PartInd=MaxInd
-                RETURN
-            ELSE
-                tSuccess=.false.
-                PartInd=MinInd
-            ENDIF
-        ENDIF
-
-        do while(j-i.gt.0)  !End when the upper and lower bound are the same.
-            N=(i+j)/2       !Find the midpoint of the two indices
-!            WRITE(6,*) i,j,n
-
-!Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(CurrentDets(:,N),iLut(:),NIfDBO)
-
-            IF(Comp.eq.0) THEN
-!Praise the lord, we've found it!
-                tSuccess=.true.
-                PartInd=N
-                RETURN
-            ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
-!The value of the determinant at N is LESS than the determinant we're looking for. Therefore, move the lower
-!bound of the search up to N.  However, if the lower bound is already equal to N then the two bounds are 
-!consecutive and we have failed...
-                i=N
-            ELSEIF(i.eq.N) THEN
-
-
-                IF(i.eq.MaxInd-1) THEN
-!This deals with the case where we are interested in the final/first entry in the list. Check the final entry 
-!of the list and leave.  We need to check the last index.
-                    Comp=DetBitLT(CurrentDets(:,i+1),iLut(:),NIfDBO)
-                    IF(Comp.eq.0) THEN
-                        tSuccess=.true.
-                        PartInd=i+1
-                        RETURN
-                    ELSEIF(Comp.eq.1) THEN
-!final entry is less than the one we want.
-                        tSuccess=.false.
-                        PartInd=i+1
-                        RETURN
-                    ELSE
-                        tSuccess=.false.
-                        PartInd=i
-                        RETURN
-                    ENDIF
-
-                ELSEIF(i.eq.MinInd) THEN
-                    tSuccess=.false.
-                    PartInd=i
-                    RETURN
-
-                ELSE
-                    i=j
-                ENDIF
-
-
-            ELSEIF(Comp.eq.-1) THEN
-!The value of the determinant at N is MORE than the determinant we're looking for. Move the upper bound of the search down to N.
-                j=N
-            ELSE
-!We have failed - exit loop
-                i=j
-            ENDIF
-
-        enddo
-
-!If we have failed, then we want to find the index that is one less than where the particle would have been.
-        tSuccess=.false.
-        PartInd=MAX(MinInd,i-1)
-
-    END SUBROUTINE BinSearchParts
-    
 END MODULE AnnihilationMod
-
-

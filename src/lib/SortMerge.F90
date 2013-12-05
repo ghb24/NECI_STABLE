@@ -20,24 +20,50 @@
 !list2 = SpawnedParts(:,1:nlist2)
     SUBROUTINE MergeListswH(nlist1,nlist2,list2)
         USE FciMCParMOD , only : Hii,CurrentDets,CurrentH
-        use FciMCData , only : tFillingStochRDMonFly, InstNoatHF
+        use FciMCData , only : tFillingStochRDMonFly, InstNoatHF, ntrial_occ, &
+                               ncon_occ, occ_trial_amps, occ_con_amps, &
+                               trial_temp, con_temp, tTrialHash
         use SystemData, only: nel, tHPHF,tMomInv
-        use bit_rep_data, only: extract_sign
-        use bit_reps, only: NIfTot, NIfDBO, decode_bit_det
+        use bit_rep_data, only: extract_sign, flag_trial, flag_connected
+        use bit_reps, only: NIfTot, NIfDBO, decode_bit_det, test_flag
         USE Determinants , only : get_helement
         use DetBitOps, only: DetBitEQ
         use hphf_integrals, only: hphf_diag_helement
         use MI_integrals, only: MI_diag_helement
-        USE CalcData , only : tTruncInitiator
+        USE CalcData , only : tTruncInitiator, tTrialWavefunction
         USE HElem
         use constants, only: dp,n_int
+        use util_mod, only: binary_search_custom
+        use searching, only: find_trial_and_con_states_bin, find_trial_and_con_states_hash
         IMPLICIT NONE
         INTEGER :: nlisto,nlist1,nlist2,i
         INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
         INTEGER :: ips
         HElement_t :: HDiagTemp
         real(dp) :: HDiag
-        INTEGER :: nJ(NEl),j
+        INTEGER :: nJ(NEl),j,ntrial,ncon,ncon_old,ntrial_old
+        logical :: tTrialState, tConState
+
+        !write(6,*) "Here!"
+
+        if (tTrialWavefunction .and. nlist2 > 0) then
+            ! If using a trial wavefunction, count the number of states to be merged
+            ! in which are in the trial and connected space. This routine also stores
+            ! the corresponding amplitudes from trial_wf and con_space_vector in the
+            ! arrays trial_temp and con_temp, and sets the flags of the new states.
+            if (tTrialHash) then
+                call find_trial_and_con_states_hash(int(nlist2,8), list2, ntrial, ncon)
+            else
+                call find_trial_and_con_states_bin(int(nlist2,8), list2, ntrial, ncon)
+            end if
+            ! The number of trial and connected states currently in CurrentDets.
+            ntrial_old = ntrial_occ
+            ncon_old = ncon_occ
+            ! Update the new number of trial and connected states, for after the merge.
+            ntrial_occ = ntrial_old + ntrial
+            ncon_occ = ncon_old + ncon
+        end if
+
 !.................................................................
 !..starting from the end of the list, expand list1 to accomodate
 !.. elements of list2
@@ -45,6 +71,13 @@
        do i=nlist2,1,-1
 !.. find the positions in list1 which the list2 would be inserted
            DetCurr(:)=list2(:,i)
+
+           ! Does this state belong to the trial or connected space?
+           if (tTrialWavefunction) then
+               tTrialState = test_flag(list2(:,i), flag_trial)
+               tConState = test_flag(list2(:,i), flag_connected)
+           end if
+
 !..ips1 is the position in list1 which num is to be inserted
 ! nlisto is the last element in list1 which might have to be moved to
 ! accommodate an element from list2.
@@ -55,17 +88,44 @@
            else
                call search(nlisto,DetCurr,ips)
            end if
+
 ! Move all elements that between DetCurr and nlisto to their position in the
 ! completely merged list.  We know that there must be i elements still to be
 ! inserted...
            do j=nlisto,ips,-1
-              CurrentDets(:,j+i)=CurrentDets(:,j)
-              CurrentH(:,j+i)=CurrentH(:,j)
+               if (tTrialWavefunction) then
+                   if (test_flag(CurrentDets(:,j), flag_trial)) then
+                       ! If a trial state, shift the corresponding trial vector
+                       ! element. There are still ntrial elements to be inserted.
+                       occ_trial_amps(ntrial_old+ntrial) = occ_trial_amps(ntrial_old)
+                       ntrial_old = ntrial_old - 1
+                   else if (test_flag(CurrentDets(:,j), flag_connected)) then
+                       ! If a connected state, shift the corresponding connected vector
+                       ! element. There are still ncon elements to be inserted.
+                       occ_con_amps(ncon_old+ncon) = occ_con_amps(ncon_old)
+                       ncon_old = ncon_old - 1
+                   end if
+               end if
+
+               CurrentDets(:,j+i)=CurrentDets(:,j)
+               CurrentH(:,j+i)=CurrentH(:,j)
            enddo
+
            IF(tTruncInitiator) CALL FlagifDetisInitiator(list2(:,i))
 ! Insert DetCurr into its position in the completely merged list (i-1 elements
 ! below it still to be inserted).
            CurrentDets(:,ips+i-1)=list2(:,i)
+           
+           ! Merge in the new trial and connected vector amplitudes.
+           if (tTrialWavefunction) then
+               if (tTrialState) then
+                   occ_trial_amps(ntrial_old+ntrial) = trial_temp(ntrial)
+                   ntrial = ntrial - 1
+               else if (tConState) then
+                   occ_con_amps(ncon_old+ncon) = con_temp(ncon)
+                   ncon = ncon - 1
+               end if
+           end if
            
            ! We want to calculate the diagonal hamiltonian matrix element for
            ! the new particle to be merged.
@@ -89,6 +149,15 @@
            nlisto=ips-1
         enddo
         nlist1=nlist1+nlist2
+
+        if (tTrialWavefunction .and. nlist2 > 0) then
+            if (ntrial /= 0 .or. ncon /= 0) then
+                write(6,'(a7,i7,a5,i7)') "ntrial:", ntrial, "ncon:", ncon
+                call neci_flush(6)
+                call stop_all("MergeListswH","Incorrect number of trial or connected states merged.")
+            end if
+        end if
+
         return
     END SUBROUTINE MergeListswH
 
