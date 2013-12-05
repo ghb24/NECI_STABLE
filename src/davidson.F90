@@ -565,6 +565,8 @@ integer(TagIntType) :: ResidualTag
             call LogMemDealloc("davidson_direct_ci_end", DavidsonTag, ierr)
         end if
 
+        write(6,"(/,a10,f19.9)") "GROUND E =", davidson_eigenvalue
+
     end subroutine davidson_direct_ci_end
 
 end module davidson
