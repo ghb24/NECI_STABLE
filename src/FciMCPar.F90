@@ -1145,16 +1145,15 @@ MODULE FciMCParMod
                         CurrentH(2,gen_ind) = AvSignCurr
                         CurrentH(3,gen_ind) = IterRDMStartCurr
                     endif
+                    ! NB We never overwrite the deterministic states, so move the next spawning slot
+                    ! in CurrentDets to the next state.
+                    VecSlot=VecSlot+1
                 end if
             else
                 call walker_death (iter_data, DetCurr, &
                                    CurrentDets(:,j), HDiagCurr, SignCurr, &
                                    AvSignCurr, IterRDMStartCurr, VecSlot, j, WalkExcitLevel)
             end if
-
-            ! NB We never overwrite the deterministic states, so move the next spawning slot
-            ! in CurrentDets to the next state.
-            if(.not.tHashWalkerList) VecSlot=VecSlot+1
 
             if(tFill_RDM) then 
                 ! If tFill_RDM is true, this is an iteration where the diagonal 
@@ -2338,6 +2337,7 @@ MODULE FciMCParMod
                     CurrentH(2,VecSlot) = wAvSign
                     CurrentH(3,VecSlot) = IterRDMStartCurr
                 endif
+                VecSlot = VecSlot + 1
             endif
         else
             !All walkers died
