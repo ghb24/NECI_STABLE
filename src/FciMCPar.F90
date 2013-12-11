@@ -2354,6 +2354,7 @@ MODULE FciMCParMod
                     if (.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
                     CurrentH(2,VecSlot) = wAvSign
                     CurrentH(3,VecSlot) = IterRDMStartCurr
+                    VecSlot = VecSlot + 1
                 endif
             endif
             if(tTruncInitiator) then
