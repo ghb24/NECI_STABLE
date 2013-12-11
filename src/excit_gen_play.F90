@@ -1,6 +1,6 @@
 module excit_gens
 
-    use SystemData, only: nel
+    use SystemData, only: nel, nbasispairs
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use procedure_pointers, only: excit_gen_store_type, spawned_info_t
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -11,6 +11,10 @@ module excit_gens
     use constants
     use sort_mod
     implicit none
+    save
+
+    ! Data for the 4ind-integral biasing scheme
+    real(dp), allocatable :: epair_4ind_ints(:)
 
 contains
 
@@ -108,6 +112,49 @@ contains
                                spawned_info%tParity)
         spawned_info%ic = FindBitExcitLevel(ilutI, ilutJ, 2)
         spawned_info%pgen = hels(i) / hel_sum
+
+    end subroutine
+
+
+    !
+    !
+    ! ---------------------------------------------------------------------
+    ! Now we look at Ali's new biased excitation scheme
+    ! ---------------------------------------------------------------------
+    !
+    !
+    subroutine init_4ind_bias ()
+
+        character(*), parameter :: this_routine = 'init_4ind_bias'
+        integer :: i, j
+
+        ! Just a quick sanity check
+        if (allocated(epair_4ind_ints)) &
+            call stop_all(this_routine, "Electron pair data array already &
+                                        &allocated")
+
+        write(6,*) 'NBASIS', nbasispairs
+        do i = 1, nbasis
+        end do
+
+    end subroutine
+
+
+    subroutine gen_excit_4ind_weighted (nI, ilutI, nJ, ilutJ, exFlag, store, &
+                                        spawned_info)
+
+        ! TODO: description
+        !
+        ! n.b. (ij|kl) <= sqrt( (ij|ij) * (kl|kl) )
+        !      This provides quite a good description of the large elements
+
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in), target :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel)
+        type(excit_gen_store_type), intent(inout), target :: store
+        type(spawned_info_t), intent(inout), target :: spawned_info
+        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        character(*), parameter :: this_routine = 'gen_excit_hel_weighted'
 
     end subroutine
 
