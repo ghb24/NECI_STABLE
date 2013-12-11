@@ -14,6 +14,7 @@ module excit_gens
     use bit_reps, only: decode_bit_det
     use symdata, only: nSymLabels
     use procedure_pointers, only: get_umat_el
+    use UMatCache, only: gtid
     use GenRandSymExcitNUMod, only: PickElecPair, gen_rand_excit
     use constants
     use get_excit, only: make_double
@@ -277,7 +278,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:NifTot)
         integer :: orb
 
-        integer :: cc_index, label_index, orb_index, norb, i
+        integer :: cc_index, label_index, orb_index, norb, i, orbid, srcid(2)
 
         ! Our biasing arrays must consider all of the possible orbitals with
         ! the correct symmetry.
@@ -288,15 +289,18 @@ contains
         label_index = SymLabelCounts2(1, cc_index)
         norb = OrbClassCount(cc_index)
 
+
         ! Construct a list of orbitals to excite to, and 
         cum_sum = 0
+        srcid = gtID(src)
         do i = 1, norb
             
             orb = SymLabelList2(label_index + i - 1)
             if (IsNotOcc(ilut, orb) .and. orb /= orb_pair) then
+                orbid = gtID(orb)
                 cum_sum = cum_sum &
-                        + abs(get_umat_el(src(1), src(1), orb, orb)) &
-                        + abs(get_umat_el(src(2), src(2), orb, orb))
+                        + abs(get_umat_el(srcid(1), srcid(1), orbid, orbid)) &
+                        + abs(get_umat_el(srcid(2), srcid(2), orbid, orbid))
             end if
             cumulative_arr(i) = cum_sum
 
@@ -314,8 +318,9 @@ contains
 
         ! And return the relevant value.
         orb = SymLabelList2(label_index + orb_index - 1)
-        cpt = abs(get_umat_el(src(1), src(1), orb, orb)) + &
-              abs(get_umat_el(src(2), src(2), orb, orb))
+        orbid = gtID(orb)
+        cpt = abs(get_umat_el(srcid(1), srcid(1), orbid, orbid)) + &
+              abs(get_umat_el(srcid(2), srcid(2), orbid, orbid))
 
     end function
 
