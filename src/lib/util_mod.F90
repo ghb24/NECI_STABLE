@@ -370,45 +370,6 @@ contains
 
 !--- Searching ---
 
-    function binary_search_first_ge (arr, val) result(pos)
-
-        ! Find the first element in an array which is >= val, in an array
-        ! which has been sorted.
-        !
-        ! If there is no such element, the function returns -1.
-        ! TODO: Should this only happen in debug mode?
-
-        integer, intent(in) :: val
-        integer, intent(in) :: arr(:)
-        integer :: pos
-
-        integer :: hi, lo
-
-        ! The search range
-        lo = lbound(arr, 1)
-        hi = ubound(arr, 1)
-
-        ! Test if such an element exists
-        if (arr(hi) < val) then
-            pos = -1
-            return
-        endif
-
-        do while (hi /= lo)
-            pos = int(real(hi + lo) / 2)
-
-            if (arr(pos) >= val) then
-                hi = pos
-            else
-                lo = pos + 1
-            endif
-        enddo
-
-        ! Return the converged value.
-        pos = hi
-
-    end function
-
     ! NOTE: This can only be used for binary searching determinant bit
     !       strings now. We can template it if it wants to be more general
     !       in the future if needed.
