@@ -5253,9 +5253,9 @@ MODULe nElRDMMod
         icore(:)=0  !Number of frozen orbitals per symmetry
         iclos(:)=0  !icore(i) + Number of 'closed' orbitals per symmetry (iclos is the same as icore for us)
         iblkq=21402
-        iseccr=21102    !both required for molpro read in
+        iseccr=0    !both required for molpro read in
         istat1=1        !ground state
-        isyref=Sym_Psi  !spatial symmetry of the wavefunction
+        isyref=Sym_Psi+1  !spatial symmetry of the wavefunction
         ms2=LMS  !2 * M_s
         myname=60 !Arbitrary file names
         ifil=50

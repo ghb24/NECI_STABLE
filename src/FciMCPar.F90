@@ -4584,8 +4584,7 @@ MODULE FciMCParMod
         enddo
         WRITE(iout,"(A,I10)") "Symmetry of reference determinant from spin orbital symmetry info is: ",SymHF
         if(SymHF.ne.HFSym%Sym%S) then
-            !When is this allowed to happen?! Comment!!
-            call warning_neci(t_r,"Inconsistency in the symmetry arrays. Beware.")
+            call stop_all(t_r,"Inconsistency in the symmetry arrays.")
         endif
         IF(tKPntSym) THEN
             CALL DecomposeAbelianSym(HFSym%Sym%S,KPnt)
