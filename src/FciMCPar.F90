@@ -157,7 +157,7 @@ MODULE FciMCParMod
     use get_excit, only: make_double
     use sltcnd_mod, only: sltcnd_excit
     use excit_gens, only: gen_excit_hel_weighted, gen_excit_4ind_weighted, &
-                          init_4ind_bias
+                          init_4ind_bias, test_excit_gen_4ind
     use procedure_pointers
 
     implicit none
@@ -1095,6 +1095,17 @@ MODULE FciMCParMod
                                             ! doing an RDM calculation.
                     else
                         child = 0.0_dp
+                    endif
+
+                    IFDEBUG(FCIMCDebug, 3) then
+#ifdef __CMPLX
+                        write(iout,"(a,f12.5)",advance='no') &
+#else
+                        write(iout,"(a,f12.5)",advance='no') &
+#endif
+                            "SP:", child
+                        call write_det(6, nJ, .true.)
+                        call neci_flush(iout) 
                     endif
 
                     ! Children have been chosen to be spawned.

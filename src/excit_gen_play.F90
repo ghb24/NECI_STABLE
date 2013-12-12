@@ -4,18 +4,20 @@ module excit_gens
 
     use SystemData, only: nel, nbasis
     use SymExcit3, only: CountExcitations3, GenExcitations3
-    use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount
+    use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
+                               pDoubNew
     use sym_general_mod, only: ClassCountInd
-    use FciMCData, only: excit_gen_store_type, pSingles
+    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
     use dSFMT_interface, only: genrand_real2_dSFMT
     use Determinants, only: get_helement, write_det
-    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
-    use bit_rep_data, only: NIfTot
+    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt
+    use bit_rep_data, only: NIfTot, NIfD
     use bit_reps, only: decode_bit_det
     use symdata, only: nSymLabels
     use procedure_pointers, only: get_umat_el
     use UMatCache, only: gtid
-    use GenRandSymExcitNUMod, only: PickElecPair, gen_rand_excit
+    use GenRandSymExcitNUMod, only: PickElecPair, gen_rand_excit, &
+                                    init_excit_gen_store
     use constants
     use get_excit, only: make_double
     use sort_mod
@@ -181,6 +183,10 @@ contains
             call gen_rand_excit (nI, ilutI, nJ, ilutJ, 1, ic, ExcitMat, &
                                  tParity, pGen, HElGen, store)
 
+            ! Because we have forced the above to produce singles, its pgens
+            ! will be wrong...
+            pgen = pgen * pSingles
+
         else
 
             ! OK, we want to do a double excitation
@@ -211,12 +217,13 @@ contains
         call PickElecPair (nI, elecs(1), elecs(2), sym_product, ispn, sum_ml, &
                            -1)
         src = nI(elecs)
-        pgen = 2.0_dp / real(nel * (1 + nel), dp)
+        pgen = pDoubles * 2.0_dp / real(nel * (nel - 1) * nSymLabels, dp)
 
         ! Pick a a symmetry A. This selects symmetry B
         ! n.b. There is only one way to pick each case where symA == symB, and
         !      in all other cases we could have picked symB first --> double
         !      the generation probability.
+        ! TODO: Only select symmetries/pairs that are possible...
         syms(1) = int(nSymLabels * genrand_real2_dSFMT())
         syms(2) = ieor(syms(1), sym_product)
         if (syms(1) /= syms(2)) &
@@ -227,11 +234,18 @@ contains
             spn = 2 ! All electrons are beta
         else if (iSpn == 3) then
             spn = 1 ! All electrons are alpha
-        else if (genrand_real2_dSFMT() > 0.5) then
-            ! We need to make a choice
-            spn(1:2) = (/1, 2/)
+        else if (syms(1) /= syms(2)) then
+            pgen = pgen / 2.0_dp
+            if (genrand_real2_dSFMT() > 0.5) then
+                ! We need to make a choice
+                spn(1:2) = (/1, 2/)
+            else
+                spn(1:2) = (/2, 1/)
+            end if
         else
-            spn(1:2) = (/2, 1/)
+            ! Both spins being selected from the same symmetry
+            ! --> (/1, 2/) == (/2, 1/).
+            spn(1:2) = (/1, 2/)
         end if
 
         ! Select the two orbitals
@@ -256,12 +270,13 @@ contains
                  + (int_cpt(2) / cum_sum(1) * &
                     int_cpt(1) / (cum_sum(1) - int_cpt(2))))
         else
-            pgen = pgen * int_cpt(1) / cum_sum(1) * int_cpt(2) / cum_sum(2)
+            pgen = pgen * (int_cpt(1) / cum_sum(1)) * (int_cpt(2) / cum_sum(2))
         end if
 
         ! And generate the actual excitation.
         call make_double (nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), &
                           ex, par)
+        ! TODO: Generate the ilut here --> fast and easy!!!
 
     end subroutine
 
@@ -298,9 +313,10 @@ contains
             orb = SymLabelList2(label_index + i - 1)
             if (IsNotOcc(ilut, orb) .and. orb /= orb_pair) then
                 orbid = gtID(orb)
-                cum_sum = cum_sum &
-                        + abs(get_umat_el(srcid(1), srcid(1), orbid, orbid)) &
-                        + abs(get_umat_el(srcid(2), srcid(2), orbid, orbid))
+                cum_sum = cum_sum + 1.0
+                !cum_sum = cum_sum &
+                !        + abs(get_umat_el(srcid(1), srcid(1), orbid, orbid)) &
+                !        + abs(get_umat_el(srcid(2), srcid(2), orbid, orbid))
             end if
             cumulative_arr(i) = cum_sum
 
@@ -314,14 +330,140 @@ contains
 
         ! Binary search within this list to choose a value.
         r = genrand_real2_dSFMT() * cum_sum
-        orb_index = binary_search_first_ge(cumulative_arr, r)
+        orb_index = binary_search_first_ge(cumulative_arr(1:norb), r)
 
         ! And return the relevant value.
         orb = SymLabelList2(label_index + orb_index - 1)
         orbid = gtID(orb)
-        cpt = abs(get_umat_el(srcid(1), srcid(1), orbid, orbid)) + &
-              abs(get_umat_el(srcid(2), srcid(2), orbid, orbid))
+        cpt = 1.0!abs(get_umat_el(srcid(1), srcid(1), orbid, orbid)) + &
+              !abs(get_umat_el(srcid(2), srcid(2), orbid, orbid))
 
     end function
+
+
+    subroutine test_excit_gen_4ind (ilut, iterations)
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: iterations
+        character(*), parameter :: this_routine = 'test_excit_gen_4ind'
+
+        integer :: src_det(nel), det(nel), nsing, ndoub, nexcit, ndet, ex(2,2)
+        integer :: flag, ngen, pos, iunit, i, ic
+        type(excit_gen_store_type) :: store
+        integer(n_int) :: tgt_ilut(0:NifTot)
+        integer(n_int), allocatable :: det_list(:,:)
+        real(dp), allocatable :: contrib_list(:)
+        logical, allocatable :: generated_list(:)
+        logical :: found_all, par
+        real(dp) :: contrib, pgen
+        HElement_t :: helgen
+
+        ! Decode the determiant
+        call decode_bit_det (src_det, ilut)
+
+        ! Initialise
+        call init_excit_gen_store (store)
+
+        ! How many connected determinants are we expecting?
+        call CountExcitations3 (src_det, 3, nsing, ndoub)
+        nexcit = nsing + ndoub
+        allocate(det_list(0:NIfTot, nexcit))
+
+        ! Loop through all of the possible excitations
+        ndet = 0
+        found_all = .false.
+        ex = 0
+        flag = 3
+        write(6,'("*****************************************")')
+        write(6,'("Enumerating excitations")')
+        write(6,'("Starting from: ")', advance='no')
+        call write_det (6, src_det, .true.)
+        write(6,*) 'Expecting ', nexcit, "excitations"
+        call GenExcitations3 (src_det, ilut, det, flag, ex, par, found_all, &
+                              .false.)
+        do while (.not. found_all)
+            ndet = ndet + 1
+            call EncodeBitDet (det, det_list(:,ndet))
+
+            call GenExcitations3 (src_det, ilut, det, flag, ex, par, &
+                                  found_all, .false.)
+        end do
+        if (ndet /= nexcit) &
+            call stop_all(this_routine,"Incorrect number of excitations found")
+
+        ! Sort the dets, so they are easy to find by binary searching
+        call sort(det_list, ilut_lt, ilut_gt)
+
+        ! Lists to keep track of things
+        allocate(generated_list(nexcit))
+        allocate(contrib_list(nexcit))
+        generated_list = .false.
+        contrib_list = 0
+
+        ! Repeated generation, and summing-in loop
+        ngen = 0
+        contrib = 0
+        do i = 1, iterations
+            if (mod(i, 10000) == 0) &
+                write(6,*) i, '/', iterations, ' - ', contrib / real(ndet*i)
+
+            call gen_excit_4ind_weighted (src_det, ilut, det, tgt_ilut, 3, &
+                                          ic, ex, par, pgen, helgen, store)
+            if (det(1) == 0) cycle
+
+            call EncodeBitDet (det, tgt_ilut)
+            pos = binary_search(det_list, tgt_ilut, NIfD+1)
+            if (pos < 0) then
+                write(6,*) det
+                write(6,'(b64)') tgt_ilut(0)
+                write(6,*) 'FAILED DET', tgt_ilut
+                call writebitdet(6, tgt_ilut, .true.)
+                call stop_all(this_routine, 'Unexpected determinant generated')
+            else
+                generated_list(pos) = .true.
+
+                ! Count this det, and sum in its contribution.
+                ngen = ngen + 1
+                contrib = contrib + 1.0_dp / pgen
+                contrib_list(pos) = contrib_list(pos) + 1.0_dp / pgen
+            end if
+        end do
+
+        ! How many of the iterations generated a good det?
+        write(6,*) ngen, " dets generated in ", iterations, " iterations."
+        write(6,*) 100_dp * (iterations - ngen) / real(iterations), &
+                   '% abortion rate'
+        ! Contribution averages
+        write(6, '("Averaged contribution: ", f15.10)') &
+                contrib / real(ndet * iterations)
+
+        ! Output the determinant specific contributions
+        iunit = get_free_unit()
+        open(iunit, file="contribs_4ind", status='unknown')
+        do i = 1, ndet
+            call writebitdet(iunit, det_list(:,i), .false.)
+            write(iunit, *) contrib_list(i) / real(iterations, dp)
+        end do
+        close(iunit)
+
+        ! Check that all of the determinants were generated!!!
+        if (.not. all(generated_list)) then
+            write(6,*) count(.not.generated_list), '/', size(generated_list), &
+                       'not generated'
+            do i = 1, ndet
+                if (.not. generated_list(i)) &
+                    call writebitdet(6, det_list(:,i), .true.)
+            end do
+            call stop_all(this_routine, "Determinant not generated")
+        end if
+        if (any(abs(contrib_list / iterations - 1.0) > 0.01)) &
+            call stop_all(this_routine, "Insufficiently uniform generation")
+
+        ! Clean up
+        deallocate(det_list)
+        deallocate(contrib_list)
+        deallocate(generated_list)
+
+    end subroutine
 
 end module
