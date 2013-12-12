@@ -3868,7 +3868,7 @@ MODULE nElRDMMod
                                         ! matrix will not be hermitian, but we want to print a hermitian version.
                                         ! Average the values here.
                                         write(aaaa_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                            ( ((TEMP_All_aaaa_RDM(Ind1_aa,Ind2_aa) + All_aaaa_RDM(Ind2_aa,Ind1_aa))/2.0_dp) &
+                                            ( ((TEMP_All_aaaa_RDM(Ind1_aa,Ind2_aa) + TEMP_All_aaaa_RDM(Ind2_aa,Ind1_aa))/2.0_dp) &
                                                                 * Norm_2RDM ) / Divide_Factor
                                     endif
                                 elseif(.not.tNormalise) then
@@ -3910,7 +3910,7 @@ MODULE nElRDMMod
                                             ( TEMP_All_abba_RDM(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
                                     else
                                         write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                            ( ((TEMP_All_abba_RDM(Ind1_aa,Ind2_aa) + All_abba_RDM(Ind2_aa,Ind1_aa))/2.0_dp) &
+                                            ( ((TEMP_All_abba_RDM(Ind1_aa,Ind2_aa) + TEMP_All_abba_RDM(Ind2_aa,Ind1_aa))/2.0_dp) &
                                                                     * Norm_2RDM ) / Divide_Factor
                                     endif
                                 elseif(.not.tNormalise) then
@@ -3952,7 +3952,7 @@ MODULE nElRDMMod
                                         ( TEMP_All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor
                                 else
                                     write(abab_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                        ( ((TEMP_All_abab_RDM(Ind1_ab,Ind2_ab) + All_abab_RDM(Ind2_ab,Ind1_ab))/2.0_dp) &
+                                        ( ((TEMP_All_abab_RDM(Ind1_ab,Ind2_ab) + TEMP_All_abab_RDM(Ind2_ab,Ind1_ab))/2.0_dp) &
                                                                 * Norm_2RDM ) / Divide_Factor
                                 endif
                             elseif(.not.tNormalise) then
