@@ -3,16 +3,16 @@
 MODULE PopsfileMod
 
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin, &
-                          tMomInv, tSemiStochastic, tTrialWavefunction
+                          tMomInv 
     use CalcData, only: tTruncInitiator, DiagSft, tWalkContGrow, nEquilSteps, &
                         ScaleWalkers, tReadPopsRestart, tRegenDiagHEls, &
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
                         iWeightPopRead, iPopsFileNoRead, tPopsMapping, Tau, &
                         InitiatorWalkNo, MemoryFacPart, MemoryFacAnnihil, &
-                        MemoryFacSpawn
+                        MemoryFacSpawn, tSemiStochastic, tTrialWavefunction
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt
-    use hash , only : DetermineDetNode
+    use hash , only : DetermineDetNode, FindWalkerHash
     use Determinants, only : get_helement,write_det
     use hphf_integrals, only: hphf_diag_helement
     use MI_integrals, only: MI_diag_helement
@@ -22,7 +22,6 @@ MODULE PopsfileMod
     use bit_reps
     use constants
     use Parallel_neci
-    use AnnihilationMod, only: FindWalkerHash
     use LoggingData, only: iWritePopsEvery, tPopsFile, iPopsPartEvery, tBinPops, &
                        tPrintPopsDefault, tIncrementPops, tPrintInitiators, &
                        tSplitPops, tZeroProjE, tRDMonFly, tExplicitAllRDM, &
@@ -258,7 +257,7 @@ r_loop: do while(.not.tReadAllPops)
                 ! Transfer the walkers.
                 call MPIScatterV (BatchRead(:,1:MaxSendIndex), sendcounts, &
                                   disps, &
-                                  Dets(:,CurrWalkers+1:(recvcount/NIfTot+1)), &
+                                  Dets(:,CurrWalkers+1:CurrWalkers+1+(recvcount/(NIfTot+1))), &
                                   recvcount, err, Roots)
                 if (err /= 0) &
                     call stop_all (this_routine, "MPI scatterV error")
@@ -323,7 +322,7 @@ r_loop: do while(.not.tReadAllPops)
         if(tHashWalkerList) then
             do i = 1, CurrWalkers
                 call decode_bit_det (nJ, dets(:,i))
-                DetHash=FindWalkerHash(nJ)
+                DetHash=FindWalkerHash(nJ, nWalkerHashes)
                 Temp => HashIndex(DetHash)
                 ! If the first element in the list has not been used.
                 if (Temp%Ind == 0) then
@@ -333,6 +332,7 @@ r_loop: do while(.not.tReadAllPops)
                         Temp => Temp%Next
                     end do
                     allocate(Temp%Next)
+                    nullify(Temp%Next%Next)
                     Temp%Next%Ind = i
                 end if
             end do
@@ -990,8 +990,8 @@ outer_map:      do i = 0, MappingNIfD
 !This routine will write out to a popsfile. It transfers all walkers to the 
 ! head node sequentially, so does not want to be called too often
     SUBROUTINE WriteToPopsfileParOneArr(Dets,nDets)
-        use CalcData, only: iPopsFileNoWrite
         use constants, only: size_n_int,n_int
+        use CalcData, only: iPopsFileNoWrite, InitiatorWalkNo
         use MemoryManager, only: TagIntType
         integer(int64),intent(in) :: nDets !The number of occupied entries in Dets
         integer(kind=n_int),intent(in) :: Dets(0:nIfTot,1:nDets)
@@ -1217,6 +1217,7 @@ outer_map:      do i = 0, MappingNIfD
                 iunit = get_free_unit()
                 open(iunit, file=popsfile, status='replace')
                 call write_popsfile_header (iunit, write_count_sum)
+                close(iunit)
             end if
         end if
 

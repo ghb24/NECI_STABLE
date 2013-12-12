@@ -17,7 +17,7 @@ module sparse_arrays
     use bit_reps, only: decode_bit_det
     use Determinants, only: get_helement
     use FciMCData, only: determ_space_size, determ_proc_sizes, determ_proc_indices, &
-                         SpawnedParts, CurrentH, Hii
+                         SpawnedParts, CurrentH, Hii, core_ham_diag
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier, MPIAllGatherV
@@ -37,6 +37,13 @@ module sparse_arrays
         integer :: num_elements
     end type sparse_matrix_int
 
+    type trial_hashtable
+        ! All the states with this hash value.
+        integer(n_int), allocatable, dimension(:,:) :: states
+        ! The number of clashes for ths hash value.
+        integer :: nclash
+    end type trial_hashtable
+
     type(sparse_matrix_real), allocatable, dimension(:) :: sparse_ham
     integer(TagIntType), allocatable, dimension(:,:) :: SparseHamilTags
 
@@ -51,6 +58,9 @@ module sparse_arrays
 
     ! Stores the parities for all connected pairs of states in the core space.
     type(sparse_matrix_int), allocatable, dimension(:) :: core_connections
+
+    type(trial_hashtable), allocatable, dimension(:) :: trial_ht
+    type(trial_hashtable), allocatable, dimension(:) :: con_ht
 
 contains
 
@@ -185,6 +195,7 @@ contains
         allocate(SparseCoreHamilTags(2, determ_proc_sizes(iProcIndex)))
         allocate(hamiltonian_row(determ_space_size), stat=ierr)
         call LogMemAlloc('hamiltonian_row', int(determ_space_size,sizeof_int), 8, t_r, HRTag, ierr)
+        allocate(core_ham_diag(determ_proc_sizes(iProcIndex)), stat=ierr)
         allocate(temp_store(0:NIfTot, determ_space_size), stat=ierr)
         call LogMemAlloc('temp_store', maxval(determ_proc_sizes)*(NIfTot+1), 8, t_r, &
                          TempStoreTag, ierr)
@@ -213,6 +224,7 @@ contains
                     else
                         hamiltonian_row(j) = get_helement(nI, nJ, 0) - Hii
                     end if
+                    core_ham_diag(i) = hamiltonian_row(j)
                     ! We calculate and store CurrentH at this point for ease.
                     if ((.not. tRegenDiagHEls) .and. (.not. tReadPops)) CurrentH(1,i) = hamiltonian_row(j)
                     ! Always include the diagonal elements.

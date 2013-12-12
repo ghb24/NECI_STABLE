@@ -1,7 +1,7 @@
 #include "macros.h"
 
 ! This module contains the routine which is used when NECI is run with the option
-! determ-proj. This takes the HF state as an initial state and applied the
+! determ-proj. This takes the HF state as an initial state and applies the
 ! deterministic part of the full projection operator *only*. So, it is different
 ! to a normal FCIQMC run where the rest of the space is projected out stochastically.
 ! Only the iteration number and energy is output.
@@ -12,7 +12,7 @@ module determ_proj
 
     use bit_rep_data, only: flag_deterministic, NIfD
     use bit_reps, only: test_flag
-    use CalcData, only: NMCyc
+    use CalcData, only: NMCyc, tSemiStochastic
     use constants
     use DetBitOps, only: DetBitLT
     use FciMCData, only: HFDet, ilutHF, iHFProc, CurrentDets, core_hamiltonian, &
@@ -20,7 +20,6 @@ module determ_proj
                          full_determ_vector, determ_proc_indices, TotWalkers
     use Parallel_neci, only: iProcIndex, MPIAllGatherV, MPISum
     use semi_stoch_procs, only: deterministic_projection
-    use SystemData, only: tSemiStochastic
 
     implicit none
 

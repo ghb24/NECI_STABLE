@@ -15,7 +15,7 @@ module csf
                          DetBitEq
     use CalcData, only: InitiatorWalkNo
     use OneEInts, only: GetTMatEl
-    use Integrals_neci, only: GetUMatEl
+    use procedure_pointers, only: get_umat_el
     use UMatCache, only: gtID
     use csf_data
     use timing_neci
@@ -397,15 +397,15 @@ contains
             hel = (0)
             do i=1,nclosed-1,2
                 ! Within an orbital pair
-                hel = hel + GetUmatEl(id(i), id(i), id(i), id(i))
+                hel = hel + get_umat_el(id(i), id(i), id(i), id(i))
 
                 ! Between closed electron pairs
                 if (i < nclosed-2) then
                     do j=i+2,nclosed-1,2
                         hel = hel + (4) * &
-                                GetUmatEl(id(i), id(j), id(i), id(j))
+                                get_umat_el(id(i), id(j), id(i), id(j))
                         hel = hel - (2) * &
-                                GetUMatEl(id(i), id(j), id(j), id(i))
+                                get_umat_el(id(i), id(j), id(j), id(i))
                     enddo
                 endif
 
@@ -414,8 +414,8 @@ contains
                     idX = max(id(i), id(j))
                     idN = min(id(i), id(j))
                     hel = hel + (2) * &
-                                getUMatEl(idN, idX,idN,idX)
-                    hel = hel - GetUmatEl(idN, idX,idX,idN)
+                                get_umat_el(idN, idX,idN,idX)
+                    hel = hel - get_umat_el(idN, idX,idX,idN)
                 enddo
             enddo
             hel_ret = hel_ret + (diag_coeff)*hel
@@ -428,7 +428,7 @@ contains
                 idX = max(id(i), id(j))
                 idN = min(id(i), id(j))
 
-                hel2 = GetUMatEl(idN, idX, idX, idN)
+                hel2 = get_umat_el(idN, idX, idX, idN)
                 
                 do det=1,ndets
                     if (coeffs1(det) /= 0 .and. coeffs2(det) /= 0) then
@@ -443,7 +443,7 @@ contains
 
                 if (diag_coeff /= 0) then
                     hel = hel + (diag_coeff) * &
-                                GetUMatEl(idN, idX, idN, idX)
+                                get_umat_el(idN, idX, idN, idX)
                 endif
             enddo
         enddo
@@ -623,8 +623,8 @@ contains
 
         ! Obtain the two UMAT components which may get used in the sum
         id = gtID(ex)
-        umatel(1) = GetUMATEl (id(1,1), id(1,2), id(2,1), id(2,2))
-        umatel(2) = GetUMATEL (id(1,1), id(1,2), id(2,2), id(2,1))
+        umatel(1) = get_umat_el (id(1,1), id(1,2), id(2,1), id(2,2))
+        umatel(2) = get_umat_el (id(1,1), id(1,2), id(2,2), id(2,1))
 
         ! Loop through all of the terms where all but the fastest changing
         ! bits of each component determinant are the same. Slightly nasty
@@ -1493,25 +1493,25 @@ contains
         ncsf = size(yamas(:,1))-1
         call csf_get_yamas (nopen, S, yamas(1:,:), ncsf)
 
-        if (tForceChange .and. ncsf > 1) then
-            call get_csf_yama (nI, yamas(0,:), nopen)
-        endif
+        if (ncsf == 1) then
+            call csf_apply_yama (nI, yamas(1, :))
+        else
+            if (tForceChange .and. ncsf > 1) then
+                call get_csf_yama (nI, yamas(0,:), nopen)
+            endif
 
-        ! Pick and apply a random one
-        do while (.true.)
-            if (ncsf == 1) then
-                num = 1
-            else
+            ! Pick and apply a random one
+            do while (.true.)
                 r = genrand_real2_dSFMT()
                 num = int(r*ncsf) + 1
-            end if
-            if ((.not.tForceChange) .or. (ncsf<2) .or. &
-                any(yamas(num,:) /= yamas(0,:))) then
+                if ((.not.tForceChange) .or. (ncsf<2) .or. &
+                    any(yamas(num,:) /= yamas(0,:))) then
 
-                call csf_apply_yama (nI, yamas(num, :))
-                exit
-            endif
-        enddo
+                    call csf_apply_yama (nI, yamas(num, :))
+                    exit
+                endif
+            enddo
+        end if
     end subroutine
 
     subroutine csf_apply_yama (NI, csf)

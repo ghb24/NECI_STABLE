@@ -6,6 +6,7 @@ MODULE FciMCData
       use MemoryManager, only: TagIntType
       use global_utilities         
       use Parallel_neci, only: MPIArg
+      use ras_data
 
       implicit none
       save
@@ -103,6 +104,7 @@ MODULE FciMCData
       real(dp), dimension(lenof_sign) :: TotParts, TotPartsOld
       real(dp), dimension(inum_runs) :: norm_psi_squared
       real(dp), dimension(inum_runs) :: norm_semistoch_squared
+      real(dp), dimension(inum_runs) :: all_norm_psi_squared
 #ifdef __CMPLX
       real(dp) :: norm_psi
       ! The norm of the wavefunction in just the semi-stochastic space.
@@ -117,7 +119,7 @@ MODULE FciMCData
       real(dp) :: AccumRDMNorm, AccumRDMNorm_Inst, AllAccumRDMNorm
       
       !Hash tables to point to the correct determinants in CurrentDets
-      type(ll_node) , pointer :: HashIndex(:) 
+      type(ll_node), pointer :: HashIndex(:) 
       integer :: nWalkerHashes    ! The length of hash table.
       real(dp) :: HashLengthFrac
 
@@ -263,7 +265,7 @@ MODULE FciMCData
  !This is set up as the initial ValidSpawnedList elements, so that it does not need to be reevaluated each time.
       INTEGER , ALLOCATABLE :: InitialSpawnedSlots(:) 
 
-      INTEGER :: WalkersDiffProc
+      integer :: WalkersDiffProc, PartsDiffProc
 
       !This is whether to generate matrix elements as generating excitations for the HPHF/MI/ISK options
       LOGICAL , PARAMETER :: tGenMatHEl=.true.      
@@ -313,6 +315,7 @@ MODULE FciMCData
 
       ! Store data about all processors for calculating load balancing
       integer(int64) :: MaxWalkersProc, MinWalkersProc
+      real(dp) :: MaxPartsProc, MinPartsProc
 
       TYPE(BasisFN) :: HFSym
       integer :: iMaxBloom !If tMaxBloom is on, this stores the largest bloom to date.
@@ -325,6 +328,7 @@ MODULE FciMCData
       integer :: nproje_sum
       integer, allocatable :: proje_ref_dets(:,:), proje_ref_det_init(:)
       real(dp), allocatable :: proje_ref_coeffs(:)
+      real(dp), allocatable :: All_proje_ref_coeffs(:)
       integer(TagIntType) :: tag_ref_iluts = 0, tag_ref_dets = 0, tag_ref_coeffs = 0
       real(dp) :: proje_denominator_cyc(lenof_sign)
       real(dp) :: proje_denominator_sum(lenof_sign)
@@ -352,21 +356,6 @@ MODULE FciMCData
       integer :: max_calc_ex_level
       type(fcimc_iter_data), target :: iter_data_fciqmc
       type(fcimc_iter_data), target :: iter_data_ccmc
-
-
-      ! Here are the FUNCTION POINTERS for use with PerformFciMCycPar
-      ! Use with extreme care, and keep your interfaces up to date or bad
-      ! things (namely segfaults) will happen
-
-      type(c_ptr) :: ptr_excit_generator
-      type(c_ptr) :: ptr_attempt_create
-      type(c_ptr) :: ptr_get_spawn_helement
-      type(c_ptr) :: ptr_new_child_stats
-      type(c_ptr) :: ptr_encode_child
-      type(c_ptr) :: ptr_attempt_die
-      type(c_ptr) :: ptr_iter_data
-      type(c_ptr) :: ptr_extract_bit_rep_avsign
-      type(c_ptr) :: ptr_fill_rdm_diag_currdet
 
       integer :: yama_global (4)
 
@@ -404,9 +393,11 @@ MODULE FciMCData
       ! The core Hamiltonian (with the Hartree-Fock energy removed from the diagonal) is stored in this array for
       ! the whole simulation.
       real(dp), allocatable, dimension(:,:) :: core_hamiltonian 
+
+      ! The diagonal elements of the core-space Hamiltonian (with Hii taken away).
+      real(dp), allocatable, dimension(:) :: core_ham_diag
             
-      ! This stores the entire core space from all processes, on each process. However, this is only allocated in specific
-      ! situations (when calculating RDMs and when using the tCoreHash option) and not generally.
+      ! This stores the entire core space from all processes, on each process.
       integer(n_int), allocatable, dimension(:,:) :: core_space
 
       ! This stores all the amplitudes of the walkers in the deterministic space. This vector has the size of the part
@@ -432,20 +423,26 @@ MODULE FciMCData
 
       ! For using the hashing trick to search the core space.
       type(ll_node), pointer :: CoreHashIndex(:)
-      logical :: tCoreHash
+
+      ! If true (as is the case by default) then semi-stochastic calculations will start from the ground state
+      ! of the core space.
+      logical :: tStartCoreGroundState
 
       ! Trial wavefunction data.
 
       ! This list stores the iluts from which the trial wavefunction is formed, but only those that reside on this processor.
+      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
       integer(n_int), allocatable, dimension(:,:) :: trial_space
       ! The number of states in the trial vector space.
       integer :: trial_space_size = 0
       ! This list stores the iluts from which the trial wavefunction is formed, but only those that reside on this processor.
+      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
       integer(n_int), allocatable, dimension(:,:) :: con_space
       ! The number of states in the space connected to (but not including) the trial vector space.
       integer :: con_space_size = 0
 
       ! This vector stores the trial wavefunction itself.
+      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
       real(dp), allocatable, dimension(:) :: trial_wf
       ! This vector stores the values of trial_wf for the occupied trial state in CurrentDets, in the same order as these
       ! states in CurrentDets. If not all trial states are occupied then the final elements store junk and aren't used.
@@ -464,6 +461,7 @@ MODULE FciMCData
       ! \sum_j H_{ij} \psi^T_j,
       ! where \psi is the trial wavefunction. These elements are stored only in the space of states which are connected
       ! to *but not included in* the trial vector space.
+      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
       real(dp), allocatable, dimension(:) :: con_space_vector
       ! This vector stores the values of con_space_vector for the occupied connected state in CurrentDets, in the same order as
       ! these states in CurrentDets. If not all connected states are occupied then the final elements store junk and aren't used.
@@ -486,6 +484,13 @@ MODULE FciMCData
       ! These indices hold the indices to be searched from next time.
       integer :: min_trial_ind, min_conn_ind
 
+      ! If true (which it is by default) then the trial and connected space states are stored in a trial_ht and
+      ! con_ht and are accessed by a hash lookup.
+      logical :: tTrialHash
+      ! If true, include the walkers that get cancelled by the initiator criterion in the trial energy estimate.
+      ! tTrialHash needs to be used for this option.
+      logical :: tIncCancelledInitEnergy
+
       ! Semi-stochastic tags:
       integer(TagIntType) :: CoreTag, FDetermTag, FDetermAvTag, PDetermTag, IDetermTag, CoreSpaceTag
       logical :: tInDetermSpace
@@ -493,5 +498,12 @@ MODULE FciMCData
       ! Trial wavefunction tags:
       integer(TagIntType) :: TrialTag, ConTag, ConVecTag, TrialWFTag, TempTag, CurrentTrialTag
       integer(TagIntType) :: TrialTempTag, ConTempTag, OccTrialTag, OccConTag
+
+      ! Data for performing the direct-ci Davidson algorithm.
+      type(ras_parameters) :: davidson_ras
+      type(ras_class_data), allocatable, dimension(:) :: davidson_classes
+      integer(sp), allocatable, dimension(:,:) :: davidson_strings
+      integer(n_int), allocatable, dimension(:,:) :: davidson_iluts
+      type(direct_ci_excit), allocatable, dimension(:) :: davidson_excits
 
 END MODULE FciMCData

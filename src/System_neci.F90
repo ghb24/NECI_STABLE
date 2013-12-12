@@ -2,12 +2,12 @@
 MODULE System
 
     use SystemData
-    use CalcData, only: tRotoAnnihil, TAU, tTruncInitiator, InitiatorWalkNo, &
+    use CalcData, only: TAU, tTruncInitiator, InitiatorWalkNo, &
                         occCASorbs, virtCASorbs
-    use semi_stoch_gen, only: core_ras
+
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList
-    use constants, only: dp,int64, Pi, third
+    use constants, only: sp,dp,int64, Pi, third
     use iso_c_hack
     use util_mod, only: error_function, error_function_c
 
@@ -30,6 +30,7 @@ MODULE System
 !     SYSTEM defaults - leave these as the default defaults
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
+      tComplexOrbs_RealInts = .false.
       tReadFreeFormat=.false.
       tMolproMimic=.false.
       tAntisym_MI=.false.
@@ -81,40 +82,6 @@ MODULE System
       TCSFOLD = .false.
       csf_trunc_level = 0
       tTruncateCSF = .false.
-      tSemiStochastic = .false.
-      tCSFCore = .false.
-      tDeterminantCore = .false.
-      tDoublesCore = .false.
-      tCASCore = .false.
-      tRASCore = .false.
-      tOptimisedCore = .false.
-      tPopsCore = .false.
-      tReadCore = .false.
-      tLowECore = .false.
-      tSparseCoreHamil = .true.
-      num_det_generation_loops = 1
-      n_core_pops = 0
-      low_e_core_excit = 0
-      low_e_core_num_keep = 0
-      tLowECoreAllDoubles = .false.
-      tLimitDetermSpace = .false.
-      tLimitTrialSpace = .false.
-      max_determ_size = 0
-      max_trial_size = 0
-      tDetermAmplitudeCutoff = .false.
-      tTrialWavefunction = .false.
-      tDoublesTrial = .false.
-      tCASTrial = .false.
-      tOptimisedTrial =.false.
-      tPopsTrial = .false.
-      tReadTrial = .false.
-      tLowETrial = .false.
-      num_trial_generation_loops = 1
-      n_trial_pops = 0
-      low_e_trial_excit = 0
-      low_e_trial_num_keep = 0
-      tLowETrialAllDoubles = .false.
-      tTrialAmplitudeCutoff = .false.
       STOT=0
       TPARITY = .false.
       IParity(:)=0
@@ -221,8 +188,8 @@ MODULE System
       IMPLICIT NONE
       LOGICAL eof
       CHARACTER (LEN=100) w
-      CHARACTER (LEN=100) input_string
       INTEGER I,Odd_EvenHPHF,Odd_EvenMI
+      integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
       
       ! The system block is specified with at least one keyword on the same
       ! line, giving the system type being used.
@@ -367,125 +334,6 @@ system: do
                STOT=0
             endif
             TCSFOLD = .true.
-        case("SEMI-STOCHASTIC")
-            tSemiStochastic = .true.
-        case("DETERMINANT-CORE")
-            tDeterminantCore = .true.
-        case("CSF-CORE")
-            if(item.lt.nitems) then
-               call geti(STOT)
-            else
-               STOT=0
-            endif
-            tCSFCore = .true.
-            tCSF = .true.
-            LMS = STOT
-        case("DOUBLES-CORE")
-            tDoublesCore = .true.
-        case("CAS-CORE")
-            tCASCore = .true.
-            tSpn = .true.
-            call geti(OccDetermCASOrbs)  !Number of electrons in CAS 
-            call geti(VirtDetermCASOrbs)  !Number of virtual spin-orbitals in CAS
-        case("RAS-CORE")
-            tRASCore = .true.
-            call geti(core_ras%size_1)  ! Number of spatial orbitals in RAS1.
-            call geti(core_ras%size_2)  ! Number of spatial orbitals in RAS2.
-            call geti(core_ras%size_3)  ! Number of spatial orbitals in RAS3.
-            call geti(core_ras%min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs. 
-            call geti(core_ras%max_3)  ! Max number of electrons (alpha and beta) in RAS3 orbs.
-        case("OPTIMISED-CORE")
-            tOptimisedCore = .true.
-        case("OPTIMISED-CORE-CUTOFF-AMP")
-            tDetermAmplitudeCutoff = .true.
-            num_det_generation_loops = nitems - 1
-            allocate(determ_space_cutoff_amp(num_det_generation_loops))
-            do I = 1, num_det_generation_loops
-                call getf(determ_space_cutoff_amp(I))
-            end do
-        case("OPTIMISED-CORE-CUTOFF-NUM")
-            tDetermAmplitudeCutoff = .false.
-            num_det_generation_loops = nitems - 1
-            allocate(determ_space_cutoff_num(num_det_generation_loops))
-            do I = 1, num_det_generation_loops
-                call geti(determ_space_cutoff_num(I))
-            end do
-        case("POPS-CORE")
-            tPopsCore = .true.
-            call geti(n_core_pops)
-        case("READ-CORE")
-            tReadCore = .true.
-        case("FULL-CORE-HAMIL")
-            tSparseCoreHamil = .false.
-        case("LOW-ENERGY-CORE")
-! Input values: The first integer is the maximum excitation level to go up to.
-!               The second integer is the maximum number of states to keep for a subsequent iteration.
-!               If desired, you can put "All-Doubles" after these two integers to keep all singles and doubles.
-!               If max-core-size is specified then this value will be used to select the number of states kept
-!               after the *final* iteration.
-            tLowECore = .true.
-            call geti(low_e_core_excit)
-            call geti(low_e_core_num_keep)
-            if (nitems > 3) then
-                call geta(input_string)
-                if (trim(input_string) == "All-Doubles") then
-                    tLowECoreAllDoubles = .true.
-                else
-                    call stop_all("SysReadInput","Input string is not recognised.")
-                end if
-            end if
-        case("MAX-CORE-SIZE")
-            tLimitDetermSpace = .true.
-            call geti(max_determ_size)
-        case("MAX-TRIAL-SIZE")
-            tLimitTrialSpace = .true.
-            call geti(max_trial_size)
-        case("TRIAL-WAVEFUNCTION")
-            tTrialWavefunction = .true.
-        case("DOUBLES-TRIAL")
-            tDoublesTrial = .true.
-        case("CAS-TRIAL")
-            tCASTrial = .true.
-            tSpn = .true.
-            call geti(OccTrialCASOrbs)  !Number of electrons in CAS 
-            call geti(VirtTrialCASOrbs)  !Number of virtual spin-orbitals in CAS
-        case("OPTIMISED-TRIAL")
-            tOptimisedTrial = .true.
-        case("OPTIMISED-TRIAL-CUTOFF-AMP")
-            tTrialAmplitudeCutoff = .true.
-            num_trial_generation_loops = nitems - 1
-            allocate(trial_space_cutoff_amp(num_trial_generation_loops))
-            do I = 1, num_trial_generation_loops
-                call getf(trial_space_cutoff_amp(I))
-            end do
-        case("OPTIMISED-TRIAL-CUTOFF-NUM")
-            tTrialAmplitudeCutoff = .false.
-            num_trial_generation_loops = nitems - 1
-            allocate(trial_space_cutoff_num(num_trial_generation_loops))
-            do I = 1, num_trial_generation_loops
-                call geti(trial_space_cutoff_num(I))
-            end do
-        case("POPS-TRIAL")
-            tPopsTrial = .true.
-            call geti(n_trial_pops)
-        case("READ-TRIAL")
-            tReadTrial = .true.
-        case("LOW-ENERGY-TRIAL")
-! Input values: The first integer is the maximum excitation level to go up to.
-!               The second integer is the maximum number of states to keep for a subsequent iteration.
-!               If desired, you can put "All-Doubles" after these two integers to keep all singles and doubles.
-!               If max-trial-size is specified then this value will be used to select the number of states kept after the *final* iteration.
-            tLowETrial = .true.
-            call geti(low_e_trial_excit)
-            call geti(low_e_trial_num_keep)
-            if (nitems > 3) then
-                call geta(input_string)
-                if (trim(input_string) == "All-Doubles") then
-                    tLowETrialAllDoubles = .true.
-                else
-                    call stop_all("SysReadInput","Input string is not recognised.")
-                end if
-            end if
         case("SYMIGNOREENERGIES")
             tSymIgnoreEnergies=.true.
         case("NOSYMMETRY")
@@ -1038,6 +886,10 @@ system: do
             !Mimic the run-time behaviour of molpros NECI implementation
             tMolpro=.true.
             tMolproMimic=.true.
+        case("COMPLEXORBS_REALINTS")
+            !We have complex orbitals, but real integrals. This means that we only have 4x permutational symmetry,
+            !so we need to check the (momentum) symmetry before we look up any integrals
+            tComplexOrbs_RealInts = .true.
         case("ENDSYS") 
             exit system
         case default
@@ -1206,20 +1058,10 @@ system: do
 
           if (LMS > STOT) call stop_all (this_routine, "Cannot have LMS>STOT")
 
-          if (.not. tNonUniRandExcits) then
-              call stop_all (this_routine, "Non uniform excitation generators&
-                                           & required for CSFs")
-          endif
-
           if (tHPHF) then
               call stop_all (this_routine, "CSFs not compatible with HPHF")
           endif
 
-          if (tRotoAnnihil) then
-              ! See Annihilation.F90:4240. Call to get_helement.
-              call stop_all (this_routine, "CSFs not compatible with &
-                                           &roto-annihilation")
-          endif
       endif
 
       if (tTruncateCSF .and. (.not. tCSF)) then
@@ -1557,7 +1399,8 @@ system: do
           ELSEIF(TCPMD) THEN
       !C.. If TCPMD, then we've generated the symmetry table earlier,
       !C.. but we still need the sym reps table.
-              CALL GENCPMDSYMREPS(G1,NBASIS,ARR,1.e-5_dp)
+              call stop_all(this_routine,'CPMD interface depricated')
+!              CALL GENCPMDSYMREPS(G1,NBASIS,ARR,1.e-5_dp)
           ELSEIF(tVASP) THEN
       !C.. If VASP-based calculation, then we've generated the symmetry table earlier,
       !C.. but we still need the sym reps table. DEGENTOL=1.0e-6_dp. CHECK w/AJWT.
@@ -1941,7 +1784,7 @@ system: do
       ELSEIF(TCPMD) THEN
 !C.. If TCPMD, then we've generated the symmetry table earlier,
 !C.. but we still need the sym reps table.
-         CALL GENCPMDSYMREPS(G1,NBASIS,ARR,1.e-5_dp)
+         CALL GENCPMDSYMREPS(G1,NBASIS,ARR)
       ELSEIF(tVASP) THEN
 !C.. If VASP-based calculation, then we've generated the symmetry table earlier,
 !C.. but we still need the sym reps table. DEGENTOL=1.0e-6_dp. CHECK w/AJWT.

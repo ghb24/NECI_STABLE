@@ -30,6 +30,7 @@ MODULE CCMC
     use Timing_neci, only: set_timer, halt_timer
     use bit_reps, only: decode_bit_det
     use hash, only: DetermineDetNode
+    use procedure_pointers, only: get_spawn_helement
    IMPLICIT NONE
 #ifdef MOLPRO
     include "common/tapes"
@@ -1776,7 +1777,9 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
 
    NullAvSign(:)=0.0_dp
    
-   iSpawnAmp=attempt_create_normal(hphf_spawn_sign,  & !this version of the get_spawn_helement just uses the passed-in version
+   ! SDS: I don't know where I should set this globally, so I've done it here
+   get_spawn_helement => hphf_spawn_sign
+   iSpawnAmp=attempt_create_normal( &
                               C%DetCurr,C%iLutDetCurr, &
                               C%iSgn,S%nJ,S%iLutnJ,prob,S%HIJ, &
                               S%iExcitLevel,S%ExcitMat,.false., & !.false. indicates we've dealt with parit

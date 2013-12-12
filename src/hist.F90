@@ -14,7 +14,7 @@ module hist
     use CalcData, only: tFCIMC, tTruncInitiator
     use DetCalcData, only: FCIDetIndex, det
     use FciMCData, only: tFlippedSign, TotWalkers, CurrentDets, iter, &
-                         norm_psi_squared
+                         all_norm_psi_squared
     use util_mod, only: choose, get_free_unit, binary_search
     use HPHFRandExcitMod, only: FindExcitBitDetSym
     use hphf_integrals, only: hphf_sign
@@ -460,6 +460,7 @@ contains
         integer :: dorder(nel), nI(nel)
         real(dp) :: coeff, S_coeffs(LMS:nel), norm, S2, S22
         real(dp) :: sgn(lenof_sign)
+        real(dp) :: AllNode_S_coeffs(LMS:nel)
 
         ! TODO: This bit could be done just once, couldn't it...
         !       We could store all the intermediates.
@@ -526,7 +527,9 @@ contains
             enddo
         enddo
 
-        call MPISum_inplace (S_coeffs)
+        call MPISum(S_coeffs, AllNode_S_coeffs)
+        S_coeffs=AllNode_S_coeffs
+
         if (iProcIndex == Root) then
             norm = sum(S_coeffs)
             S_coeffs = sqrt(S_coeffs / norm)
@@ -538,7 +541,7 @@ contains
             
             write(6,*) 'Scoeffs', iter, S_coeffs
             write(6,*) 'Scsf2', S2
-            write(6,*) 'norm compare', norm, norm_psi_squared
+            write(6,*) 'norm compare', norm, all_norm_psi_squared
         endif
 
         ! Deallocate stuff
@@ -562,6 +565,7 @@ contains
         ! Sum the squares of all of the components.
 
         real(dp) :: spin_cpts (0:nel), norm
+        real(dp) :: AllNode_spin_cpts (0:nel)
         integer :: j, nup, S, flg, ncsf, nopen
         integer :: nI(nel), dorder(nel)
         real(dp) :: sgn(lenof_sign)
@@ -586,7 +590,8 @@ contains
 
         enddo
 
-        call MPISum_inplace (spin_cpts)
+        call MPISum(spin_cpts,AllNode_spin_cpts)
+        spin_cpts=AllNode_spin_cpts
 
         if (iProcIndex == Root) then
             norm = sum(spin_cpts)
@@ -621,7 +626,7 @@ contains
     
     end subroutine
 
-    function calc_s_squared () result (ssq)
+    function calc_s_squared (only_init) result (ssq)
 
         ! Calculate the instantaneous value of S^2 for the walkers stored
         ! in CurrentDets
@@ -631,6 +636,7 @@ contains
 
         real(dp), dimension(inum_runs) :: ssq
         integer :: i, lms_tmp
+        logical, intent(in) :: only_init
         type(timer), save :: s2_timer
 
         ! TODO: Deal with HPHF. Should be fairly easy.
@@ -641,12 +647,16 @@ contains
 
         ssq = 0
         do i = 1, int(TotWalkers,sizeof_int)
-            ssq = ssq + ssquared_contrib (CurrentDets(:,i))
+            if ((test_flag(CurrentDets(:,i), flag_is_initiator(1)) .or. &
+                 test_flag(CurrentDets(:,i), flag_is_initiator(lenof_sign)))&
+                 .and. .not. TestClosedShellDet(CurrentDets(:,i))) then
+                ssq = ssq + ssquared_contrib (CurrentDets(:,i), only_init)
+            end if
         enddo
 
         ! Sum over all processors and normalise
         call MPISum_inplace (ssq)
-        ssq = ssq / norm_psi_squared
+        ssq = ssq / all_norm_psi_squared
 
         ! TODO: n.b. This is a hack. LMS appears to contain -2*Ms of the system
         !            I am somewhat astounded I haven't noticed this before...
@@ -684,7 +694,7 @@ contains
         integer(n_int), pointer :: detcurr(:)
         integer(n_int) :: splus(0:NIfTot), sminus(0:NIfTot)
         logical :: running, any_running
-        real(dp), dimension(inum_runs) :: ssq
+        real(dp), dimension(inum_runs) :: ssq, Allssq
         integer :: max_per_proc, max_spawned
         real(dp) :: sgn1(lenof_sign), sgn2(lenof_sign)
 
@@ -792,7 +802,7 @@ contains
         enddo
 
         call MPISum_inplace (ssq)
-        ssq = ssq / norm_psi_squared
+        ssq = ssq / all_norm_psi_squared
 
         ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the system
         !            I am somewhat astounded I haven't noticed this before...
@@ -812,6 +822,7 @@ contains
         real(dp) :: sgn_tmp(lenof_sign)
         type(timer), save :: s2_timer, s2_timer_init
         real(dp), dimension(inum_runs) :: ssq_sum, psi_squared
+        real(dp), dimension(inum_runs):: All_ssq_sum, All_psi_squared
         logical, intent(in) :: only_init
 
 
@@ -902,11 +913,13 @@ contains
 
         ! Sum all of the s squared terms
         if (tTruncInitiator .and. only_init) then
-            call MPISum_inplace (psi_squared)
+            call MPISum(psi_squared, All_psi_squared)
+            psi_squared=All_psi_squared
         else
-            psi_squared = norm_psi_squared
+            psi_squared = all_norm_psi_squared
         end if
-        call MPISum_inplace (ssq_sum)
+        call MPISum(ssq_sum, All_ssq_sum)
+        ssq_sum=All_ssq_sum
         ssq = real(ssq_sum,dp) / psi_squared
          
         ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the system

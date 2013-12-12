@@ -207,7 +207,6 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          use constants, only: dp
          use CPMDData, only: nStates,PIInt,EIonIon,EigenValues,tagPIInt
          use SystemData, only: BasisFN
-         use Integrals_neci, only: GetUMatEl
          USE UMatCache, only: nstatesumat=>nstates,tUMAT2D
          USE UMatCache, only: SetUmatTrans,SetUMatCacheFlag,SetupUMat2D,
      &                        SetupUMatCache
@@ -260,7 +259,8 @@ C.. We have to cache all states, as we don't, as yet, know which ones we're goin
 C.. If we're freezing we allocate a small cache first to store the <ij|kj> integrals, which will be deallocated and a larger cache made later.
             CALL SETUPUMATCACHE(NSTATESUSED,NSTATESUSED.NE.NSTATES)
          ENDIF
-         CALL CPMDGEN1EINTS(NStatesUsed,G1,CPMD1EINT)
+         call stop_all(this_routine,'Code depricated')
+         !CALL CPMDGEN1EINTS(NStatesUsed,G1,CPMD1EINT)
 !         CALL N_MEMORY_CHECK()
          OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
          IF(.NOT.BTEST(iCacheFlag,1)) THEN

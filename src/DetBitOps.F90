@@ -5,9 +5,8 @@ module DetBitOps
     ! A collection of useful operations to perform on the bit-representation
     ! of determinants.
 
-    use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level, &
-                          tSemiStochastic
-    use CalcData, only: tTruncInitiator
+    use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level
+    use CalcData, only: tTruncInitiator, tSemiStochastic
     use bit_rep_data, only: NIfY, NIfTot, NIfD, NOffFlag, NIfFlag, &
                             test_flag, flag_is_initiator,NIfDBO,NOffSgn, &
                             determ_parent_mask, extract_sign
@@ -378,7 +377,7 @@ module DetBitOps
     ! false otherwise.
     pure function DetBitEQ(iLutI,iLutJ,nLast) result(res)
         integer, intent(in), optional :: nLast
-        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer(kind=n_int), intent(in) :: iLutI(0:), iLutJ(0:)
         logical :: res
         integer :: i, lnLast
 

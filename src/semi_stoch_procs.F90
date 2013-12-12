@@ -5,38 +5,43 @@
 
 module semi_stoch_procs
 
-    use AnnihilationMod, only: BinSearchParts, RemoveDetHashIndex, FindWalkerHash
+    use AnnihilationMod, only: RemoveDetHashIndex
     use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag, &
                             flag_is_initiator, NOffSgn, NIfSgn
     use bit_reps, only: decode_bit_det, set_flag, extract_part_sign, extract_sign, &
                         encode_sign
-    use CalcData, only: tRegenDiagHEls, tau, DiagSft, tReadPops, tTruncInitiator
+    use CalcData
     use constants
+    use davidson, only: davidson_eigenvector, parallel_sparse_hamil_type, perform_davidson
     use DetBitOps, only: ilut_lt, ilut_gt, FindBitExcitLevel, DetBitLT, &
-                         count_set_bits, DetBitEq, sign_lt, sign_gt
-    use Determinants, only: get_helement
+                         count_set_bits, DetBitEq, sign_lt, sign_gt, IsAllowedHPHF, &
+                         EncodeBitDet
+    use Determinants, only: get_helement, GetH0Element3, GetH0Element4
     use FciMCData, only: ilutHF, Hii, CurrentH, determ_proc_sizes, determ_proc_indices, &
                          full_determ_vector, partial_determ_vector, core_hamiltonian, &
                          determ_space_size, SpawnedParts, SemiStoch_Comms_Time, &
                          SemiStoch_Multiply_Time, TotWalkers, CurrentDets, CoreTag, &
                          PDetermTag, FDetermTag, IDetermTag, indices_of_determ_states, &
-                         HashIndex, core_space, CoreSpaceTag, tCoreHash, ll_node, &
-                         nWalkerHashes, tFill_RDM, IterLastRDMFill, full_determ_vector_av, &
-                         tFillingStochRDMonFly, Iter, IterRDMStart
-    use hash, only: DetermineDetNode
+                         HashIndex, core_space, CoreSpaceTag, ll_node, nWalkerHashes, &
+                         tFill_RDM, IterLastRDMFill, full_determ_vector_av, &
+                         tFillingStochRDMonFly, Iter, IterRDMStart, CoreHashIndex, &
+                         core_ham_diag, DavidsonTag, Fii, HFDet
+    use hash, only: DetermineDetNode, FindWalkerHash
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
+    use MI_integrals, only: MI_off_diag_helement
+    use MomInv, only: IsAllowedMI
     use nElRDMMod, only: fill_RDM_offdiag_deterministic
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, MPIArg, &
-                             MPIAllGatherV, MPISum, MPISumAll
+                             MPIAllGatherV, MPISum, MPISumAll, MPIScatterV
+    use ParallelHelper, only: root
     use ras, only: core_ras
+    use searching, only: BinSearchParts
     use sort_mod, only: sort
     use sparse_arrays, only: sparse_core_ham, SparseCoreHamilTags, deallocate_sparse_ham, &
-                            core_connections
-    use SystemData, only: tSemiStochastic, tCSFCore, tDeterminantCore, tDoublesCore, &
-                          tCASCore, tRASCore, cas_determ_not_bitmask, core_ras1_bitmask, &
-                          core_ras3_bitmask, nel, OccDetermCASOrbs, tHPHF, nBasis, BRR, &
-                          ARR, tSparseCoreHamil
+                            core_connections, sparse_ham, hamil_diag, HDiagTag, &
+                            SparseHamilTags, allocate_sparse_ham_row
+    use SystemData, only: nel, tHPHF, nBasis, BRR, ARR, tUEG, tMomInv
     use timing_neci
     use util_mod, only: get_free_unit
 
@@ -137,7 +142,6 @@ contains
     function is_core_state(ilut) result (core_state)
 
         use FciMCData, only: ll_node
-        use semi_stoch_hash
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer :: nI(nel)
@@ -148,7 +152,7 @@ contains
         core_state = .false.
 
         call decode_bit_det(nI, ilut)
-        DetHash = FindCoreHash(nI)
+        DetHash = FindWalkerHash(nI, int(determ_space_size,sizeof_int))
         temp_node => CoreHashIndex(DetHash)
 
         if (temp_node%ind == 0) then
@@ -180,6 +184,7 @@ contains
         allocate(core_hamiltonian(determ_proc_sizes(iProcIndex), determ_space_size), stat=ierr)
         call LogMemAlloc('core_hamiltonian', int(determ_space_size*&
                          &determ_proc_sizes(iProcIndex),sizeof_int), 8, t_r, CoreTag, ierr)
+        allocate(core_ham_diag(determ_proc_sizes(iProcIndex)), stat=ierr)
 
         ! temp_store is storage space for bitstrings so that the Hamiltonian matrix
         ! elements can be calculated.
@@ -222,6 +227,7 @@ contains
                             core_hamiltonian(i, col_index + j) = &
                                 get_helement(nI, nJ, 0) - Hii
                         end if
+                        core_ham_diag(i) = core_hamiltonian(i, col_index + j)
                         ! We calculate and store CurrentH at this point for ease.
                         if ((.not. tRegenDiagHEls) .and. (.not. tReadPops)) &
                             CurrentH(1,i) = core_hamiltonian(i, col_index + j)
@@ -324,8 +330,6 @@ contains
 
     subroutine store_whole_core_space()
 
-        use semi_stoch_hash, only: InitialiseCoreHashTable
-
         integer :: ierr
         character(len=*), parameter :: t_r = "store_whole_core_space"
 
@@ -336,9 +340,46 @@ contains
         call MPIAllGatherV(SpawnedParts(:,1:determ_proc_sizes(iProcIndex)), core_space, &
                        determ_proc_sizes, determ_proc_indices)
 
-        if (tCoreHash) call InitialiseCoreHashTable()
-
     end subroutine store_whole_core_space
+
+    subroutine initialise_core_hash_table()
+
+        use bit_reps, only: decode_bit_det
+        use FciMCData, only: core_space
+        use SystemData, only: nel
+
+        integer :: nI(nel)
+        integer :: i, ierr, DetHash, counter, total
+        type(ll_node), pointer :: temp_node
+        character(len=*), parameter :: t_r = "initialise_core_hash_table"
+
+        allocate(CoreHashIndex(determ_space_size), stat=ierr)
+
+        do i = 1, determ_space_size
+            CoreHashIndex(i)%ind = 0
+            nullify(CoreHashIndex(i)%next)
+        end do
+
+        do i = 1, determ_space_size
+            call decode_bit_det(nI, core_space(:,i))
+            DetHash = FindWalkerHash(nI, int(determ_space_size,sizeof_int))
+            temp_node => CoreHashIndex(DetHash)
+            ! If the first element in the list has not been used.
+            if (temp_node%ind == 0) then
+                temp_node%ind = i
+            else
+                do while (associated(temp_node%next))
+                    temp_node => temp_node%next
+                end do
+                allocate(temp_node%next)
+                nullify(temp_node%next%next)
+                temp_node%next%ind = i
+            end if
+        end do
+
+        nullify(temp_node)
+
+    end subroutine initialise_core_hash_table
 
     subroutine remove_repeated_states(list, list_size)
 
@@ -585,6 +626,8 @@ contains
     subroutine write_core_space()
 
         integer :: i, j, k, iunit, ierr
+        logical :: texist
+        character(len=*), parameter :: t_r='write_core_space'
 
         write(6,'(a35)') "Writing the core space to a file..."
 
@@ -599,6 +642,8 @@ contains
                 if (i == 0) then
                     open(iunit, file='CORESPACE', status='replace')
                 else
+                    inquire(file='CORESPACE',exist=texist)
+                    if(.not.texist) call stop_all(t_r,'"CORESPACE" file cannot be found')
                     open(iunit, file='CORESPACE', status='old', position='append')
                 end if
                 
@@ -706,7 +751,7 @@ contains
 
             tSuccess = .false.
             call decode_bit_det (nI, SpawnedParts(:,i))
-            DetHash = FindWalkerHash(nI)
+            DetHash = FindWalkerHash(nI, nWalkerHashes)
             temp_node => HashIndex(DetHash)
             if (temp_node%ind /= 0) then
                 do while (associated(temp_node))
@@ -767,7 +812,7 @@ contains
         ! Finally, add the indices back into the hash index array.
         do i = 1, nwalkers
             call decode_bit_det(nI, CurrentDets(:,i))
-            DetHash = FindWalkerHash(nI)
+            DetHash = FindWalkerHash(nI,nWalkerHashes)
             temp_node => HashIndex(DetHash)
             ! If the first element in the list has not been used.
             if (temp_node%ind == 0) then
@@ -777,6 +822,7 @@ contains
                     temp_node => temp_node%next
                 end do
                 allocate(temp_node%next)
+                nullify(temp_node%next%next)
                 temp_node%next%ind = i
             end if
             nullify(temp_node)
@@ -897,20 +943,151 @@ contains
                         smallest_sign = sign_curr_abs
                     end if
                 end do
-
             endif
-
         end do
 
     end subroutine return_largest_indices
+
+    subroutine start_walkers_from_core_ground()
+
+        integer :: i, counter, ierr
+        real(dp) :: eigenvec_pop
+        character(len=*), parameter :: t_r = "start_walkers_from_core_ground"
+
+        ! Create the arrays used by the Davidson routine.
+        ! First, the whole Hamiltonian in sparse form.
+        allocate(sparse_ham(determ_proc_sizes(iProcIndex)))
+        allocate(SparseHamilTags(2, determ_proc_sizes(iProcIndex)))
+        do i = 1, determ_proc_sizes(iProcIndex)
+            call allocate_sparse_ham_row(sparse_ham, i, sparse_core_ham(i)%num_elements, "sparse_ham", SparseHamilTags(:,i)) 
+            sparse_ham(i)%elements = sparse_core_ham(i)%elements
+            sparse_ham(i)%positions = sparse_core_ham(i)%positions
+            sparse_ham(i)%num_elements = sparse_core_ham(i)%num_elements
+        end do
+
+        ! Next create the diagonal used by Davidson by copying the core one.
+        allocate(hamil_diag(determ_proc_sizes(iProcIndex)),stat=ierr)
+        call LogMemAlloc('hamil_diag', int(determ_proc_sizes(iProcIndex),sizeof_int), 8, t_r, HDiagTag, ierr)
+        hamil_diag = core_ham_diag
+
+        write(6,'(a69)') "Using the deterministic ground state as initial walker configuration."
+        write(6,'(a34)') "Performing Davidson calculation..."
+        call neci_flush(6)
+
+        ! Call the Davidson routine to find the ground state of the core space. 
+        call perform_davidson(parallel_sparse_hamil_type, .false.)
+
+        write(6,'(a30)') "Davidson calculation complete."
+        call neci_flush(6)
+
+        ! The ground state compnents are now stored in davidson_eigenvector on the root.
+        ! First, we need to normalise this vector to have the correct 'number of walkers'.
+        if (iProcIndex == root) then
+            eigenvec_pop = 0.0_dp
+            do i = 1, determ_space_size
+                eigenvec_pop = eigenvec_pop + abs(davidson_eigenvector(i))
+            end do
+            if (tStartSinglePart) then
+                davidson_eigenvector = davidson_eigenvector*InitialPart/eigenvec_pop
+            else
+                davidson_eigenvector = davidson_eigenvector*InitWalkers/eigenvec_pop
+            end if
+        end if
+
+        ! Send the components to the correct processors and use partial_determ_vector as
+        ! temporary space.
+        call MPIScatterV(davidson_eigenvector, determ_proc_sizes, determ_proc_indices, &
+                         partial_determ_vector, determ_proc_sizes(iProcIndex), ierr)
+
+        ! Finally, copy these amplitudes across to the corresponding states in CurrentDets.
+        counter = 0
+        do i = 1, TotWalkers
+            if (test_flag(CurrentDets(:,i), flag_deterministic)) then
+                counter = counter + 1
+                call encode_sign(CurrentDets(:,i), partial_determ_vector(counter))
+            end if
+        end do
+
+        partial_determ_vector = 0.0_dp
+        deallocate(davidson_eigenvector)
+        call LogMemDealloc(t_r, DavidsonTag, ierr)
+        deallocate(hamil_diag, stat=ierr)
+        call LogMemDealloc(t_r, HDiagTag, ierr)
+        call deallocate_sparse_ham(sparse_ham, 'sparse_ham', SparseHamilTags)
+
+    end subroutine start_walkers_from_core_ground
+
+    subroutine return_mp1_amp_and_mp2_energy(nI, ilut, ex, tParity, amp, energy_contrib)
+
+        ! For a given determinant (input as nI), find the amplitude of it in the MP1 wavefunction.
+        ! Also return the contribution from this determinant in the MP2 energy.
+
+        ! To use this routine, generate an excitation from the Hartree-Fock determinant using the
+        ! GenExcitations3 routine. This will return nI, ex and tParity which can be input into this
+        ! routine.
+
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: ex(2,2)
+        logical, intent(in) :: tParity
+        real(dp), intent(out) :: amp, energy_contrib
+        integer :: ic
+        real(dp) :: hel, H0tmp, denom
+
+        amp = 0.0_dp
+        energy_contrib = 0.0_dp
+
+        if (ex(1,2) == 0) then
+            ic = 1
+        else
+            ic = 2
+        end if
+
+        if (tHPHF) then
+            ! Assume since we are using HPHF that the alpha and
+            ! beta orbitals of the same spatial orbital have the same
+            ! fock energies, so can consider either.
+            hel = hphf_off_diag_helement(HFDet, nI, iLutHF, ilut)
+        else if (tMomInv) then
+            hel = MI_off_diag_helement(HFDet, nI, iLutHF, ilut)
+        else
+            hel = get_helement(HFDet, nI, ic, ex, tParity)
+        end if
+
+        if (tUEG) then
+            ! This will calculate the MP2 energies without having to use the fock eigenvalues.
+            ! This is done via the diagonal determinant hamiltonian energies.
+            H0tmp = getH0Element4(nI, HFDet)
+        else
+            H0tmp = getH0Element3(nI)
+        end if
+
+        ! If the relevant excitation from the Hartree-Fock takes electrons from orbitals
+        ! (i,j) to (a,b), then denom will be equal to 
+        ! \epsilon_a + \epsilon_b - \epsilon_i - \epsilon_j
+        ! as required in the denominator of the MP1 amplitude and MP2 energy.
+        denom = Fii - H0tmp
+
+        if (.not. (abs(denom) > 0.0_dp)) then
+            call warning_neci("return_mp1_amp_and_mp2_energy", &
+            "One of the determinants under consideration for the MP1 wave function is degenerate &
+            &with the Hartree-Fock determinant. Degenerate perturbation theory has not been &
+            &considered, but the amplitude of this determinant will be returned as huge(0.0_dp) &
+            &so that it should be included in the space.")
+            amp = huge(0.0_dp)
+        else
+            amp = hel/denom
+            energy_contrib = (hel**2)/denom
+        end if
+
+    end subroutine return_mp1_amp_and_mp2_energy
 
     subroutine end_semistoch()
 
         character(len=*), parameter :: t_r = "end_semistoch"
         integer :: ierr
 
-        if (tSparseCoreHamil) call deallocate_sparse_ham(sparse_core_ham, 'sparse_core_ham', &
-                                                         SparseCoreHamilTags)
+        if (tSparseCoreHamil) call deallocate_sparse_ham(sparse_core_ham, 'sparse_core_ham', SparseCoreHamilTags)
 
         if (allocated(core_hamiltonian)) then
             deallocate(core_hamiltonian, stat=ierr)

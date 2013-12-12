@@ -22,19 +22,19 @@
         USE FciMCParMOD , only : Hii,CurrentDets,CurrentH
         use FciMCData , only : tFillingStochRDMonFly, InstNoatHF, ntrial_occ, &
                                ncon_occ, occ_trial_amps, occ_con_amps, &
-                               trial_temp, con_temp
-        use SystemData, only: nel, tHPHF,tMomInv, tTrialWavefunction
+                               trial_temp, con_temp, tTrialHash
+        use SystemData, only: nel, tHPHF,tMomInv
         use bit_rep_data, only: extract_sign, flag_trial, flag_connected
         use bit_reps, only: NIfTot, NIfDBO, decode_bit_det, test_flag
         USE Determinants , only : get_helement
         use DetBitOps, only: DetBitEQ
         use hphf_integrals, only: hphf_diag_helement
         use MI_integrals, only: MI_diag_helement
-        USE CalcData , only : tTruncInitiator
+        USE CalcData , only : tTruncInitiator, tTrialWavefunction
         USE HElem
         use constants, only: dp,n_int,lenof_sign
         use util_mod, only: binary_search_custom
-        use trial_wf_gen, only: find_trial_and_con_states
+        use searching, only: find_trial_and_con_states_bin, find_trial_and_con_states_hash
         IMPLICIT NONE
         INTEGER :: nlisto,nlist1,nlist2,i
         INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
@@ -44,12 +44,18 @@
         INTEGER :: nJ(NEl),j,ntrial,ncon,ncon_old,ntrial_old
         logical :: tTrialState, tConState
 
+        !write(6,*) "Here!"
+
         if (tTrialWavefunction .and. nlist2 > 0) then
             ! If using a trial wavefunction, count the number of states to be merged
             ! in which are in the trial and connected space. This routine also stores
             ! the corresponding amplitudes from trial_wf and con_space_vector in the
             ! arrays trial_temp and con_temp, and sets the flags of the new states.
-            call find_trial_and_con_states(int(nlist2,8), list2, ntrial, ncon)
+            if (tTrialHash) then
+                call find_trial_and_con_states_hash(int(nlist2,8), list2, ntrial, ncon)
+            else
+                call find_trial_and_con_states_bin(int(nlist2,8), list2, ntrial, ncon)
+            end if
             ! The number of trial and connected states currently in CurrentDets.
             ntrial_old = ntrial_occ
             ncon_old = ncon_occ
