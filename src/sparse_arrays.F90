@@ -182,7 +182,7 @@ contains
 
     end subroutine calculate_sparse_hamiltonian
 
-    subroutine calculate_determ_hamiltonian_sparse()
+    subroutine calc_determ_hamil_sparse()
 
         integer :: i, j, row_size, counter, ierr
         integer :: nI(nel), nJ(nel)
@@ -267,7 +267,7 @@ contains
         deallocate(hamiltonian_row, stat=ierr)
         call LogMemDealloc(t_r, HRTag, ierr)
 
-    end subroutine calculate_determ_hamiltonian_sparse
+    end subroutine calc_determ_hamil_sparse
 
     subroutine allocate_sparse_ham_row(sparse_matrix, row, sparse_row_size, sparse_matrix_name, sparse_tags)
 

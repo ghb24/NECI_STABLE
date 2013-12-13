@@ -311,8 +311,9 @@ module Parallel_neci
             use iso_c_hack
             use constants
             c_ptr_t, intent(in), value :: sbuf, rbuf
-            integer(c_int), intent(in), value :: scnt, stype, rcnt, rtype
+            integer(c_int), intent(in), value :: scnt, stype, rtype
             integer(c_int), intent(in), value :: comm
+            integer(MPIArg), intent(in) :: rcnt(*)
             integer(MPIArg), intent(in) :: displs(*)
             integer(c_int), intent(out) :: ierr
         end subroutine
@@ -1082,7 +1083,8 @@ contains
                 comm, err)
         ierr = err
 #else
-        ret(1:%(mpilen)s) = v(1:%(mpilen)s)
+        !ret(1:%%(mpilen)s) = v(1:%%(mpilen)s)
+        ret = v
         ierr = 0
 #endif
     end subroutine

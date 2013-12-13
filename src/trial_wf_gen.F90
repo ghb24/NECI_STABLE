@@ -20,8 +20,7 @@ module trial_wf_gen
     use hphf_integrals, only: hphf_off_diag_helement
     use LoggingData, only: tWriteTrial, tCompareTrialAmps
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
-    use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier, MPIAllToAll, MPISumAll, &
-                             MPIAllToAllV, MPIArg, MPIBCast, MPIAllReduce
+    use Parallel_neci
     use ParallelHelper, only: root
     use searching, only: BinSearchParts, hash_search_trial, find_trial_and_con_states_bin
     use semi_stoch_gen
