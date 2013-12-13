@@ -25,6 +25,8 @@ module excit_gens
     implicit none
     save
 
+    integer :: ncnt, nsel
+
     ! Data for the 4ind-integral biasing scheme
     real(dp), allocatable :: epair_4ind_ints(:)
 
@@ -153,6 +155,9 @@ contains
 !        do i = 1, nbasis
 !        end do
 
+        ncnt = 0
+        nsel = 0
+
     end subroutine
 
 
@@ -174,6 +179,7 @@ contains
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         character(*), parameter :: this_routine = 'gen_excit_4ind_weighted'
 
+        ncnt = ncnt + 1
 
         ! Choose if we want to do a single or a double excitation
         ! TODO: We can (in principle) re-use this random number by subdivision
@@ -195,6 +201,9 @@ contains
                                      pGen)
 
         end if
+
+        if (nJ(1) /= 0) nsel = nsel + 1
+        if (mod(ncnt, 1000) == 0) write(6,*) 'ACCEPT', 100_dp * nsel / real(ncnt, dp), nsel, ncnt
 
     end subroutine
 
@@ -313,10 +322,10 @@ contains
             orb = SymLabelList2(label_index + i - 1)
             if (IsNotOcc(ilut, orb) .and. orb /= orb_pair) then
                 orbid = gtID(orb)
-                cum_sum = cum_sum + 1.0
-                !cum_sum = cum_sum &
-                !        + abs(get_umat_el(srcid(1), srcid(1), orbid, orbid)) &
-                !        + abs(get_umat_el(srcid(2), srcid(2), orbid, orbid))
+!                cum_sum = cum_sum + 1.0
+                cum_sum = cum_sum &
+                        + abs(get_umat_el(srcid(1), srcid(1), orbid, orbid)) &
+                        + abs(get_umat_el(srcid(2), srcid(2), orbid, orbid))
             end if
             cumulative_arr(i) = cum_sum
 
@@ -335,8 +344,8 @@ contains
         ! And return the relevant value.
         orb = SymLabelList2(label_index + orb_index - 1)
         orbid = gtID(orb)
-        cpt = 1.0!abs(get_umat_el(srcid(1), srcid(1), orbid, orbid)) + &
-              !abs(get_umat_el(srcid(2), srcid(2), orbid, orbid))
+        cpt = abs(get_umat_el(srcid(1), srcid(1), orbid, orbid)) + &
+              abs(get_umat_el(srcid(2), srcid(2), orbid, orbid))
 
     end function
 
