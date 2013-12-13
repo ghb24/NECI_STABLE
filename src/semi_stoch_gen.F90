@@ -155,9 +155,9 @@ contains
         write(6,'(a56)') "Generating the Hamiltonian in the deterministic space..."
         call neci_flush(6)
         if (tSparseCoreHamil) then
-            call calculate_determ_hamiltonian_sparse()
+            call calc_determ_hamil_sparse()
         else
-            call calculate_determ_hamiltonian_normal()
+            call calc_determ_hamil_normal()
         end if
 
         if (tRDMonFly) call generate_core_connections()
@@ -404,7 +404,7 @@ contains
 
             call decode_bit_det(nI, ilut)
 
-            call generate_all_csfs_from_orb_config(ilut, nI, called_from)
+            call gen_all_csfs_from_orb_config(ilut, nI, called_from)
 
         end do
 
@@ -1092,7 +1092,7 @@ contains
 
     end subroutine generate_low_energy_core
 
-    subroutine generate_all_csfs_from_orb_config(ilut, nI, called_from)
+    subroutine gen_all_csfs_from_orb_config(ilut, nI, called_from)
 
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
         integer, intent(inout) :: nI(nel)
@@ -1131,7 +1131,7 @@ contains
             call add_state_to_space(ilut, called_from, nI)
         end do
 
-    end subroutine generate_all_csfs_from_orb_config
+    end subroutine gen_all_csfs_from_orb_config
 
     subroutine generate_using_mp1_criterion(called_from)
 

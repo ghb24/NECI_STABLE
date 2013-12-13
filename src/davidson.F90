@@ -385,11 +385,11 @@ integer(TagIntType) :: ResidualTag
         if (hamil_type == full_hamil_type) then
             call multiply_hamil_and_vector_full(input_vector, output_vector)
         else if (hamil_type == sparse_hamil_type) then
-            call multiply_hamil_and_vector_sparse(input_vector, output_vector)
+            call mult_hamil_vector_sparse(input_vector, output_vector)
         else if (hamil_type == parallel_sparse_hamil_type) then
-            call multiply_hamil_and_vector_parallel_sparse(input_vector, output_vector)
+            call mult_hamil_vector_par_sparse(input_vector, output_vector)
         else if (hamil_type == direct_ci_type) then
-            call multiply_hamil_and_vector_direct_ci(input_vector, output_vector)
+            call mult_hamil_vector_direct_ci(input_vector, output_vector)
         end if
 
     end subroutine multiply_hamil_and_vector
@@ -425,7 +425,7 @@ integer(TagIntType) :: ResidualTag
 
     end subroutine multiply_hamil_and_vector_full
 
-    subroutine multiply_hamil_and_vector_sparse(input_vector, output_vector)
+    subroutine mult_hamil_vector_sparse(input_vector, output_vector)
 
         real(dp), intent(in) :: input_vector(space_size)
         real(dp), intent(out) :: output_vector(space_size)
@@ -439,9 +439,9 @@ integer(TagIntType) :: ResidualTag
             end do
         end do
 
-    end subroutine multiply_hamil_and_vector_sparse
+    end subroutine mult_hamil_vector_sparse
 
-    subroutine multiply_hamil_and_vector_parallel_sparse(input_vector, output_vector)
+    subroutine mult_hamil_vector_par_sparse(input_vector, output_vector)
 
         real(dp), intent(in) :: input_vector(space_size)
         real(dp), intent(out) :: output_vector(space_size)
@@ -465,9 +465,9 @@ integer(TagIntType) :: ResidualTag
 
         call MPIGatherV(partial_davidson_vector, output_vector, space_sizes, davidson_disps, ierr)
 
-    end subroutine multiply_hamil_and_vector_parallel_sparse
+    end subroutine mult_hamil_vector_par_sparse
 
-    subroutine multiply_hamil_and_vector_direct_ci(input_vector, output_vector)
+    subroutine mult_hamil_vector_direct_ci(input_vector, output_vector)
 
         use direct_ci, only: perform_multiplication, transfer_from_block_form, transfer_to_block_form
         use FciMCData, only: davidson_ras, davidson_classes, davidson_strings, davidson_iluts, davidson_excits
@@ -490,7 +490,7 @@ integer(TagIntType) :: ResidualTag
         ! contribution now.
         output_vector = output_vector + ecore*input_vector
 
-    end subroutine multiply_hamil_and_vector_direct_ci
+    end subroutine mult_hamil_vector_direct_ci
 
     subroutine end_davidson()
 

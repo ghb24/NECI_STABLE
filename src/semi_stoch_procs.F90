@@ -172,13 +172,13 @@ contains
 
     end function is_core_state
 
-    subroutine calculate_determ_hamiltonian_normal()
+    subroutine calc_determ_hamil_normal()
 
         integer :: i, j, iproc, col_index, ierr
         integer :: nI(nel), nJ(nel)
         integer(n_int), allocatable, dimension(:,:) :: temp_store
         integer(TagIntType) :: TempStoreTag
-        character(len=*), parameter :: t_r = "calculate_determ_hamiltonian_normal"
+        character(len=*), parameter :: t_r = "calc_determ_hamil_normal"
 
         ! Allocate the core hamiltonian.
         allocate(core_hamiltonian(determ_proc_sizes(iProcIndex), determ_space_size), stat=ierr)
@@ -252,12 +252,12 @@ contains
         deallocate(temp_store, stat=ierr)
         call LogMemDealloc(t_r, TempStoreTag, ierr)
 
-    end subroutine calculate_determ_hamiltonian_normal
+    end subroutine calc_determ_hamil_normal
 
     subroutine generate_core_connections()
 
         if (tSparseCoreHamil) then
-            call generate_core_connections_sparse()
+            call gen_core_connections_sparse()
         else
             ! To be implemented.
             ! call generate_core_connections_full()
@@ -265,7 +265,7 @@ contains
 
     end subroutine generate_core_connections
 
-    subroutine generate_core_connections_sparse()
+    subroutine gen_core_connections_sparse()
 
         integer :: i, j, ic, counter, ierr
         integer :: Ex(2,nel)
@@ -326,7 +326,7 @@ contains
         deallocate(temp_store, stat=ierr)
         call LogMemDealloc(t_r, TempStoreTag, ierr)
 
-    end subroutine generate_core_connections_sparse
+    end subroutine gen_core_connections_sparse
 
     subroutine store_whole_core_space()
 
