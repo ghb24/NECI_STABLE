@@ -955,7 +955,7 @@ MODULE AnnihilationMod
                             2*(min(abs(CurrentSign(1)), abs(SpawnedSign(1))))
                         
                         if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then
-                            call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
+                            call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(1+lenof_sign,PartInd))
                         endif 
 
                         cycle
@@ -974,7 +974,7 @@ MODULE AnnihilationMod
                 ! cj - and therefore the Di.Dj pair will have a non-zero ci.cj to contribute to the RDM.
                 ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
                 if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then
-                    call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
+                    call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(1+lenof_sign,PartInd))
                 endif 
 
                 if(sum(abs(CurrentSign)) .ne. 0.0_dp) then

@@ -3926,26 +3926,26 @@ MODULE FciMCParMod
 
         if(tFillingStochRDMonFly) then
             call MPISumAll_inplace (InstNoatHF)
-            if(InstNoatHF(1).eq.0.0) then
+            if((InstNoatHF(1).eq.0.0).and.(InstNoAtHF(lenof_sign).eq.0.0) &
+                .and. (.not. tSemiStochastic)) then
+                !The HF determinant won't be in currentdets, so the CurrentH averages will have been wiped.
+                !NB - there will be a small issue here if the HF determinant isn't in the core space
                 IterRDM_HF(1) = Iter + 1 
                 AvNoatHF(1) = 0.0_dp
+                if(inum_runs.eq.2) then
+                    IterRDM_HF(2) = Iter + 1 
+                    AvNoatHF(2) = 0.0_dp
+                endif
             else
                 Prev_AvNoatHF(1) = AvNoatHF(1)
                 AvNoatHF(1) = ( (real((Iter - IterRDM_HF(1)),dp) * Prev_AvNoatHF(1)) &
                     + InstNoatHF(1) ) / real((Iter - IterRDM_HF(1)) + 1,dp)
-            endif
-#ifndef __CMPLX
-            if (lenof_sign.eq.2) then   !Double run
-                if(InstNoatHF(2).eq.0.0) then
-                    IterRDM_HF(2) = Iter + 1 
-                    AvNoatHF(2) = 0.0_dp
-                else
+                if(inum_runs.eq.2) then
                     Prev_AvNoatHF(2) = AvNoatHF(2)
                     AvNoatHF(2) = ( (real((Iter - IterRDM_HF(2)),dp) * Prev_AvNoatHF(2)) &
                         + InstNoatHF(2) ) / real((Iter - IterRDM_HF(2)) + 1,dp)
                 endif
             endif
-#endif
         endif
         HFInd = 0            
         
