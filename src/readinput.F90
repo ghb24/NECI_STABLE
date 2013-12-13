@@ -184,7 +184,7 @@ MODULE ReadInput_neci
                                  tNoDoubs
         use IntegralsData, only: tDiagStarStars, tExcitStarsRootChange, &
                                  tRmRootExcitStarsRootChange, tLinRootChange
-        use Logging, only: iLogging, tCalcFCIMCPsi, tHistSpawn, tHistHamil, &
+        use LoggingData, only: iLogging, tCalcFCIMCPsi, tHistHamil, &
                            tCalcInstantS2, tDiagAllSpaceEver, &
                            tCalcVariationalEnergy, tCalcInstantS2Init
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
@@ -193,6 +193,7 @@ MODULE ReadInput_neci
         use global_utilities
         use spin_project, only: tSpinProject, spin_proj_nopen_max
         use FciMCData, only: nWalkerHashes,HashLengthFrac,tHashWalkerList
+        use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes,nProcessors
 
         implicit none
@@ -407,6 +408,8 @@ MODULE ReadInput_neci
         endif
 
         if (tUniqueHFNode .and. nProcessors < 2) then
+            write(6,*) "nNodes: ",nNodes
+            write(6,*) 'nProcessors: ', nProcessors
             call stop_all (t_r, 'At least two nodes required to designate &
                           &a node uniquely to the HF determinant')
         end if

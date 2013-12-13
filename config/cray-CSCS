@@ -2,7 +2,7 @@
 fc = ftn 
 cc = g++
 ld = ftn
-ldflags = -m64 -rdynamic
+ldflags = -m64
 libs = -lstdc++ -lrt
 
 cpp = cpp -C -traditional
@@ -11,13 +11,13 @@ compiler = pathf95-on-LINUX
 module_flag = -J
 
 [dbg]
-fflags = -g -fno-second-underscore -e m
+fflags = -g -s integer64 -e m
 cflags = -g  -h noexceptions
-ldflags = -g -Bstatic -rdynamic
-f90flags = -ffortran-bounds-check -N255
+ldflags = -g -Bstatic
+f90flags = -R bcdps -N255
 
 [opt]
 fflags = -O3 -s integer64 -e m
 f90flags = -N255
 cflags = -O -m64
-ldflags = -O3 -rdynamic
+ldflags = -O3

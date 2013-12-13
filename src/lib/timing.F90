@@ -140,7 +140,7 @@ contains
       !=           rather updated with new timing information (i.e. the current
       !=           timer is set).
 
-      use Logging, only: iGlobalTimerLevel
+      Use LoggingData, only: iGlobalTimerLevel
       implicit none
       type(timer) :: proc_timer
       integer, optional, intent(in) :: obj_level
@@ -286,7 +286,7 @@ contains
       !=    iunit (optional): file unit to which the timing  report is printed.
       !=    Default value: 6 (stdout).
 
-      use Logging, only: nPrintTimer,iGlobalTimerLevel
+      Use LoggingData, only: nPrintTimer,iGlobalTimerLevel
       implicit none
       integer, optional, intent(in) :: ntimer_objects
       integer, optional, intent(in) :: iunit

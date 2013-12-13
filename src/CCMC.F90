@@ -23,7 +23,7 @@ MODULE CCMC
     use SystemData, only: tHPHF, nel
     use Determinants, only: get_helement
     use DetCalcData, only: FCIDetIndex, ICILevel
-    use Logging, only: CCMCDebug, tCalcFCIMCPsi
+    use LoggingData, only: CCMCDebug, tCalcFCIMCPsi
     use GenRandSymExcitNUMod, only: gen_rand_excit
     use dSFMT_interface, only: genrand_real2_dSFMT
     use AnnihilationMod, only: BinSearchParts, DirectAnnihilation
@@ -59,7 +59,7 @@ MODULE CCMC
     ! |WSign| > 1 and the probability of a death will be multiplied by |WSign|
     ! dProb is an extra probability factor the death probability is 
     ! multiplied by 
-    INTEGER FUNCTION AttemptDieProbPar(Kii,WSign,dProb)
+    real(dp) function AttemptDieProbPar (Kii,WSign,dProb)
         use CalcData , only : DiagSft,Tau
         use FciMCData
         use FciMCParMod, only: TestifDETinCAS
@@ -68,9 +68,8 @@ MODULE CCMC
         IMPLICIT NONE
         INTEGER :: iKill
 !        HElement_t :: rh,rhij
-        real(dp) :: r,rat,Kii
-        real(dp) dProb
-        integer, dimension(lenof_sign), intent(in) :: wSign
+        real(dp) :: r, rat, Kii, dProb
+        real(dp), intent(in) :: wSign(lenof_sign)
 
 !If there are multiple particles, decide how many to kill in total...
         rat=Tau*(Kii-DiagSft)*abs(WSign(1))*dProb
@@ -90,8 +89,6 @@ MODULE CCMC
         ENDIF
 
         AttemptDieProbPar=iKill
-
-        RETURN
 
     END FUNCTION AttemptDieProbPar
 
@@ -118,12 +115,12 @@ MODULE CCMC
     SUBROUTINE PerformCCMCCycParInt()
         INTEGER :: VecSlot,i,j,k,l,CopySign
         INTEGER :: nJ(NEl),IC,DetCurr(NEl)
-        INTEGER, DIMENSION(lenof_sign) :: Child
+        real(dp) :: child(lenof_sign)
         INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot)
         real(dp) :: Prob,rat,HDiagCurr,r
-        INTEGER :: iDie,WalkExcitLevel,Proc
+        INTEGER :: WalkExcitLevel,Proc
         INTEGER :: TotWalkersNew,Ex(2,2)
-        LOGICAL :: tParity
+        logical :: tParity
         
 ! We select up to nEl excitors at a time and store them here
         INTEGER(KIND=n_int) :: SelectedExcitors(0:NIfTot,nEl)     
@@ -133,9 +130,7 @@ MODULE CCMC
         INTEGER(KIND=n_int) :: iLutnI(0:nIfTot)
 
         ! The sign of the resultant composite
-        integer, dimension(lenof_sign) :: iSgn
-        
-
+        real(dp) :: iSgn(lenof_sign), iDie
 
 ! The prob that we choose the number of Excitors we have done
         real(dp) dProbNumExcit
@@ -150,7 +145,7 @@ MODULE CCMC
 ! The index of the reference det
         INTEGER iHFDet
 !and the number at it
-        INTEGER HFCount
+        real(dp) :: HFCount
 
 ! The number of excitors we select to make the composite.
         INTEGER iCompositeSize
@@ -174,7 +169,8 @@ MODULE CCMC
 
         real(dp) dT1Sq
 !        real(dp) AJWTProjE
-        INTEGER iCumlExcits,iLeftHere(nEl)
+        real(dp) :: iLeftHere(nel)
+        INTEGER iCumlExcits
         INTEGER iCurrentCompositeSize
         INTEGER,save :: nClusterBirths
         INTEGER,save :: nClusterDeaths   
@@ -183,8 +179,7 @@ MODULE CCMC
         real(dp) dClusterProbs
 
         !Changes to allow compatibility with the new packaged walkers.
-        INTEGER, DIMENSION(lenof_sign) :: TempSign,TempSign2,TempSign3
-        !Unused variable for interface
+        real(dp), dimension(lenof_sign) :: TempSign, TempSign2, TempSign3
         HElement_t :: HElGen
         nClusters=0
         dClusterProbs=0
@@ -247,10 +242,10 @@ MODULE CCMC
             iHFDet=-1
         else
             call extract_sign(CurrentDets(:,iHFDet),TempSign)
-            HFcount=abs(TempSign(1))
+            HFcount = abs(TempSign(1))
         endif
 
-        allocate(iKillDetIndices(2,TotParts(1)*2))
+        allocate(iKillDetIndices(2,int(TotParts(1))*2))
 
         IFDEBUG(iDebug,2) THEN
          write(iout,*) "HF det"
@@ -258,7 +253,7 @@ MODULE CCMC
          write(iout,*) "Particle list"
          do j=1,int(TotWalkers,sizeof_int)
             call extract_sign(CurrentDets(:,j),TempSign)
-            write(iout,'(i7)',advance='no') TempSign(1)
+            write(6,'(f12.4)',advance='no') TempSign(1)
             call WriteBitEx(iout,iLutHF,CurrentDets(:,j),.true.)
 !            do l=0,nIfD
 !               Write(iout,'(i)', advance='no') CurrentDets(l,j)
@@ -272,7 +267,7 @@ MODULE CCMC
         do j=1,int(TotWalkers,sizeof_int)
 !#if 0
           call extract_sign(CurrentDets(:,j),TempSign)
-          iSgn(1)=TempSign(1)
+          iSgn(1) = TempSign(1)
           IFDEBUG(iDebug,5) WRITE(iout,*) "Iteration ",Iter,':',j
 ! Deal with T_1^2
           WalkExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j), 2)
@@ -281,7 +276,7 @@ MODULE CCMC
                WalkExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,l), 2)
                if(WalkExcitLevel.eq.1) then
                   call extract_sign(CurrentDets(:,l),TempSign2)
-                  iSgn(1)=iSgn(1)*TempSign2(1)
+                  iSgn(1) = iSgn(1) * TempSign2(1)
                   iLutnI(:)=CurrentDets(:,j)
                   call AddBitExcitor(iLutnI,CurrentDets(:,l),iLutHF,iSgn(1))
                   if(iSgn(1).ne.0) then
@@ -303,7 +298,7 @@ MODULE CCMC
 !          endif
 !#endif
 !Go through all particles on the current walker det
-          do l=1,abs(TempSign(1))    !  abs(CurrentSign(j))
+          do l=1,abs(int(TempSign(1)))    !  abs(CurrentSign(j))
             iCumlExcits=iCumlExcits+1
             if(j.eq.iHFDet) then
                iMaxEx=1
@@ -346,7 +341,7 @@ MODULE CCMC
                   IFDEBUG(iDebug,5) write(iout,*) 'Plain old excitor.'
 !just select the single excitor
                   iLutnI(:)=CurrentDets(:,j)
-                  iSgn(1)=sign(1,TempSign2(1))  ! sign(1,CurrentSign(j))
+                  iSgn(1) = sign(1.0_dp, TempSign2(1))  ! sign(1,CurrentSign(j))
                   dClusterProb=1 
                   dProbNorm=1
                   iCompositeSize=0
@@ -383,7 +378,7 @@ MODULE CCMC
                   SelectedExcitors(:,1)=CurrentDets(:,j)
 
 !We keep track of the number of ways we could've generated this composite
-                  dNGenComposite=abs(TempSign2(1))  ! abs(CurrentSign(j))
+                  dNGenComposite = abs(TempSign2(1))  ! abs(CurrentSign(j))
 
 
                   if(tExactCluster) then  !Each time we're here, generate another cluster, up to all of them.
@@ -391,7 +386,7 @@ MODULE CCMC
 !Setup the exact cluster if we need to 
 !Pretend we've just finished a single excitor
                         iCurrentCompositeSize=1
-                        iLeftHere(1)=abs(TempSign2(1))-1    ! abs(CurrentSign(j))-1
+                        iLeftHere(1) = abs(TempSign2(1))-1    ! abs(CurrentSign(j))-1
                      endif
                      IFDEBUG(iDebug,6) then
                        WRITE(iout,*) "EXACT CLUSTER IN"
@@ -577,7 +572,7 @@ MODULE CCMC
                      WRITE(iout,*) " Excitors in composite:", iCompositeSize
                      do i=1,iCompositeSize
                         call extract_sign(CurrentDets(:,SelectedExcitorIndices(i)),TempSign3)
-                        write(iout,'(I2)',advance='no') sign(1,TempSign3(1))
+                        write(iout,'(I2)',advance='no') sign(1.0_dp,TempSign3(1))
                         call WriteBitEx(iout,iLutHF,SelectedExcitors(:,i),.true.)
                      enddo
                      Write(iout,"(A,G25.17)") "   Level chosen Prob      : ",dProbNumExcit
@@ -590,11 +585,11 @@ MODULE CCMC
                   dClusterProbs=dClusterProbs+1/dClusterProb
                   iLutnI(:)=CurrentDets(:,j)
                   call extract_sign(CurrentDets(:,j),TempSign3)
-                  iSgn(1)=sign(1,TempSign3(1)) !The sign of the first excitor
+                  iSgn(1) = sign(1.0_dp, TempSign3(1)) !The sign of the first excitor
                   ! iSgn(1)=sign(1,CurrentSign(j)) !The sign of the first excitor
                   do i=2,iCompositeSize 
                      call extract_sign(CurrentDets(:,SelectedExcitorIndices(i)),TempSign3)
-                     iSgn(1)=iSgn(1)*sign(1,TempSign3(1))
+                     iSgn(1) = iSgn(1) * sign(1.0_dp, TempSign3(1))
                      ! iSgn(1)=iSgn(1)*sign(1,CurrentSign(SelectedExcitorIndices(i)))
                      call AddBitExcitor(iLutnI,SelectedExcitors(:,i),iLutHF,iSgn(1))
                      IFDEBUG(iDebug,4) Write(iout,*) "Results of addition ",i, "Sign ",iSgn(1),':'
@@ -609,7 +604,7 @@ MODULE CCMC
                   WRITE(iout,*) "Chosen det/excitor is:"
                   WRITE(iout,"(A)",advance="no") "  "
                   call WriteBitDet(iout,iLutnI,.true.)
-                  CALL neci_flush(6)
+                  CALL neci_flush(iout)
                endif
 
                ! First, decode the bit-string representation of the 
@@ -667,7 +662,7 @@ MODULE CCMC
                         call WriteBitEx(iout,iLutHF,iLutnI,.false.)
                         write(iout,'(A)',advance='no') ' ==> '
                         call WriteBitEx(iout,iLutHF,iLutnJ,.false.)
-                        WRITE(iout,'(A,I7)',advance='no') "Children:",Child(1)             
+                        WRITE(iout,'(A,f12.5)',advance='no') "Children:",Child(1)             
                         IFDEBUGEQTHEN(iDebug,3)
                            if (iCompositeSize.gt.1) THEN
                               write(iout,'(A)',advance='no') ' from '
@@ -748,7 +743,7 @@ MODULE CCMC
                   HDiagCurr=REAL(Htmp,dp)
                   HDiagCurr=HDiagCurr-Hii
                   call extract_sign(CurrentDets(:,iPartDie),TempSign3)
-                  iSgn=sign(1,TempSign3(1))
+                  iSgn = sign(1.0_dp,TempSign3(1))
                ELSE
                   dProbDecompose=1
                   iPartDie=j
@@ -903,7 +898,7 @@ MODULE CCMC
 !***Birth/death processes finished. Tidy up and then annihilate.
 
 !SumWalkersCyc calculates the total number of walkers over an update cycle on each process
-        SumWalkersCyc=SumWalkersCyc+(INT(TotParts(1),int64))
+        SumWalkersCyc = SumWalkersCyc + int(TotParts(1), int64)
 !        WRITE(iout,*) "Born, Die: ",NoBorn, NoDied
 
 
@@ -1424,8 +1419,8 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    INTEGER(KIND=n_int) ExcitList(0:nIfTot,nExcit)
    INTEGER ExcitLevelIndex(0:nEl+1)
    real(dp) dInitAmp,dTotAbsAmpl
-   INTEGER iC,j,l,iSgn
-   real(dp) dAmp
+   INTEGER iC,j,l
+   real(dp) :: dAmp, iSgn
    INTEGER DetCurr(nEl)
    HElement_t HTmp,H0Tmp,H0HF
    INTEGER(KIND=n_int) iLutnI(0:nIfTot)
@@ -1508,7 +1503,7 @@ subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,WalkerScale,iDebug)
    use DetCalcData, only: FCIDets   ! (0:NIfDBO, Det).  Lists all allowed excitors in compressed form
    use DetCalcData, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
    use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
-   Use Logging, only: tCCMCLogTransitions
+   Use LoggingData, only: tCCMCLogTransitions
    use FciMCData, only: Iter,iLutHF
    use CalcData, only: NEquilSteps
    implicit none
@@ -1590,7 +1585,7 @@ subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,WalkerScale,iDebug)
    use DetCalcData, only:FCIDetIndex! (0:nEl+1).  The index of the different excitation levels
    use DetCalcData, only: Det       ! The number of Dets/Excitors in FCIDets
    use constants, only: dp
-   Use Logging, only: lLogTransitions=>tCCMCLogTransitions
+   Use LoggingData, only: lLogTransitions=>tCCMCLogTransitions
    use CalcData, only: NEquilSteps
    use FciMCParMod, only: BinSearchParts3
    use dSFMT_interface , only : genrand_real2_dSFMT
@@ -1734,7 +1729,7 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
    INTEGER(KIND=n_int) :: SpawnList(0:nIfTot,*)
    integer nSpawned
    integer nMaxSpawn
-   integer, dimension(lenof_sign) :: iSpawnAmp
+   real(dp) :: iSpawnAmp(lenof_sign), TempSign(lenof_sign), child(lenof_sign)
    integer iDebug
 
    real(dp) rat,r,prob,RDMBias
@@ -1776,8 +1771,9 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
 !   rat=-C%iSgn*Tau*S%HIJ*C%dAbsAmplitude/(S%dProbSpawn*C%dProbNorm*C%dClusterNorm)  
 ! so prob is
    prob=(S%dProbSpawn*C%dProbNorm*C%dClusterNorm)/C%dAbsAmplitude
- 
 
+   TempSign=C%iSgn
+   
    ! SDS: I don't know where I should set this globally, so I've done it here
    get_spawn_helement => hphf_spawn_sign
    iSpawnAmp=attempt_create_normal( &
@@ -1818,14 +1814,13 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,nSpawned)
    implicit none
    Type(Cluster) C
    INTEGER(KIND=n_int) :: SpawnList(0:nIfTot,*)
-   INTEGER nSpawned
-   integer iDebug
+   integer :: iDebug, nSpawned
 
    INTEGER iC
    real(dp) r,rat,HDiagCurr
    HElement_t Htmp
    integer i
-   integer, dimension(lenof_sign) :: iSpawnAmp
+   real(dp) :: iSpawnAmp(lenof_sign), child(lenof_sign)
    integer initFlag
    logical IsImag
 
@@ -1980,8 +1975,8 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    use FciMCParMod, only: InitHistMin, calculate_new_shift_wrapper
    use FciMCData, only: NoatHF,NoatDoubs
    use FciMCParMod, only: WriteHistogram,SumEContrib
-   Use Logging, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
-   USE Logging , only : tHistSpawn,iWriteHistEvery
+   Use LoggingData, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
+   USE LoggingData , only : iWriteHistEvery
    USE DetCalcData , only : ICILevel
    use CalcData, only: NEquilSteps
    use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
@@ -1990,6 +1985,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    use ClusterList
    use CalcData, only: DiagSft
    use CalcData, only: tAddToInitiator,InitiatorWalkNo,tTruncInitiator
+   use hist_data, only: tHistSpawn
    IMPLICIT NONE
    character(len=*), parameter :: this_routine="CCMCStandalone"
    real(dp) Weight,EnergyxW
@@ -2005,7 +2001,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    INTEGER PartIndex,IC          ! Used in buffering
    LOGICAL tSuc                  ! Also used in buffering
 
-   INTEGER, dimension(lenof_sign) :: iOldTotParts        ! Info user for update to calculate shift
+   real(dp), dimension(lenof_sign) :: iOldTotParts        ! Info user for update to calculate shift
    INTEGER iShiftLeft            ! Number of steps left until we recalculate shift
    real(dp) dNorm
    real(dp) WalkerScale            ! Scale factor for turning floating point amplitudes into integer walkers.
@@ -2038,7 +2034,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 
    TYPE(CCTransitionLog) TL               ! Store data on transitions
    INTEGER iRefPos
-   INTEGER, DIMENSION(lenof_sign) :: TempSign   !ghb24: For compatibility with new walker arrays & routines
+   real(dp) :: TempSign(lenof_sign)
    TYPE(timer) :: CCMC_time
 
    real(dp) dInitThresh
@@ -2339,6 +2335,8 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
 END SUBROUTINE CCMCStandalone
 
 SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
+   use soft_exit, only: ChangeVars
+   use PopsfileMod, only: ReadFromPopsfileOnly, WriteToPopsfileParOneArr
    Use global_utilities
    use SystemData, only: nEl
    use CCMCData, only: tCCMCFCI,dInitAmplitude,dProbSelNewExcitor,tExactCluster,tExactSpawn,nSpawnings,tCCBuffer
@@ -2355,8 +2353,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
    use FciMCParMod, only: InitHistMin, calculate_new_shift_wrapper
    use FciMCParMod, only: WriteHistogram,SumEContrib
-   Use Logging, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
-   USE Logging , only : tHistSpawn,iWriteHistEvery,tPopsFile
+   Use LoggingData, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
+   USE LoggingData , only : iWriteHistEvery,tPopsFile
    USE DetCalcData , only : ICILevel
    use CalcData, only: InitWalkers, NEquilSteps, tReadPops
    use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
@@ -2370,12 +2368,13 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use shared_alloc, only: shared_allocate_iluts, shared_deallocate
    use CalcData, only: tAddToInitiator,InitiatorWalkNo,tTruncInitiator
    use bit_reps, only: encode_sign,extract_sign
+   use FciMCParMod, only: tReadPops, ChangeVars
    use PopsFileMod, only: WriteToPopsFileParOneArr, ReadFromPopsfileOnly
-   use FciMCParMod, only: ChangeVars
    use FciMCData, only: SpawnedParts,ValidSpawnedList,InitialSpawnedSlots
    use FciMCData, only: hash_shift, hash_iter !For cycle-dependent hashes
    use CalcData, only: MemoryFacPart,tInstGrowthRate
    use FciMCData, only: tTimeExit,MaxTimeExit !For TIME command
+   use hist_data, only: tHistSpawn
    IMPLICIT NONE
    real(dp) Weight,EnergyxW
    CHARACTER(len=*), PARAMETER :: this_routine='CCMCStandaloneParticle'
@@ -2392,7 +2391,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    INTEGER i,j,iMin
 ! Temporary Storage
 
-   INTEGER, dimension(lenof_sign) ::  iOldTotParts        ! Info user for update to calculate shift
+   real(dp), dimension(lenof_sign) ::  iOldTotParts        ! Info user for update to calculate shift
    INTEGER iShiftLeft            ! Number of steps left until we recalculate shift
    real(dp) WalkerScale            ! Scale factor for turning floating point amplitudes into integer walkers.
    real(dp) dTolerance             ! The tolerance for when to regard a value as zero
@@ -2413,7 +2412,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    
    INTEGER(kind=n_int), allocatable, target :: SpawnList(:,:)
    INTEGER(TagIntType) ::  tagSpawnList
-   INTEGER nSpawned,nMaxSpawn
+   integer :: nMaxSpawn, nSpawned
 
    LOGICAL tS
 
@@ -2424,7 +2423,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    integer iRefPos      !The location of the reference det in the Amplitude array
 
    !ghb24: Changes to allow compatibility with the new packaged walkers.
-   INTEGER, DIMENSION(lenof_sign) :: TempSign
+   real(dp) :: TempSign(lenof_sign)
    TYPE(timer) :: CCMC_time,SpawnTime,DieTime,CCMCComms1_time,CCMCWait_time,CCMCComms2_time
    TYPE(timer) :: Etime,CCMCrehouse
    INTEGER :: iOffsets(nProcessors)  !Used to store spawning data for annihilation
@@ -2609,8 +2608,9 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
          iRefPos=-1
          call MPIBCast(dNorm,.false.)
       endif
-      call CalcTotals(iNumExcitors,dTotAbsAmpl,dNorm, AL,iCurAmpList,nAmpl,dTolerance*dInitAmplitude, &
-        WalkerScale,iRefPos,iOldTotParts,iDebug)
+      call CalcTotals (iNumExcitors, dTotAbsAmpl, dNorm, AL, iCurAmpList, &
+                       nAmpl, dTolerance*dInitAmplitude, WalkerScale, &
+                       iRefPos, iOldTotParts, iDebug)
       iter_data_ccmc%update_growth = 0
       iter_data_ccmc%tot_parts_old=TotParts
       AllTotPartsOld=TotParts
@@ -2751,8 +2751,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
             call AttemptSpawnParticle(S,CS%C,iDebug,SpawnList(:,:),nSpawned,nMaxSpawn)
          enddo !GetNextSpawner
 ! Now deal with birth/death.
-         if((.not.tTruncSpace).or.CS%C%iExcitLevel<=iMaxAmpLevel)          &
-  &         call AttemptDieParticle(CS%C,iDebug,SpawnList,nSpawned)
+         if ((.not.tTruncSpace).or.CS%C%iExcitLevel<=iMaxAmpLevel) &
+             call AttemptDieParticle(CS%C, iDebug, SpawnList, nSpawned)
       enddo ! Cluster choices
 
 !Now we move any dets which need a home to the Annihilation list
@@ -2770,7 +2770,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       IFDEBUG(iDebug,3) write(iout,*) "Calling Annihilation with ", nSpawned, " spawned."
       IFDEBUG(iDebug,3.and.nNodes>1) call WriteExcitorListP2(iout,SpawnList,InitialSpawnedSlots,ValidSpawnedList, &
         dAmpPrintTol,"Spawned/ReHoused list")
-      call AnnihilationInterface(nAmpl,DetList,nMaxAmpl,nSpawned,SpawnList,nMaxSpawn,iter_data_ccmc)
+      call AnnihilationInterface(nAmpl, DetList, nMaxAmpl, nSpawned, &
+                                 SpawnList, nMaxSpawn, iter_data_ccmc)
       call MPIBCast(nAmpl,Node)
       call halt_timer(CCMCComms2_time)
       call MPIBarrier(ierr)
@@ -2953,11 +2954,10 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
       INTEGER(kind=n_int), pointer :: DetList(:,:)
       logical :: tPop64Bit,tPopHPHF,tPopLz
       integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
-      integer(int64) :: iPopAllTotWalkers
-      real(dp) :: PopDiagSft,read_tau
-      integer(int64) , dimension(lenof_sign) :: PopSumNoatHF
+      integer(int64) :: iPopAllTotWalkers, CurrParts(lenof_sign)
+      real(dp) :: PopDiagSft,read_tau, tmp_dp(lenof_sign)
       integer nMaxAmpl,nAmpl,PopBlockingIter
-      integer(int64) , dimension(lenof_sign) :: CurrParts
+      real(dp) :: PopSumNoatHF(lenof_sign)
       integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
       HElement_t :: PopAllSumENum
       ReadBatch=nMaxAmpl
@@ -2969,8 +2969,8 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
       if(PopsVersion.lt.3)  then
 !Read in particles from multiple POPSFILES for each processor
          WRITE(iout,*) "Reading in initial particle configuration from *OLD* POPSFILES..."
-         CurrParts(1)=nMaxAmpl 
-         call ReadFromPopsfileOnly(DetList,CurrParts(1))
+         CurrParts(1)=nMaxAmpl
+         call ReadFromPopsfileOnly(DetList, CurrParts(1))
          nAmpl=int(CurrParts(1),sizeof_int)
       else
          call open_pops_head(iunithead,formpops,binpops)
@@ -2991,7 +2991,9 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
                PopBlockingIter)
 
          if(iProcIndex.eq.root) close(iunithead)
-         call ReadFromPopsfile(iPopAllTotWalkers,ReadBatch,TotWalkers,CurrParts,NoatHF,DetList,nMaxAmpl)
+         tmp_dp = CurrParts
+         call ReadFromPopsfile(iPopAllTotWalkers,ReadBatch,TotWalkers,tmp_dp,NoatHF,DetList,nMaxAmpl)
+         CurrParts = tmp_dp
          nAmpl=int(TotWalkers,sizeof_int)
          dNorm=NoatHF(1)
       endif
@@ -3256,7 +3258,7 @@ END MODULE CCMC
 
 !Writes out a compressed excitor list where signs are contained within the Particles and whose values are >=dTol
 subroutine WriteExcitorListP(iUnit,Dets,offset,nDet,dTol,Title)
-   use constants, only:  n_int, lenof_sign
+   use constants
    use bit_rep_data, only: NIfDBO,NIfTot
    use FciMCData, only: iLutHF
    use bit_reps, only: extract_sign,extract_flags
@@ -3271,12 +3273,12 @@ subroutine WriteExcitorListP(iUnit,Dets,offset,nDet,dTol,Title)
    integer dTol
    CHARACTER(len=*) Title
    INTEGER j,offset
-   INTEGER, dimension(lenof_sign) :: Amp
+   real(dp) :: amp(lenof_sign)
    write(iout,*) Title
    do j=1,nDet
       call extract_sign(Dets(:,j),Amp)
       if(abs(Amp(1)).ge.dTol) THEN
-         write(iUnit,'(I7,G17.9," ")',advance='no') j+offset,Amp(1)
+         write(iUnit,'(I7,G17.9," ")',advance='no') j+offset, Amp(1)
          call WriteBitEx(iUnit,iLutHF,Dets(:,j),.false.)
          write(iUnit,'(I7)') extract_flags(Dets(:,j))
       ENDIF
@@ -3285,7 +3287,7 @@ end subroutine !WriteExcitorList
 
 !Writes out a compressed excitor list where signs are contained within the Particles and whose values are >=dTol
 subroutine WriteExcitorListP2(iUnit,Dets,starts,ends,dTol,Title)
-   use constants, only:  n_int, lenof_sign
+   use constants
    use bit_rep_data, only: NIfDBO,NIfTot
    use FciMCData, only: iLutHF
    use bit_reps, only: extract_sign,extract_flags
@@ -3301,13 +3303,13 @@ subroutine WriteExcitorListP2(iUnit,Dets,starts,ends,dTol,Title)
    integer dTol
    CHARACTER(len=*) Title
    INTEGER j, starts(0:nNodes-1), ends(0:nNodes-1), i
-   INTEGER, dimension(lenof_sign) :: Amp
+   real(dp) :: amp(lenof_sign)
    write(iout,*) Title
    do i=0,nNodes-1
       do j=starts(i),ends(i)-1
          call extract_sign(Dets(:,j),Amp)
          if(abs(Amp(1)).ge.dTol) THEN
-            write(iUnit,'(I7,G17.9," ")',advance='no') j-starts(i)+1,Amp(1)
+            write(iUnit,'(I7,G17.9," ")',advance='no') j-starts(i)+1, Amp(1)
             call WriteBitEx(iUnit,iLutHF,Dets(:,j),.false.)
             write(iUnit,'(I7)') extract_flags(Dets(:,j))
          ENDIF

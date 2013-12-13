@@ -3,15 +3,16 @@
 MODULE PopsfileMod
 
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin, &
-                          tMomInv
+                          tMomInv 
     use CalcData, only: tTruncInitiator, DiagSft, tWalkContGrow, nEquilSteps, &
                         ScaleWalkers, tReadPopsRestart, tRegenDiagHEls, &
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
                         iWeightPopRead, iPopsFileNoRead, tPopsMapping, Tau, &
                         InitiatorWalkNo, MemoryFacPart, MemoryFacAnnihil, &
-                        MemoryFacSpawn
-    use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet
-    use hash , only : DetermineDetNode
+                        MemoryFacSpawn, tSemiStochastic, tTrialWavefunction
+    use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
+                         ilut_lt, ilut_gt
+    use hash , only : DetermineDetNode, FindWalkerHash
     use Determinants, only : get_helement,write_det
     use hphf_integrals, only: hphf_diag_helement
     use MI_integrals, only: MI_diag_helement
@@ -21,8 +22,7 @@ MODULE PopsfileMod
     use bit_reps
     use constants
     use Parallel_neci
-    use AnnihilationMod, only: FindWalkerHash,EnlargeHashTable
-    use Logging, only: iWritePopsEvery, tPopsFile, iPopsPartEvery, tBinPops, &
+    use LoggingData, only: iWritePopsEvery, tPopsFile, iPopsPartEvery, tBinPops, &
                        tPrintPopsDefault, tIncrementPops, tPrintInitiators, &
                        tSplitPops, tZeroProjE, tRDMonFly, tExplicitAllRDM, &
                        tHF_Ref_Explicit, binarypops_min_weight
@@ -30,6 +30,8 @@ MODULE PopsfileMod
     use util_mod, only: get_free_unit,get_unique_filename
 
     implicit none
+
+    logical :: tRealPOPSfile
 
     contains
 
@@ -42,8 +44,8 @@ MODULE PopsfileMod
         integer(int64) , intent(in) :: EndPopsList  !Number of entries in the POPSFILE.
         integer , intent(in) :: ReadBatch       !Size of the batch of determinants to read in in one go.
         integer(int64) , intent(out) :: CurrWalkers64    !Number of determinants which end up on a given processor.
-        integer(int64) , dimension(lenof_sign) , intent(out) :: CurrParts
-        integer , dimension(lenof_sign) , intent(out) :: CurrHF
+        real(dp), intent(out) :: CurrHF(lenof_sign)
+        real(dp) :: CurrParts(lenof_sign)
         integer :: CurrWalkers,Slot,nJ(nel)
         integer :: iunit,i,j,ierr,PopsInitialSlots(0:nNodes-1)
         INTEGER(TagIntType) :: BatchReadTag=0
@@ -55,7 +57,7 @@ MODULE PopsfileMod
         integer(n_int) :: WalkerTemp(0:NIfTot)
         integer(int64) :: Det,AllCurrWalkers,TempCurrWalkers
         logical :: FormPops,BinPops,tReadAllPops,tStoreDet
-        integer , dimension(lenof_sign) :: SignTemp
+        real(dp) , dimension(lenof_sign) :: SignTemp
         integer :: TempNI(NEl),nBatches,PopsVersion
         character(len=*) , parameter :: this_routine='ReadFromPopsfile'
         HElement_t :: HElemTemp
@@ -66,14 +68,14 @@ MODULE PopsfileMod
         integer :: PopBlockingIter
         integer(int64) :: iPopAllTotWalkers
         real(dp) :: PopDiagSft,read_tau
-        integer(int64) , dimension(lenof_sign) :: PopSumNoatHF
+        real(dp) , dimension(lenof_sign) :: PopSumNoatHF
         integer, intent(in) :: DetsLen
         INTEGER(kind=n_int), intent(out) :: Dets(0:nIfTot,DetsLen)
         character(12) :: tmp_num
         character(255) :: tmp_char
         HElement_t :: PopAllSumENum
-
         integer :: sgn(lenof_sign), flg
+        type(ll_node), pointer :: Temp
 
         sendcounts=0
         disps=0
@@ -304,23 +306,40 @@ r_loop: do while(.not.tReadAllPops)
             call LogMemDealloc (this_routine, BatchReadTag)
         end if
 
+        ! Clear all deterministic and trial flags so that they can be changed later.
+        if (tUseFlags) then
+            do i = 1, CurrWalkers
+                call clr_flag(CurrentDets(:,i), flag_deterministic)
+                call clr_flag(CurrentDets(:,i), flag_determ_parent)
+                call clr_flag(CurrentDets(:,i), flag_trial)
+                call clr_flag(CurrentDets(:,i), flag_connected)
+            end do
+        end if
+
         write(6,"(A,I8)") "Number of batches required to distribute all determinants in POPSFILE: ",nBatches
         write(6,*) "Number of configurations read in to this process: ",CurrWalkers 
 
         if(tHashWalkerList) then
-            do i=1,CurrWalkers
-                call decode_bit_det (nJ, dets(:,i))              
-                DetHash=FindWalkerHash(nJ)
-                Slot=HashIndex(0,DetHash)
-                HashIndex(Slot,DetHash)=i
-                HashIndex(0,DetHash)=HashIndex(0,DetHash)+1
-                if(HashIndex(0,DetHash).gt.nClashMax) then
-                    call EnlargeHashTable()
-                endif
-            enddo
+            do i = 1, CurrWalkers
+                call decode_bit_det (nJ, dets(:,i))
+                DetHash=FindWalkerHash(nJ, nWalkerHashes)
+                Temp => HashIndex(DetHash)
+                ! If the first element in the list has not been used.
+                if (Temp%Ind == 0) then
+                    Temp%Ind = i
+                else
+                    do while (associated(Temp%Next))
+                        Temp => Temp%Next
+                    end do
+                    allocate(Temp%Next)
+                    nullify(Temp%Next%Next)
+                    Temp%Next%Ind = i
+                end if
+            end do
+            nullify(Temp)
         else
             !Order the determinants on all the lists.
-            call sort (dets(:,1:CurrWalkers))
+            call sort (dets(:,1:CurrWalkers), ilut_lt, ilut_gt)
         endif
 
         !Run through all determinants on each node, and calculate the total number of walkers, and noathf
@@ -333,9 +352,9 @@ r_loop: do while(.not.tReadAllPops)
                     call stop_all(this_routine,"HF already found, but shouldn't have")
                 endif
                 CurrHF=CurrHF+SignTemp 
-                IF(.not.tRegenDiagHEls) CurrentH(1,i)=0.0_dp
+                if ((.not.tRegenDiagHEls) .and. (.not. tSemiStochastic)) CurrentH(1,i)=0.0_dp
             else
-                if(.not.tRegenDiagHEls) THEN
+                if((.not.tRegenDiagHEls) .and. (.not. tSemiStochastic)) THEN
                 !Calculate diagonal matrix element
                     call decode_bit_det (TempnI, currentDets(:,i))
                     if (tHPHF) then
@@ -375,8 +394,10 @@ r_loop: do while(.not.tReadAllPops)
         integer(int64) , intent(inout) :: Det
         integer(n_int), intent(out) :: WalkerTemp(0:NIfTot)
         integer(n_int) :: WalkerToMap(0:MappingNIfD), WalkerTemp2(0:NIfTot)
-        integer(n_int) :: sgn_read(lenof_sign), flg_read
-        integer :: elec, sgn(lenof_sign), flg, i, j, stat
+        integer(n_int) :: sgn_int(lenof_sign)
+        integer :: elec, flg, i, j, stat
+        real(dp) :: sgn(lenof_sign)
+        integer(n_int) :: flg_read
         logical :: tStoreDet, tEOF
 
         tStoreDet=.false.
@@ -384,44 +405,88 @@ r_loop: do while(.not.tReadAllPops)
 r_loop: do while(.not.tStoreDet)
 
             if (.not. tPopsMapping) then
+                !
                 ! All basis parameters match --> Read in directly.
-                if (BinPops) then
-                    if (tUseFlags) then
-                        read(iunit, iostat=stat) WalkerTemp(0:NIfD), sgn_read,&
-                                                 flg_read
+                if (tRealPOPSfile) then
+                    if (BinPops) then
+                        if (tUseFlags) then
+                            read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), sgn,&
+                                                     flg_read
+                        else
+                            read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), sgn
+                        end if
                     else
-                        read(iunit, iostat=stat) WalkerTemp(0:NIfD), sgn_read
+                        if (tUseFlags) then
+                            read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
+                                                       sgn, flg_read
+                        else
+                            read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), sgn
+                        end if
                     end if
                 else
-                    if (tUseFlags) then
-                        read(iunit,*, iostat=stat) WalkerTemp(0:NIfD), &
-                                                   sgn_read, flg_read
+                    if (BinPops) then
+                        if (tUseFlags) then
+                            read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), &
+                                                     sgn_int, flg_read
+                        else
+                            read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), &
+                                                     sgn_int
+                        end if
                     else
-                        read(iunit,*, iostat=stat) WalkerTemp(0:NIfD), sgn_read
+                        if (tUseFlags) then
+                            read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
+                                                       sgn_int, flg_read
+                        else
+                            read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
+                                                       sgn_int
+                        end if
                     end if
+                    sgn = sgn_int
                 end if
                 if (stat < 0) then
                     tEOF = .true. ! End of file reached.
                     exit r_loop
                 end if
             else
+                !
                 ! we are mapping from a smaller to larger basis.
-                if (BinPops) then
-                    if (tUseFlags) then
-                        read(iunit, iostat=stat) WalkerToMap(0:MappingNIfD), &
-                                                 sgn_read, flg_read
+                if (tRealPOPSfile) then
+                    if (BinPops) then
+                        if (tUseFlags) then
+                            read(iunit, iostat=stat) &
+                                WalkerToMap(0:MappingNIfD), sgn, flg_read
+                        else
+                            read(iunit, iostat=stat) &
+                                WalkerToMap(0:MappingNIfD), sgn
+                        end if
                     else
-                        read(iunit, iostat=stat) WalkerToMap(0:MappingNIfD), &
-                                                 sgn_read
+                        if (tUseFlags) then
+                            read(iunit,*, iostat=stat) &
+                                WalkerToMap(0:MappingNIfD), sgn, flg_read
+                        else
+                            read(iunit,*, iostat=stat) &
+                                WalkerToMap(0:MappingNIfD), sgn
+                        end if
                     end if
                 else
-                    if (tUseFlags) then
-                        read(iunit,*, iostat=stat) WalkerToMap(0:MappingNIfD),&
-                                                   sgn_read, flg_read
+                    if (BinPops) then
+                        if (tUseFlags) then
+                            read(iunit, iostat=stat) &
+                                WalkerToMap(0:MappingNIfD), sgn_int, flg_read
+                        else
+                            read(iunit, iostat=stat) &
+                                WalkerToMap(0:MappingNIfD), sgn_int
+                        end if
                     else
-                        read(iunit,*, iostat=stat) WalkerToMap(0:MappingNIfD),&
-                                                   sgn_read
+                        if (tUseFlags) then
+                            read(iunit,*, iostat=stat) &
+                                WalkerToMap(0:MappingNIfD), sgn_int, flg_read
+                        else
+                            read(iunit,*, iostat=stat) &
+                                WalkerToMap(0:MappingNIfD), sgn_int
+                        end if
                     end if
+                    sgn = sgn_int
                 end if
                 if (stat < 0) then
                     tEOF = .true. ! End of file reached
@@ -446,7 +511,6 @@ outer_map:      do i = 0, MappingNIfD
             end if
 
             ! Store the sign and flag information in the determinant.
-            sgn = int(sgn_read,sizeof_int)
             flg = int(flg_read,sizeof_int)
             call encode_sign (WalkerTemp, sgn)
             if (tUseFlags) call encode_flags (WalkerTemp, flg)
@@ -531,13 +595,13 @@ outer_map:      do i = 0, MappingNIfD
     subroutine CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                     iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                     PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau,PopBlockingIter)
-        use Logging , only : tZeroProjE
+        use LoggingData , only : tZeroProjE
         logical , intent(in) :: tPop64Bit,tPopHPHF,tPopLz
         integer , intent(in) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
         integer , intent(in) :: PopBlockingIter
         integer(int64) , intent(in) :: iPopAllTotWalkers
         real(dp) , intent(in) :: PopDiagSft,read_tau
-        integer(int64) , dimension(lenof_sign) , intent(in) :: PopSumNoatHF
+        real(dp) , dimension(lenof_sign) , intent(in) :: PopSumNoatHF
         HElement_t , intent(in) :: PopAllSumENum
         integer , intent(out) :: WalkerListSize
         character(len=*) , parameter :: this_routine='CheckPopsParams'
@@ -597,7 +661,7 @@ outer_map:      do i = 0, MappingNIfD
             tSinglePartPhase=.true.
             !If continuing to grow, ensure we can allocate enough memory for what we hope to get the walker population to,
             !rather than the average number of determinants in the popsfile.
-            WalkerListSize=int(max(initwalkers,NINT(real(iPopAllTotWalkers,dp)/real(nNodes,dp),int64)),sizeof_int)
+            WalkerListSize=int(max(int(initwalkers,int64),NINT(real(iPopAllTotWalkers,dp)/real(nNodes,dp),int64)),sizeof_int)
         else
             tSinglePartPhase=.false.
             WalkerListSize=NINT(real(iPopAllTotWalkers,dp)/real(nNodes,dp))
@@ -658,7 +722,7 @@ outer_map:      do i = 0, MappingNIfD
         integer , intent(out) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
         integer(int64) , intent(out) :: iPopAllTotWalkers
         real(dp) , intent(out) :: PopDiagSft
-        integer(int64) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
+        real(dp) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
         HElement_t , intent(out) :: PopAllSumENum
         character(len=24) :: junk,junk2,junk3,junk4,junk5
         integer :: PopsVersion
@@ -709,7 +773,7 @@ outer_map:      do i = 0, MappingNIfD
         integer , intent(out) :: PopBlockingIter
         integer(int64) , intent(out) :: iPopAllTotWalkers
         real(dp) , intent(out) :: PopDiagSft,read_tau
-        integer(int64) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
+        real(dp) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
         HElement_t , intent(out) :: PopAllSumENum
         integer :: PopsVersion
         integer :: PopRandomHash(1024)
@@ -803,8 +867,12 @@ outer_map:      do i = 0, MappingNIfD
 !Return the version number of the popsfile
     integer function FindPopsfileVersion(iunithead)
         integer, intent(in) :: iunithead
-        logical :: formpops,binpops
+        logical :: formpops, binpops, tEOF
+        integer :: stat
         character(255) :: FirstLine
+
+        ! Default value
+        tRealPOPSfile = .true.
 
         if(iProcIndex.eq.root) then
             rewind(iunithead)
@@ -816,8 +884,39 @@ outer_map:      do i = 0, MappingNIfD
                 rewind(iunithead)
                 read(iunithead,*) FirstLine,FirstLine,FirstLine,FindPopsfileVersion
             endif
+
+            ! We need to be able to deal with popsfiles created with the 
+            ! (old) integer version of the code
+            ! --> No direct option was included for the output files to
+            !     indicate if they used integers or real coefficients
+            ! --> We need to take a (slight) guess...
+            if (FindPopsfileVersion == 4 .and. tBinPops) then
+                do while (.true.)
+                    ! Read until the end of the file.
+                    read(iunithead, '(a255)', iostat=stat) FirstLine
+                    if (stat < 0) exit
+
+                    ! If we have the line with PopSumNoatHF in it, check if
+                    ! the reported number is a real number. If it is, we know
+                    ! the popsfile was created by the realcoeff branch.
+                    if (index(FirstLine, 'PopSumNoatHF=') /= 0) then
+                        if (index(FirstLine, '.') /= 0) then
+                            tRealPOPSfile = .true.
+                        else
+                            tRealPOPSfile = .false.
+                        end if
+                        exit
+                    end if
+                end do
+
+                ! Rewind to allow normal reading of the header.
+                rewind(iunithead)
+                read(iunithead,*) FirstLine,FirstLine,FirstLine,FindPopsfileVersion
+            end if
+
         endif
         call MPIBCast(FindPopsfileVersion)
+        call MPIBcast(tRealPOPSfile)
 
     end function FindPopsfileVersion
 
@@ -845,7 +944,8 @@ outer_map:      do i = 0, MappingNIfD
         integer(int64) :: write_count, write_count_sum
         CHARACTER(len=*) , PARAMETER :: this_routine='WriteToPopsfileParOneArr'
         character(255) :: popsfile
-        INTEGER, DIMENSION(lenof_sign) :: TempSign
+        real(dp) :: TempSign(lenof_sign)
+        integer :: excit_lev
         character(1024) :: out_tmp
         character(12) :: num_tmp
 
@@ -1036,6 +1136,7 @@ outer_map:      do i = 0, MappingNIfD
         ! With binary popsfiles, the header is written once the popsfiles
         ! have been created, so that we can store the number of particles
         ! actually written, rather than the total within the system.
+        ! Note that for non-binary popsfiles, all particles are written.
         if (tBinPops) then
 
             ! Get a count of the number of particles written
@@ -1118,84 +1219,81 @@ outer_map:      do i = 0, MappingNIfD
 
         integer, intent(in) :: iunit, iunit_2
         integer(n_int), intent(in) :: det(0:NIfTot)
-        integer :: sgn(lenof_sign), flg, j, k, ex_level
+        real(dp) :: real_sgn(lenof_sign)
+        integer :: flg, j, k, ex_level
         logical :: bWritten
 
-        ! Note, we don't want to bother outputting empty particles, or those
-        ! with a weight which is lower than specified as the cutoff
         bWritten = .false.
-        call extract_sign(det, sgn)
-        !if (.not. IsUnoccDet(sgn)) then
-        if (sum(abs(sgn)) > binarypops_min_weight) then
 
-            ! If we are using a reduced
-            if (mod(j, iPopsPartEvery) == 0) then
+        call extract_sign(det, real_sgn)
 
-                ! We are including this particle now, so say so!
-                bWritten = .true.
+        if (tBinPops) then
+            ! We don't want to bother outputting empty particles, or those
+            ! with a weight which is lower than specified as the cutoff
+            if (sum(abs(real_sgn)) > binarypops_min_weight) then
+                if (mod(j, iPopsPartEvery) == 0) then 
+                    bWritten = .true.
+                end if
+            end if
+        else
+            ! If not using a binary popsfile, the header has already been written,
+            ! and the total number of determinants was written out. Therefore, all
+            ! determinants must be printed out, else there will be an error reading
+            ! them in again.
+            bWritten = .true.
+        end if
 
-                ! Write output in the desired format. If __INT64, we are 
-                ! including the flag information with the signs in storage in
-                ! memory --> need to extract these before outputting them.
-#ifdef __INT64
-                flg = extract_flags(det)
-                if (tBinPops) then
-                    ! All write statements MUST be on the same line, or we end
-                    ! up with multiple records.
-                    ! TODO: For POPSFILE V5 --> stream output.
-                    if (tUseFlags) then
-                        write(iunit) det(0:NIfD), int(sgn, n_int), &
-                                                                int(flg, n_int)
-                    else
-                        write(iunit) det(0:NIfD), int(sgn, n_int)
-                    end if
+        if (bWritten) then
+
+            ! Write output in the desired format. If __INT64, we are 
+            ! including the flag information with the signs in storage in
+            ! memory --> need to extract these before outputting them.
+            flg = extract_flags(det)
+            if (tBinPops) then
+                ! All write statements MUST be on the same line, or we end
+                ! up with multiple records.
+                ! TODO: For POPSFILE V5 --> stream output.
+                if (tUseFlags) then
+                    write(iunit) det(0:NIfD), real_sgn, int(flg, n_int)
                 else
-                    do k = 0, NIfD
-                        write(iunit, '(i24)', advance='no') det(k)
-                    end do
-                    do k = 1, lenof_sign
-                        write(iunit, '(i24)', advance='no') sgn(k)
-                    end do
-                    if (tUseFlags) write(iunit, '(i24)', advance='no') flg
-                    write(iunit, *)
+                    write(iunit) det(0:NIfD), real_sgn
                 end if
-#else
-                if (tBinPops) then
-                    write(iunit) det(0:NIfTot)
-                else
-                    do k = 0, NIfTot - 1
-                        write(iunit, '(i24)', advance='no') det(k)
-                    end do
-                    write(iunit, '(i24)') det(NIfTot)
-                end if
-#endif
+            else
+                do k = 0, NIfDBO
+                    write(iunit, '(i24)', advance='no') det(k)
+                end do
+                do k = 1, lenof_sign
+                    write(iunit, '(f30.8)', advance='no') real_sgn(k)
+                end do
+                if (tUseFlags) write(iunit, '(i24)', advance='no') flg
+                write(iunit, *)
+            end if
 
-                if (tPrintInitiators .and. abs(sgn(1)) > InitiatorWalkNo) then
-                    ! Testing using the sign now, because after annihilation
-                    ! the current flag will not necessarily be correct.
-                    ex_level = FindBitExcitLevel(ilutRef, det, nel)
-                    write(iunit_2, '(i30,a20)', advance='no') abs(sgn(1)), ''
-                    call writebitdet (iunit_2, det, .false.)
-                    write(iunit_2, '(i30)') ex_level
+            if (tPrintInitiators .and. &
+                abs(real_sgn(1)) > InitiatorWalkNo) then
+                ! Testing using the sign now, because after annihilation
+                ! the current flag will not necessarily be correct.
+                ex_level = FindBitExcitLevel(ilutRef, det, nel)
+                write(iunit_2, '(f20.10,a20)', advance='no') &
+                    abs(real_sgn(1)), ''
+                call writebitdet (iunit_2, det, .false.)
+                write(iunit_2, '(i30)') ex_level
 
-                end if
             end if
         end if
 
-    end function
-
-
-
+    end function write_pops_det
 
 !This routine reads in particle configurations from a POPSFILE.
     SUBROUTINE ReadFromPopsfilePar()
         LOGICAL :: exists,tBinRead
+        Real(dp) :: NodeSumNoatHF(nProcessors)
         INTEGER :: WalkerstoReceive(nProcessors)
         integer(int64) :: AvWalkers
-        integer(int64) :: NodeSumNoatHF(nProcessors)
         integer(int64) :: TempTotParts(lenof_sign),TempCurrWalkers
         INTEGER :: TempInitWalkers,error,i,j,l,total,ierr,MemoryAlloc,Tag,Proc,CurrWalkers,ii
         INTEGER , DIMENSION(lenof_sign) :: TempSign
+        real(dp) :: RealTempSign(lenof_sign)
         integer(int64) :: iLutTemp64(0:nBasis/64+1)
         INTEGER :: iLutTemp32(0:nBasis/32+1)
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
@@ -1208,7 +1306,7 @@ outer_map:      do i = 0, MappingNIfD
         character(len=24) :: junk,junk2,junk3,junk4
         LOGICAL :: tPop64BitDets,tPopHPHF,tPopLz,tPopInitiator
         integer(n_int) :: ilut_largest(0:NIfTot)
-        integer :: sign_largest
+        real(dp) :: sign_largest
 
         if (lenof_sign /= 1) &
             call Stop_All(this_routine, "Popsfile V.2 does not work with &
@@ -1351,9 +1449,9 @@ outer_map:      do i = 0, MappingNIfD
             SumENum=AllSumENum/REAL(nProcessors,dp)     !Divide up the SumENum over all processors
             AvSumNoatHF = int(AllSumNoatHF(1)/nProcessors,sizeof_int) !This is the average Sumnoathf
             do i=1,nProcessors-1
-                NodeSumNoatHF(i)=INT(AvSumNoatHF,int64)
+                NodeSumNoatHF(i)=real(INT(AvSumNoatHF,int64),dp)
             enddo
-            NodeSumNoatHF(nProcessors)=AllSumNoatHF(1)-INT((AvSumNoatHF*(nProcessors-1)),int64)
+            NodeSumNoatHF(nProcessors)=real(AllSumNoatHF(1)-INT((AvSumNoatHF*(nProcessors-1)),int64),dp)
 
             ProjectionE=AllSumENum/real(AllSumNoatHF(1),dp)
 
@@ -1520,6 +1618,7 @@ outer_map:      do i = 0, MappingNIfD
                     READ(iunit,*) iLutTemp32(0:NIfWriteOut),TempSign
                 ENDIF
             ENDIF
+            RealTempSign = transfer(TempSign, RealTempSign)
 
 #ifdef __INT64
             if (.not.tPop64BitDets) then
@@ -1560,16 +1659,16 @@ outer_map:      do i = 0, MappingNIfD
 #endif
             call decode_bit_det (TempnI, iLutTemp)
             Proc = DetermineDetNode(TempnI,0)
-            IF((Proc.eq.iNodeIndex).and.(abs(TempSign(1)).ge.iWeightPopRead)) THEN
+            IF((Proc.eq.iNodeIndex).and.(abs(RealTempSign(1)).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
                 !Do not need to send a flag here...
-                call encode_bit_rep(CurrentDets(:,CurrWalkers),iLutTemp(0:NIfDBO),TempSign,0) 
+                call encode_bit_rep(CurrentDets(:,CurrWalkers),iLutTemp(0:NIfDBO),RealTempSign,0) 
                 !TODO: Add flag for complex walkers to read in both
             ENDIF
 
             ! Keep track of what the most highly weighted determinant is
-            if (abs(TempSign(1)) > sign_largest) then
-                sign_largest = abs(TempSign(1))
+            if (abs(RealTempSign(1)) > sign_largest) then
+                sign_largest = abs(RealTempSign(1))
                 ilut_largest = iLutTemp
             endif
         enddo
@@ -1605,18 +1704,18 @@ outer_map:      do i = 0, MappingNIfD
             FracPart=ScaleWalkers-REAL(IntegerPart)
 
             do l=1,CurrWalkers
-                call extract_sign(CurrentDets(:,l),TempSign)
-                TempSign=TempSign*IntegerPart
+                call extract_sign(CurrentDets(:,l),RealTempSign)
+                RealTempSign=RealTempSign*IntegerPart
                 r = genrand_real2_dSFMT() 
                 IF(r.lt.FracPart) THEN
 !Stochastically create another particle
-                    IF(TempSign(1).lt.0) THEN
-                        TempSign(1)=TempSign(1)-1
+                    IF(RealTempSign(1).lt.0) THEN
+                        RealTempSign(1)=RealTempSign(1)-1
                     ELSE
-                        TempSign(1)=TempSign(1)+1
+                        RealTempSign(1)=RealTempSign(1)+1
                     ENDIF
                 ENDIF
-                call encode_sign(CurrentDets(:,l),TempSign)
+                call encode_sign(CurrentDets(:,l),RealTempSign)
             enddo
 
             InitWalkers=NINT(InitWalkers*ScaleWalkers)  !New (average) number of initial particles for culling criteria
@@ -1702,8 +1801,8 @@ outer_map:      do i = 0, MappingNIfD
                 ENDIF
 
             ENDIF
-            call extract_sign(CurrentDets(:,j),TempSign)
-            TotParts=TotParts+abs(TempSign(1))
+            call extract_sign(CurrentDets(:,j),RealTempSign)
+            TotParts=TotParts+abs(RealTempSign(1))
 
         enddo
 
@@ -1733,14 +1832,16 @@ outer_map:      do i = 0, MappingNIfD
 ! GHB says he will incorporate this functionality into a rewrite of ReadFromPopsfilePar. 19/8/2010
     SUBROUTINE ReadFromPopsfileOnly(Dets,nDets)
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,iWeightPopRead
-        use Logging, only: tZeroProjE
+        use LoggingData, only: tZeroProjE
         use constants, only: size_n_int,bits_n_int
         integer(int64),intent(inout) :: nDets !The number of occupied entries in Dets
         integer(kind=n_int),intent(out) :: Dets(0:nIfTot,1:nDets)
         LOGICAL :: exists,tBinRead
-        integer(int64) :: TempTotParts(lenof_sign),TempCurrWalkers
+        integer(int64) :: TempCurrWalkers
+        REAL(dp) :: TempTotParts(lenof_sign)
         INTEGER :: TempInitWalkers,error,i,j,l,total,ierr,MemoryAlloc,Tag,Proc,CurrWalkers,ii
         INTEGER , DIMENSION(lenof_sign) :: TempSign
+        REAL(dp) , DIMENSION(lenof_sign) :: RealTempSign
         integer(int64) :: iLutTemp64(0:nBasis/64+1)
         INTEGER :: iLutTemp32(0:nBasis/32+1)
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
@@ -1753,7 +1854,7 @@ outer_map:      do i = 0, MappingNIfD
         character(len=24) :: junk,junk2,junk3,junk4
         LOGICAL :: tPop64BitDets,tPopHPHF,tPopLz,tPopInitiator
         integer(n_int) :: ilut_largest(0:NIfTot)
-        integer :: sign_largest
+        real(dp) :: sign_largest
 
         MemoryAlloc = 0
 
@@ -1967,6 +2068,7 @@ outer_map:      do i = 0, MappingNIfD
                     READ(iunit,*) iLutTemp32(0:NIfWriteOut),TempSign
                 ENDIF
             ENDIF
+            RealTempSign = transfer(TempSign, RealTempSign)
 
 #ifdef __INT64
             if (.not.tPop64BitDets) then
@@ -2007,16 +2109,16 @@ outer_map:      do i = 0, MappingNIfD
 #endif
             call decode_bit_det (TempnI, iLutTemp)
             Proc=0  !DetermineDetNode(TempnI)   !This wants to return a value between 0 -> nProcessors-1
-            IF((Proc.eq.iProcIndex).and.(abs(TempSign(1)).ge.iWeightPopRead)) THEN
+            IF((Proc.eq.iProcIndex).and.(abs(RealTempSign(1)).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
                 !Do not need to send a flag here...
-                call encode_bit_rep(Dets(:,CurrWalkers),iLutTemp(0:NIfDBO),TempSign,0)
+                call encode_bit_rep(Dets(:,CurrWalkers),iLutTemp(0:NIfDBO),RealTempSign,0)
                 !TODO: Add flag for complex walkers to read in both
             ENDIF
 
             ! Keep track of what the most highly weighted determinant is
-            if (abs(TempSign(1)) > sign_largest) then
-                sign_largest = abs(TempSign(1))
+            if (abs(RealTempSign(1)) > sign_largest) then
+                sign_largest = abs(RealTempSign(1))
                 ilut_largest = iLutTemp
             endif
         enddo
@@ -2052,18 +2154,18 @@ outer_map:      do i = 0, MappingNIfD
             FracPart=ScaleWalkers-REAL(IntegerPart)
 
             do l=1,CurrWalkers
-                call extract_sign(Dets(:,l),TempSign)
-                TempSign=TempSign*IntegerPart
+                call extract_sign(Dets(:,l),RealTempSign)
+                RealTempSign=TempSign*IntegerPart
                 r = genrand_real2_dSFMT() 
                 IF(r.lt.FracPart) THEN
 !Stochastically create another particle
-                    IF(TempSign(1).lt.0) THEN
-                        TempSign(1)=TempSign(1)-1
+                    IF(RealTempSign(1).lt.0) THEN
+                        RealTempSign(1)=RealTempSign(1)-1
                     ELSE
-                        TempSign(1)=TempSign(1)+1
+                        RealTempSign(1)=RealTempSign(1)+1
                     ENDIF
                 ENDIF
-                call encode_sign(Dets(:,l),TempSign)
+                call encode_sign(Dets(:,l),RealTempSign)
             enddo
 
             InitWalkers=NINT(InitWalkers*ScaleWalkers)  !New (average) number of initial particles for culling criteria
@@ -2094,8 +2196,8 @@ outer_map:      do i = 0, MappingNIfD
 !Now find out the data needed for the particles which have been read in...
         TotParts=0
         do j=1,int(nDets,sizeof_int)
-            call extract_sign(Dets(:,j),TempSign)
-            TotParts=TotParts+abs(TempSign(1))
+            call extract_sign(Dets(:,j),RealTempSign)
+            TotParts=TotParts+abs(RealTempSign(1))
         enddo
 
         TempTotParts=TotParts
