@@ -1083,7 +1083,8 @@ contains
                 comm, err)
         ierr = err
 #else
-        ret(1:%(mpilen)s) = v(1:%(mpilen)s)
+        !ret(1:%%(mpilen)s) = v(1:%%(mpilen)s)
+        ret = v
         ierr = 0
 #endif
     end subroutine
