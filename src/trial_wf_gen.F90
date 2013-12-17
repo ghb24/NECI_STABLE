@@ -3,7 +3,7 @@ module trial_wf_gen
     use bit_rep_data, only: NIfTot, NIfDBO, flag_trial, flag_connected
     use bit_reps, only: encode_det, set_flag
     use CalcData
-    use davidson, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
+    use davidson_neci, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
                         sparse_hamil_type
     use DetBitOps, only: FindBitExcitLevel, ilut_lt, ilut_gt, DetBitEq
     use DeterminantData, only: write_det

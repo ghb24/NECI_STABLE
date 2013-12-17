@@ -1940,8 +1940,8 @@ call neci_flush(6)
           use Parallel_Calc
           use util_mod, only: get_free_unit, NECI_ICOPY
           use sym_mod
-          use davidson, only: davidson_direct_ci_init, davidson_direct_ci_end, perform_davidson
-          use davidson, only: direct_ci_type
+          use davidson_neci, only: davidson_direct_ci_init, davidson_direct_ci_end, perform_davidson
+          use davidson_neci, only: direct_ci_type
 
 !Calls
 !          real(dp) DMonteCarlo2
