@@ -14,7 +14,7 @@ module_flag = -J
 fflags = -g -e m
 cflags = -g  -h noexceptions
 ldflags = -g -Bstatic
-f90flags = -ffortran-bounds-check -N255
+f90flags = -R bcdps -N255
 
 [opt]
 fflags = -O3 -e m

@@ -5,7 +5,8 @@
 
 module hash
 
-    use FciMCData , only : hash_iter, hash_shift, RandomHash, HFDet
+    use bit_reps, only: set_flag
+    use FciMCData , only : hash_iter, hash_shift, RandomHash, RandomHash2, HFDet
     use Parallel_neci , only : nNodes
     use constants , only : int64,sizeof_int
     use csf_data, only: csf_orbital_mask
@@ -77,8 +78,51 @@ module hash
             node = int(abs(mod(acc, int(nNodes, int64))),sizeof_int)
         end if
 
-    end function
+    end function DetermineDetNode
 
+    ! Routin to find the correct position in the hash table
+    pure function FindWalkerHash(nJ, HashIndexLength) result(hashInd)
+        implicit none
+        integer, intent(in) :: nJ(nel)
+        integer, intent(in) :: HashIndexLength
+        integer :: hashInd
+        integer :: i
+        integer(int64) :: hash
+        hash = 0
+!        write(6,*) "nJ: ",nJ(:)
+        if(tCSF) then
+            do i = 1, nel
+                hash = (1099511628211_int64 * hash) + &
+                        int(RandomHash2(mod(iand(nJ(i), csf_orbital_mask)-1,nBasis)+1) * i,int64)
+            enddo
+        else
+            do i = 1, nel
+                hash = (1099511628211_int64 * hash) + &
+                        int(RandomHash2(nJ(i))*i,int64)
+
+!                        (RandomHash(mod(nI(i)+offset-1,int(nBasis,int64))+1) * i)
+            enddo
+        endif
+        hashInd = int(abs(mod(hash, int(HashIndexLength, int64))),sizeof_int)+1
+
+    end function FindWalkerHash
+
+    FUNCTION CreateHash(DetCurr)
+        INTEGER :: DetCurr(NEl),i
+        INTEGER(KIND=int64) :: CreateHash
+
+        CreateHash=0
+        do i=1,NEl
+!            CreateHash=13*CreateHash+i*DetCurr(i)
+            CreateHash=(1099511628211_int64*CreateHash)+i*DetCurr(i)
+            
+!            CreateHash=mod(1099511628211*CreateHash,2**64)
+!            CreateHash=XOR(CreateHash,DetCurr(i))
+        enddo
+!        WRITE(6,*) CreateHash
+        RETURN
+
+    END FUNCTION CreateHash
       
 end module hash
 

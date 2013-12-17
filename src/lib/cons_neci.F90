@@ -25,6 +25,7 @@ real(dp), parameter ::  Root2 = 1.4142135623730950488016887242096980785696718753
 integer :: temp
 integer, parameter :: sizeof_int = kind(temp)   !Default integer size (not necessarily = no. bytes)
 integer, parameter :: bits_int = bit_size(temp)
+integer, parameter :: bytes_int = bits_int/8
 !potential hack for molpro, which seems to support a compiler which doesn't like the kind() intrinsic..?
 !integer, parameter :: sizeof_int = selected_int_kind(digits(huge(temp)))   !Default integer size (not necessarily = no. bytes)
 
@@ -39,11 +40,11 @@ integer, parameter :: sizeof_sp = 4
 #ifdef __CMPLX
 integer, parameter :: sizeof_helement = 16
 integer, parameter :: lenof_sign = 2
-integer, dimension(2), parameter :: null_part = 0
+real(dp), dimension(2), parameter :: null_part = 0.0_dp
 #else
 integer, parameter :: sizeof_helement = 8
 integer, parameter :: lenof_sign = 1
-integer, dimension(1), parameter :: null_part = 0
+real(dp), dimension(1), parameter :: null_part = 0.0_dp
 #endif
 
 !This is the integer type which is used in MPI call arguments

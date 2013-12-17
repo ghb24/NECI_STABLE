@@ -49,13 +49,13 @@ module procedure_pointers
             integer, intent(in) :: exLevel
             integer(n_int), intent(in) :: ilutI(0:NifTot)
             integer(n_int), intent(inout) :: ilutJ(0:NifTot)
-            integer, intent(in) :: wSign(lenof_sign)
+            real(dp), intent(in) :: wSign(lenof_sign)
             logical, intent(in) :: tPar
             real(dp), intent(inout) :: prob
             real(dp), intent(in) :: AvSignCurr
             real(dp), intent(out) :: RDMBiasFacCurr
             HElement_t, intent(in) :: HElGen
-            integer :: child(lenof_sign)    
+            real(dp) :: child(lenof_sign)    
 
         end function
 
@@ -107,7 +107,8 @@ module procedure_pointers
             implicit none
 
             integer, intent(in) :: ic, walkExLevel, parent_flags, nJ(nel)
-            integer, intent(in) :: part_type, child(lenof_sign)
+            integer, intent(in) :: part_type
+            real(dp), intent(in) :: child(lenof_sign)
             integer(n_int), intent(in) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
             type(fcimc_iter_data), intent(inout) :: iter_data
 
@@ -116,15 +117,15 @@ module procedure_pointers
 
         !
         ! Generic particle death routine
-        function attempt_die_t (nI, Kii, wSign) result(ndie)
+        function attempt_die_t (nI, Kii, wSign, exLevel) result(ndie)
 
             use SystemData, only: nel
             use constants
             implicit none
 
-            integer, intent(in) :: nI(nel), wSign(lenof_sign)
-            real(dp), intent(in) :: Kii
-            integer, dimension(lenof_sign) :: ndie
+            integer, intent(in) :: nI(nel), exLevel
+            real(dp), intent(in) :: Kii, wSign(lenof_sign)
+            real(dp), dimension(lenof_sign) :: ndie
 
         end function
 
@@ -145,7 +146,7 @@ module procedure_pointers
             real(dp), intent(in) :: CurrH_I(NCurrH)
             real(dp), intent(out) :: IterRDMStartI, AvSignI
             integer, intent(out) :: nI(nel), FlagsI
-            integer, intent(out) :: SignI(lenof_sign)
+            real(dp), intent(out) :: SignI(lenof_sign)
             type(excit_gen_store_type), intent(inout), optional :: store
 
         end subroutine
@@ -154,7 +155,7 @@ module procedure_pointers
         !
         ! Generic fill_rdm_diag_currdet routine
         subroutine fill_rdm_diag_currdet_t (ilutI, nI, CurrH_I, ExcitLevelI, &
-                                            IterLastRDMFill)
+                                            tCoreSpaceDet, IterLastRDMFill)
 
             use SystemData, only: nel
             use bit_rep_data, only: NIfTot
@@ -165,6 +166,7 @@ module procedure_pointers
             integer(n_int), intent(in) :: ilutI(0:NIfTot)
             real(dp), intent(in) :: CurrH_I(NCurrH)
             integer, intent(in) :: nI(nel), ExcitLevelI, IterLastRDMFill
+            logical, intent(in), optional :: tCoreSpaceDet
 
         end subroutine
 

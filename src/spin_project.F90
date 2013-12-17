@@ -4,7 +4,8 @@
 #include "macros.h"
 module spin_project
     use SystemData, only: LMS, STOT, nel, nbasis, tHPHF
-    use CalcData, only: tau, tTruncInitiator
+    use CalcData, only: tau, tTruncInitiator, tAlLRealCoeff, &
+                        tRealCoeffByExcitLevel, RealCoeffExcitThresh
     use SymExcitDataMod, only: scratchsize
     use bit_rep_data, only: extract_sign
     use bit_reps, only: NIfD, NIfTot, flag_is_initiator, &
@@ -101,7 +102,7 @@ contains
         integer :: dorder_i(nel), dorder_j(nel), open_el(nel)
         integer :: nopen, i, nup, orb, orb2, count_dets, ndet, pos
         integer(n_int) :: iluttmp(0:niftot)
-        integer, dimension(lenof_sign) :: sgnI, sgnJ
+        real(dp) :: sgnI(lenof_sign), sgnJ(lenof_sign)
         real(dp) :: tot_cpt, elem
 
         ! Extract the dorder for det nI
@@ -426,7 +427,7 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         integer :: nopen, nchoose, i
         integer :: nTmp(nel), iUnused
         integer :: open_orbs(nel), open_pos(nel), orb2
-        integer, dimension(lenof_sign) :: sgn_tmp
+        real(dp) :: sgn_tmp(lenof_sign)
         character(*), parameter :: this_routine = 'generate_excit_spin_proj'
 
         ! Only consider determinants with a significant (specified) weight.
@@ -545,12 +546,13 @@ ASSERT(count_open_orbs(ilutI) /= 0)
 
     end subroutine generate_excit_spin_proj
 
-    function attempt_die_spin_proj (nI, Kii, wSign) result (ndie)
+    function attempt_die_spin_proj (nI, Kii, RealwSign, WalkExcitLevel) result (ndie)
 
         integer, intent(in) :: nI(nel)
-        integer, dimension(lenof_sign), intent(in) :: wSign
+        real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         real(dp), intent(in) :: Kii
-        integer, dimension(lenof_sign) :: ndie
+        real(dp), dimension(lenof_sign) :: ndie
+        integer, intent(in) :: WalkExcitLevel
 
         real(dp) :: elem, r, rat, rUnused
         integer :: i
@@ -558,14 +560,14 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         ! If we are not allowing death, or we are below the cutoff for 
         ! consideration, then the particle cannot die
         if (spin_proj_no_death .or. &
-            sum(abs(wSign(1:lenof_sign))) < spin_proj_cutoff) then
-            ndie = 0
+            sum(abs(realwSign(1:lenof_sign))) < spin_proj_cutoff) then
+            ndie = 0.0_dp
             return
         endif
 
         if (fcimc_excit_gen_store%nopen == STOT .or. &
             fcimc_excit_gen_store%nopen > spin_proj_nopen_max) then
-            ndie = 0
+            ndie = 0.0_dp
             return
         endif
 
@@ -578,17 +580,21 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         elem = elem - 1 + spin_proj_shift
         elem = - elem * spin_proj_gamma
 
-        do i = 1, lenof_sign
-            rat = elem * abs(wSign(i))
-            
-            ndie(i) = int(rat)
-            rat = rat - real(ndie(i), dp)
-            !print*, 'RAT die', rat
+        if (tAllRealCoeff .or. (tRealCoeffByExcitLevel .and.(WalkExcitLevel .le. RealCoeffExcitThresh))) then
+            ndie(1)=elem*abs(realwSign(1))
+        else
+            do i = 1, lenof_sign
+                rat = elem * abs(realwSign(i))
+                
+                ndie(i) = real(int(rat),dp)
+                rat = rat - real(ndie(i), dp)
+                !print*, 'RAT die', rat
 
-            ! Choose to die or not stochastically
-            r = genrand_real2_dSFMT()
-            if (abs(rat) > r) ndie(i) = ndie(i) + nint(sign(1.0_dp, rat))
-        enddo
+                ! Choose to die or not stochastically
+                r = genrand_real2_dSFMT()
+                if (abs(rat) > r) ndie(i) = ndie(i) + real(nint(sign(1.0_dp, rat)),dp)
+            enddo
+        endif
 
         ! Protect against compiler warnings
         rUnused = Kii

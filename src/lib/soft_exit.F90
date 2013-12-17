@@ -127,12 +127,12 @@ module soft_exit
                         SinglesBias_value => SinglesBias, tau_value => tau, &
                         nmcyc_value => nmcyc, tTruncNOpen, trunc_nopen_max, &
                         target_grow_rate => TargetGrowRate, tShiftonHFPop, &
-                        tJumpShift
+                        tAllRealCoeff, tRealSpawnCutoff, tJumpShift
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
     use Input_neci
-    use Logging, only: tHistSpawn, tCalcFCIMCPsi, tIterStartBlock, &
+    Use LoggingData, only: tCalcFCIMCPsi, tIterStartBlock, &
                        IterStartBlocking, tHFPopStartBlock, NHistEquilSteps, &
                        IterRDMonFly_value => IterRDMonFly, RDMExcitLevel, &
                        tExplicitAllRDM, tRDMonFly, tChangeVarsRDM, &
@@ -150,7 +150,7 @@ module soft_exit
                             spin_proj_no_death, spin_proj_iter_count
 !    use DetBitOps, only: DetermineDetNode                        
     use hash, only : DetermineDetNode
-    use hist_data, only: Histogram
+    use hist_data, only: Histogram, tHistSpawn
     use Parallel_neci
     implicit none
 
@@ -291,8 +291,8 @@ contains
         logical :: opts_selected(last_item)
         logical, intent(out) :: tSingBiasChange, tSoftExitFound
         logical, intent(out) :: tWritePopsFound
+        real(dp), dimension(lenof_sign) :: hfsign
         integer :: i, proc, nmcyc_new, ios, pos, trunc_nop_new, IterRDMonFly_new
-        integer, dimension(lenof_sign) :: hfsign
         real(dp) :: hfScaleFactor
         character(len=100) :: w
 
@@ -376,7 +376,7 @@ contains
                             call readi (nVirtPartFrozen)
                             call readi (nElVirtFrozen)
                         elseif (i == addtoinit) then
-                            call readi (InitiatorWalkNo)
+                            call readf (InitiatorWalkNo)
                         elseif (i == scalehf) then
                             call readf (hfScaleFactor)
                         elseif (i == spin_project) then
@@ -721,7 +721,9 @@ contains
                                          iLutHF)
                     call extract_sign (CurrentDets(:,pos), hfsign)
                     do i = 1, lenof_sign
-                        hfsign(i) = nint(real(hfsign(i),dp) * hfScaleFactor,sizeof_int)
+                        hfsign(i) = hfsign(i) * hfScaleFactor
+                        if (.not. (tAllRealCoeff .or. tRealSpawnCutoff)) &
+                            hfsign = nint(hfsign)
                     enddo
                     call encode_sign (CurrentDets(:,pos), HFSign)
                 endif

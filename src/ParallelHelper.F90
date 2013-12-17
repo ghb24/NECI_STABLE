@@ -6,9 +6,10 @@
 module ParallelHelper
    use constants
    use iso_c_hack
+   use timing_neci, only: timer, set_timer, halt_timer
     implicit none
 
-
+    type(timer), save :: Sync_Time
 
     !
     ! If we are using C-bindings, certain things need to be defined
@@ -266,6 +267,8 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: comm, ierr
 
+        call set_timer(Sync_Time)
+
 #ifdef PARALLEL
         call GetComm (comm, node)
 
@@ -274,6 +277,8 @@ contains
 #else
         err = 0
 #endif
+
+        call halt_timer(Sync_Time)
 
     end subroutine
 

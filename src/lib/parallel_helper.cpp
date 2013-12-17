@@ -294,6 +294,17 @@ void mpi_scatterv_wrap (void * sbuf, int * scount, int * displs, int stype,
 
 
 //
+// Wrapper for MPI_AllGatherV
+void mpi_allgatherv_wrap (void * sbuf, int scount, int stype, void * rbuf,
+		                  int * rcount, int * displs, int rtype, MPI_Fint comm,
+						  int * ierr)
+{
+	*ierr = MPI_Allgatherv (sbuf, scount, dtype_map[stype], rbuf, rcount,
+                            displs, dtype_map[rtype], MPI_Comm_f2c(comm));
+}
+
+
+//
 // Wrapper for MPI_Scatter
 void mpi_scatter_wrap (void * sbuf, int scount, int stype, void * rbuf,
 		               int rcount, int rtype, int root, MPI_Fint comm,

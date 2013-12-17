@@ -21,6 +21,7 @@ module hist_data
     integer(TagIntType) :: tag_spindist=0, tag_histcsfs=0
 
     real(dp), allocatable :: Histogram(:,:), AllHistogram(:,:)
+    real(dp), allocatable :: BeforeNormHist(:)
     real(dp), allocatable :: InstHist(:,:), AllInstHist(:,:)
     real(dp), allocatable :: HistogramEnergy(:), AllHistogramEnergy(:)
 

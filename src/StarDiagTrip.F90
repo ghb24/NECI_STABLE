@@ -49,7 +49,7 @@
 !        use CalcData , only : i_P,NWHTay,RhoEps,dBeta,TFullDiag
 !        use IntegralsData, only : fck,nMax,UMat,nTay
 !        USE Determinants , only : GetHElement2
-!        USE Logging , only : iLogging
+!        USE LoggingData , only : iLogging
 !        USE StarDiagMod , only : GetValsnVecs
 !        IMPLICIT NONE
 !        CHARACTER(len=*), PARAMETER :: this_routine='StarDiagTrips'

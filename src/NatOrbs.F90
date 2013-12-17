@@ -1082,7 +1082,7 @@ MODULE NatOrbsMod
 
     SUBROUTINE OrderCoeffT1()
         USE RotateOrbsData , only : SymLabelList3_rot
-        USE Logging , only : tTruncRODump
+        USE LoggingData , only : tTruncRODump
         IMPLICIT NONE
         INTEGER :: x,i,ierr,StartSort,EndSort,NoOcc
         CHARACTER(len=*), PARAMETER :: this_routine='OrderCoeffT1'
@@ -1206,7 +1206,7 @@ MODULE NatOrbsMod
     SUBROUTINE FillCoeffT1
         USE RotateOrbsData , only : CoeffT1,SymLabelList3_rot,SymOrbs_rot,SymOrbs_rotTag,&
                                     TruncEval,NoRotOrbs,EvaluesTrunc,EvaluesTruncTag
-        USE Logging , only : tTruncRODump,tTruncDumpbyVal
+        USE LoggingData , only : tTruncRODump,tTruncDumpbyVal
         IMPLICIT NONE
         INTEGER :: l,k,i,j,NoRotAlphBet, io1, io2
         CHARACTER(len=*), PARAMETER :: this_routine='FillCoeffT1'
@@ -1505,7 +1505,7 @@ MODULE NatOrbsMod
 
 
     SUBROUTINE HistNatOrbEvalues()
-        USE Logging , only : tTruncRODump
+        USE LoggingData , only : tTruncRODump
         USE RotateOrbsData , only : CoeffT1,EvaluesTrunc
         IMPLICIT NONE
         INTEGER :: i,k,a,b,NoOcc,io1, io2
@@ -1696,7 +1696,7 @@ MODULE NatOrbsMod
 
 
     SUBROUTINE PrintOccTable()
-        USE Logging , only : tTruncRODump
+        USE LoggingData , only : tTruncRODump
         USE RotateOrbsData , only : CoeffT1,EvaluesTrunc
         USE SystemData , only : tUseHFOrbs
         INTEGER x,i,a,b, io2
@@ -1755,7 +1755,7 @@ MODULE NatOrbsMod
 ! This is done by histogramming the determinant populations, and then running over these adding the 
 ! coefficients of each determinant to the orbitals occupied.
 ! This is essentially < Psi | a_p+ a_p | Psi > - the diagonal terms of the one electron reduced density matrix.
-!        USE Logging , only : OrbOccs
+!        USE LoggingData , only : OrbOccs
         IMPLICIT NONE
         real(dp) :: Norm,OrbOccs(nBasis),AllOrbOccs(nBasis)
         INTEGER :: i,error, iunit
@@ -1862,7 +1862,7 @@ MODULE NatOrbsMod
 
 
     SUBROUTINE DeallocateNatOrbs()
-        USE Logging , only : tTruncRODump
+        USE LoggingData , only : tTruncRODump
         IMPLICIT NONE
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocateNatOrbs'
 

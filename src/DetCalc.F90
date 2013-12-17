@@ -49,7 +49,7 @@ CONTAINS
         use SystemData, only : tParity, tSpn,Symmetry,STot, NullBasisFn, tUHF,tMolpro
         use sym_mod
         use CCMCData,   only : tCCBuffer !This is messy, but I don't see anywhere else to put it. AJWT
-        use Logging,    only : tLogDets
+        use LoggingData,    only : tLogDets
         use legacy_data, only: irat
         use HElem
         use util_mod, only: get_free_unit, NECI_ICOPY
@@ -334,8 +334,7 @@ CONTAINS
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot,tMomInv
       use IntegralsData, only: FCK,NMAX, UMat
-      Use Logging, only: iLogging,tHistSpawn,tHistHamil,tLogDets
-      use logging, only: tCalcVariationalEnergy
+      Use LoggingData, only: iLogging,tHistHamil,tLogDets, tCalcVariationalEnergy
       use SystemData, only  : tCSFOLD
       use Parallel_neci, only : iProcIndex
       use DetBitops, only: DetBitEQ,EncodeBitDet,FindBitExcitLevel
@@ -346,6 +345,7 @@ CONTAINS
       use HElem
       use MemoryManager, only: TagIntType
       use MomInv, only : IsBitMomSelfInv,InvertMomDet  
+      use hist_data, only: tHistSpawn
 
       real(dp) , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
       HElement_t, ALLOCATABLE :: WORK(:)

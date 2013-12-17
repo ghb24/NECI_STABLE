@@ -5,10 +5,12 @@
 MODULE System
 
     use SystemData
-    use CalcData, only: TAU, tTruncInitiator, InitiatorWalkNo
+    use CalcData, only: TAU, tTruncInitiator, InitiatorWalkNo, &
+                        occCASorbs, virtCASorbs
+
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList
-    use constants, only: dp,int64, Pi, third
+    use constants, only: sp,dp,int64, Pi, third
     use iso_c_hack
     use util_mod, only: error_function, error_function_c
 
@@ -190,6 +192,7 @@ MODULE System
       LOGICAL eof
       CHARACTER (LEN=100) w
       INTEGER I,Odd_EvenHPHF,Odd_EvenMI
+      integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
       
       ! The system block is specified with at least one keyword on the same
       ! line, giving the system type being used.
@@ -276,7 +279,7 @@ MODULE System
       end select
       
       ! Now parse the rest of the system block.
-      system: do
+system: do
         call read_line(eof)
         if (eof) then
             call report("Incomplete input file",.true.)

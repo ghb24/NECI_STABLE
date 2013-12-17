@@ -33,8 +33,7 @@ TYPE Cluster
                                                                 !collapsing this cluster in bit representation
    INTEGER, allocatable :: DetCurr(:)                 !(nEl) The determinant made from collapsing this cluster.
    INTEGER  iSize
-   INTEGER,dimension(lenof_sign) :: iSgn                                      !The sign of the 
-                                                        !determinant after collapsing the cluster
+   real(dp) :: iSgn(lenof_sign)    !The sign of the determinant after collapsing the cluster
    INTEGER iExcitLevel                                !The excitation level of the resultant det
 
    INTEGER initFlag                                   !Zero if this cluster is an initiator, or 1 if it isn't
@@ -117,13 +116,10 @@ contains
 FUNCTION ExcitToDetSign(iLutRef,iLutDet,iLevel)
    use SystemData, only: nEl
    use bit_rep_data, only: NIfDBO, NIfD, NIfTot
-   IMPLICIT NONE
-   INTEGER ExcitToDetSign
-   INTEGER iLevel
-   INTEGER(KIND=n_int) iLutRef(0:nIfTot),iLutDet(0:nIfTot)
-   INTEGER iSgn,i,j
-   INTEGER(KIND=n_int) mask
-   INTEGER iAnnihil, iCreation
+   integer :: iLevel, i, j, iAnnihil, iCreation
+   integer(n_int) :: iLutRef(0:nIfTot), iLutDet(0:nIfTot), mask
+   real(dp) :: iSgn, ExcitToDetSign
+
    iSgn=1
    iAnnihil=iLevel
    iCreation=iLevel
@@ -178,7 +174,7 @@ SUBROUTINE AddBitExcitor(iLutnI,iLutnJ,iLutRef,iSgn)
    INTEGER(KIND=n_int) iLutnI(0:nIfTot), iLutnJ(0:nIfTot),iLutRef(0:nIfTot)
    INTEGER(KIND=n_int) iLutTmp(0:nIfTot)
    INTEGER(KIND=n_int) T1,T2,T3
-   INTEGER iSgn
+   real(dp) :: iSgn
 ! We need to run through the bits of J and I concurrently, setting bits of I
    INTEGER i,j
 
