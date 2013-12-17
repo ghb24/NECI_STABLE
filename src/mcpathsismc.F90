@@ -19,7 +19,7 @@ module mcpathsismc
          USE MCStat
          use CalcData , only : G_VMC_PI,G_VMC_FAC,G_VMC_SEED,CUR_VERT,  &
      &          g_MultiWeight,TMPTHEORY,TVVDISALLOW,TMCDIRECTSUM
-         USE Logging , only : G_VMC_LOGCOUNT
+         USE LoggingData , only : G_VMC_LOGCOUNT
          use SystemData, only: BasisFN
          use sym_mod, only: getsym
          use global_utilities

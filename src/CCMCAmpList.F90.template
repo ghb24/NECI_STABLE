@@ -259,7 +259,7 @@ subroutine WriteExcitorList_btrp(iUnit,AL,iAmpList,Dets,offset,nDet,dTol,Title)
    integer dTol
    CHARACTER(len=*) Title
    INTEGER j,offset
-   INTEGER, dimension(lenof_sign) :: Amp
+   real(dp) :: amp(lenof_sign)
    write(6,*) Title
    do j=1,nDet
       call extract_sign(AL%BitReps(:,j),Amp)
@@ -280,7 +280,7 @@ pure function GetAmpl_btrp(AL,iIndex,iAmpList) result(r)
    use constants, only: lenof_sign
    type(AmplitudeList_btrp), intent(in) :: AL
    INTEGER, intent(in) ::  iAmpList,iIndex
-   integer,dimension(lenof_sign) :: r
+   real(dp) :: r(lenof_sign)
    if (iIndex < 0) then
        r = 0
    else
@@ -292,9 +292,8 @@ subroutine SetAmpl_btrp(AL,iIndex,iAmpList,r)
    use bit_reps, only: encode_sign
    type(AmplitudeList_btrp), intent(inout) :: AL
    INTEGER, intent(in) ::  iAmpList,iIndex
-   integer,dimension(lenof_sign) :: r
+   real(dp), intent(in) :: r(lenof_sign)
    call encode_sign(AL%BitReps(:,iIndex),r)
-   return 
 end subroutine !SetAmpl
 
 end supermodule

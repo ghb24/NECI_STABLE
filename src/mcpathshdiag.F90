@@ -34,7 +34,7 @@ module mcpathshdiag
      &   NTOTAL,I_VMAX,EREF,VARSUM,WREF) RESULT (FMCPR3B2RES)
          Use Determinants, only: get_helement
          use constants, only: dp 
-         USE Logging , only : G_VMC_LOGCOUNT
+         USE LoggingData , only : G_VMC_LOGCOUNT
          use CalcData , only : TVARCALC,TMPTHEORY,TMODMPTHEORY
          use CalcData , only : lNoTriples,GraphEpsilon
          use SystemData, only: BasisFN

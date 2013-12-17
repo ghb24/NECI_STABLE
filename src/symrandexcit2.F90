@@ -322,6 +322,27 @@ MODULE GenRandSymExcitNUMod
 
     END SUBROUTINE CreateDoubExcit
 
+!This routine creates the final determinant.
+    SUBROUTINE FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,OrbA,OrbB,ExcitMat,tParity)
+        integer, intent(in) :: nI(nel), Elec1Ind, Elec2Ind, OrbA, OrbB
+        integer, intent(out) :: ExcitMat(2,2), nJ(nel)
+        logical, intent(out) :: tParity
+
+!First construct ExcitMat
+        ExcitMat(1,1)=Elec1Ind
+        ExcitMat(2,1)=OrbA
+        ExcitMat(1,2)=Elec2Ind
+        ExcitMat(2,2)=OrbB
+        nJ(:)=nI(:)
+        CALL FindExcitDet(ExcitMat,nJ,2,tParity)
+
+        ! SDS: Remove this test for now. Breaks some of the CCMC code,
+        !      which CAN generate invalid dets, and throws them away
+        !      elsewhere.
+
+
+    end subroutine FindNewDet
+
 
 !This routine finds the probability of creating the excitation. 
 ! See the header of the file for more information on how this works.
@@ -816,7 +837,6 @@ MODULE GenRandSymExcitNUMod
         real(dp) :: r
 
 !        WRITE(6,*) "FORBIDDEN ORBS: ",ForbiddenOrbs,Counter
-
         IF(iSpn.eq.2) THEN
 !There is no restriction on whether we choose an alpha or beta spin, so there are nBasis-NEl possible spinorbitals to choose from.
 !Therefore the spinOrbA variable has to be set after we have chosen one. For the other iSpn types, we can set it now.
@@ -929,7 +949,7 @@ MODULE GenRandSymExcitNUMod
 !We want to run through all alpha orbitals (odd numbered basis functions)
                             OrbA=(2*i)
                         ENDIF
-
+                        
                         !We need to find if allowed
                         IF(.not.BTEST(ILUT((OrbA-1)/bits_n_int),MOD((OrbA-1),bits_n_int))) THEN
                             !Is not in the original determinant - allow
@@ -1633,7 +1653,8 @@ MODULE GenRandSymExcitNUMod
 !Because of this, tau is needed for the timestep of the simulation, and iCreate is returned as the number of children to create
 !on the determinant. If this is zero, then no childred are to be created.
     SUBROUTINE GenRandSymExcitBiased(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,nParts,WSign,tau,iCreate)
-        INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),exFlag,iCreate,nParts,WSign,ElecsWNoExcits
+        INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),exFlag,iCreate,nParts,ElecsWNoExcits
+        REAL(dp) :: WSign
         INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
         LOGICAL :: tParity
         real(dp) :: pDoub,r,tau
@@ -1704,7 +1725,8 @@ MODULE GenRandSymExcitNUMod
     SUBROUTINE CreateSingleExcitBiased(nI,nJ,iLut,ExcitMat,tParity,ElecsWNoExcits,nParts,WSign,Tau,iCreate)
         INTEGER :: ClassCount2(ScratchSize),i,Attempts,OrbA
         INTEGER :: ClassCountUnocc2(ScratchSize),Ind
-        INTEGER :: ElecsWNoExcits,nParts,WSign,iCreate,nI(NEl),nJ(NEl)
+        INTEGER :: ElecsWNoExcits,nParts,iCreate,nI(NEl),nJ(NEl)
+        REAL(dp) :: WSign
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: ExcitMat(2,2),SpawnOrb(nBasis),Eleci,ElecSym,NExcit,VecInd,ispn,EndSymState,j
         real(dp) :: Tau,SpawnProb(nBasis),NormProb,r,rat
@@ -1865,7 +1887,7 @@ MODULE GenRandSymExcitNUMod
 !iCreate is initially positive, so its sign can change depending on the sign of the connection and of the parent particle(s)
             rh = get_helement (nI, nJ, 1, ExcitMat, tParity)
 
-            IF(WSign.gt.0) THEN
+            IF(WSign.gt.0.0) THEN
                 !Parent particle is positive
                 IF(real(rh).gt.0.0_dp) THEN
                     iCreate=-iCreate     !-ve walker created
@@ -1884,7 +1906,8 @@ MODULE GenRandSymExcitNUMod
     SUBROUTINE CreateDoubExcitBiased(nI,nJ,iLut,ExcitMat,tParity,nParts,WSign,Tau,iCreate)
         INTEGER :: nI(NEl),nJ(NEl),ExcitMat(2,2),iCreate,iSpn,OrbA,OrbB,SymProduct
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
-        INTEGER :: Elec1Ind,Elec2Ind,nParts,WSign,SumMl
+        INTEGER :: Elec1Ind,Elec2Ind,nParts,SumMl
+        REAL(dp) :: WSign
         HElement_t :: rh
         LOGICAL :: tParity
         real(dp) :: Tau
@@ -3551,10 +3574,10 @@ SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
 
      Excitlevel=iGetExcitLevel(nI,nJ,NEl)
      IF(Excitlevel.ne.IC) THEN
-         WRITE(6,*) "Have not created a correct excitation"
+         WRITE(6,*) "Have not created a correct excitation", ic
         call write_det (6, nI, .true.)
         call write_det (6, nJ, .true.)
-        STOP "Have not created a correct excitation"
+        call stop_all("IsSymAllowedExcit", "Have not created a correct excitation")
      ENDIF
      IF(.NOT.ISVALIDDET(nJ,NEL)) THEN
          WRITE(6,*) "INVALID DET"

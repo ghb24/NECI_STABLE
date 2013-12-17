@@ -23,8 +23,8 @@ MODULE GraphMorph
 !Iters is the number of interations of morphing the graph. Nd is the number of determinants in the graph.
     use CalcData , only : Iters,NDets,GraphBias,TBiasing,NoMoveDets,TMoveDets,TInitStar
     use CalcData , only : TNoSameExcit,TLanczos,TMaxExcit,iMaxExcitLevel,TOneExcitConn,THdiag
-    use CalcData , only : TSinglesExcitSpace,TMCExcits,NoMCExcits,TGrowInitGraph,GrowGraphsExpo
-    USE Logging , only : TDistrib
+    use CalcData , only : TSinglesExcitSpace,TGrowInitGraph,GrowGraphsExpo
+    USE LoggingData , only : TDistrib
     USE global_utilities
     use constants, only: dp
     IMPLICIT NONE

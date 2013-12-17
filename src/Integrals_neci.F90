@@ -707,7 +707,7 @@ contains
          WRITE(6,*) "Freezing ",NTFROZEN," virtual orbitals."
          IF(NFROZENIN.ne.0) WRITE(6,*) "Freezing ",NFROZENIN," of the highest energy occupied (inner) orbitals."
          IF(NTFROZENIN.ne.0) WRITE(6,*) "Freezing ",NTFROZENIN," of the lowest energy virtual (inner) orbitals."
- 
+
 !At the end of IntFREEZEBASIS, NHG is reset to nBasis - the final number of active orbitals.
          CALL IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE, G1,NBASISMAX,ISPINSKIP,BRR,NFROZEN,NTFROZEN,NFROZENIN,NTFROZENIN,NEL)
          CALL neci_flush(6)
@@ -748,6 +748,7 @@ contains
          WRITE(6,*) "Setting Coulomb damping mu between orbitals ",ARR(COULDAMPORB,1)," and ",ARR(COULDAMPORB+1,1)
          WRITE(6,*) "MU=",FCOULDAMPMU
       ENDIF
+
     End Subroutine IntFreeze
 
 

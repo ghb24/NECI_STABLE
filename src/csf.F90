@@ -1493,21 +1493,25 @@ contains
         ncsf = size(yamas(:,1))-1
         call csf_get_yamas (nopen, S, yamas(1:,:), ncsf)
 
-        if (tForceChange .and. ncsf > 1) then
-            call get_csf_yama (nI, yamas(0,:), nopen)
-        endif
-
-        ! Pick and apply a random one
-        do while (.true.)
-            r = genrand_real2_dSFMT()
-            num = int(r*ncsf) + 1
-            if ((.not.tForceChange) .or. (ncsf<2) .or. &
-                any(yamas(num,:) /= yamas(0,:))) then
-
-                call csf_apply_yama (nI, yamas(num, :))
-                exit
+        if (ncsf == 1) then
+            call csf_apply_yama (nI, yamas(1, :))
+        else
+            if (tForceChange .and. ncsf > 1) then
+                call get_csf_yama (nI, yamas(0,:), nopen)
             endif
-        enddo
+
+            ! Pick and apply a random one
+            do while (.true.)
+                r = genrand_real2_dSFMT()
+                num = int(r*ncsf) + 1
+                if ((.not.tForceChange) .or. (ncsf<2) .or. &
+                    any(yamas(num,:) /= yamas(0,:))) then
+
+                    call csf_apply_yama (nI, yamas(num, :))
+                    exit
+                endif
+            enddo
+        end if
     end subroutine
 
     subroutine csf_apply_yama (NI, csf)
@@ -1668,8 +1672,8 @@ contains
         real(dp), intent(in), optional :: coeffs(:)
         integer :: s_final
 
-        integer :: i, sgn(lenof_sign), nopen, nopen_min
-        real(dp) :: threshold, c
+        integer :: i, nopen, nopen_min
+        real(dp) :: threshold, c, sgn(lenof_sign)
 
 
         ! If we are using sign values, then consider the cutoff value to be

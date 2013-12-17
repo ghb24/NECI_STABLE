@@ -5,9 +5,17 @@ MODULE FciMCData
       use SymExcitDataMod, only: excit_gen_store_type
       use MemoryManager, only: TagIntType
       use global_utilities         
+      use Parallel_neci, only: MPIArg
+      use ras_data
 
       implicit none
       save
+
+      ! Type for creating linked lists for the linear scaling algorithm.
+      type ll_node
+          integer(sp) :: ind
+          type(ll_node), pointer :: next => null()
+      end type
 
       !Variables for popsfile mapping
       integer, allocatable :: PopsMapping(:)    !Mapping function between old basis and new basis
@@ -42,8 +50,10 @@ MODULE FciMCData
       INTEGER :: Spawned_ParentsTag, Spawned_Parents_IndexTag
       REAL(dp) :: SumSigns, SumSpawns, AvNoatHF
       LOGICAL :: tFillingStochRDMonFly, tFillingExplicRDMonFly
+      logical :: tFill_RDM
+      integer :: IterLastRDMFill
       integer :: Spawned_Parts_Zero, HFInd, NCurrH, IterRDMStart, IterRDM_HF
-      integer, dimension(lenof_sign) :: InstNoatHf
+      real(dp), dimension(lenof_sign) :: InstNoatHf
 
       INTEGER(KIND=n_int) , ALLOCATABLE :: TempSpawnedParts(:,:)
       INTEGER :: TempSpawnedPartsTag, TempSpawnedPartsInd
@@ -53,17 +63,21 @@ MODULE FciMCData
       integer :: max_inits
       integer(TagIntType) :: CurrentInitTag=0
 
-      INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS,HighPopNeg,HighPopPos,MaxInitPopNeg,MaxInitPopPos
+      INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS, HighPopNeg, HighPopPos
+      REAL(dp) :: MaxInitPopNeg,MaxInitPopPos
 
-    integer(int64) :: NoAborted, NoAddedInitiators, NoInitDets, NoNonInitDets
-    integer(int64) :: NoInitWalk, NoNonInitWalk
+    real(dp) :: NoAborted, AllNoAborted, AllNoAbortedOld
+    real(dp) :: NoRemoved, AllNoRemoved, AllNoRemovedOld
+    integer(int64) :: NoAddedInitiators, NoInitDets, NoNonInitDets
+    real(dp) :: NoInitWalk, NoNonInitWalk
     integer(int64) :: NoExtraInitDoubs, InitRemoved
     integer :: no_spatial_init_dets
 
-    integer(int64) :: AllNoAborted, AllNoAddedInitiators, AllNoInitDets
-    integer(int64) :: AllNoNonInitDets, AllNoInitWalk, AllNoNonInitWalk
+    integer(int64) :: AllNoAddedInitiators, AllNoInitDets
+    integer(int64) :: AllNoNonInitDets
+    real(dp) :: AllNoInitWalk, AllNoNonInitWalk
     integer(int64) :: AllNoExtraInitDoubs, AllInitRemoved
-    integer(int64) :: AllNoAbortedOld, AllGrowRateAbort
+    integer(int64) :: AllGrowRateAbort
 
       LOGICAL :: tHFInitiator,tPrintHighPop, tcurr_initiator
       logical :: tHashWalkerList    !Option to store occupied determinant in a hash table
@@ -83,16 +97,19 @@ MODULE FciMCData
 
       INTEGER :: MaxWalkersPart,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
       integer(int64) :: TotWalkers, TotWalkersOld
-      integer(int64), dimension(lenof_sign) :: TotParts, TotPartsOld
-      integer(int64) :: norm_psi_squared, all_norm_psi_squared
+      real(dp), dimension(lenof_sign) :: TotParts, TotPartsOld
+      real(dp) :: norm_psi_squared
+      real(dp) :: norm_semistoch_squared
+      real(dp) :: all_norm_psi_squared
       real(dp) :: norm_psi
+      ! The norm of the wavefunction in just the semi-stochastic space.
+      real(dp) :: norm_semistoch
       INTEGER :: exFlag=3
       real(dp) :: AccumRDMNorm, AccumRDMNorm_Inst, AllAccumRDMNorm
       
       !Hash tables to point to the correct determinants in CurrentDets
-      integer , allocatable , target :: HashIndexArr2(:,:),HashIndexArr1(:,:)
-      integer , pointer :: HashIndex(:,:) 
-      integer :: nClashMax,nWalkerHashes    !Number of hash clashes allowed, and length of hash table respectively
+      type(ll_node), pointer :: HashIndex(:) 
+      integer :: nWalkerHashes    ! The length of hash table.
       real(dp) :: HashLengthFrac
 
 !The following variables are calculated as per processor, but at the end of each update cycle, 
@@ -109,29 +126,41 @@ MODULE FciMCData
       ! The averaged 'absolute' projected energy - calculated over the last update cycle
       ! The magnitude of each contribution is taken before it is summed in
       HElement_t :: AbsProjE
-!This is the sum over all previous cycles of the number of particles at the HF determinant
-      integer(int64), dimension(lenof_sign) :: SumNoatHF      
+
+      real(dp) :: trial_numerator, tot_trial_numerator
+      real(dp) :: trial_denom, tot_trial_denom
+
+      real(dp), dimension(lenof_sign) :: SumNoatHF !This is the sum over all previous cycles of the number of particles at the HF determinant
       real(dp) :: AvSign           !This is the average sign of the particles on each node
       real(dp) :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
-      INTEGER(KIND=int64) :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
-      INTEGER :: Annihilated      !This is the number annihilated on one processor
-      INTEGER, DIMENSION(lenof_sign) :: NoatHF           !This is the instantaneous number of particles at the HF determinant
-      INTEGER :: NoatDoubs
+      real(dp) :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
+      Real(dp) :: Annihilated      !This is the number annihilated on one processor
+      REAL(dp), DIMENSION(lenof_sign) :: NoatHF           !This is the instantaneous number of particles at the HF determinant
+      REAL(dp) :: NoatDoubs
+      INTEGER :: OccRealDets, AllOccRealDets
+      INTEGER :: DetsRoundedToZero, AllDetsRoundedToZero
       INTEGER :: Acceptances      !This is the number of accepted spawns - this is only calculated per node.
       real(dp) :: AccRat            !Acceptance ratio for each node over the update cycle
-!This is just for the head node, so that it can store the number of previous cycles when reading from POPSFILE
       INTEGER :: PreviousCycles   
-      INTEGER :: NoBorn,NoDied
- !These will output the number of particles in the last update cycle which have been spawned by a single excitation.
+      !This is just for the head node, so that it can store the number of previous cycles when reading from POPSFILE
+      REAL(dp) :: NoBorn,NoDied
       INTEGER :: SpawnFromSing  
+      !These will output the number of particles in the last update cycle which have been spawned by a single excitation.
       INTEGER :: AllSpawnFromSing
-      INTEGER, DIMENSION(lenof_sign) :: HFCyc            !This is the number of HF*sign particles on a given processor over th
-      HElement_t :: AllHFCyc          !This is the sum of HF*sign particles over all processors over the course of the update c
-      HElement_t :: OldAllHFCyc       !This is the old *average* (not sum) of HF*sign over all procs over previous update cycle
-      HElement_t :: ENumCyc           !This is the sum of doubles*sign*Hij on a given processor over the course of the update c
-      HElement_t :: AllENumCyc        !This is the sum of double*sign*Hij over all processors over the course of the update cyc
-      HElement_t :: ENumCycAbs        !This is the sum of abs(doubles*sign*Hij) on a given processor "" "" "" 
-      HElement_t :: AllENumCycAbs     !This is the sum of abs(double*sign*Hij) over all processors over the course of the updat
+      REAL(dp), DIMENSION(lenof_sign) :: HFCyc           
+      !This is the number of HF*sign particles on a given processor over the course of the update cycle
+      HElement_t :: AllHFCyc 
+      !This is the sum of HF*sign particles over all processors over the course of the update cycle
+      HElement_t :: OldAllHFCyc   
+      !This is the old *average* (not sum) of HF*sign over all procs over previous update cycle
+      HElement_t :: ENumCyc           
+      !This is the sum of doubles*sign*Hij on a given processor over the course of the update c
+      HElement_t :: AllENumCyc        
+      !This is the sum of double*sign*Hij over all processors over the course of the update cyc
+      HElement_t :: ENumCycAbs        
+      !This is the sum of abs(doubles*sign*Hij) on a given processor "" "" "" 
+      HElement_t :: AllENumCycAbs     
+      !This is the sum of abs(double*sign*Hij) over all processors over the course of the updat
 
       ! The projected energy over the current update cycle.
       HElement_t :: ProjECyc
@@ -142,17 +171,19 @@ MODULE FciMCData
 !These are the global variables, calculated on the root processor, from the values above
       real(dp) :: AllGrowRate
       integer(int64) :: AllTotWalkers, AllTotWalkersOld
-      integer(int64), dimension(lenof_sign) :: AllTotParts, AllTotPartsOld
-      integer(int64), dimension(lenof_sign) :: AllSumNoatHF
-      INTEGER(KIND=int64) :: AllSumWalkersCyc
+      real(dp), dimension(lenof_sign) :: AllTotParts, AllTotPartsOld
+      real(dp), dimension(lenof_sign) :: AllSumNoatHF
+      real(dp) :: AllSumWalkersCyc
       real(dp) :: OldAllAvWalkersCyc    !This is the average number of walkers each iteration over the previous update cycle
-      INTEGER :: AllAnnihilated,AllNoatDoubs
-      INTEGER, DIMENSION(lenof_sign) :: AllNoatHF
+      REAL(dp) :: AllAnnihilated
+      REAL(dp) :: AllNoAtDoubs
+      REAl(dp), DIMENSION(lenof_sign) :: AllNoatHF
       HElement_t :: sum_proje_denominator, &
                         cyc_proje_denominator, all_cyc_proje_denominator, &
                         all_sum_proje_denominator
       real(dp) :: AllAvSign,AllAvSignHFD
-      INTEGER :: AllNoBorn,AllNoDied,MaxSpawned
+      INTEGER :: MaxSpawned
+      REAL(dp) :: AllNoBorn,AllNoDied
 
       HElement_t :: AllSumENum
   
@@ -178,7 +209,9 @@ MODULE FciMCData
 
       type(timer) :: Walker_Time, Annihil_Time,ACF_Time, Sort_Time, &
                            Comms_Time, AnnSpawned_time, AnnMain_time, &
-                           BinSearch_time
+                           BinSearch_time, SemiStoch_Comms_Time, &
+                           SemiStoch_Multiply_Time, Trial_Search_Time, &
+                           SemiStoch_Init_Time, Trial_Init_Time
       
       ! Store the current value of S^2 between update cycles
       real(dp) :: curr_S2, curr_S2_init
@@ -248,7 +281,7 @@ MODULE FciMCData
       real(dp) :: HFShift     !A 'shift'-like value for the total energy which is taken 
                               !from the growth of walkers on the HF determinant.
       real(dp) :: InstShift   !An instantaneous value for the shift from the growth of walkers.
-      INTEGER, DIMENSION(lenof_sign) :: OldAllNoatHF
+      REAL(dp), DIMENSION(lenof_sign) :: OldAllNoatHF
 
       INTEGER :: iHFProc    !Processor index for HF determinant
 
@@ -256,6 +289,8 @@ MODULE FciMCData
       !and potentially restarting the calculation based on this determinant, 
       !or changing the determiant which the energy is calculated from.
       INTEGER :: iHighestPop
+      INTEGER :: QuadDetsEst !Estimate of the number of symmetry allowed determinants at excit level 4
+      INTEGER :: DoubDetsEst !Estimate of the number of symmetry allowed determinants at excit level 2
       INTEGER , ALLOCATABLE :: ProjEDet(:)
       INTEGER(KIND=n_int) , ALLOCATABLE :: HighestPopDet(:),iLutRef(:)
       INTEGER(n_int) , ALLOCATABLE :: iLutRefFlip(:)     !If we are using HPHF and projecting onto 
@@ -264,10 +299,19 @@ MODULE FciMCData
                                                         !so we can calculate projection onto both.
       INTEGER , ALLOCATABLE :: RefDetFlip(:)
       LOGICAL :: tSpinCoupProjE
+      
+      !Extra data recorded for using RealCoefficients
+      !These are largely diagnostic (except WalkersToSpawn), so could be removed
+      !Once we're happy with the implementation of the algorithm
+      INTEGER :: NumSpawnedEntries, AllNumSpawnedEntries
+      INTEGER :: ZeroMatrixElem, AllZeroMatrixelem
+      INTEGER :: NumMerged, AllNumMerged
+      INTEGER :: WalkersToSpawn, TotWalkersToSpawn, AllTotWalkersToSpawn
+      LOGICAL :: blank_det
 
       ! Store data about all processors for calculating load balancing
       integer(int64) :: MaxWalkersProc, MinWalkersProc
-      integer(int64) :: MaxPartsProc, MinPartsProc
+      real(dp) :: MaxPartsProc, MinPartsProc
 
       TYPE(BasisFN) :: HFSym
       integer :: iMaxBloom !If tMaxBloom is on, this stores the largest bloom to date.
@@ -292,12 +336,13 @@ MODULE FciMCData
       ! Store data from one fcimc iteration
       !  --> We can deal with different types of iteration separately
       type fcimc_iter_data
-          integer, dimension(lenof_sign) :: nborn
-          integer, dimension(lenof_sign) :: ndied
-          integer, dimension(lenof_sign) :: nannihil
-          integer, dimension(lenof_sign) :: naborted
-          integer, dimension(lenof_sign) :: update_growth, update_growth_tot
-          integer(int64), dimension(lenof_sign) :: tot_parts_old
+          real(dp), dimension(lenof_sign) :: nborn
+          real(dp), dimension(lenof_sign) :: ndied
+          real(dp), dimension(lenof_sign) :: nannihil
+          real(dp), dimension(lenof_sign) :: naborted
+          real(dp), dimension(lenof_sign) :: nremoved
+          real(dp), dimension(lenof_sign) :: update_growth, update_growth_tot
+          real(dp), dimension(lenof_sign) :: tot_parts_old
           integer :: update_iters
       end type
       
@@ -332,5 +377,129 @@ MODULE FciMCData
       !Variables for very useful histogramming of projected energy contributions
       real(dp), allocatable :: ENumCycHistG(:),AllENumCycHistG(:),ENumCycHistK3(:),AllENumCycHistK3(:)
       integer :: unit_splitprojEHistG,unit_splitprojEHistK3
+
+      ! This array stores the Hamiltonian matrix, or part of it, when performing a diagonalisation. It is currently
+      ! only used for the code for the Davidson method and semi-stochastic method.
+      real(dp), allocatable, dimension(:,:) :: hamiltonian
+
+      integer(TagIntType) :: HamTag, DavidsonTag
+
+      ! Semi-stochastic data.
+
+      ! The core Hamiltonian (with the Hartree-Fock energy removed from the diagonal) is stored in this array for
+      ! the whole simulation.
+      real(dp), allocatable, dimension(:,:) :: core_hamiltonian 
+
+      ! The diagonal elements of the core-space Hamiltonian (with Hii taken away).
+      real(dp), allocatable, dimension(:) :: core_ham_diag
+            
+      ! This stores the entire core space from all processes, on each process.
+      integer(n_int), allocatable, dimension(:,:) :: core_space
+
+      ! This stores all the amplitudes of the walkers in the deterministic space. This vector has the size of the part
+      ! of the deterministic space stored on *this* processor only. It is therefore used to store the deterministic vector
+      ! on this processor, before it is combined to give the whole vector, which is stored in full_determ_vector.
+      ! Later in the iteration, it is also used to store the result of the multiplication by core_hamiltonian on
+      ! full_determ_vector.
+      real(dp), allocatable, dimension(:) :: partial_determ_vector
+      real(dp), allocatable, dimension(:) :: full_determ_vector
+      real(dp), allocatable, dimension(:) :: full_determ_vector_av
+
+      integer(MPIArg), allocatable, dimension(:) :: determ_proc_sizes
+      integer(MPIArg), allocatable, dimension(:) :: determ_proc_indices
+      integer(MPIArg) :: determ_space_size
+
+      ! This vector will store the indicies of the deterministic states in CurrentDets. This is worked out in the main loop.
+      integer, allocatable, dimension(:) :: indices_of_determ_states
+
+      ! This integer is used in the Annnihilation routines. It denotes the index of the first non deterministic state in
+      ! the spawned list (once this list has been compressed). This is used to skip over performing certain annihilation
+      ! routines on the deterministic state, which are not removed from the list.
+      integer :: index_of_first_non_determ
+
+      ! For using the hashing trick to search the core space.
+      type(ll_node), pointer :: CoreHashIndex(:)
+
+      ! If true (as is the case by default) then semi-stochastic calculations will start from the ground state
+      ! of the core space.
+      logical :: tStartCoreGroundState
+
+      ! Trial wavefunction data.
+
+      ! This list stores the iluts from which the trial wavefunction is formed, but only those that reside on this processor.
+      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
+      integer(n_int), allocatable, dimension(:,:) :: trial_space
+      ! The number of states in the trial vector space.
+      integer :: trial_space_size = 0
+      ! This list stores the iluts from which the trial wavefunction is formed, but only those that reside on this processor.
+      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
+      integer(n_int), allocatable, dimension(:,:) :: con_space
+      ! The number of states in the space connected to (but not including) the trial vector space.
+      integer :: con_space_size = 0
+
+      ! This vector stores the trial wavefunction itself.
+      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
+      real(dp), allocatable, dimension(:) :: trial_wf
+      ! This vector stores the values of trial_wf for the occupied trial state in CurrentDets, in the same order as these
+      ! states in CurrentDets. If not all trial states are occupied then the final elements store junk and aren't used.
+      real(dp), allocatable, dimension(:) :: occ_trial_amps
+      ! Holds the number of occupied trial states in CurrentDets.
+      integer :: ntrial_occ
+      ! Holds the index of the element in occ_trial_amps to access when the next trial space state is found.
+      integer :: trial_ind
+      ! When new states are about to inserted into CurrentDets, a search is performed to see if any of them are in the
+      ! trial space. If they are then the corresponding amplitudes are stored in this vector until they are merged
+      ! into occ_trial_amps, to prevent overwriting during the merging process.
+      real(dp), allocatable, dimension(:) :: trial_temp
+
+      real(dp) :: trial_energy
+      ! This vector's elements store the quantity
+      ! \sum_j H_{ij} \psi^T_j,
+      ! where \psi is the trial wavefunction. These elements are stored only in the space of states which are connected
+      ! to *but not included in* the trial vector space.
+      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
+      real(dp), allocatable, dimension(:) :: con_space_vector
+      ! This vector stores the values of con_space_vector for the occupied connected state in CurrentDets, in the same order as
+      ! these states in CurrentDets. If not all connected states are occupied then the final elements store junk and aren't used.
+      real(dp), allocatable, dimension(:) :: occ_con_amps
+      ! Holds the number of occupied connected states in CurrentDets.
+      integer :: ncon_occ
+      ! Holds the index of the element in occ_con_amps to access when the next connected space state is found.
+      integer :: con_ind
+      ! When new states are about to inserted into CurrentDets, a search is performed to see if any of them are in the
+      ! connected space. If they are then the corresponding amplitudes are stored in this vector until they are merged
+      ! into occ_con_amps, to prevent overwriting during the merging process.
+      real(dp), allocatable, dimension(:) :: con_temp
+
+      ! If index i in CurrentDets is a trial state then index i of this array stores the corresponding amplitude of
+      ! trial_wf. If index i in the CurrentDets is a connected state then index i of this array stores the corresponding
+      ! amplitude of con_space_vector. Else, it will be zero.
+      real(dp), allocatable, dimension(:) :: current_trial_amps
+      ! Only used with the linscalefcimcalgo option: Because in AnnihilateSpawendParts trial and connected states are
+      ! sorted in the same order, a smaller section of the trial and connected space can be searched for each state.
+      ! These indices hold the indices to be searched from next time.
+      integer :: min_trial_ind, min_conn_ind
+
+      ! If true (which it is by default) then the trial and connected space states are stored in a trial_ht and
+      ! con_ht and are accessed by a hash lookup.
+      logical :: tTrialHash
+      ! If true, include the walkers that get cancelled by the initiator criterion in the trial energy estimate.
+      ! tTrialHash needs to be used for this option.
+      logical :: tIncCancelledInitEnergy
+
+      ! Semi-stochastic tags:
+      integer(TagIntType) :: CoreTag, FDetermTag, FDetermAvTag, PDetermTag, IDetermTag, CoreSpaceTag
+      logical :: tInDetermSpace
+
+      ! Trial wavefunction tags:
+      integer(TagIntType) :: TrialTag, ConTag, ConVecTag, TrialWFTag, TempTag, CurrentTrialTag
+      integer(TagIntType) :: TrialTempTag, ConTempTag, OccTrialTag, OccConTag
+
+      ! Data for performing the direct-ci Davidson algorithm.
+      type(ras_parameters) :: davidson_ras
+      type(ras_class_data), allocatable, dimension(:) :: davidson_classes
+      integer(sp), allocatable, dimension(:,:) :: davidson_strings
+      integer(n_int), allocatable, dimension(:,:) :: davidson_iluts
+      type(direct_ci_excit), allocatable, dimension(:) :: davidson_excits
 
 END MODULE FciMCData
