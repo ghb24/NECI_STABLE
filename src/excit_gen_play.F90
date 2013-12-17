@@ -218,6 +218,7 @@ contains
         real(dp), intent(out) :: pgen
 
         integer :: elecs(2), syms(2), spn(2), orbs(2), src(2)
+        integer :: syms_cum(nSymLabels), i, j
         real(dp) :: int_cpt(2), cum_sum(2)
         integer :: sym_product, ispn, sum_ml
 
@@ -237,6 +238,12 @@ contains
         syms(2) = ieor(syms(1), sym_product)
         if (syms(1) /= syms(2)) &
             pgen = 2.0_dp * pgen
+
+!        do i = 0, nSymLabels-1
+!            j = ieor(i, sym_product)
+!            if (j < i) cycle
+!
+!        end do
 
         ! What combinations of spins are permitted
         if (iSpn == 1) then
@@ -281,6 +288,11 @@ contains
         else
             pgen = pgen * (int_cpt(1) / cum_sum(1)) * (int_cpt(2) / cum_sum(2))
         end if
+
+        write(6,*) 'CPT', int_cpt
+        write(6,*) 'SM', cum_sum
+        write(6,*) "COMP", int_cpt(1) / cum_sum(1), &
+                           int_cpt(2) / cum_sum(2), 1.0_dp / nSymLabels
 
         ! And generate the actual excitation.
         call make_double (nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), &
