@@ -899,7 +899,7 @@ MODULE FciMCParMod
                     indices_of_determ_states(determ_index) = gen_ind
 
                     ! Add this amplitude to the deterministic vector.
-                    partial_determ_vector(determ_index) = SignCurr(1)
+                    partial_determ_vector(:,determ_index) = SignCurr
 
                     determ_index = determ_index + 1
 
@@ -1104,7 +1104,6 @@ MODULE FciMCParMod
                         if(.not. (tSemiStochastic)) call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
                         ! FindExcitBitDet copies the parent flags so that unwanted flags must be unset.
                         ! Should it really do this?
-
                         if (tTrialWavefunction) then
                             call clr_flag(iLutnJ, flag_trial)
                             call clr_flag(iLutnJ, flag_connected)
