@@ -354,8 +354,6 @@ MODULE GenRandSymExcitNUMod
 !        pGen=pDoubNew*(1.0_dp/real(ElecPairs,dp))*PabGivenij
         pGen=pDoubNew*((1.0_dp/real(NExcitB,dp))+(1.0_dp/real(NExcitOtherWay,dp)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),dp))
 
-        write(6,*) 'CPTS', 1.0_dp/real(nexcitb), 1.0_dp/real(nexcitotherway), 1.0_dp/(nexcitA - ForbiddenOrbs)
-
     END SUBROUTINE FindDoubleProb
 
     SUBROUTINE PickBOrb(nI,iSpn,ILUT,ClassCountUnocc2,SpinOrbA,OrbA,SymA,OrbB,SymB,NExcit,MlA,MlB,NExcitOtherWay)

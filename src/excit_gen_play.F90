@@ -203,7 +203,6 @@ contains
         end if
 
         if (nJ(1) /= 0) nsel = nsel + 1
-        if (mod(ncnt, 1000) == 0) write(6,*) 'ACCEPT', 100_dp * nsel / real(ncnt, dp), nsel, ncnt
 
     end subroutine
 
@@ -289,11 +288,6 @@ contains
             pgen = pgen * (int_cpt(1) / cum_sum(1)) * (int_cpt(2) / cum_sum(2))
         end if
 
-        write(6,*) 'CPT', int_cpt
-        write(6,*) 'SM', cum_sum
-        write(6,*) "COMP", int_cpt(1) / cum_sum(1), &
-                           int_cpt(2) / cum_sum(2), 1.0_dp / nSymLabels
-
         ! And generate the actual excitation.
         call make_double (nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), &
                           ex, par)
@@ -336,8 +330,8 @@ contains
                 orbid = gtID(orb)
 !                cum_sum = cum_sum + 1.0
                 cum_sum = cum_sum &
-                        + abs(get_umat_el(srcid(1), srcid(1), orbid, orbid)) &
-                        + abs(get_umat_el(srcid(2), srcid(2), orbid, orbid))
+                        + sqrt(abs(get_umat_el(srcid(1), srcid(1), orbid, orbid))) &
+                        + sqrt(abs(get_umat_el(srcid(2), srcid(2), orbid, orbid)))
             end if
             cumulative_arr(i) = cum_sum
 
@@ -356,8 +350,8 @@ contains
         ! And return the relevant value.
         orb = SymLabelList2(label_index + orb_index - 1)
         orbid = gtID(orb)
-        cpt = abs(get_umat_el(srcid(1), srcid(1), orbid, orbid)) + &
-              abs(get_umat_el(srcid(2), srcid(2), orbid, orbid))
+        cpt = sqrt(abs(get_umat_el(srcid(1), srcid(1), orbid, orbid))) + &
+              sqrt(abs(get_umat_el(srcid(2), srcid(2), orbid, orbid)))
 
     end function
 
