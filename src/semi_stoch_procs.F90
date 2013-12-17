@@ -61,14 +61,8 @@ contains
 
         call set_timer(SemiStoch_Comms_Time)
 
-        if (lenof_sign == 1) then
-            call MPIAllGatherV(partial_determ_vector, full_determ_vector, determ_proc_sizes, &
-                                determ_proc_indices)
-        else if (lenof_sign == 2) then
-            ! In this case we have twice the amount of data to communicate.
-            call MPIAllGatherV(partial_determ_vector, full_determ_vector, &
-                                int(2,MPIArg)*determ_proc_sizes, int(2,MPIArg)*determ_proc_indices)
-        end if
+        call MPIAllGatherV(partial_determ_vector, full_determ_vector, &
+                            determ_proc_sizes, determ_proc_indices)
 
         call halt_timer(SemiStoch_Comms_Time)
 
@@ -141,9 +135,9 @@ contains
                      determ_proc_indices(iProcIndex)+determ_proc_sizes(iProcIndex))
             end do
 #else
-            do i = determ_proc_indices(iProcIndex)+1, determ_proc_indices(iProcIndex)+determ_proc_sizes(iProcIndex)
+            do i = 1, determ_proc_sizes(iProcIndex)
                 partial_determ_vector(:,i) = partial_determ_vector(:,i) + &
-                   DiagSft * full_determ_vector(:,i)
+                   DiagSft * full_determ_vector(:,i+determ_proc_indices(iProcIndex))
             end do
 #endif
 
@@ -1016,12 +1010,14 @@ contains
         call MPIScatterV(davidson_eigenvector, determ_proc_sizes, determ_proc_indices, &
                          partial_determ_vector(1,:), determ_proc_sizes(iProcIndex), ierr)
 
+        if (lenof_sign == 2) partial_determ_vector(2,:) = partial_determ_vector(1,:)
+
         ! Finally, copy these amplitudes across to the corresponding states in CurrentDets.
         counter = 0
         do i = 1, TotWalkers
             if (test_flag(CurrentDets(:,i), flag_deterministic)) then
                 counter = counter + 1
-                call encode_sign(CurrentDets(:,i), partial_determ_vector(1,counter))
+                call encode_sign(CurrentDets(:,i), partial_determ_vector(:,counter))
             end if
         end do
 
