@@ -61,8 +61,14 @@ contains
 
         call set_timer(SemiStoch_Comms_Time)
 
-        call MPIAllGatherV(partial_determ_vector, full_determ_vector, determ_proc_sizes, &
-                            determ_proc_indices)
+        if (lenof_sign == 1) then
+            call MPIAllGatherV(partial_determ_vector, full_determ_vector, determ_proc_sizes, &
+                                determ_proc_indices)
+        else if (lenof_sign == 2) then
+            ! In this case we have twice the amount of data to communicate.
+            call MPIAllGatherV(partial_determ_vector, full_determ_vector, &
+                                int(2,MPIArg)*determ_proc_sizes, int(2,MPIArg)*determ_proc_indices)
+        end if
 
         call halt_timer(SemiStoch_Comms_Time)
 
@@ -71,8 +77,8 @@ contains
         call set_timer(SemiStoch_Multiply_Time)
 
         if(tFillingStochRDMonFly) then !Update the average signs in full_determ_vector_av
-            full_determ_vector_av(:)=(((real(Iter,dp)-IterRDMStart)*full_determ_vector_av(:)) &
-                                      + full_determ_vector(:))/(real(Iter,dp) - IterRDMStart + 1.0_dp)
+            full_determ_vector_av=(((real(Iter,dp)-IterRDMStart)*full_determ_vector_av) &
+                                      + full_determ_vector)/(real(Iter,dp) - IterRDMStart + 1.0_dp)
         endif
             
         if (determ_proc_sizes(iProcIndex) >= 1) then
@@ -83,52 +89,63 @@ contains
                 
                 if(tFill_RDM) call fill_RDM_offdiag_deterministic()
 
-                    !For the moment, we're only adding in these contributions when we need the energy
-                    !This will need refinement if we want to continue with the option of inst vs true full RDMs
-                    ! (as in another CMO branch).
+                !For the moment, we're only adding in these contributions when we need the energy
+                !This will need refinement if we want to continue with the option of inst vs true full RDMs
+                ! (as in another CMO branch).
 
                 partial_determ_vector = 0.0_dp
 
                 do i = 1, determ_proc_sizes(iProcIndex)
                     do j = 1, sparse_core_ham(i)%num_elements
-                        partial_determ_vector(i) = partial_determ_vector(i) - &
-                            sparse_core_ham(i)%elements(j)*full_determ_vector(sparse_core_ham(i)%positions(j))
+                        partial_determ_vector(:,i) = partial_determ_vector(:,i) - &
+                            sparse_core_ham(i)%elements(j)*full_determ_vector(:,sparse_core_ham(i)%positions(j))
                     end do
                 end do
 
             else
 
-                ! This function performs y := alpha*A*x + beta*y
-                ! N specifies not to use the transpose of A.
-                ! determ_proc_sizes(iProcIndex) is the number of rows in A.
-                ! determ_space_size is the number of columns of A.
-                ! alpha = -1.0_dp.
-                ! A = core_hamiltonian.
-                ! determ_proc_sizes(iProcIndex) is the first dimension of A.
-                ! input x = full_determ_vector.
-                ! 1 is the increment of the elements of x.
-                ! beta = 0.0_dp.
-                ! output y = partial_determ_vector.
-                ! 1 is the incremenet of the elements of y.
-                call dgemv('N', &
-                           determ_proc_sizes(iProcIndex), &
-                           determ_space_size, &
-                           -1.0_dp, &
-                           core_hamiltonian, &
-                           determ_proc_sizes(iProcIndex), &
-                           full_determ_vector, &
-                           1, &
-                           0.0_dp, &
-                           partial_determ_vector, &
-                           1)
+                do i = 1, lenof_sign
+                    ! This function performs y := alpha*A*x + beta*y
+                    ! N specifies not to use the transpose of A.
+                    ! determ_proc_sizes(iProcIndex) is the number of rows in A.
+                    ! determ_space_size is the number of columns of A.
+                    ! alpha = -1.0_dp.
+                    ! A = core_hamiltonian.
+                    ! determ_proc_sizes(iProcIndex) is the first dimension of A.
+                    ! input x = full_determ_vector.
+                    ! 1 is the increment of the elements of x.
+                    ! beta = 0.0_dp.
+                    ! output y = partial_determ_vector.
+                    ! 1 is the incremenet of the elements of y.
+                    call dgemv('N', &
+                               determ_proc_sizes(iProcIndex), &
+                               determ_space_size, &
+                               -1.0_dp, &
+                               core_hamiltonian, &
+                               determ_proc_sizes(iProcIndex), &
+                               full_determ_vector(i,:), &
+                               1, &
+                               0.0_dp, &
+                               partial_determ_vector(i,:), &
+                               1)
+                end do
 
             end if
 
-            ! Now add shift*full_determ_vector, to account for the shift, not stored in
+            ! Now add shift*full_determ_vector to account for the shift, not stored in
             ! core_hamiltonian.
-            partial_determ_vector = partial_determ_vector + &
-               DiagSft * full_determ_vector(determ_proc_indices(iProcIndex)+1:&
-                 determ_proc_indices(iProcIndex)+determ_proc_sizes(iProcIndex))
+#ifdef __CMPLX
+            do i = 1, lenof_sign
+                partial_determ_vector = partial_determ_vector + &
+                   DiagSft(1) * full_determ_vector(i,determ_proc_indices(iProcIndex)+1:&
+                     determ_proc_indices(iProcIndex)+determ_proc_sizes(iProcIndex))
+            end do
+#else
+            do i = determ_proc_indices(iProcIndex)+1, determ_proc_indices(iProcIndex)+determ_proc_sizes(iProcIndex)
+                partial_determ_vector(:,i) = partial_determ_vector(:,i) + &
+                   DiagSft * full_determ_vector(:,i)
+            end do
+#endif
 
             ! Now multiply the vector by tau to get the final projected vector.
             partial_determ_vector = partial_determ_vector * tau
@@ -997,14 +1014,14 @@ contains
         ! Send the components to the correct processors and use partial_determ_vector as
         ! temporary space.
         call MPIScatterV(davidson_eigenvector, determ_proc_sizes, determ_proc_indices, &
-                         partial_determ_vector, determ_proc_sizes(iProcIndex), ierr)
+                         partial_determ_vector(1,:), determ_proc_sizes(iProcIndex), ierr)
 
         ! Finally, copy these amplitudes across to the corresponding states in CurrentDets.
         counter = 0
         do i = 1, TotWalkers
             if (test_flag(CurrentDets(:,i), flag_deterministic)) then
                 counter = counter + 1
-                call encode_sign(CurrentDets(:,i), partial_determ_vector(counter))
+                call encode_sign(CurrentDets(:,i), partial_determ_vector(1,counter))
             end if
         end do
 

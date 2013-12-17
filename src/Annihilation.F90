@@ -778,7 +778,7 @@ MODULE AnnihilationMod
     subroutine deterministic_annihilation(iter_data)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
-        integer :: i, MinInd, MaxInd, PartInd
+        integer :: i, j, MinInd, MaxInd, PartInd
         integer :: nI(nel)
         real(dp), dimension(lenof_sign) :: SpawnedSign, CurrentSign, SignProd
         logical :: tSuccess
@@ -786,18 +786,19 @@ MODULE AnnihilationMod
         ! Copy across the weights from partial_determ_vector (the result of the deterministic projection)
         ! to CurrentDets:
         do i = 1, determ_proc_sizes(iProcIndex)
-            call neci_flush(6)
             call extract_sign(CurrentDets(:, indices_of_determ_states(i)), CurrentSign)
-            SpawnedSign = partial_determ_vector(i)
+            SpawnedSign = partial_determ_vector(:,i)
             call encode_sign(CurrentDets(:, indices_of_determ_states(i)), SpawnedSign + CurrentSign)
 
             ! Update stats:
             ! Number born:
-            iter_data%nborn(1) = iter_data%nborn(1) + abs(SpawnedSign(1))
+            iter_data%nborn = iter_data%nborn + abs(SpawnedSign)
             ! Number annihilated:
             SignProd = CurrentSign*SpawnedSign
-            if (SignProd(1) < 0.0_dp) iter_data%nannihil(1) = iter_data%nannihil(1) + &
-                2*(min(abs(CurrentSign(1)), abs(SpawnedSign(1))))
+            do j = 1, lenof_sign
+                if (SignProd(j) < 0.0_dp) iter_data%nannihil(j) = iter_data%nannihil(j) + &
+                    2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
+            end do
         end do
 
     end subroutine deterministic_annihilation
@@ -945,20 +946,23 @@ MODULE AnnihilationMod
                         call extract_sign(CurrentDets(:, PartInd), CurrentSign)
                         call extract_sign(SpawnedParts(:, i), SpawnedSign)
                         call encode_sign(CurrentDets(:, PartInd), SpawnedSign + CurrentSign)
-                        call encode_sign(SpawnedParts(:,i),null_part)
+                        call encode_sign(SpawnedParts(:,i), null_part)
                         if (sum(abs(SpawnedSign)).ne.0.0_dp) ToRemove = ToRemove + 1
                         MinInd = PartInd
 
                         ! Update stats:
                         SignProd = CurrentSign*SpawnedSign
-                        if (SignProd(1) < 0.0_dp) iter_data%nannihil(1) = iter_data%nannihil(1) + &
-                            2*(min(abs(CurrentSign(1)), abs(SpawnedSign(1))))
+                        do j = 1, lenof_sign
+                            if (SignProd(j) < 0.0_dp) iter_data%nannihil(j) = iter_data%nannihil(j) + &
+                                2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
+                        end do
                         
                         if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then
                             call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(1+lenof_sign,PartInd))
                         endif 
 
                         cycle
+
                     end if
                 end if
 
