@@ -3729,8 +3729,8 @@ MODULE FciMCParMod
                     if ((AllTotParts(run) > tot_walkers) .or. &
                          (abs(AllNoatHF(run)) > MaxNoatHF)) then
     !                     WRITE(iout,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
-                        write (iout, '(a,i13,a,i1)') 'Exiting the single particle growth phase on iteration: ',iter + PreviousCycles, &
-                                     ' - Shift can now change for population', run
+                        write (iout, '(a,i13,a,i1)') 'Exiting the single particle growth phase on iteration: ' &
+                                     ,iter + PreviousCycles, ' - Shift can now change for population', run
                         VaryShiftIter(run) = Iter
                         iBlockingIter(run) = Iter + PreviousCycles
                         tSinglePartPhase(run) = .false.
@@ -4186,7 +4186,6 @@ MODULE FciMCParMod
         ! Becuase tot_trial_numerator/tot_trial_denom is the energy relative to the the trial
         ! energy, add on this contribution to make it relative to the HF energy.
         if (tTrialWavefunction) then
-            !TODO CMO: see if I need to change this line
             tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*(trial_energy-Hii))
         end if
 
@@ -4256,7 +4255,7 @@ MODULE FciMCParMod
 #elif __DOUBLERUN
             
             write(fcimcstats_unit2,"(I12,G16.7,3G16.7,3G16.7,5G17.9,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9,I13,G16.7)", &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9,G16.7)", &
                                   advance = 'no') &
                 Iter + PreviousCycles, &
                 DiagSft(2), &
@@ -4300,7 +4299,7 @@ MODULE FciMCParMod
 #endif
 #ifndef __CMPLX
             write(fcimcstats_unit,"(I12,G16.7,3G16.7,3G16.7,5G17.9,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9,I13,G16.7)", &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9,G16.7)", &
                                   advance = 'no') &
                 Iter + PreviousCycles, &
                 DiagSft(1), &
@@ -7128,8 +7127,9 @@ MODULE FciMCParMod
         ! CurrentDets, calculating and storing all Hamiltonian matrix elements and initalising all
         ! arrays required to store and distribute the vectors in the deterministic space later.
         if (tSemiStochastic) then
-            if(inum_runs.eq.2) call stop_all('InitFCIMCCalcPar','Cannot yet do SS and double run simultaneously. &
-                    & In addition to other things, need to deal with fill_RDM_offdiag_deterministic().')
+            if(inum_runs.eq.2 .and. tRDMonFly) call stop_all('InitFCIMCCalcPar','Cannot yet do SS and double &
+                    &run simultaneously with RDMs. In addition to other things, need to deal with &
+                    &fill_RDM_offdiag_deterministic().')
             call init_semi_stochastic()
         endif
 
