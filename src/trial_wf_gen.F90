@@ -133,7 +133,7 @@ contains
 
             write(6,"(A,F12.3,A)") "Attempting to allocate con_space. Size = ", &
                     real(con_space_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp," Mb"
-            call flush(6)
+            call neci_flush(6)
             allocate(con_space(0:NIfTot, con_space_size), stat=ierr)
             call LogMemAlloc('con_space', con_space_size*(NIfTot+1), size_n_int, t_r, ConTag, ierr)
             con_space = 0
@@ -180,7 +180,7 @@ contains
 
         write(6,"(A,F12.3,A)") "Attempting to allocate temp_space. Size = ",    &
             real(con_space_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp," Mb"
-        call flush(6)
+        call neci_flush(6)
         allocate(temp_space(0:NIfTot, con_space_size), stat=ierr)
         call LogMemAlloc('temp_space', con_space_size*(NIfTot+1), size_n_int, t_r, TempTag, ierr)
 
@@ -192,7 +192,7 @@ contains
         end if
         write(6,"(A,F12.3,A)") "Attempting to allocate con_space. Size = ",     &
             real(con_space_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp," Mb"
-        call flush(6)
+        call neci_flush(6)
         allocate(con_space(0:NIfTot, 1:con_space_size), stat=ierr)
         call LogMemAlloc('con_space', con_space_size*(NIfTot+1), size_n_int, t_r, ConTag, ierr)
         con_space = temp_space
