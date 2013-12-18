@@ -891,7 +891,6 @@ MODULE FciMCParMod
             end if
             
             ! If this state is in the deterministic space.
-            !TODO CMO: Sort the combination of Semi-stochastic and double run
             if (tSemiStochastic) then
                 if (test_flag(CurrentDets(:,j), flag_deterministic)) then
 
@@ -4096,10 +4095,10 @@ MODULE FciMCParMod
                   &20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  &
                   &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
                   &26.HF weight    27.|Psi|     28.Inst S^2 29.Inst S^2 30.AbsProjE &
-                  &31.|Semistoch|/|Psi|"
+                  &31.|Semistoch|/|Psi|   32.PartsDiffProc"
            if (tTrialWavefunction) then 
                   write(fcimcstats_unit2, "(A)", advance = 'no') &
-                  "  36.TrialNumerator  37.TrialDenom  38.TrialOverlap"
+                  "  33.TrialNumerator  34.TrialDenom  35.TrialOverlap"
            end if
 
            write(fcimcstats_unit2, "()", advance = 'yes')
@@ -4131,7 +4130,7 @@ MODULE FciMCParMod
                   &31.|Semistoch|/|Psi|  32.PartsDiffProc"
            if (tTrialWavefunction) then 
                   write(fcimcstats_unit, "(A)", advance = 'no') &
-                  "  39.TrialNumerator  40.TrialDenom  41.TrialOverlap"
+                  "  33.TrialNumerator  34.TrialDenom  35.TrialOverlap"
            end if
 
            write(fcimcstats_unit, "()", advance = 'yes')
@@ -4255,7 +4254,7 @@ MODULE FciMCParMod
 #elif __DOUBLERUN
             
             write(fcimcstats_unit2,"(I12,G16.7,3G16.7,3G16.7,5G17.9,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9,G16.7)", &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,12G17.9,G16.7)", &
                                   advance = 'no') &
                 Iter + PreviousCycles, &
                 DiagSft(2), &
@@ -4292,14 +4291,14 @@ MODULE FciMCParMod
                     write(fcimcstats_unit2, "(3G16.7)", advance = 'no') &
                     (tot_trial_numerator(2) / StepsSft), &
                     (tot_trial_denom(2) / StepsSft), &
-                    abs((tot_trial_denom(2) / (norm_psi*StepsSft)))
+                    abs(tot_trial_denom(2) / (norm_psi(2)*StepsSft))
                 end if
                 
                 write(fcimcstats_unit2, "()", advance = 'yes')
 #endif
 #ifndef __CMPLX
             write(fcimcstats_unit,"(I12,G16.7,3G16.7,3G16.7,5G17.9,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,11G17.9,G16.7)", &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,12G17.9,G16.7)", &
                                   advance = 'no') &
                 Iter + PreviousCycles, &
                 DiagSft(1), &
@@ -4336,7 +4335,7 @@ MODULE FciMCParMod
                     write(fcimcstats_unit, "(3G16.7)", advance = 'no') &
                     (tot_trial_numerator(1) / StepsSft), &
                     (tot_trial_denom(1) / StepsSft), &
-                    abs((tot_trial_denom(1) / (norm_psi*StepsSft)))
+                    abs(tot_trial_denom(1) / (norm_psi(1)*StepsSft))
                 end if
                 write(fcimcstats_unit, "()", advance = 'yes')
 
