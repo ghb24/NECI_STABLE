@@ -13,7 +13,7 @@ MODULE FciMCData
 
       ! Type for creating linked lists for the linear scaling algorithm.
       type ll_node
-          integer(sp) :: ind
+          integer :: ind
           type(ll_node), pointer :: next => null()
       end type
 
@@ -498,7 +498,7 @@ MODULE FciMCData
       ! Data for performing the direct-ci Davidson algorithm.
       type(ras_parameters) :: davidson_ras
       type(ras_class_data), allocatable, dimension(:) :: davidson_classes
-      integer(sp), allocatable, dimension(:,:) :: davidson_strings
+      integer, allocatable, dimension(:,:) :: davidson_strings
       integer(n_int), allocatable, dimension(:,:) :: davidson_iluts
       type(direct_ci_excit), allocatable, dimension(:) :: davidson_excits
 

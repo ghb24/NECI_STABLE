@@ -794,10 +794,10 @@ contains
 
     subroutine find_next_comb(comb, k, n, finish)
 
-        integer(sp), intent(in) :: k, n
-        integer(sp), intent(inout) :: comb(k)
+        integer, intent(in) :: k, n
+        integer, intent(inout) :: comb(k)
         logical, intent(out) :: finish
-        integer(sp) :: i
+        integer :: i
 
         if (k == 0 .or. n == 0) then
             finish = .true.
