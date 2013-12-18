@@ -15,7 +15,7 @@ module semi_stoch_procs
                         encode_sign
     use CalcData
     use constants
-    use davidson, only: davidson_eigenvector, parallel_sparse_hamil_type, perform_davidson
+    use davidson_neci, only: davidson_eigenvector, parallel_sparse_hamil_type, perform_davidson
     use DetBitOps, only: ilut_lt, ilut_gt, FindBitExcitLevel, DetBitLT, &
                          count_set_bits, DetBitEq, sign_lt, sign_gt, IsAllowedHPHF, &
                          EncodeBitDet

@@ -823,26 +823,6 @@ MODULE FciMCParMod
             endif
         endif
 
-        !write(6,*) "CurrentDets before:"
-        !do j = 1, TotWalkers
-        !    write(6,*) j, CurrentDets(0:NIfD,j), test_flag(CurrentDets(:,j), flag_trial), &
-        !                                    test_flag(CurrentDets(:,j), flag_connected)
-        !end do
-        !write(6,*)
-
-        !write(iout,"(A)") "Hash Table: "
-        !do j=1,nWalkerHashes
-        !    TempNode => HashIndex(j)
-        !    if (TempNode%Ind /= 0) then
-        !        write(iout,'(i9)',advance='no') j
-        !        do while (associated(TempNode))
-        !            write(iout,'(i9)',advance='no') TempNode%Ind
-        !            TempNode => TempNode%Next
-        !        end do
-        !        write(iout,'()',advance='yes')
-        !    end if
-        !end do
-
         do j=1,int(TotWalkers,sizeof_int)
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.

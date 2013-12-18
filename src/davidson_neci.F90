@@ -1,10 +1,7 @@
 ! Copyright (c) 2013, Ali Alavi unless otherwise noted.
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
  
-! Copyright (c) 2013, Ali Alavi unless otherwise noted.
-! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
- 
-module davidson
+module davidson_neci
 
 ! This module performs the Davidson method to find the ground state of a diagonally-
 ! dominant matrix. For details of the theory behind the method, see i.e:
@@ -575,4 +572,4 @@ integer(TagIntType) :: ResidualTag
 
     end subroutine davidson_direct_ci_end
 
-end module davidson
+end module davidson_neci

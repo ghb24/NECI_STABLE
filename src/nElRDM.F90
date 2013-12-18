@@ -5228,7 +5228,7 @@ MODULe nElRDMMod
     integer :: iblkq, iseccr, istat1, isyref, ms2
     integer :: posn1, posn2
     integer :: i, j, k, l
-    integer :: myname, ifil, intrel, iout, igrsav
+    integer :: myname, ifil, intrel, iout
     integer :: orb1, orb2, Sym_i, Sym_j, Sym_ij
     integer :: Sym_k, Sym_l, Sym_kl
     integer, dimension(8) :: iact, ldact !iact(:) # of active orbs per sym, 
@@ -5243,6 +5243,9 @@ MODULe nElRDMMod
     real(dp), allocatable :: SymmetryPacked2RDM(:), SymmetryPacked1RDM(:) !SymPacked2RDM in CHEMICAL Notation
     real(dp), allocatable :: SymmetryPackedLagrangian(:)
     real(dp), allocatable :: FC_Lagrangian(:)
+    integer :: iWfRecord, iWfSym
+    real(dp) :: WfRecord
+    character(len=*), parameter :: t_r='convert_mats_Molpforces'
 
 #ifdef __INT64
     intrel=1
@@ -5255,14 +5258,21 @@ MODULe nElRDMMod
         !Considering all electron for now
         icore(:)=0  !Number of frozen orbitals per symmetry
         iclos(:)=0  !icore(i) + Number of 'closed' orbitals per symmetry (iclos is the same as icore for us)
-        iblkq=21402
-        iseccr=0    !both required for molpro read in
+!        iblkq=21402
+        call molpro_get_reference_info(iWfRecord, iWfSym)
+        iblkq = iWfRecord ! record number for orbitals
+        iseccr=0          ! record number for core orbitals
         istat1=1        !ground state
         isyref=Sym_Psi+1  !spatial symmetry of the wavefunction
+#ifdef MOLPRO
+        if (isyref.ne.iWfSym) call stop_all(t_r,"NECI and common/cref do not agree on irrep of wave function")
+#endif
         ms2=LMS  !2 * M_s
-        myname=60 !Arbitrary file names
-        ifil=50
-        iout=6
+        myname=5001 !Arbitrary file names
+        ifil=1
+        ! ^- cgk: might want to use nexfre(igrsav) for these two.
+        iout=molpro_get_iout()
+        ! ^- thise one should come from common/tapes. 
         ldact(:)=0
         iact(:)=0
         Len_1RDM=0
@@ -5317,8 +5327,9 @@ MODULe nElRDMMod
         ! making (ij,kl) totally symmetric, and D_ijkl (potentially) non-zero.
         ! 1RDM and Lagrangian are stored as upper triangles, separated by symmetry block
 
-        SymmetryPacked2RDM(:)=0.D0
-        SymmetryPacked1RDM(:)=0.D0
+        SymmetryPacked2RDM(:)=0.0_dp
+        SymmetryPacked1RDM(:)=0.0_dp
+        SymmetryPackedLagrangian(:) = 0.0_dp
 
         do i=1, SpatOrbs  !run over spatial orbitals, ALL ELECTRON ONLY
             do j=1,  i    ! i .ge. j
@@ -5366,7 +5377,7 @@ MODULe nElRDMMod
             iseccr, istat1, SymmetryPacked1RDM, Len_1RDM, &
             SymmetryPacked2RDM, Len_2RDM, SymmetryPackedLagrangian, &
             Len_1RDM, FC_Lagrangian, FC_Lag_Len, &
-            iout, intrel, igrsav)
+            iout, intrel)
         
     endif
         
@@ -5437,12 +5448,55 @@ MODULe nElRDMMod
         
     end function
 
+    subroutine molpro_set_igrdsav(igrsav_)
+        implicit double precision(a-h,o-z)
+        implicit integer(i-n)
+        character(len=*), parameter :: t_r='molpro_set_igrdsav'
+#ifdef MOLPRO
+        include "common/cwsave"
+        ! tell gradient programs where gradient information is stored
+        igrsav = igrsav_
+#else
+        call stop_all(t_r,'Should be being called from within MOLPRO')
+#endif
+    end subroutine
+    
+    subroutine molpro_get_reference_info(iWfRecord, iWfSym)
+        implicit double precision(a-h,o-z)
+        implicit integer(i-n)
+        character(len=*), parameter :: t_r='molpro_get_reference_info'
+#ifdef MOLPRO
+        include "common/code"
+        include "common/cref"
+        ! wf(1) should contain the record number, as integer, of the last used orbital set.
+        iWfRecord = wf(1)
+        iWfSym = isyref
+#else
+        iWfRecord = 21402
+#endif
+    end subroutine
+    
+    function molpro_get_iout() result(iiout)
+        implicit double precision(a-h,o-z)
+        implicit integer(i-n)
+#ifdef MOLPRO
+        include "common/tapes"
+        ! output i/o unit for main output (usually 6, but might be different
+        ! if in logfile mode, e.g., during geometry optimization)
+        iiout = iout
+#else
+        iiout = 6
+#endif
+    end function
+    
+
     subroutine molpro_dump_mcscf_dens_for_grad(name,ifil, &
           icore,iclos,iact,nelec,isyref,ms2,iblkq,iseccr,istat1, &
           den1,lden1, &
           den2,lden2, &
           eps,leps, &
-          epsc,lepsc,iout,intrel,igrsav)
+          epsc,lepsc,iout,intrel)
+      implicit double precision(a-h,o-z)
     
     !  Use the following subroutine to dump the information needed for molpro
     !  forces calculations, such that it is in the exact format that molpro
@@ -5471,7 +5525,7 @@ MODULe nElRDMMod
       real(dp), dimension(lepsc), intent(in)    :: epsc
       integer,                            intent(in)    :: iout
       integer,                            intent(in)    :: intrel
-      integer,                            intent(out)   :: igrsav
+      integer                                           :: igrsav
 
     !> Write mcscf density in format needed for gradient program.
     !> \param[in,out] name record number to be written
@@ -5500,7 +5554,11 @@ MODULe nElRDMMod
       integer, dimension(30)      :: header
       integer :: i, ncore
       character(len=6), parameter :: label='MCGRAD'
+      integer :: lhead
 
+#ifndef MOLPRO
+          call stop_all(t_r,'Should not be here if not running through molpro')
+#endif
 
       ncore = 0
       do i=1,8
@@ -5515,20 +5573,39 @@ MODULe nElRDMMod
       header(1+27)=iabs(iblkq)
       header(1+28)=iabs(iseccr)
       header(1+29)=iabs(istat1)
-      !lhead=30/intrel
+      lhead=30/intrel
       igrsav=10*(name-1)+ifil
+      
+      name=igrsav/10
+      ifil=igrsav-10*name
+#ifdef MOLPRO
+      call reserv(lhead+lden1+lden2+leps+lepsc,ifil,name,-1)
+      call writem(header,lhead,ifil,name,0,label)
+      call writem(den1,lden1,ifil,name,lhead,label)
+      call writem(den2,lden2,ifil,name,lhead+lden1,label)
+      call writem(eps,leps,ifil,name,lhead+lden1+lden2,label)
+      if(ncore.ne.0) call writem(epsc,lepsc,ifil,name,&
+                    lhead+lden1+lden2+leps,label)
+#endif
+      write(iout,20) istat1,isyref,name,ifil
+!       call setf(2,recmc,1)
+      ! ^- cgk: not sure what this does.
+20    format(/' Gradient information for state',i2,'.',i1,&
+                  ' saved on record  ',i8,'.',i1)
+      call molpro_set_igrdsav(igrsav)
+
       !igrsav=nexfre(igrsav)
       !name=igrsav/10
       !ifil=igrsav-10*name
       !call reserv(lhead+lden1+lden2+leps+lepsc,ifil,name,-1)
-      open (unit = ifil, file = "fciqmc_forces_info", form='UNFORMATTED', access='sequential')
-      write(ifil) header, den1, den2, eps
+!      open (unit = ifil, file = "fciqmc_forces_info", form='UNFORMATTED', access='sequential')
+!      write(ifil) header, den1, den2, eps
       !call writem(den2,lden2,ifil,name,lhead+lden1,label)
       !call writem(eps,leps,ifil,name,lhead+lden1+lden2,label)
       !if(ncore.ne.0) call writem(epsc,lepsc,ifil,name,
       !>                          lhead+lden1+lden2+leps,label)
-      write(iout,*) "istat1, isyref, name, ifil", istat1,isyref,name,ifil
-      write(iout,*) "header, den1, den2, eps", header, den1, den2, eps
+!      write(iout,*) "istat1, isyref, name, ifil", istat1,isyref,name,ifil
+!      write(iout,*) "header, den1, den2, eps", header, den1, den2, eps
 !20    format(/' Gradient information for state',i2,'.',i1,
      !>        ' saved on record  ',i8,'.',i1)
      ! return
