@@ -617,7 +617,7 @@ contains
         ! In: called_from - Integer to specify whether this routine was called from the
         !     the semi-stochastic generation code or the trial vector generation code.
 
-        use davidson, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
+        use davidson_neci, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
                             sparse_hamil_type
         use sparse_arrays, only: sparse_ham, hamil_diag
 
