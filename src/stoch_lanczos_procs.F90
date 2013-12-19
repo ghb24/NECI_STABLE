@@ -123,6 +123,7 @@ contains
             else if (irun > 1) then
                 TotWalkers = TotWalkers_Lanc
                 CurrentDets(:, 1:TotWalkers) = init_lanczos_config(:, 1:TotWalkers)
+                call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, TotWalkers)
             end if
         end if
 
@@ -139,7 +140,6 @@ contains
         integer :: nI(nel)
         real(dp) :: r, walker_sign(lenof_sign)
         logical :: tInitiatorTemp
-        type(ll_node), pointer :: temp_node
         type(fcimc_iter_data) :: temp_data
         integer(n_int), pointer :: PointTemp(:,:)
 
@@ -180,30 +180,12 @@ contains
         SpawnedParts => PointTemp
         call CompressSpawnedList(ndets, temp_data) 
 
-        TotWalkers = int(ndets, int64)
-
         ! Finally, add the determinants in the spawned walker list to the main walker list.
         ! Copy the determinants themselves to CurrentDets.
         CurrentDets = SpawnedParts
 
         ! Add the entries into the hash table.
-        do i = 1, ndets
-            call decode_bit_det(nI, CurrentDets(:,i))
-            DetHash = FindWalkerHash(nI, nWalkerHashes)
-            temp_node => HashIndex(DetHash)
-            ! If the first element in the list has not been used.
-            if (temp_node%ind == 0) then
-                temp_node%ind = i
-            else
-                do while (associated(temp_node%next))
-                    temp_node => temp_node%next
-                end do
-                allocate(temp_node%next)
-                nullify(temp_node%next%next)
-                temp_node%next%ind = i
-            end if
-            nullify(temp_node)
-        end do
+        call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, ndets)
 
         ValidSpawnedList = InitialSpawnedSlots
         SpawnedParts = 0

@@ -123,7 +123,7 @@ module hash
 
     subroutine reset_hash_table(hash_table)
 
-        type(ll_node), pointer, intent(in) :: hash_table(:)
+        type(ll_node), pointer, intent(inout) :: hash_table(:)
         type(ll_node), pointer :: curr, prev
 
         ! Reset the hash index array.
@@ -142,6 +142,36 @@ module hash
         nullify(prev)
 
     end subroutine reset_hash_table
+
+    subroutine fill_in_hash_table(hash_table, table_length, walker_list, list_length)
+
+        ! This assumes that the input hash table is clear (use reset_hash_table) and
+        ! that there are no repeats in walker_list.
+
+        integer, intent(in) :: table_length, list_length
+        type(ll_node), pointer, intent(inout) :: hash_table(table_length)
+        integer(n_int), intent(in) :: walker_list(0:NIfTot, list_length)
+        type(ll_node), pointer :: temp_node
+
+        do i = 1, list_length
+            call decode_bit_det(nI, walker_list(:,i))
+            DetHash = FindWalkerHash(nI, table_length)
+            temp_node => HashIndex(DetHash)
+            ! If the first element in the list has not been used.
+            if (temp_node%ind == 0) then
+                temp_node%ind = i
+            else
+                do while (associated(temp_node%next))
+                    temp_node => temp_node%next
+                end do
+                allocate(temp_node%next)
+                nullify(temp_node%next%next)
+                temp_node%next%ind = i
+            end if
+            nullify(temp_node)
+        end do
+
+    end subroutine fill_in_hash_table
       
 end module hash
 
