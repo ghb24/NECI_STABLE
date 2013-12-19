@@ -63,7 +63,7 @@ contains
 
         type(ras_parameters), intent(in) :: ras
         type(ras_class_data), intent(in) :: classes(ras%num_classes)
-        integer(sp), intent(in) :: ras_strings(-1:tot_nelec, ras%num_strings)
+        integer, intent(in) :: ras_strings(-1:tot_nelec, ras%num_strings)
         integer(n_int), intent(in) :: ras_iluts(0:NIfD, ras%num_strings)
         type(direct_ci_excit), intent(in) :: ras_excit(ras%num_strings)
         type(ras_vector), intent(in) :: vec_in(ras%num_classes, ras%num_classes, 0:7)
@@ -72,22 +72,22 @@ contains
         real(dp), allocatable, dimension(:) :: factor
         type(ras_factors) :: factors(ras%num_classes, 0:7)
         real(dp), allocatable, dimension(:) :: alpha_beta_fac
-        integer(sp), allocatable, dimension(:) :: r
+        integer, allocatable, dimension(:) :: r
         real(dp), allocatable, dimension(:,:) :: c
-        integer(sp) :: string_i(tot_nelec), string_j(tot_nelec)
+        integer :: string_i(tot_nelec), string_j(tot_nelec)
         integer(n_int) :: ilut_i(0:NIfD)
         logical :: in_ras_space
         real(dp) :: ddot, v
 
-        integer(sp) :: class_i, class_j, class_k, class_m, par_1, par_2
-        integer(sp) :: i, j, k, l, m
-        integer(sp) :: excit_j, excit_k
-        integer(sp) :: ind_i, ind_j, ind_k, full_ind_j, full_ind_k
-        integer(sp) :: nras1, nras3, min_ind, max_ind
-        integer(sp) :: sym_i, sym_j, sym_k, sym_m
-        integer(sp) :: ex1(2), ex2(2)
+        integer :: class_i, class_j, class_k, class_m, par_1, par_2
+        integer :: i, j, k, l, m
+        integer :: excit_j, excit_k
+        integer :: ind_i, ind_j, ind_k, full_ind_j, full_ind_k
+        integer :: nras1, nras3, min_ind, max_ind
+        integer :: sym_i, sym_j, sym_k, sym_m
+        integer :: ex1(2), ex2(2)
         integer :: BRR_ex1(2), BRR_ex2(2)
-        integer(sp) :: spin01
+        integer :: spin01
 
         ! Initialisation - allocate arrays.
 
@@ -101,7 +101,7 @@ contains
             do j = 1, classes(class_i)%num_comb
                 class_j = classes(class_i)%allowed_combns(j)
                 do sym_i = 0, 7
-                    sym_j = ieor(HFSym_sp, sym_i)
+                    sym_j = ieor(HFSym_ras, sym_i)
                     if (classes(class_i)%num_sym(sym_i) == 0 .or. &
                         classes(class_j)%num_sym(sym_j) == 0) cycle
                     vec_out(class_i,class_j,sym_i)%elements(:,:) = 0.0_dp
@@ -216,14 +216,14 @@ contains
                 class_j = classes(class_i)%allowed_combns(j)
 
                 ! The *required* symmetry,
-                sym_j = ieor(HFSym_sp, sym_i)
+                sym_j = ieor(HFSym_ras, sym_i)
                 ! If there are no states in this class with the required symmetry.
                 if (classes(class_j)%num_sym(sym_j) == 0) cycle
 
                 ! Loop over all classes connected to string_j.
                 do k = 1, classes(class_j)%num_comb
                     class_k = classes(class_j)%allowed_combns(k)
-                    ! The *required* symmetry, sym_k = ieor(HFSym_sp, sym_j) = sym_i.
+                    ! The *required* symmetry, sym_k = ieor(HFSym_ras, sym_j) = sym_i.
                     sym_k = sym_i
 
                     ! If there are no states in this class with the required symmetry.
@@ -256,7 +256,7 @@ contains
                 if (class_j < class_i) cycle
                 do sym_i = 0, 7
                     ! The *required* symmetry.
-                    sym_j = ieor(HFSym_sp, sym_i)
+                    sym_j = ieor(HFSym_ras, sym_i)
 
                     if (sym_j < sym_i) cycle
                     if (classes(class_i)%num_sym(sym_i) == 0) cycle
@@ -312,12 +312,12 @@ contains
                             ! The shifted address, so that the first string in this class will have address 1.
                             ind_j = ind_j - classes(class_j)%cum_sym(sym_j)
 
-                            r(i) = int(get_single_parity(ilut_i, int(l,sizeof_int), int(k,sizeof_int)), sp)
+                            r(i) = get_single_parity(ilut_i, int(l,sizeof_int), int(k,sizeof_int))
 
                             ! Construct array C' in Eq 23. To do so, loop over all connected strings.
                             do m = 1, classes(class_j)%num_comb
                                 class_m = classes(class_j)%allowed_combns(m)
-                                sym_m = ieor(HFSym_sp, sym_j)
+                                sym_m = ieor(HFSym_ras, sym_j)
                                 if (classes(class_m)%num_sym(sym_m) /= 0) then
                                     min_ind = ras%cum_classes(class_m) + classes(class_m)%cum_sym(sym_m) + 1
                                     max_ind = min_ind + classes(class_m)%num_sym(sym_m) - 1
@@ -361,7 +361,7 @@ contains
                     do j = 1, classes(class_i)%num_comb
 
                         class_j = classes(class_i)%allowed_combns(j)
-                        sym_j = ieor(HFSym_sp, sym_i)
+                        sym_j = ieor(HFSym_ras, sym_i)
 
                         do ind_j = 1, classes(class_j)%num_sym(sym_j)
 
@@ -406,9 +406,9 @@ contains
 
     subroutine zero_factors_array(num_classes, factors)
 
-        integer(sp), intent(in) :: num_classes
+        integer, intent(in) :: num_classes
         type(ras_factors), intent(inout) :: factors(num_classes, 0:7)
-        integer(sp) :: class_i, sym_i
+        integer :: class_i, sym_i
 
         do class_i = 1, num_classes
             do sym_i = 0, 7
@@ -421,16 +421,16 @@ contains
 
     subroutine get_excit_details(string_i, ex, ras, nras1, nras3, string_j, sym_j, class_j, in_ras_space)
 
-        integer(sp), intent(in) :: string_i(tot_nelec)
-        integer(sp), intent(in) :: ex(2)
+        integer, intent(in) :: string_i(tot_nelec)
+        integer, intent(in) :: ex(2)
         type(ras_parameters), intent(in) :: ras
-        integer(sp), intent(in) :: nras1, nras3
-        integer(sp), intent(out) :: string_j(tot_nelec)
-        integer(sp), intent(inout) :: sym_j
-        integer(sp), intent(out) :: class_j
+        integer, intent(in) :: nras1, nras3
+        integer, intent(out) :: string_j(tot_nelec)
+        integer, intent(inout) :: sym_j
+        integer, intent(out) :: class_j
         logical, intent(out) :: in_ras_space
-        integer(sp) :: i, new1, new3
-        integer(sp) :: sym_prod
+        integer :: i, new1, new3
+        integer :: sym_prod
 
         new1 = nras1
         new3 = nras3
@@ -465,7 +465,7 @@ contains
         end do
         call sort(string_j)
 
-        sym_prod = int(ieor(G1(BRR(ex(1)*2))%Sym%S, G1(BRR(ex(2)*2))%Sym%S),sp)
+        sym_prod = ieor(G1(BRR(ex(1)*2))%Sym%S, G1(BRR(ex(2)*2))%Sym%S)
         sym_j = ieor(sym_j,sym_prod)
 
     end subroutine get_excit_details
@@ -477,14 +477,14 @@ contains
 
         type(ras_parameters), intent(in) :: ras
         type(ras_class_data), intent(in) :: classes(ras%num_classes)
-        integer(sp), intent(out) :: ras_strings(-1:tot_nelec, ras%num_strings)
+        integer, intent(out) :: ras_strings(-1:tot_nelec, ras%num_strings)
         integer(n_int), intent(out) :: ras_iluts(0:NIfD, ras%num_strings)
         type(direct_ci_excit), intent(out) :: ras_excit(ras%num_strings)
         integer(n_int) :: ilut_i(0:NIfD)
-        integer(sp) :: i, j, class_i, class_j, ind, new_ind, counter
-        integer(sp) :: nras1, nras3, par
-        integer(sp) :: ex(2)
-        integer(sp) :: string_i(tot_nelec)
+        integer :: i, j, class_i, class_j, ind, new_ind, counter
+        integer :: nras1, nras3, par
+        integer :: ex(2)
+        integer :: string_i(tot_nelec)
         logical :: none_left, tgen
         type(simple_excit_store), target :: gen_store_1
 
@@ -553,9 +553,9 @@ contains
 
         ! Encode an alpha or beta string as an ilut.
 
-        integer(sp), intent(in) :: string(tot_nelec)
+        integer, intent(in) :: string(tot_nelec)
         integer(n_int), intent(out) :: ilut(0:NIfD)
-        integer(sp) :: i, pos
+        integer :: i, pos
 
         ilut = 0
 
@@ -573,11 +573,11 @@ contains
         ! address of the created string. If tcount if true, then the routine is only being used
         ! to count the excitation, so these are not returned in this case.
 
-        integer(sp), intent(in) :: string_i(tot_nelec)
+        integer, intent(in) :: string_i(tot_nelec)
         integer(n_int), intent(in) :: ilut_i(0:NIfD)
-        integer(sp), intent(in) :: nras1, nras3
-        integer(sp), intent(out) :: ind, par
-        integer(sp), intent(out) :: ex(2)
+        integer, intent(in) :: nras1, nras3
+        integer, intent(out) :: ind, par
+        integer, intent(out) :: ex(2)
         type(ras_parameters), intent(in) :: ras
         type(ras_class_data), intent(in) :: classes(ras%num_classes)
         type(simple_excit_store), intent(inout), target :: gen_store
@@ -585,8 +585,8 @@ contains
         logical, intent(in) :: tcount
 
         integer, pointer :: i, j
-        integer(sp) :: orb1, orb2, temp1, temp3, class_k
-        integer(sp) :: string_k(tot_nelec)
+        integer :: orb1, orb2, temp1, temp3, class_k
+        integer :: string_k(tot_nelec)
 
         ! Map the local variables onto the store.
         i => gen_store%i;
@@ -648,7 +648,7 @@ contains
                 class_k = ras%class_label(temp1, temp3)
                 ind = classes(class_k)%address_map(get_address(classes(class_k), string_k))
                 ind = ind + sum(classes(1:class_k-1)%class_size)
-                par = int(get_single_parity(ilut_i, int(ex(1),sizeof_int), int(ex(2),sizeof_int)),sp)
+                par = get_single_parity(ilut_i, int(ex(1),sizeof_int), int(ex(2),sizeof_int))
 
                 return
             end do
@@ -675,7 +675,7 @@ contains
         type(ras_class_data), intent(in) :: classes(ras%num_classes)
         real(dp), intent(in) :: full_vec(:)
         type(ras_vector), intent(inout) :: ras_vec(ras%num_classes, ras%num_classes, 0:7)
-        integer(sp) :: class_i, class_j, j, sym_i, sym_j, ind_i, ind_j
+        integer :: class_i, class_j, j, sym_i, sym_j, ind_i, ind_j
         integer :: counter
 
         counter = 0
@@ -688,7 +688,7 @@ contains
                 ! Over all symmetry labels.
                 do sym_i = 0, 7
                     ! The symmetry label of string_j is fixed by that of string_i.
-                    sym_j = ieor(HFSym_sp, sym_i)
+                    sym_j = ieor(HFSym_ras, sym_i)
                     ! If there are no strings with the correct symmetries in these classes.
                     if (classes(class_i)%num_sym(sym_i) == 0) cycle
                     if (classes(class_j)%num_sym(sym_j) == 0) cycle
@@ -715,7 +715,7 @@ contains
         type(ras_class_data), intent(in) :: classes(ras%num_classes)
         real(dp), intent(out) :: full_vec(:)
         type(ras_vector), intent(inout) :: ras_vec(ras%num_classes, ras%num_classes, 0:7)
-        integer(sp) :: class_i, class_j, j, sym_i, sym_j, ind_i, ind_j
+        integer :: class_i, class_j, j, sym_i, sym_j, ind_i, ind_j
         integer :: counter
 
         counter = 0
@@ -724,7 +724,7 @@ contains
             do j = 1, classes(class_i)%num_comb
                 class_j = classes(class_i)%allowed_combns(j)
                 do sym_i = 0, 7
-                    sym_j = ieor(HFSym_sp, sym_i)
+                    sym_j = ieor(HFSym_ras, sym_i)
                     if (classes(class_i)%num_sym(sym_i) == 0) cycle
                     if (classes(class_j)%num_sym(sym_j) == 0) cycle
                     do ind_i = 1, classes(class_i)%num_sym(sym_i)
@@ -749,11 +749,11 @@ contains
 
         type(ras_parameters), intent(in) :: ras
         type(ras_class_data), intent(in) :: classes(ras%num_classes)
-        integer(sp), intent(in) :: ras_strings(-1:tot_nelec, ras%num_strings)
+        integer, intent(in) :: ras_strings(-1:tot_nelec, ras%num_strings)
         real(dp), intent(inout) :: ham_diag(:)
-        integer(sp) :: class_i_ind, class_j_ind, sym_i_ind, sym_j_ind
-        integer(sp) :: class_i, class_j, j, sym_i, sym_j
-        integer(sp) :: ind_i, ind_j, full_ind_i, full_ind_j
+        integer :: class_i_ind, class_j_ind, sym_i_ind, sym_j_ind
+        integer :: class_i, class_j, j, sym_i, sym_j
+        integer :: ind_i, ind_j, full_ind_i, full_ind_j
         integer :: counter, k
         integer :: string_i(tot_nelec), string_j(tot_nelec), nI(nel)
 
@@ -769,7 +769,7 @@ contains
                 ! Over all symmetry labels.
                 do sym_i = 0, 7
                     ! The symmetry label for string_j is fixed by the label for string_i.
-                    sym_j = ieor(HFSym_sp, sym_i)
+                    sym_j = ieor(HFSym_ras, sym_i)
                     ! The index of the first string with this symmetry and class.
                     sym_i_ind = class_i_ind + classes(class_i)%cum_sym(sym_i)
                     sym_j_ind = class_j_ind + classes(class_j)%cum_sym(sym_j)
