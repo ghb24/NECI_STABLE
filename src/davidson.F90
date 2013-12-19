@@ -4,6 +4,9 @@
 ! Copyright (c) 2013, Ali Alavi unless otherwise noted.
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
  
+! Copyright (c) 2013, Ali Alavi unless otherwise noted.
+! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
+ 
 module davidson
 
 ! This module performs the Davidson method to find the ground state of a diagonally-
