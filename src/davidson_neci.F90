@@ -1,4 +1,4 @@
-module davidson
+module davidson_neci
 
 ! This module performs the Davidson method to find the ground state of a diagonally-
 ! dominant matrix. For details of the theory behind the method, see i.e:
@@ -539,7 +539,7 @@ integer(TagIntType) :: ResidualTag
             do j = 1, davidson_classes(class_i)%num_comb
                 class_j = davidson_classes(class_i)%allowed_combns(j)
                 do sym_i = 0, 7
-                    sym_j = ieor(int(HFSym_sp,sizeof_int), sym_i)
+                    sym_j = ieor(int(HFSym_ras,sizeof_int), sym_i)
                     if (davidson_classes(class_i)%num_sym(sym_i) == 0) cycle
                     if (davidson_classes(class_j)%num_sym(sym_j) == 0) cycle
                     allocate(direct_ci_inp(class_i,class_j,sym_i)%&
@@ -569,4 +569,4 @@ integer(TagIntType) :: ResidualTag
 
     end subroutine davidson_direct_ci_end
 
-end module davidson
+end module davidson_neci

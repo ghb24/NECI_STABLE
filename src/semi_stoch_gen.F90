@@ -191,7 +191,8 @@ contains
 
         ! A wrapper to call the correct generating routine.
 
-        integer :: i, space_size, ierr
+        integer :: space_size, ierr
+        integer(int64) :: i
 
         ! Choose the correct generating routine.
         if (tStartCAS) then
@@ -617,7 +618,7 @@ contains
         ! In: called_from - Integer to specify whether this routine was called from the
         !     the semi-stochastic generation code or the trial vector generation code.
 
-        use davidson, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
+        use davidson_neci, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
                             sparse_hamil_type
         use sparse_arrays, only: sparse_ham, hamil_diag
 
@@ -860,7 +861,7 @@ contains
             end if
         end if
 
-        length_this_proc = min(n_pops_keep, TotWalkers)
+        length_this_proc = min(int(n_pops_keep,MPIArg), int(TotWalkers,MPIArg))
 
         call MPIAllGather(length_this_proc, lengths, ierr)
         total_length = sum(lengths)
@@ -1153,8 +1154,8 @@ contains
 
         allocate(amp_list(target_ndets))
         allocate(ilut_list(0:NIfD, target_ndets))
-        amp_list = 0
-        ilut_list = 0.0_dp
+        amp_list = 0.0_dp
+        ilut_list = 0_n_int
 
         ! Should we generate just singles (1), just doubles (2), or both (3)?
         if (tUEG .or. tNoSingExcits) then

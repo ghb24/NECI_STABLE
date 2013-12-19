@@ -32,8 +32,8 @@ module sparse_arrays
     end type sparse_matrix_real
 
     type sparse_matrix_int
-        integer(sp), allocatable, dimension(:) :: elements
-        integer(sp), allocatable, dimension(:) :: positions
+        integer, allocatable, dimension(:) :: elements
+        integer, allocatable, dimension(:) :: positions
         integer :: num_elements
     end type sparse_matrix_int
 
