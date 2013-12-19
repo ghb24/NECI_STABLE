@@ -18,7 +18,63 @@ module stochastic_lanczos
 
     implicit none
 
+    type stoch_lanczos_data
+        ! If true then a ground-state calculation is being performed.
+        logical :: tGround
+        ! If true then a finite-temperature calculation is being performed.
+        logical :: tFiniteTemp
+        ! The number of different initial walker configurations to start
+        ! Lanczos calculations from.
+        integer :: nconfigs
+        ! The number of separate Lanczos calculations to perform for each
+        ! different initial walker configuration.
+        integer :: nruns
+        ! The number of different Lanczos vectors to sample (the number of
+        ! vectors which form the Krylov subspace at the end of a calculation).
+        integer :: nkrylov_vecs
+        ! The number of iterations to perform *between each Lanczos vector is
+        ! sampled*.
+        integer :: niters
+    end type
+
+    type(stoch_lanczos_data) :: lanczos
+
 contains
+
+    subroutine stoch_lanczos_read_inp()
+
+        use input_neci
+
+        logical :: eof
+        character(len=100) :: w
+
+        read_inp: do
+            call read_line(eof)
+            if (eof) then
+                exit
+            end if
+            call readu(w)
+            select case(w)
+            case("end-lanczos")
+                exit read_inp
+            case("ground-state")
+                lanczos%tGround = .true.
+            case("finite-temperature")
+                lanczos%tFiniteTemp = .true.
+            case("num-init-configs")
+                call geti(lanczos%nconfigs)
+            case("num-runs-per-config")
+                call geti(lanczos%nruns)
+            case("num-lanczos-vecs")
+                call geti(lanczos%nkrylov_vecs)
+            case("num-iters-per-vec")
+                call geti(lanczos%niters)
+            case default
+                call report("Keyword "//trim(w)//" not recognized in stoch-lanczos block", .true.)
+            end select
+        end do read_inp
+
+    end subroutine stoch_lanczos_read_inp
 
     subroutine generate_init_config_basic(nwalkers)
 
