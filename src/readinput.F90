@@ -18,7 +18,7 @@ MODULE ReadInput_neci
         use SystemData, only : tMolpro
         use System,     only : SysReadInput,SetSysDefaults
         use Calc,       only : CalcReadInput,SetCalcDefaults
-        use stochastic_lanczos, only: stoch_lanczos_read_inp
+        use stoch_lanczos_procs, only: stoch_lanczos_read_inp
         use Integrals_neci,  only : IntReadInput,SetIntDefaults
         Use Logging,    only : LogReadInput,SetLogDefaults
         use Parallel_neci,   only : iProcIndex

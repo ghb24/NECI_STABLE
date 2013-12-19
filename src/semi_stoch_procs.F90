@@ -752,7 +752,7 @@ contains
         integer :: i, DetHash, PartInd, nwalkers, i_non_core
         integer :: nI(nel)
         real(dp) :: walker_sign(lenof_sign)
-        type(ll_node), pointer :: temp_node, curr, prev
+        type(ll_node), pointer :: temp_node
         logical :: tSuccess
 
         nwalkers = int(TotWalkers,sizeof_int)
@@ -805,20 +805,9 @@ contains
             CurrentDets(:,i) = SpawnedParts(:,i)
         end do
 
-        ! Reset the hash index array.
-        do i = 1, nWalkerHashes
-            curr => HashIndex(i)%next
-            prev => HashIndex(i)
-            prev%ind = 0
-            nullify(prev%next)
-            do while (associated(curr))
-                prev => curr
-                curr => curr%next
-                deallocate(prev)
-            end do
-        end do
-        nullify(curr)
-        nullify(prev)
+        call reset_hash_table(HashIndex)
+
+
 
         ! Finally, add the indices back into the hash index array.
         do i = 1, nwalkers

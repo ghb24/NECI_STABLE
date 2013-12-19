@@ -120,6 +120,28 @@ module hash
         RETURN
 
     END FUNCTION CreateHash
+
+    subroutine reset_hash_table(hash_table)
+
+        type(ll_node), pointer, intent(in) :: hash_table(:)
+        type(ll_node), pointer :: curr, prev
+
+        ! Reset the hash index array.
+        do i = 1, size(hash_table)
+            curr => hash_table(i)%next
+            prev => hash_table(i)
+            prev%ind = 0
+            nullify(prev%next)
+            do while (associated(curr))
+                prev => curr
+                curr => curr%next
+                deallocate(prev)
+            end do
+        end do
+        nullify(curr)
+        nullify(prev)
+
+    end subroutine reset_hash_table
       
 end module hash
 

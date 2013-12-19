@@ -6677,7 +6677,6 @@ MODULE FciMCParMod
         integer(int64) :: iPopAllTotWalkers
         integer :: i
         real(dp) :: PopDiagSft
-        real(dp) , dimension(lenof_sign) :: InitialSign
         real(dp) , dimension(lenof_sign/inum_runs) :: PopSumNoatHF
         HElement_t :: PopAllSumENum
 
@@ -6936,101 +6935,7 @@ MODULE FciMCParMod
                         write(iout,"(A,I16)") "Initial number of walkers per processor chosen to be: ", InitWalkers
                     endif
                    
-                    do run=1,inum_runs
-                        InitialPartVec(run)=InitialPart
-                    enddo
-
-                    !Setup initial walker local variables for HF walkers start
-                    IF(iProcIndex.eq.iHFProc) THEN
-
-                        ! Encode the reference determinant identification.
-                        call encode_det(CurrentDets(:,1), iLutHF)
-                        if(tHashWalkerList) then
-                            !Point at the correct position for the first walker
-                            DetHash=FindWalkerHash(HFDet, nWalkerHashes)    !Find det hash position
-                            HashIndex(DetHash)%Ind = 1
-                        endif
-
-                        ! Clear the flags
-                        call clear_all_flags (CurrentDets(:,1))
-
-                        ! Set reference determinant as an initiator if
-                        ! tTruncInitiator is set, for both imaginary and real flags
-                        if (tTruncInitiator) then
-                            call set_flag (CurrentDets(:,1), flag_is_initiator(1))
-                            call set_flag (CurrentDets(:,1), flag_is_initiator(2))
-                            if (tSpawnSpatialInit) &
-                                call add_initiator_list (CurrentDets(:,1))
-                        endif
-
-                        ! If running a semi-stochastic simulation, set flag to specify the Hartree-Fock is in the
-                        ! deterministic space.
-                        if (tSemiStochastic) call set_flag (CurrentDets(:,1), flag_deterministic)
-
-                        ! HF energy is equal to 0 (by definition)
-                        if (.not. tRegenDiagHEls) CurrentH(1,1) = 0
-                        HFInd = 1
-
-                        ! Obtain the initial sign
-                        InitialSign = 0
-                        if (tStartSinglePart) then
-                            InitialSign(:) = InitialPartVec(:)
-                            TotParts(:) = InitialPartVec(:)
-                            TotPartsOld(:) = InitialPartVec(:)
-                        else
-                            do run=1, inum_runs
-                                InitialSign(run) = InitWalkers
-                                TotParts(run) = real(InitWalkers,dp)
-                                TotPartsOld(run) = real(InitWalkers,dp)
-                            enddo
-                        endif
-
-                        ! set initial values for global control variables.
-                        
-                        TotWalkers = 1
-                        TotWalkersOld = 1
-                        NoatHF(:) = InitialSign(:)
-                        call encode_sign (CurrentDets(:,1), InitialSign)
-                    ELSE
-                        NoatHF(:) = 0.0_dp
-                        TotWalkers = 0.0_dp
-                        TotWalkersOld = 0.0_dp
-                    ENDIF
-
-                    OldAllNoatHF(:)=0.0_dp
-                    AllNoatHF(:)=0.0_dp
-                    IF(TStartSinglePart) THEN
-        !Initialise global variables for calculation on the root node
-                        IF(iProcIndex.eq.root) THEN
-                            OldAllNoatHF=InitialPartVec
-                            do run=1,inum_runs
-                                OldAllAvWalkersCyc(run) = InitialPartVec(run)
-                            enddo
-                            AllNoatHF=InitialPartVec
-                            InstNoatHF = InitialPartVec
-                            AllTotParts=InitialPartVec
-                            AllTotPartsOld=InitialPartVec
-                            AllNoAbortedOld(:)=0.0_dp
-                            iter_data_fciqmc%tot_parts_old = InitialPartVec
-                            AllTotWalkers = 1
-                            AllTotWalkersOld = 1
-                            do run=1,inum_runs
-                                OldAllHFCyc(run) = ARR_RE_OR_CPLX(InitialPartVec,run)
-                            enddo
-                        ENDIF
-                    ELSE
-        !In this, only one processor has initial particles.
-                        IF(iProcIndex.eq.Root) THEN
-                            AllTotWalkers = 1
-                            AllTotWalkersOld = 1
-                            do run=1,inum_runs
-                                iter_data_fciqmc%tot_parts_old(run) = real(InitWalkers,dp)
-                                AllTotParts(run)=InitWalkers
-                                AllTotPartsOld(run)=InitWalkers
-                                AllNoAbortedOld(run)=0.0_dp
-                            enddo
-                        ENDIF
-                    ENDIF
+                    call InitFCIMC_HF()
 
                 endif   !tStartmp1
             endif  
@@ -7143,6 +7048,109 @@ MODULE FciMCParMod
         if (tTrialWavefunction) call init_trial_wf()
         
     end subroutine InitFCIMCCalcPar
+
+    subroutine InitFCIMC_HF()
+
+        integer :: run, DetHash
+        real(dp) , dimension(lenof_sign) :: InitialSign
+
+        do run=1,inum_runs
+            InitialPartVec(run)=InitialPart
+        enddo
+
+        !Setup initial walker local variables for HF walkers start
+        IF(iProcIndex.eq.iHFProc) THEN
+
+            ! Encode the reference determinant identification.
+            call encode_det(CurrentDets(:,1), iLutHF)
+            if(tHashWalkerList) then
+                !Point at the correct position for the first walker
+                DetHash=FindWalkerHash(HFDet, nWalkerHashes)    !Find det hash position
+                HashIndex(DetHash)%Ind = 1
+            endif
+
+            ! Clear the flags
+            call clear_all_flags (CurrentDets(:,1))
+
+            ! Set reference determinant as an initiator if
+            ! tTruncInitiator is set, for both imaginary and real flags
+            if (tTruncInitiator) then
+                call set_flag (CurrentDets(:,1), flag_is_initiator(1))
+                call set_flag (CurrentDets(:,1), flag_is_initiator(2))
+                if (tSpawnSpatialInit) &
+                    call add_initiator_list (CurrentDets(:,1))
+            endif
+
+            ! If running a semi-stochastic simulation, set flag to specify the Hartree-Fock is in the
+            ! deterministic space.
+            if (tSemiStochastic) call set_flag (CurrentDets(:,1), flag_deterministic)
+
+            ! HF energy is equal to 0 (by definition)
+            if (.not. tRegenDiagHEls) CurrentH(1,1) = 0
+            HFInd = 1
+
+            ! Obtain the initial sign
+            InitialSign = 0
+            if (tStartSinglePart) then
+                InitialSign(:) = InitialPartVec(:)
+                TotParts(:) = InitialPartVec(:)
+                TotPartsOld(:) = InitialPartVec(:)
+            else
+                do run=1, inum_runs
+                    InitialSign(run) = InitWalkers
+                    TotParts(run) = real(InitWalkers,dp)
+                    TotPartsOld(run) = real(InitWalkers,dp)
+                enddo
+            endif
+
+            ! set initial values for global control variables.
+            
+            TotWalkers = 1
+            TotWalkersOld = 1
+            NoatHF(:) = InitialSign(:)
+            call encode_sign (CurrentDets(:,1), InitialSign)
+        ELSE
+            NoatHF(:) = 0.0_dp
+            TotWalkers = 0.0_dp
+            TotWalkersOld = 0.0_dp
+        ENDIF
+
+        OldAllNoatHF(:)=0.0_dp
+        AllNoatHF(:)=0.0_dp
+        IF(TStartSinglePart) THEN
+        !Initialise global variables for calculation on the root node
+            IF(iProcIndex.eq.root) THEN
+                OldAllNoatHF=InitialPartVec
+                do run=1,inum_runs
+                    OldAllAvWalkersCyc(run) = InitialPartVec(run)
+                enddo
+                AllNoatHF=InitialPartVec
+                InstNoatHF = InitialPartVec
+                AllTotParts=InitialPartVec
+                AllTotPartsOld=InitialPartVec
+                AllNoAbortedOld(:)=0.0_dp
+                iter_data_fciqmc%tot_parts_old = InitialPartVec
+                AllTotWalkers = 1
+                AllTotWalkersOld = 1
+                do run=1,inum_runs
+                    OldAllHFCyc(run) = ARR_RE_OR_CPLX(InitialPartVec,run)
+                enddo
+            ENDIF
+        ELSE
+        !In this, only one processor has initial particles.
+            IF(iProcIndex.eq.Root) THEN
+                AllTotWalkers = 1
+                AllTotWalkersOld = 1
+                do run=1,inum_runs
+                    iter_data_fciqmc%tot_parts_old(run) = real(InitWalkers,dp)
+                    AllTotParts(run)=InitWalkers
+                    AllTotPartsOld(run)=InitWalkers
+                    AllNoAbortedOld(run)=0.0_dp
+                enddo
+            ENDIF
+        ENDIF
+
+    end subroutine InitFCIMC_HF
 
 !Routine to initialise the particle distribution according to a CAS diagonalisation. 
 !This hopefully will help with close-lying excited states of the same sym.
