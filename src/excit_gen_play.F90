@@ -5,8 +5,8 @@ module excit_gens
     use SystemData, only: nel, nbasis
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
-                               pDoubNew
-    use sym_general_mod, only: ClassCountInd
+                               pDoubNew, ScratchSize
+    use sym_general_mod, only: ClassCountInd, ClassCountInv
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
     use dSFMT_interface, only: genrand_real2_dSFMT
     use Determinants, only: get_helement, write_det
@@ -206,6 +206,43 @@ contains
 
     end subroutine
 
+
+    function get_paired_cc_ind (cc_ind, sym_product, iSpn) result(cc_ret)
+
+        ! Get the paired Class Count index, given a sym product and iSpn
+        ! n.b. Ignoring momentum
+        !
+        ! Returns index == -1 if no pair exists
+
+        integer, intent(in) :: cc_ind, sym_product, iSpn
+        integer :: cc_ret
+        integer :: sym_i, sym_j, spn_i, spn_j, mom
+
+        ! Get the relevant details about the class count index
+        call ClassCountInv (cc_ind, sym_i, spn_i, mom)
+
+        ! Get the paired symmetry
+        sym_j = ieor(sym_i, sym_product)
+
+        ! Consider the paired symmetries permitted
+        spn_j = spn_i
+        if (iSpn == 2) & ! i.e. if alpha/beta
+            spn_j = 3 - spn_i
+
+        ! If we are restricted to alpha/alpha and beta/beta, and the
+        ! specified Class Count index doesn't match, then reject this pair
+        ! by returning -1
+        if ((spn_i == 1 .and. iSpn == 1) .or. &
+            (spn_i == 2 .and. iSpn == 3)) then
+            cc_ret = -1
+            return
+        end if
+
+        ! Get the new index
+        cc_ret = ClassCountInd (spn_j, sym_j, mom)
+
+    end function
+
     
     subroutine gen_double_4ind_ex (nI, ilutI, nJ, ilutJ, ex, par, pgen)
 
@@ -216,59 +253,55 @@ contains
         logical, intent(out) :: par
         real(dp), intent(out) :: pgen
 
-        integer :: elecs(2), syms(2), spn(2), orbs(2), src(2)
-        integer :: syms_cum(nSymLabels), i, j
-        real(dp) :: int_cpt(2), cum_sum(2)
+        integer :: elecs(2), orbs(2), src(2), i, j
+        real(dp) :: int_cpt(2), cum_sum(2), cc_cum(ScratchSize), cc_tot, r
         integer :: sym_product, ispn, sum_ml
+        integer :: cc_i, cc_j
 
         ! Initially, select a pair of electrons
         ! (Use routine from symrandexcit2, as it is known to work!)
         call PickElecPair (nI, elecs(1), elecs(2), sym_product, ispn, sum_ml, &
                            -1)
         src = nI(elecs)
-        pgen = pDoubles * 2.0_dp / real(nel * (nel - 1) * nSymLabels, dp)
+        pgen = pDoubles * 2.0_dp / real(nel * (nel - 1), dp)
 
         ! Pick a a symmetry A. This selects symmetry B
         ! n.b. There is only one way to pick each case where symA == symB, and
         !      in all other cases we could have picked symB first --> double
         !      the generation probability.
         ! TODO: Only select symmetries/pairs that are possible...
-        syms(1) = int(nSymLabels * genrand_real2_dSFMT())
-        syms(2) = ieor(syms(1), sym_product)
-        if (syms(1) /= syms(2)) &
-            pgen = 2.0_dp * pgen
+        !syms(1) = int(nSymLabels * genrand_real2_dSFMT())
+        !syms(2) = ieor(syms(1), sym_product)
+        !if (syms(1) /= syms(2)) &
+        !    pgen = 2.0_dp * pgen
 
-!        do i = 0, nSymLabels-1
-!            j = ieor(i, sym_product)
-!            if (j < i) cycle
-!
-!        end do
+        cc_tot = 0
+        do cc_i = 1, ScratchSize
 
-        ! What combinations of spins are permitted
-        if (iSpn == 1) then
-            spn = 2 ! All electrons are beta
-        else if (iSpn == 3) then
-            spn = 1 ! All electrons are alpha
-        else if (syms(1) /= syms(2)) then
-            pgen = pgen / 2.0_dp
-            if (genrand_real2_dSFMT() > 0.5) then
-                ! We need to make a choice
-                spn(1:2) = (/1, 2/)
-            else
-                spn(1:2) = (/2, 1/)
+            cc_j = get_paired_cc_ind (cc_i, sym_product, iSpn)
+
+            ! As cc_i > 0, the following test also excludes any rejected
+            ! pairings (where cc_j == -1).
+            if (cc_j >= i) then
+                ! TODO: Include the terms removed by class counting.
+                !       i.e. Need ClassCountUnocc
+                cc_tot = cc_tot + OrbClassCount(cc_i) * OrbClassCount(cc_j)
             end if
-        else
-            ! Both spins being selected from the same symmetry
-            ! --> (/1, 2/) == (/2, 1/).
-            spn(1:2) = (/1, 2/)
-        end if
+            cc_cum(cc_i) = cc_tot
+        end do
+    
+        ! Pick a specific pairing
+        r = genrand_real2_dSFMT() * cc_tot
+        cc_i = binary_search_first_ge (cc_cum, r)
+        cc_j = get_paired_cc_ind (cc_i, sym_product, iSpn)
+        write(6,*) 'CC_J', cc_tot, cc_j
+        pgen = pgen * OrbClassCount(cc_i) * OrbClassCount(cc_j) / cc_tot
 
         ! Select the two orbitals
-        orbs(1) = select_orb (ilutI, src, syms(1), spn(1), -1, int_cpt(1), & 
-                              cum_sum(1))
+        orbs(1) = select_orb (ilutI, src, cc_i, -1, int_cpt(1), cum_sum(1))
         if (orbs(1) /= 0) &
-            orbs(2) = select_orb (ilutI, src, syms(2), spn(2), orbs(1), &
-                                  int_cpt(2), cum_sum(2))
+            orbs(2) = select_orb (ilutI, src, cc_j, orbs(1), int_cpt(2), &
+                                  cum_sum(2))
 
         ! Just as a check, abort any excitation where we have excited two
         ! electrons into the same orbital
@@ -279,7 +312,7 @@ contains
 
         ! Adjust the probabilities. If we are selecting two orbitals from
         ! the same list, then we could have selected them either way around.
-        if (syms(1) == syms(2) .and. spn(1) == spn(2)) then
+        if (cc_i == cc_j) then
             pgen = pgen * ( &
                    (int_cpt(1) / cum_sum(1) * int_cpt(2) / cum_sum(2)) &
                  + (int_cpt(2) / cum_sum(1) * &
@@ -296,26 +329,26 @@ contains
     end subroutine
 
 
-    function select_orb (ilut, src, sym, spin, orb_pair, cpt, cum_sum) &
+    function select_orb (ilut, src, cc_index, orb_pair, cpt, cum_sum) &
             result(orb)
 
         ! For an excitation from electrons 1,2, consider all of the pairs
         ! (e1 a|e1 a) == <e1 e1 | a a> and (e2 a | e2 a) == <e2 e2 | a a>
         ! as appropriate to bias selection of the electron
 
-        integer, intent(in) :: sym, src(2), orb_pair, spin
+        integer, intent(in) :: src(2), orb_pair, cc_index
         real(dp), intent(out) :: cpt, cum_sum
         integer(n_int), intent(in) :: ilut(0:NifTot)
         integer :: orb
 
-        integer :: cc_index, label_index, orb_index, norb, i, orbid, srcid(2)
+        integer :: label_index, orb_index, norb, i, orbid, srcid(2)
 
         ! Our biasing arrays must consider all of the possible orbitals with
         ! the correct symmetry.
         real(dp) :: cumulative_arr(nbasis), r
 
         ! How many orbitals are there with the given symmetry?
-        cc_index = ClassCountInd(spin, sym, 0)
+        !cc_index = ClassCountInd(spin, sym, 0)
         label_index = SymLabelCounts2(1, cc_index)
         norb = OrbClassCount(cc_index)
 
@@ -330,8 +363,8 @@ contains
                 orbid = gtID(orb)
 !                cum_sum = cum_sum + 1.0
                 cum_sum = cum_sum &
-                        + sqrt(abs(get_umat_el(srcid(1), srcid(1), orbid, orbid))) &
-                        + sqrt(abs(get_umat_el(srcid(2), srcid(2), orbid, orbid)))
+                    + sqrt(abs(get_umat_el(srcid(1), srcid(1), orbid, orbid)))&
+                    + sqrt(abs(get_umat_el(srcid(2), srcid(2), orbid, orbid)))
             end if
             cumulative_arr(i) = cum_sum
 
@@ -348,6 +381,7 @@ contains
         orb_index = binary_search_first_ge(cumulative_arr(1:norb), r)
 
         ! And return the relevant value.
+        ! TODO: We don't need to call get_umat_ell. Already known.
         orb = SymLabelList2(label_index + orb_index - 1)
         orbid = gtID(orb)
         cpt = sqrt(abs(get_umat_el(srcid(1), srcid(1), orbid, orbid))) + &
