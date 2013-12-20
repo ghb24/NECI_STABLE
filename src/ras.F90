@@ -531,6 +531,8 @@ contains
             temp_sym = ieor(temp_sym, G1(BRR(string(i)*2))%Sym%S)
         end do
 
+        sym = int(temp_sym, sizeof_int)
+
     end function get_abelian_sym
 
     subroutine find_ras_size(ras, classes, space_size)
