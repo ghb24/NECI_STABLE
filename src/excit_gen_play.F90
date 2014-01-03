@@ -17,7 +17,8 @@ module excit_gens
     use procedure_pointers, only: get_umat_el
     use UMatCache, only: gtid
     use GenRandSymExcitNUMod, only: PickElecPair, gen_rand_excit, &
-                                    init_excit_gen_store
+                                    init_excit_gen_store, &
+                                    construct_class_counts
     use constants
     use get_excit, only: make_double
     use sort_mod
@@ -258,6 +259,8 @@ contains
         integer :: sym_product, ispn, sum_ml
         integer :: cc_i, cc_j
 
+        integer :: ccocc(scratchsize), ccunocc(scratchsize)
+
         ! Initially, select a pair of electrons
         ! (Use routine from symrandexcit2, as it is known to work!)
         call PickElecPair (nI, elecs(1), elecs(2), sym_product, ispn, sum_ml, &
@@ -275,6 +278,8 @@ contains
         !if (syms(1) /= syms(2)) &
         !    pgen = 2.0_dp * pgen
 
+        call construct_class_counts (nI, ccocc, ccunocc)
+
         cc_tot = 0
         do cc_i = 1, ScratchSize
 
@@ -285,7 +290,8 @@ contains
             if (cc_j >= cc_i) then
                 ! TODO: Include the terms removed by class counting.
                 !       i.e. Need ClassCountUnocc
-                cc_tot = cc_tot + OrbClassCount(cc_i) * OrbClassCount(cc_j)
+                !cc_tot = cc_tot + OrbClassCount(cc_i) * OrbClassCount(cc_j)
+                cc_tot = cc_tot + ccunocc(cc_i) * ccunocc(cc_j)
             end if
             cc_cum(cc_i) = cc_tot
         end do
@@ -294,7 +300,8 @@ contains
         r = genrand_real2_dSFMT() * cc_tot
         cc_i = binary_search_first_ge (cc_cum, r)
         cc_j = get_paired_cc_ind (cc_i, sym_product, iSpn)
-        pgen = pgen * OrbClassCount(cc_i) * OrbClassCount(cc_j) / cc_tot
+        pgen = pgen * ccunocc(cc_i) * ccunocc(cc_j) / cc_tot
+!        pgen = pgen * OrbClassCount(cc_i) * OrbClassCount(cc_j) / cc_tot
 
         ! Select the two orbitals
         orbs(1) = select_orb (ilutI, src, cc_i, -1, int_cpt(1), cum_sum(1))
