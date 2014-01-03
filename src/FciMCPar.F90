@@ -1945,7 +1945,6 @@ MODULE FciMCParMod
         ! returns HElGen, rather than recomputing the matrix element.
         rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
                                  tParity, HElGen)
-        write(6,*) "ATTEMPT", ic, prob, rh
 
         if (rh / prob > 400.0) &
             call stop_all("Bad", "ratio")

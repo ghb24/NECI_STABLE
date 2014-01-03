@@ -253,7 +253,7 @@ contains
         logical, intent(out) :: par
         real(dp), intent(out) :: pgen
 
-        integer :: elecs(2), orbs(2), src(2), i, j
+        integer :: elecs(2), orbs(2), src(2)
         real(dp) :: int_cpt(2), cum_sum(2), cc_cum(ScratchSize), cc_tot, r
         integer :: sym_product, ispn, sum_ml
         integer :: cc_i, cc_j
@@ -282,7 +282,7 @@ contains
 
             ! As cc_i > 0, the following test also excludes any rejected
             ! pairings (where cc_j == -1).
-            if (cc_j >= i) then
+            if (cc_j >= cc_i) then
                 ! TODO: Include the terms removed by class counting.
                 !       i.e. Need ClassCountUnocc
                 cc_tot = cc_tot + OrbClassCount(cc_i) * OrbClassCount(cc_j)
@@ -294,7 +294,6 @@ contains
         r = genrand_real2_dSFMT() * cc_tot
         cc_i = binary_search_first_ge (cc_cum, r)
         cc_j = get_paired_cc_ind (cc_i, sym_product, iSpn)
-        write(6,*) 'CC_J', cc_tot, cc_j
         pgen = pgen * OrbClassCount(cc_i) * OrbClassCount(cc_j) / cc_tot
 
         ! Select the two orbitals
@@ -351,7 +350,6 @@ contains
         !cc_index = ClassCountInd(spin, sym, 0)
         label_index = SymLabelCounts2(1, cc_index)
         norb = OrbClassCount(cc_index)
-
 
         ! Construct a list of orbitals to excite to, and 
         cum_sum = 0
