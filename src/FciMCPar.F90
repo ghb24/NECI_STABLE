@@ -1946,9 +1946,6 @@ MODULE FciMCParMod
         rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
                                  tParity, HElGen)
 
-        if (rh / prob > 400.0) &
-            call stop_all("Bad", "ratio")
-
         if (rh .eq.0.0) ZeroMatrixElem=ZeroMatrixElem+1
         !write(6,*) 'p,rh', prob, rh
 
