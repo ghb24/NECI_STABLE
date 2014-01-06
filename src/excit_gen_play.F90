@@ -18,7 +18,7 @@ module excit_gens
     use UMatCache, only: gtid
     use GenRandSymExcitNUMod, only: PickElecPair, gen_rand_excit, &
                                     init_excit_gen_store, &
-                                    construct_class_counts
+                                    construct_class_counts, CreateSingleExcit
     use constants
     use get_excit, only: make_double
     use sort_mod
@@ -183,16 +183,24 @@ contains
 
         ncnt = ncnt + 1
 
+        ! We now use the class counts to do the construction. This is an
+        ! O[N] opearation, and gives the number of occupied/unoccupied
+        ! spin-orbitals with each given spin/symmetry.
+        if (.not. store%tFilled) then
+            call construct_class_counts (nI, store%ClassCountOcc, &
+                                         store%ClassCountUnocc)
+            store%tFilled = .true.
+        end if
+
         ! Choose if we want to do a single or a double excitation
         ! TODO: We can (in principle) re-use this random number by subdivision
         if (genrand_real2_dSFMT() < pSingles) then
 
             ! Currently, just use the normal single excitation generator
-            call gen_rand_excit (nI, ilutI, nJ, ilutJ, 1, ic, ExcitMat, &
-                                 tParity, pGen, HElGen, store)
-
-            ! Because we have forced the above to produce singles, its pgens
-            ! will be wrong...
+            pDoubNew = 0.0
+            call CreateSingleExcit (nI, nJ, store%ClassCountOcc, &
+                                    store%ClassCountUnocc, ilutI, ExcitMat, &
+                                    tParity, pGen)
             pgen = pgen * pSingles
 
             ! And generate the ilut efficiently
@@ -209,7 +217,7 @@ contains
             ! OK, we want to do a double excitation
             ic = 2
             call gen_double_4ind_ex (nI, ilutI, nJ, ilutJ, ExcitMat, tParity, &
-                                     pGen)
+                                     pGen, store)
 
         end if
 
@@ -255,12 +263,13 @@ contains
     end function
 
     
-    subroutine gen_double_4ind_ex (nI, ilutI, nJ, ilutJ, ex, par, pgen)
+    subroutine gen_double_4ind_ex (nI, ilutI, nJ, ilutJ, ex, par, pgen, store)
 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ex(2,2)
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        type(excit_gen_store_type), intent(in) :: store
         logical, intent(out) :: par
         real(dp), intent(out) :: pgen
 
@@ -269,8 +278,6 @@ contains
         integer :: sym_product, ispn, sum_ml
         integer :: cc_i, cc_j
 
-        integer :: ccocc(scratchsize), ccunocc(scratchsize)
-
         ! Initially, select a pair of electrons
         ! (Use routine from symrandexcit2, as it is known to work!)
         call PickElecPair (nI, elecs(1), elecs(2), sym_product, ispn, sum_ml, &
@@ -278,18 +285,8 @@ contains
         src = nI(elecs)
         pgen = pDoubles * 2.0_dp / real(nel * (nel - 1), dp)
 
-        ! Pick a a symmetry A. This selects symmetry B
-        ! n.b. There is only one way to pick each case where symA == symB, and
-        !      in all other cases we could have picked symB first --> double
-        !      the generation probability.
-        ! TODO: Only select symmetries/pairs that are possible...
-        !syms(1) = int(nSymLabels * genrand_real2_dSFMT())
-        !syms(2) = ieor(syms(1), sym_product)
-        !if (syms(1) /= syms(2)) &
-        !    pgen = 2.0_dp * pgen
-
-        call construct_class_counts (nI, ccocc, ccunocc)
-
+        ! Construct the list of possible symmetry pairs listed according to
+        ! a unique choice of symmetry A (we enforce that sym(A) < sym(B)).
         cc_tot = 0
         do cc_i = 1, ScratchSize
 
@@ -298,19 +295,19 @@ contains
             ! As cc_i > 0, the following test also excludes any rejected
             ! pairings (where cc_j == -1).
             if (cc_j >= cc_i) then
-                ! TODO: Include the terms removed by class counting.
-                !       i.e. Need ClassCountUnocc
+                cc_tot = cc_tot + store%ClassCountUnocc(cc_i) &
+                                * store%ClassCountUnocc(cc_j)
                 !cc_tot = cc_tot + OrbClassCount(cc_i) * OrbClassCount(cc_j)
-                cc_tot = cc_tot + ccunocc(cc_i) * ccunocc(cc_j)
             end if
             cc_cum(cc_i) = cc_tot
         end do
     
-        ! Pick a specific pairing
+        ! Pick a specific pairing of spin-symmetries
         r = genrand_real2_dSFMT() * cc_tot
         cc_i = binary_search_first_ge (cc_cum, r)
         cc_j = get_paired_cc_ind (cc_i, sym_product, iSpn)
-        pgen = pgen * ccunocc(cc_i) * ccunocc(cc_j) / cc_tot
+        pgen = pgen * store%ClassCountUnocc(cc_i) &
+                    * store%ClassCountUnocc(cc_j) / cc_tot
 !        pgen = pgen * OrbClassCount(cc_i) * OrbClassCount(cc_j) / cc_tot
 
         ! Select the two orbitals
