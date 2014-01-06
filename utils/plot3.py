@@ -192,6 +192,8 @@ def output_file (fin):
 	stem = stem + '/' if stem != '' else stem
 	if 'FCIMCStats' in fin:
 		parts = [x.strip('.') for x in path.basename(fin).partition('FCIMCStats')]
+	elif 'FCIQMCStats_' in fin:
+		parts = [x.strip('.') for x in path.basename(fin).partition('FCIQMCStats_')]
 	else:
 		parts = [x.strip('.') for x in path.basename(fin).partition('FCIQMCStats')]
 
@@ -227,8 +229,10 @@ class plotter:
 			if fn is None:
 				if path.exists('FCIMCStats'):
 					fn = 'FCIMCStats'
-				else:
+				elif path.exists('FCIQMCStats'):
 					fn = 'FCIQMCStats'
+				else:
+					fn = 'FCIQMCStats_'
 
 			# Is this a file on a cluster which needs mounting?
 			self.tmp_dir = None
@@ -243,8 +247,10 @@ class plotter:
 				# Find the output file to use!
 				if path.exists("%s/FCIMCStats" % self.tmp_dir):
 					fn = "%s/FCIMCStats" % self.tmp_dir
-				else:
+				elif path.exists("%s/FCIQMCStats" % self.tmp_dir):
 					fn = "%s/FCIQMCStats" % self.tmp_dir
+				else:
+					fn = "%s/FCIQMCStats_" % self.tmp_dir
 
 
 			self.fn = fn
@@ -253,6 +259,11 @@ class plotter:
 
 		def __del__ (self):
 			'''Clean up any temporary filesystem objects created'''
+
+			# If this is being called as part of cleanup code, then global
+			# variables may have been destroyed --> modules may not exist
+			# any more. Just reload them in case.
+			import subprocess, os
 
 			if self.tmp_dir:
 				subprocess.call(["fusermount", "-u", self.tmp_dir])
@@ -610,7 +621,7 @@ class plotter:
 		if self.S.plot:
 			ax = self.S.ax
 			lim = ax.get_ylim()
-			ax.set_ylim (max(0.0, lim[0]), lim[1])
+			ax.set_ylim (max(1.0e-6, lim[0]), lim[1])
 
 		# Work through the axes from bottom to top, so we can find the 
 		# axis to apply x-labels to first.
