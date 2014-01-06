@@ -26,7 +26,7 @@ module semi_stoch_procs
                          tFill_RDM, IterLastRDMFill, full_determ_vector_av, &
                          tFillingStochRDMonFly, Iter, IterRDMStart, CoreHashIndex, &
                          core_ham_diag, DavidsonTag, Fii, HFDet
-    use hash, only: DetermineDetNode, FindWalkerHash
+    use hash, only: DetermineDetNode, FindWalkerHash, reset_hash_table
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use MI_integrals, only: MI_off_diag_helement
@@ -806,8 +806,6 @@ contains
         end do
 
         call reset_hash_table(HashIndex)
-
-
 
         ! Finally, add the indices back into the hash index array.
         do i = 1, nwalkers

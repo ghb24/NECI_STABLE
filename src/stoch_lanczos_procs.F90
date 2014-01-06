@@ -1,19 +1,23 @@
-#include  "macros.h"
+#include "macros.h"
 
 module stoch_lanczos_procs
 
     use AnnihilationMod, only: SendProcNewParts, CompressSpawnedList
     use bit_rep_data, only: NIfTot
     use bit_reps, only: decode_bit_det
-    use CalcData, only: tTruncInitiator
+    use CalcData, only: tTruncInitiator, tStartSinglePart, InitialPart, InitWalkers
     use constants
     use dSFMT_interface , only : genrand_real2_dSFMT
     use FciMCData, only: ilutHF, HFDet, CurrentDets, SpawnedParts, SpawnedParts2, TotWalkers
     use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots, HashIndex, nWalkerHashes
-    use FciMCData, only: fcimc_iter_data, ll_node
-    use FciMCParMod, only: create_particle
-    use hash, only: FindWalkerHash, reset_hash_table
+    use FciMCData, only: fcimc_iter_data, ll_node, MaxWalkersPart, tStartCoreGroundState
+    use FciMCData, only: tPopsAlreadyRead
+    use FciMCParMod, only: create_particle, InitFCIMC_HF, SetupParameters, InitFCIMCCalcPar
+    use FciMCParMod, only: init_fcimc_fn_pointers
+    use hash, only: FindWalkerHash, reset_hash_table, fill_in_hash_table
     use hilbert_space_size, only: CreateRandomExcitLevDetUnbias
+    use Parallel_neci, only: MPIBarrier
+    use procedure_pointers
     use SystemData, only: nel
 
     implicit none
@@ -32,7 +36,7 @@ module stoch_lanczos_procs
         ! The number of different Lanczos vectors to sample (the number of
         ! vectors which form the Krylov subspace at the end of a calculation).
         integer :: nkrylov_vecs
-        ! The number of iterations to perform *between each Lanczos vector is
+        ! The number of iterations to perform *between each Lanczos vector being
         ! sampled*.
         integer :: niters
     end type
@@ -51,6 +55,9 @@ contains
         logical :: eof
         character(len=100) :: w
 
+        lanczos%nconfigs = 1
+        lanczos%nruns = 1
+
         read_inp: do
             call read_line(eof)
             if (eof) then
@@ -58,19 +65,19 @@ contains
             end if
             call readu(w)
             select case(w)
-            case("end-lanczos")
+            case("END-LANCZOS")
                 exit read_inp
-            case("ground-state")
+            case("GROUND-STATE")
                 lanczos%tGround = .true.
-            case("finite-temperature")
+            case("FINITE-TEMPERATURE")
                 lanczos%tFiniteTemp = .true.
-            case("num-init-configs")
+            case("NUM-INIT-CONFIGS")
                 call geti(lanczos%nconfigs)
-            case("num-runs-per-config")
+            case("NUM-RUNS-PER-CONFIG")
                 call geti(lanczos%nruns)
-            case("num-lanczos-vecs")
+            case("NUM-LANCZOS-VECS")
                 call geti(lanczos%nkrylov_vecs)
-            case("num-iters-per-vec")
+            case("NUM-ITERS-PER-VEC")
                 call geti(lanczos%niters)
             case default
                 call report("Keyword "//trim(w)//" not recognized in stoch-lanczos block", .true.)
@@ -84,11 +91,22 @@ contains
         type(stoch_lanczos_data), intent(in) :: lanczos
         integer :: ierr
 
+        tPopsAlreadyRead = .false.
+        call SetupParameters()
+        call InitFCIMCCalcPar()
+        call init_fcimc_fn_pointers() 
+
+        if(n_int.eq.4) CALL Stop_All('Setup Parameters', &
+                'Use of RealCoefficients does not work with 32 bit integers due to the &
+                 &use of the transfer operation from dp reals to 64 bit integers.')
+
         ! If performing a finite-temperature calculation with more than one run for each initial
         ! configuration, we store this walker configuration so that we can restart from it later.
         if (lanczos%tFiniteTemp .and. lanczos%nruns > 1) then
             allocate(init_lanczos_config(0:NIfTot, MaxWalkersPart), stat=ierr)
         end if
+
+        call MPIBarrier(ierr)
 
     end subroutine init_stoch_lanczos
 

@@ -325,6 +325,8 @@ contains
           trial_mp1_ndets = 0
           tLowETrialAllDoubles = .false.
           tTrialAmplitudeCutoff = .false.
+
+          tStochLanczos = .false.
       
         end subroutine SetCalcDefaults
 
@@ -1948,6 +1950,8 @@ call neci_flush(6)
           use sym_mod
           use davidson, only: davidson_direct_ci_init, davidson_direct_ci_end, perform_davidson
           use davidson, only: direct_ci_type
+          use stoch_lanczos, only: perform_stoch_lanczos
+          use stoch_lanczos_procs, only: lanczos
 
 !Calls
 !          real(dp) DMonteCarlo2
@@ -1995,6 +1999,8 @@ call neci_flush(6)
              elseif(tRPA_QBA) then
                 call RunRPA_QBA(WeightDum,EnerDum)
                 WRITE(6,*) "Summed approx E(Beta)=",EnerDum
+             elseif(tStochLanczos) then
+                 call perform_stoch_lanczos(lanczos)
              else
 
 

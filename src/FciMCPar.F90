@@ -232,11 +232,11 @@ MODULE FciMCParMod
 
         call SetupParameters()
         call InitFCIMCCalcPar()
-        call init_fcimc_fn_pointers () 
+        call init_fcimc_fn_pointers() 
 
         if(n_int.eq.4) CALL Stop_All('Setup Parameters', &
                 'Use of RealCoefficients does not work with 32 bit integers due to the use &
-                & of the transfer operation from dp reals to 64 bit integers.')
+                &of the transfer operation from dp reals to 64 bit integers.')
 
         ! If performing a deterministic projection instead of an FCIQMC calc:
         if (tDetermProj) then
@@ -1033,10 +1033,11 @@ MODULE FciMCParMod
                 ! up by AvMCExcits if attempting multiple excitations from 
                 ! each walker (default 1.0_dp).
 
+                call find_num_to_spawn(SignCurr(part_type), AvMCExcits, WalkersToSpawn)
+
                 WalkersToSpawn=abs(int(SignCurr(part_type)*AvMCExcits))
                 if ((abs(SignCurr(part_type)*AvMCExcits)-real(WalkersToSpawn,dp)).gt.0) then
                     prob_extra_walker=abs(SignCurr(part_type)*AvMCExcits) - real(WalkersToSpawn,dp)
-                    !r = genrand_real2_dSFMT ()
                     r = genrand_real2_dSFMT ()
                     if (prob_extra_walker > r) then
                         WalkersToSpawn=WalkersToSpawn+1
@@ -1594,6 +1595,21 @@ MODULE FciMCParMod
 
     end subroutine CalcParentFlag
 
+    subroutine find_num_to_spawn(parent_pop, av_spawns_per_walker, nspawn)
+
+        real(dp), intent(in) :: parent_pop
+        real(dp), intent(in) :: av_spawns_per_walker
+        integer, intent(out) :: nspawn
+        real(dp) :: prob_extra_walker, r
+
+        nspawn = abs(int(parent_pop*av_spawns_per_walker))
+        if (abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp) > 0) then
+            prob_extra_walker = abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp)
+            r = genrand_real2_dSFMT()
+            if (prob_extra_walker > r) nspawn = nspawn + 1
+        end if
+
+    end subroutine find_num_to_spawn
 
     SUBROUTINE HistInitPopulations(RealSignCurr,VecSlot)
         USE FciMCLoggingMOD, only : InitBinMin,InitBinIter
@@ -6658,7 +6674,7 @@ MODULE FciMCParMod
     SUBROUTINE InitFCIMCCalcPar()
         use FciMCLoggingMOD , only : InitHistInitPops
         use SystemData , only : tRotateOrbs
-        use CalcData , only : InitialPart,tstartmp1,tStartCAS, InitialPartVec
+        use CalcData , only : InitialPart,tstartmp1,tStartCAS
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,iReadWalkersRoot
         use constants , only : size_n_int
         use DeterminantData , only : write_det
@@ -7050,6 +7066,8 @@ MODULE FciMCParMod
     end subroutine InitFCIMCCalcPar
 
     subroutine InitFCIMC_HF()
+
+        use CalcData, only: InitialPartVec, InitialPart
 
         integer :: run, DetHash
         real(dp) , dimension(lenof_sign) :: InitialSign

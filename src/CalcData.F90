@@ -217,4 +217,7 @@ logical :: tLowETrialAllDoubles
 ! When using the tMP1Trial option, this specifies how many determinants to keep.
 integer :: trial_mp1_ndets
 
+! True if running a stochastic Lanczos calculation.
+logical :: tStochLanczos
+
 end module CalcData

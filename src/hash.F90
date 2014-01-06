@@ -2,8 +2,10 @@
 
 module hash
 
-    use bit_reps, only: set_flag
-    use FciMCData , only : hash_iter, hash_shift, RandomHash, RandomHash2, HFDet
+    use bit_rep_data, only: NIfTot
+    use bit_reps, only: set_flag, decode_bit_det
+    use constants
+    use FciMCData , only : hash_iter, hash_shift, RandomHash, RandomHash2, HFDet, ll_node
     use Parallel_neci , only : nNodes
     use constants , only : int64,sizeof_int
     use csf_data, only: csf_orbital_mask
@@ -125,6 +127,7 @@ module hash
 
         type(ll_node), pointer, intent(inout) :: hash_table(:)
         type(ll_node), pointer :: curr, prev
+        integer :: i
 
         ! Reset the hash index array.
         do i = 1, size(hash_table)
@@ -149,14 +152,15 @@ module hash
         ! that there are no repeats in walker_list.
 
         integer, intent(in) :: table_length, list_length
-        type(ll_node), pointer, intent(inout) :: hash_table(table_length)
+        type(ll_node), pointer, intent(inout) :: hash_table(:)
         integer(n_int), intent(in) :: walker_list(0:NIfTot, list_length)
         type(ll_node), pointer :: temp_node
+        integer :: i, DetHash, nI(nel)
 
         do i = 1, list_length
             call decode_bit_det(nI, walker_list(:,i))
             DetHash = FindWalkerHash(nI, table_length)
-            temp_node => HashIndex(DetHash)
+            temp_node => hash_table(DetHash)
             ! If the first element in the list has not been used.
             if (temp_node%ind == 0) then
                 temp_node%ind = i
