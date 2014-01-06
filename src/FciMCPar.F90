@@ -5136,8 +5136,9 @@ MODULE FciMCParMod
 
         if(tSearchTau) then
 
-            if(.not.tRestart.and.(.not.tReadPops)) then
-                !Set initial tau value, unless we are restarting, or reading it from popsfileheader
+            if(.not.tRestart .and. .not.tReadPops .and. tau == 0) then
+                ! Set initial tau value, unless we are restarting, or reading
+                ! it from popsfileheader
                 call FindMaxTauDoubs()
             endif
 
