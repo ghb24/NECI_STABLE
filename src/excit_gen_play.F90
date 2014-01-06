@@ -197,11 +197,11 @@ contains
         if (genrand_real2_dSFMT() < pSingles) then
 
             ! Currently, just use the normal single excitation generator
-            pDoubNew = 0.0
+            ic = 1
+            pDoubNew = pDoubles
             call CreateSingleExcit (nI, nJ, store%ClassCountOcc, &
                                     store%ClassCountUnocc, ilutI, ExcitMat, &
                                     tParity, pGen)
-            pgen = pgen * pSingles
 
             ! And generate the ilut efficiently
             if (.not. IsNullDet(nJ)) then
