@@ -200,7 +200,7 @@ contains
                 ilutJ = ilutI
                 orb = ExcitMat(1,1)
                 clr_orb (ilutJ, orb)
-                orb = ExcitMat(2,2)
+                orb = ExcitMat(2,1)
                 set_orb (ilutJ, orb)
             end if
 
