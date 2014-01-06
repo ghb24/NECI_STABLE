@@ -179,6 +179,7 @@ contains
         type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         character(*), parameter :: this_routine = 'gen_excit_4ind_weighted'
+        integer :: orb
 
         ncnt = ncnt + 1
 
@@ -197,8 +198,10 @@ contains
             ! And generate the ilut efficiently
             if (.not. IsNullDet(nJ)) then
                 ilutJ = ilutI
-                clr_orb (ilutJ, ExcitMat(1,1))
-                set_orb (ilutJ, ExcitMat(2,1))
+                orb = ExcitMat(1,1)
+                clr_orb (ilutJ, orb)
+                orb = ExcitMat(2,2)
+                set_orb (ilutJ, orb)
             end if
 
         else
