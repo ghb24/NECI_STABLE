@@ -9,8 +9,10 @@ module stoch_lanczos
     use DetBitOps, only: FindBitExcitLevel
     use FciMCData, only: fcimc_excit_gen_store, FreeSlot, iStartFreeSlot, iEndFreeSlot
     use FciMCData, only: TotWalkers, CurrentDets, CurrentH, iLutRef, max_calc_ex_level
+    use FciMCData, only: iter_data_fciqmc, TotParts
     use FciMCData, only: NCurrH, exFlag, indices_of_determ_states, partial_determ_vector
     use FciMCParMod, only: create_particle, CalcParentFlag, find_num_to_spawn
+    use FciMCParMod, only: calculate_new_shift_wrapper
     use procedure_pointers, only: generate_excitation, attempt_create, encode_child
     use procedure_pointers, only: new_child_stats, extract_bit_rep_avsign
     use semi_stoch_procs, only: is_core_state
@@ -144,6 +146,10 @@ contains
                                         if (.not. (tSemiStochastic)) call encode_child (CurrentDets(:,iwalker), &
                                                                                         ilut_child, ic, ex)
 
+                                        call new_child_stats (iter_data_fciqmc, CurrentDets(:,iwalker), &
+                                                              nIChild, ilut_child, ic, walkExcitLevel,&
+                                                              child_sign, parent_flags, ireplica)
+
                                         call create_particle (nIChild, ilut_child, child_sign, parent_flags, &
                                                               ireplica, CurrentDets(:,iwalker), parent_sign, &
                                                               ispawn, unused_rdm_real, nspawn)
@@ -155,6 +161,8 @@ contains
                             end do ! Over the two replicas on the same determinant.
 
                         end do ! Over all determinants.
+
+                        call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts)
 
                     end do ! Over all iterations between Lanczos vectors.
 

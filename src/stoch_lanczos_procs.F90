@@ -13,7 +13,7 @@ module stoch_lanczos_procs
     use FciMCData, only: fcimc_iter_data, ll_node, MaxWalkersPart, tStartCoreGroundState
     use FciMCData, only: tPopsAlreadyRead
     use FciMCParMod, only: create_particle, InitFCIMC_HF, SetupParameters, InitFCIMCCalcPar
-    use FciMCParMod, only: init_fcimc_fn_pointers
+    use FciMCParMod, only: init_fcimc_fn_pointers, WriteFciMCStats, WriteFciMCStatsHeader
     use hash, only: FindWalkerHash, reset_hash_table, fill_in_hash_table
     use hilbert_space_size, only: CreateRandomExcitLevDetUnbias
     use Parallel_neci, only: MPIBarrier
@@ -95,6 +95,9 @@ contains
         call SetupParameters()
         call InitFCIMCCalcPar()
         call init_fcimc_fn_pointers() 
+
+        call WriteFciMCStatsHeader()
+        call WriteFCIMCStats()
 
         if(n_int.eq.4) CALL Stop_All('Setup Parameters', &
                 'Use of RealCoefficients does not work with 32 bit integers due to the &
