@@ -194,6 +194,13 @@ contains
             ! will be wrong...
             pgen = pgen * pSingles
 
+            ! And generate the ilut efficiently
+            if (.not. IsNullDet(nJ)) then
+                ilutJ = ilutI
+                clr_orb (ilutJ, ExcitMat(1,1))
+                set_orb (ilutJ, ExcitMat(2,1))
+            end if
+
         else
 
             ! OK, we want to do a double excitation
@@ -330,7 +337,11 @@ contains
         ! And generate the actual excitation.
         call make_double (nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), &
                           ex, par)
-        ! TODO: Generate the ilut here --> fast and easy!!!
+        ilutJ = ilutI
+        clr_orb (ilutJ, src(1))
+        clr_orb(ilutJ, src(2))
+        set_orb (ilutJ, orbs(1))
+        set_orb (ilutJ, orbs(2))
 
     end subroutine
 

@@ -1756,7 +1756,7 @@ MODULE FciMCParMod
         endif
 
         ! Once we have generated the children, do we need to encode them?
-        if (.not. (tCSF .or. tHPHF .or. tMomInv)) then
+        if (.not. (tCSF .or. tHPHF .or. tMomInv .or. tGen_4ind_weighted)) then
             encode_child => FindExcitBitDet
         else
             encode_child => null_encode_child
