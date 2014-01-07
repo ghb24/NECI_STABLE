@@ -11,7 +11,7 @@ module stoch_lanczos_procs
     use FciMCData, only: ilutHF, HFDet, CurrentDets, SpawnedParts, SpawnedParts2, TotWalkers
     use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots, HashIndex, nWalkerHashes
     use FciMCData, only: fcimc_iter_data, ll_node, MaxWalkersPart, tStartCoreGroundState
-    use FciMCData, only: tPopsAlreadyRead
+    use FciMCData, only: tPopsAlreadyRead, tHashWalkerList
     use FciMCParMod, only: create_particle, InitFCIMC_HF, SetupParameters, InitFCIMCCalcPar
     use FciMCParMod, only: init_fcimc_fn_pointers, WriteFciMCStats, WriteFciMCStatsHeader
     use FciMCParMod, only: rezero_iter_stats_each_iter
@@ -91,6 +91,10 @@ contains
 
         type(stoch_lanczos_data), intent(in) :: lanczos
         integer :: ierr
+        character (len=*), parameter :: t_r = "init_stoch_lanczos"
+
+        if (.not. tHashWalkerList) call stop_all('t_r','Stochastic Lanczos can only be run using &
+            &the linscalefcimcalgo option (the linear scaling algorithm).')
 
         tPopsAlreadyRead = .false.
         call SetupParameters()
@@ -100,9 +104,8 @@ contains
         call WriteFciMCStatsHeader()
         call WriteFCIMCStats()
 
-        if(n_int.eq.4) CALL Stop_All('Setup Parameters', &
-                'Use of RealCoefficients does not work with 32 bit integers due to the &
-                 &use of the transfer operation from dp reals to 64 bit integers.')
+        if (n_int == 4) call stop_all('t_r', 'Use of RealCoefficients does not work with 32 bit &
+             &integers due to the use of the transfer operation from dp reals to 64 bit integers.')
 
         ! If performing a finite-temperature calculation with more than one run for each initial
         ! configuration, we store this walker configuration so that we can restart from it later.
