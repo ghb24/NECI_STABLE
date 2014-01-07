@@ -990,18 +990,20 @@ MODULE AnnihilationMod
                         if (CurrentSign(j).eq.0) then
                             !This determinant is actually /unoccupied/ for the walker type/set we're considering
                             !We need to decide whether to abort it or not
-                            if (tTruncInitiator.and.(.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j)) .and. &
-                                .not. test_flag (SpawnedParts(:,i), flag_make_initiator(j)))) then
-                                if (tSpawnSpatialInit) then
-                                    if (is_spatial_init(SpawnedParts(:,i))) then
-                                        call set_flag (SpawnedParts(:,i), &
-                                                       flag_parent_initiator(j))
+                            if (tTruncInitiator) then
+                                if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j)) .and. &
+                                    .not. test_flag (SpawnedParts(:,i), flag_make_initiator(j))) then
+                                    if (tSpawnSpatialInit) then
+                                        if (is_spatial_init(SpawnedParts(:,i))) then
+                                            call set_flag (SpawnedParts(:,i), &
+                                                           flag_parent_initiator(j))
+                                        endif
                                     endif
+                                    ! Walkers came from outside initiator space.
+                                    NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
+                                    iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
+                                    call encode_part_sign (CurrentDets(:,PartInd), 0.0_dp, j)
                                 endif
-                                ! Walkers came from outside initiator space.
-                                NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
-                                iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
-                                call encode_part_sign (CurrentDets(:,PartInd), 0.0_dp, j)
                             endif
                         elseif(SignProd(j) < 0) then
 #else
@@ -1390,7 +1392,7 @@ MODULE AnnihilationMod
     SUBROUTINE CalcHashTableStats(TotWalkersNew, iter_data)
         use util_mod, only: abs_sign
         use CalcData , only : tCheckHighestPop
-        integer, intent(in) :: TotWalkersNew
+        integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
         INTEGER :: i, j, AnnihilatedDet
         real(dp) :: CurrentSign(lenof_sign), SpawnedSign(lenof_sign)
@@ -1428,9 +1430,11 @@ MODULE AnnihilationMod
                                     CurrentSign(j) = 0.0_dp
                                     call nullify_ilut_part(CurrentDets(:,i), j)
                                     call decode_bit_det(nI, CurrentDets(:,i))
-                                    call RemoveDetHashIndex(nI,i)
-                                    iEndFreeSlot=iEndFreeSlot+1
-                                    FreeSlot(iEndFreeSlot)=i
+                                    if (IsUnoccDet(CurrentSign)) then
+                                        call RemoveDetHashIndex(nI,i)
+                                        iEndFreeSlot=iEndFreeSlot+1
+                                        FreeSlot(iEndFreeSlot)=i
+                                    end if
                                 elseif (tEnhanceRemainder) then
                                     NoBorn(j) = NoBorn(j) + OccupiedThresh - abs(CurrentSign(j))
                                     iter_data%nborn(j) = iter_data%nborn(j) + OccupiedThresh - abs(CurrentSign(j))

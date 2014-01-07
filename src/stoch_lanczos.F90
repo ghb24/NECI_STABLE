@@ -3,6 +3,7 @@
 module stoch_lanczos
 
     use stoch_lanczos_procs
+    use FciMCData, only: HashIndex, ll_node
     implicit none
 
 contains
@@ -10,7 +11,7 @@ contains
     subroutine perform_stochastic_lanczos(lanczos)
 
         use AnnihilationMod, only: DirectAnnihilation
-        use bit_rep_data, only: test_flag, NIfTot, NOffFlag
+        use bit_rep_data, only: NIfTot, NOffFlag, tUseFlags
         use bit_reps, only: flag_deterministic, flag_determ_parent, set_flag
         use bit_reps, only: extract_bit_rep
         use CalcData, only: AvMCExcits, tSemiStochastic, tTruncInitiator
@@ -33,13 +34,16 @@ contains
         integer :: nspawn, parent_flags, unused_flags, ex_level_to_ref
         integer :: TotWalkersNew, determ_index, ic, ex(2,2)
         integer :: nI_parent(nel), nI_child(nel)
-        integer(n_int) :: ilut_child(0:NIfTot), ilut_parent(0:NIfTot)
+        integer(n_int) :: ilut_child(0:NIfTot)
+        integer(n_int), pointer :: ilut_parent(:)
         real(dp) :: prob, unused_rdm_real
         real(dp), dimension(lenof_sign) :: child_sign, parent_sign
         real(dp), dimension(lenof_sign) :: unused_sign1, unused_sign2
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
         logical :: tParity
         HElement_t :: HElGen
+
+        type(ll_node), pointer :: TempNode
 
         call init_stoch_lanczos(lanczos)
 
@@ -55,10 +59,23 @@ contains
 
                         call init_stoch_lanczos_iter(iter_data_fciqmc, determ_index)
 
+                        !write(6,*) "HashIndex:"
+                        !do iwalker=1,nWalkerHashes
+                        !    TempNode => HashIndex(iwalker)
+                        !    if (TempNode%Ind /= 0) then
+                        !        write(6,'(i9)',advance='no') iwalker
+                        !        do while (associated(TempNode))
+                        !            write(6,'(i9)',advance='no') TempNode%Ind
+                        !            TempNode => TempNode%Next
+                        !        end do
+                        !        write(6,'()',advance='yes')
+                        !    end if
+                        !end do
+
                         do iwalker = 1, int(TotWalkers, sizeof_int)
 
                             ! The 'parent' determinant from which spawning is to be attempted.
-                            associate(ilut_parent => CurrentDets(:,iwalker))
+                            ilut_parent => CurrentDets(:,iwalker)
 
                             ! Indicate that the scratch storage used for excitation generation from the
                             ! same walker has not been filled (it is filled when we excite from the first
@@ -112,12 +129,12 @@ contains
                                     call generate_excitation (nI_parent, ilut_parent, nI_child, &
                                                         ilut_child, exFlag, ic, ex, tParity, prob, &
                                                         HElGen, fcimc_excit_gen_store)
-                                    
+
                                     ! If a valid excitation.
                                     if (.not. IsNullDet(nI_child)) then
 
                                         call encode_child (ilut_parent, ilut_child, ic, ex)
-                                        ilut_child(nOffFlag) = 0
+                                        if (tUseFlags) ilut_child(nOffFlag) = 0
 
                                         if (tSemiStochastic) then
                                             tChildIsDeterm = is_core_state(ilut_child)
@@ -135,12 +152,13 @@ contains
                                         child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
                                                             nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
                                                             ex_level_to_ref, ireplica, unused_sign2, unused_rdm_real)
+
                                     else
                                         child_sign = 0.0_dp
                                     end if
 
                                     ! If any (valid) children have been spawned.
-                                    if ((any(child_sign /= 0)) .and. (ic /= 0) .and. (ic < 2)) then
+                                    if ((any(child_sign /= 0)) .and. (ic /= 0) .and. (ic <= 2)) then
 
                                         call new_child_stats (iter_data_fciqmc, ilut_parent, &
                                                               nI_child, ilut_child, ic, ex_level_to_ref,&
@@ -164,8 +182,6 @@ contains
                                                     ex_level_to_ref)
                             end if
 
-                        end associate
-
                         end do ! Over all determinants.
 
                         TotWalkersNew = int(TotWalkers, sizeof_int)
@@ -178,9 +194,9 @@ contains
 
                         TotWalkers = int(TotWalkersNew, int64)
 
-                        call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts)
-
                         call update_iter_data(iter_data_fciqmc)
+
+                        call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts)
 
                     end do ! Over all iterations between Lanczos vectors.
 

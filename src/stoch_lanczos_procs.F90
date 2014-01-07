@@ -6,6 +6,7 @@ module stoch_lanczos_procs
     use bit_rep_data, only: NIfTot
     use bit_reps, only: decode_bit_det
     use CalcData, only: tTruncInitiator, tStartSinglePart, InitialPart, InitWalkers
+    use CalcData, only: tSemiStochastic
     use constants
     use dSFMT_interface , only : genrand_real2_dSFMT
     use FciMCData, only: ilutHF, HFDet, CurrentDets, SpawnedParts, SpawnedParts2, TotWalkers
@@ -58,6 +59,8 @@ contains
 
         lanczos%nconfigs = 1
         lanczos%nrepeats = 1
+        lanczos%tGround = .false.
+        lanczos%tFiniteTemp = .false.
 
         read_inp: do
             call read_line(eof)
@@ -151,7 +154,7 @@ contains
             ! If starting from the core ground state then walkers will be added to the list in the
             ! semi-stochastic routines. Otherwise, call InitFCIMC_HF, which just adds the desired
             ! initial number of walkers to the Hartree-Fock determinant.
-            if (.not. tStartCoreGroundState) call InitFCIMC_HF()
+            if ((.not. tSemiStochastic) .or. (.not. tStartCoreGroundState)) call InitFCIMC_HF()
 
         else if (lanczos%tFiniteTemp) then
             if (irun == 1) then

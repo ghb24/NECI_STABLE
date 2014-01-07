@@ -14,7 +14,7 @@ MODULE FciMCParMod
                           tNoBrillouin, tKPntSym, tPickVirtUniform, &
                           tMomInv, tRef_Not_HF, tMolpro, tAntiSym_MI, &
                           MolproID
-    use bit_rep_data, only: extract_sign, flag_trial, flag_connected
+    use bit_rep_data, only: extract_sign, flag_trial, flag_connected, tUseFlags
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
@@ -1399,7 +1399,7 @@ MODULE FciMCParMod
         !The parent is NIfDBO integers long, and stored in the second part of the SpawnedParts array 
         !from NIfTot+1 -> NIfTot+1 + NIfDBO.
 
-        IF(lenof_sign.eq.2) THEN
+        IF(lenof_sign.eq.2 .and. tUseFlags) THEN
             !With complex walkers, things are a little more tricky.
             !We want to transfer the flag for all particles created (both real and imag)
             !from the specific type of parent particle.
