@@ -1211,11 +1211,7 @@ MODULE FciMCParMod
         CALL halt_timer(Annihil_Time)
         IFDEBUG(FCIMCDebug,2) WRITE(iout,*) "Finished Annihilation step"
 
-        ! Update iteration data
-        iter_data%update_growth = iter_data%update_growth + iter_data%nborn &
-                                - iter_data%ndied - iter_data%nannihil &
-                                - iter_data%naborted - iter_data%nremoved
-        iter_data%update_iters = iter_data%update_iters + 1
+        call update_iter_data(iter_data)
 
         ! This routine will take the CurrentDets and search the array to find all single and double 
         ! connections - adding them into the RDM's. 
@@ -1329,6 +1325,17 @@ MODULE FciMCParMod
         iUnused = iLutI(0); iUnused = iLutJ(0)
 
     end subroutine
+
+    subroutine update_iter_data(iter_data)
+
+        type(fcimc_iter_data), intent(inout) :: iter_data
+
+        iter_data%update_growth = iter_data%update_growth + iter_data%nborn &
+                                - iter_data%ndied - iter_data%nannihil &
+                                - iter_data%naborted - iter_data%nremoved
+        iter_data%update_iters = iter_data%update_iters + 1
+
+    end subroutine update_iter_data
 
     subroutine create_particle (nJ, iLutJ, child, parent_flags, part_type, iLutI, SignI, &
                                 WalkerNumber, RDMBiasFacCurr, WalkersToSpawn)

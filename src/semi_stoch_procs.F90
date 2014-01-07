@@ -183,6 +183,23 @@ contains
 
     end function is_core_state
 
+    function check_determ_flag(ilut) result (core_state)
+    
+        ! The reason for using this instead of just using test_flag is that test_flag
+        ! crashes if flags are not being used. Calling this function therefore makes
+        ! things neater!
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        logical :: core_state
+
+        if (tSemiStochastic) then
+            core_state = test_flag(ilut, flag_deterministic)
+        else
+            core_state = .false.
+        end if
+
+    end function check_determ_flag
+
     subroutine calculate_determ_hamiltonian_normal()
 
         integer :: i, j, iproc, col_index, ierr

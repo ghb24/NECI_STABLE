@@ -1950,7 +1950,7 @@ call neci_flush(6)
           use sym_mod
           use davidson, only: davidson_direct_ci_init, davidson_direct_ci_end, perform_davidson
           use davidson, only: direct_ci_type
-          use stoch_lanczos, only: perform_stoch_lanczos
+          use stoch_lanczos, only: perform_stochastic_lanczos
           use stoch_lanczos_procs, only: lanczos
 
 !Calls
@@ -2000,7 +2000,7 @@ call neci_flush(6)
                 call RunRPA_QBA(WeightDum,EnerDum)
                 WRITE(6,*) "Summed approx E(Beta)=",EnerDum
              elseif(tStochLanczos) then
-                 call perform_stoch_lanczos(lanczos)
+                 call perform_stochastic_lanczos(lanczos)
              else
 
 

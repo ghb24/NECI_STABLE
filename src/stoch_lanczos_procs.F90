@@ -14,6 +14,7 @@ module stoch_lanczos_procs
     use FciMCData, only: tPopsAlreadyRead
     use FciMCParMod, only: create_particle, InitFCIMC_HF, SetupParameters, InitFCIMCCalcPar
     use FciMCParMod, only: init_fcimc_fn_pointers, WriteFciMCStats, WriteFciMCStatsHeader
+    use FciMCParMod, only: rezero_iter_stats_each_iter
     use hash, only: FindWalkerHash, reset_hash_table, fill_in_hash_table
     use hilbert_space_size, only: CreateRandomExcitLevDetUnbias
     use Parallel_neci, only: MPIBarrier
@@ -30,9 +31,9 @@ module stoch_lanczos_procs
         ! The number of different initial walker configurations to start
         ! Lanczos calculations from.
         integer :: nconfigs
-        ! The number of separate Lanczos calculations to perform for each
-        ! different initial walker configuration.
-        integer :: nruns
+        ! The number of Lanczos calculations to perform for each initial walker
+        ! configuration.
+        integer :: nrepeats
         ! The number of different Lanczos vectors to sample (the number of
         ! vectors which form the Krylov subspace at the end of a calculation).
         integer :: nkrylov_vecs
@@ -56,7 +57,7 @@ contains
         character(len=100) :: w
 
         lanczos%nconfigs = 1
-        lanczos%nruns = 1
+        lanczos%nrepeats = 1
 
         read_inp: do
             call read_line(eof)
@@ -74,7 +75,7 @@ contains
             case("NUM-INIT-CONFIGS")
                 call geti(lanczos%nconfigs)
             case("NUM-RUNS-PER-CONFIG")
-                call geti(lanczos%nruns)
+                call geti(lanczos%nrepeats)
             case("NUM-LANCZOS-VECS")
                 call geti(lanczos%nkrylov_vecs)
             case("NUM-ITERS-PER-VEC")
@@ -105,13 +106,35 @@ contains
 
         ! If performing a finite-temperature calculation with more than one run for each initial
         ! configuration, we store this walker configuration so that we can restart from it later.
-        if (lanczos%tFiniteTemp .and. lanczos%nruns > 1) then
+        if (lanczos%tFiniteTemp .and. lanczos%nrepeats > 1) then
             allocate(init_lanczos_config(0:NIfTot, MaxWalkersPart), stat=ierr)
         end if
 
         call MPIBarrier(ierr)
 
     end subroutine init_stoch_lanczos
+
+    subroutine init_stoch_lanczos_iter(iter_data, determ_index)
+
+        use FciMCData, only: fcimc_excit_gen_store, FreeSlot, iStartFreeSlot, iEndFreeSlot
+
+        type(fcimc_iter_data), intent(inout) :: iter_data
+        integer, intent(out) :: determ_index
+
+        ! Reset positions to spawn into in the spawning array.
+        ValidSpawnedList = InitialSpawnedSlots
+
+        ! Reset the array which holds empty slots in CurrentDets.
+        FreeSlot(1:iEndFreeSlot) = 0
+        iStartFreeSlot = 1
+        iEndFreeSlot = 0
+
+        ! Index for counting deterministic states.
+        determ_index = 1
+
+        call rezero_iter_stats_each_iter(iter_data)
+
+    end subroutine init_stoch_lanczos_iter
 
     subroutine create_initial_config(lanczos, irun)
 
@@ -140,7 +163,7 @@ contains
                 TotWalkers = int(nwalkers, int64)
                 TotWalkers_Lanc = TotWalkers
                 ! If starting from this configuration more than once, store it.
-                if (lanczos%nruns > 1) init_lanczos_config(:, 1:TotWalkers) = CurrentDets(:, 1:TotWalkers)
+                if (lanczos%nrepeats > 1) init_lanczos_config(:, 1:TotWalkers) = CurrentDets(:, 1:TotWalkers)
             else if (irun > 1) then
                 TotWalkers = TotWalkers_Lanc
                 CurrentDets(:, 1:TotWalkers) = init_lanczos_config(:, 1:TotWalkers)
