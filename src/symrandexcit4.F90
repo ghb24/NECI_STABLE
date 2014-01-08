@@ -17,8 +17,9 @@ module excit_gens
     use procedure_pointers, only: get_umat_el
     use UMatCache, only: gtid
     use GenRandSymExcitNUMod, only: PickElecPair, gen_rand_excit, &
-                                    init_excit_gen_store, &
-                                    construct_class_counts, CreateSingleExcit
+                                    init_excit_gen_store, CreateSingleExcit, &
+                                    construct_class_counts, &
+                                    RandExcitSymLabelProd
     use constants
     use get_excit, only: make_double
     use sort_mod
@@ -241,7 +242,8 @@ contains
         call ClassCountInv (cc_ind, sym_i, spn_i, mom)
 
         ! Get the paired symmetry
-        sym_j = ieor(sym_i, sym_product)
+        !sym_j = ieor(sym_i, sym_product)
+        sym_j = RandExcitSymLabelProd (sym_i, sym_product)
 
         ! Consider the paired symmetries permitted
         spn_j = spn_i
