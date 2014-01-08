@@ -1033,17 +1033,7 @@ MODULE FciMCParMod
                 ! up by AvMCExcits if attempting multiple excitations from 
                 ! each walker (default 1.0_dp).
 
-                call find_num_to_spawn(SignCurr(part_type), AvMCExcits, WalkersToSpawn)
-
-                WalkersToSpawn=abs(int(SignCurr(part_type)*AvMCExcits))
-                if ((abs(SignCurr(part_type)*AvMCExcits)-real(WalkersToSpawn,dp)).gt.0) then
-                    prob_extra_walker=abs(SignCurr(part_type)*AvMCExcits) - real(WalkersToSpawn,dp)
-                    r = genrand_real2_dSFMT ()
-                    if (prob_extra_walker > r) then
-                        WalkersToSpawn=WalkersToSpawn+1
-                    endif
-                endif
-                    
+                call decide_num_to_spawn(SignCurr(part_type), AvMCExcits, WalkersToSpawn)
 
                 do p = 1, WalkersToSpawn
                     ! Zero the bit representation, to ensure no extraneous
@@ -1602,7 +1592,7 @@ MODULE FciMCParMod
 
     end subroutine CalcParentFlag
 
-    subroutine find_num_to_spawn(parent_pop, av_spawns_per_walker, nspawn)
+    subroutine decide_num_to_spawn(parent_pop, av_spawns_per_walker, nspawn)
 
         real(dp), intent(in) :: parent_pop
         real(dp), intent(in) :: av_spawns_per_walker
@@ -1616,7 +1606,7 @@ MODULE FciMCParMod
             if (prob_extra_walker > r) nspawn = nspawn + 1
         end if
 
-    end subroutine find_num_to_spawn
+    end subroutine decide_num_to_spawn
 
     SUBROUTINE HistInitPopulations(RealSignCurr,VecSlot)
         USE FciMCLoggingMOD, only : InitBinMin,InitBinIter

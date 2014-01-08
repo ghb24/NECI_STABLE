@@ -820,7 +820,8 @@ MODULE AnnihilationMod
 
         !write(6,*) "SpawnedParts after:"
         !do j = 1, ValidSpawned
-        !    write(6,*) SpawnedParts(:,j), test_flag(SpawnedParts(:,j),flag_deterministic), &
+        !    call extract_sign(SpawnedParts(:,j), CurrentSign)
+        !    write(6,*) SpawnedParts(0,j), CurrentSign, test_flag(SpawnedParts(:,j),flag_deterministic), &
         !                                  test_flag(SpawnedParts(:,j),flag_determ_parent)
         !end do
         !write(6,*)

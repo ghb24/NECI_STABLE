@@ -963,8 +963,9 @@ contains
 
     end subroutine return_largest_indices
 
-    subroutine start_walkers_from_core_ground()
+    subroutine start_walkers_from_core_ground(tPrintInfo)
 
+        logical, intent(in) :: tPrintInfo
         integer :: i, counter, ierr
         real(dp) :: eigenvec_pop
         character(len=*), parameter :: t_r = "start_walkers_from_core_ground"
@@ -985,15 +986,19 @@ contains
         call LogMemAlloc('hamil_diag', int(determ_proc_sizes(iProcIndex),sizeof_int), 8, t_r, HDiagTag, ierr)
         hamil_diag = core_ham_diag
 
-        write(6,'(a69)') "Using the deterministic ground state as initial walker configuration."
-        write(6,'(a34)') "Performing Davidson calculation..."
-        call neci_flush(6)
+        if (tPrintInfo) then
+            write(6,'(a69)') "Using the deterministic ground state as initial walker configuration."
+            write(6,'(a34)') "Performing Davidson calculation..."
+            call neci_flush(6)
+        end if
 
         ! Call the Davidson routine to find the ground state of the core space. 
         call perform_davidson(parallel_sparse_hamil_type, .false.)
 
-        write(6,'(a30)') "Davidson calculation complete."
-        call neci_flush(6)
+        if (tPrintInfo) then
+            write(6,'(a30)') "Davidson calculation complete."
+            call neci_flush(6)
+        end if
 
         ! The ground state compnents are now stored in davidson_eigenvector on the root.
         ! First, we need to normalise this vector to have the correct 'number of walkers'.
@@ -1033,6 +1038,29 @@ contains
         call deallocate_sparse_ham(sparse_ham, 'sparse_ham', SparseHamilTags)
 
     end subroutine start_walkers_from_core_ground
+
+    subroutine copy_core_dets_this_proc_to_spawnedparts()
+
+        integer :: i, ncore, proc
+        integer :: nI(nel)
+        character (len=*), parameter :: t_r = "copy_core_dets_this_proc_to_spawnedparts"
+
+        ncore = 0
+        SpawnedParts = 0
+
+        do i = 1, determ_space_size
+            call decode_bit_det(nI, core_space(:,i))
+            proc = DetermineDetNode(nI,0)
+            if (proc == iProcIndex) then
+                ncore = ncore + 1
+                SpawnedParts(:,ncore) = core_space(:,i)
+            end if
+        end do
+
+        if (ncore /= determ_proc_sizes(iProcIndex)) call stop_all("t_r", "The number of &
+            &core determinants counted is less than was previously counted.")
+
+    end subroutine copy_core_dets_this_proc_to_spawnedparts
 
     subroutine return_mp1_amp_and_mp2_energy(nI, ilut, ex, tParity, amp, energy_contrib)
 

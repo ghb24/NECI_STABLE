@@ -6,20 +6,23 @@ module stoch_lanczos_procs
     use bit_rep_data, only: NIfTot
     use bit_reps, only: decode_bit_det
     use CalcData, only: tTruncInitiator, tStartSinglePart, InitialPart, InitWalkers
-    use CalcData, only: tSemiStochastic
+    use CalcData, only: tSemiStochastic, tReadPops
     use constants
     use dSFMT_interface , only : genrand_real2_dSFMT
     use FciMCData, only: ilutHF, HFDet, CurrentDets, SpawnedParts, SpawnedParts2, TotWalkers
     use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots, HashIndex, nWalkerHashes
     use FciMCData, only: fcimc_iter_data, ll_node, MaxWalkersPart, tStartCoreGroundState
-    use FciMCData, only: tPopsAlreadyRead, tHashWalkerList
+    use FciMCData, only: tPopsAlreadyRead, tHashWalkerList, CurrentH, determ_proc_sizes
+    use FciMCData, only: core_ham_diag
     use FciMCParMod, only: create_particle, InitFCIMC_HF, SetupParameters, InitFCIMCCalcPar
     use FciMCParMod, only: init_fcimc_fn_pointers, WriteFciMCStats, WriteFciMCStatsHeader
     use FciMCParMod, only: rezero_iter_stats_each_iter
     use hash, only: FindWalkerHash, reset_hash_table, fill_in_hash_table
     use hilbert_space_size, only: CreateRandomExcitLevDetUnbias
-    use Parallel_neci, only: MPIBarrier
+    use Parallel_neci, only: MPIBarrier, iProcIndex
     use procedure_pointers
+    use semi_stoch_procs, only: copy_core_dets_this_proc_to_spawnedparts
+    use semi_stoch_procs, only: add_core_states_currentdet_hash, start_walkers_from_core_ground
     use SystemData, only: nel
 
     implicit none
@@ -77,7 +80,7 @@ contains
                 lanczos%tFiniteTemp = .true.
             case("NUM-INIT-CONFIGS")
                 call geti(lanczos%nconfigs)
-            case("NUM-RUNS-PER-CONFIG")
+            case("NUM-REPEATS-PER-CONFIG")
                 call geti(lanczos%nrepeats)
             case("NUM-LANCZOS-VECS")
                 call geti(lanczos%nkrylov_vecs)
@@ -151,11 +154,18 @@ contains
         call reset_hash_table(HashIndex)
 
         if (lanczos%tGround) then
-            ! If starting from the core ground state then walkers will be added to the list in the
-            ! semi-stochastic routines. Otherwise, call InitFCIMC_HF, which just adds the desired
-            ! initial number of walkers to the Hartree-Fock determinant.
-            if ((.not. tSemiStochastic) .or. (.not. tStartCoreGroundState)) call InitFCIMC_HF()
-
+            ! Put a walker on the Hartree-Fock again, with the requested amplitude.
+            call InitFCIMC_HF()
+            if (tSemiStochastic) then
+                ! core_space stores all core determinants from all processors. Move those on this
+                ! processor to SpawnedParts, which add_core_states_currentdet_hash uses.
+                call copy_core_dets_this_proc_to_spawnedparts()
+                call add_core_states_currentdet_hash()
+                if (tStartCoreGroundState .and. (.not. tReadPops)) &
+                    call start_walkers_from_core_ground(tPrintInfo = .false.)
+                ! Reset the diagonal Hamiltonian elements.
+                CurrentH(1, 1:determ_proc_sizes(iProcIndex)) = core_ham_diag
+            end if
         else if (lanczos%tFiniteTemp) then
             if (irun == 1) then
                 ! Convert the initial number of walkers to an integer.

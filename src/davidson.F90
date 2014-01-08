@@ -135,10 +135,10 @@ integer(TagIntType) :: ResidualTag
                 end do
             else if (hamil_type == parallel_sparse_hamil_type .or. &
                      hamil_type == sparse_hamil_type) then
-                ! In the case of sparse implementations, the diagonal should be
-                ! created when the Hamiltonian itself is.
-                call stop_all("t_r", "The diagonal of the Hamiltonian has not been allocated. Cannot perform &
-                                     &Davidson calculation.")
+                    ! In the case of sparse implementations, the diagonal should be
+                    ! created when the Hamiltonian itself is.
+                    call stop_all("t_r", "The diagonal of the Hamiltonian has not been allocated. Cannot perform &
+                                         &Davidson calculation.")
             end if
         end if
 
@@ -502,6 +502,8 @@ integer(TagIntType) :: ResidualTag
         if (allocated(projected_hamil)) deallocate(projected_hamil)
         if (allocated(projected_hamil_scrap)) deallocate(projected_hamil_scrap)
         if (allocated(partial_davidson_vector)) deallocate(partial_davidson_vector)
+        if (allocated(space_sizes)) deallocate(space_sizes)
+        if (allocated(davidson_disps)) deallocate(davidson_disps)
         if (allocated(temp_in)) deallocate(temp_in)
         if (allocated(temp_out)) deallocate(temp_out)
         if (allocated(residual)) then

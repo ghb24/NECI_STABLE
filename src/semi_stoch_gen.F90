@@ -174,7 +174,8 @@ contains
         SpawnedParts = 0
         TotWalkersOld = TotWalkers
 
-        if (tStartCoreGroundState .and. (.not. tReadPops)) call start_walkers_from_core_ground()
+        if (tStartCoreGroundState .and. (.not. tReadPops)) &
+            call start_walkers_from_core_ground(tPrintInfo = .true.)
 
         if (tWriteCore) call write_core_space()
 

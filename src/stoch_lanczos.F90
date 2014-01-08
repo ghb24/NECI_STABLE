@@ -11,7 +11,7 @@ contains
     subroutine perform_stochastic_lanczos(lanczos)
 
         use AnnihilationMod, only: DirectAnnihilation
-        use bit_rep_data, only: NIfTot, NOffFlag, tUseFlags
+        use bit_rep_data, only: NIfTot, NOffFlag, tUseFlags, test_flag
         use bit_reps, only: flag_deterministic, flag_determ_parent, set_flag
         use bit_reps, only: extract_bit_rep
         use CalcData, only: AvMCExcits, tSemiStochastic, tTruncInitiator
@@ -19,9 +19,9 @@ contains
         use DetBitOps, only: FindBitExcitLevel
         use FciMCData, only: fcimc_excit_gen_store, FreeSlot, iStartFreeSlot, iEndFreeSlot
         use FciMCData, only: TotWalkers, CurrentDets, CurrentH, iLutRef, max_calc_ex_level
-        use FciMCData, only: iter_data_fciqmc, TotParts, NCurrH, exFlag
+        use FciMCData, only: iter_data_fciqmc, TotParts, NCurrH, exFlag, Iter
         use FciMCData, only: indices_of_determ_states, partial_determ_vector
-        use FciMCParMod, only: create_particle, CalcParentFlag, find_num_to_spawn
+        use FciMCParMod, only: create_particle, CalcParentFlag, decide_num_to_spawn
         use FciMCParMod, only: calculate_new_shift_wrapper, walker_death, end_iter_stats
         use FciMCParMod, only: update_iter_data
         use procedure_pointers, only: generate_excitation, attempt_create, encode_child
@@ -57,6 +57,7 @@ contains
 
                     do iiter = 1, lanczos%niters
 
+                        iter = iiter + (irun-1)*lanczos%niters
                         call init_stoch_lanczos_iter(iter_data_fciqmc, determ_index)
 
                         !write(6,*) "HashIndex:"
@@ -70,6 +71,14 @@ contains
                         !        end do
                         !        write(6,'()',advance='yes')
                         !    end if
+                        !end do
+
+                        !write(6,*) "CurrentDets:"
+                        !do iwalker = 1, int(TotWalkers, sizeof_int)
+                        !    call extract_bit_rep(CurrentDets(:, iwalker), nI_parent, parent_sign, unused_flags, &
+                        !                          fcimc_excit_gen_store)
+                        !    write(6,*) iwalker, CurrentDets(0, iwalker), parent_sign, &
+                        !        test_flag(CurrentDets(:, iwalker), flag_deterministic)
                         !end do
 
                         do iwalker = 1, int(TotWalkers, sizeof_int)
@@ -119,7 +128,7 @@ contains
 
                             do ireplica = 1, inum_runs
 
-                                call find_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
+                                call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
                                 
                                 do ispawn = 1, nspawn
 
