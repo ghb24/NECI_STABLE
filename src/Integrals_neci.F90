@@ -3,7 +3,7 @@ module Integrals_neci
 
     use SystemData, only: tStoreSpinOrbs, tStarStore, nBasisMax, iSpinSkip, &
                           tFixLz, nBasis, G1, Symmetry, tCacheFCIDUMPInts, &
-                          tRIIntegrals, tVASP,tComplexOrbs_RealInts
+                          tRIIntegrals, tVASP,tComplexOrbs_RealInts, NEl, LMS, ECore
     use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
                          nTypes, gen2CPMDInts, tDFInts
@@ -31,6 +31,7 @@ contains
       use default_sets
       implicit none
 
+      tDumpFCIDUMP = .false.
       TLinRootChange=.false.
       TRmRootExcitStarsRootChange=.false.
       TExcitStarsRootChange=.false.
@@ -101,6 +102,8 @@ contains
         end if
         call readu(w)
         select case(w)
+        case("DUMPFCIDUMP")
+            tDumpFCIDUMP = .true.
         case("LINROOTCHANGE")
             TLinRootChange=.true.
         case("RMROOTEXCITSTARSROOTCHANGE")
@@ -1885,6 +1888,53 @@ contains
       WRITE(iunit,*) "******************"
       close(iunit)
     END subroutine writesymclasses
+
+    subroutine DumpFCIDUMP()
+        USE OneEInts, only : TMAT2D
+        use util_mod, only: get_free_unit
+        implicit none
+        integer :: i,j,k,l,iunit
+        character(len=*), parameter :: t_r='DumpFCIDUMP'
+
+        if(tStoreSpinOrbs) call stop_all(t_r,'Dumping FCIDUMP not currently working with tStoreSpinOrbs (non RHF)')
+        if(tFixLz) call stop_all(t_r,'Dumping FCIDUMP not working with Lz')
+
+        iunit = get_free_unit()
+        open(iunit,file='FCIDUMP-NECI',status='unknown')
+        write(iunit,'(2A6,I3,A7,I3,A5,I2,A)') '&FCI ','NORB=',nBasis/2,',NELEC=',NEl,',MS2=',LMS,','
+        WRITE(iunit,'(A9)',advance='no') 'ORBSYM='
+        do i = 1,nBasis,2
+            WRITE(iunit,'(I1,A1)',advance='no') (INT(G1(i)%sym%S)+1),','
+        enddo
+        write(iunit,'(A)') ''
+        WRITE(iunit,'(A9)') 'ISYM= 1,'
+        WRITE(iunit,'(A5)') '&END'
+
+        do i = 2,nBasis,2
+            do k = 2,i,2
+                do j = 2,nBasis,2
+                    do l = 2,j,2
+                        if((abs(real(umat(umatind(i/2,j/2,k/2,l/2,0,0)),dp))).gt.1.0e-9_dp) then
+                            write(iunit,'(F21.12,4I3)') REAL(UMat(UMatInd(i/2,j/2,k/2,l/2,0,0)),dp),i/2,k/2,j/2,l/2
+                        endif
+                    enddo
+                enddo
+            enddo
+        enddo
+        
+        do i = 2,nBasis,2
+            do j = 2,i,2
+                if(abs(real(tmat2d(i,j),dp)).gt.1.0e-9_dp) then
+                    write(iunit,'(F21.12,4I3)') REAL(TMAT2D(i,j),dp),i/2,j/2,0,0
+                endif
+            enddo
+        enddo
+
+        write(iunit,'(F21.12,4I3)') ECore,0,0,0,0
+        call neci_flush(iunit)
+        close(iunit)
+
+    end subroutine DumpFCIDUMP
 
 END MODULE Integrals_neci
 
