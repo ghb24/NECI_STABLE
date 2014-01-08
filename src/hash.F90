@@ -123,6 +123,18 @@ module hash
 
     END FUNCTION CreateHash
 
+    subroutine init_hash_table(hash_table)
+
+        type(ll_node), pointer, intent(inout) :: hash_table(:)
+        integer :: i
+
+        do i = 1, size(hash_table)
+            hash_table(i)%ind = 0
+            nullify(hash_table(i)%next)
+        end do
+
+    end subroutine init_hash_table
+
     subroutine reset_hash_table(hash_table)
 
         type(ll_node), pointer, intent(inout) :: hash_table(:)

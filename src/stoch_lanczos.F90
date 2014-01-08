@@ -3,7 +3,6 @@
 module stoch_lanczos
 
     use stoch_lanczos_procs
-    use FciMCData, only: HashIndex, ll_node
     implicit none
 
 contains
@@ -30,7 +29,7 @@ contains
         use SystemData, only: nel
 
         type(stoch_lanczos_data), intent(in) :: lanczos
-        integer :: iconfig, irun, ivec, iiter, iwalker, ireplica, ispawn
+        integer :: iconfig, irepeat, ivec, iiter, idet, ireplica, ispawn
         integer :: nspawn, parent_flags, unused_flags, ex_level_to_ref
         integer :: TotWalkersNew, determ_index, ic, ex(2,2)
         integer :: nI_parent(nel), nI_child(nel)
@@ -49,42 +48,24 @@ contains
 
         do iconfig = 1, lanczos%nconfigs
 
-            do irun = 1, lanczos%nrepeats
+            do irepeat = 1, lanczos%nrepeats
 
-                call create_initial_config(lanczos, irun)
+                call create_initial_config(lanczos, irepeat)
 
-                do ivec = 1, lanczos%nkrylov_vecs
+                do ivec = 1, lanczos%nvecs
+
+                    ! Copy the current state of CurrentDets to lanczos_vecs.
+                    call store_lanczos_vec(ivec)
 
                     do iiter = 1, lanczos%niters
 
-                        iter = iiter + (irun-1)*lanczos%niters
+                        iter = iiter + (ivec-1)*lanczos%niters
                         call init_stoch_lanczos_iter(iter_data_fciqmc, determ_index)
 
-                        !write(6,*) "HashIndex:"
-                        !do iwalker=1,nWalkerHashes
-                        !    TempNode => HashIndex(iwalker)
-                        !    if (TempNode%Ind /= 0) then
-                        !        write(6,'(i9)',advance='no') iwalker
-                        !        do while (associated(TempNode))
-                        !            write(6,'(i9)',advance='no') TempNode%Ind
-                        !            TempNode => TempNode%Next
-                        !        end do
-                        !        write(6,'()',advance='yes')
-                        !    end if
-                        !end do
-
-                        !write(6,*) "CurrentDets:"
-                        !do iwalker = 1, int(TotWalkers, sizeof_int)
-                        !    call extract_bit_rep(CurrentDets(:, iwalker), nI_parent, parent_sign, unused_flags, &
-                        !                          fcimc_excit_gen_store)
-                        !    write(6,*) iwalker, CurrentDets(0, iwalker), parent_sign, &
-                        !        test_flag(CurrentDets(:, iwalker), flag_deterministic)
-                        !end do
-
-                        do iwalker = 1, int(TotWalkers, sizeof_int)
+                        do idet = 1, int(TotWalkers, sizeof_int)
 
                             ! The 'parent' determinant from which spawning is to be attempted.
-                            ilut_parent => CurrentDets(:,iwalker)
+                            ilut_parent => CurrentDets(:,idet)
 
                             ! Indicate that the scratch storage used for excitation generation from the
                             ! same walker has not been filled (it is filled when we excite from the first
@@ -103,7 +84,7 @@ contains
                             ! data in arrays for later use.
                             if (tParentIsDeterm) then
                                 ! Store the index of this state, for use in annihilation later.
-                                indices_of_determ_states(determ_index) = iwalker
+                                indices_of_determ_states(determ_index) = idet
 
                                 ! Add the amplitude to the deterministic vector.
                                 partial_determ_vector(:,determ_index) = parent_sign
@@ -120,11 +101,11 @@ contains
                             ! the list of free slots and cycle.
                             if (tParentUnoccupied) then
                                 iEndFreeSlot = iEndFreeSlot + 1
-                                FreeSlot(iEndFreeSlot) = iwalker
+                                FreeSlot(iEndFreeSlot) = idet
                                 cycle
                             end if
 
-                            if (tTruncInitiator) call CalcParentFlag(iwalker, iwalker, parent_flags)
+                            if (tTruncInitiator) call CalcParentFlag(idet, idet, parent_flags)
 
                             do ireplica = 1, inum_runs
 
@@ -186,8 +167,8 @@ contains
                             ! If this is a core-space determinant then the death step is done in
                             ! deterministic_projection.
                             if (.not. tParentIsDeterm) then
-                                call walker_death (iter_data_fciqmc, nI_parent, ilut_parent, CurrentH(1,iwalker), &
-                                                    parent_sign, unused_sign2, unused_sign1, iwalker, iwalker, &
+                                call walker_death (iter_data_fciqmc, nI_parent, ilut_parent, CurrentH(1,idet), &
+                                                    parent_sign, unused_sign2, unused_sign1, idet, idet, &
                                                     ex_level_to_ref)
                             end if
 

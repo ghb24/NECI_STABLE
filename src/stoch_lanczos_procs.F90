@@ -3,11 +3,12 @@
 module stoch_lanczos_procs
 
     use AnnihilationMod, only: SendProcNewParts, CompressSpawnedList
-    use bit_rep_data, only: NIfTot
+    use bit_rep_data
     use bit_reps, only: decode_bit_det
     use CalcData, only: tTruncInitiator, tStartSinglePart, InitialPart, InitWalkers
     use CalcData, only: tSemiStochastic, tReadPops
     use constants
+    use DetBitOps, only: DetBitEq
     use dSFMT_interface , only : genrand_real2_dSFMT
     use FciMCData, only: ilutHF, HFDet, CurrentDets, SpawnedParts, SpawnedParts2, TotWalkers
     use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots, HashIndex, nWalkerHashes
@@ -17,7 +18,7 @@ module stoch_lanczos_procs
     use FciMCParMod, only: create_particle, InitFCIMC_HF, SetupParameters, InitFCIMCCalcPar
     use FciMCParMod, only: init_fcimc_fn_pointers, WriteFciMCStats, WriteFciMCStatsHeader
     use FciMCParMod, only: rezero_iter_stats_each_iter
-    use hash, only: FindWalkerHash, reset_hash_table, fill_in_hash_table
+    use hash, only: FindWalkerHash, init_hash_table, reset_hash_table, fill_in_hash_table
     use hilbert_space_size, only: CreateRandomExcitLevDetUnbias
     use Parallel_neci, only: MPIBarrier, iProcIndex
     use procedure_pointers
@@ -40,13 +41,18 @@ module stoch_lanczos_procs
         integer :: nrepeats
         ! The number of different Lanczos vectors to sample (the number of
         ! vectors which form the Krylov subspace at the end of a calculation).
-        integer :: nkrylov_vecs
+        integer :: nvecs
         ! The number of iterations to perform *between each Lanczos vector being
         ! sampled*.
         integer :: niters
     end type
 
     type(stoch_lanczos_data) :: lanczos
+
+    integer :: nhashes_lanczos
+    integer :: TotWalkersLanczos
+    integer(n_int), allocatable :: lanczos_vecs(:,:)
+    type(ll_node), pointer :: lanczos_hash_table(:) 
 
     integer :: TotWalkers_Lanc
     integer(n_int), allocatable :: init_lanczos_config(:,:)
@@ -83,7 +89,7 @@ contains
             case("NUM-REPEATS-PER-CONFIG")
                 call geti(lanczos%nrepeats)
             case("NUM-LANCZOS-VECS")
-                call geti(lanczos%nkrylov_vecs)
+                call geti(lanczos%nvecs)
             case("NUM-ITERS-PER-VEC")
                 call geti(lanczos%niters)
             case default
@@ -112,6 +118,16 @@ contains
 
         if (n_int == 4) call stop_all('t_r', 'Use of RealCoefficients does not work with 32 bit &
              &integers due to the use of the transfer operation from dp reals to 64 bit integers.')
+
+        ! Assuming Yamanouchi symbols (and CSFs) not used.
+        NIfLan = NIfD + NIfSgn*lanczos%nvecs + NIfFlag
+
+        nhashes_lanczos = nWalkerHashes
+        TotWalkersLanczos = 0
+        allocate(lanczos_vecs(0:NIfLan, MaxWalkersPart), stat=ierr)
+        lanczos_vecs = 0
+        allocate(lanczos_hash_table(nhashes_lanczos), stat=ierr)
+        call init_hash_table(lanczos_hash_table)
 
         ! If performing a finite-temperature calculation with more than one run for each initial
         ! configuration, we store this walker configuration so that we can restart from it later.
@@ -145,10 +161,10 @@ contains
 
     end subroutine init_stoch_lanczos_iter
 
-    subroutine create_initial_config(lanczos, irun)
+    subroutine create_initial_config(lanczos, irepeat)
 
         type(stoch_lanczos_data), intent(in) :: lanczos
-        integer, intent(in) :: irun
+        integer, intent(in) :: irepeat
         integer :: DetHash, i, nwalkers, nwalkers_target
 
         call reset_hash_table(HashIndex)
@@ -167,7 +183,7 @@ contains
                 CurrentH(1, 1:determ_proc_sizes(iProcIndex)) = core_ham_diag
             end if
         else if (lanczos%tFiniteTemp) then
-            if (irun == 1) then
+            if (irepeat == 1) then
                 ! Convert the initial number of walkers to an integer.
                 if (tStartSinglePart) then
                     nwalkers_target = int(InitialPart)
@@ -180,7 +196,7 @@ contains
                 TotWalkers_Lanc = TotWalkers
                 ! If starting from this configuration more than once, store it.
                 if (lanczos%nrepeats > 1) init_lanczos_config(:, 1:TotWalkers) = CurrentDets(:, 1:TotWalkers)
-            else if (irun > 1) then
+            else if (irepeat > 1) then
                 TotWalkers = TotWalkers_Lanc
                 CurrentDets(:, 1:TotWalkers) = init_lanczos_config(:, 1:TotWalkers)
                 call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, TotWalkers)
@@ -195,7 +211,7 @@ contains
 
         integer, intent(in) :: nwalkers
         integer, intent(out) :: ndets
-        integer :: i, irun, excit, nattempts, DetHash
+        integer :: i, ireplica, excit, nattempts, DetHash
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel)
         real(dp) :: r, walker_sign(lenof_sign)
@@ -212,7 +228,7 @@ contains
 
         ilut = 0
 
-        do irun = 1, inum_runs
+        do ireplica = 1, inum_runs
             walker_sign = 0.0_dp
             do i = 1, nwalkers
                 ! Generate the determinant (output to ilut).
@@ -221,11 +237,11 @@ contains
 
                 ! Choose whether the walker to be added has an amplitude of plus or minus one, with
                 ! 0.5 chance of each.
-                walker_sign(irun) = 1.0_dp
+                walker_sign(ireplica) = 1.0_dp
                 r = genrand_real2_dSFMT()
-                if (r < 0.5) walker_sign(irun) = -1.0_dp*walker_sign(irun)
+                if (r < 0.5) walker_sign(ireplica) = -1.0_dp*walker_sign(ireplica)
 
-                call create_particle(nI, ilut, walker_sign, 0, irun)
+                call create_particle(nI, ilut, walker_sign, 0, ireplica)
 
             end do
         end do
@@ -254,5 +270,69 @@ contains
         tTruncInitiator = tInitiatorTemp
 
     end subroutine generate_init_config_basic
+
+    subroutine store_lanczos_vec(ivec)
+
+        integer, intent(in) ::  ivec
+        integer :: idet, sign_ind, DetHash, det_ind
+        integer :: nI(nel)
+        logical :: tDetFound
+        type(ll_node), pointer :: temp_node
+
+        ! The index of the first element referring to the sign, for this ivec.
+        sign_ind = NIfD + NIfSgn*(ivec-1) + 1
+
+        ! Loop over all occupied determinants for this new Lanczos vector.
+        do idet = 1, TotWalkers
+            tDetFound = .false.
+
+            call decode_bit_det(nI, CurrentDets(:,idet))
+            DetHash = FindWalkerHash(nI, nhashes_lanczos)
+            temp_node => lanczos_hash_table(DetHash)
+
+            ! If the first element in the list for this hash value has been used.
+            if (.not. temp_node%ind == 0) then
+                ! Loop over all determinants with this hash value which are already in the list.
+                do while (associated(temp_node%next))
+                    if (DetBitEQ(CurrentDets(:,idet), lanczos_vecs(:,TotWalkersLanczos), NIfDBO)) then
+                        ! This determinant is already in the list.
+                        det_ind = temp_node%ind
+                        ! Just add the sign for the new Lanczos vector. The determinant and flag are
+                        ! there already.
+                        lanczos_vecs(sign_ind:sign_ind+NIfSgn,det_ind) = CurrentDets(NOffSgn:NOffSgn+NIfSgn,idet)
+                        tDetFound = .true.
+                        exit
+                    end if
+                    ! Move on to the next determinant with this hash value.
+                    temp_node => temp_node%next
+                end do
+
+                if (.not. tDetFound) then
+                    ! We need to add a new determinant in the next position in the list.
+                    ! So create that next position!
+                    allocate(temp_node%next)
+                    temp_node => temp_node%next
+                    nullify(temp_node%next)
+                end if
+            end if
+
+            if (.not. tDetFound) then
+                ! A new determiant needs to be added.
+                TotWalkersLanczos = TotWalkersLanczos + 1
+                det_ind = TotWalkersLanczos
+                temp_node%ind = det_ind
+
+                ! Copy determinant across.
+                lanczos_vecs(0:NIfD,det_ind) = CurrentDets(0:NIfD,idet)
+                ! Copy sign across.
+                lanczos_vecs(sign_ind:sign_ind+NIfSgn,det_ind) = CurrentDets(NOffSgn:NOffSgn+NIfSgn,idet)
+                ! Copy Flags across.
+                lanczos_vecs(NOffFlag,det_ind) = CurrentDets(NOffFlag,idet)
+            end if
+
+            nullify(temp_node)
+        end do
+
+    end subroutine store_lanczos_vec
 
 end module stoch_lanczos_procs

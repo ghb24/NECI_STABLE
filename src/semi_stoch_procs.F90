@@ -26,7 +26,7 @@ module semi_stoch_procs
                          tFill_RDM, IterLastRDMFill, full_determ_vector_av, &
                          tFillingStochRDMonFly, Iter, IterRDMStart, CoreHashIndex, &
                          core_ham_diag, DavidsonTag, Fii, HFDet
-    use hash, only: DetermineDetNode, FindWalkerHash, reset_hash_table
+    use hash, only: DetermineDetNode, FindWalkerHash, init_hash_table, reset_hash_table
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use MI_integrals, only: MI_off_diag_helement
@@ -382,11 +382,7 @@ contains
         character(len=*), parameter :: t_r = "initialise_core_hash_table"
 
         allocate(CoreHashIndex(determ_space_size), stat=ierr)
-
-        do i = 1, determ_space_size
-            CoreHashIndex(i)%ind = 0
-            nullify(CoreHashIndex(i)%next)
-        end do
+        call init_hash_table(CoreHashIndex)
 
         do i = 1, determ_space_size
             call decode_bit_det(nI, core_space(:,i))
