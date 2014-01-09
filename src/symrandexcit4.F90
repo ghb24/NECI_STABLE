@@ -1,6 +1,6 @@
 #include "macros.h"
 
-module excit_gens
+module excit_gens_int_weighted
 
     use SystemData, only: nel, nbasis
     use SymExcit3, only: CountExcitations3, GenExcitations3
