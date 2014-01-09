@@ -28,7 +28,7 @@ contains
         use semi_stoch_procs, only: is_core_state, check_determ_flag, deterministic_projection
         use SystemData, only: nel
 
-        type(stoch_lanczos_data), intent(in) :: lanczos
+        type(stoch_lanczos_data), intent(inout) :: lanczos
         integer :: iconfig, irepeat, ivec, iiter, idet, ireplica, ispawn
         integer :: nspawn, parent_flags, unused_flags, ex_level_to_ref
         integer :: TotWalkersNew, determ_index, ic, ex(2,2)
@@ -56,6 +56,8 @@ contains
 
                     ! Copy the current state of CurrentDets to lanczos_vecs.
                     call store_lanczos_vec(ivec)
+
+                    call calc_overlap_matrix_elems(lanczos, ivec)
 
                     do iiter = 1, lanczos%niters
 
@@ -174,11 +176,11 @@ contains
 
                         end do ! Over all determinants.
 
+                        if (tSemiStochastic) call deterministic_projection()
+
                         TotWalkersNew = int(TotWalkers, sizeof_int)
 
                         call end_iter_stats(TotWalkersNew)
-
-                        if (tSemiStochastic) call deterministic_projection()
 
                         call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.)
 

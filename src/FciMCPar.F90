@@ -1165,6 +1165,10 @@ MODULE FciMCParMod
             endif
         ENDIFDEBUG
 
+        ! For semi-stochastic calculations only: Gather together the parts of the deterministic vector stored
+        ! on each processor, and then perform the multiplication of the exact projector on this vector.
+        if (tSemiStochastic) call deterministic_projection()
+
         if(tHashWalkerList) then
             !With this algorithm, the determinants do not move, and therefore TotWalkersNew is simply equal
             !to TotWalkers
@@ -1175,10 +1179,6 @@ MODULE FciMCParMod
             ! in the main array, before annihilation
             TotWalkersNew = VecSlot - 1
         endif
-
-        ! For semi-stochastic calculations only: Gather together the parts of the deterministic vector stored
-        ! on each processor, and then perform the multiplication of the exact projector on this vector.
-        if (tSemiStochastic) call deterministic_projection()
 
         ! Update the statistics for the end of an iteration.
         ! Why is this done here - before annihilation!

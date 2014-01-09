@@ -35,10 +35,6 @@ module enumerate_excitations
         logical :: gen_singles
     end type
 
-    type simple_excit_store
-        integer :: i, j
-    end type
-    
 contains
 
     subroutine enumerate_spatial_excitations (ilutI, nI, ilut_ret, exflag, &

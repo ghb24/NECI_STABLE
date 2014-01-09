@@ -2,7 +2,6 @@ module bit_rep_data
 
     use CalcData, only: tUseRealCoeffs
     use constants
-    use CalcData, only: tUseRealCoeffs
 
     implicit none
 

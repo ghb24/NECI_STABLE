@@ -6,7 +6,7 @@ module stoch_lanczos_procs
     use bit_rep_data
     use bit_reps, only: decode_bit_det
     use CalcData, only: tTruncInitiator, tStartSinglePart, InitialPart, InitWalkers
-    use CalcData, only: tSemiStochastic, tReadPops
+    use CalcData, only: tSemiStochastic, tReadPops, tUseRealCoeffs
     use constants
     use DetBitOps, only: DetBitEq
     use dSFMT_interface , only : genrand_real2_dSFMT
@@ -45,6 +45,8 @@ module stoch_lanczos_procs
         ! The number of iterations to perform *between each Lanczos vector being
         ! sampled*.
         integer :: niters
+        real(dp), allocatable :: overlap_matrix(:,:)
+        real(dp), allocatable :: hamil_matrix(:,:)
     end type
 
     type(stoch_lanczos_data) :: lanczos
@@ -101,12 +103,17 @@ contains
 
     subroutine init_stoch_lanczos(lanczos)
 
-        type(stoch_lanczos_data), intent(in) :: lanczos
+        type(stoch_lanczos_data), intent(inout) :: lanczos
         integer :: ierr
         character (len=*), parameter :: t_r = "init_stoch_lanczos"
 
+        associate(nvecs => lanczos%nvecs, s_matrix => lanczos%overlap_matrix, hamil => lanczos%hamil_matrix)
+
         if (.not. tHashWalkerList) call stop_all('t_r','Stochastic Lanczos can only be run using &
             &the linscalefcimcalgo option (the linear scaling algorithm).')
+
+        if (.not. tUseRealCoeffs) call stop_all('t_r','Stochastic Lanczos can only be run using &
+            &real coefficients).')
 
         tPopsAlreadyRead = .false.
         call SetupParameters()
@@ -120,7 +127,7 @@ contains
              &integers due to the use of the transfer operation from dp reals to 64 bit integers.')
 
         ! Assuming Yamanouchi symbols (and CSFs) not used.
-        NIfLan = NIfD + NIfSgn*lanczos%nvecs + NIfFlag
+        NIfLan = NIfD + lenof_sign*lanczos%nvecs + NIfFlag
 
         nhashes_lanczos = nWalkerHashes
         TotWalkersLanczos = 0
@@ -129,6 +136,9 @@ contains
         allocate(lanczos_hash_table(nhashes_lanczos), stat=ierr)
         call init_hash_table(lanczos_hash_table)
 
+        allocate(lanczos%overlap_matrix(lanczos%nvecs, lanczos%nvecs), stat=ierr)
+        allocate(lanczos%hamil_matrix(lanczos%nvecs, lanczos%nvecs), stat=ierr)
+
         ! If performing a finite-temperature calculation with more than one run for each initial
         ! configuration, we store this walker configuration so that we can restart from it later.
         if (lanczos%tFiniteTemp .and. lanczos%nrepeats > 1) then
@@ -136,6 +146,8 @@ contains
         end if
 
         call MPIBarrier(ierr)
+
+        end associate
 
     end subroutine init_stoch_lanczos
 
@@ -280,7 +292,7 @@ contains
         type(ll_node), pointer :: temp_node
 
         ! The index of the first element referring to the sign, for this ivec.
-        sign_ind = NIfD + NIfSgn*(ivec-1) + 1
+        sign_ind = NIfD + lenof_sign*(ivec-1) + 1
 
         ! Loop over all occupied determinants for this new Lanczos vector.
         do idet = 1, TotWalkers
@@ -334,5 +346,36 @@ contains
         end do
 
     end subroutine store_lanczos_vec
+
+    subroutine calc_overlap_matrix_elems(lanczos, ivec)
+
+        type(stoch_lanczos_data), intent(inout) :: lanczos
+        integer, intent(in) :: ivec
+        integer :: idet, jvec, ind(ivec), sgn(lenof_sign)
+        real(dp) :: sign1(lenof_sign), sign2(lenof_sign)
+
+        associate(s_matrix => lanczos%overlap_matrix)
+
+            s_matrix(1:ivec, jvec) = 0.0_dp
+            s_matrix(jvec, 1:ivec) = 0.0_dp
+
+            do jvec = 1, ivec
+                ! The first index of the sign in lanczos_vecs, for each Lanczos vector.
+                ind(jvec) = NIfD + lenof_sign*(jvec-1) + 1
+            end do
+
+            do idet = 1, TotWalkersLanczos
+                sgn = lanczos_vecs(ind(ivec):ind(ivec)+1, idet)
+                sign1 = transfer(sgn, sign1)
+                do jvec = 1, ivec
+                    sgn = lanczos_vecs(ind(jvec):ind(jvec)+1, idet)
+                    sign2 = transfer(sgn, sign1)
+                    s_matrix(jvec,ivec) = s_matrix(jvec,ivec) + (sign1(1)*sign2(2) + sign1(2)*sign2(1))/2.0_dp
+                end do
+            end do
+
+        end associate
+
+    end subroutine calc_overlap_matrix_elems
 
 end module stoch_lanczos_procs
