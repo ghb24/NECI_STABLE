@@ -146,6 +146,7 @@ MODULE HPHFRandExcitMod
         ! Avoid warnings
         tParity = .false.
 
+        ! Generate a normal excitation.
         if (tGen_4ind_weighted) then
             call gen_excit_4ind_weighted (nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                           ExcitMat, tSignOrig, pGen, Hel,&
@@ -159,10 +160,14 @@ MODULE HPHFRandExcitMod
 !        WRITE(6,*) "COUNT: ",Count
 !        CALL neci_flush(6)
 
-!Create excitation of uniquely chosen determinant in this HPHF function.
+        ! Create excitation of uniquely chosen determinant in this HPHF
+        ! function.
         IF(IsNullDet(nJ)) RETURN
-!Create bit representation of excitation - iLutnJ
-        CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
+
+        ! Create bit representation of excitation - iLutnJ.
+        ! n.b. 4ind_weighted does this already.
+        if (.not. tGen_4ind_weighted) &
+            CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
             
 !Test!
 !        CALL CalcNonUniPGen(ExcitMat,IC,ClassCount2,ClassCountUnocc2,pDoub,pGen2)
