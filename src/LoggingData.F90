@@ -24,6 +24,7 @@ module LoggingData
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tDo_Not_Calc_RDMEnergy
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
     LOGICAL tTruncDumpbyVal, tChangeVarsRDM, tPrintRODump, tno_RDMs_to_read, tReadRDMs
+    LOGICAL tWriteBinRDMNoDiag, tReadRDMAvPop
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG, tWriteMultRDMs
     LOGICAL tHF_S_D_Ref, tHF_S_D, tHF_Ref_Explicit, tExplicitAllRDM, twrite_normalised_RDMs, twrite_RDMs_to_read 
     LOGICAL tNoNOTransform, tPrint1RDM, tPrintInitiators, tInitiatorRDM

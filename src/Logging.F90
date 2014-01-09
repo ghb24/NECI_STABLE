@@ -130,6 +130,8 @@ MODULE Logging
       twrite_normalised_RDMs = .true. 
       twrite_RDMs_to_read = .false.
       tno_RDMs_to_read = .false.
+      tReadRDMAvPop=.false.
+      tWriteBinRDMNoDiag=.false.
       tReadRDMs = .false.
       IterWriteRDMs = 10000
       tWriteMultRDMs = .false.
@@ -570,6 +572,22 @@ MODULE Logging
                 twrite_RDMs_to_read = .true. 
                 tno_RDMs_to_read = .false. 
             ENDIF
+
+        case("WRITEBINRDMNODIAG")
+! Use in conjunction with WRITERDMSTOREAD.  If WRITEBINRDMNODIAG is also present, then the RDMs we write out in binary (to be read
+! back in later) will NOT contain contributions to the diagonal elements, except from determinants that have become unoccupied.
+! As we gather a running average of the determinant coefficient in currentH over its lifetime, there is no need to add in diagonal
+! elements until a det becomes deoccupied and we lose the information, or the end of the simulation.  By using this keyword, we
+! indicate that for restart purposes we have not finished the simulation, and would rather print out the RDMs exactly as they are
+! currently stored, and print out the contents of CurrentH separately, so we can continue the accumulation exactly in a restarted calc.
+            tWriteBinRDMNoDiag=.true.
+        
+        case("READRDMAVPOP")
+! Use in conjunction with READRDMS.  This can be used in the previous calculation had "WRITEBINRDMNODIAG" switched on.
+! We will read in the information in RDM_Av_Pop which contains some of the data from CurrentH in the previous round -- the cumulative
+! sum of this determinant's populations during its lifetime (updated every iter), and the number of iters it has been occupied.
+! This information will get assigned into currentH and allow us to continue the RDM accumulation without bias.
+            tReadRDMAvPop=.true.
 
         case("NONORMRDMS")            
 ! Does not print out the normalised (final) RDMs - to be used if you know the calculation will not be converged, and don't  

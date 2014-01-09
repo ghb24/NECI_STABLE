@@ -25,7 +25,8 @@ MODULE PopsfileMod
     use LoggingData, only: iWritePopsEvery, tPopsFile, iPopsPartEvery, tBinPops, &
                        tPrintPopsDefault, tIncrementPops, tPrintInitiators, &
                        tSplitPops, tZeroProjE, tRDMonFly, tExplicitAllRDM, &
-                       tHF_Ref_Explicit, binarypops_min_weight
+                       tHF_Ref_Explicit, binarypops_min_weight, &
+                       tWriteBinRDMNoDiag, tReadRDMAvPop
     use sort_mod
     use util_mod, only: get_free_unit,get_unique_filename
 
@@ -47,13 +48,17 @@ MODULE PopsfileMod
         real(dp), intent(out) :: CurrHF(lenof_sign)
         real(dp) :: CurrParts(lenof_sign)
         integer :: CurrWalkers,Slot,nJ(nel)
-        integer :: iunit,i,j,ierr,PopsInitialSlots(0:nNodes-1)
+        integer :: iunit,i,j,ierr,PopsInitialSlots(0:nNodes-1), iunit_3
         INTEGER(TagIntType) :: BatchReadTag=0
+        INTEGER(TagIntType) :: BatchCurrentHTag=1
         real(dp) :: BatchSize
         integer :: PopsSendList(0:nNodes-1),proc
         integer(MPIArg) :: sendcounts(nNodes), disps(nNodes), recvcount
+        integer(MPIArg) :: sendcounts2(nNodes), disps2(nNodes), recvcount2
         integer :: MaxSendIndex,err,DetHash
         integer(n_int) , allocatable :: BatchRead(:,:)
+        real(dp) , allocatable :: BatchCurrentH(:,:)
+        real(dp) :: CurrentHEntry(1+2*lenof_sign)
         integer(n_int) :: WalkerTemp(0:NIfTot)
         integer(int64) :: Det,AllCurrWalkers,TempCurrWalkers
         logical :: FormPops,BinPops,tReadAllPops,tStoreDet
@@ -120,6 +125,8 @@ MODULE PopsfileMod
             endif
         end if
 
+        open(iunit_3,file='RDM_AV_POP', status='old', form='unformatted')
+
         call mpibarrier(err)
 
         IF(iProcIndex.eq.Root) THEN
@@ -159,11 +166,21 @@ MODULE PopsfileMod
                 write(6, '(a,i12,a)') "Reading in a maximum of ", ReadBatch, &
                                       " determinants at a time from POPSFILE."
                 call neci_flush(6)
+                if (tReadRDMAvPop) then
+                    allocate(BatchCurrentH(1:1+2*lenof_sign, 1:ReadBatch), stat=ierr)
+                    call LogMemAlloc('BatchCurrentH', ReadBatch * (1+2*lenof_sign), &
+                                     size_n_int, this_routine, BatchCurrentHTag, ierr)
+                endif
             else
                 ! Allocate array to store the received particles?
                 allocate(BatchRead(0:NIfTot, 1:MaxSendIndex), stat=ierr)
                 call LogMemAlloc('BatchRead', MaxSendIndex * (NIfTot+1), &
                                  size_n_int, this_routine, BatchReadTag, ierr)
+                if (tReadRDMAvPop) then
+                    allocate(BatchCurrentH(1:1+2*lenof_sign, 1:MaxSendIndex), stat=ierr)
+                    call LogMemAlloc('BatchCurrentH', MaxSendIndex * (1+2*lenof_sign), &
+                                     size_n_int, this_routine, BatchCurrentHTag, ierr)
+                endif
             end if
 
             ! Output the batch sizes.
@@ -189,14 +206,17 @@ r_loop: do while(.not.tReadAllPops)
                 if (.not. tSplitPops) then
                     nBatches = nBatches+1
                     BatchRead(:,:) = 0
+                    if (tReadRDMAvPop) BatchCurrentH(:,:)=0
                     PopsSendList(:) = PopsInitialSlots(:)
                 end if
                 do while (Det <= EndPopsList .or. tSplitPops)
 
                     ! Read the next entry, and store the walker in WalkerTemp 
                     ! and TempnI
+
                     tEOF = read_popsfile_det (iunit, Det, BinPops, &
-                                              WalkerTemp, TempnI, PopNifSgn)
+                                              WalkerTemp, TempnI, PopNifSgn, &
+                                              CurrentHEntry, iunit_3)
 
                     ! When we have got to the end of the file, we are done.
                     if (tEOF) then
@@ -209,6 +229,7 @@ r_loop: do while(.not.tReadAllPops)
                     if (tSplitPops) then
                         CurrWalkers = CurrWalkers + 1
                         CurrentDets(:,CurrWalkers) = WalkerTemp
+                        if(tReadRDMAvPop) CurrentH(:,CurrWalkers)=CurrentHEntry
                         if (proc /= iProcIndex) &
                             call stop_all (this_routine, "Determinant in the &
                                            &wrong Split POPSFILE")
@@ -217,6 +238,7 @@ r_loop: do while(.not.tReadAllPops)
                         ! and if we have filled up the slot in the list then
                         ! distribute it when it is full.
                         BatchRead(:,PopsSendList(proc)) = WalkerTemp(:)
+                        if(tReadRDMAvPop) BatchCurrentH(:,PopsSendList(proc))=CurrentHEntry
                         PopsSendList(proc) = PopsSendList(proc) + 1
                         if(proc /= nNodes - 1) then
                             if (PopsInitialSlots(proc+1) - &
@@ -234,17 +256,27 @@ r_loop: do while(.not.tReadAllPops)
 
                 if(Det.gt.EndPopsList) tReadAllPops=.true.
 
+
                 do j = 0, nNodes - 1
                     sendcounts(j+1) = &
                         int((PopsSendList(j) - PopsInitialSlots(j)) * &
                             (NIfTot + 1), MPIArg)
                     disps(j+1) = &
                         int((PopsInitialSlots(j) - 1) * (NIfTot + 1), MPIArg)
+                    if(tReadRDMAvPop) then
+                        sendcounts2(j+1) = &
+                            int((PopsSendList(j) - PopsInitialSlots(j)) * &
+                                (1+2*lenof_sign), MPIArg)
+                        disps2(j+1) = &
+                            int((PopsInitialSlots(j) - 1) * (1+2*lenof_sign), MPIArg)
+                    endif
                 enddo
                 MaxSendIndex = (disps(nNodes) + sendcounts(nNodes)) &
                              / (nIfTot + 1)
 
             endif
+
+            !BatchCurrentH is fine here CMO
 
             ! Now scatter the particles read in to their correct processors.
             if (bNodeRoot) then
@@ -261,6 +293,21 @@ r_loop: do while(.not.tReadAllPops)
                                   recvcount, err, Roots)
                 if (err /= 0) &
                     call stop_all (this_routine, "MPI scatterV error")
+                
+                if(tReadRDMAvPop) then
+                    
+                    ! How much data goes to each processor?
+                    call MPIScatter (sendcounts2, recvcount2, err, roots)
+                    if (err /= 0) &
+                        call stop_all (this_routine, "MPI scatter error")
+                    
+                    call MPIScatterV (BatchCurrentH(:,1:MaxSendIndex), sendcounts2, &
+                                      disps2, & 
+                                      CurrentH(:,CurrWalkers+1:CurrWalkers+1+(recvcount2/(2*lenof_sign+1))), &
+                                      recvcount2, err, Roots)
+                    if (err /= 0) &
+                        call stop_all (this_routine, "MPI scatterV error")
+                endif
 
                 CurrWalkers = CurrWalkers + recvcount / (NIfTot + 1)
 
@@ -270,9 +317,12 @@ r_loop: do while(.not.tReadAllPops)
             call MPIBCast(tReadAllPops)
         end do r_loop
 
+
         ! Close the popsfiles.
-        if(iProcIndex == Root .or. (tSplitPops .and. bNodeRoot)) &
+        if(iProcIndex == Root .or. (tSplitPops .and. bNodeRoot)) then
             close(iunit)
+            if (tReadRDMAvPop) close(iunit_3)
+        endif
 
         ! Test we have still got all determinants
         write(6,*) "CurrWalkers: ", CurrWalkers
@@ -304,6 +354,10 @@ r_loop: do while(.not.tReadAllPops)
         if (.not. tSplitPops) then
             deallocate(BatchRead)
             call LogMemDealloc (this_routine, BatchReadTag)
+            if(tReadRDMAvPop) then
+                deallocate(BatchCurrentH)
+                call LogMemDealloc (this_routine, BatchCurrentHTag)
+            endif
         end if
 
         ! Clear all deterministic and trial flags so that they can be changed later.
@@ -365,7 +419,11 @@ r_loop: do while(.not.tReadAllPops)
                     else
                         HElemTemp = get_helement (TempnI, TempnI, 0)
                     endif
-                    CurrentH(1,i)=REAL(HElemTemp,dp)-Hii
+                    if(tReadRDMAvPop .and. &
+                        & (abs(CurrentH(1,i)-REAL(HElemTemp,dp)+Hii).gt.1E-10)) then
+                        call stop_all("ReadFromPopsfile", "Problem with reading in CurrentH &
+                            & information from RDM_AV_POP file")
+                    endif
                 endif
             endif
         enddo
@@ -386,10 +444,11 @@ r_loop: do while(.not.tReadAllPops)
     !Det = Current determinant entry in popsfile list
     !BinPops = Binary popsfile or formatted
     !WalkerTemp = Determinant entry returned (in new basis if using mapping)
-    function read_popsfile_det (iunit, Det, BinPops, WalkerTemp, nI, PopNifSgn) &
+    function read_popsfile_det (iunit, Det, BinPops, WalkerTemp, nI, PopNifSgn, CurrentHEntry, iunit_3) &
                                result(tEOF)
 
         integer, intent(in) :: iunit
+        integer, intent(in), optional :: iunit_3
         integer, intent(out) :: nI(nel)
         logical, intent(in) :: BinPops
         integer(int64) , intent(inout) :: Det
@@ -400,6 +459,7 @@ r_loop: do while(.not.tReadAllPops)
         integer :: PopNifSgn
         real(dp) :: sgn(PopNifSgn)
         real(dp) :: new_sgn(lenof_sign)
+        real(dp), intent(out), optional :: CurrentHEntry(1+2*lenof_sign)
         integer(n_int) :: flg_read
         logical :: tStoreDet, tEOF
 
@@ -450,6 +510,7 @@ r_loop: do while(.not.tStoreDet)
                     tEOF = .true. ! End of file reached.
                     exit r_loop
                 end if
+                read(iunit_3, iostat=stat) CurrentHEntry(1:1+2*lenof_sign)
             else
                 !
                 ! we are mapping from a smaller to larger basis.
@@ -495,7 +556,8 @@ r_loop: do while(.not.tStoreDet)
                     tEOF = .true. ! End of file reached
                     exit r_loop
                 end if
-
+                
+                if (tReadRDMAvPop) read(iunit_3, iostat=stat) CurrentHEntry(1:1+2*lenof_sign)
 
                 ! Decode to natural ordered integers, and then re-encode to
                 ! the new representation.
@@ -997,12 +1059,14 @@ outer_map:      do i = 0, MappingNIfD
         integer(kind=n_int),intent(in) :: Dets(0:nIfTot,1:nDets)
         INTEGER :: error
         integer(int64) :: WalkersonNodes(0:nNodes-1),writeoutdet
-        INTEGER :: Tag
+        INTEGER :: Tag, Tag2
         INTEGER :: Total,i,j,k
         INTEGER(KIND=n_int), ALLOCATABLE :: Parts(:,:)
+        INTEGER(KIND=n_int), ALLOCATABLE :: AllCurrentH(:,:)
         INTEGER(TagIntType) :: PartsTag=0
+        INTEGER(TagIntType) :: AllCurrentHTag=0
         integer :: nMaxDets, TempDet(0:NIfTot), TempFlags
-        integer :: iunit, iunit_2, Initiator_Count
+        integer :: iunit, iunit_2, iunit_3, Initiator_Count
         integer(int64) :: write_count, write_count_sum
         CHARACTER(len=*) , PARAMETER :: this_routine='WriteToPopsfileParOneArr'
         character(255) :: popsfile
@@ -1135,12 +1199,28 @@ outer_map:      do i = 0, MappingNIfD
                 Initiator_Count = 0
             end if
 
+            if(tWriteBinRDMNoDiag) then
+                iunit_3 = get_free_unit()
+                if (tSplitPops) then
+                    write(num_tmp, '(i12)') iProcIndex
+                    out_tmp = 'RDM_AV_POP-' // trim(adjustl(num_tmp))
+                else
+                    out_tmp = 'RDM_AV_POP'
+                end if
+                open(iunit_3, file=trim(out_tmp), status='replace', form='unformatted')
+            endif
+
             ! Write out the dets from this node (the head node, unless we
             ! are in split-pops mode.
             do j = 1, int(ndets, sizeof_int)
                 ! Count the number of written particles
-                if (write_pops_det (iunit, iunit_2, Dets(:,j), j)) &
+                if (write_pops_det (iunit, iunit_2, Dets(:,j), j)) then
+                    if (tWriteBinRDMNoDiag) then
+                        write(iunit_3) CurrentH(1:1+2*lenof_sign,j)
+                    endif
+
                     write_count = write_count + 1
+                endif
             end do
 
             if (.not. tSplitPops) then
@@ -1154,8 +1234,15 @@ outer_map:      do i = 0, MappingNIfD
                 !       dealing with freezing give us plenty of room?
                 nMaxDets = int(maxval(WalkersOnNodes), sizeof_int)
                 allocate(Parts(0:NIfTot, nMaxDets), stat=error)
+
                 call LogMemAlloc ('Parts', int(nMaxDets,int32)*(NIfTot+1), &
                                   size_n_int, this_routine, PartsTag, error)
+                
+                if(tWriteBinRDMNoDiag) then
+                    allocate(AllCurrentH(1:1+2*lenof_sign,nMaxDets),stat=error)
+                    call LogMemAlloc ('AllCurrentH', int(nMaxDets,int32)*(1+2*lenof_sign), &
+                                      size_n_int, this_routine, AllCurrentHTag, error)
+                endif
 
                 ! Loop over the other nodes in the system sequentially, receive
                 ! their walker lists, and output to the popsfiles.
@@ -1165,11 +1252,22 @@ outer_map:      do i = 0, MappingNIfD
                     j = int(WalkersonNodes(i), sizeof_int) * (NIfTot+1)
                     call MPIRecv (Parts(:, 1:WalkersonNodes(i)), j, &
                                   NodeRoots(i), Tag, error)
+                    
+                    if(tWriteBinRDMNoDiag) then
+                        ! And now for CurrentH
+                        j = int(WalkersonNodes(i), sizeof_int) * (1+2*lenof_sign)
+                        call MPIRecv (AllCurrentH(:, 1:WalkersonNodes(i)), j, &
+                                      NodeRoots(i), Tag2, error)
+                    endif
 
                     ! Then write it out in the same way as above.
                     do j = 1, int(WalkersonNodes(i), sizeof_int)
-                        if (write_pops_det(iunit, iunit_2, Parts(:,j), j)) &
+                        if (write_pops_det(iunit, iunit_2, Parts(:,j), j)) then
+                            if (tWriteBinRDMNoDiag) then
+                                write(iunit_3) AllCurrentH(1:1+2*lenof_sign,j)
+                            endif
                             write_count = write_count + 1
+                        endif
                     end do
 
                 end do
@@ -1177,6 +1275,11 @@ outer_map:      do i = 0, MappingNIfD
                 ! Deallocate temporary storage
                 deallocate(Parts)
                 call LogMemDealloc(this_routine, PartsTag)
+                if(tWriteBinRDMNoDiag) then
+                    deallocate(AllCurrentH)
+                    call LogMemDealloc(this_routine, AllCurrentHTag)
+                endif
+
 
             end if
 
@@ -1191,6 +1294,11 @@ outer_map:      do i = 0, MappingNIfD
             ASSERT(.not. tSplitPops)
             j = int(nDets, sizeof_int) * (NIfTot + 1)
             call MPISend (Dets(0:NIfTot, 1:nDets), j, root, Tag, error)
+            
+            if(tWriteBinRDMNoDiag) then
+                j = int(nDets, sizeof_int) * (1+2*lenof_sign)
+                call MPISend (CurrentH(1:1+2*lenof_sign, 1:nDets), j, root, Tag2, error)
+            endif
 
         end if
 
@@ -1342,6 +1450,7 @@ outer_map:      do i = 0, MappingNIfD
                 write(iunit_2, '(i30)') ex_level
 
             end if
+
         end if
 
     end function write_pops_det
@@ -1356,11 +1465,12 @@ outer_map:      do i = 0, MappingNIfD
         INTEGER :: TempInitWalkers,error,i,j,l,total,ierr,MemoryAlloc,Tag,Proc,CurrWalkers,ii
         INTEGER , DIMENSION(lenof_sign) :: TempSign
         real(dp) :: RealTempSign(lenof_sign)
+        real(dp), DIMENSION(1+2*lenof_sign) :: CurrentHEntry
         integer(int64) :: iLutTemp64(0:nBasis/64+1)
         INTEGER :: iLutTemp32(0:nBasis/32+1)
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         INTEGER :: AvSumNoatHF,IntegerPart,TempnI(NEl),ExcitLevel
-        INTEGER :: NIfWriteOut,pos,orb,PopsVersion, iunit
+        INTEGER :: NIfWriteOut,pos,orb,PopsVersion, iunit, iunit_3
         real(dp) :: r, FracPart, Gap, DiagSftTemp, tmp_dp
         HElement_t :: HElemTemp
         CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
@@ -1369,6 +1479,8 @@ outer_map:      do i = 0, MappingNIfD
         LOGICAL :: tPop64BitDets,tPopHPHF,tPopLz,tPopInitiator
         integer(n_int) :: ilut_largest(0:NIfTot)
         real(dp) :: sign_largest
+
+        WRITE(6,*) "THIS IS THE POPSFILE ROUTINE WE'RE USING"
 
         if (lenof_sign /= 1) &
             call Stop_All(this_routine, "Popsfile V.2 does not work with &
@@ -1383,6 +1495,7 @@ outer_map:      do i = 0, MappingNIfD
 
         call get_unique_filename('POPSFILE',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
         iunit = get_free_unit()
+        if(tReadRDMAvPop) iunit_3=get_free_unit()
         INQUIRE(FILE=popsfile,EXIST=exists)
         IF(exists) THEN
             OPEN(iunit,FILE=popsfile,Status='old')
@@ -1467,6 +1580,8 @@ outer_map:      do i = 0, MappingNIfD
             call get_unique_filename('POPSFILEBIN',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
             OPEN(iunit,FILE=popsfile,Status='old',form='unformatted')
         ENDIF
+
+        if(tReadRDMAvPop) OPEN(iunit_3,FILE='RDM_AV_POP',status='old',form='unformatted')
 
         IF(iProcIndex.eq.Root) THEN
 
@@ -1680,6 +1795,7 @@ outer_map:      do i = 0, MappingNIfD
                     READ(iunit,*) iLutTemp32(0:NIfWriteOut),TempSign
                 ENDIF
             ENDIF
+            if(tReadRDMAvPop) READ(iunit_3) CurrentHEntry(1:1+2*lenof_sign)
             if(inum_runs.eq.1) then
                 RealTempSign = transfer(TempSign, RealTempSign)
             else
@@ -1731,6 +1847,8 @@ outer_map:      do i = 0, MappingNIfD
                 !Do not need to send a flag here...
                 call encode_bit_rep(CurrentDets(:,CurrWalkers),iLutTemp(0:NIfDBO),RealTempSign,0) 
                 !TODO: Add flag for complex walkers to read in both
+                
+                CurrentH(1:1+2*lenof_sign,CurrWalkers)=CurrentHEntry(1:1+2*lenof_sign)
             ENDIF
 
             ! Keep track of what the most highly weighted determinant is
@@ -1744,7 +1862,7 @@ outer_map:      do i = 0, MappingNIfD
 
         ! Sort the lists so that they are in order if we change the number
         ! of processors.
-        call sort (currentdets(:,1:CurrWalkers))
+        call sort (currentdets(:,1:CurrWalkers), CurrentH(:,1:CurrWalkers))
 
         ! Check that the bit-det comparisons agree that it is in order.
         do i=2,currwalkers
@@ -1864,7 +1982,11 @@ outer_map:      do i = 0, MappingNIfD
                     else
                         HElemTemp = get_helement (TempnI, TempnI, 0)
                     endif
-                    CurrentH(1,j)=REAL(HElemTemp,dp)-Hii
+                    if(tReadRDMAvPop .and. &
+                        & (abs(CurrentH(1,j)-REAL(HElemTemp,dp)+Hii).gt.1E-10)) then
+                        call stop_all("ReadFromPopsfilePar", "Problem with reading in CurrentH &
+                            & information from RDM_AV_POP file")
+                    endif
                 ENDIF
 
             ENDIF

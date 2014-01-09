@@ -60,7 +60,7 @@ MODULe nElRDMMod
                          TotWalkers, iLutHF, core_space, IterLastRDMFill, &
                          determ_proc_sizes,determ_proc_indices, partial_determ_vector, &
                          full_determ_vector, full_determ_vector_av, tFill_RDM, &
-                         VaryShiftIter, tHashWalkerList
+                         VaryShiftIter, tHashWalkerList, IterRDM_HF
     use LoggingData, only: RDMExcitLevel, tROFciDump, NoDumpTruncs, tHF_S_D, &
                        tExplicitAllRDM, tHF_S_D_Ref, tHF_Ref_Explicit, &
                        tHF_S_D, tPrint1RDM, tInitiatorRDM, RDMEnergyIter, &
@@ -70,7 +70,8 @@ MODULe nElRDMMod
                        tWrite_normalised_RDMs, IterWriteRDMs, tPrintRODump, &
                        tNoNOTransform, tTruncRODump, tRDMonfly, tInitiatorRDMDiag, &
                        tTaperDiagRDM, tTaperSQDiagRDM, tCorrectRDMErf, erf_factor1, &
-                       erf_factor2, ThreshOccRDM, tThreshOccRDMDiag
+                       erf_factor2, ThreshOccRDM, tThreshOccRDMDiag, &
+                       tWriteBinRDMNoDiag, tReadRDMAvPop
     use RotateOrbsData, only: CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt, &
                               SymLabelCounts2_rot,SymLabelList2_rot, &
                               SymLabelListInv_rot,NoOrbs, SpatOrbs, &
@@ -113,6 +114,9 @@ MODULe nElRDMMod
         REAL(dp) , ALLOCATABLE :: All_aaaa_RDM(:,:),All_abab_RDM(:,:), All_abba_RDM(:,:)
         REAL(dp) , ALLOCATABLE :: UMATTemp(:,:), Rho_ii(:)
         REAL(dp) , ALLOCATABLE :: Lagrangian(:,:)
+        real(dp), allocatable :: AllNodes_All_aaaa_RDM(:,:)
+        real(dp), allocatable :: AllNodes_All_abab_RDM(:,:)
+        real(dp), allocatable :: AllNodes_All_abba_RDM(:,:)
         REAL(dp) :: OneEl_Gap,TwoEl_Gap, Normalisation,Trace_2RDM_Inst, Trace_2RDM, Trace_1RDM, norm
         LOGICAL :: tFinalRDMEnergy, tCalc_RDMEnergy, tFinalRDMIter
         type(timer), save :: nElRDM_Time, FinaliseRDM_time, RDMEnergy_time
@@ -884,13 +888,13 @@ MODULe nElRDMMod
         ! If there is nothing stored there yet, the first iteration the determinant 
         ! became occupied is this one.
         do part_ind=1,lenof_sign
-            IF(IterRDMStartI(part_ind).eq.0.0_dp) IterRDMStartI(part_ind) = real(Iter, dp)
+            IF(IterRDMStartI(part_ind).eq.0.0_dp) IterRDMStartI(part_ind) = real(Iter+PreviousCycles, dp)
             ! Update the average population.
             ! This just comes out as the current population (SignI) if this is the first 
             ! time the determinant has become occupied.
 
-            AvSignI(part_ind) = ( ((real(Iter,dp) - IterRDMStartI(part_ind)) * CurrH_I(1+part_ind)) &
-                            + SignI(part_ind) ) / ( real(Iter,dp) - IterRDMStartI(part_ind) + 1.0_dp )
+            AvSignI(part_ind) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * CurrH_I(1+part_ind)) &
+                            + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
         enddo
 
 
@@ -942,12 +946,12 @@ MODULe nElRDMMod
 
         ! This is the number of iterations this determinant has been occupied.
         do part_type=1,lenof_sign
-            IterDetOcc(part_type) = real(Iter,dp) - CurrH_I(1+lenof_sign+part_type) + 1.0_dp
+            IterDetOcc(part_type) = real(Iter+PreviousCycles,dp) - CurrH_I(1+lenof_sign+part_type) + 1.0_dp
         enddo
 
         AvSignIters=max(IterDetOcc(1),IterDetOcc(lenof_sign))
 
-        RDMAccumIters = real(Iter,dp) - IterRDMStart + 1.0_dp
+        RDMAccumIters = real(Iter+PreviousCycles,dp) - IterRDMStart + 1.0_dp
         IterRDM_Inst = min(AvSignIters,real(IterLastRDMFill,dp))
         IterRDM_Full = min(AvSignIters, RDMAccumIters)
 
@@ -1088,11 +1092,11 @@ MODULe nElRDMMod
 
         ! This is the number of iterations this determinant has been occupied.
         do part_type=1,lenof_sign
-            IterDetOcc(part_type) = real(Iter,dp) - CurrH_I(1+lenof_sign+part_type) + 1.0_dp
+            IterDetOcc(part_type) = real(Iter+PreviousCycles,dp) - CurrH_I(1+lenof_sign+part_type) + 1.0_dp
         enddo
 
         AvSignIters=max(IterDetOcc(1),IterDetOcc(lenof_sign))
-        RDMAccumIters = real(Iter,dp) - IterRDMStart + 1.0_dp
+        RDMAccumIters = real(Iter+PreviousCycles,dp) - IterRDMStart + 1.0_dp
 
         ! IterRDM is then the number of iterations we want to multiply the contributions by.
         IterRDM_Inst = min(AvSignIters,real(IterLastRDMFill,dp))
@@ -1121,7 +1125,7 @@ MODULe nElRDMMod
 
   !          ! IterLastRDMFill is the number of iterations from the last time the RDM elements 
   !          ! were included.
-  !          IterLastRDMFill = mod((Iter - IterRDMStart + 1),RDMEnergyIter)
+  !          IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter)
 
   !          ! Run over all determinants in the occupied (CurrentDets) list.
   !          do i = 1, int(nDets,sizeof_int)
@@ -1171,13 +1175,13 @@ MODULe nElRDMMod
 
         ! If the determinant is removed on an iteration that the diagonal RDM elements are 
         ! already being calculated, it will already have been counted.
-        !if(.not.((Iter.eq.NMCyc).or.(mod((Iter - IterRDMStart + 1),RDMEnergyIter).eq.0))) then
+        !if(.not.((Iter.eq.NMCyc).or.(mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0))) then
         ! The elements described above will have been already added to the TEMP arrays, but not he main ones.
 
             if((abs(CurrH_I(2)).gt.real(InitiatorWalkNo,dp)).or.(.not.tInitiatorRDM)) then
 
                 ! IterLastRDMFill is the number of iterations from the last time an instRDM was compiled 
-                IterLastRDMFill = mod((Iter - IterRDMStart + 1),RDMEnergyIter)
+                IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter)
 
                 call decode_bit_det (nI, iLutnI)
                 if(tRef_Not_HF) then
@@ -1226,7 +1230,7 @@ MODULe nElRDMMod
 ! Quick check that the HF population is being calculated correctly.
         if(walkExcitLevel.eq.0) then
             do part_type=1,lenof_sign
-                if(AvSignJ(part_type).ne.AvNoatHF(part_type)) then
+                if(abs(AvSignJ(part_type)-AvNoatHF(part_type)).gt.1E-10) then
                     write(6,*) 'HFDet_True',HFDet_True
                     write(6,*) 'nJ',nJ
                     write(6,*) 'iLutJ',iLutJ
@@ -3615,9 +3619,9 @@ MODULe nElRDMMod
         ! If Iter = 0, this means we have just read in the TwoRDM_POPS_a*** matrices into All_a***_RDM, and 
         ! just want to calculate the old energy.
         ! Don't need to do all this stuff here, because a***_RDM will be empty.
-        if((Iter.ne.0).and.((.not.tFinalRDMEnergy).or.((.not. tCalc_RDMEnergy).or.((Iter - VaryShiftIter(1)).le.IterRDMonFly) &
+        if(((Iter+PreviousCycles).ne.0).and.((.not.tFinalRDMEnergy).or.((.not. tCalc_RDMEnergy).or.((Iter - VaryShiftIter(1)).le.IterRDMonFly) &
                       & .or.((Iter-VaryShiftIter(inum_runs)).le.IterRDMonFly)  &
-                      & .or. (mod((Iter-IterRDMStart)+1,RDMEnergyIter).ne.0)))) then
+                      & .or. (mod((Iter+PreviousCycles-IterRDMStart)+1,RDMEnergyIter).ne.0)))) then
 
             ! All the TEMP arrays are summed into the one on processor 0.
             ! These are the only arrays that contain all the diagonal elements
@@ -3634,7 +3638,20 @@ MODULe nElRDMMod
             CALL MPISum_inplace(TEMP_All_aaaa_RDM(:,:))
             CALL MPISum_inplace(TEMP_All_abab_RDM(:,:))
             CALL MPISum_inplace(TEMP_All_abba_RDM(:,:))
-            
+           
+
+            if(tFinalRDMEnergy .and. tWriteBinRDMNoDiag) then
+                !Will be printing out All_xxxx_RDM to the binary RDM Popsfiles
+                !Need to gather these onto root
+                ALLOCATE(AllNodes_All_aaaa_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+                ALLOCATE(AllNodes_All_abba_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+                ALLOCATE(AllNodes_All_abab_RDM(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
+                
+                CALL MPISumAll(All_aaaa_RDM(:,:),AllNodes_All_aaaa_RDM(:,:))
+                CALL MPISumAll(All_abab_RDM(:,:),AllNodes_All_abab_RDM(:,:))
+                CALL MPISumAll(All_abba_RDM(:,:),AllNodes_All_abba_RDM(:,:))
+            endif
+
 !!!!!!!!!!!! MASTER !!!!!!!!!!!!!!!!!!!!            
             !ALLOCATE(AllNodes_aaaa_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
             !ALLOCATE(AllNodes_abba_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
@@ -3680,7 +3697,7 @@ MODULe nElRDMMod
             
             ! Print out the relevant 2-RDMs.
             if( tFinalRDMEnergy .or. &
-                ( tWriteMultRDMs .and. (mod((Iter - IterRDMStart)+1,IterWriteRDMs).eq.0) ) ) then
+                ( tWriteMultRDMs .and. (mod((Iter+PreviousCycles - IterRDMStart)+1,IterWriteRDMs).eq.0) ) ) then
 
                 if(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) tmake_herm = .true.
 
@@ -3819,7 +3836,7 @@ MODULe nElRDMMod
         logical , intent(in) :: tNormalise, tmake_herm
         real(dp) :: Tot_Spin_Projection, SpinPlus, SpinMinus
         real(dp) :: ParityFactor,Divide_Factor 
-        integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab
+        integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab, iunit_4
         integer :: aaaa_RDM_unit, abab_RDM_unit, abba_RDM_unit, No_Herm_Elements
         character(255) :: TwoRDM_aaaa_name, TwoRDM_abab_name, TwoRDM_abba_name
         real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity, Sum_Herm_Percent 
@@ -3933,8 +3950,13 @@ MODULe nElRDMMod
                                 elseif(.not.tNormalise) then
                                     ! for the POPS files, print everything to binary.
                                     ! no divide factor, we just read them in as is.
-                                    write(aaaa_RDM_unit) i,j,a,b, &
-                                            TEMP_All_aaaa_RDM(Ind1_aa,Ind2_aa) 
+                                    if (tWriteBinRDMNoDiag) then
+                                        write(aaaa_RDM_unit) i,j,a,b, &
+                                                AllNodes_All_aaaa_RDM(Ind1_aa,Ind2_aa)
+                                    else
+                                        write(aaaa_RDM_unit) i,j,a,b, &
+                                                TEMP_All_aaaa_RDM(Ind1_aa,Ind2_aa)
+                                    endif
                                 endif
                             endif
 
@@ -3973,8 +3995,13 @@ MODULe nElRDMMod
                                                                     * Norm_2RDM ) / Divide_Factor
                                     endif
                                 elseif(.not.tNormalise) then
-                                    write(abba_RDM_unit) i,j,a,b, &
-                                        TEMP_All_abba_RDM(Ind1_aa,Ind2_aa) 
+                                    if (tWriteBinRDMNoDiag) then
+                                        write(abba_RDM_unit) i,j,a,b, &
+                                            AllNodes_All_abba_RDM(Ind1_aa,Ind2_aa) 
+                                    else
+                                        write(abba_RDM_unit) i,j,a,b, &
+                                            TEMP_All_abba_RDM(Ind1_aa,Ind2_aa) 
+                                    endif
                                 endif
                             endif
 
@@ -4015,8 +4042,13 @@ MODULe nElRDMMod
                                                                 * Norm_2RDM ) / Divide_Factor
                                 endif
                             elseif(.not.tNormalise) then
-                                write(abab_RDM_unit) i,j,a,b, &
-                                    TEMP_All_abab_RDM(Ind1_ab,Ind2_ab) 
+                                if (tWriteBinRDMNoDiag) then
+                                    write(abab_RDM_unit) i,j,a,b, &
+                                        AllNodes_All_abab_RDM(Ind1_ab,Ind2_ab) 
+                                else
+                                    write(abab_RDM_unit) i,j,a,b, &
+                                        TEMP_All_abab_RDM(Ind1_ab,Ind2_ab) 
+                                endif
                             endif
                         endif
 
@@ -4029,6 +4061,15 @@ MODULe nElRDMMod
         close(aaaa_RDM_unit)
         close(abab_RDM_unit)
         close(abba_RDM_unit)
+        if(tWriteBinRDMNoDiag) then
+            if(allocated(AllNodes_All_aaaa_RDM)) DEALLOCATE(AllNodes_All_aaaa_RDM)
+            if(allocated(AllNodes_All_abab_RDM)) DEALLOCATE(AllNodes_All_abab_RDM)
+            if(allocated(AllNodes_All_abba_RDM)) DEALLOCATE(AllNodes_All_abba_RDM)
+            iunit_4=get_free_unit()
+            OPEN(iunit_4,file='ITERRDMSTART',status='unknown')
+            WRITE(iunit_4,*) IterRDMStart, IterRDM_HF, AvNoAtHF
+            CLOSE(iunit_4)
+        endif
 
         if(tNormalise.and.(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref))) then
             write(6,'(I15,F30.20,A20,A39)') Iter+PreviousCycles, Max_Error_Hermiticity, &
@@ -5925,13 +5966,13 @@ MODULe nElRDMMod
         integer :: nI(nel), nJ(nel), IC
         integer :: IterRDM_Inst, IterRDM_Full, RDMAccumIters, connect_elem
    
-        if(mod((Iter - IterRDMStart + 1),RDMEnergyIter).eq.0) then
+        if(mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0) then
             IterRDM_Inst=RDMEnergyIter
             IterRDM_Full=RDMAccumIters
         else
             !This must be the final iteration, as we've got tFill_RDM=.true.
             !for an iteration where we wouldn't normally need the energy
-            IterRDM_Inst=mod((Iter - IterRDMStart + 1),RDMEnergyIter)
+            IterRDM_Inst=mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter)
             IterRDM_Full=RDMAccumIters
         endif
         

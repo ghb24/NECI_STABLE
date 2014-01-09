@@ -875,7 +875,9 @@ MODULE FciMCParMod
             ! truncated etc.)
             walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
                                                 max_calc_ex_level)
-            
+           
+             !   if(WalkExcitLevel.eq.0) WRITE(6,*) "AvSignCurr: updating", CurrentH(2,j), AvSignCurr, SignCurr
+
             if(tRef_Not_HF) then
                 walkExcitLevel_toHF = FindBitExcitLevel (iLutHF_true, CurrentDets(:,j), &
                                                 max_calc_ex_level)
@@ -3928,21 +3930,23 @@ MODULE FciMCParMod
                 .and. (.not. tSemiStochastic)) then
                 !The HF determinant won't be in currentdets, so the CurrentH averages will have been wiped.
                 !NB - there will be a small issue here if the HF determinant isn't in the core space
-                IterRDM_HF(1) = Iter + 1 
+                IterRDM_HF(1) = Iter+PreviousCycles + 1 
                 AvNoatHF(1) = 0.0_dp
                 if(inum_runs.eq.2) then
-                    IterRDM_HF(2) = Iter + 1 
+                    IterRDM_HF(2) = Iter+PreviousCycles + 1 
                     AvNoatHF(2) = 0.0_dp
                 endif
+                !WRITE(6,*) "zeroed AvNoAtHF", Prev_AvNoAtHF, AvNoAtHF, InstNoAtHF
             else
                 Prev_AvNoatHF(1) = AvNoatHF(1)
-                AvNoatHF(1) = ( (real((Iter - IterRDM_HF(1)),dp) * Prev_AvNoatHF(1)) &
-                    + InstNoatHF(1) ) / real((Iter - IterRDM_HF(1)) + 1,dp)
+                AvNoatHF(1) = ( (real((Iter+PreviousCycles - IterRDM_HF(1)),dp) * Prev_AvNoatHF(1)) &
+                    + InstNoatHF(1) ) / real((Iter+PreviousCycles - IterRDM_HF(1)) + 1,dp)
                 if(inum_runs.eq.2) then
                     Prev_AvNoatHF(2) = AvNoatHF(2)
-                    AvNoatHF(2) = ( (real((Iter - IterRDM_HF(2)),dp) * Prev_AvNoatHF(2)) &
-                        + InstNoatHF(2) ) / real((Iter - IterRDM_HF(2)) + 1,dp)
+                    AvNoatHF(2) = ( (real((Iter+PreviousCycles - IterRDM_HF(2)),dp) * Prev_AvNoatHF(2)) &
+                        + InstNoatHF(2) ) / real((Iter+PreviousCycles - IterRDM_HF(2)) + 1,dp)
                 endif
+               ! WRITE(6,*) "AvNoAtHF", Prev_AvNoAtHF, AvNoAtHF, InstNoAtHF
             endif
         endif
         HFInd = 0            
@@ -5464,12 +5468,18 @@ MODULE FciMCParMod
     subroutine check_start_rdm()
 ! This routine checks if we should start filling the RDMs - and does so if we should.        
         use nElRDMMod , only : DeAlloc_Alloc_SpawnedParts
+        use LoggingData, only: tReadRDMs, tReadRDMAvPop
         implicit none
         logical :: tFullVaryshift
+        integer :: iunit_4
 
         tFullVaryShift=.false.
 
         if (.not. tSinglePartPhase(1).and.(.not.tSinglePartPhase(inum_runs))) tFullVaryShift=.true.
+
+        !If we're reading in the RDMs we've already started accumulating them in a previous calculation
+        ! We don't want to put in an arbitrary break now!
+        if(tReadRDMs) IterRDMonFly=0
 
         IF(tFullVaryShift .and. ((Iter - maxval(VaryShiftIter)).eq.(IterRDMonFly+1))) THEN
         ! IterRDMonFly is the number of iterations after the shift has changed that we want 
@@ -5477,6 +5487,14 @@ MODULE FciMCParMod
         
             IterRDMStart = Iter
             IterRDM_HF = Iter
+
+            if(tReadRDMs .and. tReadRDMAvPop) then
+                !We need to read in the values of IterRDMStart and IterRDM_HF
+                iunit_4=get_free_unit()
+                OPEN(iunit_4,FILE='ITERRDMSTART',status='old')
+                read(iunit_4, *) IterRDMStart, IterRDM_HF, AvNoAtHF
+            endif
+
             !We have reached the iteration where we want to start filling the RDM.
             if(tExplicitAllRDM) then
                 ! Explicitly calculating all connections - expensive...
@@ -7614,7 +7632,7 @@ MODULE FciMCParMod
         real(dp) :: TotMP1Weight,amp,MP2Energy,PartFac,H0tmp,rat,r,energy_contrib
         HElement_t :: hel,HDiagtemp
         integer :: iExcits, exflag, Ex(2,2), nJ(NEl), ic, DetIndex, iNode
-        integer :: iInit, Slot, DetHash, ExcitLevel, run
+        integer :: iInit, Slot, DetHash, ExcitLevel, run, i
         integer(n_int) :: iLutnJ(0:NIfTot)
         real(dp) :: NoWalkers, temp_sign(lenof_sign)
         logical :: tAllExcitsFound, tParity
@@ -7848,6 +7866,8 @@ MODULE FciMCParMod
             
         TotWalkers=DetIndex-1   !This is the number of occupied determinants on each node
         TotWalkersOld=TotWalkers
+
+
         if(.not.tHashWalkerList) then
             call sort(CurrentDets(:,1:TotWalkers),CurrentH(:,1:TotWalkers))
         endif
