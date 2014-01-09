@@ -369,17 +369,23 @@ contains
 
         ! Only non-zero contributions if Ms preserved in each term (consider
         ! physical notation).
+!>>>!        write(6, '("---> ")', advance='no')
         if ( (G1(ex(1,1))%Ms == G1(ex(2,1))%Ms) .and. &
              (G1(ex(1,2))%Ms == G1(ex(2,2))%Ms) ) then
              hel = get_umat_el (id(1,1), id(1,2), id(2,1), id(2,2))
         else
             hel = (0)
         endif
+!>>>!        write(6,'(f10.6)', advance='no') hel
 
         if ( (G1(ex(1,1))%Ms == G1(ex(2,2))%Ms) .and. &
              (G1(ex(1,2))%Ms == G1(Ex(2,1))%Ms) ) then
              hel = hel - get_umat_el (id(1,1), id(1,2), id(2,2), id(2,1))
+!>>>!            write(6,'(f10.6)', advance='no') - get_umat_el (id(1,1), id(1,2), id(2,2), id(2,1))
+!>>>!        else
+!>>>!            write(6,'(f10.6)', advance='no') 0.0
         endif
+!>>>!        write(6,*) hel
 
         if (tSign) hel = -hel
     end function sltcnd_2
