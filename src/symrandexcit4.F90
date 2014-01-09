@@ -84,7 +84,7 @@ contains
         character(*), parameter :: this_routine = 'gen_excit_hel_weighted'
 
         integer(n_int) :: iluts(0:NIfTot, nexcit)
-        HElement_t :: hels(nexcit), hel_sum, hel_cum
+        real(dp) :: hels(nexcit), hel_sum, hel_cum
         integer :: excit_count, ex(2,2), i, flag
         logical :: found_all, par
 
