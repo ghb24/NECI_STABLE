@@ -425,7 +425,7 @@ MODULE ReadInput_neci
         end if
 
         if (tGen_4ind_weighted) then
-            if (tHPHF .or. tFixLz .or. tCSF) &
+            if (tFixLz .or. tCSF) &
                 call stop_all (t_r, 'Integral weighted excitation generators &
                               &not yet implemented with these keywords')
         end if
