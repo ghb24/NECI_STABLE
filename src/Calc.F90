@@ -947,10 +947,24 @@ contains
                 tSearchTau=.false.  !Tau is set, so don't search for it.
                 call getf(TauFactor)
             case("TAU")
-!For FCIMC, this can be considered the timestep of the simulation. It is a constant which will increase/decrease the rate 
-!of spawning/death for a given iteration.
-                tSearchTau=.false.  !Tau is set, so don't search for it.
+                ! For FCIMC, this can be considered the timestep of the
+                ! simulation. It is a constant which will increase/decrease
+                ! the rate of spawning/death for a given iteration.
                 call getf(Tau)
+
+                ! If SEARCH is provided, use this value as the starting value
+                ! for tau searching
+                if (item < nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("SEARCH")
+                        tSearchTau = .true.
+                    case default
+                        tSearchTau = .false.
+                    end select
+                else
+                    tSearchTau = .false.
+                end if
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
                 call geti(MaxWalkerBloom)

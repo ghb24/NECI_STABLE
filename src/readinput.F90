@@ -171,9 +171,10 @@ MODULE ReadInput_neci
 
         ! Check that the specified runtime options are consistent and valid
 
-        use SystemData, only: nel, tStarStore, tUseBrillouin, beta, &
+        use SystemData, only: nel, tStarStore, tUseBrillouin, beta, tFixLz, &
                               tFindCINatOrbs, tNoRenormRandExcits, LMS, STOT,&
-                              tCSF, tSpn, tUHF
+                              tCSF, tSpn, tUHF, tGenHelWeighted, tHPHF, &
+                              tGen_4ind_weighted
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -415,6 +416,21 @@ MODULE ReadInput_neci
             write(6,*) 'nProcessors: ', nProcessors
             call stop_all (t_r, 'At least two nodes required to designate &
                           &a node uniquely to the HF determinant')
+        end if
+
+        if (tGenHelWeighted) then
+            write(6,*)
+            write(6,*) '*** WARNING ***'
+            write(6,*) 'Slow HElement biased excitation generators in use.'
+            write(6,*) 'NOT FOR PRODUCTION RUNS'
+            write(6,*) '***************'
+            write(6,*)
+        end if
+
+        if (tGen_4ind_weighted) then
+            if (tFixLz .or. tCSF) &
+                call stop_all (t_r, 'Integral weighted excitation generators &
+                              &not yet implemented with these keywords')
         end if
 
     end subroutine checkinput

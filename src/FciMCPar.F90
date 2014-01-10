@@ -15,10 +15,12 @@ MODULE FciMCParMod
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
                           LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
                           tNoBrillouin, tKPntSym, tPickVirtUniform, &
-                          tMomInv, tRef_Not_HF, tMolpro, tAntiSym_MI, &
-                          MolproID
+                          tMolpro, csf_trunc_level, &
+                          tTruncateCSF, tRef_Not_HF, &
+                          tAntiSym_MI, MolproID, tGenHelWeighted, &
+                          tGen_4ind_weighted, tMomInv
     use bit_rep_data, only: extract_sign, flag_trial, flag_connected
-    use bit_reps, only: NIfD, NIfTot, NIfDBO, NIfY, decode_bit_det, &
+    use bit_reps, only: NIfD, NIfTot, NIfDBO, NOffY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
                         flag_is_initiator, clear_all_flags,&
@@ -156,15 +158,11 @@ MODULE FciMCParMod
     use gndts_mod, only: gndts
     use sort_mod
     use get_excit, only: make_double
-
-    ! And nice clear include of the procedure pointers
-    use procedure_pointers, only: generate_excitation, attempt_create, &
-                                  get_spawn_helement, encode_child, &
-                                  new_child_stats, attempt_die, &
-                                  extract_bit_rep_avsign, attempt_die_t, &
-                                  fill_rdm_diag_currdet, get_spawn_helement_t,&
-                                  generate_excitation_t
-
+    use sltcnd_mod, only: sltcnd_excit
+    use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
+                                       gen_excit_4ind_weighted, &
+                                       init_4ind_bias, test_excit_gen_4ind
+    use procedure_pointers
 
     implicit none
 #ifdef MOLPRO
@@ -1083,6 +1081,17 @@ MODULE FciMCParMod
                         child = 0.0_dp
                     endif
 
+                    IFDEBUG(FCIMCDebug, 3) then
+#ifdef __CMPLX
+                        write(iout,"(a,f12.5)",advance='no') &
+#else
+                        write(iout,"(a,f12.5)",advance='no') &
+#endif
+                            "SP:", child
+                        call write_det(6, nJ, .true.)
+                        call neci_flush(iout) 
+                    endif
+
                     ! Children have been chosen to be spawned.
                     if (any(child /= 0)) then
 
@@ -1677,6 +1686,11 @@ MODULE FciMCParMod
             generate_excitation => gen_rand_excit3
         elseif (tMomInv) then
             generate_excitation => gen_MI_excit
+        elseif (tGenHelWeighted) then
+            generate_excitation => gen_excit_hel_weighted
+        elseif (tGen_4ind_weighted) then
+            call init_4ind_bias()
+            generate_excitation => gen_excit_4ind_weighted
         else
             generate_excitation => gen_rand_excit
         endif
@@ -1726,7 +1740,7 @@ MODULE FciMCParMod
         endif
 
         ! Once we have generated the children, do we need to encode them?
-        if (.not. (tCSF .or. tHPHF .or. tMomInv)) then
+        if (.not. (tCSF .or. tHPHF .or. tMomInv .or. tGen_4ind_weighted)) then
             encode_child => FindExcitBitDet
         else
             encode_child => null_encode_child
@@ -5106,8 +5120,9 @@ MODULE FciMCParMod
 
         if(tSearchTau) then
 
-            if(.not.tRestart.and.(.not.tReadPops)) then
-                !Set initial tau value, unless we are restarting, or reading it from popsfileheader
+            if(.not.tRestart .and. .not.tReadPops .and. tau == 0) then
+                ! Set initial tau value, unless we are restarting, or reading
+                ! it from popsfileheader
                 call FindMaxTauDoubs()
             endif
 

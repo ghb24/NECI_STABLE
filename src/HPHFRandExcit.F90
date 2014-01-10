@@ -13,12 +13,13 @@ MODULE HPHFRandExcitMod
 !excited and the determinant which was created.
 
     use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr, &
-                          tOddS_HPHF, modk_offdiag
+                          tOddS_HPHF, modk_offdiag, tGen_4ind_weighted
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
     use dSFMT_interface, only : genrand_real2_dSFMT
     use GenRandSymExcitNUMod, only: gen_rand_excit, &
                                     CalcNonUniPGen, ScratchSize 
+    use excit_gens_int_weighted, only: gen_excit_4ind_weighted
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel, MaskAlpha, MaskBeta, &
                          TestClosedShellDet, CalcOpenOrbs, IsAllowedHPHF
@@ -148,17 +149,28 @@ MODULE HPHFRandExcitMod
         ! Avoid warnings
         tParity = .false.
 
-        call gen_rand_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
-                             tSignOrig, pGen, HEl, store)
+        ! Generate a normal excitation.
+        if (tGen_4ind_weighted) then
+            call gen_excit_4ind_weighted (nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
+                                          ExcitMat, tSignOrig, pGen, Hel,&
+                                          store)
+        else
+            call gen_rand_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat,&
+                                 tSignOrig, pGen, HEl, store)
+        end if
 
 !        Count=Count+1
 !        WRITE(6,*) "COUNT: ",Count
 !        CALL neci_flush(6)
 
-!Create excitation of uniquely chosen determinant in this HPHF function.
+        ! Create excitation of uniquely chosen determinant in this HPHF
+        ! function.
         IF(IsNullDet(nJ)) RETURN
-!Create bit representation of excitation - iLutnJ
-        CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
+
+        ! Create bit representation of excitation - iLutnJ.
+        ! n.b. 4ind_weighted does this already.
+        if (.not. tGen_4ind_weighted) &
+            CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
             
 !Test!
 !        CALL CalcNonUniPGen(ExcitMat,IC,ClassCount2,ClassCountUnocc2,pDoub,pGen2)

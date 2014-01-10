@@ -18,6 +18,11 @@ module sym_general_mod
         module procedure ClassCountInd_orb
     end interface
 
+    interface ClassCountInv
+        module procedure ClassCountInv_32
+        module procedure ClassCountInv_64
+    end interface
+
     interface CCIndS
         module procedure CCIndS_32
         module procedure CCIndS_64
@@ -55,7 +60,7 @@ contains
             endif
         endif
 
-    end functioN
+    end function
 
     elemental function ClassCountInd_full_64(Spin, Sym, Mom) result(ind)
 
@@ -86,7 +91,7 @@ contains
             endif
         endif
 
-    end functioN
+    end function
 
     elemental function ClassCountInd_orb (orb) result(ind)
 
@@ -136,6 +141,62 @@ contains
 
         ind =  ((ClassCountInd(1,sym,mom)-1)/2) + 1
     end function
+
+    elemental subroutine ClassCountInv_32 (ind, sym, spin, mom)
+
+        ! Given a Class Count Index, return the symmetry, spin and momentum
+        ! of the relevant orbitals
+
+        integer, intent(in) :: ind
+        integer, intent(out) :: spin, mom
+        integer(int32), intent(out) :: sym
+
+        ! The spin is determined by the even/odd status
+        ! n.b. alpha == 1, beta == 2
+        spin = 2 - mod(ind, 2)
+
+        ! How we get the symmetry/momentum depends on the parameters of the
+        ! calculation
+        if (tNoSymGenRandExcits) then
+            mom = 0
+            sym = 0
+        else if (tFixLz) then
+            sym = (mod(ind, 2*nSymLabels) - spin) / 2
+            mom = ((ind - 2 * sym - spin) / (2 * nSymLabels)) - iMaxLz
+        else
+            sym = (ind - spin) / 2
+            mom = 0
+        end if
+
+    end subroutine
+
+    elemental subroutine ClassCountInv_64 (ind, sym, spin, mom)
+
+        ! Given a Class Count Index, return the symmetry, spin and momentum
+        ! of the relevant orbitals
+
+        integer, intent(in) :: ind
+        integer, intent(out) :: spin, mom
+        integer(int64), intent(out) :: sym
+
+        ! The spin is determined by the even/odd status
+        ! n.b. alpha == 1, beta == 2
+        spin = 2 - mod(ind, 2)
+
+        ! How we get the symmetry/momentum depends on the parameters of the
+        ! calculation
+        if (tNoSymGenRandExcits) then
+            mom = 0
+            sym = 0
+        else if (tFixLz) then
+            sym = (mod(ind, 2*nSymLabels) - spin) / 2
+            mom = ((ind - 2 * sym - spin) / (2 * nSymLabels)) - iMaxLz
+        else
+            sym = (ind - spin) / 2
+            mom = 0
+        end if
+
+    end subroutine
 
 
 end module
