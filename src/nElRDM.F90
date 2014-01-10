@@ -478,7 +478,7 @@ MODULe nElRDMMod
         ! Open file to keep track of RDM Energies (if they're being calculated). 
         IF((iProcIndex.eq.0).and.tCalc_RDMEnergy) THEN
             Energies_unit = get_free_unit()
-            OPEN(Energies_unit,file='RDMEnergies',status='unknown')
+            OPEN(Energies_unit,file='RDMEnergies',status='unknown',position='append')
 
             WRITE(Energies_unit, "(A1,3A30)") '#','Iteration','RDM Energy - Inst','RDM Energy - Accum'
         ENDIF
@@ -3619,8 +3619,10 @@ MODULe nElRDMMod
         ! If Iter = 0, this means we have just read in the TwoRDM_POPS_a*** matrices into All_a***_RDM, and 
         ! just want to calculate the old energy.
         ! Don't need to do all this stuff here, because a***_RDM will be empty.
-        if(((Iter+PreviousCycles).ne.0).and.((.not.tFinalRDMEnergy).or.((.not. tCalc_RDMEnergy).or.((Iter - VaryShiftIter(1)).le.IterRDMonFly) &
-                      & .or.((Iter-VaryShiftIter(inum_runs)).le.IterRDMonFly)  &
+
+        if(((Iter+PreviousCycles).ne.0).and.((.not.tFinalRDMEnergy).or. &
+            ((.not. tCalc_RDMEnergy).or.((Iter - VaryShiftIter(1)).le.IterRDMonFly) &
+                      & .or.((Iter-VaryShiftIter(inum_runs)).le.IterRDMonFly) &
                       & .or. (mod((Iter+PreviousCycles-IterRDMStart)+1,RDMEnergyIter).ne.0)))) then
 
             ! All the TEMP arrays are summed into the one on processor 0.
@@ -3639,18 +3641,6 @@ MODULe nElRDMMod
             CALL MPISum_inplace(TEMP_All_abab_RDM(:,:))
             CALL MPISum_inplace(TEMP_All_abba_RDM(:,:))
            
-
-            if(tFinalRDMEnergy .and. tWriteBinRDMNoDiag) then
-                !Will be printing out All_xxxx_RDM to the binary RDM Popsfiles
-                !Need to gather these onto root
-                ALLOCATE(AllNodes_All_aaaa_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
-                ALLOCATE(AllNodes_All_abba_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
-                ALLOCATE(AllNodes_All_abab_RDM(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
-                
-                CALL MPISumAll(All_aaaa_RDM(:,:),AllNodes_All_aaaa_RDM(:,:))
-                CALL MPISumAll(All_abab_RDM(:,:),AllNodes_All_abab_RDM(:,:))
-                CALL MPISumAll(All_abba_RDM(:,:),AllNodes_All_abba_RDM(:,:))
-            endif
 
 !!!!!!!!!!!! MASTER !!!!!!!!!!!!!!!!!!!!            
             !ALLOCATE(AllNodes_aaaa_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
@@ -3688,6 +3678,19 @@ MODULe nElRDMMod
         endif
 
         if(iProcIndex.eq.0) then
+            
+            if(tFinalRDMEnergy .and. tWriteBinRDMNoDiag) then
+                !Will be printing out All_xxxx_RDM to the binary RDM Popsfiles
+                !Need to gather these onto root
+                ALLOCATE(AllNodes_All_aaaa_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+                ALLOCATE(AllNodes_All_abba_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+                ALLOCATE(AllNodes_All_abab_RDM(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
+                
+                CALL MPISumAll(All_aaaa_RDM(:,:),AllNodes_All_aaaa_RDM(:,:))
+                CALL MPISumAll(All_abab_RDM(:,:),AllNodes_All_abab_RDM(:,:))
+                CALL MPISumAll(All_abba_RDM(:,:),AllNodes_All_abba_RDM(:,:))
+            endif
+
 
             ! Calculate the normalisations.
             call calc_2e_norms(AllAccumRDMNorm_Inst, Norm_2RDM_Inst, Norm_2RDM)
@@ -3869,7 +3872,7 @@ MODULe nElRDMMod
             abba_RDM_unit = get_free_unit()
             OPEN(abba_RDM_unit,file='TwoRDM_POPS_abba',status='unknown',form='unformatted')
         endif
-        
+       
         Max_Error_Hermiticity = 0.0_dp
         Sum_Error_Hermiticity = 0.0_dp
         Sum_Herm_Percent = 0.0_dp

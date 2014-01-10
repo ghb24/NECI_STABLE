@@ -69,10 +69,10 @@ MODULE PopsfileMod
         character(255) :: popsfile
         !variables from header file
         logical :: tPop64Bit, tPopHPHF, tPopLz, tEOF
-        integer :: iPopLenof_sign,iPopNEl,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
+        integer :: iPopLenof_sign,iPopNEl,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,Popinum_runs
         integer :: PopBlockingIter
         integer(int64) :: iPopAllTotWalkers
-        real(dp) :: PopDiagSft,read_tau
+        real(dp) :: PopDiagSft,PopDiagSft2,read_tau
         real(dp) , dimension(lenof_sign/inum_runs) :: PopSumNoatHF
         integer, intent(in) :: DetsLen
         INTEGER(kind=n_int), intent(out) :: Dets(0:nIfTot,DetsLen)
@@ -96,8 +96,8 @@ MODULE PopsfileMod
                     PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
             else
                 call ReadPopsHeadv4(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                    iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
+                    iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                    PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
             endif
 
             if(EndPopsList.ne.iPopAllTotWalkers) then
@@ -393,7 +393,7 @@ r_loop: do while(.not.tReadAllPops)
             nullify(Temp)
         else
             !Order the determinants on all the lists.
-            call sort (dets(:,1:CurrWalkers), ilut_lt, ilut_gt)
+            call sort (dets(:,1:CurrWalkers), CurrentH(:,1:CurrWalkers), ilut_lt, ilut_gt)
         endif
 
         !Run through all determinants on each node, and calculate the total number of walkers, and noathf
@@ -421,6 +421,8 @@ r_loop: do while(.not.tReadAllPops)
                     endif
                     if(tReadRDMAvPop .and. &
                         & (abs(CurrentH(1,i)-REAL(HElemTemp,dp)+Hii).gt.1E-10)) then
+                    WRITe(6,*) "CurrentH", CurrentH(1,i)
+                    WRITe(6,*) "New", REAL(HElemTemp,dp)-Hii
                         call stop_all("ReadFromPopsfile", "Problem with reading in CurrentH &
                             & information from RDM_AV_POP file")
                     endif
@@ -580,7 +582,7 @@ outer_map:      do i = 0, MappingNIfD
                 !Read in pops from a single run. Distribute an identical set of walkers to each walker set
                 !and then propagate the two independently
                 new_sgn(1)=sgn(1)
-                new_sgn(2)=sgn(1)
+                new_sgn(inum_runs)=sgn(1)
             else
                 do k=1,lenof_sign
                     new_sgn(k)=sgn(k)
@@ -685,14 +687,14 @@ outer_map:      do i = 0, MappingNIfD
                 
 
     subroutine CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                    iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau,PopBlockingIter)
+                    iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                    PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau,PopBlockingIter)
         use LoggingData , only : tZeroProjE
         logical , intent(in) :: tPop64Bit,tPopHPHF,tPopLz
-        integer , intent(in) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
+        integer , intent(in) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,Popinum_runs
         integer , intent(in) :: PopBlockingIter
         integer(int64) , intent(in) :: iPopAllTotWalkers
-        real(dp) , intent(in) :: PopDiagSft,read_tau
+        real(dp) , intent(in) :: PopDiagSft,PopDiagSft2,read_tau
         real(dp) , dimension(lenof_sign/inum_runs) , intent(in) :: PopSumNoatHF
         HElement_t , intent(in) :: PopAllSumENum
         integer , intent(out) :: WalkerListSize
@@ -745,13 +747,14 @@ outer_map:      do i = 0, MappingNIfD
         IF(.not.tWalkContGrow) THEN
 !If we want the walker number to be stable, take the shift from the POPSFILE, otherwise, keep the input value.
             if (inum_runs.eq.2) then
-                !There's a minor issue here -- if we do a double run, we have 2 separate shifts, but currently only
-                !write out one of these to the popsfile.  Therefore, when we read it back in, we need to assign this
-                !shift to both sets.  This will obviously cause set 2 to follow a slightly different trajectory than
-                !it would have done if we hadn't restarted via a Popsfile. This can be sorted out later if restarting
-                !FROM a double run popsfile is something we want to do
-                DiagSft(1)=PopDiagSft
-                DiagSft(2)=PopDiagSft
+                if(Popinum_runs.eq.2) then
+                    DiagSft(1)=PopDiagSft
+                    DiagSft(inum_runs)=PopDiagSft2
+                else
+                    !Previously we only had a single run, now we are restarting with double run
+                    DiagSft(1)=PopDiagSft
+                    DiagSft(inum_runs)=PopDiagSft
+                endif
             else
                 DiagSft=PopDiagSft
             endif
@@ -762,7 +765,7 @@ outer_map:      do i = 0, MappingNIfD
             tWalkContGrow=.true.
             if (inum_runs.eq.2) then
                 DiagSft(1)=PopDiagSft
-                DiagSft(2)=PopDiagSft
+                DiagSft(inum_runs)=PopDiagSft
             else
                 DiagSft=PopDiagSft
             endif
@@ -780,12 +783,12 @@ outer_map:      do i = 0, MappingNIfD
 
         if(inum_runs.eq.2) then
             AllSumNoatHF(1)=PopSumNoatHF(1)
-            AllSumNoatHF(2)=PopSumNoatHF(1)
+            AllSumNoatHF(inum_runs)=PopSumNoatHF(1)
             AllSumENum(1)=PopAllSumENum
-            AllSumENum(2)=PopAllSumENum
+            AllSumENum(inum_runs)=PopAllSumENum
         elseif(lenof_sign.eq.2) then
             AllSumNoatHF(1)=PopSumNoatHF(1)
-            AllSumNoatHF(2)=PopSumNoatHF(2)
+            AllSumNoatHF(lenof_sign)=PopSumNoatHF(lenof_sign)
             AllSumENum=PopAllSumENum
         else
             AllSumNoatHF(1)=PopSumNoatHF(1)
@@ -889,26 +892,26 @@ outer_map:      do i = 0, MappingNIfD
 
     !Routine for reading in from iunit the header information from a popsile v4 file.
     subroutine ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
+                iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
         integer , intent(in) :: iunithead
         logical , intent(out) :: tPop64Bit,tPopHPHF,tPopLz
-        integer , intent(out) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
+        integer , intent(out) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,Popinum_runs
         integer , intent(out) :: PopBlockingIter
         integer(int64) , intent(out) :: iPopAllTotWalkers
-        real(dp) , intent(out) :: PopDiagSft,read_tau
+        real(dp) , intent(out) :: PopDiagSft,PopDiagSft2,read_tau
         real(dp) , dimension(lenof_sign/inum_runs) , intent(out) :: PopSumNoatHF
-        HElement_t , intent(out) :: PopAllSumENum
+        HElement_t, intent(out) :: PopAllSumENum
         integer :: PopsVersion
         integer :: PopRandomHash(1024)
         !Variables for the namelist
         logical :: Pop64Bit,PopHPHF,PopLz
         integer :: PopLensign,PopNEl,PopCyc,PopiBlockingIter
         integer(int64) :: PopTotwalk
-        real(dp) :: PopSft,PopTau
+        real(dp) :: PopSft,PopSft2,PopTau
         HElement_t :: PopSumENum
-        namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopLensign,PopNEl,PopTotwalk,PopSft,PopSumNoatHF,PopSumENum, &
-                    PopCyc,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,PopTau,PopiBlockingIter,PopRandomHash
+        namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopLensign,PopNEl,PopTotwalk,PopSft,PopSft2,PopSumNoatHF,PopSumENum, &
+                    PopCyc,PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,PopTau,PopiBlockingIter,PopRandomHash
 
         PopsVersion=FindPopsfileVersion(iunithead)
         if(PopsVersion.ne.4) call stop_all("ReadPopsfileHeadv4","Wrong popsfile version for this routine.")
@@ -924,6 +927,7 @@ outer_map:      do i = 0, MappingNIfD
         call MPIBCast(PopNEl)
         call MPIBCast(PopTotwalk)
         call MPIBCast(PopSft)
+        call MPIBCast(PopSft2)
         call MPIBCast(PopSumNoatHF)
         call MPIBCast(PopSumENum)
         call MPIBCast(PopCyc)
@@ -932,6 +936,7 @@ outer_map:      do i = 0, MappingNIfD
         call MPIBCast(PopNIfSgn)
         call MPIBCast(PopNIfFlag)
         call MPIBCast(PopNIfTot)
+        call MPIBCast(Popinum_runs)
         call MPIBCast(PopTau)
         call MPIBCast(PopiBlockingIter)
         tPop64Bit=Pop64Bit
@@ -941,6 +946,7 @@ outer_map:      do i = 0, MappingNIfD
         iPopNel=PopNel
         iPopAllTotWalkers=PopTotwalk
         PopDiagSft=PopSft
+        PopDiagSft2=PopSft2
         PopAllSumENum=PopSumENum
         iPopIter=PopCyc
         read_tau=PopTau 
@@ -1064,7 +1070,7 @@ outer_map:      do i = 0, MappingNIfD
         INTEGER(KIND=n_int), ALLOCATABLE :: Parts(:,:)
         INTEGER(KIND=n_int), ALLOCATABLE :: AllCurrentH(:,:)
         INTEGER(TagIntType) :: PartsTag=0
-        INTEGER(TagIntType) :: AllCurrentHTag=0
+        INTEGER(TagIntType) :: AllCurrentHTag=1
         integer :: nMaxDets, TempDet(0:NIfTot), TempFlags
         integer :: iunit, iunit_2, iunit_3, Initiator_Count
         integer(int64) :: write_count, write_count_sum
@@ -1091,6 +1097,7 @@ outer_map:      do i = 0, MappingNIfD
         if(bNodeRoot) CALL MPIAllGather(nDets,WalkersonNodes,error,Roots)
 
         Tag=125
+        Tag2=126
 
 !We have to make the distinction here between the number of entries to expect,
 !and the number of determinants we are writing out. Since the list is not
@@ -1207,7 +1214,7 @@ outer_map:      do i = 0, MappingNIfD
                 else
                     out_tmp = 'RDM_AV_POP'
                 end if
-                open(iunit_3, file=trim(out_tmp), status='replace', form='unformatted')
+                open(iunit_3, file=trim(out_tmp), status='UNKNOWN', form='unformatted')
             endif
 
             ! Write out the dets from this node (the head node, unless we
@@ -1218,7 +1225,6 @@ outer_map:      do i = 0, MappingNIfD
                     if (tWriteBinRDMNoDiag) then
                         write(iunit_3) CurrentH(1:1+2*lenof_sign,j)
                     endif
-
                     write_count = write_count + 1
                 endif
             end do
@@ -1241,7 +1247,7 @@ outer_map:      do i = 0, MappingNIfD
                 if(tWriteBinRDMNoDiag) then
                     allocate(AllCurrentH(1:1+2*lenof_sign,nMaxDets),stat=error)
                     call LogMemAlloc ('AllCurrentH', int(nMaxDets,int32)*(1+2*lenof_sign), &
-                                      size_n_int, this_routine, AllCurrentHTag, error)
+                                      8, this_routine, AllCurrentHTag, error)
                 endif
 
                 ! Loop over the other nodes in the system sequentially, receive
@@ -1800,7 +1806,7 @@ outer_map:      do i = 0, MappingNIfD
                 RealTempSign = transfer(TempSign, RealTempSign)
             else
                 RealTempSign(1) = transfer(TempSign, RealTempSign(1))
-                RealTempSign(2) = RealTempSign(1)
+                RealTempSign(inum_runs) = RealTempSign(1)
             endif
 
 #ifdef __INT64
@@ -1992,7 +1998,7 @@ outer_map:      do i = 0, MappingNIfD
             ENDIF
             call extract_sign(CurrentDets(:,j),RealTempSign)
             TotParts(1)=TotParts(1)+abs(RealTempSign(1))
-            TotParts(2)=TotParts(1)
+            TotParts(inum_runs)=TotParts(1)
         enddo
 
         CALL MPIBarrier(error)  !Sync

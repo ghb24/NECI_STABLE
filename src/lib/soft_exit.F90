@@ -350,10 +350,10 @@ contains
                             call readi (n_proje_sum)     
                         elseif (i == TargetGrowRate) then
                             call readf (target_grow_rate(1))
-                            if(inum_runs.eq.2) target_grow_rate(2)=target_grow_rate(1)
+                            if(inum_runs.eq.2) target_grow_rate(inum_runs)=target_grow_rate(1)
                         elseif (i == diagshift) then
                             call readf (DiagSft(1))
-                            if(inum_runs.eq.2) DiagSft(2)=DiagSft(1)
+                            if(inum_runs.eq.2) DiagSft(inum_runs)=DiagSft(1)
                         elseif (i == shiftdamp) then
                             call readf (SftDamp)
                         elseif (i == stepsshift) then

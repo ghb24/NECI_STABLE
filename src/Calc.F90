@@ -938,7 +938,7 @@ contains
 !For FCIMC, this is the amount extra the diagonal elements will be shifted. This is proportional to the deathrate of 
 !walkers on the determinant
                 call getf(DiagSft(1))
-                if(inum_runs.eq.2) DiagSft(2)=DiagSft(1)
+                if(inum_runs.eq.2) DiagSft(inum_runs)=DiagSft(1)
                 InputDiagSft = DiagSft
 
             case("TAUFACTOR")
@@ -1120,8 +1120,8 @@ contains
                 call getf(TargetGrowRate(1))
                 call getiLong(TargetGrowRateWalk(1))
                 if(inum_runs.eq.2) then
-                    TargetGrowRate(2)=TargetGrowRate(1)
-                    TargetGrowRateWalk(2)=TargetGrowRateWalk(1)
+                    TargetGrowRate(inum_runs)=TargetGrowRate(1)
+                    TargetGrowRateWalk(inum_runs)=TargetGrowRateWalk(1)
                 endif
             case("READPOPS")
 !For FCIMC, this indicates that the initial walker configuration will be read in from the file POPSFILE, which must be present.

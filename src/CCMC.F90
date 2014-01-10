@@ -2956,9 +2956,9 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
       INTEGER :: PopsVersion,WalkerListSize
       INTEGER(kind=n_int), pointer :: DetList(:,:)
       logical :: tPop64Bit,tPopHPHF,tPopLz
-      integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
+      integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,Popinum_runs
       integer(int64) :: iPopAllTotWalkers, CurrParts(lenof_sign)
-      real(dp) :: PopDiagSft,read_tau, tmp_dp(lenof_sign)
+      real(dp) :: PopDiagSft,PopDiagSft2,read_tau, tmp_dp(lenof_sign)
       integer nMaxAmpl,nAmpl,PopBlockingIter
       real(dp) :: PopSumNoatHF(lenof_sign)
       integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
@@ -2984,13 +2984,13 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
              read_tau=0.0_dp
          elseif(PopsVersion.eq.4) then
              call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                   iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                   PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
+                   iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                   PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
          endif
 
          call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-               iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-               PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau, &
+               iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+               PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau, &
                PopBlockingIter)
 
          if(iProcIndex.eq.root) close(iunithead)

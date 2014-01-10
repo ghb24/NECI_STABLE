@@ -822,7 +822,7 @@ MODULE FciMCParMod
         ! being printed.
         tFill_RDM = .false.
         if(tFillingStochRDMonFly) then
-            if(mod((Iter - IterRDMStart + 1),RDMEnergyIter).eq.0) then 
+            if(mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0) then 
                 ! RDM energy is being printed, calculate the diagonal elements for 
                 ! the last RDMEnergyIter iterations.
                 tFill_RDM = .true.
@@ -833,7 +833,7 @@ MODULE FciMCParMod
                 ! since the last time they were included.
                 tFill_RDM = .true.
                 tFinalRDMIter=.true.
-                IterLastRDMFill = mod((Iter - IterRDMStart + 1),RDMEnergyIter)
+                IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter)
             endif
         endif
 
@@ -3933,8 +3933,8 @@ MODULE FciMCParMod
                 IterRDM_HF(1) = Iter+PreviousCycles + 1 
                 AvNoatHF(1) = 0.0_dp
                 if(inum_runs.eq.2) then
-                    IterRDM_HF(2) = Iter+PreviousCycles + 1 
-                    AvNoatHF(2) = 0.0_dp
+                    IterRDM_HF(inum_runs) = Iter+PreviousCycles + 1 
+                    AvNoatHF(inum_runs) = 0.0_dp
                 endif
                 !WRITE(6,*) "zeroed AvNoAtHF", Prev_AvNoAtHF, AvNoAtHF, InstNoAtHF
             else
@@ -3942,9 +3942,9 @@ MODULE FciMCParMod
                 AvNoatHF(1) = ( (real((Iter+PreviousCycles - IterRDM_HF(1)),dp) * Prev_AvNoatHF(1)) &
                     + InstNoatHF(1) ) / real((Iter+PreviousCycles - IterRDM_HF(1)) + 1,dp)
                 if(inum_runs.eq.2) then
-                    Prev_AvNoatHF(2) = AvNoatHF(2)
-                    AvNoatHF(2) = ( (real((Iter+PreviousCycles - IterRDM_HF(2)),dp) * Prev_AvNoatHF(2)) &
-                        + InstNoatHF(2) ) / real((Iter+PreviousCycles - IterRDM_HF(2)) + 1,dp)
+                    Prev_AvNoatHF(inum_runs) = AvNoatHF(inum_runs)
+                    AvNoatHF(inum_runs) = ( (real((Iter+PreviousCycles - IterRDM_HF(inum_runs)),dp) * Prev_AvNoatHF(inum_runs)) &
+                        + InstNoatHF(inum_runs) ) / real((Iter+PreviousCycles - IterRDM_HF(inum_runs)) + 1,dp)
                 endif
                ! WRITE(6,*) "AvNoAtHF", Prev_AvNoAtHF, AvNoAtHF, InstNoAtHF
             endif
@@ -5493,6 +5493,7 @@ MODULE FciMCParMod
                 iunit_4=get_free_unit()
                 OPEN(iunit_4,FILE='ITERRDMSTART',status='old')
                 read(iunit_4, *) IterRDMStart, IterRDM_HF, AvNoAtHF
+
             endif
 
             !We have reached the iteration where we want to start filling the RDM.
@@ -6691,13 +6692,16 @@ MODULE FciMCParMod
         real(dp) :: Gap,ExpectedMemWalk,read_tau
         !Variables from popsfile header...
         logical :: tPop64Bit,tPopHPHF,tPopLz
-        integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
+        integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,Popinum_runs
         integer(int64) :: iPopAllTotWalkers
         integer :: i
-        real(dp) :: PopDiagSft
+        real(dp) :: PopDiagSft, PopDiagSft2
         real(dp) , dimension(lenof_sign) :: InitialSign
         real(dp) , dimension(lenof_sign/inum_runs) :: PopSumNoatHF
         HElement_t :: PopAllSumENum
+        
+        !default
+        Popinum_runs=1
 
         if(tReadPops.and..not.tPopsAlreadyRead) then
             call open_pops_head(iunithead,formpops,binpops)
@@ -6733,8 +6737,8 @@ MODULE FciMCParMod
                     read_tau=0.0_dp !Indicate that this was not read in.
                 elseif(PopsVersion.eq.4) then
                     call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                            iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                            PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
+                            iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                            PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
                     ! The only difference between 3 & 4 is just that 4 reads 
                     ! in via a namelist, so that we can add more details 
                     ! whenever we want.
@@ -6743,8 +6747,8 @@ MODULE FciMCParMod
                 endif
 
                 call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                        iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau,PopBlockingIter)
+                        iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                        PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau,PopBlockingIter)
 
                 if(iProcIndex.eq.root) close(iunithead)
             else
