@@ -2,7 +2,8 @@
 
 module excit_gens_int_weighted
 
-    use SystemData, only: nel, nbasis
+    use SystemData, only: nel, nbasis, nOccAlpha, nOccBeta, G1, nOccAlpha, &
+                          nOccBeta
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
                                pDoubNew, ScratchSize
@@ -282,10 +283,12 @@ contains
 
         ! Initially, select a pair of electrons
         ! (Use routine from symrandexcit2, as it is known to work!)
-        call PickElecPair (nI, elecs(1), elecs(2), sym_product, ispn, sum_ml, &
-                           -1)
-        src = nI(elecs)
-        pgen = pDoubles * 2.0_dp / real(nel * (nel - 1), dp)
+        call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
+        !call PickElecPair (nI, elecs(1), elecs(2), sym_product, ispn, sum_ml, &
+!                           -1)
+!        src = nI(elecs)
+!        pgen = pDoubles * 2.0_dp / real(nel * (nel - 1), dp)
+        pgen = pgen * pDoubles
 
         ! Construct the list of possible symmetry pairs listed according to
         ! a unique choice of symmetry A (we enforce that sym(A) < sym(B)).
@@ -344,6 +347,96 @@ contains
         clr_orb(ilutJ, src(2))
         set_orb (ilutJ, orbs(1))
         set_orb (ilutJ, orbs(2))
+
+    end subroutine
+
+
+    subroutine pick_biased_elecs (nI, elecs, src, sym_prod, ispn, sum_ml, pgen)
+
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: elecs(2), src(2), sym_prod, ispn, sum_ml
+        real(dp), intent(out) :: pgen
+        real(dp), parameter :: opp_bias = 2.0
+
+        real(dp) :: nal, nbe, nopp, ntot, r
+        integer :: al_req, be_req, al_num(2), be_num(2), elecs_found, i, idx
+        integer :: al_count, be_count
+
+        nopp = noccalpha * noccbeta
+        nal = noccalpha * (noccalpha - 1) / 2
+        nbe = noccbeta * (noccbeta - 1) / 2
+        ntot = nal + nbe + nopp * opp_bias
+
+        ! The overall generation probability for this section is remarkably
+        ! simple!
+        pgen = 1.0_dp / ntot
+
+        ! We want to have the n'th alpha, or beta electrons in the determinant
+        ! Select them according to the availability of pairs (and the
+        ! weighting of opposite-spin pairs relative to same-spin ones).
+        idx = floor(genrand_real2_dSFMT() * ntot)
+        if (idx < nal) then
+            al_req = 2
+            be_req = 0
+            al_num(1) = ceiling((1 + sqrt(9 + 8*real(idx, dp))) / 2)
+            al_num(2) = idx + 1 - ((al_num(1) - 1) * (al_num(1) - 2)) / 2
+            iSpn = 3
+        else if (idx < nal + nbe) then
+            al_req = 0
+            be_req = 2
+            idx = idx - nal
+            be_num(1) = ceiling((1 + sqrt(9 + 8*real(idx, dp))) / 2)
+            be_num(2) = idx + 1 - ((be_num(1) - 1) * (be_num(1) - 2)) / 2
+            iSpn = 1
+        else
+            al_req = 1
+            be_req = 1
+            pgen = pgen * opp_bias
+            idx = floor((real(idx,dp) - nal - nbe) / opp_bias)
+            al_num(1) = 1 + mod(idx, nOccAlpha)
+            be_num(1) = 1 + floor(idx / real(nOccAlpha,dp))
+            iSpn = 2
+        end if
+
+        ! Loop through the determiant, and select the relevant orbitals from
+        ! it.
+        ! This is not as clean as the implementation in PickElecPair, which
+        ! doesn't consider the spins. Would work MUCH better in an
+        ! environment where the alpha/beta spins were stored seperately...
+        al_count = 0
+        be_count = 0
+        elecs_found = 0
+        do i = 1, nel
+            if (is_alpha(nI(i))) then
+                al_count = al_count + 1
+                if (al_req > 0) then
+                    if (al_count == al_num(al_req)) then
+                        elecs_found = elecs_found + 1
+                        elecs(elecs_found) = i
+                        al_req = al_req - 1
+                    end if
+                end if
+            else
+                be_count = be_count + 1
+                if (be_req > 0) then
+                    if (be_count == be_num(be_req)) then
+                        elecs_found = elecs_found + 1
+                        elecs(elecs_found) = i
+                        be_req = be_req - 1
+                    end if
+                end if
+            end if
+            if (al_req == 0 .and. be_req == 0) exit
+        end do
+
+        ! Generate the orbitals that are being considered
+        src = nI(elecs)
+
+        ! The Ml value is obtained from the orbitals
+        sum_ml = sum(G1(src)%Ml)
+
+        ! Get the symmetries
+        sym_prod = RandExcitSymLabelProd (G1(src(1))%Sym%S, G1(src(2))%Sym%S)
 
     end subroutine
 
