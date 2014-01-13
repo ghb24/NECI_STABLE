@@ -356,7 +356,7 @@ contains
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: elecs(2), src(2), sym_prod, ispn, sum_ml
         real(dp), intent(out) :: pgen
-        real(dp), parameter :: opp_bias = 2.0
+        real(dp), parameter :: opp_bias = 2.5
 
         real(dp) :: nal, nbe, nopp, ntot, r
         integer :: al_req, be_req, al_num(2), be_num(2), elecs_found, i, idx
