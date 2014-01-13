@@ -3676,22 +3676,21 @@ MODULe nElRDMMod
                 AllAccumRDMNorm = AllAccumRDMNorm + AllAccumRDMNorm_Inst
             endif
         endif
+            
+        if(tFinalRDMEnergy .and. tWriteBinRDMNoDiag) then
+            !Will be printing out All_xxxx_RDM to the binary RDM Popsfiles
+            !Need to gather these onto root
+            ALLOCATE(AllNodes_All_aaaa_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+            ALLOCATE(AllNodes_All_abba_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+            ALLOCATE(AllNodes_All_abab_RDM(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
+        
+            CALL MPISumAll(All_aaaa_RDM(:,:),AllNodes_All_aaaa_RDM(:,:))
+            CALL MPISumAll(All_abab_RDM(:,:),AllNodes_All_abab_RDM(:,:))
+            CALL MPISumAll(All_abba_RDM(:,:),AllNodes_All_abba_RDM(:,:))
+        endif
 
         if(iProcIndex.eq.0) then
             
-            if(tFinalRDMEnergy .and. tWriteBinRDMNoDiag) then
-                !Will be printing out All_xxxx_RDM to the binary RDM Popsfiles
-                !Need to gather these onto root
-                ALLOCATE(AllNodes_All_aaaa_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
-                ALLOCATE(AllNodes_All_abba_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
-                ALLOCATE(AllNodes_All_abab_RDM(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
-                
-                CALL MPISumAll(All_aaaa_RDM(:,:),AllNodes_All_aaaa_RDM(:,:))
-                CALL MPISumAll(All_abab_RDM(:,:),AllNodes_All_abab_RDM(:,:))
-                CALL MPISumAll(All_abba_RDM(:,:),AllNodes_All_abba_RDM(:,:))
-            endif
-
-
             ! Calculate the normalisations.
             call calc_2e_norms(AllAccumRDMNorm_Inst, Norm_2RDM_Inst, Norm_2RDM)
 
@@ -4157,7 +4156,7 @@ MODULe nElRDMMod
                         ! from the 2-RDM.
                         call calc_1RDM_energy(i,j,a,iSpin,jSpin, Norm_2RDM, Norm_2RDM_Inst, &
                                                     RDMEnergy_Inst, RDMEnergy1,RDmEnergy2)
-
+                        
                         do b = a, SpatOrbs
 
                             Ind2_aa = ( ( (b-2) * (b-1) ) / 2 ) + a

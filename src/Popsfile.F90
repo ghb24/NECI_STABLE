@@ -169,7 +169,7 @@ MODULE PopsfileMod
                 if (tReadRDMAvPop) then
                     allocate(BatchCurrentH(1:1+2*lenof_sign, 1:ReadBatch), stat=ierr)
                     call LogMemAlloc('BatchCurrentH', ReadBatch * (1+2*lenof_sign), &
-                                     size_n_int, this_routine, BatchCurrentHTag, ierr)
+                                     8, this_routine, BatchCurrentHTag, ierr)
                 endif
             else
                 ! Allocate array to store the received particles?
@@ -179,7 +179,7 @@ MODULE PopsfileMod
                 if (tReadRDMAvPop) then
                     allocate(BatchCurrentH(1:1+2*lenof_sign, 1:MaxSendIndex), stat=ierr)
                     call LogMemAlloc('BatchCurrentH', MaxSendIndex * (1+2*lenof_sign), &
-                                     size_n_int, this_routine, BatchCurrentHTag, ierr)
+                                     8, this_routine, BatchCurrentHTag, ierr)
                 endif
             end if
 
@@ -229,7 +229,7 @@ r_loop: do while(.not.tReadAllPops)
                     if (tSplitPops) then
                         CurrWalkers = CurrWalkers + 1
                         CurrentDets(:,CurrWalkers) = WalkerTemp
-                        if(tReadRDMAvPop) CurrentH(:,CurrWalkers)=CurrentHEntry
+                        if(tReadRDMAvPop) CurrentH(:,CurrWalkers)=CurrentHEntry(:)
                         if (proc /= iProcIndex) &
                             call stop_all (this_routine, "Determinant in the &
                                            &wrong Split POPSFILE")
@@ -238,7 +238,7 @@ r_loop: do while(.not.tReadAllPops)
                         ! and if we have filled up the slot in the list then
                         ! distribute it when it is full.
                         BatchRead(:,PopsSendList(proc)) = WalkerTemp(:)
-                        if(tReadRDMAvPop) BatchCurrentH(:,PopsSendList(proc))=CurrentHEntry
+                        if(tReadRDMAvPop) BatchCurrentH(:,PopsSendList(proc))=CurrentHEntry(:)
                         PopsSendList(proc) = PopsSendList(proc) + 1
                         if(proc /= nNodes - 1) then
                             if (PopsInitialSlots(proc+1) - &
@@ -275,8 +275,6 @@ r_loop: do while(.not.tReadAllPops)
                              / (nIfTot + 1)
 
             endif
-
-            !BatchCurrentH is fine here CMO
 
             ! Now scatter the particles read in to their correct processors.
             if (bNodeRoot) then
@@ -1068,7 +1066,7 @@ outer_map:      do i = 0, MappingNIfD
         INTEGER :: Tag, Tag2
         INTEGER :: Total,i,j,k
         INTEGER(KIND=n_int), ALLOCATABLE :: Parts(:,:)
-        INTEGER(KIND=n_int), ALLOCATABLE :: AllCurrentH(:,:)
+        REAL(dp), ALLOCATABLE :: AllCurrentH(:,:)
         INTEGER(TagIntType) :: PartsTag=0
         INTEGER(TagIntType) :: AllCurrentHTag=1
         integer :: nMaxDets, TempDet(0:NIfTot), TempFlags
