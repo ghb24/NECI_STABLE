@@ -43,7 +43,7 @@ contains
         ! can be used.
 
         integer, intent(in) :: nI(nel), exFlag
-        integer(n_int), intent(in), target :: ilutI(0:NIfTot)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
@@ -74,7 +74,7 @@ contains
         ! can be used.
 
         integer, intent(in) :: nI(nel), exFlag, nexcit
-        integer(n_int), intent(in), target :: ilutI(0:NIfTot)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic, ExcitMat(2,2)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
@@ -172,7 +172,7 @@ contains
         !      This provides quite a good description of the large elements
 
         integer, intent(in) :: nI(nel), exFlag
-        integer(n_int), intent(in), target :: ilutI(0:NIfTot)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
