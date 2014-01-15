@@ -284,7 +284,7 @@ contains
         ! Initially, select a pair of electrons
         ! (Use routine from symrandexcit2, as it is known to work!)
         call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
-        !call PickElecPair (nI, elecs(1), elecs(2), sym_product, ispn, sum_ml, &
+!        call PickElecPair (nI, elecs(1), elecs(2), sym_product, ispn, sum_ml, &
 !                           -1)
 !        src = nI(elecs)
 !        pgen = pDoubles * 2.0_dp / real(nel * (nel - 1), dp)
@@ -374,17 +374,18 @@ contains
         ! We want to have the n'th alpha, or beta electrons in the determinant
         ! Select them according to the availability of pairs (and the
         ! weighting of opposite-spin pairs relative to same-spin ones).
-        idx = floor(genrand_real2_dSFMT() * ntot)
-        if (idx < nal) then
+        r = genrand_real2_dSFMT() * ntot
+        if (r < nal) then
             al_req = 2
             be_req = 0
+            idx = floor(r)
             al_num(1) = ceiling((1 + sqrt(9 + 8*real(idx, dp))) / 2)
             al_num(2) = idx + 1 - ((al_num(1) - 1) * (al_num(1) - 2)) / 2
             iSpn = 3
-        else if (idx < nal + nbe) then
+        else if (r < nal + nbe) then
             al_req = 0
             be_req = 2
-            idx = idx - nal
+            idx = floor(r - nal)
             be_num(1) = ceiling((1 + sqrt(9 + 8*real(idx, dp))) / 2)
             be_num(2) = idx + 1 - ((be_num(1) - 1) * (be_num(1) - 2)) / 2
             iSpn = 1
@@ -392,7 +393,7 @@ contains
             al_req = 1
             be_req = 1
             pgen = pgen * opp_bias
-            idx = floor((real(idx,dp) - nal - nbe) / opp_bias)
+            idx = floor((r - nal - nbe) / opp_bias)
             al_num(1) = 1 + mod(idx, nOccAlpha)
             be_num(1) = 1 + floor(idx / real(nOccAlpha,dp))
             iSpn = 2
