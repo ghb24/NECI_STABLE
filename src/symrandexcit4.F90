@@ -7,7 +7,7 @@ module excit_gens_int_weighted
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
                                pDoubNew, ScratchSize
-    use sym_general_mod, only: ClassCountInd, ClassCountInv
+    use sym_general_mod, only: ClassCountInd, ClassCountInv, class_count_ms
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
     use dSFMT_interface, only: genrand_real2_dSFMT
     use Determinants, only: get_helement, write_det
@@ -454,7 +454,8 @@ contains
         integer(n_int), intent(in) :: ilut(0:NifTot)
         integer :: orb
 
-        integer :: label_index, orb_index, norb, i, orbid, srcid(2)
+        integer :: label_index, orb_index, norb, i, orbid, srcid(2), ms
+        integer :: src_orb, src_id
 
         ! Our biasing arrays must consider all of the possible orbitals with
         ! the correct symmetry.
@@ -465,22 +466,52 @@ contains
         label_index = SymLabelCounts2(1, cc_index)
         norb = OrbClassCount(cc_index)
 
-        ! Construct a list of orbitals to excite to, and 
-        cum_sum = 0
-        srcid = gtID(src)
-        do i = 1, norb
+        if (G1(src(1))%Ms == G1(src(2))%Ms) then
+
+            ! Both of the electrons have the same spin. Therefore we need to
+            ! include both electron-hole interactions.
+            cum_sum = 0
+            srcid = gtID(src)
+            do i = 1, norb
             
-            orb = SymLabelList2(label_index + i - 1)
-            if (IsNotOcc(ilut, orb) .and. orb /= orb_pair) then
-                orbid = gtID(orb)
-!                cum_sum = cum_sum + 1.0
-                cum_sum = cum_sum &
+                orb = SymLabelList2(label_index + i - 1)
+                if (IsNotOcc(ilut, orb) .and. orb /= orb_pair) then
+                    orbid = gtID(orb)
+                    cum_sum = cum_sum &
                     + sqrt(abs(get_umat_el(srcid(1), srcid(1), orbid, orbid)))&
                     + sqrt(abs(get_umat_el(srcid(2), srcid(2), orbid, orbid)))
-            end if
-            cumulative_arr(i) = cum_sum
+                end if
+                cumulative_arr(i) = cum_sum
 
-        end do
+            end do
+
+        else
+            
+            ! The two electrons have differing spin. Therefore, only the 
+            ! electron-hole interaction with the same spin is required.
+            ms = class_count_ms(cc_index)
+            if (ms == G1(src(1))%Ms) then
+                src_orb = src(1)
+            else
+                src_orb = src(2)
+            end if
+
+            cum_sum = 0
+            src_id = gtID(src_orb)
+            do i = 1, norb
+
+                orb = SymLabelList2(label_index + i - 1)
+                if (IsNotOcc(ilut, orb) .and. orb /= orb_pair) then
+                    orbid = gtID(orb)
+                    cum_sum = cum_sum &
+                    + sqrt(abs(get_umat_el(src_id, src_id, orbid, orbid)))
+                end if
+                cumulative_arr(i) = cum_sum
+
+            end do
+
+        end if
+
 
         ! If there are no available orbitals to pair with, we need to abort
         if (cum_sum == 0) then
@@ -496,8 +527,12 @@ contains
         ! TODO: We don't need to call get_umat_ell. Already known.
         orb = SymLabelList2(label_index + orb_index - 1)
         orbid = gtID(orb)
-        cpt = sqrt(abs(get_umat_el(srcid(1), srcid(1), orbid, orbid))) + &
-              sqrt(abs(get_umat_el(srcid(2), srcid(2), orbid, orbid)))
+        if (G1(src(1))%Ms == G1(src(2))%Ms) then
+            cpt = sqrt(abs(get_umat_el(srcid(1), srcid(1), orbid, orbid))) + &
+                  sqrt(abs(get_umat_el(srcid(2), srcid(2), orbid, orbid)))
+        else
+            cpt = sqrt(abs(get_umat_el(src_id, src_id, orbid, orbid)))
+        end if
 
     end function
 

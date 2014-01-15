@@ -139,6 +139,29 @@ contains
         ind =  ((ClassCountInd(1,sym,mom)-1)/2) + 1
     end function
 
+    elemental function class_count_spin (cc_ind) result(spn)
+
+        ! Given a class count index, return the spin of the relevant orbitals.
+        ! alpha = 1, beta = 2
+
+        integer, intent(in) :: cc_ind
+        integer :: spn
+
+        spn = 2 - mod(cc_ind, 2)
+
+    end function
+
+    elemental function class_count_ms (cc_ind) result(ms)
+
+        ! Given a class count index, return 2*ms for the relevant orbiatls.
+
+        integer, intent(in) :: cc_ind
+        integer :: ms
+
+        ms = 2 * mod(cc_ind, 2) - 1
+
+    end function
+
     elemental subroutine ClassCountInv_32 (ind, sym, spin, mom)
 
         ! Given a Class Count Index, return the symmetry, spin and momentum
