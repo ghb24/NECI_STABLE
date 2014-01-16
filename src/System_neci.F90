@@ -170,6 +170,7 @@ MODULE System
       modk_offdiag = .false.
       tGenHelWeighted = .false.
       tGen_4ind_weighted = .false.
+      tGen_4ind_reverse = .false.
 
 !Feb08 defaults:
       IF(Feb08) THEN
@@ -859,6 +860,12 @@ system: do
                         ! Weight excitations based on the magnitude of the
                         ! 4-index integrals (ij|ij)
                         tGen_4ind_weighted = .true.
+                    case("4IND-REVERSE")
+                        ! Weight excitations based on the magnitude of the
+                        ! actual hamiltonian matrix elements (at least for
+                        ! doubles). This is effectively the "reverse" of
+                        ! 4IND-WEIGHTED as above.
+                        tGen_4ind_reverse = .true.
 
                     case default
                         call Stop_All("ReadSysInp",trim(w)//" not a valid keyword")

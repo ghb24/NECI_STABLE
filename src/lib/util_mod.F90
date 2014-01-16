@@ -39,6 +39,13 @@ module util_mod
         module procedure abs_real_sign
     end interface
 
+    interface abs_l1
+        module procedure abs_l1_dp
+        module procedure abs_l1_sp
+        module procedure abs_l1_cdp
+        module procedure abs_l1_csp
+    end interface
+
     ! sds: It would be nice to use a proper private/public interface here,
     !      BUT PGI throws a wobbly on using the public definition on
     !      a new declared operator. --> "Empty Operator" errors!
@@ -135,6 +142,49 @@ contains
         else
             abs_real_sign = real(nint(sqrt(sum(sgn ** 2))), dp)
         end if
+    end function
+
+! --------- L1 norm function
+! These return the absolute L1 norm of the specified value
+!
+! --> for complex numbers this is not sqrt(r**2 + i**2), but is the sum
+!     of the absolute values of the terms
+!----------------------------
+
+    pure function abs_l1_sp (val) result (ret)
+
+        real(sp), intent(in) :: val
+        real(sp) :: ret
+
+        ret = abs(val)
+
+    end function
+
+    pure function abs_l1_dp (val) result (ret)
+
+        real(dp), intent(in) :: val
+        real(dp) :: ret
+
+        ret = abs(val)
+
+    end function
+
+    pure function abs_l1_csp (val) result (ret)
+
+        complex(sp), intent(in) :: val
+        real(sp) :: ret
+
+        ret = abs(real(val, sp)) + abs(aimag(val))
+
+    end function
+
+    pure function abs_l1_cdp (val) result (ret)
+
+        complex(dp), intent(in) :: val
+        real(dp) :: ret
+
+        ret = abs(real(val, dp)) + abs(aimag(val))
+
     end function
 
 !--- Array utilities ---
