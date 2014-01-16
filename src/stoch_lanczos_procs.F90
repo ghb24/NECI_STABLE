@@ -6,7 +6,7 @@ module stoch_lanczos_procs
     use bit_rep_data
     use bit_reps, only: decode_bit_det
     use CalcData, only: tTruncInitiator, tStartSinglePart, InitialPart, InitWalkers
-    use CalcData, only: tSemiStochastic, tReadPops, tUseRealCoeffs
+    use CalcData, only: tSemiStochastic, tReadPops, tUseRealCoeffs, tau, DiagSft
     use constants
     use DetBitOps, only: DetBitEq
     use dSFMT_interface , only : genrand_real2_dSFMT
@@ -14,17 +14,19 @@ module stoch_lanczos_procs
     use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots, HashIndex, nWalkerHashes
     use FciMCData, only: fcimc_iter_data, ll_node, MaxWalkersPart, tStartCoreGroundState
     use FciMCData, only: tPopsAlreadyRead, tHashWalkerList, CurrentH, determ_proc_sizes
-    use FciMCData, only: core_ham_diag
+    use FciMCData, only: core_ham_diag, InputDiagSft, Hii
     use FciMCParMod, only: create_particle, InitFCIMC_HF, SetupParameters, InitFCIMCCalcPar
     use FciMCParMod, only: init_fcimc_fn_pointers, WriteFciMCStats, WriteFciMCStatsHeader
-    use FciMCParMod, only: rezero_iter_stats_each_iter
+    use FciMCParMod, only: rezero_iter_stats_each_iter, tSinglePartPhase
     use hash, only: FindWalkerHash, init_hash_table, reset_hash_table, fill_in_hash_table
     use hilbert_space_size, only: CreateRandomExcitLevDetUnbias
-    use Parallel_neci, only: MPIBarrier, iProcIndex
+    use Parallel_neci, only: MPIBarrier, iProcIndex, MPISum
+    use ParallelHelper, only: root
     use procedure_pointers
     use semi_stoch_procs, only: copy_core_dets_this_proc_to_spawnedparts
     use semi_stoch_procs, only: add_core_states_currentdet_hash, start_walkers_from_core_ground
     use SystemData, only: nel
+    use util_mod, only: get_free_unit
 
     implicit none
 
@@ -45,7 +47,7 @@ module stoch_lanczos_procs
         ! The number of iterations to perform *between each Lanczos vector being
         ! sampled*.
         integer :: niters
-        real(dp), allocatable :: overlap_matrix(:,:)
+        real(dp), allocatable :: overlap_matrix_1(:,:), overlap_matrix_2(:,:)
         real(dp), allocatable :: hamil_matrix(:,:)
     end type
 
@@ -68,8 +70,11 @@ contains
         logical :: eof
         character(len=100) :: w
 
+       ! Default values.
         lanczos%nconfigs = 1
         lanczos%nrepeats = 1
+        lanczos%nvecs = 1
+        lanczos%niters = 1
         lanczos%tGround = .false.
         lanczos%tFiniteTemp = .false.
 
@@ -88,11 +93,11 @@ contains
                 lanczos%tFiniteTemp = .true.
             case("NUM-INIT-CONFIGS")
                 call geti(lanczos%nconfigs)
-            case("NUM-REPEATS-PER-CONFIG")
+            case("NUM-REPEATS-PER-INIT-CONFIG")
                 call geti(lanczos%nrepeats)
             case("NUM-LANCZOS-VECS")
                 call geti(lanczos%nvecs)
-            case("NUM-ITERS-PER-VEC")
+            case("NUM-ITERS-BETWEEN-VECS")
                 call geti(lanczos%niters)
             case default
                 call report("Keyword "//trim(w)//" not recognized in stoch-lanczos block", .true.)
@@ -106,8 +111,6 @@ contains
         type(stoch_lanczos_data), intent(inout) :: lanczos
         integer :: ierr
         character (len=*), parameter :: t_r = "init_stoch_lanczos"
-
-        associate(nvecs => lanczos%nvecs, s_matrix => lanczos%overlap_matrix, hamil => lanczos%hamil_matrix)
 
         if (.not. tHashWalkerList) call stop_all('t_r','Stochastic Lanczos can only be run using &
             &the linscalefcimcalgo option (the linear scaling algorithm).')
@@ -132,11 +135,12 @@ contains
         nhashes_lanczos = nWalkerHashes
         TotWalkersLanczos = 0
         allocate(lanczos_vecs(0:NIfLan, MaxWalkersPart), stat=ierr)
-        lanczos_vecs = 0
+        lanczos_vecs = 0_n_int
         allocate(lanczos_hash_table(nhashes_lanczos), stat=ierr)
         call init_hash_table(lanczos_hash_table)
 
-        allocate(lanczos%overlap_matrix(lanczos%nvecs, lanczos%nvecs), stat=ierr)
+        allocate(lanczos%overlap_matrix_1(lanczos%nvecs, lanczos%nvecs), stat=ierr)
+        allocate(lanczos%overlap_matrix_2(lanczos%nvecs, lanczos%nvecs), stat=ierr)
         allocate(lanczos%hamil_matrix(lanczos%nvecs, lanczos%nvecs), stat=ierr)
 
         ! If performing a finite-temperature calculation with more than one run for each initial
@@ -147,9 +151,26 @@ contains
 
         call MPIBarrier(ierr)
 
-        end associate
-
     end subroutine init_stoch_lanczos
+
+    subroutine init_stoch_lanczos_repeat(lanczos, irepeat)
+
+        type(stoch_lanczos_data), intent(inout) :: lanczos
+        integer :: irepeat
+
+        call create_initial_config(lanczos, irepeat)
+
+        call reset_hash_table(lanczos_hash_table)
+        lanczos%overlap_matrix_1 = 0.0_dp
+        lanczos%overlap_matrix_2 = 0.0_dp
+        lanczos%hamil_matrix = 0.0_dp
+        TotWalkersLanczos = 0
+
+        DiagSft = InputDiagSft
+        ! Setting this variable to true stops the shift from varying instantly.
+        tSinglePartPhase = .true.
+
+    end subroutine init_stoch_lanczos_repeat
 
     subroutine init_stoch_lanczos_iter(iter_data, determ_index)
 
@@ -189,6 +210,7 @@ contains
                 ! processor to SpawnedParts, which add_core_states_currentdet_hash uses.
                 call copy_core_dets_this_proc_to_spawnedparts()
                 call add_core_states_currentdet_hash()
+                SpawnedParts = 0_n_int
                 if (tStartCoreGroundState .and. (.not. tReadPops)) &
                     call start_walkers_from_core_ground(tPrintInfo = .false.)
                 ! Reset the diagonal Hamiltonian elements.
@@ -283,16 +305,20 @@ contains
 
     end subroutine generate_init_config_basic
 
-    subroutine store_lanczos_vec(ivec)
+    subroutine store_lanczos_vec(ivec, nvecs)
 
-        integer, intent(in) ::  ivec
-        integer :: idet, sign_ind, DetHash, det_ind
+        integer, intent(in) ::  ivec, nvecs
+        integer :: idet, sign_ind, flag_ind, DetHash, det_ind
         integer :: nI(nel)
         logical :: tDetFound
-        type(ll_node), pointer :: temp_node
+        type(ll_node), pointer :: temp_node, prev
+
+        !real(dp) :: sign1(2)
 
         ! The index of the first element referring to the sign, for this ivec.
         sign_ind = NIfD + lenof_sign*(ivec-1) + 1
+        ! The index of the flag, which is *not* NOffFlag!
+        flag_ind = NIfD + lenof_sign*nvecs + 1
 
         ! Loop over all occupied determinants for this new Lanczos vector.
         do idet = 1, TotWalkers
@@ -305,25 +331,26 @@ contains
             ! If the first element in the list for this hash value has been used.
             if (.not. temp_node%ind == 0) then
                 ! Loop over all determinants with this hash value which are already in the list.
-                do while (associated(temp_node%next))
-                    if (DetBitEQ(CurrentDets(:,idet), lanczos_vecs(:,TotWalkersLanczos), NIfDBO)) then
+                do while (associated(temp_node))
+                    if (DetBitEQ(CurrentDets(:,idet), lanczos_vecs(:,temp_node%ind), NIfDBO)) then
                         ! This determinant is already in the list.
                         det_ind = temp_node%ind
                         ! Just add the sign for the new Lanczos vector. The determinant and flag are
                         ! there already.
-                        lanczos_vecs(sign_ind:sign_ind+NIfSgn,det_ind) = CurrentDets(NOffSgn:NOffSgn+NIfSgn,idet)
+                        lanczos_vecs(sign_ind:sign_ind+lenof_sign-1,det_ind) = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,idet)
                         tDetFound = .true.
                         exit
                     end if
                     ! Move on to the next determinant with this hash value.
+                    prev => temp_node
                     temp_node => temp_node%next
                 end do
 
                 if (.not. tDetFound) then
                     ! We need to add a new determinant in the next position in the list.
                     ! So create that next position!
-                    allocate(temp_node%next)
-                    temp_node => temp_node%next
+                    allocate(prev%next)
+                    temp_node => prev%next
                     nullify(temp_node%next)
                 end if
             end if
@@ -337,13 +364,19 @@ contains
                 ! Copy determinant across.
                 lanczos_vecs(0:NIfD,det_ind) = CurrentDets(0:NIfD,idet)
                 ! Copy sign across.
-                lanczos_vecs(sign_ind:sign_ind+NIfSgn,det_ind) = CurrentDets(NOffSgn:NOffSgn+NIfSgn,idet)
+                lanczos_vecs(sign_ind:sign_ind+lenof_sign-1,det_ind) = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,idet)
+                !sign1 = transfer(lanczos_vecs(NOffSgn:NOffSgn+1, det_ind), sign1)
+                !write(6,*) "stored sign1:", sign1
                 ! Copy Flags across.
-                lanczos_vecs(NOffFlag,det_ind) = CurrentDets(NOffFlag,idet)
+                if (tUseFlags) lanczos_vecs(flag_ind,det_ind) = CurrentDets(NOffFlag,idet)
             end if
 
             nullify(temp_node)
+            nullify(prev)
         end do
+
+        !sign1 = transfer(lanczos_vecs(NOffSgn:NOffSgn+1, 1), sign1)
+        !write(6,*) "lanczos_vecs sign:", sign1
 
     end subroutine store_lanczos_vec
 
@@ -354,10 +387,12 @@ contains
         integer :: idet, jvec, ind(ivec), sgn(lenof_sign)
         real(dp) :: sign1(lenof_sign), sign2(lenof_sign)
 
-        associate(s_matrix => lanczos%overlap_matrix)
+        associate(s_matrix1 => lanczos%overlap_matrix_1, s_matrix2 => lanczos%overlap_matrix_2)
 
-            s_matrix(1:ivec, jvec) = 0.0_dp
-            s_matrix(jvec, 1:ivec) = 0.0_dp
+            s_matrix1(1:ivec, ivec) = 0.0_dp
+            s_matrix1(ivec, 1:ivec) = 0.0_dp
+            s_matrix2(1:ivec, ivec) = 0.0_dp
+            s_matrix2(ivec, 1:ivec) = 0.0_dp
 
             do jvec = 1, ivec
                 ! The first index of the sign in lanczos_vecs, for each Lanczos vector.
@@ -366,16 +401,191 @@ contains
 
             do idet = 1, TotWalkersLanczos
                 sgn = lanczos_vecs(ind(ivec):ind(ivec)+1, idet)
+                if (IsUnoccDet(sgn)) cycle
                 sign1 = transfer(sgn, sign1)
                 do jvec = 1, ivec
                     sgn = lanczos_vecs(ind(jvec):ind(jvec)+1, idet)
+                    if (IsUnoccDet(sgn)) cycle
                     sign2 = transfer(sgn, sign1)
-                    s_matrix(jvec,ivec) = s_matrix(jvec,ivec) + (sign1(1)*sign2(2) + sign1(2)*sign2(1))/2.0_dp
+                    s_matrix1(jvec,ivec) = s_matrix1(jvec,ivec) + sign1(2)*sign2(1)
+                    s_matrix2(jvec,ivec) = s_matrix2(jvec,ivec) + sign1(1)*sign2(2)
                 end do
+            end do
+
+            do jvec = 1, ivec
+                s_matrix1(ivec,jvec) = s_matrix1(jvec,ivec)
+                s_matrix2(ivec,jvec) = s_matrix2(jvec,ivec)
             end do
 
         end associate
 
     end subroutine calc_overlap_matrix_elems
+
+    subroutine calc_hamil_elems(lanczos, ivec)
+
+        type(stoch_lanczos_data), intent(inout) :: lanczos
+        integer, intent(in) :: ivec
+        integer :: idet, jvec, ind(ivec), sgn(lenof_sign), nI(nel)
+        integer :: det_ind, DetHash
+        real(dp) :: sign1(lenof_sign), sign2(lenof_sign), full_shift(lenof_sign)
+        type(ll_node), pointer :: temp_node
+        logical :: tDetFound
+
+        associate(h_matrix => lanczos%hamil_matrix, &
+                  s_matrix1 => lanczos%overlap_matrix_1, s_matrix2 => lanczos%overlap_matrix_2)
+
+            h_matrix(1:ivec, ivec) = 0.0_dp
+            h_matrix(ivec, 1:ivec) = 0.0_dp
+            full_shift = DiagSft + Hii
+
+            do jvec = 1, ivec
+                ! The first index of the sign in lanczos_vecs, for each Lanczos vector.
+                ind(jvec) = NIfD + lenof_sign*(jvec-1) + 1
+            end do
+
+            do idet = 1, TotWalkers
+                sgn = CurrentDets(NOffSgn:NOffSgn+1, idet)
+                sign1 = transfer(sgn, sign1)
+                !write(6,*) "sign1:", sign1
+                call decode_bit_det(nI, CurrentDets(:,idet))
+                DetHash = FindWalkerHash(nI, nhashes_lanczos)
+                temp_node => lanczos_hash_table(DetHash)
+                ! If there are no determinants at all with this hash value.
+                if (temp_node%ind == 0) then
+                    cycle
+                else
+                    tDetFound = .false.
+                    do while (associated(temp_node))
+                        if (DetBitEQ(CurrentDets(:,idet), lanczos_vecs(:,temp_node%ind), NIfDBO)) then
+                            det_ind = temp_node%ind
+                            tDetFound = .true.
+                            exit
+                        end if
+                        ! Move on to the next determinant with this hash value.
+                        temp_node => temp_node%next
+                    end do
+                    if (tDetFound) then
+                        do jvec = 1, ivec
+                            sgn = lanczos_vecs(ind(jvec):ind(jvec)+1, det_ind)
+                            if (IsUnoccDet(sgn)) cycle
+                            sign2 = transfer(sgn, sign1)
+                            !write(6,*) "sign2:", sign2
+                            h_matrix(jvec,ivec) = h_matrix(jvec,ivec) + (sign1(1)*sign2(2) + sign1(2)*sign2(1))/2.0_dp
+                            !write(6,*) "h_matrix before:", h_matrix
+                        end do
+                    end if
+                end if
+            end do
+
+            do jvec = 1, ivec
+                h_matrix(jvec,ivec) = -h_matrix(jvec,ivec) + 0.5_dp*(1+tau*full_shift(1))*s_matrix1(jvec,ivec) + &
+                                                            0.5_dp*(1+tau*full_shift(2))*s_matrix2(jvec,ivec)
+                !write(6,*) "h_matrix after 1:", h_matrix
+                h_matrix(jvec,ivec) = h_matrix(jvec,ivec)/tau
+                !write(6,*) "h_matrix after 2:", h_matrix
+                h_matrix(ivec,jvec) = h_matrix(jvec,ivec)
+                !write(6,*) "h_matrix after 3:", h_matrix
+            end do
+
+        end associate
+
+    end subroutine calc_hamil_elems
+
+    subroutine communicate_lanczos_matrices(lanczos)
+
+        type(stoch_lanczos_data), intent(inout) :: lanczos
+        real(dp) :: inp_matrices(3*lanczos%nvecs, lanczos%nvecs)
+        real(dp) :: out_matrices(3*lanczos%nvecs, lanczos%nvecs)
+
+        inp_matrices(1:lanczos%nvecs, 1:lanczos%nvecs) = lanczos%overlap_matrix_1
+        inp_matrices(lanczos%nvecs+1:2*lanczos%nvecs, 1:lanczos%nvecs) = lanczos%overlap_matrix_2
+        inp_matrices(2*lanczos%nvecs+1:3*lanczos%nvecs, 1:lanczos%nvecs) = lanczos%hamil_matrix
+
+        call MPISum(inp_matrices, out_matrices)
+
+        if (iProcIndex == root) then
+            lanczos%overlap_matrix_1 = out_matrices(1:lanczos%nvecs, 1:lanczos%nvecs)
+            lanczos%overlap_matrix_2 = out_matrices(lanczos%nvecs+1:2*lanczos%nvecs, 1:lanczos%nvecs)
+            lanczos%hamil_matrix = out_matrices(2*lanczos%nvecs+1:3*lanczos%nvecs, 1:lanczos%nvecs)
+        end if
+
+    end subroutine communicate_lanczos_matrices
+
+    subroutine output_lanczos_matrices(lanczos, irepeat)
+
+        type(stoch_lanczos_data), intent(in) :: lanczos
+        integer, intent(in) :: irepeat
+        real(dp) :: average_s_matrix(lanczos%nvecs, lanczos%nvecs)
+
+        if (iProcIndex == root) then
+            call output_matrix(lanczos, irepeat, 'hamil  ', lanczos%hamil_matrix)
+            average_s_matrix = (lanczos%overlap_matrix_1 + lanczos%overlap_matrix_2)/2.0_dp
+            call output_matrix(lanczos, irepeat, 'overlap', average_s_matrix)
+        end if
+
+    end subroutine output_lanczos_matrices
+
+    subroutine output_matrix(lanczos, irepeat, stem, matrix)
+
+        type(stoch_lanczos_data), intent(in) :: lanczos
+        integer, intent(in) :: irepeat
+        character(7), intent(in) :: stem
+        character(2) :: ifmt, jfmt
+        real(dp), intent(in) :: matrix(lanczos%nvecs, lanczos%nvecs)
+        character(15) :: ind, filename
+        integer :: i, j, ilen, jlen, new_unit
+
+        write(ind,'(i15)') irepeat
+        filename = trim(trim(stem)//'.'//adjustl(ind))
+
+        new_unit = get_free_unit()
+        open(new_unit, file=trim(filename), status='replace')
+        do i = 1, lanczos%nvecs
+            ilen = ceiling(log10(real(abs(i)+1)))
+            ! This assumes that ilen < 10, which is very reasonable!
+            write(ifmt,'(a1,i1)') "i", ilen
+            do j = i, lanczos%nvecs
+                jlen = ceiling(log10(real(abs(j)+1)))
+                write(jfmt,'(a1,i1)') "i", jlen
+                write(new_unit,'(a1,'//ifmt//',a1,'//jfmt//',a1,1x,es15.8)') &
+                    "(",i,",",j,")", matrix(i,j)
+            end do
+        end do
+        close(new_unit)
+
+    end subroutine output_matrix
+
+    subroutine print_populations(lanczos)
+
+        type(stoch_lanczos_data), intent(in) :: lanczos
+        integer :: ihash
+        integer(n_int) :: int_sign(lenof_sign*lanczos%nvecs)
+        real(dp) :: real_sign(lenof_sign*lanczos%nvecs), total_pop(lenof_sign*lanczos%nvecs)
+        type(ll_node), pointer :: temp_node
+
+        int_sign = 0_n_int
+        total_pop = 0.0_dp
+        real_sign = 0.0_dp
+        
+        do ihash = 1, nhashes_lanczos
+            !write(6,'(i5,a1)',advance='no') ihash, ":"
+            temp_node => lanczos_hash_table(ihash)
+            if (temp_node%ind /= 0) then
+                do while (associated(temp_node))
+                    !write(6,'(i5)',advance='no') temp_node%ind
+                    int_sign = lanczos_vecs(NIfD+1:NIfD+lenof_sign*lanczos%nvecs, temp_node%ind)
+                    real_sign = transfer(int_sign, real_sign)
+                    total_pop = total_pop + abs(real_sign)
+                    temp_node => temp_node%next
+                end do
+            end if
+            !write(6,'()',advance='yes')
+        end do
+
+        nullify(temp_node)
+
+        write(6,*) "lanczos_vec populations", total_pop
+
+    end subroutine print_populations
 
 end module stoch_lanczos_procs

@@ -171,7 +171,7 @@ contains
 
         ! If starting from a popsfile then CurrentH won't have been filled in yet.
         if ((.not. tRegenDiagHels) .and. tReadPops) call fill_in_CurrentH()
-        SpawnedParts = 0
+        SpawnedParts = 0_n_int
         TotWalkersOld = TotWalkers
 
         if (tStartCoreGroundState .and. (.not. tReadPops)) &

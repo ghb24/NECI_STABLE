@@ -364,6 +364,7 @@ contains
         allocate(core_space(0:NIfTot, determ_space_size), stat=ierr)
         call LogMemAlloc('core_space', maxval(determ_proc_sizes)*(NIfTot+1), 8, t_r, &
                          CoreSpaceTag, ierr)
+        core_space = 0_n_int
 
         call MPIAllGatherV(SpawnedParts(:,1:determ_proc_sizes(iProcIndex)), core_space, &
                        determ_proc_sizes, determ_proc_indices)
@@ -751,7 +752,7 @@ contains
 
     end subroutine add_core_states_currentdets
 
-    subroutine add_core_states_currentdet_hash
+    subroutine add_core_states_currentdet_hash()
 
         ! This routine adds the core states in SpawnedParts into CurrentDets. For all
         ! such states already in CurrentDets, we want to keep the amplitude (which
