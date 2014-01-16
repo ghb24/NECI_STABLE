@@ -642,8 +642,8 @@ contains
                 ! Get the symmetries
                 src(2) = nI(j)
                 e_ispn = get_ispn(src(1), src(2))
-                e_sym_prod = RandExcitSymLabelProd(G1(src(1))%Sym%s, &
-                                                   G1(src(2))%Sym%s)
+                e_sym_prod = RandExcitSymLabelProd(int(G1(src(1))%Sym%s, &)
+                                                   int(G1(src(2))%Sym%s))
 
                 ! Get the weight (HElement) associated with the elecs/holes
                 if (e_ispn == iSpn .and. e_sym_prod == sym_prod) then
@@ -740,7 +740,8 @@ contains
         pgen = 1.0_dp / real(nchoose, dp)
 
         ! What are the symmetry/spin properties of this pick?
-        sym_prod = RandExcitSymLabelProd (G1(orbs(1))%Sym%S, G1(orbs(2))%Sym%S)
+        sym_prod = RandExcitSymLabelProd (int(G1(orbs(1))%Sym%S), &
+                                          int(G1(orbs(2))%Sym%S))
         ispn = get_ispn(orbs(1), orbs(2))
 
     end subroutine
