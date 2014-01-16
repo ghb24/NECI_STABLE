@@ -437,7 +437,8 @@ contains
         sum_ml = sum(G1(src)%Ml)
 
         ! Get the symmetries
-        sym_prod = RandExcitSymLabelProd (G1(src(1))%Sym%S, G1(src(2))%Sym%S)
+        sym_prod = RandExcitSymLabelProd (int(G1(src(1))%Sym%S), &
+                                          int(G1(src(2))%Sym%S))
 
     end subroutine
 
