@@ -1930,6 +1930,19 @@ MODULE FciMCParMod
         if (rh .eq.0.0) ZeroMatrixElem=ZeroMatrixElem+1
         !write(6,*) 'p,rh', prob, rh
 
+        ! The following is useful for debugging the contributions of single
+        ! excitations, and double excitations of spin-paired/opposite
+        ! electron pairs to the value of tau.
+!        if (ic == 2) then
+!            if (G1(ex(1,1))%Ms /= G1(ex(1,2))%Ms) then
+!                write(6,*) 'OPP', rh, prob
+!            else
+!                write(6,*) 'SAM', rh, prob
+!            end if
+!        else
+!            write(6,*) 'IC1', rh, prob
+!        end if
+
         ! Are we doing real spawning?
         
         tRealSpawning = .false.
