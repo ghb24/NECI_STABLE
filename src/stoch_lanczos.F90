@@ -28,8 +28,6 @@ contains
         use semi_stoch_procs, only: is_core_state, check_determ_flag, deterministic_projection
         use SystemData, only: nel
         
-        !use FciMCData, only: determ_space_size, CoreHashIndex, core_space
-
         type(stoch_lanczos_data), intent(inout) :: lanczos
         integer :: iconfig, irepeat, ivec, iiter, idet, ireplica, ispawn
         integer :: nspawn, parent_flags, unused_flags, ex_level_to_ref
@@ -44,10 +42,6 @@ contains
         logical :: tParity
         HElement_t :: HElGen
 
-        !integer(n_int) :: int_sign(lenof_sign*lanczos%nvecs)
-        !real(dp) :: test_sign(lenof_sign*lanczos%nvecs)
-        !type(ll_node), pointer :: temp_node
-
         call init_stoch_lanczos(lanczos)
 
         do iconfig = 1, lanczos%nconfigs
@@ -60,46 +54,10 @@ contains
 
                     ! Copy the current state of CurrentDets to lanczos_vecs.
                     call store_lanczos_vec(ivec, lanczos%nvecs)
-                    !call print_populations(lanczos)
 
                     call calc_overlap_matrix_elems(lanczos, ivec)
 
                     do iiter = 1, lanczos%niters
-
-                        !write(6,*) "CurrentDets:"
-                        !do idet = 1, int(TotWalkers, sizeof_int)
-                        !    call extract_bit_rep(CurrentDets(:, idet), nI_parent, parent_sign, unused_flags, &
-                        !                          fcimc_excit_gen_store)
-                        !    write(6,*) idet, CurrentDets(0, idet), parent_sign, &
-                        !        test_flag(CurrentDets(:, idet), flag_deterministic)
-                        !end do
-
-                        !if (iter == 100) then
-                        !    write(6,*) "lanczos_vecs:"
-                        !    do idet = 1, int(TotWalkersLanczos, sizeof_int)
-                        !        int_sign = lanczos_vecs(NIfD+1:NIfD+lenof_sign*lanczos%nvecs, idet)
-                        !        test_sign = transfer(int_sign, test_sign)
-                        !        write(6,*) idet, lanczos_vecs(0, idet), test_sign(21:22)
-                        !    end do
-                        !end if
-
-                        !write(6,"(A)") "Core Hash Table: "
-                        !do idet = 1, determ_space_size
-                        !    temp_node => CoreHashIndex(idet)
-                        !    if (temp_node%ind /= 0) then
-                        !        write(6,'(i9)',advance='no') idet
-                        !        do while (associated(temp_node))
-                        !            write(6,'(i9)',advance='no') temp_node%ind
-                        !            temp_node => temp_node%next
-                        !        end do
-                        !        write(6,'()',advance='yes')
-                        !    end if
-                        !end do
-
-                        !write(6,*) "core_space:"
-                        !do idet = 1, determ_space_size
-                        !    write(6,*) core_space(:,idet)
-                        !end do
 
                         iter = iiter + (ivec-1)*lanczos%niters
                         call init_stoch_lanczos_iter(iter_data_fciqmc, determ_index)

@@ -313,8 +313,6 @@ contains
         logical :: tDetFound
         type(ll_node), pointer :: temp_node, prev
 
-        !real(dp) :: sign1(2)
-
         ! The index of the first element referring to the sign, for this ivec.
         sign_ind = NIfD + lenof_sign*(ivec-1) + 1
         ! The index of the flag, which is *not* NOffFlag!
@@ -365,8 +363,6 @@ contains
                 lanczos_vecs(0:NIfD,det_ind) = CurrentDets(0:NIfD,idet)
                 ! Copy sign across.
                 lanczos_vecs(sign_ind:sign_ind+lenof_sign-1,det_ind) = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,idet)
-                !sign1 = transfer(lanczos_vecs(NOffSgn:NOffSgn+1, det_ind), sign1)
-                !write(6,*) "stored sign1:", sign1
                 ! Copy Flags across.
                 if (tUseFlags) lanczos_vecs(flag_ind,det_ind) = CurrentDets(NOffFlag,idet)
             end if
@@ -374,9 +370,6 @@ contains
             nullify(temp_node)
             nullify(prev)
         end do
-
-        !sign1 = transfer(lanczos_vecs(NOffSgn:NOffSgn+1, 1), sign1)
-        !write(6,*) "lanczos_vecs sign:", sign1
 
     end subroutine store_lanczos_vec
 
@@ -446,7 +439,6 @@ contains
             do idet = 1, TotWalkers
                 sgn = CurrentDets(NOffSgn:NOffSgn+1, idet)
                 sign1 = transfer(sgn, sign1)
-                !write(6,*) "sign1:", sign1
                 call decode_bit_det(nI, CurrentDets(:,idet))
                 DetHash = FindWalkerHash(nI, nhashes_lanczos)
                 temp_node => lanczos_hash_table(DetHash)
@@ -469,9 +461,7 @@ contains
                             sgn = lanczos_vecs(ind(jvec):ind(jvec)+1, det_ind)
                             if (IsUnoccDet(sgn)) cycle
                             sign2 = transfer(sgn, sign1)
-                            !write(6,*) "sign2:", sign2
                             h_matrix(jvec,ivec) = h_matrix(jvec,ivec) + (sign1(1)*sign2(2) + sign1(2)*sign2(1))/2.0_dp
-                            !write(6,*) "h_matrix before:", h_matrix
                         end do
                     end if
                 end if
@@ -480,11 +470,8 @@ contains
             do jvec = 1, ivec
                 h_matrix(jvec,ivec) = -h_matrix(jvec,ivec) + 0.5_dp*(1+tau*full_shift(1))*s_matrix1(jvec,ivec) + &
                                                             0.5_dp*(1+tau*full_shift(2))*s_matrix2(jvec,ivec)
-                !write(6,*) "h_matrix after 1:", h_matrix
                 h_matrix(jvec,ivec) = h_matrix(jvec,ivec)/tau
-                !write(6,*) "h_matrix after 2:", h_matrix
                 h_matrix(ivec,jvec) = h_matrix(jvec,ivec)
-                !write(6,*) "h_matrix after 3:", h_matrix
             end do
 
         end associate
@@ -568,18 +555,15 @@ contains
         real_sign = 0.0_dp
         
         do ihash = 1, nhashes_lanczos
-            !write(6,'(i5,a1)',advance='no') ihash, ":"
             temp_node => lanczos_hash_table(ihash)
             if (temp_node%ind /= 0) then
                 do while (associated(temp_node))
-                    !write(6,'(i5)',advance='no') temp_node%ind
                     int_sign = lanczos_vecs(NIfD+1:NIfD+lenof_sign*lanczos%nvecs, temp_node%ind)
                     real_sign = transfer(int_sign, real_sign)
                     total_pop = total_pop + abs(real_sign)
                     temp_node => temp_node%next
                 end do
             end if
-            !write(6,'()',advance='yes')
         end do
 
         nullify(temp_node)
