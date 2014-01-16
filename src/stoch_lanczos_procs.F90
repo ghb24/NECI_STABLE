@@ -382,6 +382,7 @@ contains
 
         associate(s_matrix1 => lanczos%overlap_matrix_1, s_matrix2 => lanczos%overlap_matrix_2)
 
+            ! Just in case!
             s_matrix1(1:ivec, ivec) = 0.0_dp
             s_matrix1(ivec, 1:ivec) = 0.0_dp
             s_matrix2(1:ivec, ivec) = 0.0_dp
@@ -392,10 +393,12 @@ contains
                 ind(jvec) = NIfD + lenof_sign*(jvec-1) + 1
             end do
 
+            ! Loop over all walkers in lanczos_vecs.
             do idet = 1, TotWalkersLanczos
                 sgn = lanczos_vecs(ind(ivec):ind(ivec)+1, idet)
                 if (IsUnoccDet(sgn)) cycle
                 sign1 = transfer(sgn, sign1)
+                ! Loop over all lanczos vectors currently stored.
                 do jvec = 1, ivec
                     sgn = lanczos_vecs(ind(jvec):ind(jvec)+1, idet)
                     if (IsUnoccDet(sgn)) cycle
@@ -405,6 +408,7 @@ contains
                 end do
             end do
 
+            ! Fill in the lower-half of the overlap matrices.
             do jvec = 1, ivec
                 s_matrix1(ivec,jvec) = s_matrix1(jvec,ivec)
                 s_matrix2(ivec,jvec) = s_matrix2(jvec,ivec)
@@ -429,6 +433,7 @@ contains
 
             h_matrix(1:ivec, ivec) = 0.0_dp
             h_matrix(ivec, 1:ivec) = 0.0_dp
+            ! The full shift, including the Hartree-Fock energy, *not* relative to it.
             full_shift = DiagSft + Hii
 
             do jvec = 1, ivec
@@ -436,19 +441,22 @@ contains
                 ind(jvec) = NIfD + lenof_sign*(jvec-1) + 1
             end do
 
+            ! Loop over all determinants in CurrentDets.
             do idet = 1, TotWalkers
                 sgn = CurrentDets(NOffSgn:NOffSgn+1, idet)
                 sign1 = transfer(sgn, sign1)
                 call decode_bit_det(nI, CurrentDets(:,idet))
                 DetHash = FindWalkerHash(nI, nhashes_lanczos)
+                ! Point to the first node with this hash value in lanczos_vecs.
                 temp_node => lanczos_hash_table(DetHash)
-                ! If there are no determinants at all with this hash value.
                 if (temp_node%ind == 0) then
+                    ! If there are no determinants at all with this hash value in lanczos_vecs.
                     cycle
                 else
                     tDetFound = .false.
                     do while (associated(temp_node))
                         if (DetBitEQ(CurrentDets(:,idet), lanczos_vecs(:,temp_node%ind), NIfDBO)) then
+                            ! If this CurrentDets determinant has been found in lanczos_vecs.
                             det_ind = temp_node%ind
                             tDetFound = .true.
                             exit
@@ -457,6 +465,7 @@ contains
                         temp_node => temp_node%next
                     end do
                     if (tDetFound) then
+                        ! Add in the contribution to the projected Hamiltonian, for each lanczos vector.
                         do jvec = 1, ivec
                             sgn = lanczos_vecs(ind(jvec):ind(jvec)+1, det_ind)
                             if (IsUnoccDet(sgn)) cycle
@@ -467,6 +476,9 @@ contains
                 end if
             end do
 
+            ! The above actually holds the subspace version of (1-\tau(H-S)) acting on the most recent
+            ! Lanczos vector. But we want just H acting on it. We therefore have to add some extra contributions
+            ! to get this. Note, we have to be careful about the two different overlap matrices to be included.
             do jvec = 1, ivec
                 h_matrix(jvec,ivec) = -h_matrix(jvec,ivec) + 0.5_dp*(1+tau*full_shift(1))*s_matrix1(jvec,ivec) + &
                                                             0.5_dp*(1+tau*full_shift(2))*s_matrix2(jvec,ivec)
@@ -479,6 +491,9 @@ contains
     end subroutine calc_hamil_elems
 
     subroutine communicate_lanczos_matrices(lanczos)
+
+        ! Add all the overlap and projected Hamiltonian matrices together, with the result being
+        ! held only on the root node.
 
         type(stoch_lanczos_data), intent(inout) :: lanczos
         real(dp) :: inp_matrices(3*lanczos%nvecs, lanczos%nvecs)
@@ -506,6 +521,8 @@ contains
 
         if (iProcIndex == root) then
             call output_matrix(lanczos, irepeat, 'hamil  ', lanczos%hamil_matrix)
+            ! We have two overlap matrices as we have two replicas. So average them for
+            ! better statistics.
             average_s_matrix = (lanczos%overlap_matrix_1 + lanczos%overlap_matrix_2)/2.0_dp
             call output_matrix(lanczos, irepeat, 'overlap', average_s_matrix)
         end if
@@ -527,13 +544,19 @@ contains
 
         new_unit = get_free_unit()
         open(new_unit, file=trim(filename), status='replace')
+
+        ! Write all the components of the matrix, above and including the diagonal, one
+        ! after another on separate lines. Each element is preceeded by the indices involved.
         do i = 1, lanczos%nvecs
             ilen = ceiling(log10(real(abs(i)+1)))
-            ! This assumes that ilen < 10, which is very reasonable!
+            ! ifmt will hold the correct integer length so that there will be no spaces printed out.
+            ! Note that this assumes that ilen < 10, which is very reasonable!
             write(ifmt,'(a1,i1)') "i", ilen
             do j = i, lanczos%nvecs
                 jlen = ceiling(log10(real(abs(j)+1)))
                 write(jfmt,'(a1,i1)') "i", jlen
+
+                ! Finally write the line.
                 write(new_unit,'(a1,'//ifmt//',a1,'//jfmt//',a1,1x,es15.8)') &
                     "(",i,",",j,")", matrix(i,j)
             end do
@@ -543,6 +566,9 @@ contains
     end subroutine output_matrix
 
     subroutine print_populations(lanczos)
+    
+        ! A useful test routine which will output the total walker population on both
+        ! replicas, for each Lanczos vector.
 
         type(stoch_lanczos_data), intent(in) :: lanczos
         integer :: ihash
