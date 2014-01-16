@@ -178,7 +178,6 @@ contains
                         if (tSemiStochastic) call deterministic_projection()
 
                         TotWalkersNew = int(TotWalkers, sizeof_int)
-
                         call end_iter_stats(TotWalkersNew)
 
                         call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.)

@@ -743,7 +743,6 @@ MODULE FciMCParMod
         MaxInitPopNeg=0.0
         HighPopNeg=1
         HighPopPos=1
-        parent_flags=0
         FlagsCurr=0
         ! Synchronise processors
 !        CALL MPIBarrier(error)
@@ -858,6 +857,9 @@ MODULE FciMCParMod
             ! from the same walker has not been filled (it is filled when we
             ! excite from the first particle on a determinant).
             fcimc_excit_gen_store%tFilled = .false.
+
+            ! Make sure that the parent flags from the last walker don't through.
+            parent_flags=0
 
             ! If we're not calculating the RDM (or we're calculating some HFSD combination of the 
             ! RDM) this just extracts info from the bit representation like normal.
