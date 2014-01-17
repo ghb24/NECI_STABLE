@@ -171,7 +171,7 @@ MODULE ReadInput_neci
         use SystemData, only: nel, tStarStore, tUseBrillouin, beta, tFixLz, &
                               tFindCINatOrbs, tNoRenormRandExcits, LMS, STOT,&
                               tCSF, tSpn, tUHF, tGenHelWeighted, tHPHF, &
-                              tGen_4ind_weighted
+                              tGen_4ind_weighted, tGen_4ind_reverse
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -424,7 +424,7 @@ MODULE ReadInput_neci
             write(6,*)
         end if
 
-        if (tGen_4ind_weighted) then
+        if (tGen_4ind_weighted .or. tGen_4ind_reverse) then
             if (tFixLz .or. tCSF) &
                 call stop_all (t_r, 'Integral weighted excitation generators &
                               &not yet implemented with these keywords')

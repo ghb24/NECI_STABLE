@@ -15,7 +15,7 @@ MODULE FciMCParMod
                           tMolpro, csf_trunc_level, &
                           tTruncateCSF, tRef_Not_HF, &
                           tAntiSym_MI, MolproID, tGenHelWeighted, &
-                          tGen_4ind_weighted, tMomInv
+                          tGen_4ind_weighted, tMomInv, tGen_4ind_reverse
     use bit_rep_data, only: extract_sign, flag_trial, flag_connected
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NOffY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
@@ -158,7 +158,8 @@ MODULE FciMCParMod
     use sltcnd_mod, only: sltcnd_excit
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
                                        gen_excit_4ind_weighted, &
-                                       init_4ind_bias, test_excit_gen_4ind
+                                       init_4ind_bias, test_excit_gen_4ind, &
+                                       gen_excit_4ind_reverse
     use procedure_pointers
 
     implicit none
@@ -1688,6 +1689,8 @@ MODULE FciMCParMod
         elseif (tGen_4ind_weighted) then
             call init_4ind_bias()
             generate_excitation => gen_excit_4ind_weighted
+        elseif (tGen_4ind_reverse) then
+            generate_excitation => gen_excit_4ind_reverse
         else
             generate_excitation => gen_rand_excit
         endif
