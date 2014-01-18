@@ -642,7 +642,7 @@ contains
                 ! Get the symmetries
                 src(2) = nI(j)
                 e_ispn = get_ispn(src(1), src(2))
-                e_sym_prod = RandExcitSymLabelProd(int(G1(src(1))%Sym%s, &)
+                e_sym_prod = RandExcitSymLabelProd(int(G1(src(1))%Sym%s), &
                                                    int(G1(src(2))%Sym%s))
 
                 ! Get the weight (HElement) associated with the elecs/holes
