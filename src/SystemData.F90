@@ -210,7 +210,7 @@ LOGICAL :: tSymIgnoreEnergies
     ! Should we use |K| for FCIQMC?
     logical :: modk_offdiag
 
-    logical :: tGenHelWeighted, tGen_4ind_weighted
+    logical :: tGenHelWeighted, tGen_4ind_weighted, tGen_4ind_reverse
 
 ! Operators for type(symmetry)
 interface assignment (=)
