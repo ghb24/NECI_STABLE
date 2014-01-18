@@ -2,11 +2,12 @@
 
 module excit_gens_int_weighted
 
-    use SystemData, only: nel, nbasis
+    use SystemData, only: nel, nbasis, nOccAlpha, nOccBeta, G1, nOccAlpha, &
+                          nOccBeta
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
                                pDoubNew, ScratchSize
-    use sym_general_mod, only: ClassCountInd, ClassCountInv
+    use sym_general_mod, only: ClassCountInd, ClassCountInv, class_count_ms
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
     use dSFMT_interface, only: genrand_real2_dSFMT
     use Determinants, only: get_helement, write_det
@@ -282,10 +283,12 @@ contains
 
         ! Initially, select a pair of electrons
         ! (Use routine from symrandexcit2, as it is known to work!)
-        call PickElecPair (nI, elecs(1), elecs(2), sym_product, ispn, sum_ml, &
-                           -1)
-        src = nI(elecs)
-        pgen = pDoubles * 2.0_dp / real(nel * (nel - 1), dp)
+        call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
+!        call PickElecPair (nI, elecs(1), elecs(2), sym_product, ispn, sum_ml, &
+!                           -1)
+!        src = nI(elecs)
+!        pgen = pDoubles * 2.0_dp / real(nel * (nel - 1), dp)
+        pgen = pgen * pDoubles
 
         ! Construct the list of possible symmetry pairs listed according to
         ! a unique choice of symmetry A (we enforce that sym(A) < sym(B)).
@@ -341,9 +344,101 @@ contains
                           ex, par)
         ilutJ = ilutI
         clr_orb (ilutJ, src(1))
-        clr_orb(ilutJ, src(2))
+        clr_orb (ilutJ, src(2))
         set_orb (ilutJ, orbs(1))
         set_orb (ilutJ, orbs(2))
+
+    end subroutine
+
+
+    subroutine pick_biased_elecs (nI, elecs, src, sym_prod, ispn, sum_ml, pgen)
+
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: elecs(2), src(2), sym_prod, ispn, sum_ml
+        real(dp), intent(out) :: pgen
+        real(dp), parameter :: opp_bias = 3.0
+
+        real(dp) :: nal, nbe, nopp, ntot, r
+        integer :: al_req, be_req, al_num(2), be_num(2), elecs_found, i, idx
+        integer :: al_count, be_count
+
+        nopp = noccalpha * noccbeta
+        nal = noccalpha * (noccalpha - 1) / 2
+        nbe = noccbeta * (noccbeta - 1) / 2
+        ntot = nal + nbe + nopp * opp_bias
+
+        ! The overall generation probability for this section is remarkably
+        ! simple!
+        pgen = 1.0_dp / ntot
+
+        ! We want to have the n'th alpha, or beta electrons in the determinant
+        ! Select them according to the availability of pairs (and the
+        ! weighting of opposite-spin pairs relative to same-spin ones).
+        r = genrand_real2_dSFMT() * ntot
+        if (r < nal) then
+            al_req = 2
+            be_req = 0
+            idx = floor(r)
+            al_num(1) = ceiling((1 + sqrt(9 + 8*real(idx, dp))) / 2)
+            al_num(2) = idx + 1 - ((al_num(1) - 1) * (al_num(1) - 2)) / 2
+            iSpn = 3
+        else if (r < nal + nbe) then
+            al_req = 0
+            be_req = 2
+            idx = floor(r - nal)
+            be_num(1) = ceiling((1 + sqrt(9 + 8*real(idx, dp))) / 2)
+            be_num(2) = idx + 1 - ((be_num(1) - 1) * (be_num(1) - 2)) / 2
+            iSpn = 1
+        else
+            al_req = 1
+            be_req = 1
+            pgen = pgen * opp_bias
+            idx = floor((r - nal - nbe) / opp_bias)
+            al_num(1) = 1 + mod(idx, nOccAlpha)
+            be_num(1) = 1 + floor(idx / real(nOccAlpha,dp))
+            iSpn = 2
+        end if
+
+        ! Loop through the determiant, and select the relevant orbitals from
+        ! it.
+        ! This is not as clean as the implementation in PickElecPair, which
+        ! doesn't consider the spins. Would work MUCH better in an
+        ! environment where the alpha/beta spins were stored seperately...
+        al_count = 0
+        be_count = 0
+        elecs_found = 0
+        do i = 1, nel
+            if (is_alpha(nI(i))) then
+                al_count = al_count + 1
+                if (al_req > 0) then
+                    if (al_count == al_num(al_req)) then
+                        elecs_found = elecs_found + 1
+                        elecs(elecs_found) = i
+                        al_req = al_req - 1
+                    end if
+                end if
+            else
+                be_count = be_count + 1
+                if (be_req > 0) then
+                    if (be_count == be_num(be_req)) then
+                        elecs_found = elecs_found + 1
+                        elecs(elecs_found) = i
+                        be_req = be_req - 1
+                    end if
+                end if
+            end if
+            if (al_req == 0 .and. be_req == 0) exit
+        end do
+
+        ! Generate the orbitals that are being considered
+        src = nI(elecs)
+
+        ! The Ml value is obtained from the orbitals
+        sum_ml = sum(G1(src)%Ml)
+
+        ! Get the symmetries
+        sym_prod = RandExcitSymLabelProd (int(G1(src(1))%Sym%S), &
+                                          int(G1(src(2))%Sym%S))
 
     end subroutine
 
@@ -360,7 +455,8 @@ contains
         integer(n_int), intent(in) :: ilut(0:NifTot)
         integer :: orb
 
-        integer :: label_index, orb_index, norb, i, orbid, srcid(2)
+        integer :: label_index, orb_index, norb, i, orbid, srcid(2), ms
+        integer :: src_orb, src_id
 
         ! Our biasing arrays must consider all of the possible orbitals with
         ! the correct symmetry.
@@ -371,22 +467,60 @@ contains
         label_index = SymLabelCounts2(1, cc_index)
         norb = OrbClassCount(cc_index)
 
-        ! Construct a list of orbitals to excite to, and 
-        cum_sum = 0
-        srcid = gtID(src)
-        do i = 1, norb
-            
-            orb = SymLabelList2(label_index + i - 1)
-            if (IsNotOcc(ilut, orb) .and. orb /= orb_pair) then
-                orbid = gtID(orb)
-!                cum_sum = cum_sum + 1.0
-                cum_sum = cum_sum &
-                    + sqrt(abs(get_umat_el(srcid(1), srcid(1), orbid, orbid)))&
-                    + sqrt(abs(get_umat_el(srcid(2), srcid(2), orbid, orbid)))
-            end if
-            cumulative_arr(i) = cum_sum
+        ! Here we construct a cumulative list of the absolute values of the
+        ! integrals between the source electrons (orbitals), and the available
+        ! orbitals in the specified symmetry class.
+        ! --> These can then be binary searched to pick an orbital
+        ! --> The L1-norm is used when complex integrals are being used, as
+        !     the cumulative spawning rate is related to the sum of the values
+        !     rather than the norm of the complex number.
 
-        end do
+        if (G1(src(1))%Ms == G1(src(2))%Ms) then
+
+            ! Both of the electrons have the same spin. Therefore we need to
+            ! include both electron-hole interactions.
+            cum_sum = 0
+            srcid = gtID(src)
+            do i = 1, norb
+            
+                orb = SymLabelList2(label_index + i - 1)
+                if (IsNotOcc(ilut, orb) .and. orb /= orb_pair) then
+                    orbid = gtID(orb)
+                    cum_sum = cum_sum &
+                    + sqrt(abs_l1(get_umat_el(srcid(1), srcid(1), orbid, orbid)))&
+                    + sqrt(abs_l1(get_umat_el(srcid(2), srcid(2), orbid, orbid)))
+                end if
+                cumulative_arr(i) = cum_sum
+
+            end do
+
+        else
+            
+            ! The two electrons have differing spin. Therefore, only the 
+            ! electron-hole interaction with the same spin is required.
+            ms = class_count_ms(cc_index)
+            if (ms == G1(src(1))%Ms) then
+                src_orb = src(1)
+            else
+                src_orb = src(2)
+            end if
+
+            cum_sum = 0
+            src_id = gtID(src_orb)
+            do i = 1, norb
+
+                orb = SymLabelList2(label_index + i - 1)
+                if (IsNotOcc(ilut, orb) .and. orb /= orb_pair) then
+                    orbid = gtID(orb)
+                    cum_sum = cum_sum &
+                    + sqrt(abs_l1(get_umat_el(src_id, src_id, orbid, orbid)))
+                end if
+                cumulative_arr(i) = cum_sum
+
+            end do
+
+        end if
+
 
         ! If there are no available orbitals to pair with, we need to abort
         if (cum_sum == 0) then
@@ -402,8 +536,243 @@ contains
         ! TODO: We don't need to call get_umat_ell. Already known.
         orb = SymLabelList2(label_index + orb_index - 1)
         orbid = gtID(orb)
-        cpt = sqrt(abs(get_umat_el(srcid(1), srcid(1), orbid, orbid))) + &
-              sqrt(abs(get_umat_el(srcid(2), srcid(2), orbid, orbid)))
+        if (G1(src(1))%Ms == G1(src(2))%Ms) then
+            cpt = sqrt(abs_l1(get_umat_el(srcid(1), srcid(1), orbid, orbid))) + &
+                  sqrt(abs_l1(get_umat_el(srcid(2), srcid(2), orbid, orbid)))
+        else
+            cpt = sqrt(abs_l1(get_umat_el(src_id, src_id, orbid, orbid)))
+        end if
+
+    end function
+
+
+    subroutine gen_excit_4ind_reverse (nI, ilutI, nJ, ilutJ, exFlag, ic, &
+                                       ExcitMat, tParity, pGen, HelGen, store)
+
+        ! TODO: description
+        !
+        ! n.b. (ij|kl) <= sqrt( (ij|ij) * (kl|kl) )
+        !      This provides quite a good description of the large elements
+
+        integer, intent(in) :: nI(nel), exFlag
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
+        logical, intent(out) :: tParity
+        real(dp), intent(out) :: pGen
+        HElement_t, intent(out) :: HElGen
+        type(excit_gen_store_type), intent(inout), target :: store
+        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        character(*), parameter :: this_routine = 'gen_excit_4ind_reverse'
+
+        integer :: orb
+
+        if (genrand_real2_dSFMT() < pSingles) then
+
+            ! We now use the class counts to do the construction. This is an
+            ! O[N] opearation, and gives the number of occupied/unoccupied
+            ! spin-orbitals with each given spin/symmetry.
+            if (.not. store%tFilled) then
+                call construct_class_counts (nI, store%ClassCountOcc, &
+                                             store%ClassCountUnocc)
+                store%tFilled = .true.
+            end if
+
+            ! Currently, just use the normal single excitation generator
+            ic = 1
+            pDoubNew = pDoubles
+            call CreateSingleExcit (nI, nJ, store%ClassCountOcc, &
+                                    store%ClassCountUnocc, ilutI, ExcitMat, &
+                                    tParity, pGen)
+
+            ! And generate the ilut efficiently
+            if (.not. IsNullDet(nJ)) then
+                ilutJ = ilutI
+                orb = ExcitMat(1,1)
+                clr_orb (ilutJ, orb)
+                orb = ExcitMat(2,1)
+                set_orb (ilutJ, orb)
+            end if
+
+        else
+
+            ! OK, we want to do a double excitation
+            ic = 2
+            call gen_double_4ind_rev (nI, ilutI, nJ, ilutJ, ExcitMat, tParity,&
+                                      pgen)
+            pgen = pgen * pDoubles
+
+        end if
+
+    end subroutine
+
+
+    subroutine gen_double_4ind_rev (nI, ilutI, nJ, ilutJ, ex, par, pgen)
+
+        ! Here we do the 'opposite' of gen_double_4ind_ex. We select two
+        ! holes, and then pick the electrons to excite based on the strengths
+        ! of the connecting matrix elements. Due to the substantially reduced
+        ! number of terms, we can actually calculate the EXACT matrix elements
+        ! for this, which is quite nice!
+
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ex(2,2)
+        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        logical, intent(out) :: par
+        real(dp), intent(out) :: pgen
+
+        integer :: src(2), tgt(2), elecs(2), id_tgt(2), id(2)
+        integer :: sym_prod, ispn, e_ispn, e_sym_prod, idx, i, j
+        HElement_t :: hel
+        real(dp) :: cum_arr(nel * (nel - 1) / 2)
+        real(dp) :: val_arr(nel * (nel - 1) / 2)
+        real(dp) :: val, cum_val, r
+
+        ! Select a pair of holes (vacant orbitals)
+        call pick_hole_pair (ilutI, tgt, pgen, sym_prod, ispn)
+        id_tgt = gtID(tgt)
+
+        ! Now we want to consider all of the possible pairs of electrons
+        idx = 0
+        cum_val = 0
+        do i = 2, nel
+            src(1) = nI(i)
+            do j = 1, i-1
+
+                ! Get the symmetries
+                src(2) = nI(j)
+                e_ispn = get_ispn(src(1), src(2))
+                e_sym_prod = RandExcitSymLabelProd(int(G1(src(1))%Sym%s), &
+                                                   int(G1(src(2))%Sym%s))
+
+                ! Get the weight (HElement) associated with the elecs/holes
+                if (e_ispn == iSpn .and. e_sym_prod == sym_prod) then
+                    hel = 0
+                    id = gtID(src)
+                    if (G1(src(1))%Ms == G1(tgt(1))%Ms .and.&
+                        G1(src(2))%Ms == G1(tgt(2))%Ms) &
+                        hel = hel + get_umat_el (id(1), id(2), id_tgt(1), &
+                                                 id_tgt(2))
+                    if (G1(src(1))%Ms == G1(tgt(2))%Ms .and.&
+                        G1(src(2))%Ms == G1(tgt(1))%Ms) &
+                        hel = hel - get_umat_el (id(1), id(2), id_tgt(2), &
+                                                 id_tgt(1))
+                    val = abs_l1(hel)
+                else
+                    val = 0
+                end if
+
+                ! Store the terms
+                idx = idx + 1
+                cum_val = cum_val + val
+                val_arr(idx) = val
+                cum_arr(idx) = cum_val
+
+            end do
+        end do
+
+        ! If there are no choices, then we have to abort...
+        if (cum_val == 0) then
+            nJ(1) = 0
+            return
+        end if
+
+        ! Pick the electron pair we are going to use.
+        r = genrand_real2_dSFMT() * cum_val
+        idx = binary_search_first_ge (cum_arr, r)
+        elecs(2) = ceiling((1 + sqrt(1 + 8*real(idx, dp))) / 2)
+        elecs(1) = idx - ((elecs(2) - 1) * (elecs(2) - 2)) / 2
+
+        ! Get the generation probability
+        pgen = pgen * val_arr(idx) / cum_val
+
+!>>>!        write(6,*) 'ELECS', elecs
+!>>>!        write(6,*) 'SRC', nI(elecs)
+!>>>!        write(6,*) 'TGT', tgt
+
+        ! Generate the new determinant and ilut
+        call make_double (nI, nJ, elecs(1), elecs(2), tgt(1), tgt(2), ex, par)
+        ilutJ = ilutI
+        clr_orb (ilutJ, nI(elecs(1)))
+        clr_orb (ilutJ, nI(elecs(2)))
+        set_orb (ilutJ, tgt(1))
+        set_orb (ilutJ, tgt(2))
+
+
+    end subroutine
+
+    function get_ispn (orbi, orbj) result(ispn)
+
+        ! ispn == 1 --> beta/beta
+        ! ispn == 2 --> alpha/beta
+        ! ispn == 3 --> alpha/alpha
+
+        integer, intent(in) :: orbi, orbj
+        integer :: ispn
+
+        if (is_alpha(orbi) .eqv. is_alpha(orbj)) then
+            if (is_alpha(orbi)) then
+                ispn = 3
+            else
+                ispn = 1
+            end if
+        else
+            ispn = 2
+        end if
+
+    end function
+
+    
+    subroutine pick_hole_pair (ilut, orbs, pgen, sym_prod, ispn)
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(out) :: orbs(2), sym_prod, ispn
+        real(dp), intent(out) :: pgen
+        integer :: attempts, nvac, nchoose
+
+        ! Get two unoccupied orbitals
+        orbs(1) = pick_hole(ilut, -1)
+        orbs(2) = pick_hole(ilut, orbs(1))
+
+        ! What is the generation probability of picking this selection?
+        nvac = nbasis - nel
+        nchoose = nvac * (nvac - 1) / 2
+        pgen = 1.0_dp / real(nchoose, dp)
+
+        ! What are the symmetry/spin properties of this pick?
+        sym_prod = RandExcitSymLabelProd (int(G1(orbs(1))%Sym%S), &
+                                          int(G1(orbs(2))%Sym%S))
+        ispn = get_ispn(orbs(1), orbs(2))
+
+    end subroutine
+
+
+    function pick_hole (ilut, exclude_orb) result(orb)
+
+        ! Pick an unoccupied orbital at random, uniformly, from the available
+        ! basis set (excluding a selected orbital if desired).
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: exclude_orb
+        integer :: orb, attempts
+        integer, parameter :: max_attempts = 1000
+        character(*), parameter :: t_r = 'pick_hole'
+
+        ! Draw orbitals randomly until we find the first orbital
+        attempts = 0
+        do while(.true.)
+
+            ! Select an orbital randomly. Accept it if it is a hole.
+            orb = 1 + int(genrand_real2_dSFMT() * nbasis)
+            if (IsNotOcc(ilut, orb) .and. orb /= exclude_orb) exit
+
+            ! Just in case, add a check
+            if (attempts > max_attempts) then
+                write(6,*) 'Unable to find unoccupied orbital'
+                call writebitdet (6, ilut, .true.)
+                call stop_all(t_r, 'Out of attempts')
+            end if
+        end do
 
     end function
 
