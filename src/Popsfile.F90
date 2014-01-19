@@ -125,7 +125,7 @@ MODULE PopsfileMod
             endif
         end if
 
-        open(iunit_3,file='RDM_AV_POP', status='old', form='unformatted')
+        if(tReadRDMAvPop) open(iunit_3,file='RDM_AV_POP', status='old', form='unformatted')
 
         call mpibarrier(err)
 
