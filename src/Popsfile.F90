@@ -423,6 +423,8 @@ r_loop: do while(.not.tReadAllPops)
                     WRITe(6,*) "New", REAL(HElemTemp,dp)-Hii
                         call stop_all("ReadFromPopsfile", "Problem with reading in CurrentH &
                             & information from RDM_AV_POP file")
+                    else
+                        CurrentH(1,j)=REAL(HElemTemp,dp)-Hii
                     endif
                 endif
             endif
@@ -1990,6 +1992,8 @@ outer_map:      do i = 0, MappingNIfD
                         & (abs(CurrentH(1,j)-REAL(HElemTemp,dp)+Hii).gt.1E-10)) then
                         call stop_all("ReadFromPopsfilePar", "Problem with reading in CurrentH &
                             & information from RDM_AV_POP file")
+                    else
+                        CurrentH(1,j)=REAL(HElemTemp,dp)-Hii
                     endif
                 ENDIF
 
