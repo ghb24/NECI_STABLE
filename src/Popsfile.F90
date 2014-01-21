@@ -391,7 +391,11 @@ r_loop: do while(.not.tReadAllPops)
             nullify(Temp)
         else
             !Order the determinants on all the lists.
-            call sort (dets(:,1:CurrWalkers), CurrentH(:,1:CurrWalkers), ilut_lt, ilut_gt)
+            if(tReadRDMAvPop) then
+                call sort (dets(:,1:CurrWalkers), CurrentH(:,1:CurrWalkers), ilut_lt, ilut_gt)
+            else
+                call sort (dets(:,1:CurrWalkers), ilut_lt, ilut_gt)
+            endif
         endif
 
         !Run through all determinants on each node, and calculate the total number of walkers, and noathf
@@ -424,7 +428,7 @@ r_loop: do while(.not.tReadAllPops)
                         call stop_all("ReadFromPopsfile", "Problem with reading in CurrentH &
                             & information from RDM_AV_POP file")
                     else
-                        CurrentH(1,j)=REAL(HElemTemp,dp)-Hii
+                        CurrentH(1,i)=REAL(HElemTemp,dp)-Hii
                     endif
                 endif
             endif
