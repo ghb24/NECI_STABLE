@@ -3,7 +3,7 @@
 module excit_gens_int_weighted
 
     use SystemData, only: nel, nbasis, nOccAlpha, nOccBeta, G1, nOccAlpha, &
-                          nOccBeta
+                          nOccBeta, tExch
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
                                pDoubNew, ScratchSize
@@ -18,6 +18,7 @@ module excit_gens_int_weighted
     use procedure_pointers, only: get_umat_el
     use UMatCache, only: gtid
     use OneEInts, only: GetTMATEl
+    use sltcnd_mod, only: sltcnd_1
     use GenRandSymExcitNUMod, only: PickElecPair, gen_rand_excit, &
                                     init_excit_gen_store, CreateSingleExcit, &
                                     construct_class_counts, &
@@ -281,7 +282,7 @@ contains
         cc_index = ClassCountInd (get_spin(src), G1(src)%Sym%S, 0)
 
         ! Select the target orbital by approximate connection strength
-        tgt = select_orb_sing (ilutI, src, cc_index, pgen)
+        tgt = select_orb_sing (nI, ilutI, src, cc_index, pgen)
 
         ! Construct the new determinant, excitation matrix and parity
         call make_single (nI, nJ, elec, tgt, ex, par)
@@ -297,32 +298,59 @@ contains
     end subroutine
 
 
-    function select_orb_sing (ilut, src, cc_index, pgen) result(orb)
+    function select_orb_sing (nI, ilut, src, cc_index, pgen) result(orb)
 
+        integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: cc_index, src
         real(dp), intent(out) :: pgen
 
-        real(dp) :: cum_sum, cpt, cumulative_arr(OrbClassCount(cc_index)), r
-        integer :: orb, norb, label_index, orb_index, i
+        real(dp) :: cum_sum, cumulative_arr(OrbClassCount(cc_index)), r
+        real(dp) :: cpt_arr(OrbClassCount(cc_index))
+        integer :: orb, norb, label_index, orb_index, i, j
+        integer :: n_id(nel), id_src, id
+        HElement_t :: hel
         
         ! How many orbitals of the correct symmetry are there?
         norb = OrbClassCount(cc_index)
         label_index = SymLabelCounts2(1, cc_index)
+
+        ! Spatial orbital IDs
+        n_id = gtID(nI)
+        id_src = gtID(src)
+        ASSERT(tExch)
 
         ! Construct the cumulative list of strengths
         cum_sum = 0
         do i = 1, norb
 
             orb = SymLabelList2(label_index + i - 1)
+            hel = 0
             if (IsNotOcc(ilut, orb)) then
+                ASSERT(G1(orb)%Ms == G1(src)%Ms)
 
                 ! For now, we want to assume that we can just use the
                 ! one-electron integrals as an approximation. If this is
                 ! rubbish, then we will need to do more work...
-                cum_sum = cum_sum &
-                        + abs_l1(GetTMATEl(src, orb))
+                !cum_sum = cum_sum &
+                !        + abs_l1(GetTMATEl(src, orb))
+
+                ! This is based on an extract from sltcnd_1. We can assume
+                ! tExch, and SymLabelList2 ensures the spins are equal
+                id = gtID(orb)
+                do j = 1, nel
+                    if (nI(j) == src) cycle
+                    hel = hel + get_umat_el (id_src, n_id(j), id, n_id(j))
+                    if (is_beta(src) .eqv. is_beta(nI(j))) &
+                        hel = hel - get_umat_el (id_src, n_id(j), n_id(j), id)
+                end do
+                hel = hel + GetTMATEl(src, orb)
+
             end if
+
+            ! And store the values for later searching
+            cpt_arr(i) = abs_l1(hel)
+            cum_sum = cum_sum + cpt_arr(i)
             cumulative_arr(i) = cum_sum
 
         end do
@@ -336,7 +364,7 @@ contains
             orb = SymLabelList2(label_index + orb_index - 1)
 
             ! And the impact on the generation probability
-            pgen = abs_l1(GetTMATEl(src, orb)) / cum_sum
+            pgen = cpt_arr(orb_index) / cum_sum
         end if
 
     end function
