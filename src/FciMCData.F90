@@ -364,7 +364,6 @@ MODULE FciMCData
 
       !Tau searching variables
       logical :: tSearchTau
-      real(dp) :: MaxSpawnProb,AllMaxSpawnProb,MaxAllowedSpawnProb
 
       !Variables for diagonalisation of the walker subspace
       integer :: unitWalkerDiag
@@ -501,5 +500,7 @@ MODULE FciMCData
       integer, allocatable, dimension(:,:) :: davidson_strings
       integer(n_int), allocatable, dimension(:,:) :: davidson_iluts
       type(direct_ci_excit), allocatable, dimension(:) :: davidson_excits
+
+      real(dp) :: rand_excit_opp_bias
 
 END MODULE FciMCData

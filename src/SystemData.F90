@@ -57,6 +57,8 @@ real(dp) :: Diagweight, OffDiagWeight, OrbEnMaxAlpha, Alpha, fCoulDampBeta
 real(dp) :: fCoulDampMu, TimeStep, ConvergedForce, ShakeConverged, UMATEps
 real(dp) :: OneElWeight
 
+integer :: AA_elec_pairs, BB_elec_pairs, par_elec_pairs, AB_elec_pairs
+
 
 integer :: nEl             ! Number of (non-frozen) electrons in the system
 integer :: Stot            ! Restrict S to Stot when using CSFs

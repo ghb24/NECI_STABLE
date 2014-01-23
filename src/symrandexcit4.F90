@@ -3,12 +3,14 @@
 module excit_gens_int_weighted
 
     use SystemData, only: nel, nbasis, nOccAlpha, nOccBeta, G1, nOccAlpha, &
-                          nOccBeta, tExch
+                          nOccBeta, tExch, AA_elec_pairs, BB_elec_pairs, &
+                          AB_elec_pairs, par_elec_pairs
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
                                pDoubNew, ScratchSize
     use sym_general_mod, only: ClassCountInd, ClassCountInv, class_count_ms
-    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
+    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, &
+                         rand_excit_opp_bias
     use dSFMT_interface, only: genrand_real2_dSFMT
     use Determinants, only: get_helement, write_det
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt
@@ -162,6 +164,8 @@ contains
 
         ncnt = 0
         nsel = 0
+
+        rand_excit_opp_bias = 1.0_dp
 
     end subroutine
 
@@ -461,16 +465,13 @@ contains
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: elecs(2), src(2), sym_prod, ispn, sum_ml
         real(dp), intent(out) :: pgen
-        real(dp), parameter :: opp_bias = 3.0
 
-        real(dp) :: nal, nbe, nopp, ntot, r
+        real(dp) :: ntot, r
         integer :: al_req, be_req, al_num(2), be_num(2), elecs_found, i, idx
         integer :: al_count, be_count
 
-        nopp = noccalpha * noccbeta
-        nal = noccalpha * (noccalpha - 1) / 2
-        nbe = noccbeta * (noccbeta - 1) / 2
-        ntot = nal + nbe + nopp * opp_bias
+        ntot = AA_elec_pairs + BB_elec_pairs &
+              + AB_elec_pairs * rand_excit_opp_bias
 
         ! The overall generation probability for this section is remarkably
         ! simple!
@@ -480,25 +481,25 @@ contains
         ! Select them according to the availability of pairs (and the
         ! weighting of opposite-spin pairs relative to same-spin ones).
         r = genrand_real2_dSFMT() * ntot
-        if (r < nal) then
+        if (r < AA_elec_pairs) then
             al_req = 2
             be_req = 0
             idx = floor(r)
             al_num(1) = ceiling((1 + sqrt(9 + 8*real(idx, dp))) / 2)
             al_num(2) = idx + 1 - ((al_num(1) - 1) * (al_num(1) - 2)) / 2
             iSpn = 3
-        else if (r < nal + nbe) then
+        else if (r < par_elec_pairs) then
             al_req = 0
             be_req = 2
-            idx = floor(r - nal)
+            idx = floor(r - AA_elec_pairs)
             be_num(1) = ceiling((1 + sqrt(9 + 8*real(idx, dp))) / 2)
             be_num(2) = idx + 1 - ((be_num(1) - 1) * (be_num(1) - 2)) / 2
             iSpn = 1
         else
             al_req = 1
             be_req = 1
-            pgen = pgen * opp_bias
-            idx = floor((r - nal - nbe) / opp_bias)
+            pgen = pgen * rand_excit_opp_bias
+            idx = floor((r - par_elec_pairs) / rand_excit_opp_bias)
             al_num(1) = 1 + mod(idx, nOccAlpha)
             be_num(1) = 1 + floor(idx / real(nOccAlpha,dp))
             iSpn = 2

@@ -1,7 +1,8 @@
 MODULE Calc
         
     use CalcData
-    use SystemData, only: beta, nel, STOT, tCSF, LMS, tSpn
+    use SystemData, only: beta, nel, STOT, tCSF, LMS, tSpn, AA_elec_pairs, &
+                          BB_elec_pairs, par_elec_pairs, AB_elec_pairs
     use Determinants, only: write_det
     use spin_project, only: spin_proj_interval, tSpinProject, &
                             spin_proj_gamma, spin_proj_shift, &
@@ -1887,6 +1888,23 @@ call neci_flush(6)
           WRITE(6,"(A,I5,A,I5,A)") " FDet has ",nOccAlpha," alpha electrons, and ",nOccBeta," beta electrons."
           ElecPairs=(NEl*(NEl-1))/2
           MaxABPairs=(nBasis*(nBasis-1)/2)
+
+          ! And stats on the number of different types of electron pairs
+          ! that can be found
+          AA_elec_pairs = nOccAlpha * (nOccAlpha - 1) / 2
+          BB_elec_pairs = nOccBeta * (nOccBeta - 1) / 2
+          par_elec_pairs = AA_elec_pairs + BB_elec_pairs
+          AB_elec_pairs = nOccAlpha * nOccBeta
+          if (AA_elec_pairs + BB_elec_pairs + AB_elec_pairs /= ElecPairs) &
+              call stop_all(this_routine, "Calculation of electron pairs failed")
+
+          write(6,*) '    ', AA_elec_pairs, &
+              ' alpha-alpha occupied electron pairs'
+          write(6,*) '    ', BB_elec_pairs, &
+              ' beta-beta occupied electron pairs'
+          write(6,*) '    ', AB_elec_pairs, &
+              ' alpha-beta occupied electron pairs'
+
 
           IF(tExactSizeSpace) THEN
               IF(ICILevel.eq.0) THEN
