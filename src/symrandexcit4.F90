@@ -20,7 +20,7 @@ module excit_gens_int_weighted
     use OneEInts, only: GetTMATEl
     use sltcnd_mod, only: sltcnd_1
     use GenRandSymExcitNUMod, only: PickElecPair, gen_rand_excit, &
-                                    init_excit_gen_store, CreateSingleExcit, &
+                                    init_excit_gen_store, &
                                     construct_class_counts, &
                                     RandExcitSymLabelProd
     use constants
@@ -200,10 +200,10 @@ contains
         ! TODO: We can (in principle) re-use this random number by subdivision
         if (genrand_real2_dSFMT() < pSingles) then
 
-            ! Currently, just use the normal single excitation generator
             ic = 1
             call gen_single_4ind_ex (nI, ilutI, nJ, ilutJ, ExcitMat, &
                                      tParity, pGen)
+            pgen = pgen * pSingles
 
         else
 
@@ -211,6 +211,7 @@ contains
             ic = 2
             call gen_double_4ind_ex (nI, ilutI, nJ, ilutJ, ExcitMat, tParity, &
                                      pGen, store)
+            pgen = pgen * pDoubles
 
         end if
 
@@ -270,7 +271,7 @@ contains
         integer :: elec, src, tgt, cc_index
 
         ! In this version of the excitation generator, we pick an electron
-        ! at random. Then we construct lists of (approximated) connection
+        ! at random. Then we construct a list of connection
         ! strengths to each of the available orbitals in the correct symmetry.
 
         ! We could pick the electron based on the number of orbitals available.
@@ -283,6 +284,10 @@ contains
 
         ! Select the target orbital by approximate connection strength
         tgt = select_orb_sing (nI, ilutI, src, cc_index, pgen)
+        if (tgt == 0) then
+            nJ(1) = 0
+            return
+        end if
 
         ! Construct the new determinant, excitation matrix and parity
         call make_single (nI, nJ, elec, tgt, ex, par)
@@ -293,7 +298,7 @@ contains
         set_orb (ilutJ, tgt)
 
         ! And the generation probability
-        pgen = pgen * pSingles / real(nel, dp)
+        pgen = pgen / real(nel, dp)
 
     end subroutine
 
@@ -388,13 +393,7 @@ contains
         integer :: cc_i, cc_j
 
         ! Initially, select a pair of electrons
-        ! (Use routine from symrandexcit2, as it is known to work!)
         call pick_biased_elecs(nI, elecs, src, sym_product, ispn, sum_ml, pgen)
-!        call PickElecPair (nI, elecs(1), elecs(2), sym_product, ispn, sum_ml, &
-!                           -1)
-!        src = nI(elecs)
-!        pgen = pDoubles * 2.0_dp / real(nel * (nel - 1), dp)
-        pgen = pgen * pDoubles
 
         ! Construct the list of possible symmetry pairs listed according to
         ! a unique choice of symmetry A (we enforce that sym(A) < sym(B)).
@@ -674,30 +673,11 @@ contains
 
         if (genrand_real2_dSFMT() < pSingles) then
 
-            ! We now use the class counts to do the construction. This is an
-            ! O[N] opearation, and gives the number of occupied/unoccupied
-            ! spin-orbitals with each given spin/symmetry.
-            if (.not. store%tFilled) then
-                call construct_class_counts (nI, store%ClassCountOcc, &
-                                             store%ClassCountUnocc)
-                store%tFilled = .true.
-            end if
-
-            ! Currently, just use the normal single excitation generator
+            ! Do we want to use the forward, or reverse, singles generator?
             ic = 1
-            pDoubNew = pDoubles
-            call CreateSingleExcit (nI, nJ, store%ClassCountOcc, &
-                                    store%ClassCountUnocc, ilutI, ExcitMat, &
-                                    tParity, pGen)
-
-            ! And generate the ilut efficiently
-            if (.not. IsNullDet(nJ)) then
-                ilutJ = ilutI
-                orb = ExcitMat(1,1)
-                clr_orb (ilutJ, orb)
-                orb = ExcitMat(2,1)
-                set_orb (ilutJ, orb)
-            end if
+            call gen_single_4ind_ex (nI, ilutI, nJ, ilutJ, ExcitMat, &
+                                      tParity, pGen)
+            pgen = pgen * pSingles
 
         else
 
@@ -710,6 +690,118 @@ contains
         end if
 
     end subroutine
+
+
+    subroutine gen_single_4ind_rev (nI, ilutI, nJ, ilutJ, ex, par, pgen)
+
+        ! Select a vacant hole, and then select an electron that is connected
+        ! to it.
+
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NifTot)
+        integer, intent(out) :: nJ(nel)
+        integer(n_int), intent(out) :: ilutJ(0:NifTot)
+        integer, intent(out) :: ex(2,2)
+        logical, intent(out) :: par
+        real(dp), intent(out) :: pgen
+
+        integer :: nholes, src, elec, tgt
+
+        ! In this version of the excitation generator, we pick a hole at
+        ! random. Then we construct a list of connection strengths to each of
+        ! the available electrons.
+
+        ! Select a hole (uniformly) at random.
+        tgt = pick_hole (ilutI, -1)
+        nholes = nbasis - nel
+
+        ! Select the source electron by connection strength
+        elec = select_elec_sing (nI, tgt, src, pgen)
+        if (elec == 0) then
+            nJ(1) = 0
+            return
+        end if
+
+        ! Construct the new determinant, electron matrix, and parity
+        call make_single (nI, nJ, elec, tgt, ex, par)
+
+        ! Update the target ilut
+        ilutJ = ilutI
+        clr_orb (ilutJ, src)
+        set_orb (ilutJ, tgt)
+
+        ! And the generation probability
+        pgen = pgen / real(nholes, dp)
+
+    end subroutine
+
+
+    function select_elec_sing (nI, tgt, src, pgen) result(elec)
+
+        integer, intent(in) :: nI(nel), tgt
+        integer, intent(out) :: src
+        real(dp), intent(out) :: pgen
+        integer :: elec
+
+        real(dp) :: cum_sum, cum_arr(nel), cpt_arr(nel), r
+        integer :: cc_index, n_id(nel), id_tgt, id_src, cc_src, j, src_elec
+        HElement_t :: hel
+
+        ! What is the symmetry category we are considering?
+        cc_index = ClassCountInd (get_spin(tgt), G1(tgt)%Sym%S, 0)
+
+        ! Spatial orbital IDs
+        n_id = gtID(nI)
+        id_tgt = gtID(tgt)
+        ASSERT(tExch)
+
+        ! Construct the cumulative list of strengths
+        cum_sum = 0
+        do src_elec = 1, nel
+
+            ! What is the symmetry/spin class of the source electron
+            src = nI(src_elec)
+            cc_src = ClassCountInd (get_spin(src), G1(src)%Sym%S, 0)
+
+            ! If the symmetry/spin are not the same, then the matrix element
+            ! will be zero --> don't calculate it!
+            hel = 0
+            if (cc_src == cc_index) then
+
+                ! Construct the hamiltonian matrix element (ignoring overall
+                ! sign). We can assume tExch, and we have just enforced that
+                ! the spins and symmetries are equal.
+                id_src = n_id(src_elec)
+                do j = 1, nel
+                    if (j == src_elec) cycle
+                    hel = hel + get_umat_el (id_src, n_id(j), id_tgt, n_id(j))
+                    if (is_beta(src) .eqv. is_beta(nI(j))) &
+                        hel = hel - get_umat_el (id_src, n_id(j), n_id(j), id_tgt)
+                end do
+                hel = hel + GetTMATEl(src, tgt)
+
+            end if
+
+            ! And store the values for later searching
+            cpt_arr(src_elec) = abs_l1(hel)
+            cum_sum = cum_sum + cpt_arr(src_elec)
+            cum_arr(src_elec) = cum_sum
+
+        end do
+        
+        ! Select a particulor electron, or abort
+        if (cum_sum == 0) then
+            elec = 0
+        else
+            r = genrand_real2_dSFMT() * cum_sum
+            elec = binary_search_first_ge(cum_arr, r)
+            src = nI(elec)
+
+            ! And the impact on the generation probability
+            pgen = cpt_arr(elec) / cum_sum
+        end if
+
+    end function
 
 
     subroutine gen_double_4ind_rev (nI, ilutI, nJ, ilutJ, ex, par, pgen)
