@@ -1691,6 +1691,7 @@ MODULE FciMCParMod
             call init_4ind_bias()
             generate_excitation => gen_excit_4ind_weighted
         elseif (tGen_4ind_reverse) then
+            call init_4ind_bias()
             generate_excitation => gen_excit_4ind_reverse
         else
             generate_excitation => gen_rand_excit
@@ -3489,20 +3490,6 @@ MODULE FciMCParMod
 
         if (tSearchTau) &
             call update_tau()
-!        if(tSearchTau) then
-!            call MPIAllReduce (MaxSpawnProb, MPI_MAX, AllMaxSpawnProb)
-!!            if((AllMaxSpawnProb-MaxAllowedSpawnProb).gt.1.0e-5_dp) then
-!            if((AllMaxSpawnProb/MaxAllowedSpawnProb).gt.1.02) then
-!                !Reduce tau, so that the maximum spawning probability is reduced.
-!                tau = tau * (MaxAllowedSpawnProb/AllMaxSpawnProb)
-!                if(iProcIndex.eq.root) then
-!                    write(iout,"(A,f15.10)") "Spawning probability found of: ",AllMaxSpawnProb
-!                    write(iout,"(A,f10.5)") "Reducing timestep to limit spawning probability to: ",MaxAllowedSpawnProb
-!                    write(iout,"(A,f20.15)") "New timestep: ",tau
-!                endif
-!                MaxSpawnProb=0.0_dp
-!            endif
-!        endif
 
         if (tTrialWavefunction) then
             call MPIAllReduce(trial_numerator, MPI_SUM, tot_trial_numerator)

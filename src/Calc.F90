@@ -1,8 +1,13 @@
+#include "macros.h"
+
 MODULE Calc
         
     use CalcData
     use SystemData, only: beta, nel, STOT, tCSF, LMS, tSpn, AA_elec_pairs, &
-                          BB_elec_pairs, par_elec_pairs, AB_elec_pairs
+                          BB_elec_pairs, par_elec_pairs, AB_elec_pairs, &
+                          AA_hole_pairs, BB_hole_pairs, AB_hole_pairs, &
+                          par_hole_pairs, hole_pairs, nholes_a, nholes_b, &
+                          nholes
     use Determinants, only: write_det
     use spin_project, only: spin_proj_interval, tSpinProject, &
                             spin_proj_gamma, spin_proj_shift, &
@@ -1803,7 +1808,7 @@ contains
           real(dp) CalcT, CalcT2, GetRhoEps
           
           
-          INTEGER I, IC,J
+          INTEGER I, IC,J, norb
           INTEGER nList
           HElement_t HDiagTemp
           character(*), parameter :: this_routine='CalcInit'
@@ -1905,6 +1910,25 @@ call neci_flush(6)
           write(6,*) '    ', AB_elec_pairs, &
               ' alpha-beta occupied electron pairs'
 
+          ! Get some stats about available numbers of holes, etc.
+          ASSERT(.not. btest(nbasis, 0))
+          norb = nbasis / 2
+          nholes = nbasis - nel
+          nholes_a = norb - nOccAlpha
+          nholes_b = norb - nOccBeta
+
+          ! And count the available hole pairs!
+          hole_pairs = nholes * (nholes - 1) / 2
+          AA_hole_pairs = nholes_a * (nholes_a - 1) / 2
+          BB_hole_pairs = nholes_b * (nholes_b - 1) / 2
+          AB_hole_pairs = nholes_a * nholes_b
+          par_hole_pairs = AA_hole_pairs + BB_hole_pairs
+          if (par_hole_pairs + AB_hole_pairs /= hole_pairs) &
+              call stop_all(this_routine, "Calculation of hole pairs failed")
+
+          write(6,*) '    ', AA_hole_pairs, 'alpha-alpha (vacant) hole pairs'
+          write(6,*) '    ', BB_hole_pairs, 'beta-beta (vacant) hole pairs'
+          write(6,*) '    ', AB_hole_pairs, 'alpha-beta (vacant) hole pairs'
 
           IF(tExactSizeSpace) THEN
               IF(ICILevel.eq.0) THEN
