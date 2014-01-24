@@ -1691,6 +1691,7 @@ MODULE FciMCParMod
             call init_4ind_bias()
             generate_excitation => gen_excit_4ind_weighted
         elseif (tGen_4ind_reverse) then
+            call init_4ind_bias()
             generate_excitation => gen_excit_4ind_reverse
         else
             generate_excitation => gen_rand_excit
