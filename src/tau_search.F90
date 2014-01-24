@@ -97,8 +97,7 @@ contains
     subroutine log_spawn_magnitude (ic, ex, matel, prob)
 
         integer, intent(in) :: ic, ex(2,2)
-        HElement_t, intent(in) :: matel
-        real(dp), intent(in) :: prob
+        real(dp), intent(in) :: prob, matel
         real(dp) :: tmp_gamma, tmp_prob
         integer, parameter :: cnt_threshold = 50
 
@@ -184,6 +183,8 @@ contains
             call MPIAllReduce_inplace (gamma_sing, MPI_MAX)
             call MPIAllReduce_inplace (gamma_opp, MPI_MAX)
             call MPIAllReduce_inplace (gamma_par, MPI_MAX)
+            call MPIAllReduce_inplace (enough_opp, MPI_LOR)
+            call MPIAllReduce_inplace (enough_par, MPI_LOR)
 
             opp_bias_new = gamma_opp * par_elec_pairs &
                          / (gamma_par * AB_elec_pairs)
@@ -219,6 +220,8 @@ contains
             tau_new = max_permitted_spawn / (gamma_doub + gamma_sing)
 
         end if
+        call MPIAllReduce_inplace (enough_sing, MPI_LOR)
+        call MPIAllReduce_inplace (enough_doub, MPI_LOR)
 
         ! If the calculated tau is less than the current tau, we should ALWAYS
         ! update it. Once we have a reasonable sample of excitations, then we
