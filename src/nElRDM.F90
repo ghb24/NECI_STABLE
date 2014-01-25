@@ -69,7 +69,7 @@ MODULe nElRDMMod
                        tWrite_normalised_RDMs, IterWriteRDMs, tPrintRODump, &
                        tNoNOTransform, tTruncRODump, tRDMonfly, tInitiatorRDMDiag, &
                        tTaperDiagRDM, tTaperSQDiagRDM, tCorrectRDMErf, erf_factor1, &
-                       erf_factor2, ThreshOccRDM, tThreshOccRDMDiag
+                       erf_factor2, ThreshOccRDM, tThreshOccRDMDiag,tDipoles
     use RotateOrbsData, only: CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt, &
                               SymLabelCounts2_rot,SymLabelList2_rot, &
                               SymLabelListInv_rot,NoOrbs, SpatOrbs, &
@@ -269,14 +269,13 @@ MODULe nElRDMMod
                 MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
                 MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 8 ) 
 
-                if(tDiagRDM.or.tPrint1RDM .or. tDumpForcesInfo) then
+                if(tDiagRDM.or.tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
                     ! Still need to allocate 1-RDM to get nat orb occupation numbers.
-                    ALLOCATE(NatOrbMat(SpatOrbs,SpatOrbs),stat=ierr)
+                    ALLOCATE(NatOrbMat(NoOrbs,NoOrbs),stat=ierr)
                     IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating NatOrbMat array,')
-                    CALL LogMemAlloc('NatOrbMat',SpatOrbs**2,8,this_routine,NatOrbMatTag,ierr)
+                    CALL LogMemAlloc('NatOrbMat',NoOrbs**2,8,this_routine,NatOrbMatTag,ierr)
                     NatOrbMat(:,:)=0.0_dp
-
-                    MemoryAlloc_Root = MemoryAlloc_Root + ( SpatOrbs * SpatOrbs * 8 ) 
+                    MemoryAlloc_Root = MemoryAlloc_Root + ( NoOrbs * NoOrbs * 8 ) 
                 endif
             ENDIF
         ENDIF            
@@ -402,7 +401,7 @@ MODULe nElRDMMod
             endif
         endif
 
-        IF((RDMExcitLevel.eq.1).or.tDiagRDM.or.tPrint1RDM .or. tDumpForcesInfo) THEN
+        IF((RDMExcitLevel.eq.1).or.tDiagRDM.or.tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) THEN
             ! These arrays contain indexing systems to order the 1-RDM orbitals in terms of 
             ! symmetry.
             ! This allows the diagonalisation of the RDMs to be done in symmetry blocks (a lot 
@@ -3076,6 +3075,10 @@ MODULe nElRDMMod
         IF(tDiagRDM) call find_nat_orb_occ_numbers()
 
 ! This is where we would likely call any further calculations of force etc.
+        if(tDipoles) then
+            if (.not. tPrint1RDM) call Finalise_1e_RDM(Norm_1RDM)
+            call CalcDipoles(Norm_1RDM)
+        endif
 
         CALL halt_timer(FinaliseRDM_Time)
 
@@ -3086,8 +3089,8 @@ MODULe nElRDMMod
 ! This routine takes the 1-RDM (NatOrbMat), normalises it, makes it 
 ! hermitian if required, and prints out the versions we're interested in.    
 ! This is only ever called at the very end of a calculation.
-        use Logging , only : twrite_RDMs_to_read, twrite_normalised_RDMs, &
-                             tDumpForcesInfo
+        use Logging , only : twrite_RDMs_to_read, twrite_normalised_RDMs
+                             
         !implicit none
         integer :: i, ierr
         real(dp), intent(out) :: Norm_1RDM
@@ -4028,7 +4031,7 @@ MODULe nElRDMMod
     ! h_ij => TMAT2D(iSpin,jSpin)
     
         USE OneEInts , only : TMAT2D
-        USE Logging , only : tDiagRDM, tDumpForcesInfo
+        USE Logging , only : tDiagRDM, tDumpForcesInfo, tDipoles
         integer , intent(in) :: i,j,a,iSpin,jSpin
         real(dp) , intent(in) :: Norm_2RDM, Norm_2RDM_Inst
         real(dp) , intent(inout) :: RDMEnergy_Inst, RDMEnergy1
@@ -4052,7 +4055,7 @@ MODULe nElRDMMod
                                                 * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) )
 
-            if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then                                                
+            if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo.or.tDipoles).and.tFinalRDMEnergy) then                                                
                 NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
                             NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
                                         + ( All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
@@ -4069,7 +4072,7 @@ MODULe nElRDMMod
                                                     * REAL(TMAT2D(jSpin,iSpin),dp) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
 
-                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then  
+                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo.or.tDipoles).and.tFinalRDMEnergy) then  
                     NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                             NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                         + ( All_abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
@@ -4088,7 +4091,7 @@ MODULe nElRDMMod
                                             * REAL(TMAT2D(iSpin,jSpin),dp) &
                                             * (1.0_dp / real(NEl - 1,dp)) )
 
-                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then 
+                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo.or.tDipoles).and.tFinalRDMEnergy) then 
                     NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                             NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                         + ( All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
@@ -4111,7 +4114,7 @@ MODULe nElRDMMod
                                                     * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
 
-                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then  
+                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo.or.tDipoles).and.tFinalRDMEnergy) then 
                     NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
                                 NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
                                             - ( All_abba_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
@@ -4126,7 +4129,7 @@ MODULe nElRDMMod
                                                         * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                         * (1.0_dp / real(NEl - 1,dp)) )
 
-                    if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then 
+                    if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo.or.tDipoles).and.tFinalRDMEnergy) then 
                         NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                                 NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                             - ( ( All_abba_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
@@ -4149,7 +4152,7 @@ MODULe nElRDMMod
                                                 * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
 
-            if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then                                                
+            if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo.or.tDipoles).and.tFinalRDMEnergy) then 
                 NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
                             NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
                                         + ( All_aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
@@ -4164,7 +4167,7 @@ MODULe nElRDMMod
                                                 * REAL(TMAT2D(jSpin,iSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
 
-                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo).and.tFinalRDMEnergy) then  
+                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo.or.tDipoles).and.tFinalRDMEnergy) then 
                     NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                             NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                         + ( All_aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
@@ -5784,6 +5787,92 @@ MODULe nElRDMMod
              end do
         end do
     end subroutine fill_RDM_offdiag_deterministic 
+
+    !The only thing needed is the 1RDM (normalized)
+    subroutine CalcDipoles(Norm_1RDM)
+#ifdef MOLPRO
+        use outputResult
+        integer, dimension(nSymLabels) :: elements_assigned1, blockstart1
+        real(dp) :: dipmom(3),znuc,zcor
+        real(dp), allocatable :: SymmetryPacked1RDM(:),ints(:)
+        integer :: i,j,ipr,Sym_i,Sym_j,Sym_ij,posn1,isize,isyref
+#endif
+        implicit none
+        real(dp), intent(in) :: Norm_1RDM
+        character(len=*), parameter :: t_r='CalcDipoles'
+
+#ifdef MOLPRO
+
+        if(iProcIndex.eq.0) then
+            !We need to work out a) how molpro symmetry-packs UHF integrals (ROHF would be fine though)
+            !b) Ensure that the 1RDM is correctly calculated for UHF (It is always allocated as spatorbs)
+            !c) Modify this routine for contracting over spin-orbitals
+            if(tStoreSpinOrbs) call stop_all(t_r,'Not working for ROHF/UHF')
+
+            isyref=Sym_Psi+1  !spatial symmetry of the wavefunction
+
+            !Size of symmetry packed arrays (spatial)
+            isize = 0
+            blockstart1(:) = 0
+            do i = 0,nSymLabels-1
+                !Find position of each symmetry block in sym-packed forms of RDMS 1 & 2
+                blockstart1(i+1)=isize+1 !N.B. Len_1RDM still being updated in this loop
+
+                isize = isize + (SymLabelCounts2(2,ClassCountInd(1,i,0))*(SymLabelCounts2(2,ClassCountInd(1,i,0))+1))/2 !Counting alpha orbitals
+            enddo
+            write(6,*) "Size of symmetry packed 1-electron array",isize
+            allocate(ints(isize))
+
+            allocate(SymmetryPacked1RDM(isize))
+            SymmetryPacked1RDM(:) = 0.0_dp
+            do i = 1,SpatOrbs !run over spatial orbitals, ALL ELECTRON ONLY
+                do j = 1,i ! i .ge. j
+                    Sym_i=SpinOrbSymLabel(2*i)  !Consider only alpha orbitals
+                    Sym_j=SpinOrbSymLabel(2*j)
+                    Sym_ij=RandExcitSymLabelProd(Sym_i, Sym_j)
+                    if (Sym_ij .eq. 0) then
+                        posn1=blockstart1(Sym_i+1)+elements_assigned1(Sym_i+1)
+
+                        SymmetryPacked1RDM(posn1)=NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM
+                    endif
+                    elements_assigned1(Sym_i+1)=elements_assigned1(Sym_i+1)+1
+
+                enddo
+            enddo
+                
+            dipmom(:) = 0.0_dp
+
+            call clearvar('DMX')
+            call clearvar('DMY')
+            call clearvar('DMZ')
+
+            do ipr=4,6
+            
+                ints(isize) = 0.0_dp
+
+                call pget(ints,ipr,znuc,zcor)
+
+                write(6,*) "Integrals for property ",ipr-3
+                write(6,*) ints(1:isize)
+
+                !Now, contract
+                do i = 1,isize
+                    dipmom(ipr-3) = dipmom(ipr-3) - ints(i)*SymmetryPacked1RDM(i)
+                enddo
+                dipmom(ipr-3) = dipmom(ipr-3) + znuc - zcor
+            enddo
+            call output_result('FCIQMC','Dipole moment',dipmom(1:3),1,isyref,numberformat='3f15.8',debye=.TRUE.)
+            call setvar('DMX',dmat(istate,4),'AU',1,1,mxv,-1)
+            call setvar('DMY',dmat(istate,5),'AU',1,1,mxv,-1)
+            call setvar('DMZ',dmat(istate,6),'AU',1,1,mxv,-1)
+            deallocate(ints,SymmetryPacked1RDM)
+        endif
+
+#else
+        call warning_neci(t_r,'Cannot compute dipole moments if not running within molpro. Exiting...')
+#endif
+
+    end subroutine CalcDipoles
 
 
 END MODULE nElRDMMod

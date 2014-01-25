@@ -161,6 +161,7 @@ MODULE FciMCParMod
                                        init_4ind_bias, test_excit_gen_4ind, &
                                        gen_excit_4ind_reverse
     use procedure_pointers
+    use tau_search, only: init_tau_search, log_spawn_magnitude, update_tau
 
     implicit none
 #ifdef MOLPRO
@@ -1690,6 +1691,7 @@ MODULE FciMCParMod
             call init_4ind_bias()
             generate_excitation => gen_excit_4ind_weighted
         elseif (tGen_4ind_reverse) then
+            call init_4ind_bias()
             generate_excitation => gen_excit_4ind_reverse
         else
             generate_excitation => gen_rand_excit
@@ -1988,10 +1990,10 @@ MODULE FciMCParMod
 
             nSpawn = - tau * MatEl * walkerweight / prob
             
-            if (tSearchTau) then
-                if (MaxSpawnProb < abs(nSpawn)) &
-                    MaxSpawnProb = abs(nSpawn)
-            endif
+            ! n.b. if we ever end up with |walkerweight| /= 1, then this
+            !      will need to ffed further through.
+            if (tSearchTau) &
+                call log_spawn_magnitude (ic, ex, matel, prob)
             
             if (tRealSpawning) then
                 ! Continuous spawning. Add in acceptance probabilities.
@@ -3486,20 +3488,8 @@ MODULE FciMCParMod
 
         !        WRITE(iout,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
 
-        if(tSearchTau) then
-            call MPIAllReduce (MaxSpawnProb, MPI_MAX, AllMaxSpawnProb)
-!            if((AllMaxSpawnProb-MaxAllowedSpawnProb).gt.1.0e-5_dp) then
-            if((AllMaxSpawnProb/MaxAllowedSpawnProb).gt.1.02) then
-                !Reduce tau, so that the maximum spawning probability is reduced.
-                tau = tau * (MaxAllowedSpawnProb/AllMaxSpawnProb)
-                if(iProcIndex.eq.root) then
-                    write(iout,"(A,f15.10)") "Spawning probability found of: ",AllMaxSpawnProb
-                    write(iout,"(A,f10.5)") "Reducing timestep to limit spawning probability to: ",MaxAllowedSpawnProb
-                    write(iout,"(A,f20.15)") "New timestep: ",tau
-                endif
-                MaxSpawnProb=0.0_dp
-            endif
-        endif
+        if (tSearchTau) &
+            call update_tau()
 
         if (tTrialWavefunction) then
             call MPIAllReduce(trial_numerator, MPI_SUM, tot_trial_numerator)
@@ -4942,7 +4932,6 @@ MODULE FciMCParMod
         DiagSftIm=0.0_dp
         sum_proje_denominator = 0
         cyc_proje_denominator = 0
-        MaxSpawnProb = 0.0_dp
 
 !Also reinitialise the global variables - should not necessarily need to do this...
         AllSumENum=0.0_dp
@@ -4973,7 +4962,6 @@ MODULE FciMCParMod
         AllNoNonInitWalk=0.0_dp
         AllNoExtraInitDoubs=0
         AllInitRemoved=0
-        AllMaxSpawnProb=0.0_dp
 
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0.0_dp
@@ -5131,35 +5119,8 @@ MODULE FciMCParMod
             WRITE(iout,*) "Timestep set to: ",Tau
         ENDIF
 
-        if(tSearchTau) then
-
-            if(.not.tRestart .and. .not.tReadPops .and. tau == 0) then
-                ! Set initial tau value, unless we are restarting, or reading
-                ! it from popsfileheader
-                call FindMaxTauDoubs()
-            endif
-
-            if(MaxWalkerBloom.eq.-1) then
-                !No MaxWalkerBloom specified
-                !Therefore, assume that we do not want blooms larger than n_add if initiator,
-                !or 5 if non-initiator calculation.
-                if(tTruncInitiator) then
-                    MaxAllowedSpawnProb = InitiatorWalkNo
-                else
-                    MaxAllowedSpawnProb = 5.0_dp    !Won't allow more than 5 particles at a time
-                endif
-            else
-                ! Won't allow more than MaxWalkerBloom particles to spawn
-                ! in one event.
-                MaxAllowedSpawnProb = real(MaxWalkerBloom,dp)
-            endif
-
-            if(.not.(tReadPops.and..not.tWalkContGrow)) then
-                write(iout,"(A,f10.5)") "Will dynamically update timestep &
-                           &to limit spawning probability to: ", &
-                           MaxAllowedSpawnProb
-            endif
-        endif
+        if(tSearchTau) &
+            call init_tau_search()
 
         IF(StepsSftImag.ne.0.0_dp) THEN
             WRITE(iout,*) "StepsShiftImag detected. Resetting StepsShift."
@@ -5326,165 +5287,6 @@ MODULE FciMCParMod
         ENDIF
 
     end subroutine check_start_rdm
-
-    !Routine to find an upper bound to tau, by consideration of the singles and doubles connected
-    !to the reference determinant
-    subroutine FindMaxTauDoubs()
-        use CalcData, only : MaxWalkerBloom
-        use GenRandSymExcitNUMod, only : construct_class_counts,CalcNonUniPGen
-        use SymExcit3, only: GenExcitations3
-        use HPHFRandExcitMod, only: ReturnAlphaOpenDet,CalcPGenHPHF
-        use HPHF_integrals, only: hphf_off_diag_helement_norm
-        implicit none
-        type(excit_gen_store_type) :: store, store2
-        logical :: tAllExcitFound,tParity,tSameFunc,tSwapped,tSign
-        character(len=*), parameter :: t_r="FindMaxTauDoubs"
-        integer :: ex(2,2),ex2(2,2),exflag,iMaxExcit,nStore(6),nExcitMemLen(1)
-        integer, allocatable :: Excitgen(:)
-        real(dp) :: nAddFac,MagHel,pGen,pGenFac
-        HElement_t :: hel
-        integer :: ic,nJ(nel),nJ2(nel),ierr,iExcit,ex_saved(2,2)
-        integer(kind=n_int) :: iLutnJ(0:niftot),iLutnJ2(0:niftot)
-
-        if(tCSF.or.tMomInv) call stop_all(t_r,"TauSearching needs fixing to work with CSFs or MI funcs")
-
-        if(MaxWalkerBloom.eq.-1) then
-            !No MaxWalkerBloom specified
-            !Therefore, assume that we do not want blooms larger than n_add if initiator,
-            !or 5 if non-initiator calculation.
-            if(tTruncInitiator) then
-                nAddFac = InitiatorWalkNo
-            else
-                nAddFac = 5.0_dp    !Won't allow more than 5 particles at a time
-            endif
-        else
-            nAddFac = real(MaxWalkerBloom,dp) !Won't allow more than MaxWalkerBloom particles to spawn in one event. 
-        endif
-
-        Tau = 1000.0_dp
-        tAllExcitFound=.false.
-        Ex_saved(:,:)=0
-        exflag=3
-        tSameFunc=.false.
-        call init_excit_gen_store(store)
-        call init_excit_gen_store(store2)
-        store%tFilled = .false.
-        store2%tFilled = .false.
-        CALL construct_class_counts(ProjEDet, store%ClassCountOcc, &
-                                    store%ClassCountUnocc)
-        store%tFilled = .true.
-        if(tKPntSym) then
-            !TODO: It REALLY needs to be fixed so that we don't need to do this!!
-            !Setting up excitation generators that will work with kpoint sampling
-            iMaxExcit=0
-            nStore(:)=0
-            CALL GenSymExcitIt2(ProjEDet,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,exFlag)
-            ALLOCATE(EXCITGEN(nExcitMemLen(1)),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All(t_r,"Problem allocating excitation generator")
-            EXCITGEN(:)=0
-            CALL GenSymExcitIt2(ProjEDet,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,exFlag)
-        !    CALL GetSymExcitCount(EXCITGEN,DetConn)
-        endif
-
-        do while (.not.tAllExcitFound)
-            if(tKPntSym) then
-                call GenSymExcitIt2(ProjEDet,nel,G1,nBasis,.false.,EXCITGEN,nJ,iExcit,nStore,exFlag)
-                if(nJ(1).eq.0) exit
-                !Calculate ic, tParity and Ex
-                call EncodeBitDet (nJ, iLutnJ)
-                Ex(:,:)=0
-                Ex(1,1)=FindBitExcitlevel(iLutnJ,iLutRef,2)
-                call GetExcitation(ProjEDet,nJ,Nel,ex,tParity)
-            else
-                CALL GenExcitations3(ProjEDet,iLutRef,nJ,exflag,Ex_saved,tParity,tAllExcitFound,.false.)
-                IF(tAllExcitFound) EXIT
-                Ex(:,:) = Ex_saved(:,:)
-                if(Ex(2,2).eq.0) then
-                    ic=1
-                else
-                    ic=2
-                endif
-                call EncodeBitDet (nJ, iLutnJ)
-            endif
-
-            !Find Hij
-            if(tHPHF) then
-                if(.not.TestClosedShellDet(iLutnJ)) then
-                    CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.true.,.true.,tSwapped)
-                    if(tSwapped) then
-                        !Have to recalculate the excitation matrix.
-                        ic = FindBitExcitLevel(iLutnJ, iLutRef, 2)
-                        ex(:,:) = 0
-                        if(ic.le.2) then
-                            ex(1,1) = ic
-                            call GetBitExcitation(iLutRef,iLutnJ,Ex,tParity)
-                        endif
-                    endif
-                endif
-                hel = hphf_off_diag_helement_norm(ProjEDet,nJ,iLutRef,iLutnJ)
-            else
-                hel = get_helement(ProjEDet,nJ,ic,ex,tParity)
-            endif
-
-            MagHel = abs(hel)
-
-            !Find pGen (nI -> nJ)
-            if(tHPHF) then
-                call CalcPGenHPHF(ProjEDet,iLutRef,nJ,iLutnJ,ex,store%ClassCountOcc,    &
-                            store%ClassCountUnocc,pDoubles,pGen,tSameFunc)
-            else
-                call CalcNonUnipGen(ProjEDet,ex,ic,store%ClassCountOcc,store%ClassCountUnocc,pDoubles,pGen)
-            endif
-            if(tSameFunc) cycle
-            if(MagHel.gt.0.0_dp) then
-                pGenFac = pGen*nAddFac/MagHel
-                if(Tau.gt.pGenFac) then
-                    Tau = pGenFac
-                endif
-            endif
-
-            !Find pGen(nJ -> nI)
-            CALL construct_class_counts(nJ, store2%ClassCountOcc, &
-                                        store2%ClassCountUnocc)
-            store2%tFilled = .true.
-            if(tHPHF) then
-                ic = FindBitExcitLevel(iLutnJ, iLutRef, 2)
-                ex2(:,:) = 0
-                if(ic.le.2) then
-                    ex2(1,1) = ic
-                    call GetBitExcitation(iLutnJ,iLutRef,Ex2,tSign)
-                endif
-                call CalcPGenHPHF(nJ,iLutnJ,ProjEDet,iLutRef,ex2,store2%ClassCountOcc,    &
-                            store2%ClassCountUnocc,pDoubles,pGen,tSameFunc)
-            else
-                ex2(1,:) = ex(2,:)
-                ex2(2,:) = ex(1,:)
-                call CalcNonUnipGen(nJ,ex2,ic,store2%ClassCountOcc,store2%ClassCountUnocc,pDoubles,pGen)
-            endif
-            if(tSameFunc) cycle
-            if(MagHel.gt.0.0_dp) then
-                pGenFac = pGen*nAddFac/MagHel
-                if(Tau.gt.pGenFac) then
-                    Tau = pGenFac
-                endif
-            endif
-
-        enddo
-                
-        call clean_excit_gen_store (store)
-        call clean_excit_gen_store (store2)
-        if(tKPntSym) deallocate(EXCITGEN)
-
-        if(tau.gt.0.075) then
-            tau=0.075_dp
-            write(iout,"(A,F8.5,A)") "Small system. Setting initial timestep to be ",Tau," although this &
-                                            &may be inappropriate. Care needed"
-        else
-            write(iout,"(A,F18.10)") "From analysis of reference determinant and connections, &
-                                     &an upper bound for the timestep is: ",Tau
-        endif
-
-    end subroutine FindMaxTauDoubs
 
     SUBROUTINE CheckforBrillouins()
         use SystemData, only : tUseBrillouin,tNoBrillouin,tUHF
