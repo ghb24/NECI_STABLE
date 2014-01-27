@@ -181,18 +181,24 @@ contains
 
     subroutine update_tau ()
 
-        real(dp) :: psingles_new, tau_new, opp_bias_new
+        real(dp) :: psingles_new, tau_new, opp_bias_new, mpi_tmp
+        logical :: mpi_ltmp
 
         ! What needs doing depends on the number of parametrs that are being
         ! updated.
         if (consider_opp_bias) then
 
             ! Considering two types of double exctitaion...
-            call MPIAllReduce_inplace (gamma_sing, MPI_MAX)
-            call MPIAllReduce_inplace (gamma_opp, MPI_MAX)
-            call MPIAllReduce_inplace (gamma_par, MPI_MAX)
-            call MPIAllReduce_inplace (enough_opp, MPI_LOR)
-            call MPIAllReduce_inplace (enough_par, MPI_LOR)
+            call MPIAllReduce (gamma_sing, MPI_MAX, mpi_tmp)
+            gamma_sing = mpi_tmp
+            call MPIAllReduce (gamma_opp, MPI_MAX, mpi_tmp)
+            gamma_par = mpi_tmp
+            call MPIAllReduce (gamma_par, MPI_MAX, mpi_tmp)
+            gamma_par = mpi_tmp
+            call MPIAllReduce (enough_opp, MPI_LOR, mpi_ltmp)
+            enough_opp = mpi_ltmp
+            call MPIAllReduce (enough_par, MPI_LOR, mpi_ltmp)
+            enough_par = mpi_ltmp
 
             opp_bias_new = gamma_opp * n_par / (gamma_par * n_opp)
             psingles_new = gamma_sing * n_par &
@@ -216,8 +222,10 @@ contains
         else
 
             ! Only considering a direct singles/doubles bias
-            call MPIAllReduce_inplace (gamma_sing, MPI_MAX)
-            call MPIAllReduce_inplace (gamma_doub, MPI_MAX)
+            call MPIAllReduce (gamma_sing, MPI_MAX, mpi_tmp)
+            gamma_sing = mpi_tmp
+            call MPIAllReduce (gamma_doub, MPI_MAX, mpi_tmp)
+            gamma_doub = mpi_tmp
 
             ! Get the values of pSingles and tau that correspond to the stored
             ! values
@@ -225,8 +233,10 @@ contains
             tau_new = max_permitted_spawn / (gamma_doub + gamma_sing)
 
         end if
-        call MPIAllReduce_inplace (enough_sing, MPI_LOR)
-        call MPIAllReduce_inplace (enough_doub, MPI_LOR)
+        call MPIAllReduce (enough_sing, MPI_LOR, mpi_ltmp)
+        enough_sing = mpi_ltmp
+        call MPIAllReduce (enough_doub, MPI_LOR, mpi_ltmp)
+        enough_doub = mpi_ltmp
 
         ! If the calculated tau is less than the current tau, we should ALWAYS
         ! update it. Once we have a reasonable sample of excitations, then we
