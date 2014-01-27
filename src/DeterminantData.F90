@@ -9,6 +9,8 @@ module DeterminantData
     integer, pointer :: FDet(:)
     integer(TagIntType) :: tagFDet
 
+    integer :: calculated_ms
+
     type lexicographic_store
         integer, pointer :: dorder(:) => null()
         integer, pointer :: open_orbs(:) => null()

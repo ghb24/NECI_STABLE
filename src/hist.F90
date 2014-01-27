@@ -2,7 +2,7 @@
 
 module hist
 
-    use DeterminantData, only: get_lexicographic
+    use DeterminantData, only: get_lexicographic, calculated_ms
     use MemoryManager
     use SystemData, only: tHistSpinDist, ilut_spindist, nbasis, nel, LMS, &
                           hist_spin_dist_iter, nI_spindist, LMS, tHPHF, &
@@ -635,7 +635,7 @@ contains
         !     would also then need to calculate the value of psi_squared
 
         real(dp) :: ssq, tmp
-        integer :: i, lms_tmp
+        integer :: i
         logical, intent(in) :: only_init
         type(timer), save :: s2_timer
 
@@ -667,8 +667,7 @@ contains
             ! TODO: n.b. This is a hack. LMS appears to contain -2*Ms of the
             !            system I am somewhat astounded I haven't noticed this
             !            before...
-            lms_tmp = -LMS
-            ssq = ssq + real(lms_tmp * (lms_tmp + 2), dp) / 4
+            ssq = ssq + real(calculated_ms * (calculated_ms + 2), dp) / 4
         end if
 
         call halt_timer (s2_timer)
@@ -698,7 +697,7 @@ contains
              result(ssq)
 
         integer :: i, j, k, orb2, orbtmp, pos, ierr
-        integer :: nI(nel), nJ(nel), proc, lms_tmp
+        integer :: nI(nel), nJ(nel), proc
         integer(n_int), pointer :: detcurr(:)
         integer(n_int) :: splus(0:NIfTot), sminus(0:NIfTot)
         logical :: running, any_running
@@ -820,8 +819,7 @@ contains
             ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the
             !            system. I am somewhat astounded I haven't noticed
             !            this before...
-            lms_tmp = -LMS
-            ssq = ssq + real(lms_tmp * (lms_tmp + 2), dp) / 4
+            ssq = ssq + real(calculated_ms * (calculated_ms + 2), dp) / 4
         end if
 
     end function
@@ -832,7 +830,7 @@ contains
         real(dp) :: ssq
         integer, parameter :: max_per_proc = 1000
         integer(n_int) :: recv_dets(0:NIfTot,max_per_proc)
-        integer :: proc_dets, start_pos, nsend, i, lms_tmp, p
+        integer :: proc_dets, start_pos, nsend, i, p
         integer :: bcast_tmp(2)
         real(dp) :: sgn_tmp(lenof_sign)
         type(timer), save :: s2_timer, s2_timer_init
@@ -944,8 +942,7 @@ contains
             ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the
             !            system. I am somewhat astounded I haven't noticed
             !            this before...
-            lms_tmp = -LMS
-            ssq = ssq + real(lms_tmp * (lms_tmp + 2), dp) / 4
+            ssq = ssq + real(calculated_ms * (calculated_ms + 2), dp) / 4
 
             if (only_init) then
                 call halt_timer(s2_timer_init)

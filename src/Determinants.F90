@@ -129,6 +129,9 @@ contains
          E0HFDET=E0HFDET+ARR(NUHFDET(i),2)
       ENDDO     
       WRITE(6,*) "Fock operator energy:",E0HFDET
+
+      ! Store the value of Ms for use in other areas
+      calculated_ms = sum(get_spin_pn(fdet(1:nel)))
     End Subroutine DetPreFreezeInit
 
     
