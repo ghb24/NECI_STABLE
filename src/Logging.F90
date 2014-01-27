@@ -27,6 +27,7 @@ MODULE Logging
       use default_sets
       implicit none
 
+      tDipoles = .false.
       tPrintInitiators = .false.
       tDiagAllSpaceEver = .false.
       tCalcVariationalEnergy = .false.
@@ -522,6 +523,10 @@ MODULE Logging
 ! of a calculation, we may get the one body reduced density matrix from the 
 !wavefunction we've found, and then use the MOTRANSFORM file printed to 
 ! visualise the natural orbitals with large occupation numbers.
+
+        case("DIPOLE_MOMENTS")
+            !Calculate the dipole moments if we are in molpro
+            tDipoles = .true.
 
         case("CALCRDMENERGY")
 !This takes the 1 and 2 electron RDM and calculates the energy using the RDM expression.            

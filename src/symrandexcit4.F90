@@ -6,12 +6,15 @@
 module excit_gens_int_weighted
 
     use SystemData, only: nel, nbasis, nOccAlpha, nOccBeta, G1, nOccAlpha, &
-                          nOccBeta, tExch
+                          nOccBeta, tExch, AA_elec_pairs, BB_elec_pairs, &
+                          AB_elec_pairs, par_elec_pairs, AA_hole_pairs, &
+                          par_hole_pairs, AB_hole_pairs
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
                                pDoubNew, ScratchSize
     use sym_general_mod, only: ClassCountInd, ClassCountInv, class_count_ms
-    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles
+    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, &
+                         rand_excit_opp_bias
     use dSFMT_interface, only: genrand_real2_dSFMT
     use Determinants, only: get_helement, write_det
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt
@@ -34,9 +37,6 @@ module excit_gens_int_weighted
     save
 
     integer :: ncnt, nsel
-
-    ! Data for the 4ind-integral biasing scheme
-    real(dp), allocatable :: epair_4ind_ints(:)
 
 contains
 
@@ -154,17 +154,10 @@ contains
         character(*), parameter :: this_routine = 'init_4ind_bias'
         integer :: i, j
 
-        ! Just a quick sanity check
-        if (allocated(epair_4ind_ints)) &
-            call stop_all(this_routine, "Electron pair data array already &
-                                        &allocated")
-
-!        write(6,*) 'NBASIS', nbasispairs
-!        do i = 1, nbasis
-!        end do
-
         ncnt = 0
         nsel = 0
+
+        rand_excit_opp_bias = 1.0_dp
 
     end subroutine
 
@@ -464,16 +457,13 @@ contains
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: elecs(2), src(2), sym_prod, ispn, sum_ml
         real(dp), intent(out) :: pgen
-        real(dp), parameter :: opp_bias = 3.0
 
-        real(dp) :: nal, nbe, nopp, ntot, r
+        real(dp) :: ntot, r
         integer :: al_req, be_req, al_num(2), be_num(2), elecs_found, i, idx
         integer :: al_count, be_count
 
-        nopp = noccalpha * noccbeta
-        nal = noccalpha * (noccalpha - 1) / 2
-        nbe = noccbeta * (noccbeta - 1) / 2
-        ntot = nal + nbe + nopp * opp_bias
+        ntot = AA_elec_pairs + BB_elec_pairs &
+              + AB_elec_pairs * rand_excit_opp_bias
 
         ! The overall generation probability for this section is remarkably
         ! simple!
@@ -483,25 +473,25 @@ contains
         ! Select them according to the availability of pairs (and the
         ! weighting of opposite-spin pairs relative to same-spin ones).
         r = genrand_real2_dSFMT() * ntot
-        if (r < nal) then
+        if (r < AA_elec_pairs) then
             al_req = 2
             be_req = 0
             idx = floor(r)
             al_num(1) = ceiling((1 + sqrt(9 + 8*real(idx, dp))) / 2)
             al_num(2) = idx + 1 - ((al_num(1) - 1) * (al_num(1) - 2)) / 2
             iSpn = 3
-        else if (r < nal + nbe) then
+        else if (r < par_elec_pairs) then
             al_req = 0
             be_req = 2
-            idx = floor(r - nal)
+            idx = floor(r - AA_elec_pairs)
             be_num(1) = ceiling((1 + sqrt(9 + 8*real(idx, dp))) / 2)
             be_num(2) = idx + 1 - ((be_num(1) - 1) * (be_num(1) - 2)) / 2
             iSpn = 1
         else
             al_req = 1
             be_req = 1
-            pgen = pgen * opp_bias
-            idx = floor((r - nal - nbe) / opp_bias)
+            pgen = pgen * rand_excit_opp_bias
+            idx = floor((r - par_elec_pairs) / rand_excit_opp_bias)
             al_num(1) = 1 + mod(idx, nOccAlpha)
             be_num(1) = 1 + floor(idx / real(nOccAlpha,dp))
             iSpn = 2
@@ -830,7 +820,7 @@ contains
         real(dp) :: val, cum_val, r
 
         ! Select a pair of holes (vacant orbitals)
-        call pick_hole_pair (ilutI, tgt, pgen, sym_prod, ispn)
+        call pick_hole_pair_biased (ilutI, tgt, pgen, sym_prod, ispn)
         id_tgt = gtID(tgt)
 
         ! Now we want to consider all of the possible pairs of electrons
@@ -920,6 +910,98 @@ contains
         else
             ispn = 2
         end if
+
+    end function
+
+
+    subroutine pick_hole_pair_biased (ilut, orbs, pgen, sym_prod, ispn)
+        
+        ! This is a biased version of pick_hole_pair below. Whereas the
+        ! other function picks hole pairs entirely uniformly throughout the
+        ! space, this function biases that selection towards picking opposite
+        ! spin pairs (according to the biasing factor rand_excit_opp_bias).
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(out) :: orbs(2), sym_prod, ispn
+        real(dp), intent(out) :: pgen
+
+        real(dp) :: ntot, r
+        integer :: spn(2)
+
+        ntot = par_hole_pairs + AB_hole_pairs * rand_excit_opp_bias
+
+        ! The overall generation probability is remarkably simple!
+        pgen = 1.0_dp / ntot
+
+        ! Pick what sort of hole pair we want. AA, BB, or AB.
+        r = genrand_real2_dSFMT() * ntot
+        if (r < AA_hole_pairs) then
+            ! alpha/alpha
+            iSpn = 3
+            spn = (/1, 1/)
+        else if (r < par_hole_pairs) then
+            ! beta/beta
+            iSpn = 1
+            spn = (/2, 2/)
+        else
+            ! alpha/beta
+            iSpn = 2
+            spn = (/1, 2/)
+
+            ! We need to adjust the generation probability to account for the
+            ! selection bias
+            pgen = pgen * rand_excit_opp_bias
+        end if
+
+        ! Select orbitals at random with the given spins
+        orbs(1) = pick_hole_spn (ilut, spn(1), -1)
+        orbs(2) = pick_hole_spn (ilut, spn(2), orbs(1))
+
+        ! What are the symmetry/spin properties of this pick?
+        sym_prod = RandExcitSymLabelProd(int(G1(orbs(1))%Sym%S), &
+                                         int(G1(orbs(2))%Sym%S))
+        ASSERT(iSpn == get_ispn(orbs(1), orbs(2)))
+
+    end subroutine
+
+    function pick_hole_spn (ilut, spn, exclude_orb) result(orb)
+
+        ! Pick an unoccupied orbital at random, uniformly, from the available
+        ! basis set (excluding a selected orbital if desired), with the given
+        ! spin
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: exclude_orb, spn
+        integer :: orb, attempts, norb
+        integer, parameter :: max_attempts = 1000
+        character(*), parameter :: t_r = 'pick_hole'
+
+        ASSERT(.not. btest(nbasis, 0))
+        norb = nbasis / 2
+
+        ! Draw orbitals randomly until we find the first orbital
+        attempts = 0
+        do while(.true.)
+
+            ! Select an orbital randomly with the correct spin
+            if (spn == 1) then
+                ! alpha
+                orb = 2 + 2 * int(genrand_real2_dSFMT() * norb)
+            else
+                ! beta
+                orb = 1 + 2 * int(genrand_real2_dSFMT() * norb)
+            end if
+
+            ! Accept this selection if it is a hole.
+            if (IsNotOcc(ilut, orb) .and. orb /= exclude_orb) exit
+
+            ! Just in case, add a check
+            if (attempts > max_attempts) then
+                write(6,*) 'Unable to find unoccupied orbital'
+                call writebitdet (6, ilut, .true.)
+                call stop_all(t_r, 'Out of attempts')
+            end if
+        end do
 
     end function
 
