@@ -634,7 +634,7 @@ contains
         ! --> This could be generalised to an arbitrary list of iluts. We 
         !     would also then need to calculate the value of psi_squared
 
-        real(dp) :: ssq
+        real(dp) :: ssq, tmp
         integer :: i, lms_tmp
         logical, intent(in) :: only_init
         type(timer), save :: s2_timer
@@ -655,13 +655,21 @@ contains
         enddo
 
         ! Sum over all processors and normalise
-        call MPISum_inplace (ssq)
-        ssq = ssq / all_norm_psi_squared
+        call MPISum (ssq, tmp)
+        ssq = tmp
 
-        ! TODO: n.b. This is a hack. LMS appears to contain -2*Ms of the system
-        !            I am somewhat astounded I haven't noticed this before...
-        lms_tmp = -LMS
-        ssq = ssq + real(lms_tmp * (lms_tmp + 2), dp) / 4
+        if (all_norm_psi_squared == 0) then
+            ssq = 0.0_dp
+        else
+
+            ssq = ssq / all_norm_psi_squared
+
+            ! TODO: n.b. This is a hack. LMS appears to contain -2*Ms of the
+            !            system I am somewhat astounded I haven't noticed this
+            !            before...
+            lms_tmp = -LMS
+            ssq = ssq + real(lms_tmp * (lms_tmp + 2), dp) / 4
+        end if
 
         call halt_timer (s2_timer)
 
@@ -696,7 +704,7 @@ contains
         logical :: running, any_running
         real(dp) :: ssq, Allssq
         integer :: max_per_proc, max_spawned
-        real(dp) :: sgn1(lenof_sign), sgn2(lenof_sign)
+        real(dp) :: sgn1(lenof_sign), sgn2(lenof_sign), tmp
 
 
         ! Could we pre-initialise all of these data structures
@@ -801,13 +809,20 @@ contains
 
         enddo
 
-        call MPISum_inplace (ssq)
-        ssq = ssq / all_norm_psi_squared
+        call MPISum (ssq, tmp)
+        ssq = tmp
 
-        ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the system
-        !            I am somewhat astounded I haven't noticed this before...
-        lms_tmp = -LMS
-        ssq = ssq + real(lms_tmp * (lms_tmp + 2), dp) / 4
+        if (all_norm_psi_squared == 0) then
+            ssq = 0.0_dp
+        else
+            ssq = ssq / all_norm_psi_squared
+
+            ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the
+            !            system. I am somewhat astounded I haven't noticed
+            !            this before...
+            lms_tmp = -LMS
+            ssq = ssq + real(lms_tmp * (lms_tmp + 2), dp) / 4
+        end if
 
     end function
 
@@ -920,18 +935,24 @@ contains
         end if
         call MPISum(ssq_sum, All_ssq_sum)
         ssq_sum=All_ssq_sum
-        ssq = real(ssq_sum,dp) / psi_squared
-         
-        ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the system
-        !            I am somewhat astounded I haven't noticed this before...
-        lms_tmp = -LMS
-        ssq = ssq + real(lms_tmp * (lms_tmp + 2), dp) / 4
 
-        if (only_init) then
-            call halt_timer(s2_timer_init)
+        if (psi_squared == 0) then
+            ssq = 0.0_dp
         else
-            call halt_timer (s2_timer)
-        endif
+            ssq = real(ssq_sum,dp) / psi_squared
+         
+            ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the
+            !            system. I am somewhat astounded I haven't noticed
+            !            this before...
+            lms_tmp = -LMS
+            ssq = ssq + real(lms_tmp * (lms_tmp + 2), dp) / 4
+
+            if (only_init) then
+                call halt_timer(s2_timer_init)
+            else
+                call halt_timer (s2_timer)
+            endif
+        end if
 
     end function
 
