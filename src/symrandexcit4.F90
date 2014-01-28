@@ -33,8 +33,6 @@ module excit_gens_int_weighted
     implicit none
     save
 
-    integer :: ncnt, nsel
-
 contains
 
     subroutine gen_excit_hel_weighted (nI, ilutI, nJ, ilutJ, exFlag, ic, &
@@ -146,18 +144,6 @@ contains
     ! ---------------------------------------------------------------------
     !
     !
-    subroutine init_4ind_bias ()
-
-        character(*), parameter :: this_routine = 'init_4ind_bias'
-        integer :: i, j
-
-        ncnt = 0
-        nsel = 0
-
-        rand_excit_opp_bias = 1.0_dp
-
-    end subroutine
-
 
     subroutine gen_excit_4ind_weighted (nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                         ExcitMat, tParity, pGen, HelGen, store)
@@ -177,8 +163,6 @@ contains
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         character(*), parameter :: this_routine = 'gen_excit_4ind_weighted'
         integer :: orb
-
-        ncnt = ncnt + 1
 
         ! We now use the class counts to do the construction. This is an
         ! O[N] opearation, and gives the number of occupied/unoccupied
@@ -207,8 +191,6 @@ contains
             pgen = pgen * pDoubles
 
         end if
-
-        if (nJ(1) /= 0) nsel = nsel + 1
 
     end subroutine
 
