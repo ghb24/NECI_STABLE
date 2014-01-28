@@ -19,7 +19,7 @@ module excit_gens_int_weighted
     use bit_reps, only: decode_bit_det
     use symdata, only: nSymLabels
     use procedure_pointers, only: get_umat_el
-    use UMatCache, only: gtid
+    use UMatCache, only: gtid, UMat2d
     use OneEInts, only: GetTMATEl
     use sltcnd_mod, only: sltcnd_1
     use GenRandSymExcitNUMod, only: PickElecPair, gen_rand_excit, &
@@ -32,8 +32,6 @@ module excit_gens_int_weighted
     use util_mod
     implicit none
     save
-
-    integer :: ncnt, nsel
 
 contains
 
@@ -146,18 +144,6 @@ contains
     ! ---------------------------------------------------------------------
     !
     !
-    subroutine init_4ind_bias ()
-
-        character(*), parameter :: this_routine = 'init_4ind_bias'
-        integer :: i, j
-
-        ncnt = 0
-        nsel = 0
-
-        rand_excit_opp_bias = 1.0_dp
-
-    end subroutine
-
 
     subroutine gen_excit_4ind_weighted (nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                         ExcitMat, tParity, pGen, HelGen, store)
@@ -177,8 +163,6 @@ contains
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         character(*), parameter :: this_routine = 'gen_excit_4ind_weighted'
         integer :: orb
-
-        ncnt = ncnt + 1
 
         ! We now use the class counts to do the construction. This is an
         ! O[N] opearation, and gives the number of occupied/unoccupied
@@ -207,8 +191,6 @@ contains
             pgen = pgen * pDoubles
 
         end if
-
-        if (nJ(1) /= 0) nsel = nsel + 1
 
     end subroutine
 
@@ -302,6 +284,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: cc_index, src
         real(dp), intent(out) :: pgen
+        character(*), parameter :: this_routine = 'select_orb_sing'
 
         real(dp) :: cum_sum, cumulative_arr(OrbClassCount(cc_index)), r
         real(dp) :: cpt_arr(OrbClassCount(cc_index))
@@ -582,8 +565,10 @@ contains
                 if (IsNotOcc(ilut, orb) .and. orb /= orb_pair) then
                     orbid = gtID(orb)
                     cum_sum = cum_sum &
-                    + sqrt(abs_l1(get_umat_el(srcid(1), srcid(1), orbid, orbid)))&
-                    + sqrt(abs_l1(get_umat_el(srcid(2), srcid(2), orbid, orbid)))
+                    + sqrt(abs_l1(UMat2D(max(srcid(1), orbid), &
+                                         min(srcid(1), orbid)))) &
+                    + sqrt(abs_l1(UMat2D(max(srcid(2), orbid), &
+                                         min(srcid(2), orbid))))
                 end if
                 cumulative_arr(i) = cum_sum
 
@@ -608,7 +593,8 @@ contains
                 if (IsNotOcc(ilut, orb) .and. orb /= orb_pair) then
                     orbid = gtID(orb)
                     cum_sum = cum_sum &
-                    + sqrt(abs_l1(get_umat_el(src_id, src_id, orbid, orbid)))
+                    + sqrt(abs_l1(UMat2D(max(src_id, orbid), &
+                                         min(src_id, orbid))))
                 end if
                 cumulative_arr(i) = cum_sum
 
@@ -632,10 +618,15 @@ contains
         orb = SymLabelList2(label_index + orb_index - 1)
         orbid = gtID(orb)
         if (G1(src(1))%Ms == G1(src(2))%Ms) then
-            cpt = sqrt(abs_l1(get_umat_el(srcid(1), srcid(1), orbid, orbid))) + &
-                  sqrt(abs_l1(get_umat_el(srcid(2), srcid(2), orbid, orbid)))
+            cpt = sqrt(abs_l1(UMat2D(max(srcid(1), orbid), &
+                                     min(srcid(1), orbid)))) + &
+                  sqrt(abs_l1(UMat2D(max(srcid(2), orbid), &
+                                     min(srcid(2), orbid))))
+            !sqrt(abs_l1(get_umat_el(srcid(1), srcid(1), orbid, orbid))) + &
+            !sqrt(abs_l1(get_umat_el(srcid(2), srcid(2), orbid, orbid)))
         else
-            cpt = sqrt(abs_l1(get_umat_el(src_id, src_id, orbid, orbid)))
+            cpt = sqrt(abs_l1(UMat2D(max(src_id, orbid), min(src_id, orbid))))
+            !get_umat_el(src_id, src_id, orbid, orbid)))
         end if
 
     end function
@@ -732,6 +723,7 @@ contains
         integer, intent(out) :: src
         real(dp), intent(out) :: pgen
         integer :: elec
+        character(*), parameter :: this_routine = 'select_elec_sing'
 
         real(dp) :: cum_sum, cum_arr(nel), cpt_arr(nel), r
         integer :: cc_index, n_id(nel), id_tgt, id_src, cc_src, j, src_elec
@@ -921,6 +913,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(out) :: orbs(2), sym_prod, ispn
         real(dp), intent(out) :: pgen
+        character(*), parameter :: this_routine = 'pick_hole_pair_biased'
 
         real(dp) :: ntot, r
         integer :: spn(2)
@@ -971,7 +964,7 @@ contains
         integer, intent(in) :: exclude_orb, spn
         integer :: orb, attempts, norb
         integer, parameter :: max_attempts = 1000
-        character(*), parameter :: t_r = 'pick_hole'
+        character(*), parameter :: this_routine = 'pick_hole'
 
         ASSERT(.not. btest(nbasis, 0))
         norb = nbasis / 2
@@ -996,7 +989,7 @@ contains
             if (attempts > max_attempts) then
                 write(6,*) 'Unable to find unoccupied orbital'
                 call writebitdet (6, ilut, .true.)
-                call stop_all(t_r, 'Out of attempts')
+                call stop_all(this_routine, 'Out of attempts')
             end if
         end do
 

@@ -6,6 +6,8 @@ MODULE DetCalc
         use DetCalcData
         use MemoryManager, only: TagIntType
         use gndts_mod, only: gndts
+        use UMatCache, only: UMat2D, tUMat2D, tDeferred_UMat2D, tagUMat2D
+        use procedure_pointers, only: get_umat_el
         
     IMPLICIT NONE
      save
@@ -52,8 +54,8 @@ CONTAINS
         use util_mod, only: get_free_unit, NECI_ICOPY
         Type(BasisFn) ISym
 
-        integer i,ii,iunit
-        integer ierr
+        integer i, j, ii, iunit
+        integer ierr, norb
         integer nDetTot
         logical isvaliddet
         
@@ -72,6 +74,31 @@ CONTAINS
             TENERGY=.FALSE.
          ENDIF
       ENDIF
+
+      ! If we want to have UMat2D, and it isn't yet filled in, generate it
+      ! here. All of the integrals setup/freezing etc is done...
+      if (tDeferred_Umat2d .and. .not. tUMat2D) then
+          ASSERT(.not. btest(nbasis, 0))
+
+          ! This storage is in spatial, not spin, orbitals
+          norb = nbasis / 2
+
+          ! Allocate the storage
+          allocate(umat2d(norb, norb), stat=ierr)
+          LogAlloc(ierr, 'umat2d', norb*norb, HElement_t_sizeB, tagUMat2D)
+
+          ! And fill in the array
+          do i = 1, norb
+              do j = i, norb
+                  if (i == j) then
+                      umat2d(i, i) = get_umat_el (i, i, i, i)
+                  else
+                      UMat2D(i, j) = get_umat_el(i, j, i, j)
+                      UMat2D(j, i) = get_umat_el(i, j, j, i)
+                  end if
+              end do
+          end do
+      end if
 
 !Copied Specdet information from Calc.F, so if inspect is present, but no determinant/csf specified, it will still run.
       if(TSPECDET) then
