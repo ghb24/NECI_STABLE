@@ -25,7 +25,7 @@ module semi_stoch_procs
                          HashIndex, core_space, CoreSpaceTag, ll_node, nWalkerHashes, &
                          tFill_RDM, IterLastRDMFill, full_determ_vector_av, &
                          tFillingStochRDMonFly, Iter, IterRDMStart, CoreHashIndex, &
-                         core_ham_diag, DavidsonTag, Fii, HFDet
+                         core_ham_diag, DavidsonTag, Fii, HFDet, PreviousCycles
     use hash, only: DetermineDetNode, FindWalkerHash
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
@@ -71,8 +71,8 @@ contains
         call set_timer(SemiStoch_Multiply_Time)
 
         if(tFillingStochRDMonFly) then !Update the average signs in full_determ_vector_av
-            full_determ_vector_av=(((real(Iter,dp)-IterRDMStart)*full_determ_vector_av) &
-                                      + full_determ_vector)/(real(Iter,dp) - IterRDMStart + 1.0_dp)
+            full_determ_vector_av=(((real(Iter+PreviousCycles,dp)-IterRDMStart)*full_determ_vector_av) &
+                                      + full_determ_vector)/(real(Iter+PreviousCycles,dp) - IterRDMStart + 1.0_dp)
         endif
             
         if (determ_proc_sizes(iProcIndex) >= 1) then

@@ -5967,6 +5967,8 @@ MODULe nElRDMMod
         integer(kind=n_int) :: iLutI(0:niftot), iLutJ(0:niftot)
         integer :: nI(nel), nJ(nel), IC
         integer :: IterRDM_Inst, IterRDM_Full, RDMAccumIters, connect_elem
+
+        RDMAccumIters = real(Iter+PreviousCycles,dp) - IterRDMStart + 1.0_dp
    
         if(mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0) then
             IterRDM_Inst=RDMEnergyIter
@@ -6007,7 +6009,8 @@ MODULe nElRDMMod
 !                 InstSignJ=full_determ_vector(core_connections(i)%positions(j))
                  ! Use the first index as a placeholder for now, but needs to be fixed. NSB
                  AvSignJ=full_determ_vector_av(1,core_connections(i)%positions(j))
-                 
+          
+
                  connect_elem=core_connections(i)%elements(j)
 
                  IC=abs(connect_elem)

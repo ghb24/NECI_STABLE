@@ -469,7 +469,7 @@ MODULE FciMCParMod
                 ! If we wish to calculate the energy, have started accumulating the RDMs, 
                 ! and this is an iteration where the energy should be calculated, do so.
                 if( tCalc_RDMEnergy .and. ((Iter - maxval(VaryShiftIter)).gt.IterRDMonFly) &
-                    .and. (mod((Iter - IterRDMStart)+1,RDMEnergyIter).eq.0) ) &
+                    .and. (mod((Iter+PreviousCycles - IterRDMStart)+1,RDMEnergyIter).eq.0) ) &
                         CALL Calc_Energy_from_RDM(Norm_2RDM)  
             ENDIF
             if(tChangeVarsRDM) then
@@ -1151,8 +1151,7 @@ MODULE FciMCParMod
                                    CurrentDets(:,j), HDiagCurr, SignCurr, &
                                    AvSignCurr, IterRDMStartCurr, VecSlot, j, WalkExcitLevel)
             end if
-            
-            
+           
             if(tFill_RDM) then 
                 ! If tFill_RDM is true, this is an iteration where the diagonal 
                 ! RDM elements are calculated, along with the contributions from 
@@ -3946,7 +3945,7 @@ MODULE FciMCParMod
                     AvNoatHF(inum_runs) = ( (real((Iter+PreviousCycles - IterRDM_HF(inum_runs)),dp) * Prev_AvNoatHF(inum_runs)) &
                         + InstNoatHF(inum_runs) ) / real((Iter+PreviousCycles - IterRDM_HF(inum_runs)) + 1,dp)
                 endif
-               ! WRITE(6,*) "AvNoAtHF", Prev_AvNoAtHF, AvNoAtHF, InstNoAtHF
+            !    WRITE(6,*) "AvNoAtHF", Prev_AvNoAtHF, AvNoAtHF, InstNoAtHF
             endif
         endif
         HFInd = 0            
@@ -5479,14 +5478,14 @@ MODULE FciMCParMod
 
         !If we're reading in the RDMs we've already started accumulating them in a previous calculation
         ! We don't want to put in an arbitrary break now!
-        if(tReadRDMs) IterRDMonFly=0
+        if(tReadRDMs)   IterRDMonFly=0
 
         IF(tFullVaryShift .and. ((Iter - maxval(VaryShiftIter)).eq.(IterRDMonFly+1))) THEN
         ! IterRDMonFly is the number of iterations after the shift has changed that we want 
         ! to fill the RDMs.  If this many iterations have passed, start accumulating the RDMs! 
         
-            IterRDMStart = Iter
-            IterRDM_HF = Iter
+            IterRDMStart = Iter+PreviousCycles
+            IterRDM_HF = Iter+PreviousCycles
 
             if(tReadRDMs .and. tReadRDMAvPop) then
                 !We need to read in the values of IterRDMStart and IterRDM_HF

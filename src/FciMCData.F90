@@ -150,7 +150,7 @@ MODULE FciMCData
       REAL(dp), dimension(inum_runs) :: NoatDoubs
       REAL(dp), dimension(inum_runs) :: Acceptances      !This is the number of accepted spawns - this is only calculated per node.
       real(dp), dimension(inum_runs) :: AccRat            !Acceptance ratio for each node over the update cycle
-      INTEGER :: PreviousCycles   
+      INTEGER :: PreviousCycles
       !This is just for the head node, so that it can store the number of previous cycles when reading from POPSFILE
       REAL(dp),dimension(inum_runs) :: NoBorn,NoDied
       REAL(dp),dimension(inum_runs) :: SpawnFromSing  

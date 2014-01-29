@@ -112,8 +112,8 @@ contains
         call LogMemAlloc('partial_determ_vector', int(determ_proc_sizes(iProcIndex), &
                          sizeof_int)*lenof_sign, 8, t_r, PDetermTag, ierr)
 
-        full_determ_vector = 0.0_dp
-        full_determ_vector_av = 0.0_dp
+        full_determ_vector(:,:) = 0.0_dp
+        full_determ_vector_av(:,:) = 0.0_dp
         partial_determ_vector = 0.0_dp
 
         ! This array will hold the positions of the deterministic states in CurrentDets.
