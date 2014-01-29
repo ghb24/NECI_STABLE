@@ -4055,7 +4055,8 @@ MODULe nElRDMMod
                                                 * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) )
 
-            if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo.or.tDipoles).and.tFinalRDMEnergy) then                                                
+            if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo.or.tDipoles)  &
+                .and.tFinalRDMEnergy) then                                                
                 NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
                             NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
                                         + ( All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
@@ -5792,12 +5793,17 @@ MODULe nElRDMMod
     subroutine CalcDipoles(Norm_1RDM)
 #ifdef MOLPRO
         use outputResult
+        use SymData, only : Sym_Psi,nSymLabels
+        use GenRandSymExcitNUMod , only : RandExcitSymLabelProd, ClassCountInd
+        use SymExcitDataMod, only: SpinOrbSymLabel,SymLabelCounts2
+        implicit none
         integer, dimension(nSymLabels) :: elements_assigned1, blockstart1
         real(dp) :: dipmom(3),znuc,zcor
         real(dp), allocatable :: SymmetryPacked1RDM(:),ints(:)
-        integer :: i,j,ipr,Sym_i,Sym_j,Sym_ij,posn1,isize,isyref
-#endif
+        integer :: i,j,ipr,Sym_i,Sym_j,Sym_ij,posn1,isize,isyref,mxv
+#else
         implicit none
+#endif
         real(dp), intent(in) :: Norm_1RDM
         character(len=*), parameter :: t_r='CalcDipoles'
 
@@ -5818,7 +5824,8 @@ MODULe nElRDMMod
                 !Find position of each symmetry block in sym-packed forms of RDMS 1 & 2
                 blockstart1(i+1)=isize+1 !N.B. Len_1RDM still being updated in this loop
 
-                isize = isize + (SymLabelCounts2(2,ClassCountInd(1,i,0))*(SymLabelCounts2(2,ClassCountInd(1,i,0))+1))/2 !Counting alpha orbitals
+                isize = isize + (SymLabelCounts2(2,ClassCountInd(1,i,0))*   &
+                    (SymLabelCounts2(2,ClassCountInd(1,i,0))+1))/2 !Counting alpha orbitals
             enddo
             write(6,*) "Size of symmetry packed 1-electron array",isize
             allocate(ints(isize))
@@ -5862,9 +5869,9 @@ MODULe nElRDMMod
                 dipmom(ipr-3) = dipmom(ipr-3) + znuc - zcor
             enddo
             call output_result('FCIQMC','Dipole moment',dipmom(1:3),1,isyref,numberformat='3f15.8',debye=.TRUE.)
-            call setvar('DMX',dmat(istate,4),'AU',1,1,mxv,-1)
-            call setvar('DMY',dmat(istate,5),'AU',1,1,mxv,-1)
-            call setvar('DMZ',dmat(istate,6),'AU',1,1,mxv,-1)
+            call setvar('DMX',dipmom(1),'AU',1,1,mxv,-1)
+            call setvar('DMY',dipmom(2),'AU',1,1,mxv,-1)
+            call setvar('DMZ',dipmom(3),'AU',1,1,mxv,-1)
             deallocate(ints,SymmetryPacked1RDM)
         endif
 
