@@ -65,6 +65,8 @@ contains
         ! Unless it is already specified, set an initial value for tau
         if (.not. tRestart .and. .not. tReadPops .and. tau == 0) &
             call FindMaxTauDoubs()
+        write(6,*) 'Using initial time-step: ', tau
+
         
         ! Set the maximum spawn size
         if (MaxWalkerBloom == -1) then
