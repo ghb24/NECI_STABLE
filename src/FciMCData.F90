@@ -505,5 +505,6 @@ MODULE FciMCData
       type(direct_ci_excit), allocatable, dimension(:) :: davidson_excits
 
       real(dp) :: rand_excit_opp_bias
+      logical :: tSpecifyOppBias
 
 END MODULE FciMCData

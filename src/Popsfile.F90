@@ -6,7 +6,7 @@
 MODULE PopsfileMod
 
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin, &
-                          tMomInv 
+                          tMomInv
     use CalcData, only: tTruncInitiator, DiagSft, tWalkContGrow, nEquilSteps, &
                         ScaleWalkers, tReadPopsRestart, tRegenDiagHEls, &
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
@@ -70,7 +70,7 @@ MODULE PopsfileMod
         integer :: iPopLenof_sign,iPopNEl,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
         integer :: PopBlockingIter
         integer(int64) :: iPopAllTotWalkers
-        real(dp) :: PopDiagSft,read_tau
+        real(dp) :: PopDiagSft, read_tau, read_psingles, read_opp_bias
         real(dp) , dimension(lenof_sign) :: PopSumNoatHF
         integer, intent(in) :: DetsLen
         INTEGER(kind=n_int), intent(out) :: Dets(0:nIfTot,DetsLen)
@@ -95,7 +95,8 @@ MODULE PopsfileMod
             else
                 call ReadPopsHeadv4(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                     iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
+                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau, &
+                    PopBlockingIter, read_psingles, read_opp_bias)
             endif
 
             if(EndPopsList.ne.iPopAllTotWalkers) then
@@ -597,13 +598,16 @@ outer_map:      do i = 0, MappingNIfD
 
     subroutine CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                     iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau,PopBlockingIter)
+                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot, &
+                    WalkerListSize,read_tau,PopBlockingIter, read_psingles, &
+                    read_opp_bias)
         use LoggingData , only : tZeroProjE
         logical , intent(in) :: tPop64Bit,tPopHPHF,tPopLz
         integer , intent(in) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
         integer , intent(in) :: PopBlockingIter
         integer(int64) , intent(in) :: iPopAllTotWalkers
         real(dp) , intent(in) :: PopDiagSft,read_tau
+        real(dp), intent(in) :: read_psingles, read_opp_bias
         real(dp) , dimension(lenof_sign) , intent(in) :: PopSumNoatHF
         HElement_t , intent(in) :: PopAllSumENum
         integer , intent(out) :: WalkerListSize
@@ -702,6 +706,22 @@ outer_map:      do i = 0, MappingNIfD
                 endif
                 Tau=read_tau
                 write(6,"(A)") "Using timestep specified in POPSFILE, although continuing to dynamically adjust to optimise this"
+
+                ! If we have been searching for tau, we may have been searching
+                ! for psingles (it is done at the same time).
+                if (read_psingles /= 0) then
+                    if (tCSF) then ! .or. tSpinProjDets) then
+                        call stop_all(this_routine, "pSingles storage not yet &
+                                      &implemented for CSFs")
+                    end if
+                    pSingles = read_psingles
+                    pDoubles = 1.0_dp - pSingles
+                end if
+
+                ! We want to be able to specify the opposite spin bias manually
+                if (read_opp_bias /= 0 .and. .not. tSpecifyOppBias) then
+                    rand_excit_opp_bias = read_opp_bias
+                end if
             else
                 !Tau specified. if it is different, write this here.
                 if(abs(read_tau-Tau).gt.1.0e-5_dp) then
@@ -769,13 +789,15 @@ outer_map:      do i = 0, MappingNIfD
     !Routine for reading in from iunit the header information from a popsile v4 file.
     subroutine ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                 iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
+                PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau, &
+                PopBlockingIter, read_psingles, read_opp_bias)
         integer , intent(in) :: iunithead
         logical , intent(out) :: tPop64Bit,tPopHPHF,tPopLz
         integer , intent(out) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
         integer , intent(out) :: PopBlockingIter
         integer(int64) , intent(out) :: iPopAllTotWalkers
-        real(dp) , intent(out) :: PopDiagSft,read_tau
+        real(dp) , intent(out) :: PopDiagSft,read_tau, read_psingles
+        real(dp), intent(out) :: read_opp_bias
         real(dp) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
         HElement_t , intent(out) :: PopAllSumENum
         integer :: PopsVersion
@@ -784,10 +806,12 @@ outer_map:      do i = 0, MappingNIfD
         logical :: Pop64Bit,PopHPHF,PopLz
         integer :: PopLensign,PopNEl,PopCyc,PopiBlockingIter
         integer(int64) :: PopTotwalk
-        real(dp) :: PopSft,PopTau
+        real(dp) :: PopSft,PopTau, PopPSingles, PopOppBias
         HElement_t :: PopSumENum
         namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopLensign,PopNEl,PopTotwalk,PopSft,PopSumNoatHF,PopSumENum, &
-                    PopCyc,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,PopTau,PopiBlockingIter,PopRandomHash
+                    PopCyc,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot, &
+                    PopTau,PopiBlockingIter,PopRandomHash,PopPSingles, &
+                    PopOppBias
 
         PopsVersion=FindPopsfileVersion(iunithead)
         if(PopsVersion.ne.4) call stop_all("ReadPopsfileHeadv4","Wrong popsfile version for this routine.")
@@ -813,6 +837,8 @@ outer_map:      do i = 0, MappingNIfD
         call MPIBCast(PopNIfTot)
         call MPIBCast(PopTau)
         call MPIBCast(PopiBlockingIter)
+        call MPIBCast(PopPSingles)
+        call MPIBCast(PopOppBias)
         tPop64Bit=Pop64Bit
         tPopHPHF=PopHPHF
         tPopLz=PopLz
@@ -824,6 +850,8 @@ outer_map:      do i = 0, MappingNIfD
         iPopIter=PopCyc
         read_tau=PopTau 
         PopBlockingIter=PopiBlockingIter
+        read_psingles = PopPSingles
+        read_opp_bias = PopOppBias
 
     end subroutine ReadPopsHeadv4
     

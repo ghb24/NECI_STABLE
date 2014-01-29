@@ -31,7 +31,8 @@ MODULE Calc
                         dClustSelectionRatio,tSharedExcitors
     use FciMCData, only: proje_update_comb,proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
                          InputDiagSft,tSearchTau,proje_spatial,nWalkerHashes,tHashWalkerList,HashLengthFrac, &
-                         tTrialHash, tIncCancelledInitEnergy, tStartCoreGroundState
+                         tTrialHash, tIncCancelledInitEnergy, tStartCoreGroundState, &
+                         rand_excit_opp_bias, tSpecifyOppBias
     use semi_stoch_gen, only: core_ras
 
     implicit none
@@ -334,6 +335,10 @@ contains
           trial_mp1_ndets = 0
           tLowETrialAllDoubles = .false.
           tTrialAmplitudeCutoff = .false.
+
+          rand_excit_opp_bias = 1.0
+          tSpecifyOppBias = .false.
+
       
         end subroutine SetCalcDefaults
 
@@ -1769,6 +1774,11 @@ contains
                 ! Assign the HF processor to a unique node.
                 ! TODO: Set a default cutoff criterion for this
                 tUniqueHFNode = .true.
+
+            case("OPP-SPIN-BIAS")
+                ! What should the bias in favour of opposite spins be?
+                tSpecifyOppBias = .true.
+                call getf(rand_excit_opp_bias)
 
             case default
                 call report("Keyword "                                &

@@ -199,6 +199,7 @@ MODULE ReadInput_neci
         use FciMCData, only: nWalkerHashes,HashLengthFrac,tHashWalkerList
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes,nProcessors
+        use UMatCache, only: tDeferred_Umat2d
 
         implicit none
 
@@ -428,6 +429,10 @@ MODULE ReadInput_neci
         end if
 
         if (tGen_4ind_weighted .or. tGen_4ind_reverse) then
+
+            ! We want to use UMAT2D...
+            tDeferred_Umat2d = .true.
+
             if (tFixLz .or. tCSF) &
                 call stop_all (t_r, 'Integral weighted excitation generators &
                               &not yet implemented with these keywords')

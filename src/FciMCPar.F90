@@ -161,7 +161,7 @@ MODULE FciMCParMod
     use sltcnd_mod, only: sltcnd_excit
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
                                        gen_excit_4ind_weighted, &
-                                       init_4ind_bias, test_excit_gen_4ind, &
+                                       test_excit_gen_4ind, &
                                        gen_excit_4ind_reverse
     use procedure_pointers
     use tau_search, only: init_tau_search, log_spawn_magnitude, update_tau
@@ -1691,10 +1691,8 @@ MODULE FciMCParMod
         elseif (tGenHelWeighted) then
             generate_excitation => gen_excit_hel_weighted
         elseif (tGen_4ind_weighted) then
-            call init_4ind_bias()
             generate_excitation => gen_excit_4ind_weighted
         elseif (tGen_4ind_reverse) then
-            call init_4ind_bias()
             generate_excitation => gen_excit_4ind_reverse
         else
             generate_excitation => gen_rand_excit
@@ -6310,7 +6308,7 @@ MODULE FciMCParMod
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
         integer :: PopBlockingIter
-        real(dp) :: Gap,ExpectedMemWalk,read_tau
+        real(dp) :: Gap,ExpectedMemWalk,read_tau, read_psingles, read_opp_bias
         !Variables from popsfile header...
         logical :: tPop64Bit,tPopHPHF,tPopLz
         integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
@@ -6355,7 +6353,9 @@ MODULE FciMCParMod
                 elseif(PopsVersion.eq.4) then
                     call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                             iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                            PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
+                            PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot, &
+                            read_tau,PopBlockingIter, read_psingles, &
+                            read_opp_bias)
                     ! The only difference between 3 & 4 is just that 4 reads 
                     ! in via a namelist, so that we can add more details 
                     ! whenever we want.
@@ -6365,7 +6365,9 @@ MODULE FciMCParMod
 
                 call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                         iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau,PopBlockingIter)
+                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot, &
+                        WalkerListSize,read_tau,PopBlockingIter, &
+                        read_psingles, read_opp_bias)
 
                 if(iProcIndex.eq.root) close(iunithead)
             else
