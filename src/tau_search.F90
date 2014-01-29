@@ -194,7 +194,7 @@ contains
             call MPIAllReduce (gamma_sing, MPI_MAX, mpi_tmp)
             gamma_sing = mpi_tmp
             call MPIAllReduce (gamma_opp, MPI_MAX, mpi_tmp)
-            gamma_par = mpi_tmp
+            gamma_opp = mpi_tmp
             call MPIAllReduce (gamma_par, MPI_MAX, mpi_tmp)
             gamma_par = mpi_tmp
             call MPIAllReduce (enough_opp, MPI_LOR, mpi_ltmp)
