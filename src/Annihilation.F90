@@ -4,7 +4,8 @@ MODULE AnnihilationMod
     use SystemData , only : NEl, tHPHF, nBasis, tCSF
     use CalcData , only : TRegenExcitgens,tRegenDiagHEls, tEnhanceRemainder, &
                           tTruncInitiator, tSpawnSpatialInit, OccupiedThresh, &
-                          tVaryInitThresh, tSemiStochastic, tTrialWavefunction
+                          tVaryInitThresh, tSemiStochastic, tTrialWavefunction, &
+                          tStochLanczos
     USE DetCalcData , only : Det,FCIDetIndex
     USE Parallel_neci
     USE dSFMT_interface, only : genrand_real2_dSFMT
@@ -189,7 +190,6 @@ MODULE AnnihilationMod
         call set_timer(Compress_time,20)
 
         CALL CompressSpawnedList(MaxIndex, iter_data)  
-
 
 !        if(bNodeRoot) call sort(SpawnedParts(:,1:MaxIndex), ilut_lt, ilut_gt)
         call halt_timer(Compress_time)
@@ -570,6 +570,14 @@ MODULE AnnihilationMod
         PointTemp => SpawnedParts2
         SpawnedParts2 => SpawnedParts
         SpawnedParts => PointTemp
+
+        ! For stochastic Lanczos calculations, store the current state of the spawning array.
+        if (tStochLanczos) then
+            max_spawned_ind = ValidSpawned
+            do i = 1, ValidSpawned
+                SpawnedPartsLanc(:,i) = SpawnedParts(:,i)
+            end do
+        end if
 
 !        WRITE(6,*) 'Spawned after compress'
 !        do i = 1, ValidSpawned
@@ -1292,7 +1300,6 @@ MODULE AnnihilationMod
                 PointTemp => SpawnedParts2
                 SpawnedParts2 => SpawnedParts
                 SpawnedParts => PointTemp
-
             ENDIF
         else
 
@@ -1447,7 +1454,7 @@ MODULE AnnihilationMod
                     enddo
 
                     TotParts=TotParts+abs(CurrentSign)
-#ifdef __CMPLX
+#ifdef __CMPLX || __DOUBLERUN
                     norm_psi_squared = norm_psi_squared + sum(CurrentSign**2)
                     if(tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + sum(CurrentSign**2)
 #else

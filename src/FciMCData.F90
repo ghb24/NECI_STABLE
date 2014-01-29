@@ -36,6 +36,7 @@ MODULE FciMCData
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: WalkVecDets(:,:)                !Contains determinant list
       REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVecH(:,:)                    !Diagonal hamiltonian element
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
+      INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnedPartsLanc(:,:)
 
       INTEGER(TagIntType) :: WalkVecDetsTag=0
       INTEGER(TagIntType) :: WalkVecHTag=0
@@ -264,6 +265,9 @@ MODULE FciMCData
       INTEGER , ALLOCATABLE :: ValidSpawnedList(:) 
  !This is set up as the initial ValidSpawnedList elements, so that it does not need to be reevaluated each time.
       INTEGER , ALLOCATABLE :: InitialSpawnedSlots(:) 
+
+      ! For use in stochastic Lanczos code. How many different determinants are spawned onto this processor?
+      integer :: max_spawned_ind
 
       integer :: WalkersDiffProc, PartsDiffProc
 

@@ -184,7 +184,7 @@ contains
 
                         TotWalkers = int(TotWalkersNew, int64)
 
-                        if (iiter == 1) call calc_hamil_elems(lanczos, ivec)
+                        if (iiter == 1) call calc_hamil_elems_direct(lanczos, ivec)
 
                         call update_iter_data(iter_data_fciqmc)
 
