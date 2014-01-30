@@ -5800,7 +5800,24 @@ MODULe nElRDMMod
         integer, dimension(nSymLabels) :: elements_assigned1, blockstart1
         real(dp) :: dipmom(3),znuc,zcor
         real(dp), allocatable :: SymmetryPacked1RDM(:),ints(:)
-        integer :: i,j,ipr,Sym_i,Sym_j,Sym_ij,posn1,isize,isyref,mxv
+        integer :: i,j,ipr,Sym_i,Sym_j,Sym_ij,posn1,isize,isyref,mxv,iout
+!        include "common/maxatm"
+!        include "common/tapes"
+!        include "common/dumpinfow"
+!        include "common/cstate"
+!        include "common/maxbfn"
+!        include "common/corbdim"
+!        include "common/casscf"
+!        include "common/syminf"
+!        include "common/jobopt"
+!        include "common/big"
+!        include "common/cbas"
+!        include "common/clseg"
+!        include "common/cref"
+!        include "common/ctran2"
+!        include "common/code"
+!        include "common/cmpp"
+!        include "common/d2gen_cvb"
 #else
         implicit none
 #endif
@@ -5810,6 +5827,7 @@ MODULe nElRDMMod
 #ifdef MOLPRO
 
         if(iProcIndex.eq.0) then
+            iout=molpro_get_iout()
             !We need to work out a) how molpro symmetry-packs UHF integrals (ROHF would be fine though)
             !b) Ensure that the 1RDM is correctly calculated for UHF (It is always allocated as spatorbs)
             !c) Modify this routine for contracting over spin-orbitals
@@ -5827,9 +5845,10 @@ MODULe nElRDMMod
                 isize = isize + (SymLabelCounts2(2,ClassCountInd(1,i,0))*   &
                     (SymLabelCounts2(2,ClassCountInd(1,i,0))+1))/2 !Counting alpha orbitals
             enddo
-            write(6,*) "Size of symmetry packed 1-electron array",isize
+!            write(6,*) "Size of symmetry packed 1-electron array",isize
             allocate(ints(isize))
 
+            elements_assigned1(:) = 0
             allocate(SymmetryPacked1RDM(isize))
             SymmetryPacked1RDM(:) = 0.0_dp
             do i = 1,SpatOrbs !run over spatial orbitals, ALL ELECTRON ONLY
@@ -5841,12 +5860,32 @@ MODULe nElRDMMod
                         posn1=blockstart1(Sym_i+1)+elements_assigned1(Sym_i+1)
 
                         SymmetryPacked1RDM(posn1)=NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM
+                        if(i.ne.j) then
+                            !Double the off-diagonal elements of the 1RDM, so that when we contract over the 
+                            !symmetry packed representation of the 1RDM, it is as if we are also including the other half of the matrix
+                            SymmetryPacked1RDM(posn1) = 2.0_dp*SymmetryPacked1RDM(posn1)
+                        endif
                     endif
                     elements_assigned1(Sym_i+1)=elements_assigned1(Sym_i+1)+1
 
                 enddo
             enddo
                 
+!            !Create and dump integrals? 
+!Not currently working. Currently requires them to be dumped from casscf calc already
+!            n1elec = 5
+!            i1elec(1) = 2
+!            i1elec(2) = 4
+!            i1elec(3) = 5
+!            i1elec(4) = 6
+!            i1elec(5) = 3
+!            write(6,*) "Calling mukint..."
+!            call flush(6)
+!            call mukint(0,0)
+!            write(6,*) "Exiting mukint..."
+!            call flush(6)
+!            itrsfm=1
+!            write(6,*) "Symmetry packed 1RDM: ",SymmetryPacked1RDM(:)
             dipmom(:) = 0.0_dp
 
             call clearvar('DMX')
@@ -5859,8 +5898,8 @@ MODULe nElRDMMod
 
                 call pget(ints,ipr,znuc,zcor)
 
-                write(6,*) "Integrals for property ",ipr-3
-                write(6,*) ints(1:isize)
+                !write(6,*) "Integrals for property ",ipr-3
+                !write(6,*) ints(1:isize)
 
                 !Now, contract
                 do i = 1,isize
@@ -5868,7 +5907,11 @@ MODULe nElRDMMod
                 enddo
                 dipmom(ipr-3) = dipmom(ipr-3) + znuc - zcor
             enddo
+            write(iout,"(A)") ""
+            write(iout,"(A,3f15.8)") "DIPOLE MOMENT: ",dipmom(1:3)
+            write(iout,"(A)") ""
             call output_result('FCIQMC','Dipole moment',dipmom(1:3),1,isyref,numberformat='3f15.8',debye=.TRUE.)
+            mxv=1
             call setvar('DMX',dipmom(1),'AU',1,1,mxv,-1)
             call setvar('DMY',dipmom(2),'AU',1,1,mxv,-1)
             call setvar('DMZ',dipmom(3),'AU',1,1,mxv,-1)
