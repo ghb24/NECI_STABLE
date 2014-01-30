@@ -164,7 +164,8 @@ MODULE FciMCParMod
                                        test_excit_gen_4ind, &
                                        gen_excit_4ind_reverse
     use procedure_pointers
-    use tau_search, only: init_tau_search, log_spawn_magnitude, update_tau
+    use tau_search, only: init_tau_search, log_spawn_magnitude, update_tau, &
+                          log_death_magnitude
 
     implicit none
 #ifdef MOLPRO
@@ -2424,6 +2425,9 @@ MODULE FciMCParMod
                     & //"Timestep errors possible: ",fac
             endif
         endif
+
+        ! And for tau searching purposes
+        call log_death_magnitude (Kii - DiagSft)
 
         if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)) &
             .or. tAllRealCoeff ) then

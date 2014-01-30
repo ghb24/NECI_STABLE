@@ -198,7 +198,7 @@ def output_file (fin):
 		parts = [x.strip('.') for x in path.basename(fin).partition('FCIQMCStats')]
 
 	# File bases for output files
-	out_base_in = ['OUT', 'OUTPUT', 'OUT.FCIMC', 'OUTPUT.FCIMC', 'out', 'output.FCIMC', 'output']
+	out_base_in = ['OUT', 'OUTPUT', 'OUT.FCIMC', 'OUTPUT.FCIMC', 'out', 'output.FCIMC', 'output', 'out_']
 	out_base = []
 	map(out_base.extend, [(a, '.'+a, a+'.', '.'+a+'.') for a in out_base_in])
 
@@ -950,9 +950,10 @@ def process_output (fout):
 	re_iter = re.compile('^\s*(\d+)')
 	re_ref_E = re.compile('^\s*Reference [Ee]nergy (now )*set to:\s*(.+)$')
 	re_final_E = re.compile('^\s*Summed approx E\(Beta\)=\s*(.+)$')
-	re_new_tau = re.compile('^\s*New (tau|timestep):\s+(.+)$')
-	re_init_tau = re.compile('^\s*From analysis of reference determinant and connections, '\
-	                         'an upper bound for the timestep is:\s*(.+)$')
+	re_new_tau = re.compile('^\s*(New (tau|timestep):|Updating time-step\. New time-step =)\s+(.+)$')
+	re_init_tau = re.compile('^\s*(From analysis of reference determinant '\
+			                 'and connections, an upper bound for the '\
+							 'timestep is|Using initial time-step):\s*(.+)$')
 	re_start_fciqmc = re.compile('^\s*Performing Parallel FCIQMC....')
 
 	# Initial values and 
@@ -1008,7 +1009,7 @@ def process_output (fout):
 				# Change of tau?
 				m = re_new_tau.match(line)
 				if m:
-					new_tau = float(m.group(2))
+					new_tau = float(m.group(3))
 					continue
 
 			else:
@@ -1032,7 +1033,7 @@ def process_output (fout):
 				# Change of tau?
 				m = re_init_tau.match(line)
 				if m:
-					new_tau = float(m.group(1))
+					new_tau = float(m.group(2))
 					continue
 
 

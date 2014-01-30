@@ -26,14 +26,14 @@ module tau_search
     use constants
     implicit none
 
-    real(dp) :: gamma_sing, gamma_doub, gamma_opp, gamma_par
+    real(dp) :: gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt
     real(dp) :: max_permitted_spawn
     integer :: cnt_sing, cnt_doub, cnt_opp, cnt_par
     integer :: n_opp, n_par
     logical :: enough_sing, enough_doub, enough_opp, enough_par
     logical :: consider_opp_bias
 
-    private :: gamma_sing, gamma_doub, gamma_opp, gamma_par
+    private :: gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt
     private :: max_permitted_spawn, consider_opp_bias
     private :: cnt_sing, cnt_doub, cnt_opp, cnt_par
     private :: n_opp, n_par
@@ -54,6 +54,9 @@ contains
         gamma_opp = 0
         gamma_par = 0
 
+        ! And what is the maximum death-component found
+        max_death_cpt = 0
+
         ! And the counts are used to make sure we don't update anything too
         ! early
         cnt_sing = 0
@@ -68,6 +71,8 @@ contains
         ! Unless it is already specified, set an initial value for tau
         if (.not. tRestart .and. .not. tReadPops .and. tau == 0) &
             call FindMaxTauDoubs()
+        write(6,*) 'Using initial time-step: ', tau
+
         
         ! Set the maximum spawn size
         if (MaxWalkerBloom == -1) then
@@ -182,9 +187,20 @@ contains
 
     end subroutine
 
+    subroutine log_death_magnitude (mult)
+
+        ! The same as above, but for particle death
+
+        real(dp) :: mult
+
+        if (mult > max_death_cpt) &
+            max_death_cpt = mult
+
+    end subroutine
+
     subroutine update_tau ()
 
-        real(dp) :: psingles_new, tau_new, opp_bias_new, mpi_tmp
+        real(dp) :: psingles_new, tau_new, opp_bias_new, mpi_tmp, tau_death
         logical :: mpi_ltmp
 
         ! What needs doing depends on the number of parametrs that are being
@@ -195,7 +211,7 @@ contains
             call MPIAllReduce (gamma_sing, MPI_MAX, mpi_tmp)
             gamma_sing = mpi_tmp
             call MPIAllReduce (gamma_opp, MPI_MAX, mpi_tmp)
-            gamma_par = mpi_tmp
+            gamma_opp = mpi_tmp
             call MPIAllReduce (gamma_par, MPI_MAX, mpi_tmp)
             gamma_par = mpi_tmp
             call MPIAllReduce (enough_opp, MPI_LOR, mpi_ltmp)
@@ -240,6 +256,14 @@ contains
         enough_sing = mpi_ltmp
         call MPIAllReduce (enough_doub, MPI_LOR, mpi_ltmp)
         enough_doub = mpi_ltmp
+
+        ! The range of tau is restricted by particle death. It MUST be <=
+        ! the value obtained to restrict the maximum death-factor to 1.0.
+        call MPIAllReduce (max_death_cpt, MPI_MAX, mpi_tmp)
+        max_death_cpt = mpi_tmp
+        tau_death = 1.0_dp / max_death_cpt
+        if (tau_death < tau_new) &
+            tau_new = tau_death
 
         ! If the calculated tau is less than the current tau, we should ALWAYS
         ! update it. Once we have a reasonable sample of excitations, then we
