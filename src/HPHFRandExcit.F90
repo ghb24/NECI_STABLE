@@ -27,6 +27,7 @@ MODULE HPHFRandExcitMod
     use sltcnd_mod, only: sltcnd_excit
     use bit_reps, only: NIfD, NIfDBO, NIfTot
     use SymExcitDataMod, only: excit_gen_store_type
+    use excit_gens_int_weighted, only: calc_pgen_4ind_weighted
     use sort_mod
     use HElem
     IMPLICIT NONE
@@ -909,7 +910,7 @@ MODULE HPHFRandExcitMod
         if (tLatticeGens) then
             call CalcPGenLattice (ex, pGen)
         else if (tGen_4ind_weighted) then
-            call stop_all("CalcNonUniPGen", "Not Implemented Yet")
+            pgen = calc_pgen_4ind_weighted (nI, ilutI, ex, ic)
         else if (tGen_4ind_reverse) then
             call stop_all("CalcNonUniPGen", "Not Implemented Yet")
         else

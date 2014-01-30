@@ -195,6 +195,148 @@ contains
     end subroutine
 
 
+
+    function calc_pgen_4ind_weighted (nI, ilutI, ex, ic) result(pgen)
+
+        ! What is the probability of the excitation _from_ determinant nI
+        ! described by the excitation matrix ex, and the excitation level ic,
+        ! being generated according to the 4ind_weighted excitaiton generator?
+
+        integer, intent(in) :: nI(nel), ex(2,2), ic
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        real(dp) :: pgen
+
+        integer :: cc_index, src, tgt, id_src, id_tgt, orb, n_id(nel)
+        integer :: norb, label_index, orb, i, j
+        real(dp) :: cpt, cpt_tgt, cum_sum
+        HElement_t :: hel
+
+
+        if (ic == 1) then
+
+            ! The electron to excite is picked uniformly at random
+            pgen = pSingles / real(nel, dp)
+
+            ! The electron to excite is picked uniformly at random
+            pgen = pgen / real(nel, dp)
+
+            ! The class count index of the target orbital is known
+            tgt = ex(2, 1)
+            cc_index = ClassCountInd (get_spin(tgt), G1(tgt)%Sym%S)
+             
+            ! How many orbitals of the correct symmetry are there?
+            norb = OrbClassCount(cc_index)
+            label_index = SymLabelCounts2(1, cc_index)
+
+            ! Some ids for utility
+            src = ex(1,1)
+            id_src = gtID(src)
+            n_id = gtID(nI)
+
+            ! Generate the cumulative sum, as used in the excitation generator,
+            ! and store the relevant term for generating the excitation.
+            cum_sum = 0
+            do i = 1, norb
+                orb = SymLabelList2(label_index + i - 1)
+                if (IsNotOcc(ilutI, orb)) then
+                    hel = 0
+                    id_tgt = gtID(orb)
+                    do j = 1, nel
+                        if (nI(j) == src) cycle
+                        hel = hel + get_umat_el (id_src, n_id(j), id_tgt, &
+                                                 n_id(j))
+                        if (is_beta(src) .eqv. is_beta(nI(j))) then
+                            hel = hel - get_umat_el (id_src, n_id(j), n_id(j),&
+                                                      id_tgt)
+                        end if
+                    end do
+                    hel = hel + GetTMATEl(src, orb)o
+                    cpt = abs_l1(hel)
+                    cum_sum = cum_sum + cpt
+                    if (orb == tgt) cpt_tgt = cpt
+                end if
+            end do
+
+            ! Adjust the generation probability for the relevant values.
+            if (cum_sum == 0) then
+                pgen = 0.0_dp
+            else
+                pgen = pgen * cpt / cum_sum
+            end if
+
+
+        else if (ic == 2) then
+
+            ! Obviously bias by pDoubles
+            pgen = pDoubles
+
+            ! We want to select a pair of electrons in a way which is biased
+            ! towards pairs with opposing spins. This takes a simple form.
+            ntot = AA_elec_pairs + BB_elec_pairs + &
+                   AB_elec_pairs * rand_excit_opp_bias
+            if (is_alpha(ex(1,1)) .eqv. is_alpha(ex(1,2))) then
+                pgen = pgen / ntot
+                if (is_alpha(ex(1,1))) then
+                    iSpn = 3
+                else
+                    iSpn = 1
+                end if
+            else
+                pgen = pgen * rand_excit_opp_bias / ntot
+                iSpn = 2
+            end if
+
+            ! What is the likelihood of picking the given symmetry?
+            sym_product = RandExcitSymLabelProd(int(G1(ex(1,1))%Sym%S), &
+                                                int(G1(ex(1,2))%Sym%S))
+            cc_i = ClassCountInd(get_spin(ex(2,1)), G1(ex(2,1))%Sym%S)
+            cc_j = ClassCountInd(get_spin(ex(2,2)), G1(ex(2,2))%Sym%S)
+            cc_i_final = min(cc_i, cc_j)
+            cc_j_final = max(cc_i, cc_j)
+            cum_sum = 0
+            do cc_i = 1, ScratchSize
+                cc_j = get_paired_cc_ind (cc_i, sym_product, iSpn)
+
+                ! We restrict cc_i > cc_j, and rejected pairings where.
+                if (cc_j >= cc_i) then
+                    cpt = ClassCountUnocc2(cc_i) * ClassCountUnocc2(cc_j)
+                    cum_sum = cum_sum + cpt
+                    if (cc_i == cc_i_final) then
+                        ASSERT(cc_j == cc_j_final)
+                        cpt_tgt = cpt
+                    end if
+                end if
+            end do
+
+            ! Andjust the probability for this symmetry stuff
+            if (cum_sum == 0) then
+                pgen = 0
+                return
+            else
+                pgen = pgen * cpt_tgt / cum_sum
+            end if
+
+            ! What is the likelihood of selecting the first orbital? And the
+            ! second, given the first?
+            ! TODO: Make sure we pair the correct orbital with the correct
+            !       symmetry...
+            pgen = pgen * pgen_orbital()
+            pgen = pgen * pgen_orbital()
+
+        else
+            ! IC /= 1, 2 --> not connected by the excitation generator.
+            ! 
+            ! If we are hitting here, then earlier checks have failed. We can
+            ! return the correct (zero) value at runtime, but really this
+            ! should be fixed elsewhere
+            ASSERT(.false.)
+            pgen = 0.0_dp
+        end if
+
+    end function
+
+
+
     function get_paired_cc_ind (cc_ind, sym_product, iSpn) result(cc_ret)
 
         ! Get the paired Class Count index, given a sym product and iSpn
