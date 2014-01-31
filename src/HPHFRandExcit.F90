@@ -902,6 +902,7 @@ MODULE HPHFRandExcitMod
         integer, intent(in) :: ClassCountUnocc2(ScratchSize)
         real(dp), intent(in) :: pDoub
         real(dp), intent(out) :: pGen
+        character(*), parameter :: this_routine = 'CalcNonUniPGen'
 
         ! We need to consider which of the excitation generators are in use,
         ! and call the correct routine in each case.
@@ -910,7 +911,8 @@ MODULE HPHFRandExcitMod
         if (tLatticeGens) then
             call CalcPGenLattice (ex, pGen)
         else if (tGen_4ind_weighted) then
-            pgen = calc_pgen_4ind_weighted (nI, ilutI, ex, ic)
+            pgen = calc_pgen_4ind_weighted (nI, ilutI, ex, ic, &
+                                            ClassCountUnocc2)
         else if (tGen_4ind_reverse) then
             call stop_all("CalcNonUniPGen", "Not Implemented Yet")
         else

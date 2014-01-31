@@ -163,6 +163,7 @@ contains
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         character(*), parameter :: this_routine = 'gen_excit_4ind_weighted'
         integer :: orb
+        real(dp) :: pgen2
 
         ! We now use the class counts to do the construction. This is an
         ! O[N] opearation, and gives the number of occupied/unoccupied
@@ -192,23 +193,47 @@ contains
 
         end if
 
+        ! And a careful check!
+#ifdef __DEBUG
+        if (.not. IsNullDet(nJ)) then
+            pgen2 = calc_pgen_4ind_weighted(nI, ilutI, ExcitMat, ic, &
+                                            store%ClassCountUnocc)
+            if (abs(pgen - pgen2) > 1.0e-6_dp) then
+                write(6,*) 'Calculated and actual pgens differ.'
+                write(6,*) 'This will break HPHF calculations'
+                call write_det(6, nI, .false.)
+                write(6, '(" --> ")', advance='no')
+                call write_det(6, nJ, .true.)
+                write(6,*) 'Excitation matrix: ', ExcitMat(1,1:ic), '-->', &
+                           ExcitMat(2,1:ic)
+                write(6,*) 'Generated pGen:  ', pgen
+                write(6,*) 'Calculated pGen: ', pgen2
+                call stop_all(this_routine, "Invalid pGen")
+            end if
+        end if
+#endif
+
     end subroutine
 
 
 
-    function calc_pgen_4ind_weighted (nI, ilutI, ex, ic) result(pgen)
+    function calc_pgen_4ind_weighted (nI, ilutI, ex, ic, ClassCountUnocc) &
+            result(pgen)
 
         ! What is the probability of the excitation _from_ determinant nI
         ! described by the excitation matrix ex, and the excitation level ic,
         ! being generated according to the 4ind_weighted excitaiton generator?
 
         integer, intent(in) :: nI(nel), ex(2,2), ic
+        integer, intent(in) :: ClassCountUnocc(ScratchSize)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         real(dp) :: pgen
+        character(*), parameter :: this_routine = 'calc_pgen_4ind_weighted'
 
-        integer :: cc_index, src, tgt, id_src, id_tgt, orb, n_id(nel)
-        integer :: norb, label_index, orb, i, j
-        real(dp) :: cpt, cpt_tgt, cum_sum
+        integer :: cc_index, src, tgt, id_src, id_tgt, n_id(nel)
+        integer :: norb, ntot, label_index, orb, i, j, iSpn
+        integer :: cc_i, cc_j, cc_i_final, cc_j_final, sym_product
+        real(dp) :: cpt, cpt_tgt, cum_sum, cum_sums(2), int_cpt(2)
         HElement_t :: hel
 
 
@@ -217,12 +242,9 @@ contains
             ! The electron to excite is picked uniformly at random
             pgen = pSingles / real(nel, dp)
 
-            ! The electron to excite is picked uniformly at random
-            pgen = pgen / real(nel, dp)
-
             ! The class count index of the target orbital is known
             tgt = ex(2, 1)
-            cc_index = ClassCountInd (get_spin(tgt), G1(tgt)%Sym%S)
+            cc_index = ClassCountInd (get_spin(tgt), G1(tgt)%Sym%S, 0)
              
             ! How many orbitals of the correct symmetry are there?
             norb = OrbClassCount(cc_index)
@@ -250,7 +272,7 @@ contains
                                                       id_tgt)
                         end if
                     end do
-                    hel = hel + GetTMATEl(src, orb)o
+                    hel = hel + GetTMATEl(src, orb)
                     cpt = abs_l1(hel)
                     cum_sum = cum_sum + cpt
                     if (orb == tgt) cpt_tgt = cpt
@@ -261,7 +283,7 @@ contains
             if (cum_sum == 0) then
                 pgen = 0.0_dp
             else
-                pgen = pgen * cpt / cum_sum
+                pgen = pgen * cpt_tgt / cum_sum
             end if
 
 
@@ -289,8 +311,8 @@ contains
             ! What is the likelihood of picking the given symmetry?
             sym_product = RandExcitSymLabelProd(int(G1(ex(1,1))%Sym%S), &
                                                 int(G1(ex(1,2))%Sym%S))
-            cc_i = ClassCountInd(get_spin(ex(2,1)), G1(ex(2,1))%Sym%S)
-            cc_j = ClassCountInd(get_spin(ex(2,2)), G1(ex(2,2))%Sym%S)
+            cc_i = ClassCountInd(get_spin(ex(2,1)), G1(ex(2,1))%Sym%S, 0)
+            cc_j = ClassCountInd(get_spin(ex(2,2)), G1(ex(2,2))%Sym%S, 0)
             cc_i_final = min(cc_i, cc_j)
             cc_j_final = max(cc_i, cc_j)
             cum_sum = 0
@@ -299,7 +321,7 @@ contains
 
                 ! We restrict cc_i > cc_j, and rejected pairings where.
                 if (cc_j >= cc_i) then
-                    cpt = ClassCountUnocc2(cc_i) * ClassCountUnocc2(cc_j)
+                    cpt = ClassCountUnocc(cc_i) * ClassCountUnocc(cc_j)
                     cum_sum = cum_sum + cpt
                     if (cc_i == cc_i_final) then
                         ASSERT(cc_j == cc_j_final)
@@ -318,10 +340,20 @@ contains
 
             ! What is the likelihood of selecting the first orbital? And the
             ! second, given the first?
-            ! TODO: Make sure we pair the correct orbital with the correct
-            !       symmetry...
-            pgen = pgen * pgen_orbital()
-            pgen = pgen * pgen_orbital()
+            call pgen_select_orb (ilutI, ex(1,:), -1, ex(2,1), int_cpt(1), &
+                                  cum_sums(1))
+            call pgen_select_orb (ilutI, ex(1,:), ex(2,1), ex(2,2), int_cpt(2),&
+                                  cum_sums(2))
+
+            if (cc_i_final == cc_j_final) then
+                pgen = pgen * ( &
+                       (int_cpt(1) / cum_sums(1) * int_cpt(2) / cum_sums(2)) &
+                     + (int_cpt(2) / cum_sums(1) * &
+                        int_cpt(1) / (cum_sums(1) - int_cpt(2))))
+            else
+                pgen = pgen * (int_cpt(1) / cum_sums(1)) &
+                            * (int_cpt(2) / cum_sums(2))
+            end if
 
         else
             ! IC /= 1, 2 --> not connected by the excitation generator.
@@ -466,6 +498,7 @@ contains
                     hel = hel + get_umat_el (id_src, n_id(j), id, n_id(j))
                     if (is_beta(src) .eqv. is_beta(nI(j))) &
                         hel = hel - get_umat_el (id_src, n_id(j), n_id(j), id)
+            !        write(6,*) 'h', hel
                 end do
                 hel = hel + GetTMATEl(src, orb)
 
@@ -659,6 +692,67 @@ contains
         ! Get the symmetries
         sym_prod = RandExcitSymLabelProd (int(G1(src(1))%Sym%S), &
                                           int(G1(src(2))%Sym%S))
+
+    end subroutine
+
+
+    subroutine pgen_select_orb (ilut, src, orb_pair, tgt, cpt, cum_sum)
+
+        integer, intent(in) :: src(2), orb_pair, tgt
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        real(dp) :: cpt, cum_sum
+
+        integer :: norb, label_index, orb, srcid(2), i, src_orb, src_id
+        integer :: cc_index, ms, orbid
+        real(dp) :: tmp
+
+        ! How many orbitals are available with the given symmetry?
+        cc_index = ClassCountInd(get_spin(tgt), G1(tgt)%Sym%S, 0)
+        label_index = SymLabelCounts2(1, cc_index)
+        norb = OrbClassCount(cc_index)
+
+        ! We perform different sums depending on the relative spins :-(
+        cum_sum = 0
+        if (is_beta(src(1)) .eqv. is_beta(src(2))) then
+            ! Both electrons have the same spin. So we need to include both
+            ! electron-hole interactions.
+            srcid = gtID(src)
+            do i = 1, norb
+                orb = SymLabelList2(label_index + i - 1)
+                if (IsNotOcc(ilut, orb) .and. orb /= orb_pair) then
+                    orbid = gtID(orb)
+                    tmp = sqrt(abs_l1(UMat2D(max(srcid(1), orbid), &
+                                             min(srcid(1), orbid)))) &
+                        + sqrt(abs_l1(UMat2D(max(srcid(2), orbid), &
+                                             min(srcid(2), orbid))))
+                    cum_sum = cum_sum + tmp
+                    if (orb == tgt) cpt = tmp
+                end if
+            end do
+        else
+            
+            ! The two electrons have differing spin. Therefore, only the
+            ! electron-hole interaction with the same spin is required
+            ms = class_count_ms(cc_index)
+            if (ms == G1(src(1))%Ms) then
+                src_orb = src(1)
+            else
+                src_orb = src(2)
+            end if
+
+            src_id = gtID(src_orb)
+            do i = 1, norb
+                orb = SymLabelList2(label_index + i - 1)
+                if (IsNotOcc(ilut, orb) .and. orb /= orb_pair) then
+                    orbid = gtID(orb)
+                    tmp = sqrt(abs_l1(UMat2D(max(src_id, orbid), &
+                                             min(src_id, orbid))))
+                    cum_sum = cum_sum + tmp
+                    if (orb == tgt) cpt = tmp
+                end if
+            end do
+        end if
+
 
     end subroutine
 
