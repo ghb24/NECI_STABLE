@@ -85,6 +85,8 @@ contains
             call stop_all("init_semi_stochastic", "You have not selected a semi-stochastic core &
                           &space to use.")
         end if
+        if (.not. tUseRealCoeffs) call stop_all(t_r, "To use semi-stochastic you must also use &
+            &real coefficients.")
 
         ! Call the enumerating subroutines to create all excitations and add these states to
         ! SpawnedParts on the correct processor. As they do this, they count the size of the

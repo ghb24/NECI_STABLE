@@ -1231,6 +1231,8 @@ outer_map:      do i = 0, MappingNIfD
             'PopNIfFlag=', pops_nifflag, ',PopNIfTot=', pops_niftot, &
             ',PopTau=', Tau, ','
         write(iunit, '(a,i16)') 'PopiBlockingIter=', iBlockingIter
+        write(iunit, '(a,f18.12,a,f18.12)') 'PopPSingles=', pSingles, &
+            ',PopOppBias=', rand_excit_opp_bias
 
         ! Store the random hash in the header to allow later processing
         write(iunit, '(a)', advance='no') "PopRandomHash= "
