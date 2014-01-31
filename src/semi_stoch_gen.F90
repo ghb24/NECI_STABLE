@@ -547,10 +547,10 @@ contains
         call LogMemAlloc("CASDets", OccOrbs*nCASDet, 8, t_r, CASDetsTag, ierr)
         CASDets(:,:) = 0
 
-        if (tCASCore) then
+        if (tCSFCore) then
             allocate(ilut_store(nCASDet-1, 0:NIfTot), stat=ierr)
             call LogMemAlloc("ilut_store", (nCASDet-1)*(NIfTot+1), size_n_int, t_r, IlutTag, ierr)
-            ilut_store = 0
+            ilut_store = 0_n_int
             counter = 1
         end if
 
@@ -596,8 +596,10 @@ contains
         deallocate(CASRef)
         deallocate(CASDets, stat=ierr)
         call LogMemDealloc(t_r, CASDetsTag, ierr)
-        deallocate(ilut_store, stat=ierr)
-        call LogMemDealloc(t_r, IlutTag, ierr)
+        if (tCSFCore) then
+            deallocate(ilut_store, stat=ierr)
+            call LogMemDealloc(t_r, IlutTag, ierr)
+        end if
 
     end subroutine generate_cas
 
