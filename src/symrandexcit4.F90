@@ -231,9 +231,9 @@ contains
         character(*), parameter :: this_routine = 'calc_pgen_4ind_weighted'
 
         integer :: cc_index, src, tgt, id_src, id_tgt, n_id(nel)
-        integer :: norb, ntot, label_index, orb, i, j, iSpn
+        integer :: norb, label_index, orb, i, j, iSpn
         integer :: cc_i, cc_j, cc_i_final, cc_j_final, sym_product
-        real(dp) :: cpt, cpt_tgt, cum_sum, cum_sums(2), int_cpt(2)
+        real(dp) :: cpt, cpt_tgt, cum_sum, cum_sums(2), int_cpt(2), ntot
         HElement_t :: hel
 
 
@@ -354,6 +354,7 @@ contains
                 pgen = pgen * (int_cpt(1) / cum_sums(1)) &
                             * (int_cpt(2) / cum_sums(2))
             end if
+
 
         else
             ! IC /= 1, 2 --> not connected by the excitation generator.
@@ -1101,10 +1102,6 @@ contains
 
         ! Get the generation probability
         pgen = pgen * val_arr(idx) / cum_val
-
-!>>>!        write(6,*) 'ELECS', elecs
-!>>>!        write(6,*) 'SRC', nI(elecs)
-!>>>!        write(6,*) 'TGT', tgt
 
         ! Generate the new determinant and ilut
         call make_double (nI, nJ, elecs(1), elecs(2), tgt(1), tgt(2), ex, par)
