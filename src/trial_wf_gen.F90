@@ -53,6 +53,8 @@ contains
         if (tIncCancelledInitEnergy .and. (.not. tTrialHash)) &
             call stop_all(t_r, "The inc-cancelled-init-energy option cannot be used with the &
                                &trial-bin-search option.")
+        if (.not. tUseRealCoeffs) call stop_all(t_r, "To use a trial wavefunction you must also &
+            &use real coefficients.")
 
         call set_timer(Trial_Init_Time)
 
