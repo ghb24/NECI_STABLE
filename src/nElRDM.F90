@@ -5463,9 +5463,7 @@ MODULe nElRDMMod
     end subroutine
     
     subroutine molpro_get_reference_info(iWfRecord, iWfSym)
-        implicit double precision(a-h,o-z)
-        implicit integer(i-n)
-        character(len=*), parameter :: t_r='molpro_get_reference_info'
+        integer :: iWfSym,iWfRecord
 #ifdef MOLPRO
         include "common/code"
         include "common/cref"
@@ -5478,8 +5476,7 @@ MODULe nElRDMMod
     end subroutine
     
     function molpro_get_iout() result(iiout)
-        implicit double precision(a-h,o-z)
-        implicit integer(i-n)
+        integer :: iiout
 #ifdef MOLPRO
         include "common/tapes"
         ! output i/o unit for main output (usually 6, but might be different

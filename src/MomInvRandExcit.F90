@@ -9,7 +9,8 @@ module MomInvRandExcit
     use MomInv, only: IsMomSelfInv, CalcMomAllowedBitDet
     use SymExcitDataMod, only:  excit_gen_store_type
     use FciMCData, only: tGenMatHEl,pDoubles
-    use GenRandSymExcitNUMod, only: gen_rand_excit, CalcNonUniPGen
+    use GenRandSymExcitNUMod, only: gen_rand_excit
+    use HPHFRandExcitMod, only: CalcNonUniPGen
     implicit none
 
     contains
@@ -103,7 +104,8 @@ module MomInvRandExcit
                     CALL GetBitExcitation(iLutnI,iLutnJ2,Ex2,tSign)
                 ENDIF
                 !Calc probability of generating it
-                CALL CalcNonUniPGen(nI, Ex2, ExcitLevel, store%ClassCountOcc,&
+                CALL CalcNonUniPGen(nI, ilutnI, Ex2, ExcitLevel, &
+                                    store%ClassCountOcc,&
                                     store%ClassCountUnocc, pDoubles, pGen2)
 !!We cannot guarentee that the pGens are going to be the same - in fact, generally, they wont be.
                 pGen=pGen+pGen2
