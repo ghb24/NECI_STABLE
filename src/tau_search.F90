@@ -12,11 +12,12 @@ module tau_search
                         InitiatorWalkNo, tWalkContGrow
     use FciMCData, only: tRestart, rand_excit_opp_bias, pSingles, pDoubles, &
                          ProjEDet, ilutRef
-    use GenRandSymExcitNUMod, only: construct_class_counts, CalcNonUniPGen, &
+    use GenRandSymExcitNUMod, only: construct_class_counts, &
                                     init_excit_gen_store, clean_excit_gen_store
     use SymExcit3, only: GenExcitations3
     use Determinants, only: get_helement
-    use HPHFRandExcitMod, only: ReturnAlphaOpenDet, CalcPGenHPHF
+    use HPHFRandExcitMod, only: ReturnAlphaOpenDet, CalcPGenHPHF, &
+                                CalcNonUniPGen
     use HPHF_integrals, only: hphf_off_diag_helement_norm
     use SymExcitDataMod, only: excit_gen_store_type
     use bit_rep_data, only: NIfTot
@@ -397,7 +398,7 @@ contains
                 call CalcPGenHPHF(ProjEDet,iLutRef,nJ,iLutnJ,ex,store%ClassCountOcc,    &
                             store%ClassCountUnocc,pDoubles,pGen,tSameFunc)
             else
-                call CalcNonUnipGen(ProjEDet,ex,ic,store%ClassCountOcc,store%ClassCountUnocc,pDoubles,pGen)
+                call CalcNonUnipGen(ProjEDet,ilutRef,ex,ic,store%ClassCountOcc,store%ClassCountUnocc,pDoubles,pGen)
             endif
             if(tSameFunc) cycle
             if(MagHel.gt.0.0_dp) then
@@ -423,7 +424,7 @@ contains
             else
                 ex2(1,:) = ex(2,:)
                 ex2(2,:) = ex(1,:)
-                call CalcNonUnipGen(nJ,ex2,ic,store2%ClassCountOcc,store2%ClassCountUnocc,pDoubles,pGen)
+                call CalcNonUnipGen(nJ,ilutnJ,ex2,ic,store2%ClassCountOcc,store2%ClassCountUnocc,pDoubles,pGen)
             endif
             if(tSameFunc) cycle
             if(MagHel.gt.0.0_dp) then

@@ -1478,25 +1478,34 @@ MODULE GenRandSymExcitNUMod
     end subroutine
 
 
-!This routine will calculate the PGen between two connected determinants, nI and nJ which 
-!are IC excitations of each other, using the unbiased scheme.
-!Only the excitation matrix is needed (1,*) are the i,j orbs, and (2,*) are the a,b orbs.
-!This is the prob of generating nJ FROM nI, not the other way round.
-!Passed in is also the ClassCount2 arrays for nI, and the probability of picking a double.
-!A word of warning: The routine does not check that the determinants are indeed connected, 
-!and may well return a non-zero probability even if they arent.
-!Therefore, make sure that they are at most double excitations of each other.
-!nI is the determinant from which the excitation comes from.
-    SUBROUTINE CalcNonUniPGen(nI,Ex,IC,ClassCount2,ClassCountUnocc2,pDoub,pGen)
-        real(dp) :: pDoub,pGen
-        INTEGER :: ClassCount2(ScratchSize),ForbiddenOrbs,SymA,SymB,SumMl,MlA,MlB,Elec1Ml
-        INTEGER :: ClassCountUnocc2(ScratchSize),ElecsWNoExcits,NExcitOtherWay
-        INTEGER :: OrbI,OrbJ,iSpn,NExcitA,NExcitB,IC,ElecSym,OrbA,OrbB,Ex(2,2),nI(NEl)
-           
-        IF(tLatticeGens) THEN
-            CALL CalcPgenLattice(Ex,pGen)
-            RETURN
-        ENDIF
+    subroutine calc_pgen_symrandexcit2 (nI, ex, ic, ClassCount2, &
+                                        ClassCountUnocc2, pDoub, pGen)
+
+        ! This routine will calculate the PGen between two connected
+        ! determinants, nI and nJ which are IC excitations of each other, using
+        ! the unbiased scheme.
+        !
+        ! Only the excitation matrix is needed (1,*) are the i,j orbs, and
+        ! (2,*) are the a,b orbs. This is the prob of generating nJ FROM nI,
+        ! not the other way round. Passed in is also the ClassCount2 arrays for
+        ! nI, and the probability of picking a double.
+        !
+        ! A word of warning: The routine does not check that the determinants
+        ! are indeed connected, and may well return a non-zero probability even
+        ! if they arent. Therefore, make sure that they are at most double
+        ! excitations of each other.
+        !
+        ! nI is the determinant from which the excitation comes from.
+
+        integer, intent(in) :: nI(nel), ex(2,2), ic
+        integer, intent(in) :: ClassCount2(ScratchSize)
+        integer, intent(in) :: ClassCountUnocc2(ScratchSize)
+        real(dp), intent(in) :: pDoub
+        real(dp), intent(out) :: pGen
+
+        integer :: ForbiddenOrbs, symA, symB, sumMl, MlA, MlB, Elec1Ml
+        integer :: ElecsWNoExcits, NExcitOtherWay, OrbI, OrbJ, iSpn, NExcitA
+        integer :: NExcitB, ElecSym, orbA, orbB
 
         IF(IC.eq.1) THEN
 
@@ -1627,7 +1636,8 @@ MODULE GenRandSymExcitNUMod
 
         ENDIF
 
-    END SUBROUTINE CalcNonUniPGen
+    end subroutine
+
 
 
 !This function returns the label (0 -> nSymlabels-1) of the symmetry product of two symmetry labels.

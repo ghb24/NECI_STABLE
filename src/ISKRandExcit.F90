@@ -14,8 +14,8 @@ MODULE ISKRandExcit
 !This means that only one constituent determinant will be considered in the space.
 
     use SystemData, only: nel, tCSF
-    use GenRandSymExcitNUMod, only: gen_rand_excit, CalcNonUniPGen, &
-                                    ScratchSize 
+    use GenRandSymExcitNUMod, only: gen_rand_excit, ScratchSize 
+    use HPHFRandExcitMod, only: CalcNonUniPGen
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel, TestClosedShellDet
     use FciMCData, only: pDoubles, excit_gen_store_type
@@ -82,7 +82,7 @@ MODULE ISKRandExcit
                 if(tGenMatHEl) HEl=0.0_dp
             elseif(tCrossConnected) then
                 !The cross-term is connected. Calculate the probability that we created this det instead (in same ISK)
-                CALL CalcNonUniPGen(nI, CrossEx, CrossIC, &
+                CALL CalcNonUniPGen(nI, ilutnI, CrossEx, CrossIC, &
                                     store%ClassCountOcc, &
                                     store%ClassCountUnocc,pDoubles,pGen2)
                 pGen=pGen+pGen2

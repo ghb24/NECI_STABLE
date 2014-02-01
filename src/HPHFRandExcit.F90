@@ -13,13 +13,15 @@ MODULE HPHFRandExcitMod
 !excited and the determinant which was created.
 
     use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr, &
-                          tOddS_HPHF, modk_offdiag, tGen_4ind_weighted
+                          tOddS_HPHF, modk_offdiag, tGen_4ind_weighted, &
+                          tGen_4ind_reverse, tLatticeGens
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
     use dSFMT_interface, only : genrand_real2_dSFMT
-    use GenRandSymExcitNUMod, only: gen_rand_excit, &
-                                    CalcNonUniPGen, ScratchSize 
-    use excit_gens_int_weighted, only: gen_excit_4ind_weighted
+    use GenRandSymExcitNUMod, only: gen_rand_excit, calc_pgen_symrandexcit2, &
+                                    ScratchSize, CalcPGenLattice
+    use excit_gens_int_weighted, only: gen_excit_4ind_weighted, &
+                                       gen_excit_4ind_reverse
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel, MaskAlpha, MaskBeta, &
                          TestClosedShellDet, CalcOpenOrbs, IsAllowedHPHF
@@ -28,6 +30,7 @@ MODULE HPHFRandExcitMod
     use sltcnd_mod, only: sltcnd_excit
     use bit_reps, only: NIfD, NIfDBO, NIfTot
     use SymExcitDataMod, only: excit_gen_store_type
+    use excit_gens_int_weighted, only: calc_pgen_4ind_weighted
     use sort_mod
     use HElem
     IMPLICIT NONE
@@ -66,7 +69,7 @@ MODULE HPHFRandExcitMod
                 return
             endif
             if(ic.le.2) then
-                call CalcNonUniPGen(nI,ex,ic,ClassCount,ClassCountUnocc,pDoubles,pGen)
+                call CalcNonUniPGen(nI,ilutnI,ex,ic,ClassCount,ClassCountUnocc,pDoubles,pGen)
             endif
         else
             !nJ is openshell. Add the probabilities of generating each pair (if both connected)
@@ -83,11 +86,11 @@ MODULE HPHFRandExcitMod
             if(ic.le.2) then
                 if(.not.tSwapped) then
                     !ex is correct for this excitation
-                    call CalcNonUnipGen(nI,ex,ic,ClassCount,ClassCountUnocc,pDoubles,pGen)
+                    call CalcNonUnipGen(nI,ilutnI,ex,ic,ClassCount,ClassCountUnocc,pDoubles,pGen)
                 else
                     Ex2(1,1)=ic
                     call GetBitExcitation(iLutnI,iLutnJ_loc,Ex2,tSign)
-                    call CalcNonUnipGen(nI,Ex2,ic,ClassCount,ClassCountUnocc,pDoubles,pGen)
+                    call CalcNonUnipGen(nI,ilutnI,Ex2,ic,ClassCount,ClassCountUnocc,pDoubles,pGen)
                 endif
             endif
 
@@ -100,11 +103,11 @@ MODULE HPHFRandExcitMod
             if(ic.le.2) then
                 if(tSwapped) then
                     !ex is correct for this excitation
-                    call CalcNonUnipGen(nI,ex,ic,ClassCount,ClassCountUnocc,pDoubles,pGen2)
+                    call CalcNonUnipGen(nI, ilutnI,ex,ic,ClassCount,ClassCountUnocc,pDoubles,pGen2)
                 else
                     Ex2(1,1)=ic
                     call GetBitExcitation(iLutnI,iLutnJ2,Ex2,tSign)
-                    call CalcNonUnipGen(nI,Ex2,ic,ClassCount,ClassCountUnocc,pDoubles,pGen2)
+                    call CalcNonUnipGen(nI, ilutnI,Ex2,ic,ClassCount,ClassCountUnocc,pDoubles,pGen2)
                 endif
                 pGen = pGen + pGen2
             endif
@@ -154,6 +157,10 @@ MODULE HPHFRandExcitMod
             call gen_excit_4ind_weighted (nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                           ExcitMat, tSignOrig, pGen, Hel,&
                                           store)
+        else if (tGen_4ind_weighted) then
+            call gen_excit_4ind_reverse (nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
+                                          ExcitMat, tSignOrig, pGen, Hel,&
+                                          store)
         else
             call gen_rand_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat,&
                                  tSignOrig, pGen, HEl, store)
@@ -169,7 +176,7 @@ MODULE HPHFRandExcitMod
 
         ! Create bit representation of excitation - iLutnJ.
         ! n.b. 4ind_weighted does this already.
-        if (.not. tGen_4ind_weighted) &
+        if (.not. (tGen_4ind_weighted .or. tGen_4ind_reverse)) &
             CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
             
 !Test!
@@ -229,7 +236,8 @@ MODULE HPHFRandExcitMod
 !                    CALL GetExcitation(nI,nJ2,NEl,Ex2,tSign)
                     CALL GetBitExcitation(iLutnI,iLutnJ2,Ex2,tSign)
                 ENDIF
-                CALL CalcNonUniPGen(nI, Ex2, ExcitLevel, store%ClassCountOcc,&
+                CALL CalcNonUniPGen(nI, ilutnI, Ex2, ExcitLevel, &
+                                    store%ClassCountOcc, &
                                     store%ClassCountUnocc, pDoubles, pGen2)
 !!We cannot guarentee that the pGens are going to be the same - in fact, generally, they wont be.
                 pGen=pGen+pGen2
@@ -869,6 +877,57 @@ MODULE HPHFRandExcitMod
         PartInd=MAX(MinInd,i-1)
 
     END SUBROUTINE BinSearchListHPHF
+
+
+
+    subroutine CalcNonUniPGen(nI, ilutI, ex, ic, ClassCount2, &
+                              ClassCountUnocc2, pDoub, pGen)
+
+        ! This routine will calculate the PGen between two connected
+        ! determinants, nI and nJ which are IC excitations of each other, using
+        ! the unbiased scheme.
+        !
+        ! Only the excitation matrix is needed (1,*) are the i,j orbs, and
+        ! (2,*) are the a,b orbs. This is the prob of generating nJ FROM nI,
+        ! not the other way round. Passed in is also the ClassCount2 arrays for
+        ! nI, and the probability of picking a double.
+        !
+        ! A word of warning: The routine does not check that the determinants
+        ! are indeed connected, and may well return a non-zero probability even
+        ! if they arent. Therefore, make sure that they are at most double
+        ! excitations of each other.
+        !
+        ! nI is the determinant from which the excitation comes from.
+
+        integer, intent(in) :: nI(nel), ex(2,2), ic
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(in) :: ClassCount2(ScratchSize)
+        integer, intent(in) :: ClassCountUnocc2(ScratchSize)
+        real(dp), intent(in) :: pDoub
+        real(dp), intent(out) :: pGen
+        character(*), parameter :: this_routine = 'CalcNonUniPGen'
+
+        ! We need to consider which of the excitation generators are in use,
+        ! and call the correct routine in each case.
+        ASSERT(.not. (tCSF)) ! .or. tSpinProjDets
+        
+        if (tLatticeGens) then
+            call CalcPGenLattice (ex, pGen)
+        else if (tGen_4ind_weighted) then
+            pgen = calc_pgen_4ind_weighted (nI, ilutI, ex, ic, &
+                                            ClassCountUnocc2)
+        else if (tGen_4ind_reverse) then
+            call stop_all("CalcNonUniPGen", "Not Implemented Yet")
+        else
+            ! Here we assume that the normal excitation generators in
+            ! symrandexcit2.F90 are being used.
+            call calc_pgen_symrandexcit2 (nI, ex, ic, ClassCount2, &
+                                          ClassCountUnocc2, pDoub, pGen)
+        end if
+
+    end subroutine
+
+
 
 END MODULE HPHFRandExcitMod
 
