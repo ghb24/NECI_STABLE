@@ -984,7 +984,6 @@ contains
                 pgen = pgen * rand_excit_opp_bias / ntot
                 iSpn = 2
             end if
-            write(6,*) 'double, ispn', ispn, pgen
 
             ! Now consdire all of the possible pairs of electrons
             tgt = ex(2,1:2)
@@ -1006,10 +1005,9 @@ contains
                     if (e_ispn == iSpn .and. e_sym_prod == sym_product) then
                         hel = 0
                         id = gtID(src)
-                        write(6,*) 'ID', id, id_tgt
                         if ((is_beta(src(1)) .eqv. is_beta(tgt(1))) .and. &
                             (is_beta(src(2)) .eqv. is_beta(tgt(2)))) &
-                            hel = hel - get_umat_el (id(1), id(2), id_tgt(1), &
+                            hel = hel + get_umat_el (id(1), id(2), id_tgt(1), &
                                                      id_tgt(2))
                         if ((is_beta(src(1)) .eqv. is_beta(tgt(2))) .and. &
                             (is_beta(src(2)) .eqv. is_beta(tgt(1)))) &
@@ -1031,7 +1029,6 @@ contains
             end do
 
             ! And account for the case where this is not a connected excitation
-            write(6,*) 'CUM', cpt_tgt, cum_sum
             if (cum_sum == 0) then
                 pgen = 0
             else
