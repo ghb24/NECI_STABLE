@@ -239,53 +239,9 @@ contains
 
         if (ic == 1) then
 
-            ! The electron to excite is picked uniformly at random
-            pgen = pSingles / real(nel, dp)
-
-            ! The class count index of the target orbital is known
-            tgt = ex(2, 1)
-            cc_index = ClassCountInd (get_spin(tgt), G1(tgt)%Sym%S, 0)
-             
-            ! How many orbitals of the correct symmetry are there?
-            norb = OrbClassCount(cc_index)
-            label_index = SymLabelCounts2(1, cc_index)
-
-            ! Some ids for utility
-            src = ex(1,1)
-            id_src = gtID(src)
-            n_id = gtID(nI)
-
-            ! Generate the cumulative sum, as used in the excitation generator,
-            ! and store the relevant term for generating the excitation.
-            cum_sum = 0
-            do i = 1, norb
-                orb = SymLabelList2(label_index + i - 1)
-                if (IsNotOcc(ilutI, orb)) then
-                    hel = 0
-                    id_tgt = gtID(orb)
-                    do j = 1, nel
-                        if (nI(j) == src) cycle
-                        hel = hel + get_umat_el (id_src, n_id(j), id_tgt, &
-                                                 n_id(j))
-                        if (is_beta(src) .eqv. is_beta(nI(j))) then
-                            hel = hel - get_umat_el (id_src, n_id(j), n_id(j),&
-                                                      id_tgt)
-                        end if
-                    end do
-                    hel = hel + GetTMATEl(src, orb)
-                    cpt = abs_l1(hel)
-                    cum_sum = cum_sum + cpt
-                    if (orb == tgt) cpt_tgt = cpt
-                end if
-            end do
-
-            ! Adjust the generation probability for the relevant values.
-            if (cum_sum == 0) then
-                pgen = 0.0_dp
-            else
-                pgen = pgen * cpt_tgt / cum_sum
-            end if
-
+            ! Singles are calculated in the same way for the _ex and the
+            ! _reverse excitation generators
+            pgen = pSingles * pgen_single_4ind (nI, ilutI, ex(1,1), ex(2,1))
 
         else if (ic == 2) then
 
@@ -451,6 +407,66 @@ contains
         pgen = pgen / real(nel, dp)
 
     end subroutine
+
+
+    function pgen_single_4ind (nI, ilutI, src, tgt) result(pgen)
+
+        integer, intent(in) :: nI(nel), src, tgt
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        real(dp) :: pgen
+
+        integer :: cc_index, label_index, norb, n_id(nel), id_src, id_tgt
+        integer :: i, j, orb
+        real(dp) :: cum_sum, cpt, cpt_tgt
+        HElement_t :: hel
+
+        ! The electron to excite is picked uniformly at random
+        pgen = 1.0_dp / real(nel, dp)
+
+        ! The class count index of the target orbital is known
+        cc_index = ClassCountInd (get_spin(tgt), G1(tgt)%Sym%S, 0)
+         
+        ! How many orbitals of the correct symmetry are there?
+        norb = OrbClassCount(cc_index)
+        label_index = SymLabelCounts2(1, cc_index)
+
+        ! Some ids for utility
+        id_src = gtID(src)
+        n_id = gtID(nI)
+
+        ! Generate the cumulative sum, as used in the excitation generator,
+        ! and store the relevant term for generating the excitation.
+        cum_sum = 0
+        do i = 1, norb
+            orb = SymLabelList2(label_index + i - 1)
+            if (IsNotOcc(ilutI, orb)) then
+                hel = 0
+                id_tgt = gtID(orb)
+                do j = 1, nel
+                    if (nI(j) == src) cycle
+                    hel = hel + get_umat_el (id_src, n_id(j), id_tgt, &
+                                             n_id(j))
+                    if (is_beta(src) .eqv. is_beta(nI(j))) then
+                        hel = hel - get_umat_el (id_src, n_id(j), n_id(j),&
+                                                  id_tgt)
+                    end if
+                end do
+                hel = hel + GetTMATEl(src, orb)
+                cpt = abs_l1(hel)
+                cum_sum = cum_sum + cpt
+                if (orb == tgt) cpt_tgt = cpt
+            end if
+        end do
+
+        ! Adjust the generation probability for the relevant values.
+        if (cum_sum == 0) then
+            pgen = 0.0_dp
+        else
+            pgen = pgen * cpt_tgt / cum_sum
+        end if
+
+    end function
+
 
 
     function select_orb_sing (nI, ilut, src, cc_index, pgen) result(orb)
@@ -908,6 +924,106 @@ contains
         end if
 
     end subroutine
+
+
+
+    function calc_pgen_4ind_reverse (nI, ilutI, ex, ic) result(pgen)
+
+        integer, intent(in) :: nI(nel), ex(2,2), ic
+        integer(n_int), intent(in) :: ilutI(0:NifTot)
+        real(dp) :: pgen
+        character(*), parameter :: this_routine = 'calc_pgen_4ind_reverse'
+
+        integer :: iSpn, sym_product, i, j, src(2), e_ispn, e_sym_prod, id(2)
+        integer :: tgt(2), id_tgt(2)
+        real(dp) :: ntot, cum_sum, cpt, cpt_tgt
+        HElement_t :: hel
+
+        if (ic == 1) then
+
+            ! Singles are calculated in the same way for the _ex and the
+            ! _reverse excitation generators
+            pgen = pSingles * pgen_single_4ind (nI, ilutI, ex(1,1), ex(2,1))
+
+        else if (ic == 2) then
+
+            ! Obviously bias by pDoubles...
+            pgen = pDoubles 
+
+            ! We want to select a pair of orbitals in a way which is biased
+            ! towards pairs with opposing spins. This takes a simple form.
+            ntot = par_hole_pairs + AB_hole_pairs * rand_excit_opp_bias
+            if (is_alpha(ex(2,1)) .eqv. is_alpha(ex(2,2))) then
+                pgen = pgen / ntot
+                if (is_alpha(ex(2,1))) then
+                    iSpn = 3
+                else
+                    iSpn = 1
+                end if
+            else
+                pgen = pgen * rand_excit_opp_bias / ntot
+                iSpn = 2
+            end if
+
+            ! Now consdire all of the possible pairs of electrons
+            tgt = ex(2,1:2)
+            sym_product = RandExcitSymLabelProd(int(G1(tgt(1))%Sym%S), &
+                                                int(G1(tgt(2))%Sym%S))
+            cum_sum = 0
+            do i = 2, nel
+                src(1) = nI(i)
+                do j = 1, i-1
+
+                    ! Get the symmetries
+                    src(2) = nI(j)
+                    e_ispn = get_ispn(src(1), src(2))
+                    e_sym_prod = RandExcitSymLabelProd(int(G1(src(1))%Sym%S), &
+                                                       int(G1(src(2))%Sym%S))
+                    
+                    ! Calculate the cross HElements
+                    if (e_ispn == iSpn .and. e_sym_prod == sym_product) then
+                        hel = 0
+                        id = gtID(src)
+                        if ((is_beta(src(1)) .eqv. is_beta(tgt(1))) .and. &
+                            (is_beta(src(2)) .eqv. is_beta(tgt(2)))) &
+                            hel = hel - get_umat_el (id(1), id(2), id_tgt(1), &
+                                                     id_tgt(2))
+                        if ((is_beta(src(1)) .eqv. is_beta(tgt(2))) .and. &
+                            (is_beta(src(2)) .eqv. is_beta(tgt(1)))) &
+                            hel = hel - get_umat_el (id(1), id(2), id_tgt(2), &
+                                                     id_tgt(1))
+                        cpt = abs_l1(hel)
+                    else
+                        cpt = 0
+                    end if
+
+                    ! And if this is the excitation, store the value.
+                    if (src(2) == minval(ex(1,1:2)) .and. &
+                        src(1) == maxval(ex(2,1:2))) &
+                        cpt_tgt = cpt
+
+                end do
+            end do
+
+            ! And account for the case where this is not a connected excitation
+            if (cum_sum == 0) then
+                pgen = 0
+            else
+                pgen = pgen * cpt_tgt / cum_sum
+            end if
+
+        else
+            ! IC /= 1, 2 --> not connected by the excitation generator.
+            ! 
+            ! If we are hitting here, then earlier checks have failed. We can
+            ! return the correct (zero) value at runtime, but really this
+            ! should be fixed elsewhere
+            ASSERT(.false.)
+            pgen = 0.0_dp
+        end if
+
+    end function
+
 
 
     subroutine gen_single_4ind_rev (nI, ilutI, nJ, ilutJ, ex, par, pgen)
