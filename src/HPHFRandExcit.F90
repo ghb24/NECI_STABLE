@@ -155,7 +155,7 @@ MODULE HPHFRandExcitMod
             call gen_excit_4ind_weighted (nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                           ExcitMat, tSignOrig, pGen, Hel,&
                                           store)
-        else if (tGen_4ind_weighted) then
+        else if (tGen_4ind_reverse) then
             call gen_excit_4ind_reverse (nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                           ExcitMat, tSignOrig, pGen, Hel,&
                                           store)
