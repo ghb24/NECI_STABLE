@@ -150,7 +150,8 @@ MODULE FciMCParMod
     use determ_proj, only: perform_determ_proj
     use semi_stoch_gen, only: init_semi_stochastic, enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: deterministic_projection, return_most_populated_states, &
-                                end_semistoch, is_core_state, return_mp1_amp_and_mp2_energy
+                                end_semistoch, is_core_state, return_mp1_amp_and_mp2_energy, &
+                                recalc_core_hamil_diag
     use trial_wf_gen, only: init_trial_wf, update_compare_trial_file, end_trial_wf
     use gndts_mod, only: gndts
     use sort_mod
@@ -3197,7 +3198,7 @@ MODULE FciMCParMod
     subroutine population_check ()
         use HPHFRandExcitMod, only: ReturnAlphaOpenDet
         integer :: pop_highest, proc_highest
-        real(dp) :: pop_change
+        real(dp) :: pop_change, old_Hii
         integer :: det(nel), i, error
         integer(int32) :: int_tmp(2)
         logical :: tSwapped
@@ -3284,6 +3285,7 @@ MODULE FciMCParMod
                                &longer used."
 
                     ! Update the reference energy
+                    old_Hii = Hii
                     if (tHPHF) then
                         h_tmp = hphf_diag_helement (ProjEDet, iLutRef)
                     elseif(tMomInv) then
@@ -3322,6 +3324,7 @@ MODULE FciMCParMod
                         endif
                         CurrentH(1,i) = real(h_tmp, dp) - Hii
                     enddo
+                    if (tSemiStochastic) call recalc_core_hamil_diag(old_Hii, Hii)
 
                     ! Reset values introduced in soft_exit (CHANGEVARS)
                     if (tCHeckHighestPopOnce) then
