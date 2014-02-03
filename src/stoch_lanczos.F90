@@ -42,6 +42,9 @@ contains
         logical :: tParity
         HElement_t :: HElGen
 
+        integer(n_int) :: int_sign(lenof_sign*lanczos%nvecs)
+        real(dp) :: test_sign(lenof_sign*lanczos%nvecs)
+
         call init_stoch_lanczos(lanczos)
 
         do iconfig = 1, lanczos%nconfigs
@@ -61,6 +64,14 @@ contains
 
                         iter = iiter + (ivec-1)*lanczos%niters
                         call init_stoch_lanczos_iter(iter_data_fciqmc, determ_index)
+
+                        !write(6,*) "CurrentDets:"
+                        !do idet = 1, int(TotWalkers, sizeof_int)
+                        !    call extract_bit_rep(CurrentDets(:, idet), nI_parent, parent_sign, unused_flags, &
+                        !                          fcimc_excit_gen_store)
+                        !    write(6,'(i3, i12, 4x, f18.7, 4x, f18.7, 4x, l1)') idet, CurrentDets(0, idet), parent_sign, &
+                        !        test_flag(CurrentDets(:, idet), flag_deterministic)
+                        !end do
 
                         do idet = 1, int(TotWalkers, sizeof_int)
 
@@ -197,7 +208,7 @@ contains
             ! Sum the overlap and projected Hamiltonian matrices from the various processors.
             call communicate_lanczos_matrices(lanczos)
 
-            call output_lanczos_matrices(lanczos, irepeat)
+            call output_lanczos_matrices(lanczos, iconfig, irepeat)
 
             end do ! Over all repeats for a given walker configuration.
 

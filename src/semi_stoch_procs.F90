@@ -1043,7 +1043,7 @@ contains
         character (len=*), parameter :: t_r = "copy_core_dets_this_proc_to_spawnedparts"
 
         ncore = 0
-        SpawnedParts = 0
+        SpawnedParts = 0_n_int
 
         do i = 1, determ_space_size
             call decode_bit_det(nI, core_space(:,i))

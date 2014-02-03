@@ -16,16 +16,17 @@ module stoch_lanczos_procs
     use FciMCData, only: tPopsAlreadyRead, tHashWalkerList, CurrentH, determ_proc_sizes
     use FciMCData, only: core_ham_diag, InputDiagSft, Hii, max_spawned_ind, SpawnedPartsLanc
     use FciMCData, only: partial_determ_vector, full_determ_vector, determ_proc_indices, HFSym
+    use FciMCData, only: TotParts, TotPartsOld, AllTotParts, AllTotPartsOld
     use FciMCParMod, only: create_particle, InitFCIMC_HF, SetupParameters, InitFCIMCCalcPar
     use FciMCParMod, only: init_fcimc_fn_pointers, WriteFciMCStats, WriteFciMCStatsHeader
     use FciMCParMod, only: rezero_iter_stats_each_iter, tSinglePartPhase
     use gndts_mod, only: gndts
     use hash, only: FindWalkerHash, init_hash_table, reset_hash_table, fill_in_hash_table
     use hilbert_space_size, only: CreateRandomExcitLevDetUnbias
-    use Parallel_neci, only: MPIBarrier, iProcIndex, MPISum
+    use Parallel_neci, only: MPIBarrier, iProcIndex, MPISum, MPIReduce
     use ParallelHelper, only: root
     use procedure_pointers
-    use semi_stoch_procs, only: copy_core_dets_this_proc_to_spawnedparts
+    use semi_stoch_procs, only: copy_core_dets_this_proc_to_spawnedparts, fill_in_CurrentH
     use semi_stoch_procs, only: add_core_states_currentdet_hash, start_walkers_from_core_ground
     use sym_mod, only: getsym
     use SystemData, only: nel, nbasis, BRR, nBasisMax, G1, tSpn, lms, tParity, SymRestrict
@@ -62,7 +63,9 @@ module stoch_lanczos_procs
     integer(n_int), allocatable :: lanczos_vecs(:,:)
     type(ll_node), pointer :: lanczos_hash_table(:) 
 
-    integer :: TotWalkers_Lanc
+    integer :: TotWalkersInit
+    integer :: TotPartsInit(lenof_sign)
+    integer :: AllTotPartsInit(lenof_sign)
     integer(n_int), allocatable :: init_lanczos_config(:,:)
 
 contains
@@ -234,15 +237,22 @@ contains
                 end if
                 ! Finally, call the routine to create the walker distribution.
                 call generate_init_config_basic(nwalkers_target, nwalkers)
-                TotWalkers = int(nwalkers, int64)
-                TotWalkers_Lanc = TotWalkers
+                TotWalkersInit = TotWalkers
+                TotPartsInit = TotParts
+                AllTotPartsInit = AllTotParts
                 ! If starting from this configuration more than once, store it.
-                if (lanczos%nrepeats > 1) init_lanczos_config(:, 1:TotWalkers) = CurrentDets(:, 1:TotWalkers)
+                if (lanczos%nrepeats > 1) init_lanczos_config(:,1:TotWalkers) = CurrentDets(:,1:TotWalkers)
             else if (irepeat > 1) then
-                TotWalkers = TotWalkers_Lanc
-                CurrentDets(:, 1:TotWalkers) = init_lanczos_config(:, 1:TotWalkers)
+                TotWalkers = TotWalkersInit
+                TotParts = TotPartsInit
+                TotPartsOld = TotPartsInit
+                AllTotParts = AllTotPartsInit
+                AllTotPartsOld = AllTotPartsInit
+
+                CurrentDets(:,1:TotWalkers) = init_lanczos_config(:,1:TotWalkers)
                 call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, TotWalkers)
             end if
+            call fill_in_CurrentH()
         end if
 
     end subroutine create_initial_config
@@ -258,7 +268,7 @@ contains
         integer :: nI(nel)
         real(dp) :: r, walker_sign(lenof_sign)
         logical :: tInitiatorTemp
-        type(fcimc_iter_data) :: temp_data
+        type(fcimc_iter_data) :: unused_data
         integer(n_int), pointer :: PointTemp(:,:)
 
         ! Turn off the initiator method for the annihilation steps to be used here.
@@ -268,7 +278,7 @@ contains
         ! Set the spawning slots to their starting positions.
         ValidSpawnedList = InitialSpawnedSlots
 
-        ilut = 0
+        ilut = 0_n_int
 
         do ireplica = 1, inum_runs
             walker_sign = 0.0_dp
@@ -296,17 +306,32 @@ contains
         PointTemp => SpawnedParts2
         SpawnedParts2 => SpawnedParts
         SpawnedParts => PointTemp
-        call CompressSpawnedList(ndets, temp_data) 
+        call CompressSpawnedList(ndets, unused_data) 
 
         ! Finally, add the determinants in the spawned walker list to the main walker list.
         ! Copy the determinants themselves to CurrentDets.
-        CurrentDets = SpawnedParts
+        TotParts = 0.0_dp
+        do i = 1, ndets
+            CurrentDets(:,i) = SpawnedParts(:,i)
+            walker_sign = transfer(CurrentDets(NOffSgn:NOffSgn+lenof_sign, i), walker_sign)
+            TotParts = TotParts + abs(walker_sign)
+        end do
+        TotPartsOld = TotParts
 
         ! Add the entries into the hash table.
         call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, ndets)
 
+        call MPIReduce(TotParts, MPI_SUM, AllTotParts)
+        AllTotPartsOld = AllTotParts
+
+        ! Always need the core determinants to be at the top of CurrentDets, even when unoccupied.
+        ! These routines will do this.
+        TotWalkers = int(ndets, int64)
+        call copy_core_dets_this_proc_to_spawnedparts()
+        call add_core_states_currentdet_hash()
+
         ValidSpawnedList = InitialSpawnedSlots
-        SpawnedParts = 0
+        SpawnedParts = 0_n_int
 
         ! Turn the initiator method back on, if it was turned off at the start of this routine.
         tTruncInitiator = tInitiatorTemp
@@ -645,36 +670,42 @@ contains
 
     end subroutine communicate_lanczos_matrices
 
-    subroutine output_lanczos_matrices(lanczos, irepeat)
+    subroutine output_lanczos_matrices(lanczos, iconfig, irepeat)
 
         type(stoch_lanczos_data), intent(in) :: lanczos
-        integer, intent(in) :: irepeat
+        integer, intent(in) :: iconfig, irepeat
         real(dp) :: average_h_matrix(lanczos%nvecs, lanczos%nvecs)
         real(dp) :: average_s_matrix(lanczos%nvecs, lanczos%nvecs)
 
         if (iProcIndex == root) then
             average_h_matrix = (lanczos%hamil_matrix_1 + lanczos%hamil_matrix_2)/2.0_dp
-            call output_matrix(lanczos, irepeat, 'hamil  ', average_h_matrix)
+            call output_matrix(lanczos, iconfig, irepeat, 'hamil  ', average_h_matrix)
             ! We have two overlap matrices as we have two replicas. So average them for
             ! better statistics.
             average_s_matrix = (lanczos%overlap_matrix_1 + lanczos%overlap_matrix_2)/2.0_dp
-            call output_matrix(lanczos, irepeat, 'overlap', average_s_matrix)
+            call output_matrix(lanczos, iconfig, irepeat, 'overlap', average_s_matrix)
         end if
 
     end subroutine output_lanczos_matrices
 
-    subroutine output_matrix(lanczos, irepeat, stem, matrix)
+    subroutine output_matrix(lanczos, iconfig, irepeat, stem, matrix)
 
         type(stoch_lanczos_data), intent(in) :: lanczos
-        integer, intent(in) :: irepeat
+        integer, intent(in) :: iconfig, irepeat
         character(7), intent(in) :: stem
         character(2) :: ifmt, jfmt
         real(dp), intent(in) :: matrix(lanczos%nvecs, lanczos%nvecs)
-        character(15) :: ind, filename
+        character(25) :: ind1, ind2, filename
         integer :: i, j, ilen, jlen, new_unit
 
-        write(ind,'(i15)') irepeat
-        filename = trim(trim(stem)//'.'//adjustl(ind))
+        ! Create the filename.
+        write(ind2,'(i15)') irepeat
+        if (lanczos%tGround) then
+            filename = trim(trim(stem)//'.'//trim(adjustl(ind2)))
+        else if (lanczos%tFiniteTemp) then
+            write(ind1,'(i15)') iconfig
+            filename = trim(trim(stem)//'.'//trim(adjustl(ind1))//'.'//trim(adjustl(ind2)))
+        end if
 
         new_unit = get_free_unit()
         open(new_unit, file=trim(filename), status='replace')
@@ -771,7 +802,7 @@ contains
         counter = 0
 
         do i = 1, ndets
-            CALL getsym(nI_list(:,i), nel, G1, nBasisMax, iSym)
+            call getsym(nI_list(:,i), nel, G1, nBasisMax, iSym)
             ! Only carry on if the symmetry of this determinant is correct.
             if (iSym%Sym%S /= HFSym%Sym%S .or. iSym%Ms /= HFSym%Ms .or. iSym%Ml /= HFSym%Ml) cycle
             call EncodeBitDet(nI_list(:,i), ilut)
