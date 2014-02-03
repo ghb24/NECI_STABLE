@@ -904,6 +904,7 @@ contains
         character(*), parameter :: this_routine = 'gen_excit_4ind_reverse'
 
         integer :: orb
+        real(dp) :: pgen2
 
         if (genrand_real2_dSFMT() < pSingles) then
 
@@ -922,6 +923,25 @@ contains
             pgen = pgen * pDoubles
 
         end if
+
+        ! And a careful check!
+#ifdef __DEBUG
+        if (.not. IsNullDet(nJ)) then
+            pgen2 = calc_pgen_4ind_reverse (nI, ilutI, ExcitMat, ic)
+            if (abs(pgen - pgen2) > 1.0e-6_dp) then
+                write(6,*) 'Calculated and actual pgens differ.'
+                write(6,*) 'This will break HPHF calculations'
+                call write_det(6, nI, .false.)
+                write(6, '(" --> ")', advance='no')
+                call write_det(6, nJ, .true.)
+                write(6,*) 'Excitation matrix: ', ExcitMat(1,1:ic), '-->', &
+                           ExcitMat(2,1:ic)
+                write(6,*) 'Generated pGen:  ', pgen
+                write(6,*) 'Calculated pGen: ', pgen2
+                call stop_all(this_routine, "Invalid pGen")
+            end if
+        end if
+#endif
 
     end subroutine
 
@@ -964,9 +984,11 @@ contains
                 pgen = pgen * rand_excit_opp_bias / ntot
                 iSpn = 2
             end if
+            write(6,*) 'double, ispn', ispn, pgen
 
             ! Now consdire all of the possible pairs of electrons
             tgt = ex(2,1:2)
+            id_tgt = gtID(tgt)
             sym_product = RandExcitSymLabelProd(int(G1(tgt(1))%Sym%S), &
                                                 int(G1(tgt(2))%Sym%S))
             cum_sum = 0
@@ -984,6 +1006,7 @@ contains
                     if (e_ispn == iSpn .and. e_sym_prod == sym_product) then
                         hel = 0
                         id = gtID(src)
+                        write(6,*) 'ID', id, id_tgt
                         if ((is_beta(src(1)) .eqv. is_beta(tgt(1))) .and. &
                             (is_beta(src(2)) .eqv. is_beta(tgt(2)))) &
                             hel = hel - get_umat_el (id(1), id(2), id_tgt(1), &
@@ -996,16 +1019,19 @@ contains
                     else
                         cpt = 0
                     end if
+                    cum_sum = cum_sum + cpt
 
                     ! And if this is the excitation, store the value.
-                    if (src(2) == minval(ex(1,1:2)) .and. &
-                        src(1) == maxval(ex(2,1:2))) &
+                    if (minval(src) == minval(ex(1,1:2)) .and. &
+                        maxval(src) == maxval(ex(1,1:2))) then
                         cpt_tgt = cpt
+                    end if
 
                 end do
             end do
 
             ! And account for the case where this is not a connected excitation
+            write(6,*) 'CUM', cpt_tgt, cum_sum
             if (cum_sum == 0) then
                 pgen = 0
             else
