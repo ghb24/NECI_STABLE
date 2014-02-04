@@ -150,9 +150,9 @@ MODULE SymExcit3
 ! negative sign must be included when finding the H element.
 ! When there are no more symmetry allowed excitations, tAllExcitFound becomes true.
         INTEGER(KIND=n_int), intent(in) :: iLut(0:NIfTot)
-        INTEGER, intent(in) :: nI(NEl),exflag
+        INTEGER, intent(in) :: nI(NEl)
         integer, intent(out) :: nJ(NEl)
-        integer, intent(inout) :: ExcitMat3(2,2)
+        integer, intent(inout) :: ExcitMat3(2,2), exflag
         LOGICAL, intent(out) :: tAllExcitFound,tParity
         LOGICAL, intent(in) :: ti_lt_a_only
 
