@@ -293,7 +293,7 @@ contains
 
         integer(n_int) :: ilut(0:NIfTot), ilut_tmp(0:NIfTot)
         integer :: nI(nel), nJ(nel)
-        integer :: i, excit(2,2), ex_flag
+        integer :: i, excit(2,2), ex_flag, ex_flag_temp
         logical :: tAllExcitFound, tParity, tStoreConnSpace, tSinglesOnly
 
         if (present(connected_space)) then
@@ -334,11 +334,12 @@ contains
 
             tAllExcitFound = .false.
             excit = 0
+            ex_flag_temp = ex_flag
 
             do while(.true.)
 
                 ! Generate the next determinant.
-                call GenExcitations3(nI, original_space(:,i), nJ, ex_flag, excit, tParity, &
+                call GenExcitations3(nI, original_space(:,i), nJ, ex_flag_temp, excit, tParity, &
                                       tAllExcitFound, .false.)
                 if (tAllExcitFound) exit
 
