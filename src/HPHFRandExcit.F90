@@ -30,7 +30,8 @@ MODULE HPHFRandExcitMod
     use sltcnd_mod, only: sltcnd_excit
     use bit_reps, only: NIfD, NIfDBO, NIfTot
     use SymExcitDataMod, only: excit_gen_store_type
-    use excit_gens_int_weighted, only: calc_pgen_4ind_weighted
+    use excit_gens_int_weighted, only: calc_pgen_4ind_weighted, &
+                                       calc_pgen_4ind_reverse
     use sort_mod
     use HElem
     IMPLICIT NONE
@@ -157,7 +158,7 @@ MODULE HPHFRandExcitMod
             call gen_excit_4ind_weighted (nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                           ExcitMat, tSignOrig, pGen, Hel,&
                                           store)
-        else if (tGen_4ind_weighted) then
+        else if (tGen_4ind_reverse) then
             call gen_excit_4ind_reverse (nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                           ExcitMat, tSignOrig, pGen, Hel,&
                                           store)
@@ -917,7 +918,7 @@ MODULE HPHFRandExcitMod
             pgen = calc_pgen_4ind_weighted (nI, ilutI, ex, ic, &
                                             ClassCountUnocc2)
         else if (tGen_4ind_reverse) then
-            call stop_all("CalcNonUniPGen", "Not Implemented Yet")
+            pgen = calc_pgen_4ind_reverse (nI, ilutI, ex, ic)
         else
             ! Here we assume that the normal excitation generators in
             ! symrandexcit2.F90 are being used.

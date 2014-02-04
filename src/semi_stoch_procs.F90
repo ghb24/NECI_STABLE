@@ -257,6 +257,29 @@ contains
 
     end subroutine calc_determ_hamil_normal
 
+    subroutine recalc_core_hamil_diag(old_Hii, new_Hii)
+
+        real(dp) :: old_Hii, new_Hii
+        real(dp) :: Hii_shift
+        integer :: i, j
+
+        Hii_shift = old_Hii - new_Hii
+
+        if (tSparseCoreHamil) then
+            do i = 1, determ_proc_sizes(iProcIndex)
+                do j = 1, sparse_core_ham(i)%num_elements
+                    if (sparse_core_ham(i)%positions(j) == i) then
+                        sparse_core_ham(i)%elements(j) = sparse_core_ham(i)%elements(j) + Hii_shift
+                    end if
+                end do
+            end do
+        else
+        end if
+
+        core_ham_diag = core_ham_diag + Hii_shift
+
+    end subroutine recalc_core_hamil_diag
+
     subroutine generate_core_connections()
 
         if (tSparseCoreHamil) then
