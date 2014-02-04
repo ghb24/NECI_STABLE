@@ -513,7 +513,7 @@ contains
 
         ! Create a bit mask which has 1's in the bits which represent active orbitals and 0's in
         ! all other orbitals.
-        cas_bitmask = 0
+        cas_bitmask = 0_n_int
         do i = 1, num_active_orbs
             set_orb(cas_bitmask, CASBrr(i))
         end do
