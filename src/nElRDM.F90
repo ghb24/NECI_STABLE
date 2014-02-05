@@ -1964,7 +1964,7 @@ MODULe nElRDMMod
         INTEGER(kind=n_int) :: iLutnJ(0:NIfTot)
         REAL(dp), dimension(lenof_sign) :: SignDi, SignDi2
         integer :: ExcitMat3(2,2), nI(NEl), nJ(NEl), Proc, FlagsDi
-        integer :: a, b, CountTemp
+        integer :: a, b, CountTemp, exflag
         logical :: tAllExcitFound, tParity
 
         call extract_bit_rep (iLutnI, nI, SignDi, FlagsDi)
@@ -1982,7 +1982,8 @@ MODULe nElRDMMod
         do while (.not.tAllExcitFound)
 !                write(6,*) 'generating singles'
 !                call neci_flush(6)
-            CALL GenExcitations3(nI,iLutnI,nJ,1,ExcitMat3(:,:),tParity,&
+            exflag = 1
+            CALL GenExcitations3(nI,iLutnI,nJ,exflag,ExcitMat3(:,:),tParity,&
                                                         tAllExcitFound,.true.)            
 ! Passed out of here is the singly excited determinant, nJ.
 ! Information such as the orbitals involved in the excitation and the parity is also found 
@@ -2028,7 +2029,8 @@ MODULe nElRDMMod
             do while (.not.tAllExcitFound)
 !                write(6,*) 'generating doubles'
 !                call neci_flush(6)
-                CALL GenExcitations3(nI,iLutnI,nJ,2,ExcitMat3(:,:),tParity,&
+                exflag = 2
+                CALL GenExcitations3(nI,iLutnI,nJ,exflag,ExcitMat3(:,:),tParity,&
                                                             tAllExcitFound,.true.)            
 ! Passed out of here is the doubly excited determinant, nJ.
 ! Information such as the orbitals involved in the excitation and the parity is 
@@ -2079,7 +2081,7 @@ MODULe nElRDMMod
         INTEGER, dimension(lenof_sign) :: HistPos
         REAL(dp), dimension(lenof_sign) :: RealHistPos
         integer :: ExcitMat3(2,2), nI(NEl), nJ(NEl), Proc, FlagsDi
-        integer :: a, b, CountTemp
+        integer :: a, b, CountTemp, exflag
         logical :: tAllExcitFound, tParity
         real(dp) :: realSignDi
 
@@ -2101,7 +2103,8 @@ MODULe nElRDMMod
         do while (.not.tAllExcitFound)
 !                write(6,*) 'generating singles'
 !                call neci_flush(6)
-            CALL GenExcitations3(nI,iLutnI,nJ,1,ExcitMat3(:,:),tParity,&
+            exflag = 1
+            CALL GenExcitations3(nI,iLutnI,nJ,exflag,ExcitMat3(:,:),tParity,&
                                                         tAllExcitFound,.true.)            
 ! Passed out of here is the singly excited determinant, nJ.
 ! Information such as the orbitals involved in the excitation and the parity is also found 
@@ -2147,7 +2150,8 @@ MODULe nElRDMMod
             do while (.not.tAllExcitFound)
 !                write(6,*) 'generating doubles'
 !                call neci_flush(6)
-                CALL GenExcitations3(nI,iLutnI,nJ,2,ExcitMat3(:,:),tParity,&
+                exflag = 2
+                CALL GenExcitations3(nI,iLutnI,nJ,exflag,ExcitMat3(:,:),tParity,&
                                                             tAllExcitFound,.true.)            
 ! Passed out of here is the doubly excited determinant, nJ.
 ! Information such as the orbitals involved in the excitation and the parity is 
