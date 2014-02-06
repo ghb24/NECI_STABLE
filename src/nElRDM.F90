@@ -4138,7 +4138,7 @@ MODULe nElRDMMod
                         NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                                 NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                             - ( ( All_abba_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
-                                                    * (1.0_dp / real(NEl - 1,dp)) ) / 2.0_dp )
+                                                    * (1.0_dp / real(NEl - 1,dp)) ))
                     endif
                 endif
             endif
