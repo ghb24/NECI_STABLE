@@ -884,7 +884,7 @@ MODULE FciMCParMod
             else
                 walkExcitLevel_toHF = walkExcitLevel
             endif
-            
+
             ! A general index whose value depends on whether the following option is used.
             if (tHashWalkerList) then
                 gen_ind = j
@@ -3935,7 +3935,7 @@ MODULE FciMCParMod
                     IterRDM_HF(inum_runs) = Iter+PreviousCycles + 1 
                     AvNoatHF(inum_runs) = 0.0_dp
                 endif
-                !WRITE(6,*) "zeroed AvNoAtHF", Prev_AvNoAtHF, AvNoAtHF, InstNoAtHF
+               ! WRITE(6,*) "zeroed AvNoAtHF", Prev_AvNoAtHF, AvNoAtHF, InstNoAtHF
             else
                 Prev_AvNoatHF(1) = AvNoatHF(1)
                 AvNoatHF(1) = ( (real((Iter+PreviousCycles - IterRDM_HF(1)),dp) * Prev_AvNoatHF(1)) &
@@ -3945,7 +3945,7 @@ MODULE FciMCParMod
                     AvNoatHF(inum_runs) = ( (real((Iter+PreviousCycles - IterRDM_HF(inum_runs)),dp) * Prev_AvNoatHF(inum_runs)) &
                         + InstNoatHF(inum_runs) ) / real((Iter+PreviousCycles - IterRDM_HF(inum_runs)) + 1,dp)
                 endif
-            !    WRITE(6,*) "AvNoAtHF", Prev_AvNoAtHF, AvNoAtHF, InstNoAtHF
+!                WRITE(6,*) "AvNoAtHF", Prev_AvNoAtHF, AvNoAtHF, InstNoAtHF
             endif
         endif
         HFInd = 0            
