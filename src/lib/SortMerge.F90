@@ -139,8 +139,7 @@
            endif
            HDiag=(REAL(HDiagTemp,dp))-Hii
            CurrentH(1,ips+i-1)=HDiag
-           if(HDiag.eq.0.0_dp) &
-               call extract_sign(CurrentDets(:,ips+i-1),InstNoatHF)
+           if(DetBitEQ(CurrentDets(:,ips+i-1),iLutHF_True,NIfDBO)) call extract_sign(CurrentDets(:,ips+i-1),InstNoatHF)
            if(tFillingStochRDMonFly) CurrentH(2:3,ips+i-1) = 0.0_dp
 ! Next element to be inserted must be smaller than DetCurr, so must be inserted
 ! at (at most) at ips-1.
