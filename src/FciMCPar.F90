@@ -1117,8 +1117,8 @@ MODULE FciMCParMod
                                    AvSignCurr, IterRDMStartCurr, VecSlot, j, WalkExcitLevel)
             end if
            
-            call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, SignCurr, walkExcitLevel_toHF,& 
-                                          &  test_flag(CurrentDets(:,j), flag_deterministic))  
+            if(tFillingStochRDMonFly) call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, SignCurr, &
+                                      & walkExcitLevel_toHF, test_flag(CurrentDets(:,j), flag_deterministic))  
 
         enddo ! Loop over determinants.
         IFDEBUGTHEN(FCIMCDebug,2) 
@@ -3989,7 +3989,7 @@ MODULE FciMCParMod
             call extract_sign(CurrentDets(:,i),TempSign)
             TempSign(1)=-TempSign(1)
             call encode_sign(CurrentDets(:,i),TempSign)
-            if(tFillingStochRDMonFly) CurrentH(2,i) = -CurrentH(2,i)    ! Flip average signs too
+            if(tFillingStochRDMonFly) CurrentH(2:1+lenof_sign,i) = -CurrentH(2:1+lenof_sign,i)    ! Flip average signs too
         enddo
 
 !Reverse the flag for whether the sign of the particles has been flipped so the ACF can be correctly calculated
