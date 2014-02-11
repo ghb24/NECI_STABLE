@@ -22,7 +22,7 @@
         USE FciMCParMOD , only : Hii,CurrentDets,CurrentH
         use FciMCData , only : tFillingStochRDMonFly, InstNoatHF, ntrial_occ, &
                                ncon_occ, occ_trial_amps, occ_con_amps, &
-                               trial_temp, con_temp, tTrialHash
+                               trial_temp, con_temp, tTrialHash, iLutHF_True
         use SystemData, only: nel, tHPHF,tMomInv
         use bit_rep_data, only: extract_sign, flag_trial, flag_connected
         use bit_reps, only: NIfTot, NIfDBO, decode_bit_det, test_flag
