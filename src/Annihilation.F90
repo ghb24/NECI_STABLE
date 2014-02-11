@@ -9,6 +9,7 @@ MODULE AnnihilationMod
     USE Parallel_neci
     USE dSFMT_interface, only : genrand_real2_dSFMT
     USE FciMCData
+    use LoggingData, only: tInstSignOffDiagRDM
     use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel, ilut_lt, &
                          ilut_gt, DetBitZero
     use spatial_initiator, only: add_initiator_list, rm_initiator_list, &
@@ -958,7 +959,11 @@ MODULE AnnihilationMod
                         end do
                         
                         if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then
-                            call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(1+lenof_sign,PartInd))
+                            if(tInstSignOffDiagRDM) then
+                                call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentSign(lenof_sign))
+                            else
+                                call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(1+lenof_sign,PartInd))
+                            endif
                         endif 
 
                         cycle
@@ -1567,8 +1572,7 @@ MODULE AnnihilationMod
         use SystemData, only: tHPHF, tRef_Not_HF
         use bit_reps, only: NIfD
         use CalcData , only : tCheckHighestPop, NMCyc, InitiatorWalkNo
-        use LoggingData , only : tRDMonFly, tExplicitAllRDM, tInitiatorRDM
-        use nElRDMMod , only : det_removed_fill_diag_rdm 
+        use LoggingData , only : tRDMonFly, tExplicitAllRDM
         INTEGER, intent(in) :: ValidSpawned
         integer, intent(inout) :: TotWalkersNew
         real(dp) :: CurrentSign(lenof_sign), SpawnedSign(lenof_sign)
@@ -1659,8 +1663,6 @@ MODULE AnnihilationMod
                         if (tConState) con_merged = con_merged + 1
                     end if
 
-                    if(tFillingStochRDMonFly) &
-                        call det_removed_fill_diag_rdm(CurrentDets(:,i), CurrentH(1:NCurrH,i))
                     if(i.eq.HFInd) then
                         !We have to do this such that AvNoAtHF matches up with AvSign.
                         !AvSign is extracted from CurrentH, and if the HFDet is unoccupied

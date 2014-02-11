@@ -131,11 +131,9 @@ MODULE Logging
       twrite_RDMs_to_read = .false.
       tno_RDMs_to_read = .false.
       tReadRDMAvPop=.false.
-      tWriteBinRDMNoDiag=.false.
       tReadRDMs = .false.
       IterWriteRDMs = 10000
       tWriteMultRDMs = .false.
-      tInitiatorRDM = .false.
       tThreshOccRDMDiag=.false.
       ThreshOccRDM=2.0_dp
       tDumpForcesInfo = .false.
@@ -502,6 +500,10 @@ MODULE Logging
 !The eigenvalues give the occupation numbers of the natural orbitals (eigenfunctions).
             tDiagRDM=.true.
 
+        case("INSTSIGNOFFDIAGRDM")
+!Use the instantaneous signs when calculating the off-diagonal RDM elements
+            tInstSignOffDiagRDM=.true.
+
         case("NONOTRANSFORM")
 ! This tells the calc that we don't want to print the NO_TRANSFORM matrix.            
 ! i.e. the diagonalisation is just done to get the correlation entropy.
@@ -573,15 +575,6 @@ MODULE Logging
                 tno_RDMs_to_read = .false. 
             ENDIF
 
-        case("WRITEBINRDMNODIAG")
-! Use in conjunction with WRITERDMSTOREAD.  If WRITEBINRDMNODIAG is also present, then the RDMs we write out in binary (to be read
-! back in later) will NOT contain contributions to the diagonal elements, except from determinants that have become unoccupied.
-! As we gather a running average of the determinant coefficient in currentH over its lifetime, there is no need to add in diagonal
-! elements until a det becomes deoccupied and we lose the information, or the end of the simulation.  By using this keyword, we
-! indicate that for restart purposes we have not finished the simulation, and would rather print out the RDMs exactly as they are
-! currently stored, and print out the contents of CurrentH separately, so we can continue the accumulation exactly in a restarted calc.
-            tWriteBinRDMNoDiag=.true.
-        
         case("READRDMAVPOP")
 ! Use in conjunction with READRDMS.  This can be used in the previous calculation had "WRITEBINRDMNODIAG" switched on.
 ! We will read in the information in RDM_Av_Pop which contains some of the data from CurrentH in the previous round -- the cumulative
@@ -603,10 +596,6 @@ MODULE Logging
             tWriteMultRDMs = .true.
             call readi(IterWriteRDMs)
 
-        case("INITIATORRDM")
-! Use only the determinants that are (on average) initiators to calculate the RDMs.
-            tInitiatorRDM = .true.
-        
         case("THRESHOCCONLYRDMDIAG")
             !Only add in a contribution to the diagonal elements of the RDM if the average sign of the determinant is greater than [ThreshOccRDM]
             tThreshOccRDMDiag=.true.

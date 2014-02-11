@@ -79,7 +79,7 @@ MODULE FciMCParMod
                        tDiagWalkerSubspace,iDiagSubspaceIter, &
                        tRDMonFly, IterRDMonFly,RDMExcitLevel, RDMEnergyIter, &
                        tChangeVarsRDM, tExplicitAllRDM, tHF_Ref_Explicit, &
-                       tHF_S_D_Ref, tHF_S_D, tInitiatorRDM,    &
+                       tHF_S_D_Ref, tHF_S_D,    &
                        tDiagWalkerSubspace, iDiagSubspaceIter, &
                        tCalcInstantS2Init, instant_s2_multiplier_init, &
                        tJustBlocking, iBlockEquilShift, iBlockEquilProjE, &
@@ -142,8 +142,7 @@ MODULE FciMCParMod
                          extract_bit_rep_avsign_norm, &
                          extract_bit_rep_avsign_no_rdm, &
                          zero_rdms, fill_rdm_softexit, store_parent_with_spawned, &
-                         fill_rdm_diag_currdet_norm, transfer_rdm_to_temp, &
-                         fill_rdm_diag_currdet_hfsd, calc_rdmbiasfac, tFinalRDMIter
+                         fill_rdm_diag_currdet_norm,fill_rdm_diag_currdet_hfsd, calc_rdmbiasfac, tFinalRDMIter
     use determ_proj, only: perform_determ_proj
     use semi_stoch_gen, only: init_semi_stochastic, enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: deterministic_projection, return_most_populated_states, &
@@ -468,7 +467,7 @@ MODULE FciMCParMod
                         (.not.(tSinglePartPhase(inum_runs)))) THEN
                 ! If we wish to calculate the energy, have started accumulating the RDMs, 
                 ! and this is an iteration where the energy should be calculated, do so.
-                if( tCalc_RDMEnergy .and. ((Iter - maxval(VaryShiftIter)).gt.IterRDMonFly) &
+                if(tCalc_RDMEnergy .and. ((Iter - maxval(VaryShiftIter)).gt.IterRDMonFly) &
                     .and. (mod((Iter+PreviousCycles - IterRDMStart)+1,RDMEnergyIter).eq.0) ) &
                         CALL Calc_Energy_from_RDM(Norm_2RDM)  
             ENDIF
@@ -816,27 +815,6 @@ MODULE FciMCParMod
         IFDEBUG(FCIMCDebug,3) write(iout,"(A,I12)") "Walker list length: ",TotWalkers
         IFDEBUG(FCIMCDebug,3) write(iout,"(A)") "TW: Walker  Det"
 
-        ! This block decides whether or not to calculate the contribution to the RDMs from 
-        ! the diagonal elements (and explicit connections to the HF) for each occupied determinant. 
-        ! For efficiency, this is only done on the final iteration, or one where the RDM energy is 
-        ! being printed.
-        tFill_RDM = .false.
-        if(tFillingStochRDMonFly) then
-            if(mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0) then 
-                ! RDM energy is being printed, calculate the diagonal elements for 
-                ! the last RDMEnergyIter iterations.
-                tFill_RDM = .true.
-                IterLastRDMFill = RDMEnergyIter
-                tFinalRDMIter=.false.
-            elseif(Iter.eq.NMCyc) then
-                ! Last iteration, calculate the diagonal element for the iterations 
-                ! since the last time they were included.
-                tFill_RDM = .true.
-                tFinalRDMIter=.true.
-                IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter)
-            endif
-        endif
-
         !write(iout,"(A)") "Hash Table: "
         !do j=1,nWalkerHashes
         !    TempNode => HashIndex(j)
@@ -914,19 +892,6 @@ MODULE FciMCParMod
                             CurrentH(2+lenof_sign:1+2*lenof_sign,gen_ind) = IterRDMStartCurr
                         endif
                         VecSlot = VecSlot + 1
-                        if(tFill_RDM) then 
-                            ! If tFill_RDM is true, this is an iteration where the diagonal 
-                            ! RDM elements are calculated, along with the contributions from 
-                            ! connections to the (true) HF determinant.
-
-                            if((abs(CurrentH(2,gen_ind)).gt.InitiatorWalkNo).or.(.not.tInitiatorRDM)) & 
-                            ! If we are only using initiators to calculate the RDMs, only add in the diagonal and 
-                            ! explicit contributions if the average population is greater than n_a = InitiatorWalkNo.
-                                call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, &
-                                        CurrentH(1:NCurrH,gen_ind), walkExcitLevel_toHF, &
-                                        test_flag(CurrentDets(:,j), flag_deterministic), &
-                                            IterLastRDMFill, tFinalRDMIter, .false.)  
-                        endif
                         cycle
                     end if
                  
@@ -1152,20 +1117,8 @@ MODULE FciMCParMod
                                    AvSignCurr, IterRDMStartCurr, VecSlot, j, WalkExcitLevel)
             end if
            
-            if(tFill_RDM) then 
-                ! If tFill_RDM is true, this is an iteration where the diagonal 
-                ! RDM elements are calculated, along with the contributions from 
-                ! connections to the (true) HF determinant.
-                if (j==1) call transfer_RDM_to_TEMP()
-
-                if((abs(CurrentH(2,gen_ind)).gt.InitiatorWalkNo).or.(.not.tInitiatorRDM)) & 
-                ! If we are only using initiators to calculate the RDMs, only add in the diagonal and 
-                ! explicit contributions if the average population is greater than n_a = InitiatorWalkNo.
-                    call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, &
-                            CurrentH(1:NCurrH,gen_ind), walkExcitLevel_toHF,& 
-                            test_flag(CurrentDets(:,j), flag_deterministic), & 
-                                    IterLastRDMFill, tFinalRDMIter, .false.)  
-            endif
+            call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, SignCurr, walkExcitLevel_toHF,& 
+                                          &  test_flag(CurrentDets(:,j), flag_deterministic))  
 
         enddo ! Loop over determinants.
         IFDEBUGTHEN(FCIMCDebug,2) 
@@ -6776,14 +6729,14 @@ MODULE FciMCParMod
             IF(.not.tRegenDiagHEls) THEN
                 if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
                     ! If calculating the RDMs stochastically, need to include the average sign and the 
-                    ! iteration it became occupied in the CurrentH array (with the Hii elements).
-                    ! Need to store this for each set of walkers if we're doing a double run.
-                    ALLOCATE(WalkVecH(1+2*lenof_sign,MaxWalkersPart),stat=ierr)
-                    CALL LogMemAlloc('WalkVecH',(1+2*lenof_sign)*MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-                    WalkVecH(:,:)=0.0_dp
-                    MemoryAlloc=MemoryAlloc+8*MaxWalkersPart*(1+2*lenof_sign)
-                    WRITE(6,"(A)") " The average current signs before death will be stored for use in the RDMs."
-                    WRITE(6,"(A,F14.6,A)") " This requires ", REAL(MaxWalkersPart*8*2*lenof_sign,dp)/1048576.0_dp," Mb/Processor"
+                        ! iteration it became occupied in the CurrentH array (with the Hii elements).
+                        ! Need to store this for each set of walkers if we're doing a double run.
+                        ALLOCATE(WalkVecH(1+2*lenof_sign,MaxWalkersPart),stat=ierr)
+                        CALL LogMemAlloc('WalkVecH',(1+2*lenof_sign)*MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
+                        WalkVecH(:,:)=0.0_dp
+                        MemoryAlloc=MemoryAlloc+8*MaxWalkersPart*(1+2*lenof_sign)
+                        WRITE(6,"(A)") " The average current signs before death will be stored for use in the RDMs."
+                        WRITE(6,"(A,F14.6,A)") " This requires ", REAL(MaxWalkersPart*8*2*lenof_sign,dp)/1048576.0_dp," Mb/Processor"
                     NCurrH = 1+2*lenof_sign
                 else
                     ALLOCATE(WalkVecH(1,MaxWalkersPart),stat=ierr)

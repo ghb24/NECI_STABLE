@@ -26,7 +26,7 @@ MODULE PopsfileMod
                        tPrintPopsDefault, tIncrementPops, tPrintInitiators, &
                        tSplitPops, tZeroProjE, tRDMonFly, tExplicitAllRDM, &
                        tHF_Ref_Explicit, binarypops_min_weight, &
-                       tWriteBinRDMNoDiag, tReadRDMAvPop
+                       tReadRDMAvPop
     use sort_mod
     use util_mod, only: get_free_unit,get_unique_filename
 
@@ -1210,7 +1210,7 @@ outer_map:      do i = 0, MappingNIfD
                 Initiator_Count = 0
             end if
 
-            if(tWriteBinRDMNoDiag) then
+            if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
                 iunit_3 = get_free_unit()
                 if (tSplitPops) then
                     write(num_tmp, '(i12)') iProcIndex
@@ -1226,7 +1226,7 @@ outer_map:      do i = 0, MappingNIfD
             do j = 1, int(ndets, sizeof_int)
                 ! Count the number of written particles
                 if (write_pops_det (iunit, iunit_2, Dets(:,j), j)) then
-                    if (tWriteBinRDMNoDiag) then
+                    if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
                         write(iunit_3) CurrentH(1:1+2*lenof_sign,j)
                     endif
                     write_count = write_count + 1
@@ -1248,7 +1248,7 @@ outer_map:      do i = 0, MappingNIfD
                 call LogMemAlloc ('Parts', int(nMaxDets,int32)*(NIfTot+1), &
                                   size_n_int, this_routine, PartsTag, error)
                 
-                if(tWriteBinRDMNoDiag) then
+                if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
                     allocate(AllCurrentH(1:1+2*lenof_sign,nMaxDets),stat=error)
                     call LogMemAlloc ('AllCurrentH', int(nMaxDets,int32)*(1+2*lenof_sign), &
                                       8, this_routine, AllCurrentHTag, error)
@@ -1263,7 +1263,7 @@ outer_map:      do i = 0, MappingNIfD
                     call MPIRecv (Parts(:, 1:WalkersonNodes(i)), j, &
                                   NodeRoots(i), Tag, error)
                     
-                    if(tWriteBinRDMNoDiag) then
+                    if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
                         ! And now for CurrentH
                         j = int(WalkersonNodes(i), sizeof_int) * (1+2*lenof_sign)
                         call MPIRecv (AllCurrentH(:, 1:WalkersonNodes(i)), j, &
@@ -1273,7 +1273,7 @@ outer_map:      do i = 0, MappingNIfD
                     ! Then write it out in the same way as above.
                     do j = 1, int(WalkersonNodes(i), sizeof_int)
                         if (write_pops_det(iunit, iunit_2, Parts(:,j), j)) then
-                            if (tWriteBinRDMNoDiag) then
+                            if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
                                 write(iunit_3) AllCurrentH(1:1+2*lenof_sign,j)
                             endif
                             write_count = write_count + 1
@@ -1285,7 +1285,7 @@ outer_map:      do i = 0, MappingNIfD
                 ! Deallocate temporary storage
                 deallocate(Parts)
                 call LogMemDealloc(this_routine, PartsTag)
-                if(tWriteBinRDMNoDiag) then
+                if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
                     deallocate(AllCurrentH)
                     call LogMemDealloc(this_routine, AllCurrentHTag)
                 endif
@@ -1305,7 +1305,7 @@ outer_map:      do i = 0, MappingNIfD
             j = int(nDets, sizeof_int) * (NIfTot + 1)
             call MPISend (Dets(0:NIfTot, 1:nDets), j, root, Tag, error)
             
-            if(tWriteBinRDMNoDiag) then
+            if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
                 j = int(nDets, sizeof_int) * (1+2*lenof_sign)
                 call MPISend (CurrentH(1:1+2*lenof_sign, 1:nDets), j, root, Tag2, error)
             endif
