@@ -7,7 +7,7 @@ module tau_search
                           AB_hole_pairs, par_hole_pairs, tGen_4ind_reverse
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow
-    use FciMCData, only: tRestart, rand_excit_opp_bias, pSingles, pDoubles, &
+    use FciMCData, only: tRestart, rand_excit_par_bias, pSingles, pDoubles, &
                          ProjEDet, ilutRef
     use GenRandSymExcitNUMod, only: construct_class_counts, &
                                     init_excit_gen_store, clean_excit_gen_store
@@ -29,10 +29,10 @@ module tau_search
     integer :: cnt_sing, cnt_doub, cnt_opp, cnt_par
     integer :: n_opp, n_par
     logical :: enough_sing, enough_doub, enough_opp, enough_par
-    logical :: consider_opp_bias
+    logical :: consider_par_bias
 
     private :: gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt
-    private :: max_permitted_spawn, consider_opp_bias
+    private :: max_permitted_spawn, consider_par_bias
     private :: cnt_sing, cnt_doub, cnt_opp, cnt_par
     private :: n_opp, n_par
 
@@ -96,15 +96,15 @@ contains
         ! excitation generators, then there is only one place that this logic
         ! needs to be updated!
         if (tGen_4ind_weighted) then
-            consider_opp_bias = .true.
+            consider_par_bias = .true.
             n_opp = AB_elec_pairs
             n_par = par_elec_pairs
         else if (tGen_4ind_reverse) then
-            consider_opp_bias = .true.
+            consider_par_bias = .true.
             n_opp = AB_hole_pairs
             n_par = par_hole_pairs
         else
-            consider_opp_bias = .false.
+            consider_par_bias = .false.
         end if
 
     end subroutine
@@ -136,12 +136,13 @@ contains
             tmp_prob = prob / pDoubles
 
             ! We need to deal with the doubles
-            if (consider_opp_bias) then
+            if (consider_par_bias) then
 
                 ! In this case, distinguish between parallal and oppisite spins
                 if (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2))) then
                     tmp_prob = tmp_prob &
-                             * (n_par + rand_excit_opp_bias*n_opp) / n_par
+                             * (rand_excit_par_bias*n_par + n_opp) / &
+                               (rand_excit_par_bias*n_par)
                     tmp_gamma = abs(matel) / tmp_prob
                     if (tmp_gamma > gamma_par) &
                         gamma_par = tmp_gamma
@@ -154,8 +155,8 @@ contains
                     end if
                 else
                     tmp_prob = tmp_prob &
-                             * (n_par + rand_excit_opp_bias * n_opp) &
-                             / (rand_excit_opp_bias * n_opp)
+                             * (rand_excit_par_bias*n_par + n_opp) &
+                             / n_opp
                     tmp_gamma = abs(matel) / tmp_prob
                     if (tmp_gamma > gamma_opp) &
                         gamma_opp = tmp_gamma
@@ -198,12 +199,12 @@ contains
 
     subroutine update_tau ()
 
-        real(dp) :: psingles_new, tau_new, opp_bias_new, mpi_tmp, tau_death
+        real(dp) :: psingles_new, tau_new, par_bias_new, mpi_tmp, tau_death
         logical :: mpi_ltmp
 
         ! What needs doing depends on the number of parametrs that are being
         ! updated.
-        if (consider_opp_bias) then
+        if (consider_par_bias) then
 
             ! Considering two types of double exctitaion...
             call MPIAllReduce (gamma_sing, MPI_MAX, mpi_tmp)
@@ -217,23 +218,23 @@ contains
             call MPIAllReduce (enough_par, MPI_LOR, mpi_ltmp)
             enough_par = mpi_ltmp
 
-            opp_bias_new = gamma_opp * n_par / (gamma_par * n_opp)
-            psingles_new = gamma_sing * n_par &
-                         / (gamma_par * (n_par + n_opp * opp_bias_new) &
-                            + gamma_sing * n_par)
-            tau_new = n_par * max_permitted_spawn &
-                    / (gamma_par * (n_par + n_opp * opp_bias_new) &
-                       + gamma_sing * n_par)
+            par_bias_new = gamma_par * n_opp / (gamma_opp * n_par)
+            psingles_new = gamma_sing * n_par * par_bias_new &
+                         / (gamma_par * (n_par * par_bias_new + n_opp) &
+                            + gamma_sing * n_par * par_bias_new)
+            tau_new = n_par * max_permitted_spawn * par_bias_new &
+                    / (gamma_par * (n_par * par_bias_new + n_opp) &
+                       + gamma_sing * n_par * par_bias_new)
 
             ! We only want to update the opposite spins bias here, as we only
             ! consider it here!
             if (enough_opp .and. enough_par) then
-                if (abs(rand_excit_opp_bias - opp_bias_new) &
-                       / rand_excit_opp_bias > 0.0001) then
+                if (abs(rand_excit_par_bias - par_bias_new) &
+                       / rand_excit_par_bias > 0.0001) then
                     root_print "Updating opposite-spin bias; new bias = ", &
-                        opp_bias_new
+                        par_bias_new
                 end if
-                rand_excit_opp_bias = opp_bias_new
+                rand_excit_par_bias = par_bias_new
             end if
 
         else
