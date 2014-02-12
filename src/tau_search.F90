@@ -91,7 +91,7 @@ contains
                          &limit spawning probability to", max_permitted_spawn
         end if
 
-        ! Are we considering opposite-spin bias in the doubles?
+        ! Are we considering parallel-spin bias in the doubles?
         ! Do this logic here, so that if we add opposite spin bias to more
         ! excitation generators, then there is only one place that this logic
         ! needs to be updated!
@@ -231,7 +231,7 @@ contains
             if (enough_opp .and. enough_par) then
                 if (abs(rand_excit_par_bias - par_bias_new) &
                        / rand_excit_par_bias > 0.0001) then
-                    root_print "Updating opposite-spin bias; new bias = ", &
+                    root_print "Updating parallel-spin bias; new bias = ", &
                         par_bias_new
                 end if
                 rand_excit_par_bias = par_bias_new
