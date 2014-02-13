@@ -504,7 +504,7 @@ MODULE FciMCData
       integer(n_int), allocatable, dimension(:,:) :: davidson_iluts
       type(direct_ci_excit), allocatable, dimension(:) :: davidson_excits
 
-      real(dp) :: rand_excit_opp_bias
-      logical :: tSpecifyOppBias
+      real(dp) :: rand_excit_par_bias
+      logical :: tSpecifyParBias
 
 END MODULE FciMCData

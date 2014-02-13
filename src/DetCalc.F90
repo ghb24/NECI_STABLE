@@ -4,7 +4,7 @@
 #include "macros.h"
 MODULE DetCalc
         use constants, only: dp,n_int
-        use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+        use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tStoreSpinOrbs
         use sort_mod
         use DetCalcData
         use MemoryManager, only: TagIntType
@@ -81,10 +81,15 @@ CONTAINS
       ! If we want to have UMat2D, and it isn't yet filled in, generate it
       ! here. All of the integrals setup/freezing etc is done...
       if (tDeferred_Umat2d .and. .not. tUMat2D) then
+
           ASSERT(.not. btest(nbasis, 0))
 
-          ! This storage is in spatial, not spin, orbitals
-          norb = nbasis / 2
+          ! Is the storage in spin, or spatial, orbitals?
+          if (tStoreSpinOrbs) then
+              norb = nbasis
+          else
+              norb = nbasis / 2
+          end if
 
           ! Allocate the storage
           allocate(umat2d(norb, norb), stat=ierr)

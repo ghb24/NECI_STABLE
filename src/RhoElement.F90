@@ -21,7 +21,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
       INTEGER I_P,NTAY(2),NEL,NBASIS
       INTEGER NI(NEL),NJ(NEL),NMAX,IC,IC2
       real(dp) BETA,ECORE
-      LOGICAL LSAME      
+      LOGICAL tSameD      
       INTEGER NMSH,IGETEXCITLEVEL
       type(timer), save :: proc_timer
       TYPE(BasisFN) G1(*)
@@ -52,9 +52,9 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
       UEXP=0.0_dp
       IF(IC.LT.0)   IC=IGETEXCITLEVEL(NI,NJ,NEL)
       IF(IC.EQ.0) THEN
-         LSAME=.TRUE.
+         tSAMED=.TRUE.
       ELSE
-         LSAME=.FALSE.
+         tSAMED=.FALSE.
       ENDIF
           
       IF(tStoreAsExcitations.AND.nI(1).eq.-1.AND.nJ(1).eq.-1) THEN
@@ -62,7 +62,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
          IF(NTAY(2).NE.3) STOP "Store as Excitations only works for Fock-Partition-Lowdiag"
 !Partition with Trotter with H(0) having just the Fock Operators
 !Fock-Partition-Lowdiag
-         IF(LSAME) THEN
+         IF(tSAMED) THEN
             call GetH0Element(nJ,nEl,nMax,nBasis,ECore,EDiag)
             EDiag=EDiag+(E0HFDET)
             RH=EXP(-B*EDiag)
@@ -82,7 +82,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
       IF(NTAY(2).EQ.1) THEN
 !Diag-Partition
 !Partition with Trotter using H(0) containing the complete diagonal
-         IF(LSAME) THEN
+         IF(tSAMED) THEN
             UExp=UExp+(1.0_dp)
          ELSE
 !.. Now do the first order term, which only exists for non-diag
@@ -97,7 +97,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
          RH=EXP((-BETA/I_P)*hE)*UExp
       ELSEIF(NTAY(2).EQ.2) THEN
 !Partition with Trotter with H(0) having just the Fock Operators
-         IF(LSAME) THEN
+         IF(tSAMED) THEN
             call GetH0Element(nI,nEl,nMax,nBasis,ECore,EDiag)
             UExp=1.0_dp
 !Fock-Partition
@@ -114,7 +114,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
       ELSEIF(NTAY(2).EQ.3) THEN
 !Partition with Trotter with H(0) having just the Fock Operators
 !Fock-Partition-Lowdiag
-         IF(LSAME) THEN
+         IF(tSAMED) THEN
             call GetH0Element(nI,nEl,nMax,nBasis,ECore,EDiag)
             RH=EXP(-B*EDiag)
          ELSE
@@ -127,7 +127,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
          ENDIF
       ELSEIF(NTAY(2).EQ.4) THEN
 !         Do a simple Taylor expansion on the whole lot
-         IF(LSAME) THEN
+         IF(tSAMED) THEN
             UEXP=1.0_dp
          ELSE
             UEXP=0.0_dp
@@ -137,7 +137,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
 !Fock-Partition-DCCorrect-LowDiag
 !Partition with Trotter with H(0) having just the Fock Operators.  Taylor diagonal to zeroeth order, and off-diag to 1st.
 ! Instead of 
-         IF(LSAME) THEN
+         IF(tSAMED) THEN
             call GetH0ElementDCCorr(nUHFDet,nI,nEl,G1,nBasis,NMAX,ECore,EDiag)
             RH=EXP(-B*EDiag)
          ELSE

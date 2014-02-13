@@ -263,12 +263,14 @@ contains
         real(dp) :: Hii_shift
         integer :: i, j
 
+        write(6,'(a56)') "Recalculating diagonal elements of the core Hamiltonian."
+
         Hii_shift = old_Hii - new_Hii
 
         if (tSparseCoreHamil) then
             do i = 1, determ_proc_sizes(iProcIndex)
                 do j = 1, sparse_core_ham(i)%num_elements
-                    if (sparse_core_ham(i)%positions(j) == i) then
+                    if (sparse_core_ham(i)%positions(j) == i + determ_proc_indices(iProcIndex)) then
                         sparse_core_ham(i)%elements(j) = sparse_core_ham(i)%elements(j) + Hii_shift
                     end if
                 end do

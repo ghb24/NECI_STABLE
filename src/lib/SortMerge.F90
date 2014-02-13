@@ -22,7 +22,7 @@
         USE FciMCParMOD , only : Hii,CurrentDets,CurrentH
         use FciMCData , only : tFillingStochRDMonFly, InstNoatHF, ntrial_occ, &
                                ncon_occ, occ_trial_amps, occ_con_amps, &
-                               trial_temp, con_temp, tTrialHash
+                               trial_temp, con_temp, tTrialHash, iLutHF_True
         use SystemData, only: nel, tHPHF,tMomInv
         use bit_rep_data, only: extract_sign, flag_trial, flag_connected
         use bit_reps, only: NIfTot, NIfDBO, decode_bit_det, test_flag
@@ -139,8 +139,7 @@
            endif
            HDiag=(REAL(HDiagTemp,dp))-Hii
            CurrentH(1,ips+i-1)=HDiag
-           if(HDiag.eq.0.0_dp) &
-               call extract_sign(CurrentDets(:,ips+i-1),InstNoatHF)
+           if(DetBitEQ(CurrentDets(:,ips+i-1),iLutHF_True,NIfDBO)) call extract_sign(CurrentDets(:,ips+i-1),InstNoatHF)
            if(tFillingStochRDMonFly) CurrentH(2:3,ips+i-1) = 0.0_dp
 ! Next element to be inserted must be smaller than DetCurr, so must be inserted
 ! at (at most) at ips-1.
