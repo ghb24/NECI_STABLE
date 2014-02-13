@@ -2430,7 +2430,7 @@ MODULE FciMCParMod
                 rat = rat - ndie(i)
 
                 ! Choose to die or not stochastically
-                if(i.eq.1) r = genrand_real2_dSFMT() 
+                r = genrand_real2_dSFMT() 
                 if (abs(rat) > r) ndie(i) = ndie(i) + real(nint(sign(1.0_dp, rat)), dp)
             enddo
         endif
