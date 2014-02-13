@@ -11,7 +11,7 @@ module excit_gens_int_weighted
                                pDoubNew, ScratchSize
     use sym_general_mod, only: ClassCountInd, ClassCountInv, class_count_ms
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, &
-                         rand_excit_opp_bias
+                         rand_excit_par_bias
     use dSFMT_interface, only: genrand_real2_dSFMT
     use Determinants, only: get_helement, write_det
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt
@@ -250,17 +250,16 @@ contains
 
             ! We want to select a pair of electrons in a way which is biased
             ! towards pairs with opposing spins. This takes a simple form.
-            ntot = AA_elec_pairs + BB_elec_pairs + &
-                   AB_elec_pairs * rand_excit_opp_bias
+            ntot = par_elec_pairs * rand_excit_par_bias + AB_elec_pairs
             if (is_alpha(ex(1,1)) .eqv. is_alpha(ex(1,2))) then
-                pgen = pgen / ntot
+                pgen = pgen * rand_excit_par_bias / ntot
                 if (is_alpha(ex(1,1))) then
                     iSpn = 3
                 else
                     iSpn = 1
                 end if
             else
-                pgen = pgen * rand_excit_opp_bias / ntot
+                pgen = pgen / ntot
                 iSpn = 2
             end if
 
@@ -634,8 +633,7 @@ contains
         integer :: al_req, be_req, al_num(2), be_num(2), elecs_found, i, idx
         integer :: al_count, be_count
 
-        ntot = AA_elec_pairs + BB_elec_pairs &
-              + AB_elec_pairs * rand_excit_opp_bias
+        ntot = par_elec_pairs * rand_excit_par_bias + AB_elec_pairs
 
         ! The overall generation probability for this section is remarkably
         ! simple!
@@ -645,25 +643,28 @@ contains
         ! Select them according to the availability of pairs (and the
         ! weighting of opposite-spin pairs relative to same-spin ones).
         r = genrand_real2_dSFMT() * ntot
-        if (r < AA_elec_pairs) then
+        if (r < AA_elec_pairs * rand_excit_par_bias) then
             al_req = 2
             be_req = 0
-            idx = floor(r)
+            pgen = pgen * rand_excit_par_bias
+            idx = floor(r / rand_excit_par_bias)
             al_num(1) = ceiling((1 + sqrt(9 + 8*real(idx, dp))) / 2)
             al_num(2) = idx + 1 - ((al_num(1) - 1) * (al_num(1) - 2)) / 2
             iSpn = 3
-        else if (r < par_elec_pairs) then
+        else if (r < par_elec_pairs * rand_excit_par_bias) then
             al_req = 0
             be_req = 2
-            idx = floor(r - AA_elec_pairs)
+            pgen = pgen * rand_excit_par_bias
+            idx = floor((r - AA_elec_pairs * rand_excit_par_bias) / &
+                         rand_excit_par_bias)
             be_num(1) = ceiling((1 + sqrt(9 + 8*real(idx, dp))) / 2)
             be_num(2) = idx + 1 - ((be_num(1) - 1) * (be_num(1) - 2)) / 2
             iSpn = 1
         else
             al_req = 1
             be_req = 1
-            pgen = pgen * rand_excit_opp_bias
-            idx = floor((r - par_elec_pairs) / rand_excit_opp_bias)
+            pgen = pgen
+            idx = floor(r - par_elec_pairs * rand_excit_par_bias)
             al_num(1) = 1 + mod(idx, nOccAlpha)
             be_num(1) = 1 + floor(idx / real(nOccAlpha,dp))
             iSpn = 2
@@ -972,16 +973,16 @@ contains
 
             ! We want to select a pair of orbitals in a way which is biased
             ! towards pairs with opposing spins. This takes a simple form.
-            ntot = par_hole_pairs + AB_hole_pairs * rand_excit_opp_bias
+            ntot = par_hole_pairs * rand_excit_par_bias + AB_hole_pairs
             if (is_alpha(ex(2,1)) .eqv. is_alpha(ex(2,2))) then
-                pgen = pgen / ntot
+                pgen = pgen * rand_excit_par_bias / ntot
                 if (is_alpha(ex(2,1))) then
                     iSpn = 3
                 else
                     iSpn = 1
                 end if
             else
-                pgen = pgen * rand_excit_opp_bias / ntot
+                pgen = pgen / ntot
                 iSpn = 2
             end if
 
@@ -1280,7 +1281,7 @@ contains
         ! This is a biased version of pick_hole_pair below. Whereas the
         ! other function picks hole pairs entirely uniformly throughout the
         ! space, this function biases that selection towards picking opposite
-        ! spin pairs (according to the biasing factor rand_excit_opp_bias).
+        ! spin pairs (according to the biasing factor rand_excit_par_bias).
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(out) :: orbs(2), sym_prod, ispn
@@ -1290,7 +1291,7 @@ contains
         real(dp) :: ntot, r
         integer :: spn(2)
 
-        ntot = par_hole_pairs + AB_hole_pairs * rand_excit_opp_bias
+        ntot = par_hole_pairs * rand_excit_par_bias + AB_hole_pairs
 
         ! The overall generation probability is remarkably simple!
         pgen = 1.0_dp / ntot
@@ -1301,10 +1302,12 @@ contains
             ! alpha/alpha
             iSpn = 3
             spn = (/1, 1/)
+            pgen = pgen * rand_excit_par_bias
         else if (r < par_hole_pairs) then
             ! beta/beta
             iSpn = 1
             spn = (/2, 2/)
+            pgen = pgen * rand_excit_par_bias
         else
             ! alpha/beta
             iSpn = 2
@@ -1312,7 +1315,6 @@ contains
 
             ! We need to adjust the generation probability to account for the
             ! selection bias
-            pgen = pgen * rand_excit_opp_bias
         end if
 
         ! Select orbitals at random with the given spins

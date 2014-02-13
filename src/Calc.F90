@@ -29,7 +29,7 @@ MODULE Calc
     use FciMCData, only: proje_update_comb,proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
                          InputDiagSft,tSearchTau,proje_spatial,nWalkerHashes,tHashWalkerList,HashLengthFrac, &
                          tTrialHash, tIncCancelledInitEnergy, tStartCoreGroundState, &
-                         rand_excit_opp_bias, tSpecifyOppBias
+                         rand_excit_par_bias, tSpecifyParBias
     use semi_stoch_gen, only: core_ras
 
     implicit none
@@ -333,8 +333,8 @@ contains
           tLowETrialAllDoubles = .false.
           tTrialAmplitudeCutoff = .false.
 
-          rand_excit_opp_bias = 1.0
-          tSpecifyOppBias = .false.
+          rand_excit_par_bias = 1.0
+          tSpecifyParBias = .false.
 
       
         end subroutine SetCalcDefaults
@@ -1774,8 +1774,8 @@ contains
 
             case("OPP-SPIN-BIAS")
                 ! What should the bias in favour of opposite spins be?
-                tSpecifyOppBias = .true.
-                call getf(rand_excit_opp_bias)
+                tSpecifyParBias = .true.
+                call getf(rand_excit_par_bias)
 
             case default
                 call report("Keyword "                                &

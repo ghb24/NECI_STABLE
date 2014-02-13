@@ -2947,7 +2947,7 @@ end subroutine
 
 SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
       use PopsfileMod
-      real(dp) ::  dNorm, read_psingles, read_opp_bias
+      real(dp) ::  dNorm, read_psingles, read_par_bias
       INTEGER :: ierr,iunithead
       LOGICAL :: formpops,binpops
       INTEGER :: PopsVersion,WalkerListSize
@@ -2983,13 +2983,13 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
              call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                    iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,&
-                   PopBlockingIter, read_psingles, read_opp_bias)
+                   PopBlockingIter, read_psingles, read_par_bias)
          endif
 
          call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau, &
-               PopBlockingIter, read_psingles, read_opp_bias)
+               PopBlockingIter, read_psingles, read_par_bias)
 
          if(iProcIndex.eq.root) close(iunithead)
          tmp_dp = CurrParts
