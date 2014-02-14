@@ -1,7 +1,7 @@
 #include "macros.h"
-
+ 
 module stoch_lanczos_procs
-
+ 
     use AnnihilationMod, only: SendProcNewParts, CompressSpawnedList
     use bit_rep_data
     use bit_reps, only: decode_bit_det
@@ -16,7 +16,7 @@ module stoch_lanczos_procs
     use FciMCData, only: tPopsAlreadyRead, tHashWalkerList, CurrentH, determ_proc_sizes
     use FciMCData, only: core_ham_diag, InputDiagSft, Hii, max_spawned_ind, SpawnedPartsLanc
     use FciMCData, only: partial_determ_vector, full_determ_vector, determ_proc_indices, HFSym
-    use FciMCData, only: TotParts, TotPartsOld, AllTotParts, AllTotPartsOld
+    use FciMCData, only: TotParts, TotPartsOld, AllTotParts, AllTotPartsOld, iter
     use FciMCParMod, only: create_particle, InitFCIMC_HF, SetupParameters, InitFCIMCCalcPar
     use FciMCParMod, only: init_fcimc_fn_pointers, WriteFciMCStats, WriteFciMCStatsHeader
     use FciMCParMod, only: rezero_iter_stats_each_iter, tSinglePartPhase
@@ -52,6 +52,11 @@ module stoch_lanczos_procs
         ! The number of iterations to perform *between each Lanczos vector being
         ! sampled*.
         integer :: niters
+        ! For finite-temperature calculations, when creating the inital vector,
+        ! This variable specifies how many walkers should be added to each
+        ! chosen site.
+        real(dp) :: nwalkers_per_site_init
+
         real(dp), allocatable :: overlap_matrix_1(:,:), overlap_matrix_2(:,:)
         real(dp), allocatable :: hamil_matrix_1(:,:), hamil_matrix_2(:,:)
     end type
@@ -82,6 +87,7 @@ contains
         lanczos%nrepeats = 1
         lanczos%nvecs = 1
         lanczos%niters = 1
+        lanczos%nwalkers_per_site_init = 1.0_dp
         lanczos%tGround = .false.
         lanczos%tFiniteTemp = .false.
 
@@ -106,6 +112,8 @@ contains
                 call geti(lanczos%nvecs)
             case("NUM-ITERS-BETWEEN-VECS")
                 call geti(lanczos%niters)
+            case("NUM-WALKERS-PER-SITE-INIT")
+                call getf(lanczos%nwalkers_per_site_init)
             case default
                 call report("Keyword "//trim(w)//" not recognized in stoch-lanczos block", .true.)
             end select
@@ -131,7 +139,6 @@ contains
         call init_fcimc_fn_pointers() 
 
         call WriteFciMCStatsHeader()
-        call WriteFCIMCStats()
 
         if (n_int == 4) call stop_all('t_r', 'Use of RealCoefficients does not work with 32 bit &
              &integers due to the use of the transfer operation from dp reals to 64 bit integers.')
@@ -176,6 +183,7 @@ contains
         lanczos%hamil_matrix_1 = 0.0_dp
         lanczos%hamil_matrix_2 = 0.0_dp
         TotWalkersLanczos = 0
+        iter = 0
 
         DiagSft = InputDiagSft
         ! Setting this variable to true stops the shift from varying instantly.
@@ -207,7 +215,7 @@ contains
 
     subroutine create_initial_config(lanczos, irepeat)
 
-        type(stoch_lanczos_data), intent(in) :: lanczos
+        type(stoch_lanczos_data), intent(inout) :: lanczos
         integer, intent(in) :: irepeat
         integer :: DetHash, i, nwalkers, nwalkers_target
 
@@ -236,7 +244,7 @@ contains
                     nwalkers_target = int(InitWalkers)
                 end if
                 ! Finally, call the routine to create the walker distribution.
-                call generate_init_config_basic(nwalkers_target, nwalkers)
+                call generate_init_config_basic(nwalkers_target, lanczos%nwalkers_per_site_init, nwalkers)
                 TotWalkersInit = TotWalkers
                 TotPartsInit = TotParts
                 AllTotPartsInit = AllTotParts
@@ -257,13 +265,15 @@ contains
 
     end subroutine create_initial_config
 
-    subroutine generate_init_config_basic(nwalkers, ndets)
+    subroutine generate_init_config_basic(nwalkers, nwalkers_per_site_init, ndets)
 
         ! This routine will distribute nwalkers walkers uniformly across all possible determinants.
 
         integer, intent(in) :: nwalkers
+        real(dp) :: nwalkers_per_site_init
         integer, intent(out) :: ndets
         integer :: i, ireplica, excit, nattempts, DetHash
+        integer :: nspawns
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel)
         real(dp) :: r, walker_amp, walker_sign(lenof_sign)
@@ -279,8 +289,9 @@ contains
         ValidSpawnedList = InitialSpawnedSlots
 
         ilut = 0_n_int
+        nspawns = ceiling(real(nwalkers,dp)/nwalkers_per_site_init)
 
-        do i = 1, nwalkers
+        do i = 1, nspawns
             ! Generate the determinant (output to ilut).
             if (tHeisenberg) then
                 call create_rand_heisenberg_det(ilut)
@@ -289,9 +300,9 @@ contains
             end if
             call decode_bit_det(nI, ilut)
 
-            ! Choose whether the walker to be added has an amplitude of plus or minus one, with
-            ! 0.5 chance of each.
-            walker_amp = 1.0_dp
+            ! Choose whether the walker should have a positive or negative amplitude, with
+            ! 50% chance of each.
+            walker_amp = nwalkers_per_site_init
             r = genrand_real2_dSFMT()
             if (r < 0.5) walker_amp = -1.0_dp*walker_amp
 

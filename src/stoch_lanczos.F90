@@ -18,7 +18,7 @@ contains
         use DetBitOps, only: FindBitExcitLevel
         use FciMCData, only: fcimc_excit_gen_store, FreeSlot, iStartFreeSlot, iEndFreeSlot
         use FciMCData, only: TotWalkers, CurrentDets, CurrentH, iLutRef, max_calc_ex_level
-        use FciMCData, only: iter_data_fciqmc, TotParts, NCurrH, exFlag, Iter
+        use FciMCData, only: iter_data_fciqmc, TotParts, NCurrH, exFlag, iter
         use FciMCData, only: indices_of_determ_states, partial_determ_vector
         use FciMCParMod, only: create_particle, CalcParentFlag, decide_num_to_spawn
         use FciMCParMod, only: calculate_new_shift_wrapper, walker_death, end_iter_stats
@@ -50,11 +50,12 @@ contains
 
         call init_stoch_lanczos(lanczos)
 
-        whole_loop: do iconfig = 1, lanczos%nconfigs
+        outer_loop: do iconfig = 1, lanczos%nconfigs
 
             do irepeat = 1, lanczos%nrepeats
 
                 call init_stoch_lanczos_repeat(lanczos, irepeat)
+                call WriteFCIMCStats()
 
                 do ivec = 1, lanczos%nvecs
 
@@ -207,7 +208,7 @@ contains
                             call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)
                             if (tWritePopsFound) call WriteToPopsfileParOneArr(CurrentDets, TotWalkers)
                             if (tSingBiasChange) call CalcApproxpDoubles()
-                            if (tSoftExitFound) exit whole_loop
+                            if (tSoftExitFound) exit outer_loop
                         end if
 
                     end do ! Over all iterations between Lanczos vectors.
@@ -221,7 +222,7 @@ contains
 
             end do ! Over all repeats for a given walker configuration.
 
-        end do whole_loop ! Over all initial walker configurations.
+        end do outer_loop ! Over all initial walker configurations.
 
         if (tPopsFile) call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
 
