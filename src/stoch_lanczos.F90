@@ -13,7 +13,7 @@ contains
         use bit_rep_data, only: NIfTot, NOffFlag, tUseFlags, test_flag
         use bit_reps, only: flag_deterministic, flag_determ_parent, set_flag
         use bit_reps, only: extract_bit_rep
-        use CalcData, only: AvMCExcits, tSemiStochastic, tTruncInitiator
+        use CalcData, only: AvMCExcits, tSemiStochastic, tTruncInitiator, StepsSft
         use constants
         use DetBitOps, only: FindBitExcitLevel
         use FciMCData, only: fcimc_excit_gen_store, FreeSlot, iStartFreeSlot, iEndFreeSlot
@@ -22,10 +22,13 @@ contains
         use FciMCData, only: indices_of_determ_states, partial_determ_vector
         use FciMCParMod, only: create_particle, CalcParentFlag, decide_num_to_spawn
         use FciMCParMod, only: calculate_new_shift_wrapper, walker_death, end_iter_stats
-        use FciMCParMod, only: update_iter_data
+        use FciMCParMod, only: update_iter_data, CalcApproxpDoubles
+        use LoggingData, only: tPopsFile
+        use PopsFileMod, only: WriteToPopsFileParOneArr
         use procedure_pointers, only: generate_excitation, attempt_create, encode_child
         use procedure_pointers, only: new_child_stats, extract_bit_rep_avsign
         use semi_stoch_procs, only: is_core_state, check_determ_flag, deterministic_projection
+        use soft_exit, only: ChangeVars
         use SystemData, only: nel
         
         type(stoch_lanczos_data), intent(inout) :: lanczos
@@ -39,7 +42,7 @@ contains
         real(dp), dimension(lenof_sign) :: child_sign, parent_sign
         real(dp), dimension(lenof_sign) :: unused_sign1, unused_sign2
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
-        logical :: tParity
+        logical :: tParity, tSoftExitFound, tSingBiasChange, tWritePopsFound
         HElement_t :: HElGen
 
         integer(n_int) :: int_sign(lenof_sign*lanczos%nvecs)
@@ -47,7 +50,7 @@ contains
 
         call init_stoch_lanczos(lanczos)
 
-        do iconfig = 1, lanczos%nconfigs
+        whole_loop: do iconfig = 1, lanczos%nconfigs
 
             do irepeat = 1, lanczos%nrepeats
 
@@ -199,7 +202,13 @@ contains
 
                         call update_iter_data(iter_data_fciqmc)
 
-                        call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts)
+                        if (mod(iter, StepsSft) == 0) then
+                            call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts)
+                            call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)
+                            if (tWritePopsFound) call WriteToPopsfileParOneArr(CurrentDets, TotWalkers)
+                            if (tSingBiasChange) call CalcApproxpDoubles()
+                            if (tSoftExitFound) exit whole_loop
+                        end if
 
                     end do ! Over all iterations between Lanczos vectors.
 
@@ -212,7 +221,9 @@ contains
 
             end do ! Over all repeats for a given walker configuration.
 
-        end do ! Over all initial walker configurations.
+        end do whole_loop ! Over all initial walker configurations.
+
+        if (tPopsFile) call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
 
     end subroutine perform_stochastic_lanczos
 

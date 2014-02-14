@@ -77,7 +77,7 @@ contains
         logical :: eof
         character(len=100) :: w
 
-       ! Default values.
+        ! Default values.
         lanczos%nconfigs = 1
         lanczos%nrepeats = 1
         lanczos%nvecs = 1
