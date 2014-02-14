@@ -9,7 +9,8 @@ module excit_gens_int_weighted
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
                                pDoubNew, ScratchSize
-    use sym_general_mod, only: ClassCountInd, ClassCountInv, class_count_ms
+    use sym_general_mod, only: ClassCountInd, ClassCountInv, class_count_ms, &
+                               class_count_ml
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, &
                          rand_excit_par_bias
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -267,8 +268,10 @@ contains
             sym_product = RandExcitSymLabelProd(int(G1(ex(1,1))%Sym%S), &
                                                 int(G1(ex(1,2))%Sym%S))
             sum_ml = sum(G1(ex(1,:))%Ml)
-            cc_i = ClassCountInd(get_spin(ex(2,1)), G1(ex(2,1))%Sym%S, 0)
-            cc_j = ClassCountInd(get_spin(ex(2,2)), G1(ex(2,2))%Sym%S, 0)
+            cc_i = ClassCountInd(get_spin(ex(2,1)), G1(ex(2,1))%Sym%S, &
+                                 G1(ex(2,1))%Ml)
+            cc_j = ClassCountInd(get_spin(ex(2,2)), G1(ex(2,2))%Sym%S, &
+                                 G1(ex(2,2))%Ml)
             cc_i_final = min(cc_i, cc_j)
             cc_j_final = max(cc_i, cc_j)
             cum_sum = 0
@@ -337,6 +340,7 @@ contains
         integer, intent(in) :: cc_ind, sym_product, iSpn, sum_ml
         integer :: cc_ret
         integer :: sym_i, sym_j, spn_i, spn_j, mom_i, mom_j
+        character(*), parameter :: this_routine = 'get_paired_cc_ind'
 
         ! Get the relevant details about the class count index
         call ClassCountInv (cc_ind, sym_i, spn_i, mom_i)
@@ -369,6 +373,15 @@ contains
 
         ! Get the new index
         cc_ret = ClassCountInd (spn_j, sym_j, mom_j)
+
+#ifdef __DEBUG
+        if (cc_ret /= -1) then
+            if (class_count_ml(cc_ind) /= mom_i) &
+                call stop_all(this_routine, 'wrong_mom_i')
+            if (class_count_ml(cc_ret) /= mom_j) &
+                call stop_all(this_routine, 'wrong_mom_j')
+        end if
+#endif
 
     end function
 
@@ -590,6 +603,13 @@ contains
             end if
             cc_cum(cc_i) = cc_tot
         end do
+
+        ! If there are no excitation from this electron pair, then we should
+        ! go no further.
+        if (cc_tot == 0) then
+            nJ(1) = 0
+            return
+        end if
     
         ! Pick a specific pairing of spin-symmetries
         r = genrand_real2_dSFMT() * cc_tot
