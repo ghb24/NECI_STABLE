@@ -74,6 +74,7 @@ MODULE System
       THUB=.false.
       TUEG=.false.
       tUEG2=.false.
+      tHeisenberg = .false.
       tLatticeGens =.false.
       tNoFailAb=.false.
       LMS=0
@@ -890,6 +891,8 @@ system: do
             !We have complex orbitals, but real integrals. This means that we only have 4x permutational symmetry,
             !so we need to check the (momentum) symmetry before we look up any integrals
             tComplexOrbs_RealInts = .true.
+          case("HEISENBERG")
+              tHeisenberg = .true.
         case("ENDSYS") 
             exit system
         case default

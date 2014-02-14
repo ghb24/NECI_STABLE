@@ -22,7 +22,7 @@ module stoch_lanczos_procs
     use FciMCParMod, only: rezero_iter_stats_each_iter, tSinglePartPhase
     use gndts_mod, only: gndts
     use hash, only: FindWalkerHash, init_hash_table, reset_hash_table, fill_in_hash_table
-    use hilbert_space_size, only: CreateRandomExcitLevDetUnbias
+    use hilbert_space_size, only: CreateRandomExcitLevDetUnbias, create_rand_heisenberg_det
     use Parallel_neci, only: MPIBarrier, iProcIndex, MPISum, MPIReduce
     use ParallelHelper, only: root
     use procedure_pointers
@@ -30,7 +30,7 @@ module stoch_lanczos_procs
     use semi_stoch_procs, only: add_core_states_currentdet_hash, start_walkers_from_core_ground
     use sym_mod, only: getsym
     use SystemData, only: nel, nbasis, BRR, nBasisMax, G1, tSpn, lms, tParity, SymRestrict
-    use SystemData, only: BasisFn
+    use SystemData, only: BasisFn, tHeisenberg
     use util_mod, only: get_free_unit
 
     implicit none
@@ -266,7 +266,7 @@ contains
         integer :: i, ireplica, excit, nattempts, DetHash
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel)
-        real(dp) :: r, walker_sign(lenof_sign)
+        real(dp) :: r, walker_amp, walker_sign(lenof_sign)
         logical :: tInitiatorTemp
         type(fcimc_iter_data) :: unused_data
         integer(n_int), pointer :: PointTemp(:,:)
@@ -280,21 +280,25 @@ contains
 
         ilut = 0_n_int
 
-        do ireplica = 1, inum_runs
-            walker_sign = 0.0_dp
-            do i = 1, nwalkers
-                ! Generate the determinant (output to ilut).
+        do i = 1, nwalkers
+            ! Generate the determinant (output to ilut).
+            if (tHeisenberg) then
+                call create_rand_heisenberg_det(ilut)
+            else
                 call CreateRandomExcitLevDetUnbias(nel, HFDet, ilutHF, ilut, excit, nattempts)
-                call decode_bit_det(nI, ilut)
+            end if
+            call decode_bit_det(nI, ilut)
 
-                ! Choose whether the walker to be added has an amplitude of plus or minus one, with
-                ! 0.5 chance of each.
-                walker_sign(ireplica) = 1.0_dp
-                r = genrand_real2_dSFMT()
-                if (r < 0.5) walker_sign(ireplica) = -1.0_dp*walker_sign(ireplica)
+            ! Choose whether the walker to be added has an amplitude of plus or minus one, with
+            ! 0.5 chance of each.
+            walker_amp = 1.0_dp
+            r = genrand_real2_dSFMT()
+            if (r < 0.5) walker_amp = -1.0_dp*walker_amp
 
+            do ireplica = 1, inum_runs
+                walker_sign = 0.0_dp
+                walker_sign(ireplica) = walker_amp
                 call create_particle(nI, ilut, walker_sign, 0, ireplica)
-
             end do
         end do
 
@@ -313,7 +317,7 @@ contains
         TotParts = 0.0_dp
         do i = 1, ndets
             CurrentDets(:,i) = SpawnedParts(:,i)
-            walker_sign = transfer(CurrentDets(NOffSgn:NOffSgn+lenof_sign, i), walker_sign)
+            walker_sign = transfer(CurrentDets(NOffSgn:NOffSgn+lenof_sign-1, i), walker_sign)
             TotParts = TotParts + abs(walker_sign)
         end do
         TotPartsOld = TotParts
@@ -323,12 +327,14 @@ contains
 
         call MPIReduce(TotParts, MPI_SUM, AllTotParts)
         AllTotPartsOld = AllTotParts
-
-        ! Always need the core determinants to be at the top of CurrentDets, even when unoccupied.
-        ! These routines will do this.
         TotWalkers = int(ndets, int64)
-        call copy_core_dets_this_proc_to_spawnedparts()
-        call add_core_states_currentdet_hash()
+
+        if (tSemiStochastic) then
+            ! Always need the core determinants to be at the top of CurrentDets, even when unoccupied.
+            ! These routines will do this.
+            call copy_core_dets_this_proc_to_spawnedparts()
+            call add_core_states_currentdet_hash()
+        end if
 
         ValidSpawnedList = InitialSpawnedSlots
         SpawnedParts = 0_n_int

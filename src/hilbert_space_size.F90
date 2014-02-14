@@ -191,6 +191,54 @@ contains
 
      END SUBROUTINE CreateRandomExcitLevDetUnbias
 
+    subroutine create_rand_heisenberg_det(ilut)
+
+        use bit_rep_data, only: NIfTot
+        use DetBitOps, only: EncodeBitDet
+        USE dSFMT_interface , only : genrand_real2_dSFMT
+        use SystemData, only: nbasis, lms
+
+        integer(n_int), intent(out) :: ilut(0:NIfTot)
+        integer :: i, nsites, n_up, n_flipped, site_ind, bit_ind, pos
+        integer :: beta_ind, alpha_ind
+        real(dp) :: r
+        logical :: is_alpha, is_beta
+
+        ! Start from all spins down and pick random spins to flip up.
+        ilut = 0_n_int
+        n_flipped = 0
+
+        nsites = nbasis/2
+        n_up = (lms + nsites)/2
+
+        do
+            r = genrand_real2_dSFMT()
+            site_ind = int(r*nsites) + 1
+            bit_ind = 2*site_ind
+            pos = (bit_ind - 1)/bits_n_int
+            ! If this spin has already been flipped.
+            if (btest(ilut(pos), mod(bit_ind-1, bits_n_int))) cycle
+            ! Flip the spin up.
+            ilut(pos) = ibset(ilut(pos), mod(bit_ind-1, bits_n_int))
+            n_flipped = n_flipped + 1
+            if (n_flipped == n_up) exit
+        end do
+
+        do i = 1, nsites
+            ! If both alpha and beta bits are down, set the beta one up, to
+            ! represent a down spin.
+            beta_ind = 2*i-1 
+            alpha_ind = 2*i
+            pos = (alpha_ind - 1)/bits_n_int
+            is_alpha = btest(ilut(pos), mod(alpha_ind-1, bits_n_int))
+            is_beta = btest(ilut(pos), mod(beta_ind-1, bits_n_int))
+            if ((.not. is_alpha) .and. (.not. is_beta)) then
+                ilut(pos) = ibset(ilut(pos), mod(beta_ind-1, bits_n_int))
+            end if
+        end do
+
+    end subroutine create_rand_heisenberg_det
+
 !Create stochastically a random symmetry-allowed determinant from excitation level iExcitLevTest or less, with respect to i
 !the bit representation determinant iLutFDet, which is passed in.
 !The determinant is returned in bit-form in iLut, and the excitation level of the determinant in ExcitLev.
