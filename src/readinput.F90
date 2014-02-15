@@ -430,7 +430,7 @@ MODULE ReadInput_neci
             ! We want to use UMAT2D...
             tDeferred_Umat2d = .true.
 
-            if (tFixLz .or. tCSF) &
+            if (tCSF) &
                 call stop_all (t_r, 'Integral weighted excitation generators &
                               &not yet implemented with these keywords')
         end if
