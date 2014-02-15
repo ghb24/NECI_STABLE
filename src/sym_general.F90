@@ -165,6 +165,24 @@ contains
 
     end function
 
+    elemental function class_count_ml (cc_ind) result(ml)
+
+        ! Given a class count index, return ml for the relevant orbitals
+
+        integer, intent(in) :: cc_ind
+        integer :: ml
+        integer :: spn, sym2
+
+        if (tNoSymGenRandExcits .or. .not. tFixLz) then
+            ml = 0
+        else
+            spn = 2 - mod(cc_ind, 2)
+            sym2 = (mod(cc_ind-1, 2*nSymLabels) + 1 - spn) / 2
+            ml = ((cc_ind - 2*sym2 - spn) / (2 * nSymLabels)) - iMaxLz
+        end if
+
+    end function
+
     elemental subroutine ClassCountInv_32 (ind, sym, spin, mom)
 
         ! Given a Class Count Index, return the symmetry, spin and momentum
@@ -184,7 +202,7 @@ contains
             mom = 0
             sym = 0
         else if (tFixLz) then
-            sym = (mod(ind, 2*nSymLabels) - spin) / 2
+            sym = (mod(ind-1, 2*nSymLabels)+1 - spin) / 2
             mom = ((ind - 2 * sym - spin) / (2 * nSymLabels)) - iMaxLz
         else
             sym = (ind - spin) / 2
@@ -212,7 +230,7 @@ contains
             mom = 0
             sym = 0
         else if (tFixLz) then
-            sym = (mod(ind, 2*nSymLabels) - spin) / 2
+            sym = (mod(ind-1, 2*nSymLabels)+1 - spin) / 2
             mom = ((ind - 2 * sym - spin) / (2 * nSymLabels)) - iMaxLz
         else
             sym = (ind - spin) / 2

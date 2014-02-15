@@ -8,11 +8,12 @@ module excit_gens_int_weighted
     use SystemData, only: nel, nbasis, nOccAlpha, nOccBeta, G1, nOccAlpha, &
                           nOccBeta, tExch, AA_elec_pairs, BB_elec_pairs, &
                           AB_elec_pairs, par_elec_pairs, AA_hole_pairs, &
-                          par_hole_pairs, AB_hole_pairs
+                          par_hole_pairs, AB_hole_pairs, iMaxLz
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
                                pDoubNew, ScratchSize
-    use sym_general_mod, only: ClassCountInd, ClassCountInv, class_count_ms
+    use sym_general_mod, only: ClassCountInd, ClassCountInv, class_count_ms, &
+                               class_count_ml
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, &
                          rand_excit_par_bias
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -234,7 +235,7 @@ contains
         character(*), parameter :: this_routine = 'calc_pgen_4ind_weighted'
 
         integer :: cc_index, src, tgt, id_src, id_tgt, n_id(nel)
-        integer :: norb, label_index, orb, i, j, iSpn
+        integer :: norb, label_index, orb, i, j, iSpn, sum_ml
         integer :: cc_i, cc_j, cc_i_final, cc_j_final, sym_product
         real(dp) :: cpt, cpt_tgt, cum_sum, cum_sums(2), int_cpt(2), ntot
         HElement_t :: hel
@@ -269,13 +270,16 @@ contains
             ! What is the likelihood of picking the given symmetry?
             sym_product = RandExcitSymLabelProd(int(G1(ex(1,1))%Sym%S), &
                                                 int(G1(ex(1,2))%Sym%S))
-            cc_i = ClassCountInd(get_spin(ex(2,1)), G1(ex(2,1))%Sym%S, 0)
-            cc_j = ClassCountInd(get_spin(ex(2,2)), G1(ex(2,2))%Sym%S, 0)
+            sum_ml = sum(G1(ex(1,:))%Ml)
+            cc_i = ClassCountInd(get_spin(ex(2,1)), G1(ex(2,1))%Sym%S, &
+                                 G1(ex(2,1))%Ml)
+            cc_j = ClassCountInd(get_spin(ex(2,2)), G1(ex(2,2))%Sym%S, &
+                                 G1(ex(2,2))%Ml)
             cc_i_final = min(cc_i, cc_j)
             cc_j_final = max(cc_i, cc_j)
             cum_sum = 0
             do cc_i = 1, ScratchSize
-                cc_j = get_paired_cc_ind (cc_i, sym_product, iSpn)
+                cc_j = get_paired_cc_ind (cc_i, sym_product, sum_ml, iSpn)
 
                 ! We restrict cc_i > cc_j, and rejected pairings where.
                 if (cc_j >= cc_i) then
@@ -328,19 +332,21 @@ contains
 
 
 
-    function get_paired_cc_ind (cc_ind, sym_product, iSpn) result(cc_ret)
+    function get_paired_cc_ind (cc_ind, sym_product, sum_ml, iSpn) &
+            result(cc_ret)
 
         ! Get the paired Class Count index, given a sym product and iSpn
         ! n.b. Ignoring momentum
         !
         ! Returns index == -1 if no pair exists
 
-        integer, intent(in) :: cc_ind, sym_product, iSpn
+        integer, intent(in) :: cc_ind, sym_product, iSpn, sum_ml
         integer :: cc_ret
-        integer :: sym_i, sym_j, spn_i, spn_j, mom
+        integer :: sym_i, sym_j, spn_i, spn_j, mom_i, mom_j
+        character(*), parameter :: this_routine = 'get_paired_cc_ind'
 
         ! Get the relevant details about the class count index
-        call ClassCountInv (cc_ind, sym_i, spn_i, mom)
+        call ClassCountInv (cc_ind, sym_i, spn_i, mom_i)
 
         ! Get the paired symmetry
         !sym_j = ieor(sym_i, sym_product)
@@ -360,8 +366,25 @@ contains
             return
         end if
 
+        ! The sum of the momentum terms must equal sum_ml. If there isn't a
+        ! paired orbital that gives the relevant momentum, then fail.
+        mom_j = sum_ml - mom_i
+        if (abs(mom_j) > iMaxLz) then
+            cc_ret = -1
+            return
+        end if
+
         ! Get the new index
-        cc_ret = ClassCountInd (spn_j, sym_j, mom)
+        cc_ret = ClassCountInd (spn_j, sym_j, mom_j)
+
+#ifdef __DEBUG
+        if (cc_ret /= -1) then
+            if (class_count_ml(cc_ind) /= mom_i) &
+                call stop_all(this_routine, 'wrong_mom_i')
+            if (class_count_ml(cc_ret) /= mom_j) &
+                call stop_all(this_routine, 'wrong_mom_j')
+        end if
+#endif
 
     end function
 
@@ -388,7 +411,7 @@ contains
         src = nI(elec)
 
         ! What is the symmetry category?
-        cc_index = ClassCountInd (get_spin(src), G1(src)%Sym%S, 0)
+        cc_index = ClassCountInd (get_spin(src), G1(src)%Sym%S, G1(src)%Ml)
 
         ! Select the target orbital by approximate connection strength
         tgt = select_orb_sing (nI, ilutI, src, cc_index, pgen)
@@ -426,7 +449,7 @@ contains
         pgen = 1.0_dp / real(nel, dp)
 
         ! The class count index of the target orbital is known
-        cc_index = ClassCountInd (get_spin(tgt), G1(tgt)%Sym%S, 0)
+        cc_index = ClassCountInd (get_spin(tgt), G1(tgt)%Sym%S, G1(tgt)%Ml)
          
         ! How many orbitals of the correct symmetry are there?
         norb = OrbClassCount(cc_index)
@@ -502,6 +525,8 @@ contains
             hel = 0
             if (IsNotOcc(ilut, orb)) then
                 ASSERT(G1(orb)%Ms == G1(src)%Ms)
+                ASSERT(G1(orb)%Ml == G1(src)%Ml)
+                ASSERT(G1(orb)%Sym%S == G1(src)%Sym%S)
 
                 ! For now, we want to assume that we can just use the
                 ! one-electron integrals as an approximation. If this is
@@ -570,7 +595,7 @@ contains
         cc_tot = 0
         do cc_i = 1, ScratchSize
 
-            cc_j = get_paired_cc_ind (cc_i, sym_product, iSpn)
+            cc_j = get_paired_cc_ind (cc_i, sym_product, sum_ml, iSpn)
 
             ! As cc_i > 0, the following test also excludes any rejected
             ! pairings (where cc_j == -1).
@@ -581,11 +606,18 @@ contains
             end if
             cc_cum(cc_i) = cc_tot
         end do
+
+        ! If there are no excitation from this electron pair, then we should
+        ! go no further.
+        if (cc_tot == 0) then
+            nJ(1) = 0
+            return
+        end if
     
         ! Pick a specific pairing of spin-symmetries
         r = genrand_real2_dSFMT() * cc_tot
         cc_i = binary_search_first_ge (cc_cum, r)
-        cc_j = get_paired_cc_ind (cc_i, sym_product, iSpn)
+        cc_j = get_paired_cc_ind (cc_i, sym_product, sum_ml, iSpn)
         pgen = pgen * store%ClassCountUnocc(cc_i) &
                     * store%ClassCountUnocc(cc_j) / cc_tot
 !        pgen = pgen * OrbClassCount(cc_i) * OrbClassCount(cc_j) / cc_tot
@@ -728,7 +760,7 @@ contains
         real(dp) :: tmp
 
         ! How many orbitals are available with the given symmetry?
-        cc_index = ClassCountInd(get_spin(tgt), G1(tgt)%Sym%S, 0)
+        cc_index = ClassCountInd(get_spin(tgt), G1(tgt)%Sym%S, G1(tgt)%Ml)
         label_index = SymLabelCounts2(1, cc_index)
         norb = OrbClassCount(cc_index)
 
@@ -959,7 +991,7 @@ contains
         character(*), parameter :: this_routine = 'calc_pgen_4ind_reverse'
 
         integer :: iSpn, sym_product, i, j, src(2), e_ispn, e_sym_prod, id(2)
-        integer :: tgt(2), id_tgt(2)
+        integer :: tgt(2), id_tgt(2), sum_ml, e_sum_ml
         real(dp) :: ntot, cum_sum, cpt, cpt_tgt
         HElement_t :: hel
 
@@ -989,11 +1021,12 @@ contains
                 iSpn = 2
             end if
 
-            ! Now consdire all of the possible pairs of electrons
+            ! Now consider all of the possible pairs of electrons
             tgt = ex(2,1:2)
             id_tgt = gtID(tgt)
             sym_product = RandExcitSymLabelProd(int(G1(tgt(1))%Sym%S), &
                                                 int(G1(tgt(2))%Sym%S))
+            sum_ml = sum(G1(tgt)%Ml)
             cum_sum = 0
             do i = 2, nel
                 src(1) = nI(i)
@@ -1004,9 +1037,11 @@ contains
                     e_ispn = get_ispn(src(1), src(2))
                     e_sym_prod = RandExcitSymLabelProd(int(G1(src(1))%Sym%S), &
                                                        int(G1(src(2))%Sym%S))
+                    e_sum_ml = sum(G1(src)%Ml)
                     
                     ! Calculate the cross HElements
-                    if (e_ispn == iSpn .and. e_sym_prod == sym_product) then
+                    if (e_ispn == iSpn .and. e_sym_prod == sym_product &
+                        .and. e_sum_ml == sum_ml) then
                         hel = 0
                         id = gtID(src)
                         if ((is_beta(src(1)) .eqv. is_beta(tgt(1))) .and. &
@@ -1106,11 +1141,16 @@ contains
         character(*), parameter :: this_routine = 'select_elec_sing'
 
         real(dp) :: cum_sum, cum_arr(nel), cpt_arr(nel), r
-        integer :: cc_index, n_id(nel), id_tgt, id_src, cc_src, j, src_elec
+        integer :: n_id(nel), id_tgt, id_src, cc_src, j, src_elec
+        integer :: tgt_sym, tgt_ml
+        logical :: tgt_beta
         HElement_t :: hel
 
-        ! What is the symmetry category we are considering?
-        cc_index = ClassCountInd (get_spin(tgt), G1(tgt)%Sym%S, 0)
+        ! Don't consider symmetry categories, do the components separately.
+        ! --> Slightly quicker
+        tgt_beta = is_beta(tgt)
+        tgt_sym = G1(tgt)%Sym%S
+        tgt_ml = G1(tgt)%Ml
 
         ! Spatial orbital IDs
         n_id = gtID(nI)
@@ -1123,12 +1163,12 @@ contains
 
             ! What is the symmetry/spin class of the source electron
             src = nI(src_elec)
-            cc_src = ClassCountInd (get_spin(src), G1(src)%Sym%S, 0)
 
             ! If the symmetry/spin are not the same, then the matrix element
             ! will be zero --> don't calculate it!
             hel = 0
-            if (cc_src == cc_index) then
+            if ((is_beta(src) .eqv. tgt_beta) .and. G1(src)%Sym%S == tgt_sym &
+                .and. G1(src)%Ml == tgt_ml) then
 
                 ! Construct the hamiltonian matrix element (ignoring overall
                 ! sign). We can assume tExch, and we have just enforced that
@@ -1181,15 +1221,15 @@ contains
         logical, intent(out) :: par
         real(dp), intent(out) :: pgen
 
-        integer :: src(2), tgt(2), elecs(2), id_tgt(2), id(2)
-        integer :: sym_prod, ispn, e_ispn, e_sym_prod, idx, i, j
+        integer :: src(2), tgt(2), elecs(2), id_tgt(2), id(2), e_sum_ml
+        integer :: sym_prod, ispn, e_ispn, e_sym_prod, idx, i, j, sum_ml
         HElement_t :: hel
         real(dp) :: cum_arr(nel * (nel - 1) / 2)
         real(dp) :: val_arr(nel * (nel - 1) / 2)
         real(dp) :: val, cum_val, r
 
         ! Select a pair of holes (vacant orbitals)
-        call pick_hole_pair_biased (ilutI, tgt, pgen, sym_prod, ispn)
+        call pick_hole_pair_biased (ilutI, tgt, pgen, sym_prod, sum_ml, ispn)
         id_tgt = gtID(tgt)
 
         ! Now we want to consider all of the possible pairs of electrons
@@ -1204,9 +1244,11 @@ contains
                 e_ispn = get_ispn(src(1), src(2))
                 e_sym_prod = RandExcitSymLabelProd(int(G1(src(1))%Sym%s), &
                                                    int(G1(src(2))%Sym%s))
+                e_sum_ml = sum(G1(src)%Ml)
 
                 ! Get the weight (HElement) associated with the elecs/holes
-                if (e_ispn == iSpn .and. e_sym_prod == sym_prod) then
+                if (e_ispn == iSpn .and. e_sym_prod == sym_prod .and. &
+                    e_sum_ml == sum_ml) then
                     hel = 0
                     id = gtID(src)
                     if (G1(src(1))%Ms == G1(tgt(1))%Ms .and.&
@@ -1279,7 +1321,7 @@ contains
     end function
 
 
-    subroutine pick_hole_pair_biased (ilut, orbs, pgen, sym_prod, ispn)
+    subroutine pick_hole_pair_biased (ilut, orbs, pgen, sym_prod, sum_ml, ispn)
         
         ! This is a biased version of pick_hole_pair below. Whereas the
         ! other function picks hole pairs entirely uniformly throughout the
@@ -1287,7 +1329,7 @@ contains
         ! spin pairs (according to the biasing factor rand_excit_par_bias).
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer, intent(out) :: orbs(2), sym_prod, ispn
+        integer, intent(out) :: orbs(2), sym_prod, ispn, sum_ml
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = 'pick_hole_pair_biased'
 
@@ -1323,6 +1365,9 @@ contains
         ! Select orbitals at random with the given spins
         orbs(1) = pick_hole_spn (ilut, spn(1), -1)
         orbs(2) = pick_hole_spn (ilut, spn(2), orbs(1))
+
+        ! What is the cumulative Ml value?
+        sum_ml = sum(G1(orbs)%Ml)
 
         ! What are the symmetry/spin properties of this pick?
         sym_prod = RandExcitSymLabelProd(int(G1(orbs(1))%Sym%S), &
@@ -1373,10 +1418,10 @@ contains
     end function
 
     
-    subroutine pick_hole_pair (ilut, orbs, pgen, sym_prod, ispn)
+    subroutine pick_hole_pair (ilut, orbs, pgen, sym_prod, sum_ml, ispn)
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer, intent(out) :: orbs(2), sym_prod, ispn
+        integer, intent(out) :: orbs(2), sym_prod, ispn, sum_ml
         real(dp), intent(out) :: pgen
         integer :: attempts, nvac, nchoose
 
@@ -1393,6 +1438,7 @@ contains
         sym_prod = RandExcitSymLabelProd (int(G1(orbs(1))%Sym%S), &
                                           int(G1(orbs(2))%Sym%S))
         ispn = get_ispn(orbs(1), orbs(2))
+        sum_ml = sum(G1(orbs)%Ml)
 
     end subroutine
 
