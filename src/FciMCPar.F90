@@ -6313,6 +6313,7 @@ MODULE FciMCParMod
         integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
         integer :: PopBlockingIter
         real(dp) :: Gap,ExpectedMemWalk,read_tau, read_psingles, read_par_bias
+        integer :: read_walkers_on_nodes(0:nProcessors-1), read_nnodes
         !Variables from popsfile header...
         logical :: tPop64Bit,tPopHPHF,tPopLz
         integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
@@ -6353,13 +6354,16 @@ MODULE FciMCParMod
                     call ReadPopsHeadv3(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                             iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                             PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
-                    read_tau=0.0_dp !Indicate that this was not read in.
+
+                    ! The following values were not read in...
+                    read_tau = 0.0_dp
+                    read_nnodes = 0
                 elseif(PopsVersion.eq.4) then
                     call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                             iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                             PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot, &
                             read_tau,PopBlockingIter, read_psingles, &
-                            read_par_bias)
+                            read_par_bias, read_nnodes, read_walkers_on_nodes)
                     ! The only difference between 3 & 4 is just that 4 reads 
                     ! in via a namelist, so that we can add more details 
                     ! whenever we want.
@@ -6518,7 +6522,8 @@ MODULE FciMCParMod
                 ! on each processor.
                 call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, &
                                       TotWalkers ,TotParts, NoatHF, &
-                                      CurrentDets, MaxWalkersPart)
+                                      CurrentDets, MaxWalkersPart, &
+                                      read_nnodes, read_walkers_on_nodes)
 
                 !Setup global variables
                 TotWalkersOld=TotWalkers
