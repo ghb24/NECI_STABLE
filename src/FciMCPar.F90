@@ -12,7 +12,7 @@ MODULE FciMCParMod
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
                           LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
                           tNoBrillouin, tKPntSym, tPickVirtUniform, &
-                          tMolpro, csf_trunc_level, &
+                          tMolpro, csf_trunc_level, tMolproMimic, &
                           tTruncateCSF, tRef_Not_HF, &
                           tAntiSym_MI, MolproID, tGenHelWeighted, &
                           tGen_4ind_weighted, tMomInv, tGen_4ind_reverse
@@ -4313,7 +4313,7 @@ MODULE FciMCParMod
             fcimcstats_unit = get_free_unit()
             if (tReadPops) then
                 ! Restart calculation.  Append to stats file (if it exists).
-                if(tMolpro) then
+                if(tMolpro .and. .not. tMolproMimic) then
                     filename = 'FCIQMCStats_' // adjustl(MolproID)
                     OPEN(fcimcstats_unit,file=filename,status='unknown',position='append')
                 else
@@ -4321,7 +4321,7 @@ MODULE FciMCParMod
                 endif
             else
                 call MoveFCIMCStatsFiles()          !This ensures that FCIMCStats files are not overwritten
-                if(tMolpro) then
+                if(tMolpro .and. .not. tMolproMimic) then
                     filename = 'FCIQMCStats_' // adjustl(MolproID)
                     OPEN(fcimcstats_unit,file=filename,status='unknown')
                 else
