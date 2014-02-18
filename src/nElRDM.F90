@@ -1154,8 +1154,9 @@ MODULe nElRDMMod
 
 
     subroutine calc_rdmbiasfac(p_spawn_rdmfac,p_gen,AvSignCurr,SignCurr,RDMBiasFacCurr)
-        real(dp), intent(in) :: p_gen, AvSignCurr
-        real(dp), intent(in) :: SignCurr
+        real(dp), intent(in) :: p_gen
+        real(dp), intent(in) :: AvSignCurr(lenof_sign)
+        real(dp), intent(in) :: SignCurr(lenof_sign)
         real(dp) , intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: p_spawn_rdmfac
         real(dp) :: p_notlist_rdmfac, p_spawn, p_not_spawn, p_max_walktospawn
@@ -1181,24 +1182,24 @@ MODULe nElRDMMod
         ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
        
 
-        if(real(int(SignCurr),dp).ne.SignCurr) then
+        if(real(int(SignCurr(1)),dp).ne.SignCurr(1)) then
             !There's a non-integer population on this determinant
             !We need to consider both possibilities - whether we attempted to spawn 
             !int(SignCurr) times or int(SignCurr)+1 times
-            p_max_walktospawn=abs(SignCurr-real(int(SignCurr),dp))
-            p_not_spawn = (1.0_dp - p_max_walktospawn)*(p_notlist_rdmfac**abs(int(SignCurr))) + &
-                        p_max_walktospawn*(p_notlist_rdmfac**(abs(int(SignCurr))+1))
+            p_max_walktospawn=abs(SignCurr(1)-real(int(SignCurr(1)),dp))
+            p_not_spawn = (1.0_dp - p_max_walktospawn)*(p_notlist_rdmfac**abs(int(SignCurr(1)))) + &
+                        p_max_walktospawn*(p_notlist_rdmfac**(abs(int(SignCurr(1)))+1))
 
         else
-            p_not_spawn=p_notlist_rdmfac**(abs(SignCurr))
+            p_not_spawn=p_notlist_rdmfac**(abs(SignCurr(1)))
         endif
 
         p_spawn=abs(1.0_dp - p_not_spawn)
        
         if(tInstSignOffDiagRDM) then
-            RDMBiasFacCurr = SignCurr / p_spawn   
+            RDMBiasFacCurr = SignCurr(lenof_sign) / p_spawn  
         else
-            RDMBiasFacCurr = AvSignCurr / p_spawn   
+            RDMBiasFacCurr = AvSignCurr(lenof_sign) / p_spawn   
         endif
         
     end subroutine calc_rdmbiasfac

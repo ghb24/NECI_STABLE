@@ -2003,8 +2003,10 @@ MODULE FciMCParMod
         enddo
        
         if(tFillingStochRDMonFly) then
-            if((child(part_type).ne.0).and.(.not.tHF_Ref_Explicit)) then
-                call calc_rdmbiasfac(p_spawn_rdmfac, prob, AvSignCurr(part_type), realwSign(part_type), RDMBiasFacCurr) 
+            if((child(part_type).ne.0).and.(.not.tHF_Ref_Explicit).and.(part_type.eq.1)) then
+                !Only add in contributions for spawning events within population 1
+                !(Otherwise it becomes tricky in annihilation as spawnedparents doesn't tell you which population the event came from at present)
+                call calc_rdmbiasfac(p_spawn_rdmfac, prob, AvSignCurr, realwSign, RDMBiasFacCurr) 
             else
                 RDMBiasFacCurr = 0.0_dp
             endif
