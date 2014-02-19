@@ -23,7 +23,7 @@ module stoch_lanczos_procs
     use gndts_mod, only: gndts
     use hash, only: FindWalkerHash, init_hash_table, reset_hash_table, fill_in_hash_table
     use hilbert_space_size, only: CreateRandomExcitLevDetUnbias, create_rand_heisenberg_det
-    use Parallel_neci, only: MPIBarrier, iProcIndex, MPISum, MPIReduce
+    use Parallel_neci, only: MPIBarrier, iProcIndex, MPISum, MPIReduce, nProcessors
     use ParallelHelper, only: root
     use procedure_pointers
     use semi_stoch_procs, only: copy_core_dets_this_proc_to_spawnedparts, fill_in_CurrentH
@@ -239,9 +239,9 @@ contains
             if (irepeat == 1) then
                 ! Convert the initial number of walkers to an integer.
                 if (tStartSinglePart) then
-                    nwalkers_target = int(InitialPart)
+                    nwalkers_target = ceiling(real(InitialPart,dp)/real(nProcessors,dp))
                 else
-                    nwalkers_target = int(InitWalkers)
+                    nwalkers_target = ceiling(real(InitWalkers,dp)/real(nProcessors,dp))
                 end if
                 ! Finally, call the routine to create the walker distribution.
                 call generate_init_config_basic(nwalkers_target, lanczos%nwalkers_per_site_init, nwalkers)
