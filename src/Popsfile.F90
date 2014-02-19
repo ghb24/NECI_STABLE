@@ -220,7 +220,7 @@ r_loop: do while(.not.tReadAllPops)
 
                     ! If we have already determined where the particles should
                     ! go, then we can get this directly.
-                    if (pops_nnodes == nProcessors) then
+                    if (pops_nnodes == nProcessors .and. .not. tSplitPops) then
                         part_on_node = part_on_node + 1
                         if (part_on_node > read_walkers_on_nodes(proc)) then
                             proc = proc + 1
@@ -1013,7 +1013,7 @@ outer_map:      do i = 0, MappingNIfD
         INTEGER(KIND=n_int), ALLOCATABLE :: Parts(:,:)
         INTEGER(TagIntType) :: PartsTag=0
         integer :: nMaxDets, TempDet(0:NIfTot), TempFlags
-        integer :: iunit, iunit_2, Initiator_Count
+        integer :: iunit, iunit_2, Initiator_Count, nwrite
         integer(int64) :: write_count, write_count_sum
         CHARACTER(len=*) , PARAMETER :: this_routine='WriteToPopsfileParOneArr'
         character(255) :: popsfile
@@ -1151,8 +1151,13 @@ outer_map:      do i = 0, MappingNIfD
             ! are in split-pops mode.
             do j = 1, int(ndets, sizeof_int)
                 ! Count the number of written particles
-                if (write_pops_det (iunit, iunit_2, Dets(:,j), j)) &
+                if (write_pops_det (iunit, iunit_2, Dets(:,j), j)) then
                     write_count = write_count + 1
+                else
+                    ! Zero determinants don't get written to binary popsfiles
+                    ! --> Adjust the counts to deal with this.
+                    WalkersOnNodes(0) = WalkersOnNodes(0) - 1
+                end if
             end do
 
             if (.not. tSplitPops) then
@@ -1179,9 +1184,16 @@ outer_map:      do i = 0, MappingNIfD
                                   NodeRoots(i), Tag, error)
 
                     ! Then write it out in the same way as above.
-                    do j = 1, int(WalkersonNodes(i), sizeof_int)
-                        if (write_pops_det(iunit, iunit_2, Parts(:,j), j)) &
+                    nwrite = int(WalkersOnNodes(i), sizeof_int)
+                    do j = 1, nwrite
+                        if (write_pops_det(iunit, iunit_2, Parts(:,j), j)) then
                             write_count = write_count + 1
+                        else
+                            ! We have found a zero determinant. This doesn't
+                            ! get added to the binary popsfile, so adjust
+                            ! the count here.
+                            WalkersOnNodes(i) = WalkersOnNodes(i) - 1
+                        end if
                     end do
 
                 end do
@@ -1205,6 +1217,7 @@ outer_map:      do i = 0, MappingNIfD
             call MPISend (Dets(0:NIfTot, 1:nDets), j, root, Tag, error)
 
         end if
+
 
 
         ! With binary popsfiles, the header is written once the popsfiles
