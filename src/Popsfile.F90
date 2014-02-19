@@ -9,7 +9,8 @@ MODULE PopsfileMod
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
                         iWeightPopRead, iPopsFileNoRead, tPopsMapping, Tau, &
                         InitiatorWalkNo, MemoryFacPart, MemoryFacAnnihil, &
-                        MemoryFacSpawn, tSemiStochastic, tTrialWavefunction
+                        MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
+                        tCCMC
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt
     use hash , only : DetermineDetNode, FindWalkerHash
@@ -220,7 +221,8 @@ r_loop: do while(.not.tReadAllPops)
 
                     ! If we have already determined where the particles should
                     ! go, then we can get this directly.
-                    if (pops_nnodes == nProcessors .and. .not. tSplitPops) then
+                    if (pops_nnodes == nProcessors .and. &
+                        .not. tSplitPops .and. .not. tCCMC) then
                         part_on_node = part_on_node + 1
                         if (part_on_node > read_walkers_on_nodes(proc)) then
                             proc = proc + 1
