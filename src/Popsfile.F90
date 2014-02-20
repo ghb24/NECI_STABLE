@@ -48,7 +48,8 @@ MODULE PopsfileMod
         integer , intent(in) :: ReadBatch       !Size of the batch of determinants to read in in one go.
         integer(int64) , intent(out) :: CurrWalkers64    !Number of determinants which end up on a given processor.
         real(dp), intent(out) :: CurrHF(lenof_sign)
-        integer, intent(in) :: pops_nnodes, pops_walkers(0:nProcessors-1)
+        integer, intent(in) :: pops_nnodes
+        integer(int64), intent(in) :: pops_walkers(0:nProcessors-1)
         real(dp) :: CurrParts(lenof_sign)
         integer :: CurrWalkers,Slot,nJ(nel)
         integer :: iunit,i,j,ierr,PopsInitialSlots(0:nNodes-1)
@@ -69,11 +70,11 @@ MODULE PopsfileMod
         !variables from header file
         logical :: tPop64Bit, tPopHPHF, tPopLz, tEOF
         integer :: iPopLenof_sign,iPopNEl,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
-        integer :: PopBlockingIter
+        integer :: PopBlockingIter, read_nnodes
         integer(int64) :: iPopAllTotWalkers
         real(dp) :: PopDiagSft, read_tau, read_psingles, read_par_bias
         real(dp) , dimension(lenof_sign) :: PopSumNoatHF
-        integer :: read_walkers_on_nodes(0:nProcessors-1), read_nnodes
+        integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
         integer, intent(in) :: DetsLen
         INTEGER(kind=n_int), intent(out) :: Dets(0:nIfTot,DetsLen)
         character(12) :: tmp_num
@@ -822,7 +823,7 @@ outer_map:      do i = 0, MappingNIfD
         integer, intent(out) :: iPopLenof_sign, iPopNel, iPopIter, PopNIfD
         integer, intent(out) :: PopNIfY, PopNIfSgn, PopNIfFlag, PopNIfTot
         integer, intent(out) :: PopBlockingIter, read_nnodes
-        integer, intent(out) :: read_walkers_on_nodes(0:nProcessors-1)
+        integer(int64), intent(out) :: read_walkers_on_nodes(0:nProcessors-1)
         integer(int64) , intent(out) :: iPopAllTotWalkers
         real(dp) , intent(out) :: PopDiagSft,read_tau, read_psingles
         real(dp), intent(out) :: read_par_bias
@@ -834,8 +835,8 @@ outer_map:      do i = 0, MappingNIfD
         logical :: Pop64Bit,PopHPHF,PopLz
         integer :: PopLensign,PopNEl,PopCyc,PopiBlockingIter
         integer, parameter :: max_nodes = 30000
-        integer(int64) :: PopTotwalk
-        integer :: PopWalkersOnNodes(max_nodes), PopNNodes
+        integer(int64) :: PopTotwalk, PopWalkersOnNodes(max_nodes)
+        integer :: PopNNodes
         real(dp) :: PopSft,PopTau, PopPSingles, PopParBias
         character(*), parameter :: t_r = 'ReadPopsHeadv4'
         HElement_t :: PopSumENum
@@ -1263,7 +1264,7 @@ outer_map:      do i = 0, MappingNIfD
         integer, intent(in) :: iunit
         integer(int64), intent(in) :: num_walkers
         integer :: pops_niftot, pops_nifflag, i
-        integer, intent(in) :: WalkersonNodes(:)
+        integer(int64), intent(in) :: WalkersonNodes(:)
 
         ! If the popsfile uses flags, but we have combined the
         ! representation of flags in memory, then the representation in

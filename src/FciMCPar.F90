@@ -6322,7 +6322,8 @@ MODULE FciMCParMod
         integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
         integer :: PopBlockingIter
         real(dp) :: Gap,ExpectedMemWalk,read_tau, read_psingles, read_par_bias
-        integer :: read_walkers_on_nodes(0:nProcessors-1), read_nnodes
+        integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
+        integer :: read_nnodes
         !Variables from popsfile header...
         logical :: tPop64Bit,tPopHPHF,tPopLz
         integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot

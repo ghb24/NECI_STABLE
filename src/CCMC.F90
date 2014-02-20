@@ -2948,7 +2948,8 @@ end subroutine
 SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
       use PopsfileMod
       real(dp) ::  dNorm, read_psingles, read_par_bias
-      integer :: read_nnodes, read_walkers_on_nodes(0:nProcessors-1)
+      integer :: read_nnodes
+      integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
       INTEGER :: ierr,iunithead
       LOGICAL :: formpops,binpops
       INTEGER :: PopsVersion,WalkerListSize
