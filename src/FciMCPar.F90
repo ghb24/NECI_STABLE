@@ -12,7 +12,7 @@ MODULE FciMCParMod
                           tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
                           LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
                           tNoBrillouin, tKPntSym, tPickVirtUniform, &
-                          tMolpro, csf_trunc_level, &
+                          tMolpro, csf_trunc_level, tMolproMimic, &
                           tTruncateCSF, tRef_Not_HF, &
                           tAntiSym_MI, MolproID, tGenHelWeighted, &
                           tGen_4ind_weighted, tMomInv, tGen_4ind_reverse
@@ -1994,6 +1994,9 @@ MODULE FciMCParMod
             !      will need to ffed further through.
             if (tSearchTau) &
                 call log_spawn_magnitude (ic, ex, matel, prob)
+
+            ! Keep track of the biggest spawn this cycle
+            max_cyc_spawn = max(abs(nSpawn), max_cyc_spawn)
             
             if (tRealSpawning) then
                 ! Continuous spawning. Add in acceptance probabilities.
@@ -3483,6 +3486,7 @@ MODULE FciMCParMod
         ! Max/Min values (check load balancing)
         call MPIReduce (TotWalkersTemp, MPI_MAX, MaxWalkersProc)
         call MPIReduce (TotWalkersTemp, MPI_MIN, MinWalkersProc)
+        call MPIReduce (max_cyc_spawn, MPI_MAX, all_max_cyc_spawn)
         !call MPIReduce (sum(TotParts), MPI_MAX, MaxPartsProc)
         !call MPIReduce (sum(TotParts), MPI_MIN, MinPartsProc)
 
@@ -3841,6 +3845,8 @@ MODULE FciMCParMod
         iter_data%update_iters = 0
         iter_data%tot_parts_old = tot_parts_new_all
 
+        max_cyc_spawn = 0
+
         ! Reset the linear combination coefficients
         ! TODO: Need to rethink how/when this is done. This is just for tests
         if (proje_spatial .and. proje_linear_comb) &
@@ -3923,7 +3929,7 @@ MODULE FciMCParMod
                    &23.NumContribtoE(Re)  &
                    &24.NumContribtoE(Im)  25.HF weight   26.|Psi|    &
                    &27.Inst S^2  28.SpawnedParts  29.MergedParts  &
-                   &30.Zero elems   31.PartsDiffProc"
+                   &30.Zero elems   31.PartsDiffProc   32.MaxCycSpawn"
 #else
             if(tMCOutput) then
                 write(iout, "(A)", advance = 'no') "        Step    Shift           &
@@ -3951,10 +3957,10 @@ MODULE FciMCParMod
                   &29.Inst S^2   30.AbsProjE   31.PartsDiffProc &
                   &32.ZeroMatrixElements 33.OccRealDets 34.DetsRoundedToZero &
                   &35.SpawnedParts  36.MergedParts  37.WalkersToSpawn  &
-                  &38.|Semistoch|/|Psi|"
+                  &38.|Semistoch|/|Psi|  39.MaxCycSpawn"
            if (tTrialWavefunction) then 
                   write(fcimcstats_unit, "(A)", advance = 'no') &
-                  "  39.TrialNumerator  40.TrialDenom  41.TrialOverlap"
+                  "  40.TrialNumerator  41.TrialDenom  42.TrialOverlap"
            end if
 
            write(fcimcstats_unit, "()", advance = 'yes')
@@ -4020,7 +4026,8 @@ MODULE FciMCParMod
 
 #ifdef __CMPLX
             write(fcimcstats_unit,"(I12,5G16.7,7G17.9,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9,4I13)") &
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9,4I13,&
+                                  &g16.7)") &
                 Iter + PreviousCycles, &                !1.
                 DiagSft, &                              !2.
                 AllTotParts(1) - AllTotPartsOld(1), &   !3.
@@ -4051,7 +4058,8 @@ MODULE FciMCParMod
                 AllNumSpawnedEntries, &               !28
                 AllNumMerged, &                       !29
                 AllZeroMatrixElem, &                  !30
-                PartsDiffProc                         !31
+                PartsDiffProc, &                      !31
+                all_max_cyc_spawn                     !32.
 
             if(tMCOutput) then
                 write (iout, "(I12,13G16.7,I12,G13.5)") &
@@ -4092,7 +4100,7 @@ MODULE FciMCParMod
             endif
             
             write(fcimcstats_unit,"(i12,7g16.7,5g17.9,g13.5,i12,g13.5,g17.5,&
-                                  &i13,g13.5,11g17.9,7i13,g16.7)",advance = 'no') &
+                                  &i13,g13.5,11g17.9,7i13,2g16.7)",advance = 'no') &
                 Iter + PreviousCycles, &                   ! 1.
                 DiagSft, &                                 ! 2.
                 sum(AllTotParts) - sum(AllTotPartsOld), &  ! 3.
@@ -4129,12 +4137,13 @@ MODULE FciMCParMod
                 AllNumSpawnedEntries, &                    ! 35.
                 AllNumMerged, &                            ! 36.
                 AllTotWalkersToSpawn, &                    ! 37.
-                norm_semistoch/norm_psi                    ! 38.
+                norm_semistoch/norm_psi, &                 ! 38.
+                all_max_cyc_spawn                          ! 39.
                 if (tTrialWavefunction) then
                     write(fcimcstats_unit, "(3g16.7)", advance = 'no') &
-                    (tot_trial_numerator / StepsSft), &             ! 39.
-                    (tot_trial_denom / StepsSft), &                 ! 40.
-                    abs((tot_trial_denom / (norm_psi*StepsSft)))    ! 41.
+                    (tot_trial_numerator / StepsSft), &             ! 40.
+                    (tot_trial_denom / StepsSft), &                 ! 41.
+                    abs((tot_trial_denom / (norm_psi*StepsSft)))    ! 42.
                 end if
                 write(fcimcstats_unit, "()", advance = 'yes')
 
@@ -4313,7 +4322,7 @@ MODULE FciMCParMod
             fcimcstats_unit = get_free_unit()
             if (tReadPops) then
                 ! Restart calculation.  Append to stats file (if it exists).
-                if(tMolpro) then
+                if(tMolpro .and. .not. tMolproMimic) then
                     filename = 'FCIQMCStats_' // adjustl(MolproID)
                     OPEN(fcimcstats_unit,file=filename,status='unknown',position='append')
                 else
@@ -4321,7 +4330,7 @@ MODULE FciMCParMod
                 endif
             else
                 call MoveFCIMCStatsFiles()          !This ensures that FCIMCStats files are not overwritten
-                if(tMolpro) then
+                if(tMolpro .and. .not. tMolproMimic) then
                     filename = 'FCIQMCStats_' // adjustl(MolproID)
                     OPEN(fcimcstats_unit,file=filename,status='unknown')
                 else
@@ -6313,6 +6322,8 @@ MODULE FciMCParMod
         integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
         integer :: PopBlockingIter
         real(dp) :: Gap,ExpectedMemWalk,read_tau, read_psingles, read_par_bias
+        integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
+        integer :: read_nnodes
         !Variables from popsfile header...
         logical :: tPop64Bit,tPopHPHF,tPopLz
         integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
@@ -6353,13 +6364,16 @@ MODULE FciMCParMod
                     call ReadPopsHeadv3(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                             iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                             PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
-                    read_tau=0.0_dp !Indicate that this was not read in.
+
+                    ! The following values were not read in...
+                    read_tau = 0.0_dp
+                    read_nnodes = 0
                 elseif(PopsVersion.eq.4) then
                     call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                             iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                             PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot, &
                             read_tau,PopBlockingIter, read_psingles, &
-                            read_par_bias)
+                            read_par_bias, read_nnodes, read_walkers_on_nodes)
                     ! The only difference between 3 & 4 is just that 4 reads 
                     ! in via a namelist, so that we can add more details 
                     ! whenever we want.
@@ -6518,7 +6532,8 @@ MODULE FciMCParMod
                 ! on each processor.
                 call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, &
                                       TotWalkers ,TotParts, NoatHF, &
-                                      CurrentDets, MaxWalkersPart)
+                                      CurrentDets, MaxWalkersPart, &
+                                      read_nnodes, read_walkers_on_nodes)
 
                 !Setup global variables
                 TotWalkersOld=TotWalkers
