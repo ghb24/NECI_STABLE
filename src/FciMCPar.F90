@@ -4026,7 +4026,7 @@ MODULE FciMCParMod
 
 #ifdef __CMPLX
             write(fcimcstats_unit,"(I12,5G16.7,7G17.9,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9,4I13&
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9,4I13,&
                                   &g16.7)") &
                 Iter + PreviousCycles, &                !1.
                 DiagSft, &                              !2.
