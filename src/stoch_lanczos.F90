@@ -64,7 +64,7 @@ contains
 
                     call calc_overlap_matrix_elems(lanczos, ivec)
 
-                    do iiter = 1, lanczos%niters
+                    do iiter = 1, lanczos%niters(ivec)
 
                         if (iiter == 1) then
                             ! If the projected Hamiltonian will be calculated using spawned walkers.
@@ -72,7 +72,7 @@ contains
                             AvMCExcits = lanczos%av_mc_excits_sl
                         end if
 
-                        iter = iiter + (ivec-1)*lanczos%niters
+                        iter = iter + 1
                         call init_stoch_lanczos_iter(iter_data_fciqmc, determ_index)
 
                         !write(6,*) "CurrentDets:"

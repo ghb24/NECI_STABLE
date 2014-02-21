@@ -53,8 +53,11 @@ module stoch_lanczos_procs
         ! vectors which form the Krylov subspace at the end of a calculation).
         integer :: nvecs
         ! The number of iterations to perform *between each Lanczos vector being
-        ! sampled*.
-        integer :: niters
+        ! sampled*. niters(i) holds the number to be performed between the
+        ! i-th and (i+1)th vectors. The final element is not set by the user,
+        ! it is always set to 1 (because we don't want to go any further
+        ! beyond the final Lanczos vector).
+        integer, allocatable :: niters(:)
         ! For finite-temperature calculations, when creating the inital vector,
         ! This variable specifies how many walkers should be added to each
         ! chosen site.
@@ -81,6 +84,7 @@ module stoch_lanczos_procs
     integer :: TotPartsInit(lenof_sign)
     integer :: AllTotPartsInit(lenof_sign)
     integer(n_int), allocatable :: init_lanczos_config(:,:)
+    logical :: vary_niters
 
 contains
 
@@ -90,17 +94,20 @@ contains
 
         logical :: eof
         character(len=100) :: w
+        integer :: i, niters_temp
+        character (len=*), parameter :: t_r = "stoch_lanczos_read_inp"
 
         ! Default values.
         lanczos%nconfigs = 1
         lanczos%nrepeats = 1
-        lanczos%nvecs = 1
-        lanczos%niters = 1
+        lanczos%nvecs = 0
+        niters_temp = 0
         lanczos%nwalkers_per_site_init = 1.0_dp
         lanczos%av_mc_excits_sl = 0.0_dp
         lanczos%tGround = .false.
         lanczos%tFiniteTemp = .false.
         lanczos%exact_hamil = .false.
+        vary_niters = .false.
 
         read_inp: do
             call read_line(eof)
@@ -121,8 +128,18 @@ contains
                 call geti(lanczos%nrepeats)
             case("NUM-LANCZOS-VECS")
                 call geti(lanczos%nvecs)
+                allocate(lanczos%niters(lanczos%nvecs))
+                lanczos%niters = 0
             case("NUM-ITERS-BETWEEN-VECS")
-                call geti(lanczos%niters)
+                call geti(niters_temp)
+            case("NUM-ITERS-BETWEEN-VECS-VARY")
+                if (lanczos%nvecs == 0) call stop_all(t_r, 'Please enter the number of lanczos vectors before &
+                                                          &specifying the number of iterations between vectors.')
+                vary_niters = .true.
+                do i = 1, lanczos%nvecs-1
+                    call geti(lanczos%niters(i))
+                end do
+                lanczos%niters(lanczos%nvecs) = 1
             case("NUM-WALKERS-PER-SITE-INIT")
                 call getf(lanczos%nwalkers_per_site_init)
             case("AVERAGEMCEXCITS-HAMIL")
@@ -133,6 +150,26 @@ contains
                 call report("Keyword "//trim(w)//" not recognized in stoch-lanczos block", .true.)
             end select
         end do read_inp
+
+        if (lanczos%nvecs == 0 .and. niters_temp /= 0) then
+            ! If nvecs was not set but niters was.
+            lanczos%nvecs = 1
+            allocate(lanczos%niters(lanczos%nvecs))
+            lanczos%niters = niters_temp
+            lanczos%niters(lanczos%nvecs) = 1
+        else if (lanczos%nvecs /= 0 .and. niters_temp /= 0 .and. (.not. vary_niters)) then
+            ! If both were set (but not through the variable niters option).
+            lanczos%niters = niters_temp
+            lanczos%niters(lanczos%nvecs) = 1
+        else if (lanczos%nvecs /= 0 .and. niters_temp == 0 .and. (.not. vary_niters)) then
+            ! If nvecs was set but niters was not.
+            lanczos%niters = 1
+        else if (lanczos%nvecs == 0) then
+            ! If nvecs was not set and neither was niters.
+            lanczos%nvecs = 1
+            allocate(lanczos%niters(lanczos%nvecs))
+            lanczos%niters = 1
+        end if
 
     end subroutine stoch_lanczos_read_inp
 
@@ -686,7 +723,7 @@ contains
     subroutine calc_hamil_exact(lanczos)
 
         type(stoch_lanczos_data), intent(inout) :: lanczos
-        integer :: i, j, idet, jdet, ic
+        integer :: i, j, idet, jdet, ic, hdiag_ind
         integer(n_int) :: ilut_1(0:NIfTot), ilut_2(0:NIfTot)
         integer(n_int) :: int_sign(lenof_sign*lanczos%nvecs)
         integer :: nI(nel), nJ(nel)
@@ -694,6 +731,8 @@ contains
         real(dp) :: h_elem
         logical :: any_occ, occ_1, occ_2
         integer(4), allocatable :: occ_flags(:)
+
+        hdiag_ind = NIfD + lenof_sign*lanczos%nvecs + 1
 
         associate(h_matrix_1 => lanczos%hamil_matrix_1, h_matrix_2 => lanczos%hamil_matrix_2)
 
@@ -745,11 +784,7 @@ contains
                     real_sign_2 = transfer(int_sign, real_sign_1)
                     
                     if (idet == jdet) then
-                        if (tHPHF) then
-                            h_elem = hphf_diag_helement(nI, ilut_1)
-                        else
-                            h_elem = get_helement(nI, nJ, 0, ilut_1, ilut_2)
-                        end if
+                        h_elem = transfer(lanczos_vecs(hdiag_ind, idet), h_elem) + Hii
                     else
                         if (tHPHF) then
                             h_elem = hphf_off_diag_helement(nI, nJ, ilut_1, ilut_2)
