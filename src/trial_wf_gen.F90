@@ -5,7 +5,7 @@ module trial_wf_gen
     use CalcData
     use davidson, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
                         sparse_hamil_type
-    use DetBitOps, only: FindBitExcitLevel, ilut_lt, ilut_gt, DetBitEq
+    use DetBitOps, only: ilut_lt, ilut_gt, DetBitEq
     use DeterminantData, only: write_det
     use FciMCData, only: trial_space, trial_space_size, con_space, &
                          con_space_size, trial_wf, trial_energy, &

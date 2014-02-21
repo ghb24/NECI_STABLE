@@ -9,7 +9,7 @@ module stoch_lanczos_procs
     use CalcData, only: tSemiStochastic, tReadPops, tUseRealCoeffs, tau, DiagSft
     use CalcData, only: AvMCExcits
     use constants
-    use DetBitOps, only: DetBitEq, EncodeBitDet, IsAllowedHPHF
+    use DetBitOps, only: DetBitEq, EncodeBitDet, IsAllowedHPHF, FindBitExcitLevel
     use Determinants, only: get_helement
     use dSFMT_interface , only : genrand_real2_dSFMT
     use FciMCData, only: ilutHF, HFDet, CurrentDets, SpawnedParts, SpawnedParts2, TotWalkers
@@ -686,7 +686,7 @@ contains
     subroutine calc_hamil_exact(lanczos)
 
         type(stoch_lanczos_data), intent(inout) :: lanczos
-        integer :: i, j, idet, jdet
+        integer :: i, j, idet, jdet, ic
         integer(n_int) :: ilut_1(0:NIfTot), ilut_2(0:NIfTot)
         integer(n_int) :: int_sign(lenof_sign*lanczos%nvecs)
         integer :: nI(nel), nJ(nel)
@@ -737,6 +737,9 @@ contains
                         (occ_2 .and. btest(occ_flags(jdet),0)))) cycle
 
                     ilut_2 = lanczos_vecs(0:NIfDBO, jdet)
+                    ic = FindBitExcitLevel(ilut_1, ilut_2)
+                    if (ic > 2) cycle
+
                     call decode_bit_det(nJ, ilut_2)
                     int_sign = lanczos_vecs(NIfD+1:NIfD+lenof_sign*lanczos%nvecs, jdet)
                     real_sign_2 = transfer(int_sign, real_sign_1)
@@ -745,13 +748,13 @@ contains
                         if (tHPHF) then
                             h_elem = hphf_diag_helement(nI, ilut_1)
                         else
-                            h_elem = get_helement(nI, nJ, 0)
+                            h_elem = get_helement(nI, nJ, 0, ilut_1, ilut_2)
                         end if
                     else
                         if (tHPHF) then
                             h_elem = hphf_off_diag_helement(nI, nJ, ilut_1, ilut_2)
                         else
-                            h_elem = get_helement(nI, nJ, ilut_1, ilut_2)
+                            h_elem = get_helement(nI, nJ, ic, ilut_1, ilut_2)
                         end if
                     end if
 
