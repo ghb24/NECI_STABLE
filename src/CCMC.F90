@@ -2951,6 +2951,8 @@ end subroutine
 SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
       use PopsfileMod
       real(dp) ::  dNorm, read_psingles, read_par_bias
+      integer :: read_nnodes
+      integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
       INTEGER :: ierr,iunithead
       LOGICAL :: formpops,binpops
       INTEGER :: PopsVersion,WalkerListSize
@@ -2981,12 +2983,17 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
              call ReadPopsHeadv3(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                    iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
-             read_tau=0.0_dp
+
+             ! Make sure we deal correctly with the POPSFILE parameters that
+             ! aren't read in
+             read_tau = 0.0_dp
+             read_nnodes = 0
          elseif(PopsVersion.eq.4) then
              call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                    iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,&
-                   PopBlockingIter, read_psingles, read_par_bias)
+                   PopBlockingIter, read_psingles, read_par_bias, &
+                   read_nnodes, read_walkers_on_nodes)
          endif
 
          call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
@@ -2996,7 +3003,9 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
 
          if(iProcIndex.eq.root) close(iunithead)
          tmp_dp = CurrParts
-         call ReadFromPopsfile(iPopAllTotWalkers,ReadBatch,TotWalkers,tmp_dp,NoatHF,DetList,nMaxAmpl)
+         call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, TotWalkers, &
+                               tmp_dp, NoatHF, DetList, nMaxAmpl, read_nnodes,&
+                               read_walkers_on_nodes)
          CurrParts = tmp_dp
          nAmpl=int(TotWalkers,sizeof_int)
          dNorm=NoatHF(1)

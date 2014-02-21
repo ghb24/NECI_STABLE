@@ -507,4 +507,6 @@ MODULE FciMCData
       real(dp) :: rand_excit_par_bias
       logical :: tSpecifyParBias
 
+      real(dp) :: max_cyc_spawn, all_max_cyc_spawn
+
 END MODULE FciMCData
