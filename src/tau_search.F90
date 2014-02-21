@@ -31,11 +31,6 @@ module tau_search
     logical :: enough_sing, enough_doub, enough_opp, enough_par
     logical :: consider_par_bias
 
-    private :: gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt
-    private :: max_permitted_spawn, consider_par_bias
-    private :: cnt_sing, cnt_doub, cnt_opp, cnt_par
-    private :: n_opp, n_par
-
 #ifdef MOLPRO
     include "common/tapes"
 #else
@@ -45,6 +40,9 @@ module tau_search
 contains
 
     subroutine init_tau_search ()
+
+        ! N.B. This must be called BEFORE a popsfile is read in, otherwise
+        !      we screw up the gamma values that have been carefully read in.
 
         ! We want to start off with zero-values
         gamma_sing = 0
