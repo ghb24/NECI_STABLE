@@ -38,7 +38,7 @@ contains
         integer :: nI_parent(nel), nI_child(nel)
         integer(n_int) :: ilut_child(0:NIfTot)
         integer(n_int), pointer :: ilut_parent(:)
-        real(dp) :: prob, unused_rdm_real
+        real(dp) :: prob, unused_rdm_real, AvMCExcits_Temp
         real(dp), dimension(lenof_sign) :: child_sign, parent_sign
         real(dp), dimension(lenof_sign) :: unused_sign1, unused_sign2
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
@@ -65,6 +65,12 @@ contains
                     call calc_overlap_matrix_elems(lanczos, ivec)
 
                     do iiter = 1, lanczos%niters
+
+                        if (iiter == 1) then
+                            ! If the projected Hamiltonian will be calculated using spawned walkers.
+                            AvMCExcits_Temp = AvMCExcits
+                            AvMCExcits = lanczos%av_mc_excits_sl
+                        end if
 
                         iter = iiter + (ivec-1)*lanczos%niters
                         call init_stoch_lanczos_iter(iter_data_fciqmc, determ_index)
@@ -199,7 +205,11 @@ contains
 
                         TotWalkers = int(TotWalkersNew, int64)
 
-                        if (iiter == 1) call calc_hamil_elems_direct(lanczos, ivec)
+                        if (iiter == 1) then
+                            if ( .not. lanczos%exact_hamil) call calc_hamil_elems_direct(lanczos, ivec)
+                            ! Reset AvMCExcits to its default value.
+                            AvMCExcits = AvMCExcits_Temp
+                        end if
 
                         call update_iter_data(iter_data_fciqmc)
 
@@ -214,6 +224,8 @@ contains
                     end do ! Over all iterations between Lanczos vectors.
 
                 end do ! Over all Lanczos vectors.
+
+                if (lanczos%exact_hamil) call calc_hamil_exact(lanczos)
 
             ! Sum the overlap and projected Hamiltonian matrices from the various processors.
             call communicate_lanczos_matrices(lanczos)

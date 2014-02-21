@@ -7,8 +7,10 @@ module stoch_lanczos_procs
     use bit_reps, only: decode_bit_det
     use CalcData, only: tTruncInitiator, tStartSinglePart, InitialPart, InitWalkers
     use CalcData, only: tSemiStochastic, tReadPops, tUseRealCoeffs, tau, DiagSft
+    use CalcData, only: AvMCExcits
     use constants
     use DetBitOps, only: DetBitEq, EncodeBitDet, IsAllowedHPHF
+    use Determinants, only: get_helement
     use dSFMT_interface , only : genrand_real2_dSFMT
     use FciMCData, only: ilutHF, HFDet, CurrentDets, SpawnedParts, SpawnedParts2, TotWalkers
     use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots, HashIndex, nWalkerHashes
@@ -23,6 +25,7 @@ module stoch_lanczos_procs
     use gndts_mod, only: gndts
     use hash, only: FindWalkerHash, init_hash_table, reset_hash_table, fill_in_hash_table
     use hilbert_space_size, only: CreateRandomExcitLevDetUnbias, create_rand_heisenberg_det
+    use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use Parallel_neci, only: MPIBarrier, iProcIndex, MPISum, MPIReduce, nProcessors
     use ParallelHelper, only: root
     use procedure_pointers
@@ -30,7 +33,7 @@ module stoch_lanczos_procs
     use semi_stoch_procs, only: add_core_states_currentdet_hash, start_walkers_from_core_ground
     use sym_mod, only: getsym
     use SystemData, only: nel, nbasis, BRR, nBasisMax, G1, tSpn, lms, tParity, SymRestrict
-    use SystemData, only: BasisFn, tHeisenberg
+    use SystemData, only: BasisFn, tHeisenberg, tHPHF
     use util_mod, only: get_free_unit
 
     implicit none
@@ -56,6 +59,12 @@ module stoch_lanczos_procs
         ! This variable specifies how many walkers should be added to each
         ! chosen site.
         real(dp) :: nwalkers_per_site_init
+        ! On iterations where the spawned walkers are used to estiamate the
+        ! Hamiltonian, this is used instead of AvMCExcits.
+        real(dp) :: av_mc_excits_sl
+        ! If true then calculate the projected Hamiltonian exactly (useful
+        ! for testing only, in practice).
+        logical :: exact_hamil
 
         real(dp), allocatable :: overlap_matrix_1(:,:), overlap_matrix_2(:,:)
         real(dp), allocatable :: hamil_matrix_1(:,:), hamil_matrix_2(:,:)
@@ -88,8 +97,10 @@ contains
         lanczos%nvecs = 1
         lanczos%niters = 1
         lanczos%nwalkers_per_site_init = 1.0_dp
+        lanczos%av_mc_excits_sl = 0.0_dp
         lanczos%tGround = .false.
         lanczos%tFiniteTemp = .false.
+        lanczos%exact_hamil = .false.
 
         read_inp: do
             call read_line(eof)
@@ -114,6 +125,10 @@ contains
                 call geti(lanczos%niters)
             case("NUM-WALKERS-PER-SITE-INIT")
                 call getf(lanczos%nwalkers_per_site_init)
+            case("AVERAGEMCEXCITS-HAMIL")
+                call getf(lanczos%av_mc_excits_sl)
+            case("EXACT-HAMIL")
+                lanczos%exact_hamil = .true.
             case default
                 call report("Keyword "//trim(w)//" not recognized in stoch-lanczos block", .true.)
             end select
@@ -132,6 +147,9 @@ contains
 
         if (.not. tUseRealCoeffs) call stop_all('t_r','Stochastic Lanczos can only be run using &
             &real coefficients).')
+
+        if (lanczos%exact_hamil .and. nProcessors /= 1) call stop_all('t_r','The exact-hamil &
+            &option can only be used when running with one processor.')
 
         tPopsAlreadyRead = .false.
         call SetupParameters()
@@ -163,6 +181,9 @@ contains
         if (lanczos%tFiniteTemp .and. lanczos%nrepeats > 1) then
             allocate(init_lanczos_config(0:NIfTot, MaxWalkersPart), stat=ierr)
         end if
+
+        ! If av_mc_excits_sl hasn't been set by the user, just use AvMCExcits.
+        if (lanczos%av_mc_excits_sl == 0.0_dp) lanczos%av_mc_excits_sl = AvMCExcits
 
         call MPIBarrier(ierr)
 
@@ -661,6 +682,112 @@ contains
         end associate
 
     end subroutine calc_hamil_elems_direct
+
+    subroutine calc_hamil_exact(lanczos)
+
+        type(stoch_lanczos_data), intent(inout) :: lanczos
+        integer :: i, j, idet, jdet
+        integer(n_int) :: ilut_1(0:NIfTot), ilut_2(0:NIfTot)
+        integer(n_int) :: int_sign(lenof_sign*lanczos%nvecs)
+        integer :: nI(nel), nJ(nel)
+        real(dp) :: real_sign_1(lenof_sign*lanczos%nvecs), real_sign_2(lenof_sign*lanczos%nvecs)
+        real(dp) :: h_elem
+        logical :: any_occ, occ_1, occ_2
+        integer(4), allocatable :: occ_flags(:)
+
+        associate(h_matrix_1 => lanczos%hamil_matrix_1, h_matrix_2 => lanczos%hamil_matrix_2)
+
+            h_matrix_1 = 0.0_dp
+            h_matrix_2 = 0.0_dp
+
+            allocate(occ_flags(TotWalkersLanczos))
+            occ_flags = 0
+
+            ilut_1 = 0_n_int
+            ilut_2 = 0_n_int
+
+            ! Check to see if there are any replica 1 or 2 walkers on this determinant.
+            do idet = 1, TotWalkersLanczos
+                int_sign = lanczos_vecs(NIfD+1:NIfD+lenof_sign*lanczos%nvecs, idet)
+
+                any_occ = .false.
+                do i = 1, lanczos%nvecs
+                    any_occ = any_occ .or. (int_sign(2*i-1) /= 0)
+                end do
+                if (any_occ) occ_flags = ibset(occ_flags(idet), 0)
+
+                any_occ = .false.
+                do i = 1, lanczos%nvecs
+                    any_occ = any_occ .or. (int_sign(2*i) /= 0)
+                end do
+                if (any_occ) occ_flags = ibset(occ_flags(idet), 1)
+            end do
+
+            ! Loop over all determinants in lanczos_vecs.
+            do idet = 1, TotWalkersLanczos
+                ilut_1 = lanczos_vecs(0:NIfDBO, idet)
+                call decode_bit_det(nI, ilut_1)
+                int_sign = lanczos_vecs(NIfD+1:NIfD+lenof_sign*lanczos%nvecs, idet)
+                real_sign_1 = transfer(int_sign, real_sign_1)
+                occ_1 = btest(occ_flags(idet),0)
+                occ_2 = btest(occ_flags(idet),1)
+
+                do jdet = idet, TotWalkersLanczos
+                    if (.not. ((occ_1 .and. btest(occ_flags(jdet),1)) .or. &
+                        (occ_2 .and. btest(occ_flags(jdet),0)))) cycle
+
+                    ilut_2 = lanczos_vecs(0:NIfDBO, jdet)
+                    call decode_bit_det(nJ, ilut_2)
+                    int_sign = lanczos_vecs(NIfD+1:NIfD+lenof_sign*lanczos%nvecs, jdet)
+                    real_sign_2 = transfer(int_sign, real_sign_1)
+                    
+                    if (idet == jdet) then
+                        if (tHPHF) then
+                            h_elem = hphf_diag_helement(nI, ilut_1)
+                        else
+                            h_elem = get_helement(nI, nJ, 0)
+                        end if
+                    else
+                        if (tHPHF) then
+                            h_elem = hphf_off_diag_helement(nI, nJ, ilut_1, ilut_2)
+                        else
+                            h_elem = get_helement(nI, nJ, ilut_1, ilut_2)
+                        end if
+                    end if
+
+                    ! Finally, add in the contribution to all of the Hamiltonian elements.
+                    do i = 1, lanczos%nvecs
+                        do j = i, lanczos%nvecs
+                            if (idet == jdet) then
+                                h_matrix_1(i,j) = h_matrix_1(i,j) + &
+                                    h_elem*(real_sign_1(2*i-1)*real_sign_2(2*j) + &
+                                    real_sign_1(2*i)*real_sign_2(2*j-1))/2
+                            else
+                                h_matrix_1(i,j) = h_matrix_1(i,j) + &
+                                    h_elem*(real_sign_1(2*i-1)*real_sign_2(2*j) + &
+                                    real_sign_1(2*i)*real_sign_2(2*j-1) + &
+                                    real_sign_1(2*j-1)*real_sign_2(2*i) + &
+                                    real_sign_1(2*j)*real_sign_2(2*i-1))/2
+                            end if
+                        end do
+                    end do
+
+                end do
+            end do
+
+            do i = 1, lanczos%nvecs
+                do j = 1, i-1
+                    h_matrix_1(i,j) = h_matrix_1(j,i)
+                end do
+            end do
+
+            h_matrix_2 = h_matrix_1
+
+            deallocate(occ_flags)
+
+        end associate
+
+    end subroutine calc_hamil_exact
 
     subroutine communicate_lanczos_matrices(lanczos)
 

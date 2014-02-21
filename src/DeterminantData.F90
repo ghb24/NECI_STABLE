@@ -139,7 +139,7 @@ contains
 
     subroutine write_spins_heisenberg(ilut)
 
-        integer(n_int) :: ilut(0:NIfTot)
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer :: i, nsites, beta_ind, alpha_ind, pos
         logical :: is_alpha, is_beta
 

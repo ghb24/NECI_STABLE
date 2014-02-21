@@ -135,6 +135,7 @@ logical :: tLowECore
 ! of the determinants in the MP1 wave function will be used to determine which to keep. Otherwise all singles and
 ! doubles are kept.
 logical :: tMP1Core 
+logical :: tHeisenbergFCICore
 logical :: tSparseCoreHamil ! Use a sparse representation of the core Hamiltonian.
 ! cas_determ_bitmask has all bits that refer to the active space set, and all other bits unset.
 ! cas_not_determ_bitmask is simply the result after the not operation is applied to cas_determ_bitmask.
@@ -192,6 +193,7 @@ logical :: tLowETrial
 ! of the determinants in the MP1 wave function will be used to determine which to keep. Otherwise all singles and
 ! doubles are kept.
 logical :: tMP1Trial
+logical :: tHeisenbergFCITrial
 real(dp), allocatable, dimension(:) :: trial_space_cutoff_amp
 integer, allocatable, dimension(:) :: trial_space_cutoff_num
 ! When using a CAS trial space, these integers store the number of orbitals above and below the Fermi energy to

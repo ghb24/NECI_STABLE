@@ -78,7 +78,7 @@ contains
         determ_proc_indices = 0
 
         if (.not. (tStartCAS .or. tPopsCore .or. tDoublesCore .or. tCASCore .or. tRASCore .or. &
-                   tOptimisedCore .or. tLowECore .or. tReadCore .or. tMP1Core)) then
+                   tOptimisedCore .or. tLowECore .or. tReadCore .or. tMP1Core .or. tHeisenbergFCICore)) then
             call stop_all("init_semi_stochastic", "You have not selected a semi-stochastic core &
                           &space to use.")
         end if
@@ -219,6 +219,8 @@ contains
                 call generate_low_energy_core(called_from_semistoch)
             else if (tMP1Core) then
                 call generate_using_mp1_criterion(called_from_semistoch)
+            else if (tHeisenbergFCICore) then
+                call generate_heisenberg_fci(called_from_semistoch)
             end if
         else if (tCSFCore) then
             if (tDoublesCore) then
@@ -1309,5 +1311,57 @@ contains
         tUseBrillouin = tTempUseBrill
 
     end subroutine enumerate_sing_doub_kpnt
+
+    subroutine generate_heisenberg_fci(called_from)
+
+        integer, intent(in) :: called_from
+        integer :: nsites, nup
+        integer :: up_spins(nel/2)
+
+        nsites = nbasis/2
+        nup = nel/2
+        call generate_heisenberg_fci_r(1, up_spins, nsites, nup, called_from)
+
+    end subroutine generate_heisenberg_fci
+
+    recursive subroutine generate_heisenberg_fci_r(ispin, up_spins, nsites, nup, called_from)
+
+        integer, intent(in) :: ispin
+        integer, intent(inout) :: up_spins(nel)
+        integer, intent(in) :: nsites, nup, called_from
+        integer :: i, isite, counter, starting_site
+        integer :: alpha_ind, beta_ind, pos
+        integer(n_int) :: ilut(0:NIfTot)
+
+        starting_site = 1
+        if (ispin > 1) starting_site = up_spins(ispin-1) + 1
+
+        do isite = starting_site, nsites
+            counter = 1
+            ilut = 0_n_int
+            up_spins(ispin) = isite
+            ! If we're on the last spin.
+            if (ispin == nup) then
+                do i = 1, nsites
+                    ! If this site has been chosen to have an up spin on it.
+                    if (i == up_spins(counter)) then
+                        alpha_ind = 2*i
+                        pos = (alpha_ind - 1)/bits_n_int
+                        ilut(pos) = ibset(ilut(pos), mod(alpha_ind-1, bits_n_int))
+                        ! Consider the next up spin on the next loop.
+                        counter = counter + 1
+                    else
+                        beta_ind = 2*i-1 
+                        pos = (beta_ind - 1)/bits_n_int
+                        ilut(pos) = ibset(ilut(pos), mod(beta_ind-1, bits_n_int))
+                    end if
+                end do
+                call add_state_to_space(ilut, called_from)
+            else
+                call generate_heisenberg_fci_r(ispin+1, up_spins, nsites, nup, called_from)
+            end if
+        end do 
+        
+    end subroutine generate_heisenberg_fci_r
 
 end module semi_stoch_gen
