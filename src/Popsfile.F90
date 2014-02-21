@@ -1313,11 +1313,11 @@ outer_map:      do i = 0, MappingNIfD
 
         ! Write out accumulated data used for tau searching, to ensure there
         ! are no blips in particle growth, tau, etc.
-        write(iunit, '(a,i16)') 'PopGammaSing=', gamma_sing, &
-                                ',PopGammaDoub=', gamma_doub, &
-                                ',PopGammaOpp=', gamma_opp, &
-                                ',PopGammaPar=', gamma_par, &
-                                ',PopMaxDeathCpt=', max_death_cpt
+        write(iunit, '(5(a,f18.12))') 'PopGammaSing=', gamma_sing, &
+                                      ',PopGammaDoub=', gamma_doub, &
+                                      ',PopGammaOpp=', gamma_opp, &
+                                      ',PopGammaPar=', gamma_par, &
+                                      ',PopMaxDeathCpt=', max_death_cpt
 
         if (.not. tSplitPops) then
             ! Write out the number of particles on each processor.
