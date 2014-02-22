@@ -32,6 +32,8 @@ MODULE PopsfileMod
                        tHF_Ref_Explicit, binarypops_min_weight
     use sort_mod
     use util_mod, only: get_free_unit,get_unique_filename
+    use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
+                          max_death_cpt
 
     implicit none
 
@@ -840,13 +842,15 @@ outer_map:      do i = 0, MappingNIfD
         integer, parameter :: max_nodes = 30000
         integer(int64) :: PopTotwalk, PopWalkersOnNodes(max_nodes)
         integer :: PopNNodes
-        real(dp) :: PopSft,PopTau, PopPSingles, PopParBias
+        real(dp) :: PopSft, PopTau, PopPSingles, PopParBias, PopGammaSing
+        real(dp) :: PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
         character(*), parameter :: t_r = 'ReadPopsHeadv4'
         HElement_t :: PopSumENum
         namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopLensign,PopNEl,PopTotwalk,PopSft,PopSumNoatHF,PopSumENum, &
                     PopCyc,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot, &
                     PopTau,PopiBlockingIter,PopRandomHash,PopPSingles, &
-                    PopParBias, PopNNodes, PopWalkersOnNodes
+                    PopParBias, PopNNodes, PopWalkersOnNodes, PopGammaSing, &
+                    PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
 
         PopsVersion=FindPopsfileVersion(iunithead)
         if(PopsVersion.ne.4) call stop_all("ReadPopsfileHeadv4","Wrong popsfile version for this routine.")
@@ -886,6 +890,11 @@ outer_map:      do i = 0, MappingNIfD
             read_walkers_on_nodes(0:PopNNodes-1) = &
                 PopWalkersOnNodes(1:PopNNodes)
         end if
+        call MPIBcast(PopGammaSing)
+        call MPIBcast(PopGammaDoub)
+        call MPIBcast(PopGammaOpp)
+        call MPIBCast(PopGammaPar)
+        call MPIBcast(PopMaxDeathCpt)
         tPop64Bit=Pop64Bit
         tPopHPHF=PopHPHF
         tPopLz=PopLz
@@ -900,6 +909,13 @@ outer_map:      do i = 0, MappingNIfD
         read_psingles = PopPSingles
         read_par_bias = PopParBias
         read_nnodes = PopNNodes
+
+        ! Fill the tau-searching accumulators, to avoid blips in tau etc.
+        gamma_sing = PopGammaSing
+        gamma_doub = PopGammaDoub
+        gamma_opp = PopGammaOpp
+        gamma_par = PopGammaPar
+        max_death_cpt = PopMaxDeathCpt
 
     end subroutine ReadPopsHeadv4
     
@@ -1297,6 +1313,14 @@ outer_map:      do i = 0, MappingNIfD
         write(iunit, '(a,i16)') 'PopiBlockingIter=', iBlockingIter
         write(iunit, '(a,f18.12,a,f18.12)') 'PopPSingles=', pSingles, &
             ',PopParBias=', rand_excit_par_bias
+
+        ! Write out accumulated data used for tau searching, to ensure there
+        ! are no blips in particle growth, tau, etc.
+        write(iunit, '(5(a,f18.12))') 'PopGammaSing=', gamma_sing, &
+                                      ',PopGammaDoub=', gamma_doub, &
+                                      ',PopGammaOpp=', gamma_opp, &
+                                      ',PopGammaPar=', gamma_par, &
+                                      ',PopMaxDeathCpt=', max_death_cpt
 
         if (.not. tSplitPops) then
             ! Write out the number of particles on each processor.
