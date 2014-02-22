@@ -1197,9 +1197,9 @@ MODULe nElRDMMod
         p_spawn=abs(1.0_dp - p_not_spawn)
        
         if(tInstSignOffDiagRDM) then
-            RDMBiasFacCurr = SignCurr(lenof_sign) / p_spawn  
+            RDMBiasFacCurr = SignCurr(1) / p_spawn  
         else
-            RDMBiasFacCurr = AvSignCurr(lenof_sign) / p_spawn   
+            RDMBiasFacCurr = AvSignCurr(1) / p_spawn   
         endif
         
     end subroutine calc_rdmbiasfac

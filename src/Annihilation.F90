@@ -960,9 +960,9 @@ MODULE AnnihilationMod
                         
                         if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then
                             if(tInstSignOffDiagRDM) then
-                                call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentSign(1))
+                                call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentSign(lenof_sign))
                             else
-                                call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
+                                call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(1+lenof_sign,PartInd))
                             endif
                         endif 
 
