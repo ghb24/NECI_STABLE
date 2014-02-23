@@ -110,7 +110,7 @@ MODULE FciMCParMod
                          FindBitExcitLevel, countbits, TestClosedShellDet, &
                          FindSpatialBitExcitLevel, IsAllowedHPHF, count_open_orbs, &
                          ilut_gt, get_bit_excitmat
-    use hash , only : DetermineDetNode, FindWalkerHash
+    use hash , only : determinedetnode, findwalkerhash
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
@@ -6809,15 +6809,16 @@ MODULE FciMCParMod
             CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVecTag,ierr)
             ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawned),stat=ierr)
             CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
-            ALLOCATE(SpawnedPartsLanc(0:NIfTot,MaxSpawned),stat=ierr)
+            ALLOCATE(SpawnVecLanc(0:NIfTot,MaxSpawned),stat=ierr)
 
             SpawnVec(:,:)=0
             SpawnVec2(:,:)=0
-            SpawnedPartsLanc = 0
+            SpawnVecLanc(:,:) = 0
 
 !Point at correct spawning arrays
             SpawnedParts=>SpawnVec
             SpawnedParts2=>SpawnVec2
+            SpawnedPartsLanc => SpawnVecLanc
 
             MemoryAlloc=MemoryAlloc+(NIfTot+1)*MaxSpawned*2*size_n_int
 

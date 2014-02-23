@@ -86,6 +86,9 @@ module stoch_lanczos_procs
     integer(n_int), allocatable :: init_lanczos_config(:,:)
     logical :: vary_niters
 
+    ! The total sign length for all Lanczos vectors together.
+    integer :: lenof_sign_sl
+
 contains
 
     subroutine stoch_lanczos_read_inp()
@@ -198,8 +201,8 @@ contains
         if (n_int == 4) call stop_all('t_r', 'Use of RealCoefficients does not work with 32 bit &
              &integers due to the use of the transfer operation from dp reals to 64 bit integers.')
 
-        ! Assuming Yamanouchi symbols (and CSFs) not used.
-        NIfLan = NIfD + lenof_sign*lanczos%nvecs + 1 + NIfFlag
+        lenof_sign_sl = lenof_sign*lanczos%nvecs
+        NIfLan = NIfDBO + lenof_sign_sl + 1 + NIfFlag
 
         nhashes_lanczos = nWalkerHashes
         TotWalkersLanczos = 0
@@ -423,9 +426,9 @@ contains
         type(ll_node), pointer :: temp_node, prev
 
         ! The index of the first element referring to the sign, for this ivec.
-        sign_ind = NIfD + lenof_sign*(ivec-1) + 1
-        hdiag_ind = NIfD + lenof_sign*nvecs + 1
-        if (tUseFlags) flag_ind = NIfD + lenof_sign*nvecs + 2
+        sign_ind = NIfDBO + lenof_sign*(ivec-1) + 1
+        hdiag_ind = NIfDBO + lenof_sign_sl + 1
+        if (tUseFlags) flag_ind = NIfDBO + lenof_sign_sl + 2
 
         ! Loop over all occupied determinants for this new Lanczos vector.
         do idet = 1, TotWalkers
@@ -470,7 +473,7 @@ contains
                 temp_node%ind = det_ind
 
                 ! Copy determinant data across.
-                lanczos_vecs(0:NIfD,det_ind) = CurrentDets(0:NIfD,idet)
+                lanczos_vecs(0:NIfDBO,det_ind) = CurrentDets(0:NIfDBO,idet)
                 lanczos_vecs(sign_ind:sign_ind+lenof_sign-1,det_ind) = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,idet)
                 lanczos_vecs(hdiag_ind,det_ind) = transfer(CurrentH(1,idet), temp)
                 if (tUseFlags) lanczos_vecs(flag_ind,det_ind) = CurrentDets(NOffFlag,idet)
@@ -500,7 +503,7 @@ contains
 
             do jvec = 1, ivec
                 ! The first index of the sign in lanczos_vecs, for each Lanczos vector.
-                ind(jvec) = NIfD + lenof_sign*(jvec-1) + 1
+                ind(jvec) = NIfDBO + lenof_sign*(jvec-1) + 1
             end do
 
             ! Loop over all determinants in lanczos_vecs.
@@ -551,7 +554,7 @@ contains
 
             do jvec = 1, ivec
                 ! The first index of the sign in lanczos_vecs, for each Lanczos vector.
-                ind(jvec) = NIfD + lenof_sign*(jvec-1) + 1
+                ind(jvec) = NIfDBO + lenof_sign*(jvec-1) + 1
             end do
 
             ! Loop over all determinants in CurrentDets.
@@ -627,10 +630,10 @@ contains
 
             do jvec = 1, ivec
                 ! The first index of the sign in lanczos_vecs, for each Lanczos vector.
-                ind(jvec) = NIfD + lenof_sign*(jvec-1) + 1
+                ind(jvec) = NIfDBO + lenof_sign*(jvec-1) + 1
             end do
-            hdiag_ind = NIfD + lenof_sign*lanczos%nvecs + 1
-            if (tUseFlags) flag_ind = NIfD + lenof_sign*lanczos%nvecs + 2
+            hdiag_ind = NIfDBO + lenof_sign_sl + 1
+            if (tUseFlags) flag_ind = NIfDBO + lenof_sign_sl + 2
 
             ideterm = 0
 
@@ -725,14 +728,14 @@ contains
         type(stoch_lanczos_data), intent(inout) :: lanczos
         integer :: i, j, idet, jdet, ic, hdiag_ind
         integer(n_int) :: ilut_1(0:NIfTot), ilut_2(0:NIfTot)
-        integer(n_int) :: int_sign(lenof_sign*lanczos%nvecs)
+        integer(n_int) :: int_sign(lenof_sign_sl)
         integer :: nI(nel), nJ(nel)
-        real(dp) :: real_sign_1(lenof_sign*lanczos%nvecs), real_sign_2(lenof_sign*lanczos%nvecs)
+        real(dp) :: real_sign_1(lenof_sign_sl), real_sign_2(lenof_sign_sl)
         real(dp) :: h_elem
         logical :: any_occ, occ_1, occ_2
         integer(4), allocatable :: occ_flags(:)
 
-        hdiag_ind = NIfD + lenof_sign*lanczos%nvecs + 1
+        hdiag_ind = NIfDBO + lenof_sign_sl + 1
 
         associate(h_matrix_1 => lanczos%hamil_matrix_1, h_matrix_2 => lanczos%hamil_matrix_2)
 
@@ -747,7 +750,7 @@ contains
 
             ! Check to see if there are any replica 1 or 2 walkers on this determinant.
             do idet = 1, TotWalkersLanczos
-                int_sign = lanczos_vecs(NIfD+1:NIfD+lenof_sign*lanczos%nvecs, idet)
+                int_sign = lanczos_vecs(NIfDBO+1:NIfDBO+lenof_sign_sl, idet)
 
                 any_occ = .false.
                 do i = 1, lanczos%nvecs
@@ -766,7 +769,7 @@ contains
             do idet = 1, TotWalkersLanczos
                 ilut_1 = lanczos_vecs(0:NIfDBO, idet)
                 call decode_bit_det(nI, ilut_1)
-                int_sign = lanczos_vecs(NIfD+1:NIfD+lenof_sign*lanczos%nvecs, idet)
+                int_sign = lanczos_vecs(NIfDBO+1:NIfDBO+lenof_sign_sl, idet)
                 real_sign_1 = transfer(int_sign, real_sign_1)
                 occ_1 = btest(occ_flags(idet),0)
                 occ_2 = btest(occ_flags(idet),1)
@@ -780,7 +783,7 @@ contains
                     if (ic > 2) cycle
 
                     call decode_bit_det(nJ, ilut_2)
-                    int_sign = lanczos_vecs(NIfD+1:NIfD+lenof_sign*lanczos%nvecs, jdet)
+                    int_sign = lanczos_vecs(NIfDBO+1:NIfDBO+lenof_sign_sl, jdet)
                     real_sign_2 = transfer(int_sign, real_sign_1)
                     
                     if (idet == jdet) then
@@ -919,8 +922,8 @@ contains
 
         type(stoch_lanczos_data), intent(in) :: lanczos
         integer :: ihash
-        integer(n_int) :: int_sign(lenof_sign*lanczos%nvecs)
-        real(dp) :: real_sign(lenof_sign*lanczos%nvecs), total_pop(lenof_sign*lanczos%nvecs)
+        integer(n_int) :: int_sign(lenof_sign_sl)
+        real(dp) :: real_sign(lenof_sign_sl), total_pop(lenof_sign_sl)
         type(ll_node), pointer :: temp_node
 
         int_sign = 0_n_int
@@ -931,7 +934,7 @@ contains
             temp_node => lanczos_hash_table(ihash)
             if (temp_node%ind /= 0) then
                 do while (associated(temp_node))
-                    int_sign = lanczos_vecs(NIfD+1:NIfD+lenof_sign*lanczos%nvecs, temp_node%ind)
+                    int_sign = lanczos_vecs(NIfDBO+1:NIfDBO+lenof_sign_sl, temp_node%ind)
                     real_sign = transfer(int_sign, real_sign)
                     total_pop = total_pop + abs(real_sign)
                     temp_node => temp_node%next
@@ -988,7 +991,7 @@ contains
             ! Only carry on if the symmetry of this determinant is correct.
             if (iSym%Sym%S /= HFSym%Sym%S .or. iSym%Ms /= HFSym%Ms .or. iSym%Ml /= HFSym%Ml) cycle
             call EncodeBitDet(nI_list(:,i), ilut)
-            if (.not. IsAllowedHPHF(ilut(0:NIfD))) cycle
+            if (.not. IsAllowedHPHF(ilut(0:NIfDBO))) cycle
             counter = counter + 1
             real_sign = 0.0_dp
             DetHash = FindWalkerHash(nI_list(:,i), nWalkerHashes)

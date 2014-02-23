@@ -25,7 +25,8 @@ module semi_stoch_procs
                          HashIndex, core_space, CoreSpaceTag, ll_node, nWalkerHashes, &
                          tFill_RDM, IterLastRDMFill, full_determ_vector_av, &
                          tFillingStochRDMonFly, Iter, IterRDMStart, CoreHashIndex, &
-                         core_ham_diag, DavidsonTag, Fii, HFDet
+                         core_ham_diag, DavidsonTag, Fii, HFDet, partial_determ_vecs_sl, &
+                         full_determ_vecs_sl
     use hash, only: DetermineDetNode, FindWalkerHash, init_hash_table, reset_hash_table
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
@@ -149,6 +150,50 @@ contains
         call halt_timer(SemiStoch_Multiply_Time)
 
     end subroutine deterministic_projection
+
+    subroutine deterministic_projection_sl_hamil()
+
+        integer :: i, j, info, ierr
+
+        call MPIBarrier(ierr)
+
+        call set_timer(SemiStoch_Comms_Time)
+
+        call MPIAllGatherV(partial_determ_vecs_sl, full_determ_vecs_sl, &
+                            determ_proc_sizes, determ_proc_indices)
+
+        call halt_timer(SemiStoch_Comms_Time)
+
+        call MPIBarrier(ierr)
+
+        call set_timer(SemiStoch_Multiply_Time)
+
+        if (determ_proc_sizes(iProcIndex) >= 1) then
+            ! Perform the multiplication. This can be done in two ways depending on
+            ! whether the the core Hamiltonian uses a sparse representation or not.
+            if (tSparseCoreHamil) then
+                
+                ! Start with this because sparse_core_hamil has Hii taken off, but actually we
+                ! don't want the projected Hamiltonian to be relative to the HF determinant.
+                partial_determ_vector = Hii*full_determ_vector(:, determ_proc_indices(iProcIndex)+1:&
+                                                  determ_proc_indices(iProcIndex)+determ_proc_sizes(iProcIndex))
+
+                do i = 1, determ_proc_sizes(iProcIndex)
+                    do j = 1, sparse_core_ham(i)%num_elements
+                        partial_determ_vector(:,i) = partial_determ_vector(:,i) - &
+                            sparse_core_ham(i)%elements(j)*full_determ_vector(:,sparse_core_ham(i)%positions(j))
+                    end do
+                end do
+
+            else
+                call stop_all('deterministic_projection_sl_hamil', 'You cannot use the full-core-hamil option &
+                                &with stochastic Lanczos.')
+            end if
+        end if
+
+        call halt_timer(SemiStoch_Multiply_Time)
+
+    end subroutine deterministic_projection_sl_hamil
 
     function is_core_state(ilut) result (core_state)
 

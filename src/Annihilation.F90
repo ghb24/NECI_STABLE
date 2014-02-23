@@ -225,6 +225,7 @@ MODULE AnnihilationMod
         integer(MPIArg), dimension(nProcessors) :: sendcounts, disps, &
                                                    recvcounts, recvdisps
         INTEGER :: MaxSendIndex
+        integer(MPIArg) :: SpawnedPartsWidth
         INTEGER, INTENT(OUT) :: MaxIndex
         LOGICAL, intent(in) :: tSingleProc
 
@@ -279,26 +280,13 @@ MODULE AnnihilationMod
             recvdisps(i)=recvdisps(i-1)+recvcounts(i-1)
         enddo
         MaxIndex=recvdisps(nProcessors)+recvcounts(nProcessors)
-        IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) THEN            
-            ! When we are filling the RDM, the SpawnedParts array contains 
-            ! | Dj (0:NIfTot) | Di (0:NIfDBO) | Ci (1) | 
-            ! All this needs to be passed around to the processor where Dj will be stored if 
-            ! already occupied.  We then need to search the CurrentDets of that processor 
-            ! to find Cj - while remembering the Di (and Ci) it goes with.
-            do i=1,nProcessors
-                recvdisps(i)=recvdisps(i)*int(NIfTot+NIfDBO+3,MPIArg)
-                recvcounts(i)=recvcounts(i)*int(NIfTot+NIfDBO+3,MPIArg)
-                sendcounts(i)=sendcounts(i)*int(NIfTot+NIfDBO+3,MPIArg)
-                disps(i)=disps(i)*int(NIfTot+NIfDBO+3,MPIArg)
-            enddo
-        ELSE
-            do i=1,nProcessors
-                recvdisps(i)=recvdisps(i)*int(NIfTot+1,MPIArg)
-                recvcounts(i)=recvcounts(i)*int(NIfTot+1,MPIArg)
-                sendcounts(i)=sendcounts(i)*int(NIfTot+1,MPIArg)
-                disps(i)=disps(i)*int(NIfTot+1,MPIArg)
-            enddo
-        ENDIF
+        SpawnedPartsWidth = int(size(SpawnedParts, 1), MPIArg)
+        do i=1,nProcessors
+            recvdisps(i)=recvdisps(i)*SpawnedPartsWidth
+            recvcounts(i)=recvcounts(i)*SpawnedPartsWidth
+            sendcounts(i)=sendcounts(i)*SpawnedPartsWidth
+            disps(i)=disps(i)*SpawnedPartsWidth
+        enddo
 
 !Max index is the largest occupied index in the array of hashes to be ordered in each processor 
         IF(MaxIndex.gt.(0.9*MaxSpawned)) THEN

@@ -34,7 +34,7 @@ contains
         type(stoch_lanczos_data), intent(inout) :: lanczos
         integer :: iconfig, irepeat, ivec, iiter, idet, ireplica, ispawn
         integer :: nspawn, parent_flags, unused_flags, ex_level_to_ref
-        integer :: TotWalkersNew, determ_index, ic, ex(2,2)
+        integer :: TotWalkersNew, determ_ind, ic, ex(2,2)
         integer :: nI_parent(nel), nI_child(nel)
         integer(n_int) :: ilut_child(0:NIfTot)
         integer(n_int), pointer :: ilut_parent(:)
@@ -73,7 +73,7 @@ contains
                         end if
 
                         iter = iter + 1
-                        call init_stoch_lanczos_iter(iter_data_fciqmc, determ_index)
+                        call init_stoch_lanczos_iter(iter_data_fciqmc, determ_ind)
 
                         !write(6,*) "CurrentDets:"
                         !do idet = 1, int(TotWalkers, sizeof_int)
@@ -106,12 +106,12 @@ contains
                             ! data in arrays for later use.
                             if (tParentIsDeterm) then
                                 ! Store the index of this state, for use in annihilation later.
-                                indices_of_determ_states(determ_index) = idet
+                                indices_of_determ_states(determ_ind) = idet
 
                                 ! Add the amplitude to the deterministic vector.
-                                partial_determ_vector(:,determ_index) = parent_sign
+                                partial_determ_vector(:,determ_ind) = parent_sign
 
-                                determ_index = determ_index + 1
+                                determ_ind = determ_ind + 1
 
                                 ! The deterministic states are always kept in CurrentDets, even when
                                 ! the amplitude is zero. Hence we must check if the amplitude is zero
@@ -136,7 +136,7 @@ contains
                                 do ispawn = 1, nspawn
 
                                     ! Zero the bit representation, to ensure no extraneous data gets through.
-                                    ilut_child = 0
+                                    ilut_child = 0_n_int
 
                                     call generate_excitation (nI_parent, ilut_parent, nI_child, &
                                                         ilut_child, exFlag, ic, ex, tParity, prob, &
@@ -146,7 +146,7 @@ contains
                                     if (.not. IsNullDet(nI_child)) then
 
                                         call encode_child (ilut_parent, ilut_child, ic, ex)
-                                        if (tUseFlags) ilut_child(nOffFlag) = 0
+                                        if (tUseFlags) ilut_child(nOffFlag) = 0_n_int
 
                                         if (tSemiStochastic) then
                                             tChildIsDeterm = is_core_state(ilut_child)
@@ -206,7 +206,7 @@ contains
                         TotWalkers = int(TotWalkersNew, int64)
 
                         if (iiter == 1) then
-                            if ( .not. lanczos%exact_hamil) call calc_hamil_elems_direct(lanczos, ivec)
+                            if (.not. lanczos%exact_hamil) call calc_hamil_elems_direct(lanczos, ivec)
                             ! Reset AvMCExcits to its default value.
                             AvMCExcits = AvMCExcits_Temp
                         end if
