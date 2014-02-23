@@ -29,8 +29,7 @@ contains
         logical :: tChildIsDeterm, tParentIsDeterm, tParity
         HElement_t :: HElGen, HEl
 
-        lanczos%hamil_matrix_1 = 0.0_dp
-        lanczos%hamil_matrix_2 = 0.0_dp
+        lanczos%hamil_matrix = 0.0_dp
 
         ilut_parent = 0_n_int
         if (tUseFlags) flag_ind = NIfDBO + lenof_sign_sl + 2
@@ -116,11 +115,9 @@ contains
         ! Symmetrise the projected Hamiltonian.
         do i = 1, lanczos%nvecs
             do j = 1, i-1
-                lanczos%hamil_matrix_1(i,j) = lanczos%hamil_matrix_1(j,i)
+                lanczos%hamil_matrix(i,j) = lanczos%hamil_matrix(j,i)
             end do
         end do
-
-        lanczos%hamil_matrix_2 = lanczos%hamil_matrix_1
 
     end subroutine calc_projected_hamil
 
@@ -253,7 +250,7 @@ contains
                     ! Finally, add in the contribution to the projected Hamiltonian for each pair of Krylov vectors.
                     do i = 1, lanczos%nvecs
                         do j = i, lanczos%nvecs
-                            lanczos%hamil_matrix_1(i,j) = lanczos%hamil_matrix_1(i,j) + &
+                            lanczos%hamil_matrix(i,j) = lanczos%hamil_matrix(i,j) + &
                                 (real_sign_1(2*i-1)*real_sign_2(2*j) + &
                                 real_sign_1(2*i)*real_sign_2(2*j-1))/2
                         end do
@@ -297,7 +294,7 @@ contains
             ! Finally, add in the contribution to the projected Hamiltonian for each pair of Krylov vectors.
             do i = 1, lanczos%nvecs
                 do j = i, lanczos%nvecs
-                    lanczos%hamil_matrix_1(i,j) = lanczos%hamil_matrix_1(i,j) + &
+                    lanczos%hamil_matrix(i,j) = lanczos%hamil_matrix(i,j) + &
                         h_diag*(real_sign(2*i-1)*real_sign(2*j) + &
                         real_sign(2*i)*real_sign(2*j-1))/2
                 end do
@@ -323,7 +320,7 @@ contains
 
             do i = 1, lanczos%nvecs
                 do j = i, lanczos%nvecs
-                    lanczos%hamil_matrix_1(i,j) = lanczos%hamil_matrix_1(i,j) + &
+                    lanczos%hamil_matrix(i,j) = lanczos%hamil_matrix(i,j) + &
                         (real_sign(2*i-1)*partial_determ_vecs_sl(2*j, idet) + &
                         real_sign(2*i)*partial_determ_vecs_sl(2*j-1, idet))/2
                 end do

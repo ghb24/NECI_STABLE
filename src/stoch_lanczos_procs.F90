@@ -69,8 +69,8 @@ module stoch_lanczos_procs
         ! for testing only, in practice).
         logical :: exact_hamil
 
-        real(dp), allocatable :: overlap_matrix_1(:,:), overlap_matrix_2(:,:)
-        real(dp), allocatable :: hamil_matrix_1(:,:), hamil_matrix_2(:,:)
+        real(dp), allocatable :: overlap_matrix(:,:)
+        real(dp), allocatable :: hamil_matrix(:,:)
     end type
 
     type(stoch_lanczos_data) :: lanczos
@@ -211,10 +211,8 @@ contains
         allocate(lanczos_hash_table(nhashes_lanczos), stat=ierr)
         call init_hash_table(lanczos_hash_table)
 
-        allocate(lanczos%overlap_matrix_1(lanczos%nvecs, lanczos%nvecs), stat=ierr)
-        allocate(lanczos%overlap_matrix_2(lanczos%nvecs, lanczos%nvecs), stat=ierr)
-        allocate(lanczos%hamil_matrix_1(lanczos%nvecs, lanczos%nvecs), stat=ierr)
-        allocate(lanczos%hamil_matrix_2(lanczos%nvecs, lanczos%nvecs), stat=ierr)
+        allocate(lanczos%overlap_matrix(lanczos%nvecs, lanczos%nvecs), stat=ierr)
+        allocate(lanczos%hamil_matrix(lanczos%nvecs, lanczos%nvecs), stat=ierr)
 
         ! If performing a finite-temperature calculation with more than one run for each initial
         ! configuration, we store this walker configuration so that we can restart from it later.
@@ -239,10 +237,8 @@ contains
         call reset_hash_table(lanczos_hash_table)
         lanczos_vecs = 0_n_int
 
-        lanczos%overlap_matrix_1 = 0.0_dp
-        lanczos%overlap_matrix_2 = 0.0_dp
-        lanczos%hamil_matrix_1 = 0.0_dp
-        lanczos%hamil_matrix_2 = 0.0_dp
+        lanczos%overlap_matrix = 0.0_dp
+        lanczos%hamil_matrix = 0.0_dp
         TotWalkersLanczos = 0
         iter = 0
 
@@ -493,13 +489,11 @@ contains
         integer(n_int) :: sgn(lenof_sign)
         real(dp) :: sign1(lenof_sign), sign2(lenof_sign)
 
-        associate(s_matrix1 => lanczos%overlap_matrix_1, s_matrix2 => lanczos%overlap_matrix_2)
+        associate(s_matrix => lanczos%overlap_matrix)
 
             ! Just in case!
-            s_matrix1(1:ivec, ivec) = 0.0_dp
-            s_matrix1(ivec, 1:ivec) = 0.0_dp
-            s_matrix2(1:ivec, ivec) = 0.0_dp
-            s_matrix2(ivec, 1:ivec) = 0.0_dp
+            s_matrix(1:ivec, ivec) = 0.0_dp
+            s_matrix(ivec, 1:ivec) = 0.0_dp
 
             do jvec = 1, ivec
                 ! The first index of the sign in lanczos_vecs, for each Lanczos vector.
@@ -516,97 +510,19 @@ contains
                     sgn = lanczos_vecs(ind(jvec):ind(jvec)+1, idet)
                     if (IsUnoccDet(sgn)) cycle
                     sign2 = transfer(sgn, sign1)
-                    s_matrix1(jvec,ivec) = s_matrix1(jvec,ivec) + sign1(2)*sign2(1)
-                    s_matrix2(jvec,ivec) = s_matrix2(jvec,ivec) + sign1(1)*sign2(2)
+                    s_matrix(jvec,ivec) = s_matrix(jvec,ivec) + &
+                        (sign1(1)*sign2(2) + sign1(2)*sign2(1))/2.0_dp
                 end do
             end do
 
-            ! Fill in the lower-half of the overlap matrices.
+            ! Fill in the lower-half of the overlap matrix.
             do jvec = 1, ivec
-                s_matrix1(ivec,jvec) = s_matrix1(jvec,ivec)
-                s_matrix2(ivec,jvec) = s_matrix2(jvec,ivec)
+                s_matrix(ivec,jvec) = s_matrix(jvec,ivec)
             end do
 
         end associate
 
     end subroutine calc_overlap_matrix_elems
-
-    subroutine calc_hamil_elems(lanczos, ivec)
-
-        ! Note: this doesn't work!
-
-        type(stoch_lanczos_data), intent(inout) :: lanczos
-        integer, intent(in) :: ivec
-        integer :: idet, jvec, ind(ivec)
-        integer :: det_ind, DetHash, nI(nel)
-        integer(n_int) :: sgn(lenof_sign)
-        real(dp) :: sign1(lenof_sign), sign2(lenof_sign), full_shift(lenof_sign)
-        type(ll_node), pointer :: temp_node
-        logical :: tDetFound
-
-        associate(h_matrix => lanczos%hamil_matrix_1, &
-                  s_matrix1 => lanczos%overlap_matrix_1, s_matrix2 => lanczos%overlap_matrix_2)
-
-            h_matrix(1:ivec, ivec) = 0.0_dp
-            h_matrix(ivec, 1:ivec) = 0.0_dp
-            ! The full shift, including the Hartree-Fock energy, *not* relative to it.
-            full_shift = DiagSft + Hii
-
-            do jvec = 1, ivec
-                ! The first index of the sign in lanczos_vecs, for each Lanczos vector.
-                ind(jvec) = NIfDBO + lenof_sign*(jvec-1) + 1
-            end do
-
-            ! Loop over all determinants in CurrentDets.
-            do idet = 1, TotWalkers
-                sgn = CurrentDets(NOffSgn:NOffSgn+1, idet)
-                sign1 = transfer(sgn, sign1)
-                call decode_bit_det(nI, CurrentDets(:,idet))
-                DetHash = FindWalkerHash(nI, nhashes_lanczos)
-                ! Point to the first node with this hash value in lanczos_vecs.
-                temp_node => lanczos_hash_table(DetHash)
-                if (temp_node%ind == 0) then
-                    ! If there are no determinants at all with this hash value in lanczos_vecs.
-                    cycle
-                else
-                    tDetFound = .false.
-                    do while (associated(temp_node))
-                        if (DetBitEQ(CurrentDets(:,idet), lanczos_vecs(:,temp_node%ind), NIfDBO)) then
-                            ! If this CurrentDets determinant has been found in lanczos_vecs.
-                            det_ind = temp_node%ind
-                            tDetFound = .true.
-                            exit
-                        end if
-                        ! Move on to the next determinant with this hash value.
-                        temp_node => temp_node%next
-                    end do
-                    if (tDetFound) then
-                        ! Add in the contribution to the projected Hamiltonian, for each lanczos vector.
-                        do jvec = 1, ivec
-                            sgn = lanczos_vecs(ind(jvec):ind(jvec)+1, det_ind)
-                            if (IsUnoccDet(sgn)) cycle
-                            sign2 = transfer(sgn, sign1)
-                            h_matrix(jvec,ivec) = h_matrix(jvec,ivec) + (sign1(1)*sign2(2) + sign1(2)*sign2(1))/2.0_dp
-                        end do
-                    end if
-                end if
-            end do
-
-            ! The above actually holds the subspace version of (1-\tau(H-S)) acting on the most recent
-            ! Lanczos vector. But we want just H acting on it. We therefore have to add some extra contributions
-            ! to get this. Note, we have to be careful about the two different overlap matrices to be included.
-            do jvec = 1, ivec
-                h_matrix(jvec,ivec) = -h_matrix(jvec,ivec) + 0.5_dp*(1+tau*full_shift(1))*s_matrix1(jvec,ivec) + &
-                                                            0.5_dp*(1+tau*full_shift(2))*s_matrix2(jvec,ivec)
-                h_matrix(jvec,ivec) = h_matrix(jvec,ivec)/tau
-                h_matrix(ivec,jvec) = h_matrix(jvec,ivec)
-            end do
-
-            lanczos%hamil_matrix_2 = h_matrix
-
-        end associate
-
-    end subroutine calc_hamil_elems
 
     subroutine calc_hamil_elems_direct(lanczos, ivec)
 
@@ -621,12 +537,10 @@ contains
         logical :: tDetFound, tDeterm
         character(len=*), parameter :: t_r = "calc_hamil_elems_direct"
 
-        associate(h_matrix_1 => lanczos%hamil_matrix_1, h_matrix_2 => lanczos%hamil_matrix_2)
+        associate(h_matrix => lanczos%hamil_matrix)
 
-            h_matrix_1(1:ivec, ivec) = 0.0_dp
-            h_matrix_1(ivec, 1:ivec) = 0.0_dp
-            h_matrix_2(1:ivec, ivec) = 0.0_dp
-            h_matrix_2(ivec, 1:ivec) = 0.0_dp
+            h_matrix(1:ivec, ivec) = 0.0_dp
+            h_matrix(ivec, 1:ivec) = 0.0_dp
 
             do jvec = 1, ivec
                 ! The first index of the sign in lanczos_vecs, for each Lanczos vector.
@@ -666,8 +580,8 @@ contains
                             sgn = lanczos_vecs(ind(jvec):ind(jvec)+1, det_ind)
                             if (IsUnoccDet(sgn)) cycle
                             sign2 = transfer(sgn, sign1)
-                            h_matrix_1(jvec,ivec) = h_matrix_1(jvec,ivec) - sign1(1)*sign2(2)
-                            h_matrix_2(jvec,ivec) = h_matrix_2(jvec,ivec) - sign1(2)*sign2(1)
+                            h_matrix(jvec,ivec) = h_matrix(jvec,ivec) - &
+                                (sign1(1)*sign2(2) + sign1(2)*sign2(1))/2.0_dp
                         end do
                     end if
                 end if
@@ -698,16 +612,14 @@ contains
                     sgn = lanczos_vecs(ind(jvec):ind(jvec)+1, idet)
                     if (IsUnoccDet(sgn)) cycle
                     sign2 = transfer(sgn, sign1)
-                    h_matrix_1(jvec,ivec) = h_matrix_1(jvec,ivec) + sign1(1)*sign2(2)
-                    h_matrix_2(jvec,ivec) = h_matrix_2(jvec,ivec) + sign1(2)*sign2(1)
+                    h_matrix(jvec,ivec) = h_matrix(jvec,ivec) + &
+                        (sign1(1)*sign2(2) + sign1(2)*sign2(1))/2.0_dp
                 end do
             end do
 
             do jvec = 1, ivec
-                h_matrix_1(jvec,ivec) = h_matrix_1(jvec,ivec)/tau
-                h_matrix_2(jvec,ivec) = h_matrix_2(jvec,ivec)/tau
-                h_matrix_1(ivec,jvec) = h_matrix_1(jvec,ivec)
-                h_matrix_2(ivec,jvec) = h_matrix_2(jvec,ivec)
+                h_matrix(jvec,ivec) = h_matrix(jvec,ivec)/tau
+                h_matrix(ivec,jvec) = h_matrix(jvec,ivec)
             end do
 
             if (tSemiStochastic) then
@@ -737,10 +649,9 @@ contains
 
         hdiag_ind = NIfDBO + lenof_sign_sl + 1
 
-        associate(h_matrix_1 => lanczos%hamil_matrix_1, h_matrix_2 => lanczos%hamil_matrix_2)
+        associate(h_matrix => lanczos%hamil_matrix)
 
-            h_matrix_1 = 0.0_dp
-            h_matrix_2 = 0.0_dp
+            h_matrix = 0.0_dp
 
             allocate(occ_flags(TotWalkersLanczos))
             occ_flags = 0
@@ -800,11 +711,11 @@ contains
                     do i = 1, lanczos%nvecs
                         do j = i, lanczos%nvecs
                             if (idet == jdet) then
-                                h_matrix_1(i,j) = h_matrix_1(i,j) + &
+                                h_matrix(i,j) = h_matrix(i,j) + &
                                     h_elem*(real_sign_1(2*i-1)*real_sign_2(2*j) + &
                                     real_sign_1(2*i)*real_sign_2(2*j-1))/2
                             else
-                                h_matrix_1(i,j) = h_matrix_1(i,j) + &
+                                h_matrix(i,j) = h_matrix(i,j) + &
                                     h_elem*(real_sign_1(2*i-1)*real_sign_2(2*j) + &
                                     real_sign_1(2*i)*real_sign_2(2*j-1) + &
                                     real_sign_1(2*j-1)*real_sign_2(2*i) + &
@@ -818,11 +729,9 @@ contains
 
             do i = 1, lanczos%nvecs
                 do j = 1, i-1
-                    h_matrix_1(i,j) = h_matrix_1(j,i)
+                    h_matrix(i,j) = h_matrix(j,i)
                 end do
             end do
-
-            h_matrix_2 = h_matrix_1
 
             deallocate(occ_flags)
 
@@ -836,21 +745,17 @@ contains
         ! held only on the root node.
 
         type(stoch_lanczos_data), intent(inout) :: lanczos
-        real(dp) :: inp_matrices(4*lanczos%nvecs, lanczos%nvecs)
-        real(dp) :: out_matrices(4*lanczos%nvecs, lanczos%nvecs)
+        real(dp) :: inp_matrices(2*lanczos%nvecs, lanczos%nvecs)
+        real(dp) :: out_matrices(2*lanczos%nvecs, lanczos%nvecs)
 
-        inp_matrices(1:lanczos%nvecs, 1:lanczos%nvecs) = lanczos%overlap_matrix_1
-        inp_matrices(lanczos%nvecs+1:2*lanczos%nvecs, 1:lanczos%nvecs) = lanczos%overlap_matrix_2
-        inp_matrices(2*lanczos%nvecs+1:3*lanczos%nvecs, 1:lanczos%nvecs) = lanczos%hamil_matrix_1
-        inp_matrices(3*lanczos%nvecs+1:4*lanczos%nvecs, 1:lanczos%nvecs) = lanczos%hamil_matrix_2
+        inp_matrices(1:lanczos%nvecs, 1:lanczos%nvecs) = lanczos%overlap_matrix
+        inp_matrices(lanczos%nvecs+1:2*lanczos%nvecs, 1:lanczos%nvecs) = lanczos%hamil_matrix
 
         call MPISum(inp_matrices, out_matrices)
 
         if (iProcIndex == root) then
-            lanczos%overlap_matrix_1 = out_matrices(1:lanczos%nvecs, 1:lanczos%nvecs)
-            lanczos%overlap_matrix_2 = out_matrices(lanczos%nvecs+1:2*lanczos%nvecs, 1:lanczos%nvecs)
-            lanczos%hamil_matrix_1 = out_matrices(2*lanczos%nvecs+1:3*lanczos%nvecs, 1:lanczos%nvecs)
-            lanczos%hamil_matrix_2 = out_matrices(3*lanczos%nvecs+1:4*lanczos%nvecs, 1:lanczos%nvecs)
+            lanczos%overlap_matrix = out_matrices(1:lanczos%nvecs, 1:lanczos%nvecs)
+            lanczos%hamil_matrix = out_matrices(lanczos%nvecs+1:2*lanczos%nvecs, 1:lanczos%nvecs)
         end if
 
     end subroutine communicate_lanczos_matrices
@@ -863,12 +768,8 @@ contains
         real(dp) :: average_s_matrix(lanczos%nvecs, lanczos%nvecs)
 
         if (iProcIndex == root) then
-            average_h_matrix = (lanczos%hamil_matrix_1 + lanczos%hamil_matrix_2)/2.0_dp
-            call output_matrix(lanczos, iconfig, irepeat, 'hamil  ', average_h_matrix)
-            ! We have two overlap matrices as we have two replicas. So average them for
-            ! better statistics.
-            average_s_matrix = (lanczos%overlap_matrix_1 + lanczos%overlap_matrix_2)/2.0_dp
-            call output_matrix(lanczos, iconfig, irepeat, 'overlap', average_s_matrix)
+            call output_matrix(lanczos, iconfig, irepeat, 'hamil  ', lanczos%hamil_matrix)
+            call output_matrix(lanczos, iconfig, irepeat, 'overlap', lanczos%overlap_matrix)
         end if
 
     end subroutine output_lanczos_matrices
