@@ -18,7 +18,9 @@ module stoch_lanczos_procs
     use FciMCData, only: tPopsAlreadyRead, tHashWalkerList, CurrentH, determ_proc_sizes
     use FciMCData, only: core_ham_diag, InputDiagSft, Hii, max_spawned_ind, SpawnedPartsLanc
     use FciMCData, only: partial_determ_vector, full_determ_vector, determ_proc_indices, HFSym
-    use FciMCData, only: TotParts, TotPartsOld, AllTotParts, AllTotPartsOld, iter
+    use FciMCData, only: TotParts, TotPartsOld, AllTotParts, AllTotPartsOld, iter, MaxSpawned
+    use FciMCData, only: SpawnedPartsLanc2, SpawnVecLanc, SpawnVecLanc2, partial_determ_vecs_sl
+    use FciMCData, only: full_determ_vecs_sl, determ_space_size
     use FciMCParMod, only: create_particle, InitFCIMC_HF, SetupParameters, InitFCIMCCalcPar
     use FciMCParMod, only: init_fcimc_fn_pointers, WriteFciMCStats, WriteFciMCStatsHeader
     use FciMCParMod, only: rezero_iter_stats_each_iter, tSinglePartPhase
@@ -65,9 +67,6 @@ module stoch_lanczos_procs
         ! On iterations where the spawned walkers are used to estiamate the
         ! Hamiltonian, this is used instead of AvMCExcits.
         real(dp) :: av_mc_excits_sl
-        ! If true then calculate the projected Hamiltonian exactly (useful
-        ! for testing only, in practice).
-        logical :: exact_hamil
 
         real(dp), allocatable :: overlap_matrix(:,:)
         real(dp), allocatable :: hamil_matrix(:,:)
@@ -89,6 +88,15 @@ module stoch_lanczos_procs
     ! The total sign length for all Lanczos vectors together.
     integer :: lenof_sign_sl
 
+    ! If true then calculate the projected Hamiltonian exactly (useful
+    ! for testing only, in practice).
+    logical :: tExactHamil
+    ! If true, use the spawning from the main FCIQMC iterations to
+    ! calculate the projected Hamiltonian.
+    logical :: tHamilOnFly
+
+    integer :: MaxSpawnedEachProc
+
 contains
 
     subroutine stoch_lanczos_read_inp()
@@ -109,7 +117,8 @@ contains
         lanczos%av_mc_excits_sl = 0.0_dp
         lanczos%tGround = .false.
         lanczos%tFiniteTemp = .false.
-        lanczos%exact_hamil = .false.
+        tExactHamil = .false.
+        tHamilOnFly = .false.
         vary_niters = .false.
 
         read_inp: do
@@ -148,7 +157,9 @@ contains
             case("AVERAGEMCEXCITS-HAMIL")
                 call getf(lanczos%av_mc_excits_sl)
             case("EXACT-HAMIL")
-                lanczos%exact_hamil = .true.
+                tExactHamil = .true.
+            case("HAMIL-ON-FLY")
+                tHamilOnFly = .true.
             case default
                 call report("Keyword "//trim(w)//" not recognized in stoch-lanczos block", .true.)
             end select
@@ -188,7 +199,7 @@ contains
         if (.not. tUseRealCoeffs) call stop_all('t_r','Stochastic Lanczos can only be run using &
             &real coefficients).')
 
-        if (lanczos%exact_hamil .and. nProcessors /= 1) call stop_all('t_r','The exact-hamil &
+        if (tExactHamil .and. nProcessors /= 1) call stop_all('t_r','The exact-hamil &
             &option can only be used when running with one processor.')
 
         tPopsAlreadyRead = .false.
@@ -222,6 +233,25 @@ contains
 
         ! If av_mc_excits_sl hasn't been set by the user, just use AvMCExcits.
         if (lanczos%av_mc_excits_sl == 0.0_dp) lanczos%av_mc_excits_sl = AvMCExcits
+
+        if (tHamilOnFly) then
+            allocate(SpawnVecLanc(0:NIfTot,MaxSpawned),stat=ierr)
+            SpawnVecLanc(:,:) = 0
+            SpawnedPartsLanc => SpawnVecLanc
+        else
+            allocate(SpawnVecLanc(0:NOffSgn+lenof_sign_sl-1,MaxSpawned),stat=ierr)
+            allocate(SpawnVecLanc2(0:NOffSgn+lenof_sign_sl-1,MaxSpawned),stat=ierr)
+            SpawnVecLanc(:,:) = 0
+            SpawnVecLanc2(:,:) = 0
+            SpawnedPartsLanc => SpawnVecLanc
+            SpawnedPartsLanc2 => SpawnVecLanc2
+            if (tSemiStochastic) then
+                allocate(partial_determ_vecs_sl(lenof_sign_sl,determ_proc_sizes(iProcIndex)), stat=ierr)
+                allocate(full_determ_vecs_sl(lenof_sign_sl,determ_space_size), stat=ierr)
+            end if
+        end if
+
+        MaxSpawnedEachProc = int(0.85*real(MaxSpawned,dp)/nProcessors)
 
         call MPIBarrier(ierr)
 
@@ -524,7 +554,7 @@ contains
 
     end subroutine calc_overlap_matrix_elems
 
-    subroutine calc_hamil_elems_direct(lanczos, ivec)
+    subroutine calc_hamil_on_fly(lanczos, ivec)
 
         type(stoch_lanczos_data), intent(inout) :: lanczos
         integer, intent(in) :: ivec
@@ -535,7 +565,7 @@ contains
         real(dp) :: temp
         type(ll_node), pointer :: temp_node
         logical :: tDetFound, tDeterm
-        character(len=*), parameter :: t_r = "calc_hamil_elems_direct"
+        character(len=*), parameter :: t_r = "calc_hamil_elems_on_fly"
 
         associate(h_matrix => lanczos%hamil_matrix)
 
@@ -633,7 +663,7 @@ contains
 
         end associate
 
-    end subroutine calc_hamil_elems_direct
+    end subroutine calc_hamil_on_fly
 
     subroutine calc_hamil_exact(lanczos)
 
@@ -678,7 +708,9 @@ contains
 
             ! Loop over all determinants in lanczos_vecs.
             do idet = 1, TotWalkersLanczos
+                write(6,*) "idet:", idet
                 ilut_1 = lanczos_vecs(0:NIfDBO, idet)
+                write(6,*) "ilut:", ilut_1
                 call decode_bit_det(nI, ilut_1)
                 int_sign = lanczos_vecs(NIfDBO+1:NIfDBO+lenof_sign_sl, idet)
                 real_sign_1 = transfer(int_sign, real_sign_1)

@@ -6809,16 +6809,13 @@ MODULE FciMCParMod
             CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVecTag,ierr)
             ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawned),stat=ierr)
             CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
-            ALLOCATE(SpawnVecLanc(0:NIfTot,MaxSpawned),stat=ierr)
 
             SpawnVec(:,:)=0
             SpawnVec2(:,:)=0
-            SpawnVecLanc(:,:) = 0
 
 !Point at correct spawning arrays
             SpawnedParts=>SpawnVec
             SpawnedParts2=>SpawnVec2
-            SpawnedPartsLanc => SpawnVecLanc
 
             MemoryAlloc=MemoryAlloc+(NIfTot+1)*MaxSpawned*2*size_n_int
 

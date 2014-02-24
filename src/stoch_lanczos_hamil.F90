@@ -11,28 +11,34 @@ contains
 
     subroutine calc_projected_hamil(lanczos)
 
-        use CalcData, only: tSemiStochastic, AvMCExcits
+        use bit_reps, only: decode_bit_det
+        use CalcData, only: tSemiStochastic
         use constants
         use FciMCData, only: fcimc_excit_gen_store, exFlag, partial_determ_vecs_sl
         use procedure_pointers, only: generate_excitation, encode_child, get_spawn_helement
         use semi_stoch_procs, only: is_core_state, check_determ_flag
         use semi_stoch_procs, only: deterministic_projection_sl_hamil
+        use util_mod, only: stochastic_round
         
         type(stoch_lanczos_data), intent(inout) :: lanczos
-        integer :: idet, ispawn, nspawn, nspawns_this_proc, i, j
+        integer :: idet, ispawn, nspawn, i, j
         integer :: determ_ind, flag_ind, ic, ex(2,2)
         integer :: nI_parent(nel), nI_child(nel)
         integer(n_int) :: ilut_child(0:NIfTot), ilut_parent(0:NIfTot)
-        real(dp) :: prob
+        real(dp) :: prob, tot_pop
         real(dp), dimension(lenof_sign_sl) :: child_sign, parent_sign
         integer(n_int) :: int_sign(lenof_sign_sl)
-        logical :: tChildIsDeterm, tParentIsDeterm, tParity
+        logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied, tParity
+        logical :: tNearlyFull, tFinished, tAllFinished
         HElement_t :: HElGen, HEl
 
         lanczos%hamil_matrix = 0.0_dp
 
         ilut_parent = 0_n_int
         if (tUseFlags) flag_ind = NIfDBO + lenof_sign_sl + 2
+        ValidSpawnedList = InitialSpawnedSlots
+        tNearlyFull = .false.
+        tFinished = .false.
         determ_ind = 1
 
         do idet = 1, TotWalkersLanczos
@@ -49,8 +55,10 @@ contains
             call decode_bit_det(nI_parent, ilut_parent)
             int_sign = lanczos_vecs(NIfDBO+1:NIfDBO+lenof_sign_sl, idet)
             parent_sign = transfer(int_sign, parent_sign)
+            tot_pop = sum(abs(parent_sign))
 
             tParentIsDeterm = check_determ_flag(ilut_parent)
+            tParentUnoccupied = IsUnoccDet(parent_sign)
 
             ! If this determinant is in the deterministic space then store the relevant
             ! data in arrays for later use.
@@ -60,7 +68,9 @@ contains
                 determ_ind = determ_ind + 1
             end if
 
-            nspawn = decide_num_to_spawn_sl_hamil(parent_sign, AvMCExcits)
+            if (tParentUnoccupied) cycle
+
+            nspawn = stochastic_round(lanczos%av_mc_excits_sl*tot_pop)
             
             do ispawn = 1, nspawn
 
@@ -85,7 +95,7 @@ contains
                     HEl = get_spawn_helement(nI_parent, nI_child, ilut_parent, ilut_child, ic, ex, &
                                              tParity, HElGen)
 
-                    child_sign = return_amp_sl_hamil(parent_sign, AvMCExcits, HEl)
+                    child_sign = return_amp_sl_hamil(parent_sign, prob, lanczos%av_mc_excits_sl*tot_pop, HEl)
                 else
                     child_sign = 0.0_dp
                 end if
@@ -93,7 +103,12 @@ contains
                 ! If any (valid) children have been spawned.
                 if ((any(child_sign /= 0)) .and. (ic /= 0) .and. (ic <= 2)) then
 
-                    call create_particle_sl_hamil (nI_child, ilut_child, child_sign)
+                    call create_particle_sl_hamil (nI_child, ilut_child, child_sign, tNearlyFull)
+
+                    if (tNearlyFull) then
+                        call add_in_hamil_contribs(lanczos, tFinished, tAllFinished)
+                        tNearlyFull = .false.
+                    end if
 
                 end if ! If a child was spawned.
 
@@ -101,11 +116,12 @@ contains
 
         end do ! Over all determinants.
 
-        call distribute_spawns_sl_hamil(nspawns_this_proc)
-
-        call calc_hamil_contribs_spawn(lanczos, nspawns_this_proc)
-
-        call calc_hamil_contribs_diag(lanczos)
+        tFinished = .true.
+        do
+            call add_in_hamil_contribs(lanczos, tFinished, tAllFinished)
+            call calc_hamil_contribs_diag(lanczos)
+            if (tAllFinished) exit
+        end do
 
         if (tSemiStochastic) then
             call deterministic_projection_sl_hamil()
@@ -121,47 +137,54 @@ contains
 
     end subroutine calc_projected_hamil
 
-    function decide_num_to_spawn_sl_hamil(parent_sign, av_spawns_per_walker) result(nspawn)
+    subroutine add_in_hamil_contribs(lanczos, tFinished, tAllFinished)
+
+        use Parallel_neci, only: MPIAllGather
+
+        type(stoch_lanczos_data), intent(inout) :: lanczos
+        logical, intent(in) :: tFinished
+        logical, intent(out) :: tAllFinished
+        logical :: tFinished_AllProcs(nProcessors)
+        integer :: nspawns_this_proc, ierr
+
+        call distribute_spawns_sl_hamil(nspawns_this_proc)
+
+        call calc_hamil_contribs_spawn(lanczos, nspawns_this_proc)
+
+        ValidSpawnedList = InitialSpawnedSlots
+
+        call MPIAllGather(tFinished, 1, tFinished_AllProcs, 1, ierr)
+
+        tAllFinished = all(tFinished_AllProcs)
+
+    end subroutine add_in_hamil_contribs
+
+    function return_amp_sl_hamil(parent_sign, prob, av_nspawn, HEl) result(child_sign)
 
         real(dp), intent(in) :: parent_sign(lenof_sign_sl)
-        real(dp), intent(in) :: av_spawns_per_walker
-        integer :: nspawn
-        real(dp) :: unrounded_nspawn, prob_extra_walker, r
-
-        unrounded_nspawn = sum(abs(parent_sign*av_spawns_per_walker))
-        nspawn = int(unrounded_nspawn)
-        if (unrounded_nspawn - real(nspawn,dp) > 0) then
-            prob_extra_walker = unrounded_nspawn - real(nspawn,dp)
-            r = genrand_real2_dSFMT()
-            if (prob_extra_walker > r) nspawn = nspawn + 1
-        end if
-
-    end function decide_num_to_spawn_sl_hamil
-
-    function return_amp_sl_hamil(parent_sign, nattempts, HEl) result(child_sign)
-
-        real(dp), intent(in) :: parent_sign(lenof_sign_sl)
-        real(dp), intent(in) :: nattempts
+        real(dp), intent(in) :: prob
+        real(dp), intent(in) :: av_nspawn
         HElement_t, intent(in) :: HEl
         real(dp) :: child_sign(lenof_sign_sl)
-        real(dp) :: Hel_real, prob
+        real(dp) :: Hel_real, corrected_prob
 
         HEl_real = real(HEl, dp)
-        prob = prob*nattempts
-        child_sign = HEl*parent_sign/prob
+        corrected_prob = prob*av_nspawn
+        child_sign = HEl*parent_sign/corrected_prob
 
     end function return_amp_sl_hamil
 
-    subroutine create_particle_sl_hamil (nI_child, ilut_child, child_sign)
+    subroutine create_particle_sl_hamil (nI_child, ilut_child, child_sign, tNearlyFull)
 
         use hash, only: DetermineDetNode
-        use FciMCData, only: ValidSpawnedList
+        use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots
 
         integer, intent(in) :: nI_child(nel)
         integer, intent(in) :: ilut_child(0:NIfTot)
         real(dp), intent(in) :: child_sign(lenof_sign_sl)
+        logical, intent(inout) :: tNearlyFull
+        integer(n_int) :: int_sign(lenof_sign_sl)
         integer :: proc
-        integer :: int_sign(lenof_sign_sl)
 
         proc = DetermineDetNode(nI_child, 0)
 
@@ -170,6 +193,8 @@ contains
         SpawnedPartsLanc(NOffSgn:NOffSgn+lenof_sign_sl-1, ValidSpawnedList(proc)) = int_sign
 
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
+
+        if (ValidSpawnedList(proc)-InitialSpawnedSlots(proc) > MaxSpawnedEachProc) tNearlyFull = .true.
 
     end subroutine create_particle_sl_hamil
 
@@ -220,8 +245,9 @@ contains
         ilut_spawn = 0_n_int
 
         do idet = 1, nspawns_this_proc
-            ilut_spawn(0:NIfDBO) = SpawnedParts(0:NIfDBO, idet)
-            int_sign = SpawnedParts(NOffSgn:NOffSgn+lenof_sign_sl-1, idet)
+            call neci_flush(6)
+            ilut_spawn(0:NIfDBO) = SpawnedPartsLanc(0:NIfDBO, idet)
+            int_sign = SpawnedPartsLanc(NOffSgn:NOffSgn+lenof_sign_sl-1, idet)
             real_sign_1 = transfer(int_sign, real_sign_1)
             call decode_bit_det(nI_spawn, ilut_spawn)
             DetHash = FindWalkerHash(nI_spawn, nhashes_lanczos)

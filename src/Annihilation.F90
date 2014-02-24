@@ -260,7 +260,6 @@ MODULE AnnihilationMod
            enddo
         endif
 
-
 !        WRITE(6,*) 'sendcounts',sendcounts
 !        WRITE(6,*) 'disps',disps
 
@@ -336,7 +335,7 @@ MODULE AnnihilationMod
 !        do i=1,MaxIndex
 !            WRITE(6,*) SpawnedParts2(:,i)
 !        enddo
-        
+
         CALL halt_timer(Comms_Time)
 
     END SUBROUTINE SendProcNewParts
@@ -563,7 +562,7 @@ MODULE AnnihilationMod
         if (tStochLanczos) then
             max_spawned_ind = ValidSpawned
             do i = 1, ValidSpawned
-                SpawnedPartsLanc(:,i) = SpawnedParts(:,i)
+                SpawnedPartsLanc(0:NIfTot,i) = SpawnedParts(0:NIfTot,i)
             end do
         end if
 

@@ -175,13 +175,13 @@ contains
                 
                 ! Start with this because sparse_core_hamil has Hii taken off, but actually we
                 ! don't want the projected Hamiltonian to be relative to the HF determinant.
-                partial_determ_vector = Hii*full_determ_vector(:, determ_proc_indices(iProcIndex)+1:&
+                partial_determ_vecs_sl = Hii*full_determ_vecs_sl(:, determ_proc_indices(iProcIndex)+1:&
                                                   determ_proc_indices(iProcIndex)+determ_proc_sizes(iProcIndex))
 
                 do i = 1, determ_proc_sizes(iProcIndex)
                     do j = 1, sparse_core_ham(i)%num_elements
-                        partial_determ_vector(:,i) = partial_determ_vector(:,i) - &
-                            sparse_core_ham(i)%elements(j)*full_determ_vector(:,sparse_core_ham(i)%positions(j))
+                        partial_determ_vecs_sl(:,i) = partial_determ_vecs_sl(:,i) + &
+                            sparse_core_ham(i)%elements(j)*full_determ_vecs_sl(:,sparse_core_ham(i)%positions(j))
                     end do
                 end do
 

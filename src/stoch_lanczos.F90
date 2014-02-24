@@ -2,6 +2,7 @@
 
 module stoch_lanczos
 
+    use stoch_lanczos_hamil
     use stoch_lanczos_procs
     implicit none
 
@@ -38,7 +39,7 @@ contains
         integer :: nI_parent(nel), nI_child(nel)
         integer(n_int) :: ilut_child(0:NIfTot)
         integer(n_int), pointer :: ilut_parent(:)
-        real(dp) :: prob, unused_rdm_real, AvMCExcits_Temp
+        real(dp) :: prob, unused_rdm_real
         real(dp), dimension(lenof_sign) :: child_sign, parent_sign
         real(dp), dimension(lenof_sign) :: unused_sign1, unused_sign2
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
@@ -65,12 +66,6 @@ contains
                     call calc_overlap_matrix_elems(lanczos, ivec)
 
                     do iiter = 1, lanczos%niters(ivec)
-
-                        if (iiter == 1) then
-                            ! If the projected Hamiltonian will be calculated using spawned walkers.
-                            AvMCExcits_Temp = AvMCExcits
-                            AvMCExcits = lanczos%av_mc_excits_sl
-                        end if
 
                         iter = iter + 1
                         call init_stoch_lanczos_iter(iter_data_fciqmc, determ_ind)
@@ -206,9 +201,7 @@ contains
                         TotWalkers = int(TotWalkersNew, int64)
 
                         if (iiter == 1) then
-                            if (.not. lanczos%exact_hamil) call calc_hamil_elems_direct(lanczos, ivec)
-                            ! Reset AvMCExcits to its default value.
-                            AvMCExcits = AvMCExcits_Temp
+                            if (tHamilOnFly) call calc_hamil_on_fly(lanczos, ivec)
                         end if
 
                         call update_iter_data(iter_data_fciqmc)
@@ -225,12 +218,16 @@ contains
 
                 end do ! Over all Lanczos vectors.
 
-                if (lanczos%exact_hamil) call calc_hamil_exact(lanczos)
+                if (tExactHamil) then
+                    call calc_hamil_exact(lanczos)
+                else if (.not. tHamilOnFly) then
+                    call calc_projected_hamil(lanczos)
+                end if
 
-            ! Sum the overlap and projected Hamiltonian matrices from the various processors.
-            call communicate_lanczos_matrices(lanczos)
+                ! Sum the overlap and projected Hamiltonian matrices from the various processors.
+                call communicate_lanczos_matrices(lanczos)
 
-            call output_lanczos_matrices(lanczos, iconfig, irepeat)
+                call output_lanczos_matrices(lanczos, iconfig, irepeat)
 
             end do ! Over all repeats for a given walker configuration.
 
