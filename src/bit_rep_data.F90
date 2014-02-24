@@ -31,7 +31,7 @@ module bit_rep_data
 
     integer :: nOffSgn  ! Offset of signs in integers
     integer :: nIfSgn   ! Number of integers used for signs
-    integer :: nIfLan   ! Upper bound of bit representation of all Lanczos vectors together.
+    integer :: nIfLan   ! Upper bound of krylov_vecs.
 
     ! Flags which we can store
     logical :: tUseflags

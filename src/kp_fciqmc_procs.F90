@@ -1,6 +1,6 @@
 #include "macros.h"
  
-module stoch_lanczos_procs
+module kp_fciqmc_procs
  
     use AnnihilationMod, only: SendProcNewParts, CompressSpawnedList
     use bit_rep_data
@@ -16,11 +16,11 @@ module stoch_lanczos_procs
     use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots, HashIndex, nWalkerHashes
     use FciMCData, only: fcimc_iter_data, ll_node, MaxWalkersPart, tStartCoreGroundState
     use FciMCData, only: tPopsAlreadyRead, tHashWalkerList, CurrentH, determ_proc_sizes
-    use FciMCData, only: core_ham_diag, InputDiagSft, Hii, max_spawned_ind, SpawnedPartsLanc
+    use FciMCData, only: core_ham_diag, InputDiagSft, Hii, max_spawned_ind, SpawnedPartsKP
     use FciMCData, only: partial_determ_vector, full_determ_vector, determ_proc_indices, HFSym
     use FciMCData, only: TotParts, TotPartsOld, AllTotParts, AllTotPartsOld, iter, MaxSpawned
-    use FciMCData, only: SpawnedPartsLanc2, SpawnVecLanc, SpawnVecLanc2, partial_determ_vecs_sl
-    use FciMCData, only: full_determ_vecs_sl, determ_space_size
+    use FciMCData, only: SpawnedPartsKP2, SpawnVecKP, SpawnVecKP2, partial_determ_vecs_kp
+    use FciMCData, only: full_determ_vecs_kp, determ_space_size
     use FciMCParMod, only: create_particle, InitFCIMC_HF, SetupParameters, InitFCIMCCalcPar
     use FciMCParMod, only: init_fcimc_fn_pointers, WriteFciMCStats, WriteFciMCStatsHeader
     use FciMCParMod, only: rezero_iter_stats_each_iter, tSinglePartPhase
@@ -40,25 +40,25 @@ module stoch_lanczos_procs
 
     implicit none
 
-    type stoch_lanczos_data
+    type kp_fciqmc_data
         ! If true then a ground-state calculation is being performed.
         logical :: tGround
         ! If true then a finite-temperature calculation is being performed.
         logical :: tFiniteTemp
         ! The number of different initial walker configurations to start
-        ! Lanczos calculations from.
+        ! calculations from.
         integer :: nconfigs
-        ! The number of Lanczos calculations to perform for each initial walker
+        ! The number of simulations to perform for each initial walker
         ! configuration.
         integer :: nrepeats
-        ! The number of different Lanczos vectors to sample (the number of
+        ! The number of different Krylov vectors to sample (the number of
         ! vectors which form the Krylov subspace at the end of a calculation).
         integer :: nvecs
-        ! The number of iterations to perform *between each Lanczos vector being
+        ! The number of iterations to perform *between each Krylov vector being
         ! sampled*. niters(i) holds the number to be performed between the
         ! i-th and (i+1)th vectors. The final element is not set by the user,
         ! it is always set to 1 (because we don't want to go any further
-        ! beyond the final Lanczos vector).
+        ! beyond the final Krylov vector).
         integer, allocatable :: niters(:)
         ! For finite-temperature calculations, when creating the inital vector,
         ! This variable specifies how many walkers should be added to each
@@ -66,27 +66,27 @@ module stoch_lanczos_procs
         real(dp) :: nwalkers_per_site_init
         ! On iterations where the spawned walkers are used to estiamate the
         ! Hamiltonian, this is used instead of AvMCExcits.
-        real(dp) :: av_mc_excits_sl
+        real(dp) :: av_mc_excits_kp
 
         real(dp), allocatable :: overlap_matrix(:,:)
         real(dp), allocatable :: hamil_matrix(:,:)
     end type
 
-    type(stoch_lanczos_data) :: lanczos
+    type(kp_fciqmc_data) :: kp
 
-    integer :: nhashes_lanczos
-    integer :: TotWalkersLanczos
-    integer(n_int), allocatable :: lanczos_vecs(:,:)
-    type(ll_node), pointer :: lanczos_hash_table(:) 
+    integer :: nhashes_kp
+    integer :: TotWalkersKP
+    integer(n_int), allocatable :: krylov_vecs(:,:)
+    type(ll_node), pointer :: krylov_vecs_ht(:) 
 
     integer :: TotWalkersInit
     integer :: TotPartsInit(lenof_sign)
     integer :: AllTotPartsInit(lenof_sign)
-    integer(n_int), allocatable :: init_lanczos_config(:,:)
+    integer(n_int), allocatable :: init_kp_config(:,:)
     logical :: vary_niters
 
-    ! The total sign length for all Lanczos vectors together.
-    integer :: lenof_sign_sl
+    ! The total sign length for all Krylov vectors together.
+    integer :: lenof_sign_kp
 
     ! If true then calculate the projected Hamiltonian exactly (useful
     ! for testing only, in practice).
@@ -99,24 +99,24 @@ module stoch_lanczos_procs
 
 contains
 
-    subroutine stoch_lanczos_read_inp()
+    subroutine kp_fciqmc_read_inp()
 
         use input_neci
 
         logical :: eof
         character(len=100) :: w
         integer :: i, niters_temp
-        character (len=*), parameter :: t_r = "stoch_lanczos_read_inp"
+        character (len=*), parameter :: t_r = "kp_fciqmc_read_inp"
 
         ! Default values.
-        lanczos%nconfigs = 1
-        lanczos%nrepeats = 1
-        lanczos%nvecs = 0
+        kp%nconfigs = 1
+        kp%nrepeats = 1
+        kp%nvecs = 0
         niters_temp = 0
-        lanczos%nwalkers_per_site_init = 1.0_dp
-        lanczos%av_mc_excits_sl = 0.0_dp
-        lanczos%tGround = .false.
-        lanczos%tFiniteTemp = .false.
+        kp%nwalkers_per_site_init = 1.0_dp
+        kp%av_mc_excits_kp = 0.0_dp
+        kp%tGround = .false.
+        kp%tFiniteTemp = .false.
         tExactHamil = .false.
         tHamilOnFly = .false.
         vary_niters = .false.
@@ -128,75 +128,75 @@ contains
             end if
             call readu(w)
             select case(w)
-            case("END-LANCZOS")
+            case("END-KP-FCIQMC")
                 exit read_inp
             case("GROUND-STATE")
-                lanczos%tGround = .true.
+                kp%tGround = .true.
             case("FINITE-TEMPERATURE")
-                lanczos%tFiniteTemp = .true.
+                kp%tFiniteTemp = .true.
             case("NUM-INIT-CONFIGS")
-                call geti(lanczos%nconfigs)
+                call geti(kp%nconfigs)
             case("NUM-REPEATS-PER-INIT-CONFIG")
-                call geti(lanczos%nrepeats)
-            case("NUM-LANCZOS-VECS")
-                call geti(lanczos%nvecs)
-                allocate(lanczos%niters(lanczos%nvecs))
-                lanczos%niters = 0
+                call geti(kp%nrepeats)
+            case("NUM-KRYLOV-VECS")
+                call geti(kp%nvecs)
+                allocate(kp%niters(kp%nvecs))
+                kp%niters = 0
             case("NUM-ITERS-BETWEEN-VECS")
                 call geti(niters_temp)
             case("NUM-ITERS-BETWEEN-VECS-VARY")
-                if (lanczos%nvecs == 0) call stop_all(t_r, 'Please enter the number of lanczos vectors before &
+                if (kp%nvecs == 0) call stop_all(t_r, 'Please enter the number of krylov vectors before &
                                                           &specifying the number of iterations between vectors.')
                 vary_niters = .true.
-                do i = 1, lanczos%nvecs-1
-                    call geti(lanczos%niters(i))
+                do i = 1, kp%nvecs-1
+                    call geti(kp%niters(i))
                 end do
-                lanczos%niters(lanczos%nvecs) = 1
+                kp%niters(kp%nvecs) = 1
             case("NUM-WALKERS-PER-SITE-INIT")
-                call getf(lanczos%nwalkers_per_site_init)
+                call getf(kp%nwalkers_per_site_init)
             case("AVERAGEMCEXCITS-HAMIL")
-                call getf(lanczos%av_mc_excits_sl)
+                call getf(kp%av_mc_excits_kp)
             case("EXACT-HAMIL")
                 tExactHamil = .true.
             case("HAMIL-ON-FLY")
                 tHamilOnFly = .true.
             case default
-                call report("Keyword "//trim(w)//" not recognized in stoch-lanczos block", .true.)
+                call report("Keyword "//trim(w)//" not recognized in kp-fciqmc block", .true.)
             end select
         end do read_inp
 
-        if (lanczos%nvecs == 0 .and. niters_temp /= 0) then
+        if (kp%nvecs == 0 .and. niters_temp /= 0) then
             ! If nvecs was not set but niters was.
-            lanczos%nvecs = 1
-            allocate(lanczos%niters(lanczos%nvecs))
-            lanczos%niters = niters_temp
-            lanczos%niters(lanczos%nvecs) = 1
-        else if (lanczos%nvecs /= 0 .and. niters_temp /= 0 .and. (.not. vary_niters)) then
+            kp%nvecs = 1
+            allocate(kp%niters(kp%nvecs))
+            kp%niters = niters_temp
+            kp%niters(kp%nvecs) = 1
+        else if (kp%nvecs /= 0 .and. niters_temp /= 0 .and. (.not. vary_niters)) then
             ! If both were set (but not through the variable niters option).
-            lanczos%niters = niters_temp
-            lanczos%niters(lanczos%nvecs) = 1
-        else if (lanczos%nvecs /= 0 .and. niters_temp == 0 .and. (.not. vary_niters)) then
+            kp%niters = niters_temp
+            kp%niters(kp%nvecs) = 1
+        else if (kp%nvecs /= 0 .and. niters_temp == 0 .and. (.not. vary_niters)) then
             ! If nvecs was set but niters was not.
-            lanczos%niters = 1
-        else if (lanczos%nvecs == 0) then
+            kp%niters = 1
+        else if (kp%nvecs == 0) then
             ! If nvecs was not set and neither was niters.
-            lanczos%nvecs = 1
-            allocate(lanczos%niters(lanczos%nvecs))
-            lanczos%niters = 1
+            kp%nvecs = 1
+            allocate(kp%niters(kp%nvecs))
+            kp%niters = 1
         end if
 
-    end subroutine stoch_lanczos_read_inp
+    end subroutine kp_fciqmc_read_inp
 
-    subroutine init_stoch_lanczos(lanczos)
+    subroutine init_kp_fciqmc(kp)
 
-        type(stoch_lanczos_data), intent(inout) :: lanczos
+        type(kp_fciqmc_data), intent(inout) :: kp
         integer :: ierr
-        character (len=*), parameter :: t_r = "init_stoch_lanczos"
+        character (len=*), parameter :: t_r = "init_kp_fciqmc"
 
-        if (.not. tHashWalkerList) call stop_all('t_r','Stochastic Lanczos can only be run using &
+        if (.not. tHashWalkerList) call stop_all('t_r','kp-fciqmc can only be run using &
             &the linscalefcimcalgo option (the linear scaling algorithm).')
 
-        if (.not. tUseRealCoeffs) call stop_all('t_r','Stochastic Lanczos can only be run using &
+        if (.not. tUseRealCoeffs) call stop_all('t_r','kp-fciqmc can only be run using &
             &real coefficients).')
 
         if (tExactHamil .and. nProcessors /= 1) call stop_all('t_r','The exact-hamil &
@@ -212,42 +212,42 @@ contains
         if (n_int == 4) call stop_all('t_r', 'Use of RealCoefficients does not work with 32 bit &
              &integers due to the use of the transfer operation from dp reals to 64 bit integers.')
 
-        lenof_sign_sl = lenof_sign*lanczos%nvecs
-        NIfLan = NIfDBO + lenof_sign_sl + 1 + NIfFlag
+        lenof_sign_kp = lenof_sign*kp%nvecs
+        NIfLan = NIfDBO + lenof_sign_kp + 1 + NIfFlag
 
-        nhashes_lanczos = nWalkerHashes
-        TotWalkersLanczos = 0
-        allocate(lanczos_vecs(0:NIfLan, MaxWalkersPart), stat=ierr)
-        lanczos_vecs = 0_n_int
-        allocate(lanczos_hash_table(nhashes_lanczos), stat=ierr)
-        call init_hash_table(lanczos_hash_table)
+        nhashes_kp = nWalkerHashes
+        TotWalkersKP = 0
+        allocate(krylov_vecs(0:NIfLan, MaxWalkersPart), stat=ierr)
+        krylov_vecs = 0_n_int
+        allocate(krylov_vecs_ht(nhashes_kp), stat=ierr)
+        call init_hash_table(krylov_vecs_ht)
 
-        allocate(lanczos%overlap_matrix(lanczos%nvecs, lanczos%nvecs), stat=ierr)
-        allocate(lanczos%hamil_matrix(lanczos%nvecs, lanczos%nvecs), stat=ierr)
+        allocate(kp%overlap_matrix(kp%nvecs, kp%nvecs), stat=ierr)
+        allocate(kp%hamil_matrix(kp%nvecs, kp%nvecs), stat=ierr)
 
         ! If performing a finite-temperature calculation with more than one run for each initial
         ! configuration, we store this walker configuration so that we can restart from it later.
-        if (lanczos%tFiniteTemp .and. lanczos%nrepeats > 1) then
-            allocate(init_lanczos_config(0:NIfTot, MaxWalkersPart), stat=ierr)
+        if (kp%tFiniteTemp .and. kp%nrepeats > 1) then
+            allocate(init_kp_config(0:NIfTot, MaxWalkersPart), stat=ierr)
         end if
 
-        ! If av_mc_excits_sl hasn't been set by the user, just use AvMCExcits.
-        if (lanczos%av_mc_excits_sl == 0.0_dp) lanczos%av_mc_excits_sl = AvMCExcits
+        ! If av_mc_excits_kp hasn't been set by the user, just use AvMCExcits.
+        if (kp%av_mc_excits_kp == 0.0_dp) kp%av_mc_excits_kp = AvMCExcits
 
         if (tHamilOnFly) then
-            allocate(SpawnVecLanc(0:NIfTot,MaxSpawned),stat=ierr)
-            SpawnVecLanc(:,:) = 0
-            SpawnedPartsLanc => SpawnVecLanc
+            allocate(SpawnVecKP(0:NIfTot,MaxSpawned),stat=ierr)
+            SpawnVecKP(:,:) = 0
+            SpawnedPartsKP => SpawnVecKP
         else
-            allocate(SpawnVecLanc(0:NOffSgn+lenof_sign_sl-1,MaxSpawned),stat=ierr)
-            allocate(SpawnVecLanc2(0:NOffSgn+lenof_sign_sl-1,MaxSpawned),stat=ierr)
-            SpawnVecLanc(:,:) = 0
-            SpawnVecLanc2(:,:) = 0
-            SpawnedPartsLanc => SpawnVecLanc
-            SpawnedPartsLanc2 => SpawnVecLanc2
+            allocate(SpawnVecKP(0:NOffSgn+lenof_sign_kp-1,MaxSpawned),stat=ierr)
+            allocate(SpawnVecKP2(0:NOffSgn+lenof_sign_kp-1,MaxSpawned),stat=ierr)
+            SpawnVecKP(:,:) = 0
+            SpawnVecKP2(:,:) = 0
+            SpawnedPartsKP => SpawnVecKP
+            SpawnedPartsKP2 => SpawnVecKP2
             if (tSemiStochastic) then
-                allocate(partial_determ_vecs_sl(lenof_sign_sl,determ_proc_sizes(iProcIndex)), stat=ierr)
-                allocate(full_determ_vecs_sl(lenof_sign_sl,determ_space_size), stat=ierr)
+                allocate(partial_determ_vecs_kp(lenof_sign_kp,determ_proc_sizes(iProcIndex)), stat=ierr)
+                allocate(full_determ_vecs_kp(lenof_sign_kp,determ_space_size), stat=ierr)
             end if
         end if
 
@@ -255,30 +255,30 @@ contains
 
         call MPIBarrier(ierr)
 
-    end subroutine init_stoch_lanczos
+    end subroutine init_kp_fciqmc
 
-    subroutine init_stoch_lanczos_repeat(lanczos, irepeat)
+    subroutine init_kp_fciqmc_repeat(kp, irepeat)
 
-        type(stoch_lanczos_data), intent(inout) :: lanczos
+        type(kp_fciqmc_data), intent(inout) :: kp
         integer :: irepeat
 
-        call create_initial_config(lanczos, irepeat)
+        call create_initial_config(kp, irepeat)
 
-        call reset_hash_table(lanczos_hash_table)
-        lanczos_vecs = 0_n_int
+        call reset_hash_table(krylov_vecs_ht)
+        krylov_vecs = 0_n_int
 
-        lanczos%overlap_matrix = 0.0_dp
-        lanczos%hamil_matrix = 0.0_dp
-        TotWalkersLanczos = 0
+        kp%overlap_matrix = 0.0_dp
+        kp%hamil_matrix = 0.0_dp
+        TotWalkersKP = 0
         iter = 0
 
         DiagSft = InputDiagSft
         ! Setting this variable to true stops the shift from varying instantly.
         tSinglePartPhase = .true.
 
-    end subroutine init_stoch_lanczos_repeat
+    end subroutine init_kp_fciqmc_repeat
 
-    subroutine init_stoch_lanczos_iter(iter_data, determ_index)
+    subroutine init_kp_fciqmc_iter(iter_data, determ_index)
 
         use FciMCData, only: fcimc_excit_gen_store, FreeSlot, iStartFreeSlot, iEndFreeSlot
 
@@ -298,17 +298,17 @@ contains
 
         call rezero_iter_stats_each_iter(iter_data)
 
-    end subroutine init_stoch_lanczos_iter
+    end subroutine init_kp_fciqmc_iter
 
-    subroutine create_initial_config(lanczos, irepeat)
+    subroutine create_initial_config(kp, irepeat)
 
-        type(stoch_lanczos_data), intent(inout) :: lanczos
+        type(kp_fciqmc_data), intent(inout) :: kp
         integer, intent(in) :: irepeat
         integer :: DetHash, i, nwalkers, nwalkers_target
 
         call reset_hash_table(HashIndex)
 
-        if (lanczos%tGround) then
+        if (kp%tGround) then
             ! Put a walker on the Hartree-Fock again, with the requested amplitude.
             call InitFCIMC_HF()
             if (tSemiStochastic) then
@@ -322,7 +322,7 @@ contains
                 ! Reset the diagonal Hamiltonian elements.
                 CurrentH(1, 1:determ_proc_sizes(iProcIndex)) = core_ham_diag
             end if
-        else if (lanczos%tFiniteTemp) then
+        else if (kp%tFiniteTemp) then
             if (irepeat == 1) then
                 ! Convert the initial number of walkers to an integer.
                 if (tStartSinglePart) then
@@ -331,12 +331,12 @@ contains
                     nwalkers_target = ceiling(real(InitWalkers,dp)/real(nProcessors,dp))
                 end if
                 ! Finally, call the routine to create the walker distribution.
-                call generate_init_config_basic(nwalkers_target, lanczos%nwalkers_per_site_init, nwalkers)
+                call generate_init_config_basic(nwalkers_target, kp%nwalkers_per_site_init, nwalkers)
                 TotWalkersInit = TotWalkers
                 TotPartsInit = TotParts
                 AllTotPartsInit = AllTotParts
                 ! If starting from this configuration more than once, store it.
-                if (lanczos%nrepeats > 1) init_lanczos_config(:,1:TotWalkers) = CurrentDets(:,1:TotWalkers)
+                if (kp%nrepeats > 1) init_kp_config(:,1:TotWalkers) = CurrentDets(:,1:TotWalkers)
             else if (irepeat > 1) then
                 TotWalkers = TotWalkersInit
                 TotParts = TotPartsInit
@@ -344,7 +344,7 @@ contains
                 AllTotParts = AllTotPartsInit
                 AllTotPartsOld = AllTotPartsInit
 
-                CurrentDets(:,1:TotWalkers) = init_lanczos_config(:,1:TotWalkers)
+                CurrentDets(:,1:TotWalkers) = init_kp_config(:,1:TotWalkers)
                 call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, TotWalkers)
             end if
             call fill_in_CurrentH()
@@ -442,7 +442,7 @@ contains
 
     end subroutine generate_init_config_basic
 
-    subroutine store_lanczos_vec(ivec, nvecs)
+    subroutine store_krylov_vec(ivec, nvecs)
 
         integer, intent(in) ::  ivec, nvecs
         integer :: idet, sign_ind, hdiag_ind, flag_ind, DetHash, det_ind
@@ -453,27 +453,27 @@ contains
 
         ! The index of the first element referring to the sign, for this ivec.
         sign_ind = NIfDBO + lenof_sign*(ivec-1) + 1
-        hdiag_ind = NIfDBO + lenof_sign_sl + 1
-        if (tUseFlags) flag_ind = NIfDBO + lenof_sign_sl + 2
+        hdiag_ind = NIfDBO + lenof_sign_kp + 1
+        if (tUseFlags) flag_ind = NIfDBO + lenof_sign_kp + 2
 
-        ! Loop over all occupied determinants for this new Lanczos vector.
+        ! Loop over all occupied determinants for this new Krylov vector.
         do idet = 1, TotWalkers
             tDetFound = .false.
 
             call decode_bit_det(nI, CurrentDets(:,idet))
-            DetHash = FindWalkerHash(nI, nhashes_lanczos)
-            temp_node => lanczos_hash_table(DetHash)
+            DetHash = FindWalkerHash(nI, nhashes_kp)
+            temp_node => krylov_vecs_ht(DetHash)
 
             ! If the first element in the list for this hash value has been used.
             if (.not. temp_node%ind == 0) then
                 ! Loop over all determinants with this hash value which are already in the list.
                 do while (associated(temp_node))
-                    if (DetBitEQ(CurrentDets(:,idet), lanczos_vecs(:,temp_node%ind), NIfDBO)) then
+                    if (DetBitEQ(CurrentDets(:,idet), krylov_vecs(:,temp_node%ind), NIfDBO)) then
                         ! This determinant is already in the list.
                         det_ind = temp_node%ind
-                        ! Add the sign for the new Lanczos vector. The determinant and flag are
+                        ! Add the sign for the new Krylov vector. The determinant and flag are
                         ! there already.
-                        lanczos_vecs(sign_ind:sign_ind+lenof_sign-1,det_ind) = &
+                        krylov_vecs(sign_ind:sign_ind+lenof_sign-1,det_ind) = &
                               CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,idet)
                         tDetFound = .true.
                         exit
@@ -494,50 +494,50 @@ contains
 
             if (.not. tDetFound) then
                 ! A new determiant needs to be added.
-                TotWalkersLanczos = TotWalkersLanczos + 1
-                det_ind = TotWalkersLanczos
+                TotWalkersKP = TotWalkersKP + 1
+                det_ind = TotWalkersKP
                 temp_node%ind = det_ind
 
                 ! Copy determinant data across.
-                lanczos_vecs(0:NIfDBO,det_ind) = CurrentDets(0:NIfDBO,idet)
-                lanczos_vecs(sign_ind:sign_ind+lenof_sign-1,det_ind) = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,idet)
-                lanczos_vecs(hdiag_ind,det_ind) = transfer(CurrentH(1,idet), temp)
-                if (tUseFlags) lanczos_vecs(flag_ind,det_ind) = CurrentDets(NOffFlag,idet)
+                krylov_vecs(0:NIfDBO,det_ind) = CurrentDets(0:NIfDBO,idet)
+                krylov_vecs(sign_ind:sign_ind+lenof_sign-1,det_ind) = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,idet)
+                krylov_vecs(hdiag_ind,det_ind) = transfer(CurrentH(1,idet), temp)
+                if (tUseFlags) krylov_vecs(flag_ind,det_ind) = CurrentDets(NOffFlag,idet)
             end if
 
             nullify(temp_node)
             nullify(prev)
         end do
 
-    end subroutine store_lanczos_vec
+    end subroutine store_krylov_vec
 
-    subroutine calc_overlap_matrix_elems(lanczos, ivec)
+    subroutine calc_overlap_matrix_elems(kp, ivec)
 
-        type(stoch_lanczos_data), intent(inout) :: lanczos
+        type(kp_fciqmc_data), intent(inout) :: kp
         integer, intent(in) :: ivec
         integer :: idet, jvec, ind(ivec)
         integer(n_int) :: sgn(lenof_sign)
         real(dp) :: sign1(lenof_sign), sign2(lenof_sign)
 
-        associate(s_matrix => lanczos%overlap_matrix)
+        associate(s_matrix => kp%overlap_matrix)
 
             ! Just in case!
             s_matrix(1:ivec, ivec) = 0.0_dp
             s_matrix(ivec, 1:ivec) = 0.0_dp
 
             do jvec = 1, ivec
-                ! The first index of the sign in lanczos_vecs, for each Lanczos vector.
+                ! The first index of the sign in krylov_vecs, for each Krylov vector.
                 ind(jvec) = NIfDBO + lenof_sign*(jvec-1) + 1
             end do
 
-            ! Loop over all determinants in lanczos_vecs.
-            do idet = 1, TotWalkersLanczos
-                sgn = lanczos_vecs(ind(ivec):ind(ivec)+1, idet)
+            ! Loop over all determinants in krylov_vecs.
+            do idet = 1, TotWalkersKP
+                sgn = krylov_vecs(ind(ivec):ind(ivec)+1, idet)
                 if (IsUnoccDet(sgn)) cycle
                 sign1 = transfer(sgn, sign1)
-                ! Loop over all lanczos vectors currently stored.
+                ! Loop over all Krylov vectors currently stored.
                 do jvec = 1, ivec
-                    sgn = lanczos_vecs(ind(jvec):ind(jvec)+1, idet)
+                    sgn = krylov_vecs(ind(jvec):ind(jvec)+1, idet)
                     if (IsUnoccDet(sgn)) cycle
                     sign2 = transfer(sgn, sign1)
                     s_matrix(jvec,ivec) = s_matrix(jvec,ivec) + &
@@ -554,9 +554,9 @@ contains
 
     end subroutine calc_overlap_matrix_elems
 
-    subroutine calc_hamil_on_fly(lanczos, ivec)
+    subroutine calc_hamil_on_fly(kp, ivec)
 
-        type(stoch_lanczos_data), intent(inout) :: lanczos
+        type(kp_fciqmc_data), intent(inout) :: kp
         integer, intent(in) :: ivec
         integer :: idet, jvec, ind(ivec), nI(nel)
         integer :: det_ind, hdiag_ind, flag_ind, ideterm, DetHash
@@ -567,36 +567,36 @@ contains
         logical :: tDetFound, tDeterm
         character(len=*), parameter :: t_r = "calc_hamil_elems_on_fly"
 
-        associate(h_matrix => lanczos%hamil_matrix)
+        associate(h_matrix => kp%hamil_matrix)
 
             h_matrix(1:ivec, ivec) = 0.0_dp
             h_matrix(ivec, 1:ivec) = 0.0_dp
 
             do jvec = 1, ivec
-                ! The first index of the sign in lanczos_vecs, for each Lanczos vector.
+                ! The first index of the sign in krylov_vecs, for each Krylov vector.
                 ind(jvec) = NIfDBO + lenof_sign*(jvec-1) + 1
             end do
-            hdiag_ind = NIfDBO + lenof_sign_sl + 1
-            if (tUseFlags) flag_ind = NIfDBO + lenof_sign_sl + 2
+            hdiag_ind = NIfDBO + lenof_sign_kp + 1
+            if (tUseFlags) flag_ind = NIfDBO + lenof_sign_kp + 2
 
             ideterm = 0
 
-            ! Loop over all determinants in SpawnedPartsLanc.
+            ! Loop over all determinants in SpawnedPartsKP.
             do idet = 1, max_spawned_ind
-                sgn = SpawnedPartsLanc(NOffSgn:NOffSgn+1, idet)
+                sgn = SpawnedPartsKP(NOffSgn:NOffSgn+1, idet)
                 sign1 = transfer(sgn, sign1)
-                call decode_bit_det(nI, SpawnedPartsLanc(:,idet))
-                DetHash = FindWalkerHash(nI, nhashes_lanczos)
-                ! Point to the first node with this hash value in lanczos_vecs.
-                temp_node => lanczos_hash_table(DetHash)
+                call decode_bit_det(nI, SpawnedPartsKP(:,idet))
+                DetHash = FindWalkerHash(nI, nhashes_kp)
+                ! Point to the first node with this hash value in krylov_vecs.
+                temp_node => krylov_vecs_ht(DetHash)
                 if (temp_node%ind == 0) then
-                    ! If there are no determinants at all with this hash value in lanczos_vecs.
+                    ! If there are no determinants at all with this hash value in krylov_vecs.
                     cycle
                 else
                     tDetFound = .false.
                     do while (associated(temp_node))
-                        if (DetBitEQ(SpawnedPartsLanc(:,idet), lanczos_vecs(:,temp_node%ind), NIfDBO)) then
-                            ! If this determinant has been found in lanczos_vecs.
+                        if (DetBitEQ(SpawnedPartsKP(:,idet), krylov_vecs(:,temp_node%ind), NIfDBO)) then
+                            ! If this determinant has been found in krylov_vecs.
                             det_ind = temp_node%ind
                             tDetFound = .true.
                             exit
@@ -605,9 +605,9 @@ contains
                         temp_node => temp_node%next
                     end do
                     if (tDetFound) then
-                        ! Add in the contribution to the projected Hamiltonian, for each lanczos vector.
+                        ! Add in the contribution to the projected Hamiltonian, for each Krylov vector.
                         do jvec = 1, ivec
-                            sgn = lanczos_vecs(ind(jvec):ind(jvec)+1, det_ind)
+                            sgn = krylov_vecs(ind(jvec):ind(jvec)+1, det_ind)
                             if (IsUnoccDet(sgn)) cycle
                             sign2 = transfer(sgn, sign1)
                             h_matrix(jvec,ivec) = h_matrix(jvec,ivec) - &
@@ -617,13 +617,13 @@ contains
                 end if
             end do
 
-            ! Loop over all determinants in lanczos_vecs.
-            do idet = 1, TotWalkersLanczos
+            ! Loop over all determinants in krylov_vecs.
+            do idet = 1, TotWalkersKP
 
                 sign1 = 0.0_dp
                 tDeterm = .false.
                 if (tUseFlags) then
-                    tDeterm = btest(lanczos_vecs(flag_ind, idet), flag_deterministic + flag_bit_offset)
+                    tDeterm = btest(krylov_vecs(flag_ind, idet), flag_deterministic + flag_bit_offset)
                 end if
 
                 if (tDeterm) then
@@ -631,15 +631,15 @@ contains
                     sign1 = - partial_determ_vector(:,ideterm) + &
                              (DiagSft+Hii) * tau * full_determ_vector(:, ideterm + determ_proc_indices(iProcIndex))
                 else
-                    sgn = lanczos_vecs(ind(ivec):ind(ivec)+1, idet)
+                    sgn = krylov_vecs(ind(ivec):ind(ivec)+1, idet)
                     sign1 = transfer(sgn, sign1)
-                    sign1 = tau * sign1 * (transfer(lanczos_vecs(hdiag_ind, idet), temp) + Hii)
+                    sign1 = tau * sign1 * (transfer(krylov_vecs(hdiag_ind, idet), temp) + Hii)
                 end if
                 if (IsUnoccDet(sign1)) cycle
 
-                ! Loop over all lanczos vectors currently stored.
+                ! Loop over all Krylov vectors currently stored.
                 do jvec = 1, ivec
-                    sgn = lanczos_vecs(ind(jvec):ind(jvec)+1, idet)
+                    sgn = krylov_vecs(ind(jvec):ind(jvec)+1, idet)
                     if (IsUnoccDet(sgn)) cycle
                     sign2 = transfer(sgn, sign1)
                     h_matrix(jvec,ivec) = h_matrix(jvec,ivec) + &
@@ -665,72 +665,72 @@ contains
 
     end subroutine calc_hamil_on_fly
 
-    subroutine calc_hamil_exact(lanczos)
+    subroutine calc_hamil_exact(kp)
 
-        type(stoch_lanczos_data), intent(inout) :: lanczos
+        type(kp_fciqmc_data), intent(inout) :: kp
         integer :: i, j, idet, jdet, ic, hdiag_ind
         integer(n_int) :: ilut_1(0:NIfTot), ilut_2(0:NIfTot)
-        integer(n_int) :: int_sign(lenof_sign_sl)
+        integer(n_int) :: int_sign(lenof_sign_kp)
         integer :: nI(nel), nJ(nel)
-        real(dp) :: real_sign_1(lenof_sign_sl), real_sign_2(lenof_sign_sl)
+        real(dp) :: real_sign_1(lenof_sign_kp), real_sign_2(lenof_sign_kp)
         real(dp) :: h_elem
         logical :: any_occ, occ_1, occ_2
         integer(4), allocatable :: occ_flags(:)
 
-        hdiag_ind = NIfDBO + lenof_sign_sl + 1
+        hdiag_ind = NIfDBO + lenof_sign_kp + 1
 
-        associate(h_matrix => lanczos%hamil_matrix)
+        associate(h_matrix => kp%hamil_matrix)
 
             h_matrix = 0.0_dp
 
-            allocate(occ_flags(TotWalkersLanczos))
+            allocate(occ_flags(TotWalkersKP))
             occ_flags = 0
 
             ilut_1 = 0_n_int
             ilut_2 = 0_n_int
 
             ! Check to see if there are any replica 1 or 2 walkers on this determinant.
-            do idet = 1, TotWalkersLanczos
-                int_sign = lanczos_vecs(NIfDBO+1:NIfDBO+lenof_sign_sl, idet)
+            do idet = 1, TotWalkersKP
+                int_sign = krylov_vecs(NIfDBO+1:NIfDBO+lenof_sign_kp, idet)
 
                 any_occ = .false.
-                do i = 1, lanczos%nvecs
+                do i = 1, kp%nvecs
                     any_occ = any_occ .or. (int_sign(2*i-1) /= 0)
                 end do
                 if (any_occ) occ_flags = ibset(occ_flags(idet), 0)
 
                 any_occ = .false.
-                do i = 1, lanczos%nvecs
+                do i = 1, kp%nvecs
                     any_occ = any_occ .or. (int_sign(2*i) /= 0)
                 end do
                 if (any_occ) occ_flags = ibset(occ_flags(idet), 1)
             end do
 
-            ! Loop over all determinants in lanczos_vecs.
-            do idet = 1, TotWalkersLanczos
+            ! Loop over all determinants in krylov_vecs.
+            do idet = 1, TotWalkersKP
                 write(6,*) "idet:", idet
-                ilut_1 = lanczos_vecs(0:NIfDBO, idet)
+                ilut_1 = krylov_vecs(0:NIfDBO, idet)
                 write(6,*) "ilut:", ilut_1
                 call decode_bit_det(nI, ilut_1)
-                int_sign = lanczos_vecs(NIfDBO+1:NIfDBO+lenof_sign_sl, idet)
+                int_sign = krylov_vecs(NIfDBO+1:NIfDBO+lenof_sign_kp, idet)
                 real_sign_1 = transfer(int_sign, real_sign_1)
                 occ_1 = btest(occ_flags(idet),0)
                 occ_2 = btest(occ_flags(idet),1)
 
-                do jdet = idet, TotWalkersLanczos
+                do jdet = idet, TotWalkersKP
                     if (.not. ((occ_1 .and. btest(occ_flags(jdet),1)) .or. &
                         (occ_2 .and. btest(occ_flags(jdet),0)))) cycle
 
-                    ilut_2 = lanczos_vecs(0:NIfDBO, jdet)
+                    ilut_2 = krylov_vecs(0:NIfDBO, jdet)
                     ic = FindBitExcitLevel(ilut_1, ilut_2)
                     if (ic > 2) cycle
 
                     call decode_bit_det(nJ, ilut_2)
-                    int_sign = lanczos_vecs(NIfDBO+1:NIfDBO+lenof_sign_sl, jdet)
+                    int_sign = krylov_vecs(NIfDBO+1:NIfDBO+lenof_sign_kp, jdet)
                     real_sign_2 = transfer(int_sign, real_sign_1)
                     
                     if (idet == jdet) then
-                        h_elem = transfer(lanczos_vecs(hdiag_ind, idet), h_elem) + Hii
+                        h_elem = transfer(krylov_vecs(hdiag_ind, idet), h_elem) + Hii
                     else
                         if (tHPHF) then
                             h_elem = hphf_off_diag_helement(nI, nJ, ilut_1, ilut_2)
@@ -740,8 +740,8 @@ contains
                     end if
 
                     ! Finally, add in the contribution to all of the Hamiltonian elements.
-                    do i = 1, lanczos%nvecs
-                        do j = i, lanczos%nvecs
+                    do i = 1, kp%nvecs
+                        do j = i, kp%nvecs
                             if (idet == jdet) then
                                 h_matrix(i,j) = h_matrix(i,j) + &
                                     h_elem*(real_sign_1(2*i-1)*real_sign_2(2*j) + &
@@ -759,7 +759,7 @@ contains
                 end do
             end do
 
-            do i = 1, lanczos%nvecs
+            do i = 1, kp%nvecs
                 do j = 1, i-1
                     h_matrix(i,j) = h_matrix(j,i)
                 end do
@@ -771,56 +771,56 @@ contains
 
     end subroutine calc_hamil_exact
 
-    subroutine communicate_lanczos_matrices(lanczos)
+    subroutine communicate_kp_matrices(kp)
 
         ! Add all the overlap and projected Hamiltonian matrices together, with the result being
         ! held only on the root node.
 
-        type(stoch_lanczos_data), intent(inout) :: lanczos
-        real(dp) :: inp_matrices(2*lanczos%nvecs, lanczos%nvecs)
-        real(dp) :: out_matrices(2*lanczos%nvecs, lanczos%nvecs)
+        type(kp_fciqmc_data), intent(inout) :: kp
+        real(dp) :: inp_matrices(2*kp%nvecs, kp%nvecs)
+        real(dp) :: out_matrices(2*kp%nvecs, kp%nvecs)
 
-        inp_matrices(1:lanczos%nvecs, 1:lanczos%nvecs) = lanczos%overlap_matrix
-        inp_matrices(lanczos%nvecs+1:2*lanczos%nvecs, 1:lanczos%nvecs) = lanczos%hamil_matrix
+        inp_matrices(1:kp%nvecs, 1:kp%nvecs) = kp%overlap_matrix
+        inp_matrices(kp%nvecs+1:2*kp%nvecs, 1:kp%nvecs) = kp%hamil_matrix
 
         call MPISum(inp_matrices, out_matrices)
 
         if (iProcIndex == root) then
-            lanczos%overlap_matrix = out_matrices(1:lanczos%nvecs, 1:lanczos%nvecs)
-            lanczos%hamil_matrix = out_matrices(lanczos%nvecs+1:2*lanczos%nvecs, 1:lanczos%nvecs)
+            kp%overlap_matrix = out_matrices(1:kp%nvecs, 1:kp%nvecs)
+            kp%hamil_matrix = out_matrices(kp%nvecs+1:2*kp%nvecs, 1:kp%nvecs)
         end if
 
-    end subroutine communicate_lanczos_matrices
+    end subroutine communicate_kp_matrices
 
-    subroutine output_lanczos_matrices(lanczos, iconfig, irepeat)
+    subroutine output_kp_matrices(kp, iconfig, irepeat)
 
-        type(stoch_lanczos_data), intent(in) :: lanczos
+        type(kp_fciqmc_data), intent(in) :: kp
         integer, intent(in) :: iconfig, irepeat
-        real(dp) :: average_h_matrix(lanczos%nvecs, lanczos%nvecs)
-        real(dp) :: average_s_matrix(lanczos%nvecs, lanczos%nvecs)
+        real(dp) :: average_h_matrix(kp%nvecs, kp%nvecs)
+        real(dp) :: average_s_matrix(kp%nvecs, kp%nvecs)
 
         if (iProcIndex == root) then
-            call output_matrix(lanczos, iconfig, irepeat, 'hamil  ', lanczos%hamil_matrix)
-            call output_matrix(lanczos, iconfig, irepeat, 'overlap', lanczos%overlap_matrix)
+            call output_matrix(kp, iconfig, irepeat, 'hamil  ', kp%hamil_matrix)
+            call output_matrix(kp, iconfig, irepeat, 'overlap', kp%overlap_matrix)
         end if
 
-    end subroutine output_lanczos_matrices
+    end subroutine output_kp_matrices
 
-    subroutine output_matrix(lanczos, iconfig, irepeat, stem, matrix)
+    subroutine output_matrix(kp, iconfig, irepeat, stem, matrix)
 
-        type(stoch_lanczos_data), intent(in) :: lanczos
+        type(kp_fciqmc_data), intent(in) :: kp
         integer, intent(in) :: iconfig, irepeat
         character(7), intent(in) :: stem
         character(2) :: ifmt, jfmt
-        real(dp), intent(in) :: matrix(lanczos%nvecs, lanczos%nvecs)
+        real(dp), intent(in) :: matrix(kp%nvecs, kp%nvecs)
         character(25) :: ind1, ind2, filename
         integer :: i, j, ilen, jlen, new_unit
 
         ! Create the filename.
         write(ind2,'(i15)') irepeat
-        if (lanczos%tGround) then
+        if (kp%tGround) then
             filename = trim(trim(stem)//'.'//trim(adjustl(ind2)))
-        else if (lanczos%tFiniteTemp) then
+        else if (kp%tFiniteTemp) then
             write(ind1,'(i15)') iconfig
             filename = trim(trim(stem)//'.'//trim(adjustl(ind1))//'.'//trim(adjustl(ind2)))
         end if
@@ -830,12 +830,12 @@ contains
 
         ! Write all the components of the matrix, above and including the diagonal, one
         ! after another on separate lines. Each element is preceeded by the indices involved.
-        do i = 1, lanczos%nvecs
+        do i = 1, kp%nvecs
             ilen = ceiling(log10(real(abs(i)+1)))
             ! ifmt will hold the correct integer length so that there will be no spaces printed out.
             ! Note that this assumes that ilen < 10, which is very reasonable!
             write(ifmt,'(a1,i1)') "i", ilen
-            do j = i, lanczos%nvecs
+            do j = i, kp%nvecs
                 jlen = ceiling(log10(real(abs(j)+1)))
                 write(jfmt,'(a1,i1)') "i", jlen
 
@@ -848,26 +848,26 @@ contains
 
     end subroutine output_matrix
 
-    subroutine print_populations_sl(lanczos)
+    subroutine print_populations_kp(kp)
     
         ! A useful test routine which will output the total walker population on both
-        ! replicas, for each Lanczos vector.
+        ! replicas, for each Krylov vector.
 
-        type(stoch_lanczos_data), intent(in) :: lanczos
+        type(kp_fciqmc_data), intent(in) :: kp
         integer :: ihash
-        integer(n_int) :: int_sign(lenof_sign_sl)
-        real(dp) :: real_sign(lenof_sign_sl), total_pop(lenof_sign_sl)
+        integer(n_int) :: int_sign(lenof_sign_kp)
+        real(dp) :: real_sign(lenof_sign_kp), total_pop(lenof_sign_kp)
         type(ll_node), pointer :: temp_node
 
         int_sign = 0_n_int
         total_pop = 0.0_dp
         real_sign = 0.0_dp
         
-        do ihash = 1, nhashes_lanczos
-            temp_node => lanczos_hash_table(ihash)
+        do ihash = 1, nhashes_kp
+            temp_node => krylov_vecs_ht(ihash)
             if (temp_node%ind /= 0) then
                 do while (associated(temp_node))
-                    int_sign = lanczos_vecs(NIfDBO+1:NIfDBO+lenof_sign_sl, temp_node%ind)
+                    int_sign = krylov_vecs(NIfDBO+1:NIfDBO+lenof_sign_kp, temp_node%ind)
                     real_sign = transfer(int_sign, real_sign)
                     total_pop = total_pop + abs(real_sign)
                     temp_node => temp_node%next
@@ -877,16 +877,16 @@ contains
 
         nullify(temp_node)
 
-        write(6,*) "lanczos_vec populations:", total_pop
+        write(6,*) "krylov_vecs populations:", total_pop
 
-    end subroutine print_populations_sl
+    end subroutine print_populations_kp
 
-    subroutine print_amplitudes_sl(irepeat)
+    subroutine print_amplitudes_kp(irepeat)
 
         ! A (*very* slow and memory intensive) test routine to print the current amplitudes (as stored
         ! in CurrentDets) of *all* determinants to a file. The amplitude of each replica will be printed
-        ! one after the other. Since this is intended to be used with stochastic Lanczos, irepeat
-        ! is the number of the current repeat, but it will simply be used in naming the output file.
+        ! one after the other. Since this is intended to be used with kp-fciqmc, irepeat is the number of
+        ! the current repeat, but it will simply be used in naming the output file.
 
         ! Note that this routine will only work when using the tHashWalkerList option.
 
@@ -953,6 +953,6 @@ contains
 
         deallocate(nI_list)
 
-    end subroutine print_amplitudes_sl
+    end subroutine print_amplitudes_kp
 
-end module stoch_lanczos_procs
+end module kp_fciqmc_procs

@@ -1,51 +1,51 @@
 #include "macros.h"
 
-module stoch_lanczos_hamil
+module kp_fciqmc_hamil
 
     use bit_rep_data, only: NIfTot, NIfDBO, NOffFlag
-    use stoch_lanczos_procs
+    use kp_fciqmc_procs
     use SystemData, only: nel
     implicit none
 
 contains
 
-    subroutine calc_projected_hamil(lanczos)
+    subroutine calc_projected_hamil(kp)
 
         use bit_reps, only: decode_bit_det
         use CalcData, only: tSemiStochastic
         use constants
-        use FciMCData, only: fcimc_excit_gen_store, exFlag, partial_determ_vecs_sl
+        use FciMCData, only: fcimc_excit_gen_store, exFlag, partial_determ_vecs_kp
         use procedure_pointers, only: generate_excitation, encode_child, get_spawn_helement
         use semi_stoch_procs, only: is_core_state, check_determ_flag
-        use semi_stoch_procs, only: deterministic_projection_sl_hamil
+        use semi_stoch_procs, only: deterministic_projection_kp_hamil
         use util_mod, only: stochastic_round
         
-        type(stoch_lanczos_data), intent(inout) :: lanczos
+        type(kp_fciqmc_data), intent(inout) :: kp
         integer :: idet, ispawn, nspawn, i, j
         integer :: determ_ind, flag_ind, ic, ex(2,2)
         integer :: nI_parent(nel), nI_child(nel)
         integer(n_int) :: ilut_child(0:NIfTot), ilut_parent(0:NIfTot)
         real(dp) :: prob, tot_pop
-        real(dp), dimension(lenof_sign_sl) :: child_sign, parent_sign
-        integer(n_int) :: int_sign(lenof_sign_sl)
+        real(dp), dimension(lenof_sign_kp) :: child_sign, parent_sign
+        integer(n_int) :: int_sign(lenof_sign_kp)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied, tParity
         logical :: tNearlyFull, tFinished, tAllFinished
         HElement_t :: HElGen, HEl
 
-        lanczos%hamil_matrix = 0.0_dp
+        kp%hamil_matrix = 0.0_dp
 
         ilut_parent = 0_n_int
-        if (tUseFlags) flag_ind = NIfDBO + lenof_sign_sl + 2
+        if (tUseFlags) flag_ind = NIfDBO + lenof_sign_kp + 2
         ValidSpawnedList = InitialSpawnedSlots
         tNearlyFull = .false.
         tFinished = .false.
         determ_ind = 1
 
-        do idet = 1, TotWalkersLanczos
+        do idet = 1, TotWalkersKp
 
             ! The 'parent' determinant from which spawning is to be attempted.
-            ilut_parent(0:NIfDBO) = lanczos_vecs(0:NIfDBO,idet)
-            if (tUseFlags) ilut_parent(NOffFlag) = lanczos_vecs(flag_ind,idet)
+            ilut_parent(0:NIfDBO) = krylov_vecs(0:NIfDBO,idet)
+            if (tUseFlags) ilut_parent(NOffFlag) = krylov_vecs(flag_ind,idet)
 
             ! Indicate that the scratch storage used for excitation generation from the
             ! same walker has not been filled (it is filled when we excite from the first
@@ -53,7 +53,7 @@ contains
             fcimc_excit_gen_store%tFilled = .false.
 
             call decode_bit_det(nI_parent, ilut_parent)
-            int_sign = lanczos_vecs(NIfDBO+1:NIfDBO+lenof_sign_sl, idet)
+            int_sign = krylov_vecs(NIfDBO+1:NIfDBO+lenof_sign_kp, idet)
             parent_sign = transfer(int_sign, parent_sign)
             tot_pop = sum(abs(parent_sign))
 
@@ -64,13 +64,13 @@ contains
             ! data in arrays for later use.
             if (tParentIsDeterm) then
                 ! Add the amplitude to the deterministic vector.
-                partial_determ_vecs_sl(:,determ_ind) = parent_sign
+                partial_determ_vecs_kp(:,determ_ind) = parent_sign
                 determ_ind = determ_ind + 1
             end if
 
             if (tParentUnoccupied) cycle
 
-            nspawn = stochastic_round(lanczos%av_mc_excits_sl*tot_pop)
+            nspawn = stochastic_round(kp%av_mc_excits_kp*tot_pop)
             
             do ispawn = 1, nspawn
 
@@ -95,7 +95,7 @@ contains
                     HEl = get_spawn_helement(nI_parent, nI_child, ilut_parent, ilut_child, ic, ex, &
                                              tParity, HElGen)
 
-                    child_sign = return_amp_sl_hamil(parent_sign, prob, lanczos%av_mc_excits_sl*tot_pop, HEl)
+                    child_sign = calc_amp_kp_hamil(parent_sign, prob, kp%av_mc_excits_kp*tot_pop, HEl)
                 else
                     child_sign = 0.0_dp
                 end if
@@ -103,10 +103,10 @@ contains
                 ! If any (valid) children have been spawned.
                 if ((any(child_sign /= 0)) .and. (ic /= 0) .and. (ic <= 2)) then
 
-                    call create_particle_sl_hamil (nI_child, ilut_child, child_sign, tNearlyFull)
+                    call create_particle_kp_hamil (nI_child, ilut_child, child_sign, tNearlyFull)
 
                     if (tNearlyFull) then
-                        call add_in_hamil_contribs(lanczos, tFinished, tAllFinished)
+                        call add_in_hamil_contribs(kp, tFinished, tAllFinished)
                         tNearlyFull = .false.
                     end if
 
@@ -118,90 +118,68 @@ contains
 
         tFinished = .true.
         do
-            call add_in_hamil_contribs(lanczos, tFinished, tAllFinished)
-            call calc_hamil_contribs_diag(lanczos)
+            call add_in_hamil_contribs(kp, tFinished, tAllFinished)
+            call calc_hamil_contribs_diag(kp)
             if (tAllFinished) exit
         end do
 
         if (tSemiStochastic) then
-            call deterministic_projection_sl_hamil()
-            call calc_hamil_contribs_semistoch(lanczos)
+            call deterministic_projection_kp_hamil()
+            call calc_hamil_contribs_semistoch(kp)
         end if
 
         ! Symmetrise the projected Hamiltonian.
-        do i = 1, lanczos%nvecs
+        do i = 1, kp%nvecs
             do j = 1, i-1
-                lanczos%hamil_matrix(i,j) = lanczos%hamil_matrix(j,i)
+                kp%hamil_matrix(i,j) = kp%hamil_matrix(j,i)
             end do
         end do
 
     end subroutine calc_projected_hamil
 
-    subroutine add_in_hamil_contribs(lanczos, tFinished, tAllFinished)
+    function calc_amp_kp_hamil(parent_sign, prob, av_nspawn, HEl) result(child_sign)
 
-        use Parallel_neci, only: MPIAllGather
-
-        type(stoch_lanczos_data), intent(inout) :: lanczos
-        logical, intent(in) :: tFinished
-        logical, intent(out) :: tAllFinished
-        logical :: tFinished_AllProcs(nProcessors)
-        integer :: nspawns_this_proc, ierr
-
-        call distribute_spawns_sl_hamil(nspawns_this_proc)
-
-        call calc_hamil_contribs_spawn(lanczos, nspawns_this_proc)
-
-        ValidSpawnedList = InitialSpawnedSlots
-
-        call MPIAllGather(tFinished, 1, tFinished_AllProcs, 1, ierr)
-
-        tAllFinished = all(tFinished_AllProcs)
-
-    end subroutine add_in_hamil_contribs
-
-    function return_amp_sl_hamil(parent_sign, prob, av_nspawn, HEl) result(child_sign)
-
-        real(dp), intent(in) :: parent_sign(lenof_sign_sl)
+        real(dp), intent(in) :: parent_sign(lenof_sign_kp)
         real(dp), intent(in) :: prob
         real(dp), intent(in) :: av_nspawn
         HElement_t, intent(in) :: HEl
-        real(dp) :: child_sign(lenof_sign_sl)
+        real(dp) :: child_sign(lenof_sign_kp)
         real(dp) :: Hel_real, corrected_prob
 
         HEl_real = real(HEl, dp)
         corrected_prob = prob*av_nspawn
         child_sign = HEl*parent_sign/corrected_prob
 
-    end function return_amp_sl_hamil
+    end function calc_amp_kp_hamil
 
-    subroutine create_particle_sl_hamil (nI_child, ilut_child, child_sign, tNearlyFull)
+    subroutine create_particle_kp_hamil (nI_child, ilut_child, child_sign, tNearlyFull)
 
         use hash, only: DetermineDetNode
         use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots
 
         integer, intent(in) :: nI_child(nel)
         integer, intent(in) :: ilut_child(0:NIfTot)
-        real(dp), intent(in) :: child_sign(lenof_sign_sl)
+        real(dp), intent(in) :: child_sign(lenof_sign_kp)
         logical, intent(inout) :: tNearlyFull
-        integer(n_int) :: int_sign(lenof_sign_sl)
+        integer(n_int) :: int_sign(lenof_sign_kp)
         integer :: proc
 
         proc = DetermineDetNode(nI_child, 0)
 
-        SpawnedPartsLanc(0:NIfDBO, ValidSpawnedList(proc)) = ilut_child(0:NIfDBO)
+        SpawnedPartsKP(0:NIfDBO, ValidSpawnedList(proc)) = ilut_child(0:NIfDBO)
         int_sign = transfer(child_sign, int_sign)
-        SpawnedPartsLanc(NOffSgn:NOffSgn+lenof_sign_sl-1, ValidSpawnedList(proc)) = int_sign
+        SpawnedPartsKP(NOffSgn:NOffSgn+lenof_sign_kp-1, ValidSpawnedList(proc)) = int_sign
 
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
 
         if (ValidSpawnedList(proc)-InitialSpawnedSlots(proc) > MaxSpawnedEachProc) tNearlyFull = .true.
 
-    end subroutine create_particle_sl_hamil
+    end subroutine create_particle_kp_hamil
 
-    subroutine distribute_spawns_sl_hamil(nspawns_this_proc)
+    subroutine distribute_spawns_kp_hamil(nspawns_this_proc)
 
         use AnnihilationMod, only: SendProcNewParts
-        use FciMCData, only: SpawnedParts, SpawnedParts2, SpawnedPartsLanc, SpawnedPartsLanc2
+        use FciMCData, only: SpawnedParts, SpawnedParts2, SpawnedPartsKP, SpawnedPartsKP2
 
         integer, intent(out) :: nspawns_this_proc
         integer(n_int), pointer :: PointTemp(:,:), PointTemp2(:,:)
@@ -211,15 +189,15 @@ contains
         ! SpawnedParts and SpawnedParts2.
         PointTemp => SpawnedParts
         PointTemp2 => SpawnedParts2
-        SpawnedParts => SpawnedPartsLanc
-        SpawnedParts2 => SpawnedPartsLanc2
+        SpawnedParts => SpawnedPartsKP
+        SpawnedParts2 => SpawnedPartsKP2
 
         call SendProcNewParts(nspawns_this_proc, .false.)
 
-        ! Now we want SpawnedPartsLanc to point to SpawnedParts2, which holds the output of
+        ! Now we want SpawnedPartsKP to point to SpawnedParts2, which holds the output of
         ! the communication of the spawns.
-        SpawnedPartsLanc => SpawnedParts2
-        SpawnedPartsLanc2 => SpawnedParts
+        SpawnedPartsKP => SpawnedParts2
+        SpawnedPartsKP2 => SpawnedParts
 
         ! Now let SpawnedParts1 and SpawnedParts2 to point to their original arrays.
         SpawnedParts => PointTemp
@@ -228,17 +206,39 @@ contains
         nullify(PointTemp)
         nullify(PointTemp2)
 
-    end subroutine distribute_spawns_sl_hamil
+    end subroutine distribute_spawns_kp_hamil
 
-    subroutine calc_hamil_contribs_spawn(lanczos, nspawns_this_proc)
+    subroutine add_in_hamil_contribs(kp, tFinished, tAllFinished)
 
-        type(stoch_lanczos_data), intent(inout) :: lanczos
+        use Parallel_neci, only: MPIAllGather
+
+        type(kp_fciqmc_data), intent(inout) :: kp
+        logical, intent(in) :: tFinished
+        logical, intent(out) :: tAllFinished
+        logical :: tFinished_AllProcs(nProcessors)
+        integer :: nspawns_this_proc, ierr
+
+        call distribute_spawns_kp_hamil(nspawns_this_proc)
+
+        call calc_hamil_contribs_spawn(kp, nspawns_this_proc)
+
+        ValidSpawnedList = InitialSpawnedSlots
+
+        call MPIAllGather(tFinished, 1, tFinished_AllProcs, 1, ierr)
+
+        tAllFinished = all(tFinished_AllProcs)
+
+    end subroutine add_in_hamil_contribs
+
+    subroutine calc_hamil_contribs_spawn(kp, nspawns_this_proc)
+
+        type(kp_fciqmc_data), intent(inout) :: kp
         integer, intent(in) :: nspawns_this_proc
         integer :: idet, DetHash, det_ind, i, j
         integer(n_int) :: ilut_spawn(0:NIfTot)
         integer :: nI_spawn(nel)
-        integer(n_int) :: int_sign(lenof_sign_sl)
-        real(dp) :: real_sign_1(lenof_sign_sl), real_sign_2(lenof_sign_sl)
+        integer(n_int) :: int_sign(lenof_sign_kp)
+        real(dp) :: real_sign_1(lenof_sign_kp), real_sign_2(lenof_sign_kp)
         type(ll_node), pointer :: temp_node
         logical :: tDetFound
 
@@ -246,21 +246,21 @@ contains
 
         do idet = 1, nspawns_this_proc
             call neci_flush(6)
-            ilut_spawn(0:NIfDBO) = SpawnedPartsLanc(0:NIfDBO, idet)
-            int_sign = SpawnedPartsLanc(NOffSgn:NOffSgn+lenof_sign_sl-1, idet)
+            ilut_spawn(0:NIfDBO) = SpawnedPartsKP(0:NIfDBO, idet)
+            int_sign = SpawnedPartsKP(NOffSgn:NOffSgn+lenof_sign_kp-1, idet)
             real_sign_1 = transfer(int_sign, real_sign_1)
             call decode_bit_det(nI_spawn, ilut_spawn)
-            DetHash = FindWalkerHash(nI_spawn, nhashes_lanczos)
-            ! Point to the first node with this hash value in lanczos_vecs.
-            temp_node => lanczos_hash_table(DetHash)
+            DetHash = FindWalkerHash(nI_spawn, nhashes_kp)
+            ! Point to the first node with this hash value in krylov_vecs.
+            temp_node => krylov_vecs_ht(DetHash)
             if (temp_node%ind == 0) then
-                ! If there are no determinants at all with this hash value in lanczos_vecs.
+                ! If there are no determinants at all with this hash value in krylov_vecs.
                 cycle
             else
                 tDetFound = .false.
                 do while (associated(temp_node))
-                    if (DetBitEQ(ilut_spawn, lanczos_vecs(:,temp_node%ind), NIfDBO)) then
-                        ! If this CurrentDets determinant has been found in lanczos_vecs.
+                    if (DetBitEQ(ilut_spawn, krylov_vecs(:,temp_node%ind), NIfDBO)) then
+                        ! If this CurrentDets determinant has been found in krylov_vecs.
                         det_ind = temp_node%ind
                         tDetFound = .true.
                         exit
@@ -269,14 +269,14 @@ contains
                     temp_node => temp_node%next
                 end do
                 if (tDetFound) then
-                    int_sign = lanczos_vecs(NOffSgn:NOffSgn+lenof_sign_sl-1, det_ind)
+                    int_sign = krylov_vecs(NOffSgn:NOffSgn+lenof_sign_kp-1, det_ind)
                     if (IsUnoccDet(int_sign)) cycle
                     real_sign_2 = transfer(int_sign, real_sign_1)
 
                     ! Finally, add in the contribution to the projected Hamiltonian for each pair of Krylov vectors.
-                    do i = 1, lanczos%nvecs
-                        do j = i, lanczos%nvecs
-                            lanczos%hamil_matrix(i,j) = lanczos%hamil_matrix(i,j) + &
+                    do i = 1, kp%nvecs
+                        do j = i, kp%nvecs
+                            kp%hamil_matrix(i,j) = kp%hamil_matrix(i,j) + &
                                 (real_sign_1(2*i-1)*real_sign_2(2*j) + &
                                 real_sign_1(2*i)*real_sign_2(2*j-1))/2
                         end do
@@ -288,16 +288,16 @@ contains
 
     end subroutine calc_hamil_contribs_spawn
 
-    subroutine calc_hamil_contribs_diag(lanczos)
+    subroutine calc_hamil_contribs_diag(kp)
     
         use FciMCData, only: determ_proc_sizes
         use CalcData, only: tSemiStochastic
 
-        type(stoch_lanczos_data), intent(inout) :: lanczos
+        type(kp_fciqmc_data), intent(inout) :: kp
         integer :: idet, i, j, min_idet, hdiag_ind
         integer :: nI_spawn(nel)
-        integer(n_int) :: int_sign(lenof_sign_sl)
-        real(dp) :: real_sign(lenof_sign_sl)
+        integer(n_int) :: int_sign(lenof_sign_kp)
+        real(dp) :: real_sign(lenof_sign_kp)
         real(dp) :: h_diag
 
         ! In semi-stochastic calculations the diagonal elements of the core space are
@@ -310,17 +310,17 @@ contains
             min_idet = 1
         end if
 
-        hdiag_ind = NIfDBO + lenof_sign_sl + 1
+        hdiag_ind = NIfDBO + lenof_sign_kp + 1
 
-        do idet = min_idet, TotWalkersLanczos
-            int_sign = lanczos_vecs(NOffSgn:NOffSgn+lenof_sign_sl-1, idet)
+        do idet = min_idet, TotWalkersKp
+            int_sign = krylov_vecs(NOffSgn:NOffSgn+lenof_sign_kp-1, idet)
             real_sign = transfer(int_sign, real_sign)
-            h_diag = transfer(lanczos_vecs(hdiag_ind, idet), h_diag) + Hii
+            h_diag = transfer(krylov_vecs(hdiag_ind, idet), h_diag) + Hii
 
             ! Finally, add in the contribution to the projected Hamiltonian for each pair of Krylov vectors.
-            do i = 1, lanczos%nvecs
-                do j = i, lanczos%nvecs
-                    lanczos%hamil_matrix(i,j) = lanczos%hamil_matrix(i,j) + &
+            do i = 1, kp%nvecs
+                do j = i, kp%nvecs
+                    kp%hamil_matrix(i,j) = kp%hamil_matrix(i,j) + &
                         h_diag*(real_sign(2*i-1)*real_sign(2*j) + &
                         real_sign(2*i)*real_sign(2*j-1))/2
                 end do
@@ -330,25 +330,25 @@ contains
 
     end subroutine calc_hamil_contribs_diag
 
-    subroutine calc_hamil_contribs_semistoch(lanczos)
+    subroutine calc_hamil_contribs_semistoch(kp)
     
-        use FciMCData, only: partial_determ_vecs_sl
+        use FciMCData, only: partial_determ_vecs_kp
 
-        type(stoch_lanczos_data), intent(inout) :: lanczos
+        type(kp_fciqmc_data), intent(inout) :: kp
         integer :: idet, i, j
         integer :: nI_spawn(nel)
-        integer(n_int) :: int_sign(lenof_sign_sl)
-        real(dp) :: real_sign(lenof_sign_sl)
+        integer(n_int) :: int_sign(lenof_sign_kp)
+        real(dp) :: real_sign(lenof_sign_kp)
 
         do idet = 1, determ_proc_sizes(iProcIndex)
-            int_sign = lanczos_vecs(NOffSgn:NOffSgn+lenof_sign_sl-1, idet)
+            int_sign = krylov_vecs(NOffSgn:NOffSgn+lenof_sign_kp-1, idet)
             real_sign = transfer(int_sign, real_sign)
 
-            do i = 1, lanczos%nvecs
-                do j = i, lanczos%nvecs
-                    lanczos%hamil_matrix(i,j) = lanczos%hamil_matrix(i,j) + &
-                        (real_sign(2*i-1)*partial_determ_vecs_sl(2*j, idet) + &
-                        real_sign(2*i)*partial_determ_vecs_sl(2*j-1, idet))/2
+            do i = 1, kp%nvecs
+                do j = i, kp%nvecs
+                    kp%hamil_matrix(i,j) = kp%hamil_matrix(i,j) + &
+                        (real_sign(2*i-1)*partial_determ_vecs_kp(2*j, idet) + &
+                        real_sign(2*i)*partial_determ_vecs_kp(2*j-1, idet))/2
                 end do
             end do
 
@@ -356,4 +356,4 @@ contains
 
     end subroutine calc_hamil_contribs_semistoch
 
-end module stoch_lanczos_hamil
+end module kp_fciqmc_hamil

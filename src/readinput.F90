@@ -18,8 +18,8 @@ MODULE ReadInput_neci
         use SystemData, only : tMolpro
         use System,     only : SysReadInput,SetSysDefaults
         use Calc,       only : CalcReadInput,SetCalcDefaults
-        use CalcData, only: tStochLanczos, tUseProcsAsNodes
-        use stoch_lanczos_procs, only: stoch_lanczos_read_inp
+        use CalcData, only: tKP_FCIQMC, tUseProcsAsNodes
+        use kp_fciqmc_procs, only: kp_fciqmc_read_inp
         use Integrals_neci,  only : IntReadInput,SetIntDefaults
         Use Logging,    only : LogReadInput,SetLogDefaults
         use Parallel_neci,   only : iProcIndex
@@ -147,10 +147,10 @@ MODULE ReadInput_neci
                 call IntReadInput()
             case("LOGGING")
                 call LogReadInput()
-            case("STOCH-LANCZOS")
-                tStochLanczos = .true.
+            case("KP-FCIQMC")
+                tKP_FCIQMC = .true.
                 tUseProcsAsNodes = .true.
-                call stoch_lanczos_read_inp()
+                call kp_fciqmc_read_inp()
             case("END")
                 exit
             case default
@@ -183,7 +183,7 @@ MODULE ReadInput_neci
                             TNoSameExcit, TInitStar, tMP2Standalone, &
                             GrowMaxFactor, MemoryFacPart, tTruncInitiator, &
                             tSpawnSpatialInit, tSpatialOnlyHash, InitWalkers, &
-                            tUniqueHFNode, tStochLanczos
+                            tUniqueHFNode, tKP_FCIQMC
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -346,7 +346,7 @@ MODULE ReadInput_neci
   
         !..   Testing ILOGGING
         !     ILOGGING = 0771
-        if (I_VMAX == 0 .and. nPaths /= 0 .and. (.not. tStochLanczos)) then
+        if (I_VMAX == 0 .and. nPaths /= 0 .and. (.not. tKP_FCIQMC)) then
             call report ('NPATHS!=0 and I_VMAX=0.  VERTEX SUM max level not &
                          &set', .true.)
         endif

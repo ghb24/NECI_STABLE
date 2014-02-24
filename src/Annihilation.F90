@@ -5,7 +5,7 @@ MODULE AnnihilationMod
     use CalcData , only : TRegenExcitgens,tRegenDiagHEls, tEnhanceRemainder, &
                           tTruncInitiator, tSpawnSpatialInit, OccupiedThresh, &
                           tVaryInitThresh, tSemiStochastic, tTrialWavefunction, &
-                          tStochLanczos
+                          tKP_FCIQMC
     USE DetCalcData , only : Det,FCIDetIndex
     USE Parallel_neci
     USE dSFMT_interface, only : genrand_real2_dSFMT
@@ -558,11 +558,11 @@ MODULE AnnihilationMod
         SpawnedParts2 => SpawnedParts
         SpawnedParts => PointTemp
 
-        ! For stochastic Lanczos calculations, store the current state of the spawning array.
-        if (tStochLanczos) then
+        ! For kp-fciqmc calculations, store the current state of the spawning array.
+        if (tKP_FCIQMC) then
             max_spawned_ind = ValidSpawned
             do i = 1, ValidSpawned
-                SpawnedPartsLanc(0:NIfTot,i) = SpawnedParts(0:NIfTot,i)
+                SpawnedPartsKP(0:NIfTot,i) = SpawnedParts(0:NIfTot,i)
             end do
         end if
 

@@ -36,7 +36,7 @@ MODULE FciMCData
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: WalkVecDets(:,:)                !Contains determinant list
       REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVecH(:,:)                    !Diagonal hamiltonian element
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
-      INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVecLanc(:,:), SpawnVecLanc2(:,:)
+      INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVecKP(:,:), SpawnVecKP2(:,:)
 
       INTEGER(TagIntType) :: WalkVecDetsTag=0
       INTEGER(TagIntType) :: WalkVecHTag=0
@@ -46,7 +46,7 @@ MODULE FciMCData
       INTEGER(KIND=n_int) , POINTER :: CurrentDets(:,:)
       real(dp) , POINTER :: CurrentH(:,:)
       INTEGER(KIND=n_int) , POINTER :: SpawnedParts(:,:),SpawnedParts2(:,:)
-      INTEGER(KIND=n_int) , POINTER :: SpawnedPartsLanc(:,:), SpawnedPartsLanc2(:,:)
+      INTEGER(KIND=n_int) , POINTER :: SpawnedPartsKP(:,:), SpawnedPartsKP2(:,:)
 
       INTEGER(KIND=n_int) , ALLOCATABLE :: Spawned_Parents(:,:)
       INTEGER , ALLOCATABLE :: Spawned_Parents_Index(:,:)
@@ -267,7 +267,7 @@ MODULE FciMCData
  !This is set up as the initial ValidSpawnedList elements, so that it does not need to be reevaluated each time.
       INTEGER , ALLOCATABLE :: InitialSpawnedSlots(:) 
 
-      ! For use in stochastic Lanczos code. How many different determinants are spawned onto this processor?
+      ! For use in kp-fciqmc code. How many different determinants are spawned onto this processor?
       integer :: max_spawned_ind
 
       integer :: WalkersDiffProc, PartsDiffProc
@@ -414,8 +414,8 @@ MODULE FciMCData
       real(dp), allocatable, dimension(:,:) :: full_determ_vector
       real(dp), allocatable, dimension(:,:) :: full_determ_vector_av
 
-      real(dp), allocatable, dimension(:,:) :: partial_determ_vecs_sl
-      real(dp), allocatable, dimension(:,:) :: full_determ_vecs_sl
+      real(dp), allocatable, dimension(:,:) :: partial_determ_vecs_kp
+      real(dp), allocatable, dimension(:,:) :: full_determ_vecs_kp
 
       integer(MPIArg), allocatable, dimension(:) :: determ_proc_sizes
       integer(MPIArg), allocatable, dimension(:) :: determ_proc_indices

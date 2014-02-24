@@ -328,7 +328,7 @@ contains
           tLowETrialAllDoubles = .false.
           tTrialAmplitudeCutoff = .false.
 
-          tStochLanczos = .false.
+          tKP_FCIQMC = .false.
       
         end subroutine SetCalcDefaults
 
@@ -1956,8 +1956,8 @@ call neci_flush(6)
           use sym_mod
           use davidson, only: davidson_direct_ci_init, davidson_direct_ci_end, perform_davidson
           use davidson, only: direct_ci_type
-          use stoch_lanczos, only: perform_stochastic_lanczos
-          use stoch_lanczos_procs, only: lanczos
+          use kp_fciqmc, only: perform_kp_fciqmc
+          use kp_fciqmc_procs, only: kp
 
 !Calls
 !          real(dp) DMonteCarlo2
@@ -2005,8 +2005,8 @@ call neci_flush(6)
              elseif(tRPA_QBA) then
                 call RunRPA_QBA(WeightDum,EnerDum)
                 WRITE(6,*) "Summed approx E(Beta)=",EnerDum
-             elseif(tStochLanczos) then
-                 call perform_stochastic_lanczos(lanczos)
+             elseif(tKP_FCIQMC) then
+                 call perform_kp_fciqmc(kp)
              else
 
 

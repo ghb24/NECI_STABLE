@@ -1,14 +1,14 @@
 #include "macros.h"
 
-module stoch_lanczos
+module kp_fciqmc
 
-    use stoch_lanczos_hamil
-    use stoch_lanczos_procs
+    use kp_fciqmc_hamil
+    use kp_fciqmc_procs
     implicit none
 
 contains
 
-    subroutine perform_stochastic_lanczos(lanczos)
+    subroutine perform_kp_fciqmc(kp)
 
         use AnnihilationMod, only: DirectAnnihilation
         use bit_rep_data, only: NIfTot, NOffFlag, tUseFlags, test_flag
@@ -32,7 +32,7 @@ contains
         use soft_exit, only: ChangeVars
         use SystemData, only: nel
         
-        type(stoch_lanczos_data), intent(inout) :: lanczos
+        type(kp_fciqmc_data), intent(inout) :: kp
         integer :: iconfig, irepeat, ivec, iiter, idet, ireplica, ispawn
         integer :: nspawn, parent_flags, unused_flags, ex_level_to_ref
         integer :: TotWalkersNew, determ_ind, ic, ex(2,2)
@@ -46,29 +46,29 @@ contains
         logical :: tParity, tSoftExitFound, tSingBiasChange, tWritePopsFound
         HElement_t :: HElGen
 
-        integer(n_int) :: int_sign(lenof_sign*lanczos%nvecs)
-        real(dp) :: test_sign(lenof_sign*lanczos%nvecs)
+        integer(n_int) :: int_sign(lenof_sign*kp%nvecs)
+        real(dp) :: test_sign(lenof_sign*kp%nvecs)
 
-        call init_stoch_lanczos(lanczos)
+        call init_kp_fciqmc(kp)
 
-        outer_loop: do iconfig = 1, lanczos%nconfigs
+        outer_loop: do iconfig = 1, kp%nconfigs
 
-            do irepeat = 1, lanczos%nrepeats
+            do irepeat = 1, kp%nrepeats
 
-                call init_stoch_lanczos_repeat(lanczos, irepeat)
+                call init_kp_fciqmc_repeat(kp, irepeat)
                 call WriteFCIMCStats()
 
-                do ivec = 1, lanczos%nvecs
+                do ivec = 1, kp%nvecs
 
-                    ! Copy the current state of CurrentDets to lanczos_vecs.
-                    call store_lanczos_vec(ivec, lanczos%nvecs)
+                    ! Copy the current state of CurrentDets to krylov_vecs.
+                    call store_krylov_vec(ivec, kp%nvecs)
 
-                    call calc_overlap_matrix_elems(lanczos, ivec)
+                    call calc_overlap_matrix_elems(kp, ivec)
 
-                    do iiter = 1, lanczos%niters(ivec)
+                    do iiter = 1, kp%niters(ivec)
 
                         iter = iter + 1
-                        call init_stoch_lanczos_iter(iter_data_fciqmc, determ_ind)
+                        call init_kp_fciqmc_iter(iter_data_fciqmc, determ_ind)
 
                         !write(6,*) "CurrentDets:"
                         !do idet = 1, int(TotWalkers, sizeof_int)
@@ -82,7 +82,7 @@ contains
 
                             ! The 'parent' determinant from which spawning is to be attempted.
                             ilut_parent => CurrentDets(:,idet)
-                            parent_flags = 0
+                            parent_flags = 0_n_int
 
                             ! Indicate that the scratch storage used for excitation generation from the
                             ! same walker has not been filled (it is filled when we excite from the first
@@ -201,7 +201,7 @@ contains
                         TotWalkers = int(TotWalkersNew, int64)
 
                         if (iiter == 1) then
-                            if (tHamilOnFly) call calc_hamil_on_fly(lanczos, ivec)
+                            if (tHamilOnFly) call calc_hamil_on_fly(kp, ivec)
                         end if
 
                         call update_iter_data(iter_data_fciqmc)
@@ -214,20 +214,20 @@ contains
                             if (tSoftExitFound) exit outer_loop
                         end if
 
-                    end do ! Over all iterations between Lanczos vectors.
+                    end do ! Over all iterations between Krylov vectors.
 
-                end do ! Over all Lanczos vectors.
+                end do ! Over all Krylov vectors.
 
                 if (tExactHamil) then
-                    call calc_hamil_exact(lanczos)
+                    call calc_hamil_exact(kp)
                 else if (.not. tHamilOnFly) then
-                    call calc_projected_hamil(lanczos)
+                    call calc_projected_hamil(kp)
                 end if
 
                 ! Sum the overlap and projected Hamiltonian matrices from the various processors.
-                call communicate_lanczos_matrices(lanczos)
+                call communicate_kp_matrices(kp)
 
-                call output_lanczos_matrices(lanczos, iconfig, irepeat)
+                call output_kp_matrices(kp, iconfig, irepeat)
 
             end do ! Over all repeats for a given walker configuration.
 
@@ -235,6 +235,6 @@ contains
 
         if (tPopsFile) call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
 
-    end subroutine perform_stochastic_lanczos
+    end subroutine perform_kp_fciqmc
 
-end module stoch_lanczos
+end module kp_fciqmc
