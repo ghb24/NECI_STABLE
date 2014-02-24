@@ -708,9 +708,7 @@ contains
 
             ! Loop over all determinants in krylov_vecs.
             do idet = 1, TotWalkersKP
-                write(6,*) "idet:", idet
                 ilut_1 = krylov_vecs(0:NIfDBO, idet)
-                write(6,*) "ilut:", ilut_1
                 call decode_bit_det(nI, ilut_1)
                 int_sign = krylov_vecs(NIfDBO+1:NIfDBO+lenof_sign_kp, idet)
                 real_sign_1 = transfer(int_sign, real_sign_1)
