@@ -188,6 +188,44 @@ module hash
         end do
 
     end subroutine fill_in_hash_table
+
+    subroutine remove_node(prev, curr)
+
+        ! On input, prev should point to the the node before curr in the linked list,
+        ! or should point to null if curr is the first node in the list. curr should
+        ! point to the node which is to be removed.
+
+        ! On output, both prev and curr will be nullified.
+
+        type(ll_node), pointer, intent(inout) :: prev, curr
+        type(ll_node), pointer :: temp_node
+
+        if (associated(prev)) then
+            ! If not the first state in the list.
+            prev%next => curr%next
+            deallocate(curr)
+        else
+            ! If the first state in the list.
+            if (associated(curr%next)) then
+                ! If the first but not the only state in the list.
+                ! Move the details of the second entry in the list to the
+                ! first entry, and then deallocate the second entry.
+                curr%ind = curr%next%ind
+                temp_node => curr%next
+                curr%next => curr%next%next
+                deallocate(temp_node)
+            else
+                ! If the first and only state in the list.
+                curr%ind = 0
+                curr%next => null()
+            end if
+        end if
+
+        prev => null()
+        curr => null()
+        temp_node => null()
+
+    end subroutine remove_node
       
 end module hash
 

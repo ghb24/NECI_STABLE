@@ -17,7 +17,7 @@ contains
         use CalcData, only: AvMCExcits, tSemiStochastic, tTruncInitiator, StepsSft
         use constants
         use DetBitOps, only: FindBitExcitLevel
-        use FciMCData, only: fcimc_excit_gen_store, FreeSlot, iStartFreeSlot, iEndFreeSlot
+        use FciMCData, only: fcimc_excit_gen_store, FreeSlot, iEndFreeSlot
         use FciMCData, only: TotWalkers, CurrentDets, CurrentH, iLutRef, max_calc_ex_level
         use FciMCData, only: iter_data_fciqmc, TotParts, NCurrH, exFlag, iter
         use FciMCData, only: indices_of_determ_states, partial_determ_vector
@@ -74,8 +74,12 @@ contains
                         !do idet = 1, int(TotWalkers, sizeof_int)
                         !    call extract_bit_rep(CurrentDets(:, idet), nI_parent, parent_sign, unused_flags, &
                         !                          fcimc_excit_gen_store)
-                        !    write(6,'(i3, i12, 4x, f18.7, 4x, f18.7, 4x, l1)') idet, CurrentDets(0, idet), parent_sign, &
-                        !        test_flag(CurrentDets(:, idet), flag_deterministic)
+                        !    if (tUseFlags) then
+                        !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7, 4x, l1)') idet, CurrentDets(0, idet), parent_sign, &
+                        !            test_flag(CurrentDets(:, idet), flag_deterministic)
+                        !    else
+                        !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') idet, CurrentDets(0, idet), parent_sign
+                        !    end if
                         !end do
 
                         do idet = 1, int(TotWalkers, sizeof_int)
@@ -102,10 +106,8 @@ contains
                             if (tParentIsDeterm) then
                                 ! Store the index of this state, for use in annihilation later.
                                 indices_of_determ_states(determ_ind) = idet
-
                                 ! Add the amplitude to the deterministic vector.
                                 partial_determ_vector(:,determ_ind) = parent_sign
-
                                 determ_ind = determ_ind + 1
 
                                 ! The deterministic states are always kept in CurrentDets, even when

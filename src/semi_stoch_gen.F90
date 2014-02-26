@@ -816,7 +816,7 @@ contains
         ! trial_space array, not SpawnedParts.
         if (called_from == called_from_trial) then
             trial_space(:, 1:this_proc_size) = SpawnedParts(:, 1:this_proc_size)
-            SpawnedParts = 0
+            SpawnedParts = 0_n_int
         end if
 
         ! Finally, deallocate arrays.

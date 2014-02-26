@@ -1505,36 +1505,12 @@ MODULE AnnihilationMod
             if (Curr%Ind == DetPosition) then
                 ! If this is the state to be removed.
                 tStateFound = .true.
-                if (associated(Prev)) then
-                    ! If not the first state in the list.
-                    Prev%Next => Curr%Next
-                    deallocate(Curr)
-                    exit
-                else
-                    ! If the first state in the list.
-                    if (associated(Curr%Next)) then
-                        ! If the first but not the only state in the list.
-                        ! Move the details of the second entry in the list to the
-                        ! first entry, and then deallocate it.
-                        Curr => Curr%Next
-                        HashIndex(DetHash)%Ind = Curr%Ind
-                        HashIndex(DetHash)%Next => Curr%Next
-                        deallocate(Curr)
-                        exit
-                    else
-                        ! If the first and only state in the list.
-                        Curr%Ind = 0
-                        Curr%Next => null()
-                        exit
-                    end if
-                end if
+                call remove_node(Prev, Curr)
+                exit
             end if
             Prev => Curr
             Curr => Curr%Next
         end do
-
-        nullify(Curr)
-        nullify(Prev)
 
         ASSERT(tStateFound)
 

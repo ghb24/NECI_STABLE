@@ -4,7 +4,7 @@ module kp_fciqmc_procs
  
     use AnnihilationMod, only: SendProcNewParts, CompressSpawnedList
     use bit_rep_data
-    use bit_reps, only: decode_bit_det
+    use bit_reps, only: decode_bit_det, encode_sign
     use CalcData, only: tTruncInitiator, tStartSinglePart, InitialPart, InitWalkers
     use CalcData, only: tSemiStochastic, tReadPops, tUseRealCoeffs, tau, DiagSft
     use CalcData, only: AvMCExcits
@@ -26,6 +26,7 @@ module kp_fciqmc_procs
     use FciMCParMod, only: rezero_iter_stats_each_iter, tSinglePartPhase
     use gndts_mod, only: gndts
     use hash, only: FindWalkerHash, init_hash_table, reset_hash_table, fill_in_hash_table
+    use hash, only: DetermineDetNode, remove_node
     use hilbert_space_size, only: CreateRandomExcitLevDetUnbias, create_rand_heisenberg_det
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use Parallel_neci, only: MPIBarrier, iProcIndex, MPISum, MPIReduce, nProcessors
@@ -61,7 +62,7 @@ module kp_fciqmc_procs
         ! beyond the final Krylov vector).
         integer, allocatable :: niters(:)
         ! For finite-temperature calculations, when creating the inital vector,
-        ! This variable specifies how many walkers should be added to each
+        ! this variable specifies how many walkers should be added to each
         ! chosen site.
         real(dp) :: nwalkers_per_site_init
         ! On iterations where the spawned walkers are used to estiamate the
@@ -95,6 +96,11 @@ module kp_fciqmc_procs
     ! calculate the projected Hamiltonian.
     logical :: tHamilOnFly
 
+    ! If true then use generate_init_config_this_proc to generate the initial
+    ! walker distribution for finite-temperature calculations. This will always
+    ! get the request walker population.
+    logical :: tInitCorrectNWalkers
+
     integer :: MaxSpawnedEachProc
 
 contains
@@ -119,6 +125,7 @@ contains
         kp%tFiniteTemp = .false.
         tExactHamil = .false.
         tHamilOnFly = .false.
+        tInitCorrectNWalkers = .false.
         vary_niters = .false.
 
         read_inp: do
@@ -160,6 +167,8 @@ contains
                 tExactHamil = .true.
             case("HAMIL-ON-FLY")
                 tHamilOnFly = .true.
+            case("INIT-CORRECT-WALKER-POP")
+                tInitCorrectNWalkers = .true.
             case default
                 call report("Keyword "//trim(w)//" not recognized in kp-fciqmc block", .true.)
             end select
@@ -331,7 +340,11 @@ contains
                     nwalkers_target = ceiling(real(InitWalkers,dp)/real(nProcessors,dp))
                 end if
                 ! Finally, call the routine to create the walker distribution.
-                call generate_init_config_basic(nwalkers_target, kp%nwalkers_per_site_init, nwalkers)
+                if (tInitCorrectNWalkers) then
+                    call generate_init_config_this_proc(nwalkers_target, kp%nwalkers_per_site_init, nwalkers)
+                else
+                    call generate_init_config_basic(nwalkers_target, kp%nwalkers_per_site_init, nwalkers)
+                end if
                 TotWalkersInit = TotWalkers
                 TotPartsInit = TotParts
                 AllTotPartsInit = AllTotParts
@@ -441,6 +454,114 @@ contains
         tTruncInitiator = tInitiatorTemp
 
     end subroutine generate_init_config_basic
+
+    subroutine generate_init_config_this_proc(nwalkers, nwalkers_per_site_init, ndets)
+
+        ! This routine will distribute nwalkers walkers uniformly across all possible determinants.
+
+        integer, intent(in) :: nwalkers
+        real(dp) :: nwalkers_per_site_init
+        integer, intent(out) :: ndets
+        integer :: proc, excit, nattempts, DetHash, det_ind, nI(nel)
+        integer(n_int) :: ilut(0:NIfTot), int_sign(lenof_sign)
+        type(ll_node), pointer :: prev, temp_node
+        real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
+        real(dp) :: new_sign(lenof_sign), r
+        logical :: tDetFound
+
+        ilut = 0_n_int
+        ndets = 0
+        TotParts = 0.0_dp
+
+        do
+            ! Generate the determinant (output to ilut).
+            if (tHeisenberg) then
+                call create_rand_heisenberg_det(ilut)
+            else
+                call CreateRandomExcitLevDetUnbias(nel, HFDet, ilutHF, ilut, excit, nattempts)
+            end if
+            call decode_bit_det(nI, ilut)
+            proc = DetermineDetNode(nI, 0)
+            if (proc /= iProcIndex) cycle
+
+            ! Choose whether the walker should have a positive or negative amplitude, with
+            ! 50% chance of each.
+            real_sign_1 = nwalkers_per_site_init
+            r = genrand_real2_dSFMT()
+            if (r < 0.5) real_sign_1 = -1.0_dp*real_sign_1
+            int_sign = transfer(real_sign_1, int_sign)
+
+            tDetFound = .false.
+            DetHash = FindWalkerHash(nI, nWalkerHashes)
+            temp_node => HashIndex(DetHash)
+            prev => null()
+            ! If the first element in the list for this hash value has been used.
+            if (.not. temp_node%ind == 0) then
+                ! Loop over all determinants with this hash value which are already in the list.
+                do while (associated(temp_node))
+                    if (DetBitEQ(CurrentDets(:,temp_node%ind), ilut, NIfDBO)) then
+                        ! This determinant is already in the list.
+                        tDetFound = .true.
+                        int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1, temp_node%ind)
+                        real_sign_2 = transfer(int_sign, real_sign_2)
+                        new_sign = real_sign_1 + real_sign_2
+                        call encode_sign(CurrentDets(:, temp_node%ind), new_sign)
+                        ! If the walkers have annihilated completley, remove the determinant.
+                        if (IsUnoccDet(new_sign)) then
+                            call remove_node(prev, temp_node)
+                        end if
+                        TotParts = TotParts - abs(real_sign_2) + abs(new_sign)
+                        exit
+                    end if
+                    ! Move on to the next determinant with this hash value.
+                    prev => temp_node
+                    temp_node => temp_node%next
+                end do
+
+                if (.not. tDetFound) then
+                    ! We need to add a new determinant in the next position in the list.
+                    ! So create that next position!
+                    allocate(prev%next)
+                    temp_node => prev%next
+                    nullify(temp_node%next)
+                end if
+            end if
+
+            if (.not. tDetFound) then
+                ! A new determiant needs to be added.
+                ndets = ndets + 1
+                TotParts = TotParts + abs(real_sign_1)
+                det_ind = ndets
+                temp_node%ind = det_ind
+                ! Copy determinant data across.
+                CurrentDets(0:NIfDBO, det_ind) = ilut(0:NIfDBO)
+                CurrentDets(NOffSgn:NOffSgn+lenof_sign-1, det_ind) = int_sign
+                if (tUseFlags) CurrentDets(NOffFlag, det_ind) = 0_n_int
+
+                nullify(temp_node)
+                nullify(prev)
+            end if
+
+            if (TotParts(1) >= nwalkers) exit
+
+        end do
+
+        TotPartsOld = TotParts
+
+        call MPIReduce(TotParts, MPI_SUM, AllTotParts)
+        AllTotPartsOld = AllTotParts
+        TotWalkers = int(ndets, int64)
+
+        if (tSemiStochastic) then
+            ! Always need the core determinants to be at the top of CurrentDets, even when unoccupied.
+            ! These routines will do this.
+            call copy_core_dets_this_proc_to_spawnedparts()
+            call add_core_states_currentdet_hash()
+        end if
+
+        SpawnedParts = 0_n_int
+
+    end subroutine generate_init_config_this_proc
 
     subroutine store_krylov_vec(ivec, nvecs)
 

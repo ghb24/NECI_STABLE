@@ -677,10 +677,9 @@ contains
         integer :: i
         integer :: nI(nel)
 
-        CurrentH = 0
+        CurrentH = 0.0_dp
 
         do i = 1, TotWalkers
-
             call decode_bit_det(nI, CurrentDets(:,i))
 
             if (tHPHF) then
@@ -688,7 +687,6 @@ contains
             else
                 CurrentH(1,i) = get_helement(nI, nI, 0) - Hii
             end if
-
         end do
 
     end subroutine fill_in_CurrentH
@@ -868,6 +866,10 @@ contains
 
         ! Finally, add the indices back into the hash index array.
         do i = 1, nwalkers
+            ! Don't add the determinant to the hash table if its unoccupied and not
+            ! in the core space.
+            if (IsUnoccDet(CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,i)) .and. &
+                (.not. test_flag(CurrentDets(:,i), flag_deterministic))) cycle
             call decode_bit_det(nI, CurrentDets(:,i))
             DetHash = FindWalkerHash(nI,nWalkerHashes)
             temp_node => HashIndex(DetHash)
