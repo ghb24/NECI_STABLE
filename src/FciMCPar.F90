@@ -7107,7 +7107,7 @@ MODULE FciMCParMod
                        &maximum weighted determinant in the CAS expansion'
             write(iout,*) 'Use following det as reference:'
             call write_det(6, CASFullDets(:, det_max), .true.)
-            call stop_all(this_routine, "Poor reference chosen")
+            call warning_neci(this_routine, "Poor reference chosen")
         end if
 
         if(tMomInv) write(iout,*) "Converting into momentum-coupled space. Total MI functions: ",nHPHFCAS
