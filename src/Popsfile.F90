@@ -3,16 +3,16 @@
 MODULE PopsfileMod
 
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin, &
-                          tMomInv
+        tMomInv
     use CalcData, only: tTruncInitiator, DiagSft, tWalkContGrow, nEquilSteps, &
-                        ScaleWalkers, tReadPopsRestart, tRegenDiagHEls, &
-                        InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
-                        iWeightPopRead, iPopsFileNoRead, tPopsMapping, Tau, &
-                        InitiatorWalkNo, MemoryFacPart, MemoryFacAnnihil, &
-                        MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
-                        tCCMC
+        ScaleWalkers, tReadPopsRestart, tRegenDiagHEls, &
+        InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
+        iWeightPopRead, iPopsFileNoRead, tPopsMapping, Tau, &
+        InitiatorWalkNo, MemoryFacPart, MemoryFacAnnihil, &
+        MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
+        tCCMC
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
-                         ilut_lt, ilut_gt
+        ilut_lt, ilut_gt
     use hash , only : DetermineDetNode, FindWalkerHash
     use Determinants, only : get_helement,write_det
     use hphf_integrals, only: hphf_diag_helement
@@ -24,27 +24,27 @@ MODULE PopsfileMod
     use constants
     use Parallel_neci
     use LoggingData, only: iWritePopsEvery, tPopsFile, iPopsPartEvery, tBinPops, &
-                       tPrintPopsDefault, tIncrementPops, tPrintInitiators, &
-                       tSplitPops, tZeroProjE, tRDMonFly, tExplicitAllRDM, &
-                       tHF_Ref_Explicit, binarypops_min_weight
+        tPrintPopsDefault, tIncrementPops, tPrintInitiators, &
+        tSplitPops, tZeroProjE, tRDMonFly, tExplicitAllRDM, &
+        tHF_Ref_Explicit, binarypops_min_weight
     use sort_mod
     use util_mod, only: get_free_unit,get_unique_filename
     use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
-                          max_death_cpt
+        max_death_cpt
 
     implicit none
 
     logical :: tRealPOPSfile
 
-    contains
+contains
 
     !   V.3/4 POPSFILE ROUTINES   !
-!This routine reads in particle configurations from a POPSFILE v.3-4.
-!EndPopsList is the number of entries in the POPSFILE to read, and ReadBatch is the number of determinants
-!which can be read in in a single batch.
+    !This routine reads in particle configurations from a POPSFILE v.3-4.
+    !EndPopsList is the number of entries in the POPSFILE to read, and ReadBatch is the number of determinants
+    !which can be read in in a single batch.
     subroutine ReadFromPopsfile (EndPopsList, ReadBatch, CurrWalkers64, &
-                                 CurrParts, CurrHF, Dets, DetsLen, &
-                                 pops_nnodes, pops_walkers)
+            CurrParts, CurrHF, Dets, DetsLen, &
+            pops_nnodes, pops_walkers)
         use MemoryManager, only: TagIntType
         integer(int64) , intent(in) :: EndPopsList  !Number of entries in the POPSFILE.
         integer , intent(in) :: ReadBatch       !Size of the batch of determinants to read in in one go.
@@ -53,16 +53,15 @@ MODULE PopsfileMod
         integer, intent(in) :: pops_nnodes
         integer(int64), intent(in) :: pops_walkers(0:nProcessors-1)
         real(dp) :: CurrParts(lenof_sign)
-        integer :: CurrWalkers,Slot,nJ(nel)
+        integer :: Slot, nJ(nel)
         integer :: iunit,i,j,ierr,PopsInitialSlots(0:nNodes-1)
         INTEGER(TagIntType) :: BatchReadTag=0
         real(dp) :: BatchSize
         integer :: PopsSendList(0:nNodes-1),proc
-        integer(MPIArg) :: sendcounts(nNodes), disps(nNodes), recvcount
         integer :: MaxSendIndex,err,DetHash
         integer(n_int) , allocatable :: BatchRead(:,:)
         integer(n_int) :: WalkerTemp(0:NIfTot)
-        integer(int64) :: Det,AllCurrWalkers,TempCurrWalkers
+        integer(int64) :: Det, CurrWalkers, AllCurrWalkers
         logical :: FormPops,BinPops,tReadAllPops,tStoreDet
         real(dp) , dimension(lenof_sign) :: SignTemp
         integer :: TempNI(NEl),nBatches,PopsVersion
@@ -84,11 +83,13 @@ MODULE PopsfileMod
         HElement_t :: PopAllSumENum
         integer :: sgn(lenof_sign), flg, part_on_node = 0
         type(ll_node), pointer :: Temp
+        type(timer), save :: read_timer, process_timer
 
-        sendcounts=0
-        disps=0
-        MaxSendIndex=1
-      
+        ! Tme the overall popsfile read in
+        read_timer%timer_name = 'POPS-read'
+        process_timer%timer_name = 'POPS-process'
+        call set_timer(read_timer)
+
         call open_pops_head(iunit,formpops,binpops)
         IF(FormPops) THEN
             !determine version number
@@ -155,152 +156,23 @@ MODULE PopsfileMod
             call init_popsfile_mapping()
         endif
 
-
-        if (.not. tSplitPops) then
-            ! If we are not splitting up the popsfile, then we need to create 
-            ! some temporary storage to do the distributions.
-            BatchSize = real(ReadBatch, dp) / real(nNodes, dp)
-            if (iProcIndex == root) then
-
-                ! Create PopsInitialSlots
-                do i = 0, nNodes - 1
-                    PopsInitialSlots(i) = nint(BatchSize * i) + 1
-                end do
-
-                ! Allocate array to store the particles?
-                allocate(BatchRead(0:NIfTot, 1:ReadBatch), stat=ierr)
-                call LogMemAlloc('BatchRead', ReadBatch * (NIfTot+1), &
-                                 size_n_int, this_routine, BatchReadTag, ierr)
-                write(6, '(a,i12,a)') "Reading in a maximum of ", ReadBatch, &
-                                      " determinants at a time from POPSFILE."
-                call neci_flush(6)
-            else
-                ! Allocate array to store the received particles?
-                allocate(BatchRead(0:NIfTot, 1:MaxSendIndex), stat=ierr)
-                call LogMemAlloc('BatchRead', MaxSendIndex * (NIfTot+1), &
-                                 size_n_int, this_routine, BatchReadTag, ierr)
-            end if
-
-            ! Output the batch sizes.
-            write(6,*) "ReadBatch: ",ReadBatch
-            write(6,*) "MaxSendIndex: ",MaxSendIndex
+        ! Which of the POPSFILE reading routines are we going to make use of?
+        if (tSplitPops) then
+            CurrWalkers = read_pops_splitpops (iunit, BinPops, Dets, DetsLen)
+!        else if (pops_nnodes == nProcessors) then
+!            call read_pops_nnodes (iunit)
+        else
+            CurrWalkers = read_pops_general (iunit, BinPops, Dets, DetsLen, &
+                                             ReadBatch, EndPopsList) 
         end if
 
 
-        CurrHF=0        ! Number of HF walkers on each node.
-        CurrParts=0     ! Number of walkers on each node.
-        CurrWalkers=0   ! Number of determinants on each node.
-        nBatches=0      ! Number of batches of walkers it takes to distribute 
-                        ! popsfile.
-        Det=1
-        tReadAllPops=.false.
-        proc = 0
-        part_on_node = 0
-r_loop: do while(.not.tReadAllPops)
+        ! Place these sensibly
+        currHF = 0
+        currParts = 0
 
-            ! If we are using pre-split popsfiles, then we need to do the
-            ! reading on all of the nodes. Otherwise only on one.
-            if (iProcIndex == root .or. (bNodeRoot .and. tSplitPops)) then
 
-                ! Get ready for reading in the next batch of walkers
-                if (.not. tSplitPops) then
-                    nBatches = nBatches+1
-                    BatchRead(:,:) = 0
-                    PopsSendList(:) = PopsInitialSlots(:)
-                end if
-                do while (Det <= EndPopsList .or. tSplitPops)
 
-                    ! Read the next entry, and store the walker in WalkerTemp 
-                    ! and TempnI
-                    tEOF = read_popsfile_det (iunit, Det, BinPops, &
-                                              WalkerTemp, TempnI)
-
-                    ! When we have got to the end of the file, we are done.
-                    if (tEOF) then
-                        if (tSplitPops) exit r_loop
-                        call stop_all (this_routine, "Too few determinants &
-                                      &found.")
-                    end if
-
-                    ! If we have already determined where the particles should
-                    ! go, then we can get this directly.
-                    if (pops_nnodes == nProcessors .and. &
-                        .not. tSplitPops .and. .not. tCCMC) then
-                        part_on_node = part_on_node + 1
-                        if (part_on_node > read_walkers_on_nodes(proc)) then
-                            proc = proc + 1
-                            do while (read_walkers_on_nodes(proc) == 0)
-                                proc = proc + 1
-                            end do
-                            ASSERT(proc < nProcessors)
-                            part_on_node = 1
-                        end if
-                    else
-                        proc = DetermineDetNode (TempnI,0)
-                    end if
-                    if (tSplitPops) then
-                        CurrWalkers = CurrWalkers + 1
-                        CurrentDets(:,CurrWalkers) = WalkerTemp
-                        if (proc /= iProcIndex) &
-                            call stop_all (this_routine, "Determinant in the &
-                                           &wrong Split POPSFILE")
-                    else
-                        ! Store the found determinant in the temporary list, 
-                        ! and if we have filled up the slot in the list then
-                        ! distribute it when it is full.
-                        BatchRead(:,PopsSendList(proc)) = WalkerTemp(:)
-                        PopsSendList(proc) = PopsSendList(proc) + 1
-                        if(proc /= nNodes - 1) then
-                            if (PopsInitialSlots(proc+1) - &
-                                    PopsSendList(proc) < 2) then
-                                exit ! Now distribute the particles
-                            endif
-                        else
-                            if (ReadBatch - PopsSendList(proc) < 2) then
-                                exit ! Now distribute the particles
-                            endif
-                        endif
-                    end if
-
-                enddo
-
-                if(Det.gt.EndPopsList) tReadAllPops=.true.
-
-                do j = 0, nNodes - 1
-                    sendcounts(j+1) = &
-                        int((PopsSendList(j) - PopsInitialSlots(j)) * &
-                            (NIfTot + 1), MPIArg)
-                    disps(j+1) = &
-                        int((PopsInitialSlots(j) - 1) * (NIfTot + 1), MPIArg)
-                enddo
-                MaxSendIndex = (disps(nNodes) + sendcounts(nNodes)) &
-                             / (nIfTot + 1)
-
-            endif
-
-            ! Now scatter the particles read in to their correct processors.
-            if (bNodeRoot) then
-
-                ! How much data goes to each processor?
-                call MPIScatter (sendcounts, recvcount, err, roots)
-                if (err /= 0) &
-                    call stop_all (this_routine, "MPI scatter error")
-
-                ! Transfer the walkers.
-                call MPIScatterV (BatchRead(:,1:MaxSendIndex), sendcounts, &
-                                  disps, &
-                                  Dets(:,CurrWalkers+1:CurrWalkers+1+(recvcount/(NIfTot+1))), &
-                                  recvcount, err, Roots)
-                if (err /= 0) &
-                    call stop_all (this_routine, "MPI scatterV error")
-
-                CurrWalkers = CurrWalkers + recvcount / (NIfTot + 1)
-
-            end if
-
-            ! Are we done?
-            call MPIBCast(tReadAllPops)
-        end do r_loop
 
         ! Close the popsfiles.
         if(iProcIndex == Root .or. (tSplitPops .and. bNodeRoot)) &
@@ -308,8 +180,7 @@ r_loop: do while(.not.tReadAllPops)
 
         ! Test we have still got all determinants
         write(6,*) "CurrWalkers: ", CurrWalkers
-        TempCurrWalkers = int(CurrWalkers, int64)
-        call MPISum(TempCurrWalkers, 1, AllCurrWalkers)
+        call MPISum(CurrWalkers, 1, AllCurrWalkers)
         if (iProcIndex == Root) then
             if (iWeightPopRead == 0 .and. AllCurrWalkers /= EndPopsList) then
                 write(6,*) "AllCurrWalkers: ", AllCurrWalkers
@@ -332,12 +203,6 @@ r_loop: do while(.not.tReadAllPops)
             endif
         endif
 
-        ! Deallocate the temporary storage.
-        if (.not. tSplitPops) then
-            deallocate(BatchRead)
-            call LogMemDealloc (this_routine, BatchReadTag)
-        end if
-
         ! Clear all deterministic and trial flags so that they can be changed later.
         if (tUseFlags) then
             do i = 1, CurrWalkers
@@ -350,6 +215,9 @@ r_loop: do while(.not.tReadAllPops)
 
         write(6,"(A,I8)") "Number of batches required to distribute all determinants in POPSFILE: ",nBatches
         write(6,*) "Number of configurations read in to this process: ",CurrWalkers 
+
+        call halt_timer(read_timer)
+        call set_timer(process_timer)
 
         if(tHashWalkerList) then
             do i = 1, CurrWalkers
@@ -406,8 +274,204 @@ r_loop: do while(.not.tReadAllPops)
                                                 !Totwalkers, it wants to be a 64 bit int.
 
         if(allocated(PopsMapping)) deallocate(PopsMapping)
+
+        call halt_timer(process_timer)
     
     end subroutine ReadFromPopsfile
+
+    function read_pops_splitpops (iunit, binary_pops, det_list, max_dets) &
+                                  result(CurrWalkers)
+
+        ! A routine to read in split popsfiles to each of the nodes.
+        !
+        ! In: iunit       - The popsfile being read from
+        !     binary_pops - Is this a binary popsfile?
+        
+        integer, intent(in) :: iunit, max_dets
+        integer(n_int), intent(out) :: det_list(0:NifTot, max_dets)
+        logical, intent(in) :: binary_pops
+        integer(int64) :: CurrWalkers
+        character(*), parameter :: this_routine = 'read_pops_splitpops'
+
+        integer(n_int) :: BatchRead(0:NifTot, 1:MaxWalkersPart)
+        integer(n_int) :: ilut_tmp(0:NIfTot)
+        logical :: tEOF
+        integer :: det_tmp(nel), det
+        integer :: proc
+
+        write(6,*) 'Reading a maximum of ', MaxWalkersPart, ' particles to &
+                   &each node from split POPSFILES'
+
+        ! Initialise the relevant counters
+        CurrWalkers = 0
+        det = 1
+
+        ! If we are using pre-split popsfiles, then we need to do the
+        ! reading on all of the nodes.
+        if (bNodeRoot) then
+
+            ! Get ready for reading in the next batch of walkers
+            do while (.true.)
+
+                ! Read the next entry, and store the walker in ilut_tmp.
+                ! The decoded form is placed in det_tmp
+                tEOF = read_popsfile_det (iunit, det, binary_pops, ilut_tmp, &
+                                          det_tmp, .true.)
+
+                ! When we have got to the end of the file, we are done.
+                if (tEOF) exit
+
+                proc = DetermineDetNode (det_tmp, 0)
+                CurrWalkers = CurrWalkers + 1
+                det_list(:, CurrWalkers) = ilut_tmp
+                if (proc /= iProcIndex) &
+                    call stop_all (this_routine, "Determinant in the &
+                                   &wrong Split POPSFILE")
+
+            enddo
+
+        endif
+
+    end function
+
+
+    function read_pops_general (iunit, binary_pops, det_list, max_dets, &
+                                ReadBatch, EndPopsList) result(CurrWalkers)
+
+        ! General all-purpose pops reading routine.
+        !
+        ! In: iunit     - The popsfile being read from
+        !     ReadBatch - The size of the buffer array to use. Normally
+        !                 MaxSpawned, unless specified manually.
+
+        integer, intent(in) :: iunit, ReadBatch, max_dets, EndPopsList
+        logical, intent(in) :: binary_pops
+        integer, intent(out) :: det_list(0:NIfTot, max_dets)
+        integer(int64) :: CurrWalkers
+        character(*), parameter :: this_routine = 'read_pops_general'
+
+        logical :: tEOF, tReadAllPops
+        integer(MPIArg) :: sendcounts(nNodes), disps(nNodes), recvcount
+        integer :: PopsInitialSlots(0:nNodes-1), PopsSendList(0:nNodes-1)
+        integer :: batch_size, MaxSendIndex, i, j, det, nBatches, err, proc
+        integer :: det_tmp(nel)
+        integer(n_int) :: ilut_tmp(0:NIfTot)
+
+        ! If we are on the root processor, we need a buffer array which stores
+        ! the particles as they are read in. 
+        !
+        ! If we are on another processor, allocate a one-element array to avoid
+        ! segfaults in MPIScatter.
+        integer :: BatchRead(0:NIfTot, merge(ReadBatch, 1, iProcIndex == root))
+
+        if (iProcIndex == root) then
+
+            ! This is the size of the batches in the above array (only has
+            ! meaning on the root processor)
+            batch_size = int(real(ReadBatch, dp) / real(nNodes, dp))
+
+            ! What is the first element in the buffer array that the particles
+            ! for ! each processor are placed in?
+            forall(i = 0 : nNodes - 1) PopsInitialSlots(i) = batch_size * i + 1
+
+            write(6, '(a,i12,a)') "Reading in a maximum of ", ReadBatch, &
+                                  " determinants at a time from POPSFILE'"
+            call neci_flush(6)
+
+        end if
+
+        !
+        ! Keep reading until all of the particles have been read in!
+        det = 1
+        tReadAllPops = .false.
+        CurrWalkers = 0
+        nBatches = 0
+        sendcounts = 0
+        disps = 0
+        MaxSendIndex = 1
+r_loop: do while (.not. tReadAllPops)
+
+            ! We read in the particles on the root node.
+            ! --> Only do particle receiving on teh other nodes
+            if (iProcIndex == root) then
+
+                ! Get ready for reading in the next batch of walkers
+                nBatches = nBatches + 1
+                BatchRead(:,:) = 0
+                PopsSendList(:) = PopsInitialSlots(:)
+
+                do while (Det <= EndPopsList .or. tSplitPops)
+
+                    ! Read the next entry, and store the walker in ilut_tmp.
+                    ! The decoded form is placed in det_tmp
+                    tEOF = read_popsfile_det (iunit, det, binary_pops, &
+                                              ilut_tmp, det_tmp, .true.)
+
+                    ! When we have got to the end of the file, we are done.
+                    if (tEOF) call stop_all (this_routine, &
+                                             "Too few determinants found.")
+
+                    ! Where should this particle be going?
+                    proc = DetermineDetNode (det_tmp, 0)
+
+                    ! Store the found determinant in the temporary list, 
+                    ! and if we have filled up the slot in the list then
+                    ! distribute it when it is full.
+                    BatchRead(:,PopsSendList(proc)) = ilut_tmp(:)
+                    PopsSendList(proc) = PopsSendList(proc) + 1
+
+                    ! If we have filled up the lists, exit the loop so that the
+                    ! particles get distributed
+                    if(proc /= nNodes - 1) then
+                        if (PopsInitialSlots(proc+1) - PopsSendList(proc) < 2)&
+                            exit
+                    else
+                        if (ReadBatch - PopsSendList(proc) < 2) exit
+                    endif
+                enddo
+
+                ! Have we read in all of the particles?
+                if (det > EndPopsList) tReadAllPops = .true.
+
+                ! Prep the counts for transmitting the particles to all of
+                ! the nodes.
+                do j = 0, nNodes - 1
+                    sendcounts(j+1) = &
+                        int((PopsSendList(j) - PopsInitialSlots(j)) * &
+                            (NIfTot + 1), MPIArg)
+                    disps(j+1) = &
+                        int((PopsInitialSlots(j) - 1) * (NIfTot + 1), MPIArg)
+                enddo
+                MaxSendIndex = (disps(nNodes) + sendcounts(nNodes)) &
+                             / (nIfTot + 1)
+
+            endif
+
+            ! Now scatter the particles read in to their correct processors.
+            if (bNodeRoot) then
+
+                ! How much data goes to each processor?
+                call MPIScatter (sendcounts, recvcount, err, roots)
+                if (err /= 0) &
+                    call stop_all (this_routine, "MPI scatter error")
+
+                ! Transfer the walkers.
+                call MPIScatterV (BatchRead(:,1:MaxSendIndex), sendcounts, &
+                                  disps, &
+                                  det_list(:,CurrWalkers+1:CurrWalkers+1+(recvcount/(NIfTot+1))), &
+                                  recvcount, err, Roots)
+                if (err /= 0) &
+                    call stop_all (this_routine, "MPI scatterV error")
+
+                CurrWalkers = CurrWalkers + recvcount / (NIfTot + 1)
+
+            end if
+
+            ! Are we done?
+            call MPIBCast(tReadAllPops)
+        end do r_loop
+
+    end function
 
     ! This routine reads the next determinant entry from a popsfile and stores
     ! it in WalkerTemp, ready to be distributed.
@@ -417,12 +481,12 @@ r_loop: do while(.not.tReadAllPops)
     !Det = Current determinant entry in popsfile list
     !BinPops = Binary popsfile or formatted
     !WalkerTemp = Determinant entry returned (in new basis if using mapping)
-    function read_popsfile_det (iunit, Det, BinPops, WalkerTemp, nI) &
-                               result(tEOF)
+    function read_popsfile_det (iunit, Det, BinPops, WalkerTemp, nI, &
+                                decode_det) result(tEOF)
 
         integer, intent(in) :: iunit
         integer, intent(out) :: nI(nel)
-        logical, intent(in) :: BinPops
+        logical, intent(in) :: BinPops, decode_det
         integer(int64) , intent(inout) :: Det
         integer(n_int), intent(out) :: WalkerTemp(0:NIfTot)
         integer(n_int) :: WalkerToMap(0:MappingNIfD), WalkerTemp2(0:NIfTot)
@@ -564,7 +628,7 @@ outer_map:      do i = 0, MappingNIfD
         enddo r_loop
 
         ! Decode the determinant as required if not using mapping
-        if (.not. tPopsMapping .and. .not. tEOF) then
+        if (.not. tPopsMapping .and. .not. tEOF .and. decode_det) then
             call decode_bit_det (nI, WalkerTemp)
         endif
 
