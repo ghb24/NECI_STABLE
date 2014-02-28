@@ -11,7 +11,7 @@ module kp_fciqmc_procs
     use constants
     use DetBitOps, only: DetBitEq, EncodeBitDet, IsAllowedHPHF, FindBitExcitLevel
     use Determinants, only: get_helement
-    use dSFMT_interface , only : genrand_real2_dSFMT
+    use dSFMT_interface , only: dSFMT_init, genrand_real2_dSFMT
     use FciMCData, only: ilutHF, HFDet, CurrentDets, SpawnedParts, SpawnedParts2, TotWalkers
     use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots, HashIndex, nWalkerHashes
     use FciMCData, only: fcimc_iter_data, ll_node, MaxWalkersPart, tStartCoreGroundState
@@ -20,7 +20,7 @@ module kp_fciqmc_procs
     use FciMCData, only: partial_determ_vector, full_determ_vector, determ_proc_indices, HFSym
     use FciMCData, only: TotParts, TotPartsOld, AllTotParts, AllTotPartsOld, iter, MaxSpawned
     use FciMCData, only: SpawnedPartsKP2, SpawnVecKP, SpawnVecKP2, partial_determ_vecs_kp
-    use FciMCData, only: full_determ_vecs_kp, determ_space_size
+    use FciMCData, only: full_determ_vecs_kp, determ_space_size, OldAllAvWalkersCyc
     use FciMCParMod, only: create_particle, InitFCIMC_HF, SetupParameters, InitFCIMCCalcPar
     use FciMCParMod, only: init_fcimc_fn_pointers, WriteFciMCStats, WriteFciMCStatsHeader
     use FciMCParMod, only: rezero_iter_stats_each_iter, tSinglePartPhase
@@ -103,6 +103,9 @@ module kp_fciqmc_procs
 
     integer :: MaxSpawnedEachProc
 
+    logical :: tUseInitConfigSeeds
+    integer, allocatable :: init_config_seeds(:)
+
 contains
 
     subroutine kp_fciqmc_read_inp()
@@ -127,6 +130,7 @@ contains
         tHamilOnFly = .false.
         tInitCorrectNWalkers = .false.
         vary_niters = .false.
+        tUseInitConfigSeeds = .false.
 
         read_inp: do
             call read_line(eof)
@@ -169,6 +173,14 @@ contains
                 tHamilOnFly = .true.
             case("INIT-CORRECT-WALKER-POP")
                 tInitCorrectNWalkers = .true.
+            case("INIT-CONFIG-SEEDS")
+                if (kp%nconfigs == 0) call stop_all(t_r, 'Please use the num-init-configs option to enter the number of &
+                                                          &initial configurations before using the init-vec-seeds option.')
+                tUseInitConfigSeeds = .true.
+                allocate(init_config_seeds(kp%nconfigs))
+                do i = 1, kp%nconfigs
+                    call geti(init_config_seeds(i))
+                end do
             case default
                 call report("Keyword "//trim(w)//" not recognized in kp-fciqmc block", .true.)
             end select
@@ -266,12 +278,12 @@ contains
 
     end subroutine init_kp_fciqmc
 
-    subroutine init_kp_fciqmc_repeat(kp, irepeat)
+    subroutine init_kp_fciqmc_repeat(kp, iconfig, irepeat)
 
         type(kp_fciqmc_data), intent(inout) :: kp
-        integer :: irepeat
+        integer, intent(in) :: iconfig, irepeat
 
-        call create_initial_config(kp, irepeat)
+        call create_initial_config(kp, iconfig, irepeat)
 
         call reset_hash_table(krylov_vecs_ht)
         krylov_vecs = 0_n_int
@@ -282,6 +294,13 @@ contains
         iter = 0
 
         DiagSft = InputDiagSft
+        if (tStartSinglePart) then
+            OldAllAvWalkersCyc = InitialPart
+            AllTotPartsOld=InitialPart
+        else
+            OldAllAvWalkersCyc = InitWalkers
+            AllTotPartsOld=InitWalkers
+        end if
         ! Setting this variable to true stops the shift from varying instantly.
         tSinglePartPhase = .true.
 
@@ -309,10 +328,10 @@ contains
 
     end subroutine init_kp_fciqmc_iter
 
-    subroutine create_initial_config(kp, irepeat)
+    subroutine create_initial_config(kp, iconfig, irepeat)
 
         type(kp_fciqmc_data), intent(inout) :: kp
-        integer, intent(in) :: irepeat
+        integer, intent(in) :: iconfig, irepeat
         integer :: DetHash, i, nwalkers, nwalkers_target
 
         call reset_hash_table(HashIndex)
@@ -340,6 +359,7 @@ contains
                     nwalkers_target = ceiling(real(InitWalkers,dp)/real(nProcessors,dp))
                 end if
                 ! Finally, call the routine to create the walker distribution.
+                if (tUseInitConfigSeeds) call dSFMT_init(init_config_seeds(iconfig))
                 if (tInitCorrectNWalkers) then
                     call generate_init_config_this_proc(nwalkers_target, kp%nwalkers_per_site_init, nwalkers)
                 else
@@ -462,7 +482,7 @@ contains
         integer, intent(in) :: nwalkers
         real(dp) :: nwalkers_per_site_init
         integer, intent(out) :: ndets
-        integer :: proc, excit, nattempts, DetHash, det_ind, nI(nel)
+        integer :: proc, excit, nattempts, idet, DetHash, det_ind, nI(nel)
         integer(n_int) :: ilut(0:NIfTot), int_sign(lenof_sign)
         type(ll_node), pointer :: prev, temp_node
         real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
@@ -507,9 +527,7 @@ contains
                         new_sign = real_sign_1 + real_sign_2
                         call encode_sign(CurrentDets(:, temp_node%ind), new_sign)
                         ! If the walkers have annihilated completley, remove the determinant.
-                        if (IsUnoccDet(new_sign)) then
-                            call remove_node(prev, temp_node)
-                        end if
+                        !if (IsUnoccDet(new_sign)) call remove_node(prev, temp_node)
                         TotParts = TotParts - abs(real_sign_2) + abs(new_sign)
                         exit
                     end if
@@ -545,6 +563,43 @@ contains
             if (TotParts(1) >= nwalkers) exit
 
         end do
+
+        ! Remove the nodes of all unoccupied determinants from the hash table.
+        !do idet = 1, ndets
+        !    int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1, idet)
+        !    if (.not. IsUnoccDet(int_sign)) cycle
+        !    tDetFound = .false.
+        !    call decode_bit_det(nI, CurrentDets(:, idet))
+        !    DetHash = FindWalkerHash(nI, nWalkerHashes)
+        !    temp_node => HashIndex(DetHash)
+        !    prev => null()
+        !    if (.not. temp_node%ind == 0) then
+        !        ! Loop over all determinants with this hash value.
+        !        do while (associated(temp_node))
+        !            if (temp_node%ind == idet) then
+        !                tDetFound = .true.
+        !                call remove_node(prev, temp_node)
+        !                exit
+        !            end if
+        !            ! Move on to the next determinant with this hash value.
+        !            prev => temp_node
+        !            temp_node => temp_node%next
+        !        end do
+        !    end if
+        !    ASSERT(tDetFound)
+        !end do
+
+        !write(6,*) "Dets present before:"
+        !do idet = 1, ndets
+        !    int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1, idet)
+        !    real_sign_2 = transfer(int_sign, real_sign_2)
+        !    if (tUseFlags) then
+        !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7, 4x, l1)') idet, CurrentDets(0, idet), real_sign_2, &
+        !            test_flag(CurrentDets(:, idet), flag_deterministic)
+        !    else
+        !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') idet, CurrentDets(0, idet), real_sign_2
+        !    end if
+        !end do
 
         TotPartsOld = TotParts
 

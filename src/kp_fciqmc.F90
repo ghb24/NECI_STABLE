@@ -48,6 +48,7 @@ contains
 
         integer(n_int) :: int_sign(lenof_sign*kp%nvecs)
         real(dp) :: test_sign(lenof_sign*kp%nvecs)
+        type(ll_node), pointer :: temp_node
 
         call init_kp_fciqmc(kp)
 
@@ -55,7 +56,7 @@ contains
 
             do irepeat = 1, kp%nrepeats
 
-                call init_kp_fciqmc_repeat(kp, irepeat)
+                call init_kp_fciqmc_repeat(kp, iconfig, irepeat)
                 call WriteFCIMCStats()
 
                 do ivec = 1, kp%nvecs
@@ -79,6 +80,19 @@ contains
                         !            test_flag(CurrentDets(:, idet), flag_deterministic)
                         !    else
                         !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') idet, CurrentDets(0, idet), parent_sign
+                        !    end if
+                        !end do
+
+                        !write(6,"(A)") "Hash Table: "
+                        !do idet = 1, nWalkerHashes
+                        !    temp_node => HashIndex(idet)
+                        !    if (temp_node%ind /= 0) then
+                        !        write(6,'(i9)',advance='no') idet
+                        !        do while (associated(temp_node))
+                        !            write(6,'(i9)',advance='no') temp_node%ind
+                        !            temp_node => temp_node%next
+                        !        end do
+                        !        write(6,'()',advance='yes')
                         !    end if
                         !end do
 

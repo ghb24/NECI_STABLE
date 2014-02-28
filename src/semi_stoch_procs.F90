@@ -806,6 +806,16 @@ contains
         ! them at the top always. So, in this routine, we move the non-core states
         ! in CurrentDets to the end and add the new core states in the gaps.
 
+        ! WARNING: If there are any determinants in CurrentDets on input which are
+        ! unoccupied then, for this function to work correctly, the determiant
+        ! *must* have an entry in the hash table. Otherwise, these determinants
+        ! will end up being repeated in CurrentDets is they are core determinants.
+        ! This isn't ideal because when the FCIQMC calculation starts, such
+        ! unoccupied determinants should *not* be in the hash table. During this
+        ! routine, such detereminants will be removed from the hash table and so
+        ! on output, everything will be fine and ready for the FCIQMC calculation
+        ! to start.
+
         integer :: i, DetHash, PartInd, nwalkers, i_non_core
         integer :: nI(nel)
         real(dp) :: walker_sign(lenof_sign)
@@ -815,6 +825,8 @@ contains
         nwalkers = int(TotWalkers,sizeof_int)
 
         ! First find which CurrentDet states are in the core space.
+        ! The warning above refers to this bit of code: If a core determinant is not in the
+        ! hash table then they won't be found here and the deterministic flag won't be set!
         do i = 1, determ_proc_sizes(iProcIndex)
 
             tSuccess = .false.
@@ -1002,7 +1014,7 @@ contains
                         smallest_sign = sign_curr_abs
                     end if
                 end do
-            endif
+            end if
         end do
 
     end subroutine return_largest_indices
