@@ -562,7 +562,7 @@ MODULE AnnihilationMod
         if (tKP_FCIQMC) then
             max_spawned_ind = ValidSpawned
             do i = 1, ValidSpawned
-                SpawnedPartsKP(0:NIfTot,i) = SpawnedParts(0:NIfTot,i)
+                SpawnedPartsKP(0:NIfDBO+lenof_sign,i) = SpawnedParts(0:NIfDBO+lenof_sign,i)
             end do
         end if
 

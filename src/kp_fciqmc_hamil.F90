@@ -119,9 +119,10 @@ contains
         tFinished = .true.
         do
             call add_in_hamil_contribs(kp, tFinished, tAllFinished)
-            call calc_hamil_contribs_diag(kp)
             if (tAllFinished) exit
         end do
+
+        call calc_hamil_contribs_diag(kp)
 
         if (tSemiStochastic) then
             call deterministic_projection_kp_hamil()
