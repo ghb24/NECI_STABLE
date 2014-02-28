@@ -23,7 +23,7 @@ contains
         use FciMCData, only: indices_of_determ_states, partial_determ_vector
         use FciMCParMod, only: create_particle, CalcParentFlag, decide_num_to_spawn
         use FciMCParMod, only: calculate_new_shift_wrapper, walker_death, end_iter_stats
-        use FciMCParMod, only: update_iter_data, CalcApproxpDoubles
+        use FciMCParMod, only: update_iter_data, CalcApproxpDoubles, SumEContrib
         use LoggingData, only: tPopsFile
         use PopsFileMod, only: WriteToPopsFileParOneArr
         use procedure_pointers, only: generate_excitation, attempt_create, encode_child
@@ -125,6 +125,9 @@ contains
                             end if
 
                             if (tTruncInitiator) call CalcParentFlag(idet, idet, parent_flags)
+
+                            call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
+                                               CurrentH(1,idet), 1.0_dp, idet)
 
                             do ireplica = 1, inum_runs
 
