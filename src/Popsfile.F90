@@ -42,13 +42,13 @@ contains
     !This routine reads in particle configurations from a POPSFILE v.3-4.
     !EndPopsList is the number of entries in the POPSFILE to read, and ReadBatch is the number of determinants
     !which can be read in in a single batch.
-    subroutine ReadFromPopsfile (EndPopsList, ReadBatch, CurrWalkers64, &
+    subroutine ReadFromPopsfile (EndPopsList, ReadBatch, CurrWalkers, &
             CurrParts, CurrHF, Dets, DetsLen, &
             pops_nnodes, pops_walkers)
         use MemoryManager, only: TagIntType
         integer(int64) , intent(in) :: EndPopsList  !Number of entries in the POPSFILE.
         integer , intent(in) :: ReadBatch       !Size of the batch of determinants to read in in one go.
-        integer(int64) , intent(out) :: CurrWalkers64    !Number of determinants which end up on a given processor.
+        integer(int64) , intent(out) :: CurrWalkers    !Number of determinants which end up on a given processor.
         real(dp), intent(out) :: CurrHF(lenof_sign)
         integer, intent(in) :: pops_nnodes
         integer(int64), intent(in) :: pops_walkers(0:nProcessors-1)
@@ -61,7 +61,7 @@ contains
         integer :: MaxSendIndex,err,DetHash
         integer(n_int) , allocatable :: BatchRead(:,:)
         integer(n_int) :: WalkerTemp(0:NIfTot)
-        integer(int64) :: Det, CurrWalkers, AllCurrWalkers
+        integer(int64) :: Det, AllCurrWalkers
         logical :: FormPops,BinPops,tReadAllPops,tStoreDet
         real(dp) , dimension(lenof_sign) :: SignTemp
         integer :: TempNI(NEl), PopsVersion
@@ -261,9 +261,7 @@ contains
             endif
         enddo
 
-        CurrWalkers64=int(CurrWalkers,int64)    !Since this variable is eventually going to be
         call mpibarrier(err)
-                                                !Totwalkers, it wants to be a 64 bit int.
 
         if(allocated(PopsMapping)) deallocate(PopsMapping)
 
@@ -431,9 +429,10 @@ contains
         !     ReadBatch - The size of the buffer array to use. Normally
         !                 MaxSpawned, unless specified manually.
 
-        integer, intent(in) :: iunit, ReadBatch, max_dets, EndPopsList
+        integer, intent(in) :: iunit, ReadBatch, max_dets
         logical, intent(in) :: binary_pops
-        integer, intent(out) :: det_list(0:NIfTot, max_dets)
+        integer(n_int), intent(out) :: det_list(0:NIfTot, max_dets)
+        integer(int64), intent(in) :: EndPopsList
         integer(int64) :: CurrWalkers
         character(*), parameter :: this_routine = 'read_pops_general'
 
@@ -449,7 +448,7 @@ contains
         !
         ! If we are on another processor, allocate a one-element array to avoid
         ! segfaults in MPIScatter.
-        integer :: BatchRead(0:NIfTot, merge(ReadBatch, 1, iProcIndex == root))
+        integer(n_int) :: BatchRead(0:NIfTot, merge(ReadBatch, 1, iProcIndex == root))
 
         if (iProcIndex == root) then
 
