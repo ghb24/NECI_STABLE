@@ -359,7 +359,7 @@ contains
                     nwalkers_target = ceiling(real(InitWalkers,dp)/real(nProcessors,dp))
                 end if
                 ! Finally, call the routine to create the walker distribution.
-                if (tUseInitConfigSeeds) call dSFMT_init(init_config_seeds(iconfig))
+                if (tUseInitConfigSeeds) call dSFMT_init((iProcIndex+1)*init_config_seeds(iconfig))
                 if (tInitCorrectNWalkers) then
                     call generate_init_config_this_proc(nwalkers_target, kp%nwalkers_per_site_init, nwalkers)
                 else
