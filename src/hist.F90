@@ -9,12 +9,12 @@ module hist
                           tOddS_HPHF, G1
     use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
                          DetBitEq, count_open_orbs, TestClosedShellDet, &
-                         CalcOpenOrbs, IsAllowedHPHF
+                         CalcOpenOrbs, IsAllowedHPHF, FindBitExcitLevel
     use hash , only : DetermineDetNode                     
     use CalcData, only: tFCIMC, tTruncInitiator
     use DetCalcData, only: FCIDetIndex, det
     use FciMCData, only: tFlippedSign, TotWalkers, CurrentDets, iter, &
-                         all_norm_psi_squared
+                         all_norm_psi_squared, ilutRef
     use util_mod, only: choose, get_free_unit, binary_search
     use HPHFRandExcitMod, only: FindExcitBitDetSym
     use hphf_integrals, only: hphf_sign
@@ -29,6 +29,7 @@ module hist
     use hist_data
     use timing_neci
     use Determinants, only: write_det
+    use util_mod
 
     implicit none
 
@@ -1043,5 +1044,99 @@ contains
         enddo
 
     end function
+
+
+    subroutine init_hist_excit_tofrom()
+        
+        integer :: ierr
+        character(*), parameter :: t_r = 'init_hist_excit_tofrom'
+
+        ! Initialise storage for these excitaitons
+        allocate(hist_excit_tofrom(0:nel, 0:nel), stat=ierr)
+        log_alloc(hist_excit_tofrom, tag_hist_excit, ierr)
+
+        ! Zero everything
+        hist_excit_tofrom = 0
+
+        if (iProcIndex == root) then
+
+            ! Open an output file
+            excit_tofrom_unit = get_free_unit()
+            open(excit_tofrom_unit, file='spawns_tofrom_excit', &
+                 status='replace')
+
+            ! Write a header in the output file
+            write(excit_tofrom_unit, '("# Number of particles spawned between &
+                                       &excitation levels from the Hartree--&
+                                       &Fock on this update cycle")')
+            write(excit_tofrom_unit,'("# iter,  0-->0,  0-->1,  0-->2, ..., &
+                                      &1-->0, ...")')
+
+        end if
+
+    end subroutine
+
+    subroutine clean_hist_excit_tofrom ()
+
+        character(*), parameter :: this_routine = 'clean_hist_excit_tofrom'
+
+        ! Clean up the stored data.
+        deallocate(hist_excit_tofrom)
+        log_dealloc(tag_hist_excit)
+
+        ! Close the output file
+        if (iProcIndex == root) &
+            close(excit_tofrom_unit)
+
+    end subroutine
+
+    subroutine add_hist_excit_tofrom (iluti, ilutj, child)
+
+        integer(n_int), intent(in) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
+        real(dp), intent(in) :: child(lenof_sign)
+        real(dp) :: abschild
+        integer :: exlevelI, exlevelJ
+
+        ! We want a total count of the particle weight formed.
+        abschild = sum(abs(child))
+
+        ! Get the excitation levels of the source and target
+        exlevelI = FindBitExcitLevel(ilutRef, ilutI)
+        exlevelJ = FindBitExcitLevel(ilutRef, ilutJ)
+
+        ! And store it!
+        hist_excit_tofrom(exlevelI, exlevelJ) = &
+            hist_excit_tofrom(exlevelI, exlevelJ) + abschild
+
+    end subroutine
+
+    subroutine write_zero_hist_excit_tofrom()
+
+        real(dp) :: all_hist(0:nel, 0:nel)
+        integer :: i, j
+
+        ! Gather the accumulator data to this process, and then zero the data
+        ! for the next update cycle.
+        call MPISum(hist_excit_tofrom, all_hist)
+        hist_excit_tofrom = 0
+
+        if (iProcIndex == root) then
+
+            ! Output the current iteration
+            write(excit_tofrom_unit, '(i12)', advance='no') iter
+
+            ! And output the accumulated data
+            do i = 0, nel
+                do j = 0, nel
+                    write(excit_tofrom_unit, '(f16.5)', advance='no') &
+                        all_hist(i, j)
+                end do
+            end do
+            write(excit_tofrom_unit, *)
+        end if
+
+    end subroutine
+
+
 
 end module

@@ -146,6 +146,7 @@ MODULE Logging
       tWriteTrial = .false.
       tCompareTrialAmps = .false.
       compare_amps_period = 0
+      tHistExcitToFrom = .false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -895,6 +896,11 @@ MODULE Logging
         case("COMPARE-TRIAL-AND-FCIQMC-AMPS")
             tCompareTrialAmps = .true.
             call readi(compare_amps_period)
+
+        case("HIST-EXCIT-TOFROM")
+            ! Histogram how many particles are spawned between sites with
+            ! varying excitation levels from the Hartree--Fock.
+            tHistExcitToFrom = .true.
 
         case("ENDLOG")
             exit logging

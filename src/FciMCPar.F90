@@ -87,7 +87,7 @@ MODULE FciMCParMod
                        tCalcInstantS2Init, instant_s2_multiplier_init, &
                        tJustBlocking, iBlockEquilShift, iBlockEquilProjE, &
                        tDiagAllSpaceEver, tCalcVariationalEnergy, tCompareTrialAmps, &
-                       compare_amps_period
+                       compare_amps_period, tHistExcitToFrom
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -96,7 +96,9 @@ MODULE FciMCParMod
                     AllHistogram, HistogramEnergy, Histogram, AllInstHist, &
                     InstHist, HistMinInd, project_spins, calc_s_squared, &
                     project_spin_csfs, calc_s_squared_multi, &
-                    calc_s_squared_star
+                    calc_s_squared_star, init_hist_excit_tofrom, &
+                    add_hist_excit_tofrom, write_zero_hist_excit_tofrom, &
+                    clean_hist_excit_tofrom
     use hist_data, only: beforenormhist, HistMinInd2, HistMinInd2, BinRange, &
                          iNoBins
     USE SymData , only : nSymLabels, Sym_Psi
@@ -438,6 +440,9 @@ MODULE FciMCParMod
                         write(iout,"(A,F7.3,A)") "Time taken to write out POPSFILE: ",real(s_end,dp)-TotalTime8," seconds."
                     endif
                 endif
+
+                if (tHistExcitToFrom) &
+                    call write_zero_hist_excit_tofrom()
 
             ENDIF   !Endif end of update cycle
 
@@ -1303,6 +1308,10 @@ MODULE FciMCParMod
             bloom_count(ic) = bloom_count(ic) + 1
             bloom_sizes(ic) = max(real(sum(abs(child)), dp), bloom_sizes(ic))
         end if
+
+        ! Histogram the excitation levels as required
+        if (tHistExcitToFrom) &
+            call add_hist_excit_tofrom(ilutI, ilutJ, child)
 
         ! Avoid compiler warnings
         iUnused = iLutI(0); iUnused = iLutJ(0)
@@ -5119,6 +5128,9 @@ MODULE FciMCParMod
             call init_hist_spin_dist ()
         endif
 
+        if (tHistExcitToFrom) &
+            call init_hist_excit_tofrom()
+
 !Need to declare a new MPI type to deal with the long integers we use in the hashing, and when reading in from POPSFILEs
 !        CALL MPI_Type_create_f90_integer(18,mpilongintegertype,error)
 !        CALL MPI_Type_commit(mpilongintegertype,error)
@@ -7784,6 +7796,7 @@ MODULE FciMCParMod
             ENDIF
         ENDIF
         if (tHistSpinDist) call clean_hist_spin_dist()
+        if (tHistExcitToFrom) call clean_hist_excit_tofrom()
         DEALLOCATE(WalkVecDets)
         CALL LogMemDealloc(this_routine,WalkVecDetsTag)
         IF(.not.tRegenDiagHEls) THEN

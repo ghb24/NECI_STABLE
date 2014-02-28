@@ -77,5 +77,6 @@ module LoggingData
     ! Output the above data to a file every compare_amps_period iterations.
     integer :: compare_amps_period
     logical :: tDipoles !Do we want to calculate the dipole moments
+    logical :: tHistExcitToFrom
 
 end module LoggingData
