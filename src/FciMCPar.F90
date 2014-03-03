@@ -5459,7 +5459,7 @@ MODULE FciMCParMod
                 tFillingExplicRDMonFly = .true.
                 if(tHistSpawn) NHistEquilSteps = Iter
             else
-                extract_bit_rep_avsign => extract_bit_rep_avsign_norm
+                !extract_bit_rep_avsign => extract_bit_rep_avsign_norm
                 !By default - we will do a stochastic calculation of the RDM.
                 tFillingStochRDMonFly = .true.
                 if(.not.tHF_Ref_Explicit) call DeAlloc_Alloc_SpawnedParts()

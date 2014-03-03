@@ -983,7 +983,11 @@ MODULE AnnihilationMod
                 ! cj - and therefore the Di.Dj pair will have a non-zero ci.cj to contribute to the RDM.
                 ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
                 if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then
-                    call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(1+lenof_sign,PartInd))
+                    if(tInstSignOffDiagRDM) then
+                        call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentSign(lenof_sign))
+                    else
+                        call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(1+lenof_sign,PartInd))
+                    endif
                 endif 
 
                 if(sum(abs(CurrentSign)) .ne. 0.0_dp) then
