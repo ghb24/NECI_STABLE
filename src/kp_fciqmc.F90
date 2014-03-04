@@ -13,7 +13,7 @@ contains
         use AnnihilationMod, only: DirectAnnihilation
         use bit_rep_data, only: NIfTot, NOffFlag, tUseFlags, test_flag
         use bit_reps, only: flag_deterministic, flag_determ_parent, set_flag
-        use bit_reps, only: extract_bit_rep
+        use bit_reps, only: extract_bit_rep, flag_is_initiator
         use CalcData, only: AvMCExcits, tSemiStochastic, tTruncInitiator, StepsSft
         use constants
         use DetBitOps, only: FindBitExcitLevel
@@ -71,13 +71,14 @@ contains
                         iter = iter + 1
                         call init_kp_fciqmc_iter(iter_data_fciqmc, determ_ind)
 
-                        !write(6,*) "CurrentDets:"
+                        !write(6,*) "CurrentDets before:"
                         !do idet = 1, int(TotWalkers, sizeof_int)
                         !    call extract_bit_rep(CurrentDets(:, idet), nI_parent, parent_sign, unused_flags, &
                         !                          fcimc_excit_gen_store)
                         !    if (tUseFlags) then
-                        !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7, 4x, l1)') idet, CurrentDets(0, idet), parent_sign, &
-                        !            test_flag(CurrentDets(:, idet), flag_deterministic)
+                        !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7, 4x, l1, l1)') idet, CurrentDets(0, idet), parent_sign, &
+                        !            test_flag(CurrentDets(:, idet), flag_is_initiator(1)), &
+                        !            test_flag(CurrentDets(:, idet), flag_is_initiator(2))
                         !    else
                         !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') idet, CurrentDets(0, idet), parent_sign
                         !    end if

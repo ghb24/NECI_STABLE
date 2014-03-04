@@ -4,7 +4,7 @@ module kp_fciqmc_procs
  
     use AnnihilationMod, only: SendProcNewParts, CompressSpawnedList
     use bit_rep_data
-    use bit_reps, only: decode_bit_det, encode_sign
+    use bit_reps, only: decode_bit_det, encode_sign, flag_is_initiator
     use CalcData, only: tTruncInitiator, tStartSinglePart, InitialPart, InitWalkers
     use CalcData, only: tSemiStochastic, tReadPops, tUseRealCoeffs, tau, DiagSft
     use CalcData, only: AvMCExcits
@@ -488,6 +488,7 @@ contains
         real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
         real(dp) :: new_sign(lenof_sign), r
         logical :: tDetFound
+        character(len=*), parameter :: this_routine = "generate_init_config_this_proc"
 
         ilut = 0_n_int
         ndets = 0
@@ -564,42 +565,17 @@ contains
 
         end do
 
-        ! Remove the nodes of all unoccupied determinants from the hash table.
-        !do idet = 1, ndets
-        !    int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1, idet)
-        !    if (.not. IsUnoccDet(int_sign)) cycle
-        !    tDetFound = .false.
-        !    call decode_bit_det(nI, CurrentDets(:, idet))
-        !    DetHash = FindWalkerHash(nI, nWalkerHashes)
-        !    temp_node => HashIndex(DetHash)
-        !    prev => null()
-        !    if (.not. temp_node%ind == 0) then
-        !        ! Loop over all determinants with this hash value.
-        !        do while (associated(temp_node))
-        !            if (temp_node%ind == idet) then
-        !                tDetFound = .true.
-        !                call remove_node(prev, temp_node)
-        !                exit
-        !            end if
-        !            ! Move on to the next determinant with this hash value.
-        !            prev => temp_node
-        !            temp_node => temp_node%next
-        !        end do
-        !    end if
-        !    ASSERT(tDetFound)
-        !end do
-
-        !write(6,*) "Dets present before:"
-        !do idet = 1, ndets
-        !    int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1, idet)
-        !    real_sign_2 = transfer(int_sign, real_sign_2)
-        !    if (tUseFlags) then
-        !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7, 4x, l1)') idet, CurrentDets(0, idet), real_sign_2, &
-        !            test_flag(CurrentDets(:, idet), flag_deterministic)
-        !    else
-        !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') idet, CurrentDets(0, idet), real_sign_2
-        !    end if
-        !end do
+        write(6,*) "Dets present before:"
+        do idet = 1, ndets
+            int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1, idet)
+            real_sign_2 = transfer(int_sign, real_sign_2)
+            if (tUseFlags) then
+                write(6,'(i7, i12, 4x, f18.7, 4x, f18.7, 4x, l1, l1)') idet, CurrentDets(0, idet), real_sign_2, &
+                    test_flag(CurrentDets(:, idet), flag_is_initiator(1)), test_flag(CurrentDets(:, idet), flag_is_initiator(2))
+            else
+                write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') idet, CurrentDets(0, idet), real_sign_2
+            end if
+        end do
 
         TotPartsOld = TotParts
 
@@ -612,6 +588,32 @@ contains
             ! These routines will do this.
             call copy_core_dets_this_proc_to_spawnedparts()
             call add_core_states_currentdet_hash()
+        else
+            ! Remove the nodes of all unoccupied determinants from the hash table.
+            ! For semi-stochastic calculations, this is done in add_core_states_currentdet_hash.
+            do idet = 1, ndets
+                int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1, idet)
+                if (.not. IsUnoccDet(int_sign)) cycle
+                tDetFound = .false.
+                call decode_bit_det(nI, CurrentDets(:, idet))
+                DetHash = FindWalkerHash(nI, nWalkerHashes)
+                temp_node => HashIndex(DetHash)
+                prev => null()
+                if (.not. temp_node%ind == 0) then
+                    ! Loop over all determinants with this hash value.
+                    do while (associated(temp_node))
+                        if (temp_node%ind == idet) then
+                            tDetFound = .true.
+                            call remove_node(prev, temp_node)
+                            exit
+                        end if
+                        ! Move on to the next determinant with this hash value.
+                        prev => temp_node
+                        temp_node => temp_node%next
+                    end do
+                end if
+                ASSERT(tDetFound)
+            end do
         end if
 
         SpawnedParts = 0_n_int

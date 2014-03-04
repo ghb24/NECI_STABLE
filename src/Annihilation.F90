@@ -1041,19 +1041,6 @@ MODULE AnnihilationMod
                                     endif
                                 endif
                             ENDIF
-
-                            if(tHashWalkerList) then
-                                call extract_sign (CurrentDets(:,PartInd), SignTemp)
-                                if (IsUnoccDet(SignTemp)) then
-                                    !All walkers in this main list have been annihilated away
-                                    !Remove it from the hash index array so that no others find it (it is impossible to have
-                                    !another spawned walker yet to find this determinant)
-                                    call RemoveDetHashIndex(nJ,PartInd)
-                                    !Add to "freeslot" list so it can be filled in
-                                    iEndFreeSlot=iEndFreeSlot+1
-                                    FreeSlot(iEndFreeSlot)=PartInd
-                                endif
-                            endif
      
                             IF(tHistSpawn) THEN
 !We want to histogram where the particle annihilations are taking place.
@@ -1097,6 +1084,20 @@ MODULE AnnihilationMod
                         ENDIF
 
                     enddo   !Finish running over components of signs
+
+                    if(tHashWalkerList) then
+                        call extract_sign (CurrentDets(:,PartInd), SignTemp)
+                        if (IsUnoccDet(SignTemp)) then
+                            !All walkers in this main list have been annihilated away
+                            !Remove it from the hash index array so that no others find it (it is impossible to have
+                            !another spawned walker yet to find this determinant)
+                            call RemoveDetHashIndex(nJ,PartInd)
+                            !Add to "freeslot" list so it can be filled in
+                            iEndFreeSlot=iEndFreeSlot+1
+                            FreeSlot(iEndFreeSlot)=PartInd
+                        endif
+                    endif
+
                 endif
             endif
                 
