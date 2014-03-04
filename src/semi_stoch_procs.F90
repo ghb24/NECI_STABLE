@@ -930,8 +930,7 @@ contains
 #ifdef __CMPLX
             sign_curr_real = sqrt(real(sign_curr(1),dp)**2 + real(sign_curr(lenof_sign),dp)**2)
 #else
-            !Just return most populated states for set1 if doing a doublerun
-            sign_curr_real = real(abs(sign_curr(1)),dp)
+            sign_curr_real = sum(real(abs(sign_curr),dp))
 #endif
             if (present(norm)) norm = norm + (sign_curr_real**2.0)
 
@@ -946,7 +945,7 @@ contains
 #ifdef __CMPLX
                 smallest_sign = sqrt(real(low_sign(1),dp)**2+real(low_sign(lenof_sign),dp)**2)
 #else
-                smallest_sign = real(abs(low_sign(1)),dp)
+                smallest_sign = sum(real(abs(low_sign),dp))
 #endif
 
                 smallest_pos = 1
@@ -956,7 +955,7 @@ contains
 #ifdef __CMPLX
                         sign_curr_real = sqrt(real(low_sign(1),dp)**2+real(low_sign(lenof_sign),dp)**2)
 #else
-                        sign_curr_real = real(abs(low_sign(1)),dp)
+                        sign_curr_real = sum(real(abs(low_sign),dp))
 #endif
                     if (sign_curr_real < smallest_sign) then
                         smallest_pos = j
