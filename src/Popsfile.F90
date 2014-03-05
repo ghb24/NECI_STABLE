@@ -289,7 +289,8 @@ contains
 
         ! The buffer is able to store the maximum number of particles on any
         ! determinant.
-        integer(n_int) :: buffer(0:NIfTot, max_dets), ilut_tmp(0:NIfTot)
+        integer(n_int) :: ilut_tmp(0:NIfTot)
+        integer(n_int), allocatable :: buffer(:,:)
         integer :: ndets, det, ierr, nelem, proc, unused(nel)
         logical :: tEOF
 
@@ -310,6 +311,13 @@ contains
         ! If we are on the root processor, then we do the reading in. Otherwise
         ! we just need to wait to have particles sent in!
         if (iProcIndex == root) then
+
+            ! We need to allocate this, not put it on the stack, otherwise
+            ! when using ifort we will get segfaults. gfortran sensibly
+            ! allocates things bigger than the stacksize on the heap...
+            allocate(buffer(0:NIfTot, max_dets), stat=ierr)
+            if (ierr /= 0) &
+                call stop_all(this_routine, 'Allocation of read buffer failed')
 
             do proc = 0, nProcessors - 1
 
@@ -345,6 +353,9 @@ contains
                 end if
                 
             end do
+
+            ! And deallocate the buffer
+            deallocate(buffer)
 
         else if (bNodeRoot) then
 
