@@ -132,6 +132,7 @@ MODULE Logging
       twrite_RDMs_to_read = .false.
       tno_RDMs_to_read = .false.
       tReadRDMs = .false.
+      tNoNewRDMContrib=.false.
       IterWriteRDMs = 10000
       tWriteMultRDMs = .false.
       tInitiatorRDM = .false.
@@ -584,6 +585,11 @@ MODULE Logging
         case("READRDMS")
 ! Read in the RDMs from a previous calculation, and continue accumulating the RDMs from the very beginning of this restart. 
             tReadRDMs = .true.
+
+        case("NONEWRDMCONTRIB")
+            ! To be used with READRDMs.  This option makes sure that we don't add in any new contributions to the RDM if filling stochastically
+            !This is useful if we want to read in an RDM from another calculation and then just print out the analysis, without adding in any more information.
+      tNoNewRDMContrib=.true.
 
         case("WRITERDMSEVERY")
 ! Write out the normalised, hermitian RDMs every IterWriteRDMs iterations.  
