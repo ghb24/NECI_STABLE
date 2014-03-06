@@ -272,7 +272,7 @@ contains
             end if
         end if
 
-        MaxSpawnedEachProc = int(0.85*real(MaxSpawned,dp)/nProcessors)
+        MaxSpawnedEachProc = int(0.9*real(MaxSpawned,dp)/nProcessors)
 
         call MPIBarrier(ierr)
 
@@ -565,17 +565,17 @@ contains
 
         end do
 
-        write(6,*) "Dets present before:"
-        do idet = 1, ndets
-            int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1, idet)
-            real_sign_2 = transfer(int_sign, real_sign_2)
-            if (tUseFlags) then
-                write(6,'(i7, i12, 4x, f18.7, 4x, f18.7, 4x, l1, l1)') idet, CurrentDets(0, idet), real_sign_2, &
-                    test_flag(CurrentDets(:, idet), flag_is_initiator(1)), test_flag(CurrentDets(:, idet), flag_is_initiator(2))
-            else
-                write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') idet, CurrentDets(0, idet), real_sign_2
-            end if
-        end do
+        !write(6,*) "Dets present before:"
+        !do idet = 1, ndets
+        !    int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1, idet)
+        !    real_sign_2 = transfer(int_sign, real_sign_2)
+        !    if (tUseFlags) then
+        !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7, 4x, l1, l1)') idet, CurrentDets(0, idet), real_sign_2, &
+        !            test_flag(CurrentDets(:, idet), flag_is_initiator(1)), test_flag(CurrentDets(:, idet), flag_is_initiator(2))
+        !    else
+        !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') idet, CurrentDets(0, idet), real_sign_2
+        !    end if
+        !end do
 
         TotPartsOld = TotParts
 
@@ -694,8 +694,8 @@ contains
         type(kp_fciqmc_data), intent(inout) :: kp
         integer, intent(in) :: ivec
         integer :: idet, jvec, ind(ivec)
-        integer(n_int) :: sgn(lenof_sign)
-        real(dp) :: sign1(lenof_sign), sign2(lenof_sign)
+        integer(n_int) :: int_sign(lenof_sign)
+        real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
 
         associate(s_matrix => kp%overlap_matrix)
 
@@ -710,16 +710,20 @@ contains
 
             ! Loop over all determinants in krylov_vecs.
             do idet = 1, TotWalkersKP
-                sgn = krylov_vecs(ind(ivec):ind(ivec)+1, idet)
-                if (IsUnoccDet(sgn)) cycle
-                sign1 = transfer(sgn, sign1)
+                int_sign = krylov_vecs(ind(ivec):ind(ivec)+lenof_sign-1, idet)
+                if (IsUnoccDet(int_sign)) cycle
+                real_sign_1 = transfer(int_sign, real_sign_1)
                 ! Loop over all Krylov vectors currently stored.
                 do jvec = 1, ivec
-                    sgn = krylov_vecs(ind(jvec):ind(jvec)+1, idet)
-                    if (IsUnoccDet(sgn)) cycle
-                    sign2 = transfer(sgn, sign1)
+                    int_sign = krylov_vecs(ind(jvec):ind(jvec)+lenof_sign-1, idet)
+                    if (IsUnoccDet(int_sign)) cycle
+                    real_sign_2 = transfer(int_sign, real_sign_1)
+#ifdef __DOUBLERUN
                     s_matrix(jvec,ivec) = s_matrix(jvec,ivec) + &
-                        (sign1(1)*sign2(2) + sign1(2)*sign2(1))/2.0_dp
+                        (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
+#else
+                    s_matrix(jvec,ivec) = s_matrix(jvec,ivec) + real_sign_1(1)*real_sign_2(1)
+#endif
                 end do
             end do
 
@@ -738,8 +742,8 @@ contains
         integer, intent(in) :: ivec
         integer :: idet, jvec, ind(ivec), nI(nel)
         integer :: det_ind, hdiag_ind, flag_ind, ideterm, DetHash
-        integer(n_int) :: sgn(lenof_sign)
-        real(dp) :: sign1(lenof_sign), sign2(lenof_sign)
+        integer(n_int) :: int_sign(lenof_sign)
+        real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
         real(dp) :: temp
         type(ll_node), pointer :: temp_node
         logical :: tDetFound, tDeterm
@@ -761,8 +765,8 @@ contains
 
             ! Loop over all determinants in SpawnedPartsKP.
             do idet = 1, max_spawned_ind
-                sgn = SpawnedPartsKP(NOffSgn:NOffSgn+1, idet)
-                sign1 = transfer(sgn, sign1)
+                int_sign = SpawnedPartsKP(NOffSgn:NOffSgn+lenof_sign-1, idet)
+                real_sign_1 = transfer(int_sign, real_sign_1)
                 call decode_bit_det(nI, SpawnedPartsKP(:,idet))
                 DetHash = FindWalkerHash(nI, nhashes_kp)
                 ! Point to the first node with this hash value in krylov_vecs.
@@ -785,11 +789,15 @@ contains
                     if (tDetFound) then
                         ! Add in the contribution to the projected Hamiltonian, for each Krylov vector.
                         do jvec = 1, ivec
-                            sgn = krylov_vecs(ind(jvec):ind(jvec)+1, det_ind)
-                            if (IsUnoccDet(sgn)) cycle
-                            sign2 = transfer(sgn, sign1)
+                            int_sign = krylov_vecs(ind(jvec):ind(jvec)+lenof_sign-1, det_ind)
+                            if (IsUnoccDet(int_sign)) cycle
+                            real_sign_2 = transfer(int_sign, real_sign_1)
+#ifdef __DOUBLERUN
                             h_matrix(jvec,ivec) = h_matrix(jvec,ivec) - &
-                                (sign1(1)*sign2(2) + sign1(2)*sign2(1))/2.0_dp
+                                (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
+#else
+                            h_matrix(jvec,ivec) = h_matrix(jvec,ivec) - real_sign_1(1)*real_sign_2(1)
+#endif
                         end do
                     end if
                 end if
@@ -798,7 +806,7 @@ contains
             ! Loop over all determinants in krylov_vecs.
             do idet = 1, TotWalkersKP
 
-                sign1 = 0.0_dp
+                real_sign_1 = 0.0_dp
                 tDeterm = .false.
                 if (tUseFlags) then
                     tDeterm = btest(krylov_vecs(flag_ind, idet), flag_deterministic + flag_bit_offset)
@@ -806,22 +814,26 @@ contains
 
                 if (tDeterm) then
                     ideterm  = ideterm + 1
-                    sign1 = - partial_determ_vector(:,ideterm) + &
+                    real_sign_1 = - partial_determ_vector(:,ideterm) + &
                              (DiagSft+Hii) * tau * full_determ_vector(:, ideterm + determ_proc_indices(iProcIndex))
                 else
-                    sgn = krylov_vecs(ind(ivec):ind(ivec)+1, idet)
-                    sign1 = transfer(sgn, sign1)
-                    sign1 = tau * sign1 * (transfer(krylov_vecs(hdiag_ind, idet), temp) + Hii)
+                    int_sign = krylov_vecs(ind(ivec):ind(ivec)+lenof_sign-1, idet)
+                    real_sign_1 = transfer(int_sign, real_sign_1)
+                    real_sign_1 = tau * real_sign_1 * (transfer(krylov_vecs(hdiag_ind, idet), temp) + Hii)
                 end if
-                if (IsUnoccDet(sign1)) cycle
+                if (IsUnoccDet(real_sign_1)) cycle
 
                 ! Loop over all Krylov vectors currently stored.
                 do jvec = 1, ivec
-                    sgn = krylov_vecs(ind(jvec):ind(jvec)+1, idet)
-                    if (IsUnoccDet(sgn)) cycle
-                    sign2 = transfer(sgn, sign1)
+                    int_sign = krylov_vecs(ind(jvec):ind(jvec)+lenof_sign-1, idet)
+                    if (IsUnoccDet(int_sign)) cycle
+                    real_sign_2 = transfer(int_sign, real_sign_1)
+#ifdef __DOUBLERUN
                     h_matrix(jvec,ivec) = h_matrix(jvec,ivec) + &
-                        (sign1(1)*sign2(2) + sign1(2)*sign2(1))/2.0_dp
+                        (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
+#else
+                    h_matrix(jvec,ivec) = h_matrix(jvec,ivec) + real_sign_1(1)*real_sign_2(1)
+#endif
                 end do
             end do
 
@@ -872,6 +884,7 @@ contains
                 int_sign = krylov_vecs(NIfDBO+1:NIfDBO+lenof_sign_kp, idet)
 
                 any_occ = .false.
+#ifdef __DOUBLERUN
                 do i = 1, kp%nvecs
                     any_occ = any_occ .or. (int_sign(2*i-1) /= 0)
                 end do
@@ -882,6 +895,12 @@ contains
                     any_occ = any_occ .or. (int_sign(2*i) /= 0)
                 end do
                 if (any_occ) occ_flags = ibset(occ_flags(idet), 1)
+#else
+                do i = 1, kp%nvecs
+                    any_occ = any_occ .or. (int_sign(i) /= 0)
+                end do
+                if (any_occ) occ_flags = ibset(occ_flags(idet), 0)
+#endif
             end do
 
             ! Loop over all determinants in krylov_vecs.
@@ -894,9 +913,12 @@ contains
                 occ_2 = btest(occ_flags(idet),1)
 
                 do jdet = idet, TotWalkersKP
+#ifdef __DOUBLERUN
                     if (.not. ((occ_1 .and. btest(occ_flags(jdet),1)) .or. &
                         (occ_2 .and. btest(occ_flags(jdet),0)))) cycle
-
+#else
+                    if (.not. (occ_1 .and. btest(occ_flags(jdet),0)) ) cycle
+#endif
                     ilut_2 = krylov_vecs(0:NIfDBO, jdet)
                     ic = FindBitExcitLevel(ilut_1, ilut_2)
                     if (ic > 2) cycle
@@ -918,6 +940,7 @@ contains
                     ! Finally, add in the contribution to all of the Hamiltonian elements.
                     do i = 1, kp%nvecs
                         do j = i, kp%nvecs
+#ifdef __DOUBLERUN
                             if (idet == jdet) then
                                 h_matrix(i,j) = h_matrix(i,j) + &
                                     h_elem*(real_sign_1(2*i-1)*real_sign_2(2*j) + &
@@ -929,6 +952,16 @@ contains
                                     real_sign_1(2*j-1)*real_sign_2(2*i) + &
                                     real_sign_1(2*j)*real_sign_2(2*i-1))/2
                             end if
+#else
+                            if (idet == jdet) then
+                                h_matrix(i,j) = h_matrix(i,j) + &
+                                    h_elem*real_sign_1(i)*real_sign_2(j)
+                            else
+                                h_matrix(i,j) = h_matrix(i,j) + &
+                                    h_elem*(real_sign_1(i)*real_sign_2(j) + &
+                                    real_sign_1(j)*real_sign_2(i))
+                            end if
+#endif
                         end do
                     end do
 
@@ -1071,7 +1104,7 @@ contains
         integer :: temp(1,1), hf_ind, ndets
         integer :: i, j, ilen, counter, new_unit, DetHash
         integer(n_int) :: ilut(0:NIfTot)
-        integer(n_int) :: sgn(lenof_sign)
+        integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign(lenof_sign)
         type(ll_node), pointer :: temp_node
         type(BasisFn) :: iSym
@@ -1108,8 +1141,8 @@ contains
             if (temp_node%ind /= 0) then
                 do while (associated(temp_node))
                     if (DetBitEQ(ilut, CurrentDets(:,temp_node%ind), NIfDBO)) then
-                        sgn = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,temp_node%ind)
-                        real_sign = transfer(sgn, real_sign)
+                        int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,temp_node%ind)
+                        real_sign = transfer(int_sign, real_sign)
                         exit
                     end if
                     temp_node => temp_node%next
@@ -1120,7 +1153,7 @@ contains
             ! Note that this assumes that ilen < 10, which is very reasonable!
             write(ifmt,'(a1,i1)') "i", ilen
             do j = 1, lenof_sign
-                ! This assumes that lenof_sign < 10. Probably will always be 2.
+                ! This assumes that lenof_sign < 10. Probably will always be 1 or 2.
                 write(new_unit,'(a1,'//ifmt//',a1,i1,a1,1x,es19.12)') "(", counter,",", j, ")", real_sign(j)
             end do
         end do

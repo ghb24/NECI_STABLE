@@ -277,12 +277,15 @@ contains
                     ! Finally, add in the contribution to the projected Hamiltonian for each pair of Krylov vectors.
                     do i = 1, kp%nvecs
                         do j = i, kp%nvecs
+#ifdef __DOUBLERUN
                             kp%hamil_matrix(i,j) = kp%hamil_matrix(i,j) + &
                                 (real_sign_1(2*i-1)*real_sign_2(2*j) + &
-                                real_sign_1(2*i)*real_sign_2(2*j-1))/2
+                                real_sign_1(2*i)*real_sign_2(2*j-1))/2.0_dp
+#else
+                            kp%hamil_matrix(i,j) = kp%hamil_matrix(i,j) + real_sign_1(i)*real_sign_2(j)
+#endif
                         end do
                     end do
-
                 end if
             end if
         end do
@@ -321,9 +324,13 @@ contains
             ! Finally, add in the contribution to the projected Hamiltonian for each pair of Krylov vectors.
             do i = 1, kp%nvecs
                 do j = i, kp%nvecs
+#ifdef __DOUBLERUN
                     kp%hamil_matrix(i,j) = kp%hamil_matrix(i,j) + &
                         h_diag*(real_sign(2*i-1)*real_sign(2*j) + &
-                        real_sign(2*i)*real_sign(2*j-1))/2
+                        real_sign(2*i)*real_sign(2*j-1))/2.0_dp
+#else
+                    kp%hamil_matrix(i,j) = kp%hamil_matrix(i,j) + h_diag*real_sign(i)*real_sign(j)
+#endif
                 end do
             end do
 
@@ -347,9 +354,13 @@ contains
 
             do i = 1, kp%nvecs
                 do j = i, kp%nvecs
+#ifdef __DOUBLERUN
                     kp%hamil_matrix(i,j) = kp%hamil_matrix(i,j) + &
                         (real_sign(2*i-1)*partial_determ_vecs_kp(2*j, idet) + &
-                        real_sign(2*i)*partial_determ_vecs_kp(2*j-1, idet))/2
+                        real_sign(2*i)*partial_determ_vecs_kp(2*j-1, idet))/2.0_dp
+#else
+                    kp%hamil_matrix(i,j) = kp%hamil_matrix(i,j) + real_sign(i)*partial_determ_vecs_kp(j, idet)
+#endif
                 end do
             end do
 

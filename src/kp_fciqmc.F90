@@ -144,7 +144,7 @@ contains
                             call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
                                                CurrentH(1,idet), 1.0_dp, idet)
 
-                            do ireplica = 1, inum_runs
+                            do ireplica = 1, lenof_sign
 
                                 call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
                                 
