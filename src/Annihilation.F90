@@ -30,7 +30,7 @@ MODULE AnnihilationMod
                         nullify_ilut_part, keep_smallest_nsteps, return_nsteps
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
-    use LoggingData , only : tHF_Ref_Explicit
+    use LoggingData , only : tHF_Ref_Explicit, tNoNewRDMContrib
     use util_mod, only: get_free_unit, binary_search_custom
     use sparse_arrays, only: trial_ht, con_ht
     use searching
@@ -955,7 +955,8 @@ MODULE AnnihilationMod
                         if (SignProd(1) < 0.0_dp) iter_data%nannihil(1) = iter_data%nannihil(1) + &
                             2*(min(abs(CurrentSign(1)), abs(SpawnedSign(1))))
                         
-                        if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then
+                        if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit) & 
+                                        & .and.(.not.tNoNewRDMContrib)) then
                             call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
                         endif 
 
@@ -974,7 +975,8 @@ MODULE AnnihilationMod
                 ! If the SpawnedPart is found in the CurrentDets list, it means that the Dj has a non-zero 
                 ! cj - and therefore the Di.Dj pair will have a non-zero ci.cj to contribute to the RDM.
                 ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
-                if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then
+                if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit) & 
+                                & .and.(.not.tNoNewRDMContrib)) then
                     call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
                 endif 
 

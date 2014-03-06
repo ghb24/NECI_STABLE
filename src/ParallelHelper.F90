@@ -244,8 +244,8 @@ contains
 
 
 
-    subroutine MPIErr (err)
-        integer, intent(in) :: err
+    subroutine MPIErr (iunit, err)
+        integer, intent(in) :: err, iunit
         integer(MPIArg) :: l, e
 #ifdef PARALLEL
         character(len=MPI_MAX_ERROR_STRING) :: s
@@ -254,7 +254,7 @@ contains
         e=0
         call MPI_Error_string (int(err, MPIArg), s, l, e)
 
-        write(6,*) s
+        write(iunit,*) s
 #endif
 
     end subroutine
