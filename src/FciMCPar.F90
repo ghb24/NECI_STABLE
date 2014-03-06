@@ -87,7 +87,7 @@ MODULE FciMCParMod
                        tCalcInstantS2Init, instant_s2_multiplier_init, &
                        tJustBlocking, iBlockEquilShift, iBlockEquilProjE, &
                        tDiagAllSpaceEver, tCalcVariationalEnergy, tCompareTrialAmps, &
-                       compare_amps_period
+                       compare_amps_period, tNoNewRDMContrib
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -877,7 +877,7 @@ MODULE FciMCParMod
                             CurrentH(3,gen_ind) = IterRDMStartCurr
                         endif
                         VecSlot = VecSlot + 1
-                        if(tFill_RDM) then 
+                        if(tFill_RDM .and. (.not.tNoNewRDMContrib)) then 
                             ! If tFill_RDM is true, this is an iteration where the diagonal 
                             ! RDM elements are calculated, along with the contributions from 
                             ! connections to the (true) HF determinant.
@@ -1147,7 +1147,7 @@ MODULE FciMCParMod
                                    AvSignCurr, IterRDMStartCurr, VecSlot, j, WalkExcitLevel)
             end if
 
-            if(tFill_RDM) then 
+            if(tFill_RDM .and. (.not.tNoNewRDMContrib)) then 
                 ! If tFill_RDM is true, this is an iteration where the diagonal 
                 ! RDM elements are calculated, along with the contributions from 
                 ! connections to the (true) HF determinant.
@@ -7107,7 +7107,7 @@ MODULE FciMCParMod
                        &maximum weighted determinant in the CAS expansion'
             write(iout,*) 'Use following det as reference:'
             call write_det(6, CASFullDets(:, det_max), .true.)
-            call stop_all(this_routine, "Poor reference chosen")
+            call warning_neci(this_routine, "Poor reference chosen")
         end if
 
         if(tMomInv) write(iout,*) "Converting into momentum-coupled space. Total MI functions: ",nHPHFCAS
