@@ -950,6 +950,17 @@ MODULE AnnihilationMod
                             call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(1+lenof_sign,PartInd))
                         endif 
 
+                        if (tHashWalkerList .and. IsUnoccDet(SpawnedSign + CurrentSign) .and. &
+                              (.not. test_flag(CurrentDets(:,PartInd), flag_deterministic))) then
+                            !All walkers in this main list have been annihilated away
+                            !Remove it from the hash index array so that no others find it (it is impossible to have
+                            !another spawned walker yet to find this determinant)
+                            call RemoveDetHashIndex(nJ,PartInd)
+                            !Add to "freeslot" list so it can be filled in
+                            iEndFreeSlot=iEndFreeSlot+1
+                            FreeSlot(iEndFreeSlot)=PartInd
+                        endif
+
                         cycle
 
                     end if
