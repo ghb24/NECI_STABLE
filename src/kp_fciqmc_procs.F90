@@ -23,7 +23,7 @@ module kp_fciqmc_procs
     use FciMCData, only: full_determ_vecs_kp, determ_space_size, OldAllAvWalkersCyc
     use FciMCParMod, only: create_particle, InitFCIMC_HF, SetupParameters, InitFCIMCCalcPar
     use FciMCParMod, only: init_fcimc_fn_pointers, WriteFciMCStats, WriteFciMCStatsHeader
-    use FciMCParMod, only: rezero_iter_stats_each_iter, tSinglePartPhase
+    use FciMCParMod, only: rezero_iter_stats_each_iter, tSinglePartPhase, InitFCIMC_pops
     use gndts_mod, only: gndts
     use hash, only: FindWalkerHash, init_hash_table, reset_hash_table, fill_in_hash_table
     use hash, only: DetermineDetNode, remove_node
@@ -31,6 +31,7 @@ module kp_fciqmc_procs
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use Parallel_neci, only: MPIBarrier, iProcIndex, MPISum, MPIReduce, nProcessors
     use ParallelHelper, only: root
+    use PopsfileMod, only: FindPopsfileVersion, open_pops_head, ReadPopsHeadv4, CheckPopsParams
     use procedure_pointers
     use semi_stoch_procs, only: copy_core_dets_this_proc_to_spawnedparts, fill_in_CurrentH
     use semi_stoch_procs, only: add_core_states_currentdet_hash, start_walkers_from_core_ground
@@ -332,13 +333,43 @@ contains
 
         type(kp_fciqmc_data), intent(inout) :: kp
         integer, intent(in) :: iconfig, irepeat
-        integer :: DetHash, i, nwalkers, nwalkers_target
+        integer :: DetHash, i, nwalkers, nwalkers_target, iunithead, PopsVersion
+        character(len=*), parameter :: t_r = "create_inital_config"
+        ! Variables from popsfile header...
+        integer :: iPopLenof_sign, iPopNel, iPopIter, PopNIfD, PopNIfY, WalkerListSize
+        integer :: PopNIfSgn, PopNIfFlag, PopNIfTot, PopBlockingIter
+        logical :: tPop64Bit, tPopHPHF, tPopLz, formpops, binpops
+        integer(int64) :: iPopAllTotWalkers
+        real(dp) :: PopDiagSft, read_tau
+        real(dp), dimension(lenof_sign/inum_runs) :: PopSumNoatHF
+        HElement_t :: PopAllSumENum
 
         call reset_hash_table(HashIndex)
 
         if (kp%tGround) then
-            ! Put a walker on the Hartree-Fock again, with the requested amplitude.
-            call InitFCIMC_HF()
+            if (tReadPops) then
+                !Read header.
+                call open_pops_head(iunithead,formpops,binpops)
+                PopsVersion = FindPopsfileVersion(iunithead)
+                if(PopsVersion == 4) then
+                    call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+                            iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                            PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
+                else
+                    call stop_all(t_r, "Only version 4 popsfile are supported with kp-fciqmc.")
+                endif
+                call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+                        iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau,PopBlockingIter)
+
+                if(iProcIndex == root) close(iunithead)
+
+                call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn)
+            else
+                ! Put a walker on the Hartree-Fock again, with the requested amplitude.
+                call InitFCIMC_HF()
+            end if
+
             if (tSemiStochastic) then
                 ! core_space stores all core determinants from all processors. Move those on this
                 ! processor to SpawnedParts, which add_core_states_currentdet_hash uses.
@@ -350,6 +381,7 @@ contains
                 ! Reset the diagonal Hamiltonian elements.
                 CurrentH(1, 1:determ_proc_sizes(iProcIndex)) = core_ham_diag
             end if
+
         else if (kp%tFiniteTemp) then
             if (irepeat == 1) then
                 ! Convert the initial number of walkers to an integer.

@@ -6674,7 +6674,7 @@ MODULE FciMCParMod
         use FciMCLoggingMOD , only : InitHistInitPops
         use SystemData , only : tRotateOrbs
         use CalcData , only : InitialPart,tstartmp1,tStartCAS
-        use CalcData , only : MemoryFacPart,MemoryFacAnnihil,iReadWalkersRoot
+        use CalcData , only : MemoryFacPart,MemoryFacAnnihil
         use constants , only : size_n_int
         use DeterminantData , only : write_det
         use nElRDMMod, only: InitRDM
@@ -6683,7 +6683,6 @@ MODULE FciMCParMod
         LOGICAL :: formpops,binpops
         INTEGER :: error,MemoryAlloc,PopsVersion,j,iLookup,WalkerListSize
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
-        integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
         integer :: PopBlockingIter
         real(dp) :: Gap,ExpectedMemWalk,read_tau
         !Variables from popsfile header...
@@ -6869,70 +6868,8 @@ MODULE FciMCParMod
             !
             ! If we have a popsfile, read the walkers in now.
             if(tReadPops.and..not.tPopsAlreadyRead) then
-
-                if(iReadWalkersRoot.eq.0) then
-
-                    ! ReadBatch is the number of walkers to read in from the 
-                    ! popsfile at one time. The larger it is, the fewer
-                    ! communictions will be needed to scatter the particles.
-                    !
-                    ! By default, the new array (which is only created on the 
-                    ! root processors) is the same length as the spawning 
-                    ! arrays.
-                    ReadBatch=MaxSpawned
-                else
-                    ReadBatch = iReadWalkersRoot
-                endif
-
-                ! TotWalkers and TotParts are returned as the dets and parts 
-                ! on each processor.
-                call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, &
-                                      TotWalkers ,TotParts, NoatHF, &
-                                      CurrentDets, MaxWalkersPart, PopNifSgn)
-
-                !Setup global variables
-                TotWalkersOld=TotWalkers
-                TotPartsOld = TotParts
-                call MPISumAll(TotWalkers,AllTotWalkers)
-                AllTotWalkersOld = AllTotWalkers
-                call MPISumAll(TotParts,AllTotParts)
-                AllTotPartsOld=AllTotParts
-                call MPISumAll(NoatHF,AllNoatHF)
-                OldAllNoatHF=AllNoatHF
-#ifdef __CMPLX
-                OldAllAvWalkersCyc=sum(AllTotParts)
-#else
-                OldAllAvWalkersCyc=AllTotParts
-#endif
-                
-                do run=1,inum_runs
-                    OldAllHFCyc(run) = ARR_RE_OR_CPLX(AllNoatHF,run)
-                enddo
-                
-                AllNoAbortedOld(:)=0.0_dp
-                iter_data_fciqmc%tot_parts_old = AllTotParts
-                
-                ! Calculate the projected energy for this iteration.
-                do run=1,inum_runs
-                    if (ARR_RE_OR_CPLX(AllSumNoAtHF,run)/=0) &
-                        ProjectionE(run) = AllSumENum(run) / ARR_RE_OR_CPLX(AllSumNoatHF,run)
-                enddo 
-
-                if(iProcIndex.eq.iHFProc) then
-                    !Need to store SumENum and SumNoatHF, since the global variable All... gets wiped each iteration. 
-                    !Rather than POPSFILE v2, where the average values were scattered, just store the previous
-                    !energy contributions on the root node.
-                    SumNoatHF(:)=AllSumNoatHF(:)
-                    SumENum(:)=AllSumENum(:)
-                    InstNoatHF(:) = NoatHF(:)
-
-                    if((AllNoatHF(1).ne.NoatHF(1)).or.(AllNoatHF(lenof_sign).ne.NoatHF(lenof_sign))) then
-                        call stop_all(this_routine,"HF particles spread across different processors.")
-                    endif
-                endif
-            
+                call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn)
             else
-
                 if(tStartMP1) then
                     !Initialise walkers according to mp1 amplitude.
                     call InitFCIMC_MP1()
@@ -7063,6 +7000,78 @@ MODULE FciMCParMod
         if (tTrialWavefunction) call init_trial_wf()
         
     end subroutine InitFCIMCCalcPar
+
+    subroutine InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn)
+
+        use CalcData, only : iReadWalkersRoot
+
+        integer(int64), intent(in) :: iPopAllTotWalkers
+        integer, intent(in) :: PopNIfSgn
+        integer :: run, ReadBatch
+        character(len=*), parameter :: this_routine='InitFCIMC_pops'
+
+        if(iReadWalkersRoot.eq.0) then
+
+            ! ReadBatch is the number of walkers to read in from the 
+            ! popsfile at one time. The larger it is, the fewer
+            ! communictions will be needed to scatter the particles.
+            !
+            ! By default, the new array (which is only created on the 
+            ! root processors) is the same length as the spawning 
+            ! arrays.
+            ReadBatch=MaxSpawned
+        else
+            ReadBatch = iReadWalkersRoot
+        endif
+
+        ! TotWalkers and TotParts are returned as the dets and parts 
+        ! on each processor.
+        call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, &
+                              TotWalkers ,TotParts, NoatHF, &
+                              CurrentDets, MaxWalkersPart, PopNIfSgn)
+
+        !Setup global variables
+        TotWalkersOld=TotWalkers
+        TotPartsOld = TotParts
+        call MPISumAll(TotWalkers,AllTotWalkers)
+        AllTotWalkersOld = AllTotWalkers
+        call MPISumAll(TotParts,AllTotParts)
+        AllTotPartsOld=AllTotParts
+        call MPISumAll(NoatHF,AllNoatHF)
+        OldAllNoatHF=AllNoatHF
+#ifdef __CMPLX
+        OldAllAvWalkersCyc=sum(AllTotParts)
+#else
+        OldAllAvWalkersCyc=AllTotParts
+#endif
+        
+        do run=1,inum_runs
+            OldAllHFCyc(run) = ARR_RE_OR_CPLX(AllNoatHF,run)
+        enddo
+        
+        AllNoAbortedOld(:)=0.0_dp
+        iter_data_fciqmc%tot_parts_old = AllTotParts
+        
+        ! Calculate the projected energy for this iteration.
+        do run=1,inum_runs
+            if (ARR_RE_OR_CPLX(AllSumNoAtHF,run)/=0) &
+                ProjectionE(run) = AllSumENum(run) / ARR_RE_OR_CPLX(AllSumNoatHF,run)
+        enddo 
+
+        if(iProcIndex.eq.iHFProc) then
+            !Need to store SumENum and SumNoatHF, since the global variable All... gets wiped each iteration. 
+            !Rather than POPSFILE v2, where the average values were scattered, just store the previous
+            !energy contributions on the root node.
+            SumNoatHF(:)=AllSumNoatHF(:)
+            SumENum(:)=AllSumENum(:)
+            InstNoatHF(:) = NoatHF(:)
+
+            if((AllNoatHF(1).ne.NoatHF(1)).or.(AllNoatHF(lenof_sign).ne.NoatHF(lenof_sign))) then
+                call stop_all(this_routine,"HF particles spread across different processors.")
+            endif
+        endif
+
+    end subroutine InitFCIMC_pops
 
     subroutine InitFCIMC_HF()
 
