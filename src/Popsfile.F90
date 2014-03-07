@@ -297,7 +297,7 @@ contains
         integer :: i
 
         ! A tag is used to identify this send/recv pair over any others
-        integer, parameter :: mpi_tag = z'beef'
+        integer, parameter :: mpi_tag = 123456  !z'beef'
 
         ! Initialise counters
         CurrWalkers = 0
