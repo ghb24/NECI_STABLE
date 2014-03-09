@@ -851,6 +851,25 @@ module DetBitOps
 
     end subroutine FindExcitBitDet
 
+    pure function return_ms(ilut) result (ms_local)
+
+        ! Return the Ms value for the input ilut.
+
+        ! **WARNING** This function assumes that the number of electrons in the
+        ! determinant (the number of set bits in ilut) is equal to nel.
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer(n_int) :: ilut_alpha(0:NIfD)
+        integer :: nup
+        integer :: ms_local
+
+        ilut_alpha = iand(ilut(0:NIfD), MaskAlpha)
+        nup = sum(count_set_bits(ilut_alpha))
+        ! *Assuming ndown = nel - nup*
+        ms_local = 2*nup - nel
+
+    end function return_ms
+
     subroutine shift_det_bit_singles_to_beta (iLut)
         integer(kind=n_int), intent(inout) :: iLut(0:NIfD)
         integer(kind=n_int) :: iA(0:NIfD), iB(0:NIfD)

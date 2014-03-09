@@ -16,7 +16,7 @@ contains
         use bit_reps, only: extract_bit_rep, flag_is_initiator
         use CalcData, only: AvMCExcits, tSemiStochastic, tTruncInitiator, StepsSft
         use constants
-        use DetBitOps, only: FindBitExcitLevel
+        use DetBitOps, only: FindBitExcitLevel, return_ms
         use FciMCData, only: fcimc_excit_gen_store, FreeSlot, iEndFreeSlot
         use FciMCData, only: TotWalkers, CurrentDets, CurrentH, iLutRef, max_calc_ex_level
         use FciMCData, only: iter_data_fciqmc, TotParts, NCurrH, exFlag, iter
@@ -30,12 +30,12 @@ contains
         use procedure_pointers, only: new_child_stats, extract_bit_rep_avsign
         use semi_stoch_procs, only: is_core_state, check_determ_flag, deterministic_projection
         use soft_exit, only: ChangeVars
-        use SystemData, only: nel
+        use SystemData, only: nel, lms, nbasis, tAllSymSectors, nOccAlpha, nOccBeta
         
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: iconfig, irepeat, ivec, iiter, idet, ireplica, ispawn
         integer :: nspawn, parent_flags, unused_flags, ex_level_to_ref
-        integer :: TotWalkersNew, determ_ind, ic, ex(2,2)
+        integer :: TotWalkersNew, determ_ind, ic, ex(2,2), ms_parent
         integer :: nI_parent(nel), nI_child(nel)
         integer(n_int) :: ilut_child(0:NIfTot)
         integer(n_int), pointer :: ilut_parent(:)
@@ -46,11 +46,13 @@ contains
         logical :: tParity, tSoftExitFound, tSingBiasChange, tWritePopsFound
         HElement_t :: HElGen
 
-        integer(n_int) :: int_sign(lenof_sign*kp%nvecs)
-        real(dp) :: test_sign(lenof_sign*kp%nvecs)
+        integer(n_int) :: int_sign(lenof_sign_kp)
+        real(dp) :: test_sign(lenof_sign_kp)
         type(ll_node), pointer :: temp_node
 
         call init_kp_fciqmc(kp)
+
+        if (.not. tAllSymSectors) ms_parent = lms
 
         outer_loop: do iconfig = 1, kp%nconfigs
 
@@ -144,62 +146,74 @@ contains
                             call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
                                                CurrentH(1,idet), 1.0_dp, idet)
 
-                            do ireplica = 1, lenof_sign
+                            if (tAllSymSectors) then
+                                ms_parent = return_ms(ilut_parent)
+                                nOccAlpha = (nel+ms_parent)/2
+                                nOccBeta = (nel-ms_parent)/2
+                            end if
 
-                                call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
-                                
-                                do ispawn = 1, nspawn
+                            ! If this condition is not met (if all electrons have spin up or all have spin down)
+                            ! then there will be no determinants to spawn to, so don't attempt spawning.
+                            if (abs(ms_parent) /= nbasis/2) then
 
-                                    ! Zero the bit representation, to ensure no extraneous data gets through.
-                                    ilut_child = 0_n_int
+                                do ireplica = 1, lenof_sign
 
-                                    call generate_excitation (nI_parent, ilut_parent, nI_child, &
-                                                        ilut_child, exFlag, ic, ex, tParity, prob, &
-                                                        HElGen, fcimc_excit_gen_store)
+                                    call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
+                                    
+                                    do ispawn = 1, nspawn
 
-                                    ! If a valid excitation.
-                                    if (.not. IsNullDet(nI_child)) then
+                                        ! Zero the bit representation, to ensure no extraneous data gets through.
+                                        ilut_child = 0_n_int
 
-                                        call encode_child (ilut_parent, ilut_child, ic, ex)
-                                        if (tUseFlags) ilut_child(nOffFlag) = 0_n_int
+                                        call generate_excitation (nI_parent, ilut_parent, nI_child, &
+                                                            ilut_child, exFlag, ic, ex, tParity, prob, &
+                                                            HElGen, fcimc_excit_gen_store)
 
-                                        if (tSemiStochastic) then
-                                            tChildIsDeterm = is_core_state(ilut_child)
+                                        ! If a valid excitation.
+                                        if (.not. IsNullDet(nI_child)) then
 
-                                            ! Is the parent state in the core space?
-                                            if (tParentIsDeterm) then
-                                                ! If spawning is both from and to the core space, cancel it.
-                                                if (tChildIsDeterm) cycle
-                                                call set_flag(ilut_child, flag_determ_parent)
-                                            else
-                                                if (tChildIsDeterm) call set_flag(ilut_child, flag_deterministic)
+                                            call encode_child (ilut_parent, ilut_child, ic, ex)
+                                            if (tUseFlags) ilut_child(nOffFlag) = 0_n_int
+
+                                            if (tSemiStochastic) then
+                                                tChildIsDeterm = is_core_state(ilut_child)
+
+                                                ! Is the parent state in the core space?
+                                                if (tParentIsDeterm) then
+                                                    ! If spawning is both from and to the core space, cancel it.
+                                                    if (tChildIsDeterm) cycle
+                                                    call set_flag(ilut_child, flag_determ_parent)
+                                                else
+                                                    if (tChildIsDeterm) call set_flag(ilut_child, flag_deterministic)
+                                                end if
                                             end if
+
+                                            child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
+                                                                nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
+                                                                ex_level_to_ref, ireplica, unused_sign2, unused_rdm_real)
+
+                                        else
+                                            child_sign = 0.0_dp
                                         end if
 
-                                        child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
-                                                            nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                                                            ex_level_to_ref, ireplica, unused_sign2, unused_rdm_real)
+                                        ! If any (valid) children have been spawned.
+                                        if ((any(child_sign /= 0)) .and. (ic /= 0) .and. (ic <= 2)) then
 
-                                    else
-                                        child_sign = 0.0_dp
-                                    end if
+                                            call new_child_stats (iter_data_fciqmc, ilut_parent, &
+                                                                  nI_child, ilut_child, ic, ex_level_to_ref,&
+                                                                  child_sign, parent_flags, ireplica)
 
-                                    ! If any (valid) children have been spawned.
-                                    if ((any(child_sign /= 0)) .and. (ic /= 0) .and. (ic <= 2)) then
+                                            call create_particle (nI_child, ilut_child, child_sign, parent_flags, &
+                                                                  ireplica, ilut_parent, parent_sign, &
+                                                                  ispawn, unused_rdm_real, nspawn)
 
-                                        call new_child_stats (iter_data_fciqmc, ilut_parent, &
-                                                              nI_child, ilut_child, ic, ex_level_to_ref,&
-                                                              child_sign, parent_flags, ireplica)
+                                        end if ! If a child was spawned.
 
-                                        call create_particle (nI_child, ilut_child, child_sign, parent_flags, &
-                                                              ireplica, ilut_parent, parent_sign, &
-                                                              ispawn, unused_rdm_real, nspawn)
+                                    end do ! Over mulitple particles on same determinant.
 
-                                    end if ! If a child was spawned.
+                                end do ! Over the replicas on the same determinant.
 
-                                end do ! Over mulitple particles on same determinant.
-
-                            end do ! Over the replicas on the same determinant.
+                            end if ! If connected determinants exist to spawn to.
 
                             ! If this is a core-space determinant then the death step is done in
                             ! deterministic_projection.

@@ -14,15 +14,17 @@ contains
         use bit_reps, only: decode_bit_det
         use CalcData, only: tSemiStochastic
         use constants
+        use DetBitOps, only: return_ms
         use FciMCData, only: fcimc_excit_gen_store, exFlag, partial_determ_vecs_kp
         use procedure_pointers, only: generate_excitation, encode_child, get_spawn_helement
         use semi_stoch_procs, only: is_core_state, check_determ_flag
         use semi_stoch_procs, only: deterministic_projection_kp_hamil
+        use SystemData, only: nbasis, tAllSymSectors, nOccAlpha, nOccBeta
         use util_mod, only: stochastic_round
         
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: idet, ispawn, nspawn, i, j
-        integer :: determ_ind, flag_ind, ic, ex(2,2)
+        integer :: determ_ind, flag_ind, ic, ex(2,2), ms_parent
         integer :: nI_parent(nel), nI_child(nel)
         integer(n_int) :: ilut_child(0:NIfTot), ilut_parent(0:NIfTot)
         real(dp) :: prob, tot_pop
@@ -69,6 +71,15 @@ contains
             end if
 
             if (tParentUnoccupied) cycle
+
+            if (tAllSymSectors) then
+                ms_parent = return_ms(ilut_parent)
+                ! If this condition is met (if all electrons have spin up or all have spin
+                ! down) then there will be no determinants to spawn to, so don't attempt spawning.
+                if (abs(ms_parent) == nbasis/2) cycle
+                nOccAlpha = (nel+ms_parent)/2
+                nOccBeta = (nel-ms_parent)/2
+            end if
 
             nspawn = stochastic_round(kp%av_mc_excits_kp*tot_pop)
             

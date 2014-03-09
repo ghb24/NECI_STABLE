@@ -169,6 +169,7 @@ MODULE System
       tSymIgnoreEnergies=.false.
       tPickVirtUniform = .false.
       modk_offdiag = .false.
+      tAllSymSectors = .false.
 
 !Feb08 defaults:
       IF(Feb08) THEN

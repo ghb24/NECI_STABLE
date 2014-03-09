@@ -207,6 +207,10 @@ LOGICAL :: tSymIgnoreEnergies
     ! Should we use |K| for FCIQMC?
     logical :: modk_offdiag
 
+! True if we are performing a calculation in all symmetry sectors at once.
+! This is used in finite-temperature KP-FCIQMC calculations.
+logical :: tAllSymSectors
+
 ! Operators for type(symmetry)
 interface assignment (=)
     module procedure SymAssign

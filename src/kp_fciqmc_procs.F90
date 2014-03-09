@@ -28,6 +28,7 @@ module kp_fciqmc_procs
     use hash, only: FindWalkerHash, init_hash_table, reset_hash_table, fill_in_hash_table
     use hash, only: DetermineDetNode, remove_node
     use hilbert_space_size, only: CreateRandomExcitLevDetUnbias, create_rand_heisenberg_det
+    use hilbert_space_size, only: create_rand_det_no_sym
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use Parallel_neci, only: MPIBarrier, iProcIndex, MPISum, MPIReduce, nProcessors
     use ParallelHelper, only: root
@@ -37,7 +38,7 @@ module kp_fciqmc_procs
     use semi_stoch_procs, only: add_core_states_currentdet_hash, start_walkers_from_core_ground
     use sym_mod, only: getsym
     use SystemData, only: nel, nbasis, BRR, nBasisMax, G1, tSpn, lms, tParity, SymRestrict
-    use SystemData, only: BasisFn, tHeisenberg, tHPHF
+    use SystemData, only: BasisFn, tHeisenberg, tHPHF, tAllSymSectors
     use util_mod, only: get_free_unit
 
     implicit none
@@ -132,6 +133,7 @@ contains
         tInitCorrectNWalkers = .false.
         vary_niters = .false.
         tUseInitConfigSeeds = .false.
+        tAllSymSectors = .false.
 
         read_inp: do
             call read_line(eof)
@@ -182,6 +184,8 @@ contains
                 do i = 1, kp%nconfigs
                     call geti(init_config_seeds(i))
                 end do
+            case("ALL-SYM-SECTORS")
+                tAllSymSectors = .true.
             case default
                 call report("Keyword "//trim(w)//" not recognized in kp-fciqmc block", .true.)
             end select
@@ -223,6 +227,9 @@ contains
 
         if (tExactHamil .and. nProcessors /= 1) call stop_all('t_r','The exact-hamil &
             &option can only be used when running with one processor.')
+
+        if (theisenberg .and. tAllSymSectors) call stop_all('t_r','The option to use all &
+            &symmetry sectors at once has not been implemented with the Heisenberg model.')
 
         tPopsAlreadyRead = .false.
         call SetupParameters()
@@ -273,7 +280,7 @@ contains
             end if
         end if
 
-        MaxSpawnedEachProc = int(0.9*real(MaxSpawned,dp)/nProcessors)
+        MaxSpawnedEachProc = int(0.88*real(MaxSpawned,dp)/nProcessors)
 
         call MPIBarrier(ierr)
 
@@ -444,11 +451,15 @@ contains
         nspawns = ceiling(real(nwalkers,dp)/nwalkers_per_site_init)
 
         do i = 1, nspawns
-            ! Generate the determinant (output to ilut).
-            if (tHeisenberg) then
-                call create_rand_heisenberg_det(ilut)
+            ! Generate a determinant (output to ilut).
+            if (tAllSymSectors) then
+                call create_rand_det_no_sym(ilut)
             else
-                call CreateRandomExcitLevDetUnbias(nel, HFDet, ilutHF, ilut, excit, nattempts)
+                if (tHeisenberg) then
+                    call create_rand_heisenberg_det(ilut)
+                else
+                    call CreateRandomExcitLevDetUnbias(nel, HFDet, ilutHF, ilut, excit, nattempts)
+                end if
             end if
             call decode_bit_det(nI, ilut)
 
@@ -527,12 +538,17 @@ contains
         TotParts = 0.0_dp
 
         do
-            ! Generate the determinant (output to ilut).
-            if (tHeisenberg) then
-                call create_rand_heisenberg_det(ilut)
+            ! Generate a determinant (output to ilut).
+            if (tAllSymSectors) then
+                call create_rand_det_no_sym(ilut)
             else
-                call CreateRandomExcitLevDetUnbias(nel, HFDet, ilutHF, ilut, excit, nattempts)
+                if (tHeisenberg) then
+                    call create_rand_heisenberg_det(ilut)
+                else
+                    call CreateRandomExcitLevDetUnbias(nel, HFDet, ilutHF, ilut, excit, nattempts)
+                end if
             end if
+
             call decode_bit_det(nI, ilut)
             proc = DetermineDetNode(nI, 0)
             if (proc /= iProcIndex) cycle
