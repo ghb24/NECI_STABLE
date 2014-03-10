@@ -145,7 +145,7 @@ MODULE Logging
       tWriteTrial = .false.
       tCompareTrialAmps = .false.
       compare_amps_period = 0
-      InstSignOffDiagRDM=.true.
+      tInstSignOffDiagRDM=.true.
 
 ! Feb08 defaults
       IF(Feb08) THEN
