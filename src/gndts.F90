@@ -7,6 +7,10 @@ module gndts_mod
                           tFixLz
     use sort_mod
     use sym_mod
+    use DetBitOps, only: count_open_orbs,encodebitdet
+    use CalcData, only: tTruncNOpen,trunc_nopen_max
+    use bit_reps, only: niftot,encode_bit_rep
+    use constants, only: n_int
     implicit none
 
 contains
@@ -60,6 +64,9 @@ contains
         integer, intent(inout) :: ii, nMrks(:, :), iElecs(nel), iSpins(nel)
         type(BasisFn), intent(in) :: G1(:), kJ, SymRestrict
         logical, intent(in) :: tCount, tSpn, tParity
+        logical :: tSkip
+        integer(n_int) :: ilut(0:NIfTot)
+
 
         type(BasisFn) :: kI
         integer :: nI(nel), ist, iel, i
@@ -68,6 +75,7 @@ contains
         ! Iterate of the the spin basis functions available for this electron
         ! I_(N+1) = I_N +1 .. NHG
         IST=1
+        tSkip = .false.
         IF(IELEC.GT.1) IST=IELECS(IELEC-1)+1
         DO IEL=IST,NHG
             IELECS(IELEC)=IEL
@@ -88,12 +96,25 @@ contains
                 ENDIF
                 IF(.NOT.TSPN) KI%Ms=0
                 !        WRITE(6,*) KI
+                if(tTruncNOpen) then
+                    call EncodeBitDet(nI,ilut)
+                    !write(6,*) 'ilut:',ilut
+                    !write(6,*) "Number of open orbitals: ",count_open_orbs(ilut),trunc_nopen_max
+                    if(count_open_orbs(ilut)>trunc_nopen_max) then
+                        tSkip = .true.
+                    else
+                        tSkip = .false.
+                    endif
+                endif
+
                 IF(LCHKSYM(KI,KJ)) THEN
                     IF((.not.tFixLz).or.(KI%Ml.eq.KJ%Ml)) THEN
-                        II=II+1
-                        ! If we're generating rather than counting
-                        if (.not. tCount) &
-                            nMrks(:, ii) = nI
+                        IF (.not.tSkip) THEN
+                            II=II+1
+                            ! If we're generating rather than counting
+                            if (.not. tCount) &
+                                nMrks(:, ii) = nI
+                        ENDIF
                     ENDIF
                 ENDIF
             ELSE
