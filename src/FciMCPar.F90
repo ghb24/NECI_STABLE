@@ -8244,7 +8244,7 @@ MODULE FciMCParMod
         use DetBitOps, only : sign_lt,sign_gt
         use LoggingData, only: iHighPopWrite
         real(dp), dimension(lenof_sign) :: SignCurr, LowSign
-        integer :: ierr,i,j,counter,ExcitLev,SmallestPos,HighPos
+        integer :: ierr,i,j,counter,ExcitLev,SmallestPos,HighPos,nopen
         real(dp) :: HighSign,reduce_in(1:2),reduce_out(1:2),Norm,AllNorm
         integer(n_int) , allocatable :: LargestWalkers(:,:)
         integer(n_int) , allocatable :: GlobalLargestWalkers(:,:)
@@ -8343,16 +8343,16 @@ MODULE FciMCParMod
             write(iout,*) 
             if(lenof_sign.eq.1) then
                 if(tHPHF) then
-                    write(iout,"(A)") " Excitation   ExcitLevel    Walkers    Weight    Init?   Proc  Spin-Coup?"    
+                    write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Weight    Init?   Proc  Spin-Coup?"    
                 else
-                    write(iout,"(A)") " Excitation   ExcitLevel   Walkers    Weight    Init?   Proc"    
+                    write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Weight    Init?   Proc"    
                 endif
             else
                 if(tHPHF) then
-                    write(iout,"(A)") " Excitation   ExcitLevel   Walkers(Re)   Walkers(Im)  Weight   &
+                    write(iout,"(A)") " Excitation   ExcitLevel Seniority  Walkers(Re)   Walkers(Im)  Weight   &
                                         &Init?(Re)   Init?(Im)   Proc  Spin-Coup?"
                 else
-                    write(iout,"(A)") " Excitation   ExcitLevel    Walkers(Re)   Walkers(Im)  Weight   &
+                    write(iout,"(A)") " Excitation   ExcitLevel Seniority   Walkers(Re)   Walkers(Im)  Weight   &
                                         &Init?(Re)   Init?(Im)   Proc"
                 endif
             endif
@@ -8361,6 +8361,8 @@ MODULE FciMCParMod
                 call WriteDetBit(iout,GlobalLargestWalkers(:,i),.false.)
                 Excitlev=FindBitExcitLevel(iLutRef,GlobalLargestWalkers(:,i),nEl)
                 write(iout,"(I5)",advance='no') Excitlev
+                nopen=count_open_orbs(GlobalLargestWalkers(:,i))
+                write(iout,"(I5)",advance='no') nopen
                 call extract_sign(GlobalLargestWalkers(:,i),SignCurr)
                 do j=1,lenof_sign
                     write(iout,"(G16.7)",advance='no') SignCurr(j)
