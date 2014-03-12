@@ -1512,7 +1512,7 @@ outer_map:      do i = 0, MappingNIfD
         integer, intent(in) :: iunit, iunit_2
         integer(n_int), intent(in) :: det(0:NIfTot)
         real(dp) :: real_sgn(lenof_sign)
-        integer :: flg, j, k, ex_level
+        integer :: flg, j, k, ex_level, nopen
         logical :: bWritten
 
         bWritten = .false.
@@ -1566,10 +1566,11 @@ outer_map:      do i = 0, MappingNIfD
                 ! Testing using the sign now, because after annihilation
                 ! the current flag will not necessarily be correct.
                 ex_level = FindBitExcitLevel(ilutRef, det, nel)
+                nopen = count_open_orbs(det)
                 write(iunit_2, '(f20.10,a20)', advance='no') &
                     abs(real_sgn(1)), ''
                 call writebitdet (iunit_2, det, .false.)
-                write(iunit_2, '(i30)') ex_level
+                write(iunit_2, '(i30,i30)') ex_level, nopen
 
             end if
         end if
