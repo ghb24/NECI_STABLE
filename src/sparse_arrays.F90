@@ -257,7 +257,7 @@ contains
                     write(6,'(1x,a58,1x,i7)') "The total number of determinants across all processors is:", num_states_tot
                     write(6,'(1x,a77,1x,i7)') "It is therefore expected that the total memory (MB) required will be roughly:", &
                                                num_states_tot*bytes_required/1000000
-                else if (mod(i,10000) == 0) then
+                else if (mod(i,1000) == 0) then
                     write(6,'(1x,a23,1x,i7)') "Finished computing row:", i
                 end if
             end if
