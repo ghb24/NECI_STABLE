@@ -827,7 +827,7 @@ MODULe nElRDMMod
         call extract_bit_rep (iLutnI, nI, SignI, FlagsI, Store)
 
         IterRDMStartI(:)= 0.0_dp
-        AvSignI(:) = 0.0_dp
+        AvSignI = SignI
 
     end subroutine extract_bit_rep_avsign_no_rdm
 
