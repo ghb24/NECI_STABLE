@@ -57,11 +57,6 @@ contains
 
             call calc_final_hamil_elem_ftlm()
 
-            !write(6,*) "Projected Hamiltonian:"
-            !do j = 1, n_lanc_vecs_ftlm
-            !    write(6,*) ftlm_hamil(j,:)
-            !end do
-
             call subspace_extraction_ftlm()
 
             call add_in_contribs_to_energy()
