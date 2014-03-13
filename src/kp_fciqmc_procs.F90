@@ -1166,7 +1166,7 @@ contains
 
         ! Generate the determinants and move them to nI_list.
         ! Important: the above routine does not take symmetry into account. It returns all possible combinations.
-        call gndts(nel, nbasis, BRR, nBasisMax, nI_list, .false., G1, tSpn, LMS, tParity, SymRestrict, ndets, hf_ind)
+        call gndts(nel, nbasis, BRR, nBasisMax, nI_list, .false., G1, tSpn, lms, tParity, SymRestrict, ndets, hf_ind)
 
         write(ind,'(i15)') irepeat
         filename = trim('amps.'//adjustl(ind))

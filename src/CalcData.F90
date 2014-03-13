@@ -15,7 +15,8 @@ LOGICAL :: TLADDER,TMC,TREADRHO,TRHOIJ,TBiasing,TMoveDets
 LOGICAL :: TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
 LOGICAL :: TInitStar,TNoSameExcit,TLanczos,TStarTrips
 LOGICAL :: TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
-LOGICAL ::THDiag,TMCStar,TReadPops,TBinCancel,TFCIMC,TMCDets,tDirectAnnihil,tCCMC, tDetermProj
+LOGICAL ::THDiag,TMCStar,TReadPops,TBinCancel,TFCIMC,TMCDets,tDirectAnnihil,tCCMC
+LOGICAL :: tDetermProj, tFTLM
 LOGICAL :: TFullUnbias,TNoAnnihil,tStartMP1
 LOGICAL :: TRhoElems,TReturnPathMC,TSignShift
 LOGICAL :: THFRetBias,TProjEMP2,TFixParticleSign
@@ -221,5 +222,10 @@ integer :: trial_mp1_ndets
 
 ! True if running a kp-fciqmc calculation.
 logical :: tKP_FCIQMC
+
+! If this is true then we only start varying shift when we get *below* the target population, rather than above it.
+! This is useful when we want to start from a large and high-energy population and let many walkers quickly die with
+! a constant shift (i.e. finite-temperature calculations).
+logical :: tLetInitialPopDie
 
 end module CalcData

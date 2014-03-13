@@ -24,6 +24,7 @@ MODULE Calc
                          InputDiagSft,tSearchTau,proje_spatial,nWalkerHashes,tHashWalkerList,HashLengthFrac, &
                          tTrialHash, tIncCancelledInitEnergy, tStartCoreGroundState
     use semi_stoch_gen, only: core_ras
+    use ftlm_neci, only: n_init_vecs_ftlm, n_lanc_vecs_ftlm, nbeta_ftlm, delta_beta_ftlm
 
     implicit none
 
@@ -327,8 +328,12 @@ contains
           trial_mp1_ndets = 0
           tLowETrialAllDoubles = .false.
           tTrialAmplitudeCutoff = .false.
-
           tKP_FCIQMC = .false.
+          tLetInitialPopDie = .false.
+          n_init_vecs_ftlm = 20
+          n_lanc_vecs_ftlm = 20
+          nbeta_ftlm = 100
+          delta_beta_ftlm = 0.1_dp
       
         end subroutine SetCalcDefaults
 
@@ -1760,6 +1765,16 @@ contains
                 ! Assign the HF processor to a unique node.
                 ! TODO: Set a default cutoff criterion for this
                 tUniqueHFNode = .true.
+            case("LET-INIT-POP-DIE")
+                tLetInitialPopDie = .true.
+            case("NUM_INIT_VECS_FTLM")
+                call geti(n_init_vecs_ftlm)
+            case("NUM_LANC_VECS_FTLM")
+                call geti(n_lanc_vecs_ftlm)
+            case("NUM_BETA_FTLM")
+                call geti(nbeta_ftlm)
+            case("BETA_FTLM")
+                call getf(delta_beta_ftlm)
 
             case default
                 call report("Keyword "                                &
@@ -2231,7 +2246,7 @@ call neci_flush(6)
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,tCCMC
-         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes,tRPA_QBA, tDetermProj
+         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes,tRPA_QBA, tDetermProj, tFTLM
          use RPA_Mod, only : tDirectRPA
          use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer,tCCNoCuml
          use LoggingData, only: tCalcFCIMCPsi
@@ -2435,6 +2450,11 @@ call neci_flush(6)
      &                 .true.)
                case("DETERM-PROJ")
                    tDetermProj = .true.
+                   I_HMAX=-21
+                   TFCIMC=.true.
+                   tUseProcsAsNodes=.true.
+               case("FTLM")
+                   tFTLM = .true.
                    I_HMAX=-21
                    TFCIMC=.true.
                    tUseProcsAsNodes=.true.

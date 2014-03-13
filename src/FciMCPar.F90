@@ -43,7 +43,8 @@ MODULE FciMCParMod
                         tSpawn_Only_Init_Grow, RealCoeffExcitThresh, &
                         tRealSpawnCutoff, RealSpawnCutoff, tDetermProj, &
                         tJumpShift, tVaryInitThresh, tUseRealCoeffs, &
-                        tSpatialOnlyHash, tSemiStochastic, tTrialWavefunction
+                        tSpatialOnlyHash, tSemiStochastic, tTrialWavefunction, &
+                        tLetInitialPopDie, tFTLM
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
@@ -149,6 +150,7 @@ MODULE FciMCParMod
     use semi_stoch_procs, only: deterministic_projection, return_most_populated_states, &
                                 end_semistoch, is_core_state, return_mp1_amp_and_mp2_energy
     use trial_wf_gen, only: init_trial_wf, update_compare_trial_file, end_trial_wf
+    use ftlm_neci, only: perform_ftlm
     use gndts_mod, only: gndts
     use sort_mod
     use get_excit, only: make_double
@@ -238,9 +240,13 @@ MODULE FciMCParMod
                 'Use of RealCoefficients does not work with 32 bit integers due to the use &
                 &of the transfer operation from dp reals to 64 bit integers.')
 
-        ! If performing a deterministic projection instead of an FCIQMC calc:
         if (tDetermProj) then
+            ! If performing a deterministic projection instead of an FCIQMC calc:
             call perform_determ_proj()
+            return
+        else if (tFTLM) then
+            ! If performing a finite-temperature Lanczos method job instead of FCIQMC:
+            call perform_ftlm()
             return
         end if
         
@@ -3617,6 +3623,7 @@ MODULE FciMCParMod
         real(dp), dimension(lenof_sign) :: denominator, all_denominator
         integer :: error, i, proc, pos, run
         logical, dimension(inum_runs) :: defer_update
+        logical :: start_varying_shift
 
         ! Normally we allow the shift to vary depending on the conditions
         ! tested. Sometimes we want to defer this to the next cycle...
@@ -3740,8 +3747,15 @@ MODULE FciMCParMod
                         tReZeroShift = .true.
                     endif
 #else
-                    if ((AllTotParts(run) > tot_walkers) .or. &
-                         (abs(AllNoatHF(run)) > MaxNoatHF)) then
+                    start_varying_shift = .false.
+                    if (tLetInitialPopDie) then
+                        if (AllTotParts(run) < tot_walkers) start_varying_shift = .true.
+                    else
+                        if ((AllTotParts(run) > tot_walkers) .or. &
+                             (abs(AllNoatHF(run)) > MaxNoatHF)) start_varying_shift = .true.
+                    end if
+
+                    if (start_varying_shift) then
     !                     WRITE(iout,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
                         write (iout, '(a,i13,a,i1)') 'Exiting the single particle growth phase on iteration: ' &
                                      ,iter + PreviousCycles, ' - Shift can now change for population', run
