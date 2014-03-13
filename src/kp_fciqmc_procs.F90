@@ -21,6 +21,7 @@ module kp_fciqmc_procs
     use FciMCData, only: TotParts, TotPartsOld, AllTotParts, AllTotPartsOld, iter, MaxSpawned
     use FciMCData, only: SpawnedPartsKP2, SpawnVecKP, SpawnVecKP2, partial_determ_vecs_kp
     use FciMCData, only: full_determ_vecs_kp, determ_space_size, OldAllAvWalkersCyc
+    use FciMCData, only: PreviousCycles
     use FciMCParMod, only: create_particle, InitFCIMC_HF, SetupParameters, InitFCIMCCalcPar
     use FciMCParMod, only: init_fcimc_fn_pointers, WriteFciMCStats, WriteFciMCStatsHeader
     use FciMCParMod, only: rezero_iter_stats_each_iter, tSinglePartPhase, InitFCIMC_pops
@@ -160,7 +161,7 @@ contains
                 call geti(niters_temp)
             case("NUM-ITERS-BETWEEN-VECS-VARY")
                 if (kp%nvecs == 0) call stop_all(t_r, 'Please enter the number of krylov vectors before &
-                                                          &specifying the number of iterations between vectors.')
+                                                       &specifying the number of iterations between vectors.')
                 vary_niters = .true.
                 do i = 1, kp%nvecs-1
                     call geti(kp%niters(i))
@@ -300,6 +301,7 @@ contains
         kp%hamil_matrix = 0.0_dp
         TotWalkersKP = 0
         iter = 0
+        PreviousCycles = 0
 
         DiagSft = InputDiagSft
         if (tStartSinglePart) then
