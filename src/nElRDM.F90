@@ -5188,8 +5188,9 @@ MODULe nElRDMMod
                     partnerfound = .false.
                     n = 1
                     do l2=(l1+1),NoOrbs
-                    !write(6,*) (dabs((Evalues(l1)/diffnorm))-(Evalues(l2)/diffnorm))/dabs((Evalues(l2)/diffnorm))
-                        if ((dabs((Evalues(l1)/diffnorm)-(Evalues(l2)/diffnorm))/dabs((Evalues(l2)/diffnorm))).lt.occ_numb_diff) then
+                    !write(6,*) (abs((Evalues(l1)/diffnorm))-(Evalues(l2)/diffnorm))/abs((Evalues(l2)/diffnorm))
+                        if ((abs((Evalues(l1)/diffnorm)-(Evalues(l2)/diffnorm))/&
+                             abs((Evalues(l2)/diffnorm))).lt.occ_numb_diff) then
                             if (.not.partnerfound) then
                                 m = m + 1
                                 n = n + 1
@@ -5282,7 +5283,7 @@ MODULe nElRDMMod
      !                       enddo
      !        !               sum_new = sum(selfint)
      !                       !write(6,*) sum_new,sum_old
-     !        !               if (dabs(sum_new).le.dabs(sum_old)) then
+     !        !               if (abs(sum_new).le.abs(sum_old)) then
      !        !                   exit
      !        !               endif
      !        !           enddo
@@ -5352,7 +5353,7 @@ MODULe nElRDMMod
      !                       enddo
      !             !          sum_new = sum(selfint)
      !             !          !write(6,*) sum_new,sum_old
-     !             !          if (dabs(sum_new).le.dabs(sum_old)) then
+     !             !          if (abs(sum_new).le.abs(sum_old)) then
      !             !              exit
      !             !          endif
      !             !      enddo
@@ -5433,7 +5434,7 @@ MODULe nElRDMMod
         ! atan return a value in [-pi/2,pi/2]
         ! there are two values of alpha in the range 0,2pi
         ! which satisfy the equation
-        alpha(1) = datan((-coeffsin/coeffcos))
+        alpha(1) = atan((-coeffsin/coeffcos))
         ! if alpha < 0 shift it in the positive range
         if (alpha(1).lt.0.0_dp) then
             alpha(1) = alpha(1) + pi
@@ -5445,18 +5446,18 @@ MODULe nElRDMMod
 
         !! second derivatives to find maximum (necessary since the minimum, i.e. fully delocalised
         !! orbitals satisfy the same conditions
-        !secondderiv(1) = (4.0_dp*coeffsin*dcos(4.0_dp*alpha(1))) - (4.0_dp*coeffcos*dsin(4.0_dp*alpha(1)))
-        !secondderiv(2) = (4.0_dp*coeffsin*dcos(4.0_dp*alpha(2))) - (4.0_dp*coeffcos*dsin(4.0_dp*alpha(2)))
+        !secondderiv(1) = (4.0_dp*coeffsin*cos(4.0_dp*alpha(1))) - (4.0_dp*coeffcos*sin(4.0_dp*alpha(1)))
+        !secondderiv(2) = (4.0_dp*coeffsin*cos(4.0_dp*alpha(2))) - (4.0_dp*coeffcos*sin(4.0_dp*alpha(2)))
 
         ! compute selfinteractions to check which one is largest
         ! this is a better measure than the second derivatives
         selfinteractions(:) = 0.0_dp 
 
         do l1=1,2
-            trans_2orbs_coeffs(1,1) = dcos(alpha(l1))
-            trans_2orbs_coeffs(2,1) = dsin(alpha(l1))
-            trans_2orbs_coeffs(1,2) = -dsin(alpha(l1))
-            trans_2orbs_coeffs(2,2) = dcos(alpha(l1))
+            trans_2orbs_coeffs(1,1) = cos(alpha(l1))
+            trans_2orbs_coeffs(2,1) = sin(alpha(l1))
+            trans_2orbs_coeffs(1,2) = -sin(alpha(l1))
+            trans_2orbs_coeffs(2,2) = cos(alpha(l1))
 
             do l2=1,2
                 do l3=1,2
@@ -5486,15 +5487,15 @@ MODULe nElRDMMod
 
  
         if (selfinteractions(1).ge.selfinteractions(2)) then
-            trans_2orbs_coeffs(1,1) = dcos(alpha(1))
-            trans_2orbs_coeffs(2,1) = dsin(alpha(1))
-            trans_2orbs_coeffs(1,2) = -dsin(alpha(1))
-            trans_2orbs_coeffs(2,2) = dcos(alpha(1))
+            trans_2orbs_coeffs(1,1) = cos(alpha(1))
+            trans_2orbs_coeffs(2,1) = sin(alpha(1))
+            trans_2orbs_coeffs(1,2) = -sin(alpha(1))
+            trans_2orbs_coeffs(2,2) = cos(alpha(1))
         elseif (selfinteractions(2).gt.selfinteractions(1)) then
-            trans_2orbs_coeffs(1,1) = dcos(alpha(2))
-            trans_2orbs_coeffs(2,1) = dsin(alpha(2))
-            trans_2orbs_coeffs(1,2) = -dsin(alpha(2))
-            trans_2orbs_coeffs(2,2) = dcos(alpha(2))
+            trans_2orbs_coeffs(1,1) = cos(alpha(2))
+            trans_2orbs_coeffs(2,1) = sin(alpha(2))
+            trans_2orbs_coeffs(1,2) = -sin(alpha(2))
+            trans_2orbs_coeffs(2,2) = cos(alpha(2))
         endif
 
         ! new sefl-interactions
