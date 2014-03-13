@@ -5025,7 +5025,11 @@ MODULe nElRDMMod
             IF(tStoreSpinOrbs) THEN
                 WRITE(iunit,'(I1,A1)',advance='no') INT(G1(i)%sym%S)+1,','
             ELSE
-                WRITE(iunit,'(I1,A1)',advance='no') INT(G1(i*2)%sym%S)+1,','
+                if (tRotatedNOs.and.tBrokenSymNOs) then
+                    write(iunit,'(I1,A1)',advance='no') 1,','
+                else
+                    WRITE(iunit,'(I1,A1)',advance='no') INT(G1(i*2)%sym%S)+1,','
+                endif
             ENDIF
         enddo
         WRITE(iunit,*) ''
@@ -5189,7 +5193,8 @@ MODULe nElRDMMod
                     n = 1
                     do l2=(l1+1),NoOrbs
                     !write(6,*) (dabs((Evalues(l1)/diffnorm))-(Evalues(l2)/diffnorm))/dabs((Evalues(l2)/diffnorm))
-                        if ((dabs((Evalues(l1)/diffnorm)-(Evalues(l2)/diffnorm))/dabs((Evalues(l2)/diffnorm))).lt.occ_numb_diff) then
+                        if ((dabs((Evalues(l1)/diffnorm)-(Evalues(l2)/diffnorm))/dabs((Evalues(l2)/diffnorm)))&
+                            &.lt.occ_numb_diff) then
                             if (.not.partnerfound) then
                                 m = m + 1
                                 n = n + 1
