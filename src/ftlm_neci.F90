@@ -136,10 +136,10 @@ contains
         allocate(ftlm_e_num(nbeta_ftlm+1))
         allocate(ftlm_h_eigv(n_lanc_vecs_ftlm))
 
-        write(6,'(1x,a48)',advance='no') "Allocating and calculating Hamiltonian matrix..."
+        write(6,'(1x,a48)') "Allocating and calculating Hamiltonian matrix..."
         call neci_flush(6)
-        call calculate_sparse_hamiltonian_parallel(ndets_ftlm, ilut_list)
-        write(6,'(1x,a9)') "Complete."
+        call calculate_sparse_hamiltonian_parallel(ndets_ftlm, ilut_list, .true.)
+        write(6,'(1x,a48,/)') "Hamiltonian allocation and calculation complete."
         call neci_flush(6)
 
     end subroutine init_ftlm

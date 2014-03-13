@@ -182,12 +182,13 @@ contains
 
     end subroutine calculate_sparse_hamiltonian
 
-    subroutine calculate_sparse_hamiltonian_parallel(num_states, ilut_list)
+    subroutine calculate_sparse_hamiltonian_parallel(num_states, ilut_list, tPrintInfo)
 
         integer(MPIArg), intent(in) :: num_states(0:nProcessors-1)
         integer(n_int), intent(in) :: ilut_list(0:NIfTot, num_states(iProcIndex))
+        logical, intent(in) :: tPrintInfo
         integer(MPIArg) :: disps(0:nProcessors-1)
-        integer :: i, j, row_size, counter, num_states_tot, ierr
+        integer :: i, j, row_size, counter, num_states_tot, ierr, bytes_required
         integer :: nI(nel), nJ(nel)
         integer(n_int), allocatable, dimension(:,:) :: temp_store
         integer(TagIntType) :: TempStoreTag, HRTag, SDTag
@@ -245,6 +246,21 @@ contains
                 end if
 
             end do
+
+            if (tPrintInfo) then
+                if (i == 1) then
+                    bytes_required = row_size*(8+bytes_int)
+                    write(6,'(1x,a43)') "About to allocate first row of Hamiltonian."
+                    write(6,'(1x,a40,1x,i8)') "The memory (bytes) required for this is:", bytes_required
+                    write(6,'(1x,a71,1x,i7)') "The total number of determinants (and hence rows) on this processor is:", &
+                                               num_states(iProcIndex)
+                    write(6,'(1x,a58,1x,i7)') "The total number of determinants across all processors is:", num_states_tot
+                    write(6,'(1x,a77,1x,i7)') "It is therefore expected that the total memory (MB) required will be roughly:", &
+                                               num_states_tot*bytes_required/1000000
+                else if (mod(i,10000) == 0) then
+                    write(6,'(1x,a23,1x,i7)') "Finished computing row:", i
+                end if
+            end if
 
             ! Now we know the number of non-zero elements in this row of the Hamiltonian, so allocate it.
             call allocate_sparse_ham_row(sparse_ham, i, row_size, "sparse_ham", SparseHamilTags(:,i)) 
