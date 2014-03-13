@@ -5193,7 +5193,7 @@ MODULe nElRDMMod
                     n = 1
                     do l2=(l1+1),NoOrbs
                     !write(6,*) (dabs((Evalues(l1)/diffnorm))-(Evalues(l2)/diffnorm))/dabs((Evalues(l2)/diffnorm))
-                        if ((dabs((Evalues(l1)/diffnorm)-(Evalues(l2)/diffnorm))/dabs((Evalues(l2)/diffnorm)))&
+                        if ((abs((Evalues(l1)/diffnorm)-(Evalues(l2)/diffnorm))/abs((Evalues(l2)/diffnorm)))&
                             &.lt.occ_numb_diff) then
                             if (.not.partnerfound) then
                                 m = m + 1
