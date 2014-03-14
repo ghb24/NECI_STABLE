@@ -838,6 +838,7 @@ contains
 
         integer, intent(in) :: called_from
         real(dp), allocatable, dimension(:) :: amps_this_proc, amps_all_procs
+        real(dp) :: real_sign(lenof_sign)
         integer(MPIArg) :: length_this_proc, total_length
         integer(MPIArg) :: lengths(0:nProcessors-1), disps(0:nProcessors-1)
         integer(n_int) :: temp_ilut(0:NIfTot)
@@ -895,9 +896,9 @@ contains
 
         ! Store the amplitudes in their real form.
         do i = 1, length_this_proc
-            call extract_sign(largest_states(:,i), amps_this_proc(i))
+            call extract_sign(largest_states(:,i), real_sign)
             ! We are interested in the absolute values of the ampltiudes.
-            amps_this_proc(i) = abs(amps_this_proc(i))
+            amps_this_proc(i) = sum(abs(real_sign))
         end do
 
         ! Now we want to combine all the most populated states from each processor to find

@@ -135,6 +135,9 @@ contains
         allocate(ftlm_trace(nbeta_ftlm+1))
         allocate(ftlm_e_num(nbeta_ftlm+1))
         allocate(ftlm_h_eigv(n_lanc_vecs_ftlm))
+        ftlm_trace = 0.0_dp
+        ftlm_e_num = 0.0_dp
+        ftlm_h_eigv = 0.0_dp
 
         write(6,'(1x,a48)') "Allocating and calculating Hamiltonian matrix..."
         call neci_flush(6)

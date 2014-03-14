@@ -31,7 +31,7 @@ contains
         use semi_stoch_procs, only: is_core_state, check_determ_flag, deterministic_projection
         use soft_exit, only: ChangeVars
         use SystemData, only: nel, lms, nbasis, tAllSymSectors, nOccAlpha, nOccBeta
-        
+
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: iconfig, irepeat, ivec, iiter, idet, ireplica, ispawn
         integer :: nspawn, parent_flags, unused_flags, ex_level_to_ref
@@ -78,9 +78,8 @@ contains
                         !    call extract_bit_rep(CurrentDets(:, idet), nI_parent, parent_sign, unused_flags, &
                         !                          fcimc_excit_gen_store)
                         !    if (tUseFlags) then
-                        !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7, 4x, l1, l1)') idet, CurrentDets(0, idet), parent_sign, &
-                        !            test_flag(CurrentDets(:, idet), flag_is_initiator(1)), &
-                        !            test_flag(CurrentDets(:, idet), flag_is_initiator(2))
+                        !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7, 4x, l1)') idet, CurrentDets(0, idet), parent_sign, &
+                        !            test_flag(CurrentDets(:, idet), flag_deterministic)
                         !    else
                         !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') idet, CurrentDets(0, idet), parent_sign
                         !    end if

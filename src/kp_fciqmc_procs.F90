@@ -306,10 +306,8 @@ contains
         DiagSft = InputDiagSft
         if (tStartSinglePart) then
             OldAllAvWalkersCyc = InitialPart
-            AllTotPartsOld=InitialPart
         else
             OldAllAvWalkersCyc = InitWalkers
-            AllTotPartsOld=InitWalkers
         end if
         ! Setting this variable to true stops the shift from varying instantly.
         tSinglePartPhase = .true.
