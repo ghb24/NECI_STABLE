@@ -5432,14 +5432,25 @@ MODULe nElRDMMod
         indicesij(2) = j
         trans_2orbs_coeffs(:,:) = 0.0_dp
 
+        ! Umat is in physical notation, finding the correct orbital index via SymLabelList2_rot, and
+        ! FourIndInts for the NO basis are in chemical notation -> need to account for this
 
-        coeffcos = Umat(UmatInd(i,i,i,j,0,0)) + Umat(UmatInd(i,i,j,i,0,0)) + Umat(UmatInd(i,j,i,i,0,0)) &
-            & - Umat(UmatInd(i,j,j,j,0,0)) + Umat(UmatInd(j,i,i,i,0,0)) - Umat(UmatInd(j,i,j,j,0,0)) &
-            & - Umat(UmatInd(j,j,i,j,0,0)) - Umat(UmatInd(j,j,j,i,0,0))
+        !coeffcos = Umat(UmatInd(i,i,i,j,0,0)) + Umat(UmatInd(i,i,j,i,0,0)) + Umat(UmatInd(i,j,i,i,0,0)) &
+        !    & - Umat(UmatInd(i,j,j,j,0,0)) + Umat(UmatInd(j,i,i,i,0,0)) - Umat(UmatInd(j,i,j,j,0,0)) &
+        !    & - Umat(UmatInd(j,j,i,j,0,0)) - Umat(UmatInd(j,j,j,i,0,0))
 
-        coeffsin = -Umat(UmatInd(i,i,i,i,0,0)) + Umat(UmatInd(i,i,j,j,0,0)) + Umat(UmatInd(i,j,i,j,0,0)) &
-            & + Umat(UmatInd(i,j,j,i,0,0)) + Umat(UmatInd(j,i,i,j,0,0)) + Umat(UmatInd(j,i,j,i,0,0)) &
-            & + Umat(UmatInd(j,j,i,i,0,0)) - Umat(UmatInd(j,j,j,j,0,0))
+        !coeffsin = -Umat(UmatInd(i,i,i,i,0,0)) + Umat(UmatInd(i,i,j,j,0,0)) + Umat(UmatInd(i,j,i,j,0,0)) &
+        !    & + Umat(UmatInd(i,j,j,i,0,0)) + Umat(UmatInd(j,i,i,j,0,0)) + Umat(UmatInd(j,i,j,i,0,0)) &
+        !    & + Umat(UmatInd(j,j,i,i,0,0)) - Umat(UmatInd(j,j,j,j,0,0))
+
+        coeffcos = Umat(UmatInd(i,i,i,j,0,0)) + Umat(UmatInd(i,j,i,i,0,0)) + Umat(UmatInd(i,i,j,i,0,0)) &
+            & - Umat(UmatInd(i,j,j,j,0,0)) + Umat(UmatInd(j,i,i,i,0,0)) - Umat(UmatInd(j,j,i,j,0,0)) &
+            & - Umat(UmatInd(j,i,j,j,0,0)) - Umat(UmatInd(j,j,j,i,0,0))
+
+        coeffsin = -Umat(UmatInd(i,i,i,i,0,0)) + Umat(UmatInd(i,j,i,j,0,0)) + Umat(UmatInd(i,i,j,j,0,0)) &
+            & + Umat(UmatInd(i,j,j,i,0,0)) + Umat(UmatInd(j,i,i,j,0,0)) + Umat(UmatInd(j,j,i,i,0,0)) &
+            & + Umat(UmatInd(j,i,j,i,0,0)) - Umat(UmatInd(j,j,j,j,0,0))
+
 
 
         ! atan return a value in [-pi/2,pi/2]
@@ -5478,7 +5489,8 @@ MODULe nElRDMMod
                             selfinteractions(l1) = selfinteractions(l1) + trans_2orbs_coeffs(l2,1)&
                                 &*trans_2orbs_coeffs(l3,1)*&
                                 &trans_2orbs_coeffs(l4,1)*trans_2orbs_coeffs(l5,1)*&
-                                &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5),0,0))
+                              !   &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5),0,0))
+                                &Umat(UmatInd(indicesij(l2),indicesij(l4),indicesij(l3),indicesij(l5),0,0))
                         enddo
                     enddo
                 enddo
@@ -5490,12 +5502,18 @@ MODULe nElRDMMod
                             selfinteractions(l1) = selfinteractions(l1) + trans_2orbs_coeffs(l2,2)&
                                 &*trans_2orbs_coeffs(l3,2)*&
                                 &trans_2orbs_coeffs(l4,2)*trans_2orbs_coeffs(l5,2)*&
-                                &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5),0,0))
+                              !   &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5),0,0))
+                                &Umat(UmatInd(indicesij(l2),indicesij(l4),indicesij(l3),indicesij(l5),0,0))
                         enddo
                     enddo
                 enddo
             enddo
         enddo
+
+        !do l1=1,17
+        !    write(6,'(I3,1X,5(G20.12))') l1,alpha2(l1),tan(alpha2(l1)*4.0_dp),cos(alpha2(l1)),&
+        !        &sin(alpha2(l1)),selfinteractions(l1)
+        !enddo
 
         ! choose the angle which maximises the selfinteractions
         maxangle = maxloc(selfinteractions)
@@ -5517,11 +5535,13 @@ MODULe nElRDMMod
                         selfintorb1 = selfintorb1 + trans_2orbs_coeffs(l2,1)&
                             &*trans_2orbs_coeffs(l3,1)*&
                             &trans_2orbs_coeffs(l4,1)*trans_2orbs_coeffs(l5,1)*&
-                            &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5),0,0))
+                           !  &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5),0,0))
+                            &Umat(UmatInd(indicesij(l2),indicesij(l4),indicesij(l3),indicesij(l5),0,0))
                         selfintorb2 = selfintorb2 + trans_2orbs_coeffs(l2,2)&
                             &*trans_2orbs_coeffs(l3,2)*&
                             &trans_2orbs_coeffs(l4,2)*trans_2orbs_coeffs(l5,2)*&
-                            &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5),0,0))
+                           !  &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5),0,0))
+                            &Umat(UmatInd(indicesij(l2),indicesij(l4),indicesij(l3),indicesij(l5),0,0))
                     enddo
                 enddo
             enddo
