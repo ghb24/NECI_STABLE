@@ -307,7 +307,7 @@ contains
         if (tStartSinglePart) then
             OldAllAvWalkersCyc = InitialPart
         else
-            OldAllAvWalkersCyc = InitWalkers
+            OldAllAvWalkersCyc = InitWalkers*nProcessors
         end if
         ! Setting this variable to true stops the shift from varying instantly.
         tSinglePartPhase = .true.
@@ -395,7 +395,7 @@ contains
                 if (tStartSinglePart) then
                     nwalkers_target = ceiling(real(InitialPart,dp)/real(nProcessors,dp))
                 else
-                    nwalkers_target = ceiling(real(InitWalkers,dp)/real(nProcessors,dp))
+                    nwalkers_target = InitWalkers
                 end if
                 ! Finally, call the routine to create the walker distribution.
                 if (tUseInitConfigSeeds) call dSFMT_init((iProcIndex+1)*init_config_seeds(iconfig))
