@@ -150,6 +150,8 @@ MODULE Logging
       tWriteTrial = .false.
       tCompareTrialAmps = .false.
       compare_amps_period = 0
+      tBrokenSymNOs = .false.
+      occ_numb_diff = 0.001_dp
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -524,6 +526,16 @@ MODULE Logging
 ! of a calculation, we may get the one body reduced density matrix from the 
 !wavefunction we've found, and then use the MOTRANSFORM file printed to 
 ! visualise the natural orbitals with large occupation numbers.
+
+        case("BROKENSYMNOS")
+            tBrokenSymNOs = .true.
+            call readf(occ_numb_diff)
+! This is to rotate the obtained natural orbitals (NOs) again in order to obtain
+! symmetry broken NOs: pairs of NOs whose occupation numbers differ by less 
+! than the specified threshold occ_numb_diff (relative difference, i.e. difference
+! divided by absolute value) will be rotated so as to 
+! maximally localise them using and Edminston Ruedenberg type localisation
+! A new FCIDUMP file (BSFCIDUMP) with the rotated NOs is printed out
 
         case("DIPOLE_MOMENTS")
             !Calculate the dipole moments if we are in molpro
