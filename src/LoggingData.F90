@@ -78,4 +78,7 @@ module LoggingData
     integer :: compare_amps_period
     logical :: tDipoles !Do we want to calculate the dipole moments
 
+    ! If we'd like to rotate the NOs again so as to obtain broken symmetry NOs
+    logical :: tBrokenSymNOs
+    real(dp) :: occ_numb_diff
 end module LoggingData
