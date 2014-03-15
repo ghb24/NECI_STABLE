@@ -5130,6 +5130,7 @@ MODULe nElRDMMod
         real(dp), allocatable :: selfint(:)
         integer, allocatable :: rotate_list(:,:)!,orbs(:,:)
         integer :: l1,l2,l3,l4,m,n
+        integer :: iumat,jumat
         logical :: partnerfound
 
         allocate(trans_2orbs_coeffs(2,2))
@@ -5168,7 +5169,8 @@ MODULe nElRDMMod
             ! self-interactions
             selfint(:) = 0.0_dp
             do l1=1,NoOrbs
-                selfint(l1) = Umat(UmatInd(l1,l1,l1,l1,0,0))
+                iumat = SymLabelList2_rot(l1)
+                selfint(l1) = Umat(UmatInd(iumat,iumat,iumat,iumat,0,0))
             enddo
 
             write(6,*) 'Self-interactions for NOs:'
@@ -5237,7 +5239,9 @@ MODULe nElRDMMod
                 ! if only two orbitals have same occupation numbers
                 if (rotate_list(l1,3).eq.0) then
                     write(6,'(A20,4(I3))') 'Rotating NOs:',rotate_list(l1,:)
-                    call Rotate2Orbs(rotate_list(l1,1),rotate_list(l1,2),trans_2orbs_coeffs,selfint(rotate_list(l1,1)),&
+                    iumat = SymLabelList2_rot(rotate_list(l1,1))
+                    jumat = SymLabelList2_rot(rotate_list(l1,2))
+                    call Rotate2Orbs(iumat,jumat,trans_2orbs_coeffs,selfint(rotate_list(l1,1)),&
                         &selfint(rotate_list(l1,2)))
                     ! The new NOs are 
                     ! phi_{i'} = cos a p_{i} + sin a p_{j}
@@ -5383,7 +5387,7 @@ MODULe nElRDMMod
 
  
         endif
-        
+       
         ! restore original NOs
         NatOrbMat(:,:) = 0.0_dp
         NatOrbMat = no_store
@@ -5412,10 +5416,11 @@ MODULe nElRDMMod
         ! where x and y are sums of the original NO four index inegrals
         real(dp), allocatable, intent(inout) :: trans_2orbs_coeffs(:,:)
         real(dp), intent(inout) :: selfintorb1,selfintorb2
-        real(dp) :: alpha(2)
+        real(dp) :: alpha2(17)
         !real(dp) :: secondderiv(2)
-        real(dp) :: selfinteractions(2)
-        real(dp) :: coeffcos,coeffsin
+        real(dp) :: selfinteractions(17)
+        real(dp) :: coeffcos,coeffsin,maxint
+        integer :: maxangle(1)
         integer :: indicesij(2)
         integer, intent(in) :: i,j
         integer :: l1,l2,l3,l4,l5
@@ -5427,27 +5432,41 @@ MODULe nElRDMMod
         indicesij(2) = j
         trans_2orbs_coeffs(:,:) = 0.0_dp
 
-        coeffcos = Umat(UmatInd(i,i,i,j,0,0)) + Umat(UmatInd(i,i,j,i,0,0)) + Umat(UmatInd(i,j,i,i,0,0)) &
-            & - Umat(UmatInd(i,j,j,j,0,0)) + Umat(UmatInd(j,i,i,i,0,0)) - Umat(UmatInd(j,i,j,j,0,0)) &
-            & - Umat(UmatInd(j,j,i,j,0,0)) - Umat(UmatInd(j,j,j,i,0,0))
+        ! Umat is in physical notation, finding the correct orbital index via SymLabelList2_rot, and
+        ! FourIndInts for the NO basis are in chemical notation -> need to account for this
 
-        coeffsin = -Umat(UmatInd(i,i,i,i,0,0)) + Umat(UmatInd(i,i,j,j,0,0)) + Umat(UmatInd(i,j,i,j,0,0)) &
-            & + Umat(UmatInd(i,j,j,i,0,0)) + Umat(UmatInd(j,i,i,j,0,0)) + Umat(UmatInd(j,i,j,i,0,0)) &
-            & + Umat(UmatInd(j,j,i,i,0,0)) - Umat(UmatInd(j,j,j,j,0,0))
+        !coeffcos = Umat(UmatInd(i,i,i,j,0,0)) + Umat(UmatInd(i,i,j,i,0,0)) + Umat(UmatInd(i,j,i,i,0,0)) &
+        !    & - Umat(UmatInd(i,j,j,j,0,0)) + Umat(UmatInd(j,i,i,i,0,0)) - Umat(UmatInd(j,i,j,j,0,0)) &
+        !    & - Umat(UmatInd(j,j,i,j,0,0)) - Umat(UmatInd(j,j,j,i,0,0))
+
+        !coeffsin = -Umat(UmatInd(i,i,i,i,0,0)) + Umat(UmatInd(i,i,j,j,0,0)) + Umat(UmatInd(i,j,i,j,0,0)) &
+        !    & + Umat(UmatInd(i,j,j,i,0,0)) + Umat(UmatInd(j,i,i,j,0,0)) + Umat(UmatInd(j,i,j,i,0,0)) &
+        !    & + Umat(UmatInd(j,j,i,i,0,0)) - Umat(UmatInd(j,j,j,j,0,0))
+
+        coeffcos = Umat(UmatInd(i,i,i,j,0,0)) + Umat(UmatInd(i,j,i,i,0,0)) + Umat(UmatInd(i,i,j,i,0,0)) &
+            & - Umat(UmatInd(i,j,j,j,0,0)) + Umat(UmatInd(j,i,i,i,0,0)) - Umat(UmatInd(j,j,i,j,0,0)) &
+            & - Umat(UmatInd(j,i,j,j,0,0)) - Umat(UmatInd(j,j,j,i,0,0))
+
+        coeffsin = -Umat(UmatInd(i,i,i,i,0,0)) + Umat(UmatInd(i,j,i,j,0,0)) + Umat(UmatInd(i,i,j,j,0,0)) &
+            & + Umat(UmatInd(i,j,j,i,0,0)) + Umat(UmatInd(j,i,i,j,0,0)) + Umat(UmatInd(j,j,i,i,0,0)) &
+            & + Umat(UmatInd(j,i,j,i,0,0)) - Umat(UmatInd(j,j,j,j,0,0))
+
+
 
         ! atan return a value in [-pi/2,pi/2]
-        ! there are two values of alpha in the range 0,2pi
-        ! which satisfy the equation
-        alpha(1) = atan((-coeffsin/coeffcos))
-        ! if alpha < 0 shift it in the positive range
-        if (alpha(1).lt.0.0_dp) then
-            alpha(1) = alpha(1) + pi
-        endif
-        !q the second value is alpha+pi
-        alpha(2) = alpha(1) + pi
+        ! because of the 4*alpha in the equation there are  8 distinct solutions
+        ! i.e. in one period
+        ! i.e. possible solutions are separated by (2*pi/8)=pi/4
+        ! for safety 16 solutions are evaluated
+        alpha2(9) = atan((-coeffcos/coeffsin))
+        alpha2(9) = alpha2(9)/4.0_dp
+        do l1=8,1,-1
+            alpha2(l1) = alpha2(l1+1) - (pi/4.0_dp)
+        enddo
+        do l1=10,17
+            alpha2(l1) = alpha2(l1-1) + (pi/4.0_dp)
+        enddo
         
-        alpha = alpha/4.0_dp
-
         !! second derivatives to find maximum (necessary since the minimum, i.e. fully delocalised
         !! orbitals satisfy the same conditions
         !secondderiv(1) = (4.0_dp*coeffsin*cos(4.0_dp*alpha(1))) - (4.0_dp*coeffcos*sin(4.0_dp*alpha(1)))
@@ -5457,11 +5476,11 @@ MODULe nElRDMMod
         ! this is a better measure than the second derivatives
         selfinteractions(:) = 0.0_dp 
 
-        do l1=1,2
-            trans_2orbs_coeffs(1,1) = cos(alpha(l1))
-            trans_2orbs_coeffs(2,1) = sin(alpha(l1))
-            trans_2orbs_coeffs(1,2) = -sin(alpha(l1))
-            trans_2orbs_coeffs(2,2) = cos(alpha(l1))
+        do l1=1,17
+            trans_2orbs_coeffs(1,1) = cos(alpha2(l1))
+            trans_2orbs_coeffs(2,1) = sin(alpha2(l1))
+            trans_2orbs_coeffs(1,2) = -sin(alpha2(l1))
+            trans_2orbs_coeffs(2,2) = cos(alpha2(l1))
 
             do l2=1,2
                 do l3=1,2
@@ -5470,7 +5489,8 @@ MODULe nElRDMMod
                             selfinteractions(l1) = selfinteractions(l1) + trans_2orbs_coeffs(l2,1)&
                                 &*trans_2orbs_coeffs(l3,1)*&
                                 &trans_2orbs_coeffs(l4,1)*trans_2orbs_coeffs(l5,1)*&
-                                &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5),0,0))
+                              !   &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5),0,0))
+                                &Umat(UmatInd(indicesij(l2),indicesij(l4),indicesij(l3),indicesij(l5),0,0))
                         enddo
                     enddo
                 enddo
@@ -5482,27 +5502,30 @@ MODULe nElRDMMod
                             selfinteractions(l1) = selfinteractions(l1) + trans_2orbs_coeffs(l2,2)&
                                 &*trans_2orbs_coeffs(l3,2)*&
                                 &trans_2orbs_coeffs(l4,2)*trans_2orbs_coeffs(l5,2)*&
-                                &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5),0,0))
+                              !   &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5),0,0))
+                                &Umat(UmatInd(indicesij(l2),indicesij(l4),indicesij(l3),indicesij(l5),0,0))
                         enddo
                     enddo
                 enddo
             enddo
         enddo
 
- 
-        if (selfinteractions(1).ge.selfinteractions(2)) then
-            trans_2orbs_coeffs(1,1) = cos(alpha(1))
-            trans_2orbs_coeffs(2,1) = sin(alpha(1))
-            trans_2orbs_coeffs(1,2) = -sin(alpha(1))
-            trans_2orbs_coeffs(2,2) = cos(alpha(1))
-        elseif (selfinteractions(2).gt.selfinteractions(1)) then
-            trans_2orbs_coeffs(1,1) = cos(alpha(2))
-            trans_2orbs_coeffs(2,1) = sin(alpha(2))
-            trans_2orbs_coeffs(1,2) = -sin(alpha(2))
-            trans_2orbs_coeffs(2,2) = cos(alpha(2))
-        endif
+        !do l1=1,17
+        !    write(6,'(I3,1X,5(G20.12))') l1,alpha2(l1),tan(alpha2(l1)*4.0_dp),cos(alpha2(l1)),&
+        !        &sin(alpha2(l1)),selfinteractions(l1)
+        !enddo
 
-        ! new sefl-interactions
+        ! choose the angle which maximises the selfinteractions
+        maxangle = maxloc(selfinteractions)
+        maxint = maxval(selfinteractions)
+
+        ! return transformatin coefficients
+        trans_2orbs_coeffs(1,1) = cos(alpha2(maxangle(1)))
+        trans_2orbs_coeffs(2,1) = sin(alpha2(maxangle(1)))
+        trans_2orbs_coeffs(1,2) = -sin(alpha2(maxangle(1)))
+        trans_2orbs_coeffs(2,2) = cos(alpha2(maxangle(1)))
+ 
+        ! new sefl-interactions for transformed orbitals
         selfintorb1 = 0.0_dp
         selfintorb2 = 0.0_dp
         do l2=1,2
@@ -5512,11 +5535,13 @@ MODULe nElRDMMod
                         selfintorb1 = selfintorb1 + trans_2orbs_coeffs(l2,1)&
                             &*trans_2orbs_coeffs(l3,1)*&
                             &trans_2orbs_coeffs(l4,1)*trans_2orbs_coeffs(l5,1)*&
-                            &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5),0,0))
+                           !  &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5),0,0))
+                            &Umat(UmatInd(indicesij(l2),indicesij(l4),indicesij(l3),indicesij(l5),0,0))
                         selfintorb2 = selfintorb2 + trans_2orbs_coeffs(l2,2)&
                             &*trans_2orbs_coeffs(l3,2)*&
                             &trans_2orbs_coeffs(l4,2)*trans_2orbs_coeffs(l5,2)*&
-                            &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5),0,0))
+                           !  &Umat(UmatInd(indicesij(l2),indicesij(l3),indicesij(l4),indicesij(l5),0,0))
+                            &Umat(UmatInd(indicesij(l2),indicesij(l4),indicesij(l3),indicesij(l5),0,0))
                     enddo
                 enddo
             enddo
