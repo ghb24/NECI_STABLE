@@ -855,7 +855,7 @@ MODULE UMatCache
          ! Reverse of GetCacheIndex.
          IMPLICIT NONE
          INTEGER I,J,IND
-         J=int(SQRT(2.0*IND))
+         J=int(SQRT(2.0d0*IND))
          IF(J*(J+1)/2.LT.IND) J=J+1
          I=IND-J*(J-1)/2
       END SUBROUTINE GetCacheIndexStates
@@ -1061,7 +1061,7 @@ MODULE UMatCache
               CALL Stop_All("CacheFCIDUMP","Overwriting UMATLABELS")
           ENDIF
           UMATLABELS(CacheInd(A),A)=B
-          IF(REAL(UMatCacheData(nTypes-1,CacheInd(A),A)).ne.0.0_dp) THEN
+          IF(REAL(UMatCacheData(nTypes-1,CacheInd(A),A),dp).ne.0.0_dp) THEN
               CALL Stop_All("CacheFCIDUMP","Overwriting when trying to fill cache.")
           ENDIF
           UMatCacheData(nTypes-1,CacheInd(A),A)=Z
