@@ -211,7 +211,7 @@ C.. mark all the poles as to be processed
                   ENDIF
                ENDDO
                Z0=Z0/ICOUNT
-               IF(IPOLES.EQ.1) DISTMIN=1e-5
+               IF(IPOLES.EQ.1) DISTMIN=1e-5_dp
 C.. we have the distance to the closest pole.  Divide it by P
                DM=DISTMIN/(10*I_P)
 C.. if we go too small, we might not be on our pole, so we just take

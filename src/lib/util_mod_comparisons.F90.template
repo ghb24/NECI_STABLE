@@ -124,7 +124,7 @@ contains
         endif
 
         do while (hi /= lo)
-            pos = int(real(hi + lo) / 2)
+            pos = int(real(hi + lo,sp) / 2)
 
             !if (arr(pos) >= val) then
             if (.not.(arr(pos) < val)) then
