@@ -70,7 +70,7 @@ MODULe nElRDMMod
                        tNoNOTransform, tTruncRODump, tRDMonfly, tInitiatorRDMDiag, &
                        tTaperDiagRDM, tTaperSQDiagRDM, tCorrectRDMErf, erf_factor1, &
                        erf_factor2, ThreshOccRDM, tThreshOccRDMDiag,tDipoles, &
-                       tBrokenSymNOs,occ_numb_diff
+                       tBrokenSymNOs,occ_numb_diff, tForceCauchySchwarz
     use RotateOrbsData, only: CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt, &
                               SymLabelCounts2_rot,SymLabelList2_rot, &
                               SymLabelListInv_rot,NoOrbs, SpatOrbs, &
@@ -3045,7 +3045,9 @@ MODULe nElRDMMod
         ! Combine the 1- or 2-RDM from all processors etc.
 
         if(RDMExcitLevel.eq.1) then
-
+            if(tForceCauchySchwarz)then
+                call Force_Cauchy_Schwarz(Norm_1RDM)
+            endif
             call Finalise_1e_RDM(Norm_1RDM)  
 
         else
@@ -3256,6 +3258,28 @@ MODULe nElRDMMod
         write(6,'(A29,F30.20)') ' SUM ABS ERROR IN 1RDM HERMITICITY', Sum_Error_Hermiticity
 
     end subroutine make_1e_rdm_hermitian
+
+    subroutine Force_Cauchy_Schwarz(Norm_1RDM)
+        real(dp), intent(in) :: Norm_1RDM
+        integer :: i, j
+        real(dp) :: UpperBound
+
+        write(6,*) "Ensuring that Cauchy--Schwarz inequality holds."
+
+        do i=1,nBasis
+            do j=i,nBasis
+                UpperBound=sqrt(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(i))&
+                    *NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(j)))
+                if(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)).gt.UpperBound)then
+                    NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))=UpperBound
+                    write(6,*) "Changing element:",i,j
+                else
+                    cycle
+                endif
+            enddo
+        enddo
+
+    end subroutine Force_Cauchy_Schwarz
 
     subroutine Write_out_1RDM(Norm_1RDM,tNormalise)
 ! This routine writes out the OneRDM.
