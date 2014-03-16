@@ -3267,7 +3267,7 @@ MODULe nElRDMMod
         write(6,*) "Ensuring that Cauchy--Schwarz inequality holds."
 
         do i=1,nBasis
-            do j=i,nBasis
+            do j=1,nBasis
                 UpperBound=sqrt(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(i))&
                     *NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(j)))
                 if(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)).gt.UpperBound)then
