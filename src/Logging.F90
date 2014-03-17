@@ -150,6 +150,7 @@ MODULE Logging
       tForceCauchySchwarz = .false.
       tBrokenSymNOs = .false.
       occ_numb_diff = 0.001_dp
+      tBreakSymNOs = .false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -540,6 +541,33 @@ MODULE Logging
 ! divided by absolute value) will be rotated so as to 
 ! maximally localise them using and Edminston Ruedenberg type localisation
 ! A new FCIDUMP file (BSFCIDUMP) with the rotated NOs is printed out
+
+        case("BREAKSYMNOS")
+            tBreakSymNOs = .true.
+! This is another option for BROKENSYMNOS
+! structure of input option is BREAKSYMNOS nRot ns1 nn1 ns2 nn2 ...
+! The NOs which should be rotated in order to break symmetry can be specified here
+! This helps for systems where the threshold doesn't give good results and the 
+! occupation numbers are known from a previous calculation
+! The specification is done as follows
+! nRot: number of following integers (only required for reading and allocating 
+! RotNOs array)
+! The following sequence of numbers specify the rotations 
+! Each rotation i is specified by two numbers (nsi,nni)
+! nsi: the first NO in the set which is rotated amongst each other
+! (numbers refer to spatial orbitals)
+! nni: number of NOs to be rotated in the set (must be either 2,3 or 4)
+! e.g. if the set of NO 2 and 3, and the set of NO 3,4,5 and 6 should be rotated
+! the input would be
+! BREAKSYMNOS 4 2 2 3 4
+            call readi(nRot)
+            allocate(RotNOs(nRot),stat=ierr)
+            tagRotNOs = 0
+            call LogMemAlloc('RotNOs',nRot,4,t_r,tagRotNOs,ierr)
+            RotNOs(:) = 0
+            do i=1,nRot
+                call geti(RotNOs(i))
+            enddo
 
         case("DIPOLE_MOMENTS")
             !Calculate the dipole moments if we are in molpro

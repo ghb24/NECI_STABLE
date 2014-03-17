@@ -70,7 +70,8 @@ MODULe nElRDMMod
                        tNoNOTransform, tTruncRODump, tRDMonfly, tInitiatorRDMDiag, &
                        tTaperDiagRDM, tTaperSQDiagRDM, tCorrectRDMErf, erf_factor1, &
                        erf_factor2, ThreshOccRDM, tThreshOccRDMDiag,tDipoles, &
-                       tBrokenSymNOs,occ_numb_diff, tForceCauchySchwarz
+                       tBrokenSymNOs,occ_numb_diff, tForceCauchySchwarz,tBreakSymNOs, &
+                       nRot,RotNOs,tagRotNOs
     use RotateOrbsData, only: CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt, &
                               SymLabelCounts2_rot,SymLabelList2_rot, &
                               SymLabelListInv_rot,NoOrbs, SpatOrbs, &
@@ -5200,7 +5201,11 @@ MODULe nElRDMMod
             write(6,*) 'Localising NOs whose occupation numbers differ by less than&
                 & threshold'
             write(6,*) '------------------------------------------------------------------------------'
-            write(6,*) 'Threshold for orbitals to rotate:',occ_numb_diff
+            if (tBreakSymNOs) then
+                write(6,*) 'Rotating specified NOs'
+            else
+                write(6,*) 'Threshold for orbitals to rotate:',occ_numb_diff
+            endif
 
             ! self-interactions
             selfint(:) = 0.0_dp
@@ -5215,24 +5220,44 @@ MODULe nElRDMMod
             write(6,*) 'Sum of NO selfinteractions:',sum(selfint)
             selfint_old = sum(selfint)
 
-            ! Generate the list of orbitals which are rotated amongst each
-            ! other
-            rotate_list(:,:) = 0
-            rotorbs(:,:) = 0
-            ! Need to account for spatial and spin orbital representations
-            ! since orbitals of different spin cannot be mixed
-            ! List contains the NOs which are rotated
-            ! It can deal with a maximum of four NOs which are mixed
-            m = 0
-            n = 1
-            do l1=1,NoOrbs
-                if ((m.ne.0).and.(l1.le.rotate_list(m,n))) cycle
-                    partnerfound = .false.
-                    n = 1
-                    do l2=(l1+1),NoOrbs
-                    !write(6,*) (dabs((Evalues(l1)/diffnorm))-(Evalues(l2)/diffnorm))/dabs((Evalues(l2)/diffnorm))
-                        if ((abs((Evalues(l1)/diffnorm)-(Evalues(l2)/diffnorm))/abs((Evalues(l2)/diffnorm)))&
-                            &.lt.occ_numb_diff) then
+            ! If the NOs to be rotated are specified in the input file
+            if (tBreakSymNOs) then
+                rotate_list(:,:) = 0
+                rotorbs(:,:) = 0
+                m = 0
+                do l1=1,nRot,2
+                    ! all integers at an odd position specify the first of the
+                    ! set of NOs to be rotated
+                    m = m + 1
+                    rotate_list(m,1) = RotNOs(l1)
+                    ! all integer at an even position specifiy how many orbitals
+                    ! are in the set to be rotated (i.e. it should take values 2,3,4)
+                    n = RotNOs(l1+1)
+                    do l2=2,n
+                        rotate_list(m,l2) = RotNOs(l1) + l2 - 1
+                    enddo
+                enddo
+            else
+                ! If the threshold is used to generate a list of NOs to be rotated
+
+                ! Generate the list of orbitals which are rotated amongst each
+                ! other
+                rotate_list(:,:) = 0
+                rotorbs(:,:) = 0
+                ! Need to account for spatial and spin orbital representations
+                ! since orbitals of different spin cannot be mixed
+                ! List contains the NOs which are rotated
+                ! It can deal with a maximum of four NOs which are mixed
+                m = 0
+                n = 1
+                do l1=1,NoOrbs
+                    if ((m.ne.0).and.(l1.le.rotate_list(m,n))) cycle
+                        partnerfound = .false.
+                        n = 1
+                        do l2=(l1+1),NoOrbs
+                        !write(6,*) (dabs((Evalues(l1)/diffnorm))-(Evalues(l2)/diffnorm))/dabs((Evalues(l2)/diffnorm))
+                            if ((abs((Evalues(l1)/diffnorm)-(Evalues(l2)/diffnorm))/abs((Evalues(l2)/diffnorm)))&
+                                &.lt.occ_numb_diff) then
                             if (.not.partnerfound) then
                                 m = m + 1
                                 n = n + 1
@@ -5261,7 +5286,8 @@ MODULe nElRDMMod
                             endif
                         endif
                     enddo
-            enddo
+                enddo
+            endif
 
             write(6,*) 'The following pairs of orbitals will be rotated:'
             do l1=1,m
@@ -5293,7 +5319,7 @@ MODULe nElRDMMod
                     write(6,*) 'Sum of rotated NO self-interactions:',sum(selfint)
                     if ((sum(selfint)-selfint_old).lt.0.0_dp) then
                         write(6,*) '***Warning***'
-                        write(6,'(40A,4I3)') 'Selfinteraction decreased when rotating:',&
+                        write(6,'(A50,4I3)') 'Selfinteraction decreased when rotating:',&
                             &rotate_list(l1,:)
                     endif
                     selfint_old = sum(selfint)
@@ -5348,7 +5374,7 @@ MODULe nElRDMMod
                             enddo
                             ! check for convergence
                             sum_new = sum(selfint)
-                            write(6,'(A40,2G20.12)') 'Current and previous selfinteraction:',&
+                            write(6,'(A50,2G20.12)') 'Current and previous selfinteraction:',&
                                 &sum_new,sum_old
                             if (abs(sum_new-sum_old).lt.1e-12_dp) then
                                 exit
@@ -5357,7 +5383,7 @@ MODULe nElRDMMod
                     write(6,*) 'Sum of rotated NO self-interactions:',sum(selfint)
                     if ((sum(selfint)-selfint_old).lt.0.0_dp) then
                         write(6,*) '***Warning***'
-                        write(6,'(40A,4I3)') 'Selfinteraction decreased when rotating:',&
+                        write(6,'(A50,4I3)') 'Selfinteraction decreased when rotating:',&
                             &rotate_list(l1,:)
                     endif
                     selfint_old = sum(selfint)
@@ -5412,7 +5438,7 @@ MODULe nElRDMMod
                             enddo
                             ! check for convergence
                             sum_new = sum(selfint)
-                            write(6,"(A30,2G20.12)") 'Current and previous selfinteractions:',&
+                            write(6,"(A50,2G20.12)") 'Current and previous selfinteractions:',&
                                 &sum_new,sum_old
                             if (abs(sum_new-sum_old).lt.1e-12_dp) then
                                 exit
@@ -5421,7 +5447,7 @@ MODULe nElRDMMod
                     write(6,*) 'Sum of rotated NO self-interactions:',sum(selfint)
                     if ((sum(selfint)-selfint_old).lt.0.0_dp) then
                         write(6,*) '***Warning***'
-                        write(6,'(40A,4I3)') 'Selfinteraction decreased when rotating:',&
+                        write(6,'(A50,4I3)') 'Selfinteraction decreased when rotating:',&
                             &rotate_list(l1,:)
                     endif
                     selfint_old = sum(selfint)
@@ -5454,6 +5480,11 @@ MODULe nElRDMMod
         deallocate(selfint)
         deallocate(no_store)
         deallocate(symlist_store)
+        
+        if (tBreakSymNOs) then
+            deallocate(RotNOs)
+            call LogMemDealloc('BrokenSymNO',tagRotNOs)
+        endif
 
 
     endsubroutine BrokenSymNO
