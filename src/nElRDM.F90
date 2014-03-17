@@ -3271,8 +3271,12 @@ MODULe nElRDMMod
             do j=1,nBasis
                 UpperBound=sqrt(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(i))&
                     *NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(j)))
-                if(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)).gt.UpperBound)then
-                    NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))=UpperBound
+                if(abs(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))).gt.UpperBound)then
+                    if(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)).lt.0.D0)then
+                        NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))=-UpperBound
+                    elseif(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)).gt.0.d0)then
+                        NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))=UpperBound
+                    endif
                     write(6,*) "Changing element:",i,j
                 else
                     cycle
