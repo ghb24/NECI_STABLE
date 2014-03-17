@@ -150,6 +150,7 @@ MODULE Logging
       tWriteTrial = .false.
       tCompareTrialAmps = .false.
       compare_amps_period = 0
+      tForceCauchySchwarz = .false.
       tBrokenSymNOs = .false.
       occ_numb_diff = 0.001_dp
 
@@ -526,6 +527,12 @@ MODULE Logging
 ! of a calculation, we may get the one body reduced density matrix from the 
 !wavefunction we've found, and then use the MOTRANSFORM file printed to 
 ! visualise the natural orbitals with large occupation numbers.
+
+        case("FORCECAUCHYSCHWARZ")
+            tForceCauchySchwarz=.true.
+!This forces the inequality gamma_pq <= sqrt(gamma_pp * gamma_qq) is obeyed.
+!we choose min(gamma_pq, sqrt(gamma_pp * gamma_qq) to ensure a positive-definite matrix
+!May be of use for getting orbitals from an approximate initial FCIQMC calc.
 
         case("BROKENSYMNOS")
             tBrokenSymNOs = .true.
