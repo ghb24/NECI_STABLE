@@ -392,7 +392,7 @@ contains
         integer, intent(in) :: i
         integer, intent(in), optional :: padding
         integer :: p
-        real :: r
+        real(sp) :: r
 
         if (present(padding)) then
             p = padding
@@ -403,7 +403,7 @@ contains
         if (i == 0 .or. i==1) then
             r = 1.0
         else
-            r = log10(real(abs(i)+1))
+            r = log10(real(abs(i)+1,sp))
         end if
         p = ceiling(r+p)
 
@@ -458,7 +458,7 @@ contains
 
         ! Narrow the search range down in steps.
         do while (hi /= lo)
-            pos = int(real(hi + lo) / 2)
+            pos = int(real(hi + lo,sp) / 2)
 
             if (all(arr(data_lo:data_hi,pos) == val(val_lo:val_hi))) then
                 exit
