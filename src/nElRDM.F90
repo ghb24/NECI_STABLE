@@ -73,7 +73,8 @@ MODULe nElRDMMod
                        tNoNOTransform, tTruncRODump, tRDMonfly, tInitiatorRDMDiag, &
                        tTaperDiagRDM, tTaperSQDiagRDM, tCorrectRDMErf, erf_factor1, &
                        erf_factor2, ThreshOccRDM, tThreshOccRDMDiag,tDipoles, &
-                       tBrokenSymNOs,occ_numb_diff, tForceCauchySchwarz
+                       tBrokenSymNOs,occ_numb_diff, tForceCauchySchwarz,tBreakSymNOs, &
+                       nRot,RotNOs,tagRotNOs
     use RotateOrbsData, only: CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt, &
                               SymLabelCounts2_rot,SymLabelList2_rot, &
                               SymLabelListInv_rot,NoOrbs, SpatOrbs, &
@@ -3273,8 +3274,12 @@ MODULe nElRDMMod
             do j=1,nBasis
                 UpperBound=sqrt(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(i))&
                     *NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(j)))
-                if(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)).gt.UpperBound)then
-                    NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))=UpperBound
+                if(abs(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))).gt.UpperBound)then
+                    if(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)).lt.0.D0)then
+                        NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))=-UpperBound
+                    elseif(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)).gt.0.d0)then
+                        NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))=UpperBound
+                    endif
                     write(6,*) "Changing element:",i,j
                 else
                     cycle
@@ -5025,9 +5030,7 @@ MODULe nElRDMMod
         DEALLOCATE(TMAT2DPart)
         CALL LogMemDeAlloc('RefillUMAT_RDM',TMAT2DPartTag)
 
-        if (trotatedNOs) then
-            call PrintROFCIDUMP_RDM("BSFCIDUMP")
-        else
+        if (.not.trotatedNOs) then
             CALL PrintROFCIDUMP_RDM("ROFCIDUMP")
         endif
 
@@ -5154,6 +5157,7 @@ MODULe nElRDMMod
         ! break symmetry and maximally localise the NOs
         ! We'd like to keep both the original NOs (Natural Orbitals) 
         ! and the broken maximally localised NOs for checking
+        ! This is not very (time-) efficient at the moment
 
         real(dp), intent(in) :: occ_numb_diff
         real(dp) :: diffnorm,SumDiag,sum_old,sum_new,selfint_old
@@ -5161,13 +5165,13 @@ MODULe nElRDMMod
         integer, allocatable :: symlist_store(:)
         real(dp), allocatable :: trans_2orbs_coeffs(:,:)
         real(dp), allocatable :: selfint(:)
-        integer, allocatable :: rotate_list(:,:)!,orbs(:,:)
-        integer :: l1,l2,l3,l4,m,n
+        integer, allocatable :: rotate_list(:,:),rotorbs(:,:)
+        integer :: l1,l2,l3,l4,l5,l6,m,n
         integer :: iumat,jumat
         logical :: partnerfound
 
         allocate(trans_2orbs_coeffs(2,2))
-        !allocate(orbs(6,2))
+        allocate(rotorbs(6,2))
         allocate(rotate_list((NoOrbs*(NoOrbs-1)),4))
         allocate(selfint(NoOrbs))
         allocate(no_store(NoOrbs,NoOrbs))
@@ -5194,7 +5198,7 @@ MODULe nElRDMMod
                 diffnorm = 2.0_dp*(SumDiag/dble(NEl))
             endif
             
-            trotatedNOs=.false.
+            trotatedNOs=.true.
      
             if (tStoreSpinorbs) then
                 call Stop_all("BrokenSymNO","Broken symmetry NOs currently not implemented for UHF")
@@ -5204,7 +5208,11 @@ MODULe nElRDMMod
             write(6,*) 'Localising NOs whose occupation numbers differ by less than&
                 & threshold'
             write(6,*) '------------------------------------------------------------------------------'
-            write(6,*) 'Threshold for orbitals to rotate:',occ_numb_diff
+            if (tBreakSymNOs) then
+                write(6,*) 'Rotating specified NOs'
+            else
+                write(6,*) 'Threshold for orbitals to rotate:',occ_numb_diff
+            endif
 
             ! self-interactions
             selfint(:) = 0.0_dp
@@ -5219,24 +5227,44 @@ MODULe nElRDMMod
             write(6,*) 'Sum of NO selfinteractions:',sum(selfint)
             selfint_old = sum(selfint)
 
-            NatOrbMat = 0.0_dp
-            ! Generate the list of orbitals which are rotated amongst each
-            ! other
-            rotate_list(:,:) = 0
-            ! Need to account for spatial and spin orbital representations
-            ! since orbitals of different spin cannot be mixed
-            ! List contains the NOs which are rotated
-            ! It can deal with a maximum of four NOs which are mixed
-            m = 0
-            n = 1
-            do l1=1,NoOrbs
-                if ((m.ne.0).and.(l1.le.rotate_list(m,n))) cycle
-                    partnerfound = .false.
-                    n = 1
-                    do l2=(l1+1),NoOrbs
-                    !write(6,*) (dabs((Evalues(l1)/diffnorm))-(Evalues(l2)/diffnorm))/dabs((Evalues(l2)/diffnorm))
-                        if ((abs((Evalues(l1)/diffnorm)-(Evalues(l2)/diffnorm))/abs((Evalues(l2)/diffnorm)))&
-                            &.lt.occ_numb_diff) then
+            ! If the NOs to be rotated are specified in the input file
+            if (tBreakSymNOs) then
+                rotate_list(:,:) = 0
+                rotorbs(:,:) = 0
+                m = 0
+                do l1=1,nRot,2
+                    ! all integers at an odd position specify the first of the
+                    ! set of NOs to be rotated
+                    m = m + 1
+                    rotate_list(m,1) = RotNOs(l1)
+                    ! all integer at an even position specifiy how many orbitals
+                    ! are in the set to be rotated (i.e. it should take values 2,3,4)
+                    n = RotNOs(l1+1)
+                    do l2=2,n
+                        rotate_list(m,l2) = RotNOs(l1) + l2 - 1
+                    enddo
+                enddo
+            else
+                ! If the threshold is used to generate a list of NOs to be rotated
+
+                ! Generate the list of orbitals which are rotated amongst each
+                ! other
+                rotate_list(:,:) = 0
+                rotorbs(:,:) = 0
+                ! Need to account for spatial and spin orbital representations
+                ! since orbitals of different spin cannot be mixed
+                ! List contains the NOs which are rotated
+                ! It can deal with a maximum of four NOs which are mixed
+                m = 0
+                n = 1
+                do l1=1,NoOrbs
+                    if ((m.ne.0).and.(l1.le.rotate_list(m,n))) cycle
+                        partnerfound = .false.
+                        n = 1
+                        do l2=(l1+1),NoOrbs
+                        !write(6,*) (dabs((Evalues(l1)/diffnorm))-(Evalues(l2)/diffnorm))/dabs((Evalues(l2)/diffnorm))
+                            if ((abs((Evalues(l1)/diffnorm)-(Evalues(l2)/diffnorm))/abs((Evalues(l2)/diffnorm)))&
+                                &.lt.occ_numb_diff) then
                             if (.not.partnerfound) then
                                 m = m + 1
                                 n = n + 1
@@ -5245,35 +5273,40 @@ MODULe nElRDMMod
                                 partnerfound = .true.
                             elseif (partnerfound) then
                                 n = n + 1
-                                if (n.gt.2) then
-                                    n = 2
-                                    write(6,*) '***Warning***'
-                                    write(6,*) 'Threshold generated more than 2-fold degeneracy'
-                                    write(6,*) 'NOs around:',l2
-                                    cycle  ! don't want to rotate more than 2 orbitals
-                                endif
+                            !    ! this is for up to 2-fold degenearcy
+                            !    if (n.gt.2) then
+                            !        n = 2
+                            !        write(6,*) '***Warning***'
+                            !        write(6,*) 'Threshold generated more than 2-fold degeneracy'
+                            !        write(6,*) 'NOs around:',l2
+                            !        cycle  ! don't want to rotate more than 2 orbitals
+                            !    endif
                                 ! this is for up to four-fold degeneracy
-                             !       if (n.gt.4) then
-                             !           n = 4
-                             !           write(6,*) '***Warning***'
-                             !           write(6,*) 'Threshold generated more than 4-fold degeneracy'
-                             !           write(6,*) 'NOs around:',l2
-                             !           cycle  ! don't want to rotate more than 4 orbitals
-                             !       endif
+                                if (n.gt.4) then
+                                    n = 4
+                                    write(6,*) '***Warning***'
+                                    write(6,*) 'Threshold generated more than 4-fold degeneracy'
+                                    write(6,*) 'NOs around:',l2
+                                    cycle  ! don't want to rotate more than 4 orbitals
+                                endif
                                 rotate_list(m,n) = l2
                             endif
                         endif
                     enddo
-                if (.not.partnerfound) then
-                    ! don't rotate orbital
-                    NatOrbMat(l1,l1) = 1.0_dp
-                endif
-            enddo
+                enddo
+            endif
 
             write(6,*) 'The following pairs of orbitals will be rotated:'
             do l1=1,m
                 write(6,'(I3,3X,4(I3))') l1,rotate_list(l1,:)
             enddo
+
+            NatOrbMat(:,:) = 0.0_dp
+            do l1=1,NoOrbs
+                NatOrbMat(l1,l1) = 1.0_dp
+            enddo
+
+
             ! rotate two-fold degenerate pairs first
             do l1=1,m
                 ! if only two orbitals have the same occupation numbers
@@ -5293,128 +5326,140 @@ MODULe nElRDMMod
                     write(6,*) 'Sum of rotated NO self-interactions:',sum(selfint)
                     if ((sum(selfint)-selfint_old).lt.0.0_dp) then
                         write(6,*) '***Warning***'
-                        write(6,'(40A,4I3)') 'Selfinteraction decreased when rotating:',&
+                        write(6,'(A50,4I3)') 'Selfinteraction decreased when rotating:',&
                             &rotate_list(l1,:)
                     endif
                     selfint_old = sum(selfint)
                 endif
            enddo
-           ! this is for dealing with up to four-fold degeneracy
-           ! it needs some further work to work pro[erly
-     !      do l1=1,m
-     !            if ((rotate_list(l1,3).ne.0).and.(rotate_list(l1,4).eq.0)) then
-     !                   sum_new = sum(selfint)
-     !                   orbs(1,1) = 1
-     !                   orbs(1,2) = 2
-     !                   orbs(2,1) = 1
-     !                   orbs(2,2) = 3
-     !                   orbs(3,1) = 2
-     !                   orbs(3,2) = 3
-     !       !            do
-     !                       sum_old = sum_new
-     !                       write(6,'(A20,4(I3))') 'Rotating NOs:',rotate_list(l1,:)
-     !                       do l3=1,1!3
-     !                           NatOrbMat(:,:) = 0.0_dp
-     !                           do l4=1,NoOrbs
-     !                               NatOrbMat(l1,l1) = 1.0_dp
-     !                           enddo
-     !                           NatOrbMat(rotate_list(l1,orbs(l3,1)),rotate_list(l1,orbs(l3,1))) = 0.0_dp
-     !                           NatOrbMat(rotate_list(l1,orbs(l3,2)),rotate_list(l1,orbs(l3,2))) = 0.0_dp
-     !                           call Rotate2Orbs(rotate_list(l1,orbs(l3,1)),rotate_list(l1,orbs(l3,2)),&
-     !                               &trans_2orbs_coeffs,selfint(rotate_list(l1,orbs(l3,1))),&
-     !                               &selfint(rotate_list(l1,orbs(l3,2))))
-     !                           ! The new NOs are 
-     !                           ! phi_{i'} = cos a p_{i} + sin a p_{j}
-     !                           ! phi_{j'} = -sin a p_{i} + cos a p_{j}
-     !                           NatorbMat(rotate_list(l1,orbs(l3,1)),rotate_list(l1,orbs(l3,1)))&
-     !                               & = trans_2orbs_coeffs(1,1)
-     !                           NatorbMat(rotate_list(l1,orbs(l3,2)),rotate_list(l1,orbs(l3,1)))&
-     !                               & = trans_2orbs_coeffs(2,1)
-     !                           NatorbMat(rotate_list(l1,orbs(l3,1)),rotate_list(l1,orbs(l3,2)))&
-     !                               & = trans_2orbs_coeffs(1,2)
-     !                           NatorbMat(rotate_list(l1,orbs(l3,2)),rotate_list(l1,orbs(l3,2)))&
-     !                               & = trans_2orbs_coeffs(2,2)
-     !                       enddo
-     !        !               sum_new = sum(selfint)
-     !                       !write(6,*) sum_new,sum_old
-     !        !               if (abs(sum_new).le.abs(sum_old)) then
-     !        !                   exit
-     !        !               endif
-     !        !           enddo
-     !               !endif
-     !               write(6,*) 'Sum of rotated NO self-interactions:',sum(selfint)
-     !           endif
-     !      enddo
-     !      do l1=1,m
-     !           ! if four orbitals have the same occupation numbers
-     !           if (rotate_list(l1,4).ne.0) then
-     !               sum_new = sum(selfint)
-     !               orbs(1,1) = 1
-     !               orbs(1,2) = 2
-     !               orbs(2,1) = 3
-     !               orbs(2,2) = 4
-     !               orbs(3,1) = 1
-     !               orbs(3,2) = 3
-     !               orbs(4,1) = 2
-     !               orbs(4,2) = 4
-     !               orbs(5,1) = 1
-     !               orbs(5,2) = 4
-     !               orbs(6,1) = 2
-     !               orbs(6,2) = 3
-     !         !      do
-     !                   sum_old = sum_new
-     !                   write(6,'(A20,4(I3))') 'Rotating NOs:',rotate_list(l1,:)
-     !                   do l3=1,1!3
-     !                       NatOrbMat(:,:) = 0.0_dp
-     !                       do l4=1,NoOrbs
-     !                           NatOrbMat(l1,l1) = 1.0_dp
-     !                       enddo
-     !                       NatOrbMat(rotate_list(l1,orbs(((2*l3)-1),1)),&
-     !                           &rotate_list(l1,orbs(((2*l3)-1),1))) = 0.0_dp
-     !                       NatOrbMat(rotate_list(l1,orbs(((2*l3)-1),2)),&
-     !                           &rotate_list(l1,orbs(((2*l3)-1),2))) = 0.0_dp
-     !                       NatOrbMat(rotate_list(l1,orbs(((2*l3)),1)),&
-     !                           &rotate_list(l1,orbs(((2*l3)),1))) = 0.0_dp
-     !                       NatOrbMat(rotate_list(l1,orbs(((2*l3)),2)),&
-     !                           &rotate_list(l1,orbs(((2*l3)),2))) = 0.0_dp
-     !                       call Rotate2Orbs(rotate_list(l1,orbs(((2*l3)-1),1)),&
-     !                           &rotate_list(l1,orbs(((2*l3)-1),2)),&
-     !                           &trans_2orbs_coeffs,selfint(rotate_list(l1,orbs(((2*l3)-1),1))),&
-     !                           &selfint(rotate_list(l1,orbs(((2*l3)-1),2))))
-     !                           ! The new NOs are 
-     !                           ! phi_{i'} = cos a p_{i} + sin a p_{j}
-     !                           ! phi_{j'} = -sin a p_{i} + cos a p_{j}
-     !                           NatorbMat(rotate_list(l1,orbs(((2*l3)-1),1)),&
-     !                               &rotate_list(l1,orbs(((2*l3)-1),1))) = trans_2orbs_coeffs(1,1)
-     !                           NatorbMat(rotate_list(l1,orbs(((2*l3)-1),2)),&
-     !                               &rotate_list(l1,orbs(((2*l3)-1),1))) = trans_2orbs_coeffs(2,1)
-     !                           NatorbMat(rotate_list(l1,orbs(((2*l3)-1),1)),&
-     !                               &rotate_list(l1,orbs(((2*l3)-1),2))) = trans_2orbs_coeffs(1,2)
-     !                           NatorbMat(rotate_list(l1,orbs(((2*l3)-1),2)),&
-     !                               &rotate_list(l1,orbs(((2*l3)-1),2))) = trans_2orbs_coeffs(2,2)
-     !                           call Rotate2Orbs(rotate_list(l1,orbs(((2*l3)),1)),&
-     !                               &rotate_list(l1,orbs(((2*l3)),2)),&
-     !                               &trans_2orbs_coeffs,selfint(rotate_list(l1,orbs(((2*l3)),1))),&
-     !                               &selfint(rotate_list(l1,orbs(((2*l3)),2))))
-     !                           NatorbMat(rotate_list(l1,orbs(((2*l3)),1)),&
-     !                               &rotate_list(l1,orbs(((2*l3)),1))) = trans_2orbs_coeffs(1,1)
-     !                           NatorbMat(rotate_list(l1,orbs(((2*l3)),2)),&
-     !                               &rotate_list(l1,orbs(((2*l3)),1))) = trans_2orbs_coeffs(2,1)
-     !                           NatorbMat(rotate_list(l1,orbs(((2*l3)),1)),&
-     !                               &rotate_list(l1,orbs(((2*l3)),2))) = trans_2orbs_coeffs(1,2)
-     !                           NatorbMat(rotate_list(l1,orbs(((2*l3)),2)),&
-     !                               &rotate_list(l1,orbs(((2*l3)),2))) = trans_2orbs_coeffs(2,2)
-     !                       enddo
-     !             !          sum_new = sum(selfint)
-     !             !          !write(6,*) sum_new,sum_old
-     !             !          if (abs(sum_new).le.abs(sum_old)) then
-     !             !              exit
-     !             !          endif
-     !             !      enddo
-     !              ! endif
-     !                   write(6,*) 'Sum of rotated NO self-interactions:',sum(selfint)
-     !               endif
-     !           enddo
+           ! transform integral corresponding to rotated NO
+           ! these are required for not printing out RPFCIDUMP or 
+           ! BSFCIDUMP every time
+           trotatedNOs = .true.
+           call Transform2ElIntsMemSave_RDM()
+           call RefillUMATandTMAT2D_RDM()
+
+           ! if three orbitals are degenerate
+           do l1=1,m
+                 if ((rotate_list(l1,3).ne.0).and.(rotate_list(l1,4).eq.0)) then
+                        sum_new = sum(selfint)
+                        rotorbs(1,1) = 1
+                        rotorbs(1,2) = 2
+                        rotorbs(2,1) = 1
+                        rotorbs(2,2) = 3
+                        rotorbs(3,1) = 2
+                        rotorbs(3,2) = 3
+                        ! these has to be done self-consistently since all three orbitals
+                        ! can intermix
+                        do
+                            sum_old = sum_new
+                            write(6,'(A20,4(I3))') 'Rotating NOs:',rotate_list(l1,:)
+                            do l3=1,3
+                                iumat = rotate_list(l1,rotorbs(l3,1))
+                                jumat = rotate_list(l1,rotorbs(l3,2))
+                                NatOrbMat(:,:) = 0.0_dp
+                                do l4=1,NoOrbs
+                                    if ((l4.ne.iumat).and.(l4.ne.jumat)) then
+                                        NatOrbMat(l4,l4) = 1.0_dp
+                                    endif
+                                enddo
+                                call Rotate2Orbs(iumat,jumat,&
+                                    &trans_2orbs_coeffs,selfint(iumat),selfint(jumat))
+                                ! The new NOs are 
+                                ! phi_{i'} = cos a p_{i} + sin a p_{j}
+                                ! phi_{j'} = -sin a p_{i} + cos a p_{j}
+                                NatorbMat(iumat,iumat) = trans_2orbs_coeffs(1,1)
+                                NatorbMat(jumat,iumat) = trans_2orbs_coeffs(2,1)
+                                NatorbMat(iumat,jumat) = trans_2orbs_coeffs(1,2)
+                                NatorbMat(jumat,jumat) = trans_2orbs_coeffs(2,2)
+                                ! transform integral corresponding to rotated NO
+                                ! these are required for not printing out RPFCIDUMP or 
+                                ! BSFCIDUMP every time
+                                trotatedNOs = .true.
+                                call Transform2ElIntsMemSave_RDM()
+                                call RefillUMATandTMAT2D_RDM()
+                            enddo
+                            ! check for convergence
+                            sum_new = sum(selfint)
+                            write(6,'(A50,2G20.12)') 'Current and previous selfinteraction:',&
+                                &sum_new,sum_old
+                            if (abs(sum_new-sum_old).lt.1e-12_dp) then
+                                exit
+                            endif
+                        enddo
+                    write(6,*) 'Sum of rotated NO self-interactions:',sum(selfint)
+                    if ((sum(selfint)-selfint_old).lt.0.0_dp) then
+                        write(6,*) '***Warning***'
+                        write(6,'(A50,4I3)') 'Selfinteraction decreased when rotating:',&
+                            &rotate_list(l1,:)
+                    endif
+                    selfint_old = sum(selfint)
+                elseif ((rotate_list(l1,3).ne.0).and.(rotate_list(l1,4).ne.0)) then
+                        sum_new = sum(selfint)
+                        rotorbs(1,1) = 1
+                        rotorbs(1,2) = 2
+                        rotorbs(2,1) = 3
+                        rotorbs(2,2) = 4
+                        rotorbs(3,1) = 1
+                        rotorbs(3,2) = 3
+                        rotorbs(4,1) = 2
+                        rotorbs(4,2) = 4
+                        rotorbs(5,1) = 1
+                        rotorbs(5,2) = 4
+                        rotorbs(6,1) = 2
+                        rotorbs(6,2) = 3
+                        ! these has to be done self-consistently since all three orbitals
+                        ! can intermix
+                        do
+                            sum_old = sum_new
+                            write(6,'(A20,4(I3))') 'Rotating NOs:',rotate_list(l1,:)
+                            do l3=1,3
+                                NatOrbMat(:,:) = 0.0_dp
+                                do l4=1,NoOrbs
+                                    if ((l4.ne.rotate_list(l1,1)).and.(l4.ne.rotate_list(l1,2))&
+                                        &.and.(l4.ne.rotate_list(l1,3)).and.(l4.ne.&
+                                        &rotate_list(l1,4))) then
+                                            NatOrbMat(l4,l4) = 1.0_dp
+                                    endif
+                                enddo
+                                ! rotate these two independenlty
+                                do l5=0,1
+                                    iumat = rotate_list(l1,rotorbs(((2*l3)-l5),1))
+                                    jumat = rotate_list(l1,rotorbs(((2*l3)-l5),2))
+                                    call Rotate2Orbs(iumat,jumat,&
+                                        &trans_2orbs_coeffs,selfint(iumat),selfint(jumat))
+                                    ! The new NOs are 
+                                    ! phi_{i'} = cos a p_{i} + sin a p_{j}
+                                    ! phi_{j'} = -sin a p_{i} + cos a p_{j}
+                                    NatorbMat(iumat,iumat) = trans_2orbs_coeffs(1,1)
+                                    NatorbMat(jumat,iumat) = trans_2orbs_coeffs(2,1)
+                                    NatorbMat(iumat,jumat) = trans_2orbs_coeffs(1,2)
+                                    NatorbMat(jumat,jumat) = trans_2orbs_coeffs(2,2)
+                                enddo
+                                ! transform integral corresponding to rotated NO
+                                ! these are required for not printing out RPFCIDUMP or 
+                                ! BSFCIDUMP every time
+                                trotatedNOs = .true.
+                                call Transform2ElIntsMemSave_RDM()
+                                call RefillUMATandTMAT2D_RDM()
+                            enddo
+                            ! check for convergence
+                            sum_new = sum(selfint)
+                            write(6,"(A50,2G20.12)") 'Current and previous selfinteractions:',&
+                                &sum_new,sum_old
+                            if (abs(sum_new-sum_old).lt.1e-12_dp) then
+                                exit
+                            endif
+                        enddo
+                    write(6,*) 'Sum of rotated NO self-interactions:',sum(selfint)
+                    if ((sum(selfint)-selfint_old).lt.0.0_dp) then
+                        write(6,*) '***Warning***'
+                        write(6,'(A50,4I3)') 'Selfinteraction decreased when rotating:',&
+                            &rotate_list(l1,:)
+                    endif
+                    selfint_old = sum(selfint)
+                endif
+           enddo
 
             write(6,*) 'Final self-interactions for rotated NOs:'
             do l1=1,NoOrbs
@@ -5422,15 +5467,12 @@ MODULe nElRDMMod
             enddo
             write(6,*) 'Sum of rotated NO self-interactions:',sum(selfint)
 
-            !if (tstillrotating) then
             write(6,*) '------------------------------------------------------'
             write(6,*) 'Writing out BSFCIDUMP...'
             write(6,*) '------------------------------------------------------'
-            tRotatedNOs=.true.
-            call Transform2ElIntsMemSave_RDM()
-            call RefillUMATandTMAT2D_RDM()
-            !call PrintROFCIDUMP_RDM("BSFCIDUMP")
-
+            
+            call PrintROFCIDUMP_RDM("BSFCIDUMP")
+ 
             ! restore original NOs
             NatOrbMat(:,:) = 0.0_dp
             NatOrbMat = no_store
@@ -5441,10 +5483,15 @@ MODULe nElRDMMod
 
         deallocate(trans_2orbs_coeffs)
         deallocate(rotate_list)
-        !deallocate(orbs)
+        deallocate(rotorbs)
         deallocate(selfint)
         deallocate(no_store)
         deallocate(symlist_store)
+        
+        if (tBreakSymNOs) then
+            deallocate(RotNOs)
+            call LogMemDealloc('BrokenSymNO',tagRotNOs)
+        endif
 
 
     endsubroutine BrokenSymNO

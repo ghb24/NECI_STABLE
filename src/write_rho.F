@@ -37,7 +37,7 @@ C..
       WRITE(11,*)  1,NMESHX,NMESHY,NMESHZ
       WRITE(11,*) 0
       WRITE(11,*) '0.   0.  0.'
-      WRITE(11,*) ALAT(1),0.,ALAT(2),0.0000d0,0.0000d0,ALAT(3)
+      WRITE(11,*) ALAT(1),0.d0,ALAT(2),0.0000d0,0.0000d0,ALAT(3)
       WRITE(11,*) '8    12'
       WRITE(11,*) 0,   0,   0
       WRITE(11,*) ALAT(1),   0,   0
@@ -70,8 +70,8 @@ c        OPEN(12,FILE=FILENM3,STATUS='UNKNOWN',FORM='UNFORMATTED')
 c        WRITE(12,*) 3,2
         WRITE(12,'(3I3)') NMESHX,NMESHY,NMESHZ
 c        WRITE(12,*) NMESHX,NMESHY,NMESHZ
-        WRITE(12,'(6F13.6)') -ALAT(3)/2.,ALAT(3)/2.0_dp,-alat(2)/2.0_dp,
-     &    ALAT(2)/2.0_dp,-alat(1)/2.0_dp,ALAT(1)/2.0_dp
+        WRITE(12,'(6F13.6)') -ALAT(3)/2.0_dp,ALAT(3)/2.0_dp,
+     &    -alat(2)/2.0_dp,ALAT(2)/2.0_dp,-alat(1)/2.0_dp,ALAT(1)/2.0_dp
 c        WRITE(12,*)-ALAT(1)/2.,ALAT(1)/2.0_dp,-alat(2)/2.0_dp,
 c     &   ALAT(2)/2.0_dp,-alat(3)/2.0_dp,ALAT(3)/2.0_dp
       ENDIF

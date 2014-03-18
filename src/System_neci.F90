@@ -110,14 +110,14 @@ MODULE System
       TTILT = .false.
       TALPHA = .false.
       ISTATE = 1
-      OrbECutoff=1e20
+      OrbECutoff=1e20_dp
       tOrbECutoff=.false.
-      gCutoff=1e20 ! This shouldn't be used
+      gCutoff=1e20_dp ! This shouldn't be used
       tgCutoff=.false.
       tMadelung=.false.
       Madelung=0.0_dp
       tUEGFreeze=.false.
-      FreezeCutoff=1e20 ! This shouldn't be used
+      FreezeCutoff=1e20_dp ! This shouldn't be used
       tMP2UEGRestrict=.false.
       tStoreAsExcitations=.false.
       TBIN=.false.
@@ -129,9 +129,9 @@ MODULE System
       tShake=.false.
       lNoSymmetry=.false.
       tRotateOrbs=.false.
-      TimeStep=0.01
-      ConvergedForce=0.001
-      ShakeConverged=0.001
+      TimeStep=0.01_dp
+      ConvergedForce=0.001_dp
+      ShakeConverged=0.001_dp
       tShakeApprox=.false.
       tShakeDelay=.false.
       ShakeStart=1
@@ -1205,7 +1205,7 @@ system: do
            WRITE(6,*) " Fermi Energy EF=",FKF*FKF/2
            write(6,*) " Unscaled fermi vector kF=", FKF/k_lattice_constant
            WRITE(6,*) " Unscaled Fermi Energy nmax**2=",(FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2)         
-           IF(OrbECutoff.ne.1e-20) WRITE(6,*) " Orbital Energy Cutoff:",OrbECutoff
+           IF(OrbECutoff.ne.1e-20_dp) WRITE(6,*) " Orbital Energy Cutoff:",OrbECutoff
            WRITE(6,'(1X,A,F19.5)') '  VOLUME : ' , OMEGA
            WRITE(6,*) ' TALPHA : ' , TALPHA
            WRITE(6,'(1X,A,F19.5)') '  ALPHA : ' , ALPHA
@@ -1351,7 +1351,7 @@ system: do
               ENDDO
 
               IF(LEN.NE.IG) THEN
-                  if(OrbECutoff.gt.-1e20) then
+                  if(OrbECutoff.gt.-1e20_dp) then
                       write(6,*) " Have removed ", LEN-IG, " high energy orbitals "
                       ! Resize arr and brr.
                       allocate(arr_tmp(nbasis,2),brr_tmp(nbasis),stat=ierr)
@@ -1580,7 +1580,7 @@ system: do
              WRITE(6,*) " Fermi Energy EF=",FKF*FKF/2
              WRITE(6,*) " Unscaled Fermi Energy nmax**2=",(FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2)
           ENDIF
-          IF(OrbECutoff.ne.1e-20) WRITE(6,*) " Orbital Energy Cutoff:",OrbECutoff
+          IF(OrbECutoff.ne.1e-20_dp) WRITE(6,*) " Orbital Energy Cutoff:",OrbECutoff
           WRITE(6,'(1X,A,F19.5)') '  VOLUME : ' , OMEGA
           WRITE(6,*) ' TALPHA : ' , TALPHA
           WRITE(6,'(1X,A,F19.5)') '  ALPHA : ' , ALPHA
@@ -1735,7 +1735,7 @@ system: do
          WRITE(6,*) ' NUMBER OF BASIS FUNCTIONS : ' , IG 
          NBASIS=IG
          IF(LEN.NE.IG) THEN
-            IF(OrbECutoff.gt.-1e20) then
+            IF(OrbECutoff.gt.-1e20_dp) then
                write(6,*) " Have removed ", LEN-IG, " high energy orbitals "
                ! Resize arr and brr.
                allocate(arr_tmp(nbasis,2),brr_tmp(nbasis),stat=ierr)
