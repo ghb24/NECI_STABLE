@@ -262,7 +262,7 @@ contains
         pGen = pGen * CSFPickOrbsProb (iLut, CCSglS, CCUnS, CCSglDelta, &
                                        orbsWNoPair, nSing, nVac, orbs(2,:), &
                                        sym, Ml)
-        pGen = pGen / real(ncsf)
+        pGen = pGen / real(ncsf,dp)
 
         if (iand(NJ(nel), csf_orbital_mask) == 0)&
             call stop_all (this_routine,"alert")
@@ -500,14 +500,14 @@ contains
             endif
 
             ! Total probability of picking A-B
-            p = 1 / real(numB)
+            p = 1 / real(numB,dp)
 
             ! Add contribution for this permutation.
             CSFPickOrbsProb = CSFPickOrbsProb + p
         enddo
 
         ! Probability of picking first orbital
-        CSFPickOrbsProb = CSFPickOrbsProb  / real(nSing + nVac - orbsWNoPair)
+        CSFPickOrbsProb = CSFPickOrbsProb  / real(nSing + nVac - orbsWNoPair,dp)
     end function
 
     ! Pick an electron pair randomly, which is allowed for a double excit.
@@ -579,9 +579,9 @@ contains
             if ((found == 1) .or. &
                 ((found == 2) .and. (.not. is_in_pair(orbs(1),orb)))) then
                 if (bSingle) then
-                    pElec = pElec + 1/real((nSing + nDoub - 1)*(nSing+nDoub))
+                    pElec = pElec + 1/real((nSing + nDoub - 1)*(nSing+nDoub),dp)
                 else
-                    pElec = pElec + 1/real((nSing + nDoub)**2)
+                    pElec = pElec + 1/real((nSing + nDoub)**2,dp)
                 endif
             endif
 
@@ -762,7 +762,7 @@ contains
         !                         lnopen, ncsf, .true.)
 
         ! Generation probability
-        pGen = pSingle / real(nexcit * (nel - elecsWNoExcits) * ncsf) 
+        pGen = pSingle / real(nexcit * (nel - elecsWNoExcits) * ncsf,dp) 
     end subroutine
 
     ! Generate three arrays indicating the number of spatial orbitals of
@@ -1945,7 +1945,7 @@ contains
 
                 if (iProcIndex == 0) then
                     !print*, i, avcontribAll/real(i*nexcit*nProcessors)
-                    write(9,*) i, avContribAll/real(i*nexcit*nProcessors)
+                    write(9,*) i, avContribAll/real(i*nexcit*nProcessors,dp)
                 endif
             endif
         enddo
@@ -1962,7 +1962,7 @@ contains
             do j=1,nbasis
                 if (AllSinglesHist(i,j) > 0) then
                     write(9,*) AllSinglesHist(i,j) / &
-                                   real(iterations*nProcessors)
+                                   real(iterations*nProcessors,dp)
                 endif
             enddo
         enddo
@@ -1977,7 +1977,7 @@ contains
                     do l=k+1,nbasis
                         if (AllDoublesHist(i,j,k,l) > 0) then
                             write(9,*) AllDoublesHist(i,j,k,l) / &
-                                           real(iterations*nprocessors)
+                                           real(iterations*nprocessors,dp)
                         endif
                     enddo
                 enddo

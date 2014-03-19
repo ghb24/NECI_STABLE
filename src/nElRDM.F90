@@ -6316,7 +6316,36 @@ MODULe nElRDMMod
         end do
     end subroutine fill_RDM_offdiag_deterministic 
 
-    !The only thing needed is the 1RDM (normalized)
+    !To calculate the dipole moments, the casscf routine has to be called from molpro. i.e.
+
+    !{rhf;save,2103.2}
+    !{casscf,maxit=0;occ,10,4,4,1;closed,0,0,0,0;iprint,density,civector}
+    !gexpec,dm
+    !{fciqmc,iterations=10000,timestep=0.05,targetwalkers=10000,2RDMonFly,dipoles;core;orbital,2103.2}
+
+    !Notes: 
+    ! o The orbitals used by the fciqmc module have to be the RHF orbitals, not the casscf natural ones.
+    ! o The occ directive has to encompass the *whole* space
+    ! o If core orbitals want to be frozen in the subsequent fciqmc calclation, then include these orbitals as 'closed'
+    !       in the casscf call, and remove the 'core' command from fciqmc
+    ! o If the system is too large to do a FCI casscf (which will hopefully normally be the case), then you can restrict
+    !       the space by using the 'restict' directive directly after the 'wf' directive in the casscf, i.e.
+
+    !memory,128,m
+    !geometry={C;O,C,r};r=2.1316 bohr
+    !basis,VDZ;
+    !{rhf;save,2103.2}
+    !{casscf,maxit=0;occ,14,6,6,2;frozen,0,0,0,0;closed,2,0,0,0;
+    !wf,14,1,0;
+    !restrict,2,2,3.1,4.1;       !This defines a set of orbitals which must be doubly occupied in all configurations to cut down the
+    !restrict,2,2,1.2,1.3;       !size of the space, but ensure that the integrals are still calculated over the whole active space
+    !restrict,0,0,10.1,11.1,12.1,13.1,14.1;  !These are orbitals which must remain unoccupied to further reduce the size of the space
+    !restrict,0,0,3.2,4.2,5.2,6.2;
+    !restrict,0,0,3.3,4.3,5.3,6.3;
+    !iprint,density,civector}
+    !gexpec,dm
+    !{fciqmc,ITERATIONS=20,MAXATREF=50000,TARGETWALKERS=10000000;
+    !  orbital,2103.2 }         !No 'core' directive included, since the core orbitals are 'closed' in the casscf and so will be ignored.
     subroutine CalcDipoles(Norm_1RDM)
 #ifdef MOLPRO
         use outputResult
@@ -6325,29 +6354,13 @@ MODULe nElRDMMod
         use SymExcitDataMod, only: SpinOrbSymLabel,SymLabelCounts2
         implicit none
         integer, dimension(nSymLabels) :: elements_assigned1, blockstart1
-        real(dp) :: dipmom(3),znuc,zcor
-        real(dp), allocatable :: SymmetryPacked1RDM(:),ints(:)
-        integer :: i,j,ipr,Sym_i,Sym_j,Sym_ij,posn1,isize,isyref,mxv,iout
-!        include "common/maxatm"
-!        include "common/tapes"
-!        include "common/dumpinfow"
-!        include "common/cstate"
-!        include "common/maxbfn"
-!        include "common/corbdim"
-!        include "common/casscf"
-!        include "common/syminf"
-!        include "common/jobopt"
-!        include "common/big"
-!        include "common/cbas"
-!        include "common/clseg"
-!        include "common/cref"
-!        include "common/ctran2"
-!        include "common/code"
-!        include "common/cmpp"
-!        include "common/d2gen_cvb"
+        real(dp) :: dipmom(3),znuc(3),zcor(3)
+        real(dp), allocatable :: SymmetryPacked1RDM(:),zints(:,:)
+        integer :: i,j,ipr,Sym_i,Sym_j,Sym_ij,posn1,isize,isyref,mxv,iout,ierr
 #else
         implicit none
 #endif
+        !The only thing needed is the 1RDM (normalized)
         real(dp), intent(in) :: Norm_1RDM
         character(len=*), parameter :: t_r='CalcDipoles'
 
@@ -6373,7 +6386,6 @@ MODULe nElRDMMod
                     (SymLabelCounts2(2,ClassCountInd(1,i,0))+1))/2 !Counting alpha orbitals
             enddo
 !            write(6,*) "Size of symmetry packed 1-electron array",isize
-            allocate(ints(isize))
 
             elements_assigned1(:) = 0
             allocate(SymmetryPacked1RDM(isize))
@@ -6384,7 +6396,11 @@ MODULe nElRDMMod
                     Sym_j=SpinOrbSymLabel(2*j)
                     Sym_ij=RandExcitSymLabelProd(Sym_i, Sym_j)
                     if (Sym_ij .eq. 0) then
+                        if((Sym_i+1).gt.nSymLabels) call stop_all(t_r,'Error')
                         posn1=blockstart1(Sym_i+1)+elements_assigned1(Sym_i+1)
+                        if((posn1.gt.isize).or.(posn1.lt.1)) then
+                            call stop_all(t_r,'Error filling rdm')
+                        endif
 
                         SymmetryPacked1RDM(posn1)=NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM
                         if(i.ne.j) then
@@ -6392,8 +6408,8 @@ MODULe nElRDMMod
                             !symmetry packed representation of the 1RDM, it is as if we are also including the other half of the matrix
                             SymmetryPacked1RDM(posn1) = 2.0_dp*SymmetryPacked1RDM(posn1)
                         endif
+                        elements_assigned1(Sym_i+1)=elements_assigned1(Sym_i+1)+1
                     endif
-                    elements_assigned1(Sym_i+1)=elements_assigned1(Sym_i+1)+1
 
                 enddo
             enddo
@@ -6412,27 +6428,36 @@ MODULe nElRDMMod
 !            write(6,*) "Exiting mukint..."
 !            call flush(6)
 !            itrsfm=1
-!            write(6,*) "Symmetry packed 1RDM: ",SymmetryPacked1RDM(:)
+            write(6,*) "Size of symmetry packed array: ",isize
+            write(6,*) "Symmetry packed 1RDM: ",SymmetryPacked1RDM(:)
             dipmom(:) = 0.0_dp
 
             call clearvar('DMX')
             call clearvar('DMY')
             call clearvar('DMZ')
 
-            do ipr=4,6
+            allocate(zints(isize,3),stat=ierr)
+            if(ierr.ne.0) then
+                write(6,*) "Alloc failed: ",ierr
+                call stop_all(t_r,'Alloc failed')
+            endif
+            !This now goes through an F77 wrapper file so that we can access the
+            !common blocks and check that the size of the symmetry packed arrays
+            !is correct.
+            call GetDipMomInts(zints,isize,znuc,zcor)
+
+            do ipr=1,3
             
-                ints(isize) = 0.0_dp
+!                call pget(zints,ipr,znuc,zcor)
 
-                call pget(ints,ipr,znuc,zcor)
-
-                !write(6,*) "Integrals for property ",ipr-3
-                !write(6,*) ints(1:isize)
+                !write(6,*) "Integrals for property ",ipr
+                !write(6,*) zints(1:isize,ipr)
 
                 !Now, contract
                 do i = 1,isize
-                    dipmom(ipr-3) = dipmom(ipr-3) - ints(i)*SymmetryPacked1RDM(i)
+                    dipmom(ipr) = dipmom(ipr) - zints(i,ipr)*SymmetryPacked1RDM(i)
                 enddo
-                dipmom(ipr-3) = dipmom(ipr-3) + znuc - zcor
+                dipmom(ipr) = dipmom(ipr) + znuc(ipr) - zcor(ipr)
             enddo
             write(iout,"(A)") ""
             write(iout,"(A,3f15.8)") "DIPOLE MOMENT: ",dipmom(1:3)
@@ -6442,7 +6467,7 @@ MODULe nElRDMMod
             call setvar('DMX',dipmom(1),'AU',1,1,mxv,-1)
             call setvar('DMY',dipmom(2),'AU',1,1,mxv,-1)
             call setvar('DMZ',dipmom(3),'AU',1,1,mxv,-1)
-            deallocate(ints,SymmetryPacked1RDM)
+            deallocate(zints,SymmetryPacked1RDM)
         endif
 
 #else

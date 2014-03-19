@@ -260,7 +260,7 @@ module RPA_Mod
                 StabilitySize,0.0_dp,temp,StabilitySize)
             do i=1,StabilitySize
                 do j=1,StabilitySize
-                    if(abs(StabilityCopy(i,j)-temp(i,j)).gt.1.0e-7) then
+                    if(abs(StabilityCopy(i,j)-temp(i,j)).gt.1.0e-7_dp) then
                         call stop_all(t_r,'S^1/2 not calculated correctly in original basis')
                     endif
                 enddo
@@ -449,14 +449,14 @@ module RPA_Mod
                 StabilitySize,0.0_dp,temp2,StabilitySize)
             do i=1,ov_space
                 do j=1,ov_space
-                    if(abs(temp2(j,i)-(W2(i+ov_space)*X_stab(j,i))).gt.1.0e-7) then
+                    if(abs(temp2(j,i)-(W2(i+ov_space)*X_stab(j,i))).gt.1.0e-7_dp) then
                         call stop_all(t_r,"RPA equations not satisfied for X")
                     endif
                 enddo
             enddo
             do i=1,ov_space
                 do j=ov_space+1,StabilitySize
-                    if(abs(temp2(j,i)-(W2(i+ov_space)*Y_stab(j-ov_space,i))).gt.1.0e-7) then
+                    if(abs(temp2(j,i)-(W2(i+ov_space)*Y_stab(j-ov_space,i))).gt.1.0e-7_dp) then
                         call stop_all(t_r,"RPA equations not satisfied for Y")
                     endif
                 enddo
@@ -781,14 +781,14 @@ module RPA_Mod
             StabilitySize,0.0_dp,temp2,StabilitySize)
         do i=1,ov_space
             do j=1,ov_space
-                if(abs(temp2(j,i)-(sqrt(W(i))*X_Chol(j,i))).gt.1.0e-7) then
+                if(abs(temp2(j,i)-(sqrt(W(i))*X_Chol(j,i))).gt.1.0e-7_dp) then
                     call stop_all(t_r,"RPA equations not satisfied for X")
                 endif
             enddo
         enddo
         do i=1,ov_space
             do j=ov_space+1,StabilitySize
-                if(abs(temp2(j,i)-(sqrt(W(i))*Y_Chol(j-ov_space,i))).gt.1.0e-7) then
+                if(abs(temp2(j,i)-(sqrt(W(i))*Y_Chol(j-ov_space,i))).gt.1.0e-7_dp) then
                     call stop_all(t_r,"RPA equations not satisfied for Y")
                 endif
             enddo
@@ -938,12 +938,12 @@ module RPA_Mod
                 do i=1,ov_space
                     temp = temp + X(i,mu)*X(i,mu_p) - Y(i,mu)*Y(i,mu_p)
                 enddo
-                if((mu.eq.mu_p).and.((abs(temp)-1.0_dp).gt.1.0e-6)) then
+                if((mu.eq.mu_p).and.((abs(temp)-1.0_dp).gt.1.0e-6_dp)) then
                     write(6,*) mu,mu_p,temp
                     call writevector(X(:,mu),'X(:,mu)')
                     call writevector(Y(:,mu),'Y(:,mu)')
                     call stop_all(t_r,'X/Y not normalized')
-                elseif((mu.ne.mu_p).and.(abs(temp).gt.1.0e-6)) then
+                elseif((mu.ne.mu_p).and.(abs(temp).gt.1.0e-6_dp)) then
                     write(6,*) mu,mu_p
                     call stop_all(t_r,'X/Y not orthogonal')
                 endif
@@ -957,10 +957,10 @@ module RPA_Mod
                 do mu=1,ov_space
                     temp = temp + X(i,mu)*X(j,mu) - Y(i,mu)*Y(j,mu)
                 enddo
-                if((i.ne.j).and.(abs(temp).gt.1.0e-7)) then
+                if((i.ne.j).and.(abs(temp).gt.1.0e-7_dp)) then
                     write(6,*) i,j,temp
                     call stop_all(t_r,'X/Y rows not orthogonal')
-                elseif((i.eq.j).and.(abs(temp)-1.0_dp).gt.1.0e-7) then
+                elseif((i.eq.j).and.(abs(temp)-1.0_dp).gt.1.0e-7_dp) then
                     write(6,*) i,j,temp
                     call stop_all(t_r,'X/Y rows not normalized')
                 endif
