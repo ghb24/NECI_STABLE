@@ -83,7 +83,7 @@ module LoggingData
     ! If we'd like to rotate the NOs again so as to obtain broken symmetry NOs
     logical :: tBrokenSymNOs,tBreakSymNOs
     real(dp) :: occ_numb_diff
-    integer :: nRot
+    integer :: nRot,local_cutoff
     integer, allocatable :: RotNOs(:)
     integer(TagIntType) :: tagRotNOs
 end module LoggingData

@@ -534,12 +534,17 @@ MODULE Logging
 
         case("BROKENSYMNOS")
             tBrokenSymNOs = .true.
+            call readi(local_cutoff)
             call readf(occ_numb_diff)
 ! This is to rotate the obtained natural orbitals (NOs) again in order to obtain
 ! symmetry broken NOs: pairs of NOs whose occupation numbers differ by less 
 ! than the specified threshold occ_numb_diff (relative difference, i.e. difference
 ! divided by absolute value) will be rotated so as to 
 ! maximally localise them using and Edminston Ruedenberg type localisation
+! local_cutoff is the index of the spatial orbital which is the borderline
+! for performing localisation or delocalisation of the NO: all chosen NOs pairs with 
+! orbital index less or equal to (and hence occupation numbers larger than)
+! this orbital will be delocalised while the others will be localised
 ! A new FCIDUMP file (BSFCIDUMP) with the rotated NOs is printed out
 
         case("BREAKSYMNOS")

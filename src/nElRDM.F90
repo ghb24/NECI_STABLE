@@ -71,7 +71,7 @@ MODULe nElRDMMod
                        tTaperDiagRDM, tTaperSQDiagRDM, tCorrectRDMErf, erf_factor1, &
                        erf_factor2, ThreshOccRDM, tThreshOccRDMDiag,tDipoles, &
                        tBrokenSymNOs,occ_numb_diff, tForceCauchySchwarz,tBreakSymNOs, &
-                       nRot,RotNOs,tagRotNOs
+                       nRot,RotNOs,tagRotNOs,local_cutoff
     use RotateOrbsData, only: CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt, &
                               SymLabelCounts2_rot,SymLabelList2_rot, &
                               SymLabelListInv_rot,NoOrbs, SpatOrbs, &
@@ -5165,7 +5165,7 @@ MODULe nElRDMMod
         integer, allocatable :: rotate_list(:,:),rotorbs(:,:)
         integer :: l1,l2,l3,l4,l5,l6,m,n
         integer :: iumat,jumat
-        logical :: partnerfound
+        logical :: partnerfound,localdelocal
 
         allocate(trans_2orbs_coeffs(2,2))
         allocate(rotorbs(6,2))
@@ -5311,8 +5311,13 @@ MODULe nElRDMMod
                     write(6,'(A20,4(I3))') 'Rotating NOs:',rotate_list(l1,:)
                     iumat = rotate_list(l1,1)
                     jumat = rotate_list(l1,2)
+                    if (jumat.le.local_cutoff) then
+                        localdelocal = .false.
+                    elseif (jumat.gt.local_cutoff) then
+                        localdelocal = .true.
+                    endif
                     call Rotate2Orbs(iumat,jumat,trans_2orbs_coeffs,selfint(iumat),&
-                        &selfint(jumat))
+                        &selfint(jumat),localdelocal)
                     ! The new NOs are 
                     ! phi_{i'} = cos a p_{i} + sin a p_{j}
                     ! phi_{j'} = -sin a p_{i} + cos a p_{j}
@@ -5321,11 +5326,11 @@ MODULe nElRDMMod
                     NatorbMat(iumat,jumat) = trans_2orbs_coeffs(1,2)
                     NatorbMat(jumat,jumat) = trans_2orbs_coeffs(2,2)
                     write(6,*) 'Sum of rotated NO self-interactions:',sum(selfint)
-                    if ((sum(selfint)-selfint_old).lt.0.0_dp) then
-                        write(6,*) '***Warning***'
-                        write(6,'(A50,4I3)') 'Selfinteraction decreased when rotating:',&
-                            &rotate_list(l1,:)
-                    endif
+                    !if ((sum(selfint)-selfint_old).lt.0.0_dp) then
+                    !    write(6,*) '***Warning***'
+                    !    write(6,'(A50,4I3)') 'Selfinteraction decreased when rotating:',&
+                    !        &rotate_list(l1,:)
+                    !endif
                     selfint_old = sum(selfint)
                 endif
            enddo
@@ -5360,8 +5365,14 @@ MODULe nElRDMMod
                                         NatOrbMat(l4,l4) = 1.0_dp
                                     endif
                                 enddo
+                                if (jumat.le.local_cutoff) then
+                                    localdelocal = .false.
+                                elseif (jumat.gt.local_cutoff) then
+                                    localdelocal = .true.
+                                endif
                                 call Rotate2Orbs(iumat,jumat,&
-                                    &trans_2orbs_coeffs,selfint(iumat),selfint(jumat))
+                                    &trans_2orbs_coeffs,selfint(iumat),selfint(jumat)&
+                                    &,localdelocal)
                                 ! The new NOs are 
                                 ! phi_{i'} = cos a p_{i} + sin a p_{j}
                                 ! phi_{j'} = -sin a p_{i} + cos a p_{j}
@@ -5385,11 +5396,11 @@ MODULe nElRDMMod
                             endif
                         enddo
                     write(6,*) 'Sum of rotated NO self-interactions:',sum(selfint)
-                    if ((sum(selfint)-selfint_old).lt.0.0_dp) then
-                        write(6,*) '***Warning***'
-                        write(6,'(A50,4I3)') 'Selfinteraction decreased when rotating:',&
-                            &rotate_list(l1,:)
-                    endif
+                    !if ((sum(selfint)-selfint_old).lt.0.0_dp) then
+                    !    write(6,*) '***Warning***'
+                    !    write(6,'(A50,4I3)') 'Selfinteraction decreased when rotating:',&
+                    !        &rotate_list(l1,:)
+                    !endif
                     selfint_old = sum(selfint)
                 elseif ((rotate_list(l1,3).ne.0).and.(rotate_list(l1,4).ne.0)) then
                         sum_new = sum(selfint)
@@ -5423,8 +5434,13 @@ MODULe nElRDMMod
                                 do l5=0,1
                                     iumat = rotate_list(l1,rotorbs(((2*l3)-l5),1))
                                     jumat = rotate_list(l1,rotorbs(((2*l3)-l5),2))
+                                    if (jumat.le.local_cutoff) then
+                                        localdelocal = .false.
+                                    elseif (jumat.gt.local_cutoff) then
+                                        localdelocal = .true.
+                                    endif
                                     call Rotate2Orbs(iumat,jumat,&
-                                        &trans_2orbs_coeffs,selfint(iumat),selfint(jumat))
+                                        &trans_2orbs_coeffs,selfint(iumat),selfint(jumat),localdelocal)
                                     ! The new NOs are 
                                     ! phi_{i'} = cos a p_{i} + sin a p_{j}
                                     ! phi_{j'} = -sin a p_{i} + cos a p_{j}
@@ -5449,11 +5465,11 @@ MODULe nElRDMMod
                             endif
                         enddo
                     write(6,*) 'Sum of rotated NO self-interactions:',sum(selfint)
-                    if ((sum(selfint)-selfint_old).lt.0.0_dp) then
-                        write(6,*) '***Warning***'
-                        write(6,'(A50,4I3)') 'Selfinteraction decreased when rotating:',&
-                            &rotate_list(l1,:)
-                    endif
+                    !if ((sum(selfint)-selfint_old).lt.0.0_dp) then
+                    !    write(6,*) '***Warning***'
+                    !    write(6,'(A50,4I3)') 'Selfinteraction decreased when rotating:',&
+                    !        &rotate_list(l1,:)
+                    !endif
                     selfint_old = sum(selfint)
                 endif
            enddo
@@ -5493,7 +5509,7 @@ MODULe nElRDMMod
 
     endsubroutine BrokenSymNO
 
-    subroutine Rotate2Orbs(i,j,trans_2orbs_coeffs,selfintorb1,selfintorb2)
+    subroutine Rotate2Orbs(i,j,trans_2orbs_coeffs,selfintorb1,selfintorb2,localdelocal)
 
         ! This routine takes two orbitals i,j, and rotates them in order to maximally localise these
         ! It employs an Edminston-Ruedenberg type localisation which maximises the self-interaction
@@ -5516,6 +5532,7 @@ MODULe nElRDMMod
         integer :: indicesij(2)
         integer, intent(in) :: i,j
         integer :: l1,l2,l3,l4,l5
+        logical, intent(in) :: localdelocal
 
         indicesij(1) = i
         indicesij(2) = j
@@ -5593,8 +5610,16 @@ MODULe nElRDMMod
         !enddo
 
         ! choose the angle which maximises the selfinteractions
-        maxangle = maxloc(selfinteractions)
-        maxint = maxval(selfinteractions)
+        if (.not.localdelocal) then
+            ! maximally delocalised
+            maxangle = minloc(selfinteractions)
+            maxint = minval(selfinteractions)
+        elseif (localdelocal) then
+            ! maximally localised
+            maxangle = maxloc(selfinteractions)
+            maxint = maxval(selfinteractions)
+        endif
+
 
         ! return transformatin coefficients
         trans_2orbs_coeffs(1,1) = cos(alpha2(maxangle(1)))
