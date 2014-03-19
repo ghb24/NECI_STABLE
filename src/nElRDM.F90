@@ -1545,7 +1545,7 @@ MODULe nElRDMMod
             call FindExcitBitDetSym(iLutnI, iLutnI2)
             call decode_bit_det (nI2, iLutnI2)
             SignFacI = hphf_sign(iLutnI)
-            realSignFacI = real(SignFacI,dp) / SQRT(2.0)
+            realSignFacI = real(SignFacI,dp) / SQRT(2.0_dp)
 
 !            write(6,*) 'spin coupled nI'
 !            do i = 1,4
@@ -2420,7 +2420,7 @@ MODULe nElRDMMod
             IF(NoDets.gt.1) THEN
                 call extract_bit_rep (Sing_ExcDjs2(:,StartDets), nI, SignDi, FlagsDi)
 
-                realSignDi = real(SignDi(1))
+                realSignDi = real(SignDi(1),dp)
 
                 do j=StartDets+1,(NoDets+StartDets-1)
 ! D_i is in the first spot - start from the second.                
@@ -2442,7 +2442,7 @@ MODULe nElRDMMod
 
                         call extract_bit_rep (CurrentDets(:,PartInd), nJ, SignDj, FlagsDj)
 
-                        realSignDj = real(SignDj(1))
+                        realSignDj = real(SignDj(1),dp)
 
 ! Ex(1,:) comes out as the orbital(s) excited from, Ex(2,:) comes out as the orbital(s) 
 ! excited to.    
@@ -2490,7 +2490,7 @@ MODULe nElRDMMod
             IF(NoDets.gt.1) THEN
                 call extract_bit_rep (Doub_ExcDjs2(:,StartDets), nI, SignDi, FlagsDi)
 
-                realSignDi = real(SignDi(1))
+                realSignDi = real(SignDi(1),dp)
 
                 do j=StartDets+1,(NoDets+StartDets-1)
 ! D_i is in the first spot - start from the second.                
@@ -2515,7 +2515,7 @@ MODULe nElRDMMod
 
                         call extract_bit_rep (CurrentDets(:,PartInd), nJ, SignDj, FlagsDj)
 
-                        realSignDj = real(SignDj(1))
+                        realSignDj = real(SignDj(1),dp)
 
 ! Ex(1,:) comes out as the orbital(s) excited from, Ex(2,:) comes out as the orbital(s) 
 ! excited to. 
@@ -4273,9 +4273,9 @@ MODULe nElRDMMod
         logical :: tNegEvalue, tWrittenEvalue
 
         if(tStoreSpinOrbs) then
-            Norm_Evalues = SumDiag/REAL(NEl)
+            Norm_Evalues = SumDiag/REAL(NEl,dp)
         else
-            Norm_Evalues = 2.0_dp*(SumDiag/REAL(NEl))
+            Norm_Evalues = 2.0_dp*(SumDiag/REAL(NEl,dp))
         endif
 
         ! Write out normalised evalues to file and calculate the correlation entropy.
@@ -4425,7 +4425,7 @@ MODULe nElRDMMod
                         INT(G1(2*SymLabelList2_rot(j))%Ml))) tDiffLzSym = .true.
                 endif
                 if(tDiffSym) then
-                    IF(ABS(NatOrbMat(i,j)).ge.1.0E-15) THEN
+                    IF(ABS(NatOrbMat(i,j)).ge.1.0E-15_dp) THEN
                         WRITE(6,'(6A8,A20)') 'i','j','Label i','Label j','Sym i',&
                                                                 'Sym j','Matrix value'
                         if(tStoreSpinOrbs) then                                                              
@@ -4455,7 +4455,7 @@ MODULe nElRDMMod
                     NatOrbMat(i,j)=0.0_dp
                 ENDIF
                 if(tDiffLzSym) then
-                    IF(ABS(NatOrbMat(i,j)).ge.1.0E-15) THEN
+                    IF(ABS(NatOrbMat(i,j)).ge.1.0E-15_dp) THEN
                         WRITE(6,'(6A8,A40)') 'i','j','Label i','Label j','Lz i',&
                                                                 'Lz j','Matrix value'
                         if(tStoreSpinOrbs) then                                                              
@@ -4772,14 +4772,14 @@ MODULe nElRDMMod
                 enddo
 
                 Temp4indints(:,:)=0.0_dp
-                CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,NatOrbMat(:,:),NoOrbs,&
-                            FourIndInts(1:NoOrbs,1:NoOrbs,b,d),NoOrbs,0.0,&
+                CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0_dp,NatOrbMat(:,:),NoOrbs,&
+                            FourIndInts(1:NoOrbs,1:NoOrbs,b,d),NoOrbs,0.0_dp,&
                             Temp4indints(1:NoOrbs,1:NoOrbs),NoOrbs)
                 ! Temp4indints(i,g) comes out of here, so to transform g to k, 
                 ! we need the transpose of this.
 
-                CALL DGEMM('T','T',NoOrbs,NoOrbs,NoOrbs,1.0,NatOrbMat(:,:),NoOrbs,&
-                            Temp4indints(1:NoOrbs,1:NoOrbs),NoOrbs,0.0,&
+                CALL DGEMM('T','T',NoOrbs,NoOrbs,NoOrbs,1.0_dp,NatOrbMat(:,:),NoOrbs,&
+                            Temp4indints(1:NoOrbs,1:NoOrbs),NoOrbs,0.0_dp,&
                             FourIndInts(1:NoOrbs,1:NoOrbs,b,d),NoOrbs)
                 ! Get Temp4indits02(i,k)
             enddo
@@ -4790,12 +4790,12 @@ MODULe nElRDMMod
             do k=1,NoOrbs
 
                 Temp4indints(:,:)=0.0_dp
-                CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,NatOrbMat(:,:),NoOrbs,&
-                            FourIndInts(i,k,1:NoOrbs,1:NoOrbs),NoOrbs,0.0,&
+                CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0_dp,NatOrbMat(:,:),NoOrbs,&
+                            FourIndInts(i,k,1:NoOrbs,1:NoOrbs),NoOrbs,0.0_dp,&
                             Temp4indints(1:NoOrbs,1:NoOrbs),NoOrbs)
 
-                CALL DGEMM('T','T',NoOrbs,NoOrbs,NoOrbs,1.0,NatOrbMat(:,:),&
-                            NoOrbs,Temp4indints(1:NoOrbs,1:NoOrbs),NoOrbs,0.0,&
+                CALL DGEMM('T','T',NoOrbs,NoOrbs,NoOrbs,1.0_dp,NatOrbMat(:,:),&
+                            NoOrbs,Temp4indints(1:NoOrbs,1:NoOrbs),NoOrbs,0.0_dp,&
                             FourIndInts(i,k,1:NoOrbs,1:NoOrbs),NoOrbs)
             enddo
         enddo

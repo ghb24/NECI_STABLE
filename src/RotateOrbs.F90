@@ -1988,13 +1988,13 @@ MODULE RotateOrbsMod
         do b=1,NoOrbs
             do d=1,b
                 Temp4indints(:,:)=0.0_dp
-                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,UMatTemp01(:,:,d,b),NoOrbs, &
-                    0.0,Temp4indints(:,:),NoRotOrbs)
+                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0_dp,CoeffT1(:,:),NoOrbs,UMatTemp01(:,:,d,b),NoOrbs, &
+                    0.0_dp,Temp4indints(:,:),NoRotOrbs)
                 ! Temp4indints(i,g) comes out of here, so to transform g to k, we need the transpose of this.
 
                 Temp4indints02(:,:)=0.0_dp
-                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(:,:),NoRotOrbs, &
-                    0.0,Temp4indints02(:,:),NoRotOrbs)
+                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0_dp,CoeffT1(:,:),NoOrbs,Temp4indints(:,:),NoRotOrbs, &
+                    0.0_dp,Temp4indints02(:,:),NoRotOrbs)
                 ! Get Temp4indits02(i,k)
 
                 do i=1,NoRotOrbs
