@@ -151,6 +151,7 @@ MODULE Logging
       tBrokenSymNOs = .false.
       occ_numb_diff = 0.001_dp
       tBreakSymNOs = .false.
+      local_cutoff = 0
 
 ! Feb08 defaults
       IF(Feb08) THEN
