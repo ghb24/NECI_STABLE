@@ -1121,14 +1121,14 @@
             ALLOCATE(DiagRhos(iExcit+1),stat=ierr)
             CALL LogMemAlloc("DiagRhos",iExcit+1,8,this_routine,tagDiagRhos,iErr)
             do j=2,iExcit+1
-                DiagRhos(j)=REAL(ExcitInfo(j-1,0))
+                DiagRhos(j)=REAL(ExcitInfo(j-1,0),dp)
             enddo
-            DiagRhos(1)=REAL(ExcitInfo(iExcit,0))
+            DiagRhos(1)=REAL(ExcitInfo(iExcit,0),dp)
             CALL GetValsnVecs(iExcit+1,DiagRhos,ExcitInfo(1:iExcit,1),AllVals,AllVecs)
             Vector=AllVecs(iExcit+1)
             i=0
             reachmax = .false.
-            do while((Vector.gt.0.1).or..not.Reachmax)
+            do while((Vector.gt.0.1_dp).or..not.Reachmax)
                 i=i+1
                 PreVec=Vector
                 Vector=AllVecs(iExcit-(i-1))
@@ -1198,7 +1198,7 @@
 !Initially, assume that all excited stars are only attached by their *first* eigenvectors
 !Store the first eigenvalues for the excited stars in Vals. It is these that we assume linearly change.
                     Vals(i)=AllVals(iExcit+1)
-                    IF(AllVecs(iExcit+1).lt.0.5) THEN
+                    IF(AllVecs(iExcit+1).lt.0.5_dp) THEN
                         WRITE(6,*) "Eigenvector is equal to ",AllVecs(iExcit+1)," for Linepoint ",i," out of ",LinePoints
                         WRITE(6,*) "Assumption that only one eigenvector from each excited star attached is poor"
                     ENDIF
@@ -1265,7 +1265,7 @@
 !Calculate Rsq value
             Rsq=1.0_dp-ExpctVal/Syy
 
-            IF(Rsq.lt.0.95) THEN
+            IF(Rsq.lt.0.95_dp) THEN
                 WRITE(6,*) "Problem with linear approximation of eigenvalues, R^2 value: ", Rsq
                 STOP
             ELSEIF(Rsq.gt.1.0_dp) THEN
@@ -1436,7 +1436,7 @@
 
 !Multiply the diagonal elements by the value of rho_jj we want                
                 do j=1,iExcit+1
-                    IF(REAL(ExcitInfo(j-1,0),dp).lt.0.8) THEN
+                    IF(REAL(ExcitInfo(j-1,0),dp).lt.0.8_dp) THEN
                         STOP 'rho_jj value too small, or incorrect for linear approximation'
                     ENDIF
                     NewDiagRhos(j)=(ExcitInfo(j-1,0))*RhoValue
@@ -1582,7 +1582,7 @@
                 RsqVals(i)=1.0_dp-ExpctVals(i)/SyyVals(i)
                 RsqVecs(i)=1.0_dp-ExpctVecs(i)/SyyVecs(i)
 
-                IF((RsqVals(i).lt.0.95).or.(RsqVecs(i).lt.0.95)) THEN
+                IF((RsqVals(i).lt.0.95_dp).or.(RsqVecs(i).lt.0.95_dp)) THEN
                     WRITE(6,*) "Problem with linear approximation, R^2 value: ", RsqVals(i)," or, " &
                         ,RsqVecs(i)," for eigenvalue/vector : ", i
                 ELSEIF((RsqVals(i).gt.1.0_dp).or.(RsqVecs(i).gt.1.0_dp)) THEN
@@ -2521,12 +2521,12 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          
          IF(Tau.eq.0.0_dp) THEN
             WRITE(6,*) "Choosing Tau so that Tau*Hii_max = 0.999 "
-            Tau=0.999/MaxDiag
+            Tau=0.999_dp/MaxDiag
          ELSE
-             IF(Tau.gt.0.999/MaxDiag) THEN
+             IF(Tau.gt.0.999_dp/MaxDiag) THEN
                  WRITE(6,*) "Illegal value of Tau chosen - resetting..."
                  WRITE(6,*) "Choosing Tau so that Tau*Hii_max = 0.999 "
-                 Tau=0.999/MaxDiag
+                 Tau=0.999_dp/MaxDiag
              ENDIF
          ENDIF
          WRITE(6,*) "Tau = ", Tau
@@ -2878,7 +2878,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 !Since VecSlot holds the next vacant slot in the array, TotWalkersNew will be one less than this.
              TotWalkersNew=VecSlot-1
              rat=(TotWalkersNew+0.0_dp)/(MaxWalkers+0.0_dp)
-             IF(rat.gt.0.9) THEN
+             IF(rat.gt.0.9_dp) THEN
                  WRITE(6,*) "*WARNING* - Number of walkers has increased to over 90% of MaxWalkers"
              ENDIF
 
@@ -3607,7 +3607,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          IF(NROOTS.eq.(NLIST-1)) THEN
 !We are searching for all roots, therefore sum of squares of projection onto root should be unity
              WRITE(6,*) "Norm of i projection:", NORMCHECK
-             IF(ABS(NORMCHECK-1).gt.0.01) WRITE(6,*)  "WARNING: Norm differs from 1 by more than 0.01.  " &
+             IF(ABS(NORMCHECK-1).gt.0.01_dp) WRITE(6,*)  "WARNING: Norm differs from 1 by more than 0.01.  " &
                 & //"Convergence may not be reached."
          ENDIF
          SI=SI-1.0_dp
