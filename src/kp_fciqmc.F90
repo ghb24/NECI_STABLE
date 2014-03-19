@@ -78,7 +78,7 @@ contains
                         !    call extract_bit_rep(CurrentDets(:, idet), nI_parent, parent_sign, unused_flags, &
                         !                          fcimc_excit_gen_store)
                         !    if (tUseFlags) then
-                        !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7, 4x, l1)') idet, CurrentDets(0, idet), parent_sign, &
+                        !        write(6,'(i7, 6i12, 4x, f18.7, 4x, f18.7, 4x, l1)') idet, nI_parent, parent_sign, &
                         !            test_flag(CurrentDets(:, idet), flag_deterministic)
                         !    else
                         !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') idet, CurrentDets(0, idet), parent_sign
