@@ -152,6 +152,9 @@ MODULE Logging
       occ_numb_diff = 0.001_dp
       tBreakSymNOs = .false.
       local_cutoff = 0
+      rottwo = 0
+      rotthree = 0
+      rotfour = 0
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -535,6 +538,9 @@ MODULE Logging
 
         case("BROKENSYMNOS")
             tBrokenSymNOs = .true.
+            call readi(rottwo)
+            call readi(rotthree)
+            call readi(rotfour)
             call readi(local_cutoff)
             call readf(occ_numb_diff)
 ! This is to rotate the obtained natural orbitals (NOs) again in order to obtain
@@ -546,32 +552,26 @@ MODULE Logging
 ! for performing localisation or delocalisation of the NO: all chosen NOs pairs with 
 ! orbital index less or equal to (and hence occupation numbers larger than)
 ! this orbital will be delocalised while the others will be localised
+! If BREAKSYMNOS is specified rottwo gives number of pairs to rotate, rotthree the 
+! number of triples to rotate and rotfour the number of quadruples to rotate
+! If BREAKSYMNOS is not present these will be ignored
 ! A new FCIDUMP file (BSFCIDUMP) with the rotated NOs is printed out
 
         case("BREAKSYMNOS")
             tBreakSymNOs = .true.
-! This is another option for BROKENSYMNOS
-! structure of input option is BREAKSYMNOS nRot ns1 nn1 ns2 nn2 ...
-! The NOs which should be rotated in order to break symmetry can be specified here
-! This helps for systems where the threshold doesn't give good results and the 
-! occupation numbers are known from a previous calculation
-! The specification is done as follows
-! nRot: number of following integers (only required for reading and allocating 
-! RotNOs array)
-! The following sequence of numbers specify the rotations 
-! Each rotation i is specified by two numbers (nsi,nni)
-! nsi: the first NO in the set which is rotated amongst each other
-! (numbers refer to spatial orbitals)
-! nni: number of NOs to be rotated in the set (must be either 2,3 or 4)
-! e.g. if the set of NO 2 and 3, and the set of NO 3,4,5 and 6 should be rotated
-! the input would be
-! BREAKSYMNOS 4 2 2 3 4
-            call readi(nRot)
-            allocate(RotNOs(nRot),stat=ierr)
+! This is another option for BROKENSYMNOS p1 p2... t1 t2 t3... q1 q2 q3 q4...
+! This contains just an ordered list of the spatial orbital indices of the NOs
+! to rotate, firstly the doubles, then triples, then quadruples (the number of 
+! pairs, triples and quadruples is specified with the BROKENSYMNOS options), e.g.
+! BROKENSYMNOS 2 1 1 0 0.1
+! BREAKSYMNOS 3 4 4 5 1 5 6 7 8 9 10
+! will rotate (2,3) (4,5) (1,5,6) (7,8,9,10)
+            allocate(RotNOs((2*rottwo)+(3*rotthree)+(4*rotfour)),stat=ierr)
             tagRotNOs = 0
-            call LogMemAlloc('RotNOs',nRot,4,t_r,tagRotNOs,ierr)
+            call LogMemAlloc('RotNOs',((2*rottwo)+(3*rotthree)+(4*rotfour))&
+                &,4,t_r,tagRotNOs,ierr)
             RotNOs(:) = 0
-            do i=1,nRot
+            do i=1,((2*rottwo)+(3*rotthree)+(4*rotfour))
                 call geti(RotNOs(i))
             enddo
 
