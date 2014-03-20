@@ -496,7 +496,7 @@ contains
              ! We use bit strings to store symmetry information.
              ! SYMMAX needs to be the smallest power of 2 greater or equal to
              ! the actual number of symmetry representations spanned by the basis.
-             SYMMAX = 2**ceiling(log(real(SYMMAX))/log(2.0))
+             SYMMAX = 2**ceiling(log(real(SYMMAX,dp))/log(2.0_dp))
          endif
          IF(tFixLz) WRITE(6,"(A,I3)") "Maximum Lz orbital: ",iMaxLz
          WRITE(6,"(A,I3)") "  Maximum number of symmetries: ",SYMMAX
@@ -838,7 +838,7 @@ contains
      &          //"integrals with a magnitude of over ",UMatEps," ***" 
              WRITE(6,*) ZeroedInt+NonZeroInt," 2E integrals read in..."
              WRITE(6,*) ZeroedInt," integrals zeroed..."
-             WRITE(6,*) REAL(100*ZeroedInt)/REAL(NonZeroInt+ZeroedInt), &
+             WRITE(6,*) REAL(100*ZeroedInt,dp)/REAL(NonZeroInt+ZeroedInt,dp), &
      &          " percent of 2E integrals zeroed."
          ENDIF
          IF(tCacheFCIDUMPInts) THEN
