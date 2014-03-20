@@ -117,7 +117,7 @@ C              Default Initialization by Multiplicative Congruential
    25    CONTINUE
          TWOM12 = TWOM24 * 4096.
          DO 50 I= 1,24
-         SEEDS(I) = REAL(ISEEDS(I))*TWOM24
+         SEEDS(I) = REAL(ISEEDS(I),dp)*TWOM24
          NEXT(I) = I-1
    50    CONTINUE
          NEXT(1) = 24
@@ -192,7 +192,7 @@ C           Entry to input and float integer seeds from previous run
       WRITE(6,'(A)') ' FULL INITIALIZATION OF RANLUX WITH 25 INTEGERS:'
       WRITE(6,'(5X,5I12)') ISDEXT
       DO 200 I= 1, 24
-      SEEDS(I) = REAL(ISDEXT(I))*TWOM24
+      SEEDS(I) = REAL(ISDEXT(I),dp)*TWOM24
   200 CONTINUE
       CARRY = 0.
       IF (ISDEXT(25) .LT. 0)  CARRY = TWOM24
@@ -282,7 +282,7 @@ C                    Entry to initialize from one or three integers
   325    CONTINUE
       TWOM12 = TWOM24 * 4096.
          DO 350 I= 1,24
-         SEEDS(I) = REAL(ISEEDS(I))*TWOM24
+         SEEDS(I) = REAL(ISEEDS(I),dp)*TWOM24
          NEXT(I) = I-1
   350    CONTINUE
       NEXT(1) = 24

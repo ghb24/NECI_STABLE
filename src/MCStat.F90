@@ -81,15 +81,15 @@ MODULE MCStat
             BS%iBlocks=iBlocks
             !Histogram setup
             BS%bucketCount = 250
-            bucketCentre = -0.07603822
+            bucketCentre = -0.07603822_dp
             Allocate(BS%buckets(0:iBlocks,0:BS%bucketCount))
             Allocate(BS%bucketMin(0:iBlocks))
             Allocate(BS%bucketMax(0:iBlocks))
             Do i=0,iBlocks
-               bucketWidth=2*15/(2**i)**0.5
+               bucketWidth=2*15/(2**i)**0.5_dp
                !bucketWidth=3*3*3*0.452*(2**i)**-0.23
-               BS%bucketMin(i)=bucketCentre - 0.5*bucketWidth
-               BS%bucketMax(i)=bucketCentre + 0.5*bucketWidth
+               BS%bucketMin(i)=bucketCentre - 0.5_dp*bucketWidth
+               BS%bucketMax(i)=bucketCentre + 0.5_dp*bucketWidth
             EndDo
          END subroutine
          SUBROUTINE CreateBlockStatsCov(BSC,iBlocks)
@@ -561,7 +561,7 @@ MODULE MCStat
          Else
              bucketWidth = BS%bucketMax(blockSizeIndex)-BS%bucketMin(blockSizeIndex)
              newBlockV = newBlockV - BS%bucketMin(blockSizeIndex)
-             bucketIndex = Int(newBlockV/bucketWidth*Real(BS%bucketCount))
+             bucketIndex = Int(newBlockV/bucketWidth*Real(BS%bucketCount,dp))
              BS%buckets(blockSizeIndex, bucketIndex)=BS%buckets(blockSizeIndex, bucketIndex)+blockCount
              !Print *, blockSizeIndex, bucketIndex, BS%buckets(blockSizeIndex, bucketIndex)
          EndIf
@@ -575,7 +575,7 @@ MODULE MCStat
          Do iBuckets=1, BS%bucketCount
              Do iBlockSize=0, BS%iBMax
                  bucketWidth = BS%bucketMax(iBlockSize)-BS%bucketMin(iBlockSize)
-                 Write(fileNumber, "(F25.16)", ADVANCE='NO') BS%bucketMin(iBlockSize)+bucketWidth/BS%bucketCount*(iBuckets-0.5)
+                 Write(fileNumber, "(F25.16)", ADVANCE='NO') BS%bucketMin(iBlockSize)+bucketWidth/BS%bucketCount*(iBuckets-0.5_dp)
                  Write(fileNumber, "(I7)", ADVANCE='NO') BS%buckets(iBlockSize, iBuckets)
              EndDo
              Write(fileNumber, "(A)") ""

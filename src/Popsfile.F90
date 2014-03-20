@@ -1783,7 +1783,7 @@ outer_map:      do i = 0, MappingNIfD
         MaxWalkersPart=NINT(MemoryFacPart*(NINT(InitWalkers*ScaleWalkers)))
         MaxSpawned=NINT(MemoryFacSpawn*(NINT(InitWalkers*ScaleWalkers)))
 
-        Gap=REAL(MaxSpawned)/REAL(nProcessors)
+        Gap=REAL(MaxSpawned,dp)/REAL(nProcessors,dp)
         do i=0,nProcessors-1
             InitialSpawnedSlots(i)=NINT(Gap*i)+1
         enddo
@@ -1997,7 +1997,7 @@ outer_map:      do i = 0, MappingNIfD
 
 ! CurrWalkers is the number of determinants on a particular node, AllTotWalkers is the total over all nodes.
             IntegerPart=INT(ScaleWalkers)
-            FracPart=ScaleWalkers-REAL(IntegerPart)
+            FracPart=ScaleWalkers-REAL(IntegerPart,dp)
 
             do l=1,CurrWalkers
                 call extract_sign(CurrentDets(:,l),RealTempSign)
@@ -2447,7 +2447,7 @@ outer_map:      do i = 0, MappingNIfD
 
 ! CurrWalkers is the number of determinants on a particular node, AllTotWalkers is the total over all nodes.
             IntegerPart=INT(ScaleWalkers)
-            FracPart=ScaleWalkers-REAL(IntegerPart)
+            FracPart=ScaleWalkers-REAL(IntegerPart,dp)
 
             do l=1,CurrWalkers
                 call extract_sign(Dets(:,l),RealTempSign)

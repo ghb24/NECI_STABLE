@@ -531,8 +531,8 @@ MODULE NatOrbsMod
                             Orbj=SymLabelListInv_rot(Ex(2,1))
                             Spins=1
                         ELSE
-                            Orbi=SymLabelListInv_rot(CEILING(REAL(Ex(1,1))/2.0_dp))
-                            Orbj=SymLabelListInv_rot(CEILING(REAL(Ex(2,1))/2.0_dp))
+                            Orbi=SymLabelListInv_rot(CEILING(REAL(Ex(1,1),dp)/2.0_dp))
+                            Orbj=SymLabelListInv_rot(CEILING(REAL(Ex(2,1),dp)/2.0_dp))
                             Spins=2
                         ENDIF
                         IF(tSign) THEN
@@ -557,7 +557,7 @@ MODULE NatOrbsMod
                          INT(G1(SymLabelList2_rot(Orbj)*Spins)%sym%S,4))) THEN
                             WRITE(6,*) 'ERROR in symmetries'
                             WRITE(6,*) 'Ex,',Ex(1,1),Ex(2,1)
-                            WRITE(6,*) CEILING(REAL(Ex(1,1)/2.0_dp)),CEILING(REAL(Ex(2,1)/2.0_dp))
+                            WRITE(6,*) CEILING(REAL(Ex(1,1)/2.0_dp,dp)),CEILING(REAL(Ex(2,1)/2.0_dp,dp))
                             WRITE(6,*) 'Orbi,',Orbi,'Orbj,',Orbj
                             WRITE(6,*) 'Sym(Orbi)',INT(G1(SymLabelList2_rot(Orbi)*Spins)%sym%S,4),'Sym(Orbj)', &
                                 INT(G1(SymLabelList2_rot(Orbj)*Spins)%sym%S,4)
@@ -578,7 +578,7 @@ MODULE NatOrbsMod
                             IF(tStoreSpinOrbs) THEN
                                 Orbk=SymLabelListInv_rot(nJ(k))
                             ELSE
-                                Orbk=SymLabelListInv_rot(CEILING(REAL(nJ(k))/2.0_dp))
+                                Orbk=SymLabelListInv_rot(CEILING(REAL(nJ(k),dp)/2.0_dp))
                             ENDIF
                             NatOrbMat(Orbk,Orbk)=NatOrbMat(Orbk,Orbk)+(AllHistogram(1,j)**2)
 !                            NatOrbMat(Orbk,Orbk)=NatOrbMat(Orbk,Orbk)+(0.5 * (AllHistogram(j)**2))
@@ -888,7 +888,7 @@ MODULE NatOrbsMod
                 IF(tStoreSpinOrbs) THEN
 !                    WRITE(6,*) INT(G1(SymLabelList2_rot(i))%sym%S,4),INT(G1(SymLabelList2_rot(j))%sym%S,4),NatOrbMat(i,j)
                     IF((INT(G1(SymLabelList2_rot(i))%sym%S,4).ne.INT(G1(SymLabelList2_rot(j))%sym%S,4))) THEN
-                        IF(ABS(NatOrbMat(i,j)).ge.1.0E-15) THEN
+                        IF(ABS(NatOrbMat(i,j)).ge.1.0E-15_dp) THEN
                             WRITE(6,'(6A8,A20)') 'i','j','Label i','Label j','Sym i','Sym j','Matrix value'
                             WRITE(6,'(6I3,F40.20)') i,j,SymLabelList2_rot(i),SymLabelList2_rot(j), &
                                 INT(G1(SymLabelList2_rot(i))%sym%S,4), &
@@ -907,7 +907,7 @@ MODULE NatOrbsMod
                 ELSE
 !                    WRITE(6,*) INT(G1(SymLabelList2_rot(i)*2)%sym%S,4),INT(G1(SymLabelList2_rot(j)*2)%sym%S,4),NatOrbMat(i,j)
                     IF((INT(G1(SymLabelList2_rot(i)*2)%sym%S,4).ne.INT(G1(SymLabelList2_rot(j)*2)%sym%S,4))) THEN
-                        IF(ABS(NatOrbMat(i,j)).ge.1.0E-15) THEN
+                        IF(ABS(NatOrbMat(i,j)).ge.1.0E-15_dp) THEN
                             WRITE(6,'(6A8,A20)') 'i','j','Label i','Label j','Sym i','Sym j','Matrix value'
                             WRITE(6,'(6I3,F40.20)') i,j,SymLabelList2_rot(i),SymLabelList2_rot(j), &
                              INT(G1(SymLabelList2_rot(i)*2)%sym%S,4),INT(G1(SymLabelList2_rot(j)*2)%sym%S,4),NatOrbMat(i,j)
@@ -1347,7 +1347,7 @@ MODULE NatOrbsMod
                     do j=1,(2*nOccBeta),2
                         IF((OccEnergies(j).lt.OccEnergies(k)).and.(OccEnergies(j).ne.0.0_dp)) k=j
                     enddo
-                    l=CEILING(REAL(k)/2.0_dp)
+                    l=CEILING(REAL(k,dp)/2.0_dp)
                     CoeffT1(:,i)=NatOrbMat(:,l)
                     EvaluesTrunc(i)=Evalues(l)
                     SymOrbs_rot(i)=SymOrbs_rotTemp(l)
@@ -1520,26 +1520,26 @@ MODULE NatOrbsMod
             k=0
             do i=1,SpatOrbs
                 k=k+2
-                WRITE(io1,'(F20.10,ES20.10)') REAL(k-1)/REAL(NoOrbs),Evalues(i)
-                WRITE(io1,'(F20.10,ES20.10)') REAL(k)/REAL(NoOrbs),Evalues(SpatOrbs+i)
+                WRITE(io1,'(F20.10,ES20.10)') REAL(k-1,dp)/REAL(NoOrbs,dp),Evalues(i)
+                WRITE(io1,'(F20.10,ES20.10)') REAL(k,dp)/REAL(NoOrbs,dp),Evalues(SpatOrbs+i)
             enddo
         ELSEIF(tRotateOccOnly) THEN
             k=0
             do i=1,NoOcc
                 k=k+1
-                WRITE(io1,'(F20.10,ES20.10)') REAL(k)/REAL(NoOcc),Evalues(i)
+                WRITE(io1,'(F20.10,ES20.10)') REAL(k,dp)/REAL(NoOcc,dp),Evalues(i)
             enddo
         ELSEIF(tRotateVirtOnly) THEN
             k=NoOcc
             do i=NoOcc+1,NoOrbs
                 k=k+1
-                WRITE(io1,'(F20.10,ES20.10)') REAL(k-NoOcc)/REAL(NoOrbs-NoOcc),Evalues(i)
+                WRITE(io1,'(F20.10,ES20.10)') REAL(k-NoOcc,dp)/REAL(NoOrbs-NoOcc,dp),Evalues(i)
             enddo
         ELSE
             k=0
             do i=1,SpatOrbs
                 k=k+1
-                WRITE(io1,'(F20.10,ES20.10)') REAL(k)/REAL(NoOrbs),Evalues(i)
+                WRITE(io1,'(F20.10,ES20.10)') REAL(k,dp)/REAL(NoOrbs,dp),Evalues(i)
             enddo
         ENDIF
         CLOSE(io1)
