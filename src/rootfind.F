@@ -11,9 +11,9 @@
          !Calculate the poles of the new product formulation
 
 
-         Z=0.9994
-         HIGHZ=0.99941
-         DELTA=0.0000001
+         Z=0.9994_dp
+         HIGHZ=0.99941_dp
+         DELTA=0.0000001_dp
 !         WRITE(97,*) N," excitations" 
 !         WRITE(97,*) "rhoii   rhoij"
 !         DO I=1,N
@@ -84,7 +84,7 @@ C.. A and B are sorted in ascending order of A
 !         write(76,*)
 C.. We find the first root by starting very slightly above the highest
 C.. pole
-         roots(0)=0
+         roots(0)=0.0_dp
          I=NROOTS
 !         WRITE(76,*) "Total roots = ",NROOTS
 !  This will be bounded from below by A(I+NMIN)
@@ -151,7 +151,7 @@ C.. The value at XHIGH is always bigger than at XLOW
                 ELSE
 !                    X=(XLOW+XHIGH)/2.0_dp
                     !Experience says root normally closer to higher pole, so do decasector search...
-                    X=XHIGH-(0.01*(XHIGH-XLOW))
+                    X=XHIGH-(0.01_dp*(XHIGH-XLOW))
 !                    WRITE(55,*) "Decasection X = ", X
                     CALL CALCSTARPOLYVALUE(N,A,B,X,VAL)
                     IF(VAL.GT.0.0_dp) THEN
