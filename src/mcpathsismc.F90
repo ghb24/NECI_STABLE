@@ -770,7 +770,7 @@ module mcpathsismc
      &    STOP "Cannot handle more than double excitations."
          IF(IEXLEVEL.LT.2) IEXL2=IEXLEVEL
          IF(IEXLEVEL.EQ.2) THEN
-            IEX=int(RAN2(ISEED)*real((NBASIS-NEL)*NEL)*                     &
+            IEX=int(RAN2(ISEED)*real((NBASIS-NEL)*NEL,dp)*                     &
      &         (1.0_dp+real((NBASIS-NEL-1)*(NEL-1),dp)/4.0_dp),sizeof_int)
             IF(IEX.LT.(NBASIS-NEL)*NEL) THEN
                IEXL2=1

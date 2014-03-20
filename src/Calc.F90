@@ -72,7 +72,7 @@ contains
           tTrialHash=.true.
           tIncCancelledInitEnergy = .false.
           iExitWalkers=-1
-          FracLargerDet=1.2
+          FracLargerDet=1.2_dp
           iReadWalkersRoot=0 
           tShiftonHFPop=.false.
           MaxWalkerBloom=-1
@@ -106,8 +106,8 @@ contains
           TRegenExcitgens=.false.
           MemoryFacPart=10.0_dp
           MemoryFacAnnihil=10.0_dp
-          MemoryFacSpawn=0.5
-          MemoryFacInit = 0.3
+          MemoryFacSpawn=0.5_dp
+          MemoryFacInit = 0.3_dp
           TStartSinglePart=.true.
           TFixParticleSign=.false.
           TProjEMP2=.false.
@@ -164,7 +164,7 @@ contains
           TInitStar=.false.
           NoMoveDets=1
           TMoveDets=.false.
-          GraphBias=0.99
+          GraphBias=0.99_dp
           TBiasing=.false.
           NDets=400
           Iters=10
@@ -200,7 +200,7 @@ contains
           TMPTHEORY=.FALSE.
           tMP2Standalone=.FALSE.
           TMODMPTHEORY=.FALSE.
-          G_VMC_PI = 0.95
+          G_VMC_PI = 0.95_dp
           G_VMC_SEED = -7
           G_VMC_FAC = 16
           TUPOWER=.false.
@@ -260,7 +260,7 @@ contains
           tRealCoeffByExcitLevel=.false.
           RealCoeffExcitThresh=2
           tRealSpawnCutoff=.false.
-          RealSpawnCutoff=1.0e-5
+          RealSpawnCutoff=1.0e-5_dp
           OccupiedThresh=1.0_dp
           tJumpShift = .false.
 !Feb 08 default set.
@@ -269,7 +269,7 @@ contains
           ENDIF
 
           ! Spin Projection defaults
-          spin_proj_gamma = 0.1
+          spin_proj_gamma = 0.1_dp
           tSpinProject  = .false.
           spin_proj_stochastic_yama = .false.
           spin_proj_spawn_initiators = .true.
@@ -898,7 +898,7 @@ contains
             case("TOTALWALKERS")
 !This is now input as the total number, rather than the number per processor, and it is changed to the number per processor here.
                 call getf(InitWalkers)
-                InitWalkers=NINT(REAL(InitWalkers)/REAL(nProcessors),int64)
+                InitWalkers=NINT(REAL(InitWalkers,dp)/REAL(nProcessors,dp),int64)
             case("TIME")
                 !Input the desired runtime (in MINUTES) before exiting out of the MC.
                 call getf(MaxTimeExit)
@@ -987,7 +987,7 @@ contains
                 if(item.lt.nitems) then
                     call getf(HashLengthFrac)
                 else
-                    HashLengthFrac=0.7
+                    HashLengthFrac=0.7_dp
                 endif
             case("SEMI-STOCHASTIC")
                 tSemiStochastic = .true.

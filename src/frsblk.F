@@ -43,7 +43,7 @@ C..Initialise V0
       endif
 
 C..Calculate top 80% of N 
-      NDIAG=N-INT(N*0.2) 
+      NDIAG=N-INT(N*0.2_dp) 
 C..
       IF(PRINTOUT) THEN
           WRITE(6,20000) M,N,NKRY,NBLOCK,NDIAG,LSCR,B2LIMIT

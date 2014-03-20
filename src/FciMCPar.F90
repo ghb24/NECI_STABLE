@@ -411,7 +411,7 @@ MODULE FciMCParMod
                     !EXIT
                 ENDIF
                 IF (proje_update_comb) CALL update_linear_comb_coeffs()
-                IF((iExitWalkers.ne.-1.0).and.(sum(AllTotParts).gt.iExitWalkers)) THEN
+                IF((iExitWalkers.ne.-1.0_dp).and.(sum(AllTotParts).gt.iExitWalkers)) THEN
                     !Exit criterion based on total walker number met.
                     write(iout,"(A,I15)") "Total walker population exceeds that given by &
                         &EXITWALKERS criteria - exiting...",sum(AllTotParts)
@@ -1401,7 +1401,7 @@ MODULE FciMCParMod
 
         ! Too many particles?
         rat = real(TotWalkersNew,dp) / real(MaxWalkersPart,dp)
-        if (rat > 0.95) then
+        if (rat > 0.95_dp) then
             if(tMolpro) then
                 write (iout, '(a)') '*WARNING* - Number of particles/determinants &
                                  &has increased to over 95% of allotted memory. &
@@ -1419,7 +1419,7 @@ MODULE FciMCParMod
             do i = 0, nNodes-1
                 rat = real(ValidSpawnedList(i) - InitialSpawnedSlots(i),dp) /&
                              real(InitialSpawnedSlots(1), dp)
-                if (rat > 0.95) then
+                if (rat > 0.95_dp) then
                     if(tMolpro) then
                         write (iout, '(a)') '*WARNING* - Highest processor spawned &
                                          &particles has reached over 95% of allotted memory.&
@@ -1434,7 +1434,7 @@ MODULE FciMCParMod
             enddo
         else
             rat = real(ValidSpawnedList(0), dp) / real(MaxSpawned, dp)
-            if (rat > 0.95) then
+            if (rat > 0.95_dp) then
                 if(tMolpro) then
                     write (iout, '(a)') '*WARNING* - Highest processor spawned &
                                      &particles has reached over 95% of allotted memory.&
@@ -1450,8 +1450,8 @@ MODULE FciMCParMod
 
         ! Are we near the end of the spatial initiator list
         if (tSpawnSpatialInit) then
-            rat = real(no_spatial_init_dets) / real(max_inits)
-            if (rat > 0.95) then
+            rat = real(no_spatial_init_dets,dp) / real(max_inits,dp)
+            if (rat > 0.95_dp) then
                 write(iout, '(a)') '*WARNING* - Number of spatial initiators has&
                                 & reached over 95% f max_inits.'
                 call neci_flush(iout)
@@ -2025,7 +2025,7 @@ MODULE FciMCParMod
 
                 ! And round this to an integer in the usual way
                 ! HACK: To use the same number of random numbers for the tests.
-                if (nspawn - real(int(nspawn)) == 0) r = genrand_real2_dSFMT()
+                if (nspawn - real(int(nspawn),dp) == 0.0_dp) r = genrand_real2_dSFMT()
                 nSpawn = real(stochastic_round (nSpawn), dp)
             endif
 
@@ -2141,7 +2141,7 @@ MODULE FciMCParMod
 
 !If probability is > 1, then we can just create multiple children at the chosen determinant
         ExtraCreate=INT(rat)
-        rat=rat-REAL(ExtraCreate)
+        rat=rat-REAL(ExtraCreate,dp)
 
 !Stochastically choose whether to create or not according to ranlux 
         r = genrand_real2_dSFMT() 
@@ -2153,7 +2153,7 @@ MODULE FciMCParMod
 !Child is created - what sign is it?
             IF(RealwSign(1).gt.0) THEN
 !Parent particle is positive
-                IF(real(rh).gt.0.0_dp) THEN
+                IF(real(rh,dp).gt.0.0_dp) THEN
                     AttemptCreatePar=-1     !-ve walker created
                 ELSE
                     AttemptCreatePar=1      !+ve walker created
@@ -2161,7 +2161,7 @@ MODULE FciMCParMod
 
             ELSE
 !Parent particle is negative
-                IF(real(rh).gt.0.0_dp) THEN
+                IF(real(rh,dp).gt.0.0_dp) THEN
                     AttemptCreatePar=1      !+ve walker created
                 ELSE
                     AttemptCreatePar=-1     !-ve walker created
@@ -2188,13 +2188,13 @@ MODULE FciMCParMod
             ELSEIF(AttemptCreatePar.eq.0) THEN
 !No particles were stochastically created, but some particles are still definatly created - we need to determinant their sign...
                 if (RealwSign(1) > 0) then
-                    if (real(rh) > 0) then
+                    if (real(rh,dp) > 0.0_dp) then
                         AttemptCreatePar=-ExtraCreate    !Additional particles are negative
                     ELSE
                         AttemptCreatePar=ExtraCreate       !Additional particles are positive
                     ENDIF
                 ELSE
-                    IF(real(rh).gt.0.0_dp) THEN
+                    IF(real(rh,dp).gt.0.0_dp) THEN
                         AttemptCreatePar=ExtraCreate
                     ELSE
                         AttemptCreatePar=-ExtraCreate
@@ -3620,7 +3620,7 @@ MODULE FciMCParMod
                     ! If enabled, jump the shift to the value preducted by the
                     ! projected energy!
                     if (tJumpShift) then
-                        DiagSft = real(proje_iter)
+                        DiagSft = real(proje_iter,dp)
                         defer_update = .true.
                     end if
 
@@ -5730,8 +5730,8 @@ MODULE FciMCParMod
         ENDIF
         IF((NSing.eq.0).or.(NDoub.eq.0)) THEN
             WRITE(iout,*) "Number of singles or doubles found equals zero. pDoubles will be set to 0.95. Is this correct?"
-            pDoubles = 0.95
-            pSingles = 0.05
+            pDoubles = 0.95_dp
+            pSingles = 0.05_dp
             RETURN
         elseif ((NSing < 0) .or. (NDoub < 0) .or. (ncsf < 0)) then
             call stop_all("CalcApproxpDoubles", &
@@ -6296,7 +6296,8 @@ MODULE FciMCParMod
                         DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),3)=HDoubDiag
                         kDoub=0
                         kDoub=G1(DoubEx(2,1))%k
-                        DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),4)=REAL(kDoub(1)*kDoub(1))+REAL(kDoub(2)*kDoub(2))+REAL(kDoub(3)*kDoub(3))
+                        DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),4)=REAL(kDoub(1)*kDoub(1),dp)+ &
+                            REAL(kDoub(2)*kDoub(2),dp)+REAL(kDoub(3)*kDoub(3),dp)
                     endif
                 endif
             endif
@@ -7503,7 +7504,7 @@ MODULE FciMCParMod
         HElement_t :: hel,H0tmp
 
         !Divvy up the ij pairs
-        Ranger=real(ElecPairs)/real(nProcessors)
+        Ranger=real(ElecPairs,dp)/real(nProcessors,dp)
         LowLoop=int(iProcIndex*Ranger)+1
         Highloop=int((iProcIndex+1)*Ranger)
 
@@ -7596,7 +7597,7 @@ MODULE FciMCParMod
                     !    length_g_2=real((kx-ki(1))**2+(ky-ki(2))**2+(kz-ki(3))**2)
                     !    if(length_g.gt.gCutoff.and.length_g_2.gt.gCutoff) cycle
                     !endif
-                    length=real((kx**2)+(ky**2)+(kz**2))
+                    length=real((kx**2)+(ky**2)+(kz**2),dp)
                     if(length.gt.OrbECutoff) cycle
 
                     !Find the actual k orbital
@@ -7655,7 +7656,7 @@ MODULE FciMCParMod
                     !    length_g_2=real((kx-ki(1))**2+(ky-ki(2))**2+(kz-ki(3))**2)
                     !    if(length_g.gt.gCutoff.and.length_g_2.gt.gCutoff) cycle
                     !endif
-                    length=real((kx**2)+(ky**2)+(kz**2))
+                    length=real((kx**2)+(ky**2)+(kz**2),dp)
                     if(length.gt.OrbECutoff) cycle
 
                     !Find the actual k orbital
@@ -7896,7 +7897,7 @@ MODULE FciMCParMod
       ! newly-spawned list for each processor, so it does not need to be 
       ! reevaluated each iteration.
 !      MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
-      Gap=REAL(MaxSpawned)/REAL(nNodes)
+      Gap=REAL(MaxSpawned,dp)/REAL(nNodes,dp)
       do j=0,nNodes-1
           InitialSpawnedSlots(j)=NINT(Gap*j)+1
       enddo

@@ -43,9 +43,9 @@ MODULE Logging
       tLogComplexPops=.false.
       iWriteBlockingEvery=1000
       tSaveBlocking=.false.
-      OffDiagBinRange=0.001
+      OffDiagBinRange=0.001_dp
       OffDiagMax=1.0_dp
-      BinRange=0.001
+      BinRange=0.001_dp
       iNoBins=100000
       tHistEnergies=.false.
       tHistHamil=.false.
