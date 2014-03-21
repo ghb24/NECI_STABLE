@@ -25,6 +25,7 @@ MODULE Calc
                          tTrialHash, tIncCancelledInitEnergy, tStartCoreGroundState
     use semi_stoch_gen, only: core_ras
     use ftlm_neci, only: n_init_vecs_ftlm, n_lanc_vecs_ftlm, nbeta_ftlm, delta_beta_ftlm
+    use spectral_lanczos, only: n_lanc_vecs_sl, nomega_sl, delta_omega_sl, broadening_sl
 
     implicit none
 
@@ -334,6 +335,10 @@ contains
           n_lanc_vecs_ftlm = 20
           nbeta_ftlm = 100
           delta_beta_ftlm = 0.1_dp
+          n_lanc_vecs_sl = 20
+          nomega_sl = 100
+          delta_omega_sl = 0.01_dp
+          broadening_sl = 0.05_dp
       
         end subroutine SetCalcDefaults
 
@@ -1767,6 +1772,8 @@ contains
                 tUniqueHFNode = .true.
             case("LET-INIT-POP-DIE")
                 tLetInitialPopDie = .true.
+
+            ! Parameters for deterministic finite-temperature and spectral Lanczos options.
             case("NUM_INIT_VECS_FTLM")
                 call geti(n_init_vecs_ftlm)
             case("NUM_LANC_VECS_FTLM")
@@ -1775,6 +1782,14 @@ contains
                 call geti(nbeta_ftlm)
             case("BETA_FTLM")
                 call getf(delta_beta_ftlm)
+            case("NUM_LANC_VECS_SL")
+                call geti(n_lanc_vecs_sl)
+            case("NUM_OMEGA_SL")
+                call geti(nomega_sl)
+            case("OMEGA_SL")
+                call getf(delta_omega_sl)
+            case("BROADENING_SL")
+                call getf(broadening_sl)
 
             case default
                 call report("Keyword "                                &
@@ -2246,7 +2261,7 @@ call neci_flush(6)
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,tCCMC
-         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes,tRPA_QBA, tDetermProj, tFTLM
+         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes,tRPA_QBA, tDetermProj, tFTLM, tSpecLanc
          use RPA_Mod, only : tDirectRPA
          use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer,tCCNoCuml
          use LoggingData, only: tCalcFCIMCPsi
@@ -2455,6 +2470,11 @@ call neci_flush(6)
                    tUseProcsAsNodes=.true.
                case("FTLM")
                    tFTLM = .true.
+                   I_HMAX=-21
+                   TFCIMC=.true.
+                   tUseProcsAsNodes=.true.
+               case("SPECTRAL-LANCZOS")
+                   tSpecLanc = .true.
                    I_HMAX=-21
                    TFCIMC=.true.
                    tUseProcsAsNodes=.true.

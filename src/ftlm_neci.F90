@@ -50,12 +50,14 @@ contains
             call gen_init_vec_ftlm()
 
             do j = 1, n_lanc_vecs_ftlm-1
-                call subspace_expansion_ftlm(j)
+                call subspace_expansion_lanczos(j, ftlm_vecs, full_vec_ftlm, &
+                                                 ftlm_hamil, ndets_ftlm, disps_ftlm)
                 write(6,'(1x,a19,1x,i3)') "Iteration complete:", j
                 call neci_flush(6)
             end do
 
-            call calc_final_hamil_elem_ftlm()
+            call calc_final_hamil_elem(ftlm_vecs, full_vec_ftlm, &
+                                        ftlm_hamil, ndets_ftlm, disps_ftlm)
 
             call subspace_extraction_ftlm()
 
@@ -145,6 +147,8 @@ contains
         write(6,'(1x,a48,/)') "Hamiltonian allocation and calculation complete."
         call neci_flush(6)
 
+        deallocate(ilut_list)
+
     end subroutine init_ftlm
 
     subroutine gen_init_vec_ftlm()
@@ -168,74 +172,84 @@ contains
 
     end subroutine gen_init_vec_ftlm
 
-    subroutine subspace_expansion_ftlm(ivec)
+    subroutine subspace_expansion_lanczos(ivec, lanc_vecs, full_vec, proj_hamil, counts, disps)
 
         integer, intent(in) :: ivec
+        real(dp), intent(inout) :: lanc_vecs(:,:)
+        real(dp), intent(inout) :: full_vec(:)
+        real(dp), intent(inout) :: proj_hamil(:,:)
+        integer(MPIArg), intent(in) :: counts(0:nProcessors-1), disps(0:nProcessors-1)
         integer :: i, j
         real(dp) :: overlap, tot_overlap, last_norm, norm, tot_norm
 
-        call MPIAllGatherV(ftlm_vecs(:,ivec), full_vec_ftlm, ndets_ftlm, disps_ftlm)
+        call MPIAllGatherV(lanc_vecs(:,ivec), full_vec, counts, disps)
 
         ! Multiply the last Lanczos vector by the Hamiltonian.
-        ftlm_vecs(:,ivec+1) = 0.0_dp
-        do i = 1, ndets_ftlm(iProcIndex)
+        lanc_vecs(:,ivec+1) = 0.0_dp
+        do i = 1, counts(iProcIndex)
             do j = 1, sparse_ham(i)%num_elements
-                ftlm_vecs(i, ivec+1) = ftlm_vecs(i, ivec+1) + &
-                    sparse_ham(i)%elements(j)*full_vec_ftlm(sparse_ham(i)%positions(j))
+                lanc_vecs(i, ivec+1) = lanc_vecs(i, ivec+1) + &
+                    sparse_ham(i)%elements(j)*full_vec(sparse_ham(i)%positions(j))
             end do
         end do
 
-        overlap = dot_product(ftlm_vecs(:,ivec+1), ftlm_vecs(:,ivec))
+        overlap = dot_product(lanc_vecs(:,ivec+1), lanc_vecs(:,ivec))
         call MPISumAll(overlap, tot_overlap)
 
         if (ivec == 1) then
-            ftlm_vecs(:,ivec+1) = ftlm_vecs(:,ivec+1) - tot_overlap*ftlm_vecs(:,ivec)
+            lanc_vecs(:,ivec+1) = lanc_vecs(:,ivec+1) - tot_overlap*lanc_vecs(:,ivec)
         else
-            last_norm = ftlm_hamil(ivec, ivec-1)
-            ftlm_vecs(:,ivec+1) = ftlm_vecs(:,ivec+1) - tot_overlap*ftlm_vecs(:,ivec) - last_norm*ftlm_vecs(:,ivec-1)
+            last_norm = proj_hamil(ivec, ivec-1)
+            lanc_vecs(:,ivec+1) = lanc_vecs(:,ivec+1) - tot_overlap*lanc_vecs(:,ivec) - last_norm*lanc_vecs(:,ivec-1)
         end if
 
         norm = 0.0_dp
-        do i = 1, ndets_ftlm(iProcIndex)
-            norm = norm + ftlm_vecs(i,ivec+1)*ftlm_vecs(i,ivec+1)
+        do i = 1, counts(iProcIndex)
+            norm = norm + lanc_vecs(i,ivec+1)*lanc_vecs(i,ivec+1)
         end do
         call MPISumAll(norm, tot_norm)
         tot_norm = sqrt(tot_norm)
 
         ! The final new Lanczos vector.
-        ftlm_vecs(:,ivec+1) = ftlm_vecs(:,ivec+1)/tot_norm
+        lanc_vecs(:,ivec+1) = lanc_vecs(:,ivec+1)/tot_norm
 
         ! Update the subspace Hamiltonian. It can be shown that this has a tridiagonal form
         ! where the non-zero elements are equal to the following.
-        ftlm_hamil(ivec, ivec) = tot_overlap
-        ftlm_hamil(ivec, ivec+1) = tot_norm
-        ftlm_hamil(ivec+1, ivec) = tot_norm
+        proj_hamil(ivec, ivec) = tot_overlap
+        proj_hamil(ivec, ivec+1) = tot_norm
+        proj_hamil(ivec+1, ivec) = tot_norm
 
-    end subroutine subspace_expansion_ftlm
+    end subroutine subspace_expansion_lanczos
 
-    subroutine calc_final_hamil_elem_ftlm()
+    subroutine calc_final_hamil_elem(lanc_vecs, full_vec, proj_hamil, counts, disps)
 
-        integer :: i, j
+        real(dp), intent(inout) :: lanc_vecs(:,:)
+        real(dp), intent(inout) :: full_vec(:)
+        real(dp), intent(inout) :: proj_hamil(:,:)
+        integer(MPIArg), intent(in) :: counts(0:nProcessors-1), disps(0:nProcessors-1)
+        integer :: i, j, final_elem
         real(dp) :: temp, overlap, tot_overlap
 
-        call MPIAllGatherV(ftlm_vecs(:,n_lanc_vecs_ftlm), full_vec_ftlm, ndets_ftlm, disps_ftlm)
+        final_elem = size(proj_hamil,1)
+
+        call MPIAllGatherV(lanc_vecs(:,final_elem), full_vec, counts, disps)
 
         overlap = 0.0_dp
-        do i = 1, ndets_ftlm(iProcIndex)
+        do i = 1, counts(iProcIndex)
             ! If we denote the final Lanczos vector as V, then at the end of the following
             ! do loop, temp will hold (H*V)_i. That is, the element of H*V corresponding to
             ! the i'th basis vector, which we're currently on (where H is the Hamiltonian matrix).
             temp = 0.0_dp
             do j = 1, sparse_ham(i)%num_elements
-                temp = temp + sparse_ham(i)%elements(j)*full_vec_ftlm(sparse_ham(i)%positions(j))
+                temp = temp + sparse_ham(i)%elements(j)*full_vec(sparse_ham(i)%positions(j))
             end do
-            overlap = overlap + temp*ftlm_vecs(i,n_lanc_vecs_ftlm)
+            overlap = overlap + temp*lanc_vecs(i,final_elem)
         end do
         call MPISumAll(overlap, tot_overlap)
 
-        ftlm_hamil(n_lanc_vecs_ftlm, n_lanc_vecs_ftlm) = tot_overlap
+        proj_hamil(final_elem, final_elem) = tot_overlap
 
-    end subroutine calc_final_hamil_elem_ftlm
+    end subroutine calc_final_hamil_elem
 
     subroutine subspace_extraction_ftlm()
 
@@ -249,7 +263,7 @@ contains
         allocate(work(lwork))
 
         ! This routine diagonalises a symmetric matrix, A.
-        ! V tells the routine to calculate eigenvalues *and* eigenvectors.
+        ! N tells the routine to calculate eigenvalues only.
         ! U tells the routine to get the upper half of A (it is symmetric).
         ! n_lanc_vecs_ftlm is the number of rows and columns in A.
         ! A = ftlm_hamil. This matrix stores the eigenvectors in its columns on output.
@@ -258,7 +272,7 @@ contains
         ! work is scrap space.
         ! lwork is the length of the work array.
         ! info = 0 on output if diagonalisation is successful.
-        call dsyev('V', 'U', n_lanc_vecs_ftlm, ftlm_hamil, n_lanc_vecs_ftlm, ftlm_h_eigv, work, lwork, info)
+        call dsyev('N', 'U', n_lanc_vecs_ftlm, ftlm_hamil, n_lanc_vecs_ftlm, ftlm_h_eigv, work, lwork, info)
 
         deallocate(work)
 

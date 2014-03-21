@@ -44,7 +44,7 @@ MODULE FciMCParMod
                         tRealSpawnCutoff, RealSpawnCutoff, tDetermProj, &
                         tJumpShift, tVaryInitThresh, tUseRealCoeffs, &
                         tSpatialOnlyHash, tSemiStochastic, tTrialWavefunction, &
-                        tLetInitialPopDie, tFTLM
+                        tLetInitialPopDie, tFTLM, tSpecLanc
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
@@ -151,6 +151,7 @@ MODULE FciMCParMod
                                 end_semistoch, is_core_state, return_mp1_amp_and_mp2_energy
     use trial_wf_gen, only: init_trial_wf, update_compare_trial_file, end_trial_wf
     use ftlm_neci, only: perform_ftlm
+    use spectral_lanczos, only: perform_spectral_lanczos
     use gndts_mod, only: gndts
     use sort_mod
     use get_excit, only: make_double
@@ -247,6 +248,10 @@ MODULE FciMCParMod
         else if (tFTLM) then
             ! If performing a finite-temperature Lanczos method job instead of FCIQMC:
             call perform_ftlm()
+            return
+        else if (tSpecLanc) then
+            ! If performing a finite-temperature Lanczos method job instead of FCIQMC:
+            call perform_spectral_lanczos()
             return
         end if
         
