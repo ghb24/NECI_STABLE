@@ -1968,7 +1968,7 @@ MODULE FciMCParMod
                 
                 if (tRealSpawnCutoff .and. &
                     abs(nSpawn) < RealSpawnCutoff) then
-                    p_spawn_rdmfac=nSpawn/RealSpawnCutoff
+                    p_spawn_rdmfac=abs(nSpawn)/RealSpawnCutoff
                     nSpawn = RealSpawnCutoff &
                            * stochastic_round (nSpawn / RealSpawnCutoff)
                else
