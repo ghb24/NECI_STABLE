@@ -957,7 +957,7 @@ contains
 
         ! Perform a binary search to find the item.
         do while (hi /= lo)
-            pos = int(real(hi + lo) / 2)
+            pos = int(real(hi + lo,dp) / 2)
 
             if (sumdet == det_sum(pos)) then
                 exit
@@ -1608,8 +1608,8 @@ contains
         M=0
         csf_coeff = 1
         do i=1,nopen
-            scur = -(csf(i)-1.5)
-            mcur = -(real(dorder(i))-0.5)
+            scur = -(csf(i)-1.5_dp)
+            mcur = -(real(dorder(i))-0.5_dp)
             S = S + scur
             M = M + mcur
 
@@ -1681,7 +1681,7 @@ contains
         if (present(coeffs)) then
             threshold = real(InitiatorWalkNo, dp)
         else
-            threshold = 1e-5
+            threshold = 1e-5_dp
         endif
 
         ! We want to find the minimum number of unpaired electrons

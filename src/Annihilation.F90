@@ -300,7 +300,7 @@ MODULE AnnihilationMod
         ENDIF
 
 !Max index is the largest occupied index in the array of hashes to be ordered in each processor 
-        IF(MaxIndex.gt.(0.9*MaxSpawned)) THEN
+        IF(MaxIndex.gt.(0.9_dp*MaxSpawned)) THEN
             write(6,*) MaxIndex,MaxSpawned
             CALL Warning_neci("SendProcNewParts","Maximum index of newly-spawned array is " &
             & //"close to maximum length after annihilation send. Increase MemoryFacSpawn")
@@ -1056,9 +1056,9 @@ MODULE AnnihilationMod
                                 HistMinInd2(ExcitLevel)=PartIndex
                                 IF(tSuc) THEN
                                     AvAnnihil(j,PartIndex)=AvAnnihil(j,PartIndex)+ &
-                                    REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
+                                    REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))),dp)
                                     InstAnnihil(j,PartIndex)=InstAnnihil(j,PartIndex)+ &
-                                    REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
+                                    REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))),dp)
                                 ELSE
                                     WRITE(6,*) "***",SpawnedParts(0:NIftot,i)
                                     Call WriteBitDet(6,SpawnedParts(0:NIfTot,i),.true.)
@@ -1194,7 +1194,7 @@ MODULE AnnihilationMod
                     if (.not. IsUnoccDet(SignTemp)) tPrevOcc=.true. 
                     
                     do j = 1, lenof_sign
-                        if ((abs(SignTemp(j)).gt.0.0) .and. (abs(SignTemp(j)).lt.OccupiedThresh)) then
+                        if ((abs(SignTemp(j)).gt.0.0_dp) .and. (abs(SignTemp(j)).lt.OccupiedThresh)) then
                             !We remove this walker with probability 1-RealSignTemp
                             pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
                             r = genrand_real2_dSFMT ()
