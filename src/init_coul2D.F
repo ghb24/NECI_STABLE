@@ -29,7 +29,7 @@ C..
       T2 = neci_etime(t)
       T3=(T2-T1)
       WRITE(6,*) 'V0=',CK(NMESHX/2+1,NMESHX/2+1,NMESHX/2+1)
-      WRITE(6,*) ' TIME FOR INITIALISATION:',T3/1000.
+      WRITE(6,*) ' TIME FOR INITIALISATION:',T3/1000.0_dp
 C..      
       RETURN 
       END

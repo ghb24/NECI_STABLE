@@ -293,7 +293,7 @@ C.. coeffs x'_n = Sum_i(x_i z0^i Binomial[i,n])/z0^n
          use constants, only : dp
          INTEGER WORDER
          real(dp) WCOEFFS(0:WORDER)
-         complex(dp) ZACOEFFS(0:WORDER)
+         complex(dp) ZACOEFFS(0:WORDER),Z0
          INTEGER I,J
          real(dp) CFACT
          DO I=0,WORDER

@@ -159,7 +159,7 @@ contains
 
                 if (sym1 == -1) then
                     ! Pick electrons uniformly
-                    e1 = ceiling((1.0 + sqrt(real(1 + 8*i))) / 2)
+                    e1 = ceiling((1.0_dp + sqrt(real(1 + 8*i))) / 2)
                     e2 = i - ((e1 - 1) * (e1 - 2)) / 2
                     orb1 = nI(e1);    orb1a = ab_pair(orb1)
                     orb2 = nI(e2);    orb2a = ab_pair(orb2)

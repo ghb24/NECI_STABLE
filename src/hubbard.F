@@ -263,7 +263,7 @@ C+1-MOD(NMAXX,2)
          IF(NMAXY.NE.NMAXX)
      &      STOP 'CANNOT HANDLE NON-SQUARE TILTED HUBBARD'
          NBASISMAX(2,2)=int(real(NMAXX,dp)*        
-     &          (real(ITILTY+ITILTX)/2.0_dp),sizeof_int)
+     &          (real(ITILTY+ITILTX,dp)/2.0_dp),sizeof_int)
          NBASISMAX(2,1)=-NBASISMAX(2,2)
 C+1-MOD(NMAXX,2)
          IF(NMAXZ.GT.1) STOP 'CANNOT HANDLE TILTED 3D HUBBARD'

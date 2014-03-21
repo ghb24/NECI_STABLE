@@ -74,7 +74,7 @@ MODULe nElRDMMod
                        tTaperDiagRDM, tTaperSQDiagRDM, tCorrectRDMErf, erf_factor1, &
                        erf_factor2, ThreshOccRDM, tThreshOccRDMDiag,tDipoles, &
                        tBrokenSymNOs,occ_numb_diff, tForceCauchySchwarz,tBreakSymNOs, &
-                       nRot,RotNOs,tagRotNOs,local_cutoff
+                       RotNOs,tagRotNOs,local_cutoff,rottwo,rotthree,rotfour
     use RotateOrbsData, only: CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt, &
                               SymLabelCounts2_rot,SymLabelList2_rot, &
                               SymLabelListInv_rot,NoOrbs, SpatOrbs, &
@@ -5232,17 +5232,23 @@ MODULe nElRDMMod
                 rotate_list(:,:) = 0
                 rotorbs(:,:) = 0
                 m = 0
-                do l1=1,nRot,2
-                    ! all integers at an odd position specify the first of the
-                    ! set of NOs to be rotated
+                do l1=2,(2*rottwo),2
                     m = m + 1
-                    rotate_list(m,1) = RotNOs(l1)
-                    ! all integer at an even position specifiy how many orbitals
-                    ! are in the set to be rotated (i.e. it should take values 2,3,4)
-                    n = RotNOs(l1+1)
-                    do l2=2,n
-                        rotate_list(m,l2) = RotNOs(l1) + l2 - 1
-                    enddo
+                    rotate_list(m,1) = RotNOs(l1-1)
+                    rotate_list(m,2) = RotNOs(l1)
+                enddo
+                do l1=((2*rottwo)+3),((2*rottwo)+(3*rotthree)),3
+                    m = m + 1
+                    rotate_list(m,1) = RotNOs(l1-2)
+                    rotate_list(m,2) = RotNOs(l1-1)
+                    rotate_list(m,3) = RotNOs(l1)
+                enddo
+                do l1=((2*rottwo)+(3*rotthree)+4),((2*rottwo)+(3*rotthree)+(4*rotfour)),4
+                    m = m + 1
+                    rotate_list(m,1) = RotNOs(l1-3)
+                    rotate_list(m,2) = RotNOs(l1-2)
+                    rotate_list(m,3) = RotNOs(l1-1)
+                    rotate_list(m,4) = RotNOs(l1)
                 enddo
             else
                 ! If the threshold is used to generate a list of NOs to be rotated

@@ -1997,7 +1997,7 @@ contains
         nCur = nEl+1-(1+sqrt(1.0_dp+4*nCur))/2
         ! Hitting smack bang on an integer causes problems
         if (ceiling(nCur) == floor(nCur)) &
-            nCur=nCur-1e-6
+            nCur=nCur-1e-6_dp
         iMinElec=ceiling(nCur)
 
         if (iProcIndex == 1) &
@@ -2008,7 +2008,7 @@ contains
 
         ! Hitting smack bang on an integer causes problems
         if (ceiling(nCur) == floor(nCur)) &
-            nCur = nCur - 1e-6
+            nCur = nCur - 1e-6_dp
         iMaxElec = floor(nCur)
 
         if (iProcIndex == nProcessors) &

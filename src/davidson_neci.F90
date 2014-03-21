@@ -19,7 +19,7 @@ use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
 implicit none
 
 integer :: max_num_davidson_iters = 25
-real(dp) :: residual_norm_target = 0.00000001
+real(dp) :: residual_norm_target = 0.00000001_dp
 
 integer :: hamil_type
 ! The value of hamil_type specifies what form the Hamiltonian is stored in.
@@ -211,7 +211,7 @@ integer(TagIntType) :: ResidualTag
             ! Take the initial eigenvalue to be the Hartree-Fock energy minus some small
             ! amount. This value cannot be exactly the Hartree-Fock energy, as this will
             ! result in dividing by zero in the subspace expansion step.
-            davidson_eigenvalue = hamil_diag(HFindex) - 0.001
+            davidson_eigenvalue = hamil_diag(HFindex) - 0.001_dp
 
         else
             allocate(temp_in(space_size))

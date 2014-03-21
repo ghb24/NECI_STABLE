@@ -78,7 +78,7 @@ contains
       iDumpCacheFlag=0
       tReadInCache=.false.
       iDFMethod=0
-      HFRand=0.01
+      HFRand=0.01_dp
       DMatEpsilon=0
       tPostFreezeHF=.false.
 
@@ -289,9 +289,9 @@ contains
 ! which would have orborder(I,1)=6, orborder(I,2)=4
 ! but say 5.002 would be meaningless as the integral part must be a
 ! multiple of 2
-                  ORBORDER(I,1)=INT(ORBORDER2(I)+0.000001)
+                  ORBORDER(I,1)=INT(ORBORDER2(I)+0.000001_dp)
                   ORBORDER(I,2)=INT((ORBORDER2(I)-ORBORDER(I,1)+      &
-     &                           0.000001)*1000)*2
+     &                           0.000001_dp)*1000)*2
                ENDIF
             ENDDO
         case("UMATCACHE")
