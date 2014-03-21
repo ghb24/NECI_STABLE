@@ -75,7 +75,7 @@ MODULE CCMC
         rat=Tau*(Kii-DiagSft)*abs(WSign(1))*dProb
 
         iKill=INT(rat)
-        rat=rat-REAL(iKill)
+        rat=rat-REAL(iKill,dp)
 
 !Stochastically choose whether to die or not
         r = genrand_real2_dSFMT() 
@@ -916,7 +916,7 @@ MODULE CCMC
 
 
         rat=(TotWalkersNew+0.0_dp)/(MaxWalkersPart+0.0_dp)
-        IF(rat.gt.0.95) THEN
+        IF(rat.gt.0.95_dp) THEN
             WRITE(iout,*) "*WARNING* - Number of particles/determinants has increased to over 95% of MaxWalkersPart"
             CALL neci_flush(6)
         ENDIF
@@ -933,7 +933,7 @@ MODULE CCMC
             enddo
         ELSE
             rat=(ValidSpawnedList(0)+0.0_dp)/(MaxSpawned+0.0_dp)
-            IF(rat.gt.0.9) THEN
+            IF(rat.gt.0.9_dp) THEN
                 WRITE(iout,*) "*WARNING* - Number of spawned particles has reached over 90% of MaxSpawned"
                 CALL neci_flush(6)
             ENDIF
@@ -1549,7 +1549,7 @@ subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,WalkerScale,iDebug)
       endif
       write(iout,*)
    endif
-   if(abs(rat).gt.1e-4*dTol) then
+   if(abs(rat).gt.1e-4_dp*dTol) then
 !Now add in a contribution from the child
       IC = FindBitExcitLevel(iLutHF, S%iLutnJ(:), nEl)
       CALL BinSearchParts3(S%iLutnJ(:),FCIDets(:,:),Det,FCIDetIndex(IC),FCIDetIndex(IC+1)-1,PartIndex,tSuc)

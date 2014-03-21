@@ -619,7 +619,7 @@ MODULE ISKRandExcit
             Die=.false.
             do i=1,iUniqueHPHF
                 AllWeights(i)=AllWeights(i)/(real(Iterations,dp)*real(nNodes,dp))
-                IF(abs(AllWeights(i)-1.0_dp).gt.0.1) THEN
+                IF(abs(AllWeights(i)-1.0_dp).gt.0.1_dp) THEN
                     WRITE(6,*) "Error here!",i
                     Die=.true.
                 ENDIF
