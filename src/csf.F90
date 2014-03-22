@@ -1609,7 +1609,7 @@ contains
         csf_coeff = 1
         do i=1,nopen
             scur = -(csf(i)-1.5_dp)
-            mcur = -(real(dorder(i))-0.5_dp)
+            mcur = -(real(dorder(i),dp)-0.5_dp)
             S = S + scur
             M = M + mcur
 
