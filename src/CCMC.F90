@@ -929,7 +929,7 @@ MODULE CCMC
         IF(nProcessors.gt.1) THEN
             do i=0,nProcessors-1
                 rat=(ValidSpawnedList(i)-InitialSpawnedSlots(i))/(InitialSpawnedSlots(1)+0.0_dp)
-                IF(rat.gt.0.95) THEN
+                IF(rat.gt.0.95_dp) THEN
                     WRITE(iout,*) "*WARNING* - Highest processor spawned particles has reached over 95% of MaxSpawned"
                     CALL neci_flush(6)
                 ENDIF

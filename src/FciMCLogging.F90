@@ -138,7 +138,7 @@ MODULE FciMCLoggingMod
         IF(tBlockEveryIteration) THEN
             TotNoBlockSizes=FLOOR( (LOG10(REAL(NMCyc-StartBlockIter,dp))) / (LOG10(2.0_dp)) )
         ELSE
-            TotNoBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartBlockIter,dp))/(REAL(StepsSft)))) / (LOG10(2.0_dp)) )
+            TotNoBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartBlockIter,dp))/(REAL(StepsSft,dp)))) / (LOG10(2.0_dp)) )
         ENDIF
 
         if (allocated(CurrBlockSum)) CurrBlockSum(:)=0.0_dp
