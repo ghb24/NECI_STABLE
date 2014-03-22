@@ -435,6 +435,10 @@ MODULE ReadInput_neci
                               &not yet implemented with these keywords')
         end if
 
+        if (tHPHF .and. tUHF) then
+            call stop_all(t_r, 'HPHF functions cannot work with UHF')
+        end if
+
     end subroutine checkinput
 
 end Module ReadInput_neci
