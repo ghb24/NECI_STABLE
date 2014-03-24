@@ -1204,6 +1204,11 @@ outer_map:      do i = 0, MappingNIfD
         integer :: excit_lev
         character(1024) :: out_tmp
         character(12) :: num_tmp
+        type(timer), save :: write_timer
+
+        ! Tme the overall popsfile read in
+        write_timer%timer_name = 'POPS-write'
+        call set_timer(write_timer)
 
         CALL MPIBarrier(error)  !sync
 !        WRITE(6,*) "Get Here",nDets
@@ -1429,6 +1434,9 @@ outer_map:      do i = 0, MappingNIfD
                 close(iunit)
             end if
         end if
+
+        ! And stop timing
+        call halt_timer(write_timer)
 
         ! Reset some globals
         AllSumNoatHF = 0
