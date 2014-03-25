@@ -7,7 +7,7 @@ module kp_fciqmc_procs
     use bit_reps, only: decode_bit_det, encode_sign, flag_is_initiator
     use CalcData, only: tTruncInitiator, tStartSinglePart, InitialPart, InitWalkers
     use CalcData, only: tSemiStochastic, tReadPops, tUseRealCoeffs, tau, DiagSft
-    use CalcData, only: AvMCExcits
+    use CalcData, only: AvMCExcits, tWritePopsNorm
     use constants
     use DetBitOps, only: DetBitEq, EncodeBitDet, IsAllowedHPHF, FindBitExcitLevel
     use Determinants, only: get_helement
@@ -34,6 +34,7 @@ module kp_fciqmc_procs
     use Parallel_neci, only: MPIBarrier, iProcIndex, MPISum, MPIReduce, nProcessors
     use ParallelHelper, only: root
     use PopsfileMod, only: FindPopsfileVersion, open_pops_head, ReadPopsHeadv4, CheckPopsParams
+    use PopsfileMod, only: write_pops_norm
     use procedure_pointers
     use semi_stoch_procs, only: copy_core_dets_this_proc_to_spawnedparts, fill_in_CurrentH
     use semi_stoch_procs, only: add_core_states_currentdet_hash, start_walkers_from_core_ground
@@ -49,9 +50,6 @@ module kp_fciqmc_procs
         logical :: tGround
         ! If true then a finite-temperature calculation is being performed.
         logical :: tFiniteTemp
-        ! If true then the projected Hamiltonian for the two-particle
-        ! Green's function is calculated.
-        logical :: tTwoParticleGreens
         ! The number of different initial walker configurations to start
         ! calculations from.
         integer :: nconfigs
@@ -112,13 +110,6 @@ module kp_fciqmc_procs
     logical :: tUseInitConfigSeeds
     integer, allocatable :: init_config_seeds(:)
 
-    ! These arrays hold the elements and bit positions of the orbitals involved
-    ! in the Green's function operator within the bitstring representation.
-    ! Set the array size to be 10 to allow up to ten orbitals to be involved,
-    ! which will be more than enough!
-    integer :: greens_elem(10), greens_bit(10)
-    integer :: greens_mag_unit
-
 contains
 
     subroutine kp_fciqmc_read_inp()
@@ -139,15 +130,12 @@ contains
         kp%av_mc_excits_kp = 0.0_dp
         kp%tGround = .false.
         kp%tFiniteTemp = .false.
-        kp%tTwoParticleGreens = .false.
         tExactHamil = .false.
         tHamilOnFly = .false.
         tInitCorrectNWalkers = .false.
         vary_niters = .false.
         tUseInitConfigSeeds = .false.
         tAllSymSectors = .false.
-        greens_elem = 0
-        greens_bit = 0
 
         read_inp: do
             call read_line(eof)
@@ -162,8 +150,6 @@ contains
                 kp%tGround = .true.
             case("FINITE-TEMPERATURE")
                 kp%tFiniteTemp = .true.
-            case("TWO-PARTICLE-GREENS")
-                kp%tTwoParticleGreens = .true.
             case("NUM-INIT-CONFIGS")
                 call geti(kp%nconfigs)
             case("NUM-REPEATS-PER-INIT-CONFIG")
@@ -276,16 +262,6 @@ contains
             allocate(init_kp_config(0:NIfTot, MaxWalkersPart), stat=ierr)
         end if
 
-        if (kp%tTwoParticleGreens) then
-            greens_elem(1) = (BRR(1)-1)/bits_n_int
-            greens_bit(1) = mod(BRR(1)-1, bits_n_int)
-
-            if (iProcIndex == root) then
-                greens_mag_unit = get_free_unit()
-                open(greens_mag_unit, file='MAGNITUDES', status='replace')
-            end if
-        end if
-
         ! If av_mc_excits_kp hasn't been set by the user, just use AvMCExcits.
         if (kp%av_mc_excits_kp == 0.0_dp) kp%av_mc_excits_kp = AvMCExcits
 
@@ -393,6 +369,7 @@ contains
                     call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                             iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                             PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
+                    if (tWritePopsNorm) call write_pops_norm()
                 else
                     call stop_all(t_r, "Only version 4 popsfile are supported with kp-fciqmc.")
                 endif
@@ -451,76 +428,6 @@ contains
                 call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int))
             end if
             call fill_in_CurrentH()
-
-        else if (kp%tTwoParticleGreens) then
-            if (irepeat == 1) then
-                if (tReadPops) then
-                    ! Read header.
-                    call open_pops_head(iunithead,formpops,binpops)
-                    PopsVersion = FindPopsfileVersion(iunithead)
-                    if(PopsVersion == 4) then
-                        call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                                iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                                PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
-                    else
-                        call stop_all(t_r, "Only version 4 popsfile are supported with kp-fciqmc.")
-                    endif
-                    call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                            iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                            PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau,PopBlockingIter)
-
-                    if (iProcIndex == root) close(iunithead)
-
-                    call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn)
-                else
-                    call stop_all(t_r, "NECI should be started from a POPSFILE to use the Green's &
-                                       &function options.")
-                end if
-
-                ! Calculate and print out the norm of the unperturbed ground state.
-                norm = 0.0_dp
-                do i = 1, int(TotWalkers, sizeof_int)
-                    call extract_sign(CurrentDets(:,i), real_sign)
-#ifdef __DOUBLERUN
-                    norm = norm + real_sign(1)*real_sign(2)
-#else
-                    norm = norm + real_sign(1)*real_sign(1)
-#endif
-                end do
-                call MPISum(norm, all_norm)
-                all_norm = sqrt(all_norm)
-                if (iProcIndex == root) then
-                    write(greens_mag_unit,'(1x,es19.12)') all_norm
-                end if
-
-                call apply_greens_operator()
-
-                if (tSemiStochastic) then
-                    ! core_space stores all core determinants from all processors. Move those on this
-                    ! processor to SpawnedParts, which add_core_states_currentdet_hash uses.
-                    call copy_core_dets_this_proc_to_spawnedparts()
-                    call add_core_states_currentdet_hash()
-                    SpawnedParts = 0_n_int
-                    ! Reset the diagonal Hamiltonian elements.
-                    CurrentH(1, 1:determ_proc_sizes(iProcIndex)) = core_ham_diag
-                end if
-
-                TotWalkersInit = TotWalkers
-                TotPartsInit = TotParts
-                AllTotPartsInit = AllTotParts
-                ! If starting from this configuration more than once, store it.
-                if (kp%nrepeats > 1) init_kp_config(:,1:TotWalkers) = CurrentDets(:,1:TotWalkers)
-            else if (irepeat > 1) then
-                TotWalkers = TotWalkersInit
-                TotParts = TotPartsInit
-                TotPartsOld = TotPartsInit
-                AllTotParts = AllTotPartsInit
-                AllTotPartsOld = AllTotPartsInit
-
-                CurrentDets(:,1:TotWalkers) = init_kp_config(:,1:TotWalkers)
-                call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int))
-                call fill_in_CurrentH()
-            end if
         end if
 
     end subroutine create_initial_config
@@ -768,48 +675,6 @@ contains
         SpawnedParts = 0_n_int
 
     end subroutine generate_init_config_this_proc
-
-    subroutine apply_greens_operator()
-    
-        integer :: idet
-        logical :: tKeepDet
-        integer(n_int) :: ilut_new(0:NIfDBO)
-        integer :: nI(nel)
-        real(dp) :: walker_sign(lenof_sign)
-
-        TotParts = 0.0_dp
-        do idet = 1, int(TotWalkers, sizeof_int)
-            ilut_new = transform_det_greens(CurrentDets(0:NIfDBO,idet)) 
-            if (all(ilut_new == 0_n_int)) then
-                call decode_bit_det(nI, CurrentDets(:,idet))
-                CurrentDets(NOffSgn:NOffSgn+lenof_sign-1, idet) = 0_n_int
-                if (.not. tSemiStochastic) call RemoveDetHashIndex(nI, idet)
-            else
-                CurrentDets(0:NIfDBO, idet) = ilut_new
-                walker_sign = transfer(CurrentDets(NOffSgn:NOffSgn+lenof_sign-1, idet), walker_sign)
-                TotParts = TotParts + abs(walker_sign)
-            end if
-        end do
-        TotPartsOld = TotParts
-        call MPIReduce(TotParts, MPI_SUM, AllTotParts)
-        AllTotPartsOld = AllTotParts
-
-    end subroutine apply_greens_operator
-
-    function transform_det_greens(ilut) result(ilut_new)
-
-        integer(n_int) :: ilut(0:NIfDBO)
-        integer(n_int) :: ilut_new(0:NIfDBO)
-
-        if (kp%tTwoParticleGreens) then
-            if (btest(ilut(greens_elem(1)), greens_bit(1))) then
-                ilut_new = ilut
-            else
-                ilut_new = 0_n_int
-            end if
-        end if
-
-    end function transform_det_greens
 
     subroutine store_krylov_vec(ivec, nvecs)
 
@@ -1218,7 +1083,7 @@ contains
 
         ! Create the filename.
         write(ind2,'(i15)') irepeat
-        if (kp%tGround .or. kp%tTwoParticleGreens) then
+        if (kp%tGround) then
             filename = trim(trim(stem)//'.'//trim(adjustl(ind2)))
         else if (kp%tFiniteTemp) then
             write(ind1,'(i15)') iconfig

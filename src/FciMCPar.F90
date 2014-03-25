@@ -44,7 +44,7 @@ MODULE FciMCParMod
                         tRealSpawnCutoff, RealSpawnCutoff, tDetermProj, &
                         tJumpShift, tVaryInitThresh, tUseRealCoeffs, &
                         tSpatialOnlyHash, tSemiStochastic, tTrialWavefunction, &
-                        tLetInitialPopDie, tFTLM
+                        tLetInitialPopDie, tFTLM, tWritePopsNorm, pops_norm_unit
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
@@ -550,6 +550,7 @@ MODULE FciMCParMod
             if (inum_runs.eq.2) CLOSE(fcimcstats_unit2)
             IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(initiatorstats_unit)
             IF(tLogComplexPops) CLOSE(complexstats_unit)
+            if (tWritePopsNorm) close(pops_norm_unit)
         ENDIF
         IF(TDebug) CLOSE(11)
 
