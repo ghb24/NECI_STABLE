@@ -1035,7 +1035,7 @@ contains
                             end if
 
                             call extract_sign (CurrentDets(:,pos), sgn2)
-                            ssq = ssq + (sgn(1) * sgn2(1) * sgn_hphf) 
+                            ssq = ssq + int(sgn(1) * sgn2(1) * sgn_hphf,int64) 
                         endif
                     endif
                 enddo
