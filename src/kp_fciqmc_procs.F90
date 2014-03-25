@@ -217,9 +217,13 @@ contains
 
     subroutine init_kp_fciqmc(kp)
 
+        use SystemData, only: G1
+
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: ierr
         character (len=*), parameter :: t_r = "init_kp_fciqmc"
+
+        integer :: i
 
         if (.not. tHashWalkerList) call stop_all('t_r','kp-fciqmc can only be run using &
             &the linscalefcimcalgo option (the linear scaling algorithm).')
@@ -237,7 +241,7 @@ contains
         call SetupParameters()
         call InitFCIMCCalcPar()
         call init_fcimc_fn_pointers() 
-
+        
         call WriteFciMCStatsHeader()
 
         if (n_int == 4) call stop_all('t_r', 'Use of RealCoefficients does not work with 32 bit &
