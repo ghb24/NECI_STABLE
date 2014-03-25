@@ -44,7 +44,8 @@ MODULE FciMCParMod
                         tRealSpawnCutoff, RealSpawnCutoff, tDetermProj, &
                         tJumpShift, tVaryInitThresh, tUseRealCoeffs, &
                         tSpatialOnlyHash, tSemiStochastic, tTrialWavefunction, &
-                        tLetInitialPopDie, tFTLM, tSpecLanc
+                        tLetInitialPopDie, tFTLM, tWritePopsNorm, pops_norm_unit, &
+                        tSpecLanc
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
@@ -555,6 +556,7 @@ MODULE FciMCParMod
             if (inum_runs.eq.2) CLOSE(fcimcstats_unit2)
             IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(initiatorstats_unit)
             IF(tLogComplexPops) CLOSE(complexstats_unit)
+            if (tWritePopsNorm) close(pops_norm_unit)
         ENDIF
         IF(TDebug) CLOSE(11)
 
@@ -4820,14 +4822,16 @@ MODULE FciMCParMod
         
         Sym_Psi=INT(HFSym%Sym%S,sizeof_int)  !Store the symmetry of the wavefunction for later
         WRITE(iout,"(A,I10)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,sizeof_int)
-        SymHF=0
-        do i=1,NEl
-            SymHF=IEOR(SymHF,G1(iand(HFDet(i), csf_orbital_mask))%Sym%S)
-        enddo
-        WRITE(iout,"(A,I10)") "Symmetry of reference determinant from spin orbital symmetry info is: ",SymHF
-        if(SymHF.ne.HFSym%Sym%S) then
-            call stop_all(t_r,"Inconsistency in the symmetry arrays.")
-        endif
+        if (TwoCycleSymGens) then
+            SymHF=0
+            do i=1,NEl
+                SymHF=IEOR(SymHF,G1(iand(HFDet(i), csf_orbital_mask))%Sym%S)
+            enddo
+            WRITE(iout,"(A,I10)") "Symmetry of reference determinant from spin orbital symmetry info is: ",SymHF
+            if(SymHF.ne.HFSym%Sym%S) then
+                call stop_all(t_r,"Inconsistency in the symmetry arrays.")
+            endif
+        end if
         IF(tKPntSym) THEN
             CALL DecomposeAbelianSym(HFSym%Sym%S,KPnt)
             WRITE(iout,"(A,3I5)") "Crystal momentum of reference determinant is: ",KPnt(1),KPnt(2),KPnt(3)

@@ -1352,7 +1352,7 @@ system: do
                   endif
               ENDIF
 
-              CALL GENMOLPSYMTABLE(1,G1,NBASIS)
+              if (.not. tHub) CALL GENMOLPSYMTABLE(1,G1,NBASIS)
           ENDIF
 
           IF(tFixLz) THEN
@@ -1735,7 +1735,7 @@ system: do
                STOP ' LEN NE IG ' 
             endif
          ENDIF
-         CALL GENMOLPSYMTABLE(1,G1,NBASIS)
+         if (.not. tHub) CALL GENMOLPSYMTABLE(1,G1,NBASIS)
       ENDIF
 
       IF(tFixLz) THEN

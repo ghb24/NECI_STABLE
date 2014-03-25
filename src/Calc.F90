@@ -331,6 +331,9 @@ contains
           tTrialAmplitudeCutoff = .false.
           tKP_FCIQMC = .false.
           tLetInitialPopDie = .false.
+          tPerturbPops = .false.
+          tWritePopsNorm = .false.
+          pops_norm_unit = 0
           n_init_vecs_ftlm = 20
           n_lanc_vecs_ftlm = 20
           nbeta_ftlm = 100
@@ -1770,10 +1773,29 @@ contains
                 ! Assign the HF processor to a unique node.
                 ! TODO: Set a default cutoff criterion for this
                 tUniqueHFNode = .true.
+
             case("LET-INIT-POP-DIE")
                 tLetInitialPopDie = .true.
 
-            ! Parameters for deterministic finite-temperature and spectral Lanczos options.
+            case("POPS-ANNIHILATE")
+                tPerturbPops = .true.
+                tWritePopsNorm = .true.
+                n_pops_annihilate = nitems-1
+                allocate(annihilate_orbs(n_pops_annihilate))
+                do i = 1, nitems-1
+                    call readi(annihilate_orbs(i))
+                end do
+            case("POPS-CREATION")
+                tPerturbPops = .true.
+                tWritePopsNorm = .true.
+                n_pops_creation = nitems-1
+                allocate(creation_orbs(n_pops_creation))
+                do i = 1, nitems-1
+                    call readi(creation_orbs(i))
+                end do
+            case("WRITE-POPS-NORM")
+                tWritePopsNorm = .true.
+
             case("NUM_INIT_VECS_FTLM")
                 call geti(n_init_vecs_ftlm)
             case("NUM_LANC_VECS_FTLM")
