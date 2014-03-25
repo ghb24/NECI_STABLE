@@ -6373,7 +6373,8 @@ MODULe nElRDMMod
     !iprint,density,civector}
     !gexpec,dm
     !{fciqmc,ITERATIONS=20,MAXATREF=50000,TARGETWALKERS=10000000;
-    !  orbital,2103.2 }         !No 'core' directive included, since the core orbitals are 'closed' in the casscf and so will be ignored.
+    !  orbital,2103.2 }         
+        !Note no 'core' directive included, since the core orbitals are 'closed' in the casscf and so will be ignored.
     subroutine CalcDipoles(Norm_1RDM)
 #ifdef MOLPRO
         use outputResult
