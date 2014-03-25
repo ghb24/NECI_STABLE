@@ -3400,6 +3400,7 @@ MODULE FciMCParMod
         character(len=*), parameter :: this_routine='collate_iter_data'
         real(dp), dimension(lenof_sign) :: RealAllHFCyc
         real(dp) :: all_norm_psi_squared, all_norm_semistoch_squared
+        real(dp) :: bloom_sz_tmp(0:2)
     
         ! Communicate the integers needing summation
 
@@ -3478,7 +3479,8 @@ MODULE FciMCParMod
 !            call MPIReduce_inplace(bloom_sizes(0:2), MPI_MAX)
 !        else
             call MPISum(bloom_count(1:2), all_bloom_count(1:2))
-            call MPIReduce_inplace(bloom_sizes(1:2), MPI_MAX)
+            call MPIReduce(bloom_sizes(1:2), MPI_MAX, bloom_sz_tmp(1:2))
+            bloom_sizes(1:2) = bloom_sz_tmp(1:2)
 !        end if
 
         ! real(dp) values

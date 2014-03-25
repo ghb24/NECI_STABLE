@@ -95,6 +95,7 @@ contains
 
         ! Generate two lists. One with all of the available excitations, and
         ! one with their HElement values
+        HElGen = HEl_zero
         excit_count = 0
         found_all = .false.
         hel_sum = 0
@@ -169,6 +170,7 @@ contains
         integer :: orb
         real(dp) :: pgen2
 
+        HElGen = HEl_zero
         ! We now use the class counts to do the construction. This is an
         ! O[N] opearation, and gives the number of occupied/unoccupied
         ! spin-orbitals with each given spin/symmetry.
@@ -942,6 +944,7 @@ contains
         integer :: orb
         real(dp) :: pgen2
 
+        HElGen = HEl_zero
         if (genrand_real2_dSFMT() < pSingles) then
 
             ! Do we want to use the forward, or reverse, singles generator?

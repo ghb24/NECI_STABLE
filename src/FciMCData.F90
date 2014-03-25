@@ -133,7 +133,8 @@ MODULE FciMCData
       real(dp) :: trial_numerator, tot_trial_numerator
       real(dp) :: trial_denom, tot_trial_denom
 
-      real(dp), dimension(lenof_sign) :: SumNoatHF !This is the sum over all previous cycles of the number of particles at the HF determinant
+      real(dp), dimension(lenof_sign) :: SumNoatHF !This is the sum over all previous cycles of the number of particles at 
+                                                   !the HF determinant
       real(dp) :: AvSign           !This is the average sign of the particles on each node
       real(dp) :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
       real(dp) :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor

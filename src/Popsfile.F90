@@ -1008,13 +1008,15 @@ outer_map:      do i = 0, MappingNIfD
         integer :: PopNNodes
         real(dp) :: PopSft, PopTau, PopPSingles, PopParBias, PopGammaSing
         real(dp) :: PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
+        real(dp) :: PopTotImagTime
         character(*), parameter :: t_r = 'ReadPopsHeadv4'
         HElement_t :: PopSumENum
         namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopLensign,PopNEl,PopTotwalk,PopSft,PopSumNoatHF,PopSumENum, &
                     PopCyc,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot, &
                     PopTau,PopiBlockingIter,PopRandomHash,PopPSingles, &
                     PopParBias, PopNNodes, PopWalkersOnNodes, PopGammaSing, &
-                    PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
+                    PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt, &
+                    PopTotImagTime
 
         PopsVersion=FindPopsfileVersion(iunithead)
         if(PopsVersion.ne.4) call stop_all("ReadPopsfileHeadv4","Wrong popsfile version for this routine.")
@@ -1043,6 +1045,7 @@ outer_map:      do i = 0, MappingNIfD
         call MPIBCast(PopPSingles)
         call MPIBCast(PopParBias)
         call MPIBCast(PopNNodes)
+        call MPIBcast(PopTotImagTime)
         if (PopNNodes == nProcessors) then
             ! What is the maximum number of nodes currently supported. We might
             ! need to update this...
@@ -1073,6 +1076,7 @@ outer_map:      do i = 0, MappingNIfD
         read_psingles = PopPSingles
         read_par_bias = PopParBias
         read_nnodes = PopNNodes
+        TotImagTime = PopTotImagTime
 
         ! Fill the tau-searching accumulators, to avoid blips in tau etc.
         gamma_sing = PopGammaSing
@@ -1207,6 +1211,11 @@ outer_map:      do i = 0, MappingNIfD
         integer :: excit_lev
         character(1024) :: out_tmp
         character(12) :: num_tmp
+        type(timer), save :: write_timer
+
+        ! Tme the overall popsfile read in
+        write_timer%timer_name = 'POPS-write'
+        call set_timer(write_timer)
 
         CALL MPIBarrier(error)  !sync
 !        WRITE(6,*) "Get Here",nDets
@@ -1433,6 +1442,9 @@ outer_map:      do i = 0, MappingNIfD
             end if
         end if
 
+        ! And stop timing
+        call halt_timer(write_timer)
+
         ! Reset some globals
         AllSumNoatHF = 0
         AllSumENum = 0
@@ -1477,6 +1489,10 @@ outer_map:      do i = 0, MappingNIfD
         write(iunit, '(a,i16)') 'PopiBlockingIter=', iBlockingIter
         write(iunit, '(a,f18.12,a,f18.12)') 'PopPSingles=', pSingles, &
             ',PopParBias=', rand_excit_par_bias
+
+        ! What is the current total imaginary time? Should continue from where
+        ! we left off, so that plots work correctly.
+        write(iunit, '(a,f18.12)') 'PopTotImagTime=', TotImagTime
 
         ! Write out accumulated data used for tau searching, to ensure there
         ! are no blips in particle growth, tau, etc.

@@ -41,10 +41,12 @@ integer, parameter :: sizeof_sp = 4
 integer, parameter :: sizeof_helement = 16
 integer, parameter :: lenof_sign = 2
 real(dp), dimension(2), parameter :: null_part = 0.0_dp
+complex(dp), parameter :: HEl_zero = cmplx(0.0_dp,0.0_dp,dp)
 #else
 integer, parameter :: sizeof_helement = 8
 integer, parameter :: lenof_sign = 1
 real(dp), dimension(1), parameter :: null_part = 0.0_dp
+real(dp), parameter :: HEl_zero = 0.0_dp
 #endif
 
 !This is the integer type which is used in MPI call arguments
