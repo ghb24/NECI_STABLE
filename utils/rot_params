@@ -1,0 +1,13 @@
+.true.       realinds: integrals in FCIDUMP file are real (if .true.) and complex (if .false.)
+.false.      tmolpro: Molpro FCIDUMP file (if .true.) or Qchem FCIDUMP file (if .false.)
+.true.       trotdegen: sets of degenerate orbitals will also be rotated amongst each other (if .true.) and otherwise not (if .false.)
+0.01         diff: criterion for self-consistency of rotations, diff is the difference between the selfinteractions of two subsequent rotation cycles, if the difference between two subsequent rotation cycles is smaller than diff, the rotation is deemed to be self-consistent and stopped 
+1            ! specifier: indication how the sets of orbitals to be rotated are specified: if 1: the 2nd row is just a list of the indices of the orbitals to rotate; if 2: the 2nd row contains the the start indicex of the orbitals to rotate, each set of orbitals to rotate is then specifies by 2 rows specifying the following parameters: these are formatted input (integers in fields of width 4)
+   0   2        loc,numb: orbitals are delocalised if loc=1 and localised if loc=0, numb: number of orbitals in set to be rotated,
+   6   5        if specifier=1: indices(:): list of orbitals to rotate in this set (spactial orbitals for RHF, spin orbitals for UHF); if specifier=2: start index of set of orbitals to rotate
+   1   4
+   2   3   4   5
+   0   6
+   2   3   7   5   6   8
+   1   2
+  10   9

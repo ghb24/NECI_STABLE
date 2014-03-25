@@ -640,8 +640,10 @@ MODULE Logging
             tReadRDMs = .true.
 
         case("NONEWRDMCONTRIB")
-            ! To be used with READRDMs.  This option makes sure that we don't add in any new contributions to the RDM if filling stochastically
-            !This is useful if we want to read in an RDM from another calculation and then just print out the analysis, without adding in any more information.
+            ! To be used with READRDMs.  This option makes sure that we don't add in any 
+            !new contributions to the RDM if filling stochastically
+            !This is useful if we want to read in an RDM from another calculation and then 
+            !just print out the analysis, without adding in any more information.
       tNoNewRDMContrib=.true.
 
         case("WRITERDMSEVERY")
@@ -654,7 +656,8 @@ MODULE Logging
             tInitiatorRDM = .true.
         
         case("THRESHOCCONLYRDMDIAG")
-            !Only add in a contribution to the diagonal elements of the RDM if the average sign of the determinant is greater than [ThreshOccRDM]
+            !Only add in a contribution to the diagonal elements of the RDM if the average sign 
+            !of the determinant is greater than [ThreshOccRDM]
             tThreshOccRDMDiag=.true.
             call Getf(ThreshOccRDM)
 
