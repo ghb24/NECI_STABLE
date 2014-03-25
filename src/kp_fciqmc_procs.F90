@@ -86,9 +86,9 @@ module kp_fciqmc_procs
     integer(n_int), allocatable :: krylov_vecs(:,:)
     type(ll_node), pointer :: krylov_vecs_ht(:) 
 
-    integer :: TotWalkersInit
-    integer :: TotPartsInit(lenof_sign)
-    integer :: AllTotPartsInit(lenof_sign)
+    integer(int64) :: TotWalkersInit
+    real(dp) :: TotPartsInit(lenof_sign)
+    real(dp) :: AllTotPartsInit(lenof_sign)
     integer(n_int), allocatable :: init_kp_config(:,:)
     logical :: vary_niters
 
@@ -426,15 +426,15 @@ contains
                 if (tStartSinglePart) then
                     nwalkers_target = ceiling(real(InitialPart,dp)/real(nProcessors,dp))
                 else
-                    nwalkers_target = InitWalkers
+                    nwalkers_target = ceiling(InitWalkers)
                 end if
                 ! Finally, call the routine to create the walker distribution.
                 if (tUseInitConfigSeeds) call dSFMT_init((iProcIndex+1)*init_config_seeds(iconfig))
-                if (tInitCorrectNWalkers) then
-                    call generate_init_config_this_proc(nwalkers_target, kp%nwalkers_per_site_init, nwalkers)
-                else
-                    call generate_init_config_basic(nwalkers_target, kp%nwalkers_per_site_init, nwalkers)
-                end if
+                !if (tInitCorrectNWalkers) then
+                !    call generate_init_config_this_proc(nwalkers_target, kp%nwalkers_per_site_init, nwalkers)
+                !else
+                !    call generate_init_config_basic(nwalkers_target, kp%nwalkers_per_site_init, nwalkers)
+                !end if
                 TotWalkersInit = TotWalkers
                 TotPartsInit = TotParts
                 AllTotPartsInit = AllTotParts
@@ -448,7 +448,7 @@ contains
                 AllTotPartsOld = AllTotPartsInit
 
                 CurrentDets(:,1:TotWalkers) = init_kp_config(:,1:TotWalkers)
-                call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, TotWalkers)
+                call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int))
             end if
             call fill_in_CurrentH()
 
@@ -518,7 +518,7 @@ contains
                 AllTotPartsOld = AllTotPartsInit
 
                 CurrentDets(:,1:TotWalkers) = init_kp_config(:,1:TotWalkers)
-                call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, TotWalkers)
+                call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int))
                 call fill_in_CurrentH()
             end if
         end if

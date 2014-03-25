@@ -114,7 +114,7 @@ contains
                 ! If any (valid) children have been spawned.
                 if ((any(child_sign /= 0)) .and. (ic /= 0) .and. (ic <= 2)) then
 
-                    call create_particle_kp_hamil (nI_child, ilut_child, child_sign, tNearlyFull)
+                    call create_particle_kp_hamil(nI_child, ilut_child, child_sign, tNearlyFull)
 
                     if (tNearlyFull) then
                         call add_in_hamil_contribs(kp, tFinished, tAllFinished)
@@ -170,7 +170,7 @@ contains
         use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots
 
         integer, intent(in) :: nI_child(nel)
-        integer, intent(in) :: ilut_child(0:NIfTot)
+        integer(n_int), intent(in) :: ilut_child(0:NIfTot)
         real(dp), intent(in) :: child_sign(lenof_sign_kp)
         logical, intent(inout) :: tNearlyFull
         integer(n_int) :: int_sign(lenof_sign_kp)
