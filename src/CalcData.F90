@@ -136,6 +136,8 @@ logical :: tLowECore
 ! of the determinants in the MP1 wave function will be used to determine which to keep. Otherwise all singles and
 ! doubles are kept.
 logical :: tMP1Core 
+! Use the entire Hilbert space as the core space.
+logical :: tFCICore
 logical :: tHeisenbergFCICore
 logical :: tSparseCoreHamil ! Use a sparse representation of the core Hamiltonian.
 ! cas_determ_bitmask has all bits that refer to the active space set, and all other bits unset.
@@ -194,6 +196,8 @@ logical :: tLowETrial
 ! of the determinants in the MP1 wave function will be used to determine which to keep. Otherwise all singles and
 ! doubles are kept.
 logical :: tMP1Trial
+! Use the entire Hilbert space as the trial space.
+logical :: tFCITrial
 logical :: tHeisenbergFCITrial
 real(dp), allocatable, dimension(:) :: trial_space_cutoff_amp
 integer, allocatable, dimension(:) :: trial_space_cutoff_num

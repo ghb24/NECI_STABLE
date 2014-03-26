@@ -85,6 +85,8 @@ contains
             call generate_low_energy_core(called_from_trial)
         else if (tMP1Trial) then
             call generate_using_mp1_criterion(called_from_trial)
+        else if (tFCITrial) then
+            call generate_fci_core(called_from_trial)
         else if (tHeisenbergFCITrial) then
             call generate_heisenberg_fci(called_from_trial)
         end if
