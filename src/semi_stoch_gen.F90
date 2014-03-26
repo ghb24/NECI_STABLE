@@ -78,7 +78,8 @@ contains
         determ_proc_indices = 0
 
         if (.not. (tStartCAS .or. tPopsCore .or. tDoublesCore .or. tCASCore .or. tRASCore .or. &
-                   tOptimisedCore .or. tLowECore .or. tReadCore .or. tMP1Core .or. tHeisenbergFCICore)) then
+                   tOptimisedCore .or. tLowECore .or. tReadCore .or. tMP1Core .or. &
+                   tFCICore .or. tHeisenbergFCICore)) then
             call stop_all("init_semi_stochastic", "You have not selected a semi-stochastic core &
                           &space to use.")
         end if
@@ -219,6 +220,8 @@ contains
                 call generate_low_energy_core(called_from_semistoch)
             else if (tMP1Core) then
                 call generate_using_mp1_criterion(called_from_semistoch)
+            else if (tFCICore) then
+                call generate_fci_core(called_from_semistoch)
             else if (tHeisenbergFCICore) then
                 call generate_heisenberg_fci(called_from_semistoch)
             end if
@@ -1364,5 +1367,25 @@ contains
         end do 
         
     end subroutine generate_heisenberg_fci_r
+
+    subroutine generate_fci_core(called_from)
+
+        integer, intent(in) :: called_from 
+        integer, allocatable :: nI_list(:,:)
+        integer(n_int) :: ilut(0:NIfTot)
+        integer :: proc, temp(1,1), hf_ind, ndets, i
+
+        ! Count the total number of determinants.
+        call gndts(nel, nbasis, BRR, nBasisMax, temp, .true., G1, tSpn, lms, tParity, SymRestrict, ndets, hf_ind)
+        allocate(nI_list(nel, ndets))
+        ! Generate and store all the determinants in nI_list.
+        call gndts(nel, nbasis, BRR, nBasisMax, nI_list, .false., G1, tSpn, lms, tParity, SymRestrict, ndets, hf_ind)
+
+        do i = 1, ndets
+            call EncodeBitDet(nI_list(:,i), ilut)
+            call add_state_to_space(ilut, called_from, nI_list(:,i))
+        end do
+
+    end subroutine generate_fci_core
 
 end module semi_stoch_gen

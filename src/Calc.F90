@@ -296,6 +296,7 @@ contains
           tCASCore = .false.
           tRASCore = .false.
           tOptimisedCore = .false.
+          tFCICore = .false.
           tHeisenbergFCICore = .false.
           tPopsCore = .false.
           tReadCore = .false.
@@ -321,6 +322,7 @@ contains
           tReadTrial = .false.
           tLowETrial = .false.
           tMP1Trial = .false.
+          tFCITrial = .false.
           tHeisenbergFCITrial = .false.
           num_trial_generation_loops = 1
           n_trial_pops = 0
@@ -1033,6 +1035,8 @@ contains
                 do I = 1, num_det_generation_loops
                     call geti(determ_space_cutoff_num(I))
                 end do
+            case("FCI-CORE")
+                tFCICore = .true.
             case("HEISENBERG-FCI-CORE")
                 tHeisenbergFCICore = .true.
             case("POPS-CORE")
@@ -1116,6 +1120,8 @@ contains
                         call stop_all("SysReadInput","Input string is not recognised.")
                     end if
                 end if
+            case("FCI-TRIAL")
+                tFCITrial = .false.
             case("HEISENBERG-FCI-TRIAL")
                 tHeisenbergFCITrial = .false.
             case("TRIAL-BIN-SEARCH")

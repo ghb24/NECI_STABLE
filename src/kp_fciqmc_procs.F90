@@ -1173,11 +1173,8 @@ contains
 
         ! Determine the total number of determinants.
         call gndts(nel, nbasis, BRR, nBasisMax, temp, .true., G1, tSpn, lms, tParity, SymRestrict, ndets, hf_ind)
-
         allocate(nI_list(nel, ndets))
-
         ! Generate the determinants and move them to nI_list.
-        ! Important: the above routine does not take symmetry into account. It returns all possible combinations.
         call gndts(nel, nbasis, BRR, nBasisMax, nI_list, .false., G1, tSpn, lms, tParity, SymRestrict, ndets, hf_ind)
 
         write(ind,'(i15)') irepeat
