@@ -42,8 +42,6 @@ contains
             kJ%Ml=LzTot
         endif
 
-        write(6,*) "kJ%k:", kJ%k
-
         ! Start with the first electron
         call gndts_r (nel, nhg, brr, nBasisMax, nMrks, tCount, G1, tSpn, LMS, &
                       tparity, SymRestrict, ii, iElecs, iSpins, 1, kJ)
@@ -78,7 +76,6 @@ contains
                 ENDDO
                 call sort (nI)
                 CALL GETSYM(NI,NEL,G1,NBASISMAX,KI)
-                if (all(nI == (/1,2,3,4,13,14,15,16/))) write(6,*) "kI%k:", kI%k
                 CALL GetLz(NI,NEL,KI%Ml) 
                 IF(.NOT.TPARITY) THEN
                     DO I=1,3

@@ -100,7 +100,6 @@ contains
         ! Count the number of determinants belonging to this processor.
         ndets_this_proc = 0
         do i = 1, ndets
-            write(6,*) nI_list(:,i)
             proc = DetermineDetNode(nI_list(:,i), 0)
             if (proc == iProcIndex) ndets_this_proc = ndets_this_proc + 1
         end do
@@ -159,17 +158,17 @@ contains
         sl_elem = (BRR(1)-1)/bits_n_int
         sl_bit = mod(BRR(1)-1, bits_n_int)
 
-        write(6,*) "CurrentDets:"
-        do i = 1, int(TotWalkers, sizeof_int)
-            call extract_sign(CurrentDets(:, i), real_sign)
-            write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') i, CurrentDets(0, i), real_sign
-        end do
+        !write(6,*) "CurrentDets:"
+        !do i = 1, int(TotWalkers, sizeof_int)
+        !    call extract_sign(CurrentDets(:, i), real_sign)
+        !    write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') i, CurrentDets(0, i), real_sign
+        !end do
 
-        write(6,*) "ilut_list:"
-        do i = 1, ndets_this_proc
-            call extract_sign(ilut_list(:, i), real_sign)
-            write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') i, ilut_list(0, i), real_sign
-        end do
+        !write(6,*) "ilut_list:"
+        !do i = 1, ndets_this_proc
+        !    call extract_sign(ilut_list(:, i), real_sign)
+        !    write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') i, ilut_list(0, i), real_sign
+        !end do
 
         ! Copy the the initial vector to sl_vecs(:,1), apply the perturbation
         ! operator and normalise it.
@@ -187,7 +186,6 @@ contains
             norm = norm + real_sign(1)*real_sign(1)
             do
                 j = j + 1
-                !write(6,*) "j:", j, "CurrentDets:", CurrentDets(:,i), "ilut_list:", ilut_list(:,j)
                 call neci_flush(6)
                 if (DetBitEq(CurrentDets(:,i), ilut_list(:,j), NIfDBO)) then
                     if (btest(ilut_list(sl_elem, j), sl_bit)) then

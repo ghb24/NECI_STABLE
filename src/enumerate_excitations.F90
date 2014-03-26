@@ -238,7 +238,6 @@ contains
                     end do
                     j = 0 ! Break loop
 
-
                 enddo
                 sym1 = -1 ! Break loop
 
