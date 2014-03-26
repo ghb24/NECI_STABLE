@@ -458,7 +458,7 @@ contains
 
         ! Narrow the search range down in steps.
         do while (hi /= lo)
-            pos = int(real(hi + lo,sp) / 2)
+            pos = int(real(hi + lo,sp) / 2_sp)
 
             if (all(arr(data_lo:data_hi,pos) == val(val_lo:val_hi))) then
                 exit
@@ -517,7 +517,7 @@ contains
 
         ! Narrow the search range down in steps.
         do while (hi /= lo)
-            pos = int(real(hi + lo,sp) / 2)
+            pos = int(real(hi + lo,sp) / 2_sp)
 
             if (arr(pos) == val) then
                 exit
@@ -599,7 +599,7 @@ contains
 
         ! Narrow the search range down in steps.
         do while (hi /= lo)
-            pos = int(real(hi + lo,sp) / 2)
+            pos = int(real(hi + lo,sp) / 2_sp)
 
             if (DetBitLT(arr(data_lo:data_hi,pos), val(val_lo:val_hi), &
                     use_flags_opt = .false.) == 0) then
