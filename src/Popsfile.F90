@@ -458,15 +458,6 @@ r_loop: do while(.not.tStoreDet)
                     end if
                     sgn = sgn_int
                 end if
-                if (tPerturbPops) then
-                    call perturb_pops_det(WalkerTemp)
-                    ! If WalkerTemp is returned as 0 it means that this determinant
-                    ! was annihilated by the pertubation operator.
-                    if (all(WalkerTemp(0:NIfDBO) == 0_n_int)) then
-                        det = det + 1
-                        return
-                    end if
-                end if
                 if (stat < 0) then
                     tEOF = .true. ! End of file reached.
                     exit r_loop
@@ -582,8 +573,13 @@ outer_map:      do i = 0, MappingNIfD
             end if
         enddo r_loop
 
+        ! If this determinant is annihilated by the perturbation operator
+        ! then Walkertemp(0:NIfDBO) will be returned as 0_n_int.
+        if (tPerturbPops) call perturb_pops_det(WalkerTemp)
+
         ! Decode the determinant as required if not using mapping
-        if (.not. tPopsMapping .and. .not. tEOF) then
+        if (.not. tPopsMapping .and. (.not. tEOF) .and. &
+           (.not. all(WalkerTemp(0:NIfDBO)==0_n_int))) then
             call decode_bit_det (nI, WalkerTemp)
         endif
 

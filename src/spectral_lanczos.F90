@@ -4,7 +4,7 @@ module spectral_lanczos
 
     use bit_rep_data, only: NIfTot
     use bit_reps, only: test_flag
-    use CalcData, only: NMCyc, tSemiStochastic
+    use CalcData, only: NMCyc, tSemiStochastic, pops_norm
     use constants
     use DetBitOps, only: DetBitLT
     use FciMCData, only: HFDet, ilutHF, iHFProc, CurrentDets, core_hamiltonian, &
@@ -26,7 +26,7 @@ module spectral_lanczos
     real(dp) :: broadening_sl
 
     real(dp), allocatable :: sl_h_eigv(:), sl_overlaps(:), sl_trans_amps(:)
-    real(dp) :: allnorm_sl, allnorm_pert_sl
+    real(dp) :: allnorm_pert_sl
     real(dp) :: delta_omega_sl
 
     integer :: sl_unit
@@ -77,7 +77,7 @@ contains
         character(len=*), parameter :: t_r = 'init_spectral_lanczos'
         integer :: i, j, ndets, proc, ierr, temp(1,1), hf_ind
         real(dp) :: real_sign(lenof_sign)
-        real(dp) :: norm, norm_pert
+        real(dp) :: norm_pert
 
         write(6,'(/,1x,a39,/)') "Beginning spectral Lanczos calculation."
         call neci_flush(6)
@@ -155,26 +155,11 @@ contains
         write(6,'(1x,a48,/)') "Hamiltonian allocation and calculation complete."
         call neci_flush(6)
 
-        sl_elem = (BRR(1)-1)/bits_n_int
-        sl_bit = mod(BRR(1)-1, bits_n_int)
-
-        !write(6,*) "CurrentDets:"
-        !do i = 1, int(TotWalkers, sizeof_int)
-        !    call extract_sign(CurrentDets(:, i), real_sign)
-        !    write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') i, CurrentDets(0, i), real_sign
-        !end do
-
-        !write(6,*) "ilut_list:"
-        !do i = 1, ndets_this_proc
-        !    call extract_sign(ilut_list(:, i), real_sign)
-        !    write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') i, ilut_list(0, i), real_sign
-        !end do
-
         ! Copy the the initial vector to sl_vecs(:,1), apply the perturbation
         ! operator and normalise it.
         j = 0
-        norm = 0.0_dp
         norm_pert = 0.0_dp
+        call sort(CurrentDets(:,1:TotWalkers), ilut_lt, ilut_gt)
         do i = 1, int(TotWalkers, sizeof_int)
             call extract_sign(CurrentDets(:,i), real_sign)
             ! If the POPSFILE was generated from a calculation with the linear-scaling
@@ -183,21 +168,15 @@ contains
             if (i > 1) then
                 if (DetBitEq(CurrentDets(:,i-1), CurrentDets(:,i), NIfDBO)) cycle
             end if
-            norm = norm + real_sign(1)*real_sign(1)
+            norm_pert = norm_pert + real_sign(1)*real_sign(1)
             do
                 j = j + 1
-                call neci_flush(6)
                 if (DetBitEq(CurrentDets(:,i), ilut_list(:,j), NIfDBO)) then
-                    if (btest(ilut_list(sl_elem, j), sl_bit)) then
-                        sl_vecs(j, 1) = real_sign(1)
-                        norm_pert = norm_pert + real_sign(1)*real_sign(1)
-                    end if
+                    sl_vecs(j, 1) = real_sign(1)
                     exit
                 end if
             end do
         end do
-        call MPISumAll(norm, allnorm_sl)
-        allnorm_sl = sqrt(allnorm_sl)
         call MPISumAll(norm_pert, allnorm_pert_sl)
         allnorm_pert_sl = sqrt(allnorm_pert_sl)
         sl_vecs(:,1) = sl_vecs(:,1)/allnorm_pert_sl
@@ -210,7 +189,6 @@ contains
 
         integer :: lwork, info, i
         real(dp), allocatable :: work(:)
-        real(dp), allocatable :: temp_overlaps(:)
 
         if (iProcIndex /= root) return
 
@@ -232,22 +210,14 @@ contains
 
         deallocate(work)
 
-        ! Calculate the overlap of the perturbed ground state with each Lanczos vector.
-        allocate(temp_overlaps(ndets_sl(iProcIndex)))
-        ! temp_overlaps will hold the overlaps between the first Lanczos vector and all the
-        ! other Lanczos vectors from this processor only.
-        temp_overlaps = matmul(sl_vecs(:,1), sl_vecs)
-        ! ...And now from all processors.
-        call MPISumAll(temp_overlaps, sl_overlaps)
         ! The first Lanczos vector differs from the perturbed ground state only by a
         ! normalisation factor, which is accounted for here.
-        sl_overlaps = sl_overlaps*allnorm_pert_sl/allnorm_sl
-        deallocate(temp_overlaps)
+        sl_trans_amps = sl_hamil(1,:)*allnorm_pert_sl/sqrt(pops_norm(1))
 
         ! Now calculate the overlaps between the final Lanczos eigenvectors and the original
         ! perturbed ground state, which are the transition amplitudes which decide the
         ! height of the peaks in the spectrum.
-        sl_trans_amps = matmul(sl_overlaps, sl_hamil)
+        !sl_trans_amps = matmul(sl_overlaps, sl_hamil)
 
         ! Output all of the eigenvalues and transition amplitudes.
         do i = 1, n_lanc_vecs_sl
@@ -293,6 +263,7 @@ contains
         deallocate(disps_sl)
 
         write(6,'(/,1x,a30,/)') "Exiting Spectral Lanczos code."
+        call neci_flush(6)
 
     end subroutine end_spectral_lanczos
 
