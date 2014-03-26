@@ -41,7 +41,7 @@ Contains
       integer i,nAmpl
       accum=0
       do i=1,nAmpl
-         if(i/=iRefPos) accum=accum+int(sum(abs(GetAmpl(AL,i,iCurAmpl))))
+         if(i/=iRefPos) accum=accum+sum(abs(GetAmpl(AL,i,iCurAmpl)))
          AL%%CumlAmplitude(i)=accum
       enddo
       dTotLocAbsAmpl=accum
@@ -108,7 +108,7 @@ END SUBROUTINE !IncrementOrderedTupleCheck
          dMinBest=0
          nBest=0
          do i=LevIndex(iLev),LevIndex(iLev+1)-1
-            dCur=int(sum(abs(GetAmpl(AL,i,iCurList))))
+            dCur=sum(abs(GetAmpl(AL,i,iCurList)))
             if(nBest<nMax.or.dCur>dMinBest) then
                do j=nBest,1,-1
                   if (BestAbsAmp(j)>dCur) exit
@@ -203,11 +203,11 @@ SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,
       enddo
       CALL Decode_Bit_Det(DetCurr,ExcitList(:,j))
       i=1
-      amp=int(GetAmpl(AL,j,iAmpList))
+      amp=GetAmpl(AL,j,iAmpList)
       if(any(amp.lt.0)) i=-1
       dAmp=sum(abs(amp))/dNorm
       if(dAmp.ne.0.0_dp) then
-         i=i*int(ExcitToDetSign(iLutHF,ExcitList(:,j),iC))
+         i=i*ExcitToDetSign(iLutHF,ExcitList(:,j),iC)
          if (iProcIndex.eq.root) then
             temp_sign=0
             ASSERT(lenof_sign == 1 .and. amp(1) /= 0)
@@ -232,11 +232,11 @@ SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,
                iSgn=1
 
 !A bit of real/imag faffing
-               amp=int(GetAmpl(AL,j,iAmpList))
+               amp=GetAmpl(AL,j,iAmpList)
                dAmp=sum(amp)
                IsImag=.false.
                if(amp(1).eq.0) IsImag=.true.
-               amp=int(GetAmpl(AL,l,iAmpList))
+               amp=GetAmpl(AL,l,iAmpList)
                dAmp=dAmp*sum(amp)
                if(amp(1).eq.0) then
                   if(IsImag) dAmp=-dAmp
@@ -260,12 +260,12 @@ SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,
 #ifdef __CMPLX
                      temp_sign=0
                      if(IsImag) then
-                        temp_sign(2)=int(iSgn)
+                        temp_sign(2)=iSgn
                      else
-                        temp_sign(1)=int(iSgn)
+                        temp_sign(1)=iSgn
                      endif
 #else
-                     temp_sign(1)=int(iSgn)
+                     temp_sign(1)=iSgn
 #endif
                      realtemp_sign = temp_sign
                      call SumEContrib(DetCurr,2,realtemp_sign,iLutnI(:),dTmp,1/dAmp)
@@ -371,12 +371,12 @@ SUBROUTINE CalcClusterEnergyUnsrt (tFCI,AL,iAmpList,nExcit,ExcitList,iRefPos,dNo
 #ifdef __CMPLX
                      temp_sign=0
                      if(IsImag) then
-                        temp_sign(2)=int(iSgn)
+                        temp_sign(2)=iSgn
                      else
-                        temp_sign(1)=int(iSgn)
+                        temp_sign(1)=iSgn
                      endif
 #else
-                     temp_sign(1)=int(iSgn)
+                     temp_sign(1)=iSgn
 #endif
                      realtemp_sign=transfer(temp_sign, realtemp_sign)
                      call SumEContrib(DetCurr,2,realtemp_sign,iLutnI(:),dTmp,1/dAmp)
@@ -825,7 +825,7 @@ subroutine CalcTotals (iNumExcitors, dTotAbsAmpl, dNorm, AL, iAmpList, nAmpl,&
    iNumExcitors=0
    dTotAbsAmpl=0
    do j=1,nAmpl
-      nparts=nparts+int(abs(GetAmpl(AL,j,iAmpList)))
+      nparts=nparts+abs(GetAmpl(AL,j,iAmpList))
       if(j==iRefPos) cycle
       if(sum(abs(GetAmpl(AL,j,iAmpList))).gt.dTol) then
          iNumExcitors=iNumExcitors+1
