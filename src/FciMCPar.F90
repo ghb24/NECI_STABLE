@@ -2911,7 +2911,7 @@ MODULE FciMCParMod
                 if (posn.lt.0) then
                     FinalPop = 0
                 else
-                    FinalPop = CurrentDets(NifD+1,posn)
+                    FinalPop = int(CurrentDets(NifD+1,posn))
                 endif
 
                 IF(lenof_sign.eq.1) THEN

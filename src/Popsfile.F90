@@ -54,7 +54,8 @@ contains
         integer(int64), intent(in) :: pops_walkers(0:nProcessors-1)
         real(dp) :: CurrParts(lenof_sign)
         integer :: Slot, nJ(nel)
-        integer :: iunit,i,j,ierr,PopsInitialSlots(0:nNodes-1)
+        integer :: iunit,j,ierr,PopsInitialSlots(0:nNodes-1)
+        integer(int64) :: i
         INTEGER(TagIntType) :: BatchReadTag=0
         real(dp) :: BatchSize
         integer :: PopsSendList(0:nNodes-1),proc
@@ -216,14 +217,14 @@ contains
                 Temp => HashIndex(DetHash)
                 ! If the first element in the list has not been used.
                 if (Temp%Ind == 0) then
-                    Temp%Ind = i
+                    Temp%Ind = int(i)
                 else
                     do while (associated(Temp%Next))
                         Temp => Temp%Next
                     end do
                     allocate(Temp%Next)
                     nullify(Temp%Next%Next)
-                    Temp%Next%Ind = i
+                    Temp%Next%Ind = int(i)
                 end if
             end do
             nullify(Temp)
@@ -360,7 +361,7 @@ contains
         else if (bNodeRoot) then
 
             ! And receive the dets!
-            ndets = read_walkers_on_nodes(iProcIndex)
+            ndets = int(read_walkers_on_nodes(iProcIndex))
             nelem = ndets * (1 + NIfTot)
             call MPIRecv(det_list, nelem, root, mpi_tag, ierr)
 
@@ -368,8 +369,6 @@ contains
             CurrWalkers = ndets
 
         end if
-
-
 
     end function
 
