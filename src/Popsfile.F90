@@ -2362,7 +2362,13 @@ outer_map:      do i = 0, MappingNIfD
 
         call extract_sign(ilut, real_sign)
 
-        pops_norm = pops_norm + real_sign*real_sign
+#ifdef __DOUBLERUN
+        pops_norm = pops_norm + real_sign(1)*real_sign(2)
+#elif __CMPLX
+        pops_norm = pops_norm + real_sign(1)**2 + real_sign(2)**2
+#else
+        pops_norm = pops_norm + real_sign(1)*real_sign(1)
+#endif
 
     end subroutine add_pops_norm_contrib
 
@@ -2380,10 +2386,7 @@ outer_map:      do i = 0, MappingNIfD
             open(pops_norm_unit, file='POPS_NORM', status='replace')
         end if
 
-        do i = 1, lenof_sign
-            write(pops_norm_unit,'(1x,es19.12)',advance='no') sqrt(pops_norm(i))
-        end do
-        write(pops_norm_unit,'()')
+        write(pops_norm_unit,'(1x,es19.12)') sqrt(pops_norm)
 
     end subroutine write_pops_norm
 

@@ -301,8 +301,9 @@ contains
 
         ! If starting from multiple POPSFILEs then set this counter so that the
         ! correct POPSFILE is read in this time. To read in POPSFILE.x,
-        ! iPopsFileNoRead needs to be set to -x-1...
-        if (kp%tMultiplePopStart) iPopsFileNoRead = -iconfig-1
+        ! iPopsFileNoRead needs to be set to -x-1. We want to read in POPSFILE
+        ! numbers 0 to kp%nconfigs-1
+        if (kp%tMultiplePopStart) iPopsFileNoRead = -(iconfig-1)-1
 
         call create_initial_config(kp, iconfig, irepeat)
 

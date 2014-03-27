@@ -254,7 +254,7 @@ integer, allocatable :: creation_bits(:)
 
 ! Calculate the norms of the *unperturbed* POPSFILE wave functions and output them to a file.
 logical :: tWritePopsNorm
-real(dp) :: pops_norm(lenof_sign)
+real(dp) :: pops_norm
 integer :: pops_norm_unit
 
 end module CalcData
