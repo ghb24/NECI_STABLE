@@ -447,7 +447,7 @@ contains
         if (tParallel) then
             call MPISumAll(int(num_states, MPIArg), tot_num_states)
         else
-            tot_num_states = num_states
+            tot_num_states = int(num_states,MPIArg)
         end if
 
         if (tot_num_states <= target_num_states) return
@@ -477,7 +477,7 @@ contains
             if (tParallel) then
                 call MPISumAll(int(states_rmvd_this_proc, MPIArg), states_rmvd_all_procs)
             else
-                states_rmvd_all_procs = states_rmvd_this_proc
+                states_rmvd_all_procs = int(states_rmvd_this_proc,MPIArg)
             end if
 
             ! If there are degenerate orbitals, then cycle to remove the
@@ -605,7 +605,7 @@ contains
         do i = 1, ilut_list_size
             call decode_bit_det(nI, ilut_list(:,i))
             proc_list(i) = DetermineDetNode(nI,0)
-            num_states_procs(proc_list(i)) = num_states_procs(proc_list(i)) + 1
+            num_states_procs(proc_list(i)) = int(num_states_procs(proc_list(i)) + 1,MPIArg)
         end do
 
         counter(0) = 0

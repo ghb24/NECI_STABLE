@@ -1,6 +1,6 @@
 C.. Perform the contour integration to calculate the Z-sum
       SUBROUTINE ZSUM(XIS,I_H,I_P,I_POINTS,R,SUM,SUMI)
-         use constants, only: dp,pi
+         use constants, only: sp,dp,pi
          complex(dp) Z,ZI,ZRET,ZS,DZ
          INTEGER I_H,I_P
          real(dp) THETA,R,SUM,SUMI,DTHETA,P
@@ -9,7 +9,7 @@ C.. Simpson's Rule: Integral(f(x)) = (1/3)h(f0+4(f1+f3+...+f(2n-1))
 C..                                  +2(f2+f4+...+f(2n-2)+f2n
 C.. We use I_POINTS+1, but have both THETA=0 and 2PI, so we divide the 
 C.. unit circle into I_POINTS 
-         ZI=(0,1)
+         ZI=(0.0_dp,1.0_dp)
          P=I_P
          DTHETA=2*PI/I_POINTS
          DZ=EXP(ZI*DTHETA)
@@ -54,7 +54,7 @@ C.. NB P is no longer integer, but is REAL
          complex(dp) Z,ZI,ZREIT,ZRET
          real(dp) XIS(1:I_H)
          real(dp) R,THETA
-         ZI=(0,1)
+         ZI=(0.0_dp,1.0_dp)
          ZREIT=R*EXP(ZI*THETA)
          ZRET=R*ZI*EXP(ZI*THETA)*(((ZREIT)**P)-1.0_dp)
          ZRET=ZRET/(ZREIT-1)
@@ -72,7 +72,7 @@ C.. NB P is no longer integer, but is REAL
          INTEGER I_H,I
          complex(dp) Z,ZRET
          real(dp) XIS(1:I_H)
-         ZRET=(1,0)
+         ZRET=(1.0_dp,0.0_dp)
          DO I=1,I_H
             ZRET=ZRET/(Z-XIS(I))
          ENDDO
@@ -87,7 +87,7 @@ C.. NB P is no longer integer, but is REAL
          real(dp) P
          complex(dp) Z,ZI,ZMZ0,ZRET,ZR
          LOGICAL LSAME2
-         ZI=(0,1)
+         ZI=(0.0_dp,1.0_dp)
          IF(LSAME2(Z,1.0_dp)) THEN
             WRITE(25,*) P,(Z**P-1)/(Z-1)
             ZRET=ZRET*ZI*ZMZ0*P
@@ -113,7 +113,7 @@ C.. Simpson's Rule: Integral(f(x)) = (1/3)h(f0+4(f1+f3+...+f(2n-1))
 C..                                  +2(f2+f4+...+f(2n-2)+f2n
 C.. We use I_POINTS+1, but have both THETA=0 and 2PI, so we divide the 
 C.. unit circle into I_POINTS 
-         ZI=(0,1)
+         ZI=(0.0_dp,1.0_dp)
          P=I_P
          DTHETA=2*PI/I_POINTS
          DZ=EXP(ZI*DTHETA)

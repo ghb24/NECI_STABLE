@@ -1296,7 +1296,7 @@ MODULE FciMCParMod
         iter_data%nborn = iter_data%nborn + abs(child)
         NumSpawnedEntries = NumSpawnedEntries + 1
 
-        if (ic == 1) SpawnFromSing = SpawnFromSing + sum(abs(child))
+        if (ic == 1) SpawnFromSing = SpawnFromSing + int(sum(abs(child)))
 
         ! Count particle blooms, and their sources
         if (sum(abs(child)) > INitiatorWalkNo) then
@@ -1388,7 +1388,7 @@ MODULE FciMCParMod
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
         
         ! Sum the number of created children to use in acceptance ratio.
-        acceptances = acceptances + sum(abs(child))
+        acceptances = acceptances + int(sum(abs(child)),kind(acceptances))
     end subroutine
 
     subroutine end_iteration_print_warn (totWalkersNew)
@@ -2173,7 +2173,7 @@ MODULE FciMCParMod
 !            IF(Iter.eq.18925) THEN
 !                WRITE(iout,*) "Not Created",rh,rat
 !            ENDIF
-            AttemptCreatePar=0.0
+            AttemptCreatePar=0
         ENDIF
 
         IF(ExtraCreate.ne.0) THEN
@@ -3597,9 +3597,9 @@ MODULE FciMCParMod
 ! AJWT dislikes doing this type of if based on a (seeminly unrelated) input option, but can't see another easy way.
 !  TODO:  Something to make it better
                 if(.not.tCCMC) then
-                    tot_walkers = InitWalkers * int(nNodes,int64)
+                    tot_walkers = int(InitWalkers * int(nNodes,int64),int64)
                 else
-                    tot_walkers = InitWalkers
+                    tot_walkers = int(InitWalkers,int64)
                 endif
                 if ( (sum(AllTotParts) > tot_walkers) .or. &
                      (abs_sign(AllNoatHF) > MaxNoatHF)) then
@@ -6739,7 +6739,7 @@ MODULE FciMCParMod
 
         IF(MaxNoatHF.eq.0) THEN
             MaxNoatHF=InitWalkers*nNodes
-            HFPopThresh=MaxNoatHF
+            HFPopThresh=int(MaxNoatHF,int64)
         ENDIF
 
         ! Initialise excitation generation storage
