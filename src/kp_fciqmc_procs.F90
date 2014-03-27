@@ -7,7 +7,7 @@ module kp_fciqmc_procs
     use bit_reps, only: decode_bit_det, encode_sign, flag_is_initiator
     use CalcData, only: tTruncInitiator, tStartSinglePart, InitialPart, InitWalkers
     use CalcData, only: tSemiStochastic, tReadPops, tUseRealCoeffs, tau, DiagSft
-    use CalcData, only: AvMCExcits, tWritePopsNorm
+    use CalcData, only: AvMCExcits, tWritePopsNorm, iPopsFileNoRead
     use constants
     use DetBitOps, only: DetBitEq, EncodeBitDet, IsAllowedHPHF, FindBitExcitLevel
     use Determinants, only: get_helement
@@ -21,7 +21,7 @@ module kp_fciqmc_procs
     use FciMCData, only: TotParts, TotPartsOld, AllTotParts, AllTotPartsOld, iter, MaxSpawned
     use FciMCData, only: SpawnedPartsKP2, SpawnVecKP, SpawnVecKP2, partial_determ_vecs_kp
     use FciMCData, only: full_determ_vecs_kp, determ_space_size, OldAllAvWalkersCyc
-    use FciMCData, only: PreviousCycles
+    use FciMCData, only: PreviousCycles, AllTotWalkers
     use FciMCParMod, only: create_particle, InitFCIMC_HF, SetupParameters, InitFCIMCCalcPar
     use FciMCParMod, only: init_fcimc_fn_pointers, WriteFciMCStats, WriteFciMCStatsHeader
     use FciMCParMod, only: rezero_iter_stats_each_iter, tSinglePartPhase, InitFCIMC_pops
@@ -31,7 +31,8 @@ module kp_fciqmc_procs
     use hilbert_space_size, only: CreateRandomExcitLevDetUnbias, create_rand_heisenberg_det
     use hilbert_space_size, only: create_rand_det_no_sym
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
-    use Parallel_neci, only: MPIBarrier, iProcIndex, MPISum, MPIReduce, nProcessors
+    use LoggingData, only: tIncrementPops
+    use Parallel_neci, only: MPIBarrier, iProcIndex, MPISum, MPIReduce, nProcessors, MPIAllReduce
     use ParallelHelper, only: root
     use PopsfileMod, only: FindPopsfileVersion, open_pops_head, ReadPopsHeadv4, CheckPopsParams
     use PopsfileMod, only: write_pops_norm
@@ -46,10 +47,6 @@ module kp_fciqmc_procs
     implicit none
 
     type kp_fciqmc_data
-        ! If true then a ground-state calculation is being performed.
-        logical :: tGround
-        ! If true then a finite-temperature calculation is being performed.
-        logical :: tFiniteTemp
         ! The number of different initial walker configurations to start
         ! calculations from.
         integer :: nconfigs
@@ -65,6 +62,12 @@ module kp_fciqmc_procs
         ! it is always set to 1 (because we don't want to go any further
         ! beyond the final Krylov vector).
         integer, allocatable :: niters(:)
+        ! If true then a finite-temperature calculation is performed.
+        logical :: tFiniteTemp
+        ! If true then perform multiple kp-fciqmc calculations starting from
+        ! several POPSFILEs in the running directory. POPSFILEs labelled
+        ! between 0 and nconfigs-1 will be used.
+        logical :: tMultiplePopStart
         ! For finite-temperature calculations, when creating the inital vector,
         ! this variable specifies how many walkers should be added to each
         ! chosen site.
@@ -80,22 +83,26 @@ module kp_fciqmc_procs
 
     type(kp_fciqmc_data) :: kp
 
+    ! Information for the krylov_vecs arrays, which holds all of the Krylov
+    ! vectors together simultaneously.
     integer :: nhashes_kp
     integer :: TotWalkersKP
     integer(n_int), allocatable :: krylov_vecs(:,:)
     type(ll_node), pointer :: krylov_vecs_ht(:) 
 
-    integer(int64) :: TotWalkersInit
+    integer(int64) :: TotWalkersInit, AllTotWalkersInit
     real(dp) :: TotPartsInit(lenof_sign)
     real(dp) :: AllTotPartsInit(lenof_sign)
-    integer(n_int), allocatable :: init_kp_config(:,:)
+
+    ! If true then don't use a fixed number of iterations between each Krylov
+    ! vector is taken, but vary the number.
     logical :: vary_niters
 
     ! The total sign length for all Krylov vectors together.
     integer :: lenof_sign_kp
 
-    ! If true then calculate the projected Hamiltonian exactly (useful
-    ! for testing only, in practice).
+    ! If true then calculate the projected Hamiltonian exactly (useful for
+    ! testing only, in practice).
     logical :: tExactHamil
     ! If true, use the spawning from the main FCIQMC iterations to
     ! calculate the projected Hamiltonian.
@@ -130,8 +137,8 @@ contains
         niters_temp = 0
         kp%nwalkers_per_site_init = 1.0_dp
         kp%av_mc_excits_kp = 0.0_dp
-        kp%tGround = .false.
         kp%tFiniteTemp = .false.
+        kp%tMultiplePopStart = .false.
         tExactHamil = .false.
         tHamilOnFly = .false.
         tInitCorrectNWalkers = .false.
@@ -148,10 +155,12 @@ contains
             select case(w)
             case("END-KP-FCIQMC")
                 exit read_inp
-            case("GROUND-STATE")
-                kp%tGround = .true.
             case("FINITE-TEMPERATURE")
                 kp%tFiniteTemp = .true.
+            case("MULTIPLE-POPS")
+                kp%tMultiplePopStart = .true.
+                tIncrementPops = .true.
+                iPopsFileNoRead = -1
             case("NUM-INIT-CONFIGS")
                 call geti(kp%nconfigs)
             case("NUM-REPEATS-PER-INIT-CONFIG")
@@ -229,32 +238,29 @@ contains
 
         if (.not. tHashWalkerList) call stop_all('t_r','kp-fciqmc can only be run using &
             &the linscalefcimcalgo option (the linear scaling algorithm).')
-
         if (.not. tUseRealCoeffs) call stop_all('t_r','kp-fciqmc can only be run using &
             &real coefficients).')
-
         if (tExactHamil .and. nProcessors /= 1) call stop_all('t_r','The exact-hamil &
             &option can only be used when running with one processor.')
-
         if (theisenberg .and. tAllSymSectors) call stop_all('t_r','The option to use all &
             &symmetry sectors at once has not been implemented with the Heisenberg model.')
+        if (n_int == 4) call stop_all('t_r', 'Use of RealCoefficients does not work with 32 bit &
+             &integers due to the use of the transfer operation from dp reals to 64 bit integers.')
 
         tPopsAlreadyRead = .false.
         call SetupParameters()
         call InitFCIMCCalcPar()
         call init_fcimc_fn_pointers() 
-        
         call WriteFciMCStatsHeader()
 
-        if (n_int == 4) call stop_all('t_r', 'Use of RealCoefficients does not work with 32 bit &
-             &integers due to the use of the transfer operation from dp reals to 64 bit integers.')
-
+        ! The number of numbers required to store all replicas of all Krylov vectors.
         lenof_sign_kp = lenof_sign*kp%nvecs
-        NIfLan = NIfDBO + lenof_sign_kp + 1 + NIfFlag
+        ! The total length of a bitstring containing all Krylov vectors.
+        NIfTotKP = NIfDBO + lenof_sign_kp + 1 + NIfFlag
 
         nhashes_kp = nWalkerHashes
         TotWalkersKP = 0
-        allocate(krylov_vecs(0:NIfLan, MaxWalkersPart), stat=ierr)
+        allocate(krylov_vecs(0:NIfTotKP, MaxWalkersPart), stat=ierr)
         krylov_vecs = 0_n_int
         allocate(krylov_vecs_ht(nhashes_kp), stat=ierr)
         call init_hash_table(krylov_vecs_ht)
@@ -262,24 +268,18 @@ contains
         allocate(kp%overlap_matrix(kp%nvecs, kp%nvecs), stat=ierr)
         allocate(kp%hamil_matrix(kp%nvecs, kp%nvecs), stat=ierr)
 
-        ! If performing a finite-temperature calculation with more than one run for each initial
-        ! configuration, we store this walker configuration so that we can restart from it later.
-        if (kp%tFiniteTemp .and. kp%nrepeats > 1) then
-            allocate(init_kp_config(0:NIfTot, MaxWalkersPart), stat=ierr)
-        end if
-
         ! If av_mc_excits_kp hasn't been set by the user, just use AvMCExcits.
         if (kp%av_mc_excits_kp == 0.0_dp) kp%av_mc_excits_kp = AvMCExcits
 
         if (tHamilOnFly) then
             allocate(SpawnVecKP(0:NIfTot,MaxSpawned),stat=ierr)
-            SpawnVecKP(:,:) = 0
+            SpawnVecKP(:,:) = 0_n_int
             SpawnedPartsKP => SpawnVecKP
         else
             allocate(SpawnVecKP(0:NOffSgn+lenof_sign_kp-1,MaxSpawned),stat=ierr)
             allocate(SpawnVecKP2(0:NOffSgn+lenof_sign_kp-1,MaxSpawned),stat=ierr)
-            SpawnVecKP(:,:) = 0
-            SpawnVecKP2(:,:) = 0
+            SpawnVecKP(:,:) = 0_n_int
+            SpawnVecKP2(:,:) = 0_n_int
             SpawnedPartsKP => SpawnVecKP
             SpawnedPartsKP2 => SpawnVecKP2
             if (tSemiStochastic) then
@@ -299,17 +299,22 @@ contains
         type(kp_fciqmc_data), intent(inout) :: kp
         integer, intent(in) :: iconfig, irepeat
 
+        ! If starting from multiple POPSFILEs then set this counter so that the
+        ! correct POPSFILE is read in this time. To read in POPSFILE.x,
+        ! iPopsFileNoRead needs to be set to -x-1...
+        if (kp%tMultiplePopStart) iPopsFileNoRead = -iconfig-1
+
         call create_initial_config(kp, iconfig, irepeat)
 
         call reset_hash_table(krylov_vecs_ht)
         krylov_vecs = 0_n_int
 
+        ! Rezero all the necessary data.
         kp%overlap_matrix = 0.0_dp
         kp%hamil_matrix = 0.0_dp
         TotWalkersKP = 0
         iter = 0
         PreviousCycles = 0
-
         DiagSft = InputDiagSft
         if (tStartSinglePart) then
             OldAllAvWalkersCyc = InitialPart
@@ -354,7 +359,7 @@ contains
         integer :: i
         real(dp) :: real_sign(lenof_sign)
         real(dp) :: norm, all_norm
-        character(len=*), parameter :: t_r = "create_inital_config"
+        character(len=*), parameter :: t_r = "create_initial_config"
         ! Variables from popsfile header...
         integer :: iPopLenof_sign, iPopNel, iPopIter, PopNIfD, PopNIfY, WalkerListSize
         integer :: PopNIfSgn, PopNIfFlag, PopNIfTot, PopBlockingIter
@@ -364,76 +369,98 @@ contains
         real(dp), dimension(lenof_sign/inum_runs) :: PopSumNoatHF
         HElement_t :: PopAllSumENum
 
+        ! Clear everything from any previous repeats or starting configurations.
         call reset_hash_table(HashIndex)
 
-        if (kp%tGround) then
-            if (tReadPops) then
-                ! Read header.
-                call open_pops_head(iunithead,formpops,binpops)
-                PopsVersion = FindPopsfileVersion(iunithead)
-                if(PopsVersion == 4) then
-                    call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+        if (irepeat == 1) then
+            if (.not. kp%tFiniteTemp) then
+                if (tReadPops) then
+                    ! Read the header.
+                    call open_pops_head(iunithead,formpops,binpops)
+                    PopsVersion = FindPopsfileVersion(iunithead)
+                    if(PopsVersion == 4) then
+                        call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+                                iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                                PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
+                        ! If requested output the norm of the *unperturbed* walkers in the POPSFILE.
+                        if (tWritePopsNorm) call write_pops_norm()
+                    else
+                        call stop_all(t_r, "Only version 4 popsfile are supported with kp-fciqmc.")
+                    endif
+                    call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                             iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                            PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
-                    if (tWritePopsNorm) call write_pops_norm()
+                            PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau,PopBlockingIter)
+
+                    if (iProcIndex == root) close(iunithead)
+
+                    call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn)
                 else
-                    call stop_all(t_r, "Only version 4 popsfile are supported with kp-fciqmc.")
-                endif
-                call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                        iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau,PopBlockingIter)
+                    ! Put a walker on the Hartree-Fock, with the requested amplitude.
+                    call InitFCIMC_HF()
+                end if
 
-                if (iProcIndex == root) close(iunithead)
+                if (tSemiStochastic) then
+                    ! core_space stores all core determinants from all processors. Move those on this
+                    ! processor to SpawnedParts, which add_core_states_currentdet_hash uses.
+                    call copy_core_dets_this_proc_to_spawnedparts()
+                    ! Any core space determinants which are not already in CurrentDets will be added
+                    ! by this routine.
+                    call add_core_states_currentdet_hash()
+                    SpawnedParts = 0_n_int
+                    if (tStartCoreGroundState .and. (.not. tReadPops)) &
+                        call start_walkers_from_core_ground(tPrintInfo = .false.)
+                    ! Reset the diagonal Hamiltonian elements.
+                    CurrentH(1, 1:determ_proc_sizes(iProcIndex)) = core_ham_diag
+                end if
 
-                call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn)
-            else
-                ! Put a walker on the Hartree-Fock again, with the requested amplitude.
-                call InitFCIMC_HF()
-            end if
-
-            if (tSemiStochastic) then
-                ! core_space stores all core determinants from all processors. Move those on this
-                ! processor to SpawnedParts, which add_core_states_currentdet_hash uses.
-                call copy_core_dets_this_proc_to_spawnedparts()
-                call add_core_states_currentdet_hash()
-                SpawnedParts = 0_n_int
-                if (tStartCoreGroundState .and. (.not. tReadPops)) &
-                    call start_walkers_from_core_ground(tPrintInfo = .false.)
-                ! Reset the diagonal Hamiltonian elements.
-                CurrentH(1, 1:determ_proc_sizes(iProcIndex)) = core_ham_diag
-            end if
-
-        else if (kp%tFiniteTemp) then
-            if (irepeat == 1) then
-                ! Convert the initial number of walkers to an integer.
+            else if (kp%tFiniteTemp) then
+                ! Convert the initial number of walkers to an integer. Note that on multiple
+                ! processors this may round up the requested number of walkers slightly.
                 if (tStartSinglePart) then
                     nwalkers_target = ceiling(real(InitialPart,dp)/real(nProcessors,dp))
                 else
                     nwalkers_target = ceiling(InitWalkers)
                 end if
-                ! Finally, call the routine to create the walker distribution.
+                ! If requested, reset the random number generator with the requested seed
+                ! before creating the random initial configuration.
                 if (tUseInitConfigSeeds) call dSFMT_init((iProcIndex+1)*init_config_seeds(iconfig))
+
+                ! Create the random initial configuration. 
                 if (tInitCorrectNWalkers) then
                     call generate_init_config_this_proc(nwalkers_target, kp%nwalkers_per_site_init, nwalkers)
                 else
                     call generate_init_config_basic(nwalkers_target, kp%nwalkers_per_site_init, nwalkers)
                 end if
-                TotWalkersInit = TotWalkers
-                TotPartsInit = TotParts
-                AllTotPartsInit = AllTotParts
-                ! If starting from this configuration more than once, store it.
-                if (kp%nrepeats > 1) init_kp_config(:,1:TotWalkers) = CurrentDets(:,1:TotWalkers)
-            else if (irepeat > 1) then
-                TotWalkers = TotWalkersInit
-                TotParts = TotPartsInit
-                TotPartsOld = TotPartsInit
-                AllTotParts = AllTotPartsInit
-                AllTotPartsOld = AllTotPartsInit
 
-                CurrentDets(:,1:TotWalkers) = init_kp_config(:,1:TotWalkers)
-                call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int))
+                call fill_in_CurrentH()
             end if
+        else if (irepeat > 1) then
+            ! If repeating from a previsouly generated initial configuration, simpy reset the following
+            ! data and copy the first Krylov vector (which is always the starting configuration) from
+            ! the last run to CurrentDets.
+            TotWalkers = TotWalkersInit
+            AllTotWalkers = AllTotWalkersInit
+            TotParts = TotPartsInit
+            TotPartsOld = TotPartsInit
+            AllTotParts = AllTotPartsInit
+            AllTotPartsOld = AllTotPartsInit
+            do i = 1, int(TotWalkers, sizeof_int)
+                ! Copy across the bitstring encoding of the determinant and also the walker signs.
+                CurrentDets(0:NOffSgn+lenof_sign-1,1:TotWalkers) = krylov_vecs(0:NOffSgn+lenof_sign-1,1:TotWalkers)
+                ! Copy across the flags.
+                CurrentDets(NIfTot,1:TotWalkers) = krylov_vecs(NIfTotKP,1:TotWalkers)
+            end do
+            call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int))
             call fill_in_CurrentH()
+        end if
+
+        ! If starting from this configuration more than once, store the relevant data for next time.
+        if (kp%nrepeats > 1) then
+            call MPIAllReduce(TotWalkers, MPI_SUM, AllTotWalkers)
+            TotWalkersInit = TotWalkers
+            AllTotWalkersInit = AllTotWalkers
+            TotPartsInit = TotParts
+            AllTotPartsInit = AllTotParts
         end if
 
     end subroutine create_initial_config
@@ -626,18 +653,6 @@ contains
             if (TotParts(1) >= nwalkers) exit
 
         end do
-
-        !write(6,*) "Dets present before:"
-        !do idet = 1, ndets
-        !    int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1, idet)
-        !    real_sign_2 = transfer(int_sign, real_sign_2)
-        !    if (tUseFlags) then
-        !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7, 4x, l1, l1)') idet, CurrentDets(0, idet), real_sign_2, &
-        !            test_flag(CurrentDets(:, idet), flag_is_initiator(1)), test_flag(CurrentDets(:, idet), flag_is_initiator(2))
-        !    else
-        !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') idet, CurrentDets(0, idet), real_sign_2
-        !    end if
-        !end do
 
         TotPartsOld = TotParts
 
@@ -1089,12 +1104,8 @@ contains
 
         ! Create the filename.
         write(ind2,'(i15)') irepeat
-        if (kp%tGround) then
-            filename = trim(trim(stem)//'.'//trim(adjustl(ind2)))
-        else if (kp%tFiniteTemp) then
-            write(ind1,'(i15)') iconfig
-            filename = trim(trim(stem)//'.'//trim(adjustl(ind1))//'.'//trim(adjustl(ind2)))
-        end if
+        write(ind1,'(i15)') iconfig
+        filename = trim(trim(stem)//'.'//trim(adjustl(ind1))//'.'//trim(adjustl(ind2)))
 
         new_unit = get_free_unit()
         open(new_unit, file=trim(filename), status='replace')
