@@ -317,7 +317,7 @@ MODULE CCMC
                   iMaxExTemp=1
                   iMaxEx=0
                   k=int(TotParts(1),sizeof_int)-iCumlExcits  !iCumlExcits includes this det.
-                  if(j.lt.iHFDet) k=k-HFcount
+                  if(j.lt.iHFDet) k=k-int(HFcount)
 !Count the number of allowed composites - this allows for all numbers of composites
                   IFDEBUG(iDebug,6) WRITE(iout,*) "Counting Excitations:  Level,#, Cuml"
                   ! -1 because we've already chosen this excitor.  +1 to
@@ -688,16 +688,16 @@ MODULE CCMC
                        NoBorn=NoBorn+abs(Child(1))     !Update counter about particle birth
                        iter_data_ccmc%nborn(1) = iter_data_ccmc%nborn(1) + abs(Child(1))
                        IF(IC.eq.1) THEN
-                           SpawnFromSing=SpawnFromSing+abs(Child(1))
+                           SpawnFromSing=SpawnFromSing+int(abs(Child(1)),kind(SpawnFromSing))
                        ENDIF
 
                        IF(abs(Child(1)).gt.25) THEN
    !If more than 25 particles are created in one go, then log this fact and print out later that this has happened.
                            IF(abs(Child(1)).gt.abs(iPartBloom)) THEN
                                IF(IC.eq.1) THEN
-                                   iPartBloom=-abs(Child(1))
+                                   iPartBloom=-int(abs(Child(1)))
                                ELSE
-                                   iPartBloom=abs(Child(1))
+                                   iPartBloom=int(abs(Child(1)))
                                ENDIF
                            ENDIF
    !                        WRITE(iout,"(A,I10,A)") "LARGE PARTICLE BLOOM - ",Child," particles created in one attempt."
@@ -726,7 +726,8 @@ MODULE CCMC
                        ! SpawnedSign(ValidSpawnedList(Proc))=Child
                        ValidSpawnedList(Proc)=ValidSpawnedList(Proc)+1
 
-                       Acceptances=Acceptances+ABS(Child(1))      !Sum the number of created children to use in acceptance ratio
+                       Acceptances=Acceptances+int(ABS(Child(1)),kind(Acceptances))      
+                            !Sum the number of created children to use in acceptance ratio
                 
                   ENDIF   !End if child created
 
@@ -810,7 +811,7 @@ MODULE CCMC
                   ! The number of deaths we need to modify in the particle 
                   ! list, not the sum of the number that died
                   iDeaths=iDeaths+1
-                  iKillDetIndices(1,iDeaths)=iDie
+                  iKillDetIndices(1,iDeaths)=int(iDie)
                   iKillDetIndices(2,iDeaths)=iPartDie
                endif
 !               TotParts=TotParts-abs(CurrentSign(iPartDie))
@@ -884,7 +885,7 @@ MODULE CCMC
             !   iSgn(1)=CurrentSign(j)
 !            CALL SumEContrib(DetCurr,WalkExcitLevel,iSgn,CurrentDets(:,j),HDiagCurr,1.0_dp)
             ! CopySign=CurrentSign(j)
-            CopySign=TempSign3(1)
+            CopySign=int(TempSign3(1))
             IF(CopySign.ne.0.or.WalkExcitLevel.eq.0) THEN
                 call encode_det(CurrentDets(:,VecSlot),CurrentDets(:,j))
                 call encode_sign(CurrentDets(:,VecSlot),TempSign3)
@@ -3006,7 +3007,7 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
          call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, TotWalkers, &
                                tmp_dp, NoatHF, DetList, nMaxAmpl, read_nnodes,&
                                read_walkers_on_nodes)
-         CurrParts = tmp_dp
+         CurrParts = int(tmp_dp)
          nAmpl=int(TotWalkers,sizeof_int)
          dNorm=NoatHF(1)
       endif

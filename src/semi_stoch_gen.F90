@@ -251,7 +251,7 @@ contains
             space_size = determ_proc_sizes(iProcIndex)
             call remove_high_energy_orbs(SpawnedParts(:, 1:space_size), space_size, &
                                            max_determ_size, .true.)
-            determ_proc_sizes(iProcIndex) = space_size
+            determ_proc_sizes(iProcIndex) = int(space_size,MPIArg)
         end if
 
     end subroutine generate_space
@@ -306,7 +306,7 @@ contains
             end if
 
             ! Keep track of the size of the deterministic space on this processor.
-            determ_proc_sizes(proc) = determ_proc_sizes(proc) + 1
+            determ_proc_sizes(proc) = determ_proc_sizes(proc) + 1_MPIArg
 
             ! Add the state to the space.
             call encode_bit_rep(SpawnedParts(0:NIfTot, determ_proc_sizes(iProcIndex)), &
@@ -790,16 +790,16 @@ contains
             call sort_space_by_proc(ilut_store, old_num_states, proc_space_sizes)
 
             ! Create displacement and sendcount arrays for MPIScatterV later:
-            sendcounts = proc_space_sizes*(NIfTot+1)
+            sendcounts = int(proc_space_sizes*(NIfTot+1),MPIArg)
             disps(0) = 0
             do i = 1, nProcessors-1
-                disps(i) = sum(proc_space_sizes(0:i-1))*(NIfTot+1)
+                disps(i) = int(sum(proc_space_sizes(0:i-1))*(NIfTot+1),MPIArg)
             end do
         end if
 
         ! Send the number of states on each processor to the corresponding processor.
         call MPIScatter(proc_space_sizes, this_proc_size, ierr)
-        recvcount = this_proc_size*(NIfTot+1)
+        recvcount = int(this_proc_size*(NIfTot+1),MPIArg)
         ! Finally send the actual states to the SpawnedParts array.
         call MPIScatterV(ilut_store, sendcounts, disps, &
                          SpawnedParts(:, 1:this_proc_size), recvcount, ierr)

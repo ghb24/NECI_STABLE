@@ -920,7 +920,7 @@ contains
                     call geti(tempHFPopThresh)
                     HFPopThresh=tempHFPopThresh
                 else
-                    HFPopThresh=MaxNoatHF 
+                    HFPopThresh=int(MaxNoatHF,int64) 
                 end if
             case("INITAMPLITUDE")
 !For Amplitude CCMC the initial amplitude.

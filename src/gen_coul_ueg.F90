@@ -8,7 +8,7 @@ module gen_coul_ueg_mod
                           ALAT
     use IntegralsData, only: UMat, FCK
     use global_utilities
-    use constants, only: dp, pi, pi2, THIRD
+    use constants, only: sp, dp, pi, pi2, THIRD
     use iso_c_hack
     implicit none
 
@@ -88,7 +88,7 @@ contains
             ! FCK is equiv to FCK(-nmsh/2:nmsh/2-1, ..., ...).
             ! Set FCK(0,0,0) = 0.
             ind = nbasis/2 + 1 + (nbasis/2) * nbasis * (nbasis + 1)
-            FCK(ind) = (0, 0)
+            FCK(ind) = (0.0_sp, 0.0_sp)
         endif
 
         call halt_timer (proc_timer)
@@ -232,7 +232,7 @@ contains
             ! FCK is equiv to FCK(-nmsh/2:nmsh/2-1, ..., ...).
             ! Set FCK(0,0,0) = 0.
             ind = nbasis/2 + 1 + (nbasis/2) * nbasis * (nbasis + 1)
-            FCK(ind) = (0, 0)
+            FCK(ind) = (0.0_sp, 0.0_sp)
         endif
         write (6, *)' !!! FINISHED CALCULATING ALL 2E INTEGRALS !!! '
   
