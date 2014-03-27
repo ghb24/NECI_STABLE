@@ -69,8 +69,9 @@ module kp_fciqmc_procs
         ! this variable specifies how many walkers should be added to each
         ! chosen site.
         real(dp) :: nwalkers_per_site_init
-        ! On iterations where the spawned walkers are used to estiamate the
-        ! Hamiltonian, this is used instead of AvMCExcits.
+        ! When estimating the projected Hamiltonian, this variable determines
+        ! how many spawns (on average) each of the walkers in each of the
+        ! Kyrlov vectors contribute.
         real(dp) :: av_mc_excits_kp
 
         real(dp), allocatable :: overlap_matrix(:,:)
@@ -102,7 +103,8 @@ module kp_fciqmc_procs
 
     ! If true then use generate_init_config_this_proc to generate the initial
     ! walker distribution for finite-temperature calculations. This will always
-    ! get the request walker population.
+    ! generate the requested number of walkers (except for rounding when splitting
+    ! this number between processors).
     logical :: tInitCorrectNWalkers
 
     integer :: MaxSpawnedEachProc
@@ -411,11 +413,11 @@ contains
                 end if
                 ! Finally, call the routine to create the walker distribution.
                 if (tUseInitConfigSeeds) call dSFMT_init((iProcIndex+1)*init_config_seeds(iconfig))
-                !if (tInitCorrectNWalkers) then
-                !    call generate_init_config_this_proc(nwalkers_target, kp%nwalkers_per_site_init, nwalkers)
-                !else
-                !    call generate_init_config_basic(nwalkers_target, kp%nwalkers_per_site_init, nwalkers)
-                !end if
+                if (tInitCorrectNWalkers) then
+                    call generate_init_config_this_proc(nwalkers_target, kp%nwalkers_per_site_init, nwalkers)
+                else
+                    call generate_init_config_basic(nwalkers_target, kp%nwalkers_per_site_init, nwalkers)
+                end if
                 TotWalkersInit = TotWalkers
                 TotPartsInit = TotParts
                 AllTotPartsInit = AllTotParts
