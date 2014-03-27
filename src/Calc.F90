@@ -24,8 +24,8 @@ MODULE Calc
                          InputDiagSft,tSearchTau,proje_spatial,nWalkerHashes,tHashWalkerList,HashLengthFrac, &
                          tTrialHash, tIncCancelledInitEnergy, tStartCoreGroundState
     use semi_stoch_gen, only: core_ras
-    use ftlm_neci, only: n_init_vecs_ftlm, n_lanc_vecs_ftlm, nbeta_ftlm, delta_beta_ftlm
-    use spectral_lanczos, only: n_lanc_vecs_sl, nomega_sl, delta_omega_sl, broadening_sl
+    use ftlm_neci
+    use spectral_lanczos
 
     implicit none
 
@@ -344,6 +344,7 @@ contains
           nomega_sl = 100
           delta_omega_sl = 0.01_dp
           broadening_sl = 0.05_dp
+          tIncludeGroundSpectral = .false.
       
         end subroutine SetCalcDefaults
 
@@ -1818,6 +1819,10 @@ contains
                 call getf(delta_omega_sl)
             case("BROADENING_SL")
                 call getf(broadening_sl)
+            case("INCLUDE-GROUND-SPECTRAL")
+                tIncludeGroundSpectral = .true.
+            case("GROUND-ENERGY-SPECTRAL")
+                call getf(ground_energy_sl)
 
             case default
                 call report("Keyword "                                &

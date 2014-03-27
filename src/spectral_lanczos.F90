@@ -30,7 +30,9 @@ module spectral_lanczos
     real(dp) :: delta_omega_sl
 
     integer :: sl_unit
-    integer :: sl_elem, sl_bit
+
+    logical :: tIncludeGroundSpectral
+    real(dp) :: ground_energy_sl
 
 contains
 
@@ -229,19 +231,26 @@ contains
     
     subroutine output_spectral_lanczos()
 
-        integer :: i, j
+        integer :: i, j, min_vec
         real(dp) :: omega, spectral_weight
 
         if (iProcIndex /= root) return
 
         write(6,'(1x,a5,18X,a15)') "Omega", "Spectral_weight"
 
+        ! Do we include the ground state in the spectrum or not?
+        if (tIncludeGroundSpectral) then
+            min_vec = 1
+        else
+            min_vec = 2
+        end if
+
         omega = 0.0_dp
         do i = 1, nomega_sl
             spectral_weight = 0.0_dp
-            do j = 2, n_lanc_vecs_sl
+            do j = min_vec, n_lanc_vecs_sl
                 spectral_weight = spectral_weight + &
-                    (sl_trans_amps(j)**2*broadening_sl)/(pi*(broadening_sl**2 + (sl_h_eigv(1)-sl_h_eigv(j)+omega)**2))
+                    (sl_trans_amps(j)**2*broadening_sl)/(pi*(broadening_sl**2 + (ground_energy_sl-sl_h_eigv(j)+omega)**2))
             end do
             write(6,'(f18.12, 4x, f18.12)') omega, spectral_weight
             omega = omega + delta_omega_sl
