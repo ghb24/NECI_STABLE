@@ -1454,7 +1454,7 @@ outer_map:      do i = 0, MappingNIfD
 
         integer, intent(in) :: iunit
         integer(int64), intent(in) :: num_walkers
-        integer :: pops_niftot, pops_nifflag, i
+        integer :: pops_niftot, pops_nifflag, i 
         integer(int64), intent(in) :: WalkersonNodes(:)
 
         ! If the popsfile uses flags, but we have combined the
@@ -1526,8 +1526,8 @@ outer_map:      do i = 0, MappingNIfD
 
         integer, intent(in) :: iunit, iunit_2
         integer(n_int), intent(in) :: det(0:NIfTot)
-        real(dp) :: real_sgn(lenof_sign)
-        integer :: flg, j, k, ex_level, nopen
+        real(dp) :: real_sgn(lenof_sign), detenergy
+        integer :: flg, j, k, ex_level, nopen, nI(nel) 
         logical :: bWritten
 
         bWritten = .false.
@@ -1582,10 +1582,12 @@ outer_map:      do i = 0, MappingNIfD
                 ! the current flag will not necessarily be correct.
                 ex_level = FindBitExcitLevel(ilutRef, det, nel)
                 nopen = count_open_orbs(det)
+                call decode_bit_det(nI, det)
+                detenergy = get_helement(nI, nI, 0)
                 write(iunit_2, '(f20.10,a20)', advance='no') &
                     abs(real_sgn(1)), ''
                 call writebitdet (iunit_2, det, .false.)
-                write(iunit_2, '(i30,i30)') ex_level, nopen
+                write(iunit_2,'(i30,i30,f20.10)') ex_level, nopen, detenergy
 
             end if
         end if
