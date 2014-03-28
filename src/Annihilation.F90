@@ -1437,7 +1437,7 @@ MODULE AnnihilationMod
                         ! Record the highest weighted determinant on each 
                         ! processor.
                         if (abs_sign(ceiling(CurrentSign)) > iHighestPop) then
-                            iHighestPop = abs_sign(ceiling(CurrentSign))
+                            iHighestPop = int(abs_sign(ceiling(CurrentSign)))
                             HighestPopDet(:)=CurrentDets(:,i)
                         end if
                     ENDIF
@@ -1677,7 +1677,7 @@ MODULE AnnihilationMod
 !If this option is on, then we want to compare the weight on each determinant to the weight at the HF determinant.
 !Record the highest weighted determinant on each processor.
                         if (abs_sign(ceiling(CurrentSign)) > iHighestPop) then
-                            iHighestPop = abs_sign(ceiling(CurrentSign))
+                            iHighestPop = int(abs_sign(ceiling(CurrentSign)))
                             HighestPopDet(:)=CurrentDets(:,i)
                         endif
                     ENDIF

@@ -54,7 +54,8 @@ contains
         integer(int64), intent(in) :: pops_walkers(0:nProcessors-1)
         real(dp) :: CurrParts(lenof_sign)
         integer :: Slot, nJ(nel)
-        integer :: iunit,i,j,ierr,PopsInitialSlots(0:nNodes-1)
+        integer :: iunit,j,ierr,PopsInitialSlots(0:nNodes-1)
+        integer(int64) :: i
         INTEGER(TagIntType) :: BatchReadTag=0
         real(dp) :: BatchSize
         integer :: PopsSendList(0:nNodes-1),proc
@@ -216,14 +217,14 @@ contains
                 Temp => HashIndex(DetHash)
                 ! If the first element in the list has not been used.
                 if (Temp%Ind == 0) then
-                    Temp%Ind = i
+                    Temp%Ind = int(i)
                 else
                     do while (associated(Temp%Next))
                         Temp => Temp%Next
                     end do
                     allocate(Temp%Next)
                     nullify(Temp%Next%Next)
-                    Temp%Next%Ind = i
+                    Temp%Next%Ind = int(i)
                 end if
             end do
             nullify(Temp)
@@ -360,7 +361,7 @@ contains
         else if (bNodeRoot) then
 
             ! And receive the dets!
-            ndets = read_walkers_on_nodes(iProcIndex)
+            ndets = int(read_walkers_on_nodes(iProcIndex))
             nelem = ndets * (1 + NIfTot)
             call MPIRecv(det_list, nelem, root, mpi_tag, ierr)
 
@@ -368,8 +369,6 @@ contains
             CurrWalkers = ndets
 
         end if
-
-
 
     end function
 
@@ -1455,7 +1454,7 @@ outer_map:      do i = 0, MappingNIfD
 
         integer, intent(in) :: iunit
         integer(int64), intent(in) :: num_walkers
-        integer :: pops_niftot, pops_nifflag, i
+        integer :: pops_niftot, pops_nifflag, i 
         integer(int64), intent(in) :: WalkersonNodes(:)
 
         ! If the popsfile uses flags, but we have combined the
@@ -1527,8 +1526,8 @@ outer_map:      do i = 0, MappingNIfD
 
         integer, intent(in) :: iunit, iunit_2
         integer(n_int), intent(in) :: det(0:NIfTot)
-        real(dp) :: real_sgn(lenof_sign)
-        integer :: flg, j, k, ex_level, nopen
+        real(dp) :: real_sgn(lenof_sign), detenergy
+        integer :: flg, j, k, ex_level, nopen, nI(nel) 
         logical :: bWritten
 
         bWritten = .false.
@@ -1583,10 +1582,12 @@ outer_map:      do i = 0, MappingNIfD
                 ! the current flag will not necessarily be correct.
                 ex_level = FindBitExcitLevel(ilutRef, det, nel)
                 nopen = count_open_orbs(det)
+                call decode_bit_det(nI, det)
+                detenergy = get_helement(nI, nI, 0)
                 write(iunit_2, '(f20.10,a20)', advance='no') &
                     abs(real_sgn(1)), ''
                 call writebitdet (iunit_2, det, .false.)
-                write(iunit_2, '(i30,i30)') ex_level, nopen
+                write(iunit_2,'(i30,i30,f20.10)') ex_level, nopen, detenergy
 
             end if
         end if
