@@ -134,7 +134,7 @@ contains
         kp%nconfigs = 1
         kp%nrepeats = 1
         kp%nvecs = 0
-        niters_temp = 0
+        niters_temp = 1
         kp%nwalkers_per_site_init = 1.0_dp
         kp%av_mc_excits_kp = 0.0_dp
         kp%tFiniteTemp = .false.
@@ -168,13 +168,16 @@ contains
             case("NUM-KRYLOV-VECS")
                 call geti(kp%nvecs)
                 allocate(kp%niters(kp%nvecs))
-                kp%niters = 0
             case("NUM-ITERS-BETWEEN-VECS")
                 call geti(niters_temp)
             case("NUM-ITERS-BETWEEN-VECS-VARY")
-                if (kp%nvecs == 0) call stop_all(t_r, 'Please enter the number of krylov vectors before &
-                                                       &specifying the number of iterations between vectors.')
                 vary_niters = .true.
+                if (kp%nvecs /= 0) then
+                    if (kp%nvecs /= nitems) call stop_all(t_r, 'The number of values specified for the number of iterations &
+                        &between Krylov vectors is not consistent with the number of Krylov vectors requested.')
+                end if
+                kp%nvecs = nitems
+                if (.not. allocated(kp%niters)) allocate(kp%niters(kp%nvecs))
                 do i = 1, kp%nvecs-1
                     call geti(kp%niters(i))
                 end do
@@ -204,24 +207,9 @@ contains
             end select
         end do read_inp
 
-        if (kp%nvecs == 0 .and. niters_temp /= 0) then
-            ! If nvecs was not set but niters was.
-            kp%nvecs = 1
-            allocate(kp%niters(kp%nvecs))
+        if (.not. vary_niters) then
             kp%niters = niters_temp
             kp%niters(kp%nvecs) = 1
-        else if (kp%nvecs /= 0 .and. niters_temp /= 0 .and. (.not. vary_niters)) then
-            ! If both were set (but not through the variable niters option).
-            kp%niters = niters_temp
-            kp%niters(kp%nvecs) = 1
-        else if (kp%nvecs /= 0 .and. niters_temp == 0 .and. (.not. vary_niters)) then
-            ! If nvecs was set but niters was not.
-            kp%niters = 1
-        else if (kp%nvecs == 0) then
-            ! If nvecs was not set and neither was niters.
-            kp%nvecs = 1
-            allocate(kp%niters(kp%nvecs))
-            kp%niters = 1
         end if
 
     end subroutine kp_fciqmc_read_inp
