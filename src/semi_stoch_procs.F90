@@ -632,7 +632,7 @@ contains
 
     subroutine fill_in_CurrentH()
 
-        integer :: i
+        integer(int64) :: i
         integer :: nI(nel)
 
         CurrentH = 0
@@ -653,7 +653,8 @@ contains
 
     subroutine write_core_space()
 
-        integer :: i, j, k, iunit, ierr
+        integer :: i, k, iunit, ierr
+        integer(int64) :: j
         logical :: texist
         character(len=*), parameter :: t_r='write_core_space'
 
@@ -1030,7 +1031,7 @@ contains
 
         ! Finally, copy these amplitudes across to the corresponding states in CurrentDets.
         counter = 0
-        do i = 1, TotWalkers
+        do i = 1, int(TotWalkers)
             if (test_flag(CurrentDets(:,i), flag_deterministic)) then
                 counter = counter + 1
                 call encode_sign(CurrentDets(:,i), partial_determ_vector(counter))

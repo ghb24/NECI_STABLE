@@ -468,7 +468,7 @@ contains
         end do
         call sort(string_j)
 
-        sym_prod = ieor(G1(BRR(ex(1)*2))%Sym%S, G1(BRR(ex(2)*2))%Sym%S)
+        sym_prod = int(ieor(G1(BRR(ex(1)*2))%Sym%S, G1(BRR(ex(2)*2))%Sym%S))
         sym_j = ieor(sym_j,sym_prod)
 
     end subroutine get_excit_details

@@ -252,7 +252,8 @@ contains
         integer(int64), intent(in) :: num_states
         integer(n_int), intent(inout) :: ilut_list(:,:)
         integer, intent(out) :: ntrial, ncon
-        integer :: i, pos
+        integer :: pos
+        integer(int64) :: i
 
         min_trial_ind = 1
         min_conn_ind = 1
@@ -309,7 +310,8 @@ contains
         integer(int64), intent(in) :: num_states
         integer(n_int), intent(inout) :: ilut_list(0:,:)
         integer, intent(out) :: ntrial, ncon
-        integer :: i, pos
+        integer :: pos
+        integer(int64) :: i
         integer :: nI(nel)
         real(dp) :: amp
 

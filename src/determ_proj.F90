@@ -30,7 +30,8 @@ contains
 
     subroutine perform_determ_proj()
 
-        integer :: i, counter, iter, comp, hf_index, ierr
+        integer :: counter, iter, comp, hf_index, ierr
+        integer(int64) :: i
         real(dp), allocatable, dimension(:) :: wavefunction
         real(dp), allocatable, dimension(:) :: ham_times_hf
         real(dp) :: energy_num, energy_denom, tot_e_num, tot_e_denom

@@ -1152,7 +1152,7 @@ contains
         ! Don't consider symmetry categories, do the components separately.
         ! --> Slightly quicker
         tgt_beta = is_beta(tgt)
-        tgt_sym = G1(tgt)%Sym%S
+        tgt_sym = int(G1(tgt)%Sym%S)
         tgt_ml = G1(tgt)%Ml
 
         ! Spatial orbital IDs

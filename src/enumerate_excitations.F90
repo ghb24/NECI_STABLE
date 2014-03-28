@@ -173,7 +173,7 @@ contains
                         cycle
                     end if
 
-                    sym_prod = ieor(G1(orb1)%Sym%S, G1(orb2)%Sym%S)
+                    sym_prod = int(ieor(G1(orb1)%Sym%S, G1(orb2)%Sym%S))
 
                     sym1 = 0
                 end if

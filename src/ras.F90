@@ -152,7 +152,7 @@ contains
             if (i > 1) ras%cum_classes(i) = ras%cum_classes(i-1) + classes(i-1)%class_size
         end do
 
-        HFSym_ras = HFSym%Sym%S
+        HFSym_ras = int(HFSym%Sym%S)
 
     end subroutine initialise_ras_space
 
