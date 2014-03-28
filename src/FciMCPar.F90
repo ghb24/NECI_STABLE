@@ -4825,10 +4825,6 @@ MODULE FciMCParMod
                 call stop_all(t_r,"Inconsistency in the symmetry arrays.")
             endif
         end if
-        IF(tKPntSym) THEN
-            CALL DecomposeAbelianSym(HFSym%Sym%S,KPnt)
-            WRITE(iout,"(A,3I5)") "Crystal momentum of reference determinant is: ",KPnt(1),KPnt(2),KPnt(3)
-        ENDIF
 
 !If using a CAS space truncation, write out this CAS space
         IF(tTruncCAS) THEN
