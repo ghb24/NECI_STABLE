@@ -28,13 +28,14 @@ complex(dp) :: cz
 real(dp) :: z
 integer(int64) :: orbsym(1000)
 integer :: i,j,k,l,ierr,ispin,m,nsets
-integer :: specifier,numb,loc,l1,l2,l3,l5
+integer :: specifier,numb,loc,l1,l2,l3,l4,l5
 real(dp), allocatable :: selfint(:)
 real(dp) :: selfint_old,selfint_prev,selfint_curr
 real(dp),allocatable :: transform(:,:),fdiag(:)
 real(dp),allocatable :: trans_2orbs_coeffs(:,:)
 integer :: startindex,iumat,jumat,rotatepairs,iter
 integer :: indices(1000)
+integer :: scheme
 integer, allocatable :: energyorder(:)
 logical :: exists,trealinds,tmolpro,trotdegen,complexint
 logical, allocatable :: localdelocal(:)
@@ -68,6 +69,8 @@ namelist /fci/ norb,nelec,ms2,orbsym,isym,iuhf,uhf,syml,symlz,propbitlen,nprop
     endif
     write(6,*) 'Reading in rot_params input file...'
     open(9,file='rot_params',status='old',action='read')
+    read(9,*) scheme         ! scheme: specifies which rotation scheme should be used; if scheme=1 an Edminston-Ruedenberg type localisation is employed which maximises (minimises the self-interactions energy <ii|ii>, if scheme=2 the quantity 
+                             !\sum_{k=1,2}\sum_{j in occ} <kj|kj>-<kj|jk> is maximised (minimised)
     read(9,*) trealinds      ! integrals in FCIDUMP file are real (if .true.) and complex 
                              ! (if .false.)
     read(9,*) tmolpro        ! Molpro FCIDUMP file (if .true.) or Qchem FCIDUMP file 
@@ -77,6 +80,16 @@ namelist /fci/ norb,nelec,ms2,orbsym,isym,iuhf,uhf,syml,symlz,propbitlen,nprop
     read(9,*) diff           ! criterion for self-consistency of rotations, diff is the difference between the selfinteractions of two subsequent rotation cycles, if the difference between two subsequent rotation cycles is smaller than diff, the rotation is deemed to be self-consistent and stopped
     read(9,*) specifier      ! specifier: indication how the sets of orbitals to be rotated are specified: if 1: the following is just a list of the indices of the orbitals to rotate; if 2: the following is a list of indices of the starting and beginning indices of the orbitals to rotate
     close(9)
+
+    if (scheme.eq.1) then
+        write(6,*) '------------------------------------------------------------------'
+        write(6,*) 'Edminston-Ruedenberg type procedure using self-interaction <ii|ii>'
+        write(6,*) '------------------------------------------------------------------'
+    elseif (scheme.eq.2) then
+        write(6,*) '-------------------------------------------------------------'
+        write(6,*) 'Procedure uses \sum_{k=1,2} \sum_{j in occ} (<kj|kj>-<kj|jk>)'
+        write(6,*) '-------------------------------------------------------------'
+    endif
 
    ! Read in original FCIDUMP
     inquire(file='FCIDUMP',exist=exists)
@@ -384,7 +397,7 @@ namelist /fci/ norb,nelec,ms2,orbsym,isym,iuhf,uhf,syml,symlz,propbitlen,nprop
     ! orbital indices refer to spatial orbitals if RHF and
     ! spin orbitals if UHF is considered
     open(9,file='rot_params',status='old',action='read')
-    do l1=1,5
+    do l1=1,6
         read(9,*)
     enddo
     m = 0
@@ -450,6 +463,19 @@ namelist /fci/ norb,nelec,ms2,orbsym,isym,iuhf,uhf,syml,symlz,propbitlen,nprop
         enddo
         write(6,*)
     enddo
+
+    ! For UHF only orbitals with the same spin should be rotated amongst
+    ! themselves
+    if (uhf) then
+        do l1=1,nsets
+            do l2=2,sets(l1)
+                if (mod(rotate_list(l1,(l2-1)),2).ne.mod(rotate_list(l1,l2),2)) then
+                    stop 'Error in input options: only orbitals of the same spin&
+                        & can be rotated amongst themselves'
+                endif
+            enddo
+        enddo
+    endif
     
     ! Generate a list of the rotations to perform
     ! Caution: Qchem orders the orbitals according to energy while
@@ -480,157 +506,366 @@ namelist /fci/ norb,nelec,ms2,orbsym,isym,iuhf,uhf,syml,symlz,propbitlen,nprop
         call GeneratePairs(l5,sets(l5),rotate_list(l5,:),pairlist)
     enddo
 
-    ! selfinteraction
-    write(6,*) '----------------------------------------------------------'
-    write(6,*) 'Selfinteractions before rotations:'
-    write(6,*) 'Orbital, Selfinteraction'
-    selfint(:) = 0.0_dp
-    do l1=1,norb
-        selfint(l1) = umat(l1,l1,l1,l1)
-    enddo
-    do l1=1,norb
-        write(6,'(I3,3X,G25.12)') l1,selfint(l1)
-    enddo
-    selfint_curr = sum(selfint)
-    write(6,*) 'Sum of selfinteractions:',selfint_curr
-    write(6,*) '-----------------------------------------------------------'
+    
+    if (scheme.eq.1) then
+        ! Rotate orbitals using selfinteraction criterion
 
-    ! perform transformation
-    transform(:,:) = 0.0_dp
-    do l1=1,norb
-        transform(l1,l1) = 1.0_dp
-    enddo
+        ! selfinteraction
+        write(6,*) '----------------------------------------------------------'
+        write(6,*) 'Selfinteractions before rotations:'
+        write(6,*) 'Orbital, Selfinteraction'
+        selfint(:) = 0.0_dp
+        do l1=1,norb
+            selfint(l1) = umat(l1,l1,l1,l1)
+        enddo
+        do l1=1,norb
+            write(6,'(I3,3X,G25.12)') l1,selfint(l1)
+        enddo
+        selfint_curr = sum(selfint)
+        write(6,*) 'Sum of selfinteractions:',selfint_curr
+        write(6,*) '-----------------------------------------------------------'
+
+        ! perform transformation
+        transform(:,:) = 0.0_dp
+        do l1=1,norb
+            transform(l1,l1) = 1.0_dp
+        enddo
 
  
-    do l1=1,nsets
-        write(6,*) 'Rotating Orbitals:',rotate_list(l1,1:sets(l1))
-        write(6,'(A11,L3)') 'Localise ?',localdelocal(l1)
-        rotatepairs = pairlist(1,l1)
-        if (rotatepairs.eq.0) cycle
-        iter = 0
-        write(6,*) '--------------------------------------------------'
-        write(6,*) 'Perfoming self-consistent rotation'
-        do
-            iter = iter + 1
-            write(6,*) '----------------------------------------------------'
-            write(6,*) 'Iteration:',iter
-            selfint_prev = selfint_curr
-            do l2=2,(2*rotatepairs),2
-                ! only 2 orbitals are rotated
-                transform(:,:) = 0.0_dp
-                do l3=1,norb
-                    transform(l3,l3) = 1.0_dp
-                enddo
-                iumat = pairlist(l2,l1)
-                jumat = pairlist((l2+1),l1)
-                write(6,*) 'Rotating Pair:',iumat,jumat
-                call Rotate2Orbs(iumat,jumat,trans_2orbs_coeffs,selfint(iumat),&
-                   selfint(jumat),localdelocal(l1))
-                transform(iumat,iumat) = trans_2orbs_coeffs(1,1)
-                transform(jumat,iumat) = trans_2orbs_coeffs(2,1)
-                transform(iumat,jumat) = trans_2orbs_coeffs(1,2)
-                transform(jumat,jumat) = trans_2orbs_coeffs(2,2)
-                
-                selfint_old = sum(selfint)
-                write(6,*) 'Sum of rotated self-interactions:',selfint_old
-           
-                ! transform integrails
-                ! dgemm performs the operation
-                ! C = alpha * op(A) * op(B) + beta * op(c)
-                ! alpha,beta: scalars
-                ! op(a): m by k matrix
-                ! op(b): k by n matrix
-                ! op(C): m by n matrix
-                do i=1,norb
-                    do j=1,norb
-                        temp_inds(:,:) = 0.0_dp
-                        call dgemm('T','N',norb,norb,norb,1.0_dp,transform(:,:),norb,&
-                        &umat(1:norb,1:norb,i,j),norb,0.0_dp,&
-                        &temp_inds(1:norb,1:norb),norb)
-                        ! the transpose is needed
-                        call dgemm('T','T',norb,norb,norb,1.0_dp,transform(:,:),norb,&
-                        &temp_inds(1:norb,1:norb),norb,0.0_dp,&
-                        &umat(1:norb,1:norb,i,j),norb)
+        do l1=1,nsets
+            write(6,*) 'Rotating Orbitals:',rotate_list(l1,1:sets(l1))
+            write(6,'(A11,L3)') 'Localise ?',localdelocal(l1)
+            rotatepairs = pairlist(1,l1)
+            if (rotatepairs.eq.0) cycle
+            iter = 0
+            write(6,*) '--------------------------------------------------'
+            write(6,*) 'Perfoming self-consistent rotation'
+            do
+                iter = iter + 1
+                write(6,*) '----------------------------------------------------'
+                write(6,*) 'Iteration:',iter
+                selfint_prev = selfint_curr
+                do l2=2,(2*rotatepairs),2
+                    ! only 2 orbitals are rotated
+                    transform(:,:) = 0.0_dp
+                    do l3=1,norb
+                        transform(l3,l3) = 1.0_dp
                     enddo
-                enddo
-                do i=1,norb
-                    do j=1,norb
-                        temp_inds(:,:) = 0.0_dp
-                        call dgemm('T','N',norb,norb,norb,1.0_dp,transform(:,:),norb,&
-                        &umat(i,j,1:norb,1:norb),norb,0.0_dp,&
-                        &temp_inds(1:norb,1:norb),norb)
-                        ! the transpose is needed
-                        call dgemm('T','T',norb,norb,norb,1.0_dp,transform(:,:),norb,&
-                        &temp_inds(1:norb,1:norb),norb,0.0_dp,&
-                        &umat(i,j,1:norb,1:norb),norb)
+                    iumat = pairlist(l2,l1)
+                    jumat = pairlist((l2+1),l1)
+                    write(6,*) 'Rotating Pair:',iumat,jumat
+                    call Rotate2Orbs(iumat,jumat,trans_2orbs_coeffs,selfint(iumat),&
+                       selfint(jumat),localdelocal(l1))
+                    transform(iumat,iumat) = trans_2orbs_coeffs(1,1)
+                    transform(jumat,iumat) = trans_2orbs_coeffs(2,1)
+                    transform(iumat,jumat) = trans_2orbs_coeffs(1,2)
+                    transform(jumat,jumat) = trans_2orbs_coeffs(2,2)
+                    
+                    selfint_old = sum(selfint)
+                    write(6,*) 'Sum of rotated self-interactions:',selfint_old
+               
+                    ! transform integrails
+                    ! dgemm performs the operation
+                    ! C = alpha * op(A) * op(B) + beta * op(c)
+                    ! alpha,beta: scalars
+                    ! op(a): m by k matrix
+                    ! op(b): k by n matrix
+                    ! op(C): m by n matrix
+                    do i=1,norb
+                        do j=1,norb
+                            temp_inds(:,:) = 0.0_dp
+                            call dgemm('T','N',norb,norb,norb,1.0_dp,transform(:,:),norb,&
+                            &umat(1:norb,1:norb,i,j),norb,0.0_dp,&
+                            &temp_inds(1:norb,1:norb),norb)
+                            ! the transpose is needed
+                            call dgemm('T','T',norb,norb,norb,1.0_dp,transform(:,:),norb,&
+                            &temp_inds(1:norb,1:norb),norb,0.0_dp,&
+                            &umat(1:norb,1:norb,i,j),norb)
+                        enddo
                     enddo
+                    do i=1,norb
+                        do j=1,norb
+                            temp_inds(:,:) = 0.0_dp
+                            call dgemm('T','N',norb,norb,norb,1.0_dp,transform(:,:),norb,&
+                            &umat(i,j,1:norb,1:norb),norb,0.0_dp,&
+                            &temp_inds(1:norb,1:norb),norb)
+                            ! the transpose is needed
+                            call dgemm('T','T',norb,norb,norb,1.0_dp,transform(:,:),norb,&
+                            &temp_inds(1:norb,1:norb),norb,0.0_dp,&
+                            &umat(i,j,1:norb,1:norb),norb)
+                        enddo
+                    enddo
+
+                    ! since the transformation matrix is overwritten each iteration
+                    ! tmat needs to be transformed as well 
+                    call dgemm('T','N',norb,norb,norb,1.0_dp,transform(:,:),norb,&
+                    &tmat(1:norb,1:norb),norb,0.0_dp,&
+                    &temp_tmat(1:norb,1:norb),norb)
+                     call dgemm('T','T',norb,norb,norb,1.0_dp,transform(:,:),norb,&
+                    &temp_tmat(1:norb,1:norb),norb,0.0_dp,&
+                    &tmat(1:norb,1:norb),norb)
+
+                    ! the same is true for fdiag
+                    ! these 'transformed' orbital energy won't be correct 
+                    ! because the fock matrix is not diagonal (unless it is the HF
+                    ! basis) but they are sufficient for a guidance
+                    call TransFDiag(fdiag)
+                    arr(:) = fdiag(:)
                 enddo
 
-                ! since the transformation matrix is overwritten each iteration
-                ! tmat needs to be transformed as well 
-                call dgemm('T','N',norb,norb,norb,1.0_dp,transform(:,:),norb,&
-                &tmat(1:norb,1:norb),norb,0.0_dp,&
-                &temp_tmat(1:norb,1:norb),norb)
-                 call dgemm('T','T',norb,norb,norb,1.0_dp,transform(:,:),norb,&
-                &temp_tmat(1:norb,1:norb),norb,0.0_dp,&
-                &tmat(1:norb,1:norb),norb)
+                selfint(:) = 0.0_dp
+                do l2=1,norb
+                    selfint(l2) = umat(l2,l2,l2,l2)
+                enddo
 
-                ! the same is true for fdiag
-                ! these 'transformed' orbital energy won't be correct 
-                ! because the fock matrix is not diagonal (unless it is the HF
-                ! basis) but they are sufficient for a guidance
-                call TransFDiag(fdiag)
-                arr(:) = fdiag(:)
-            enddo
+                selfint_curr = sum(selfint)
 
-            selfint(:) = 0.0_dp
-            do l2=1,norb
-                selfint(l2) = umat(l2,l2,l2,l2)
-            enddo
+                write(6,*) 'Selfinteractions of pervious and current iterations:'
+                write(6,'(2G20.12)') selfint_prev,selfint_curr
 
-            selfint_curr = sum(selfint)
-
-            write(6,*) 'Selfinteractions of pervious and current iterations:'
-            write(6,'(2G20.12)') selfint_prev,selfint_curr
-
-            if (abs(selfint_curr-selfint_prev).lt.diff) then
-                if (localdelocal(l1)) then
-                    if (selfint_curr.ge.selfint_prev) then
-                        write(6,*) '-------------------------------------------'
-                        write(6,*) 'Rotation is self-consistent !'
-                        write(6,*) '-------------------------------------------'
-                        exit 
-                    else
-                        cycle
-                    endif
-                elseif (.not.localdelocal(l1)) then
-                    if (selfint_curr.le.selfint_prev) then
-                        write(6,*) '-------------------------------------------'
-                        write(6,*) 'Rotation is self-consistent !'
-                        write(6,*) '-------------------------------------------'
-                        exit 
-                    else
-                        cycle
+                if (abs(selfint_curr-selfint_prev).lt.diff) then
+                    if (localdelocal(l1)) then
+                        if (selfint_curr.ge.selfint_prev) then
+                            write(6,*) '-------------------------------------------'
+                            write(6,*) 'Rotation is self-consistent !'
+                            write(6,*) '-------------------------------------------'
+                            exit 
+                        else
+                            cycle
+                        endif
+                    elseif (.not.localdelocal(l1)) then
+                        if (selfint_curr.le.selfint_prev) then
+                            write(6,*) '-------------------------------------------'
+                            write(6,*) 'Rotation is self-consistent !'
+                            write(6,*) '-------------------------------------------'
+                            exit 
+                        else
+                            cycle
+                        endif
                     endif
                 endif
-            endif
+            enddo
         enddo
-    enddo
 
-    ! selfinteraction
-    write(6,*) '----------------------------------------------------------'
-    write(6,*) 'Selfinteractions after rotations:'
-    write(6,*) 'Orbital, Selfinteraction'
-    selfint(:) = 0.0_dp
-    do l1=1,norb
-        selfint(l1) = umat(l1,l1,l1,l1)
-    enddo
-    do l1=1,norb
-        write(6,'(I3,3X,G25.12)') l1,selfint(l1)
-    enddo
-    selfint_curr = sum(selfint)
-    write(6,*) 'Sum of selfinteractions:',selfint_curr
-    write(6,*) '-----------------------------------------------------------'
+        ! selfinteraction
+        write(6,*) '----------------------------------------------------------'
+        write(6,*) 'Selfinteractions after rotations:'
+        write(6,*) 'Orbital, Selfinteraction'
+        selfint(:) = 0.0_dp
+        do l1=1,norb
+            selfint(l1) = umat(l1,l1,l1,l1)
+        enddo
+        do l1=1,norb
+            write(6,'(I3,3X,G25.12)') l1,selfint(l1)
+        enddo
+        selfint_curr = sum(selfint)
+        write(6,*) 'Sum of selfinteractions:',selfint_curr
+        write(6,*) '-----------------------------------------------------------'
+
+    elseif (scheme.eq.2) then
+        ! Rotate orbitals using interactions \sum_{b in occ} <ib|ib|-<ib|bi>
+        
+        ! iteractions
+        write(6,*) '----------------------------------------------------------'
+        write(6,*) 'Interactions before rotations:'
+        write(6,*) 'Orbital, Interaction'
+        selfint(:) = 0.0_dp
+        if (uhf) then
+            do l1=1,norb
+                do l2=1,nelec
+                    l3 = energyorder(l2)
+                    selfint(l1) = selfint(l1) +  umat(l1,l3,l1,l3)
+                    if (mod(l1,2).eq.mod(l3,2)) then
+                        selfint(l1) = selfint(l1) - umat(l1,l3,l3,l1)
+                    endif
+                enddo
+            enddo
+        else
+            do l1=1,norb
+                do l2=1,(nelec/2)
+                    l3 = energyorder(l2)
+                    selfint(l1) = selfint(l1) +  (2.0_dp*umat(l1,l3,l1,l3))&
+                        & - umat(l1,l3,l3,l1)
+                enddo
+            enddo
+        endif
+        do l1=1,norb
+            write(6,'(I3,3X,G25.12)') l1,selfint(l1)
+        enddo
+        selfint_curr = sum(selfint)
+        write(6,*) 'Sum of Interactions:',selfint_curr
+        write(6,*) '-----------------------------------------------------------'
+
+        ! perform transformation
+        transform(:,:) = 0.0_dp
+        do l1=1,norb
+            transform(l1,l1) = 1.0_dp
+        enddo
+
+        do l1=1,nsets
+            write(6,*) 'Rotating Orbitals:',rotate_list(l1,1:sets(l1))
+            write(6,'(A11,L3)') 'Maximise ?',localdelocal(l1)
+            rotatepairs = pairlist(1,l1)
+            if (rotatepairs.eq.0) cycle
+            iter = 0
+            write(6,*) '--------------------------------------------------'
+            write(6,*) 'Perfoming self-consistent rotation'
+            do
+                iter = iter + 1
+                write(6,*) '----------------------------------------------------'
+                write(6,*) 'Iteration:',iter
+                selfint_prev = selfint_curr
+                do l2=2,(2*rotatepairs),2
+                    ! only 2 orbitals are rotated
+                    transform(:,:) = 0.0_dp
+                    do l3=1,norb
+                        transform(l3,l3) = 1.0_dp
+                    enddo
+                    iumat = pairlist(l2,l1)
+                    jumat = pairlist((l2+1),l1)
+                    write(6,*) 'Rotating Pair:',iumat,jumat
+                    call RotateCoulombExchange(iumat,jumat,trans_2orbs_coeffs,selfint(iumat),&
+                       selfint(jumat),localdelocal(l1))
+                    transform(iumat,iumat) = trans_2orbs_coeffs(1,1)
+                    transform(jumat,iumat) = trans_2orbs_coeffs(2,1)
+                    transform(iumat,jumat) = trans_2orbs_coeffs(1,2)
+                    transform(jumat,jumat) = trans_2orbs_coeffs(2,2)
+                    
+                    selfint_old = sum(selfint)
+                    write(6,*) 'Sum of rotated Interactions:',selfint_old
+               
+                    ! transform integrails
+                    ! dgemm performs the operation
+                    ! C = alpha * op(A) * op(B) + beta * op(c)
+                    ! alpha,beta: scalars
+                    ! op(a): m by k matrix
+                    ! op(b): k by n matrix
+                    ! op(C): m by n matrix
+                    do i=1,norb
+                        do j=1,norb
+                            temp_inds(:,:) = 0.0_dp
+                            call dgemm('T','N',norb,norb,norb,1.0_dp,transform(:,:),norb,&
+                            &umat(1:norb,1:norb,i,j),norb,0.0_dp,&
+                            &temp_inds(1:norb,1:norb),norb)
+                            ! the transpose is needed
+                            call dgemm('T','T',norb,norb,norb,1.0_dp,transform(:,:),norb,&
+                            &temp_inds(1:norb,1:norb),norb,0.0_dp,&
+                            &umat(1:norb,1:norb,i,j),norb)
+                        enddo
+                    enddo
+                    do i=1,norb
+                        do j=1,norb
+                            temp_inds(:,:) = 0.0_dp
+                            call dgemm('T','N',norb,norb,norb,1.0_dp,transform(:,:),norb,&
+                            &umat(i,j,1:norb,1:norb),norb,0.0_dp,&
+                            &temp_inds(1:norb,1:norb),norb)
+                            ! the transpose is needed
+                            call dgemm('T','T',norb,norb,norb,1.0_dp,transform(:,:),norb,&
+                            &temp_inds(1:norb,1:norb),norb,0.0_dp,&
+                            &umat(i,j,1:norb,1:norb),norb)
+                        enddo
+                    enddo
+
+                    ! since the transformation matrix is overwritten each iteration
+                    ! tmat needs to be transformed as well 
+                    call dgemm('T','N',norb,norb,norb,1.0_dp,transform(:,:),norb,&
+                    &tmat(1:norb,1:norb),norb,0.0_dp,&
+                    &temp_tmat(1:norb,1:norb),norb)
+                     call dgemm('T','T',norb,norb,norb,1.0_dp,transform(:,:),norb,&
+                    &temp_tmat(1:norb,1:norb),norb,0.0_dp,&
+                    &tmat(1:norb,1:norb),norb)
+
+                    ! the same is true for fdiag
+                    ! these 'transformed' orbital energy won't be correct 
+                    ! because the fock matrix is not diagonal (unless it is the HF
+                    ! basis) but they are sufficient for a guidance
+                    call TransFDiag(fdiag)
+                    arr(:) = fdiag(:)
+                enddo
+
+                selfint(:) = 0.0_dp
+                if (uhf) then
+                    do l3=1,norb
+                        do l2=1,nelec
+                            l4 = energyorder(l2)
+                            selfint(l3) = selfint(l3) +  umat(l3,l4,l3,l4)
+                            if (mod(l3,2).eq.mod(l4,2)) then
+                                selfint(l3) = selfint(l3) - umat(l3,l4,l4,l3)
+                            endif
+                        enddo
+                    enddo
+                else
+                    do l3=1,norb
+                        do l2=1,(nelec/2)
+                            l4 = energyorder(l2)
+                            selfint(l3) = selfint(l3) +  (2.0_dp*umat(l3,l4,l3,l4))&
+                                & - umat(l3,l4,l4,l3)
+                        enddo
+                    enddo
+                endif
+
+                selfint_curr = sum(selfint)
+
+                write(6,*) 'Interactions of pervious and current iterations:'
+                write(6,'(2G20.12)') selfint_prev,selfint_curr
+
+                if (abs(selfint_curr-selfint_prev).lt.diff) then
+                    if (localdelocal(l1)) then
+                        if (selfint_curr.ge.selfint_prev) then
+                            write(6,*) '-------------------------------------------'
+                            write(6,*) 'Rotation is self-consistent !'
+                            write(6,*) '-------------------------------------------'
+                            exit 
+                        else
+                            cycle
+                        endif
+                    elseif (.not.localdelocal(l1)) then
+                        if (selfint_curr.le.selfint_prev) then
+                            write(6,*) '-------------------------------------------'
+                            write(6,*) 'Rotation is self-consistent !'
+                            write(6,*) '-------------------------------------------'
+                            exit 
+                        else
+                            cycle
+                        endif
+                    endif
+                endif
+            enddo
+        enddo
+
+        ! selfinteraction
+        write(6,*) '----------------------------------------------------------'
+        write(6,*) 'Interactions after rotations:'
+        write(6,*) 'Orbital, Interaction'
+        selfint(:) = 0.0_dp
+        if (uhf) then
+            do l3=1,norb
+                do l2=1,nelec
+                    l4 = energyorder(l2)
+                    selfint(l3) = selfint(l3) +  umat(l3,l4,l3,l4)
+                    if (mod(l3,2).eq.mod(l4,2)) then
+                        selfint(l3) = selfint(l3) - umat(l3,l4,l4,l3)
+                    endif
+                enddo
+            enddo
+        else
+            do l3=1,norb
+                do l2=1,(nelec/2)
+                    l4 = energyorder(l2)
+                    selfint(l3) = selfint(l3) +  (2.0_dp*umat(l3,l4,l3,l4))&
+                        & - umat(l3,l4,l4,l3)
+                enddo
+            enddo
+        endif
+
+        do l1=1,norb
+            write(6,'(I3,3X,G25.12)') l1,selfint(l1)
+        enddo
+        selfint_curr = sum(selfint)
+        write(6,*) 'Sum of Interactions:',selfint_curr
+        write(6,*) '-----------------------------------------------------------'
+
+    endif
 
     deallocate(temp_inds)
 
@@ -1055,7 +1290,7 @@ contains
                     !j = energyorder(i)
                     do b=1,nelec
                         !g = energyorder(j)
-                        if ((mod(i,2).eq.mod(i,2))) then
+                        if ((mod(i,2).eq.mod(b,2))) then
                             fdiag(i) = fdiag(i) - umat(i,b,b,i)
                         endif
                     enddo
@@ -1181,5 +1416,257 @@ contains
 
 
     endsubroutine TransFDiag
+
+    subroutine RotateCoulombExchange(i,j,trans_2orbs_coeffs,selfintorb1,selfintorb2,localdelocal)
+
+        ! This routine takes two orbitals i,j, and rotates them in order to maximally localise these
+        ! It employs a localisation scheme which maximises/minimises the electron interaction
+        ! terms  in the HF equation,i.e. the combined coulomb and exchange interactions
+        ! \sum_{i=1}^{2} \sum_{r,s} \sum_{j in occ} (c_{ir})*c_{is} <p_{i}p_{j}|u|p_{i}p_{j}>) 
+        ! - (c_{ir})*c_{is} <p_{i}p_{j}|u|p_{i}p_{j}>)
+        ! where p_{i} are the original NOs
+        ! The the coefficients c are given by the following matrix:
+        ! c =  cos a   sin a
+        !      -sin a  cos a
+        ! Then angle a is found by evaluating the quantity for a discrete set of angles
+        ! sampled at a high enough frequency (Nyqusist's theorem: twice the highest
+        ! fourier component frequency)
+
+        real(dp), allocatable, intent(inout) :: trans_2orbs_coeffs(:,:)
+        real(dp), intent(inout) :: selfintorb1,selfintorb2
+        real(dp) :: alpha(32)
+        real(dp) :: selfinteractions(32)
+        real(dp) :: maxint
+        integer :: maxangle(1)
+        integer :: indicesij(2)
+        integer, intent(in) :: i,j
+        integer :: l1,l2,l3,l4,l5
+        logical, intent(in) :: localdelocal
+
+        indicesij(1) = i
+        indicesij(2) = j
+        trans_2orbs_coeffs(:,:) = 0.0_dp
+
+
+        ! the angle alpha is sampled in the region 0,4*pi
+        alpha(1) = 0
+        do l1=2,32
+            alpha(l1) = alpha(l1-1) + (2.0_dp*pi/32.0_dp)
+        enddo
+
+
+        ! compute coulomb and exchange interactions 
+        ! to find the maximum is largest
+        selfinteractions(:) = 0.0_dp 
+
+        do l1=1,32
+            trans_2orbs_coeffs(1,1) = cos(alpha(l1))
+            trans_2orbs_coeffs(2,1) = sin(alpha(l1))
+            trans_2orbs_coeffs(1,2) = -sin(alpha(l1))
+            trans_2orbs_coeffs(2,2) = cos(alpha(l1))
+
+            if (uhf) then
+
+                ! first orbital
+                do l2=1,2
+                    do l3=1,2
+                        do l4=1,nelec
+                            ! for correct reference determinant
+                            l5 = energyorder(l4)
+                            ! coulomb integrals
+                            selfinteractions(l1) = selfinteractions(l1) + (trans_2orbs_coeffs(l2,1)&
+                                &*trans_2orbs_coeffs(l3,1)*&
+                                &Umat(indicesij(l2),l5,indicesij(l3),l5))
+                            ! exchange integrals
+                            ! only non-zero for electrons with the same spin
+                            if ((mod(indicesij(l3),2).eq.mod(indicesij(l2),2)).and.&
+                                &(mod(indicesij(l3),2).eq.mod(l5,2))) then
+                                selfinteractions(l1) = selfinteractions(l1) - (trans_2orbs_coeffs(l2,1)&
+                                    &*trans_2orbs_coeffs(l3,1)*&
+                                    &Umat(indicesij(l2),l5,l5,indicesij(l3)))
+                            endif
+                        enddo
+                    enddo
+                enddo
+                ! the sum of both orbitals is invariant
+                ! so only one orbital can be maximised/minimised 
+                ! while the other one will be minimised/maximised
+    !            ! second orbital
+    !            do l2=1,2
+    !                do l3=1,2
+    !                    do l4=1,nelec
+    !                        ! correct reference determinant
+    !                        l5 = energyorder(l4)
+    !                        ! coulomb integrals
+    !                        selfinteractions(l1) = selfinteractions(l1) + (trans_2orbs_coeffs(l2,2)&
+    !                            &*trans_2orbs_coeffs(l3,2)*&
+    !                            &Umat(indicesij(l2),l5,indicesij(l3),l5))
+    !                        ! eschange integrals
+    !                        ! only non-zero for electrons with the same spin
+    !                        if ((mod(indicesij(l3),2).eq.mod(indicesij(l2),2)).and.&
+    !                            &(mod(indicesij(l3),2).eq.mod(l5,2))) then
+    !                            selfinteractions(l1) = selfinteractions(l1) - (trans_2orbs_coeffs(l2,2)&
+    !                                &*trans_2orbs_coeffs(l3,2)*&
+    !                                &Umat(indicesij(l2),l5,l5,indicesij(l3)))
+    !                        endif
+    !                    enddo
+    !                enddo
+    !            enddo
+            else
+                ! first orbital
+                do l2=1,2
+                    do l3=1,2
+                        do l4=1,(nelec/2)
+                            ! for correct reference determinant
+                            l5 = energyorder(l4)
+                            ! coulomb integrals
+                            selfinteractions(l1) = selfinteractions(l1) + (trans_2orbs_coeffs(l2,1)&
+                                &*trans_2orbs_coeffs(l3,1)*2.0_dp*&
+                                &Umat(indicesij(l2),l5,indicesij(l3),l5))
+                            ! exchange integrals
+                            ! only non-zero for electrons with the same spin
+                            selfinteractions(l1) = selfinteractions(l1) - (trans_2orbs_coeffs(l2,1)&
+                                &*trans_2orbs_coeffs(l3,1)*&
+                                &Umat(indicesij(l2),l5,l5,indicesij(l3)))
+                        enddo
+                    enddo
+                enddo
+                ! the sum of both orbitals is invariant
+                ! so only one orbital can be maximised/minimised 
+                ! while the other one will be minimised/maximised
+    !            ! second orbital
+    !            do l2=1,2
+    !                do l3=1,2
+    !                    do l4=1,(nelec/2)
+    !                        ! correct reference determinant
+    !                        l5 = energyorder(l4)
+    !                        ! coulomb integrals
+    !                        selfinteractions(l1) = selfinteractions(l1) + (trans_2orbs_coeffs(l2,2)&
+    !                            &*trans_2orbs_coeffs(l3,2)*2.0_dp*&
+    !                            &Umat(indicesij(l2),l5,indicesij(l3),l5))
+    !                        ! eschange integrals
+    !                        ! only non-zero for electrons with the same spin
+    !                        selfinteractions(l1) = selfinteractions(l1) - (trans_2orbs_coeffs(l2,2)&
+    !                            &*trans_2orbs_coeffs(l3,2)*&
+    !                            &Umat(indicesij(l2),l5,l5,indicesij(l3)))
+    !                    enddo
+    !                enddo
+    !            enddo
+            endif
+        enddo
+
+        !do l1=1,32
+        !    write(6,'(I3,1X,5(G20.12))') l1,alpha(l1),cos(alpha(l1)),sin(alpha(l1)),&
+        !        &selfinteractions(l1)
+        !enddo
+
+        ! choose the angle which maximises the selfinteractions
+        if (.not.localdelocal) then
+            ! maximum value
+            maxangle = minloc(selfinteractions)
+            maxint = minval(selfinteractions)
+        elseif (localdelocal) then
+            ! minimum values
+            maxangle = maxloc(selfinteractions)
+            maxint = maxval(selfinteractions)
+        endif
+
+
+        ! return transformatin coefficients
+        trans_2orbs_coeffs(1,1) = cos(alpha(maxangle(1)))
+        trans_2orbs_coeffs(2,1) = sin(alpha(maxangle(1)))
+        trans_2orbs_coeffs(1,2) = -sin(alpha(maxangle(1)))
+        trans_2orbs_coeffs(2,2) = cos(alpha(maxangle(1)))
+ 
+ 
+        ! quantity \sum_{k in occ} <ik|ik> - <ik|ki>
+        ! for rotated orbitals
+        selfintorb1 = 0.0_dp
+        selfintorb2 = 0.0_dp
+        if (uhf) then
+
+            ! first orbital
+            do l2=1,2
+                do l3=1,2
+                    do l4=1,nelec
+                        ! for correct reference determinant
+                        l5 = energyorder(l4)
+                        ! coulomb integrals
+                        selfintorb1 = selfintorb1 + (trans_2orbs_coeffs(l2,1)&
+                            &*trans_2orbs_coeffs(l3,1)*&
+                            &Umat(indicesij(l2),l5,indicesij(l3),l5))
+                        ! exchange integrals
+                        ! only non-zero for electrons with the same spin
+                        if ((mod(indicesij(l3),2).eq.mod(indicesij(l2),2)).and.&
+                            &(mod(indicesij(l3),2).eq.mod(l5,2))) then
+                            selfintorb1 = selfintorb1 - (trans_2orbs_coeffs(l2,1)&
+                                &*trans_2orbs_coeffs(l3,1)*&
+                                &Umat(indicesij(l2),l5,l5,indicesij(l3)))
+                        endif
+                    enddo
+                enddo
+            enddo
+            ! second orbital
+            do l2=1,2
+                do l3=1,2
+                    do l4=1,nelec
+                        ! correct reference determinant
+                        l5 = energyorder(l4)
+                        ! coulomb integrals
+                        selfintorb2 = selfintorb2 + (trans_2orbs_coeffs(l2,2)&
+                            &*trans_2orbs_coeffs(l3,2)*&
+                            &Umat(indicesij(l2),l5,indicesij(l3),l5))
+                        ! eschange integrals
+                        ! only non-zero for electrons with the same spin
+                        if ((mod(indicesij(l3),2).eq.mod(indicesij(l2),2)).and.&
+                            &(mod(indicesij(l3),2).eq.mod(l5,2))) then
+                            selfintorb2 = selfintorb2 - (trans_2orbs_coeffs(l2,2)&
+                                &*trans_2orbs_coeffs(l3,2)*&
+                                &Umat(indicesij(l2),l5,l5,indicesij(l3)))
+                        endif
+                    enddo
+                enddo
+            enddo
+        else
+            ! first orbital
+            do l2=1,2
+                do l3=1,2
+                    do l4=1,(nelec/2)
+                        ! for correct reference determinant
+                        l5 = energyorder(l4)
+                        ! coulomb integrals
+                        selfintorb1 = selfintorb1 + (trans_2orbs_coeffs(l2,1)&
+                            &*trans_2orbs_coeffs(l3,1)*2.0_dp*&
+                            &Umat(indicesij(l2),l5,indicesij(l3),l5))
+                        ! exchange integrals
+                        ! only non-zero for electrons with the same spin
+                        selfintorb1 = selfintorb1 - (trans_2orbs_coeffs(l2,1)&
+                            &*trans_2orbs_coeffs(l3,1)*&
+                            &Umat(indicesij(l2),l5,l5,indicesij(l3)))
+                    enddo
+                enddo
+            enddo
+            ! second orbital
+            do l2=1,2
+                do l3=1,2
+                    do l4=1,(nelec/2)
+                        ! correct reference determinant
+                        l5 = energyorder(l4)
+                        ! coulomb integrals
+                        selfintorb2 = selfintorb2 + (trans_2orbs_coeffs(l2,2)&
+                            &*trans_2orbs_coeffs(l3,2)*2.0_dp*&
+                            &Umat(indicesij(l2),l5,indicesij(l3),l5))
+                        ! eschange integrals
+                        ! only non-zero for electrons with the same spin
+                        selfintorb2 = selfintorb2 - (trans_2orbs_coeffs(l2,2)&
+                            &*trans_2orbs_coeffs(l3,2)*&
+                            &Umat(indicesij(l2),l5,l5,indicesij(l3)))
+                    enddo
+                enddo
+            enddo
+        endif
+
+
+    endsubroutine RotateCoulombExchange
 
 end program main
