@@ -81,7 +81,7 @@ contains
                 nOccBeta = (nel-ms_parent)/2
             end if
 
-            nspawn = stochastic_round(kp%av_mc_excits_kp*tot_pop)
+            nspawn = stochastic_round(av_mc_excits_kp*tot_pop)
             
             do ispawn = 1, nspawn
 
@@ -106,7 +106,7 @@ contains
                     HEl = get_spawn_helement(nI_parent, nI_child, ilut_parent, ilut_child, ic, ex, &
                                              tParity, HElGen)
 
-                    child_sign = calc_amp_kp_hamil(parent_sign, prob, kp%av_mc_excits_kp*tot_pop, HEl)
+                    child_sign = calc_amp_kp_hamil(parent_sign, prob, av_mc_excits_kp*tot_pop, HEl)
                 else
                     child_sign = 0.0_dp
                 end if

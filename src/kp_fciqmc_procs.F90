@@ -50,35 +50,36 @@ module kp_fciqmc_procs
         ! The number of different initial walker configurations to start
         ! calculations from.
         integer :: nconfigs
+        ! The current configuration.
+        integer, pointer :: iconfig
         ! The number of simulations to perform for each initial walker
         ! configuration.
         integer :: nrepeats
+        ! The current repeat.
+        integer, pointer :: irepeat
         ! The number of different Krylov vectors to sample (the number of
         ! vectors which form the Krylov subspace at the end of a calculation).
         integer :: nvecs
+        ! The current Krylov vector.
+        integer, pointer :: ivec
         ! The number of iterations to perform *between each Krylov vector being
         ! sampled*. niters(i) holds the number to be performed between the
         ! i-th and (i+1)th vectors. The final element is not set by the user,
         ! it is always set to 1 (because we don't want to go any further
         ! beyond the final Krylov vector).
         integer, allocatable :: niters(:)
-        ! If true then a finite-temperature calculation is performed.
-        logical :: tFiniteTemp
-        ! If true then perform multiple kp-fciqmc calculations starting from
-        ! several POPSFILEs in the running directory. POPSFILEs labelled
-        ! between 0 and nconfigs-1 will be used.
-        logical :: tMultiplePopStart
-        ! For finite-temperature calculations, when creating the inital vector,
-        ! this variable specifies how many walkers should be added to each
-        ! chosen site.
-        real(dp) :: nwalkers_per_site_init
-        ! When estimating the projected Hamiltonian, this variable determines
-        ! how many spawns (on average) each of the walkers in each of the
-        ! Kyrlov vectors contribute.
-        real(dp) :: av_mc_excits_kp
 
-        real(dp), allocatable :: overlap_matrix(:,:)
-        real(dp), allocatable :: hamil_matrix(:,:)
+        ! Stores of the overlap and projected Hamiltonian matrices.
+        ! If tStoreKPMatrices is .true., then all matrices will be held for
+        ! the current initial configuration, including all repeats. The third
+        ! index will therefore run from 1 to nrepeats.
+        ! If tKPMatrices is .false., then only the matrices from the current
+        ! repeat will be held, and the third index will always be 1.
+        real(dp), pointer :: overlap_matrices(:,:,:)
+        real(dp), pointer :: hamil_matrices(:,:,:)
+        ! Pointers to the matrices for the current repeat only.
+        real(dp), pointer :: overlap_matrix(:,:)
+        real(dp), pointer :: hamil_matrix(:,:)
     end type
 
     type(kp_fciqmc_data) :: kp
@@ -107,17 +108,41 @@ module kp_fciqmc_procs
     ! If true, use the spawning from the main FCIQMC iterations to
     ! calculate the projected Hamiltonian.
     logical :: tHamilOnFly
-
+    ! If true then a finite-temperature calculation is performed.
+    logical :: tFiniteTemp
+    ! If true then perform multiple kp-fciqmc calculations starting from
+    ! several POPSFILEs in the running directory. POPSFILEs labelled
+    ! between 0 and nconfigs-1 will be used.
+    logical :: tMultiplePopStart
+    ! For finite-temperature calculations, when creating the inital vector,
+    ! this variable specifies how many walkers should be added to each
+    ! chosen site.
+    real(dp) :: nwalkers_per_site_init
+    ! When estimating the projected Hamiltonian, this variable determines
+    ! how many spawns (on average) each of the walkers in each of the
+    ! Kyrlov vectors contribute.
+    real(dp) :: av_mc_excits_kp
     ! If true then use generate_init_config_this_proc to generate the initial
     ! walker distribution for finite-temperature calculations. This will always
     ! generate the requested number of walkers (except for rounding when splitting
     ! this number between processors).
     logical :: tInitCorrectNWalkers
-
     integer :: MaxSpawnedEachProc
-
     logical :: tUseInitConfigSeeds
     integer, allocatable :: init_config_seeds(:)
+    ! If true, all repeats of the projected Hamiltonian and overlap matrices
+    ! will be stored in memory for a given starting configuration until
+    ! we move onto the next starting configuration. This means that we don't
+    ! have to read all the matrices in again before averaging at the end
+    ! of a tarting configuration, and so makes things a bit quicker. However,
+    ! if this will use too much memory then this option can be turned off
+    ! and the matrices will be read in before averaging instead.
+    logical :: tStoreKPMatrices
+
+    ! Matrices used in the communication of the projected Hamiltonian and
+    ! overlap matrices.
+    real(dp), allocatable :: kp_mpi_matrices_in(:,:)
+    real(dp), allocatable :: kp_mpi_matrices_out(:,:)
 
 contains
 
@@ -135,16 +160,17 @@ contains
         kp%nrepeats = 1
         kp%nvecs = 0
         niters_temp = 1
-        kp%nwalkers_per_site_init = 1.0_dp
-        kp%av_mc_excits_kp = 0.0_dp
-        kp%tFiniteTemp = .false.
-        kp%tMultiplePopStart = .false.
+        nwalkers_per_site_init = 1.0_dp
+        av_mc_excits_kp = 0.0_dp
+        tFiniteTemp = .false.
+        tMultiplePopStart = .false.
         tExactHamil = .false.
         tHamilOnFly = .false.
         tInitCorrectNWalkers = .false.
         vary_niters = .false.
         tUseInitConfigSeeds = .false.
         tAllSymSectors = .false.
+        tStoreKPMatrices = .true.
 
         read_inp: do
             call read_line(eof)
@@ -156,9 +182,9 @@ contains
             case("END-KP-FCIQMC")
                 exit read_inp
             case("FINITE-TEMPERATURE")
-                kp%tFiniteTemp = .true.
+                tFiniteTemp = .true.
             case("MULTIPLE-POPS")
-                kp%tMultiplePopStart = .true.
+                tMultiplePopStart = .true.
                 tIncrementPops = .true.
                 iPopsFileNoRead = -1
             case("NUM-INIT-CONFIGS")
@@ -183,9 +209,9 @@ contains
                 end do
                 kp%niters(kp%nvecs) = 1
             case("NUM-WALKERS-PER-SITE-INIT")
-                call getf(kp%nwalkers_per_site_init)
+                call getf(nwalkers_per_site_init)
             case("AVERAGEMCEXCITS-HAMIL")
-                call getf(kp%av_mc_excits_kp)
+                call getf(av_mc_excits_kp)
             case("EXACT-HAMIL")
                 tExactHamil = .true.
             case("HAMIL-ON-FLY")
@@ -202,6 +228,8 @@ contains
                 end do
             case("ALL-SYM-SECTORS")
                 tAllSymSectors = .true.
+            case("READ-KP-MATRICES")
+                tStoreKPMatrices = .false.
             case default
                 call report("Keyword "//trim(w)//" not recognized in kp-fciqmc block", .true.)
             end select
@@ -249,15 +277,22 @@ contains
         nhashes_kp = nWalkerHashes
         TotWalkersKP = 0
         allocate(krylov_vecs(0:NIfTotKP, MaxWalkersPart), stat=ierr)
-        krylov_vecs = 0_n_int
         allocate(krylov_vecs_ht(nhashes_kp), stat=ierr)
+        krylov_vecs = 0_n_int
         call init_hash_table(krylov_vecs_ht)
 
-        allocate(kp%overlap_matrix(kp%nvecs, kp%nvecs), stat=ierr)
-        allocate(kp%hamil_matrix(kp%nvecs, kp%nvecs), stat=ierr)
+        if (tStoreKPMatrices) then
+            allocate(kp%overlap_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
+            allocate(kp%hamil_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
+        else
+            allocate(kp%overlap_matrices(kp%nvecs, kp%nvecs, 1), stat=ierr)
+            allocate(kp%hamil_matrices(kp%nvecs, kp%nvecs, 1), stat=ierr)
+        end if
+        allocate(kp_mpi_matrices_in(2*kp%nvecs, kp%nvecs))
+        allocate(kp_mpi_matrices_out(2*kp%nvecs, kp%nvecs))
 
         ! If av_mc_excits_kp hasn't been set by the user, just use AvMCExcits.
-        if (kp%av_mc_excits_kp == 0.0_dp) kp%av_mc_excits_kp = AvMCExcits
+        if (av_mc_excits_kp == 0.0_dp) av_mc_excits_kp = AvMCExcits
 
         if (tHamilOnFly) then
             allocate(SpawnVecKP(0:NIfTot,MaxSpawned),stat=ierr)
@@ -282,18 +317,17 @@ contains
 
     end subroutine init_kp_fciqmc
 
-    subroutine init_kp_fciqmc_repeat(kp, iconfig, irepeat)
+    subroutine init_kp_fciqmc_repeat(kp)
 
         type(kp_fciqmc_data), intent(inout) :: kp
-        integer, intent(in) :: iconfig, irepeat
 
         ! If starting from multiple POPSFILEs then set this counter so that the
         ! correct POPSFILE is read in this time. To read in POPSFILE.x,
         ! iPopsFileNoRead needs to be set to -x-1. We want to read in POPSFILE
         ! numbers 0 to kp%nconfigs-1
-        if (kp%tMultiplePopStart) iPopsFileNoRead = -(iconfig-1)-1
+        if (tMultiplePopStart) iPopsFileNoRead = -(kp%iconfig-1)-1
 
-        call create_initial_config(kp, iconfig, irepeat)
+        call create_initial_config(kp)
 
         call reset_hash_table(krylov_vecs_ht)
         krylov_vecs = 0_n_int
@@ -337,13 +371,12 @@ contains
 
     end subroutine init_kp_fciqmc_iter
 
-    subroutine create_initial_config(kp, iconfig, irepeat)
+    subroutine create_initial_config(kp)
 
         use bit_reps, only: extract_bit_rep
         use FciMCData, only: fcimc_excit_gen_store
 
         type(kp_fciqmc_data), intent(inout) :: kp
-        integer, intent(in) :: iconfig, irepeat
         integer :: DetHash, nwalkers, nwalkers_target, iunithead, PopsVersion
         integer :: i
         real(dp) :: real_sign(lenof_sign)
@@ -361,8 +394,8 @@ contains
         ! Clear everything from any previous repeats or starting configurations.
         call reset_hash_table(HashIndex)
 
-        if (irepeat == 1) then
-            if (.not. kp%tFiniteTemp) then
+        if (kp%irepeat == 1) then
+            if (.not. tFiniteTemp) then
                 if (tReadPops) then
                     ! Read the header.
                     call open_pops_head(iunithead,formpops,binpops)
@@ -402,7 +435,7 @@ contains
                     CurrentH(1, 1:determ_proc_sizes(iProcIndex)) = core_ham_diag
                 end if
 
-            else if (kp%tFiniteTemp) then
+            else if (tFiniteTemp) then
                 ! Convert the initial number of walkers to an integer. Note that on multiple
                 ! processors this may round up the requested number of walkers slightly.
                 if (tStartSinglePart) then
@@ -412,18 +445,18 @@ contains
                 end if
                 ! If requested, reset the random number generator with the requested seed
                 ! before creating the random initial configuration.
-                if (tUseInitConfigSeeds) call dSFMT_init((iProcIndex+1)*init_config_seeds(iconfig))
+                if (tUseInitConfigSeeds) call dSFMT_init((iProcIndex+1)*init_config_seeds(kp%iconfig))
 
                 ! Create the random initial configuration. 
                 if (tInitCorrectNWalkers) then
-                    call generate_init_config_this_proc(nwalkers_target, kp%nwalkers_per_site_init, nwalkers)
+                    call generate_init_config_this_proc(nwalkers_target, nwalkers_per_site_init, nwalkers)
                 else
-                    call generate_init_config_basic(nwalkers_target, kp%nwalkers_per_site_init, nwalkers)
+                    call generate_init_config_basic(nwalkers_target, nwalkers_per_site_init, nwalkers)
                 end if
 
                 call fill_in_CurrentH()
             end if
-        else if (irepeat > 1) then
+        else if (kp%irepeat > 1) then
             ! If repeating from a previsouly generated initial configuration, simpy reset the following
             ! data and copy the first Krylov vector (which is always the starting configuration) from
             ! the last run to CurrentDets.
@@ -686,9 +719,9 @@ contains
 
     end subroutine generate_init_config_this_proc
 
-    subroutine store_krylov_vec(ivec, nvecs)
+    subroutine store_krylov_vec(kp)
 
-        integer, intent(in) ::  ivec, nvecs
+        type(kp_fciqmc_data), intent(in) :: kp
         integer :: idet, sign_ind, hdiag_ind, flag_ind, DetHash, det_ind
         integer :: nI(nel)
         integer(n_int) :: temp
@@ -696,7 +729,7 @@ contains
         type(ll_node), pointer :: temp_node, prev
 
         ! The index of the first element referring to the sign, for this ivec.
-        sign_ind = NIfDBO + lenof_sign*(ivec-1) + 1
+        sign_ind = NIfDBO + lenof_sign*(kp%ivec-1) + 1
         hdiag_ind = NIfDBO + lenof_sign_kp + 1
         if (tUseFlags) flag_ind = NIfDBO + lenof_sign_kp + 2
 
@@ -755,15 +788,14 @@ contains
 
     end subroutine store_krylov_vec
 
-    subroutine calc_overlap_matrix_elems(kp, ivec)
+    subroutine calc_overlap_matrix_elems(kp)
 
         type(kp_fciqmc_data), intent(inout) :: kp
-        integer, intent(in) :: ivec
-        integer :: idet, jvec, ind(ivec)
+        integer :: idet, jvec, ind(kp%ivec)
         integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
 
-        associate(s_matrix => kp%overlap_matrix)
+        associate(s_matrix => kp%overlap_matrix, ivec => kp%ivec)
 
             ! Just in case!
             s_matrix(1:ivec, ivec) = 0.0_dp
@@ -802,11 +834,10 @@ contains
 
     end subroutine calc_overlap_matrix_elems
 
-    subroutine calc_hamil_on_fly(kp, ivec)
+    subroutine calc_hamil_on_fly(kp)
 
         type(kp_fciqmc_data), intent(inout) :: kp
-        integer, intent(in) :: ivec
-        integer :: idet, jvec, ind(ivec), nI(nel)
+        integer :: idet, jvec, ind(kp%ivec), nI(nel)
         integer :: det_ind, hdiag_ind, flag_ind, ideterm, DetHash
         integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
@@ -815,7 +846,7 @@ contains
         logical :: tDetFound, tDeterm
         character(len=*), parameter :: t_r = "calc_hamil_elems_on_fly"
 
-        associate(h_matrix => kp%hamil_matrix)
+        associate(h_matrix => kp%hamil_matrix, ivec => kp%ivec)
 
             h_matrix(1:ivec, ivec) = 0.0_dp
             h_matrix(ivec, 1:ivec) = 0.0_dp
@@ -1052,39 +1083,33 @@ contains
         ! held only on the root node.
 
         type(kp_fciqmc_data), intent(inout) :: kp
-        real(dp) :: inp_matrices(2*kp%nvecs, kp%nvecs)
-        real(dp) :: out_matrices(2*kp%nvecs, kp%nvecs)
 
-        inp_matrices(1:kp%nvecs, 1:kp%nvecs) = kp%overlap_matrix
-        inp_matrices(kp%nvecs+1:2*kp%nvecs, 1:kp%nvecs) = kp%hamil_matrix
+        kp_mpi_matrices_in(1:kp%nvecs, 1:kp%nvecs) = kp%overlap_matrix
+        kp_mpi_matrices_in(kp%nvecs+1:2*kp%nvecs, 1:kp%nvecs) = kp%hamil_matrix
 
-        call MPISum(inp_matrices, out_matrices)
+        call MPISum(kp_mpi_matrices_in, kp_mpi_matrices_out)
 
         if (iProcIndex == root) then
-            kp%overlap_matrix = out_matrices(1:kp%nvecs, 1:kp%nvecs)
-            kp%hamil_matrix = out_matrices(kp%nvecs+1:2*kp%nvecs, 1:kp%nvecs)
+            kp%overlap_matrix = kp_mpi_matrices_out(1:kp%nvecs, 1:kp%nvecs)
+            kp%hamil_matrix = kp_mpi_matrices_out(kp%nvecs+1:2*kp%nvecs, 1:kp%nvecs)
         end if
 
     end subroutine communicate_kp_matrices
 
-    subroutine output_kp_matrices(kp, iconfig, irepeat)
+    subroutine output_kp_matrices(kp)
 
         type(kp_fciqmc_data), intent(in) :: kp
-        integer, intent(in) :: iconfig, irepeat
-        real(dp) :: average_h_matrix(kp%nvecs, kp%nvecs)
-        real(dp) :: average_s_matrix(kp%nvecs, kp%nvecs)
 
         if (iProcIndex == root) then
-            call output_matrix(kp, iconfig, irepeat, 'hamil  ', kp%hamil_matrix)
-            call output_matrix(kp, iconfig, irepeat, 'overlap', kp%overlap_matrix)
+            call output_matrices(kp, 'hamil  ', kp%hamil_matrix)
+            call output_matrices(kp, 'overlap', kp%overlap_matrix)
         end if
 
     end subroutine output_kp_matrices
 
-    subroutine output_matrix(kp, iconfig, irepeat, stem, matrix)
+    subroutine output_matrices(kp, stem, matrix)
 
         type(kp_fciqmc_data), intent(in) :: kp
-        integer, intent(in) :: iconfig, irepeat
         character(7), intent(in) :: stem
         character(2) :: ifmt, jfmt
         real(dp), intent(in) :: matrix(kp%nvecs, kp%nvecs)
@@ -1092,8 +1117,8 @@ contains
         integer :: i, j, ilen, jlen, new_unit
 
         ! Create the filename.
-        write(ind2,'(i15)') irepeat
-        write(ind1,'(i15)') iconfig
+        write(ind2,'(i15)') kp%irepeat
+        write(ind1,'(i15)') kp%iconfig
         filename = trim(trim(stem)//'.'//trim(adjustl(ind1))//'.'//trim(adjustl(ind2)))
 
         new_unit = get_free_unit()
@@ -1117,7 +1142,7 @@ contains
         end do
         close(new_unit)
 
-    end subroutine output_matrix
+    end subroutine output_matrices
 
     subroutine print_populations_kp(kp)
     
