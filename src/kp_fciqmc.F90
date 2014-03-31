@@ -61,6 +61,8 @@ contains
 
             do irepeat = 1, kp%nrepeats
 
+                ! Point to the region of memory where the projected Hamiltonian
+                ! and overlap matrices for this repeat will be accumulated and stored.
                 if (tStoreKPMatrices) then
                     kp%hamil_matrix => kp%hamil_matrices(:,:,irepeat)
                     kp%overlap_matrix => kp%overlap_matrices(:,:,irepeat)
@@ -271,7 +273,7 @@ contains
                 ! Sum the overlap and projected Hamiltonian matrices from the various processors.
                 call communicate_kp_matrices(kp)
 
-                call output_kp_matrices(kp)
+                call output_kp_matrices_wrapper(kp)
 
             end do ! Over all repeats for a fixed initial walker configuration.
 

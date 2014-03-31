@@ -1096,36 +1096,35 @@ contains
 
     end subroutine communicate_kp_matrices
 
-    subroutine output_kp_matrices(kp)
+    subroutine output_kp_matrices_wrapper(kp)
 
         type(kp_fciqmc_data), intent(in) :: kp
 
         if (iProcIndex == root) then
-            call output_matrices(kp, 'hamil  ', kp%hamil_matrix)
-            call output_matrices(kp, 'overlap', kp%overlap_matrix)
+            call output_kp_matrices(kp, 'hamil  ', kp%hamil_matrices)
+            call output_kp_matrices(kp, 'overlap', kp%overlap_matrices)
         end if
 
-    end subroutine output_kp_matrices
+    end subroutine output_kp_matrices_wrapper
 
-    subroutine output_matrices(kp, stem, matrix)
+    subroutine output_kp_matrices(kp, stem, matrices)
 
         type(kp_fciqmc_data), intent(in) :: kp
         character(7), intent(in) :: stem
+        real(dp), intent(in) :: matrices(kp%nvecs, kp%nvecs, kp%nrepeats)
         character(2) :: ifmt, jfmt
-        real(dp), intent(in) :: matrix(kp%nvecs, kp%nvecs)
-        character(25) :: ind1, ind2, filename
-        integer :: i, j, ilen, jlen, new_unit
+        character(25) :: ind1, filename
+        integer :: i, j, k, ilen, jlen, new_unit
 
-        ! Create the filename.
-        write(ind2,'(i15)') kp%irepeat
         write(ind1,'(i15)') kp%iconfig
-        filename = trim(trim(stem)//'.'//trim(adjustl(ind1))//'.'//trim(adjustl(ind2)))
+        filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
 
         new_unit = get_free_unit()
         open(new_unit, file=trim(filename), status='replace')
 
-        ! Write all the components of the matrix, above and including the diagonal, one
-        ! after another on separate lines. Each element is preceeded by the indices involved.
+        ! Write all the components of the various estimates of the matrix, above and including the
+        ! diagonal, one after another on separate lines.
+        ! Each line holds all of the estimates for a given element, from the various repeats.
         do i = 1, kp%nvecs
             ilen = ceiling(log10(real(abs(i)+1)))
             ! ifmt will hold the correct integer length so that there will be no spaces printed out.
@@ -1135,14 +1134,20 @@ contains
                 jlen = ceiling(log10(real(abs(j)+1)))
                 write(jfmt,'(a1,i1)') "i", jlen
 
-                ! Finally write the line.
-                write(new_unit,'(a1,'//ifmt//',a1,'//jfmt//',a1,1x,es19.12)') &
-                    "(",i,",",j,")", matrix(i,j)
+                ! Write the index of the matrix element.
+                write(new_unit,'(a1,'//ifmt//',a1,'//jfmt//',a1)',advance='no') &
+                    "(",i,",",j,")"
+                ! Write all of the estimates for this element.
+                do k = 1, kp%irepeat
+                    write(new_unit,'(1x,es19.12)',advance='no') matrices(i,j,k)
+                end do
+                write(new_unit,'()',advance='yes')
             end do
         end do
+
         close(new_unit)
 
-    end subroutine output_matrices
+    end subroutine output_kp_matrices
 
     subroutine print_populations_kp(kp)
     
