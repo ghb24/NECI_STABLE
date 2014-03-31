@@ -468,16 +468,17 @@ contains
             AllTotPartsOld = AllTotPartsInit
             do i = 1, int(TotWalkers, sizeof_int)
                 ! Copy across the bitstring encoding of the determinant and also the walker signs.
-                CurrentDets(0:NOffSgn+lenof_sign-1,1:TotWalkers) = krylov_vecs(0:NOffSgn+lenof_sign-1,1:TotWalkers)
+                CurrentDets(0:NOffSgn+lenof_sign-1,i) = krylov_vecs(0:NOffSgn+lenof_sign-1,i)
                 ! Copy across the flags.
-                CurrentDets(NIfTot,1:TotWalkers) = krylov_vecs(NIfTotKP,1:TotWalkers)
+                CurrentDets(NIfTot,i) = krylov_vecs(NIfTotKP,i)
             end do
             call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int))
+
             call fill_in_CurrentH()
         end if
 
         ! If starting from this configuration more than once, store the relevant data for next time.
-        if (kp%nrepeats > 1) then
+        if (kp%nrepeats > 1 .and. kp%irepeat == 1) then
             call MPIAllReduce(TotWalkers, MPI_SUM, AllTotWalkers)
             TotWalkersInit = TotWalkers
             AllTotWalkersInit = AllTotWalkers
@@ -638,8 +639,6 @@ contains
                         real_sign_2 = transfer(int_sign, real_sign_2)
                         new_sign = real_sign_1 + real_sign_2
                         call encode_sign(CurrentDets(:, temp_node%ind), new_sign)
-                        ! If the walkers have annihilated completley, remove the determinant.
-                        !if (IsUnoccDet(new_sign)) call remove_node(prev, temp_node)
                         TotParts = TotParts - abs(real_sign_2) + abs(new_sign)
                         exit
                     end if
@@ -676,9 +675,8 @@ contains
 
         end do
 
-        TotPartsOld = TotParts
-
         call MPIReduce(TotParts, MPI_SUM, AllTotParts)
+        TotPartsOld = TotParts
         AllTotPartsOld = AllTotParts
         TotWalkers = int(ndets, int64)
 
