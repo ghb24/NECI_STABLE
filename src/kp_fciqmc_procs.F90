@@ -228,7 +228,7 @@ contains
                 end do
             case("ALL-SYM-SECTORS")
                 tAllSymSectors = .true.
-            case("READ-KP-MATRICES")
+            case("WRITE-MATRICES-SEPARATE")
                 tStoreKPMatrices = .false.
             case default
                 call report("Keyword "//trim(w)//" not recognized in kp-fciqmc block", .true.)
@@ -1111,18 +1111,24 @@ contains
         character(7), intent(in) :: stem
         real(dp), intent(in) :: matrices(kp%nvecs, kp%nvecs, kp%nrepeats)
         character(2) :: ifmt, jfmt
-        character(25) :: ind1, filename
-        integer :: i, j, k, ilen, jlen, new_unit
+        character(25) :: ind1, ind2, filename
+        integer :: i, j, k, ilen, jlen, new_unit, repeat_ind
 
         write(ind1,'(i15)') kp%iconfig
-        filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
+        if (tStoreKPMatrices) then
+            filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
+            repeat_ind = kp%irepeat
+        else
+            write(ind2,'(i15)') kp%irepeat
+            filename = trim(trim(stem)//'.'//trim(adjustl(ind1))//'.'//trim(adjustl(ind2)))
+            repeat_ind = 1
+        end if
 
         new_unit = get_free_unit()
         open(new_unit, file=trim(filename), status='replace')
 
         ! Write all the components of the various estimates of the matrix, above and including the
         ! diagonal, one after another on separate lines.
-        ! Each line holds all of the estimates for a given element, from the various repeats.
         do i = 1, kp%nvecs
             ilen = ceiling(log10(real(abs(i)+1)))
             ! ifmt will hold the correct integer length so that there will be no spaces printed out.
@@ -1135,8 +1141,7 @@ contains
                 ! Write the index of the matrix element.
                 write(new_unit,'(a1,'//ifmt//',a1,'//jfmt//',a1)',advance='no') &
                     "(",i,",",j,")"
-                ! Write all of the estimates for this element.
-                do k = 1, kp%irepeat
+                do k = 1, repeat_ind
                     write(new_unit,'(1x,es19.12)',advance='no') matrices(i,j,k)
                 end do
                 write(new_unit,'()',advance='yes')
