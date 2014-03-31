@@ -144,6 +144,11 @@ module kp_fciqmc_procs
     real(dp), allocatable :: kp_mpi_matrices_in(:,:)
     real(dp), allocatable :: kp_mpi_matrices_out(:,:)
 
+    real(dp), allocatable :: kp_hamil_mean(:,:)
+    real(dp), allocatable :: kp_overlap_mean(:,:)
+    real(dp), allocatable :: kp_hamil_se(:,:)
+    real(dp), allocatable :: kp_overlap_se(:,:)
+
 contains
 
     subroutine kp_fciqmc_read_inp()
@@ -297,6 +302,11 @@ contains
         end if
         allocate(kp_mpi_matrices_in(2*kp%nvecs, kp%nvecs))
         allocate(kp_mpi_matrices_out(2*kp%nvecs, kp%nvecs))
+
+        allocate(kp_hamil_mean(kp%nvecs, kp%nvecs))
+        allocate(kp_overlap_mean(kp%nvecs, kp%nvecs))
+        allocate(kp_hamil_se(kp%nvecs, kp%nvecs))
+        allocate(kp_overlap_se(kp%nvecs, kp%nvecs))
 
         ! If av_mc_excits_kp hasn't been set by the user, just use AvMCExcits.
         if (av_mc_excits_kp == 0.0_dp) av_mc_excits_kp = AvMCExcits
@@ -1118,10 +1128,10 @@ contains
 
         type(kp_fciqmc_data), intent(in) :: kp
         character(7), intent(in) :: stem
-        real(dp), intent(in) :: matrices(kp%nvecs, kp%nvecs, kp%nrepeats)
+        real(dp), intent(in) :: matrices(:,:,:)
         character(2) :: ifmt, jfmt
         character(25) :: ind1, ind2, filename
-        integer :: i, j, k, ilen, jlen, new_unit, repeat_ind
+        integer :: i, j, k, ilen, jlen, temp_unit, repeat_ind
 
         write(ind1,'(i15)') kp%iconfig
         if (tStoreKPMatrices) then
@@ -1133,8 +1143,8 @@ contains
             repeat_ind = 1
         end if
 
-        new_unit = get_free_unit()
-        open(new_unit, file=trim(filename), status='replace')
+        temp_unit = get_free_unit()
+        open(temp_unit, file=trim(filename), status='replace')
 
         ! Write all the components of the various estimates of the matrix, above and including the
         ! diagonal, one after another on separate lines.
@@ -1148,18 +1158,82 @@ contains
                 write(jfmt,'(a1,i1)') "i", jlen
 
                 ! Write the index of the matrix element.
-                write(new_unit,'(a1,'//ifmt//',a1,'//jfmt//',a1)',advance='no') &
-                    "(",i,",",j,")"
+                write(temp_unit,'(a1,'//ifmt//',a1,'//jfmt//',a1)',advance='no') "(",i,",",j,")"
                 do k = 1, repeat_ind
-                    write(new_unit,'(1x,es19.12)',advance='no') matrices(i,j,k)
+                    write(temp_unit,'(1x,es19.12)',advance='no') matrices(i,j,k)
                 end do
-                write(new_unit,'()',advance='yes')
+                write(temp_unit,'()',advance='yes')
             end do
         end do
 
-        close(new_unit)
+        close(temp_unit)
 
     end subroutine output_kp_matrices
+
+    subroutine average_kp_matrices_wrapper(kp)
+
+        type(kp_fciqmc_data), intent(in) :: kp
+
+        if (iProcIndex == root) then
+            call average_kp_matrices(kp, 'av_hamil  ', kp%hamil_matrices, kp_hamil_mean, kp_hamil_se)
+            call average_kp_matrices(kp, 'av_overlap', kp%overlap_matrices, kp_overlap_mean, kp_overlap_se)
+        end if
+
+    end subroutine average_kp_matrices_wrapper
+
+    subroutine average_kp_matrices(kp, stem, matrices, mean, se)
+
+        type(kp_fciqmc_data), intent(in) :: kp
+        character(10), intent(in) :: stem
+        real(dp), intent(in) :: matrices(:,:,:)
+        real(dp), intent(inout) :: mean(:,:), se(:,:)
+        integer :: irepeat
+        character(2) :: ifmt, jfmt
+        character(25) :: ind1, filename
+        integer :: i, j, k, ilen, jlen, temp_unit, repeat_ind
+
+        mean = 0.0_dp
+        se = 0.0_dp
+
+        do irepeat = 1, kp%nrepeats
+            mean = mean + matrices(:,:,irepeat)
+        end do
+        mean = mean/kp%nrepeats
+
+        do irepeat = 1, kp%nrepeats
+            se = se + (matrices(:,:,irepeat)-mean)**2
+        end do
+        se = se/((kp%nrepeats-1)*kp%nrepeats)
+        se = sqrt(se)
+
+        ! Now output the final mean and standard error estmiates.
+        write(ind1,'(i15)') kp%iconfig
+        filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
+
+        temp_unit = get_free_unit()
+        open(temp_unit, file=trim(filename), status='replace')
+
+        ! Write all the components of the various estimates of the matrix, above and including the
+        ! diagonal, one after another on separate lines.
+        do i = 1, kp%nvecs
+            ilen = ceiling(log10(real(abs(i)+1)))
+            ! ifmt will hold the correct integer length so that there will be no spaces printed out.
+            ! Note that this assumes that ilen < 10, which is very reasonable!
+            write(ifmt,'(a1,i1)') "i", ilen
+            do j = i, kp%nvecs
+                jlen = ceiling(log10(real(abs(j)+1)))
+                write(jfmt,'(a1,i1)') "i", jlen
+
+                ! Write the index of the matrix element.
+                write(temp_unit,'(a1,'//ifmt//',a1,'//jfmt//',a1)',advance='no') "(",i,",",j,")"
+                ! Write the mean and standard error.
+                write(temp_unit,'(1x,es19.12,1x,a3,es19.12)') mean(i,j), "+/-", se(i,j)
+            end do
+        end do
+
+        close(temp_unit)
+
+    end subroutine average_kp_matrices
 
     subroutine print_populations_kp(kp)
     
@@ -1206,7 +1280,7 @@ contains
         integer, intent(in) :: irepeat
         integer, allocatable :: nI_list(:,:)
         integer :: temp(1,1), hf_ind, ndets
-        integer :: i, j, ilen, counter, new_unit, DetHash
+        integer :: i, j, ilen, counter, temp_unit, DetHash
         integer(n_int) :: ilut(0:NIfTot)
         integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign(lenof_sign)
@@ -1224,8 +1298,8 @@ contains
         write(ind,'(i15)') irepeat
         filename = trim('amps.'//adjustl(ind))
 
-        new_unit = get_free_unit()
-        open(new_unit, file=trim(filename), status='replace')
+        temp_unit = get_free_unit()
+        open(temp_unit, file=trim(filename), status='replace')
 
         counter = 0
 
@@ -1255,11 +1329,11 @@ contains
             write(ifmt,'(a1,i1)') "i", ilen
             do j = 1, lenof_sign
                 ! This assumes that lenof_sign < 10. Probably will always be 1 or 2.
-                write(new_unit,'(a1,'//ifmt//',a1,i1,a1,1x,es19.12)') "(", counter,",", j, ")", real_sign(j)
+                write(temp_unit,'(a1,'//ifmt//',a1,i1,a1,1x,es19.12)') "(", counter,",", j, ")", real_sign(j)
             end do
         end do
 
-        close(new_unit)
+        close(temp_unit)
 
         deallocate(nI_list)
 

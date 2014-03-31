@@ -275,6 +275,8 @@ contains
 
             end do ! Over all repeats for a fixed initial walker configuration.
 
+            if (tStoreKPMatrices) call average_kp_matrices_wrapper(kp)
+
         end do outer_loop ! Over all initial walker configurations.
 
         if (tPopsFile) call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
