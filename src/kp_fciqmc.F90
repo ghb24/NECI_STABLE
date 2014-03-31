@@ -246,9 +246,7 @@ contains
 
                         TotWalkers = int(TotWalkersNew, int64)
 
-                        if (iiter == 1) then
-                            if (tHamilOnFly) call calc_hamil_on_fly(kp)
-                        end if
+                        if (iiter == 1 .and. tHamilOnFly) call calc_hamil_on_fly(kp)
 
                         call update_iter_data(iter_data_fciqmc)
 

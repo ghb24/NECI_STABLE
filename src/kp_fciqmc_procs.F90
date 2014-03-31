@@ -152,7 +152,7 @@ contains
 
         logical :: eof
         character(len=100) :: w
-        integer :: i, niters_temp
+        integer :: i, niters_temp, nvecs_temp
         character (len=*), parameter :: t_r = "kp_fciqmc_read_inp"
 
         ! Default values.
@@ -192,8 +192,15 @@ contains
             case("NUM-REPEATS-PER-INIT-CONFIG")
                 call geti(kp%nrepeats)
             case("NUM-KRYLOV-VECS")
-                call geti(kp%nvecs)
-                allocate(kp%niters(kp%nvecs))
+                call geti(nvecs_temp)
+                if (kp%nvecs /= 0) then
+                    if (kp%nvecs /= nvecs_temp) call stop_all(t_r, 'The number of values specified for the number of iterations &
+                        &between Krylov vectors is not consistent with the number of Krylov vectors requested.')
+                else
+                    kp%nvecs = nvecs_temp
+                    allocate(kp%niters(kp%nvecs))
+                end if
+                kp%niters(kp%nvecs) = 0
             case("NUM-ITERS-BETWEEN-VECS")
                 call geti(niters_temp)
             case("NUM-ITERS-BETWEEN-VECS-VARY")
@@ -207,7 +214,7 @@ contains
                 do i = 1, kp%nvecs-1
                     call geti(kp%niters(i))
                 end do
-                kp%niters(kp%nvecs) = 1
+                kp%niters(kp%nvecs) = 0
             case("NUM-WALKERS-PER-SITE-INIT")
                 call getf(nwalkers_per_site_init)
             case("AVERAGEMCEXCITS-HAMIL")
@@ -237,7 +244,7 @@ contains
 
         if (.not. vary_niters) then
             kp%niters = niters_temp
-            kp%niters(kp%nvecs) = 1
+            kp%niters(kp%nvecs) = 0
         end if
 
     end subroutine kp_fciqmc_read_inp
@@ -298,6 +305,8 @@ contains
             allocate(SpawnVecKP(0:NIfTot,MaxSpawned),stat=ierr)
             SpawnVecKP(:,:) = 0_n_int
             SpawnedPartsKP => SpawnVecKP
+            ! Do one extra iteration so that the Hamiltonian can be calculated for the final Krylov vector.
+            kp%niters(kp%nvecs) = 1
         else
             allocate(SpawnVecKP(0:NOffSgn+lenof_sign_kp-1,MaxSpawned),stat=ierr)
             allocate(SpawnVecKP2(0:NOffSgn+lenof_sign_kp-1,MaxSpawned),stat=ierr)
