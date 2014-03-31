@@ -775,12 +775,6 @@ namelist /fci/ norb,nelec,ms2,orbsym,isym,iuhf,uhf,syml,symlz,propbitlen,nprop
                     &temp_tmat(1:norb,1:norb),norb,0.0_dp,&
                     &tmat(1:norb,1:norb),norb)
 
-                    ! the same is true for fdiag
-                    ! these 'transformed' orbital energy won't be correct 
-                    ! because the fock matrix is not diagonal (unless it is the HF
-                    ! basis) but they are sufficient for a guidance
-                    call TransFDiag(fdiag)
-                    arr(:) = fdiag(:)
                 enddo
 
                 selfint(:) = 0.0_dp
@@ -865,12 +859,21 @@ namelist /fci/ norb,nelec,ms2,orbsym,isym,iuhf,uhf,syml,symlz,propbitlen,nprop
         write(6,*) 'Sum of Interactions:',selfint_curr
         write(6,*) '-----------------------------------------------------------'
 
+        ! in this scheme the new orbital energies can be
+        ! calculated at the very end of the transformation
+        ! these 'transformed' orbital energy won't be correct 
+        ! because the fock matrix is not diagonal (unless it is the HF
+        ! basis) but they are sufficient for a guidance
+        call NewOrbEnergies(fdiag,selfint)
+        arr(:) = fdiag(:)
+
     endif
 
     deallocate(temp_inds)
 
     deallocate(temp_tmat)
 
+ 
     ! writing out a new FCIUDMP_file file with rotated orbital integrals
 
     write(6,*) 'Writing FCIDUMP_rotated file...'
@@ -1416,6 +1419,26 @@ contains
 
 
     endsubroutine TransFDiag
+
+    subroutine NewOrbEnergies(fdiag,selfint)
+
+        ! this subroutine is to calculate the new orbital energies when
+        ! the orbitals have been rotated using the electron interactions
+        ! as criterion
+        
+        real(dp), allocatable, intent(inout) :: fdiag(:)
+        real(dp), allocatable, intent(in) :: selfint(:)
+        integer :: i
+
+        ! e_i = <i|h|i> + \sum_{b} (<ib|ib> - <ib|bi>)
+
+        fdiag(:) = 0.0_dp
+        do i=1,norb
+            fdiag(i) = tmat(i,i) + selfint(i)
+        enddo
+
+
+    endsubroutine NewOrbEnergies
 
     subroutine RotateCoulombExchange(i,j,trans_2orbs_coeffs,selfintorb1,selfintorb2,localdelocal)
 
