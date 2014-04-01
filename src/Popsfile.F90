@@ -1586,7 +1586,11 @@ outer_map:      do i = 0, MappingNIfD
                 ex_level = FindBitExcitLevel(ilutRef, det, nel)
                 nopen = count_open_orbs(det)
                 call decode_bit_det(nI, det)
-                detenergy = get_helement(nI, nI, 0)
+                if(tHPHF)then
+                    detenergy = hphf_diag_helement(nI, det)
+                else
+                    detenergy = get_helement(nI, nI, 0)
+                endif
                 write(iunit_2, '(f20.10,a20)', advance='no') &
                     abs(real_sgn(1)), ''
                 call writebitdet (iunit_2, det, .false.)
