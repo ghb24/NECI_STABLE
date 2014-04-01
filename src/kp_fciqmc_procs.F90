@@ -138,6 +138,7 @@ module kp_fciqmc_procs
     ! if this will use too much memory then this option can be turned off
     ! and the matrices will be read in before averaging instead.
     logical :: tStoreKPMatrices
+    logical :: tOutputAverageKPMatrices
 
     ! Matrices used in the communication of the projected Hamiltonian and
     ! overlap matrices.
@@ -176,6 +177,7 @@ contains
         tUseInitConfigSeeds = .false.
         tAllSymSectors = .false.
         tStoreKPMatrices = .true.
+        tOutputAverageKPMatrices = .false.
 
         read_inp: do
             call read_line(eof)
@@ -242,6 +244,8 @@ contains
                 tAllSymSectors = .true.
             case("WRITE-MATRICES-SEPARATE")
                 tStoreKPMatrices = .false.
+            case("WRITE-AVERAGE-MATRICES")
+                tOutputAverageKPMatrices = .true.
             case default
                 call report("Keyword "//trim(w)//" not recognized in kp-fciqmc block", .true.)
             end select
@@ -1175,22 +1179,22 @@ contains
         type(kp_fciqmc_data), intent(in) :: kp
 
         if (iProcIndex == root) then
-            call average_kp_matrices(kp, 'av_hamil  ', kp%hamil_matrices, kp_hamil_mean, kp_hamil_se)
-            call average_kp_matrices(kp, 'av_overlap', kp%overlap_matrices, kp_overlap_mean, kp_overlap_se)
+            call average_kp_matrices(kp, kp%hamil_matrices, kp_hamil_mean, kp_hamil_se)
+            call average_kp_matrices(kp, kp%overlap_matrices, kp_overlap_mean, kp_overlap_se)
+            if (tOutputAverageKPMatrices) then
+                call output_average_kp_matrix(kp, 'av_hamil  ', kp_hamil_mean, kp_hamil_se)
+                call output_average_kp_matrix(kp, 'av_overlap', kp_overlap_mean, kp_overlap_se)
+            end if
         end if
 
     end subroutine average_kp_matrices_wrapper
 
-    subroutine average_kp_matrices(kp, stem, matrices, mean, se)
+    subroutine average_kp_matrices(kp, matrices, mean, se)
 
         type(kp_fciqmc_data), intent(in) :: kp
-        character(10), intent(in) :: stem
         real(dp), intent(in) :: matrices(:,:,:)
         real(dp), intent(inout) :: mean(:,:), se(:,:)
         integer :: irepeat
-        character(2) :: ifmt, jfmt
-        character(25) :: ind1, filename
-        integer :: i, j, k, ilen, jlen, temp_unit, repeat_ind
 
         mean = 0.0_dp
         se = 0.0_dp
@@ -1205,6 +1209,18 @@ contains
         end do
         se = se/((kp%nrepeats-1)*kp%nrepeats)
         se = sqrt(se)
+
+    end subroutine average_kp_matrices
+
+    subroutine output_average_kp_matrix(kp, stem, mean, se)
+
+        type(kp_fciqmc_data), intent(in) :: kp
+        character(10), intent(in) :: stem
+        real(dp), intent(inout) :: mean(:,:), se(:,:)
+        integer :: irepeat
+        character(2) :: ifmt, jfmt
+        character(25) :: ind1, filename
+        integer :: i, j, k, ilen, jlen, temp_unit, repeat_ind
 
         ! Now output the final mean and standard error estmiates.
         write(ind1,'(i15)') kp%iconfig
@@ -1233,7 +1249,7 @@ contains
 
         close(temp_unit)
 
-    end subroutine average_kp_matrices
+    end subroutine output_average_kp_matrix
 
     subroutine print_populations_kp(kp)
     
