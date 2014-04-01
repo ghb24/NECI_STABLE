@@ -25,6 +25,8 @@ contains
         use FciMCParMod, only: calculate_new_shift_wrapper, walker_death, end_iter_stats
         use FciMCParMod, only: update_iter_data, CalcApproxpDoubles, SumEContrib
         use LoggingData, only: tPopsFile
+        use Parallel_neci, only: iProcIndex
+        use ParallelHelper, only: root
         use PopsFileMod, only: WriteToPopsFileParOneArr
         use procedure_pointers, only: generate_excitation, attempt_create, encode_child
         use procedure_pointers, only: new_child_stats, extract_bit_rep_avsign
@@ -275,7 +277,10 @@ contains
 
             end do ! Over all repeats for a fixed initial walker configuration.
 
-            if (tStoreKPMatrices) call average_kp_matrices_wrapper(kp)
+            if (iProcIndex == root .and. tStoreKPMatrices) then
+                call average_kp_matrices_wrapper(kp)
+                call find_and_output_lowdin_eigv(kp)
+            end if
 
         end do outer_loop ! Over all initial walker configurations.
 

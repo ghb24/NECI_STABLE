@@ -150,6 +150,21 @@ module kp_fciqmc_procs
     real(dp), allocatable :: kp_hamil_se(:,:)
     real(dp), allocatable :: kp_overlap_se(:,:)
 
+    ! These are used in the calculation of the final eigenvalues.
+    ! Allocate these arrays once during initialisation and reuse them,
+    ! as reallocating arrays over and over again isn't great to do...
+    real(dp), allocatable :: kp_hamil_eigv(:)
+    real(dp), allocatable :: kp_overlap_eigv(:)
+    ! The overlap of the final vectors with the initial configuration.
+    ! (the first Krylov vector).
+    real(dp), allocatable :: kp_init_overlaps(:)
+    real(dp), allocatable :: kp_overlap_eigenvecs(:,:)
+    real(dp), allocatable :: kp_transform_matrix(:,:)
+    real(dp), allocatable :: kp_inter_hamil(:,:)
+    real(dp), allocatable :: kp_projected_hamil(:,:)
+    ! The final eigenvectors, but in the basis of Krylov vectors.
+    real(dp), allocatable :: kp_eigenvec_krylov(:,:)
+
 contains
 
     subroutine kp_fciqmc_read_inp()
@@ -304,6 +319,7 @@ contains
             allocate(kp%overlap_matrices(kp%nvecs, kp%nvecs, 1), stat=ierr)
             allocate(kp%hamil_matrices(kp%nvecs, kp%nvecs, 1), stat=ierr)
         end if
+
         allocate(kp_mpi_matrices_in(2*kp%nvecs, kp%nvecs))
         allocate(kp_mpi_matrices_out(2*kp%nvecs, kp%nvecs))
 
@@ -311,6 +327,15 @@ contains
         allocate(kp_overlap_mean(kp%nvecs, kp%nvecs))
         allocate(kp_hamil_se(kp%nvecs, kp%nvecs))
         allocate(kp_overlap_se(kp%nvecs, kp%nvecs))
+
+        allocate(kp_hamil_eigv(kp%nvecs))
+        allocate(kp_overlap_eigv(kp%nvecs))
+        allocate(kp_init_overlaps(kp%nvecs))
+        allocate(kp_overlap_eigenvecs(kp%nvecs, kp%nvecs))
+        allocate(kp_transform_matrix(kp%nvecs, kp%nvecs))
+        allocate(kp_inter_hamil(kp%nvecs, kp%nvecs))
+        allocate(kp_projected_hamil(kp%nvecs, kp%nvecs))
+        allocate(kp_eigenvec_krylov(kp%nvecs, kp%nvecs))
 
         ! If av_mc_excits_kp hasn't been set by the user, just use AvMCExcits.
         if (av_mc_excits_kp == 0.0_dp) av_mc_excits_kp = AvMCExcits
@@ -1146,7 +1171,6 @@ contains
             filename = trim(trim(stem)//'.'//trim(adjustl(ind1))//'.'//trim(adjustl(ind2)))
             repeat_ind = 1
         end if
-
         temp_unit = get_free_unit()
         open(temp_unit, file=trim(filename), status='replace')
 
@@ -1178,13 +1202,11 @@ contains
 
         type(kp_fciqmc_data), intent(in) :: kp
 
-        if (iProcIndex == root) then
-            call average_kp_matrices(kp, kp%hamil_matrices, kp_hamil_mean, kp_hamil_se)
-            call average_kp_matrices(kp, kp%overlap_matrices, kp_overlap_mean, kp_overlap_se)
-            if (tOutputAverageKPMatrices) then
-                call output_average_kp_matrix(kp, 'av_hamil  ', kp_hamil_mean, kp_hamil_se)
-                call output_average_kp_matrix(kp, 'av_overlap', kp_overlap_mean, kp_overlap_se)
-            end if
+        call average_kp_matrices(kp, kp%hamil_matrices, kp_hamil_mean, kp_hamil_se)
+        call average_kp_matrices(kp, kp%overlap_matrices, kp_overlap_mean, kp_overlap_se)
+        if (tOutputAverageKPMatrices) then
+            call output_average_kp_matrix(kp, 'av_hamil  ', kp_hamil_mean, kp_hamil_se)
+            call output_average_kp_matrix(kp, 'av_overlap', kp_overlap_mean, kp_overlap_se)
         end if
 
     end subroutine average_kp_matrices_wrapper
@@ -1222,10 +1244,8 @@ contains
         character(25) :: ind1, filename
         integer :: i, j, k, ilen, jlen, temp_unit, repeat_ind
 
-        ! Now output the final mean and standard error estmiates.
         write(ind1,'(i15)') kp%iconfig
         filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
-
         temp_unit = get_free_unit()
         open(temp_unit, file=trim(filename), status='replace')
 
@@ -1250,6 +1270,80 @@ contains
         close(temp_unit)
 
     end subroutine output_average_kp_matrix
+
+    subroutine find_and_output_lowdin_eigv(kp)
+
+        type(kp_fciqmc_data), intent(in) :: kp
+        integer :: lwork, counter, i, nkeep, nkeep_len, temp_unit
+        integer :: npositive, info, ierr
+        real(dp), allocatable :: work(:)
+        character(2) :: nkeep_fmt
+        character(3) :: string_fmt
+        character(25) :: ind1, filename
+        character(len=*), parameter :: stem = "lowdin"
+
+        write(ind1,'(i15)') kp%iconfig
+        filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
+        temp_unit = get_free_unit()
+        open(temp_unit, file=trim(filename), status='replace')
+
+        ! Create the workspace for the diagonaliser.
+        lwork = max(1,3*kp%nvecs-1)
+        allocate(work(lwork), stat=ierr)
+
+        kp_overlap_eigenvecs = kp_overlap_mean
+
+        ! Now perform the diagonalisation.
+        call dsyev('V', 'U', kp%nvecs, kp_overlap_eigenvecs, kp%nvecs, kp_overlap_eigv, work, lwork, info)
+
+        npositive = 0
+        write(temp_unit,'(a70)') "----Overlap matrix eigenvalues----------------------------------------"
+        do i = 1, kp%nvecs
+            write(temp_unit,'(1x,es19.12)') kp_overlap_eigv(i)
+            if (kp_overlap_eigv(i) > 0.0_dp) npositive = npositive + 1
+        end do
+
+        do nkeep = 1, npositive
+
+            associate(transform_matrix => kp_transform_matrix(1:kp%nvecs, 1:nkeep), &
+                      inter_hamil => kp_inter_hamil(1:kp%nvecs, 1:nkeep), &
+                      proj_hamil => kp_projected_hamil(1:nkeep, 1:nkeep), &
+                      eigenvec_krylov => kp_eigenvec_krylov(1:kp%nvecs, 1:nkeep), &
+                      hamil_eigv => kp_hamil_eigv(1:nkeep), &
+                      init_overlaps => kp_init_overlaps(1:nkeep))
+
+                counter = 0
+                do i = kp%nvecs-nkeep+1, kp%nvecs
+                    counter = counter + 1
+                    transform_matrix(:,counter) = kp_overlap_eigenvecs(:, i)/sqrt(kp_overlap_eigv(i))
+                end do
+
+                inter_hamil = matmul(kp_hamil_mean, transform_matrix)
+                proj_hamil = matmul(transpose(transform_matrix), inter_hamil)
+
+                call dsyev('V', 'U', nkeep, proj_hamil, nkeep, hamil_eigv, work, lwork, info)
+
+                eigenvec_krylov = matmul(transform_matrix, proj_hamil)
+                init_overlaps = matmul(kp_overlap_mean(1,:), eigenvec_krylov)
+
+                nkeep_len = ceiling(log10(real(abs(nkeep)+1)))
+                write(nkeep_fmt,'(a1,i1)') "i", nkeep_len
+                write(string_fmt,'(a1,i2)') "a", 27-nkeep_len
+                write(temp_unit,'(/,a41,1x,'//nkeep_fmt//',1x,'//string_fmt//')') &
+                    "----Eigenvalues and overlaps when keeping", nkeep, "eigenvectors--------------"
+                do i = 1, nkeep
+                    write(temp_unit,'(1x,es19.12,1x,es19.12)') hamil_eigv(i), init_overlaps(i)
+                end do
+
+            end associate
+
+        end do
+
+        deallocate(work)
+
+        close(temp_unit)
+
+    end subroutine find_and_output_lowdin_eigv
 
     subroutine print_populations_kp(kp)
     
