@@ -153,16 +153,27 @@ module kp_fciqmc_procs
     ! These are used in the calculation of the final eigenvalues.
     ! Allocate these arrays once during initialisation and reuse them,
     ! as reallocating arrays over and over again isn't great to do...
+    ! Arrays holding the eigenvalues of the Hamiltonian and overlap matrices.
     real(dp), allocatable :: kp_hamil_eigv(:)
     real(dp), allocatable :: kp_overlap_eigv(:)
     ! The overlap of the final vectors with the initial configuration.
     ! (the first Krylov vector).
     real(dp), allocatable :: kp_init_overlaps(:)
+    ! The eigenvectors of the overlap matrix.
     real(dp), allocatable :: kp_overlap_eigenvecs(:,:)
+    ! The matrix used to transform the Krylov vectors to a orthonormal basis.
     real(dp), allocatable :: kp_transform_matrix(:,:)
+    ! Matrix used as temporary space during the transformation of the
+    ! projected Hamiltonian into an orthonormal basis, in the Lowdin appraoch.
     real(dp), allocatable :: kp_inter_hamil(:,:)
-    real(dp), allocatable :: kp_projected_hamil(:,:)
+    ! The final Hamiltonian in an orthonormal basis, which is to be passed
+    ! to the diagonalisation routines.
+    real(dp), allocatable :: kp_final_hamil(:,:)
     ! The final eigenvectors, but in the basis of Krylov vectors.
+    ! This is used in the Lowdin approach: diagonalising kp_final_hamil
+    ! will give the final eigenvectors in the orthonormal basis, then
+    ! we do the inverse of the transformation procedure to get back to
+    ! the Krylov basis.
     real(dp), allocatable :: kp_eigenvec_krylov(:,:)
 
 contains
@@ -334,7 +345,7 @@ contains
         allocate(kp_overlap_eigenvecs(kp%nvecs, kp%nvecs))
         allocate(kp_transform_matrix(kp%nvecs, kp%nvecs))
         allocate(kp_inter_hamil(kp%nvecs, kp%nvecs))
-        allocate(kp_projected_hamil(kp%nvecs, kp%nvecs))
+        allocate(kp_final_hamil(kp%nvecs, kp%nvecs))
         allocate(kp_eigenvec_krylov(kp%nvecs, kp%nvecs))
 
         ! If av_mc_excits_kp hasn't been set by the user, just use AvMCExcits.
@@ -1278,7 +1289,7 @@ contains
         integer :: npositive, info, ierr
         real(dp), allocatable :: work(:)
         character(2) :: nkeep_fmt
-        character(3) :: string_fmt
+        character(7) :: string_fmt
         character(25) :: ind1, filename
         character(len=*), parameter :: stem = "lowdin"
 
@@ -1297,7 +1308,7 @@ contains
         call dsyev('V', 'U', kp%nvecs, kp_overlap_eigenvecs, kp%nvecs, kp_overlap_eigv, work, lwork, info)
 
         npositive = 0
-        write(temp_unit,'(a70)') "----Overlap matrix eigenvalues----------------------------------------"
+        write(temp_unit,'(4("-"),a26,40("-"))') "Overlap matrix eigenvalues"
         do i = 1, kp%nvecs
             write(temp_unit,'(1x,es19.12)') kp_overlap_eigv(i)
             if (kp_overlap_eigv(i) > 0.0_dp) npositive = npositive + 1
@@ -1307,7 +1318,7 @@ contains
 
             associate(transform_matrix => kp_transform_matrix(1:kp%nvecs, 1:nkeep), &
                       inter_hamil => kp_inter_hamil(1:kp%nvecs, 1:nkeep), &
-                      proj_hamil => kp_projected_hamil(1:nkeep, 1:nkeep), &
+                      final_hamil => kp_final_hamil(1:nkeep, 1:nkeep), &
                       eigenvec_krylov => kp_eigenvec_krylov(1:kp%nvecs, 1:nkeep), &
                       hamil_eigv => kp_hamil_eigv(1:nkeep), &
                       init_overlaps => kp_init_overlaps(1:nkeep))
@@ -1319,18 +1330,18 @@ contains
                 end do
 
                 inter_hamil = matmul(kp_hamil_mean, transform_matrix)
-                proj_hamil = matmul(transpose(transform_matrix), inter_hamil)
+                final_hamil = matmul(transpose(transform_matrix), inter_hamil)
 
-                call dsyev('V', 'U', nkeep, proj_hamil, nkeep, hamil_eigv, work, lwork, info)
+                call dsyev('V', 'U', nkeep, final_hamil, nkeep, hamil_eigv, work, lwork, info)
 
-                eigenvec_krylov = matmul(transform_matrix, proj_hamil)
+                eigenvec_krylov = matmul(transform_matrix, final_hamil)
                 init_overlaps = matmul(kp_overlap_mean(1,:), eigenvec_krylov)
 
                 nkeep_len = ceiling(log10(real(abs(nkeep)+1)))
                 write(nkeep_fmt,'(a1,i1)') "i", nkeep_len
-                write(string_fmt,'(a1,i2)') "a", 27-nkeep_len
-                write(temp_unit,'(/,a41,1x,'//nkeep_fmt//',1x,'//string_fmt//')') &
-                    "----Eigenvalues and overlaps when keeping", nkeep, "eigenvectors--------------"
+                write(string_fmt,'(i2,a5)') 15-nkeep_len, '("-")'
+                write(temp_unit,'(/,4("-"),a37,1x,'//nkeep_fmt//',1x,a12,'//string_fmt//')') &
+                    "Eigenvalues and overlaps when keeping", nkeep, "eigenvectors"
                 do i = 1, nkeep
                     write(temp_unit,'(1x,es19.12,1x,es19.12)') hamil_eigv(i), init_overlaps(i)
                 end do
@@ -1344,6 +1355,136 @@ contains
         close(temp_unit)
 
     end subroutine find_and_output_lowdin_eigv
+
+    subroutine find_and_output_gram_schmidt_eigv(kp)
+
+        type(kp_fciqmc_data), intent(in) :: kp
+        integer :: lwork, counter, nkeep, nkeep_len, temp_unit
+        integer :: npositive, info, ierr
+        integer :: i, j, n, m
+        real(dp), allocatable :: work(:)
+        character(2) :: nkeep_fmt
+        character(7) :: string_fmt
+        character(25) :: ind1, filename
+        character(len=*), parameter :: stem = "gram_schmidt"
+
+        write(ind1,'(i15)') kp%iconfig
+        filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
+        temp_unit = get_free_unit()
+        open(temp_unit, file=trim(filename), status='replace')
+
+        ! Create the workspace for the diagonaliser.
+        lwork = max(1,3*kp%nvecs-1)
+        allocate(work(lwork), stat=ierr)
+
+        ! Use the following allocated arrays as work space for the following routine. Not ideal, I know...
+        associate(S_tilde => kp_inter_hamil, k => kp_final_hamil, N => kp_init_overlaps)
+            call construct_gram_schmidt_transform_matrix(kp_overlap_mean, kp_transform_matrix, S_tilde, k, N, kp%nvecs)
+            npositive = 0
+            do i = 1, kp%nvecs
+                if (N(i) > 0.0_dp) then
+                    npositive = npositive + 1
+                else
+                    exit
+                end if
+            end do
+
+            write(temp_unit,'(4("-"),a21,45("-"))') "Normalisation factors"
+            do i = 1, npositive+1
+                write(temp_unit,'(1x,es19.12)') N(i)
+            end do
+        end associate
+
+        do nkeep = 1, npositive
+
+            associate(S => kp_transform_matrix(1:kp%nvecs, 1:nkeep), &
+                      final_hamil => kp_final_hamil(1:nkeep, 1:nkeep), &
+                      hamil_eigv => kp_hamil_eigv(1:nkeep), &
+                      init_overlaps => kp_init_overlaps(1:nkeep))
+
+                final_hamil = 0.0_dp
+                do n = 1, nkeep
+                    do m = 1, nkeep
+                        do i = 1, n
+                            do j = 1, m
+                                final_hamil(n,m) = final_hamil(n,m) + S(i,n)*kp_hamil_mean(i,j)*S(j,m)
+                            end do
+                        end do
+                    end do
+                end do
+
+                call dsyev('V', 'U', nkeep, final_hamil, nkeep, hamil_eigv, work, lwork, info)
+
+                init_overlaps = final_hamil(:,1)*sqrt(kp_overlap_mean(1,1))
+
+                nkeep_len = ceiling(log10(real(abs(nkeep)+1)))
+                write(nkeep_fmt,'(a1,i1)') "i", nkeep_len
+                write(string_fmt,'(i2,a5)') 15-nkeep_len, '("-")'
+                write(temp_unit,'(/,4("-"),a37,1x,'//nkeep_fmt//',1x,a12,'//string_fmt//')') &
+                    "Eigenvalues and overlaps when keeping", nkeep, "eigenvectors"
+                do i = 1, nkeep
+                    write(temp_unit,'(1x,es19.12,1x,es19.12)') hamil_eigv(i), init_overlaps(i)
+                end do
+
+            end associate
+
+        end do
+
+        deallocate(work)
+
+        close(temp_unit)
+
+    end subroutine find_and_output_gram_schmidt_eigv
+
+    subroutine construct_gram_schmidt_transform_matrix(overlap, S, S_tilde, k, N, matrix_size)
+
+        ! Construct the matrix, S, which transforms the Krylov vectors to a set of orthogonal vectors.
+
+        ! We use the notation from the Appendix of Phys. Rev. B. 85, 205119 for the matrices and the
+        ! indices, except we use 'm' instead of 'n' and 'l' instead of 'k' for the indices.
+
+        ! Usage: overlap on input should contain the overlap matrix of the Krylov vectors that
+        ! you want to produce a transformation matrix for. All other matrices input should be
+        ! allocated on input, and should be the same size as overlap.
+
+        real(dp), intent(inout) :: overlap(:,:), S(:,:), S_tilde(:,:), k(:,:), N(:)
+        integer, intent(in) :: matrix_size
+        integer :: m, i, l, p, q
+
+        S = 0.0_dp
+        S_tilde = 0.0_dp
+        k = 0.0_dp
+        N = 0.0_dp
+
+        do m = 1, matrix_size
+            S(m,m) = 1.0_dp
+            S_tilde(m,m) = 1.0_dp
+        end do
+
+        N(1) = overlap(1,1)
+        S(1,1) = 1/sqrt(N(1))
+
+        do m = 2, matrix_size
+            do i = 1, m-1
+                do l = 1, i
+                    k(i,m) = k(i,m) + S(l,i)*overlap(m,l)
+                end do
+            end do
+            do p = 1, m-1
+                do q = p, m-1
+                    S_tilde(p,m) = S_tilde(p,m) - k(q,m)*S(p,q)
+                end do
+            end do
+            do q = 1, m
+                do p = 1, m
+                    N(m) = N(m) + S_tilde(p,m)*S_tilde(q,m)*overlap(p,q)
+                end do
+            end do
+            if (N(m) < 0.0_dp) return
+            S(:,m) = S_tilde(:,m)/sqrt(N(m))
+        end do
+
+    end subroutine construct_gram_schmidt_transform_matrix
 
     subroutine print_populations_kp(kp)
     

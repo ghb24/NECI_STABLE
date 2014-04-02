@@ -280,6 +280,7 @@ contains
             if (iProcIndex == root .and. tStoreKPMatrices) then
                 call average_kp_matrices_wrapper(kp)
                 call find_and_output_lowdin_eigv(kp)
+                call find_and_output_gram_schmidt_eigv(kp)
             end if
 
         end do outer_loop ! Over all initial walker configurations.
