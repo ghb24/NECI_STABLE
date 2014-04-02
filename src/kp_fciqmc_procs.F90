@@ -1237,11 +1237,13 @@ contains
         end do
         mean = mean/kp%nrepeats
 
-        do irepeat = 1, kp%nrepeats
-            se = se + (matrices(:,:,irepeat)-mean)**2
-        end do
-        se = se/((kp%nrepeats-1)*kp%nrepeats)
-        se = sqrt(se)
+        if (kp%nrepeats > 1) then
+            do irepeat = 1, kp%nrepeats
+                se = se + (matrices(:,:,irepeat)-mean)**2
+            end do
+            se = se/((kp%nrepeats-1)*kp%nrepeats)
+            se = sqrt(se)
+        end if
 
     end subroutine average_kp_matrices
 
@@ -1273,8 +1275,14 @@ contains
 
                 ! Write the index of the matrix element.
                 write(temp_unit,'(a1,'//ifmt//',a1,'//jfmt//',a1)',advance='no') "(",i,",",j,")"
-                ! Write the mean and standard error.
-                write(temp_unit,'(1x,es19.12,1x,a3,es19.12)') mean(i,j), "+/-", se(i,j)
+                if (kp%nrepeats > 1) then
+                    ! Write the mean and standard error.
+                    write(temp_unit,'(1x,es19.12,1x,a3,es19.12)') mean(i,j), "+/-", se(i,j)
+                else if (kp%nrepeats == 1) then
+                    ! If we only have one sample then a standard error was not calculated, so
+                    ! only output the mean.
+                    write(temp_unit,'(1x,es19.12)') mean(i,j)
+                end if
             end do
         end do
 
