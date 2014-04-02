@@ -21,7 +21,7 @@ module kp_fciqmc_procs
     use FciMCData, only: TotParts, TotPartsOld, AllTotParts, AllTotPartsOld, iter, MaxSpawned
     use FciMCData, only: SpawnedPartsKP2, SpawnVecKP, SpawnVecKP2, partial_determ_vecs_kp
     use FciMCData, only: full_determ_vecs_kp, determ_space_size, OldAllAvWalkersCyc
-    use FciMCData, only: PreviousCycles, AllTotWalkers
+    use FciMCData, only: PreviousCycles, AllTotWalkers, MaxWalkersUncorrected
     use FciMCParMod, only: create_particle, InitFCIMC_HF, SetupParameters, InitFCIMCCalcPar
     use FciMCParMod, only: init_fcimc_fn_pointers, WriteFciMCStats, WriteFciMCStatsHeader
     use FciMCParMod, only: rezero_iter_stats_each_iter, tSinglePartPhase, InitFCIMC_pops
@@ -86,11 +86,23 @@ module kp_fciqmc_procs
 
     ! Information for the krylov_vecs arrays, which holds all of the Krylov
     ! vectors together simultaneously.
+    ! The number of hash values for the hash table used to access krylov_vecs.
     integer :: nhashes_kp
+    ! The total number of slots in the krylov_vecs arrays (the number of
+    ! different determinants which it can hold).
+    integer :: krylov_vecs_length
+    ! krylov_vecs_length is calculated as the total number of walkers requested
+    ! (by the TotalWalkers option in the Calc block) multipled by this factor,
+    ! and then multipled by the number of Krylov vectors (for now...).
+    real(dp) :: memory_factor_kp
+    ! The current number of different determinants held in krylov_vecs.
     integer :: TotWalkersKP
     integer(n_int), allocatable :: krylov_vecs(:,:)
     type(ll_node), pointer :: krylov_vecs_ht(:) 
 
+    ! The values of these variables for the current initial walker configuration.
+    ! These are held in these variables so that, when we restart from this
+    ! configuration, we can instantly reset the corresponding values.
     integer(int64) :: TotWalkersInit, AllTotWalkersInit
     real(dp) :: TotPartsInit(lenof_sign)
     real(dp) :: AllTotPartsInit(lenof_sign)
@@ -127,8 +139,14 @@ module kp_fciqmc_procs
     ! generate the requested number of walkers (except for rounding when splitting
     ! this number between processors).
     logical :: tInitCorrectNWalkers
+    ! In the projected Hamiltonian calculation, this holds the fraction of the
+    ! spawning array to be filled before a communication round is performed.
     integer :: MaxSpawnedEachProc
+    ! If true then the random number generator will be reset before genearting
+    ! the next initial configuration (in a finite-temperature job) by using
+    ! the values in init_config_seeds.
     logical :: tUseInitConfigSeeds
+    ! See comments above.
     integer, allocatable :: init_config_seeds(:)
     ! If true, all repeats of the projected Hamiltonian and overlap matrices
     ! will be stored in memory for a given starting configuration until
@@ -138,6 +156,10 @@ module kp_fciqmc_procs
     ! if this will use too much memory then this option can be turned off
     ! and the matrices will be read in before averaging instead.
     logical :: tStoreKPMatrices
+    ! If true then the averaged projected Hamiltonian and overlap matrices
+    ! will be output after completing all repeats of a given initial configuration.
+    ! If more than one repeat has been performed, then the standard error
+    ! will also be output.
     logical :: tOutputAverageKPMatrices
 
     ! Matrices used in the communication of the projected Hamiltonian and
@@ -145,6 +167,10 @@ module kp_fciqmc_procs
     real(dp), allocatable :: kp_mpi_matrices_in(:,:)
     real(dp), allocatable :: kp_mpi_matrices_out(:,:)
 
+    ! After all repeats for a given initial configuration are complete, these
+    ! arrays will hold the means and standard errors of the projected
+    ! Hamiltonian and overlap matrices (unless only one sample was obtained,
+    ! in which case the standard errors will be zero).
     real(dp), allocatable :: kp_hamil_mean(:,:)
     real(dp), allocatable :: kp_overlap_mean(:,:)
     real(dp), allocatable :: kp_hamil_se(:,:)
@@ -192,6 +218,7 @@ contains
         kp%nrepeats = 1
         kp%nvecs = 0
         niters_temp = 1
+        memory_factor_kp = 1.0_dp
         nwalkers_per_site_init = 1.0_dp
         av_mc_excits_kp = 0.0_dp
         tFiniteTemp = .false.
@@ -248,6 +275,8 @@ contains
                     call geti(kp%niters(i))
                 end do
                 kp%niters(kp%nvecs) = 0
+            case("MEMORY-FACTOR")
+                call getf(memory_factor_kp)
             case("NUM-WALKERS-PER-SITE-INIT")
                 call getf(nwalkers_per_site_init)
             case("AVERAGEMCEXCITS-HAMIL")
@@ -294,6 +323,7 @@ contains
 
         integer :: i
 
+        ! Checks.
         if (.not. tHashWalkerList) call stop_all('t_r','kp-fciqmc can only be run using &
             &the linscalefcimcalgo option (the linear scaling algorithm).')
         if (.not. tUseRealCoeffs) call stop_all('t_r','kp-fciqmc can only be run using &
@@ -305,23 +335,48 @@ contains
         if (n_int == 4) call stop_all('t_r', 'Use of RealCoefficients does not work with 32 bit &
              &integers due to the use of the transfer operation from dp reals to 64 bit integers.')
 
+        ! Call external NECI initialisation routines.
         tPopsAlreadyRead = .false.
         call SetupParameters()
         call InitFCIMCCalcPar()
         call init_fcimc_fn_pointers() 
         call WriteFciMCStatsHeader()
 
-        ! The number of numbers required to store all replicas of all Krylov vectors.
+        ! The number of elements required to store all replicas of all Krylov vectors.
         lenof_sign_kp = lenof_sign*kp%nvecs
         ! The total length of a bitstring containing all Krylov vectors.
+        ! Note that the 1 is added because we store the diagonal Hamiltonian element in the array.
         NIfTotKP = NIfDBO + lenof_sign_kp + 1 + NIfFlag
 
+        ! Allocate all of the KP arrays.
         nhashes_kp = nWalkerHashes
         TotWalkersKP = 0
-        allocate(krylov_vecs(0:NIfTotKP, MaxWalkersPart), stat=ierr)
+        krylov_vecs_length = nint(MaxWalkersUncorrected*memory_factor_kp*kp%nvecs)
+        allocate(krylov_vecs(0:NIfTotKP, krylov_vecs_length), stat=ierr)
         allocate(krylov_vecs_ht(nhashes_kp), stat=ierr)
         krylov_vecs = 0_n_int
         call init_hash_table(krylov_vecs_ht)
+
+        if (tHamilOnFly) then
+            allocate(SpawnVecKP(0:NIfTot,MaxSpawned),stat=ierr)
+            SpawnVecKP(:,:) = 0_n_int
+            SpawnedPartsKP => SpawnVecKP
+            ! Do one extra iteration so that the Hamiltonian can be calculated for the final Krylov vector.
+            kp%niters(kp%nvecs) = 1
+        else
+            allocate(SpawnVecKP(0:NOffSgn+lenof_sign_kp-1,MaxSpawned),stat=ierr)
+            allocate(SpawnVecKP2(0:NOffSgn+lenof_sign_kp-1,MaxSpawned),stat=ierr)
+            SpawnVecKP(:,:) = 0_n_int
+            SpawnVecKP2(:,:) = 0_n_int
+            SpawnedPartsKP => SpawnVecKP
+            SpawnedPartsKP2 => SpawnVecKP2
+            if (tSemiStochastic) then
+                allocate(partial_determ_vecs_kp(lenof_sign_kp,determ_proc_sizes(iProcIndex)), stat=ierr)
+                allocate(full_determ_vecs_kp(lenof_sign_kp,determ_space_size), stat=ierr)
+                partial_determ_vecs_kp = 0.0_dp
+                full_determ_vecs_kp = 0.0_dp
+            end if
+        end if
 
         if (tStoreKPMatrices) then
             allocate(kp%overlap_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
@@ -350,25 +405,6 @@ contains
 
         ! If av_mc_excits_kp hasn't been set by the user, just use AvMCExcits.
         if (av_mc_excits_kp == 0.0_dp) av_mc_excits_kp = AvMCExcits
-
-        if (tHamilOnFly) then
-            allocate(SpawnVecKP(0:NIfTot,MaxSpawned),stat=ierr)
-            SpawnVecKP(:,:) = 0_n_int
-            SpawnedPartsKP => SpawnVecKP
-            ! Do one extra iteration so that the Hamiltonian can be calculated for the final Krylov vector.
-            kp%niters(kp%nvecs) = 1
-        else
-            allocate(SpawnVecKP(0:NOffSgn+lenof_sign_kp-1,MaxSpawned),stat=ierr)
-            allocate(SpawnVecKP2(0:NOffSgn+lenof_sign_kp-1,MaxSpawned),stat=ierr)
-            SpawnVecKP(:,:) = 0_n_int
-            SpawnVecKP2(:,:) = 0_n_int
-            SpawnedPartsKP => SpawnVecKP
-            SpawnedPartsKP2 => SpawnVecKP2
-            if (tSemiStochastic) then
-                allocate(partial_determ_vecs_kp(lenof_sign_kp,determ_proc_sizes(iProcIndex)), stat=ierr)
-                allocate(full_determ_vecs_kp(lenof_sign_kp,determ_space_size), stat=ierr)
-            end if
-        end if
 
         MaxSpawnedEachProc = int(0.88*real(MaxSpawned,dp)/nProcessors)
 
@@ -661,7 +697,7 @@ contains
         TotParts = 0.0_dp
 
         do
-            ! Generate a determinant (output to ilut).
+            ! Generate a random determinant (returned in ilut).
             if (tAllSymSectors) then
                 call create_rand_det_no_sym(ilut)
             else
@@ -672,6 +708,7 @@ contains
                 end if
             end if
 
+            ! If it doesn't belong to this processor, pick another.
             call decode_bit_det(nI, ilut)
             proc = DetermineDetNode(nI, 0)
             if (proc /= iProcIndex) cycle

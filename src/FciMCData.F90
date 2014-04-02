@@ -102,6 +102,7 @@ MODULE FciMCData
       INTEGER(TagIntType) :: HFDetTag=0
 
       INTEGER :: MaxWalkersPart,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
+      integer :: MaxWalkersUncorrected
       integer(int64) :: TotWalkers, TotWalkersOld
       real(dp), dimension(lenof_sign) :: TotParts, TotPartsOld
       real(dp), dimension(inum_runs) :: norm_psi_squared
