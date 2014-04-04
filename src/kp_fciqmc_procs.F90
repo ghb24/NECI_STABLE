@@ -7,7 +7,7 @@ module kp_fciqmc_procs
     use bit_reps, only: decode_bit_det, encode_sign, flag_is_initiator
     use CalcData, only: tTruncInitiator, tStartSinglePart, InitialPart, InitWalkers
     use CalcData, only: tSemiStochastic, tReadPops, tUseRealCoeffs, tau, DiagSft
-    use CalcData, only: AvMCExcits, tWritePopsNorm, iPopsFileNoRead
+    use CalcData, only: AvMCExcits, tWritePopsNorm, iPopsFileNoRead, pops_norm
     use constants
     use DetBitOps, only: DetBitEq, EncodeBitDet, IsAllowedHPHF, FindBitExcitLevel
     use Determinants, only: get_helement
@@ -1342,6 +1342,11 @@ contains
         filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
         temp_unit = get_free_unit()
         open(temp_unit, file=trim(filename), status='replace')
+    
+        if (tWritePopsNorm) then
+            write(temp_unit, '(4("-"),a41,25("-"))') "Norm of unperturbed initial wave function"
+            write(temp_unit,'(1x,es19.12,/)') sqrt(pops_norm)
+        end if
 
         ! Create the workspace for the diagonaliser.
         lwork = max(1,3*kp%nvecs-1)
