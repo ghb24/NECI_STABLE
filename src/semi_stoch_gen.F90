@@ -1210,7 +1210,7 @@ contains
             if (.not. tAllExcitFound) then
                 call return_mp1_amp_and_mp2_energy(nI, ilut, ex, tParity, amp, energy_contrib)
                 
-                pos = binary_search_real(amp_list, -abs(amp))
+                pos = binary_search_real(amp_list, -abs(amp), 1.0e-8_dp)
 
                 ! If pos is less then there isn't another determinant with the same amplitude
                 ! (which will be common), but -pos specifies where in the list it should be
