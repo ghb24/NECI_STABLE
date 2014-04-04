@@ -495,12 +495,13 @@ contains
 
     end function binary_search
 
-    function binary_search_real (arr, val) &
+    function binary_search_real (arr, val, thresh) &
                                  result(pos)
         use constants, only: n_int
 
         real(dp), intent(in) :: arr(:)
         real(dp), intent(in) :: val
+        real(dp), intent(in) :: thresh
         integer :: pos
 
         integer :: hi, lo
@@ -519,7 +520,7 @@ contains
         do while (hi /= lo)
             pos = int(real(hi + lo,sp) / 2_sp)
 
-            if (arr(pos) == val) then
+            if (abs(arr(pos) - val) < thresh) then
                 exit
             else if (val > arr(pos)) then
                 ! val is "greater" than arr(:len,pos).
@@ -543,7 +544,7 @@ contains
         ! then return -pos to indicate that the item is not present, but that
         ! this is the location it should be in.
         if (hi == lo) then
-            if (arr(hi) == val) then
+            if (abs(arr(hi) - val) < thresh) then
                 pos = hi
             else if (val > arr(hi)) then
                 pos = -hi - 1
