@@ -82,6 +82,7 @@ module kp_fciqmc_procs
     ! The total number of slots in the krylov_vecs arrays (the number of
     ! different determinants which it can hold).
     integer :: krylov_vecs_length
+    character(2) :: kp_length_fmt
     ! krylov_vecs_length is calculated as the total number of walkers requested
     ! (by the TotalWalkers option in the Calc block) multipled by this factor,
     ! and then multipled by the number of Krylov vectors (for now...).
@@ -90,6 +91,11 @@ module kp_fciqmc_procs
     integer :: TotWalkersKP
     integer(n_int), allocatable :: krylov_vecs(:,:)
     type(ll_node), pointer :: krylov_vecs_ht(:) 
+
+    ! The number of elements in krylov_vecs which are used to store amplitudes.
+    integer(int64) :: nkrylov_amp_elems_tot
+    ! The nunber of amplitude elements in krylov_vecs which are non-zero.
+    integer(int64) :: nkrylov_amp_elems_used
 
     ! The values of these variables for the current initial walker configuration.
     ! These are held in these variables so that, when we restart from this
@@ -343,6 +349,8 @@ contains
         nhashes_kp = nWalkerHashes
         TotWalkersKP = 0
         krylov_vecs_length = nint(MaxWalkersUncorrected*memory_factor_kp*kp%nvecs)
+        write(kp_length_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_vecs_length)+1)))
+        nkrylov_amp_elems_tot = lenof_sign*kp%nvecs*krylov_vecs_length
 
         ! Allocate the krylov_vecs array.
         ! The number of MB of memory required to allocate krylov_vecs.
@@ -472,6 +480,7 @@ contains
         kp%overlap_matrix = 0.0_dp
         kp%hamil_matrix = 0.0_dp
         TotWalkersKP = 0
+        nkrylov_amp_elems_used = 0
         iter = 0
         PreviousCycles = 0
         DiagSft = InputDiagSft
@@ -866,11 +875,17 @@ contains
     subroutine store_krylov_vec(kp)
 
         type(kp_fciqmc_data), intent(in) :: kp
-        integer :: idet, sign_ind, hdiag_ind, flag_ind, DetHash, det_ind
+        integer :: idet, iamp, sign_ind, hdiag_ind, flag_ind, DetHash, det_ind
         integer :: nI(nel)
-        integer(n_int) :: temp
+        integer(n_int) :: temp, int_sign(lenof_sign)
         logical :: tDetFound
+        real(dp) :: amp_fraction, real_sign(lenof_sign)
         type(ll_node), pointer :: temp_node, prev
+        character(2) :: int_fmt
+        character(len=*), parameter :: t_r = "store_krylov_vec"
+
+        write(6,'(a71)',advance='no') "# Adding the current walker configuration to the Krylov vector array..."
+        call neci_flush(6)
 
         ! The index of the first element referring to the sign, for this ivec.
         sign_ind = NIfDBO + lenof_sign*(kp%ivec-1) + 1
@@ -880,7 +895,10 @@ contains
         ! Loop over all occupied determinants for this new Krylov vector.
         do idet = 1, TotWalkers
             tDetFound = .false.
-
+            int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,idet)
+            call extract_sign (CurrentDets(:,idet), real_sign)
+            ! Don't add unoccpied determinants.
+            if (IsUnoccDet(real_sign)) cycle
             call decode_bit_det(nI, CurrentDets(:,idet))
             DetHash = FindWalkerHash(nI, nhashes_kp)
             temp_node => krylov_vecs_ht(DetHash)
@@ -892,10 +910,9 @@ contains
                     if (DetBitEQ(CurrentDets(:,idet), krylov_vecs(:,temp_node%ind), NIfDBO)) then
                         ! This determinant is already in the list.
                         det_ind = temp_node%ind
-                        ! Add the sign for the new Krylov vector. The determinant and flag are
+                        ! Add the amplitude for the new Krylov vector. The determinant and flag are
                         ! there already.
-                        krylov_vecs(sign_ind:sign_ind+lenof_sign-1,det_ind) = &
-                              CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,idet)
+                        krylov_vecs(sign_ind:sign_ind+lenof_sign-1,det_ind) = int_sign
                         tDetFound = .true.
                         exit
                     end if
@@ -919,16 +936,36 @@ contains
                 det_ind = TotWalkersKP
                 temp_node%ind = det_ind
 
+                if (TotWalkersKP > krylov_vecs_length) then
+                    call stop_all(t_r, "There are no slots left in the krylov_vecs array for the next determinant. &
+                                       &You can increase the size of this array using the memory-factor option in &
+                                       &the kp-fciqmc block of the input file.")
+                end if
+
                 ! Copy determinant data across.
                 krylov_vecs(0:NIfDBO,det_ind) = CurrentDets(0:NIfDBO,idet)
-                krylov_vecs(sign_ind:sign_ind+lenof_sign-1,det_ind) = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,idet)
+                krylov_vecs(sign_ind:sign_ind+lenof_sign-1,det_ind) = int_sign
                 krylov_vecs(hdiag_ind,det_ind) = transfer(CurrentH(1,idet), temp)
                 if (tUseFlags) krylov_vecs(flag_ind,det_ind) = CurrentDets(NOffFlag,idet)
             end if
 
             nullify(temp_node)
             nullify(prev)
+            do iamp = 1, lenof_sign
+                if (real_sign(iamp) /= 0_n_int) then
+                    nkrylov_amp_elems_used = nkrylov_amp_elems_used + 1
+                end if
+            end do
+
         end do
+
+        write(6,'(1x,a5)',advance='yes') "Done."
+        write(int_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(TotWalkersKP)+1)))
+        write(6,'(a56,1x,'//int_fmt//',1x,a17,1x,'//kp_length_fmt//')') "# Number unique determinants in the Krylov &
+                                             &vector array:", TotWalkersKP, "out of a possible", krylov_vecs_length
+        amp_fraction = real(nkrylov_amp_elems_used,dp)/real(nkrylov_amp_elems_tot,dp)
+        write(6,'(a69,1x,es10.4)') "# Fraction of the amplitude elements used in the Krylov vector array:", amp_fraction
+        call neci_flush(6)
 
     end subroutine store_krylov_vec
 
