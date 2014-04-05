@@ -223,7 +223,8 @@ MODULE FciMCData
                            Comms_Time, AnnSpawned_time, AnnMain_time, &
                            BinSearch_time, SemiStoch_Comms_Time, &
                            SemiStoch_Multiply_Time, Trial_Search_Time, &
-                           SemiStoch_Init_Time, Trial_Init_Time
+                           SemiStoch_Init_Time, Trial_Init_Time, &
+                           kp_generate_time
       
       ! Store the current value of S^2 between update cycles
       real(dp), dimension(inum_runs) :: curr_S2, curr_S2_init

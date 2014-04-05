@@ -12,16 +12,7 @@ module kp_fciqmc_procs
     use DetBitOps, only: DetBitEq, EncodeBitDet, IsAllowedHPHF, FindBitExcitLevel
     use Determinants, only: get_helement
     use dSFMT_interface , only: dSFMT_init, genrand_real2_dSFMT
-    use FciMCData, only: ilutHF, HFDet, CurrentDets, SpawnedParts, SpawnedParts2, TotWalkers
-    use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots, HashIndex, nWalkerHashes
-    use FciMCData, only: fcimc_iter_data, ll_node, MaxWalkersPart, tStartCoreGroundState
-    use FciMCData, only: tPopsAlreadyRead, tHashWalkerList, CurrentH, determ_proc_sizes
-    use FciMCData, only: core_ham_diag, InputDiagSft, Hii, max_spawned_ind, SpawnedPartsKP
-    use FciMCData, only: partial_determ_vector, full_determ_vector, determ_proc_indices, HFSym
-    use FciMCData, only: TotParts, TotPartsOld, AllTotParts, AllTotPartsOld, iter, MaxSpawned
-    use FciMCData, only: SpawnedPartsKP2, SpawnVecKP, SpawnVecKP2, partial_determ_vecs_kp
-    use FciMCData, only: full_determ_vecs_kp, determ_space_size, OldAllAvWalkersCyc
-    use FciMCData, only: PreviousCycles, AllTotWalkers, MaxWalkersUncorrected
+    use FciMCData
     use FciMCParMod, only: create_particle, InitFCIMC_HF, SetupParameters, InitFCIMCCalcPar
     use FciMCParMod, only: init_fcimc_fn_pointers, WriteFciMCStats, WriteFciMCStatsHeader
     use FciMCParMod, only: rezero_iter_stats_each_iter, tSinglePartPhase, InitFCIMC_pops
@@ -476,6 +467,7 @@ contains
         integer :: i
         real(dp) :: real_sign(lenof_sign)
         real(dp) :: norm, all_norm
+        real(sp) :: total_time_before, total_time_after
         character(len=*), parameter :: t_r = "create_initial_config"
         ! Variables from popsfile header...
         integer :: iPopLenof_sign, iPopNel, iPopIter, PopNIfD, PopNIfY, WalkerListSize
@@ -542,12 +534,20 @@ contains
                 ! before creating the random initial configuration.
                 if (tUseInitConfigSeeds) call dSFMT_init((iProcIndex+1)*init_config_seeds(kp%iconfig))
 
+                write (6,'(a44)',advance='no') "# Generating initial walker configuration..."
+                call set_timer(kp_generate_time)
+                total_time_before = get_total_time(kp_generate_time)
+
                 ! Create the random initial configuration. 
                 if (tInitCorrectNWalkers) then
                     call generate_init_config_this_proc(nwalkers_target, nwalkers_per_site_init, nwalkers)
                 else
                     call generate_init_config_basic(nwalkers_target, nwalkers_per_site_init, nwalkers)
                 end if
+
+                call halt_timer(kp_generate_time)
+                total_time_after = get_total_time(kp_generate_time)
+                write(6,'(1x,a31,f9.3)') "Complete. Time taken (seconds):", total_time_after-total_time_before
 
                 call fill_in_CurrentH()
             end if
