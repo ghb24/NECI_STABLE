@@ -309,10 +309,9 @@ contains
         use SystemData, only: G1
 
         type(kp_fciqmc_data), intent(inout) :: kp
-        integer :: ierr
+        integer :: ierr, krylov_vecs_memory, krylov_ht_memory, matrix_memory
+        character(2) :: mem_fmt
         character (len=*), parameter :: t_r = "init_kp_fciqmc"
-
-        integer :: i
 
         ! Checks.
         if (.not. tHashWalkerList) call stop_all('t_r','kp-fciqmc can only be run using &
@@ -331,7 +330,8 @@ contains
         call SetupParameters()
         call InitFCIMCCalcPar()
         call init_fcimc_fn_pointers() 
-        call WriteFciMCStatsHeader()
+
+        write(6,'(/,12("="),1x,a9,1x,12("="))') "KP-FCIQMC"
 
         ! The number of elements required to store all replicas of all Krylov vectors.
         lenof_sign_kp = lenof_sign*kp%nvecs
@@ -343,9 +343,43 @@ contains
         nhashes_kp = nWalkerHashes
         TotWalkersKP = 0
         krylov_vecs_length = nint(MaxWalkersUncorrected*memory_factor_kp*kp%nvecs)
+
+        ! Allocate the krylov_vecs array.
+        ! The number of MB of memory required to allocate krylov_vecs.
+        krylov_vecs_memory = krylov_vecs_length*(NIfTotKP+1)*size_n_int/1000000
+        write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_vecs_memory)+1)))
+        write(6,'(a73,1x,'//mem_fmt//')') "About to allocate array to hold all Krylov vectors. &
+                                       &Memory required (MB):", krylov_vecs_memory
+        write(6,'(a13)',advance='no') "Allocating..."
+        call neci_flush(6)
         allocate(krylov_vecs(0:NIfTotKP, krylov_vecs_length), stat=ierr)
-        allocate(krylov_vecs_ht(nhashes_kp), stat=ierr)
+        if (ierr /= 0) then
+            write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+            call stop_all(t_r, "Error allocating krylov_vecs array.")
+        else
+            write(6,'(1x,a5)') "Done."
+        end if
+        call neci_flush(6)
         krylov_vecs = 0_n_int
+
+        ! Allocate the hash table to krylov_vecs.
+        ! The number of MB of memory required to allocate krylov_vecs_ht.
+        ! Each node requires 16 bytes.
+        krylov_ht_memory = nhashes_kp*16/1000000
+        write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_ht_memory)+1)))
+        write(6,'(a78,1x,'//mem_fmt//')') "About to allocate hash table to the Krylov vector array. &
+                                       &Memory required (MB):", krylov_ht_memory
+        write(6,'(a13)',advance='no') "Allocating..."
+        call neci_flush(6)
+        allocate(krylov_vecs_ht(nhashes_kp), stat=ierr)
+        if (ierr /= 0) then
+            write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+            call stop_all(t_r, "Error allocating krylov_vecs array.")
+        else
+            write(6,'(1x,a5)') "Done."
+            write(6,'(a106)') "Note that the hash table uses linked lists, and the memory usage will &
+                              &increase as further nodes are added."
+        end if
         call init_hash_table(krylov_vecs_ht)
 
         if (tHamilOnFly) then
@@ -368,6 +402,19 @@ contains
                 full_determ_vecs_kp = 0.0_dp
             end if
         end if
+
+        if (tStoreKPMatrices) then
+            ! (2*kp%nrepeats+16) arrays with (kp%nvecs**2) 8-byte elements each.
+            matrix_memory = (2*kp%nrepeats+16)*(kp%nvecs**2)*8/1000000
+        else
+            ! 18 arrays with (kp%nvecs**2) 8-byte elements each.
+            matrix_memory = 18*(kp%nvecs**2)*8/1000000
+        end if
+        write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(matrix_memory)+1)))
+        write(6,'(a66,1x,'//mem_fmt//')') "About to allocate various subspace matrices. &
+                                       &Memory required (MB):", matrix_memory
+        write(6,'(a13)',advance='no') "Allocating..."
+        call neci_flush(6)
 
         if (tStoreKPMatrices) then
             allocate(kp%overlap_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
@@ -394,11 +441,14 @@ contains
         allocate(kp_final_hamil(kp%nvecs, kp%nvecs))
         allocate(kp_eigenvec_krylov(kp%nvecs, kp%nvecs))
 
+        write(6,'(1x,a5)') "Done."
+
         ! If av_mc_excits_kp hasn't been set by the user, just use AvMCExcits.
         if (av_mc_excits_kp == 0.0_dp) av_mc_excits_kp = AvMCExcits
 
         MaxSpawnedEachProc = int(0.88*real(MaxSpawned,dp)/nProcessors)
 
+        call WriteFciMCStatsHeader()
         call MPIBarrier(ierr)
 
     end subroutine init_kp_fciqmc
