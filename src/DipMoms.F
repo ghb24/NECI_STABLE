@@ -4,7 +4,6 @@
       integer isize
       double precision pints(isize,3)
       double precision znuc(3),zcor(3)
-      double precision origin(3)
       include "common/maxatm"
       include "common/tapes"
       include "common/dumpinfow"
@@ -65,35 +64,86 @@
       else
           !Assume that we have done a prior CISD calculation for the dipole moment integrals.
           !See: ccsd/ccmp2.F
-
-          !First, get the MO coefficients, since we will need to transform the integrals ourselves
-          call excom(2)
-          iorbmo=icorr(ntqgcx(1))
-          call cread(q(iorbmo),ntqgcx(1),kopfil,nwf,nwf)
-!          call druckm(q(iorbmo),1,0,'orbitals',0)   !This would print out the orbitals
-          iscr=icorr(2*ntqgcx(1)+2*ntgx)  !Memory for integral transforms
-
-
-          iints=icorr(2*ntqgcx(1)+2*ntgx)   !Get memory pointer for integrals
-          
-          do i = 1,3
-              !read the operators (in the AO basis)
-              call read_op(q(iints),dipnu,'DM',i,1,1,origin,isyop)
-
-              call tranop(q(iints),q(iorbmo),q(iscr),1,1,1,0)   !If the penultimate argument was zero, this would transform it from MO->AO
-              !We now have the symmetry packed integrals in the MO basis
-              do j = 1,isize
-                  pints(j,i) = q(iints+j-1)
-              enddo
-              znuc(i) = dipnu
-              zcor(i) = 0.0d0
-          enddo
-          
+          call GetDipMomInts_cisd(pints,isize,znuc,zcor)
 
       endif
 
       return
       end subroutine GetDipMomInts
+  
+      !Assume that we have done a prior CISD calculation for the dipole moment integrals.
+      !See: ccsd/ccmp2.F
+      subroutine GetDipMomInts_cisd(pints,isize,znuc,zcor)
+      implicit double precision(a-h,o-z)
+      integer isize
+      double precision pints(isize,3)
+      double precision znuc(3),zcor(3)
+      include "common/big"
+      include "common/cbas"
+      include "common/corb"
+#include "common/cpair.fh"
+      include "common/cvec"
+      include "common/ceig"
+      include "common/cpar"
+#include "common/cpfil.fh"
+      include "common/maxatm"
+      include "common/dumpinfow"
+      include "common/tapes"
+      include "common/clseg"
+      logical exists
+      double precision origin(3)
+
+      !First, get the MO coefficients, since we will need to transform the integrals ourselves
+      ! get orbital coefficients
+      ! see cidft/rpa_polar.F90? This is not great, because we want symmetry
+!      allocate(coef_mo(nta,nta))
+!      call get_matrix('ORB',coef_mo,nta,carec,cafil)
+      origin(1) = 0.0d0
+      origin(2) = 0.0d0
+      origin(3) = 0.0d0
+
+      !For some reason, the code below doesn't seem to be able to get the sym blocked MO coefficients correctly.
+      !Why not?! For a start, ntqgcx is filled with rubbosh. I am just trying to reproduce the same 
+      !call in multiple places in the code, ie. ccsd/ccmp2.F, line 1842
+      call excom(2)
+      iorbmo=icorr(ntqgcx(1))
+      call cread(q(iorbmo),ntqgcx(1),kopfil,nwf,nwf)
+
+      call druckm(q(iorbmo),1,0,'orbitals',0)   !This would print out the orbitals
+      
+      iscr=icorr(2*ntqgcx(1)+2*ntgx)  !Memory for integral transforms
+
+      iints=icorr(2*ntqgcx(1)+2*ntgx)   !Get memory pointer for integrals
+      
+      do i = 1,3
+          !read the operators (in the AO basis)
+          !1) Operator in AO basis
+          !2) Nuclear value of operator
+          !3) name of operator
+          !4) Component of operator
+          !5) Symmetry of operator
+          !6) np = 0: return as square array
+          !7) optional
+          !8) Return sym of operator
+          call read_op(q(iints),dipnu,'DM',i,1,1,origin,isyop)
+
+!          write(6,*) "Get here 5",q(iints:iints+11)
+!          call flush(6)
+!
+          !Transform the AO dipole moment integrals into the MO basis
+          call tranop(q(iints),q(iorbmo),q(iscr),1,1,1,0)   !If the penultimate argument was zero, this would transform it from MO->AO
+          !We now have the symmetry packed integrals in the MO basis
+          do j = 1,isize
+              write(6,*) q(iints+j-1)
+              pints(j,i) = q(iints+j-1)
+          enddo
+          znuc(i) = dipnu
+          zcor(i) = 0.0d0
+      enddo
+
+      return
+
+      end subroutine GetDipMomInts_cisd
 
 #else
       !In case it doesn't like empty files
