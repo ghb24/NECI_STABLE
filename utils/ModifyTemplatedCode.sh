@@ -15,9 +15,8 @@ var[1]="integer"; kind[1]="int32"; conv[1]="int"
 var[2]="integer"; kind[2]="int64"; conv[2]="int"
 var[3]="real";    kind[3]="sp";    conv[3]="real"
 var[4]="real";    kind[4]="dp";    conv[4]="real"
-file="src/neci/neci_conversion.F90"
+file="neci_conversion.F90"
 cat << _EOF_ > ${file}
-#if defined(MOLPRO_NECI)
 module neci_conversion
 
  use constants, only : int32, int64, sp, dp, lenof_sign
@@ -62,11 +61,5 @@ _EOF_
 done
 cat << _EOF_ >> ${file}
 end module neci_conversion
-#else
-subroutine neci_conversion_dummy()
- implicit none
- return
-end subroutine neci_conversion_dummy
-#endif
 _EOF_
 
