@@ -938,6 +938,11 @@ end module
 
 
     subroutine neci_flush(un)
+#ifdef MOLPRO
+    implicit none
+    integer, intent(in) :: un
+    flush(un)
+#else
 #ifdef NAGF95
     USe f90_unix, only: flush
     use constants, only: int32
@@ -955,6 +960,7 @@ end module
         call flush(dummy)
 #else
         call flush(un)
+#endif
 #endif
 #endif
     end subroutine neci_flush
