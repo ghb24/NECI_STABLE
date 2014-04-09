@@ -283,6 +283,7 @@ C.. test if NCI is a CSF
          INTEGER SFORCE,SZFORCE
          INTEGER IEXCITS
          INTEGER ICL(1)
+         LMS=0
          CALL SYMGETSSZ(LMS,SFORCE,SZFORCE)
          ISYM = IPARITY
 C.. make sure Sz=0 as this is dealt with in the csfgen part

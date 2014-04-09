@@ -1935,7 +1935,9 @@ outer_map:      do i = 0, MappingNIfD
                     READ(iunit,*) iLutTemp32(0:NIfWriteOut),TempSign
                 ENDIF
             ENDIF
-            RealTempSign = transfer(TempSign, RealTempSign)
+            do j=1,lenof_sign
+                RealTempSign(j) = transfer(TempSign(j), RealTempSign(j))
+            enddo
 
 #ifdef __INT64
             if (.not.tPop64BitDets) then
@@ -2385,7 +2387,9 @@ outer_map:      do i = 0, MappingNIfD
                     READ(iunit,*) iLutTemp32(0:NIfWriteOut),TempSign
                 ENDIF
             ENDIF
-            RealTempSign = transfer(TempSign, RealTempSign)
+            do j=1,lenof_sign
+                RealTempSign(j) = transfer(TempSign(j), RealTempSign(j))
+            enddo
 
 #ifdef __INT64
             if (.not.tPop64BitDets) then
