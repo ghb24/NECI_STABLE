@@ -30,6 +30,7 @@ module kp_fciqmc_procs
     use procedure_pointers
     use semi_stoch_procs, only: copy_core_dets_this_proc_to_spawnedparts, fill_in_CurrentH
     use semi_stoch_procs, only: add_core_states_currentdet_hash, start_walkers_from_core_ground
+    use semi_stoch_procs, only: check_determ_flag
     use sym_mod, only: getsym
     use SystemData, only: nel, nbasis, BRR, nBasisMax, G1, tSpn, lms, tParity, SymRestrict
     use SystemData, only: BasisFn, tHeisenberg, tHPHF, tAllSymSectors
@@ -878,7 +879,7 @@ contains
         integer :: idet, iamp, sign_ind, hdiag_ind, flag_ind, DetHash, det_ind
         integer :: nI(nel)
         integer(n_int) :: temp, int_sign(lenof_sign)
-        logical :: tDetFound
+        logical :: tDetFound, tCoreDet
         real(dp) :: amp_fraction, real_sign(lenof_sign)
         type(ll_node), pointer :: temp_node, prev
         character(2) :: int_fmt
@@ -897,8 +898,9 @@ contains
             tDetFound = .false.
             int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,idet)
             call extract_sign (CurrentDets(:,idet), real_sign)
-            ! Don't add unoccpied determinants.
-            if (IsUnoccDet(real_sign)) cycle
+            tCoreDet = check_determ_flag(CurrentDets(:,idet))
+            ! Don't add unoccpied determinants, unless they are core determinants.
+            if (IsUnoccDet(real_sign) .and. (.not. tCoreDet)) cycle
             call decode_bit_det(nI, CurrentDets(:,idet))
             DetHash = FindWalkerHash(nI, nhashes_kp)
             temp_node => krylov_vecs_ht(DetHash)
