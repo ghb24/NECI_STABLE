@@ -6389,6 +6389,7 @@ MODULe nElRDMMod
         real(dp) :: dipmom(3),znuc(3),zcor(3)
         real(dp), allocatable :: SymmetryPacked1RDM(:),zints(:,:)
         integer :: i,j,ipr,Sym_i,Sym_j,Sym_ij,posn1,isize,isyref,mxv,iout,ierr
+        integer :: nt_frz(8),ntd_frz(8)
 #else
         implicit none
 #endif
@@ -6418,6 +6419,19 @@ MODULe nElRDMMod
                     (SymLabelCounts2(2,ClassCountInd(1,i,0))+1))/2 !Counting alpha orbitals
             enddo
 !            write(6,*) "Size of symmetry packed 1-electron array",isize
+
+            nt_frz(:) = 0
+            ntd_frz(:) = 0
+            do i = 0,nSymLabels-1
+                nt_frz(i+1) = SymLabelCounts2(2,ClassCountInd(1,i,0))
+            enddo
+
+            do i = 2,8
+                ntd_frz(i) = ntd_frz(i-1) + (nt_frz(i-1)*(nt_frz(i-1)+1))/2
+            enddo
+
+!            write(6,*) "nt_frz: ",nt_frz(:)
+!            write(6,*) "ntd_frz: ",ntd_frz(:)
 
             elements_assigned1(:) = 0
             allocate(SymmetryPacked1RDM(isize))
@@ -6476,7 +6490,7 @@ MODULe nElRDMMod
             !This now goes through an F77 wrapper file so that we can access the
             !common blocks and check that the size of the symmetry packed arrays
             !is correct.
-            call GetDipMomInts(zints,isize,znuc,zcor)
+            call GetDipMomInts(zints,isize,znuc,zcor,nt_frz,ntd_frz)
 
             do ipr=1,3
             

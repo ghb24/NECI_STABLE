@@ -2,9 +2,9 @@
 ! This program is integrated in Molpro with the permission of George Booth and Ali Alavi
  
 #ifdef MOLPRO
-      subroutine GetDipMomInts(pints,isize,znuc,zcor)
+      subroutine GetDipMomInts(pints,isize,znuc,zcor,nt_frz,ntd_frz)
       implicit double precision(a-h,o-z)
-      integer isize
+      integer isize,nt_frz(8),ntd_frz(8)
       double precision pints(isize,3)
       double precision znuc(3),zcor(3)
       include "common/maxatm"
@@ -64,10 +64,16 @@
               znuc(ipr-3) = zznuc
               zcor(ipr-3) = zzcor
           enddo
+          write(6,*) "z-component dipole moment integrals: "
+          do i = 1,isize
+              write(6,*) i,pints(i,3)
+          enddo
+          write(6,*) znuc(3)
+          write(6,*) zcor(3)
       else
           !Assume that we have done a prior CISD calculation for the dipole moment integrals.
           !See: ccsd/ccmp2.F
-          call GetDipMomInts_cisd(pints,isize,znuc,zcor)
+          call GetDipMomInts_cisd(pints,isize,znuc,zcor,nt_frz,ntd_frz)
 
       endif
 
@@ -76,9 +82,10 @@
   
       !Assume that we have done a prior CISD calculation for the dipole moment integrals.
       !See: ccsd/ccmp2.F
-      subroutine GetDipMomInts_cisd(pints,isize,znuc,zcor)
+      subroutine GetDipMomInts_cisd(pints,isize,znuc,zcor,nt_frz,       &
+     &         ntd_frz)
       implicit double precision(a-h,o-z)
-      integer isize
+      integer isize,nt_frz(8),ntd_frz(8),nfrz_neci(8)
       double precision pints(isize,3)
       double precision znuc(3),zcor(3)
       include "common/big"
@@ -108,12 +115,55 @@
       !For some reason, the code below doesn't seem to be able to get the sym blocked MO coefficients correctly.
       !Why not?! For a start, ntqgcx is filled with rubbosh. I am just trying to reproduce the same 
       !call in multiple places in the code, ie. ccsd/ccmp2.F, line 1842
-      call excom(2)
+      inquire(file='MOInts',exist=exists)
+      if(.not.exists) then
+           stop 'Cannot find MO integrals-Run hacked CISD'
+      endif
       iorbmo=icorr(ntqgcx(1))
-      call cread(q(iorbmo),ntqgcx(1),kopfil,nwf,nwf)
+      open(69,file='MOInts',status='old')
+      read(69,*) ntgx
+      do i = 1,8
+          read(69,*) ntqgcx(i),ntqgc(i),nt(i),ntd(i)
+      enddo
+      do i = 1,ntqgcx(1)
+          read(69,*) q(iorbmo+i-1)
+      enddo
+      close(69)
 
-      call druckm(q(iorbmo),1,0,'orbitals',0)   !This would print out the orbitals
-      
+      !compress
+      do i=1,ntqgcx(1)
+          if(q(iorbmo+i-1).eq.0.0d0) then
+              !Move all the next values down
+              do j = i,ntqgcx(1)-1
+                  q(iorbmo+j-1) = q(iorbmo+j)
+              enddo
+          endif
+      enddo
+
+!      write(6,*) "After compression: "
+!      do i = 1,ntqgcx(1)
+!          write(6,*) i,q(iorbmo+i-1)
+!      enddo
+
+      !Work out the number of frozen orbitals in each symmetry
+      nfrz_neci(:) = 0
+      do i = 1,8
+          nfrz_neci(i) = nt(i)-nt_frz(i)
+      enddo
+
+!      call excom(2)
+!      iorbmo=icorr(ntqgcx(1))
+!      call cread(q(iorbmo),ntqgcx(1),kopfil,nwf,nwf)
+
+      call druckm(q(iorbmo),1,0,'orbitals hack',0)   !This would print out the orbitals
+
+      do i = 1,8
+          if(nt(i).ne.nt_frz(i)) then
+              write(6,'(a,i6,a,i6)') "number of orbs frozen in sym ",   &
+     &          i," is: ",nt(i)-nt_frz(i)
+          endif
+      enddo
+
       iscr=icorr(2*ntqgcx(1)+2*ntgx)  !Memory for integral transforms
 
       iints=icorr(2*ntqgcx(1)+2*ntgx)   !Get memory pointer for integrals
@@ -130,23 +180,63 @@
           !8) Return sym of operator
           call read_op(q(iints),dipnu,'DM',i,1,1,origin,isyop)
 
-!          write(6,*) "Get here 5",q(iints:iints+11)
-!          call flush(6)
-!
+!          write(6,*) "AO basis dip mom ints: ",i
+!          do j = 1,2*ntqgcx(1)+2*ntgx
+!              write(6,*) j,q(iints+j-1)
+!          enddo
+
           !Transform the AO dipole moment integrals into the MO basis
           call tranop(q(iints),q(iorbmo),q(iscr),1,1,1,0)   !If the penultimate argument was zero, this would transform it from MO->AO
+
           !We now have the symmetry packed integrals in the MO basis
-          do j = 1,isize
-              write(6,*) q(iints+j-1)
-              pints(j,i) = q(iints+j-1)
+          !However, this is the *full* MO basis, not the frozen one.
+          !Work out which integrals we want, and calculate the core contribution
+          ind = 0
+          do isym = 1,8
+              do j = 1,nt_frz(isym) !isize
+                  do k = 1,j
+                     if(tri_neci(j,k,isym,nt_frz,ntd_frz).gt.isize) then
+                          stop 'indexing error'
+                      endif
+                      pints(tri_neci(j,k,isym,nt_frz,ntd_frz),i) =      &
+     &                  q(iints+tri_neci(j+nfrz_neci(isym),             &
+     &                      k+nfrz_neci(isym),isym,nt,ntd)-1)
+                  enddo
+              enddo
+!              write(6,*) j, q(iints+j-1)
+!              pints(j,i) = q(iints+j-1)
           enddo
           znuc(i) = dipnu
+          !Now to calculate core contribution:
           zcor(i) = 0.0d0
+          do isym=1,8
+              do j=1,nfrz_neci(isym)
+                  zcor(i) = zcor(i) + 2.0d0*q(iints+                    &
+     &                  tri_neci(j,j,isym,nt,ntd)-1)
+              enddo
+          enddo
       enddo
+!      write(6,*) "z-component dipole moment integrals: "
+!      do i = 1,isize
+!          write(6,*) i,pints(i,3)
+!      enddo
+!      write(6,*) znuc(3)
+!      write(6,*) zcor(3)
 
       return
 
       end subroutine GetDipMomInts_cisd
+
+      !Gives the index in a triangular packed array
+      !i must be larger than or equal to j
+      integer function tri_neci(i,j,sym,symlist,symlistoff)
+          implicit none
+          integer :: i,j,sym,symlist(8),symlistoff(8)
+
+          tri_neci = symlistoff(sym)+(((i-1)*i)/2)+j
+
+      end function
+
 
 #else
       !In case it doesn't like empty files
