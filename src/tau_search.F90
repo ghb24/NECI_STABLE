@@ -297,6 +297,7 @@ contains
         ! so may actually give a tau that is too SMALL for the latest
         ! excitation generators, which is exciting!
 
+        use neci_intfce
         type(excit_gen_store_type) :: store, store2
         logical :: tAllExcitFound,tParity,tSameFunc,tSwapped,tSign
         character(len=*), parameter :: t_r="FindMaxTauDoubs"
