@@ -84,6 +84,8 @@ def parse_options(args):
     parser.add_option('-r', '--ref-energy', dest='ref_energy', type='float', 
                       default=0.0, help='The ground-state energy of the unperturbed '
                       'system.')
+    parser.add_option('--flip', action='store_true', dest='flip', default=False,
+                      help='Flip the spectrum about zero on the x-axis.')
     (options, filenames) = parser.parse_args(args)
     
     if len(filenames) == 0:
@@ -98,5 +100,8 @@ if __name__ == '__main__':
     results = calculate_spectral_function(pairs, norm, options.minval, options.maxval,
                                          options.delta, options.broadening,
                                          options.ref_energy, options.inc_ground)
+
+    if (options.flip):
+        results['Omega'] *= -1
 
     print results.to_string(index=False)
