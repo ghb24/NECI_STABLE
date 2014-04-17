@@ -445,6 +445,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
     use constants, only: n_int
     use bit_reps, only: NIfTot
     use sym_mod, only: mompbcsym, GetLz
+    use neci_intfce
     IMPLICIT NONE
     INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(3)
     real(dp) :: pDoub,pGen,AverageContrib,AllAverageContrib

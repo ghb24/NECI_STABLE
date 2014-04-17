@@ -1052,6 +1052,7 @@ contains
          use sym_mod, only: getsym
          use legacy_data, only: irat
          use util_mod, only: NECI_ICOPY
+         use neci_intfce
 !         use mcpathsismc, only: calcwritegraphpgen
          IMPLICIT NONE
          TYPE(BasisFN) G1(*),ISYM

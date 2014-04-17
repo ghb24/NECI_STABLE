@@ -85,7 +85,7 @@
       subroutine GetDipMomInts_cisd(pints,isize,znuc,zcor,nt_frz,       &
      &         ntd_frz)
       implicit double precision(a-h,o-z)
-      integer isize,nt_frz(8),ntd_frz(8),nfrz_neci(8)
+      integer isize,nt_frz(8),ntd_frz(8),nfrz_neci(8),tri_neci
       double precision pints(isize,3)
       double precision znuc(3),zcor(3)
       include "common/big"

@@ -53,6 +53,7 @@
          use IntegralsData , only : TCalcRhoProd,TSumProd,TCalcRealProd,TCalcExcitStar,TDiagStarStars,TLinRootChange
          use global_utilities
          use HElem
+         use neci_intfce
          IMPLICIT NONE
          Type(BasisFN) G1(*)
          INTEGER nEl,nI(nEl),i_P,nBasisMax(5,*),nBasis,nMsh
@@ -419,6 +420,7 @@
             use SystemData, only: BasisFN
             use global_utilities
             use HElem
+            use neci_intfce
             IMPLICIT NONE
             TYPE(BasisFN) G1(*)
             HElement_t :: rhii,UMat(*),rh,rhij,Hij

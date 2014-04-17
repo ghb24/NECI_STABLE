@@ -27,6 +27,7 @@ module mcpathsismc
          use sym_mod, only: getsym
          use global_utilities
          use mcpathsdata, only: egp
+         use neci_intfce
          IMPLICIT NONE
          INTEGER I_VMAX,NEL,NBASIS
          TYPE(MCStats) MCSt
@@ -1708,6 +1709,7 @@ module mcpathsismc
          use Determinants, only: get_helement, write_det
          use SystemData, only: BasisFN,Arr
          use mcpathsdata, only: egp
+         use neci_intfce
          IMPLICIT NONE
          INTEGER NEL,I_V,IPATH(NEL,0:I_V),NI(NEL)
          real(dp) BETA,ALAT(*),ECORE
@@ -1961,6 +1963,7 @@ end module
          use SystemData, only: BasisFN
          use mcpathsdata, only: egp
          use mcpathsismc, only: getpathprob2
+         use neci_intfce
          IMPLICIT NONE
          INTEGER iUnit
          INTEGER iV,nEl       ! Vertices and number of electrons

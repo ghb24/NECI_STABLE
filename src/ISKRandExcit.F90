@@ -347,6 +347,7 @@ MODULE ISKRandExcit
         use sort_mod
         use HPHFRandExcitMod, only: BinSearchListHPHF
         use Parallel_neci
+        use neci_intfce
         IMPLICIT NONE
         INTEGER :: nIX(NEl)
         INTEGER :: i,Iterations,nI(NEl),nJ(NEl),DetConn,nI2(NEl),nJ2(NEl),DetConn2

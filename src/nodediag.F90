@@ -53,6 +53,7 @@
 
       FUNCTION fMCPR3StarNodes(nI,Beta,i_P,nEl,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,nTay,RhoEps,ECore,dBeta,dLWdb)
       use HElem
+      use neci_intfce
       TYPE(BasisFN) G1(*)
       INTEGER nEl,nI(nEl),nBasis,i_P,Brr(nBasis),nMsh
       INTEGER nMax,nTay(2),iMaxExcit,nExcitMemLen(1)

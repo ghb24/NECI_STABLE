@@ -1255,6 +1255,7 @@ contains
 
     subroutine enumerate_sing_doub_kpnt(ex_flag, nSing, nDoub, called_from)
 
+        use neci_intfce
         integer, intent(in) :: ex_flag
         integer, intent(out) :: nSing, nDoub
         integer, optional, intent(in) :: called_from

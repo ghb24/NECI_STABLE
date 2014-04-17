@@ -44,6 +44,7 @@ subroutine ParMP2(nI)
    use CPMDData, only: KPntInd
    use sym_mod
    use MemoryManager, only: TagIntType
+   use neci_intfce
    IMPLICIT NONE
    integer :: nI(nEl)
    integer :: iMinElec, iMaxElec
@@ -381,6 +382,7 @@ Subroutine Par2vSum(nI)
    use constants, only: dp
    use SystemData, only: nEl,Beta
    Use Determinants, only: get_helement
+   use neci_intfce
    IMPLICIT NONE
    Integer nI(nEl)
    integer iMinElec, iMaxElec

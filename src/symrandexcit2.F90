@@ -2728,6 +2728,7 @@ MODULE GenRandSymExcitNUMod
     SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
 
         use SystemData, only: tUEG2, kvec
+        use neci_intfce
         IMPLICIT NONE
         INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(3)
         real(dp) :: pDoub,pGen,AverageContrib,AllAverageContrib
