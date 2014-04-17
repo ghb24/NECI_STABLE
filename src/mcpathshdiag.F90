@@ -41,6 +41,7 @@ module mcpathshdiag
          use mcpathsdata, only: EGP
          use sym_mod, only: getsym
          use util_mod, only: NECI_ICOPY
+         use neci_intfce
          IMPLICIT NONE
          TYPE(BasisFN) G1(*),ISYM
          INTEGER I_V,NEL,I_P,nBasisMax(5,*),NBASIS,BRR(*),NMSH,NMAX

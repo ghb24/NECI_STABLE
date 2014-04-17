@@ -367,6 +367,7 @@ contains
 
     subroutine generate_connected_space_kpnt(original_space_size, original_space, &
             connected_space_size, connected_space, tSinglesOnlyOpt)
+    use neci_intfce
 
         ! This is the same as generate_connected_space, but using the old excitations
         ! generators because the new ones don't work with the tKPntSym option.
