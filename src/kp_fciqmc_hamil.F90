@@ -12,7 +12,6 @@ contains
     subroutine calc_projected_hamil(kp)
 
         use bit_reps, only: decode_bit_det
-        use CalcData, only: tSemiStochastic
         use constants
         use DetBitOps, only: return_ms
         use FciMCData, only: fcimc_excit_gen_store, exFlag, partial_determ_vecs_kp
@@ -98,7 +97,7 @@ contains
                     call encode_child (ilut_parent, ilut_child, ic, ex)
 
                     ! If spawning is both too and from the core space, abort it.
-                    if (tSemiStochastic) then
+                    if (tSemiStochasticKPHamil) then
                         tChildIsDeterm = is_core_state(ilut_child)
                         if (tParentIsDeterm .and. tChildIsDeterm) cycle
                     end if
@@ -135,7 +134,7 @@ contains
 
         call calc_hamil_contribs_diag(kp)
 
-        if (tSemiStochastic) then
+        if (tSemiStochasticKPHamil) then
             call deterministic_projection_kp_hamil()
             call calc_hamil_contribs_semistoch(kp)
         end if
@@ -306,7 +305,6 @@ contains
     subroutine calc_hamil_contribs_diag(kp)
     
         use FciMCData, only: determ_proc_sizes
-        use CalcData, only: tSemiStochastic
 
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: idet, i, j, min_idet, hdiag_ind
@@ -315,11 +313,11 @@ contains
         real(dp) :: real_sign(lenof_sign_kp)
         real(dp) :: h_diag
 
-        ! In semi-stochastic calculations the diagonal elements of the core space are
-        ! taken care of in the core Hamiltonian calculation, so don't skip them here.
+        ! In semi-stochastic calculations the diagonal elements of the core space
+        ! are taken care of in the core Hamiltonian calculation, so skip them here.
         ! Core determinants are always kept at the top of the list, so they're simple
         ! to skip.
-        if (tSemiStochastic) then
+        if (tSemiStochasticKPHamil) then
             min_idet = determ_proc_sizes(iProcIndex) + 1
         else
             min_idet = 1

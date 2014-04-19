@@ -118,6 +118,14 @@ module kp_fciqmc_procs
     ! If true, use the spawning from the main FCIQMC iterations to
     ! calculate the projected Hamiltonian.
     logical :: tHamilOnFly
+    ! If true then use the semi-stochastic approach in the calculation
+    ! of the projected Hamiltonian. This is on by default, if
+    ! tSemiStochastic is true. If tFullyStochasticHamil if true then
+    ! this logical will be false.
+    logical :: tSemiStochasticKPHamil
+    ! If true, don't use the semi-stochastic approach when calculating
+    ! the projected Hamiltonian. False by default.
+    logical :: tFullyStochasticHamil
     ! If true then a finite-temperature calculation is performed.
     logical :: tFiniteTemp
     ! If true then perform multiple kp-fciqmc calculations starting from
@@ -223,6 +231,7 @@ contains
         tMultiplePopStart = .false.
         tExactHamil = .false.
         tHamilOnFly = .false.
+        tFullyStochasticHamil = .false.
         tInitCorrectNWalkers = .false.
         vary_niters = .false.
         tUseInitConfigSeeds = .false.
@@ -283,6 +292,8 @@ contains
                 tExactHamil = .true.
             case("HAMIL-ON-FLY")
                 tHamilOnFly = .true.
+            case("FULLY-STOCHASTIC-HAMIL")
+                tFullyStochasticHamil = .true.
             case("INIT-CORRECT-WALKER-POP")
                 tInitCorrectNWalkers = .true.
             case("INIT-CONFIG-SEEDS")
@@ -339,6 +350,12 @@ contains
         call init_fcimc_fn_pointers() 
 
         write(6,'(/,12("="),1x,a9,1x,12("="))') "KP-FCIQMC"
+
+        if (tSemiStochastic .and. (.not. tFullyStochasticHamil)) then
+            tSemiStochasticKPHamil = .true.
+        else
+            tSemiStochasticKPHamil = .false.
+        end if
 
         ! The number of elements required to store all replicas of all Krylov vectors.
         lenof_sign_kp = lenof_sign*kp%nvecs
