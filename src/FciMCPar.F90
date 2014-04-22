@@ -4527,6 +4527,7 @@ MODULE FciMCParMod
         Trial_Search_Time%timer_name='TrialSearchTime'
         SemiStoch_Init_Time%timer_name='SemiStochInitTime'
         Trial_Init_Time%timer_name='TrialInitTime'
+        kp_generate_time%timer_name='KPGenerateTime'
 
         IF(TDebug) THEN
 !This will open a file called LOCALPOPS-"iprocindex" on unit number 11 on every node.
@@ -4831,10 +4832,6 @@ MODULE FciMCParMod
                 call stop_all(t_r,"Inconsistency in the symmetry arrays.")
             endif
         end if
-        IF(tKPntSym) THEN
-            CALL DecomposeAbelianSym(HFSym%Sym%S,KPnt)
-            WRITE(iout,"(A,3I5)") "Crystal momentum of reference determinant is: ",KPnt(1),KPnt(2),KPnt(3)
-        ENDIF
 
 !If using a CAS space truncation, write out this CAS space
         IF(tTruncCAS) THEN
@@ -6703,7 +6700,7 @@ MODULE FciMCParMod
         use LoggingData , only : tReadRDMs
         INTEGER :: ierr,iunithead,DetHash,Slot,MemTemp,run
         LOGICAL :: formpops,binpops
-        INTEGER :: error,MemoryAlloc,PopsVersion,j,iLookup,WalkerListSize
+        INTEGER :: error,MemoryAlloc,PopsVersion,j,iLookup
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         integer :: PopBlockingIter
         real(dp) :: Gap,ExpectedMemWalk,read_tau
@@ -6761,14 +6758,14 @@ MODULE FciMCParMod
 
                 call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                         iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau,PopBlockingIter)
+                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,MaxWalkersUncorrected,read_tau,PopBlockingIter)
 
                 if(iProcIndex.eq.root) close(iunithead)
             else
-                WalkerListSize=int(InitWalkers,sizeof_int)
+                MaxWalkersUncorrected=int(InitWalkers,sizeof_int)
             endif
 
-            MaxWalkersPart=NINT(MemoryFacPart*WalkerListSize)
+            MaxWalkersPart=NINT(MemoryFacPart*MaxWalkersUncorrected)
             ExpectedMemWalk=real((NIfTot+1)*MaxWalkersPart*size_n_int+8*MaxWalkersPart,dp)/1048576.0_dp
             if(ExpectedMemWalk.lt.20.0) then
                 !Increase memory allowance for small runs to a min of 20mb

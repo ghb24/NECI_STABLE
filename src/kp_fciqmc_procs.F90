@@ -7,21 +7,12 @@ module kp_fciqmc_procs
     use bit_reps, only: decode_bit_det, encode_sign, flag_is_initiator
     use CalcData, only: tTruncInitiator, tStartSinglePart, InitialPart, InitWalkers
     use CalcData, only: tSemiStochastic, tReadPops, tUseRealCoeffs, tau, DiagSft
-    use CalcData, only: AvMCExcits, tWritePopsNorm
+    use CalcData, only: AvMCExcits, tWritePopsNorm, iPopsFileNoRead, pops_norm
     use constants
     use DetBitOps, only: DetBitEq, EncodeBitDet, IsAllowedHPHF, FindBitExcitLevel
     use Determinants, only: get_helement
     use dSFMT_interface , only: dSFMT_init, genrand_real2_dSFMT
-    use FciMCData, only: ilutHF, HFDet, CurrentDets, SpawnedParts, SpawnedParts2, TotWalkers
-    use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots, HashIndex, nWalkerHashes
-    use FciMCData, only: fcimc_iter_data, ll_node, MaxWalkersPart, tStartCoreGroundState
-    use FciMCData, only: tPopsAlreadyRead, tHashWalkerList, CurrentH, determ_proc_sizes
-    use FciMCData, only: core_ham_diag, InputDiagSft, Hii, max_spawned_ind, SpawnedPartsKP
-    use FciMCData, only: partial_determ_vector, full_determ_vector, determ_proc_indices, HFSym
-    use FciMCData, only: TotParts, TotPartsOld, AllTotParts, AllTotPartsOld, iter, MaxSpawned
-    use FciMCData, only: SpawnedPartsKP2, SpawnVecKP, SpawnVecKP2, partial_determ_vecs_kp
-    use FciMCData, only: full_determ_vecs_kp, determ_space_size, OldAllAvWalkersCyc
-    use FciMCData, only: PreviousCycles
+    use FciMCData
     use FciMCParMod, only: create_particle, InitFCIMC_HF, SetupParameters, InitFCIMCCalcPar
     use FciMCParMod, only: init_fcimc_fn_pointers, WriteFciMCStats, WriteFciMCStatsHeader
     use FciMCParMod, only: rezero_iter_stats_each_iter, tSinglePartPhase, InitFCIMC_pops
@@ -31,13 +22,15 @@ module kp_fciqmc_procs
     use hilbert_space_size, only: CreateRandomExcitLevDetUnbias, create_rand_heisenberg_det
     use hilbert_space_size, only: create_rand_det_no_sym
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
-    use Parallel_neci, only: MPIBarrier, iProcIndex, MPISum, MPIReduce, nProcessors
+    use LoggingData, only: tIncrementPops
+    use Parallel_neci, only: MPIBarrier, iProcIndex, MPISum, MPIReduce, nProcessors, MPIAllReduce
     use ParallelHelper, only: root
     use PopsfileMod, only: FindPopsfileVersion, open_pops_head, ReadPopsHeadv4, CheckPopsParams
     use PopsfileMod, only: write_pops_norm
     use procedure_pointers
     use semi_stoch_procs, only: copy_core_dets_this_proc_to_spawnedparts, fill_in_CurrentH
     use semi_stoch_procs, only: add_core_states_currentdet_hash, start_walkers_from_core_ground
+    use semi_stoch_procs, only: check_determ_flag
     use sym_mod, only: getsym
     use SystemData, only: nel, nbasis, BRR, nBasisMax, G1, tSpn, lms, tParity, SymRestrict
     use SystemData, only: BasisFn, tHeisenberg, tHPHF, tAllSymSectors
@@ -46,69 +39,174 @@ module kp_fciqmc_procs
     implicit none
 
     type kp_fciqmc_data
-        ! If true then a ground-state calculation is being performed.
-        logical :: tGround
-        ! If true then a finite-temperature calculation is being performed.
-        logical :: tFiniteTemp
         ! The number of different initial walker configurations to start
         ! calculations from.
         integer :: nconfigs
+        ! The current configuration.
+        integer, pointer :: iconfig
         ! The number of simulations to perform for each initial walker
         ! configuration.
         integer :: nrepeats
+        ! The current repeat.
+        integer, pointer :: irepeat
         ! The number of different Krylov vectors to sample (the number of
         ! vectors which form the Krylov subspace at the end of a calculation).
         integer :: nvecs
+        ! The current Krylov vector.
+        integer, pointer :: ivec
         ! The number of iterations to perform *between each Krylov vector being
         ! sampled*. niters(i) holds the number to be performed between the
         ! i-th and (i+1)th vectors. The final element is not set by the user,
         ! it is always set to 1 (because we don't want to go any further
         ! beyond the final Krylov vector).
         integer, allocatable :: niters(:)
-        ! For finite-temperature calculations, when creating the inital vector,
-        ! this variable specifies how many walkers should be added to each
-        ! chosen site.
-        real(dp) :: nwalkers_per_site_init
-        ! On iterations where the spawned walkers are used to estiamate the
-        ! Hamiltonian, this is used instead of AvMCExcits.
-        real(dp) :: av_mc_excits_kp
 
-        real(dp), allocatable :: overlap_matrix(:,:)
-        real(dp), allocatable :: hamil_matrix(:,:)
+        ! Stores of the overlap and projected Hamiltonian matrices.
+        ! If tStoreKPMatrices is .true., then all matrices will be held for
+        ! the current initial configuration, including all repeats. The third
+        ! index will therefore run from 1 to nrepeats.
+        ! If tKPMatrices is .false., then only the matrices from the current
+        ! repeat will be held, and the third index will always be 1.
+        real(dp), pointer :: overlap_matrices(:,:,:)
+        real(dp), pointer :: hamil_matrices(:,:,:)
+        ! Pointers to the matrices for the current repeat only.
+        real(dp), pointer :: overlap_matrix(:,:)
+        real(dp), pointer :: hamil_matrix(:,:)
     end type
 
     type(kp_fciqmc_data) :: kp
 
+    ! Information for the krylov_vecs arrays, which holds all of the Krylov
+    ! vectors together simultaneously.
+    ! The number of hash values for the hash table used to access krylov_vecs.
     integer :: nhashes_kp
+    ! The total number of slots in the krylov_vecs arrays (the number of
+    ! different determinants which it can hold).
+    integer :: krylov_vecs_length
+    character(2) :: kp_length_fmt
+    ! krylov_vecs_length is calculated as the total number of walkers requested
+    ! (by the TotalWalkers option in the Calc block) multipled by this factor,
+    ! and then multipled by the number of Krylov vectors (for now...).
+    real(dp) :: memory_factor_kp
+    ! The current number of different determinants held in krylov_vecs.
     integer :: TotWalkersKP
     integer(n_int), allocatable :: krylov_vecs(:,:)
     type(ll_node), pointer :: krylov_vecs_ht(:) 
 
-    integer(int64) :: TotWalkersInit
+    ! The number of elements in krylov_vecs which are used to store amplitudes.
+    integer(int64) :: nkrylov_amp_elems_tot
+    ! The nunber of amplitude elements in krylov_vecs which are non-zero.
+    integer(int64) :: nkrylov_amp_elems_used
+
+    ! The values of these variables for the current initial walker configuration.
+    ! These are held in these variables so that, when we restart from this
+    ! configuration, we can instantly reset the corresponding values.
+    integer(int64) :: TotWalkersInit, AllTotWalkersInit
     real(dp) :: TotPartsInit(lenof_sign)
     real(dp) :: AllTotPartsInit(lenof_sign)
-    integer(n_int), allocatable :: init_kp_config(:,:)
+
+    ! If true then don't use a fixed number of iterations between each Krylov
+    ! vector is taken, but vary the number.
     logical :: vary_niters
 
     ! The total sign length for all Krylov vectors together.
     integer :: lenof_sign_kp
 
-    ! If true then calculate the projected Hamiltonian exactly (useful
-    ! for testing only, in practice).
+    ! If true then calculate the projected Hamiltonian exactly (useful for
+    ! testing only, in practice).
     logical :: tExactHamil
     ! If true, use the spawning from the main FCIQMC iterations to
     ! calculate the projected Hamiltonian.
     logical :: tHamilOnFly
-
+    ! If true then use the semi-stochastic approach in the calculation
+    ! of the projected Hamiltonian. This is on by default, if
+    ! tSemiStochastic is true. If tFullyStochasticHamil if true then
+    ! this logical will be false.
+    logical :: tSemiStochasticKPHamil
+    ! If true, don't use the semi-stochastic approach when calculating
+    ! the projected Hamiltonian. False by default.
+    logical :: tFullyStochasticHamil
+    ! If true then a finite-temperature calculation is performed.
+    logical :: tFiniteTemp
+    ! If true then perform multiple kp-fciqmc calculations starting from
+    ! several POPSFILEs in the running directory. POPSFILEs labelled
+    ! between 0 and nconfigs-1 will be used.
+    logical :: tMultiplePopStart
+    ! For finite-temperature calculations, when creating the inital vector,
+    ! this variable specifies how many walkers should be added to each
+    ! chosen site.
+    real(dp) :: nwalkers_per_site_init
+    ! When estimating the projected Hamiltonian, this variable determines
+    ! how many spawns (on average) each of the walkers in each of the
+    ! Kyrlov vectors contribute.
+    real(dp) :: av_mc_excits_kp
     ! If true then use generate_init_config_this_proc to generate the initial
     ! walker distribution for finite-temperature calculations. This will always
-    ! get the request walker population.
+    ! generate the requested number of walkers (except for rounding when splitting
+    ! this number between processors).
     logical :: tInitCorrectNWalkers
-
+    ! In the projected Hamiltonian calculation, this holds the fraction of the
+    ! spawning array to be filled before a communication round is performed.
     integer :: MaxSpawnedEachProc
-
+    ! If true then the random number generator will be reset before genearting
+    ! the next initial configuration (in a finite-temperature job) by using
+    ! the values in init_config_seeds.
     logical :: tUseInitConfigSeeds
+    ! See comments above.
     integer, allocatable :: init_config_seeds(:)
+    ! If true, all repeats of the projected Hamiltonian and overlap matrices
+    ! will be stored in memory for a given starting configuration until
+    ! we move onto the next starting configuration. This means that we don't
+    ! have to read all the matrices in again before averaging at the end
+    ! of a tarting configuration, and so makes things a bit quicker. However,
+    ! if this will use too much memory then this option can be turned off
+    ! and the matrices will be read in before averaging instead.
+    logical :: tStoreKPMatrices
+    ! If true then the averaged projected Hamiltonian and overlap matrices
+    ! will be output after completing all repeats of a given initial configuration.
+    ! If more than one repeat has been performed, then the standard error
+    ! will also be output.
+    logical :: tOutputAverageKPMatrices
+
+    ! Matrices used in the communication of the projected Hamiltonian and
+    ! overlap matrices.
+    real(dp), allocatable :: kp_mpi_matrices_in(:,:)
+    real(dp), allocatable :: kp_mpi_matrices_out(:,:)
+
+    ! After all repeats for a given initial configuration are complete, these
+    ! arrays will hold the means and standard errors of the projected
+    ! Hamiltonian and overlap matrices (unless only one sample was obtained,
+    ! in which case the standard errors will be zero).
+    real(dp), allocatable :: kp_hamil_mean(:,:)
+    real(dp), allocatable :: kp_overlap_mean(:,:)
+    real(dp), allocatable :: kp_hamil_se(:,:)
+    real(dp), allocatable :: kp_overlap_se(:,:)
+
+    ! These are used in the calculation of the final eigenvalues.
+    ! Allocate these arrays once during initialisation and reuse them,
+    ! as reallocating arrays over and over again isn't great to do...
+    ! Arrays holding the eigenvalues of the Hamiltonian and overlap matrices.
+    real(dp), allocatable :: kp_hamil_eigv(:)
+    real(dp), allocatable :: kp_overlap_eigv(:)
+    ! The overlap of the final vectors with the initial configuration.
+    ! (the first Krylov vector).
+    real(dp), allocatable :: kp_init_overlaps(:)
+    ! The eigenvectors of the overlap matrix.
+    real(dp), allocatable :: kp_overlap_eigenvecs(:,:)
+    ! The matrix used to transform the Krylov vectors to a orthonormal basis.
+    real(dp), allocatable :: kp_transform_matrix(:,:)
+    ! Matrix used as temporary space during the transformation of the
+    ! projected Hamiltonian into an orthonormal basis, in the Lowdin appraoch.
+    real(dp), allocatable :: kp_inter_hamil(:,:)
+    ! The final Hamiltonian in an orthonormal basis, which is to be passed
+    ! to the diagonalisation routines.
+    real(dp), allocatable :: kp_final_hamil(:,:)
+    ! The final eigenvectors, but in the basis of Krylov vectors.
+    ! This is used in the Lowdin approach: diagonalising kp_final_hamil
+    ! will give the final eigenvectors in the orthonormal basis, then
+    ! we do the inverse of the transformation procedure to get back to
+    ! the Krylov basis.
+    real(dp), allocatable :: kp_eigenvec_krylov(:,:)
 
 contains
 
@@ -118,24 +216,28 @@ contains
 
         logical :: eof
         character(len=100) :: w
-        integer :: i, niters_temp
+        integer :: i, niters_temp, nvecs_temp
         character (len=*), parameter :: t_r = "kp_fciqmc_read_inp"
 
         ! Default values.
         kp%nconfigs = 1
         kp%nrepeats = 1
         kp%nvecs = 0
-        niters_temp = 0
-        kp%nwalkers_per_site_init = 1.0_dp
-        kp%av_mc_excits_kp = 0.0_dp
-        kp%tGround = .false.
-        kp%tFiniteTemp = .false.
+        niters_temp = 1
+        memory_factor_kp = 1.0_dp
+        nwalkers_per_site_init = 1.0_dp
+        av_mc_excits_kp = 0.0_dp
+        tFiniteTemp = .false.
+        tMultiplePopStart = .false.
         tExactHamil = .false.
         tHamilOnFly = .false.
+        tFullyStochasticHamil = .false.
         tInitCorrectNWalkers = .false.
         vary_niters = .false.
         tUseInitConfigSeeds = .false.
         tAllSymSectors = .false.
+        tStoreKPMatrices = .true.
+        tOutputAverageKPMatrices = .false.
 
         read_inp: do
             call read_line(eof)
@@ -146,36 +248,52 @@ contains
             select case(w)
             case("END-KP-FCIQMC")
                 exit read_inp
-            case("GROUND-STATE")
-                kp%tGround = .true.
             case("FINITE-TEMPERATURE")
-                kp%tFiniteTemp = .true.
+                tFiniteTemp = .true.
+            case("MULTIPLE-POPS")
+                tMultiplePopStart = .true.
+                tIncrementPops = .true.
+                iPopsFileNoRead = -1
             case("NUM-INIT-CONFIGS")
                 call geti(kp%nconfigs)
             case("NUM-REPEATS-PER-INIT-CONFIG")
                 call geti(kp%nrepeats)
             case("NUM-KRYLOV-VECS")
-                call geti(kp%nvecs)
-                allocate(kp%niters(kp%nvecs))
-                kp%niters = 0
+                call geti(nvecs_temp)
+                if (kp%nvecs /= 0) then
+                    if (kp%nvecs /= nvecs_temp) call stop_all(t_r, 'The number of values specified for the number of iterations &
+                        &between Krylov vectors is not consistent with the number of Krylov vectors requested.')
+                else
+                    kp%nvecs = nvecs_temp
+                    allocate(kp%niters(kp%nvecs))
+                end if
+                kp%niters(kp%nvecs) = 0
             case("NUM-ITERS-BETWEEN-VECS")
                 call geti(niters_temp)
             case("NUM-ITERS-BETWEEN-VECS-VARY")
-                if (kp%nvecs == 0) call stop_all(t_r, 'Please enter the number of krylov vectors before &
-                                                       &specifying the number of iterations between vectors.')
                 vary_niters = .true.
+                if (kp%nvecs /= 0) then
+                    if (kp%nvecs /= nitems) call stop_all(t_r, 'The number of values specified for the number of iterations &
+                        &between Krylov vectors is not consistent with the number of Krylov vectors requested.')
+                end if
+                kp%nvecs = nitems
+                if (.not. allocated(kp%niters)) allocate(kp%niters(kp%nvecs))
                 do i = 1, kp%nvecs-1
                     call geti(kp%niters(i))
                 end do
-                kp%niters(kp%nvecs) = 1
+                kp%niters(kp%nvecs) = 0
+            case("MEMORY-FACTOR")
+                call getf(memory_factor_kp)
             case("NUM-WALKERS-PER-SITE-INIT")
-                call getf(kp%nwalkers_per_site_init)
+                call getf(nwalkers_per_site_init)
             case("AVERAGEMCEXCITS-HAMIL")
-                call getf(kp%av_mc_excits_kp)
+                call getf(av_mc_excits_kp)
             case("EXACT-HAMIL")
                 tExactHamil = .true.
             case("HAMIL-ON-FLY")
                 tHamilOnFly = .true.
+            case("FULLY-STOCHASTIC-HAMIL")
+                tFullyStochasticHamil = .true.
             case("INIT-CORRECT-WALKER-POP")
                 tInitCorrectNWalkers = .true.
             case("INIT-CONFIG-SEEDS")
@@ -188,29 +306,18 @@ contains
                 end do
             case("ALL-SYM-SECTORS")
                 tAllSymSectors = .true.
+            case("WRITE-MATRICES-SEPARATE")
+                tStoreKPMatrices = .false.
+            case("WRITE-AVERAGE-MATRICES")
+                tOutputAverageKPMatrices = .true.
             case default
                 call report("Keyword "//trim(w)//" not recognized in kp-fciqmc block", .true.)
             end select
         end do read_inp
 
-        if (kp%nvecs == 0 .and. niters_temp /= 0) then
-            ! If nvecs was not set but niters was.
-            kp%nvecs = 1
-            allocate(kp%niters(kp%nvecs))
+        if (.not. vary_niters) then
             kp%niters = niters_temp
-            kp%niters(kp%nvecs) = 1
-        else if (kp%nvecs /= 0 .and. niters_temp /= 0 .and. (.not. vary_niters)) then
-            ! If both were set (but not through the variable niters option).
-            kp%niters = niters_temp
-            kp%niters(kp%nvecs) = 1
-        else if (kp%nvecs /= 0 .and. niters_temp == 0 .and. (.not. vary_niters)) then
-            ! If nvecs was set but niters was not.
-            kp%niters = 1
-        else if (kp%nvecs == 0) then
-            ! If nvecs was not set and neither was niters.
-            kp%nvecs = 1
-            allocate(kp%niters(kp%nvecs))
-            kp%niters = 1
+            kp%niters(kp%nvecs) = 0
         end if
 
     end subroutine kp_fciqmc_read_inp
@@ -220,94 +327,180 @@ contains
         use SystemData, only: G1
 
         type(kp_fciqmc_data), intent(inout) :: kp
-        integer :: ierr
+        integer :: ierr, krylov_vecs_memory, krylov_ht_memory, matrix_memory
+        character(2) :: mem_fmt
         character (len=*), parameter :: t_r = "init_kp_fciqmc"
 
-        integer :: i
-
+        ! Checks.
         if (.not. tHashWalkerList) call stop_all('t_r','kp-fciqmc can only be run using &
             &the linscalefcimcalgo option (the linear scaling algorithm).')
-
         if (.not. tUseRealCoeffs) call stop_all('t_r','kp-fciqmc can only be run using &
             &real coefficients).')
-
         if (tExactHamil .and. nProcessors /= 1) call stop_all('t_r','The exact-hamil &
             &option can only be used when running with one processor.')
-
         if (theisenberg .and. tAllSymSectors) call stop_all('t_r','The option to use all &
             &symmetry sectors at once has not been implemented with the Heisenberg model.')
+        if (n_int == 4) call stop_all('t_r', 'Use of RealCoefficients does not work with 32 bit &
+             &integers due to the use of the transfer operation from dp reals to 64 bit integers.')
 
+        ! Call external NECI initialisation routines.
         tPopsAlreadyRead = .false.
         call SetupParameters()
         call InitFCIMCCalcPar()
         call init_fcimc_fn_pointers() 
-        
-        call WriteFciMCStatsHeader()
 
-        if (n_int == 4) call stop_all('t_r', 'Use of RealCoefficients does not work with 32 bit &
-             &integers due to the use of the transfer operation from dp reals to 64 bit integers.')
+        write(6,'(/,12("="),1x,a9,1x,12("="))') "KP-FCIQMC"
 
-        lenof_sign_kp = lenof_sign*kp%nvecs
-        NIfLan = NIfDBO + lenof_sign_kp + 1 + NIfFlag
-
-        nhashes_kp = nWalkerHashes
-        TotWalkersKP = 0
-        allocate(krylov_vecs(0:NIfLan, MaxWalkersPart), stat=ierr)
-        krylov_vecs = 0_n_int
-        allocate(krylov_vecs_ht(nhashes_kp), stat=ierr)
-        call init_hash_table(krylov_vecs_ht)
-
-        allocate(kp%overlap_matrix(kp%nvecs, kp%nvecs), stat=ierr)
-        allocate(kp%hamil_matrix(kp%nvecs, kp%nvecs), stat=ierr)
-
-        ! If performing a finite-temperature calculation with more than one run for each initial
-        ! configuration, we store this walker configuration so that we can restart from it later.
-        if (kp%tFiniteTemp .and. kp%nrepeats > 1) then
-            allocate(init_kp_config(0:NIfTot, MaxWalkersPart), stat=ierr)
+        if (tSemiStochastic .and. (.not. tFullyStochasticHamil)) then
+            tSemiStochasticKPHamil = .true.
+        else
+            tSemiStochasticKPHamil = .false.
         end if
 
-        ! If av_mc_excits_kp hasn't been set by the user, just use AvMCExcits.
-        if (kp%av_mc_excits_kp == 0.0_dp) kp%av_mc_excits_kp = AvMCExcits
+        ! The number of elements required to store all replicas of all Krylov vectors.
+        lenof_sign_kp = lenof_sign*kp%nvecs
+        ! The total length of a bitstring containing all Krylov vectors.
+        ! Note that the 1 is added because we store the diagonal Hamiltonian element in the array.
+        NIfTotKP = NIfDBO + lenof_sign_kp + 1 + NIfFlag
+
+        ! Allocate all of the KP arrays.
+        nhashes_kp = nWalkerHashes
+        TotWalkersKP = 0
+        krylov_vecs_length = nint(MaxWalkersUncorrected*memory_factor_kp*kp%nvecs)
+        write(kp_length_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_vecs_length)+1)))
+        nkrylov_amp_elems_tot = lenof_sign*kp%nvecs*krylov_vecs_length
+
+        ! Allocate the krylov_vecs array.
+        ! The number of MB of memory required to allocate krylov_vecs.
+        krylov_vecs_memory = krylov_vecs_length*(NIfTotKP+1)*size_n_int/1000000
+        write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_vecs_memory)+1)))
+        write(6,'(a73,1x,'//mem_fmt//')') "About to allocate array to hold all Krylov vectors. &
+                                       &Memory required (MB):", krylov_vecs_memory
+        write(6,'(a13)',advance='no') "Allocating..."
+        call neci_flush(6)
+        allocate(krylov_vecs(0:NIfTotKP, krylov_vecs_length), stat=ierr)
+        if (ierr /= 0) then
+            write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+            call stop_all(t_r, "Error allocating krylov_vecs array.")
+        else
+            write(6,'(1x,a5)') "Done."
+        end if
+        call neci_flush(6)
+        krylov_vecs = 0_n_int
+
+        ! Allocate the hash table to krylov_vecs.
+        ! The number of MB of memory required to allocate krylov_vecs_ht.
+        ! Each node requires 16 bytes.
+        krylov_ht_memory = nhashes_kp*16/1000000
+        write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_ht_memory)+1)))
+        write(6,'(a78,1x,'//mem_fmt//')') "About to allocate hash table to the Krylov vector array. &
+                                       &Memory required (MB):", krylov_ht_memory
+        write(6,'(a13)',advance='no') "Allocating..."
+        call neci_flush(6)
+        allocate(krylov_vecs_ht(nhashes_kp), stat=ierr)
+        if (ierr /= 0) then
+            write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+            call stop_all(t_r, "Error allocating krylov_vecs array.")
+        else
+            write(6,'(1x,a5)') "Done."
+            write(6,'(a106)') "Note that the hash table uses linked lists, and the memory usage will &
+                              &increase as further nodes are added."
+        end if
+        call init_hash_table(krylov_vecs_ht)
 
         if (tHamilOnFly) then
             allocate(SpawnVecKP(0:NIfTot,MaxSpawned),stat=ierr)
-            SpawnVecKP(:,:) = 0
+            SpawnVecKP(:,:) = 0_n_int
             SpawnedPartsKP => SpawnVecKP
+            ! Do one extra iteration so that the Hamiltonian can be calculated for the final Krylov vector.
+            kp%niters(kp%nvecs) = 1
         else
             allocate(SpawnVecKP(0:NOffSgn+lenof_sign_kp-1,MaxSpawned),stat=ierr)
             allocate(SpawnVecKP2(0:NOffSgn+lenof_sign_kp-1,MaxSpawned),stat=ierr)
-            SpawnVecKP(:,:) = 0
-            SpawnVecKP2(:,:) = 0
+            SpawnVecKP(:,:) = 0_n_int
+            SpawnVecKP2(:,:) = 0_n_int
             SpawnedPartsKP => SpawnVecKP
             SpawnedPartsKP2 => SpawnVecKP2
             if (tSemiStochastic) then
                 allocate(partial_determ_vecs_kp(lenof_sign_kp,determ_proc_sizes(iProcIndex)), stat=ierr)
                 allocate(full_determ_vecs_kp(lenof_sign_kp,determ_space_size), stat=ierr)
+                partial_determ_vecs_kp = 0.0_dp
+                full_determ_vecs_kp = 0.0_dp
             end if
         end if
 
+        if (tStoreKPMatrices) then
+            ! (2*kp%nrepeats+16) arrays with (kp%nvecs**2) 8-byte elements each.
+            matrix_memory = (2*kp%nrepeats+16)*(kp%nvecs**2)*8/1000000
+        else
+            ! 18 arrays with (kp%nvecs**2) 8-byte elements each.
+            matrix_memory = 18*(kp%nvecs**2)*8/1000000
+        end if
+        write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(matrix_memory)+1)))
+        write(6,'(a66,1x,'//mem_fmt//')') "About to allocate various subspace matrices. &
+                                       &Memory required (MB):", matrix_memory
+        write(6,'(a13)',advance='no') "Allocating..."
+        call neci_flush(6)
+
+        if (tStoreKPMatrices) then
+            allocate(kp%overlap_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
+            allocate(kp%hamil_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
+        else
+            allocate(kp%overlap_matrices(kp%nvecs, kp%nvecs, 1), stat=ierr)
+            allocate(kp%hamil_matrices(kp%nvecs, kp%nvecs, 1), stat=ierr)
+        end if
+
+        allocate(kp_mpi_matrices_in(2*kp%nvecs, kp%nvecs))
+        allocate(kp_mpi_matrices_out(2*kp%nvecs, kp%nvecs))
+
+        allocate(kp_hamil_mean(kp%nvecs, kp%nvecs))
+        allocate(kp_overlap_mean(kp%nvecs, kp%nvecs))
+        allocate(kp_hamil_se(kp%nvecs, kp%nvecs))
+        allocate(kp_overlap_se(kp%nvecs, kp%nvecs))
+
+        allocate(kp_hamil_eigv(kp%nvecs))
+        allocate(kp_overlap_eigv(kp%nvecs))
+        allocate(kp_init_overlaps(kp%nvecs))
+        allocate(kp_overlap_eigenvecs(kp%nvecs, kp%nvecs))
+        allocate(kp_transform_matrix(kp%nvecs, kp%nvecs))
+        allocate(kp_inter_hamil(kp%nvecs, kp%nvecs))
+        allocate(kp_final_hamil(kp%nvecs, kp%nvecs))
+        allocate(kp_eigenvec_krylov(kp%nvecs, kp%nvecs))
+
+        write(6,'(1x,a5)') "Done."
+
+        ! If av_mc_excits_kp hasn't been set by the user, just use AvMCExcits.
+        if (av_mc_excits_kp == 0.0_dp) av_mc_excits_kp = AvMCExcits
+
         MaxSpawnedEachProc = int(0.88*real(MaxSpawned,dp)/nProcessors)
 
+        call WriteFciMCStatsHeader()
         call MPIBarrier(ierr)
 
     end subroutine init_kp_fciqmc
 
-    subroutine init_kp_fciqmc_repeat(kp, iconfig, irepeat)
+    subroutine init_kp_fciqmc_repeat(kp)
 
         type(kp_fciqmc_data), intent(inout) :: kp
-        integer, intent(in) :: iconfig, irepeat
 
-        call create_initial_config(kp, iconfig, irepeat)
+        ! If starting from multiple POPSFILEs then set this counter so that the
+        ! correct POPSFILE is read in this time. To read in POPSFILE.x,
+        ! iPopsFileNoRead needs to be set to -x-1. We want to read in POPSFILE
+        ! numbers 0 to kp%nconfigs-1
+        if (tMultiplePopStart) iPopsFileNoRead = -(kp%iconfig-1)-1
+
+        call create_initial_config(kp)
 
         call reset_hash_table(krylov_vecs_ht)
         krylov_vecs = 0_n_int
 
+        ! Rezero all the necessary data.
         kp%overlap_matrix = 0.0_dp
         kp%hamil_matrix = 0.0_dp
         TotWalkersKP = 0
+        nkrylov_amp_elems_used = 0
         iter = 0
         PreviousCycles = 0
-
         DiagSft = InputDiagSft
         if (tStartSinglePart) then
             OldAllAvWalkersCyc = InitialPart
@@ -341,18 +534,18 @@ contains
 
     end subroutine init_kp_fciqmc_iter
 
-    subroutine create_initial_config(kp, iconfig, irepeat)
+    subroutine create_initial_config(kp)
 
         use bit_reps, only: extract_bit_rep
         use FciMCData, only: fcimc_excit_gen_store
 
         type(kp_fciqmc_data), intent(inout) :: kp
-        integer, intent(in) :: iconfig, irepeat
         integer :: DetHash, nwalkers, nwalkers_target, iunithead, PopsVersion
         integer :: i
         real(dp) :: real_sign(lenof_sign)
         real(dp) :: norm, all_norm
-        character(len=*), parameter :: t_r = "create_inital_config"
+        real(sp) :: total_time_before, total_time_after
+        character(len=*), parameter :: t_r = "create_initial_config"
         ! Variables from popsfile header...
         integer :: iPopLenof_sign, iPopNel, iPopIter, PopNIfD, PopNIfY, WalkerListSize
         integer :: PopNIfSgn, PopNIfFlag, PopNIfTot, PopBlockingIter
@@ -362,76 +555,107 @@ contains
         real(dp), dimension(lenof_sign/inum_runs) :: PopSumNoatHF
         HElement_t :: PopAllSumENum
 
+        ! Clear everything from any previous repeats or starting configurations.
         call reset_hash_table(HashIndex)
 
-        if (kp%tGround) then
-            if (tReadPops) then
-                ! Read header.
-                call open_pops_head(iunithead,formpops,binpops)
-                PopsVersion = FindPopsfileVersion(iunithead)
-                if(PopsVersion == 4) then
-                    call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+        if (kp%irepeat == 1) then
+            if (.not. tFiniteTemp) then
+                if (tReadPops) then
+                    ! Read the header.
+                    call open_pops_head(iunithead,formpops,binpops)
+                    PopsVersion = FindPopsfileVersion(iunithead)
+                    if(PopsVersion == 4) then
+                        call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+                                iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                                PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
+                        ! If requested output the norm of the *unperturbed* walkers in the POPSFILE.
+                        if (tWritePopsNorm) call write_pops_norm()
+                    else
+                        call stop_all(t_r, "Only version 4 popsfile are supported with kp-fciqmc.")
+                    endif
+                    call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                             iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                            PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
-                    if (tWritePopsNorm) call write_pops_norm()
+                            PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau,PopBlockingIter)
+
+                    if (iProcIndex == root) close(iunithead)
+
+                    call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn)
                 else
-                    call stop_all(t_r, "Only version 4 popsfile are supported with kp-fciqmc.")
-                endif
-                call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                        iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau,PopBlockingIter)
+                    ! Put a walker on the Hartree-Fock, with the requested amplitude.
+                    call InitFCIMC_HF()
+                end if
 
-                if (iProcIndex == root) close(iunithead)
+                if (tSemiStochastic) then
+                    ! core_space stores all core determinants from all processors. Move those on this
+                    ! processor to SpawnedParts, which add_core_states_currentdet_hash uses.
+                    call copy_core_dets_this_proc_to_spawnedparts()
+                    ! Any core space determinants which are not already in CurrentDets will be added
+                    ! by this routine.
+                    call add_core_states_currentdet_hash()
+                    SpawnedParts = 0_n_int
+                    if (tStartCoreGroundState .and. (.not. tReadPops)) &
+                        call start_walkers_from_core_ground(tPrintInfo = .false.)
+                    ! Reset the diagonal Hamiltonian elements.
+                    CurrentH(1, 1:determ_proc_sizes(iProcIndex)) = core_ham_diag
+                end if
 
-                call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn)
-            else
-                ! Put a walker on the Hartree-Fock again, with the requested amplitude.
-                call InitFCIMC_HF()
-            end if
-
-            if (tSemiStochastic) then
-                ! core_space stores all core determinants from all processors. Move those on this
-                ! processor to SpawnedParts, which add_core_states_currentdet_hash uses.
-                call copy_core_dets_this_proc_to_spawnedparts()
-                call add_core_states_currentdet_hash()
-                SpawnedParts = 0_n_int
-                if (tStartCoreGroundState .and. (.not. tReadPops)) &
-                    call start_walkers_from_core_ground(tPrintInfo = .false.)
-                ! Reset the diagonal Hamiltonian elements.
-                CurrentH(1, 1:determ_proc_sizes(iProcIndex)) = core_ham_diag
-            end if
-
-        else if (kp%tFiniteTemp) then
-            if (irepeat == 1) then
-                ! Convert the initial number of walkers to an integer.
+            else if (tFiniteTemp) then
+                ! Convert the initial number of walkers to an integer. Note that on multiple
+                ! processors this may round up the requested number of walkers slightly.
                 if (tStartSinglePart) then
                     nwalkers_target = ceiling(real(InitialPart,dp)/real(nProcessors,dp))
                 else
                     nwalkers_target = ceiling(InitWalkers)
                 end if
-                ! Finally, call the routine to create the walker distribution.
-                if (tUseInitConfigSeeds) call dSFMT_init((iProcIndex+1)*init_config_seeds(iconfig))
-                !if (tInitCorrectNWalkers) then
-                !    call generate_init_config_this_proc(nwalkers_target, kp%nwalkers_per_site_init, nwalkers)
-                !else
-                !    call generate_init_config_basic(nwalkers_target, kp%nwalkers_per_site_init, nwalkers)
-                !end if
-                TotWalkersInit = TotWalkers
-                TotPartsInit = TotParts
-                AllTotPartsInit = AllTotParts
-                ! If starting from this configuration more than once, store it.
-                if (kp%nrepeats > 1) init_kp_config(:,1:TotWalkers) = CurrentDets(:,1:TotWalkers)
-            else if (irepeat > 1) then
-                TotWalkers = TotWalkersInit
-                TotParts = TotPartsInit
-                TotPartsOld = TotPartsInit
-                AllTotParts = AllTotPartsInit
-                AllTotPartsOld = AllTotPartsInit
+                ! If requested, reset the random number generator with the requested seed
+                ! before creating the random initial configuration.
+                if (tUseInitConfigSeeds) call dSFMT_init((iProcIndex+1)*init_config_seeds(kp%iconfig))
 
-                CurrentDets(:,1:TotWalkers) = init_kp_config(:,1:TotWalkers)
-                call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int))
+                write (6,'(a44)',advance='no') "# Generating initial walker configuration..."
+                call set_timer(kp_generate_time)
+                total_time_before = get_total_time(kp_generate_time)
+
+                ! Create the random initial configuration. 
+                if (tInitCorrectNWalkers) then
+                    call generate_init_config_this_proc(nwalkers_target, nwalkers_per_site_init, nwalkers)
+                else
+                    call generate_init_config_basic(nwalkers_target, nwalkers_per_site_init, nwalkers)
+                end if
+
+                call halt_timer(kp_generate_time)
+                total_time_after = get_total_time(kp_generate_time)
+                write(6,'(1x,a31,f9.3)') "Complete. Time taken (seconds):", total_time_after-total_time_before
+
+                call fill_in_CurrentH()
             end if
+        else if (kp%irepeat > 1) then
+            ! If repeating from a previsouly generated initial configuration, simpy reset the following
+            ! data and copy the first Krylov vector (which is always the starting configuration) from
+            ! the last run to CurrentDets.
+            TotWalkers = TotWalkersInit
+            AllTotWalkers = AllTotWalkersInit
+            TotParts = TotPartsInit
+            TotPartsOld = TotPartsInit
+            AllTotParts = AllTotPartsInit
+            AllTotPartsOld = AllTotPartsInit
+            do i = 1, int(TotWalkers, sizeof_int)
+                ! Copy across the bitstring encoding of the determinant and also the walker signs.
+                CurrentDets(0:NOffSgn+lenof_sign-1,i) = krylov_vecs(0:NOffSgn+lenof_sign-1,i)
+                ! Copy across the flags.
+                CurrentDets(NIfTot,i) = krylov_vecs(NIfTotKP,i)
+            end do
+            call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int))
+
             call fill_in_CurrentH()
+        end if
+
+        ! If starting from this configuration more than once, store the relevant data for next time.
+        if (kp%nrepeats > 1 .and. kp%irepeat == 1) then
+            call MPIAllReduce(TotWalkers, MPI_SUM, AllTotWalkers)
+            TotWalkersInit = TotWalkers
+            AllTotWalkersInit = AllTotWalkers
+            TotPartsInit = TotParts
+            AllTotPartsInit = AllTotParts
         end if
 
     end subroutine create_initial_config
@@ -550,7 +774,7 @@ contains
         TotParts = 0.0_dp
 
         do
-            ! Generate a determinant (output to ilut).
+            ! Generate a random determinant (returned in ilut).
             if (tAllSymSectors) then
                 call create_rand_det_no_sym(ilut)
             else
@@ -561,6 +785,7 @@ contains
                 end if
             end if
 
+            ! If it doesn't belong to this processor, pick another.
             call decode_bit_det(nI, ilut)
             proc = DetermineDetNode(nI, 0)
             if (proc /= iProcIndex) cycle
@@ -587,8 +812,6 @@ contains
                         real_sign_2 = transfer(int_sign, real_sign_2)
                         new_sign = real_sign_1 + real_sign_2
                         call encode_sign(CurrentDets(:, temp_node%ind), new_sign)
-                        ! If the walkers have annihilated completley, remove the determinant.
-                        !if (IsUnoccDet(new_sign)) call remove_node(prev, temp_node)
                         TotParts = TotParts - abs(real_sign_2) + abs(new_sign)
                         exit
                     end if
@@ -625,21 +848,8 @@ contains
 
         end do
 
-        !write(6,*) "Dets present before:"
-        !do idet = 1, ndets
-        !    int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1, idet)
-        !    real_sign_2 = transfer(int_sign, real_sign_2)
-        !    if (tUseFlags) then
-        !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7, 4x, l1, l1)') idet, CurrentDets(0, idet), real_sign_2, &
-        !            test_flag(CurrentDets(:, idet), flag_is_initiator(1)), test_flag(CurrentDets(:, idet), flag_is_initiator(2))
-        !    else
-        !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') idet, CurrentDets(0, idet), real_sign_2
-        !    end if
-        !end do
-
-        TotPartsOld = TotParts
-
         call MPIReduce(TotParts, MPI_SUM, AllTotParts)
+        TotPartsOld = TotParts
         AllTotPartsOld = AllTotParts
         TotWalkers = int(ndets, int64)
 
@@ -680,24 +890,34 @@ contains
 
     end subroutine generate_init_config_this_proc
 
-    subroutine store_krylov_vec(ivec, nvecs)
+    subroutine store_krylov_vec(kp)
 
-        integer, intent(in) ::  ivec, nvecs
-        integer :: idet, sign_ind, hdiag_ind, flag_ind, DetHash, det_ind
+        type(kp_fciqmc_data), intent(in) :: kp
+        integer :: idet, iamp, sign_ind, hdiag_ind, flag_ind, DetHash, det_ind
         integer :: nI(nel)
-        integer(n_int) :: temp
-        logical :: tDetFound
+        integer(n_int) :: temp, int_sign(lenof_sign)
+        logical :: tDetFound, tCoreDet
+        real(dp) :: amp_fraction, real_sign(lenof_sign)
         type(ll_node), pointer :: temp_node, prev
+        character(2) :: int_fmt
+        character(len=*), parameter :: t_r = "store_krylov_vec"
+
+        write(6,'(a71)',advance='no') "# Adding the current walker configuration to the Krylov vector array..."
+        call neci_flush(6)
 
         ! The index of the first element referring to the sign, for this ivec.
-        sign_ind = NIfDBO + lenof_sign*(ivec-1) + 1
+        sign_ind = NIfDBO + lenof_sign*(kp%ivec-1) + 1
         hdiag_ind = NIfDBO + lenof_sign_kp + 1
         if (tUseFlags) flag_ind = NIfDBO + lenof_sign_kp + 2
 
         ! Loop over all occupied determinants for this new Krylov vector.
         do idet = 1, TotWalkers
             tDetFound = .false.
-
+            int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,idet)
+            call extract_sign (CurrentDets(:,idet), real_sign)
+            tCoreDet = check_determ_flag(CurrentDets(:,idet))
+            ! Don't add unoccpied determinants, unless they are core determinants.
+            if (IsUnoccDet(real_sign) .and. (.not. tCoreDet)) cycle
             call decode_bit_det(nI, CurrentDets(:,idet))
             DetHash = FindWalkerHash(nI, nhashes_kp)
             temp_node => krylov_vecs_ht(DetHash)
@@ -709,10 +929,9 @@ contains
                     if (DetBitEQ(CurrentDets(:,idet), krylov_vecs(:,temp_node%ind), NIfDBO)) then
                         ! This determinant is already in the list.
                         det_ind = temp_node%ind
-                        ! Add the sign for the new Krylov vector. The determinant and flag are
+                        ! Add the amplitude for the new Krylov vector. The determinant and flag are
                         ! there already.
-                        krylov_vecs(sign_ind:sign_ind+lenof_sign-1,det_ind) = &
-                              CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,idet)
+                        krylov_vecs(sign_ind:sign_ind+lenof_sign-1,det_ind) = int_sign
                         tDetFound = .true.
                         exit
                     end if
@@ -736,28 +955,47 @@ contains
                 det_ind = TotWalkersKP
                 temp_node%ind = det_ind
 
+                if (TotWalkersKP > krylov_vecs_length) then
+                    call stop_all(t_r, "There are no slots left in the krylov_vecs array for the next determinant. &
+                                       &You can increase the size of this array using the memory-factor option in &
+                                       &the kp-fciqmc block of the input file.")
+                end if
+
                 ! Copy determinant data across.
                 krylov_vecs(0:NIfDBO,det_ind) = CurrentDets(0:NIfDBO,idet)
-                krylov_vecs(sign_ind:sign_ind+lenof_sign-1,det_ind) = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,idet)
+                krylov_vecs(sign_ind:sign_ind+lenof_sign-1,det_ind) = int_sign
                 krylov_vecs(hdiag_ind,det_ind) = transfer(CurrentH(1,idet), temp)
                 if (tUseFlags) krylov_vecs(flag_ind,det_ind) = CurrentDets(NOffFlag,idet)
             end if
 
             nullify(temp_node)
             nullify(prev)
+            do iamp = 1, lenof_sign
+                if (real_sign(iamp) /= 0_n_int) then
+                    nkrylov_amp_elems_used = nkrylov_amp_elems_used + 1
+                end if
+            end do
+
         end do
+
+        write(6,'(1x,a5)',advance='yes') "Done."
+        write(int_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(TotWalkersKP)+1)))
+        write(6,'(a56,1x,'//int_fmt//',1x,a17,1x,'//kp_length_fmt//')') "# Number unique determinants in the Krylov &
+                                             &vector array:", TotWalkersKP, "out of a possible", krylov_vecs_length
+        amp_fraction = real(nkrylov_amp_elems_used,dp)/real(nkrylov_amp_elems_tot,dp)
+        write(6,'(a69,1x,es10.4)') "# Fraction of the amplitude elements used in the Krylov vector array:", amp_fraction
+        call neci_flush(6)
 
     end subroutine store_krylov_vec
 
-    subroutine calc_overlap_matrix_elems(kp, ivec)
+    subroutine calc_overlap_matrix_elems(kp)
 
         type(kp_fciqmc_data), intent(inout) :: kp
-        integer, intent(in) :: ivec
-        integer :: idet, jvec, ind(ivec)
+        integer :: idet, jvec, ind(kp%ivec)
         integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
 
-        associate(s_matrix => kp%overlap_matrix)
+        associate(s_matrix => kp%overlap_matrix, ivec => kp%ivec)
 
             ! Just in case!
             s_matrix(1:ivec, ivec) = 0.0_dp
@@ -796,11 +1034,10 @@ contains
 
     end subroutine calc_overlap_matrix_elems
 
-    subroutine calc_hamil_on_fly(kp, ivec)
+    subroutine calc_hamil_on_fly(kp)
 
         type(kp_fciqmc_data), intent(inout) :: kp
-        integer, intent(in) :: ivec
-        integer :: idet, jvec, ind(ivec), nI(nel)
+        integer :: idet, jvec, ind(kp%ivec), nI(nel)
         integer :: det_ind, hdiag_ind, flag_ind, ideterm, DetHash
         integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
@@ -809,7 +1046,7 @@ contains
         logical :: tDetFound, tDeterm
         character(len=*), parameter :: t_r = "calc_hamil_elems_on_fly"
 
-        associate(h_matrix => kp%hamil_matrix)
+        associate(h_matrix => kp%hamil_matrix, ivec => kp%ivec)
 
             h_matrix(1:ivec, ivec) = 0.0_dp
             h_matrix(ivec, 1:ivec) = 0.0_dp
@@ -1046,59 +1283,53 @@ contains
         ! held only on the root node.
 
         type(kp_fciqmc_data), intent(inout) :: kp
-        real(dp) :: inp_matrices(2*kp%nvecs, kp%nvecs)
-        real(dp) :: out_matrices(2*kp%nvecs, kp%nvecs)
 
-        inp_matrices(1:kp%nvecs, 1:kp%nvecs) = kp%overlap_matrix
-        inp_matrices(kp%nvecs+1:2*kp%nvecs, 1:kp%nvecs) = kp%hamil_matrix
+        kp_mpi_matrices_in(1:kp%nvecs, 1:kp%nvecs) = kp%overlap_matrix
+        kp_mpi_matrices_in(kp%nvecs+1:2*kp%nvecs, 1:kp%nvecs) = kp%hamil_matrix
 
-        call MPISum(inp_matrices, out_matrices)
+        call MPISum(kp_mpi_matrices_in, kp_mpi_matrices_out)
 
         if (iProcIndex == root) then
-            kp%overlap_matrix = out_matrices(1:kp%nvecs, 1:kp%nvecs)
-            kp%hamil_matrix = out_matrices(kp%nvecs+1:2*kp%nvecs, 1:kp%nvecs)
+            kp%overlap_matrix = kp_mpi_matrices_out(1:kp%nvecs, 1:kp%nvecs)
+            kp%hamil_matrix = kp_mpi_matrices_out(kp%nvecs+1:2*kp%nvecs, 1:kp%nvecs)
         end if
 
     end subroutine communicate_kp_matrices
 
-    subroutine output_kp_matrices(kp, iconfig, irepeat)
+    subroutine output_kp_matrices_wrapper(kp)
 
         type(kp_fciqmc_data), intent(in) :: kp
-        integer, intent(in) :: iconfig, irepeat
-        real(dp) :: average_h_matrix(kp%nvecs, kp%nvecs)
-        real(dp) :: average_s_matrix(kp%nvecs, kp%nvecs)
 
         if (iProcIndex == root) then
-            call output_matrix(kp, iconfig, irepeat, 'hamil  ', kp%hamil_matrix)
-            call output_matrix(kp, iconfig, irepeat, 'overlap', kp%overlap_matrix)
+            call output_kp_matrices(kp, 'hamil  ', kp%hamil_matrices)
+            call output_kp_matrices(kp, 'overlap', kp%overlap_matrices)
         end if
 
-    end subroutine output_kp_matrices
+    end subroutine output_kp_matrices_wrapper
 
-    subroutine output_matrix(kp, iconfig, irepeat, stem, matrix)
+    subroutine output_kp_matrices(kp, stem, matrices)
 
         type(kp_fciqmc_data), intent(in) :: kp
-        integer, intent(in) :: iconfig, irepeat
         character(7), intent(in) :: stem
+        real(dp), intent(in) :: matrices(:,:,:)
         character(2) :: ifmt, jfmt
-        real(dp), intent(in) :: matrix(kp%nvecs, kp%nvecs)
         character(25) :: ind1, ind2, filename
-        integer :: i, j, ilen, jlen, new_unit
+        integer :: i, j, k, ilen, jlen, temp_unit, repeat_ind
 
-        ! Create the filename.
-        write(ind2,'(i15)') irepeat
-        if (kp%tGround) then
-            filename = trim(trim(stem)//'.'//trim(adjustl(ind2)))
-        else if (kp%tFiniteTemp) then
-            write(ind1,'(i15)') iconfig
+        write(ind1,'(i15)') kp%iconfig
+        if (tStoreKPMatrices) then
+            filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
+            repeat_ind = kp%irepeat
+        else
+            write(ind2,'(i15)') kp%irepeat
             filename = trim(trim(stem)//'.'//trim(adjustl(ind1))//'.'//trim(adjustl(ind2)))
+            repeat_ind = 1
         end if
+        temp_unit = get_free_unit()
+        open(temp_unit, file=trim(filename), status='replace')
 
-        new_unit = get_free_unit()
-        open(new_unit, file=trim(filename), status='replace')
-
-        ! Write all the components of the matrix, above and including the diagonal, one
-        ! after another on separate lines. Each element is preceeded by the indices involved.
+        ! Write all the components of the various estimates of the matrix, above and including the
+        ! diagonal, one after another on separate lines.
         do i = 1, kp%nvecs
             ilen = ceiling(log10(real(abs(i)+1)))
             ! ifmt will hold the correct integer length so that there will be no spaces printed out.
@@ -1108,14 +1339,308 @@ contains
                 jlen = ceiling(log10(real(abs(j)+1)))
                 write(jfmt,'(a1,i1)') "i", jlen
 
-                ! Finally write the line.
-                write(new_unit,'(a1,'//ifmt//',a1,'//jfmt//',a1,1x,es19.12)') &
-                    "(",i,",",j,")", matrix(i,j)
+                ! Write the index of the matrix element.
+                write(temp_unit,'(a1,'//ifmt//',a1,'//jfmt//',a1)',advance='no') "(",i,",",j,")"
+                do k = 1, repeat_ind
+                    write(temp_unit,'(1x,es19.12)',advance='no') matrices(i,j,k)
+                end do
+                write(temp_unit,'()',advance='yes')
             end do
         end do
-        close(new_unit)
 
-    end subroutine output_matrix
+        close(temp_unit)
+
+    end subroutine output_kp_matrices
+
+    subroutine average_kp_matrices_wrapper(kp)
+
+        type(kp_fciqmc_data), intent(in) :: kp
+
+        call average_kp_matrices(kp, kp%hamil_matrices, kp_hamil_mean, kp_hamil_se)
+        call average_kp_matrices(kp, kp%overlap_matrices, kp_overlap_mean, kp_overlap_se)
+        if (tOutputAverageKPMatrices) then
+            call output_average_kp_matrix(kp, 'av_hamil  ', kp_hamil_mean, kp_hamil_se)
+            call output_average_kp_matrix(kp, 'av_overlap', kp_overlap_mean, kp_overlap_se)
+        end if
+
+    end subroutine average_kp_matrices_wrapper
+
+    subroutine average_kp_matrices(kp, matrices, mean, se)
+
+        type(kp_fciqmc_data), intent(in) :: kp
+        real(dp), intent(in) :: matrices(:,:,:)
+        real(dp), intent(inout) :: mean(:,:), se(:,:)
+        integer :: irepeat
+
+        mean = 0.0_dp
+        se = 0.0_dp
+
+        do irepeat = 1, kp%nrepeats
+            mean = mean + matrices(:,:,irepeat)
+        end do
+        mean = mean/kp%nrepeats
+
+        if (kp%nrepeats > 1) then
+            do irepeat = 1, kp%nrepeats
+                se = se + (matrices(:,:,irepeat)-mean)**2
+            end do
+            se = se/((kp%nrepeats-1)*kp%nrepeats)
+            se = sqrt(se)
+        end if
+
+    end subroutine average_kp_matrices
+
+    subroutine output_average_kp_matrix(kp, stem, mean, se)
+
+        type(kp_fciqmc_data), intent(in) :: kp
+        character(10), intent(in) :: stem
+        real(dp), intent(inout) :: mean(:,:), se(:,:)
+        integer :: irepeat
+        character(2) :: ifmt, jfmt
+        character(25) :: ind1, filename
+        integer :: i, j, k, ilen, jlen, temp_unit, repeat_ind
+
+        write(ind1,'(i15)') kp%iconfig
+        filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
+        temp_unit = get_free_unit()
+        open(temp_unit, file=trim(filename), status='replace')
+
+        ! Write all the components of the various estimates of the matrix, above and including the
+        ! diagonal, one after another on separate lines.
+        do i = 1, kp%nvecs
+            ilen = ceiling(log10(real(abs(i)+1)))
+            ! ifmt will hold the correct integer length so that there will be no spaces printed out.
+            ! Note that this assumes that ilen < 10, which is very reasonable!
+            write(ifmt,'(a1,i1)') "i", ilen
+            do j = i, kp%nvecs
+                jlen = ceiling(log10(real(abs(j)+1)))
+                write(jfmt,'(a1,i1)') "i", jlen
+
+                ! Write the index of the matrix element.
+                write(temp_unit,'(a1,'//ifmt//',a1,'//jfmt//',a1)',advance='no') "(",i,",",j,")"
+                if (kp%nrepeats > 1) then
+                    ! Write the mean and standard error.
+                    write(temp_unit,'(1x,es19.12,1x,a3,es19.12)') mean(i,j), "+/-", se(i,j)
+                else if (kp%nrepeats == 1) then
+                    ! If we only have one sample then a standard error was not calculated, so
+                    ! only output the mean.
+                    write(temp_unit,'(1x,es19.12)') mean(i,j)
+                end if
+            end do
+        end do
+
+        close(temp_unit)
+
+    end subroutine output_average_kp_matrix
+
+    subroutine find_and_output_lowdin_eigv(kp)
+
+        type(kp_fciqmc_data), intent(in) :: kp
+        integer :: lwork, counter, i, nkeep, nkeep_len, temp_unit
+        integer :: npositive, info, ierr
+        real(dp), allocatable :: work(:)
+        character(2) :: nkeep_fmt
+        character(7) :: string_fmt
+        character(25) :: ind1, filename
+        character(len=*), parameter :: stem = "lowdin"
+
+        write(ind1,'(i15)') kp%iconfig
+        filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
+        temp_unit = get_free_unit()
+        open(temp_unit, file=trim(filename), status='replace')
+    
+        if (tWritePopsNorm) then
+            write(temp_unit, '(4("-"),a41,25("-"))') "Norm of unperturbed initial wave function"
+            write(temp_unit,'(1x,es19.12,/)') sqrt(pops_norm)
+        end if
+
+        ! Create the workspace for the diagonaliser.
+        lwork = max(1,3*kp%nvecs-1)
+        allocate(work(lwork), stat=ierr)
+
+        kp_overlap_eigenvecs = kp_overlap_mean
+
+        ! Now perform the diagonalisation.
+        call dsyev('V', 'U', kp%nvecs, kp_overlap_eigenvecs, kp%nvecs, kp_overlap_eigv, work, lwork, info)
+
+        npositive = 0
+        write(temp_unit,'(4("-"),a26,40("-"))') "Overlap matrix eigenvalues"
+        do i = 1, kp%nvecs
+            write(temp_unit,'(1x,es19.12)') kp_overlap_eigv(i)
+            if (kp_overlap_eigv(i) > 0.0_dp) npositive = npositive + 1
+        end do
+
+        do nkeep = 1, npositive
+
+            associate(transform_matrix => kp_transform_matrix(1:kp%nvecs, 1:nkeep), &
+                      inter_hamil => kp_inter_hamil(1:kp%nvecs, 1:nkeep), &
+                      final_hamil => kp_final_hamil(1:nkeep, 1:nkeep), &
+                      eigenvec_krylov => kp_eigenvec_krylov(1:kp%nvecs, 1:nkeep), &
+                      hamil_eigv => kp_hamil_eigv(1:nkeep), &
+                      init_overlaps => kp_init_overlaps(1:nkeep))
+
+                counter = 0
+                do i = kp%nvecs-nkeep+1, kp%nvecs
+                    counter = counter + 1
+                    transform_matrix(:,counter) = kp_overlap_eigenvecs(:, i)/sqrt(kp_overlap_eigv(i))
+                end do
+
+                inter_hamil = matmul(kp_hamil_mean, transform_matrix)
+                final_hamil = matmul(transpose(transform_matrix), inter_hamil)
+
+                call dsyev('V', 'U', nkeep, final_hamil, nkeep, hamil_eigv, work, lwork, info)
+
+                eigenvec_krylov = matmul(transform_matrix, final_hamil)
+                init_overlaps = matmul(kp_overlap_mean(1,:), eigenvec_krylov)
+
+                nkeep_len = ceiling(log10(real(abs(nkeep)+1)))
+                write(nkeep_fmt,'(a1,i1)') "i", nkeep_len
+                write(string_fmt,'(i2,a5)') 15-nkeep_len, '("-")'
+                write(temp_unit,'(/,4("-"),a37,1x,'//nkeep_fmt//',1x,a12,'//string_fmt//')') &
+                    "Eigenvalues and overlaps when keeping", nkeep, "eigenvectors"
+                do i = 1, nkeep
+                    write(temp_unit,'(1x,es19.12,1x,es19.12)') hamil_eigv(i), init_overlaps(i)
+                end do
+
+            end associate
+
+        end do
+
+        deallocate(work)
+
+        close(temp_unit)
+
+    end subroutine find_and_output_lowdin_eigv
+
+    subroutine find_and_output_gram_schmidt_eigv(kp)
+
+        type(kp_fciqmc_data), intent(in) :: kp
+        integer :: lwork, counter, nkeep, nkeep_len, temp_unit
+        integer :: npositive, info, ierr
+        integer :: i, j, n, m
+        real(dp), allocatable :: work(:)
+        character(2) :: nkeep_fmt
+        character(7) :: string_fmt
+        character(25) :: ind1, filename
+        character(len=*), parameter :: stem = "gram_schmidt"
+
+        write(ind1,'(i15)') kp%iconfig
+        filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
+        temp_unit = get_free_unit()
+        open(temp_unit, file=trim(filename), status='replace')
+
+        ! Create the workspace for the diagonaliser.
+        lwork = max(1,3*kp%nvecs-1)
+        allocate(work(lwork), stat=ierr)
+
+        ! Use the following allocated arrays as work space for the following routine. Not ideal, I know...
+        associate(S_tilde => kp_inter_hamil, k => kp_final_hamil, N => kp_init_overlaps)
+            call construct_gram_schmidt_transform_matrix(kp_overlap_mean, kp_transform_matrix, S_tilde, k, N, kp%nvecs)
+            npositive = 0
+            do i = 1, kp%nvecs
+                if (N(i) > 0.0_dp) then
+                    npositive = npositive + 1
+                else
+                    exit
+                end if
+            end do
+
+            write(temp_unit,'(4("-"),a21,45("-"))') "Normalisation factors"
+            do i = 1, npositive+1
+                write(temp_unit,'(1x,es19.12)') N(i)
+            end do
+        end associate
+
+        do nkeep = 1, npositive
+
+            associate(S => kp_transform_matrix(1:kp%nvecs, 1:nkeep), &
+                      final_hamil => kp_final_hamil(1:nkeep, 1:nkeep), &
+                      hamil_eigv => kp_hamil_eigv(1:nkeep), &
+                      init_overlaps => kp_init_overlaps(1:nkeep))
+
+                final_hamil = 0.0_dp
+                do n = 1, nkeep
+                    do m = 1, nkeep
+                        do i = 1, n
+                            do j = 1, m
+                                final_hamil(n,m) = final_hamil(n,m) + S(i,n)*kp_hamil_mean(i,j)*S(j,m)
+                            end do
+                        end do
+                    end do
+                end do
+
+                call dsyev('V', 'U', nkeep, final_hamil, nkeep, hamil_eigv, work, lwork, info)
+
+                init_overlaps = final_hamil(:,1)*sqrt(kp_overlap_mean(1,1))
+
+                nkeep_len = ceiling(log10(real(abs(nkeep)+1)))
+                write(nkeep_fmt,'(a1,i1)') "i", nkeep_len
+                write(string_fmt,'(i2,a5)') 15-nkeep_len, '("-")'
+                write(temp_unit,'(/,4("-"),a37,1x,'//nkeep_fmt//',1x,a12,'//string_fmt//')') &
+                    "Eigenvalues and overlaps when keeping", nkeep, "eigenvectors"
+                do i = 1, nkeep
+                    write(temp_unit,'(1x,es19.12,1x,es19.12)') hamil_eigv(i), init_overlaps(i)
+                end do
+
+            end associate
+
+        end do
+
+        deallocate(work)
+
+        close(temp_unit)
+
+    end subroutine find_and_output_gram_schmidt_eigv
+
+    subroutine construct_gram_schmidt_transform_matrix(overlap, S, S_tilde, k, N, matrix_size)
+
+        ! Construct the matrix, S, which transforms the Krylov vectors to a set of orthogonal vectors.
+
+        ! We use the notation from the Appendix of Phys. Rev. B. 85, 205119 for the matrices and the
+        ! indices, except we use 'm' instead of 'n' and 'l' instead of 'k' for the indices.
+
+        ! Usage: overlap on input should contain the overlap matrix of the Krylov vectors that
+        ! you want to produce a transformation matrix for. All other matrices input should be
+        ! allocated on input, and should be the same size as overlap.
+
+        real(dp), intent(inout) :: overlap(:,:), S(:,:), S_tilde(:,:), k(:,:), N(:)
+        integer, intent(in) :: matrix_size
+        integer :: m, i, l, p, q
+
+        S = 0.0_dp
+        S_tilde = 0.0_dp
+        k = 0.0_dp
+        N = 0.0_dp
+
+        do m = 1, matrix_size
+            S(m,m) = 1.0_dp
+            S_tilde(m,m) = 1.0_dp
+        end do
+
+        N(1) = overlap(1,1)
+        S(1,1) = 1/sqrt(N(1))
+
+        do m = 2, matrix_size
+            do i = 1, m-1
+                do l = 1, i
+                    k(i,m) = k(i,m) + S(l,i)*overlap(m,l)
+                end do
+            end do
+            do p = 1, m-1
+                do q = p, m-1
+                    S_tilde(p,m) = S_tilde(p,m) - k(q,m)*S(p,q)
+                end do
+            end do
+            do q = 1, m
+                do p = 1, m
+                    N(m) = N(m) + S_tilde(p,m)*S_tilde(q,m)*overlap(p,q)
+                end do
+            end do
+            if (N(m) < 0.0_dp) return
+            S(:,m) = S_tilde(:,m)/sqrt(N(m))
+        end do
+
+    end subroutine construct_gram_schmidt_transform_matrix
 
     subroutine print_populations_kp(kp)
     
@@ -1162,7 +1687,7 @@ contains
         integer, intent(in) :: irepeat
         integer, allocatable :: nI_list(:,:)
         integer :: temp(1,1), hf_ind, ndets
-        integer :: i, j, ilen, counter, new_unit, DetHash
+        integer :: i, j, ilen, counter, temp_unit, DetHash
         integer(n_int) :: ilut(0:NIfTot)
         integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign(lenof_sign)
@@ -1180,8 +1705,8 @@ contains
         write(ind,'(i15)') irepeat
         filename = trim('amps.'//adjustl(ind))
 
-        new_unit = get_free_unit()
-        open(new_unit, file=trim(filename), status='replace')
+        temp_unit = get_free_unit()
+        open(temp_unit, file=trim(filename), status='replace')
 
         counter = 0
 
@@ -1211,11 +1736,11 @@ contains
             write(ifmt,'(a1,i1)') "i", ilen
             do j = 1, lenof_sign
                 ! This assumes that lenof_sign < 10. Probably will always be 1 or 2.
-                write(new_unit,'(a1,'//ifmt//',a1,i1,a1,1x,es19.12)') "(", counter,",", j, ")", real_sign(j)
+                write(temp_unit,'(a1,'//ifmt//',a1,i1,a1,1x,es19.12)') "(", counter,",", j, ")", real_sign(j)
             end do
         end do
 
-        close(new_unit)
+        close(temp_unit)
 
         deallocate(nI_list)
 

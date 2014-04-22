@@ -68,8 +68,7 @@ contains
 
         call set_timer(SemiStoch_Init_Time)
 
-        write(6,'()')
-        write(6,'(a56)') "============ Semi-stochastic initialisation ============"
+        write(6,'(/,12("="),1x,a30,1x,12("="))') "Semi-stochastic initialisation"
         call neci_flush(6)
 
         allocate(determ_proc_sizes(0:nProcessors-1))

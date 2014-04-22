@@ -25,6 +25,8 @@ contains
         use FciMCParMod, only: calculate_new_shift_wrapper, walker_death, end_iter_stats
         use FciMCParMod, only: update_iter_data, CalcApproxpDoubles, SumEContrib
         use LoggingData, only: tPopsFile
+        use Parallel_neci, only: iProcIndex
+        use ParallelHelper, only: root
         use PopsFileMod, only: WriteToPopsFileParOneArr
         use procedure_pointers, only: generate_excitation, attempt_create, encode_child
         use procedure_pointers, only: new_child_stats, extract_bit_rep_avsign
@@ -33,7 +35,8 @@ contains
         use SystemData, only: nel, lms, nbasis, tAllSymSectors, nOccAlpha, nOccBeta
 
         type(kp_fciqmc_data), intent(inout) :: kp
-        integer :: iconfig, irepeat, ivec, iiter, idet, ireplica, ispawn
+        integer :: iiter, idet, ireplica, ispawn
+        integer, target :: iconfig, irepeat, ivec
         integer :: nspawn, parent_flags, unused_flags, ex_level_to_ref
         integer :: TotWalkersNew, determ_ind, ic, ex(2,2), ms_parent
         integer :: nI_parent(nel), nI_child(nel)
@@ -50,23 +53,35 @@ contains
         real(dp) :: test_sign(lenof_sign_kp)
         type(ll_node), pointer :: temp_node
 
+        kp%iconfig => iconfig
+        kp%irepeat => irepeat
+        kp%ivec => ivec
         call init_kp_fciqmc(kp)
-
         if (.not. tAllSymSectors) ms_parent = lms
 
         outer_loop: do iconfig = 1, kp%nconfigs
 
             do irepeat = 1, kp%nrepeats
 
-                call init_kp_fciqmc_repeat(kp, iconfig, irepeat)
+                ! Point to the region of memory where the projected Hamiltonian
+                ! and overlap matrices for this repeat will be accumulated and stored.
+                if (tStoreKPMatrices) then
+                    kp%hamil_matrix => kp%hamil_matrices(:,:,irepeat)
+                    kp%overlap_matrix => kp%overlap_matrices(:,:,irepeat)
+                else
+                    kp%hamil_matrix => kp%hamil_matrices(:,:,1)
+                    kp%overlap_matrix => kp%overlap_matrices(:,:,1)
+                end if
+
+                call init_kp_fciqmc_repeat(kp)
                 call WriteFCIMCStats()
 
                 do ivec = 1, kp%nvecs
 
                     ! Copy the current state of CurrentDets to krylov_vecs.
-                    call store_krylov_vec(ivec, kp%nvecs)
+                    call store_krylov_vec(kp)
 
-                    call calc_overlap_matrix_elems(kp, ivec)
+                    call calc_overlap_matrix_elems(kp)
 
                     do iiter = 1, kp%niters(ivec)
 
@@ -233,9 +248,7 @@ contains
 
                         TotWalkers = int(TotWalkersNew, int64)
 
-                        if (iiter == 1) then
-                            if (tHamilOnFly) call calc_hamil_on_fly(kp, ivec)
-                        end if
+                        if (iiter == 1 .and. tHamilOnFly) call calc_hamil_on_fly(kp)
 
                         call update_iter_data(iter_data_fciqmc)
 
@@ -260,9 +273,15 @@ contains
                 ! Sum the overlap and projected Hamiltonian matrices from the various processors.
                 call communicate_kp_matrices(kp)
 
-                call output_kp_matrices(kp, iconfig, irepeat)
+                call output_kp_matrices_wrapper(kp)
 
-            end do ! Over all repeats for a given walker configuration.
+            end do ! Over all repeats for a fixed initial walker configuration.
+
+            if (iProcIndex == root .and. tStoreKPMatrices) then
+                call average_kp_matrices_wrapper(kp)
+                call find_and_output_lowdin_eigv(kp)
+                call find_and_output_gram_schmidt_eigv(kp)
+            end if
 
         end do outer_loop ! Over all initial walker configurations.
 

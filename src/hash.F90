@@ -2,7 +2,7 @@
 
 module hash
 
-    use bit_rep_data, only: NIfTot
+    use bit_rep_data, only: NIfTot, extract_sign, test_flag, flag_deterministic
     use bit_reps, only: set_flag, decode_bit_det
     use constants
     use FciMCData , only : hash_iter, hash_shift, RandomHash, RandomHash2, HFDet, ll_node
@@ -10,7 +10,7 @@ module hash
     use constants , only : int64,sizeof_int
     use csf_data, only: csf_orbital_mask
     use Systemdata, only: nel, tCSF, nBasis
-    use CalcData, only: tUniqueHFNode
+    use CalcData, only: tUniqueHFNode, tSemiStochastic
 
     implicit none
 
@@ -165,11 +165,20 @@ module hash
 
         integer, intent(in) :: table_length, list_length
         type(ll_node), pointer, intent(inout) :: hash_table(:)
-        integer(n_int), intent(in) :: walker_list(0:NIfTot, list_length)
+        integer(n_int), intent(in) :: walker_list(0:, :)
         type(ll_node), pointer :: temp_node
         integer :: i, DetHash, nI(nel)
+        real(dp) :: real_sign(lenof_sign)
+        logical :: tCoreDet
+
+        tCoreDet = .false.
 
         do i = 1, list_length
+            ! Don't add unoccupied determinants, unless they are core determinants.
+            if (tSemiStochastic) tCoreDet = test_flag(walker_list(:,i), flag_deterministic)
+            call extract_sign(walker_list(:,i), real_sign)
+            if (IsUnoccDet(real_sign) .and. (.not. tCoreDet)) cycle
+
             call decode_bit_det(nI, walker_list(:,i))
             DetHash = FindWalkerHash(nI, table_length)
             temp_node => hash_table(DetHash)
