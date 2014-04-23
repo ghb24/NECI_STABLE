@@ -22,7 +22,7 @@ module semi_stoch_gen
                          PDetermTag, IDetermTag, trial_space, trial_space_size, &
                          SemiStoch_Init_Time, tHashWalkerList, full_determ_vector_av, &
                          tStartCoreGroundState
-    use gndts_mod, only: gndts
+    use gndts_mod, only: gndts, gndts_all_sym_this_proc
     use hash, only: DetermineDetNode
     use LoggingData, only: tWriteCore, tRDMonFly
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
@@ -220,7 +220,11 @@ contains
             else if (tMP1Core) then
                 call generate_using_mp1_criterion(called_from_semistoch)
             else if (tFCICore) then
-                call generate_fci_core(called_from_semistoch)
+                if (tAllSymSectors) then
+                    call generate_fci_core_all_sym(called_from_semistoch)
+                else
+                    call generate_fci_core(called_from_semistoch)
+                end if
             else if (tHeisenbergFCICore) then
                 call generate_heisenberg_fci(called_from_semistoch)
             end if
@@ -1386,5 +1390,23 @@ contains
         end do
 
     end subroutine generate_fci_core
+
+    subroutine generate_fci_core_all_sym(called_from)
+
+        integer, intent(in) :: called_from 
+        integer :: ndets_this_proc, i
+        integer(n_int), allocatable :: ilut_list(:,:)
+
+        ! Generate and count all the determinants on this processor, but don't store them.
+        call gndts_all_sym_this_proc(ilut_list, .true., ndets_this_proc)
+        allocate(ilut_list(0:NIfTot, ndets_this_proc))
+        ! Now generate them again and store them this time.
+        call gndts_all_sym_this_proc(ilut_list, .false., ndets_this_proc)
+
+        do i = 1, ndets_this_proc
+            call add_state_to_space(ilut_list(:,i), called_from)
+        end do
+
+    end subroutine generate_fci_core_all_sym
 
 end module semi_stoch_gen
