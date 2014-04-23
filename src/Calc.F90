@@ -341,9 +341,10 @@ contains
           nbeta_ftlm = 100
           delta_beta_ftlm = 0.1_dp
           n_lanc_vecs_sl = 20
-          nomega_sl = 100
-          delta_omega_sl = 0.01_dp
-          broadening_sl = 0.05_dp
+          nomega_spectral = 100
+          delta_omega_spectral = 0.01_dp
+          spectral_broadening = 0.05_dp
+          spectral_ground_energy = 0.0_dp
           tIncludeGroundSpectral = .false.
       
         end subroutine SetCalcDefaults
@@ -1803,26 +1804,26 @@ contains
             case("WRITE-POPS-NORM")
                 tWritePopsNorm = .true.
 
-            case("NUM_INIT_VECS_FTLM")
+            case("NUM-INIT-VECS-FTLM")
                 call geti(n_init_vecs_ftlm)
-            case("NUM_LANC_VECS_FTLM")
+            case("NUM-LANC-VECS-FTLM")
                 call geti(n_lanc_vecs_ftlm)
-            case("NUM_BETA_FTLM")
+            case("NUM-BETA-FTLM")
                 call geti(nbeta_ftlm)
-            case("BETA_FTLM")
+            case("BETA-FTLM")
                 call getf(delta_beta_ftlm)
-            case("NUM_LANC_VECS_SL")
+            case("NUM-LANC-VECS-SPECTRAL")
                 call geti(n_lanc_vecs_sl)
-            case("NUM_OMEGA_SL")
-                call geti(nomega_sl)
-            case("OMEGA_SL")
-                call getf(delta_omega_sl)
-            case("BROADENING_SL")
-                call getf(broadening_sl)
+            case("NUM-OMEGA-SPECTRAL")
+                call geti(nomega_spectral)
+            case("OMEGA-SPECTRAL")
+                call getf(delta_omega_spectral)
+            case("BROADENING_SPECTRAL")
+                call getf(spectral_broadening)
             case("INCLUDE-GROUND-SPECTRAL")
                 tIncludeGroundSpectral = .true.
             case("GROUND-ENERGY-SPECTRAL")
-                call getf(ground_energy_sl)
+                call getf(spectral_ground_energy)
 
             case default
                 call report("Keyword "                                &
@@ -2294,7 +2295,7 @@ call neci_flush(6)
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,tCCMC
-         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes,tRPA_QBA, tDetermProj, tFTLM, tSpecLanc
+         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes,tRPA_QBA, tDetermProj, tFTLM, tSpecLanc, tExactSpec
          use RPA_Mod, only : tDirectRPA
          use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer,tCCNoCuml
          use LoggingData, only: tCalcFCIMCPsi
@@ -2506,14 +2507,19 @@ call neci_flush(6)
                    I_HMAX=-21
                    TFCIMC=.true.
                    tUseProcsAsNodes=.true.
+               case("EXACT-SPECTRUM")
+                   tExactSpec = .true.
+                   I_HMAX=-21
+                   TFCIMC=.true.
+                   tUseProcsAsNodes=.true.
                case("SPECTRAL-LANCZOS")
                    tSpecLanc = .true.
                    I_HMAX=-21
                    TFCIMC=.true.
                    tUseProcsAsNodes=.true.
                case default
-               call report("Keyword error with "//trim(w),     &
-     &                 .true.)
+                   call report("Keyword error with "//trim(w),     &
+         &                 .true.)
                end select
            case default
                call report("Error.  Method not specified."     &

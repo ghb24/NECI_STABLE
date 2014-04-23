@@ -22,17 +22,19 @@ module spectral_lanczos
     real(dp), allocatable :: full_vec_sl(:)
 
     integer(MPIArg), allocatable :: ndets_sl(:), disps_sl(:)
-    integer :: n_lanc_vecs_sl, nomega_sl
-    real(dp) :: broadening_sl
+    integer :: n_lanc_vecs_sl
 
     real(dp), allocatable :: sl_h_eigv(:), sl_overlaps(:), sl_trans_amps(:)
     real(dp) :: allnorm_pert_sl
-    real(dp) :: delta_omega_sl
+
+    integer :: nomega_spectral
+    real(dp) :: spectral_broadening
+    real(dp) :: delta_omega_spectral
 
     integer :: sl_unit
 
     logical :: tIncludeGroundSpectral
-    real(dp) :: ground_energy_sl
+    real(dp) :: spectral_ground_energy
 
 contains
 
@@ -90,7 +92,7 @@ contains
         allocate(ndets_sl(0:nProcessors-1))
         allocate(disps_sl(0:nProcessors-1))
 
-        write(6,'(1x,a56)',advance='no') "Enumerating and storing all determinants in the space..."
+        write(6,'(1x,a56)',advance='yes') "Enumerating and storing all determinants in the space..."
         call neci_flush(6)
 
         ! Determine the total number of determinants.
@@ -214,7 +216,7 @@ contains
 
         ! The first Lanczos vector differs from the perturbed ground state only by a
         ! normalisation factor, which is accounted for here.
-        sl_trans_amps = sl_hamil(1,:)*allnorm_pert_sl/sqrt(pops_norm(1))
+        sl_trans_amps = sl_hamil(1,:)*allnorm_pert_sl/sqrt(pops_norm)
 
         ! Now calculate the overlaps between the final Lanczos eigenvectors and the original
         ! perturbed ground state, which are the transition amplitudes which decide the
@@ -246,14 +248,15 @@ contains
         end if
 
         omega = 0.0_dp
-        do i = 1, nomega_sl
+        do i = 1, nomega_spectral
             spectral_weight = 0.0_dp
             do j = min_vec, n_lanc_vecs_sl
                 spectral_weight = spectral_weight + &
-                    (sl_trans_amps(j)**2*broadening_sl)/(pi*(broadening_sl**2 + (ground_energy_sl-sl_h_eigv(j)+omega)**2))
+                    (sl_trans_amps(j)**2*spectral_broadening)/&
+                    (pi*(spectral_broadening**2 + (spectral_ground_energy-sl_h_eigv(j)+omega)**2))
             end do
             write(6,'(f18.12, 4x, f18.12)') omega, spectral_weight
-            omega = omega + delta_omega_sl
+            omega = omega + delta_omega_spectral
         end do
 
     end subroutine output_spectral_lanczos

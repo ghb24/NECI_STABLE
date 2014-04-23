@@ -16,7 +16,7 @@ LOGICAL :: TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
 LOGICAL :: TInitStar,TNoSameExcit,TLanczos,TStarTrips
 LOGICAL :: TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
 LOGICAL ::THDiag,TMCStar,TReadPops,TBinCancel,TFCIMC,TMCDets,tDirectAnnihil,tCCMC
-LOGICAL :: tDetermProj, tFTLM, tSpecLanc
+LOGICAL :: tDetermProj, tFTLM, tSpecLanc, tExactSpec
 LOGICAL :: TFullUnbias,TNoAnnihil,tStartMP1
 LOGICAL :: TRhoElems,TReturnPathMC,TSignShift
 LOGICAL :: THFRetBias,TProjEMP2,TFixParticleSign
