@@ -45,7 +45,7 @@ MODULE FciMCParMod
                         tJumpShift, tVaryInitThresh, tUseRealCoeffs, &
                         tSpatialOnlyHash, tSemiStochastic, tTrialWavefunction, &
                         tLetInitialPopDie, tFTLM, tWritePopsNorm, pops_norm_unit, &
-                        tSpecLanc, tExactSpec
+                        tSpecLanc, tExactSpec, tExactDiagAllSym
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
@@ -154,6 +154,7 @@ MODULE FciMCParMod
     use ftlm_neci, only: perform_ftlm
     use spectral_lanczos, only: perform_spectral_lanczos
     use exact_spectrum, only: get_exact_spectrum
+    use exact_diag, only: perform_exact_diag_all_symmetry
     use gndts_mod, only: gndts
     use sort_mod
     use get_excit, only: make_double
@@ -257,6 +258,9 @@ MODULE FciMCParMod
             return
         else if (tExactSpec) then
             call get_exact_spectrum()
+            return
+        else if (tExactDiagAllSym) then
+            call perform_exact_diag_all_symmetry()
             return
         end if
         

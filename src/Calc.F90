@@ -2295,7 +2295,8 @@ call neci_flush(6)
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,tCCMC
-         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes,tRPA_QBA, tDetermProj, tFTLM, tSpecLanc, tExactSpec
+         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes,tRPA_QBA, tDetermProj, tFTLM, tSpecLanc
+         use CalcData, only: tExactSpec, tExactDiagAllSym
          use RPA_Mod, only : tDirectRPA
          use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer,tCCNoCuml
          use LoggingData, only: tCalcFCIMCPsi
@@ -2509,6 +2510,11 @@ call neci_flush(6)
                    tUseProcsAsNodes=.true.
                case("EXACT-SPECTRUM")
                    tExactSpec = .true.
+                   I_HMAX=-21
+                   TFCIMC=.true.
+                   tUseProcsAsNodes=.true.
+               case("EXACT-DIAG")
+                   tExactDiagAllSym = .true.
                    I_HMAX=-21
                    TFCIMC=.true.
                    tUseProcsAsNodes=.true.

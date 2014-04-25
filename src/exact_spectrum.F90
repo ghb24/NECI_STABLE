@@ -18,7 +18,7 @@ contains
 
     subroutine get_exact_spectrum()
 
-        integer :: lwork, info, i
+        integer :: lwork, info
         real(dp), allocatable :: work(:)
 
         call init_exact_spectrum()
@@ -39,6 +39,8 @@ contains
         transition_amps_es = matmul(perturbed_ground_es, hamiltonian)
 
         call output_exact_spectrum()
+
+        deallocate(work)
 
         call end_exact_spectrum()
 
@@ -187,6 +189,8 @@ contains
 
     subroutine end_exact_spectrum()
 
+        deallocate(perturbed_ground_es)
+        deallocate(transition_amps_es)
         deallocate(eigv_es)
         deallocate(hamiltonian)
 
