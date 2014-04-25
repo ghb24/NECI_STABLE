@@ -29,7 +29,7 @@ module ftlm_neci
     real(dp), allocatable :: ftlm_h_eigv(:), ftlm_trace(:), ftlm_e_num(:)
     real(dp) :: delta_beta_ftlm
 
-    integer :: eigv_unit
+    integer :: ftlm_unit
 
 contains
 
@@ -92,8 +92,8 @@ contains
         write(6,'(/,1x,a49,/)') "Beginning finite-temperature Lanczos calculation."
         call neci_flush(6)
 
-        eigv_unit = get_free_unit()
-        open(eigv_unit, file='FTLM_EIGV',status='replace')
+        ftlm_unit = get_free_unit()
+        open(ftlm_unit, file='FTLM_EIGV',status='replace')
 
         allocate(ndets_ftlm(0:nProcessors-1))
         allocate(disps_ftlm(0:nProcessors-1))
@@ -263,7 +263,7 @@ contains
         allocate(work(lwork))
 
         ! This routine diagonalises a symmetric matrix, A.
-        ! N tells the routine to calculate eigenvalues only.
+        ! V tells the routine to calculate eigenvalues *and* eigenvectors.
         ! U tells the routine to get the upper half of A (it is symmetric).
         ! n_lanc_vecs_ftlm is the number of rows and columns in A.
         ! A = ftlm_hamil. This matrix stores the eigenvectors in its columns on output.
@@ -272,15 +272,15 @@ contains
         ! work is scrap space.
         ! lwork is the length of the work array.
         ! info = 0 on output if diagonalisation is successful.
-        call dsyev('N', 'U', n_lanc_vecs_ftlm, ftlm_hamil, n_lanc_vecs_ftlm, ftlm_h_eigv, work, lwork, info)
+        call dsyev('V', 'U', n_lanc_vecs_ftlm, ftlm_hamil, n_lanc_vecs_ftlm, ftlm_h_eigv, work, lwork, info)
 
         deallocate(work)
 
         ! Output all of the eigenvalues.
         do i = 1, n_lanc_vecs_ftlm
-            write(eigv_unit,'(1x,f15.10)',advance='no') ftlm_h_eigv(i)
+            write(ftlm_unit,'(1x,f15.10)',advance='no') ftlm_h_eigv(i)
         end do
-        write(eigv_unit,'()')
+        write(ftlm_unit,'()')
 
     end subroutine subspace_extraction_ftlm
     
@@ -321,7 +321,7 @@ contains
 
     subroutine end_ftlm()
 
-        close(eigv_unit)
+        close(ftlm_unit)
 
         deallocate(ftlm_vecs)
         deallocate(full_vec_ftlm)
