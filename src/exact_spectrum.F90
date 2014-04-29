@@ -49,6 +49,7 @@ contains
     subroutine init_exact_spectrum()
 
         use bit_rep_data, only: NIfTot, NIfDBO, extract_sign
+        use bit_reps, only: decode_bit_det
         use CalcData, only: pops_norm
         use DetBitOps, only: DetBitEq, EncodeBitDet, ilut_lt, ilut_gt
         use exact_diag, only: calculate_full_hamiltonian
@@ -60,6 +61,7 @@ contains
         integer, allocatable :: nI_list(:,:)
         integer(n_int), allocatable :: ilut_list(:,:)
         integer(n_int) :: ilut(0:NIfTot)
+        integer :: nI(nel)
         integer :: i, j, hf_ind, temp(1,1), ierr
         real(dp) :: real_sign(lenof_sign)
         character(len=*), parameter :: t_r = 'init_exact_spectrum'
@@ -138,6 +140,9 @@ contains
                     perturbed_ground_es(j) = real_sign(1)
                     exit
                 else if (j > ndets_es) then
+                    write(6,*) "Determinant POPSFILE not found:", CurrentDets(:,i)
+                    call decode_bit_det(nI, CurrentDets(:,i))
+                    write(6,*) "Occupied orbitals in the above POPSFILE determinant:", nI
                     call stop_all(t_r, "Determinant in POPSFILE not found in the enumerated FCI space.")
                 end if
             end do
