@@ -38,6 +38,9 @@ def extract_data(data_files, cutoff):
     return pairs, unperturbed_norm
 
 def calculate_spectral_function(pairs, norm, minval, maxval, delta, broadening, ref_energy, inc_ground):
+    '''Calculate and return the spectral function for the eigenvalues and
+       spectral weights input, for the frequency values calculated from
+       minval, maxval and delta.'''
 
     nomega = int(math.ceil((maxval-minval)/delta))+1
 
