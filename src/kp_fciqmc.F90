@@ -63,7 +63,7 @@ contains
 
             do irepeat = 1, kp%nrepeats
 
-                ! Point to the region of memory where the projected Hamiltonian
+                ! Point to the regions of memory where the projected Hamiltonian
                 ! and overlap matrices for this repeat will be accumulated and stored.
                 if (tStoreKPMatrices) then
                     kp%hamil_matrix => kp%hamil_matrices(:,:,irepeat)

@@ -253,7 +253,6 @@ MODULE FciMCParMod
             call perform_ftlm()
             return
         else if (tSpecLanc) then
-            ! If performing a finite-temperature Lanczos method job instead of FCIQMC:
             call perform_spectral_lanczos()
             return
         else if (tExactSpec) then

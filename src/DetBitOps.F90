@@ -1107,7 +1107,6 @@ module DetBitOps
 
     end function
 
-
 end module
 
     pure subroutine GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
