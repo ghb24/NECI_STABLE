@@ -1,5 +1,5 @@
 #!/usr/bin/python
-'''ftlm_analysis.py [options] file
+'''ftlm_analysis.py [options] file_1 file_2 ... file_N
 
 Calculate and output temperature-dependent energy results from a given set of
 eigenvalues and corresponding initial overlaps. These should be output from
