@@ -10,14 +10,16 @@ MODULE PopsfileMod
                         iWeightPopRead, iPopsFileNoRead, tPopsMapping, Tau, &
                         InitiatorWalkNo, MemoryFacPart, MemoryFacAnnihil, &
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
-                        tPerturbPops, pops_norm
+                        tPerturbPops, pops_norm, annihilate_elems, annihilate_bits, &
+                        annihilate_orbs, n_pops_annihilate, creation_elems, &
+                        creation_bits, creation_orbs, n_pops_creation
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
-                         ilut_lt, ilut_gt
-    use hash , only : DetermineDetNode, FindWalkerHash
+                         ilut_lt, ilut_gt, CountBits
+    use hash, only : DetermineDetNode, FindWalkerHash
     use Determinants, only : get_helement,write_det
     use hphf_integrals, only: hphf_diag_helement
     use MI_integrals, only: MI_diag_helement
-    USE dSFMT_interface , only : genrand_real2_dSFMT
+    use dSFMT_interface , only : genrand_real2_dSFMT
     use FciMCData
     use bit_rep_data, only: extract_sign
     use bit_reps
@@ -575,7 +577,8 @@ outer_map:      do i = 0, MappingNIfD
 
         ! If this determinant is annihilated by the perturbation operator
         ! then Walkertemp(0:NIfDBO) will be returned as 0_n_int.
-        if (tPerturbPops) call perturb_pops_det(WalkerTemp)
+        if (tPerturbPops) call perturb_det(WalkerTemp, annihilate_elems, annihilate_bits, &
+                                            creation_elems, creation_bits)
 
         ! Decode the determinant as required if not using mapping
         if (.not. tPopsMapping .and. (.not. tEOF) .and. &
@@ -2308,9 +2311,6 @@ outer_map:      do i = 0, MappingNIfD
 
     subroutine init_pops_perturbation()
 
-        use CalcData, only: annihilate_elems, annihilate_bits, annihilate_orbs, n_pops_annihilate
-        use CalcData, only: creation_elems, creation_bits, creation_orbs, n_pops_creation
-
         integer :: i
 
         if (.not. allocated(annihilate_elems)) allocate(annihilate_elems(n_pops_annihilate))
@@ -2328,32 +2328,6 @@ outer_map:      do i = 0, MappingNIfD
         end do
 
     end subroutine init_pops_perturbation
-
-    subroutine perturb_pops_det(ilut)
-
-        use CalcData, only: annihilate_elems, annihilate_bits, n_pops_annihilate
-        use CalcData, only: creation_elems, creation_bits, n_pops_creation
-
-        integer(n_int), intent(inout) :: ilut(0:NIfTot)
-        integer :: i
-
-        do i = 1, n_pops_annihilate
-            if ( .not. btest(ilut(annihilate_elems(i)), annihilate_bits(i)) ) then
-                ilut(0:NIfDBO) = 0_n_int
-                return
-            end if
-            ilut(annihilate_elems(i)) = ibclr(ilut(annihilate_elems(i)), annihilate_bits(i))
-        end do
-
-        do i = 1, n_pops_creation
-            if ( btest(ilut(creation_elems(i)), creation_bits(i)) ) then
-                ilut(0:NIfDBO) = 0_n_int
-                return
-            end if
-            ilut(creation_elems(i)) = ibset(ilut(creation_elems(i)), creation_bits(i))
-        end do
-
-    end subroutine perturb_pops_det
 
     subroutine add_pops_norm_contrib(ilut)
 
