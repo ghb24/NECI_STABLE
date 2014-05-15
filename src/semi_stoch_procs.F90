@@ -878,10 +878,10 @@ contains
 
         ! Finally, add the indices back into the hash index array.
         do i = 1, nwalkers
+            call extract_sign(CurrentDets(:,i), walker_sign)
             ! Don't add the determinant to the hash table if its unoccupied and not
             ! in the core space.
-            if (IsUnoccDet(CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,i)) .and. &
-                (.not. test_flag(CurrentDets(:,i), flag_deterministic))) cycle
+            if (IsUnoccDet(walker_sign) .and. (.not. test_flag(CurrentDets(:,i), flag_deterministic))) cycle
             call decode_bit_det(nI, CurrentDets(:,i))
             DetHash = FindWalkerHash(nI,nWalkerHashes)
             temp_node => HashIndex(DetHash)

@@ -21,7 +21,7 @@ MODULE PopsfileMod
     use MI_integrals, only: MI_diag_helement
     use dSFMT_interface , only : genrand_real2_dSFMT
     use FciMCData
-    use bit_rep_data, only: extract_sign
+    use bit_rep_data, only: extract_sign, NOffSgn
     use bit_reps
     use constants
     use Parallel_neci
@@ -335,19 +335,23 @@ r_loop: do while(.not.tReadAllPops)
 
         if(tHashWalkerList) then
             do i = 1, CurrWalkers
-                call decode_bit_det (nJ, dets(:,i))
-                DetHash=FindWalkerHash(nJ, nWalkerHashes)
-                Temp => HashIndex(DetHash)
-                ! If the first element in the list has not been used.
-                if (Temp%Ind == 0) then
-                    Temp%Ind = i
-                else
-                    do while (associated(Temp%Next))
-                        Temp => Temp%Next
-                    end do
-                    allocate(Temp%Next)
-                    nullify(Temp%Next%Next)
-                    Temp%Next%Ind = i
+                call extract_sign(dets(:,i), SignTemp)
+                ! Only add the determinant to the hash table if it is occupied.
+                if (.not. IsUnoccDet(SignTemp) ) then
+                    call decode_bit_det (nJ, dets(:,i))
+                    DetHash=FindWalkerHash(nJ, nWalkerHashes)
+                    Temp => HashIndex(DetHash)
+                    ! If the first element in the list has not been used.
+                    if (Temp%Ind == 0) then
+                        Temp%Ind = i
+                    else
+                        do while (associated(Temp%Next))
+                            Temp => Temp%Next
+                        end do
+                        allocate(Temp%Next)
+                        nullify(Temp%Next%Next)
+                        Temp%Next%Ind = i
+                    end if
                 end if
             end do
             nullify(Temp)

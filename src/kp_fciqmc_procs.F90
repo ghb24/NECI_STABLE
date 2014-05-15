@@ -186,7 +186,6 @@ module kp_fciqmc_procs
     ! Allocate these arrays once during initialisation and reuse them,
     ! as reallocating arrays over and over again isn't great to do...
     ! Arrays holding the eigenvalues of the Hamiltonian and overlap matrices.
-    real(dp), allocatable :: kp_hamil_eigv(:)
     real(dp), allocatable :: kp_overlap_eigv(:)
     ! The overlap of the final vectors with the initial configuration.
     ! (the first Krylov vector).
@@ -198,9 +197,6 @@ module kp_fciqmc_procs
     ! Matrix used as temporary space during the transformation of the
     ! projected Hamiltonian into an orthonormal basis, in the Lowdin appraoch.
     real(dp), allocatable :: kp_inter_hamil(:,:)
-    ! The final Hamiltonian in an orthonormal basis, which is to be passed
-    ! to the diagonalisation routines.
-    real(dp), allocatable :: kp_final_hamil(:,:)
     ! The final eigenvectors, but in the basis of Krylov vectors.
     ! This is used in the Lowdin approach: diagonalising kp_final_hamil
     ! will give the final eigenvectors in the orthonormal basis, then
@@ -458,13 +454,11 @@ contains
         allocate(kp_hamil_se(kp%nvecs, kp%nvecs))
         allocate(kp_overlap_se(kp%nvecs, kp%nvecs))
 
-        allocate(kp_hamil_eigv(kp%nvecs))
         allocate(kp_overlap_eigv(kp%nvecs))
         allocate(kp_init_overlaps(kp%nvecs))
         allocate(kp_overlap_eigenvecs(kp%nvecs, kp%nvecs))
         allocate(kp_transform_matrix(kp%nvecs, kp%nvecs))
         allocate(kp_inter_hamil(kp%nvecs, kp%nvecs))
-        allocate(kp_final_hamil(kp%nvecs, kp%nvecs))
         allocate(kp_eigenvec_krylov(kp%nvecs, kp%nvecs))
 
         write(6,'(1x,a5)') "Done."
@@ -482,6 +476,10 @@ contains
     subroutine init_kp_fciqmc_repeat(kp)
 
         type(kp_fciqmc_data), intent(inout) :: kp
+        character(2) :: int_fmt
+
+        write(int_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(kp%irepeat)+1)))
+        write(6,'(1x,a22,1x,'//int_fmt//')') "Starting repeat number", kp%irepeat
 
         ! If starting from multiple POPSFILEs then set this counter so that the
         ! correct POPSFILE is read in this time. To read in POPSFILE.x,
@@ -542,6 +540,7 @@ contains
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: DetHash, nwalkers, nwalkers_target, iunithead, PopsVersion
         integer :: i
+        integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign(lenof_sign)
         real(dp) :: norm, all_norm
         real(sp) :: total_time_before, total_time_after
@@ -549,7 +548,7 @@ contains
         ! Variables from popsfile header...
         integer :: iPopLenof_sign, iPopNel, iPopIter, PopNIfD, PopNIfY, WalkerListSize
         integer :: PopNIfSgn, PopNIfFlag, PopNIfTot, PopBlockingIter
-        logical :: tPop64Bit, tPopHPHF, tPopLz, formpops, binpops
+        logical :: tPop64Bit, tPopHPHF, tPopLz, formpops, binpops, tCoreDet
         integer(int64) :: iPopAllTotWalkers
         real(dp) :: PopDiagSft, read_tau
         real(dp), dimension(lenof_sign/inum_runs) :: PopSumNoatHF
@@ -651,8 +650,16 @@ contains
 
         ! If starting from this configuration more than once, store the relevant data for next time.
         if (kp%nrepeats > 1 .and. kp%irepeat == 1) then
-            call MPIAllReduce(TotWalkers, MPI_SUM, AllTotWalkers)
-            TotWalkersInit = TotWalkers
+            HolesInList = 0
+            do i = 1, TotWalkers
+                int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,i)
+                call extract_sign (CurrentDets(:,i), real_sign)
+                tCoreDet = check_determ_flag(CurrentDets(:,i))
+                ! Don't add unoccpied determinants, unless they are core determinants.
+                if (IsUnoccDet(real_sign) .and. (.not. tCoreDet)) HolesInList = HolesInList + 1
+            end do
+            TotWalkersInit = TotWalkers - HolesInList
+            call MPIAllReduce(TotWalkersInit, MPI_SUM, AllTotWalkers)
             AllTotWalkersInit = AllTotWalkers
             TotPartsInit = TotParts
             AllTotPartsInit = AllTotParts
@@ -862,8 +869,8 @@ contains
             ! Remove the nodes of all unoccupied determinants from the hash table.
             ! For semi-stochastic calculations, this is done in add_core_states_currentdet_hash.
             do idet = 1, ndets
-                int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1, idet)
-                if (.not. IsUnoccDet(int_sign)) cycle
+                call extract_sign(CurrentDets(:,idet),real_sign_1)
+                if (.not. IsUnoccDet(real_sign_1)) cycle
                 tDetFound = .false.
                 call decode_bit_det(nI, CurrentDets(:, idet))
                 DetHash = FindWalkerHash(nI, nWalkerHashes)
@@ -912,12 +919,12 @@ contains
 
         ! Loop over all occupied determinants for this new Krylov vector.
         do idet = 1, TotWalkers
-            tDetFound = .false.
             int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,idet)
             call extract_sign (CurrentDets(:,idet), real_sign)
             tCoreDet = check_determ_flag(CurrentDets(:,idet))
             ! Don't add unoccpied determinants, unless they are core determinants.
             if (IsUnoccDet(real_sign) .and. (.not. tCoreDet)) cycle
+            tDetFound = .false.
             call decode_bit_det(nI, CurrentDets(:,idet))
             DetHash = FindWalkerHash(nI, nhashes_kp)
             temp_node => krylov_vecs_ht(DetHash)
@@ -1009,13 +1016,13 @@ contains
             ! Loop over all determinants in krylov_vecs.
             do idet = 1, TotWalkersKP
                 int_sign = krylov_vecs(ind(ivec):ind(ivec)+lenof_sign-1, idet)
-                if (IsUnoccDet(int_sign)) cycle
                 real_sign_1 = transfer(int_sign, real_sign_1)
+                if (IsUnoccDet(real_sign_1)) cycle
                 ! Loop over all Krylov vectors currently stored.
                 do jvec = 1, ivec
                     int_sign = krylov_vecs(ind(jvec):ind(jvec)+lenof_sign-1, idet)
-                    if (IsUnoccDet(int_sign)) cycle
                     real_sign_2 = transfer(int_sign, real_sign_1)
+                    if (IsUnoccDet(real_sign_2)) cycle
 #ifdef __DOUBLERUN
                     s_matrix(jvec,ivec) = s_matrix(jvec,ivec) + &
                         (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
@@ -1087,8 +1094,8 @@ contains
                         ! Add in the contribution to the projected Hamiltonian, for each Krylov vector.
                         do jvec = 1, ivec
                             int_sign = krylov_vecs(ind(jvec):ind(jvec)+lenof_sign-1, det_ind)
-                            if (IsUnoccDet(int_sign)) cycle
                             real_sign_2 = transfer(int_sign, real_sign_1)
+                            if (IsUnoccDet(real_sign_2)) cycle
 #ifdef __DOUBLERUN
                             h_matrix(jvec,ivec) = h_matrix(jvec,ivec) - &
                                 (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
@@ -1123,8 +1130,8 @@ contains
                 ! Loop over all Krylov vectors currently stored.
                 do jvec = 1, ivec
                     int_sign = krylov_vecs(ind(jvec):ind(jvec)+lenof_sign-1, idet)
-                    if (IsUnoccDet(int_sign)) cycle
                     real_sign_2 = transfer(int_sign, real_sign_1)
+                    if (IsUnoccDet(real_sign_2)) cycle
 #ifdef __DOUBLERUN
                     h_matrix(jvec,ivec) = h_matrix(jvec,ivec) + &
                         (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
@@ -1439,6 +1446,7 @@ contains
         integer :: lwork, counter, i, nkeep, nkeep_len, temp_unit
         integer :: npositive, info, ierr
         real(dp), allocatable :: work(:)
+        real(dp), allocatable :: kp_final_hamil(:,:), kp_hamil_eigv(:)
         character(2) :: nkeep_fmt
         character(7) :: string_fmt
         character(25) :: ind1, filename
@@ -1472,11 +1480,12 @@ contains
 
         do nkeep = 1, npositive
 
+            allocate(kp_final_hamil(nkeep,nkeep))
+            allocate(kp_hamil_eigv(nkeep))
+
             associate(transform_matrix => kp_transform_matrix(1:kp%nvecs, 1:nkeep), &
                       inter_hamil => kp_inter_hamil(1:kp%nvecs, 1:nkeep), &
-                      final_hamil => kp_final_hamil(1:nkeep, 1:nkeep), &
                       eigenvec_krylov => kp_eigenvec_krylov(1:kp%nvecs, 1:nkeep), &
-                      hamil_eigv => kp_hamil_eigv(1:nkeep), &
                       init_overlaps => kp_init_overlaps(1:nkeep))
 
                 counter = 0
@@ -1486,11 +1495,11 @@ contains
                 end do
 
                 inter_hamil = matmul(kp_hamil_mean, transform_matrix)
-                final_hamil = matmul(transpose(transform_matrix), inter_hamil)
+                kp_final_hamil = matmul(transpose(transform_matrix), inter_hamil)
 
-                call dsyev('V', 'U', nkeep, final_hamil, nkeep, hamil_eigv, work, lwork, info)
+                call dsyev('V', 'U', nkeep, kp_final_hamil, nkeep, kp_hamil_eigv, work, lwork, info)
 
-                eigenvec_krylov = matmul(transform_matrix, final_hamil)
+                eigenvec_krylov = matmul(transform_matrix, kp_final_hamil)
                 init_overlaps = matmul(kp_overlap_mean(1,:), eigenvec_krylov)
 
                 nkeep_len = ceiling(log10(real(abs(nkeep)+1)))
@@ -1499,10 +1508,13 @@ contains
                 write(temp_unit,'(/,4("-"),a37,1x,'//nkeep_fmt//',1x,a12,'//string_fmt//')') &
                     "Eigenvalues and overlaps when keeping", nkeep, "eigenvectors"
                 do i = 1, nkeep
-                    write(temp_unit,'(1x,es19.12,1x,es19.12)') hamil_eigv(i), init_overlaps(i)
+                    write(temp_unit,'(1x,es19.12,1x,es19.12)') kp_hamil_eigv(i), init_overlaps(i)
                 end do
 
             end associate
+
+            deallocate(kp_final_hamil)
+            deallocate(kp_hamil_eigv)
 
         end do
 
@@ -1519,6 +1531,7 @@ contains
         integer :: npositive, info, ierr
         integer :: i, j, n, m
         real(dp), allocatable :: work(:)
+        real(dp), allocatable :: kp_final_hamil(:,:), kp_hamil_eigv(:)
         character(2) :: nkeep_fmt
         character(7) :: string_fmt
         character(25) :: ind1, filename
@@ -1534,8 +1547,9 @@ contains
         allocate(work(lwork), stat=ierr)
 
         ! Use the following allocated arrays as work space for the following routine. Not ideal, I know...
-        associate(S_tilde => kp_inter_hamil, k => kp_final_hamil, N => kp_init_overlaps)
-            call construct_gram_schmidt_transform_matrix(kp_overlap_mean, kp_transform_matrix, S_tilde, k, N, kp%nvecs)
+        allocate(kp_final_hamil(kp%nvecs, kp%nvecs))
+        associate(S_tilde => kp_inter_hamil, N => kp_init_overlaps)
+            call construct_gram_schmidt_transform_matrix(kp_overlap_mean, kp_transform_matrix, S_tilde, kp_final_hamil, N, kp%nvecs)
             npositive = 0
             do i = 1, kp%nvecs
                 if (N(i) > 0.0_dp) then
@@ -1550,28 +1564,30 @@ contains
                 write(temp_unit,'(1x,es19.12)') N(i)
             end do
         end associate
+        deallocate(kp_final_hamil)
 
         do nkeep = 1, npositive
 
+            allocate(kp_final_hamil(nkeep,nkeep))
+            allocate(kp_hamil_eigv(nkeep))
+
             associate(S => kp_transform_matrix(1:kp%nvecs, 1:nkeep), &
-                      final_hamil => kp_final_hamil(1:nkeep, 1:nkeep), &
-                      hamil_eigv => kp_hamil_eigv(1:nkeep), &
                       init_overlaps => kp_init_overlaps(1:nkeep))
 
-                final_hamil = 0.0_dp
+                kp_final_hamil = 0.0_dp
                 do n = 1, nkeep
                     do m = 1, nkeep
                         do i = 1, n
                             do j = 1, m
-                                final_hamil(n,m) = final_hamil(n,m) + S(i,n)*kp_hamil_mean(i,j)*S(j,m)
+                                kp_final_hamil(n,m) = kp_final_hamil(n,m) + S(i,n)*kp_hamil_mean(i,j)*S(j,m)
                             end do
                         end do
                     end do
                 end do
 
-                call dsyev('V', 'U', nkeep, final_hamil, nkeep, hamil_eigv, work, lwork, info)
+                call dsyev('V', 'U', nkeep, kp_final_hamil, nkeep, kp_hamil_eigv, work, lwork, info)
 
-                init_overlaps = final_hamil(:,1)*sqrt(kp_overlap_mean(1,1))
+                init_overlaps = kp_final_hamil(:,1)*sqrt(kp_overlap_mean(1,1))
 
                 nkeep_len = ceiling(log10(real(abs(nkeep)+1)))
                 write(nkeep_fmt,'(a1,i1)') "i", nkeep_len
@@ -1579,10 +1595,13 @@ contains
                 write(temp_unit,'(/,4("-"),a37,1x,'//nkeep_fmt//',1x,a12,'//string_fmt//')') &
                     "Eigenvalues and overlaps when keeping", nkeep, "eigenvectors"
                 do i = 1, nkeep
-                    write(temp_unit,'(1x,es19.12,1x,es19.12)') hamil_eigv(i), init_overlaps(i)
+                    write(temp_unit,'(1x,es19.12,1x,es19.12)') kp_hamil_eigv(i), init_overlaps(i)
                 end do
 
             end associate
+
+            deallocate(kp_final_hamil)
+            deallocate(kp_hamil_eigv)
 
         end do
 
