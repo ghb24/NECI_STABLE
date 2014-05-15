@@ -88,30 +88,32 @@ contains
                         iter = iter + 1
                         call init_kp_fciqmc_iter(iter_data_fciqmc, determ_ind)
 
-                        !write(6,*) "CurrentDets before:"
-                        !do idet = 1, int(TotWalkers, sizeof_int)
-                        !    call extract_bit_rep(CurrentDets(:, idet), nI_parent, parent_sign, unused_flags, &
-                        !                          fcimc_excit_gen_store)
-                        !    if (tUseFlags) then
-                        !        write(6,'(i7, 6i12, 4x, f18.7, 4x, f18.7, 4x, l1)') idet, nI_parent, parent_sign, &
-                        !            test_flag(CurrentDets(:, idet), flag_deterministic)
-                        !    else
-                        !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') idet, CurrentDets(0, idet), parent_sign
-                        !    end if
-                        !end do
+                        !if (iter > 590) then
+                        !    write(6,*) "CurrentDets before:"
+                        !    do idet = 1, int(TotWalkers, sizeof_int)
+                        !        call extract_bit_rep(CurrentDets(:, idet), nI_parent, parent_sign, unused_flags, &
+                        !                              fcimc_excit_gen_store)
+                        !        if (tUseFlags) then
+                        !            write(6,'(i7, i12, 4x, f18.7, 4x, f18.7, 4x, l1)') idet, CurrentDets(0,idet), parent_sign, &
+                        !                test_flag(CurrentDets(:,idet), flag_deterministic)
+                        !        else
+                        !            write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') idet, CurrentDets(0,idet), parent_sign
+                        !        end if
+                        !    end do
 
-                        !write(6,"(A)") "Hash Table: "
-                        !do idet = 1, nWalkerHashes
-                        !    temp_node => HashIndex(idet)
-                        !    if (temp_node%ind /= 0) then
-                        !        write(6,'(i9)',advance='no') idet
-                        !        do while (associated(temp_node))
-                        !            write(6,'(i9)',advance='no') temp_node%ind
-                        !            temp_node => temp_node%next
-                        !        end do
-                        !        write(6,'()',advance='yes')
-                        !    end if
-                        !end do
+                        !    write(6,"(A)") "Hash Table: "
+                        !    do idet = 1, nWalkerHashes
+                        !        temp_node => HashIndex(idet)
+                        !        if (temp_node%ind /= 0) then
+                        !            write(6,'(i9)',advance='no') idet
+                        !            do while (associated(temp_node))
+                        !                write(6,'(i9)',advance='no') temp_node%ind
+                        !                temp_node => temp_node%next
+                        !            end do
+                        !            write(6,'()',advance='yes')
+                        !        end if
+                        !    end do
+                        !end if
 
                         do idet = 1, int(TotWalkers, sizeof_int)
 
