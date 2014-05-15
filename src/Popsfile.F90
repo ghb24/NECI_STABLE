@@ -335,8 +335,9 @@ r_loop: do while(.not.tReadAllPops)
 
         if(tHashWalkerList) then
             do i = 1, CurrWalkers
+                call extract_sign(dets(:,i), SignTemp)
                 ! Only add the determinant to the hash table if it is occupied.
-                if (.not. IsUnoccDet(dets(NOffSgn:NOffSgn+lenof_sign-1, i)) ) then
+                if (.not. IsUnoccDet(SignTemp) ) then
                     call decode_bit_det (nJ, dets(:,i))
                     DetHash=FindWalkerHash(nJ, nWalkerHashes)
                     Temp => HashIndex(DetHash)

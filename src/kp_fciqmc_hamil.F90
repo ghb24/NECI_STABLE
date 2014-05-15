@@ -281,8 +281,8 @@ contains
                 end do
                 if (tDetFound) then
                     int_sign = krylov_vecs(NOffSgn:NOffSgn+lenof_sign_kp-1, det_ind)
-                    if (IsUnoccDet(int_sign)) cycle
                     real_sign_2 = transfer(int_sign, real_sign_1)
+                    if (IsUnoccDet(real_sign_2)) cycle
 
                     ! Finally, add in the contribution to the projected Hamiltonian for each pair of Krylov vectors.
                     do i = 1, kp%nvecs

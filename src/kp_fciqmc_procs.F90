@@ -869,8 +869,8 @@ contains
             ! Remove the nodes of all unoccupied determinants from the hash table.
             ! For semi-stochastic calculations, this is done in add_core_states_currentdet_hash.
             do idet = 1, ndets
-                int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1, idet)
-                if (.not. IsUnoccDet(int_sign)) cycle
+                call extract_sign(CurrentDets(:,idet),real_sign_1)
+                if (.not. IsUnoccDet(real_sign_1)) cycle
                 tDetFound = .false.
                 call decode_bit_det(nI, CurrentDets(:, idet))
                 DetHash = FindWalkerHash(nI, nWalkerHashes)
@@ -1016,13 +1016,13 @@ contains
             ! Loop over all determinants in krylov_vecs.
             do idet = 1, TotWalkersKP
                 int_sign = krylov_vecs(ind(ivec):ind(ivec)+lenof_sign-1, idet)
-                if (IsUnoccDet(int_sign)) cycle
                 real_sign_1 = transfer(int_sign, real_sign_1)
+                if (IsUnoccDet(real_sign_1)) cycle
                 ! Loop over all Krylov vectors currently stored.
                 do jvec = 1, ivec
                     int_sign = krylov_vecs(ind(jvec):ind(jvec)+lenof_sign-1, idet)
-                    if (IsUnoccDet(int_sign)) cycle
                     real_sign_2 = transfer(int_sign, real_sign_1)
+                    if (IsUnoccDet(real_sign_2)) cycle
 #ifdef __DOUBLERUN
                     s_matrix(jvec,ivec) = s_matrix(jvec,ivec) + &
                         (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
@@ -1094,8 +1094,8 @@ contains
                         ! Add in the contribution to the projected Hamiltonian, for each Krylov vector.
                         do jvec = 1, ivec
                             int_sign = krylov_vecs(ind(jvec):ind(jvec)+lenof_sign-1, det_ind)
-                            if (IsUnoccDet(int_sign)) cycle
                             real_sign_2 = transfer(int_sign, real_sign_1)
+                            if (IsUnoccDet(real_sign_2)) cycle
 #ifdef __DOUBLERUN
                             h_matrix(jvec,ivec) = h_matrix(jvec,ivec) - &
                                 (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
@@ -1130,8 +1130,8 @@ contains
                 ! Loop over all Krylov vectors currently stored.
                 do jvec = 1, ivec
                     int_sign = krylov_vecs(ind(jvec):ind(jvec)+lenof_sign-1, idet)
-                    if (IsUnoccDet(int_sign)) cycle
                     real_sign_2 = transfer(int_sign, real_sign_1)
+                    if (IsUnoccDet(real_sign_2)) cycle
 #ifdef __DOUBLERUN
                     h_matrix(jvec,ivec) = h_matrix(jvec,ivec) + &
                         (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
