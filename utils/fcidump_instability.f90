@@ -30,28 +30,33 @@ real(dp), allocatable :: xsinglet_breaktimerev(:,:),xtriplet_breaktimerev(:,:)
 real(dp), allocatable :: xsinglet_eval(:),xtriplet_eval(:)
 real(dp), allocatable :: xsinglet_breaktimerev_eval(:),xtriplet_breaktimerev_eval(:)
 real(dp), allocatable :: smat(:,:),temp_smat(:,:),temp2_smat(:,:)
-real(dp), allocatable :: scr(:),smat_eval(:)
+real(dp), allocatable :: scr(:),smat_eval(:),expsteps(:)
+real(dp), allocatable :: expenergies(:)
+complex(dp) :: expenergy
 real(dp) :: ecore
 complex(dp) :: cz
-complex(dp), allocatable :: coeffs(:,:),temptrans(:,:)
-complex(dp), allocatable :: grade1(:,:),grade2(:,:,:,:)
+complex(dp), allocatable :: coeffs(:,:),temptrans(:,:),orighessian(:,:)
+complex(dp), allocatable :: grade1(:,:),grade2(:,:,:,:),testcoeffs(:,:)
+complex(dp), allocatable :: expdmat(:,:)
 real(dp) :: z
-integer :: loc(2)
-real(dp) :: ratio,angle,hf_energy
+integer :: loc(2),expminindex(1)
+real(dp) :: ratio,angle,hf_energy,expmineval
 real(dp), allocatable :: inst_all(:,:),transarray(:)
-integer :: nmonoex,scheme
+integer :: nmonoex,scheme,minimizer,followmode
 integer(int64) :: orbsym(1000)
 integer :: i,j,k,l,a,ierr,ispin,m,lscr
-integer :: l1,l2,l3
+integer :: l1,l2,l3,l4,l5
 real(dp), allocatable :: transform(:,:),fdiag(:)
 integer, allocatable :: energyorder(:)
 integer, allocatable :: monoexcitations(:,:)
-logical :: exists,trealinds,tmolpro,complexint
+logical :: exists,trealinds,tmolpro,complexint,error_diff
 namelist /fci/ norb,nelec,ms2,orbsym,isym,iuhf,uhf,syml,symlz,propbitlen,nprop
     
     ! Defaults for rot_params input file
     trealinds = .true.
     tmolpro = .false.
+    scheme = 3
+    error_diff = .false.
 
     ! Remaining defaults 
     uhf = .false.
@@ -76,6 +81,15 @@ namelist /fci/ norb,nelec,ms2,orbsym,isym,iuhf,uhf,syml,symlz,propbitlen,nprop
                              ! (if .false.)
                              ! each other (if.true.) and otherwise not (if.false.)
     read(9,*) scheme         ! scheme which is used for rotating the orbitals in order to find the lower energy solution, if scheme=1 a pairwise orbital rotation is performed, if scheme=2: the transformation is performed using the eigenvector followed by a symmetric Loewdin orthogonalisation, if scheme=3 a further RHF calculation is performed 
+    read(9,*) error_diff     ! this calculates the error in the gradient and hessian if they are evaluated exactly and using finite differences, the error is evaluated as a function of the size of the element in the rotation matrix (this helps to check that the gradient and hessian are correct)   
+    read(9,*) minimizer      ! this option is to choose which minimzer is used in connection 
+                             ! with scheme=3, 
+                             ! if minimizer=1: an eigenvector-following scheme is applied 
+                             ! to find a minimum, if minimizer=4: an eigenvector-following scheme
+                             ! is applied to find a transition state
+    read(9,*) followmode     ! this option is to choose which hessian mode should be followed if 
+                             ! mode-following in an eigenvector-following scheme is applied in order 
+                             ! to locate a transition state
     close(9)
 
 
@@ -699,7 +713,7 @@ namelist /fci/ norb,nelec,ms2,orbsym,isym,iuhf,uhf,syml,symlz,propbitlen,nprop
     endif
 
 
-    ! set up transformation matrix
+    ! set up transformation matrix according to instability analysis
 
     if (scheme.eq.1) then
         write(6,*) '---------------------------------------------------------------'
@@ -1031,10 +1045,42 @@ namelist /fci/ norb,nelec,ms2,orbsym,isym,iuhf,uhf,syml,symlz,propbitlen,nprop
         if (ierr.ne.0) then
             stop 'Error allocating grade2'
         endif
+        allocate(orighessian(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating orighessian'
+        endif
+        allocate(expsteps(3200),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating expsteps'
+        endif
+        allocate(expenergies(3200),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating expenergies'
+        endif
+        allocate(testcoeffs(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating testcoeffs'
+        endif
+        allocate(expdmat(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating expdmat'
+        endif
 
-        ! generate starting wavefunction using 'reverse perturbation'
 
-        !call StartingWavefunction(coeffs)
+        ! this evaluates the gradient and hessian at the original point using the exact
+        ! formulation and a finite difference method and evaluates the respective error 
+        ! as a function of size of a particular element in the gradient/hessian matrix
+        
+        ! at the original HF solution
+        if (error_diff) then
+            coeffs(:,:) = 0.0_dp
+            do l1=1,norb
+                coeffs(l1,l1) = 1.0_dp
+            enddo
+            call ErrorGradientHessian(coeffs)
+            call ErrorGradientHessian_2(coeffs)
+        endif
+
 
         ! the calculated instability matrices correspond to the Hessian matrices
         ! the eigenvector corresponding to the smallest eigenvalue will give
@@ -1047,7 +1093,7 @@ namelist /fci/ norb,nelec,ms2,orbsym,isym,iuhf,uhf,syml,symlz,propbitlen,nprop
         enddo
         do l1=1,nmonoex
             if (abs(transarray(l1)).gt.1e-8_dp) then
-                ratio = transarray(l1)!/(1.0_dp-transarray(l1))
+                ratio = transarray(l1)
                 i = monoexcitations(l1,1)
                 a = monoexcitations(l1,2)
                 transform(i,i) = 1.0_dp
@@ -1067,27 +1113,120 @@ namelist /fci/ norb,nelec,ms2,orbsym,isym,iuhf,uhf,syml,symlz,propbitlen,nprop
 
         coeffs = cmplx(transform,0.0_dp,dp)
  
-        ! this wourine generates a starting guess wavefunction using a
+        ! this routine generates a starting guess wavefunction using a
         ! 'reverse perturbation' approach 
         !call StartingWavefunction(coeffs)
-
-        ! This combination of routines would perform a steepest descent type
-        ! implementation followed by an RHF procedure
-        ! follow a steepest descent way d
-        !call SteepestDescent(coeffs,grade1,grade2)
 
         ! these two routines would perform a standart RHF procedure either
         ! without or with DIIS
         ! the DIIS approach tends to lead back to the original solution
+        !coeffs(:,:) = 0.0_dp
         !call RHF(coeffs,fdiag) 
         !call RHF_DIIS(coeffs,fdiag)
 
         
         ! this uses a Newton-Raphson iteration scheme in order to
         ! find a new minimum based on the previous instability analysis
+        write(6,*) '----------------------------------------------------'
+        write(6,*) 'Searching a new HF stationary point'
+        write(6,*) 'based on instability analysis'
+        write(6,*) '----------------------------------------------------'
+
+        ! determine values of a/optimal step size for transformation
+        ! where exp(-alpha U) where alpha is the step size
+        write(6,*) '------------------------------------------------------'
+        write(6,*) 'Searching the best value for the step size a'
+        write(6,*) 'in the transformation exp(-aX)'
+        write(6,*) '------------------------------------------------------'
+        ! increase a in steps
+        expsteps(:) = 0.0_dp
+        expsteps(1) = -20.0_dp
+        do l1=2,3200
+            expsteps(l1) = expsteps(l1-1) + 0.01_dp
+        enddo
+
+        do l5=1,3200
+            
+            grade1 = coeffs
+            temptrans(:,:) = 0.0_dp
+            call TransformFromGradient(temptrans,grade1,expsteps(l5))
+     
+            grade1(:,:) = 0.0_dp
+            do l1=1,norb
+                grade1(l1,l1) = 1.0_dp
+            enddo
+
+            testcoeffs(:,:) = 0.0_dp
+            call zgemm('T','N',norb,norb,norb,(1.0_dp,0.0_dp),temptrans,norb,&
+            &grade1,norb,(0.0_dp,0.0_dp),testcoeffs,norb)
+
+        
+            ! calculate original HF energy (assuming HF basis set)
+            ! construct density matrix
+            expdmat(:,:) = 0.0_dp
+            do l1=1,norb
+                do l2=1,norb
+                    do l3=1,(nelec/2)
+                        expdmat(l2,l1) = expdmat(l2,l1) + (2.0_dp*testcoeffs(l1,l3)*&
+                            &conjg(testcoeffs(l2,l3)))
+                    enddo
+                enddo
+            enddo
+
+            expenergy = 0.0_dp
+            do l1=1,norb
+                do l2=1,norb
+                    do l3=1,norb
+                        do l4=1,norb
+                            ! coulomb integral
+                            expenergy = expenergy + (expdmat(l4,l2)*expdmat(l3,l1)*umat(l4,l3,l2,l1))
+                            ! exchange integral
+                            expenergy = expenergy - (0.5_dp*expdmat(l4,l2)*&
+                                        &expdmat(l3,l1)*umat(l4,l3,l1,l2))
+                        enddo
+                    enddo
+                enddo
+            enddo
+            expenergy = 0.5_dp*expenergy
+
+            ! kinetic energy
+            do l1=1,norb
+                do l2=1,norb
+                    expenergy = expenergy + (expdmat(l2,l1)*tmat(l2,l1))
+                enddo
+            enddo
+
+            expenergies(l5) = real(expenergy,dp) + ecore
+
+        enddo
+
+        ! chose a value
+        if (minimizer.eq.2) then
+            ! maximum for transition states
+            expmineval = maxval(expenergies)
+            expminindex = maxloc(expenergies)
+        else
+            ! minimum for other searches
+            expmineval = minval(expenergies)
+            expminindex = minloc(expenergies)
+        endif
+
+
+        writE(6,*) '---------------------------------------------------'
+        write(6,*) 'Step sizes a and corresponding energies:'
+        do l1=1,3200
+            write(6,*) l1,expsteps(l1),expenergies(l1)
+        enddo
+
+        write(6,*) '-------------------------------------------------------'
+        write(6,*) 'Choosing the following value for the step size:'
+        write(6,*) (0+expminindex(1)),expsteps(0+expminindex(1)),expenergies(0+expminindex(1))
+        write(6,*) '-------------------------------------------------------'
+       
+        ! perform rotation which gives a minimum energy
         grade1 = coeffs
         temptrans(:,:) = 0.0_dp
-        call TransformFromGradient(temptrans,grade1,1.0_dp)
+        call TransformFromGradient(temptrans,grade1,expsteps(0+expminindex(1)))
  
         grade1(:,:) = 0.0_dp
         do l1=1,norb
@@ -1098,23 +1237,30 @@ namelist /fci/ norb,nelec,ms2,orbsym,isym,iuhf,uhf,syml,symlz,propbitlen,nprop
         call zgemm('T','N',norb,norb,norb,(1.0_dp,0.0_dp),temptrans,norb,&
         &grade1,norb,(0.0_dp,0.0_dp),coeffs,norb)
 
-        !grade1(:,:) = 0.0_dp
         grade2(:,:,:,:) = 0.0_dp
 
-        call PerformNewtonRaphson(coeffs,grade1,grade2)
-
-        ! this diagonalises the fock matrix just once
-        !call RHF(coeffs,fdiag)
-
+        if (minimizer.eq.1) then
+            ! perform eigenvector-following
+            ! to find a minimum
+            call PerformNewtonRaphson_EigenVec_2(coeffs,grade1,grade2)
+        elseif (minimizer.eq.2) then
+            ! perform eigenvector-following
+            ! to converge onto a transition state
+            !call PerformNewtonRaphson_EigenVec_Trans(coeffs,grade1,grade2)
+            call PerformNewtonRaphson_EigenVec_Trans_Mode(coeffs,grade1,grade2,followmode)
+        endif
 
         ! as long as all coefficients are real this will be okay
+        ! the orbitals should be real 
         transform = real(coeffs,dp)
-        arr = fdiag
 
         deallocate(coeffs)
         deallocate(temptrans)
         deallocate(grade1)
         deallocate(grade2)
+        deallocate(orighessian)
+        deallocate(expsteps)
+        deallocate(testcoeffs)
 
         ! transform integrails
         ! dgemm performs the operation
@@ -1166,6 +1312,11 @@ namelist /fci/ norb,nelec,ms2,orbsym,isym,iuhf,uhf,syml,symlz,propbitlen,nprop
         &temp_tmat,norb,0.0_dp,tmat,norb)
 
 
+        ! orbital energies
+        ! only a rough guide since the fock matrix is not diagonal
+        call DiagFockElements(fdiag)
+        arr = fdiag
+
 
         ! new HF ground state energy approximately since
         ! fock matrix is no longer diagonal
@@ -1173,13 +1324,25 @@ namelist /fci/ norb,nelec,ms2,orbsym,isym,iuhf,uhf,syml,symlz,propbitlen,nprop
         hf_energy = 0.0_dp
         if (uhf) then
             do l1=1,nelec
-                hf_energy = hf_energy + arr(l1) + tmat(l1,l1)
+                hf_energy = hf_energy + tmat(l1,l1)
+                do l2=1,nelec
+                    hf_energy = hf_energy + umat(l1,l2,l1,l2)
+                    if (mod(l1,2).eq.mod(l2,2)) then
+                        hf_energy = hf_energy - umat(l1,l2,l2,l1)
+                    endif
+                enddo
             enddo
         elseif (.not.uhf) then
             do l1=1,(nelec/2)
-                hf_energy = hf_energy + arr(l1) + tmat(l1,l1)
+                hf_energy = hf_energy + tmat(l1,l1)
+                do l2=1,(nelec/2)
+                    hf_energy = hf_energy + (2.0_dp*umat(l1,l2,l1,l2))&
+                        & - umat(l1,l2,l2,l1)
+                enddo
             enddo
         endif
+
+        hf_energy = hf_energy + ecore
 
         write(6,*) '---------------------------------------------------'
         write(6,*) 'The new HF ground state energy is:',hf_energy
@@ -1600,7 +1763,8 @@ contains
         complex(dp), allocatable, intent(inout) :: coeffs(:,:)
         real(dp), allocatable, intent(inout) :: evals(:)
         complex(dp), allocatable :: fmat(:,:),dmat(:,:),dmat_old(:,:)
-        real(dp), allocatable :: rrscr(:),rscr(:)
+        real(dp), allocatable :: rrscr(:)
+        complex(dp), allocatable :: rscr(:)
         complex(dp) :: energy_old,energy,std
         logical :: ints_complex
         integer :: rlscr,l1,l2,l3,l4,ierr,iter
@@ -1753,6 +1917,8 @@ contains
                 enddo
             enddo
 
+            energy = energy + ecore
+
             ! difference in density matrices
             std = 0.0_dp
             do l1=1,norb
@@ -1777,9 +1943,9 @@ contains
 
             ! only diagonalise fock matrix one in order to move one 
             ! step into the correct direction
-            if (iter.eq.1) then
-            !if ((abs(energy-energy_old).lt.1e-12_dp).and.&
-            !    &(abs(std).lt.1e-12_dp)) then
+            !if (iter.eq.1) then
+            if ((abs(energy-energy_old).lt.1e-12_dp).and.&
+                &(abs(std).lt.1e-12_dp)) then
                 write(6,*) 'Convergence achieved: stopping calculation !'
                 write(6,*) '---------------------------------------------'
                 exit
@@ -1967,6 +2133,8 @@ contains
                 enddo
             enddo
 
+            energy = energy + ecore
+
             if (abs(aimag(energy)).gt.1e-12_dp) then
                 stop 'Error: energy is complex'
             endif
@@ -2051,7 +2219,8 @@ contains
         complex(dp), allocatable, intent(inout) :: coeffs(:,:)
         real(dp), allocatable, intent(inout) :: evals(:)
         complex(dp), allocatable :: fmat(:,:),dmat(:,:),dmat_old(:,:)
-        real(dp), allocatable :: rrscr(:),rscr(:)
+        real(dp), allocatable :: rrscr(:)
+        complex(dp), allocatable :: rscr(:)
         complex(dp) :: energy_old,energy,std
         logical :: ints_complex
         integer :: rlscr,l1,l2,l3,l4,ierr,iter,nerror,beforeiter
@@ -2317,6 +2486,8 @@ contains
                 enddo
             enddo
 
+            energy = energy + ecore
+
             ! difference in density matrices
             std = 0.0_dp
             do l1=1,norb
@@ -2341,8 +2512,8 @@ contains
 
             ! convergence
             !if (iter.eq.1) then
-            if ((abs(energy-energy_old).lt.1e-4_dp).and.&
-                &(abs(std).lt.1e-2_dp)) then
+            if ((abs(energy-energy_old).lt.1e-12_dp).and.&
+                &(abs(std).lt.1e-12_dp)) then
                 write(6,*) 'Convergence achieved: stopping calculation !'
                 write(6,*) '---------------------------------------------'
                 exit
@@ -2586,7 +2757,7 @@ contains
         complex(dp), allocatable, intent(inout) :: e(:,:),f(:,:)
         complex(dp), allocatable, intent(in) :: fmat(:,:),dmat(:,:)
         complex(dp), allocatable :: temp1(:,:),temp2(:,:)
-        integer :: ierr,l1,l2
+        integer :: ierr
 
         allocate(temp1(norb,norb),stat=ierr)
         if (ierr.ne.0) then
@@ -2687,10 +2858,14 @@ contains
 
         complex(dp), allocatable, intent(in) :: cmat(:,:)
         complex(dp), allocatable :: d1mat(:,:),d2mat(:,:,:,:)
+        complex(dp), allocatable :: grade2_test(:,:,:,:),grade2_test2(:,:,:,:)
+        complex(dp), allocatable :: inactfmat(:,:),genfmatinactive(:,:)
         complex(dp), allocatable :: genfmat(:,:),ymat(:,:,:,:)
         complex(dp), allocatable, intent(inout) :: grade1(:,:),grade2(:,:,:,:)
+        complex(dp), allocatable :: diffgrade21(:,:,:,:),diffgrade22(:,:,:,:)
         complex(dp) :: trace_1rdm,trace_2rdm
-        integer :: l1,l2,l3,l4,l5,l6,l7,l8,ierr
+        complex(dp) :: energy_test
+        integer :: l1,l2,l3,l4,l5,l6,ierr
 
         allocate(d1mat(norb,norb),stat=ierr)
         if (ierr.ne.0) then
@@ -2708,10 +2883,34 @@ contains
         if (ierr.ne.0) then
             stop 'Error allocating ymat'
         endif
+        allocate(grade2_test(norb,norb,norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating grade2_test'
+        endif
+        allocate(grade2_test2(norb,norb,norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating grade2_test2'
+        endif
+        allocate(inactfmat(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating inactfmat'
+        endif
+        allocate(diffgrade21(norb,norb,norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating diffgrade21'
+        endif
+        allocate(diffgrade22(norb,norb,norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating diffgrade22'
+        endif
+        allocate(genfmatinactive(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating genfmatinactive'
+        endif
  
 
         write(6,*) '----------------------------------------------------'
-        write(6,*) 'Calculating electronic gradient'
+        write(6,*) 'Calculating electronic gradient and hessian'
         write(6,*) '-----------------------------------------------------'
 
         write(6,*) 'Constructing 1- and 2-RDM...'
@@ -2719,6 +2918,7 @@ contains
         ! constructe 1-RDM for spatial orbitals. the sum over spin orbitals
         ! always gives a factor of 2 for RHF
         ! 1-RDM
+        ! D_pq = <CSF|E_pq|CSF>
         d1mat(:,:) = 0.0_dp
         do l1=1,norb
             do l2=1,norb
@@ -2729,32 +2929,40 @@ contains
             enddo
         enddo
 
-        ! 2-RDM
+        ! The following is useful for debugging purposes
+        ! for a single determinant closed shell system this way of calculating the 2-RDM
+        ! should five the same result
         d2mat(:,:,:,:) = 0.0_dp
         do l1=1,norb
             do l2=1,norb
                 do l3=1,norb
                     do l4=1,norb
-                        do l5=1,(nelec/2)
-                            do l7=1,2  ! to account for spin
-                                do l6=1,(nelec/2)
-                                    do l8=1,2 ! to account for spin
-                                        d2mat(l4,l3,l2,l1) = d2mat(l4,l3,l2,l1) +&
-                                        &(conjg(cmat(l4,l5))*conjg(cmat(l2,l6))*&
-                                        &cmat(l1,l6)*cmat(l3,l5))
-                                    enddo
-                                enddo
-                            enddo
-                        enddo
+                        d2mat(l4,l3,l2,l1) = ((d1mat(l4,l3)*d1mat(l2,l1)) -&
+                            &(0.5_dp*d1mat(l4,l1)*d1mat(l2,l3)))
                     enddo
                 enddo
             enddo
         enddo
 
         ! check: trace of 1-RDM should be nelec, trace 2-RDM should be 
-        ! (1/2)*nelec*(nelec-1) = (1/2)*(N^2-N) = 0.5*\sum_pq d2mat(p,p,q,q) 
-        ! - 0.5*\sum_p d1mat(p,p)
-        ! 
+        ! for 2-RDM in terms of spin orbitals
+        ! nelec*(nelec-1) = (nelec^2-nelec) = \sum_pq d2mat(p,p,q,q) 
+        ! - \sum_p d1mat(p,p)
+
+        write(6,*) '-------------------------------------------------------'
+        write(6,*) 'Diagonal elements of 1- and 2-RDM'
+        write(6,*) '1-RDM: Occupation numbers'
+        do l1=1,norb
+            write(6,*) l1,d1mat(l1,l1)
+        enddo
+        write(6,*) '2-RDM: Simulateous occupation numbers'
+        do l1=1,norb
+            do l2=1,norb
+                write(6,*) l2,l1,d2mat(l2,l2,l1,l1)
+            enddo
+        enddo
+        write(6,*)
+
         trace_1rdm = 0.0_dp
         do l1=1,norb
             trace_1rdm = trace_1rdm + d1mat(l1,l1)
@@ -2765,32 +2973,11 @@ contains
         trace_2rdm = 0.0_dp
         do l1=1,norb
             do l2=1,norb
-                trace_2rdm = trace_2rdm + (d2mat(l2,l2,l1,l1)*0.5_dp)
+                trace_2rdm = trace_2rdm + d2mat(l2,l2,l1,l1)
             enddo
-            trace_2rdm = trace_2rdm - (d1mat(l1,l1)*0.5_dp)
         enddo
         write(6,*) 'Trace of 2-RDM:',trace_2rdm 
 
-
-        ! the following is only true for a 1-determinantal wavefunction
-        !d2mat(:,:,:,:) = 0.0_dp
-        !do l1=1,norb
-        !    do l2=1,norb
-        !        do l3=1,norb
-        !            do l4=1,norb
-        !                d2mat(l4,l3,l2,l1) = d1mat(l4,l3)*d1mat(l2,l1)
-        !            enddo
-        !        enddo
-        !    enddo
-        !enddo
-        !trace_2rdm = 0.0_dp
-        !do l1=1,norb
-        !    do l2=1,norb
-        !        trace_2rdm = trace_2rdm + (d2mat(l2,l2,l1,l1)*0.5_dp)
-        !    enddo
-        !    trace_2rdm = trace_2rdm - (d1mat(l1,l1)*0.5_dp)
-        !enddo
-        !write(6,*) 'Trace of 2-RDM:',trace_2rdm 
 
         write(6,*) '--------------------------------------------------------'
         write(6,*) 'Constructing general fock matrix...'
@@ -2823,6 +3010,23 @@ contains
                 write(6,*) l1,l2,genfmat(l2,l1)
             enddo
         enddo
+
+        ! calculate energy from general fock matrix in order to test it
+        ! E(0) = (1/2)*\sum_pq (d_pq h_pq + delta_pq*f_pq)
+        energy_test = 0.0_dp
+        do l1=1,norb
+            do l2=1,norb
+                energy_test = energy_test + (d1mat(l2,l1)*tmat(l2,l1))
+                if (l2.eq.l1) then
+                    energy_test = energy_test + genfmat(l2,l1)
+                endif
+            enddo
+        enddo
+
+        energy_test = 0.5_dp*energy_test + ecore
+
+        write(6,*) '---------------------------------------------------------'
+        write(6,*) 'Energy obtained from generalised fock matrix:',energy_test
 
         write(6,*) '-------------------------------------------------------'
         write(6,*) 'Constructing gradient matrix grade1...'
@@ -2885,11 +3089,11 @@ contains
                         grade2(l4,l3,l2,l1) = grade2(l4,l3,l2,l1) + (2.0_dp*d1mat(l4,l2)&
                             &*tmat(l3,l1)) + (2.0_dp*ymat(l4,l3,l2,l1))
                         ! permute l4 and l3 
-                        grade2(l4,l3,l2,l1) = grade2(l4,l3,l2,l1) + (2.0_dp*d1mat(l3,l2)&
-                            &*tmat(l4,l1)) + (2.0_dp*ymat(l3,l4,l2,l1))
+                        grade2(l4,l3,l2,l1) = grade2(l4,l3,l2,l1) - (2.0_dp*d1mat(l3,l2)&
+                            &*tmat(l4,l1)) - (2.0_dp*ymat(l3,l4,l2,l1))
                         ! permute l2 and l1 
-                        grade2(l4,l3,l2,l1) = grade2(l4,l3,l2,l1) + (2.0_dp*d1mat(l4,l1)&
-                            &*tmat(l3,l2)) + (2.0_dp*ymat(l4,l3,l1,l2))
+                        grade2(l4,l3,l2,l1) = grade2(l4,l3,l2,l1) - (2.0_dp*d1mat(l4,l1)&
+                            &*tmat(l3,l2)) - (2.0_dp*ymat(l4,l3,l1,l2))
                         ! permute l4 and l3,as well as l2 and l1 
                         grade2(l4,l3,l2,l1) = grade2(l4,l3,l2,l1) + (2.0_dp*d1mat(l3,l1)&
                             &*tmat(l4,l2)) + (2.0_dp*ymat(l3,l4,l1,l2))
@@ -2901,12 +3105,12 @@ contains
                         if (l4.eq.l1) then
                             ! permute l4 and l3
                             grade2(l4,l3,l2,l1) = grade2(l4,l3,l2,l1) &
-                                &- (genfmat(l3,l2)+genfmat(l2,l3))
+                                &+ (genfmat(l3,l2)+genfmat(l2,l3))
                         endif
                         if (l3.eq.l2) then
                             ! permute l2 and l1
                             grade2(l4,l3,l2,l1) = grade2(l4,l3,l2,l1) &
-                                &- (genfmat(l4,l1)+genfmat(l1,l4))
+                                &+ (genfmat(l4,l1)+genfmat(l1,l4))
                         endif
                         if (l4.eq.l2) then
                             ! permute l4 and l3, as well as l2 and l1
@@ -2934,9 +3138,13 @@ contains
         deallocate(d1mat)
         deallocate(d2mat)
         deallocate(genfmat)
-        !deallocate(grade1)
         deallocate(ymat)
-        !deallocate(grade2)
+        deallocate(grade2_test)
+        deallocate(grade2_test2)
+        deallocate(inactfmat)
+        deallocate(diffgrade21)
+        deallocate(diffgrade22)
+        deallocate(genfmatinactive)
 
     end subroutine FindGradient
 
@@ -2958,7 +3166,7 @@ contains
         real(dp), allocatable :: rmat(:,:),rmat1(:,:),rmat2(:,:)
         real(dp), allocatable :: temp1(:,:),temp2(:,:)
         real(dp), intent(in) :: alpha
-        integer :: l1,l2,l3,l4,ierr,rlscr
+        integer :: l1,l2,ierr,rlscr
 
 
         ! when X is anti-hermitian, iX is hermitian (needed in order to use zheev)
@@ -3018,7 +3226,7 @@ contains
         write(6,*) 'Constructing transformation matrix U=exp(-X) for orbital rotation'
         write(6,*) 'using electronic HF energy gradient as X assuming skew-symmetric X'
         write(6,*) '------------------------------------------------------------'
-
+!
         ! in order to avoid complex arithmetic
         ! X^2 is used which is symmetric and therefore has 
         ! real eigenvalues and eigenvectors
@@ -3182,7 +3390,7 @@ contains
         real(dp), allocatable :: rrscr(:),rrlscr(:)
         complex(dp), allocatable :: rmat(:,:),rmat1(:,:)
         real(dp), intent(in) :: alpha
-        integer :: l1,l2,l3,l4,ierr,rlscr
+        integer :: l1,l2,ierr,rlscr
 
 
         ! when X is anti-hermitian, iX is hermitian (needed in order to use zheev)
@@ -3343,585 +3551,39 @@ contains
     end subroutine TransformFromGradient_Complex
 
 
-    subroutine SteepestDescent(cmat,grade1,grade2)
-
-        ! this subroutine is to perform a similar operation as steepest destcent
-        ! in order to go downhill to a new minimum on the HF energy surface if
-        ! an instability in the HF energy has been found
-
-        complex(dp), allocatable, intent(inout) :: cmat(:,:)
-        complex(dp), allocatable, intent(inout) :: grade1(:,:),grade2(:,:,:,:)
-        complex(dp), allocatable :: amat(:,:),fmat(:,:),dmat(:,:),energies(:)
-        !complex(dp), allocatable :: hfdmat(:,:)
-        complex(dp), allocatable :: hfcoeffs(:,:)
-        real(dp), allocatable :: nos(:,:),no_occ(:),fevals(:)
-        real(dp), allocatable :: norrscr(:),rrscr(:),rrlscr(:)
-        complex(dp) :: energy,energy_old!,normalization
-        real(dp) :: cauchyschwarz!,diffcauchyschwarz
-        real(dp) :: minenergy
-        integer :: minenergyloc(1)
-        real(dp), allocatable :: alpha(:)
-        integer :: l1,l2,l3,l4,l5,ierr,rlscr
-
-        rlscr = 4*norb
-        allocate(amat(norb,norb),stat=ierr)
-        if (ierr.ne.0) then
-            stop 'Error allocating amat'
-        endif
-       ! allocate(fmat(norb,norb),stat=ierr)
-       ! if (ierr.ne.0) then
-       !     stop 'Error allocating fmat'
-       ! endif
-        allocate(dmat(norb,norb),stat=ierr)
-        if (ierr.ne.0) then
-            stop 'Error allocating dmat'
-        endif
-        allocate(alpha(200),stat=ierr)
-        if (ierr.ne.0) then
-            stop 'Error allocating alpha'
-        endif
-        allocate(energies(200),stat=ierr)
-        if (ierr.ne.0) then
-            stop 'Error allocating energies'
-        endif
-        allocate(hfcoeffs(norb,norb),stat=ierr)
-        if (ierr.ne.0) then
-            stop 'Error allocating hfcoeffs'
-        endif
-        allocate(norrscr(rlscr),stat=ierr)
-        if (ierr.ne.0) then
-            stop 'Error allocating norrscr'
-        endif
-        allocate(nos(norb,norb),stat=ierr)
-        if (ierr.ne.0) then
-            stop 'Error allocating nos'
-        endif
-        allocate(no_occ(norb),stat=ierr)
-        if (ierr.ne.0) then
-            stop 'Error allocating no_occ'
-        endif
-     !   allocate(fevals(norb),stat=ierr)
-     !   if (ierr.ne.0) then
-     !       stop 'Error allocating fevals'
-     !   endif
- 
-
-        write(6,*) '-------------------------------------------------------------------'
-        write(6,*) 'Approaching new HF energy minimum by following gradient'
-        write(6,*) '-------------------------------------------------------------------'
-
-
-        ! the vector corresponding to the lowest eigenvalue of the instability
-        ! matrix give the direction of steepest descent, i.e. the gradient in
-        ! this direction
-
-        write(6,*) 'Performing orbital rotation following the direction of the gradient'
-
-        ! the original HF orbitals as read in from the FCIDUMP file serve as
-        ! basis set
-        hfcoeffs(:,:) = 0.0_dp
-        do l1=1,norb!(nelec/2)
-            hfcoeffs(l1,l1) = 1.0_dp
-        enddo
-
-        grade1(:,:) = 0.0_dp
-        grade1 = cmat
-
-     !   write(6,*) 'Xmatrix for tranformation'
-     !   do l1=1,norb
-     !       do l2=1,norb
-     !           write(6,*) l2,l1,grade1(l2,l1)
-     !       enddo
-     !   enddo
-        ! values of alpha to consider in R = exp(-alpha X)
-        alpha(:) = 0.0_dp
-        alpha(1) = -5.0_dp
-        ! alpha values around 0 are not considered
-        do l1=2,100
-            alpha(l1) = alpha(l1-1) + 0.04_dp
-        enddo
-        alpha(101) = 1.0_dp
-        do l1=102,200
-            alpha(l1) = alpha(l1-1) + 0.04_dp
-        enddo
-
-
-        ! calculate energy as a function of alpha
-        do l5=1,200
-
-            write(6,*) 'Value for parameter alpha:',alpha(l5)
-        
- 
-            !call TransformFromGradient(cmat,grade1,1.0_dp)
-            call TransformFromGradient_Complex(cmat,grade1,alpha(l5))
-
-            ! the new orbitals are found by transforming the old orbitals
-            ! this amount to a matrix multplication in order to obtain the 
-            ! new coefficients 
-            ! phi_i = \sum_j R_ij \sum_\mu C_j\mu psi_\mu = \sum_j\sum R_ij C_j\mu psi_\mu
-            ! and the new coefficients are A_ik = R_ij C_jk
-
-            ! the ith column in cmat corresponds to the transformation of the ith hf orbital
-            amat(:,:) = 0.0_dp
-            ! a_ij = (r_ji)^T C_jk
-            call zgemm('T','N',norb,norb,norb,(1.0_dp,0.0_dp),cmat,norb,&
-            &hfcoeffs,norb,(0.0_dp,0.0_dp),amat,norb)
-
-            amat = cmat
-
-            ! tansformed orbitals
-            write(6,*) 'The transformed orbitals are'
-            do l1=1,norb
-                write(6,'(i9)') l1
-                do l2=1,norb
-                    write(6,'(i5,2g20.12)') l2,amat(l2,l1)
-                enddo
-            enddo
-
-            write(6,*) '---------------------------------------------------------'
-
-            ! construct density and fock matrices in order to evaluate the energy
-
-            ! construct density matrix
-            dmat(:,:) = 0.0_dp
-            do l1=1,norb
-                do l2=1,norb
-                    do l3=1,(nelec/2)
-                        dmat(l2,l1) = dmat(l2,l1) + (2.0_dp*amat(l1,l3)*&
-                            &conjg(amat(l2,l3)))
-                    enddo
-                enddo
-            enddo
-
-            write(6,*) 'Density matrix for transformed orbitals'
-            do l1=1,norb
-                do l2=1,norb
-                    write(6,*) l2,l1,dmat(l2,l1)
-                enddo
-            enddo
-
-            ! if the fock matrix should be evaluated at diagonalised at this point
-
-   !     ! fock matrix
-   !     fmat(:,:) = 0.0_dp
-   !     do l1=1,norb
-   !         do l2=1,norb
-   !             do l3=1,norb
-   !                 do l4=1,norb
-   !                     fmat(l2,l1) = fmat(l2,l1) + (dmat(l3,l4)*&
-   !                         &(umat(l2,l3,l1,l4)-(0.5_dp*umat(l2,l3,l4,l1))))
-   !                 enddo
-   !             enddo
-   !         enddo
-   !     enddo
-
-   !     fmat = fmat + tmat
-   !     call zheev('V','U',norb,fmat,norb,fevals,rrscr,rlscr,rrlscr,ierr)
-   !     if (ierr.ne.0) then
-   !         stop 'Error diagonalising fmat'
-   !     endif
-
-   !     write(6,*) 'Eigenvectors of fock matrix:'
-   !     do l1=1,norb
-   !         write(6,*) l1
-   !         do l2=1,norb
-   !             write(6,*) l2,fmat(l2,l1)
-   !         enddo
-   !     enddo
-
-   !     write(6,*) 'Eigenvalues of fock matrix'
-   !     do l1=1,norb
-   !         write(6,*) l1,fevals(l1)
-   !     enddo
- 
-   !     ! construct density matrix
-   !     hfdmat(:,:) = 0.0_dp
-   !     do l1=1,norb
-   !         do l2=1,norb
-   !             do l3=1,(nelec/2)
-   !                 hfdmat(l2,l1) = hfdmat(l2,l1) + (2.0_dp*fmat(l1,l3)*&
-   !                     &conjg(fmat(l2,l3)))
-   !             enddo
-   !         enddo
-   !     enddo
-
-
-            ! test that the new density matrix fulfills the Cauchy-Schwarz inequality
-            ! |d_pq| =< (|d_pp||d_qq|)^(-1/2)
-           do l1=1,norb
-                do l2=1,norb
-                    cauchyschwarz = sqrt(abs(real(dmat(l1,l1),dp))*abs(real(dmat(l2,l2),dp)))
-                    if (abs(cauchyschwarz).lt.abs(real(dmat(l2,l1),dp))) then
-                        write(6,*) 'Cauchy-Schwarz is violated:',dmat(l2,l1),dmat(l2,l2),&
-                        &dmat(l1,l1),cauchyschwarz
-                    endif
-                enddo
-            enddo
-
-            ! find natural orbitals
-            nos = real(dmat,dp)
-            call dsyev('V','U',norb,nos,norb,no_occ,norrscr,rlscr,ierr)
-            if (ierr.ne.0) then
-                stop 'Error diagonalising nos'
-            endif
-     
-            write(6,*) 'Natural Orbitals:'
-            do l1=1,norb
-                write(6,*) l1
-                do l2=1,norb
-                    write(6,*) l2,nos(l2,l1)
-                enddo
-            enddo
-
-            write(6,*) 'Occupation numbers:'
-            do l1=1,norb
-                write(6,*) l1,no_occ(l1)
-            enddo
-
-            write(6,*) 'Sum of natural orbital occupation numbers:',sum(no_occ)
-
-            ! calculate energy
-            energy = 0.0_dp
-            do l1=1,norb
-                do l2=1,norb
-                    do l3=1,norb
-                        do l4=1,norb
-                            ! Coulomb energy
-                            energy = energy + (dmat(l4,l2)*dmat(l3,l1)*umat(l4,l3,l2,l1))
-                            ! Exchange energy
-                            energy = energy - (0.5_dp*dmat(l4,l2)*&
-                                    &dmat(l3,l1)*umat(l4,l3,l1,l2))
-                        enddo
-                    enddo
-                enddo
-            enddo
-            energy = 0.5_dp*energy
-
-            ! kinetic energy
-            do l1=1,norb
-                do l2=1,norb
-                    energy = energy + (dmat(l2,l1)*tmat(l2,l1))
-                enddo
-            enddo
-
-
-            write(6,*) 'The new HF energy is:',energy
-
-            energies(l5) = energy
-
-        enddo
-        
-        write(6,*) '---------------------------------------------------------'
-        write(6,*) 'The HF energy E(alpha) is: (alpha,E(alpha))'
-        do l1=1,200
-            write(6,*) l1,alpha(l1),energies(l1)
-        enddo
-
-        ! choose the alpha which gives the lowest energy
-        minenergy = minval(real(energies,dp))
-        minenergyloc = minloc(real(energies,dp))
-        
-
-        write(6,*) '-------------------------------------------------------------'
-        write(6,*) 'Choosing the transformation giving the energy:',minenergyloc,minenergy
-        ! comput transformation
-        call TransformFromGradient(cmat,grade1,alpha(minenergyloc(1)))
-
-        amat = cmat
-        ! values of alpha to consider in R = exp(-alpha X)
-        alpha(:) = 0.0_dp
-        alpha(1) = -2.0_dp
-        do l1=2,200
-            alpha(l1) = alpha(l1-1) + 0.02_dp
-        enddo
-
-        energy_old = energy
-
-        ! find gradient at this new point
-        write(6,*) 'Evaluating electronic gradient at this point...'
-        call FindGradient(amat,grade1,grade2)
-
-        ! update coefficients of basis set
-        hfcoeffs = amat
-
-        ! proceed via steepest descent until the change in the gradient is small
-        ! and either a diis or a newton-raphson approach is better
-
-        do
-
-            ! calculate energy as a function of alpha
-            do l5=1,200
-
-                write(6,*) 'Value for parameter alpha',alpha(l5)
-            
-                call TransformFromGradient_Complex(cmat,grade1,alpha(l5))
-               
-               ! since the transform one electron integrals
-                ! tmat needs to be transformed as well
-                amat(:,:) = 0.0_dp
-                ! a_ij = r_ij C)jk
-                call zgemm('T','N',norb,norb,norb,(1.0_dp,0.0_dp),cmat,norb,&
-                &hfcoeffs,norb,(0.0_dp,0.0_dp),amat,norb)
-                
-
-                ! construct density matrix
-                dmat(:,:) = 0.0_dp
-                do l1=1,norb
-                    do l2=1,norb
-                        do l3=1,(nelec/2)
-                            dmat(l2,l1) = dmat(l2,l1) + (2.0_dp*amat(l1,l3)*&
-                                &conjg(amat(l2,l3)))
-                        enddo
-                    enddo
-                enddo
-
-                write(6,*) 'Density matrix for transformed orbitals'
-                do l1=1,norb
-                    do l2=1,norb
-                        write(6,*) l2,l1,dmat(l2,l1)
-                    enddo
-                enddo
-
-                ! if the fock matrix is to be evaluated at this point
-
-       !         ! fock matrix
-       !         fmat(:,:) = 0.0_dp
-       !         do l1=1,norb
-       !             do l2=1,norb
-       !                 do l3=1,norb
-   !                     do l4=1,norb
-   !                         fmat(l2,l1) = fmat(l2,l1) + (dmat(l3,l4)*&
-   !                             &(umat(l2,l3,l1,l4)-(0.5_dp*umat(l2,l3,l4,l1))))
-   !                     enddo
-   !                 enddo
-   !             enddo
-   !         enddo
-
-   !         fmat = fmat + tmat
-   !         call zheev('V','U',norb,fmat,norb,fevals,rrscr,rlscr,rrlscr,ierr)
-   !         if (ierr.ne.0) then
-   !             stop 'Error diagonalising fmat'
-   !         endif
-
-   !         write(6,*) 'Eigenvectors of fock matrix:'
-   !         do l1=1,norb
-   !             write(6,*) l1
-   !             do l2=1,norb
-   !                 write(6,*) l2,fmat(l2,l1)
-   !             enddo
-   !         enddo
-
-   !         write(6,*) 'Eigenvalues of fock matrix'
-   !         do l1=1,norb
-   !             write(6,*) l1,fevals(l1)
-   !         enddo
-   !  
-   !         ! construct density matrix
-   !         hfdmat(:,:) = 0.0_dp
-   !         do l1=1,norb
-   !             do l2=1,norb
-   !                 do l3=1,(nelec/2)
-   !                     hfdmat(l2,l1) = hfdmat(l2,l1) + (2.0_dp*fmat(l1,l3)*&
-   !                         &conjg(fmat(l2,l3)))
-   !                 enddo
-   !             enddo
-   !         enddo
-
-
-                ! test that density matrix fulfills Cauchy-Schwarz inequality
-                ! |d_pq| =< (|d_pp||d_qq|)^(-1/2)
-     
-                do l1=1,norb
-                    do l2=1,norb
-                        cauchyschwarz = sqrt(abs(real(dmat(l1,l1),dp))*abs(real(dmat(l2,l2),dp)))
-                        if (abs(cauchyschwarz).lt.abs(real(dmat(l2,l1),dp))) then
-                            write(6,*) 'Cauchy-Schwarz is violated!',dmat(l2,l1),dmat(l2,l2),&
-                            &dmat(l1,l1),cauchyschwarz
-                        endif
-                    enddo
-                enddo
-
-                ! find natural orbitals
-                nos = real(dmat,dp)
-                call dsyev('V','U',norb,nos,norb,no_occ,norrscr,rlscr,ierr)
-                if (ierr.ne.0) then
-                    stop 'Error diagonalising nos'
-                endif
-
-                write(6,*) 'Natural Orbitals:'
-                do l1=1,norb
-                    write(6,*) l1
-                    do l2=1,norb
-                        write(6,*) l2,nos(l2,l1)
-                    enddo
-                enddo
-
-                write(6,*) 'Occupation numbers:'
-                do l1=1,norb
-                    write(6,*) l1,no_occ(l1)
-                enddo
-
-                write(6,*) 'Sum of natural orbital occupation numbers:',sum(no_occ)
-
-                ! calculate energy   
-                energies(l5) = 0.0_dp
-                do l1=1,norb
-                    do l2=1,norb
-                        do l3=1,norb
-                            do l4=1,norb
-                                ! Coulomb energy
-                                energies(l5) = energies(l5) + (dmat(l4,l2)*dmat(l3,l1)*umat(l4,l3,l2,l1))
-                                ! exchange energy
-                                energies(l5) = energies(l5) - (0.5_dp*dmat(l4,l2)*&
-                                    &dmat(l3,l1)*umat(l4,l3,l1,l2))
-                            enddo
-                        enddo
-                    enddo
-                enddo
-                energies(l5) = 0.5_dp*energies(l5)
-
-                ! kinetic energy
-                do l1=1,norb
-                    do l2=1,norb
-                        energies(l5) = energies(l5) + (dmat(l2,l1)*tmat(l2,l1))
-                    enddo
-                enddo
-
-            enddo
-
-            write(6,*) '--------------------------------------------------------------'
-
-            write(6,*) 'The HF energy E(alpha) is: (alpha,E(alpha))'
-            do l1=1,200
-                write(6,*) l1,alpha(l1),energies(l1)
-            enddo
-
-            ! choose the alpha which gives the lowest energy
-            minenergy = minval(real(energies,dp))
-            minenergyloc = minloc(real(energies,dp))
-            
-
-            ! only go downhill
-            if (minenergy.gt.real(energy_old,dp)) then
-                write(6,*) 'Energy increases: stopping steepest-descent method'
-                exit
-            endif
-
-            write(6,*) '-------------------------------------------------------------'
-            write(6,*) 'Choosing the transformation giving the energy:',minenergyloc,minenergy
-            ! comput transformation
-            call TransformFromGradient(cmat,grade1,alpha(minenergyloc(1)))
-        
-            ! since the transform one electron integrals
-            ! tmat needs to be transformed as well
-            amat(:,:) = 0.0_dp
-            ! a_ij = r_ij C)jk
-            call zgemm('T','N',norb,norb,norb,(1.0_dp,0.0_dp),cmat,norb,&
-            &hfcoeffs,norb,(0.0_dp,0.0_dp),amat,norb)
-
-            hfcoeffs = amat
-             ! construct density matrix
-            dmat(:,:) = 0.0_dp
-            do l1=1,norb
-                do l2=1,norb
-                    do l3=1,(nelec/2)
-                        dmat(l2,l1) = dmat(l2,l1) + (2.0_dp*amat(l1,l3)*&
-                            &conjg(amat(l2,l3)))
-                    enddo
-                enddo
-            enddo
-
-
-            write(6,*) 'Density matrix for transformed orbitals'
-            do l1=1,norb
-                do l2=1,norb
-                    write(6,*) l2,l1,dmat(l2,l1)
-                enddo
-            enddo
-            ! find natural orbitals
-            nos = real(dmat,dp)
-            call dsyev('V','U',norb,nos,norb,no_occ,norrscr,rlscr,ierr)
-            if (ierr.ne.0) then
-                stop 'Error diagonalising nos'
-            endif
-
-            write(6,*) 'Natural Orbitals:'
-            do l1=1,norb
-                write(6,*) l1
-                do l2=1,norb
-                    write(6,*) l2,nos(l2,l1)
-                enddo
-            enddo
-
-            write(6,*) 'Occupation numbers:'
-            do l1=1,norb
-                write(6,*) l1,no_occ(l1)
-            enddo
-
-            write(6,*) 'Sum of natural orbital occupation numbers:',sum(no_occ)
-
-
-            ! decrease in energy is only small and continuation with another method would be
-            ! better
-            if (abs(energy_old - minenergy).lt.1e-5_dp) then
-                write(6,*) 'Decrease in energy is only small: stopping &
-                    &steepest-descent method'
-                exit
-            endif
-
-            energy_old = minenergy
-
-        enddo
-
-        coeffs = real(amat,dp)
-
-        ! final coefficients
-        write(6,*) '--------------------------------------------------------------------'
-        write(6,*) 'The final coefficients:'
-
-        do l1=1,norb
-            do l2=1,norb
-                write(6,*) l2,l1,coeffs(l2,l1)
-            enddo
-        enddo
-
-        deallocate(amat)
-        !deallocate(fmat)
-        !deallocate(fevals)
-        deallocate(nos)
-        deallocate(hfcoeffs)
-        deallocate(no_occ)
-        deallocate(dmat)
-        deallocate(alpha)
-        deallocate(energies)
-        deallocate(norrscr)
-
-    end subroutine SteepestDescent
-
-
-    subroutine NewtonRaphson(cmat,g1,g2)
-
-        ! This subroutine is to apply a Newton-Raphson approach in order to find a 
-        ! minimum
-        ! using X = -(H-fI)^-1 g
-        ! where g is the gradient, H the hessian, I the identity and f and shift
-        ! parameter in order to deal with zero eigenvalues of the Hessian
+    subroutine NewtonRaphson_EigenVec_2(cmat,g1,g2)
+
+        ! This subroutine is to apply an Eigenvector-Following approach in order to find a 
+        ! minimum via a transformation x
+        ! using the augmented Hessian and solving the eigenvalue problem
+        ! (H   g) (X)           (x)
+        ! (g^T 0) (1) = \lambda (1)
+        ! where g is the gradient transformed into local hessian modes
+        ! H the hessian in diagonal form
+        ! such that the kth mode is being followed
+        ! lambda_k = b_k/2 +/- 0.5*((b_k^2) + (4*f_k^2)^(1/2)
+        ! where b_k is the eigenvalue of the kth mode which is being followed and 
+        ! f_k is the respective element of the transformed gradient vector
+        ! + is for maximisation and - for minimisation along the kth mode
 
         complex(dp), allocatable, intent(in) :: g1(:,:),g2(:,:,:,:)
         complex(dp), allocatable, intent(inout) :: cmat(:,:)
-        real(dp), allocatable :: hessian(:,:),gradient(:),xmat(:)
+        real(dp), allocatable :: hessian(:,:),gradient(:)
         real(dp), allocatable :: rrscr(:),hessian_evals(:),hessian_eigenvec(:,:)
-        real(dp), allocatable :: hessian_coeffs(:),xfromh(:)
-        real(dp), allocatable :: inversehessian(:,:),test(:,:)
-        integer :: l1,l2,l3,l4,ierr,m,n,nexcit,lrscr
-        real(dp) :: mineval
+        real(dp), allocatable :: xfromh(:)
+        real(dp), allocatable :: transformg(:,:)
+        real(dp), allocatable :: aughessian(:,:),aughessian_eigenvec(:,:)
+        real(dp), allocatable :: aughessian_evals(:),augrrscr(:)
+        real(dp), allocatable :: inversehessian(:,:),temp(:)
+        integer :: l1,l2,l3,l4,ierr,m,n,nexcit,lrscr,auglrscr
 
         ! number of matrix elements
         nexcit = norb*norb
         lrscr = 4*nexcit
+        auglrscr = 4*(nexcit+1)
 
         write(6,*) '-----------------------------------------------------------'
-        write(6,*) 'Newton-Raphson Step for finding a minima in the HF energy'
+        write(6,*) 'Eigenvector-Following Step for finding a minimum in the HF energy'
         write(6,*) '-----------------------------------------------------------'
 
         allocate(hessian(nexcit,nexcit),stat=ierr)
@@ -3952,10 +3614,31 @@ contains
         if (ierr.ne.0) then
             stop 'Error allocating xfromh'
         endif
-        allocate(test(nexcit,nexcit),stat=ierr)
+        allocate(aughessian((nexcit+1),(nexcit+1)),stat=ierr)
         if (ierr.ne.0) then
-            stop 'Error allocating test'
+            stop 'Error allocating aughessian'
         endif
+        allocate(aughessian_eigenvec((nexcit+1),(nexcit+1)),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating aughessian_eigenvec'
+        endif
+        allocate(aughessian_evals((nexcit+1)),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating aughessian_evals'
+        endif
+        allocate(augrrscr(auglrscr),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating augrrscr'
+        endif
+        allocate(transformg(nexcit,nexcit),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating transformg'
+        endif
+        allocate(temp(nexcit),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating temp'
+        endif
+
 
         ! Hessian iswritten in supermatrix form
         hessian(:,:) = 0.0_dp
@@ -4021,7 +3704,10 @@ contains
             enddo
         enddo
 
-        ! Hessian should be positive semi-definite 
+        write(6,*) '--------------------------------------------------'
+
+        ! Hessian should be positive semi-definite if the solution is to be stable
+        ! diagonalise hessian
         hessian_eigenvec = hessian
         call dsyev('V','U',nexcit,hessian_eigenvec,nexcit,&
             &hessian_evals,rrscr,lrscr,ierr)
@@ -4042,45 +3728,62 @@ contains
             write(6,*) l1,hessian_evals(l1)
         enddo
 
-        mineval = abs(minval(hessian_evals)) + 2.0_dp
 
+        temp(:) = 0.0_dp
+        call dgemv('T',nexcit,nexcit,1.0_dp,hessian_eigenvec,nexcit,&
+        &gradient,1,0.0_dp,temp,1)
 
-        ! x = (H-yI)^-1 g
-        inversehessian(:,:) = 0.0_dp
+        write(6,*) 'Gradient transformed into local hessian modes:'
         do l1=1,nexcit
-            ! use (e + v)^-1 to deal with zero eigenvalues
-            inversehessian(l1,l1) = 1.0_dp/(hessian_evals(l1) + mineval)
+            write(6,*) l1,temp(l1)
         enddo
 
-        test(:,:) = 0.0_dp
-        call dgemm('N','T',nexcit,nexcit,nexcit,1.0_dp,inversehessian,nexcit,&
-        &hessian_eigenvec,nexcit,0.0_dp,test,nexcit)
-        inversehessian(:,:) = 0.0_dp
-        call dgemm('N','N',nexcit,nexcit,nexcit,1.0_dp,hessian_eigenvec,nexcit,&
-        &test,nexcit,0.0_dp,inversehessian,nexcit)
-
-        write(6,*) '----------------------------------------------------------'
-        write(6,*) 'The inverse Hessian:'
+        ! form augmented hessian
+        aughessian(:,:) = 0.0_dp
         do l1=1,nexcit
-            do l2=1,nexcit
-                write(6,*) l2,l1,inversehessian(l2,l1)
+            aughessian(l1,l1) = hessian_evals(l1)
+            aughessian(l1,(nexcit+1)) = temp(l1)
+            aughessian((nexcit+1),l1) = temp(l1)
+        enddo
+
+        aughessian_eigenvec = aughessian
+
+        call dsyev('V','U',(nexcit+1),aughessian_eigenvec,(nexcit+1),&
+            &aughessian_evals,augrrscr,auglrscr,ierr)
+        if (ierr.ne.0) then
+            stop 'Error diagonalising augmented Hessian'
+        endif
+
+        write(6,*) 'Eigenvectors of augmented Hessian:'
+        do l1=1,(nexcit+1)
+            write(6,'(I5)') l1
+            do l2=1,(nexcit+1)
+                write(6,*) l2,aughessian_eigenvec(l2,l1)
             enddo
         enddo
 
-        inversehessian = -1.0_dp*inversehessian
+        write(6,*) 'Eigenvalues of augmented Hessian:'
+        do l1=1,(nexcit+1)
+            write(6,*) l1,aughessian_evals(l1)
+        enddo
 
+        ! calculate transformation vector
+        ! x = - F_i V_i/(b_i - lambda)
+        ! where V_i is the eigenvector of the hessian, b_i its eigenvalues
+        ! lambda its lambda value and F_i the gradient component in local hessian 
+        ! modes
         xfromh(:) = 0.0_dp
-        call dgemv('T',nexcit,nexcit,1.0_dp,inversehessian,nexcit,&
-        &gradient,1,0.0_dp,xfromh,1)
+        do l1=1,nexcit
+            do l2=1,nexcit
+                if ((abs(hessian_eigenvec(l1,l2)).lt.1e-8_dp).or.&
+                    &(abs(temp(l2)).lt.1e-8_dp)) cycle
+                xfromh(l1) = xfromh(l1) + (temp(l2)*hessian_eigenvec(l1,l2)/&
+                    &(aughessian_evals(1)-hessian_evals(l2)))
+            enddo
+        enddo
 
-       ! write(6,*) 'X-vector'
-       ! do l1=1,nexcit
-       !     if (abs(xfromh(l1)).gt.1e-12_dp) then
-       !         write(6,*) l1,xfromh(l1)
-       !     endif
-       ! enddo
 
-
+        ! return coefficients
         cmat(:,:) = 0.0_dp
         m = 0
         do l1=1,norb
@@ -4089,6 +3792,7 @@ contains
                 cmat(l2,l1) = xfromh(m)
             enddo
         enddo
+
 
         write(6,*) '---------------------------------------------------------'
         write(6,*) 'The final transformation coefficients are:'
@@ -4100,30 +3804,42 @@ contains
 
         write(6,*) '----------------------------------------------------------'
 
+
         deallocate(gradient)
+        deallocate(rrscr)
         deallocate(hessian_eigenvec)
         deallocate(hessian_evals)
         deallocate(xfromh)
-        deallocate(test)
         deallocate(inversehessian)
+        deallocate(aughessian)
+        deallocate(aughessian_eigenvec)
+        deallocate(aughessian_evals)
+        deallocate(augrrscr)
+        deallocate(temp)
         deallocate(hessian)
         
-    end subroutine NewtonRaphson
+    end subroutine NewtonRaphson_EigenVec_2
 
-    subroutine PerformNewtonRaphson(cmat,g1,g2)
+    subroutine PerformNewtonRaphson_EigenVec_2(cmat,g1,g2)
 
         ! This subroutine is to perform several Newton Raphson steps in a
         ! row in order to find a new minimum
+        ! this routine uses the eigenvector-following algorithm
 
         complex(dp), allocatable, intent(inout) :: cmat(:,:),g1(:,:)
         complex(dp), allocatable, intent(inout) :: g2(:,:,:,:)
         complex(dp), allocatable :: transcoeffs(:,:),originalcoeffs(:,:)
-        complex(dp), allocatable :: xmat(:,:),dmat(:,:),e1(:,:)
+        complex(dp), allocatable :: xmat(:,:),dmat(:,:)!,e1(:,:)
         complex(dp), allocatable :: nos(:,:)
         real(dp), allocatable :: no_occ(:)
-        real(dp), allocatable :: norrscr(:),nolrscr(:)
-        complex(dp) :: energy,energy_old,sumgradient
-        integer :: l1,l2,l3,l4,ierr,iter,rlscr
+        complex(dp), allocatable :: norrscr(:)
+        real(dp), allocatable :: nolrscr(:)
+        real(dp) :: mineval
+        real(dp) :: steps1(800),steps(800),stepsin(800),energies(800)
+        integer :: minindex(1)
+        complex(dp) :: energy,energy_old,energies1
+        complex(dp) :: sumgradient,sumhessian
+        integer :: l1,l2,l3,l4,l5,ierr,iter,rlscr
 
         rlscr = 4*norb
         allocate(transcoeffs(norb,norb),stat=ierr)
@@ -4141,10 +3857,6 @@ contains
         allocate(dmat(norb,norb),stat=ierr)
         if (ierr.ne.0) then
             stop 'Error allocating dmat'
-        endif
-        allocate(e1(norb,norb),stat=ierr)
-        if (ierr.ne.0) then
-            stop 'Error allocating e1'
         endif
         allocate(norrscr(rlscr),stat=ierr)
         if (ierr.ne.0) then
@@ -4166,7 +3878,8 @@ contains
 
 
         write(6,*) '------------------------------------------------------------'
-        write(6,*) 'Performing a Newton-Raphson iteration scheme'
+        write(6,*) 'Performing an Eigenvector-Following iteration scheme'
+        write(6,*) 'for finding a minimum`'
         write(6,*) '------------------------------------------------------------'
 
 
@@ -4207,10 +3920,26 @@ contains
             enddo
         enddo
 
+        energy = energy + ecore
 
         write(6,*) 'The original HF energy is:',energy
         energy_old = energy
 
+        ! if system has been moved away from HF solution
+        steps1(:) = 0.0_dp
+        steps1(1) = -5.0_dp
+        do l1=2,800
+            steps1(l1) = steps1(l1-1) + 0.1_dp
+        enddo
+
+        steps(:) = 0.0_dp
+        steps(1) = -5.0_dp
+        do l1=2,800
+            steps(l1) = steps(l1-1) + 0.01_dp
+        enddo
+
+
+        !step = -0.1_dp
         iter = 0
         transcoeffs = originalcoeffs
 
@@ -4221,33 +3950,101 @@ contains
             originalcoeffs = transcoeffs
             cmat = transcoeffs
 
+            if (iter.eq.1) then
+                stepsin = steps1
+            else
+                stepsin = steps
+            endif
+
+
             write(6,*) '--------------------------------------------------------------'
             write(6,*) 'Iteration:',iter
-            write(6,*) 'Performing Newton-Raphson step...'
+            write(6,*) 'Performing Eigenvector-Following step...'
             ! Evaluate the gradient at this point
             call FindGradient(cmat,g1,g2)
+            ! calculate the sum of the gradient and hessian elements
+            sumgradient = sum(abs(g1))
+            sumhessian = sum(abs(g2))
+
             ! perform a Newton Raphson step
-            call NewtonRaphson(cmat,g1,g2)
+            call NewtonRaphson_EigenVec_2(cmat,g1,g2)
+            !call NewtonRaphson(cmat,g1,g2)
             xmat = cmat
+
+            do l5=1,800
+                ! find rotation matrix
+                call TransformFromGradient(cmat,xmat,stepsin(l5))
+                
+                ! perform rotation
+                call zgemm('T','N',norb,norb,norb,(1.0_dp,0.0_dp),cmat,norb,&
+                &originalcoeffs,norb,(0.0_dp,0.0_dp),transcoeffs,norb)
+
+               ! calculate original HF energy (assuming HF basis set)
+                ! construct density matrix
+                dmat(:,:) = 0.0_dp
+                do l1=1,norb
+                    do l2=1,norb
+                        do l3=1,(nelec/2)
+                            dmat(l2,l1) = dmat(l2,l1) + (2.0_dp*transcoeffs(l1,l3)*&
+                                &conjg(transcoeffs(l2,l3)))
+                        enddo
+                    enddo
+                enddo
+
+                energies1 = 0.0_dp
+                do l1=1,norb
+                    do l2=1,norb
+                        do l3=1,norb
+                            do l4=1,norb
+                                ! coulomb integral
+                                energies1 = energies1 + (dmat(l4,l2)*dmat(l3,l1)*umat(l4,l3,l2,l1))
+                                ! exchange integral
+                                energies1 = energies1 - (0.5_dp*dmat(l4,l2)*&
+                                    &dmat(l3,l1)*umat(l4,l3,l1,l2))
+                            enddo
+                        enddo
+                    enddo
+                enddo
+                energies1 = 0.5_dp*energies1
+
+                ! kinetic energy
+                do l1=1,norb
+                    do l2=1,norb
+                        energies1 = energies1 + (dmat(l2,l1)*tmat(l2,l1))
+                    enddo
+                enddo
+
+                energies(l5) = real(energies1,dp) + ecore
+
+            enddo
+
+            ! chose a value
+            mineval = minval(energies)
+            minindex = minloc(energies)
+
+            writE(6,*) '---------------------------------------------------'
+            write(6,*) 'Step-sizes and energies'
+            do l1=1,800
+                write(6,*) l1,stepsin(l1),energies(l1)
+            enddo
+
+            write(6,*) 'Choosing the following value for the step-size:'
+            write(6,*) minindex(1),stepsin(minindex(1)),energies(minindex(1))
+            write(6,*) '-------------------------------------------------------'
+            
             ! find rotation matrix
-            call TransformFromGradient(cmat,xmat,-0.1_dp)
+            call TransformFromGradient(cmat,xmat,stepsin(minindex(1)))
 
             ! perform rotation
             call zgemm('T','N',norb,norb,norb,(1.0_dp,0.0_dp),cmat,norb,&
             &originalcoeffs,norb,(0.0_dp,0.0_dp),transcoeffs,norb)
 
-            write(6,*) 'New coefficients after the transformation'
+            write(6,*) 'New coefficients after the transformation:'
             do l1=1,norb
                 do l2=1,norb
                     write(6,*) l2,l1,transcoeffs(l2,l1)
                 enddo
             enddo
-
-    !        ! evaluate energy from E(X) = E(0) + (g^T X) + (1/2 X^T H X)
-    !        e1(:,:) = 0.0_dp
-    !        call zgemm('T','N',norb,norb,norb,(1.0_dp,0.0_dp),g1,norb,&
-    !        &xmat,norb,(0.0_dp,0.0_dp),e1,norb)
-
 
 
             ! calculate enegy using closed shell expression
@@ -4282,8 +4079,13 @@ contains
                 write(6,*) l1,no_occ(l1)
             enddo
 
+            write(6,*) '---------------------------------------------------------'
             write(6,*) 'Sum of natural orbital occupation numbers:',sum(no_occ)
-
+            write(6,*) 'Maximum absolute element of gradient matrix:',&
+                &maxval(abs(real(g1,dp)))
+            write(6,*) 'Sum of absolute matrix elements of gradient and hessian:'
+            write(6,*) sumgradient,sumhessian
+            write(6,*) '----------------------------------------------------------'
  
             energy = 0.0_dp
             do l1=1,norb
@@ -4308,14 +4110,22 @@ contains
                 enddo
             enddo
 
-            write(6,*) 'The HF energy of the previous iteration is:',energy_old
-            write(6,*) 'The new HF energy is:', energy
+            energy = energy + ecore
 
-            if (abs(energy_old-energy).lt.1e-8_dp) then
-                write(6,*) 'HF energy of previous and current iteration:'
-                write(6,*) energy_old,energy
+            write(6,*) 'The HF energy of the previous iteration:',energy_old
+            write(6,*) 'The new HF energy:', energy
+
+
+            if (abs(energy_old-energy).lt.1e-12_dp) then
                 write(6,*) 'Convergence achieved !'
                 write(6,*) 'Stopping calculation !'
+                write(6,*) 'HF energy of previous and final iteration:'
+                write(6,*) energy_old,energy
+                write(6,*) 'Maximum residual absolute matrix element of gradient:',&
+                    &maxval(abs(g1))
+                write(6,*) 'Total sum of residual absolute value of gradient and hessian &
+                    &matrix elements:'
+                write(6,*) sumgradient,sumhessian
                 exit
             endif
 
@@ -4326,8 +4136,8 @@ contains
         ! return coefficients
         cmat = transcoeffs
 
+
         deallocate(dmat)
-        deallocate(e1)
         deallocate(xmat)
         deallocate(transcoeffs)
         deallocate(nos)
@@ -4336,6 +4146,2314 @@ contains
         deallocate(nolrscr)
         deallocate(originalcoeffs)
 
-    end subroutine PerformNewtonRaphson
+    end subroutine PerformNewtonRaphson_EigenVec_2
+
+
+    subroutine ErrorGradientHessian(coeffs)
+
+        ! this subroutine calculates the error in the gradient when it is
+        ! evaluated exactly and using a finite difference method, the error is evaluated
+        ! as a function of the size of an element p,q in the gradient/hessian matrix
+
+        complex(dp), allocatable, intent(in) :: coeffs(:,:)
+        complex(dp), allocatable :: stepspq(:),temptrans(:,:)
+        complex(dp), allocatable :: exactgrad(:,:),numgrad(:,:),numgradback(:,:)
+        complex(dp), allocatable :: numgradcenter(:,:)
+        complex(dp), allocatable :: gradcoeffs(:,:),gradcoeffsback(:,:)
+        complex(dp), allocatable :: dmatorig(:,:),dmatnum(:,:),dmatnumback(:,:)
+        complex(dp) :: energy_original,energy_num,energy_numback
+        complex(dp), allocatable :: exacthess(:,:,:,:)
+        complex(dp), allocatable :: energiesfor(:,:),energiesback(:,:)
+        complex(dp), allocatable :: errorgradient(:,:),errorgradientback(:,:)
+        complex(dp), allocatable :: errorgradientcenter(:,:)
+        integer, allocatable :: p(:),q(:)
+        integer :: l1,l2,l3,l4,l5,l6,l7,ierr,nsteps,m,n
+
+        ! number of matrix elements to consider
+        nsteps = (nelec/2)*(norb-(nelec/2))
+
+        allocate(stepspq(235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating stepspq'
+        endif
+        allocate(p(nelec/2),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating p'
+        endif
+        allocate(q(norb-(nelec/2)),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating q'
+        endif
+        allocate(exactgrad(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating exactgrad'
+        endif
+        allocate(numgrad(nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating numgrad'
+        endif
+        allocate(exacthess(norb,norb,norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating exacthess'
+        endif
+        allocate(temptrans(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating temptrans'
+        endif
+        allocate(gradcoeffs(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating gradcoeffs'
+        endif
+        allocate(dmatorig(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating dmatorig'
+        endif
+        allocate(dmatnum(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating dmatnum'
+        endif
+        allocate(errorgradient(nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating errorgradient'
+        endif
+        allocate(gradcoeffsback(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating gradcoeffsback'
+        endif
+        allocate(dmatnumback(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating dmatnum'
+        endif
+        allocate(numgradback(nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating numgradback'
+        endif
+        allocate(errorgradientback(nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating errorgradientback'
+        endif
+        allocate(energiesfor(nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating energiesfor'
+        endif
+        allocate(energiesback(nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating energiesback'
+        endif
+        allocate(numgradcenter(nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating numgradcenter'
+        endif
+        allocate(errorgradientcenter(nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating errorgradientcenter'
+        endif
+ 
+
+        write(6,*) '------------------------------------------------------------------'
+        write(6,*) 'Evaluating error in gradient and hessian as a function of '
+        write(6,*) 'size of matrix elements'
+        write(6,*) '------------------------------------------------------------------'
+
+        ! generate the steps by which the elements of the gradient/hessian matrix are 
+        ! increased
+        stepspq(:) = 1.0_dp
+        stepspq(1) = 10.0_dp
+        ! these points are only relevant for the behaviour of the energy
+        do l1=2,91
+            stepspq(l1) = stepspq(l1-1) - 0.1_dp
+        enddo
+        ! these points are relevant for the gradient
+        do l1=92,235
+            if (mod(l1,9).eq.2) then
+                stepspq(l1) = 9.0_dp*stepspq(l1-1)/10.0_dp
+            elseif (mod(l1,9).eq.3) then
+                stepspq(l1) = 8.0_dp*stepspq(l1-1)/9.0_dp
+            elseif (mod(l1,9).eq.4) then
+                stepspq(l1) = 7.0_dp*stepspq(l1-1)/8.0_dp
+            elseif (mod(l1,9).eq.5) then
+                stepspq(l1) = 6.0_dp*stepspq(l1-1)/7.0_dp
+            elseif (mod(l1,9).eq.6) then
+                stepspq(l1) = 5.0_dp*stepspq(l1-1)/6.0_dp
+            elseif (mod(l1,9).eq.7) then
+                stepspq(l1) = 4.0_dp*stepspq(l1-1)/5.0_dp
+            elseif (mod(l1,9).eq.8) then
+                stepspq(l1) = 3.0_dp*stepspq(l1-1)/4.0_dp
+            elseif (mod(l1,9).eq.0) then
+                stepspq(l1) = 2.0_dp*stepspq(l1-1)/3.0_dp
+            elseif (mod(l1,9).eq.1) then
+                stepspq(l1) = stepspq(l1-1)/2.0_dp
+            endif
+        enddo
+
+        write(6,*) 'Step sizes taken for each element'
+        do l1=1,235
+            write(6,*) l1,stepspq(l1)
+        enddo
+
+        ! set elements of gradien/hessian matrix whose step size should be incremented
+        ! only non-redundant rotations need to be considered, i.e. those between occupied
+        ! and unoccupied orbitals
+        p(:) = 0
+        q(:) = 0
+        do l1=1,(nelec/2)
+            p(l1) = l1
+        enddo
+        do l1=1,((norb-(nelec/2)))
+            q(l1) = (nelec/2) + l1
+        enddo
+
+        ! calculate energy at this original point
+        ! density matrix
+        dmatorig(:,:) = 0.0_dp
+        do l1=1,norb
+            do l2=1,norb
+                do l3=1,(nelec/2)
+                    dmatorig(l2,l1) = dmatorig(l2,l1) + (2.0_dp*coeffs(l1,l3)*&
+                        &conjg(coeffs(l2,l3)))
+                enddo
+            enddo
+        enddo
+
+        energy_original = 0.0_dp
+        do l1=1,norb
+            do l2=1,norb
+                do l3=1,norb
+                    do l4=1,norb
+                        ! coulomb integral
+                        energy_original = energy_original + (dmatorig(l4,l2)*dmatorig(l3,l1)*&
+                            &umat(l4,l3,l2,l1))
+                        ! exchange integral
+                        energy_original = energy_original - (0.5_dp*dmatorig(l4,l2)*&
+                            &dmatorig(l3,l1)*umat(l4,l3,l1,l2))
+                    enddo
+                enddo
+            enddo
+        enddo
+
+        energy_original = 0.5_dp*energy_original + ecore
+
+        ! kinetic energy
+        do l1=1,norb
+            do l2=1,norb
+                energy_original = energy_original + (dmatorig(l2,l1)*tmat(l2,l1))
+            enddo
+        enddo
+
+        write(6,*) '---------------------------------------------------------------'
+        write(6,*) 'Original HF energy:',energy_original
+        write(6,*) '----------------------------------------------------------------'
+
+        write(6,*) 'Evaluating numerical gradient for an non-redunant rotations and &
+            &step sizes'
+
+        energiesfor(:,:) = 0.0_dp
+        energiesback(:,:) = 0.0_dp
+
+        m = 0
+        do l5=1,(nelec/2)
+            do l6=1,(norb-(nelec/2))
+                m = m + 1
+                do l7=1,235
+                    ! steps in gradient
+                    temptrans(:,:) = 0.0_dp
+                    exactgrad(:,:) = 0.0_dp
+                    exacthess(:,:,:,:) = 0.0_dp
+                    exactgrad(p(l5),q(l6)) = stepspq(l7)
+                    exactgrad(q(l6),p(l5)) = -stepspq(l7)
+
+                    write(6,*) '----------------------------------------------------------'
+                    write(6,*) 'Evaluating gradient for matrix elements',p(l5),q(l6)
+                    write(6,*) 'using a step size of',stepspq(l7)
+
+                    ! obtain transformation corresponding to gradient
+                    call TransformFromGradient(temptrans,exactgrad,-1.0_dp)
+                    gradcoeffs(:,:) = 0.0_dp
+                    call zgemm('T','N',norb,norb,norb,(1.0_dp,0.0_dp),temptrans,norb,&
+                        &coeffs,norb,(0.0_dp,0.0_dp),gradcoeffs,norb)
+
+                    ! calculate energy at this new point
+                    ! density matrix
+                    dmatnum(:,:) = 0.0_dp
+                    do l1=1,norb
+                        do l2=1,norb
+                            do l3=1,(nelec/2)
+                                dmatnum(l2,l1) = dmatnum(l2,l1) + (2.0_dp*gradcoeffs(l1,l3)*&
+                                    &conjg(gradcoeffs(l2,l3)))
+                            enddo
+                        enddo
+                    enddo
+
+                    energy_num = 0.0_dp
+                    do l1=1,norb
+                        do l2=1,norb
+                            do l3=1,norb
+                                do l4=1,norb
+                                    ! coulomb integral
+                                    energy_num = energy_num + (dmatnum(l4,l2)*dmatnum(l3,l1)*&
+                                        &umat(l4,l3,l2,l1))
+                                    ! exchange integral
+                                    energy_num = energy_num - (0.5_dp*dmatnum(l4,l2)*&
+                                        &dmatnum(l3,l1)*umat(l4,l3,l1,l2))
+                                enddo
+                            enddo
+                        enddo
+                    enddo
+
+                    energy_num = 0.5_dp*energy_num + ecore
+
+                    ! kinetic energy
+                    do l1=1,norb
+                        do l2=1,norb
+                            energy_num = energy_num + (dmatnum(l2,l1)*tmat(l2,l1))
+                        enddo
+                    enddo
+
+                    energiesfor(m,l7) = energy_num
+
+                    write(6,*) 'Energies at forward point:',energy_num
+
+                    ! the same for a backward transformation
+                    ! obtain transformation corresponding to gradient
+                    temptrans(:,:) = 0.0_dp
+                    call TransformFromGradient(temptrans,exactgrad,1.0_dp)
+                    gradcoeffsback(:,:) = 0.0_dp
+                    call zgemm('T','N',norb,norb,norb,(1.0_dp,0.0_dp),temptrans,norb,&
+                        &coeffs,norb,(0.0_dp,0.0_dp),gradcoeffsback,norb)
+
+                    ! calculate energy at this new point
+                    ! density matrix
+                    dmatnumback(:,:) = 0.0_dp
+                    do l1=1,norb
+                        do l2=1,norb
+                            do l3=1,(nelec/2)
+                                dmatnumback(l2,l1) = dmatnumback(l2,l1) + (2.0_dp*gradcoeffsback(l1,l3)*&
+                                    &conjg(gradcoeffsback(l2,l3)))
+                            enddo
+                        enddo
+                    enddo
+
+                    energy_numback = 0.0_dp
+                    do l1=1,norb
+                        do l2=1,norb
+                            do l3=1,norb
+                                do l4=1,norb
+                                    ! coulomb integral
+                                    energy_numback = energy_numback + (dmatnumback(l4,l2)*dmatnumback(l3,l1)*&
+                                        &umat(l4,l3,l2,l1))
+                                    ! exchange integral
+                                    energy_numback = energy_numback - (0.5_dp*dmatnumback(l4,l2)*&
+                                        &dmatnumback(l3,l1)*umat(l4,l3,l1,l2))
+                                enddo
+                            enddo
+                        enddo
+                    enddo
+
+                    energy_numback = 0.5_dp*energy_numback + ecore
+
+                    ! kinetic energy
+                    do l1=1,norb
+                        do l2=1,norb
+                            energy_numback = energy_numback + (dmatnumback(l2,l1)*tmat(l2,l1))
+                        enddo
+                    enddo
+
+                    energiesback(m,l7) = energy_numback
+
+                    write(6,*) 'Energy backward point:',energy_numback
+
+                    ! numerical gradient
+                    ! using forward differencing
+                    ! f'(x) = (f(x+h)-f(x))/h
+                    ! ((E(0+deltak_pq)-E(0))/deltak_pq)
+                    numgrad(m,l7) = (energy_num-energy_original)/stepspq(l7)
+
+                    ! numerical gradient
+                    ! using centered differencing
+                    ! f'(x) = (f(x+h)-f(x-h))/(2h)
+                    numgradcenter(m,l7) = (energy_num-energy_numback)/(2.0_dp*stepspq(l7))
+
+                    !numerical gradient
+                    ! using backward differencing
+                    ! f'(x) = ((f(x)-f(x-h))/h
+                    numgradback(m,l7) = (energy_original-energy_numback)/stepspq(l7)
+               enddo
+            enddo
+        enddo
+
+        write(6,*) '-----------------------------------------------------------------'
+        write(6,*) 'The energies are: number,p,q,deltapq,E(0+deltapq),E(0-deltapq),E(0)'
+        m = 0
+        do l1=1,(nelec/2)
+            do l2=1,(norb-(nelec/2))
+                m = m + 1
+                do l3=1,235
+                    write(6,*) m,p(l1),q(l2),stepspq(l3),energiesfor(m,l3),&
+                        &energiesback(m,l3),energy_original
+                enddo
+            enddo
+        enddo
+
+
+
+        write(6,*) '---------------------------------------------------------------'
+        write(6,*) 'The numerical gradients are: number,p,q,deltapq,gradient_pq (forward, &
+            &backward and centered differencing'
+        m = 0
+        do l1=1,(nelec/2)
+            do l2=1,(norb-(nelec/2))
+                m = m + 1
+                do l3=1,235
+                    write(6,*) m,p(l1),q(l2),stepspq(l3),numgrad(m,l3),numgradback(m,l3),&
+                        &numgradcenter(m,l3)
+                enddo
+            enddo
+        enddo
+
+        ! calculating the exact gradient at the original solution
+        call FindGradient(coeffs,exactgrad,exacthess)
+
+        write(6,*) '------------------------------------------------------------------'
+        write(6,*) 'The analytical gradient is:'
+        m = 0
+        do l1=1,(nelec/2)
+            do l2=1,(norb-(nelec/2))
+                m = m + 1
+                write(6,*) p(l1),q(l2),exactgrad(p(l1),q(l2))
+            enddo
+        enddo
+        
+
+        m = 0
+        do l1=1,(nelec/2)
+            do l2=1,(norb-(nelec/2))
+                m = m + 1
+                do l3=1,235
+                    errorgradient(m,l3) = numgrad(m,l3) - exactgrad(p(l1),q(l2))
+                    errorgradientback(m,l3) = numgradback(m,l3) - exactgrad(p(l1),q(l2))
+                    errorgradientcenter(m,l3) = numgradcenter(m,l3) -exactgrad(p(l1),q(l2))
+                enddo
+            enddo
+        enddo
+
+        write(6,*) '------------------------------------------------------------'
+        write(6,*) 'The errors in the numerical gradient are: number,p,q,delta_pq,error &
+            &(forward, backeard and centered differencing)'
+        m = 0
+        do l1=1,(nelec/2)
+            do l2=1,(norb-(nelec/2))
+                m = m + 1
+                do l3=1,235
+                    write(6,*) m,p(l1),q(l2),stepspq(l3),errorgradient(m,l3),&
+                        &errorgradientback(m,l3),errorgradientcenter(m,l3)
+                enddo
+            enddo
+        enddo
+
+        ! write this out in a separate file for firther analysis
+        open(9,file='Gradients_Error',status='unknown')
+        write(9,*) '# Element p, element q, Increment delta_pq, Numerical gradient (forward,&
+            & backward and centered differencing), Analytical&
+            & gradient, Error in numerical gradient (forward, backward and centered &
+            &differencing), Absolute error in numerical gradient (forward, backward&
+            & and centered differencing)'
+        m = 0
+        do l1=1,(nelec/2)
+            do l2=1,(norb-(nelec/2))
+                m = m + 1
+                do l3=1,235
+                    write(9,'(2i5,19g20.12)') p(l1),q(l2),stepspq(l3),numgrad(m,l3),&
+                        &numgradback(m,l3),numgradcenter(m,l3),exactgrad(p(l1),q(l2)),&
+                        &errorgradient(m,l3),errorgradientback(m,l3),errorgradientcenter(m,l3),&
+                        &abs(errorgradient(m,l3)),abs(errorgradientback(m,l3)),&
+                        &abs(errorgradientcenter(m,l3))
+                enddo
+                write(9,*)
+            enddo
+        enddo
+        close(9)
+
+        ! write energies into a file
+        
+        open(9,file='Energies_Gradient',status='unknown')
+        write(9,*) 'The energies are: number,p,q,deltapq,E(0+deltapq),E(0-deltapq),E(0)'
+        ! and for negative steps
+        n = 0
+        do l1=(nelec/2),1,-1
+            do l2=(norb-(nelec/2)),1,-1
+                n = n + 1
+                do l3=1,235
+                    write(9,'(3i5,8g20.12)') n,p(l1),q(l2),-stepspq(l3),energiesback(n,l3),&
+                        &energiesfor(n,l3),energy_original
+                enddo
+                write(9,'(3i5,8g20.12)') 0,p(l1),q(l2),(0.0_dp,0.0_dp),energy_original,&
+                   &energy_original,energy_original
+                do l3=235,1,-1
+                    write(9,'(3i5,8g20.12)') n,p(l1),q(l2),stepspq(l3),energiesfor(n,l3),&
+                        &energiesback(n,l3),energy_original
+                enddo
+                write(9,*)
+            enddo
+        enddo
+        close(9)
+
+        deallocate(stepspq)
+        deallocate(p)
+        deallocate(q)
+        deallocate(energiesback)
+        deallocate(energiesfor)
+        deallocate(exactgrad)
+        deallocate(exacthess)
+        deallocate(numgrad)
+        deallocate(numgradback)
+        deallocate(numgradcenter)
+        deallocate(temptrans)
+        deallocate(gradcoeffs)
+        deallocate(gradcoeffsback)
+        deallocate(dmatnum)
+        deallocate(dmatnumback)
+        deallocate(dmatorig)
+        deallocate(errorgradient)
+        deallocate(errorgradientback)
+        deallocate(errorgradientcenter)
+
+    end subroutine ErrorGradientHessian
+
+    subroutine ErrorGradientHessian_2(coeffs)
+
+        ! this subroutine calculates the error in the hessian when it is
+        ! evaluated exactly and using a finite difference method, the error is evaluated
+        ! as a function of the size of an element p,q in the gradient/hessian matrix
+
+        complex(dp), allocatable, intent(in) :: coeffs(:,:)
+        complex(dp), allocatable :: stepspq(:),temptrans(:,:)
+        complex(dp), allocatable :: exactgrad(:,:),exactgradin(:,:)
+        complex(dp), allocatable :: exactgradstepback(:,:),exacthessstepback(:,:,:,:)
+        complex(dp), allocatable :: exactgradstep(:,:),exacthessstep(:,:,:,:)
+        complex(dp), allocatable :: numhess(:,:,:),numhessfor(:,:,:),numhessback(:,:,:)
+        complex(dp), allocatable :: numhessgradback(:,:,:),numhessgrad(:,:,:)
+        complex(dp), allocatable :: numhessgradcenter(:,:,:)
+        complex(dp), allocatable :: gradcoeffsp1p1(:,:)
+        complex(dp), allocatable :: dmatorig(:,:),dmatp1p1(:,:)
+        complex(dp) :: energy_original,energy_p1p1,energy_p1m1,energy_m10,energy_0m1
+        complex(dp) :: energy_m1p1,energy_m1m1,energy_0p1,energy_p10
+        complex(dp) :: energy_p20,energy_m20
+        complex(dp), allocatable :: exacthess(:,:,:,:)
+        complex(dp), allocatable :: energiesp1p1(:,:,:),energiesp1m1(:,:,:)
+        complex(dp), allocatable :: energiesm1p1(:,:,:),energiesm1m1(:,:,:)
+        complex(dp), allocatable :: energiesp10(:,:,:),energies0p1(:,:,:)
+        complex(dp), allocatable :: energiesm10(:,:,:),energies0m1(:,:,:)
+        complex(dp), allocatable :: energiesp20(:,:,:),energiesm20(:,:,:)
+        complex(dp), allocatable :: errorhess(:,:,:),errorhessgrad(:,:,:)
+        complex(dp), allocatable :: errorhessfor(:,:,:),errorhessback(:,:,:)
+        complex(dp), allocatable :: errorhessgradback(:,:,:)
+        complex(dp), allocatable :: errorhessgradcenter(:,:,:)
+        integer, allocatable :: p(:),q(:)
+        integer :: l1,l2,l3,l4,l5,l6,l7,l8,l9,ierr,nsteps,m,n
+
+        ! number of matrix elements to consider
+        nsteps = (nelec/2)*(norb-(nelec/2))
+
+        allocate(stepspq(235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating stepspq'
+        endif
+        allocate(p(nelec/2),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating p'
+        endif
+        allocate(q(norb-(nelec/2)),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating q'
+        endif
+        allocate(exactgrad(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating exactgrad'
+        endif
+        allocate(numhess(nsteps,nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating numhess'
+        endif
+        allocate(numhessgrad(nsteps,nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating numhessgrad'
+        endif
+        allocate(numhessgradback(nsteps,nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating numhessgradback'
+        endif
+        allocate(numhessgradcenter(nsteps,nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating numhessgradcenter'
+        endif
+        allocate(exacthess(norb,norb,norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating exacthess'
+        endif
+        allocate(temptrans(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating temptrans'
+        endif
+        allocate(gradcoeffsp1p1(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating gradcoeffsp1p1'
+        endif
+        allocate(dmatorig(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating dmatorig'
+        endif
+        allocate(dmatp1p1(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating dmatp1p1'
+        endif
+        allocate(errorhessgrad(nsteps,nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating errorhessgrad'
+        endif
+        allocate(errorhess(nsteps,nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating errorhess'
+        endif
+        allocate(errorhessgradback(nsteps,nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating errorhessgradback'
+        endif
+        allocate(errorhessgradcenter(nsteps,nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating errorhessgradcenter'
+        endif
+        allocate(energiesp1p1(nsteps,nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating energiesp1p1'
+        endif
+        allocate(energiesp1m1(nsteps,nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating energiesp1m1'
+        endif
+        allocate(energiesm1p1(nsteps,nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating energiesm1p1'
+        endif
+        allocate(energiesm1m1(nsteps,nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating energiesm1m1'
+        endif
+        allocate(numhessback(nsteps,nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating numhessback'
+        endif
+        allocate(numhessfor(nsteps,nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating numhessfor'
+        endif
+        allocate(errorhessback(nsteps,nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating errorhessback'
+        endif
+        allocate(errorhessfor(nsteps,nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating errorhessfor'
+        endif
+        allocate(energiesp10(nsteps,nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating energiesp10'
+        endif
+        allocate(energies0p1(nsteps,nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating energies0p1'
+        endif
+        allocate(energiesm10(nsteps,nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating energiesm10'
+        endif
+        allocate(energies0m1(nsteps,nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating energies0m1'
+        endif
+        allocate(energiesp20(nsteps,nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating energiesp20'
+        endif
+        allocate(energiesm20(nsteps,nsteps,235),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating energiesm20'
+        endif
+        allocate(exactgradstep(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating exactgradstep'
+        endif
+         allocate(exacthessstep(norb,norb,norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating exacthessstep'
+        endif
+        allocate(exactgradstepback(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating exactgradstepback'
+        endif
+         allocate(exacthessstepback(norb,norb,norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating exacthessstepback'
+        endif
+        allocate(exactgradin(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating exactgradin'
+        endif
+ 
+
+        write(6,*) '------------------------------------------------------------------'
+        write(6,*) 'Evaluating error in hessian as a function of '
+        write(6,*) 'size of matrix elements'
+        write(6,*) '------------------------------------------------------------------'
+
+        ! generate the steps by which the elements of the gradient/hessian matrix are 
+        ! increased
+        stepspq(:) = 1.0_dp
+        stepspq(1) = 10.0_dp
+        ! these points are only relevant for the behaviour of the energy
+        do l1=2,91
+            stepspq(l1) = stepspq(l1-1) - 0.1_dp
+        enddo
+        ! these points are relevant for the hessian
+        do l1=92,235
+            if (mod(l1,9).eq.2) then
+                stepspq(l1) = 9.0_dp*stepspq(l1-1)/10.0_dp
+            elseif (mod(l1,9).eq.3) then
+                stepspq(l1) = 8.0_dp*stepspq(l1-1)/9.0_dp
+            elseif (mod(l1,9).eq.4) then
+                stepspq(l1) = 7.0_dp*stepspq(l1-1)/8.0_dp
+            elseif (mod(l1,9).eq.5) then
+                stepspq(l1) = 6.0_dp*stepspq(l1-1)/7.0_dp
+            elseif (mod(l1,9).eq.6) then
+                stepspq(l1) = 5.0_dp*stepspq(l1-1)/6.0_dp
+            elseif (mod(l1,9).eq.7) then
+                stepspq(l1) = 4.0_dp*stepspq(l1-1)/5.0_dp
+            elseif (mod(l1,9).eq.8) then
+                stepspq(l1) = 3.0_dp*stepspq(l1-1)/4.0_dp
+            elseif (mod(l1,9).eq.0) then
+                stepspq(l1) = 2.0_dp*stepspq(l1-1)/3.0_dp
+            elseif (mod(l1,9).eq.1) then
+                stepspq(l1) = stepspq(l1-1)/2.0_dp
+            endif
+        enddo
+
+        write(6,*) 'Step sizes taken for each element'
+        do l1=1,235
+            write(6,*) l1,stepspq(l1)
+        enddo
+
+        ! set elements of gradien/hessian matrix whose step size should be incremented
+        ! only non-redundant rotations need to be considered, i.e. those between occupied
+        ! and unoccupied orbitals
+        p(:) = 0
+        q(:) = 0
+        do l1=1,(nelec/2)
+            p(l1) = l1
+        enddo
+        do l1=1,((norb-(nelec/2)))
+            q(l1) = (nelec/2) + l1
+        enddo
+
+        ! calculate energy at this original point
+        ! density matrix
+        dmatorig(:,:) = 0.0_dp
+        do l1=1,norb
+            do l2=1,norb
+                do l3=1,(nelec/2)
+                    dmatorig(l2,l1) = dmatorig(l2,l1) + (2.0_dp*coeffs(l1,l3)*&
+                        &conjg(coeffs(l2,l3)))
+                enddo
+            enddo
+        enddo
+
+        energy_original = 0.0_dp
+        do l1=1,norb
+            do l2=1,norb
+                do l3=1,norb
+                    do l4=1,norb
+                        ! coulomb integral
+                        energy_original = energy_original + (dmatorig(l4,l2)*dmatorig(l3,l1)*&
+                            &umat(l4,l3,l2,l1))
+                        ! exchange integral
+                        energy_original = energy_original - (0.5_dp*dmatorig(l4,l2)*&
+                            &dmatorig(l3,l1)*umat(l4,l3,l1,l2))
+                    enddo
+                enddo
+            enddo
+        enddo
+
+        energy_original = 0.5_dp*energy_original + ecore
+
+        ! kinetic energy
+        do l1=1,norb
+            do l2=1,norb
+                energy_original = energy_original + (dmatorig(l2,l1)*tmat(l2,l1))
+            enddo
+        enddo
+
+        write(6,*) '---------------------------------------------------------------'
+        write(6,*) 'Original HF energy:',energy_original
+        write(6,*) '----------------------------------------------------------------'
+
+        write(6,*) 'Evaluating numerical hessian for an non-redunant rotations and &
+            &step sizes'
+
+        energiesp1p1(:,:,:) = 0.0_dp
+        energiesp1m1(:,:,:) = 0.0_dp
+        energiesm1p1(:,:,:) = 0.0_dp
+        energiesm1m1(:,:,:) = 0.0_dp
+        energiesp10(:,:,:) = 0.0_dp
+        energies0p1(:,:,:) = 0.0_dp
+        energiesm10(:,:,:) = 0.0_dp
+        energies0m1(:,:,:) = 0.0_dp
+
+        m = 0
+        do l5=1,(nelec/2)
+            do l6=1,(norb-(nelec/2))
+                m = m + 1
+                n = 0
+                do l8=1,(nelec/2)
+                    do l9=1,(norb-(nelec/2))
+                        n = n + 1
+                        do l7=1,235
+                            ! steps in gradient
+                            temptrans(:,:) = 0.0_dp
+                            exactgrad(:,:) = 0.0_dp
+                            exacthess(:,:,:,:) = 0.0_dp
+                            exactgrad(p(l5),q(l6)) = stepspq(l7)
+                            exactgrad(q(l6),p(l5)) = -stepspq(l7)
+                            exactgrad(p(l8),q(l9)) = stepspq(l7)
+                            exactgrad(q(l9),p(l8)) = -stepspq(l7)
+
+                            write(6,*) '----------------------------------------------------------'
+                            write(6,*) 'Evaluating hessian for matrix elements',p(l5),q(l6),p(l8),q(l9)
+                            write(6,*) 'using a step size of',stepspq(l7)
+
+                            ! first at point +h1,+h2
+                            ! obtain transformation corresponding to gradient
+                            call TransformFromGradient(temptrans,exactgrad,-1.0_dp)
+                            gradcoeffsp1p1(:,:) = 0.0_dp
+                            call zgemm('T','N',norb,norb,norb,(1.0_dp,0.0_dp),temptrans,norb,&
+                                &coeffs,norb,(0.0_dp,0.0_dp),gradcoeffsp1p1,norb)
+
+                            ! calculate energy at this new point
+                            ! density matrix
+                            dmatp1p1(:,:) = 0.0_dp
+                            do l1=1,norb
+                                do l2=1,norb
+                                    do l3=1,(nelec/2)
+                                        dmatp1p1(l2,l1) = dmatp1p1(l2,l1) + (2.0_dp*gradcoeffsp1p1(l1,l3)*&
+                                            &conjg(gradcoeffsp1p1(l2,l3)))
+                                    enddo
+                                enddo
+                            enddo
+
+                            energy_p1p1 = 0.0_dp
+                            do l1=1,norb
+                                do l2=1,norb
+                                    do l3=1,norb
+                                        do l4=1,norb
+                                            ! coulomb integral
+                                            energy_p1p1 = energy_p1p1 + (dmatp1p1(l4,l2)*dmatp1p1(l3,l1)*&
+                                                &umat(l4,l3,l2,l1))
+                                            ! exchange integral
+                                            energy_p1p1 = energy_p1p1 - (0.5_dp*dmatp1p1(l4,l2)*&
+                                                &dmatp1p1(l3,l1)*umat(l4,l3,l1,l2))
+                                        enddo
+                                    enddo
+                                enddo
+                            enddo
+
+                            energy_p1p1 = 0.5_dp*energy_p1p1 + ecore
+
+                            ! kinetic energy
+                            do l1=1,norb
+                                do l2=1,norb
+                                    energy_p1p1 = energy_p1p1 + (dmatp1p1(l2,l1)*tmat(l2,l1))
+                                enddo
+                            enddo
+
+                            energiesp1p1(m,n,l7) = energy_p1p1
+
+                            write(6,*) 'Energies at point (+h1,+h2):',energy_p1p1
+
+                            ! the same for a backward transformation at point (-h1,-h2)
+                            ! obtain transformation corresponding to gradient
+                            temptrans(:,:) = 0.0_dp
+                            call TransformFromGradient(temptrans,exactgrad,1.0_dp)
+                            gradcoeffsp1p1(:,:) = 0.0_dp
+                            call zgemm('T','N',norb,norb,norb,(1.0_dp,0.0_dp),temptrans,norb,&
+                                &coeffs,norb,(0.0_dp,0.0_dp),gradcoeffsp1p1,norb)
+
+                            ! calculate energy at this new point
+                            ! density matrix
+                            dmatp1p1(:,:) = 0.0_dp
+                            do l1=1,norb
+                                do l2=1,norb
+                                    do l3=1,(nelec/2)
+                                        dmatp1p1(l2,l1) = dmatp1p1(l2,l1) + (2.0_dp*gradcoeffsp1p1(l1,l3)*&
+                                            &conjg(gradcoeffsp1p1(l2,l3)))
+                                    enddo
+                                enddo
+                            enddo
+
+                            energy_m1m1 = 0.0_dp
+                            do l1=1,norb
+                                do l2=1,norb
+                                    do l3=1,norb
+                                        do l4=1,norb
+                                            ! coulomb integral
+                                            energy_m1m1 = energy_m1m1 + (dmatp1p1(l4,l2)*dmatp1p1(l3,l1)*&
+                                                &umat(l4,l3,l2,l1))
+                                            ! exchange integral
+                                            energy_m1m1 = energy_m1m1 - (0.5_dp*dmatp1p1(l4,l2)*&
+                                                &dmatp1p1(l3,l1)*umat(l4,l3,l1,l2))
+                                        enddo
+                                    enddo
+                                enddo
+                            enddo
+
+                            energy_m1m1 = 0.5_dp*energy_m1m1 + ecore
+
+                            ! kinetic energy
+                            do l1=1,norb
+                                do l2=1,norb
+                                    energy_m1m1 = energy_m1m1 + (dmatp1p1(l2,l1)*tmat(l2,l1))
+                                enddo
+                            enddo
+
+                            energiesm1m1(m,n,l7) = energy_m1m1
+
+                            write(6,*) 'Energy at point (-h1,-h2):',energy_m1m1
+
+                            ! steps in gradient
+                            temptrans(:,:) = 0.0_dp
+                            exactgrad(:,:) = 0.0_dp
+                            exacthess(:,:,:,:) = 0.0_dp
+                            exactgrad(p(l5),q(l6)) = stepspq(l7)
+                            exactgrad(q(l6),p(l5)) = -stepspq(l7)
+                            exactgrad(p(l8),q(l9)) = -stepspq(l7)
+                            exactgrad(q(l9),p(l8)) = stepspq(l7)
+
+                            ! first at point +h1,-h2
+                            ! obtain transformation corresponding to gradient
+                            call TransformFromGradient(temptrans,exactgrad,-1.0_dp)
+                            gradcoeffsp1p1(:,:) = 0.0_dp
+                            call zgemm('T','N',norb,norb,norb,(1.0_dp,0.0_dp),temptrans,norb,&
+                                &coeffs,norb,(0.0_dp,0.0_dp),gradcoeffsp1p1,norb)
+
+                            ! calculate energy at this new point
+                            ! density matrix
+                            dmatp1p1(:,:) = 0.0_dp
+                            do l1=1,norb
+                                do l2=1,norb
+                                    do l3=1,(nelec/2)
+                                        dmatp1p1(l2,l1) = dmatp1p1(l2,l1) + (2.0_dp*gradcoeffsp1p1(l1,l3)*&
+                                            &conjg(gradcoeffsp1p1(l2,l3)))
+                                    enddo
+                                enddo
+                            enddo
+
+                            energy_p1m1 = 0.0_dp
+                            do l1=1,norb
+                                do l2=1,norb
+                                    do l3=1,norb
+                                        do l4=1,norb
+                                            ! coulomb integral
+                                            energy_p1m1 = energy_p1m1 + (dmatp1p1(l4,l2)*dmatp1p1(l3,l1)*&
+                                                &umat(l4,l3,l2,l1))
+                                            ! exchange integral
+                                            energy_p1m1 = energy_p1m1 - (0.5_dp*dmatp1p1(l4,l2)*&
+                                                &dmatp1p1(l3,l1)*umat(l4,l3,l1,l2))
+                                        enddo
+                                    enddo
+                                enddo
+                            enddo
+
+                            energy_p1m1 = 0.5_dp*energy_p1m1 + ecore
+
+                            ! kinetic energy
+                            do l1=1,norb
+                                do l2=1,norb
+                                    energy_p1m1 = energy_p1m1 + (dmatp1p1(l2,l1)*tmat(l2,l1))
+                                enddo
+                            enddo
+
+                            energiesp1m1(m,n,l7) = energy_p1m1
+
+                            write(6,*) 'Energies at point (+h1,-h2):',energy_p1m1
+
+                            ! the same for a backward transformation at point (-h1,+h2)
+                            ! obtain transformation corresponding to gradient
+                            temptrans(:,:) = 0.0_dp
+                            call TransformFromGradient(temptrans,exactgrad,1.0_dp)
+                            gradcoeffsp1p1(:,:) = 0.0_dp
+                            call zgemm('T','N',norb,norb,norb,(1.0_dp,0.0_dp),temptrans,norb,&
+                                &coeffs,norb,(0.0_dp,0.0_dp),gradcoeffsp1p1,norb)
+
+                            ! calculate energy at this new point
+                            ! density matrix
+                            dmatp1p1(:,:) = 0.0_dp
+                            do l1=1,norb
+                                do l2=1,norb
+                                    do l3=1,(nelec/2)
+                                        dmatp1p1(l2,l1) = dmatp1p1(l2,l1) + (2.0_dp*gradcoeffsp1p1(l1,l3)*&
+                                            &conjg(gradcoeffsp1p1(l2,l3)))
+                                    enddo
+                                enddo
+                            enddo
+
+                            energy_m1p1 = 0.0_dp
+                            do l1=1,norb
+                                do l2=1,norb
+                                    do l3=1,norb
+                                        do l4=1,norb
+                                            ! coulomb integral
+                                            energy_m1p1 = energy_m1p1 + (dmatp1p1(l4,l2)*dmatp1p1(l3,l1)*&
+                                                &umat(l4,l3,l2,l1))
+                                            ! exchange integral
+                                            energy_m1p1 = energy_m1p1 - (0.5_dp*dmatp1p1(l4,l2)*&
+                                                &dmatp1p1(l3,l1)*umat(l4,l3,l1,l2))
+                                        enddo
+                                    enddo
+                                enddo
+                            enddo
+
+                            energy_m1p1 = 0.5_dp*energy_m1p1 + ecore
+
+                            ! kinetic energy
+                            do l1=1,norb
+                                do l2=1,norb
+                                    energy_m1p1 = energy_m1p1 + (dmatp1p1(l2,l1)*tmat(l2,l1))
+                                enddo
+                            enddo
+
+                            energiesm1p1(m,n,l7) = energy_m1p1
+
+                            write(6,*) 'Energy at point (-h1,+h2):',energy_m1p1
+
+                            ! steps in gradient
+                            temptrans(:,:) = 0.0_dp
+                            exactgrad(:,:) = 0.0_dp
+                            exacthess(:,:,:,:) = 0.0_dp
+                            exactgrad(p(l5),q(l6)) = stepspq(l7)
+                            exactgrad(q(l6),p(l5)) = -stepspq(l7)
+
+                            ! first at point +h1,0
+                            ! obtain transformation corresponding to gradient
+                            call TransformFromGradient(temptrans,exactgrad,-1.0_dp)
+                            gradcoeffsp1p1(:,:) = 0.0_dp
+                            call zgemm('T','N',norb,norb,norb,(1.0_dp,0.0_dp),temptrans,norb,&
+                                &coeffs,norb,(0.0_dp,0.0_dp),gradcoeffsp1p1,norb)
+
+                            ! calculate energy at this new point
+                            ! density matrix
+                            dmatp1p1(:,:) = 0.0_dp
+                            do l1=1,norb
+                                do l2=1,norb
+                                    do l3=1,(nelec/2)
+                                        dmatp1p1(l2,l1) = dmatp1p1(l2,l1) + (2.0_dp*gradcoeffsp1p1(l1,l3)*&
+                                            &conjg(gradcoeffsp1p1(l2,l3)))
+                                    enddo
+                                enddo
+                            enddo
+
+                            energy_p10 = 0.0_dp
+                            do l1=1,norb
+                                do l2=1,norb
+                                    do l3=1,norb
+                                        do l4=1,norb
+                                            ! coulomb integral
+                                            energy_p10 = energy_p10 + (dmatp1p1(l4,l2)*dmatp1p1(l3,l1)*&
+                                                &umat(l4,l3,l2,l1))
+                                            ! exchange integral
+                                            energy_p10 = energy_p10 - (0.5_dp*dmatp1p1(l4,l2)*&
+                                                &dmatp1p1(l3,l1)*umat(l4,l3,l1,l2))
+                                        enddo
+                                    enddo
+                                enddo
+                            enddo
+
+                            energy_p10 = 0.5_dp*energy_p10 + ecore
+
+                            ! kinetic energy
+                            do l1=1,norb
+                                do l2=1,norb
+                                    energy_p10 = energy_p10 + (dmatp1p1(l2,l1)*tmat(l2,l1))
+                                enddo
+                            enddo
+
+                            energiesp10(m,n,l7) = energy_p10
+
+                            write(6,*) 'Energies at point (+h1,0):',energy_p10
+
+                            ! first at point -h1,0
+                            ! obtain transformation corresponding to gradient
+                            call TransformFromGradient(temptrans,exactgrad,1.0_dp)
+                            gradcoeffsp1p1(:,:) = 0.0_dp
+                            call zgemm('T','N',norb,norb,norb,(1.0_dp,0.0_dp),temptrans,norb,&
+                                &coeffs,norb,(0.0_dp,0.0_dp),gradcoeffsp1p1,norb)
+
+                            ! calculate energy at this new point
+                            ! density matrix
+                            dmatp1p1(:,:) = 0.0_dp
+                            do l1=1,norb
+                                do l2=1,norb
+                                    do l3=1,(nelec/2)
+                                        dmatp1p1(l2,l1) = dmatp1p1(l2,l1) + (2.0_dp*gradcoeffsp1p1(l1,l3)*&
+                                            &conjg(gradcoeffsp1p1(l2,l3)))
+                                    enddo
+                                enddo
+                            enddo
+
+                            energy_m10 = 0.0_dp
+                            do l1=1,norb
+                                do l2=1,norb
+                                    do l3=1,norb
+                                        do l4=1,norb
+                                            ! coulomb integral
+                                            energy_m10 = energy_m10 + (dmatp1p1(l4,l2)*dmatp1p1(l3,l1)*&
+                                                &umat(l4,l3,l2,l1))
+                                            ! exchange integral
+                                            energy_m10 = energy_m10 - (0.5_dp*dmatp1p1(l4,l2)*&
+                                                &dmatp1p1(l3,l1)*umat(l4,l3,l1,l2))
+                                        enddo
+                                    enddo
+                                enddo
+                            enddo
+
+                            energy_m10 = 0.5_dp*energy_m10 + ecore
+
+                            ! kinetic energy
+                            do l1=1,norb
+                                do l2=1,norb
+                                    energy_m10 = energy_m10 + (dmatp1p1(l2,l1)*tmat(l2,l1))
+                                enddo
+                            enddo
+
+                            energiesm10(m,n,l7) = energy_m10
+
+                            write(6,*) 'Energies at point (-h1,0):',energy_m10
+
+                            ! first at point +2h1,0
+                            ! obtain transformation corresponding to gradient
+                            call TransformFromGradient(temptrans,exactgrad,-2.0_dp)
+                            gradcoeffsp1p1(:,:) = 0.0_dp
+                            call zgemm('T','N',norb,norb,norb,(1.0_dp,0.0_dp),temptrans,norb,&
+                                &coeffs,norb,(0.0_dp,0.0_dp),gradcoeffsp1p1,norb)
+
+                            ! calculate energy at this new point
+                            ! density matrix
+                            dmatp1p1(:,:) = 0.0_dp
+                            do l1=1,norb
+                                do l2=1,norb
+                                    do l3=1,(nelec/2)
+                                        dmatp1p1(l2,l1) = dmatp1p1(l2,l1) + (2.0_dp*gradcoeffsp1p1(l1,l3)*&
+                                            &conjg(gradcoeffsp1p1(l2,l3)))
+                                    enddo
+                                enddo
+                            enddo
+
+                            energy_p20 = 0.0_dp
+                            do l1=1,norb
+                                do l2=1,norb
+                                    do l3=1,norb
+                                        do l4=1,norb
+                                            ! coulomb integral
+                                            energy_p20 = energy_p20 + (dmatp1p1(l4,l2)*dmatp1p1(l3,l1)*&
+                                                &umat(l4,l3,l2,l1))
+                                            ! exchange integral
+                                            energy_p20 = energy_p20 - (0.5_dp*dmatp1p1(l4,l2)*&
+                                                &dmatp1p1(l3,l1)*umat(l4,l3,l1,l2))
+                                        enddo
+                                    enddo
+                                enddo
+                            enddo
+
+                            energy_p20 = 0.5_dp*energy_p20 + ecore
+
+                            ! kinetic energy
+                            do l1=1,norb
+                                do l2=1,norb
+                                    energy_p20 = energy_p20 + (dmatp1p1(l2,l1)*tmat(l2,l1))
+                                enddo
+                            enddo
+
+                            energiesp20(m,n,l7) = energy_p20
+
+                            write(6,*) 'Energies at point (+2h1,0):',energy_p20
+
+                            ! first at point -2h1,0
+                            ! obtain transformation corresponding to gradient
+                            call TransformFromGradient(temptrans,exactgrad,2.0_dp)
+                            gradcoeffsp1p1(:,:) = 0.0_dp
+                            call zgemm('T','N',norb,norb,norb,(1.0_dp,0.0_dp),temptrans,norb,&
+                                &coeffs,norb,(0.0_dp,0.0_dp),gradcoeffsp1p1,norb)
+
+                            ! calculate energy at this new point
+                            ! density matrix
+                            dmatp1p1(:,:) = 0.0_dp
+                            do l1=1,norb
+                                do l2=1,norb
+                                    do l3=1,(nelec/2)
+                                        dmatp1p1(l2,l1) = dmatp1p1(l2,l1) + (2.0_dp*gradcoeffsp1p1(l1,l3)*&
+                                            &conjg(gradcoeffsp1p1(l2,l3)))
+                                    enddo
+                                enddo
+                            enddo
+
+                            energy_m20 = 0.0_dp
+                            do l1=1,norb
+                                do l2=1,norb
+                                    do l3=1,norb
+                                        do l4=1,norb
+                                            ! coulomb integral
+                                            energy_m20 = energy_m20 + (dmatp1p1(l4,l2)*dmatp1p1(l3,l1)*&
+                                                &umat(l4,l3,l2,l1))
+                                            ! exchange integral
+                                            energy_m20 = energy_m20 - (0.5_dp*dmatp1p1(l4,l2)*&
+                                                &dmatp1p1(l3,l1)*umat(l4,l3,l1,l2))
+                                        enddo
+                                    enddo
+                                enddo
+                            enddo
+
+                            energy_m20 = 0.5_dp*energy_m20 + ecore
+
+                            ! kinetic energy
+                            do l1=1,norb
+                                do l2=1,norb
+                                    energy_m20 = energy_m20 + (dmatp1p1(l2,l1)*tmat(l2,l1))
+                                enddo
+                            enddo
+
+                            energiesm20(m,n,l7) = energy_m20
+
+                            write(6,*) 'Energies at point (-2h1,0):',energy_m20
+ 
+
+                            ! steps in gradient
+                            temptrans(:,:) = 0.0_dp
+                            exactgrad(:,:) = 0.0_dp
+                            exacthess(:,:,:,:) = 0.0_dp
+                            exactgrad(p(l8),q(l9)) = stepspq(l7)
+                            exactgrad(q(l9),p(l8)) = -stepspq(l7)
+
+                            ! first at point 0,+h2
+                            ! obtain transformation corresponding to gradient
+                            call TransformFromGradient(temptrans,exactgrad,-1.0_dp)
+                            gradcoeffsp1p1(:,:) = 0.0_dp
+                            call zgemm('T','N',norb,norb,norb,(1.0_dp,0.0_dp),temptrans,norb,&
+                                &coeffs,norb,(0.0_dp,0.0_dp),gradcoeffsp1p1,norb)
+
+                            ! calculate energy at this new point
+                            ! density matrix
+                            dmatp1p1(:,:) = 0.0_dp
+                            do l1=1,norb
+                                do l2=1,norb
+                                    do l3=1,(nelec/2)
+                                        dmatp1p1(l2,l1) = dmatp1p1(l2,l1) + (2.0_dp*gradcoeffsp1p1(l1,l3)*&
+                                            &conjg(gradcoeffsp1p1(l2,l3)))
+                                    enddo
+                                enddo
+                            enddo
+
+                            energy_0p1 = 0.0_dp
+                            do l1=1,norb
+                                do l2=1,norb
+                                    do l3=1,norb
+                                        do l4=1,norb
+                                            ! coulomb integral
+                                            energy_0p1 = energy_0p1 + (dmatp1p1(l4,l2)*dmatp1p1(l3,l1)*&
+                                                &umat(l4,l3,l2,l1))
+                                            ! exchange integral
+                                            energy_0p1 = energy_0p1 - (0.5_dp*dmatp1p1(l4,l2)*&
+                                                &dmatp1p1(l3,l1)*umat(l4,l3,l1,l2))
+                                        enddo
+                                    enddo
+                                enddo
+                            enddo
+
+                            energy_0p1 = 0.5_dp*energy_0p1 + ecore
+
+                            ! kinetic energy
+                            do l1=1,norb
+                                do l2=1,norb
+                                    energy_0p1 = energy_0p1 + (dmatp1p1(l2,l1)*tmat(l2,l1))
+                                enddo
+                            enddo
+
+                            energies0p1(m,n,l7) = energy_0p1
+
+                            write(6,*) 'Energies at point (0,+h2):',energy_0p1
+
+                            ! first at point 0,-h2
+                            ! obtain transformation corresponding to gradient
+                            call TransformFromGradient(temptrans,exactgrad,1.0_dp)
+                            gradcoeffsp1p1(:,:) = 0.0_dp
+                            call zgemm('T','N',norb,norb,norb,(1.0_dp,0.0_dp),temptrans,norb,&
+                                &coeffs,norb,(0.0_dp,0.0_dp),gradcoeffsp1p1,norb)
+
+                            ! calculate energy at this new point
+                            ! density matrix
+                            dmatp1p1(:,:) = 0.0_dp
+                            do l1=1,norb
+                                do l2=1,norb
+                                    do l3=1,(nelec/2)
+                                        dmatp1p1(l2,l1) = dmatp1p1(l2,l1) + (2.0_dp*gradcoeffsp1p1(l1,l3)*&
+                                            &conjg(gradcoeffsp1p1(l2,l3)))
+                                    enddo
+                                enddo
+                            enddo
+
+                            energy_0m1 = 0.0_dp
+                            do l1=1,norb
+                                do l2=1,norb
+                                    do l3=1,norb
+                                        do l4=1,norb
+                                            ! coulomb integral
+                                            energy_0m1 = energy_0m1 + (dmatp1p1(l4,l2)*dmatp1p1(l3,l1)*&
+                                                &umat(l4,l3,l2,l1))
+                                            ! exchange integral
+                                            energy_0m1 = energy_0m1 - (0.5_dp*dmatp1p1(l4,l2)*&
+                                                &dmatp1p1(l3,l1)*umat(l4,l3,l1,l2))
+                                        enddo
+                                    enddo
+                                enddo
+                            enddo
+
+                            energy_0m1 = 0.5_dp*energy_0m1 + ecore
+
+                            ! kinetic energy
+                            do l1=1,norb
+                                do l2=1,norb
+                                    energy_0m1 = energy_0m1 + (dmatp1p1(l2,l1)*tmat(l2,l1))
+                                enddo
+                            enddo
+
+                            energies0m1(m,n,l7) = energy_0m1
+
+                            write(6,*) 'Energies at point (0,-h2):',energy_0m1
+
+
+                            ! numerical hessian
+                            ! using centered differencing
+                            ! d^2f/(dxdy) = (f(x+h1,y+h2)-f(x+h1,y-h2)-f(x-h1,y+h2)+f(x-h1,y-h2))/4h1h2
+                            ! or if x=y
+                            ! d^2f/(d^2x) = (f(x+h1,0)-2f(0,0)+f(x-h1,0))/(h1h2)
+                            if ((p(l5).eq.p(l8)).and.(q(l6).eq.q(l9))) then
+                                numhess(m,n,l7) = (energy_p10-(2.0_dp*energy_original)+energy_m10)&
+                                    &/((stepspq(l7)**2))
+                            else
+ 
+                                numhess(m,n,l7) = (energy_p1p1-energy_p1m1-energy_m1p1+energy_m1m1)&
+                                    &/(4.0_dp*(stepspq(l7)**2))
+                            endif
+ 
+                            ! numerical hessian
+                            ! using forward differencing
+                            ! d^2f/(dxdy) = (f(x+h1,y+h2)-f(x+h1,0)-f(0,y+h2)+f(0,0))/h1h2
+                            ! or if x=y
+                            ! d^2f/(d^2x) = (f(x+2h1,0)-2f(x+h1,0)+f(0,0))/(h1h2)
+                            if ((p(l5).eq.p(l8)).and.(q(l6).eq.q(l9))) then
+                                 numhessfor(m,n,l7) = (energy_p20-(2.0_dp*energy_p10)+energy_original)&
+                                    &/((stepspq(l7)**2))
+                            else
+                                numhessfor(m,n,l7) = (energy_p1p1-energy_p10-energy_0p1+energy_original)&
+                                    &/((stepspq(l7)**2))
+                            endif
+                             
+                            ! numerical hessian
+                            ! using backward differencing
+                            ! d^2f/(dxdy) = (f(0,0)-f(x-h1,0)-f(0,y-h2)+f(x-h1,x-h2))/h1h2
+                            ! or if x=y
+                            ! d^2f/(d^2x) = (f(0,0)-2f(x-h1,0)+f(x-2h1,0))/(h1h2)
+                            if ((p(l5).eq.p(l8)).and.(q(l6).eq.q(l9))) then
+                                 numhessback(m,n,l7) = (energy_original-(2.0_dp*energy_m10)+energy_m20)&
+                                    &/((stepspq(l7)**2))
+                            else
+                                numhessback(m,n,l7) = (energy_original-energy_m10-energy_0m1+energy_m1m1)&
+                                    &/((stepspq(l7)**2))
+                            endif
+                        enddo
+                    enddo
+               enddo
+            enddo
+        enddo
+
+        write(6,*) '-----------------------------------------------------------------'
+        write(6,*) 'The energies are: number1,number2,p,q,r,s,deltapq/rs,E(0+deltapq,0+deltars),&
+            &E(0+deltapq,0-deltars),E(0-deltapq,0+deltars),E(0-deltapq,0-deltars),&
+            &E(0+deltapq,0),E(0,0+dealtapq),E(0-detapq,0),E(0,0-deltapq),E(0)'
+        m = 0
+        do l1=1,(nelec/2)
+            do l2=1,(norb-(nelec/2))
+                m = m + 1
+                n = 0
+                do l4=1,(nelec/2)
+                    do l5=1,(norb-(nelec/2))
+                        n = n + 1
+                        do l3=1,235
+                            write(6,*) m,n,p(l1),q(l2),p(l4),q(l5),stepspq(l3),energiesp1p1(m,n,l3),&
+                                &energiesp1m1(m,n,l3),energiesm1p1(m,n,l3),&
+                                &energiesm1m1(m,n,l3),energiesp10(m,n,l3),energies0p1(m,n,l3),&
+                                &energiesm10(m,n,l3),energies0m1(m,n,l3),energy_original
+                        enddo
+                    enddo
+                enddo
+            enddo
+        enddo
+
+
+        write(6,*) '---------------------------------------------------------------'
+        write(6,*) 'The numerical hessian is: number1,number2,p,q,r,s,deltapq/rs,&
+            &hessian_pqrs (forward, backward and centered differencing)'
+        m = 0
+        do l1=1,(nelec/2)
+            do l2=1,(norb-(nelec/2))
+                m = m + 1
+                n = 0
+                do l4=1,(nelec/2)
+                    do l5=1,(norb-(nelec/2))
+                        n = n + 1
+                        do l3=1,235
+                            write(6,*) m,n,p(l1),q(l2),p(l4),q(l5),stepspq(l3),&
+                                &numhessfor(m,n,l3),numhessback(m,n,l3),&
+                                &numhess(m,n,l3)
+                        enddo
+                    enddo
+                enddo
+            enddo
+        enddo
+
+        ! calculating the exact and hessian at the original solution
+        call FindGradient(coeffs,exactgrad,exacthess)
+
+        write(6,*) '------------------------------------------------------------------'
+        write(6,*) 'The analytical hessian is:'
+        m = 0
+        do l1=1,(nelec/2)
+            do l2=1,(norb-(nelec/2))
+                m = m + 1
+                n = 0
+                do l4=1,(nelec/2)
+                    do l5=1,(norb-(nelec/2))
+                        n = n + 1
+                        write(6,*) p(l1),q(l2),p(l4),q(l5),exacthess(p(l1),q(l2),p(l4),q(l5))
+                    enddo
+                enddo
+            enddo
+        enddo
+        
+
+        m = 0
+        do l1=1,(nelec/2)
+            do l2=1,(norb-(nelec/2))
+                m = m + 1
+                n = 0
+                do l4=1,(nelec/2)
+                    do l5=1,(norb-(nelec/2))
+                        n = n + 1
+                        do l3=1,235
+                            errorhess(m,n,l3) = numhess(m,n,l3) - exacthess(p(l1),q(l2),p(l4),q(l5))
+                            errorhessfor(m,n,l3) = numhessfor(m,n,l3) - exacthess(p(l1),q(l2),p(l4),q(l5))
+                            errorhessback(m,n,l3) = numhessback(m,n,l3) - exacthess(p(l1),q(l2),p(l4),q(l5))
+                        enddo
+                    enddo
+                enddo
+            enddo
+        enddo
+
+        write(6,*) '------------------------------------------------------------'
+        write(6,*) 'The error in the numerical hessian is: number1,number2,,p,q,r,s,&
+            &delta_pq/rs,error (forward, backward and centered differencing)'
+        m = 0
+        do l1=1,(nelec/2)
+            do l2=1,(norb-(nelec/2))
+                m = m + 1
+                n = 0
+                do l4=1,(nelec/2)
+                    do l5=1,(norb-(nelec/2))
+                        n = n + 1
+                        do l3=1,235
+                            write(6,*) m,n,p(l1),q(l2),p(l4),q(l5),stepspq(l3),&
+                                &errorhessfor(m,n,l3),errorhessback(m,n,l3),&
+                                &errorhess(m,n,l3)
+                        enddo
+                    enddo
+                enddo
+            enddo
+        enddo
+
+        write(6,*) '--------------------------------------------------------------------'
+        write(6,*) 'Evaluating numerical hessian from gradient'
+        write(6,*) '---------------------------------------------------------------------'
+
+        ! find gradient at original solution
+        call FindGradient(coeffs,exactgrad,exacthess)
+
+
+        ! evaluate hessian numerically from the analytical gradient
+        m = 0
+        do l5=1,(nelec/2)
+            do l6=1,(norb-(nelec/2))
+                m = m + 1
+                do l7=1,235
+                    ! steps in gradient
+                    temptrans(:,:) = 0.0_dp
+                    exactgradin(:,:) = 0.0_dp
+                    !exacthess(:,:,:,:) = 0.0_dp
+                    exactgradin(p(l5),q(l6)) = stepspq(l7)
+                    exactgradin(q(l6),p(l5)) = -stepspq(l7)
+
+                    ! forward differencing
+                    ! obtain transformation corresponding to gradient
+                    call TransformFromGradient(temptrans,exactgradin,-1.0_dp)
+                    gradcoeffsp1p1(:,:) = 0.0_dp
+                    call zgemm('T','N',norb,norb,norb,(1.0_dp,0.0_dp),temptrans,norb,&
+                    &coeffs,norb,(0.0_dp,0.0_dp),gradcoeffsp1p1,norb)
+
+                    ! evaluate gradient at this step
+                    call FindGradient(gradcoeffsp1p1,exactgradstep,exacthessstep)
+ 
+                    ! backward differencing
+                    ! obtain transformation corresponding to gradient
+                    call TransformFromGradient(temptrans,exactgradin,1.0_dp)
+                    gradcoeffsp1p1(:,:) = 0.0_dp
+                    call zgemm('T','N',norb,norb,norb,(1.0_dp,0.0_dp),temptrans,norb,&
+                    &coeffs,norb,(0.0_dp,0.0_dp),gradcoeffsp1p1,norb)
+
+                    ! evaluate gradient at this step
+                    call FindGradient(gradcoeffsp1p1,exactgradstepback,exacthessstepback)
+                    
+                    n = 0
+                    do l8=1,(nelec/2)
+                        do l9=1,(norb-(nelec/2))
+                            n = n + 1
+ 
+                            write(6,*) '----------------------------------------------------------'
+                            write(6,*) 'Evaluating hessian from gradient for matrix elements',p(l5),q(l6),p(l8),q(l9)
+                            write(6,*) 'using a step size of',stepspq(l7)
+
+                            numhessgrad(m,n,l7) = (exactgradstep(p(l8),q(l9)) - &
+                                &exactgrad(p(l8),q(l9)))/stepspq(l7)
+                            errorhessgrad(m,n,l7) = numhessgrad(m,n,l7) - exacthess(p(l5),q(l6),p(l8),q(l9))
+                            numhessgradback(m,n,l7) = (exactgrad(p(l8),q(l9)) - &
+                                &exactgradstepback(p(l8),q(l9)))/stepspq(l7)
+                            errorhessgradback(m,n,l7) = numhessgradback(m,n,l7) - exacthess(p(l5),q(l6),p(l8),q(l9))
+                            numhessgradcenter(m,n,l7) = (exactgradstep(p(l8),q(l9)) - &
+                                &exactgradstepback(p(l8),q(l9)))/(2.0_dp*stepspq(l7))
+                            errorhessgradcenter(m,n,l7) = numhessgradcenter(m,n,l7) - exacthess(p(l5),q(l6),p(l8),q(l9))
+                        enddo
+                    enddo
+                enddo
+            enddo
+        enddo
+
+        write(6,*) '---------------------------------------------------------------'
+        write(6,*) 'The numerical hessian from the gradient is: number1,number2,p,q,r,s,deltapq/rs,&
+            &hessian_pqrs (forward, backward and centered differencing)'
+        m = 0
+        do l1=1,(nelec/2)
+            do l2=1,(norb-(nelec/2))
+                m = m + 1
+                n = 0
+                do l4=1,(nelec/2)
+                    do l5=1,(norb-(nelec/2))
+                        n = n + 1
+                        do l3=1,235
+                            write(6,*) m,n,p(l1),q(l2),p(l4),q(l5),stepspq(l3),&
+                                &numhessgrad(m,n,l3),&
+                                &numhessgradback(m,n,l3),numhessgradcenter(m,n,l3)
+                        enddo
+                    enddo
+                enddo
+            enddo
+        enddo
+        write(6,*) '------------------------------------------------------------'
+        write(6,*) 'The error in the numerical hessian from the gradient is: &
+            &number1,number2,,p,q,r,s,&
+            &delta_pq/rs,error (forward, backward and centered differencing)'
+        m = 0
+        do l1=1,(nelec/2)
+            do l2=1,(norb-(nelec/2))
+                m = m + 1
+                n = 0
+                do l4=1,(nelec/2)
+                    do l5=1,(norb-(nelec/2))
+                        n = n + 1
+                        do l3=1,235
+                            write(6,*) m,n,p(l1),q(l2),p(l4),q(l5),stepspq(l3),&
+                                &errorhessgrad(m,n,l3),&
+                                &errorhessgradback(m,n,l3),errorhessgradcenter(m,n,l3)
+                        enddo
+                    enddo
+                enddo
+            enddo
+        enddo
+
+ 
+        ! write this out in a separate file for firther analysis
+        open(9,file='Hessian_Error',status='unknown')
+        write(9,*) '# Element p, Element q, Element r, Element s, Increment delta_pq/rs,&
+            & Numerical hessian (forward, backward and centerd differencing), &
+            & Numerical hessian from gradient (forward, backward and centered differencing), &
+            & Analytical hessian,&
+            & Error in numerical hessian (forward, backward and centered differencing),&
+            & Error in numerical hessian from gradient (forward, backward and centered &
+            &differencing), &
+            & Absolute error in numerical hessian (forward, &
+            &backward and centered differencing), Absolute error in numerical hessian from &
+            &gradient (forward, backward and centered differencing)'
+        m = 0
+        do l1=1,(nelec/2)
+            do l2=1,(norb-(nelec/2))
+                m = m + 1
+                n = 0
+                do l4=1,(nelec/2)
+                    do l5=1,(norb-(nelec/2))
+                        n = n + 1
+                        do l3=1,235
+                            write(9,'(4i5,34g20.12)') p(l1),q(l2),p(l4),q(l5),stepspq(l3),&
+                                &numhessfor(m,n,l3),numhessback(m,n,l3),numhess(m,n,l3),&
+                                &numhessgrad(m,n,l3),numhessgradback(m,n,l3),&
+                                &numhessgradcenter(m,n,l3),exacthess(p(l1),q(l2),p(l4),q(l5)),&
+                                &errorhessfor(m,n,l3),errorhessback(m,n,l3),errorhess(m,n,l3),&
+                                &errorhessgrad(m,n,l3),errorhessgradback(m,n,l3),&
+                                &errorhessgradcenter(m,n,l3),abs(errorhessfor(m,n,l3)),&
+                                &abs(errorhessback(m,n,l3)),abs(errorhess(m,n,l3)),&
+                                &abs(errorhessgrad(m,n,l3)),abs(errorhessgradback(m,n,l3)),&
+                                &abs(errorhessgradcenter(m,n,l3))
+                        enddo
+                        write(9,*)
+                    enddo
+                enddo
+                write(9,*)
+            enddo
+        enddo
+        close(9)
+
+        deallocate(stepspq)
+        deallocate(p)
+        deallocate(q)
+        deallocate(energiesp1p1)
+        deallocate(energiesp1m1)
+        deallocate(energiesm1p1)
+        deallocate(energiesm1m1)
+        deallocate(energies0p1)
+        deallocate(energiesp10)
+        deallocate(energiesm10)
+        deallocate(energies0m1)
+        deallocate(energiesp20)
+        deallocate(energiesm20)
+        deallocate(exactgradstepback)
+        deallocate(exacthessstepback)
+        deallocate(exactgrad)
+        deallocate(exacthess)
+        deallocate(exactgradstep)
+        deallocate(exacthessstep)
+        deallocate(exactgradin)
+        deallocate(numhess)
+        deallocate(numhessback)
+        deallocate(numhessfor)
+        deallocate(numhessgrad)
+        deallocate(numhessgradback)
+        deallocate(numhessgradcenter)
+        deallocate(temptrans)
+        deallocate(gradcoeffsp1p1)
+        deallocate(dmatp1p1)
+        deallocate(dmatorig)
+        deallocate(errorhess)
+        deallocate(errorhessback)
+        deallocate(errorhessfor)
+        deallocate(errorhessgrad)
+        deallocate(errorhessgradback)
+        deallocate(errorhessgradcenter)
+
+    end subroutine ErrorGradientHessian_2
+
+
+    subroutine NewtonRaphson_EigenVec_Trans_Mode(cmat,g1,g2,modein,origmode,switch)
+
+        ! This subroutine is to apply an Eigenvector-Following approach in order to find a 
+        ! transition state by maximizing along the kth mode via a transformation x
+        ! using the augmented Hessian and solving the eigenvalue problem
+        ! (H   g) (X)           (x)
+        ! (g^T 0) (1) = \lambda (1)
+        ! where g is the gradient transformed into local hessian modes
+        ! H the hessian in diagonal form
+        ! such that the kth mode is being followed
+        ! lambda_k = b_k/2 +/- 0.5*((b_k^2) + (4*f_k^2)^(1/2)
+        ! where b_k is the eigenvalue of the kth mode which is being followed and 
+        ! f_k is the respective element of the transformed gradient vector
+        ! + is for maximisation and - for minimisation along the kth mode
+
+        complex(dp), allocatable, intent(in) :: g1(:,:),g2(:,:,:,:)
+        complex(dp), allocatable, intent(inout) :: cmat(:,:)
+        complex(dp), allocatable, intent(inout) :: origmode(:)
+        logical, intent(in) :: switch
+        integer :: mode,maxmodeloc(1)
+        integer, intent(inout) :: modein
+        complex(dp), allocatable :: overlap(:)
+        real(dp), allocatable :: hessian(:,:),gradient(:)
+        real(dp), allocatable :: rrscr(:),hessian_evals(:),hessian_eigenvec(:,:)
+        real(dp), allocatable :: k_aughessian_evals(:),k_aughessian_eigenvec(:,:)
+        real(dp), allocatable :: k_aughessian(:,:)
+        real(dp), allocatable :: xfromh(:)
+        real(dp), allocatable :: transformg(:,:)
+        real(dp), allocatable :: aughessian(:,:),aughessian_eigenvec(:,:)
+        real(dp), allocatable :: aughessian_evals(:),augrrscr(:)
+        real(dp), allocatable :: inversehessian(:,:),temp(:)
+        real(dp) :: maxmodeval
+        integer :: l1,l2,l3,l4,ierr,m,n,nexcit,lrscr,auglrscr
+
+        ! number of matrix elements
+        nexcit = norb*norb
+        lrscr = 4*nexcit
+        auglrscr = 4*(nexcit+1)
+
+        write(6,*) '-----------------------------------------------------------'
+        write(6,*) 'Eigenvector-Following Step for finding a transition state &
+            &in the HF energy'
+        write(6,*) '-----------------------------------------------------------'
+
+        allocate(hessian(nexcit,nexcit),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating hessian'
+        endif
+        allocate(gradient(nexcit),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating gradient'
+        endif
+        allocate(rrscr(lrscr),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating rrscr'
+        endif
+        allocate(hessian_evals(nexcit),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating hessian_evals'
+        endif
+        allocate(hessian_eigenvec(nexcit,nexcit),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating hessian_eigenvec'
+        endif
+        allocate(inversehessian(nexcit,nexcit),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating inversehessian'
+        endif
+        allocate(xfromh(nexcit),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating xfromh'
+        endif
+        allocate(aughessian(nexcit,nexcit),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating aughessian'
+        endif
+        allocate(aughessian_eigenvec(nexcit,nexcit),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating aughessian_eigenvec'
+        endif
+        allocate(aughessian_evals((nexcit)),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating aughessian_evals'
+        endif
+        allocate(augrrscr(auglrscr),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating augrrscr'
+        endif
+        allocate(transformg(nexcit,nexcit),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating transformg'
+        endif
+        allocate(temp(nexcit),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating temp'
+        endif
+        allocate(k_aughessian_evals(2),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating k_aughessian_evals'
+        endif
+        allocate(k_aughessian_eigenvec(2,2),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating k_aughessian_eigenvec'
+        endif
+        allocate(k_aughessian(2,2),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating k_aughessian'
+        endif
+        allocate(overlap(nexcit),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating overlap'
+        endif
+ 
+
+        ! Hessian iswritten in supermatrix form
+        hessian(:,:) = 0.0_dp
+
+        m = 0
+        n = 0
+        do l1=1,norb
+            do l2=1,norb
+                m = m + 1
+                n = 0
+                do l3=1,norb
+                    do l4=1,norb
+                        n = n + 1
+                        hessian(n,m) = real(g2(l4,l3,l2,l1),dp)
+                    enddo
+                enddo
+            enddo
+        enddo
+        
+        if (m.ne.n) then
+            stop 'Error: Hessian matrix is not in square form'
+        endif
+
+        if ((m.ne.nexcit).or.(n.ne.nexcit)) then
+            stop 'Error: Hessian matrix has wrong number of elements'
+        endif
+
+        ! test hessian for hermiticity
+        do l1=1,nexcit
+            do l2=1,nexcit
+                if (abs(hessian(l2,l1)-hessian(l1,l2)).gt.1e-8_dp) then
+                    write(6,*) l2,l1,hessian(l2,l1),hessian(l1,l2)
+                    stop 'Error: Hessian is not hermitian'
+                endif
+            enddo
+        enddo
+
+        ! gradient is written in supermatrix form
+        gradient(:) = 0.0_dp
+
+        m = 0
+        do l1=1,norb
+            do l2=1,norb
+                m = m + 1
+                gradient(m) = real(g1(l2,l1),dp)
+            enddo
+        enddo
+
+        if ((m.ne.nexcit)) then
+            stop 'Error: Gradient vector has wrong number of elements'
+        endif
+
+
+        write(6,*) 'The gradient vector is:'
+        do l1=1,nexcit
+            write(6,*) l1,gradient(l1)
+        enddo
+
+        write(6,*) 'The hessian vector is:'
+        do l1=1,nexcit
+            do l2=1,nexcit
+                write(6,*) l2,l1,hessian(l2,l1)
+            enddo
+        enddo
+
+        write(6,*) '--------------------------------------------------'
+
+        ! Hessian should be positive semi-definite if the solution is to be stable
+        ! diagonalise hessian
+        hessian_eigenvec = hessian
+        call dsyev('V','U',nexcit,hessian_eigenvec,nexcit,&
+            &hessian_evals,rrscr,lrscr,ierr)
+        if (ierr.ne.0) then
+            stop 'Error diagonalising Hessian'
+        endif
+
+        write(6,*) 'Eigenvectors of Hessian:'
+        do l1=1,nexcit
+            write(6,*) l1
+            do l2=1,nexcit
+                write(6,*) l2,hessian_eigenvec(l2,l1)
+            enddo
+        enddo
+
+        write(6,*) 'Eigenvalues of Hessian:'
+        do l1=1,nexcit
+            write(6,*) l1,hessian_evals(l1)
+        enddo
+
+
+        temp(:) = 0.0_dp
+        call dgemv('T',nexcit,nexcit,1.0_dp,hessian_eigenvec,nexcit,&
+        &gradient,1,0.0_dp,temp,1)
+
+        write(6,*) 'Gradient transformed into local hessian modes:'
+        do l1=1,nexcit
+            write(6,*) l1,temp(l1)
+        enddo
+
+        ! select the mode to be followed
+        if (switch) then
+            ! first iteration: choose one mode
+            mode = modein
+        else
+            mode = modein
+            overlap(:) = 0.0_dp
+            do l1=1,nexcit
+                overlap(l1) = dot_product(origmode,hessian_eigenvec(:,l1))
+            enddo
+            write(6,*) 'original folmode'
+            do l1=1,nexcit
+                write(6,*) l1,origmode(l1)
+            enddo
+            write(6,*) '--------------------------------------------------------'
+            write(6,*) 'Overlap of present hessian modes with previously followed mode'
+            do l1=1,nexcit
+                write(6,*) l1,overlap(l1)
+            enddo
+            ! choose maximum overlap with mode of prevous cycle
+            maxmodeval = maxval(abs(overlap(1:mode)))
+            maxmodeloc = maxloc(abs(overlap(1:mode)))
+            write(6,*) 'Choosing the following mode:',maxmodeloc(1),maxmodeval
+            mode = maxmodeloc(1)
+            modein = mode
+
+        endif
+
+        write(6,*) 'The followed mode is:',mode
+        write(6,*) '-------------------------------------------------------'
+
+
+        ! form augmented hessian
+        aughessian(:,:) = 0.0_dp
+        if (mode.eq.1) then
+            do l1=2,nexcit
+                aughessian((l1-1),(l1-1)) = hessian_evals(l1)
+                aughessian((l1-1),nexcit) = temp(l1)
+                aughessian(nexcit,(l1-1)) = temp(l1)
+            enddo
+        elseif (mode.eq.nexcit) then
+            do l1=1,(nexcit-1)
+                aughessian(l1,l1) = hessian_evals(l1)
+                aughessian(l1,nexcit) = temp(l1)
+                aughessian(nexcit,l1) = temp(l1)
+            enddo
+        else
+            do l1=1,(mode-1)
+                aughessian(l1,l1) = hessian_evals(l1)
+                aughessian(l1,nexcit) = temp(l1)
+                aughessian(nexcit,l1) = temp(l1)
+            enddo
+            do l1=(mode+1),nexcit
+                aughessian((l1-1),(l1-1)) = hessian_evals(l1)
+                aughessian((l1-1),nexcit) = temp(l1)
+                aughessian(nexcit,(l1-1)) = temp(l1)
+            enddo
+        endif
+ 
+        ! kth mode along which it is maximised
+        ! choose lowest mode of hessian
+        k_aughessian(:,:) = 0.0_dp
+        k_aughessian(1,1) = hessian_evals(mode)
+        k_aughessian(1,2) = temp(mode)
+        k_aughessian(2,1) = temp(mode)
+
+        aughessian_eigenvec = aughessian
+        k_aughessian_eigenvec = k_aughessian
+
+        call dsyev('V','U',nexcit,aughessian_eigenvec,nexcit,&
+            &aughessian_evals,augrrscr,auglrscr,ierr)
+        if (ierr.ne.0) then
+            stop 'Error diagonalising augmented Hessian'
+        endif
+
+        call dsyev('V','U',2,k_aughessian_eigenvec,2,&
+            &k_aughessian_evals,augrrscr,auglrscr,ierr)
+        if (ierr.ne.0) then
+            stop 'Error diagonalising augmented Hessian special mode'
+        endif
+
+        write(6,*) 'Eigenvectors of augmented Hessian:'
+        do l1=1,nexcit
+            write(6,'(I5)') l1
+            do l2=1,nexcit
+                write(6,*) l2,aughessian_eigenvec(l2,l1)
+            enddo
+        enddo
+
+        write(6,*) 'Eigenvalues of augmented Hessian:'
+        do l1=1,nexcit
+            write(6,*) l1,aughessian_evals(l1)
+        enddo
+
+        write(6,*) 'Eigenvectors of augmented Hessian of special mode:'
+        do l1=1,2
+            write(6,'(I5)') l1
+            do l2=1,2
+                write(6,*) l2,k_aughessian_eigenvec(l2,l1)
+            enddo
+        enddo
+
+        write(6,*) 'Eigenvalues of augmented Hessian of special mode:'
+        do l1=1,2
+            write(6,*) l1,k_aughessian_evals(l1)
+        enddo
+
+        ! calculate transformation vector
+        ! x = - F_i V_i/(b_i - lambda)
+        ! where V_i is the eigenvector of the hessian, b_i its eigenvalues
+        ! lambda its lambda value and F_i the gradient component in local hessian 
+        ! modes
+        xfromh(:) = 0.0_dp
+        do l1=1,nexcit
+            if (mode.eq.1) then
+                do l2=2,nexcit
+                    if ((abs(hessian_eigenvec(l1,l2)).lt.1e-8_dp).or.&
+                        &(abs(temp(l2)).lt.1e-8_dp)) cycle
+                    xfromh(l1) = xfromh(l1) + (temp(l2)*hessian_eigenvec(l1,l2)/&
+                        &(aughessian_evals(1)-hessian_evals(l2)))
+                enddo
+                if ((abs(hessian_eigenvec(l1,mode)).lt.1e-8_dp).or.&
+                    &(abs(temp(mode)).lt.1e-1_dp)) cycle
+                xfromh(l1) = xfromh(l1) - (temp(mode)*hessian_eigenvec(l1,mode)/&
+                    &(k_aughessian_evals(2)-hessian_evals(mode)))
+            elseif (mode.eq.nexcit) then
+                do l2=1,(nexcit-1)
+                    if ((abs(hessian_eigenvec(l1,l2)).lt.1e-8_dp).or.&
+                        &(abs(temp(l2)).lt.1e-8_dp)) cycle
+                    xfromh(l1) = xfromh(l1) + (temp(l2)*hessian_eigenvec(l1,l2)/&
+                        &(aughessian_evals(1)-hessian_evals(l2)))
+                enddo
+                if ((abs(hessian_eigenvec(l1,mode)).lt.1e-8_dp).or.&
+                    &(abs(temp(mode)).lt.1e-8_dp)) cycle
+                xfromh(l1) = xfromh(l1) - (temp(mode)*hessian_eigenvec(l1,mode)/&
+                    &(k_aughessian_evals(2)-hessian_evals(mode)))
+            else
+                do l2=1,(mode-1)
+                    if ((abs(hessian_eigenvec(l1,l2)).lt.1e-8_dp).or.&
+                        &(abs(temp(l2)).lt.1e-8_dp)) cycle
+                    xfromh(l1) = xfromh(l1) + (temp(l2)*hessian_eigenvec(l1,l2)/&
+                        &(aughessian_evals(1)-hessian_evals(l2)))
+                enddo
+                do l2=(mode+1),nexcit
+                    if ((abs(hessian_eigenvec(l1,l2)).lt.1e-8_dp).or.&
+                        &(abs(temp(l2)).lt.1e-8_dp)) cycle
+                    xfromh(l1) = xfromh(l1) + (temp(l2)*hessian_eigenvec(l1,l2)/&
+                        &(aughessian_evals(1)-hessian_evals(l2)))
+                enddo
+                if ((abs(hessian_eigenvec(l1,mode)).lt.1e-8_dp).or.&
+                    &(abs(temp(mode)).lt.1e-8_dp)) cycle
+                xfromh(l1) = xfromh(l1) - (temp(mode)*hessian_eigenvec(l1,mode)/&
+                    &(k_aughessian_evals(2)-hessian_evals(mode)))
+            endif
+        enddo
+
+        ! store the mode that has been followed
+        origmode = hessian_eigenvec(:,mode)
+
+        ! return coefficients
+        cmat(:,:) = 0.0_dp
+        m = 0
+        do l1=1,norb
+            do l2=1,norb
+                m = m + 1
+                cmat(l2,l1) = xfromh(m)
+            enddo
+        enddo
+
+
+        write(6,*) '---------------------------------------------------------'
+        write(6,*) 'The final transformation coefficients are:'
+        do l1=1,norb
+            do l2=1,norb
+                write(6,*) l2,l1,cmat(l2,l1)
+            enddo
+        enddo
+
+        write(6,*) '----------------------------------------------------------'
+
+
+        deallocate(gradient)
+        deallocate(rrscr)
+        deallocate(hessian_eigenvec)
+        deallocate(hessian_evals)
+        deallocate(k_aughessian)
+        deallocate(k_aughessian_eigenvec)
+        deallocate(k_aughessian_evals)
+        deallocate(xfromh)
+        deallocate(inversehessian)
+        deallocate(aughessian)
+        deallocate(aughessian_eigenvec)
+        deallocate(aughessian_evals)
+        deallocate(augrrscr)
+        deallocate(temp)
+        deallocate(hessian)
+        deallocate(overlap)
+
+    end subroutine NewtonRaphson_EigenVec_Trans_Mode
+
+    subroutine PerformNewtonRaphson_EigenVec_Trans_Mode(cmat,g1,g2,followmodein)
+
+        ! This subroutine is to perform several Newton Raphson steps in a
+        ! row in order to find a new transition state
+        ! this routine uses the eigenvector-following algorithm
+
+        complex(dp), allocatable, intent(inout) :: cmat(:,:),g1(:,:)
+        complex(dp), allocatable, intent(inout) :: g2(:,:,:,:)
+        integer, intent(in) :: followmodein
+        complex(dp), allocatable :: transcoeffs(:,:),originalcoeffs(:,:)
+        complex(dp), allocatable :: xmat(:,:),dmat(:,:)
+        complex(dp), allocatable :: nos(:,:)
+        real(dp), allocatable :: no_occ(:)
+        complex(dp), allocatable :: norrscr(:)
+        real(dp), allocatable :: nolrscr(:)
+        complex(dp), allocatable :: origmode(:)
+        logical :: choosemode
+        complex(dp) :: energy,energy_old
+        complex(dp) :: sumgradient,sumhessian
+        integer :: l1,l2,l3,l4,ierr,iter,rlscr,mode
+        real(dp) :: sumgrad,sumgrad_old,step
+
+        rlscr = 4*norb
+        allocate(transcoeffs(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating transcoeffs'
+        endif
+        allocate(originalcoeffs(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating originalcoeffs'
+        endif
+        allocate(xmat(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating xmat'
+        endif
+        allocate(dmat(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating dmat'
+        endif
+        allocate(norrscr(rlscr),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating norrscr'
+        endif
+        allocate(nolrscr(rlscr),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating nolrscr'
+        endif
+        allocate(nos(norb,norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating nos'
+        endif
+        allocate(no_occ(norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating no_occ'
+        endif
+        allocate(origmode(norb*norb),stat=ierr)
+        if (ierr.ne.0) then
+            stop 'Error allocating origmode'
+        endif
+
+
+        write(6,*) '------------------------------------------------------------'
+        write(6,*) 'Performing an Eigenvector-Following iteration scheme'
+        write(6,*) 'for finding a transition state'
+        write(6,*) '------------------------------------------------------------'
+
+
+        originalcoeffs = cmat
+
+        ! calculate original HF energy (assuming HF basis set)
+        ! construct density matrix
+        dmat(:,:) = 0.0_dp
+        do l1=1,norb
+            do l2=1,norb
+                do l3=1,(nelec/2)
+                    dmat(l2,l1) = dmat(l2,l1) + (2.0_dp*originalcoeffs(l1,l3)*&
+                        &conjg(originalcoeffs(l2,l3)))
+                enddo
+            enddo
+        enddo
+
+        energy = 0.0_dp
+        do l1=1,norb
+            do l2=1,norb
+                do l3=1,norb
+                    do l4=1,norb
+                        ! coulomb integral
+                        energy = energy + (dmat(l4,l2)*dmat(l3,l1)*umat(l4,l3,l2,l1))
+                        ! exchange integral
+                        energy = energy - (0.5_dp*dmat(l4,l2)*&
+                            &dmat(l3,l1)*umat(l4,l3,l1,l2))
+                    enddo
+                enddo
+            enddo
+        enddo
+        energy = 0.5_dp*energy
+
+        ! kinetic energy
+        do l1=1,norb
+            do l2=1,norb
+                energy = energy + (dmat(l2,l1)*tmat(l2,l1))
+            enddo
+        enddo
+
+        energy = energy + ecore
+
+        write(6,*) 'The original HF energy is:',energy
+        energy_old = energy
+
+        !step = -0.1_dp
+        iter = 0
+        transcoeffs = originalcoeffs
+        origmode = 0.0_dp
+
+        ! mode to be followed 
+        mode = followmodein 
+        choosemode = .true.
+        step = 0.1_dp
+
+        do
+          
+            iter = iter + 1
+
+            originalcoeffs = transcoeffs
+            cmat = transcoeffs
+
+            if (iter.eq.1) then
+                choosemode = .true.
+            else
+                choosemode = .false.
+            endif
+
+            write(6,*) '--------------------------------------------------------------'
+            write(6,*) 'Iteration:',iter
+            write(6,*) 'Performing Eigenvector-Following step...'
+            ! Evaluate the gradient at this point
+            call FindGradient(cmat,g1,g2)
+            ! calculate the sum of the gradient and hessian elements
+            sumgradient = sum(abs(g1))
+            sumhessian = sum(abs(g2))
+            sumgrad = abs(sumgradient)
+            if (iter.eq.1) sumgrad_old = abs(sumgradient)
+
+            ! perform a Newton Raphson step
+            call NewtonRaphson_EigenVec_Trans_Mode(cmat,g1,g2,mode,origmode,choosemode)
+            !call NewtonRaphson(cmat,g1,g2)
+            xmat = cmat
+
+            ! find rotation matrix
+            call TransformFromGradient(cmat,xmat,step)
+
+            ! perform rotation
+            call zgemm('T','N',norb,norb,norb,(1.0_dp,0.0_dp),cmat,norb,&
+            &originalcoeffs,norb,(0.0_dp,0.0_dp),transcoeffs,norb)
+
+            write(6,*) 'New coefficients after the transformation:'
+            do l1=1,norb
+                do l2=1,norb
+                    write(6,*) l2,l1,transcoeffs(l2,l1)
+                enddo
+            enddo
+
+
+            ! calculate enegy using closed shell expression
+            ! E = \sum_i 2 <i|h|i> + \sum_ij ((2<ij|ij> - <ij|ji>)
+            dmat(:,:) = 0.0_dp
+            do l1=1,norb
+                do l2=1,norb
+                    do l3=1,(nelec/2)
+                        dmat(l2,l1) = dmat(l2,l1) + (2.0_dp*transcoeffs(l1,l3)*&
+                            &conjg(transcoeffs(l2,l3)))
+                    enddo
+                enddo
+            enddo
+
+            ! find natural orbitals
+            nos = dmat
+            call zheev('V','U',norb,nos,norb,no_occ,norrscr,rlscr,nolrscr,ierr)
+            if (ierr.ne.0) then
+                stop 'Error diagonalising nos'
+            endif
+
+            write(6,*) 'Natural Orbitals:'
+            do l1=1,norb
+                write(6,*) l1
+                do l2=1,norb
+                    write(6,*) l2,nos(l2,l1)
+                enddo
+            enddo
+
+            write(6,*) 'Occupation numbers:'
+            do l1=1,norb
+                write(6,*) l1,no_occ(l1)
+            enddo
+
+            write(6,*) '---------------------------------------------------------'
+            write(6,*) 'Sum of natural orbital occupation numbers:',sum(no_occ)
+            write(6,*) 'Maximum absolute element of gradient matrix:',&
+                &maxval(abs(real(g1,dp)))
+            write(6,*) 'Sum of absolute matrix elements of gradient and hessian:'
+            write(6,*) sumgradient,sumhessian
+            write(6,*) '----------------------------------------------------------'
+ 
+            energy = 0.0_dp
+            do l1=1,norb
+                do l2=1,norb
+                    do l3=1,norb
+                        do l4=1,norb
+                            ! coulomb integral
+                            energy = energy + (dmat(l4,l2)*dmat(l3,l1)*umat(l4,l3,l2,l1))
+                            ! exchange integral
+                            energy = energy - (0.5_dp*dmat(l4,l2)*&
+                                &dmat(l3,l1)*umat(l4,l3,l1,l2))
+                        enddo
+                    enddo
+                enddo
+            enddo
+            energy = 0.5_dp*energy
+
+            ! kinetic energy
+            do l1=1,norb
+                do l2=1,norb
+                    energy = energy + (dmat(l2,l1)*tmat(l2,l1))
+                enddo
+            enddo
+
+            energy = energy + ecore
+
+            write(6,*) 'The HF energy of the previous iteration:',energy_old
+            write(6,*) 'The new HF energy:', energy
+
+            write(6,*) 'Sum of absolute gradient matrix elements (previous and current iteration):',sumgrad_old,sumgrad
+            
+            if ((abs(sumgrad).lt.0.5_dp)) then!
+                write(6,*) 'Convergence achieved !'
+                write(6,*) 'Stopping calculation !'
+                write(6,*) 'HF energy of previous and final iteration:'
+                write(6,*) energy_old,energy
+                write(6,*) 'Maximum residual absolute matrix element of gradient:',&
+                    &maxval(abs(g1))
+                write(6,*) 'Total sum of residual absolute value of gradient and hessian &
+                    &matrix elements:'
+                write(6,*) sumgradient,sumhessian
+                exit
+            endif
+
+            if (abs(sumgrad).lt.5.0_dp) then
+                step = 0.01_dp
+            endif
+
+            energy_old = energy
+            sumgrad_old = sumgrad
+
+        enddo
+
+        ! return coefficients
+        cmat = transcoeffs
+
+
+        deallocate(dmat)
+        deallocate(xmat)
+        deallocate(transcoeffs)
+        deallocate(nos)
+        deallocate(no_occ)
+        deallocate(norrscr)
+        deallocate(nolrscr)
+        deallocate(originalcoeffs)
+        deallocate(origmode)
+
+    end subroutine PerformNewtonRaphson_EigenVec_Trans_Mode
+
 
 end program main
