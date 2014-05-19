@@ -1,3 +1,6 @@
 .true.       realinds: integrals in FCIDUMP file are real (if .true.) and complex (if .false.)
 .false.      tmolpro: Molpro FCIDUMP file (if .true.) or Qchem FCIDUMP file (if .false.)
 3            scheme: scheme which is used for rotating the orbitals, if scheme=1 a pairwise orbital rotation is performed, if scheme=2: the transformation is performed using the eigenvector followed by a symmetric Loewdin orthogonalisation, if scheme=3: a Newton-Raphson iteration scheme is used
+.false.       error_diff: this calculates the error in the gradient and hessian if they are evaluated exactly and using finite differences, the error is evaluated as a function of the size of the element in the rotation matrix (this helps to check that the gradient and hessian are correct)
+2            minimizer: this option is to choose which minimzer is used in connection with scheme=3, if minimizer=1: an eigenvector-following scheme is applied to find a minimum, if minimizer=2: an eigenvector-following scheme is applied to converge onto a transition state
+1            followmode: this option is to choose which hessian mode should be followed if mode-following in an eigenvector-following scheme is applied in order to locate a transition state
