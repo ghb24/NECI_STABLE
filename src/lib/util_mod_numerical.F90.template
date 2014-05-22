@@ -1,0 +1,121 @@
+[int]
+type = integer(kind=int32)
+conditional_enable = !defined(SX)
+width = 12
+fmtstr = i12
+
+[int64]
+type = integer(kind=int64)
+width = 12
+fmtstr = i12
+
+[real]
+type = real(kind=sp)
+conditional_enable = !defined(SX)
+width = 17
+fmtstr = g17.9
+
+[doub]
+type = real(kind=dp)
+width = 17
+fmtstr = g17.9
+
+=========================
+
+module util_mod_numerical
+    
+    ! This module deals with templated things that must be numbers.
+    !
+    ! Particularly, +, -, <, >, <=, >= must be defined
+
+    use constants
+    implicit none
+
+contains
+
+    pure function binary_search_first_ge (arr, val, ind_change, offset) result(pos)
+
+        ! Find the first element in an array which is >= val, in an array
+        ! which has been sorted. Note that we only use the < comparison.
+        !
+        ! If there is no such element, the function returns -1.
+        !
+        ! If ind_change is specified, then the values from this index onwards
+        ! are modified by the value in offset. This allows us to essentially
+        ! remove an element from an underlying list that this is the cumulative
+        ! sum of.
+
+        %(type)s, intent(in) :: arr(:)
+        %(type)s, intent(in) :: val
+        integer, intent(in), optional :: ind_change
+        %(type)s, intent(in), optional :: offset
+        integer :: pos
+
+        integer :: hi, lo, ind_change_
+        %(type)s :: tmp
+
+        ! The search range
+        lo = lbound(arr, 1)
+        hi = ubound(arr, 1)
+
+        ! The change/offset values
+        if (present(ind_change)) then
+            ind_change_ = ind_change
+        else
+            ind_change_ = hi + 1
+        end if
+
+        ! Test if such an element exists
+        tmp = arr(hi)
+        if (hi >= ind_change_) tmp = tmp + offset
+        if (tmp < val) then
+            pos = -1
+            return
+        endif
+
+        do while (hi /= lo)
+            pos = int(real(hi + lo,sp) / 2_sp)
+
+            !if (arr(pos) >= val) then
+            tmp = arr(pos)
+            if (pos >= ind_change_) tmp = tmp + offset
+            if (.not.(tmp < val)) then
+                hi = pos
+            else
+                lo = pos + 1
+            endif
+        enddo
+
+        ! Return the converged value.
+        pos = hi
+
+    end function
+
+
+    subroutine stats_out (funit, initial, columns, num, title)
+
+        integer, intent(in) :: funit
+        logical, intent(in) :: initial
+        integer, intent(inout) :: columns
+        %(type)s, intent(in) :: num
+        character(*), intent(in) :: title
+        character(5) :: colno
+
+        ! Increment the column counter
+        columns = columns + 1
+
+        ! Add column spacing
+        write(funit, '(" ")', advance='no')
+
+        if (initial) then
+            write(colno, '(i5)') columns
+            write(funit, '(a%(width)s)', advance='no') &
+                trim(adjustl(colno)) // ". " // trim(adjustl(title))
+        else
+            write(funit, '(%(fmtstr)s)', advance='no') num
+        end if
+
+    end subroutine
+
+end module
+

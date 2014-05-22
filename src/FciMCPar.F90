@@ -63,30 +63,32 @@ MODULE FciMCParMod
                              NHolesFrozen, tPartFreezeVirt, NVirtPartFrozen, &
                              NElVirtFrozen
     use LoggingData, only: iWritePopsEvery, TPopsFile, iPopsPartEvery, tBinPops, &
-                       iWriteHistEvery, tHistEnergies, FCIMCDebug, &
-                       IterShiftBlock, AllHistInitPops, &
-                       OffDiagBinRange, OffDiagMax, AllHistInitPopsTag, &
-                       tLogComplexPops, tPrintFCIMCPsi, tCalcFCIMCPsi, &
-                       NHistEquilSteps, tPrintOrbOcc, StartPrintOrbOcc, &
-                       tPrintOrbOccInit, tHFPopStartBlock, tIterStartBlock, &
-                       IterStartBlocking, HFPopStartBlocking, &
-                       tInitShiftBlocking, tHistHamil, iWriteHamilEvery, &
-                       HistInitPopsTag, OrbOccs, OrbOccsTag, &
-                       tPrintPopsDefault, iWriteBlockingEvery, &
-                       tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
-                       HistInitPops, DoubsUEG, DoubsUEGLookup, DoubsUEGStore,&
-                       tPrintDoubsUEG, StartPrintDoubsUEG, tCalcInstantS2, &
-                       instant_s2_multiplier, tMCOutput, tSplitProjEHist, &
-                       tSplitProjEHistG, tSplitProjEHistK3, iProjEBins, &
-                       tDiagWalkerSubspace,iDiagSubspaceIter, &
-                       tRDMonFly, IterRDMonFly,RDMExcitLevel, RDMEnergyIter, &
-                       tChangeVarsRDM, tExplicitAllRDM, tHF_Ref_Explicit, &
-                       tHF_S_D_Ref, tHF_S_D, tInitiatorRDM,    &
-                       tDiagWalkerSubspace, iDiagSubspaceIter, &
-                       tCalcInstantS2Init, instant_s2_multiplier_init, &
-                       tJustBlocking, iBlockEquilShift, iBlockEquilProjE, &
-                       tDiagAllSpaceEver, tCalcVariationalEnergy, tCompareTrialAmps, &
-                       compare_amps_period, tHistExcitToFrom, tNoNewRDMContrib
+                           iWriteHistEvery, tHistEnergies, FCIMCDebug, &
+                           IterShiftBlock, AllHistInitPops, &
+                           OffDiagBinRange, OffDiagMax, AllHistInitPopsTag, &
+                           tLogComplexPops, tPrintFCIMCPsi, tCalcFCIMCPsi, &
+                           NHistEquilSteps, tPrintOrbOcc, StartPrintOrbOcc, &
+                           tPrintOrbOccInit, tHFPopStartBlock, tIterStartBlock, &
+                           IterStartBlocking, HFPopStartBlocking, &
+                           tInitShiftBlocking, tHistHamil, iWriteHamilEvery, &
+                           HistInitPopsTag, OrbOccs, OrbOccsTag, &
+                           tPrintPopsDefault, iWriteBlockingEvery, &
+                           tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
+                           HistInitPops, DoubsUEG, DoubsUEGLookup, DoubsUEGStore,&
+                           tPrintDoubsUEG, StartPrintDoubsUEG, tCalcInstantS2, &
+                           instant_s2_multiplier, tMCOutput, tSplitProjEHist, &
+                           tSplitProjEHistG, tSplitProjEHistK3, iProjEBins, &
+                           tDiagWalkerSubspace,iDiagSubspaceIter, &
+                           tRDMonFly, IterRDMonFly,RDMExcitLevel, RDMEnergyIter, &
+                           tChangeVarsRDM, tExplicitAllRDM, tHF_Ref_Explicit, &
+                           tHF_S_D_Ref, tHF_S_D, tInitiatorRDM,    &
+                           tDiagWalkerSubspace, iDiagSubspaceIter, &
+                           tCalcInstantS2Init, instant_s2_multiplier_init, &
+                           tJustBlocking, iBlockEquilShift, iBlockEquilProjE, &
+                           tDiagAllSpaceEver, tCalcVariationalEnergy, tCompareTrialAmps, &
+                           compare_amps_period, tNoNewRDMContrib, &
+                           log_cont_time_survivals, tNoWarnIC0Bloom, &
+                           tLogPopsMaxTau, tFCIMCStats2, tHistExcitToFrom
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -177,7 +179,6 @@ MODULE FciMCParMod
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
         use LoggingData, only: PopsfileTimer
-        use util_mod, only: get_free_unit
         use nElRDMMod, only: InitRDM
         use sym_mod, only: getsym
         use SystemData, only: tUEG2
@@ -249,15 +250,22 @@ MODULE FciMCParMod
         end if
         
         ! Initial output
-        call WriteFciMCStatsHeader()
-        ! Prepend a # to the initial status line so analysis doesn't pick up
-        ! repetitions in the FCIMCStats or INITIATORStats files from restarts.
-!        write (iout,'("#")', advance='no')
-        if (iProcIndex == root) then
-            write (fcimcstats_unit,'("#")', advance='no')
-            write (initiatorstats_unit,'("#")', advance='no')
+        if (tFCIMCStats2) then
+            call write_fcimcstats2(iter_data_fciqmc, initial=.true.)
+            call write_fcimcstats2(iter_data_fciqmc)
+        else
+            call WriteFciMCStatsHeader()
+            ! Prepend a # to the initial status line so analysis doesn't pick
+            ! up repetitions in the FCIMCStats or INITIATORStats files from
+            ! restarts.
+            !write (iout,'("#")', advance='no')
+            if (iProcIndex == root) then
+                write (fcimcstats_unit,'("#")', advance='no')
+                write (initiatorstats_unit,'("#")', advance='no')
+            end if
+            call WriteFCIMCStats()
         end if
-        call WriteFCIMCStats()
+
 
         ! Put a barrier here so all processes synchronise before we begin.
         call MPIBarrier(error)
@@ -3165,14 +3173,19 @@ MODULE FciMCParMod
             IF(TDebug) CLOSE(11)
             CALL SetupParameters()
             CALL InitFCIMCCalcPar()
-            call WriteFciMCStatsHeader()
-            ! Prepend a # to the initial status line so analysis doesn't pick up
-            ! repetitions in the FCIMCStats or INITIATORStats files from restarts.
-            if (iProcIndex == root) then
-                write (fcimcstats_unit,'("#")', advance='no')
-                write (initiatorstats_unit,'("#")', advance='no')
+            if (tFCIMCStats2) then
+                call write_fcimcstats2(iter_data_fciqmc, initial=.true.)
+                call write_fcimcstats2(iter_data_fciqmc)
+            else
+                call WriteFciMCStatsHeader()
+                ! Prepend a # to the initial status line so analysis doesn't pick up
+                ! repetitions in the FCIMCStats or INITIATORStats files from restarts.
+                if (iProcIndex == root) then
+                    write (fcimcstats_unit,'("#")', advance='no')
+                    write (initiatorstats_unit,'("#")', advance='no')
+                end if
+                call WriteFCIMCStats()
             end if
-            call WriteFCIMCStats()
             return
         endif
 
@@ -3868,7 +3881,11 @@ MODULE FciMCParMod
         if(tRestart) return
         call population_check ()
         call update_shift (iter_data)
-        call WriteFCIMCStats ()
+        if (tFCIMCStats2) then
+            call write_fcimcstats2(iter_data_fciqmc)
+        else
+            call WriteFCIMCStats ()
+        end if
         
         call rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
 
@@ -4199,6 +4216,137 @@ MODULE FciMCParMod
         endif
 
     end subroutine WriteFCIMCStats
+
+
+    subroutine open_create_fciqmc_stats(funit)
+
+        integer, intent(in) :: funit
+        character(*), parameter :: t_r = 'open_create_fciqmc_stats'
+
+        character(30) :: filename
+        character(43) :: filename2
+        character(12) :: num
+        integer :: i
+        logical :: exists
+
+        ! If we are using Molpro, then append the molpro ID to uniquely
+        ! identify the output
+        if (tMolpro .and. .not. tMolproMimic) then
+            filename = 'fciqmc_stats_' // adjustl(MolproID)
+        else
+            filename = 'fciqmc_stats'
+        end if
+        
+
+        if (tReadPops) then
+
+            ! If we are reading from a POPSFILE, then we want to continue an
+            ! existing fciqmc_stats file if it exists.
+            open(funit, file=filename, status='unknown', position='append')
+
+        else
+
+            ! If we are doing a normal calculation, move existing fciqmc_stats
+            ! files so that they are not overwritten, and then create a new one
+            inquire(file=filename, exist=exists)
+            if (exists) then
+
+                ! Loop until we find an available spot to move the existing
+                ! file to.
+                i = 1
+                do while(exists)
+                    write(num, '(i12)') i
+                    filename2 = trim(adjustl(filename)) // "." // &
+                                trim(adjustl(num))
+                    inquire(file=filename2, exist=exists)
+                    write(6,*) 'EXISTS', trim(adjustl(filename2)), exists
+                    if (i > 10000) &
+                        call stop_all(t_r, 'Error finding free fciqmc_stats.*')
+                    i = i + 1
+                end do
+
+                ! Move the file
+                call rename(filename, filename2)
+
+            end if
+
+            ! And finally open the file
+            open(funit, file=filename, status='unknown')
+
+        end if
+
+    end subroutine
+
+
+
+    subroutine write_fcimcstats2(iter_data, initial)
+
+        ! Write output to our FCIMCStats file.
+        ! This should be done in a nice general way, so that we make merges
+        ! somewhat easier.
+        !
+        ! --> The column numbers are no longer as well fixed (oh well...)
+
+        type(fcimc_iter_data), intent(in) :: iter_data
+        logical, intent(in), optional :: initial
+
+        integer, save :: funit = -1
+        logical, save :: prepend = .true.
+        integer :: cols
+        logical :: init
+
+        ! Provide default 'initial' option
+        if (present(initial)) then
+            init = initial
+        else
+            init = .false.
+        end if
+
+        ! If the output file hasn't been opened yet, then create it.
+        if (iProcIndex == Root .and. funit == -1) then
+            funit = get_free_unit()
+            call open_create_fciqmc_stats(funit)
+        end if
+
+        ! ------------------------------------------------
+        ! This is where any calculation that needs multiple nodes should go
+        ! ------------------------------------------------
+        ! ------------------------------------------------
+    
+        if (iProcIndex == root) then
+
+            ! Only do the actual outputting on the head node.
+
+            ! Don't treat the header line as data. Add padding to align the
+            ! other columns.
+            if (init) then
+                write(funit, '("#")', advance='no')
+            else if (prepend) then
+                write(funit, '(" ")', advance='no')
+            else
+                prepend = .true.
+            end if
+
+            cols = 0
+            call stats_out(funit, init, cols, iter, 'Iter.')
+            call stats_out(funit, init, cols, proje_iter, 'Proj. E. (cyc)')
+
+            ! And we are done
+            write(funit, *)
+
+            ! If this is an initial (header) output, output a '#' so that the
+            ! next data line gets ignored in stats/plotting on a readpops run
+            ! (otherwise there is a duplicate).
+            if (init) then
+                write(funit, '("#")', advance='no')
+                prepend = .false.
+            end if
+
+        end if
+
+    end subroutine write_fcimcstats2
+
+
 
     !Ensure that the new FCIMCStats file which is about to be opened does not overwrite any other FCIMCStats
     !files. If there is already an FCIMCStats file present, then move it to FCIMCStats.x, where x is a largest
