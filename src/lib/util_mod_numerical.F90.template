@@ -92,27 +92,34 @@ contains
     end function
 
 
-    subroutine stats_out (funit, initial, columns, num, title)
+    subroutine stats_out (state, mc_col, num, title)
 
-        integer, intent(in) :: funit
-        logical, intent(in) :: initial
-        integer, intent(inout) :: columns
+        type(write_state_t), intent(inout) :: state
+        logical, intent(in) :: mc_col
         %(type)s, intent(in) :: num
         character(*), intent(in) :: title
         character(5) :: colno
 
         ! Increment the column counter
-        columns = columns + 1
+        state%%cols = state%%cols + 1
+        if (mc_col) state%%cols_mc = state%%cols_mc + 1
 
         ! Add column spacing
-        write(funit, '(" ")', advance='no')
+        write(state%%funit, '(" ")', advance='no')
+        if (state%%mc_out .and. mc_col) write(iout, '(" ")', advance='no')
 
-        if (initial) then
-            write(colno, '(i5)') columns
-            write(funit, '(a%(width)s)', advance='no') &
+        if (state%%init) then
+            write(colno, '(i5)') state%%cols
+            write(state%%funit, '(a%(width)s)', advance='no') &
                 trim(adjustl(colno)) // ". " // trim(adjustl(title))
+
+            if (state%%mc_out .and. mc_col) &
+                write(iout, '(a%(width)s)', advance='no') &
+                    trim(adjustl(colno)) // ". " // trim(adjustl(title))
         else
-            write(funit, '(%(fmtstr)s)', advance='no') num
+            write(state%%funit, '(%(fmtstr)s)', advance='no') num
+            if (state%%mc_out .and. mc_col) &
+                write(iout, '(%(fmtstr)s)', advance='no') num
         end if
 
     end subroutine

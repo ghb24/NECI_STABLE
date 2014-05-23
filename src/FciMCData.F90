@@ -180,8 +180,8 @@ MODULE FciMCData
       REAL(dp) :: AllNoAtDoubs
       REAl(dp), DIMENSION(lenof_sign) :: AllNoatHF
       HElement_t :: sum_proje_denominator, &
-                        cyc_proje_denominator, all_cyc_proje_denominator, &
-                        all_sum_proje_denominator
+                    cyc_proje_denominator, all_cyc_proje_denominator, &
+                    all_sum_proje_denominator
       real(dp) :: AllAvSign,AllAvSignHFD
       INTEGER :: MaxSpawned
       REAL(dp) :: AllNoBorn,AllNoDied
