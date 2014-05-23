@@ -4312,6 +4312,8 @@ MODULE FciMCParMod
         ! Use a state type to keep things compact and tidy below.
         type(write_state_t), save :: state
         logical, save :: inited = .false.
+        character(5) :: tmpc
+        integer :: p
         logical :: prepend, init
 
         ! Provide default 'initial' option
@@ -4356,6 +4358,18 @@ MODULE FciMCParMod
             call stats_out(state,.true., iter, 'Iter.')
             call stats_out(state,.true., sum(abs(AllTotParts)), 'Tot. Parts')
             call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. Ref')
+
+            ! If we are running multiple (replica) simulations, then we
+            ! want to record the details of each of these
+#ifdef __PROG_LENOFSIGN
+            do p = 1, lenof_sign
+                write(tmpc, '(i5)') p
+                call stats_out (state, .false., AllTotParts(p), &
+                                'Parts (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., AllNoatHF(p), &
+                                'Ref (' // trim(adjustl(tmpc)) // ")")
+            end do
+#endif
 
             ! And we are done
             write(state%funit, *)
