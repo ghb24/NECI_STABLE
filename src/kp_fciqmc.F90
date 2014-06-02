@@ -24,6 +24,7 @@ contains
         use FciMCParMod, only: create_particle, CalcParentFlag, decide_num_to_spawn
         use FciMCParMod, only: calculate_new_shift_wrapper, walker_death, end_iter_stats
         use FciMCParMod, only: update_iter_data, CalcApproxpDoubles, SumEContrib
+        use FciMCParMod, only: end_iteration_print_warn
         use LoggingData, only: tPopsFile
         use Parallel_neci, only: iProcIndex
         use ParallelHelper, only: root
@@ -245,6 +246,7 @@ contains
 
                         TotWalkersNew = int(TotWalkers, sizeof_int)
                         call end_iter_stats(TotWalkersNew)
+                        call end_iteration_print_warn(TotWalkersNew)
 
                         call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.)
 
