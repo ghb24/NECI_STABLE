@@ -4,7 +4,7 @@ MODULE AnnihilationMod
     use SystemData , only : NEl, tHPHF, nBasis, tCSF
     use CalcData , only : TRegenExcitgens,tRegenDiagHEls, tEnhanceRemainder, &
                           tTruncInitiator, tSpawnSpatialInit, OccupiedThresh, &
-                          tVaryInitThresh, tSemiStochastic, tTrialWavefunction
+                          tSemiStochastic, tTrialWavefunction
     USE DetCalcData , only : Det,FCIDetIndex
     USE Parallel_neci
     USE dSFMT_interface, only : genrand_real2_dSFMT
@@ -25,7 +25,7 @@ MODULE AnnihilationMod
                         encode_sign, encode_flags, test_flag, set_flag, &
                         clr_flag, flag_parent_initiator, encode_part_sign, &
                         extract_part_sign, copy_flag, nullify_ilut, &
-                        nullify_ilut_part, keep_smallest_nsteps, return_nsteps
+                        nullify_ilut_part
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData , only : tHF_Ref_Explicit, tNoNewRDMContrib
@@ -367,13 +367,6 @@ MODULE AnnihilationMod
         integer(n_int) :: cum_det (0:niftot), temp_det(0:niftot)
         CHARACTER(len=*), parameter :: this_routine='CompressSpawnedList'
         TYPE(timer),save :: Sort_time
-
-        !write(6,*) "SpawnedParts before:"
-        !do j = 1, ValidSpawned
-        !    write(6,*) SpawnedParts(:,j), test_flag(SpawnedParts(:,j),flag_deterministic), &
-        !                                  test_flag(SpawnedParts(:,j),flag_determ_parent)
-        !end do
-        !write(6,*)
 
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. 
 !(this is not essential, but should proove faster)
@@ -750,8 +743,6 @@ MODULE AnnihilationMod
             if (test_flag(new_det, flag_determ_parent)) call set_flag(cum_det, flag_determ_parent)
         end if
 
-        if (tVaryInitThresh) call keep_smallest_nsteps(cum_det(0:NIfTot), new_det(0:NIfTot))
-
         ! Update annihilation statistics (is this really necessary?)
         if (sgn_prod < 0.0_dp) then
             Annihilated = Annihilated + 2*min(abs(cum_sgn), abs(new_sgn))
@@ -825,13 +816,6 @@ MODULE AnnihilationMod
         character(len=*), parameter :: this_routine="AnnihilateSpawnedParts"
         integer :: comp
         type(ll_node), pointer :: TempNode
-
-        !write(6,*) "SpawnedParts after:"
-        !do j = 1, ValidSpawned
-        !    write(6,*) SpawnedParts(:,j), test_flag(SpawnedParts(:,j),flag_deterministic), &
-        !                                  test_flag(SpawnedParts(:,j),flag_determ_parent)
-        !end do
-        !write(6,*)
 
         if(.not.bNodeRoot) return  !Only node roots to do this.
 

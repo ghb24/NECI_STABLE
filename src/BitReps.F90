@@ -548,63 +548,6 @@ contains
 
     end subroutine clr_flag
 
-    subroutine create_nsteps_mask()
-
-        nsteps_mask = 0
-        nsteps_mask = ibset(nsteps_mask, flag_bit_offset+flag_nsteps1)
-        nsteps_mask = ibset(nsteps_mask, flag_bit_offset+flag_nsteps2)
-        nsteps_mask = ibset(nsteps_mask, flag_bit_offset+flag_nsteps3)
-        nsteps_mask = ibset(nsteps_mask, flag_bit_offset+flag_nsteps4)
-
-        nsteps_not_mask_unsft = not(int(ishft(nsteps_mask, -flag_bit_offset),sizeof_int))
-
-        nsteps_not_mask = not(nsteps_mask)
-   
-    end subroutine create_nsteps_mask
-
-    pure function return_nsteps(ilut) result(nsteps)
-
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer(n_int) :: nsteps
-        
-        nsteps = ishft(iand(nsteps_mask, ilut(NOffFlag)), -(flag_bit_offset+flag_nsteps1))
-
-    end function return_nsteps
-
-    pure subroutine keep_smallest_nsteps(cum_ilut, new_ilut)
-
-        integer(n_int), intent(inout) :: cum_ilut(0:NIfTot)
-        integer(n_int), intent(in) :: new_ilut(0:NIfTot)
-        integer(n_int) :: flag1, flag2
-
-        flag1 = iand(nsteps_mask, cum_ilut(NOffFlag))
-        flag2 = iand(nsteps_mask, new_ilut(NOffFlag))
-        ! Only is flag2 is smaller than flag1 do we keep the new nsteps value.
-        if (flag2 < flag1) then
-            cum_ilut(NOffFlag) = iand(nsteps_not_mask, cum_ilut(NOffFlag))
-            cum_ilut(NOffFlag) = ior(flag2, cum_ilut(NOffFlag))
-        end if
-
-    end subroutine keep_smallest_nsteps
-
-    pure subroutine update_nsteps_flag(new_flag, ilut)
-
-        ! Add one to the number of steps from the core space, as encoded in the flags.
-
-        integer, intent(inout) :: new_flag
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer(n_int) :: old_flag
-
-        old_flag = ilut(NOffFlag)
-        old_flag = iand(nsteps_mask, old_flag)
-        old_flag = ishft(old_flag, -(flag_bit_offset+flag_nsteps1))
-        ! Only add one if we're less than the maximum number which can be stored.
-        if (old_flag < 15) old_flag = old_flag + 1
-        new_flag = iand(nsteps_not_mask_unsft,new_flag)
-        new_flag = ior(ishft(int(old_flag,sizeof_int),flag_nsteps1), new_flag)
-
-    end subroutine update_nsteps_flag
-
     ! function test_flag is in bit_rep_data
     ! This avoids a circular dependence with DetBitOps.
 

@@ -23,8 +23,7 @@ MODULE FciMCParMod
                         flag_is_initiator, clear_all_flags,&
                         nOffSgn, flag_make_initiator, &
                         flag_parent_initiator, encode_sign, flag_deterministic, &
-                        flag_determ_parent, nOffFlag, clr_flag, return_nsteps, &
-                        update_nsteps_flag
+                        flag_determ_parent, nOffFlag, clr_flag
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
                         tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&
@@ -44,8 +43,8 @@ MODULE FciMCParMod
                         tAllRealCoeff, tRealCoeffByExcitLevel, tPopsMapping, &
                         tSpawn_Only_Init_Grow, RealCoeffExcitThresh, &
                         tRealSpawnCutoff, RealSpawnCutoff, tDetermProj, &
-                        tJumpShift, tVaryInitThresh, tUseRealCoeffs, &
-                        tSpatialOnlyHash, tSemiStochastic, tTrialWavefunction
+                        tJumpShift, tUseRealCoeffs, tSpatialOnlyHash, &
+                        tSemiStochastic, tTrialWavefunction
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
@@ -1350,7 +1349,7 @@ MODULE FciMCParMod
         ! and then it will be put into the appropriate element determined by
         ! ValidSpawnedList
 
-        use bit_rep_data, only: nsteps_mask, flag_bit_offset, flag_nsteps1
+        use bit_rep_data, only: flag_bit_offset
 
         integer, intent(in) :: nJ(nel)
         integer(kind=n_int), intent(in) :: iLutJ(0:niftot)
@@ -1381,15 +1380,11 @@ MODULE FciMCParMod
         ! flag. Otherwise, this will trip many people up in the future.
         flags = ior(parent_flags, extract_flags(ilutJ))
 
-        !write(6,*) "Before:", ishft(iand(int(ishft(nsteps_mask, -flag_bit_offset),sizeof_int),flags),-flag_nsteps1)
-        if (tVaryInitThresh) call update_nsteps_flag(flags, iLutI)
-
 !        WRITE(6,*) 'Encoding',iLutJ
 !        WRITE(6,*) 'To position',ValidSpawnedList(proc)
 !        WRITE(6,*) 'Parent',iLutI
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, flags)
-        !write(6,*) "After:", return_nsteps(SpawnedParts(:, ValidSpawnedList(proc)))
 
         ! For double run, we're going to try only including off-diagonal elements from
         ! successful spawning attempts within part_type=1.  Later, we should include both,
@@ -1512,11 +1507,7 @@ MODULE FciMCParMod
 
         call extract_sign (CurrentDets(:,j), CurrentSign)
 
-        if (tVaryInitThresh) then
-            init_thresh = real(return_nsteps(CurrentDets(:,j)),dp)
-        else
-            init_thresh = InitiatorWalkNo
-        end if
+        init_thresh = InitiatorWalkNo
 
         tcurr_initiator = .false.
         do part_type=1,lenof_sign
