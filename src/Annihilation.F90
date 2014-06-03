@@ -4,7 +4,7 @@ MODULE AnnihilationMod
     use SystemData , only : NEl, tHPHF, nBasis, tCSF
     use CalcData , only : TRegenExcitgens,tRegenDiagHEls, tEnhanceRemainder, &
                           tTruncInitiator, tSpawnSpatialInit, OccupiedThresh, &
-                          tVaryInitThresh, tSemiStochastic, tTrialWavefunction
+                          tSemiStochastic, tTrialWavefunction
     USE DetCalcData , only : Det,FCIDetIndex
     USE Parallel_neci
     USE dSFMT_interface, only : genrand_real2_dSFMT
@@ -24,7 +24,7 @@ MODULE AnnihilationMod
                         encode_sign, encode_flags, test_flag, set_flag, &
                         clr_flag, flag_parent_initiator, encode_part_sign, &
                         extract_part_sign, copy_flag, nullify_ilut, &
-                        nullify_ilut_part, keep_smallest_nsteps, return_nsteps
+                        nullify_ilut_part
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData , only : tHF_Ref_Explicit, tNoNewRDMContrib
@@ -747,8 +747,6 @@ MODULE AnnihilationMod
             if (test_flag(new_det, flag_deterministic)) call set_flag(cum_det, flag_deterministic)
             if (test_flag(new_det, flag_determ_parent)) call set_flag(cum_det, flag_determ_parent)
         end if
-
-        if (tVaryInitThresh) call keep_smallest_nsteps(cum_det(0:NIfTot), new_det(0:NIfTot))
 
         ! Update annihilation statistics (is this really necessary?)
         if (sgn_prod < 0.0_dp) then
