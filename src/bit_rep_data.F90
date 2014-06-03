@@ -52,10 +52,6 @@ module bit_rep_data
                                  sign_neg_mask = ibset(sign_mask, &
                                           flag_bit_offset + flag_negative_sign)
 
-    ! Bit mask with all bits unset except the one corresponding to the determ_parent flag.
-    integer(n_int) :: determ_parent_mask = ibset(0_n_int, &
-                                                 flag_determ_parent + flag_bit_offset)
-
 contains
 
     pure function test_flag (ilut, flg) result(bSet)
