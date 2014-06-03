@@ -151,8 +151,9 @@ module procedure_pointers
 
         !
         ! Generic fill_rdm_diag_currdet routine
-        subroutine fill_rdm_diag_currdet_t (ilutI, nI, CurrH_I, ExcitLevelI, &
-                                            tCoreSpaceDet)
+       !! subroutine fill_rdm_diag_currdet_t (ilutI, nI, CurrH_I, ExcitLevelI, &
+       !!                                     tCoreSpaceDet)
+        subroutine fill_rdm_diag_currdet_t(iLutnI, nI, SignCurr, ExcitLevelI, tCoreSpaceDet)
 
             use SystemData, only: nel
             use bit_rep_data, only: NIfTot
@@ -160,10 +161,14 @@ module procedure_pointers
             use constants
             implicit none
 
-            integer(n_int), intent(in) :: ilutI(0:NIfTot)
-            real(dp), intent(in) :: CurrH_I(NCurrH)
+            integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+            real(dp) , intent(in) :: SignCurr(lenof_sign)
             integer, intent(in) :: nI(nel), ExcitLevelI
             logical, intent(in), optional :: tCoreSpaceDet
+            !integer(n_int), intent(in) :: ilutI(0:NIfTot)
+            !real(dp), intent(in) :: CurrH_I(NCurrH)
+            !integer, intent(in) :: nI(nel), ExcitLevelI
+            !logical, intent(in), optional :: tCoreSpaceDet
 
         end subroutine
 

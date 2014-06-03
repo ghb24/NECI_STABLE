@@ -61,8 +61,6 @@ contains
         INTEGER(TagIntType) :: BatchCurrentHTag=1
         real(dp) :: BatchSize
         integer :: PopsSendList(0:nNodes-1),proc
-        integer(MPIArg) :: sendcounts(nNodes), disps(nNodes), recvcount
-        integer(MPIArg) :: sendcounts2(nNodes), disps2(nNodes), recvcount2
         integer :: MaxSendIndex,err,DetHash
         integer(n_int) , allocatable :: BatchRead(:,:)
         real(dp) , allocatable :: BatchCurrentH(:,:)
@@ -81,7 +79,7 @@ contains
         integer :: PopNIfSgn, PopNIfFlag, PopNIfTot, Popinum_runs
         integer :: PopBlockingIter, read_nnodes
         integer(int64) :: iPopAllTotWalkers
-        real(dp) :: PopDiagSft, PopDiagSft2 read_tau, read_psingles
+        real(dp) :: PopDiagSft, PopDiagSft2, read_tau, read_psingles
         real(dp) :: read_par_bias
         real(dp) , dimension(lenof_sign/inum_runs) :: PopSumNoatHF
         integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
@@ -452,7 +450,7 @@ contains
 
         integer(n_int) :: BatchRead(0:NifTot, 1:MaxWalkersPart)
         integer(n_int) :: ilut_tmp(0:NIfTot)
-        real(dp) :: htmp
+        real(dp) :: htmp(1+2*lenof_sign)
         logical :: tEOF
         integer :: det_tmp(nel), det
         integer :: proc
@@ -516,6 +514,7 @@ contains
 
         logical :: tEOF, tReadAllPops
         integer(MPIArg) :: sendcounts(nNodes), disps(nNodes), recvcount
+        integer(MPIArg) :: sendcounts2(nNodes), disps2(nNodes), recvcount2
         integer :: PopsInitialSlots(0:nNodes-1), PopsSendList(0:nNodes-1)
         integer :: batch_size, MaxSendIndex, i, j, det, nBatches, err, proc
         integer :: det_tmp(nel)
@@ -594,7 +593,7 @@ r_loop: do while (.not. tReadAllPops)
                     BatchRead(:,PopsSendList(proc)) = ilut_tmp(:)
                     PopsSendList(proc) = PopsSendList(proc) + 1
                     if (tReadRDMAvPop) &
-                        BatchCurrentH(:, PopSendList(proc)) = CurrentHEntry(:)
+                        BatchCurrentH(:, PopsSendList(proc)) = CurrentHEntry(:)
 
                     ! If we have filled up the lists, exit the loop so that the
                     ! particles get distributed
@@ -622,7 +621,7 @@ r_loop: do while (.not. tReadAllPops)
                             int((PopsSendList(j) - PopsInitialSlots(j)) * &
                                 (1+2*lenof_sign), MPIArg)
                         disps2(j+1) = &
-                            int((PopInitialSlots(j) - 1) * (1+2*lenof_sign), &
+                            int((PopsInitialSlots(j) - 1) * (1+2*lenof_sign), &
                                 MPIArg)
                     end if
                 enddo
@@ -656,7 +655,7 @@ r_loop: do while (.not. tReadAllPops)
                     call MPIScatterV (BatchCurrentH(:,1:MaxSendIndex), &
                                       sendcounts2, disps2, &
                                       CurrentH(:,CurrWalkers+1:CurrWalkers+1+(recvcount2/(2*lenof_sign+1))), &
-                                      recvcounts2, err, roots)
+                                      recvcount2, err, roots)
                     if (err /= 0) &
                         call stop_all (this_routine, "MPI scatterV error")
                 end if

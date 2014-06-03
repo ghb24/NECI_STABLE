@@ -904,18 +904,6 @@ MODULE FciMCParMod
                             CurrentH(2+lenof_sign:1+2*lenof_sign,gen_ind) = IterRDMStartCurr
                         endif
                         VecSlot = VecSlot + 1
-                        if(tFill_RDM .and. (.not.tNoNewRDMContrib)) then 
-                            ! If tFill_RDM is true, this is an iteration where the diagonal 
-                            ! RDM elements are calculated, along with the contributions from 
-                            ! connections to the (true) HF determinant.
-
-                            if((abs(CurrentH(2,gen_ind)).gt.InitiatorWalkNo).or.(.not.tInitiatorRDM)) & 
-                            ! If we are only using initiators to calculate the RDMs, only add in the diagonal and 
-                            ! explicit contributions if the average population is greater than n_a = InitiatorWalkNo.
-                                call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, &
-                                        CurrentH(1:NCurrH,gen_ind), walkExcitLevel_toHF, &
-                                        test_flag(CurrentDets(:,j), flag_deterministic), IterLastRDMFill)  
-                        endif
                         cycle
                     end if
                  
@@ -1152,21 +1140,6 @@ MODULE FciMCParMod
                                    AvSignCurr, IterRDMStartCurr, VecSlot, j, WalkExcitLevel)
             end if
 
-            if(tFill_RDM .and. (.not.tNoNewRDMContrib)) then 
-                ! If tFill_RDM is true, this is an iteration where the diagonal 
-                ! RDM elements are calculated, along with the contributions from 
-                ! connections to the (true) HF determinant.
-
-                if((abs(CurrentH(2,gen_ind)).gt.InitiatorWalkNo).or.(.not.tInitiatorRDM)) & 
-                ! If we are only using initiators to calculate the RDMs, only add in the diagonal and 
-                ! explicit contributions if the average population is greater than n_a = InitiatorWalkNo.
-                    call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, &
-                            CurrentH(1:NCurrH,gen_ind), walkExcitLevel_toHF,& 
-                            test_flag(CurrentDets(:,j), flag_deterministic), IterLastRDMFill)  
-            endif
-           
-            ! TODO: I'm not sure if this is an unfortunate duplicate of the
-            ! above, or not.
             if(tFillingStochRDMonFly) call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, SignCurr, &
                                       & walkExcitLevel_toHF, test_flag(CurrentDets(:,j), flag_deterministic))  
 
@@ -1295,7 +1268,7 @@ MODULE FciMCParMod
         IFDEBUG(FCIMCDebug,3) then
             if(lenof_sign.eq.2) then
                 write(iout,"(A,2f10.5,A)", advance='no') &
-                               "Creating ", child(1), child(2), " particles: "
+                               "Creating ", child(1:lenof_sign), " particles: "
             else
                 write(iout,"(A,f10.5,A)",advance='no') &
                                          "Creating ", child(1), " particles: "
@@ -1310,7 +1283,6 @@ MODULE FciMCParMod
 #ifdef __CMPLX
         NoBorn = NoBorn + sum(abs(child))
         iter_data%nborn = iter_data%nborn + abs(child)
-        NumSpawnedEntries = NumSpawnedEntries + 1
 
         if (ic == 1) SpawnFromSing = SpawnFromSing + int(sum(abs(child)))
 
@@ -2466,6 +2438,9 @@ MODULE FciMCParMod
 
         do i=1, inum_runs
             fac(i)=tau*(Kii-DiagSft(i))
+
+            ! And for tau searching purposes
+            call log_death_magnitude (Kii - DiagSft(i))
         enddo
 
         if(fac(1).gt.1.0_dp) then
@@ -2477,8 +2452,6 @@ MODULE FciMCParMod
             endif
         endif
 
-        ! And for tau searching purposes
-        call log_death_magnitude (Kii - DiagSft)
 
         if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)) &
             .or. tAllRealCoeff ) then
@@ -3925,7 +3898,6 @@ MODULE FciMCParMod
         real(dp) :: TempTotParts
         real(dp), dimension(lenof_sign) :: AllInstNoatHF
         real(dp), dimension(lenof_sign) :: Prev_AvNoatHF
-        real(dp) :: Prev_AvNoatHF
 
         NoInitDets = 0
         NoNonInitDets = 0
@@ -3935,13 +3907,8 @@ MODULE FciMCParMod
 
         NoAborted = 0.0_dp
         NoRemoved = 0.0_dp
-        NuMSpawnedEntries=0
-        ZeroMatrixElem=0
         NoatHF = 0.0_dp     ! Number at HF and doubles for stats
         NoatDoubs = 0.0_dp
-        OccRealDets = 0
-        DetsRoundedToZero = 0
-        TotWalkersToSpawn=0
 
         iter_data%nborn = 0.0
         iter_data%ndied = 0.0
@@ -4160,12 +4127,10 @@ MODULE FciMCParMod
                   &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
                   &26.HF weight    27.|Psi|     28.Inst S^2 &
                   &29.Inst S^2   30.AbsProjE   31.PartsDiffProc &
-                  &32.ZeroMatrixElements 33.OccRealDets 34.DetsRoundedToZero &
-                  &35.SpawnedParts  36.MergedParts  37.WalkersToSpawn  &
-                  &38.|Semistoch|/|Psi|  39.MaxCycSpawn"
+                  &32.|Semistoch|/|Psi|  33.MaxCycSpawn"
            if (tTrialWavefunction) then 
                   write(fcimcstats_unit, "(A)", advance = 'no') &
-                  "  40.TrialNumerator  41.TrialDenom  42.TrialOverlap"
+                  "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
            end if
 
            write(fcimcstats_unit, "()", advance = 'yes')
@@ -4225,7 +4190,7 @@ MODULE FciMCParMod
 
 #ifdef __CMPLX
             write(fcimcstats_unit,"(I12,5G16.7,7G17.9,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9,4I13,&
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9,I13,&
                                   &g16.7)") &
                 Iter + PreviousCycles, &                !1.
                 DiagSft, &                              !2.
@@ -4254,11 +4219,8 @@ MODULE FciMCParMod
                 sqrt(sum(AllNoatHF**2)) / norm_psi, & !25
                 norm_psi, &                           !26
                 curr_S2, &                            !27
-                AllNumSpawnedEntries, &               !28
-                AllNumMerged, &                       !29
-                AllZeroMatrixElem, &                  !30
-                PartsDiffProc, &                      !31
-                all_max_cyc_spawn                     !32.
+                PartsDiffProc, &                      !28
+                all_max_cyc_spawn                     !29.
 
             if(tMCOutput) then
                 write (iout, "(I12,13G16.7,I12,G13.5)") &
@@ -4337,7 +4299,7 @@ MODULE FciMCParMod
 #endif
 #ifndef __CMPLX
             write(fcimcstats_unit,"(i12,7g16.7,5g17.9,g13.5,i12,g13.5,g17.5,&
-                                  &i13,g13.5,11g17.9,7i13,2g16.7)",advance = 'no') &
+                                  &i13,g13.5,11g17.9,i13,2g16.7)",advance = 'no') &
                 Iter + PreviousCycles, &                   ! 1.
                 DiagSft, &                                 ! 2.
                 sum(AllTotParts) - sum(AllTotPartsOld), &  ! 3.
@@ -4368,19 +4330,13 @@ MODULE FciMCParMod
                 curr_S2, curr_S2_init, &                   ! 28, 29.
                 AbsProjE, &                                ! 30.
                 PartsDiffProc, &                           ! 31.
-                AllZeroMatrixElem, &                       ! 32.
-                AllOccRealDets, &                          ! 33.
-                AllDetsRoundedToZero, &                    ! 34.
-                AllNumSpawnedEntries, &                    ! 35.
-                AllNumMerged, &                            ! 36.
-                AllTotWalkersToSpawn, &                    ! 37.
-                norm_semistoch/norm_psi, &                 ! 38.
-                all_max_cyc_spawn                          ! 39.
+                norm_semistoch/norm_psi, &                 ! 32.
+                all_max_cyc_spawn                          ! 33.
                 if (tTrialWavefunction) then
                     write(fcimcstats_unit, "(3g16.7)", advance = 'no') &
-                    (tot_trial_numerator / StepsSft), &             ! 40.
-                    (tot_trial_denom / StepsSft), &                 ! 41.
-                    abs((tot_trial_denom / (norm_psi*StepsSft)))    ! 42.
+                    (tot_trial_numerator / StepsSft), &             ! 34.
+                    (tot_trial_denom / StepsSft), &                 ! 35.
+                    abs((tot_trial_denom / (norm_psi*StepsSft)))    ! 36.
                 end if
                 write(fcimcstats_unit, "()", advance = 'yes')
 
@@ -5187,7 +5143,6 @@ MODULE FciMCParMod
         AllNoNonInitWalk=0.0_dp
         AllNoExtraInitDoubs=0
         AllInitRemoved=0
-        AllMaxSpawnProb=0.0_dp
 
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0.0_dp
@@ -6652,7 +6607,9 @@ MODULE FciMCParMod
                         WalkVecH(:,:)=0.0_dp
                         MemoryAlloc=MemoryAlloc+8*MaxWalkersPart*(1+2*lenof_sign)
                         WRITE(6,"(A)") " The average current signs before death will be stored for use in the RDMs."
-                        WRITE(6,"(A,F14.6,A)") " This requires ", REAL(MaxWalkersPart*8*2*lenof_sign,dp)/1048576.0_dp," Mb/Processor"
+                        WRITE(6,"(A,F14.6,A)") " This requires ", &
+                            real(MaxWalkersPart*8*2*lenof_sign,dp)/1048576.0_dp, &
+                            " Mb/Processor"
                     NCurrH = 1+2*lenof_sign
                 else
                     ALLOCATE(WalkVecH(1,MaxWalkersPart),stat=ierr)

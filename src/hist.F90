@@ -636,7 +636,7 @@ contains
         !     would also then need to calculate the value of psi_squared
 
         real(dp) :: ssq(inum_runs), tmp(inum_runs)
-        integer :: i
+        integer :: i, run
         logical, intent(in) :: only_init
         type(timer), save :: s2_timer
 
@@ -659,17 +659,20 @@ contains
         call MPISum (ssq, tmp)
         ssq = tmp
 
-        if (all_norm_psi_squared == 0) then
-            ssq = 0.0_dp
-        else
+        do run = 1, inum_runs
+            if (all_norm_psi_squared(run) == 0) then
+                ssq(run) = 0.0_dp
+            else
 
-            ssq = ssq / all_norm_psi_squared
+                ssq(run) = ssq(run) / all_norm_psi_squared(run)
 
-            ! TODO: n.b. This is a hack. LMS appears to contain -2*Ms of the
-            !            system I am somewhat astounded I haven't noticed this
-            !            before...
-            ssq = ssq + real(calculated_ms * (calculated_ms + 2), dp) / 4
-        end if
+                ! TODO: n.b. This is a hack. LMS appears to contain -2*Ms of the
+                !            system I am somewhat astounded I haven't noticed this
+                !            before...
+                ssq(run) = ssq(run) &
+                         + real(calculated_ms * (calculated_ms + 2), dp) / 4
+            end if
+        end do
 
         call halt_timer (s2_timer)
 
@@ -702,9 +705,9 @@ contains
         integer(n_int), pointer :: detcurr(:)
         integer(n_int) :: splus(0:NIfTot), sminus(0:NIfTot)
         logical :: running, any_running
-        real(dp), dimension(inum_runs) :: ssq, Allssq
-        integer :: max_per_proc, max_spawned
-        real(dp) :: sgn1(lenof_sign), sgn2(lenof_sign), tmp
+        real(dp), dimension(inum_runs) :: ssq, Allssq, tmp
+        integer :: max_per_proc, max_spawned, run
+        real(dp) :: sgn1(lenof_sign), sgn2(lenof_sign)
 
 
         ! Could we pre-initialise all of these data structures
@@ -812,16 +815,19 @@ contains
         call MPISum (ssq, tmp)
         ssq = tmp
 
-        if (all_norm_psi_squared == 0) then
-            ssq = 0.0_dp
-        else
-            ssq = ssq / all_norm_psi_squared
+        do run = 1, inum_runs
+            if (all_norm_psi_squared(run) == 0) then
+                ssq(run) = 0.0_dp
+            else
+                ssq(run) = ssq(run) / all_norm_psi_squared(run)
 
-            ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the
-            !            system. I am somewhat astounded I haven't noticed
-            !            this before...
-            ssq = ssq + real(calculated_ms * (calculated_ms + 2), dp) / 4
-        end if
+                ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the
+                !            system. I am somewhat astounded I haven't noticed
+                !            this before...
+                ssq(run) = ssq(run) &
+                         + real(calculated_ms * (calculated_ms + 2), dp) / 4
+            end if
+        end do
 
     end function
 
@@ -832,7 +838,7 @@ contains
         integer, parameter :: max_per_proc = 1000
         integer(n_int) :: recv_dets(0:NIfTot,max_per_proc)
         integer :: proc_dets, start_pos, nsend, i, p
-        integer :: bcast_tmp(2)
+        integer :: bcast_tmp(2), run
         real(dp) :: sgn_tmp(lenof_sign)
         type(timer), save :: s2_timer, s2_timer_init
         real(dp), dimension(inum_runs) :: ssq_sum, psi_squared
@@ -935,22 +941,25 @@ contains
         call MPISum(ssq_sum, All_ssq_sum)
         ssq_sum=All_ssq_sum
 
-        if (psi_squared == 0) then
-            ssq = 0.0_dp
-        else
-            ssq = real(ssq_sum,dp) / psi_squared
-         
-            ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the
-            !            system. I am somewhat astounded I haven't noticed
-            !            this before...
-            ssq = ssq + real(calculated_ms * (calculated_ms + 2), dp) / 4
-
-            if (only_init) then
-                call halt_timer(s2_timer_init)
+        do run = 1, inum_runs
+            if (psi_squared(run) == 0) then
+                ssq(run) = 0.0_dp
             else
-                call halt_timer (s2_timer)
-            endif
-        end if
+                ssq(run) = real(ssq_sum(run),dp) / psi_squared(run)
+             
+                ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the
+                !            system. I am somewhat astounded I haven't noticed
+                !            this before...
+                ssq(run) = ssq(run) &
+                         + real(calculated_ms * (calculated_ms + 2), dp) / 4
+            end if
+        end do
+
+        if (only_init) then
+            call halt_timer(s2_timer_init)
+        else
+            call halt_timer (s2_timer)
+        endif
 
     end function
 
