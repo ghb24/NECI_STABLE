@@ -173,7 +173,8 @@ SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,
    INTEGER nExcit
    INTEGER(kind=n_int) ExcitList(0:nIfTot,nExcit)
    INTEGER ExcitLevelIndex(0:nEl+1)
-   real(dp) :: dNorm, ProjE, iSgn
+   real(dp) :: dNorm, iSgn
+   real(dp),dimension(inum_runs) :: ProjE
    INTEGER iDebug
    integer iRefPos
    integer, dimension(lenof_sign) :: temp_sign
@@ -276,7 +277,13 @@ SUBROUTINE CalcClusterEnergy (tFCI,AL,iAmpList,nExcit,ExcitList,ExcitLevelIndex,
       endif
    enddo
 !   write(6,*) "T1Sq:",dT1Sq
+#ifdef __CMPLX 
    ProjE=ENumCyc/(HFCyc(1)+0.0_dp)
+#elif __DOUBLERUN
+   ProjE=ENumCyc/(HFCyc+0.0_dp)
+#else
+   ProjE=ENumCyc/(HFCyc(1)+0.0_dp)
+#endif
 END SUBROUTINE !CalcClusterEnergy
 
 !This runs over all singles and doubles in the list of excitors and calls SumEContrib for them appropriately 
@@ -304,7 +311,8 @@ SUBROUTINE CalcClusterEnergyUnsrt (tFCI,AL,iAmpList,nExcit,ExcitList,iRefPos,dNo
    integer iAmpList
    INTEGER nExcit
    INTEGER(kind=n_int) ExcitList(0:nIfTot,nExcit)
-   real(dp) dNorm, ProjE, iSgn
+   real(dp) dNorm, iSgn
+   real(dp), dimension(inum_runs):: ProjE
    INTEGER iRefPos
    INTEGER, DIMENSION(lenof_sign) :: temp_sign
    real(dp), dimension(lenof_sign) :: realtemp_sign

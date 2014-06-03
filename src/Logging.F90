@@ -131,11 +131,11 @@ MODULE Logging
       twrite_normalised_RDMs = .true. 
       twrite_RDMs_to_read = .false.
       tno_RDMs_to_read = .false.
+      tReadRDMAvPop=.false.
       tReadRDMs = .false.
       tNoNewRDMContrib=.false.
       IterWriteRDMs = 10000
       tWriteMultRDMs = .false.
-      tInitiatorRDM = .false.
       tThreshOccRDMDiag=.false.
       ThreshOccRDM=2.0_dp
       tDumpForcesInfo = .false.
@@ -156,6 +156,7 @@ MODULE Logging
       rottwo = 0
       rotthree = 0
       rotfour = 0
+      tInstSignOffDiagRDM=.true.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -511,6 +512,10 @@ MODULE Logging
 !The eigenvalues give the occupation numbers of the natural orbitals (eigenfunctions).
             tDiagRDM=.true.
 
+        case("INSTSIGNOFFDIAGRDM")
+!Use the instantaneous signs when calculating the off-diagonal RDM elements
+            tInstSignOffDiagRDM=.true.
+
         case("NONOTRANSFORM")
 ! This tells the calc that we don't want to print the NO_TRANSFORM matrix.            
 ! i.e. the diagonalisation is just done to get the correlation entropy.
@@ -631,6 +636,13 @@ MODULE Logging
                 tno_RDMs_to_read = .false. 
             ENDIF
 
+        case("READRDMAVPOP")
+! Use in conjunction with READRDMS.  This can be used in the previous calculation had "WRITEBINRDMNODIAG" switched on.
+! We will read in the information in RDM_Av_Pop which contains some of the data from CurrentH in the previous round -- the cumulative
+! sum of this determinant's populations during its lifetime (updated every iter), and the number of iters it has been occupied.
+! This information will get assigned into currentH and allow us to continue the RDM accumulation without bias.
+            tReadRDMAvPop=.true.
+
         case("NONORMRDMS")            
 ! Does not print out the normalised (final) RDMs - to be used if you know the calculation will not be converged, and don't  
 ! want to take up disk space.
@@ -652,10 +664,6 @@ MODULE Logging
             tWriteMultRDMs = .true.
             call readi(IterWriteRDMs)
 
-        case("INITIATORRDM")
-! Use only the determinants that are (on average) initiators to calculate the RDMs.
-            tInitiatorRDM = .true.
-        
         case("THRESHOCCONLYRDMDIAG")
             !Only add in a contribution to the diagonal elements of the RDM if the average sign 
             !of the determinant is greater than [ThreshOccRDM]

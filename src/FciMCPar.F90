@@ -77,12 +77,11 @@ MODULE FciMCParMod
                        tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
                        HistInitPops, DoubsUEG, DoubsUEGLookup, DoubsUEGStore,&
                        tPrintDoubsUEG, StartPrintDoubsUEG, tCalcInstantS2, &
-                       instant_s2_multiplier, tMCOutput, tSplitProjEHist, &
-                       tSplitProjEHistG, tSplitProjEHistK3, iProjEBins, &
+                       instant_s2_multiplier, tMCOutput, &
                        tDiagWalkerSubspace,iDiagSubspaceIter, &
                        tRDMonFly, IterRDMonFly,RDMExcitLevel, RDMEnergyIter, &
                        tChangeVarsRDM, tExplicitAllRDM, tHF_Ref_Explicit, &
-                       tHF_S_D_Ref, tHF_S_D, tInitiatorRDM,    &
+                       tHF_S_D_Ref, tHF_S_D,    &
                        tDiagWalkerSubspace, iDiagSubspaceIter, &
                        tCalcInstantS2Init, instant_s2_multiplier_init, &
                        tJustBlocking, iBlockEquilShift, iBlockEquilProjE, &
@@ -114,7 +113,7 @@ MODULE FciMCParMod
     use DetBitops, only: EncodeBitDet, DetBitEQ, DetBitLT, FindExcitBitDet, &
                          FindBitExcitLevel, countbits, TestClosedShellDet, &
                          FindSpatialBitExcitLevel, IsAllowedHPHF, count_open_orbs, &
-                         ilut_gt
+                         ilut_gt, get_bit_excitmat
     use hash , only : DetermineDetNode, FindWalkerHash
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
@@ -147,8 +146,7 @@ MODULE FciMCParMod
                          extract_bit_rep_avsign_norm, &
                          extract_bit_rep_avsign_no_rdm, &
                          zero_rdms, fill_rdm_softexit, store_parent_with_spawned, &
-                         fill_rdm_diag_currdet_norm, &
-                         fill_rdm_diag_currdet_hfsd, calc_rdmbiasfac
+                         fill_rdm_diag_currdet_norm,fill_rdm_diag_currdet_hfsd, calc_rdmbiasfac, tFinalRDMIter
     use determ_proj, only: perform_determ_proj
     use semi_stoch_gen, only: init_semi_stochastic, enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: deterministic_projection, return_most_populated_states, &
@@ -256,6 +254,7 @@ MODULE FciMCParMod
 !        write (iout,'("#")', advance='no')
         if (iProcIndex == root) then
             write (fcimcstats_unit,'("#")', advance='no')
+            if (inum_runs.eq.2) write (fcimcstats_unit2,'("#")', advance='no')
             write (initiatorstats_unit,'("#")', advance='no')
         end if
         call WriteFCIMCStats()
@@ -282,14 +281,18 @@ MODULE FciMCParMod
 !            WRITE(iout,*) 'Iter',Iter
 
             if(iProcIndex.eq.root) s_start=neci_etime(tstart)
-           
-            if(tRDMonFly.and.(.not.tSinglePartPhase)) call check_start_rdm()
+            
+            if(tRDMonFly .and. (.not. tFillingExplicRDMonFly) &
+                & .and. (.not.tFillingStochRDMonFly)) call check_start_rdm()
 
             if (tCCMC) then
                 if (tUseRealCoeffs) &
                     call stop_all("FciMCPar", "Continuous spawning not yet set up to work &
                     & with CCMC.  Attention will be required in a number of routines, &
                     & including AttemptCreatePar and PerformCCMCCycParInt")
+
+                if(inum_runs.eq.2) &
+                    call stop_all("FciMCPar", "Double runs not set up to work with CCMC")
 
                 CALL PerformCCMCCycPar()
             else
@@ -300,7 +303,7 @@ MODULE FciMCParMod
             ! Are we projecting the spin out between iterations?
             if (tSpinProject .and. (mod(Iter, spin_proj_interval) == 0 .or. &
                                     spin_proj_interval == -1) .and. &
-                (tSinglePartPhase .or. .not. disable_spin_proj_varyshift))then
+                (tSinglePartPhase(1) .or. .not. disable_spin_proj_varyshift))then
 
                 ! Set this up for a different type of iteration
                 ge_tmp => generate_excitation
@@ -446,8 +449,14 @@ MODULE FciMCParMod
 
             ENDIF   !Endif end of update cycle
 
-            if (tHistSpinDist .and. (mod(iter, hist_spin_dist_iter) == 0)) &
+            if (tHistSpinDist .and. (mod(iter, hist_spin_dist_iter) == 0)) then
+                if (inum_runs.eq.2) then
+                    !COMPLEX
+                    call stop_all(this_routine, "Not set up to combine HistSpinDist with double runs. &
+                                    & Level of changes required to get this working: unknown.")
+                endif
                 call write_clear_hist_spin_dist (iter, hist_spin_dist_iter)
+            endif
 
             IF(TPopsFile.and.(.not.tPrintPopsDefault).and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
 !This will write out the POPSFILE if wanted
@@ -461,11 +470,12 @@ MODULE FciMCParMod
             IF(tHistHamil.and.(mod(Iter,iWriteHamilEvery).eq.0)) THEN
                 CALL WriteHamilHistogram()
             ENDIF
-            IF(tRDMonFly.and.(.not.tSinglePartPhase)) THEN
+            IF(tRDMonFly.and.(.not.tSinglePartPhase(1)).and. &
+                        (.not.(tSinglePartPhase(inum_runs)))) THEN
                 ! If we wish to calculate the energy, have started accumulating the RDMs, 
                 ! and this is an iteration where the energy should be calculated, do so.
-                if( tCalc_RDMEnergy .and. ((Iter - VaryShiftIter).gt.IterRDMonFly) &
-                    .and. (mod((Iter - IterRDMStart)+1,RDMEnergyIter).eq.0) ) &
+                if(tCalc_RDMEnergy .and. ((Iter - maxval(VaryShiftIter)).gt.IterRDMonFly) &
+                    .and. (mod((Iter+PreviousCycles - IterRDMStart)+1,RDMEnergyIter).eq.0) ) &
                         CALL Calc_Energy_from_RDM(Norm_2RDM)  
             ENDIF
             if(tChangeVarsRDM) then
@@ -537,6 +547,7 @@ MODULE FciMCParMod
         !Close open files.
         IF(iProcIndex.eq.Root) THEN
             CLOSE(fcimcstats_unit)
+            if (inum_runs.eq.2) CLOSE(fcimcstats_unit2)
             IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(initiatorstats_unit)
             IF(tLogComplexPops) CLOSE(complexstats_unit)
         ENDIF
@@ -562,7 +573,7 @@ MODULE FciMCParMod
         end if
        
         !Automatic error analysis
-        call error_analysis(tSinglePartPhase,iBlockingIter,mean_ProjE_re,ProjE_Err_re,  &
+        call error_analysis(tSinglePartPhase(1),iBlockingIter(1),mean_ProjE_re,ProjE_Err_re,  &
             mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue)
 
         call MPIBCast(ProjectionE)
@@ -576,9 +587,9 @@ MODULE FciMCParMod
         call MPIBCast(tNoShiftValue)
         Weight=(0.0_dp)
         if (tTrialWavefunction) then
-            Energyxw = tot_trial_numerator/tot_trial_denom + Hii
+            Energyxw = tot_trial_numerator(1)/tot_trial_denom(1) + Hii
         else
-            Energyxw=(ProjectionE+Hii)
+            Energyxw=(ProjectionE(1)+Hii)
         end if
         
         iroot=1
@@ -632,7 +643,7 @@ MODULE FciMCParMod
             BestEnergy = mean_shift + Hii
             BestErr = shift_err 
         else
-            BestEnergy = ProjectionE+Hii
+            BestEnergy = ProjectionE(1)+Hii
             BestErr = 0.0_dp
         endif
         write(iout,"(A)")
@@ -709,14 +720,15 @@ MODULE FciMCParMod
         integer(int64) :: tot_parts_tmp(lenof_sign)
         logical :: tParity, tSuccess
         real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp
-        real(dp) :: AvSignCurr, IterRDMStartCurr, RDMBiasFacCurr
+        real(dp) :: RDMBiasFacCurr
+        real(dp), dimension(lenof_sign) :: AvSignCurr, IterRDMStartCurr
         HElement_t :: HDiagTemp,HElGen
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
-        HElement_t :: delta
+        HElement_t, dimension(inum_runs) :: delta
         integer :: proc, pos
         real(dp) :: r, sgn(lenof_sign), prob_extra_walker
         integer :: determ_index, gen_ind
-        integer :: DetHash, FinalVal, clash, PartInd
+        integer :: DetHash, FinalVal, clash, PartInd, k
         type(ll_node), pointer :: TempNode
 
         call set_timer(Walker_Time,30)
@@ -780,9 +792,11 @@ MODULE FciMCParMod
                          proje_ref_iluts(:,i), NIfD+1)
                     if (pos > 0) then
                         call extract_sign (CurrentDets(:,pos), sgn)
-                        delta = ARR_RE_OR_CPLX(sgn) * proje_ref_coeffs(i)
-                        cyc_proje_denominator = cyc_proje_denominator + delta
-                        sum_proje_denominator = sum_proje_denominator + delta
+                        do k=1, inum_runs
+                            delta(k) = ARR_RE_OR_CPLX(sgn,k) * proje_ref_coeffs(i)
+                            cyc_proje_denominator(k) = cyc_proje_denominator(k) + delta(k)
+                            sum_proje_denominator(k) = sum_proje_denominator(k) + delta(k)
+                        enddo
                     endif
                 endif
             enddo
@@ -836,6 +850,13 @@ MODULE FciMCParMod
             ! excite from the first particle on a determinant).
             fcimc_excit_gen_store%tFilled = .false.
 
+            ! If we're not calculating the RDM (or we're calculating some HFSD combination of the 
+            ! RDM) this just extracts info from the bit representation like normal.
+            ! IterRDMStartCurr and AvSignCurr just come out as 1.0_dp.  
+            ! Otherwise, it extracts the Curr info, and calculates the iteration this determinant 
+            ! became occupied (IterRDMStartCurr) and the average population during that time 
+            ! (AvSignCurr).
+
             call extract_bit_rep_avsign (CurrentDets(:,j), CurrentH(1:NCurrH,j), &
                                         DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
                                         AvSignCurr, fcimc_excit_gen_store)
@@ -845,14 +866,16 @@ MODULE FciMCParMod
             ! truncated etc.)
             walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
                                                 max_calc_ex_level)
-            
+           
+             !   if(WalkExcitLevel.eq.0) WRITE(6,*) "AvSignCurr: updating", CurrentH(2,j), AvSignCurr, SignCurr
+
             if(tRef_Not_HF) then
                 walkExcitLevel_toHF = FindBitExcitLevel (iLutHF_true, CurrentDets(:,j), &
                                                 max_calc_ex_level)
             else
                 walkExcitLevel_toHF = walkExcitLevel
             endif
-            
+
             ! A general index whose value depends on whether the following option is used.
             if (tHashWalkerList) then
                 gen_ind = j
@@ -868,7 +891,7 @@ MODULE FciMCParMod
                     indices_of_determ_states(determ_index) = gen_ind
 
                     ! Add this amplitude to the deterministic vector.
-                    partial_determ_vector(determ_index) = SignCurr(1)
+                    partial_determ_vector(:,determ_index) = SignCurr
 
                     determ_index = determ_index + 1
 
@@ -878,8 +901,8 @@ MODULE FciMCParMod
                     if (IsUnoccDet(SignCurr)) then
                         CurrentDets(:,gen_ind) = CurrentDets(:,j)
                         if (tFillingStochRDMonFly) then
-                            CurrentH(2,gen_ind) = AvSignCurr
-                            CurrentH(3,gen_ind) = IterRDMStartCurr
+                            CurrentH(2:1+lenof_sign,gen_ind) = AvSignCurr
+                            CurrentH(2+lenof_sign:1+2*lenof_sign,gen_ind) = IterRDMStartCurr
                         endif
                         VecSlot = VecSlot + 1
                         if(tFill_RDM .and. (.not.tNoNewRDMContrib)) then 
@@ -899,31 +922,6 @@ MODULE FciMCParMod
                  
                 end if
             end if
-
-            !if (tSpawn_Only_Init) then
-            !    call extract_sign (CurrentDets(:,j), SignCurr)
-
-            !    ! TODO: Ensure that the HF determinant has its flags setup
-            !    !       correctly at the start of a run.
-            !    call CalcParentFlag (j, VecSlot, parent_flags)
-
-            !    ! If we are only spawning from initiators, we don't need to do this decoding
-            !    ! if CurrentDet is a non-initiator otherwise it is necessary either way.
-
-            !    if (tcurr_initiator)                                         & 
-            !        ! tcurr_initiator is a global variable which indicates that at least one of the 
-            !        ! 'types' of walker on this determinant is an initiator.
-            !        ! Decode determinant from (stored) bit-representation.
-            !        call extract_bit_rep (CurrentDets(:,j), DetCurr, SignCurr, &
-            !                          FlagsCurr, fcimc_excit_gen_store)
-            !else                                      
-            !    ! If we're not calculating the RDM (or we're calculating some HFSD combination of the 
-            !    ! RDM) this just extracts info from the bit representation like normal.
-            !    ! IterRDMStartCurr and AvSignCurr just come out as 1.0_dp.  
-            !    ! Otherwise, it extracts the Curr info, and calculates the iteration this determinant 
-            !    ! became occupied (IterRDMStartCurr) and the average population during that time 
-            !    ! (AvSignCurr).
-            
 
             if (tTruncInitiator) call CalcParentFlag (j, VecSlot, parent_flags)
 
@@ -1006,7 +1004,8 @@ MODULE FciMCParMod
             ! lenof_sign == 1 --> Only real particles
             ! lenof_sign == 2 --> complex walkers
             !                 --> part_type == 1, 2; real and complex walkers
-
+            !                 --> OR double run
+            !                 --> part_type == 1, 2; population sets 1 and 2, both real
             do part_type=1,lenof_sign
 
                 !The logic here is a little messy, but relates to the tSpawn_only_init option.
@@ -1014,6 +1013,7 @@ MODULE FciMCParMod
                 !the 'type' of walker we are currently considering is an initiator or not.
                 !This is determined uniquely for real walkers, where there is only one 'type' of walker,
                 !but otherwise we need to test each type independently.
+                
                 if((lenof_sign.gt.1).and.tSpawn_Only_Init) then
                     if(.not.test_flag (CurrentDets(:,j), flag_parent_initiator(part_type))) cycle
                 elseif(tSpawn_Only_Init) then
@@ -1028,13 +1028,13 @@ MODULE FciMCParMod
                 WalkersToSpawn=abs(int(SignCurr(part_type)*AvMCExcits))
                 if ((abs(SignCurr(part_type)*AvMCExcits)-real(WalkersToSpawn,dp)).gt.0) then
                     prob_extra_walker=abs(SignCurr(part_type)*AvMCExcits) - real(WalkersToSpawn,dp)
+                    !r = genrand_real2_dSFMT ()
                     r = genrand_real2_dSFMT ()
                     if (prob_extra_walker > r) then
                         WalkersToSpawn=WalkersToSpawn+1
                     endif
                 endif
-
-                TotWalkersToSpawn=TotWalkersToSpawn+WalkersToSpawn
+                    
 
                 do p = 1, WalkersToSpawn
                     ! Zero the bit representation, to ensure no extraneous
@@ -1043,9 +1043,9 @@ MODULE FciMCParMod
 
                     ! Generate a (random) excitation
                     call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
-                                   ilutnJ, exFlag, IC, ex, tParity, prob, &
-                                   HElGen, fcimc_excit_gen_store)
-                   
+                                        ilutnJ, exFlag, IC, ex, tParity, prob, &
+                                        HElGen, fcimc_excit_gen_store)
+                    
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
 
@@ -1099,7 +1099,8 @@ MODULE FciMCParMod
                     endif
 
                     ! Children have been chosen to be spawned.
-                    if (any(child /= 0)) then
+                    !if (any(child /= 0)) then
+                    if ((any(child /= 0)).and.(ic.ne.0).and.(ic.le.2)) then
 
                         !Encode child if not done already
                         if(.not. (tSemiStochastic)) call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
@@ -1125,7 +1126,7 @@ MODULE FciMCParMod
                 enddo ! Cycling over mulitple particles on same determinant.
 
             enddo   ! Cycling over 'type' of particle on a given determinant.
-
+            
             ! DEBUG
             ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
 
@@ -1139,12 +1140,12 @@ MODULE FciMCParMod
                 else
                     CurrentDets(:,gen_ind) = CurrentDets(:,j)
                     if (tFillingStochRDMonFly) then
-                        CurrentH(2,gen_ind) = AvSignCurr
-                        CurrentH(3,gen_ind) = IterRDMStartCurr
+                        CurrentH(2:1+lenof_sign,gen_ind) = AvSignCurr
+                        CurrentH(2+lenof_sign:1+2*lenof_sign,gen_ind) = IterRDMStartCurr
+                        ! NB We never overwrite the deterministic states, so move the next spawning slot
+                        ! in CurrentDets to the next state.
                     endif
-                    ! NB We never overwrite the deterministic states, so move the next spawning slot
-                    ! in CurrentDets to the next state.
-                    VecSlot=VecSlot+1
+                    VecSlot = VecSlot + 1
                 end if
             else
                 call walker_death (iter_data, DetCurr, &
@@ -1164,6 +1165,11 @@ MODULE FciMCParMod
                             CurrentH(1:NCurrH,gen_ind), walkExcitLevel_toHF,& 
                             test_flag(CurrentDets(:,j), flag_deterministic), IterLastRDMFill)  
             endif
+           
+            ! TODO: I'm not sure if this is an unfortunate duplicate of the
+            ! above, or not.
+            if(tFillingStochRDMonFly) call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, SignCurr, &
+                                      & walkExcitLevel_toHF, test_flag(CurrentDets(:,j), flag_deterministic))  
 
         enddo ! Loop over determinants.
         IFDEBUGTHEN(FCIMCDebug,2) 
@@ -1231,14 +1237,17 @@ MODULE FciMCParMod
     subroutine end_iter_stats (TotWalkersNew)
 
         integer, intent(in) :: TotWalkersNew
-        HElement_t :: delta
-        integer :: proc, pos, i
+        HElement_t :: delta(inum_runs)
+        integer :: proc, pos, i, k
         real(dp) :: sgn(lenof_sign)
 
         ! SumWalkersCyc calculates the total number of walkers over an update
         ! cycle on each process.
-
+#ifdef __CMPLX
         SumWalkersCyc = SumWalkersCyc + sum(TotParts)
+#else
+        SumWalkersCyc = SumWalkersCyc + TotParts
+#endif
         ! Write initiator histograms if on the correct iteration.
         ! Why is this done here - before annihilation!
         if ((tHistInitPops .and. mod(iter, HistInitPopsIter) == 0) &
@@ -1260,9 +1269,11 @@ MODULE FciMCParMod
                                          proje_ref_iluts(:,i), NIfD+1)
                     if (pos > 0) then
                         call extract_sign (CurrentDets(:,pos), sgn)
-                        delta = ARR_RE_OR_CPLX(sgn) * proje_ref_coeffs(i)
-                        cyc_proje_denominator = cyc_proje_denominator + delta
-                        sum_proje_denominator = sum_proje_denominator + delta
+                        do k=1, inum_runs
+                            delta(k) = ARR_RE_OR_CPLX(sgn,k) * proje_ref_coeffs(i)
+                            cyc_proje_denominator(k) = cyc_proje_denominator(k) + delta(k)
+                            sum_proje_denominator(k) = sum_proje_denominator(k) + delta(k)
+                        enddo
                     endif
                 endif
             enddo
@@ -1283,20 +1294,21 @@ MODULE FciMCParMod
 
         ! Write out some debugging information if asked
         IFDEBUG(FCIMCDebug,3) then
-#ifdef __CMPLX
-            write(iout,"(A,2f10.5,A)", advance='no') &
+            if(lenof_sign.eq.2) then
+                write(iout,"(A,2f10.5,A)", advance='no') &
                                "Creating ", child(1), child(2), " particles: "
-#else
-            write(iout,"(A,f10.5,A)",advance='no') &
+            else
+                write(iout,"(A,f10.5,A)",advance='no') &
                                          "Creating ", child(1), " particles: "
-#endif
+            endif
             write(iout,"(A,2I4,A)",advance='no') &
                                       "Parent flag: ", parent_flags, part_type
             call writebitdet (iout, ilutJ, .true.)
             call neci_flush(iout)
         endif
-        
+
         ! Count the number of children born
+#ifdef __CMPLX
         NoBorn = NoBorn + sum(abs(child))
         iter_data%nborn = iter_data%nborn + abs(child)
         NumSpawnedEntries = NumSpawnedEntries + 1
@@ -1308,6 +1320,17 @@ MODULE FciMCParMod
             bloom_count(ic) = bloom_count(ic) + 1
             bloom_sizes(ic) = max(real(sum(abs(child)), dp), bloom_sizes(ic))
         end if
+#else
+        NoBorn = NoBorn + abs(child)
+        if (ic == 1) SpawnFromSing = SpawnFromSing + abs(child)
+
+        ! Count particle blooms, and their sources
+        if (abs(child(part_type)) > INitiatorWalkNo) then
+            bloom_count(ic) = bloom_count(ic) + 1
+            bloom_sizes(ic) = max(real((abs(child(part_type))), dp), bloom_sizes(ic))
+        end if
+#endif
+        iter_data%nborn = iter_data%nborn + abs(child)
 
         ! Histogram the excitation levels as required
         if (tHistExcitToFrom) &
@@ -1364,13 +1387,16 @@ MODULE FciMCParMod
 !        WRITE(6,*) 'Encoding',iLutJ
 !        WRITE(6,*) 'To position',ValidSpawnedList(proc)
 !        WRITE(6,*) 'Parent',iLutI
-
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, flags)
         !write(6,*) "After:", return_nsteps(SpawnedParts(:, ValidSpawnedList(proc)))
 
-        IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) &
-                call store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, WalkersToSpawn, iLutJ, proc)
+        ! For double run, we're going to try only including off-diagonal elements from
+        ! successful spawning attempts within part_type=1.  Later, we should include both,
+        ! but for now, this may be simplest.
+        IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then
+            call store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, WalkersToSpawn, iLutJ, proc, part_type)
+        endif
         !We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
         !We want to store the parent (D_i) with the spawned child (D_j) so that we can
         !add in Ci.Cj to the RDM later on.
@@ -1397,7 +1423,8 @@ MODULE FciMCParMod
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
         
         ! Sum the number of created children to use in acceptance ratio.
-        acceptances = acceptances + int(sum(abs(child)),kind(acceptances))
+        acceptances = acceptances + int(sum(abs(child)), kind(acceptances))
+
     end subroutine
 
     subroutine end_iteration_print_warn (totWalkersNew)
@@ -1848,7 +1875,7 @@ MODULE FciMCParMod
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         real(dp), dimension(lenof_sign) :: child
-        real(dp) , intent(in) :: AvSignCurr
+        real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
         HElement_t, intent(in) :: HElGen
 
@@ -1888,7 +1915,7 @@ MODULE FciMCParMod
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         real(dp), dimension(lenof_sign) :: child
-        real(dp) , intent(in) :: AvSignCurr
+        real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
         HElement_t , intent(in) :: HElGen
 
@@ -1915,7 +1942,7 @@ MODULE FciMCParMod
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
         real(dp), dimension(lenof_sign) :: child
-        real(dp) , intent(in) :: AvSignCurr
+        real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
         HElement_t , intent(in) :: HElGen
         character(*), parameter :: this_routine = 'attempt_create_normal'
@@ -1941,7 +1968,6 @@ MODULE FciMCParMod
         rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
                                  tParity, HElGen)
 
-        if (rh .eq.0.0) ZeroMatrixElem=ZeroMatrixElem+1
         !write(6,*) 'p,rh', prob, rh
 
         ! The following is useful for debugging the contributions of single
@@ -1971,19 +1997,24 @@ MODULE FciMCParMod
         ! We actually want to calculate Hji - take the complex conjugate, 
         ! rather than swap around DetCurr and nJ.
 #ifdef __CMPLX
-        rh = CONJG(rh)
+        rh = conjg(rh)
 #endif
-
+        
         ! Spawn to real and imaginary particles. Note that spawning from
         ! imaginary parent particles has slightly different rules:
         !       - Attempt to spawn REAL walkers with prob +AIMAG(Hij)/P
         !       - Attempt to spawn IMAG walkers with prob -REAL(Hij)/P
-        do tgt_cpt = 1, lenof_sign
+        do tgt_cpt = 1, (lenof_sign/inum_runs)
+
+            ! Real, single run:    inum_runs=1, lenof_sign=1 --> 1 loop
+            ! Complex, single run: inum_runs=1, lenof_sign=2 --> 2 loops
+            ! Real, double run:    inum_runs=2, lenof_sign=2 --> 1 loop
 
             ! For spawning from imaginary particles, we cross-match the 
             ! real/imaginary matrix-elements/target-particles.
             component = tgt_cpt
-            if (part_type == 2) component = 3 - tgt_cpt
+
+            if ((part_type.eq.2).and.(inum_runs.eq.1)) component = 3 - tgt_cpt
 
             ! Get the correct part of the matrix element
             walkerweight = sign(1.0_dp, RealwSign(part_type))
@@ -1992,9 +2023,12 @@ MODULE FciMCParMod
             else
 #ifdef __CMPLX
                 MatEl = real(aimag(rh), dp)
-#endif
                 ! n.b. In this case, spawning is of opposite sign.
                 if (part_type == 2) walkerweight = -walkerweight
+#else
+                call stop_all('attempt_create_normal', &
+                        & "ERROR: We shouldn't reach this part of the code unless complex calc")
+#endif
             end if
 
             nSpawn = - tau * MatEl * walkerweight / prob
@@ -2012,7 +2046,7 @@ MODULE FciMCParMod
                 
                 if (tRealSpawnCutoff .and. &
                     abs(nSpawn) < RealSpawnCutoff) then
-                    p_spawn_rdmfac=nSpawn
+                    p_spawn_rdmfac=abs(nSpawn)/RealSpawnCutoff
                     nSpawn = RealSpawnCutoff &
                            * stochastic_round (nSpawn / RealSpawnCutoff)
                else
@@ -2037,13 +2071,19 @@ MODULE FciMCParMod
                 if (nspawn - real(int(nspawn),dp) == 0.0_dp) r = genrand_real2_dSFMT()
                 nSpawn = real(stochastic_round (nSpawn), dp)
             endif
-
+#ifdef __CMPLX
             ! And create the parcticles
             child(tgt_cpt) = nSpawn
+#else
+            ! And create the parcticles
+            child(part_type) = nSpawn
+#endif
         enddo
-
+       
         if(tFillingStochRDMonFly) then
-            if((child(1).ne.0).and.(.not.tHF_Ref_Explicit)) then
+            if((child(part_type).ne.0).and.(.not.tHF_Ref_Explicit).and.(part_type.eq.1)) then
+                !Only add in contributions for spawning events within population 1
+                !(Otherwise it becomes tricky in annihilation as spawnedparents doesn't tell you which population the event came from at present)
                 call calc_rdmbiasfac(p_spawn_rdmfac, prob, AvSignCurr, realwSign, RDMBiasFacCurr) 
             else
                 RDMBiasFacCurr = 0.0_dp
@@ -2291,7 +2331,8 @@ MODULE FciMCParMod
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
         integer, intent(inout) :: VecSlot
-        real(dp), intent(in) :: wAvSign, IterRDMStartCurr, Kii
+        real(dp), intent(in) :: Kii
+        real(dp), intent(in), dimension(lenof_sign) :: wAvSign, IterRDMStartCurr
         integer, intent(in) :: DetPosition
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp), dimension(lenof_sign) :: iDie
@@ -2304,19 +2345,25 @@ MODULE FciMCParMod
         ! -ve (births, if shift > 0)
         iDie = attempt_die (DetCurr, Kii, realwSign, WalkExcitLevel)
 
-!        IF(iDie.ne.0) WRITE(iout,*) "Death: ",iDie
-       
         IFDEBUG(FCIMCDebug,3) then 
             if(sum(abs(iDie)).ne.0) write(iout,"(A,2f10.5)") "Death: ",iDie(:)
         endif
 
         ! Update death counter
-        iter_data%ndied = iter_data%ndied + min(iDie, abs(realwSign))
-        NoDied = NoDied + sum(min(iDie, abs(realwSign)))
+        iter_data%ndied = iter_data%ndied + min(iDie, abs(RealwSign))
+#ifdef __CMPLX
+        NoDied = NoDied + sum(min(iDie, abs(RealwSign)))
+#else
+        NoDied = NoDied + min(iDie, abs(RealwSign))
+#endif
 
         ! Count any antiparticles
-        iter_data%nborn = iter_data%nborn + max(iDie - abs(realwSign), 0.0_dp)
-        NoBorn = NoBorn + sum(max(iDie - abs(realwSign), 0.0_dp))
+        iter_data%nborn = iter_data%nborn + max(iDie - abs(RealwSign), 0.0_dp)
+#ifdef __CMPLX
+        NoBorn = NoBorn + sum(max(iDie - abs(RealwSign), 0.0_dp))
+#else
+        NoBorn = NoBorn + max(iDie - abs(RealwSign), 0.0_dp)
+#endif
 
         ! Calculate new number of signed particles on the det.
         CopySign = RealwSign - (iDie * sign(1.0_dp, RealwSign))
@@ -2335,13 +2382,7 @@ MODULE FciMCParMod
                 end if
             end do
         end if
-        
-        !DMC: TO WORRY ABOUT!
 
-        !Test - testsuite, RDM still work, both still work with Linscalealgo (all in debug)
-        !Null particle not kept if antiparticles aborted.
-        !When are the null particles removed?
-        
         if (any(CopySign /= 0)) then
             ! Normal method slots particles back in main array at position
             ! vecslot. The list is shuffled up if a particle is destroyed.
@@ -2350,17 +2391,17 @@ MODULE FciMCParMod
             if (tHashWalkerList) then
                 call encode_sign (CurrentDets(:,DetPosition), CopySign)
                 if (tFillingStochRDMonFly) then
-                    CurrentH(2,DetPosition) = wAvSign
-                    CurrentH(3,DetPosition) = IterRDMStartCurr
+                    CurrentH(2:1+lenof_sign,DetPosition) = wAvSign
+                    CurrentH(2+lenof_sign:1+2*lenof_sign,DetPosition) = IterRDMStartCurr
                 endif
             else
                 call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
                 if(.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
                 if (tFillingStochRDMonFly) then
-                    CurrentH(2,VecSlot) = wAvSign
-                    CurrentH(3,VecSlot) = IterRDMStartCurr
+                    CurrentH(2:1+lenof_sign,VecSlot) = wAvSign
+                    CurrentH(2+lenof_sign:1+2*lenof_sign,VecSlot) = IterRDMStartCurr
                 endif
-                VecSlot = VecSlot + 1
+                VecSlot=VecSlot+1
             endif
         else
             !All walkers died
@@ -2371,20 +2412,23 @@ MODULE FciMCParMod
                 ! But if the walker is removed from the list altogether, this would be lost too.
                 if(tHashWalkerList) then
                     call encode_sign(CurrentDets(:,DetPosition),CopySign)
-                    CurrentH(2,DetPosition) = wAvSign
-                    CurrentH(3,DetPosition) = IterRDMStartCurr
+                    CurrentH(2:1+lenof_sign,DetPosition) = wAvSign
+                    CurrentH(2+lenof_sign:1+2*lenof_sign,DetPosition) = IterRDMStartCurr
                 else
                     call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
                     if (.not.tRegenDiagHEls) CurrentH(1,VecSlot) = Kii
-                    CurrentH(2,VecSlot) = wAvSign
-                    CurrentH(3,VecSlot) = IterRDMStartCurr
-                    VecSlot = VecSlot + 1
+                    CurrentH(2:1+lenof_sign,VecSlot) = wAvSign
+                    CurrentH(2+lenof_sign:1+2*lenof_sign,VecSlot) = IterRDMStartCurr
+                    VecSlot=VecSlot+1
                 endif
             endif
             if(tTruncInitiator) then
                 ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
                 if(test_flag(iLutCurr,flag_is_initiator(1))) then
                     NoAddedInitiators=NoAddedInitiators-1
+                    if (tSpawnSpatialInit) call rm_initiator_list (ilutCurr)
+                elseif(test_flag(iLutCurr,flag_is_initiator(lenof_sign))) then
+                    NoAddedInitiators(inum_runs)=NoAddedInitiators(inum_runs)-1
                     if (tSpawnSpatialInit) call rm_initiator_list (ilutCurr)
                 endif
             endif
@@ -2399,6 +2443,9 @@ MODULE FciMCParMod
             endif
         endif
 
+        !Test - testsuite, RDM still work, both still work with Linscalealgo (all in debug)
+        !Null particle not kept if antiparticles aborted.
+        !When are the null particles removed?
 
     end subroutine
 
@@ -2422,13 +2469,16 @@ MODULE FciMCParMod
         real(dp), dimension(lenof_sign) :: ndie
         integer, intent(in) :: WalkExcitLevel
 
-        real(dp) :: r, rat, fac, probsign
+        real(dp) :: r, rat, probsign
+        real(dp), dimension(inum_runs) :: fac
         integer :: i, iUnused
 
-        fac = tau * (Kii-DiagSft)
+        do i=1, inum_runs
+            fac(i)=tau*(Kii-DiagSft(i))
+        enddo
 
-        if(fac.gt.1.0_dp) then
-            if(fac.gt.2.0_dp) then
+        if(fac(1).gt.1.0_dp) then
+            if(fac(1).gt.2.0_dp) then
                 call stop_all("attempt_die_normal","Death probability > 2: Algorithm unstable. Reduce timestep.")
             else
                 write(iout,"(A,F20.10)") "** WARNING ** Death probability > 1: Creating Antiparticles. "&
@@ -2441,15 +2491,23 @@ MODULE FciMCParMod
 
         if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)) &
             .or. tAllRealCoeff ) then
-            OccRealDets=OccRealDets+1
             do i=1, lenof_sign
-                ndie(i)=fac*abs(realwSign(i))
+                if(inum_runs.eq.2) then
+                    ndie(i)=fac(i)*abs(realwSign(i))
+                else
+                    ndie(i)=fac(1)*abs(realwSign(i))
+                endif
             enddo
         else
             do i=1,lenof_sign
+                
                 ! Subtract the current value of the shift, and multiply by tau.
                 ! If there are multiple particles, scale the probability.
-                rat = fac * abs(realwSign(i))
+                if(inum_runs.eq.2) then
+                    rat = fac(i) * abs(realwSign(i))
+                else
+                    rat = fac(1) * abs(realwSign(i))
+                endif
 
                 ndie(i) = real(int(rat), dp)
                 rat = rat - ndie(i)
@@ -2732,22 +2790,29 @@ MODULE FciMCParMod
     SUBROUTINE PrintFCIMCPsi()
         use DetCalcData , only : FCIDets
         INTEGER :: i,nI(NEl),ExcitLevel,j, iunit
-        real(dp) :: norm,norm1
+        real(dp) :: norm2
+        real(dp), dimension(lenof_sign) :: norm1, norm
 
         CALL MPISumAll(Histogram,AllHistogram)
         norm1=0.0_dp
         do i=1,Det
-            IF(lenof_sign.eq.1) THEN
-                norm1=norm1+AllHistogram(1,i)**2
-            ELSE
-                norm1=norm1+(AllHistogram(1,i)**2)+(AllHistogram(lenof_sign,i)**2)
-            ENDIF
+            do j=1,lenof_sign
+                norm1(j)=norm1(j)+AllHistogram(j,i)**2
+            enddo
         enddo
+#ifdef __CMPLX
+        norm2=SQRT(sum(norm1))
+#else
         norm1=SQRT(norm1)
+#endif
         WRITE(iout,*) "Total FCIMC Wavefuction normalisation:",norm1
         do i=1,Det
             do j=1,lenof_sign
-                AllHistogram(j,i)=AllHistogram(j,i)/norm1
+#ifdef __CMPLX
+                AllHistogram(j,i)=AllHistogram(j,i)/norm2
+#else
+                AllHistogram(j,i)=AllHistogram(j,i)/norm1(j)
+#endif
             enddo
         enddo
 
@@ -2766,15 +2831,17 @@ MODULE FciMCParMod
 
                 norm=0.0_dp
                 do i=1,Det
-                    IF(lenof_sign.eq.1) THEN
-                        norm=norm+AllHistogram(1,i)**2
-                    ELSE
-                        norm=norm+(AllHistogram(1,i)**2)+(AllHistogram(lenof_sign,i)**2)
-                    ENDIF
+                    do j=1,lenof_sign
+                        norm(j)=norm(j)+AllHistogram(j,i)**2
+                    enddo
 !write out FCIMC Component weight (normalised), current normalisation, excitation level
                     ExcitLevel = FindBitExcitLevel(iLutHF, FCIDets(:,i), nel)
                     CALL decode_bit_det(nI,FCIDets(0:NIfTot,i))
-                    WRITE(iunit,"(I13,G25.16,I6,G20.10)",advance='no') i,AllHistogram(1,i),ExcitLevel,norm
+#ifdef __CMPLX
+                    WRITE(iunit,"(I13,G25.16,I6,G20.10)",advance='no') i,AllHistogram(1,i),ExcitLevel,sum(norm)
+#else
+                    WRITE(iunit,"(I13,G25.16,I6,G20.10)",advance='no') i,AllHistogram(1,i),ExcitLevel,norm(1)
+#endif
                     do j=1,NEl-1
                         WRITE(iunit,"(I5)",advance='no') nI(j)
                     enddo
@@ -2790,9 +2857,11 @@ MODULE FciMCParMod
 
 !This routine will write out the average wavevector from the spawning run up until now.
     SUBROUTINE WriteHistogram()
-        INTEGER :: i,IterRead, io1, io2, io3, Tot_No_Unique_Dets,ierr,val
+        INTEGER :: i,IterRead, io1, io2, io3, Tot_No_Unique_Dets,ierr,val,j
         integer :: posn, FinalPop
-        real(dp) :: norm,norm1,norm2,norm3,ShiftRead,AllERead,NumParts,DDOT
+        real(dp) :: ShiftRead,AllERead,NumParts,DDOT
+        real(dp),dimension(lenof_sign) :: norm,norm1,norm2,norm3
+        real(dp) :: norm_c,norm1_c,norm2_c,norm3_c
         real(dp) :: AvVarEnergy, VarEnergy, GroundE_Ever, ProjGroundE
         real(dp) , allocatable :: CKN(:),HOrderedHist(:),HOrderedInstHist(:)
         integer , allocatable :: ExpandedWalkerDets(:,:)
@@ -2830,47 +2899,46 @@ MODULE FciMCParMod
             norm2=0.0_dp
             norm3=0.0_dp
             do i=1,Det
-                IF(lenof_sign.eq.1) THEN
-                    norm=norm+AllHistogram(1,i)**2
-                    norm1=norm1+AllInstHist(1,i)**2
-                    norm2=norm2+AllInstAnnihil(1,i)**2
-                    norm3=norm3+AllAvAnnihil(1,i)**2
-                ELSE
-                    norm=norm+(AllHistogram(1,i)**2)+(AllHistogram(lenof_sign,i)**2)
-                    norm1=norm1+(AllInstHist(1,i)**2)+(AllInstHist(lenof_sign,i)**2)
-                    norm2=norm2+(AllInstAnnihil(1,i)**2)+(AllInstAnnihil(lenof_sign,i)**2)
-                    norm3=norm3+(AllAvAnnihil(1,i)**2)+(AllAvAnnihil(lenof_sign,i)**2)
-                ENDIF
+                do j=1,lenof_sign
+                    norm(j)=norm(j)+AllHistogram(j,i)**2
+                    norm1(j)=norm1(j)+AllInstHist(j,i)**2
+                    norm2(j)=norm2(j)+AllInstAnnihil(j,i)**2
+                    norm3(j)=norm3(j)+AllAvAnnihil(j,i)**2
+                enddo
             enddo
+#ifdef __CMPLX
+            norm_c=SQRT(sum(norm))
+            norm1_c=SQRT(sum(norm1))
+            norm2_c=SQRT(sum(norm2))
+            norm3_c=SQRT(sum(norm3))
+#else
             norm=SQRT(norm)
             norm1=SQRT(norm1)
             norm2=SQRT(norm2)
             norm3=SQRT(norm3)
-!            WRITE(iout,*) "NORM",norm
+#endif
             do i=1,Det
-                IF(lenof_sign.eq.1) THEN
-                    AllHistogram(1,i)=AllHistogram(1,i)/norm
-                    AllInstHist(1,i)=AllInstHist(1,i)/norm1
-                    IF(norm2.ne.0.0_dp) THEN
-                        AllInstAnnihil(1,i)=AllInstAnnihil(1,i)/norm2
+                do j=1,lenof_sign
+#ifdef __CMPLX
+                    AllHistogram(j,i)=AllHistogram(j,i)/norm_c
+                    AllInstHist(j,i)=AllInstHist(j,i)/norm1_c
+                    IF(norm2_c.ne.0.0_dp) THEN
+                        AllInstAnnihil(j,i)=AllInstAnnihil(j,i)/norm2_c
                     ENDIF
-                    IF(norm3.ne.0.0_dp) THEN
-                        AllAvAnnihil(1,i)=AllAvAnnihil(1,i)/norm3
+                    IF(norm3_c.ne.0.0_dp) THEN
+                        AllAvAnnihil(j,i)=AllAvAnnihil(j,i)/norm3_c
                     ENDIF
-                ELSE
-                    AllHistogram(1,i)=AllHistogram(1,i)/norm
-                    AllHistogram(lenof_sign,i)=AllHistogram(lenof_sign,i)/norm
-                    AllInstHist(1,i)=AllInstHist(1,i)/norm1
-                    AllInstHist(lenof_sign,i)=AllInstHist(lenof_sign,i)/norm1
-                    IF(norm2.ne.0.0_dp) THEN
-                        AllInstAnnihil(1,i)=AllInstAnnihil(1,i)/norm2
-                        AllInstAnnihil(lenof_sign,i)=AllInstAnnihil(lenof_sign,i)/norm2
+#else
+                    AllHistogram(j,i)=AllHistogram(j,i)/norm(j)
+                    AllInstHist(j,i)=AllInstHist(j,i)/norm1(j)
+                    IF(norm2(j).ne.0.0_dp) THEN
+                        AllInstAnnihil(j,i)=AllInstAnnihil(1,i)/norm2(j)
                     ENDIF
-                    IF(norm3.ne.0.0_dp) THEN
-                        AllAvAnnihil(1,i)=AllAvAnnihil(1,i)/norm3
-                        AllAvAnnihil(lenof_sign,i)=AllAvAnnihil(lenof_sign,i)/norm3
+                    IF(norm3(j).ne.0.0_dp) THEN
+                    AllAvAnnihil(j,i)=AllAvAnnihil(j,i)/norm3(j)
                     ENDIF
-                ENDIF
+#endif
+                enddo
             enddo
             
             io1 = get_free_unit()
@@ -2895,17 +2963,29 @@ MODULE FciMCParMod
                     WRITE(io2,"(I13,3G25.16)") IterRead,ShiftRead,AllERead,NumParts
                 enddo
 99              CONTINUE
-                IF(AllHFCyc.eq.0.0_dp) THEN
+#ifdef __CMPLX
+                IF(AllHFCyc(1).eq.0.0_dp) THEN
                     WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllERead,SUM(AllTotPartsOld)
                 ELSE
                     WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc,SUM(AllTotPartsOld)
                 ENDIF
+#else
+                IF(AllHFCyc(1).eq.0.0_dp) THEN
+                    WRITE(io2,"(I13,3G25.16)") Iter,DiagSft(1),AllERead,AllTotPartsOld(1)
+                ELSE
+                    WRITE(io2,"(I13,3G25.16)") Iter,DiagSft(1),AllENumCyc(1)/AllHFCyc(1),AllTotPartsOld(1)
+                ENDIF
+#endif
                 CLOSE(io2)
                 CLOSE(io3)
 
             ELSE
                 OPEN(io2,FILE=abstr2,STATUS='UNKNOWN')
+#ifdef __CMPLX
                 WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc,SUM(AllTotPartsOld)
+#else
+                WRITE(io2,"(I13,3G25.16)") Iter,DiagSft(1),AllENumCyc(1)/AllHFCyc(1),AllTotPartsOld(1)
+#endif
                 CLOSE(io2)
             ENDIF
 
@@ -2923,22 +3003,25 @@ MODULE FciMCParMod
                     FinalPop = int(CurrentDets(NifD+1,posn))
                 endif
 
-                IF(lenof_sign.eq.1) THEN
-                    norm=norm+AllHistogram(1,i)**2
-                    norm1=norm1+(AllAvAnnihil(1,i))**2
-                ELSE
-                    norm=norm+(AllHistogram(1,i)**2)+(AllHistogram(lenof_sign,i)**2)
-                    norm1=norm1+(AllAvAnnihil(1,i)**2)+(AllAvAnnihil(lenof_sign,i)**2)
-                ENDIF
+                do j=1,lenof_sign
+                    norm(j)=norm(j)+AllHistogram(j,i)**2
+                    norm1(j)=norm1(j)+AllAvAnnihil(j,i)**2
+                enddo
                 IF(lenof_sign.eq.1) THEN
                     WRITE(io1,"(I13,6G25.16,I13,G25.16)") i, &
                           AllHistogram(1,i), norm, AllInstHist(1,i), &
                           AllInstAnnihil(1,i), AllAvAnnihil(1,i), norm1, &
                           FinalPop, BeforeNormHist(i)
                 ELSE
-                    WRITE(io1,"(I13,6G25.16)") i, AllHistogram(1,i), norm, &
+#ifdef __CMPLX
+                    WRITE(io1,"(I13,6G25.16)") i, AllHistogram(1,i), sum(norm), &
                           AllInstHist(1,i), AllInstAnnihil(1,i), &
-                          AllAvAnnihil(1,i), norm1
+                          AllAvAnnihil(1,i), sum(norm1)
+#else
+                    WRITE(io1,"(I13,6G25.16)") i, AllHistogram(1,i), norm(1), &
+                          AllInstHist(1,i), AllInstAnnihil(1,i), &
+                          AllAvAnnihil(1,i), norm1(1)
+#endif
                 ENDIF
                 IF(AllHistogram(1,i).ne.0.0_dp) Tot_No_Unique_Dets = Tot_No_Unique_Dets + 1
             enddo
@@ -3149,17 +3232,22 @@ MODULE FciMCParMod
 
         if (iProcIndex == Root) then
             ! Have all of the particles died?
+#ifdef __CMPLX
             if (AllTotwalkers == 0)  then
-!                write(iout,*) AllTotWalkers, TotWalkers
-!                call stop_all (this_routine, 'All particles have died. &
-!                              &Consider choosing new seed, or raising shift &
-!                              &value.')
                 write(iout,"(A)") "All particles have died. Restarting."
-
                 tRestart=.true.
             else
                 tRestart=.false.
             endif
+#else
+            if ((AllTotParts(1).eq.0).or.(AllTotParts(inum_runs).eq.0))  then
+                write(iout,"(A)") "All particles have died. Restarting."
+                tRestart=.true.
+            else
+                tRestart=.false.
+            endif
+            !TODO CMO: Work out how to wipe the walkers on the second population if double run
+#endif
         endif
         call MPIBCast(tRestart)
         if(tRestart) then
@@ -3168,6 +3256,7 @@ MODULE FciMCParMod
             CALL DeallocFCIMCMemPar()
             IF(iProcIndex.eq.Root) THEN
                 CLOSE(fcimcstats_unit)
+                if (inum_runs.eq.2) CLOSE(fcimcstats_unit2)
                 IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(initiatorstats_unit)
                 IF(tLogComplexPops) CLOSE(complexstats_unit)
             ENDIF
@@ -3179,6 +3268,7 @@ MODULE FciMCParMod
             ! repetitions in the FCIMCStats or INITIATORStats files from restarts.
             if (iProcIndex == root) then
                 write (fcimcstats_unit,'("#")', advance='no')
+                if (inum_runs.eq.2) write(fcimcstats_unit2, '("#")', advance='no')
                 write (initiatorstats_unit,'("#")', advance='no')
             end if
             call WriteFCIMCStats()
@@ -3219,7 +3309,8 @@ MODULE FciMCParMod
         if (tCheckHighestPop) then
 
             ! Obtain the determinant (and its processor) with the highest
-            ! population.
+            ! population. To keep this simple, do it only for set 1 if using double run,
+            ! as we need to keep a consistent HF det for the two runs.
             call MPIAllReduceDatatype ((/int(iHighestPop,int32), int(iProcIndex,int32)/), 1, &
                                        MPI_MAXLOC, MPI_2INTEGER, int_tmp)
             pop_highest = int_tmp(1)
@@ -3229,7 +3320,14 @@ MODULE FciMCParMod
             ! by ignoring the fractional population here
 
             ! How many walkers do we need to switch dets?
-            pop_change = FracLargerDet * abs_sign(AllNoAtHF)
+            
+            ! If doing a double run, we only test population 1. abs_sign considers element 1
+            ! unless we're running the complex code.
+            if((lenof_sign.eq.2).and.(inum_runs.eq.1)) then 
+                pop_change = FracLargerDet * abs_sign(AllNoAtHF)
+            else
+                pop_change = FracLargerDet * abs(AllNoAtHF(1))
+            endif
 !            write(iout,*) "***",AllNoAtHF,FracLargerDet,pop_change, pop_highest,proc_highest
             if (pop_change < pop_highest .and. pop_highest > 50) then
 
@@ -3310,12 +3408,12 @@ MODULE FciMCParMod
                                              Hii
 
                     ! Reset averages
-                    SumENum = 0
-                    sum_proje_denominator = 0
-                    cyc_proje_denominator = 0
-                    SumNoatHF = 0.0_dp
-                    VaryShiftCycles = 0
-                    SumDiagSft = 0
+                    SumENum(:)=0
+                    sum_proje_denominator(:) = 0
+                    cyc_proje_denominator(:) = 0
+                    SumNoatHF(:) = 0.0_dp
+                    VaryShiftCycles(:) = 0
+                    SumDiagSft(:) = 0
                     root_print 'Zeroing all energy estimators.'
 
                     !Since we have a new reference, we must block only from after this point
@@ -3347,8 +3445,13 @@ MODULE FciMCParMod
 
                 ! Or are we restarting the calculation with the reference 
                 ! det switched?
+#ifdef __CMPLX
                 elseif (tRestartHighPop .and. &
                         iRestartWalkNum < sum(AllTotParts)) then
+#else
+                elseif (tRestartHighPop .and. &
+                        iRestartWalkNum < AllTotParts(1)) then
+#endif
                     
                     ! Broadcast the changed det to all processors
                     call MPIBcast (HighestPopDet, NIfTot+1, proc_highest)
@@ -3397,16 +3500,17 @@ MODULE FciMCParMod
     subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
         integer :: int_tmp(5+2*lenof_sign), proc, pos, i
         real(dp) :: sgn(lenof_sign)
-        HElement_t :: helem_tmp(3)
-        HElement_t :: real_tmp(2)!*lenof_sign)
+        HElement_t :: helem_tmp(3*inum_runs)
+        HElement_t :: real_tmp(2*inum_runs) !*lenof_sign
         integer(int64) :: int64_tmp(8),TotWalkersTemp
         type(fcimc_iter_data) :: iter_data
         real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
         real(dp), dimension(lenof_sign), intent(out) :: tot_parts_new_all
         character(len=*), parameter :: this_routine='collate_iter_data'
-        real(dp), dimension(lenof_sign) :: RealAllHFCyc
-        real(dp) :: all_norm_psi_squared, all_norm_semistoch_squared
+        real(dp), dimension(inum_runs) :: RealAllHFCyc
+        real(dp), dimension(inum_runs) :: all_norm_psi_squared, all_norm_semistoch_squared
         real(dp) :: bloom_sz_tmp(0:2)
+        integer :: run
     
         ! Communicate the integers needing summation
 
@@ -3416,31 +3520,22 @@ MODULE FciMCParMod
         call MPIReduce(NoDied, MPI_SUM, AllNoDied)
         call MPIReduce(HFCyc, MPI_SUM, RealAllHFCyc)
         call MPIReduce(NoAtDoubs, MPI_SUM, AllNoAtDoubs)
-        call MPIReduce(OccRealDets, MPI_SUM, AllOccRealDets)
-        call MPIReduce(DetsRoundedToZero, MPI_SUM, AllDetsRoundedToZero)
         call MPIReduce(Annihilated, MPI_SUM, AllAnnihilated)
-        call MPIReduce(NuMSpawnedEntries, MPI_SUM, AllNumSpawnedEntries)
-        call MPIReduce(ZeroMatrixElem, MPI_SUM, AllZeroMatrixElem)
-        call MPIReduce(NuMMerged, MPI_SUM, AllNumMerged)
-        call MPIReduce(TotWalkersToSpawn, MPI_SUM, AllTotWalkersToSpawn)
-        if (lenof_sign == 1) then
-            AllHFCyc = RealAllHFCyc(1)
-        else
-#ifdef __CMPLX
-            AllHFCyc = cmplx(RealAllHFCyc(1),RealAllHFCyc(2), dp)
-#endif
-        endif
-
+        
+        do run=1,inum_runs
+            AllHFCyc(run)=ARR_RE_OR_CPLX(RealAllHFCyc,run)
+        enddo
+        
         ! Integer summations required for the initiator method
         if (tTruncInitiator) then
-            call MPISum ((/NoAddedInitiators, NoInitDets, &
-                           NoNonInitDets, NoExtraInitdoubs, InitRemoved/),&
+            call MPISum ((/NoAddedInitiators(1), NoInitDets(1), &
+                           NoNonInitDets(1), NoExtraInitdoubs(1), InitRemoved(1)/),&
                           int64_tmp(1:5))
-            AllNoAddedInitiators = int64_tmp(1)
-            AllNoInitDets = int64_tmp(2)
-            AllNoNonInitDets = int64_tmp(3)
-            AllNoExtraInitDoubs = int64_tmp(4)
-            AllInitRemoved = int64_tmp(5)
+            AllNoAddedInitiators(1) = int64_tmp(1)
+            AllNoInitDets(1) = int64_tmp(2)
+            AllNoNonInitDets(1) = int64_tmp(3)
+            AllNoExtraInitDoubs(1) = int64_tmp(4)
+            AllInitRemoved(1) = int64_tmp(5)
 
             call MPIReduce(NoAborted, MPI_SUM, AllNoAborted)
             call MPIReduce(NoRemoved, MPI_SUM, AllNoRemoved)
@@ -3457,28 +3552,23 @@ MODULE FciMCParMod
         call MPIReduce(norm_semistoch_squared,MPI_SUM,all_norm_semistoch_squared)
         call MPIReduce(Totparts,MPI_SUM,AllTotParts)
         call MPIReduce(tot_parts_new,MPI_SUM,tot_parts_new_all)
+#ifdef __CMPLX
+        norm_psi = sqrt(sum(all_norm_psi_squared))
+        norm_semistoch = sqrt(sum(all_norm_semistoch_squared))
+#else
         norm_psi = sqrt(all_norm_psi_squared)
         norm_semistoch = sqrt(all_norm_semistoch_squared)
+#endif
+        
         call MPIReduce(SumNoatHF, MPI_SUM, AllSumNoAtHF)
         ! HElement_t values (Calculates the energy by summing all on HF and 
         ! doubles)
 
         call MPISum ((/ENumCyc, SumENum, ENumCycAbs/), helem_tmp)
-        AllENumCyc = helem_tmp(1)
-        AllSumENum = helem_tmp(2)
-        AllENumCycAbs = helem_tmp(3)
+        AllENumCyc(:) = helem_tmp(1:inum_runs)
+        AllSumENum(:) = helem_tmp(1+inum_runs:2*inum_runs)
+        AllENumCycAbs(:) = helem_tmp(1+2*inum_runs:3*inum_runs)
         
-        if(tSplitProjEHist) then
-            if(tSplitProjEHistG) then
-                AllENumCycHistG=0.0_dp
-                call MPISum(ENumCycHistG,AllENumCycHistG)
-            endif
-            if(tSplitProjEHistK3) then
-                AllENumCycHistK3=0.0_dp
-                call MPISum(ENumCycHistK3,AllENumCycHistK3)
-            endif
-        endif
-
         ! Deal with particle blooms
 !        if (tSpinProjDets) then
 !            call MPISum(bloom_count(0:2), all_bloom_count(0:2))
@@ -3491,8 +3581,8 @@ MODULE FciMCParMod
 
         ! real(dp) values
         call MPISum((/cyc_proje_denominator, sum_proje_denominator/),real_tmp)
-        all_cyc_proje_denominator = real_tmp(1)!(1:lenof_sign)
-        all_sum_proje_denominator = real_tmp(2)!(lenof_sign+1:2*lenof_sign)
+        all_cyc_proje_denominator = real_tmp(1:inum_runs)!(1:lenof_sign)
+        all_sum_proje_denominator = real_tmp(1+inum_runs:2*inum_runs)!(lenof_sign+1:2*lenof_sign)
 
         ! Max/Min values (check load balancing)
         call MPIReduce (TotWalkersTemp, MPI_MAX, MaxWalkersProc)
@@ -3511,6 +3601,7 @@ MODULE FciMCParMod
         if (tSearchTau) &
             call update_tau()
 
+        !TODO CMO:Make sure these are length 2 as well
         if (tTrialWavefunction) then
             call MPIAllReduce(trial_numerator, MPI_SUM, tot_trial_numerator)
             call MPIAllReduce(trial_denom, MPI_SUM, tot_trial_denom)
@@ -3535,15 +3626,16 @@ MODULE FciMCParMod
      
         type(fcimc_iter_data), intent(in) :: iter_data
         integer(int64) :: tot_walkers
-        logical :: tReZeroShift
-        real(dp) :: AllGrowRateRe, AllGrowRateIm, AllHFGrowRate
+        logical, dimension(inum_runs) :: tReZeroShift
+        real(dp) :: AllGrowRateRe, AllGrowRateIm
+        real(dp), dimension(inum_runs)  :: AllHFGrowRate
         real(dp), dimension(lenof_sign) :: denominator, all_denominator
-        integer :: error, i, proc, pos
-        logical :: defer_update
+        integer :: error, i, proc, pos, run
+        logical, dimension(inum_runs) :: defer_update
 
         ! Normally we allow the shift to vary depending on the conditions
         ! tested. Sometimes we want to defer this to the next cycle...
-        defer_update = .false.
+        defer_update(:) = .false.
 
 !        call neci_flush(iout)
 !        CALL MPIBarrier(error)
@@ -3565,18 +3657,36 @@ MODULE FciMCParMod
             if(tInstGrowthRate) then
 !Calculate the growth rate simply using the two points at the beginning and the
 !end of the update cycle. 
-                AllGrowRate = (sum(iter_data%update_growth_tot &
-                           + iter_data%tot_parts_old)) &
-                          / real(sum(iter_data%tot_parts_old), dp)
+                if ((lenof_sign.eq.2).and.(inum_runs.eq.1)) then
+                    !COMPLEX
+                    AllGrowRate = (sum(iter_data%update_growth_tot &
+                               + iter_data%tot_parts_old)) &
+                              / real(sum(iter_data%tot_parts_old), dp)
+                else
+                    do run=1,inum_runs
+                        AllGrowRate(run) = (iter_data%update_growth_tot(run) &
+                                   + iter_data%tot_parts_old(run)) &
+                                  / real(iter_data%tot_parts_old(run), dp)
+                    enddo
+                endif
             else
 !Instead attempt to calculate the average growth over every iteration
 !over the update cycle
-                AllGrowRate = (AllSumWalkersCyc/real(StepsSft,dp)) &
-                                /OldAllAvWalkersCyc
+                if ((lenof_sign.eq.2).and.(inum_runs.eq.1)) then
+                    !COMPLEX
+                    AllGrowRate = (sum(AllSumWalkersCyc)/real(StepsSft,dp)) &
+                                    /sum(OldAllAvWalkersCyc)
+                else
+
+                    do run=1,inum_runs
+                        AllGrowRate(run) = (AllSumWalkersCyc(run)/real(StepsSft,dp)) &
+                                        /OldAllAvWalkersCyc(run)
+                    enddo
+                endif
             endif
 
             ! For complex case, obtain both Re and Im parts
-            if (lenof_sign == 2) then
+            if ((lenof_sign.eq.2).and.(inum_runs.eq.1)) then
                 IF(iter_data%tot_parts_old(1).gt.0) THEN
                     AllGrowRateRe = (iter_data%update_growth_tot(1) + &
                                      iter_data%tot_parts_old(1)) / &
@@ -3602,138 +3712,199 @@ MODULE FciMCParMod
             ! the value in the input file. If particle no has fallen, re-enter
             ! it.
             tReZeroShift = .false.
-            if (TSinglePartPhase) then
-! AJWT dislikes doing this type of if based on a (seeminly unrelated) input option, but can't see another easy way.
-!  TODO:  Something to make it better
-                if(.not.tCCMC) then
-                    tot_walkers = int(InitWalkers * int(nNodes,int64),int64)
-                else
-                    tot_walkers = int(InitWalkers,int64)
-                endif
-                if ( (sum(AllTotParts) > tot_walkers) .or. &
-                     (abs_sign(AllNoatHF) > MaxNoatHF)) then
-!                     WRITE(iout,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
-                    write (iout, '(a,i13,a)') 'Exiting the single particle growth phase on iteration: ',iter + PreviousCycles, &
-                                 ' - Shift can now change'
-                    VaryShiftIter = Iter
-                    iBlockingIter = Iter + PreviousCycles
-                    tSinglePartPhase = .false.
-                    if(TargetGrowRate.ne.0.0_dp) then
-                        write(iout,"(A)") "Setting target growth rate to 1."
-                        TargetGrowRate=0.0_dp
-                    endif
-                    if(tSpawn_Only_Init.and.tSpawn_Only_Init_Grow) then
-                        !Remove the restriction that only initiators can spawn.
-                        write(iout,*) "All determinants now with the ability to spawn new walkers."
-                        tSpawn_Only_Init=.false.
-                    endif
-
-                    ! If enabled, jump the shift to the value preducted by the
-                    ! projected energy!
-                    if (tJumpShift) then
-                        DiagSft = real(proje_iter,dp)
-                        defer_update = .true.
-                    end if
-
-                endif
-            elseif (abs_sign(AllNoatHF) < (MaxNoatHF - HFPopThresh)) then
-                write (iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
-                             &single particle growth phase on iteration',iter + PreviousCycles,' - particle number &
-                             &may grow again.'
-                tSinglePartPhase = .true.
-                tReZeroShift = .true.
-            endif
-
-            ! How should the shift change for the entire ensemble of walkers 
-            ! over all processors.
-            if (((.not. tSinglePartPhase).or.(TargetGrowRate.ne.0.0_dp)) .and.&
-                .not. defer_update) then
-
-                !In case we want to continue growing, TargetGrowRate > 0.0_dp
-                ! New shift value
-                if(TargetGrowRate.ne.0.0_dp) then
-                    if(sum(AllTotParts).gt.TargetGrowRateWalk) then
-                        !Only allow targetgrowrate to kick in once we have > TargetGrowRateWalk walkers.
-                        DiagSft = DiagSft - (log(AllGrowRate-TargetGrowRate) * SftDamp) / &
-                                            (Tau * StepsSft)
-                    endif
-                else
-                    if(tShiftonHFPop) then
-                        !Calculate the shift required to keep the HF population constant
-
-                        AllHFGrowRate = abs(AllHFCyc/real(StepsSft,dp)) / abs(OldAllHFCyc)
-
-                        DiagSft = DiagSft - (log(AllHFGrowRate) * SftDamp) / &
-                                            (Tau * StepsSft)
+            do run=1,inum_runs
+                if (TSinglePartPhase(run)) then
+    ! AJWT dislikes doing this type of if based on a (seeminly unrelated) input option, but can't see another easy way.
+    !  TODO:  Something to make it better
+                    if(.not.tCCMC) then
+                        tot_walkers = InitWalkers * int(nNodes,int64)
                     else
-                        !"WRITE(6,*) "AllGrowRate, TargetGrowRate", AllGrowRate, TargetGrowRate
-                        DiagSft = DiagSft - (log(AllGrowRate) * SftDamp) / &
-                                            (Tau * StepsSft)
+                        tot_walkers = InitWalkers
+                    endif
+
+#ifdef __CMPLX
+                    if ((sum(AllTotParts) > tot_walkers) .or. &
+                         (abs_sign(AllNoatHF) > MaxNoatHF)) then
+    !                     WRITE(iout,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
+                        write (iout, '(a,i13,a)') 'Exiting the single particle growth phase on iteration: ',iter + PreviousCycles, &
+                                     ' - Shift can now change'
+                        VaryShiftIter = Iter
+                        iBlockingIter = Iter + PreviousCycles
+                        tSinglePartPhase = .false.
+                        if(TargetGrowRate(1).ne.0.0_dp) then
+                            write(iout,"(A)") "Setting target growth rate to 1."
+                            TargetGrowRate=0.0_dp
+                        endif
+                        if(tSpawn_Only_Init.and.tSpawn_Only_Init_Grow) then
+                            !Remove the restriction that only initiators can spawn.
+                            write(iout,*) "All determinants now with the ability to spawn new walkers."
+                            tSpawn_Only_Init=.false.
+                        endif
+
+                        ! If enabled, jump the shift to the value preducted by the
+                        ! projected energy!
+                        if (tJumpShift) then
+                            DiagSft = real(proje_iter,dp)
+                            defer_update = .true.
+                        end if
+                    elseif (abs_sign(AllNoatHF) < (MaxNoatHF - HFPopThresh)) then
+                        write (iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
+                                     &single particle growth phase on iteration',iter + PreviousCycles,' - particle number &
+                                     &may grow again.'
+                        tSinglePartPhase = .true.
+                        tReZeroShift = .true.
+                    endif
+#else
+                    if ((AllTotParts(run) > tot_walkers) .or. &
+                         (abs(AllNoatHF(run)) > MaxNoatHF)) then
+    !                     WRITE(iout,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
+                        write (iout, '(a,i13,a,i1)') 'Exiting the single particle growth phase on iteration: ' &
+                                     ,iter + PreviousCycles, ' - Shift can now change for population', run
+                        VaryShiftIter(run) = Iter
+                        iBlockingIter(run) = Iter + PreviousCycles
+                        tSinglePartPhase(run) = .false.
+                        if(TargetGrowRate(run).ne.0.0_dp) then
+                            write(iout,"(A)") "Setting target growth rate to 1."
+                            TargetGrowRate(run)=0.0_dp
+                        endif
+                        if(tSpawn_Only_Init.and.tSpawn_Only_Init_Grow) then
+                            !Remove the restriction that only initiators can spawn.
+                            write(iout,*) "All determinants now with the ability to spawn new walkers."
+                            tSpawn_Only_Init=.false.
+                        endif
+
+                        ! If enabled, jump the shift to the value preducted by the
+                        ! projected energy!
+                        if (tJumpShift) then
+                            DiagSft(run) = real(proje_iter(run),dp)
+                            defer_update(run) = .true.
+                        end if
+                    elseif (abs(AllNoatHF(run)) < (MaxNoatHF - HFPopThresh)) then
+                        write (iout, '(a,i13,a)') 'No at HF has fallen too low - reentering the &
+                                     &single particle growth phase on iteration',iter + PreviousCycles,' - particle number &
+                                     &may grow again.'
+                        tSinglePartPhase(run) = .true.
+                        tReZeroShift(run) = .true.
+                    endif
+#endif
+                endif
+                ! How should the shift change for the entire ensemble of walkers 
+                ! over all processors.
+                if (((.not. tSinglePartPhase(run)).or.(TargetGrowRate(run).ne.0.0_dp)) .and.&
+                    .not. defer_update(run)) then
+
+                    !In case we want to continue growing, TargetGrowRate > 0.0_dp
+                    ! New shift value
+                    if(TargetGrowRate(run).ne.0.0_dp) then
+                        if((lenof_sign.eq.2).and.(inum_runs.eq.1))then
+                        
+                            if(sum(AllTotParts).gt.TargetGrowRateWalk(1)) then
+                                !Only allow targetgrowrate to kick in once we have > TargetGrowRateWalk walkers.
+                                DiagSft = DiagSft - (log(AllGrowRate-TargetGrowRate) * SftDamp) / &
+                                                    (Tau * StepsSft)
+                            endif
+                        else
+                            if(AllTotParts(run).gt.TargetGrowRateWalk(run)) then
+                                !Only allow targetgrowrate to kick in once we have > TargetGrowRateWalk walkers.
+                                DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)-TargetGrowRate(run)) * SftDamp) / &
+                                                    (Tau * StepsSft)
+                            endif
+                        endif
+                    else
+                        if(tShiftonHFPop) then
+                            !Calculate the shift required to keep the HF population constant
+
+                            AllHFGrowRate(run) = abs(AllHFCyc(run)/real(StepsSft,dp)) / abs(OldAllHFCyc(run))
+
+                            DiagSft(run) = DiagSft(run) - (log(AllHFGrowRate(run)) * SftDamp) / &
+                                                (Tau * StepsSft)
+                        else
+                            !"WRITE(6,*) "AllGrowRate, TargetGrowRate", AllGrowRate, TargetGrowRate
+                            DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)) * SftDamp) / &
+                                                (Tau * StepsSft)
+                        endif
+                    endif
+
+                    if ((lenof_sign.eq.2).and.(inum_runs.eq.1)) then
+                        !COMPLEX
+                        DiagSftRe = DiagSftRe - (log(AllGrowRateRe-TargetGrowRate(1)) * SftDamp) / &
+                                                (Tau * StepsSft)
+                        DiagSftIm = DiagSftIm - (log(AllGrowRateIm-TargetGrowRate(1)) * SftDamp) / &
+                                                (Tau * StepsSft)
+                    endif
+
+                    ! Update the shift averages
+                    if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
+                        if ((iter-VaryShiftIter(run)-nShiftEquilSteps) < StepsSft) &
+                            write (iout, '(a,i14)') 'Beginning to average shift value on iteration: ',iter + PreviousCycles
+                        VaryShiftCycles(run) = VaryShiftCycles(run) + 1
+                        SumDiagSft(run) = SumDiagSft(run) + DiagSft(run)
+                        AvDiagSft(run) = SumDiagSft(run) / real(VaryShiftCycles(run), dp)
+                    endif
+
+    !                ! Update DiagSftAbort for initiator algorithm
+    !                if (tTruncInitiator) then
+    !                    DiagSftAbort = DiagSftAbort - &
+    !                              (log(real(AllGrowRateAbort-TargetGrowRate, dp)) * SftDamp) / &
+    !                              (Tau * StepsSft)
+    !
+    !                    if (iter - VaryShiftIter >= nShiftEquilSteps) then
+    !                        SumDiagSftAbort = SumDiagSftAbort + DiagSftAbort
+    !                        AvDiagSftAbort = SumDiagSftAbort / &
+    !                                         real(VaryShiftCycles, dp)
+    !                    endif
+    !                endif
+                endif
+                if((lenof_sign.eq.2).and.(inum_runs.eq.1)) then
+                    ! Calculate the instantaneous 'shift' from the HF population
+                    HFShift(run) = -1.0_dp / abs_sign(AllNoatHF) * &
+                                        (abs_sign(AllNoatHF) - abs_sign(OldAllNoatHF) / &
+                                      (Tau * real(StepsSft, dp)))
+                    InstShift(run) = -1.0_dp / sum(AllTotParts) * &
+                                ((sum(AllTotParts) - sum(AllTotPartsOld)) / &
+                                 (Tau * real(StepsSft, dp)))
+                 else
+                    ! Calculate the instantaneous 'shift' from the HF population
+                    HFShift(run) = -1.0_dp / abs(AllNoatHF(run)) * &
+                                        (abs(AllNoatHF(run)) - abs(OldAllNoatHF(run)) / &
+                                      (Tau * real(StepsSft, dp)))
+                    InstShift(run) = -1.0_dp / AllTotParts(run) * &
+                                ((AllTotParts(run) - AllTotPartsOld(run)) / &
+                                 (Tau * real(StepsSft, dp)))
+                 endif
+
+                 ! When using a linear combination, the denominator is summed
+                 ! directly.
+                 if (.not. (proje_linear_comb .and. nproje_sum > 1)) then
+                     all_sum_proje_denominator(run) = ARR_RE_OR_CPLX(AllSumNoatHF,run)
+                     all_cyc_proje_denominator(run) = AllHFCyc(run)
+                 endif
+
+                 ! Calculate the projected energy.
+                 if((lenof_sign.eq.2).and.(inum_runs.eq.1)) then
+                     if (any(AllSumNoatHF /= 0.0) .or. &
+                         (proje_linear_comb .and. nproje_sum > 1)) then
+                         ProjectionE = (AllSumENum) / (all_sum_proje_denominator) 
+                         proje_iter = (AllENumCyc) / (all_cyc_proje_denominator) 
+                        AbsProjE = (AllENumCycAbs) / (all_cyc_proje_denominator)
+                    endif
+                 else
+                     if ((AllSumNoatHF(run) /= 0.0) .or. &
+                         (proje_linear_comb .and. nproje_sum > 1)) then
+                         ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) 
+                         proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) 
+                        AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run))
                     endif
                 endif
-
-                if (lenof_sign == 2) then
-                    DiagSftRe = DiagSftRe - (log(AllGrowRateRe-TargetGrowRate) * SftDamp) / &
-                                            (Tau * StepsSft)
-                    DiagSftIm = DiagSftIm - (log(AllGrowRateIm-TargetGrowRate) * SftDamp) / &
-                                            (Tau * StepsSft)
+                ! If we are re-zeroing the shift
+                if (tReZeroShift(run)) then
+                    DiagSft(run) = 0
+                    VaryShiftCycles(run) = 0
+                    SumDiagSft(run) = 0
+                    AvDiagSft(run) = 0
                 endif
+            enddo
 
-                ! Update the shift averages
-                if ((iter - VaryShiftIter) >= nShiftEquilSteps) then
-                    if ((iter-VaryShiftIter-nShiftEquilSteps) < StepsSft) &
-                        write (iout, '(a,i14)') 'Beginning to average shift value on iteration: ',iter + PreviousCycles
-                    VaryShiftCycles = VaryShiftCycles + 1
-                    SumDiagSft = SumDiagSft + DiagSft
-                    AvDiagSft = SumDiagSft / real(VaryShiftCycles, dp)
-                endif
-
-!                ! Update DiagSftAbort for initiator algorithm
-!                if (tTruncInitiator) then
-!                    DiagSftAbort = DiagSftAbort - &
-!                              (log(real(AllGrowRateAbort-TargetGrowRate, dp)) * SftDamp) / &
-!                              (Tau * StepsSft)
-!
-!                    if (iter - VaryShiftIter >= nShiftEquilSteps) then
-!                        SumDiagSftAbort = SumDiagSftAbort + DiagSftAbort
-!                        AvDiagSftAbort = SumDiagSftAbort / &
-!                                         real(VaryShiftCycles, dp)
-!                    endif
-!                endif
-            endif
-
-            ! Calculate the instantaneous 'shift' from the HF population
-            HFShift = -1.0_dp / abs_sign(AllNoatHF) * &
-                                (abs_sign(AllNoatHF) - abs_sign(OldAllNoatHF) / &
-                              (Tau * real(StepsSft, dp)))
-            InstShift = -1.0_dp / sum(AllTotParts) * &
-                        ((sum(AllTotParts) - sum(AllTotPartsOld)) / &
-                         (Tau * real(StepsSft, dp)))
-
-            ! When using a linear combination, the denominator is summed
-            ! directly.
-            if (.not. (proje_linear_comb .and. nproje_sum > 1)) then
-                all_sum_proje_denominator = ARR_RE_OR_CPLX(AllSumNoatHF)
-                all_cyc_proje_denominator = AllHFCyc
-            endif
-
-            ! Calculate the projected energy.
-            if (any(AllSumNoatHF /= 0.0) .or. &
-                (proje_linear_comb .and. nproje_sum > 1)) then
-                ProjectionE = (AllSumENum) / (all_sum_proje_denominator) 
-!                              ARR_RE_OR_CPLX(all_sum_proje_denominator)
-                proje_iter = (AllENumCyc) / (all_cyc_proje_denominator) 
-!                              ARR_RE_OR_CPLX(all_cyc_proje_denominator)
-                AbsProjE = (AllENumCycAbs) / (all_cyc_proje_denominator)
-            endif
-
-            ! If we are re-zeroing the shift
-            if (tReZeroShift) then
-                DiagSft = 0
-                VaryShiftCycles = 0
-                SumDiagSft = 0
-                AvDiagSft = 0
-            endif
 
         endif ! iProcIndex == root
 
@@ -3746,10 +3917,13 @@ MODULE FciMCParMod
         call MPIBcast (tSinglePartPhase)
         call MPIBcast (VaryShiftIter)
         call MPIBcast (DiagSft)
-        if(.not.tSinglePartPhase) then
-            TargetGrowRate=0.0_dp
-            tSearchTau=.false.
-        endif
+        
+        do run=1,inum_runs
+            if(.not.tSinglePartPhase(run)) then
+                TargetGrowRate(run)=0.0_dp
+                tSearchTau=.false.
+            endif
+        enddo
 
     end subroutine update_shift 
 
@@ -3759,6 +3933,7 @@ MODULE FciMCParMod
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp) :: TempTotParts
         real(dp), dimension(lenof_sign) :: AllInstNoatHF
+        real(dp), dimension(lenof_sign) :: Prev_AvNoatHF
         real(dp) :: Prev_AvNoatHF
 
         NoInitDets = 0
@@ -3785,13 +3960,27 @@ MODULE FciMCParMod
 
         if(tFillingStochRDMonFly) then
             call MPISumAll(InstNoatHF, AllInstNoAtHF)
-            if((AllInstNoatHF(1).eq.0.0).and.(.not.tSemiStochastic)) then
-                IterRDM_HF = Iter + 1 
-                AvNoatHF = 0.0_dp
+            if(all(InstNoatHF(1:lenof_sign) == 0) &
+                .and. (.not. tSemiStochastic)) then
+                !The HF determinant won't be in currentdets, so the CurrentH averages will have been wiped.
+                !NB - there will be a small issue here if the HF determinant isn't in the core space
+                IterRDM_HF(1) = Iter+PreviousCycles + 1 
+                AvNoatHF(1) = 0.0_dp
+                if(inum_runs.eq.2) then
+                    IterRDM_HF(inum_runs) = Iter+PreviousCycles + 1 
+                    AvNoatHF(inum_runs) = 0.0_dp
+                endif
+               ! WRITE(6,*) "zeroed AvNoAtHF", Prev_AvNoAtHF, AvNoAtHF, InstNoAtHF
             else
-                Prev_AvNoatHF = AvNoatHF
-                AvNoatHF = ( (real((Iter - IterRDM_HF),dp) * Prev_AvNoatHF) &
-                    + AllInstNoatHF(1) ) / real((Iter - IterRDM_HF) + 1,dp)
+                Prev_AvNoatHF(1) = AvNoatHF(1)
+                AvNoatHF(1) = ( (real((Iter+PreviousCycles - IterRDM_HF(1)),dp) * Prev_AvNoatHF(1)) &
+                    + InstNoatHF(1) ) / real((Iter+PreviousCycles - IterRDM_HF(1)) + 1,dp)
+                if(inum_runs.eq.2) then
+                    Prev_AvNoatHF(inum_runs) = AvNoatHF(inum_runs)
+                    AvNoatHF(inum_runs) = ( (real((Iter+PreviousCycles - IterRDM_HF(inum_runs)),dp) * Prev_AvNoatHF(inum_runs)) &
+                        + InstNoatHF(inum_runs) ) / real((Iter+PreviousCycles - IterRDM_HF(inum_runs)) + 1,dp)
+                endif
+!                WRITE(6,*) "AvNoAtHF", Prev_AvNoAtHF, AvNoAtHF, InstNoAtHF
             endif
         endif
         HFInd = 0            
@@ -3812,7 +4001,7 @@ MODULE FciMCParMod
         ! Zero all of the variables which accumulate for each iteration.
 
         IterTime = 0.0
-        SumWalkersCyc = 0.0
+        SumWalkersCyc(:)=0.0_dp
         Annihilated = 0
         Acceptances = 0
         NoBorn = 0
@@ -3824,14 +4013,6 @@ MODULE FciMCParMod
         cyc_proje_denominator=0
         trial_numerator = 0.0_dp
         trial_denom = 0.0_dp
-        if(tSplitProjEHist) then
-            if(tSplitProjEHistG) then
-                ENumCycHistG(:)=0.0_dp
-            endif
-            if(tSplitProjEHistK3) then
-                ENumCycHistK3(:)=0.0_dp
-            endif
-        endif
 
         ! Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld = TotWalkers
@@ -3842,7 +4023,7 @@ MODULE FciMCParMod
         !OldAllHFCyc is the average HF value for this update cycle
         OldAllHFCyc = AllHFCyc/real(StepsSft,dp)
         !OldAllAvWalkersCyc gives the average number of walkers per iteration in the last update cycle
-        
+      !TODO CMO: are these summed across real/complex? 
         OldAllAvWalkersCyc = AllSumWalkersCyc/real(StepsSft,dp)
 
         ! Also the cumulative global variables
@@ -3892,7 +4073,7 @@ MODULE FciMCParMod
             call extract_sign(CurrentDets(:,i),TempSign)
             TempSign(1)=-TempSign(1)
             call encode_sign(CurrentDets(:,i),TempSign)
-            if(tFillingStochRDMonFly) CurrentH(2,i) = -CurrentH(2,i)    ! Flip average signs too
+            if(tFillingStochRDMonFly) CurrentH(2:1+lenof_sign,i) = -CurrentH(2:1+lenof_sign,i)    ! Flip average signs too
         enddo
 
 !Reverse the flag for whether the sign of the particles has been flipped so the ACF can be correctly calculated
@@ -3941,7 +4122,29 @@ MODULE FciMCParMod
                    &24.NumContribtoE(Im)  25.HF weight   26.|Psi|    &
                    &27.Inst S^2  28.SpawnedParts  29.MergedParts  &
                    &30.Zero elems   31.PartsDiffProc   32.MaxCycSpawn"
-#else
+#elif __DOUBLERUN
+            write(fcimcstats_unit2, "(a,i4,a,l1,a,l1,a,l1)") &
+                  "# FCIMCStats VERSION 2 - REAL : NEl=", nel, &
+                  " HPHF=", tHPHF, ' Lz=', tFixLz, &
+                  ' Initiator=', tTruncInitiator
+            write(fcimcstats_unit2, "(A)", advance = 'no') &
+                  "#     1.Step   2.Shift    3.WalkerCng  4.GrowRate     &
+                  &5.TotWalkers  6.Annihil  7.NoDied  8.NoBorn  &
+                  &9.Proj.E       10.Av.Shift 11.Proj.E.ThisCyc  12.NoatHF &
+                  &13.NoatDoubs  14.AccRat  15.UniqueDets  16.IterTime &
+                  &17.FracSpawnFromSing  18.WalkersDiffProc  19.TotImagTime  &
+                  &20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  &
+                  &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
+                  &26.HF weight    27.|Psi|     28.Inst S^2 29.Inst S^2 30.AbsProjE &
+                  &31.|Semistoch|/|Psi|   32.PartsDiffProc"
+           if (tTrialWavefunction) then 
+                  write(fcimcstats_unit2, "(A)", advance = 'no') &
+                  "  33.TrialNumerator  34.TrialDenom  35.TrialOverlap"
+           end if
+
+           write(fcimcstats_unit2, "()", advance = 'yes')
+#endif
+#ifndef __CMPLX
             if(tMCOutput) then
                 write(iout, "(A)", advance = 'no') "        Step    Shift           &
                       &WalkerCng       GrowRate        TotWalkers      Annihil         &
@@ -3976,14 +4179,6 @@ MODULE FciMCParMod
 
            write(fcimcstats_unit, "()", advance = 'yes')
 
-           if(tSplitProjEHist) then
-               if(tSplitProjEHistG) then
-                    write(unit_splitprojEHistG,"(A)") "# Iter     ENumContribs..."
-                endif
-               if(tSplitProjEHistK3) then
-                    write(unit_splitprojEHistK3,"(A)") "# Iter     ENumContribs..."
-                endif
-           endif
 #endif
             
         ENDIF
@@ -3991,8 +4186,8 @@ MODULE FciMCParMod
     END SUBROUTINE WriteFciMCStatsHeader
 
     subroutine WriteFCIMCStats()
-        INTEGER :: i
-        real(dp) :: FracFromSing
+        INTEGER :: i, run
+        real(dp),dimension(lenof_sign) :: FracFromSing
 
         ! What is the current value of S2
         if (tCalcInstantS2) then
@@ -4021,11 +4216,13 @@ MODULE FciMCParMod
         endif
 
         !To prevent /0 problems
-        if(AllNoBorn.ne.0) then
-            FracFromSing=real(AllSpawnFromSing,dp) / real(AllNoBorn,dp)
-        else
-            FracFromSing=0.0_dp
-        endif
+        do run=1,inum_runs
+            if(AllNoBorn(run).ne.0) then
+                FracFromSing(run)=real(AllSpawnFromSing(run),dp) / real(AllNoBorn(run),dp)
+            else
+                FracFromSing(run)=0.0_dp
+            endif
+        enddo
 
         if (iProcIndex == root) then
 
@@ -4060,9 +4257,9 @@ MODULE FciMCParMod
                 TotImagTime, &                               !19.
                 HFShift, &                                   !20.
                 InstShift, &                                 !21.
-                real((AllHFCyc * conjg(AllHFCyc)),dp), &     !22     |n0|^2  This is the denominator for both calcs
-                real((AllENumCyc * conjg(AllHFCyc)),dp), &   !23.    Re[\sum njH0j] x Re[n0] + Im[\sum njH0j] x Im[n0]   No div by StepsSft
-                aimag(AllENumCyc * conjg(AllHFCyc)), &       !24.    Im[\sum njH0j] x Re[n0] - Re[\sum njH0j] x Im[n0]   since no physicality
+                real((AllHFCyc*conjg(AllHFCyc)),dp), &     !22 |n0|^2  denominator for both calcs
+                real((AllENumCyc*conjg(AllHFCyc)),dp), &   !23. Re[\sum njH0j]xRe[n0]+Im[\sum njH0j]xIm[n0]   No div by StepsSft
+                aimag(AllENumCyc*conjg(AllHFCyc)), &       !24.Im[\sum njH0j]xRe[n0]-Re[\sum njH0j]xIm[n0]   since no physicality
                 sqrt(sum(AllNoatHF**2)) / norm_psi, & !25
                 norm_psi, &                           !26
                 curr_S2, &                            !27
@@ -4091,25 +4288,63 @@ MODULE FciMCParMod
                     AllTotWalkers, &
                     IterTime
             endif
-#else
-
-            if(tSplitProjEHist) then
-                if(tSplitProjEHistG) then
-                    write(unit_splitprojEHistG,"(I12)",advance="no") Iter + PreviousCycles
-                    do i=1,iProjEBins-1 ! Assumes common ProjEBins
-                        write(unit_splitprojEHistG,"(G17.9)",advance='no') AllENumCycHistG(i)
-                    enddo
-                    write(unit_splitprojEHistG,"(G17.9)") AllENumCycHistG(iProjEBins)
-                endif
-                if(tSplitProjEHistK3) then
-                    write(unit_splitprojEHistK3,"(I12)",advance="no") Iter + PreviousCycles
-                    do i=1,iProjEBins-1
-                        write(unit_splitprojEHistK3,"(G17.9)",advance='no') AllENumCycHistK3(i)
-                    enddo
-                    write(unit_splitprojEHistK3,"(G17.9)") AllENumCycHistK3(iProjEBins)
-                endif
+            if (tTruncInitiator .or. tDelayTruncInit) then
+               write(initiatorstats_unit,"(I12,4G16.7,3I20,4G16.7)")&
+                   Iter + PreviousCycles, sum(AllTotParts), &
+                   AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
+                   AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
+                   AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1)
             endif
-            
+            if (tLogComplexPops) then
+                write (complexstats_unit,"(I12,6G16.7)") &
+                    Iter + PreviousCycles, DiagSft, DiagSftRe, DiagSftIm, &
+                    sum(AllTotParts), AllTotParts(1), AllTotParts(lenof_sign)
+            endif
+#elif __DOUBLERUN
+            write(fcimcstats_unit2,"(I12,G16.7,3G16.7,3G16.7,5G17.9,&
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,12G17.9,G16.7)", &
+                                  advance = 'no') &
+                Iter + PreviousCycles, &
+                DiagSft(2), &
+                AllTotParts(2) - AllTotPartsOld(2), &
+                AllGrowRate(2), &
+                AllTotParts(2), &
+                AllAnnihilated(2), &
+                AllNoDied(2), &
+                AllNoBorn(2), &
+                ProjectionE(2), &
+                AvDiagSft(2), &
+                proje_iter(2), &
+                AllNoatHF(2), &
+                AllNoatDoubs(2), &
+                AccRat(2), &
+                AllTotWalkers, &
+                IterTime, &
+                FracFromSing(2), &
+                WalkersDiffProc, &
+                TotImagTime, &
+                0.0_dp, &
+                HFShift(2), &
+                InstShift(2), &
+                proje_iter(2) + Hii, &
+                (AllHFCyc(2) / StepsSft), &
+                (AllENumCyc(2) / StepsSft), &
+                AllNoatHF(2) / norm_psi(2), &
+                norm_psi(2), &
+                curr_S2(2), curr_S2_init(2), &
+                AbsProjE(2), &
+                norm_semistoch(2)/norm_psi(2), &
+                PartsDiffProc
+                if (tTrialWavefunction) then
+                    write(fcimcstats_unit2, "(3G16.7)", advance = 'no') &
+                    (tot_trial_numerator(2) / StepsSft), &
+                    (tot_trial_denom(2) / StepsSft), &
+                    abs(tot_trial_denom(2) / (norm_psi(2)*StepsSft))
+                end if
+                
+                write(fcimcstats_unit2, "()", advance = 'yes')
+#endif
+#ifndef __CMPLX
             write(fcimcstats_unit,"(i12,7g16.7,5g17.9,g13.5,i12,g13.5,g17.5,&
                                   &i13,g13.5,11g17.9,7i13,2g16.7)",advance = 'no') &
                 Iter + PreviousCycles, &                   ! 1.
@@ -4161,49 +4396,40 @@ MODULE FciMCParMod
             if(tMCOutput) then
                 write (iout, "(I12,10G16.7)", advance = 'no') &
                     Iter + PreviousCycles, &
-                    DiagSft, &
-                    sum(AllTotParts) - sum(AllTotPartsOld), &
-                    AllGrowRate, &
-                    sum(AllTotParts), &
-                    AllAnnihilated, &
-                    AllNoDied, &
-                    AllNoBorn, &
-                    ProjectionE, &
-                    AvDiagSft, &
-                    proje_iter
+                    DiagSft(1), &
+                    AllTotParts(1) - AllTotPartsOld(1), &
+                    AllGrowRate(1), &
+                    AllTotParts(1), &
+                    AllAnnihilated(1), &
+                    AllNoDied(1), &
+                    AllNoBorn(1), &
+                    ProjectionE(1), &
+                    AvDiagSft(1), &
+                    proje_iter(1)
                 if (tTrialWavefunction) write(iout, "(G16.7)", advance = 'no') &
-                    (tot_trial_numerator/tot_trial_denom)
+                    (tot_trial_numerator(1)/tot_trial_denom(1))
                 write (iout, "(3G16.7,I12,G13.5)", advance = 'yes') &
-                    AllNoatHF, &
-                    AllNoatDoubs, &
-                    AccRat, &
+                    AllNoatHF(1), &
+                    AllNoatDoubs(1), &
+                    AccRat(1), &
                     AllTotWalkers, &
                     IterTime
             endif
-#endif
-
             if (tTruncInitiator .or. tDelayTruncInit) then
                write(initiatorstats_unit,"(I12,4G16.7,3I20,4G16.7)")&
-                   Iter + PreviousCycles, sum(AllTotParts), &
-                   AllAnnihilated, AllNoDied, AllNoBorn, AllTotWalkers,&
-                   AllNoInitDets, AllNoNonInitDets, AllNoInitWalk, &
-                   AllNoNonInitWalk,AllNoAborted, AllNoRemoved
+                   Iter + PreviousCycles, AllTotParts(1), &
+                   AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
+                   AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
+                   AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1)
             endif
+#endif
 
-            if (tLogComplexPops) then
-                write (complexstats_unit,"(I12,6G16.7)") &
-                    Iter + PreviousCycles, DiagSft, DiagSftRe, DiagSftIm, &
-                    sum(AllTotParts), AllTotParts(1), AllTotParts(lenof_sign)
-            endif
 
             if(tMCOutput) then
                 call neci_flush(iout)
             endif
             call neci_flush(fcimcstats_unit)
-            if(tSplitProjEHist) then
-                if(tSplitProjEHistG) call neci_flush(unit_splitprojEHistG)
-                if(tSplitProjEHistK3) call neci_flush(unit_splitprojEHistK3)
-            endif
+            if (inum_runs.eq.2) call neci_flush(fcimcstats_unit2)
             
         endif
 
@@ -4291,7 +4517,7 @@ MODULE FciMCParMod
         real(dp) :: TotDets,SymFactor,r,Gap,UpperTau
         CHARACTER(len=*), PARAMETER :: t_r='SetupParameters'
         CHARACTER(len=12) :: abstr
-        character(len=24) :: filename
+        character(len=24) :: filename, filename2
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,tAlreadyOcc
         INTEGER :: HFLz,ChosenOrb,KPnt(3), step,FindProjEBins,SymFinal
         integer(int64) :: ExcitLevPop,SymHF
@@ -4348,6 +4574,27 @@ MODULE FciMCParMod
                     OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown')
                 endif
             end if
+            if(inum_runs.eq.2) then
+                fcimcstats_unit2 = get_free_unit()
+                if (tReadPops) then
+                    ! Restart calculation.  Append to stats file (if it exists).
+                    if(tMolpro) then
+                        filename2 = 'FCIQMCStats2_' // adjustl(MolproID)
+                        OPEN(fcimcstats_unit2,file=filename2,status='unknown',position='append')
+                    else
+                        OPEN(fcimcstats_unit2,file='FCIMCStats2',status='unknown',position='append')
+                    endif
+                else
+                    if(tMolpro) then
+                        filename = 'FCIQMCStats_' // adjustl(MolproID)
+                        OPEN(fcimcstats_unit2,file=filename2,status='unknown')
+                    else
+                        OPEN(fcimcstats_unit2,file='FCIMCStats2',status='unknown')
+                    endif
+                end if
+            endif
+
+
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
                 initiatorstats_unit = get_free_unit()
                 if (tReadPops) then
@@ -4361,16 +4608,6 @@ MODULE FciMCParMod
                 ComplexStats_unit = get_free_unit()
                 OPEN(ComplexStats_unit,file='COMPLEXStats',status='unknown')
             ENDIF
-            if(tSplitProjEHist) then
-                if(tSplitProjEHistG) then
-                    unit_splitprojEHistG = get_free_unit()
-                    open(unit_splitprojEHistG,file='SPLITPROJE',status='unknown',recl=1500000)
-                endif
-                if(tSplitProjEHistK3) then
-                    unit_splitprojEHistK3 = get_free_unit()
-                    open(unit_splitprojEHistK3,file='SPLITPROJE_K3',status='unknown',recl=1500000)
-                endif
-            endif
         ENDIF
 
 !Store information specifically for the HF determinant
@@ -4645,9 +4882,13 @@ MODULE FciMCParMod
         ENDIF
 
         if(tSpawn_Only_Init.and.tSpawn_Only_Init_Grow) then
+            if(inum_runs.eq.2) call stop_all("SetupParameters", "Double run not set up to use with tSpawn_Only_Init_Grow.& 
+                                & May need a separate logical for each population")
             write(iout,"(A)") "Only allowing initiator determinants to spawn during growth phase, but allowing all to "&
                 & //"spawn after fixed shift."
         elseif(tSpawn_Only_Init) then
+            if(inum_runs.eq.2) call stop_all("SetupParameters", "Double run not set up to use with tSpawn_Only_Init.& 
+                                & May need a separate logical for each population")
             write(iout,"(A)") "Only allowing initiator determinants to spawn"
         endif
  
@@ -4886,70 +5127,40 @@ MODULE FciMCParMod
 !            CALL Stop_All(t_r,"Ms not equal to zero, but tSpn is false. Error here")
         ENDIF
 
-        if(tSplitProjEHist) then
-
-            !Run through different histogramming flags
-            !Check that a) at least one is on!
-            !b) The one that is on is compatible with system options. 
-        
-            if (.not.tUEG) call stop_all("SetupParameters","SPLITPROJE only compatible with UEG")
-
-            iProjEBins = FindProjEBins()+1 !Needs to store zero momentum too
-            write (iout,*) "************ iProjEBins found:", iProjEBins !Should be the same for k and g
-            if (.not.allocated(ENumCycHistG)) then
-                if(tSplitProjEHistG) then
-                    allocate(ENumCycHistG(iProjEBins))
-                    allocate(AllENumCycHistG(iProjEBins))
-                endif
-                if(tSplitProjEHistK3) then
-                    allocate(ENumCycHistK3(iProjEBins))
-                    allocate(AllENumCycHistK3(iProjEBins))
-                endif
-            endif
-        endif
-
 !Initialise variables for calculation on each node
         iter=0          !This is set so that calls to CalcParentFlag in the initialisation are ok with the logging.
         iPopsTimers=1   !Number of timed popsfiles written out
         iBlockingIter=0
         IterTime=0.0
-        ProjectionE=0.0_dp
+        ProjectionE(:)=0.0_dp
         AvSign=0.0_dp
         AvSignHFD=0.0_dp
-        SumENum=0.0_dp
-        SumNoatHF=0
-        NoatHF=0
-        InstNoatHF=0
-        AvNoatHF = 0.0_dp
-        Annihilated=0
-        Acceptances=0
+        SumENum(:)=0.0_dp
+        SumNoatHF(:)=0.0_dp
+        NoatHF(:)=0.0_dp
+        InstNoatHF(:)=0.0_dp
+        AvNoatHF(:) = 0.0_dp
+        Annihilated(:)=0.0_dp
+        Acceptances(:)=0.0_dp
         PreviousCycles=0
         NoBorn=0.0_dp
         SpawnFromSing=0
         NoDied=0
         HFCyc=0.0_dp
         ENumCyc=0.0_dp
-        if(tSplitProjEHist) then
-            if(tSplitProjEHistG) then
-                ENumCycHistG(:)=0.0_dp
-            endif
-            if(tSplitProjEHistK3) then
-                ENumCycHistK3(:)=0.0_dp
-            endif
-        endif
         VaryShiftCycles=0
-        AvDiagSft=0.0_dp
-        SumDiagSft=0.0_dp
-        SumWalkersCyc=0
+        AvDiagSft(:)=0.0_dp
+        SumDiagSft(:)=0.0_dp
+        SumWalkersCyc(:)=0.0_dp
 !        SumDiagSftAbort=0.0_dp
 !        AvDiagSftAbort=0.0_dp
-        NoAborted=0
-        NoRemoved=0
+        NoAborted(:)=0.0_dp
+        NoRemoved(:)=0.0_dp
         NoAddedInitiators=0
         NoInitDets=0
         NoNonInitDets=0
-        NoInitWalk=0.0_dp
-        NoNonInitWalk=0.0_dp
+        NoInitWalk(:)=0.0_dp
+        NoNonInitWalk(:)=0.0_dp
         NoExtraInitDoubs=0
         InitRemoved=0
         TotImagTime=0.0_dp
@@ -4959,24 +5170,22 @@ MODULE FciMCParMod
         cyc_proje_denominator = 0
 
 !Also reinitialise the global variables - should not necessarily need to do this...
-        AllSumENum=0.0_dp
-        AllNoatHF=0
-        AllNoatDoubs=0
-        AllOccRealDets=0
-        AllDetsRoundedToZero=0
-        AllSumNoatHF = 0
-        AllGrowRate=0.0_dp
-        AllGrowRateAbort=0
+        AllSumENum(:)=0.0_dp
+        AllNoatHF(:)=0.0_dp
+        AllNoatDoubs(:)=0.0_dp
+        AllSumNoatHF(:)=0.0_dp
+        AllGrowRate(:)=0.0_dp
+        AllGrowRateAbort(:)=0
 !        AllMeanExcitLevel=0.0_dp
-        AllSumWalkersCyc=0
+        AllSumWalkersCyc(:)=0
         AllAvSign=0.0_dp
         AllAvSignHFD=0.0_dp
-        AllNoBorn=0
-        AllSpawnFromSing=0
-        AllNoDied=0
-        AllAnnihilated=0
-        AllENumCyc=0.0_dp
-        AllHFCyc=0.0_dp
+        AllNoBorn(:)=0
+        AllSpawnFromSing(:)=0
+        AllNoDied(:)=0
+        AllAnnihilated(:)=0
+        AllENumCyc(:)=0.0_dp
+        AllHFCyc(:)=0.0_dp
 !        AllDetsNorm=0.0_dp
         AllNoAborted=0
         AllNoRemoved=0
@@ -4987,6 +5196,7 @@ MODULE FciMCParMod
         AllNoNonInitWalk=0.0_dp
         AllNoExtraInitDoubs=0
         AllInitRemoved=0
+        AllMaxSpawnProb=0.0_dp
 
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0.0_dp
@@ -5163,6 +5373,7 @@ MODULE FciMCParMod
         !
         ! Set it pu here for CCMC.
         IF(tCCMC) then
+            if(inum_runs.eq.2) call stop_all('SetupParameters',"CCMC not set up to work with double run")
             Call SetupValidSpawned(int(InitWalkers, int64))
         endif
 
@@ -5181,7 +5392,7 @@ MODULE FciMCParMod
         endif
 
         IF(.not.TReadPops) THEN
-            WRITE(iout,"(A,F20.10)") "Initial Diagonal Shift: ", DiagSft
+            WRITE(iout,"(A,F20.10)") "Initial Diagonal Shift: ", DiagSft(1)
         ENDIF
 !        WRITE(iout,*) "Damping parameter for Diag Shift set to: ", SftDamp
         if(tShiftonHFPop) then
@@ -5189,9 +5400,9 @@ MODULE FciMCParMod
         endif
         WRITE(iout,*) "Connectivity of HF determinant is: ",HFConn
         IF(TStartSinglePart) THEN
-            TSinglePartPhase=.true.
+            TSinglePartPhase(:)=.true.
         ELSE
-            TSinglePartPhase=.false.
+            TSinglePartPhase(:)=.false.
         ENDIF
         
         IF(ICILevel.ne.0) THEN
@@ -5283,21 +5494,44 @@ MODULE FciMCParMod
     subroutine check_start_rdm()
 ! This routine checks if we should start filling the RDMs - and does so if we should.        
         use nElRDMMod , only : DeAlloc_Alloc_SpawnedParts
+        use LoggingData, only: tReadRDMs, tReadRDMAvPop
         implicit none
+        logical :: tFullVaryshift
+        integer :: iunit_4
 
-        IF((.not.tSinglePartPhase).and.((Iter - VaryShiftIter).eq.(IterRDMonFly+1))) THEN
+        tFullVaryShift=.false.
+
+        if (.not. tSinglePartPhase(1).and.(.not.tSinglePartPhase(inum_runs))) tFullVaryShift=.true.
+
+        !If we're reading in the RDMs we've already started accumulating them in a previous calculation
+        ! We don't want to put in an arbitrary break now!
+        if(tReadRDMs)   IterRDMonFly=0
+
+        IF(tFullVaryShift .and. ((Iter - maxval(VaryShiftIter)).eq.(IterRDMonFly+1))) THEN
         ! IterRDMonFly is the number of iterations after the shift has changed that we want 
         ! to fill the RDMs.  If this many iterations have passed, start accumulating the RDMs! 
         
-            IterRDMStart = Iter
-            IterRDM_HF = Iter
+            IterRDMStart = Iter+PreviousCycles
+            IterRDM_HF = Iter+PreviousCycles
+
+            if(tReadRDMs .and. tReadRDMAvPop) then
+                !We need to read in the values of IterRDMStart and IterRDM_HF
+                iunit_4=get_free_unit()
+                OPEN(iunit_4,FILE='ITERRDMSTART',status='old')
+                read(iunit_4, *) IterRDMStart, IterRDM_HF, AvNoAtHF
+
+            endif
+
             !We have reached the iteration where we want to start filling the RDM.
             if(tExplicitAllRDM) then
                 ! Explicitly calculating all connections - expensive...
+                if(inum_runs.eq.2) call stop_all('check_start_rdm',"Cannot yet do replica RDM sampling with explicit RDMs. &
+                    & e.g Hacky bit in Gen_Hist_ExcDjs to make it compile")
+                
                 tFillingExplicRDMonFly = .true.
                 if(tHistSpawn) NHistEquilSteps = Iter
             else
-                extract_bit_rep_avsign => extract_bit_rep_avsign_norm
+                !extract_bit_rep_avsign => extract_bit_rep_avsign_norm
                 !By default - we will do a stochastic calculation of the RDM.
                 tFillingStochRDMonFly = .true.
                 if(.not.tHF_Ref_Explicit) call DeAlloc_Alloc_SpawnedParts()
@@ -6076,7 +6310,7 @@ MODULE FciMCParMod
         real(dp), intent(in) :: HDiagCurr, dProbFin
         integer, intent(in), optional :: ind
 
-        integer :: i, bin, pos, ExcitLevel_local, ExcitLevelSpinCoup
+        integer :: i, bin, pos, ExcitLevel_local, ExcitLevelSpinCoup, run
         integer :: PartInd, OpenOrbs, spatial_ic
         integer(n_int) :: iLutSym(0:NIfTot)
         logical tSuccess
@@ -6097,19 +6331,27 @@ MODULE FciMCParMod
         if (tTrialWavefunction .and. present(ind)) then
             if (tHashWalkerlist) then
                 if (test_flag(ilut, flag_trial)) then
-                    trial_denom = trial_denom + current_trial_amps(ind)*RealwSign(1)
+                    do run=1,inum_runs
+                        trial_denom(run) = trial_denom(run) + current_trial_amps(ind)*RealwSign(run)
+                    enddo
                 else if (test_flag(ilut, flag_connected)) then
-                    trial_numerator = trial_numerator + current_trial_amps(ind)*RealwSign(1)
+                    do run=1,inum_runs
+                        trial_numerator(run) = trial_numerator(run) + current_trial_amps(ind)*RealwSign(run)
+                    enddo
                 end if
             else
                 if (test_flag(ilut, flag_trial)) then
                     ! Take the next element in the occupied trial vector.
                     trial_ind = trial_ind + 1
-                    trial_denom = trial_denom + occ_trial_amps(trial_ind)*RealwSign(1)
+                    do run=1,inum_runs
+                        trial_denom(run) = trial_denom(run) + occ_trial_amps(trial_ind)*RealwSign(run)
+                    enddo
                 else if (test_flag(ilut, flag_connected)) then
                     ! Take the next element in the occupied connected vector.
                     con_ind = con_ind + 1
-                    trial_numerator = trial_numerator + occ_con_amps(con_ind)*RealwSign(1)
+                    do run=1,inum_runs
+                        trial_numerator(run) = trial_numerator(run) + occ_con_amps(con_ind)*RealwSign(run)
+                    enddo
                 end if
             end if
         end if
@@ -6182,8 +6424,15 @@ MODULE FciMCParMod
                 ! determinants must also be included in the energy values
                 ! along with the doubles
                 
-                if (ExcitLevel == 2) NoatDoubs = NoatDoubs + sum(abs(RealwSign))
-                
+                if (ExcitLevel == 2) then
+#ifdef __CMPLX
+                    NoatDoubs(1) = NoatDoubs(1) + sum(abs(RealwSign))
+#else           
+                    do run=1, inum_runs
+                        NoatDoubs(run) = NoatDoubs(run) + abs(RealwSign(run))
+                    enddo
+#endif
+                endif
                 ! Obtain off-diagonal element
                 if (tHPHF) then
                     HOffDiag = hphf_off_diag_helement (ProjEDet, nI, iLutRef,&
@@ -6199,43 +6448,15 @@ MODULE FciMCParMod
 
         endif ! sume_linear_contrib
 
-        if(tSplitProjEHist.and.ExcitLevel_local == 2) then
-
-            !Calc excitation matrix
-            !call GetBitExcitation(iLutRef,ilut,ExMat,tSign)
-            ExMat(:,:)=0
-            ExMat(1,1)=2
-            call GetExcitation (ProjEDet,nI,NEl,ExMat,tSign)
-            if (tSplitProjEHistG) then 
-                ProjEBin=FindSplitProjEBinG(ExMat)+1
-                
-                if (ProjEBin.le.iProjEBins) then
-                    ! Sum in energy contribution
-                    ENumCycHistG(ProjEBin) = ENumCycHistG(ProjEBin) + (HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
-                endif
-            endif
-            if (tSplitProjEHistK3) then 
-                ProjEBin=FindSplitProjEBinK3(ExMat)+1
-                
-                ! Sum in energy contribution
-                ENumCycHistK3(ProjEBin) = ENumCycHistK3(ProjEBin) + (HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
-            endif
-
-            ! Sum in energy contribution
+        ! Sum in energy contribution
+        do run=1, inum_runs
             if (iter > NEquilSteps) &
-                SumENum = SumENum + (HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
-            
-            ENumCyc = ENumCyc + (HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
-            ENumCycAbs = ENumCycAbs + abs(HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
-        else
-
-            ! Sum in energy contribution
-            if (iter > NEquilSteps) &
-                SumENum = SumENum + (HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
-            
-            ENumCyc = ENumCyc + (HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
-            ENumCycAbs = ENumCycAbs + abs(HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
-        endif
+                SumENum(run) = SumENum(run) + (HOffDiag * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
+       
+            ENumCyc(run) = ENumCyc(run) + (HOffDiag * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
+            ENumCycAbs(run) = ENumCycAbs(run) + abs(HOffDiag * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
+        enddo
+        
 
         ! -----------------------------------
         ! HISTOGRAMMING
@@ -6324,13 +6545,13 @@ MODULE FciMCParMod
     SUBROUTINE InitFCIMCCalcPar()
         use FciMCLoggingMOD , only : InitHistInitPops
         use SystemData , only : tRotateOrbs
-        use CalcData , only : InitialPart,tstartmp1,tStartCAS
+        use CalcData , only : InitialPart,tstartmp1,tStartCAS, InitialPartVec
         use CalcData , only : MemoryFacPart,MemoryFacAnnihil,iReadWalkersRoot
         use constants , only : size_n_int
         use DeterminantData , only : write_det
         use nElRDMMod, only: InitRDM
         use LoggingData , only : tReadRDMs
-        INTEGER :: ierr,iunithead,DetHash,Slot,MemTemp
+        INTEGER :: ierr,iunithead,DetHash,Slot,MemTemp,run
         LOGICAL :: formpops,binpops
         INTEGER :: error,MemoryAlloc,PopsVersion,j,iLookup,WalkerListSize
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
@@ -6341,12 +6562,16 @@ MODULE FciMCParMod
         integer :: read_nnodes
         !Variables from popsfile header...
         logical :: tPop64Bit,tPopHPHF,tPopLz
-        integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
+        integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,Popinum_runs
         integer(int64) :: iPopAllTotWalkers
         integer :: i
-        real(dp) :: PopDiagSft
-        real(dp) , dimension(lenof_sign) :: PopSumNoatHF, InitialSign
+        real(dp) :: PopDiagSft, PopDiagSft2
+        real(dp) , dimension(lenof_sign) :: InitialSign
+        real(dp) , dimension(lenof_sign/inum_runs) :: PopSumNoatHF
         HElement_t :: PopAllSumENum
+        
+        !default
+        Popinum_runs=1
 
         if(tReadPops.and..not.tPopsAlreadyRead) then
             call open_pops_head(iunithead,formpops,binpops)
@@ -6385,8 +6610,8 @@ MODULE FciMCParMod
                     read_nnodes = 0
                 elseif(PopsVersion.eq.4) then
                     call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                            iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                            PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot, &
+                            iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                            PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
                             read_tau,PopBlockingIter, read_psingles, &
                             read_par_bias, read_nnodes, read_walkers_on_nodes)
                     ! The only difference between 3 & 4 is just that 4 reads 
@@ -6397,8 +6622,8 @@ MODULE FciMCParMod
                 endif
 
                 call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                        iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot, &
+                        iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                        PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
                         WalkerListSize,read_tau,PopBlockingIter, &
                         read_psingles, read_par_bias)
 
@@ -6429,14 +6654,15 @@ MODULE FciMCParMod
             IF(.not.tRegenDiagHEls) THEN
                 if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
                     ! If calculating the RDMs stochastically, need to include the average sign and the 
-                    ! iteration it became occupied in the CurrentH array (with the Hii elements).
-                    ALLOCATE(WalkVecH(3,MaxWalkersPart),stat=ierr)
-                    CALL LogMemAlloc('WalkVecH',3*MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-                    WalkVecH(:,:)=0.0_dp
-                    MemoryAlloc=MemoryAlloc+8*MaxWalkersPart*3
-                    WRITE(6,"(A)") " The current signs before death will be store for use in the RDMs."
-                    WRITE(6,"(A,F14.6,A)") " This requires ", REAL(MaxWalkersPart*8*2,dp)/1048576.0_dp," Mb/Processor"
-                    NCurrH = 3
+                        ! iteration it became occupied in the CurrentH array (with the Hii elements).
+                        ! Need to store this for each set of walkers if we're doing a double run.
+                        ALLOCATE(WalkVecH(1+2*lenof_sign,MaxWalkersPart),stat=ierr)
+                        CALL LogMemAlloc('WalkVecH',(1+2*lenof_sign)*MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
+                        WalkVecH(:,:)=0.0_dp
+                        MemoryAlloc=MemoryAlloc+8*MaxWalkersPart*(1+2*lenof_sign)
+                        WRITE(6,"(A)") " The average current signs before death will be stored for use in the RDMs."
+                        WRITE(6,"(A,F14.6,A)") " This requires ", REAL(MaxWalkersPart*8*2*lenof_sign,dp)/1048576.0_dp," Mb/Processor"
+                    NCurrH = 1+2*lenof_sign
                 else
                     ALLOCATE(WalkVecH(1,MaxWalkersPart),stat=ierr)
                     CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
@@ -6512,9 +6738,9 @@ MODULE FciMCParMod
 
             TotParts(:)=0.0
             TotPartsOld(:)=0.0
-            NoatHF=0.0_dp
-            InstNoatHF=0.0_dp
-            AvNoatHF = 0.0_dp
+            NoatHF(:)=0.0_dp
+            InstNoatHF(:)=0.0_dp
+            AvNoatHF(:) = 0.0_dp
 
             if (tSpawnSpatialInit) then
                 max_inits = int(MemoryFacInit * INitWalkers)
@@ -6548,7 +6774,8 @@ MODULE FciMCParMod
                 call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, &
                                       TotWalkers ,TotParts, NoatHF, &
                                       CurrentDets, MaxWalkersPart, &
-                                      read_nnodes, read_walkers_on_nodes)
+                                      read_nnodes, read_walkers_on_nodes, &
+                                      PopNIfSgn)
 
                 !Setup global variables
                 TotWalkersOld=TotWalkers
@@ -6559,30 +6786,32 @@ MODULE FciMCParMod
                 AllTotPartsOld=AllTotParts
                 call MPISumAll(NoatHF,AllNoatHF)
                 OldAllNoatHF=AllNoatHF
-                OldAllAvWalkersCyc=sum(AllTotParts)
-                if(lenof_sign.eq.1) then
-                    OldAllHFCyc = real(AllNoatHF(1),dp)
-                else
 #ifdef __CMPLX
-                    !cpp to avoid compiler warnings
-                    OldAllHFCyc = cmplx(real(AllNoatHF(1),dp),real(AllNoatHF(lenof_sign),dp), dp)
+                OldAllAvWalkersCyc=sum(AllTotParts)
+#else
+                OldAllAvWalkersCyc=AllTotParts
 #endif
-                endif
-
-                AllNoAbortedOld=0.0_dp
-                iter_data_fciqmc%tot_parts_old = AllTotParts
-
-                ! Calculate the projected energy for this iteration.
-                if (any(AllSumNoatHF /= 0.0)) &
-                    ProjectionE = AllSumENum / ARR_RE_OR_CPLX(AllSumNoatHF)
                 
+                do run=1,inum_runs
+                    OldAllHFCyc(run) = ARR_RE_OR_CPLX(AllNoatHF,run)
+                enddo
+                
+                AllNoAbortedOld(:)=0.0_dp
+                iter_data_fciqmc%tot_parts_old = AllTotParts
+                
+                ! Calculate the projected energy for this iteration.
+                do run=1,inum_runs
+                    if (ARR_RE_OR_CPLX(AllSumNoAtHF,run)/=0) &
+                        ProjectionE(run) = AllSumENum(run) / ARR_RE_OR_CPLX(AllSumNoatHF,run)
+                enddo 
+
                 if(iProcIndex.eq.iHFProc) then
                     !Need to store SumENum and SumNoatHF, since the global variable All... gets wiped each iteration. 
                     !Rather than POPSFILE v2, where the average values were scattered, just store the previous
                     !energy contributions on the root node.
-                    SumNoatHF=AllSumNoatHF
-                    SumENum=AllSumENum
-                    InstNoatHF = NoatHF
+                    SumNoatHF(:)=AllSumNoatHF(:)
+                    SumENum(:)=AllSumENum(:)
+                    InstNoatHF(:) = NoatHF(:)
 
                     if((AllNoatHF(1).ne.NoatHF(1)).or.(AllNoatHF(lenof_sign).ne.NoatHF(lenof_sign))) then
                         call stop_all(this_routine,"HF particles spread across different processors.")
@@ -6603,11 +6832,14 @@ MODULE FciMCParMod
 
                     if(tStartSinglePart) then
                         WRITE(iout,"(A,I10,A,F9.3,A,I15)") "Initial number of particles set to ",int(InitialPart), &
-                            " and shift will be held at ",DiagSft," until particle number gets to ", int(InitWalkers*nNodes)
+                            " and shift will be held at ",DiagSft(1)," until particle number gets to ", int(InitWalkers*nNodes)
                     else
                         write(iout,"(A,I16)") "Initial number of walkers per processor chosen to be: ", InitWalkers
                     endif
-
+                   
+                    do run=1,inum_runs
+                        InitialPartVec(run)=InitialPart
+                    enddo
 
                     !Setup initial walker local variables for HF walkers start
                     IF(iProcIndex.eq.iHFProc) THEN
@@ -6643,59 +6875,61 @@ MODULE FciMCParMod
                         ! Obtain the initial sign
                         InitialSign = 0
                         if (tStartSinglePart) then
-                            InitialSign(1) = InitialPart
-                            TotParts = InitialPart
-                            TotPartsOld = InitialPart
+                            InitialSign(:) = InitialPartVec(:)
+                            TotParts(:) = InitialPartVec(:)
+                            TotPartsOld(:) = InitialPartVec(:)
                         else
-                            InitialSign(1) = InitWalkers
-                            TotParts = real(InitWalkers,dp)
-                            TotPartsOld = real(InitWalkers,dp)
+                            do run=1, inum_runs
+                                InitialSign(run) = InitWalkers
+                                TotParts(run) = real(InitWalkers,dp)
+                                TotPartsOld(run) = real(InitWalkers,dp)
+                            enddo
                         endif
-                        call encode_sign (CurrentDets(:,1), InitialSign)
 
                         ! set initial values for global control variables.
+                        
                         TotWalkers = 1
                         TotWalkersOld = 1
-                        NoatHF = InitialSign
-
+                        NoatHF(:) = InitialSign(:)
+                        call encode_sign (CurrentDets(:,1), InitialSign)
                     ELSE
-                        NoatHF = 0
-                        TotWalkers = 0
-                        TotWalkersOld = 0
+                        NoatHF(:) = 0.0_dp
+                        TotWalkers = 0.0_dp
+                        TotWalkersOld = 0.0_dp
                     ENDIF
 
-                    OldAllNoatHF=0.0_dp
-                    AllNoatHF=0
+                    OldAllNoatHF(:)=0.0_dp
+                    AllNoatHF(:)=0.0_dp
                     IF(TStartSinglePart) THEN
         !Initialise global variables for calculation on the root node
                         IF(iProcIndex.eq.root) THEN
-                            OldAllNoatHF(1)=real(InitialPart,dp)
-                            if(lenof_sign.eq.1) then
-                                OldAllHFCyc = real(InitialPart,dp)
-                            else
-#ifdef __CMPLX
-                                OldAllHFCyc = cmplx(real(InitialPart,dp),0.0_dp,dp)
-#endif
-                            endif
-                            OldAllAvWalkersCyc = real(InitialPart,dp)
-                            AllNoatHF(1)=InitialPart
-                            InstNoatHF(1) = InitialPart
+                            OldAllNoatHF=InitialPartVec
+                            do run=1,inum_runs
+                                OldAllAvWalkersCyc(run) = InitialPartVec(run)
+                            enddo
+                            AllNoatHF=InitialPartVec
+                            InstNoatHF = InitialPartVec
+                            AllTotParts=InitialPartVec
+                            AllTotPartsOld=InitialPartVec
+                            AllNoAbortedOld(:)=0.0_dp
+                            iter_data_fciqmc%tot_parts_old = InitialPartVec
                             AllTotWalkers = 1
                             AllTotWalkersOld = 1
-                            iter_data_fciqmc%tot_parts_old(1) = real(InitialPart,dp)
-                            AllTotParts(1)=InitialPart
-                            AllTotPartsOld(1)=InitialPart
-                            AllNoAbortedOld=0.0_dp
+                            do run=1,inum_runs
+                                OldAllHFCyc(run) = ARR_RE_OR_CPLX(InitialPartVec,run)
+                            enddo
                         ENDIF
                     ELSE
         !In this, only one processor has initial particles.
                         IF(iProcIndex.eq.Root) THEN
                             AllTotWalkers = 1
                             AllTotWalkersOld = 1
-                            iter_data_fciqmc%tot_parts_old(1) = real(InitWalkers,dp)
-                            AllTotParts(1)=InitWalkers
-                            AllTotPartsOld(1)=InitWalkers
-                            AllNoAbortedOld=0.0_dp
+                            do run=1,inum_runs
+                                iter_data_fciqmc%tot_parts_old(run) = real(InitWalkers,dp)
+                                AllTotParts(run)=InitWalkers
+                                AllTotPartsOld(run)=InitWalkers
+                                AllNoAbortedOld(run)=0.0_dp
+                            enddo
                         ENDIF
                     ENDIF
 
@@ -6766,11 +7000,11 @@ MODULE FciMCParMod
             CALL Stop_All(this_routine,"Cannot use the SPAWNONLYINIT option without the TRUNCINITIATOR option.")
         endif
 
-        if (tSpinProject) call init_yama_store ()
-    
-        if (tUseRealCoeffs .and. (lenof_sign.ne.1)) &
-            CALL stop_all(this_routine,"Code not yet setup to store complex coefficients as reals &
-                                        & - attempt_create_normal is an example")
+        if (tSpinProject) then
+            if (inum_runs.eq.2) call stop_all(this_routine,"Code not yet set up to do a double run &
+                    & with tSpinProject. E.g. when calling the main loop, tSinglePartPhase is now length 2")
+            call init_yama_store ()
+        endif
 
         IF(tRDMonFly) CALL InitRDM()
         !This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
@@ -6783,21 +7017,32 @@ MODULE FciMCParMod
         !If the iteration specified to start filling the RDM has already been, want to 
         !start filling as soon as possible.
         if(tRDMonFly) then
-            if(.not.tSinglePartPhase) VaryShiftIter = 0
+            do run=1,inum_runs
+                if(.not.tSinglePartPhase(run)) VaryShiftIter(run) = 0
+            enddo
         endif
 
         ! Perform all semi-stochastic initialisation. This includes generating all the states in the
         ! deterministic space, finding their processors, ordering them, inserting them into
         ! CurrentDets, calculating and storing all Hamiltonian matrix elements and initalising all
         ! arrays required to store and distribute the vectors in the deterministic space later.
-        if (tSemiStochastic) call init_semi_stochastic()
+        if (tSemiStochastic) then
+            if(inum_runs.eq.2 .and. tRDMonFly) call stop_all('InitFCIMCCalcPar','Cannot yet do SS and double &
+                    &run simultaneously with RDMs. In addition to other things, need to deal with &
+                    &fill_RDM_offdiag_deterministic().')
+            call init_semi_stochastic()
+        endif
+
+
+       if (tSpawnSpatialInit .and. (inum_runs.eq.2)) call stop_all('InitFCIMCCalcPar', &
+                    & "Double run not set up to use with tSpawnSpatialInit.  e.g. likely problem with rm_initiator_list")
 
         ! Initialise the trial wavefunction information which can be used for the energy estimator.
         ! This includes generating the trial space, generating the space connected to the trial space,
         ! diagonalising the trial space to find the trial wavefunction and calculating the vector
         ! in the connected space, required for the energy estimator.
         if (tTrialWavefunction) call init_trial_wf()
-
+        
     end subroutine InitFCIMCCalcPar
 
 !Routine to initialise the particle distribution according to a CAS diagonalisation. 
@@ -6830,11 +7075,12 @@ MODULE FciMCParMod
         real(dp) :: CASRefEnergy,TotWeight,PartFac,amp,rat,r,GetHElement
         real(dp), dimension(lenof_sign) :: temp_sign
         real(dp) :: energytmp(nel), max_wt
-        integer  :: tmp_det(nel), det_max
+        integer  :: tmp_det(nel), det_max, run
         type(ll_node), pointer :: TempNode
         character(len=*) , parameter :: this_routine='InitFCIMC_CAS'
-        
-        if(lenof_sign.ne.1) call stop_all(this_routine,"StartCAS currently does not work with complex walkers")
+#ifdef __CMPLX
+        call stop_all(this_routine,"StartCAS currently does not work with complex walkers")
+#endif
         if(tReadPops) call stop_all(this_routine,"StartCAS cannot work with with ReadPops")
         if(tStartSinglePart) call stop_all(this_routine,"StartCAS cannot work with StartSinglePart")
         if(tRestartHighPop) call stop_all(this_routine,"StartCAS cannot with with dynamically restarting calculations")
@@ -7115,8 +7361,8 @@ MODULE FciMCParMod
         write(iout,*) "Total weight of lowest eigenfunction: ", TotWeight
         write(iout,*) "Maximum weighted det: ", det_max, max_wt
 
-        ! If the reference det is not the maximum weighted det, suggest that
-        ! we change it!
+         !If the reference det is not the maximum weighted det, suggest that
+         !we change it!
         if (.not. all(CASFullDets(:, det_max) == ProjEDet)) then
             write(iout,*) 'The specified reference determinant is not the &
                        &maximum weighted determinant in the CAS expansion'
@@ -7143,13 +7389,13 @@ MODULE FciMCParMod
             write(iout,"(A,I15)") "Shift will remain fixed until the walker population reaches ",int(InitWalkers*nNodes)
             !PartFac is the number of walkers that should reside on the HF determinant
             PartFac=real(InitialPart,dp)/TotWeight
-            tSinglePartPhase=.true.
+            tSinglePartPhase(:)=.true.
         endif
 
         !Now generate all excitations again, creating the required number of walkers on each one.
         DetIndex=1
-        NoatHF(1)=0.0
-        TotParts=0.0
+        NoatHF(:)=0.0
+        TotParts(:)=0.0
         do i=1,nCASDet
             if(tHPHF) then
                 call EncodeBitDet(CASFullDets(:,i),iLutnJ)
@@ -7184,11 +7430,15 @@ MODULE FciMCParMod
                     call EncodeBitDet(CASFullDets(:,i),iLutnJ)
                     if(DetBitEQ(iLutnJ,iLutRef,NIfDBO)) then
                         !Check if this determinant is reference determinant, so we can count number on hf.
-                        NoatHF(1) = NoWalkers
+                        do run=1,inum_runs
+                            NoatHF(run) = NoWalkers
+                        enddo
                     endif
                     call encode_det(CurrentDets(:,DetIndex),iLutnJ)
                     call clear_all_flags(CurrentDets(:,DetIndex))
-                    temp_sign(1) = NoWalkers
+                    do run=1,inum_runs
+                        temp_sign(run) = NoWalkers
+                    enddo
                     call encode_sign(CurrentDets(:,DetIndex),temp_sign)
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
@@ -7223,7 +7473,9 @@ MODULE FciMCParMod
                     end if
 
                     DetIndex=DetIndex+1
-                    TotParts(1)=TotParts(1)+abs(NoWalkers)
+                    do run=1,inum_runs
+                        TotParts(run)=TotParts(run)+abs(NoWalkers)
+                    enddo
                 endif
             endif   !End if desired node
         enddo
@@ -7240,10 +7492,12 @@ MODULE FciMCParMod
         call mpisumall(NoatHF,AllNoatHF)
         call mpisumall(TotWalkers,AllTotWalkers)
         OldAllNoatHF=AllNoatHF
-        OldAllHFCyc = real(AllNoatHF(1),dp)
+        do run=1,inum_runs
+            OldAllHFCyc(run)=AllNoatHF(run)
+            OldAllAvWalkersCyc(run)=AllTotParts(run)
+        enddo
         AllTotWalkersOld=AllTotWalkers
         AllTotPartsOld=AllTotParts
-        OldAllAvWalkersCyc=sum(AllTotParts)
         iter_data_fciqmc%tot_parts_old = AllTotPartsOld
         AllNoAbortedOld=0.0_dp
 
@@ -7261,14 +7515,16 @@ MODULE FciMCParMod
         real(dp) :: TotMP1Weight,amp,MP2Energy,PartFac,H0tmp,rat,r,energy_contrib
         HElement_t :: hel,HDiagtemp
         integer :: iExcits, exflag, Ex(2,2), nJ(NEl), ic, DetIndex, iNode
-        integer :: iInit, Slot, DetHash, ExcitLevel
+        integer :: iInit, Slot, DetHash, ExcitLevel, run, i
         integer(n_int) :: iLutnJ(0:NIfTot)
         real(dp) :: NoWalkers, temp_sign(lenof_sign)
         logical :: tAllExcitsFound, tParity
         type(ll_node), pointer :: TempNode
         character(len=*), parameter :: this_routine="InitFCIMC_MP1"
 
-        if(lenof_sign.ne.1) call stop_all(this_routine,"StartMP1 currently does not work with complex walkers")
+#ifdef __CMPLX
+        call stop_all(this_routine,"StartMP1 currently does not work with complex walkers")
+#endif
         if(tReadPops) call stop_all(this_routine,"StartMP1 cannot work with with ReadPops")
         if(tStartSinglePart) call stop_all(this_routine,"StartMP1 cannot work with StartSinglePart")
         if(tRestartHighPop) call stop_all(this_routine,"StartMP1 cannot with with dynamically restarting calculations")
@@ -7340,7 +7596,7 @@ MODULE FciMCParMod
             !PartFac is the number of walkers that should reside on the HF determinant
             !in an intermediate normalised MP1 wavefunction. 
             PartFac=real(InitialPart,dp)/TotMP1Weight
-            tSinglePartPhase=.true.
+            tSinglePartPhase(:)=.true.
         endif
 
 
@@ -7391,7 +7647,9 @@ MODULE FciMCParMod
                 if(NoWalkers.ne.0.0) then
                     call encode_det(CurrentDets(:,DetIndex),iLutnJ)
                     call clear_all_flags(CurrentDets(:,DetIndex))
-                    temp_sign(1) = NoWalkers
+                    do run=1, inum_runs
+                        temp_sign(run) = NoWalkers
+                    enddo
                     call encode_sign(CurrentDets(:,DetIndex),temp_sign)
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
@@ -7426,7 +7684,9 @@ MODULE FciMCParMod
                     end if
 
                     DetIndex=DetIndex+1
-                    TotParts(1)=TotParts(1)+abs(NoWalkers)
+                    do run=1,inum_runs
+                        TotParts(run)=TotParts(run)+abs(NoWalkers)
+                    enddo
                 endif
             endif   !End if desired node
 
@@ -7448,7 +7708,9 @@ MODULE FciMCParMod
             if(NoWalkers.ne.0) then
                 call encode_det(CurrentDets(:,DetIndex),iLutHF)
                 call clear_all_flags(CurrentDets(:,DetIndex))
-                temp_sign(1) = NoWalkers
+                do run=1,inum_runs
+                    temp_sign(run) = NoWalkers
+                enddo
                 call encode_sign(CurrentDets(:,DetIndex),temp_sign)
                 if(tTruncInitiator) then
                     !Set initiator flag (always for HF)
@@ -7474,17 +7736,21 @@ MODULE FciMCParMod
                     nullify(TempNode)
                 end if
                 DetIndex=DetIndex+1
-                TotParts(1)=TotParts(1)+abs(NoWalkers)
-                NoatHF(1) = NoWalkers
+                do run=1,inum_runs
+                    TotParts(run)=TotParts(run)+abs(NoWalkers)
+                    NoatHF(run) = NoWalkers
+                enddo
             else
                 call stop_all(this_routine,"No walkers initialised on the HF det with StartMP1")
             endif
         else
-            NoatHF(1)=0
+            NoatHF(:)=0.0_dp
         endif
             
         TotWalkers=DetIndex-1   !This is the number of occupied determinants on each node
         TotWalkersOld=TotWalkers
+
+
         if(.not.tHashWalkerList) then
             call sort(CurrentDets(:,1:TotWalkers),CurrentH(:,1:TotWalkers))
         endif
@@ -7495,10 +7761,12 @@ MODULE FciMCParMod
         call mpisumall(NoatHF,AllNoatHF)
         call mpisumall(TotWalkers,AllTotWalkers)
         OldAllNoatHF=AllNoatHF
-        OldAllHFCyc=AllNoatHF(1)
+        do run=1,inum_runs
+            OldAllHFCyc(run)=AllNoatHF(run)
+            OldAllAvWalkersCyc(run)=AllTotParts(run)
+        enddo
         AllTotWalkersOld=AllTotWalkers
         AllTotPartsOld=AllTotParts
-        OldAllAvWalkersCyc=sum(AllTotParts)
         iter_data_fciqmc%tot_parts_old = AllTotPartsOld
         AllNoAbortedOld=0.0_dp
 
@@ -7897,9 +8165,9 @@ MODULE FciMCParMod
       integer ierr,i,j
       real(dp) Gap
 
-      !When running normall, WalkerListSize will be equal to initwalkers
+      !When running normally, WalkerListSize will be equal to initwalkers
       !However, when reading in (and not continuing to grow) it should be equal to the number of dets in the popsfile
-      MaxSpawned=NINT(MemoryFacSpawn*WalkerListSize)
+      MaxSpawned=NINT(MemoryFacSpawn*WalkerListSize*inum_runs)
 !            WRITE(iout,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
             
 !      WRITE(iout,"(A)") "*Direct Annihilation* in use...Explicit load-balancing disabled."
@@ -8298,11 +8566,11 @@ MODULE FciMCParMod
                 call extract_sign (LargestWalkers(:,j), SignCurr)
                 if (any(LargestWalkers(:,j) /= 0)) then
                     
-                    if (lenof_sign == 1) then
-                        HighSign = abs(SignCurr(1))
-                    else
-                        HighSign = sqrt(SignCurr(1)**2 + SignCurr(lenof_sign)**2)
-                    end if
+#ifdef __CMPLX
+                    HighSign = sqrt(SignCurr(1)**2 + SignCurr(lenof_sign)**2)
+#else
+                    HighSign = real(abs(SignCurr(1)),dp)
+#endif
 
                     ! We have the largest sign
                     HighPos = j
@@ -8338,11 +8606,11 @@ MODULE FciMCParMod
             do i=1,iHighPopWrite
                 !How many non-zero determinants do we actually have?
                 call extract_sign(GlobalLargestWalkers(:,i),SignCurr)
-                if(lenof_sign.eq.1) then
-                    HighSign=real(abs(SignCurr(1)),dp)
-                else
-                    HighSign=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
-                endif
+#ifdef __CMPLX
+                HighSign=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
+#else
+                HighSign=real(abs(SignCurr(1)),dp)
+#endif
                 if (HighSign > 1.0e-7_dp) counter = counter + 1
             enddo
 
@@ -8380,11 +8648,11 @@ MODULE FciMCParMod
                 do j=1,lenof_sign
                     write(iout,"(G16.7)",advance='no') SignCurr(j)
                 enddo
-                if(lenof_sign.eq.1) then
-                    HighSign=real(abs(SignCurr(1)),dp)
-                else
-                    HighSign=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
-                endif
+#ifdef __CMPLX
+                HighSign=sqrt(real(SignCurr(1),dp)**2+real(SignCurr(lenof_sign),dp)**2)
+#else
+                HighSign=real(abs(SignCurr(1)),dp)
+#endif
                 if(tHPHF.and.(.not.TestClosedShellDet(GlobalLargestWalkers(:,i)))) then 
                     !Weight is proportional to nw/sqrt(2)
                     write(iout,"(F9.5)",advance='no') (HighSign/sqrt(2.0_dp))/norm 
@@ -8442,7 +8710,7 @@ MODULE FciMCParMod
 #endif
 
         !Automatic error analysis
-        call error_analysis(tSinglePartPhase,iBlockingIter,mean_ProjE_re,ProjE_Err_re,  &
+        call error_analysis(tSinglePartPhase(1),iBlockingIter(1),mean_ProjE_re,ProjE_Err_re,  &
             mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue, &
             equilshift=iBlockEquilShift,equilproje=iBlockEquilProjE)
         call MPIBCast(ProjectionE)
@@ -8531,11 +8799,12 @@ END MODULE FciMCParMod
 ! also re-zero all the energy estimators, since they now correspond to
 ! projection onto a different determinant.
 SUBROUTINE ChangeRefDet(DetCurr)
+    use constants, only: inum_runs
     use FciMCParMod, only: DeallocFCIMCMemPar, SetupParameters, &
                            InitFCIMCCalcPar, iout
     use DeterminantData, only: FDet
     use FciMCData, only: initiatorstats_unit, tDebug, iter, fcimcstats_unit, &
-                         complexstats_unit
+                         complexstats_unit, fcimcstats_unit2
     use CalcData, only: tTruncInitiator, tDelayTruncInit
     use SystemData, only: NEl
     use LoggingData, only: tLogComplexPops
@@ -8555,6 +8824,7 @@ SUBROUTINE ChangeRefDet(DetCurr)
     CALL DeallocFCIMCMemPar()
     IF(iProcIndex.eq.Root) THEN
         CLOSE(fcimcstats_unit)
+        if(inum_runs.eq.2) CLOSE(fcimcstats_unit2)
         IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(initiatorstats_unit)
         IF(tLogComplexPops) CLOSE(complexstats_unit)
     ENDIF
@@ -8662,88 +8932,4 @@ SUBROUTINE BinSearchParts2(iLut,MinInd,MaxInd,PartInd,tSuccess)
     PartInd=MAX(MinInd,i-1)
 
 END SUBROUTINE BinSearchParts2
-   
-integer function FindProjEBins ()
     
-    use LoggingData, only : tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
-    use SystemData, only : NMAXX,NMAXY,NMAXZ, OrbECutoff, gCutoff 
-    integer :: CutoffAim
-
-    if (tSplitProjEHistG) then
-        !CutoffAim=INT(gCutoff) ! in theory this could be set to gCutoff
-        CutoffAim=INT(OrbECutoff)
-    endif
-    if (tSplitProjEHistK3) then
-        CutoffAim=INT(OrbECutoff)
-    endif
-
-    ! A very simple intepretation is to just have bins equal to the number of nmax^2
-    ! so neglecting 'holes' from n_x + n_y + n_z != 13, for example
-
-    FindProjEBins=CutoffAim
-
-end function FindProjEBins
-    
-integer function FindSplitProjEBinG(Ex)
-                       
-    use LoggingData, only : tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
-    use SystemData, only : G1 , kvec , tUEG2
-
-    integer :: ki(3),kj(3),ka(3),kb(3)
-    integer, intent(in) :: Ex(2,2)
-
-    if (.not.tUEG2) then
-        ki=G1(Ex(1,1))%k
-        ka=G1(Ex(2,1))%k
-        kj=G1(Ex(1,2))%k
-        kb=G1(Ex(2,2))%k
-    else 
-        ki=kvec(Ex(1,1),:)
-        ka=kvec(Ex(2,1),:)
-        kj=kvec(Ex(1,2),:)
-        kb=kvec(Ex(2,2),:)
-    endif 
-    
-    if (tSplitProjEHistG) then ! <k1 k2 || k3 k4 > is included if the min
-                               ! out of k1-k3 or k1-k4 are within g-cutoff
-        FindSplitProjEBinG=min((ki(1)-ka(1))**2+(ki(2)-ka(2))**2+(ki(3)-ka(3))**2, &
-                                (ki(1)-kb(1))**2+(ki(2)-kb(2))**2+(ki(3)-kb(3))**2)
-    else
-        call stop_all("FindSplitProjEBinG","Shouldn't be called without HistG being on")
-    endif
-
-end function FindSplitProjEBinG
-
-integer function FindSplitProjEBinK3(Ex)
-                       
-    use LoggingData, only : tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
-    use SystemData, only : G1 , kvec , tUEG2 ,OrbECutOff
-
-    integer :: ki(3),kj(3),ka(3),kb(3)
-    integer, intent(in) :: Ex(2,2)
-
-    if (.not.tUEG2) then
-        ki=G1(Ex(1,1))%k
-        ka=G1(Ex(2,1))%k
-        kj=G1(Ex(1,2))%k
-        kb=G1(Ex(2,2))%k
-    else 
-        ki=kvec(Ex(1,1),:)
-        ka=kvec(Ex(2,1),:)
-        kj=kvec(Ex(1,2),:)
-        kb=kvec(Ex(2,2),:)
-    endif 
-    
-    if (tSplitProjEHistK3) then ! <k1 k2 || k3 k4> is included only if
-                                ! both k3 and k4 are within the e-cutoff
-        FindSplitProjEBinK3=max(ka(1)**2+ka(2)**2+ka(3)**2,kb(1)**2+kb(2)**2+kb(3)**2)
-        if (FindSplitProjEBinK3 .gt. OrbECutOff) then
-            write(6,*) "ka",ka
-            write(6,*) "kb",kb
-            call stop_all("FindSplitProjEBinK3","Shouldn't find an orbital with a larger energy than cutoff")
-        endif
-    else
-        call stop_all("FindSplitProjEBinK3","Shouldn't be called without HistK3 being on")
-    endif
-
-end function FindSplitProjEBinK3

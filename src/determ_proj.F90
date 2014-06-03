@@ -63,7 +63,7 @@ contains
         wavefunction = 0.0_dp
         if (iProcIndex == iHFProc) wavefunction(hf_index) = 1.0_dp
 
-        call MPIAllGatherV(wavefunction, full_determ_vector, determ_proc_sizes, &
+        call MPIAllGatherV(wavefunction, full_determ_vector(1,:), determ_proc_sizes, &
                             determ_proc_indices)
 
         call dgemv('N', &
@@ -83,11 +83,11 @@ contains
 
         do while(iter <= NMCyc .or. NMCyc == -1)
 
-            partial_determ_vector = wavefunction
+            partial_determ_vector(1,:) = wavefunction
 
             call deterministic_projection()
 
-            wavefunction = wavefunction + partial_determ_vector
+            wavefunction = wavefunction + partial_determ_vector(1,:)
 
             energy_num = dot_product(ham_times_hf, wavefunction)
             if (iProcIndex == iHFProc) energy_denom = wavefunction(hf_index)

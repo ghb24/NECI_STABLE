@@ -23,9 +23,9 @@ module semi_stoch_procs
                          SemiStoch_Multiply_Time, TotWalkers, CurrentDets, CoreTag, &
                          PDetermTag, FDetermTag, IDetermTag, indices_of_determ_states, &
                          HashIndex, core_space, CoreSpaceTag, ll_node, nWalkerHashes, &
-                         tFill_RDM, IterLastRDMFill, full_determ_vector_av, &
+                         full_determ_vector_av, &
                          tFillingStochRDMonFly, Iter, IterRDMStart, CoreHashIndex, &
-                         core_ham_diag, DavidsonTag, Fii, HFDet
+                         core_ham_diag, DavidsonTag, Fii, HFDet, PreviousCycles
     use hash, only: DetermineDetNode, FindWalkerHash
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
@@ -61,8 +61,8 @@ contains
 
         call set_timer(SemiStoch_Comms_Time)
 
-        call MPIAllGatherV(partial_determ_vector, full_determ_vector, determ_proc_sizes, &
-                            determ_proc_indices)
+        call MPIAllGatherV(partial_determ_vector, full_determ_vector, &
+                            determ_proc_sizes, determ_proc_indices)
 
         call halt_timer(SemiStoch_Comms_Time)
 
@@ -71,8 +71,8 @@ contains
         call set_timer(SemiStoch_Multiply_Time)
 
         if(tFillingStochRDMonFly) then !Update the average signs in full_determ_vector_av
-            full_determ_vector_av(:)=(((real(Iter,dp)-IterRDMStart)*full_determ_vector_av(:)) &
-                                      + full_determ_vector(:))/(real(Iter,dp) - IterRDMStart + 1.0_dp)
+            full_determ_vector_av=(((real(Iter+PreviousCycles,dp)-IterRDMStart)*full_determ_vector_av) &
+                                      + full_determ_vector)/(real(Iter+PreviousCycles,dp) - IterRDMStart + 1.0_dp)
         endif
             
         if (determ_proc_sizes(iProcIndex) >= 1) then
@@ -81,54 +81,65 @@ contains
             ! whether the the core Hamiltonian uses a sparse representation or not.
             if (tSparseCoreHamil) then
                 
-                if(tFill_RDM) call fill_RDM_offdiag_deterministic()
+                if(Iter.eq.NMCyc) call fill_RDM_offdiag_deterministic()
 
-                    !For the moment, we're only adding in these contributions when we need the energy
-                    !This will need refinement if we want to continue with the option of inst vs true full RDMs
-                    ! (as in another CMO branch).
+                !For the moment, we're only adding in these contributions when we need the energy
+                !This will need refinement if we want to continue with the option of inst vs true full RDMs
+                ! (as in another CMO branch).
 
                 partial_determ_vector = 0.0_dp
 
                 do i = 1, determ_proc_sizes(iProcIndex)
                     do j = 1, sparse_core_ham(i)%num_elements
-                        partial_determ_vector(i) = partial_determ_vector(i) - &
-                            sparse_core_ham(i)%elements(j)*full_determ_vector(sparse_core_ham(i)%positions(j))
+                        partial_determ_vector(:,i) = partial_determ_vector(:,i) - &
+                            sparse_core_ham(i)%elements(j)*full_determ_vector(:,sparse_core_ham(i)%positions(j))
                     end do
                 end do
 
             else
 
-                ! This function performs y := alpha*A*x + beta*y
-                ! N specifies not to use the transpose of A.
-                ! determ_proc_sizes(iProcIndex) is the number of rows in A.
-                ! determ_space_size is the number of columns of A.
-                ! alpha = -1.0_dp.
-                ! A = core_hamiltonian.
-                ! determ_proc_sizes(iProcIndex) is the first dimension of A.
-                ! input x = full_determ_vector.
-                ! 1 is the increment of the elements of x.
-                ! beta = 0.0_dp.
-                ! output y = partial_determ_vector.
-                ! 1 is the incremenet of the elements of y.
-                call dgemv('N', &
-                           determ_proc_sizes(iProcIndex), &
-                           determ_space_size, &
-                           -1.0_dp, &
-                           core_hamiltonian, &
-                           determ_proc_sizes(iProcIndex), &
-                           full_determ_vector, &
-                           1, &
-                           0.0_dp, &
-                           partial_determ_vector, &
-                           1)
+                do i = 1, lenof_sign
+                    ! This function performs y := alpha*A*x + beta*y
+                    ! N specifies not to use the transpose of A.
+                    ! determ_proc_sizes(iProcIndex) is the number of rows in A.
+                    ! determ_space_size is the number of columns of A.
+                    ! alpha = -1.0_dp.
+                    ! A = core_hamiltonian.
+                    ! determ_proc_sizes(iProcIndex) is the first dimension of A.
+                    ! input x = full_determ_vector.
+                    ! 1 is the increment of the elements of x.
+                    ! beta = 0.0_dp.
+                    ! output y = partial_determ_vector.
+                    ! 1 is the incremenet of the elements of y.
+                    call dgemv('N', &
+                               determ_proc_sizes(iProcIndex), &
+                               determ_space_size, &
+                               -1.0_dp, &
+                               core_hamiltonian, &
+                               determ_proc_sizes(iProcIndex), &
+                               full_determ_vector(i,:), &
+                               1, &
+                               0.0_dp, &
+                               partial_determ_vector(i,:), &
+                               1)
+                end do
 
             end if
 
-            ! Now add shift*full_determ_vector, to account for the shift, not stored in
+            ! Now add shift*full_determ_vector to account for the shift, not stored in
             ! core_hamiltonian.
-            partial_determ_vector = partial_determ_vector + &
-               DiagSft * full_determ_vector(determ_proc_indices(iProcIndex)+1:&
-                 determ_proc_indices(iProcIndex)+determ_proc_sizes(iProcIndex))
+#ifdef __CMPLX
+            do i = 1, lenof_sign
+                partial_determ_vector = partial_determ_vector + &
+                   DiagSft(1) * full_determ_vector(i,determ_proc_indices(iProcIndex)+1:&
+                     determ_proc_indices(iProcIndex)+determ_proc_sizes(iProcIndex))
+            end do
+#else
+            do i = 1, determ_proc_sizes(iProcIndex)
+                partial_determ_vector(:,i) = partial_determ_vector(:,i) + &
+                   DiagSft * full_determ_vector(:,i+determ_proc_indices(iProcIndex))
+            end do
+#endif
 
             ! Now multiply the vector by tau to get the final projected vector.
             partial_determ_vector = partial_determ_vector * tau
@@ -882,12 +893,12 @@ contains
         do i = 1, int(TotWalkers,sizeof_int)
             call extract_sign(CurrentDets(:,i), sign_curr)
 
-            if (lenof_sign == 1) then
-                sign_curr_real = real(abs(sign_curr(1)),dp)
-            else
-                sign_curr_real = sqrt(real(sign_curr(1),dp)**2 + real(sign_curr(lenof_sign),dp)**2)
-            endif
-
+#ifdef __CMPLX
+            sign_curr_real = sqrt(real(sign_curr(1),dp)**2 + real(sign_curr(lenof_sign),dp)**2)
+#else
+            !Just return most populated states for set1 if doing a doublerun
+            sign_curr_real = real(abs(sign_curr(1)),dp)
+#endif
             if (present(norm)) norm = norm + (sign_curr_real**2.0)
 
             ! Is this determinant more populated than the smallest. First in the list is always
@@ -898,22 +909,21 @@ contains
                 ! Instead of resorting, just find new smallest sign and position.
                 call extract_sign(largest_walkers(:,1),low_sign)
 
-                if (lenof_sign == 1) then
-                    smallest_sign = real(abs(low_sign(1)),dp)
-                else
-                    smallest_sign = sqrt(real(low_sign(1),dp)**2+real(low_sign(lenof_sign),dp)**2)
-                endif
+#ifdef __CMPLX
+                smallest_sign = sqrt(real(low_sign(1),dp)**2+real(low_sign(lenof_sign),dp)**2)
+#else
+                smallest_sign = real(abs(low_sign(1)),dp)
+#endif
 
                 smallest_pos = 1
                 do j = 2, n_keep
                     if (smallest_sign < 1.0e-7_dp) exit
                     call extract_sign(largest_walkers(:,j), low_sign)
-                    if (lenof_sign == 1) then
-                        sign_curr_real = real(abs(low_sign(1)), dp)
-                    else
-                        sign_curr_real = sqrt(real(low_sign(1),dp)**2 + real(low_sign(lenof_sign),dp)**2)
-                    end if
-
+#ifdef __CMPLX
+                        sign_curr_real = sqrt(real(low_sign(1),dp)**2+real(low_sign(lenof_sign),dp)**2)
+#else
+                        sign_curr_real = real(abs(low_sign(1)),dp)
+#endif
                     if (sign_curr_real < smallest_sign) then
                         smallest_pos = j
                         smallest_sign = sign_curr_real
@@ -1024,14 +1034,16 @@ contains
         ! Send the components to the correct processors and use partial_determ_vector as
         ! temporary space.
         call MPIScatterV(davidson_eigenvector, determ_proc_sizes, determ_proc_indices, &
-                         partial_determ_vector, determ_proc_sizes(iProcIndex), ierr)
+                         partial_determ_vector(1,:), determ_proc_sizes(iProcIndex), ierr)
+
+        if (lenof_sign == 2) partial_determ_vector(2,:) = partial_determ_vector(1,:)
 
         ! Finally, copy these amplitudes across to the corresponding states in CurrentDets.
         counter = 0
         do i = 1, int(TotWalkers)
             if (test_flag(CurrentDets(:,i), flag_deterministic)) then
                 counter = counter + 1
-                call encode_sign(CurrentDets(:,i), partial_determ_vector(counter))
+                call encode_sign(CurrentDets(:,i), partial_determ_vector(:,counter))
             end if
         end do
 

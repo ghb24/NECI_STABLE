@@ -5,8 +5,8 @@ ld = mpif90
 ldflags = -i-dynamic -L $(LD_LIBRARY_PATH) -rdynamic
 compiler = INTEL-ifort9-on-LINUX
 cpp = cpp -C -traditional
-cppflags = -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2 -D__INT64 -D__SHARED_MEM -D__IFORT -D__DOUBLERUN
-libs = -lfftw3 -lacml -cxxlib -lrt -lm -lstdc++
+cppflags = -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2 -D__INT64 -D__SHARED_MEM -DDISABLE_FFTW -D__IFORT -D__DOUBLERUN
+libs = -lacml -cxxlib -lrt
 module_flag = -module
 
 [dbg]
