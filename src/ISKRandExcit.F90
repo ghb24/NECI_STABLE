@@ -344,6 +344,7 @@ MODULE ISKRandExcit
         use sort_mod
         use HPHFRandExcitMod, only: BinSearchListHPHF
         use Parallel_neci
+        use neci_intfce
         IMPLICIT NONE
         INTEGER :: nIX(NEl)
         INTEGER :: i,Iterations,nI(NEl),nJ(NEl),DetConn,nI2(NEl),nJ2(NEl),DetConn2
@@ -619,7 +620,7 @@ MODULE ISKRandExcit
             Die=.false.
             do i=1,iUniqueHPHF
                 AllWeights(i)=AllWeights(i)/(real(Iterations,dp)*real(nNodes,dp))
-                IF(abs(AllWeights(i)-1.0_dp).gt.0.1) THEN
+                IF(abs(AllWeights(i)-1.0_dp).gt.0.1_dp) THEN
                     WRITE(6,*) "Error here!",i
                     Die=.true.
                 ENDIF

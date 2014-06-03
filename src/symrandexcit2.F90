@@ -1862,7 +1862,7 @@ MODULE GenRandSymExcitNUMod
 !We now have to find out how many children to spawn, based on the value of normprob.
         rat=Tau*NormProb*REAL((NEl-ElecsWNoExcits)*nParts,dp)/(1.0_dp-PDoubNew)
         iCreate=INT(rat)
-        rat=rat-REAL(iCreate)
+        rat=rat-REAL(iCreate,dp)
         r = genrand_real2_dSFMT()
         IF(rat.gt.r) THEN
 !Child is created
@@ -1897,13 +1897,13 @@ MODULE GenRandSymExcitNUMod
 !iCreate is initially positive, so its sign can change depending on the sign of the connection and of the parent particle(s)
             rh = get_helement (nI, nJ, 1, ExcitMat, tParity)
 
-            IF(WSign.gt.0.0) THEN
+            IF(WSign.gt.0.0_dp) THEN
                 !Parent particle is positive
-                IF(real(rh).gt.0.0_dp) THEN
+                IF(real(rh,dp).gt.0.0_dp) THEN
                     iCreate=-iCreate     !-ve walker created
                 ENDIF
             ELSE
-                IF(real(rh).lt.0.0_dp) THEN
+                IF(real(rh,dp).lt.0.0_dp) THEN
                     iCreate=-iCreate    !-ve walkers created
                 ENDIF
             ENDIF
@@ -1942,11 +1942,11 @@ MODULE GenRandSymExcitNUMod
 
             IF(WSign.gt.0) THEN
                 !Parent particle is positive
-                IF(real(rh).gt.0.0_dp) THEN
+                IF(real(rh,dp).gt.0.0_dp) THEN
                     iCreate=-iCreate     !-ve walker created
                 ENDIF
             ELSE
-                IF(real(rh).lt.0.0_dp) THEN
+                IF(real(rh,dp).lt.0.0_dp) THEN
                     iCreate=-iCreate    !-ve walkers created
                 ENDIF
             ENDIF
@@ -2081,7 +2081,7 @@ MODULE GenRandSymExcitNUMod
 !We now have to find out how many children to spawn, based on the value of normprob.
         rat=Tau*NormProb*REAL(ElecPairs*nParts,dp)/PDoubNew
         iCreate=INT(rat)
-        rat=rat-REAL(iCreate)
+        rat=rat-REAL(iCreate,dp)
         r = genrand_real2_dSFMT()
         IF(rat.gt.r) THEN
 !Child is created
@@ -2606,8 +2606,8 @@ MODULE GenRandSymExcitNUMod
 
         ENDDO
 
-        pGen=(1.0/(NEl*(NEl-1)))*(1.0/(nBasis*(nBasis-1)))*(1+rejections)
-        IF(pGen.ge.1.0) call stop_all("CreateExcitLattice","Should not have a pgen > 1")
+        pGen=(1.0_dp/(NEl*(NEl-1)))*(1.0_dp/(nBasis*(nBasis-1)))*(1+rejections)
+        IF(pGen.ge.1.0_dp) call stop_all("CreateExcitLattice","Should not have a pgen > 1")
 
 
     END SUBROUTINE CreateExcitLattice2
@@ -2725,6 +2725,7 @@ MODULE GenRandSymExcitNUMod
     SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
 
         use SystemData, only: tUEG2, kvec
+        use neci_intfce
         IMPLICIT NONE
         INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(3)
         real(dp) :: pDoub,pGen,AverageContrib,AllAverageContrib

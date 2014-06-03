@@ -351,7 +351,7 @@ contains
 
             if (tHPHF) then
                 call FindExcitBitDetSym (ilut, ilut_sym)
-                if (.not. DetBitEq(ilut, ilut_sym)) delta = delta / sqrt(2.0)
+                if (.not. DetBitEq(ilut, ilut_sym)) delta = delta / sqrt(2.0_dp)
             endif
 
             if (tFlippedSign) delta = -delta
@@ -376,7 +376,7 @@ contains
                                           PartInd, tSuccess)
                 endif
                 if (tSuccess) then
-                    delta = (sign / sqrt(2.0)) / dProbFin
+                    delta = (sign / sqrt(2.0_dp)) / dProbFin
 
                     call CalcOpenOrbs(ilut_sym, open_orbs)
                     if ((mod(open_orbs, 2) == 1) .neqv. tOddS_HPHF) &
@@ -537,7 +537,7 @@ contains
 
             S2 = 0
             do S = LMS, nel, 2
-                S2 = S2 + real(S * (S + 2) * S_coeffs(S)) / 4
+                S2 = S2 + real(S * (S + 2) * S_coeffs(S),dp) / 4
             enddo
             
             write(6,*) 'Scoeffs', iter, S_coeffs
@@ -1036,7 +1036,7 @@ contains
                             end if
 
                             call extract_sign (CurrentDets(:,pos), sgn2)
-                            ssq = ssq + (sgn(1) * sgn2(1) * sgn_hphf) 
+                            ssq = ssq + int(sgn(1) * sgn2(1) * sgn_hphf,int64) 
                         endif
                     endif
                 enddo

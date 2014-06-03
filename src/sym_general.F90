@@ -199,10 +199,10 @@ contains
             mom = 0
             sym = 0
         else if (tFixLz) then
-            sym = (mod(ind-1, 2*nSymLabels)+1 - spin) / 2
-            mom = ((ind - 2 * sym - spin) / (2 * nSymLabels)) - iMaxLz
+            sym = int((mod(ind-1, 2*nSymLabels)+1 - spin) / 2,int32)
+            mom = int(((ind - 2 * sym - spin) / (2 * nSymLabels)) - iMaxLz,int32)
         else
-            sym = (ind - spin) / 2
+            sym = int((ind - spin) / 2,int32)
             mom = 0
         end if
 
@@ -228,7 +228,7 @@ contains
             sym = 0
         else if (tFixLz) then
             sym = (mod(ind-1, 2*nSymLabels)+1 - spin) / 2
-            mom = ((ind - 2 * sym - spin) / (2 * nSymLabels)) - iMaxLz
+            mom = int(((ind - 2 * sym - spin) / (2 * nSymLabels)) - iMaxLz)
         else
             sym = (ind - spin) / 2
             mom = 0

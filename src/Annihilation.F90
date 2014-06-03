@@ -27,7 +27,7 @@ MODULE AnnihilationMod
                         nullify_ilut_part, keep_smallest_nsteps, return_nsteps
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
-    use LoggingData , only : tHF_Ref_Explicit
+    use LoggingData , only : tHF_Ref_Explicit, tNoNewRDMContrib
     use util_mod, only: get_free_unit, binary_search_custom
     use sparse_arrays, only: trial_ht, con_ht
     use searching
@@ -300,7 +300,7 @@ MODULE AnnihilationMod
         ENDIF
 
 !Max index is the largest occupied index in the array of hashes to be ordered in each processor 
-        IF(MaxIndex.gt.(0.9*MaxSpawned)) THEN
+        IF(MaxIndex.gt.(0.9_dp*MaxSpawned)) THEN
             write(6,*) MaxIndex,MaxSpawned
             CALL Warning_neci("SendProcNewParts","Maximum index of newly-spawned array is " &
             & //"close to maximum length after annihilation send. Increase MemoryFacSpawn")
@@ -952,7 +952,8 @@ MODULE AnnihilationMod
                         if (SignProd(1) < 0.0_dp) iter_data%nannihil(1) = iter_data%nannihil(1) + &
                             2*(min(abs(CurrentSign(1)), abs(SpawnedSign(1))))
                         
-                        if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then
+                        if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit) & 
+                                        & .and.(.not.tNoNewRDMContrib)) then
                             call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
                         endif 
 
@@ -971,7 +972,8 @@ MODULE AnnihilationMod
                 ! If the SpawnedPart is found in the CurrentDets list, it means that the Dj has a non-zero 
                 ! cj - and therefore the Di.Dj pair will have a non-zero ci.cj to contribute to the RDM.
                 ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
-                if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then
+                if(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit) & 
+                                & .and.(.not.tNoNewRDMContrib)) then
                     call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentH(2,PartInd))
                 endif 
 
@@ -1054,9 +1056,9 @@ MODULE AnnihilationMod
                                 HistMinInd2(ExcitLevel)=PartIndex
                                 IF(tSuc) THEN
                                     AvAnnihil(j,PartIndex)=AvAnnihil(j,PartIndex)+ &
-                                    REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
+                                    REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))),dp)
                                     InstAnnihil(j,PartIndex)=InstAnnihil(j,PartIndex)+ &
-                                    REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))))
+                                    REAL(2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j)))),dp)
                                 ELSE
                                     WRITE(6,*) "***",SpawnedParts(0:NIftot,i)
                                     Call WriteBitDet(6,SpawnedParts(0:NIfTot,i),.true.)
@@ -1192,7 +1194,7 @@ MODULE AnnihilationMod
                     if (.not. IsUnoccDet(SignTemp)) tPrevOcc=.true. 
                     
                     do j = 1, lenof_sign
-                        if ((abs(SignTemp(j)).gt.0.0) .and. (abs(SignTemp(j)).lt.OccupiedThresh)) then
+                        if ((abs(SignTemp(j)).gt.0.0_dp) .and. (abs(SignTemp(j)).lt.OccupiedThresh)) then
                             !We remove this walker with probability 1-RealSignTemp
                             pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
                             r = genrand_real2_dSFMT ()
@@ -1435,7 +1437,7 @@ MODULE AnnihilationMod
                         ! Record the highest weighted determinant on each 
                         ! processor.
                         if (abs_sign(ceiling(CurrentSign)) > iHighestPop) then
-                            iHighestPop = abs_sign(ceiling(CurrentSign))
+                            iHighestPop = int(abs_sign(ceiling(CurrentSign)))
                             HighestPopDet(:)=CurrentDets(:,i)
                         end if
                     ENDIF
@@ -1675,7 +1677,7 @@ MODULE AnnihilationMod
 !If this option is on, then we want to compare the weight on each determinant to the weight at the HF determinant.
 !Record the highest weighted determinant on each processor.
                         if (abs_sign(ceiling(CurrentSign)) > iHighestPop) then
-                            iHighestPop = abs_sign(ceiling(CurrentSign))
+                            iHighestPop = int(abs_sign(ceiling(CurrentSign)))
                             HighestPopDet(:)=CurrentDets(:,i)
                         endif
                     ENDIF

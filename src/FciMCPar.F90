@@ -87,7 +87,7 @@ MODULE FciMCParMod
                        tCalcInstantS2Init, instant_s2_multiplier_init, &
                        tJustBlocking, iBlockEquilShift, iBlockEquilProjE, &
                        tDiagAllSpaceEver, tCalcVariationalEnergy, tCompareTrialAmps, &
-                       compare_amps_period, tHistExcitToFrom
+                       compare_amps_period, tHistExcitToFrom, tNoNewRDMContrib
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -413,7 +413,7 @@ MODULE FciMCParMod
                     !EXIT
                 ENDIF
                 IF (proje_update_comb) CALL update_linear_comb_coeffs()
-                IF((iExitWalkers.ne.-1.0).and.(sum(AllTotParts).gt.iExitWalkers)) THEN
+                IF((iExitWalkers.ne.-1.0_dp).and.(sum(AllTotParts).gt.iExitWalkers)) THEN
                     !Exit criterion based on total walker number met.
                     write(iout,"(A,I15)") "Total walker population exceeds that given by &
                         &EXITWALKERS criteria - exiting...",sum(AllTotParts)
@@ -882,7 +882,7 @@ MODULE FciMCParMod
                             CurrentH(3,gen_ind) = IterRDMStartCurr
                         endif
                         VecSlot = VecSlot + 1
-                        if(tFill_RDM) then 
+                        if(tFill_RDM .and. (.not.tNoNewRDMContrib)) then 
                             ! If tFill_RDM is true, this is an iteration where the diagonal 
                             ! RDM elements are calculated, along with the contributions from 
                             ! connections to the (true) HF determinant.
@@ -1152,7 +1152,7 @@ MODULE FciMCParMod
                                    AvSignCurr, IterRDMStartCurr, VecSlot, j, WalkExcitLevel)
             end if
 
-            if(tFill_RDM) then 
+            if(tFill_RDM .and. (.not.tNoNewRDMContrib)) then 
                 ! If tFill_RDM is true, this is an iteration where the diagonal 
                 ! RDM elements are calculated, along with the contributions from 
                 ! connections to the (true) HF determinant.
@@ -1301,7 +1301,7 @@ MODULE FciMCParMod
         iter_data%nborn = iter_data%nborn + abs(child)
         NumSpawnedEntries = NumSpawnedEntries + 1
 
-        if (ic == 1) SpawnFromSing = SpawnFromSing + sum(abs(child))
+        if (ic == 1) SpawnFromSing = SpawnFromSing + int(sum(abs(child)))
 
         ! Count particle blooms, and their sources
         if (sum(abs(child)) > INitiatorWalkNo) then
@@ -1397,7 +1397,7 @@ MODULE FciMCParMod
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
         
         ! Sum the number of created children to use in acceptance ratio.
-        acceptances = acceptances + sum(abs(child))
+        acceptances = acceptances + int(sum(abs(child)),kind(acceptances))
     end subroutine
 
     subroutine end_iteration_print_warn (totWalkersNew)
@@ -1410,7 +1410,7 @@ MODULE FciMCParMod
 
         ! Too many particles?
         rat = real(TotWalkersNew,dp) / real(MaxWalkersPart,dp)
-        if (rat > 0.95) then
+        if (rat > 0.95_dp) then
             if(tMolpro) then
                 write (iout, '(a)') '*WARNING* - Number of particles/determinants &
                                  &has increased to over 95% of allotted memory. &
@@ -1428,7 +1428,7 @@ MODULE FciMCParMod
             do i = 0, nNodes-1
                 rat = real(ValidSpawnedList(i) - InitialSpawnedSlots(i),dp) /&
                              real(InitialSpawnedSlots(1), dp)
-                if (rat > 0.95) then
+                if (rat > 0.95_dp) then
                     if(tMolpro) then
                         write (iout, '(a)') '*WARNING* - Highest processor spawned &
                                          &particles has reached over 95% of allotted memory.&
@@ -1443,7 +1443,7 @@ MODULE FciMCParMod
             enddo
         else
             rat = real(ValidSpawnedList(0), dp) / real(MaxSpawned, dp)
-            if (rat > 0.95) then
+            if (rat > 0.95_dp) then
                 if(tMolpro) then
                     write (iout, '(a)') '*WARNING* - Highest processor spawned &
                                      &particles has reached over 95% of allotted memory.&
@@ -1459,8 +1459,8 @@ MODULE FciMCParMod
 
         ! Are we near the end of the spatial initiator list
         if (tSpawnSpatialInit) then
-            rat = real(no_spatial_init_dets) / real(max_inits)
-            if (rat > 0.95) then
+            rat = real(no_spatial_init_dets,dp) / real(max_inits,dp)
+            if (rat > 0.95_dp) then
                 write(iout, '(a)') '*WARNING* - Number of spatial initiators has&
                                 & reached over 95% f max_inits.'
                 call neci_flush(iout)
@@ -2034,7 +2034,7 @@ MODULE FciMCParMod
 
                 ! And round this to an integer in the usual way
                 ! HACK: To use the same number of random numbers for the tests.
-                if (nspawn - real(int(nspawn)) == 0) r = genrand_real2_dSFMT()
+                if (nspawn - real(int(nspawn),dp) == 0.0_dp) r = genrand_real2_dSFMT()
                 nSpawn = real(stochastic_round (nSpawn), dp)
             endif
 
@@ -2150,7 +2150,7 @@ MODULE FciMCParMod
 
 !If probability is > 1, then we can just create multiple children at the chosen determinant
         ExtraCreate=INT(rat)
-        rat=rat-REAL(ExtraCreate)
+        rat=rat-REAL(ExtraCreate,dp)
 
 !Stochastically choose whether to create or not according to ranlux 
         r = genrand_real2_dSFMT() 
@@ -2162,7 +2162,7 @@ MODULE FciMCParMod
 !Child is created - what sign is it?
             IF(RealwSign(1).gt.0) THEN
 !Parent particle is positive
-                IF(real(rh).gt.0.0_dp) THEN
+                IF(real(rh,dp).gt.0.0_dp) THEN
                     AttemptCreatePar=-1     !-ve walker created
                 ELSE
                     AttemptCreatePar=1      !+ve walker created
@@ -2170,7 +2170,7 @@ MODULE FciMCParMod
 
             ELSE
 !Parent particle is negative
-                IF(real(rh).gt.0.0_dp) THEN
+                IF(real(rh,dp).gt.0.0_dp) THEN
                     AttemptCreatePar=1      !+ve walker created
                 ELSE
                     AttemptCreatePar=-1     !-ve walker created
@@ -2182,7 +2182,7 @@ MODULE FciMCParMod
 !            IF(Iter.eq.18925) THEN
 !                WRITE(iout,*) "Not Created",rh,rat
 !            ENDIF
-            AttemptCreatePar=0.0
+            AttemptCreatePar=0
         ENDIF
 
         IF(ExtraCreate.ne.0) THEN
@@ -2197,13 +2197,13 @@ MODULE FciMCParMod
             ELSEIF(AttemptCreatePar.eq.0) THEN
 !No particles were stochastically created, but some particles are still definatly created - we need to determinant their sign...
                 if (RealwSign(1) > 0) then
-                    if (real(rh) > 0) then
+                    if (real(rh,dp) > 0.0_dp) then
                         AttemptCreatePar=-ExtraCreate    !Additional particles are negative
                     ELSE
                         AttemptCreatePar=ExtraCreate       !Additional particles are positive
                     ENDIF
                 ELSE
-                    IF(real(rh).gt.0.0_dp) THEN
+                    IF(real(rh,dp).gt.0.0_dp) THEN
                         AttemptCreatePar=ExtraCreate
                     ELSE
                         AttemptCreatePar=-ExtraCreate
@@ -2920,7 +2920,7 @@ MODULE FciMCParMod
                 if (posn.lt.0) then
                     FinalPop = 0
                 else
-                    FinalPop = CurrentDets(NifD+1,posn)
+                    FinalPop = int(CurrentDets(NifD+1,posn))
                 endif
 
                 IF(lenof_sign.eq.1) THEN
@@ -3406,6 +3406,7 @@ MODULE FciMCParMod
         character(len=*), parameter :: this_routine='collate_iter_data'
         real(dp), dimension(lenof_sign) :: RealAllHFCyc
         real(dp) :: all_norm_psi_squared, all_norm_semistoch_squared
+        real(dp) :: bloom_sz_tmp(0:2)
     
         ! Communicate the integers needing summation
 
@@ -3484,7 +3485,8 @@ MODULE FciMCParMod
 !            call MPIReduce_inplace(bloom_sizes(0:2), MPI_MAX)
 !        else
             call MPISum(bloom_count(1:2), all_bloom_count(1:2))
-            call MPIReduce_inplace(bloom_sizes(1:2), MPI_MAX)
+            call MPIReduce(bloom_sizes(1:2), MPI_MAX, bloom_sz_tmp(1:2))
+            bloom_sizes(1:2) = bloom_sz_tmp(1:2)
 !        end if
 
         ! real(dp) values
@@ -3604,9 +3606,9 @@ MODULE FciMCParMod
 ! AJWT dislikes doing this type of if based on a (seeminly unrelated) input option, but can't see another easy way.
 !  TODO:  Something to make it better
                 if(.not.tCCMC) then
-                    tot_walkers = InitWalkers * int(nNodes,int64)
+                    tot_walkers = int(InitWalkers * int(nNodes,int64),int64)
                 else
-                    tot_walkers = InitWalkers
+                    tot_walkers = int(InitWalkers,int64)
                 endif
                 if ( (sum(AllTotParts) > tot_walkers) .or. &
                      (abs_sign(AllNoatHF) > MaxNoatHF)) then
@@ -3629,7 +3631,7 @@ MODULE FciMCParMod
                     ! If enabled, jump the shift to the value preducted by the
                     ! projected energy!
                     if (tJumpShift) then
-                        DiagSft = real(proje_iter)
+                        DiagSft = real(proje_iter,dp)
                         defer_update = .true.
                     end if
 
@@ -5742,8 +5744,8 @@ MODULE FciMCParMod
         ENDIF
         IF((NSing.eq.0).or.(NDoub.eq.0)) THEN
             WRITE(iout,*) "Number of singles or doubles found equals zero. pDoubles will be set to 0.95. Is this correct?"
-            pDoubles = 0.95
-            pSingles = 0.05
+            pDoubles = 0.95_dp
+            pSingles = 0.05_dp
             RETURN
         elseif ((NSing < 0) .or. (NDoub < 0) .or. (ncsf < 0)) then
             call stop_all("CalcApproxpDoubles", &
@@ -6308,7 +6310,8 @@ MODULE FciMCParMod
                         DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),3)=HDoubDiag
                         kDoub=0
                         kDoub=G1(DoubEx(2,1))%k
-                        DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),4)=REAL(kDoub(1)*kDoub(1))+REAL(kDoub(2)*kDoub(2))+REAL(kDoub(3)*kDoub(3))
+                        DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),4)=REAL(kDoub(1)*kDoub(1),dp)+ &
+                            REAL(kDoub(2)*kDoub(2),dp)+REAL(kDoub(3)*kDoub(3),dp)
                     endif
                 endif
             endif
@@ -6748,7 +6751,7 @@ MODULE FciMCParMod
 
         IF(MaxNoatHF.eq.0) THEN
             MaxNoatHF=InitWalkers*nNodes
-            HFPopThresh=MaxNoatHF
+            HFPopThresh=int(MaxNoatHF,int64)
         ENDIF
 
         ! Initialise excitation generation storage
@@ -7515,7 +7518,7 @@ MODULE FciMCParMod
         HElement_t :: hel,H0tmp
 
         !Divvy up the ij pairs
-        Ranger=real(ElecPairs)/real(nProcessors)
+        Ranger=real(ElecPairs,dp)/real(nProcessors,dp)
         LowLoop=int(iProcIndex*Ranger)+1
         Highloop=int((iProcIndex+1)*Ranger)
 
@@ -7608,7 +7611,7 @@ MODULE FciMCParMod
                     !    length_g_2=real((kx-ki(1))**2+(ky-ki(2))**2+(kz-ki(3))**2)
                     !    if(length_g.gt.gCutoff.and.length_g_2.gt.gCutoff) cycle
                     !endif
-                    length=real((kx**2)+(ky**2)+(kz**2))
+                    length=real((kx**2)+(ky**2)+(kz**2),dp)
                     if(length.gt.OrbECutoff) cycle
 
                     !Find the actual k orbital
@@ -7667,7 +7670,7 @@ MODULE FciMCParMod
                     !    length_g_2=real((kx-ki(1))**2+(ky-ki(2))**2+(kz-ki(3))**2)
                     !    if(length_g.gt.gCutoff.and.length_g_2.gt.gCutoff) cycle
                     !endif
-                    length=real((kx**2)+(ky**2)+(kz**2))
+                    length=real((kx**2)+(ky**2)+(kz**2),dp)
                     if(length.gt.OrbECutoff) cycle
 
                     !Find the actual k orbital
@@ -7909,7 +7912,7 @@ MODULE FciMCParMod
       ! newly-spawned list for each processor, so it does not need to be 
       ! reevaluated each iteration.
 !      MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
-      Gap=REAL(MaxSpawned)/REAL(nNodes)
+      Gap=REAL(MaxSpawned,dp)/REAL(nNodes,dp)
       do j=0,nNodes-1
           InitialSpawnedSlots(j)=NINT(Gap*j)+1
       enddo
@@ -8254,7 +8257,7 @@ MODULE FciMCParMod
         use DetBitOps, only : sign_lt,sign_gt
         use LoggingData, only: iHighPopWrite
         real(dp), dimension(lenof_sign) :: SignCurr, LowSign
-        integer :: ierr,i,j,counter,ExcitLev,SmallestPos,HighPos
+        integer :: ierr,i,j,counter,ExcitLev,SmallestPos,HighPos,nopen
         real(dp) :: HighSign,reduce_in(1:2),reduce_out(1:2),Norm,AllNorm
         integer(n_int) , allocatable :: LargestWalkers(:,:)
         integer(n_int) , allocatable :: GlobalLargestWalkers(:,:)
@@ -8353,16 +8356,16 @@ MODULE FciMCParMod
             write(iout,*) 
             if(lenof_sign.eq.1) then
                 if(tHPHF) then
-                    write(iout,"(A)") " Excitation   ExcitLevel    Walkers    Weight    Init?   Proc  Spin-Coup?"    
+                    write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Weight    Init?   Proc  Spin-Coup?"    
                 else
-                    write(iout,"(A)") " Excitation   ExcitLevel   Walkers    Weight    Init?   Proc"    
+                    write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Weight    Init?   Proc"    
                 endif
             else
                 if(tHPHF) then
-                    write(iout,"(A)") " Excitation   ExcitLevel   Walkers(Re)   Walkers(Im)  Weight   &
+                    write(iout,"(A)") " Excitation   ExcitLevel Seniority  Walkers(Re)   Walkers(Im)  Weight   &
                                         &Init?(Re)   Init?(Im)   Proc  Spin-Coup?"
                 else
-                    write(iout,"(A)") " Excitation   ExcitLevel    Walkers(Re)   Walkers(Im)  Weight   &
+                    write(iout,"(A)") " Excitation   ExcitLevel Seniority   Walkers(Re)   Walkers(Im)  Weight   &
                                         &Init?(Re)   Init?(Im)   Proc"
                 endif
             endif
@@ -8371,6 +8374,8 @@ MODULE FciMCParMod
                 call WriteDetBit(iout,GlobalLargestWalkers(:,i),.false.)
                 Excitlev=FindBitExcitLevel(iLutRef,GlobalLargestWalkers(:,i),nEl)
                 write(iout,"(I5)",advance='no') Excitlev
+                nopen=count_open_orbs(GlobalLargestWalkers(:,i))
+                write(iout,"(I5)",advance='no') nopen
                 call extract_sign(GlobalLargestWalkers(:,i),SignCurr)
                 do j=1,lenof_sign
                     write(iout,"(G16.7)",advance='no') SignCurr(j)

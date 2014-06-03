@@ -92,6 +92,7 @@ contains
 
         ! Generate two lists. One with all of the available excitations, and
         ! one with their HElement values
+        HElGen = HEl_zero
         excit_count = 0
         found_all = .false.
         hel_sum = 0
@@ -166,6 +167,7 @@ contains
         integer :: orb
         real(dp) :: pgen2
 
+        HElGen = HEl_zero
         ! We now use the class counts to do the construction. This is an
         ! O[N] opearation, and gives the number of occupied/unoccupied
         ! spin-orbitals with each given spin/symmetry.
@@ -939,6 +941,7 @@ contains
         integer :: orb
         real(dp) :: pgen2
 
+        HElGen = HEl_zero
         if (genrand_real2_dSFMT() < pSingles) then
 
             ! Do we want to use the forward, or reverse, singles generator?
@@ -1146,7 +1149,7 @@ contains
         ! Don't consider symmetry categories, do the components separately.
         ! --> Slightly quicker
         tgt_beta = is_beta(tgt)
-        tgt_sym = G1(tgt)%Sym%S
+        tgt_sym = int(G1(tgt)%Sym%S)
         tgt_ml = G1(tgt)%Ml
 
         ! Spatial orbital IDs
@@ -1534,7 +1537,7 @@ contains
         contrib = 0
         do i = 1, iterations
             if (mod(i, 10000) == 0) &
-                write(6,*) i, '/', iterations, ' - ', contrib / real(ndet*i)
+                write(6,*) i, '/', iterations, ' - ', contrib / real(ndet*i,dp)
 
             call gen_excit_4ind_weighted (src_det, ilut, det, tgt_ilut, 3, &
                                           ic, ex, par, pgen, helgen, store)
@@ -1560,11 +1563,11 @@ contains
 
         ! How many of the iterations generated a good det?
         write(6,*) ngen, " dets generated in ", iterations, " iterations."
-        write(6,*) 100_dp * (iterations - ngen) / real(iterations), &
+        write(6,*) 100_dp * (iterations - ngen) / real(iterations,dp), &
                    '% abortion rate'
         ! Contribution averages
         write(6, '("Averaged contribution: ", f15.10)') &
-                contrib / real(ndet * iterations)
+                contrib / real(ndet * iterations,dp)
 
         ! Output the determinant specific contributions
         iunit = get_free_unit()
@@ -1585,7 +1588,7 @@ contains
             end do
             call stop_all(this_routine, "Determinant not generated")
         end if
-        if (any(abs(contrib_list / iterations - 1.0) > 0.01)) &
+        if (any(abs(contrib_list / iterations - 1.0_dp) > 0.01_dp)) &
             call stop_all(this_routine, "Insufficiently uniform generation")
 
         ! Clean up

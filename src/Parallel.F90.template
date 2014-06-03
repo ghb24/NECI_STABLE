@@ -443,46 +443,46 @@ contains
 
 
 
-    subroutine MPIReduce_inplace (v, iType, Node)
-
-        ! The same as MPIReduce, but using the v array as the return
-        ! array on the target node.
-
-        %(type1)s, intent(inout), target :: v()
-        integer(MPIArg), intent(in), target :: iType
-        type(CommI), intent(in), optional :: node
-        integer(MPIArg) :: comm, rt, ierr
-        character(*), parameter :: t_r = 'MPIReduce'
-
-#ifdef CBINDMPI
-#ifdef __GFORTRAN__
-        type(c_ptr) :: g_loc
-#endif
-        ! Spaces prevent template adjustment
-        c_ptr_t :: vptr
-        vptr = loc_neci(v)
-#endif
-
-#ifdef PARALLEL
-        call GetComm (Comm, Node, rt)
-
-        if (iProcIndex == rt) then
-            call MPI_Reduce (MPI_IN_PLACE, val_in, &
-                    int(%(mpilen)s, MPIArg), &
-                    %(mpitype)s, iType, rt, &
-                    comm, ierr)
-        else
-            call MPI_Reduce (val_in, MPI_IN_PLACE, &
-                    int(%(mpilen)s, MPIArg), &
-                    %(mpitype)s, iType, rt, &
-                    comm, ierr)
-        end if
-
-        if (ierr /= MPI_SUCCESS) &
-            call stop_all (t_r, 'MPI Error. Terminating.')
-#endif
-
-    end subroutine
+!    subroutine MPIReduce_inplace (v, iType, Node)
+!
+!        ! The same as MPIReduce, but using the v array as the return
+!        ! array on the target node.
+!
+!        %%%%%%%%(type1)s, intent(inout), target :: v()
+!        integer(MPIArg), intent(in), target :: iType
+!        type(CommI), intent(in), optional :: node
+!        integer(MPIArg) :: comm, rt, ierr
+!        character(*), parameter :: t_r = 'MPIReduce'
+!
+!#ifdef CBINDMPI
+!#ifdef __GFORTRAN__
+!        type(c_ptr) :: g_loc
+!#endif
+!        ! Spaces prevent template adjustment
+!        c_ptr_t :: vptr
+!        vptr = loc_neci(v)
+!#endif
+!
+!#ifdef PARALLEL
+!        call GetComm (Comm, Node, rt)
+!
+!        if (iProcIndex == rt) then
+!            call MPI_Reduce (MPI_IN_PLACE, val_in, &
+!                    int(%%%%%%%%(mpilen)s, MPIArg), &
+!                    %%%%%%%%(mpitype)s, iType, rt, &
+!                    comm, ierr)
+!        else
+!            call MPI_Reduce (val_in, MPI_IN_PLACE, &
+!                    int(%%%%%%%%(mpilen)s, MPIArg), &
+!                    %%%%%%%%(mpitype)s, iType, rt, &
+!                    comm, ierr)
+!        end if
+!
+!        if (ierr /= MPI_SUCCESS) &
+!            call stop_all (t_r, 'MPI Error. Terminating.')
+!#endif
+!
+!    end subroutine
 
 
 
@@ -568,38 +568,38 @@ contains
 
 
 
-    subroutine MPIAllReduce_inplace (v, iType, Node)
-
-        ! The same as MPIAllReduce_len, but the length of array Value (and 
-        ! thus Ret) is determinend automagically
-
-        %(type1)s, intent(inout), target :: v()
-        integer(MPIArg), intent(in), target :: iType
-        type(CommI), intent(in), optional :: Node
-        integer(MPIArg) :: comm, ierr
-        character(*), parameter :: t_r = 'MPIAllReduce'
-
-#ifdef PARALLEL
-#ifdef CBINDMPI
-#ifdef __GFORTRAN__
-        type(c_ptr) :: g_loc
-#endif
-        ! Spaces prevent template adjustment
-        c_ptr_t :: vptr
-        vptr = loc_neci(v)
-#endif
-        call GetComm (Comm, Node)
-
-        call MPI_Allreduce (MPI_IN_PLACE, val_in, &
-                int(%(mpilen)s, MPIArg), &
-                %(mpitype)s, &
-                iType, comm, ierr)
-
-        if (ierr /= MPI_SUCCESS) &
-            call stop_all (t_r, 'MPI Error. Terminating.')
-#endif
-
-    end subroutine
+!    subroutine MPIAllReduce_inplace (v, iType, Node)
+!
+!        ! The same as MPIAllReduce_len, but the length of array Value (and 
+!        ! thus Ret) is determinend automagically
+!
+!        %%%%%%%%(type1)s, intent(inout), target :: v()
+!        integer(MPIArg), intent(in), target :: iType
+!        type(CommI), intent(in), optional :: Node
+!        integer(MPIArg) :: comm, ierr
+!        character(*), parameter :: t_r = 'MPIAllReduce'
+!
+!#ifdef PARALLEL
+!#ifdef CBINDMPI
+!#ifdef __GFORTRAN__
+!        type(c_ptr) :: g_loc
+!#endif
+!        ! Spaces prevent template adjustment
+!        c_ptr_t :: vptr
+!        vptr = loc_neci(v)
+!#endif
+!        call GetComm (Comm, Node)
+!
+!        call MPI_Allreduce (MPI_IN_PLACE, val_in, &
+!                int(%%%%%%%%(mpilen)s, MPIArg), &
+!                %%%%%%%%(mpitype)s, &
+!                iType, comm, ierr)
+!
+!        if (ierr /= MPI_SUCCESS) &
+!            call stop_all (t_r, 'MPI Error. Terminating.')
+!#endif
+!
+!    end subroutine
 
 
 
@@ -685,17 +685,17 @@ contains
 
 
 
-    subroutine MPISumAll_inplace (v, Node)
-
-        ! The same as MPISumAll, but returning the results destructively 
-        ! in v
-
-        %(type1)s, intent(inout) :: v()
-        type(CommI), intent(in),optional :: Node
-
-        call MPIAllReduce_inplace (v, MPI_SUM, Node)
-
-    end subroutine
+!    subroutine MPISumAll_inplace (v, Node)
+!
+!        ! The same as MPISumAll, but returning the results destructively 
+!        ! in v
+!
+!        %%%%%%%%(type1)s, intent(inout) :: v()
+!        type(CommI), intent(in),optional :: Node
+!
+!        call MPIAllReduce_inplace (v, MPI_SUM, Node)
+!
+!    end subroutine
 
 
 
@@ -742,14 +742,14 @@ contains
 
 
 
-    subroutine MPISum_inplace (v, Node)
-
-        %(type1)s, intent(inout) :: v()
-        type(CommI), intent(in), optional :: Node
-
-        call MPIReduce_inplace (v, MPI_SUM, Node)
-
-    end subroutine
+!    subroutine MPISum_inplace (v, Node)
+!
+!        %%%%%%%%(type1)s, intent(inout) :: v()
+!        type(CommI), intent(in), optional :: Node
+!
+!        call MPIReduce_inplace (v, MPI_SUM, Node)
+!
+!    end subroutine
 
 
 
@@ -1997,7 +1997,7 @@ contains
         nCur = nEl+1-(1+sqrt(1.0_dp+4*nCur))/2
         ! Hitting smack bang on an integer causes problems
         if (ceiling(nCur) == floor(nCur)) &
-            nCur=nCur-1e-6
+            nCur=nCur-1e-6_dp
         iMinElec=ceiling(nCur)
 
         if (iProcIndex == 1) &
@@ -2008,7 +2008,7 @@ contains
 
         ! Hitting smack bang on an integer causes problems
         if (ceiling(nCur) == floor(nCur)) &
-            nCur = nCur - 1e-6
+            nCur = nCur - 1e-6_dp
         iMaxElec = floor(nCur)
 
         if (iProcIndex == nProcessors) &

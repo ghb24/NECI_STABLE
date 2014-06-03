@@ -1023,7 +1023,7 @@ MODULE RotateOrbsMod
         IF(lNoSymmetry) THEN
             do i=MinRot,MaxRot
                 do j=MinRot,MaxRot
-                    CoeffT1(j,i)=RAN2(iseed)*(1E-02)
+                    CoeffT1(j,i)=RAN2(iseed)*(1E-02_dp)
                 enddo
             enddo
 ! This bit is for when symmetry is being kept, but we want to start with random coefficients, rather than the HF orbitals.
@@ -1682,7 +1682,7 @@ MODULE RotateOrbsMod
 ! In order to maintain the same HF energy, only the virtual elements are diagonalised, within symmetry blocks.
         INTEGER :: i,j,Sym,ierr,NoSymBlock,WorkSize,WorkCheck,SymStartInd
         INTEGER(TagIntType) WorkTag,DiagTMAT2DBlockTag,TMAT2DSymBlockTag
-        REAL , ALLOCATABLE :: TMAT2DSymBlock(:,:),DiagTMAT2DBlock(:),Work(:)
+        REAL(dp) , ALLOCATABLE :: TMAT2DSymBlock(:,:),DiagTMAT2DBlock(:),Work(:)
         CHARACTER(len=*) , PARAMETER :: this_routine='Diagonalizehij'
  
 
@@ -1953,16 +1953,16 @@ MODULE RotateOrbsMod
 !            stop
 
 
-            CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,    &
-                TMAT2DTemp(:,:),NoOrbs,0.0,TMAT2DPartRot01(:,:),NoOrbs)
+            CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0_dp,CoeffT1(:,:),NoOrbs,    &
+                TMAT2DTemp(:,:),NoOrbs,0.0_dp,TMAT2DPartRot01(:,:),NoOrbs)
             ! get TMAT2DPartRot(i,a) out of this.
 
-            CALL DGEMM('T','T',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,    &
-                TMAT2DTemp(:,:),NoOrbs,0.0,TMAT2DPartRot02(:,:),NoOrbs)
+            CALL DGEMM('T','T',NoOrbs,NoOrbs,NoOrbs,1.0_dp,CoeffT1(:,:),NoOrbs,    &
+                TMAT2DTemp(:,:),NoOrbs,0.0_dp,TMAT2DPartRot02(:,:),NoOrbs)
             ! get TMAT2DPartRot(a,j) out of this.
      
-            CALL DGEMM('T','T',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,    &
-                TMAT2DPartRot01(:,:),NoOrbs,0.0,TMAT2DRot(:,:),NoOrbs)
+            CALL DGEMM('T','T',NoOrbs,NoOrbs,NoOrbs,1.0_dp,CoeffT1(:,:),NoOrbs,    &
+                TMAT2DPartRot01(:,:),NoOrbs,0.0_dp,TMAT2DRot(:,:),NoOrbs)
             ! get TMAT2DRot(i,j) out of this.
 
         ENDIF
@@ -1988,13 +1988,13 @@ MODULE RotateOrbsMod
         do b=1,NoOrbs
             do d=1,b
                 Temp4indints(:,:)=0.0_dp
-                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,UMatTemp01(:,:,d,b),NoOrbs, &
-                    0.0,Temp4indints(:,:),NoRotOrbs)
+                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0_dp,CoeffT1(:,:),NoOrbs,UMatTemp01(:,:,d,b),NoOrbs, &
+                    0.0_dp,Temp4indints(:,:),NoRotOrbs)
                 ! Temp4indints(i,g) comes out of here, so to transform g to k, we need the transpose of this.
 
                 Temp4indints02(:,:)=0.0_dp
-                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(:,:),NoRotOrbs, &
-                    0.0,Temp4indints02(:,:),NoRotOrbs)
+                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0_dp,CoeffT1(:,:),NoOrbs,Temp4indints(:,:),NoRotOrbs, &
+                    0.0_dp,Temp4indints02(:,:),NoRotOrbs)
                 ! Get Temp4indits02(i,k)
 
                 do i=1,NoRotOrbs
@@ -2016,13 +2016,13 @@ MODULE RotateOrbsMod
             do g=1,NoOrbs                
                 do a=1,g
                     Temp4indints(:,:)=0.0_dp
-                    CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,UMatTemp02(:,:,a,g),NoOrbs, &
-                        0.0,Temp4indints(:,:),NoOrbs)
+                    CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0_dp,CoeffT1(:,:),NoOrbs,UMatTemp02(:,:,a,g),NoOrbs, &
+                        0.0_dp,Temp4indints(:,:),NoOrbs)
                     ! Temp4indints(l,b) comes out of here, so need to use transpose of this to transform the b elements.
 
                     Temp4indints02(:,:)=0.0_dp
-                    CALL DGEMM('T','T',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(:,:),NoOrbs, &
-                        0.0,Temp4indints02(:,:),NoOrbs)
+                    CALL DGEMM('T','T',NoOrbs,NoOrbs,NoOrbs,1.0_dp,CoeffT1(:,:),NoOrbs,Temp4indints(:,:),NoOrbs, &
+                        0.0_dp,Temp4indints02(:,:),NoOrbs)
                     ! Temp4indints02(l,j) comes out of here
 
                     do l=1,NoOrbs
@@ -2046,8 +2046,8 @@ MODULE RotateOrbsMod
         do i=1,NoRotOrbs
             do k=1,i
                 Temp4indints(:,:)=0.0_dp
-                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,TwoIndInts01(:,:,k,i),NoOrbs, &
-                    0.0,Temp4indints(:,:),NoRotOrbs)
+                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0_dp,CoeffT1(:,:),NoOrbs,TwoIndInts01(:,:,k,i),NoOrbs, &
+                    0.0_dp,Temp4indints(:,:),NoRotOrbs)
 
                 IF(tNotConverged) THEN
                     do b=1,NoOrbs
@@ -2057,8 +2057,8 @@ MODULE RotateOrbsMod
                         enddo
                     enddo
                     Temp4indints02(:,:)=0.0_dp
-                    CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,TwoIndInts01(:,:,k,i),NoOrbs, &
-                        0.0,Temp4indints02(:,:),NoRotOrbs)
+                    CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0_dp,CoeffT1(:,:),NoOrbs,TwoIndInts01(:,:,k,i),NoOrbs, &
+                        0.0_dp,Temp4indints02(:,:),NoRotOrbs)
                     do d=1,NoOrbs
                         do j=1,NoOrbs
                             ThreeIndInts04(k,i,j,d)=Temp4indints02(j,d)
@@ -2067,8 +2067,8 @@ MODULE RotateOrbsMod
                     enddo
                 ENDIF
                 Temp4indints02(:,:)=0.0_dp
-                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(:,:),NoRotOrbs, &
-                    0.0,Temp4indints02(:,:),NoRotOrbs)
+                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0_dp,CoeffT1(:,:),NoOrbs,Temp4indints(:,:),NoRotOrbs, &
+                    0.0_dp,Temp4indints02(:,:),NoRotOrbs)
                 do l=1,NoRotOrbs
                     do j=1,l
                         FourIndInts(i,j,k,l)=Temp4indints02(j,l)
@@ -2092,8 +2092,8 @@ MODULE RotateOrbsMod
             do l=1,NoOrbs
                 do j=1,l
                     Temp4indints(:,:)=0.0_dp
-                    CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,TwoIndInts02(:,:,j,l),NoOrbs, &
-                        0.0,Temp4indints(:,:),NoOrbs)
+                    CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0_dp,CoeffT1(:,:),NoOrbs,TwoIndInts02(:,:,j,l),NoOrbs, &
+                        0.0_dp,Temp4indints(:,:),NoOrbs)
                     do a=1,NoOrbs
                         do k=1,NoOrbs
                             ThreeIndInts01(k,j,l,a)=Temp4indints(k,a)
@@ -2101,8 +2101,8 @@ MODULE RotateOrbsMod
                         enddo
                     enddo
                     Temp4indints(:,:)=0.0_dp
-                    CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,TwoIndInts02(:,:,j,l),NoOrbs, &
-                        0.0,Temp4indints(:,:),NoOrbs)
+                    CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0_dp,CoeffT1(:,:),NoOrbs,TwoIndInts02(:,:,j,l),NoOrbs, &
+                        0.0_dp,Temp4indints(:,:),NoOrbs)
                     do g=1,NoOrbs
                         do i=1,NoOrbs
                             ThreeIndInts03(i,l,j,g)=Temp4indints(i,g)
@@ -2192,25 +2192,25 @@ MODULE RotateOrbsMod
 
         do b=1,NoOrbs
             IF(tTurnStoreSpinOff) THEN
-                b2=CEILING(REAL(SymLabelList2_rot(b))/2.0_dp)
+                b2=CEILING(REAL(SymLabelList2_rot(b),dp)/2.0_dp)
             ELSE
                 b2=SymLabelList2_rot(b)
             ENDIF
             do d=1,b
                 IF(tTurnStoreSpinOff) THEN
-                    d2=CEILING(REAL(SymLabelList2_rot(d))/2.0_dp)
+                    d2=CEILING(REAL(SymLabelList2_rot(d),dp)/2.0_dp)
                 ELSE
                     d2=SymLabelList2_rot(d)
                 ENDIF
                 do a=1,NoOrbs
                     IF(tTurnStoreSpinOff) THEN
-                        a2=CEILING(REAL(SymLabelList2_rot(a))/2.0_dp)
+                        a2=CEILING(REAL(SymLabelList2_rot(a),dp)/2.0_dp)
                     ELSE
                         a2=SymLabelList2_rot(a)
                     ENDIF
                     do g=1,a
                         IF(tTurnStoreSpinOff) THEN
-                            g2=CEILING(REAL(SymLabelList2_rot(g))/2.0_dp)
+                            g2=CEILING(REAL(SymLabelList2_rot(g),dp)/2.0_dp)
                         ELSE
                             g2=SymLabelList2_rot(g)
                         ENDIF
@@ -2221,12 +2221,12 @@ MODULE RotateOrbsMod
                     enddo
                 enddo
                 Temp4indints(:,:)=0.0_dp
-                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,FourIndInts(1:NoOrbs,1:NoOrbs,b,d), &
-                    NoOrbs,0.0,Temp4indints(1:NoRotOrbs,1:NoOrbs),NoRotOrbs)
+                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0_dp,CoeffT1(:,:),NoOrbs,FourIndInts(1:NoOrbs,1:NoOrbs,b,d), &
+                    NoOrbs,0.0_dp,Temp4indints(1:NoRotOrbs,1:NoOrbs),NoRotOrbs)
                 ! Temp4indints(i,g) comes out of here, so to transform g to k, we need the transpose of this.
 
-                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(1:NoRotOrbs,1:NoOrbs), &
-                    NoRotOrbs,0.0,FourIndInts(1:NoRotOrbs,1:NoRotOrbs,b,d),NoRotOrbs)
+                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0_dp,CoeffT1(:,:),NoOrbs,Temp4indints(1:NoRotOrbs,1:NoOrbs), &
+                    NoRotOrbs,0.0_dp,FourIndInts(1:NoRotOrbs,1:NoRotOrbs,b,d),NoRotOrbs)
                 ! Get Temp4indits02(i,k)
 
                 do i=1,NoRotOrbs
@@ -2246,11 +2246,11 @@ MODULE RotateOrbsMod
             do k=1,i
 
                 Temp4indints(:,:)=0.0_dp
-                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,FourIndInts(i,k,1:NoOrbs,1:NoOrbs), &
-                    NoOrbs,0.0,Temp4indints(1:NoRotOrbs,1:NoOrbs),NoRotOrbs)
+                CALL DGEMM('T','N',NoRotOrbs,NoOrbs,NoOrbs,1.0_dp,CoeffT1(:,:),NoOrbs,FourIndInts(i,k,1:NoOrbs,1:NoOrbs), &
+                    NoOrbs,0.0_dp,Temp4indints(1:NoRotOrbs,1:NoOrbs),NoRotOrbs)
 
-                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,Temp4indints(1:NoRotOrbs,1:NoOrbs), &
-                    NoRotOrbs,0.0,FourIndInts(i,k,1:NoRotOrbs,1:NoRotOrbs),NoRotOrbs)
+                CALL DGEMM('T','T',NoRotOrbs,NoRotOrbs,NoOrbs,1.0_dp,CoeffT1(:,:),NoOrbs,Temp4indints(1:NoRotOrbs,1:NoOrbs), &
+                    NoRotOrbs,0.0_dp,FourIndInts(i,k,1:NoRotOrbs,1:NoRotOrbs),NoRotOrbs)
                 do l=1,NoRotOrbs
                     do j=1,l
                         FourIndInts(k,i,j,l)=FourIndInts(i,k,j,l)
@@ -2310,8 +2310,8 @@ MODULE RotateOrbsMod
             do b=1,d
                 Temp4indints(:,:)=0.0_dp
                 Temp4indints02(:)=0.0_dp
-                CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,UMATTemp01(:,:,b,d), &
-                    NoOrbs,0.0,Temp4indints(:,:),NoOrbs)
+                CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0_dp,CoeffT1(:,:),NoOrbs,UMATTemp01(:,:,b,d), &
+                    NoOrbs,0.0_dp,Temp4indints(:,:),NoOrbs)
                 ! a -> m. Temp4indints(m,g) comes out of here.
                 ! Want to transform g to m as well.
 
@@ -2348,8 +2348,8 @@ MODULE RotateOrbsMod
             do b=1,NoOrbs
                 Temp4indints(:,:)=0.0_dp
                 Temp4indints02(:)=0.0_dp
-                CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0,CoeffT1(:,:),NoOrbs,UMATTemp01(:,:,b,d), &
-                    NoOrbs,0.0,Temp4indints(:,:),NoOrbs)
+                CALL DGEMM('T','N',NoOrbs,NoOrbs,NoOrbs,1.0_dp,CoeffT1(:,:),NoOrbs,UMATTemp01(:,:,b,d), &
+                    NoOrbs,0.0_dp,Temp4indints(:,:),NoOrbs)
                 ! a -> m. Temp4indints(m,g) comes out of here.
                 ! Want to transform g to m as well.
 
@@ -5129,14 +5129,14 @@ MODULE RotateOrbsMod
         IF(NoDumpTruncs.le.1) THEN
             do l=1,(NoOrbs-(NoFrozenVirt))
                 IF(tTurnStoreSpinOff) THEN
-                    d=CEILING(REAL(SymLabelList3_rot(l))/2.0_dp)
+                    d=CEILING(REAL(SymLabelList3_rot(l),dp)/2.0_dp)
                 ELSE
                     d=SymLabelList3_rot(l)
                 ENDIF
                 do k=1,(NoOrbs-(NoFrozenVirt))
 
                     IF(tTurnStoreSpinOff) THEN
-                        g=CEILING(REAL(SymLabelList3_rot(k))/2.0_dp)
+                        g=CEILING(REAL(SymLabelList3_rot(k),dp)/2.0_dp)
                     ELSE
                         g=SymLabelList3_rot(k)
                     ENDIF
@@ -5144,14 +5144,14 @@ MODULE RotateOrbsMod
                     do j=1,(NoOrbs-(NoFrozenVirt))
 
                         IF(tTurnStoreSpinOff) THEN
-                            b=CEILING(REAL(SymLabelList3_rot(j))/2.0_dp)
+                            b=CEILING(REAL(SymLabelList3_rot(j),dp)/2.0_dp)
                         ELSE
                             b=SymLabelList3_rot(j)
                         ENDIF
                         do i=1,(NoOrbs-(NoFrozenVirt))
 
                             IF(tTurnStoreSpinOff) THEN
-                                a=CEILING(REAL(SymLabelList3_rot(i))/2.0_dp)
+                                a=CEILING(REAL(SymLabelList3_rot(i),dp)/2.0_dp)
                             ELSE
                                 a=SymLabelList3_rot(i)
                             ENDIF

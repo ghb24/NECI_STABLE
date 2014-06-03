@@ -43,7 +43,7 @@ C..Initialise V0
       endif
 
 C..Calculate top 80% of N 
-      NDIAG=N-INT(N*0.2) 
+      NDIAG=N-INT(N*0.2_dp) 
 C..
       IF(PRINTOUT) THEN
           WRITE(6,20000) M,N,NKRY,NBLOCK,NDIAG,LSCR,B2LIMIT
@@ -409,7 +409,7 @@ C     ==================================================================
       LOGICAL :: TLargest,tDie2,tFail
       type(timer), save :: proc_timer
 C     ==================================================================
-      proc_timer%timer_name='    KRYREF'
+      proc_timer%timer_name='    KRYREF               '
       call set_timer(proc_timer)
       DO I=3,NKRY
 C..V_I = V_I - V_(I-1) A_(I-1) 

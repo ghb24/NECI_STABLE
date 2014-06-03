@@ -54,7 +54,8 @@ contains
         integer(int64), intent(in) :: pops_walkers(0:nProcessors-1)
         real(dp) :: CurrParts(lenof_sign)
         integer :: Slot, nJ(nel)
-        integer :: iunit,i,j,ierr,PopsInitialSlots(0:nNodes-1)
+        integer :: iunit,j,ierr,PopsInitialSlots(0:nNodes-1)
+        integer(int64) :: i
         INTEGER(TagIntType) :: BatchReadTag=0
         real(dp) :: BatchSize
         integer :: PopsSendList(0:nNodes-1),proc
@@ -216,14 +217,14 @@ contains
                 Temp => HashIndex(DetHash)
                 ! If the first element in the list has not been used.
                 if (Temp%Ind == 0) then
-                    Temp%Ind = i
+                    Temp%Ind = int(i)
                 else
                     do while (associated(Temp%Next))
                         Temp => Temp%Next
                     end do
                     allocate(Temp%Next)
                     nullify(Temp%Next%Next)
-                    Temp%Next%Ind = i
+                    Temp%Next%Ind = int(i)
                 end if
             end do
             nullify(Temp)
@@ -289,14 +290,15 @@ contains
 
         ! The buffer is able to store the maximum number of particles on any
         ! determinant.
-        integer(n_int) :: buffer(0:NIfTot, max_dets), ilut_tmp(0:NIfTot)
+        integer(n_int) :: ilut_tmp(0:NIfTot)
+        integer(n_int), allocatable :: buffer(:,:)
         integer :: ndets, det, ierr, nelem, proc, unused(nel)
         logical :: tEOF
 
         integer :: i
 
         ! A tag is used to identify this send/recv pair over any others
-        integer, parameter :: mpi_tag = z'beef'
+        integer, parameter :: mpi_tag = 123456  !z'beef'
 
         ! Initialise counters
         CurrWalkers = 0
@@ -310,6 +312,13 @@ contains
         ! If we are on the root processor, then we do the reading in. Otherwise
         ! we just need to wait to have particles sent in!
         if (iProcIndex == root) then
+
+            ! We need to allocate this, not put it on the stack, otherwise
+            ! when using ifort we will get segfaults. gfortran sensibly
+            ! allocates things bigger than the stacksize on the heap...
+            allocate(buffer(0:NIfTot, max_dets), stat=ierr)
+            if (ierr /= 0) &
+                call stop_all(this_routine, 'Allocation of read buffer failed')
 
             do proc = 0, nProcessors - 1
 
@@ -346,10 +355,13 @@ contains
                 
             end do
 
+            ! And deallocate the buffer
+            deallocate(buffer)
+
         else if (bNodeRoot) then
 
             ! And receive the dets!
-            ndets = read_walkers_on_nodes(iProcIndex)
+            ndets = int(read_walkers_on_nodes(iProcIndex))
             nelem = ndets * (1 + NIfTot)
             call MPIRecv(det_list, nelem, root, mpi_tag, ierr)
 
@@ -357,8 +369,6 @@ contains
             CurrWalkers = ndets
 
         end if
-
-
 
     end function
 
@@ -994,13 +1004,15 @@ outer_map:      do i = 0, MappingNIfD
         integer :: PopNNodes
         real(dp) :: PopSft, PopTau, PopPSingles, PopParBias, PopGammaSing
         real(dp) :: PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
+        real(dp) :: PopTotImagTime
         character(*), parameter :: t_r = 'ReadPopsHeadv4'
         HElement_t :: PopSumENum
         namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopLensign,PopNEl,PopTotwalk,PopSft,PopSumNoatHF,PopSumENum, &
                     PopCyc,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot, &
                     PopTau,PopiBlockingIter,PopRandomHash,PopPSingles, &
                     PopParBias, PopNNodes, PopWalkersOnNodes, PopGammaSing, &
-                    PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
+                    PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt, &
+                    PopTotImagTime
 
         PopsVersion=FindPopsfileVersion(iunithead)
         if(PopsVersion.ne.4) call stop_all("ReadPopsfileHeadv4","Wrong popsfile version for this routine.")
@@ -1029,6 +1041,7 @@ outer_map:      do i = 0, MappingNIfD
         call MPIBCast(PopPSingles)
         call MPIBCast(PopParBias)
         call MPIBCast(PopNNodes)
+        call MPIBcast(PopTotImagTime)
         if (PopNNodes == nProcessors) then
             ! What is the maximum number of nodes currently supported. We might
             ! need to update this...
@@ -1059,6 +1072,7 @@ outer_map:      do i = 0, MappingNIfD
         read_psingles = PopPSingles
         read_par_bias = PopParBias
         read_nnodes = PopNNodes
+        TotImagTime = PopTotImagTime
 
         ! Fill the tau-searching accumulators, to avoid blips in tau etc.
         gamma_sing = PopGammaSing
@@ -1193,6 +1207,11 @@ outer_map:      do i = 0, MappingNIfD
         integer :: excit_lev
         character(1024) :: out_tmp
         character(12) :: num_tmp
+        type(timer), save :: write_timer
+
+        ! Tme the overall popsfile read in
+        write_timer%timer_name = 'POPS-write'
+        call set_timer(write_timer)
 
         CALL MPIBarrier(error)  !sync
 !        WRITE(6,*) "Get Here",nDets
@@ -1419,6 +1438,9 @@ outer_map:      do i = 0, MappingNIfD
             end if
         end if
 
+        ! And stop timing
+        call halt_timer(write_timer)
+
         ! Reset some globals
         AllSumNoatHF = 0
         AllSumENum = 0
@@ -1432,7 +1454,7 @@ outer_map:      do i = 0, MappingNIfD
 
         integer, intent(in) :: iunit
         integer(int64), intent(in) :: num_walkers
-        integer :: pops_niftot, pops_nifflag, i
+        integer :: pops_niftot, pops_nifflag, i 
         integer(int64), intent(in) :: WalkersonNodes(:)
 
         ! If the popsfile uses flags, but we have combined the
@@ -1463,6 +1485,10 @@ outer_map:      do i = 0, MappingNIfD
         write(iunit, '(a,i16)') 'PopiBlockingIter=', iBlockingIter
         write(iunit, '(a,f18.12,a,f18.12)') 'PopPSingles=', pSingles, &
             ',PopParBias=', rand_excit_par_bias
+
+        ! What is the current total imaginary time? Should continue from where
+        ! we left off, so that plots work correctly.
+        write(iunit, '(a,f18.12)') 'PopTotImagTime=', TotImagTime
 
         ! Write out accumulated data used for tau searching, to ensure there
         ! are no blips in particle growth, tau, etc.
@@ -1500,8 +1526,8 @@ outer_map:      do i = 0, MappingNIfD
 
         integer, intent(in) :: iunit, iunit_2
         integer(n_int), intent(in) :: det(0:NIfTot)
-        real(dp) :: real_sgn(lenof_sign)
-        integer :: flg, j, k, ex_level
+        real(dp) :: real_sgn(lenof_sign), detenergy
+        integer :: flg, j, k, ex_level, nopen, nI(nel) 
         logical :: bWritten
 
         bWritten = .false.
@@ -1555,10 +1581,17 @@ outer_map:      do i = 0, MappingNIfD
                 ! Testing using the sign now, because after annihilation
                 ! the current flag will not necessarily be correct.
                 ex_level = FindBitExcitLevel(ilutRef, det, nel)
+                nopen = count_open_orbs(det)
+                call decode_bit_det(nI, det)
+                if(tHPHF)then
+                    detenergy = hphf_diag_helement(nI, det)
+                else
+                    detenergy = get_helement(nI, nI, 0)
+                endif
                 write(iunit_2, '(f20.10,a20)', advance='no') &
                     abs(real_sgn(1)), ''
                 call writebitdet (iunit_2, det, .false.)
-                write(iunit_2, '(i30)') ex_level
+                write(iunit_2,'(i30,i30,f20.10)') ex_level, nopen, detenergy
 
             end if
         end if
@@ -1768,7 +1801,7 @@ outer_map:      do i = 0, MappingNIfD
         MaxWalkersPart=NINT(MemoryFacPart*(NINT(InitWalkers*ScaleWalkers)))
         MaxSpawned=NINT(MemoryFacSpawn*(NINT(InitWalkers*ScaleWalkers)))
 
-        Gap=REAL(MaxSpawned)/REAL(nProcessors)
+        Gap=REAL(MaxSpawned,dp)/REAL(nProcessors,dp)
         do i=0,nProcessors-1
             InitialSpawnedSlots(i)=NINT(Gap*i)+1
         enddo
@@ -1899,7 +1932,9 @@ outer_map:      do i = 0, MappingNIfD
                     READ(iunit,*) iLutTemp32(0:NIfWriteOut),TempSign
                 ENDIF
             ENDIF
-            RealTempSign = transfer(TempSign, RealTempSign)
+            do j=1,lenof_sign
+                RealTempSign(j) = transfer(TempSign(j), RealTempSign(j))
+            enddo
 
 #ifdef __INT64
             if (.not.tPop64BitDets) then
@@ -1982,7 +2017,7 @@ outer_map:      do i = 0, MappingNIfD
 
 ! CurrWalkers is the number of determinants on a particular node, AllTotWalkers is the total over all nodes.
             IntegerPart=INT(ScaleWalkers)
-            FracPart=ScaleWalkers-REAL(IntegerPart)
+            FracPart=ScaleWalkers-REAL(IntegerPart,dp)
 
             do l=1,CurrWalkers
                 call extract_sign(CurrentDets(:,l),RealTempSign)
@@ -2349,7 +2384,9 @@ outer_map:      do i = 0, MappingNIfD
                     READ(iunit,*) iLutTemp32(0:NIfWriteOut),TempSign
                 ENDIF
             ENDIF
-            RealTempSign = transfer(TempSign, RealTempSign)
+            do j=1,lenof_sign
+                RealTempSign(j) = transfer(TempSign(j), RealTempSign(j))
+            enddo
 
 #ifdef __INT64
             if (.not.tPop64BitDets) then
@@ -2432,7 +2469,7 @@ outer_map:      do i = 0, MappingNIfD
 
 ! CurrWalkers is the number of determinants on a particular node, AllTotWalkers is the total over all nodes.
             IntegerPart=INT(ScaleWalkers)
-            FracPart=ScaleWalkers-REAL(IntegerPart)
+            FracPart=ScaleWalkers-REAL(IntegerPart,dp)
 
             do l=1,CurrWalkers
                 call extract_sign(Dets(:,l),RealTempSign)

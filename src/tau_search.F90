@@ -228,7 +228,7 @@ contains
             ! consider it here!
             if (enough_opp .and. enough_par) then
                 if (abs(rand_excit_par_bias - par_bias_new) &
-                       / rand_excit_par_bias > 0.0001) then
+                       / rand_excit_par_bias > 0.0001_dp) then
                     root_print "Updating parallel-spin bias; new bias = ", &
                         par_bias_new
                 end if
@@ -266,7 +266,7 @@ contains
         ! update it. Once we have a reasonable sample of excitations, then we
         ! can permit tau to increase if we have started too low.
         if (tau_new < tau .or. (enough_sing .and. enough_doub)) then
-            if (abs(tau - tau_new) / tau > 0.001) then
+            if (abs(tau - tau_new) / tau > 0.001_dp) then
                 root_print "Updating time-step. New time-step = ", tau_new
             end if
             tau = tau_new
@@ -277,7 +277,7 @@ contains
         if (enough_sing .and. enough_doub .and. psingles_new > 1e-5_dp &
             .and. psingles_new < (1.0_dp - 1e-5_dp)) then
 
-            if (abs(psingles - psingles_new) / psingles > 0.0001) then
+            if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
                 root_print "Updating singles/doubles bias. pSingles = ", &
                     psingles_new, ", pDoubles = ", 1.0_dp - psingles_new
             end if
@@ -297,6 +297,7 @@ contains
         ! so may actually give a tau that is too SMALL for the latest
         ! excitation generators, which is exciting!
 
+        use neci_intfce
         type(excit_gen_store_type) :: store, store2
         logical :: tAllExcitFound,tParity,tSameFunc,tSwapped,tSign
         character(len=*), parameter :: t_r="FindMaxTauDoubs"
@@ -436,7 +437,7 @@ contains
         call clean_excit_gen_store (store2)
         if(tKPntSym) deallocate(EXCITGEN)
 
-        if(tau.gt.0.075) then
+        if(tau.gt.0.075_dp) then
             tau=0.075_dp
             write(iout,"(A,F8.5,A)") "Small system. Setting initial timestep to be ",Tau," although this &
                                             &may be inappropriate. Care needed"

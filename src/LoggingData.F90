@@ -23,7 +23,7 @@ module LoggingData
     LOGICAL tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tDo_Not_Calc_RDMEnergy
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
-    LOGICAL tTruncDumpbyVal, tChangeVarsRDM, tPrintRODump, tno_RDMs_to_read, tReadRDMs
+    LOGICAL tTruncDumpbyVal, tChangeVarsRDM, tPrintRODump, tno_RDMs_to_read, tReadRDMs, tNoNewRDMContrib 
     LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG, tWriteMultRDMs
     LOGICAL tHF_S_D_Ref, tHF_S_D, tHF_Ref_Explicit, tExplicitAllRDM, twrite_normalised_RDMs, twrite_RDMs_to_read 
     LOGICAL tNoNOTransform, tPrint1RDM, tPrintInitiators, tInitiatorRDM
@@ -79,4 +79,12 @@ module LoggingData
     logical :: tDipoles !Do we want to calculate the dipole moments
     logical :: tHistExcitToFrom
 
+    !If we want to force the Cauchy--Schwarz inequality (e.g. if we know the 1RDM is undersampled)
+    logical :: tForceCauchySchwarz
+    ! If we'd like to rotate the NOs again so as to obtain broken symmetry NOs
+    logical :: tBrokenSymNOs,tBreakSymNOs
+    real(dp) :: occ_numb_diff
+    integer :: rottwo,rotthree,rotfour,local_cutoff
+    integer, allocatable :: RotNOs(:)
+    integer(TagIntType) :: tagRotNOs
 end module LoggingData

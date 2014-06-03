@@ -43,9 +43,9 @@ MODULE Logging
       tLogComplexPops=.false.
       iWriteBlockingEvery=1000
       tSaveBlocking=.false.
-      OffDiagBinRange=0.001
+      OffDiagBinRange=0.001_dp
       OffDiagMax=1.0_dp
-      BinRange=0.001
+      BinRange=0.001_dp
       iNoBins=100000
       tHistEnergies=.false.
       tHistHamil=.false.
@@ -132,6 +132,7 @@ MODULE Logging
       twrite_RDMs_to_read = .false.
       tno_RDMs_to_read = .false.
       tReadRDMs = .false.
+      tNoNewRDMContrib=.false.
       IterWriteRDMs = 10000
       tWriteMultRDMs = .false.
       tInitiatorRDM = .false.
@@ -147,6 +148,14 @@ MODULE Logging
       tCompareTrialAmps = .false.
       compare_amps_period = 0
       tHistExcitToFrom = .false.
+      tForceCauchySchwarz = .false.
+      tBrokenSymNOs = .false.
+      occ_numb_diff = 0.001_dp
+      tBreakSymNOs = .false.
+      local_cutoff = 0
+      rottwo = 0
+      rotthree = 0
+      rotfour = 0
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -522,6 +531,51 @@ MODULE Logging
 !wavefunction we've found, and then use the MOTRANSFORM file printed to 
 ! visualise the natural orbitals with large occupation numbers.
 
+        case("FORCECAUCHYSCHWARZ")
+            tForceCauchySchwarz=.true.
+!This forces the inequality gamma_pq <= sqrt(gamma_pp * gamma_qq) is obeyed.
+!we choose min(gamma_pq, sqrt(gamma_pp * gamma_qq) to ensure a positive-definite matrix
+!May be of use for getting orbitals from an approximate initial FCIQMC calc.
+
+        case("BROKENSYMNOS")
+            tBrokenSymNOs = .true.
+            call readi(rottwo)
+            call readi(rotthree)
+            call readi(rotfour)
+            call readi(local_cutoff)
+            call readf(occ_numb_diff)
+! This is to rotate the obtained natural orbitals (NOs) again in order to obtain
+! symmetry broken NOs: pairs of NOs whose occupation numbers differ by less 
+! than the specified threshold occ_numb_diff (relative difference, i.e. difference
+! divided by absolute value) will be rotated so as to 
+! maximally localise them using and Edminston Ruedenberg type localisation
+! local_cutoff is the index of the spatial orbital which is the borderline
+! for performing localisation or delocalisation of the NO: all chosen NOs pairs with 
+! orbital index less or equal to (and hence occupation numbers larger than)
+! this orbital will be delocalised while the others will be localised
+! If BREAKSYMNOS is specified rottwo gives number of pairs to rotate, rotthree the 
+! number of triples to rotate and rotfour the number of quadruples to rotate
+! If BREAKSYMNOS is not present these will be ignored
+! A new FCIDUMP file (BSFCIDUMP) with the rotated NOs is printed out
+
+        case("BREAKSYMNOS")
+            tBreakSymNOs = .true.
+! This is another option for BROKENSYMNOS p1 p2... t1 t2 t3... q1 q2 q3 q4...
+! This contains just an ordered list of the spatial orbital indices of the NOs
+! to rotate, firstly the doubles, then triples, then quadruples (the number of 
+! pairs, triples and quadruples is specified with the BROKENSYMNOS options), e.g.
+! BROKENSYMNOS 2 1 1 0 0.1
+! BREAKSYMNOS 3 4 4 5 1 5 6 7 8 9 10
+! will rotate (2,3) (4,5) (1,5,6) (7,8,9,10)
+            allocate(RotNOs((2*rottwo)+(3*rotthree)+(4*rotfour)),stat=ierr)
+            tagRotNOs = 0
+            call LogMemAlloc('RotNOs',((2*rottwo)+(3*rotthree)+(4*rotfour))&
+                &,4,t_r,tagRotNOs,ierr)
+            RotNOs(:) = 0
+            do i=1,((2*rottwo)+(3*rotthree)+(4*rotfour))
+                call geti(RotNOs(i))
+            enddo
+
         case("DIPOLE_MOMENTS")
             !Calculate the dipole moments if we are in molpro
             tDipoles = .true.
@@ -586,6 +640,13 @@ MODULE Logging
 ! Read in the RDMs from a previous calculation, and continue accumulating the RDMs from the very beginning of this restart. 
             tReadRDMs = .true.
 
+        case("NONEWRDMCONTRIB")
+            ! To be used with READRDMs.  This option makes sure that we don't add in any 
+            !new contributions to the RDM if filling stochastically
+            !This is useful if we want to read in an RDM from another calculation and then 
+            !just print out the analysis, without adding in any more information.
+      tNoNewRDMContrib=.true.
+
         case("WRITERDMSEVERY")
 ! Write out the normalised, hermitian RDMs every IterWriteRDMs iterations.  
             tWriteMultRDMs = .true.
@@ -596,7 +657,8 @@ MODULE Logging
             tInitiatorRDM = .true.
         
         case("THRESHOCCONLYRDMDIAG")
-            !Only add in a contribution to the diagonal elements of the RDM if the average sign of the determinant is greater than [ThreshOccRDM]
+            !Only add in a contribution to the diagonal elements of the RDM if the average sign 
+            !of the determinant is greater than [ThreshOccRDM]
             tThreshOccRDMDiag=.true.
             call Getf(ThreshOccRDM)
 

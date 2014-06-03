@@ -24,6 +24,7 @@ module mcpathsismc
          use sym_mod, only: getsym
          use global_utilities
          use mcpathsdata, only: egp
+         use neci_intfce
          IMPLICIT NONE
          INTEGER I_VMAX,NEL,NBASIS
          TYPE(MCStats) MCSt
@@ -770,7 +771,7 @@ module mcpathsismc
      &    STOP "Cannot handle more than double excitations."
          IF(IEXLEVEL.LT.2) IEXL2=IEXLEVEL
          IF(IEXLEVEL.EQ.2) THEN
-            IEX=int(RAN2(ISEED)*real((NBASIS-NEL)*NEL)*                     &
+            IEX=int(RAN2(ISEED)*real((NBASIS-NEL)*NEL,dp)*                     &
      &         (1.0_dp+real((NBASIS-NEL-1)*(NEL-1),dp)/4.0_dp),sizeof_int)
             IF(IEX.LT.(NBASIS-NEL)*NEL) THEN
                IEXL2=1
@@ -1705,6 +1706,7 @@ module mcpathsismc
          use Determinants, only: get_helement, write_det
          use SystemData, only: BasisFN,Arr
          use mcpathsdata, only: egp
+         use neci_intfce
          IMPLICIT NONE
          INTEGER NEL,I_V,IPATH(NEL,0:I_V),NI(NEL)
          real(dp) BETA,ALAT(*),ECORE
@@ -1958,6 +1960,7 @@ end module
          use SystemData, only: BasisFN
          use mcpathsdata, only: egp
          use mcpathsismc, only: getpathprob2
+         use neci_intfce
          IMPLICIT NONE
          INTEGER iUnit
          INTEGER iV,nEl       ! Vertices and number of electrons

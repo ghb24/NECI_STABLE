@@ -393,7 +393,7 @@ contains
         integer, intent(in) :: i
         integer, intent(in), optional :: padding
         integer :: p
-        real :: r
+        real(sp) :: r
 
         if (present(padding)) then
             p = padding
@@ -404,7 +404,7 @@ contains
         if (i == 0 .or. i==1) then
             r = 1.0
         else
-            r = log10(real(abs(i)+1))
+            r = log10(real(abs(i)+1,sp))
         end if
         p = ceiling(r+p)
 
@@ -459,7 +459,7 @@ contains
 
         ! Narrow the search range down in steps.
         do while (hi /= lo)
-            pos = int(real(hi + lo) / 2)
+            pos = int(real(hi + lo,sp) / 2_sp)
 
             if (all(arr(data_lo:data_hi,pos) == val(val_lo:val_hi))) then
                 exit
@@ -496,12 +496,13 @@ contains
 
     end function binary_search
 
-    function binary_search_real (arr, val) &
+    function binary_search_real (arr, val, thresh) &
                                  result(pos)
         use constants, only: n_int
 
         real(dp), intent(in) :: arr(:)
         real(dp), intent(in) :: val
+        real(dp), intent(in) :: thresh
         integer :: pos
 
         integer :: hi, lo
@@ -518,9 +519,9 @@ contains
 
         ! Narrow the search range down in steps.
         do while (hi /= lo)
-            pos = int(real(hi + lo) / 2)
+            pos = int(real(hi + lo,sp) / 2_sp)
 
-            if (arr(pos) == val) then
+            if (abs(arr(pos) - val) < thresh) then
                 exit
             else if (val > arr(pos)) then
                 ! val is "greater" than arr(:len,pos).
@@ -544,7 +545,7 @@ contains
         ! then return -pos to indicate that the item is not present, but that
         ! this is the location it should be in.
         if (hi == lo) then
-            if (arr(hi) == val) then
+            if (abs(arr(hi) - val) < thresh) then
                 pos = hi
             else if (val > arr(hi)) then
                 pos = -hi - 1
@@ -600,7 +601,7 @@ contains
 
         ! Narrow the search range down in steps.
         do while (hi /= lo)
-            pos = int(real(hi + lo) / 2)
+            pos = int(real(hi + lo,sp) / 2_sp)
 
             if (DetBitLT(arr(data_lo:data_hi,pos), val(val_lo:val_hi), &
                     use_flags_opt = .false.) == 0) then
@@ -938,6 +939,11 @@ end module
 
 
     subroutine neci_flush(un)
+#ifdef MOLPRO
+    implicit none
+    integer, intent(in) :: un
+    flush(un)
+#else
 #ifdef NAGF95
     USe f90_unix, only: flush
     use constants, only: int32
@@ -955,6 +961,7 @@ end module
         call flush(dummy)
 #else
         call flush(un)
+#endif
 #endif
 #endif
     end subroutine neci_flush
