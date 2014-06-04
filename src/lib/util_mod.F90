@@ -1,5 +1,6 @@
 module util_mod
     use util_mod_comparisons
+    use util_mod_byte_size
     use util_mod_cpts
     use dSFMT_interface, only: genrand_real2_dSFMT
     use constants

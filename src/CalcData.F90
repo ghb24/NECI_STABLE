@@ -107,10 +107,6 @@ INTEGER iLogicalNodeSize  !An alternative to the above, create logical nodes of 
 logical :: tContinueAfterMP2 ! UEG option only
     logical :: tJumpShift
 
-! If true, the initiator threshold for a given state will be equal to the (minimum) number of spawning
-! attempts away from the core space it took to create the state.
-logical :: tVaryInitThresh
-
 ! Perform a Davidson calculation if true.
 logical :: tDavidson
 ! Should the HF determinant be put on its own processor?

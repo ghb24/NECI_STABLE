@@ -65,7 +65,6 @@ contains
 
 !       Calc defaults 
           tStartCoreGroundState = .true.
-          tVaryInitThresh=.false.
           tHashWalkerList=.false.
           HashLengthFrac=0.0_dp
           nWalkerHashes=0
@@ -1127,8 +1126,6 @@ contains
             case("INC-CANCELLED-INIT-ENERGY")
 !If true, include the spawnings cancelled due the the initiator criterion in the trial energy.
                 tIncCancelledInitEnergy = .true.
-            case("CORE-INIT-THRESH")
-                tVaryInitThresh = .true.
             case("STEPSSHIFTIMAG")
 !For FCIMC, this is the amount of imaginary time which will elapse between updates of the shift.
                 call getf(StepsSftImag)

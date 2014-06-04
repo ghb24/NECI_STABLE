@@ -77,6 +77,7 @@ module LoggingData
     ! Output the above data to a file every compare_amps_period iterations.
     integer :: compare_amps_period
     logical :: tDipoles !Do we want to calculate the dipole moments
+    logical :: tHistExcitToFrom
 
     !If we want to force the Cauchy--Schwarz inequality (e.g. if we know the 1RDM is undersampled)
     logical :: tForceCauchySchwarz
