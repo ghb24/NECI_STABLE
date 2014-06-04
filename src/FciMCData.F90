@@ -415,6 +415,10 @@ MODULE FciMCData
       ! For using the hashing trick to search the core space.
       type(ll_node), pointer :: CoreHashIndex(:)
 
+      ! If true (as is the case by default) then semi-stochastic calculations
+      ! will start from the ground state of the core space
+      logical :: tStartCoreGroundState
+
       ! Trial wavefunction data.
 
       ! This list stores the iluts from which the trial wavefunction is formed, but only those that reside on this processor.
