@@ -4277,7 +4277,6 @@ MODULE FciMCParMod
                     filename2 = trim(adjustl(filename)) // "." // &
                                 trim(adjustl(num))
                     inquire(file=filename2, exist=exists)
-                    write(6,*) 'EXISTS', trim(adjustl(filename2)), exists
                     if (i > 10000) &
                         call stop_all(t_r, 'Error finding free fciqmc_stats.*')
                     i = i + 1
@@ -4359,6 +4358,7 @@ MODULE FciMCParMod
             call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. Ref')
             call stats_out(state,.true., proje_iter, 'Proj. E (cyc)')
             call stats_out(state,.true., DiagSft, 'Shift. (cyc)')
+            call stats_out(state,.true., IterTime, 'Iter. time')
 
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
