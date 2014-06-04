@@ -4359,6 +4359,12 @@ MODULE FciMCParMod
             call stats_out(state,.true., proje_iter, 'Proj. E (cyc)')
             call stats_out(state,.true., DiagSft, 'Shift. (cyc)')
             call stats_out(state,.true., IterTime, 'Iter. time')
+            call stats_out(state,.false., AllNoBorn, 'No. born')
+            call stats_out(state,.false., AllNoDied, 'No. died')
+            call stats_out(state,.false., AllAnnihilated, 'No. annihil')
+
+            if (tTruncInitiator .or. tDelayTruncInit) &
+                call stats_out(state,.false., AllNoAborted, 'No. aborted')
 
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
