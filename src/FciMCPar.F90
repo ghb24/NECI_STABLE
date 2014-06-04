@@ -125,8 +125,7 @@ MODULE FciMCParMod
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
     use MI_integrals, only: MI_diag_helement, MI_spawn_sign, &
                             MI_off_diag_helement_spawn, MI_off_diag_helement
-    use util_mod, only: choose, abs_sign, binary_search, get_free_unit, &
-                        stochastic_round, neci_etime, binary_search_custom
+    use util_mod
     use constants
     use soft_exit, only: ChangeVars 
     use FciMCLoggingMod, only: FinaliseBlocking, FinaliseShiftBlocking, &
