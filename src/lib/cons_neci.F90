@@ -87,7 +87,7 @@ integer, parameter :: end_n_int = bits_n_int - 1
     ! n.b. This shouldn't be here, but there is nowhere els eto put it
     type write_state_t
         integer :: funit, cols, cols_mc
-        logical :: init, mc_out
+        logical :: init, mc_out, prepend
     end type
 
 

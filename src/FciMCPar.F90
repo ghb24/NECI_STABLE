@@ -4313,7 +4313,7 @@ MODULE FciMCParMod
         logical, save :: inited = .false.
         character(5) :: tmpc
         integer :: p
-        logical :: prepend, init
+        logical :: init
 
         ! Provide default 'initial' option
         if (present(initial)) then
@@ -4341,13 +4341,13 @@ MODULE FciMCParMod
             ! Don't treat the header line as data. Add padding to align the
             ! other columns. We also add a # to the first line of data, so
             ! that there aren't repeats if starting from POPSFILES
-            if (state%init .or. prepend) then
+            if (state%init .or. state%prepend) then
                 write(state%funit, '("#")', advance='no')
-!                if (tMCOutput) write(iout, '("#")', advance='no')
-                prepend = state%init
-            else if (prepend) then
+                if (tMCOutput) write(iout, '("#")', advance='no')
+                state%prepend = state%init
+            else if (.not. state%prepend) then
                 write(state%funit, '(" ")', advance='no')
-!                if (tMCOutput) write(iout, '(" ")', advance='no')
+                if (tMCOutput) write(iout, '(" ")', advance='no')
             end if
 
             ! And output the actual data!
@@ -4357,6 +4357,8 @@ MODULE FciMCParMod
             call stats_out(state,.true., iter, 'Iter.')
             call stats_out(state,.true., sum(abs(AllTotParts)), 'Tot. Parts')
             call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. Ref')
+            call stats_out(state,.true., proje_iter, 'Proj. E (cyc)')
+            call stats_out(state,.true., DiagSft, 'Shift. (cyc)')
 
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these

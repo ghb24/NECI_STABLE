@@ -99,6 +99,7 @@ contains
         %(type)s, intent(in) :: num
         character(*), intent(in) :: title
         character(5) :: colno
+        character(%(width)s) :: title_str
 
         ! Increment the column counter
         state%%cols = state%%cols + 1
@@ -110,12 +111,11 @@ contains
 
         if (state%%init) then
             write(colno, '(i5)') state%%cols
-            write(state%%funit, '(a%(width)s)', advance='no') &
-                trim(adjustl(colno)) // ". " // trim(adjustl(title))
+            title_str = trim(adjustl(colno)) // ". " // trim(adjustl(title))
+            write(state%%funit, '(a)', advance='no') title_str
 
             if (state%%mc_out .and. mc_col) &
-                write(iout, '(a%(width)s)', advance='no') &
-                    trim(adjustl(colno)) // ". " // trim(adjustl(title))
+                write(iout, '(a%(width)s)', advance='no') title_str
         else
             write(state%%funit, '(%(fmtstr)s)', advance='no') num
             if (state%%mc_out .and. mc_col) &
