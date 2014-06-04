@@ -7,7 +7,6 @@ NECI from a KP-FCIQMC calculation.'''
 
 import sys
 import optparse
-import pandas as pd
 import math
 
 def extract_data(data_files, cutoff):
@@ -52,13 +51,7 @@ def calc_energy_contrib(pairs, minval, maxval, delta_beta):
         energy_num_list.append(energy_num)
         trace_list.append(trace)
 
-    results_dict = {'Beta' : pd.Series(beta_list), 
-                    'Energy numerator' : pd.Series(energy_num_list),
-                    'Trace' : pd.Series(trace_list)}
-
-    results = pd.DataFrame(results_dict)
-
-    return results
+    return beta_list, energy_num_list, trace_list
 
 def parse_options(args):
 
@@ -89,14 +82,16 @@ if __name__ == '__main__':
     for data_file in data_files:
         # Extract the eigenvalues and overlaps with the intial Krylov vector.
         pairs = extract_data(data_file, options.cutoff)
-        results = calc_energy_contrib(pairs, options.minval, options.maxval, options.delta)
+        beta, numerator, trace = calc_energy_contrib(pairs, options.minval, options.maxval, options.delta)
 
         try:
-            final_results[['Energy numerator', 'Trace']] = \
-                final_results[['Energy numerator', 'Trace']] + results[['Energy numerator', 'Trace']]
+            final_numerator = [ a + b for (a,b) in zip(final_numerator, numerator) ]
+            final_trace = [ a + b for (a,b) in zip(final_trace, trace) ]
         except NameError:
-            # This is entered the first time, when final_results doesn't yet
-            # exist.
-            final_results = results
+            # This is entered the first time.
+            final_numerator = numerator
+            final_trace = trace
 
-    print final_results.to_string(index=False)
+    print 'Beta    Energy'
+    for (beta, num, tr) in zip(beta, final_numerator, final_trace):
+        print beta, num/tr

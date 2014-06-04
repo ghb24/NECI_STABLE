@@ -7,7 +7,6 @@ calculation.'''
 
 import sys
 import optparse
-import pandas as pd
 import math
 
 def extract_data(data_files, cutoff):
@@ -61,12 +60,7 @@ def calculate_spectral_function(pairs, norm, minval, maxval, delta, broadening, 
         omega_list.append(omega)
         spectral_list.append(spec)
 
-    results_dict = {'Omega' : pd.Series(omega_list), 
-                    'Spectrum' : pd.Series(spectral_list)}
-
-    results = pd.DataFrame(results_dict)
-
-    return results
+    return omega_list, spectral_list
 
 def parse_options(args):
 
@@ -100,11 +94,13 @@ def parse_options(args):
 if __name__ == '__main__':
     (options, data_files) = parse_options(sys.argv[1:])
     pairs, norm = extract_data(data_files, options.cutoff)
-    results = calculate_spectral_function(pairs, norm, options.minval, options.maxval,
-                                         options.delta, options.broadening,
+    omega, spectrum = calculate_spectral_function(pairs, norm, options.minval,
+                                         options.maxval, options.delta, options.broadening,
                                          options.ref_energy, options.inc_ground)
 
     if (options.flip):
-        results['Omega'] *= -1
+        omega *= -1
 
-    print results.to_string(index=False)
+    print 'Omega    Spectrum'
+    for (freq, spec) in zip(omega, spectrum):
+        print freq, spec
