@@ -180,8 +180,8 @@ MODULE FciMCData
       REAL(dp) :: AllNoAtDoubs
       REAl(dp), DIMENSION(lenof_sign) :: AllNoatHF
       HElement_t :: sum_proje_denominator, &
-                        cyc_proje_denominator, all_cyc_proje_denominator, &
-                        all_sum_proje_denominator
+                    cyc_proje_denominator, all_cyc_proje_denominator, &
+                    all_sum_proje_denominator
       real(dp) :: AllAvSign,AllAvSignHFD
       INTEGER :: MaxSpawned
       REAL(dp) :: AllNoBorn,AllNoDied
@@ -414,6 +414,10 @@ MODULE FciMCData
 
       ! For using the hashing trick to search the core space.
       type(ll_node), pointer :: CoreHashIndex(:)
+
+      ! If true (as is the case by default) then semi-stochastic calculations
+      ! will start from the ground state of the core space
+      logical :: tStartCoreGroundState
 
       ! Trial wavefunction data.
 

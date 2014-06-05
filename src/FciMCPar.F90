@@ -20,10 +20,13 @@ MODULE FciMCParMod
     use bit_reps, only: NIfD, NIfTot, NIfDBO, NOffY, decode_bit_det, &
                         encode_bit_rep, encode_det, extract_bit_rep, &
                         test_flag, set_flag, extract_flags, &
-                        flag_is_initiator, clear_all_flags,&
-                        nOffSgn, flag_make_initiator, &
-                        flag_parent_initiator, encode_sign, flag_deterministic, &
-                        flag_determ_parent, nOffFlag, clr_flag
+                        flag_is_initiator, clear_all_flags, &
+                        extract_sign, nOffSgn, flag_make_initiator, &
+                        flag_parent_initiator, encode_sign, &
+                        decode_bit_det_chunks, &
+                        clr_flag, flag_trial, flag_connected, nOffFlag, &
+                        flag_deterministic, flag_determ_parent, clr_flag, &
+                        extract_part_sign, encode_part_sign
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
                         tReadPops, tRegenDiagHEls, iFullSpaceIter, MaxNoAtHF,&
@@ -63,30 +66,32 @@ MODULE FciMCParMod
                              NHolesFrozen, tPartFreezeVirt, NVirtPartFrozen, &
                              NElVirtFrozen
     use LoggingData, only: iWritePopsEvery, TPopsFile, iPopsPartEvery, tBinPops, &
-                       iWriteHistEvery, tHistEnergies, FCIMCDebug, &
-                       IterShiftBlock, AllHistInitPops, &
-                       OffDiagBinRange, OffDiagMax, AllHistInitPopsTag, &
-                       tLogComplexPops, tPrintFCIMCPsi, tCalcFCIMCPsi, &
-                       NHistEquilSteps, tPrintOrbOcc, StartPrintOrbOcc, &
-                       tPrintOrbOccInit, tHFPopStartBlock, tIterStartBlock, &
-                       IterStartBlocking, HFPopStartBlocking, &
-                       tInitShiftBlocking, tHistHamil, iWriteHamilEvery, &
-                       HistInitPopsTag, OrbOccs, OrbOccsTag, &
-                       tPrintPopsDefault, iWriteBlockingEvery, &
-                       tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
-                       HistInitPops, DoubsUEG, DoubsUEGLookup, DoubsUEGStore,&
-                       tPrintDoubsUEG, StartPrintDoubsUEG, tCalcInstantS2, &
-                       instant_s2_multiplier, tMCOutput, tSplitProjEHist, &
-                       tSplitProjEHistG, tSplitProjEHistK3, iProjEBins, &
-                       tDiagWalkerSubspace,iDiagSubspaceIter, &
-                       tRDMonFly, IterRDMonFly,RDMExcitLevel, RDMEnergyIter, &
-                       tChangeVarsRDM, tExplicitAllRDM, tHF_Ref_Explicit, &
-                       tHF_S_D_Ref, tHF_S_D, tInitiatorRDM,    &
-                       tDiagWalkerSubspace, iDiagSubspaceIter, &
-                       tCalcInstantS2Init, instant_s2_multiplier_init, &
-                       tJustBlocking, iBlockEquilShift, iBlockEquilProjE, &
-                       tDiagAllSpaceEver, tCalcVariationalEnergy, tCompareTrialAmps, &
-                       compare_amps_period, tHistExcitToFrom, tNoNewRDMContrib
+                           iWriteHistEvery, tHistEnergies, FCIMCDebug, &
+                           IterShiftBlock, AllHistInitPops, &
+                           OffDiagBinRange, OffDiagMax, AllHistInitPopsTag, &
+                           tLogComplexPops, tPrintFCIMCPsi, tCalcFCIMCPsi, &
+                           NHistEquilSteps, tPrintOrbOcc, StartPrintOrbOcc, &
+                           tPrintOrbOccInit, tHFPopStartBlock, tIterStartBlock, &
+                           IterStartBlocking, HFPopStartBlocking, &
+                           tInitShiftBlocking, tHistHamil, iWriteHamilEvery, &
+                           HistInitPopsTag, OrbOccs, OrbOccsTag, &
+                           tPrintPopsDefault, iWriteBlockingEvery, &
+                           tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
+                           HistInitPops, DoubsUEG, DoubsUEGLookup, DoubsUEGStore,&
+                           tPrintDoubsUEG, StartPrintDoubsUEG, tCalcInstantS2, &
+                           instant_s2_multiplier, tMCOutput, tSplitProjEHist, &
+                           tSplitProjEHistG, tSplitProjEHistK3, iProjEBins, &
+                           tDiagWalkerSubspace,iDiagSubspaceIter, &
+                           tRDMonFly, IterRDMonFly,RDMExcitLevel, RDMEnergyIter, &
+                           tChangeVarsRDM, tExplicitAllRDM, tHF_Ref_Explicit, &
+                           tHF_S_D_Ref, tHF_S_D, tInitiatorRDM,    &
+                           tDiagWalkerSubspace, iDiagSubspaceIter, &
+                           tCalcInstantS2Init, instant_s2_multiplier_init, &
+                           tJustBlocking, iBlockEquilShift, iBlockEquilProjE, &
+                           tDiagAllSpaceEver, tCalcVariationalEnergy, tCompareTrialAmps, &
+                           compare_amps_period, tNoNewRDMContrib, &
+                           log_cont_time_survivals, tNoWarnIC0Bloom, &
+                           tLogPopsMaxTau, tFCIMCStats2, tHistExcitToFrom
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -120,8 +125,7 @@ MODULE FciMCParMod
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
     use MI_integrals, only: MI_diag_helement, MI_spawn_sign, &
                             MI_off_diag_helement_spawn, MI_off_diag_helement
-    use util_mod, only: choose, abs_sign, binary_search, get_free_unit, &
-                        stochastic_round, neci_etime, binary_search_custom
+    use util_mod
     use constants
     use soft_exit, only: ChangeVars 
     use FciMCLoggingMod, only: FinaliseBlocking, FinaliseShiftBlocking, &
@@ -167,17 +171,11 @@ MODULE FciMCParMod
                           log_death_magnitude
 
     implicit none
-#ifdef MOLPRO
-    include "common/tapes"
-#else
-    integer, parameter :: iout = 6
-#endif
 
     contains
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
         use LoggingData, only: PopsfileTimer
-        use util_mod, only: get_free_unit
         use nElRDMMod, only: InitRDM
         use sym_mod, only: getsym
         use SystemData, only: tUEG2
@@ -249,15 +247,22 @@ MODULE FciMCParMod
         end if
         
         ! Initial output
-        call WriteFciMCStatsHeader()
-        ! Prepend a # to the initial status line so analysis doesn't pick up
-        ! repetitions in the FCIMCStats or INITIATORStats files from restarts.
-!        write (iout,'("#")', advance='no')
-        if (iProcIndex == root) then
-            write (fcimcstats_unit,'("#")', advance='no')
-            write (initiatorstats_unit,'("#")', advance='no')
+        if (tFCIMCStats2) then
+            call write_fcimcstats2(iter_data_fciqmc, initial=.true.)
+            call write_fcimcstats2(iter_data_fciqmc)
+        else
+            call WriteFciMCStatsHeader()
+            ! Prepend a # to the initial status line so analysis doesn't pick
+            ! up repetitions in the FCIMCStats or INITIATORStats files from
+            ! restarts.
+            !write (iout,'("#")', advance='no')
+            if (iProcIndex == root) then
+                write (fcimcstats_unit,'("#")', advance='no')
+                write (initiatorstats_unit,'("#")', advance='no')
+            end if
+            call WriteFCIMCStats()
         end if
-        call WriteFCIMCStats()
+
 
         ! Put a barrier here so all processes synchronise before we begin.
         call MPIBarrier(error)
@@ -3105,7 +3110,9 @@ MODULE FciMCParMod
     subroutine iter_diagnostics ()
 
         character(*), parameter :: this_routine = 'iter_diagnostics'
+        character(*), parameter :: t_r = this_routine
         real(dp) :: mean_walkers
+        integer :: part_type
 
         ! Update the total imaginary time passed
         TotImagTime = TotImagTime + StepsSft * Tau
@@ -3118,25 +3125,28 @@ MODULE FciMCParMod
         AccRat = real(Acceptances, dp) / SumWalkersCyc
 
 
-        IF(lenof_sign.eq.1) THEN
-            ! Flip sign of entire ensemble if negative pop on HF
-            IF(AllNoatHF(1).lt.0.0) THEN
-                root_print "No. at HF < 0 - flipping sign of entire ensemble &
-                           &of particles..."
-                root_print AllNoatHF(1)
+#ifndef __CMPLX
+        do part_type = 1, lenof_sign
+            if (AllNoAtHF(part_type) < 0.0_dp) then
+                root_print 'No. at HF < 0 - flipping sign of entire ensemble &
+                           &of particles in simulation: ', part_type
+                root_print AllNoAtHF(part_type)
 
-                call FlipSign ()
-                AllNoatHF(1) = -AllNoatHF(1)
-                NoatHF(1) = -NoatHF(1)
+                ! And do the flipping
+                call FlipSign(part_type)
+                AllNoatHF(part_type) = -AllNoatHF(part_type)
+                NoatHF(part_type) = -NoatHF(part_type)
 
-                if(tFillingStochRDMonFly) then
+                if (tFillingStochRDMonFly) then
+                    if (lenof_sign /= 1) &
+                        call stop_all(t_r, 'Not yet implmented')
                     ! Want to flip all the averaged signs.
-                    AvNoatHF = -AvNoatHF 
-                    InstNoatHF(1) = -InstNoatHF(1)
-                endif
- 
-            endif
-        ENDIF
+                    AvNoatHF = -AVNoatHF
+                    InstNoatHF(part_type) = -InstNoatHF(part_type)
+                end if
+            end if
+        end do
+#endif
 
         if (iProcIndex == Root) then
             ! Have all of the particles died?
@@ -3165,14 +3175,19 @@ MODULE FciMCParMod
             IF(TDebug) CLOSE(11)
             CALL SetupParameters()
             CALL InitFCIMCCalcPar()
-            call WriteFciMCStatsHeader()
-            ! Prepend a # to the initial status line so analysis doesn't pick up
-            ! repetitions in the FCIMCStats or INITIATORStats files from restarts.
-            if (iProcIndex == root) then
-                write (fcimcstats_unit,'("#")', advance='no')
-                write (initiatorstats_unit,'("#")', advance='no')
+            if (tFCIMCStats2) then
+                call write_fcimcstats2(iter_data_fciqmc, initial=.true.)
+                call write_fcimcstats2(iter_data_fciqmc)
+            else
+                call WriteFciMCStatsHeader()
+                ! Prepend a # to the initial status line so analysis doesn't pick up
+                ! repetitions in the FCIMCStats or INITIATORStats files from restarts.
+                if (iProcIndex == root) then
+                    write (fcimcstats_unit,'("#")', advance='no')
+                    write (initiatorstats_unit,'("#")', advance='no')
+                end if
+                call WriteFCIMCStats()
             end if
-            call WriteFCIMCStats()
             return
         endif
 
@@ -3458,7 +3473,7 @@ MODULE FciMCParMod
         AllENumCyc = helem_tmp(1)
         AllSumENum = helem_tmp(2)
         AllENumCycAbs = helem_tmp(3)
-        
+
         if(tSplitProjEHist) then
             if(tSplitProjEHistG) then
                 AllENumCycHistG=0.0_dp
@@ -3868,29 +3883,49 @@ MODULE FciMCParMod
         if(tRestart) return
         call population_check ()
         call update_shift (iter_data)
-        call WriteFCIMCStats ()
+        if (tFCIMCStats2) then
+            call write_fcimcstats2(iter_data_fciqmc)
+        else
+            call WriteFCIMCStats ()
+        end if
         
         call rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
 
     end subroutine calculate_new_shift_wrapper
 
-!This routine flips the sign of all particles on the node
-    SUBROUTINE FlipSign()
-        INTEGER :: i
-        real(dp) :: TempSign(lenof_sign)
+    subroutine FlipSign(part_type)
 
-        do i=1,int(TotWalkers,sizeof_int)
-            call extract_sign(CurrentDets(:,i),TempSign)
-            TempSign(1)=-TempSign(1)
-            call encode_sign(CurrentDets(:,i),TempSign)
-            if(tFillingStochRDMonFly) CurrentH(2,i) = -CurrentH(2,i)    ! Flip average signs too
+        ! This routine flips the sign of all particles on the node with a
+        ! given particle type. This allows us to keep multiple parallel
+        ! simulations sign coherent.
+
+        integer, intent(in) :: part_type
+        character(*), parameter :: t_r = 'FlipSign'
+        integer :: i
+        real(dp) :: sgn
+    
+        do i = 1, int(TotWalkers, sizeof_int)
+
+            sgn = extract_part_sign(CurrentDets(:,i), part_type)
+            sgn = -sgn
+            call encode_part_sign(CurrentDets(:,i), sgn, part_type)
+
+            ! Flip average signs too.
+            if (tFillingStochRDMOnFly) then
+                if (lenof_sign /= 1) &
+                    call stop_all(t_r, 'Not yet implemented')
+                CurrentH(2, i) = -CurrentH(2, i)
+            end if
+
         enddo
 
-!Reverse the flag for whether the sign of the particles has been flipped so the ACF can be correctly calculated
-        TFlippedSign=.not.TFlippedSign
-        RETURN
+        ! Reverse the flag for whether the sign of the particles has been
+        ! flipped so the ACF can be correctly calculated
+        tFlippedSign = .not. tFlippedSign
     
-    END SUBROUTINE FlipSign
+    end subroutine FlipSign
+
+
 
     SUBROUTINE WriteFciMCStatsHeader()
 
@@ -4200,6 +4235,171 @@ MODULE FciMCParMod
 
     end subroutine WriteFCIMCStats
 
+
+    subroutine open_create_fciqmc_stats(funit)
+
+        integer, intent(in) :: funit
+        character(*), parameter :: t_r = 'open_create_fciqmc_stats'
+
+        character(30) :: filename
+        character(43) :: filename2
+        character(12) :: num
+        integer :: i, ierr
+        logical :: exists
+
+        ! If we are using Molpro, then append the molpro ID to uniquely
+        ! identify the output
+        if (tMolpro .and. .not. tMolproMimic) then
+            filename = 'fciqmc_stats_' // adjustl(MolproID)
+        else
+            filename = 'fciqmc_stats'
+        end if
+        
+
+        if (tReadPops) then
+
+            ! If we are reading from a POPSFILE, then we want to continue an
+            ! existing fciqmc_stats file if it exists.
+            open(funit, file=filename, status='unknown', position='append')
+
+        else
+
+            ! If we are doing a normal calculation, move existing fciqmc_stats
+            ! files so that they are not overwritten, and then create a new one
+            inquire(file=filename, exist=exists)
+            if (exists) then
+
+                ! Loop until we find an available spot to move the existing
+                ! file to.
+                i = 1
+                do while(exists)
+                    write(num, '(i12)') i
+                    filename2 = trim(adjustl(filename)) // "." // &
+                                trim(adjustl(num))
+                    inquire(file=filename2, exist=exists)
+                    if (i > 10000) &
+                        call stop_all(t_r, 'Error finding free fciqmc_stats.*')
+                    i = i + 1
+                end do
+
+                ! Move the file
+                call rename(filename, filename2)
+
+            end if
+
+            ! And finally open the file
+            open(funit, file=filename, status='unknown', iostat=ierr)
+
+        end if
+
+    end subroutine
+
+
+
+    subroutine write_fcimcstats2(iter_data, initial)
+
+        ! Write output to our FCIMCStats file.
+        ! This should be done in a nice general way, so that we make merges
+        ! somewhat easier.
+        !
+        ! --> The column numbers are no longer as well fixed (oh well...)
+
+        type(fcimc_iter_data), intent(in) :: iter_data
+        logical, intent(in), optional :: initial
+
+        ! Use a state type to keep things compact and tidy below.
+        type(write_state_t), save :: state
+        logical, save :: inited = .false.
+        character(5) :: tmpc
+        integer :: p
+        logical :: init
+
+        ! Provide default 'initial' option
+        if (present(initial)) then
+            state%init = initial
+        else
+            state%init = .false.
+        end if
+
+        ! If the output file hasn't been opened yet, then create it.
+        if (iProcIndex == Root .and. .not. inited) then
+            state%funit = get_free_unit()
+            call open_create_fciqmc_stats(state%funit)
+            inited = .true.
+        end if
+
+        ! ------------------------------------------------
+        ! This is where any calculation that needs multiple nodes should go
+        ! ------------------------------------------------
+        ! ------------------------------------------------
+    
+        if (iProcIndex == root) then
+
+            ! Only do the actual outputting on the head node.
+
+            ! Don't treat the header line as data. Add padding to align the
+            ! other columns. We also add a # to the first line of data, so
+            ! that there aren't repeats if starting from POPSFILES
+            if (state%init .or. state%prepend) then
+                write(state%funit, '("#")', advance='no')
+                if (tMCOutput) write(iout, '("#")', advance='no')
+                state%prepend = state%init
+            else if (.not. state%prepend) then
+                write(state%funit, '(" ")', advance='no')
+                if (tMCOutput) write(iout, '(" ")', advance='no')
+            end if
+
+            ! And output the actual data!
+            state%cols = 0
+            state%cols_mc = 0
+            state%mc_out = tMCOutput
+            call stats_out(state,.true., iter, 'Iter.')
+            call stats_out(state,.true., sum(abs(AllTotParts)), 'Tot. parts')
+            call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
+            call stats_out(state,.true., proje_iter, 'Proj. E (cyc)')
+            call stats_out(state,.true., DiagSft, 'Shift. (cyc)')
+            call stats_out(state,.true., IterTime, 'Iter. time')
+            call stats_out(state,.false., AllNoBorn, 'No. born')
+            call stats_out(state,.false., AllNoDied, 'No. died')
+            call stats_out(state,.false., AllAnnihilated, 'No. annihil')
+            call stats_out(state,.false., AllGrowRate, 'Growth fac.')
+            call stats_out(state,.false., AccRat, 'Acc. rate')
+            call stats_out(state,.false., TotImagTime, 'Im. time')
+            call stats_out(state,.true., proje_iter + Hii, 'Tot. Proj. E')
+
+            ! If we are running multiple (replica) simulations, then we
+            ! want to record the details of each of these
+#ifdef __PROG_LENOFSIGN
+            do p = 1, lenof_sign
+                write(tmpc, '(i5)') p
+                call stats_out (state, .false., AllTotParts(p), &
+                                'Parts (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., AllNoatHF(p), &
+                                'Ref (' // trim(adjustl(tmpc)) // ")")
+            end do
+#endif
+
+            ! Put the conditional columns at the end, so that the column
+            ! numbers of the data are as stable as reasonably possible (for
+            ! people who want to use gnuplot/not analyse column headers too
+            ! frequently).
+            ! This also makes column contiguity on resumes as likely as
+            ! possible.
+            if (tTruncInitiator .or. tDelayTruncInit) &
+                call stats_out(state,.false., AllNoAborted, 'No. aborted')
+
+            ! And we are done
+            write(state%funit, *)
+            if (tMCOutput) write(iout, *)
+            call neci_flush(state%funit)
+            call neci_flush(iout)
+
+        end if
+
+    end subroutine write_fcimcstats2
+
+
+
     !Ensure that the new FCIMCStats file which is about to be opened does not overwrite any other FCIMCStats
     !files. If there is already an FCIMCStats file present, then move it to FCIMCStats.x, where x is a largest
     !free filename.
@@ -4321,23 +4521,25 @@ MODULE FciMCParMod
         ENDIF
 
         IF(iProcIndex.eq.Root) THEN
-            fcimcstats_unit = get_free_unit()
-            if (tReadPops) then
-                ! Restart calculation.  Append to stats file (if it exists).
-                if(tMolpro .and. .not. tMolproMimic) then
-                    filename = 'FCIQMCStats_' // adjustl(MolproID)
-                    OPEN(fcimcstats_unit,file=filename,status='unknown',position='append')
+            if (.not. tFCIMCStats2) then
+                fcimcstats_unit = get_free_unit()
+                if (tReadPops) then
+                    ! Restart calculation.  Append to stats file (if it exists).
+                    if(tMolpro .and. .not. tMolproMimic) then
+                        filename = 'FCIQMCStats_' // adjustl(MolproID)
+                        OPEN(fcimcstats_unit,file=filename,status='unknown',position='append')
+                    else
+                        OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown',position='append')
+                    endif
                 else
-                    OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown',position='append')
-                endif
-            else
-                call MoveFCIMCStatsFiles()          !This ensures that FCIMCStats files are not overwritten
-                if(tMolpro .and. .not. tMolproMimic) then
-                    filename = 'FCIQMCStats_' // adjustl(MolproID)
-                    OPEN(fcimcstats_unit,file=filename,status='unknown')
-                else
-                    OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown')
-                endif
+                    call MoveFCIMCStatsFiles()          !This ensures that FCIMCStats files are not overwritten
+                    if(tMolpro .and. .not. tMolproMimic) then
+                        filename = 'FCIQMCStats_' // adjustl(MolproID)
+                        OPEN(fcimcstats_unit,file=filename,status='unknown')
+                    else
+                        OPEN(fcimcstats_unit,file='FCIMCStats',status='unknown')
+                    endif
+                end if
             end if
             IF(tTruncInitiator.or.tDelayTruncInit) THEN
                 initiatorstats_unit = get_free_unit()
@@ -8523,7 +8725,7 @@ END MODULE FciMCParMod
 ! projection onto a different determinant.
 SUBROUTINE ChangeRefDet(DetCurr)
     use FciMCParMod, only: DeallocFCIMCMemPar, SetupParameters, &
-                           InitFCIMCCalcPar, iout
+                           InitFCIMCCalcPar
     use DeterminantData, only: FDet
     use FciMCData, only: initiatorstats_unit, tDebug, iter, fcimcstats_unit, &
                          complexstats_unit
@@ -8531,6 +8733,7 @@ SUBROUTINE ChangeRefDet(DetCurr)
     use SystemData, only: NEl
     use LoggingData, only: tLogComplexPops
     use Parallel_neci, only: iProcIndex, root
+    use constants
     IMPLICIT NONE
     INTEGER :: DetCurr(NEl),i
 

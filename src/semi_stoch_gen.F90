@@ -3,7 +3,7 @@
 module semi_stoch_gen
 
     use bit_rep_data, only: flag_deterministic, nIfDBO, nOffY, nIfY, NIfD, &
-                            flag_is_initiator, NOffSgn, NIfTot, & flag_connected, &
+                            flag_is_initiator, NOffSgn, NIfTot, flag_connected, &
                             flag_trial
     use bit_reps, only: decode_bit_det, encode_bit_rep, set_flag, extract_sign, &
                         clr_flag
