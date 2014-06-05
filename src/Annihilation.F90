@@ -377,13 +377,6 @@ MODULE AnnihilationMod
         Sort_time%timer_name='Compress Sort interface'
         call set_timer(Sort_time,20)
 
-        ! Note: If performing a semi-stochastic calculation, we want to sort the spawned list so that walkers
-        ! which are spawned from deterministic parents are separated from walkers which aren't, so that they
-        ! can be considered separately later (if a walker is spawned from a deterministic parent into the
-        ! deterministic space then it should be aborted - we only know if the state it occupies is
-        ! deterministic later on).
-        ! If not performing a semi-stochastic simulation then these conditions are just ignored.
-
         call sort(SpawnedParts(:,1:ValidSpawned), ilut_lt, ilut_gt)
         
         CALL halt_timer(Sort_time)
@@ -418,9 +411,6 @@ MODULE AnnihilationMod
             do while(CurrentBlockDet.le.ValidSpawned)
                 if(.not.(DetBitEQ(SpawnedParts(0:NIfTot,BeginningBlockDet),SpawnedParts(0:NIfTot,CurrentBlockDet),NIfDBO))) exit
                 ! Loop over walkers on the same determinant in SpawnedParts.
-                ! Also, seperate out states which are and aren't spawned from the deterministic space.
-                ! (Ignore the options relating to these deterministic flags if not concerned with the
-                ! deterministic code).
                 CurrentBlockDet=CurrentBlockDet+1
             enddo
 

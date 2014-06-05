@@ -81,6 +81,10 @@ module LoggingData
     logical :: tDipoles !Do we want to calculate the dipole moments
     logical :: tHistExcitToFrom
 
+    logical :: log_cont_time_survivals, tNoWarnIC0Bloom, tDumpHamilBinary, &
+               tDumpHamilOverlap, tLogTauSearchStats, tLogPopsMaxTau
+    logical :: tFCIMCStats2
+
     !If we want to force the Cauchy--Schwarz inequality (e.g. if we know the 1RDM is undersampled)
     logical :: tForceCauchySchwarz
     ! If we'd like to rotate the NOs again so as to obtain broken symmetry NOs

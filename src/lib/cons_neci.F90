@@ -86,5 +86,18 @@ integer, parameter :: size_n_int = bits_n_int/8
 ! Index of last bit in an n_int integer (bits are indexed 0,1,...,bits_n_int-1).
 integer, parameter :: end_n_int = bits_n_int - 1
 
+#ifdef MOLPRO
+    include "common/tapes"
+#else
+    integer, parameter :: iout = 6
+#endif
+
+    ! Internal state storage for the stats_out integration
+    ! n.b. This shouldn't be here, but there is nowhere els eto put it
+    type write_state_t
+        integer :: funit, cols, cols_mc
+        logical :: init, mc_out, prepend
+    end type
+
 
 end module constants

@@ -416,16 +416,11 @@ MODULE FciMCData
       ! This vector will store the indicies of the deterministic states in CurrentDets. This is worked out in the main loop.
       integer, allocatable, dimension(:) :: indices_of_determ_states
 
-      ! This integer is used in the Annnihilation routines. It denotes the index of the first non deterministic state in
-      ! the spawned list (once this list has been compressed). This is used to skip over performing certain annihilation
-      ! routines on the deterministic state, which are not removed from the list.
-      integer :: index_of_first_non_determ
-
       ! For using the hashing trick to search the core space.
       type(ll_node), pointer :: CoreHashIndex(:)
 
-      ! If true (as is the case by default) then semi-stochastic calculations will start from the ground state
-      ! of the core space.
+      ! If true (as is the case by default) then semi-stochastic calculations
+      ! will start from the ground state of the core space
       logical :: tStartCoreGroundState
 
       ! Trial wavefunction data.

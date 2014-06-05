@@ -32,11 +32,6 @@ MODULE CCMC
     use hash, only: DetermineDetNode
     use procedure_pointers, only: get_spawn_helement
    IMPLICIT NONE
-#ifdef MOLPRO
-    include "common/tapes"
-#else
-    integer, parameter :: iout = 6
-#endif
     integer :: iPartBloom
    CONTAINS
 
@@ -3277,11 +3272,6 @@ subroutine WriteExcitorListP(iUnit,Dets,offset,nDet,dTol,Title)
    use FciMCData, only: iLutHF
    use bit_reps, only: extract_sign,extract_flags
    IMPLICIT NONE
-#ifdef MOLPRO
-    include "common/tapes"
-#else
-    integer, parameter :: iout = 6
-#endif
    INTEGER iUnit,nDet
    INTEGER(KIND=n_int) Dets(0:nIfTot,nDet)
    integer dTol
@@ -3307,11 +3297,6 @@ subroutine WriteExcitorListP2(iUnit,Dets,starts,ends,dTol,Title)
    use bit_reps, only: extract_sign,extract_flags
    use Parallel_neci
    IMPLICIT NONE
-#ifdef MOLPRO
-    include "common/tapes"
-#else
-    integer, parameter :: iout = 6
-#endif
    INTEGER iUnit,nDet
    INTEGER(KIND=n_int) Dets(0:nIfTot,*)
    integer dTol

@@ -158,6 +158,14 @@ MODULE Logging
       rotfour = 0
       tInstSignOffDiagRDM=.true.
 
+      tLogTauSearchStats = .false.
+      tLogPopsMaxTau = .false.
+!#ifdef __PROG_LENOFSIGN
+!      tFCIMCStats2 = .true.
+!#else
+      tFCIMCStats2 = .false.
+!#endif
+
 ! Feb08 defaults
       IF(Feb08) THEN
           !Mcpaths set
@@ -974,6 +982,21 @@ MODULE Logging
 
         case("ENDLOG")
             exit logging
+
+        case("TAU-SEARCH")
+            ! Log the output of tau searching
+            tLogTauSearchStats = .true.
+
+        case("POPS-MAX-TAU")
+            ! If we were using the full enumeration excitation generator,
+            ! what would the maximum acceptable value of tau be for the
+            ! read-in walker distribution?
+            tLogPopsMaxTau = .true.
+
+        case("FCIMCSTATS-2")
+            ! Use the new-style FCIMCStats output.
+            tFCIMCStats2 = .true.
+
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)
         end select
