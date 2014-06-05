@@ -84,7 +84,7 @@ MODULE FciMCParMod
                            tDiagWalkerSubspace,iDiagSubspaceIter, &
                            tRDMonFly, IterRDMonFly,RDMExcitLevel, RDMEnergyIter, &
                            tChangeVarsRDM, tExplicitAllRDM, tHF_Ref_Explicit, &
-                           tHF_S_D_Ref, tHF_S_D, tInitiatorRDM,    &
+                           tHF_S_D_Ref, tHF_S_D, &
                            tDiagWalkerSubspace, iDiagSubspaceIter, &
                            tCalcInstantS2Init, instant_s2_multiplier_init, &
                            tJustBlocking, iBlockEquilShift, iBlockEquilProjE, &
@@ -4552,16 +4552,16 @@ MODULE FciMCParMod
             call stats_out(state,.true., iter, 'Iter.')
             call stats_out(state,.true., sum(abs(AllTotParts)), 'Tot. parts')
             call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
-            call stats_out(state,.true., proje_iter, 'Proj. E (cyc)')
-            call stats_out(state,.true., DiagSft, 'Shift. (cyc)')
+            call stats_out(state,.true., proje_iter(1), 'Proj. E (cyc)')
+            call stats_out(state,.true., DiagSft(1), 'Shift. (cyc)')
             call stats_out(state,.true., IterTime, 'Iter. time')
-            call stats_out(state,.false., AllNoBorn, 'No. born')
-            call stats_out(state,.false., AllNoDied, 'No. died')
-            call stats_out(state,.false., AllAnnihilated, 'No. annihil')
-            call stats_out(state,.false., AllGrowRate, 'Growth fac.')
-            call stats_out(state,.false., AccRat, 'Acc. rate')
+            call stats_out(state,.false., AllNoBorn(1), 'No. born')
+            call stats_out(state,.false., AllNoDied(1), 'No. died')
+            call stats_out(state,.false., AllAnnihilated(1), 'No. annihil')
+            call stats_out(state,.false., AllGrowRate(1), 'Growth fac.')
+            call stats_out(state,.false., AccRat(1), 'Acc. rate')
             call stats_out(state,.false., TotImagTime, 'Im. time')
-            call stats_out(state,.true., proje_iter + Hii, 'Tot. Proj. E')
+            call stats_out(state,.true., proje_iter(1) + Hii, 'Tot. Proj. E')
 
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
@@ -4582,7 +4582,7 @@ MODULE FciMCParMod
             ! This also makes column contiguity on resumes as likely as
             ! possible.
             if (tTruncInitiator .or. tDelayTruncInit) &
-                call stats_out(state,.false., AllNoAborted, 'No. aborted')
+                call stats_out(state,.false., AllNoAborted(1), 'No. aborted')
 
             ! And we are done
             write(state%funit, *)
