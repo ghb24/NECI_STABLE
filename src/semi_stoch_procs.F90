@@ -130,7 +130,7 @@ contains
             ! core_hamiltonian.
 #ifdef __CMPLX
             do i = 1, lenof_sign
-                partial_determ_vector = partial_determ_vector + &
+                partial_determ_vector(:,i) = partial_determ_vector(:,i) + &
                    DiagSft(1) * full_determ_vector(i,determ_proc_indices(iProcIndex)+1:&
                      determ_proc_indices(iProcIndex)+determ_proc_sizes(iProcIndex))
             end do

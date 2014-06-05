@@ -4552,7 +4552,12 @@ MODULE FciMCParMod
             call stats_out(state,.true., iter, 'Iter.')
             call stats_out(state,.true., sum(abs(AllTotParts)), 'Tot. parts')
             call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
+#ifdef __CMPLX
+            call stats_out(state,.true., real(proje_iter(1)), 'Re Proj. E')
+            call stats_out(state,.true., aimag(proje_iter(1)), 'Im Proj. E')
+#else
             call stats_out(state,.true., proje_iter(1), 'Proj. E (cyc)')
+#endif
             call stats_out(state,.true., DiagSft(1), 'Shift. (cyc)')
             call stats_out(state,.true., IterTime, 'Iter. time')
             call stats_out(state,.false., AllNoBorn(1), 'No. born')
@@ -4561,7 +4566,14 @@ MODULE FciMCParMod
             call stats_out(state,.false., AllGrowRate(1), 'Growth fac.')
             call stats_out(state,.false., AccRat(1), 'Acc. rate')
             call stats_out(state,.false., TotImagTime, 'Im. time')
+#ifdef __CMPLX
+            call stats_out(state,.true., real(proje_iter(1)) + Hii, &
+                           'Tot. Proj. E')
+            call stats_out(state,.true., aimag(proje_iter(1)) + Hii, &
+                           'Tot. Proj. E')
+#else
             call stats_out(state,.true., proje_iter(1) + Hii, 'Tot. Proj. E')
+#endif
 
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
