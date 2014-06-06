@@ -3489,7 +3489,7 @@ MODULE FciMCParMod
         real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
         real(dp), dimension(lenof_sign), intent(out) :: tot_parts_new_all
         character(len=*), parameter :: this_routine='collate_iter_data'
-        real(dp), dimension(inum_runs) :: RealAllHFCyc
+        real(dp), dimension(max(lenof_sign,inum_runs)) :: RealAllHFCyc
         real(dp), dimension(inum_runs) :: all_norm_psi_squared, all_norm_semistoch_squared
         real(dp) :: bloom_sz_tmp(0:2)
         integer :: run
@@ -4192,7 +4192,7 @@ MODULE FciMCParMod
 
     subroutine WriteFCIMCStats()
         INTEGER :: i, run
-        real(dp),dimension(lenof_sign) :: FracFromSing
+        real(dp),dimension(inum_runs) :: FracFromSing
 
         ! What is the current value of S2
         if (tCalcInstantS2) then
@@ -4240,6 +4240,7 @@ MODULE FciMCParMod
 #ifdef __CMPLX
             write(fcimcstats_unit,"(I12,5G16.7,7G17.9,&
                                   &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9,I13,&
+
                                   &g16.7)") &
                 Iter + PreviousCycles, &                !1.
                 DiagSft, &                              !2.
@@ -4257,7 +4258,7 @@ MODULE FciMCParMod
                 AccRat, &                               !14.
                 AllTotWalkers, &                        !15.
                 IterTime, &                             !16.
-                FracFromSing, &     !17.
+                FracFromSing(1), &                      !17.
                 WalkersDiffProc, &                           !18.
                 TotImagTime, &                               !19.
                 HFShift, &                                   !20.
