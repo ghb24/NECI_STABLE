@@ -1287,7 +1287,6 @@ MODULE FciMCParMod
         endif
 
         ! Count the number of children born
-#ifdef __CMPLX
         NoBorn = NoBorn + sum(abs(child))
         iter_data%nborn = iter_data%nborn + abs(child)
 
@@ -1298,17 +1297,6 @@ MODULE FciMCParMod
             bloom_count(ic) = bloom_count(ic) + 1
             bloom_sizes(ic) = max(real(sum(abs(child)), dp), bloom_sizes(ic))
         end if
-#else
-        NoBorn = NoBorn + abs(child)
-        if (ic == 1) SpawnFromSing = SpawnFromSing + abs(child)
-
-        ! Count particle blooms, and their sources
-        if (abs(child(part_type)) > INitiatorWalkNo) then
-            bloom_count(ic) = bloom_count(ic) + 1
-            bloom_sizes(ic) = max(real((abs(child(part_type))), dp), bloom_sizes(ic))
-        end if
-#endif
-        iter_data%nborn = iter_data%nborn + abs(child)
 
         ! Histogram the excitation levels as required
         if (tHistExcitToFrom) &
@@ -2321,19 +2309,11 @@ MODULE FciMCParMod
 
         ! Update death counter
         iter_data%ndied = iter_data%ndied + min(iDie, abs(RealwSign))
-#ifdef __CMPLX
         NoDied = NoDied + sum(min(iDie, abs(RealwSign)))
-#else
-        NoDied = NoDied + min(iDie, abs(RealwSign))
-#endif
 
         ! Count any antiparticles
         iter_data%nborn = iter_data%nborn + max(iDie - abs(RealwSign), 0.0_dp)
-#ifdef __CMPLX
         NoBorn = NoBorn + sum(max(iDie - abs(RealwSign), 0.0_dp))
-#else
-        NoBorn = NoBorn + max(iDie - abs(RealwSign), 0.0_dp)
-#endif
 
         ! Calculate new number of signed particles on the det.
         CopySign = RealwSign - (iDie * sign(1.0_dp, RealwSign))

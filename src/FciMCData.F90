@@ -70,18 +70,18 @@ MODULE FciMCData
       INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS, HighPopNeg, HighPopPos
       REAL(dp) :: MaxInitPopNeg,MaxInitPopPos
 
-    real(dp), dimension(inum_runs) :: NoAborted, AllNoAborted, AllNoAbortedOld
-    real(dp), dimension(inum_runs) :: NoRemoved, AllNoRemoved, AllNoRemovedOld
-    integer(int64), dimension(inum_runs) :: NoAddedInitiators, NoInitDets, NoNonInitDets
-    real(dp), dimension(inum_runs) :: NoInitWalk, NoNonInitWalk
-    integer(int64), dimension(inum_runs) :: NoExtraInitDoubs, InitRemoved
+    real(dp), dimension(lenof_sign) :: NoAborted, AllNoAborted, AllNoAbortedOld
+    real(dp), dimension(lenof_sign) :: NoRemoved, AllNoRemoved, AllNoRemovedOld
+    integer(int64), dimension(lenof_sign) :: NoAddedInitiators, NoInitDets, NoNonInitDets
+    real(dp), dimension(lenof_sign) :: NoInitWalk, NoNonInitWalk
+    integer(int64), dimension(lenof_sign) :: NoExtraInitDoubs, InitRemoved
     integer :: no_spatial_init_dets
 
-    integer(int64), dimension(inum_runs) :: AllNoAddedInitiators, AllNoInitDets
-    integer(int64), dimension(inum_runs) :: AllNoNonInitDets
+    integer(int64), dimension(lenof_sign) :: AllNoAddedInitiators, AllNoInitDets
+    integer(int64), dimension(lenof_sign) :: AllNoNonInitDets
     real(dp), dimension(inum_runs) :: AllNoInitWalk, AllNoNonInitWalk
-    integer(int64), dimension(inum_runs) :: AllNoExtraInitDoubs, AllInitRemoved
-    integer(int64), dimension(inum_runs) :: AllGrowRateAbort
+    integer(int64), dimension(lenof_sign) :: AllNoExtraInitDoubs, AllInitRemoved
+    integer(int64), dimension(lenof_sign) :: AllGrowRateAbort
 
       LOGICAL :: tHFInitiator,tPrintHighPop, tcurr_initiator
       logical :: tHashWalkerList    !Option to store occupied determinant in a hash table
