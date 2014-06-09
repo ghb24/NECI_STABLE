@@ -210,16 +210,6 @@ contains
             endif
         endif
 
-        ! Deallocate the temporary storage.
-        if (.not. tSplitPops) then
-            deallocate(BatchRead)
-            call LogMemDealloc (this_routine, BatchReadTag)
-            if(tReadRDMAvPop) then
-                deallocate(BatchCurrentH)
-                call LogMemDealloc (this_routine, BatchCurrentHTag)
-            endif
-        end if
-
         ! Clear all deterministic and trial flags so that they can be changed later.
         if (tUseFlags) then
             do i = 1, CurrWalkers
