@@ -6205,7 +6205,13 @@ MODULe nElRDMMod
         integer :: nI(nel), nJ(nel), IC
         integer :: IterRDM, connect_elem
 
-        IterRDM=1
+        if (mod((iter - IterRDMStart + 1), RDMEnergyIter) == 0) then
+            IterRDM = RDMEnergyIter
+        else
+            ! This must be the final iteration, as we've got tFill_RDM=.true.
+            ! for an iteration where we wouldn't normally need the energy
+            IterRDM = mod((Iter - IterRDMStart + 1), RDMEnergyIter)
+        end if
         
         Ex(:,:)=0
 

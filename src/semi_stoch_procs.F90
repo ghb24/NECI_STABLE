@@ -23,7 +23,7 @@ module semi_stoch_procs
                          SemiStoch_Multiply_Time, TotWalkers, CurrentDets, CoreTag, &
                          PDetermTag, FDetermTag, IDetermTag, indices_of_determ_states, &
                          HashIndex, core_space, CoreSpaceTag, ll_node, nWalkerHashes, &
-                         full_determ_vector_av, &
+                         full_determ_vector_av, tFill_RDM, &
                          tFillingStochRDMonFly, Iter, IterRDMStart, CoreHashIndex, &
                          core_ham_diag, DavidsonTag, Fii, HFDet, PreviousCycles
     use hash, only: DetermineDetNode, FindWalkerHash
@@ -80,8 +80,8 @@ contains
             ! Perform the multiplication. This can be done in two ways depending on
             ! whether the the core Hamiltonian uses a sparse representation or not.
             if (tSparseCoreHamil) then
-                
-                if(Iter.eq.NMCyc) call fill_RDM_offdiag_deterministic()
+
+                if(tFill_RDM) call fill_RDM_offdiag_deterministic()
 
                 !For the moment, we're only adding in these contributions when we need the energy
                 !This will need refinement if we want to continue with the option of inst vs true full RDMs
