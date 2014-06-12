@@ -212,4 +212,8 @@ logical :: tLowETrialAllDoubles
 ! When using the tMP1Trial option, this specifies how many determinants to keep.
 integer :: trial_mp1_ndets
 
+! What is the maximum energy, above which all particles are treated as
+! initiators
+real(dp) :: InitiatorCutoffEnergy
+
 end module CalcData

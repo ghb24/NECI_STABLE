@@ -47,7 +47,8 @@ MODULE FciMCParMod
                         tSpawn_Only_Init_Grow, RealCoeffExcitThresh, &
                         tRealSpawnCutoff, RealSpawnCutoff, tDetermProj, &
                         tJumpShift, tUseRealCoeffs, tSpatialOnlyHash, &
-                        tSemiStochastic, tTrialWavefunction
+                        tSemiStochastic, tTrialWavefunction, &
+                        InitiatorCutoffEnergy
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
@@ -927,9 +928,31 @@ MODULE FciMCParMod
             !    ! Otherwise, it extracts the Curr info, and calculates the iteration this determinant 
             !    ! became occupied (IterRDMStartCurr) and the average population during that time 
             !    ! (AvSignCurr).
-            
 
-            if (tTruncInitiator) call CalcParentFlag (j, VecSlot, parent_flags)
+            ! Should be able to make this function pointer-able
+            if (tRegenDiagHEls) then
+                ! We are not storing the diagonal hamiltonian elements for 
+                ! each particle. Therefore, we need to regenerate them.
+                if (DetBitEQ(CurrentDets(:,j), iLutRef, NIfDBO) .and. &
+                    (.not.(tHub .and. tReal))) then
+                    HDiagCurr = 0
+                else
+                    if (tHPHF) then
+                        HDiagtemp = hphf_diag_helement (DetCurr,CurrentDets(:,j))
+                    elseif(tMomInv) then
+                        HDiagtemp = MI_diag_helement(DetCurr,CurrentDets(:,j))
+                    else
+                        HDiagTemp = get_helement (DetCurr, DetCurr, 0)
+                    endif
+                    HDiagCurr = real(HDiagTemp, dp)-Hii
+                endif
+            else
+                ! HDiags are stored.
+                HDiagCurr = CurrentH(1,j)
+            endif
+
+            if (tTruncInitiator) &
+                call CalcParentFlag (j, VecSlot, parent_flags, HDiagCurr)
 
             if(tHashWalkerList) then
                 !Test here as to whether this is a "hole" or not...
@@ -965,28 +988,6 @@ MODULE FciMCParMod
                     endif
                 endif
             ENDIFDEBUG
-
-            ! Should be able to make this function pointer-able
-            if (tRegenDiagHEls) then
-                ! We are not storing the diagonal hamiltonian elements for 
-                ! each particle. Therefore, we need to regenerate them.
-                if (DetBitEQ(CurrentDets(:,j), iLutRef, NIfDBO) .and. &
-                    (.not.(tHub .and. tReal))) then
-                    HDiagCurr = 0
-                else
-                    if (tHPHF) then
-                        HDiagtemp = hphf_diag_helement (DetCurr,CurrentDets(:,j))
-                    elseif(tMomInv) then
-                        HDiagtemp = MI_diag_helement(DetCurr,CurrentDets(:,j))
-                    else
-                        HDiagTemp = get_helement (DetCurr, DetCurr, 0)
-                    endif
-                    HDiagCurr = real(HDiagTemp, dp)-Hii
-                endif
-            else
-                ! HDiags are stored.
-                HDiagCurr = CurrentH(1,j)
-            endif
 
             ! Test if we have found a determinant which is lower in E than
             ! the 'root' determinant. Should not happen in an (unrotated)
@@ -1469,7 +1470,7 @@ MODULE FciMCParMod
 
     end subroutine end_iteration_print_warn 
 
-    subroutine CalcParentFlag(j, VecSlot, parent_flags)
+    subroutine CalcParentFlag(j, VecSlot, parent_flags, diagH)
 !In the CurrentDets array, the flag at NIfTot refers to whether that determinant *itself* is an initiator or not.    
 !We need to decide if this willchange due to the determinant acquiring a certain population, or its population dropping
 !below the threshold.
@@ -1479,6 +1480,7 @@ MODULE FciMCParMod
         integer, intent(in) :: j, VecSlot
         integer, intent(out) :: parent_flags
         real(dp), dimension(lenof_sign) :: CurrentSign
+        real(dp), intent(in) :: diagH
         integer :: part_type
         real(dp) :: init_thresh
         logical :: tDetinCAS, parent_init
@@ -1501,7 +1503,8 @@ MODULE FciMCParMod
                     ! Determinant wasn't previously initiator 
                     ! - want to test if it has now got a large enough 
                     !   population to become an initiator.
-                    if (abs(CurrentSign(part_type)) > init_thresh) then
+                    if (diagH > InitiatorCutoffEnergy &
+                        .or. abs(CurrentSign(part_type)) > init_thresh) then
                         parent_init = .true.
                         NoAddedInitiators = NoAddedInitiators + 1
                         if (tSpawnSpatialInit) &
@@ -1522,6 +1525,7 @@ MODULE FciMCParMod
                         .not. (DetBitEQ(CurrentDets(:,j), iLutHF, NIfDBO)) &
                         .and. .not. test_flag(CurrentDets(:,j), flag_deterministic) &
                         .and. abs(CurrentSign(part_type)) <= init_thresh &
+                        .and. diagH <= InitiatorCutoffEnergy &
                         .and. .not. test_flag(CurrentDets(:,j), &
                         flag_make_initiator(part_type))) then
                         ! Population has fallen too low. Initiator status 
@@ -7395,10 +7399,6 @@ MODULE FciMCParMod
                     call clear_all_flags(CurrentDets(:,DetIndex))
                     temp_sign(1) = NoWalkers
                     call encode_sign(CurrentDets(:,DetIndex),temp_sign)
-                    if(tTruncInitiator) then
-                        !Set initiator flag if needed (always for HF)
-                        call CalcParentFlag(DetIndex,1,iInit)
-                    endif
                     if(.not.tRegenDiagHEls) then
                         if(tHPHF) then
                             HDiagTemp = hphf_diag_helement(CASFullDets(:,i),iLutnJ)
@@ -7408,6 +7408,11 @@ MODULE FciMCParMod
                             HDiagTemp = get_helement(CASFullDets(:,i),CASFullDets(:,i),0)
                         endif
                         CurrentH(1,DetIndex)=real(HDiagTemp,dp)-Hii
+                    endif
+
+                    if(tTruncInitiator) then
+                        !Set initiator flag if needed (always for HF)
+                        call CalcParentFlag(DetIndex,1,iInit, HDiagTemp)
                     endif
 
                     if (tHashWalkerList) then
@@ -7598,10 +7603,6 @@ MODULE FciMCParMod
                     call clear_all_flags(CurrentDets(:,DetIndex))
                     temp_sign(1) = NoWalkers
                     call encode_sign(CurrentDets(:,DetIndex),temp_sign)
-                    if(tTruncInitiator) then
-                        !Set initiator flag if needed (always for HF)
-                        call CalcParentFlag(DetIndex,1,iInit)
-                    endif
                     if(.not.tRegenDiagHEls) then
                         if(tHPHF) then
                             HDiagTemp = hphf_diag_helement(nJ,iLutnJ) 
@@ -7611,6 +7612,11 @@ MODULE FciMCParMod
                             HDiagTemp = get_helement(nJ,nJ,0)
                         endif
                         CurrentH(1,DetIndex)=real(HDiagTemp,dp)-Hii
+                    endif
+
+                    if(tTruncInitiator) then
+                        !Set initiator flag if needed (always for HF)
+                        call CalcParentFlag(DetIndex,1,iInit, HDiagTemp)
                     endif
 
                     if (tHashWalkerList) then
