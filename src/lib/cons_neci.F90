@@ -49,6 +49,7 @@ integer, parameter :: sizeof_helement = 8
 integer, parameter :: lenof_sign = 2
 integer, parameter :: inum_runs = 2
 real(dp), dimension(2), parameter :: null_part = 0.0_dp
+real(dp), parameter :: HEl_zero = 0.0_dp
 #else
 integer, parameter :: sizeof_helement = 8
 integer, parameter :: lenof_sign = 1
