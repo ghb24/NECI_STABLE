@@ -94,7 +94,6 @@ contains
           iDetGroup=2
           tFindDets=.false.
           SinglesBias=1.0_dp
-          tFindGroundDet=.false.
           tSpawnAsDet=.false.
           tDirectAnnihil=.true.
           tRotoAnnihil=.false.
@@ -1585,11 +1584,10 @@ contains
 !                tSymmetricField=.false.
 !                call Geti(NoMagDets)
 !                call Getf(BField)
+
             case("FINDGROUNDDET")
-!A parallel FCIMC option. If this is on, then if a determinant is found with an energy lower than the energy of the 
-!current reference determinant, the energies are rezeroed and the
-!reference changed to the new determinant. For a HF basis, this cannot happen, but with rotated orbital will be important.
-                tFindGroundDet=.true.
+                call stop_all(t_r, 'Option (FINDGROUNDDET) deprecated')
+
             case("STARORBS")
 !A parallel FCIMC option. Star orbs means that determinants which contain these orbitals can only be spawned 
 !at from the HF determinant, and conversly, can only spawn back at the HF determinant.

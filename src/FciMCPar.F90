@@ -28,7 +28,7 @@ MODULE FciMCParMod
                         flag_deterministic, flag_determ_parent, clr_flag, &
                         extract_part_sign, encode_part_sign
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
-                        OccCASorbs, VirtCASorbs, tFindGroundDet, NEquilSteps,&
+                        OccCASorbs, VirtCASorbs, NEquilSteps,&
                         tReadPops, iFullSpaceIter, MaxNoAtHF,&
                         GrowMaxFactor, CullFactor, tStartSinglePart, tCCMC, &
                         ScaleWalkers, HFPopThresh, tTruncCAS, AvMCExcits, &
@@ -921,14 +921,6 @@ MODULE FciMCParMod
                     endif
                 endif
             ENDIFDEBUG
-
-            ! Test if we have found a determinant which is lower in E than
-            ! the 'root' determinant. Should not happen in an (unrotated)
-            ! HF basis.
-            if (tFindGroundDet .and. HDiagCurr < 0) then
-                call ChangeRefDet (DetCurr)
-                exit
-            endif
 
             ! Sum in any energy contribution from the determinant, including 
             ! other parameters, such as excitlevel info.
