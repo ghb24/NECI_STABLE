@@ -214,6 +214,6 @@ integer :: trial_mp1_ndets
 
 ! What is the maximum energy, above which all particles are treated as
 ! initiators
-real(dp) :: InitiatorCutoffEnergy
+real(dp) :: InitiatorCutoffEnergy, InitiatorCutoffWalkNo
 
 end module CalcData

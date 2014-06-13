@@ -48,7 +48,7 @@ MODULE FciMCParMod
                         tRealSpawnCutoff, RealSpawnCutoff, tDetermProj, &
                         tJumpShift, tUseRealCoeffs, tSpatialOnlyHash, &
                         tSemiStochastic, tTrialWavefunction, &
-                        InitiatorCutoffEnergy
+                        InitiatorCutoffEnergy, InitiatorCutoffWalkNo
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
     use MomInvRandExcit, only: gen_MI_excit
@@ -1482,12 +1482,13 @@ MODULE FciMCParMod
         real(dp), dimension(lenof_sign) :: CurrentSign
         real(dp), intent(in) :: diagH
         integer :: part_type
-        real(dp) :: init_thresh
+        real(dp) :: init_thresh, low_init_thresh
         logical :: tDetinCAS, parent_init
 
         call extract_sign (CurrentDets(:,j), CurrentSign)
 
         init_thresh = InitiatorWalkNo
+        low_init_thresh = InitiatorCutoffWalkNo
 
         tcurr_initiator = .false.
         do part_type=1,lenof_sign
@@ -1503,7 +1504,8 @@ MODULE FciMCParMod
                     ! Determinant wasn't previously initiator 
                     ! - want to test if it has now got a large enough 
                     !   population to become an initiator.
-                    if (diagH > InitiatorCutoffEnergy &
+                    if ((diagH > InitiatorCutoffEnergy &
+                        .and. abs(CurrentSign(part_type)) > low_init_thresh) &
                         .or. abs(CurrentSign(part_type)) > init_thresh) then
                         parent_init = .true.
                         NoAddedInitiators = NoAddedInitiators + 1

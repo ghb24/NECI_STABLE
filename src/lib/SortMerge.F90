@@ -446,7 +446,8 @@
         USE FciMCParMOD , only : TestIfDetInCASBit
         USE CalcData, only: tTruncCAS, tInitIncDoubs, tAddtoInitiator, &
                             InitiatorWalkNo, tSpawnSpatialInit, &
-                            InitiatorCutoffEnergy, tRegenDiagHEls
+                            InitiatorCutoffEnergy, tRegenDiagHEls, &
+                            InitiatorCutoffWalkNo
         use spatial_initiator, only: add_initiator_list
         USE DetBitOps , only : FindBitExcitLevel,DetBitEQ
         use bit_reps, only: extract_sign, encode_flags, set_flag, test_flag, &
@@ -478,7 +479,8 @@
         ! space, it is the HF det or if its population > n_add.
         do part_type=1,lenof_sign
             is_init = .false.
-            if (DiagH > InitiatorCutoffEnergy) then
+            if (DiagH > InitiatorCutoffEnergy .and. &
+                abs(SignCurr(part_type)) > InitiatorCutoffWalkNo) then
                     is_init = .true.
             else if (tDetInCAS) then
                 is_init = .true.

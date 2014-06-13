@@ -336,6 +336,7 @@ contains
           tSpecifyParBias = .false.
 
           InitiatorCutoffEnergy = 99.99e99_dp
+          InitiatorCutoffWalkNo = 99.0_dp
 
       
         end subroutine SetCalcDefaults
@@ -1473,7 +1474,11 @@ contains
                 call getf(InitiatorWalkNo)
 
             case("INITIATOR-ENERGY-CUTOFF")
+                !
+                ! Specify both a threshold an an addtoinitiator value for
+                ! varying the thresholds
                 call getf(InitiatorCutoffEnergy)
+                call getf(InitiatorCutoffWalkNo)
 
             case("SPAWNONLYINIT")
 !This option means only the initiators have the ability to spawn.  The non-initiators can live/die but not 
