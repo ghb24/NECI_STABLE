@@ -7412,7 +7412,8 @@ MODULE FciMCParMod
 
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
-                        call CalcParentFlag(DetIndex,1,iInit, HDiagTemp)
+                        call CalcParentFlag(DetIndex, 1, iInit, &
+                                            real(HDiagTemp, dp))
                     endif
 
                     if (tHashWalkerList) then
@@ -7616,7 +7617,8 @@ MODULE FciMCParMod
 
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
-                        call CalcParentFlag(DetIndex,1,iInit, HDiagTemp)
+                        call CalcParentFlag(DetIndex, 1, iInit, &
+                                            real(HDiagTemp, dp))
                     endif
 
                     if (tHashWalkerList) then
