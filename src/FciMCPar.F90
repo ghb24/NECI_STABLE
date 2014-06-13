@@ -80,8 +80,7 @@ MODULE FciMCParMod
                            tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
                            HistInitPops, DoubsUEG, DoubsUEGLookup, DoubsUEGStore,&
                            tCalcInstantS2, &
-                           instant_s2_multiplier, tMCOutput, tSplitProjEHist, &
-                           tSplitProjEHistG, tSplitProjEHistK3, iProjEBins, &
+                           instant_s2_multiplier, tMCOutput, &
                            tDiagWalkerSubspace,iDiagSubspaceIter, &
                            tRDMonFly, IterRDMonFly,RDMExcitLevel, RDMEnergyIter, &
                            tChangeVarsRDM, tExplicitAllRDM, tHF_Ref_Explicit, &
@@ -3375,17 +3374,6 @@ MODULE FciMCParMod
         AllSumENum = helem_tmp(2)
         AllENumCycAbs = helem_tmp(3)
 
-        if(tSplitProjEHist) then
-            if(tSplitProjEHistG) then
-                AllENumCycHistG=0.0_dp
-                call MPISum(ENumCycHistG,AllENumCycHistG)
-            endif
-            if(tSplitProjEHistK3) then
-                AllENumCycHistK3=0.0_dp
-                call MPISum(ENumCycHistK3,AllENumCycHistK3)
-            endif
-        endif
-
         ! Deal with particle blooms
 !        if (tSpinProjDets) then
 !            call MPISum(bloom_count(0:2), all_bloom_count(0:2))
@@ -3716,14 +3704,6 @@ MODULE FciMCParMod
         cyc_proje_denominator=0
         trial_numerator = 0.0_dp
         trial_denom = 0.0_dp
-        if(tSplitProjEHist) then
-            if(tSplitProjEHistG) then
-                ENumCycHistG(:)=0.0_dp
-            endif
-            if(tSplitProjEHistK3) then
-                ENumCycHistK3(:)=0.0_dp
-            endif
-        endif
 
         ! Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld = TotWalkers
@@ -3882,14 +3862,6 @@ MODULE FciMCParMod
 
            write(fcimcstats_unit, "()", advance = 'yes')
 
-           if(tSplitProjEHist) then
-               if(tSplitProjEHistG) then
-                    write(unit_splitprojEHistG,"(A)") "# Iter     ENumContribs..."
-                endif
-               if(tSplitProjEHistK3) then
-                    write(unit_splitprojEHistK3,"(A)") "# Iter     ENumContribs..."
-                endif
-           endif
 #endif
             
         ENDIF
@@ -3999,23 +3971,6 @@ MODULE FciMCParMod
             endif
 #else
 
-            if(tSplitProjEHist) then
-                if(tSplitProjEHistG) then
-                    write(unit_splitprojEHistG,"(I12)",advance="no") Iter + PreviousCycles
-                    do i=1,iProjEBins-1 ! Assumes common ProjEBins
-                        write(unit_splitprojEHistG,"(G17.9)",advance='no') AllENumCycHistG(i)
-                    enddo
-                    write(unit_splitprojEHistG,"(G17.9)") AllENumCycHistG(iProjEBins)
-                endif
-                if(tSplitProjEHistK3) then
-                    write(unit_splitprojEHistK3,"(I12)",advance="no") Iter + PreviousCycles
-                    do i=1,iProjEBins-1
-                        write(unit_splitprojEHistK3,"(G17.9)",advance='no') AllENumCycHistK3(i)
-                    enddo
-                    write(unit_splitprojEHistK3,"(G17.9)") AllENumCycHistK3(iProjEBins)
-                endif
-            endif
-            
             write(fcimcstats_unit,"(i12,7g16.7,5g17.9,g13.5,i12,g13.5,g17.5,&
                                   &i13,g13.5,11g17.9,7i13,2g16.7)",advance = 'no') &
                 Iter + PreviousCycles, &                   ! 1.
@@ -4106,10 +4061,6 @@ MODULE FciMCParMod
                 call neci_flush(iout)
             endif
             call neci_flush(fcimcstats_unit)
-            if(tSplitProjEHist) then
-                if(tSplitProjEHistG) call neci_flush(unit_splitprojEHistG)
-                if(tSplitProjEHistK3) call neci_flush(unit_splitprojEHistK3)
-            endif
             
         endif
 
@@ -4376,7 +4327,7 @@ MODULE FciMCParMod
         CHARACTER(len=12) :: abstr
         character(len=24) :: filename
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,tAlreadyOcc
-        INTEGER :: HFLz,ChosenOrb,KPnt(3), step,FindProjEBins,SymFinal
+        INTEGER :: HFLz,ChosenOrb,KPnt(3), step,SymFinal
         integer(int64) :: ExcitLevPop,SymHF
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
@@ -4446,16 +4397,6 @@ MODULE FciMCParMod
                 ComplexStats_unit = get_free_unit()
                 OPEN(ComplexStats_unit,file='COMPLEXStats',status='unknown')
             ENDIF
-            if(tSplitProjEHist) then
-                if(tSplitProjEHistG) then
-                    unit_splitprojEHistG = get_free_unit()
-                    open(unit_splitprojEHistG,file='SPLITPROJE',status='unknown',recl=1500000)
-                endif
-                if(tSplitProjEHistK3) then
-                    unit_splitprojEHistK3 = get_free_unit()
-                    open(unit_splitprojEHistK3,file='SPLITPROJE_K3',status='unknown',recl=1500000)
-                endif
-            endif
         ENDIF
 
 !Store information specifically for the HF determinant
@@ -4965,28 +4906,6 @@ MODULE FciMCParMod
 !            CALL Stop_All(t_r,"Ms not equal to zero, but tSpn is false. Error here")
         ENDIF
 
-        if(tSplitProjEHist) then
-
-            !Run through different histogramming flags
-            !Check that a) at least one is on!
-            !b) The one that is on is compatible with system options. 
-        
-            if (.not.tUEG) call stop_all("SetupParameters","SPLITPROJE only compatible with UEG")
-
-            iProjEBins = FindProjEBins()+1 !Needs to store zero momentum too
-            write (iout,*) "************ iProjEBins found:", iProjEBins !Should be the same for k and g
-            if (.not.allocated(ENumCycHistG)) then
-                if(tSplitProjEHistG) then
-                    allocate(ENumCycHistG(iProjEBins))
-                    allocate(AllENumCycHistG(iProjEBins))
-                endif
-                if(tSplitProjEHistK3) then
-                    allocate(ENumCycHistK3(iProjEBins))
-                    allocate(AllENumCycHistK3(iProjEBins))
-                endif
-            endif
-        endif
-
 !Initialise variables for calculation on each node
         iter=0          !This is set so that calls to CalcParentFlag in the initialisation are ok with the logging.
         iPopsTimers=1   !Number of timed popsfiles written out
@@ -5008,14 +4927,6 @@ MODULE FciMCParMod
         NoDied=0
         HFCyc=0.0_dp
         ENumCyc=0.0_dp
-        if(tSplitProjEHist) then
-            if(tSplitProjEHistG) then
-                ENumCycHistG(:)=0.0_dp
-            endif
-            if(tSplitProjEHistK3) then
-                ENumCycHistK3(:)=0.0_dp
-            endif
-        endif
         VaryShiftCycles=0
         AvDiagSft=0.0_dp
         SumDiagSft=0.0_dp
@@ -5989,7 +5900,7 @@ MODULE FciMCParMod
         HElement_t :: HOffDiag
         HElement_t :: HDoubDiag
         integer :: DoubEx(2,2),DoubEx2(2,2),kDoub(3) ! For histogramming UEG doubles
-        integer :: ExMat(2,2),FindSplitProjEBinG,FindSplitProjEBinK3
+        integer :: ExMat(2,2)
         logical :: tDoubParity,tDoubParity2,tSign ! As above
 
         ! Are we performing a linear sum over various determinants?
@@ -6069,29 +5980,6 @@ MODULE FciMCParMod
             endif
 
         endif ! ExcitLevel_local == 1, 2, 3
-
-
-        if(tSplitProjEHist.and.ExcitLevel_local == 2) then
-
-            !Calc excitation matrix
-            !call GetBitExcitation(iLutRef,ilut,ExMat,tSign)
-            ExMat(:,:)=0
-            ExMat(1,1)=2
-            call GetExcitation (ProjEDet,nI,NEl,ExMat,tSign)
-            if (tSplitProjEHistG) then 
-                ProjEBin=FindSplitProjEBinG(ExMat)+1
-                
-                if (ProjEBin.le.iProjEBins) then
-                    ! Sum in energy contribution
-                    ENumCycHistG(ProjEBin) = ENumCycHistG(ProjEBin) + (HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
-                endif
-            endif
-            if (tSplitProjEHistK3) then 
-                ProjEBin=FindSplitProjEBinK3(ExMat)+1
-                
-                ! Sum in energy contribution
-                ENumCycHistK3(ProjEBin) = ENumCycHistK3(ProjEBin) + (HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
-            endif
 
             ! Sum in energy contribution
             if (iter > NEquilSteps) &
@@ -8460,87 +8348,3 @@ SUBROUTINE BinSearchParts2(iLut,MinInd,MaxInd,PartInd,tSuccess)
 
 END SUBROUTINE BinSearchParts2
    
-integer function FindProjEBins ()
-    
-    use LoggingData, only : tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
-    use SystemData, only : NMAXX,NMAXY,NMAXZ, OrbECutoff, gCutoff 
-    integer :: CutoffAim
-
-    if (tSplitProjEHistG) then
-        !CutoffAim=INT(gCutoff) ! in theory this could be set to gCutoff
-        CutoffAim=INT(OrbECutoff)
-    endif
-    if (tSplitProjEHistK3) then
-        CutoffAim=INT(OrbECutoff)
-    endif
-
-    ! A very simple intepretation is to just have bins equal to the number of nmax^2
-    ! so neglecting 'holes' from n_x + n_y + n_z != 13, for example
-
-    FindProjEBins=CutoffAim
-
-end function FindProjEBins
-    
-integer function FindSplitProjEBinG(Ex)
-                       
-    use LoggingData, only : tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
-    use SystemData, only : G1 , kvec , tUEG2
-
-    integer :: ki(3),kj(3),ka(3),kb(3)
-    integer, intent(in) :: Ex(2,2)
-
-    if (.not.tUEG2) then
-        ki=G1(Ex(1,1))%k
-        ka=G1(Ex(2,1))%k
-        kj=G1(Ex(1,2))%k
-        kb=G1(Ex(2,2))%k
-    else 
-        ki=kvec(Ex(1,1),:)
-        ka=kvec(Ex(2,1),:)
-        kj=kvec(Ex(1,2),:)
-        kb=kvec(Ex(2,2),:)
-    endif 
-    
-    if (tSplitProjEHistG) then ! <k1 k2 || k3 k4 > is included if the min
-                               ! out of k1-k3 or k1-k4 are within g-cutoff
-        FindSplitProjEBinG=min((ki(1)-ka(1))**2+(ki(2)-ka(2))**2+(ki(3)-ka(3))**2, &
-                                (ki(1)-kb(1))**2+(ki(2)-kb(2))**2+(ki(3)-kb(3))**2)
-    else
-        call stop_all("FindSplitProjEBinG","Shouldn't be called without HistG being on")
-    endif
-
-end function FindSplitProjEBinG
-
-integer function FindSplitProjEBinK3(Ex)
-                       
-    use LoggingData, only : tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
-    use SystemData, only : G1 , kvec , tUEG2 ,OrbECutOff
-
-    integer :: ki(3),kj(3),ka(3),kb(3)
-    integer, intent(in) :: Ex(2,2)
-
-    if (.not.tUEG2) then
-        ki=G1(Ex(1,1))%k
-        ka=G1(Ex(2,1))%k
-        kj=G1(Ex(1,2))%k
-        kb=G1(Ex(2,2))%k
-    else 
-        ki=kvec(Ex(1,1),:)
-        ka=kvec(Ex(2,1),:)
-        kj=kvec(Ex(1,2),:)
-        kb=kvec(Ex(2,2),:)
-    endif 
-    
-    if (tSplitProjEHistK3) then ! <k1 k2 || k3 k4> is included only if
-                                ! both k3 and k4 are within the e-cutoff
-        FindSplitProjEBinK3=max(ka(1)**2+ka(2)**2+ka(3)**2,kb(1)**2+kb(2)**2+kb(3)**2)
-        if (FindSplitProjEBinK3 .gt. OrbECutOff) then
-            write(6,*) "ka",ka
-            write(6,*) "kb",kb
-            call stop_all("FindSplitProjEBinK3","Shouldn't find an orbital with a larger energy than cutoff")
-        endif
-    else
-        call stop_all("FindSplitProjEBinK3","Shouldn't be called without HistK3 being on")
-    endif
-
-end function FindSplitProjEBinK3

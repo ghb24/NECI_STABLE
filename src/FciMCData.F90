@@ -364,10 +364,6 @@ MODULE FciMCData
 ! -Ln_2 (Cycletime), where CycleTime is the average number of cycles until a det returns to its processor
       integer :: hash_shift      
 
-      !Variables for very useful histogramming of projected energy contributions
-      real(dp), allocatable :: ENumCycHistG(:),AllENumCycHistG(:),ENumCycHistK3(:),AllENumCycHistK3(:)
-      integer :: unit_splitprojEHistG,unit_splitprojEHistK3
-
       ! This array stores the Hamiltonian matrix, or part of it, when performing a diagonalisation. It is currently
       ! only used for the code for the Davidson method and semi-stochastic method.
       real(dp), allocatable, dimension(:,:) :: hamiltonian

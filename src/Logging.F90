@@ -35,9 +35,6 @@ MODULE Logging
       iHighPopWrite = 15    !How many highest weighted determinants to write out at the end of an FCIQMC calc.
       tDiagWalkerSubspace = .false.
       iDiagSubspaceIter = 1
-      tSplitProjEHist = .false.
-      tSplitProjEHistG = .false.
-      tSplitProjEHistK3 = .false.
       PopsfileTimer=0.0_dp
       tMCOutput=.true.
       tLogComplexPops=.false.
@@ -213,15 +210,10 @@ MODULE Logging
         case("CALCVARIATIONALENERGY")
             !Calculate the variational energy of the FCIQMC dynamic each time Histspawn is calculated
             tCalcVariationalEnergy=.true.
-        case("SPLITPROJE")
-            !Partition contribution from doubles, and write them out
-            tSplitProjEHist=.true.
-        case("SPLITPROJE-G")
-            !Partition contribution from doubles, and write them out; bin according to g
-            tSplitProjEHistG=.true.
-        case("SPLITPROJE-K3")
-            !Partition contribution from doubles, and write them out; bin according to k3
-            tSplitProjEHistK3=.true.
+
+        case("SPLITPROJE", "SPLITPROJE-G", "SPLITPROJE-K3")
+            call stop_all(t_r, 'Option (SPLITPROJE*) deprecated')
+
         case("NOMCOUTPUT")
             !No output to stdout from the fcimc or ccmc iterations
             tMCOutput=.false.

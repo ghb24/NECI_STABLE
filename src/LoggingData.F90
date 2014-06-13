@@ -45,8 +45,6 @@ module LoggingData
     LOGICAL tLogDets       ! Write out the DETS and SymDETS files.
     LOGICAL tLogComplexPops     ! Write out complex walker information 
     LOGICAL tMCOutput
-    logical :: tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
-    integer :: iProjEBins
     logical :: tDumpForcesInfo
     logical :: tPrintLagrangian  !Print out the 1RDM,2RDM and Lagrangian to file at the end of a run as long as 2RDM is calculated
     real(dp) :: ThreshOccRDM, erf_factor1, erf_factor2
