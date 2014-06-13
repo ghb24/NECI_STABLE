@@ -97,7 +97,6 @@ contains
           tFindGroundDet=.false.
           tSpawnAsDet=.false.
           tDirectAnnihil=.true.
-          tRegenDiagHEls=.false.
           tRotoAnnihil=.false.
           OccCASorbs=0
           VirtCASorbs=0
@@ -1397,10 +1396,14 @@ contains
 !An FCIMC option. With this, the excitation generators for the walkers will NOT be stored, and regenerated 
 !each time. This will be slower, but save on memory.
                 TRegenExcitGens=.true.
+
             case("REGENDIAGHELS")
-!A parallel FCIMC option. With this, the diagonal elements of the hamiltonian matrix will not be stored with 
-!each particle. This will generally be slower, but save on memory.
-                tRegenDiagHEls=.true.
+                ! A parallel FCIMC option. With this, the diagonal elements of
+                ! the hamiltonian matrix will not be stored with each particle.
+                ! This will generally be slower, but save on memory.
+                call stop_all(t_r, 'This option (REGENDIAGHELS) has been &
+                                   &deprecated')
+
             case("FIXSHELLSHIFT")
 !An FCIMC option. With this, the shift is fixed at a value given here, but only for excitations which are less than 
 !<ShellFix>. This will almost definitly give the wrong answers for both the energy

@@ -229,7 +229,7 @@ contains
                         end if
                         core_ham_diag(i) = core_hamiltonian(i, col_index + j)
                         ! We calculate and store CurrentH at this point for ease.
-                        if ((.not. tRegenDiagHEls) .and. (.not. tReadPops)) &
+                        if (.not. tReadPops) &
                             CurrentH(1,i) = core_hamiltonian(i, col_index + j)
                     else
                         if (tHPHF) then

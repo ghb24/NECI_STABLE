@@ -446,8 +446,7 @@
         USE FciMCParMOD , only : TestIfDetInCASBit
         USE CalcData, only: tTruncCAS, tInitIncDoubs, tAddtoInitiator, &
                             InitiatorWalkNo, tSpawnSpatialInit, &
-                            InitiatorCutoffEnergy, tRegenDiagHEls, &
-                            InitiatorCutoffWalkNo
+                            InitiatorCutoffEnergy, InitiatorCutoffWalkNo
         use spatial_initiator, only: add_initiator_list
         USE DetBitOps , only : FindBitExcitLevel,DetBitEQ
         use bit_reps, only: extract_sign, encode_flags, set_flag, test_flag, &
