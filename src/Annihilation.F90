@@ -1290,7 +1290,6 @@ MODULE AnnihilationMod
         character(len=*), parameter :: t_r="AddNewHashDet"
 
         !update its flag
-        if(tTruncInitiator) call FlagifDetisInitiator(iLutCurr)
         if (tSemiStochastic) call clr_flag(iLutCurr, flag_determ_parent)
 
         if(iStartFreeSlot.le.iEndFreeSlot) then
@@ -1319,6 +1318,8 @@ MODULE AnnihilationMod
             endif
             CurrentH(1,DetPosition)=real(HDiag,dp)-Hii
         endif
+
+        if(tTruncInitiator) call FlagifDetisInitiator(iLutCurr, HDiag)
 
         ! If using a trial wavefunction, search to see if this state is in either the trial or
         ! connected space. If so, bin_search_trial sets the correct flag and returns the corresponding
@@ -1513,7 +1514,7 @@ MODULE AnnihilationMod
         use util_mod, only: abs_sign
         use SystemData, only: tHPHF, tRef_Not_HF
         use bit_reps, only: NIfD
-        use CalcData , only : tCheckHighestPop, NMCyc, InitiatorWalkNo
+        use CalcData , only : tCheckHighestPop, NMCyc
         use LoggingData , only : tRDMonFly, tExplicitAllRDM, tInitiatorRDM
         use nElRDMMod , only : det_removed_fill_diag_rdm 
         INTEGER, intent(in) :: ValidSpawned
@@ -1714,7 +1715,8 @@ MODULE AnnihilationMod
                 TotWalkersNew=ValidSpawned
                 do i=1,ValidSpawned
                     CurrentDets(:,i)=SpawnedParts(:,i)
-                    IF(tTruncInitiator) CALL FlagifDetisInitiator(CurrentDets(0:NIfTot,i))
+                    IF(tTruncInitiator) &
+                        CALL FlagifDetisInitiator(CurrentDets(0:NIfTot,i),0.0_dp)
                 enddo
             ELSE
                 CALL MergeLists(TotWalkersNew,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned))
@@ -1743,7 +1745,6 @@ MODULE AnnihilationMod
 
                 do i=1,ValidSpawned
                     CurrentDets(:,i)=SpawnedParts(:,i)
-                    IF(tTruncInitiator) CALL FlagifDetisInitiator(CurrentDets(0:NIfTot,i))
 !We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
                     if (DetBitEQ(CurrentDets(:,i), iLutHF_True, NIfDBO)) call extract_sign(CurrentDets(:,i),InstNoatHF)
                     if (DetBitEQ(CurrentDets(:,i), iLutRef, NIfDBO)) then
@@ -1760,6 +1761,10 @@ MODULE AnnihilationMod
                         HDiag=(REAL(HDiagTemp,dp))-Hii
                     endif
                     CurrentH(1,i)=HDiag
+
+                    IF(tTruncInitiator) &
+                        CALL FlagifDetisInitiator(CurrentDets(0:NIfTot,i), &
+                                                  HDiag)
                 enddo
             ELSE
                 CALL MergeListswH(TotWalkersNew,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned))

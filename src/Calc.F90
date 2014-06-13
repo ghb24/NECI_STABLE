@@ -335,6 +335,8 @@ contains
           rand_excit_par_bias = 1.0
           tSpecifyParBias = .false.
 
+          InitiatorCutoffEnergy = 99.99e99_dp
+
       
         end subroutine SetCalcDefaults
 
@@ -1469,6 +1471,9 @@ contains
 !The minimum walker population for a determinant to be added to the initiator space is InitiatorWalkNo.
                 tAddtoInitiator=.true.
                 call getf(InitiatorWalkNo)
+
+            case("INITIATOR-ENERGY-CUTOFF")
+                call getf(InitiatorCutoffEnergy)
 
             case("SPAWNONLYINIT")
 !This option means only the initiators have the ability to spawn.  The non-initiators can live/die but not 
