@@ -5063,7 +5063,8 @@ MODULE FciMCParMod
                 TempHii = get_helement (HighEDet, HighEDet, 0)
             ENDIF
             UpperTau = 1.0_dp/REAL(TempHii-Hii,dp)
-!            WRITE(iout,"(A,G25.15)") "Highest energy determinant is (approximately): ",REAL(TempHii,dp)
+            WRITE(iout,"(A,G25.15)") "Highest energy determinant is (approximately): ",REAL(TempHii,dp)
+            write(iout,"(a,g25.15)") "Corresponding to a correlation energy of: ", real(temphii - hii, dp)
 !            WRITE(iout,"(A,F25.15)") "This means tau should be no more than about ",UpperTau
 !            WRITE(iout,*) "Highest energy determinant is: ", HighEDet(:)
         else
