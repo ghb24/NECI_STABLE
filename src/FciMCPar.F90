@@ -5981,21 +5981,12 @@ MODULE FciMCParMod
 
         endif ! ExcitLevel_local == 1, 2, 3
 
-            ! Sum in energy contribution
-            if (iter > NEquilSteps) &
-                SumENum = SumENum + (HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
-            
-            ENumCyc = ENumCyc + (HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
-            ENumCycAbs = ENumCycAbs + abs(HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
-        else
-
-            ! Sum in energy contribution
-            if (iter > NEquilSteps) &
-                SumENum = SumENum + (HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
-            
-            ENumCyc = ENumCyc + (HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
-            ENumCycAbs = ENumCycAbs + abs(HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
-        endif
+        ! Sum in energy contribution
+        if (iter > NEquilSteps) &
+            SumENum = SumENum + (HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
+        
+        ENumCyc = ENumCyc + (HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
+        ENumCycAbs = ENumCycAbs + abs(HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
 
         ! -----------------------------------
         ! HISTOGRAMMING
