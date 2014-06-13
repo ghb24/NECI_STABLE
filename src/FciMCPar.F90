@@ -417,7 +417,6 @@ MODULE FciMCParMod
                     !if(tFillingStochRDMonFly) call fill_rdm_softexit(TotWalkers)
                     !EXIT
                 ENDIF
-                IF (proje_update_comb) CALL update_linear_comb_coeffs()
                 IF((iExitWalkers.ne.-1.0_dp).and.(sum(AllTotParts).gt.iExitWalkers)) THEN
                     !Exit criterion based on total walker number met.
                     write(iout,"(A,I15)") "Total walker population exceeds that given by &
@@ -769,25 +768,6 @@ MODULE FciMCParMod
         ! different by exFlag for CSFs than in normal determinential code.
         ! It would be nice to fix this properly
         if (tCSF) exFlag = 7
-
-        ! Update here the sum for the projected-energy denominator if projecting
-        ! onto a linear combination of determinants.
-        if (proje_linear_comb .and. (.not. proje_spatial) .and. nproje_sum > 1) then
-           sum_proje_denominator=0
-           do i = 1, nproje_sum
-              proc = DetermineDetNode (proje_ref_dets(:,i), 0)
-              if (iProcIndex == proc) then
-                    pos = binary_search (CurrentDets(:,1:TotWalkers), &
-                         proje_ref_iluts(:,i), NIfD+1)
-                    if (pos > 0) then
-                        call extract_sign (CurrentDets(:,pos), sgn)
-                        delta = ARR_RE_OR_CPLX(sgn) * proje_ref_coeffs(i)
-                        cyc_proje_denominator = cyc_proje_denominator + delta
-                        sum_proje_denominator = sum_proje_denominator + delta
-                    endif
-                endif
-            enddo
-        endif
 
         IFDEBUGTHEN(FCIMCDebug,iout)
             if(tHashWalkerList) then
@@ -1205,25 +1185,6 @@ MODULE FciMCParMod
             root_write(iout,'(a)') 'Writing out the spread of the initiator &
                                 &determinant populations.'
             call WriteInitPops (iter + PreviousCycles)
-        endif
-
-        ! Update the sum for the projected-energy denominatior if projecting
-        ! onto a linear combination of determinants.
-        ! Why is this done here - before annihilation!
-        if (proje_spatial .and. proje_linear_comb .and. nproje_sum > 1) then
-            do i = 1, nproje_sum
-                proc = DetermineDetNode (proje_ref_dets(:,i), 0)
-                if (iProcIndex == proc) then
-                    pos = binary_search (CurrentDets(:,1:TotWalkers), &
-                                         proje_ref_iluts(:,i), NIfD+1)
-                    if (pos > 0) then
-                        call extract_sign (CurrentDets(:,pos), sgn)
-                        delta = ARR_RE_OR_CPLX(sgn) * proje_ref_coeffs(i)
-                        cyc_proje_denominator = cyc_proje_denominator + delta
-                        sum_proje_denominator = sum_proje_denominator + delta
-                    endif
-                endif
-            enddo
         endif
 
     end subroutine end_iter_stats
@@ -3675,16 +3636,11 @@ MODULE FciMCParMod
                         ((sum(AllTotParts) - sum(AllTotPartsOld)) / &
                          (Tau * real(StepsSft, dp)))
 
-            ! When using a linear combination, the denominator is summed
-            ! directly.
-            if (.not. (proje_linear_comb .and. nproje_sum > 1)) then
-                all_sum_proje_denominator = ARR_RE_OR_CPLX(AllSumNoatHF)
-                all_cyc_proje_denominator = AllHFCyc
-            endif
+            all_sum_proje_denominator = ARR_RE_OR_CPLX(AllSumNoatHF)
+            all_cyc_proje_denominator = AllHFCyc
 
             ! Calculate the projected energy.
-            if (any(AllSumNoatHF /= 0.0) .or. &
-                (proje_linear_comb .and. nproje_sum > 1)) then
+            if (any(AllSumNoatHF /= 0.0)) then
                 ProjectionE = (AllSumENum) / (all_sum_proje_denominator) 
 !                              ARR_RE_OR_CPLX(all_sum_proje_denominator)
                 proje_iter = (AllENumCyc) / (all_cyc_proje_denominator) 
@@ -3822,12 +3778,6 @@ MODULE FciMCParMod
         iter_data%tot_parts_old = tot_parts_new_all
 
         max_cyc_spawn = 0
-
-        ! Reset the linear combination coefficients
-        ! TODO: Need to rethink how/when this is done. This is just for tests
-        if (proje_spatial .and. proje_linear_comb) &
-             call update_linear_comb_coeffs()
-
 
     end subroutine
 
@@ -6052,180 +6002,6 @@ MODULE FciMCParMod
     END SUBROUTINE InitHistMin
 
 
-    subroutine setup_linear_comb ()
-
-        ! Take the specified spatial orbital, and configure to calculate the
-        ! projected energy on a linear combination of these orbitals.
-        !
-        ! For now, weight the linear combination as per the current weightings
-        ! --> works for from a pops file.
-
-        ! --> Need current dets
-
-        type(lexicographic_store) :: store
-        integer(n_int) :: ilut_init(0:NIfTot), ilut_tmp(0:NIfTot)
-        integer :: nopen, nup, pos, nfound
-        real(dp) :: norm, sgn(lenof_sign)
-        character(*), parameter :: t_r = 'setup_linear_comb'
-
-        write(iout,*) 'Initialising projection onto linear combination of &
-                   &determinants to calculate projected energy.'
-
-        ! This currently only works with real walkers
-        if (lenof_sign > 1) then
-            call stop_all (t_r, 'Currently only available for real walkers')
-            ! To enable for complex walkers, need to deal with complex
-            ! amplitudes more sensibly in determining coeffs
-        endif
-
-        ! Get the initial ilut
-        call EncodeBitDet (proje_ref_det_init, ilut_init)
-
-        ! How many dets do we need?
-        nopen = count_open_orbs(ilut_init)
-        nup = (nopen + LMS) / 2
-        nproje_sum = int(choose(nopen, nup))
-
-        ! We only need a linear combination if there is more than one det...
-        if (nproje_sum > 1) then
-
-            ! TODO: log these.
-            allocate(proje_ref_dets(nel, nproje_sum))
-            allocate(proje_ref_iluts(0:NIfTot, nproje_sum))
-            allocate(proje_ref_coeffs(nproje_sum))
-            allocate(All_proje_ref_coeffs(nproje_sum))
-            proje_ref_coeffs = 0
-
-            ! Get all the dets
-            nfound = 0
-            call get_lexicographic_dets (ilut_init, store, ilut_tmp)
-            do while (.not. all(ilut_tmp == 0))
-                
-                ! Store the ilut/det for later usage
-                nfound = nfound + 1
-                proje_ref_iluts(:,nfound) = ilut_tmp
-                call decode_bit_det (proje_ref_dets(:,nfound), ilut_tmp)
-
-                ! Find the ilut in CurrentDets, and use it to get coeffs
-                ! TODO: 
-                pos = binary_search(CurrentDets(:,1:TotWalkers), ilut_tmp, &
-                                    NIfD+1)
-                if (pos > 0) then
-                    call extract_sign(CurrentDets(:,pos), sgn)
-                    proje_ref_coeffs(nfound) = sgn(1)
-                endif
-
-                call get_lexicographic_dets (ilut_init, store, ilut_tmp)
-            enddo
-
-            if (nfound /= nproje_sum) &
-                call stop_all (t_r, 'Incorrect number of determinants found')
-
-            ! Get the total number of walkers on each site
-            call MPISumAll(proje_ref_coeffs, All_proje_ref_coeffs)
-            proje_ref_coeffs=All_proje_ref_coeffs
-            
-            norm = sqrt(sum(proje_ref_coeffs**2))
-            if (norm == 0) norm = 1
-            proje_ref_coeffs = proje_ref_coeffs / norm
-
-        endif
-
-    end subroutine setup_linear_comb
-
-    subroutine update_linear_comb_coeffs ()
-
-        integer :: i, pos, nfound, ierr
-        real(dp) :: norm,reduce_in(1:2),reduce_out(1:2), sgn(lenof_sign)
-                
-        allocate(All_proje_ref_coeffs(nproje_sum))
-
-        if(nproje_sum>1) then
-           if(proje_spatial) then
-              proje_ref_coeffs = 0
-              do i = 1, nproje_sum
-                 
-                 pos = binary_search (CurrentDets(:,1:TotWalkers), &
-                      proje_ref_iluts(:,i), NIfD+1)
-                 if (pos > 0) then
-                    call extract_sign (CurrentDets(:,pos), sgn)
-                    proje_ref_coeffs(i) = sgn(1)
-                 endif
-              enddo
-              
-              call MPISumAll(proje_ref_coeffs, All_proje_ref_coeffs)
-              proje_ref_coeffs=All_proje_ref_coeffs
-              
-              norm = sqrt(sum(proje_ref_coeffs**2))
-              if (norm == 0) norm = 1
-              proje_ref_coeffs = proje_ref_coeffs / norm
-           else
-              ! Finds the nproje_sum highest weight determinants in CurrentDets and
-              ! forms a linear combination reference using the corresponding instantaneous weights.
-              proje_linear_comb=.true.
-              call clean_linear_comb()             
-              allocate(proje_ref_dets(1:nel, 1:nproje_sum))
-              allocate(proje_ref_iluts(0:NIfTot, 1:nproje_sum))
-              allocate(proje_ref_coeffs(1:nproje_sum))
-              proje_ref_coeffs=0
-              proje_ref_dets=0
-              proje_ref_iluts=0
-              
-              do pos=1,int(TotWalkers,sizeof_int)
-                 call extract_sign(CurrentDets(:,pos),sgn)
-                 if(abs(sgn(1))>abs(proje_ref_coeffs(nproje_sum))) then
-                    inner: do nfound=1,nproje_sum
-                       if(abs(sgn(1))>abs(proje_ref_coeffs(nfound))) then
-                          proje_ref_coeffs((nfound+1):nproje_sum)=proje_ref_coeffs((nfound):(nproje_sum-1))
-                          proje_ref_iluts(0:NIfTot,(nfound+1):nproje_sum)=proje_ref_iluts(0:NIfTot,(nfound):(nproje_sum-1))
-                          proje_ref_coeffs(nfound)=sgn(1)
-                          proje_ref_iluts(0:NIfTot,nfound)=CurrentDets(:,pos)
-                          exit inner
-                       endif
-                    enddo inner
-                 endif
-              enddo
-              
-              do nfound=1,nproje_sum
-                 reduce_in=(/abs(proje_ref_coeffs(nfound)),real(iProcIndex,dp)/)
-                 CALL MPIAllReduceDatatype(reduce_in,1,MPI_MAXLOC,MPI_2DOUBLE_PRECISION,reduce_out)
-                 IF(nint(reduce_out(2))/=iProcIndex) THEN 
-                    proje_ref_coeffs((nfound+1):nproje_sum)=proje_ref_coeffs(nfound:(nproje_sum-1))
-                    proje_ref_iluts(0:NIfTot,(nfound+1):nproje_sum)=proje_ref_iluts(0:NIfTot,(nfound):(nproje_sum-1))
-                 ENDIF
-                 CALL MPIBCast(proje_ref_coeffs(nfound),1,nint(reduce_out(2)))
-                 CALL MPIBCast(proje_ref_iluts(0:NIfTot,nfound),NIfTot+1,nint(reduce_out(2)))
-              enddo
-              do nfound=1,nproje_sum
-                 call decode_bit_det(proje_ref_dets(:,nfound),proje_ref_iluts(0:NIfTot,nfound))
-              enddo
-              norm = sqrt(sum(proje_ref_coeffs**2))
-              if (norm == 0) norm = 1
-              proje_ref_coeffs = proje_ref_coeffs / norm
-              proje_update_comb=.false.
-              write(iout,*) ' Linear combination coeffs successfully updated. '
-              write(iout,*) ' Number of linear combination coeffs is now',nproje_sum
-              write(iout,*) ' Coeff | Determinant '
-              do nfound=1,nproje_sum
-                 write(iout,*) nfound, proje_ref_coeffs(nfound),'DET:',proje_ref_dets(:,nfound)
-              enddo
-              write(iout,*) ' end of linear combination list'
-           endif
-        endif
-    end subroutine
-
-    subroutine clean_linear_comb ()
-
-        if (allocated(proje_ref_dets)) &
-            deallocate(proje_ref_dets)
-        if (allocated(proje_ref_iluts)) &
-            deallocate(proje_ref_iluts)
-        if (allocated(proje_ref_coeffs)) &
-            deallocate(proje_ref_coeffs)
-        if (allocated(All_proje_ref_coeffs)) &
-            deallocate(All_proje_ref_coeffs)
-
-    end subroutine clean_linear_comb
 
     ! This routine sums in the energy contribution from a given walker and 
     ! updates stats such as mean excit level AJWT added optional argument 
@@ -6279,90 +6055,57 @@ MODULE FciMCParMod
             end if
         end if
 
-        if (proje_linear_comb .and. nproje_sum > 1) then
-           if(proje_spatial) then
-              spatial_ic = FindSpatialBitExcitLevel (ilut, proje_ref_iluts(:,1))
-              if (spatial_ic <= 2) then
-                 do i = 1, nproje_sum
-                    if (proje_ref_coeffs(i) /= 0) then
-                       HOffDiag = HOffDiag + proje_ref_coeffs(i) &
-                            * get_helement (proje_ref_dets(:,i), nI, &
-                            proje_ref_iluts(:,i), ilut)
-                    endif
-                 enddo
-              endif
-           else
-              do i=1, nproje_sum
-                 !this is thought for a spin-polarized system.
-                 spatial_ic = FindBitExcitLevel (ilut, proje_ref_iluts(:,i))
-                 if (spatial_ic <= 2) then
-                    if (proje_ref_coeffs(i) /= 0._dp) then
-                       IF(spatial_ic==0) THEN
-                          HOffDiag = HOffDiag + proje_ref_coeffs(i) &
-                               * (get_helement (proje_ref_dets(:,i),nI,spatial_ic, &
-                               proje_ref_iluts(:,i), ilut)-Hii)
-                       ELSE
-                          HOffDiag = HOffDiag + proje_ref_coeffs(i) &
-                               * get_helement (proje_ref_dets(:,i),nI,spatial_ic, &
-                               proje_ref_iluts(:,i), ilut)
-                       ENDIF
-                    endif
-                 endif
-              enddo  
-           endif
-        else
-            ! ExcitLevel indicates the excitation level between the det and
-            ! *one* of the determinants in an HPHF/MomInv function. If needed,
-            ! calculate the connection between it and the other one. If either
-            ! is connected, then it has to be counted. Since the excitation
-            ! level is the same to either det, we don't need to consider the
-            ! spin-coupled det of both reference and current HPHFs.
+        ! ExcitLevel indicates the excitation level between the det and
+        ! *one* of the determinants in an HPHF/MomInv function. If needed,
+        ! calculate the connection between it and the other one. If either
+        ! is connected, then it has to be counted. Since the excitation
+        ! level is the same to either det, we don't need to consider the
+        ! spin-coupled det of both reference and current HPHFs.
+        !
+        ! For determinants, set ExcitLevel_local == ExcitLevel.
+        ExcitLevel_local = ExcitLevel
+        if (tSpinCoupProjE .and. (ExcitLevel /= 0)) then
+            ExcitLevelSpinCoup = FindBitExcitLevel (iLutRefFlip, &
+                                                    ilut, 2)
+            if (ExcitLevelSpinCoup <= 2 .or. ExcitLevel <= 2) &
+                ExcitLevel_local = 2
+        endif
+
+        ! Perform normal projection onto reference determinant
+        if (ExcitLevel_local == 0) then
+            
+            if (iter > NEquilSteps) SumNoatHF = SumNoatHF + RealwSign
+            NoatHF = NoatHF + RealwSign
+            ! Number at HF * sign over course of update cycle
+            HFCyc = HFCyc + RealwSign
+
+        elseif (ExcitLevel_local == 2 .or. &
+                (ExcitLevel_local == 1 .and. tNoBrillouin)) then
+
+            ! For the real-space Hubbard model, determinants are only
+            ! connected to excitations one level away, and Brillouins
+            ! theorem cannot hold.
             !
-            ! For determinants, set ExcitLevel_local == ExcitLevel.
-            ExcitLevel_local = ExcitLevel
-            if (tSpinCoupProjE .and. (ExcitLevel /= 0)) then
-                ExcitLevelSpinCoup = FindBitExcitLevel (iLutRefFlip, &
-                                                        ilut, 2)
-                if (ExcitLevelSpinCoup <= 2 .or. ExcitLevel <= 2) &
-                    ExcitLevel_local = 2
+            ! For Rotated orbitals, Brillouins theorem also cannot hold,
+            ! and energy contributions from walkers on singly excited
+            ! determinants must also be included in the energy values
+            ! along with the doubles
+            
+            if (ExcitLevel == 2) NoatDoubs = NoatDoubs + sum(abs(RealwSign))
+            
+            ! Obtain off-diagonal element
+            if (tHPHF) then
+                HOffDiag = hphf_off_diag_helement (ProjEDet, nI, iLutRef,&
+                                                   ilut)
+            elseif(tMomInv) then
+                HOffDiag = MI_off_diag_helement (ProjEDet, nI, iLutRef, ilut)
+            else
+                HOffDiag = get_helement (ProjEDet, nI, ExcitLevel, &
+                                         ilutRef, ilut)
             endif
 
-            ! Perform normal projection onto reference determinant
-            if (ExcitLevel_local == 0) then
-                
-                if (iter > NEquilSteps) SumNoatHF = SumNoatHF + RealwSign
-                NoatHF = NoatHF + RealwSign
-                ! Number at HF * sign over course of update cycle
-                HFCyc = HFCyc + RealwSign
+        endif ! ExcitLevel_local == 1, 2, 3
 
-            elseif (ExcitLevel_local == 2 .or. &
-                    (ExcitLevel_local == 1 .and. tNoBrillouin)) then
-
-                ! For the real-space Hubbard model, determinants are only
-                ! connected to excitations one level away, and Brillouins
-                ! theorem cannot hold.
-                !
-                ! For Rotated orbitals, Brillouins theorem also cannot hold,
-                ! and energy contributions from walkers on singly excited
-                ! determinants must also be included in the energy values
-                ! along with the doubles
-                
-                if (ExcitLevel == 2) NoatDoubs = NoatDoubs + sum(abs(RealwSign))
-                
-                ! Obtain off-diagonal element
-                if (tHPHF) then
-                    HOffDiag = hphf_off_diag_helement (ProjEDet, nI, iLutRef,&
-                                                       ilut)
-                elseif(tMomInv) then
-                    HOffDiag = MI_off_diag_helement (ProjEDet, nI, iLutRef, ilut)
-                else
-                    HOffDiag = get_helement (ProjEDet, nI, ExcitLevel, &
-                                             ilutRef, ilut)
-                endif
-
-            endif ! ExcitLevel_local == 1, 2, 3
-
-        endif ! sume_linear_contrib
 
         if(tSplitProjEHist.and.ExcitLevel_local == 2) then
 
@@ -6825,11 +6568,6 @@ MODULE FciMCParMod
             CALL neci_flush(iout)
 
         ENDIF   !End if initial walkers method
-
-        ! If we are projecting onto a linear combination to calculate projE,
-        ! then do the setup
-        if (proje_spatial .and. proje_linear_comb) &
-             call setup_linear_comb ()
 
             
 !Put a barrier here so all processes synchronise
@@ -7961,9 +7699,6 @@ MODULE FciMCParMod
 
         ! Cleanup excitation generation storage
         call clean_excit_gen_store (fcimc_excit_gen_store)
-
-        ! Cleanup linear combination projected energy
-        call clean_linear_comb ()
 
         ! Cleanup storage for spin projection
         call clean_yama_store ()

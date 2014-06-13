@@ -317,16 +317,6 @@ MODULE FciMCData
       TYPE(BasisFN) :: HFSym
       integer :: iMaxBloom !If tMaxBloom is on, this stores the largest bloom to date.
 
-      ! If we are calculating the projected energy based on a linear
-      ! sum of multiple determinants, we need them and their coeffs
-      ! to have been enumerated.
-      logical :: proje_linear_comb,proje_update_comb,proje_spatial
-      integer(n_int), allocatable :: proje_ref_iluts(:,:)
-      integer :: nproje_sum
-      integer, allocatable :: proje_ref_dets(:,:), proje_ref_det_init(:)
-      real(dp), allocatable :: proje_ref_coeffs(:)
-      real(dp), allocatable :: All_proje_ref_coeffs(:)
-      integer(TagIntType) :: tag_ref_iluts = 0, tag_ref_dets = 0, tag_ref_coeffs = 0
       real(dp) :: proje_denominator_cyc(lenof_sign)
       real(dp) :: proje_denominator_sum(lenof_sign)
       logical :: tRestart   !Whether to restart a calculation
