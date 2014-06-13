@@ -40,11 +40,11 @@ MODULE FciMCParMod
                         iRestartWalkNum, tRestartHighPop, FracLargerDet, &
                         tChangeProjEDet, tCheckHighestPop, tSpawnSpatialInit,&
                         MemoryFacInit, tMaxBloom, tTruncNOpen, tFCIMC, &
-                        trunc_nopen_max, tSpawn_Only_Init, RealSpawnCutoff, &
+                        trunc_nopen_max, RealSpawnCutoff, &
                         TargetGrowRate, TargetGrowRateWalk, tShiftonHFPop, &
                         tContinueAfterMP2,iExitWalkers,MemoryFacPart, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tPopsMapping, &
-                        tSpawn_Only_Init_Grow, RealCoeffExcitThresh, &
+                        RealCoeffExcitThresh, &
                         tRealSpawnCutoff, RealSpawnCutoff, tDetermProj, &
                         tJumpShift, tUseRealCoeffs, tSpatialOnlyHash, &
                         tSemiStochastic, tTrialWavefunction, &
@@ -938,17 +938,6 @@ MODULE FciMCParMod
             !                 --> part_type == 1, 2; real and complex walkers
 
             do part_type=1,lenof_sign
-
-                !The logic here is a little messy, but relates to the tSpawn_only_init option.
-                !With this, only initiators are allowed to spawn, therefore we are testing whether 
-                !the 'type' of walker we are currently considering is an initiator or not.
-                !This is determined uniquely for real walkers, where there is only one 'type' of walker,
-                !but otherwise we need to test each type independently.
-                if((lenof_sign.gt.1).and.tSpawn_Only_Init) then
-                    if(.not.test_flag (CurrentDets(:,j), flag_parent_initiator(part_type))) cycle
-                elseif(tSpawn_Only_Init) then
-                    if(.not.tCurr_initiator) cycle
-                endif
 
                 ! Loop over all the particles of a given type on the 
                 ! determinant. CurrentSign gives number of walkers. Multiply 
@@ -3540,11 +3529,6 @@ MODULE FciMCParMod
                         write(iout,"(A)") "Setting target growth rate to 1."
                         TargetGrowRate=0.0_dp
                     endif
-                    if(tSpawn_Only_Init.and.tSpawn_Only_Init_Grow) then
-                        !Remove the restriction that only initiators can spawn.
-                        write(iout,*) "All determinants now with the ability to spawn new walkers."
-                        tSpawn_Only_Init=.false.
-                    endif
 
                     ! If enabled, jump the shift to the value preducted by the
                     ! projected energy!
@@ -3651,11 +3635,6 @@ MODULE FciMCParMod
         endif ! iProcIndex == root
 
         ! Broadcast the shift from root to all the other processors
-        if(tSpawn_Only_Init_Grow) then
-            !if tSpawn_Only_Init_Grow is on, the the tSpawn_Only_Init variable can change,
-            !and thus needs to be broadcast in case it does.
-            call MPIBcast(tSpawn_Only_Init)
-        endif
         call MPIBcast (tSinglePartPhase)
         call MPIBcast (VaryShiftIter)
         call MPIBcast (DiagSft)
@@ -4750,13 +4729,6 @@ MODULE FciMCParMod
             WRITE(iout,'(A)') "Starting with only the reference determinant in the fixed initiator space."
         ENDIF
 
-        if(tSpawn_Only_Init.and.tSpawn_Only_Init_Grow) then
-            write(iout,"(A)") "Only allowing initiator determinants to spawn during growth phase, but allowing all to "&
-                & //"spawn after fixed shift."
-        elseif(tSpawn_Only_Init) then
-            write(iout,"(A)") "Only allowing initiator determinants to spawn"
-        endif
- 
         ! Setup excitation generator for the HF determinant. If we are using 
         ! assumed sized excitgens, this will also be assumed size.
         IF(tUEG.or.tHub.or.tNoSingExcits) THEN
@@ -6595,10 +6567,6 @@ MODULE FciMCParMod
             & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
         endif
         
-        if(tSpawn_Only_Init .and. (.not.tTruncInitiator)) then
-            CALL Stop_All(this_routine,"Cannot use the SPAWNONLYINIT option without the TRUNCINITIATOR option.")
-        endif
-
         if (tSpinProject) call init_yama_store ()
     
         if (tUseRealCoeffs .and. (lenof_sign.ne.1)) &
