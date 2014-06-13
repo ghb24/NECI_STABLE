@@ -88,8 +88,6 @@ MODULE Logging
       tPrintFCIMCPsi=.false.
       tCalcFCIMCPsi=.false.
       NHistEquilSteps=0
-      tPrintDoubsUEG=.false.
-      StartPrintDoubsUEG=0
       tPrintOrbOcc=.false.
       StartPrintOrbOcc=0
       tPrintOrbOccInit=.false.
@@ -732,11 +730,10 @@ MODULE Logging
 !contribution of each orbital to the total wavefunction.  
             tPrintOrbOcc=.true.
             IF(item.lt.nitems) call readi(StartPrintOrbOcc)
+
         case("PRINTDOUBSUEG")
-!This option initiates the above histogramming of doubles for the UEG
-!            if (.not.tUEG) call stop_all("Logging","Printdoubs doesn't work with systems other than UEG")
-            tPrintDoubsUEG=.true.
-            IF(item.lt.nitems) call readi(StartPrintDoubsUEG)
+            call stop_all(t_r, 'This option (PRINTDOUBSUEG) has been deprecated')
+
         case("PRINTORBOCCSINIT")
 !This option initiates the above histogramming of determinant populations and then 
 !at the end of the spawning uses these to find the normalised  

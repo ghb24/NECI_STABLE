@@ -79,7 +79,7 @@ MODULE FciMCParMod
                            tPrintPopsDefault, iWriteBlockingEvery, &
                            tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
                            HistInitPops, DoubsUEG, DoubsUEGLookup, DoubsUEGStore,&
-                           tPrintDoubsUEG, StartPrintDoubsUEG, tCalcInstantS2, &
+                           tCalcInstantS2, &
                            instant_s2_multiplier, tMCOutput, tSplitProjEHist, &
                            tSplitProjEHistG, tSplitProjEHistK3, iProjEBins, &
                            tDiagWalkerSubspace,iDiagSubspaceIter, &
@@ -532,10 +532,6 @@ MODULE FciMCParMod
 
         IF(tFillingStochRDMonFly.or.&
             tFillingExplicRDMonFly.or.tHF_Ref_Explicit) CALL FinaliseRDM()
-
-        IF(tPrintDoubsUEG) THEN
-            CALL PrintDoubUEGOccs(DoubsUEG)
-        ENDIF
 
         call PrintHighPops()
 
@@ -6440,52 +6436,6 @@ MODULE FciMCParMod
             endif
         endif
         
-        if (tPrintDoubsUEG) then
-            if (Iter.ge.StartPrintDoubsUEG) then
-                if (ExcitLevel.eq.2) then
-                    DoubEx2=0
-                    DoubEx2(1,1)=2
-                    call GetExcitation (ProjEDet,nI,NEl,DoubEx2,tDoubParity2)
-                    DoubEx=0
-                    DoubEx(1,1)=2
-                    call GetBitExcitation(iLutRef,ilut,DoubEx,tDoubParity)
-                    if (DoubEx2(1,1).ne.DoubEx(1,1) &
-                        .or. DoubEx2(1,2).ne.DoubEx(1,2) &
-                        .or. DoubEx2(2,2).ne.DoubEx(2,2) &
-                        .or. DoubEx2(2,1).ne.DoubEx(2,1) &
-                        .or. tDoubParity.neqv.tDoubParity2) then
-                        call stop_all("SumEContrib","GetBitExcitation doesn't agree with GetExcitation")
-                    endif
-                    iUEG1=0
-                    iUEG2=0
-                    iUEG1=int(DoubsUEGLookup(DoubEx(1,1)),sizeof_int)
-                    iUEG2=int(DoubsUEGLookup(DoubEx(1,2)),sizeof_int)
-                    if (iUEG1.eq.0.or.iUEG2.eq.0) call stop_all("SumEContrib","Array bounds issue")
-                    DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)=DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)+RealWSign(1)
-    ! Test against natural orbital generation. For a two electron system, this should just be the same 
-    ! as the nat orbs if WSign is squared
-    !                    DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)=DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),1)+(REAL(WSign(1))*REAL(WSign(1)))
-                    if (DoubsUEGStore(iUEG1,iUEG2,DoubEx(2,1))) then
-                        DoubsUEGStore(iUEG1,iUEG2,DoubEx(2,1))=.false.
-                        DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),2)=HOffDiag
-                        if(tHPHF) then
-                            HDoubDiag = hphf_diag_helement (nI,ilut)
-                        elseif(tMomInv) then
-                            HDoubDiag = MI_diag_helement(nI,ilut)
-                        else
-                            HDoubDiag = get_helement (nI,nI,0) !, iLutCurr, &
-                                                    ! iLutCurr)
-                        endif
-                        DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),3)=HDoubDiag
-                        kDoub=0
-                        kDoub=G1(DoubEx(2,1))%k
-                        DoubsUEG(iUEG1,iUEG2,DoubEx(2,1),4)=REAL(kDoub(1)*kDoub(1),dp)+ &
-                            REAL(kDoub(2)*kDoub(2),dp)+REAL(kDoub(3)*kDoub(3),dp)
-                    endif
-                endif
-            endif
-        endif
-
     end subroutine SumEContrib
 
 
@@ -6893,19 +6843,6 @@ MODULE FciMCParMod
             ALLOCATE(OrbOccs(nBasis),stat=ierr)
             CALL LogMemAlloc('OrbOccs',nBasis,8,this_routine,OrbOccsTag,ierr)
             OrbOccs(:)=0.0_dp
-        ENDIF
-
-        IF(tPrintDoubsUEG) THEN
-            ALLOCATE(DoubsUEG(NEl,NEl,nBasis,4),stat=ierr)
-            DoubsUEG(:,:,:,:)=0.0_dp
-            ALLOCATE(DoubsUEGLookup(nBasis),stat=ierr)
-            DoubsUEGLookup(:)=0
-            ALLOCATE(DoubsUEGStore(NEl,NEl,nBasis),stat=ierr)
-            DoubsUEGStore(:,:,:)=.true.
-!Add LogMemAllocs
-            do iLookup=1,NEl                    
-                DoubsUEGLookup(HFDet(iLookup))=iLookup
-            enddo
         ENDIF
 
         IF(tHistInitPops) THEN
@@ -8003,10 +7940,6 @@ MODULE FciMCParMod
         IF(tPrintOrbOcc) THEN
             DEALLOCATE(OrbOccs)
             CALL LogMemDeAlloc(this_routine,OrbOccsTag)
-        ENDIF
-        IF(tPrintDoubsUEG) THEN
-            DEALLOCATE(DoubsUEG)
-            DEALLOCATE(DoubsUEGLookup)
         ENDIF
 
         IF(tHistInitPops) THEN
