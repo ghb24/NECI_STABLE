@@ -170,7 +170,7 @@ contains
         end if
 
         ! If starting from a popsfile then CurrentH won't have been filled in yet.
-        if ((.not. tRegenDiagHels) .and. tReadPops) call fill_in_CurrentH()
+        if (tReadPops) call fill_in_CurrentH()
         SpawnedParts = 0
         TotWalkersOld = TotWalkers
 

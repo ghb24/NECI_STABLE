@@ -22,7 +22,7 @@ LOGICAL :: THFRetBias,TProjEMP2,TFixParticleSign
 LOGICAL :: TStartSinglePart,TRegenExcitgens
 LOGICAL :: TUnbiasPGeninProjE, tCheckHighestPopOnce
 LOGICAL :: tCheckHighestPop,tRestartHighPop,tChangeProjEDet
-LOGICAL :: tRotoAnnihil,tRegenDiagHEls,tSpawnAsDet,tFindGroundDet
+LOGICAL :: tRotoAnnihil,tSpawnAsDet
 LOGICAL :: tTruncCAS,tTruncInitiator,tDelayTruncInit,tAddtoInitiator    !Truncation the FCIMC excitation space by CAS
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange,tRetestAddtoInit
 logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
@@ -44,10 +44,6 @@ logical :: tSpatialOnlyHash
 ! Do we allow walkers to survive (in the initiator approx.) if a determinant
 ! with the same spatial configuration is an initiator?
 logical :: tSpawnSpatialInit
-
-!These options mean that only initiators can spawn walkers.
-!tSpawn_Only_Init_Grow means that this option is removed once variable shift is entered.
-logical :: tSpawn_Only_Init,tSpawn_Only_Init_Grow
 
 ! Do we truncate spawning based on the number of unpaired electrons
 logical :: tTruncNOpen
@@ -214,6 +210,6 @@ integer :: trial_mp1_ndets
 
 ! What is the maximum energy, above which all particles are treated as
 ! initiators
-real(dp) :: InitiatorCutoffEnergy
+real(dp) :: InitiatorCutoffEnergy, InitiatorCutoffWalkNo
 
 end module CalcData

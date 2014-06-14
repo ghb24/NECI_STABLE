@@ -178,8 +178,7 @@ MODULE ReadInput_neci
                             TNoSameExcit, TInitStar, tMP2Standalone, &
                             GrowMaxFactor, MemoryFacPart, tTruncInitiator, &
                             tSpawnSpatialInit, tSpatialOnlyHash, InitWalkers, &
-                            tUniqueHFNode, InitiatorCutoffEnergy, tCCMC, &
-                            tRegenDiagHels
+                            tUniqueHFNode, InitiatorCutoffEnergy, tCCMC
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -440,8 +439,7 @@ MODULE ReadInput_neci
             call stop_all(t_r, 'HPHF functions cannot work with UHF')
         end if
 
-        if ((tCCMC .or. tRegenDiagHEls) .and. &
-            .not. (InitiatorCutoffEnergy > 1.0e99)) then
+        if (tCCMC .and. .not. (InitiatorCutoffEnergy > 1.0e99)) then
             call stop_all(t_r, 'Initiator cutoff not implemented for CCMC')
         end if
 
