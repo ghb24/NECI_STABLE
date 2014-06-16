@@ -1022,11 +1022,8 @@ MODULE FciMCParMod
                 WalkersToSpawn=abs(int(SignCurr(part_type)*AvMCExcits))
                 if ((abs(SignCurr(part_type)*AvMCExcits)-real(WalkersToSpawn,dp)).gt.0) then
                     prob_extra_walker=abs(SignCurr(part_type)*AvMCExcits) - real(WalkersToSpawn,dp)
-                    !r = genrand_real2_dSFMT ()
                     r = genrand_real2_dSFMT ()
-                    if (prob_extra_walker > r) then
-                        WalkersToSpawn=WalkersToSpawn+1
-                    endif
+                    if (prob_extra_walker > r) WalkersToSpawn=WalkersToSpawn+1
                 endif
                     
 
@@ -1093,8 +1090,7 @@ MODULE FciMCParMod
                     endif
 
                     ! Children have been chosen to be spawned.
-                    !if (any(child /= 0)) then
-                    if ((any(child /= 0)).and.(ic.ne.0).and.(ic.le.2)) then
+                    if (any(child /= 0)) then
 
                         !Encode child if not done already
                         if(.not. (tSemiStochastic)) call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
@@ -1147,8 +1143,9 @@ MODULE FciMCParMod
                                    AvSignCurr, IterRDMStartCurr, VecSlot, j, WalkExcitLevel)
             end if
 
-            if(tFillingStochRDMonFly) call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, SignCurr, &
-                                      & walkExcitLevel_toHF, test_flag(CurrentDets(:,j), flag_deterministic))  
+            if(tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) &
+                    & call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, SignCurr, &
+                    & walkExcitLevel_toHF, test_flag(CurrentDets(:,j), flag_deterministic))  
 
         enddo ! Loop over determinants.
         IFDEBUGTHEN(FCIMCDebug,2) 

@@ -661,11 +661,11 @@ MODULE Logging
             tReadRDMs = .true.
 
         case("NONEWRDMCONTRIB")
-            ! To be used with READRDMs.  This option makes sure that we don't add in any 
+            !To be used with READRDMs.  This option makes sure that we don't add in any 
             !new contributions to the RDM if filling stochastically
             !This is useful if we want to read in an RDM from another calculation and then 
             !just print out the analysis, without adding in any more information.
-      tNoNewRDMContrib=.true.
+            tNoNewRDMContrib=.true.
 
         case("WRITERDMSEVERY")
 ! Write out the normalised, hermitian RDMs every IterWriteRDMs iterations.  
