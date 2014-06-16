@@ -2483,6 +2483,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       call shared_allocate_iluts("DetList",DetList,(/nIfTot,nMaxAmpl/),iNodeIndex)
    else
       Allocate(DetList(0:nIfTot,nMaxAmpl))
+      allocate(currenth(1,nmaxampl))
    endif
    ierr=0
    LogAlloc(ierr,'DetList',(nIfTot+1)*nMaxAmpl,4,tagDetList)
