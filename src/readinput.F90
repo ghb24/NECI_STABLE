@@ -439,7 +439,7 @@ MODULE ReadInput_neci
             call stop_all(t_r, 'HPHF functions cannot work with UHF')
         end if
 
-        if (tCCMC .and. .not. (InitiatorCutoffEnergy > 1.0e99)) then
+        if (tCCMC .and. .not. (InitiatorCutoffEnergy > 1.0e99_dp)) then
             call stop_all(t_r, 'Initiator cutoff not implemented for CCMC')
         end if
 
