@@ -372,10 +372,6 @@ MODULE FciMCData
 
       ! Semi-stochastic data.
 
-      ! The core Hamiltonian (with the Hartree-Fock energy removed from the diagonal) is stored in this array for
-      ! the whole simulation.
-      real(dp), allocatable, dimension(:,:) :: core_hamiltonian 
-
       ! The diagonal elements of the core-space Hamiltonian (with Hii taken away).
       real(dp), allocatable, dimension(:) :: core_ham_diag
             
@@ -385,7 +381,7 @@ MODULE FciMCData
       ! This stores all the amplitudes of the walkers in the deterministic space. This vector has the size of the part
       ! of the deterministic space stored on *this* processor only. It is therefore used to store the deterministic vector
       ! on this processor, before it is combined to give the whole vector, which is stored in full_determ_vector.
-      ! Later in the iteration, it is also used to store the result of the multiplication by core_hamiltonian on
+      ! Later in the iteration, it is also used to store the result of the multiplication by the core Hamiltonian on
       ! full_determ_vector.
       real(dp), allocatable, dimension(:) :: partial_determ_vector
       real(dp), allocatable, dimension(:) :: full_determ_vector
