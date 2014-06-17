@@ -4281,40 +4281,39 @@ MODULE FciMCParMod
                     sum(AllTotParts), AllTotParts(1), AllTotParts(lenof_sign)
             endif
 #elif __DOUBLERUN
-            write(fcimcstats_unit2,"(I12,G16.7,3G16.7,3G16.7,5G17.9,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,12G17.9,G16.7)", &
-                                  advance = 'no') &
-                Iter + PreviousCycles, &
-                DiagSft(2), &
-                AllTotParts(2) - AllTotPartsOld(2), &
-                AllGrowRate(2), &
-                AllTotParts(2), &
-                AllAnnihilated(2), &
-                AllNoDied(2), &
-                AllNoBorn(2), &
-                ProjectionE(2), &
-                AvDiagSft(2), &
-                proje_iter(2), &
-                AllNoatHF(2), &
-                AllNoatDoubs(2), &
-                AccRat(2), &
-                AllTotWalkers, &
-                IterTime, &
-                FracFromSing(2), &
-                WalkersDiffProc, &
-                TotImagTime, &
-                0.0_dp, &
-                HFShift(2), &
-                InstShift(2), &
-                proje_iter(2) + Hii, &
-                (AllHFCyc(2) / StepsSft), &
-                (AllENumCyc(2) / StepsSft), &
-                AllNoatHF(2) / norm_psi(2), &
-                norm_psi(2), &
-                curr_S2(2), curr_S2_init(2), &
-                AbsProjE(2), &
-                norm_semistoch(2)/norm_psi(2), &
-                PartsDiffProc
+            write(fcimcstats_unit2,"(i12,7g16.7,5g17.9,g13.5,i12,g13.5,g17.5,&
+                                   &i13,g13.5,11g17.9,i13,g16.7)",advance = 'no') &
+                Iter + PreviousCycles, &                   ! 1.
+                DiagSft(2), &                              ! 2.
+                AllTotParts(2) - AllTotPartsOld(2), &      ! 3.
+                AllGrowRate(2), &                          ! 4.
+                AllTotParts(2), &                          ! 5.
+                AllAnnihilated(2), &                       ! 6.
+                AllNoDied(2), &                            ! 7.
+                AllNoBorn(2), &                            ! 8.
+                ProjectionE(2), &                          ! 9.
+                AvDiagSft(2), &                            ! 10.
+                proje_iter(2), &                           ! 11.
+                AllNoatHF(2), &                            ! 12.
+                AllNoatDoubs(2), &                         ! 13.
+                AccRat(2), &                               ! 14.
+                AllTotWalkers, &                           ! 15.
+                IterTime, &                                ! 16.
+                FracFromSing(2), &                         ! 17.
+                WalkersDiffProc, &                         ! 18.
+                TotImagTime, &                             ! 19.
+                0.0_dp, &                                  ! 20.
+                HFShift(2), &                              ! 21.
+                InstShift(2), &                            ! 22.
+                proje_iter(2) + Hii, &                     ! 23.
+                (AllHFCyc(2) / StepsSft), &                ! 24.
+                (AllENumCyc(2) / StepsSft), &              ! 25.
+                AllNoatHF(2) / norm_psi(2), &              ! 26.
+                norm_psi(2), &                             ! 27.
+                curr_S2(2), curr_S2_init(2), &             ! 28, 29.
+                AbsProjE(2), &                             ! 30.
+                PartsDiffProc, &                           ! 31.
+                norm_semistoch(2)/norm_psi(2), &           ! 32.
                 if (tTrialWavefunction) then
                     write(fcimcstats_unit2, "(3G16.7)", advance = 'no') &
                     (tot_trial_numerator(2) / StepsSft), &
@@ -4328,36 +4327,36 @@ MODULE FciMCParMod
             write(fcimcstats_unit,"(i12,7g16.7,5g17.9,g13.5,i12,g13.5,g17.5,&
                                   &i13,g13.5,11g17.9,i13,2g16.7)",advance = 'no') &
                 Iter + PreviousCycles, &                   ! 1.
-                DiagSft, &                                 ! 2.
-                sum(AllTotParts) - sum(AllTotPartsOld), &  ! 3.
-                AllGrowRate, &                             ! 4.
-                sum(AllTotParts), &                        ! 5.
-                AllAnnihilated, &                          ! 6.
-                AllNoDied, &                               ! 7.
-                AllNoBorn, &                               ! 8.
-                ProjectionE, &                             ! 9.
-                AvDiagSft, &                               ! 10.
-                proje_iter, &                              ! 11.
-                AllNoatHF, &                               ! 12.
-                AllNoatDoubs, &                            ! 13.
-                AccRat, &                                  ! 14.
+                DiagSft(1), &                              ! 2.
+                AllTotParts(1) - AllTotPartsOld(1), &      ! 3.
+                AllGrowRate(1), &                          ! 4.
+                AllTotParts(1), &                          ! 5.
+                AllAnnihilated(1), &                       ! 6.
+                AllNoDied(1), &                            ! 7.
+                AllNoBorn(1), &                            ! 8.
+                ProjectionE(1), &                          ! 9.
+                AvDiagSft(1), &                            ! 10.
+                proje_iter(1), &                           ! 11.
+                AllNoatHF(1), &                            ! 12.
+                AllNoatDoubs(1), &                         ! 13.
+                AccRat(1), &                               ! 14.
                 AllTotWalkers, &                           ! 15.
                 IterTime, &                                ! 16.
-                FracFromSing, &                            ! 17.
+                FracFromSing(1), &                         ! 17.
                 WalkersDiffProc, &                         ! 18.
                 TotImagTime, &                             ! 19.
                 0.0_dp, &                                  ! 20.
-                HFShift, &                                 ! 21.
-                InstShift, &                               ! 22.
-                proje_iter + Hii, &                        ! 23.
-                (AllHFCyc / StepsSft), &                   ! 24.
-                (AllENumCyc / StepsSft), &                 ! 25.
-                AllNoatHF / norm_psi, &                    ! 26.
-                norm_psi, &                                ! 27.
-                curr_S2, curr_S2_init, &                   ! 28, 29.
-                AbsProjE, &                                ! 30.
+                HFShift(1), &                              ! 21.
+                InstShift(1), &                            ! 22.
+                proje_iter(1) + Hii, &                     ! 23.
+                (AllHFCyc(1) / StepsSft), &                ! 24.
+                (AllENumCyc(1) / StepsSft), &              ! 25.
+                AllNoatHF(1) / norm_psi(1), &              ! 26.
+                norm_psi(1), &                             ! 27.
+                curr_S2(1), curr_S2_init(1), &             ! 28, 29.
+                AbsProjE(1), &                             ! 30.
                 PartsDiffProc, &                           ! 31.
-                norm_semistoch/norm_psi, &                 ! 32.
+                norm_semistoch(1)/norm_psi(1), &           ! 32.
                 all_max_cyc_spawn                          ! 33.
                 if (tTrialWavefunction) then
                     write(fcimcstats_unit, "(3g16.7)", advance = 'no') &
