@@ -2361,7 +2361,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use CalcData, only: TStartSinglePart
    use timing_neci, only: print_timing_report
    use Parallel_neci
-   use shared_alloc, only: shared_allocate_iluts, shared_deallocate
+   use shared_alloc, only: shared_allocate_iluts, shared_deallocate, &
+                           shared_allocate
    use CalcData, only: tAddToInitiator,InitiatorWalkNo,tTruncInitiator
    use bit_reps, only: encode_sign,extract_sign
    use FciMCParMod, only: tReadPops, ChangeVars
@@ -2481,6 +2482,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    write(iout,*) "Max Amplitude List size: ", nMaxAmpl
    if(tSharedExcitors) then
       call shared_allocate_iluts("DetList",DetList,(/nIfTot,nMaxAmpl/),iNodeIndex)
+      call shared_allocate("CurrentH", CurrentH, (/1, nMaxAmpl/), iNodeIndex)
    else
       Allocate(DetList(0:nIfTot,nMaxAmpl))
       allocate(currenth(1,nmaxampl))
