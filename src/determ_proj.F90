@@ -18,11 +18,12 @@ module determ_proj
     use CalcData, only: NMCyc, tSemiStochastic
     use constants
     use DetBitOps, only: DetBitLT
-    use FciMCData, only: HFDet, ilutHF, iHFProc, CurrentDets, core_hamiltonian, &
-                         determ_proc_sizes, determ_space_size, partial_determ_vector, &
-                         full_determ_vector, determ_proc_indices, TotWalkers
+    use FciMCData, only: HFDet, ilutHF, iHFProc, CurrentDets, determ_proc_sizes, &
+                         determ_space_size, partial_determ_vector, full_determ_vector, &
+                         determ_proc_indices, TotWalkers
     use Parallel_neci, only: iProcIndex, MPIAllGatherV, MPISum
     use semi_stoch_procs, only: deterministic_projection
+    use sparse_arrays, only: sparse_core_ham
 
     implicit none
 
@@ -31,12 +32,12 @@ contains
     subroutine perform_determ_proj()
 
         integer :: counter, iter, comp, hf_index, ierr
-        integer(int64) :: i
+        integer(int64) :: i, j
         real(dp), allocatable, dimension(:) :: wavefunction
         real(dp), allocatable, dimension(:) :: ham_times_hf
         real(dp) :: energy_num, energy_denom, tot_e_num, tot_e_denom
 
-        if ((.not. tSemiStochastic) .or. (.not. allocated(core_hamiltonian))) &
+        if ((.not. tSemiStochastic) .or. (.not. allocated(sparse_core_ham))) &
             call stop_all("determ_projection_only", "You must use the semi-stochastic &
                 &option and define a core space to use the determ-proj option.") 
 
@@ -69,17 +70,14 @@ contains
         call MPIAllGatherV(wavefunction, full_determ_vector, determ_proc_sizes, &
                             determ_proc_indices)
 
-        call dgemv('N', &
-                   determ_proc_sizes(iProcIndex), &
-                   determ_space_size, &
-                   1.0_dp, &
-                   core_hamiltonian, &
-                   determ_proc_sizes(iProcIndex), &
-                   full_determ_vector, &
-                   1, &
-                   0.0_dp, &
-                   ham_times_hf, &
-                   1)
+        partial_determ_vector = 0.0_dp
+
+        do i = 1, determ_proc_sizes(iProcIndex)
+            do j = 1, sparse_core_ham(i)%num_elements
+                ham_times_hf(i) = ham_times_hf(i) - &
+                    sparse_core_ham(i)%elements(j)*full_determ_vector(sparse_core_ham(i)%positions(j))
+            end do
+        end do
 
         write(6,'(a9,7X,a6)') "Iteration", "Energy"
         call neci_flush(6)

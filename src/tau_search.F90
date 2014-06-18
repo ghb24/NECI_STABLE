@@ -34,12 +34,6 @@ module tau_search
     logical :: enough_sing, enough_doub, enough_opp, enough_par
     logical :: consider_par_bias
 
-#ifdef MOLPRO
-    include "common/tapes"
-#else
-    integer, parameter :: iout = 6
-#endif
-
 contains
 
     subroutine init_tau_search ()

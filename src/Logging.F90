@@ -38,9 +38,6 @@ MODULE Logging
       iHighPopWrite = 15    !How many highest weighted determinants to write out at the end of an FCIQMC calc.
       tDiagWalkerSubspace = .false.
       iDiagSubspaceIter = 1
-      tSplitProjEHist = .false.
-      tSplitProjEHistG = .false.
-      tSplitProjEHistK3 = .false.
       PopsfileTimer=0.0_dp
       tMCOutput=.true.
       tLogComplexPops=.false.
@@ -91,8 +88,6 @@ MODULE Logging
       tPrintFCIMCPsi=.false.
       tCalcFCIMCPsi=.false.
       NHistEquilSteps=0
-      tPrintDoubsUEG=.false.
-      StartPrintDoubsUEG=0
       tPrintOrbOcc=.false.
       StartPrintOrbOcc=0
       tPrintOrbOccInit=.false.
@@ -150,6 +145,7 @@ MODULE Logging
       tWriteTrial = .false.
       tCompareTrialAmps = .false.
       compare_amps_period = 0
+      tHistExcitToFrom = .false.
       tForceCauchySchwarz = .false.
       tBrokenSymNOs = .false.
       occ_numb_diff = 0.001_dp
@@ -158,6 +154,14 @@ MODULE Logging
       rottwo = 0
       rotthree = 0
       rotfour = 0
+
+      tLogTauSearchStats = .false.
+      tLogPopsMaxTau = .false.
+!#ifdef __PROG_LENOFSIGN
+!      tFCIMCStats2 = .true.
+!#else
+      tFCIMCStats2 = .false.
+!#endif
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -209,15 +213,10 @@ MODULE Logging
         case("CALCVARIATIONALENERGY")
             !Calculate the variational energy of the FCIQMC dynamic each time Histspawn is calculated
             tCalcVariationalEnergy=.true.
-        case("SPLITPROJE")
-            !Partition contribution from doubles, and write them out
-            tSplitProjEHist=.true.
-        case("SPLITPROJE-G")
-            !Partition contribution from doubles, and write them out; bin according to g
-            tSplitProjEHistG=.true.
-        case("SPLITPROJE-K3")
-            !Partition contribution from doubles, and write them out; bin according to k3
-            tSplitProjEHistK3=.true.
+
+        case("SPLITPROJE", "SPLITPROJE-G", "SPLITPROJE-K3")
+            call stop_all(t_r, 'Option (SPLITPROJE*) deprecated')
+
         case("NOMCOUTPUT")
             !No output to stdout from the fcimc or ccmc iterations
             tMCOutput=.false.
@@ -726,11 +725,10 @@ MODULE Logging
 !contribution of each orbital to the total wavefunction.  
             tPrintOrbOcc=.true.
             IF(item.lt.nitems) call readi(StartPrintOrbOcc)
+
         case("PRINTDOUBSUEG")
-!This option initiates the above histogramming of doubles for the UEG
-!            if (.not.tUEG) call stop_all("Logging","Printdoubs doesn't work with systems other than UEG")
-            tPrintDoubsUEG=.true.
-            IF(item.lt.nitems) call readi(StartPrintDoubsUEG)
+            call stop_all(t_r, 'This option (PRINTDOUBSUEG) has been deprecated')
+
         case("PRINTORBOCCSINIT")
 !This option initiates the above histogramming of determinant populations and then 
 !at the end of the spawning uses these to find the normalised  
@@ -961,8 +959,28 @@ MODULE Logging
             tCompareTrialAmps = .true.
             call readi(compare_amps_period)
 
+        case("HIST-EXCIT-TOFROM")
+            ! Histogram how many particles are spawned between sites with
+            ! varying excitation levels from the Hartree--Fock.
+            tHistExcitToFrom = .true.
+
         case("ENDLOG")
             exit logging
+
+        case("TAU-SEARCH")
+            ! Log the output of tau searching
+            tLogTauSearchStats = .true.
+
+        case("POPS-MAX-TAU")
+            ! If we were using the full enumeration excitation generator,
+            ! what would the maximum acceptable value of tau be for the
+            ! read-in walker distribution?
+            tLogPopsMaxTau = .true.
+
+        case("FCIMCSTATS-2")
+            ! Use the new-style FCIMCStats output.
+            tFCIMCStats2 = .true.
+
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)
         end select

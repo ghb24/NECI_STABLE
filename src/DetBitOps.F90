@@ -12,7 +12,7 @@ module DetBitOps
     use CalcData, only: tTruncInitiator, tSemiStochastic
     use bit_rep_data, only: NIfY, NIfTot, NIfD, NOffFlag, NIfFlag, &
                             test_flag, flag_is_initiator,NIfDBO,NOffSgn, &
-                            determ_parent_mask, extract_sign
+                            extract_sign
     use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
     use constants, only: n_int,bits_n_int,end_n_int,dp,lenof_sign,sizeof_int
 
@@ -462,36 +462,17 @@ module DetBitOps
         ! else it returns false. For non-semi-stochastic simulations, this is
         ! decided by comparing the integers that the bitstring represent.
 
-        ! For semi-stochastic simulations, when sorting the SpawnedParts list
-        ! we need to separate the states which have deterministic parents from
-        ! those which don't. This is so that the walkers with deterministic
-        ! parents can be aborted later if it turns out that the state that
-        ! they reside on is in the deterministic space.
-
         integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
         integer(n_int) :: det_flag_I, det_flag_J
         integer :: i
-        logical :: bLt, compare_det_flags
-
-        compare_det_flags = .false.
-
-        if (tSemiStochastic) then
-            det_flag_I = iand(determ_parent_mask, iLutI(nOffFlag))
-            det_flag_J = iand(determ_parent_mask, iLutJ(nOffFlag))
-            compare_det_flags = .not. (det_flag_I .eq. det_flag_J)
-        end if
+        logical :: bLt
 
         do i = 0, NIfDBO
             if (iLutI(i) /= iLutJ(i)) exit
         enddo
 
         if (i > NIfDBO) then
-            ! If the states themselves are the same.
-            if (compare_det_flags) then
-                bLt = det_flag_I > det_flag_J
-            else
-                bLt = .false.
-            end if
+            bLt = .false.
         else
             bLt = ilutI(i) < ilutJ(i)
         endif
@@ -504,36 +485,17 @@ module DetBitOps
         ! else it returns false. For non-semi-stochastic simulations, this is
         ! decided by comparing the integers that the bitstring represent.
 
-        ! For semi-stochastic simulations, when sorting the SpawnedParts list
-        ! we need to separate the states which have deterministic parents from
-        ! those which don't. This is so that the walkers with deterministic
-        ! parents can be aborted later if it turns out that the state that
-        ! they reside on is in the deterministic space.
-
         integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
         integer(n_int) :: det_flag_I, det_flag_J
         integer :: i
-        logical :: bGt, compare_det_flags
-
-        compare_det_flags = .false.
-
-        if (tSemiStochastic) then
-            det_flag_I = iand(determ_parent_mask, iLutI(nOffFlag))
-            det_flag_J = iand(determ_parent_mask, iLutJ(nOffFlag))
-            compare_det_flags = .not. (det_flag_I .eq. det_flag_J)
-        end if
+        logical :: bGt
 
         do i = 0, NIfDBO
             if (ilutI(i) /= iLutJ(i)) exit
         enddo
 
         if (i > NIfDBO) then
-            ! If the states themselves are the same.
-            if (compare_det_flags) then
-                bGt = det_flag_I < det_flag_J
-            else
-                bGt = .false.
-            end if
+            bGt = .false.
         else
             bGt = ilutI(i) > ilutJ(i)
         endif
@@ -573,26 +535,6 @@ module DetBitOps
         logical, intent(in), optional :: use_flags_opt
         integer :: i, lnLast
         integer(kind=n_int) :: det_flag_I, det_flag_J
-        logical :: compare_det_flags, use_flags
-
-        ! Deterministic flags for semi-stochastic.
-        compare_det_flags = .false.
-
-        if (tSemiStochastic) then
-            ! By default, compare these flags. However, there are some cases in the
-            ! the semi-stochastic code where we don't want to.
-            if (present(use_flags_opt)) then
-                use_flags = use_flags_opt
-            else
-                use_flags = .true.
-            end if
-
-            if (use_flags) then
-                det_flag_I = iand(determ_parent_mask, iLutI(nOffFlag))
-                det_flag_J = iand(determ_parent_mask, iLutJ(nOffFlag))
-                compare_det_flags = .not. (det_flag_I .eq. det_flag_J)
-            end if
-        end if
 
         !First, compare first integers
         IF(iLutI(0).lt.iLutJ(0)) THEN
@@ -616,18 +558,6 @@ module DetBitOps
                 ENDIF
             enddo
             
-            ! If we get to this point then the states themselves are the same.
-
-            if (compare_det_flags) then
-                if (det_flag_I > det_flag_J) then
-                    DetBitLT = 1
-                    return
-                else
-                    DetBitLT = -1
-                    return
-                end if
-            end if
-
             DetBitLT=0
         ELSE
             DetBitLT=-1

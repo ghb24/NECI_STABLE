@@ -27,4 +27,9 @@ module hist_data
 
     integer, allocatable :: HistMinInd(:), HistMinInd2(:)
 
+    ! Store data about where spawns are going to/from
+    real(dp), allocatable :: hist_excit_tofrom(:,:)
+    integer(TagIntType) :: tag_hist_excit
+    integer :: excit_tofrom_unit
+
 end module

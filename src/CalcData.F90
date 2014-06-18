@@ -25,7 +25,7 @@ LOGICAL :: THFRetBias,TProjEMP2,TFixParticleSign
 LOGICAL :: TStartSinglePart,TRegenExcitgens
 LOGICAL :: TUnbiasPGeninProjE, tCheckHighestPopOnce
 LOGICAL :: tCheckHighestPop,tRestartHighPop,tChangeProjEDet
-LOGICAL :: tRotoAnnihil,tRegenDiagHEls,tSpawnAsDet,tFindGroundDet
+LOGICAL :: tRotoAnnihil,tSpawnAsDet
 LOGICAL :: tTruncCAS,tTruncInitiator,tDelayTruncInit,tAddtoInitiator    !Truncation the FCIMC excitation space by CAS
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange,tRetestAddtoInit
 logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
@@ -47,10 +47,6 @@ logical :: tSpatialOnlyHash
 ! Do we allow walkers to survive (in the initiator approx.) if a determinant
 ! with the same spatial configuration is an initiator?
 logical :: tSpawnSpatialInit
-
-!These options mean that only initiators can spawn walkers.
-!tSpawn_Only_Init_Grow means that this option is removed once variable shift is entered.
-logical :: tSpawn_Only_Init,tSpawn_Only_Init_Grow
 
 ! Do we truncate spawning based on the number of unpaired electrons
 logical :: tTruncNOpen
@@ -110,10 +106,6 @@ INTEGER iLogicalNodeSize  !An alternative to the above, create logical nodes of 
 logical :: tContinueAfterMP2 ! UEG option only
     logical :: tJumpShift
 
-! If true, the initiator threshold for a given state will be equal to the (minimum) number of spawning
-! attempts away from the core space it took to create the state.
-logical :: tVaryInitThresh
-
 ! Perform a Davidson calculation if true.
 logical :: tDavidson
 ! Should the HF determinant be put on its own processor?
@@ -137,7 +129,6 @@ logical :: tLowECore
 ! of the determinants in the MP1 wave function will be used to determine which to keep. Otherwise all singles and
 ! doubles are kept.
 logical :: tMP1Core 
-logical :: tSparseCoreHamil ! Use a sparse representation of the core Hamiltonian.
 ! cas_determ_bitmask has all bits that refer to the active space set, and all other bits unset.
 ! cas_not_determ_bitmask is simply the result after the not operation is applied to cas_determ_bitmask.
 integer(n_int), allocatable, dimension(:) :: cas_determ_bitmask
@@ -218,5 +209,9 @@ integer :: low_e_trial_num_keep
 logical :: tLowETrialAllDoubles
 ! When using the tMP1Trial option, this specifies how many determinants to keep.
 integer :: trial_mp1_ndets
+
+! What is the maximum energy, above which all particles are treated as
+! initiators
+real(dp) :: InitiatorCutoffEnergy, InitiatorCutoffWalkNo
 
 end module CalcData

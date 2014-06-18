@@ -8,7 +8,7 @@ MODULE PopsfileMod
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin, &
         tMomInv
     use CalcData, only: tTruncInitiator, DiagSft, tWalkContGrow, nEquilSteps, &
-        ScaleWalkers, tReadPopsRestart, tRegenDiagHEls, &
+        ScaleWalkers, tReadPopsRestart, &
         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
         iWeightPopRead, iPopsFileNoRead, tPopsMapping, Tau, &
         InitiatorWalkNo, MemoryFacPart, MemoryFacAnnihil, &
@@ -248,9 +248,9 @@ contains
                     call stop_all(this_routine,"HF already found, but shouldn't have")
                 endif
                 CurrHF=CurrHF+SignTemp 
-                if ((.not.tRegenDiagHEls) .and. (.not. tSemiStochastic)) CurrentH(1,i)=0.0_dp
+                if (.not. tSemiStochastic) CurrentH(1,i)=0.0_dp
             else
-                if((.not.tRegenDiagHEls) .and. (.not. tSemiStochastic)) THEN
+                if(.not. tSemiStochastic) THEN
                 !Calculate diagonal matrix element
                     call decode_bit_det (TempnI, dets(:,i))
                     if (tHPHF) then
@@ -1838,27 +1838,22 @@ outer_map:      do i = 0, MappingNIfD
 !Allocate pointer to the correct walker array...
         CurrentDets=>WalkVecDets
 
-!Need to now allocate other arrays
-        IF(.not.tRegenDiagHEls) THEN
-            if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
-                ALLOCATE(WalkVecH(3,MaxWalkersPart),stat=ierr)
-                CALL LogMemAlloc('WalkVecH',3*MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-                WalkVecH(:,:)=0.0_dp
-                MemoryAlloc=MemoryAlloc+8*MaxWalkersPart*3
-                WRITE(6,"(A)") " The current signs before death will be store for use in the RDMs."
-                WRITE(6,"(A,F14.6,A)") " This requires ", REAL(MaxWalkersPart*8*3,dp)/1048576.0_dp," Mb/Processor"
-                NCurrH = 3
-            else
-                ALLOCATE(WalkVecH(1,MaxWalkersPart),stat=ierr)
-                CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-                WalkVecH(:,:)=0.0_dp
-                MemoryAlloc=MemoryAlloc+8*MaxWalkersPart
-                NCurrH = 1
-            endif
-        ELSE
-            WRITE(6,"(A,F14.6,A)") " Diagonal H-Elements will not be stored. This will *save* ", &
-                & REAL(MaxWalkersPart*8,dp)/1048576.0_dp," Mb/Processor"
-        ENDIF
+        ! Need to now allocate other arrays
+        if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
+            ALLOCATE(WalkVecH(3,MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVecH',3*MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
+            WalkVecH(:,:)=0.0_dp
+            MemoryAlloc=MemoryAlloc+8*MaxWalkersPart*3
+            WRITE(6,"(A)") " The current signs before death will be store for use in the RDMs."
+            WRITE(6,"(A,F14.6,A)") " This requires ", REAL(MaxWalkersPart*8*3,dp)/1048576.0_dp," Mb/Processor"
+            NCurrH = 3
+        else
+            ALLOCATE(WalkVecH(1,MaxWalkersPart),stat=ierr)
+            CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
+            WalkVecH(:,:)=0.0_dp
+            MemoryAlloc=MemoryAlloc+8*MaxWalkersPart
+            NCurrH = 1
+        endif
 
         if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
 !Allocate memory to hold walkers spawned from one determinant at a time.
@@ -1871,9 +1866,8 @@ outer_map:      do i = 0, MappingNIfD
             WRITE(6,"(A,F14.6,A)") " This requires ", REAL(((NIfDBO+1)*20000*size_n_int),dp)/1048576.0_dp," Mb/Processor"
         endif
 
-        IF(.not.tRegenDiagHEls) THEN
-            CurrentH=>WalkVecH
-        ENDIF
+        ! Store the current hamiltonian information.
+        CurrentH => WalkVecH
 
 ! The hashing will be different in the new calculation from the one where the
 !  POPSFILE was produced, this means we must recalculate the processor each 
@@ -2105,19 +2099,17 @@ outer_map:      do i = 0, MappingNIfD
             call decode_bit_det (TempnI, currentDets(:,j))
             Excitlevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j), 2)
             IF(Excitlevel.eq.0) THEN
-                IF(.not.tRegenDiagHEls) CurrentH(1,j)=0.0_dp
+                CurrentH(1,j)=0.0_dp
             ELSE
-                IF(.not.tRegenDiagHEls) THEN
-                    if (tHPHF) then
-                        HElemTemp = hphf_diag_helement (TempnI, &
-                                                        CurrentDets(:,j))
-                    elseif(tMomInv) then
-                        HElemTemp = MI_diag_helement(TempnI,CurrentDets(:,j))
-                    else
-                        HElemTemp = get_helement (TempnI, TempnI, 0)
-                    endif
-                    CurrentH(1,j)=REAL(HElemTemp,dp)-Hii
-                ENDIF
+                if (tHPHF) then
+                    HElemTemp = hphf_diag_helement (TempnI, &
+                                                    CurrentDets(:,j))
+                elseif(tMomInv) then
+                    HElemTemp = MI_diag_helement(TempnI,CurrentDets(:,j))
+                else
+                    HElemTemp = get_helement (TempnI, TempnI, 0)
+                endif
+                CurrentH(1,j)=REAL(HElemTemp,dp)-Hii
 
             ENDIF
             call extract_sign(CurrentDets(:,j),RealTempSign)
