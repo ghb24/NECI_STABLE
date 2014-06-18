@@ -17,7 +17,7 @@ module semi_stoch_gen
     use enumerate_excitations
     use FciMCData, only: HFDet, ilutHF, iHFProc, CurrentDets, determ_proc_sizes, &
                          determ_proc_indices, full_determ_vector, partial_determ_vector, &
-                         core_hamiltonian, determ_space_size, TotWalkers, TotWalkersOld, &
+                         determ_space_size, TotWalkers, TotWalkersOld, &
                          indices_of_determ_states, SpawnedParts, FDetermTag, FDetermAvTag, &
                          PDetermTag, IDetermTag, trial_space, trial_space_size, &
                          SemiStoch_Init_Time, tHashWalkerList, full_determ_vector_av, &
@@ -154,11 +154,7 @@ contains
 
         write(6,'(a56)') "Generating the Hamiltonian in the deterministic space..."
         call neci_flush(6)
-        if (tSparseCoreHamil) then
-            call calc_determ_hamil_sparse()
-        else
-            call calc_determ_hamil_normal()
-        end if
+        call calc_determ_hamil_sparse()
 
         if (tRDMonFly) call generate_core_connections()
 
@@ -170,7 +166,7 @@ contains
         end if
 
         ! If starting from a popsfile then CurrentH won't have been filled in yet.
-        if ((.not. tRegenDiagHels) .and. tReadPops) call fill_in_CurrentH()
+        if (tReadPops) call fill_in_CurrentH()
         SpawnedParts = 0
         TotWalkersOld = TotWalkers
 

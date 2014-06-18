@@ -45,7 +45,7 @@ MODULe nElRDMMod
                           iMaxLz, tRef_Not_HF, tOddS_hphf
     use NatOrbsMod, only: NatOrbMat, NatOrbMatTag, Evalues, EvaluesTag, &
                           SetupNatOrbLabels
-    use CalcData, only: MemoryFacPart, tRegenDiagHEls, NMCyc, InitiatorWalkNo
+    use CalcData, only: MemoryFacPart, NMCyc, InitiatorWalkNo
     use OneEInts, only: TMAT2D
     use FciMCData, only: MaxWalkersPart, MaxSpawned, Spawned_Parents, &
                          PreviousCycles, Spawned_Parents_Index, &
@@ -149,13 +149,6 @@ MODULe nElRDMMod
             call stop_all(this_routine,'2-RDM calculations not set up for systems stored &
                                         &as spin orbitals.')
     
-        ! The averaged coefficients used for calculating the RDMs are stored with the CurrentH 
-        ! array (which stores the diagonal H elements).  Will need to set up a new array or something
-        ! if we're not storing these Kii values.
-        if(tRegenDiagHEls) &
-            call stop_all(this_routine,'RDMs not currently set up for regenerating the &
-                                    &diagonal H elements.  This should not be difficult though.')
-
         if(tExplicitAllRDM) then
             write(6,'(A)') " Explicitly calculating the reduced density matrices from the &
                                                         &FCIQMC wavefunction."

@@ -2,7 +2,7 @@
 !This module is to be used for various types of walker MC annihilation in serial and parallel.
 MODULE AnnihilationMod
     use SystemData , only : NEl, tHPHF, nBasis, tCSF
-    use CalcData , only : TRegenExcitgens,tRegenDiagHEls, tEnhanceRemainder, &
+    use CalcData , only : TRegenExcitgens, tEnhanceRemainder, &
                           tTruncInitiator, tSpawnSpatialInit, OccupiedThresh, &
                           tSemiStochastic, tTrialWavefunction
     USE DetCalcData , only : Det,FCIDetIndex
@@ -1314,7 +1314,6 @@ MODULE AnnihilationMod
         character(len=*), parameter :: t_r="AddNewHashDet"
 
         !update its flag
-        if(tTruncInitiator) call FlagifDetisInitiator(iLutCurr)
         if (tSemiStochastic) call clr_flag(iLutCurr, flag_determ_parent)
 
         if(iStartFreeSlot.le.iEndFreeSlot) then
@@ -1333,16 +1332,15 @@ MODULE AnnihilationMod
         endif
 !        write(6,*) "Putting into position: ",DetPosition
         
-        if(.not.tRegenDiagHEls) then
-!We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
-!            call decode_bit_det (nJ, CurrentDets(:,CurrDetsIndex))
-            if (tHPHF) then
-                HDiag = hphf_diag_helement (nJ,CurrentDets(:,DetPosition))
-            else
-                HDiag = get_helement (nJ, nJ, 0)
-            endif
-            CurrentH(1,DetPosition)=real(HDiag,dp)-Hii
+        ! Calculate the diagonal hamiltonian matrix element for the new particle to be merged.
+        if (tHPHF) then
+            HDiag = hphf_diag_helement (nJ,CurrentDets(:,DetPosition))
+        else
+            HDiag = get_helement (nJ, nJ, 0)
         endif
+        CurrentH(1,DetPosition)=real(HDiag,dp)-Hii
+
+        if(tTruncInitiator) call FlagifDetisInitiator(iLutCurr, HDiag)
 
         ! If using a trial wavefunction, search to see if this state is in either the trial or
         ! connected space. If so, bin_search_trial sets the correct flag and returns the corresponding
@@ -1543,8 +1541,8 @@ MODULE AnnihilationMod
         use util_mod, only: abs_sign
         use SystemData, only: tHPHF, tRef_Not_HF
         use bit_reps, only: NIfD
-        use CalcData , only : tCheckHighestPop, NMCyc, InitiatorWalkNo
         use LoggingData , only : tRDMonFly, tExplicitAllRDM
+        use CalcData , only : tCheckHighestPop, NMCyc
         INTEGER, intent(in) :: ValidSpawned
         integer, intent(inout) :: TotWalkersNew
         real(dp) :: CurrentSign(lenof_sign), SpawnedSign(lenof_sign)
@@ -1659,8 +1657,7 @@ MODULE AnnihilationMod
 !We want to move all the elements above this point down to 'fill in' the annihilated determinant.
                     IF(DetsMerged.ne.0) THEN
                         CurrentDets(0:NIfTot,i-DetsMerged)=CurrentDets(0:NIfTot,i)
-                        IF(.not.tRegenDiagHEls) &
-                            CurrentH(:,i-DetsMerged)=CurrentH(:,i)
+                        CurrentH(:, i-DetsMerged) = CurrentH(:, i)
 
                         ! Move the elements in the occupied trial and connected vectors to fill in
                         ! the values of the annihilated determinants.
@@ -1747,64 +1744,54 @@ MODULE AnnihilationMod
             WRITE(6,*) "Size of Particle List:", MaxWalkersPart
             call stop_all(this_routine, "Not enough space in particle list for merge.") 
         endif
-        IF(tRegenDiagHEls) THEN
-            IF(TotWalkersNew.eq.0) THEN
+        IF(TotWalkersNew.eq.0) THEN
 !Merging algorithm will not work with no determinants in the main list.
-                TotWalkersNew=ValidSpawned
-                do i=1,ValidSpawned
-                    CurrentDets(:,i)=SpawnedParts(:,i)
-                    IF(tTruncInitiator) CALL FlagifDetisInitiator(CurrentDets(0:NIfTot,i))
-                enddo
-            ELSE
-                CALL MergeLists(TotWalkersNew,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned))
-            ENDIF
-        ELSE
-            IF(TotWalkersNew.eq.0) THEN
-!Merging algorithm will not work with no determinants in the main list.
-                TotWalkersNew=ValidSpawned
+            TotWalkersNew=ValidSpawned
 
-                ! If using a trial wavefunction then call a routine to set the trial and connected
-                ! flags for the determinants in SpawnedParts, where necessary, and to also count and
-                ! return the number of trial and connected determinants. The corresponding trial
-                ! and connected vector amplitudes are stored in trial_temp and con_temp on output.
-                ! These are then copied across to occ_trial_amps and con_trial_amps.
-                if (tTrialWavefunction) then
-                    if (tTrialHash) then
-                        call find_trial_and_con_states_hash(int(ValidSpawned,8), &
-                                    SpawnedParts(0:NIfTot,1:ValidSpawned), ntrial_occ, ncon_occ)
-                    else
-                        call find_trial_and_con_states_bin(int(ValidSpawned,8), &
-                                    SpawnedParts(0:NIfTot,1:ValidSpawned), ntrial_occ, ncon_occ)
-                    end if
-                    occ_trial_amps(1:ntrial_occ) = trial_temp(1:ntrial_occ)
-                    occ_con_amps(1:ncon_occ) = con_temp(1:ncon_occ)
+            ! If using a trial wavefunction then call a routine to set the trial and connected
+            ! flags for the determinants in SpawnedParts, where necessary, and to also count and
+            ! return the number of trial and connected determinants. The corresponding trial
+            ! and connected vector amplitudes are stored in trial_temp and con_temp on output.
+            ! These are then copied across to occ_trial_amps and con_trial_amps.
+            if (tTrialWavefunction) then
+                if (tTrialHash) then
+                    call find_trial_and_con_states_hash(int(ValidSpawned,8), &
+                                SpawnedParts(0:NIfTot,1:ValidSpawned), ntrial_occ, ncon_occ)
+                else
+                    call find_trial_and_con_states_bin(int(ValidSpawned,8), &
+                                SpawnedParts(0:NIfTot,1:ValidSpawned), ntrial_occ, ncon_occ)
                 end if
+                occ_trial_amps(1:ntrial_occ) = trial_temp(1:ntrial_occ)
+                occ_con_amps(1:ncon_occ) = con_temp(1:ncon_occ)
+            end if
 
-                do i=1,ValidSpawned
-                    CurrentDets(:,i)=SpawnedParts(:,i)
-                    IF(tTruncInitiator) CALL FlagifDetisInitiator(CurrentDets(0:NIfTot,i))
+            do i=1,ValidSpawned
+                CurrentDets(:,i)=SpawnedParts(:,i)
 !We want to calculate the diagonal hamiltonian matrix element for the new particle to be merged.
-                    if (DetBitEQ(CurrentDets(:,i), iLutHF_True, NIfDBO)) call extract_sign(CurrentDets(:,i),InstNoatHF)
-                    if (DetBitEQ(CurrentDets(:,i), iLutRef, NIfDBO)) then
+                if (DetBitEQ(CurrentDets(:,i), iLutHF_True, NIfDBO)) call extract_sign(CurrentDets(:,i),InstNoatHF)
+                if (DetBitEQ(CurrentDets(:,i), iLutRef, NIfDBO)) then
 !We know we are at HF - HDiag=0
-                        HDiag=0.0_dp
+                    HDiag=0.0_dp
+                else
+                    call decode_bit_det (nJ, CurrentDets(:,i))
+                    if (tHPHF) then
+                        HDiagTemp = hphf_diag_helement (nJ, &
+                                                        CurrentDets(:,i))
                     else
-                        call decode_bit_det (nJ, CurrentDets(:,i))
-                        if (tHPHF) then
-                            HDiagTemp = hphf_diag_helement (nJ, &
-                                                            CurrentDets(:,i))
-                        else
-                            HDiagTemp = get_helement (nJ, nJ, 0)
-                        endif
-                        HDiag=(REAL(HDiagTemp,dp))-Hii
+                        HDiagTemp = get_helement (nJ, nJ, 0)
                     endif
-                    CurrentH(1,i)=HDiag
-                enddo
-            ELSE
-                CALL MergeListswH(TotWalkersNew,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned))
-            ENDIF
+                    HDiag=(REAL(HDiagTemp,dp))-Hii
+                endif
+                CurrentH(1,i)=HDiag
 
+                IF(tTruncInitiator) &
+                    CALL FlagifDetisInitiator(CurrentDets(0:NIfTot,i), &
+                                              HDiag)
+            enddo
+        ELSE
+            CALL MergeListswH(TotWalkersNew,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned))
         ENDIF
+
 !        CALL CheckOrdering(CurrentDets,CurrentSign(1:TotWalkers),TotWalkers,.true.)
 
     END SUBROUTINE InsertRemoveParts
