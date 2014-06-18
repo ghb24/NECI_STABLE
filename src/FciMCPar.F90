@@ -91,7 +91,8 @@ MODULE FciMCParMod
                            tDiagAllSpaceEver, tCalcVariationalEnergy, tCompareTrialAmps, &
                            compare_amps_period, tNoNewRDMContrib, &
                            log_cont_time_survivals, tNoWarnIC0Bloom, &
-                           tLogPopsMaxTau, tFCIMCStats2, tHistExcitToFrom
+                           tLogPopsMaxTau, tFCIMCStats2, tHistExcitToFrom, &
+                           tSpawnGhostChild,GhostThresh
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -1090,7 +1091,7 @@ MODULE FciMCParMod
                     endif
 
                     ! Children have been chosen to be spawned.
-                    if (any(child /= 0)) then
+                    if (any(child /= 0) .or. tGhostChild ) then
 
                         !Encode child if not done already
                         if(.not. (tSemiStochastic)) call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
@@ -1985,6 +1986,8 @@ MODULE FciMCParMod
                         & "ERROR: We shouldn't reach this part of the code unless complex calc")
 #endif
             end if
+            
+            tGhostChild=.false.
 
             nSpawn = - tau * MatEl * walkerweight / prob
             
@@ -2025,6 +2028,20 @@ MODULE FciMCParMod
                 ! HACK: To use the same number of random numbers for the tests.
                 if (nspawn - real(int(nspawn),dp) == 0.0_dp) r = genrand_real2_dSFMT()
                 nSpawn = real(stochastic_round (nSpawn), dp)
+                
+                if(tFillingStochRDMonFly .and. tSpawnGhostChild .and. (abs(tau*MatEl*walkerweight/prob).lt.GhostThresh)) then
+                    !For elements of this type, there are potentially 2 chances to include an RDM contribution
+                    !The first chance (the actual spawning attempt) has probability x. If this fails, there is a
+                    ! second chance with probability ghostthresh (y)
+                    !The total probability of including a contrib is therefore x + (1-x)y
+                    p_spawn_rdmfac=abs(tau*MatEl*walkerweight/prob) + GhostThresh - abs(tau*MatEl*walkerweight/prob)*GhostThresh
+                    
+                    if(nSpawn.eq.0) then
+                        r=genrand_real2_dSFMT()
+                        if (r .lt. GhostThresh) tGhostChild=.true.
+                    endif
+
+                endif
             endif
 #ifdef __CMPLX
             ! And create the parcticles
@@ -2036,7 +2053,7 @@ MODULE FciMCParMod
         enddo
        
         if(tFillingStochRDMonFly) then
-            if((child(part_type).ne.0).and.(.not.tHF_Ref_Explicit).and.(part_type.eq.1)) then
+            if(((child(part_type).ne.0) .or. tGhostChild) .and.(.not.tHF_Ref_Explicit).and.(part_type.eq.1)) then
                 !Only add in contributions for spawning events within population 1
                 !(Otherwise it becomes tricky in annihilation as spawnedparents doesn't tell you which population the event came from at present)
                 call calc_rdmbiasfac(p_spawn_rdmfac, prob, AvSignCurr, realwSign, RDMBiasFacCurr) 
@@ -5683,7 +5700,7 @@ MODULE FciMCParMod
                 tFillingExplicRDMonFly = .true.
                 if(tHistSpawn) NHistEquilSteps = Iter
             else
-                !extract_bit_rep_avsign => extract_bit_rep_avsign_norm
+                extract_bit_rep_avsign => extract_bit_rep_avsign_norm
                 !By default - we will do a stochastic calculation of the RDM.
                 tFillingStochRDMonFly = .true.
                 if(.not.tHF_Ref_Explicit) call DeAlloc_Alloc_SpawnedParts()

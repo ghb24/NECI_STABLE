@@ -125,9 +125,9 @@ MODULE Logging
       RDMExcitLevel=1
       tDo_Not_Calc_RDMEnergy = .false.
       tExplicitAllRDM = .false.
-      tHF_S_D_Ref = .false.
-      tHF_S_D = .false.
-      tHF_Ref_Explicit = .false.
+!      tHF_S_D_Ref = .false.
+!      tHF_S_D = .false.
+!      tHF_Ref_Explicit = .false.
       twrite_normalised_RDMs = .true. 
       twrite_RDMs_to_read = .false.
       tno_RDMs_to_read = .false.
@@ -156,7 +156,7 @@ MODULE Logging
       rottwo = 0
       rotthree = 0
       rotfour = 0
-      tInstSignOffDiagRDM=.true.
+      tRDMInstEnergy=.true.
 
       tLogTauSearchStats = .false.
       tLogPopsMaxTau = .false.
@@ -520,10 +520,6 @@ MODULE Logging
 !The eigenvalues give the occupation numbers of the natural orbitals (eigenfunctions).
             tDiagRDM=.true.
 
-        case("INSTSIGNOFFDIAGRDM")
-!Use the instantaneous signs when calculating the off-diagonal RDM elements
-            tInstSignOffDiagRDM=.true.
-
         case("NONOTRANSFORM")
 ! This tells the calc that we don't want to print the NO_TRANSFORM matrix.            
 ! i.e. the diagonalisation is just done to get the correlation entropy.
@@ -606,23 +602,28 @@ MODULE Logging
             ELSE
                 tDo_Not_Calc_RDMEnergy=.false.
             ENDIF
+        
+        case("NORDMINSTENERGY")
+!Only calculate and print out the RDM energy (from the 2-RDM) at the end of the simulation
+!This saves memory by only having to store one set of RDMs on the headnode rather than two
+            tRDMInstEnergy=.false.
 
         case("EXPLICITALLRDM")
 !Explicitly calculates all the elements of the RDM.            
             tExplicitAllRDM = .true.
 
-        case("HFREFRDMEXPLICIT")
+!        case("HFREFRDMEXPLICIT")
 !Uses the HF as a reference and explicitly calculates the RDM to find the energy - should be same as projected energy, 
 !when printing out every shift update.
-            tHF_Ref_Explicit = .true.
+!            tHF_Ref_Explicit = .true.
 
-        case("HFSDRDM")
+!        case("HFSDRDM")
 !Calculate the RDM for the HF, singles and doubles only - symmetrically.            
-            tHF_S_D = .true.
+!            tHF_S_D = .true.
 
-        case("HFSDREFRDM")
+!        case("HFSDREFRDM")
 !Uses the HF, singles and doubles as a multiconfigurational reference and calculates the RDM to find the energy.            
-            tHF_S_D_Ref = .true.
+!            tHF_S_D_Ref = .true.
 
         case("WRITEINITIATORS")
 ! Requires a popsfile to be written out.  Writes out the initiator populations. 
@@ -659,6 +660,13 @@ MODULE Logging
         case("READRDMS")
 ! Read in the RDMs from a previous calculation, and continue accumulating the RDMs from the very beginning of this restart. 
             tReadRDMs = .true.
+        
+        case("RDMGHOSTCHILD")
+! In this case, if the probability of spawning on a given Dj, generated from Di, is less than GhostThresh (a real), 
+! the acceptance probability is increased GhostThresh. If the spawning is accepted, a 'ghost child' is created,
+! i.e. child is still equal to zero, but the DiDj pair are put in the spawning array to later contribute to the reduced density matrices.
+            tSpawnGhostChild = .true.
+            call readf(GhostThresh)
 
         case("NONEWRDMCONTRIB")
             !To be used with READRDMs.  This option makes sure that we don't add in any 

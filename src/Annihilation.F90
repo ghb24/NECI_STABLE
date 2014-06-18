@@ -9,7 +9,6 @@ MODULE AnnihilationMod
     USE Parallel_neci
     USE dSFMT_interface, only : genrand_real2_dSFMT
     USE FciMCData
-    use LoggingData, only: tInstSignOffDiagRDM
     use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel, ilut_lt, &
                          ilut_gt, DetBitZero
     use spatial_initiator, only: add_initiator_list, rm_initiator_list, &

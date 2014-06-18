@@ -58,6 +58,7 @@ MODULE FciMCData
       integer :: IterRDMStart
       integer, dimension(inum_runs) :: IterRDM_HF
       real(dp), dimension(lenof_sign) :: InstNoatHf
+      logical :: tGhostChild
 
       INTEGER(KIND=n_int) , ALLOCATABLE :: TempSpawnedParts(:,:)
       INTEGER :: TempSpawnedPartsTag, TempSpawnedPartsInd
