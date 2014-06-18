@@ -1285,16 +1285,26 @@ MODULE FciMCParMod
         endif
 
         ! Count the number of children born
+#ifdef __CMPLX
         NoBorn = NoBorn + sum(abs(child))
-        iter_data%nborn = iter_data%nborn + abs(child)
-
-        if (ic == 1) SpawnFromSing = SpawnFromSing + int(sum(abs(child)))
-
+        if (ic == 1) SpawnFromSing = SpawnFromSing + sum(abs(child))
+        
         ! Count particle blooms, and their sources
         if (sum(abs(child)) > INitiatorWalkNo) then
             bloom_count(ic) = bloom_count(ic) + 1
             bloom_sizes(ic) = max(real(sum(abs(child)), dp), bloom_sizes(ic))
         end if
+#else
+        NoBorn = NoBorn + abs(child)
+        if (ic == 1) SpawnFromSing = SpawnFromSing + abs(child)
+
+        ! Count particle blooms, and their sources
+        if (abs(child(part_type)) > INitiatorWalkNo) then
+            bloom_count(ic) = bloom_count(ic) + 1
+            bloom_sizes(ic) = max(real((abs(child(part_type))), dp), bloom_sizes(ic))
+        end if
+#endif
+        iter_data%nborn = iter_data%nborn + abs(child)
 
         ! Histogram the excitation levels as required
         if (tHistExcitToFrom) &
@@ -1383,7 +1393,11 @@ MODULE FciMCParMod
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
         
         ! Sum the number of created children to use in acceptance ratio.
-        acceptances = acceptances + int(sum(abs(child)), kind(acceptances))
+#ifdef __CMPLX
+        acceptances = acceptances + sum(abs(child))
+#else
+        acceptances = acceptances + abs(child)
+#endif
 
     end subroutine
 
@@ -2323,11 +2337,19 @@ MODULE FciMCParMod
 
         ! Update death counter
         iter_data%ndied = iter_data%ndied + min(iDie, abs(RealwSign))
+#ifdef __CMPLX
         NoDied = NoDied + sum(min(iDie, abs(RealwSign)))
+#else
+        NoDied = NoDied + min(iDie, abs(RealwSign))
+#endif
 
         ! Count any antiparticles
         iter_data%nborn = iter_data%nborn + max(iDie - abs(RealwSign), 0.0_dp)
+#ifdef __CMPLX
         NoBorn = NoBorn + sum(max(iDie - abs(RealwSign), 0.0_dp))
+#else
+        NoBorn = NoBorn + max(iDie - abs(RealwSign), 0.0_dp)
+#endif
 
         ! Calculate new number of signed particles on the det.
         CopySign = RealwSign - (iDie * sign(1.0_dp, RealwSign))
@@ -3177,28 +3199,25 @@ MODULE FciMCParMod
         AccRat = real(Acceptances, dp) / SumWalkersCyc
 
 
-#ifndef __CMPLX
-        do part_type = 1, lenof_sign
-            if (AllNoAtHF(part_type) < 0.0_dp) then
-                root_print 'No. at HF < 0 - flipping sign of entire ensemble &
-                           &of particles in simulation: ', part_type
-                root_print AllNoAtHF(part_type)
+        IF(lenof_sign.eq.1) THEN
+            ! Flip sign of entire ensemble if negative pop on HF
+            IF(AllNoatHF(1).lt.0.0) THEN
+                root_print "No. at HF < 0 - flipping sign of entire ensemble &
+                           &of particles..."
+                root_print AllNoatHF(1)
 
-                ! And do the flipping
-                call FlipSign(part_type)
-                AllNoatHF(part_type) = -AllNoatHF(part_type)
-                NoatHF(part_type) = -NoatHF(part_type)
+                call FlipSign ()
+                AllNoatHF(1) = -AllNoatHF(1)
+                NoatHF(1) = -NoatHF(1)
 
-                if (tFillingStochRDMonFly) then
-                    if (lenof_sign /= 1) &
-                        call stop_all(t_r, 'Not yet implmented')
+                if(tFillingStochRDMonFly) then
                     ! Want to flip all the averaged signs.
-                    AvNoatHF = -AVNoatHF
-                    InstNoatHF(part_type) = -InstNoatHF(part_type)
-                end if
-            end if
-        end do
-#endif
+                    AvNoatHF = -AvNoatHF 
+                    InstNoatHF(1) = -InstNoatHF(1)
+                endif
+ 
+            endif
+        ENDIF
 
         if (iProcIndex == Root) then
             ! Have all of the particles died?
