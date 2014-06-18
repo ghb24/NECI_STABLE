@@ -32,11 +32,6 @@ MODULE CCMC
     use hash, only: DetermineDetNode
     use procedure_pointers, only: get_spawn_helement
    IMPLICIT NONE
-#ifdef MOLPRO
-    include "common/tapes"
-#else
-    integer, parameter :: iout = 6
-#endif
     integer :: iPartBloom
    CONTAINS
 
@@ -2366,7 +2361,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use CalcData, only: TStartSinglePart
    use timing_neci, only: print_timing_report
    use Parallel_neci
-   use shared_alloc, only: shared_allocate_iluts, shared_deallocate
+   use shared_alloc, only: shared_allocate_iluts, shared_deallocate, &
+                           shared_allocate
    use CalcData, only: tAddToInitiator,InitiatorWalkNo,tTruncInitiator
    use bit_reps, only: encode_sign,extract_sign
    use FciMCParMod, only: tReadPops, ChangeVars
@@ -2486,8 +2482,10 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    write(iout,*) "Max Amplitude List size: ", nMaxAmpl
    if(tSharedExcitors) then
       call shared_allocate_iluts("DetList",DetList,(/nIfTot,nMaxAmpl/),iNodeIndex)
+      call shared_allocate("CurrentH", CurrentH, (/1, nMaxAmpl/), iNodeIndex)
    else
       Allocate(DetList(0:nIfTot,nMaxAmpl))
+      allocate(currenth(1,nmaxampl))
    endif
    ierr=0
    LogAlloc(ierr,'DetList',(nIfTot+1)*nMaxAmpl,4,tagDetList)
@@ -3274,11 +3272,6 @@ subroutine WriteExcitorListP(iUnit,Dets,offset,nDet,dTol,Title)
    use FciMCData, only: iLutHF
    use bit_reps, only: extract_sign,extract_flags
    IMPLICIT NONE
-#ifdef MOLPRO
-    include "common/tapes"
-#else
-    integer, parameter :: iout = 6
-#endif
    INTEGER iUnit,nDet
    INTEGER(KIND=n_int) Dets(0:nIfTot,nDet)
    integer dTol
@@ -3304,11 +3297,6 @@ subroutine WriteExcitorListP2(iUnit,Dets,starts,ends,dTol,Title)
    use bit_reps, only: extract_sign,extract_flags
    use Parallel_neci
    IMPLICIT NONE
-#ifdef MOLPRO
-    include "common/tapes"
-#else
-    integer, parameter :: iout = 6
-#endif
    INTEGER iUnit,nDet
    INTEGER(KIND=n_int) Dets(0:nIfTot,*)
    integer dTol

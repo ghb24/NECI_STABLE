@@ -14,7 +14,7 @@ module LoggingData
     INTEGER ILOGGING,ILOGGINGDef
     INTEGER :: iGlobalTimerLevel=40
     INTEGER nPrintTimer,G_VMC_LOGCOUNT
-    INTEGER HFLOGLEVEL,iWritePopsEvery,StartPrintOrbOcc,StartPrintDoubsUEG
+    INTEGER HFLOGLEVEL,iWritePopsEvery,StartPrintOrbOcc
     INTEGER PreVarLogging,WavevectorPrint,NoHistBins,HistInitPopsIter
     real(dp) MaxHistE,OffDiagMax,OffDiagBinRange,PopsfileTimer
     LOGICAL TDistrib,TPopsFile,TCalcWavevector,TDetPops,tROFciDump,tROHistOffDiag,tROHistDoubExc,tROHistOnePartOrbEn
@@ -24,7 +24,7 @@ module LoggingData
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tDo_Not_Calc_RDMEnergy
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
     LOGICAL tTruncDumpbyVal, tChangeVarsRDM, tPrintRODump, tno_RDMs_to_read, tReadRDMs, tNoNewRDMContrib 
-    LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit,tPrintDoubsUEG, tWriteMultRDMs
+    LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit, tWriteMultRDMs
     LOGICAL tHF_S_D_Ref, tHF_S_D, tHF_Ref_Explicit, tExplicitAllRDM, twrite_normalised_RDMs, twrite_RDMs_to_read 
     LOGICAL tNoNOTransform, tPrint1RDM, tPrintInitiators, tInitiatorRDM
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock
@@ -45,8 +45,6 @@ module LoggingData
     LOGICAL tLogDets       ! Write out the DETS and SymDETS files.
     LOGICAL tLogComplexPops     ! Write out complex walker information 
     LOGICAL tMCOutput
-    logical :: tSplitProjEHist,tSplitProjEHistG,tSplitProjEHistK3
-    integer :: iProjEBins
     logical :: tDumpForcesInfo
     logical :: tPrintLagrangian  !Print out the 1RDM,2RDM and Lagrangian to file at the end of a run as long as 2RDM is calculated
     real(dp) :: ThreshOccRDM, erf_factor1, erf_factor2
@@ -77,6 +75,11 @@ module LoggingData
     ! Output the above data to a file every compare_amps_period iterations.
     integer :: compare_amps_period
     logical :: tDipoles !Do we want to calculate the dipole moments
+    logical :: tHistExcitToFrom
+
+    logical :: log_cont_time_survivals, tNoWarnIC0Bloom, tDumpHamilBinary, &
+               tDumpHamilOverlap, tLogTauSearchStats, tLogPopsMaxTau
+    logical :: tFCIMCStats2
 
     !If we want to force the Cauchy--Schwarz inequality (e.g. if we know the 1RDM is undersampled)
     logical :: tForceCauchySchwarz
