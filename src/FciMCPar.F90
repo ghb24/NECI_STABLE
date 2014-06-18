@@ -4766,15 +4766,15 @@ MODULE FciMCParMod
                 fcimcstats_unit2 = get_free_unit()
                 if (tReadPops) then
                     ! Restart calculation.  Append to stats file (if it exists).
-                    if(tMolpro) then
+                    if(tMolpro .and. .not. tMolproMimic) then
                         filename2 = 'FCIQMCStats2_' // adjustl(MolproID)
                         OPEN(fcimcstats_unit2,file=filename2,status='unknown',position='append')
                     else
                         OPEN(fcimcstats_unit2,file='FCIMCStats2',status='unknown',position='append')
                     endif
                 else
-                    if(tMolpro) then
-                        filename = 'FCIQMCStats_' // adjustl(MolproID)
+                    if(tMolpro .and. .not. tMolproMimic) then
+                        filename2 = 'FCIQMCStats2_' // adjustl(MolproID)
                         OPEN(fcimcstats_unit2,file=filename2,status='unknown')
                     else
                         OPEN(fcimcstats_unit2,file='FCIMCStats2',status='unknown')
