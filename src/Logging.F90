@@ -131,7 +131,7 @@ MODULE Logging
       twrite_normalised_RDMs = .true. 
       twrite_RDMs_to_read = .false.
       tno_RDMs_to_read = .false.
-      tReadRDMAvPop=.false.
+      !tReadRDMAvPop=.false.
       tReadRDMs = .false.
       tNoNewRDMContrib=.false.
       IterWriteRDMs = 10000
@@ -157,6 +157,7 @@ MODULE Logging
       rotthree = 0
       rotfour = 0
       tRDMInstEnergy=.true.
+      tFullHFAv=.false.
 
       tLogTauSearchStats = .false.
       tLogPopsMaxTau = .false.
@@ -519,6 +520,11 @@ MODULE Logging
 !This sets the calculation to diagonalise the *1* electron reduced density matrix.   
 !The eigenvalues give the occupation numbers of the natural orbitals (eigenfunctions).
             tDiagRDM=.true.
+        
+        case("FULLHFAV")
+            !Continue to accumulate the average of N_HF even when it goes to zero
+            !Necessary for good RDM accumulation in systems with small N_HF (i.e. multireference)
+            tFullHFAv=.true.
 
         case("NONOTRANSFORM")
 ! This tells the calc that we don't want to print the NO_TRANSFORM matrix.            
@@ -645,12 +651,12 @@ MODULE Logging
                 tno_RDMs_to_read = .false. 
             ENDIF
 
-        case("READRDMAVPOP")
+       ! case("READRDMAVPOP")
 ! Use in conjunction with READRDMS.  This can be used in the previous calculation had "WRITEBINRDMNODIAG" switched on.
 ! We will read in the information in RDM_Av_Pop which contains some of the data from CurrentH in the previous round -- the cumulative
 ! sum of this determinant's populations during its lifetime (updated every iter), and the number of iters it has been occupied.
 ! This information will get assigned into currentH and allow us to continue the RDM accumulation without bias.
-            tReadRDMAvPop=.true.
+        !    tReadRDMAvPop=.true.
 
         case("NONORMRDMS")            
 ! Does not print out the normalised (final) RDMs - to be used if you know the calculation will not be converged, and don't  

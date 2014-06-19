@@ -26,8 +26,7 @@ MODULE PopsfileMod
     use LoggingData, only: iWritePopsEvery, tPopsFile, iPopsPartEvery, tBinPops, &
                        tPrintPopsDefault, tIncrementPops, tPrintInitiators, &
                        tSplitPops, tZeroProjE, tRDMonFly, tExplicitAllRDM, &
-                       tHF_Ref_Explicit, binarypops_min_weight, &
-                       tReadRDMAvPop
+                       binarypops_min_weight
     use sort_mod
     use util_mod, only: get_free_unit,get_unique_filename
     use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
@@ -143,7 +142,7 @@ contains
             read_walkers_on_nodes = pops_walkers
         end if
 
-        if(tReadRDMAvPop) open(iunit_3,file='RDM_AV_POP', status='old', form='unformatted')
+        !if(tReadRDMAvPop) open(iunit_3,file='RDM_AV_POP', status='old', form='unformatted')
 
         call mpibarrier(err)
 
@@ -182,7 +181,7 @@ contains
         ! Close the popsfiles.
         if(iProcIndex == Root .or. (tSplitPops .and. bNodeRoot)) then
             close(iunit)
-            if (tReadRDMAvPop) close(iunit_3)
+            !if (tReadRDMAvPop) close(iunit_3)
         endif
 
         ! Test we have still got all determinants
@@ -243,11 +242,11 @@ contains
             nullify(Temp)
         else
             !Order the determinants on all the lists.
-            if(tReadRDMAvPop) then
-                call sort (dets(:,1:CurrWalkers), CurrentH(:,1:CurrWalkers), ilut_lt, ilut_gt)
-            else
+            !if(tReadRDMAvPop) then
+            !    call sort (dets(:,1:CurrWalkers), CurrentH(:,1:CurrWalkers), ilut_lt, ilut_gt)
+            !else
                 call sort (dets(:,1:CurrWalkers), ilut_lt, ilut_gt)
-            endif
+            !endif
         endif
 
         !Run through all determinants on each node, and calculate the total number of walkers, and noathf
@@ -275,15 +274,15 @@ contains
                     else
                         HElemTemp = get_helement (TempnI, TempnI, 0)
                     endif
-                    if(tReadRDMAvPop .and. &
-                        & (abs(CurrentH(1,i)-REAL(HElemTemp,dp)+Hii).gt.1E-10)) then
-                    WRITe(6,*) "CurrentH", CurrentH(1,i)
-                    WRITe(6,*) "New", REAL(HElemTemp,dp)-Hii
-                        call stop_all("ReadFromPopsfile", "Problem with reading in CurrentH &
-                            & information from RDM_AV_POP file")
-                    else
+                    !if(tReadRDMAvPop .and. &
+                    !    & (abs(CurrentH(1,i)-REAL(HElemTemp,dp)+Hii).gt.1E-10)) then
+                    !WRITe(6,*) "CurrentH", CurrentH(1,i)
+                    !WRITe(6,*) "New", REAL(HElemTemp,dp)-Hii
+                    !    call stop_all("ReadFromPopsfile", "Problem with reading in CurrentH &
+                    !        & information from RDM_AV_POP file")
+                    !else
                         CurrentH(1,i)=REAL(HElemTemp,dp)-Hii
-                    endif
+                    !endif
                 endif
             endif
         enddo
@@ -378,8 +377,8 @@ contains
                     det_list(:, 1:ndets) = buffer(:, 1:ndets)
                     CurrWalkers = ndets
 
-                    if (tReadRDMAvPop) &
-                        currentH(:, 1:ndets) = hbuffer(:, 1:ndets)
+                    !if (tReadRDMAvPop) &
+                    !    currentH(:, 1:ndets) = hbuffer(:, 1:ndets)
 
                 else
 
@@ -388,11 +387,11 @@ contains
                     nelem = ndets * (1 + NIfTot)
                     call MPISend(buffer(:,1:ndets), nelem, proc, mpi_tag, ierr)
 
-                    if (tReadRDMAvPop) then
-                        nelem = ndets * (1 + 2*lenof_sign)
-                        call MPISend(hbuffer(:,1:ndets), nelem, proc, &
-                                     mpi_tag_h, ierr)
-                    end if
+                    !if (tReadRDMAvPop) then
+                    !    nelem = ndets * (1 + 2*lenof_sign)
+                    !    call MPISend(hbuffer(:,1:ndets), nelem, proc, &
+                    !                 mpi_tag_h, ierr)
+                    !end if
 
                 end if
                 
@@ -409,10 +408,10 @@ contains
             call MPIRecv(det_list, nelem, root, mpi_tag, ierr)
 
             ! And also receive the CurrentH data
-            if (tReadRDMAvPop) then
-                nelem = ndets * (1 + 2*lenof_sign)
-                call MPIRecv(CurrentH, nelem, root, mpi_tag_h, ierr)
-            end if
+            !if (tReadRDMAvPop) then
+            !    nelem = ndets * (1 + 2*lenof_sign)
+            !    call MPIRecv(CurrentH, nelem, root, mpi_tag_h, ierr)
+            !end if
 
             ! Now we know how many particles are on this node
             CurrWalkers = ndets
@@ -467,7 +466,7 @@ contains
                                           .true.)
 
                 ! And store the current H-values
-                if (tReadRDMAvPop) CurrentH(:, CurrWalkers) = htmp
+                !if (tReadRDMAvPop) CurrentH(:, CurrWalkers) = htmp
 
                 ! When we have got to the end of the file, we are done.
                 if (tEOF) exit
@@ -559,7 +558,7 @@ r_loop: do while (.not. tReadAllPops)
                 nBatches = nBatches + 1
                 BatchRead(:,:) = 0
                 PopsSendList(:) = PopsInitialSlots(:)
-                if (tReadRDMAvPop) BatchCurrentH(:,:) = 0
+              !  if (tReadRDMAvPop) BatchCurrentH(:,:) = 0
 
                 do while (Det <= EndPopsList .or. tSplitPops)
 
@@ -582,8 +581,8 @@ r_loop: do while (.not. tReadAllPops)
                     ! distribute it when it is full.
                     BatchRead(:,PopsSendList(proc)) = ilut_tmp(:)
                     PopsSendList(proc) = PopsSendList(proc) + 1
-                    if (tReadRDMAvPop) &
-                        BatchCurrentH(:, PopsSendList(proc)) = CurrentHEntry(:)
+                    !if (tReadRDMAvPop) &
+                    !    BatchCurrentH(:, PopsSendList(proc)) = CurrentHEntry(:)
 
                     ! If we have filled up the lists, exit the loop so that the
                     ! particles get distributed
@@ -606,14 +605,14 @@ r_loop: do while (.not. tReadAllPops)
                             (NIfTot + 1), MPIArg)
                     disps(j+1) = &
                         int((PopsInitialSlots(j) - 1) * (NIfTot + 1), MPIArg)
-                    if (tReadRDMAvPop) then
-                        sendcounts2(j+1) = &
-                            int((PopsSendList(j) - PopsInitialSlots(j)) * &
-                                (1+2*lenof_sign), MPIArg)
-                        disps2(j+1) = &
-                            int((PopsInitialSlots(j) - 1) * (1+2*lenof_sign), &
-                                MPIArg)
-                    end if
+                    !if (tReadRDMAvPop) then
+                    !    sendcounts2(j+1) = &
+                    !        int((PopsSendList(j) - PopsInitialSlots(j)) * &
+                    !            (1+2*lenof_sign), MPIArg)
+                    !    disps2(j+1) = &
+                    !        int((PopsInitialSlots(j) - 1) * (1+2*lenof_sign), &
+                    !            MPIArg)
+                    !end if
                 enddo
                 MaxSendIndex = (disps(nNodes) + sendcounts(nNodes)) &
                              / (nIfTot + 1)
@@ -637,18 +636,18 @@ r_loop: do while (.not. tReadAllPops)
                     call stop_all (this_routine, "MPI scatterV error")
 
                 ! And density matrix resume stuff (see Catherine)
-                if (tReadRDMAvPop) then
-                    call MPIScatter (sendcounts2, recvcount2, err, roots)
-                    if (err /= 0) &
-                        call stop_all (this_routine, "MPI scatter error")
+                !if (tReadRDMAvPop) then
+                !    call MPIScatter (sendcounts2, recvcount2, err, roots)
+                !    if (err /= 0) &
+                !        call stop_all (this_routine, "MPI scatter error")
 
-                    call MPIScatterV (BatchCurrentH(:,1:MaxSendIndex), &
-                                      sendcounts2, disps2, &
-                                      CurrentH(:,CurrWalkers+1:CurrWalkers+1+(recvcount2/(2*lenof_sign+1))), &
-                                      recvcount2, err, roots)
-                    if (err /= 0) &
-                        call stop_all (this_routine, "MPI scatterV error")
-                end if
+                !    call MPIScatterV (BatchCurrentH(:,1:MaxSendIndex), &
+                !                      sendcounts2, disps2, &
+                !                      CurrentH(:,CurrWalkers+1:CurrWalkers+1+(recvcount2/(2*lenof_sign+1))), &
+                !                      recvcount2, err, roots)
+                !    if (err /= 0) &
+                !        call stop_all (this_routine, "MPI scatterV error")
+                !end if
 
                 CurrWalkers = CurrWalkers + recvcount / (NIfTot + 1)
 
@@ -739,8 +738,8 @@ r_loop: do while(.not.tStoreDet)
                     tEOF = .true. ! End of file reached.
                     exit r_loop
                 end if
-                if (tReadRDMAvPop) &
-                    read(iunit_3, iostat=stat) CurrentHEntry(1:1+2*lenof_sign)
+                !if (tReadRDMAvPop) &
+                !    read(iunit_3, iostat=stat) CurrentHEntry(1:1+2*lenof_sign)
             else
                 !
                 ! we are mapping from a smaller to larger basis.
@@ -787,8 +786,8 @@ r_loop: do while(.not.tStoreDet)
                     exit r_loop
                 end if
                 
-                if (tReadRDMAvPop) &
-                    read(iunit_3, iostat=stat) CurrentHEntry(1:1+2*lenof_sign)
+                !if (tReadRDMAvPop) &
+                !    read(iunit_3, iostat=stat) CurrentHEntry(1:1+2*lenof_sign)
 
                 ! Decode to natural ordered integers, and then re-encode to
                 ! the new representation.
@@ -1845,7 +1844,7 @@ outer_map:      do i = 0, MappingNIfD
 
         call get_unique_filename('POPSFILE',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
         iunit = get_free_unit()
-        if(tReadRDMAvPop) iunit_3=get_free_unit()
+        !if(tReadRDMAvPop) iunit_3=get_free_unit()
         INQUIRE(FILE=popsfile,EXIST=exists)
         IF(exists) THEN
             OPEN(iunit,FILE=popsfile,Status='old')
@@ -1931,7 +1930,7 @@ outer_map:      do i = 0, MappingNIfD
             OPEN(iunit,FILE=popsfile,Status='old',form='unformatted')
         ENDIF
 
-        if(tReadRDMAvPop) OPEN(iunit_3,FILE='RDM_AV_POP',status='old',form='unformatted')
+        !if(tReadRDMAvPop) OPEN(iunit_3,FILE='RDM_AV_POP',status='old',form='unformatted')
 
         IF(iProcIndex.eq.Root) THEN
 
@@ -2070,7 +2069,7 @@ outer_map:      do i = 0, MappingNIfD
                 & REAL(MaxWalkersPart*8,dp)/1048576.0_dp," Mb/Processor"
         ENDIF
 
-        if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
+        if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
 !Allocate memory to hold walkers spawned from one determinant at a time.
 !Walkers are temporarily stored here, so we can check if we're spawning onto the same Dj multiple times.
             ALLOCATE(TempSpawnedParts(0:NIfDBO,20000),stat=ierr)
@@ -2145,7 +2144,7 @@ outer_map:      do i = 0, MappingNIfD
                     READ(iunit,*) iLutTemp32(0:NIfWriteOut),TempSign
                 ENDIF
             ENDIF
-            if(tReadRDMAvPop) READ(iunit_3) CurrentHEntry(1:1+2*lenof_sign)
+            !if(tReadRDMAvPop) READ(iunit_3) CurrentHEntry(1:1+2*lenof_sign)
             do j=1,lenof_sign
                 RealTempSign(j) = transfer(TempSign(j), RealTempSign(j))
             enddo
@@ -2329,13 +2328,13 @@ outer_map:      do i = 0, MappingNIfD
                     else
                         HElemTemp = get_helement (TempnI, TempnI, 0)
                     endif
-                    if(tReadRDMAvPop .and. &
-                        & (abs(CurrentH(1,j)-REAL(HElemTemp,dp)+Hii).gt.1E-10)) then
-                        call stop_all("ReadFromPopsfilePar", "Problem with reading in CurrentH &
-                            & information from RDM_AV_POP file")
-                    else
+                    !if(tReadRDMAvPop .and. &
+                    !    & (abs(CurrentH(1,j)-REAL(HElemTemp,dp)+Hii).gt.1E-10)) then
+                    !    call stop_all("ReadFromPopsfilePar", "Problem with reading in CurrentH &
+                    !        & information from RDM_AV_POP file")
+                    !else
                         CurrentH(1,j)=REAL(HElemTemp,dp)-Hii
-                    endif
+                    !endif
                 ENDIF
 
             ENDIF

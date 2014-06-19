@@ -83,8 +83,7 @@ MODULE FciMCParMod
                            tSplitProjEHistG, tSplitProjEHistK3, iProjEBins, &
                            tDiagWalkerSubspace,iDiagSubspaceIter, &
                            tRDMonFly, IterRDMonFly,RDMExcitLevel, RDMEnergyIter, &
-                           tChangeVarsRDM, tExplicitAllRDM, tHF_Ref_Explicit, &
-                           tHF_S_D_Ref, tHF_S_D, &
+                           tChangeVarsRDM, tExplicitAllRDM, &
                            tDiagWalkerSubspace, iDiagSubspaceIter, &
                            tCalcInstantS2Init, instant_s2_multiplier_init, &
                            tJustBlocking, iBlockEquilShift, iBlockEquilProjE, &
@@ -92,7 +91,7 @@ MODULE FciMCParMod
                            compare_amps_period, tNoNewRDMContrib, &
                            log_cont_time_survivals, tNoWarnIC0Bloom, &
                            tLogPopsMaxTau, tFCIMCStats2, tHistExcitToFrom, &
-                           tSpawnGhostChild,GhostThresh
+                           tSpawnGhostChild,GhostThresh, tFullHFAv
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -150,8 +149,8 @@ MODULE FciMCParMod
                          fill_hist_explicitrdm_this_iter, tCalc_RDMEnergy, &
                          extract_bit_rep_avsign_norm, &
                          extract_bit_rep_avsign_no_rdm, &
-                         zero_rdms, fill_rdm_softexit, store_parent_with_spawned, &
-                         fill_rdm_diag_currdet_norm,fill_rdm_diag_currdet_hfsd, calc_rdmbiasfac, tFinalRDMIter
+                         zero_rdms, store_parent_with_spawned, &
+                         fill_rdm_diag_currdet_norm, calc_rdmbiasfac
     use determ_proj, only: perform_determ_proj
     use semi_stoch_gen, only: init_semi_stochastic, enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: deterministic_projection, return_most_populated_states, &
@@ -379,7 +378,8 @@ MODULE FciMCParMod
 
                 if(tRestart) cycle
 
-                IF((tTruncCAS.or.tTruncSpace.or.tTruncInitiator).and.(Iter.gt.iFullSpaceIter).and.(iFullSpaceIter.ne.0)) THEN
+                IF((tTruncCAS.or.tTruncSpace.or.tTruncInitiator).and.(Iter.gt.iFullSpaceIter)&
+                            .and.(iFullSpaceIter.ne.0)) THEN
 !Test if we want to expand to the full space if an EXPANDSPACE variable has been set
                     IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
                         IF(iProcIndex.eq.0) WRITE(iout,*) "Unable to expand space since histgramming the wavefunction..."
@@ -543,7 +543,8 @@ MODULE FciMCParMod
         ENDIF
 
         IF(tFillingStochRDMonFly.or.&
-            tFillingExplicRDMonFly.or.tHF_Ref_Explicit) CALL FinaliseRDM()
+            tFillingExplicRDMonFly) CALL FinaliseRDM()
+            !tFillingExplicRDMonFly.or.tHF_Ref_Explicit) CALL FinaliseRDM()
 
         IF(tPrintDoubsUEG) THEN
             CALL PrintDoubUEGOccs(DoubsUEG)
@@ -835,7 +836,7 @@ MODULE FciMCParMod
         ! being printed.
         tFill_RDM = .false.
         if(tFillingStochRDMonFly) then
-            if(mod((Iter - IterRDMStart + 1),RDMEnergyIter).eq.0) then 
+            if(mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0) then 
                 ! RDM energy is being printed, calculate the diagonal elements for 
                 ! the last RDMEnergyIter iterations.
                 tFill_RDM = .true.
@@ -844,7 +845,7 @@ MODULE FciMCParMod
                 ! Last iteration, calculate the diagonal element for the iterations 
                 ! since the last time they were included.
                 tFill_RDM = .true.
-                IterLastRDMFill = mod((Iter - IterRDMStart + 1),RDMEnergyIter)
+                IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter)
             endif
         endif
 
@@ -912,6 +913,16 @@ MODULE FciMCParMod
                             CurrentH(2+lenof_sign:1+2*lenof_sign,gen_ind) = IterRDMStartCurr
                         endif
                         VecSlot = VecSlot + 1
+                        if(tFill_RDM .and. (.not. tNoNewRDMContrib)) then
+
+                            ! If tFill_RDM is true, this is an iteration where the diagonal 
+                            ! RDM elements are calculated, along with the contributions from 
+                            ! connections to the (true) HF determinant.
+
+                            call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, &
+                                        CurrentH(1:NCurrH,gen_ind), walkExcitLevel_toHF, &
+                                        test_flag(CurrentDets(:,j), flag_deterministic)) 
+                        endif
                         cycle
                     end if
                  
@@ -1144,7 +1155,7 @@ MODULE FciMCParMod
                                    AvSignCurr, IterRDMStartCurr, VecSlot, j, WalkExcitLevel)
             end if
 
-            if(tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) &
+            if(tFill_RDM .and. (.not. tNoNewRDMContrib)) &
                     & call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, SignCurr, &
                     & walkExcitLevel_toHF, test_flag(CurrentDets(:,j), flag_deterministic))  
 
@@ -1364,7 +1375,8 @@ MODULE FciMCParMod
         ! For double run, we're going to try only including off-diagonal elements from
         ! successful spawning attempts within part_type=1.  Later, we should include both,
         ! but for now, this may be simplest.
-        IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then
+        !IF(tFillingStochRDMonFly.and.(.not.tHF_Ref_Explicit)) then
+        IF(tFillingStochRDMonFly) then
             call store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, WalkersToSpawn, iLutJ, proc, part_type)
         endif
         !We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
@@ -1779,11 +1791,11 @@ MODULE FciMCParMod
 
         extract_bit_rep_avsign => extract_bit_rep_avsign_no_rdm
 
-        if(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
-            fill_rdm_diag_currdet => fill_rdm_diag_currdet_hfsd
-        else
+        !if(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
+        !    fill_rdm_diag_currdet => fill_rdm_diag_currdet_hfsd
+        !else
             fill_rdm_diag_currdet => fill_rdm_diag_currdet_norm
-        endif
+        !endif
 
     end subroutine
 
@@ -2067,9 +2079,11 @@ MODULE FciMCParMod
         enddo
        
         if(tFillingStochRDMonFly) then
-            if(((child(part_type).ne.0) .or. tGhostChild) .and.(.not.tHF_Ref_Explicit).and.(part_type.eq.1)) then
+            !if(((child(part_type).ne.0) .or. tGhostChild) .and.(.not.tHF_Ref_Explicit).and.(part_type.eq.1)) then
+            if(((child(part_type).ne.0) .or. tGhostChild) .and.(part_type.eq.1)) then
                 !Only add in contributions for spawning events within population 1
-                !(Otherwise it becomes tricky in annihilation as spawnedparents doesn't tell you which population the event came from at present)
+                !(Otherwise it becomes tricky in annihilation as spawnedparents doesn't tell you which population
+                !the event came from at present)
                 call calc_rdmbiasfac(p_spawn_rdmfac, prob, AvSignCurr, realwSign, RDMBiasFacCurr) 
             else
                 RDMBiasFacCurr = 0.0_dp
@@ -3199,25 +3213,28 @@ MODULE FciMCParMod
         AccRat = real(Acceptances, dp) / SumWalkersCyc
 
 
-        IF(lenof_sign.eq.1) THEN
-            ! Flip sign of entire ensemble if negative pop on HF
-            IF(AllNoatHF(1).lt.0.0) THEN
-                root_print "No. at HF < 0 - flipping sign of entire ensemble &
-                           &of particles..."
-                root_print AllNoatHF(1)
+#ifndef __CMPLX
+        do part_type = 1, lenof_sign
+            if ((.not.tFillingStochRDMonFly).or.(inum_runs.eq.1)) then
+                if (AllNoAtHF(part_type) < 0.0_dp) then
+                    root_print 'No. at HF < 0 - flipping sign of entire ensemble &
+                               &of particles in simulation: ', part_type
+                    root_print AllNoAtHF(part_type)
 
-                call FlipSign ()
-                AllNoatHF(1) = -AllNoatHF(1)
-                NoatHF(1) = -NoatHF(1)
+                    ! And do the flipping
+                    call FlipSign(part_type)
+                    AllNoatHF(part_type) = -AllNoatHF(part_type)
+                    NoatHF(part_type) = -NoatHF(part_type)
 
-                if(tFillingStochRDMonFly) then
-                    ! Want to flip all the averaged signs.
-                    AvNoatHF = -AvNoatHF 
-                    InstNoatHF(1) = -InstNoatHF(1)
+                    if (tFillingStochRDMonFly) then
+                        ! Want to flip all the averaged signs.
+                        AvNoatHF = -AVNoatHF
+                        InstNoatHF(part_type) = -InstNoatHF(part_type)
+                    end if
                 endif
- 
-            endif
-        ENDIF
+            end if
+        end do
+#endif
 
         if (iProcIndex == Root) then
             ! Have all of the particles died?
@@ -3940,6 +3957,7 @@ MODULE FciMCParMod
         real(dp) :: TempTotParts
         real(dp), dimension(lenof_sign) :: AllInstNoatHF
         real(dp), dimension(lenof_sign) :: Prev_AvNoatHF
+        integer :: j
 
         NoInitDets = 0
         NoNonInitDets = 0
@@ -3957,32 +3975,74 @@ MODULE FciMCParMod
         iter_data%nannihil = 0.0
         iter_data%naborted = 0.0
         iter_data%nremoved = 0.0
-
+        
         if(tFillingStochRDMonFly) then
             call MPISumAll(InstNoatHF, AllInstNoAtHF)
-            if(all(InstNoatHF(1:lenof_sign) == 0) &
-                .and. (.not. tSemiStochastic)) then
-                !The HF determinant won't be in currentdets, so the CurrentH averages will have been wiped.
-                !NB - there will be a small issue here if the HF determinant isn't in the core space
-                IterRDM_HF(1) = Iter+PreviousCycles + 1 
-                AvNoatHF(1) = 0.0_dp
-                if(inum_runs.eq.2) then
-                    IterRDM_HF(inum_runs) = Iter+PreviousCycles + 1 
-                    AvNoatHF(inum_runs) = 0.0_dp
-                endif
-               ! WRITE(6,*) "zeroed AvNoAtHF", Prev_AvNoAtHF, AvNoAtHF, InstNoAtHF
-            else
+            InstNoAtHF=AllInstNoAtHF
+            if (tFullHFAv) then
                 Prev_AvNoatHF(1) = AvNoatHF(1)
-                AvNoatHF(1) = ( (real((Iter+PreviousCycles - IterRDM_HF(1)),dp) * Prev_AvNoatHF(1)) &
-                    + InstNoatHF(1) ) / real((Iter+PreviousCycles - IterRDM_HF(1)) + 1,dp)
+                if (IterRDM_HF(1).ne.0) AvNoatHF(1) = ( (real((Iter+PreviousCycles - IterRDM_HF(1)),dp) * Prev_AvNoatHF(1)) &
+                                            + InstNoatHF(1) ) / real((Iter+PreviousCycles - IterRDM_HF(1)) + 1,dp)
                 if(inum_runs.eq.2) then
                     Prev_AvNoatHF(inum_runs) = AvNoatHF(inum_runs)
-                    AvNoatHF(inum_runs) = ( (real((Iter+PreviousCycles - IterRDM_HF(inum_runs)),dp) * Prev_AvNoatHF(inum_runs)) &
-                        + InstNoatHF(inum_runs) ) / real((Iter+PreviousCycles - IterRDM_HF(inum_runs)) + 1,dp)
+                   if(IterRDM_HF(inum_runs).ne.0) AvNoatHF(inum_runs) = &
+                               & ( (real((Iter+PreviousCycles - IterRDM_HF(inum_runs)),dp) * &
+                                 &       Prev_AvNoatHF(inum_runs)) + InstNoatHF(inum_runs) ) &
+                                 &   / real((Iter+PreviousCycles - IterRDM_HF(inum_runs)) + 1,dp)
                 endif
-!                WRITE(6,*) "AvNoAtHF", Prev_AvNoAtHF, AvNoAtHF, InstNoAtHF
+            else
+                if((InstNoatHF(1).eq.0.0).and.(InstNoAtHF(lenof_sign).eq.0.0) &
+                    .and. (.not. tSemiStochastic)) then
+                    !The HF determinant won't be in currentdets, so the CurrentH averages will have been wiped.
+                    !NB - there will be a small issue here if the HF determinant isn't in the core space
+                    IterRDM_HF(1) = 0.0_dp
+                    AvNoatHF(1) = 0.0_dp
+                    if(inum_runs.eq.2) then
+                        IterRDM_HF(inum_runs) = 0.0_dp 
+                        AvNoatHF(inum_runs) = 0.0_dp
+                    endif
+               elseif(((InstNoAtHF(1).eq.0.0).and.(IterRDM_HF(1).ne.0)) .or. &
+                   &  ((InstNoAtHF(inum_runs).eq.0.0).and.(IterRDM_HF(inum_runs).ne.0))) then
+                    !At least one of the populations has just become zero
+                    !Start a new averaging block
+                    IterRDM_HF(1) = Iter+PreviousCycles  
+                    AvNoatHF(1) = InstNoAtHF(1)
+                    IterRDM_HF(inum_runs) = Iter+PreviousCycles  
+                    AvNoatHF(inum_runs) = InstNoAtHF(inum_runs)
+                    do j=1,inum_runs
+                        if(InstNoAtHF(j).eq.0) then
+                            IterRDM_HF(j)=0
+                        endif
+                    enddo
+                elseif(((InstNoAtHF(1).ne.0).and.(IterRDM_HF(1).eq.0)) .or. &
+                       ((InstNoAtHF(inum_runs).ne.0).and.(IterRDM_HF(inum_runs).eq.0))) then
+                        !At least one of the populations has just become occupied
+                        !Start a new block here
+                        IterRDM_HF(1)=real(Iter+PreviousCycles,dp)
+                        IterRDM_HF(inum_runs)=real(Iter+PreviousCycles,dp)
+                        AvNoAtHF(1)=InstNoAtHF(1)
+                        AvNoAtHF(inum_runs)=InstNoAtHF(inum_runs)
+                        do j=1,inum_runs
+                            if(InstNoAtHF(j).eq.0) then
+                                IterRDM_HF(j)=0
+                            endif
+                        enddo
+                else
+                    Prev_AvNoatHF(1) = AvNoatHF(1)
+                    if (IterRDM_HF(1).ne.0) AvNoatHF(1) =((real((Iter+PreviousCycles - IterRDM_HF(1)),dp) &
+                                                    * Prev_AvNoatHF(1)) + InstNoatHF(1) ) &
+                                                    / real((Iter+PreviousCycles - IterRDM_HF(1)) + 1,dp)
+                    if(inum_runs.eq.2) then
+                        Prev_AvNoatHF(inum_runs) = AvNoatHF(inum_runs)
+                       if(IterRDM_HF(inum_runs).ne.0) AvNoatHF(inum_runs)=&
+                                            ((real((Iter+PreviousCycles-IterRDM_HF(inum_runs)),dp) * &
+                                            Prev_AvNoatHF(inum_runs)) + InstNoatHF(inum_runs) ) &
+                                            / real((Iter+PreviousCycles - IterRDM_HF(inum_runs)) + 1,dp)
+                    endif
+                endif
             endif
         endif
+
         HFInd = 0            
         
         trial_ind = 0
@@ -4350,6 +4410,7 @@ MODULE FciMCParMod
                 AbsProjE(2), &                             ! 30.
                 PartsDiffProc, &                           ! 31.
                 norm_semistoch(2)/norm_psi(2), &           ! 32.
+                all_max_cyc_spawn                          ! 33.
                 if (tTrialWavefunction) then
                     write(fcimcstats_unit2, "(3G16.7)", advance = 'no') &
                     (tot_trial_numerator(2) / StepsSft), &
@@ -5681,7 +5742,7 @@ MODULE FciMCParMod
     subroutine check_start_rdm()
 ! This routine checks if we should start filling the RDMs - and does so if we should.        
         use nElRDMMod , only : DeAlloc_Alloc_SpawnedParts
-        use LoggingData, only: tReadRDMs, tReadRDMAvPop
+        use LoggingData, only: tReadRDMs
         implicit none
         logical :: tFullVaryshift
         integer :: iunit_4
@@ -5701,13 +5762,13 @@ MODULE FciMCParMod
             IterRDMStart = Iter+PreviousCycles
             IterRDM_HF = Iter+PreviousCycles
 
-            if(tReadRDMs .and. tReadRDMAvPop) then
+            !if(tReadRDMs .and. tReadRDMAvPop) then
                 !We need to read in the values of IterRDMStart and IterRDM_HF
-                iunit_4=get_free_unit()
-                OPEN(iunit_4,FILE='ITERRDMSTART',status='old')
-                read(iunit_4, *) IterRDMStart, IterRDM_HF, AvNoAtHF
+            !    iunit_4=get_free_unit()
+            !    OPEN(iunit_4,FILE='ITERRDMSTART',status='old')
+            !    read(iunit_4, *) IterRDMStart, IterRDM_HF, AvNoAtHF
 
-            endif
+            !endif
 
             !We have reached the iteration where we want to start filling the RDM.
             if(tExplicitAllRDM) then
@@ -5721,7 +5782,8 @@ MODULE FciMCParMod
                 extract_bit_rep_avsign => extract_bit_rep_avsign_norm
                 !By default - we will do a stochastic calculation of the RDM.
                 tFillingStochRDMonFly = .true.
-                if(.not.tHF_Ref_Explicit) call DeAlloc_Alloc_SpawnedParts()
+                !if(.not.tHF_Ref_Explicit) call DeAlloc_Alloc_SpawnedParts()
+                call DeAlloc_Alloc_SpawnedParts()
                 !The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
                 !parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
                 !Don't need any of this if we're just doing HF_Ref_Explicit calculation.
@@ -6864,7 +6926,8 @@ MODULE FciMCParMod
                     & REAL(MaxWalkersPart*8,dp)/1048576.0_dp," Mb/Processor"
             ENDIF
 
-            if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
+            !if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
+            if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
                 !Allocate memory to hold walkers spawned from one determinant at a time.
                 !Walkers are temporarily stored here, so we can check if we're spawning onto the same Dj multiple times.
                 !If only using connections to the HF (tHF_Ref_Explicit), no stochastic RDM construction is done, and this 
@@ -8267,7 +8330,8 @@ MODULE FciMCParMod
         CALL LogMemDealloc(this_routine,SpawnVecTag)
         DEALLOCATE(SpawnVec2)
         CALL LogMemDealloc(this_routine,SpawnVec2Tag)
-        if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
+        !if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
+        if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
             DEALLOCATE(TempSpawnedParts)
             CALL LogMemDealloc(this_routine,TempSpawnedPartsTag)
         endif

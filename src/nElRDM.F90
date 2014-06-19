@@ -60,20 +60,18 @@ MODULe nElRDMMod
                          TotWalkers, iLutHF, core_space, IterLastRDMFill, &
                          determ_proc_sizes,determ_proc_indices, partial_determ_vector, &
                          full_determ_vector, full_determ_vector_av, tFill_RDM, &
-                         VaryShiftIter, tHashWalkerList, IterRDM_HF
-    use LoggingData, only: RDMExcitLevel, tROFciDump, NoDumpTruncs, tHF_S_D, &
-                       tExplicitAllRDM, tHF_S_D_Ref, tHF_Ref_Explicit, &
-                       tHF_S_D, tPrint1RDM, RDMEnergyIter, &
+                         VaryShiftIter, tHashWalkerList, IterRDM_HF, tFinalRDMEnergy
+    use LoggingData, only: RDMExcitLevel, tROFciDump, NoDumpTruncs, &
+                       tExplicitAllRDM, tPrint1RDM, RDMEnergyIter, &
                        tDo_Not_Calc_RDMEnergy, tDiagRDM, tReadRDMs, &
                        tPopsfile, tNo_RDMs_to_read, twrite_RDMs_to_read, &
                        tWriteMultRDMs, tDumpForcesInfo, IterRDMonFly, &
                        tWrite_normalised_RDMs, IterWriteRDMs, tPrintRODump, &
-                       tNoNOTransform, tTruncRODump, tRDMonfly, tInitiatorRDMDiag, &
-                       tTaperDiagRDM, tTaperSQDiagRDM, tCorrectRDMErf, erf_factor1, &
-                       erf_factor2, ThreshOccRDM, tThreshOccRDMDiag, tDipoles,&
+                       tNoNOTransform, tTruncRODump, tRDMonfly, &
+                       ThreshOccRDM, tThreshOccRDMDiag, tDipoles,&
                        tBrokenSymNOs, occ_numb_diff, tForceCauchySchwarz, &
                        tBreakSymNOs, RotNOs, tagRotNOs, local_cutoff, rottwo, &
-                       rotthree, rotfour, tReadRDMAvPop
+                       rotthree, rotfour, tRDMInstEnergy,tFullHFAv
     use RotateOrbsData, only: CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt, &
                               SymLabelCounts2_rot,SymLabelList2_rot, &
                               SymLabelListInv_rot,NoOrbs, SpatOrbs, &
@@ -118,7 +116,7 @@ MODULe nElRDMMod
         REAL(dp) , ALLOCATABLE :: UMATTemp(:,:), Rho_ii(:)
         REAL(dp) , ALLOCATABLE :: Lagrangian(:,:)
         REAL(dp) :: OneEl_Gap,TwoEl_Gap, Normalisation,Trace_2RDM_Inst, Trace_2RDM, Trace_1RDM, norm
-        LOGICAL :: tFinalRDMEnergy, tCalc_RDMEnergy, tFinalRDMIter
+        LOGICAL :: tCalc_RDMEnergy 
         type(timer), save :: nElRDM_Time, FinaliseRDM_time, RDMEnergy_time
         logical :: trotatedNOs=.false.
 
@@ -189,15 +187,15 @@ MODULe nElRDMMod
         if(tHPHF.and.tExplicitAllRDM) CALL Stop_All('InitRDM',&
                 'HPHF not set up with the explicit calculation of the RDM.')
 
-        if(tHPHF.and.(tHF_S_D_Ref.or.tHF_S_D)) CALL Stop_All('InitRDM',&
-                'HPHF not set up when doing a HF, S, D calculation.')
+        !if(tHPHF.and.(tHF_S_D_Ref.or.tHF_S_D)) CALL Stop_All('InitRDM',&
+        !        'HPHF not set up when doing a HF, S, D calculation.')
 
         ! Can't diagonalise the non-hermitian matrix.                
-        if(tDiagRDM.and.(tHF_S_D_Ref.or.tHF_Ref_Explicit)) then
-            write(6,*) 'Ignoring request to diagonalise the 1-RDM calculated using the HF or HF, S, D &
-                &as a reference - this is not an appropriate matrix for natural orbitals.'
-            tDiagRDM = .false.
-        endif
+        !if(tDiagRDM.and.(tHF_S_D_Ref.or.tHF_Ref_Explicit)) then
+        !    write(6,*) 'Ignoring request to diagonalise the 1-RDM calculated using the HF or HF, S, D &
+        !        &as a reference - this is not an appropriate matrix for natural orbitals.'
+        !    tDiagRDM = .false.
+        !endif
 
         SpatOrbs=nBasis/2
         if(tStoreSpinOrbs) then
@@ -236,7 +234,7 @@ MODULe nElRDMMod
                 !We will be filling up aaaa_RDM_inst as we go along, which need to be allocated per core
                 !When calculating the energy, these will be summed over cores using an _inplace type command
                 !To calculate the full energy of the RDM (i.e. over full accum. period), we need to allocate
-                ! All_aaaa_RDM_full on the head nodes
+                ! aaaa_RDM_full on the head nodes
 
                 aaaa_RDM => aaaa_RDM_inst
                 abba_RDM => abba_RDM_inst
@@ -270,17 +268,17 @@ MODULe nElRDMMod
 
                 IF(iProcIndex.eq.0) THEN
                     ALLOCATE(aaaa_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
-                    IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating All_aaaa_RDM_full array,')
+                    IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating aaaa_RDM_full array,')
                     CALL LogMemAlloc('aaaa_RDM_full',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,aaaa_RDM_fullTag,ierr)
                     aaaa_RDM_full(:,:)=0.0_dp
 
                     ALLOCATE(abab_RDM_full(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
-                    IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating All_abab_RDM array,')
+                    IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating abab_RDM_full array,')
                     CALL LogMemAlloc('abab_RDM_full',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,abab_RDM_fullTag,ierr)
                     abab_RDM_full(:,:)=0.0_dp
 
                     ALLOCATE(abba_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
-                    IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating All_abba_RDM array,')
+                    IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating abba_RDM_full array,')
                     CALL LogMemAlloc('abba_RDM_full',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,abba_RDM_fullTag,ierr)
                     abba_RDM_full(:,:)=0.0_dp
 
@@ -414,7 +412,8 @@ MODULe nElRDMMod
                 Doub_ExcList(:)=Doub_InitExcSlots(:)
             ENDIF
 
-        ELSEIF(.not.tHF_Ref_Explicit) THEN
+        !ELSEIF(.not.tHF_Ref_Explicit) THEN
+        ELSE
 
 ! Finally, we need to hold onto the parents of the spawned particles.            
 ! This is not necessary if we're doing completely explicit calculations.
@@ -875,6 +874,9 @@ MODULe nElRDMMod
         real(dp) , dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
         type(excit_gen_store_type), intent(inout), optional :: Store
         integer :: part_ind
+        
+        ! This extracts everything.
+        call extract_bit_rep (iLutnI, nI, SignI, FlagsI, store)
 
         IterRDMStartI(:)= 0.0_dp
         AvSignI(:) = 0.0_dp
@@ -963,7 +965,6 @@ MODULe nElRDMMod
             enddo
         endif
         
-        enddo
 
 
     end subroutine extract_bit_rep_avsign_norm
@@ -986,13 +987,9 @@ MODULe nElRDMMod
         real(dp), dimension(lenof_sign) :: IterDetOcc
         integer(n_int) :: SpinCoupDet(0:nIfTot)
         integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel, part_type
-        logical :: tDiagContrib
         real(dp) :: AvSignCurr(lenof_sign)
-        integer :: IterLastRDMFill
+        integer :: IterLastRDMFill, AvSignIters, IterRDM
         
-        tDiagContrib=.false.
-        if((CurrH_I(2+lenof_sign).ne.0).and.(CurrH_I(1+2*lenof_sign).ne.0)) tDiagContrib=.true.
-            
         ! This is the number of iterations this determinant has been occupied.
         do part_type=1,lenof_sign
             IterDetOcc(part_type) = real(Iter+PreviousCycles,dp) - CurrH_I(1+lenof_sign+part_type) + 1.0_dp
@@ -1003,13 +1000,13 @@ MODULe nElRDMMod
         IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter)
 
         ! The number of iterations we want to weight this RDM contribution by is:
-        IterRDM = min(AvSignIters,real(IterLastRDMFill,dp))
+        IterRDM = min(AvSignIters,IterLastRDMFill)
         
         AvSignCurr=CurrH_I(2:1+lenof_sign)
 
         if(tHPHF) then
             if(.not.TestClosedShellDet(iLutnI)) then
-                if (tDiagContrib) call Fill_Diag_RDM(nI, AvSignCurr/SQRT(2.0_dp), tCoreSpaceDet, IterRDM)
+                call Fill_Diag_RDM(nI, AvSignCurr/SQRT(2.0_dp), tCoreSpaceDet, IterRDM)
 
                 
 ! C_X D_X = C_X / SQRT(2) [ D_I +/- D_I'] - for open shell dets, divide stored C_X by SQRT(2). 
@@ -1019,7 +1016,7 @@ MODULe nElRDMMod
                 ! Find out if it's + or - in the above expression.                
                 SignFac = hphf_sign(iLutnI)
 
-                if (tDiagContrib) call Fill_Diag_RDM(nSpinCoup, real(SignFac,dp)*AvSignCurr/SQRT(2.0_dp), tCoreSpaceDet, IterRDM)
+                call Fill_Diag_RDM(nSpinCoup, real(SignFac,dp)*AvSignCurr/SQRT(2.0_dp), tCoreSpaceDet, IterRDM)
 
 ! For HPHF we're considering < D_I + D_I' | a_a+ a_b+ a_j a_i | D_I + D_I' >
 ! Not only do we have diagonal < D_I | a_a+ a_b+ a_j a_i | D_I > terms, but also cross terms
@@ -1034,14 +1031,14 @@ MODULe nElRDMMod
             else
 
                 ! HPHF on, but determinant closed shell.
-                if (tDiagContrib) call Fill_Diag_RDM(nI, AvSignCurr, tCoreSpaceDet, IterRDM)
+                call Fill_Diag_RDM(nI, AvSignCurr, tCoreSpaceDet, IterRDM)
 
             endif
             call Add_RDM_HFConnections_HPHF(iLutnI, nI, AvSignCurr, ExcitLevelI, IterRDM)   
 
         else
             ! No HPHF
-            if (tDiagContrib) call Fill_Diag_RDM(nI, AvSignCurr, tCoreSpaceDet, IterRDM)
+            call Fill_Diag_RDM(nI, AvSignCurr, tCoreSpaceDet, IterRDM)
             call Add_RDM_HFConnections_Norm(iLutnI, nI, AvSignCurr, ExcitLevelI, IterRDM)   
 
         endif
@@ -1165,7 +1162,7 @@ MODULe nElRDMMod
         integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
         integer , intent(in) :: nJ(NEl)
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignJ
-        real(dp) , intent(in) :: IterRDM
+        integer , intent(in) :: IterRDM
         integer , intent(in) :: walkExcitLevel
         integer(kind=n_int) :: SpinCoupDet(0:niftot)
         integer :: nSpinCoup(NEl), HPHFExcitLevel, part_type
@@ -1176,11 +1173,11 @@ MODULe nElRDMMod
             !Therefore, AvNoAtHF is allowed to be different to the AvSignJ stored in CurrentH for this det
             if(walkExcitLevel.eq.0) then
                 do part_type=1,lenof_sign
-                    if(abs(SignJ(part_type)-InstNoatHF(part_type)).gt.1E-10) then
+                    if(abs(AvSignJ(part_type)-InstNoatHF(part_type)).gt.1E-10) then
                         write(6,*) 'HFDet_True',HFDet_True
                         write(6,*) 'nJ',nJ
                         write(6,*) 'iLutJ',iLutJ
-                        write(6,*) 'SignJ',SignJ
+                        write(6,*) 'AvSignJ',AvSignJ
                         write(6,*) 'InstNoatHF',InstNoatHF
                         CALL Stop_All('Add_RDM_HFConnections_Norm','Incorrect instantaneous HF population.')
                     endif
@@ -1201,7 +1198,7 @@ MODULe nElRDMMod
 ! The diagonal elements will already have been taken care of by the extract routine.
         integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
         integer , intent(in) :: nJ(NEl)
-        real(dp) , intent(in) :: IterRDM
+        integer , intent(in) :: IterRDM
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignJ
         integer , intent(in) :: walkExcitLevel
         integer(kind=n_int) :: SpinCoupDet(0:niftot)
@@ -2814,9 +2811,10 @@ MODULe nElRDMMod
         integer , intent(in) :: nI(NEl)
         real(dp) , dimension(lenof_sign), intent(in) :: realSignDi
         logical , intent(in) , optional :: tCoreSpaceDet
-        real(dp) , intent(in) , optional :: RDMItersIn
+        integer , intent(in) , optional :: RDMItersIn
         integer :: i, j, iSpat, jSpat, Ind, iInd
         real(dp) :: ScaleContribFac
+        integer :: RDMIters
 
 ! Need to add in the diagonal elements.
         
@@ -3146,8 +3144,8 @@ MODULe nElRDMMod
         write(6,*) ''
         if(tExplicitAllRDM) then
             write(6,*) '**** RDMs CALCULATED EXPLICITLY **** '
-        elseif(tHF_Ref_Explicit) then
-            write(6,'(A)') ' **** RDMs CALCULATED EXPLICITLY USING THE HF AS A REFERENCE**** '
+        !elseif(tHF_Ref_Explicit) then
+        !    write(6,'(A)') ' **** RDMs CALCULATED EXPLICITLY USING THE HF AS A REFERENCE**** '
         else
             write(6,*) '**** RDMs CALCULATED STOCHASTICALLY **** '
         endif
@@ -3221,8 +3219,8 @@ MODULe nElRDMMod
 
         Norm_1RDM = 0.0_dp
         AllAccumRDMNorm = 0.0_dp
-        IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) &
-            CALL MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
+        !IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) &
+        !    CALL MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
 
         if(RDMExcitLevel.eq.1) then
 
@@ -3285,13 +3283,15 @@ MODULe nElRDMMod
             Trace_1RDM = Trace_1RDM + NatOrbMat(i,i)
         enddo
 
-        IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) THEN
-            Norm_1RDM = 1.0_dp / AllAccumRDMNorm
-        ELSE
+        !IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) THEN
+        
+        !Norm_1RDM = 1.0_dp / AllAccumRDMNorm
+        !ELSE
             ! Sum of diagonal elements of 1 electron RDM must equal NEl, 
             ! number of electrons.
             Norm_1RDM = ( REAL(NEl,dp) / Trace_1RDM )
-        ENDIF
+        
+        !ENDIF
 
 !        if(tFinalRDMEnergy) then
 !            WRITE(6,*) 'AllAccumRDMNorm',AllAccumRDMNorm
@@ -3428,7 +3428,8 @@ MODULe nElRDMMod
             do j = 1, nBasis
                 if(tStoreSpinOrbs) then
                     if(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)).ne.0.0_dp) then 
-                        if(tNormalise.and.((i.le.j).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                        !if(tNormalise.and.((i.le.j).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                        if(tNormalise.and.(i.le.j)) then
                             WRITE(6,*) "Written * 1.75"
                             write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
                                 NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) * Norm_1RDM
@@ -3443,7 +3444,8 @@ MODULe nElRDMMod
                     iSpat = gtID(i)
                     jSpat = gtID(j)
                     if(NatOrbMat(SymLabelListInv_rot(iSpat),SymLabelListInv_rot(jSpat)).ne.0.0_dp) then 
-                        if(tNormalise.and.((i.le.j).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                        !if(tNormalise.and.((i.le.j).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                        if(tNormalise.and.(i.le.j)) then
                             if(((mod(i,2).eq.0).and.(mod(j,2).eq.0)).or.&
                                 ((mod(i,2).ne.0).and.(mod(j,2).ne.0))) then
                                 write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
@@ -3476,7 +3478,7 @@ MODULe nElRDMMod
         integer :: ierr
 
 
-        ! If Iter = 0, this means we have just read in the TwoRDM_POPS_a*** matrices into All_a***_RDM, and 
+        ! If Iter = 0, this means we have just read in the TwoRDM_POPS_a*** matrices into a***_RDM_full, and 
         ! just want to calculate the old energy.
         ! Don't need to do all this stuff here, because a***_RDM will be empty.
 
@@ -3513,10 +3515,10 @@ MODULe nElRDMMod
             endif
 
             AllAccumRDMNorm_Inst = 0.0_dp
-            if(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) then
-                CALL MPIReduce(AccumRDMNorm_Inst,MPI_SUM,AllAccumRDMNorm_Inst)
-                AllAccumRDMNorm = AllAccumRDMNorm + AllAccumRDMNorm_Inst
-            endif
+            !if(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) then
+            !    CALL MPIReduce(AccumRDMNorm_Inst,MPI_SUM,AllAccumRDMNorm_Inst)
+            !    AllAccumRDMNorm = AllAccumRDMNorm + AllAccumRDMNorm_Inst
+            !endif
         endif
             
         if(iProcIndex.eq.0) then
@@ -3736,7 +3738,7 @@ MODULe nElRDMMod
                                 ! Otherwise we print out Ind1, Ind2 and Ind2, Ind1 so we can 
                                 ! find the hermiticity error in the final matrix (after all runs).
                                 !if(tNormalise.and.((Ind1_aa.le.Ind2_aa).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
-                                if(tNormalise.and.(Ind1_aa.le.Ind2_aa) then
+                                if(tNormalise.and.(Ind1_aa.le.Ind2_aa)) then
                                     
                                     IF((abs((aaaa_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
                                                 - (aaaa_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
@@ -5806,13 +5808,13 @@ MODULe nElRDMMod
                 CALL LogMemDeAlloc(this_routine,Doub_ExcDjs2Tag)
             ENDIF
 
-        ELSEIF(.not.tHF_Ref_Explicit) THEN
+        !ELSEIF(.not.tHF_Ref_Explicit) THEN
 
-            DEALLOCATE(Spawned_Parents)
-            CALL LogMemDeAlloc(this_routine,Spawned_ParentsTag)
-
-            DEALLOCATE(Spawned_Parents_Index)
-            CALL LogMemDeAlloc(this_routine,Spawned_Parents_IndexTag)
+        !    DEALLOCATE(Spawned_Parents)
+        !    CALL LogMemDeAlloc(this_routine,Spawned_ParentsTag)
+!
+        !    DEALLOCATE(Spawned_Parents_Index)
+        !    CALL LogMemDeAlloc(this_routine,Spawned_Parents_IndexTag)
 
         ENDIF
 
@@ -5853,7 +5855,7 @@ MODULe nElRDMMod
             CALL LogMemDeAlloc(this_routine,SymLabelListInv_rotTag)
 
         ELSE
-            if (tRDMInstEnergy)
+            if (tRDMInstEnergy) then
 
                 DEALLOCATE(aaaa_RDM_inst)
                 CALL LogMemDeAlloc(this_routine,aaaa_RDM_instTag)
@@ -5878,7 +5880,7 @@ MODULe nElRDMMod
                 DEALLOCATE(abba_RDM_full)
                 CALL LogMemDeAlloc(this_routine,abba_RDM_fullTag)
             endif
-            if(iProcindex.eq.0)
+            if(iProcindex.eq.0) then
                 if(tDiagRDM.or.tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
                     if(allocated(NatOrbMat)) then
                         DEALLOCATE(NatOrbMat)
@@ -6065,17 +6067,17 @@ MODULe nElRDMMod
    !                 D_pqrs = <Psi | p+ r+ s q | Psi>
    !This is achieved by looking up the D_pr,qs component in the various spin-separated
    !versions of the 2RDM that are currently stored with spatial orb numbering, in 
-   !physical notation (e.g. All_aaaa_RDM etc).
+   !physical notation (e.g. aaaa_RDM_full etc).
 
    !To convert from spin to spatial orbitals, we need to apply the following:
    !D_pr,qs = D_pr,qs(aaaa) + D_pr,qs(bbbb) + D_pr,qs(abab) + D_pr,qs(baba) (Eq. ***)
 
-   !We note now the following quirks of the All_aaaa_RDM-type arrays for the manner in
+   !We note now the following quirks of the aaaa_RDM_full-type arrays for the manner in
    !which they store these components
    !    1. In most cases the current RDMs store the *sum* of the spin-inverted terms
-   !         - ie, All_aaaa_RDM(pr,qs) contains the sum of the aaaa and bbbb contributions
+   !         - ie, aaaa_RDM_full(pr,qs) contains the sum of the aaaa and bbbb contributions
    !    2. When p=r and q=s, there is only one contribution generated in NECI
-   !         - ie, All_abab_RDM(pp,qq) contains only one of the two identical abab and baba contributions
+   !         - ie, abab_RDM_full(pp,qq) contains only one of the two identical abab and baba contributions
    !         - Terms of this kind but be explicitly multiplied by two to satisfy Eq. *** above
    !         - This is stored in the "Mult_Factor"
    !    3. The existing 2RDMs only store terms with r>=p and s>=q
@@ -6102,7 +6104,7 @@ MODULe nElRDMMod
         Ind2_aa = ( ( (s-2) * (s-1) ) / 2 ) + q
         Ind2_ab = ( ( (s-1) * s ) / 2 ) + q
         pqrs=pqrs+Mult_Factor*abab_RDM_full(Ind1_ab,Ind2_ab)*Norm_2RDM
-        if ((p.ne.r) .and. (q.ne.s)) pqrs=pqrs+Mult_Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
+        if ((p.ne.r) .and. (q.ne.s)) pqrs=pqrs+Mult_Factor*aaaa_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM
     elseif ((p.gt.r) .and. (s.gt.q)) then !Need to reorder D_pr,qs to -D_rp,qs
         Ind1_aa = ( ( (p-2) * (p-1) ) / 2 ) + r
         Ind2_aa = ( ( (s-2) * (s-1) ) / 2 ) + q
