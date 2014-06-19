@@ -118,7 +118,6 @@ module soft_exit
                          AvAnnihil, VaryShiftCycles, SumDiagSft, &
                          VaryShiftIter, CurrentDets, iLutHF, HFDet, &
                          TotWalkers,tPrintHighPop, tSearchTau, MaxTimeExit, &
-                         n_proje_sum => nproje_sum, proje_update_comb, &
                          proje_iter
     use CalcData, only: DiagSft, SftDamp, StepsSft, OccCASOrbs, VirtCASOrbs, &
                         tTruncCAS,  NEquilSteps, tTruncInitiator, &
@@ -191,7 +190,8 @@ contains
                               targetgrowrate = 38, refshift = 39, & 
                               calc_rdm = 40, calc_explic_rdm = 41, &
                               fill_rdm_iter = 42, diag_one_rdm = 43, &
-                              nprojesum = 44, time = 45
+                              !! = 44, & -- Currently unused
+                              time = 45
         integer, parameter :: last_item = time
         integer, parameter :: max_item_len = 30
         character(max_item_len), parameter :: option_list_molp(last_item) &
@@ -284,7 +284,7 @@ contains
                                    "calcexplicitrdm              ", &
                                    "fillrdmiter                  ", &
                                    "diagflyonerdm                ", &
-                                   "nprojesum                    ", &
+                                   "----  currently unused   ----", &
                                    "time                         "/)
 
         logical :: exists, any_exist, eof, deleted, any_deleted, tSource
@@ -346,8 +346,6 @@ contains
                         ! Do we have any other items to read in?
                         if (i == tau) then
                             call readf (tau_value)
-                        elseif (i == nprojesum) then     
-                            call readi (n_proje_sum)     
                         elseif (i == TargetGrowRate) then
                             call readf (target_grow_rate(1))
                             if(inum_runs.eq.2) target_grow_rate(inum_runs)=target_grow_rate(1)
@@ -538,13 +536,6 @@ contains
                     write(6,*) "Ceasing the searching for tau."
                     tSearchTau = .false.
                 endif
-            endif
-
-            if(opts_selected(nprojesum)) then
-                call MPIBCast(n_proje_sum, tSource)
-                proje_update_comb=.true.
-                call MPIBCast(proje_update_comb, tSource)
-                write(6,*) "NPROJE_SUM changed to: ",n_proje_sum, "on iteration: ",iter
             endif
 
             if(opts_selected(targetgrowrate)) then

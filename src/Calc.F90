@@ -26,8 +26,8 @@ MODULE Calc
     use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
                         tSpawnProp, nClustSelections, tExactEnergy,     &
                         dClustSelectionRatio,tSharedExcitors
-    use FciMCData, only: proje_update_comb,proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
-                         InputDiagSft,tSearchTau,proje_spatial,nWalkerHashes,tHashWalkerList,HashLengthFrac, &
+    use FciMCData, only: tTimeExit,MaxTimeExit, &
+                         InputDiagSft,tSearchTau,nWalkerHashes,tHashWalkerList,HashLengthFrac, &
                          tTrialHash, tIncCancelledInitEnergy, tStartCoreGroundState, &
                          rand_excit_par_bias, tSpecifyParBias
     use semi_stoch_gen, only: core_ras
@@ -94,10 +94,8 @@ contains
           iDetGroup=2
           tFindDets=.false.
           SinglesBias=1.0_dp
-          tFindGroundDet=.false.
           tSpawnAsDet=.false.
           tDirectAnnihil=.true.
-          tRegenDiagHEls=.false.
           tRotoAnnihil=.false.
           OccCASorbs=0
           VirtCASorbs=0
@@ -244,8 +242,6 @@ contains
           MaxNoatHF=0
           HFPopThresh=0
           tSpatialOnlyHash = .false.
-          tSpawn_Only_Init = .false.
-          tSpawn_Only_Init_Grow = .false.
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset 
           !(by Calc readinput) if I_VMAX=1 and TENERGY is false
 
@@ -286,9 +282,6 @@ contains
           ! Truncation based on number of unpaired electrons
           tTruncNOpen = .false.
 
-          proje_linear_comb = .false.
-          proje_update_comb = .false.
-          proje_spatial = .false.
           hash_shift=0
           tContinueAfterMP2=.false.
           tUniqueHFNode = .false.
@@ -304,7 +297,6 @@ contains
           tReadCore = .false.
           tLowECore = .false.
           tMP1Core = .false.
-          tSparseCoreHamil = .true.
           num_det_generation_loops = 1
           n_core_pops = 0
           low_e_core_excit = 0
@@ -334,6 +326,9 @@ contains
 
           rand_excit_par_bias = 1.0
           tSpecifyParBias = .false.
+
+          InitiatorCutoffEnergy = 99.99e99_dp
+          InitiatorCutoffWalkNo = 99.0_dp
 
       
         end subroutine SetCalcDefaults
@@ -1045,8 +1040,6 @@ contains
                 call geti(n_core_pops)
             case("READ-CORE")
                 tReadCore = .true.
-            case("FULL-CORE-HAMIL")
-                tSparseCoreHamil = .false.
             case("LOW-ENERGY-CORE")
     ! Input values: The first integer is the maximum excitation level to go up to.
     !               The second integer is the maximum number of states to keep for a subsequent iteration.
@@ -1327,24 +1320,6 @@ contains
                     tInstGrowthRate = .false.
                 end if
 
-            case("PROJE-SPATIAL")
-                ! Calculate the projected energy by projection onto a linear
-                ! combination of determinants, specified by a particular 
-                ! spatial determinant.
-                proje_linear_comb = .true.
-                proje_spatial = .true.
-                if (.not. allocated(proje_ref_det_init)) &
-                    allocate(proje_ref_det_init(nel))
-                proje_ref_det_init = 0
-                i = 1
-                do while (item < nitems .and. i <= nel)
-                    call geti(proje_ref_det_init(i))
-                    i = i+1
-                enddo
-            case("PROJE-LINEAR-COMB")
-                ! Calculate the projected energy by projection onto a linear
-                ! combination of determinants.
-                proje_linear_comb = .true.
             case("RESTARTLARGEPOP")
                 tCheckHighestPop=.true.
                 tRestartHighPop=.true.
@@ -1400,10 +1375,14 @@ contains
 !An FCIMC option. With this, the excitation generators for the walkers will NOT be stored, and regenerated 
 !each time. This will be slower, but save on memory.
                 TRegenExcitGens=.true.
+
             case("REGENDIAGHELS")
-!A parallel FCIMC option. With this, the diagonal elements of the hamiltonian matrix will not be stored with 
-!each particle. This will generally be slower, but save on memory.
-                tRegenDiagHEls=.true.
+                ! A parallel FCIMC option. With this, the diagonal elements of
+                ! the hamiltonian matrix will not be stored with each particle.
+                ! This will generally be slower, but save on memory.
+                call stop_all(t_r, 'This option (REGENDIAGHELS) has been &
+                                   &deprecated')
+
             case("FIXSHELLSHIFT")
 !An FCIMC option. With this, the shift is fixed at a value given here, but only for excitations which are less than 
 !<ShellFix>. This will almost definitly give the wrong answers for both the energy
@@ -1476,20 +1455,15 @@ contains
                 tAddtoInitiator=.true.
                 call getf(InitiatorWalkNo)
 
-            case("SPAWNONLYINIT")
-!This option means only the initiators have the ability to spawn.  The non-initiators can live/die but not 
-!spawn walkers of their own.
-                tSpawn_Only_Init = .true.
-
-            case("SPAWNONLYINITGROWTH")
-                ! Only allow initiators to spawn progeny. Non-initiators can
-                ! live/die but are not allowed to spawn.
+            case("INITIATOR-ENERGY-CUTOFF")
                 !
-                ! This option is disabled in variable shift mode. Allows
-                ! rapid but controlled growth of walkers
-                tSpawn_Only_Init = .true.
-                tSpawn_Only_Init_Grow = .true.
+                ! Specify both a threshold an an addtoinitiator value for
+                ! varying the thresholds
+                call getf(InitiatorCutoffEnergy)
+                call getf(InitiatorCutoffWalkNo)
 
+            case("SPAWNONLYINIT", "SPAWNONLYINITGROWTH")
+                call stop_all(t_r, 'Option (SPAWNONLYINIT) deprecated')
 
             case("RETESTINITPOP")                
 !This keyword is on by default.  It corresponds to the original initiator algorithm whereby a determinant may 
@@ -1599,11 +1573,10 @@ contains
 !                tSymmetricField=.false.
 !                call Geti(NoMagDets)
 !                call Getf(BField)
+
             case("FINDGROUNDDET")
-!A parallel FCIMC option. If this is on, then if a determinant is found with an energy lower than the energy of the 
-!current reference determinant, the energies are rezeroed and the
-!reference changed to the new determinant. For a HF basis, this cannot happen, but with rotated orbital will be important.
-                tFindGroundDet=.true.
+                call stop_all(t_r, 'Option (FINDGROUNDDET) deprecated')
+
             case("STARORBS")
 !A parallel FCIMC option. Star orbs means that determinants which contain these orbitals can only be spawned 
 !at from the HF determinant, and conversly, can only spawn back at the HF determinant.

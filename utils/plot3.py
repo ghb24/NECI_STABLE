@@ -192,20 +192,18 @@ def read_cols (f, last_iter=None, last_im_time=None):
                                 for hdr in col_labels[title]}
 
     rows = []
-    lines = 0
     iter_col = None
     im_time_col = None
+    found_hdr = False
     for line in f:
-
-        # Keep trak of the number of lines in the file
-        lines += 1
 
         # Ignore comment lines
         if (line[0] == '#'):
 
             # The first line contains the column header. Split this up
             # into sections
-            if lines == 1:
+            if not found_hdr and re_label.match(line):
+                found_hdr = True
                 col_hdrs =  [s.strip() for s in re_label_split.split(line)
                                        if s != '']
                 col_titles = [label_lookup.get(hdr, None) for hdr in col_hdrs]
@@ -1036,7 +1034,7 @@ def process_output (fout):
     # re_startiter = re.compile('^\s*St(ep)*\s+Shift')
     re_startiter = re.compile('^\s*Initial memory allocation sucessful...')
     re_HF_D0 = re.compile('^\s*\<D0\|H\|D0\>\s*=\s*(.+)\s*$')
-    re_iter = re.compile('^\s*(\d+)')
+    re_iter = re.compile('^\s*(\d+) ')
     re_ref_E = re.compile('^\s*Reference [Ee]nergy (now )*set to:\s*(.+)$')
     re_final_E = re.compile('^\s*Summed approx E\(Beta\)=\s*(.+)$')
     re_new_tau = re.compile('^\s*(New (tau|timestep):|Updating time-step\. New time-step =)\s+(.+)$')

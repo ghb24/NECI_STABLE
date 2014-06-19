@@ -322,16 +322,6 @@ MODULE FciMCData
       TYPE(BasisFN) :: HFSym
       integer :: iMaxBloom !If tMaxBloom is on, this stores the largest bloom to date.
 
-      ! If we are calculating the projected energy based on a linear
-      ! sum of multiple determinants, we need them and their coeffs
-      ! to have been enumerated.
-      logical :: proje_linear_comb,proje_update_comb,proje_spatial
-      integer(n_int), allocatable :: proje_ref_iluts(:,:)
-      integer :: nproje_sum
-      integer, allocatable :: proje_ref_dets(:,:), proje_ref_det_init(:)
-      real(dp), allocatable :: proje_ref_coeffs(:)
-      real(dp), allocatable :: All_proje_ref_coeffs(:)
-      integer(TagIntType) :: tag_ref_iluts = 0, tag_ref_dets = 0, tag_ref_coeffs = 0
       real(dp) :: proje_denominator_cyc(lenof_sign)
       real(dp) :: proje_denominator_sum(lenof_sign)
       logical :: tRestart   !Whether to restart a calculation
@@ -379,10 +369,6 @@ MODULE FciMCData
 ! -Ln_2 (Cycletime), where CycleTime is the average number of cycles until a det returns to its processor
       integer :: hash_shift      
 
-      !Variables for very useful histogramming of projected energy contributions
-      real(dp), allocatable :: ENumCycHistG(:),AllENumCycHistG(:),ENumCycHistK3(:),AllENumCycHistK3(:)
-      integer :: unit_splitprojEHistG,unit_splitprojEHistK3
-
       ! This array stores the Hamiltonian matrix, or part of it, when performing a diagonalisation. It is currently
       ! only used for the code for the Davidson method and semi-stochastic method.
       real(dp), allocatable, dimension(:,:) :: hamiltonian
@@ -390,10 +376,6 @@ MODULE FciMCData
       integer(TagIntType) :: HamTag, DavidsonTag
 
       ! Semi-stochastic data.
-
-      ! The core Hamiltonian (with the Hartree-Fock energy removed from the diagonal) is stored in this array for
-      ! the whole simulation.
-      real(dp), allocatable, dimension(:,:) :: core_hamiltonian 
 
       ! The diagonal elements of the core-space Hamiltonian (with Hii taken away).
       real(dp), allocatable, dimension(:) :: core_ham_diag
@@ -404,7 +386,7 @@ MODULE FciMCData
       ! This stores all the amplitudes of the walkers in the deterministic space. This vector has the size of the part
       ! of the deterministic space stored on *this* processor only. It is therefore used to store the deterministic vector
       ! on this processor, before it is combined to give the whole vector, which is stored in full_determ_vector.
-      ! Later in the iteration, it is also used to store the result of the multiplication by core_hamiltonian on
+      ! Later in the iteration, it is also used to store the result of the multiplication by the core Hamiltonian on
       ! full_determ_vector.
       real(dp), allocatable, dimension(:,:) :: partial_determ_vector
       real(dp), allocatable, dimension(:,:) :: full_determ_vector

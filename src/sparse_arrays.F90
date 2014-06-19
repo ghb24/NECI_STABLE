@@ -11,7 +11,7 @@
 
 module sparse_arrays
 
-    use CalcData, only: tRegenDiagHEls, tReadPops
+    use CalcData, only: tReadPops
     use constants
     use bit_rep_data, only: NIfTot, NIfDBO
     use bit_reps, only: decode_bit_det
@@ -226,7 +226,7 @@ contains
                     end if
                     core_ham_diag(i) = hamiltonian_row(j)
                     ! We calculate and store CurrentH at this point for ease.
-                    if ((.not. tRegenDiagHEls) .and. (.not. tReadPops)) CurrentH(1,i) = hamiltonian_row(j)
+                    if (.not. tReadPops) CurrentH(1,i) = hamiltonian_row(j)
                     ! Always include the diagonal elements.
                     row_size = row_size + 1
                 else
