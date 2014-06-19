@@ -72,7 +72,7 @@ contains
         do i = 1, determ_proc_sizes(iProcIndex)
             do j = 1, sparse_core_ham(i)%num_elements
                 ham_times_hf(i) = ham_times_hf(i) - &
-                    sparse_core_ham(i)%elements(j)*full_determ_vector(sparse_core_ham(i)%positions(j))
+                    sparse_core_ham(i)%elements(j)*full_determ_vector(1,sparse_core_ham(i)%positions(j))
             end do
         end do
 

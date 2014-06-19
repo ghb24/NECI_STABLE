@@ -3802,15 +3802,13 @@ MODULE FciMCParMod
 
                  ! Calculate the projected energy.
                  if((lenof_sign.eq.2).and.(inum_runs.eq.1)) then
-                     if (any(AllSumNoatHF /= 0.0) .or. &
-                         (proje_linear_comb .and. nproje_sum > 1)) then
+                     if (any(AllSumNoatHF /= 0.0)) then
                          ProjectionE = (AllSumENum) / (all_sum_proje_denominator) 
                          proje_iter = (AllENumCyc) / (all_cyc_proje_denominator) 
                         AbsProjE = (AllENumCycAbs) / (all_cyc_proje_denominator)
                     endif
                  else
-                     if ((AllSumNoatHF(run) /= 0.0) .or. &
-                         (proje_linear_comb .and. nproje_sum > 1)) then
+                     if ((AllSumNoatHF(run) /= 0.0)) then
                          ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) 
                          proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) 
                         AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run))
@@ -3882,53 +3880,61 @@ MODULE FciMCParMod
                                  &   / real((Iter+PreviousCycles - IterRDM_HF(inum_runs)) + 1,dp)
                 endif
             else
-                if((InstNoatHF(1).eq.0.0).and.(InstNoAtHF(lenof_sign).eq.0.0) &
-                    .and. (.not. tSemiStochastic)) then
-                    !The HF determinant won't be in currentdets, so the CurrentH averages will have been wiped.
-                    !NB - there will be a small issue here if the HF determinant isn't in the core space
-                    IterRDM_HF(1) = 0.0_dp
-                    AvNoatHF(1) = 0.0_dp
-                    if(inum_runs.eq.2) then
-                        IterRDM_HF(inum_runs) = 0.0_dp 
-                        AvNoatHF(inum_runs) = 0.0_dp
-                    endif
-               elseif(((InstNoAtHF(1).eq.0.0).and.(IterRDM_HF(1).ne.0)) .or. &
-                   &  ((InstNoAtHF(inum_runs).eq.0.0).and.(IterRDM_HF(inum_runs).ne.0))) then
-                    !At least one of the populations has just become zero
-                    !Start a new averaging block
-                    IterRDM_HF(1) = Iter+PreviousCycles  
-                    AvNoatHF(1) = InstNoAtHF(1)
-                    IterRDM_HF(inum_runs) = Iter+PreviousCycles  
-                    AvNoatHF(inum_runs) = InstNoAtHF(inum_runs)
-                    do j=1,inum_runs
-                        if(InstNoAtHF(j).eq.0) then
-                            IterRDM_HF(j)=0
+                if(mod(((Iter-1)+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0) then 
+                ! The previous iteration was one where we added in diagonal elements
+                ! To keep things unbiased, we need to set up a new averaging block now.
+                    AvNoAtHF=InstNoAtHF
+                    IterRDM_HF(1)=real(Iter+PreviousCycles,dp)
+                    IterRDM_HF(inum_runs)=real(Iter+PreviousCycles,dp)
+                else
+                    if((InstNoatHF(1).eq.0.0).and.(InstNoAtHF(lenof_sign).eq.0.0) &
+                        .and. (.not. tSemiStochastic)) then
+                        !The HF determinant won't be in currentdets, so the CurrentH averages will have been wiped.
+                        !NB - there will be a small issue here if the HF determinant isn't in the core space
+                        IterRDM_HF(1) = 0.0_dp
+                        AvNoatHF(1) = 0.0_dp
+                        if(inum_runs.eq.2) then
+                            IterRDM_HF(inum_runs) = 0.0_dp 
+                            AvNoatHF(inum_runs) = 0.0_dp
                         endif
-                    enddo
-                elseif(((InstNoAtHF(1).ne.0).and.(IterRDM_HF(1).eq.0)) .or. &
-                       ((InstNoAtHF(inum_runs).ne.0).and.(IterRDM_HF(inum_runs).eq.0))) then
-                        !At least one of the populations has just become occupied
-                        !Start a new block here
-                        IterRDM_HF(1)=real(Iter+PreviousCycles,dp)
-                        IterRDM_HF(inum_runs)=real(Iter+PreviousCycles,dp)
-                        AvNoAtHF(1)=InstNoAtHF(1)
-                        AvNoAtHF(inum_runs)=InstNoAtHF(inum_runs)
+                   elseif(((InstNoAtHF(1).eq.0.0).and.(IterRDM_HF(1).ne.0)) .or. &
+                       &  ((InstNoAtHF(inum_runs).eq.0.0).and.(IterRDM_HF(inum_runs).ne.0))) then
+                        !At least one of the populations has just become zero
+                        !Start a new averaging block
+                        IterRDM_HF(1) = Iter+PreviousCycles  
+                        AvNoatHF(1) = InstNoAtHF(1)
+                        IterRDM_HF(inum_runs) = Iter+PreviousCycles  
+                        AvNoatHF(inum_runs) = InstNoAtHF(inum_runs)
                         do j=1,inum_runs
                             if(InstNoAtHF(j).eq.0) then
                                 IterRDM_HF(j)=0
                             endif
                         enddo
-                else
-                    Prev_AvNoatHF(1) = AvNoatHF(1)
-                    if (IterRDM_HF(1).ne.0) AvNoatHF(1) =((real((Iter+PreviousCycles - IterRDM_HF(1)),dp) &
-                                                    * Prev_AvNoatHF(1)) + InstNoatHF(1) ) &
-                                                    / real((Iter+PreviousCycles - IterRDM_HF(1)) + 1,dp)
-                    if(inum_runs.eq.2) then
-                        Prev_AvNoatHF(inum_runs) = AvNoatHF(inum_runs)
-                       if(IterRDM_HF(inum_runs).ne.0) AvNoatHF(inum_runs)=&
-                                            ((real((Iter+PreviousCycles-IterRDM_HF(inum_runs)),dp) * &
-                                            Prev_AvNoatHF(inum_runs)) + InstNoatHF(inum_runs) ) &
-                                            / real((Iter+PreviousCycles - IterRDM_HF(inum_runs)) + 1,dp)
+                    elseif(((InstNoAtHF(1).ne.0).and.(IterRDM_HF(1).eq.0)) .or. &
+                           ((InstNoAtHF(inum_runs).ne.0).and.(IterRDM_HF(inum_runs).eq.0))) then
+                            !At least one of the populations has just become occupied
+                            !Start a new block here
+                            IterRDM_HF(1)=real(Iter+PreviousCycles,dp)
+                            IterRDM_HF(inum_runs)=real(Iter+PreviousCycles,dp)
+                            AvNoAtHF(1)=InstNoAtHF(1)
+                            AvNoAtHF(inum_runs)=InstNoAtHF(inum_runs)
+                            do j=1,inum_runs
+                                if(InstNoAtHF(j).eq.0) then
+                                    IterRDM_HF(j)=0
+                                endif
+                            enddo
+                    else
+                        Prev_AvNoatHF(1) = AvNoatHF(1)
+                        if (IterRDM_HF(1).ne.0) AvNoatHF(1) =((real((Iter+PreviousCycles - IterRDM_HF(1)),dp) &
+                                                        * Prev_AvNoatHF(1)) + InstNoatHF(1) ) &
+                                                        / real((Iter+PreviousCycles - IterRDM_HF(1)) + 1,dp)
+                        if(inum_runs.eq.2) then
+                            Prev_AvNoatHF(inum_runs) = AvNoatHF(inum_runs)
+                           if(IterRDM_HF(inum_runs).ne.0) AvNoatHF(inum_runs)=&
+                                                ((real((Iter+PreviousCycles-IterRDM_HF(inum_runs)),dp) * &
+                                                Prev_AvNoatHF(inum_runs)) + InstNoatHF(inum_runs) ) &
+                                                / real((Iter+PreviousCycles - IterRDM_HF(inum_runs)) + 1,dp)
+                        endif
                     endif
                 endif
             endif

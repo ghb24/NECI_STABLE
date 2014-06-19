@@ -906,56 +906,72 @@ MODULe nElRDMMod
         
         ! This extracts everything.
         call extract_bit_rep (iLutnI, nI, SignI, FlagsI)
+            
         
-        if(inum_runs.eq.2) then
-            if ((SignI(1).eq.0).and.(IterRDMStartI(1).ne.0)) then
-                ! The population has just gone to zero on population 1
-                ! Therefore, we need to start a new averaging block
-                AvSignI(1)=0
-                IterRDMStartI(1)=0
-                AvSignI(2)=SignI(2)
-                IterRDMStartI(2)=real(Iter+PreviousCycles,dp)
-            elseif ((SignI(2).eq.0).and.(IterRDMStartI(2).ne.0)) then
-                ! The population has just gone to zero on population 2
-                ! Therefore, we need to start a new averaging block
-                AvSignI(2)=0
-                IterRDMStartI(2)=0
-                AvSignI(1)=SignI(1)
-                IterRDMStartI(1)=real(Iter+PreviousCycles,dp)
-            elseif((SignI(1).ne.0).and.(IterRDMStartI(1).eq.0)) then
-                !Population 1 has just become occupied
-                IterRDMStartI(1)=real(Iter+PreviousCycles,dp)
-                IterRDMStartI(2)=real(Iter+PreviousCycles,dp)
-                AvSignI(1)=SignI(1)
-                AvSignI(2)=SignI(2)
-                if(SignI(2).eq.0) IterRDMStartI(2)=0
-            elseif ((SignI(2).ne.0).and.(IterRDMStartI(2).eq.0)) then
-                !Population 2 has just become occupied
-                IterRDMStartI(1)=real(Iter+PreviousCycles,dp)
-                IterRDMStartI(2)=real(Iter+PreviousCycles,dp)
-                AvSignI(1)=SignI(1)
-                AvSignI(2)=SignI(2)
-                if(SignI(1).eq.0) IterRDMStartI(1)=0
+        if(mod(((Iter-1)+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0) then 
+            ! The previous iteration was one where we added in diagonal elements
+            ! To keep things unbiased, we need to set up a new averaging block now.
+            ! NB: if doing single run cutoff, note that doing things this way is now
+            ! NOT the same as the technique described in CMO (and DMC's) thesis.
+            ! Would expect diagonal elements to be slightly worse quality, improving
+            ! as once calculates the RDM energy less frequently.  As this method is
+            ! biased anyway, I'm not going to lose sleep over it.
+            AvSignI(1)=SignI(1)
+            IterRDMStartI(1)=real(Iter+PreviousCycles,dp)
+            AvSignI(2)=SignI(2)
+            IterRDMStartI(2)=real(Iter+PreviousCycles,dp)
+        else
+            !Now let's consider other instances in which we need to start a new block:
+            if(inum_runs.eq.2) then
+                if ((SignI(1).eq.0).and.(IterRDMStartI(1).ne.0)) then
+                    ! The population has just gone to zero on population 1
+                    ! Therefore, we need to start a new averaging block
+                    AvSignI(1)=0
+                    IterRDMStartI(1)=0
+                    AvSignI(2)=SignI(2)
+                    IterRDMStartI(2)=real(Iter+PreviousCycles,dp)
+                elseif ((SignI(2).eq.0).and.(IterRDMStartI(2).ne.0)) then
+                    ! The population has just gone to zero on population 2
+                    ! Therefore, we need to start a new averaging block
+                    AvSignI(2)=0
+                    IterRDMStartI(2)=0
+                    AvSignI(1)=SignI(1)
+                    IterRDMStartI(1)=real(Iter+PreviousCycles,dp)
+                elseif((SignI(1).ne.0).and.(IterRDMStartI(1).eq.0)) then
+                    !Population 1 has just become occupied
+                    IterRDMStartI(1)=real(Iter+PreviousCycles,dp)
+                    IterRDMStartI(2)=real(Iter+PreviousCycles,dp)
+                    AvSignI(1)=SignI(1)
+                    AvSignI(2)=SignI(2)
+                    if(SignI(2).eq.0) IterRDMStartI(2)=0
+                elseif ((SignI(2).ne.0).and.(IterRDMStartI(2).eq.0)) then
+                    !Population 2 has just become occupied
+                    IterRDMStartI(1)=real(Iter+PreviousCycles,dp)
+                    IterRDMStartI(2)=real(Iter+PreviousCycles,dp)
+                    AvSignI(1)=SignI(1)
+                    AvSignI(2)=SignI(2)
+                    if(SignI(1).eq.0) IterRDMStartI(1)=0
+                else
+                    !Nothing unusual has happened so update both populations as normal
+                    do part_ind=1,lenof_sign
+                        ! Update the average population.
+                        AvSignI(part_ind) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * CurrH_I(1+part_ind)) &
+                            + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
+                    enddo
+                endif
             else
-                !Nothing unusual has happened so update both populations as normal
                 do part_ind=1,lenof_sign
+                   ! If there is nothing stored there yet, the first iteration the determinant 
+                   ! became occupied is this one.
+                    IF(IterRDMStartI(part_ind).eq.0.0_dp) IterRDMStartI(part_ind) = real(Iter+PreviousCycles, dp)
                     ! Update the average population.
+                    ! This just comes out as the current population (SignI) if this is the first 
+                    ! time the determinant has become occupied.
+
                     AvSignI(part_ind) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * CurrH_I(1+part_ind)) &
-                        + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
+                                    + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
                 enddo
             endif
-        else
-            do part_ind=1,lenof_sign
-               ! If there is nothing stored there yet, the first iteration the determinant 
-               ! became occupied is this one.
-                IF(IterRDMStartI(part_ind).eq.0.0_dp) IterRDMStartI(part_ind) = real(Iter+PreviousCycles, dp)
-                ! Update the average population.
-                ! This just comes out as the current population (SignI) if this is the first 
-                ! time the determinant has become occupied.
-
-                AvSignI(part_ind) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * CurrH_I(1+part_ind)) &
-                                + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
-            enddo
         endif
         
 

@@ -55,7 +55,7 @@ contains
         ! that the full vector for the whole deterministic space is stored on each processor.
         ! It then performs the deterministic multiplication of the projector on this full vector.
 
-        integer :: i, j, info, ierr
+        integer :: i, j, k, info, ierr
 
         call MPIBarrier(ierr)
 
@@ -88,19 +88,23 @@ contains
 
             do i = 1, determ_proc_sizes(iProcIndex)
                 do j = 1, sparse_core_ham(i)%num_elements
-                    partial_determ_vector(i) = partial_determ_vector(i) - &
-                        sparse_core_ham(i)%elements(j)*full_determ_vector(sparse_core_ham(i)%positions(j))
+                    do k=1,lenof_sign
+                        partial_determ_vector(k,i) = partial_determ_vector(k,i) - &
+                            sparse_core_ham(i)%elements(j)*full_determ_vector(k,sparse_core_ham(i)%positions(j))
+                    enddo
                 end do
             end do
 
             ! Now add shift*full_determ_vector, to account for the shift, not stored in
             ! sparse_core_ham.
-            partial_determ_vector = partial_determ_vector + &
-               DiagSft * full_determ_vector(determ_proc_indices(iProcIndex)+1:&
-                 determ_proc_indices(iProcIndex)+determ_proc_sizes(iProcIndex))
+            do k=1,lenof_sign
+                partial_determ_vector(k,:) = partial_determ_vector(k,:) + &
+                   DiagSft * full_determ_vector(k,determ_proc_indices(iProcIndex)+1:&
+                     determ_proc_indices(iProcIndex)+determ_proc_sizes(iProcIndex))
 
-            ! Now multiply the vector by tau to get the final projected vector.
-            partial_determ_vector = partial_determ_vector * tau
+                ! Now multiply the vector by tau to get the final projected vector.
+                partial_determ_vector(k,:) = partial_determ_vector(k,:) * tau
+            enddo
 
         end if
 
