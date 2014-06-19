@@ -1034,7 +1034,7 @@ def process_output (fout):
     # re_startiter = re.compile('^\s*St(ep)*\s+Shift')
     re_startiter = re.compile('^\s*Initial memory allocation sucessful...')
     re_HF_D0 = re.compile('^\s*\<D0\|H\|D0\>\s*=\s*(.+)\s*$')
-    re_iter = re.compile('^\s*(\d+)')
+    re_iter = re.compile('^\s*(\d+) ')
     re_ref_E = re.compile('^\s*Reference [Ee]nergy (now )*set to:\s*(.+)$')
     re_final_E = re.compile('^\s*Summed approx E\(Beta\)=\s*(.+)$')
     re_new_tau = re.compile('^\s*(New (tau|timestep):|Updating time-step\. New time-step =)\s+(.+)$')
