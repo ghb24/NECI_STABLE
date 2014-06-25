@@ -1201,8 +1201,8 @@ MODULe nElRDMMod
 
 ! If we have a single or double, add in the connection to the HF, symmetrically.       
         if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) then
-            call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF(1),IterRDM*AvSignJ(lenof_sign),.true.)
-!            call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF(lenof_sign),0.5*IterRDM*AvSignJ(1),.true.)
+            call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF(1),0.5*IterRDM*AvSignJ(lenof_sign),.true.)
+            call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF(lenof_sign),0.5*IterRDM*AvSignJ(1),.true.)
         endif
 
     end subroutine Add_RDM_HFConnections_Norm
