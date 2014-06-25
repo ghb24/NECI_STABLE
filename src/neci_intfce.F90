@@ -14,7 +14,7 @@ module neci_intfce
    INTEGER NJ(NEL),IC
    LOGICAL TSETUP
    INTEGER ILEVEL
-  END
+  END SUBROUTINE GENSYMEXCITIT2
   SUBROUTINE GENRANDSYMEXCITIT2(NI,NEL,NMEM,NJ,ISEED,ICOUNT,PGEN)
    use constants, only: dp
    IMPLICIT NONE
@@ -23,7 +23,7 @@ module neci_intfce
    integer NJ(NEL),ICOUNT
    INTEGER ISEED
    real(dp) PGEN
-  END
+  END SUBROUTINE GENRANDSYMEXCITIT2
   SUBROUTINE GENSYMEXCITIT3Par(NI,TSETUP,NMEM,NJ,IC,STORE,ILEVEL,iMinElec1,iMaxElec1)
    use SystemData, only: nEl
    IMPLICIT NONE
@@ -35,7 +35,7 @@ module neci_intfce
    LOGICAL TSETUP
    INTEGER ILEVEL
    INTEGER iMinElec1, iMaxElec1
-  END
+  END SUBROUTINE GENSYMEXCITIT3Par
   SUBROUTINE GenExcitProb(nI,nJ,nEl,nIExcitor,G1,nBasisMax,Arr,nBasis,pGen)
    use constants, only: dp
    use SystemData, only: BasisFN
@@ -45,6 +45,6 @@ module neci_intfce
    TYPE(BasisFN) G1(nBasis)
    real(dp) pGen
    real(dp) Arr(nBasis,2)
-  END
- end interface
+  END SUBROUTINE GenExcitProb
+ end interface 
 end module neci_intfce
