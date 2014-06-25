@@ -822,7 +822,7 @@ MODULE FciMCParMod
                 IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter)
             endif
         endif
-
+        
         do j=1,int(TotWalkers,sizeof_int)
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
@@ -848,8 +848,6 @@ MODULE FciMCParMod
             ! truncated etc.)
             walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
                                                 max_calc_ex_level)
-           
-             !   if(WalkExcitLevel.eq.0) WRITE(6,*) "AvSignCurr: updating", CurrentH(2,j), AvSignCurr, SignCurr
 
             if(tRef_Not_HF) then
                 walkExcitLevel_toHF = FindBitExcitLevel (iLutHF_true, CurrentDets(:,j), &
@@ -1091,10 +1089,11 @@ MODULE FciMCParMod
                                    AvSignCurr, IterRDMStartCurr, VecSlot, j, WalkExcitLevel)
             end if
 
-            if(tFill_RDM .and. (.not. tNoNewRDMContrib)) &
-                    & call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, SignCurr, &
-                    & walkExcitLevel_toHF, test_flag(CurrentDets(:,j), flag_deterministic))  
-
+            if(tFill_RDM .and. (.not. tNoNewRDMContrib)) then
+                call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, CurrentH(1:NCurrH,gen_ind), &
+                & walkExcitLevel_toHF, test_flag(CurrentDets(:,j), flag_deterministic))  
+            endif
+        
         enddo ! Loop over determinants.
         IFDEBUGTHEN(FCIMCDebug,2) 
             write(iout,*) 'Finished loop over determinants'
@@ -3880,7 +3879,8 @@ MODULE FciMCParMod
                                  &   / real((Iter+PreviousCycles - IterRDM_HF(inum_runs)) + 1,dp)
                 endif
             else
-                if(mod(((Iter-1)+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0) then 
+                if(((Iter+PreviousCycles-IterRDMStart).gt.0) .and. &
+                    & (mod(((Iter-1)+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0)) then 
                 ! The previous iteration was one where we added in diagonal elements
                 ! To keep things unbiased, we need to set up a new averaging block now.
                     AvNoAtHF=InstNoAtHF
@@ -6862,10 +6862,6 @@ MODULE FciMCParMod
             call init_yama_store ()
         endif
     
-        if (tUseRealCoeffs .and. (lenof_sign.ne.1)) &
-            CALL stop_all(this_routine,"Code not yet setup to store complex coefficients as reals &
-                                        & - attempt_create_normal is an example")
-
         IF(tRDMonFly) CALL InitRDM()
         !This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
         !Initialises RDM stuff for both explicit and stochastic calculations of RDM.

@@ -229,9 +229,6 @@ MODULe nElRDMMod
                 !To calculate the full energy of the RDM (i.e. over full accum. period), we need to allocate
                 ! aaaa_RDM_full on the head nodes
 
-                aaaa_RDM => aaaa_RDM_inst
-                abba_RDM => abba_RDM_inst
-                abab_RDM => abab_RDM_inst
 
                 ALLOCATE(aaaa_RDM_inst(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating aaaa_RDM_inst array,')
@@ -281,12 +278,13 @@ MODULe nElRDMMod
                     MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 8 ) 
 
                 ENDIF
+                
+                aaaa_RDM => aaaa_RDM_inst
+                abba_RDM => abba_RDM_inst
+                abab_RDM => abab_RDM_inst
             else
                 !We're not calculating an instantaneous RDM energy
                 !Put RDM contributions directly into 'full' arrays, which are now allocated every core
-                aaaa_RDM => aaaa_RDM_full
-                abba_RDM => abba_RDM_full
-                abab_RDM => abab_RDM_full
                 
                 ALLOCATE(aaaa_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating aaaa_RDM_full array,')
@@ -313,6 +311,10 @@ MODULe nElRDMMod
 
                 MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
                 MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
+                
+                aaaa_RDM => aaaa_RDM_full
+                abba_RDM => abba_RDM_full
+                abab_RDM => abab_RDM_full
             endif
 
             if (iProcindex.eq.0) then
@@ -907,8 +909,8 @@ MODULe nElRDMMod
         ! This extracts everything.
         call extract_bit_rep (iLutnI, nI, SignI, FlagsI)
             
-        
-        if(mod(((Iter-1)+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0) then 
+        if(((Iter+PreviousCycles-IterRDMStart).gt.0) .and. &
+            & (mod(((Iter-1)+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0)) then 
             ! The previous iteration was one where we added in diagonal elements
             ! To keep things unbiased, we need to set up a new averaging block now.
             ! NB: if doing single run cutoff, note that doing things this way is now
@@ -973,8 +975,6 @@ MODULe nElRDMMod
                 enddo
             endif
         endif
-        
-
 
     end subroutine extract_bit_rep_avsign_norm
     
@@ -1003,14 +1003,18 @@ MODULe nElRDMMod
         do part_type=1,lenof_sign
             IterDetOcc(part_type) = real(Iter+PreviousCycles,dp) - CurrH_I(1+lenof_sign+part_type) + 1.0_dp
         enddo
-        AvSignIters=max(IterDetOcc(1), IterDetOcc(inum_runs))
+        AvSignIters=min(IterDetOcc(1), IterDetOcc(inum_runs))
         
         ! IterLastRDMFill is the number of iterations from the last time the energy was calculated 
         IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter)
 
         ! The number of iterations we want to weight this RDM contribution by is:
-        IterRDM = min(AvSignIters,IterLastRDMFill)
-        
+        if(IterLastRDMFill.gt.0) then
+            IterRDM = min(AvSignIters,IterLastRDMFill)
+        else
+            IterRDM = AvSignIters
+        endif
+
         AvSignCurr=CurrH_I(2:1+lenof_sign)
 
         if(tHPHF) then
@@ -1047,7 +1051,7 @@ MODULe nElRDMMod
 
         else
             ! No HPHF
-            call Fill_Diag_RDM(nI, AvSignCurr, tCoreSpaceDet, IterRDM)
+            if(AvSignCurr(1)*AvSignCurr(lenof_sign).ne.0) call Fill_Diag_RDM(nI, AvSignCurr, tCoreSpaceDet, IterRDM)
             call Add_RDM_HFConnections_Norm(iLutnI, nI, AvSignCurr, ExcitLevelI, IterRDM)   
 
         endif
@@ -1140,7 +1144,6 @@ MODULe nElRDMMod
         if(.not.((Iter.eq.NMCyc).or.(mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0))) then
         ! The elements described above will have been already added in
 
-
             call decode_bit_det (nI, iLutnI)
             if(tRef_Not_HF) then
                 ExcitLevel = FindBitExcitLevel (iLutHF_true, iLutnI, 2)
@@ -1152,6 +1155,7 @@ MODULe nElRDMMod
             !    call fill_rdm_diag_currdet_hfsd(iLutnI, nI, CurrH_I, ExcitLevel, .false., &
             !                                    IterLastRDMFill, tFinalRDMContrib, tDetRemoved)
             !else
+
             call fill_rdm_diag_currdet_norm(iLutnI, nI, CurrH_I, ExcitLevel, .false.)
             !endif
 
@@ -1182,21 +1186,24 @@ MODULe nElRDMMod
             !Therefore, AvNoAtHF is allowed to be different to the AvSignJ stored in CurrentH for this det
             if(walkExcitLevel.eq.0) then
                 do part_type=1,lenof_sign
-                    if(abs(AvSignJ(part_type)-InstNoatHF(part_type)).gt.1E-10) then
+                    if(abs(AvSignJ(part_type)-AvNoatHF(part_type)).gt.1E-10) then
                         write(6,*) 'HFDet_True',HFDet_True
                         write(6,*) 'nJ',nJ
                         write(6,*) 'iLutJ',iLutJ
                         write(6,*) 'AvSignJ',AvSignJ
-                        write(6,*) 'InstNoatHF',InstNoatHF
-                        CALL Stop_All('Add_RDM_HFConnections_Norm','Incorrect instantaneous HF population.')
+                        write(6,*) 'AvNoatHF',AvNoatHF
+                        write(6,*) "instnoathf", instnoathf
+                        CALL Stop_All('Add_RDM_HFConnections_Norm','Incorrect average HF population.')
                     endif
                 enddo
             endif
         endif
 
 ! If we have a single or double, add in the connection to the HF, symmetrically.       
-        if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
+        if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) then
             call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF(1),IterRDM*AvSignJ(lenof_sign),.true.)
+!            call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF(lenof_sign),0.5*IterRDM*AvSignJ(1),.true.)
+        endif
 
     end subroutine Add_RDM_HFConnections_Norm
 
@@ -1221,7 +1228,7 @@ MODULe nElRDMMod
                     if(AvSignJ(part_type).ne.AvNoatHF(part_type)) then
                         write(6,*) 'AvSignJ',AvSignJ
                         write(6,*) 'AvNoatHF',AvNoatHF
-                        CALL Stop_All('Add_RDM_HFConnections_HPHF','Incorrect instantaneous HF population.')
+                        CALL Stop_All('Add_RDM_HFConnections_HPHF','Incorrect average HF population.')
                     endif
                 enddo
             endif
@@ -3070,7 +3077,6 @@ MODULe nElRDMMod
 
             abab_RDM( Indij , Indab ) = abab_RDM( Indij , Indab ) + ( ParityFactor * &
                                                          realSignDi * realSignDj )
-
             if(tFill_CiCj_Symm) then
                 abab_RDM( Indab , Indij ) = abab_RDM( Indab , Indij ) + ( ParityFactor * &
                                                          realSignDi * realSignDj )

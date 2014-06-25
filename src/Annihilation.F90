@@ -187,6 +187,7 @@ MODULE AnnihilationMod
 
         Compress_time%timer_name='Compression interface'
         call set_timer(Compress_time,20)
+    
 
         CALL CompressSpawnedList(MaxIndex, iter_data)  
 
@@ -385,11 +386,6 @@ MODULE AnnihilationMod
 !        call WriteExcitorListP(6,SpawnedParts,0,ValidSpawned,0,"Ordered")
 
 
-        !WRITE(6,*) "************ - Ordered",ValidSpawned,NIfTot,Iter
-        !do i=1,ValidSpawned
-            !WRITE(6,*) i,SpawnedParts(0:NIfTot-1,i),SpawnedParts(NIfTot,i)-2
-        !enddo
-
 !First, we compress the list of spawned particles, so that they are only specified at most once in each processors list.
 !During this, we transfer the particles from SpawnedParts to SpawnedParts2
 !If we are working with complex walkers, we essentially do the same thing twice, annihilating real and imaginary
@@ -560,11 +556,7 @@ MODULE AnnihilationMod
         PointTemp => SpawnedParts2
         SpawnedParts2 => SpawnedParts
         SpawnedParts => PointTemp
-
-!        WRITE(6,*) 'Spawned after compress'
-!        do i = 1, ValidSpawned
-!            WRITE(6,*) SpawnedParts(:,i)
-!        enddo
+        
 !
 
 !        WRITE(6,*) 'Spawned Parents'
@@ -1640,15 +1632,17 @@ MODULE AnnihilationMod
                                 & ((CurrentSign(2).eq.0).and.(CurrentH(1+2*lenof_sign,i).ne.0)) .or. &
                                 & ((CurrentSign(1).ne.0).and.(CurrentH(2+lenof_sign,i).eq.0)) .or. &
                                 & ((CurrentSign(2).ne.0).and.(CurrentH(1+2*lenof_sign,i).eq.0))) then
-                                
+                               
+
                             !At least one of the signs has just gone to zero or just become reoccupied
                             !so we need to consider adding in diagonal elements and connections to HF
-                            !The block that's just ended was occupied in at least one population.           
+                            !The block that's just ended was occupied in at least one population.          
                             call det_removed_fill_diag_rdm(CurrentDets(:,i), CurrentH(1:NCurrH,i))
                         endif
                     else
-                        if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) &
+                        if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
                             call det_removed_fill_diag_rdm(CurrentDets(:,i), CurrentH(1:NCurrH,i))
+                        endif
                     endif
                 endif
 
