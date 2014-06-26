@@ -897,12 +897,6 @@ contains
             disps(i) = sum(lengths(:i-1))
         end do
 
-        !write(6,*) "CurrentDets:"
-        !do i = 1, TotWalkers
-        !    write(6,*) i, CurrentDets(0,i)
-        !end do
-        !call neci_flush(6)
-
         ! Return the most populated states in CurrentDets on *this* processor.
         call return_most_populated_states(int(length_this_proc,sizeof_int), largest_states)
 
