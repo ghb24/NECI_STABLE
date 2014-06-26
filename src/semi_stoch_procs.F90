@@ -918,7 +918,7 @@ contains
         real(dp) :: smallest_sign, sign_curr_real
         real(dp), dimension(lenof_sign) :: sign_curr, low_sign
 
-        largest_walkers = 0
+        largest_walkers = 0_n_int
         smallest_sign = 0.0_dp
         smallest_pos = 1
         if (present(norm)) norm = 0.0_dp
@@ -950,14 +950,13 @@ contains
 
                 smallest_pos = 1
                 do j = 2, n_keep
-                    if (smallest_sign < 1.0e-7_dp) exit
                     call extract_sign(largest_walkers(:,j), low_sign)
 #ifdef __CMPLX
                         sign_curr_real = sqrt(real(low_sign(1),dp)**2+real(low_sign(lenof_sign),dp)**2)
 #else
                         sign_curr_real = sum(real(abs(low_sign),dp))
 #endif
-                    if (sign_curr_real < smallest_sign) then
+                    if (sign_curr_real < smallest_sign .or. all(largest_walkers(:,j) == 0_n_int)) then
                         smallest_pos = j
                         smallest_sign = sign_curr_real
                     end if
@@ -998,7 +997,6 @@ contains
 
                 smallest_pos = 1
                 do j = 2, n_keep
-                    if (smallest_sign < 1.0e-7_dp) exit
                     ind = largest_indices(j)
                     if (ind == 0) then
                         low_sign = 0.0_dp
@@ -1008,7 +1006,7 @@ contains
 
                     sign_curr_abs = abs(low_sign)
 
-                    if (sign_curr_abs < smallest_sign) then
+                    if (sign_curr_abs < smallest_sign .or. largest_indices(j) == 0) then
                         smallest_pos = j
                         smallest_sign = sign_curr_abs
                     end if

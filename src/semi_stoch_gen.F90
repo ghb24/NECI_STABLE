@@ -897,6 +897,12 @@ contains
             disps(i) = sum(lengths(:i-1))
         end do
 
+        !write(6,*) "CurrentDets:"
+        !do i = 1, TotWalkers
+        !    write(6,*) i, CurrentDets(0,i)
+        !end do
+        !call neci_flush(6)
+
         ! Return the most populated states in CurrentDets on *this* processor.
         call return_most_populated_states(int(length_this_proc,sizeof_int), largest_states)
 
@@ -941,7 +947,7 @@ contains
 
         ! Add the states to the SpawnedParts array so that they can be processed for the
         ! semi-stochastic space in the standard, consistent way.
-        temp_ilut = 0
+        temp_ilut = 0_n_int
         do i = 1, n_states_this_proc
             ! The states in largest_states are sorted from smallest to largest.
             temp_ilut(0:NIfDBO) = largest_states(0:NIfDBO, length_this_proc-i+1)
