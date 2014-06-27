@@ -4269,7 +4269,7 @@ MODULE FciMCParMod
             endif
 #elif __DOUBLERUN
             write(fcimcstats_unit2,"(i12,7g16.7,5g17.9,g13.5,i12,g13.5,g17.5,&
-                                   &i13,g13.5,11g17.9,i13,g16.7)",advance = 'no') &
+                                   &i13,g13.5,11g17.9,i13,2g16.7)",advance = 'no') &
                 Iter + PreviousCycles, &                   ! 1.
                 DiagSft(2), &                              ! 2.
                 AllTotParts(2) - AllTotPartsOld(2), &      ! 3.
