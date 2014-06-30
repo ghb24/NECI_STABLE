@@ -47,6 +47,13 @@ module sparse_arrays
         integer :: nclash
     end type trial_hashtable
 
+    type core_hashtable
+        ! The indices of states with this hash table.
+        integer, allocatable, dimension(:) :: ind
+        ! The number of clashes for this hash value.
+        integer :: nclash
+    end type core_hashtable
+
     type(sparse_matrix_real), allocatable, dimension(:) :: sparse_ham
     integer(TagIntType), allocatable, dimension(:,:) :: SparseHamilTags
 
@@ -64,6 +71,7 @@ module sparse_arrays
 
     type(trial_hashtable), allocatable, dimension(:) :: trial_ht
     type(trial_hashtable), allocatable, dimension(:) :: con_ht
+    type(core_hashtable), allocatable, dimension(:) :: core_ht
 
 contains
 
