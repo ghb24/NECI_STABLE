@@ -394,9 +394,6 @@ MODULE FciMCData
       ! This vector will store the indicies of the deterministic states in CurrentDets. This is worked out in the main loop.
       integer, allocatable, dimension(:) :: indices_of_determ_states
 
-      ! For using the hashing trick to search the core space.
-      type(ll_node), pointer :: CoreHashIndex(:)
-
       ! If true (as is the case by default) then semi-stochastic calculations
       ! will start from the ground state of the core space
       logical :: tStartCoreGroundState
