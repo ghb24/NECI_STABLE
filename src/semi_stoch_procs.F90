@@ -24,7 +24,7 @@ module semi_stoch_procs
                          PDetermTag, FDetermTag, IDetermTag, indices_of_determ_states, &
                          HashIndex, core_space, CoreSpaceTag, ll_node, nWalkerHashes, &
                          full_determ_vector_av, tFill_RDM, &
-                         tFillingStochRDMonFly, Iter, IterRDMStart, CoreHashIndex, &
+                         tFillingStochRDMonFly, Iter, IterRDMStart, &
                          core_ham_diag, DavidsonTag, Fii, HFDet, PreviousCycles
     use hash, only: DetermineDetNode, FindWalkerHash
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
@@ -40,7 +40,7 @@ module semi_stoch_procs
     use sort_mod, only: sort
     use sparse_arrays, only: sparse_core_ham, SparseCoreHamilTags, deallocate_sparse_ham, &
                             core_connections, sparse_ham, hamil_diag, HDiagTag, &
-                            SparseHamilTags, allocate_sparse_ham_row
+                            SparseHamilTags, allocate_sparse_ham_row, core_ht, core_hashtable
     use SystemData, only: nel, tHPHF, nBasis, BRR, ARR, tUEG, tMomInv
     use timing_neci
     use util_mod, only: get_free_unit
@@ -118,30 +118,20 @@ contains
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer :: nI(nel)
-        integer :: DetHash, PartInd
-        type(ll_node), pointer :: temp_node
+        integer :: i, hash
         logical :: core_state
 
         core_state = .false.
 
         call decode_bit_det(nI, ilut)
-        DetHash = FindWalkerHash(nI, int(determ_space_size,sizeof_int))
-        temp_node => CoreHashIndex(DetHash)
+        hash = FindWalkerHash(nI, int(determ_space_size,sizeof_int))
 
-        if (temp_node%ind == 0) then
-            ! If there are no core states with this hash value.
-            nullify(temp_node)
-            return
-        else
-            do while (associated(temp_node))
-                if (DetBitEQ(ilut, core_space(:,temp_node%ind),NIfDBO)) then
-                    core_state = .true.
-                    nullify(temp_node)
-                    return
-                end if
-                temp_node => temp_node%next
-            end do
-        end if
+        do i = 1, core_ht(hash)%nclash
+            if (DetBitEQ(ilut, core_space(:,core_ht(hash)%ind(i)), NIfDBO)) then
+                core_state = .true.
+                return
+            end if
+        end do
 
     end function is_core_state
 
@@ -251,35 +241,36 @@ contains
         use SystemData, only: nel
 
         integer :: nI(nel)
-        integer :: i, ierr, DetHash, counter, total
-        type(ll_node), pointer :: temp_node
+        integer :: i, ierr, hash
         character(len=*), parameter :: t_r = "initialise_core_hash_table"
 
-        allocate(CoreHashIndex(determ_space_size), stat=ierr)
+        allocate(core_ht(determ_space_size), stat=ierr)
 
         do i = 1, determ_space_size
-            CoreHashIndex(i)%ind = 0
-            nullify(CoreHashIndex(i)%next)
+            core_ht(i)%nclash = 0
         end do
 
+        ! Count the number of states with each hash value.
         do i = 1, determ_space_size
             call decode_bit_det(nI, core_space(:,i))
-            DetHash = FindWalkerHash(nI, int(determ_space_size,sizeof_int))
-            temp_node => CoreHashIndex(DetHash)
-            ! If the first element in the list has not been used.
-            if (temp_node%ind == 0) then
-                temp_node%ind = i
-            else
-                do while (associated(temp_node%next))
-                    temp_node => temp_node%next
-                end do
-                allocate(temp_node%next)
-                nullify(temp_node%next%next)
-                temp_node%next%ind = i
-            end if
+            hash = FindWalkerHash(nI, int(determ_space_size,sizeof_int))
+            core_ht(hash)%nclash = core_ht(hash)%nclash + 1
         end do
 
-        nullify(temp_node)
+        do i = 1, determ_space_size
+            allocate(core_ht(i)%ind(core_ht(i)%nclash), stat=ierr)
+            core_ht(i)%ind = 0
+            ! Reset this for now.
+            core_ht(i)%nclash = 0
+        end do
+
+        ! Now fill in the indices of the states in core_space.
+        do i = 1, determ_space_size
+            call decode_bit_det(nI, core_space(:,i))
+            hash = FindWalkerHash(nI, int(determ_space_size,sizeof_int))
+            core_ht(hash)%nclash = core_ht(hash)%nclash + 1
+            core_ht(hash)%ind(core_ht(hash)%nclash) = i
+        end do
 
     end subroutine initialise_core_hash_table
 
