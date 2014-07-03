@@ -30,6 +30,7 @@ module spectral_lanczos
     integer :: nomega_spectral
     real(dp) :: spectral_broadening
     real(dp) :: delta_omega_spectral
+    real(dp) :: min_omega_sl
 
     integer :: sl_unit
 
@@ -247,8 +248,8 @@ contains
             min_vec = 2
         end if
 
-        omega = 0.0_dp
-        do i = 1, nomega_spectral
+        omega = min_omega_sl
+        do i = 1, nomega_spectral + 1
             spectral_weight = 0.0_dp
             do j = min_vec, n_lanc_vecs_sl
                 spectral_weight = spectral_weight + &
