@@ -167,7 +167,7 @@ contains
 
         ! If starting from a popsfile then CurrentH won't have been filled in yet.
         if (tReadPops) call fill_in_CurrentH()
-        SpawnedParts = 0
+        SpawnedParts = 0_n_int
         TotWalkersOld = TotWalkers
 
         if (tStartCoreGroundState .and. (.not. tReadPops)) call start_walkers_from_core_ground()
@@ -677,8 +677,8 @@ contains
             call LogMemAlloc("ilut_store", 1000000*(NIfTot+1), size_n_int, t_r, IlutTag, ierr)
             allocate(temp_space(0:NIfTot, 1000000), stat=ierr)
             call LogMemAlloc("temp_store", 1000000*(NIfTot+1), size_n_int, t_r, TempTag, ierr)
-            ilut_store = 0
-            temp_space = 0
+            ilut_store = 0_n_int
+            temp_space = 0_n_int
 
             ! Put the Hartree-Fock state in the list first.
             ilut_store(0:NIfTot, 1) = ilutHF(0:NIfTot)
@@ -812,7 +812,7 @@ contains
         ! trial_space array, not SpawnedParts.
         if (called_from == called_from_trial) then
             trial_space(:, 1:this_proc_size) = SpawnedParts(:, 1:this_proc_size)
-            SpawnedParts = 0
+            SpawnedParts = 0_n_int
         end if
 
         ! Finally, deallocate arrays.
@@ -930,7 +930,7 @@ contains
 
         ! Add the states to the SpawnedParts array so that they can be processed for the
         ! semi-stochastic space in the standard, consistent way.
-        temp_ilut = 0
+        temp_ilut = 0_n_int
         do i = 1, n_states_this_proc
             ! The states in largest_states are sorted from smallest to largest.
             temp_ilut(0:NIfDBO) = largest_states(0:NIfDBO, length_this_proc-i+1)
@@ -969,7 +969,7 @@ contains
         iunit = get_free_unit()
         open(iunit, file=filename, status='old')
 
-        ilut = 0
+        ilut = 0_n_int
 
         do
             read(iunit, *, iostat=stat) ilut(0:NIfDBO)
@@ -1023,8 +1023,8 @@ contains
         call LogMemAlloc("ilut_store", 1000000*(NIfTot+1), size_n_int, t_r, IlutTag, ierr)
         allocate(temp_space(0:NIfTot, 1000000), stat=ierr)
         call LogMemAlloc("temp_store", 1000000*(NIfTot+1), size_n_int, t_r, TempTag, ierr)
-        ilut_store = 0
-        temp_space = 0
+        ilut_store = 0_n_int
+        temp_space = 0_n_int
 
         ! Put the Hartree-Fock state in the list first.
         ilut_store(0:NIfTot, 1) = ilutHF(0:NIfTot)
@@ -1173,7 +1173,7 @@ contains
         ! Count the HF determinant.
         ndets = 1
         ex = 0
-        ilut = 0
+        ilut = 0_n_int
 
         ! Start by adding the HF state.
         ilut_list(0:NIfD, 1) = ilutHF(0:NIfD)
