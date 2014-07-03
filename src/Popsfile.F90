@@ -129,7 +129,7 @@ MODULE PopsfileMod
 
         IF(iProcIndex.eq.Root) THEN
             IF(iWeightPopRead.ne.0) THEN
-                WRITE(6,"(A,I15,A,I4,A)") "Although ",EndPopsList, &
+                WRITE(6,"(A,I15,A,es17.10,A)") "Although ",EndPopsList, &
                 " configurations will be read in, only determinants with a weight of over ",iWeightPopRead," will be stored."
             else
                 write(6,"(A,I15,A)") "Reading in a total of ",EndPopsList, " configurations from POPSFILE."
@@ -567,16 +567,12 @@ outer_map:      do i = 0, MappingNIfD
             det = det + 1
 
             ! Test if we actually want to store this walker...
-            if (iWeightPopRead /= 0) then
-                do i = 1, lenof_sign
-                    if (sgn(i) >= iWeightPopRead) then
-                        tStoreDet = .true.
-                        exit
-                    end if
-                end do
-            else
-                tStoreDet = .true.
-            end if
+            do i = 1, lenof_sign
+                if (abs(sgn(i)) >= iWeightPopRead) then
+                    tStoreDet = .true.
+                    exit
+                end if
+            end do
         enddo r_loop
 
         ! If this determinant is annihilated by the perturbation operator

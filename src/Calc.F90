@@ -78,7 +78,7 @@ contains
           MaxTimeExit=0.0_dp
           tMaxBloom=.false.
           iRestartWalkNum=0
-          iWeightPopRead=0
+          iWeightPopRead=1.0e-12
           tCheckHighestPop=.false.
           StepsSftImag=0.0_dp
           TauFactor=0.0_dp
@@ -1174,7 +1174,7 @@ contains
 !When reading in a popsfile, this will only save the determinant, if the number of particles on this 
 !determinant is greater than iWeightPopRead.
                 tReadPops=.true.
-                call readi(iWeightPopRead)
+                call readf(iWeightPopRead)
                 if (item.lt.nitems) then
                     call readi(iPopsFileNoRead)
                     iPopsFileNoWrite = iPopsFileNoRead

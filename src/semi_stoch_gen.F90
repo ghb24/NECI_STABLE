@@ -941,7 +941,7 @@ contains
 
         ! Add the states to the SpawnedParts array so that they can be processed for the
         ! semi-stochastic space in the standard, consistent way.
-        temp_ilut = 0
+        temp_ilut = 0_n_int
         do i = 1, n_states_this_proc
             ! The states in largest_states are sorted from smallest to largest.
             temp_ilut(0:NIfDBO) = largest_states(0:NIfDBO, length_this_proc-i+1)
