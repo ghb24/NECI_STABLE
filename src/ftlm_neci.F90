@@ -92,6 +92,10 @@ contains
         write(6,'(/,1x,a49,/)') "Beginning finite-temperature Lanczos calculation."
         call neci_flush(6)
 
+        expected_ndets_tot = choose(nbasis, nel)
+        write(6,*) "Expected number:", expected_ndets_tot
+        call neci_flush(6)
+
         ftlm_unit = get_free_unit()
         open(ftlm_unit, file='FTLM_EIGV',status='replace')
 

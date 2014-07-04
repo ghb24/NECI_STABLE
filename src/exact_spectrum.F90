@@ -5,7 +5,7 @@ module exact_spectrum
     use constants
     use FciMCData, only: hamiltonian
     use spectral_lanczos, only: nomega_spectral, delta_omega_spectral, spectral_broadening
-    use spectral_lanczos, only: spectral_ground_energy, tIncludeGroundSpectral
+    use spectral_lanczos, only: spectral_ground_energy, tIncludeGroundSpectral, min_omega_sl
 
     implicit none
 
@@ -178,8 +178,8 @@ contains
             min_vec = 2
         end if
 
-        omega = 0.0_dp
-        do i = 1, nomega_spectral
+        omega = min_omega_sl
+        do i = 1, nomega_spectral + 1
             spectral_weight = 0.0_dp
             do j = min_vec, ndets_es
                 spectral_weight = spectral_weight + &
