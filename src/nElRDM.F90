@@ -412,9 +412,9 @@ MODULe nElRDMMod
 
 ! Finally, we need to hold onto the parents of the spawned particles.            
 ! This is not necessary if we're doing completely explicit calculations.
-            ALLOCATE(Spawned_Parents(0:(NIfDBO+1),MaxSpawned),stat=ierr)
+            ALLOCATE(Spawned_Parents(0:(NIfDBO+2),MaxSpawned),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Spawned_Parents array,')
-            CALL LogMemAlloc('Spawned_Parents',MaxSpawned*(NIfDBO+2),size_n_int,&
+            CALL LogMemAlloc('Spawned_Parents',MaxSpawned*(NIfDBO+3),size_n_int,&
                                                 this_routine,Spawned_ParentsTag,ierr)
             ALLOCATE(Spawned_Parents_Index(2,MaxSpawned),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Spawned_Parents_Index array,')
@@ -1201,8 +1201,8 @@ MODULe nElRDMMod
 
 ! If we have a single or double, add in the connection to the HF, symmetrically.       
         if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) then
-            call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF(1),0.5*IterRDM*AvSignJ(lenof_sign),.true.)
-            call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF(lenof_sign),0.5*IterRDM*AvSignJ(1),.true.)
+            call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF(1),(1.0_dp/real(lenof_sign,dp))*IterRDM*AvSignJ(lenof_sign),.true.)
+            call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF(lenof_sign),(1.0_dp/real(lenof_sign,dp))*IterRDM*AvSignJ(1),.true.)
         endif
 
     end subroutine Add_RDM_HFConnections_Norm
@@ -1316,10 +1316,9 @@ MODULe nElRDMMod
 !
 !    end subroutine Add_RDM_HFConnections_HF_S_D
 
-    subroutine calc_rdmbiasfac(p_spawn_rdmfac,p_gen,AvSignCurr,SignCurr,RDMBiasFacCurr)
+    subroutine calc_rdmbiasfac(p_spawn_rdmfac,p_gen,SignCurr,RDMBiasFacCurr)
         real(dp), intent(in) :: p_gen
-        real(dp), intent(in) :: AvSignCurr(lenof_sign)
-        real(dp), intent(in) :: SignCurr(lenof_sign)
+        real(dp), intent(in) :: SignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: p_spawn_rdmfac
         real(dp) :: p_notlist_rdmfac, p_spawn, p_not_spawn, p_max_walktospawn
@@ -1345,23 +1344,23 @@ MODULe nElRDMMod
         ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
        
 
-        if(real(int(SignCurr(1)),dp).ne.SignCurr(1)) then
+        if(real(int(SignCurr),dp).ne.SignCurr) then
             !There's a non-integer population on this determinant
             !We need to consider both possibilities - whether we attempted to spawn 
             !int(SignCurr) times or int(SignCurr)+1 times
-            p_max_walktospawn=abs(SignCurr(1)-real(int(SignCurr(1)),dp))
-            p_not_spawn = (1.0_dp - p_max_walktospawn)*(p_notlist_rdmfac**abs(int(SignCurr(1)))) + &
-                        p_max_walktospawn*(p_notlist_rdmfac**(abs(int(SignCurr(1)))+1))
+            p_max_walktospawn=abs(SignCurr-real(int(SignCurr),dp))
+            p_not_spawn = (1.0_dp - p_max_walktospawn)*(p_notlist_rdmfac**abs(int(SignCurr))) + &
+                        p_max_walktospawn*(p_notlist_rdmfac**(abs(int(SignCurr))+1))
 
         else
-            p_not_spawn=p_notlist_rdmfac**(abs(SignCurr(1)))
+            p_not_spawn=p_notlist_rdmfac**(abs(SignCurr))
         endif
 
         p_spawn=abs(1.0_dp - p_not_spawn)
         
         !Always use instantaneous signs for stochastically sampled off-diag elements (see CMO thesis)
-        RDMBiasFacCurr = SignCurr(1) / p_spawn  
-        
+        RDMBiasFacCurr = SignCurr / p_spawn  
+
     end subroutine calc_rdmbiasfac
 
     subroutine store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, DetSpawningAttempts, iLutJ, procJ, part_type)
@@ -1378,11 +1377,9 @@ MODULe nElRDMMod
         logical :: tRDMStoreParent
         integer :: j
 
-        if((RDMBiasFacCurr.eq.0.0_dp).or.(part_type.eq.2)) then
+        if(RDMBiasFacCurr.eq.0.0_dp) then
             ! If RDMBiasFacCurr is exactly zero, any contribution from Ci.Cj will be zero 
             ! so it is not worth carrying on. 
-            ! This happens when we are only using initiators for the RDM, and Di is a non-initiator.
-
             SpawnedParts(niftot+1:niftot+nifdbo+2, ValidSpawnedList(procJ)) = 0
         else
 
@@ -1447,7 +1444,7 @@ MODULe nElRDMMod
 ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
         integer , intent(in) :: Spawned_No
         integer(kind=n_int) , intent(in) :: iLutJ(0:NIfTot)
-        real(dp) , intent(in) :: realSignJ
+        real(dp) , dimension(lenof_sign), intent(in) :: realSignJ
         integer :: ExcitLevel
     
         ! In all cases, we've already symmetrically added in 
@@ -1483,9 +1480,10 @@ MODULe nElRDMMod
         use bit_rep_data, only : flag_deterministic, test_flag
         integer , intent(in) :: Spawned_No
         integer(kind=n_int) , intent(in) :: iLutJ(0:NIfTot)
-        real(dp) , intent(in) :: realSignJ
+        real(dp) ,dimension(lenof_sign), intent(in) :: realSignJ
         integer :: i, j, nI(NEl), nJ(NEl), walkExcitLevel
-        real(dp) :: realSignI
+        real(dp) :: part_realSignI
+        integer :: dest_part_type, source_part_type
         logical :: tParity, tDetAdded
 
 ! Spawning from multiple parents, to iLutJ, which has SignJ.        
@@ -1496,6 +1494,7 @@ MODULe nElRDMMod
 ! There are Spawned_Parents_Index(2,Spawned_No) of these parent Di's.
 ! Spawned_Parents(0:NIfDBO,x) is the determinant Di, Spawned_Parents(NIfDBO+1,x) is the un-biased ci.
         ! Run through all Di's.
+
         do i = Spawned_Parents_Index(1,Spawned_No), &
                 Spawned_Parents_Index(1,Spawned_No) + Spawned_Parents_Index(2,Spawned_No) - 1 
 
@@ -1518,18 +1517,28 @@ MODULe nElRDMMod
             call decode_bit_det (nI, Spawned_Parents(0:NIfDBO,i))
             call decode_bit_det (nJ, iLutJ)
 
-            realSignI = transfer( Spawned_Parents(NIfDBO+1,i), realSignI )
-            !In double run, this realSignI comes from part_type=1
-            
-            !SignJ passed in as real (realSignJ), and comes from part_type=2
+
+            part_realSignI = transfer( Spawned_Parents(NIfDBO+1,i), part_realSignI )
+
+            !The original spawning event (and the RealSignI) came from this population
+            source_part_type=Spawned_Parents(NIfDBO+2,i)
+
+            !The sign contribution from J must come from the other population
+            if (source_part_type.eq.1) then
+                dest_part_type=lenof_sign
+            else
+                dest_part_type=1
+            endif
 
             ! Given the Di,Dj and Ci,Cj - find the orbitals involved in the excitation, 
             ! and therefore the RDM elements we want to add the Ci.Cj to.
+            ! We have to halve the contributions for DR as we're summing in pairs that originated
+            ! from spawning events in both pop 1 and pop 2 -- i.e. doublecounted wrt diagonal elements
             IF(tHPHF) THEN
                 call Fill_Spin_Coupled_RDM_v2(Spawned_Parents(0:NIfDBO,i), iLutJ, nI, nJ, &
-                                                   realSignI, realSignJ, .false.)
+                                                   (1.0_dp/real(lenof_sign,dp))*part_realSignI, realSignJ(dest_part_type), .false.)
             ELSE
-                call Add_RDM_From_IJ_Pair(nI, nJ, realSignI, realSignJ, .false.)
+                call Add_RDM_From_IJ_Pair(nI, nJ, (1.0_dp/real(lenof_sign,dp))*part_realSignI, realSignJ(dest_part_type), .false.)
             ENDIF
 
         enddo
@@ -3100,7 +3109,7 @@ MODULe nElRDMMod
                     aaaa_RDM( Indab , Indij ) = aaaa_RDM( Indab , Indij ) + ( ParityFactor * &
                                                                  realSignDi * realSignDj )
                 endif
-
+                
             ! Either alpha beta or beta alpha -> abab array.
             else
                 

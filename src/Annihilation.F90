@@ -367,6 +367,12 @@ MODULE AnnihilationMod
         integer(n_int) :: cum_det (0:niftot), temp_det(0:niftot)
         CHARACTER(len=*), parameter :: this_routine='CompressSpawnedList'
         TYPE(timer),save :: Sort_time
+    
+!        write(6,*) "SpawnedParts before:"
+!        do j = 1, ValidSpawned
+!            write(6,*) SpawnedParts(:,j), test_flag(SpawnedParts(:,j),flag_deterministic), &
+!                                          test_flag(SpawnedParts(:,j),flag_determ_parent)
+!        end do
 
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. 
 !(this is not essential, but should proove faster)
@@ -429,8 +435,22 @@ MODULE AnnihilationMod
                     if(.not.(DetBitZero(SpawnedParts(NIfTot+1:NIfTot+NIfDBO+1,BeginningBlockDet),NIfDBO))) then
                         ! If the parent determinant is null, the contribution to the RDM is zero.  
                         ! No point in doing anything more with it.
-                        
+                       
+
                         Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = SpawnedParts(NIfTot+1:NIfTot+NIfDBO+2,BeginningBlockDet)
+                        
+                        if (SpawnedParts(NOffSgn,BeginningBlockDet) .ne. 0) then
+                            !The child (and therefore parent) are from population 1
+                            Spawned_Parents(NIfDBO+2,Parent_Array_Ind) = 1
+                        elseif (SpawnedParts(NOffSgn+lenof_sign-1, BeginningBlockDet) .ne. 0) then
+                            !The child (and therefore parent) are from population 2
+                            Spawned_Parents(NIfDBO+2,Parent_Array_Ind) = lenof_sign
+                        else
+                            !Both are zero, so it must be a ghost spawning event
+
+                            !!!TODO -- check the ghost flag to determine the NIFDBO+2 entry
+                        endif
+                        
                         ! The first NIfDBO of the Spawned_Parents entry is the parent determinant, 
                         ! the NIfDBO + 1 entry 
                         ! is the biased Ci. Parent_Array_Ind keeps track of the position in Spawned_Parents.
@@ -738,12 +758,16 @@ MODULE AnnihilationMod
         ! Obviously only add the parent determinant into the parent array if it is 
         ! actually being stored - and is therefore not zero.
         if(((tFillingStochRDMonFly.and.(.not.tNoNewRDMContrib)).and.&
-            (.not.DetBitZero(new_det(NIfTot+1:NIfTot+NIfDBO+1),NIfDBO)).and.(part_type.eq.1))) then
-            ! No matter what the final sign is, always want to add any Di stored in 
-            ! SpawnedParts to the parent array.
-            Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = new_det(NIfTot+1:NIfTot+NIfDBO+2)
-            Parent_Array_Ind = Parent_Array_Ind + 1
-            Spawned_Parents_Index(2,Spawned_No) = Spawned_Parents_Index(2,Spawned_No) + 1
+            (.not.DetBitZero(new_det(NIfTot+1:NIfTot+NIfDBO+1),NIfDBO)))) then
+            if (new_sgn.ne.0) then
+                !TODO or put in a ghost flag thing
+                ! No matter what the final sign is, always want to add any Di stored in 
+                ! SpawnedParts to the parent array.
+                Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = new_det(NIfTot+1:NIfTot+NIfDBO+2)
+                Spawned_Parents(NIfDBO+2,Parent_Array_Ind) = part_type
+                Parent_Array_Ind = Parent_Array_Ind + 1
+                Spawned_Parents_Index(2,Spawned_No) = Spawned_Parents_Index(2,Spawned_No) + 1
+            endif
         endif
 
     end subroutine FindResidualParticle
@@ -930,7 +954,7 @@ MODULE AnnihilationMod
                             !new walkers. Must add on SpawnedSign, so we're effectively taking the inst value from
                             !the next iter. This is fine as it's from the other population, and the Di and Dj signs
                             !are already strictly uncorrelated
-                            call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentSign(lenof_sign)+SpawnedSign(lenof_sign))
+                            call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentSign+SpawnedSign)
                         endif 
 
                         cycle
@@ -1078,7 +1102,7 @@ MODULE AnnihilationMod
                     !to death but not the new walkers. Must add on SpawnedSign, so we're effectively taking
                     !the inst value from the next iter. This is fine as it's from the other population,
                     !and the Di and Dj signs are already strictly uncorrelated
-                    call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),TempCurrentSign(lenof_sign))
+                    call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),TempCurrentSign)
                 endif 
             endif
                 
@@ -1225,7 +1249,7 @@ MODULE AnnihilationMod
                 endif
                 if(tFillingStochRDMonFly.and.(.not.tNoNewRDMContrib)) then
                     !We must use the instantaneous value for the off-diagonal contribution
-                    call check_fillRDM_DiDj(i,SpawnedParts(0:NifTot,i),SignTemp(lenof_sign))
+                    call check_fillRDM_DiDj(i,SpawnedParts(0:NifTot,i),SignTemp)
                 endif 
             endif
 
@@ -1628,12 +1652,12 @@ MODULE AnnihilationMod
                 
                 if(tFillingStochRDMonFly) then
                     if(inum_runs.eq.2) then
+
                         if(((CurrentSign(1).eq.0).and.(CurrentH(2+lenof_sign,i).ne.0)) .or. &
                                 & ((CurrentSign(2).eq.0).and.(CurrentH(1+2*lenof_sign,i).ne.0)) .or. &
                                 & ((CurrentSign(1).ne.0).and.(CurrentH(2+lenof_sign,i).eq.0)) .or. &
                                 & ((CurrentSign(2).ne.0).and.(CurrentH(1+2*lenof_sign,i).eq.0))) then
                                
-
                             !At least one of the signs has just gone to zero or just become reoccupied
                             !so we need to consider adding in diagonal elements and connections to HF
                             !The block that's just ended was occupied in at least one population.          

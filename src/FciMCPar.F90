@@ -947,11 +947,6 @@ MODULE FciMCParMod
             ! This is where the projected energy is calculated.
             call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, j)
 
-!            ! If we're filling the RDM, this calculates the explicitly connected singles and doubles.
-!            ! Or in the case of HFSD (or some combination of this), it calculates the 
-!            ! diagonal elements too - as we need the walkExcitlevel for the diagonal elements as well.
-            TempSpawnedPartsInd = 0
-
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles
             ! lenof_sign == 2 --> complex walkers
@@ -959,6 +954,8 @@ MODULE FciMCParMod
             !                 --> OR double run
             !                 --> part_type == 1, 2; population sets 1 and 2, both real
             do part_type=1,lenof_sign
+            
+                TempSpawnedPartsInd = 0
 
                 ! Loop over all the particles of a given type on the 
                 ! determinant. CurrentSign gives number of walkers. Multiply 
@@ -1293,6 +1290,7 @@ MODULE FciMCParMod
         IF(tFillingStochRDMonFly) then
             call store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, WalkersToSpawn, iLutJ, proc, part_type)
         endif
+
         !We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
         !We want to store the parent (D_i) with the spawned child (D_j) so that we can
         !add in Ci.Cj to the RDM later on.
@@ -1996,14 +1994,15 @@ MODULE FciMCParMod
             child(part_type) = nSpawn
 #endif
         enddo
+
        
         if(tFillingStochRDMonFly) then
             !if(((child(part_type).ne.0) .or. tGhostChild) .and.(.not.tHF_Ref_Explicit).and.(part_type.eq.1)) then
-            if(((child(part_type).ne.0) .or. tGhostChild) .and.(part_type.eq.1)) then
+            if(((child(part_type).ne.0) .or. tGhostChild)) then
                 !Only add in contributions for spawning events within population 1
                 !(Otherwise it becomes tricky in annihilation as spawnedparents doesn't tell you which population
                 !the event came from at present)
-                call calc_rdmbiasfac(p_spawn_rdmfac, prob, AvSignCurr, realwSign, RDMBiasFacCurr) 
+                call calc_rdmbiasfac(p_spawn_rdmfac, prob, realwSign(part_type), RDMBiasFacCurr) 
             else
                 RDMBiasFacCurr = 0.0_dp
             endif
@@ -6556,7 +6555,7 @@ MODULE FciMCParMod
 
             !if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
             if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
-                !Allocate memory to hold walkers spawned from one determinant at a time.
+                !Allocate memory to hold walkers spawned from one determinant and population at a time.
                 !Walkers are temporarily stored here, so we can check if we're spawning onto the same Dj multiple times.
                 !If only using connections to the HF (tHF_Ref_Explicit), no stochastic RDM construction is done, and this 
                 !is not necessary.
