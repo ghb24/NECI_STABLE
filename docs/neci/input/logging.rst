@@ -457,28 +457,50 @@ Reduced Density Matrix (RDM) Options
 Currently the 2-RDMs can only be calculated for closed shell systems.  However, calculation and 
 diagonalisation of only the 1-RDM is set up for either open shell or closed shell systems.
 
-The theory behind the calculation of the RDMs can be found in my (Deidre's) thesis (Chapter 7).
+The original theory behind the calculation of the RDMs (including details of parallelisation) 
+can be found in DMC's thesis (Chapter 7).  More recent developments, including a description 
+of the single-run cutoff and the unbiased double-run approach are described in CMO's thesis (Part II).
 
-The only thing that differs significantly in the more recent code is that, for efficiency, the 
-diagonal elements of the RDMs (and explicit connections to the HF determinant) 
-are only calculated during the iteration whereby the energy or RDM itself is required.  
-This is either every time the energy is printed, or at the very end of the calculation.  
-Therefore, for an expensive calculation, it is worth only 
-calculating the energy at the end, or only a few times throughout the calculation, to avoid the N^2 operation 
-required for each determinant to fill the diagonal RDM elements.
+The most accurate RDM method (which is also unbiased) is the double-run approach, which requires
+the code to be compiled with the -D__DOUBLERUN flag in CPPFLAGS in the Makefile. This propagates
+two completely independent populations of walkers, and calculates an unbiased RDM by taking cross-terms
+between the two populations.  
 
 The calculation of the diagonal elements is done by keeping track of the average walker populations of each 
 occupied determinant, and how long it has been occupied.  The diagonal element from Di is then calculated 
-as <Ni> x <Ni> x [No. of iterations Di has been occupied], and this is included every time a determinant becomes 
-unoccupied, at the end of the calculation, or if the energy from the RDMs is to be calculated. 
+as <Ni>(pop1) x <Ni>(pop2) x [No. of iterations in this block], and this is included every time we start a new 
+averaging block, which can occur when a determinant becomes unoccupied in either population, or when we require
+the calculation of the RDM energy during the simulation. As such, the exact RDM accumulated is dependent on
+the interval of RDM energy calculations, but in an unbiased way.
 
-Because the average occupation is accumulated while the RDMs are being calculated (and is not currently zero-ed 
-unless a determinant becomes unoccupied), calculations with the energy calculated at different frequencies will 
-have very slightly different RDMs.  
-This difference appears to be too small to be a problem, but is noted here to avoid unnecessary debugging. 
+The off diagonal elements are sampled through spawning events, and use instantaneous walker populations.
 
-The average populations are also used for the stochastic elements, which are accumulated throughout the 
-calculation of the RDMs.  Further explanation of how and why this is done can be found in my thesis.
+This approach broadly follows the double run with independent occupation averaging approch described in
+CMO's thesis.  The differences are:
+
+1. RDMs now take contributions to diagonal elements and HF connections whenever the RDM energy is calculated.
+   As the averaging blocks are now reset at this point too, this change is unbiased.
+2. The off-diagonal contributions (both HF connections and other contributions sampled through spawning
+   events) now contain contributions from both cross-terms. I.e Ni(pop1)*Nj(pop2) as well as
+   Ni(pop2)*Nj(pop1).  The method implemented and tested in CMO's thesis only included one set of these
+   contributions (and doubled them accordingly).  Again, this change does not introduce any bias, but makes
+   better use of the information available in the simulation, and gives a smoother (and possibly quicker?) 
+   RDM convergence.
+
+There is also the facility to do a single-run calculation of the RDM.  This method is BIASED, so should
+not be used for high accuracy calculations.  However, it is cheaper than the double run method, both in 
+memory and in simulation time, so may be useful for rough-and-ready calculations.  With no cutoff applied
+this is very similar to the method described in DMC's thesis, which gives poor RDM energies. Note that the 
+main difference is that the SR method used here resets the population averages when the RDM energy is calculated
+rather than just when the determinant becomes unoccupied. Note also that this SR method is only identical to that
+tested in CMO's thesis if the RDM energy is only calculated in the final iteration. Without this condition,
+the current implementation of SR is probably more biased in the diagonal elements than the version tested in CMO thesis,
+as squared terms are added in more regularly. However, dealing with this makes the code very untidy and requires significantly
+more memory.  As the SR method is inherently biased anyway, this is not too great a concern.
+
+Reducing the effect of the bias in the SR method can be done by applying a cutoff to the diagonal contributions, such that
+contributions are only added in if the average sign of the determinant at the time of adding in the contribution exceeds
+some preset parameter.  (See THRESHOCCONLYRDMDIAG)
 
 **CALCRDMONFLY** [RDMExcitLevel] [RDMIterStart] [RDMEnergyIter]
     This is the main keyword for calculating the RDMs from an FCIQMC wavefunction.  It requires 3 integers.
@@ -509,27 +531,17 @@ Types of RDM calculations
     If **HISTSPAWN** is also present in the Logging block, the wavefunction will be histogrammed from the same 
     iteration we begin to fill the RDMs, and the RDMs will be constructed using these histogrammed coefficients.
 
-**HFREFRDMEXPLICIT**
-    This effectively calculates the matrix leading to the projected energy.  It considers the HF as a reference 
-    and explicitly considers all connections to it (in one direction only - so the matrix is not hermitian).  This 
-    will clearly not give a variational energy.  If this RDM was calculated using the instantaneous occupations 
-    (rather than the occupied average), the energy printed at every iteration would be the same as Eproj.
-
-**HFSDRDM**
-    This calculates the RDM amongst the HF and single and double excitations only.  The connections to the HF will 
-    be considered explicitly, but connections between singles and doubles stochastically.  This is hermitian, and 
-    should give a variational energy.  Cannot use **HPHF** with this type of calculation.
-
-**HFSDREFRDM**
-    This effectively calculates a multireference version of the projected energy, using the HF, singles and doubles 
-    as a reference.  Again the connections to the HF are explicit, but all others (up to 4-fold excitation) are 
-    included stochastically.  Like **HFREFRDMEXPLICIT**, this matrix will not be hermitian and the energy not variational.  
-    Cannot use **HPHF** with this type of calculation.
-
-**RDMGHOSTCHILD** REMOVED 
-    This option is discussed in my thesis, but has been removed because it is virtually never used, doesn't actually 
-    work very well for most systems, and complicated the code a bit.  The version where it is removed was noted in the 
-    logs if it needs to be put back in.
+**RDMGHOSTCHILD** [GhostThresh]
+    This option can be used for systems with some very small off-diagonal Hamiltonian matrix elements, where the spawning 
+    probability between two well-occupied determinants may be negligible, preventing a potentially significant Ni * Nj
+    contribution to the off-diagonal RDM elements from being included.  The real value that follows this keyword is a
+    thresholod value GhostThresh, which should be (perhaps) 10^{-5}.  If a spawning attempt fails, and the probability was less
+    than this threshold value, then a ghost child (sign zero) is spawned with probability equal to GhostThresh.  This allows 
+    an extra chance for the RDM contribution to be taken without altering the spawning trajectory.  Note that it does make 
+    the code slower due to processing more SpawnedParts entries, and it's not yet clear whether it's really necessary or not.
+    Also note that this implementation is a bit different to the method DMC used.  She concluded it wasn't necessary, but in
+    CMO's calculations using fixed fields (for calculating polarisabilities), there were many very small 2-elec integrals, so
+    this sort of approach was reintroduced as a precaution.
 
 Options referring to the 1-RDM.
 
@@ -600,23 +612,17 @@ Reading in / Writing out the RDMs for restarting calculations.
     files will be labelled with incrementing values - TwoRDM_a***.1 is the first, and then next TwoRDM_a***.2 etc.
     This option currently only works for the 2-RDMs.
 
-**INITIATORRDM** 
-    This option ensures that only determinants that are (on average) initiators may contribute to the RDM - otherwise
-    their contributions are not included.  This change improves the diagonal elements (due to their inherent systematic bias)
-    but makes the off-diagonal elements a lot worse.  Not recommended.  INITIATORRDMDIAG is a better choice. Designed to be 
-    in conjunction with CalcRDMOnFly.
-
-**INITIATORRDMDIAG**
-    This option ensures that only determinants that are (on average) initiators may contribute to the diagonal elements
-    of the RDM.  The calculation of off-diagonal elements is unaffected.  This should result in a much better quality
-    RDM for a given N_w as we remove the bulk of the systematic error previously in the diagonal elements that comes about
-    from determinant population averages being reset when a determinant becomes unoccupied.  If running with integers, this is 
-    probably the best RDM option to use.  Use in conjunction with CalcRDMOnFly
-
 **THRESHOCCONLYRDMDIAG** [ThreshOccRDM]
-    This is a broader version of INITIATORRDMDIAG.  Here, contributions to RDM diagonal elements are only included if the
+    This implements the diagonal cutoff, useful for reducing the effects of bias in the single-run RDM method.
+    Here, contributions to RDM diagonal elements are only included if the
     average population of a determinant exceeds a real value ThreshOccRDM.  Typically, the most appropriate value here to
     achieve rapid convergence of the E_RDM will be between 1.0 and 3.0, depending on the system and the size of the real
     space.  For example, if allowing real coefficients up to quadruple excitations (REALCOEFFBYEXCITLEVEL 4), ThreshOccRDM=1.3
     seems appropriate (NB: only minimal testing conducted so far).  E_RDM will always converge eventually, in the high N_w limit,
     so the choice of this value is not too crucial.
+
+**NONEWRDMCONTRIB** 
+    To be used with READRDMs.  This option makes sure that we don't add in any 
+    new contributions to the RDM if filling stochastically
+    This is useful if we want to read in an RDM from another calculation and then 
+    just print out the analysis, without adding in any more information.
