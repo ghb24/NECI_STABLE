@@ -203,7 +203,6 @@ MODULe nElRDMMod
         MemoryAlloc_Root = 0            ! Memory allocated in bytes.
 
 ! First for the storage of the actual 1- or 2-RMD.
-
         IF(RDMExcitLevel.eq.1) THEN
 
 ! This is the AllnElRDM, called NatOrbMat simply because we use the natural 
@@ -229,7 +228,6 @@ MODULe nElRDMMod
                 !To calculate the full energy of the RDM (i.e. over full accum. period), we need to allocate
                 ! aaaa_RDM_full on the head nodes
 
-
                 ALLOCATE(aaaa_RDM_inst(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating aaaa_RDM_inst array,')
                 CALL LogMemAlloc('aaaa_RDM_inst',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,aaaa_RDM_instTag,ierr)
@@ -251,7 +249,7 @@ MODULe nElRDMMod
                 ALLOCATE(abab_RDM_inst(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating abab_RDM_inst array,')
                 CALL LogMemAlloc('abab_RDM_inst',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,abab_RDM_instTag,ierr)
-                abab_RDM(:,:)=0.0_dp
+                abab_RDM_inst(:,:)=0.0_dp
 
                 MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
                 MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
