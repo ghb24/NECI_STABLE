@@ -6551,14 +6551,8 @@ MODULE FciMCParMod
 
         !Calculate symmetry of CAS determinants, and check that this will be the same as the reference determinant
         !for the rest of the FCIMC calculations.
-!        do i=1,OccCASOrbs
-!            CASDet(i)=CASBrr(i)
-!        enddo
-        elec=1
-        do i=NEl-OccCasOrbs+1,NEl
-            CASDet(elec)=ProjEDet(i)
-            elec=elec+1
-        enddo
+        CASDet = CasBRR(1:OccCasOrbs)
+        call sort(CasDet)
 
         write(iout,*) "CAS Det is: "
         call write_det_len(iout,CASDet,OccCASOrbs,.true.)
@@ -6573,7 +6567,7 @@ MODULE FciMCParMod
         if(CASSym%Ml.ne.LzTot) call stop_all(this_routine,"Ml of CAS ref det does not match Ml of full reference det")
         if(CASSym%Ms.ne.0) call stop_all(this_routine,"CAS diagonalisation can only work with closed shell CAS spaces initially")
         if(CASSym%Sym%S.ne.HFSym%Sym%S) then
-            call stop_all(this_routine,"Sym of CAS ref det does not match Sym of fulll reference det")
+            call stop_all(this_routine,"Sym of CAS ref det does not match Sym of full reference det")
         endif
 
         !First, we need to generate all the excitations.
