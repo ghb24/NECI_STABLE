@@ -178,7 +178,7 @@ MODULE FciMCParMod
         use LoggingData, only: PopsfileTimer
         use nElRDMMod, only: InitRDM
         use sym_mod, only: getsym
-        use SystemData, only: tUEG2
+        use SystemData, only: tUEG2, SymRestrict
 #ifdef MOLPRO
         use outputResult
         integer :: nv,ityp(1)
@@ -4321,7 +4321,6 @@ MODULE FciMCParMod
         INTEGER :: HFConn,LargestOrb,nBits,HighEDet(NEl),orb
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         HElement_t :: TempHii
-        TYPE(BasisFn) HFSym
         real(dp) :: TotDets,SymFactor,r,Gap,UpperTau
         CHARACTER(len=*), PARAMETER :: t_r='SetupParameters'
         CHARACTER(len=12) :: abstr
@@ -4629,14 +4628,18 @@ MODULE FciMCParMod
         
         Sym_Psi=INT(HFSym%Sym%S,sizeof_int)  !Store the symmetry of the wavefunction for later
         WRITE(iout,"(A,I10)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,sizeof_int)
-        SymHF=0
-        do i=1,NEl
-            SymHF=IEOR(SymHF,G1(iand(HFDet(i), csf_orbital_mask))%Sym%S)
-        enddo
-        WRITE(iout,"(A,I10)") "Symmetry of reference determinant from spin orbital symmetry info is: ",SymHF
-        if(SymHF.ne.HFSym%Sym%S) then
-            call stop_all(t_r,"Inconsistency in the symmetry arrays.")
-        endif
+
+        if (TwoCycleSymGens) then
+            SymHF=0
+            do i=1,NEl
+                SymHF=IEOR(SymHF,G1(iand(HFDet(i), csf_orbital_mask))%Sym%S)
+            enddo
+            WRITE(iout,"(A,I10)") "Symmetry of reference determinant from spin orbital symmetry info is: ",SymHF
+            if(SymHF.ne.HFSym%Sym%S) then
+                call stop_all(t_r,"Inconsistency in the symmetry arrays.")
+            endif
+        end if
+
         IF(tKPntSym) THEN
             CALL DecomposeAbelianSym(HFSym%Sym%S,KPnt)
             WRITE(iout,"(A,3I5)") "Crystal momentum of reference determinant is: ",KPnt(1),KPnt(2),KPnt(3)
