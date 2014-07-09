@@ -1787,7 +1787,8 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
       nSpawned=nSpawned+1 !The index into the spawning list
       iter_data_ccmc%nborn=iter_data_ccmc%nborn+1
 !      if(nSpawned>nMaxSpawn) call Stop_All("AttemptSpawnParticle","Not enough space in spawning list.")
-      call create_particle(S%nJ,S%iLutnJ,iSpawnAmp,C%initFlag,1)
+      call create_particle(S%nJ, S%iLutnJ, iSpawnAmp, C%initFlag, 1, &
+                           C%ilutDetCurr, TempSign, -1, 0.0_dp, -1)
       IFDEBUG(iDebug,4) THEN
    !We've not printed this out before
          WRITE(iout,*) "  Spawned ",iSpawnAmp
@@ -1934,7 +1935,8 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,nSpawned)
          iSpawnAmp(1)=0
       endif
 #endif
-      call create_particle(C%DetCurr,C%iLutDetCurr,iSpawnAmp,initFlag,1)
+      call create_particle(C%DetCurr, C%iLutDetCurr, iSpawnAmp, initFlag, 1, &
+                           C%ilutDetCurr, iSpawnAmp, -1, 0.0_dp, -1)
 
       IFDEBUG(iDebug,4) then
          Write(iout,'(A)',advance='no') " Killing at excitor: "

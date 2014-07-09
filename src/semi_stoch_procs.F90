@@ -337,7 +337,7 @@ contains
             do j = 1, num_states
                 occupied = btest(ilut_list(elem, j), bit)
                 if (occupied) then
-                    ilut_list(:, j) = 0
+                    ilut_list(:, j) = 0_n_int
                     states_rmvd_this_proc = states_rmvd_this_proc + 1
                 end if
             end do
@@ -364,7 +364,7 @@ contains
         counter = 0
         do i = 1, num_states
             ! If the state wasn't set to 0:
-            if (.not. all(ilut_list(:,i) == 0)) then
+            if (.not. all(ilut_list(:,i) == 0_n_int)) then
                 counter = counter + 1
                 ilut_list(:, counter) = ilut_list(:, i)
             end if
@@ -500,7 +500,7 @@ contains
         integer(int64) :: i
         integer :: nI(nel)
 
-        CurrentH = 0
+        CurrentH = 0.0_dp
 
         do i = 1, TotWalkers
 
@@ -741,7 +741,7 @@ contains
         real(dp) :: smallest_sign, sign_curr_real
         real(dp), dimension(lenof_sign) :: sign_curr, low_sign
 
-        largest_walkers = 0
+        largest_walkers = 0_n_int
         smallest_sign = 0.0_dp
         smallest_pos = 1
         if (present(norm)) norm = 0.0_dp
