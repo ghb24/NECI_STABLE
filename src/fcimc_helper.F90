@@ -22,7 +22,7 @@ module fcimc_helper
     use MI_integrals, only: MI_off_diag_helement
     use Logging, only: OrbOccs, tPrintOrbOcc, tPrintOrbOccInit, &
                        tHistSpinDist, tHistSpawn, tHistEnergies, &
-                       RDMEnergyIter, &
+                       RDMEnergyIter, tFullHFAv, &
                        nHistEquilSteps, tCalcFCIMCPsi, StartPrintOrbOcc, &
                        HistInitPopsIter, tHistInitPops
     use CalcData, only: NEquilSteps, tFCIMC, tSpawnSpatialInit, tTruncCAS, &
@@ -89,7 +89,7 @@ contains
             ! part of the SpawnedParts array from NIfTot+1 --> NIfTot+1+NIfDBO
             call store_parent_with_spawned (RDMBiasFacCurr, WalkerNo, &
                                             ilutI, WalkersToSpawn, ilutJ, &
-                                            proc)
+                                            proc, part_type)
         end if
 
         IF(lenof_sign.eq.2) THEN
