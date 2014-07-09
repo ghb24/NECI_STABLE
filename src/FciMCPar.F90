@@ -178,7 +178,7 @@ MODULE FciMCParMod
         use LoggingData, only: PopsfileTimer
         use nElRDMMod, only: InitRDM
         use sym_mod, only: getsym
-        use SystemData, only: tUEG2
+        use SystemData, only: tUEG2, SymRestrict
 #ifdef MOLPRO
         use outputResult
         integer :: nv,ityp(1)
@@ -4321,7 +4321,6 @@ MODULE FciMCParMod
         INTEGER :: HFConn,LargestOrb,nBits,HighEDet(NEl),orb
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         HElement_t :: TempHii
-        TYPE(BasisFn) HFSym
         real(dp) :: TotDets,SymFactor,r,Gap,UpperTau
         CHARACTER(len=*), PARAMETER :: t_r='SetupParameters'
         CHARACTER(len=12) :: abstr
@@ -4629,14 +4628,18 @@ MODULE FciMCParMod
         
         Sym_Psi=INT(HFSym%Sym%S,sizeof_int)  !Store the symmetry of the wavefunction for later
         WRITE(iout,"(A,I10)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,sizeof_int)
-        SymHF=0
-        do i=1,NEl
-            SymHF=IEOR(SymHF,G1(iand(HFDet(i), csf_orbital_mask))%Sym%S)
-        enddo
-        WRITE(iout,"(A,I10)") "Symmetry of reference determinant from spin orbital symmetry info is: ",SymHF
-        if(SymHF.ne.HFSym%Sym%S) then
-            call stop_all(t_r,"Inconsistency in the symmetry arrays.")
-        endif
+
+        if (TwoCycleSymGens) then
+            SymHF=0
+            do i=1,NEl
+                SymHF=IEOR(SymHF,G1(iand(HFDet(i), csf_orbital_mask))%Sym%S)
+            enddo
+            WRITE(iout,"(A,I10)") "Symmetry of reference determinant from spin orbital symmetry info is: ",SymHF
+            if(SymHF.ne.HFSym%Sym%S) then
+                call stop_all(t_r,"Inconsistency in the symmetry arrays.")
+            endif
+        end if
+
         IF(tKPntSym) THEN
             CALL DecomposeAbelianSym(HFSym%Sym%S,KPnt)
             WRITE(iout,"(A,3I5)") "Crystal momentum of reference determinant is: ",KPnt(1),KPnt(2),KPnt(3)
@@ -6548,14 +6551,8 @@ MODULE FciMCParMod
 
         !Calculate symmetry of CAS determinants, and check that this will be the same as the reference determinant
         !for the rest of the FCIMC calculations.
-!        do i=1,OccCASOrbs
-!            CASDet(i)=CASBrr(i)
-!        enddo
-        elec=1
-        do i=NEl-OccCasOrbs+1,NEl
-            CASDet(elec)=ProjEDet(i)
-            elec=elec+1
-        enddo
+        CASDet = CasBRR(1:OccCasOrbs)
+        call sort(CasDet)
 
         write(iout,*) "CAS Det is: "
         call write_det_len(iout,CASDet,OccCASOrbs,.true.)
@@ -6570,7 +6567,7 @@ MODULE FciMCParMod
         if(CASSym%Ml.ne.LzTot) call stop_all(this_routine,"Ml of CAS ref det does not match Ml of full reference det")
         if(CASSym%Ms.ne.0) call stop_all(this_routine,"CAS diagonalisation can only work with closed shell CAS spaces initially")
         if(CASSym%Sym%S.ne.HFSym%Sym%S) then
-            call stop_all(this_routine,"Sym of CAS ref det does not match Sym of fulll reference det")
+            call stop_all(this_routine,"Sym of CAS ref det does not match Sym of full reference det")
         endif
 
         !First, we need to generate all the excitations.
