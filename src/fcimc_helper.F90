@@ -211,7 +211,8 @@ contains
             ! determinants must also be included in the energy values
             ! along with the doubles
             
-            if (ExcitLevel == 2) NoatDoubs = NoatDoubs + sum(abs(RealwSign))
+            if (ExcitLevel_local == 2) &
+                NoatDoubs = NoatDoubs + sum(abs(RealwSign))
 
             ! Obtain off-diagonal element
             if (tHPHF) then
