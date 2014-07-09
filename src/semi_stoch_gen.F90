@@ -470,7 +470,7 @@ contains
         integer(n_int) :: ilut(0:NIfTot)
         integer(n_int), allocatable, dimension(:,:) :: ilut_store
         integer :: HFdet_loc(nel)
-        integer :: num_active_orbs, elec, nCASDet, i, j, counter, comp, ierr
+        integer :: num_active_orbs, nCASDet, i, j, counter, comp, ierr
         integer, allocatable :: CASBrr(:), CASRef(:)
         integer(n_int) :: cas_bitmask(0:NIfD), cas_not_bitmask(0:NIfD)
         integer, pointer :: CASDets(:,:) => null()
@@ -519,14 +519,9 @@ contains
         ! orbitals, we just want a determinant, so use a state without the CSF information.
         HFdet_loc = iand(HFDet, csf_orbital_mask)
 
-        elec = 1
-        do i = nel-OccOrbs+1, nel
-            ! CASRef(elec) will store the orbital number of the electron elec in the reference
-            ! state, HFDet. elec runs from 1 to the number of electrons in the active space.
-            CASRef(elec) = HFDet_loc(i)
-            elec = elec + 1
-        end do
-
+        ! CASRef holds the part of the HF determinant in the active space.
+        CASRef = CasBRR(1:OccOrbs)
+        call sort(CasRef)
         call GetSym(CASRef, OccOrbs, G1, nBasisMax, CASSym)
 
         ! First, generate all excitations so we know how many there are, to allocate the arrays.

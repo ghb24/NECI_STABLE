@@ -226,9 +226,11 @@ integer(TagIntType) :: ResidualTag
         tSkipCalc = .false.
         allocate(test_vector(space_size))
         call multiply_hamil_and_vector(davidson_eigenvector, test_vector)
-        if (all(abs(test_vector-hamil_diag(HFindex)*davidson_eigenvector) < 1.0e-12)) then
-            tSkipCalc = .true.
-            davidson_eigenvalue = hamil_diag(HFindex)
+        if (iProcIndex == root) then
+            if (all(abs(test_vector-hamil_diag(HFindex)*davidson_eigenvector) < 1.0e-12)) then
+                tSkipCalc = .true.
+                davidson_eigenvalue = hamil_diag(HFindex)
+            end if
         end if
         deallocate(test_vector)
         if (hamil_type == parallel_sparse_hamil_type) call MPIBCast(tSkipCalc)
