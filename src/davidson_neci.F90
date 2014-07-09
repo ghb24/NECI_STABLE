@@ -76,13 +76,16 @@ integer(TagIntType) :: ResidualTag
 
         integer, intent(in) :: input_hamil_type
         logical, intent(in) :: print_info
+        logical :: tSkipCalc
         integer :: i
 
         hamil_type = input_hamil_type
 
-        call init_davidson()
+        call init_davidson(tSkipCalc)
 
         do i = 2, max_num_davidson_iters
+
+            if (tSkipCalc) exit
 
             if (iProcIndex == root) call subspace_expansion(i)
 
@@ -107,7 +110,7 @@ integer(TagIntType) :: ResidualTag
 
     end subroutine perform_davidson
 
-    subroutine init_davidson()
+    subroutine init_davidson(tSkipCalc)
     
         ! This subroutine initialises the Davdison method by allocating the necessary arrays,
         ! defining the initial basis vector and projected Hamiltonian, and setting an initial
@@ -118,9 +121,11 @@ integer(TagIntType) :: ResidualTag
         use FciMCData, only: davidson_ras, davidson_classes, davidson_strings
         use ras, only: find_ras_size
 
+        logical, intent(out) :: tSkipCalc
+
         integer :: i, HFindex, ierr
         integer(MPIArg) :: mpi_temp
-        real(dp), allocatable, dimension(:) :: hamil_diag_temp
+        real(dp), allocatable, dimension(:) :: hamil_diag_temp, test_vector(:)
         character (len=*), parameter :: t_r = "init_davidson"
 
         ! Allocate and define the Hamiltonian diagonal, if not done so already.
@@ -138,10 +143,10 @@ integer(TagIntType) :: ResidualTag
                 end do
             else if (hamil_type == parallel_sparse_hamil_type .or. &
                      hamil_type == sparse_hamil_type) then
-                ! In the case of sparse implementations, the diagonal should be
-                ! created when the Hamiltonian itself is.
-                call stop_all("t_r", "The diagonal of the Hamiltonian has not been allocated. Cannot perform &
-                                     &Davidson calculation.")
+                    ! In the case of sparse implementations, the diagonal should be
+                    ! created when the Hamiltonian itself is.
+                    call stop_all("t_r", "The diagonal of the Hamiltonian has not been allocated. Cannot perform &
+                                         &Davidson calculation.")
             end if
         end if
 
@@ -217,6 +222,22 @@ integer(TagIntType) :: ResidualTag
             allocate(temp_in(space_size))
             allocate(temp_out(space_size))
         end if
+
+        ! Check that multiplying the initial vector by the Hamiltonian doesn't give back
+        ! the same vector. If it does then the initial vector (the HF determinant) is
+        ! the ground state, so just keep that and exit the calculation.
+        tSkipCalc = .false.
+        allocate(test_vector(space_size))
+        call multiply_hamil_and_vector(davidson_eigenvector, test_vector)
+        if (iProcIndex == root) then
+            if (all(abs(test_vector-hamil_diag(HFindex)*davidson_eigenvector) < 1.0e-12)) then
+                tSkipCalc = .true.
+                davidson_eigenvalue = hamil_diag(HFindex)
+            end if
+        end if
+        deallocate(test_vector)
+        if (hamil_type == parallel_sparse_hamil_type) call MPIBCast(tSkipCalc)
+        if (tSkipCalc) return
 
         ! Calculate the corresponding residual.
         call calculate_residual()

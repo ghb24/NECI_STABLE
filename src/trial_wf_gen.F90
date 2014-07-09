@@ -114,7 +114,7 @@ contains
         SpawnedParts(:, 1:trial_space_size) = trial_space(:, 1:trial_space_size)
         call MPIAllGatherV(SpawnedParts(:, 1:trial_space_size), &
                            trial_space(:, 1:tot_trial_space_size), recvcounts, recvdisps)
-        SpawnedParts = 0
+        SpawnedParts = 0_n_int
 
         ! Temporarily set this to be the case.
         trial_space_size = tot_trial_space_size
