@@ -219,7 +219,7 @@ contains
             ! determinants must also be included in the energy values
             ! along with the doubles
             
-            if (ExcitLevel == 2) then
+            if (ExcitLevel_local == 2) then
 #ifdef __CMPLX
                 NoatDoubs(1) = NoatDoubs(1) + sum(abs(RealwSign))
 #else
