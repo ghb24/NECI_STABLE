@@ -13,10 +13,11 @@ MODULE FciMCLoggingMod
     use bit_reps, only: NIfTot, NIfDBO
     USE SymData , only : nSymLabels
     USE Determinants , only : get_helement, get_helement_excit
-    USE CalcData , only : NMCyc,StepsSft
+    use CalcData, only: NMCyc, StepsSft, InitiatorWalkNo
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
     use constants, only: dp,n_int
     use MemoryManager, only: TagIntType
+    use FciMCData, only: HighPopNeg, HighPopPos, MaxInitPopNeg, MaxInitPopPos
 
     IMPLICIT NONE
     save
@@ -545,6 +546,42 @@ MODULE FciMCLoggingMod
         ENDIF
 
     ENDSUBROUTINE PrintSpawnAttemptStats
+
+    subroutine HistInitPopulations (SignCurr, VecSlot)
+
+        integer, intent(in) :: VecSlot
+        real(dp), intent(in) :: SignCurr
+        integer :: InitBinNo
+        character(*), parameter :: this_routine = 'HistInitPopulations'
+
+        if (abs(SignCurr) > InitiatorWalkNo) then
+            ! Just summing in those determinants which are initiators. 
+            ! Need to figure out which bin to put them in though.
+            InitBinNo = floor((log(real(abs(SignCurr))) - InitBinMin) / &
+                              InitBinIter) + 1
+            if (InitBinNo >= 1 .and. InitBinNo <= 25000) then
+                if (SignCurr < 0) then
+                    HistInitPops(1,InitBinNo) = HistInitPops(1, InitBinNo) + 1
+                else
+                    HistInitPops(2,InitBinNo) = HistInitPops(2,InitBinNo) + 1
+                end if
+!            else
+!                call stop_all (this_routine, 'Trying to histogram outside&
+!                              & the range of the bins.')
+            end if
+        end if
+
+        if (SignCurr < MaxInitPopNeg) then
+            MaxInitPopNeg = SignCurr
+            HighPopNeg = VecSlot
+        end if
+        if (SignCurr > MaxInitPopPos) then
+            MaxInitPopPos = SignCurr
+            HighPopPos = VecSlot
+        end if
+
+    end subroutine HistInitPopulations
+
 
 ENDMODULE FciMCLoggingMod
 
