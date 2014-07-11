@@ -515,7 +515,7 @@ contains
         ! which of these has the highest of all.
 
         INTEGER(n_int) :: DetPos(0:NIfTot),DetNeg(0:NIfTot)
-        INTEGER :: TotWalkersNew,ProcBCastNeg,ProcBCastPos
+        INTEGER :: TotWalkersNew
         real(dp) :: HighPopInNeg(2),HighPopInPos(2),HighPopoutNeg(2),HighPopoutPos(2)
         real(dp) :: TempSign(lenof_sign)
 
@@ -555,10 +555,8 @@ contains
         ! type 'integer' - whatever that is, but the highpopoutneg is
         ! explicitly an int(4), so that it works with MPI_2INTEGER. Because
         ! of the explicit interfaces, we need to do this.
-        ProcBCastNeg=HighPopOutNeg(2)
-        ProcBCastPos=HighPopOutPos(2)
-        CALL MPIBcast(DetNeg,NIfTot+1,ProcBCastNeg)
-        CALL MPIBcast(DetPos,NIfTot+1,ProcBCastPos)
+        CALL MPIBcast(DetNeg ,NIfTot+1, int(HighPopOutNeg(2)))
+        CALL MPIBcast(DetPos, NIfTot+1, int(HighPopOutPos(2)))
 
         if (iProcIndex == 0) then
             write (iout, '(a,f12.5,a)') 'The most highly populated determinant &
