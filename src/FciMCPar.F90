@@ -840,6 +840,8 @@ MODULE FciMCParMod
             call extract_bit_rep_avsign (CurrentDets(:,j), CurrentH(1:NCurrH,j), &
                                         DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
                                         AvSignCurr, fcimc_excit_gen_store)
+
+            write(6,*) 'SIGN CURR', signcurr
             
             ! We only need to find out if determinant is connected to the
             ! reference (so no ex. level above 2 required, 
@@ -919,11 +921,12 @@ MODULE FciMCParMod
 
             !Debug output.
             IFDEBUGTHEN(FCIMCDebug,3)
-                if(lenof_sign.eq.2) then
-                    write(iout,"(A,I10,2f12.5,I5)",advance='no') "TW:", j,SignCurr,FlagsCurr
-                else
-                    write(iout,"(A,I10,f12.5,I5)",advance='no') "TW:", j,SignCurr,FlagsCurr
-                endif
+                write(6,*) 'LOS', lenof_sign
+                write(iout, "(A,I10,a)", advance='no') 'TW:', j, '['
+                do part_type = 1, lenof_sign
+                    write(iout, "(f10.5)", advance='no') SignCurr(part_type)
+                end do
+                write(iout, '(a,i7)', advance='no') '] ', FlagsCurr
                 call WriteBitDet(iout,CurrentDets(:,j),.true.)
                 call neci_flush(iout) 
             ENDIFDEBUG
@@ -1191,7 +1194,7 @@ MODULE FciMCParMod
             bloom_sizes(ic) = max(real(sum(abs(child)), dp), bloom_sizes(ic))
         end if
 #else
-        NoBorn = NoBorn + abs(child)
+        NoBorn(1:lenof_sign) = NoBorn(1:lenof_sign) + abs(child)
         if (ic == 1) SpawnFromSing = SpawnFromSing + abs(child)
 
         ! Count particle blooms, and their sources
@@ -1200,7 +1203,8 @@ MODULE FciMCParMod
             bloom_sizes(ic) = max(real((abs(child(part_type))), dp), bloom_sizes(ic))
         end if
 #endif
-        iter_data%nborn = iter_data%nborn + abs(child)
+        iter_data%nborn(1:lenof_sign) = iter_data%nborn(1:lenof_sign) &
+                                      + abs(child)
 
         ! Histogram the excitation levels as required
         if (tHistExcitToFrom) &
@@ -1941,19 +1945,22 @@ MODULE FciMCParMod
         endif
 
         ! Update death counter
-        iter_data%ndied = iter_data%ndied + min(iDie, abs(RealwSign))
+        iter_data%ndied(1:lenof_sign) = iter_data%ndied(1:lenof_sign) &
+                                      + min(iDie, abs(RealwSign))
 #ifdef __CMPLX
         NoDied = NoDied + sum(min(iDie, abs(RealwSign)))
 #else
-        NoDied = NoDied + min(iDie, abs(RealwSign))
+        NoDied(1:lenof_sign) = NoDied(1:lenof_sign) + min(iDie, abs(RealwSign))
 #endif
 
         ! Count any antiparticles
-        iter_data%nborn = iter_data%nborn + max(iDie - abs(RealwSign), 0.0_dp)
+        iter_data%nborn(1:lenof_sign) = iter_data%nborn(1:lenof_sign) &
+                                      + max(iDie - abs(RealwSign), 0.0_dp)
 #ifdef __CMPLX
         NoBorn = NoBorn + sum(max(iDie - abs(RealwSign), 0.0_dp))
 #else
-        NoBorn = NoBorn + max(iDie - abs(RealwSign), 0.0_dp)
+        NoBorn(1:lenof_sign) = NoBorn(1:lenof_sign) &
+                             + max(iDie - abs(RealwSign), 0.0_dp)
 #endif
 
         ! Calculate new number of signed particles on the det.
@@ -3159,8 +3166,8 @@ MODULE FciMCParMod
         norm_psi = sqrt(sum(all_norm_psi_squared))
         norm_semistoch = sqrt(sum(all_norm_semistoch_squared))
 #else
-        norm_psi = sqrt(all_norm_psi_squared)
-        norm_semistoch = sqrt(all_norm_semistoch_squared)
+        norm_psi(1:lenof_sign) = sqrt(all_norm_psi_squared)
+        norm_semistoch(1:lenof_sign) = sqrt(all_norm_semistoch_squared)
 #endif
         
         call MPIReduce(SumNoatHF, MPI_SUM, AllSumNoAtHF)
@@ -3168,9 +3175,9 @@ MODULE FciMCParMod
         ! doubles)
 
         call MPISum ((/ENumCyc, SumENum, ENumCycAbs/), helem_tmp)
-        AllENumCyc(:) = helem_tmp(1:inum_runs)
-        AllSumENum(:) = helem_tmp(1+inum_runs:2*inum_runs)
-        AllENumCycAbs(:) = helem_tmp(1+2*inum_runs:3*inum_runs)
+        AllENumCyc(1:inum_runs) = helem_tmp(1:inum_runs)
+        AllSumENum(1:inum_runs) = helem_tmp(1+inum_runs:2*inum_runs)
+        AllENumCycAbs(1:inum_runs) = helem_tmp(1+2*inum_runs:3*inum_runs)
         
         ! Deal with particle blooms
 !        if (tSpinProjDets) then
@@ -3184,8 +3191,8 @@ MODULE FciMCParMod
 
         ! real(dp) values
         call MPISum((/cyc_proje_denominator, sum_proje_denominator/),real_tmp)
-        all_cyc_proje_denominator = real_tmp(1:inum_runs)!(1:lenof_sign)
-        all_sum_proje_denominator = real_tmp(1+inum_runs:2*inum_runs)!(lenof_sign+1:2*lenof_sign)
+        all_cyc_proje_denominator(1:inum_runs) = real_tmp(1:inum_runs)!(1:lenof_sign)
+        all_sum_proje_denominator(1:inum_runs) = real_tmp(1+inum_runs:2*inum_runs)!(lenof_sign+1:2*lenof_sign)
 
         ! Max/Min values (check load balancing)
         call MPIReduce (TotWalkersTemp, MPI_MAX, MaxWalkersProc)
@@ -4106,7 +4113,7 @@ MODULE FciMCParMod
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
 #ifdef __PROG_LENOFSIGN
-            do p = 1, lenof_sign
+            do p = 1, inum_runs
                 write(tmpc, '(i5)') p
                 call stats_out (state, .false., AllTotParts(p), &
                                 'Parts (' // trim(adjustl(tmpc)) // ")")
@@ -6019,7 +6026,7 @@ MODULE FciMCParMod
                         ! Obtain the initial sign
                         InitialSign = 0
                         if (tStartSinglePart) then
-                            InitialSign(:) = InitialPartVec(:)
+                            InitialSign = InitialPartVec(1:lenof_sign)
                             TotParts(:) = InitialPartVec(:)
                             TotPartsOld(:) = InitialPartVec(:)
                         else
@@ -6034,7 +6041,7 @@ MODULE FciMCParMod
                         
                         TotWalkers = 1
                         TotWalkersOld = 1
-                        NoatHF(:) = InitialSign(:)
+                        NoatHF(1:lenof_sign) = InitialSign
                         call encode_sign (CurrentDets(:,1), InitialSign)
                     ELSE
                         NoatHF(:) = 0.0_dp

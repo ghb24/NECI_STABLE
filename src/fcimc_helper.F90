@@ -202,10 +202,10 @@ contains
         if (ExcitLevel_local == 0) then
 
             if (iter > NEquilSteps) &
-                SumNoatHF = SumNoatHF + RealwSign
-            NoatHF = NoatHF + RealwSign
+                SumNoatHF(1:lenof_sign) = SumNoatHF(1:lenof_sign) + RealwSign
+            NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
             ! Number at HF * sign over course of update cycle
-            HFCyc = HFCyc + RealwSign
+            HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
 
         elseif (ExcitLevel_local == 2 .or. &
                 (ExcitLevel_local == 1 .and. tNoBrillouin)) then
