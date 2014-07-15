@@ -653,6 +653,7 @@ $(McDEPEND_FILES): $(MDEP_DEST)/%%.d: %%.c
 \t$(MAKE_C_MDEPS)
 
 $(McppDEPEND_FILES): $(MDEP_DEST)/%%.d: %%.cpp
+\t$(MAKE_C_MDEPS)
 
 # d) doublerun.
 $(DcDEPEND_FILES): $(DDEP_DEST)/%%.d: %%.c
