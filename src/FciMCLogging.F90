@@ -557,7 +557,7 @@ MODULE FciMCLoggingMod
         if (abs(SignCurr) > InitiatorWalkNo) then
             ! Just summing in those determinants which are initiators. 
             ! Need to figure out which bin to put them in though.
-            InitBinNo = floor((log(real(abs(SignCurr))) - InitBinMin) / &
+            InitBinNo = floor((log(abs(SignCurr)) - InitBinMin) / &
                               InitBinIter) + 1
             if (InitBinNo >= 1 .and. InitBinNo <= 25000) then
                 if (SignCurr < 0) then

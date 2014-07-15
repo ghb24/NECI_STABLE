@@ -230,7 +230,7 @@ integer(TagIntType) :: ResidualTag
         allocate(test_vector(space_size))
         call multiply_hamil_and_vector(davidson_eigenvector, test_vector)
         if (iProcIndex == root) then
-            if (all(abs(test_vector-hamil_diag(HFindex)*davidson_eigenvector) < 1.0e-12)) then
+            if (all(abs(test_vector-hamil_diag(HFindex)*davidson_eigenvector) < 1.0e-12_dp)) then
                 tSkipCalc = .true.
                 davidson_eigenvalue = hamil_diag(HFindex)
             end if

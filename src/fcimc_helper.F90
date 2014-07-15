@@ -274,7 +274,7 @@ contains
                 .or. .not. tPrintOrbOccInit) then
                 forall (i = 1:nel) OrbOccs(iand(nI(i), csf_orbital_mask)) &
                         = OrbOccs(iand(nI(i), csf_orbital_mask)) &
-                                   + (real(RealwSign(1)) * real(RealwSign(1)))
+                                   + (RealwSign(1) * RealwSign(1))
             endif
         endif
         
