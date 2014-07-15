@@ -156,11 +156,11 @@ MODULE Logging
 
       tLogTauSearchStats = .false.
       tLogPopsMaxTau = .false.
-!#ifdef __PROG_LENOFSIGN
-!      tFCIMCStats2 = .true.
-!#else
+#ifdef __PROG_NUMRUNS
+      tFCIMCStats2 = .true.
+#else
       tFCIMCStats2 = .false.
-!#endif
+#endif
 
 ! Feb08 defaults
       IF(Feb08) THEN

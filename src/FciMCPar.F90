@@ -732,7 +732,7 @@ MODULE FciMCParMod
         integer :: proc, pos
         real(dp) :: r, sgn(lenof_sign), prob_extra_walker
         integer :: determ_index, gen_ind
-        integer :: DetHash, FinalVal, clash, PartInd, k
+        integer :: DetHash, FinalVal, clash, PartInd, k, y
         type(ll_node), pointer :: TempNode
 
         call set_timer(Walker_Time,30)
@@ -1020,12 +1020,12 @@ MODULE FciMCParMod
                     endif
 
                     IFDEBUG(FCIMCDebug, 3) then
-#ifdef __CMPLX
-                        write(iout,"(a,f12.5)",advance='no') &
-#else
-                        write(iout,"(a,f12.5)",advance='no') &
-#endif
-                            "SP:", child
+                        write(iout, '(a)', advance='no') 'SP: ['
+                        do y = 1, lenof_sign
+                            write(iout, '(f12.5)', advance='no') &
+                                child(y)
+                        end do
+                        write(iout, '("] ")', advance='no')
                         call write_det(6, nJ, .true.)
                         call neci_flush(iout) 
                     endif
@@ -4127,7 +4127,7 @@ MODULE FciMCParMod
 
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
-#ifdef __PROG_LENOFSIGN
+#ifdef __PROG_NUMRUNS
             do p = 1, inum_runs
                 write(tmpc, '(i5)') p
                 call stats_out (state, .false., AllTotParts(p), &
