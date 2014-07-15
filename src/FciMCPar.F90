@@ -841,8 +841,6 @@ MODULE FciMCParMod
                                         DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
                                         AvSignCurr, fcimc_excit_gen_store)
 
-            write(6,*) 'SIGN CURR', signcurr
-            
             ! We only need to find out if determinant is connected to the
             ! reference (so no ex. level above 2 required, 
             ! truncated etc.)
@@ -921,7 +919,6 @@ MODULE FciMCParMod
 
             !Debug output.
             IFDEBUGTHEN(FCIMCDebug,3)
-                write(6,*) 'LOS', lenof_sign
                 write(iout, "(A,I10,a)", advance='no') 'TW:', j, '['
                 do part_type = 1, lenof_sign
                     write(iout, "(f10.5)", advance='no') SignCurr(part_type)
@@ -3112,7 +3109,7 @@ MODULE FciMCParMod
         real(dp) :: sgn(lenof_sign)
         HElement_t :: helem_tmp(3*inum_runs)
         HElement_t :: real_tmp(2*inum_runs) !*lenof_sign
-        integer(int64) :: int64_tmp(8),TotWalkersTemp
+        integer(int64) :: int64_tmp(8), int64_tmp2(8), TotWalkersTemp
         type(fcimc_iter_data) :: iter_data
         real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
         real(dp), dimension(lenof_sign), intent(out) :: tot_parts_new_all
@@ -3123,45 +3120,57 @@ MODULE FciMCParMod
         integer :: run
     
         ! Communicate the integers needing summation
-
         call MPIReduce(SpawnFromSing, MPI_SUM, AllSpawnFromSing)
-        call MPIReduce(iter_data%update_growth, MPI_SUM, iter_data%update_growth_tot)
-        call MPIReduce(NoBorn, MPI_SUM, AllNoBorn)
-        call MPIReduce(NoDied, MPI_SUM, AllNoDied)
-        call MPIReduce(HFCyc, MPI_SUM, RealAllHFCyc)
-        call MPIReduce(NoAtDoubs, MPI_SUM, AllNoAtDoubs)
-        call MPIReduce(Annihilated, MPI_SUM, AllAnnihilated)
+        call MPIReduce(iter_data%update_growth(1:lenof_sign), MPI_SUM, &
+                       iter_data%update_growth_tot(1:lenof_sign))
+        call MPIReduce(NoBorn(1:inum_runs), MPI_SUM, AllNoBorn(1:inum_runs))
+        call MPIReduce(NoDied(1:inum_runs), MPI_SUM, AllNoDied(1:inum_runs))
+        call MPIReduce(HFCyc(1:lenof_sign), MPI_SUM, &
+                       RealAllHFCyc(1:lenof_sign))
+        call MPIReduce(NoAtDoubs(1:inum_runs), MPI_SUM, &
+                       AllNoAtDoubs(1:inum_runs))
+        call MPIReduce(Annihilated(1:inum_runs), MPI_SUM, &
+                       AllAnnihilated(1:inum_runs))
         
-        do run=1,inum_runs
-            AllHFCyc(run)=ARR_RE_OR_CPLX(RealAllHFCyc,run)
+       do run=1,inum_runs
+            AllHFCyc(run) = ARR_RE_OR_CPLX(RealAllHFCyc, run)
         enddo
         
         ! Integer summations required for the initiator method
         if (tTruncInitiator) then
-            call MPISum ((/NoAddedInitiators(1), NoInitDets(1), &
-                           NoNonInitDets(1), NoExtraInitdoubs(1), InitRemoved(1)/),&
-                          int64_tmp(1:5))
+            int64_tmp2(1:5) = (/NoAddedInitiators(1), NoInitDets(1),  &
+                               NoNonInitDets(1), NoExtraInitdoubs(1), &
+                               InitRemoved(1)/)
+            call MPISum (int64_tmp2, int64_tmp)
             AllNoAddedInitiators(1) = int64_tmp(1)
             AllNoInitDets(1) = int64_tmp(2)
             AllNoNonInitDets(1) = int64_tmp(3)
             AllNoExtraInitDoubs(1) = int64_tmp(4)
             AllInitRemoved(1) = int64_tmp(5)
 
-            call MPIReduce(NoAborted, MPI_SUM, AllNoAborted)
-            call MPIReduce(NoRemoved, MPI_SUM, AllNoRemoved)
-            call MPIReduce(NoNonInitWalk, MPI_SUM, AllNoNonInitWalk)
-            call MPIReduce(NoInitWalk, MPI_SUM, AllNoInitWalk)
+            call MPIReduce(NoAborted(1:lenof_sign), MPI_SUM, &
+                           AllNoAborted(1:lenof_sign))
+            call MPIReduce(NoRemoved(1:lenof_sign), MPI_SUM, &
+                           AllNoRemoved(1:lenof_sign))
+            call MPIReduce(NoNonInitWalk(1:lenof_sign), MPI_SUM, &
+                           AllNoNonInitWalk(1:lenof_sign))
+            call MPIReduce(NoInitWalk(1:inum_runs), MPI_SUM, &
+                           AllNoInitWalk(1:inum_runs))
         endif
 
         ! 64bit integers
-        !Remove the holes in the main list when wanting the number of uniquely occupied determinants
-        !this should only change the number for tHashWalkerList
-        TotWalkersTemp=TotWalkers-HolesInList
+        ! Remove the holes in the main list when wanting the number of 
+        ! uniquely occupied determinants. This should only change the number
+        ! for tHashWalkerList
+        TotWalkersTemp = TotWalkers - HolesInList
         call MPIReduce(TotwalkersTemp, MPI_SUM, AllTotWalkers)
-        call MPIReduce(norm_psi_squared,MPI_SUM,all_norm_psi_squared)
-        call MPIReduce(norm_semistoch_squared,MPI_SUM,all_norm_semistoch_squared)
-        call MPIReduce(Totparts,MPI_SUM,AllTotParts)
-        call MPIReduce(tot_parts_new,MPI_SUM,tot_parts_new_all)
+        call MPIReduce(norm_psi_squared(1:inum_runs), MPI_SUM, &
+                       all_norm_psi_squared(1:inum_runs))
+        call MPIReduce(norm_semistoch_squared(1:inum_runs), MPI_SUM, &
+                       all_norm_semistoch_squared(1:inum_runs))
+        call MPIReduce(Totparts(1:lenof_sign), MPI_SUM, &
+                       AllTotParts(1:lenof_sign))
+        call MPIReduce(tot_parts_new, MPI_SUM, tot_parts_new_all)
 #ifdef __CMPLX
         norm_psi = sqrt(sum(all_norm_psi_squared))
         norm_semistoch = sqrt(sum(all_norm_semistoch_squared))
@@ -3170,11 +3179,13 @@ MODULE FciMCParMod
         norm_semistoch(1:lenof_sign) = sqrt(all_norm_semistoch_squared)
 #endif
         
-        call MPIReduce(SumNoatHF, MPI_SUM, AllSumNoAtHF)
+        call MPIReduce(SumNoatHF(1:lenof_sign), MPI_SUM, &
+                       AllSumNoAtHF(1:lenof_sign))
         ! HElement_t values (Calculates the energy by summing all on HF and 
         ! doubles)
-
-        call MPISum ((/ENumCyc, SumENum, ENumCycAbs/), helem_tmp)
+        call MPISum ((/ENumCyc(1:inum_runs), &
+                       SumENum(1:inum_runs), &
+                       ENumCycAbs(1:inum_runs)/), helem_tmp)
         AllENumCyc(1:inum_runs) = helem_tmp(1:inum_runs)
         AllSumENum(1:inum_runs) = helem_tmp(1+inum_runs:2*inum_runs)
         AllENumCycAbs(1:inum_runs) = helem_tmp(1+2*inum_runs:3*inum_runs)
@@ -3190,7 +3201,8 @@ MODULE FciMCParMod
 !        end if
 
         ! real(dp) values
-        call MPISum((/cyc_proje_denominator, sum_proje_denominator/),real_tmp)
+        call MPISum((/cyc_proje_denominator(1:inum_runs), &
+                      sum_proje_denominator(1:inum_runs)/),real_tmp)
         all_cyc_proje_denominator(1:inum_runs) = real_tmp(1:inum_runs)!(1:lenof_sign)
         all_sum_proje_denominator(1:inum_runs) = real_tmp(1+inum_runs:2*inum_runs)!(lenof_sign+1:2*lenof_sign)
 
@@ -3203,8 +3215,9 @@ MODULE FciMCParMod
 
         ! We need the total number on the HF and SumWalkersCyc to be valid on
         ! ALL processors (Both double precision reals)
-        call MPISumAll (NoatHF, AllNoatHF)
-        call MPISumAll (SumWalkersCyc, AllSumWalkersCyc)
+        call MPISumAll (NoatHF(1:lenof_sign), AllNoatHF(1:lenof_sign))
+        call MPISumAll (SumWalkersCyc(1:inum_runs), &
+                        AllSumWalkersCyc(1:inum_runs))
 
         !        WRITE(iout,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
 
@@ -3213,8 +3226,10 @@ MODULE FciMCParMod
 
         !TODO CMO:Make sure these are length 2 as well
         if (tTrialWavefunction) then
-            call MPIAllReduce(trial_numerator, MPI_SUM, tot_trial_numerator)
-            call MPIAllReduce(trial_denom, MPI_SUM, tot_trial_denom)
+            call MPIAllReduce(trial_numerator(1:inum_runs), MPI_SUM, &
+                              tot_trial_numerator(1:inum_runs))
+            call MPIAllReduce(trial_denom(1:inum_runs), MPI_SUM, &
+                              tot_trial_denom(1:inum_runs))
         end if
         
 #ifdef __DEBUG
@@ -3561,7 +3576,7 @@ MODULE FciMCParMod
         ! Reset the counters
         iter_data%update_growth = 0.0_dp
         iter_data%update_iters = 0
-        iter_data%tot_parts_old = tot_parts_new_all
+        iter_data%tot_parts_old(1:lenof_sign) = tot_parts_new_all
 
         max_cyc_spawn = 0
 
