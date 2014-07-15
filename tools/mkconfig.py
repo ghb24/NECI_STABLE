@@ -494,6 +494,7 @@ CPP_BODY = $(CPPFLAGS) $< $@
 C_BODY = $(CFLAGS) $(CPPFLAGS) -c $< -o $@ 
 MAKE_C_GDEPS = $(CCD) $(CFLAGS) -MM -MT \$$\(GDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
 MAKE_C_KDEPS = $(CCD) $(CFLAGS) -MM -MT \$$\(KDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
+MAKE_C_DDEPS = $(CCD) $(CFLAGS) -MM -MT \$$\(DDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
 
 # Include paths
 INCLUDE_PATH = $(addprefix -I ,$(SRC))
@@ -609,10 +610,10 @@ $(KcppDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.cpp
 
 # b) doublerun.
 $(DcDEPEND_FILES): $(DDEP_DEST)/%%.d: %%.c
-\t$(MAKE_C_MDEPS)
+\t$(MAKE_C_DDEPS)
 
 $(DcppDEPEND_FILES): $(DDEP_DEST)/%%.d: %%.cpp
-\t$(MAKE_C_MDEPS)
+\t$(MAKE_C_DDEPS)
 
 #-----
 # Utilities
