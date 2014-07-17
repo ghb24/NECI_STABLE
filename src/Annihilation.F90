@@ -1763,11 +1763,12 @@ MODULE AnnihilationMod
         ENDIF
         do i=2,ValidSpawned
             call extract_sign(SpawnedParts(:,i),SpawnedSign)
-            TotParts=TotParts+abs(SpawnedSign)
+            TotParts(1:lenof_sign) = TotParts(1:lenof_sign) + abs(SpawnedSign)
 #ifdef __CMPLX
             norm_psi_squared = norm_psi_squared + sum(SpawnedSign**2)
 #else
-            norm_psi_squared = norm_psi_squared + SpawnedSign**2
+            norm_psi_squared(1:inum_runs) = &
+                         norm_psi_squared(1:inum_runs) + SpawnedSign**2
 #endif
         enddo
 

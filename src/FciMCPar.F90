@@ -1192,7 +1192,10 @@ MODULE FciMCParMod
         end if
 #else
         NoBorn(1:lenof_sign) = NoBorn(1:lenof_sign) + abs(child)
-        if (ic == 1) SpawnFromSing = SpawnFromSing + abs(child)
+        if (ic == 1) then
+            SpawnFromSing(1:lenof_sign) = SpawnFromSing(1:lenof_sign) &
+                                        + abs(child)
+        end if
 
         ! Count particle blooms, and their sources
         if (abs(child(part_type)) > INitiatorWalkNo) then
