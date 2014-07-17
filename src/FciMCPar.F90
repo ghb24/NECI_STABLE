@@ -3511,9 +3511,12 @@ MODULE FciMCParMod
                      if ((AllSumNoatHF(run) /= 0.0)) then
                          ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) 
                          proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) 
-                        AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run))
+                         AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run))
                     endif
                 endif
+
+
+
                 ! If we are re-zeroing the shift
                 if (tReZeroShift(run)) then
                     DiagSft(run) = 0
@@ -3522,6 +3525,17 @@ MODULE FciMCParMod
                     AvDiagSft(run) = 0
                 endif
             enddo
+
+            ! Get some totalled values
+#ifdef __CMPLX
+            projectionE_tot = ProjectionE(1)
+            proje_iter_tot = proje_iter(1)
+#else
+            projectionE_tot = sum(AllSumENum(1:inum_runs)) &
+                            / sum(all_sum_proje_denominator(1:inum_runs))
+            proje_iter_tot = sum(AllENumCyc(1:inum_runs)) &
+                            / sum(all_cyc_proje_denominator(1:inum_runs))
+#endif
 
         endif ! iProcIndex == root
 
@@ -4110,10 +4124,10 @@ MODULE FciMCParMod
             call stats_out(state,.true., sum(abs(AllTotParts)), 'Tot. parts')
             call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
 #ifdef __CMPLX
-            call stats_out(state,.true., real(proje_iter(1)), 'Re Proj. E')
-            call stats_out(state,.true., aimag(proje_iter(1)), 'Im Proj. E')
+            call stats_out(state,.true., real(proje_iter), 'Re Proj. E')
+            call stats_out(state,.true., aimag(proje_iter), 'Im Proj. E')
 #else
-            call stats_out(state,.true., proje_iter(1), 'Proj. E (cyc)')
+            call stats_out(state,.true., proje_iter_tot, 'Proj. E (cyc)')
 #endif
             call stats_out(state,.true., DiagSft(1), 'Shift. (cyc)')
             call stats_out(state,.true., IterTime, 'Iter. time')
@@ -4124,12 +4138,12 @@ MODULE FciMCParMod
             call stats_out(state,.false., AccRat(1), 'Acc. rate')
             call stats_out(state,.false., TotImagTime, 'Im. time')
 #ifdef __CMPLX
-            call stats_out(state,.true., real(proje_iter(1)) + Hii, &
+            call stats_out(state,.true., real(proje_iter) + Hii, &
                            'Tot. Proj. E')
-            call stats_out(state,.true., aimag(proje_iter(1)) + Hii, &
+            call stats_out(state,.true., aimag(proje_iter) + Hii, &
                            'Tot. Proj. E')
 #else
-            call stats_out(state,.true., proje_iter(1) + Hii, 'Tot. Proj. E')
+            call stats_out(state,.true., proje_iter_tot + Hii, 'Tot. Proj. E')
 #endif
 
             ! If we are running multiple (replica) simulations, then we
@@ -4141,6 +4155,10 @@ MODULE FciMCParMod
                                 'Parts (' // trim(adjustl(tmpc)) // ")")
                 call stats_out (state, .false., AllNoatHF(p), &
                                 'Ref (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., DiagSft(p), &
+                                'Shift (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., proje_iter(p), &
+                                'ProjE (' // trim(adjustl(tmpc)) // ")")
             end do
 #endif
 

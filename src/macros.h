@@ -73,6 +73,9 @@ endif
 #elif __DOUBLERUN
 #define ARR_RE_OR_CPLX(arr,index) real(arr(index), dp)
 #define ARR_ABS(arr) abs(arr(1))
+#elif __PROG_NUMRUNS
+#define ARR_RE_OR_CPLX(arr,index) real(arr(index), dp)
+#define ARR_ABS(arr) abs(arr(1))
 #else
 #define ARR_RE_OR_CPLX(arr,index) real(arr(1), dp)
 #define ARR_ABS(arr) abs(arr(1))

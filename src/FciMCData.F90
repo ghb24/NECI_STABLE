@@ -131,9 +131,11 @@ MODULE FciMCData
 
       ! The averaged projected energy - calculated from accumulated values.
       HElement_t :: ProjectionE(inum_runs_max)
+      HElement_t :: ProjectionE_tot
 
       ! The averaged projected energy - calculated over the last update cycle
       HElement_t :: proje_iter(inum_runs_max)
+      HElement_t :: proje_iter_tot
 
       ! The averaged 'absolute' projected energy - calculated over the last update cycle
       ! The magnitude of each contribution is taken before it is summed in

@@ -249,8 +249,8 @@ contains
                 SumENum(run) = SumENum(run) + (HOffDiag * ARR_RE_OR_CPLX(RealwSign,run)) &
                                   / dProbFin
 
-        ENumCyc(run) = ENumCyc(run) + (HOffDiag * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
-        ENumCycAbs(run) = ENumCycAbs(run) + abs(HoffDiag * ARR_RE_OR_CPLX(RealwSign,run)) &
+            ENumCyc(run) = ENumCyc(run) + (HOffDiag * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
+            ENumCycAbs(run) = ENumCycAbs(run) + abs(HoffDiag * ARR_RE_OR_CPLX(RealwSign,run)) &
                                       / dProbFin
         end do
 
