@@ -101,7 +101,7 @@ contains
         real(dp), intent(out) :: real_sgn(lenof_sign)
         integer(n_int) :: sgn(lenof_sign)
 
-#ifdef __INT64
+#if defined(__INT64) && !defined(__PROG_NUMRUNS)
         if (tUseRealCoeffs) then
             sgn = ilut(NOffSgn:NOffSgn+lenof_sign-1)
             real_sgn = transfer(sgn, real_sgn)
