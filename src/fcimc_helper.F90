@@ -322,13 +322,19 @@ contains
 
             ! If we are considering initiators on a whole-site basis, then
             ! do that here.
+            !
+            ! n.b. these tests are not replicated in SortMerge.F90, as for
+            !      there to be initiators on multiple particle types, there
+            !      must be some merging happening.
             if (tMultiReplicaInitiators) then
                 parent_init = test_flag (CurrentDets(:,j), &
                                          flag_parent_initiator(1))
                 make_initiator = test_flag (CurrentDets(:,j), &
                                             flag_make_initiator(1))
+                ! We sum the sign. Given that the reference site always has
+                ! positive walkers on it, this is a sensible test.
                 parent_init = TestInitiator(CurrentDets(:,j), parent_init, &
-                                            CurrentSign(part_type), diagH, &
+                                            sum(CurrentSign), diagH, &
                                             make_initiator)
             end if
 
