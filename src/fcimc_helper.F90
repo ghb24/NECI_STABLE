@@ -28,7 +28,7 @@ module fcimc_helper
     use CalcData, only: NEquilSteps, tFCIMC, tSpawnSpatialInit, tTruncCAS, &
                         tRetestAddToInit, tAddToInitiator, InitiatorWalkNo, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
-                        tRealCoeffByExcitLevel, &
+                        tRealCoeffByExcitLevel, tMultiReplicaInitiators, &
                         tSemiStochastic, tTrialWavefunction, &
                         InitiatorCutoffEnergy, InitiatorCutoffWalkNo
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -308,86 +308,63 @@ contains
 
         integer, intent(in) :: j, VecSlot
         integer, intent(out) :: parent_flags
-        real(dp) :: CurrentSign(lenof_sign), init_thresh, low_init_thresh
+        real(dp) :: CurrentSign(lenof_sign)
         real(dp), intent(in) :: diagH
         integer :: part_type, nopen
-        logical :: tDetinCAS, parent_init
+        logical :: parent_init, make_initiator
 
         call extract_sign (CurrentDets(:,j), CurrentSign)
 
-        init_thresh = InitiatorWalkNo
-        low_init_thresh = InitiatorCutoffWalkNo
+        ! The default path through this section makes no changes, leaving
+        ! the initiator status of each parent unchanged.  If 
+        ! tAddToInitiator is set, then the state of the parent may change.
+        if (tAddToInitiator) then
 
-        tcurr_initiator = .false.
-        do part_type=1,lenof_sign
+            ! If we are considering initiators on a whole-site basis, then
+            ! do that here.
+            if (tMultiReplicaInitiators) then
+                parent_init = test_flag (CurrentDets(:,j), &
+                                         flag_parent_initiator(1))
+                make_initiator = test_flag (CurrentDets(:,j), &
+                                            flag_make_initiator(1))
+                parent_init = TestInitiator(CurrentDets(:,j), parent_init, &
+                                            CurrentSign(part_type), diagH, &
+                                            make_initiator)
+            end if
 
-            ! By default, the parent_flags are the flags of the parent...
-            parent_init = test_flag (CurrentDets(:,j), &
-                                     flag_parent_initiator(part_type))
+            ! Now loop over the particle types, and update the flags
+            do part_type = 1, lenof_sign
 
-            ! The default path through this section makes no changes, leaving
-            ! the initiator status of each parent unchanged.  If 
-            ! tAddToInitiator is set, then the state of the parent may change.
-            if (tAddToInitiator) then
+                if (.not. tMultiReplicaInitiators) then
+                    ! By default, the parent_flags are the flags of the parent.
+                    parent_init = test_flag (CurrentDets(:,j), &
+                                             flag_parent_initiator(part_type))
+                    make_initiator = test_flag (CurrentDets(:,j), &
+                                                flag_make_initiator(part_type))
 
-                if (.not. parent_init) then
-                    ! Determinant wasn't previously initiator 
-                    ! - want to test if it has now got a large enough 
-                    !   population to become an initiator.
-                    if ((diagH > InitiatorCutoffEnergy &
-                         .and. abs(CurrentSign(part_type)) > low_init_thresh) &
-                        .or. abs(CurrentSign(part_type)) > init_thresh) then
-                        parent_init = .true.
-                        NoAddedInitiators = NoAddedInitiators + 1
-                        if (tSpawnSpatialInit) &
-                            call add_initiator_list (CurrentDets(:,j))
-                    endif
-                elseif (tRetestAddToInit) then
-                    ! The source determinant is already an initiator.            
-                    ! If tRetestAddToInit is on, the determinants become 
-                    ! non-initiators again if their population falls below 
-                    ! n_add (this is on by default).
-                    tDetInCas = .false.
-                    if (tTruncCAS) &
-                        tDetInCas = TestIfDetInCASBit (CurrentDets(0:NIfD,j))
-                   
-                    ! If det. in fixed initiator space, or is the HF det, or it
-                    ! is in the deterministic space, then it must remain an initiator.
-                    if (.not. tDetInCas .and. &
-                        .not. (DetBitEQ(CurrentDets(:,j), iLutHF, NIfDBO)) &
-                        .and. .not. test_flag(CurrentDets(:,j), flag_deterministic) &
-                        .and. abs(CurrentSign(part_type)) <= init_thresh &
-                        .and. diagH <= InitiatorCutoffEnergy &
-                        .and. .not. test_flag(CurrentDets(:,j), &
-                        flag_make_initiator(part_type))) then
-                        ! Population has fallen too low. Initiator status 
-                        ! removed.
-                        parent_init = .false.
-                        NoAddedInitiators = NoAddedInitiators - 1
-                        if (tSpawnSpatialInit) &
-                            call rm_initiator_list (CurrentDets(:,j))
-                    endif
+                    ! Should this particle be considered to be an initiator
+                    ! for spawning purposes.
+                    parent_init = TestInitiator(CurrentDets(:,j), parent_init,&
+                                                CurrentSign(part_type), diagH,&
+                                                make_initiator)
+                end if
+
+                ! Update counters as required.
+                if (parent_init) then
+                    NoInitDets = NoInitDets + 1
+                    NoInitWalk = NoInitWalk + abs(CurrentSign(part_type))
+                else
+                    NoNonInitDets = NoNonInitDets + 1
+                    NoNonInitWalk = NoNonInitWalk + abs(CurrentSign(part_type))
                 endif
-            endif
 
-            ! Update counters as required.
-            if (parent_init) then
-                NoInitDets = NoInitDets + 1
-                NoInitWalk = NoInitWalk + abs(CurrentSign(part_type))
-            else
-                NoNonInitDets = NoNonInitDets + 1
-                NoNonInitWalk = NoNonInitWalk + abs(CurrentSign(part_type))
-            endif
+                ! Update the parent flag as required.
+                call set_flag (CurrentDets(:,j), &
+                               flag_parent_initiator(part_type),&
+                               parent_init)
+            enddo
 
-            ! Update the parent flag as required.
-            call set_flag (CurrentDets(:,j), flag_parent_initiator(part_type),&
-                           parent_init)
-            
-            if(parent_init) then                           
-                tcurr_initiator = .true.
-            endif
-
-        enddo
+        endif
 
         ! Store this flag for use in the spawning routines...
         parent_flags = extract_flags (CurrentDets(:,j))
@@ -407,6 +384,78 @@ contains
         endif
 
     end subroutine CalcParentFlag
+
+
+    function TestInitiator(ilut, is_init, sgn, diagH, make_initiator) &
+             result(initiator)
+
+        ! For a given particle (with its given particle type), should it
+        ! be considered as an initiator for the purposes of spawning.
+        !
+        ! Inputs: The determinant, the particles sign, and if the particle
+        !         is currently considered to be an initiator.
+
+        ! N.B. This intentionally DOES NOT directly reference part_type.
+        !      This means we can call it for individual, or aggregate,
+        !      particles.
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        logical, intent(in) :: is_init, make_initiator
+        real(dp), intent(in) :: sgn, diagH
+        logical :: initiator, tDetInCAS
+        real(dp) :: init_thresh, low_init_thresh
+
+        ! By default the particles status will stay the same
+        initiator = is_init
+
+        ! Nice numbers
+        init_thresh = InitiatorWalkNo
+        low_init_thresh = InitiatorCutoffWalkNo
+
+        if (.not. is_init) then
+
+            ! Determinant wasn't previously initiator 
+            ! - want to test if it has now got a large enough 
+            !   population to become an initiator.
+            if ((diagH > InitiatorCutoffEnergy &
+                 .and. abs(sgn) > low_init_thresh) &
+                .or. abs(sgn) > init_thresh &
+                .or. make_initiator) then
+                initiator = .true.
+                NoAddedInitiators = NoAddedInitiators + 1
+                if (tSpawnSpatialInit) &
+                    call add_initiator_list (ilut)
+            endif
+
+        elseif (tRetestAddToInit) then
+
+            ! The source determinant is already an initiator.            
+            ! If tRetestAddToInit is on, the determinants become 
+            ! non-initiators again if their population falls below 
+            ! n_add (this is on by default).
+
+            tDetInCas = .false.
+            if (tTruncCAS) &
+                tDetInCas = TestIfDetInCASBit (ilut)
+           
+            ! If det. in fixed initiator space, or is the HF det, or it
+            ! is in the deterministic space, then it must remain an initiator.
+            if (.not. tDetInCas .and. &
+                .not. (DetBitEQ(ilut, iLutHF, NIfDBO)) &
+                .and. .not. test_flag(ilut, flag_deterministic) &
+                .and. abs(sgn) <= init_thresh &
+                .and. diagH <= InitiatorCutoffEnergy &
+                .and. .not. make_initiator) then
+                ! Population has fallen too low. Initiator status 
+                ! removed.
+                initiator = .false.
+                NoAddedInitiators = NoAddedInitiators - 1
+                if (tSpawnSpatialInit) &
+                    call rm_initiator_list (ilut)
+            endif
+        endif
+
+    end function
 
 
     subroutine rezero_iter_stats_each_iter (iter_data)

@@ -84,7 +84,7 @@ MODULE FciMCData
     integer(int64), dimension(lenof_sign_max) :: AllNoExtraInitDoubs, AllInitRemoved
     integer(int64), dimension(lenof_sign_max) :: AllGrowRateAbort
 
-      LOGICAL :: tHFInitiator,tPrintHighPop, tcurr_initiator
+      LOGICAL :: tHFInitiator, tPrintHighPop
       logical :: tHashWalkerList    !Option to store occupied determinant in a hash table
       integer, allocatable :: FreeSlot(:)   !List of the free slots in the main list
       integer :: iStartFreeSlot     !=1 at the beginning of an iteration, will increment

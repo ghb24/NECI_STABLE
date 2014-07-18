@@ -213,4 +213,14 @@ integer :: trial_mp1_ndets
 ! initiators
 real(dp) :: InitiatorCutoffEnergy, InitiatorCutoffWalkNo
 
+! Should we aggregate particle counts across all of the simulations in
+! determining which sites are initiators (in system-replica mode).
+! --> This is on by default, until considered otherwise, as there is
+!     little point in system-replicas otherwise
+#ifdef __PROG_NUMRUNS
+logical, parameter :: tMultiReplicaInitiators = .true.
+#else
+logical, parameter :: tMultiReplicaInitiators = .false.
+#endif
+
 end module CalcData
