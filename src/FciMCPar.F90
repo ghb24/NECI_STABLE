@@ -3398,7 +3398,8 @@ MODULE FciMCParMod
                         ! If enabled, jump the shift to the value preducted by the
                         ! projected energy!
                         if (tJumpShift) then
-                            DiagSft(run) = real(proje_iter(run),dp)
+                            !DiagSft(run) = real(proje_iter(run),dp)
+                            DiagSft = proje_iter_tot
                             defer_update(run) = .true.
                         end if
                     elseif (abs(AllNoatHF(run)) < (MaxNoatHF - HFPopThresh)) then
@@ -4129,13 +4130,15 @@ MODULE FciMCParMod
 #else
             call stats_out(state,.true., proje_iter_tot, 'Proj. E (cyc)')
 #endif
-            call stats_out(state,.true., DiagSft(1), 'Shift. (cyc)')
+            call stats_out(state,.true., &
+                           sum(DiagSft(1:inum_runs)) / inum_runs, &
+                           'Shift. (cyc)')
             call stats_out(state,.true., IterTime, 'Iter. time')
-            call stats_out(state,.false., AllNoBorn(1), 'No. born')
-            call stats_out(state,.false., AllNoDied(1), 'No. died')
-            call stats_out(state,.false., AllAnnihilated(1), 'No. annihil')
-            call stats_out(state,.false., AllGrowRate(1), 'Growth fac.')
-            call stats_out(state,.false., AccRat(1), 'Acc. rate')
+            call stats_out(state,.false., sum(AllNoBorn), 'No. born')
+            call stats_out(state,.false., sum(AllNoDied), 'No. died')
+            call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
+!!            call stats_out(state,.false., AllGrowRate(1), 'Growth fac.')
+!!            call stats_out(state,.false., AccRat(1), 'Acc. rate')
             call stats_out(state,.false., TotImagTime, 'Im. time')
 #ifdef __CMPLX
             call stats_out(state,.true., real(proje_iter) + Hii, &
