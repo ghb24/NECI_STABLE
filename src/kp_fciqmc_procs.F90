@@ -5,6 +5,7 @@ module kp_fciqmc_procs
     use AnnihilationMod, only: SendProcNewParts, CompressSpawnedList, RemoveDetHashIndex
     use bit_rep_data
     use bit_reps, only: decode_bit_det, encode_sign, flag_is_initiator
+    use bit_reps, only: init_perturbation_creation, init_perturbation_annihilation
     use CalcData, only: tTruncInitiator, tStartSinglePart, InitialPart, InitWalkers
     use CalcData, only: tSemiStochastic, tReadPops, tUseRealCoeffs, tau, DiagSft
     use CalcData, only: AvMCExcits, tWritePopsNorm, iPopsFileNoRead, pops_norm
@@ -172,6 +173,13 @@ module kp_fciqmc_procs
     ! will also be output.
     logical :: tOutputAverageKPMatrices
 
+    ! If true then calculate the overlap of the final Hamiltonian eigenstates
+    ! with a vector which is calculated by applying a perturbation operator
+    ! (overlap_pert) to the popsfile wave function.
+    logical :: tOverlapPert
+    type(perturbation), save :: overlap_pert
+    integer(n_int), allocatable :: perturbed_ground(:,:)
+
     ! Matrices used in the communication of the projected Hamiltonian and
     ! overlap matrices.
     real(dp), allocatable :: kp_mpi_matrices_in(:,:)
@@ -239,6 +247,7 @@ contains
         tAllSymSectors = .false.
         tStoreKPMatrices = .true.
         tOutputAverageKPMatrices = .false.
+        tOverlapPert = .false.
 
         read_inp: do
             call read_line(eof)
@@ -313,6 +322,30 @@ contains
                 tStoreKPMatrices = .false.
             case("WRITE-AVERAGE-MATRICES")
                 tOutputAverageKPMatrices = .true.
+
+            case("OVERLAP-PERTURB-ANNIHILATE")
+                tOverlapPert = .true.
+                tWritePopsNorm = .true.
+                overlap_pert%nannihilate = nitems-1
+                allocate(overlap_pert%ann_orbs(nitems-1))
+                do i = 1, nitems-1
+                    call readi(overlap_pert%ann_orbs(i))
+                end do
+                ! Create the rest of the annihilation-related
+                ! components of the overlap_pert object.
+                call init_perturbation_annihilation(overlap_pert)
+            case("OVERLAP-PERTURB-CREATION")
+                tOverlapPert = .true.
+                tWritePopsNorm = .true.
+                overlap_pert%ncreate = nitems-1
+                allocate(overlap_pert%crtn_orbs(nitems-1))
+                do i = 1, nitems-1
+                    call readi(overlap_pert%crtn_orbs(i))
+                end do
+                ! Create the rest of the creation-related
+                ! components of the overlap_pert object.
+                call init_perturbation_creation(overlap_pert)
+
             case default
                 call report("Keyword "//trim(w)//" not recognized in kp-fciqmc block", .true.)
             end select
@@ -390,6 +423,8 @@ contains
         end if
         call neci_flush(6)
         krylov_vecs = 0_n_int
+
+        if (tOverlapPert) call create_overlap_pert_vec()
 
         ! Allocate the hash table to krylov_vecs.
         ! The number of MB of memory required to allocate krylov_vecs_ht.
@@ -689,6 +724,40 @@ contains
         if (tWritePopsNorm) call write_pops_norm()
 
     end subroutine kp_popsfile_wrapper
+
+    subroutine create_overlap_pert_vec()
+
+        ! Read in the popsfile and apply perturbation operator overlap_pert.
+
+        integer :: mem_reqd, ierr
+        character(2) :: mem_fmt
+        character(len=*), parameter :: t_r = "create_overlap_pert_vec"
+
+        ! Once this is finished, the vector that we want will be stored in
+        ! CurrentDets. The total number of determinants will be TotWalkers.
+        call kp_popsfile_wrapper(overlap_pert)
+
+        ! Print info about memory usage to the user.
+        ! Memory required in MB.
+        mem_reqd = TotWalkers*(NIfTotKP+1)*size_n_int/1000000
+        write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(mem_reqd)+1)))
+
+        write(6,'(a73,1x,'//mem_fmt//')') "About to allocate array to hold the perturbed &
+                                           &ground state. Memory required (MB):", mem_reqd
+        write(6,'(a13)',advance='no') "Allocating..."
+        call neci_flush(6)
+        allocate(perturbed_ground(0:NIfTot,TotWalkers), stat=ierr)
+        if (ierr /= 0) then
+            write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+            call stop_all(t_r, "Error allocating array.")
+        else
+            write(6,'(1x,a5)') "Done."
+        end if
+        call neci_flush(6)
+
+        perturbed_ground = CurrentDets(0:NIfTot,1:TotWalkers)
+
+    end subroutine create_overlap_pert_vec
 
     subroutine generate_init_config_basic(nwalkers, nwalkers_per_site_init, ndets)
 
