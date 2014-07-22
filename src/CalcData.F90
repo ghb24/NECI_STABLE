@@ -233,26 +233,6 @@ logical :: tKP_FCIQMC
 ! a constant shift (i.e. finite-temperature calculations).
 logical :: tLetInitialPopDie
 
-! If true, apply creation and annihilation operators (using the orbitals in the arrays below) to the wave function
-! in the POPSFILE before starting from it.
-logical :: tPerturbPops
-! The number of annihilation operators in the perturbation.
-integer :: n_pops_annihilate
-! The orbitals to be annihilated.
-integer, allocatable :: annihilate_orbs(:)
-! The elements in the ilut representation where the occupation of the above orbs are encoded.
-integer, allocatable :: annihilate_elems(:)
-! The positions of the bits in the bitstring representation where the above orbs are encoded.
-integer, allocatable :: annihilate_bits(:)
-! The number of creation operators in the perturbation.
-integer :: n_pops_creation
-! The orbitals to be created.
-integer, allocatable :: creation_orbs(:)
-! The elements in the ilut representation where the occupation of the above orbs are encoded.
-integer, allocatable :: creation_elems(:)
-! The positions of the bits in the bitstring representation where the above orbs are encoded.
-integer, allocatable :: creation_bits(:)
-
 ! Calculate the norms of the *unperturbed* POPSFILE wave functions and output them to a file.
 logical :: tWritePopsNorm
 real(dp) :: pops_norm

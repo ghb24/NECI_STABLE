@@ -17,7 +17,7 @@ MODULE CCMC
                          tTruncSpace, CurrentH, NoBorn, SpawnedParts, NoDied,&
                          Annihil_Time, Hii, ENumCyc, Acceptances, MaxSpawned,&
                          HFDet, SumWalkersCyc, SpawnFromSing, MaxWalkersPart,&
-                         exFlag
+                         exFlag, pops_pert
     use CalcData, only: StepsSft
     use hist_data, only: tHistSpawn, HistMinInd
     use SystemData, only: tHPHF, nel
@@ -2991,11 +2991,12 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
          call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau, &
-               PopBlockingIter)
+               PopBlockingIter, pops_pert)
 
          if(iProcIndex.eq.root) close(iunithead)
          tmp_dp = CurrParts
-         call ReadFromPopsfile(iPopAllTotWalkers,ReadBatch,TotWalkers,tmp_dp,NoatHF,DetList,nMaxAmpl, PopNifSgn)
+         call ReadFromPopsfile(iPopAllTotWalkers,ReadBatch,TotWalkers,tmp_dp,NoatHF,DetList,&
+                                nMaxAmpl, PopNifSgn, pops_pert)
          CurrParts = tmp_dp
          nAmpl=int(TotWalkers,sizeof_int)
          dNorm=NoatHF(1)

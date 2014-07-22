@@ -1,5 +1,6 @@
 MODULE Calc
         
+    use bit_reps, only: init_perturbation_creation, init_perturbation_annihilation
     use CalcData
     use SystemData, only: beta, nel, STOT, tCSF, LMS, tSpn
     use Determinants, only: write_det
@@ -22,7 +23,7 @@ MODULE Calc
                         dClustSelectionRatio,tSharedExcitors
     use FciMCData, only: proje_update_comb,proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
                          InputDiagSft,tSearchTau,proje_spatial,nWalkerHashes,tHashWalkerList,HashLengthFrac, &
-                         tTrialHash, tIncCancelledInitEnergy, tStartCoreGroundState
+                         tTrialHash, tIncCancelledInitEnergy, tStartCoreGroundState, pops_pert
     use semi_stoch_gen, only: core_ras
     use ftlm_neci
     use spectral_lanczos
@@ -333,7 +334,6 @@ contains
           tTrialAmplitudeCutoff = .false.
           tKP_FCIQMC = .false.
           tLetInitialPopDie = .false.
-          tPerturbPops = .false.
           tWritePopsNorm = .false.
           pops_norm_unit = 0
           n_init_vecs_ftlm = 20
@@ -1787,21 +1787,25 @@ contains
                 tLetInitialPopDie = .true.
 
             case("POPS-ANNIHILATE")
-                tPerturbPops = .true.
                 tWritePopsNorm = .true.
-                n_pops_annihilate = nitems-1
-                allocate(annihilate_orbs(n_pops_annihilate))
+                pops_pert%nannihilate = nitems-1
+                allocate(pops_pert%ann_orbs(nitems-1))
                 do i = 1, nitems-1
-                    call readi(annihilate_orbs(i))
+                    call readi(pops_pert%ann_orbs(i))
                 end do
+                ! Create the rest of the annihilation-related
+                ! components of the pops_pert object.
+                call init_perturbation_annihilation(pops_pert)
             case("POPS-CREATION")
-                tPerturbPops = .true.
                 tWritePopsNorm = .true.
-                n_pops_creation = nitems-1
-                allocate(creation_orbs(n_pops_creation))
+                pops_pert%ncreate = nitems-1
+                allocate(pops_pert%crtn_orbs(nitems-1))
                 do i = 1, nitems-1
-                    call readi(creation_orbs(i))
+                    call readi(pops_pert%crtn_orbs(i))
                 end do
+                ! Create the rest of the creation-related
+                ! components of the pops_pert object.
+                call init_perturbation_creation(pops_pert)
             case("WRITE-POPS-NORM")
                 tWritePopsNorm = .true.
 

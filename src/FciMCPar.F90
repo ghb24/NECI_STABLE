@@ -6765,7 +6765,8 @@ MODULE FciMCParMod
 
                 call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                         iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,MaxWalkersUncorrected,read_tau,PopBlockingIter)
+                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,MaxWalkersUncorrected,read_tau,&
+                        PopBlockingIter, pops_pert)
 
                 if(iProcIndex.eq.root) close(iunithead)
             else
@@ -6894,7 +6895,7 @@ MODULE FciMCParMod
             !
             ! If we have a popsfile, read the walkers in now.
             if(tReadPops.and..not.tPopsAlreadyRead) then
-                call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn)
+                call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, pops_pert)
             else
                 if(tStartMP1) then
                     !Initialise walkers according to mp1 amplitude.
@@ -7027,12 +7028,16 @@ MODULE FciMCParMod
         
     end subroutine InitFCIMCCalcPar
 
-    subroutine InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn)
+    subroutine InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, perturb)
 
         use CalcData, only : iReadWalkersRoot
 
         integer(int64), intent(in) :: iPopAllTotWalkers
         integer, intent(in) :: PopNIfSgn
+        ! An optional perturbation operator to apply to the determinants
+        ! as they are read in from the popsfile.
+        type(perturbation), intent(in) :: perturb
+
         integer :: run, ReadBatch
         character(len=*), parameter :: this_routine='InitFCIMC_pops'
 
@@ -7054,7 +7059,8 @@ MODULE FciMCParMod
         ! on each processor.
         call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, &
                               TotWalkers ,TotParts, NoatHF, &
-                              CurrentDets, MaxWalkersPart, PopNIfSgn)
+                              CurrentDets, MaxWalkersPart, &
+                              PopNIfSgn, perturb)
 
         !Setup global variables
         TotWalkersOld=TotWalkers

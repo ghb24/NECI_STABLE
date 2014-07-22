@@ -516,4 +516,28 @@ MODULE FciMCData
       integer(n_int), allocatable, dimension(:,:) :: davidson_iluts
       type(direct_ci_excit), allocatable, dimension(:) :: davidson_excits
 
+      ! Type containing information on a perturbation operator, constructed from
+      ! a string of creation and annihilation operators.
+      type perturbation
+          ! The number of annihilation operators in the perturbation.
+          integer :: nannihilate = 0
+          ! The orbitals to be annihilated.
+          integer, allocatable :: ann_orbs(:)
+          ! The elements in the ilut representation where the occupation of the above orbs are encoded.
+          integer, allocatable :: ann_elems(:)
+          ! The positions of the bits in the bitstring representation where the above orbs are encoded.
+          integer, allocatable :: ann_bits(:)
+
+          ! The number of creation operators in the perturbation.
+          integer :: ncreate = 0
+          ! The orbitals to be created.
+          integer, allocatable :: crtn_orbs(:)
+          ! The elements in the ilut representation where the occupation of the above orbs are encoded.
+          integer, allocatable :: crtn_elems(:)
+          ! The positions of the bits in the bitstring representation where the above orbs are encoded.
+          integer, allocatable :: crtn_bits(:)
+      end type perturbation
+
+      type(perturbation) :: pops_pert
+
 END MODULE FciMCData

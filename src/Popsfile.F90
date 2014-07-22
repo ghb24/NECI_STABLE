@@ -10,9 +10,7 @@ MODULE PopsfileMod
                         iWeightPopRead, iPopsFileNoRead, tPopsMapping, Tau, &
                         InitiatorWalkNo, MemoryFacPart, MemoryFacAnnihil, &
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
-                        tPerturbPops, pops_norm, annihilate_elems, annihilate_bits, &
-                        annihilate_orbs, n_pops_annihilate, creation_elems, &
-                        creation_bits, creation_orbs, n_pops_creation
+                        pops_norm
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt, CountBits
     use hash, only : DetermineDetNode, FindWalkerHash
@@ -42,12 +40,16 @@ MODULE PopsfileMod
 !This routine reads in particle configurations from a POPSFILE v.3-4.
 !EndPopsList is the number of entries in the POPSFILE to read, and ReadBatch is the number of determinants
 !which can be read in in a single batch.
-    SUBROUTINE ReadFromPopsfile(EndPopsList,ReadBatch,CurrWalkers64,CurrParts,CurrHF,Dets,DetsLen,PopNifSgn)
+    SUBROUTINE ReadFromPopsfile(EndPopsList,ReadBatch,CurrWalkers64,CurrParts,CurrHF,Dets,DetsLen,PopNifSgn,perturb)
         use MemoryManager, only: TagIntType
         integer(int64) , intent(in) :: EndPopsList  !Number of entries in the POPSFILE.
         integer , intent(in) :: ReadBatch       !Size of the batch of determinants to read in in one go.
         integer(int64) , intent(out) :: CurrWalkers64    !Number of determinants which end up on a given processor.
         real(dp), intent(out) :: CurrHF(lenof_sign)
+        ! Details of a perturbation operator to apply to the determinants as
+        ! they are read in from the popsfile.
+        type(perturbation), intent(in) :: perturb
+
         real(dp) :: CurrParts(lenof_sign)
         integer :: CurrWalkers,Slot,nJ(nel)
         integer :: iunit,i,j,ierr,PopsInitialSlots(0:nNodes-1)
@@ -59,6 +61,7 @@ MODULE PopsfileMod
         integer(n_int) , allocatable :: BatchRead(:,:)
         integer(n_int) :: WalkerTemp(0:NIfTot)
         integer(int64) :: Det,AllCurrWalkers,TempCurrWalkers
+        integer(int64) :: nremoved_by_pert, all_nremoved_by_pert
         logical :: FormPops,BinPops,tReadAllPops,tStoreDet
         real(dp) , dimension(lenof_sign) :: SignTemp
         integer :: TempNI(NEl),nBatches,PopsVersion
@@ -123,8 +126,6 @@ MODULE PopsfileMod
             endif
         end if
 
-        if (tPerturbPops) call init_pops_perturbation()
-
         call mpibarrier(err)
 
         IF(iProcIndex.eq.Root) THEN
@@ -183,6 +184,7 @@ MODULE PopsfileMod
         nBatches=0      ! Number of batches of walkers it takes to distribute 
                         ! popsfile.
         Det=1
+        nremoved_by_pert = 0
         tReadAllPops=.false.
         pops_norm = 0.0_dp
 r_loop: do while(.not.tReadAllPops)
@@ -202,15 +204,19 @@ r_loop: do while(.not.tReadAllPops)
                     ! Read the next entry, and store the walker in WalkerTemp 
                     ! and TempnI
                     tEOF = read_popsfile_det (iunit, Det, BinPops, &
-                                              WalkerTemp, TempnI, PopNifSgn)
+                                              WalkerTemp, TempnI, PopNifSgn, &
+                                              perturb)
 
                     ! Add the contribution from this determinant to the
-                    ! *unperturbed* norm.
+                    ! norm of the *unperturbed* popsfile wave function.
                     call add_pops_norm_contrib(WalkerTemp)
 
                     ! This signifies that this determinant was annihilated by
                     ! the perturbation operator, so we want to skip it.
-                    if (tPerturbPops .and. all(WalkerTemp(0:NIfDBO) == 0_n_int)) cycle
+                    if (all(WalkerTemp(0:NIfDBO) == 0_n_int)) then
+                        nremoved_by_pert = nremoved_by_pert + 1
+                        cycle
+                    end if
 
                     ! When we have got to the end of the file, we are done.
                     if (tEOF) then
@@ -292,8 +298,9 @@ r_loop: do while(.not.tReadAllPops)
         write(6,*) "CurrWalkers: ", CurrWalkers
         TempCurrWalkers = int(CurrWalkers, int64)
         call MPISum(TempCurrWalkers, 1, AllCurrWalkers)
+        call MPISum(nremoved_by_pert, 1, all_nremoved_by_pert)
         if (iProcIndex == Root) then
-            if (iWeightPopRead == 0 .and. AllCurrWalkers /= EndPopsList .and. (.not. tPerturbPops)) then
+            if (iWeightPopRead == 0 .and. (AllCurrWalkers + all_nremoved_by_pert) /= EndPopsList) then
                 write(6,*) "AllCurrWalkers: ", AllCurrWalkers
                 write(6,*) "EndPopsList: ", EndPopsList
 
@@ -404,7 +411,9 @@ r_loop: do while(.not.tReadAllPops)
     !Det = Current determinant entry in popsfile list
     !BinPops = Binary popsfile or formatted
     !WalkerTemp = Determinant entry returned (in new basis if using mapping)
-    function read_popsfile_det (iunit, Det, BinPops, WalkerTemp, nI, PopNifSgn) &
+    !perturb = Definition of a perturbation operator to apply to the read-in
+    !          determinant.
+    function read_popsfile_det (iunit, Det, BinPops, WalkerTemp, nI, PopNifSgn, perturb) &
                                result(tEOF)
 
         integer, intent(in) :: iunit
@@ -412,6 +421,8 @@ r_loop: do while(.not.tReadAllPops)
         logical, intent(in) :: BinPops
         integer(int64) , intent(inout) :: Det
         integer(n_int), intent(out) :: WalkerTemp(0:NIfTot)
+        type(perturbation), intent(in) :: perturb
+
         integer(n_int) :: WalkerToMap(0:MappingNIfD), WalkerTemp2(0:NIfTot)
         integer(n_int) :: sgn_int(lenof_sign)
         integer :: elec, flg, i, j, stat, k
@@ -575,10 +586,11 @@ outer_map:      do i = 0, MappingNIfD
             end do
         enddo r_loop
 
-        ! If this determinant is annihilated by the perturbation operator
-        ! then Walkertemp(0:NIfDBO) will be returned as 0_n_int.
-        if (tPerturbPops) call perturb_det(WalkerTemp, annihilate_elems, annihilate_bits, &
-                                            creation_elems, creation_bits)
+        ! Apply the perturbation operator (which by default is will just be the
+        ! identity operator so won't do anything.
+        ! If this determinant is annihilated by the perturbation operator then
+        ! Walkertemp(0:NIfDBO) will be returned as 0_n_int.
+        call perturb_det(WalkerTemp, perturb)
 
         ! Decode the determinant as required if not using mapping
         if (.not. tPopsMapping .and. (.not. tEOF) .and. &
@@ -644,8 +656,8 @@ outer_map:      do i = 0, MappingNIfD
 
     subroutine CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                     iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau,PopBlockingIter)
-        use CalcData, only: n_pops_creation, n_pops_annihilate
+                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau, &
+                    PopBlockingIter, perturb)
         use LoggingData , only : tZeroProjE
         logical , intent(in) :: tPop64Bit,tPopHPHF,tPopLz
         integer , intent(in) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
@@ -654,6 +666,7 @@ outer_map:      do i = 0, MappingNIfD
         real(dp) , intent(in) :: PopDiagSft,read_tau
         real(dp) , dimension(lenof_sign/inum_runs) , intent(in) :: PopSumNoatHF
         HElement_t , intent(in) :: PopAllSumENum
+        type(perturbation), intent(in) :: perturb
         integer , intent(out) :: WalkerListSize
         character(len=*) , parameter :: this_routine='CheckPopsParams'
         integer :: k
@@ -666,12 +679,8 @@ outer_map:      do i = 0, MappingNIfD
 #endif
         if(tPopHPHF.neqv.tHPHF) call stop_all(this_routine,"Popsfile HPHF and input HPHF not same")
         if(tPopLz.neqv.tFixLz) call stop_all(this_routine,"Popsfile Lz and input Lz not same")
-        if(tPerturbPops) then
-            if(iPopNEl+n_pops_creation-n_pops_annihilate.ne.NEl) call stop_all(this_routine,"The number of creation and &
-                &annihilation operators applied to the POPSFILE determinants is not consistent with NEl.")
-        else
-            if(iPopNEl.ne.NEl) call stop_all(this_routine,"Popsfile NEl and input NEl not same")
-        end if
+        if(iPopNEl+perturb%ncreate-perturb%nannihilate.ne.NEl) call stop_all(this_routine,"The number of electrons &
+            &in the POPSFILE is not consistent with the number you have asked to run with.")
         if(.not.tPopsMapping) then
             if(PopNIfD.ne.NIfD) call stop_all(this_routine,"Popsfile NIfD and calculated NIfD not same")
         else
@@ -2308,26 +2317,6 @@ outer_map:      do i = 0, MappingNIfD
         endif
 
     END SUBROUTINE ReadFromPopsfileOnly
-
-    subroutine init_pops_perturbation()
-
-        integer :: i
-
-        if (.not. allocated(annihilate_elems)) allocate(annihilate_elems(n_pops_annihilate))
-        if (.not. allocated(annihilate_bits)) allocate(annihilate_bits(n_pops_annihilate))
-        do i = 1, n_pops_annihilate
-            annihilate_elems(i) = (annihilate_orbs(i)-1)/bits_n_int
-            annihilate_bits(i) = mod(annihilate_orbs(i)-1, bits_n_int)
-        end do
-
-        if (.not. allocated(creation_elems)) allocate(creation_elems(n_pops_creation))
-        if (.not. allocated(creation_bits)) allocate(creation_bits(n_pops_creation))
-        do i = 1, n_pops_creation
-            creation_elems(i) = (creation_orbs(i)-1)/bits_n_int
-            creation_bits(i) = mod(creation_orbs(i)-1, bits_n_int)
-        end do
-
-    end subroutine init_pops_perturbation
 
     subroutine add_pops_norm_contrib(ilut)
 

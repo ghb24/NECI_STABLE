@@ -145,6 +145,10 @@ module kp_fciqmc_procs
     ! generate the requested number of walkers (except for rounding when splitting
     ! this number between processors).
     logical :: tInitCorrectNWalkers
+    ! If true then always occupy the deterministic space first when generating
+    ! an initial configuration for finite-temperature calculations. Only after
+    ! this is filled will other states be randomly occupied.
+    logical :: tOccDetermInit
     ! In the projected Hamiltonian calculation, this holds the fraction of the
     ! spawning array to be filled before a communication round is performed.
     integer :: MaxSpawnedEachProc
@@ -229,6 +233,7 @@ contains
         tHamilOnFly = .false.
         tFullyStochasticHamil = .false.
         tInitCorrectNWalkers = .false.
+        tOccDetermInit = .false.
         vary_niters = .false.
         tUseInitConfigSeeds = .false.
         tAllSymSectors = .false.
@@ -292,6 +297,8 @@ contains
                 tFullyStochasticHamil = .true.
             case("INIT-CORRECT-WALKER-POP")
                 tInitCorrectNWalkers = .true.
+            case("OCCUPY-DETERM-INIT")
+                tOccDetermInit = .true.
             case("INIT-CONFIG-SEEDS")
                 if (kp%nconfigs == 0) call stop_all(t_r, 'Please use the num-init-configs option to enter the number of &
                                                           &initial configurations before using the init-vec-seeds option.')
@@ -512,7 +519,7 @@ contains
 
     subroutine init_kp_fciqmc_iter(iter_data, determ_index)
 
-        use FciMCData, only: fcimc_excit_gen_store, FreeSlot, iStartFreeSlot, iEndFreeSlot
+        use FciMCData, only: FreeSlot, iStartFreeSlot, iEndFreeSlot
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(out) :: determ_index
@@ -534,25 +541,14 @@ contains
 
     subroutine create_initial_config(kp)
 
-        use bit_reps, only: extract_bit_rep
-        use FciMCData, only: fcimc_excit_gen_store
-
         type(kp_fciqmc_data), intent(inout) :: kp
-        integer :: DetHash, nwalkers, nwalkers_target, iunithead, PopsVersion
+        integer :: DetHash, nwalkers, nwalkers_target
         integer :: i
         integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign(lenof_sign)
         real(dp) :: norm, all_norm
         real(sp) :: total_time_before, total_time_after
-        character(len=*), parameter :: t_r = "create_initial_config"
-        ! Variables from popsfile header...
-        integer :: iPopLenof_sign, iPopNel, iPopIter, PopNIfD, PopNIfY, WalkerListSize
-        integer :: PopNIfSgn, PopNIfFlag, PopNIfTot, PopBlockingIter
-        logical :: tPop64Bit, tPopHPHF, tPopLz, formpops, binpops, tCoreDet
-        integer(int64) :: iPopAllTotWalkers
-        real(dp) :: PopDiagSft, read_tau
-        real(dp), dimension(lenof_sign/inum_runs) :: PopSumNoatHF
-        HElement_t :: PopAllSumENum
+        logical :: tCoreDet
 
         ! Clear everything from any previous repeats or starting configurations.
         call reset_hash_table(HashIndex)
@@ -560,25 +556,9 @@ contains
         if (kp%irepeat == 1) then
             if (.not. tFiniteTemp) then
                 if (tReadPops) then
-                    ! Read the header.
-                    call open_pops_head(iunithead,formpops,binpops)
-                    PopsVersion = FindPopsfileVersion(iunithead)
-                    if(PopsVersion == 4) then
-                        call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                                iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                                PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
-                        ! If requested output the norm of the *unperturbed* walkers in the POPSFILE.
-                        if (tWritePopsNorm) call write_pops_norm()
-                    else
-                        call stop_all(t_r, "Only version 4 popsfile are supported with kp-fciqmc.")
-                    endif
-                    call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                            iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                            PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau,PopBlockingIter)
-
-                    if (iProcIndex == root) close(iunithead)
-
-                    call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn)
+                    ! Call a wrapper function which will call the various functions
+                    ! required to read in a popsfile.
+                    call kp_popsfile_wrapper(pops_pert)
                 else
                     ! Put a walker on the Hartree-Fock, with the requested amplitude.
                     call InitFCIMC_HF()
@@ -616,7 +596,7 @@ contains
 
                 ! Create the random initial configuration. 
                 if (tInitCorrectNWalkers) then
-                    call generate_init_config_this_proc(nwalkers_target, nwalkers_per_site_init, nwalkers)
+                    call generate_init_config_this_proc(nwalkers_target, nwalkers_per_site_init, nwalkers, tOccDetermInit)
                 else
                     call generate_init_config_basic(nwalkers_target, nwalkers_per_site_init, nwalkers)
                 end if
@@ -666,6 +646,49 @@ contains
         end if
 
     end subroutine create_initial_config
+
+    subroutine kp_popsfile_wrapper(perturb)
+
+        type(perturbation), intent(in) :: perturb
+
+        integer :: iunithead, PopsVersion
+        ! Variables from popsfile header...
+        integer :: iPopLenof_sign, iPopNel, iPopIter, PopNIfD, PopNIfY, WalkerListSize
+        integer :: PopNIfSgn, PopNIfFlag, PopNIfTot, PopBlockingIter
+        logical :: tPop64Bit, tPopHPHF, tPopLz, formpops, binpops
+        integer(int64) :: iPopAllTotWalkers
+        real(dp) :: PopDiagSft, read_tau
+        real(dp), dimension(lenof_sign/inum_runs) :: PopSumNoatHF
+        HElement_t :: PopAllSumENum
+
+        character(len=*), parameter :: t_r = "kp_popsfile_wrapper"
+
+        ! Read the header.
+        call open_pops_head(iunithead,formpops,binpops)
+
+        PopsVersion = FindPopsfileVersion(iunithead)
+
+        if(PopsVersion == 4) then
+            call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+                    iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
+                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
+        else
+            call stop_all(t_r, "Only version 4 popsfile are supported with kp-fciqmc.")
+        endif
+
+        call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+                iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
+                PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau, &
+                PopBlockingIter, perturb)
+
+        if (iProcIndex == root) close(iunithead)
+
+        call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, perturb)
+
+        ! If requested output the norm of the *unperturbed* walkers in the POPSFILE.
+        if (tWritePopsNorm) call write_pops_norm()
+
+    end subroutine kp_popsfile_wrapper
 
     subroutine generate_init_config_basic(nwalkers, nwalkers_per_site_init, ndets)
 
@@ -761,41 +784,58 @@ contains
 
     end subroutine generate_init_config_basic
 
-    subroutine generate_init_config_this_proc(nwalkers, nwalkers_per_site_init, ndets)
+    subroutine generate_init_config_this_proc(nwalkers, nwalkers_per_site_init, ndets, tOccupyDetermSpace)
 
         ! This routine will distribute nwalkers walkers uniformly across all possible determinants.
 
         integer, intent(in) :: nwalkers
         real(dp) :: nwalkers_per_site_init
         integer, intent(out) :: ndets
+        logical, intent(in) :: tOccupyDetermSpace
         integer :: proc, excit, nattempts, idet, DetHash, det_ind, nI(nel)
+        integer :: ideterm
         integer(n_int) :: ilut(0:NIfTot), int_sign(lenof_sign)
         type(ll_node), pointer :: prev, temp_node
         real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
         real(dp) :: new_sign(lenof_sign), r
-        logical :: tDetFound
+        logical :: tDetFound, tDetermAllOccupied
         character(len=*), parameter :: this_routine = "generate_init_config_this_proc"
 
         ilut = 0_n_int
         ndets = 0
         TotParts = 0.0_dp
 
-        do
-            ! Generate a random determinant (returned in ilut).
-            if (tAllSymSectors) then
-                call create_rand_det_no_sym(ilut)
-            else
-                if (tHeisenberg) then
-                    call create_rand_heisenberg_det(ilut)
-                else
-                    call CreateRandomExcitLevDetUnbias(nel, HFDet, ilutHF, ilut, excit, nattempts)
-                end if
-            end if
+        ideterm = 0
+        tDetermAllOccupied = .false.
 
-            ! If it doesn't belong to this processor, pick another.
-            call decode_bit_det(nI, ilut)
-            proc = DetermineDetNode(nI, 0)
-            if (proc /= iProcIndex) cycle
+        do
+            ! If using the tOccupyDetermSpace option then we want to put walkers
+            ! on states in the deterministic space first.
+            ! If not, or if we have finished doing this, generate determinants
+            ! randoml and uniformly.
+            if (tOccupyDetermSpace .and. (.not. tDetermAllOccupied)) then
+                ideterm = ideterm + 1
+                ilut = core_space(:,ideterm + determ_proc_indices(iProcIndex))
+                call decode_bit_det(nI, ilut)
+                ! If we have now occupied all deterministic states.
+                if (ideterm == determ_proc_sizes(iProcIndex)) tDetermAllOccupied = .true.
+            else
+                ! Generate a random determinant (returned in ilut).
+                if (tAllSymSectors) then
+                    call create_rand_det_no_sym(ilut)
+                else
+                    if (tHeisenberg) then
+                        call create_rand_heisenberg_det(ilut)
+                    else
+                        call CreateRandomExcitLevDetUnbias(nel, HFDet, ilutHF, ilut, excit, nattempts)
+                    end if
+                end if
+
+                ! If it doesn't belong to this processor, pick another.
+                call decode_bit_det(nI, ilut)
+                proc = DetermineDetNode(nI, 0)
+                if (proc /= iProcIndex) cycle
+            end if
 
             ! Choose whether the walker should have a positive or negative amplitude, with
             ! 50% chance of each.

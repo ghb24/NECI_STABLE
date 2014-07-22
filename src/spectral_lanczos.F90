@@ -45,7 +45,13 @@ contains
 
         call init_spectral_lanczos()
 
+        write(6,*) "Here1"
+        call neci_flush(6)
+
         do i = 1, n_lanc_vecs_sl-1
+            write(6,*) "Here2"
+            call neci_flush(6)
+
             call subspace_expansion_lanczos(i, sl_vecs, full_vec_sl, sl_hamil, ndets_sl, disps_sl)
             write(6,'(1x,a19,1x,i3)') "Iteration complete:", i
             call neci_flush(6)
@@ -187,6 +193,9 @@ contains
         sl_vecs(:,1) = sl_vecs(:,1)/allnorm_pert_sl
 
         deallocate(ilut_list)
+
+        write(6,*) "Here0"
+        call neci_flush(6)
 
     end subroutine init_spectral_lanczos
 

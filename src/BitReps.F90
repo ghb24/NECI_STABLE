@@ -1,5 +1,6 @@
 module bit_reps
-    use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart
+    use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart, &
+                         perturbation
     use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level
     use CalcData, only: tTruncInitiator, tUseRealCoeffs, tSemiStochastic, &
                         tCSFCore, tTrialWavefunction
@@ -865,7 +866,43 @@ contains
         endif
     end subroutine decode_bit_det_bitwise
 
-    subroutine perturb_det(ilut, a_elems, a_bits, c_elems, c_bits)
+    subroutine init_perturbation_annihilation(pert)
+
+        ! Create the 'ann_elems' and 'ann_bits' components of a perturbation object.
+        ! The 'ann_orbs' components should be allocated and filled in already, as
+        ! should the nannihilate component.
+
+        type(perturbation), intent(inout) :: pert
+        integer :: i
+
+        if (.not. allocated(pert%ann_elems)) allocate(pert%ann_elems(pert%nannihilate))
+        if (.not. allocated(pert%ann_bits)) allocate(pert%ann_bits(pert%nannihilate))
+        do i = 1, pert%nannihilate
+            pert%ann_elems(i) = (pert%ann_orbs(i)-1)/bits_n_int
+            pert%ann_bits(i) = mod(pert%ann_orbs(i)-1, bits_n_int)
+        end do
+
+    end subroutine init_perturbation_annihilation
+
+    subroutine init_perturbation_creation(pert)
+
+        ! Create the 'crtn_elems' and 'crtn_bits' components of a perturbation object.
+        ! The 'crtn_orbs' components should be allocated and filled in already, as
+        ! should the ncreate component.
+
+        type(perturbation), intent(inout) :: pert
+        integer :: i
+
+        if (.not. allocated(pert%crtn_elems)) allocate(pert%crtn_elems(pert%ncreate))
+        if (.not. allocated(pert%crtn_bits)) allocate(pert%crtn_bits(pert%ncreate))
+        do i = 1, pert%ncreate
+            pert%crtn_elems(i) = (pert%crtn_orbs(i)-1)/bits_n_int
+            pert%crtn_bits(i) = mod(pert%crtn_orbs(i)-1, bits_n_int)
+        end do
+
+    end subroutine init_perturbation_creation
+
+    subroutine perturb_det(ilut, perturb)
 
         ! This routine takes a determinant encoded in ilut and applies a
         ! collection of creation and annihilation operators, which together is
@@ -886,122 +923,130 @@ contains
         ! c_bits and c_elems for creation operators.
 
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
-        integer, intent(in) :: a_elems(:), a_bits(:), c_elems(:), c_bits(:)
+        type(perturbation), intent(in) :: perturb
 
         integer(n_int) :: combined_mask(0:NIfD), new_mask(0:NIfD), ones
         integer(n_int) :: original_ilut(0:NIfTot), masked_ilut(0:NIfD)
         integer :: i, j, num_minus_signs
         real(dp) :: new_sign_factor, real_sign(lenof_sign)
 
+        ! If the perturbation is the identity operator then just return.
+        if (perturb%nannihilate == 0 .and. perturb%ncreate == 0) return
+
         original_ilut = ilut
 
-        ! First, loop over all creation and annihilation operators and see if they
-        ! destroy the determinant encoded in ilut.
+        associate(a_elems => perturb%ann_elems, a_bits => perturb%ann_bits, &
+                  c_elems => perturb%crtn_elems, c_bits => perturb%crtn_bits)
 
-        do i = 1, size(a_elems)
-            if ( .not. btest(ilut(a_elems(i)), a_bits(i)) ) then
-                ilut(0:NIfDBO) = 0_n_int
-                return
-            end if
-            ilut(a_elems(i)) = ibclr(ilut(a_elems(i)), a_bits(i))
-        end do
+            ! First, loop over all creation and annihilation operators and see if they
+            ! destroy the determinant encoded in ilut.
 
-        do i = 1, size(c_elems)
-            if ( btest(ilut(c_elems(i)), c_bits(i)) ) then
-                ilut(0:NIfDBO) = 0_n_int
-                return
-            end if
-            ilut(c_elems(i)) = ibset(ilut(c_elems(i)), c_bits(i))
-        end do
-
-        ! If we get to this point then the determinant was not destroyed by the
-        ! creation and annihilation operators, else we would have returned.
-
-        ! Now, determine whether or not the application of these operators
-        ! introduces a minus sign. We consider the application of the operators
-        ! when they are already ordered by the basis ordering used in NECI.
-        ! All annihilation operators are applied before creation operators.
-
-        ! We need to consider moving the creation and annihilation operators
-        ! in the perturbing operator through the creation operators which
-        ! create the original determinant (by acting on the vacuum).
-
-        ! For a creation or annihilation operator for orbital p in the
-        ! perturbing operator, we want to consider moving it through creation
-        ! operators in the original determinant for orbitals less than p.
-        ! Suppose there are N such operators. Then the ordering introduces a
-        ! factor of (-1)^N. So we just need to count the number of orbitals
-        ! before orbital p in the determinant. We can do this by creating a bit
-        ! mask with 1's for all orbitals *before* (and not including) p in the
-        ! original determinant, and then performing an and operation between
-        ! this mask and the ilut, and then counting the number of bits set in
-        ! the resulting bitstring.
-
-        ! However, in general we want to consider several annihilation and
-        ! creation operators in the perturbing operator. Instead of doing the
-        ! above for each operator, which is slow, we can do it all in one go.
-        ! If a creation operator in the original ilut is 'passed' an odd number
-        ! of times then we want to count it, otherwise we don't. So we want to
-        ! create a bit mask that has 1's for all orbitals that would be passed
-        ! an odd number of times by the applied creation and annihilation
-        ! operators in the perturbation operator, and 0's for all other
-        ! orbitals. This can be done by performing an ieor on the bit masks
-        ! for induvidual operators. Once an exclusive or has been performed for
-        ! each annihilation and creation operator in the perturbing operator,
-        ! we can finally perform an and with the original ilut,and then count
-        ! the number of set bits. If this is odd, include a minus sign.
-
-        ones = not(0_n_int)
-        combined_mask = 0_n_int
-
-        do i = 1, size(a_elems)
-            do j = 0, NIfD
-                ! Create a mask which has 0's in all orbitals which might be
-                ! passed in the ordering, and 1's elsewhere. 
-                if (j < a_elems(i)) then
-                    new_mask(j) = 0_n_int
-                else if (j == a_elems(i)) then
-                    new_mask(j) = ishft(ones, a_bits(i))
-                else
-                    new_mask(j) = ones
+            do i = 1, perturb%nannihilate
+                if ( .not. btest(ilut(a_elems(i)), a_bits(i)) ) then
+                    ilut(0:NIfDBO) = 0_n_int
+                    return
                 end if
+                ilut(a_elems(i)) = ibclr(ilut(a_elems(i)), a_bits(i))
             end do
 
-            ! Now make it so that it has 1's for all orbitals that might be
-            ! passed and 0's elsewhere.
-            new_mask = not(new_mask)
-
-            ! Now perform an ieor to combine this mask with the combined masks
-            ! for all previously considered orbitals.
-            combined_mask = ieor(combined_mask, new_mask)
-        end do
-
-        ! Now do exactly the same for the creation operators.
-        do i = 1, size(c_elems)
-            do j = 0, NIfD
-                if (j < c_elems(i)) then
-                    new_mask(j) = 0_n_int
-                else if (j == c_elems(i)) then
-                    new_mask(j) = ishft(ones, c_bits(i))
-                else
-                    new_mask(j) = ones
+            do i = 1, perturb%ncreate
+                if ( btest(ilut(c_elems(i)), c_bits(i)) ) then
+                    ilut(0:NIfDBO) = 0_n_int
+                    return
                 end if
+                ilut(c_elems(i)) = ibset(ilut(c_elems(i)), c_bits(i))
             end do
-            new_mask = not(new_mask)
-            combined_mask = ieor(combined_mask, new_mask)
-        end do
 
-        ! Finally apply the mask and count the resulting number of set bits...
-        masked_ilut = iand(combined_mask, original_ilut(0:NIfD))
-        num_minus_signs = CountBits(masked_ilut, NIfD)
-        ! ...and apply the new sign.
-        !new_sign_factor = (-1_n_int)**(num_minus_signs)
-        new_sign_factor = (-1.0_dp)**num_minus_signs
-        call extract_sign(ilut, real_sign)
-        real_sign = real_sign*new_sign_factor
-        call encode_sign(ilut, real_sign)
+            ! If we get to this point then the determinant was not destroyed by the
+            ! creation and annihilation operators, else we would have returned.
 
-        call extract_sign(ilut, real_sign)
+            ! Now, determine whether or not the application of these operators
+            ! introduces a minus sign. We consider the application of the operators
+            ! when they are already ordered by the basis ordering used in NECI.
+            ! All annihilation operators are applied before creation operators.
+
+            ! We need to consider moving the creation and annihilation operators
+            ! in the perturbing operator through the creation operators which
+            ! create the original determinant (by acting on the vacuum).
+
+            ! For a creation or annihilation operator for orbital p in the
+            ! perturbing operator, we want to consider moving it through creation
+            ! operators in the original determinant for orbitals less than p.
+            ! Suppose there are N such operators. Then the ordering introduces a
+            ! factor of (-1)^N. So we just need to count the number of orbitals
+            ! before orbital p in the determinant. We can do this by creating a bit
+            ! mask with 1's for all orbitals *before* (and not including) p in the
+            ! original determinant, and then performing an and operation between
+            ! this mask and the ilut, and then counting the number of bits set in
+            ! the resulting bitstring.
+
+            ! However, in general we want to consider several annihilation and
+            ! creation operators in the perturbing operator. Instead of doing the
+            ! above for each operator, which is slow, we can do it all in one go.
+            ! If a creation operator in the original ilut is 'passed' an odd number
+            ! of times then we want to count it, otherwise we don't. So we want to
+            ! create a bit mask that has 1's for all orbitals that would be passed
+            ! an odd number of times by the applied creation and annihilation
+            ! operators in the perturbation operator, and 0's for all other
+            ! orbitals. This can be done by performing an ieor on the bit masks
+            ! for induvidual operators. Once an exclusive or has been performed for
+            ! each annihilation and creation operator in the perturbing operator,
+            ! we can finally perform an and with the original ilut,and then count
+            ! the number of set bits. If this is odd, include a minus sign.
+
+            ones = not(0_n_int)
+            combined_mask = 0_n_int
+
+            do i = 1, perturb%nannihilate
+                do j = 0, NIfD
+                    ! Create a mask which has 0's in all orbitals which might be
+                    ! passed in the ordering, and 1's elsewhere. 
+                    if (j < a_elems(i)) then
+                        new_mask(j) = 0_n_int
+                    else if (j == a_elems(i)) then
+                        new_mask(j) = ishft(ones, a_bits(i))
+                    else
+                        new_mask(j) = ones
+                    end if
+                end do
+
+                ! Now make it so that it has 1's for all orbitals that might be
+                ! passed and 0's elsewhere.
+                new_mask = not(new_mask)
+
+                ! Now perform an ieor to combine this mask with the combined masks
+                ! for all previously considered orbitals.
+                combined_mask = ieor(combined_mask, new_mask)
+            end do
+
+            ! Now do exactly the same for the creation operators.
+            do i = 1, perturb%ncreate
+                do j = 0, NIfD
+                    if (j < c_elems(i)) then
+                        new_mask(j) = 0_n_int
+                    else if (j == c_elems(i)) then
+                        new_mask(j) = ishft(ones, c_bits(i))
+                    else
+                        new_mask(j) = ones
+                    end if
+                end do
+                new_mask = not(new_mask)
+                combined_mask = ieor(combined_mask, new_mask)
+            end do
+
+            ! Finally apply the mask and count the resulting number of set bits...
+            masked_ilut = iand(combined_mask, original_ilut(0:NIfD))
+            num_minus_signs = CountBits(masked_ilut, NIfD)
+            ! ...and apply the new sign.
+            !new_sign_factor = (-1_n_int)**(num_minus_signs)
+            new_sign_factor = (-1.0_dp)**num_minus_signs
+            call extract_sign(ilut, real_sign)
+            real_sign = real_sign*new_sign_factor
+            call encode_sign(ilut, real_sign)
+
+            call extract_sign(ilut, real_sign)
+
+        end associate
 
     end subroutine perturb_det
 
