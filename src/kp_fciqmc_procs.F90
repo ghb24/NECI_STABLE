@@ -179,6 +179,7 @@ module kp_fciqmc_procs
     logical :: tOverlapPert
     type(perturbation), save :: overlap_pert
     integer(n_int), allocatable :: perturbed_ground(:,:)
+    real(dp), allocatable :: pert_overlaps(:)
 
     ! Matrices used in the communication of the projected Hamiltonian and
     ! overlap matrices.
@@ -424,8 +425,6 @@ contains
         call neci_flush(6)
         krylov_vecs = 0_n_int
 
-        if (tOverlapPert) call create_overlap_pert_vec()
-
         ! Allocate the hash table to krylov_vecs.
         ! The number of MB of memory required to allocate krylov_vecs_ht.
         ! Each node requires 16 bytes.
@@ -480,6 +479,8 @@ contains
         write(6,'(a13)',advance='no') "Allocating..."
         call neci_flush(6)
 
+        if (tOverlapPert) allocate(pert_overlaps(kp%nvecs))
+
         if (tStoreKPMatrices) then
             allocate(kp%overlap_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
             allocate(kp%hamil_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
@@ -533,6 +534,11 @@ contains
 
         call reset_hash_table(krylov_vecs_ht)
         krylov_vecs = 0_n_int
+
+        if (tOverlapPert) then
+            call create_overlap_pert_vec()
+            pert_overlaps = 0.0_dp
+        end if
 
         ! Rezero all the necessary data.
         kp%overlap_matrix = 0.0_dp
@@ -1108,6 +1114,7 @@ contains
 
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: idet, jvec, ind(kp%ivec)
+        type(ll_node), pointer :: temp_node
         integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
 
@@ -1149,6 +1156,66 @@ contains
         end associate
 
     end subroutine calc_overlap_matrix_elems
+
+    subroutine calc_perturbation_overlap(kp)
+
+        type(kp_fciqmc_data), intent(inout) :: kp
+        integer :: idet, sign_ind, DetHash, det_ind
+        integer :: nI(nel)
+        type(ll_node), pointer :: temp_node
+        integer(n_int) :: int_sign(lenof_sign)
+        real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
+        real(dp) :: overlap
+        logical :: tDetFound
+
+        associate(s_matrix => kp%overlap_matrix, ivec => kp%ivec)
+
+            overlap = 0.0_dp
+
+            sign_ind = NIfDBO + lenof_sign*(ivec-1) + 1
+
+            ! Loop over all determinants in perturbed_ground
+            do idet = 1, size(perturbed_ground, dim=2)
+                call extract_sign(perturbed_ground(:,idet), real_sign_1)
+                if (IsUnoccDet(real_sign_1)) cycle
+
+                ! Search to see if this determinant is in the Krylov vector.
+                call decode_bit_det(nI, perturbed_ground(:,idet))
+                DetHash = FindWalkerHash(nI, nhashes_kp)
+                ! Point to the first node with this hash value in krylov_vecs.
+                temp_node => krylov_vecs_ht(DetHash)
+                if (temp_node%ind == 0) then
+                    ! If there are no determinants at all with this hash value in krylov_vecs.
+                    cycle
+                else
+                    tDetFound = .false.
+                    do while (associated(temp_node))
+                        if (DetBitEQ(perturbed_ground(:,idet), krylov_vecs(:,temp_node%ind), NIfDBO)) then
+                            ! If this determinant has been found in krylov_vecs.
+                            det_ind = temp_node%ind
+                            tDetFound = .true.
+                            exit
+                        end if
+                        ! Move on to the next determinant with this hash value.
+                        temp_node => temp_node%next
+                    end do
+                    if (tDetFound) then
+                        int_sign = krylov_vecs(sign_ind:sign_ind+lenof_sign-1, det_ind)
+                        real_sign_2 = transfer(int_sign, real_sign_1)
+#ifdef __DOUBLERUN
+                        overlap = overlap + (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
+#else
+                        overlap = overlap + real_sign_1(1)*real_sign_2(1)
+#endif
+                    end if
+                end if
+            end do
+
+            pert_overlaps(ivec) = overlap
+
+        end associate
+
+    end subroutine calc_perturbation_overlap
 
     subroutine calc_hamil_on_fly(kp)
 

@@ -84,6 +84,10 @@ contains
 
                     call calc_overlap_matrix_elems(kp)
 
+                    ! Calculate the overlap of the perturbed ground state vector
+                    ! with the new Krylov vector, if requested.
+                    if (tOverlapPert) call calc_perturbation_overlap(kp)
+
                     do iiter = 1, kp%niters(ivec)
 
                         iter = iter + 1
