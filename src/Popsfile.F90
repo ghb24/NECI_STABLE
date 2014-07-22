@@ -1136,7 +1136,7 @@ outer_map:      do i = 0, MappingNIfD
 
     !Routine for reading in from iunit the header information from a popsile v4 file.
     subroutine ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF_out,PopAllSumENum,iPopIter,   &
                 PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau, &
                 PopBlockingIter, read_psingles, read_par_bias, &
                 read_nnodes, read_walkers_on_nodes)
@@ -1149,7 +1149,8 @@ outer_map:      do i = 0, MappingNIfD
         integer(int64) , intent(out) :: iPopAllTotWalkers
         real(dp) , intent(out) :: PopDiagSft,PopDiagSft2, read_tau, read_psingles
         real(dp), intent(out) :: read_par_bias
-        real(dp) , dimension(lenof_sign/inum_runs) , intent(out) :: PopSumNoatHF
+        real(dp), intent(out) :: PopSumNoatHF_out(lenof_sign/inum_runs)
+        real(dp) :: PopSumNoatHF(1024)
         HElement_t , intent(out) :: PopAllSumENum
         integer :: PopsVersion
         integer :: PopRandomHash(1024)
@@ -1187,7 +1188,8 @@ outer_map:      do i = 0, MappingNIfD
         call MPIBCast(PopTotwalk)
         call MPIBCast(PopSft)
         call MPIBCast(PopSft2)
-        call MPIBCast(PopSumNoatHF)
+        PopSumNoatHF_out = PopSumNoatHF(1:lenof_sign/inum_runs)
+        call MPIBCast(PopSumNoatHF_out)
         call MPIBCast(PopSumENum)
         call MPIBCast(PopCyc)
         call MPIBCast(PopNIfD)
