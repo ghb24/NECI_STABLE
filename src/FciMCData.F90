@@ -147,7 +147,7 @@ MODULE FciMCData
       real(dp) :: AvSign           !This is the average sign of the particles on each node
       real(dp) :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
       real(dp), dimension(inum_runs) :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
-      Real(dp), dimension(inum_runs) :: Annihilated      !This is the number annihilated on one processor
+      Real(dp), dimension(lenof_sign) :: Annihilated      !This is the number annihilated on one processor
       REAL(dp), DIMENSION(lenof_sign) :: NoatHF           !This is the instantaneous number of particles at the HF determinant
       REAL(dp), dimension(inum_runs) :: NoatDoubs
       REAL(dp), dimension(inum_runs) :: Acceptances      !This is the number of accepted spawns - this is only calculated per node.
