@@ -285,6 +285,8 @@ contains
 
             end do ! Over all repeats for a fixed initial walker configuration.
 
+            if (tOverlapPert) call average_and_communicate_pert_overlaps(kp%nrepeats)
+
             if (iProcIndex == root .and. tStoreKPMatrices) then
                 call average_kp_matrices_wrapper(kp)
                 call find_and_output_lowdin_eigv(kp)

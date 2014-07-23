@@ -178,8 +178,15 @@ module kp_fciqmc_procs
     ! (overlap_pert) to the popsfile wave function.
     logical :: tOverlapPert
     type(perturbation), save :: overlap_pert
+    ! The result of overlap_pert applied to the wave function read in from
+    ! a popsfile.
     integer(n_int), allocatable :: perturbed_ground(:,:)
+    ! The overlaps of perturbed_ground with the various Krylov vectors.
     real(dp), allocatable :: pert_overlaps(:)
+    ! The sum of pert_overlaps across all processes, calculated after all
+    ! iterations in a repeat have been performed and only stored on the
+    ! root process.
+    real(dp), allocatable :: all_pert_overlaps(:)
 
     ! Matrices used in the communication of the projected Hamiltonian and
     ! overlap matrices.
@@ -215,7 +222,7 @@ module kp_fciqmc_procs
     ! will give the final eigenvectors in the orthonormal basis, then
     ! we do the inverse of the transformation procedure to get back to
     ! the Krylov basis.
-    real(dp), allocatable :: kp_eigenvec_krylov(:,:)
+    real(dp), allocatable :: kp_eigenvecs_krylov(:,:)
 
 contains
 
@@ -443,6 +450,7 @@ contains
             write(6,'(a106)') "Note that the hash table uses linked lists, and the memory usage will &
                               &increase as further nodes are added."
         end if
+
         call init_hash_table(krylov_vecs_ht)
 
         if (tHamilOnFly) then
@@ -479,7 +487,10 @@ contains
         write(6,'(a13)',advance='no') "Allocating..."
         call neci_flush(6)
 
-        if (tOverlapPert) allocate(pert_overlaps(kp%nvecs))
+        if (tOverlapPert) then
+            allocate(pert_overlaps(kp%nvecs))
+            allocate(all_pert_overlaps(kp%nvecs))
+        end if
 
         if (tStoreKPMatrices) then
             allocate(kp%overlap_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
@@ -502,7 +513,7 @@ contains
         allocate(kp_overlap_eigenvecs(kp%nvecs, kp%nvecs))
         allocate(kp_transform_matrix(kp%nvecs, kp%nvecs))
         allocate(kp_inter_hamil(kp%nvecs, kp%nvecs))
-        allocate(kp_eigenvec_krylov(kp%nvecs, kp%nvecs))
+        allocate(kp_eigenvecs_krylov(kp%nvecs, kp%nvecs))
 
         write(6,'(1x,a5)') "Done."
 
@@ -530,15 +541,15 @@ contains
         ! numbers 0 to kp%nconfigs-1
         if (tMultiplePopStart) iPopsFileNoRead = -(kp%iconfig-1)-1
 
+        if (tOverlapPert .and. kp%irepeat == 1) then
+            pert_overlaps = 0.0_dp
+            call create_overlap_pert_vec()
+        end if
+
         call create_initial_config(kp)
 
         call reset_hash_table(krylov_vecs_ht)
         krylov_vecs = 0_n_int
-
-        if (tOverlapPert) then
-            call create_overlap_pert_vec()
-            pert_overlaps = 0.0_dp
-        end if
 
         ! Rezero all the necessary data.
         kp%overlap_matrix = 0.0_dp
@@ -599,7 +610,7 @@ contains
                 if (tReadPops) then
                     ! Call a wrapper function which will call the various functions
                     ! required to read in a popsfile.
-                    call kp_popsfile_wrapper(pops_pert)
+                    call kp_read_popsfile_wrapper(pops_pert)
                 else
                     ! Put a walker on the Hartree-Fock, with the requested amplitude.
                     call InitFCIMC_HF()
@@ -688,7 +699,7 @@ contains
 
     end subroutine create_initial_config
 
-    subroutine kp_popsfile_wrapper(perturb)
+    subroutine kp_read_popsfile_wrapper(perturb)
 
         type(perturbation), intent(in) :: perturb
 
@@ -702,7 +713,7 @@ contains
         real(dp), dimension(lenof_sign/inum_runs) :: PopSumNoatHF
         HElement_t :: PopAllSumENum
 
-        character(len=*), parameter :: t_r = "kp_popsfile_wrapper"
+        character(len=*), parameter :: t_r = "kp_read_popsfile_wrapper"
 
         ! Read the header.
         call open_pops_head(iunithead,formpops,binpops)
@@ -729,7 +740,7 @@ contains
         ! If requested output the norm of the *unperturbed* walkers in the POPSFILE.
         if (tWritePopsNorm) call write_pops_norm()
 
-    end subroutine kp_popsfile_wrapper
+    end subroutine kp_read_popsfile_wrapper
 
     subroutine create_overlap_pert_vec()
 
@@ -739,9 +750,11 @@ contains
         character(2) :: mem_fmt
         character(len=*), parameter :: t_r = "create_overlap_pert_vec"
 
+        if (allocated(perturbed_ground)) deallocate(perturbed_ground)
+
         ! Once this is finished, the vector that we want will be stored in
         ! CurrentDets. The total number of determinants will be TotWalkers.
-        call kp_popsfile_wrapper(overlap_pert)
+        call kp_read_popsfile_wrapper(overlap_pert)
 
         ! Print info about memory usage to the user.
         ! Memory required in MB.
@@ -1211,7 +1224,7 @@ contains
                 end if
             end do
 
-            pert_overlaps(ivec) = overlap
+            pert_overlaps(ivec) = pert_overlaps(ivec) + overlap
 
         end associate
 
@@ -1539,8 +1552,8 @@ contains
 
         type(kp_fciqmc_data), intent(in) :: kp
 
-        call average_kp_matrices(kp, kp%hamil_matrices, kp_hamil_mean, kp_hamil_se)
-        call average_kp_matrices(kp, kp%overlap_matrices, kp_overlap_mean, kp_overlap_se)
+        call average_kp_matrices(kp%nrepeats, kp%hamil_matrices, kp_hamil_mean, kp_hamil_se)
+        call average_kp_matrices(kp%nrepeats, kp%overlap_matrices, kp_overlap_mean, kp_overlap_se)
         if (tOutputAverageKPMatrices) then
             call output_average_kp_matrix(kp, 'av_hamil  ', kp_hamil_mean, kp_hamil_se)
             call output_average_kp_matrix(kp, 'av_overlap', kp_overlap_mean, kp_overlap_se)
@@ -1548,9 +1561,9 @@ contains
 
     end subroutine average_kp_matrices_wrapper
 
-    subroutine average_kp_matrices(kp, matrices, mean, se)
+    subroutine average_kp_matrices(nrepeats, matrices, mean, se)
 
-        type(kp_fciqmc_data), intent(in) :: kp
+        integer, intent(in) :: nrepeats
         real(dp), intent(in) :: matrices(:,:,:)
         real(dp), intent(inout) :: mean(:,:), se(:,:)
         integer :: irepeat
@@ -1558,16 +1571,16 @@ contains
         mean = 0.0_dp
         se = 0.0_dp
 
-        do irepeat = 1, kp%nrepeats
+        do irepeat = 1, nrepeats
             mean = mean + matrices(:,:,irepeat)
         end do
-        mean = mean/kp%nrepeats
+        mean = mean/nrepeats
 
-        if (kp%nrepeats > 1) then
-            do irepeat = 1, kp%nrepeats
+        if (nrepeats > 1) then
+            do irepeat = 1, nrepeats
                 se = se + (matrices(:,:,irepeat)-mean)**2
             end do
-            se = se/((kp%nrepeats-1)*kp%nrepeats)
+            se = se/((nrepeats-1)*nrepeats)
             se = sqrt(se)
         end if
 
@@ -1616,6 +1629,15 @@ contains
 
     end subroutine output_average_kp_matrix
 
+    subroutine average_and_communicate_pert_overlaps(nrepeats)
+
+        integer, intent(in) :: nrepeats
+
+        pert_overlaps = pert_overlaps/nrepeats
+        call MPISum(pert_overlaps, all_pert_overlaps)
+
+    end subroutine average_and_communicate_pert_overlaps
+
     subroutine find_and_output_lowdin_eigv(kp)
 
         type(kp_fciqmc_data), intent(in) :: kp
@@ -1623,10 +1645,21 @@ contains
         integer :: npositive, info, ierr
         real(dp), allocatable :: work(:)
         real(dp), allocatable :: kp_final_hamil(:,:), kp_hamil_eigv(:)
+        real(dp) :: pert_energy_overlaps(kp%nvecs)
         character(2) :: nkeep_fmt
         character(7) :: string_fmt
         character(25) :: ind1, filename
         character(len=*), parameter :: stem = "lowdin"
+
+        write(6,'("Correct:")')
+        do i = 1, kp%nvecs
+            write(6,'(1x,es19.12)') kp_overlap_mean(1,i)
+        end do
+
+        write(6,'("Perturbation result:")')
+        do i = 1, kp%nvecs
+            write(6,'(1x,es19.12)') all_pert_overlaps(i)
+        end do
 
         write(ind1,'(i15)') kp%iconfig
         filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
@@ -1654,6 +1687,15 @@ contains
             if (kp_overlap_eigv(i) > 0.0_dp) npositive = npositive + 1
         end do
 
+        if (tOverlapPert) then
+            write(temp_unit,'(/,"# The overlap of each final Hamiltonian eigenstate with each &
+                              &requested perturbed ground state will be printed. The first &
+                              &printed overlap is that with the first Krylov vector. The second &
+                              &printed overlap is that with the vector specified with the &
+                              &OVERLAP-PERTURB-ANNIHILATE and OVERLAP-PERTURB-CREATION &
+                              &options.")')
+        end if
+
         do nkeep = 1, npositive
 
             allocate(kp_final_hamil(nkeep,nkeep))
@@ -1661,7 +1703,7 @@ contains
 
             associate(transform_matrix => kp_transform_matrix(1:kp%nvecs, 1:nkeep), &
                       inter_hamil => kp_inter_hamil(1:kp%nvecs, 1:nkeep), &
-                      eigenvec_krylov => kp_eigenvec_krylov(1:kp%nvecs, 1:nkeep), &
+                      eigenvecs_krylov => kp_eigenvecs_krylov(1:kp%nvecs, 1:nkeep), &
                       init_overlaps => kp_init_overlaps(1:nkeep))
 
                 counter = 0
@@ -1675,8 +1717,10 @@ contains
 
                 call dsyev('V', 'U', nkeep, kp_final_hamil, nkeep, kp_hamil_eigv, work, lwork, info)
 
-                eigenvec_krylov = matmul(transform_matrix, kp_final_hamil)
-                init_overlaps = matmul(kp_overlap_mean(1,:), eigenvec_krylov)
+                eigenvecs_krylov = matmul(transform_matrix, kp_final_hamil)
+                init_overlaps = matmul(kp_overlap_mean(1,:), eigenvecs_krylov)
+
+                if (tOverlapPert) pert_energy_overlaps = matmul(all_pert_overlaps, eigenvecs_krylov)
 
                 nkeep_len = ceiling(log10(real(abs(nkeep)+1)))
                 write(nkeep_fmt,'(a1,i1)') "i", nkeep_len
@@ -1684,7 +1728,9 @@ contains
                 write(temp_unit,'(/,4("-"),a37,1x,'//nkeep_fmt//',1x,a12,'//string_fmt//')') &
                     "Eigenvalues and overlaps when keeping", nkeep, "eigenvectors"
                 do i = 1, nkeep
-                    write(temp_unit,'(1x,es19.12,1x,es19.12)') kp_hamil_eigv(i), init_overlaps(i)
+                    write(temp_unit,'(1x,es19.12,1x,es19.12)',advance='no') kp_hamil_eigv(i), init_overlaps(i)
+                    if (tOverlapPert) write(temp_unit,'(1x,es19.12)',advance='no') pert_energy_overlaps(i)
+                    write(temp_unit,'()',advance='yes')
                 end do
 
             end associate
