@@ -3,15 +3,24 @@
 module exact_spectrum
 
     use constants
-    use FciMCData, only: hamiltonian
+    use FciMCData, only: hamiltonian, perturbation
+    use kp_fciqmc_procs, only: read_popsfile_wrapper
     use spectral_lanczos, only: nomega_spectral, delta_omega_spectral, spectral_broadening
     use spectral_lanczos, only: spectral_ground_energy, tIncludeGroundSpectral, min_omega_sl
 
     implicit none
 
     integer :: ndets_es
-    real(dp), allocatable :: perturbed_ground_es(:)
-    real(dp), allocatable :: transition_amps_es(:)
+
+    real(dp), allocatable :: pert_ground_left(:)
+    real(dp), allocatable :: pert_ground_right(:)
+
+    type(perturbation), save :: left_perturb_es
+    type(perturbation), save :: right_perturb_es
+
+    real(dp), allocatable :: trans_amps_left(:)
+    real(dp), allocatable :: trans_amps_right(:)
+
     real(dp), allocatable :: eigv_es(:)
 
 contains
@@ -36,7 +45,8 @@ contains
         write(6,'(1x,a9,/)') "Complete."
         call neci_flush(6)
 
-        transition_amps_es = matmul(perturbed_ground_es, hamiltonian)
+        trans_amps_right = matmul(pert_ground_right, hamiltonian)
+        trans_amps_left = matmul(pert_ground_left, hamiltonian)
 
         call output_exact_spectrum()
 
@@ -48,12 +58,9 @@ contains
 
     subroutine init_exact_spectrum()
 
-        use bit_rep_data, only: NIfTot, NIfDBO, extract_sign
-        use bit_reps, only: decode_bit_det
-        use CalcData, only: pops_norm
-        use DetBitOps, only: DetBitEq, EncodeBitDet, ilut_lt, ilut_gt
+        use bit_rep_data, only: NIfTot, NIfDBO
+        use DetBitOps, only: EncodeBitDet, ilut_lt, ilut_gt
         use exact_diag, only: calculate_full_hamiltonian
-        use FciMCData, only: TotWalkers, CurrentDets
         use gndts_mod, only: gndts
         use sort_mod, only: sort
         use SystemData, only: nbasis, nel, BRR, nBasisMax, G1, tSpn, lms, tParity, SymRestrict
@@ -61,9 +68,7 @@ contains
         integer, allocatable :: nI_list(:,:)
         integer(n_int), allocatable :: ilut_list(:,:)
         integer(n_int) :: ilut(0:NIfTot)
-        integer :: nI(nel)
-        integer :: i, j, hf_ind, temp(1,1), ierr
-        real(dp) :: real_sign(lenof_sign)
+        integer :: i, hf_ind, temp(1,1), ierr
         character(len=*), parameter :: t_r = 'init_exact_spectrum'
 
         write(6,'(/,1x,a48,/)') "Beginning calculation of exact spectral density."
@@ -97,19 +102,31 @@ contains
         end if
         eigv_es = 0.0_dp
 
-        allocate(transition_amps_es(ndets_es), stat=ierr)
+        allocate(trans_amps_left(ndets_es), stat=ierr)
         if (ierr /= 0) then
             write(6,'(1x,a11,1x,i5)') "Error code:", ierr
-            call stop_all(t_r, "Error allocating array to hold transition amplitudes.")
+            call stop_all(t_r, "Error allocating array to hold left transition amplitudes.")
         end if
-        transition_amps_es = 0.0_dp
+        trans_amps_left = 0.0_dp
 
-        allocate(perturbed_ground_es(ndets_es), stat=ierr)
+        allocate(trans_amps_right(ndets_es), stat=ierr)
         if (ierr /= 0) then
             write(6,'(1x,a11,1x,i5)') "Error code:", ierr
-            call stop_all(t_r, "Error allocating array to hold perturbed ground state components.")
+            call stop_all(t_r, "Error allocating array to hold right transition amplitudes.")
         end if
-        perturbed_ground_es = 0.0_dp
+        trans_amps_right = 0.0_dp
+
+        allocate(pert_ground_left(ndets_es), stat=ierr)
+        if (ierr /= 0) then
+            write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+            call stop_all(t_r, "Error allocating array to hold left perturbed ground state components.")
+        end if
+
+        allocate(pert_ground_right(ndets_es), stat=ierr)
+        if (ierr /= 0) then
+            write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+            call stop_all(t_r, "Error allocating array to hold right perturbed ground state components.")
+        end if
 
         write(6,'(1x,a48)') "Allocating and calculating Hamiltonian matrix..."
         call neci_flush(6)
@@ -124,6 +141,39 @@ contains
         write(6,'(1x,a33)') "Hamiltonian calculation complete."
         call neci_flush(6)
 
+        call calc_and_store_perturbed_ground_es(left_perturb_es, ilut_list, pert_ground_left)
+        call calc_and_store_perturbed_ground_es(right_perturb_es, ilut_list, pert_ground_right)
+
+        deallocate(ilut_list)
+        deallocate(nI_list)
+
+    end subroutine init_exact_spectrum
+
+    subroutine calc_and_store_perturbed_ground_es(perturb, ilut_list, pert_ground_local)
+
+        use bit_rep_data, only: NIfDBO, extract_sign
+        use bit_reps, only: decode_bit_det
+        use CalcData, only: pops_norm
+        use DetBitOps, only: DetBitEq, EncodeBitDet, ilut_lt, ilut_gt
+        use FciMCData, only: TotWalkers, CurrentDets
+        use sort_mod, only: sort
+        use SystemData, only: nel
+
+        type(perturbation), intent(in) :: perturb
+        integer(n_int), intent(in) :: ilut_list(:,:)
+        real(dp), intent(inout) :: pert_ground_local(:)
+        integer :: i, j
+        integer :: nI(nel)
+        real(dp) :: real_sign(lenof_sign)
+        character(len=*), parameter :: t_r = 'calc_and_and_store_perturbed_ground_es'
+
+        pert_ground_local = 0.0_dp
+
+        ! Read in the POPSFILE and apply the perturbation operator, perturb, as we
+        ! do so. Afterwards, the perturbed wave function will be stored in
+        ! CurrentDets.
+        call read_popsfile_wrapper(perturb)
+
         j = 0
         call sort(CurrentDets(:,1:TotWalkers), ilut_lt, ilut_gt)
         do i = 1, int(TotWalkers, sizeof_int)
@@ -137,7 +187,7 @@ contains
             do
                 j = j + 1
                 if (DetBitEq(CurrentDets(:,i), ilut_list(:,j), NIfDBO)) then
-                    perturbed_ground_es(j) = real_sign(1)
+                    pert_ground_local(j) = real_sign(1)
                     exit
                 else if (j > ndets_es) then
                     write(6,*) "Determinant POPSFILE not found:", CurrentDets(:,i)
@@ -147,12 +197,9 @@ contains
                 end if
             end do
         end do
-        perturbed_ground_es = perturbed_ground_es/sqrt(pops_norm)
+        pert_ground_local = pert_ground_local/sqrt(pops_norm)
 
-        deallocate(ilut_list)
-        deallocate(nI_list)
-
-    end subroutine init_exact_spectrum
+    end subroutine calc_and_store_perturbed_ground_es
 
     subroutine output_exact_spectrum()
 
@@ -163,9 +210,10 @@ contains
 
         temp_unit = get_free_unit()
         open(temp_unit, file='SPECTRAL_DATA',status='replace')
-        write(temp_unit,'(1x,a38)') "Eigenvalues and transition amplitudes:"
+        write(temp_unit,'(1x,a38)') "Eigenvalues and left and right transition amplitudes:"
         do i = 1, ndets_es
-            write(temp_unit,'(1x,i7,5x,f15.10,5x,f15.10)') i, eigv_es(i), transition_amps_es(i)
+            write(temp_unit,'(1x,i7,5x,f15.10,5x,f15.10,5x,f15.10)') &
+                i, eigv_es(i), trans_amps_left(i), trans_amps_right(i)
         end do
         close(temp_unit)
 
@@ -183,7 +231,7 @@ contains
             spectral_weight = 0.0_dp
             do j = min_vec, ndets_es
                 spectral_weight = spectral_weight + &
-                    (transition_amps_es(j)**2*spectral_broadening)/&
+                    (trans_amps_left(j)*trans_amps_right(j)*spectral_broadening)/&
                     (pi*(spectral_broadening**2 + (spectral_ground_energy-eigv_es(j)+omega)**2))
             end do
             write(6,'(f18.12, 4x, f18.12)') omega, spectral_weight
@@ -194,8 +242,10 @@ contains
 
     subroutine end_exact_spectrum()
 
-        deallocate(perturbed_ground_es)
-        deallocate(transition_amps_es)
+        deallocate(pert_ground_left)
+        deallocate(pert_ground_right)
+        deallocate(trans_amps_left)
+        deallocate(trans_amps_right)
         deallocate(eigv_es)
         deallocate(hamiltonian)
 

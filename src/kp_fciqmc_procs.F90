@@ -610,7 +610,7 @@ contains
                 if (tReadPops) then
                     ! Call a wrapper function which will call the various functions
                     ! required to read in a popsfile.
-                    call kp_read_popsfile_wrapper(pops_pert)
+                    call read_popsfile_wrapper(pops_pert)
                 else
                     ! Put a walker on the Hartree-Fock, with the requested amplitude.
                     call InitFCIMC_HF()
@@ -699,7 +699,7 @@ contains
 
     end subroutine create_initial_config
 
-    subroutine kp_read_popsfile_wrapper(perturb)
+    subroutine read_popsfile_wrapper(perturb)
 
         type(perturbation), intent(in) :: perturb
 
@@ -713,7 +713,7 @@ contains
         real(dp), dimension(lenof_sign/inum_runs) :: PopSumNoatHF
         HElement_t :: PopAllSumENum
 
-        character(len=*), parameter :: t_r = "kp_read_popsfile_wrapper"
+        character(len=*), parameter :: t_r = "read_popsfile_wrapper"
 
         ! Read the header.
         call open_pops_head(iunithead,formpops,binpops)
@@ -740,7 +740,7 @@ contains
         ! If requested output the norm of the *unperturbed* walkers in the POPSFILE.
         if (tWritePopsNorm) call write_pops_norm()
 
-    end subroutine kp_read_popsfile_wrapper
+    end subroutine read_popsfile_wrapper
 
     subroutine create_overlap_pert_vec()
 
@@ -754,7 +754,7 @@ contains
 
         ! Once this is finished, the vector that we want will be stored in
         ! CurrentDets. The total number of determinants will be TotWalkers.
-        call kp_read_popsfile_wrapper(overlap_pert)
+        call read_popsfile_wrapper(overlap_pert)
 
         ! Print info about memory usage to the user.
         ! Memory required in MB.

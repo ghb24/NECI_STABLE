@@ -27,6 +27,7 @@ MODULE Calc
     use semi_stoch_gen, only: core_ras
     use ftlm_neci
     use spectral_lanczos
+    use exact_spectrum
 
     implicit none
 
@@ -1809,6 +1810,7 @@ contains
             case("WRITE-POPS-NORM")
                 tWritePopsNorm = .true.
 
+            ! Options relating to finite-temperature Lanczos calculations.
             case("NUM-INIT-VECS-FTLM")
                 call geti(n_init_vecs_ftlm)
             case("NUM-LANC-VECS-FTLM")
@@ -1817,6 +1819,8 @@ contains
                 call geti(nbeta_ftlm)
             case("BETA-FTLM")
                 call getf(delta_beta_ftlm)
+
+            ! Options relating to exact spectral calculations.
             case("NUM-LANC-VECS-SPECTRAL")
                 call geti(n_lanc_vecs_sl)
             case("NUM-OMEGA-SPECTRAL")
@@ -1831,6 +1835,42 @@ contains
                 tIncludeGroundSpectral = .true.
             case("GROUND-ENERGY-SPECTRAL")
                 call getf(spectral_ground_energy)
+            case("LEFT-ANNIHILATE-SPECTRAL")
+                left_perturb_es%nannihilate = nitems-1
+                allocate(left_perturb_es%ann_orbs(nitems-1))
+                do i = 1, nitems-1
+                    call readi(left_perturb_es%ann_orbs(i))
+                end do
+                ! Create the rest of the annihilation-related
+                ! components of the left_perturb_es object.
+                call init_perturbation_annihilation(left_perturb_es)
+            case("LEFT-CREATION-SPECTRAL")
+                left_perturb_es%ncreate = nitems-1
+                allocate(left_perturb_es%crtn_orbs(nitems-1))
+                do i = 1, nitems-1
+                    call readi(left_perturb_es%crtn_orbs(i))
+                end do
+                ! Create the rest of the creation-related
+                ! components of the left_perturb_es object.
+                call init_perturbation_creation(left_perturb_es)
+            case("RIGHT-ANNIHILATE-SPECTRAL")
+                right_perturb_es%nannihilate = nitems-1
+                allocate(right_perturb_es%ann_orbs(nitems-1))
+                do i = 1, nitems-1
+                    call readi(right_perturb_es%ann_orbs(i))
+                end do
+                ! Create the rest of the annihilation-related
+                ! components of the right_perturb_es object.
+                call init_perturbation_annihilation(right_perturb_es)
+            case("RIGHT-CREATION-SPECTRAL")
+                right_perturb_es%ncreate = nitems-1
+                allocate(right_perturb_es%crtn_orbs(nitems-1))
+                do i = 1, nitems-1
+                    call readi(right_perturb_es%crtn_orbs(i))
+                end do
+                ! Create the rest of the creation-related
+                ! components of the right_perturb_es object.
+                call init_perturbation_creation(right_perturb_es)
 
             case default
                 call report("Keyword "                                &
