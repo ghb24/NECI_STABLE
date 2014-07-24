@@ -210,7 +210,7 @@ contains
 
         temp_unit = get_free_unit()
         open(temp_unit, file='SPECTRAL_DATA',status='replace')
-        write(temp_unit,'(1x,a38)') "Eigenvalues and left and right transition amplitudes:"
+        write(temp_unit,'(1x,a53)') "Eigenvalues and left and right transition amplitudes:"
         do i = 1, ndets_es
             write(temp_unit,'(1x,i7,5x,f15.10,5x,f15.10,5x,f15.10)') &
                 i, eigv_es(i), trans_amps_left(i), trans_amps_right(i)
