@@ -1750,6 +1750,9 @@ contains
                 tSpecifyParBias = .true.
                 call getf(rand_excit_par_bias)
 
+            case("TAU-CNT-THRESHOLD")
+                write(6,*) 'WARNING: This option is unused in this branch'
+
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)
