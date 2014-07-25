@@ -99,7 +99,7 @@ contains
             ! sparse_core_ham.
             do k=1,lenof_sign
                 partial_determ_vector(k,:) = partial_determ_vector(k,:) + &
-                   DiagSft * full_determ_vector(k,determ_proc_indices(iProcIndex)+1:&
+                   DiagSft(1) * full_determ_vector(k,determ_proc_indices(iProcIndex)+1:&
                      determ_proc_indices(iProcIndex)+determ_proc_sizes(iProcIndex))
 
                 ! Now multiply the vector by tau to get the final projected vector.

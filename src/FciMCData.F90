@@ -154,7 +154,7 @@ MODULE FciMCData
       ! The sum of all walkers over an update cycle on each processor
       real(dp) :: SumWalkersCyc(inum_runs_max)
       ! The number annihilated per processor
-      real(dp) :: Annihilated(inum_runs_max)
+      real(dp) :: Annihilated(lenof_sign_max)
       ! The (instantaneous) number of particles on the Reference det
       real(dp) :: NoatHF(lenof_sign_max)
       real(dp) :: NoatDoubs(inum_runs_max)

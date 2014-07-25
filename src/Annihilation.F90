@@ -719,8 +719,9 @@ MODULE AnnihilationMod
                 ! cum_sgn == 0, new_sgn /= 0, therefore just take the flags
                 ! from the new particles (of that type).
                 call copy_flag(new_det,cum_det,flag_is_initiator(part_type))
-                !Below is what we were previously doing, but we don't want to copy both
-                !flags, since the 'other' type may well be non-zero.
+                ! Below is what we were doing, but this copies too much, we
+                ! only want to consider this particle type, and we only want
+                ! to consider the initiator flag!
                 !call encode_flags (cum_det, extract_flags (new_det))
             endif
 
