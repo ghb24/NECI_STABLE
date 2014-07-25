@@ -68,8 +68,13 @@ endif
 
 ! Make Re / Cplx builds easier
 #ifdef __CMPLX
+#ifdef __PROG_NUMRUNS
+#define ARR_RE_OR_CPLX(arr,index) cmplx(arr(2*(index-1)+1), arr(2*(index-1+)2), dp)
+#define ARR_ABS(arr) abs(cmplx(arr(2*(index-1)+1), arr(2*(index-1)+2), dp))
+#else
 #define ARR_RE_OR_CPLX(arr,index) cmplx(arr(1), arr(2), dp)
 #define ARR_ABS(arr) abs(cmplx(arr(1), arr(2), dp))
+#endif
 #elif __DOUBLERUN
 #define ARR_RE_OR_CPLX(arr,index) real(arr(index), dp)
 #define ARR_ABS(arr) abs(arr(1))

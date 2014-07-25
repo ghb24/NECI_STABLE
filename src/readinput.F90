@@ -178,7 +178,8 @@ MODULE ReadInput_neci
                             TNoSameExcit, TInitStar, tMP2Standalone, &
                             GrowMaxFactor, MemoryFacPart, tTruncInitiator, &
                             tSpawnSpatialInit, tSpatialOnlyHash, InitWalkers, &
-                            tUniqueHFNode, InitiatorCutoffEnergy, tCCMC
+                            tUniqueHFNode, InitiatorCutoffEnergy, tCCMC, &
+                            tSemiStochastic
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -442,6 +443,15 @@ MODULE ReadInput_neci
         if (tCCMC .and. .not. (InitiatorCutoffEnergy > 1.0e99_dp)) then
             call stop_all(t_r, 'Initiator cutoff not implemented for CCMC')
         end if
+
+#ifdef __PROG_NUMRUNS
+        if (tSemiStochastic) then
+            write(6,*) '*** WARNING ***'
+            write(6,*) "Multiple runs has not been implemented considering &
+                       &semi stochastic. This almost certainly won't work"
+            call stop_all(t_r, 'Not yet implemented')
+        end if
+#endif
 
     end subroutine checkinput
 
