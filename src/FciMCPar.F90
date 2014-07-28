@@ -285,7 +285,7 @@ MODULE FciMCParMod
 
         do while (Iter <= NMCyc .or. NMCyc == -1)
 !Main iteration loop...
-!            WRITE(iout,*) 'Iter',Iter
+            IFDEBUG(FCIMCDebug, 2) write(iout,*) 'Iter', iter
 
             if(iProcIndex.eq.root) s_start=neci_etime(tstart)
             
