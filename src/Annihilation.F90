@@ -1181,12 +1181,14 @@ MODULE AnnihilationMod
                                 NoRemoved(j) = NoRemoved(j) + abs(SignTemp(j))
                                 !Annihilated = Annihilated + abs(SignTemp(j))
                                 !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
-                                iter_data%nremoved(j) = iter_data%nremoved(j) + abs(SignTemp(j))
+                                iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                                      + abs(SignTemp(j))
                                 SignTemp(j) = 0.0_dp
                                 call nullify_ilut_part (SpawnedParts(:,i), j)
                             elseif (tEnhanceRemainder) then
                                 NoBorn(j) = NoBorn(j) + OccupiedThresh - abs(SignTemp(j))
-                                iter_data%nborn(j) = iter_data%nborn(j) + OccupiedThresh - abs(SignTemp(j))
+                                iter_data%nborn(j) = iter_data%nborn(j) &
+                                          + OccupiedThresh - abs(SignTemp(j))
                                 SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
                                 call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
                             endif
@@ -1224,12 +1226,14 @@ MODULE AnnihilationMod
                                 NoRemoved(j) = NoRemoved(j) + abs(SignTemp(j))
                                 !Annihilated = Annihilated + abs(SignTemp(j))
                                 !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
-                                iter_data%nremoved(j) = iter_data%nremoved(j) + abs(SignTemp(j))
+                                iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                                      + abs(SignTemp(j))
                                 SignTemp(j) = 0
                                 call nullify_ilut_part (SpawnedParts(:,i), j)
                             elseif (tEnhanceRemainder) then
                                 NoBorn(j) = NoBorn(j) + OccupiedThresh - abs(SignTemp(j))
-                                iter_data%nborn(j) = iter_data%nborn(j) + OccupiedThresh - abs(SignTemp(j))
+                                iter_data%nborn(j) = iter_data%nborn(j) &
+                                            + OccupiedThresh - abs(SignTemp(j))
                                 SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
                                 call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
                             endif
@@ -1431,7 +1435,8 @@ MODULE AnnihilationMod
                                 if (pRemove .gt. r) then
                                     !Remove this walker
                                     NoRemoved(j) = NoRemoved(j) + abs(CurrentSign(j))
-                                    iter_data%nremoved(j) = iter_data%nremoved(j) + abs(CurrentSign(j))
+                                    iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                                          + abs(CurrentSign(j))
                                     CurrentSign(j) = 0.0_dp
                                     call nullify_ilut_part(CurrentDets(:,i), j)
                                     call decode_bit_det(nI, CurrentDets(:,i))
@@ -1440,7 +1445,8 @@ MODULE AnnihilationMod
                                     FreeSlot(iEndFreeSlot)=i
                                 elseif (tEnhanceRemainder) then
                                     NoBorn(j) = NoBorn(j) + OccupiedThresh - abs(CurrentSign(j))
-                                    iter_data%nborn(j) = iter_data%nborn(j) + OccupiedThresh - abs(CurrentSign(j))
+                                    iter_data%nborn(j) = iter_data%nborn(j) &
+                                         + OccupiedThresh - abs(CurrentSign(j))
                                     CurrentSign(j) = sign(OccupiedThresh, CurrentSign(j))
                                     call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
                                 endif
@@ -1617,14 +1623,16 @@ MODULE AnnihilationMod
                                 NoRemoved(j) = NoRemoved(j) + abs(CurrentSign(j))
                                 !Annihilated = Annihilated + abs(CurrentSign(j))
                                 !iter_data%nannihil = iter_data%nannihil + abs(CurrentSign(j))
-                                iter_data%nremoved(j) = iter_data%nremoved(j) + abs(CurrentSign(j))
+                                iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                                      + abs(CurrentSign(j))
                                 CurrentSign(j) = 0
                                 call nullify_ilut_part (CurrentDets(:,i), j)
                             elseif (tEnhanceRemainder) then
                                 ! SDS: TODO: Account for the TotParts Changes
                                 ! Should we always do this here? Probably. Should
                                 NoBorn(j) = NoBorn(j) + OccupiedThresh - abs(CurrentSign(j))
-                                iter_data%nborn(j) = iter_data%nborn(j) + OccupiedThresh - abs(CurrentSign(j))
+                                iter_data%nborn(j) = iter_data%nborn(j) &
+                                         + OccupiedThresh - abs(CurrentSign(j))
                                 CurrentSign(j) = sign(OccupiedThresh, CurrentSign(j))
                                 call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
                             endif
