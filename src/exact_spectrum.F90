@@ -4,7 +4,7 @@ module exact_spectrum
 
     use constants
     use FciMCData, only: hamiltonian, perturbation
-    use kp_fciqmc_procs, only: read_popsfile_wrapper
+    use PopsfileMod, only: read_popsfile_wrapper
     use spectral_lanczos, only: nomega_spectral, delta_omega_spectral, spectral_broadening
     use spectral_lanczos, only: spectral_ground_energy, tIncludeGroundSpectral, min_omega_sl
 

@@ -10,7 +10,7 @@ MODULE PopsfileMod
                         iWeightPopRead, iPopsFileNoRead, tPopsMapping, Tau, &
                         InitiatorWalkNo, MemoryFacPart, MemoryFacAnnihil, &
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
-                        pops_norm
+                        pops_norm, tWritePopsNorm
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt, CountBits
     use hash, only : DetermineDetNode, FindWalkerHash
@@ -600,6 +600,125 @@ outer_map:      do i = 0, MappingNIfD
 
     end function read_popsfile_det
 
+    subroutine read_popsfile_wrapper(perturb)
+
+        type(perturbation), intent(in) :: perturb
+
+        integer :: iunithead, PopsVersion
+        ! Variables from popsfile header...
+        integer :: iPopLenof_sign, iPopNel, iPopIter, PopNIfD, PopNIfY, WalkerListSize
+        integer :: PopNIfSgn, PopNIfFlag, PopNIfTot, PopBlockingIter
+        logical :: tPop64Bit, tPopHPHF, tPopLz, formpops, binpops
+        integer(int64) :: iPopAllTotWalkers
+        real(dp) :: PopDiagSft, read_tau
+        real(dp), dimension(lenof_sign/inum_runs) :: PopSumNoatHF
+        HElement_t :: PopAllSumENum
+
+        character(len=*), parameter :: t_r = "read_popsfile_wrapper"
+
+        ! Read the header.
+        call open_pops_head(iunithead,formpops,binpops)
+
+        PopsVersion = FindPopsfileVersion(iunithead)
+
+        if(PopsVersion == 4) then
+            call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+                    iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
+                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
+        else
+            call stop_all(t_r, "Only version 4 popsfile are supported with kp-fciqmc.")
+        endif
+
+        call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+                iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
+                PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau, &
+                PopBlockingIter, perturb)
+
+        if (iProcIndex == root) close(iunithead)
+
+        call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, perturb)
+
+        ! If requested output the norm of the *unperturbed* walkers in the POPSFILE.
+        if (tWritePopsNorm) call write_pops_norm()
+
+    end subroutine read_popsfile_wrapper
+
+    subroutine InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, perturb)
+
+        use CalcData, only : iReadWalkersRoot
+
+        integer(int64), intent(in) :: iPopAllTotWalkers
+        integer, intent(in) :: PopNIfSgn
+        ! An optional perturbation operator to apply to the determinants
+        ! as they are read in from the popsfile.
+        type(perturbation), intent(in) :: perturb
+
+        integer :: run, ReadBatch
+        character(len=*), parameter :: this_routine='InitFCIMC_pops'
+
+        if(iReadWalkersRoot.eq.0) then
+
+            ! ReadBatch is the number of walkers to read in from the 
+            ! popsfile at one time. The larger it is, the fewer
+            ! communictions will be needed to scatter the particles.
+            !
+            ! By default, the new array (which is only created on the 
+            ! root processors) is the same length as the spawning 
+            ! arrays.
+            ReadBatch=MaxSpawned
+        else
+            ReadBatch = iReadWalkersRoot
+        endif
+
+        ! TotWalkers and TotParts are returned as the dets and parts 
+        ! on each processor.
+        call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, &
+                              TotWalkers ,TotParts, NoatHF, &
+                              CurrentDets, MaxWalkersPart, &
+                              PopNIfSgn, perturb)
+
+        !Setup global variables
+        TotWalkersOld=TotWalkers
+        TotPartsOld = TotParts
+        call MPISumAll(TotWalkers,AllTotWalkers)
+        AllTotWalkersOld = AllTotWalkers
+        call MPISumAll(TotParts,AllTotParts)
+        AllTotPartsOld=AllTotParts
+        call MPISumAll(NoatHF,AllNoatHF)
+        OldAllNoatHF=AllNoatHF
+#ifdef __CMPLX
+        OldAllAvWalkersCyc=sum(AllTotParts)
+#else
+        OldAllAvWalkersCyc=AllTotParts
+#endif
+        
+        do run=1,inum_runs
+            OldAllHFCyc(run) = ARR_RE_OR_CPLX(AllNoatHF,run)
+        enddo
+        
+        AllNoAbortedOld(:)=0.0_dp
+        iter_data_fciqmc%tot_parts_old = AllTotParts
+        
+        ! Calculate the projected energy for this iteration.
+        do run=1,inum_runs
+            if (ARR_RE_OR_CPLX(AllSumNoAtHF,run)/=0) &
+                ProjectionE(run) = AllSumENum(run) / ARR_RE_OR_CPLX(AllSumNoatHF,run)
+        enddo 
+
+        if(iProcIndex.eq.iHFProc) then
+            !Need to store SumENum and SumNoatHF, since the global variable All... gets wiped each iteration. 
+            !Rather than POPSFILE v2, where the average values were scattered, just store the previous
+            !energy contributions on the root node.
+            SumNoatHF(:)=AllSumNoatHF(:)
+            SumENum(:)=AllSumENum(:)
+            InstNoatHF(:) = NoatHF(:)
+
+            if((AllNoatHF(1).ne.NoatHF(1)).or.(AllNoatHF(lenof_sign).ne.NoatHF(lenof_sign))) then
+                call stop_all(this_routine,"HF particles spread across different processors.")
+            endif
+        endif
+
+    end subroutine InitFCIMC_pops
     
     !Read in mapping file, and store the mapping between orbitals in the old and new bases.
     subroutine init_popsfile_mapping()

@@ -16,7 +16,7 @@ module kp_fciqmc_procs
     use FciMCData
     use FciMCParMod, only: create_particle, InitFCIMC_HF, SetupParameters, InitFCIMCCalcPar
     use FciMCParMod, only: init_fcimc_fn_pointers, WriteFciMCStats, WriteFciMCStatsHeader
-    use FciMCParMod, only: rezero_iter_stats_each_iter, tSinglePartPhase, InitFCIMC_pops
+    use FciMCParMod, only: rezero_iter_stats_each_iter, tSinglePartPhase
     use gndts_mod, only: gndts
     use hash, only: FindWalkerHash, init_hash_table, reset_hash_table, fill_in_hash_table
     use hash, only: DetermineDetNode, remove_node
@@ -26,8 +26,7 @@ module kp_fciqmc_procs
     use LoggingData, only: tIncrementPops
     use Parallel_neci, only: MPIBarrier, iProcIndex, MPISum, MPIReduce, nProcessors, MPIAllReduce
     use ParallelHelper, only: root
-    use PopsfileMod, only: FindPopsfileVersion, open_pops_head, ReadPopsHeadv4, CheckPopsParams
-    use PopsfileMod, only: write_pops_norm
+    use PopsfileMod, only: read_popsfile_wrapper
     use procedure_pointers
     use semi_stoch_procs, only: copy_core_dets_this_proc_to_spawnedparts, fill_in_CurrentH
     use semi_stoch_procs, only: add_core_states_currentdet_hash, start_walkers_from_core_ground
@@ -698,49 +697,6 @@ contains
         end if
 
     end subroutine create_initial_config
-
-    subroutine read_popsfile_wrapper(perturb)
-
-        type(perturbation), intent(in) :: perturb
-
-        integer :: iunithead, PopsVersion
-        ! Variables from popsfile header...
-        integer :: iPopLenof_sign, iPopNel, iPopIter, PopNIfD, PopNIfY, WalkerListSize
-        integer :: PopNIfSgn, PopNIfFlag, PopNIfTot, PopBlockingIter
-        logical :: tPop64Bit, tPopHPHF, tPopLz, formpops, binpops
-        integer(int64) :: iPopAllTotWalkers
-        real(dp) :: PopDiagSft, read_tau
-        real(dp), dimension(lenof_sign/inum_runs) :: PopSumNoatHF
-        HElement_t :: PopAllSumENum
-
-        character(len=*), parameter :: t_r = "read_popsfile_wrapper"
-
-        ! Read the header.
-        call open_pops_head(iunithead,formpops,binpops)
-
-        PopsVersion = FindPopsfileVersion(iunithead)
-
-        if(PopsVersion == 4) then
-            call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                    iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
-                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
-        else
-            call stop_all(t_r, "Only version 4 popsfile are supported with kp-fciqmc.")
-        endif
-
-        call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
-                PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau, &
-                PopBlockingIter, perturb)
-
-        if (iProcIndex == root) close(iunithead)
-
-        call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, perturb)
-
-        ! If requested output the norm of the *unperturbed* walkers in the POPSFILE.
-        if (tWritePopsNorm) call write_pops_norm()
-
-    end subroutine read_popsfile_wrapper
 
     subroutine create_overlap_pert_vec()
 
