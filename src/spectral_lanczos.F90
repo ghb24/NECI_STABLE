@@ -15,6 +15,7 @@ module spectral_lanczos
                              MPISumAll
     use ParallelHelper, only: root
     use sparse_arrays, only: calculate_sparse_hamiltonian_parallel, sparse_ham
+    use spectral_data
 
     implicit none
 
@@ -27,15 +28,7 @@ module spectral_lanczos
     real(dp), allocatable :: sl_h_eigv(:), sl_overlaps(:), sl_trans_amps(:)
     real(dp) :: allnorm_pert_sl
 
-    integer :: nomega_spectral
-    real(dp) :: spectral_broadening
-    real(dp) :: delta_omega_spectral
-    real(dp) :: min_omega_sl
-
     integer :: sl_unit
-
-    logical :: tIncludeGroundSpectral
-    real(dp) :: spectral_ground_energy
 
 contains
 
@@ -45,13 +38,7 @@ contains
 
         call init_spectral_lanczos()
 
-        write(6,*) "Here1"
-        call neci_flush(6)
-
         do i = 1, n_lanc_vecs_sl-1
-            write(6,*) "Here2"
-            call neci_flush(6)
-
             call subspace_expansion_lanczos(i, sl_vecs, full_vec_sl, sl_hamil, ndets_sl, disps_sl)
             write(6,'(1x,a19,1x,i3)') "Iteration complete:", i
             call neci_flush(6)
@@ -194,9 +181,6 @@ contains
 
         deallocate(ilut_list)
 
-        write(6,*) "Here0"
-        call neci_flush(6)
-
     end subroutine init_spectral_lanczos
 
     subroutine subspace_extraction_sl()
@@ -257,7 +241,7 @@ contains
             min_vec = 2
         end if
 
-        omega = min_omega_sl
+        omega = min_omega_spectral
         do i = 1, nomega_spectral + 1
             spectral_weight = 0.0_dp
             do j = min_vec, n_lanc_vecs_sl

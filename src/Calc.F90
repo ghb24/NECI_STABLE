@@ -26,7 +26,8 @@ MODULE Calc
                          tTrialHash, tIncCancelledInitEnergy, tStartCoreGroundState, pops_pert
     use semi_stoch_gen, only: core_ras
     use ftlm_neci
-    use spectral_lanczos
+    use spectral_data
+    use spectral_lanczos, only: n_lanc_vecs_sl
     use exact_spectrum
 
     implicit none
@@ -344,7 +345,7 @@ contains
           n_lanc_vecs_sl = 20
           nomega_spectral = 100
           delta_omega_spectral = 0.01_dp
-          min_omega_sl = 0.0_dp
+          min_omega_spectral = 0.0_dp
           spectral_broadening = 0.05_dp
           spectral_ground_energy = 0.0_dp
           tIncludeGroundSpectral = .false.
@@ -1828,7 +1829,7 @@ contains
             case("OMEGA-SPECTRAL")
                 call getf(delta_omega_spectral)
             case("MIN-OMEGA-SPECTRAL")
-                call getf(min_omega_sl)
+                call getf(min_omega_spectral)
             case("BROADENING_SPECTRAL")
                 call getf(spectral_broadening)
             case("INCLUDE-GROUND-SPECTRAL")
