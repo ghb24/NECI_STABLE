@@ -6,6 +6,7 @@ module exact_spectrum
     use FciMCData, only: hamiltonian, perturbation
     use PopsfileMod, only: read_popsfile_wrapper
     use spectral_data
+    use spectral_lanczos, only: output_spectrum, return_perturbed_ground_spectral
 
     implicit none
 
@@ -36,7 +37,7 @@ contains
         trans_amps_right = matmul(pert_ground_right, hamiltonian)
         trans_amps_left = matmul(pert_ground_left, hamiltonian)
 
-        call output_exact_spectrum(ndets)
+        call output_spectrum(ndets, eigv_es)
 
         call end_exact_spectrum()
 
@@ -130,107 +131,13 @@ contains
         write(6,'(1x,a33)') "Hamiltonian calculation complete."
         call neci_flush(6)
 
-        call calc_and_store_perturbed_ground_es(ndets, left_perturb_es, ilut_list, pert_ground_left)
-        call calc_and_store_perturbed_ground_es(ndets, right_perturb_es, ilut_list, pert_ground_right)
+        call return_perturbed_ground_spectral(left_perturb_spectral, ilut_list, pert_ground_left, left_pert_norm)
+        call return_perturbed_ground_spectral(right_perturb_spectral, ilut_list, pert_ground_right, right_pert_norm)
 
         deallocate(ilut_list)
         deallocate(nI_list)
 
     end subroutine init_exact_spectrum
-
-    subroutine calc_and_store_perturbed_ground_es(ndets, perturb, ilut_list, pert_ground_local)
-
-        use bit_rep_data, only: NIfDBO, extract_sign
-        use bit_reps, only: decode_bit_det
-        use CalcData, only: pops_norm
-        use DetBitOps, only: DetBitEq, EncodeBitDet, ilut_lt, ilut_gt
-        use FciMCData, only: TotWalkers, CurrentDets
-        use sort_mod, only: sort
-        use SystemData, only: nel
-
-        integer, intent(in) :: ndets
-        type(perturbation), intent(in) :: perturb
-        integer(n_int), intent(in) :: ilut_list(:,:)
-        real(dp), intent(inout) :: pert_ground_local(:)
-
-        integer :: i, j
-        integer :: nI(nel)
-        real(dp) :: real_sign(lenof_sign)
-        character(len=*), parameter :: t_r = 'calc_and_and_store_perturbed_ground_es'
-
-        pert_ground_local = 0.0_dp
-
-        ! Read in the POPSFILE and apply the perturbation operator, perturb, as we
-        ! do so. Afterwards, the perturbed wave function will be stored in
-        ! CurrentDets.
-        call read_popsfile_wrapper(perturb)
-
-        j = 0
-        call sort(CurrentDets(:,1:TotWalkers), ilut_lt, ilut_gt)
-        do i = 1, int(TotWalkers, sizeof_int)
-            call extract_sign(CurrentDets(:,i), real_sign)
-            ! If the POPSFILE was generated from a calculation with the linear-scaling
-            ! algorithm then it is possible to have the same determinant twice in a
-            ! row, once with zero weight. If this is the case, skip the second case.
-            if (i > 1) then
-                if (DetBitEq(CurrentDets(:,i-1), CurrentDets(:,i), NIfDBO)) cycle
-            end if
-            do
-                j = j + 1
-                if (DetBitEq(CurrentDets(:,i), ilut_list(:,j), NIfDBO)) then
-                    pert_ground_local(j) = real_sign(1)
-                    exit
-                else if (j > ndets) then
-                    write(6,*) "Determinant POPSFILE not found:", CurrentDets(:,i)
-                    call decode_bit_det(nI, CurrentDets(:,i))
-                    write(6,*) "Occupied orbitals in the above POPSFILE determinant:", nI
-                    call stop_all(t_r, "Determinant in POPSFILE not found in the enumerated FCI space.")
-                end if
-            end do
-        end do
-        pert_ground_local = pert_ground_local/sqrt(pops_norm)
-
-    end subroutine calc_and_store_perturbed_ground_es
-
-    subroutine output_exact_spectrum(ndets)
-
-        use util_mod, only: get_free_unit
-
-        integer, intent(in) :: ndets
-        integer :: i, j, min_vec, temp_unit
-        real(dp) :: omega, spectral_weight
-
-        temp_unit = get_free_unit()
-        open(temp_unit, file='SPECTRAL_DATA',status='replace')
-        write(temp_unit,'(1x,a53)') "Eigenvalues and left and right transition amplitudes:"
-        do i = 1, ndets
-            write(temp_unit,'(1x,i7,5x,f15.10,5x,f15.10,5x,f15.10)') &
-                i, eigv_es(i), trans_amps_left(i), trans_amps_right(i)
-        end do
-        close(temp_unit)
-
-        write(6,'(1x,a5,18X,a15)') "Omega", "Spectral_weight"
-
-        ! Do we include the ground state in the spectrum or not?
-        if (tIncludeGroundSpectral) then
-            min_vec = 1
-        else
-            min_vec = 2
-        end if
-
-        omega = min_omega_spectral
-        do i = 1, nomega_spectral + 1
-            spectral_weight = 0.0_dp
-            do j = min_vec, ndets
-                spectral_weight = spectral_weight + &
-                    (trans_amps_left(j)*trans_amps_right(j)*spectral_broadening)/&
-                    (pi*(spectral_broadening**2 + (spectral_ground_energy-eigv_es(j)+omega)**2))
-            end do
-            write(6,'(f18.12, 4x, f18.12)') omega, spectral_weight
-            omega = omega + delta_omega_spectral
-        end do
-
-    end subroutine output_exact_spectrum
 
     subroutine end_exact_spectrum()
 

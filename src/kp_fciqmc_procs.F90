@@ -1607,16 +1607,6 @@ contains
         character(25) :: ind1, filename
         character(len=*), parameter :: stem = "lowdin"
 
-        write(6,'("Correct:")')
-        do i = 1, kp%nvecs
-            write(6,'(1x,es19.12)') kp_overlap_mean(1,i)
-        end do
-
-        write(6,'("Perturbation result:")')
-        do i = 1, kp%nvecs
-            write(6,'(1x,es19.12)') all_pert_overlaps(i)
-        end do
-
         write(ind1,'(i15)') kp%iconfig
         filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
         temp_unit = get_free_unit()

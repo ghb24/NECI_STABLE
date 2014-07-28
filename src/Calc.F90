@@ -1837,41 +1837,41 @@ contains
             case("GROUND-ENERGY-SPECTRAL")
                 call getf(spectral_ground_energy)
             case("LEFT-ANNIHILATE-SPECTRAL")
-                left_perturb_es%nannihilate = nitems-1
-                allocate(left_perturb_es%ann_orbs(nitems-1))
+                left_perturb_spectral%nannihilate = nitems-1
+                allocate(left_perturb_spectral%ann_orbs(nitems-1))
                 do i = 1, nitems-1
-                    call readi(left_perturb_es%ann_orbs(i))
+                    call readi(left_perturb_spectral%ann_orbs(i))
                 end do
                 ! Create the rest of the annihilation-related
-                ! components of the left_perturb_es object.
-                call init_perturbation_annihilation(left_perturb_es)
+                ! components of the left_perturb_spectral object.
+                call init_perturbation_annihilation(left_perturb_spectral)
             case("LEFT-CREATION-SPECTRAL")
-                left_perturb_es%ncreate = nitems-1
-                allocate(left_perturb_es%crtn_orbs(nitems-1))
+                left_perturb_spectral%ncreate = nitems-1
+                allocate(left_perturb_spectral%crtn_orbs(nitems-1))
                 do i = 1, nitems-1
-                    call readi(left_perturb_es%crtn_orbs(i))
+                    call readi(left_perturb_spectral%crtn_orbs(i))
                 end do
                 ! Create the rest of the creation-related
-                ! components of the left_perturb_es object.
-                call init_perturbation_creation(left_perturb_es)
+                ! components of the left_perturb_spectral object.
+                call init_perturbation_creation(left_perturb_spectral)
             case("RIGHT-ANNIHILATE-SPECTRAL")
-                right_perturb_es%nannihilate = nitems-1
-                allocate(right_perturb_es%ann_orbs(nitems-1))
+                right_perturb_spectral%nannihilate = nitems-1
+                allocate(right_perturb_spectral%ann_orbs(nitems-1))
                 do i = 1, nitems-1
-                    call readi(right_perturb_es%ann_orbs(i))
+                    call readi(right_perturb_spectral%ann_orbs(i))
                 end do
                 ! Create the rest of the annihilation-related
-                ! components of the right_perturb_es object.
-                call init_perturbation_annihilation(right_perturb_es)
+                ! components of the right_perturb_spectral object.
+                call init_perturbation_annihilation(right_perturb_spectral)
             case("RIGHT-CREATION-SPECTRAL")
-                right_perturb_es%ncreate = nitems-1
-                allocate(right_perturb_es%crtn_orbs(nitems-1))
+                right_perturb_spectral%ncreate = nitems-1
+                allocate(right_perturb_spectral%crtn_orbs(nitems-1))
                 do i = 1, nitems-1
-                    call readi(right_perturb_es%crtn_orbs(i))
+                    call readi(right_perturb_spectral%crtn_orbs(i))
                 end do
                 ! Create the rest of the creation-related
-                ! components of the right_perturb_es object.
-                call init_perturbation_creation(right_perturb_es)
+                ! components of the right_perturb_spectral object.
+                call init_perturbation_creation(right_perturb_spectral)
 
             case default
                 call report("Keyword "                                &

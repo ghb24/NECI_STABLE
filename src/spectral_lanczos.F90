@@ -14,6 +14,7 @@ module spectral_lanczos
     use Parallel_neci, only: iProcIndex, nProcessors, MPIAllGatherV, MPIAllGather, &
                              MPISumAll
     use ParallelHelper, only: root
+    use PopsfileMod, only: read_popsfile_wrapper
     use sparse_arrays, only: calculate_sparse_hamiltonian_parallel, sparse_ham
     use spectral_data
 
@@ -25,10 +26,7 @@ module spectral_lanczos
     integer(MPIArg), allocatable :: ndets_sl(:), disps_sl(:)
     integer :: n_lanc_vecs_sl
 
-    real(dp), allocatable :: sl_h_eigv(:), sl_overlaps(:), sl_trans_amps(:)
-    real(dp) :: allnorm_pert_sl
-
-    integer :: sl_unit
+    real(dp), allocatable :: sl_h_eigv(:), sl_overlaps(:)
 
 contains
 
@@ -51,7 +49,7 @@ contains
         write(6,'(1x,a60,/)') "Spectral Lanczos calculation complete. Outputting results..."
         call neci_flush(6)
 
-        call output_spectral_lanczos()
+        call output_spectrum(n_lanc_vecs_sl, sl_h_eigv)
 
         call end_spectral_lanczos()
 
@@ -65,7 +63,7 @@ contains
         use hash, only: DetermineDetNode
         use sort_mod, only: sort
         use SystemData, only: nbasis, nel, BRR, nBasisMax, G1, tSpn, LMS, tParity, SymRestrict
-        use util_mod, only: choose, get_free_unit
+        use util_mod, only: choose
 
         integer :: ndets_this_proc, ndets_tot
         integer(MPIArg) :: mpi_temp
@@ -79,9 +77,6 @@ contains
 
         write(6,'(/,1x,a39,/)') "Beginning spectral Lanczos calculation."
         call neci_flush(6)
-
-        sl_unit = get_free_unit()
-        open(sl_unit, file='SPECTRAL_DATA',status='replace')
 
         allocate(ndets_sl(0:nProcessors-1))
         allocate(disps_sl(0:nProcessors-1))
@@ -138,14 +133,22 @@ contains
         write(6,'(1x,a9)') "Complete."
         call neci_flush(6)
 
+        allocate(pert_ground_left(ndets), stat=ierr)
+        if (ierr /= 0) then
+            write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+            call stop_all(t_r, "Error allocating array to hold left perturbed ground state components.")
+        end if
+
         allocate(sl_hamil(n_lanc_vecs_sl, n_lanc_vecs_sl))
         allocate(sl_h_eigv(n_lanc_vecs_sl))
         allocate(sl_overlaps(n_lanc_vecs_sl))
-        allocate(sl_trans_amps(n_lanc_vecs_sl))
+        allocate(trans_amps_left(n_lanc_vecs_sl))
+        allocate(trans_amps_right(n_lanc_vecs_sl))
         sl_hamil = 0.0_dp
         sl_h_eigv = 0.0_dp
         sl_overlaps = 0.0_dp
-        sl_trans_amps = 0.0_dp
+        trans_amps_left = 0.0_dp
+        trans_amps_right = 0.0_dp
 
         write(6,'(1x,a48)') "Allocating and calculating Hamiltonian matrix..."
         call neci_flush(6)
@@ -153,8 +156,45 @@ contains
         write(6,'(1x,a48,/)') "Hamiltonian allocation and calculation complete."
         call neci_flush(6)
 
-        ! Copy the the initial vector to sl_vecs(:,1), apply the perturbation
-        ! operator and normalise it.
+        call return_perturbed_ground_spectral(left_perturb_spectral, ilut_list, pert_ground_left, left_pert_norm)
+        call return_perturbed_ground_spectral(right_perturb_spectral, ilut_list, sl_vecs(:,1), right_pert_norm)
+        
+        ! Normalise the perturbed wave function, currently stored in sl_vecs(:,1),
+        ! so that it can be used as the first lanczos vector.
+        sl_vecs(:,1) = sl_vecs(:,1)*sqrt(pops_norm)/right_pert_norm
+
+        deallocate(ilut_list)
+
+    end subroutine init_spectral_lanczos
+
+    subroutine return_perturbed_ground_spectral(perturb, ilut_list, pert_ground_local, all_norm_pert)
+
+        use bit_rep_data, only: NIfDBO, extract_sign
+        use bit_reps, only: decode_bit_det
+        use CalcData, only: pops_norm
+        use DetBitOps, only: DetBitEq, EncodeBitDet, ilut_lt, ilut_gt
+        use FciMCData, only: TotWalkers, CurrentDets
+        use sort_mod, only: sort
+        use SystemData, only: nel
+
+        type(perturbation), intent(in) :: perturb
+        integer(n_int), intent(in) :: ilut_list(:,:)
+        real(dp), intent(inout) :: pert_ground_local(:)
+        real(dp), intent(out) :: all_norm_pert
+
+        integer :: i, j
+        integer :: nI(nel)
+        real(dp) :: real_sign(lenof_sign)
+        real(dp) :: norm_pert
+        character(len=*), parameter :: t_r = 'return_perturbed_ground_spectral'
+
+        pert_ground_local = 0.0_dp
+
+        ! Read in the POPSFILE and apply the perturbation operator, perturb, as we
+        ! do so. Afterwards, the perturbed wave function will be stored in
+        ! CurrentDets.
+        call read_popsfile_wrapper(perturb)
+
         j = 0
         norm_pert = 0.0_dp
         call sort(CurrentDets(:,1:TotWalkers), ilut_lt, ilut_gt)
@@ -170,23 +210,23 @@ contains
             do
                 j = j + 1
                 if (DetBitEq(CurrentDets(:,i), ilut_list(:,j), NIfDBO)) then
-                    sl_vecs(j, 1) = real_sign(1)
+                    pert_ground_local(j) = real_sign(1)
                     exit
                 end if
             end do
         end do
-        call MPISumAll(norm_pert, allnorm_pert_sl)
-        allnorm_pert_sl = sqrt(allnorm_pert_sl)
-        sl_vecs(:,1) = sl_vecs(:,1)/allnorm_pert_sl
+        
+        pert_ground_local = pert_ground_local/sqrt(pops_norm)
 
-        deallocate(ilut_list)
+        call MPISumAll(norm_pert, all_norm_pert)
+        all_norm_pert = sqrt(all_norm_pert)
 
-    end subroutine init_spectral_lanczos
+    end subroutine return_perturbed_ground_spectral
 
     subroutine subspace_extraction_sl()
 
         integer :: lwork, info, i
-        real(dp), allocatable :: work(:)
+        real(dp), allocatable :: work(:), left_pert_overlaps(:)
 
         if (iProcIndex /= root) return
 
@@ -208,29 +248,43 @@ contains
 
         deallocate(work)
 
-        ! The first Lanczos vector differs from the perturbed ground state only by a
-        ! normalisation factor, which is accounted for here.
-        sl_trans_amps = sl_hamil(1,:)*allnorm_pert_sl/sqrt(pops_norm)
+        ! The first Lanczos vector differs from the perturbed ground state only
+        ! by a normalisation factor, which is accounted for here.
+        trans_amps_right = sl_hamil(1,:)*right_pert_norm/sqrt(pops_norm)
 
-        ! Now calculate the overlaps between the final Lanczos eigenvectors and the original
-        ! perturbed ground state, which are the transition amplitudes which decide the
-        ! height of the peaks in the spectrum.
-        !sl_trans_amps = matmul(sl_overlaps, sl_hamil)
-
-        ! Output all of the eigenvalues and transition amplitudes.
+        ! Calculate the overlaps between the left-perturbed ground state and all
+        ! of the Lanczos vectors.
+        allocate(left_pert_overlaps(n_lanc_vecs_sl))
         do i = 1, n_lanc_vecs_sl
-            write(sl_unit,'(1x,f15.10,5x,f15.10)') sl_h_eigv(i), sl_trans_amps(i)
+            left_pert_overlaps = matmul(pert_ground_left, sl_vecs)
         end do
-        write(sl_unit,'()')
+        ! And then use these overlaps to calculate the overlaps of the
+        ! left-perturbed ground state with the final eigenvectors.
+        trans_amps_left = matmul(left_pert_overlaps, sl_hamil)
+        deallocate(left_pert_overlaps)
 
     end subroutine subspace_extraction_sl
     
-    subroutine output_spectral_lanczos()
+    subroutine output_spectrum(neigv, eigv)
 
-        integer :: i, j, min_vec
+        use util_mod, only: get_free_unit
+
+        integer, intent(in) :: neigv
+        real(dp), intent(in) :: eigv(neigv)
+
+        integer :: i, j, min_vec, temp_unit
         real(dp) :: omega, spectral_weight
 
         if (iProcIndex /= root) return
+
+        temp_unit = get_free_unit()
+        open(temp_unit, file='SPECTRAL_DATA',status='replace')
+        write(temp_unit,'(1x,a53)') "Eigenvalues and left and right transition amplitudes:"
+        do i = 1, neigv
+            write(temp_unit,'(1x,i7,5x,f15.10,5x,f15.10,5x,f15.10)') &
+                i, eigv(i), trans_amps_left(i), trans_amps_right(i)
+        end do
+        close(temp_unit)
 
         write(6,'(1x,a5,18X,a15)') "Omega", "Spectral_weight"
 
@@ -244,25 +298,25 @@ contains
         omega = min_omega_spectral
         do i = 1, nomega_spectral + 1
             spectral_weight = 0.0_dp
-            do j = min_vec, n_lanc_vecs_sl
+            do j = min_vec, neigv
                 spectral_weight = spectral_weight + &
-                    (sl_trans_amps(j)**2*spectral_broadening)/&
-                    (pi*(spectral_broadening**2 + (spectral_ground_energy-sl_h_eigv(j)+omega)**2))
+                    (trans_amps_left(j)*trans_amps_right(j)*spectral_broadening)/&
+                    (pi*(spectral_broadening**2 + (spectral_ground_energy-eigv(j)+omega)**2))
             end do
             write(6,'(f18.12, 4x, f18.12)') omega, spectral_weight
             omega = omega + delta_omega_spectral
         end do
 
-    end subroutine output_spectral_lanczos
+    end subroutine output_spectrum
 
     subroutine end_spectral_lanczos()
-
-        close(sl_unit)
 
         deallocate(sl_vecs)
         deallocate(full_vec_sl)
         deallocate(sl_overlaps)
-        deallocate(sl_trans_amps)
+        deallocate(trans_amps_left)
+        deallocate(trans_amps_right)
+        deallocate(pert_ground_left)
         deallocate(sl_hamil)
         deallocate(sl_h_eigv)
         deallocate(ndets_sl)

@@ -9,8 +9,11 @@ module spectral_data
     real(dp), allocatable :: pert_ground_left(:)
     real(dp), allocatable :: pert_ground_right(:)
 
-    type(perturbation), save :: left_perturb_es
-    type(perturbation), save :: right_perturb_es
+    type(perturbation), save :: left_perturb_spectral
+    type(perturbation), save :: right_perturb_spectral
+
+    real(dp) :: left_pert_norm
+    real(dp) :: right_pert_norm
 
     real(dp), allocatable :: trans_amps_left(:)
     real(dp), allocatable :: trans_amps_right(:)
