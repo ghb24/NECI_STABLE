@@ -1005,7 +1005,7 @@ MODULE FciMCParMod
 
                     IFDEBUG(FCIMCDebug, 3) then
 #ifdef __CMPLX
-                        write(iout,"(a,f12.5)",advance='no') &
+                        write(iout,"(a,2f12.5)",advance='no') &
 #else
                         write(iout,"(a,f12.5)",advance='no') &
 #endif
