@@ -34,6 +34,7 @@ contains
         use semi_stoch_procs, only: is_core_state, check_determ_flag, deterministic_projection
         use soft_exit, only: ChangeVars
         use SystemData, only: nel, lms, nbasis, tAllSymSectors, nOccAlpha, nOccBeta
+        use timing_neci, only: set_timer, halt_timer
 
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: iiter, idet, ireplica, ispawn
@@ -89,6 +90,8 @@ contains
                     if (tOverlapPert) call calc_perturbation_overlap(kp)
 
                     do iiter = 1, kp%niters(ivec)
+
+                        call set_timer(walker_time)
 
                         iter = iter + 1
                         call init_kp_fciqmc_iter(iter_data_fciqmc, determ_ind)
@@ -252,9 +255,15 @@ contains
                         call end_iter_stats(TotWalkersNew)
                         call end_iteration_print_warn(TotWalkersNew)
 
+                        call halt_timer(walker_time)
+
+                        call set_timer(annihil_time)
+
                         call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.)
 
                         TotWalkers = int(TotWalkersNew, int64)
+
+                        call halt_timer(annihil_time)
 
                         if (iiter == 1 .and. tHamilOnFly) call calc_hamil_on_fly(kp)
 
