@@ -172,6 +172,11 @@ module kp_fciqmc_procs
     ! will also be output.
     logical :: tOutputAverageKPMatrices
 
+    ! If true then, after the perturbation operator has been applied (which
+    ! will reduce the population), scale up the initial wave function to the
+    ! requested population.
+    logical :: tScalePopulation
+
     ! If true then calculate the overlap of the final Hamiltonian eigenstates
     ! with a vector which is calculated by applying a perturbation operator
     ! (overlap_pert) to the popsfile wave function.
@@ -255,6 +260,7 @@ contains
         tStoreKPMatrices = .true.
         tOutputAverageKPMatrices = .false.
         tOverlapPert = .false.
+        tScalePopulation = .false.
 
         read_inp: do
             call read_line(eof)
@@ -329,6 +335,8 @@ contains
                 tStoreKPMatrices = .false.
             case("WRITE-AVERAGE-MATRICES")
                 tOutputAverageKPMatrices = .true.
+            case("SCALE-POPULATION")
+                tScalePopulation = .true.
 
             case("OVERLAP-PERTURB-ANNIHILATE")
                 tOverlapPert = .true.
@@ -593,16 +601,24 @@ contains
     subroutine create_initial_config(kp)
 
         type(kp_fciqmc_data), intent(inout) :: kp
-        integer :: DetHash, nwalkers, nwalkers_target
+        integer :: DetHash, nwalkers_int
         integer :: i
         integer(n_int) :: int_sign(lenof_sign)
-        real(dp) :: real_sign(lenof_sign)
-        real(dp) :: norm, all_norm
+        real(dp) :: real_sign(lenof_sign), TotPartsCheck(lenof_sign)
+        real(dp) :: nwalkers_target
+        real(dp) :: norm, all_norm, scaling_factor
         real(sp) :: total_time_before, total_time_after
         logical :: tCoreDet
+        character(len=*), parameter :: t_r = "create_init_config"
 
         ! Clear everything from any previous repeats or starting configurations.
         call reset_hash_table(HashIndex)
+
+        if (tStartSinglePart) then
+            nwalkers_target = real(InitialPart,dp)
+        else
+            nwalkers_target = InitWalkers*nProcessors
+        end if
 
         if (kp%irepeat == 1) then
             if (.not. tFiniteTemp) then
@@ -610,6 +626,19 @@ contains
                     ! Call a wrapper function which will call the various functions
                     ! required to read in a popsfile.
                     call read_popsfile_wrapper(pops_pert)
+
+                    if (tScalePopulation) then
+                        call scale_population(CurrentDets, TotWalkers, nwalkers_target, TotPartsCheck, scaling_factor)
+                        ! Update global data.
+                        if (any(abs(TotPartsCheck-TotParts) > 1.0e-12)) then
+                            call stop_all(t_r, "Inconsistent values of TotParts calculated.")
+                        end if
+                        TotParts = TotParts*scaling_factor
+                        TotPartsOld = TotParts
+                        AllTotParts = AllTotParts*scaling_factor
+                        AllTotPartsOld = AllTotParts
+                        pops_norm = pops_norm*(scaling_factor**2)
+                    end if
                 else
                     ! Put a walker on the Hartree-Fock, with the requested amplitude.
                     call InitFCIMC_HF()
@@ -632,11 +661,8 @@ contains
             else if (tFiniteTemp) then
                 ! Convert the initial number of walkers to an integer. Note that on multiple
                 ! processors this may round up the requested number of walkers slightly.
-                if (tStartSinglePart) then
-                    nwalkers_target = ceiling(real(InitialPart,dp)/real(nProcessors,dp))
-                else
-                    nwalkers_target = ceiling(InitWalkers)
-                end if
+                nwalkers_target = ceiling(nwalkers_target/real(nProcessors,dp))
+
                 ! If requested, reset the random number generator with the requested seed
                 ! before creating the random initial configuration.
                 if (tUseInitConfigSeeds) call dSFMT_init((iProcIndex+1)*init_config_seeds(kp%iconfig))
@@ -647,9 +673,9 @@ contains
 
                 ! Create the random initial configuration. 
                 if (tInitCorrectNWalkers) then
-                    call generate_init_config_this_proc(nwalkers_target, nwalkers_per_site_init, nwalkers, tOccDetermInit)
+                    call generate_init_config_this_proc(nwalkers_int, nwalkers_per_site_init, tOccDetermInit)
                 else
-                    call generate_init_config_basic(nwalkers_target, nwalkers_per_site_init, nwalkers)
+                    call generate_init_config_basic(nwalkers_int, nwalkers_per_site_init)
                 end if
 
                 call halt_timer(kp_generate_time)
@@ -734,15 +760,14 @@ contains
 
     end subroutine create_overlap_pert_vec
 
-    subroutine generate_init_config_basic(nwalkers, nwalkers_per_site_init, ndets)
+    subroutine generate_init_config_basic(nwalkers, nwalkers_per_site_init)
 
         ! This routine will distribute nwalkers walkers uniformly across all possible determinants.
 
         integer, intent(in) :: nwalkers
         real(dp) :: nwalkers_per_site_init
-        integer, intent(out) :: ndets
         integer :: i, ireplica, excit, nattempts, DetHash
-        integer :: nspawns
+        integer :: nspawns, ndets
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel)
         real(dp) :: r, walker_amp, walker_sign(lenof_sign)
@@ -828,16 +853,15 @@ contains
 
     end subroutine generate_init_config_basic
 
-    subroutine generate_init_config_this_proc(nwalkers, nwalkers_per_site_init, ndets, tOccupyDetermSpace)
+    subroutine generate_init_config_this_proc(nwalkers, nwalkers_per_site_init, tOccupyDetermSpace)
 
         ! This routine will distribute nwalkers walkers uniformly across all possible determinants.
 
         integer, intent(in) :: nwalkers
         real(dp) :: nwalkers_per_site_init
-        integer, intent(out) :: ndets
         logical, intent(in) :: tOccupyDetermSpace
         integer :: proc, excit, nattempts, idet, DetHash, det_ind, nI(nel)
-        integer :: ideterm
+        integer :: ideterm, ndets
         integer(n_int) :: ilut(0:NIfTot), int_sign(lenof_sign)
         type(ll_node), pointer :: prev, temp_node
         real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
@@ -980,6 +1004,43 @@ contains
         SpawnedParts = 0_n_int
 
     end subroutine generate_init_config_this_proc
+
+    subroutine scale_population(walker_list, ndets, target_pop, input_pop, scaling_factor)
+
+        ! Take an input list of walkers, find the total walker population in
+        ! the list, and then multiply all the walker signs by some factor in
+        ! order for the walker list to have the requested target population.
+
+        integer(n_int), intent(inout) :: walker_list(:,:)
+        integer, intent(in) :: ndets
+        real(dp), intent(in) :: target_pop
+        real(dp), intent(out) :: input_pop(lenof_sign)
+        real(dp), intent(out) :: scaling_factor
+
+        integer :: i
+        real(dp) :: real_sign(lenof_sign), all_input_pop(lenof_sign)
+
+        input_pop = 0.0_dp
+
+        ! First, find the population of the walkers in walker_list.
+        do i = 1, ndets
+            call extract_sign(walker_list(:,i), real_sign)
+            input_pop = input_pop + abs(real_sign)
+        end do
+
+        call MPIAllReduce(input_pop, MPI_SUM, all_input_pop)
+
+        ! Just use the first particle type to determine the scaing factor.
+        scaling_factor = target_pop/all_input_pop(1)
+
+        ! Now multiply the walker signs by scaling_factor.
+        do i = 1, ndets
+            call extract_sign(walker_list(:,i), real_sign)
+            real_sign = real_sign*scaling_factor
+            call encode_sign(walker_list(:,i), real_sign)
+        end do
+
+    end subroutine scale_population
 
     subroutine store_krylov_vec(kp)
 
@@ -1613,7 +1674,11 @@ contains
         open(temp_unit, file=trim(filename), status='replace')
     
         if (tWritePopsNorm) then
-            write(temp_unit, '(4("-"),a41,25("-"))') "Norm of unperturbed initial wave function"
+            if (tScalePopulation) then
+                write(temp_unit, '(4("-"),a57,9("-"))') "Norm of unperturbed initial wave function (after scaling)"
+            else
+                write(temp_unit, '(4("-"),a41,25("-"))') "Norm of unperturbed initial wave function"
+            end if
             write(temp_unit,'(1x,es19.12,/)') sqrt(pops_norm)
         end if
 
