@@ -1,3 +1,5 @@
+#include "macros.h"
+
 MODULE FciMCData
       use iso_c_hack
       use SystemData, only: BasisFN
@@ -143,8 +145,8 @@ MODULE FciMCData
 
       real(dp), dimension(inum_runs) :: trial_numerator, tot_trial_numerator
       real(dp), dimension(inum_runs) :: trial_denom, tot_trial_denom
-
-      real(dp), dimension(lenof_sign) :: SumNoatHF !This is the sum over all previous cycles of the number of particles at the HF determinant
+      !This is the sum over all previous cycles of the number of particles at the HF determinant
+      real(dp), dimension(lenof_sign) :: SumNoatHF 
       real(dp) :: AvSign           !This is the average sign of the particles on each node
       real(dp) :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
       real(dp), dimension(inum_runs) :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
@@ -539,5 +541,76 @@ MODULE FciMCData
       end type perturbation
 
       type(perturbation) :: pops_pert
+
+contains
+
+    subroutine set_initial_global_data(ndets, ilut_list)
+
+        use bit_rep_data, only: NIfDBO, extract_sign
+        use Parallel_neci, only: iProcIndex, MPISumAll
+
+        ! Take in a list of determinants and calculate and set all of the
+        ! global data needed for the start of a FCIQMC calculation.
+
+        integer, intent(in) :: ndets
+        integer(n_int), intent(inout) :: ilut_list(:,:)
+
+        integer :: i, run
+        real(dp) :: real_sign(lenof_sign)
+        character(*), parameter :: t_r = 'set_initial_global_data'
+
+        TotParts = 0.0_dp
+        NoAtHF = 0.0_dp
+
+        ! First, find the population of the walkers in walker_list.
+        do i = 1, ndets
+            call extract_sign(ilut_list(:,i), real_sign)
+            TotParts = TotParts + abs(real_sign)
+            if ( all(ilut_list(0:NIfDBO,i) == iLutRef(0:NIfDBO)) ) NoAtHF = real_sign
+        end do
+
+        TotWalkers = ndets
+        TotWalkersOld = TotWalkers
+        call MPISumAll(TotWalkers,AllTotWalkers)
+        AllTotWalkersOld = AllTotWalkers
+
+        TotPartsOld = TotParts
+        call MPISumAll(TotParts, AllTotParts)
+        AllTotPartsOld = AllTotParts
+
+        call MPISumAll(NoatHF, AllNoatHF)
+        OldAllNoatHF = AllNoatHF
+
+#ifdef __CMPLX
+        OldAllAvWalkersCyc = sum(AllTotParts)
+#else
+        OldAllAvWalkersCyc = AllTotParts
+#endif
+
+        do run = 1, inum_runs
+            OldAllHFCyc(run) = ARR_RE_OR_CPLX(AllNoatHF, run)
+        end do
+
+        AllNoAbortedOld(:) = 0.0_dp
+
+        iter_data_fciqmc%tot_parts_old = AllTotParts
+        
+        ! Calculate the projected energy for this iteration.
+        do run = 1, inum_runs
+            if (ARR_RE_OR_CPLX(AllSumNoAtHF,run) /= 0) &
+                ProjectionE(run) = AllSumENum(run) / ARR_RE_OR_CPLX(AllSumNoatHF,run)
+        enddo 
+
+        if (iProcIndex == iHFProc) then
+            SumNoatHF(:) = AllSumNoatHF(:)
+            SumENum(:) = AllSumENum(:)
+            InstNoatHF(:) = NoatHF(:)
+
+            if ( any(AllNoatHF /= NoatHF) ) then
+                call stop_all(t_r, "HF particles spread across different processors.")
+            endif
+        endif
+
+    end subroutine set_initial_global_data
 
 END MODULE FciMCData

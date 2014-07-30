@@ -902,6 +902,30 @@ contains
 
     end subroutine init_perturbation_creation
 
+    subroutine apply_perturbation(ilut_list, ndets, perturb)
+
+        ! Take in a list of determinants (ilut_list) and apply a pertubation
+        ! to each determinant. As we go we shuffle down determinants to fill in
+        ! gaps opened up by removed determinants.
+
+        integer, intent(inout) :: ndets
+        integer(n_int), intent(inout) :: ilut_list(0:NIfTot,1:ndets)
+        type(perturbation), intent(in) :: perturb
+
+        integer :: i, nremoved
+
+        nremoved = 0
+
+        do i = 1, ndets
+            call perturb_det(ilut_list(:,i), perturb) 
+            ilut_list(:,i-nremoved) = ilut_list(:,i)
+            if (all(ilut_list(0:NIfDBO,i) == 0_n_int)) nremoved = nremoved + 1
+        end do
+
+        ndets = ndets - nremoved
+
+    end subroutine apply_perturbation
+
     subroutine perturb_det(ilut, perturb)
 
         ! This routine takes a determinant encoded in ilut and applies a
