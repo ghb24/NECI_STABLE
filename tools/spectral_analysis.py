@@ -19,14 +19,17 @@ def extract_data(data_files, cutoff):
         f = open(data_file)
         have_data = False
         have_norm = False
-        pairs = []
+        triples = []
         for line in f:
             if not line.strip(): # If an empty line.
                 have_data = False
                 have_norm = False
             if have_data:
                 values = line.split()
-                pairs.append( [float(values[0]), float(values[1])] )
+                if len(values) == 2:
+                    triples.append( [float(values[0]), float(values[1]), float(values[1])] )
+                if len(values) == 3:
+                    triples.append( [float(values[0]), float(values[1]), float(values[2])] )
             if have_norm:
                 unperturbed_norm = float(line.strip())
             if start_str in line:
@@ -34,9 +37,9 @@ def extract_data(data_files, cutoff):
             if norm_str in line:
                 have_norm = True
                 
-    return pairs, unperturbed_norm
+    return triples, unperturbed_norm
 
-def calculate_spectral_function(pairs, norm, minval, maxval, delta, broadening, ref_energy, inc_ground):
+def calculate_spectral_function(triples, norm, minval, maxval, delta, broadening, ref_energy, inc_ground):
     '''Calculate and return the spectral function for the eigenvalues and
        spectral weights input, for the frequency values calculated from
        minval, maxval and delta.'''
@@ -54,9 +57,10 @@ def calculate_spectral_function(pairs, norm, minval, maxval, delta, broadening, 
     for i in range(nomega):
         omega = minval + i*delta
         spec = 0.0
-        for [eigv, unnormalised_weight] in pairs[min_eigv:]:
-            weight = (unnormalised_weight/norm)**2
-            spec += (broadening*weight)/(math.pi*(broadening**2 + (omega+ref_energy-eigv)**2))
+        for [eigv, left_unnormalised_amp, right_unnormalised_amp] in triples[min_eigv:]:
+            left_amp = left_unnormalised_amp/norm
+            right_amp = right_unnormalised_amp/norm
+            spec += (broadening*left_amp*right_amp)/(math.pi*(broadening**2 + (omega+ref_energy-eigv)**2))
         omega_list.append(omega)
         spectral_list.append(spec)
 
@@ -93,8 +97,8 @@ def parse_options(args):
 
 if __name__ == '__main__':
     (options, data_files) = parse_options(sys.argv[1:])
-    pairs, norm = extract_data(data_files, options.cutoff)
-    omega, spectrum = calculate_spectral_function(pairs, norm, options.minval,
+    triples, norm = extract_data(data_files, options.cutoff)
+    omega, spectrum = calculate_spectral_function(triples, norm, options.minval,
                                          options.maxval, options.delta, options.broadening,
                                          options.ref_energy, options.inc_ground)
 
