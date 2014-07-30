@@ -176,6 +176,7 @@ module kp_fciqmc_procs
     ! will reduce the population), scale up the initial wave function to the
     ! requested population.
     logical :: tScalePopulation
+    real(dp) :: scaling_factor
 
     ! If true then calculate the overlap of the final Hamiltonian eigenstates
     ! with a vector which is calculated by applying a perturbation operator
@@ -261,6 +262,7 @@ contains
         tOutputAverageKPMatrices = .false.
         tOverlapPert = .false.
         tScalePopulation = .false.
+        scaling_factor = 1.0_dp
 
         read_inp: do
             call read_line(eof)
@@ -606,7 +608,7 @@ contains
         integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign(lenof_sign), TotPartsCheck(lenof_sign)
         real(dp) :: nwalkers_target
-        real(dp) :: norm, all_norm, scaling_factor
+        real(dp) :: norm, all_norm
         real(sp) :: total_time_before, total_time_after
         logical :: tCoreDet
         character(len=*), parameter :: t_r = "create_init_config"
@@ -637,7 +639,6 @@ contains
                         TotPartsOld = TotParts
                         AllTotParts = AllTotParts*scaling_factor
                         AllTotPartsOld = AllTotParts
-                        pops_norm = pops_norm*(scaling_factor**2)
                     end if
                 else
                     ! Put a walker on the Hartree-Fock, with the requested amplitude.
@@ -1674,11 +1675,7 @@ contains
         open(temp_unit, file=trim(filename), status='replace')
     
         if (tWritePopsNorm) then
-            if (tScalePopulation) then
-                write(temp_unit, '(4("-"),a57,9("-"))') "Norm of unperturbed initial wave function (after scaling)"
-            else
-                write(temp_unit, '(4("-"),a41,25("-"))') "Norm of unperturbed initial wave function"
-            end if
+            write(temp_unit, '(4("-"),a41,25("-"))') "Norm of unperturbed initial wave function"
             write(temp_unit,'(1x,es19.12,/)') sqrt(pops_norm)
         end if
 
@@ -1729,7 +1726,7 @@ contains
                 call dsyev('V', 'U', nkeep, kp_final_hamil, nkeep, kp_hamil_eigv, work, lwork, info)
 
                 eigenvecs_krylov = matmul(transform_matrix, kp_final_hamil)
-                init_overlaps = matmul(kp_overlap_mean(1,:), eigenvecs_krylov)
+                init_overlaps = matmul(kp_overlap_mean(1,:), eigenvecs_krylov)/scaling_factor
 
                 if (tOverlapPert) pert_energy_overlaps = matmul(all_pert_overlaps, eigenvecs_krylov)
 
