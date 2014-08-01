@@ -74,7 +74,7 @@ contains
         integer :: iPopLenof_sign,iPopNEl,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
         integer :: PopBlockingIter, read_nnodes
         integer(int64) :: iPopAllTotWalkers
-        real(dp) :: PopDiagSft, read_tau, read_psingles, read_par_bias
+        real(dp) :: PopDiagSft, read_tau, read_psingles, read_pparallel
         real(dp) , dimension(lenof_sign) :: PopSumNoatHF
         integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
         integer, intent(in) :: DetsLen
@@ -103,7 +103,7 @@ contains
                 call ReadPopsHeadv4(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                     iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                     PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau, &
-                    PopBlockingIter, read_psingles, read_par_bias, &
+                    PopBlockingIter, read_psingles, read_pparallel, &
                     read_nnodes, read_walkers_on_nodes)
             endif
 
@@ -791,14 +791,14 @@ outer_map:      do i = 0, MappingNIfD
                     iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                     PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot, &
                     WalkerListSize,read_tau,PopBlockingIter, read_psingles, &
-                    read_par_bias)
+                    read_pparallel)
         use LoggingData , only : tZeroProjE
         logical , intent(in) :: tPop64Bit,tPopHPHF,tPopLz
         integer , intent(in) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
         integer , intent(in) :: PopBlockingIter
         integer(int64) , intent(in) :: iPopAllTotWalkers
         real(dp) , intent(in) :: PopDiagSft,read_tau
-        real(dp), intent(in) :: read_psingles, read_par_bias
+        real(dp), intent(in) :: read_psingles, read_pparallel
         real(dp) , dimension(lenof_sign) , intent(in) :: PopSumNoatHF
         HElement_t , intent(in) :: PopAllSumENum
         integer , intent(out) :: WalkerListSize
@@ -909,9 +909,8 @@ outer_map:      do i = 0, MappingNIfD
                     pDoubles = 1.0_dp - pSingles
                 end if
 
-                ! We want to be able to specify the opposite spin bias manually
-                if (read_par_bias /= 0 .and. .not. tSpecifyParBias) then
-                    rand_excit_par_bias = read_par_bias
+                if (read_pparallel /= 0) then
+                    pParallel = read_pparallel
                 end if
             else
                 !Tau specified. if it is different, write this here.
@@ -981,7 +980,7 @@ outer_map:      do i = 0, MappingNIfD
     subroutine ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                 iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                 PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau, &
-                PopBlockingIter, read_psingles, read_par_bias, &
+                PopBlockingIter, read_psingles, read_pparallel, &
                 read_nnodes, read_walkers_on_nodes)
         integer , intent(in) :: iunithead
         logical , intent(out) :: tPop64Bit,tPopHPHF,tPopLz
@@ -991,7 +990,7 @@ outer_map:      do i = 0, MappingNIfD
         integer(int64), intent(out) :: read_walkers_on_nodes(0:nProcessors-1)
         integer(int64) , intent(out) :: iPopAllTotWalkers
         real(dp) , intent(out) :: PopDiagSft,read_tau, read_psingles
-        real(dp), intent(out) :: read_par_bias
+        real(dp), intent(out) :: read_pparallel
         real(dp) , dimension(lenof_sign) , intent(out) :: PopSumNoatHF
         HElement_t , intent(out) :: PopAllSumENum
         integer :: PopsVersion
@@ -1002,7 +1001,7 @@ outer_map:      do i = 0, MappingNIfD
         integer, parameter :: max_nodes = 30000
         integer(int64) :: PopTotwalk, PopWalkersOnNodes(max_nodes)
         integer :: PopNNodes
-        real(dp) :: PopSft, PopTau, PopPSingles, PopParBias, PopGammaSing
+        real(dp) :: PopSft, PopTau, PopPSingles, PopPParallel, PopGammaSing
         real(dp) :: PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
         real(dp) :: PopTotImagTime
         character(*), parameter :: t_r = 'ReadPopsHeadv4'
@@ -1010,7 +1009,7 @@ outer_map:      do i = 0, MappingNIfD
         namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopLensign,PopNEl,PopTotwalk,PopSft,PopSumNoatHF,PopSumENum, &
                     PopCyc,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot, &
                     PopTau,PopiBlockingIter,PopRandomHash,PopPSingles, &
-                    PopParBias, PopNNodes, PopWalkersOnNodes, PopGammaSing, &
+                    PopPParallel, PopNNodes, PopWalkersOnNodes, PopGammaSing, &
                     PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt, &
                     PopTotImagTime
 
@@ -1039,7 +1038,7 @@ outer_map:      do i = 0, MappingNIfD
         call MPIBCast(PopTau)
         call MPIBCast(PopiBlockingIter)
         call MPIBCast(PopPSingles)
-        call MPIBCast(PopParBias)
+        call MPIBCast(PopPParallel)
         call MPIBCast(PopNNodes)
         call MPIBcast(PopTotImagTime)
         if (PopNNodes == nProcessors) then
@@ -1070,7 +1069,7 @@ outer_map:      do i = 0, MappingNIfD
         read_tau=PopTau 
         PopBlockingIter=PopiBlockingIter
         read_psingles = PopPSingles
-        read_par_bias = PopParBias
+        read_pParallel = PopPParallel
         read_nnodes = PopNNodes
         TotImagTime = PopTotImagTime
 
@@ -1484,7 +1483,7 @@ outer_map:      do i = 0, MappingNIfD
             ',PopTau=', Tau, ','
         write(iunit, '(a,i16)') 'PopiBlockingIter=', iBlockingIter
         write(iunit, '(a,f18.12,a,f18.12)') 'PopPSingles=', pSingles, &
-            ',PopParBias=', rand_excit_par_bias
+            ',PopPParallel=', pParallel
 
         ! What is the current total imaginary time? Should continue from where
         ! we left off, so that plots work correctly.

@@ -7,7 +7,7 @@ module tau_search
                           AB_hole_pairs, par_hole_pairs, tGen_4ind_reverse
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow
-    use FciMCData, only: tRestart, rand_excit_par_bias, pSingles, pDoubles, &
+    use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          ProjEDet, ilutRef
     use GenRandSymExcitNUMod, only: construct_class_counts, &
                                     init_excit_gen_store, clean_excit_gen_store
@@ -132,9 +132,7 @@ contains
 
                 ! In this case, distinguish between parallal and oppisite spins
                 if (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2))) then
-                    tmp_prob = tmp_prob &
-                             * (rand_excit_par_bias*n_par + n_opp) / &
-                               (rand_excit_par_bias*n_par)
+                    tmp_prob = tmp_prob / pParallel
                     tmp_gamma = abs(matel) / tmp_prob
                     if (tmp_gamma > gamma_par) &
                         gamma_par = tmp_gamma
@@ -146,9 +144,7 @@ contains
                         if (enough_opp .and. enough_par) enough_doub = .true.
                     end if
                 else
-                    tmp_prob = tmp_prob &
-                             * (rand_excit_par_bias*n_par + n_opp) &
-                             / n_opp
+                    tmp_prob = tmp_prob / (1.0_dp - pParallel)
                     tmp_gamma = abs(matel) / tmp_prob
                     if (tmp_gamma > gamma_opp) &
                         gamma_opp = tmp_gamma
@@ -191,7 +187,7 @@ contains
 
     subroutine update_tau ()
 
-        real(dp) :: psingles_new, tau_new, par_bias_new, mpi_tmp, tau_death
+        real(dp) :: psingles_new, tau_new, mpi_tmp, tau_death, pParallel_new
         logical :: mpi_ltmp
 
         ! What needs doing depends on the number of parametrs that are being
@@ -210,23 +206,29 @@ contains
             call MPIAllReduce (enough_par, MPI_LOR, mpi_ltmp)
             enough_par = mpi_ltmp
 
-            par_bias_new = gamma_par * n_opp / (gamma_opp * n_par)
-            psingles_new = gamma_sing * n_par * par_bias_new &
-                         / (gamma_par * (n_par * par_bias_new + n_opp) &
-                            + gamma_sing * n_par * par_bias_new)
-            tau_new = n_par * max_permitted_spawn * par_bias_new &
-                    / (gamma_par * (n_par * par_bias_new + n_opp) &
-                       + gamma_sing * n_par * par_bias_new)
+            if (enough_sing .and. enough_doub) then
+                pparallel_new = gamma_par / (gamma_opp + gamma_par)
+                psingles_new = gamma_sing * pparallel_new &
+                             / (gamma_par + gamma_sing * pparallel_new)
+                tau_new = psingles_new * max_permitted_spawn &
+                              / gamma_sing
+            else
+                pparallel_new = pParallel
+                psingles_new = pSingles
+                tau_new = max_permitted_spawn * &
+                        min(pSingles / gamma_sing, &
+                        min(pDoubles * pParallel / gamma_par, &
+                            pDoubles * pParallel / gamma_opp))
+            end if
 
             ! We only want to update the opposite spins bias here, as we only
             ! consider it here!
             if (enough_opp .and. enough_par) then
-                if (abs(rand_excit_par_bias - par_bias_new) &
-                       / rand_excit_par_bias > 0.0001_dp) then
-                    root_print "Updating parallel-spin bias; new bias = ", &
-                        par_bias_new
+                if (abs(pParallel_new-pParallel) / pParallel > 0.0001_dp) then
+                    root_print "Updating parallel-spin bias; new pParallel = ", &
+                        pParallel_new
                 end if
-                rand_excit_par_bias = par_bias_new
+                pParallel = pParallel_new
             end if
 
         else
@@ -239,8 +241,14 @@ contains
 
             ! Get the values of pSingles and tau that correspond to the stored
             ! values
-            psingles_new = gamma_sing / (gamma_doub + gamma_sing)
-            tau_new = max_permitted_spawn / (gamma_doub + gamma_sing)
+            if (enough_sing .and. enough_doub) then
+                psingles_new = gamma_sing / (gamma_doub + gamma_sing)
+                tau_new = max_permitted_spawn / (gamma_doub + gamma_sing)
+            else
+                psingles_new = pSingles
+                tau_new = max_permitted_spawn * &
+                            min(pSingles / gamma_sing, pDoubles / gamma_doub)
+            end if
 
         end if
         call MPIAllReduce (enough_sing, MPI_LOR, mpi_ltmp)
