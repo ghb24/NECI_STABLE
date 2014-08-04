@@ -1005,6 +1005,7 @@ MODULe nElRDMMod
         
         ! IterLastRDMFill is the number of iterations from the last time the energy was calculated 
         IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter)
+        
 
         ! The number of iterations we want to weight this RDM contribution by is:
         if(IterLastRDMFill.gt.0) then
@@ -1138,7 +1139,7 @@ MODULe nElRDMMod
 
         ! If the determinant is removed on an iteration that the diagonal RDM elements are 
         ! already being calculated, it will already have been counted.
-        
+
         if(.not.((Iter.eq.NMCyc).or.(mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0))) then
         ! The elements described above will have been already added in
 
@@ -2875,6 +2876,7 @@ MODULe nElRDMMod
                 ! and jSpat >= iSpat (can only be equal if different spin).
                 do j=i+1,NEl
                     jSpat = gtID(nI(j))
+               
 
                     ! either alpha alpha or beta beta -> aaaa array.
                     if( ((mod(nI(i),2).ne.0).and.(mod(nI(j),2).ne.0)) .or. &
@@ -2893,6 +2895,7 @@ MODULe nElRDMMod
                         Ind=( ( (jSpat-1) * jSpat ) / 2 ) + iSpat
                         abab_RDM( Ind , Ind ) = abab_RDM( Ind , Ind ) &
                                           + ( realSignDi(1) * realSignDi(lenof_sign) * RDMIters)*ScaleContribFac
+
                     endif
 
                 enddo
@@ -2970,10 +2973,12 @@ MODULe nElRDMMod
                         ! Kind of pretent the abba is of the form abab.
                         abab_RDM( Indik , Indak ) = abab_RDM( Indik , Indak ) + ( ParityFactor * &
                                                                          realSignDi * realSignDj )
+
                         if(tFill_CiCj_Symm) then
                             abab_RDM( Indak , Indik ) = abab_RDM( Indak , Indik ) + ( ParityFactor * &
                                                                          realSignDi * realSignDj )
                         endif
+
 
                     else
                         ! Checking spins of i and k.
@@ -3088,7 +3093,7 @@ MODULe nElRDMMod
                 abab_RDM( Indab , Indij ) = abab_RDM( Indab , Indij ) + ( ParityFactor * &
                                                          realSignDi * realSignDj )
             endif
-
+                    
         else
             ! Checking spins of i and j (these must be same combination as a and b).
             ! If alpha alpha or beta beta -> aaaa array.
@@ -3128,6 +3133,7 @@ MODULe nElRDMMod
                         abab_RDM( Indab , Indij ) = abab_RDM( Indab , Indij ) + ( ParityFactor * &
                                                                  realSignDi * realSignDj )
                     endif
+                
 
                 ! i and a are different spin -> abba
                 ! the only double excitation case with Indij = Indab will go in here.

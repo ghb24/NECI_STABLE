@@ -438,11 +438,12 @@ MODULE AnnihilationMod
                        
 
                         Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = SpawnedParts(NIfTot+1:NIfTot+NIfDBO+2,BeginningBlockDet)
+                        call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
                         
-                        if (SpawnedParts(NOffSgn,BeginningBlockDet) .ne. 0) then
+                        if (temp_sign(1) .ne. 0) then
                             !The child (and therefore parent) are from population 1
                             Spawned_Parents(NIfDBO+2,Parent_Array_Ind) = 1
-                        elseif (SpawnedParts(NOffSgn+lenof_sign-1, BeginningBlockDet) .ne. 0) then
+                        elseif (temp_sign(2) .ne. 0) then
                             !The child (and therefore parent) are from population 2
                             Spawned_Parents(NIfDBO+2,Parent_Array_Ind) = lenof_sign
                         else

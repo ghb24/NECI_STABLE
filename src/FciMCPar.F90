@@ -291,6 +291,15 @@ MODULE FciMCParMod
             if(tRDMonFly .and. (.not. tFillingExplicRDMonFly) &
                 & .and. (.not.tFillingStochRDMonFly)) call check_start_rdm()
 
+            if(tRDMonFly .and. tSpawnGhostChild) &
+                    call stop_all("FciMCPar", "tSpawnGhostChild is not yet working correctly with &
+                    & the RDMs.  I need to introduce a ghost flag for the ghost progeny so that &
+                    & we know which population the spawning event came from once we get to annihilation. &
+                    & See approx line 449 in Annihilation.F90 where we assign &
+                    & Spawned_Parents NIfDBO+2,Parent_Array_Ind to say which pop the spawning event &
+                    & came from")
+
+
             if (tCCMC) then
                 if (tUseRealCoeffs) &
                     call stop_all("FciMCPar", "Continuous spawning not yet set up to work &
@@ -842,13 +851,14 @@ MODULE FciMCParMod
             call extract_bit_rep_avsign (CurrentDets(:,j), CurrentH(1:NCurrH,j), &
                                         DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
                                         AvSignCurr, fcimc_excit_gen_store)
+
             
             ! We only need to find out if determinant is connected to the
             ! reference (so no ex. level above 2 required, 
             ! truncated etc.)
             walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
                                                 max_calc_ex_level)
-
+            
             if(tRef_Not_HF) then
                 walkExcitLevel_toHF = FindBitExcitLevel (iLutHF_true, CurrentDets(:,j), &
                                                 max_calc_ex_level)
@@ -1017,6 +1027,7 @@ MODULE FciMCParMod
                                             ! Note these last two, AvSignCurr and 
                                             ! RDMBiasFacCurr are not used unless we're 
                                             ! doing an RDM calculation.
+
                     else
                         child = 0.0_dp
                     endif
@@ -1282,7 +1293,7 @@ MODULE FciMCParMod
 !        WRITE(6,*) 'Parent',iLutI
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, flags)
-
+                        
         ! For double run, we're going to try only including off-diagonal elements from
         ! successful spawning attempts within part_type=1.  Later, we should include both,
         ! but for now, this may be simplest.
@@ -1290,7 +1301,7 @@ MODULE FciMCParMod
         IF(tFillingStochRDMonFly) then
             call store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, WalkersToSpawn, iLutJ, proc, part_type)
         endif
-
+        
         !We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
         !We want to store the parent (D_i) with the spawned child (D_j) so that we can
         !add in Ci.Cj to the RDM later on.
@@ -1936,7 +1947,7 @@ MODULE FciMCParMod
             
             ! n.b. if we ever end up with |walkerweight| /= 1, then this
             !      will need to ffed further through.
-            if (tSearchTau) &
+            if (tSearchTau .and. (.not. tFillingStochRDMonFly)) &
                 call log_spawn_magnitude (ic, ex, matel, prob)
 
             ! Keep track of the biggest spawn this cycle
@@ -3528,7 +3539,7 @@ MODULE FciMCParMod
 
         !        WRITE(iout,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
 
-        if (tSearchTau) &
+        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) &
             call update_tau()
 
         !TODO CMO:Make sure these are length 2 as well
@@ -5486,7 +5497,7 @@ MODULE FciMCParMod
             WRITE(iout,*) "Timestep set to: ",Tau
         ENDIF
 
-        if(tSearchTau) &
+        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) &
             call init_tau_search()
 
         IF(StepsSftImag.ne.0.0_dp) THEN
