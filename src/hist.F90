@@ -427,7 +427,7 @@ contains
 
     end subroutine
 
-    subroutine add_hist_energies (ilut, Sign, HDiag, ExcitLevel)
+    subroutine add_hist_energies (ilut, Sign, HDiag)
 
         ! This will histogram the energies of the particles, rather than the
         ! determinants themselves.
@@ -435,7 +435,6 @@ contains
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         real(dp), dimension(lenof_sign), intent(in) :: Sign
         real(dp), intent(in) :: HDiag
-        integer, intent(in) :: ExcitLevel
         integer :: bin
         character(*), parameter :: t_r = "add_hist_energies"
         
