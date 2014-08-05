@@ -192,6 +192,11 @@ contains
 
         ! What needs doing depends on the number of parametrs that are being
         ! updated.
+        call MPIAllReduce (enough_sing, MPI_LOR, mpi_ltmp)
+        enough_sing = mpi_ltmp
+        call MPIAllReduce (enough_doub, MPI_LOR, mpi_ltmp)
+        enough_doub = mpi_ltmp
+
         if (consider_par_bias) then
 
             ! Considering two types of double exctitaion...
@@ -251,10 +256,6 @@ contains
             end if
 
         end if
-        call MPIAllReduce (enough_sing, MPI_LOR, mpi_ltmp)
-        enough_sing = mpi_ltmp
-        call MPIAllReduce (enough_doub, MPI_LOR, mpi_ltmp)
-        enough_doub = mpi_ltmp
 
         ! The range of tau is restricted by particle death. It MUST be <=
         ! the value obtained to restrict the maximum death-factor to 1.0.
