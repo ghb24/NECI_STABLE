@@ -668,7 +668,7 @@ contains
         ! We want to have the n'th alpha, or beta electrons in the determinant
         ! Select them according to the availability of pairs (and the
         ! weighting of opposite-spin pairs relative to same-spin ones).
-        r = genrand_real2_dSFMT() * ntot
+        r = genrand_real2_dSFMT()
         if (r < pParallel) then
             ! Same spin case
             pgen = pParallel / real(par_elec_pairs, dp)
