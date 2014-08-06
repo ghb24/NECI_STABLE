@@ -29,7 +29,7 @@ MODULE Calc
     use FciMCData, only: tTimeExit,MaxTimeExit, &
                          InputDiagSft,tSearchTau,nWalkerHashes,tHashWalkerList,HashLengthFrac, &
                          tTrialHash, tIncCancelledInitEnergy, tStartCoreGroundState, &
-                         rand_excit_par_bias, tSpecifyParBias
+                         pParallel
     use semi_stoch_gen, only: core_ras
 
     implicit none
@@ -324,8 +324,7 @@ contains
           tLowETrialAllDoubles = .false.
           tTrialAmplitudeCutoff = .false.
 
-          rand_excit_par_bias = 1.0
-          tSpecifyParBias = .false.
+          pParallel = 0.5
 
           InitiatorCutoffEnergy = 99.99e99_dp
           InitiatorCutoffWalkNo = 99.0_dp
@@ -1741,11 +1740,6 @@ contains
                 ! Assign the HF processor to a unique node.
                 ! TODO: Set a default cutoff criterion for this
                 tUniqueHFNode = .true.
-
-            case("OPP-SPIN-BIAS")
-                ! What should the bias in favour of opposite spins be?
-                tSpecifyParBias = .true.
-                call getf(rand_excit_par_bias)
 
             case("TAU-CNT-THRESHOLD")
                 write(6,*) 'WARNING: This option is unused in this branch'
