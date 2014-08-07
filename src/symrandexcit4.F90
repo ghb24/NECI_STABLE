@@ -1331,31 +1331,26 @@ contains
         real(dp) :: ntot, r
         integer :: spn(2)
 
-        call stop_all(this_routine, "Temporarily disabled")
-       ! ntot = par_hole_pairs * rand_excit_par_bias + AB_hole_pairs
+        ! Pick what sort of hole pair we want. AA, BB, or AB
+        r = genrand_real2_dSFMT()
+        if (r < pParallel) then
+            r = (r / pParallel) * par_hole_pairs
+            pgen = pParallel / real(par_hole_pairs, dp)
+            if (r < AA_hole_pairs) then
+                ! alpha/alpha
+                iSpn = 3
+                spn = (/1, 1/)
+            else
+                ! beta/beta
+                iSpn = 1
+                spn = (/2, 2/)
+            end if
 
-        ! The overall generation probability is remarkably simple!
-        pgen = 1.0_dp / ntot
-
-        ! Pick what sort of hole pair we want. AA, BB, or AB.
-        r = genrand_real2_dSFMT() * ntot
-        if (r < AA_hole_pairs) then
-            ! alpha/alpha
-            iSpn = 3
-            spn = (/1, 1/)
-!            pgen = pgen * rand_excit_par_bias
-        else if (r < par_hole_pairs) then
-            ! beta/beta
-            iSpn = 1
-            spn = (/2, 2/)
-!            pgen = pgen * rand_excit_par_bias
         else
-            ! alpha/beta
+            ! Opposite spin
             iSpn = 2
             spn = (/1, 2/)
-
-            ! We need to adjust the generation probability to account for the
-            ! selection bias
+            pgen = (1.0_dp - pParallel) / real(AB_hole_pairs, dp)
         end if
 
         ! Select orbitals at random with the given spins
