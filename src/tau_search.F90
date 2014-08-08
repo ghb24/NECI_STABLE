@@ -31,8 +31,6 @@ module tau_search
     integer :: n_opp, n_par
     logical :: enough_sing, enough_doub, enough_opp, enough_par
     logical :: consider_par_bias
-    logical :: tOnlyParallel
-    logical :: tOnlySpinPaired
 
 contains
 
@@ -60,10 +58,6 @@ contains
         enough_doub = .false.
         enough_opp = .false.
         enough_par = .false.
-
-        ! Some control logicals
-        tOnlyParallel = .false.
-        tOnlySpinPaired = .false.
 
         ! Unless it is already specified, set an initial value for tau
         if (.not. tRestart .and. .not. tReadPops .and. tau == 0) &
@@ -109,12 +103,12 @@ contains
         ! If there are only a few electrons in the system, then this has
         ! impacts for the choices that can be made.
         if (nOccAlpha == 0 .or. nOccBeta == 0) then
-            tOnlyParallel = .true.
+            consider_par_bias = .false.
             pParallel = 1.0_dp
             enough_opp = .true.
         end if
         if (nOccAlpha == 1 .and. nOccBeta == 1) then
-            tOnlySpinPaired = .true.
+            consider_par_bias = .false.
             pParallel = 0.0_dp
             enough_par = .true.
         end if
@@ -231,12 +225,8 @@ contains
             call MPIAllReduce (enough_par, MPI_LOR, mpi_ltmp)
             enough_par = mpi_ltmp
 
-            if (tOnlyParallel) pparallel_new = 1.0_dp
-            if (tOnlySpinPaired) pparallel_new = 0.0_dp
-
             if (enough_sing .and. enough_doub) then
-                if (.not. (tOnlyParallel .or. tOnlySpinPaired)) &
-                    pparallel_new = gamma_par / (gamma_opp + gamma_par)
+                pparallel_new = gamma_par / (gamma_opp + gamma_par)
                 psingles_new = gamma_sing * pparallel_new &
                              / (gamma_par + gamma_sing * pparallel_new)
                 tau_new = psingles_new * max_permitted_spawn &
