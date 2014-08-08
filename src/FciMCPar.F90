@@ -5709,7 +5709,7 @@ MODULE FciMCParMod
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
         integer :: PopBlockingIter
-        real(dp) :: Gap,ExpectedMemWalk,read_tau, read_psingles, read_par_bias
+        real(dp) :: Gap,ExpectedMemWalk,read_tau, read_psingles, read_pparallel
         integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
         integer :: read_nnodes
         !Variables from popsfile header...
@@ -5765,7 +5765,7 @@ MODULE FciMCParMod
                             iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                             PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
                             read_tau,PopBlockingIter, read_psingles, &
-                            read_par_bias, read_nnodes, read_walkers_on_nodes)
+                            read_pparallel, read_nnodes, read_walkers_on_nodes)
                     ! The only difference between 3 & 4 is just that 4 reads 
                     ! in via a namelist, so that we can add more details 
                     ! whenever we want.
@@ -5777,7 +5777,7 @@ MODULE FciMCParMod
                         iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                         PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
                         WalkerListSize,read_tau,PopBlockingIter, &
-                        read_psingles, read_par_bias)
+                        read_psingles, read_pparallel)
 
                 if(iProcIndex.eq.root) close(iunithead)
             else
