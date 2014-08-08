@@ -11,8 +11,7 @@ module excit_gens_int_weighted
                                pDoubNew, ScratchSize
     use sym_general_mod, only: ClassCountInd, ClassCountInv, class_count_ms, &
                                class_count_ml
-    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, &
-                         rand_excit_par_bias
+    use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, pParallel
     use dSFMT_interface, only: genrand_real2_dSFMT
     use Determinants, only: get_helement, write_det
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, ilut_lt, ilut_gt
@@ -253,16 +252,15 @@ contains
 
             ! We want to select a pair of electrons in a way which is biased
             ! towards pairs with opposing spins. This takes a simple form.
-            ntot = par_elec_pairs * rand_excit_par_bias + AB_elec_pairs
             if (is_alpha(ex(1,1)) .eqv. is_alpha(ex(1,2))) then
-                pgen = pgen * rand_excit_par_bias / ntot
+                pgen = pgen * pParallel / par_elec_pairs
                 if (is_alpha(ex(1,1))) then
                     iSpn = 3
                 else
                     iSpn = 1
                 end if
             else
-                pgen = pgen / ntot
+                pgen = pgen * (1.0_dp - pParallel) / AB_elec_pairs
                 iSpn = 2
             end if
 
@@ -667,41 +665,39 @@ contains
         integer :: al_req, be_req, al_num(2), be_num(2), elecs_found, i, idx
         integer :: al_count, be_count
 
-        ntot = par_elec_pairs * rand_excit_par_bias + AB_elec_pairs
-
-        ! The overall generation probability for this section is remarkably
-        ! simple!
-        pgen = 1.0_dp / ntot
-
         ! We want to have the n'th alpha, or beta electrons in the determinant
         ! Select them according to the availability of pairs (and the
         ! weighting of opposite-spin pairs relative to same-spin ones).
-        r = genrand_real2_dSFMT() * ntot
-        if (r < AA_elec_pairs * rand_excit_par_bias) then
-            al_req = 2
-            be_req = 0
-            pgen = pgen * rand_excit_par_bias
-            idx = floor(r / rand_excit_par_bias)
-            al_num(1) = ceiling((1 + sqrt(9 + 8*real(idx, dp))) / 2)
-            al_num(2) = idx + 1 - ((al_num(1) - 1) * (al_num(1) - 2)) / 2
-            iSpn = 3
-        else if (r < par_elec_pairs * rand_excit_par_bias) then
-            al_req = 0
-            be_req = 2
-            pgen = pgen * rand_excit_par_bias
-            idx = floor((r - AA_elec_pairs * rand_excit_par_bias) / &
-                         rand_excit_par_bias)
-            be_num(1) = ceiling((1 + sqrt(9 + 8*real(idx, dp))) / 2)
-            be_num(2) = idx + 1 - ((be_num(1) - 1) * (be_num(1) - 2)) / 2
-            iSpn = 1
+        r = genrand_real2_dSFMT()
+        if (r < pParallel) then
+            ! Same spin case
+            pgen = pParallel / real(par_elec_pairs, dp)
+            r = (r / pParallel) * par_elec_pairs
+            idx = floor(r)
+            if (idx < AA_elec_pairs) then
+                al_req = 2
+                be_req = 0
+                iSpn = 3
+                al_num(1) = ceiling((1 + sqrt(9 + 8*real(idx, dp))) / 2)
+                al_num(2) = idx + 1 - ((al_num(1) - 1) * (al_num(1) - 2)) / 2
+            else
+                al_req = 0
+                be_req = 2
+                iSpn = 1
+                idx = idx - AA_elec_pairs
+                be_num(1) = ceiling((1 + sqrt(9 + 8*real(idx, dp))) / 2)
+                be_num(2) = idx + 1 - ((be_num(1) - 1) * (be_num(1) - 2)) / 2
+            end if
         else
+            ! Opposite spin case
+            iSpn = 2
             al_req = 1
             be_req = 1
-            pgen = pgen
-            idx = floor(r - par_elec_pairs * rand_excit_par_bias)
+            pgen = (1.0_dp - pParallel) / real(AB_elec_pairs, dp)
+            r = ((r - pParallel) / (1.0_dp - pParallel)) * AB_elec_pairs
+            idx = floor(r)
             al_num(1) = 1 + mod(idx, nOccAlpha)
-            be_num(1) = 1 + floor(idx / real(nOccAlpha,dp))
-            iSpn = 2
+            be_num(1) = 1 + floor(idx / real(nOccAlpha, dp))
         end if
 
         ! Loop through the determiant, and select the relevant orbitals from
@@ -1008,16 +1004,15 @@ contains
 
             ! We want to select a pair of orbitals in a way which is biased
             ! towards pairs with opposing spins. This takes a simple form.
-            ntot = par_hole_pairs * rand_excit_par_bias + AB_hole_pairs
             if (is_alpha(ex(2,1)) .eqv. is_alpha(ex(2,2))) then
-                pgen = pgen * rand_excit_par_bias / ntot
+                pgen = pgen * pParallel / real(par_elec_pairs, dp)
                 if (is_alpha(ex(2,1))) then
                     iSpn = 3
                 else
                     iSpn = 1
                 end if
             else
-                pgen = pgen / ntot
+                pgen = pgen * 1.0_dp / real(AB_elec_pairs, dp)
                 iSpn = 2
             end if
 
@@ -1336,30 +1331,26 @@ contains
         real(dp) :: ntot, r
         integer :: spn(2)
 
-        ntot = par_hole_pairs * rand_excit_par_bias + AB_hole_pairs
+        ! Pick what sort of hole pair we want. AA, BB, or AB
+        r = genrand_real2_dSFMT()
+        if (r < pParallel) then
+            r = (r / pParallel) * par_hole_pairs
+            pgen = pParallel / real(par_hole_pairs, dp)
+            if (r < AA_hole_pairs) then
+                ! alpha/alpha
+                iSpn = 3
+                spn = (/1, 1/)
+            else
+                ! beta/beta
+                iSpn = 1
+                spn = (/2, 2/)
+            end if
 
-        ! The overall generation probability is remarkably simple!
-        pgen = 1.0_dp / ntot
-
-        ! Pick what sort of hole pair we want. AA, BB, or AB.
-        r = genrand_real2_dSFMT() * ntot
-        if (r < AA_hole_pairs) then
-            ! alpha/alpha
-            iSpn = 3
-            spn = (/1, 1/)
-            pgen = pgen * rand_excit_par_bias
-        else if (r < par_hole_pairs) then
-            ! beta/beta
-            iSpn = 1
-            spn = (/2, 2/)
-            pgen = pgen * rand_excit_par_bias
         else
-            ! alpha/beta
+            ! Opposite spin
             iSpn = 2
             spn = (/1, 2/)
-
-            ! We need to adjust the generation probability to account for the
-            ! selection bias
+            pgen = (1.0_dp - pParallel) / real(AB_hole_pairs, dp)
         end if
 
         ! Select orbitals at random with the given spins
