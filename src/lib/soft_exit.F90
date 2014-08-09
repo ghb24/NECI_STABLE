@@ -292,7 +292,7 @@ contains
         logical, intent(out) :: tSingBiasChange, tSoftExitFound
         logical, intent(out) :: tWritePopsFound
         real(dp), dimension(lenof_sign) :: hfsign
-        integer :: i, proc, nmcyc_new, ios, pos, trunc_nop_new, IterRDMonFly_new
+        integer :: i, proc, nmcyc_new, ios, pos, trunc_nop_new, IterRDMonFly_new, run
         real(dp) :: hfScaleFactor
         character(len=100) :: w
 
@@ -347,9 +347,11 @@ contains
                         if (i == tau) then
                             call readf (tau_value)
                         elseif (i == TargetGrowRate) then
-                            call readf (target_grow_rate)
+                            call readf (target_grow_rate(1))
+                            if(inum_runs.eq.2) target_grow_rate(inum_runs)=target_grow_rate(1)
                         elseif (i == diagshift) then
-                            call readf (DiagSft)
+                            call readf (DiagSft(1))
+                            if(inum_runs.eq.2) DiagSft(inum_runs)=DiagSft(1)
                         elseif (i == shiftdamp) then
                             call readf (SftDamp)
                         elseif (i == stepsshift) then
@@ -493,19 +495,21 @@ contains
 
             ! Enter variable shift mode
             if (opts_selected(varyshift)) then
-                if (.not. tSinglePartPhase) then
-                    root_print 'Request to vary shift denied. Already in &
-                               &variable shift mode.'
-                else
-                    tSinglePartPhase = .false.
-                    VaryShiftIter = iter
-                    write(6,*) 'Request to vary the shift detected on a node on iteration: ',iter
-                    
-                    ! If specified, jump the value of the shift to that
-                    ! predicted by the projected energy
-                    if (tJumpShift) &
-                        DiagSft = proje_iter
-                endif
+                do run=1,inum_runs
+                    if (.not. tSinglePartPhase(run)) then
+                        root_print 'Request to vary shift denied. Already in &
+                                   &variable shift mode.'
+                    else
+                        tSinglePartPhase(run) = .false.
+                        VaryShiftIter(run) = iter
+                        write(6,*) 'Request to vary the shift detected on a node on iteration: ',iter
+                        
+                        ! If specified, jump the value of the shift to that
+                        ! predicted by the projected energy
+                        if (tJumpShift) &
+                            DiagSft(run) = proje_iter(run)
+                    endif
+                enddo
             endif
 
             ! Change number of MC steps
@@ -842,19 +846,21 @@ contains
                 call MPIBCast (IterRDMonFly_new, tSource)
                 call MPIBCast (RDMEnergyIter, tSource)
 
-                if (IterRDMonFly_new .le. (Iter - VaryShiftIter)) then
+                if (IterRDMonFly_new .le. (Iter - maxval(VaryShiftIter))) then
                     root_print 'Request to initialise the STOCHASTIC &
                                &calculation of the density matrices.'
                     root_print 'However the iteration specified to start &
                                &filling has already been.'
                     root_print 'Beginning to fill RDMs in the next iteration.'
-                    IterRDMonFly_value = (Iter - VaryShiftIter) + 1
+                    IterRDMonFly_value = (Iter - maxval(VaryShiftIter)) + 1
 
                 else
                     root_print 'Initialising the STOCHASTIC calculation of &
                                &the reduced density matrices'
                     IterRDMonFly_value = IterRDMonFly_new
                 endif
+
+
             endif
 
             ! Initialise calculation of the explicit RDM.
@@ -874,13 +880,13 @@ contains
                     call MPIBCast (IterRDMonFly_new, tSource)
                     call MPIBCast (RDMEnergyIter, tSource)
 
-                    if (IterRDMonFly_new .le. (Iter - VaryShiftIter)) then
+                    if (IterRDMonFly_new .le. (Iter - maxval(VaryShiftIter))) then
                         root_print 'Request to initialise the EXPLICIT &
                                    &calculation of the density matrices.'
                         root_print 'However the iteration specified to start &
                                    &filling has already been.'
                         root_print 'Beginning to fill RDMs in the next iteration.'
-                        IterRDMonFly_value = (Iter - VaryShiftIter) + 1
+                        IterRDMonFly_value = (Iter - maxval(VaryShiftIter)) + 1
 
                     else
                         root_print 'Initialising the EXPLICIT calculation of &
@@ -894,7 +900,7 @@ contains
             if (opts_selected(fill_rdm_iter)) then
                 call MPIBCast (IterRDMonFly_new, tSource)
 
-                if (IterRDMonFly_new .le. (Iter - VaryShiftIter)) then
+                if (IterRDMonFly_new .le. (Iter - maxval(VaryShiftIter))) then
                     root_print 'New value of IterRDMonFly is LESS than or EQUAL TO &
                                &the current iteration number'
                     root_print 'The number of iterations after the shift change & 

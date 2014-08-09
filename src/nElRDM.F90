@@ -51,7 +51,7 @@ MODULe nElRDMMod
                          PreviousCycles, Spawned_Parents_Index, &
                          Spawned_ParentsTag, AccumRDMNorm_Inst, &
                          Spawned_Parents_IndexTag, Iter, AccumRDMNorm, &
-                         AvNoatHF, tSinglePartPhase, AllAccumRDMNorm, iLutRef,&
+                         InstNoatHF, tSinglePartPhase, AllAccumRDMNorm, iLutRef,&
                          HFDet_True, NCurrH, ilutHF_True, SpawnVec, &
                          SpawnVec2, SpawnVecTag, SpawnVec2Tag, SpawnedParts, &
                          SpawnedParts2, excit_gen_store_type, CurrentDets, &
@@ -59,19 +59,19 @@ MODULe nElRDMMod
                          TempSpawnedPartsInd, TempSpawnedParts, TotParts, &
                          TotWalkers, iLutHF, core_space, IterLastRDMFill, &
                          determ_proc_sizes,determ_proc_indices, partial_determ_vector, &
-                         full_determ_vector, full_determ_vector_av, tHashWalkerList
-    use LoggingData, only: RDMExcitLevel, tROFciDump, NoDumpTruncs, tHF_S_D, &
-                       tExplicitAllRDM, tHF_S_D_Ref, tHF_Ref_Explicit, &
-                       tHF_S_D, tPrint1RDM, tInitiatorRDM, RDMEnergyIter, &
+                         full_determ_vector, full_determ_vector_av, tFill_RDM, &
+                         VaryShiftIter, tHashWalkerList, IterRDM_HF, tFinalRDMEnergy
+    use LoggingData, only: RDMExcitLevel, tROFciDump, NoDumpTruncs, &
+                       tExplicitAllRDM, tPrint1RDM, RDMEnergyIter, &
                        tDo_Not_Calc_RDMEnergy, tDiagRDM, tReadRDMs, &
                        tPopsfile, tNo_RDMs_to_read, twrite_RDMs_to_read, &
                        tWriteMultRDMs, tDumpForcesInfo, IterRDMonFly, &
                        tWrite_normalised_RDMs, IterWriteRDMs, tPrintRODump, &
-                       tNoNOTransform, tTruncRODump, tRDMonfly, tInitiatorRDMDiag, &
-                       tTaperDiagRDM, tTaperSQDiagRDM, tCorrectRDMErf, erf_factor1, &
-                       erf_factor2, ThreshOccRDM, tThreshOccRDMDiag,tDipoles, &
-                       tBrokenSymNOs,occ_numb_diff, tForceCauchySchwarz,tBreakSymNOs, &
-                       RotNOs,tagRotNOs,local_cutoff,rottwo,rotthree,rotfour
+                       tNoNOTransform, tTruncRODump, tRDMonfly, &
+                       ThreshOccRDM, tThreshOccRDMDiag, tDipoles,&
+                       tBrokenSymNOs, occ_numb_diff, tForceCauchySchwarz, &
+                       tBreakSymNOs, RotNOs, tagRotNOs, local_cutoff, rottwo, &
+                       rotthree, rotfour, tRDMInstEnergy,tFullHFAv
     use RotateOrbsData, only: CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt, &
                               SymLabelCounts2_rot,SymLabelList2_rot, &
                               SymLabelListInv_rot,NoOrbs, SpatOrbs, &
@@ -101,16 +101,22 @@ MODULe nElRDMMod
         INTEGER , ALLOCATABLE :: Doub_InitExcSlots(:),Doub_ExcList(:)
         INTEGER(kind=n_int) , ALLOCATABLE :: Sing_ExcDjs(:,:),Sing_ExcDjs2(:,:)
         INTEGER(kind=n_int) , ALLOCATABLE :: Doub_ExcDjs(:,:),Doub_ExcDjs2(:,:)
-        INTEGER :: Sing_ExcDjsTag,Sing_ExcDjs2Tag,aaaa_RDMTag,All_aaaa_RDMTag
+        INTEGER :: Sing_ExcDjsTag,Sing_ExcDjs2Tag
+        INTEGER :: aaaa_RDM_instTag,abab_RDM_instTag, abba_RDM_instTag
+        INTEGER :: aaaa_RDM_fullTag,abab_RDM_fullTag, abba_RDM_fullTag
         INTEGER :: Doub_ExcDjsTag,Doub_ExcDjs2Tag,UMATTempTag
-        INTEGER :: Energies_unit, ActualStochSign_unit, abab_RDMTag, All_abab_RDMTag
-        INTEGER :: abba_RDMTag, All_abba_RDMTag, NoSymLabelCounts, Rho_iiTag
-        REAL(dp) , ALLOCATABLE :: aaaa_RDM(:,:), abab_RDM(:,:), abba_RDM(:,:)
-        REAL(dp) , ALLOCATABLE :: All_aaaa_RDM(:,:),All_abab_RDM(:,:), All_abba_RDM(:,:)
+        INTEGER :: Energies_unit, ActualStochSign_unit
+        INTEGER :: NoSymLabelCounts, Rho_iiTag
+        REAL(dp) , ALLOCATABLE, TARGET :: aaaa_RDM_inst(:,:), abab_RDM_inst(:,:), abba_RDM_inst(:,:)
+        REAL(dp) , ALLOCATABLE, TARGET :: aaaa_RDM_full(:,:),abab_RDM_full(:,:), abba_RDM_full(:,:)
+        REAL(dp) , POINTER :: aaaa_RDM(:,:) => null()
+        REAL(dp), POINTER :: abab_RDM(:,:) => null()
+        REAL(dp), POINTER :: abba_RDM(:,:) => null()
+        real(dp), ALLOCATABLE :: AllNodes_aaaa_RDM(:,:), AllNodes_abab_RDM(:,:), AllNodes_abba_RDM(:,:) 
         REAL(dp) , ALLOCATABLE :: UMATTemp(:,:), Rho_ii(:)
         REAL(dp) , ALLOCATABLE :: Lagrangian(:,:)
         REAL(dp) :: OneEl_Gap,TwoEl_Gap, Normalisation,Trace_2RDM_Inst, Trace_2RDM, Trace_1RDM, norm
-        LOGICAL :: tFinalRDMEnergy, tCalc_RDMEnergy
+        LOGICAL :: tCalc_RDMEnergy 
         type(timer), save :: nElRDM_Time, FinaliseRDM_time, RDMEnergy_time
         logical :: trotatedNOs=.false.
 
@@ -174,15 +180,15 @@ MODULe nElRDMMod
         if(tHPHF.and.tExplicitAllRDM) CALL Stop_All('InitRDM',&
                 'HPHF not set up with the explicit calculation of the RDM.')
 
-        if(tHPHF.and.(tHF_S_D_Ref.or.tHF_S_D)) CALL Stop_All('InitRDM',&
-                'HPHF not set up when doing a HF, S, D calculation.')
+        !if(tHPHF.and.(tHF_S_D_Ref.or.tHF_S_D)) CALL Stop_All('InitRDM',&
+        !        'HPHF not set up when doing a HF, S, D calculation.')
 
         ! Can't diagonalise the non-hermitian matrix.                
-        if(tDiagRDM.and.(tHF_S_D_Ref.or.tHF_Ref_Explicit)) then
-            write(6,*) 'Ignoring request to diagonalise the 1-RDM calculated using the HF or HF, S, D &
-                &as a reference - this is not an appropriate matrix for natural orbitals.'
-            tDiagRDM = .false.
-        endif
+        !if(tDiagRDM.and.(tHF_S_D_Ref.or.tHF_Ref_Explicit)) then
+        !    write(6,*) 'Ignoring request to diagonalise the 1-RDM calculated using the HF or HF, S, D &
+        !        &as a reference - this is not an appropriate matrix for natural orbitals.'
+        !    tDiagRDM = .false.
+        !endif
 
         SpatOrbs=nBasis/2
         if(tStoreSpinOrbs) then
@@ -197,7 +203,6 @@ MODULe nElRDMMod
         MemoryAlloc_Root = 0            ! Memory allocated in bytes.
 
 ! First for the storage of the actual 1- or 2-RMD.
-
         IF(RDMExcitLevel.eq.1) THEN
 
 ! This is the AllnElRDM, called NatOrbMat simply because we use the natural 
@@ -217,54 +222,100 @@ MODULe nElRDMMod
             ! The 2-RDM of the type alpha alpha alpha alpha ( = beta beta beta beta).
             ! These *do not* include any 2-RDM(i,j,a,b) terms where i=j or a=b (if they're the same 
             ! spin this can't happen).
-            ALLOCATE(aaaa_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating aaaa_RDM array,')
-            CALL LogMemAlloc('aaaa_RDM',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,aaaa_RDMTag,ierr)
-            aaaa_RDM(:,:)=0.0_dp
+            if(tRDMInstEnergy) then
+                !We will be filling up aaaa_RDM_inst as we go along, which need to be allocated per core
+                !When calculating the energy, these will be summed over cores using an _inplace type command
+                !To calculate the full energy of the RDM (i.e. over full accum. period), we need to allocate
+                ! aaaa_RDM_full on the head nodes
 
-            ! The 2-RDM of the type alpha beta beta alpha ( = beta alpha alpha beta).
-            ! These also *do not* also include 2-RDM(i,j,a,b) terms where i=j or a=b (these are the same as the abab elements).
-            ALLOCATE(abba_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating abba_RDM array,')
-            CALL LogMemAlloc('abba_RDM',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,abba_RDMTag,ierr)
-            abba_RDM(:,:)=0.0_dp
+                ALLOCATE(aaaa_RDM_inst(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating aaaa_RDM_inst array,')
+                CALL LogMemAlloc('aaaa_RDM_inst',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,aaaa_RDM_instTag,ierr)
+                aaaa_RDM_inst(:,:)=0.0_dp
 
-            MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
-            MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
+                ! The 2-RDM of the type alpha beta beta alpha ( = beta alpha alpha beta).
+                ! These also *do not* also include 2-RDM(i,j,a,b) terms where i=j or a=b (these are the same as the abab elements).
+                ALLOCATE(abba_RDM_inst(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating abba_RDM_inst array,')
+                CALL LogMemAlloc('abba_RDM_inst',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,abba_RDM_instTag,ierr)
+                abba_RDM_inst(:,:)=0.0_dp
 
-            ! The 2-RDM of the type alpha beta alpha beta ( = beta alpha beta alpha).
-            ! These *do* include 2-RDM(i,j,a,b) terms where i=j or a=b, if they're different spin this 
-            ! is possible - hence the slightly different size to the aaaa array.
-            ALLOCATE(abab_RDM(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
-            IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating abab_RDM array,')
-            CALL LogMemAlloc('abab_RDM',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,abab_RDMTag,ierr)
-            abab_RDM(:,:)=0.0_dp
-
-            MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 8 ) 
-            MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 8 ) 
-
-            IF(iProcIndex.eq.0) THEN
-                ! Each of these currently need to be stored on the root as well as each node.
-                ! This allows us to separately calculate the instantaneous energy.
-                ! TODO : Option to only calculate the accumulated RDMs - cut storage on the root in half.
-                ALLOCATE(All_aaaa_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
-                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating All_aaaa_RDM array,')
-                CALL LogMemAlloc('All_aaaa_RDM',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,All_aaaa_RDMTag,ierr)
-                All_aaaa_RDM(:,:)=0.0_dp
-
-                ALLOCATE(All_abab_RDM(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
-                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating All_abab_RDM array,')
-                CALL LogMemAlloc('All_abab_RDM',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,All_abab_RDMTag,ierr)
-                All_abab_RDM(:,:)=0.0_dp
-
-                ALLOCATE(All_abba_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
-                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating All_abba_RDM array,')
-                CALL LogMemAlloc('All_abba_RDM',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,All_abba_RDMTag,ierr)
-                All_abba_RDM(:,:)=0.0_dp
-
+                MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
                 MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
-                MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 8 ) 
 
+                ! The 2-RDM of the type alpha beta alpha beta ( = beta alpha beta alpha).
+                ! These *do* include 2-RDM(i,j,a,b) terms where i=j or a=b, if they're different spin this 
+                ! is possible - hence the slightly different size to the aaaa array.
+                ALLOCATE(abab_RDM_inst(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating abab_RDM_inst array,')
+                CALL LogMemAlloc('abab_RDM_inst',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,abab_RDM_instTag,ierr)
+                abab_RDM_inst(:,:)=0.0_dp
+
+                MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
+                MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
+
+                IF(iProcIndex.eq.0) THEN
+                    ALLOCATE(aaaa_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+                    IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating aaaa_RDM_full array,')
+                    CALL LogMemAlloc('aaaa_RDM_full',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,aaaa_RDM_fullTag,ierr)
+                    aaaa_RDM_full(:,:)=0.0_dp
+
+                    ALLOCATE(abab_RDM_full(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
+                    IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating abab_RDM_full array,')
+                    CALL LogMemAlloc('abab_RDM_full',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,abab_RDM_fullTag,ierr)
+                    abab_RDM_full(:,:)=0.0_dp
+
+                    ALLOCATE(abba_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+                    IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating abba_RDM_full array,')
+                    CALL LogMemAlloc('abba_RDM_full',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,abba_RDM_fullTag,ierr)
+                    abba_RDM_full(:,:)=0.0_dp
+
+                    MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
+                    MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 8 ) 
+                    MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
+                    MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 8 ) 
+
+                ENDIF
+                
+                aaaa_RDM => aaaa_RDM_inst
+                abba_RDM => abba_RDM_inst
+                abab_RDM => abab_RDM_inst
+            else
+                !We're not calculating an instantaneous RDM energy
+                !Put RDM contributions directly into 'full' arrays, which are now allocated every core
+                
+                ALLOCATE(aaaa_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating aaaa_RDM_full array,')
+                CALL LogMemAlloc('aaaa_RDM_full',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,aaaa_RDM_fullTag,ierr)
+                aaaa_RDM_full(:,:)=0.0_dp
+
+                ! The 2-RDM of the type alpha beta beta alpha ( = beta alpha alpha beta).
+                ! These also *do not* also include 2-RDM(i,j,a,b) terms where i=j or a=b (these are the same as the abab elements).
+                ALLOCATE(abba_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating abba_RDM_full array,')
+                CALL LogMemAlloc('abba_RDM_full',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,abba_RDM_fullTag,ierr)
+                abba_RDM_full(:,:)=0.0_dp
+
+                MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
+                MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
+
+                ! The 2-RDM of the type alpha beta alpha beta ( = beta alpha beta alpha).
+                ! These *do* include 2-RDM(i,j,a,b) terms where i=j or a=b, if they're different spin this 
+                ! is possible - hence the slightly different size to the aaaa array.
+                ALLOCATE(abab_RDM_full(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
+                IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating abab_RDM_full array,')
+                CALL LogMemAlloc('abab_RDM_full',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,abab_RDM_fullTag,ierr)
+                abab_RDM(:,:)=0.0_dp
+
+                MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
+                MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
+                
+                aaaa_RDM => aaaa_RDM_full
+                abba_RDM => abba_RDM_full
+                abab_RDM => abab_RDM_full
+            endif
+
+            if (iProcindex.eq.0) then
                 if(tDiagRDM.or.tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
                     ! Still need to allocate 1-RDM to get nat orb occupation numbers.
                     ALLOCATE(NatOrbMat(NoOrbs,NoOrbs),stat=ierr)
@@ -273,7 +324,8 @@ MODULe nElRDMMod
                     NatOrbMat(:,:)=0.0_dp
                     MemoryAlloc_Root = MemoryAlloc_Root + ( NoOrbs * NoOrbs * 8 ) 
                 endif
-            ENDIF
+            endif
+
         ENDIF            
 
 ! We then need to allocate the arrays for excitations etc when doing the explicit all calculation.        
@@ -353,13 +405,14 @@ MODULe nElRDMMod
                 Doub_ExcList(:)=Doub_InitExcSlots(:)
             ENDIF
 
-        ELSEIF(.not.tHF_Ref_Explicit) THEN
+        !ELSEIF(.not.tHF_Ref_Explicit) THEN
+        ELSE
 
 ! Finally, we need to hold onto the parents of the spawned particles.            
 ! This is not necessary if we're doing completely explicit calculations.
-            ALLOCATE(Spawned_Parents(0:(NIfDBO+1),MaxSpawned),stat=ierr)
+            ALLOCATE(Spawned_Parents(0:(NIfDBO+2),MaxSpawned),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Spawned_Parents array,')
-            CALL LogMemAlloc('Spawned_Parents',MaxSpawned*(NIfDBO+2),size_n_int,&
+            CALL LogMemAlloc('Spawned_Parents',MaxSpawned*(NIfDBO+3),size_n_int,&
                                                 this_routine,Spawned_ParentsTag,ierr)
             ALLOCATE(Spawned_Parents_Index(2,MaxSpawned),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating Spawned_Parents_Index array,')
@@ -443,7 +496,7 @@ MODULe nElRDMMod
         ! Open file to keep track of RDM Energies (if they're being calculated). 
         IF((iProcIndex.eq.0).and.tCalc_RDMEnergy) THEN
             Energies_unit = get_free_unit()
-            OPEN(Energies_unit,file='RDMEnergies',status='unknown')
+            OPEN(Energies_unit,file='RDMEnergies',status='unknown',position='append')
 
             WRITE(Energies_unit, "(A1,3A30)") '#','Iteration','RDM Energy - Inst','RDM Energy - Accum'
         ENDIF
@@ -459,7 +512,7 @@ MODULe nElRDMMod
         ! Reads in the RDMs from a previous calculation, sets the accumulating normalisations, 
         ! writes out the starting energy.
         if(tReadRDMs) then
-            if(tSinglePartPhase) then
+            if(tSinglePartPhase(1) .or. tSinglePartPhase(inum_runs)) then
                 write(6,'(A)') 'WARNING - Asking to read in the RDMs, but not varying shift from &
                                 & the beginning of the calculation.'
                 write(6,'(A)') 'Ignoring the request to read in the RDMs and starting again.'
@@ -488,9 +541,9 @@ MODULe nElRDMMod
             aaaa_RDM(:,:) = 0.0_dp
             abab_RDM(:,:) = 0.0_dp
             abba_RDM(:,:) = 0.0_dp
-            All_aaaa_RDM(:,:) = 0.0_dp
-            All_abab_RDM(:,:) = 0.0_dp
-            All_abba_RDM(:,:) = 0.0_dp
+            AllNodes_aaaa_RDM(:,:) = 0.0_dp
+            AllNodes_abab_RDM(:,:) = 0.0_dp
+            AllNodes_abba_RDM(:,:) = 0.0_dp
         endif
 
         Trace_2RDM = 0.0_dp
@@ -558,7 +611,7 @@ MODULe nElRDMMod
 
                         Ind1 = ( ( (j-2) * (j-1) ) / 2 ) + i
                         Ind2 = ( ( (b-2) * (b-1) ) / 2 ) + a
-                        All_aaaa_RDM(Ind1,Ind2) = Temp_RDM_Element
+                        aaaa_RDM_full(Ind1,Ind2) = Temp_RDM_Element
                     enddo
                     close(RDM_unit)
 
@@ -570,7 +623,7 @@ MODULe nElRDMMod
 
                         Ind1 = ( ( (j-1) * j ) / 2 ) + i
                         Ind2 = ( ( (b-1) * b ) / 2 ) + a
-                        All_abab_RDM(Ind1,Ind2) = Temp_RDM_Element
+                        abab_RDM_full(Ind1,Ind2) = Temp_RDM_Element
                     enddo
                     close(RDM_unit)
 
@@ -582,7 +635,7 @@ MODULe nElRDMMod
 
                         Ind1 = ( ( (j-2) * (j-1) ) / 2 ) + i
                         Ind2 = ( ( (b-2) * (b-1) ) / 2 ) + a
-                        All_abba_RDM(Ind1,Ind2) = Temp_RDM_Element
+                        abba_RDM_full(Ind1,Ind2) = Temp_RDM_Element
                     enddo
                     close(RDM_unit)
 
@@ -811,13 +864,15 @@ MODULe nElRDMMod
         real(dp) , intent(in) :: CurrH_I(NCurrH)
         integer, intent(out) :: nI(nel), FlagsI
         real(dp), dimension(lenof_sign), intent(out) :: SignI
-        real(dp) , intent(out) :: IterRDMStartI, AvSignI
+        real(dp) , dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
         type(excit_gen_store_type), intent(inout), optional :: Store
+        integer :: part_ind
+        
+        ! This extracts everything.
+        call extract_bit_rep (iLutnI, nI, SignI, FlagsI, store)
 
-        call extract_bit_rep (iLutnI, nI, SignI, FlagsI, Store)
-
-        IterRDMStartI = 0.0_dp
-        AvSignI = 0.0_dp
+        IterRDMStartI(:)= 0.0_dp
+        AvSignI(:) = 0.0_dp
 
     end subroutine extract_bit_rep_avsign_no_rdm
 
@@ -826,11 +881,15 @@ MODULe nElRDMMod
 ! The following extract_bit_rep_avsign routine extracts the bit representation 
 ! of the current determinant, and calculate the average sign since this determinant became 
 ! occupied. 
+! In double run, we have to be particularly careful -- we need to start a new average 
+! when the determinant becomes newly occupied or unoccupied in either population (see CMO thesis).
+! Additionally, we're also setting it up so that averages get restarted whenever we calculate the energy
+! which saves a lot of faffing about, and storage of an extra set of RDMs, and is still unbiased.
 ! This is called for each determinant in the occupied list at the beginning of its FCIQMC cycle. 
 ! It is used if we're calculating the RDMs with or without HPHF. 
 ! Input:    iLutnI (bit rep of current determinant).
 !           CurrH_I(1) - diagonal H_ii element for current det i.
-!           CurrH_I(2) - previous AvSign, CurrH_I(3) - previous IterRDMStartI
+!           CurrH_I(2:3) - previous AvSign, CurrH_I(4:5) - previous IterRDMStartI (for doublerun)
 ! Output:   nI, SignI, FlagsI after extract.                                              
 !           IterRDMStartI - new iteration the determinant became occupied (as a real).
 !           AvSignI - the new average walker population during this time (also real).
@@ -838,52 +897,129 @@ MODULe nElRDMMod
         real(dp) , intent(in) :: CurrH_I(NCurrH)
         integer, intent(out) :: nI(nel), FlagsI
         real(dp), dimension(lenof_sign), intent(out) :: SignI
-        real(dp) , intent(out) :: IterRDMStartI, AvSignI
+        real(dp) , dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
         type(excit_gen_store_type), intent(inout), optional :: Store
+        integer :: part_ind
 
         ! This is the iteration from which this determinant has been occupied.
-        IterRDMStartI = CurrH_I(3)
-        ! If there is nothing stored there yet, the first iteration the determinant 
-        ! became occupied is this one.
-        IF(IterRDMStartI.eq.0.0_dp) IterRDMStartI = real(Iter, dp)
-
+        IterRDMStartI(1:lenof_sign) = CurrH_I(2+lenof_sign:1+2*lenof_sign)
+        
         ! This extracts everything.
         call extract_bit_rep (iLutnI, nI, SignI, FlagsI)
+            
+        if(((Iter+PreviousCycles-IterRDMStart).gt.0) .and. &
+            & (mod(((Iter-1)+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0)) then 
+            ! The previous iteration was one where we added in diagonal elements
+            ! To keep things unbiased, we need to set up a new averaging block now.
+            ! NB: if doing single run cutoff, note that doing things this way is now
+            ! NOT the same as the technique described in CMO (and DMC's) thesis.
+            ! Would expect diagonal elements to be slightly worse quality, improving
+            ! as once calculates the RDM energy less frequently.  As this method is
+            ! biased anyway, I'm not going to lose sleep over it.
+            AvSignI(1)=SignI(1)
+            IterRDMStartI(1)=real(Iter+PreviousCycles,dp)
+            AvSignI(2)=SignI(2)
+            IterRDMStartI(2)=real(Iter+PreviousCycles,dp)
+        else
+            !Now let's consider other instances in which we need to start a new block:
+            if(inum_runs.eq.2) then
+                if ((SignI(1).eq.0).and.(IterRDMStartI(1).ne.0)) then
+                    ! The population has just gone to zero on population 1
+                    ! Therefore, we need to start a new averaging block
+                    AvSignI(1)=0
+                    IterRDMStartI(1)=0
+                    AvSignI(2)=SignI(2)
+                    IterRDMStartI(2)=real(Iter+PreviousCycles,dp)
+                elseif ((SignI(2).eq.0).and.(IterRDMStartI(2).ne.0)) then
+                    ! The population has just gone to zero on population 2
+                    ! Therefore, we need to start a new averaging block
+                    AvSignI(2)=0
+                    IterRDMStartI(2)=0
+                    AvSignI(1)=SignI(1)
+                    IterRDMStartI(1)=real(Iter+PreviousCycles,dp)
+                elseif((SignI(1).ne.0).and.(IterRDMStartI(1).eq.0)) then
+                    !Population 1 has just become occupied
+                    IterRDMStartI(1)=real(Iter+PreviousCycles,dp)
+                    IterRDMStartI(2)=real(Iter+PreviousCycles,dp)
+                    AvSignI(1)=SignI(1)
+                    AvSignI(2)=SignI(2)
+                    if(SignI(2).eq.0) IterRDMStartI(2)=0
+                elseif ((SignI(2).ne.0).and.(IterRDMStartI(2).eq.0)) then
+                    !Population 2 has just become occupied
+                    IterRDMStartI(1)=real(Iter+PreviousCycles,dp)
+                    IterRDMStartI(2)=real(Iter+PreviousCycles,dp)
+                    AvSignI(1)=SignI(1)
+                    AvSignI(2)=SignI(2)
+                    if(SignI(1).eq.0) IterRDMStartI(1)=0
+                else
+                    !Nothing unusual has happened so update both populations as normal
+                    do part_ind=1,lenof_sign
+                        ! Update the average population.
+                        AvSignI(part_ind) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * CurrH_I(1+part_ind)) &
+                            + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
+                    enddo
+                endif
+            else
+                do part_ind=1,lenof_sign
+                   ! If there is nothing stored there yet, the first iteration the determinant 
+                   ! became occupied is this one.
+                    IF(IterRDMStartI(part_ind).eq.0.0_dp) IterRDMStartI(part_ind) = real(Iter+PreviousCycles, dp)
+                    ! Update the average population.
+                    ! This just comes out as the current population (SignI) if this is the first 
+                    ! time the determinant has become occupied.
 
-        ! Update the average population.
-        ! This just comes out as the current population (SignI) if this is the first 
-        ! time the determinant has become occupied.
-        AvSignI = ( ((real(Iter,dp) - IterRDMStartI) * CurrH_I(2)) &
-                        + SignI(1) ) / ( real(Iter,dp) - IterRDMStartI + 1.0_dp )
+                    AvSignI(part_ind) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * CurrH_I(1+part_ind)) &
+                                    + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
+                enddo
+            endif
+        endif
 
     end subroutine extract_bit_rep_avsign_norm
-
-    subroutine fill_rdm_diag_currdet_norm(iLutnI, nI, CurrH_I, ExcitLevelI, tCoreSpaceDet, IterLastRDMFill) 
+    
+    subroutine fill_rdm_diag_currdet_norm(iLutnI, nI, CurrH_I, ExcitLevelI, tCoreSpaceDet)
 ! This routine calculates the diagonal RDM contribution, and explicit connections to the HF, from the 
 ! current determinant. 
 ! Each determinant (iLutnI/nI), has Hii element CurrH_I(1), average 
-! population CurrH_I(2), and has been occupied since iteration CurrH_I(3).
+! population CurrH_I(2:3), and has been occupied since iteration CurrH_I(4:5).
 ! IterLastRDMFill is the number of iterations since the last time the RDM contributions were added in 
 ! (often the frequency of the RDM energy calculation). 
-! We need to multiply the RDM contributions by either this, or the number of iterations 
+! For the instantaneous RDMs we need to multiply the RDM contributions by either this, or the number of iterations 
 ! the determinant has been occupied, which ever is fewer.
+! For the full RDMs we need to multiply the RDM contributions by the number of iterations the 
+! determinant has been occupied.
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         real(dp) , intent(in) :: CurrH_I(NCurrH)
+        integer, intent(in) :: nI(nel), ExcitLevelI
         logical, intent(in), optional :: tCoreSpaceDet
-        integer, intent(in) :: nI(nel), ExcitLevelI, IterLastRDMFill
-        real(dp) :: IterDetOcc, IterRDM
+        real(dp), dimension(lenof_sign) :: IterDetOcc
         integer(n_int) :: SpinCoupDet(0:nIfTot)
-        integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
-
-        ! This is the number of iterations this determinant has been occupied.
-        IterDetOcc = real(Iter,dp) - CurrH_I(3) + 1.0_dp
-
-        ! IterRDM is then the number of iterations we want to multiply the contributions by.
-        IterRDM = min(IterDetOcc,real(IterLastRDMFill,dp))
+        integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel, part_type
+        real(dp) :: AvSignCurr(lenof_sign)
+        integer :: IterLastRDMFill, AvSignIters, IterRDM
         
+        ! This is the number of iterations this determinant has been occupied.
+        do part_type=1,lenof_sign
+            IterDetOcc(part_type) = real(Iter+PreviousCycles,dp) - CurrH_I(1+lenof_sign+part_type) + 1.0_dp
+        enddo
+        AvSignIters=min(IterDetOcc(1), IterDetOcc(inum_runs))
+        
+        ! IterLastRDMFill is the number of iterations from the last time the energy was calculated 
+        IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter)
+        
+
+        ! The number of iterations we want to weight this RDM contribution by is:
+        if(IterLastRDMFill.gt.0) then
+            IterRDM = min(AvSignIters,IterLastRDMFill)
+        else
+            IterRDM = AvSignIters
+        endif
+
+        AvSignCurr=CurrH_I(2:1+lenof_sign)
+
         if(tHPHF) then
             if(.not.TestClosedShellDet(iLutnI)) then
-                call Fill_Diag_RDM(nI, CurrH_I(2)/SQRT(2.0_dp), IterRDM,tCoreSpaceDet)
+                call Fill_Diag_RDM(nI, AvSignCurr/SQRT(2.0_dp), tCoreSpaceDet, IterRDM)
+
                 
 ! C_X D_X = C_X / SQRT(2) [ D_I +/- D_I'] - for open shell dets, divide stored C_X by SQRT(2). 
 ! Add in I.
@@ -892,7 +1028,7 @@ MODULe nElRDMMod
                 ! Find out if it's + or - in the above expression.                
                 SignFac = hphf_sign(iLutnI)
 
-                call Fill_Diag_RDM(nSpinCoup, (real(SignFac,dp)*CurrH_I(2))/SQRT(2.0_dp), IterRDM,tCoreSpaceDet)
+                call Fill_Diag_RDM(nSpinCoup, real(SignFac,dp)*AvSignCurr/SQRT(2.0_dp), tCoreSpaceDet, IterRDM)
 
 ! For HPHF we're considering < D_I + D_I' | a_a+ a_b+ a_j a_i | D_I + D_I' >
 ! Not only do we have diagonal < D_I | a_a+ a_b+ a_j a_i | D_I > terms, but also cross terms
@@ -900,32 +1036,28 @@ MODULe nElRDMMod
 ! excitation.
 ! Find excitation level between D_I and D_I' and add in the contribution if connected.
                 HPHFExcitLevel = FindBitExcitLevel (iLutnI, SpinCoupDet, 2)
-                if(HPHFExcitLevel.le.2) & 
-                    call Add_RDM_From_IJ_Pair(nI, nSpinCoup, &
-                                                IterRDM * CurrH_I(2)/SQRT(2.0_dp), &
-                                                (real(SignFac,dp)*CurrH_I(2))/SQRT(2.0_dp), .true.)
-
+                if(HPHFExcitLevel.le.2) then 
+                    call Add_RDM_From_IJ_Pair(nI, nSpinCoup, IterRDM*AvSignCurr(1)/SQRT(2.0_dp), &
+                                            (real(SignFac,dp)*AvSignCurr(lenof_sign))/SQRT(2.0_dp), .true.)
+                endif
             else
 
                 ! HPHF on, but determinant closed shell.
-                call Fill_Diag_RDM(nI, CurrH_I(2), IterRDM,tCoreSpaceDet)
+                call Fill_Diag_RDM(nI, AvSignCurr, tCoreSpaceDet, IterRDM)
 
             endif
-
-            call Add_RDM_HFConnections_HPHF(iLutnI, nI, CurrH_I(2), ExcitLevelI, IterRDM)   
+            call Add_RDM_HFConnections_HPHF(iLutnI, nI, AvSignCurr, ExcitLevelI, IterRDM)   
 
         else
             ! No HPHF
-
-            call Fill_Diag_RDM(nI, CurrH_I(2), IterRDM, tCoreSpaceDet)
-            
-            call Add_RDM_HFConnections_Norm(iLutnI, nI, CurrH_I(2), ExcitLevelI, IterRDM)   
+            if(AvSignCurr(1)*AvSignCurr(lenof_sign).ne.0) call Fill_Diag_RDM(nI, AvSignCurr, tCoreSpaceDet, IterRDM)
+            call Add_RDM_HFConnections_Norm(iLutnI, nI, AvSignCurr, ExcitLevelI, IterRDM)   
 
         endif
 
     end subroutine fill_rdm_diag_currdet_norm
 
-    subroutine fill_rdm_diag_currdet_hfsd(iLutnI, nI, CurrH_I, ExcitLevelI, tCoreSpaceDet, IterLastRDMFill) 
+!    subroutine fill_rdm_diag_currdet_hfsd(iLutnI, nI, SignCurr, ExcitLevelI, tCoreSpaceDet)
 ! This routine calculates the diagonal RDM contribution, and explicit connections to the HF, from the 
 ! current determinant. 
 ! Each determinant (iLutnI/nI), has Hii element CurrH_I(1), average 
@@ -934,32 +1066,25 @@ MODULe nElRDMMod
 ! (often the frequency of the RDM energy calculation). 
 ! We need to multiply the RDM contributions by either this, or the number of iterations 
 ! the determinant has been occupied, which ever is fewer.
-        integer(n_int), intent(in) :: iLutnI(0:nIfTot)
-        real(dp) , intent(in) :: CurrH_I(NCurrH)
-        logical, intent(in), optional :: tCoreSpaceDet
-        integer, intent(in) :: nI(nel), ExcitLevelI, IterLastRDMFill
-        real(dp) :: IterDetOcc, IterRDM
-        integer(n_int) :: SpinCoupDet(0:nIfTot)
-        integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel
+!        integer(n_int), intent(in) :: iLutnI(0:nIfTot)
+!        real(dp) , intent(in) :: SignCurr(lenof_sign)
+!        logical, intent(in), optional :: tCoreSpaceDet
+!        integer, intent(in) :: nI(nel), ExcitLevelI
+!        integer(n_int) :: SpinCoupDet(0:nIfTot)
+!        integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel, part_type
+!
+!        call Add_RDM_HFConnections_HF_S_D(iLutnI, nI, SignCurr, ExcitLevelI, tCoreSpaceDet)
+!
+!    end subroutine fill_rdm_diag_currdet_hfsd
 
-        ! This is the number of iterations this determinant has been occupied.
-        IterDetOcc = real(Iter,dp) - CurrH_I(3) + 1.0_dp
-
-        ! IterRDM is then the number of iterations we want to multiply the contributions by.
-        IterRDM = min(IterDetOcc,real(IterLastRDMFill,dp))
-
-        call Add_RDM_HFConnections_HF_S_D(iLutnI, nI, CurrH_I(2), ExcitLevelI, IterRDM)
-
-    end subroutine fill_rdm_diag_currdet_hfsd
-
-    subroutine fill_rdm_softexit(nDets)
+!    subroutine fill_rdm_softexit(nDets)
 ! !This routine is called if a softexit command is used.  
 ! !In this case, the diagonal RDM elements, and explicit connections to the HF will not have been 
 ! !calculated in the final iteration.  
 ! !Need to run over the occupied determinants and do so now. 
 ! !This is clearly not all that efficient, and so could be incorporated into the popsfile write out 
 ! !if it becomes an issue.
-        integer(int64) , intent(in) :: nDets
+ !       integer(int64) , intent(in) :: nDets
   !      integer :: nI(nel), ExcitLevel, i
 
   !      ! If it happens to be an iteration where the diagonal RDM elements are already being 
@@ -968,7 +1093,7 @@ MODULe nElRDMMod
 
   !          ! IterLastRDMFill is the number of iterations from the last time the RDM elements 
   !          ! were included.
-  !          IterLastRDMFill = mod((Iter - IterRDMStart + 1),RDMEnergyIter)
+  !          IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter)
 
   !          ! Run over all determinants in the occupied (CurrentDets) list.
   !          do i = 1, int(nDets,sizeof_int)
@@ -1002,7 +1127,7 @@ MODULe nElRDMMod
 
   !      endif
 
-    end subroutine fill_rdm_softexit
+  !  end subroutine fill_rdm_softexit
 
     subroutine det_removed_fill_diag_rdm( iLutnI, CurrH_I )
 ! This routine is called if a determinant is removed from the list of currently occupied.  
@@ -1010,42 +1135,36 @@ MODULe nElRDMMod
 ! been occupied (or since the contribution was last included). 
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         real(dp) , intent(in) :: CurrH_I(NCurrH)
-        integer :: nI(nel), ExcitLevel
+        integer :: nI(nel), ExcitLevel, IterLastRDMFill
 
         ! If the determinant is removed on an iteration that the diagonal RDM elements are 
         ! already being calculated, it will already have been counted.
-        if(.not.((Iter.eq.NMCyc).or.(mod((Iter - IterRDMStart + 1),RDMEnergyIter).eq.0))) then
 
-            if((abs(CurrH_I(2)).gt.InitiatorWalkNo).or.(.not.tInitiatorRDM)) then
+        if(.not.((Iter.eq.NMCyc).or.(mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0))) then
+        ! The elements described above will have been already added in
 
-                ! IterLastRDMFill is the number of iterations from the last time the RDM elements 
-                ! were included.
-                IterLastRDMFill = mod((Iter - IterRDMStart + 1),RDMEnergyIter)
-
-                call decode_bit_det (nI, iLutnI)
-                if(tRef_Not_HF) then
-                    ExcitLevel = FindBitExcitLevel (iLutHF_true, iLutnI, 2)
-                else
-                    ExcitLevel = FindBitExcitLevel (iLutRef, iLutnI, 2)
-                endif
-
-                if(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
-                    call fill_rdm_diag_currdet_hfsd(iLutnI, nI, CurrH_I, ExcitLevel, .false., IterLastRDMFill)
-                else
-                    call fill_rdm_diag_currdet_norm(iLutnI, nI, CurrH_I, ExcitLevel, .false., IterLastRDMFill)
-                endif
-
+            call decode_bit_det (nI, iLutnI)
+            if(tRef_Not_HF) then
+                ExcitLevel = FindBitExcitLevel (iLutHF_true, iLutnI, 2)
+            else
+                ExcitLevel = FindBitExcitLevel (iLutRef, iLutnI, 2)
             endif
+
+            !if(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
+            !    call fill_rdm_diag_currdet_hfsd(iLutnI, nI, CurrH_I, ExcitLevel, .false., &
+            !                                    IterLastRDMFill, tFinalRDMContrib, tDetRemoved)
+            !else
+
+            call fill_rdm_diag_currdet_norm(iLutnI, nI, CurrH_I, ExcitLevel, .false.)
+            !endif
 
         endif
 
     end subroutine det_removed_fill_diag_rdm
 
-! These Add_RDM_HFConnections routines take the current determinant and if it is 
-! a single or double excitation of the HF, they explicitly add in the contribution to the RDM 
-! from the current and hf determinant.
+!!!!!!!!!!! CMO up to here
 
-    subroutine Add_RDM_HFConnections_Norm(iLutJ,nJ,AvSignJ,walkExcitLevel,IterRDM)
+    subroutine Add_RDM_HFConnections_Norm(iLutJ,nJ,AvSignJ,walkExcitLevel, IterRDM)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! It is called for each CurrentDet which is a single or double of the HF.
 ! It explicitly adds in the HF - S/D connection, as if the HF were D_i and 
@@ -1054,32 +1173,38 @@ MODULe nElRDMMod
 ! In this case the diagonal elements wll already be taken care of.
         integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
         integer , intent(in) :: nJ(NEl)
-        real(dp) , intent(in) :: AvSignJ, IterRDM
+        real(dp) , dimension(lenof_sign), intent(in) :: AvSignJ
+        integer , intent(in) :: IterRDM
         integer , intent(in) :: walkExcitLevel
         integer(kind=n_int) :: SpinCoupDet(0:niftot)
-        integer :: nSpinCoup(NEl), HPHFExcitLevel
+        integer :: nSpinCoup(NEl), HPHFExcitLevel, part_type
 
-! The two measures are calculated and updated at different places in the code, so it's not necessarily
-! an issue that they don't agree.  E.g. whether or not you rezero the stats if the sign goes to 
-! zero instantaneously during annihilation or not.
 ! Quick check that the HF population is being calculated correctly.
-        if(walkExcitLevel.eq.0) then
-            if(AvSignJ.ne.AvNoatHF) then
-                write(6,*) 'HFDet_True',HFDet_True
-                write(6,*) 'nJ',nJ
-                write(6,*) 'iLutJ',iLutJ
-                write(6,*) 'AvSignJ',AvSignJ
-                write(6,*) 'AvNoatHF',AvNoatHF
-                CALL Stop_All('Add_RDM_HFConnections_Norm','Incorrect instantaneous HF population.')
+        if(.not.tFullHFAv) then
+            !If tFullHFAv, we continue the accumulation of AvNoAtHF even when InstNoAtHF is zero
+            !Therefore, AvNoAtHF is allowed to be different to the AvSignJ stored in CurrentH for this det
+            if(walkExcitLevel.eq.0) then
+                do part_type=1,lenof_sign
+                    if(abs(AvSignJ(part_type)-AvNoatHF(part_type)).gt.1E-10) then
+                        write(6,*) 'HFDet_True',HFDet_True
+                        write(6,*) 'nJ',nJ
+                        write(6,*) 'iLutJ',iLutJ
+                        write(6,*) 'AvSignJ',AvSignJ
+                        write(6,*) 'AvNoatHF',AvNoatHF
+                        write(6,*) "instnoathf", instnoathf
+                        CALL Stop_All('Add_RDM_HFConnections_Norm','Incorrect average HF population.')
+                    endif
+                enddo
             endif
         endif
 
 ! If we have a single or double, add in the connection to the HF, symmetrically.       
-        if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
-            call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF,IterRDM * AvSignJ,.true.)
+        if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) then
+            call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF(1),(1.0_dp/real(lenof_sign,dp))*IterRDM*AvSignJ(lenof_sign),.true.)
+            call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF(lenof_sign),(1.0_dp/real(lenof_sign,dp))*IterRDM*AvSignJ(1),.true.)
+        endif
 
     end subroutine Add_RDM_HFConnections_Norm
-
 
     subroutine Add_RDM_HFConnections_HPHF(iLutJ,nJ,AvSignJ,walkExcitLevel,IterRDM)
 ! This is called when we run over all TotWalkers in CurrentDets.    
@@ -1088,16 +1213,23 @@ MODULe nElRDMMod
 ! The diagonal elements will already have been taken care of by the extract routine.
         integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
         integer , intent(in) :: nJ(NEl)
-        real(dp) , intent(in) :: AvSignJ, IterRDM
+        integer , intent(in) :: IterRDM
+        real(dp) , dimension(lenof_sign), intent(in) :: AvSignJ
         integer , intent(in) :: walkExcitLevel
         integer(kind=n_int) :: SpinCoupDet(0:niftot)
-        integer :: nSpinCoup(NEl), HPHFExcitLevel
+        integer :: nSpinCoup(NEl), HPHFExcitLevel, part_type
 
-        if(walkExcitLevel.eq.0) then
-            if(AvSignJ.ne.AvNoatHF) then
-                write(6,*) 'AvSignJ',AvSignJ
-                write(6,*) 'AvNoatHF',AvNoatHF
-                CALL Stop_All('Add_RDM_HFConnections_HPHF','Incorrect instantaneous HF population.')
+        if(.not.tFullHFAv) then
+            !If tFullHFAv, we continue the accumulation of AvNoAtHF even when InstNoAtHF is zero
+            !Therefore, AvNoAtHF is allowed to be different to the AvSignJ stored in CurrentH for this det
+            if(walkExcitLevel.eq.0) then
+                do part_type=1,lenof_sign
+                    if(AvSignJ(part_type).ne.AvNoatHF(part_type)) then
+                        write(6,*) 'AvSignJ',AvSignJ
+                        write(6,*) 'AvNoatHF',AvNoatHF
+                        CALL Stop_All('Add_RDM_HFConnections_HPHF','Incorrect average HF population.')
+                    endif
+                enddo
             endif
         endif
 
@@ -1105,22 +1237,23 @@ MODULe nElRDMMod
 ! of this connection as well - symmetrically because no probabilities are involved.
         if((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
             call Fill_Spin_Coupled_RDM_v2(iLutHF_True,iLutJ,HFDet_True,nJ,&
-                                            AvNoatHF,IterRDM * AvSignJ,.true.)
+                                            AvNoatHF(1),IterRDM*AvSignJ(lenof_sign),.true.)
 
     end subroutine Add_RDM_HFConnections_HPHF
 
-    subroutine Add_RDM_HFConnections_HF_S_D(iLutJ,nJ,AvSignJ,walkExcitLevel, IterRDM)
+!    subroutine Add_RDM_HFConnections_HF_S_D(iLutJ,nJ,SignJ,walkExcitLevel, tCoreSpaceDet)
 ! This is called when we run over all TotWalkers in CurrentDets.    
 ! This finds all the connections to the HF when doing some sort of truncated RDM 
 ! calculation.
 ! Here, the diagonal elements will not have been added in by the extract routines.
 ! In the case of HF_Ref_Explicit, this routine does all the work.
-        integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
-        integer , intent(in) :: nJ(NEl)
-        real(dp) , intent(in) :: AvSignJ, IterRDM
-        integer , intent(in) :: walkExcitLevel
-        integer(kind=n_int) :: SpinCoupDet(0:niftot)
-        integer :: nSpinCoup(NEl), HPHFExcitLevel
+!        integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
+!        integer , intent(in) :: nJ(NEl)
+!        real(dp) , dimension(lenof_sign), intent(in) :: SignJ
+!        integer , intent(in) :: walkExcitLevel
+!        logical,intent(in) :: tCoreSpaceDet
+!        integer(kind=n_int) :: SpinCoupDet(0:niftot)
+!        integer :: nSpinCoup(NEl), HPHFExcitLevel, part_type
 
 ! Add diagonal elements to reduced density matrices.
 
@@ -1129,62 +1262,62 @@ MODULe nElRDMMod
 ! But for the diagonal elements - only consider doubles and singles (and HF).
 
         ! In all of these cases the HF is a diagonal element.
-        if(walkExcitLevel.eq.0) then
+!        if(walkExcitLevel.eq.0) then
+!            
+!            call Fill_Diag_RDM(nJ, SignJ, tCoreSpaceDet)
+!            AccumRDMNorm_Inst = AccumRDMNorm_Inst+(SignJ(1)*SignJ(lenof_sign))
+!    
+!            do part_type=1,lenof_sign
+!                if(SignJ(part_type).ne.InstNoatHF(part_type)) then
+!                    write(6,*) 'AvSignJ',SignJ
+!                    write(6,*) 'InstNoatHF',InstNoatHF
+!                    call stop_all('Add_RDM_HFConnections_HF_S_D','HF population is incorrect.')
+!                endif
+!            enddo
+!
+!            ! The HF is always closed shell (at the moment), 
+!            ! so don't need to account for HPHF here.
+!
+!        elseif(walkExcitLevel.le.2) then
+!
+!            if(tHF_Ref_Explicit) then
+!                
+!                if(tHPHF) then
+!
+!                    ! Now if the determinant is connected to the HF (i.e. single or double), 
+!                    ! add in the elements of this connection as well - symmetrically 
+!                    ! because no probabilities are involved.
+!                    call Fill_Spin_Coupled_RDM_v2(iLutHF_True,iLutJ,HFDet_True,nJ,&
+!                                InstNoatHF(1),SignJ(lenof_sign),.false.)
+!
+!                else
+!
+!                    ! The singles and doubles are connected and explicitly calculated 
+!                    ! - but not symmetrically.
+!                    call Add_RDM_From_IJ_Pair(HFDet_True, nJ, InstNoatHF(1), &
+!                                                SignJ(lenof_sign),.false.)
+!
+!                endif
+!
+!            else
+!                ! For the HF,S,D symmetric case, and the HF,S,D reference, the S and D
+!                ! are diagonal terms too.
+!                ! These options are not set up for HPHF.
+!                
+!                call Fill_Diag_RDM(nJ, SignJ, tCoreSpaceDet)
+!                AccumRDMNorm_Inst = AccumRDMNorm_Inst+(SignJ(1)*SignJ(lenof_sign))
+!
+!                call Add_RDM_From_IJ_Pair(HFDet_True,nJ,InstNoatHF(1),SignJ(lenof_sign),.true.)
+!
+!            endif
+!
+!        endif
+!
+!    end subroutine Add_RDM_HFConnections_HF_S_D
 
-            call Fill_Diag_RDM(nJ, AvSignJ, IterRDM)
-            AccumRDMNorm = AccumRDMNorm + (AvSignJ * AvSignJ * IterRDM)
-            AccumRDMNorm_Inst = AccumRDMNorm_Inst + (AvSignJ * AvSignJ * IterRDM)
-    
-            if(AvSignJ.ne.AvNoatHF) then
-                write(6,*) 'AvSignJ',AvSignJ
-                write(6,*) 'HF Sign',AvNoatHF
-                call stop_all('Add_RDM_HFConnections_HF_S_D','HF population is incorrect.')
-            endif
-
-            ! The HF is always closed shell (at the moment), 
-            ! so don't need to account for HPHF here.
-
-        elseif(walkExcitLevel.le.2) then
-
-            if(tHF_Ref_Explicit) then
-                
-                if(tHPHF) then
-
-                    ! Now if the determinant is connected to the HF (i.e. single or double), 
-                    ! add in the elements of this connection as well - symmetrically 
-                    ! because no probabilities are involved.
-                    call Fill_Spin_Coupled_RDM_v2(iLutHF_True,iLutJ,HFDet_True,nJ,&
-                                AvNoatHF,AvSignJ * IterRDM,.false.)
-
-                else
-
-                    ! The singles and doubles are connected and explicitly calculated 
-                    ! - but not symmetrically.
-                    call Add_RDM_From_IJ_Pair(HFDet_True, nJ, AvNoatHF, &
-                                                AvSignJ * IterRDM,.false.)
-
-                endif
-
-            else
-                ! For the HF,S,D symmetric case, and the HF,S,D reference, the S and D
-                ! are diagonal terms too.
-                ! These options are not set up for HPHF.
-                call Fill_Diag_RDM(nJ, AvSignJ, IterRDM)
-                AccumRDMNorm = AccumRDMNorm + (AvSignJ * AvSignJ * IterRDM)
-                AccumRDMNorm_Inst = AccumRDMNorm_Inst + (AvSignJ * AvSignJ * IterRDM)
-
-                call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF,AvSignJ * IterRDM,.true.)
-
-            endif
-
-        endif
-
-    end subroutine Add_RDM_HFConnections_HF_S_D
-
-
-    subroutine calc_rdmbiasfac(p_spawn_rdmfac,p_gen,AvSignCurr,SignCurr,RDMBiasFacCurr)
-        real(dp), intent(in) :: p_gen, AvSignCurr
-        real(dp), dimension(lenof_sign), intent(in) :: SignCurr
+    subroutine calc_rdmbiasfac(p_spawn_rdmfac,p_gen,SignCurr,RDMBiasFacCurr)
+        real(dp), intent(in) :: p_gen
+        real(dp), intent(in) :: SignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: p_spawn_rdmfac
         real(dp) :: p_notlist_rdmfac, p_spawn, p_not_spawn, p_max_walktospawn
@@ -1210,37 +1343,26 @@ MODULe nElRDMMod
         ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
        
 
-        if(real(int(SignCurr(1)),dp).ne.SignCurr(1)) then
+        if(real(int(SignCurr),dp).ne.SignCurr) then
             !There's a non-integer population on this determinant
             !We need to consider both possibilities - whether we attempted to spawn 
             !int(SignCurr) times or int(SignCurr)+1 times
-            p_max_walktospawn=abs(SignCurr(1)-real(int(SignCurr(1)),dp))
-            p_not_spawn = (1.0_dp - p_max_walktospawn)*(p_notlist_rdmfac**abs(int(SignCurr(1)))) + &
-                        p_max_walktospawn*(p_notlist_rdmfac**(abs(int(SignCurr(1)))+1))
+            p_max_walktospawn=abs(SignCurr-real(int(SignCurr),dp))
+            p_not_spawn = (1.0_dp - p_max_walktospawn)*(p_notlist_rdmfac**abs(int(SignCurr))) + &
+                        p_max_walktospawn*(p_notlist_rdmfac**(abs(int(SignCurr))+1))
 
         else
-            p_not_spawn=p_notlist_rdmfac**(abs(SignCurr(1)))
+            p_not_spawn=p_notlist_rdmfac**(abs(SignCurr))
         endif
 
         p_spawn=abs(1.0_dp - p_not_spawn)
         
-        if(tInitiatorRDM) then
-            if(abs(AvSignCurr).gt.InitiatorWalkNo) then
-                ! The Di is an initiator (on average) - keep passing around its sign until we 
-                ! know if the Dj is an initiator.
-                RDMBiasFacCurr = AvSignCurr / p_spawn   
-            else
-                ! The determinant we are spawning from is not an initiator (on average) 
-                ! - do not want to add this Di.Dj contribution into the RDM.
-                RDMBiasFacCurr = 0.0_dp
-            endif
-        else
-            RDMBiasFacCurr = AvSignCurr / p_spawn   
-        endif
-        
+        !Always use instantaneous signs for stochastically sampled off-diag elements (see CMO thesis)
+        RDMBiasFacCurr = SignCurr / p_spawn  
+
     end subroutine calc_rdmbiasfac
 
-    subroutine store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, DetSpawningAttempts, iLutJ, procJ)
+    subroutine store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, DetSpawningAttempts, iLutJ, procJ, part_type)
     !We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
     !This routine stores the parent (D_i) with the spawned child (D_j) so that we can
     !add in Ci.Cj to the RDM later on.
@@ -1250,14 +1372,13 @@ MODULe nElRDMMod
         integer, intent(in) :: WalkerNumber, procJ
         integer, intent(in) :: DetSpawningAttempts
         integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
+        integer, intent(in) :: part_type
         logical :: tRDMStoreParent
         integer :: j
 
         if(RDMBiasFacCurr.eq.0.0_dp) then
             ! If RDMBiasFacCurr is exactly zero, any contribution from Ci.Cj will be zero 
             ! so it is not worth carrying on. 
-            ! This happens when we are only using initiators for the RDM, and Di is a non-initiator.
-
             SpawnedParts(niftot+1:niftot+nifdbo+2, ValidSpawnedList(procJ)) = 0
         else
 
@@ -1273,6 +1394,7 @@ MODULe nElRDMMod
             ! Run through the Dj walkers that have already been spawned from this particular Di.
             ! If this is the first to be spawned from Di, TempSpawnedPartsInd will be zero, so we 
             ! just wont run over anything.
+
             do j = 1,TempSpawnedPartsInd
                 if(DetBitEQ(iLutJ(0:NIfDBO),TempSpawnedParts(0:NIfDBO,j),NIfDBO)) then
                     ! If this Dj is found, we do not want to store the parent with this spawned walker.
@@ -1321,33 +1443,29 @@ MODULe nElRDMMod
 ! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
         integer , intent(in) :: Spawned_No
         integer(kind=n_int) , intent(in) :: iLutJ(0:NIfTot)
-        real(dp) , intent(in) :: realSignJ
+        real(dp) , dimension(lenof_sign), intent(in) :: realSignJ
         integer :: ExcitLevel
     
         ! In all cases, we've already symmetrically added in 
         ! connections to the HF, so we don't want to re add any pair 
         ! containing the HF.
-        if(tHF_S_D) then 
+        !if(tHF_S_D) then 
             ! In the case of the HF S D matrix (symmetric), Di and Dj can both 
             ! be the HF, singles or doubles.
             ! This is the excitation level of Dj.
-            ExcitLevel = FindBitExcitLevel (iLutHF_True, iLutJ, 2)
-            if((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) &
+        !    ExcitLevel = FindBitExcitLevel (iLutHF_True, iLutJ, 2)
+        !    if((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) &
+        !        CALL DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
+        !elseif(tHF_S_D_Ref) then
+        !    ! In the case of the HF and singles and doubles Ref, 
+        !    ! Di is only ever the HF, and Dj is 
+        !    ! anything connected - i.e. up to quadruples.
+        !    ExcitLevel = FindBitExcitLevel (iLutHf_True, iLutJ, 4)
+        !    if((ExcitLevel.le.4).and.(ExcitLevel.ne.0)) &
+        !        CALL DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
+        !elseif(.not.DetBitEQ(iLutHF_True,iLutJ,NIfDBO)) then
+        if(.not.DetBitEQ(iLutHF_True,iLutJ,NIfDBO)) then
                 CALL DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
-        elseif(tHF_S_D_Ref) then
-            ! In the case of the HF and singles and doubles Ref, 
-            ! Di is only ever the HF, and Dj is 
-            ! anything connected - i.e. up to quadruples.
-            ExcitLevel = FindBitExcitLevel (iLutHf_True, iLutJ, 4)
-            if((ExcitLevel.le.4).and.(ExcitLevel.ne.0)) &
-                CALL DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
-        elseif(.not.DetBitEQ(iLutHF_True,iLutJ,NIfDBO)) then
-            if(tInitiatorRDM) then
-                if(abs(realSignJ).gt.InitiatorWalkNo) &
-                    CALL DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
-            else
-                CALL DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
-            endif
         endif
 
     end subroutine check_fillRDM_DiDj
@@ -1361,9 +1479,10 @@ MODULe nElRDMMod
         use bit_rep_data, only : flag_deterministic, test_flag
         integer , intent(in) :: Spawned_No
         integer(kind=n_int) , intent(in) :: iLutJ(0:NIfTot)
-        real(dp) , intent(in) :: realSignJ
+        real(dp) ,dimension(lenof_sign), intent(in) :: realSignJ
         integer :: i, j, nI(NEl), nJ(NEl), walkExcitLevel
-        real(dp) :: realSignI
+        real(dp) :: part_realSignI
+        integer :: dest_part_type, source_part_type
         logical :: tParity, tDetAdded
 
 ! Spawning from multiple parents, to iLutJ, which has SignJ.        
@@ -1374,19 +1493,21 @@ MODULe nElRDMMod
 ! There are Spawned_Parents_Index(2,Spawned_No) of these parent Di's.
 ! Spawned_Parents(0:NIfDBO,x) is the determinant Di, Spawned_Parents(NIfDBO+1,x) is the un-biased ci.
         ! Run through all Di's.
+
         do i = Spawned_Parents_Index(1,Spawned_No), &
                 Spawned_Parents_Index(1,Spawned_No) + Spawned_Parents_Index(2,Spawned_No) - 1 
 
-            IF(tHF_S_D_Ref.or.tHF_S_D) THEN
+            !IF(tHF_S_D_Ref.or.tHF_S_D) THEN
                 ! In the case of the HF_S_D_Ref option, we'll only be in 
                 ! this loop if the Dj is le 4.
                 ! And for HF_S_D if Dj has excitation level le 2.
                 ! Calc excitation level of Di - this needs to be 1 or 2 in 
                 ! both cases (connections to the HF have already been included).
-                walkExcitLevel = FindBitExcitLevel (iLutHF_True, Spawned_Parents(0:NIfDBO,i), 2)
-                IF(walkExcitLevel.gt.2) CYCLE
-                IF(walkExcitLevel.eq.0) CYCLE
-            ELSEIF(DetBitEQ(iLutHF_True,Spawned_Parents(0:NIfDBO,i),NIfDBO)) then
+            !    walkExcitLevel = FindBitExcitLevel (iLutHF_True, Spawned_Parents(0:NIfDBO,i), 2)
+            !    IF(walkExcitLevel.gt.2) CYCLE
+            !    IF(walkExcitLevel.eq.0) CYCLE
+            !ELSEIF(DetBitEQ(iLutHF_True,Spawned_Parents(0:NIfDBO,i),NIfDBO)) then
+            IF(DetBitEQ(iLutHF_True,Spawned_Parents(0:NIfDBO,i),NIfDBO)) then
                 ! We've already added HF - S, and HF - D symmetrically.
                 ! Any connection with the HF has therefore already been added.
                 CYCLE
@@ -1395,17 +1516,28 @@ MODULe nElRDMMod
             call decode_bit_det (nI, Spawned_Parents(0:NIfDBO,i))
             call decode_bit_det (nJ, iLutJ)
 
-            realSignI = transfer( Spawned_Parents(NIfDBO+1,i), realSignI )
-            
-            !SignJ passed in as real (realSignJ)
+
+            part_realSignI = transfer( Spawned_Parents(NIfDBO+1,i), part_realSignI )
+
+            !The original spawning event (and the RealSignI) came from this population
+            source_part_type=Spawned_Parents(NIfDBO+2,i)
+
+            !The sign contribution from J must come from the other population
+            if (source_part_type.eq.1) then
+                dest_part_type=lenof_sign
+            else
+                dest_part_type=1
+            endif
 
             ! Given the Di,Dj and Ci,Cj - find the orbitals involved in the excitation, 
             ! and therefore the RDM elements we want to add the Ci.Cj to.
+            ! We have to halve the contributions for DR as we're summing in pairs that originated
+            ! from spawning events in both pop 1 and pop 2 -- i.e. doublecounted wrt diagonal elements
             IF(tHPHF) THEN
                 call Fill_Spin_Coupled_RDM_v2(Spawned_Parents(0:NIfDBO,i), iLutJ, nI, nJ, &
-                                                    realSignI, realSignJ, .false.)
+                                                   (1.0_dp/real(lenof_sign,dp))*part_realSignI, realSignJ(dest_part_type), .false.)
             ELSE
-                call Add_RDM_From_IJ_Pair(nI, nJ, realSignI, realSignJ, .false.)
+                call Add_RDM_From_IJ_Pair(nI, nJ, (1.0_dp/real(lenof_sign,dp))*part_realSignI, realSignJ(dest_part_type), .false.)
             ENDIF
 
         enddo
@@ -1471,15 +1603,19 @@ MODULe nElRDMMod
             I_J_ExcLevel = FindBitExcitLevel(iLutnI, iLutnJ,2)
             ICoup_J_ExcLevel = FindBitExcitLevel(iLutnI2,iLutnJ,2)
             if(I_J_ExcLevel.le.2) then
-                call Add_RDM_From_IJ_Pair(nI,nJ,NewSignI,NewSignJ,tFill_CiCj_Symm)      !Di -> Dj
-!                write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),NewSignI,NewSignJ
-                call Add_RDM_From_IJ_Pair(nI2,nJ2,PermSignI,PermSignJ,tFill_CiCj_Symm)   !Di' -> Dj'  (both permuted sign)
+                call Add_RDM_From_IJ_Pair(nI,nJ,NewSignI,NewSignJ,tFill_CiCj_Symm) 
+                !Di -> Dj
+!               write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),NewSignI,NewSignJ
+                call Add_RDM_From_IJ_Pair(nI2,nJ2,PermSignI,PermSignJ,tFill_CiCj_Symm)   
+                !Di' -> Dj'  (both permuted sign)
 !                write(6,"(A,4I4,2F12.6)") "I' -> J' : ",nI2(:),nJ2(:),PermSignI,PermSignJ
             endif
             if(ICoup_J_ExcLevel.le.2) then
-                call Add_RDM_From_IJ_Pair(nI2,nJ,PermSignI,NewSignJ,tFill_CiCj_Symm)    !Di' -> Dj  (i permuted sign)
+                call Add_RDM_From_IJ_Pair(nI2,nJ,PermSignI,NewSignJ,tFill_CiCj_Symm)    
+                !Di' -> Dj  (i permuted sign)
 !                write(6,"(A,4I4,2F12.6)") "I' -> J : ",nI2(:),nJ(:),PermSignI,NewSignJ
-                call Add_RDM_From_IJ_Pair(nI,nJ2,NewSignI,PermSignJ,tFill_CiCj_Symm)     !Di  -> Dj'  (j permuted sign)
+                call Add_RDM_From_IJ_Pair(nI,nJ2,NewSignI,PermSignJ,tFill_CiCj_Symm)     
+                !Di  -> Dj'  (j permuted sign)
 !                write(6,"(A,4I4,2F12.6)") "I -> J' : ",nI(:),nJ2(:),NewSignI,PermSignJ
             endif
         endif
@@ -1687,9 +1823,10 @@ MODULe nElRDMMod
         ENDIF
 
         if((Ex(1,2).eq.0).and.(Ex(2,2).eq.0)) then
-
+            
             ! Di and Dj are separated by a single excitation.
             ! Add in the contribution from this pair into the 1- and 2-RDM.
+            
             call Fill_Sings_RDM(nI,Ex,tParity,realSignI,realSignJ,tFill_CiCj_Symm)
     
         elseif(RDMExcitLevel.ne.1) then
@@ -1966,7 +2103,7 @@ MODULe nElRDMMod
         call extract_bit_rep (iLutnI, nI, SignDi, FlagsDi)
 ! Unfortunately uses the decoded determinant - might want to look at this.        
 
-        call Fill_Diag_RDM(nI,real(SignDi(1),dp))
+        call Fill_Diag_RDM(nI,SignDi,.false.)
 
 !        CountTemp = 0
 
@@ -2079,15 +2216,16 @@ MODULe nElRDMMod
         integer :: ExcitMat3(2,2), nI(NEl), nJ(NEl), Proc, FlagsDi
         integer :: a, b, CountTemp, exflag
         logical :: tAllExcitFound, tParity
-        real(dp) :: realSignDi
+        real(dp), dimension(lenof_sign) :: realSignDi
 
         call extract_bit_rep (iLutnI, nI, RealHistPos, FlagsDi)
 ! Unfortunately uses the decoded determinant - might want to look at this.        
         HistPos=int(RealHistPos)
-
-        realSignDi = AllHistogram(1,HistPos(1))/norm
         
-        call Fill_Diag_RDM(nI,realSignDi)
+        realSignDi(1) = AllHistogram(1,HistPos(1))/norm
+        realSignDi(lenof_sign) = AllHistogram(1,HistPos(1))/norm
+        
+        call Fill_Diag_RDM(nI,realSignDi,.false.)
 
 !        CountTemp = 0
 
@@ -2676,7 +2814,6 @@ MODULe nElRDMMod
 
                         IF(Ex(1,1).le.0) CALL Stop_All('SearchOccDets',&
                                             'nJ is not the correct excitation of nI.')
-
                         call Fill_Doubs_RDM(Ex,tParity,realSignDi,realSignDj,.true.)
                         
                         
@@ -2692,17 +2829,20 @@ MODULe nElRDMMod
 ! THESE NEXT ROUTINES ARE GENERAL TO BOTH STOCHASTIC AND EXPLICIT    
 ! =======================================================================================    
 
-    subroutine Fill_Diag_RDM(nI,realSignDi,RDMItersIn,tCoreSpaceDet)
+    subroutine Fill_Diag_RDM(nI,realSignDi,tCoreSpaceDet, RDMItersIn)
 ! Fill diagonal elements of 1- and 2-RDM.
 ! These are < Di | a_i+ a_i | Di > and < Di | a_i+ a_j+ a_j a_i | Di >.
         integer , intent(in) :: nI(NEl)
-        real(dp) , intent(in) :: realSignDi
-        real(dp) , intent(in) , optional :: RDMItersIn
+        real(dp) , dimension(lenof_sign), intent(in) :: realSignDi
         logical , intent(in) , optional :: tCoreSpaceDet
+        integer , intent(in) , optional :: RDMItersIn
         integer :: i, j, iSpat, jSpat, Ind, iInd
-        real(dp) :: RDMIters, ScaleContribFac
+        real(dp) :: ScaleContribFac
+        integer :: RDMIters
 
 ! Need to add in the diagonal elements.
+        
+        ScaleContribFac=1.0
         
         if(.not.present(RDMItersIn)) then
             RDMIters=1.0_dp
@@ -2710,24 +2850,22 @@ MODULe nElRDMMod
             RDMIters=RDMItersIn
         endif
 
-        ScaleContribFac=1.0
-
+        !This is the single-run cutoff being applied (do not use in DR mode):
         if ((.not. tCoreSpaceDet) .or. .not.present(tCoreSpaceDet)) then
             !Dets in the core space are never removed from main list, so strictly do not require corrections
-            if (tThreshOccRDMDiag .and. (abs(RealSignDi) .le. ThreshOccRDM)) ScaleContribFac=0.0_dp
-           
+            if (tThreshOccRDMDiag .and. (abs(RealSignDi(1)) .le. ThreshOccRDM)) ScaleContribFac=0.0_dp
         endif
         
         if(RDMExcitLevel.eq.1) then
             do i=1,NEl
                 if(tStoreSpinOrbs) then
                     iInd = SymLabelListInv_rot(nI(i))
-                else
+                
                     ! SymLabelListInv_rot will be in spat orbitals too.
                     iInd = SymLabelListInv_rot(gtID(nI(i)))
                 endif
                 NatOrbMat(iInd,iInd) = NatOrbMat(iInd,iInd) &
-                                          + ( realSignDi * realSignDi * RDMIters)*ScaleContribFac 
+                                          + ( realSignDi(1) * realSignDi(lenof_sign) * RDMIters )*ScaleContribFac 
             enddo
         else
             ! Only calculating 2-RDM.
@@ -2738,6 +2876,7 @@ MODULe nElRDMMod
                 ! and jSpat >= iSpat (can only be equal if different spin).
                 do j=i+1,NEl
                     jSpat = gtID(nI(j))
+               
 
                     ! either alpha alpha or beta beta -> aaaa array.
                     if( ((mod(nI(i),2).ne.0).and.(mod(nI(j),2).ne.0)) .or. &
@@ -2746,14 +2885,17 @@ MODULe nElRDMMod
                         ! Ind doesn't include diagonal terms (when iSpat = jSpat).
                         Ind=( ( (jSpat-2) * (jSpat-1) ) / 2 ) + iSpat
                         aaaa_RDM( Ind , Ind ) = aaaa_RDM( Ind , Ind ) &
-                                          + ( realSignDi * realSignDi * RDMIters)*ScaleContribFac
+                                          + ( realSignDi(1) * realSignDi(lenof_sign) * RDMIters)*ScaleContribFac
+
                     ! either alpha beta or beta alpha -> abab array.                                              
                     else
+
 
                         ! Ind does include diagonal terms (when iSpat = jSpat)
                         Ind=( ( (jSpat-1) * jSpat ) / 2 ) + iSpat
                         abab_RDM( Ind , Ind ) = abab_RDM( Ind , Ind ) &
-                                          + ( realSignDi * realSignDi * RDMIters)*ScaleContribFac
+                                          + ( realSignDi(1) * realSignDi(lenof_sign) * RDMIters)*ScaleContribFac
+
                     endif
 
                 enddo
@@ -2831,6 +2973,7 @@ MODULe nElRDMMod
                         ! Kind of pretent the abba is of the form abab.
                         abab_RDM( Indik , Indak ) = abab_RDM( Indik , Indak ) + ( ParityFactor * &
                                                                          realSignDi * realSignDj )
+
                         if(tFill_CiCj_Symm) then
                             abab_RDM( Indak , Indik ) = abab_RDM( Indak , Indik ) + ( ParityFactor * &
                                                                          realSignDi * realSignDj )
@@ -2946,12 +3089,11 @@ MODULe nElRDMMod
 
             abab_RDM( Indij , Indab ) = abab_RDM( Indij , Indab ) + ( ParityFactor * &
                                                          realSignDi * realSignDj )
-
             if(tFill_CiCj_Symm) then
                 abab_RDM( Indab , Indij ) = abab_RDM( Indab , Indij ) + ( ParityFactor * &
                                                          realSignDi * realSignDj )
             endif
-
+                    
         else
             ! Checking spins of i and j (these must be same combination as a and b).
             ! If alpha alpha or beta beta -> aaaa array.
@@ -2970,7 +3112,7 @@ MODULe nElRDMMod
                     aaaa_RDM( Indab , Indij ) = aaaa_RDM( Indab , Indij ) + ( ParityFactor * &
                                                                  realSignDi * realSignDj )
                 endif
-
+                
             ! Either alpha beta or beta alpha -> abab array.
             else
                 
@@ -2991,6 +3133,7 @@ MODULe nElRDMMod
                         abab_RDM( Indab , Indij ) = abab_RDM( Indab , Indij ) + ( ParityFactor * &
                                                                  realSignDi * realSignDj )
                     endif
+                
 
                 ! i and a are different spin -> abba
                 ! the only double excitation case with Indij = Indab will go in here.
@@ -3029,8 +3172,8 @@ MODULe nElRDMMod
         write(6,*) ''
         if(tExplicitAllRDM) then
             write(6,*) '**** RDMs CALCULATED EXPLICITLY **** '
-        elseif(tHF_Ref_Explicit) then
-            write(6,'(A)') ' **** RDMs CALCULATED EXPLICITLY USING THE HF AS A REFERENCE**** '
+        !elseif(tHF_Ref_Explicit) then
+        !    write(6,'(A)') ' **** RDMs CALCULATED EXPLICITLY USING THE HF AS A REFERENCE**** '
         else
             write(6,*) '**** RDMs CALCULATED STOCHASTICALLY **** '
         endif
@@ -3039,11 +3182,7 @@ MODULe nElRDMMod
         ! Combine the 1- or 2-RDM from all processors etc.
 
         if(RDMExcitLevel.eq.1) then
-            if(tForceCauchySchwarz)then
-                call Force_Cauchy_Schwarz(Norm_1RDM)
-            endif
             call Finalise_1e_RDM(Norm_1RDM)  
-
         else
             ! We always want to calculate one final RDM energy, whether or not we're 
             ! calculating the energy throughout the calculation.
@@ -3108,8 +3247,8 @@ MODULe nElRDMMod
 
         Norm_1RDM = 0.0_dp
         AllAccumRDMNorm = 0.0_dp
-        IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) &
-            CALL MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
+        !IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) &
+        !    CALL MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
 
         if(RDMExcitLevel.eq.1) then
 
@@ -3134,9 +3273,16 @@ MODULe nElRDMMod
             ! 1-RDM has been constructed from the hermitian 2-RDM, so this will not 
             ! be necessary.
             ! The HF_Ref and HF_S_D_Ref cases are not hermitian by definition.
-            if((RDMExcitLevel.eq.1).and.(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref))) then
+            if(RDMExcitLevel.eq.1) then
+            !if((RDMExcitLevel.eq.1).and.(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref))) then
                 call make_1e_rdm_hermitian(Norm_1RDM)
+                
+                if(tForceCauchySchwarz)then
+                    call Force_Cauchy_Schwarz(Norm_1RDM)
+                endif
+
             endif
+            
 
             ! Write out the final, normalised, hermitian OneRDM.                
             if(twrite_normalised_RDMs) call Write_out_1RDM(Norm_1RDM,.true.)
@@ -3165,13 +3311,15 @@ MODULe nElRDMMod
             Trace_1RDM = Trace_1RDM + NatOrbMat(i,i)
         enddo
 
-        IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) THEN
-            Norm_1RDM = 1.0_dp / AllAccumRDMNorm
-        ELSE
+        !IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) THEN
+        
+        !Norm_1RDM = 1.0_dp / AllAccumRDMNorm
+        !ELSE
             ! Sum of diagonal elements of 1 electron RDM must equal NEl, 
             ! number of electrons.
             Norm_1RDM = ( REAL(NEl,dp) / Trace_1RDM )
-        ENDIF
+        
+        !ENDIF
 
 !        if(tFinalRDMEnergy) then
 !            WRITE(6,*) 'AllAccumRDMNorm',AllAccumRDMNorm
@@ -3308,7 +3456,8 @@ MODULe nElRDMMod
             do j = 1, nBasis
                 if(tStoreSpinOrbs) then
                     if(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)).ne.0.0_dp) then 
-                        if(tNormalise.and.((i.le.j).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                        !if(tNormalise.and.((i.le.j).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                        if(tNormalise.and.(i.le.j)) then
                             WRITE(6,*) "Written * 1.75"
                             write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
                                 NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) * Norm_1RDM
@@ -3323,7 +3472,8 @@ MODULe nElRDMMod
                     iSpat = gtID(i)
                     jSpat = gtID(j)
                     if(NatOrbMat(SymLabelListInv_rot(iSpat),SymLabelListInv_rot(jSpat)).ne.0.0_dp) then 
-                        if(tNormalise.and.((i.le.j).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                        !if(tNormalise.and.((i.le.j).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                        if(tNormalise.and.(i.le.j)) then
                             if(((mod(i,2).eq.0).and.(mod(j,2).eq.0)).or.&
                                 ((mod(i,2).ne.0).and.(mod(j,2).ne.0))) then
                                 write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
@@ -3352,88 +3502,75 @@ MODULe nElRDMMod
         real(dp) , intent(out) :: Norm_2RDM_Inst, Norm_2RDM
         real(dp) :: AllAccumRDMNorm_Inst
         logical :: tmake_herm
-        real(dp), allocatable :: AllNodes_aaaa_RDM(:,:)
-        real(dp), allocatable :: AllNodes_abab_RDM(:,:)
-        real(dp), allocatable :: AllNodes_abba_RDM(:,:)
+        real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity
         integer :: ierr
 
-!        real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity
 
-        ! If Iter = 0, this means we have just read in the TwoRDM_POPS_a*** matrices into All_a***_RDM, and 
+        ! If Iter = 0, this means we have just read in the TwoRDM_POPS_a*** matrices into a***_RDM_full, and 
         ! just want to calculate the old energy.
         ! Don't need to do all this stuff here, because a***_RDM will be empty.
-        if(Iter.ne.0) then
+
+        if(((Iter+PreviousCycles).ne.0).and.((.not.tFinalRDMEnergy).or. &
+            ((.not. tCalc_RDMEnergy).or.((Iter - VaryShiftIter(1)).le.IterRDMonFly) &
+                      & .or.((Iter-VaryShiftIter(inum_runs)).le.IterRDMonFly) &
+                      & .or. (mod((Iter+PreviousCycles-IterRDMStart)+1,RDMEnergyIter).ne.0)))) then
+
 
             ALLOCATE(AllNodes_aaaa_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
             ALLOCATE(AllNodes_abba_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
             ALLOCATE(AllNodes_abab_RDM(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
-
-            CALL MPISumAll(aaaa_RDM(:,:),AllNodes_aaaa_RDM(:,:))
+            
+            ! The aaaa_RDM may be either inst or full, depending on whether we are calculating inst. energies or not
+            CALL MPISumAll(aaaa_RDM(:,:), AllNodes_aaaa_RDM(:,:))
+            CALL MPISumAll(abab_RDM(:,:), AllNodes_abab_RDM(:,:))
+            CALL MPISumAll(abba_RDM(:,:), AllNodes_abba_RDM(:,:))
+            
             aaaa_RDM(:,:) = AllNodes_aaaa_RDM(:,:)
-
-            CALL MPISumAll(abab_RDM(:,:),AllNodes_abab_RDM(:,:))
             abab_RDM(:,:) = AllNodes_abab_RDM(:,:)
-
-            CALL MPISumAll(abba_RDM(:,:),AllNodes_abba_RDM(:,:))
             abba_RDM(:,:) = AllNodes_abba_RDM(:,:)
 
             DEALLOCATE(AllNodes_aaaa_RDM)
             DEALLOCATE(AllNodes_abab_RDM)
             DEALLOCATE(AllNodes_abba_RDM)
 
-            !CALL MPISum_inplace(aaaa_RDM(:,:))
-            !CALL MPISum_inplace(abab_RDM(:,:))
-            !CALL MPISum_inplace(abba_RDM(:,:))
-
             ! The TwoElRDM on the root is now the sum of all 'instantaneous' RDMs (summed over 
             ! the energy update cycle).
-            ! Whereas AllTwoElRDM is accumulated over the entire run.
-
-            if(iProcIndex.eq.0) then
-                All_aaaa_RDM(:,:) = All_aaaa_RDM(:,:) + aaaa_RDM(:,:) 
-                All_abab_RDM(:,:) = All_abab_RDM(:,:) + abab_RDM(:,:) 
-                All_abba_RDM(:,:) = All_abba_RDM(:,:) + abba_RDM(:,:)
+            ! Whereas TwoElRDM_full is accumulated over the entire run.
+            if(tRDMInstEnergy .and. (iProcIndex.eq.0)) then
+                aaaa_RDM_full(:,:)=aaaa_RDM_full(:,:)+aaaa_RDM(:,:)
+                abab_RDM_full(:,:)=abab_RDM_full(:,:)+abab_RDM(:,:)
+                abba_RDM_full(:,:)=abba_RDM_full(:,:)+abba_RDM(:,:)
             endif
 
             AllAccumRDMNorm_Inst = 0.0_dp
-            if(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) then
-                CALL MPIReduce(AccumRDMNorm_Inst,MPI_SUM,AllAccumRDMNorm_Inst)
-                AllAccumRDMNorm = AllAccumRDMNorm + AllAccumRDMNorm_Inst
-            endif
+            !if(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) then
+            !    CALL MPIReduce(AccumRDMNorm_Inst,MPI_SUM,AllAccumRDMNorm_Inst)
+            !    AllAccumRDMNorm = AllAccumRDMNorm + AllAccumRDMNorm_Inst
+            !endif
         endif
-
+            
         if(iProcIndex.eq.0) then
-
+            
             ! Calculate the normalisations.
             call calc_2e_norms(AllAccumRDMNorm_Inst, Norm_2RDM_Inst, Norm_2RDM)
 
+            !There's no need to explicitly make the RDM hermitian here, as the integrals are already
+            !hermitian -- when we calculate the energy, it comes out in the wash.
+            
             ! Print out the relevant 2-RDMs.
             if( tFinalRDMEnergy .or. &
-                ( tWriteMultRDMs .and. (mod((Iter - IterRDMStart)+1,IterWriteRDMs).eq.0) ) ) then
+                ( tWriteMultRDMs .and. (mod((Iter+PreviousCycles - IterRDMStart)+1,IterWriteRDMs).eq.0) ) ) then
 
-                tmake_herm = .false.
+           !     if(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) tmake_herm = .true.
 
                 if(tFinalRDMEnergy) then
                     ! Only ever want to print the POPS 2-RDMs (for reading in) at the end.
                     if(twrite_RDMs_to_read) call Write_out_2RDM(Norm_2RDM,.false.,.false.)
-
-!                    ! We also don't want to make the 2-RDMs hermitian until the end, so that we can 
-!                    ! get the hermiticity error from the final matrix.
-!                    if(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
-!                        call make_2e_rdm_hermitian(Norm_2RDM, Max_Error_Hermiticity, Sum_Error_Hermiticity)
-!
-!                        write(6,'(A29,F30.20)') ' MAX ABS ERROR IN HERMITICITY', Max_Error_Hermiticity
-!                        write(6,'(A29,F30.20)') ' SUM ABS ERROR IN HERMITICITY', Sum_Error_Hermiticity
-!                    endif
-
-                    if(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) tmake_herm = .true.
-
                 endif
 
                 ! This writes out the normalised, hermitian 2-RDMs.
                 if(twrite_normalised_RDMs) call Write_out_2RDM(Norm_2RDM,.true.,tmake_herm)
-
-            endif
+             endif
         endif
 
     end subroutine 
@@ -3458,25 +3595,25 @@ MODULe nElRDMMod
 
         do i = 1, ((SpatOrbs*(SpatOrbs+1))/2)
             if(i.le.((SpatOrbs*(SpatOrbs-1))/2)) then
-                Trace_2RDM_Inst = Trace_2RDM_Inst + aaaa_RDM(i,i)
-                Trace_2RDM = Trace_2RDM + All_aaaa_RDM(i,i)
+                if (tRDMInstEnergy) Trace_2RDM_Inst = Trace_2RDM_Inst + aaaa_RDM(i,i)
+                Trace_2RDM = Trace_2RDM + aaaa_RDM_full(i,i)
             endif
-            Trace_2RDM_Inst = Trace_2RDM_Inst + abab_RDM(i,i)
-            Trace_2RDM = Trace_2RDM + All_abab_RDM(i,i)
+            if (tRDMInstEnergy) Trace_2RDM_Inst = Trace_2RDM_Inst + abab_RDM(i,i)
+            Trace_2RDM = Trace_2RDM + abab_RDM_full(i,i)
         enddo
 
         Norm_2RDM_Inst = 0.0_dp
         Norm_2RDM = 0.0_dp
 
-        IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) THEN
-            Norm_2RDM_Inst = 1.0_dp / AllAccumRDMNorm_Inst
-            Norm_2RDM = 1.0_dp / AllAccumRDMNorm
-        ELSE
+        !IF(tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) THEN
+        !    Norm_2RDM_Inst = 1.0_dp / AllAccumRDMNorm_Inst
+        !    Norm_2RDM = 1.0_dp / AllAccumRDMNorm
+        !ELSE
             ! Sum of diagonal elements of 2 electron RDM must equal number of 
             ! pairs of electrons, = NEl ( NEl - 1 ) / 2
-            Norm_2RDM_Inst = ( (0.50_dp * (REAL(NEl,dp) * (REAL(NEl,dp) - 1.0_dp))) / Trace_2RDM_Inst )
+            if (tRDMInstEnergy) Norm_2RDM_Inst = ( (0.50_dp * (REAL(NEl,dp) * (REAL(NEl,dp) - 1.0_dp))) / Trace_2RDM_Inst )
             Norm_2RDM = ( (0.50_dp * (REAL(NEl,dp) * (REAL(NEl,dp) - 1.0_dp))) / Trace_2RDM )
-        ENDIF
+        !ENDIF
 
 !        if(tFinalRDMEnergy) then
 !            WRITE(6,*) 'AllAccumRDMNorm',AllAccumRDMNorm
@@ -3505,41 +3642,38 @@ MODULe nElRDMMod
 
                 if((i.le.((SpatOrbs*(SpatOrbs-1))/2)).and.(j.le.((SpatOrbs*(SpatOrbs-1))/2))) then
 
-                    IF((abs((All_aaaa_RDM(i,j)*Norm_2RDM)-(All_aaaa_RDM(j,i)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
-                        Max_Error_Hermiticity = abs((All_aaaa_RDM(i,j)*Norm_2RDM)-(All_aaaa_RDM(j,i)*Norm_2RDM))
+                    IF((abs((aaaa_RDM_full(i,j)*Norm_2RDM)-(aaaa_RDM_full(j,i)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                        Max_Error_Hermiticity = abs((aaaa_RDM_full(i,j)*Norm_2RDM)-(aaaa_RDM_full(j,i)*Norm_2RDM))
 
                     Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                            abs((All_aaaa_RDM(i,j)*Norm_2RDM)-(All_aaaa_RDM(j,i)*Norm_2RDM))
+                                            abs((aaaa_RDM_full(i,j)*Norm_2RDM)-(aaaa_RDM_full(j,i)*Norm_2RDM))
+                    Temp = (aaaa_RDM_full(i,j) + aaaa_RDM_full(j,i)) / 2.0_dp
 
-                    Temp = (All_aaaa_RDM(i,j) + All_aaaa_RDM(j,i)) / 2.0_dp
+                    aaaa_RDM_full(i,j) = Temp
+                    aaaa_RDM_full(j,i) = Temp
 
-                    All_aaaa_RDM(i,j) = Temp
-                    All_aaaa_RDM(j,i) = Temp
-
-                    IF((abs((All_abba_RDM(i,j)*Norm_2RDM)-(All_abba_RDM(j,i)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
-                        Max_Error_Hermiticity = abs((All_abba_RDM(i,j)*Norm_2RDM)-(All_abba_RDM(j,i)*Norm_2RDM))
+                    IF((abs((abba_RDM_full(i,j)*Norm_2RDM)-(abba_RDM_full(j,i)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                        Max_Error_Hermiticity = abs((abba_RDM_full(i,j)*Norm_2RDM)-(abba_RDM_full(j,i)*Norm_2RDM))
 
                     Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                            abs((All_abba_RDM(i,j)*Norm_2RDM)-(All_abba_RDM(j,i)*Norm_2RDM))
+                                            abs((abba_RDM_full(i,j)*Norm_2RDM)-(abba_RDM_full(j,i)*Norm_2RDM))
 
-                    Temp = (All_abba_RDM(i,j) + All_abba_RDM(j,i)) / 2.0_dp
+                    Temp = (abba_RDM_full(i,j) + abba_RDM_full(j,i)) / 2.0_dp
 
-                    All_abba_RDM(i,j) = Temp
-                    All_abba_RDM(j,i) = Temp
+                    abba_RDM_full(i,j) = Temp
+                    abba_RDM_full(j,i) = Temp
                 endif
-
-                IF((abs((All_abab_RDM(i,j)*Norm_2RDM)-(All_abab_RDM(j,i)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
-                    Max_Error_Hermiticity = abs((All_abab_RDM(i,j)*Norm_2RDM)-(All_abab_RDM(j,i)*Norm_2RDM))
+                
+                IF((abs((abab_RDM_full(i,j)*Norm_2RDM)-(abab_RDM_full(j,i)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                    Max_Error_Hermiticity = abs((abab_RDM_full(i,j)*Norm_2RDM)-(abab_RDM_full(j,i)*Norm_2RDM))
 
                 Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                        abs((All_abab_RDM(i,j)*Norm_2RDM)-(All_abab_RDM(j,i)*Norm_2RDM))
+                                        abs((abab_RDM_full(i,j)*Norm_2RDM)-(abab_RDM_full(j,i)*Norm_2RDM))
 
-                Temp = (All_abab_RDM(i,j) + All_abab_RDM(j,i)) / 2.0_dp
+                Temp = (abab_RDM_full(i,j) + abab_RDM_full(j,i)) / 2.0_dp
 
-                All_abab_RDM(i,j) = Temp
-                All_abab_RDM(j,i) = Temp
-
-
+                abab_RDM_full(i,j) = Temp
+                abab_RDM_full(j,i) = Temp
             enddo
         enddo
 
@@ -3557,7 +3691,7 @@ MODULe nElRDMMod
         logical , intent(in) :: tNormalise, tmake_herm
         real(dp) :: Tot_Spin_Projection, SpinPlus, SpinMinus
         real(dp) :: ParityFactor,Divide_Factor 
-        integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab
+        integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab, iunit_4
         integer :: aaaa_RDM_unit, abab_RDM_unit, abba_RDM_unit, No_Herm_Elements
         character(255) :: TwoRDM_aaaa_name, TwoRDM_abab_name, TwoRDM_abba_name
         real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity, Sum_Herm_Percent 
@@ -3590,7 +3724,7 @@ MODULe nElRDMMod
             abba_RDM_unit = get_free_unit()
             OPEN(abba_RDM_unit,file='TwoRDM_POPS_abba',status='unknown',form='unformatted')
         endif
-        
+       
         Max_Error_Hermiticity = 0.0_dp
         Sum_Error_Hermiticity = 0.0_dp
         Sum_Herm_Percent = 0.0_dp
@@ -3625,138 +3759,139 @@ MODULe nElRDMMod
                         
                         if((i.ne.j).and.(a.ne.b)) then
 
-                            if( (All_aaaa_RDM(Ind1_aa,Ind2_aa).ne.0.0_dp).or.&
-                                (All_aaaa_RDM(Ind2_aa,Ind1_aa).ne.0.0_dp) )then
+                            if( (aaaa_RDM_full(Ind1_aa,Ind2_aa).ne.0.0_dp).or.&
+                                (aaaa_RDM_full(Ind2_aa,Ind1_aa).ne.0.0_dp) )then
                                 ! If we're normalising (and have made the matrix hermitian) we only 
                                 ! need to write out Ind1 < Ind2.
                                 ! Otherwise we print out Ind1, Ind2 and Ind2, Ind1 so we can 
                                 ! find the hermiticity error in the final matrix (after all runs).
-                                if(tNormalise.and.((Ind1_aa.le.Ind2_aa).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                                !if(tNormalise.and.((Ind1_aa.le.Ind2_aa).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                                if(tNormalise.and.(Ind1_aa.le.Ind2_aa)) then
                                     
-                                    IF((abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM) &
-                                                - (All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
-                                        Max_Error_Hermiticity = abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM) &
-                                                                    - (All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
+                                    IF((abs((aaaa_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                - (aaaa_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                                        Max_Error_Hermiticity = abs((aaaa_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                                    - (aaaa_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM))
 
                                     Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                                            abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM) &
-                                                                    - (All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
+                                                            abs((aaaa_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                                    - (aaaa_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM))
 
                                     Sum_Herm_Percent = Sum_Herm_Percent +   &
-                                                        (abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM) &
-                                                                - (All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / &
-                                                        (abs((All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM) &
-                                                                + (All_aaaa_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / 2.0_dp) )
+                                                        (abs((aaaa_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                                - (aaaa_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM)) / &
+                                                        (abs((aaaa_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                                + (aaaa_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM)) / 2.0_dp) )
                                     No_Herm_Elements = No_Herm_Elements + 1                                                        
 
                                     if(tmake_herm) then                                                            
-                                        Temp = (All_aaaa_RDM(Ind1_aa,Ind2_aa) + All_aaaa_RDM(Ind2_aa,Ind1_aa)) / 2.0_dp
+                                        Temp = (aaaa_RDM_full(Ind1_aa,Ind2_aa) + aaaa_RDM_full(Ind2_aa,Ind1_aa)) / 2.0_dp
 
-                                        All_aaaa_RDM(Ind1_aa,Ind2_aa) = Temp
-                                        All_aaaa_RDM(Ind2_aa,Ind1_aa) = Temp
+                                        aaaa_RDM_full(Ind1_aa,Ind2_aa) = Temp
+                                        aaaa_RDM_full(Ind2_aa,Ind1_aa) = Temp
                                     endif
 
                                     if(tFinalRDMEnergy) then
                                         ! For the final calculation, the 2-RDMs will have been made hermitian.
                                         write(aaaa_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                                ( All_aaaa_RDM(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
+                                                ( aaaa_RDM_full(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
                                     else
                                         ! If we're printing the 2-RDMs early (using WRITERDMSEVERY), the actual 
                                         ! matrix will not be hermitian, but we want to print a hermitian version.
                                         ! Average the values here.
                                         write(aaaa_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                            ( ((All_aaaa_RDM(Ind1_aa,Ind2_aa) + All_aaaa_RDM(Ind2_aa,Ind1_aa))/2.0_dp) &
+                                            ( ((aaaa_RDM_full(Ind1_aa,Ind2_aa) + aaaa_RDM_full(Ind2_aa,Ind1_aa))/2.0_dp) &
                                                                 * Norm_2RDM ) / Divide_Factor
                                     endif
                                 elseif(.not.tNormalise) then
                                     ! for the POPS files, print everything to binary.
                                     ! no divide factor, we just read them in as is.
                                     write(aaaa_RDM_unit) i,j,a,b, &
-                                            All_aaaa_RDM(Ind1_aa,Ind2_aa) 
+                                            aaaa_RDM_full(Ind1_aa,Ind2_aa)
                                 endif
                             endif
 
-                            if( (All_abba_RDM(Ind1_aa,Ind2_aa).ne.0.0_dp).or.&
-                                (All_abba_RDM(Ind2_aa,Ind1_aa).ne.0.0_dp) ) then
-                                if(tNormalise.and.((Ind1_aa.le.Ind2_aa).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                            if( (abba_RDM_full(Ind1_aa,Ind2_aa).ne.0.0_dp).or.&
+                                (abba_RDM_full(Ind2_aa,Ind1_aa).ne.0.0_dp) ) then
+                                !if(tNormalise.and.((Ind1_aa.le.Ind2_aa).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                                if(tNormalise.and.(Ind1_aa.le.Ind2_aa)) then
 
-                                    IF((abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM) &
-                                                - (All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
-                                        Max_Error_Hermiticity = abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM) &
-                                                - (All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
+                                    IF((abs((abba_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                - (abba_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                                        Max_Error_Hermiticity = abs((abba_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                - (abba_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM))
 
                                     Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                                            abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM) &
-                                                                    - (All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM))
+                                                            abs((abba_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                                    - (abba_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM))
 
                                     Sum_Herm_Percent = Sum_Herm_Percent +   &
-                                                        (abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM) &
-                                                        - (All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / &
-                                                        (abs((All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM) &
-                                                        + (All_abba_RDM(Ind2_aa,Ind1_aa)*Norm_2RDM)) / 2.0_dp) )
+                                                        (abs((abba_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                        - (abba_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM)) / &
+                                                        (abs((abba_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                        + (abba_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM)) / 2.0_dp) )
                                     No_Herm_Elements = No_Herm_Elements + 1                                                        
 
                                     if(tmake_herm) then                                                            
-                                        Temp = (All_abba_RDM(Ind1_aa,Ind2_aa) + All_abba_RDM(Ind2_aa,Ind1_aa)) / 2.0_dp
-
-                                        All_abba_RDM(Ind1_aa,Ind2_aa) = Temp
-                                        All_abba_RDM(Ind2_aa,Ind1_aa) = Temp
+                                        Temp = (abba_RDM_full(Ind1_aa,Ind2_aa) + abba_RDM_full(Ind2_aa,Ind1_aa)) / 2.0_dp
+                                        abba_RDM_full(Ind1_aa,Ind2_aa) = Temp
+                                        abba_RDM_full(Ind2_aa,Ind1_aa) = Temp
                                     endif
 
                                     if(tFinalRDMEnergy) then
                                         write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                            ( All_abba_RDM(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
+                                            ( abba_RDM_full(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
                                     else
                                         write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                            ( ((All_abba_RDM(Ind1_aa,Ind2_aa) + All_abba_RDM(Ind2_aa,Ind1_aa))/2.0_dp) &
+                                            ( ((abba_RDM_full(Ind1_aa,Ind2_aa) + abba_RDM_full(Ind2_aa,Ind1_aa))/2.0_dp) &
                                                                     * Norm_2RDM ) / Divide_Factor
                                     endif
                                 elseif(.not.tNormalise) then
                                     write(abba_RDM_unit) i,j,a,b, &
-                                        All_abba_RDM(Ind1_aa,Ind2_aa) 
+                                        abba_RDM_full(Ind1_aa,Ind2_aa) 
                                 endif
                             endif
 
                         endif
 
-                        if( (All_abab_RDM(Ind1_ab,Ind2_ab).ne.0.0_dp).or.&
-                            (All_abab_RDM(Ind2_ab,Ind1_ab).ne.0.0_dp) ) then
+                        if( (abab_RDM_full(Ind1_ab,Ind2_ab).ne.0.0_dp).or.&
+                            (abab_RDM_full(Ind2_ab,Ind1_ab).ne.0.0_dp) ) then
 
-                            IF((abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM) &
-                                        - (All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
-                                Max_Error_Hermiticity = abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM) &
-                                        - (All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM))
+                            IF((abs((abab_RDM_full(Ind1_ab,Ind2_ab)*Norm_2RDM) &
+                                        - (abab_RDM_full(Ind2_ab,Ind1_ab)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                                Max_Error_Hermiticity = abs((abab_RDM_full(Ind1_ab,Ind2_ab)*Norm_2RDM) &
+                                        - (abab_RDM_full(Ind2_ab,Ind1_ab)*Norm_2RDM))
 
                             Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
-                                                    abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM) &
-                                                        - (All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM))
+                                                    abs((abab_RDM_full(Ind1_ab,Ind2_ab)*Norm_2RDM) &
+                                                        - (abab_RDM_full(Ind2_ab,Ind1_ab)*Norm_2RDM))
 
                             Sum_Herm_Percent = Sum_Herm_Percent +   &
-                                                (abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM) &
-                                                    - (All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM)) / &
-                                                (abs((All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM) &
-                                                    + (All_abab_RDM(Ind2_ab,Ind1_ab)*Norm_2RDM)) / 2.0_dp) )
+                                                (abs((abab_RDM_full(Ind1_ab,Ind2_ab)*Norm_2RDM) &
+                                                    - (abab_RDM_full(Ind2_ab,Ind1_ab)*Norm_2RDM)) / &
+                                                (abs((abab_RDM_full(Ind1_ab,Ind2_ab)*Norm_2RDM) &
+                                                   + (abab_RDM_full(Ind2_ab,Ind1_ab)*Norm_2RDM)) / 2.0_dp) )
                             No_Herm_Elements = No_Herm_Elements + 1                                                        
 
                             if(tmake_herm) then                                                            
-                                Temp = (All_abab_RDM(Ind1_ab,Ind2_ab) + All_abab_RDM(Ind2_ab,Ind1_ab)) / 2.0_dp
-
-                                All_abab_RDM(Ind1_ab,Ind2_ab) = Temp
-                                All_abab_RDM(Ind2_ab,Ind1_ab) = Temp
+                                Temp = (abab_RDM_full(Ind1_ab,Ind2_ab) + abab_RDM_full(Ind2_ab,Ind1_ab)) / 2.0_dp
+                                abab_RDM_full(Ind1_ab,Ind2_ab) = Temp
+                                abab_RDM_full(Ind2_ab,Ind1_ab) = Temp
                             endif
 
-                            if(tNormalise.and.((Ind1_ab.le.Ind2_ab).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                            !if(tNormalise.and.((Ind1_ab.le.Ind2_ab).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                            if(tNormalise.and.(Ind1_ab.le.Ind2_ab)) then
                                 if(tFinalRDMEnergy) then
                                     write(abab_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                        ( All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor
+                                        ( abab_RDM_full(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor
                                 else
                                     write(abab_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                        ( ((All_abab_RDM(Ind1_ab,Ind2_ab) + All_abab_RDM(Ind2_ab,Ind1_ab))/2.0_dp) &
+                                        ( ((abab_RDM_full(Ind1_ab,Ind2_ab) + abab_RDM_full(Ind2_ab,Ind1_ab))/2.0_dp) &
                                                                 * Norm_2RDM ) / Divide_Factor
                                 endif
                             elseif(.not.tNormalise) then
                                 write(abab_RDM_unit) i,j,a,b, &
-                                    All_abab_RDM(Ind1_ab,Ind2_ab) 
+                                    abab_RDM_full(Ind1_ab,Ind2_ab) 
                             endif
                         endif
 
@@ -3770,7 +3905,8 @@ MODULe nElRDMMod
         close(abab_RDM_unit)
         close(abba_RDM_unit)
 
-        if(tNormalise.and.(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref))) then
+        !if(tNormalise.and.(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref))) then
+        if(tNormalise) then
             write(6,'(I15,F30.20,A20,A39)') Iter+PreviousCycles, Max_Error_Hermiticity, &
                                             '( Iteration,',' MAX ABS ERROR IN HERMITICITY )'
             write(6,'(I15,F30.20,A20,A39)') Iter+PreviousCycles, Sum_Error_Hermiticity, &
@@ -3815,7 +3951,7 @@ MODULe nElRDMMod
         real(dp) :: Norm_2RDM_Inst
         INTEGER :: i,j,a,b,Ind1_aa,Ind1_ab,Ind2_aa,Ind2_ab,ierr
         INTEGER :: iSpin, jSpin, error
-        REAL(dp) :: RDMEnergy_Inst, RDMEnergy, Coul, Exch, Parity_Factor 
+        REAL(dp) :: RDMEnergy_Inst, RDMEnergy, Coul, Exch, Parity_Factor
         REAL(dp) :: Trace_2RDM_New, RDMEnergy1, RDMEnergy2
 
         CALL set_timer(RDMEnergy_Time,30)
@@ -3851,8 +3987,8 @@ MODULe nElRDMMod
                         ! Adding in contributions effectively from the 1-RDM (although these are calculated 
                         ! from the 2-RDM.
                         call calc_1RDM_energy(i,j,a,iSpin,jSpin, Norm_2RDM, Norm_2RDM_Inst, &
-                                                    RDMEnergy_Inst, RDMEnergy1)
-
+                                                    RDMEnergy_Inst, RDMEnergy1,RDmEnergy2)
+                        
                         do b = a, SpatOrbs
 
                             Ind2_aa = ( ( (b-2) * (b-1) ) / 2 ) + a
@@ -3862,52 +3998,46 @@ MODULe nElRDMMod
                             ! In spin or spatial orbitals.
                             Coul = REAL(UMAT(UMatInd(i,j,a,b,0,0)),dp)
                             Exch = REAL(UMAT(UMatInd(i,j,b,a,0,0)),dp)
-
+                            
                             if((i.ne.j).and.(a.ne.b)) then
                                 ! Cannot get i=j or a=b contributions in aaaa.
-                                RDMEnergy_Inst = RDMEnergy_Inst + ( aaaa_RDM(Ind1_aa,Ind2_aa) &
+                                if (tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + ( aaaa_RDM(Ind1_aa,Ind2_aa) &
                                                                     * Norm_2RDM_Inst * ( Coul - Exch ) )
-                                RDMEnergy2 = RDMEnergy2 + ( All_aaaa_RDM(Ind1_aa,Ind2_aa) &
+                                RDMEnergy2 = RDMEnergy2 + ( aaaa_RDM_full(Ind1_aa,Ind2_aa) &
                                                             * Norm_2RDM * ( Coul - Exch ) ) 
                                 if(Ind1_aa.eq.Ind2_aa) &
                                     Trace_2RDM_New = Trace_2RDM_New + &
-                                                        All_aaaa_RDM(Ind1_aa,Ind2_aa) * Norm_2RDM
+                                                        aaaa_RDM_full(Ind1_aa,Ind2_aa) * Norm_2RDM
 
                                 ! For abab cases, coul element will be non-zero, exchange zero.
-                                RDMEnergy_Inst = RDMEnergy_Inst + ( abab_RDM(Ind1_ab,Ind2_ab) &
+                                if (tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + ( abab_RDM(Ind1_ab,Ind2_ab) &
                                                                         * Norm_2RDM_Inst * Coul )
-                                RDMEnergy2 = RDMEnergy2 + ( All_abab_RDM(Ind1_ab,Ind2_ab) &
+                                RDMEnergy2 = RDMEnergy2 + ( abab_RDM_full(Ind1_ab,Ind2_ab) &
                                                             * Norm_2RDM * Coul ) 
-
                                 if(Ind1_ab.eq.Ind2_ab) &
                                     Trace_2RDM_New = Trace_2RDM_New + &
-                                                        All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM
+                                                        abab_RDM_full(Ind1_ab,Ind2_ab) * Norm_2RDM
 
                                 ! For abba cases, coul element will be zero, exchange non-zero.
-                                RDMEnergy_Inst = RDMEnergy_Inst - ( abba_RDM(Ind1_aa,Ind2_aa) &
+                                if (tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst - ( abba_RDM(Ind1_aa,Ind2_aa) &
                                                                         * Norm_2RDM_Inst * Exch )
-                                RDMEnergy2 = RDMEnergy2 - ( All_abba_RDM(Ind1_aa,Ind2_aa) &
+                                RDMEnergy2 = RDMEnergy2 - ( abba_RDM_full(Ind1_aa,Ind2_aa) &
                                                             * Norm_2RDM * Exch ) 
-
-
                             else
                                 ! i = j or a = b
                                 ! abab has both abab and abba elements in them effectively.
                                 ! half will have non-zero coul, and half non-zero exchange.
-
-                                RDMEnergy_Inst = RDMEnergy_Inst + ( 0.5_dp * abab_RDM(Ind1_ab,Ind2_ab) &
+                                if (tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + ( 0.5_dp * abab_RDM(Ind1_ab,Ind2_ab) &
                                                                         * Norm_2RDM_Inst * Coul ) &
                                                                 + ( 0.5_dp * abab_RDM(Ind1_ab,Ind2_ab) &
                                                                         * Norm_2RDM_Inst * Exch )
-                                RDMEnergy2 = RDMEnergy2 + ( 0.5_dp * All_abab_RDM(Ind1_ab,Ind2_ab) &
+                                RDMEnergy2 = RDMEnergy2 + ( 0.5_dp * abab_RDM_full(Ind1_ab,Ind2_ab) &
                                                             * Norm_2RDM * Coul ) &
-                                                        + ( 0.5_dp * All_abab_RDM(Ind1_ab,Ind2_ab) &
+                                                        + ( 0.5_dp * abab_RDM_full(Ind1_ab,Ind2_ab) &
                                                             * Norm_2RDM * Exch )
-                                
-
                                 if(Ind1_ab.eq.Ind2_ab) &
                                     Trace_2RDM_New = Trace_2RDM_New + &
-                                                        All_abab_RDM(Ind1_ab,Ind2_ab) * Norm_2RDM
+                                                        abab_RDM_full(Ind1_ab,Ind2_ab) * Norm_2RDM
 
                             endif
 
@@ -3917,12 +4047,16 @@ MODULe nElRDMMod
                 enddo
             enddo
 
-            RDMEnergy_Inst = RDMEnergy_Inst + Ecore
+            if (tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + Ecore
             RDMEnergy = RDMEnergy1 + RDMEnergy2 + Ecore 
 
             ! Obviously this 'instantaneous' energy is actually accumulated between energy 
             ! print outs.
-            WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy_Inst, RDMEnergy
+            if(tRDMInstEnergy) then
+                WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy_Inst, RDMEnergy
+            else
+                WRITE(Energies_unit, "(I31,F30.15)") Iter+PreviousCycles, RDMEnergy
+            endif
             call neci_flush(Energies_unit)
 
             if(tFinalRDMEnergy) then
@@ -3938,11 +4072,13 @@ MODULe nElRDMMod
         endif
 
         ! Zero all the 'instantaneous' stuff.
-        aaaa_RDM(:,:) = 0.0_dp
-        abab_RDM(:,:) = 0.0_dp
-        abba_RDM(:,:) = 0.0_dp
-        AccumRDMNorm_Inst = 0.0_dp
-        Trace_2RDM_Inst = 0.0_dp
+        if (tRDMInstEnergy) then
+            aaaa_RDM(:,:) = 0.0_dp
+            abab_RDM(:,:) = 0.0_dp
+            abba_RDM(:,:) = 0.0_dp
+            AccumRDMNorm_Inst = 0.0_dp
+            Trace_2RDM_Inst = 0.0_dp
+        endif
 
         CALL halt_timer(RDMEnergy_Time)
 
@@ -4058,18 +4194,18 @@ MODULe nElRDMMod
     end subroutine
 
     subroutine calc_1RDM_energy(i,j,a,iSpin,jSpin,Norm_2RDM,Norm_2RDM_Inst,&
-                                                        RDMEnergy_Inst,RDMEnergy1)
-    ! This routine calculates the 1-RDM part of the RDM energy, and constructs the 
-    ! 1-RDM if required for diagonalisation or something.
-    ! gamma(i,j) = [1/(NEl - 1)] * SUM_a Gamma(i,a,j,a) 
-    ! want to calculate:    gamma(i,j) * h_ij
-    ! h_ij => TMAT2D(iSpin,jSpin)
+                                                    RDMEnergy_Inst,RDMEnergy1,RDMEnergy2)
+! This routine calculates the 1-RDM part of the RDM energy, and constructs the 
+! 1-RDM if required for diagonalisation or something.
+        ! gamma(i,j) = [1/(NEl - 1)] * SUM_a Gamma(i,a,j,a) 
+        ! want to calculate:    gamma(i,j) * h_ij
+        ! h_ij => TMAT2D(iSpin,jSpin)
     
         USE OneEInts , only : TMAT2D
         USE Logging , only : tDiagRDM, tDumpForcesInfo, tDipoles
         integer , intent(in) :: i,j,a,iSpin,jSpin
         real(dp) , intent(in) :: Norm_2RDM, Norm_2RDM_Inst
-        real(dp) , intent(inout) :: RDMEnergy_Inst, RDMEnergy1
+        real(dp) , intent(inout) :: RDMEnergy_Inst, RDMEnergy1,RDmEnergy2
         real(dp) :: Parity_Factor
         integer :: Ind1_1e_ab, Ind2_1e_ab
         integer :: Ind1_1e_aa, Ind2_1e_aa
@@ -4083,10 +4219,12 @@ MODULe nElRDMMod
         ! if a's not aligned, a b b a.
         ! all a a a a will contain single excitations.
         if(((i.le.a).and.(j.le.a)).or.((i.ge.a).and.(j.ge.a))) then
-            RDMEnergy_Inst = RDMEnergy_Inst + ( (abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM_Inst) &
+
+            if(tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + &
+                            ( (abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM_Inst) &
                                                 * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) )
-            RDMEnergy1 = RDMEnergy1 + ( (All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
+            RDMEnergy1 = RDMEnergy1 + ( (abab_RDM_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
                                                 * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) )
 
@@ -4094,24 +4232,25 @@ MODULe nElRDMMod
                 .and.tFinalRDMEnergy) then                                                
                 NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
                             NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
-                                        + ( All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
+                                        + ( abab_RDM_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
                                                 * (1.0_dp / real(NEl - 1,dp)) ) 
             endif
 
             ! For Gamma elements corresponding to 1-RDMs ( Gamma(i,a,j,a) ), we're only considering 
             ! i =< j and therefore we need to sum in the opposite contribution too.
             if(Ind1_1e_ab.ne.Ind2_1e_ab) then                                                                
-                RDMEnergy_Inst = RDMEnergy_Inst + ( (abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM_Inst) &
+                if (tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + &
+                                ( (abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM_Inst) &
                                                     * REAL(TMAT2D(jSpin,iSpin),dp) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
-                RDMEnergy1 = RDMEnergy1 + ( (All_abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM) &
+                RDMEnergy1 = RDMEnergy1 + ( (abab_RDM_full(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM) &
                                                     * REAL(TMAT2D(jSpin,iSpin),dp) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
 
                 if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo.or.tDipoles).and.tFinalRDMEnergy) then  
                     NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                             NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
-                                        + ( All_abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
+                                        + ( abab_RDM_full(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
                                                 * (1.0_dp / real(NEl - 1,dp)) ) 
                 endif
 
@@ -4120,17 +4259,18 @@ MODULe nElRDMMod
             ! But since we're running over all a, i a and a i will both be counted, but i i only once 
             ! (whereas it should be counted twice).
             if((i.eq.j).and.(i.eq.a)) then                                                                
-                RDMEnergy_Inst = RDMEnergy_Inst + ( (abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM_Inst) &
+                if (tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + &
+                      ( (abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM_Inst) &
                                             * REAL(TMAT2D(iSpin,jSpin),dp) &
                                             * (1.0_dp / real(NEl - 1,dp)) )
-                RDMEnergy1 = RDMEnergy1 + ( (All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
+                RDMEnergy1 = RDMEnergy1 + ( (abab_RDM_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
                                             * REAL(TMAT2D(iSpin,jSpin),dp) &
                                             * (1.0_dp / real(NEl - 1,dp)) )
 
                 if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo.or.tDipoles).and.tFinalRDMEnergy) then 
                     NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                             NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
-                                        + ( All_abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
+                                        + ( abab_RDM_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
                                                 * (1.0_dp / real(NEl - 1,dp)) ) 
                 endif
 
@@ -4143,32 +4283,34 @@ MODULe nElRDMMod
             Ind2_1e_aa = ( ( (max(j,a)-2) * (max(j,a)-1) ) / 2 ) + min(j,a)
 
             if((i.ne.j).and.((i.lt.a).and.(j.gt.a)).or.((i.gt.a).and.(j.lt.a))) then
-                RDMEnergy_Inst = RDMEnergy_Inst - ( (abba_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM_Inst) &
+                if(tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst - &
+                              ( (abba_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM_Inst) &
                                                     * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
-                RDMEnergy1 = RDMEnergy1 - ( (All_abba_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
+                RDMEnergy1 = RDMEnergy1 - ( (abba_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
                                                     * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
 
                 if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo.or.tDipoles).and.tFinalRDMEnergy) then 
                     NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
                                 NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
-                                            - ( All_abba_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
+                                            - ( abba_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
                                                     * (1.0_dp / real(NEl - 1,dp)) ) 
                 endif
 
                 if(Ind1_1e_aa.ne.Ind2_1e_aa) then
-                    RDMEnergy_Inst = RDMEnergy_Inst - ( (abba_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM_Inst) &
+                    if (tRDmInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst - &
+                                  ( (abba_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM_Inst) &
                                                         * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                         * (1.0_dp / real(NEl - 1,dp)) )
-                    RDMEnergy1 = RDMEnergy1 - ( (All_abba_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM) &
+                    RDMEnergy1 = RDMEnergy1 - ( (abba_RDM_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM) &
                                                         * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                         * (1.0_dp / real(NEl - 1,dp)) )
 
                     if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo.or.tDipoles).and.tFinalRDMEnergy) then 
                         NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                                 NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
-                                            - ( ( All_abba_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
+                                            - ( ( abba_RDM_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
                                                     * (1.0_dp / real(NEl - 1,dp)) ))
                     endif
                 endif
@@ -4181,32 +4323,34 @@ MODULe nElRDMMod
                 Parity_Factor = -1.0_dp
             endif
 !
-            RDMEnergy_Inst = RDMEnergy_Inst + ( (aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM_Inst) &
+            if (tRDmInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + &
+                          ( (aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM_Inst) &
                                                 * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
-            RDMEnergy1 = RDMEnergy1 + ( (All_aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
+            RDMEnergy1 = RDMEnergy1 + ( (aaaa_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
                                                 * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
 
             if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo.or.tDipoles).and.tFinalRDMEnergy) then 
                 NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
                             NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
-                                        + ( All_aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
+                                        + ( aaaa_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) 
             endif
 
             if(Ind1_1e_aa.ne.Ind2_1e_aa) then
-                RDMEnergy_Inst = RDMEnergy_Inst + ( (aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM_Inst) &
+                if (tRDmInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + &
+                          ( (aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM_Inst) &
                                                 * REAL(TMAT2D(jSpin,iSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
-                RDMEnergy1 = RDMEnergy1 + ( (All_aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM) &
+                RDMEnergy1 = RDMEnergy1 + ( (aaaa_RDM_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM) &
                                                 * REAL(TMAT2D(jSpin,iSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
 
                 if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo.or.tDipoles).and.tFinalRDMEnergy) then 
                     NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                             NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
-                                        + ( All_aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
+                                        + ( aaaa_RDM_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
                 endif
             endif
@@ -5692,13 +5836,13 @@ MODULe nElRDMMod
                 CALL LogMemDeAlloc(this_routine,Doub_ExcDjs2Tag)
             ENDIF
 
-        ELSEIF(.not.tHF_Ref_Explicit) THEN
+        !ELSEIF(.not.tHF_Ref_Explicit) THEN
 
-            DEALLOCATE(Spawned_Parents)
-            CALL LogMemDeAlloc(this_routine,Spawned_ParentsTag)
-
-            DEALLOCATE(Spawned_Parents_Index)
-            CALL LogMemDeAlloc(this_routine,Spawned_Parents_IndexTag)
+        !    DEALLOCATE(Spawned_Parents)
+        !    CALL LogMemDeAlloc(this_routine,Spawned_ParentsTag)
+!
+        !    DEALLOCATE(Spawned_Parents_Index)
+        !    CALL LogMemDeAlloc(this_routine,Spawned_Parents_IndexTag)
 
         ENDIF
 
@@ -5739,23 +5883,33 @@ MODULe nElRDMMod
             CALL LogMemDeAlloc(this_routine,SymLabelListInv_rotTag)
 
         ELSE
+            if (tRDMInstEnergy) then
 
-            DEALLOCATE(aaaa_RDM)
-            CALL LogMemDeAlloc(this_routine,aaaa_RDMTag)
-            DEALLOCATE(abab_RDM)
-            CALL LogMemDeAlloc(this_routine,abab_RDMTag)
-            DEALLOCATE(abba_RDM)
-            CALL LogMemDeAlloc(this_routine,abba_RDMTag)
+                DEALLOCATE(aaaa_RDM_inst)
+                CALL LogMemDeAlloc(this_routine,aaaa_RDM_instTag)
+                DEALLOCATE(abab_RDM_inst)
+                CALL LogMemDeAlloc(this_routine,abab_RDM_instTag)
+                DEALLOCATE(abba_RDM_inst)
+                CALL LogMemDeAlloc(this_routine,abba_RDM_instTag)
 
-            IF(iProcIndex.eq.0) THEN
-                DEALLOCATE(All_aaaa_RDM)
-                CALL LogMemDeAlloc(this_routine,All_aaaa_RDMTag)
-                DEALLOCATE(All_abab_RDM)
-                CALL LogMemDeAlloc(this_routine,All_abab_RDMTag)
-                DEALLOCATE(All_abba_RDM)
-                CALL LogMemDeAlloc(this_routine,All_abba_RDMTag)
- 
-                if(tDiagRDM.or.tPrint1RDM) then
+                IF(iProcIndex.eq.0) THEN
+                    DEALLOCATE(aaaa_RDM_full)
+                    CALL LogMemDeAlloc(this_routine,aaaa_RDM_fullTag)
+                    DEALLOCATE(abab_RDM_full)
+                    CALL LogMemDeAlloc(this_routine,abab_RDM_fullTag)
+                    DEALLOCATE(abba_RDM_full)
+                    CALL LogMemDeAlloc(this_routine,abba_RDM_fullTag)
+                endif
+            else
+                DEALLOCATE(aaaa_RDM_full)
+                CALL LogMemDeAlloc(this_routine,aaaa_RDM_fullTag)
+                DEALLOCATE(abab_RDM_full)
+                CALL LogMemDeAlloc(this_routine,abab_RDM_fullTag)
+                DEALLOCATE(abba_RDM_full)
+                CALL LogMemDeAlloc(this_routine,abba_RDM_fullTag)
+            endif
+            if(iProcindex.eq.0) then
+                if(tDiagRDM.or.tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
                     if(allocated(NatOrbMat)) then
                         DEALLOCATE(NatOrbMat)
                         CALL LogMemDeAlloc(this_routine,NatOrbMatTag)
@@ -5941,17 +6095,17 @@ MODULe nElRDMMod
    !                 D_pqrs = <Psi | p+ r+ s q | Psi>
    !This is achieved by looking up the D_pr,qs component in the various spin-separated
    !versions of the 2RDM that are currently stored with spatial orb numbering, in 
-   !physical notation (e.g. All_aaaa_RDM etc).
+   !physical notation (e.g. aaaa_RDM_full etc).
 
    !To convert from spin to spatial orbitals, we need to apply the following:
    !D_pr,qs = D_pr,qs(aaaa) + D_pr,qs(bbbb) + D_pr,qs(abab) + D_pr,qs(baba) (Eq. ***)
 
-   !We note now the following quirks of the All_aaaa_RDM-type arrays for the manner in
+   !We note now the following quirks of the aaaa_RDM_full-type arrays for the manner in
    !which they store these components
    !    1. In most cases the current RDMs store the *sum* of the spin-inverted terms
-   !         - ie, All_aaaa_RDM(pr,qs) contains the sum of the aaaa and bbbb contributions
+   !         - ie, aaaa_RDM_full(pr,qs) contains the sum of the aaaa and bbbb contributions
    !    2. When p=r and q=s, there is only one contribution generated in NECI
-   !         - ie, All_abab_RDM(pp,qq) contains only one of the two identical abab and baba contributions
+   !         - ie, abab_RDM_full(pp,qq) contains only one of the two identical abab and baba contributions
    !         - Terms of this kind but be explicitly multiplied by two to satisfy Eq. *** above
    !         - This is stored in the "Mult_Factor"
    !    3. The existing 2RDMs only store terms with r>=p and s>=q
@@ -5977,25 +6131,25 @@ MODULe nElRDMMod
         Ind1_ab = ( ( (r-1) * r ) / 2 ) + p
         Ind2_aa = ( ( (s-2) * (s-1) ) / 2 ) + q
         Ind2_ab = ( ( (s-1) * s ) / 2 ) + q
-        pqrs=pqrs+Mult_Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM
-        if ((p.ne.r) .and. (q.ne.s)) pqrs=pqrs+Mult_Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
+        pqrs=pqrs+Mult_Factor*abab_RDM_full(Ind1_ab,Ind2_ab)*Norm_2RDM
+        if ((p.ne.r) .and. (q.ne.s)) pqrs=pqrs+Mult_Factor*aaaa_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM
     elseif ((p.gt.r) .and. (s.gt.q)) then !Need to reorder D_pr,qs to -D_rp,qs
         Ind1_aa = ( ( (p-2) * (p-1) ) / 2 ) + r
         Ind2_aa = ( ( (s-2) * (s-1) ) / 2 ) + q
-        pqrs=pqrs-Mult_Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
-        pqrs=pqrs-Mult_Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
+        pqrs=pqrs-Mult_Factor*abba_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM
+        pqrs=pqrs-Mult_Factor*aaaa_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM
     elseif ((r.gt.p) .and. (q.gt.s)) then !Need to reorder D_pr,qs to -D_pr,sq
         Ind1_aa = ( ( (r-2) * (r-1) ) / 2 ) + p
         Ind2_aa = ( ( (q-2) * (q-1) ) / 2 ) + s
-        pqrs=pqrs-Mult_Factor*All_abba_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
-        pqrs=pqrs-Mult_Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
+        pqrs=pqrs-Mult_Factor*abba_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM
+        pqrs=pqrs-Mult_Factor*aaaa_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM
     else !Must need to reorder D_pr,qs to D_rp,sq
         Ind1_aa = ( ( (p-2) * (p-1) ) / 2 ) + r
         Ind1_ab = ( ( (p-1) * p ) / 2 ) + r
         Ind2_aa = ( ( (q-2) * (q-1) ) / 2 ) + s
         Ind2_ab = ( ( (q-1) * q ) / 2 ) + s
-        pqrs=pqrs+Mult_Factor*All_abab_RDM(Ind1_ab,Ind2_ab)*Norm_2RDM
-        if ((p.ne.r) .and. (q.ne.s)) pqrs=pqrs+Mult_Factor*All_aaaa_RDM(Ind1_aa,Ind2_aa)*Norm_2RDM
+        pqrs=pqrs+Mult_Factor*abab_RDM_full(Ind1_ab,Ind2_ab)*Norm_2RDM
+        if ((p.ne.r) .and. (q.ne.s)) pqrs=pqrs+Mult_Factor*aaaa_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM
     endif
         
     end function
@@ -6259,15 +6413,15 @@ MODULe nElRDMMod
         integer(kind=n_int) :: iLutI(0:niftot), iLutJ(0:niftot)
         integer :: nI(nel), nJ(nel), IC
         integer :: IterRDM, connect_elem
-   
-        if(mod((Iter - IterRDMStart + 1),RDMEnergyIter).eq.0) then
-            IterRDM=RDMEnergyIter
-        else
-            !This must be the final iteration, as we've got tFill_RDM=.true.
-            !for an iteration where we wouldn't normally need the energy
-            IterRDM=mod((Iter - IterRDMStart + 1),RDMEnergyIter)
-        endif
 
+        if (mod((iter - IterRDMStart + 1), RDMEnergyIter) == 0) then
+            IterRDM = RDMEnergyIter
+        else
+            ! This must be the final iteration, as we've got tFill_RDM=.true.
+            ! for an iteration where we wouldn't normally need the energy
+            IterRDM = mod((Iter - IterRDMStart + 1), RDMEnergyIter)
+        end if
+        
         Ex(:,:)=0
 
         do i = 1, determ_proc_sizes(iProcIndex) !Core dets on this proc
@@ -6276,7 +6430,8 @@ MODULe nElRDMMod
             if(DetBitEq(iLutI,iLutHF_True,NifDBO)) cycle  !Connections to HF done elsewhere.
            
 !            InstSignI=partial_determ_vector(i)
-            AvSignI=full_determ_vector_av(determ_proc_indices(iProcIndex)+i)
+            ! Use the first index as a placeholder for now, but needs to be fixed. NSB
+            AvSignI=full_determ_vector_av(1,determ_proc_indices(iProcIndex)+i)
 
             CALL decode_bit_det(nI,iLutI)
                         
@@ -6294,8 +6449,10 @@ MODULe nElRDMMod
                  !Connections to HF done elsewhere.
                  
 !                 InstSignJ=full_determ_vector(core_connections(i)%positions(j))
-                 AvSignJ=full_determ_vector_av(core_connections(i)%positions(j))
-                 
+                 ! Use the first index as a placeholder for now, but needs to be fixed. NSB
+                 AvSignJ=full_determ_vector_av(1,core_connections(i)%positions(j))
+          
+
                  connect_elem=core_connections(i)%elements(j)
 
                  IC=abs(connect_elem)
@@ -6310,8 +6467,7 @@ MODULe nElRDMMod
 
                      call decode_bit_det(nJ, iLutJ)
 
-                     call Fill_Spin_Coupled_RDM_v2(iLutI, iLutJ, nI, nJ, AvSignI*IterRDM, AvSignJ, .false.)
-                     !if(IC.eq.1) then
+                     call Fill_Spin_Coupled_RDM_v2(iLutI, iLutJ, nI, nJ, AvSignI*IterRDM, AvSignJ,.false.)
 
                  else
                      if(IC.eq.1) then
@@ -6329,7 +6485,6 @@ MODULe nElRDMMod
                          
                          !Note: get_bit_excitmat may be buggy (DetBitOps), but will do for now as we need the Ex...
                          call get_bit_excitmat(iLutI,iLutJ,Ex,IC)
-                                     
                          call Fill_Doubs_RDM(Ex,tParity,AvSignI*IterRDM,AvSignJ,.false.)
                      endif
                  endif

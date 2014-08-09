@@ -166,8 +166,11 @@ contains
         ! The signs array
         NOffSgn = NOffY + NIfY
         NIfSgn = 1
-#ifdef __CMPLX
+#ifdef __CMPLX 
         WRITE(6,*) "Complex walkers in use."
+        NIfSgn = NIfSgn + 1     !TODO: If __INT64, adjust packing into one integer
+#elif __DOUBLERUN
+        WRITE(6,*) "Double run in use."
         NIfSgn = NIfSgn + 1     !TODO: If __INT64, adjust packing into one integer
 #endif
 

@@ -239,8 +239,14 @@ op_lt = .arrlt.
 [arr_int64_arr_doub]
 type2 = real(dp), dimension(:)
 
+[arr_int64_arr_doub_custom]
+custom_comparisons = custom_lt, custom_gt,
+custom_compare_prefix = 
+
 [a_i64_i]
 type2 = integer(kind=int32)
+custom_comparisons = 
+custom_compare_prefix = ! 
 conditional_enable = !defined(SX)
 
 [a_i64_i64]
