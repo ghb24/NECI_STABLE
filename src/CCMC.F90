@@ -714,7 +714,7 @@ MODULE CCMC
 
                        ! This wants to return a value between 
                        ! 0 -> nProcessors-1
-                       Proc=DetermineDetNode(nJ,0)
+                       Proc=DetermineDetNode(nel,nJ,0)
    !                    WRITE(iout,*) iLutnJ(:),Proc,ValidSpawnedList(Proc),Child,TotWalkers
    !                    CALL neci_flush(6)
                        call encode_det(SpawnedParts(:,ValidSpawnedList(Proc)),iLutnJ)
@@ -2832,7 +2832,6 @@ END SUBROUTINE CCMCStandaloneParticle
 
 subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
       use SystemData, only : nEl
-!      use AnnihilationMod, only: DetermineDetNode
       use hash, only: DetermineDetNode
       use bit_reps, only: decode_bit_det, set_flag
       use bit_rep_data, only: flag_parent_initiator
@@ -2874,7 +2873,7 @@ subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
          ! NB This doesn't have an offset of 1, because actually we're working
          ! out what happens for the same cycle that the create_particle is
          ! spawning to.
-         p=DetermineDetNode(nI,0)
+         p=DetermineDetNode(nel,nI,0)
          if(p/=iNodeIndex) then
             SpawnList(:,ValidSpawnedList(p))=DetList(:,i)
 ! Beware - if initiator is on, we need to flag this as an initiator det, otherwise it'll die before reaching the new proc.
@@ -2996,7 +2995,7 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
          if(iProcIndex.eq.root) close(iunithead)
          tmp_dp = CurrParts
          call ReadFromPopsfile(iPopAllTotWalkers,ReadBatch,TotWalkers,tmp_dp,NoatHF,DetList,&
-                                nMaxAmpl, PopNifSgn, pops_pert)
+                                nMaxAmpl, PopNifSgn, .true.)
          CurrParts = tmp_dp
          nAmpl=int(TotWalkers,sizeof_int)
          dNorm=NoatHF(1)

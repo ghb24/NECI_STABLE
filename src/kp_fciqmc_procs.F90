@@ -5,7 +5,6 @@ module kp_fciqmc_procs
     use AnnihilationMod, only: SendProcNewParts, CompressSpawnedList, RemoveDetHashIndex
     use bit_rep_data
     use bit_reps, only: decode_bit_det, encode_sign, flag_is_initiator
-    use bit_reps, only: init_perturbation_creation, init_perturbation_annihilation
     use CalcData, only: tTruncInitiator, tStartSinglePart, InitialPart, InitWalkers
     use CalcData, only: tSemiStochastic, tReadPops, tUseRealCoeffs, tau, DiagSft
     use CalcData, only: AvMCExcits, tWritePopsNorm, iPopsFileNoRead, pops_norm
@@ -26,6 +25,7 @@ module kp_fciqmc_procs
     use LoggingData, only: tIncrementPops
     use Parallel_neci, only: MPIBarrier, iProcIndex, MPISum, MPIReduce, nProcessors, MPIAllReduce
     use ParallelHelper, only: root
+    use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
     use PopsfileMod, only: read_popsfile_wrapper
     use procedure_pointers
     use semi_stoch_procs, only: copy_core_dets_this_proc_to_spawnedparts, fill_in_CurrentH
@@ -191,7 +191,7 @@ module kp_fciqmc_procs
     ! The sum of pert_overlaps across all processes, calculated after all
     ! iterations in a repeat have been performed and only stored on the
     ! root process.
-    real(dp), allocatable :: all_pert_overlaps(:)
+    real(dp), allocatable :: kp_all_pert_overlaps(:)
 
     ! Matrices used in the communication of the projected Hamiltonian and
     ! overlap matrices.
@@ -498,7 +498,7 @@ contains
 
         if (tOverlapPert) then
             allocate(pert_overlaps(kp%nvecs))
-            allocate(all_pert_overlaps(kp%nvecs))
+            allocate(kp_all_pert_overlaps(kp%nvecs))
         end if
 
         if (tStoreKPMatrices) then
@@ -655,8 +655,6 @@ contains
                     SpawnedParts = 0_n_int
                     if (tStartCoreGroundState .and. (.not. tReadPops)) &
                         call start_walkers_from_core_ground(tPrintInfo = .false.)
-                    ! Reset the diagonal Hamiltonian elements.
-                    CurrentH(1, 1:determ_proc_sizes(iProcIndex)) = core_ham_diag
                 end if
 
             else if (tFiniteTemp) then
@@ -683,7 +681,6 @@ contains
                 total_time_after = get_total_time(kp_generate_time)
                 write(6,'(1x,a31,f9.3)') "Complete. Time taken (seconds):", total_time_after-total_time_before
 
-                call fill_in_CurrentH()
             end if
         else if (kp%irepeat > 1) then
             ! If repeating from a previsouly generated initial configuration, simpy reset the following
@@ -702,9 +699,10 @@ contains
                 CurrentDets(NIfTot,i) = krylov_vecs(NIfTotKP,i)
             end do
             call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int))
-
-            call fill_in_CurrentH()
         end if
+
+        ! Calculate and store the diagonal element of the Hamiltonian for determinants in CurrentDets.
+        call fill_in_CurrentH()
 
         ! If starting from this configuration more than once, store the relevant data for next time.
         if (kp%nrepeats > 1 .and. kp%irepeat == 1) then
@@ -902,7 +900,7 @@ contains
 
                 ! If it doesn't belong to this processor, pick another.
                 call decode_bit_det(nI, ilut)
-                proc = DetermineDetNode(nI, 0)
+                proc = DetermineDetNode(nel, nI, 0)
                 if (proc /= iProcIndex) cycle
             end if
 
@@ -1652,7 +1650,8 @@ contains
         integer, intent(in) :: nrepeats
 
         pert_overlaps = pert_overlaps/nrepeats
-        call MPISum(pert_overlaps, all_pert_overlaps)
+        call MPISum(pert_overlaps, kp_all_pert_overlaps)
+        write(6,*) "overlaps:", kp_all_pert_overlaps
 
     end subroutine average_and_communicate_pert_overlaps
 
@@ -1663,7 +1662,7 @@ contains
         integer :: npositive, info, ierr
         real(dp), allocatable :: work(:)
         real(dp), allocatable :: kp_final_hamil(:,:), kp_hamil_eigv(:)
-        real(dp) :: pert_energy_overlaps(kp%nvecs)
+        real(dp) :: kp_pert_energy_overlaps(kp%nvecs)
         character(2) :: nkeep_fmt
         character(7) :: string_fmt
         character(25) :: ind1, filename
@@ -1728,7 +1727,7 @@ contains
                 eigenvecs_krylov = matmul(transform_matrix, kp_final_hamil)
                 init_overlaps = matmul(kp_overlap_mean(1,:), eigenvecs_krylov)/scaling_factor
 
-                if (tOverlapPert) pert_energy_overlaps = matmul(all_pert_overlaps, eigenvecs_krylov)
+                if (tOverlapPert) kp_pert_energy_overlaps(1:nkeep) = matmul(kp_all_pert_overlaps, eigenvecs_krylov)
 
                 nkeep_len = ceiling(log10(real(abs(nkeep)+1)))
                 write(nkeep_fmt,'(a1,i1)') "i", nkeep_len
@@ -1737,7 +1736,7 @@ contains
                     "Eigenvalues and overlaps when keeping", nkeep, "eigenvectors"
                 do i = 1, nkeep
                     write(temp_unit,'(1x,es19.12,1x,es19.12)',advance='no') kp_hamil_eigv(i), init_overlaps(i)
-                    if (tOverlapPert) write(temp_unit,'(1x,es19.12)',advance='no') pert_energy_overlaps(i)
+                    if (tOverlapPert) write(temp_unit,'(1x,es19.12)',advance='no') kp_pert_energy_overlaps(i)
                     write(temp_unit,'()',advance='yes')
                 end do
 

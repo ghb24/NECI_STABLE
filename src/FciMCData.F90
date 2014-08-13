@@ -546,14 +546,14 @@ contains
 
     subroutine set_initial_global_data(ndets, ilut_list)
 
-        use bit_rep_data, only: NIfDBO, extract_sign
+        use bit_rep_data, only: NIfTot, NIfDBO, extract_sign
         use Parallel_neci, only: iProcIndex, MPISumAll
 
         ! Take in a list of determinants and calculate and set all of the
         ! global data needed for the start of a FCIQMC calculation.
 
         integer, intent(in) :: ndets
-        integer(n_int), intent(inout) :: ilut_list(:,:)
+        integer(n_int), intent(inout) :: ilut_list(0:NIfTot,ndets)
 
         integer :: i, run
         real(dp) :: real_sign(lenof_sign)

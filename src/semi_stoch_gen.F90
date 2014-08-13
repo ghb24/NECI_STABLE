@@ -23,7 +23,6 @@ module semi_stoch_gen
                          SemiStoch_Init_Time, tHashWalkerList, full_determ_vector_av, &
                          tStartCoreGroundState
     use gndts_mod, only: gndts, gndts_all_sym_this_proc
-    use hash, only: DetermineDetNode
     use LoggingData, only: tWriteCore, tRDMonFly
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
 
@@ -274,6 +273,8 @@ contains
         !     called from, and hence which space this state should be added to.
         ! In (optional) : nI_in - A list of the occupied orbitals in the determinant.
 
+        use hash, only: DetermineDetNode
+
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: called_from
         integer, optional :: nI_in(nel)
@@ -293,7 +294,7 @@ contains
             call decode_bit_det(nI, ilut)
         end if
 
-        proc = DetermineDetNode(nI,0)
+        proc = DetermineDetNode(nel,nI,0)
 
         if (.not. (proc == iProcIndex)) return
 

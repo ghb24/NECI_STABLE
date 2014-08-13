@@ -368,6 +368,8 @@ contains
     end subroutine initialise_trial_linscale
 
     subroutine remove_states_not_on_proc(ilut_list, ilut_list_size, update_trial_vector)
+        
+        use hash, only: DetermineDetNode
 
         integer, intent(inout) :: ilut_list_size
         integer(n_int), intent(inout) :: ilut_list(0:NIfTot, ilut_list_size)
@@ -378,7 +380,7 @@ contains
         counter = 0
         do i = 1, ilut_list_size
             call decode_bit_det(nI, ilut_list(0:NIfTot, i))
-            proc = DetermineDetNode(nI, 0)
+            proc = DetermineDetNode(nel, nI, 0)
             ! If this state and the previous one were identical, don't add this state to the
             ! list so that repeats aren't included.
             if (proc == iProcIndex) then

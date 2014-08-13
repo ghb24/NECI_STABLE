@@ -30,8 +30,6 @@ module semi_stoch_procs
     use hash, only: DetermineDetNode, FindWalkerHash, init_hash_table, reset_hash_table
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
-    use MI_integrals, only: MI_off_diag_helement
-    use MomInv, only: IsAllowedMI
     use nElRDMMod, only: fill_RDM_offdiag_deterministic
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, MPIArg, &
                              MPIAllGatherV, MPISum, MPISumAll, MPIScatterV
@@ -649,7 +647,7 @@ contains
         ! Create a list, proc_list, with the processor numbers of the corresponding iluts.
         do i = 1, ilut_list_size
             call decode_bit_det(nI, ilut_list(:,i))
-            proc_list(i) = DetermineDetNode(nI,0)
+            proc_list(i) = DetermineDetNode(nel,nI,0)
             num_states_procs(proc_list(i)) = num_states_procs(proc_list(i)) + 1
         end do
 
@@ -674,6 +672,8 @@ contains
 
     subroutine fill_in_CurrentH()
 
+        use MI_integrals, only: MI_diag_helement
+
         integer :: i
         integer :: nI(nel)
 
@@ -684,6 +684,8 @@ contains
 
             if (tHPHF) then
                 CurrentH(1,i) = hphf_diag_helement(nI, CurrentDets(:,i)) - Hii
+            else if (tMomInv) then
+                CurrentH(1,i) = MI_diag_helement(nI, CurrentDets(:,i)) - Hii
             else
                 CurrentH(1,i) = get_helement(nI, nI, 0) - Hii
             end if
@@ -1103,7 +1105,7 @@ contains
 
         do i = 1, determ_space_size
             call decode_bit_det(nI, core_space(:,i))
-            proc = DetermineDetNode(nI,0)
+            proc = DetermineDetNode(nel,nI,0)
             if (proc == iProcIndex) then
                 ncore = ncore + 1
                 SpawnedParts(:,ncore) = core_space(:,i)
@@ -1123,6 +1125,8 @@ contains
         ! To use this routine, generate an excitation from the Hartree-Fock determinant using the
         ! GenExcitations3 routine. This will return nI, ex and tParity which can be input into this
         ! routine.
+
+        use MI_integrals, only: MI_off_diag_helement
 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:NIfTot)

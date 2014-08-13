@@ -112,7 +112,7 @@ MODULE FciMCParMod
                          FindBitExcitLevel, countbits, TestClosedShellDet, &
                          FindSpatialBitExcitLevel, IsAllowedHPHF, count_open_orbs, &
                          ilut_gt, get_bit_excitmat
-    use hash , only : determinedetnode, findwalkerhash
+    use hash, only: DetermineDetNode, FindWalkerHash
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
@@ -799,7 +799,7 @@ MODULE FciMCParMod
         if (proje_linear_comb .and. (.not. proje_spatial) .and. nproje_sum > 1) then
            sum_proje_denominator=0
            do i = 1, nproje_sum
-              proc = DetermineDetNode (proje_ref_dets(:,i), 0)
+              proc = DetermineDetNode (nel, proje_ref_dets(:,i), 0)
               if (iProcIndex == proc) then
                     pos = binary_search (CurrentDets(:,1:TotWalkers), &
                          proje_ref_iluts(:,i), NIfD+1)
@@ -1267,7 +1267,7 @@ MODULE FciMCParMod
         ! Why is this done here - before annihilation!
         if (proje_spatial .and. proje_linear_comb .and. nproje_sum > 1) then
             do i = 1, nproje_sum
-                proc = DetermineDetNode (proje_ref_dets(:,i), 0)
+                proc = DetermineDetNode(nel, proje_ref_dets(:,i), 0)
                 if (iProcIndex == proc) then
                     pos = binary_search (CurrentDets(:,1:TotWalkers), &
                                          proje_ref_iluts(:,i), NIfD+1)
@@ -1374,7 +1374,7 @@ MODULE FciMCParMod
         integer :: proc, flags, j
         logical :: parent_init
 
-        proc = DetermineDetNode(nJ,0)    ! 0 -> nNodes-1)
+        proc = DetermineDetNode(nel,nJ,0)    ! 0 -> nNodes-1)
 
         ! We need to include any flags set both from the parent and from the
         ! spawning steps. No we don't! - ghb
@@ -6872,7 +6872,7 @@ MODULE FciMCParMod
             ENDIF
 
             ! Get the (0-based) processor index for the HF det.
-            iHFProc = DetermineDetNode(HFDet,0)
+            iHFProc = DetermineDetNode(nel,HFDet,0)
             WRITE(iout,"(A,I8)") "Reference processor is: ",iHFProc
             write(iout,"(A)",advance='no') "Initial reference is: "
             call write_det(iout,HFDet,.true.)
@@ -7492,7 +7492,7 @@ MODULE FciMCParMod
                 call EncodeBitDet(CASFullDets(:,i),iLutnJ)
                 if(.not.IsAllowedMI(CASFullDets(:,i),iLutnJ)) cycle
             endif
-            iNode=DetermineDetNode(CASFullDets(:,i),0)
+            iNode=DetermineDetNode(nel,CASFullDets(:,i),0)
             if(iProcIndex.eq.iNode) then
                 !Number parts on this det = PartFac*Amplitude
                 amp=CK(i,1)*PartFac
@@ -7710,7 +7710,7 @@ MODULE FciMCParMod
                 if(.not.IsAllowedMI(nJ,iLutnJ)) cycle
             endif
 
-            iNode=DetermineDetNode(nJ,0)
+            iNode=DetermineDetNode(nel,nJ,0)
             if(iProcIndex.eq.iNode) then
                 call return_mp1_amp_and_mp2_energy(nJ,iLutnJ,Ex,tParity,amp,energy_contrib)
                 amp = amp*PartFac

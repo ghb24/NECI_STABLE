@@ -143,7 +143,7 @@ contains
             nI(ielec) = iorb
             ! If we're on the last spin.
             if (ielec == nel) then
-                proc = DetermineDetNode(nI,0)
+                proc = DetermineDetNode(nel,nI,0)
                 if (proc == iProcIndex) then
                     ndets = ndets + 1
                     if (.not. tCount) then

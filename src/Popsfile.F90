@@ -13,11 +13,12 @@ MODULE PopsfileMod
                         pops_norm, tWritePopsNorm
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt, CountBits
-    use hash, only : DetermineDetNode, FindWalkerHash
+    use hash, only: DetermineDetNode, FindWalkerHash, reset_hash_table, &
+                    fill_in_hash_table
     use Determinants, only : get_helement,write_det
     use hphf_integrals, only: hphf_diag_helement
     use MI_integrals, only: MI_diag_helement
-    use dSFMT_interface , only : genrand_real2_dSFMT
+    use dSFMT_interface, only : genrand_real2_dSFMT
     use FciMCData
     use bit_rep_data, only: extract_sign, NOffSgn
     use bit_reps
@@ -40,18 +41,19 @@ MODULE PopsfileMod
 !This routine reads in particle configurations from a POPSFILE v.3-4.
 !EndPopsList is the number of entries in the POPSFILE to read, and ReadBatch is the number of determinants
 !which can be read in in a single batch.
-    SUBROUTINE ReadFromPopsfile(EndPopsList,ReadBatch,CurrWalkers64,CurrParts,CurrHF,Dets,DetsLen,PopNifSgn,perturb)
+    SUBROUTINE ReadFromPopsfile(EndPopsList,ReadBatch,CurrWalkers64,CurrParts,CurrHF,Dets,DetsLen,PopNifSgn,tCalcExtraInfo)
         use MemoryManager, only: TagIntType
         integer(int64) , intent(in) :: EndPopsList  !Number of entries in the POPSFILE.
         integer , intent(in) :: ReadBatch       !Size of the batch of determinants to read in in one go.
         integer(int64) , intent(out) :: CurrWalkers64    !Number of determinants which end up on a given processor.
         real(dp), intent(out) :: CurrHF(lenof_sign)
-        ! Details of a perturbation operator to apply to the determinants as
-        ! they are read in from the popsfile.
-        type(perturbation), intent(in) :: perturb
+        ! If true, then calculate the diagonal Hamiltonian elements of the
+        ! read-in popsfile, and, if using the linear scaling algorithm,
+        ! fill in the walker hash table.
+        logical, intent(in) :: tCalcExtraInfo
 
         real(dp) :: CurrParts(lenof_sign)
-        integer :: CurrWalkers,Slot,nJ(nel)
+        integer :: CurrWalkers,Slot
         integer :: iunit,i,j,ierr,PopsInitialSlots(0:nNodes-1)
         INTEGER(TagIntType) :: BatchReadTag=0
         real(dp) :: BatchSize
@@ -61,10 +63,9 @@ MODULE PopsfileMod
         integer(n_int) , allocatable :: BatchRead(:,:)
         integer(n_int) :: WalkerTemp(0:NIfTot)
         integer(int64) :: Det,AllCurrWalkers,TempCurrWalkers
-        integer(int64) :: nremoved_by_pert, all_nremoved_by_pert
         logical :: FormPops,BinPops,tReadAllPops,tStoreDet
         real(dp) , dimension(lenof_sign) :: SignTemp
-        integer :: TempNI(NEl),nBatches,PopsVersion
+        integer :: nBatches,PopsVersion
         character(len=*) , parameter :: this_routine='ReadFromPopsfile'
         HElement_t :: HElemTemp
         character(255) :: popsfile
@@ -82,6 +83,7 @@ MODULE PopsfileMod
         HElement_t :: PopAllSumENum
         integer :: sgn(lenof_sign), flg
         type(ll_node), pointer :: Temp
+        integer, allocatable :: TempnI(:)
 
         sendcounts=0
         disps=0
@@ -125,6 +127,8 @@ MODULE PopsfileMod
                 open(iunit, file=popsfile, status='old', form='unformatted')
             endif
         end if
+
+        allocate(TempnI(iPopNel))
 
         call mpibarrier(err)
 
@@ -184,7 +188,6 @@ MODULE PopsfileMod
         nBatches=0      ! Number of batches of walkers it takes to distribute 
                         ! popsfile.
         Det=1
-        nremoved_by_pert = 0
         tReadAllPops=.false.
         pops_norm = 0.0_dp
 r_loop: do while(.not.tReadAllPops)
@@ -203,20 +206,12 @@ r_loop: do while(.not.tReadAllPops)
 
                     ! Read the next entry, and store the walker in WalkerTemp 
                     ! and TempnI
-                    tEOF = read_popsfile_det (iunit, Det, BinPops, &
-                                              WalkerTemp, TempnI, PopNifSgn, &
-                                              perturb)
+                    tEOF = read_popsfile_det (iunit, iPopNel, Det, BinPops, &
+                                              WalkerTemp, TempnI, PopNifSgn)
 
                     ! Add the contribution from this determinant to the
-                    ! norm of the *unperturbed* popsfile wave function.
+                    ! norm of the popsfile wave function.
                     call add_pops_norm_contrib(WalkerTemp)
-
-                    ! This signifies that this determinant was annihilated by
-                    ! the perturbation operator, so we want to skip it.
-                    if (all(WalkerTemp(0:NIfDBO) == 0_n_int)) then
-                        nremoved_by_pert = nremoved_by_pert + 1
-                        cycle
-                    end if
 
                     ! When we have got to the end of the file, we are done.
                     if (tEOF) then
@@ -225,10 +220,10 @@ r_loop: do while(.not.tReadAllPops)
                                       &found.")
                     end if
 
-                    proc = DetermineDetNode (TempnI,0)
+                    proc = DetermineDetNode(iPopNel,TempnI,0)
                     if (tSplitPops) then
                         CurrWalkers = CurrWalkers + 1
-                        CurrentDets(:,CurrWalkers) = WalkerTemp
+                        Dets(:,CurrWalkers) = WalkerTemp
                         if (proc /= iProcIndex) &
                             call stop_all (this_routine, "Determinant in the &
                                            &wrong Split POPSFILE")
@@ -298,9 +293,8 @@ r_loop: do while(.not.tReadAllPops)
         write(6,*) "CurrWalkers: ", CurrWalkers
         TempCurrWalkers = int(CurrWalkers, int64)
         call MPISum(TempCurrWalkers, 1, AllCurrWalkers)
-        call MPISum(nremoved_by_pert, 1, all_nremoved_by_pert)
         if (iProcIndex == Root) then
-            if (iWeightPopRead == 0 .and. (AllCurrWalkers + all_nremoved_by_pert) /= EndPopsList) then
+            if (iWeightPopRead == 0 .and. AllCurrWalkers /= EndPopsList) then
                 write(6,*) "AllCurrWalkers: ", AllCurrWalkers
                 write(6,*) "EndPopsList: ", EndPopsList
 
@@ -330,76 +324,61 @@ r_loop: do while(.not.tReadAllPops)
         ! Clear all deterministic and trial flags so that they can be changed later.
         if (tUseFlags) then
             do i = 1, CurrWalkers
-                call clr_flag(CurrentDets(:,i), flag_deterministic)
-                call clr_flag(CurrentDets(:,i), flag_determ_parent)
-                call clr_flag(CurrentDets(:,i), flag_trial)
-                call clr_flag(CurrentDets(:,i), flag_connected)
+                call clr_flag(Dets(:,i), flag_deterministic)
+                call clr_flag(Dets(:,i), flag_determ_parent)
+                call clr_flag(Dets(:,i), flag_trial)
+                call clr_flag(Dets(:,i), flag_connected)
             end do
         end if
 
         write(6,"(A,I8)") "Number of batches required to distribute all determinants in POPSFILE: ",nBatches
         write(6,*) "Number of configurations read in to this process: ",CurrWalkers 
 
-        if(tHashWalkerList) then
-            do i = 1, CurrWalkers
-                call extract_sign(dets(:,i), SignTemp)
-                ! Only add the determinant to the hash table if it is occupied.
-                if (.not. IsUnoccDet(SignTemp) ) then
-                    call decode_bit_det (nJ, dets(:,i))
-                    DetHash=FindWalkerHash(nJ, nWalkerHashes)
-                    Temp => HashIndex(DetHash)
-                    ! If the first element in the list has not been used.
-                    if (Temp%Ind == 0) then
-                        Temp%Ind = i
-                    else
-                        do while (associated(Temp%Next))
-                            Temp => Temp%Next
-                        end do
-                        allocate(Temp%Next)
-                        nullify(Temp%Next%Next)
-                        Temp%Next%Ind = i
-                    end if
-                end if
-            end do
-            nullify(Temp)
-        else
-            !Order the determinants on all the lists.
-            call sort (dets(:,1:CurrWalkers), ilut_lt, ilut_gt)
-        endif
+        if (.not. tHashWalkerList) call sort(dets(:,1:CurrWalkers), ilut_lt, ilut_gt)
 
-        !Run through all determinants on each node, and calculate the total number of walkers, and noathf
-        do i=1,CurrWalkers
-!            WRITE(6,*) i,Dets(:,i)
-            call extract_sign(Dets(:,i),SignTemp)
-            
-            CurrParts=CurrParts+abs(SignTemp)
-            if(DetBitEQ(Dets(:,i),iLutRef,NIfDBO)) then
-                if(CurrHF(1).ne.0) then
-                    call stop_all(this_routine,"HF already found, but shouldn't have")
-                endif
-                CurrHF=CurrHF+SignTemp 
-                if ((.not.tRegenDiagHEls) .and. (.not. tSemiStochastic)) CurrentH(1,i)=0.0_dp
-            else
-                if((.not.tRegenDiagHEls) .and. (.not. tSemiStochastic)) THEN
-                !Calculate diagonal matrix element
-                    call decode_bit_det (TempnI, currentDets(:,i))
-                    if (tHPHF) then
-                        HElemTemp = hphf_diag_helement (TempnI,Dets(:,i))
-                    elseif(tMomInv) then
-                        HElemTemp = MI_diag_helement(TempnI,Dets(:,i))
-                    else
-                        HElemTemp = get_helement (TempnI, TempnI, 0)
-                    endif
-                    CurrentH(1,i)=REAL(HElemTemp,dp)-Hii
-                endif
+        if (tCalcExtraInfo) then
+
+            if (tHashWalkerList) then
+                call reset_hash_table(HashIndex)
+                call fill_in_hash_table(HashIndex, nWalkerHashes, Dets, TotWalkers)
             endif
-        enddo
 
-        CurrWalkers64=int(CurrWalkers,int64)    !Since this variable is eventually going to be
+            ! Run through all determinants on each node, and calculate the total number of walkers, and noathf
+            do i = 1, CurrWalkers
+                call extract_sign(Dets(:,i),SignTemp)
+                
+                CurrParts=CurrParts+abs(SignTemp)
+                if(DetBitEQ(Dets(:,i),iLutRef,NIfDBO)) then
+                    if(CurrHF(1).ne.0) then
+                        call stop_all(this_routine,"HF already found, but shouldn't have")
+                    endif
+                    CurrHF=CurrHF+SignTemp 
+                    if ((.not.tRegenDiagHEls) .and. (.not. tSemiStochastic)) CurrentH(1,i)=0.0_dp
+                else
+                    if ((.not.tRegenDiagHEls) .and. (.not. tSemiStochastic)) THEN
+                    ! Calculate diagonal matrix element
+                        call decode_bit_det(TempnI, Dets(:,i))
+                        if (tHPHF) then
+                            HElemTemp = hphf_diag_helement(TempnI,Dets(:,i))
+                        elseif (tMomInv) then
+                            HElemTemp = MI_diag_helement(TempnI,Dets(:,i))
+                        else
+                            HElemTemp = get_helement (TempnI, TempnI, 0)
+                        endif
+                        CurrentH(1,i) = real(HElemTemp,dp) - Hii
+                    endif
+                endif
+            enddo
+
+        end if
+
+        ! Since this variable is eventually going to be Totwalkers, it wants to
+        ! be a 64 bit int.
+        CurrWalkers64 = int(CurrWalkers,int64)    
         call mpibarrier(err)
-                                                !Totwalkers, it wants to be a 64 bit int.
 
-        if(allocated(PopsMapping)) deallocate(PopsMapping)
+        if (allocated(PopsMapping)) deallocate(PopsMapping)
+        if (allocated(TempnI)) deallocate(TempnI)
 
     end subroutine ReadFromPopsfile
 
@@ -411,17 +390,15 @@ r_loop: do while(.not.tReadAllPops)
     !Det = Current determinant entry in popsfile list
     !BinPops = Binary popsfile or formatted
     !WalkerTemp = Determinant entry returned (in new basis if using mapping)
-    !perturb = Definition of a perturbation operator to apply to the read-in
-    !          determinant.
-    function read_popsfile_det (iunit, Det, BinPops, WalkerTemp, nI, PopNifSgn, perturb) &
+    function read_popsfile_det (iunit, nel_loc, Det, BinPops, WalkerTemp, nI, PopNifSgn) &
                                result(tEOF)
 
         integer, intent(in) :: iunit
-        integer, intent(out) :: nI(nel)
+        integer, intent(in) :: nel_loc
+        integer, intent(out) :: nI(nel_loc)
         logical, intent(in) :: BinPops
         integer(int64) , intent(inout) :: Det
         integer(n_int), intent(out) :: WalkerTemp(0:NIfTot)
-        type(perturbation), intent(in) :: perturb
 
         integer(n_int) :: WalkerToMap(0:MappingNIfD), WalkerTemp2(0:NIfTot)
         integer(n_int) :: sgn_int(lenof_sign)
@@ -432,6 +409,7 @@ r_loop: do while(.not.tReadAllPops)
         integer(n_int) :: flg_read
         logical :: tStoreDet, tEOF
 
+        WalkerTemp = 0_n_int
         tStoreDet=.false.
         tEOF = .false.
 r_loop: do while(.not.tStoreDet)
@@ -534,7 +512,7 @@ outer_map:      do i = 0, MappingNIfD
                         if (btest(WalkerToMap(i), j)) then
                             elec = elec + 1
                             nI(elec) = PopsMapping((i * bits_n_int) + (j + 1))
-                            if (elec == nel) exit outer_map
+                            if (elec == nel_loc) exit outer_map
                         end if
                     end do
                 end do outer_map
@@ -586,15 +564,8 @@ outer_map:      do i = 0, MappingNIfD
             end do
         enddo r_loop
 
-        ! Apply the perturbation operator (which by default is will just be the
-        ! identity operator so won't do anything.
-        ! If this determinant is annihilated by the perturbation operator then
-        ! Walkertemp(0:NIfDBO) will be returned as 0_n_int.
-        call perturb_det(WalkerTemp, perturb)
-
         ! Decode the determinant as required if not using mapping
-        if (.not. tPopsMapping .and. (.not. tEOF) .and. &
-           (.not. all(WalkerTemp(0:NIfDBO)==0_n_int))) then
+        if (.not. tPopsMapping .and. (.not. tEOF)) then
             call decode_bit_det (nI, WalkerTemp)
         endif
 
@@ -646,15 +617,20 @@ outer_map:      do i = 0, MappingNIfD
     subroutine InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, perturb)
 
         use CalcData, only : iReadWalkersRoot
+        use hash, only: reset_hash_table, fill_in_hash_table
+        use perturbations, only: apply_perturbation
+        use semi_stoch_procs, only: fill_in_currentH
 
         integer(int64), intent(in) :: iPopAllTotWalkers
         integer, intent(in) :: PopNIfSgn
-        ! An optional perturbation operator to apply to the determinants
-        ! as they are read in from the popsfile.
+        ! Perturbation operator to apply to the determinants after they have
+        ! been read in.
         type(perturbation), intent(in) :: perturb
 
         integer :: run, ReadBatch
-        character(len=*), parameter :: this_routine='InitFCIMC_pops'
+        character(len=*), parameter :: t_r='InitFCIMC_pops'
+
+        integer :: nI(nel)
 
         if(iReadWalkersRoot.eq.0) then
             ! ReadBatch is the number of walkers to read in from the 
@@ -672,7 +648,16 @@ outer_map:      do i = 0, MappingNIfD
         ! TotWalkers and TotParts are returned as the dets and parts 
         ! on each processor.
         call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, TotWalkers, TotParts, NoatHF, &
-                              CurrentDets, MaxWalkersPart, PopNIfSgn, perturb)
+                              CurrentDets, MaxWalkersPart, PopNIfSgn, tCalcExtraInfo=.false.)
+
+        call apply_perturbation(TotWalkers, CurrentDets(0:NIfTot,1:TotWalkers), perturb)
+
+        call fill_in_CurrentH()
+
+        if (tHashWalkerList) then
+            call reset_hash_table(HashIndex)
+            call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, TotWalkers)
+        end if
 
         call set_initial_global_data(TotWalkers, CurrentDets)
 
@@ -1837,7 +1822,7 @@ outer_map:      do i = 0, MappingNIfD
 
 #endif
             call decode_bit_det (TempnI, iLutTemp)
-            Proc = DetermineDetNode(TempnI,0)
+            Proc = DetermineDetNode(nel,TempnI,0)
             IF((Proc.eq.iNodeIndex).and.(abs(RealTempSign(1)).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
                 !Do not need to send a flag here...

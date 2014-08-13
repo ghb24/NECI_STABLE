@@ -16,7 +16,7 @@ module hash
 
     contains
 
-    pure function DetermineDetNode (nI, iIterOffset) result(node)
+    pure function DetermineDetNode (nel_loc, nI, iIterOffset) result(node)
 
         ! Depending on the Hash, determine which node determinant nI
         ! belongs to in the DirectAnnihilation scheme. NB FCIMC has each processor as a separate logical node.
@@ -26,7 +26,8 @@ module hash
         ! Out: proc - The (0-based) processor index.
 
         implicit none
-        integer, intent(in) :: nI(nel)
+        integer, intent(in) :: nel_loc
+        integer, intent(in) :: nI(nel_loc)
         integer, intent(in) :: iIterOffset
         integer :: node
         
@@ -37,9 +38,11 @@ module hash
 
         ! If we are assigning the HF to a unique processor, then put it 
         ! on the last available processor.
-        if (tUniqueHFNode .and. all(nI == HFDet)) then
-            node = nNodes-1
-            return
+        if (size(nI) == size(HFDet)) then
+            if (tUniqueHFNode .and. all(nI == HFDet)) then
+                node = nNodes-1
+                return
+            end if
         end if
 
 !sum(nI) ensures that a random number is generated for each different nI, which is then added to the iteration,
@@ -47,7 +50,7 @@ module hash
 !  for each nI will change on average once per 2^hash_shift iterations, but the change spread throughout the different iters.
         if (hash_iter>0) then  !generate a hash to work out an offset.  Probably very inefficient
            acc = 0
-           do i = 1, nel
+           do i = 1, nel_loc
                acc = (large_prime * acc) + &
                        (RandomHash(mod(iand(nI(i), csf_orbital_mask)-1,nBasis)+1) * i)
            enddo
@@ -57,12 +60,12 @@ module hash
         endif
         acc = 0
         if(tCSF) then
-            do i = 1, nel
+            do i = 1, nel_loc
                 acc = (large_prime * acc) + &
                         (RandomHash(mod(iand(nI(i), csf_orbital_mask)+offset-1,int(nBasis,int64))+1) * i)
             enddo
         else
-            do i = 1, nel
+            do i = 1, nel_loc
                 acc = (large_prime * acc) + &
                         (RandomHash(mod(nI(i)+offset-1,int(nBasis,int64))+1) * i)
             enddo
@@ -237,5 +240,3 @@ module hash
     end subroutine remove_node
       
 end module hash
-
-

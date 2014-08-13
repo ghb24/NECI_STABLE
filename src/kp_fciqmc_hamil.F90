@@ -175,7 +175,7 @@ contains
         integer(n_int) :: int_sign(lenof_sign_kp)
         integer :: proc
 
-        proc = DetermineDetNode(nI_child, 0)
+        proc = DetermineDetNode(nel, nI_child, 0)
 
         SpawnedPartsKP(0:NIfDBO, ValidSpawnedList(proc)) = ilut_child(0:NIfDBO)
         int_sign = transfer(child_sign, int_sign)

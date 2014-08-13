@@ -1,6 +1,5 @@
 MODULE Calc
         
-    use bit_reps, only: init_perturbation_creation, init_perturbation_annihilation
     use CalcData
     use SystemData, only: beta, nel, STOT, tCSF, LMS, tSpn
     use Determinants, only: write_det
@@ -29,6 +28,7 @@ MODULE Calc
     use spectral_data
     use spectral_lanczos, only: n_lanc_vecs_sl
     use exact_spectrum
+    use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
 
     implicit none
 

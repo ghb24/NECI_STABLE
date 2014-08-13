@@ -93,7 +93,7 @@ contains
         ! Count the number of determinants belonging to this processor.
         ndets_this_proc = 0
         do i = 1, ndets
-            proc = DetermineDetNode(nI_list(:,i), 0)
+            proc = DetermineDetNode(nel,nI_list(:,i), 0)
             if (proc == iProcIndex) ndets_this_proc = ndets_this_proc + 1
         end do
 
@@ -102,7 +102,7 @@ contains
 
         j = 0
         do i = 1, ndets
-            proc = DetermineDetNode(nI_list(:,i), 0)
+            proc = DetermineDetNode(nel,nI_list(:,i), 0)
             if (proc == iProcIndex) then
                 call EncodeBitDet(nI_list(:,i), ilut)
                 j = j + 1
