@@ -41,7 +41,7 @@ MODULE PopsfileMod
 !This routine reads in particle configurations from a POPSFILE v.3-4.
 !EndPopsList is the number of entries in the POPSFILE to read, and ReadBatch is the number of determinants
 !which can be read in in a single batch.
-    SUBROUTINE ReadFromPopsfile(EndPopsList,ReadBatch,CurrWalkers64,CurrParts,CurrHF,Dets,DetsLen,PopNifSgn,tCalcExtraInfo)
+    SUBROUTINE ReadFromPopsfile(EndPopsList,ReadBatch,CurrWalkers64,CurrParts,CurrHF,Dets,DetsLen,PopNifSgn,PopNel,tCalcExtraInfo)
         use MemoryManager, only: TagIntType
         integer(int64) , intent(in) :: EndPopsList  !Number of entries in the POPSFILE.
         integer , intent(in) :: ReadBatch       !Size of the batch of determinants to read in in one go.
@@ -50,6 +50,7 @@ MODULE PopsfileMod
         ! If true, then calculate the diagonal Hamiltonian elements of the
         ! read-in popsfile, and, if using the linear scaling algorithm,
         ! fill in the walker hash table.
+        integer, intent(inout) :: PopNel
         logical, intent(in) :: tCalcExtraInfo
 
         real(dp) :: CurrParts(lenof_sign)
@@ -71,7 +72,7 @@ MODULE PopsfileMod
         character(255) :: popsfile
         !variables from header file
         logical :: tPop64Bit, tPopHPHF, tPopLz, tEOF
-        integer :: iPopLenof_sign,iPopNEl,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
+        integer :: iPopLenof_sign,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
         integer :: PopBlockingIter
         integer(int64) :: iPopAllTotWalkers
         real(dp) :: PopDiagSft,read_tau
@@ -94,11 +95,11 @@ MODULE PopsfileMod
             !determine version number
             PopsVersion=FindPopsfileVersion(iunit)
             if(PopsVersion.eq.3) then
-                call ReadPopsHeadv3(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+                call ReadPopsHeadv3(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,PopNel, &
                     iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                     PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
             else
-                call ReadPopsHeadv4(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+                call ReadPopsHeadv4(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,PopNel, &
                     iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                     PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
             endif
@@ -128,7 +129,7 @@ MODULE PopsfileMod
             endif
         end if
 
-        allocate(TempnI(iPopNel))
+        allocate(TempnI(PopNel))
 
         call mpibarrier(err)
 
@@ -206,7 +207,7 @@ r_loop: do while(.not.tReadAllPops)
 
                     ! Read the next entry, and store the walker in WalkerTemp 
                     ! and TempnI
-                    tEOF = read_popsfile_det (iunit, iPopNel, Det, BinPops, &
+                    tEOF = read_popsfile_det (iunit, PopNel, Det, BinPops, &
                                               WalkerTemp, TempnI, PopNifSgn)
 
                     ! Add the contribution from this determinant to the
@@ -220,7 +221,7 @@ r_loop: do while(.not.tReadAllPops)
                                       &found.")
                     end if
 
-                    proc = DetermineDetNode(iPopNel,TempnI,0)
+                    proc = DetermineDetNode(PopNel,TempnI,0)
                     if (tSplitPops) then
                         CurrWalkers = CurrWalkers + 1
                         Dets(:,CurrWalkers) = WalkerTemp
@@ -577,7 +578,7 @@ outer_map:      do i = 0, MappingNIfD
 
         integer :: iunithead, PopsVersion
         ! Variables from popsfile header...
-        integer :: iPopLenof_sign, iPopNel, iPopIter, PopNIfD, PopNIfY, WalkerListSize
+        integer :: iPopLenof_sign, PopNel, iPopIter, PopNIfD, PopNIfY, WalkerListSize
         integer :: PopNIfSgn, PopNIfFlag, PopNIfTot, PopBlockingIter
         logical :: tPop64Bit, tPopHPHF, tPopLz, formpops, binpops
         integer(int64) :: iPopAllTotWalkers
@@ -593,28 +594,28 @@ outer_map:      do i = 0, MappingNIfD
         PopsVersion = FindPopsfileVersion(iunithead)
 
         if(PopsVersion == 4) then
-            call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+            call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,PopNel, &
                     iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
                     PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
         else
             call stop_all(t_r, "Only version 4 popsfile are supported with kp-fciqmc.")
         endif
 
-        call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+        call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,PopNel, &
                 iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
                 PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau, &
                 PopBlockingIter, perturb)
 
         if (iProcIndex == root) close(iunithead)
 
-        call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, perturb)
+        call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, PopNel, perturb)
 
         ! If requested output the norm of the *unperturbed* walkers in the POPSFILE.
         if (tWritePopsNorm) call write_pops_norm()
 
     end subroutine read_popsfile_wrapper
 
-    subroutine InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, perturb)
+    subroutine InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, PopNel, perturb)
 
         use CalcData, only : iReadWalkersRoot
         use hash, only: reset_hash_table, fill_in_hash_table
@@ -623,6 +624,9 @@ outer_map:      do i = 0, MappingNIfD
 
         integer(int64), intent(in) :: iPopAllTotWalkers
         integer, intent(in) :: PopNIfSgn
+        ! Note that PopNel might be recalculated in ReadFromPopsfile (and might
+        ! not have even been set on input).
+        integer, intent(inout) :: PopNel
         ! Perturbation operator to apply to the determinants after they have
         ! been read in.
         type(perturbation), intent(in) :: perturb
@@ -648,7 +652,7 @@ outer_map:      do i = 0, MappingNIfD
         ! TotWalkers and TotParts are returned as the dets and parts 
         ! on each processor.
         call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, TotWalkers, TotParts, NoatHF, &
-                              CurrentDets, MaxWalkersPart, PopNIfSgn, tCalcExtraInfo=.false.)
+                              CurrentDets, MaxWalkersPart, PopNIfSgn, PopNel, tCalcExtraInfo=.false.)
 
         call apply_perturbation(TotWalkers, CurrentDets(0:NIfTot,1:TotWalkers), perturb)
 
@@ -716,13 +720,13 @@ outer_map:      do i = 0, MappingNIfD
     end subroutine init_popsfile_mapping
                 
 
-    subroutine CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+    subroutine CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,PopNel, &
                     iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                     PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau, &
                     PopBlockingIter, perturb)
         use LoggingData , only : tZeroProjE
         logical , intent(in) :: tPop64Bit,tPopHPHF,tPopLz
-        integer , intent(in) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
+        integer , intent(in) :: iPopLenof_sign,PopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
         integer , intent(in) :: PopBlockingIter
         integer(int64) , intent(in) :: iPopAllTotWalkers
         real(dp) , intent(in) :: PopDiagSft,read_tau
@@ -741,7 +745,7 @@ outer_map:      do i = 0, MappingNIfD
 #endif
         if(tPopHPHF.neqv.tHPHF) call stop_all(this_routine,"Popsfile HPHF and input HPHF not same")
         if(tPopLz.neqv.tFixLz) call stop_all(this_routine,"Popsfile Lz and input Lz not same")
-        if(iPopNEl+perturb%ncreate-perturb%nannihilate.ne.NEl) call stop_all(this_routine,"The number of electrons &
+        if(PopNEl+perturb%ncreate-perturb%nannihilate.ne.NEl) call stop_all(this_routine,"The number of electrons &
             &in the POPSFILE is not consistent with the number you have asked to run with.")
         if(.not.tPopsMapping) then
             if(PopNIfD.ne.NIfD) call stop_all(this_routine,"Popsfile NIfD and calculated NIfD not same")

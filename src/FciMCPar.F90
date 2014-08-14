@@ -119,7 +119,7 @@ MODULE FciMCParMod
     use MI_integrals, only: MI_diag_helement, MI_spawn_sign, &
                             MI_off_diag_helement_spawn, MI_off_diag_helement
     use util_mod, only: choose, abs_sign, binary_search, get_free_unit, &
-                        stochastic_round, neci_etime, binary_search_custom
+                        stochastic_round, neci_etime
     use constants
     use soft_exit, only: ChangeVars 
     use FciMCLoggingMod, only: FinaliseBlocking, FinaliseShiftBlocking, &
@@ -6895,7 +6895,7 @@ MODULE FciMCParMod
             !
             ! If we have a popsfile, read the walkers in now.
             if(tReadPops.and..not.tPopsAlreadyRead) then
-                call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, pops_pert)
+                call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, iPopNel, pops_pert)
             else
                 if(tStartMP1) then
                     !Initialise walkers according to mp1 amplitude.
@@ -7025,7 +7025,7 @@ MODULE FciMCParMod
         ! diagonalising the trial space to find the trial wavefunction and calculating the vector
         ! in the connected space, required for the energy estimator.
         if (tTrialWavefunction) call init_trial_wf()
-        
+
     end subroutine InitFCIMCCalcPar
 
     subroutine InitFCIMC_HF()

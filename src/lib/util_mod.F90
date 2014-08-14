@@ -544,7 +544,6 @@ contains
 
     function binary_search_custom (arr, val, cf_len, custom_gt) &
                                                      result(pos)
-        !use bit_reps, only: NIfD
         use constants, only: n_int
         use DetBitOps, only: DetBitLt
 

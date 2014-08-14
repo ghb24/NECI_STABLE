@@ -26,11 +26,12 @@ MODULE CCMC
     use LoggingData, only: CCMCDebug, tCalcFCIMCPsi
     use GenRandSymExcitNUMod, only: gen_rand_excit
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use AnnihilationMod, only: BinSearchParts, DirectAnnihilation
+    use AnnihilationMod, only: DirectAnnihilation
     use Timing_neci, only: set_timer, halt_timer
     use bit_reps, only: decode_bit_det
     use hash, only: DetermineDetNode
     use procedure_pointers, only: get_spawn_helement
+    use searching, only: BinSearchParts
    IMPLICIT NONE
 #ifdef MOLPRO
     include "common/tapes"
@@ -2995,7 +2996,7 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
          if(iProcIndex.eq.root) close(iunithead)
          tmp_dp = CurrParts
          call ReadFromPopsfile(iPopAllTotWalkers,ReadBatch,TotWalkers,tmp_dp,NoatHF,DetList,&
-                                nMaxAmpl, PopNifSgn, .true.)
+                                nMaxAmpl, PopNifSgn, iPopNel, .true.)
          CurrParts = tmp_dp
          nAmpl=int(TotWalkers,sizeof_int)
          dNorm=NoatHF(1)

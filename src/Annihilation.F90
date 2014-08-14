@@ -29,7 +29,6 @@ MODULE AnnihilationMod
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData , only : tHF_Ref_Explicit
-    use util_mod, only: get_free_unit, binary_search_custom
     use sparse_arrays, only: trial_ht, con_ht
     use searching
     use hash
