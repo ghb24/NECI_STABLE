@@ -872,6 +872,79 @@ contains
         endif
     end subroutine decode_bit_det_bitwise
 
+    subroutine add_ilut_lists(ndets_1, ndets_2, sorted_lists, list_1, list_2, list_out, ndets_out)
+
+        ! WARNING 1: This routine assumes that both list_1 and list_2 contain no
+        ! repeated iluts, even if one of the repeated iluts has zero amplitude.
+
+        ! WARNING 2: If the input lists are not sorted (as defined by ilut_gt)
+        ! then sorted_lists should be input as .false., and the lists will then
+        ! be sorted. This routine will not work if unsorted lists are passed in
+        ! and sorted_list is input as .true.
+
+        use DetBitOps, only: ilut_lt, ilut_gt
+        use sort_mod, only: sort
+        use util_mod, only: binary_search_custom
+
+        integer, intent(in) :: ndets_1
+        integer, intent(in) :: ndets_2
+        logical, intent(in) :: sorted_lists
+        integer(n_int), intent(inout) :: list_1(0:,1:)
+        integer(n_int), intent(inout) :: list_2(0:,1:)
+        integer(n_int), intent(inout) :: list_out(0:,1:)
+        integer, intent(out) :: ndets_out
+
+        integer :: i, pos, min_ind
+        real :: sign_1(lenof_sign), sign_2(lenof_sign), sign_out(lenof_sign)
+
+        if (.not. sorted_lists) then
+            call sort(list_1(:,1:ndets_1), ilut_lt, ilut_gt)
+            call sort(list_2(:,1:ndets_2), ilut_lt, ilut_gt)
+        end if
+
+        ndets_out = 0
+        ! Where to start searching from in list 1:
+        min_ind = 1
+
+        do i = 1, ndets_2
+            ! If list_2(:,i) is in list 1 then pos will equal the position it
+            ! occupies in list 1.
+            ! If list_2(:,i) is not in list 1 then -pos will equal the position
+            ! that it should go in, to mantain the sorted ordering.
+            pos = binary_search_custom(list_1(:,min_ind:ndets_1), list_2(:,i), NIfTot+1, ilut_gt)
+
+            if (pos > 0) then
+                ! Move all the states from list 1 before min_ind+pos-1 across
+                ! to the combined list.
+                list_out(:,ndets_out+1:ndets_out+pos-1) = list_1(:,min_ind:min_ind+pos-2)
+                ndets_out = ndets_out + pos - 1
+
+                ndets_out = ndets_out + 1
+                call extract_sign(list_1(:, min_ind+pos-1), sign_1)
+                call extract_sign(list_2(:,i), sign_2)
+                sign_out = sign_1 + sign_2
+                list_out(:,ndets_out) = list_2(:,i)
+                call encode_sign(list_out(:,ndets_out), sign_out)
+
+                ! Search a smaller section of list_1 next time.
+                min_ind = min_ind + pos
+            else
+                ! We have a state in list 2 which is not in list 1. Its
+                ! position, if it were in list 1 would be min_ind-pos-1. Thus,
+                ! first copy across all states from min_ind to min_ind-pos-2
+                ! from list 1. Then copy across the state from list 2.
+                list_out(:,ndets_out+1:ndets_out-pos-1) = list_1(:,min_ind:min_ind-pos-2)
+                ndets_out = ndets_out - pos
+
+                list_out(:,ndets_out) = list_2(:,i)
+
+                ! Search a smaller section of list_1 next time.
+                min_ind = min_ind - pos - 1
+            end if
+        end do
+
+    end subroutine add_ilut_lists
+
 !    subroutine init_excitations()
 !        ! Allocate and initialise data in excit_mask.
 !        use basis, only: bit_lookup, nbasis, basis_length
