@@ -127,18 +127,10 @@ contains
 
             ! Now add shift*full_determ_vector to account for the shift, not stored in
             ! core_hamiltonian.
-#ifdef __CMPLX
-            do i = 1, lenof_sign
-                partial_determ_vector = partial_determ_vector + &
-                   DiagSft(1) * full_determ_vector(i,determ_proc_indices(iProcIndex)+1:&
-                     determ_proc_indices(iProcIndex)+determ_proc_sizes(iProcIndex))
-            end do
-#else
             do i = 1, determ_proc_sizes(iProcIndex)
                 partial_determ_vector(:,i) = partial_determ_vector(:,i) + &
                    DiagSft * full_determ_vector(:,i+determ_proc_indices(iProcIndex))
             end do
-#endif
 
             ! Now multiply the vector by tau to get the final projected vector.
             partial_determ_vector = partial_determ_vector * tau
