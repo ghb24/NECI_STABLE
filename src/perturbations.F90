@@ -170,15 +170,8 @@ contains
         ! collection of creation and annihilation operators, which together is
         ! referred to as the perturbation operator.
 
-        ! ***IMPORTANT*** The ordering of the annihilation and creation within
-        ! the perturbation operator is assumed to be as follows. All
-        ! annihilation operators are applied before all creation operators.
-        ! Annihilation and creation operators are themselves ordered so that
-        ! operators for orbitals with the lowest orbital number are applied
-        ! last (leftmost), and higher orbitals numbers applied first
-        ! (rightmost). In NECI, the ordering with respect to alpha and beta is
-        ! (beta, alpha, beta, alpha...). Note that the order of the creation and
-        ! annihilation operators in the input arrays is unimportant.
+        ! ***IMPORTANT*** All annihilation operators are applied before (ie to
+        ! the right of) all creation operators.
 
         ! The a_bits(i)'th bit of ilut(a_elems(i)) should be the bit of the
         ! orbital for the i'th annihilation operator, and similarly for
@@ -193,7 +186,7 @@ contains
 
         integer(n_int) :: combined_mask(0:NIfD), new_mask(0:NIfD), ones
         integer(n_int) :: original_ilut(0:NIfTot), masked_ilut(0:NIfD)
-        integer :: i, j, num_minus_signs
+        integer :: i, j, num_minus_signs, nswap
         real(dp) :: new_sign_factor, real_sign(lenof_sign)
 
         ! If the perturbation is the identity operator then just return.
@@ -227,9 +220,15 @@ contains
             ! creation and annihilation operators, else we would have returned.
 
             ! Now, determine whether or not the application of these operators
-            ! introduces a minus sign. We consider the application of the operators
-            ! when they are already ordered by the basis ordering used in NECI.
-            ! All annihilation operators are applied before creation operators.
+            ! introduces a minus sign.
+            
+            ! This is done in two steps. First, we find the number of
+            ! minus signs introduced assuming all of the operators in the
+            ! perturbation operator are already ordered by their NECI orbital
+            ! number. Second, we find the number of permutations necessary to
+            ! reorder the annihilation and creation operators into this order.
+
+            ! We do the first part here:
 
             ! We need to consider moving the creation and annihilation operators
             ! in the perturbing operator through the creation operators which
@@ -300,19 +299,53 @@ contains
                 combined_mask = ieor(combined_mask, new_mask)
             end do
 
-            ! Finally apply the mask and count the resulting number of set bits...
+            ! Finally apply the mask and count the resulting number of set bits.
             masked_ilut = iand(combined_mask, original_ilut(0:NIfD))
             num_minus_signs = CountBits(masked_ilut, NIfD)
-            ! ...and apply the new sign.
-            !new_sign_factor = (-1_n_int)**(num_minus_signs)
-            new_sign_factor = (-1.0_dp)**num_minus_signs
-            call extract_sign(ilut, real_sign)
-            real_sign = real_sign*new_sign_factor
-            call encode_sign(ilut, real_sign)
-
-            call extract_sign(ilut, real_sign)
 
         end associate
+
+        ! The above finds the number of permutations assuming that the orbitals
+        ! were all ordered according to NECI's orbital ordering convention
+        ! (beta, alpha, beta, alpha...). So, to get the final permutation, we
+        ! need to see if there is an extra minus sign from sorting the
+        ! requested ordering into NECI's ordering.
+
+        ! For now this is done in the completley naive way which is order N^2
+        ! for N orbitals. Hopefully this code isn't used any performance
+        ! critical, but the speed of this can be improved later by using a
+        ! merge sort (look up algorithms for counting inversions!)
+
+        ! In this naive approach, we simply loop over all orbitals and count
+        ! the number of orbitals to the right which have a smaller index. This
+        ! is the total number of permutations (inversions) which must be made.
+        ! This is done for both annihilation and creation operators.
+
+        associate(a_orbs => perturb%ann_orbs, c_orbs => perturb%crtn_orbs)
+
+            nswap = 0
+
+            do i = 1, perturb%nannihilate-1
+                do j = i+1, perturb%nannihilate
+                    if (a_orbs(i) > a_orbs(j)) nswap = nswap + 1
+                end do
+            end do
+
+            do i = 1, perturb%ncreate-1
+                do j = i+1, perturb%ncreate
+                    if (c_orbs(i) > c_orbs(j)) nswap = nswap + 1
+                end do
+            end do
+
+        end associate
+
+        num_minus_signs = num_minus_signs + nswap
+
+        ! Finally, calculate and apply the new sign.
+        new_sign_factor = (-1.0_dp)**num_minus_signs
+        call extract_sign(ilut, real_sign)
+        real_sign = real_sign*new_sign_factor
+        call encode_sign(ilut, real_sign)
 
     end subroutine perturb_det
 
