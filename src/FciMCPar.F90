@@ -6694,6 +6694,63 @@ MODULE FciMCParMod
 
     end subroutine SumEContrib
 
+    subroutine test_routine()
+
+        use bit_reps, only: add_ilut_lists
+
+        integer(n_int) :: list_1(0:NIfTot, 10)
+        integer(n_int) :: list_2(0:NIfTot, 12)
+        integer(n_int) :: list_out(0:NIfTot, 11)
+
+        integer :: i
+        integer :: ndets_out
+        integer(n_int) :: dets_1(6), dets_2(6)
+        real(dp) :: signs_1(6), signs_2(6)
+        real(dp) :: real_sign(lenof_sign)
+
+        dets_1 =  (/28,   47,  1,   23,   32,  57/)
+        signs_1 = (/-1.0, 2.0, 1.3, 4.0, 1.0, 7.0/)
+
+        dets_2 =  (/47,  23,  32,  38,  57,  63/)
+        signs_2 = (/7.0, 4.0, 1.0, 2.0, 1.2, 2.4/)
+
+        do i = 1, 6
+            list_1(0,i) = dets_1(i) 
+            real_sign = signs_1(i)
+            call encode_sign(list_1(:,i), real_sign)
+            list_1(3,i) = 0
+            if (i == 1 .or. i == 2) call set_flag(list_1(:,i), flag_deterministic)
+        end do
+
+        do i = 1, 6
+            list_2(0,i) = dets_2(i) 
+            real_sign = signs_2(i)
+            call encode_sign(list_2(:,i), real_sign)
+            list_2(3,i) = 0
+            if (i == 1) call set_flag(list_2(:,i), flag_deterministic)
+        end do
+
+        write(6,*) "List 1:"
+        do i = 1, 6
+            call extract_sign(list_1(:,i), real_sign)
+            write(6,*) i, list_1(0,i), real_sign, list_1(3,i)
+        end do
+
+        write(6,*) "List 2:"
+        do i = 1, 6
+            call extract_sign(list_2(:,i), real_sign)
+            write(6,*) i, list_2(0,i), real_sign, list_2(3,i)
+        end do
+
+        call add_ilut_lists(6, 6, .false., list_1, list_2, list_out, ndets_out)
+
+        write(6,*) "Summed list:"
+        do i = 1, ndets_out
+            call extract_sign(list_out(:,i), real_sign)
+            write(6,*) i, list_out(0,i), real_sign, list_out(3,i)
+        end do
+
+    end subroutine test_routine
 
 !This initialises the calculation, by allocating memory, setting up the initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalcPar()
@@ -6719,6 +6776,7 @@ MODULE FciMCParMod
         real(dp) :: PopDiagSft
         real(dp) , dimension(lenof_sign/inum_runs) :: PopSumNoatHF
         HElement_t :: PopAllSumENum
+        integer :: perturb_ncreate, perturb_nannihilate
 
         if(tReadPops.and..not.tPopsAlreadyRead) then
             call open_pops_head(iunithead,formpops,binpops)
@@ -6763,10 +6821,20 @@ MODULE FciMCParMod
                     call stop_all(this_routine,"Popsfile version invalid")
                 endif
 
+                ! Check the number of electrons created and annihilated by the
+                ! perturbation operators, if any are being used.
+                if (allocated(pops_pert)) then
+                    perturb_ncreate = pops_pert(1)%ncreate
+                    perturb_nannihilate = pops_pert(1)%nannihilate
+                else
+                    perturb_ncreate = 0
+                    perturb_nannihilate = 0
+                end if
+
                 call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                         iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                         PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,MaxWalkersUncorrected,read_tau,&
-                        PopBlockingIter, pops_pert)
+                        PopBlockingIter, perturb_ncreate, perturb_nannihilate)
 
                 if(iProcIndex.eq.root) close(iunithead)
             else
@@ -6791,6 +6859,8 @@ MODULE FciMCParMod
             CALL LogMemAlloc('WalkVecDets',MaxWalkersPart*(NIfTot+1),size_n_int,this_routine,WalkVecDetsTag,ierr)
             WalkVecDets(0:NIfTot,1:MaxWalkersPart)=0
             MemoryAlloc=(NIfTot+1)*MaxWalkersPart*size_n_int    !Memory Allocated in bytes
+
+            if (alloc_popsfile_dets) allocate(popsfile_dets(0:NIfTot,MaxWalkersPart), stat=ierr)
 
             IF(.not.tRegenDiagHEls) THEN
                 if(tRDMonFly.and.(.not.tExplicitAllRDM)) then

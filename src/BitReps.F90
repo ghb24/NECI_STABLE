@@ -895,7 +895,7 @@ contains
         integer, intent(out) :: ndets_out
 
         integer :: i, pos, min_ind
-        real :: sign_1(lenof_sign), sign_2(lenof_sign), sign_out(lenof_sign)
+        real(dp) :: sign_1(lenof_sign), sign_2(lenof_sign), sign_out(lenof_sign)
 
         if (.not. sorted_lists) then
             call sort(list_1(:,1:ndets_1), ilut_lt, ilut_gt)

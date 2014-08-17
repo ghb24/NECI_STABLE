@@ -17,7 +17,7 @@ MODULE CCMC
                          tTruncSpace, CurrentH, NoBorn, SpawnedParts, NoDied,&
                          Annihil_Time, Hii, ENumCyc, Acceptances, MaxSpawned,&
                          HFDet, SumWalkersCyc, SpawnFromSing, MaxWalkersPart,&
-                         exFlag, pops_pert
+                         exFlag
     use CalcData, only: StepsSft
     use hist_data, only: tHistSpawn, HistMinInd
     use SystemData, only: tHPHF, nel
@@ -2963,6 +2963,8 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
       real(dp) :: PopSumNoatHF(lenof_sign)
       integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
       HElement_t :: PopAllSumENum
+      integer :: perturb_ncreate, perturb_nannihilate
+
       ReadBatch=nMaxAmpl
       call open_pops_head(iunithead,formpops,binpops)
       PopsVersion=FindPopsfileVersion(iunithead)
@@ -2988,10 +2990,15 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
          endif
 
+         ! We don't currently ever apply a perturbation operator to the popsfile
+         ! in CCMC.
+         perturb_ncreate = 0
+         perturb_nannihilate = 0
+
          call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau, &
-               PopBlockingIter, pops_pert)
+               PopBlockingIter, perturb_ncreate, perturb_nannihilate)
 
          if(iProcIndex.eq.root) close(iunithead)
          tmp_dp = CurrParts

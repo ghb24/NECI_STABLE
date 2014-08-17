@@ -341,7 +341,7 @@ r_loop: do while(.not.tReadAllPops)
 
             if (tHashWalkerList) then
                 call reset_hash_table(HashIndex)
-                call fill_in_hash_table(HashIndex, nWalkerHashes, Dets, TotWalkers)
+                call fill_in_hash_table(HashIndex, nWalkerHashes, Dets, CurrWalkers)
             endif
 
             ! Run through all determinants on each node, and calculate the total number of walkers, and noathf
@@ -572,9 +572,9 @@ outer_map:      do i = 0, MappingNIfD
 
     end function read_popsfile_det
 
-    subroutine read_popsfile_wrapper(perturb)
+    subroutine read_popsfile_wrapper(perturbs)
 
-        type(perturbation), intent(in) :: perturb
+        type(perturbation), intent(in), allocatable, optional :: perturbs(:)
 
         integer :: iunithead, PopsVersion
         ! Variables from popsfile header...
@@ -585,6 +585,7 @@ outer_map:      do i = 0, MappingNIfD
         real(dp) :: PopDiagSft, read_tau
         real(dp), dimension(lenof_sign/inum_runs) :: PopSumNoatHF
         HElement_t :: PopAllSumENum
+        integer :: perturb_ncreate, perturb_nannihilate
 
         character(len=*), parameter :: t_r = "read_popsfile_wrapper"
 
@@ -601,25 +602,35 @@ outer_map:      do i = 0, MappingNIfD
             call stop_all(t_r, "Only version 4 popsfile are supported with kp-fciqmc.")
         endif
 
+        ! Check the number of electrons created and annihilated by the
+        ! perturbation operators.
+        if (present(perturbs)) then
+            perturb_ncreate = perturbs(1)%ncreate
+            perturb_nannihilate = perturbs(1)%nannihilate
+        else
+            perturb_ncreate = 0
+            perturb_nannihilate = 0
+        end if
+
         call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,PopNel, &
                 iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
                 PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau, &
-                PopBlockingIter, perturb)
+                PopBlockingIter, perturb_ncreate, perturb_nannihilate)
 
         if (iProcIndex == root) close(iunithead)
 
-        call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, PopNel, perturb)
+        call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, PopNel, perturbs)
 
         ! If requested output the norm of the *unperturbed* walkers in the POPSFILE.
         if (tWritePopsNorm) call write_pops_norm()
 
     end subroutine read_popsfile_wrapper
 
-    subroutine InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, PopNel, perturb)
+    subroutine InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, PopNel, perturbs)
 
         use CalcData, only : iReadWalkersRoot
         use hash, only: reset_hash_table, fill_in_hash_table
-        use perturbations, only: apply_perturbation
+        use perturbations, only: apply_perturbation_array
         use semi_stoch_procs, only: fill_in_currentH
 
         integer(int64), intent(in) :: iPopAllTotWalkers
@@ -627,16 +638,17 @@ outer_map:      do i = 0, MappingNIfD
         ! Note that PopNel might be recalculated in ReadFromPopsfile (and might
         ! not have even been set on input).
         integer, intent(inout) :: PopNel
-        ! Perturbation operator to apply to the determinants after they have
+        ! Perturbation operators to apply to the determinants after they have
         ! been read in.
-        type(perturbation), intent(in) :: perturb
+        type(perturbation), intent(in), allocatable, optional :: perturbs(:)
 
         integer :: run, ReadBatch
-        character(len=*), parameter :: t_r='InitFCIMC_pops'
-
         integer :: nI(nel)
+        logical :: apply_pops
 
-        if(iReadWalkersRoot.eq.0) then
+        character(*), parameter :: t_r='InitFCIMC_pops'
+
+        if (iReadWalkersRoot == 0) then
             ! ReadBatch is the number of walkers to read in from the 
             ! popsfile at one time. The larger it is, the fewer
             ! communictions will be needed to scatter the particles.
@@ -644,17 +656,29 @@ outer_map:      do i = 0, MappingNIfD
             ! By default, the new array (which is only created on the 
             ! root processors) is the same length as the spawning 
             ! arrays.
-            ReadBatch=MaxSpawned
+            ReadBatch = MaxSpawned
         else
             ReadBatch = iReadWalkersRoot
-        endif
+        end if
 
-        ! TotWalkers and TotParts are returned as the dets and parts 
-        ! on each processor.
-        call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, TotWalkers, TotParts, NoatHF, &
-                              CurrentDets, MaxWalkersPart, PopNIfSgn, PopNel, tCalcExtraInfo=.false.)
+        apply_pops = .false.
+        if (present(perturbs)) then
+            if (allocated(perturbs)) apply_pops = .true.
+        end if
 
-        call apply_perturbation(TotWalkers, CurrentDets(0:NIfTot,1:TotWalkers), perturb)
+        ! If applying perturbations, read the popsfile into the array
+        ! popsfile_dets and then apply the perturbations to the determinants
+        ! in this array.
+        ! If not, then read the popsfile straight into CurrentDets.
+        if (apply_pops) then
+            call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, TotWalkers, TotParts, NoatHF, &
+                                  popsfile_dets, MaxWalkersPart, PopNIfSgn, PopNel, tCalcExtraInfo=.false.)
+
+            call apply_perturbation_array(perturbs, TotWalkers, popsfile_dets, CurrentDets)
+        else
+            call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, TotWalkers, TotParts, NoatHF, &
+                                  CurrentDets, MaxWalkersPart, PopNIfSgn, PopNel, tCalcExtraInfo=.false.)
+        end if
 
         call fill_in_CurrentH()
 
@@ -723,7 +747,7 @@ outer_map:      do i = 0, MappingNIfD
     subroutine CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,PopNel, &
                     iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                     PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau, &
-                    PopBlockingIter, perturb)
+                    PopBlockingIter, perturb_ncreate, perturb_nann)
         use LoggingData , only : tZeroProjE
         logical , intent(in) :: tPop64Bit,tPopHPHF,tPopLz
         integer , intent(in) :: iPopLenof_sign,PopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
@@ -732,7 +756,7 @@ outer_map:      do i = 0, MappingNIfD
         real(dp) , intent(in) :: PopDiagSft,read_tau
         real(dp) , dimension(lenof_sign/inum_runs) , intent(in) :: PopSumNoatHF
         HElement_t , intent(in) :: PopAllSumENum
-        type(perturbation), intent(in) :: perturb
+        integer, intent(in) :: perturb_ncreate, perturb_nann
         integer , intent(out) :: WalkerListSize
         character(len=*) , parameter :: this_routine='CheckPopsParams'
         integer :: k
@@ -745,7 +769,7 @@ outer_map:      do i = 0, MappingNIfD
 #endif
         if(tPopHPHF.neqv.tHPHF) call stop_all(this_routine,"Popsfile HPHF and input HPHF not same")
         if(tPopLz.neqv.tFixLz) call stop_all(this_routine,"Popsfile Lz and input Lz not same")
-        if(PopNEl+perturb%ncreate-perturb%nannihilate.ne.NEl) call stop_all(this_routine,"The number of electrons &
+        if(PopNEl+perturb_ncreate-perturb_nann.ne.NEl) call stop_all(this_routine,"The number of electrons &
             &in the POPSFILE is not consistent with the number you have asked to run with.")
         if(.not.tPopsMapping) then
             if(PopNIfD.ne.NIfD) call stop_all(this_routine,"Popsfile NIfD and calculated NIfD not same")

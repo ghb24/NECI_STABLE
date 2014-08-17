@@ -22,7 +22,8 @@ MODULE Calc
                         dClustSelectionRatio,tSharedExcitors
     use FciMCData, only: proje_update_comb,proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
                          InputDiagSft,tSearchTau,proje_spatial,nWalkerHashes,tHashWalkerList,HashLengthFrac, &
-                         tTrialHash, tIncCancelledInitEnergy, tStartCoreGroundState, pops_pert
+                         tTrialHash, tIncCancelledInitEnergy, tStartCoreGroundState, pops_pert, &
+                         alloc_popsfile_dets
     use semi_stoch_gen, only: core_ras
     use ftlm_neci
     use spectral_data
@@ -349,6 +350,7 @@ contains
           spectral_broadening = 0.05_dp
           spectral_ground_energy = 0.0_dp
           tIncludeGroundSpectral = .false.
+          alloc_popsfile_dets = .false.
       
         end subroutine SetCalcDefaults
 
@@ -374,10 +376,11 @@ contains
           CHARACTER (LEN=100) w
           CHARACTER (LEN=100) input_string
           CHARACTER(*),PARAMETER :: t_r='CalcReadInput'
-          INTEGER :: l,i,ierr
-          INTEGER :: tempMaxNoatHF,tempHFPopThresh
+          integer :: l, i, j, ierr
+          integer :: tempMaxNoatHF,tempHFPopThresh
           logical :: tExitNow
           integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
+          integer :: npops_pert, npert_spectral_left, npert_spectral_right
 
           calc: do
             call read_line(eof)
@@ -1789,25 +1792,59 @@ contains
                 tLetInitialPopDie = .true.
 
             case("POPS-ANNIHILATE")
+                alloc_popsfile_dets = .true.
                 tWritePopsNorm = .true.
-                pops_pert%nannihilate = nitems-1
-                allocate(pops_pert%ann_orbs(nitems-1))
-                do i = 1, nitems-1
-                    call readi(pops_pert%ann_orbs(i))
+
+                ! Read in the number of perturbation operators which are about
+                ! to be read in.
+                call readi(npops_pert)
+                if (.not. allocated(pops_pert)) then
+                    allocate(pops_pert(npops_pert))
+                else
+                    if (npops_pert /= size(pops_pert)) then
+                        call stop_all(t_r, "A different number of creation and annihilation perturbation have been requested.")
+                    end if
+                end if
+
+                do i = 1, npops_pert
+                    call read_line(eof)
+                    pops_pert(i)%nannihilate = nitems
+                    allocate(pops_pert(i)%ann_orbs(nitems))
+                    do j = 1, nitems
+                        call readi(pops_pert(i)%ann_orbs(j))
+                    end do
+                    ! Create the rest of the annihilation-related
+                    ! components of the pops_pert object.
+                    call init_perturbation_annihilation(pops_pert(i))
                 end do
-                ! Create the rest of the annihilation-related
-                ! components of the pops_pert object.
-                call init_perturbation_annihilation(pops_pert)
+
             case("POPS-CREATION")
+                alloc_popsfile_dets = .true.
                 tWritePopsNorm = .true.
-                pops_pert%ncreate = nitems-1
-                allocate(pops_pert%crtn_orbs(nitems-1))
-                do i = 1, nitems-1
-                    call readi(pops_pert%crtn_orbs(i))
+
+                ! Read in the number of perturbation operators which are about
+                ! to be read in.
+                call readi(npops_pert)
+                if (.not. allocated(pops_pert)) then
+                    allocate(pops_pert(npops_pert))
+                else
+                    if (npops_pert /= size(pops_pert)) then
+                        call stop_all(t_r, "A different number of creation and annihilation perturbation have been requested.")
+                    end if
+                end if
+
+                do i = 1, npops_pert
+                    call read_line(eof)
+                    pops_pert(i)%ncreate = nitems
+                    allocate(pops_pert(i)%crtn_orbs(nitems))
+                    do j = 1, nitems
+                        call readi(pops_pert(i)%crtn_orbs(j))
+                    end do
+                    ! Create the rest of the creation-related
+                    ! components of the pops_pert object.
+                    call init_perturbation_creation(pops_pert(i))
                 end do
-                ! Create the rest of the creation-related
-                ! components of the pops_pert object.
-                call init_perturbation_creation(pops_pert)
+
             case("WRITE-POPS-NORM")
                 tWritePopsNorm = .true.
 
@@ -1836,42 +1873,112 @@ contains
                 tIncludeGroundSpectral = .true.
             case("GROUND-ENERGY-SPECTRAL")
                 call getf(spectral_ground_energy)
+
             case("LEFT-ANNIHILATE-SPECTRAL")
-                left_perturb_spectral%nannihilate = nitems-1
-                allocate(left_perturb_spectral%ann_orbs(nitems-1))
-                do i = 1, nitems-1
-                    call readi(left_perturb_spectral%ann_orbs(i))
+                alloc_popsfile_dets = .true.
+                tWritePopsNorm = .true.
+
+                ! Read in the number of perturbation operators which are about
+                ! to be read in.
+                call readi(npert_spectral_left)
+                if (.not. allocated(left_perturb_spectral)) then
+                    allocate(left_perturb_spectral(npert_spectral_left))
+                else
+                    if (npert_spectral_left /= size(left_perturb_spectral)) then
+                        call stop_all(t_r, "A different number of creation and annihilation perturbation have been requested.")
+                    end if
+                end if
+
+                do i = 1, npert_spectral_left
+                    call read_line(eof)
+                    left_perturb_spectral(i)%nannihilate = nitems
+                    allocate(left_perturb_spectral(i)%ann_orbs(nitems))
+                    do j = 1, nitems
+                        call readi(left_perturb_spectral(i)%ann_orbs(j))
+                    end do
+                    ! Create the rest of the annihilation-related
+                    ! components of the left_perturb_spectral object.
+                    call init_perturbation_annihilation(left_perturb_spectral(i))
                 end do
-                ! Create the rest of the annihilation-related
-                ! components of the left_perturb_spectral object.
-                call init_perturbation_annihilation(left_perturb_spectral)
             case("LEFT-CREATION-SPECTRAL")
-                left_perturb_spectral%ncreate = nitems-1
-                allocate(left_perturb_spectral%crtn_orbs(nitems-1))
-                do i = 1, nitems-1
-                    call readi(left_perturb_spectral%crtn_orbs(i))
+                alloc_popsfile_dets = .true.
+                tWritePopsNorm = .true.
+
+                ! Read in the number of perturbation operators which are about
+                ! to be read in.
+                call readi(npert_spectral_left)
+                if (.not. allocated(left_perturb_spectral)) then
+                    allocate(left_perturb_spectral(npert_spectral_left))
+                else
+                    if (npert_spectral_left /= size(left_perturb_spectral)) then
+                        call stop_all(t_r, "A different number of creation and annihilation perturbation have been requested.")
+                    end if
+                end if
+
+                do i = 1, npert_spectral_left
+                    call read_line(eof)
+                    left_perturb_spectral(i)%ncreate = nitems
+                    allocate(left_perturb_spectral(i)%crtn_orbs(nitems))
+                    do j = 1, nitems
+                        call readi(left_perturb_spectral(i)%crtn_orbs(j))
+                    end do
+                    ! Create the rest of the creation-related
+                    ! components of the left_perturb_spectral object.
+                    call init_perturbation_creation(left_perturb_spectral(i))
                 end do
-                ! Create the rest of the creation-related
-                ! components of the left_perturb_spectral object.
-                call init_perturbation_creation(left_perturb_spectral)
+
             case("RIGHT-ANNIHILATE-SPECTRAL")
-                right_perturb_spectral%nannihilate = nitems-1
-                allocate(right_perturb_spectral%ann_orbs(nitems-1))
-                do i = 1, nitems-1
-                    call readi(right_perturb_spectral%ann_orbs(i))
+                alloc_popsfile_dets = .true.
+                tWritePopsNorm = .true.
+
+                ! Read in the number of perturbation operators which are about
+                ! to be read in.
+                call readi(npert_spectral_right)
+                if (.not. allocated(right_perturb_spectral)) then
+                    allocate(right_perturb_spectral(npert_spectral_right))
+                else
+                    if (npert_spectral_right /= size(right_perturb_spectral)) then
+                        call stop_all(t_r, "A different number of creation and annihilation perturbation have been requested.")
+                    end if
+                end if
+
+                do i = 1, npert_spectral_right
+                    call read_line(eof)
+                    right_perturb_spectral(i)%nannihilate = nitems
+                    allocate(right_perturb_spectral(i)%ann_orbs(nitems))
+                    do j = 1, nitems
+                        call readi(right_perturb_spectral(i)%ann_orbs(j))
+                    end do
+                    ! Create the rest of the annihilation-related
+                    ! components of the right_perturb_spectral object.
+                    call init_perturbation_annihilation(right_perturb_spectral(i))
                 end do
-                ! Create the rest of the annihilation-related
-                ! components of the right_perturb_spectral object.
-                call init_perturbation_annihilation(right_perturb_spectral)
             case("RIGHT-CREATION-SPECTRAL")
-                right_perturb_spectral%ncreate = nitems-1
-                allocate(right_perturb_spectral%crtn_orbs(nitems-1))
-                do i = 1, nitems-1
-                    call readi(right_perturb_spectral%crtn_orbs(i))
+                alloc_popsfile_dets = .true.
+                tWritePopsNorm = .true.
+
+                ! Read in the number of perturbation operators which are about
+                ! to be read in.
+                call readi(npert_spectral_right)
+                if (.not. allocated(right_perturb_spectral)) then
+                    allocate(right_perturb_spectral(npert_spectral_right))
+                else
+                    if (npert_spectral_right /= size(right_perturb_spectral)) then
+                        call stop_all(t_r, "A different number of creation and annihilation perturbation have been requested.")
+                    end if
+                end if
+
+                do i = 1, npert_spectral_right
+                    call read_line(eof)
+                    right_perturb_spectral(i)%ncreate = nitems
+                    allocate(right_perturb_spectral(i)%crtn_orbs(nitems))
+                    do j = 1, nitems
+                        call readi(right_perturb_spectral(i)%crtn_orbs(j))
+                    end do
+                    ! Create the rest of the creation-related
+                    ! components of the right_perturb_spectral object.
+                    call init_perturbation_creation(right_perturb_spectral(i))
                 end do
-                ! Create the rest of the creation-related
-                ! components of the right_perturb_spectral object.
-                call init_perturbation_creation(right_perturb_spectral)
 
             case default
                 call report("Keyword "                                &

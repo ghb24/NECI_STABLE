@@ -182,7 +182,7 @@ module kp_fciqmc_procs
     ! with a vector which is calculated by applying a perturbation operator
     ! (overlap_pert) to the popsfile wave function.
     logical :: tOverlapPert
-    type(perturbation), save :: overlap_pert
+    type(perturbation), allocatable :: overlap_pert(:)
     ! The result of overlap_pert applied to the wave function read in from
     ! a popsfile.
     integer(n_int), allocatable :: perturbed_ground(:,:)
@@ -237,7 +237,7 @@ contains
 
         logical :: eof
         character(len=100) :: w
-        integer :: i, niters_temp, nvecs_temp
+        integer :: i, j, niters_temp, nvecs_temp, npert
         character (len=*), parameter :: t_r = "kp_fciqmc_read_inp"
 
         ! Default values.
@@ -341,27 +341,60 @@ contains
                 tScalePopulation = .true.
 
             case("OVERLAP-PERTURB-ANNIHILATE")
+                alloc_popsfile_dets = .true.
                 tOverlapPert = .true.
                 tWritePopsNorm = .true.
-                overlap_pert%nannihilate = nitems-1
-                allocate(overlap_pert%ann_orbs(nitems-1))
-                do i = 1, nitems-1
-                    call readi(overlap_pert%ann_orbs(i))
+
+                ! Read in the number of perturbation operators which are about
+                ! to be read in.
+                call readi(npert)
+                if (.not. allocated(overlap_pert)) then
+                    allocate(overlap_pert(npert))
+                else
+                    if (npert /= size(overlap_pert)) then
+                        call stop_all(t_r, "A different number of creation and annihilation perturbation have been requested.")
+                    end if
+                end if
+
+                do i = 1, npert
+                    call read_line(eof)
+                    overlap_pert(i)%nannihilate = nitems
+                    allocate(overlap_pert(i)%ann_orbs(nitems))
+                    do j = 1, nitems
+                        call readi(overlap_pert(i)%ann_orbs(j))
+                    end do
+                    ! Create the rest of the annihilation-related
+                    ! components of the pops_pert object.
+                    call init_perturbation_annihilation(overlap_pert(i))
                 end do
-                ! Create the rest of the annihilation-related
-                ! components of the overlap_pert object.
-                call init_perturbation_annihilation(overlap_pert)
+
             case("OVERLAP-PERTURB-CREATION")
+                alloc_popsfile_dets = .true.
                 tOverlapPert = .true.
                 tWritePopsNorm = .true.
-                overlap_pert%ncreate = nitems-1
-                allocate(overlap_pert%crtn_orbs(nitems-1))
-                do i = 1, nitems-1
-                    call readi(overlap_pert%crtn_orbs(i))
+
+                ! Read in the number of perturbation operators which are about
+                ! to be read in.
+                call readi(npert)
+                if (.not. allocated(overlap_pert)) then
+                    allocate(overlap_pert(npert))
+                else
+                    if (npert /= size(overlap_pert)) then
+                        call stop_all(t_r, "A different number of creation and annihilation perturbation have been requested.")
+                    end if
+                end if
+
+                do i = 1, npert
+                    call read_line(eof)
+                    overlap_pert(i)%ncreate = nitems
+                    allocate(overlap_pert(i)%crtn_orbs(nitems))
+                    do j = 1, nitems
+                        call readi(overlap_pert(i)%crtn_orbs(j))
+                    end do
+                    ! Create the rest of the creation-related
+                    ! components of the pops_pert object.
+                    call init_perturbation_creation(overlap_pert(i))
                 end do
-                ! Create the rest of the creation-related
-                ! components of the overlap_pert object.
-                call init_perturbation_creation(overlap_pert)
 
             case default
                 call report("Keyword "//trim(w)//" not recognized in kp-fciqmc block", .true.)

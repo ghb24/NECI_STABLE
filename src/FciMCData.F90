@@ -50,6 +50,14 @@ MODULE FciMCData
       INTEGER(KIND=n_int) , POINTER :: SpawnedParts(:,:),SpawnedParts2(:,:)
       INTEGER(KIND=n_int) , POINTER :: SpawnedPartsKP(:,:), SpawnedPartsKP2(:,:)
 
+      ! In some instances (such as when applying a perturbation operator) it is
+      ! useful to store the vector read in from the popsfile in a separate
+      ! array. This is what popsfile_dets is used for.
+      integer(n_int), allocatable :: popsfile_dets(:,:)
+      ! If true then the above array will be allocated to be the same size as
+      ! WalkVecDets.
+      logical :: alloc_popsfile_dets
+
       INTEGER(KIND=n_int) , ALLOCATABLE :: Spawned_Parents(:,:)
       INTEGER , ALLOCATABLE :: Spawned_Parents_Index(:,:)
       INTEGER :: Spawned_ParentsTag, Spawned_Parents_IndexTag
@@ -540,7 +548,7 @@ MODULE FciMCData
           integer, allocatable :: crtn_bits(:)
       end type perturbation
 
-      type(perturbation) :: pops_pert
+      type(perturbation), allocatable :: pops_pert(:)
 
 contains
 

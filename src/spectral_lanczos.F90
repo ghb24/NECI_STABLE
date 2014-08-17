@@ -167,7 +167,7 @@ contains
 
     end subroutine init_spectral_lanczos
 
-    subroutine return_perturbed_ground_spectral(perturb, ilut_list, pert_ground_local, all_norm_pert)
+    subroutine return_perturbed_ground_spectral(perturbs, ilut_list, pert_ground_local, all_norm_pert)
 
         use bit_rep_data, only: NIfDBO, extract_sign
         use bit_reps, only: decode_bit_det
@@ -177,7 +177,7 @@ contains
         use sort_mod, only: sort
         use SystemData, only: nel
 
-        type(perturbation), intent(in) :: perturb
+        type(perturbation), intent(in), allocatable :: perturbs(:)
         integer(n_int), intent(in) :: ilut_list(:,:)
         real(dp), intent(inout) :: pert_ground_local(:)
         real(dp), intent(out) :: all_norm_pert
@@ -190,10 +190,10 @@ contains
 
         pert_ground_local = 0.0_dp
 
-        ! Read in the POPSFILE and apply the perturbation operator, perturb, as we
-        ! do so. Afterwards, the perturbed wave function will be stored in
+        ! Read in the POPSFILE and apply the perturbation operator in perturbs,
+        ! as we do so. Afterwards, the perturbed wave function will be stored in
         ! CurrentDets.
-        call read_popsfile_wrapper(perturb)
+        call read_popsfile_wrapper(perturbs)
 
         j = 0
         norm_pert = 0.0_dp

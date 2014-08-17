@@ -41,9 +41,58 @@ contains
 
     end subroutine init_perturbation_creation
 
-    subroutine apply_perturbation(ndets, ilut_list, perturb)
+    subroutine apply_perturbation_array(perturbs, ndets, dets_in, dets_out)
 
-        ! Take in a list of determinants (ilut_list) and apply a pertubation
+        use bit_rep_data, only: NIfTot
+        use bit_reps, only: add_ilut_lists
+
+        type(perturbation), intent(in) :: perturbs(:)
+        integer, intent(inout) :: ndets
+        integer(n_int), intent(in) :: dets_in(0:,:) ! First dimension must be 0:NIfTot
+        integer(n_int), intent(out) :: dets_out(0:,:) ! First dimension must be 0:NIfTot
+
+        integer :: i, ndets_init, ndets_pert_1, ndets_pert_2
+        integer(n_int), allocatable :: temp_dets_1(:,:), temp_dets_2(:,:)
+
+        ndets_init = ndets
+
+        if (size(perturbs) > 1) then
+            ! Just allocate these arrays to be the same size as the CurrentDets
+            ! array.
+            allocate(temp_dets_1(0:NIfTot, MaxWalkersPart), stat=ierr) 
+            allocate(temp_dets_2(0:NIfTot, MaxWalkersPart), stat=ierr) 
+
+            ! Apply the first perturbation.
+            ndets_pert_1 = ndets_init
+            ! Note that ndets_pert_1 is altered by this routine.
+            call apply_perturbation(perturbs(1), ndets_pert_1, dets_in, temp_dets_1)
+
+            do i = 2, size(perturbs)
+                ndets_pert_2 = ndets_init
+                ! Note that ndets_pert_2 is altered by this routine.
+                call apply_perturbation(perturbs(i), ndets_pert_2, dets_in, temp_dets_2)
+                call add_ilut_lists(ndets_pert_1, ndets_pert_2, .false., temp_dets_1, temp_dets_2, dets_out, ndets)
+                ! If we still have more perturbations to apply, copy the result
+                ! to temp_dets_1. Else, exit the final result in dets_out.
+                if (i /= size(perturbs)) then
+                    ndets_pert_1 = ndets
+                    temp_dets_1(:,1:ndets) = dets_out(:,1:ndets)
+                end if
+            end do
+
+            deallocate(temp_dets_1)
+            deallocate(temp_dets_2)
+        else if (size(perturbs) == 1) then
+            ! Simply apply the single perturbation using the final input and
+            ! output arrays.
+            call apply_perturbation(perturbs(1), ndets, dets_in, dets_out)
+        end if
+
+    end subroutine apply_perturbation_array
+
+    subroutine apply_perturbation(perturb, ndets, dets_in, dets_out)
+
+        ! Take in a list of determinants (dets_in) and apply a pertubation
         ! to each determinant. As we go we shuffle down determinants to fill in
         ! gaps opened up by removed determinants.
 
@@ -61,10 +110,12 @@ contains
         use sort_mod, only: sort
         use SystemData, only: nel
 
-        integer, intent(inout) :: ndets
-        integer(n_int), intent(inout) :: ilut_list(0:NIfTot,ndets)
         type(perturbation), intent(in) :: perturb
+        integer, intent(inout) :: ndets
+        integer(n_int), intent(in) :: dets_in(0:,:) ! First dimension must be 0:NIfTot
+        integer(n_int), intent(out) :: dets_out(0:,:) ! First dimension must be 0:NIfTot
 
+        integer(n_int) :: ilut(0:NIfTot)
         integer(n_int), pointer :: PointTemp(:,:)
         integer :: i, nremoved, proc
         integer :: nI(nel)
@@ -77,14 +128,16 @@ contains
         ValidSpawnedList = InitialSpawnedSlots
 
         do i = 1, ndets
-            call perturb_det(ilut_list(:,i), perturb)
+            ! Copy the ilut so that we don't alter the input list.
+            ilut = dets_in(:,i)
+            call perturb_det(ilut, perturb)
             
-            if (all(ilut_list(0:NIfDBO,i) == 0_n_int)) then
+            if (all(ilut(0:NIfDBO) == 0_n_int)) then
                 nremoved = nremoved + 1
             else
-                call decode_bit_det(nI, ilut_list(:,i))
+                call decode_bit_det(nI, ilut)
                 proc = DetermineDetNode(nel,nI,0)
-                SpawnedParts(:, ValidSpawnedList(proc)) = ilut_list(:,i)
+                SpawnedParts(:, ValidSpawnedList(proc)) = ilut
                 ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
             end if
         end do
@@ -104,10 +157,10 @@ contains
 
         ! Now move the contents of SpawnedParts to ilut_list.
         do i = 1, ndets
-            ilut_list(:,i) = SpawnedParts(:,i)
+            dets_out(:,i) = SpawnedParts(:,i)
         end do
 
-        call sort(ilut_list(:, 1:ndets), ilut_lt, ilut_gt)
+        call sort(dets_out(:, 1:ndets), ilut_lt, ilut_gt)
 
     end subroutine apply_perturbation
 
