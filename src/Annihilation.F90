@@ -443,7 +443,7 @@ MODULE AnnihilationMod
                         if (temp_sign(1) .ne. 0) then
                             !The child (and therefore parent) are from population 1
                             Spawned_Parents(NIfDBO+2,Parent_Array_Ind) = 1
-                        elseif (temp_sign(2) .ne. 0) then
+                        elseif (temp_sign(lenof_sign) .ne. 0) then
                             !The child (and therefore parent) are from population 2
                             Spawned_Parents(NIfDBO+2,Parent_Array_Ind) = lenof_sign
                         else
@@ -1664,9 +1664,9 @@ MODULE AnnihilationMod
                     if(inum_runs.eq.2) then
 
                         if(((CurrentSign(1).eq.0).and.(CurrentH(2+lenof_sign,i).ne.0)) .or. &
-                                & ((CurrentSign(2).eq.0).and.(CurrentH(1+2*lenof_sign,i).ne.0)) .or. &
+                                & ((CurrentSign(inum_runs).eq.0).and.(CurrentH(1+2*lenof_sign,i).ne.0)) .or. &
                                 & ((CurrentSign(1).ne.0).and.(CurrentH(2+lenof_sign,i).eq.0)) .or. &
-                                & ((CurrentSign(2).ne.0).and.(CurrentH(1+2*lenof_sign,i).eq.0))) then
+                                & ((CurrentSign(inum_runs).ne.0).and.(CurrentH(1+2*lenof_sign,i).eq.0))) then
                                
                             !At least one of the signs has just gone to zero or just become reoccupied
                             !so we need to consider adding in diagonal elements and connections to HF
