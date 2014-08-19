@@ -3,14 +3,14 @@
 MODULE PopsfileMod
 
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin, &
-        tMomInv
+                          tMomInv, AB_elec_pairs, par_elec_pairs
     use CalcData, only: tTruncInitiator, DiagSft, tWalkContGrow, nEquilSteps, &
-        ScaleWalkers, tReadPopsRestart, &
-        InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
-        iWeightPopRead, iPopsFileNoRead, tPopsMapping, Tau, &
-        InitiatorWalkNo, MemoryFacPart, MemoryFacAnnihil, &
-        MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
-        tCCMC
+                        ScaleWalkers, tReadPopsRestart, &
+                        InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
+                        iWeightPopRead, iPopsFileNoRead, tPopsMapping, Tau, &
+                        InitiatorWalkNo, MemoryFacPart, MemoryFacAnnihil, &
+                        MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
+                        tCCMC
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
         ilut_lt, ilut_gt
     use hash , only : DetermineDetNode, FindWalkerHash
@@ -1160,7 +1160,7 @@ outer_map:      do i = 0, MappingNIfD
         integer :: PopNNodes
         real(dp) :: PopSft, PopTau, PopPSingles, PopPParallel, PopGammaSing
         real(dp) :: PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
-        real(dp) :: PopTotImagTime, PopSft2
+        real(dp) :: PopTotImagTime, PopSft2, PopParBias
         character(*), parameter :: t_r = 'ReadPopsHeadv4'
         HElement_t :: PopSumENum
         namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopLensign,PopNEl, &
@@ -1169,7 +1169,7 @@ outer_map:      do i = 0, MappingNIfD
                     PopTau,PopiBlockingIter,PopRandomHash,PopPSingles, &
                     PopPParallel, PopNNodes, PopWalkersOnNodes, PopGammaSing, &
                     PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt, &
-                    PopTotImagTime,Popinum_runs
+                    PopTotImagTime, Popinum_runs, PopParBias
 
         PopsVersion=FindPopsfileVersion(iunithead)
         if(PopsVersion.ne.4) call stop_all("ReadPopsfileHeadv4","Wrong popsfile version for this routine.")
@@ -1178,6 +1178,8 @@ outer_map:      do i = 0, MappingNIfD
             read(iunithead,POPSHEAD)
         endif
         !Broadcast the read in values from the header to all nodes.
+        PopParBias = 0.0_dp
+        PopPParallel = 0.0_dp
         call MPIBCast(Pop64Bit)
         call MPIBCast(PopHPHF)
         call MPIBCast(PopLz)
@@ -1199,6 +1201,7 @@ outer_map:      do i = 0, MappingNIfD
         call MPIBCast(PopiBlockingIter)
         call MPIBCast(PopPSingles)
         call MPIBCast(PopPParallel)
+        call MPIBCast(PopParBias)
         call MPIBCast(PopNNodes)
         call MPIBcast(PopTotImagTime)
         if (PopNNodes == nProcessors) then
@@ -1230,6 +1233,10 @@ outer_map:      do i = 0, MappingNIfD
         read_tau=PopTau 
         PopBlockingIter=PopiBlockingIter
         read_psingles = PopPSingles
+        if (PopParBias /= 0.0_dp .and. PopPParallel == 0.0_dp) then
+            popPParallel = (PopParBias * par_elec_pairs) &
+                         / (PopParBias * par_elec_pairs + AB_elec_pairs)
+        end if
         read_pParallel = PopPParallel
         read_nnodes = PopNNodes
         TotImagTime = PopTotImagTime
