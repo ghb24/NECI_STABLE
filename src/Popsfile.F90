@@ -644,7 +644,7 @@ outer_map:      do i = 0, MappingNIfD
 
         integer :: run, ReadBatch
         integer :: nI(nel)
-        logical :: apply_pops
+        logical :: apply_pert
 
         character(*), parameter :: t_r='InitFCIMC_pops'
 
@@ -661,16 +661,16 @@ outer_map:      do i = 0, MappingNIfD
             ReadBatch = iReadWalkersRoot
         end if
 
-        apply_pops = .false.
+        apply_pert = .false.
         if (present(perturbs)) then
-            if (allocated(perturbs)) apply_pops = .true.
+            if (allocated(perturbs)) apply_pert = .true.
         end if
 
         ! If applying perturbations, read the popsfile into the array
         ! popsfile_dets and then apply the perturbations to the determinants
         ! in this array.
         ! If not, then read the popsfile straight into CurrentDets.
-        if (apply_pops) then
+        if (apply_pert) then
             call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, TotWalkers, TotParts, NoatHF, &
                                   popsfile_dets, MaxWalkersPart, PopNIfSgn, PopNel, tCalcExtraInfo=.false.)
 

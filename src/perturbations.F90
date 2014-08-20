@@ -45,6 +45,7 @@ contains
 
         use bit_rep_data, only: NIfTot
         use bit_reps, only: add_ilut_lists
+        use FciMCData, only: MaxWalkersPart
 
         type(perturbation), intent(in) :: perturbs(:)
         integer, intent(inout) :: ndets
