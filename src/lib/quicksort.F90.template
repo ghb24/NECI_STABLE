@@ -236,10 +236,10 @@ type2 = integer(kind=int64), dimension(:)
 op_gt = .arrgt.
 op_lt = .arrlt.
 
-[arr_int64_arr_doub]
+[a_i64_a_d]
 type2 = real(dp), dimension(:)
 
-[arr_int64_arr_doub_custom]
+[a_i64_a_d_custom]
 custom_comparisons = custom_lt, custom_gt,
 custom_compare_prefix = 
 
