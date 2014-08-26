@@ -693,7 +693,7 @@ contains
             else if (tFiniteTemp) then
                 ! Convert the initial number of walkers to an integer. Note that on multiple
                 ! processors this may round up the requested number of walkers slightly.
-                nwalkers_target = ceiling(nwalkers_target/real(nProcessors,dp))
+                nwalkers_int = ceiling(nwalkers_target/real(nProcessors,dp))
 
                 ! If requested, reset the random number generator with the requested seed
                 ! before creating the random initial configuration.
