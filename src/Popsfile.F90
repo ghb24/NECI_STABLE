@@ -1115,12 +1115,12 @@ outer_map:      do i = 0, MappingNIfD
         PopsVersion=FindPopsfileVersion(iunithead)
         if(PopsVersion.ne.4) call stop_all("ReadPopsfileHeadv4","Wrong popsfile version for this routine.")
 
+        PopParBias = 0.0_dp
+        PopPParallel = 0.0_dp
         if(iProcIndex.eq.root) then
             read(iunithead,POPSHEAD)
         endif
         !Broadcast the read in values from the header to all nodes.
-        PopParBias = 0.0_dp
-        PopPParallel = 0.0_dp
         call MPIBCast(Pop64Bit)
         call MPIBCast(PopHPHF)
         call MPIBCast(PopLz)
