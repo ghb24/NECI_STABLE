@@ -3413,9 +3413,9 @@ MODULe nElRDMMod
                 UpperBound=sqrt(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(i))&
                     *NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(j)))
                 if(abs(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))).gt.UpperBound)then
-                    if(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)).lt.0.D0)then
+                    if(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)).lt.0.0_dp)then
                         NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))=-UpperBound
-                    elseif(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)).gt.0.d0)then
+                    elseif(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)).gt.0.0_dp)then
                         NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))=UpperBound
                     endif
                     write(6,*) "Changing element:",i,j
@@ -3563,13 +3563,24 @@ MODULe nElRDMMod
 
            !     if(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) tmake_herm = .true.
 
+                ! ********************************************
+                ! SDS:
+                ! WARNING: This variable has been set because otherwise
+                !          conditional choices are made based on an
+                !          uninitialised variable. This was set according to
+                !          the current behaviour in the tests, but I have NO
+                !          idea if that is correct.
+                !          CMO: please advise.
+                ! ********************************************
+                tmake_herm = .true.
+
                 if(tFinalRDMEnergy) then
                     ! Only ever want to print the POPS 2-RDMs (for reading in) at the end.
                     if(twrite_RDMs_to_read) call Write_out_2RDM(Norm_2RDM,.false.,.false.)
                 endif
 
                 ! This writes out the normalised, hermitian 2-RDMs.
-                if(twrite_normalised_RDMs) call Write_out_2RDM(Norm_2RDM,.true.,tmake_herm)
+                if (twrite_normalised_RDMs) call Write_out_2RDM(Norm_2RDM, .true., tmake_herm)
              endif
         endif
 
@@ -4110,7 +4121,7 @@ MODULe nElRDMMod
         REAL(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity, Temp
 
         ALLOCATE(Lagrangian(SpatOrbs,SpatOrbs),stat=ierr)
-        Lagrangian(:,:)=0.D0
+        Lagrangian(:,:)=0.0_dp
         
         ! We will begin by calculating the Lagrangian in chemical notation - we will explicitely calculate
         ! both halves (X_pq and X_qp) in order to check if it is symmetric or not.
@@ -4170,8 +4181,8 @@ MODULe nElRDMMod
        
             !! Now symmetrise (make hermitian, such that X_pq = X_qp) the Lagrangian X
 
-            Max_Error_Hermiticity = 0.D0
-            Sum_Error_Hermiticity = 0.D0
+            Max_Error_Hermiticity = 0.0_dp
+            Sum_Error_Hermiticity = 0.0_dp
             do p = 1, SpatOrbs
                 do q = p, SpatOrbs
                     IF(abs(Lagrangian(p,q) - Lagrangian(q,p)).gt.Max_Error_Hermiticity) &
@@ -4179,7 +4190,7 @@ MODULe nElRDMMod
 
                     Sum_Error_Hermiticity = Sum_Error_Hermiticity+abs(Lagrangian(p,q) - Lagrangian(q,p))
 
-                    Temp = (Lagrangian(p,q) + Lagrangian(q,p))/2.D0
+                    Temp = (Lagrangian(p,q) + Lagrangian(q,p))/2.0_dp
                     Lagrangian(p,q) = Temp
                     Lagrangian(q,p) = Temp
                 enddo
