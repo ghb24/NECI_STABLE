@@ -37,7 +37,7 @@ C..
       WRITE(11,*)  1,NMESHX,NMESHY,NMESHZ
       WRITE(11,*) 0
       WRITE(11,*) '0.   0.  0.'
-      WRITE(11,*) ALAT(1),0.d0,ALAT(2),0.0000d0,0.0000d0,ALAT(3)
+      WRITE(11,*) ALAT(1),0.0_dp,ALAT(2),0.0000_dp,0.0000_dp,ALAT(3)
       WRITE(11,*) '8    12'
       WRITE(11,*) 0,   0,   0
       WRITE(11,*) ALAT(1),   0,   0

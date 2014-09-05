@@ -25,7 +25,7 @@ module fcimc_helper
     use MI_integrals, only: MI_off_diag_helement
     use Logging, only: OrbOccs, tPrintOrbOcc, tPrintOrbOccInit, &
                        tHistSpinDist, tHistSpawn, tHistEnergies, &
-                       RDMEnergyIter, tHF_Ref_Explicit, &
+                       RDMEnergyIter, tFullHFAv, &
                        nHistEquilSteps, tCalcFCIMCPsi, StartPrintOrbOcc, &
                        HistInitPopsIter, tHistInitPops
     use CalcData, only: NEquilSteps, tFCIMC, tSpawnSpatialInit, tTruncCAS, &
@@ -83,7 +83,7 @@ contains
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, flags)
 
-        if (tFillingStochRDMonFly .and. .not. tHF_Ref_Explicit) then
+        if (tFillingStochRDMonFly) then
             ! We are spawning from ilutI to 
             ! SpawnedParts(:,ValidSpawnedList(proc)). We want to store the
             ! parent (D_i) with the spawned child (D_j) so that we can add in
@@ -92,7 +92,7 @@ contains
             ! part of the SpawnedParts array from NIfTot+1 --> NIfTot+1+NIfDBO
             call store_parent_with_spawned (RDMBiasFacCurr, WalkerNo, &
                                             ilutI, WalkersToSpawn, ilutJ, &
-                                            proc)
+                                            proc, part_type)
         end if
 
         IF(lenof_sign.eq.2) THEN
@@ -156,23 +156,31 @@ contains
         if (tTrialWavefunction .and. present(ind)) then
             if (tHashWalkerlist) then
                 if (test_flag(ilut, flag_trial)) then
-                    trial_denom = trial_denom &
-                                + current_trial_amps(ind)*RealwSign(1)
+                    do run = 1, inum_runs
+                        trial_denom(run) = trial_denom(run) &
+                                    + current_trial_amps(ind)*RealwSign(run)
+                    end do
                 else if (test_flag(ilut, flag_connected)) then
-                    trial_numerator = trial_numerator &
-                                    + current_trial_amps(ind) * RealwSign(1)
+                    do run = 1, inum_runs
+                        trial_numerator(run) = trial_numerator(run) &
+                                    + current_trial_amps(ind) * RealwSign(run)
+                    end do
                 end if
             else
                 if (test_flag(ilut, flag_trial)) then
                     ! Take the next element in the occupied trial vector.
                     trial_ind = trial_ind + 1
-                    trial_denom = trial_denom &
-                                + occ_trial_amps(trial_ind) * RealwSign(1)
+                    do run = 1, inum_runs
+                        trial_denom(run) = trial_denom(run) &
+                                + occ_trial_amps(trial_ind) * RealwSign(run)
+                    end do
                 else if (test_flag(ilut, flag_connected)) then
                     ! Take the next element in the occupied connected vector.
                     con_ind = con_ind + 1
-                    trial_numerator = trial_numerator &
-                                    + occ_con_amps(con_ind) * RealwSign(1)
+                    do run = 1, inum_runs
+                        trial_numerator(run) = trial_numerator(run) &
+                                    + occ_con_amps(con_ind) * RealwSign(run)
+                    end do
                 end if
             end if
         end if
@@ -214,8 +222,15 @@ contains
             ! determinants must also be included in the energy values
             ! along with the doubles
             
-            if (ExcitLevel_local == 2) &
-                NoatDoubs = NoatDoubs + sum(abs(RealwSign))
+            if (ExcitLevel_local == 2) then
+#ifdef __CMPLX
+                NoatDoubs(1) = NoatDoubs(1) + sum(abs(RealwSign))
+#else
+                do run = 1, inum_runs
+                    NoatDoubs(run) = NoatDoubs(run) + abs(RealwSign(run))
+                end do
+#endif
+            end if
 
             ! Obtain off-diagonal element
             if (tHPHF) then
@@ -232,13 +247,15 @@ contains
 
 
         ! Sum in energy contribution
-        if (iter > NEquilSteps) &
-            SumENum = SumENum + (HOffDiag * ARR_RE_OR_CPLX(RealwSign)) &
+        do run=1, inum_runs
+            if (iter > NEquilSteps) &
+                SumENum(run) = SumENum(run) + (HOffDiag * ARR_RE_OR_CPLX(RealwSign,run)) &
                                   / dProbFin
 
-        ENumCyc = ENumCyc + (HOffDiag * ARR_RE_OR_CPLX(RealwSign)) / dProbFin
-        ENumCycAbs = ENumCycAbs + abs(HoffDiag * ARR_RE_OR_CPLX(RealwSign)) &
+        ENumCyc(run) = ENumCyc(run) + (HOffDiag * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
+        ENumCycAbs(run) = ENumCycAbs(run) + abs(HoffDiag * ARR_RE_OR_CPLX(RealwSign,run)) &
                                       / dProbFin
+        end do
 
         ! -----------------------------------
         ! HISTOGRAMMING
@@ -412,12 +429,6 @@ contains
         NoatHF = 0.0_dp
         NoatDoubs = 0.0_dp
 
-        NumSpawnedEntries = 0
-        ZeroMatrixElem = 0
-        OccRealDets = 0
-        DetsRoundedToZero = 0
-        TotWalkersToSpawn = 0
-
         iter_data%nborn = 0
         iter_data%ndied = 0
         iter_data%nannihil = 0
@@ -426,16 +437,80 @@ contains
 
         call InitHistMin()
 
-        if (tFillingStochRDMonFly) then
-            call MPISumAll(InstNoatHF, AllInstNoatHF)
-            if (AllInstNoatHF(1) == 0.0 .and. .not. tSemiStochastic) then
-                IterRDM_HF = Iter + 1
-                AvNoatHF = 0.0_dp
+        if(tFillingStochRDMonFly) then
+            call MPISumAll(InstNoatHF, AllInstNoAtHF)
+            InstNoAtHF=AllInstNoAtHF
+            if (tFullHFAv) then
+                Prev_AvNoatHF(1) = AvNoatHF(1)
+                if (IterRDM_HF(1).ne.0) AvNoatHF(1) = ( (real((Iter+PreviousCycles - IterRDM_HF(1)),dp) * Prev_AvNoatHF(1)) &
+                                            + InstNoatHF(1) ) / real((Iter+PreviousCycles - IterRDM_HF(1)) + 1,dp)
+                if(inum_runs.eq.2) then
+                    Prev_AvNoatHF(inum_runs) = AvNoatHF(inum_runs)
+                   if(IterRDM_HF(inum_runs).ne.0) AvNoatHF(inum_runs) = &
+                               & ( (real((Iter+PreviousCycles - IterRDM_HF(inum_runs)),dp) * &
+                                 &       Prev_AvNoatHF(inum_runs)) + InstNoatHF(inum_runs) ) &
+                                 &   / real((Iter+PreviousCycles - IterRDM_HF(inum_runs)) + 1,dp)
+                endif
             else
-                Prev_AvNoatHF = AvNoatHF
-                AvNoatHF = ( (real((Iter - IterRDM_HF),dp) * Prev_AvNoatHF(1)) &
-                    + AllInstNoatHF(1) ) / real((Iter - IterRDM_HF) + 1,dp)
-            end if
+                if(((Iter+PreviousCycles-IterRDMStart).gt.0) .and. &
+                    & (mod(((Iter-1)+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0)) then 
+                ! The previous iteration was one where we added in diagonal elements
+                ! To keep things unbiased, we need to set up a new averaging block now.
+                    AvNoAtHF=InstNoAtHF
+                    IterRDM_HF(1)=real(Iter+PreviousCycles,dp)
+                    IterRDM_HF(inum_runs)=real(Iter+PreviousCycles,dp)
+                else
+                    if((InstNoatHF(1).eq.0.0).and.(InstNoAtHF(lenof_sign).eq.0.0) &
+                        .and. (.not. tSemiStochastic)) then
+                        !The HF determinant won't be in currentdets, so the CurrentH averages will have been wiped.
+                        !NB - there will be a small issue here if the HF determinant isn't in the core space
+                        IterRDM_HF(1) = 0.0_dp
+                        AvNoatHF(1) = 0.0_dp
+                        if(inum_runs.eq.2) then
+                            IterRDM_HF(inum_runs) = 0.0_dp 
+                            AvNoatHF(inum_runs) = 0.0_dp
+                        endif
+                   elseif(((InstNoAtHF(1).eq.0.0).and.(IterRDM_HF(1).ne.0)) .or. &
+                       &  ((InstNoAtHF(inum_runs).eq.0.0).and.(IterRDM_HF(inum_runs).ne.0))) then
+                        !At least one of the populations has just become zero
+                        !Start a new averaging block
+                        IterRDM_HF(1) = Iter+PreviousCycles  
+                        AvNoatHF(1) = InstNoAtHF(1)
+                        IterRDM_HF(inum_runs) = Iter+PreviousCycles  
+                        AvNoatHF(inum_runs) = InstNoAtHF(inum_runs)
+                        do j=1,inum_runs
+                            if(InstNoAtHF(j).eq.0) then
+                                IterRDM_HF(j)=0
+                            endif
+                        enddo
+                    elseif(((InstNoAtHF(1).ne.0).and.(IterRDM_HF(1).eq.0)) .or. &
+                           ((InstNoAtHF(inum_runs).ne.0).and.(IterRDM_HF(inum_runs).eq.0))) then
+                            !At least one of the populations has just become occupied
+                            !Start a new block here
+                            IterRDM_HF(1)=real(Iter+PreviousCycles,dp)
+                            IterRDM_HF(inum_runs)=real(Iter+PreviousCycles,dp)
+                            AvNoAtHF(1)=InstNoAtHF(1)
+                            AvNoAtHF(inum_runs)=InstNoAtHF(inum_runs)
+                            do j=1,inum_runs
+                                if(InstNoAtHF(j).eq.0) then
+                                    IterRDM_HF(j)=0
+                                endif
+                            enddo
+                    else
+                        Prev_AvNoatHF(1) = AvNoatHF(1)
+                        if (IterRDM_HF(1).ne.0) AvNoatHF(1) =((real((Iter+PreviousCycles - IterRDM_HF(1)),dp) &
+                                                        * Prev_AvNoatHF(1)) + InstNoatHF(1) ) &
+                                                        / real((Iter+PreviousCycles - IterRDM_HF(1)) + 1,dp)
+                        if(inum_runs.eq.2) then
+                            Prev_AvNoatHF(inum_runs) = AvNoatHF(inum_runs)
+                           if(IterRDM_HF(inum_runs).ne.0) AvNoatHF(inum_runs)=&
+                                                ((real((Iter+PreviousCycles-IterRDM_HF(inum_runs)),dp) * &
+                                                Prev_AvNoatHF(inum_runs)) + InstNoatHF(inum_runs) ) &
+                                                / real((Iter+PreviousCycles - IterRDM_HF(inum_runs)) + 1,dp)
+                        endif
+                    endif
+                endif
+            endif
         endif
         HFInd = 0
 
@@ -471,7 +546,11 @@ contains
 
         ! SumWalkersCyc calculates the total number of walkers over an update
         ! cycle on each process.
+#ifdef __CMPLX
         SumWalkersCyc = SumWalkersCyc + sum(TotParts)
+#else
+        SumWalkersCyc = SumWalkersCyc + TotParts
+#endif
 
         ! Write initiator histograms if on the correct iteration.
         ! Why is this done here - before annihilation!

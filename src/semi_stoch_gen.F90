@@ -107,18 +107,18 @@ contains
         call neci_flush(6)
 
         ! Allocate the vectors to store the walker amplitudes and the deterministic Hamiltonian.
-        allocate(full_determ_vector(determ_space_size), stat=ierr)
-        call LogMemAlloc('full_determ_vector', int(determ_space_size,sizeof_int), 8, t_r, &
-                         FDetermTag, ierr)
-        allocate(full_determ_vector_av(determ_space_size), stat=ierr)
-        call LogMemAlloc('full_determ_vector_av', int(determ_space_size,sizeof_int), 8, t_r, &
-                         FDetermAvTag, ierr)
-        allocate(partial_determ_vector(determ_proc_sizes(iProcIndex)), stat=ierr)
+        allocate(full_determ_vector(lenof_sign,determ_space_size), stat=ierr)
+        call LogMemAlloc('full_determ_vector', int(determ_space_size,sizeof_int)*lenof_sign, &
+                         8, t_r, FDetermTag, ierr)
+        allocate(full_determ_vector_av(lenof_sign,determ_space_size), stat=ierr)
+        call LogMemAlloc('full_determ_vector_av', int(determ_space_size,sizeof_int)*lenof_sign, &
+                         8, t_r, FDetermAvTag, ierr)
+        allocate(partial_determ_vector(lenof_sign,determ_proc_sizes(iProcIndex)), stat=ierr)
         call LogMemAlloc('partial_determ_vector', int(determ_proc_sizes(iProcIndex), &
-                         sizeof_int), 8, t_r, PDetermTag, ierr)
+                         sizeof_int)*lenof_sign, 8, t_r, PDetermTag, ierr)
 
-        full_determ_vector = 0.0_dp
-        full_determ_vector_av = 0.0_dp
+        full_determ_vector(:,:) = 0.0_dp
+        full_determ_vector_av(:,:) = 0.0_dp
         partial_determ_vector = 0.0_dp
 
         ! This array will hold the positions of the deterministic states in CurrentDets.

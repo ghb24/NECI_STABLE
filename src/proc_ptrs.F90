@@ -52,7 +52,7 @@ module procedure_pointers
             real(dp), intent(in) :: wSign(lenof_sign)
             logical, intent(in) :: tPar
             real(dp), intent(inout) :: prob
-            real(dp), intent(in) :: AvSignCurr
+            real(dp), dimension(lenof_sign), intent(in) :: AvSignCurr
             real(dp), intent(out) :: RDMBiasFacCurr
             HElement_t, intent(in) :: HElGen
             real(dp) :: child(lenof_sign)    
@@ -144,7 +144,7 @@ module procedure_pointers
 
             integer(n_int), intent(in) :: ilutI(0:NIfTot)
             real(dp), intent(in) :: CurrH_I(NCurrH)
-            real(dp), intent(out) :: IterRDMStartI, AvSignI
+            real(dp), dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
             integer, intent(out) :: nI(nel), FlagsI
             real(dp), intent(out) :: SignI(lenof_sign)
             type(excit_gen_store_type), intent(inout), optional :: store
@@ -155,7 +155,7 @@ module procedure_pointers
         !
         ! Generic fill_rdm_diag_currdet routine
         subroutine fill_rdm_diag_currdet_t (ilutI, nI, CurrH_I, ExcitLevelI, &
-                                            tCoreSpaceDet, IterLastRDMFill)
+                                            tCoreSpaceDet)
 
             use SystemData, only: nel
             use bit_rep_data, only: NIfTot
@@ -165,7 +165,7 @@ module procedure_pointers
 
             integer(n_int), intent(in) :: ilutI(0:NIfTot)
             real(dp), intent(in) :: CurrH_I(NCurrH)
-            integer, intent(in) :: nI(nel), ExcitLevelI, IterLastRDMFill
+            integer, intent(in) :: nI(nel), ExcitLevelI
             logical, intent(in), optional :: tCoreSpaceDet
 
         end subroutine

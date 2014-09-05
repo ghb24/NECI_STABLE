@@ -2563,7 +2563,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 
          WRITE(6,*) "Diagonal root value is: ", List(1,0)
          WRITE(6,*) "Largest Diagonal value is: ", MaxDiag
-         IF(DiagSft.gt.0.0_dp) THEN
+         IF(DiagSft(1).gt.0.0_dp) THEN
              CALL Stop_All("StarDiagMC","Intial value of DiagSft should be negative.")
          ELSE
              WRITE(6,*) "Initial Diagonal Shift (Ecorr guess) is: ", DiagSft
@@ -2868,7 +2868,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
 
 !Next we have to decide if the walker wants to self-destruct or not
 !Kill with prob (Hii-DiagSft)*tau - this should ALWAYS be positive
-                 rat=tau*(List((WalkVec(j)%Det),0)-DiagSft)
+                 rat=tau*(List((WalkVec(j)%Det),0)-DiagSft(1))
                  IF(Ran2(Seed).gt.rat) THEN
 !This walker is spared - copy him across to the new WalkVec - in the same position
 !If the walker isn't copied across, it has self-destructed
@@ -3064,7 +3064,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
                  ENDIF
                  CALL neci_flush(15)
                  CALL neci_flush(6)
-                 IF((DiagSft).gt.0.0_dp) THEN
+                 IF((DiagSft(1)).gt.0.0_dp) THEN
                      WRITE(6,*) "***WARNING*** - DiagSft trying to become positive...",DiagSft
                      STOP
                  ENDIF
@@ -3092,7 +3092,7 @@ FUNCTION FMCPR3STAR(NI,BETA,I_P,NEL,NBASISMAX,G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
          ENDIF
 
          SI=1.0_dp
-         DLWDB=-2.0_dp*DiagSft
+         DLWDB=-2.0_dp*DiagSft(1)
 
 !Deallocate memory
          DEALLOCATE(WalkVec)
