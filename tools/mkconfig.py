@@ -106,6 +106,7 @@ CPP = %(cpp)s
 CPPFLAGS = -DMAXMEM='$(MAXMEM)' -D_VCS_VER='$(VCS_VERSION)' $(WORKING_DIR_CHANGES) -D_CONFIG='"$(CONFIG).($(OPT))"' -DDSFMT_MEXP=19937 %(cppflags)s
 GCPPFLAG = -DHElement_t="real(dp)"
 KCPPFLAG = -DHElement_t="complex(dp)"
+DCPPFLAG = -DHElement_t="real(dp)"
 
 # use compiler with perl scripts to avoid cascade compilation.
 compiler = %(compiler)s
@@ -157,6 +158,8 @@ DEST = dest/$(CONFIG)/$(OPT)
 GDEST = $(DEST)/real
 # COMPLEX (k-point) objects
 KDEST = $(DEST)/cmplx
+# Double run projects
+DDEST = $(DEST)/double
 # .F90 files produced from .F90.template files.
 TDEST = $(DEST)/template
 
@@ -164,6 +167,7 @@ TDEST = $(DEST)/template
 # config directories.
 GDEP_DEST = dest/depend/real
 KDEP_DEST = dest/depend/cmplx
+DDEP_DEST = dest/depend/double
 
 # Directory for compiled executable.
 EXE = bin
@@ -185,14 +189,14 @@ space := $(empty) $(empty)
 VPATH = $(subst $(space),:,$(SRC) $(DEST))
 
 # Create output directories if they don't exist.
-DIRS = $(GDEST) $(KDEST) $(TDEST) $(GDEP_DEST) $(KDEP_DEST) $(EXE) $(LIB)
+DIRS = $(GDEST) $(KDEST) $(DDEST) $(TDEST) $(GDEP_DEST) $(KDEP_DEST) $(DDEP_DEST)  $(EXE) $(LIB)
 make_dirs := $(foreach outdir, $(DIRS), $(shell test -e $(outdir) || mkdir -p $(outdir)))
 
 #-----
 # Executables and libraries.
 
 # Main programs
-PROGS = $(addprefix $(EXE)/,neci.x kneci.x)
+PROGS = $(addprefix $(EXE)/,neci.x kneci.x dneci.x)
 
 # Library versions of neci.
 CPMDLIBS = $(addprefix $(LIB)/,gneci-cpmd.a kneci-cpmd.a)
@@ -260,10 +264,18 @@ KF90TMPOBJ := $(addprefix $(KDEST)/, $(F90TMPOBJ_bare))
 KcppOBJ := $(addprefix $(KDEST)/, $(cppOBJ_bare))
 KcOBJ := $(addprefix $(KDEST)/, $(cOBJ_bare))
 
+# And for doublerun
+DFOBJ := $(addprefix $(DDEST)/, $(FOBJ_bare))
+DF90OBJ := $(addprefix $(DDEST)/, $(F90OBJ_bare))
+DF90TMPOBJ := $(addprefix $(DDEST)/, $(F90TMPOBJ_bare))
+DcppOBJ := $(addprefix $(DDEST)/, $(cppOBJ_bare))
+DcOBJ := $(addprefix $(DDEST)/, $(cOBJ_bare))
+
 # Objects for standalone NECI.
 # We don't need libstub.
 OBJECTS_NECI := $(filter-out %%libstub.o,$(OBJECTS))
 OBJECTS_KNECI := $(addprefix $(KDEST)/,$(notdir $(OBJECTS_NECI)))
+OBJECTS_DNECI := $(addprefix $(DDEST)/,$(notdir $(OBJECTS_NECI)))
 
 # Objects for CPMD library.
 # We don't need necimain.o, cpmdstub.o, init_coul.o, init_coul2D.o.  We keep libstub though.
@@ -286,10 +298,12 @@ OBJECTS_KVASP := $(addprefix $(KDEST)/,$(notdir $(OBJECTS_RVASP)))
 # have use uppercase and lowercase module names. 
 FRDEPEND = $(GDEP_DEST)/ldepend
 FCDEPEND = $(KDEP_DEST)/ldepend
-FDEPEND = $(FRDEPEND) $(FCDEPEND)
+FDDEPEND = $(DDEP_DEST)/ldepend
+FDEPEND = $(FRDEPEND) $(FCDEPEND) $(FDDEPEND)
 FRDEPENDUP = $(GDEP_DEST)/UDEPEND
 FCDEPENDUP = $(KDEP_DEST)/UDEPEND
-FDEPENDUP = $(FRDEPENDUP) $(FCDEPENDUP)
+FDDEPENDUP = $(DDEP_DEST)/UDEPEND
+FDEPENDUP = $(FRDEPENDUP) $(FCDEPENDUP) $(FDDEPENDUP)
 
 # C dependencies.
 # We don't need these when we first compile, only when we recompile.
@@ -299,7 +313,9 @@ cppDEPEND_FILES = $(addprefix $(GDEP_DEST)/,$(notdir $(cppOBJ:.o=.d)))
 cDEPEND_FILES = $(addprefix $(GDEP_DEST)/,$(notdir $(cOBJ:.o=.d)))
 KcppDEPEND_FILES = $(addprefix $(KDEP_DEST)/,$(notdir $(KcppOBJ:.o=.d)))
 KcDEPEND_FILES = $(addprefix $(KDEP_DEST)/,$(notdir $(KcOBJ:.o=.d)))
-CDEPEND = $(cppDEPEND_FILES) $(cDEPEND_FILES) $(KcppDEPEND_FILES) $(KcDEPEND_FILES)
+DcppDEPEND_FILES = $(addprefix $(DDEP_DEST)/,$(notdir $(DcppOBJ:.o=.d)))
+DcDEPEND_FILES = $(addprefix $(DDEP_DEST)/,$(notdir $(DcOBJ:.o=.d)))
+CDEPEND = $(cppDEPEND_FILES) $(cDEPEND_FILES) $(KcppDEPEND_FILES) $(KcDEPEND_FILES) $(DcppDEPEND_FILES) $(DcDEPEND_FILES)
 
 #-----
 # Set make's special rules
@@ -326,6 +342,7 @@ CDEPEND = $(cppDEPEND_FILES) $(cDEPEND_FILES) $(KcppDEPEND_FILES) $(KcDEPEND_FIL
 # Rebuild of environment_report.
 GBLD_ENV = rm $(GDEST)/environment_report.* && $(my_make) $(GDEST)/environment_report.o
 KBLD_ENV = rm $(KDEST)/environment_report.* && $(my_make) $(KDEST)/environment_report.o
+DBLD_ENV = rm $(DDEST)/environment_report.* && $(my_make) $(DDEST)/environment_report.o
 
 # Creating an archive from *.o files.
 ARCHIVE = $(AR) $(ARFLAGS) $@ $^
@@ -350,6 +367,10 @@ $(EXE)/kneci.$(CONFIG).$(OPT).x: $(OBJECTS_KNECI)
 \t$(KBLD_ENV)
 \t$(LD) $(LDFLAGS) -o $@ $(OBJECTS_KNECI) $(LIBS)
 
+$(EXE)/dneci.$(CONFIG).$(OPT).x: $(OBJECTS_DNECI)
+\t$(DBLD_ENV)
+\t$(LD) $(LDFLAGS) -o $@ $(OBJECTS_DNECI) $(LIBS)
+
 # Compiling libraries.
 $(LIB)/gneci-cpmd.$(CONFIG).$(OPT).a: $(OBJECTS_RCPMD)
 \t$(GBLD_ENV)
@@ -368,7 +389,7 @@ $(LIB)/kneci-vasp.$(CONFIG).$(OPT).a: $(OBJECTS_KVASP)
 \t$(ARCHIVE)
 
 clean: 
-\trm -f {$(GDEST),$(KDEST),$(TDEST)}/* $(EXE)/*.$(CONFIG).$(OPT).x $(LIB)/*.$(CONFIG).$(OPT).a
+\trm -f {$(GDEST),$(KDEST),$(TDEST),$(DDEST)}/* $(EXE)/*.$(CONFIG).$(OPT).x $(LIB)/*.$(CONFIG).$(OPT).a
 
 cleanall:
 \trm -rf dest lib bin
@@ -384,10 +405,14 @@ $(FRDEPEND):
 
 $(FCDEPEND):
 \t$(MKDEPEND) --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) | $(RMTEMPLATE) > $@
+$(FDDEPEND):
+\t$(MKDEPEND) --objdir \$$\(DDEST\) --moddir \$$\(DDEST\) | $(RMTEMPLATE) > $@
 $(FRDEPENDUP):
 \t$(MKDEPEND) --case=upper --objdir \$$\(GDEST\) --moddir \$$\(GDEST\) | $(RMTEMPLATE) > $@
 $(FCDEPENDUP):
 \t$(MKDEPEND) --case=upper --objdir \$$\(KDEST\) --moddir \$$\(KDEST\) | $(RMTEMPLATE) > $@
+$(FDDEPENDUP):
+\t$(MKDEPEND) --case=upper --objdir \$$\(DDEST\) --moddir \$$\(DDEST\) | $(RMTEMPLATE) > $@
 
 # Generate all dependency files.
 depend: 
@@ -437,6 +462,7 @@ help:
 \t@echo "Targets:"
 \t@echo "neci.x        compile neci.x."
 \t@echo "kneci.x       compile kneci.x."
+\t@echo "dneci.x       compile dneci.x."
 \t@echo "both          compile neci.x AND kneci.x."
 \t@echo "new           run clean and then compile neci.x."
 \t@echo "gneci-cpmd    compile neci library for integration with gamma-point version of cpmd."
@@ -468,6 +494,7 @@ CPP_BODY = $(CPPFLAGS) $< $@
 C_BODY = $(CFLAGS) $(CPPFLAGS) -c $< -o $@ 
 MAKE_C_GDEPS = $(CCD) $(CFLAGS) -MM -MT \$$\(GDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
 MAKE_C_KDEPS = $(CCD) $(CFLAGS) -MM -MT \$$\(KDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
+MAKE_C_DDEPS = $(CCD) $(CFLAGS) -MM -MT \$$\(DDEST\)/$(addsuffix .o,$(basename $(notdir $@))) $< -o $@
 
 # Include paths
 INCLUDE_PATH = $(addprefix -I ,$(SRC))
@@ -508,8 +535,19 @@ $(GDEST)/%%.f90: $(TDEST)/%%.F90
 $(KDEST)/%%.f90: $(TDEST)/%%.F90
 \t$(CPP) -D__CMPLX $(CPP_BODY) $(KCPPFLAG) $(INCLUDE_PATH)
 
+$(DDEST)/%%.f90: $(TDEST)/%%.F90
+\t$(CPP) -D__DOUBLERUN $(CPP_BODY) $(DCPPFLAG) $(INCLUDE_PATH)
+
 $(TDEST)/%%.F90: %%.F90.template
 \t$(TOOLS)/f90_template.py $< $@
+
+# d) multi.
+$(DDEST)/%%.f90: %%.F90
+\t$(CPP) -D__DOUBLERUN $(CPP_BODY) $(DCPPFLAG) $(INCLUDE_PATH)
+
+$(DDEST)/%%.f: %%.F
+\t$(CPP) -D__DOUBLERUN $(CPP_BODY) $(DCPPFLAG) $(INCLUDE_PATH)
+
 
 # 2. Compile.
 
@@ -526,10 +564,10 @@ $(TDEST)/%%.F90: %%.F90.template
 \ttest -e $@ && test ! -e $(@:.mod=.time) && ( test $(shell $(stat_cmd) $@) -eq $(shell $(stat_cmd) $<) || test $(shell $(stat_cmd) $@) -gt $(shell $(stat_cmd) $(<:.o=.f90)) ) && touch $(@:.mod=.time) || true
 \tperl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) -I $(dir $@) $(INCLUDE_PATH) -c $(<:.o=.f90) -o $<" -provides "$@" -requires "$(<:.o=.f90)"
 
-$(F90OBJ) $(F90TMPOBJ) $(KF90OBJ) $(KF90TMPOBJ): %%.o: %%.f90
+$(F90OBJ) $(F90TMPOBJ) $(KF90OBJ) $(KF90TMPOBJ) $(DF90OBJ) $(DF90TMPOBJ): %%.o: %%.f90
 	perl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(FC) $(FFLAGS) $(F90FLAGS) %(module_flag)s$(dir $@) -I $(dir $@) $(INCLUDE_PATH) -c $< -o $@" -provides "$@" -requires "$^"
 
-$(FOBJ) $(KFOBJ): %%.o: %%.f
+$(FOBJ) $(KFOBJ) $(DFOBJ): %%.o: %%.f
 	perl -w $(TOOLS)/compile_mod.pl -cmp "perl -w $(TOOLS)/compare_module_file.pl -compiler $(compiler)" -fc "$(F77C) $(FFLAGS) $(F77FLAGS) %(module_flag)s$(dir $@) -I $(dir $@) $(INCLUDE_PATH) -c $< -o $@" -provides "$@" -requires "$^"
 
 # Compiling C source files...
@@ -547,6 +585,14 @@ $(KcppOBJ): $(KDEST)/%%.o: %%.cpp
 $(KcOBJ): $(KDEST)/%%.o: %%.c
 \t$(CC) -D__CMPLX $(C_BODY)
 
+# c) doublerun
+$(DcppOBJ): $(DDEST)/%%.o: %%.cpp
+\t$(CC) -D__DOUBLERUN $(C_BODY)
+
+$(DcOBJ): $(DDEST)/%%.o: %%.c
+\t$(CC) -D__DOUBLERUN $(C_BODY)
+
+
 # Update C dependency files.
 # a) gamma-point.
 $(cDEPEND_FILES): $(GDEP_DEST)/%%.d: %%.c
@@ -561,6 +607,13 @@ $(KcDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.c
 
 $(KcppDEPEND_FILES): $(KDEP_DEST)/%%.d: %%.cpp
 \t$(MAKE_C_KDEPS)
+
+# b) doublerun.
+$(DcDEPEND_FILES): $(DDEP_DEST)/%%.d: %%.c
+\t$(MAKE_C_DDEPS)
+
+$(DcppDEPEND_FILES): $(DDEP_DEST)/%%.d: %%.cpp
+\t$(MAKE_C_DDEPS)
 
 #-----
 # Utilities

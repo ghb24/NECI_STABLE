@@ -3,7 +3,7 @@ fc = mpif90
 compiler = PGI-pgf95-on-LINUX
 cc = g++
 ccd = g++
-cpp = cpp -C -traditional
+cpp = cpp -traditional
 cppflags =  -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2 -D__INT64 -D__PGI -D__SHARED_MEM
 ld = mpif90
 libs = -L ~/src/lib/fftw-3.1.2/lib -lfftw3 -lacml -lstdc++ -lrt -lm
@@ -11,7 +11,7 @@ module_flag = -module
 
 [dbg]
 fflags = -g -r8 pc=64 -Msignextend -Minform=warn
-cflags = -g -C
+cflags = -g
 f90flags = -Mfree -Mbounds
 
 [opt]
