@@ -249,7 +249,7 @@ integer(TagIntType) :: ResidualTag
 
         integer, intent(in) :: basis_index
         integer :: i
-        real(dp) :: dot_prod, ddot, norm
+        real(dp) :: dot_prod, norm
 
         ! Create the new basis state from the residual. This step performs
         ! t = (D - EI)^(-1) r,
@@ -263,13 +263,13 @@ integer(TagIntType) :: ResidualTag
         ! t <- t - (t,v)v
         ! for each basis vector v, where (t,v) denotes the dot product.
         do i = 1, basis_index - 1
-            dot_prod = ddot(space_size, basis_vectors(:,basis_index), 1, basis_vectors(:,i), 1)
+            dot_prod = dot_product(basis_vectors(:,basis_index), basis_vectors(:,i))
             basis_vectors(:, basis_index) = basis_vectors(:, basis_index) - dot_prod*basis_vectors(:,i)
         end do
 
         ! Finally we calculate the norm of the new basis vector and then normalise it to have a norm of 1.
         ! The new basis vector is stored in the next available column in the basis_vectors array.
-        norm = ddot(space_size, basis_vectors(:,basis_index), 1, basis_vectors(:,basis_index), 1)
+        norm = dot_product(basis_vectors(:,basis_index), basis_vectors(:,basis_index))
         norm = sqrt(norm)
         basis_vectors(:,basis_index) = basis_vectors(:,basis_index)/norm
 
@@ -279,7 +279,7 @@ integer(TagIntType) :: ResidualTag
 
         integer, intent(in) :: basis_index
         integer :: i
-        real(dp) :: multiplied_basis_vector(space_size), ddot
+        real(dp) :: multiplied_basis_vector(space_size)
 
         if (iProcIndex == root) then
             ! Multiply the new basis_vector by the hamiltonian and store the result in
@@ -292,7 +292,7 @@ integer(TagIntType) :: ResidualTag
             ! Hence, we only need to calculate the final column, and use this to update the final
             ! row also.
             do i = 1, basis_index
-                projected_hamil(i, basis_index) = ddot(space_size, basis_vectors(:, i), 1, multiplied_basis_vector, 1)
+                projected_hamil(i, basis_index) = dot_product(basis_vectors(:, i), multiplied_basis_vector)
                 projected_hamil(basis_index, i) = projected_hamil(i, basis_index)
             end do
 
@@ -391,10 +391,8 @@ integer(TagIntType) :: ResidualTag
         ! This subroutine calculates the Euclidean norm of the reisudal vector, r:
         ! residual_norm^2 = \sum_i r_i^2
 
-        real(dp) :: ddot
-
         if (iProcIndex == root) then
-            residual_norm = ddot(space_size, residual, 1, residual, 1)
+            residual_norm = dot_product(residual, residual)
             residual_norm = sqrt(residual_norm)
         end if
 
