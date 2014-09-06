@@ -78,7 +78,11 @@ integer(TagIntType) :: ResidualTag
 
         hamil_type = input_hamil_type
 
+        if (print_info) write(6,'(1X,"Iteration",6X,"Residual norm",9X,"Total energy")')
+
         call init_davidson(tSkipCalc)
+
+        if (print_info) write(6,'(9X,"1",3X,f16.10,5x,f16.10)') residual_norm, davidson_eigenvalue
 
         do i = 2, max_num_davidson_iters
 
@@ -94,14 +98,13 @@ integer(TagIntType) :: ResidualTag
 
             call calculate_residual_norm()
 
-            if (print_info) write(6,'(a10,1X,i2,5X,a14,1X,f12.10,5x,a7,1x,f15.10)') &
-                "Iteration:", i-1, "residual norm:", residual_norm, "energy:", davidson_eigenvalue
+            if (print_info) write(6,'(8X,i2,3X,f16.10,5x,f16.10)') i, residual_norm, davidson_eigenvalue
 
             if (residual_norm < residual_norm_target) exit
             
         end do
 
-        if (print_info) write(6,'(a24,1X,f14.10)') "Final calculated energy:", davidson_eigenvalue
+        if (print_info) write(6,'(/,1x,"Final calculated energy:",1X,f16.10)') davidson_eigenvalue
 
         call end_davidson()
 
@@ -238,6 +241,7 @@ integer(TagIntType) :: ResidualTag
 
         ! Calculate the corresponding residual.
         call calculate_residual()
+        call calculate_residual_norm()
 
     end subroutine init_davidson
 
@@ -541,6 +545,8 @@ integer(TagIntType) :: ResidualTag
 
         integer :: class_i, class_j, j, sym_i, sym_j
 
+        write(6,'(/,1X,"Beginning Direct CI Davidson calculation.",/)')
+
         call initialise_ras_space(davidson_ras, davidson_classes)
         ! The total hilbert space dimension of calculation to be performed.
         call find_ras_size(davidson_ras, davidson_classes, space_size)
@@ -586,7 +592,8 @@ integer(TagIntType) :: ResidualTag
             call LogMemDealloc("davidson_direct_ci_end", DavidsonTag, ierr)
         end if
 
-        write(6,"(/,a10,f19.9)") "GROUND E =", davidson_eigenvalue
+        write(6,'(/,1X,"Direct CI Davidson calculation complete.",/)')
+        write(6,"(1X,a10,f16.10)") "GROUND E =", davidson_eigenvalue
 
     end subroutine davidson_direct_ci_end
 

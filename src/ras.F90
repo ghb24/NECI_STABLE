@@ -329,7 +329,7 @@ contains
 
         ! Generate the first string (lowest orbitals all occupied) in a RAS subspace.
         ! For RAS2 and RAS3 the orbital numbers should have been shifted so that the
-        ! first orbital in these subspaces is 1, *not* the actualt orbital number.
+        ! first orbital in these subspaces is 1, *not* the actual orbital number.
 
         integer, intent(in) :: n_elec
         integer, intent(out) :: string(n_elec)

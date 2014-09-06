@@ -243,33 +243,24 @@ contains
                                vec_out(class_j, class_i, sym_j)%elements(:, ind_i), &
                                1)
 
+                    ! Add in sigma_1.
+                    call dgemv('T', &
+                               classes(class_k)%num_sym(sym_k), &
+                               classes(class_j)%num_sym(sym_j), &
+                               1.0_dp, &
+                               vec_in(class_k, class_j, sym_k)%elements(:,:), &
+                               classes(class_k)%num_sym(sym_k), &
+                               factors(class_k, sym_k)%elements, &
+                               1, &
+                               1.0_dp, &
+                               vec_out(class_i, class_j, sym_i)%elements(ind_i, :), &
+                               1)
+
                 end do ! Over all classes connected to string_j.
                 
             end do ! Over all classes connected to string_i.
 
         end do ! Over all strings.
-
-        ! Now use HPHF symmetry (see Eq. 15) to add in sigma_1.
-        do class_i = 1, ras%num_classes
-            do j = 1, classes(class_i)%num_comb
-                class_j = classes(class_i)%allowed_combns(j)
-                if (class_j < class_i) cycle
-                do sym_i = 0, 7
-                    ! The *required* symmetry.
-                    sym_j = ieor(HFSym_ras, sym_i)
-
-                    if (sym_j < sym_i) cycle
-                    if (classes(class_i)%num_sym(sym_i) == 0) cycle
-                    if (classes(class_j)%num_sym(sym_j) == 0) cycle
-
-                    vec_out(class_i, class_j, sym_i)%elements = vec_out(class_i, class_j, sym_i)%elements + &
-                            spin01*transpose(vec_out(class_j, class_i, sym_j)%elements(:,:))
-
-                    vec_out(class_j, class_i, sym_j)%elements = transpose(vec_out(class_i, class_j, sym_i)%elements)
-
-                end do ! Over all symmetry labels.
-            end do ! Over all classes allowed with class_i.
-        end do ! Over all classes.
 
         ! Next, calculate the contribution from the alpha-beta term (sigma_3) (Eq. 23).
 
@@ -367,8 +358,6 @@ contains
 
                             full_ind_j = ind_j + ras%cum_classes(class_j) + classes(class_j)%cum_sym(sym_j)
 
-                            ! HPHF symmetry is used (see Eq. 16).
-                            if (full_ind_j < i) cycle
                             ! If this is true then (kl) isn't a valid excitation from string j.
                             if (.not. abs(r(full_ind_j)) > 0) cycle
 
@@ -376,12 +365,6 @@ contains
 
                             vec_out(class_j, class_i, sym_j)%elements(ind_j, ind_i) = &
                                 vec_out(class_j, class_i, sym_j)%elements(ind_j, ind_i) + v
-
-                            ! Avoid overcounting.
-                            if (i == full_ind_j) cycle
-
-                            vec_out(class_i, class_j, sym_i)%elements(ind_i, ind_j) = &
-                                vec_out(class_i, class_j, sym_i)%elements(ind_i, ind_j) + spin01*v
 
                         end do ! Over all strings in class_j with symmetry sym_j.
 
@@ -569,8 +552,8 @@ contains
     subroutine gen_next_single_ex(string_i, ilut_i, nras1, nras3, ind, par, ex, ras, classes, gen_store, tgen, tcount)
 
         ! Generate the next single excitation (within the RAS space - we don't need to consider
-        ! excitations to outside it) and also return the associated parity, and the class and
-        ! address of the created string. If tcount if true, then the routine is only being used
+        ! excitations to outside it) and also return the associated parity and the class and
+        ! address of the created string. If tcount is true then the routine is only being used
         ! to count the excitation, so these are not returned in this case.
 
         integer, intent(in) :: string_i(tot_nelec)
@@ -620,7 +603,7 @@ contains
                 temp1 = nras1
                 temp3 = nras3
 
-                ! Store the values of nras1 and nras 3 for the new string.
+                ! Store the values of nras1 and nras3 for the new string.
                 if (ex(1) <= ras%size_1) then
                     temp1 = temp1 - 1
                 else if (ex(1) > ras%size_1 + ras%size_2) then
