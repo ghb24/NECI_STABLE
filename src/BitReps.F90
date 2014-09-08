@@ -285,6 +285,7 @@ contains
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer :: iter
+        character(*), parameter :: this_routine = 'extract_first_iter'
 
         ASSERT(nIfIter == 1)
         ASSERT(tSurvivalInitiatorThreshold)

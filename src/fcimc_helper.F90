@@ -312,6 +312,7 @@ contains
         real(dp), intent(in) :: diagH
         integer :: part_type, nopen, first_iter
         logical :: tDetinCAS, parent_init
+        character(*), parameter :: this_routine = 'CalcParentFlag'
 
         call extract_sign (CurrentDets(:,j), CurrentSign)
 
@@ -377,6 +378,12 @@ contains
                     if ((iter - first_iter) > nItersInitiator) &
                         parent_init = .true.
                 end if
+#ifdef __DEBUG
+                if (tSurvivalInitiatorThreshold) then
+                    first_iter = extract_first_iter(CurrentDets(:,j))
+                    ASSERT(first_iter <= iter .and. first_iter > 0)
+                end if
+#endif
             endif
 
             ! Update counters as required.
