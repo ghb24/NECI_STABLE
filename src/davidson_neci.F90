@@ -101,7 +101,7 @@ integer(TagIntType) :: ResidualTag
             if (print_info) write(6,'(8X,i2,3X,f16.10,5x,f16.10)') i, residual_norm, davidson_eigenvalue
 
             if (residual_norm < residual_norm_target) exit
-            
+
         end do
 
         if (print_info) write(6,'(/,1x,"Final calculated energy:",1X,f16.10)') davidson_eigenvalue
@@ -279,9 +279,11 @@ integer(TagIntType) :: ResidualTag
 
         integer, intent(in) :: basis_index
         integer :: i
-        real(dp) :: multiplied_basis_vector(space_size)
+        real(dp), allocatable :: multiplied_basis_vector(:)
 
         if (iProcIndex == root) then
+            allocate(multiplied_basis_vector(space_size))
+
             ! Multiply the new basis_vector by the hamiltonian and store the result in
             ! multiplied_basis_vector.
             call multiply_hamil_and_vector(basis_vectors(:,basis_index), &
@@ -300,6 +302,8 @@ integer(TagIntType) :: ResidualTag
             ! overwrites this input matrix with the eigenvectors. Hence, make sure the scrap space
             ! stores the updated projected Hamiltonian.
             projected_hamil_scrap = projected_hamil
+
+            deallocate(multiplied_basis_vector)
         else
             call multiply_hamil_and_vector(temp_in, temp_out)
         end if

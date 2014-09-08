@@ -274,9 +274,11 @@ contains
                     ! This is the condition for (kl) to be an allowed excitation from the current string. 
                     if ( IsOcc(ilut_i,l) .and. &
                         (.not. (IsOcc(ilut_i,k) .and. k /= l)) ) then
-                        ! Temporarily set this for get_excit_details to use.
+                        ! Temporarily set these for get_excit_details to use.
                         sym_j = sym_i
-                        call get_excit_details(string_i, ex1, ras, nras1, nras3, string_j, sym_j, class_j, in_ras_space)
+                        class_j = class_i
+                        string_j = string_i
+                        call get_excit_details(ex1, ras, nras1, nras3, string_j, sym_j, class_j, in_ras_space)
                         ! If the excitation is to outside the RAS space, then we don't need to consider it.
                         if (in_ras_space) then
                             ! Store the class and symmetry of the excited string for later, to save some speed.
@@ -403,18 +405,20 @@ contains
 
     end subroutine zero_factors_array
 
-    subroutine get_excit_details(string_i, ex, ras, nras1, nras3, string_j, sym_j, class_j, in_ras_space)
+    subroutine get_excit_details(ex, ras, nras1, nras3, string_j, sym_j, class_j, in_ras_space)
 
-        integer, intent(in) :: string_i(tot_nelec)
         integer, intent(in) :: ex(2)
         type(ras_parameters), intent(in) :: ras
         integer, intent(in) :: nras1, nras3
-        integer, intent(out) :: string_j(tot_nelec)
+        integer, intent(inout) :: string_j(tot_nelec)
         integer, intent(inout) :: sym_j
-        integer, intent(out) :: class_j
+        integer, intent(inout) :: class_j
         logical, intent(out) :: in_ras_space
         integer :: i, new1, new3
         integer :: sym_prod
+
+        in_ras_space = .true.
+        if (ex(1) == ex(2)) return
 
         new1 = nras1
         new3 = nras3
@@ -431,16 +435,13 @@ contains
             new3 = new3 + 1
         end if
 
-        if (class_allowed(ras, new1, new3)) then
-            in_ras_space = .true.
-        else
+        if (.not. class_allowed(ras, new1, new3)) then
             in_ras_space = .false.
             return
         end if
 
         class_j = ras%class_label(new1, new3)
 
-        string_j = string_i
         do i = 1, tot_nelec
             if (string_j(i) == ex(1)) then
                 string_j(i) = ex(2)
@@ -472,7 +473,7 @@ contains
         logical :: none_left, tgen
         type(simple_excit_store), target :: gen_store_1
 
-        ilut_i = 0
+        ilut_i = 0_n_int
 
         ! Loop over all classes.
         do class_i = 1, ras%num_classes
