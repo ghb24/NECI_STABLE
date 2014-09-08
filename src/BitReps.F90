@@ -293,6 +293,19 @@ contains
 
     end function
 
+    subroutine encode_first_iter (ilut, iter)
+
+        integer(n_int), intent(inout) :: ilut(0:NIfTot)
+        integer, intent(in) :: iter
+        character(*), parameter :: this_routine = 'encode_first_iter'
+
+        if (tSurvivalInitiatorThreshold) then
+            ASSERT(nIfIter == 1)
+            ilut(nOffIter) = int(iter, n_int)
+        end if
+    end subroutine
+
+
     function extract_flags (iLut) result(flags)
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer :: flags
