@@ -1185,7 +1185,7 @@ MODULe nElRDMMod
             !Therefore, AvNoAtHF is allowed to be different to the AvSignJ stored in CurrentH for this det
             if(walkExcitLevel.eq.0) then
                 do part_type=1,lenof_sign
-                    if(abs(AvSignJ(part_type)-AvNoatHF(part_type)).gt.1E-10) then
+                    if(abs(AvSignJ(part_type)-AvNoatHF(part_type)).gt.1.0e-10_dp) then
                         write(6,*) 'HFDet_True',HFDet_True
                         write(6,*) 'nJ',nJ
                         write(6,*) 'iLutJ',iLutJ
