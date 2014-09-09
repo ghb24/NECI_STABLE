@@ -1,8 +1,12 @@
+#include "macros.h"
+
 module bit_reps
     use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart
     use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level
     use CalcData, only: tTruncInitiator, tUseRealCoeffs, tSemiStochastic, &
-                        tCSFCore, tTrialWavefunction
+                        tCSFCore, tTrialWavefunction, &
+                        tSurvivalInitiatorThreshold
+
     use csf_data, only: csf_yama_bit, csf_test_bit
     use constants, only: lenof_sign, end_n_int, bits_n_int, n_int, dp,sizeof_int
     use DetBitOps, only: count_open_orbs
@@ -216,12 +220,21 @@ contains
         NOffFlag = NOffSgn + NIfSgn
 #endif
 
+        ! If we are using the initiator survival threshold, then we need to
+        ! store some additional data!
+        if (tSurvivalInitiatorThreshold) then
+            NIfIter = 1
+        else
+            nIfIter = 0
+        end if
+        NOffIter = NOffFlag + NIfFlag
+
         ! N.B. Flags MUST be last!!!!!
         !      If we change this bit, then we need to adjust ilut_lt and 
         !      ilut_gt.
 
         ! The total number of bits_n_int-bit integers used - 1
-        NIfTot = NIfD + NIfY + NIfSgn + NIfFlag
+        NIfTot = NIfD + NIfY + NIfSgn + NIfFlag + NIfIter
 
         WRITE(6,"(A,I6)") "Setting integer length of determinants as bit-strings to: ", NIfTot + 1
         WRITE(6,"(A,I6)") "Setting integer bit-length of determinants as bit-strings to: ", bits_n_int
@@ -267,6 +280,31 @@ contains
             flags = int(ishft(iLut(NOffFlag), -flag_bit_offset), sizeof_int)
 
     end subroutine extract_bit_rep
+
+    function extract_first_iter (ilut) result(iter)
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer :: iter
+        character(*), parameter :: this_routine = 'extract_first_iter'
+
+        ASSERT(nIfIter == 1)
+        ASSERT(tSurvivalInitiatorThreshold)
+        iter = int(ilut(nOffIter))
+
+    end function
+
+    subroutine encode_first_iter (ilut, iter)
+
+        integer(n_int), intent(inout) :: ilut(0:NIfTot)
+        integer, intent(in) :: iter
+        character(*), parameter :: this_routine = 'encode_first_iter'
+
+        if (tSurvivalInitiatorThreshold) then
+            ASSERT(nIfIter == 1)
+            ilut(nOffIter) = int(iter, n_int)
+        end if
+    end subroutine
+
 
     function extract_flags (iLut) result(flags)
         integer(n_int), intent(in) :: ilut(0:nIfTot)
