@@ -223,4 +223,9 @@ logical, parameter :: tMultiReplicaInitiators = .true.
 logical, parameter :: tMultiReplicaInitiators = .false.
 #endif
 
+! Do we make sites into initiators if they have survived more than a certain
+! period of time?
+logical :: tSurvivalInitiatorThreshold
+integer :: nItersInitiator
+
 end module CalcData

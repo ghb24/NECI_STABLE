@@ -26,7 +26,7 @@ MODULE FciMCParMod
                         decode_bit_det_chunks, &
                         clr_flag, flag_trial, flag_connected, nOffFlag, &
                         flag_deterministic, flag_determ_parent, clr_flag, &
-                        extract_part_sign, encode_part_sign
+                        extract_part_sign, encode_part_sign, encode_first_iter
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, NEquilSteps,&
                         tReadPops, iFullSpaceIter, MaxNoAtHF,&
@@ -285,12 +285,21 @@ MODULE FciMCParMod
 
         do while (Iter <= NMCyc .or. NMCyc == -1)
 !Main iteration loop...
-!            WRITE(iout,*) 'Iter',Iter
+            IFDEBUG(FCIMCDebug, 2) write(iout,*) 'Iter', iter
 
             if(iProcIndex.eq.root) s_start=neci_etime(tstart)
             
             if(tRDMonFly .and. (.not. tFillingExplicRDMonFly) &
                 & .and. (.not.tFillingStochRDMonFly)) call check_start_rdm()
+
+            if(tRDMonFly .and. tSpawnGhostChild) &
+                    call stop_all("FciMCPar", "tSpawnGhostChild is not yet working correctly with &
+                    & the RDMs.  I need to introduce a ghost flag for the ghost progeny so that &
+                    & we know which population the spawning event came from once we get to annihilation. &
+                    & See approx line 449 in Annihilation.F90 where we assign &
+                    & Spawned_Parents NIfDBO+2,Parent_Array_Ind to say which pop the spawning event &
+                    & came from")
+
 
             if (tCCMC) then
                 if (tUseRealCoeffs) &
@@ -841,12 +850,13 @@ MODULE FciMCParMod
                                         DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
                                         AvSignCurr, fcimc_excit_gen_store)
 
+            
             ! We only need to find out if determinant is connected to the
             ! reference (so no ex. level above 2 required, 
             ! truncated etc.)
             walkExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,j), &
                                                 max_calc_ex_level)
-
+            
             if(tRef_Not_HF) then
                 walkExcitLevel_toHF = FindBitExcitLevel (iLutHF_true, CurrentDets(:,j), &
                                                 max_calc_ex_level)
@@ -1015,6 +1025,7 @@ MODULE FciMCParMod
                                             ! Note these last two, AvSignCurr and 
                                             ! RDMBiasFacCurr are not used unless we're 
                                             ! doing an RDM calculation.
+
                     else
                         child = 0.0_dp
                     endif
@@ -1214,8 +1225,6 @@ MODULE FciMCParMod
         iUnused = iLutI(0); iUnused = iLutJ(0)
 
     end subroutine
-
-        
 
     subroutine end_iteration_print_warn (totWalkersNew)
         
@@ -1619,7 +1628,7 @@ MODULE FciMCParMod
             
             ! n.b. if we ever end up with |walkerweight| /= 1, then this
             !      will need to ffed further through.
-            if (tSearchTau) &
+            if (tSearchTau .and. (.not. tFillingStochRDMonFly)) &
                 call log_spawn_magnitude (ic, ex, matel, prob)
 
             ! Keep track of the biggest spawn this cycle
@@ -3228,7 +3237,7 @@ MODULE FciMCParMod
 
         !        WRITE(iout,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
 
-        if (tSearchTau) &
+        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) &
             call update_tau()
 
         !TODO CMO:Make sure these are length 2 as well
@@ -5102,7 +5111,7 @@ MODULE FciMCParMod
             WRITE(iout,*) "Timestep set to: ",Tau
         ENDIF
 
-        if(tSearchTau) &
+        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) &
             call init_tau_search()
 
         IF(StepsSftImag.ne.0.0_dp) THEN
@@ -5750,7 +5759,7 @@ MODULE FciMCParMod
         CHARACTER(len=*), PARAMETER :: this_routine='InitFCIMCPar'
         integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
         integer :: PopBlockingIter
-        real(dp) :: Gap,ExpectedMemWalk,read_tau, read_psingles, read_par_bias
+        real(dp) :: Gap,ExpectedMemWalk,read_tau, read_psingles, read_pparallel
         integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
         integer :: read_nnodes
         !Variables from popsfile header...
@@ -5806,7 +5815,7 @@ MODULE FciMCParMod
                             iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                             PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
                             read_tau,PopBlockingIter, read_psingles, &
-                            read_par_bias, read_nnodes, read_walkers_on_nodes)
+                            read_pparallel, read_nnodes, read_walkers_on_nodes)
                     ! The only difference between 3 & 4 is just that 4 reads 
                     ! in via a namelist, so that we can add more details 
                     ! whenever we want.
@@ -5818,7 +5827,7 @@ MODULE FciMCParMod
                         iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                         PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
                         WalkerListSize,read_tau,PopBlockingIter, &
-                        read_psingles, read_par_bias)
+                        read_psingles, read_pparallel)
 
                 if(iProcIndex.eq.root) close(iunithead)
             else
@@ -6065,6 +6074,9 @@ MODULE FciMCParMod
                         ! HF energy is equal to 0 (by definition)
                         CurrentH(1,1) = 0
                         HFInd = 1
+
+                        ! Set the initial iteration number
+                        call encode_first_iter(CurrentDets(:,1), 1)
 
                         ! Obtain the initial sign
                         InitialSign = 0
@@ -6617,6 +6629,9 @@ MODULE FciMCParMod
                     endif
                     CurrentH(1,DetIndex)=real(HDiagTemp,dp)-Hii
 
+                    ! Set the initial iteration number
+                    call encode_first_iter(CurrentDets(:,DetIndex), 1)
+
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
                         call CalcParentFlag(DetIndex, 1, iInit, &
@@ -6830,6 +6845,9 @@ MODULE FciMCParMod
                     endif
                     CurrentH(1,DetIndex)=real(HDiagTemp,dp)-Hii
 
+                    ! Set the initial iteration number
+                    call encode_first_iter(CurrentDets(:,DetIndex), 1)
+
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
                         call CalcParentFlag(DetIndex, 1, iInit, &
@@ -6888,6 +6906,10 @@ MODULE FciMCParMod
                     call set_flag(CurrentDets(:,DetIndex),flag_is_initiator(2))
                 endif
                 CurrentH(1,DetIndex)=0.0_dp
+
+                ! Set the initial iteration number
+                call encode_first_iter(CurrentDets(:,DetIndex), 1)
+
                 if (tHashWalkerList) then
                     ! Now add the Hartree-Fock determinant (not with index 1).
                     DetHash = FindWalkerHash(HFDet, nWalkerHashes)

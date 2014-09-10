@@ -251,7 +251,7 @@ MODULE FciMCData
 
       ! The approximate fraction of singles and doubles. This is calculated
       ! using the HF determinant, if using non-uniform random excitations.
-      real(dp) :: pDoubles, pSingles
+      real(dp) :: pDoubles, pSingles, pParallel
       integer :: nSingles, nDoubles
       
       ! Bit representation of the HF determinant
@@ -504,9 +504,6 @@ MODULE FciMCData
       integer, allocatable, dimension(:,:) :: davidson_strings
       integer(n_int), allocatable, dimension(:,:) :: davidson_iluts
       type(direct_ci_excit), allocatable, dimension(:) :: davidson_excits
-
-      real(dp) :: rand_excit_par_bias
-      logical :: tSpecifyParBias
 
       real(dp) :: max_cyc_spawn, all_max_cyc_spawn
 

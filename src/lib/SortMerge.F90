@@ -22,10 +22,12 @@
         USE FciMCParMOD , only : Hii,CurrentDets,CurrentH
         use FciMCData , only : tFillingStochRDMonFly, InstNoatHF, ntrial_occ, &
                                ncon_occ, occ_trial_amps, occ_con_amps, &
-                               trial_temp, con_temp, tTrialHash, iLutHF_True
+                               trial_temp, con_temp, tTrialHash, iLutHF_True, &
+                               iter
         use SystemData, only: nel, tHPHF,tMomInv
         use bit_rep_data, only: extract_sign, flag_trial, flag_connected
-        use bit_reps, only: NIfTot, NIfDBO, decode_bit_det, test_flag
+        use bit_reps, only: NIfTot, NIfDBO, decode_bit_det, test_flag, &
+                            encode_first_iter
         USE Determinants , only : get_helement
         use DetBitOps, only: DetBitEQ
         use hphf_integrals, only: hphf_diag_helement
@@ -141,6 +143,10 @@
            HDiag=(REAL(HDiagTemp,dp))-Hii
            CurrentH(1,ips+i-1)=HDiag
            if(DetBitEQ(CurrentDets(:,ips+i-1),iLutHF_True,NIfDBO)) call extract_sign(CurrentDets(:,ips+i-1),InstNoatHF)
+
+           ! Store the initial iteration for this created particle
+           call encode_first_iter(CurrentDets(:,ips+i-1), iter)
+           
            if(tFillingStochRDMonFly) CurrentH(2:1+2*lenof_sign,ips+i-1) = 0.0_dp
 ! Next element to be inserted must be smaller than DetCurr, so must be inserted
 ! at (at most) at ips-1.

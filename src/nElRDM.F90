@@ -1005,6 +1005,7 @@ MODULe nElRDMMod
         
         ! IterLastRDMFill is the number of iterations from the last time the energy was calculated 
         IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter)
+        
 
         ! The number of iterations we want to weight this RDM contribution by is:
         if(IterLastRDMFill.gt.0) then
@@ -1138,7 +1139,7 @@ MODULe nElRDMMod
 
         ! If the determinant is removed on an iteration that the diagonal RDM elements are 
         ! already being calculated, it will already have been counted.
-        
+
         if(.not.((Iter.eq.NMCyc).or.(mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0))) then
         ! The elements described above will have been already added in
 
@@ -1184,7 +1185,7 @@ MODULe nElRDMMod
             !Therefore, AvNoAtHF is allowed to be different to the AvSignJ stored in CurrentH for this det
             if(walkExcitLevel.eq.0) then
                 do part_type=1,lenof_sign
-                    if(abs(AvSignJ(part_type)-AvNoatHF(part_type)).gt.1E-10) then
+                    if(abs(AvSignJ(part_type)-AvNoatHF(part_type)).gt.1.0e-10_dp) then
                         write(6,*) 'HFDet_True',HFDet_True
                         write(6,*) 'nJ',nJ
                         write(6,*) 'iLutJ',iLutJ
@@ -2875,6 +2876,7 @@ MODULe nElRDMMod
                 ! and jSpat >= iSpat (can only be equal if different spin).
                 do j=i+1,NEl
                     jSpat = gtID(nI(j))
+               
 
                     ! either alpha alpha or beta beta -> aaaa array.
                     if( ((mod(nI(i),2).ne.0).and.(mod(nI(j),2).ne.0)) .or. &
@@ -2893,6 +2895,7 @@ MODULe nElRDMMod
                         Ind=( ( (jSpat-1) * jSpat ) / 2 ) + iSpat
                         abab_RDM( Ind , Ind ) = abab_RDM( Ind , Ind ) &
                                           + ( realSignDi(1) * realSignDi(lenof_sign) * RDMIters)*ScaleContribFac
+
                     endif
 
                 enddo
@@ -2970,10 +2973,12 @@ MODULe nElRDMMod
                         ! Kind of pretent the abba is of the form abab.
                         abab_RDM( Indik , Indak ) = abab_RDM( Indik , Indak ) + ( ParityFactor * &
                                                                          realSignDi * realSignDj )
+
                         if(tFill_CiCj_Symm) then
                             abab_RDM( Indak , Indik ) = abab_RDM( Indak , Indik ) + ( ParityFactor * &
                                                                          realSignDi * realSignDj )
                         endif
+
 
                     else
                         ! Checking spins of i and k.
@@ -3088,7 +3093,7 @@ MODULe nElRDMMod
                 abab_RDM( Indab , Indij ) = abab_RDM( Indab , Indij ) + ( ParityFactor * &
                                                          realSignDi * realSignDj )
             endif
-
+                    
         else
             ! Checking spins of i and j (these must be same combination as a and b).
             ! If alpha alpha or beta beta -> aaaa array.
@@ -3128,6 +3133,7 @@ MODULe nElRDMMod
                         abab_RDM( Indab , Indij ) = abab_RDM( Indab , Indij ) + ( ParityFactor * &
                                                                  realSignDi * realSignDj )
                     endif
+                
 
                 ! i and a are different spin -> abba
                 ! the only double excitation case with Indij = Indab will go in here.
@@ -3407,9 +3413,9 @@ MODULe nElRDMMod
                 UpperBound=sqrt(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(i))&
                     *NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(j)))
                 if(abs(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))).gt.UpperBound)then
-                    if(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)).lt.0.D0)then
+                    if(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)).lt.0.0_dp)then
                         NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))=-UpperBound
-                    elseif(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)).gt.0.d0)then
+                    elseif(NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)).gt.0.0_dp)then
                         NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))=UpperBound
                     endif
                     write(6,*) "Changing element:",i,j
@@ -3557,13 +3563,24 @@ MODULe nElRDMMod
 
            !     if(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) tmake_herm = .true.
 
+                ! ********************************************
+                ! SDS:
+                ! WARNING: This variable has been set because otherwise
+                !          conditional choices are made based on an
+                !          uninitialised variable. This was set according to
+                !          the current behaviour in the tests, but I have NO
+                !          idea if that is correct.
+                !          CMO: please advise.
+                ! ********************************************
+                tmake_herm = .true.
+
                 if(tFinalRDMEnergy) then
                     ! Only ever want to print the POPS 2-RDMs (for reading in) at the end.
                     if(twrite_RDMs_to_read) call Write_out_2RDM(Norm_2RDM,.false.,.false.)
                 endif
 
                 ! This writes out the normalised, hermitian 2-RDMs.
-                if(twrite_normalised_RDMs) call Write_out_2RDM(Norm_2RDM,.true.,tmake_herm)
+                if (twrite_normalised_RDMs) call Write_out_2RDM(Norm_2RDM, .true., tmake_herm)
              endif
         endif
 
@@ -4104,7 +4121,7 @@ MODULe nElRDMMod
         REAL(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity, Temp
 
         ALLOCATE(Lagrangian(SpatOrbs,SpatOrbs),stat=ierr)
-        Lagrangian(:,:)=0.D0
+        Lagrangian(:,:)=0.0_dp
         
         ! We will begin by calculating the Lagrangian in chemical notation - we will explicitely calculate
         ! both halves (X_pq and X_qp) in order to check if it is symmetric or not.
@@ -4164,8 +4181,8 @@ MODULe nElRDMMod
        
             !! Now symmetrise (make hermitian, such that X_pq = X_qp) the Lagrangian X
 
-            Max_Error_Hermiticity = 0.D0
-            Sum_Error_Hermiticity = 0.D0
+            Max_Error_Hermiticity = 0.0_dp
+            Sum_Error_Hermiticity = 0.0_dp
             do p = 1, SpatOrbs
                 do q = p, SpatOrbs
                     IF(abs(Lagrangian(p,q) - Lagrangian(q,p)).gt.Max_Error_Hermiticity) &
@@ -4173,7 +4190,7 @@ MODULe nElRDMMod
 
                     Sum_Error_Hermiticity = Sum_Error_Hermiticity+abs(Lagrangian(p,q) - Lagrangian(q,p))
 
-                    Temp = (Lagrangian(p,q) + Lagrangian(q,p))/2.D0
+                    Temp = (Lagrangian(p,q) + Lagrangian(q,p))/2.0_dp
                     Lagrangian(p,q) = Temp
                     Lagrangian(q,p) = Temp
                 enddo

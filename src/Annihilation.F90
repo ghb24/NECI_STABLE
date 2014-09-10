@@ -24,7 +24,7 @@ MODULE AnnihilationMod
                         encode_sign, encode_flags, test_flag, set_flag, &
                         clr_flag, flag_parent_initiator, encode_part_sign, &
                         extract_part_sign, copy_flag, nullify_ilut, &
-                        nullify_ilut_part
+                        nullify_ilut_part, encode_first_iter
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData , only : tNoNewRDMContrib
@@ -438,11 +438,12 @@ MODULE AnnihilationMod
                        
 
                         Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = SpawnedParts(NIfTot+1:NIfTot+NIfDBO+2,BeginningBlockDet)
+                        call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
                         
-                        if (SpawnedParts(NOffSgn,BeginningBlockDet) .ne. 0) then
+                        if (temp_sign(1) .ne. 0) then
                             !The child (and therefore parent) are from population 1
                             Spawned_Parents(NIfDBO+2,Parent_Array_Ind) = 1
-                        elseif (SpawnedParts(NOffSgn+lenof_sign-1, BeginningBlockDet) .ne. 0) then
+                        elseif (temp_sign(lenof_sign) .ne. 0) then
                             !The child (and therefore parent) are from population 2
                             Spawned_Parents(NIfDBO+2,Parent_Array_Ind) = lenof_sign
                         else
@@ -1181,12 +1182,14 @@ MODULE AnnihilationMod
                                 NoRemoved(j) = NoRemoved(j) + abs(SignTemp(j))
                                 !Annihilated = Annihilated + abs(SignTemp(j))
                                 !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
-                                iter_data%nremoved(j) = iter_data%nremoved(j) + abs(SignTemp(j))
+                                iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                                      + abs(SignTemp(j))
                                 SignTemp(j) = 0.0_dp
                                 call nullify_ilut_part (SpawnedParts(:,i), j)
                             elseif (tEnhanceRemainder) then
                                 NoBorn(j) = NoBorn(j) + OccupiedThresh - abs(SignTemp(j))
-                                iter_data%nborn(j) = iter_data%nborn(j) + OccupiedThresh - abs(SignTemp(j))
+                                iter_data%nborn(j) = iter_data%nborn(j) &
+                                          + OccupiedThresh - abs(SignTemp(j))
                                 SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
                                 call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
                             endif
@@ -1224,12 +1227,14 @@ MODULE AnnihilationMod
                                 NoRemoved(j) = NoRemoved(j) + abs(SignTemp(j))
                                 !Annihilated = Annihilated + abs(SignTemp(j))
                                 !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
-                                iter_data%nremoved(j) = iter_data%nremoved(j) + abs(SignTemp(j))
+                                iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                                      + abs(SignTemp(j))
                                 SignTemp(j) = 0
                                 call nullify_ilut_part (SpawnedParts(:,i), j)
                             elseif (tEnhanceRemainder) then
                                 NoBorn(j) = NoBorn(j) + OccupiedThresh - abs(SignTemp(j))
-                                iter_data%nborn(j) = iter_data%nborn(j) + OccupiedThresh - abs(SignTemp(j))
+                                iter_data%nborn(j) = iter_data%nborn(j) &
+                                            + OccupiedThresh - abs(SignTemp(j))
                                 SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
                                 call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
                             endif
@@ -1365,6 +1370,10 @@ MODULE AnnihilationMod
         endif
         CurrentH(1,DetPosition)=real(HDiag,dp)-Hii
 
+        ! Store the iteration, as this is the iteration on which the particle
+        ! is created
+        call encode_first_iter(CurrentDets(:,DetPosition), iter)
+
         if(tTruncInitiator) call FlagifDetisInitiator(iLutCurr, HDiag)
 
         ! If using a trial wavefunction, search to see if this state is in either the trial or
@@ -1431,7 +1440,8 @@ MODULE AnnihilationMod
                                 if (pRemove .gt. r) then
                                     !Remove this walker
                                     NoRemoved(j) = NoRemoved(j) + abs(CurrentSign(j))
-                                    iter_data%nremoved(j) = iter_data%nremoved(j) + abs(CurrentSign(j))
+                                    iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                                          + abs(CurrentSign(j))
                                     CurrentSign(j) = 0.0_dp
                                     call nullify_ilut_part(CurrentDets(:,i), j)
                                     call decode_bit_det(nI, CurrentDets(:,i))
@@ -1440,7 +1450,8 @@ MODULE AnnihilationMod
                                     FreeSlot(iEndFreeSlot)=i
                                 elseif (tEnhanceRemainder) then
                                     NoBorn(j) = NoBorn(j) + OccupiedThresh - abs(CurrentSign(j))
-                                    iter_data%nborn(j) = iter_data%nborn(j) + OccupiedThresh - abs(CurrentSign(j))
+                                    iter_data%nborn(j) = iter_data%nborn(j) &
+                                         + OccupiedThresh - abs(CurrentSign(j))
                                     CurrentSign(j) = sign(OccupiedThresh, CurrentSign(j))
                                     call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
                                 endif
@@ -1617,14 +1628,16 @@ MODULE AnnihilationMod
                                 NoRemoved(j) = NoRemoved(j) + abs(CurrentSign(j))
                                 !Annihilated = Annihilated + abs(CurrentSign(j))
                                 !iter_data%nannihil = iter_data%nannihil + abs(CurrentSign(j))
-                                iter_data%nremoved(j) = iter_data%nremoved(j) + abs(CurrentSign(j))
+                                iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                                      + abs(CurrentSign(j))
                                 CurrentSign(j) = 0
                                 call nullify_ilut_part (CurrentDets(:,i), j)
                             elseif (tEnhanceRemainder) then
                                 ! SDS: TODO: Account for the TotParts Changes
                                 ! Should we always do this here? Probably. Should
                                 NoBorn(j) = NoBorn(j) + OccupiedThresh - abs(CurrentSign(j))
-                                iter_data%nborn(j) = iter_data%nborn(j) + OccupiedThresh - abs(CurrentSign(j))
+                                iter_data%nborn(j) = iter_data%nborn(j) &
+                                         + OccupiedThresh - abs(CurrentSign(j))
                                 CurrentSign(j) = sign(OccupiedThresh, CurrentSign(j))
                                 call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
                             endif
@@ -1656,9 +1669,9 @@ MODULE AnnihilationMod
                     if(inum_runs.eq.2) then
 
                         if(((CurrentSign(1).eq.0).and.(CurrentH(2+lenof_sign,i).ne.0)) .or. &
-                                & ((CurrentSign(2).eq.0).and.(CurrentH(1+2*lenof_sign,i).ne.0)) .or. &
+                                & ((CurrentSign(inum_runs).eq.0).and.(CurrentH(1+2*lenof_sign,i).ne.0)) .or. &
                                 & ((CurrentSign(1).ne.0).and.(CurrentH(2+lenof_sign,i).eq.0)) .or. &
-                                & ((CurrentSign(2).ne.0).and.(CurrentH(1+2*lenof_sign,i).eq.0))) then
+                                & ((CurrentSign(inum_runs).ne.0).and.(CurrentH(1+2*lenof_sign,i).eq.0))) then
                                
                             !At least one of the signs has just gone to zero or just become reoccupied
                             !so we need to consider adding in diagonal elements and connections to HF
@@ -1835,6 +1848,9 @@ MODULE AnnihilationMod
                     HDiag=(REAL(HDiagTemp,dp))-Hii
                 endif
                 CurrentH(1,i)=HDiag
+
+                ! Store the iteration this particle is being created on
+                call encode_first_iter(CurrentDets(:,i), iter)
 
                 IF(tTruncInitiator) &
                     CALL FlagifDetisInitiator(CurrentDets(0:NIfTot,i), &

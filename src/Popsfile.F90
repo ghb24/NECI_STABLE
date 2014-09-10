@@ -3,14 +3,14 @@
 MODULE PopsfileMod
 
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin, &
-        tMomInv
+                          tMomInv, AB_elec_pairs, par_elec_pairs
     use CalcData, only: tTruncInitiator, DiagSft, tWalkContGrow, nEquilSteps, &
-        ScaleWalkers, tReadPopsRestart, &
-        InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
-        iWeightPopRead, iPopsFileNoRead, tPopsMapping, Tau, &
-        InitiatorWalkNo, MemoryFacPart, MemoryFacAnnihil, &
-        MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
-        tCCMC
+                        ScaleWalkers, tReadPopsRestart, &
+                        InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
+                        iWeightPopRead, iPopsFileNoRead, tPopsMapping, Tau, &
+                        InitiatorWalkNo, MemoryFacPart, MemoryFacAnnihil, &
+                        MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
+                        tCCMC
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
         ilut_lt, ilut_gt
     use hash , only : DetermineDetNode, FindWalkerHash
@@ -79,7 +79,7 @@ contains
         integer :: PopBlockingIter, read_nnodes
         integer(int64) :: iPopAllTotWalkers
         real(dp) :: PopDiagSft, PopDiagSft2, read_tau, read_psingles
-        real(dp) :: read_par_bias
+        real(dp) :: read_pparallel
         real(dp) , dimension(lenof_sign/inum_runs) :: PopSumNoatHF
         integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
         integer, intent(in) :: DetsLen
@@ -108,7 +108,7 @@ contains
                 call ReadPopsHeadv4(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                     iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                     PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau, &
-                    PopBlockingIter, read_psingles, read_par_bias, &
+                    PopBlockingIter, read_psingles, read_pparallel, &
                     read_nnodes, read_walkers_on_nodes)
             endif
 
@@ -141,8 +141,6 @@ contains
             read_nnodes = pops_nnodes
             read_walkers_on_nodes = pops_walkers
         end if
-
-        !if(tReadRDMAvPop) open(iunit_3,file='RDM_AV_POP', status='old', form='unformatted')
 
         call mpibarrier(err)
 
@@ -181,7 +179,6 @@ contains
         ! Close the popsfiles.
         if(iProcIndex == Root .or. (tSplitPops .and. bNodeRoot)) then
             close(iunit)
-            !if (tReadRDMAvPop) close(iunit_3)
         endif
 
         ! Test we have still got all determinants
@@ -242,11 +239,7 @@ contains
             nullify(Temp)
         else
             !Order the determinants on all the lists.
-            !if(tReadRDMAvPop) then
-            !    call sort (dets(:,1:CurrWalkers), CurrentH(:,1:CurrWalkers), ilut_lt, ilut_gt)
-            !else
-                call sort (dets(:,1:CurrWalkers), ilut_lt, ilut_gt)
-            !endif
+            call sort (dets(:,1:CurrWalkers), ilut_lt, ilut_gt)
         endif
 
         !Run through all determinants on each node, and calculate the total number of walkers, and noathf
@@ -274,15 +267,7 @@ contains
                     else
                         HElemTemp = get_helement (TempnI, TempnI, 0)
                     endif
-                    !if(tReadRDMAvPop .and. &
-                    !    & (abs(CurrentH(1,i)-REAL(HElemTemp,dp)+Hii).gt.1E-10)) then
-                    !WRITe(6,*) "CurrentH", CurrentH(1,i)
-                    !WRITe(6,*) "New", REAL(HElemTemp,dp)-Hii
-                    !    call stop_all("ReadFromPopsfile", "Problem with reading in CurrentH &
-                    !        & information from RDM_AV_POP file")
-                    !else
                         CurrentH(1,i)=REAL(HElemTemp,dp)-Hii
-                    !endif
                 endif
             endif
         enddo
@@ -377,21 +362,12 @@ contains
                     det_list(:, 1:ndets) = buffer(:, 1:ndets)
                     CurrWalkers = ndets
 
-                    !if (tReadRDMAvPop) &
-                    !    currentH(:, 1:ndets) = hbuffer(:, 1:ndets)
-
                 else
 
                     ! Send the particles to the relevant processor. The counts
                     ! have already been transmitted.
                     nelem = ndets * (1 + NIfTot)
                     call MPISend(buffer(:,1:ndets), nelem, proc, mpi_tag, ierr)
-
-                    !if (tReadRDMAvPop) then
-                    !    nelem = ndets * (1 + 2*lenof_sign)
-                    !    call MPISend(hbuffer(:,1:ndets), nelem, proc, &
-                    !                 mpi_tag_h, ierr)
-                    !end if
 
                 end if
                 
@@ -407,11 +383,6 @@ contains
             nelem = ndets * (1 + NIfTot)
             call MPIRecv(det_list, nelem, root, mpi_tag, ierr)
 
-            ! And also receive the CurrentH data
-            !if (tReadRDMAvPop) then
-            !    nelem = ndets * (1 + 2*lenof_sign)
-            !    call MPIRecv(CurrentH, nelem, root, mpi_tag_h, ierr)
-            !end if
 
             ! Now we know how many particles are on this node
             CurrWalkers = ndets
@@ -466,7 +437,6 @@ contains
                                           .true.)
 
                 ! And store the current H-values
-                !if (tReadRDMAvPop) CurrentH(:, CurrWalkers) = htmp
 
                 ! When we have got to the end of the file, we are done.
                 if (tEOF) exit
@@ -558,7 +528,6 @@ r_loop: do while (.not. tReadAllPops)
                 nBatches = nBatches + 1
                 BatchRead(:,:) = 0
                 PopsSendList(:) = PopsInitialSlots(:)
-              !  if (tReadRDMAvPop) BatchCurrentH(:,:) = 0
 
                 do while (Det <= EndPopsList .or. tSplitPops)
 
@@ -581,8 +550,6 @@ r_loop: do while (.not. tReadAllPops)
                     ! distribute it when it is full.
                     BatchRead(:,PopsSendList(proc)) = ilut_tmp(:)
                     PopsSendList(proc) = PopsSendList(proc) + 1
-                    !if (tReadRDMAvPop) &
-                    !    BatchCurrentH(:, PopsSendList(proc)) = CurrentHEntry(:)
 
                     ! If we have filled up the lists, exit the loop so that the
                     ! particles get distributed
@@ -605,14 +572,6 @@ r_loop: do while (.not. tReadAllPops)
                             (NIfTot + 1), MPIArg)
                     disps(j+1) = &
                         int((PopsInitialSlots(j) - 1) * (NIfTot + 1), MPIArg)
-                    !if (tReadRDMAvPop) then
-                    !    sendcounts2(j+1) = &
-                    !        int((PopsSendList(j) - PopsInitialSlots(j)) * &
-                    !            (1+2*lenof_sign), MPIArg)
-                    !    disps2(j+1) = &
-                    !        int((PopsInitialSlots(j) - 1) * (1+2*lenof_sign), &
-                    !            MPIArg)
-                    !end if
                 enddo
                 MaxSendIndex = (disps(nNodes) + sendcounts(nNodes)) &
                              / (nIfTot + 1)
@@ -635,19 +594,6 @@ r_loop: do while (.not. tReadAllPops)
                 if (err /= 0) &
                     call stop_all (this_routine, "MPI scatterV error")
 
-                ! And density matrix resume stuff (see Catherine)
-                !if (tReadRDMAvPop) then
-                !    call MPIScatter (sendcounts2, recvcount2, err, roots)
-                !    if (err /= 0) &
-                !        call stop_all (this_routine, "MPI scatter error")
-
-                !    call MPIScatterV (BatchCurrentH(:,1:MaxSendIndex), &
-                !                      sendcounts2, disps2, &
-                !                      CurrentH(:,CurrWalkers+1:CurrWalkers+1+(recvcount2/(2*lenof_sign+1))), &
-                !                      recvcount2, err, roots)
-                !    if (err /= 0) &
-                !        call stop_all (this_routine, "MPI scatterV error")
-                !end if
 
                 CurrWalkers = CurrWalkers + recvcount / (NIfTot + 1)
 
@@ -738,8 +684,6 @@ r_loop: do while(.not.tStoreDet)
                     tEOF = .true. ! End of file reached.
                     exit r_loop
                 end if
-                !if (tReadRDMAvPop) &
-                !    read(iunit_3, iostat=stat) CurrentHEntry(1:1+2*lenof_sign)
             else
                 !
                 ! we are mapping from a smaller to larger basis.
@@ -786,9 +730,6 @@ r_loop: do while(.not.tStoreDet)
                     exit r_loop
                 end if
                 
-                !if (tReadRDMAvPop) &
-                !    read(iunit_3, iostat=stat) CurrentHEntry(1:1+2*lenof_sign)
-
                 ! Decode to natural ordered integers, and then re-encode to
                 ! the new representation.
                 elec = 0
@@ -915,14 +856,14 @@ outer_map:      do i = 0, MappingNIfD
                     iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                     PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
                     WalkerListSize,read_tau,PopBlockingIter, read_psingles, &
-                    read_par_bias)
+                    read_pparallel)
         use LoggingData , only : tZeroProjE
         logical , intent(in) :: tPop64Bit,tPopHPHF,tPopLz
         integer , intent(in) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,Popinum_runs
         integer , intent(in) :: PopBlockingIter
         integer(int64) , intent(in) :: iPopAllTotWalkers
         real(dp) , intent(in) :: PopDiagSft,PopDiagSft2,read_tau
-        real(dp), intent(in) :: read_psingles, read_par_bias
+        real(dp), intent(in) :: read_psingles, read_pparallel
         real(dp) , dimension(lenof_sign/inum_runs) , intent(in) :: PopSumNoatHF
         HElement_t , intent(in) :: PopAllSumENum
         integer , intent(out) :: WalkerListSize
@@ -1066,9 +1007,8 @@ outer_map:      do i = 0, MappingNIfD
                     pDoubles = 1.0_dp - pSingles
                 end if
 
-                ! We want to be able to specify the opposite spin bias manually
-                if (read_par_bias /= 0 .and. .not. tSpecifyParBias) then
-                    rand_excit_par_bias = read_par_bias
+                if (read_pparallel /= 0) then
+                    pParallel = read_pparallel
                 end if
             else
                 !Tau specified. if it is different, write this here.
@@ -1138,7 +1078,7 @@ outer_map:      do i = 0, MappingNIfD
     subroutine ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                 iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF_out,PopAllSumENum,iPopIter,   &
                 PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau, &
-                PopBlockingIter, read_psingles, read_par_bias, &
+                PopBlockingIter, read_psingles, read_pparallel, &
                 read_nnodes, read_walkers_on_nodes)
         integer , intent(in) :: iunithead
         logical , intent(out) :: tPop64Bit,tPopHPHF,tPopLz
@@ -1148,9 +1088,9 @@ outer_map:      do i = 0, MappingNIfD
         integer(int64), intent(out) :: read_walkers_on_nodes(0:nProcessors-1)
         integer(int64) , intent(out) :: iPopAllTotWalkers
         real(dp) , intent(out) :: PopDiagSft,PopDiagSft2, read_tau, read_psingles
-        real(dp), intent(out) :: read_par_bias
         real(dp), intent(out) :: PopSumNoatHF_out(lenof_sign/inum_runs)
         real(dp) :: PopSumNoatHF(1024)
+        real(dp), intent(out) :: read_pparallel
         HElement_t , intent(out) :: PopAllSumENum
         integer :: PopsVersion
         integer :: PopRandomHash(1024)
@@ -1160,22 +1100,24 @@ outer_map:      do i = 0, MappingNIfD
         integer, parameter :: max_nodes = 30000
         integer(int64) :: PopTotwalk, PopWalkersOnNodes(max_nodes)
         integer :: PopNNodes
-        real(dp) :: PopSft, PopTau, PopPSingles, PopParBias, PopGammaSing
+        real(dp) :: PopSft, PopTau, PopPSingles, PopPParallel, PopGammaSing
         real(dp) :: PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
-        real(dp) :: PopTotImagTime, PopSft2
+        real(dp) :: PopTotImagTime, PopSft2, PopParBias
         character(*), parameter :: t_r = 'ReadPopsHeadv4'
         HElement_t :: PopSumENum
         namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopLensign,PopNEl, &
                     PopTotwalk,PopSft,PopSft2,PopSumNoatHF,PopSumENum, &
                     PopCyc,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot, &
                     PopTau,PopiBlockingIter,PopRandomHash,PopPSingles, &
-                    PopParBias, PopNNodes, PopWalkersOnNodes, PopGammaSing, &
+                    PopPParallel, PopNNodes, PopWalkersOnNodes, PopGammaSing, &
                     PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt, &
-                    PopTotImagTime,Popinum_runs
+                    PopTotImagTime, Popinum_runs, PopParBias
 
         PopsVersion=FindPopsfileVersion(iunithead)
         if(PopsVersion.ne.4) call stop_all("ReadPopsfileHeadv4","Wrong popsfile version for this routine.")
 
+        PopParBias = 0.0_dp
+        PopPParallel = 0.0_dp
         if(iProcIndex.eq.root) then
             read(iunithead,POPSHEAD)
         endif
@@ -1201,6 +1143,7 @@ outer_map:      do i = 0, MappingNIfD
         call MPIBCast(PopTau)
         call MPIBCast(PopiBlockingIter)
         call MPIBCast(PopPSingles)
+        call MPIBCast(PopPParallel)
         call MPIBCast(PopParBias)
         call MPIBCast(PopNNodes)
         call MPIBcast(PopTotImagTime)
@@ -1233,7 +1176,11 @@ outer_map:      do i = 0, MappingNIfD
         read_tau=PopTau 
         PopBlockingIter=PopiBlockingIter
         read_psingles = PopPSingles
-        read_par_bias = PopParBias
+        if (PopParBias /= 0.0_dp .and. PopPParallel == 0.0_dp) then
+            popPParallel = (PopParBias * par_elec_pairs) &
+                         / (PopParBias * par_elec_pairs + AB_elec_pairs)
+        end if
+        read_pParallel = PopPParallel
         read_nnodes = PopNNodes
         TotImagTime = PopTotImagTime
 
@@ -1504,16 +1451,17 @@ outer_map:      do i = 0, MappingNIfD
                 Initiator_Count = 0
             end if
 
-            if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
-                iunit_3 = get_free_unit()
-                if (tSplitPops) then
-                    write(num_tmp, '(i12)') iProcIndex
-                    out_tmp = 'RDM_AV_POP-' // trim(adjustl(num_tmp))
-                else
-                    out_tmp = 'RDM_AV_POP'
-                end if
-                open(iunit_3, file=trim(out_tmp), status='UNKNOWN', form='unformatted')
-            endif
+            !if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
+            !iunit_3 = get_free_unit()
+            !
+            !if (tSplitPops) then
+            !        write(num_tmp, '(i12)') iProcIndex
+            !        out_tmp = 'RDM_AV_POP-' // trim(adjustl(num_tmp))
+            !    else
+            !        out_tmp = 'RDM_AV_POP'
+            !    end if
+            !    open(iunit_3, file=trim(out_tmp), status='UNKNOWN', form='unformatted')
+            !endif
 
             ! Write out the dets from this node (the head node, unless we
             ! are in split-pops mode.
@@ -1691,7 +1639,7 @@ outer_map:      do i = 0, MappingNIfD
             ',PopTau=', Tau, ','
         write(iunit, '(a,i16)') 'PopiBlockingIter=', iBlockingIter(1)
         write(iunit, '(a,f18.12,a,f18.12)') 'PopPSingles=', pSingles, &
-            ',PopParBias=', rand_excit_par_bias
+            ',PopPParallel=', pParallel
 
         ! What is the current total imaginary time? Should continue from where
         ! we left off, so that plots work correctly.
@@ -1846,7 +1794,6 @@ outer_map:      do i = 0, MappingNIfD
 
         call get_unique_filename('POPSFILE',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
         iunit = get_free_unit()
-        !if(tReadRDMAvPop) iunit_3=get_free_unit()
         INQUIRE(FILE=popsfile,EXIST=exists)
         IF(exists) THEN
             OPEN(iunit,FILE=popsfile,Status='old')
@@ -1931,8 +1878,6 @@ outer_map:      do i = 0, MappingNIfD
             call get_unique_filename('POPSFILEBIN',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
             OPEN(iunit,FILE=popsfile,Status='old',form='unformatted')
         ENDIF
-
-        !if(tReadRDMAvPop) OPEN(iunit_3,FILE='RDM_AV_POP',status='old',form='unformatted')
 
         IF(iProcIndex.eq.Root) THEN
 
@@ -2140,7 +2085,6 @@ outer_map:      do i = 0, MappingNIfD
                     READ(iunit,*) iLutTemp32(0:NIfWriteOut),TempSign
                 ENDIF
             ENDIF
-            !if(tReadRDMAvPop) READ(iunit_3) CurrentHEntry(1:1+2*lenof_sign)
             do j=1,lenof_sign
                 RealTempSign(j) = transfer(TempSign(j), RealTempSign(j))
             enddo
@@ -2323,13 +2267,7 @@ outer_map:      do i = 0, MappingNIfD
                 else
                     HElemTemp = get_helement (TempnI, TempnI, 0)
                 endif
-                !if(tReadRDMAvPop .and. &
-                !    & (abs(CurrentH(1,j)-REAL(HElemTemp,dp)+Hii).gt.1E-10)) then
-                !    call stop_all("ReadFromPopsfilePar", "Problem with reading in CurrentH &
-                !        & information from RDM_AV_POP file")
-                !else
-                    CurrentH(1,j)=REAL(HElemTemp,dp)-Hii
-                !endif
+                CurrentH(1,j)=REAL(HElemTemp,dp)-Hii
             ENDIF
             call extract_sign(CurrentDets(:,j),RealTempSign)
             TotParts(1)=TotParts(1)+abs(RealTempSign(1))

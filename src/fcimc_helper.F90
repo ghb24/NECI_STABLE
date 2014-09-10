@@ -9,7 +9,7 @@ module fcimc_helper
     use bit_reps, only: NIfTot, flag_is_initiator, test_flag, extract_flags, &
                         flag_parent_initiator, encode_bit_rep, NIfD, &
                         set_flag_general, flag_make_initiator, NIfDBO, &
-                        extract_sign, set_flag, &
+                        extract_sign, set_flag, extract_first_iter, &
                         flag_trial, flag_connected, flag_deterministic
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
@@ -30,7 +30,8 @@ module fcimc_helper
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, tMultiReplicaInitiators, &
                         tSemiStochastic, tTrialWavefunction, &
-                        InitiatorCutoffEnergy, InitiatorCutoffWalkNo
+                        InitiatorCutoffEnergy, InitiatorCutoffWalkNo, &
+                        tSurvivalInitiatorThreshold, nItersInitiator
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use DetCalcData, only: FCIDetIndex, ICILevel
@@ -312,6 +313,7 @@ contains
         real(dp), intent(in) :: diagH
         integer :: part_type, nopen
         logical :: parent_init, make_initiator
+        character(*), parameter :: this_routine = 'CalcParentFlag'
 
         call extract_sign (CurrentDets(:,j), CurrentSign)
 
@@ -409,6 +411,7 @@ contains
         logical, intent(in) :: is_init, make_initiator
         real(dp), intent(in) :: sgn, diagH
         logical :: initiator, tDetInCAS
+        integer :: first_init
         real(dp) :: init_thresh, low_init_thresh
 
         ! By default the particles status will stay the same
@@ -459,6 +462,22 @@ contains
                 if (tSpawnSpatialInit) &
                     call rm_initiator_list (ilut)
             endif
+
+            ! If this site has survived for a long time, but otherwise
+            ! would not be an initiator, then it is possible we ought
+            ! to be considering it as well.
+            if (.not. is_init .and. tSurvivalInitiatorThreshold) then
+                first_iter = extract_first_iter(CurrentDets(:,j))
+                if ((iter - first_iter) > nItersInitiator) &
+                    is_init = .true.
+            end if
+
+#ifdef __DEBUG
+            if (tSurvivalInitiatorThreshold) then
+                first_iter = extract_first_iter(CurrentDets(:,j))
+                ASSERT(first_iter <= iter .and. first_iter > 0)
+            end if
+#endif
         endif
 
     end function

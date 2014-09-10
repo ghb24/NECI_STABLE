@@ -844,6 +844,8 @@ contains
 
     subroutine start_walkers_from_core_ground()
 
+        use davidson_neci, only: davidson_eigenvalue
+
         integer :: i, counter, ierr
         real(dp) :: eigenvec_pop
         character(len=*), parameter :: t_r = "start_walkers_from_core_ground"
@@ -872,6 +874,7 @@ contains
         call perform_davidson(parallel_sparse_hamil_type, .false.)
 
         write(6,'(a30)') "Davidson calculation complete."
+        write(6,'("Deterministic subspace correlation energy:",1X,f15.10)') davidson_eigenvalue
         call neci_flush(6)
 
         ! The ground state compnents are now stored in davidson_eigenvector on the root.
