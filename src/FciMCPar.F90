@@ -4134,8 +4134,8 @@ MODULE FciMCParMod
             call stats_out(state,.true., sum(abs(AllTotParts)), 'Tot. parts')
             call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
 #ifdef __CMPLX
-            call stats_out(state,.true., real(proje_iter), 'Re Proj. E')
-            call stats_out(state,.true., aimag(proje_iter), 'Im Proj. E')
+            call stats_out(state,.true., real(proje_iter_tot), 'Re Proj. E')
+            call stats_out(state,.true., aimag(proje_iter_tot), 'Im Proj. E')
 #else
             call stats_out(state,.true., proje_iter_tot, 'Proj. E (cyc)')
 #endif
@@ -4150,9 +4150,9 @@ MODULE FciMCParMod
 !!            call stats_out(state,.false., AccRat(1), 'Acc. rate')
             call stats_out(state,.false., TotImagTime, 'Im. time')
 #ifdef __CMPLX
-            call stats_out(state,.true., real(proje_iter) + Hii, &
+            call stats_out(state,.true., real(proje_iter_tot) + Hii, &
                            'Tot. Proj. E')
-            call stats_out(state,.true., aimag(proje_iter) + Hii, &
+            call stats_out(state,.true., aimag(proje_iter_tot) + Hii, &
                            'Tot. Proj. E')
 #else
             call stats_out(state,.true., proje_iter_tot + Hii, 'Tot. Proj. E')

@@ -411,7 +411,7 @@ contains
         logical, intent(in) :: is_init, make_initiator
         real(dp), intent(in) :: sgn, diagH
         logical :: initiator, tDetInCAS
-        integer :: first_init
+        integer :: first_iter
         real(dp) :: init_thresh, low_init_thresh
 
         ! By default the particles status will stay the same
@@ -466,15 +466,15 @@ contains
             ! If this site has survived for a long time, but otherwise
             ! would not be an initiator, then it is possible we ought
             ! to be considering it as well.
-            if (.not. is_init .and. tSurvivalInitiatorThreshold) then
-                first_iter = extract_first_iter(CurrentDets(:,j))
+            if (.not. initiator .and. tSurvivalInitiatorThreshold) then
+                first_iter = extract_first_iter(ilut)
                 if ((iter - first_iter) > nItersInitiator) &
-                    is_init = .true.
+                    initiator = .true.
             end if
 
 #ifdef __DEBUG
             if (tSurvivalInitiatorThreshold) then
-                first_iter = extract_first_iter(CurrentDets(:,j))
+                first_iter = extract_first_iter(ilut)
                 ASSERT(first_iter <= iter .and. first_iter > 0)
             end if
 #endif
