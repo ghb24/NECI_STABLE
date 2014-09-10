@@ -203,9 +203,11 @@ contains
                 NIfFlag = 0
             end if
             NOffFlag = NOffSgn + NIfSgn
+            NOffIter = NOffFlag + NIfFlag
         else
             NIfFlag = 0
             NOffFlag = NOffSgn
+            NOffIter = NOffSgn + NIfSgn
         end if
 #else
         if (tUseFlags) then
@@ -218,6 +220,7 @@ contains
             NIfFlag = 0
         endif
         NOffFlag = NOffSgn + NIfSgn
+        NOffIter = NOffFlag + NIfFlag
 #endif
 
         ! If we are using the initiator survival threshold, then we need to
@@ -227,7 +230,9 @@ contains
         else
             nIfIter = 0
         end if
-        NOffIter = NOffFlag + NIfFlag
+        ! NOffIter needs to be set relative to NOffSgn _or_ NOffFlag depending
+        ! on configuration settings - so we set it above, not here
+        !NOffIter = NOffFlag + NIfFlag
 
         ! N.B. Flags MUST be last!!!!!
         !      If we change this bit, then we need to adjust ilut_lt and 
