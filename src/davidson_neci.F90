@@ -420,7 +420,7 @@ type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
             ! Note that, here, eigenvector_proj holds the components of v in the Krylov basis,
             ! and multiplied_basis_vectors holds the Krylov vectors multiplied by H, hence
             ! the matmul below does indeed retturn Hv.
-            residual = matmul(multiplied_basis_vectors, eigenvector_proj(1:basis_index))
+            residual = matmul(multiplied_basis_vectors(:,1:basis_index), eigenvector_proj(1:basis_index))
             residual = residual - davidson_eigenvalue*davidson_eigenvector
         end if
 
