@@ -341,7 +341,7 @@ r_loop: do while(.not.tReadAllPops)
 
             if (tHashWalkerList) then
                 call reset_hash_table(HashIndex)
-                call fill_in_hash_table(HashIndex, nWalkerHashes, Dets, CurrWalkers)
+                call fill_in_hash_table(HashIndex, nWalkerHashes, Dets, CurrWalkers, .true.)
             endif
 
             ! Run through all determinants on each node, and calculate the total number of walkers, and noathf
@@ -684,7 +684,7 @@ outer_map:      do i = 0, MappingNIfD
 
         if (tHashWalkerList) then
             call reset_hash_table(HashIndex)
-            call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, TotWalkers)
+            call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, TotWalkers, .true.)
         end if
 
         call set_initial_global_data(TotWalkers, CurrentDets)

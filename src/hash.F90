@@ -126,7 +126,7 @@ module hash
 
     END FUNCTION CreateHash
 
-    subroutine init_hash_table(hash_table)
+    pure subroutine init_hash_table(hash_table)
 
         type(ll_node), pointer, intent(inout) :: hash_table(:)
         integer :: i
@@ -138,7 +138,7 @@ module hash
 
     end subroutine init_hash_table
 
-    subroutine reset_hash_table(hash_table)
+    pure subroutine reset_hash_table(hash_table)
 
         type(ll_node), pointer, intent(inout) :: hash_table(:)
         type(ll_node), pointer :: curr, prev
@@ -161,14 +161,20 @@ module hash
 
     end subroutine reset_hash_table
 
-    subroutine fill_in_hash_table(hash_table, table_length, walker_list, list_length)
+    subroutine fill_in_hash_table(hash_table, table_length, walker_list, list_length, ignore_unocc)
 
-        ! This assumes that the input hash table is clear (use reset_hash_table) and
-        ! that there are no repeats in walker_list.
+        ! This assumes that the input hash table is clear (use reset_hash_table)
+        ! and that there are no repeats in walker_list.
+
+        ! If ignore_unocc dets is input as .true. then unoccupied determinants
+        ! will not be included in the hash table, unless they are core
+        ! determinants.
 
         integer, intent(in) :: table_length, list_length
         type(ll_node), pointer, intent(inout) :: hash_table(:)
-        integer(n_int), intent(in) :: walker_list(0:, :)
+        integer(n_int), intent(in) :: walker_list(0:,:)
+        logical, intent(in) :: ignore_unocc
+
         type(ll_node), pointer :: temp_node
         integer :: i, DetHash, nI(nel)
         real(dp) :: real_sign(lenof_sign)
@@ -177,10 +183,14 @@ module hash
         tCoreDet = .false.
 
         do i = 1, list_length
-            ! Don't add unoccupied determinants, unless they are core determinants.
-            if (tSemiStochastic) tCoreDet = test_flag(walker_list(:,i), flag_deterministic)
-            call extract_sign(walker_list(:,i), real_sign)
-            if (IsUnoccDet(real_sign) .and. (.not. tCoreDet)) cycle
+            ! If the ignore_unocc option is true then we don't want to include
+            ! unoccupied determinants in the hash table, unless they're
+            ! deterministic states.
+            if (ignore_unocc) then
+                if (tSemiStochastic) tCoreDet = test_flag(walker_list(:,i), flag_deterministic)
+                call extract_sign(walker_list(:,i), real_sign)
+                if (IsUnoccDet(real_sign) .and. (.not. tCoreDet)) cycle
+            end if
 
             call decode_bit_det(nI, walker_list(:,i))
             DetHash = FindWalkerHash(nI, table_length)
@@ -201,7 +211,7 @@ module hash
 
     end subroutine fill_in_hash_table
 
-    subroutine remove_node(prev, curr)
+    pure subroutine remove_node(prev, curr)
 
         ! On input, prev should point to the the node before curr in the linked list,
         ! or should point to null if curr is the first node in the list. curr should

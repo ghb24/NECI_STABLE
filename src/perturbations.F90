@@ -105,7 +105,7 @@ contains
         use bit_rep_data, only: NIfTot, NIfDBO, extract_sign
         use bit_reps, only: encode_sign, decode_bit_det
         use DetBitOps, only: ilut_lt, ilut_gt
-        use hash, only: reset_hash_table, fill_in_hash_table, DetermineDetNode
+        use hash, only: reset_hash_table, DetermineDetNode
         use FciMCData, only: tHashWalkerList, HashIndex, SpawnedParts, SpawnedParts2
         use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots
         use sort_mod, only: sort

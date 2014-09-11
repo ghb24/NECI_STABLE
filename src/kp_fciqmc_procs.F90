@@ -178,6 +178,10 @@ module kp_fciqmc_procs
     logical :: tScalePopulation
     real(dp) :: scaling_factor
 
+    ! This variable is used to store the state of tSinglePartPhase on input so
+    ! that we can reset it to this value on each repeat.
+    logical :: tSinglePartPhaseKPInit(inum_runs)
+
     ! If true then calculate the overlap of the final Hamiltonian eigenstates
     ! with a vector which is calculated by applying a perturbation operator
     ! (overlap_pert) to the popsfile wave function.
@@ -567,6 +571,10 @@ contains
         call WriteFciMCStatsHeader()
         call MPIBarrier(ierr)
 
+        ! Store the initial state of tSinglePartPhase so that we can stop the
+        ! shift from varying on subsequent repeats.
+        tSinglePartPhaseKPInit = tSinglePartPhase
+
     end subroutine init_kp_fciqmc
 
     subroutine init_kp_fciqmc_repeat(kp)
@@ -607,7 +615,7 @@ contains
             OldAllAvWalkersCyc = InitWalkers*nProcessors
         end if
         ! Setting this variable to true stops the shift from varying instantly.
-        tSinglePartPhase = .true.
+        tSinglePartPhase = tSinglePartPhaseKPInit
 
     end subroutine init_kp_fciqmc_repeat
 
@@ -731,7 +739,7 @@ contains
                 ! Copy across the flags.
                 CurrentDets(NIfTot,i) = krylov_vecs(NIfTotKP,i)
             end do
-            call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int))
+            call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int), .true.)
         end if
 
         ! Calculate and store the diagonal element of the Hamiltonian for determinants in CurrentDets.
@@ -864,7 +872,7 @@ contains
         TotPartsOld = TotParts
 
         ! Add the entries into the hash table.
-        call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, ndets)
+        call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, ndets, .true.)
 
         call MPIReduce(TotParts, MPI_SUM, AllTotParts)
         AllTotPartsOld = AllTotParts
@@ -912,7 +920,7 @@ contains
             ! If using the tOccupyDetermSpace option then we want to put walkers
             ! on states in the deterministic space first.
             ! If not, or if we have finished doing this, generate determinants
-            ! randoml and uniformly.
+            ! randomly and uniformly.
             if (tOccupyDetermSpace .and. (.not. tDetermAllOccupied)) then
                 ideterm = ideterm + 1
                 ilut = core_space(:,ideterm + determ_proc_indices(iProcIndex))
@@ -1034,6 +1042,25 @@ contains
         end if
 
         SpawnedParts = 0_n_int
+
+        ! Loop through the hash table and see if the Hartree-Fock is occupied.
+        do idet = 1, nWalkerHashes
+            temp_node => HashIndex(idet)
+            if (temp_node%ind /= 0) then
+                do while (associated(temp_node))
+                    if (all(ilutHF(0:NIfD) == CurrentDets(0:NIfD, temp_node%ind))) then
+                        call extract_sign(CurrentDets(:,temp_node%ind),real_sign_1)
+                        if (.not. IsUnoccDet(real_sign_1)) then
+                            write(6,*) "HF occupied!"
+                            call neci_flush(6)
+                        end if
+                    end if
+                    temp_node => temp_node%next
+                end do
+            end if
+        end do
+
+        write(6,*) "ndets:", ndets
 
     end subroutine generate_init_config_this_proc
 
