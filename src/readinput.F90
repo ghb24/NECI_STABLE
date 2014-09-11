@@ -178,7 +178,8 @@ MODULE ReadInput_neci
                             TNoSameExcit, TInitStar, tMP2Standalone, &
                             GrowMaxFactor, MemoryFacPart, tTruncInitiator, &
                             tSpawnSpatialInit, tSpatialOnlyHash, InitWalkers, &
-                            tUniqueHFNode, InitiatorCutoffEnergy, tCCMC
+                            tUniqueHFNode, InitiatorCutoffEnergy, tCCMC, &
+                            tSurvivalInitiatorThreshold
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -187,7 +188,8 @@ MODULE ReadInput_neci
                                  tRmRootExcitStarsRootChange, tLinRootChange
         use LoggingData, only: iLogging, tCalcFCIMCPsi, tHistHamil, &
                            tCalcInstantS2, tDiagAllSpaceEver, &
-                           tCalcVariationalEnergy, tCalcInstantS2Init
+                           tCalcVariationalEnergy, tCalcInstantS2Init, &
+                           tPopsFile
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
         use input_neci
         use constants
@@ -441,6 +443,15 @@ MODULE ReadInput_neci
 
         if (tCCMC .and. .not. (InitiatorCutoffEnergy > 1.0e99_dp)) then
             call stop_all(t_r, 'Initiator cutoff not implemented for CCMC')
+        end if
+
+        if (tPopsFile .and. tSurvivalInitiatorThreshold) then
+            write(6,*) 'The initiator initial iteration details have not yet &
+                       &been added to the POPSFILE reading/writing routines.'
+            write(6,*) '--> Simulations will not display consistent behaviour &
+                       &over restarts until this is implemented'
+            call stop_all(t_r, 'POPSFILES cannot be used with initiator &
+                               &survival criterion')
         end if
 
     end subroutine checkinput

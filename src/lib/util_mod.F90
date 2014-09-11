@@ -805,7 +805,7 @@ contains
 
     end function error_function
 
-    subroutine find_next_comb(comb, k, n, finish)
+    pure subroutine find_next_comb(comb, k, n, finish)
 
         integer, intent(in) :: k, n
         integer, intent(inout) :: comb(k)
