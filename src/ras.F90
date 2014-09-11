@@ -156,7 +156,7 @@ contains
 
     end subroutine initialise_ras_space
 
-    function class_allowed(ras, n_elec_1, n_elec_3) result (allowed)
+    pure function class_allowed(ras, n_elec_1, n_elec_3) result (allowed)
 
         ! This function assumes that the total number of electrons is equal to tot_nelec, so
         ! that we don't have to check the number of electrons in RAS2. It also assumes
@@ -179,7 +179,7 @@ contains
 
     end function class_allowed
 
-    function class_comb_allowed(ras, class_1, class_2) result (allowed)
+    pure function class_comb_allowed(ras, class_1, class_2) result (allowed)
 
         type(ras_parameters), intent(in) :: ras
         type(ras_class_data), intent(in) :: class_1, class_2
@@ -190,7 +190,7 @@ contains
 
     end function class_comb_allowed
 
-    function vertex_not_allowed(n_elec_1, n_elec_3, orb, elec, ras) result(not_allowed)
+    pure function vertex_not_allowed(n_elec_1, n_elec_3, orb, elec, ras) result(not_allowed)
 
         integer, intent(in) :: n_elec_1, n_elec_3
         integer, intent(in) :: orb, elec
@@ -230,7 +230,7 @@ contains
 
     end function vertex_not_allowed
 
-    function get_address(ras_class, string) result(address)
+    pure function get_address(ras_class, string) result(address)
 
         type(ras_class_data), intent(in) :: ras_class
         integer, intent(in) :: string(:)
@@ -328,11 +328,11 @@ contains
 
     end subroutine setup_ras_class
 
-    subroutine generate_first_subspace_string(string, n_elec)
+    pure subroutine generate_first_subspace_string(string, n_elec)
 
         ! Generate the first string (lowest orbitals all occupied) in a RAS subspace.
         ! For RAS2 and RAS3 the orbital numbers should have been shifted so that the
-        ! first orbital in these subspaces is 1, *not* the actualt orbital number.
+        ! first orbital in these subspaces is 1, *not* the actual orbital number.
 
         integer, intent(in) :: n_elec
         integer, intent(out) :: string(n_elec)
@@ -344,7 +344,7 @@ contains
 
     end subroutine generate_first_subspace_string
 
-    subroutine generate_first_full_string(string, ras, ras_class)
+    pure subroutine generate_first_full_string(string, ras, ras_class)
 
         type(ras_parameters), intent(in) :: ras
         type(ras_class_data), intent(in) :: ras_class
@@ -371,7 +371,7 @@ contains
 
     end subroutine generate_first_full_string
 
-    subroutine generate_next_string(string, ras, ras_class, none_left)
+    pure subroutine generate_next_string(string, ras, ras_class, none_left)
 
         type(ras_parameters), intent(in) :: ras
         type(ras_class_data), intent(in) :: ras_class
@@ -518,7 +518,7 @@ contains
 
     end subroutine generate_entire_ras_space
 
-    function get_abelian_sym(string) result(sym)
+    pure function get_abelian_sym(string) result(sym)
 
         ! Note, the orbital numbers in the input string refer to the spatial orbitals, so we
         ! mnultiply these by 2 when used in G1.
@@ -538,7 +538,7 @@ contains
 
     end function get_abelian_sym
 
-    subroutine find_ras_size(ras, classes, space_size)
+    pure subroutine find_ras_size(ras, classes, space_size)
 
         type(ras_parameters), intent(in) :: ras
         type(ras_class_data), intent(in) :: classes(:)

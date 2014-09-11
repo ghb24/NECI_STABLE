@@ -27,7 +27,7 @@ MODULE AnnihilationMod
                         encode_sign, encode_flags, test_flag, set_flag, &
                         clr_flag, flag_parent_initiator, encode_part_sign, &
                         extract_part_sign, copy_flag, nullify_ilut, &
-                        nullify_ilut_part
+                        nullify_ilut_part, encode_first_iter
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData , only : tNoNewRDMContrib
@@ -1373,6 +1373,10 @@ MODULE AnnihilationMod
         endif
         CurrentH(1,DetPosition)=real(HDiag,dp)-Hii
 
+        ! Store the iteration, as this is the iteration on which the particle
+        ! is created
+        call encode_first_iter(CurrentDets(:,DetPosition), iter)
+
         if(tTruncInitiator) call FlagifDetisInitiator(iLutCurr, HDiag)
 
         ! If using a trial wavefunction, search to see if this state is in either the trial or
@@ -1841,6 +1845,9 @@ MODULE AnnihilationMod
                     HDiag=(REAL(HDiagTemp,dp))-Hii
                 endif
                 CurrentH(1,i)=HDiag
+
+                ! Store the iteration this particle is being created on
+                call encode_first_iter(CurrentDets(:,i), iter)
 
                 IF(tTruncInitiator) &
                     CALL FlagifDetisInitiator(CurrentDets(0:NIfTot,i), &

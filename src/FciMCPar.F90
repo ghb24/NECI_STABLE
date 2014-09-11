@@ -29,7 +29,7 @@ MODULE FciMCParMod
                         decode_bit_det_chunks, &
                         clr_flag, flag_trial, flag_connected, nOffFlag, &
                         flag_deterministic, flag_determ_parent, clr_flag, &
-                        extract_part_sign, encode_part_sign
+                        extract_part_sign, encode_part_sign, encode_first_iter
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, NEquilSteps,&
                         tReadPops, iFullSpaceIter, MaxNoAtHF,&
@@ -6028,6 +6028,9 @@ MODULE FciMCParMod
                         CurrentH(1,1) = 0
                         HFInd = 1
 
+                        ! Set the initial iteration number
+                        call encode_first_iter(CurrentDets(:,1), 1)
+
                         ! Obtain the initial sign
                         InitialSign = 0
                         if (tStartSinglePart) then
@@ -6579,6 +6582,9 @@ MODULE FciMCParMod
                     endif
                     CurrentH(1,DetIndex)=real(HDiagTemp,dp)-Hii
 
+                    ! Set the initial iteration number
+                    call encode_first_iter(CurrentDets(:,DetIndex), 1)
+
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
                         call CalcParentFlag(DetIndex, 1, iInit, &
@@ -6792,6 +6798,9 @@ MODULE FciMCParMod
                     endif
                     CurrentH(1,DetIndex)=real(HDiagTemp,dp)-Hii
 
+                    ! Set the initial iteration number
+                    call encode_first_iter(CurrentDets(:,DetIndex), 1)
+
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
                         call CalcParentFlag(DetIndex, 1, iInit, &
@@ -6850,6 +6859,10 @@ MODULE FciMCParMod
                     call set_flag(CurrentDets(:,DetIndex),flag_is_initiator(2))
                 endif
                 CurrentH(1,DetIndex)=0.0_dp
+
+                ! Set the initial iteration number
+                call encode_first_iter(CurrentDets(:,DetIndex), 1)
+
                 if (tHashWalkerList) then
                     ! Now add the Hartree-Fock determinant (not with index 1).
                     DetHash = FindWalkerHash(HFDet, nWalkerHashes)

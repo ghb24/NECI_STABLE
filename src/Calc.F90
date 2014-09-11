@@ -332,6 +332,9 @@ contains
           InitiatorCutoffEnergy = 99.99e99_dp
           InitiatorCutoffWalkNo = 99.0_dp
 
+          tSurvivalInitiatorThreshold = .false.
+          nItersInitiator = 100
+
       
         end subroutine SetCalcDefaults
 
@@ -1752,6 +1755,16 @@ contains
 
             case("TAU-CNT-THRESHOLD")
                 write(6,*) 'WARNING: This option is unused in this branch'
+
+            case("INITIATOR-SURVIVAL-CRITERION")
+                ! If a site survives for at least a certain number of
+                ! iterations, it should be treated as an initiator.
+                ! --> Soft expand the range of the initiators in the Hilbert
+                !     space
+                tSurvivalInitiatorThreshold = .true.
+                if (item < nitems) then
+                    call readi(nItersInitiator)
+                end if
 
             case default
                 call report("Keyword "                                &
