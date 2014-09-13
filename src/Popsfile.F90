@@ -1451,7 +1451,7 @@ outer_map:      do i = 0, MappingNIfD
 
             !if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
             !iunit_3 = get_free_unit()
-            !
+            ! 
             !if (tSplitPops) then
             !        write(num_tmp, '(i12)') iProcIndex
             !        out_tmp = 'RDM_AV_POP-' // trim(adjustl(num_tmp))
@@ -1466,9 +1466,9 @@ outer_map:      do i = 0, MappingNIfD
             do j = 1, int(ndets, sizeof_int)
                 ! Count the number of written particles
                 if (write_pops_det (iunit, iunit_2, Dets(:,j), j)) then
-                    if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
-                        write(iunit_3) CurrentH(1:1+2*lenof_sign,j)
-                    endif
+                    !if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
+                    !    write(iunit_3) CurrentH(1:1+2*lenof_sign,j)
+                    !endif
                     write_count = write_count + 1
                 else
                     ! Zero determinants don't get written to binary popsfiles
@@ -1518,9 +1518,9 @@ outer_map:      do i = 0, MappingNIfD
                     nwrite = int(WalkersOnNodes(i), sizeof_int)
                     do j = 1, nwrite
                         if (write_pops_det(iunit, iunit_2, Parts(:,j), j)) then
-                            if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
-                                write(iunit_3) AllCurrentH(1:1+2*lenof_sign,j)
-                            endif
+                            !if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
+                            !    write(iunit_3) AllCurrentH(1:1+2*lenof_sign,j)
+                            !endif
                             write_count = write_count + 1
                         else
                             ! We have found a zero determinant. This doesn't

@@ -981,7 +981,7 @@ MODULE FciMCParMod
                 do p = 1, WalkersToSpawn
                     ! Zero the bit representation, to ensure no extraneous
                     ! data gets through.
-                    ilutnJ = 0
+                    ilutnJ = 0_n_int
 
                     ! Generate a (random) excitation
                     call generate_excitation (DetCurr, CurrentDets(:,j), nJ, &
@@ -997,23 +997,18 @@ MODULE FciMCParMod
                             ! Temporary fix: FindExcitBitDet copies the flags of the parent onto the
                             ! child, which causes semi-stochastic simulations to crash. Should it copy
                             ! these flags? There are comments questioning this in create_particle, too.
-                            iLutnJ(nOffFlag) = 0
+                            iLutnJ(nOffFlag) = 0_n_int
                             
-                            ! Is the spawned state in the core space?
-                            tInDetermSpace = is_core_state(iLutnJ)
-
-                            ! Is the parent state in the core space?
+                            ! If the parent state in the core space.
                             if (test_flag(CurrentDets(:,j), flag_deterministic)) then
+                                ! Is the spawned state in the core space?
+                                tInDetermSpace = is_core_state(iLutnJ)
                                 ! If spawning is from and to the core space, cancel it.
                                 if (tInDetermSpace) cycle
-                            else
-                                if (tInDetermSpace) call set_flag(iLutnJ, flag_deterministic)
-                            end if
-
-                            ! If the walker being spawned is spawned from the deterministic space,
-                            ! then set the corresponding flag to specify this.
-                            if (test_flag(CurrentDets(:,j), flag_deterministic)) &
+                                ! Set the flag to specify that the spawning is occuring
+                                ! from the core space.
                                 call set_flag(iLutnJ, flag_determ_parent)
+                            end if
 
                         end if
 
