@@ -26,7 +26,7 @@ module semi_stoch_procs
                          SemiStoch_Multiply_Time, TotWalkers, CurrentDets, CoreTag, &
                          PDetermTag, FDetermTag, IDetermTag, indices_of_determ_states, &
                          HashIndex, core_space, CoreSpaceTag, ll_node, nWalkerHashes, &
-                         full_determ_vector_av, tFill_RDM, &
+                         full_determ_vector_av, tFill_RDM, determ_space_size_int, &
                          tFillingStochRDMonFly, Iter, IterRDMStart, &
                          core_ham_diag, DavidsonTag, Fii, HFDet, PreviousCycles
     use hash, only: DetermineDetNode, FindWalkerHash
@@ -115,22 +115,21 @@ contains
 
     end subroutine deterministic_projection
 
-    function is_core_state(ilut) result (core_state)
+    pure function is_core_state(ilut, nI) result (core_state)
 
         use FciMCData, only: ll_node
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer :: nI(nel)
+        integer, intent(in) :: nI(:)
         integer :: i, hash
         logical :: core_state
 
         core_state = .false.
 
-        call decode_bit_det(nI, ilut)
-        hash = FindWalkerHash(nI, int(determ_space_size,sizeof_int))
+        hash = FindWalkerHash(nI, determ_space_size_int)
 
         do i = 1, core_ht(hash)%nclash
-            if (DetBitEQ(ilut, core_space(:,core_ht(hash)%ind(i)), NIfDBO)) then
+            if (all(ilut(0:NIfDBO) == core_space(0:NIfDBO,core_ht(hash)%ind(i)) )) then
                 core_state = .true.
                 return
             end if

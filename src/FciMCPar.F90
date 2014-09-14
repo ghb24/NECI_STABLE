@@ -1005,7 +1005,7 @@ MODULE FciMCParMod
                             ! If the parent state in the core space.
                             if (test_flag(CurrentDets(:,j), flag_deterministic)) then
                                 ! Is the spawned state in the core space?
-                                tInDetermSpace = is_core_state(iLutnJ)
+                                tInDetermSpace = is_core_state(iLutnJ, nJ)
                                 ! If spawning is from and to the core space, cancel it.
                                 if (tInDetermSpace) cycle
                                 ! Set the flag to specify that the spawning is occuring

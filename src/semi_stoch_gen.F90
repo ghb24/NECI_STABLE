@@ -20,7 +20,7 @@ module semi_stoch_gen
     use enumerate_excitations
     use FciMCData, only: HFDet, ilutHF, iHFProc, CurrentDets, determ_proc_sizes, &
                          determ_proc_indices, full_determ_vector, partial_determ_vector, &
-                         determ_space_size, TotWalkers, TotWalkersOld, &
+                         determ_space_size, determ_space_size_int, TotWalkers, TotWalkersOld, &
                          indices_of_determ_states, SpawnedParts, FDetermTag, FDetermAvTag, &
                          PDetermTag, IDetermTag, trial_space, trial_space_size, &
                          SemiStoch_Init_Time, tHashWalkerList, full_determ_vector_av, &
@@ -100,6 +100,7 @@ contains
         call MPIAllGather(mpi_temp, determ_proc_sizes, ierr)
 
         determ_space_size = sum(determ_proc_sizes)
+        determ_space_size_int = int(determ_space_size,sizeof_int)
 
         write(6,'(a34,1X,i8)') "Total size of deterministic space:", determ_space_size
         write(6,'(a46,1X,i8)') "Size of deterministic space on this processor:", &
@@ -108,10 +109,10 @@ contains
 
         ! Allocate the vectors to store the walker amplitudes and the deterministic Hamiltonian.
         allocate(full_determ_vector(lenof_sign,determ_space_size), stat=ierr)
-        call LogMemAlloc('full_determ_vector', int(determ_space_size,sizeof_int)*lenof_sign, &
+        call LogMemAlloc('full_determ_vector', determ_space_size_int*lenof_sign, &
                          8, t_r, FDetermTag, ierr)
         allocate(full_determ_vector_av(lenof_sign,determ_space_size), stat=ierr)
-        call LogMemAlloc('full_determ_vector_av', int(determ_space_size,sizeof_int)*lenof_sign, &
+        call LogMemAlloc('full_determ_vector_av', determ_space_size_int*lenof_sign, &
                          8, t_r, FDetermAvTag, ierr)
         allocate(partial_determ_vector(lenof_sign,determ_proc_sizes(iProcIndex)), stat=ierr)
         call LogMemAlloc('partial_determ_vector', int(determ_proc_sizes(iProcIndex), &
