@@ -392,9 +392,17 @@ MODULE FciMCData
       real(dp), allocatable, dimension(:,:) :: full_determ_vector
       real(dp), allocatable, dimension(:,:) :: full_determ_vector_av
 
+      ! determ_proc_sizes(i) holds the core space size on processor i.
       integer(MPIArg), allocatable, dimension(:) :: determ_proc_sizes
+      ! determ_proc_indices(i) holds sum(determ_proc_sizes(i-1)), that is, the
+      ! total number of core states on all processors up to processor i.
+      ! (determ_proc_indices(1) == 0).
       integer(MPIArg), allocatable, dimension(:) :: determ_proc_indices
+      ! The total size of the core space on all processors.
       integer(MPIArg) :: determ_space_size
+      ! determ_space_size_int is identical to determ_space_size, but converted
+      ! to the default integer kind.
+      integer :: determ_space_size_int
 
       ! This vector will store the indicies of the deterministic states in CurrentDets. This is worked out in the main loop.
       integer, allocatable, dimension(:) :: indices_of_determ_states
