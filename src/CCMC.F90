@@ -2960,6 +2960,7 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
       INTEGER(kind=n_int), pointer :: DetList(:,:)
       logical :: tPop64Bit,tPopHPHF,tPopLz
       integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,Popinum_runs
+      integer :: PopRandomHash(1024)
       integer(int64) :: iPopAllTotWalkers, CurrParts(lenof_sign)
       real(dp) :: PopDiagSft,PopDiagSft2,read_tau, tmp_dp(lenof_sign)
       integer nMaxAmpl,nAmpl,PopBlockingIter
@@ -2993,7 +2994,7 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
              call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                    iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                    PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau,&
-                   PopBlockingIter, read_pparallel, read_pparallel, &
+                   PopBlockingIter, PopRandomHash, read_pparallel, read_pparallel, &
                    read_nnodes, read_walkers_on_nodes)
          endif
 
