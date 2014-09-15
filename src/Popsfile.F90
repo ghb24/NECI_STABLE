@@ -80,6 +80,7 @@ contains
         integer :: iPopLenof_sign, iPopNEl, iPopIter, PopNIfD, PopNIfY
         integer :: PopNIfSgn, PopNIfFlag, PopNIfTot, Popinum_runs
         integer :: PopBlockingIter, read_nnodes
+        integer :: PopRandomHash(1024)
         integer(int64) :: iPopAllTotWalkers
         real(dp) :: PopDiagSft, PopDiagSft2, read_tau, read_psingles
         real(dp) :: read_pparallel
@@ -100,9 +101,9 @@ contains
         call set_timer(read_timer)
 
         call open_pops_head(iunit,formpops,binpops)
+        ! Determine version number.
+        PopsVersion=FindPopsfileVersion(iunit)
         IF(FormPops) THEN
-            !determine version number
-            PopsVersion=FindPopsfileVersion(iunit)
             if(PopsVersion.eq.3) then
                 call ReadPopsHeadv3(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                     iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
@@ -111,7 +112,7 @@ contains
                 call ReadPopsHeadv4(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                     iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                     PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau, &
-                    PopBlockingIter, read_psingles, read_pparallel, &
+                    PopBlockingIter, PopRandomHash, read_psingles, read_pparallel, &
                     read_nnodes, read_walkers_on_nodes)
             endif
 
@@ -120,10 +121,10 @@ contains
             endif
 
         else if (BinPops) then
-            !
-            ! If we are reading a binary popsfile, the header has ALREADY
-            ! been read in, before initialising some of the stuff in FciMCPar
-            !
+            ! If we are reading a binary popsfile, then we want to close the
+            ! header file and open the file containing the determinants.
+            ! We don't need to bother reading in the header, it has already
+            ! been done (as it has been for non-binary popsfiles, too).
             if (iProcIndex == root .or. (bNodeRoot .and. tSplitPops)) then
                 ! Close the header file.
                 close(iunit)
@@ -169,7 +170,7 @@ contains
         if (tSplitPops) then
             CurrWalkers = read_pops_splitpops (iunit, BinPops, Dets, &
                                                DetsLen, iunit_3, PopNIfSgn)
-        else if (pops_nnodes == nProcessors .and. .not. tCCMC) then
+        else if (pops_nnodes == nProcessors .and. (.not. tCCMC) .and. PopsVersion == 4) then
             CurrWalkers = read_pops_nnodes (iunit, BinPops, Dets, DetsLen, &
                                             read_walkers_on_nodes, iunit_3, &
                                             PopNIfSgn)
@@ -1081,13 +1082,14 @@ outer_map:      do i = 0, MappingNIfD
     subroutine ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                 iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                 PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau, &
-                PopBlockingIter, read_psingles, read_pparallel, &
+                PopBlockingIter, PopRandomHash, read_psingles, read_pparallel, &
                 read_nnodes, read_walkers_on_nodes)
         integer , intent(in) :: iunithead
         logical , intent(out) :: tPop64Bit,tPopHPHF,tPopLz
         integer, intent(out) :: iPopLenof_sign, iPopNel, iPopIter, PopNIfD
         integer, intent(out) :: PopNIfY, PopNIfSgn, PopNIfFlag, PopNIfTot
         integer, intent(out) :: PopBlockingIter, read_nnodes, Popinum_runs
+        integer, intent(out) :: PopRandomHash(1024)
         integer(int64), intent(out) :: read_walkers_on_nodes(0:nProcessors-1)
         integer(int64) , intent(out) :: iPopAllTotWalkers
         real(dp) , intent(out) :: PopDiagSft,PopDiagSft2, read_tau, read_psingles
@@ -1095,7 +1097,6 @@ outer_map:      do i = 0, MappingNIfD
         real(dp) , dimension(lenof_sign/inum_runs) , intent(out) :: PopSumNoatHF
         HElement_t , intent(out) :: PopAllSumENum
         integer :: PopsVersion
-        integer :: PopRandomHash(1024)
         !Variables for the namelist
         logical :: Pop64Bit,PopHPHF,PopLz
         integer :: PopLensign,PopNEl,PopCyc,PopiBlockingIter
@@ -1164,6 +1165,7 @@ outer_map:      do i = 0, MappingNIfD
         call MPIBcast(PopGammaOpp)
         call MPIBCast(PopGammaPar)
         call MPIBcast(PopMaxDeathCpt)
+        call MPIBcast(PopRandomHash)
         tPop64Bit=Pop64Bit
         tPopHPHF=PopHPHF
         tPopLz=PopLz
