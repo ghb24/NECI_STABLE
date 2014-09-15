@@ -5710,6 +5710,7 @@ MODULE FciMCParMod
         !Variables from popsfile header...
         logical :: tPop64Bit,tPopHPHF,tPopLz
         integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,Popinum_runs
+        integer :: PopRandomHash(1024)
         integer(int64) :: iPopAllTotWalkers
         integer :: i
         real(dp) :: PopDiagSft, PopDiagSft2
@@ -5756,14 +5757,23 @@ MODULE FciMCParMod
                     read_tau = 0.0_dp
                     read_nnodes = 0
                 elseif(PopsVersion.eq.4) then
-                    call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                            iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                            PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
-                            read_tau,PopBlockingIter, read_psingles, &
-                            read_pparallel, read_nnodes, read_walkers_on_nodes)
                     ! The only difference between 3 & 4 is just that 4 reads 
                     ! in via a namelist, so that we can add more details 
                     ! whenever we want.
+                    call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
+                            iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                            PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
+                            read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
+                            read_pparallel, read_nnodes, read_walkers_on_nodes)
+                    ! Use the random hash from the Popsfile. This is so that,
+                    ! if we are using the same number of processors as the job
+                    ! which produced the Popsfile, we can send the determinants
+                    ! to the correct processor directly (see read_pops_nnodes).
+                    ! This won't work if a different random number seed has
+                    ! been used, so we copy the random hash across for safety.
+                    ! This will overwrite current value of RandomHash.
+                    RandomHash = PopRandomHash(1:nBasis)
+                    call MPIBcast(RandomHash)
                 else
                     call stop_all(this_routine,"Popsfile version invalid")
                 endif
