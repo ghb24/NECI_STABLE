@@ -70,41 +70,38 @@ contains
 
         call set_timer(SemiStoch_Multiply_Time)
 
-        if(tFillingStochRDMonFly) then !Update the average signs in full_determ_vector_av
+        if(tFillingStochRDMonFly) then ! Update the average signs in full_determ_vector_av.
             full_determ_vector_av=(((real(Iter+PreviousCycles,dp)-IterRDMStart)*full_determ_vector_av) &
                                       + full_determ_vector)/(real(Iter+PreviousCycles,dp) - IterRDMStart + 1.0_dp)
         endif
             
         if (determ_proc_sizes(iProcIndex) >= 1) then
 
-            ! Perform the multiplication
+            ! For the moment, we're only adding in these contributions when we need the energy
+            ! This will need refinement if we want to continue with the option of inst vs true full RDMs
+            ! (as in another CMO branch).
             if(tFill_RDM) call fill_RDM_offdiag_deterministic()
 
-                !For the moment, we're only adding in these contributions when we need the energy
-                !This will need refinement if we want to continue with the option of inst vs true full RDMs
-                ! (as in another CMO branch).
+            ! Perform the multiplication
 
             partial_determ_vector = 0.0_dp
 
             do i = 1, determ_proc_sizes(iProcIndex)
                 do j = 1, sparse_core_ham(i)%num_elements
-                    do k=1,lenof_sign
-                        partial_determ_vector(k,i) = partial_determ_vector(k,i) - &
-                            sparse_core_ham(i)%elements(j)*full_determ_vector(k,sparse_core_ham(i)%positions(j))
-                    enddo
+                    partial_determ_vector(:,i) = partial_determ_vector(:,i) - &
+                        sparse_core_ham(i)%elements(j)*full_determ_vector(:,sparse_core_ham(i)%positions(j))
                 end do
             end do
 
-            ! Now add shift*full_determ_vector, to account for the shift, not stored in
+            ! Now add shift*full_determ_vector to account for the shift, not stored in
             ! sparse_core_ham.
-            do k=1,lenof_sign
-                partial_determ_vector(k,:) = partial_determ_vector(k,:) + &
-                   DiagSft(1) * full_determ_vector(k,determ_proc_indices(iProcIndex)+1:&
-                     determ_proc_indices(iProcIndex)+determ_proc_sizes(iProcIndex))
+            do i = 1, determ_proc_sizes(iProcIndex)
+                partial_determ_vector(:,i) = partial_determ_vector(:,i) + &
+                   DiagSft * full_determ_vector(:,i+determ_proc_indices(iProcIndex))
+            end do
 
-                ! Now multiply the vector by tau to get the final projected vector.
-                partial_determ_vector(k,:) = partial_determ_vector(k,:) * tau
-            enddo
+            ! Now multiply the vector by tau to get the final projected vector.
+            partial_determ_vector = partial_determ_vector * tau
 
         end if
 
