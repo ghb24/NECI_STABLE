@@ -536,7 +536,7 @@ MODULE AnnihilationMod
             ! Copy details into the final array
             call extract_sign (cum_det, temp_sign)
 
-            if ((sum(abs(temp_sign)) > 0.0_dp).or.(tFillingStochRDMonFly.and.(.not. tNoNewRDMContrib))) then
+            if ((sum(abs(temp_sign)) > 1.e-12_dp).or.(tFillingStochRDMonFly.and.(.not. tNoNewRDMContrib))) then
                 ! Transfer all info into the other array.
                 ! Usually this is only done if the final sign on the compressed Dj is not equal to zero.
                 ! But in the case of the stochastic RDM, we are concerned with the sign of Dj in the CurrentDets 
