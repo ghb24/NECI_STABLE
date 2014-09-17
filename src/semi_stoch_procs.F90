@@ -66,8 +66,6 @@ contains
 
         call halt_timer(SemiStoch_Comms_Time)
 
-        call MPIBarrier(ierr)
-
         call set_timer(SemiStoch_Multiply_Time)
 
         if(tFillingStochRDMonFly) then ! Update the average signs in full_determ_vector_av.
