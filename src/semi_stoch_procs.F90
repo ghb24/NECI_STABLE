@@ -515,7 +515,6 @@ contains
     subroutine write_core_space()
 
         integer :: i, k, iunit, ierr
-        integer(int64) :: j
         logical :: texist
         character(len=*), parameter :: t_r='write_core_space'
 
@@ -523,36 +522,19 @@ contains
 
         iunit = get_free_unit()
 
-        ! Let each processor write its core states to the file. Each processor waits for
-        ! the processor before it to finish before starting.
-        do i = 0, nProcessors-1
+        ! Only let the root process write the states.
+        if (iProcIndex == root) then
+            open(iunit, file='CORESPACE', status='replace')
 
-            if (iProcIndex == i) then
-
-                if (i == 0) then
-                    open(iunit, file='CORESPACE', status='replace')
-                else
-                    inquire(file='CORESPACE',exist=texist)
-                    if(.not.texist) call stop_all(t_r,'"CORESPACE" file cannot be found')
-                    open(iunit, file='CORESPACE', status='old', position='append')
-                end if
-                
-                do j = 1, TotWalkers 
-                    if (test_flag(CurrentDets(:,j), flag_deterministic)) then
-                        do k = 0, NIfDBO
-                            write(iunit, '(i24)', advance='no') CurrentDets(k,j)
-                        end do
-                        write(iunit, *)
-                    end if
+            do i = 1, determ_space_size
+                do k = 0, NIfDBO
+                    write(iunit, '(i24)', advance='no') core_space(k,i)
                 end do
+                write(iunit, '()')
+            end do
+        end if
 
-                close(iunit)
-
-            end if
-
-            call MPIBarrier(ierr)
-
-        end do
+        call MPIBarrier(ierr)
 
     end subroutine write_core_space
 

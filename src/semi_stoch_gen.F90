@@ -153,6 +153,8 @@ contains
         ! Create the hash table to address the core determinants.
         call initialise_core_hash_table()
 
+        if (tWriteCore) call write_core_space()
+
         write(6,'(a56)') "Generating the Hamiltonian in the deterministic space..."
         call neci_flush(6)
         call calc_determ_hamil_sparse()
@@ -172,8 +174,6 @@ contains
         TotWalkersOld = TotWalkers
 
         if (tStartCoreGroundState .and. (.not. tReadPops)) call start_walkers_from_core_ground()
-
-        if (tWriteCore) call write_core_space()
 
         call halt_timer(SemiStoch_Init_Time)
 
