@@ -1421,6 +1421,7 @@ outer_map:      do i = 0, MappingNIfD
         end if
 
         write_count = 0
+        write_count_sum = 0
         if ((tSplitPops .and. bNodeRoot) .or. iProcIndex == root) then
 
             ! For a binary popsfile, the actual data is stored more
