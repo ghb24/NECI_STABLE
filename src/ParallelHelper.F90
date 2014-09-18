@@ -284,7 +284,7 @@ contains
         err = 0
 #endif
 
-        call halt_timer(Sync_Time)
+        if (tTime) call halt_timer(Sync_Time)
 
     end subroutine
 
