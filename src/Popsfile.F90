@@ -1409,7 +1409,11 @@ outer_map:      do i = 0, MappingNIfD
                 call get_unique_filename('POPSFILE', tIncrementPops, .true., &
                                          iPopsFileNoWrite, popsfile)
                 iunit = get_free_unit()
-                open(iunit, file=popsfile, status='replace')
+                ! We set recl=50000, which allows the line length written to be
+                ! up to 50000 characters long. This allows popsfiles to be
+                ! written in jobs with up to around 2940 MPI processes (the
+                ! default value caused crashes when using over 2000 processes).
+                open(iunit, file=popsfile, status='replace', recl=50000)
                 call write_popsfile_header (iunit, AllTotWalkers, &
                                             WalkersonNodes)
             end if
@@ -1417,6 +1421,7 @@ outer_map:      do i = 0, MappingNIfD
         end if
 
         write_count = 0
+        write_count_sum = 0
         if ((tSplitPops .and. bNodeRoot) .or. iProcIndex == root) then
 
             ! For a binary popsfile, the actual data is stored more
@@ -1586,7 +1591,11 @@ outer_map:      do i = 0, MappingNIfD
                 call get_unique_filename('POPSFILEHEAD', tIncrementPops, &
                                          .true., iPopsFileNoWrite, popsfile)
                 iunit = get_free_unit()
-                open(iunit, file=popsfile, status='replace')
+                ! We set recl=50000, which allows the line length written to be
+                ! up to 50000 characters long. This allows popsfiles to be
+                ! written in jobs with up to around 2940 MPI processes (the
+                ! default value caused crashes when using over 2000 processes).
+                open(iunit, file=popsfile, status='replace', recl=50000)
                 call write_popsfile_header (iunit, write_count_sum, &
                                             WalkersonNodes)
                 close(iunit)
