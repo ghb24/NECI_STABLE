@@ -268,7 +268,10 @@ contains
 
         end do
 
-        call MPIBarrier(ierr)
+        ! Don't time the mpi_barrier call, because if we did then we wouldn't
+        ! be able separate out some of the core Hamiltonian creation time from
+        ! the MPIBarrier calls in the main loop.
+        call MPIBarrier(ierr, tTimeIn=.false.)
 
         deallocate(temp_store, stat=ierr)
         call LogMemDealloc(t_r, TempStoreTag, ierr)
