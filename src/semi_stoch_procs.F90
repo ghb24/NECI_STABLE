@@ -530,6 +530,9 @@ contains
                 end do
                 write(iunit, '()')
             end do
+
+            call neci_flush(iunit)
+            close(iunit)
         end if
 
         call MPIBarrier(ierr)

@@ -28,7 +28,7 @@ module semi_stoch_gen
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
 
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIArg, MPIAllGatherV, &
-                             MPIAllGather, MPIScatter, MPIScatterV
+                             MPIAllGather, MPIScatter, MPIScatterV, MPIBarrier
     use ParallelHelper, only: root
     use ras
     use semi_stoch_procs
@@ -65,6 +65,8 @@ contains
 #ifdef __CMPLX
         call stop_all(t_r, "Semi-stochastic has not been implemented with complex coefficients.")
 #endif
+
+        call MPIBarrier(ierr, tTimeIn=.false.)
 
         call set_timer(SemiStoch_Init_Time)
 
@@ -174,6 +176,10 @@ contains
         TotWalkersOld = TotWalkers
 
         if (tStartCoreGroundState .and. (.not. tReadPops)) call start_walkers_from_core_ground()
+
+        ! Call MPIBarrier here so that Semistoch_Init_Time will give the
+        ! initialisation time for all processors to finish.
+        call MPIBarrier(ierr, tTimeIn=.false.)
 
         call halt_timer(SemiStoch_Init_Time)
 
