@@ -516,7 +516,7 @@ type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
         ! Use output_vector as temporary space.
         output_vector = input_vector
 
-        call MPIBarrier(ierr)
+        call MPIBarrier(ierr, tTimeIn=.false.)
 
         call MPIBCast(output_vector)
 
