@@ -3503,7 +3503,7 @@ MODULe nElRDMMod
         real(dp) :: AllAccumRDMNorm_Inst
         logical :: tmake_herm
         real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity
-        integer :: ierr,i
+        integer :: ierr
 
 
         ! If Iter = 0, this means we have just read in the TwoRDM_POPS_a*** matrices into a***_RDM_full, and 
@@ -3537,13 +3537,9 @@ MODULe nElRDMMod
             ! the energy update cycle).
             ! Whereas TwoElRDM_full is accumulated over the entire run.
             if(tRDMInstEnergy .and. (iProcIndex.eq.0)) then
-                do i = 1,(SpatOrbs*(SpatOrbs-1))/2
-                    aaaa_RDM_full(:,i)=aaaa_RDM_full(:,i)+aaaa_RDM(:,i)
-                    abba_RDM_full(:,i)=abba_RDM_full(:,i)+abba_RDM(:,i)
-                enddo
-                do i = 1,(SpatOrbs*(SpatOrbs+1))/2
-                    abab_RDM_full(:,i)=abab_RDM_full(:,i)+abab_RDM(:,i)
-                enddo
+                aaaa_RDM_full(:,:)=aaaa_RDM_full(:,:)+aaaa_RDM(:,:)
+                abab_RDM_full(:,:)=abab_RDM_full(:,:)+abab_RDM(:,:)
+                abba_RDM_full(:,:)=abba_RDM_full(:,:)+abba_RDM(:,:)
             endif
 
             AllAccumRDMNorm_Inst = 0.0_dp
@@ -6446,7 +6442,7 @@ MODULe nElRDMMod
            
 !            InstSignI=partial_determ_vector(i)
             ! Use the first index as a placeholder for now, but needs to be fixed. NSB
-            AvSignI=full_determ_vector_av(1,determ_proc_indices(iProcIndex)+i)
+            AvSignJ=full_determ_vector_av(inum_runs,core_connections(i)%positions(j))
 
             CALL decode_bit_det(nI,iLutI)
                         

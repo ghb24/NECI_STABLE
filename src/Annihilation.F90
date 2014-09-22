@@ -1664,7 +1664,7 @@ MODULE AnnihilationMod
                     end if
                 end if
                 
-                if(tFillingStochRDMonFly) then
+                if(tFillingStochRDMonFly .and. (.not. tIsStateDeterm)) then
                     if(inum_runs.eq.2) then
 
                         if(((CurrentSign(1).eq.0).and.(CurrentH(2+lenof_sign,i).ne.0)) .or. &
@@ -1674,11 +1674,11 @@ MODULE AnnihilationMod
                                
                             !At least one of the signs has just gone to zero or just become reoccupied
                             !so we need to consider adding in diagonal elements and connections to HF
-                            !The block that's just ended was occupied in at least one population.          
+                            !The block that's just ended was occupied in at least one population.
                             call det_removed_fill_diag_rdm(CurrentDets(:,i), CurrentH(1:NCurrH,i))
                         endif
                     else
-                        if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
+                        if (IsUnoccDet(CurrentSign)) then
                             call det_removed_fill_diag_rdm(CurrentDets(:,i), CurrentH(1:NCurrH,i))
                         endif
                     endif
