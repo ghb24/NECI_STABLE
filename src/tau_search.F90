@@ -9,7 +9,7 @@ module tau_search
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
-                         ProjEDet, ilutRef
+                         ProjEDet, ilutRef, MaxTau
     use GenRandSymExcitNUMod, only: construct_class_counts, &
                                     init_excit_gen_store, clean_excit_gen_store
     use SymExcit3, only: GenExcitations3
@@ -278,6 +278,9 @@ contains
         tau_death = 1.0_dp / max_death_cpt
         if (tau_death < tau_new) &
             tau_new = tau_death
+
+        ! And a last sanity check/hard limit
+        tau_new = min(tau_new, MaxTau)
 
         ! If the calculated tau is less than the current tau, we should ALWAYS
         ! update it. Once we have a reasonable sample of excitations, then we
