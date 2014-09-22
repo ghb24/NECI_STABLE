@@ -26,10 +26,10 @@ MODULE Calc
     use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
                         tSpawnProp, nClustSelections, tExactEnergy,     &
                         dClustSelectionRatio,tSharedExcitors
-    use FciMCData, only: tTimeExit,MaxTimeExit, &
-                         InputDiagSft,tSearchTau,nWalkerHashes,tHashWalkerList,HashLengthFrac, &
-                         tTrialHash, tIncCancelledInitEnergy, tStartCoreGroundState, &
-                         pParallel
+    use FciMCData, only: tTimeExit,MaxTimeExit, InputDiagSft, tSearchTau, &
+                         nWalkerHashes, tHashWalkerList, HashLengthFrac, &
+                         tTrialHash, tIncCancelledInitEnergy, MaxTau, &
+                         tStartCoreGroundState, pParallel
     use semi_stoch_gen, only: core_ras
 
     implicit none
@@ -331,6 +331,7 @@ contains
 
           tSurvivalInitiatorThreshold = .false.
           nItersInitiator = 100
+          MaxTau = 1.0_dp
 
       
         end subroutine SetCalcDefaults
@@ -971,6 +972,12 @@ contains
                 else
                     tSearchTau = .false.
                 end if
+
+            case("MAX-TAU")
+                ! For tau searching, set a maximum value of tau. This places
+                ! a limit to prevent craziness at the start of a calculation
+                call getf(MaxTau)
+
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
                 call geti(MaxWalkerBloom)
