@@ -6441,7 +6441,6 @@ MODULe nElRDMMod
             if(DetBitEq(iLutI,iLutHF_True,NifDBO)) cycle  !Connections to HF done elsewhere.
            
 !            InstSignI=partial_determ_vector(i)
-            ! Use the first index as a placeholder for now, but needs to be fixed. NSB
             AvSignI=full_determ_vector_av(1,determ_proc_indices(iProcIndex)+i)
 
             CALL decode_bit_det(nI,iLutI)
@@ -6460,8 +6459,7 @@ MODULe nElRDMMod
                  !Connections to HF done elsewhere.
                  
 !                 InstSignJ=full_determ_vector(core_connections(i)%positions(j))
-                 ! Use the first index as a placeholder for now, but needs to be fixed. NSB
-                 AvSignJ=full_determ_vector_av(1,core_connections(i)%positions(j))
+                 AvSignJ=full_determ_vector_av(inum_runs,core_connections(i)%positions(j))
           
 
                  connect_elem=core_connections(i)%elements(j)
