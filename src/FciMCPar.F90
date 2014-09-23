@@ -169,6 +169,7 @@ MODULE FciMCParMod
     use fcimc_helper
     use tau_search, only: init_tau_search, log_spawn_magnitude, update_tau, &
                           log_death_magnitude
+    use global_det_data, only: init_global_det_data, clean_global_det_data
 
     implicit none
 
@@ -5811,28 +5812,7 @@ MODULE FciMCParMod
             ! Allocate storage for persistent data to be stored alongside
             ! the current determinant list (particularly diagonal matrix
             ! elements, i.e. CurrentH).
-            if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
-                ! If calculating the RDMs stochastically, need to include the 
-                ! average sign and the iteration it became occupied in the
-                ! CurrentH array (with the Hii elements).
-                ! Need to store this for each set of walkers if we're doing a
-                ! double run.
-                ALLOCATE(WalkVecH(1+2*lenof_sign,MaxWalkersPart),stat=ierr)
-                CALL LogMemAlloc('WalkVecH',(1+2*lenof_sign)*MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-                WalkVecH(:,:)=0.0_dp
-                MemoryAlloc=MemoryAlloc+8*MaxWalkersPart*(1+2*lenof_sign)
-                WRITE(6,"(A)") " The average current signs before death will be stored for use in the RDMs."
-                WRITE(6,"(A,F14.6,A)") " This requires ", &
-                    real(MaxWalkersPart*8*2*lenof_sign,dp)/1048576.0_dp, &
-                            " Mb/Processor"
-                NCurrH = 1+2*lenof_sign
-            else
-                ALLOCATE(WalkVecH(1,MaxWalkersPart),stat=ierr)
-                CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-                WalkVecH(:,:)=0.0_dp
-                MemoryAlloc=MemoryAlloc+8*MaxWalkersPart
-                NCurrH = 1
-            endif
+            call init_global_det_data()
 
             !if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
             if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
@@ -7211,8 +7191,6 @@ MODULE FciMCParMod
         if (tHistExcitToFrom) call clean_hist_excit_tofrom()
         DEALLOCATE(WalkVecDets)
         CALL LogMemDealloc(this_routine,WalkVecDetsTag)
-        DEALLOCATE(WalkVecH)
-        CALL LogMemDealloc(this_routine,WalkVecHTag)
         DEALLOCATE(SpawnVec)
         CALL LogMemDealloc(this_routine,SpawnVecTag)
         DEALLOCATE(SpawnVec2)
@@ -7261,6 +7239,9 @@ MODULE FciMCParMod
         IF(tRDMonFly) CALL DeallocateRDM()
         if (allocated(refdetflip)) deallocate(refdetflip)
         if (allocated(ilutrefflip)) deallocate(ilutrefflip)
+
+        ! Cleanup global storage
+        call clean_global_det_data()
 
         ! Cleanup excitation generation storage
         call clean_excit_gen_store (fcimc_excit_gen_store)
