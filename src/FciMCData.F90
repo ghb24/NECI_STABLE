@@ -363,6 +363,7 @@ MODULE FciMCData
 
       !Tau searching variables
       logical :: tSearchTau
+      real(dp) :: MaxTau
 
       !Variables for diagonalisation of the walker subspace
       integer :: unitWalkerDiag

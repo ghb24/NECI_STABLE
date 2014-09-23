@@ -6168,15 +6168,9 @@ MODULE FciMCParMod
         ! deterministic space, finding their processors, ordering them, inserting them into
         ! CurrentDets, calculating and storing all Hamiltonian matrix elements and initalising all
         ! arrays required to store and distribute the vectors in the deterministic space later.
-        if (tSemiStochastic) then
-            if(inum_runs.eq.2 .and. tRDMonFly) call stop_all('InitFCIMCCalcPar','Cannot yet do SS and double &
-                    &run simultaneously with RDMs. In addition to other things, need to deal with &
-                    &fill_RDM_offdiag_deterministic().')
-            call init_semi_stochastic()
-        endif
+        if (tSemiStochastic) call init_semi_stochastic()
 
-
-       if (tSpawnSpatialInit .and. (inum_runs.eq.2)) call stop_all('InitFCIMCCalcPar', &
+        if (tSpawnSpatialInit .and. (inum_runs.eq.2)) call stop_all('InitFCIMCCalcPar', &
                     & "Double run not set up to use with tSpawnSpatialInit.  e.g. likely problem with rm_initiator_list")
 
         ! Initialise the trial wavefunction information which can be used for the energy estimator.
