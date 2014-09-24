@@ -1426,6 +1426,7 @@ MODULE AnnihilationMod
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
+                if (DetBitEQ(CurrentDets(:,i), iLutHF_True, NIfDBO)) InstNoAtHF=CurrentSign
                 if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
 
                 IF(IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then

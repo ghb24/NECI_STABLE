@@ -737,7 +737,7 @@ MODULE FciMCParMod
         integer(kind=n_int) :: iLutnJ(0:niftot)
         integer :: IC, walkExcitLevel, walkExcitLevel_toHF, ex(2,2), TotWalkersNew, part_type
         integer(int64) :: tot_parts_tmp(lenof_sign)
-        logical :: tParity, tSuccess
+        logical :: tParity, tSuccess, tCoreDet
         real(dp) :: prob, HDiagCurr, TempTotParts, Di_Sign_Temp
         real(dp) :: RDMBiasFacCurr
         real(dp), dimension(lenof_sign) :: AvSignCurr, IterRDMStartCurr
@@ -770,6 +770,7 @@ MODULE FciMCParMod
         HighPopPos=1
         parent_flags=0
         FlagsCurr=0
+        tCoreDet = .false.
         ! Synchronise processors
 !        CALL MPIBarrier(error)
 
@@ -880,6 +881,7 @@ MODULE FciMCParMod
             ! If this state is in the deterministic space.
             if (tSemiStochastic) then
                 if (test_flag(CurrentDets(:,j), flag_deterministic)) then
+                    tCoreDet = .true.
 
                     ! Store the index of this state, for use in annihilation later.
                     indices_of_determ_states(determ_index) = gen_ind
@@ -906,8 +908,7 @@ MODULE FciMCParMod
                             ! connections to the (true) HF determinant.
 
                             call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, &
-                                        CurrentH(1:NCurrH,gen_ind), walkExcitLevel_toHF, &
-                                        test_flag(CurrentDets(:,j), flag_deterministic)) 
+                                        CurrentH(1:NCurrH,gen_ind), walkExcitLevel_toHF, .true.)
                         endif
                         cycle
                     end if
@@ -1076,7 +1077,7 @@ MODULE FciMCParMod
             if (tSemiStochastic) then
                 ! If we are performing a semi-stochastic simulation and this state is in the
                 ! deterministic space, then the death step is performed deterministically later.
-                if (.not. test_flag(CurrentDets(:,j), flag_deterministic)) then
+                if (.not. tCoreDet) then
                     call walker_death (iter_data, DetCurr, &
                                        CurrentDets(:,j), HDiagCurr, SignCurr, &
                                        AvSignCurr, IterRDMStartCurr, VecSlot, j, WalkExcitLevel)
@@ -1098,7 +1099,7 @@ MODULE FciMCParMod
 
             if(tFill_RDM .and. (.not. tNoNewRDMContrib)) then
                 call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, CurrentH(1:NCurrH,gen_ind), &
-                & walkExcitLevel_toHF, test_flag(CurrentDets(:,j), flag_deterministic))
+                                            walkExcitLevel_toHF, tCoreDet)
             endif
         
         enddo ! Loop over determinants.
