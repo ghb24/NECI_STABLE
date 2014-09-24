@@ -231,12 +231,12 @@ Note that this assumes that the mean stored in the Data class corresponds to
 that of the current set of data.'''
 
         # cov(X,Y) = E[(X-\mu_X)(Y-\mu_Y)]
-        #          = 1/N \sum_i=1^N (X_i - \mu_X)(Y_i -\mu_Y)
+        #          = 1/(N-1) \sum_i=1^N (X_i - \mu_X)(Y_i -\mu_Y)
 
         cov = 0
         for x in range(len(self.data[i].data)):
             cov += (self.data[i].data[x] - self.data[i].stats[-1].mean)*(self.data[j].data[x] - self.data[j].stats[-1].mean)
-        return cov/len(self.data[i].data)
+        return cov/(len(self.data[i].data)-1)
 
     def calculate_combination_division(self, i, j):
         '''Find the mean and standard error of f, where f = X_i/X_j, where X_i is the i-th data set and similarly for X_j.
