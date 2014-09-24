@@ -79,7 +79,7 @@ contains
         elseif (tOptimisedTrial) then
             call generate_optimised_core(called_from_trial)
         elseif (tPopsTrial) then
-            call generate_space_from_pops(called_from_trial)
+            call generate_space_most_populated(called_from_trial, n_trial_pops)
         elseif (tReadTrial) then
             call generate_space_from_file(called_from_trial)
         elseif (tLowETrial) then

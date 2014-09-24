@@ -91,7 +91,8 @@ MODULE FciMCParMod
                            compare_amps_period, tNoNewRDMContrib, &
                            log_cont_time_survivals, tNoWarnIC0Bloom, &
                            tLogPopsMaxTau, tFCIMCStats2, tHistExcitToFrom, &
-                           tSpawnGhostChild,GhostThresh, tFullHFAv
+                           tSpawnGhostChild, GhostThresh, tFullHFAv, &
+                           tWriteCoreEnd, write_end_core_size
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
@@ -152,7 +153,8 @@ MODULE FciMCParMod
                          zero_rdms, store_parent_with_spawned, &
                          fill_rdm_diag_currdet_norm, calc_rdmbiasfac
     use determ_proj, only: perform_determ_proj
-    use semi_stoch_gen, only: init_semi_stochastic, enumerate_sing_doub_kpnt
+    use semi_stoch_gen, only: init_semi_stochastic, enumerate_sing_doub_kpnt, &
+                              write_most_populated_core_at_end
     use semi_stoch_procs, only: deterministic_projection, return_most_populated_states, &
                                 end_semistoch, is_core_state, return_mp1_amp_and_mp2_energy, &
                                 recalc_core_hamil_diag
@@ -540,6 +542,10 @@ MODULE FciMCParMod
                 CALL MPIBarrier(error)
             ENDIF
         ENDIF
+
+        ! If requested, write the most populated states in CurrentDets to a
+        ! CORESPACE file, for use in future semi-stochastic calculations.
+        if (tWriteCoreEnd) call write_most_populated_core_at_end(write_end_core_size)
 
         IF(tHistSpawn) CALL WriteHistogram()
 
@@ -1092,7 +1098,7 @@ MODULE FciMCParMod
 
             if(tFill_RDM .and. (.not. tNoNewRDMContrib)) then
                 call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, CurrentH(1:NCurrH,gen_ind), &
-                & walkExcitLevel_toHF, test_flag(CurrentDets(:,j), flag_deterministic))  
+                & walkExcitLevel_toHF, test_flag(CurrentDets(:,j), flag_deterministic))
             endif
         
         enddo ! Loop over determinants.

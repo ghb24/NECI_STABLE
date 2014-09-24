@@ -139,6 +139,8 @@ MODULE Logging
       binarypops_min_weight = 0
       tSplitPops = .false.
       tWriteCore = .false.
+      tWriteCoreEnd = .false.
+      write_end_core_size = 0
       tWriteTrial = .false.
       tCompareTrialAmps = .false.
       compare_amps_period = 0
@@ -969,6 +971,12 @@ MODULE Logging
         case("WRITE-CORE")
             ! Output the semi-stochastic core space to a file.
             tWriteCore = .true.
+
+        case("WRITE-MOST-POP-CORE-END")
+            ! At the end of a calculation, find the write_end_core_size most
+            ! populated determinants and write them to a CORESPACE file.
+            tWriteCoreEnd = .true.
+            call readi(write_end_core_size)
 
         case("WRITE-TRIAL")
             ! Output the trial wavefunction space to a file.
