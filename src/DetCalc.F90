@@ -361,7 +361,7 @@ CONTAINS
       use util_mod, only: get_free_unit
       use Determinants , only : get_helement,FDet
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
-      use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot,tMomInv
+      use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot
       use IntegralsData, only: FCK,NMAX, UMat
       Use LoggingData, only: iLogging,tHistHamil,tLogDets, tCalcVariationalEnergy
       use SystemData, only  : tCSFOLD
@@ -770,114 +770,6 @@ CONTAINS
                 ENDIF
             enddo
 
-!            if(tMomInv.and..false.) then    
-!                !These are some tests for the MomInv functions. Off and commented out by default
-!                PairedUnit = get_free_unit()
-!                open(PairedUnit,file='LzPairedDets',status='unknown')
-!                SelfInvUnit = get_free_unit()
-!                open(SelfInvUnit,file='SelfInvDet',status='unknown')
-!                do i=1,Det
-!                    if(abs(FCIGS(i)).lt.1.0e-8_dp) cycle
-!                    !Ignore if self-inverse
-!                    if(IsBitMomSelfInv(FCIDets(:,i))) then
-!                        call decode_bit_det(TempnI,FCIDets(:,i))
-!                        write(SelfInvUnit,"(I16,6I4,G19.8)") FCIDets(0:NIfD,i),TempnI(:),FCIGS(i)
-!                        cycle
-!                    endif
-!                    
-!                    IC = FindBitExcitLevel(iLut,FCIDets(:,i),nel)
-!                    !Decode
-!                    call decode_bit_det(TempnI,FCIDets(:,i))
-!
-!                    !Find inverse det
-!                    call InvertMomDet(TempnI,MomSymDet)
-!
-!                    !Encode
-!                    call EncodeBitDet(MomSymDet,iLutMomSym)
-!
-!                    !Find excit level of mom sym det
-!                    ICSym = FindBitExcitLevel(iLut,iLutMomSym,nel)
-!
-!                    !Search for it...
-!                    if(ICSym.eq.nel) then
-!                        call BinSearchParts2(iLutMomSym,FCIDetIndex(ICSym),Det,Ind,tSuccess)
-!                    elseif(ICSym.eq.0) then
-!                        call stop_all(this_routine,"HF det is not self-inverse?!")
-!                    else
-!                        call BinSearchParts2(iLutMomSym,FCIDetIndex(ICSym),FCIDetIndex(ICSym+1)-1,Ind,tSuccess)
-!                    endif
-!                    if(.not.tSuccess) then
-!                        call stop_all(this_routine,"Sym partner not found")
-!                    endif
-!                    ICConnect = FindBitExcitLevel(FCIDets(:,i),iLutMomSym,nel)
-!                    write(PairedUnit,"(2I16,15I4,2G19.8)") FCIDets(0:NIfD,i),
-                        !iLutMomSym(0:NIfD),TempnI(:),MomSymDet(:),IC,ICSym,ICConnect,FCIGS(i),FCIGS(Ind)
-!                enddo
-!                close(PairedUnit)
-!                close(SelfInvUnit)
-!
-!                call TestMomInvInts() 
-!
-!            endif
-
-!This will sort the determinants into ascending order, for quick binary searching later on.
-!            IF(.not.tFindDets) THEN
-!                CALL SortBitDetswH(Det,FCIDets(0:NIfD,1:Det),NIfD,temp,FCIGS)
-!            ELSE
-!                CALL SortBitDets(Det,FCIDets(0:NIfD,1:Det),NIfD,temp)
-!
-!            ENDIF
-
-!DEBUGGING CODE - NOT FOR USE
-!            OPEN(23,FILE='SpinCoupDets',STATUS='UNKNOWN')
-!            do i=1,Det
-!                CALL FindExcitBitDetSym(FCIDets(0:NIfD,i),iLutSym(0:NIfD))
-!                Found=.false.
-!                do j=1,Det
-!                    IF(DetBitEQ(iLutSym,FCIDets(0:NIfDBO,j))) THEN
-!                        Found=.true.
-!                        EXIT
-!                    ENDIF
-!                enddo
-!                IF(.not.Found) THEN
-!                    WRITE(6,*) i,FCIDets(0:NIfDBO,i),iLutSym(0:NIfDBO)
-!                    CALL Stop_All("DetCalc","Cannot find spin-coupled determinant")
-!                ELSE
-!                    CALL CalcOpenOrbs(FCIDets(:,i),OpenOrbs)
-!                    CALL CalcOpenOrbs(iLutSym(:),OpenOrbsSym)
-!                    IF(OpenOrbs.ne.OpenOrbsSym) THEN
-!                        CALL Stop_All("DetCalc","Error here")
-!                    ENDIF
-!
-!                    IF(TestClosedShellDet(FCIDets(:,i))) THEN
-!                            WRITE(6,*) "Get Here"
-!                            CALL DecodeBitDet(nK,FCIDets(0:NIfDBO,i))
-!!                            CALL DecodeBitDet(nJ,FCIDets(0:NIfDBO,j))
-!                            IF(.not.DetBitEQ(FCIDets(0:NIfDBO,1),FCIDets(0:NIfDBO,i),NIfDBO)) THEN
-!                                CALL HPHFGetOffDiagHElement(NMRKS(1:NEl,1),nK,MatEl)
-!                            ENDIF
-!                            CALL HPHFGetDiagHElement(nK,MatEl2)
-!!                            WRITE(23,"(A,2I14,3G20.10,I5,2G20.10)") "Closed ",FCIDets(0:NIfD,i),iLutSym(:),
-                            !FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs,MatEl,MatEl2
-!!                        WRITE(23,"(A,2I14,3G20.10,I5)") "Closed ",FCIDets(0:NIfD,i),iLutSym(:),FCIGS(i),
-                                !FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs
-!                    ELSE
-!                        IF(abs(FCIGS(i)).gt.1.0e-5_dp) THEN 
-!!Find Hi0 element
-!                            CALL DecodeBitDet(nK,FCIDets(0:NIfDBO,i))
-!!                            CALL DecodeBitDet(nJ,FCIDets(0:NIfDBO,j))
-!                            CALL HPHFGetOffDiagHElement(NMRKS(1:NEl,1),nK,MatEl)
-!                            CALL HPHFGetDiagHElement(nK,MatEl2)
-!!                            Ex(1,1)=NEl
-!!                            CALL GETEXCITATION(nJ,nK,NEl,Ex,TSign)
-!                            WRITE(23,"(A,3I14,3G20.10,I5,2G20.10)") "Open   ",i,FCIDets(0:NIfD,i),iLutSym(:),i
-                                        !FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs,MatEl,MatEl2
-!                        ENDIF
-!                    ENDIF
-!                ENDIF
-!            enddo
-!            CLOSE(23)
-            
             IF(tEnergy) THEN
                 IF(tLogDETS.and.iProcIndex.eq.0) THEN
                     iunit = get_free_unit()

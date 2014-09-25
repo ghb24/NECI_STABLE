@@ -3,7 +3,7 @@
 MODULE PopsfileMod
 
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin, &
-                          tMomInv, AB_elec_pairs, par_elec_pairs
+                          AB_elec_pairs, par_elec_pairs
     use CalcData, only: tTruncInitiator, DiagSft, tWalkContGrow, nEquilSteps, &
                         ScaleWalkers, tReadPopsRestart, &
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
@@ -263,8 +263,6 @@ contains
                     call decode_bit_det (TempnI, dets(:,i))
                     if (tHPHF) then
                         HElemTemp = hphf_diag_helement (TempnI,Dets(:,i))
-                    elseif(tMomInv) then
-                        HElemTemp = MI_diag_helement(TempnI,Dets(:,i))
                     else
                         HElemTemp = get_helement (TempnI, TempnI, 0)
                     endif
@@ -2240,8 +2238,6 @@ outer_map:      do i = 0, MappingNIfD
                 ! Recalculate the reference E
                 if (tHPHF) then
                     HElemTemp = hphf_diag_helement (ProjEDet, iLutRef)
-                elseif(tMomInv) then
-                    HElemTemp = MI_diag_helement(ProjEDet,iLutRef)
                 else
                     HElemTemp = get_helement (ProjEDet, ProjEDet, 0)
                 endif
@@ -2271,8 +2267,6 @@ outer_map:      do i = 0, MappingNIfD
                 if (tHPHF) then
                     HElemTemp = hphf_diag_helement (TempnI, &
                                                     CurrentDets(:,j))
-                elseif(tMomInv) then
-                    HElemTemp = MI_diag_helement(TempnI,CurrentDets(:,j))
                 else
                     HElemTemp = get_helement (TempnI, TempnI, 0)
                 endif
