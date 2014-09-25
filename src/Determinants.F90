@@ -143,7 +143,6 @@ contains
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
         use IntegralsData, only: nfrozen
         use sym_mod
-        use MomInv, only: SetupMomInv
       
       real(dp) DNDET
       integer i,j

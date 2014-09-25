@@ -363,7 +363,7 @@ CONTAINS
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot
       use IntegralsData, only: FCK,NMAX, UMat
-      Use LoggingData, only: iLogging,tHistHamil,tLogDets, tCalcVariationalEnergy
+      Use LoggingData, only: iLogging,tLogDets, tCalcVariationalEnergy
       use SystemData, only  : tCSFOLD
       use Parallel_neci, only : iProcIndex
       use DetBitops, only: DetBitEQ,EncodeBitDet,FindBitExcitLevel
@@ -373,7 +373,6 @@ CONTAINS
       use sym_mod
       use HElem
       use MemoryManager, only: TagIntType
-      use MomInv, only : IsBitMomSelfInv,InvertMomDet  
       use hist_data, only: tHistSpawn
 
       real(dp) , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
@@ -446,37 +445,6 @@ CONTAINS
 !C..Now we store HAMIL and LAB 
          CALL DETHAM(NDET,NEL,NMRKS,HAMIL,LAB,NROW,.FALSE.,ICMAX,GC,TMC)
       
-         IF(tHistHamil) THEN
-!We are storing the entire hamiltonain in expanded form, to histogram against in the spawning routines.
-             ALLOCATE(ExpandedHamil(NDet,NDet),stat=ierr)
-             IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold ExpandedHamil")
-             DO I=1,NDet
-                DO J=1,NDet
-                   ExpandedHamil(I,J)=0.0_dp
-                ENDDO
-             ENDDO
-             IND=1
-             INDZ=1
-             DO I=1,NDet
-                INDZ=INDZ+NROW(I)
-                DO WHILE (IND.LT.INDZ)
-                   ExpandedHamil(I,LAB(IND))=REAL(HAMIL(IND),dp)
-                   ExpandedHamil(LAB(IND),I)=REAL(HAMIL(IND),dp)
-                   IND=IND+1
-                ENDDO
-             ENDDO
-             iunit = get_free_unit()
-             OPEN(iunit,FILE='FULLHAMIL',STATUS='UNKNOWN')
-             DO I=1,NDET
-                 DO J=1,NDET
-                     WRITE(iunit,*) J,I,ExpandedHamil(J,I)
-                 ENDDO
-                 WRITE(iunit,*) ""
-             ENDDO
-             CLOSE(iunit)
-             DEALLOCATE(ExpandedHamil)
-         ENDIF
-
          IF(BTEST(ILOGGING,7)) THEN
 !C.. we write out H now
             iunit = get_free_unit()

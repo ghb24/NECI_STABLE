@@ -19,7 +19,6 @@ module fcimc_helper
     use hist, only: test_add_hist_spin_dist_det, add_hist_spawn, &
                     add_hist_energies, HistMinInd, tHistSpawn
     use hphf_integrals, only: hphf_off_diag_helement
-    use MI_integrals, only: MI_off_diag_helement
     use Logging, only: OrbOccs, tPrintOrbOcc, tPrintOrbOccInit, &
                        tHistSpinDist, tHistSpawn, tHistEnergies, &
                        RDMEnergyIter, tFullHFAv, &

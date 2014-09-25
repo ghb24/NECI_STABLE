@@ -23,27 +23,25 @@ MODULE FciMCParMod
                         flag_is_initiator, clear_all_flags, &
                         extract_sign, nOffSgn, flag_make_initiator, &
                         flag_parent_initiator, encode_sign, &
-                        decode_bit_det_chunks, &
                         clr_flag, flag_trial, flag_connected, nOffFlag, &
                         flag_deterministic, flag_determ_parent, clr_flag, &
                         extract_part_sign, encode_part_sign, encode_first_iter
     use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
                         OccCASorbs, VirtCASorbs, NEquilSteps,&
                         tReadPops, iFullSpaceIter, MaxNoAtHF,&
-                        GrowMaxFactor, CullFactor, tStartSinglePart, tCCMC, &
-                        ScaleWalkers, HFPopThresh, tTruncCAS, AvMCExcits, &
-                        tTruncInitiator, tDelayTruncInit, IterTruncInit, &
+                        tStartSinglePart, tCCMC, &
+                        HFPopThresh, tTruncCAS, AvMCExcits, &
+                        tTruncInitiator, &
                         NShiftEquilSteps, tWalkContGrow, &
-                        tAddToInitiator, InitiatorWalkNo, tInitIncDoubs, &
-                        tRetestAddtoInit, tReadPopsChangeRef, &
+                        tAddToInitiator, InitiatorWalkNo, &
                         tReadPopsRestart, tCheckHighestPopOnce, &
                         iRestartWalkNum, tRestartHighPop, FracLargerDet, &
                         tChangeProjEDet, tCheckHighestPop, tSpawnSpatialInit,&
                         MemoryFacInit, tMaxBloom, tTruncNOpen, tFCIMC, &
                         trunc_nopen_max, RealSpawnCutoff, &
                         TargetGrowRate, TargetGrowRateWalk, tShiftonHFPop, &
-                        tContinueAfterMP2,iExitWalkers,MemoryFacPart, &
-                        tAllRealCoeff, tRealCoeffByExcitLevel, tPopsMapping, &
+                        iExitWalkers,MemoryFacPart, &
+                        tAllRealCoeff, tRealCoeffByExcitLevel, &
                         RealCoeffExcitThresh, &
                         tRealSpawnCutoff, RealSpawnCutoff, tDetermProj, &
                         tJumpShift, tUseRealCoeffs, tSpatialOnlyHash, &
@@ -51,8 +49,6 @@ MODULE FciMCParMod
                         InitiatorCutoffEnergy, InitiatorCutoffWalkNo
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
-    use MomInvRandExcit, only: gen_MI_excit
-    use MomInv, only: IsMomSelfInv, CalcMomAllowedBitDet
     use Determinants, only: FDet, get_helement, write_det, &
                             get_helement_det_only, lexicographic_store, &
                             get_lexicographic_dets, DefDet
@@ -63,24 +59,18 @@ MODULE FciMCParMod
                                     ScratchSize1, ScratchSize2, ScratchSize3,&
                                     init_excit_gen_store,clean_excit_gen_store
     use GenRandSymExcitCSF, only: gen_csf_excit
-    use IntegralsData, only: fck, NMax, UMat, tPartFreezeCore, NPartFrozen, &
+    use IntegralsData, only: tPartFreezeCore, NPartFrozen, &
                              NHolesFrozen, tPartFreezeVirt, NVirtPartFrozen, &
                              NElVirtFrozen
     use LoggingData, only: iWritePopsEvery, TPopsFile, iPopsPartEvery, tBinPops, &
                            iWriteHistEvery, tHistEnergies, FCIMCDebug, &
-                           IterShiftBlock, AllHistInitPops, &
+                           AllHistInitPops, &
                            OffDiagBinRange, OffDiagMax, AllHistInitPopsTag, &
                            tLogComplexPops, tPrintFCIMCPsi, tCalcFCIMCPsi, &
-                           NHistEquilSteps, tPrintOrbOcc, StartPrintOrbOcc, &
-                           tPrintOrbOccInit, tHFPopStartBlock, tIterStartBlock, &
-                           IterStartBlocking, HFPopStartBlocking, &
-                           tInitShiftBlocking, tHistHamil, iWriteHamilEvery, &
+                           NHistEquilSteps, tPrintOrbOcc, &
                            HistInitPopsTag, OrbOccs, OrbOccsTag, &
-                           tPrintPopsDefault, iWriteBlockingEvery, &
-                           tBlockEveryIteration, tHistInitPops, HistInitPopsIter,&
-                           HistInitPops, DoubsUEG, DoubsUEGLookup, DoubsUEGStore,&
-                           tCalcInstantS2, &
-                           instant_s2_multiplier, tMCOutput, &
+                           tPrintPopsDefault, tHistInitPops, HistInitPops, &
+                           tCalcInstantS2, instant_s2_multiplier, tMCOutput, &
                            tDiagWalkerSubspace,iDiagSubspaceIter, &
                            tRDMonFly, IterRDMonFly,RDMExcitLevel, RDMEnergyIter, &
                            tChangeVarsRDM, tExplicitAllRDM, &
@@ -89,23 +79,20 @@ MODULE FciMCParMod
                            tJustBlocking, iBlockEquilShift, iBlockEquilProjE, &
                            tDiagAllSpaceEver, tCalcVariationalEnergy, tCompareTrialAmps, &
                            compare_amps_period, tNoNewRDMContrib, &
-                           log_cont_time_survivals, tNoWarnIC0Bloom, &
-                           tLogPopsMaxTau, tFCIMCStats2, tHistExcitToFrom, &
-                           tSpawnGhostChild, GhostThresh, tFullHFAv, &
+                           tFCIMCStats2, tHistExcitToFrom, &
+                           tSpawnGhostChild, GhostThresh, &
                            tWriteCoreEnd, write_end_core_size
     use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
                     hist_spin_dist, ilut_spindist, tHistSpinDist, &
                     write_clear_hist_spin_dist, hist_spin_dist_iter, &
-                    test_add_hist_spin_dist_det, add_hist_energies, &
-                    add_hist_spawn, tHistSpawn, AllHistogramEnergy, &
+                    tHistSpawn, AllHistogramEnergy, &
                     AllHistogram, HistogramEnergy, Histogram, AllInstHist, &
                     InstHist, HistMinInd, project_spins, calc_s_squared, &
                     project_spin_csfs, calc_s_squared_multi, &
                     calc_s_squared_star, init_hist_excit_tofrom, &
                     add_hist_excit_tofrom, write_zero_hist_excit_tofrom, &
                     clean_hist_excit_tofrom
-    use hist_data, only: beforenormhist, HistMinInd2, HistMinInd2, BinRange, &
-                         iNoBins
+    use hist_data, only: beforenormhist, HistMinInd2, BinRange, iNoBins
     USE SymData , only : nSymLabels, Sym_Psi
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE Parallel_neci
@@ -124,18 +111,11 @@ MODULE FciMCParMod
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
-    use MI_integrals, only: MI_diag_helement, MI_spawn_sign, &
-                            MI_off_diag_helement_spawn, MI_off_diag_helement
     use util_mod
     use constants
     use soft_exit, only: ChangeVars 
-    use FciMCLoggingMod, only: FinaliseBlocking, FinaliseShiftBlocking, &
-                               PrintShiftBlocking, PrintBlocking, &
-                               SumInErrorContrib, WriteInitPops, &
-                               InitErrorBlocking, InitShiftErrorBlocking, &
-                               SumInShiftErrorContrib
     use RotateOrbsMod, only: RotateOrbs
-    use NatOrbsMod, only: PrintOrbOccs,PrintDoubUEGOccs
+    use NatOrbsMod, only: PrintOrbOccs
     use spin_project, only: tSpinProject, spin_proj_interval, &
                             spin_proj_gamma, get_spawn_helement_spin_proj, &
                             generate_excit_spin_proj, attempt_die_spin_proj, &
@@ -485,9 +465,6 @@ MODULE FciMCParMod
             IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.0).and.(.not.tRDMonFly)) THEN
                 CALL WriteHistogram()
             ENDIF
-            IF(tHistHamil.and.(mod(Iter,iWriteHamilEvery).eq.0)) THEN
-                CALL WriteHamilHistogram()
-            ENDIF
             IF(tRDMonFly.and.(.not.tSinglePartPhase(1)).and. &
                         (.not.(tSinglePartPhase(inum_runs)))) THEN
                 ! If we wish to calculate the energy, have started accumulating the RDMs, 
@@ -549,7 +526,6 @@ MODULE FciMCParMod
 
         IF(tHistSpawn) CALL WriteHistogram()
 
-        IF(tHistHamil) CALL WriteHamilHistogram()
 
         IF(tHistEnergies) CALL WriteHistogramEnergies()
 
@@ -567,7 +543,7 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.Root) THEN
             CLOSE(fcimcstats_unit)
             if (inum_runs.eq.2) CLOSE(fcimcstats_unit2)
-            IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(initiatorstats_unit)
+            IF(tTruncInitiator) CLOSE(initiatorstats_unit)
             IF(tLogComplexPops) CLOSE(complexstats_unit)
         ENDIF
         IF(TDebug) CLOSE(11)
@@ -752,18 +728,6 @@ MODULE FciMCParMod
 
         call set_timer(Walker_Time,30)
 
-        IF(tDelayTruncInit.and.(Iter.ge.IterTruncInit)) THEN 
-            IF(Iter.eq.IterTruncInit) THEN
-                ! Why do this? Why not just get all procs to do division?
-                IF(iProcIndex.eq.root) THEN
-                    Tau=Tau/10.0_dp
-                    WRITE(iout,'(A,F10.5)') 'Beginning truncated initiator calculation and reducing timestep by " &
-                        &//"a factor of 10. New tau is : ',Tau
-                ENDIF
-                CALL MPIBCast(Tau)
-            ENDIF
-            tTruncInitiator=.true.
-        ENDIF
         MaxInitPopPos=0.0
         MaxInitPopNeg=0.0
         HighPopNeg=1
@@ -1318,8 +1282,7 @@ MODULE FciMCParMod
         ! connected to the reference det or not (so no ex. level above 2 is
         ! required). Except in some cases where we need to know the maximum
         ! excitation level
-        if (tTruncSpace .or. tHistSpawn .or. tCalcFCIMCPsi .or. &
-            tHistHamil) then
+        if (tTruncSpace .or. tHistSpawn .or. tCalcFCIMCPsi) then
             max_calc_ex_level = nel
         else
             max_calc_ex_level = 2
@@ -1374,11 +1337,7 @@ MODULE FciMCParMod
         bloom_max = 0
 
         ! Perform the correct statistics on new child particles
-        if (tHistHamil) then
-            new_child_stats => new_child_stats_hist_hamil
-        else
-            new_child_stats => new_child_stats_normal
-        endif
+        new_child_stats => new_child_stats_normal
 
         attempt_die => attempt_die_normal
 
@@ -1756,25 +1715,6 @@ MODULE FciMCParMod
             rat=Tau*abs(rh)/Prob
         ENDIF
         IF(CCMCDebug.gt.5) WRITE(iout,*) "Connection H-element to spawnee:",rh
-!        CALL IsSymAllowedExcit(DetCurr,nJ,IC,Ex,SymAllowed) 
-!        IF((.not.SymAllowed).and.(abs(rh).gt.0.0_dp)) THEN
-!            WRITE(17,*) rh
-!        ENDIF
-
-!        rhcheck=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
-!        IF(rh.ne.rhcheck) THEN
-!            WRITE(iout,*) "DetCurr: ",DetCurr(:)
-!            WRITE(iout,*) "nJ: ",nJ(:)
-!            WRITE(iout,*) "EX: ",Ex(1,:),Ex(2,:)
-!            WRITE(iout,*) "tParity: ",tParity
-!            STOP
-!        ENDIF
-
-!        IF(abs(rh).le.HEpsilon) THEN
-!            AttemptCreatePar=0
-!            RETURN
-!        ENDIF
-
 
 !If probability is > 1, then we can just create multiple children at the chosen determinant
         ExtraCreate=INT(rat)
@@ -2851,7 +2791,7 @@ MODULE FciMCParMod
             IF(iProcIndex.eq.Root) THEN
                 CLOSE(fcimcstats_unit)
                 if (inum_runs.eq.2) CLOSE(fcimcstats_unit2)
-                IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(initiatorstats_unit)
+                IF(tTruncInitiator) CLOSE(initiatorstats_unit)
                 IF(tLogComplexPops) CLOSE(complexstats_unit)
             ENDIF
             IF(TDebug) CLOSE(11)
@@ -3593,7 +3533,7 @@ MODULE FciMCParMod
         IF(iProcIndex.eq.root) THEN
 !Print out initial starting configurations
             WRITE(iout,*) ""
-            IF(tTruncInitiator.or.tDelayTruncInit) THEN
+            IF(tTruncInitiator) THEN
                 WRITE(initiatorstats_unit,"(A2,A10,11A20)") "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
                 & "5.Born","6.TotUniqDets",&
 &               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks"
@@ -3790,7 +3730,7 @@ MODULE FciMCParMod
                     AllTotWalkers, &
                     IterTime
             endif
-            if (tTruncInitiator .or. tDelayTruncInit) then
+            if (tTruncInitiator) then
                write(initiatorstats_unit,"(I12,4G16.7,3I20,4G16.7)")&
                    Iter + PreviousCycles, sum(AllTotParts), &
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
@@ -3912,7 +3852,7 @@ MODULE FciMCParMod
                     AllTotWalkers, &
                     IterTime
             endif
-            if (tTruncInitiator .or. tDelayTruncInit) then
+            if (tTruncInitiator) then
                write(initiatorstats_unit,"(I12,4G16.7,3I20,4G16.7)")&
                    Iter + PreviousCycles, AllTotParts(1), &
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
@@ -4094,7 +4034,7 @@ MODULE FciMCParMod
             ! frequently).
             ! This also makes column contiguity on resumes as likely as
             ! possible.
-            if (tTruncInitiator .or. tDelayTruncInit) &
+            if (tTruncInitiator) &
                 call stats_out(state,.false., AllNoAborted(1), 'No. aborted')
 
             ! And we are done
@@ -4270,7 +4210,7 @@ MODULE FciMCParMod
             endif
 
 
-            IF(tTruncInitiator.or.tDelayTruncInit) THEN
+            IF(tTruncInitiator) THEN
                 initiatorstats_unit = get_free_unit()
                 if (tReadPops) then
 ! Restart calculation.  Append to stats file (if it exists)
@@ -4831,7 +4771,7 @@ MODULE FciMCParMod
         iter_data_fciqmc%update_growth = 0.0_dp
         iter_data_fciqmc%update_iters = 0
  
-        IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC).or.tHistHamil) THEN
+        IF(tHistSpawn.or.(tCalcFCIMCPsi.and.tFCIMC)) THEN
             ALLOCATE(HistMinInd(NEl))
             ALLOCATE(HistMinInd2(NEl))
             maxdet=0
@@ -4843,33 +4783,15 @@ MODULE FciMCParMod
                 CALL Stop_All(t_r,"A Full Diagonalization is required before histogramming can occur.")
             ENDIF
 
-            IF(tHistHamil) THEN
-                WRITE(iout,*) "Histogramming total Hamiltonian, with Dets=", Det
-                ALLOCATE(HistHamil(1:det,1:det),stat=ierr)
-                IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays") 
-                HistHamil(:,:)=0.0_dp
-                ALLOCATE(AvHistHamil(1:det,1:det),stat=ierr)
-                IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
-                AvHistHamil(:,:)=0.0_dp
-                IF(iProcIndex.eq.0) THEN
-                    ALLOCATE(AllHistHamil(1:det,1:det),stat=ierr)
-                    IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
-                    AllHistHamil(:,:)=0.0_dp
-                    ALLOCATE(AllAvHistHamil(1:det,1:det),stat=ierr)
-                    IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
-                    AllAvHistHamil(:,:)=0.0_dp
-                ENDIF
-            ELSE
-                WRITE(iout,*) "Histogramming spawning wavevector, with Dets=", Det
-                ALLOCATE(Histogram(1:lenof_sign,1:det),stat=ierr)
-                IF(ierr.ne.0) THEN
-                    CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays ")
-                ENDIF
-                Histogram(:,:)=0.0_dp
-                ALLOCATE(AllHistogram(1:lenof_sign,1:det),stat=ierr)
-                ALLOCATE(BeforeNormHist(1:det),stat=ierr)
-                IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
+            WRITE(iout,*) "Histogramming spawning wavevector, with Dets=", Det
+            ALLOCATE(Histogram(1:lenof_sign,1:det),stat=ierr)
+            IF(ierr.ne.0) THEN
+                CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays ")
             ENDIF
+            Histogram(:,:)=0.0_dp
+            ALLOCATE(AllHistogram(1:lenof_sign,1:det),stat=ierr)
+            ALLOCATE(BeforeNormHist(1:det),stat=ierr)
+            IF(ierr.ne.0) CALL Stop_All("SetupParameters","Error assigning memory for histogramming arrays")
             IF(tHistSpawn) THEN
                 ALLOCATE(InstHist(1:lenof_sign,1:det),stat=ierr)
                 IF(ierr.ne.0) THEN
@@ -5658,11 +5580,6 @@ MODULE FciMCParMod
             write(iout,*) "POPSFILE VERSION ",PopsVersion," detected."
         endif
 
-        if(tPopsMapping.and.(PopsVersion.lt.3)) then
-            write(iout,*) "Popsfile mapping cannot work with old POPSFILEs"
-            call stop_all("InitFCIMCCalcPar","Popsfile mapping cannot work with old POPSFILEs")
-        endif
-
         ! Initialise measurement of norm, to avoid divide by zero
         norm_psi = 1.0_dp
 
@@ -6039,10 +5956,6 @@ MODULE FciMCParMod
 !Put a barrier here so all processes synchronise
         CALL MPIBarrier(error)
 
-        IF(tTruncInitiator.or.tDelayTruncInit) THEN
-            IF(tDelayTruncInit) tTruncInitiator=.false.
-        ENDIF
-
         IF(tPrintOrbOcc) THEN
             ALLOCATE(OrbOccs(nBasis),stat=ierr)
             CALL LogMemAlloc('OrbOccs',nBasis,8,this_routine,OrbOccsTag,ierr)
@@ -6117,7 +6030,6 @@ MODULE FciMCParMod
         use DetCalcData, only : NKRY,NBLK,B2L,nCycle
         use DetBitOps, only: FindBitExcitLevel
         use sym_mod , only : Getsym, writesym
-        use MomInv, only: IsAllowedMI 
         type(BasisFN) :: CASSym
         integer :: i, j, ierr, nEval, NKRY1, NBLOCK, LSCR, LISCR, DetIndex
         integer :: iNode, nBlocks, nBlockStarts(2), DetHash, Slot
@@ -6549,7 +6461,6 @@ MODULE FciMCParMod
 !Routine to initialise the particle distribution according to the MP1 wavefunction.
 !This hopefully will help with close-lying excited states of the same sym.
     subroutine InitFCIMC_MP1()
-        use MomInv, only: IsAllowedMI
         use Determinants, only: GetH0Element3,GetH0Element4
         use SymExcit3 , only : GenExcitations3
         use CalcData , only : InitialPart
@@ -7021,9 +6932,6 @@ MODULE FciMCParMod
         call MPISumAll(mp2,mp2all)
         write(iout,"(A,2G25.15)") "MP2 energy calculated: ",MP2All,MP2All+Hii
         call neci_flush(iout)
-        if (.not.tContinueAfterMP2) then
-            call stop_all("CalcUEGMP2","Dying after calculation of MP2 energy...")
-        endif
 
     end subroutine CalcUEGMP2
             
@@ -7098,14 +7006,6 @@ MODULE FciMCParMod
                 DEALLOCATE(AllSinglesHistVirtOcc)
                 DEALLOCATE(AllSinglesHistOccVirt)
                 DEALLOCATE(AllSinglesHistVirtVirt)
-            ENDIF
-        ENDIF
-        IF(tHistHamil) THEN
-            DEALLOCATE(HistHamil)
-            DEALLOCATE(AvHistHamil)
-            IF(iProcIndex.eq.0) THEN
-                DEALLOCATE(AllHistHamil)
-                DEALLOCATE(AllAvHistHamil)
             ENDIF
         ENDIF
         if (tHistSpinDist) call clean_hist_spin_dist()
@@ -7839,7 +7739,7 @@ SUBROUTINE ChangeRefDet(DetCurr)
     use DeterminantData, only: FDet
     use FciMCData, only: initiatorstats_unit, tDebug, iter, fcimcstats_unit, &
                          complexstats_unit, fcimcstats_unit2
-    use CalcData, only: tTruncInitiator, tDelayTruncInit
+    use CalcData, only: tTruncInitiator
     use SystemData, only: NEl
     use LoggingData, only: tLogComplexPops
     use Parallel_neci, only: iProcIndex, root
@@ -7860,7 +7760,7 @@ SUBROUTINE ChangeRefDet(DetCurr)
     IF(iProcIndex.eq.Root) THEN
         CLOSE(fcimcstats_unit)
         if(inum_runs.eq.2) CLOSE(fcimcstats_unit2)
-        IF(tTruncInitiator.or.tDelayTruncInit) CLOSE(initiatorstats_unit)
+        IF(tTruncInitiator) CLOSE(initiatorstats_unit)
         IF(tLogComplexPops) CLOSE(complexstats_unit)
     ENDIF
     IF(TDebug) CLOSE(11)

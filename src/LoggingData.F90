@@ -25,11 +25,11 @@ module LoggingData
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
     LOGICAL tTruncDumpbyVal, tChangeVarsRDM, tPrintRODump, tno_RDMs_to_read, tReadRDMs, tNoNewRDMContrib 
     LOGICAL tReadRDMAvPop
-    LOGICAL tWriteTransMat,tHistHamil,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit, tWriteMultRDMs
+    LOGICAL tWriteTransMat,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit, tWriteMultRDMs
     !LOGICAL tHF_S_D_Ref, tHF_S_D, tHF_Ref_Explicit, 
     LOGICAL tExplicitAllRDM, twrite_normalised_RDMs, twrite_RDMs_to_read 
     LOGICAL tNoNOTransform, tPrint1RDM, tPrintInitiators
-    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps,IterShiftBlock
+    INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps
     INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter, IterWriteRDMs 
     INTEGER CCMCDebug  !CCMC Debugging Level 0-6.  Default 0
     INTEGER FCIMCDebug !FciMC Debugging Level 0-6.  Default 0
@@ -38,7 +38,7 @@ module LoggingData
     LOGICAL tCCMCLogUniq !Do we log only unique clusters
     LOGICAL tSaveBlocking !Do not overwrite blocking files
     INTEGER iWriteBlockingEvery !How often to write out blocking files
-    INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs,iWriteHamilEvery
+    INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs
     INTEGER(TagIntType)  OrbOccsTag,HistInitPopsTag,AllHistInitPopsTag,NoTruncOrbsTag,TruncEvaluesTag
     INTEGER , ALLOCATABLE :: NoTruncOrbs(:),HistInitPops(:,:),AllHistInitPops(:,:)
     real(dp) , ALLOCATABLE :: TruncEvalues(:),OrbOccs(:),DoubsUEG(:,:,:,:),DoubsUEGLookup(:)
@@ -88,7 +88,7 @@ module LoggingData
     logical :: tHistExcitToFrom
 
     logical :: log_cont_time_survivals, tNoWarnIC0Bloom, tDumpHamilBinary, &
-               tDumpHamilOverlap, tLogTauSearchStats, tLogPopsMaxTau
+               tDumpHamilOverlap
     logical :: tFCIMCStats2
 
     !If we want to force the Cauchy--Schwarz inequality (e.g. if we know the 1RDM is undersampled)

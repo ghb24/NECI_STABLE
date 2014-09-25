@@ -24,14 +24,13 @@
                                ncon_occ, occ_trial_amps, occ_con_amps, &
                                trial_temp, con_temp, tTrialHash, iLutHF_True, &
                                iter
-        use SystemData, only: nel, tHPHF,tMomInv
+        use SystemData, only: nel, tHPHF
         use bit_rep_data, only: extract_sign, flag_trial, flag_connected
         use bit_reps, only: NIfTot, NIfDBO, decode_bit_det, test_flag, &
                             encode_first_iter
         USE Determinants , only : get_helement
         use DetBitOps, only: DetBitEQ
         use hphf_integrals, only: hphf_diag_helement
-        use MI_integrals, only: MI_diag_helement
         USE CalcData , only : tTruncInitiator, tTrialWavefunction
         USE HElem
         use constants, only: dp,n_int,lenof_sign
@@ -135,8 +134,6 @@
            call decode_bit_det (nJ, list2(:,i))
            if (tHPHF) then
                HDiagTemp = hphf_diag_helement (nJ, list2(:,i))
-           elseif(tMomInv) then
-               HDiagTemp = MI_diag_helement(nJ,list2(:,i))
            else
                HDiagTemp = get_helement (nJ, nJ, 0)
            endif

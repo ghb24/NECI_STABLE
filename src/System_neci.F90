@@ -191,6 +191,7 @@ MODULE System
       CHARACTER (LEN=100) w
       INTEGER I,Odd_EvenHPHF,Odd_EvenMI
       integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
+      character(len=*), parameter :: t_r='SysReadInput'
       
       ! The system block is specified with at least one keyword on the same
       ! line, giving the system type being used.

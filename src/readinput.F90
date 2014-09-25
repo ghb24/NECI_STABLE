@@ -176,7 +176,7 @@ MODULE ReadInput_neci
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
                             TNoSameExcit, TInitStar, tMP2Standalone, &
-                            GrowMaxFactor, MemoryFacPart, tTruncInitiator, &
+                            MemoryFacPart, tTruncInitiator, &
                             tSpawnSpatialInit, tSpatialOnlyHash, InitWalkers, &
                             tUniqueHFNode, InitiatorCutoffEnergy, tCCMC, &
                             tSurvivalInitiatorThreshold
@@ -186,7 +186,7 @@ MODULE ReadInput_neci
                                  tNoDoubs
         use IntegralsData, only: tDiagStarStars, tExcitStarsRootChange, &
                                  tRmRootExcitStarsRootChange, tLinRootChange
-        use LoggingData, only: iLogging, tCalcFCIMCPsi, tHistHamil, &
+        use LoggingData, only: iLogging, tCalcFCIMCPsi, &
                            tCalcInstantS2, tDiagAllSpaceEver, &
                            tCalcVariationalEnergy, tCalcInstantS2Init, &
                            tPopsFile
@@ -229,10 +229,6 @@ MODULE ReadInput_neci
         if (tCalcFCIMCPsi .or. tHistSpawn) then
            tFindDets = .true.
            tCompressDets = .true.
-        endif
-        if (tHistHamil) then
-            tCalcHMat = .true.
-            tCompressDets = .true.
         endif
 
         ! We need to have found the dets before calculating the H mat.

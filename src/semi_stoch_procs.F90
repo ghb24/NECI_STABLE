@@ -29,8 +29,6 @@ module semi_stoch_procs
     use hash, only: DetermineDetNode, FindWalkerHash
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
-    use MI_integrals, only: MI_off_diag_helement
-    use MomInv, only: IsAllowedMI
     use nElRDMMod, only: fill_RDM_offdiag_deterministic
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, MPIArg, &
                              MPIAllGatherV, MPISum, MPISumAll, MPIScatterV
