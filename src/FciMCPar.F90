@@ -770,7 +770,6 @@ MODULE FciMCParMod
         HighPopPos=1
         parent_flags=0
         FlagsCurr=0
-        tCoreDet = .false.
         ! Synchronise processors
 !        CALL MPIBarrier(error)
 
@@ -877,7 +876,8 @@ MODULE FciMCParMod
             else
                 gen_ind = VecSlot
             end if
-            
+
+            tCoreDet = .false.
             ! If this state is in the deterministic space.
             if (tSemiStochastic) then
                 if (test_flag(CurrentDets(:,j), flag_deterministic)) then
