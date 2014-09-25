@@ -866,7 +866,6 @@ MODULe nElRDMMod
         real(dp), dimension(lenof_sign), intent(out) :: SignI
         real(dp) , dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
         type(excit_gen_store_type), intent(inout), optional :: Store
-        integer :: part_ind
         
         ! This extracts everything.
         call extract_bit_rep (iLutnI, nI, SignI, FlagsI, store)
@@ -914,12 +913,12 @@ MODULe nElRDMMod
             ! NB: if doing single run cutoff, note that doing things this way is now
             ! NOT the same as the technique described in CMO (and DMC's) thesis.
             ! Would expect diagonal elements to be slightly worse quality, improving
-            ! as once calculates the RDM energy less frequently.  As this method is
+            ! as one calculates the RDM energy less frequently.  As this method is
             ! biased anyway, I'm not going to lose sleep over it.
-            AvSignI(1)=SignI(1)
-            IterRDMStartI(1)=real(Iter+PreviousCycles,dp)
-            AvSignI(2)=SignI(2)
-            IterRDMStartI(2)=real(Iter+PreviousCycles,dp)
+            do part_ind = 1, lenof_sign
+                AvSignI(part_ind)=SignI(part_ind)
+                IterRDMStartI(part_ind)=real(Iter+PreviousCycles,dp)
+            end do
         else
             !Now let's consider other instances in which we need to start a new block:
             if(inum_runs.eq.2) then

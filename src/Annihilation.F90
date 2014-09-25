@@ -1426,6 +1426,7 @@ MODULE AnnihilationMod
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
+                if (DetBitEQ(CurrentDets(:,i), iLutHF_True, NIfDBO)) InstNoAtHF=CurrentSign
                 if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
 
                 IF(IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
@@ -1445,9 +1446,11 @@ MODULE AnnihilationMod
                                     CurrentSign(j) = 0.0_dp
                                     call nullify_ilut_part(CurrentDets(:,i), j)
                                     call decode_bit_det(nI, CurrentDets(:,i))
-                                    call RemoveDetHashIndex(nI,i)
-                                    iEndFreeSlot=iEndFreeSlot+1
-                                    FreeSlot(iEndFreeSlot)=i
+                                    if (IsUnoccDet(CurrentSign)) then
+                                        call RemoveDetHashIndex(nI,i)
+                                        iEndFreeSlot=iEndFreeSlot+1
+                                        FreeSlot(iEndFreeSlot)=i
+                                    end if
                                 elseif (tEnhanceRemainder) then
                                     NoBorn(j) = NoBorn(j) + OccupiedThresh - abs(CurrentSign(j))
                                     iter_data%nborn(j) = iter_data%nborn(j) &

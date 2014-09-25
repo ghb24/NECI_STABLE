@@ -76,7 +76,8 @@ contains
 !        off = mod(flg, bits_n_int)
 
 !        bSet = btest(ilut(ind), off)
-        bSet = btest(ilut(NOffFlag), flg + flag_bit_offset)
+        bSet = .false.
+        if (tUseFlags) bSet = btest(ilut(NOffFlag), flg + flag_bit_offset)
 
     end function test_flag
 

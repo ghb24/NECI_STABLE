@@ -75,6 +75,11 @@ module LoggingData
     logical :: tWriteCore
     logical :: tWriteTrial
 
+    ! If true then, at the end of a calculation, find the write_end_core_size
+    ! most populated determinants and write them to a CORESPACE file.
+    logical :: tWriteCoreEnd
+    integer :: write_end_core_size
+
     ! If true, output to a file the FCIQMC amplitudes in the trial space against the amplitudes of the trial wavefunction.
     logical :: tCompareTrialAmps
     ! Output the above data to a file every compare_amps_period iterations.
