@@ -17,7 +17,7 @@ module semi_stoch_procs
                          count_set_bits, DetBitEq, sign_lt, sign_gt, IsAllowedHPHF, &
                          EncodeBitDet
     use Determinants, only: get_helement, GetH0Element3, GetH0Element4
-    use FciMCData, only: ilutHF, Hii, CurrentH, determ_proc_sizes, determ_proc_indices, &
+    use FciMCData, only: ilutHF, Hii, determ_proc_sizes, determ_proc_indices, &
                          full_determ_vector, partial_determ_vector, &
                          determ_space_size, SpawnedParts, SemiStoch_Comms_Time, &
                          SemiStoch_Multiply_Time, TotWalkers, CurrentDets, CoreTag, &
@@ -40,6 +40,7 @@ module semi_stoch_procs
                             core_connections, sparse_ham, hamil_diag, HDiagTag, &
                             SparseHamilTags, allocate_sparse_ham_row, core_ht, core_hashtable
     use SystemData, only: nel, tHPHF, nBasis, BRR, ARR, tUEG
+    use global_det_data, only: set_det_diagH
     use timing_neci
     use util_mod, only: get_free_unit
 
@@ -487,26 +488,26 @@ contains
 
     end subroutine sort_space_by_proc
 
-    subroutine fill_in_CurrentH()
+    subroutine fill_in_diag_helements()
 
         integer(int64) :: i
         integer :: nI(nel)
-
-        CurrentH = 0.0_dp
+        real(dp) :: tmpH
 
         do i = 1, TotWalkers
 
             call decode_bit_det(nI, CurrentDets(:,i))
 
             if (tHPHF) then
-                CurrentH(1,i) = hphf_diag_helement(nI, CurrentDets(:,i)) - Hii
+                tmpH = hphf_diag_helement(nI, CurrentDets(:,i)) - Hii
             else
-                CurrentH(1,i) = get_helement(nI, nI, 0) - Hii
+                tmpH = get_helement(nI, nI, 0) - Hii
             end if
+            call set_det_diagh(i, tmpH)
 
         end do
 
-    end subroutine fill_in_CurrentH
+    end subroutine fill_in_diag_helements
 
     subroutine write_core_space()
 

@@ -31,6 +31,8 @@ MODULE AnnihilationMod
     use LoggingData , only : tNoNewRDMContrib
     use util_mod, only: get_free_unit, binary_search_custom
     use sparse_arrays, only: trial_ht, con_ht
+    use global_det_data, only: set_det_diagH, get_iter_occ, get_av_sgn, &
+                               global_determinant_data
     use searching
     use hash
 
@@ -1372,8 +1374,8 @@ MODULE AnnihilationMod
 
         ! For the RDM code we need to set all of the elements of CurrentH to 0,
         ! except the first one, holding the diagonal Hamiltonian element.
-        CurrentH(:,DetPosition) = 0.0_dp
-        CurrentH(1,DetPosition) = real(HDiag,dp)-Hii
+        global_determinant_data(:,DetPosition) = 0
+        call set_det_diagH(DetPosition, real(HDiag,dp) - Hii)
 
         ! Store the iteration, as this is the iteration on which the particle
         ! is created
@@ -1710,19 +1712,24 @@ MODULE AnnihilationMod
                 if(tFillingStochRDMonFly .and. (.not. tIsStateDeterm)) then
                     if(inum_runs.eq.2) then
 
-                        if(((CurrentSign(1).eq.0).and.(CurrentH(2+lenof_sign,i).ne.0)) .or. &
-                                & ((CurrentSign(inum_runs).eq.0).and.(CurrentH(1+2*lenof_sign,i).ne.0)) .or. &
-                                & ((CurrentSign(1).ne.0).and.(CurrentH(2+lenof_sign,i).eq.0)) .or. &
-                                & ((CurrentSign(inum_runs).ne.0).and.(CurrentH(1+2*lenof_sign,i).eq.0))) then
+                        if ((CurrentSign(1) == 0 .and. get_av_sgn(i, 2) /= 0) .or. &
+                            (CurrentSign(inum_runs) == 0 .and. get_iter_occ(i, 2) /= 0) .or. &
+                            (CurrentSign(1) /= 0 .and. get_av_sgn(i, 2) == 0) .or. &
+                            (CurrentSign(inum_runs) /= 0 .and. get_iter_occ(i, 2) == 0)) then
+                        
+                        !((CurrentSign(1).eq.0).and.(CurrentH(2+lenof_sign,i).ne.0)) .or. &
+                        !        & ((CurrentSign(inum_runs).eq.0).and.(CurrentH(1+2*lenof_sign,i).ne.0)) .or. &
+                        !        & ((CurrentSign(1).ne.0).and.(CurrentH(2+lenof_sign,i).eq.0)) .or. &
+                        !        & ((CurrentSign(inum_runs).ne.0).and.(CurrentH(1+2*lenof_sign,i).eq.0))) then
                                
                             !At least one of the signs has just gone to zero or just become reoccupied
                             !so we need to consider adding in diagonal elements and connections to HF
                             !The block that's just ended was occupied in at least one population.
-                            call det_removed_fill_diag_rdm(CurrentDets(:,i), CurrentH(1:NCurrH,i))
+                            call det_removed_fill_diag_rdm(CurrentDets(:,i), i)
                         endif
                     else
                         if (IsUnoccDet(CurrentSign)) then
-                            call det_removed_fill_diag_rdm(CurrentDets(:,i), CurrentH(1:NCurrH,i))
+                            call det_removed_fill_diag_rdm(CurrentDets(:,i), i)
                         endif
                     endif
                 endif
@@ -1737,10 +1744,10 @@ MODULE AnnihilationMod
 
                     if(i.eq.HFInd) then
                         !We have to do this such that AvNoAtHF matches up with AvSign.
-                        !AvSign is extracted from CurrentH, and if the HFDet is unoccupied
-                        !at this moment during annihilation, it's CurrentH entry is removed
+                        !AvSign is extracted from global_determinant_data, and if the HFDet is unoccupied
+                        !at this moment during annihilation, it's global_determinant_data entry is removed
                         !and the averaging information in it is lost.
-                        !In some cases (a successful spawning event) a CurrentH entry will
+                        !In some cases (a successful spawning event) a global_determinant_data entry will
                         !be recreated, but with AvSign 0, so we must match this here.
                         AvNoAtHF=0.0_dp 
                         IterRDM_HF = Iter + 1 
@@ -1756,10 +1763,15 @@ MODULE AnnihilationMod
                         enddo
                     ENDIF
                 ELSE
-!We want to move all the elements above this point down to 'fill in' the annihilated determinant.
+                    ! We want to move all the elements above this point down
+                    ! to 'fill in' the annihilated determinant.
                     IF(DetsMerged.ne.0) THEN
                         CurrentDets(0:NIfTot,i-DetsMerged)=CurrentDets(0:NIfTot,i)
-                        CurrentH(:, i-DetsMerged) = CurrentH(:, i)
+                        ! It isn't normally acceptable to access this array
+                        ! directly (it has accessor functions). But we are
+                        ! merely shuffling data in blocks, so its OK.
+                        global_determinant_data(:, i - DetsMerged) = &
+                            global_determinant_data(:, i)
 
                         ! Move the elements in the occupied trial and connected vectors to fill in
                         ! the values of the annihilated determinants.
@@ -1884,7 +1896,7 @@ MODULE AnnihilationMod
                     endif
                     HDiag=(REAL(HDiagTemp,dp))-Hii
                 endif
-                CurrentH(1,i)=HDiag
+                call set_det_diagH(i, HDiag)
 
                 ! Store the iteration this particle is being created on
                 call encode_first_iter(CurrentDets(:,i), iter)

@@ -151,6 +151,9 @@ MODULE FciMCParMod
     use fcimc_helper
     use tau_search, only: init_tau_search, log_spawn_magnitude, update_tau, &
                           log_death_magnitude
+    use global_det_data, only: init_global_det_data, clean_global_det_data, &
+                               global_determinant_data, set_det_diagH, &
+                               det_diagH, get_av_sgn, set_av_sgn, set_iter_occ
 
     implicit none
 
@@ -816,7 +819,7 @@ MODULE FciMCParMod
             ! became occupied (IterRDMStartCurr) and the average population during that time 
             ! (AvSignCurr).
 
-            call extract_bit_rep_avsign (CurrentDets(:,j), CurrentH(1:NCurrH,j), &
+            call extract_bit_rep_avsign (CurrentDets(:,j), j, &
                                         DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
                                         AvSignCurr, fcimc_excit_gen_store)
 
@@ -861,8 +864,8 @@ MODULE FciMCParMod
                     if (IsUnoccDet(SignCurr)) then
                         CurrentDets(:,gen_ind) = CurrentDets(:,j)
                         if (tFillingStochRDMonFly) then
-                            CurrentH(2:1+lenof_sign,gen_ind) = AvSignCurr
-                            CurrentH(2+lenof_sign:1+2*lenof_sign,gen_ind) = IterRDMStartCurr
+                            call set_av_sgn(gen_ind, AvSignCurr)
+                            call set_iter_occ(gen_ind, IterRDMStartCurr)
                         endif
                         VecSlot = VecSlot + 1
                         if(tFill_RDM .and. (.not. tNoNewRDMContrib)) then
@@ -872,7 +875,7 @@ MODULE FciMCParMod
                             ! connections to the (true) HF determinant.
 
                             call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, &
-                                        CurrentH(1:NCurrH,gen_ind), walkExcitLevel_toHF, .true.)
+                                        gen_ind, walkExcitLevel_toHF, .true.)
                         endif
                         cycle
                     end if
@@ -881,7 +884,7 @@ MODULE FciMCParMod
             end if
 
             ! The current diagonal matrix element is stored persistently.
-            HDiagCurr = CurrentH(1,j)
+            HDiagCurr = det_diagH(j)
 
             if (tTruncInitiator) &
                 call CalcParentFlag (j, VecSlot, parent_flags, HDiagCurr)
@@ -1048,8 +1051,8 @@ MODULE FciMCParMod
                 else
                     CurrentDets(:,gen_ind) = CurrentDets(:,j)
                     if (tFillingStochRDMonFly) then
-                        CurrentH(2:1+lenof_sign,gen_ind) = AvSignCurr
-                        CurrentH(2+lenof_sign:1+2*lenof_sign,gen_ind) = IterRDMStartCurr
+                        call set_av_sgn(gen_ind, AvSignCurr)
+                        call set_iter_occ(gen_ind, IterRDMStartCurr)
                         ! NB We never overwrite the deterministic states, so move the next spawning slot
                         ! in CurrentDets to the next state.
                     endif
@@ -1062,7 +1065,7 @@ MODULE FciMCParMod
             end if
 
             if(tFill_RDM .and. (.not. tNoNewRDMContrib)) then
-                call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, CurrentH(1:NCurrH,gen_ind), &
+                call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, j,&
                                             walkExcitLevel_toHF, tCoreDet)
             endif
         
@@ -1919,15 +1922,15 @@ MODULE FciMCParMod
             if (tHashWalkerList) then
                 call encode_sign (CurrentDets(:,DetPosition), CopySign)
                 if (tFillingStochRDMonFly) then
-                    CurrentH(2:1+lenof_sign,DetPosition) = wAvSign
-                    CurrentH(2+lenof_sign:1+2*lenof_sign,DetPosition) = IterRDMStartCurr
+                    call set_av_sgn(DetPosition, wAvSign)
+                    call set_iter_occ(DetPosition, IterRDMStartCurr)
                 endif
             else
                 call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
-                CurrentH(1,VecSlot) = Kii
+                call set_det_diagH(VecSlot, Kii)
                 if (tFillingStochRDMonFly) then
-                    CurrentH(2:1+lenof_sign,VecSlot) = wAvSign
-                    CurrentH(2+lenof_sign:1+2*lenof_sign,VecSlot) = IterRDMStartCurr
+                    call set_av_sgn(VecSlot, wAvSign)
+                    call set_iter_occ(VecSlot, IterRDMStartCurr)
                 endif
                 VecSlot=VecSlot+1
             endif
@@ -1940,13 +1943,13 @@ MODULE FciMCParMod
                 ! But if the walker is removed from the list altogether, this would be lost too.
                 if(tHashWalkerList) then
                     call encode_sign(CurrentDets(:,DetPosition),CopySign)
-                    CurrentH(2:1+lenof_sign,DetPosition) = wAvSign
-                    CurrentH(2+lenof_sign:1+2*lenof_sign,DetPosition) = IterRDMStartCurr
+                    call set_av_sgn(DetPosition, wAvSign)
+                    call set_iter_occ(DetPosition, IterRDMStartCurr)
                 else
                     call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
-                    CurrentH(1,VecSlot) = Kii
-                    CurrentH(2:1+lenof_sign,VecSlot) = wAvSign
-                    CurrentH(2+lenof_sign:1+2*lenof_sign,VecSlot) = IterRDMStartCurr
+                    call set_det_diagH(VecSlot, Kii)
+                    call set_av_sgn(VecSlot, wAvSign)
+                    call set_iter_occ(VecSlot, IterRDMStartCurr)
                     VecSlot = VecSlot + 1
                 endif
             endif
@@ -2950,7 +2953,7 @@ MODULE FciMCParMod
                         else
                             h_tmp = get_helement (det, det, 0)
                         endif
-                        CurrentH(1,i) = real(h_tmp, dp) - Hii
+                        call set_det_diagH(i, real(h_tmp, dp) - Hii)
                     enddo
                     if (tSemiStochastic) call recalc_core_hamil_diag(old_Hii, Hii)
 
@@ -3515,7 +3518,7 @@ MODULE FciMCParMod
             if (tFillingStochRDMOnFly) then
                 if (lenof_sign /= 1) &
                     call stop_all(t_r, 'Not yet implemented')
-                CurrentH(2:1+lenof_sign, i) = -CurrentH(2:1+lenof_sign, i)
+                call set_av_sgn(i, -get_av_sgn(i))
             end if
 
         enddo
@@ -5656,29 +5659,8 @@ MODULE FciMCParMod
 
             ! Allocate storage for persistent data to be stored alongside
             ! the current determinant list (particularly diagonal matrix
-            ! elements, i.e. CurrentH).
-            if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
-                ! If calculating the RDMs stochastically, need to include the 
-                ! average sign and the iteration it became occupied in the
-                ! CurrentH array (with the Hii elements).
-                ! Need to store this for each set of walkers if we're doing a
-                ! double run.
-                ALLOCATE(WalkVecH(1+2*lenof_sign,MaxWalkersPart),stat=ierr)
-                CALL LogMemAlloc('WalkVecH',(1+2*lenof_sign)*MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-                WalkVecH(:,:)=0.0_dp
-                MemoryAlloc=MemoryAlloc+8*MaxWalkersPart*(1+2*lenof_sign)
-                WRITE(6,"(A)") " The average current signs before death will be stored for use in the RDMs."
-                WRITE(6,"(A,F14.6,A)") " This requires ", &
-                    real(MaxWalkersPart*8*2*lenof_sign,dp)/1048576.0_dp, &
-                            " Mb/Processor"
-                NCurrH = 1+2*lenof_sign
-            else
-                ALLOCATE(WalkVecH(1,MaxWalkersPart),stat=ierr)
-                CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-                WalkVecH(:,:)=0.0_dp
-                MemoryAlloc=MemoryAlloc+8*MaxWalkersPart
-                NCurrH = 1
-            endif
+            ! elements, i.e. CurrentH; now global_determinant_data).
+            call init_global_det_data()
 
             !if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
             if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
@@ -5732,7 +5714,6 @@ MODULE FciMCParMod
 
             ! Allocate pointers to the correct walker arrays
             CurrentDets => WalkVecDets
-            CurrentH => WalkVecH
 
             ! Get the (0-based) processor index for the HF det.
             iHFProc = DetermineDetNode(HFDet,0)
@@ -5873,7 +5854,7 @@ MODULE FciMCParMod
                         if (tSemiStochastic) call set_flag (CurrentDets(:,1), flag_deterministic)
 
                         ! HF energy is equal to 0 (by definition)
-                        CurrentH(1,1) = 0
+                        call set_det_diagH(1, 0.0_dp)
                         HFInd = 1
 
                         ! Set the initial iteration number
@@ -6396,7 +6377,7 @@ MODULE FciMCParMod
                     else
                         HDiagTemp = get_helement(CASFullDets(:,i),CASFullDets(:,i),0)
                     endif
-                    CurrentH(1,DetIndex)=real(HDiagTemp,dp)-Hii
+                    call set_det_diagH(DetIndex, real(HDiagTemp, dp) - Hii)
 
                     ! Set the initial iteration number
                     call encode_first_iter(CurrentDets(:,DetIndex), 1)
@@ -6435,7 +6416,8 @@ MODULE FciMCParMod
         TotWalkers=DetIndex-1   !This is the number of occupied determinants on each node
         TotWalkersOld=TotWalkers
         if(.not.tHashWalkerList) then
-            call sort(CurrentDets(:,1:TotWalkers),CurrentH(:,1:TotWalkers))
+            call sort(CurrentDets(:,1:TotWalkers), &
+                      global_determinant_data(:, 1:TotWalkers))
         endif
 
         !Set local&global variables
@@ -6603,7 +6585,7 @@ MODULE FciMCParMod
                     else
                         HDiagTemp = get_helement(nJ,nJ,0)
                     endif
-                    CurrentH(1,DetIndex)=real(HDiagTemp,dp)-Hii
+                    call set_det_diagH(DetIndex, real(HDiagtemp, dp) - Hii)
 
                     ! Set the initial iteration number
                     call encode_first_iter(CurrentDets(:,DetIndex), 1)
@@ -6665,7 +6647,7 @@ MODULE FciMCParMod
                     call set_flag(CurrentDets(:,DetIndex),flag_is_initiator(1))
                     call set_flag(CurrentDets(:,DetIndex),flag_is_initiator(2))
                 endif
-                CurrentH(1,DetIndex)=0.0_dp
+                call set_det_diagH(DetIndex, 0.0_dp)
 
                 ! Set the initial iteration number
                 call encode_first_iter(CurrentDets(:,DetIndex), 1)
@@ -6704,7 +6686,8 @@ MODULE FciMCParMod
 
 
         if(.not.tHashWalkerList) then
-            call sort(CurrentDets(:,1:TotWalkers),CurrentH(:,1:TotWalkers))
+            call sort(CurrentDets(:,1:TotWalkers), &
+                      global_determinant_data(:,1:TotWalkers))
         endif
 
         !Set local&global variables
@@ -7011,8 +6994,6 @@ MODULE FciMCParMod
         if (tHistExcitToFrom) call clean_hist_excit_tofrom()
         DEALLOCATE(WalkVecDets)
         CALL LogMemDealloc(this_routine,WalkVecDetsTag)
-        DEALLOCATE(WalkVecH)
-        CALL LogMemDealloc(this_routine,WalkVecHTag)
         DEALLOCATE(SpawnVec)
         CALL LogMemDealloc(this_routine,SpawnVecTag)
         DEALLOCATE(SpawnVec2)
@@ -7061,6 +7042,9 @@ MODULE FciMCParMod
         IF(tRDMonFly) CALL DeallocateRDM()
         if (allocated(refdetflip)) deallocate(refdetflip)
         if (allocated(ilutrefflip)) deallocate(ilutrefflip)
+
+        ! Cleanup global storage
+        call clean_global_det_data()
 
         ! Cleanup excitation generation storage
         call clean_excit_gen_store (fcimc_excit_gen_store)

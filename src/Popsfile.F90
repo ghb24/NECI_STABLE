@@ -30,6 +30,8 @@ MODULE PopsfileMod
     use util_mod, only: get_free_unit,get_unique_filename
     use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
         max_death_cpt
+    use global_det_data, only: global_determinant_data, set_iter_occ, &
+                               init_global_det_data, set_det_diagH
 
     implicit none
 
@@ -56,13 +58,10 @@ contains
         integer :: iunit,j,ierr,PopsInitialSlots(0:nNodes-1), iunit_3
         integer(int64) :: i
         INTEGER(TagIntType) :: BatchReadTag=0
-        INTEGER(TagIntType) :: BatchCurrentHTag=1
         real(dp) :: BatchSize
         integer :: PopsSendList(0:nNodes-1),proc
         integer :: MaxSendIndex,err,DetHash
         integer(n_int) , allocatable :: BatchRead(:,:)
-        real(dp) , allocatable :: BatchCurrentH(:,:)
-        real(dp) :: CurrentHEntry(1+2*lenof_sign)
         integer(n_int) :: WalkerTemp(0:NIfTot)
         integer(int64) :: Det, AllCurrWalkers
         logical :: FormPops,BinPops,tReadAllPops,tStoreDet
@@ -250,7 +249,7 @@ contains
                     call stop_all(this_routine,"HF already found, but shouldn't have")
                 endif
                 CurrHF=CurrHF+SignTemp 
-                if (.not. tSemiStochastic) CurrentH(1,i)=0.0_dp
+                if (.not. tSemiStochastic) call set_det_diagH(i, 0.0_dp)
             else
                 if(.not. tSemiStochastic) THEN
                 !Calculate diagonal matrix element
@@ -260,7 +259,7 @@ contains
                     else
                         HElemTemp = get_helement (TempnI, TempnI, 0)
                     endif
-                        CurrentH(1,i)=REAL(HElemTemp,dp)-Hii
+                    call set_det_diagH(i, real(HElemTemp, dp) - Hii)
                 endif
             endif
         enddo
@@ -293,7 +292,6 @@ contains
         ! The buffer is able to store the maximum number of particles on any
         ! determinant.
         integer(n_int), allocatable :: buffer(:,:)
-        real(dp), allocatable :: hbuffer(:,:)
         integer :: ndets, det, ierr, nelem, proc, unused(nel)
         logical :: tEOF
 
@@ -324,7 +322,6 @@ contains
                 call stop_all(this_routine, 'Allocation of read buffer failed')
 
             ! Similarly, allocate the buffer for currentH
-            allocate(hbuffer(1+2*lenof_sign, max_dets), stat=ierr)
             if (ierr /= 0) &
                 call stop_all(this_routine, 'Allocation of H-buffer failed')
 
@@ -337,8 +334,7 @@ contains
                     ndets = ndets + 1
                     tEOF = read_popsfile_det (iunit, binary_pops, &
                                               buffer(:, ndets), unused, &
-                                              PopNIfSgn, hbuffer(:, ndets), &
-                                              iunit_3, .false.)
+                                              PopNIfSgn, iunit_3, .false.)
 
                     ! Catch a premature End-Of-File
                     if (tEOF) call stop_all(this_routine, &
@@ -401,7 +397,6 @@ contains
 
         integer(n_int) :: BatchRead(0:NifTot, 1:MaxWalkersPart)
         integer(n_int) :: ilut_tmp(0:NIfTot)
-        real(dp) :: htmp(1+2*lenof_sign)
         logical :: tEOF
         integer :: det_tmp(nel), det
         integer :: proc
@@ -424,7 +419,7 @@ contains
                 CurrWalkers = CurrWalkers + 1
                 tEOF = read_popsfile_det (iunit, binary_pops, &
                                           det_list(:, CurrWalkers), &
-                                          det_tmp, PopNIfSgn, htmp, iunit_3, &
+                                          det_tmp, PopNIfSgn, iunit_3, &
                                           .true.)
 
                 ! And store the current H-values
@@ -469,7 +464,6 @@ contains
         integer :: batch_size, MaxSendIndex, i, j, det, nBatches, err, proc
         integer :: det_tmp(nel)
         integer(n_int) :: ilut_tmp(0:NIfTot)
-        real(dp) :: CurrentHEntry(1+2*lenof_sign)
 
         ! If we are on the root processor, we need a buffer array which stores
         ! the particles as they are read in. 
@@ -478,11 +472,6 @@ contains
         ! segfaults in MPIScatter.
         integer(n_int) :: BatchRead(0:NIfTot, &
                                     merge(ReadBatch, 1, iProcIndex == root))
-
-        ! This is only for use with tReadRDMAvPop
-        real(dp) :: BatchCurrentH(1+2*lenof_sign, &
-                                  merge(ReadBatch, 1, iProcIndex == root))
-
 
         if (iProcIndex == root) then
 
@@ -527,7 +516,7 @@ r_loop: do while (.not. tReadAllPops)
                     det = det + 1
                     tEOF = read_popsfile_det (iunit, binary_pops, ilut_tmp, &
                                               det_tmp, PopNIfSgn, &
-                                              CurrentHEntry, iunit_3, .true.)
+                                              iunit_3, .true.)
 
                     ! When we have got to the end of the file, we are done.
                     if (tEOF) call stop_all (this_routine, &
@@ -610,7 +599,7 @@ r_loop: do while (.not. tReadAllPops)
     !BinPops = Binary popsfile or formatted
     !WalkerTemp = Determinant entry returned
     function read_popsfile_det (iunit, BinPops, WalkerTemp, nI, &
-                                PopNifSgn, CurrentHEntry, iunit_3, &
+                                PopNifSgn, iunit_3, &
                                 decode_det) result(tEOF)
 
         integer, intent(in) :: iunit
@@ -624,7 +613,6 @@ r_loop: do while (.not. tReadAllPops)
         integer :: PopNifSgn
         real(dp) :: sgn(PopNifSgn)
         real(dp) :: new_sgn(lenof_sign)
-        real(dp), intent(out), optional :: CurrentHEntry(1+2*lenof_sign)
         integer(n_int) :: flg_read
         logical :: tStoreDet, tEOF
 
@@ -1171,9 +1159,7 @@ r_loop: do while(.not.tStoreDet)
         INTEGER :: Tag, Tag2
         INTEGER :: Total,i,j,k
         INTEGER(KIND=n_int), ALLOCATABLE :: Parts(:,:)
-        REAL(dp), ALLOCATABLE :: AllCurrentH(:,:)
         INTEGER(TagIntType) :: PartsTag=0
-        INTEGER(TagIntType) :: AllCurrentHTag=1
         integer :: nMaxDets, TempDet(0:NIfTot), TempFlags
         integer :: iunit, iunit_2, iunit_3, Initiator_Count, nwrite
         integer(int64) :: write_count, write_count_sum
@@ -1363,12 +1349,6 @@ r_loop: do while(.not.tStoreDet)
                 call LogMemAlloc ('Parts', int(nMaxDets,int32)*(NIfTot+1), &
                                   size_n_int, this_routine, PartsTag, error)
                 
-                if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
-                    allocate(AllCurrentH(1:1+2*lenof_sign,nMaxDets),stat=error)
-                    call LogMemAlloc ('AllCurrentH', int(nMaxDets,int32)*(1+2*lenof_sign), &
-                                      8, this_routine, AllCurrentHTag, error)
-                endif
-
                 ! Loop over the other nodes in the system sequentially, receive
                 ! their walker lists, and output to the popsfiles.
                 do i = 1, nNodes - 1
@@ -1378,12 +1358,14 @@ r_loop: do while(.not.tStoreDet)
                     call MPIRecv (Parts(:, 1:WalkersonNodes(i)), j, &
                                   NodeRoots(i), Tag, error)
                     
-                    if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
-                        ! And now for CurrentH
-                        j = int(WalkersonNodes(i), sizeof_int) * (1+2*lenof_sign)
-                        call MPIRecv (AllCurrentH(:, 1:WalkersonNodes(i)), j, &
-                                      NodeRoots(i), Tag2, error)
-                    endif
+                    ! SDS: Catherine seems to have disabled writing these out
+                    !      so no need to communicate them.
+                    !!!if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
+                    !!!    ! And now for CurrentH
+                    !!!    j = int(WalkersonNodes(i), sizeof_int) * (1+2*lenof_sign)
+                    !!!    call MPIRecv (AllCurrentH(:, 1:WalkersonNodes(i)), j, &
+                    !!!                  NodeRoots(i), Tag2, error)
+                    !!!endif
 
                     ! Then write it out in the same way as above.
                     nwrite = int(WalkersOnNodes(i), sizeof_int)
@@ -1403,15 +1385,6 @@ r_loop: do while(.not.tStoreDet)
 
                 end do
 
-                ! Deallocate temporary storage
-                deallocate(Parts)
-                call LogMemDealloc(this_routine, PartsTag)
-                if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
-                    deallocate(AllCurrentH)
-                    call LogMemDealloc(this_routine, AllCurrentHTag)
-                endif
-
-
             end if
 
             ! Close the output files
@@ -1426,10 +1399,10 @@ r_loop: do while(.not.tStoreDet)
             j = int(nDets, sizeof_int) * (NIfTot + 1)
             call MPISend (Dets(0:NIfTot, 1:nDets), j, root, Tag, error)
             
-            if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
-                j = int(nDets, sizeof_int) * (1+2*lenof_sign)
-                call MPISend (CurrentH(1:1+2*lenof_sign, 1:nDets), j, root, Tag2, error)
-            endif
+            !!!if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
+            !!!    j = int(nDets, sizeof_int) * (1+2*lenof_sign)
+            !!!    call MPISend (CurrentH(1:1+2*lenof_sign, 1:nDets), j, root, Tag2, error)
+            !!!endif
 
         end if
 
@@ -1637,7 +1610,6 @@ r_loop: do while(.not.tStoreDet)
         INTEGER :: TempInitWalkers,error,i,j,l,total,ierr,MemoryAlloc,Tag,Proc,CurrWalkers,ii
         INTEGER , DIMENSION(lenof_sign) :: TempSign
         real(dp) :: RealTempSign(lenof_sign)
-        real(dp), DIMENSION(1+2*lenof_sign) :: CurrentHEntry
         integer(int64) :: iLutTemp64(0:nBasis/64+1)
         INTEGER :: iLutTemp32(0:nBasis/32+1)
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
@@ -1867,22 +1839,10 @@ r_loop: do while(.not.tStoreDet)
 !Allocate pointer to the correct walker array...
         CurrentDets=>WalkVecDets
 
-        ! Need to now allocate other arrays
-        if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
-            ALLOCATE(WalkVecH(3,MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVecH',3*MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-            WalkVecH(:,:)=0.0_dp
-            MemoryAlloc=MemoryAlloc+8*MaxWalkersPart*3
-            WRITE(6,"(A)") " The current signs before death will be store for use in the RDMs."
-            WRITE(6,"(A,F14.6,A)") " This requires ", REAL(MaxWalkersPart*8*3,dp)/1048576.0_dp," Mb/Processor"
-            NCurrH = 3
-        else
-            ALLOCATE(WalkVecH(1,MaxWalkersPart),stat=ierr)
-            CALL LogMemAlloc('WalkVecH',MaxWalkersPart,8,this_routine,WalkVecHTag,ierr)
-            WalkVecH(:,:)=0.0_dp
-            MemoryAlloc=MemoryAlloc+8*MaxWalkersPart
-            NCurrH = 1
-        endif
+        ! Allocate storage for persistent data to be stored alongside
+        ! the current determinant list (particularly diagonal matrix
+        ! elements, i.e. CurrentH; now global_determinant_data).
+        call init_global_det_data()
 
         if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
 !Allocate memory to hold walkers spawned from one determinant at a time.
@@ -1894,9 +1854,6 @@ r_loop: do while(.not.tStoreDet)
             WRITE(6,"(A)") " Allocating temporary array for walkers spawned from a particular Di."
             WRITE(6,"(A,F14.6,A)") " This requires ", REAL(((NIfDBO+1)*20000*size_n_int),dp)/1048576.0_dp," Mb/Processor"
         endif
-
-        ! Store the current hamiltonian information.
-        CurrentH => WalkVecH
 
 ! The hashing will be different in the new calculation from the one where the
 !  POPSFILE was produced, this means we must recalculate the processor each 
@@ -2007,7 +1964,7 @@ r_loop: do while(.not.tStoreDet)
                 call encode_bit_rep(CurrentDets(:,CurrWalkers),iLutTemp(0:NIfDBO),RealTempSign,0) 
                 !TODO: Add flag for complex walkers to read in both
                 
-                CurrentH(1:1+2*lenof_sign,CurrWalkers)=CurrentHEntry(1:1+2*lenof_sign)
+!>>>"                CurrentH(1:1+2*lenof_sign,CurrWalkers)=CurrentHEntry(1:1+2*lenof_sign)
             ENDIF
 
             ! Keep track of what the most highly weighted determinant is
@@ -2021,7 +1978,8 @@ r_loop: do while(.not.tStoreDet)
 
         ! Sort the lists so that they are in order if we change the number
         ! of processors.
-        call sort (currentdets(:,1:CurrWalkers), CurrentH(:,1:CurrWalkers))
+        call sort (currentdets(:,1:CurrWalkers), &
+                   global_determinant_data(:,1:CurrWalkers))
 
         ! Check that the bit-det comparisons agree that it is in order.
         do i=2,currwalkers
@@ -2128,7 +2086,7 @@ r_loop: do while(.not.tStoreDet)
             call decode_bit_det (TempnI, currentDets(:,j))
             Excitlevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j), 2)
             IF(Excitlevel.eq.0) THEN
-                CurrentH(1,j)=0.0_dp
+                call set_det_diagH(j, 0.0_dp)
             ELSE
                 if (tHPHF) then
                     HElemTemp = hphf_diag_helement (TempnI, &
@@ -2136,7 +2094,7 @@ r_loop: do while(.not.tStoreDet)
                 else
                     HElemTemp = get_helement (TempnI, TempnI, 0)
                 endif
-                CurrentH(1,j)=REAL(HElemTemp,dp)-Hii
+                call set_det_diagH(j, real(HElemTemp, dp) - Hii)
             ENDIF
             call extract_sign(CurrentDets(:,j),RealTempSign)
             TotParts(1)=TotParts(1)+abs(RealTempSign(1))
