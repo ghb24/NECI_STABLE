@@ -1715,9 +1715,12 @@ contains
 
     end subroutine average_and_communicate_pert_overlaps
 
-    subroutine find_and_output_lowdin_eigv(kp)
+    subroutine find_and_output_lowdin_eigv(kp, s_high, s_low, h_low, h_high)
 
         type(kp_fciqmc_data), intent(in) :: kp
+        ! Data for the testsuite to use.
+        real(dp), intent(out) :: s_low, s_high, h_low, h_high
+
         integer :: lwork, counter, i, nkeep, nkeep_len, temp_unit
         integer :: npositive, info, ierr
         real(dp), allocatable :: work(:)
@@ -1746,6 +1749,9 @@ contains
 
         ! Now perform the diagonalisation.
         call dsyev('V', 'U', kp%nvecs, kp_overlap_eigenvecs, kp%nvecs, kp_overlap_eigv, work, lwork, info)
+
+        s_low = kp_overlap_eigv(1)
+        s_high = kp_overlap_eigv(kp%nvecs)
 
         npositive = 0
         write(temp_unit,'(4("-"),a26,40("-"))') "Overlap matrix eigenvalues"
@@ -1783,6 +1789,9 @@ contains
                 kp_final_hamil = matmul(transpose(transform_matrix), inter_hamil)
 
                 call dsyev('V', 'U', nkeep, kp_final_hamil, nkeep, kp_hamil_eigv, work, lwork, info)
+
+                h_low = kp_hamil_eigv(1)
+                h_high = kp_hamil_eigv(nkeep)
 
                 eigenvecs_krylov = matmul(transform_matrix, kp_final_hamil)
                 init_overlaps = matmul(kp_overlap_mean(1,:), eigenvecs_krylov)/scaling_factor
@@ -2053,5 +2062,22 @@ contains
         deallocate(nI_list)
 
     end subroutine print_amplitudes_kp
+
+    subroutine write_kpfciqmc_testsuite_data(s_low, s_high, h_low, h_high)
+
+        ! Write out information about the completed KP-FCIQMC calculation, for
+        ! use in the testsuite.
+
+        real(dp), intent(in) :: s_low, s_high, h_low, h_high
+
+        write(6,'(/,1X,64("="))')
+        write(6,'(1X,"KP-FCIQMC testsuite data:")')
+        write(6,'(1X,"Lowest eigenvalue of the overlap matrix:",26X,es20.10)') s_low
+        write(6,'(1X,"Highest eigenvalue of the overlap matrix:",25X,es20.10)') s_high
+        write(6,'(1X,"Lowest eigenvalue of H when keeping all possible Lowdin vectors:",2X,es20.13)') h_low
+        write(6,'(1X,"Highest eigenvalue of H when keeping all possible Lowdin vectors:",1X,es20.13)') h_high
+        write(6,'(1X,64("="))')
+
+    end subroutine write_kpfciqmc_testsuite_data
 
 end module kp_fciqmc_procs

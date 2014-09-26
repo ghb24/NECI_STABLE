@@ -51,6 +51,9 @@ contains
         logical :: tParity, tSoftExitFound, tSingBiasChange, tWritePopsFound
         HElement_t :: HElGen
 
+        ! Variables to hold information output for the test suite.
+        real(dp) :: s_low, s_high, h_low, h_high
+
         integer(n_int) :: int_sign(lenof_sign_kp)
         real(dp) :: test_sign(lenof_sign_kp)
         type(ll_node), pointer :: temp_node
@@ -298,13 +301,15 @@ contains
 
             if (iProcIndex == root .and. tStoreKPMatrices) then
                 call average_kp_matrices_wrapper(kp)
-                call find_and_output_lowdin_eigv(kp)
+                call find_and_output_lowdin_eigv(kp, s_low, s_high, h_low, h_high)
                 call find_and_output_gram_schmidt_eigv(kp)
             end if
 
         end do outer_loop ! Over all initial walker configurations.
 
         if (tPopsFile) call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
+
+        call write_kpfciqmc_testsuite_data(s_low, s_high, h_low, h_high)
 
     end subroutine perform_kp_fciqmc
 
