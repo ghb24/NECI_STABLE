@@ -11,8 +11,7 @@ module spectral_lanczos
                          determ_proc_sizes, determ_space_size, partial_determ_vector, &
                          TotWalkers
     use ftlm_neci, only: subspace_expansion_lanczos, calc_final_hamil_elem
-    use Parallel_neci, only: iProcIndex, nProcessors, MPIAllGatherV, MPIAllGather, &
-                             MPISumAll
+    use Parallel_neci, only: iProcIndex, nProcessors, MPIAllGather, MPISumAll, MPIBCast
     use ParallelHelper, only: root
     use PopsfileMod, only: read_popsfile_wrapper
     use sparse_arrays, only: calculate_sparse_hamiltonian_parallel, sparse_ham
@@ -137,7 +136,7 @@ contains
         write(6,'(1x,a9)') "Complete."
         call neci_flush(6)
 
-        allocate(pert_ground_left(ndets), stat=ierr)
+        allocate(pert_ground_left(ndets_this_proc), stat=ierr)
         if (ierr /= 0) then
             write(6,'(1x,a11,1x,i5)') "Error code:", ierr
             call stop_all(t_r, "Error allocating array to hold left perturbed ground state components.")
@@ -219,7 +218,11 @@ contains
                 end if
             end do
         end do
-        
+
+        ! The contributions to pops_norm are added in as the determinants are
+        ! read in from the popsfile, which is only done on the root process, so
+        ! brooadcast the value to other processors.
+        call MPIBCast(pops_norm)
         pert_ground_local = pert_ground_local/sqrt(pops_norm)
 
         call MPISumAll(norm_pert, all_norm_pert)
@@ -230,9 +233,7 @@ contains
     subroutine subspace_extraction_sl()
 
         integer :: lwork, info, i
-        real(dp), allocatable :: work(:), left_pert_overlaps(:)
-
-        if (iProcIndex /= root) return
+        real(dp), allocatable :: work(:), left_pert_overlaps(:), left_pert_overlaps_all(:)
 
         ! Scrap space for the diagonaliser.
         lwork = max(1,3*n_lanc_vecs_sl-1)
@@ -259,13 +260,17 @@ contains
         ! Calculate the overlaps between the left-perturbed ground state and all
         ! of the Lanczos vectors.
         allocate(left_pert_overlaps(n_lanc_vecs_sl))
+        allocate(left_pert_overlaps_all(n_lanc_vecs_sl))
         do i = 1, n_lanc_vecs_sl
             left_pert_overlaps = matmul(pert_ground_left, sl_vecs)
         end do
+        ! Sum the contributions to the overlaps from all processes.
+        call MPISumAll(left_pert_overlaps, left_pert_overlaps_all)
         ! And then use these overlaps to calculate the overlaps of the
         ! left-perturbed ground state with the final eigenvectors.
-        trans_amps_left = matmul(left_pert_overlaps, sl_hamil)
+        trans_amps_left = matmul(left_pert_overlaps_all, sl_hamil)
         deallocate(left_pert_overlaps)
+        deallocate(left_pert_overlaps_all)
 
     end subroutine subspace_extraction_sl
     
@@ -328,8 +333,8 @@ contains
         write(6,'(1X,"Spectral Lanczos testsuite data:")')
         write(6,'(1X,"Lowest eigenvalue of H from the last Lanczos space:",2X,es20.10)') sl_h_eigv(1)
         write(6,'(1X,"Highest eigenvalue of H from the last Lanczos space:",1X,es20.10)') sl_h_eigv(n_lanc_vecs_sl)
-        write(6,'(1X,"Spectral weight at the lowest omega value:",14X,es20.13)') spec_low
-        write(6,'(1X,"Spectral weight at the highest omega value:",13X,es20.13)') spec_high
+        write(6,'(1X,"Spectral weight at the lowest omega value:",11X,es20.13)') spec_low
+        write(6,'(1X,"Spectral weight at the highest omega value:",10X,es20.13)') spec_high
         write(6,'(1X,64("="))')
 
     end subroutine write_spec_lanc_testsuite_data

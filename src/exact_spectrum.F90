@@ -18,6 +18,8 @@ contains
 
         integer :: lwork, info, ndets
         real(dp), allocatable :: work(:)
+        ! Data for the testsuite to use.
+        real(dp) :: spec_low, spec_high
 
         call init_exact_spectrum(ndets)
 
@@ -37,7 +39,7 @@ contains
         trans_amps_right = matmul(pert_ground_right, hamiltonian)
         trans_amps_left = matmul(pert_ground_left, hamiltonian)
 
-        call output_spectrum(ndets, eigv_es)
+        call output_spectrum(ndets, eigv_es, spec_low, spec_high)
 
         call end_exact_spectrum()
 
