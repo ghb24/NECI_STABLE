@@ -4110,9 +4110,8 @@ MODULE FciMCParMod
         use SystemData, only : tBrillouinsDefault,ECore,tNoSingExcits,tOddS_HPHF
         USE dSFMT_interface , only : dSFMT_init
         use CalcData, only: G_VMC_Seed, &
-                            MemoryFacPart, MemoryFacAnnihil, TauFactor, &
-                            StepsSftImag, tCheckHighestPop, tSpatialOnlyHash,tStartCAS, &
-                            MaxWalkerBloom
+                            MemoryFacPart, TauFactor, StepsSftImag, tCheckHighestPop, &
+                            tSpatialOnlyHash, tStartCAS, MaxWalkerBloom
         use Determinants , only : GetH0Element3,GetH0Element4
         use SymData , only : SymLabelList,SymLabelCounts,TwoCycleSymGens
         use DeterminantData , only : write_det
@@ -5545,7 +5544,7 @@ MODULE FciMCParMod
         use FciMCLoggingMOD , only : InitHistInitPops
         use SystemData , only : tRotateOrbs
         use CalcData , only : InitialPart,tstartmp1,tStartCAS, InitialPartVec
-        use CalcData , only : MemoryFacPart,MemoryFacAnnihil,iReadWalkersRoot
+        use CalcData , only : MemoryFacPart, iReadWalkersRoot
         use constants , only : size_n_int
         use DeterminantData , only : write_det
         use nElRDMMod, only: InitRDM
