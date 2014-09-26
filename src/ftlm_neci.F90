@@ -73,6 +73,8 @@ contains
 
         call output_ftlm()
 
+        call write_ftlm_testsuite_data()
+
         call end_ftlm()
 
     end subroutine perform_ftlm
@@ -322,6 +324,18 @@ contains
         end do
 
     end subroutine output_ftlm
+
+    subroutine write_ftlm_testsuite_data()
+
+        write(6,'(/,1X,64("="))')
+        write(6,'(1X,"FTLM testsuite data:")')
+        write(6,'(1X,"Lowest eigenvalue of H from the last Lanczos space:",2X,es20.10)') ftlm_h_eigv(1)
+        write(6,'(1X,"Highest eigenvalue of H from the last Lanczos space:",1X,es20.10)') ftlm_h_eigv(n_lanc_vecs_ftlm)
+        write(6,'(1X,"FT energy at lowest beta value:",22X,es20.13)') ftlm_e_num(1)/ftlm_trace(1)
+        write(6,'(1X,"FT energy at highest beta value:",21X,es20.13)') ftlm_e_num(nbeta_ftlm+1)/ftlm_trace(nbeta_ftlm+1)
+        write(6,'(1X,64("="))')
+
+    end subroutine write_ftlm_testsuite_data
 
     subroutine end_ftlm()
 
