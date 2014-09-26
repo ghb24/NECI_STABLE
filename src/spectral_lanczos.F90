@@ -331,8 +331,8 @@ contains
 
         write(6,'(/,1X,64("="))')
         write(6,'(1X,"Spectral Lanczos testsuite data:")')
-        write(6,'(1X,"Lowest eigenvalue of H from the last Lanczos space:",2X,es20.10)') sl_h_eigv(1)
-        write(6,'(1X,"Highest eigenvalue of H from the last Lanczos space:",1X,es20.10)') sl_h_eigv(n_lanc_vecs_sl)
+        write(6,'(1X,"Lowest eigenvalue of H from the last Lanczos space:",2X,es20.13)') sl_h_eigv(1)
+        write(6,'(1X,"Highest eigenvalue of H from the last Lanczos space:",1X,es20.13)') sl_h_eigv(n_lanc_vecs_sl)
         write(6,'(1X,"Spectral weight at the lowest omega value:",11X,es20.13)') spec_low
         write(6,'(1X,"Spectral weight at the highest omega value:",10X,es20.13)') spec_high
         write(6,'(1X,64("="))')

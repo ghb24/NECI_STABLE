@@ -1711,7 +1711,6 @@ contains
 
         pert_overlaps = pert_overlaps/nrepeats
         call MPISum(pert_overlaps, kp_all_pert_overlaps)
-        write(6,*) "overlaps:", kp_all_pert_overlaps
 
     end subroutine average_and_communicate_pert_overlaps
 
@@ -2072,8 +2071,8 @@ contains
 
         write(6,'(/,1X,64("="))')
         write(6,'(1X,"KP-FCIQMC testsuite data:")')
-        write(6,'(1X,"Lowest eigenvalue of the overlap matrix:",26X,es20.10)') s_low
-        write(6,'(1X,"Highest eigenvalue of the overlap matrix:",25X,es20.10)') s_high
+        write(6,'(1X,"Lowest eigenvalue of the overlap matrix:",26X,es20.13)') s_low
+        write(6,'(1X,"Highest eigenvalue of the overlap matrix:",25X,es20.13)') s_high
         write(6,'(1X,"Lowest eigenvalue of H when keeping all possible Lowdin vectors:",2X,es20.13)') h_low
         write(6,'(1X,"Highest eigenvalue of H when keeping all possible Lowdin vectors:",1X,es20.13)') h_high
         write(6,'(1X,64("="))')

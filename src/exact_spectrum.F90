@@ -41,6 +41,8 @@ contains
 
         call output_spectrum(ndets, eigv_es, spec_low, spec_high)
 
+        call write_exact_spec_testsuite_data(eigv_es(1), eigv_es(ndets), spec_low, spec_high)
+
         call end_exact_spectrum()
 
         deallocate(work)
@@ -140,6 +142,20 @@ contains
         deallocate(nI_list)
 
     end subroutine init_exact_spectrum
+
+    subroutine write_exact_spec_testsuite_data(eigv_low, eigv_high, spec_low, spec_high)
+
+        real(dp), intent(in) :: eigv_low, eigv_high, spec_low, spec_high
+
+        write(6,'(/,1X,64("="))')
+        write(6,'(1X,"Exact spectrum testsuite data:")')
+        write(6,'(1X,"Exact lowest eigenvalue of H:",15X,es20.13)') eigv_low
+        write(6,'(1X,"Exact highest eigenvalue of H:",14X,es20.13)') eigv_high
+        write(6,'(1X,"Spectral weight at the lowest omega value:",2X,es20.13)') spec_low
+        write(6,'(1X,"Spectral weight at the highest omega value:",1X,es20.13)') spec_high
+        write(6,'(1X,64("="))')
+
+    end subroutine write_exact_spec_testsuite_data
 
     subroutine end_exact_spectrum()
 
