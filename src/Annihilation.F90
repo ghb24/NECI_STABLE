@@ -1510,19 +1510,23 @@ MODULE AnnihilationMod
                 if(tFillingStochRDMonFly .and. (.not. tIsStateDeterm)) then
                     if(inum_runs.eq.2) then
 
-                        if(((CurrentSign(1).eq.0).and.(CurrentH(2+lenof_sign,i).ne.0)) .or. &
-                                & ((CurrentSign(inum_runs).eq.0).and.(CurrentH(1+2*lenof_sign,i).ne.0)) .or. &
-                                & ((CurrentSign(1).ne.0).and.(CurrentH(2+lenof_sign,i).eq.0)) .or. &
-                                & ((CurrentSign(inum_runs).ne.0).and.(CurrentH(1+2*lenof_sign,i).eq.0))) then
+                        if ((CurrentSign(1) == 0 .and. get_av_sgn(i, 2) /= 0) .or. &
+                            (CurrentSign(inum_runs) == 0 .and. get_iter_occ(i, 2) /= 0) .or. &
+                            (CurrentSign(1) /= 0 .and. get_av_sgn(i, 2) == 0) .or. &
+                            (CurrentSign(inum_runs) /= 0 .and. get_iter_occ(i, 2) == 0)) then
+                        !if(((CurrentSign(1).eq.0).and.(CurrentH(2+lenof_sign,i).ne.0)) .or. &
+                        !        & ((CurrentSign(inum_runs).eq.0).and.(CurrentH(1+2*lenof_sign,i).ne.0)) .or. &
+                        !        & ((CurrentSign(1).ne.0).and.(CurrentH(2+lenof_sign,i).eq.0)) .or. &
+                        !        & ((CurrentSign(inum_runs).ne.0).and.(CurrentH(1+2*lenof_sign,i).eq.0))) then
                                
                             !At least one of the signs has just gone to zero or just become reoccupied
                             !so we need to consider adding in diagonal elements and connections to HF
                             !The block that's just ended was occupied in at least one population.
-                            call det_removed_fill_diag_rdm(CurrentDets(:,i), CurrentH(1:NCurrH,i))
+                            call det_removed_fill_diag_rdm(CurrentDets(:,i), i)
                         endif
                     else
                         if (IsUnoccDet(CurrentSign)) then
-                            call det_removed_fill_diag_rdm(CurrentDets(:,i), CurrentH(1:NCurrH,i))
+                            call det_removed_fill_diag_rdm(CurrentDets(:,i), i)
                         endif
                     endif
                 endif
