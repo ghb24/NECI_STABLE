@@ -486,7 +486,7 @@ contains
                             IterRDM_HF(inum_runs) = 0.0_dp 
                             AvNoatHF(inum_runs) = 0.0_dp
                         endif
-                   elseif(((InstNoAtHF(1).eq.0.0).and.(IterRDM_HF(1).ne.0)) .or. &
+                    elseif(((InstNoAtHF(1).eq.0.0).and.(IterRDM_HF(1).ne.0)) .or. &
                        &  ((InstNoAtHF(inum_runs).eq.0.0).and.(IterRDM_HF(inum_runs).ne.0))) then
                         !At least one of the populations has just become zero
                         !Start a new averaging block
