@@ -33,6 +33,8 @@ contains
     subroutine perform_spectral_lanczos()
 
         integer :: i
+        ! Data for the testsuite to use.
+        real(dp) :: spec_low, spec_high
 
         call init_spectral_lanczos()
 
@@ -49,7 +51,9 @@ contains
         write(6,'(1x,a60,/)') "Spectral Lanczos calculation complete. Outputting results..."
         call neci_flush(6)
 
-        call output_spectrum(n_lanc_vecs_sl, sl_h_eigv)
+        call output_spectrum(n_lanc_vecs_sl, sl_h_eigv, spec_low, spec_high)
+
+        call write_spec_lanc_testsuite_data(spec_low, spec_high)
 
         call end_spectral_lanczos()
 
@@ -265,12 +269,14 @@ contains
 
     end subroutine subspace_extraction_sl
     
-    subroutine output_spectrum(neigv, eigv)
+    subroutine output_spectrum(neigv, eigv, spec_low, spec_high)
 
         use util_mod, only: get_free_unit
 
         integer, intent(in) :: neigv
         real(dp), intent(in) :: eigv(neigv)
+        ! Data for the testsuite to use.
+        real(dp), intent(out) :: spec_low, spec_high
 
         integer :: i, j, min_vec, temp_unit
         real(dp) :: omega, spectral_weight
@@ -305,9 +311,28 @@ contains
             end do
             write(6,'(f18.12, 4x, f18.12)') omega, spectral_weight
             omega = omega + delta_omega_spectral
+
+            ! Store the values of the spectrum for the highest and lowest
+            ! values of omega for the testsuite to use.
+            if (i == 1) spec_low = spectral_weight
+            if (i == nomega_spectral + 1) spec_high = spectral_weight
         end do
 
     end subroutine output_spectrum
+
+    subroutine write_spec_lanc_testsuite_data(spec_low, spec_high)
+
+        real(dp), intent(in) :: spec_low, spec_high
+
+        write(6,'(/,1X,64("="))')
+        write(6,'(1X,"Spectral Lanczos testsuite data:")')
+        write(6,'(1X,"Lowest eigenvalue of H from the last Lanczos space:",2X,es20.10)') sl_h_eigv(1)
+        write(6,'(1X,"Highest eigenvalue of H from the last Lanczos space:",1X,es20.10)') sl_h_eigv(n_lanc_vecs_sl)
+        write(6,'(1X,"Spectral weight at the lowest omega value:",14X,es20.13)') spec_low
+        write(6,'(1X,"Spectral weight at the highest omega value:",13X,es20.13)') spec_high
+        write(6,'(1X,64("="))')
+
+    end subroutine write_spec_lanc_testsuite_data
 
     subroutine end_spectral_lanczos()
 
