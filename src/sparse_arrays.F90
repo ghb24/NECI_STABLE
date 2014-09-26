@@ -17,11 +17,12 @@ module sparse_arrays
     use bit_reps, only: decode_bit_det
     use Determinants, only: get_helement
     use FciMCData, only: determ_space_size, determ_proc_sizes, determ_proc_indices, &
-                         SpawnedParts, CurrentH, Hii, core_ham_diag
+                         SpawnedParts, Hii, core_ham_diag
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier, MPIAllGatherV
     use SystemData, only: tHPHF, nel
+    use global_det_data, only: set_det_diagH
 
     implicit none
 
@@ -233,8 +234,10 @@ contains
                         hamiltonian_row(j) = get_helement(nI, nJ, 0) - Hii
                     end if
                     core_ham_diag(i) = hamiltonian_row(j)
-                    ! We calculate and store CurrentH at this point for ease.
-                    if (.not. tReadPops) CurrentH(1,i) = hamiltonian_row(j)
+                    ! We calculate and store the diagonal matrix element at
+                    ! this point for later access.
+                    if (.not. tReadPops) &
+                        call set_det_diagH(i, hamiltonian_row(j))
                     ! Always include the diagonal elements.
                     row_size = row_size + 1
                 else

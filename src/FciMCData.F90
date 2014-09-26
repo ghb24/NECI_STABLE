@@ -41,7 +41,6 @@ MODULE FciMCData
 
 !Pointers to point at the correct arrays for use
       INTEGER(KIND=n_int) , POINTER :: CurrentDets(:,:)
-      real(dp), pointer :: global_determinant_data(:,:)
       INTEGER(KIND=n_int) , POINTER :: SpawnedParts(:,:),SpawnedParts2(:,:)
 
       INTEGER(KIND=n_int) , ALLOCATABLE :: Spawned_Parents(:,:)

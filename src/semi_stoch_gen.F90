@@ -170,8 +170,9 @@ contains
             call add_core_states_currentdets()
         end if
 
-        ! If starting from a popsfile then CurrentH won't have been filled in yet.
-        if (tReadPops) call fill_in_CurrentH()
+        ! If starting from a popsfile then global_determinant_data will not
+        ! have been initialised
+        if (tReadPops) call fill_in_diag_helements()
         SpawnedParts = 0_n_int
         TotWalkersOld = TotWalkers
 

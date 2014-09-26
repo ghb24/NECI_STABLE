@@ -14,7 +14,7 @@ MODULE CCMC
                          MaxIndex, TotParts, Walker_time, &
                          ValidSpawnedList, InitialSpawnedSlots, ilutHF, &
                          CurrentDets, iter_data_ccmc, fcimc_excit_gen_store, &
-                         tTruncSpace, CurrentH, NoBorn, SpawnedParts, NoDied,&
+                         tTruncSpace, NoBorn, SpawnedParts, NoDied,&
                          Annihil_Time, Hii, ENumCyc, Acceptances, MaxSpawned,&
                          HFDet, SumWalkersCyc, SpawnFromSing, MaxWalkersPart,&
                          exFlag
@@ -31,6 +31,8 @@ MODULE CCMC
     use bit_reps, only: decode_bit_det
     use hash, only: DetermineDetNode
     use procedure_pointers, only: get_spawn_helement
+    use global_det_data, only: global_determinant_data, det_diagH, &
+                               set_det_diagH
    IMPLICIT NONE
     integer :: iPartBloom
    CONTAINS
@@ -342,7 +344,7 @@ MODULE CCMC
                   iCompositeSize=0
                   call decode_bit_det (DetCurr, iLutnI)
 !Also take into account the contributions from the dets in the list
-                  HDiagCurr=CurrentH(1,j)
+                  HDiagCurr = det_diagH(j)
                   if(tHistSpawn) then
                      WalkExcitLevel = FindBitExcitLevel(iLutHF, iLutnI, nel)
                   else
@@ -743,7 +745,7 @@ MODULE CCMC
                ELSE
                   dProbDecompose=1
                   iPartDie=j
-                  HDiagCurr=CurrentH(1,j)
+                  HDiagCurr = det_diagH(j)
                ENDIF 
                dProb=dClusterProb*dProbDecompose
 
@@ -867,7 +869,7 @@ MODULE CCMC
             ENDIF
 
             ! HDiags are stored.
-            HDiagCurr=CurrentH(1,j)
+            HDiagCurr = det_diagH(j)
             call decode_bit_det (DetCurr, CurrentDets(:,j))
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
@@ -883,7 +885,7 @@ MODULE CCMC
                 call encode_sign(CurrentDets(:,VecSlot),TempSign3)
                 ! CurrentDets(:,VecSlot)=CurrentDets(:,j)
                 ! CurrentSign(VecSlot)=CopySign
-                CurrentH(1,VecSlot)=CurrentH(1,j)
+                call set_det_diagH(VecSlot, det_diagH(j))
                 VecSlot=VecSlot+1
             ENDIF   !To kill if
         enddo
@@ -2487,10 +2489,10 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    write(iout,*) "Max Amplitude List size: ", nMaxAmpl
    if(tSharedExcitors) then
       call shared_allocate_iluts("DetList",DetList,(/nIfTot,nMaxAmpl/),iNodeIndex)
-      call shared_allocate("CurrentH", CurrentH, (/1, nMaxAmpl/), iNodeIndex)
+      call shared_allocate("global_determinant_data", global_determinant_data, (/1, nMaxAmpl/), iNodeIndex)
    else
       Allocate(DetList(0:nIfTot,nMaxAmpl))
-      allocate(currenth(1,nmaxampl))
+      allocate(global_determinant_data(1,nmaxampl))
    endif
    ierr=0
    LogAlloc(ierr,'DetList',(nIfTot+1)*nMaxAmpl,4,tagDetList)

@@ -19,7 +19,7 @@
 !nlist2 = ValidSpawned
 !list2 = SpawnedParts(:,1:nlist2)
     SUBROUTINE MergeListswH(nlist1,nlist2,list2)
-        USE FciMCParMOD , only : Hii,CurrentDets,CurrentH
+        USE FciMCParMOD , only : Hii,CurrentDets
         use FciMCData , only : tFillingStochRDMonFly, InstNoatHF, ntrial_occ, &
                                ncon_occ, occ_trial_amps, occ_con_amps, &
                                trial_temp, con_temp, tTrialHash, iLutHF_True, &
@@ -37,6 +37,8 @@
         use constants, only: dp,n_int,lenof_sign
         use util_mod, only: binary_search_custom
         use searching, only: find_trial_and_con_states_bin, find_trial_and_con_states_hash
+        use global_det_data, only: global_determinant_data, set_det_diagH, &
+                                   det_diagH, set_av_sgn
         IMPLICIT NONE
         INTEGER :: nlisto,nlist1,nlist2,i
         INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
@@ -110,11 +112,11 @@
                end if
 
                CurrentDets(:,j+i)=CurrentDets(:,j)
-               CurrentH(:,j+i)=CurrentH(:,j)
+               global_determinant_data(:,j+i) = global_determinant_data(:,j)
            enddo
 
            IF(tTruncInitiator) &
-               CALL FlagifDetisInitiator(list2(:,i), CurrentH(1,i))
+               CALL FlagifDetisInitiator(list2(:,i), det_diagH(i))
 ! Insert DetCurr into its position in the completely merged list (i-1 elements
 ! below it still to be inserted).
            CurrentDets(:,ips+i-1)=list2(:,i)
@@ -141,13 +143,20 @@
                HDiagTemp = get_helement (nJ, nJ, 0)
            endif
            HDiag=(REAL(HDiagTemp,dp))-Hii
-           CurrentH(1,ips+i-1)=HDiag
+           call set_det_diagH(ips+i-1, HDiag)
            if(DetBitEQ(CurrentDets(:,ips+i-1),iLutHF_True,NIfDBO)) call extract_sign(CurrentDets(:,ips+i-1),InstNoatHF)
 
            ! Store the initial iteration for this created particle
            call encode_first_iter(CurrentDets(:,ips+i-1), iter)
            
-           if(tFillingStochRDMonFly) CurrentH(2:1+2*lenof_sign,ips+i-1) = 0.0_dp
+           if (tFillingStochRDMonFly) then
+               if (lenof_sign == 2) then
+                   call set_av_sgn(ips+i-1, (/0.0_dp, 0.0_dp/))
+               else
+                   call set_av_sgn(ips+i-1, (/0.0_dp/))
+               end if
+           end if
+               
 ! Next element to be inserted must be smaller than DetCurr, so must be inserted
 ! at (at most) at ips-1.
 ! If nlisto=0 then all remaining elements in list2 must be inserted directly
