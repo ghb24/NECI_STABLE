@@ -93,10 +93,10 @@
 
         write(6,'(a,f14.6,a)') &
             ' Determinant related persistent storage requires: ', &
-            8_dp * tot_len / 1048576_dp, ' Mb / processor'
+            8.0_dp * real(tot_len,dp) / 1048576_dp, ' Mb / processor'
 
         ! As an added safety feature
-        tot_len = 0_dp
+        global_determinant_data = 0.0_dp
                          
     end subroutine
 
