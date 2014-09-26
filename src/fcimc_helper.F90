@@ -4,7 +4,7 @@ module fcimc_helper
 
     use constants
     use util_mod
-    use systemData, only: nel, tHPHF, tMomInv, tNoBrillouin, G1, tUEG, &
+    use systemData, only: nel, tHPHF, tNoBrillouin, G1, tUEG, &
                           tLatticeGens, nBasis
     use bit_reps, only: NIfTot, flag_is_initiator, test_flag, extract_flags, &
                         flag_parent_initiator, encode_bit_rep, NIfD, &
@@ -19,7 +19,6 @@ module fcimc_helper
     use hist, only: test_add_hist_spin_dist_det, add_hist_spawn, &
                     add_hist_energies, HistMinInd, tHistSpawn
     use hphf_integrals, only: hphf_off_diag_helement
-    use MI_integrals, only: MI_off_diag_helement
     use Logging, only: OrbOccs, tPrintOrbOcc, tPrintOrbOccInit, &
                        tHistSpinDist, tHistSpawn, tHistEnergies, &
                        RDMEnergyIter, tFullHFAv, &
@@ -236,8 +235,6 @@ contains
             if (tHPHF) then
                 HOffDiag = hphf_off_diag_helement (ProjEDet, nI, iLutRef,&
                                                    ilut)
-            elseif(tMomInv) then
-                HOffDiag = MI_off_diag_helement (ProjEDet, nI, iLutRef, ilut)
             else
                 HOffDiag = get_helement (ProjEDet, nI, ExcitLevel, &
                                          ilutRef, ilut)
@@ -700,7 +697,7 @@ contains
             ! disallowed if double. If higher, then all excits could
             ! be disallowed. If HPHF, excit could be single or double,
             ! and IC not returned --> Always test.
-            if (tMomInv .or. tHPHF .or. WalkExcitLevel >= ICILevel .or. &
+            if (tHPHF .or. WalkExcitLevel >= ICILevel .or. &
                 (WalkExcitLevel == (ICILevel-1) .and. IC == 2)) then
                 ExcitLevel = FindBitExcitLevel (iLutHF, ilutnJ, ICILevel)
                 if (ExcitLevel > ICILevel) &

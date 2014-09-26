@@ -77,7 +77,6 @@ contains
           MaxWalkerBloom=-1
           tSearchTau=.true.
           InputDiagSft=0.0_dp
-          tPopsMapping=.false.
           tTimeExit=.false.
           MaxTimeExit=0.0_dp
           tMaxBloom=.false.
@@ -102,7 +101,6 @@ contains
           TUnbiasPGeninProjE=.false.
           TRegenExcitgens=.false.
           MemoryFacPart=10.0_dp
-          MemoryFacAnnihil=10.0_dp
           MemoryFacSpawn=0.5_dp
           MemoryFacInit = 0.3_dp
           TStartSinglePart=.true.
@@ -118,8 +116,6 @@ contains
           PRet=1.0_dp
           TNoAnnihil=.false.
           TFullUnbias=.false.
-          GrowMaxFactor=5.0_dp
-          CullFactor=2.0_dp
           TFCIMC=.false.
           tRPA_QBA=.false.
           TCCMC=.false.
@@ -232,12 +228,9 @@ contains
           TLADDER=.false. 
           tDefineDet=.false.
           tTruncInitiator=.false.
-          tDelayTruncInit=.false.
-!          tKeepDoubleSpawns=.false.
           tAddtoInitiator=.false.
           tRetestAddtoInit=.true.
           InitiatorWalkNo=10.0_dp
-          IterTruncInit=0
           tInitIncDoubs=.false.
           MaxNoatHF=0
           HFPopThresh=0
@@ -283,7 +276,6 @@ contains
           tTruncNOpen = .false.
 
           hash_shift=0
-          tContinueAfterMP2=.false.
           tUniqueHFNode = .false.
 
           ! Semi-stochastic and trial wavefunction options.
@@ -1163,7 +1155,7 @@ contains
             case("POPSFILEMAPPING")
 !This indicates that we will be mapping a popsfile from a smaller basis calculation, into a bigger basis calculation.
 !Requires a "mapping" file.
-                tPopsMapping=.true.
+                call stop_all(t_r,'POPSFILEMAPPING deprecated')
             case("READPOPSTHRESH")
 !When reading in a popsfile, this will only save the determinant, if the number of particles on this 
 !determinant is greater than iWeightPopRead.
@@ -1213,8 +1205,6 @@ contains
                     !change dramatically to start with.
                     call getf(InitialPart)
                 endif
-            case("CONTINUEAFTERMP2")
-                tContinueAfterMP2=.true.
             case("STARTCAS")
 !For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
 !                CALL Stop_All(t_r,"STARTMP1 option depreciated")
@@ -1227,12 +1217,6 @@ contains
                     !change dramatically to start with.
                     call getf(InitialPart)
                 endif
-            case("GROWMAXFACTOR")
-!For FCIMC, this is the factor to which the initial number of particles is allowed to go before it is culled
-                call getf(GrowMaxFactor)
-            case("CULLFACTOR")
-!For FCIMC, this is the factor to which the total number of particles is reduced once it reaches the GrowMaxFactor limit
-                call getf(CullFactor)
             case("EQUILSTEPS")
 !For FCIMC, this indicates the number of cycles which have to
 !pass before the energy of the system from the doubles (HF)
@@ -1368,7 +1352,7 @@ contains
 !the processor during annihilation compared to InitWalkers. This will generally want to be larger than
 !memoryfacPart, because the parallel annihilation may not be exactly load-balanced because of differences 
 !in the wavevector and uniformity of the hashing algorithm.
-                CALL Getf(MemoryFacAnnihil)
+                call stop_all(t_r,'MEMORYFACANNIHIL should not be needed any more')
             case("MEMORYFACSPAWN")
 !A parallel FCIMC option for use with ROTOANNIHILATION. This is the factor by which space will be made 
 !available for spawned particles each iteration. 
@@ -1439,17 +1423,6 @@ contains
 !can only spawn back on to the determinant from which they came.  This is the star approximation from the CAS space. 
                 tTruncInitiator=.true.
 
-            case("DELAYTRUNCINITIATOR")
-!This keyword is used if we are eventually going to want to include the inactive space in a 
-!truncinitiator kind of way, but we want to start off by just doing a truncated calculation.                
-!Because we are simply using a larger NIfTot - this needs to be changed at the very beginning of 
-!a calculation - then we can either set the iteration at which we want to start including 
-!the rest of the space or we can do this dynamically.
-                tDelayTruncInit=.true.
-                IF(item.lt.nitems) then
-                    call Geti(IterTruncInit)
-                ENDIF
-
             case("KEEPDOUBSPAWNS")
 !This means that two sets of walkers spawned on the same determinant with the same sign will live, 
 !whether they've come from inside or outside the CAS space.  Before, if both of these
@@ -1481,16 +1454,6 @@ contains
 !Having this on means the population is tested at every iteration, turning it off means that once a determinant 
 !becomes an initiator by virtue of its population, it remains an initiator 
 !for the rest of the simulation.
-                if(item.lt.nitems) then
-                    call readu(w)
-                    select case(w)
-                    case("OFF")
-                        tRetestAddtoInit=.false.
-                    end select
-                else
-                    tRetestAddtoInit=.true.
-                end if
-
  
             case("INCLDOUBSINITIATOR")
 !This keyword includes any doubly excited determinant in the 'initiator' space so that it may spawn as usual

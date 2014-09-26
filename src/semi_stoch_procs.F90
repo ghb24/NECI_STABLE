@@ -29,8 +29,6 @@ module semi_stoch_procs
     use hash, only: DetermineDetNode, FindWalkerHash
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
-    use MI_integrals, only: MI_off_diag_helement
-    use MomInv, only: IsAllowedMI
     use nElRDMMod, only: fill_RDM_offdiag_deterministic
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, MPIArg, &
                              MPIAllGatherV, MPISum, MPISumAll, MPIScatterV
@@ -41,7 +39,7 @@ module semi_stoch_procs
     use sparse_arrays, only: sparse_core_ham, SparseCoreHamilTags, deallocate_sparse_ham, &
                             core_connections, sparse_ham, hamil_diag, HDiagTag, &
                             SparseHamilTags, allocate_sparse_ham_row, core_ht, core_hashtable
-    use SystemData, only: nel, tHPHF, nBasis, BRR, ARR, tUEG, tMomInv
+    use SystemData, only: nel, tHPHF, nBasis, BRR, ARR, tUEG
     use timing_neci
     use util_mod, only: get_free_unit
 
@@ -926,8 +924,6 @@ contains
             ! beta orbitals of the same spatial orbital have the same
             ! fock energies, so can consider either.
             hel = hphf_off_diag_helement(HFDet, nI, iLutHF, ilut)
-        else if (tMomInv) then
-            hel = MI_off_diag_helement(HFDet, nI, iLutHF, ilut)
         else
             hel = get_helement(HFDet, nI, ic, ex, tParity)
         end if

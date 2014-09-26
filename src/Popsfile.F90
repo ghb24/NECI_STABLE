@@ -3,12 +3,12 @@
 MODULE PopsfileMod
 
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin, &
-                          tMomInv, AB_elec_pairs, par_elec_pairs
+                          AB_elec_pairs, par_elec_pairs
     use CalcData, only: tTruncInitiator, DiagSft, tWalkContGrow, nEquilSteps, &
                         ScaleWalkers, tReadPopsRestart, &
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
-                        iWeightPopRead, iPopsFileNoRead, tPopsMapping, Tau, &
-                        InitiatorWalkNo, MemoryFacPart, MemoryFacAnnihil, &
+                        iWeightPopRead, iPopsFileNoRead, Tau, &
+                        InitiatorWalkNo, MemoryFacPart, &
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
                         tCCMC
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
@@ -16,7 +16,6 @@ MODULE PopsfileMod
     use hash , only : DetermineDetNode, FindWalkerHash
     use Determinants, only : get_helement,write_det
     use hphf_integrals, only: hphf_diag_helement
-    use MI_integrals, only: MI_diag_helement
     USE dSFMT_interface , only : genrand_real2_dSFMT
     use FciMCData
     use bit_rep_data, only: extract_sign
@@ -158,11 +157,6 @@ contains
             call neci_flush(6)
         ENDIF
 
-        if(tPopsMapping) then
-            write(6,"(A)") "Reading in popsfile of smaller basis, and distributing on larger basis determinants"
-            call init_popsfile_mapping()
-        endif
-
         ! Which of the POPSFILE reading routines are we going to make use of?
         if (tSplitPops) then
             CurrWalkers = read_pops_splitpops (iunit, BinPops, Dets, &
@@ -263,8 +257,6 @@ contains
                     call decode_bit_det (TempnI, dets(:,i))
                     if (tHPHF) then
                         HElemTemp = hphf_diag_helement (TempnI,Dets(:,i))
-                    elseif(tMomInv) then
-                        HElemTemp = MI_diag_helement(TempnI,Dets(:,i))
                     else
                         HElemTemp = get_helement (TempnI, TempnI, 0)
                     endif
@@ -274,8 +266,6 @@ contains
         enddo
 
         call mpibarrier(err)
-
-        if(allocated(PopsMapping)) deallocate(PopsMapping)
 
         call halt_timer(process_timer)
     
@@ -618,7 +608,7 @@ r_loop: do while (.not. tReadAllPops)
     !This should only be called from root node.
     !iunit = unit
     !BinPops = Binary popsfile or formatted
-    !WalkerTemp = Determinant entry returned (in new basis if using mapping)
+    !WalkerTemp = Determinant entry returned
     function read_popsfile_det (iunit, BinPops, WalkerTemp, nI, &
                                 PopNifSgn, CurrentHEntry, iunit_3, &
                                 decode_det) result(tEOF)
@@ -628,7 +618,7 @@ r_loop: do while (.not. tReadAllPops)
         integer, intent(out) :: nI(nel)
         logical, intent(in) :: BinPops, decode_det
         integer(n_int), intent(out) :: WalkerTemp(0:NIfTot)
-        integer(n_int) :: WalkerToMap(0:MappingNIfD), WalkerTemp2(0:NIfTot)
+        integer(n_int) :: WalkerTemp2(0:NIfTot)
         integer(n_int) :: sgn_int(lenof_sign)
         integer :: elec, flg, i, j, stat, k
         integer :: PopNifSgn
@@ -642,110 +632,46 @@ r_loop: do while (.not. tReadAllPops)
         tEOF = .false.
 r_loop: do while(.not.tStoreDet)
 
-            if (.not. tPopsMapping) then
-                !
-                ! All basis parameters match --> Read in directly.
-                if (tRealPOPSfile) then
-                    if (BinPops) then
-                        if (tUseFlags) then
-                            read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), sgn,&
-                                                     flg_read
-                        else
-                            read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), sgn
-                        end if
+            ! All basis parameters match --> Read in directly.
+            if (tRealPOPSfile) then
+                if (BinPops) then
+                    if (tUseFlags) then
+                        read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), sgn,&
+                                                 flg_read
                     else
-                        if (tUseFlags) then
-                            read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
-                                                       sgn, flg_read
-                        else
-                            read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), sgn
-                        end if
+                        read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), sgn
                     end if
                 else
-                    if (BinPops) then
-                        if (tUseFlags) then
-                            read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), &
-                                                     sgn_int, flg_read
-                        else
-                            read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), &
-                                                     sgn_int
-                        end if
+                    if (tUseFlags) then
+                        read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
+                                                   sgn, flg_read
                     else
-                        if (tUseFlags) then
-                            read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
-                                                       sgn_int, flg_read
-                        else
-                            read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
-                                                       sgn_int
-                        end if
+                        read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), sgn
                     end if
-                    sgn = sgn_int
-                end if
-                if (stat < 0) then
-                    tEOF = .true. ! End of file reached.
-                    exit r_loop
                 end if
             else
-                !
-                ! we are mapping from a smaller to larger basis.
-                if (tRealPOPSfile) then
-                    if (BinPops) then
-                        if (tUseFlags) then
-                            read(iunit, iostat=stat) &
-                                WalkerToMap(0:MappingNIfD), sgn, flg_read
-                        else
-                            read(iunit, iostat=stat) &
-                                WalkerToMap(0:MappingNIfD), sgn
-                        end if
+                if (BinPops) then
+                    if (tUseFlags) then
+                        read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), &
+                                                 sgn_int, flg_read
                     else
-                        if (tUseFlags) then
-                            read(iunit,*, iostat=stat) &
-                                WalkerToMap(0:MappingNIfD), sgn, flg_read
-                        else
-                            read(iunit,*, iostat=stat) &
-                                WalkerToMap(0:MappingNIfD), sgn
-                        end if
+                        read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), &
+                                                 sgn_int
                     end if
                 else
-                    if (BinPops) then
-                        if (tUseFlags) then
-                            read(iunit, iostat=stat) &
-                                WalkerToMap(0:MappingNIfD), sgn_int, flg_read
-                        else
-                            read(iunit, iostat=stat) &
-                                WalkerToMap(0:MappingNIfD), sgn_int
-                        end if
+                    if (tUseFlags) then
+                        read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
+                                                   sgn_int, flg_read
                     else
-                        if (tUseFlags) then
-                            read(iunit,*, iostat=stat) &
-                                WalkerToMap(0:MappingNIfD), sgn_int, flg_read
-                        else
-                            read(iunit,*, iostat=stat) &
-                                WalkerToMap(0:MappingNIfD), sgn_int
-                        end if
+                        read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
+                                                   sgn_int
                     end if
-                    sgn = sgn_int
                 end if
-                if (stat < 0) then
-                    tEOF = .true. ! End of file reached
-                    exit r_loop
-                end if
-                
-                ! Decode to natural ordered integers, and then re-encode to
-                ! the new representation.
-                elec = 0
-outer_map:      do i = 0, MappingNIfD
-                    do j = 0, end_n_int
-                        if (btest(WalkerToMap(i), j)) then
-                            elec = elec + 1
-                            nI(elec) = PopsMapping((i * bits_n_int) + (j + 1))
-                            if (elec == nel) exit outer_map
-                        end if
-                    end do
-                end do outer_map
-
-                ! Encode this new determinant.
-                call EncodeBitDet(nI, WalkerTemp)
+                sgn = sgn_int
+            end if
+            if (stat < 0) then
+                tEOF = .true. ! End of file reached.
+                exit r_loop
             end if
             
             if((inum_runs.eq.2).and.(PopNifSgn.eq.1)) then
@@ -792,67 +718,13 @@ outer_map:      do i = 0, MappingNIfD
             end if
         enddo r_loop
 
-        ! Decode the determinant as required if not using mapping
-        if (.not. tPopsMapping .and. .not. tEOF .and. decode_det) then
+        ! Decode the determinant as required
+        if (.not. tEOF .and. decode_det) then
             call decode_bit_det (nI, WalkerTemp)
         endif
 
     end function read_popsfile_det
-
     
-    !Read in mapping file, and store the mapping between orbitals in the old and new bases.
-    subroutine init_popsfile_mapping()
-        integer :: OldBasisSize,NewBasisSize,iunit,NewBasis,kkx,kky,kkz,dumint,OldBasis,i
-        real(dp) :: dumEn
-        logical :: exists
-        character(len=*), parameter :: t_r='init_popsfile_mapping'
-
-        if(iProcIndex.eq.Root) then
-            inquire(file='mapping',exist=exists)
-            if(.not.exists) then
-                call stop_all(t_r,"No mapping file found")
-            endif
-
-            iunit=get_free_unit()
-            open(iunit,file='mapping',status='old',action='read',form='formatted')
-
-            OldBasisSize=0
-            NewBasisSize=0
-            do i=1,nBasis
-                read(iunit,*) NewBasis,kkx,kky,kkz,dumint,dumEn,OldBasis
-                if(NewBasis.gt.NewBasisSize) NewBasisSize=NewBasis
-                if(OldBasis.gt.OldBasisSize) OldBasisSize=OldBasis
-            enddo
-            if(NewBasisSize.ne.nBasis) then
-                call stop_all(t_r,"Size of new bases not consistent in mapping")
-            endif
-            if(int(OldBasisSize/bits_n_int).ne.MappingNIfD) then
-                call stop_all(t_r,"Size of old basis not consistent with its POPSFILEHEAD NIfD")
-            endif
-
-            allocate(PopsMapping(OldBasisSize))   !Mapping from old basis to new basis
-            PopsMapping=0
-            rewind(iunit)
-            do i=1,nBasis 
-                read(iunit,*) NewBasis,kkx,kky,kkz,dumint,dumEn,OldBasis
-                if(OldBasis.ne.0) then
-                    PopsMapping(OldBasis)=NewBasis
-                endif
-            enddo
-            
-            do i=1,OldBasis
-                if(PopsMapping(i).eq.0) call stop_all(t_r,"Not all orbital mappings accounted for")
-            enddo
-
-            close(iunit)
-
-            write(6,"(A,I4,A,I4)") "Original NIfTot: ",MappingNIfTot, " New NIfTot: ",NIfTot
-
-        endif
-
-    end subroutine init_popsfile_mapping
-                
-
     subroutine CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                     iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                     PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
@@ -880,11 +752,7 @@ outer_map:      do i = 0, MappingNIfD
         if(tPopHPHF.neqv.tHPHF) call stop_all(this_routine,"Popsfile HPHF and input HPHF not same")
         if(tPopLz.neqv.tFixLz) call stop_all(this_routine,"Popsfile Lz and input Lz not same")
         if(iPopNEl.ne.NEl) call stop_all(this_routine,"Popsfile NEl and input NEl not same")
-        if(.not.tPopsMapping) then
-            if(PopNIfD.ne.NIfD) call stop_all(this_routine,"Popsfile NIfD and calculated NIfD not same")
-        else
-            MappingNIfD=PopNIfD
-        endif
+        if(PopNIfD.ne.NIfD) call stop_all(this_routine,"Popsfile NIfD and calculated NIfD not same")
         if(PopNIfY.ne.NIfY) call stop_all(this_routine,"Popsfile NIfY and calculated NIfY not same")
         if(inum_runs.eq.1) then
             !We allow these two values to be different if we're reading in a popsfile fine inum_runs=1 and we want to
@@ -898,19 +766,15 @@ outer_map:      do i = 0, MappingNIfD
         ! allowed to differ.
 !        if(PopNIfFlag.ne.NIfFlag) call stop_all(this_routine,"Popsfile NIfFlag and calculated NIfFlag not same")
         if (inum_runs.eq.1) then
-            if(.not.tPopsMapping) then
-                if (tUseFlags .and. NIfFlag == 0) then
-                    if (PopNIFTot /= NIfTot + 1) &
-                        call stop_all(this_routine, "Popsfile NIfTot and &
-                                     &calculated NIfTot don't match.")
-                else
-                    if (PopNIfTot /= NIfTot) &
-                        call stop_all(this_routine,"Popsfile NIfTot and calculated&
-                                                   & NIfTot not same")
-                end if
+            if (tUseFlags .and. NIfFlag == 0) then
+                if (PopNIFTot /= NIfTot + 1) &
+                    call stop_all(this_routine, "Popsfile NIfTot and &
+                                 &calculated NIfTot don't match.")
             else
-                MappingNIfTot=PopNIfTot
-            endif
+                if (PopNIfTot /= NIfTot) &
+                    call stop_all(this_routine,"Popsfile NIfTot and calculated&
+                                               & NIfTot not same")
+            end if
         endif
 
 
@@ -2240,8 +2104,6 @@ outer_map:      do i = 0, MappingNIfD
                 ! Recalculate the reference E
                 if (tHPHF) then
                     HElemTemp = hphf_diag_helement (ProjEDet, iLutRef)
-                elseif(tMomInv) then
-                    HElemTemp = MI_diag_helement(ProjEDet,iLutRef)
                 else
                     HElemTemp = get_helement (ProjEDet, ProjEDet, 0)
                 endif
@@ -2271,8 +2133,6 @@ outer_map:      do i = 0, MappingNIfD
                 if (tHPHF) then
                     HElemTemp = hphf_diag_helement (TempnI, &
                                                     CurrentDets(:,j))
-                elseif(tMomInv) then
-                    HElemTemp = MI_diag_helement(TempnI,CurrentDets(:,j))
                 else
                     HElemTemp = get_helement (TempnI, TempnI, 0)
                 endif
@@ -2308,7 +2168,7 @@ outer_map:      do i = 0, MappingNIfD
 ! This will very likely still be tweaking the inner heart-strings of FciMCPar.  Caveatis stulti!  AJWT
 ! GHB says he will incorporate this functionality into a rewrite of ReadFromPopsfilePar. 19/8/2010
     SUBROUTINE ReadFromPopsfileOnly(Dets,nDets)
-        use CalcData , only : MemoryFacPart,MemoryFacAnnihil,MemoryFacSpawn,iWeightPopRead
+        use CalcData , only : MemoryFacPart,MemoryFacSpawn,iWeightPopRead
         use LoggingData, only: tZeroProjE
         use constants, only: size_n_int,bits_n_int
         integer(int64),intent(inout) :: nDets !The number of occupied entries in Dets
