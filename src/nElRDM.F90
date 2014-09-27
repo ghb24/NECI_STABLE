@@ -52,10 +52,10 @@ MODULe nElRDMMod
                          Spawned_ParentsTag, AccumRDMNorm_Inst, &
                          Spawned_Parents_IndexTag, Iter, AccumRDMNorm, &
                          InstNoatHF, tSinglePartPhase, AllAccumRDMNorm, iLutRef,&
-                         HFDet_True, NCurrH, ilutHF_True, SpawnVec, &
+                         HFDet_True, ilutHF_True, SpawnVec, &
                          SpawnVec2, SpawnVecTag, SpawnVec2Tag, SpawnedParts, &
                          SpawnedParts2, excit_gen_store_type, CurrentDets, &
-                         CurrentH, IterRDMStart, ValidSpawnedList, &
+                         IterRDMStart, ValidSpawnedList, &
                          TempSpawnedPartsInd, TempSpawnedParts, TotParts, &
                          TotWalkers, iLutHF, core_space, IterLastRDMFill, &
                          determ_proc_sizes,determ_proc_indices, partial_determ_vector, &
@@ -92,6 +92,7 @@ MODULe nElRDMMod
     use SymExcit3, only: GenExcitations3
     use OneEInts, only: TMAT2D
     use hash, only: DetermineDetNode
+    use global_det_data, only: get_iter_occ, get_av_sgn
     use constants
     use util_mod
     use sort_mod
@@ -857,11 +858,13 @@ MODULe nElRDMMod
 
     end subroutine DeAlloc_Alloc_SpawnedParts
 
-    subroutine extract_bit_rep_avsign_no_rdm(iLutnI, CurrH_I, nI, SignI, &
-                                                FlagsI, IterRDMStartI, AvSignI, Store)
-! This is just the standard extract_bit_rep routine for when we're not calculating the RDMs.    
+    subroutine extract_bit_rep_avsign_no_rdm(iLutnI, j, nI, SignI, FlagsI, &
+                                             IterRDMStartI, AvSignI, Store)
+        ! This is just the standard extract_bit_rep routine for when we're not
+        ! calculating the RDMs.    
+
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
-        real(dp) , intent(in) :: CurrH_I(NCurrH)
+        integer, intent(in) :: j
         integer, intent(out) :: nI(nel), FlagsI
         real(dp), dimension(lenof_sign), intent(out) :: SignI
         real(dp) , dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
@@ -875,8 +878,8 @@ MODULe nElRDMMod
 
     end subroutine extract_bit_rep_avsign_no_rdm
 
-    subroutine extract_bit_rep_avsign_norm(iLutnI, CurrH_I, nI, SignI, &
-                                                FlagsI, IterRDMStartI, AvSignI, Store)
+    subroutine extract_bit_rep_avsign_norm(iLutnI, j, nI, SignI, FlagsI, &
+                                           IterRDMStartI, AvSignI, Store)
 ! The following extract_bit_rep_avsign routine extracts the bit representation 
 ! of the current determinant, and calculate the average sign since this determinant became 
 ! occupied. 
@@ -887,21 +890,20 @@ MODULe nElRDMMod
 ! This is called for each determinant in the occupied list at the beginning of its FCIQMC cycle. 
 ! It is used if we're calculating the RDMs with or without HPHF. 
 ! Input:    iLutnI (bit rep of current determinant).
-!           CurrH_I(1) - diagonal H_ii element for current det i.
-!           CurrH_I(2:3) - previous AvSign, CurrH_I(4:5) - previous IterRDMStartI (for doublerun)
+!           j - Which element in the CurrentDets array are we considering?
 ! Output:   nI, SignI, FlagsI after extract.                                              
 !           IterRDMStartI - new iteration the determinant became occupied (as a real).
 !           AvSignI - the new average walker population during this time (also real).
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
-        real(dp) , intent(in) :: CurrH_I(NCurrH)
         integer, intent(out) :: nI(nel), FlagsI
+        integer, intent(in) :: j
         real(dp), dimension(lenof_sign), intent(out) :: SignI
         real(dp) , dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
         type(excit_gen_store_type), intent(inout), optional :: Store
         integer :: part_ind
 
         ! This is the iteration from which this determinant has been occupied.
-        IterRDMStartI(1:lenof_sign) = CurrH_I(2+lenof_sign:1+2*lenof_sign)
+        IterRDMStartI(1:lenof_sign) = get_iter_occ(j)
         
         ! This extracts everything.
         call extract_bit_rep (iLutnI, nI, SignI, FlagsI)
@@ -954,7 +956,7 @@ MODULe nElRDMMod
                     !Nothing unusual has happened so update both populations as normal
                     do part_ind=1,lenof_sign
                         ! Update the average population.
-                        AvSignI(part_ind) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * CurrH_I(1+part_ind)) &
+                        AvSignI(part_ind) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * get_av_sgn(j, part_ind)) &
                             + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
                     enddo
                 endif
@@ -967,7 +969,7 @@ MODULe nElRDMMod
                     ! This just comes out as the current population (SignI) if this is the first 
                     ! time the determinant has become occupied.
 
-                    AvSignI(part_ind) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * CurrH_I(1+part_ind)) &
+                    AvSignI(part_ind) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * get_av_sgn(j,part_ind)) &
                                     + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
                 enddo
             endif
@@ -975,11 +977,10 @@ MODULe nElRDMMod
 
     end subroutine extract_bit_rep_avsign_norm
     
-    subroutine fill_rdm_diag_currdet_norm(iLutnI, nI, CurrH_I, ExcitLevelI, tCoreSpaceDet)
+    subroutine fill_rdm_diag_currdet_norm(iLutnI, nI, j, ExcitLevelI, tCoreSpaceDet)
 ! This routine calculates the diagonal RDM contribution, and explicit connections to the HF, from the 
 ! current determinant. 
-! Each determinant (iLutnI/nI), has Hii element CurrH_I(1), average 
-! population CurrH_I(2:3), and has been occupied since iteration CurrH_I(4:5).
+! j --> Which element of the main list CurrentDets are we considering?
 ! IterLastRDMFill is the number of iterations since the last time the RDM contributions were added in 
 ! (often the frequency of the RDM energy calculation). 
 ! For the instantaneous RDMs we need to multiply the RDM contributions by either this, or the number of iterations 
@@ -987,8 +988,7 @@ MODULe nElRDMMod
 ! For the full RDMs we need to multiply the RDM contributions by the number of iterations the 
 ! determinant has been occupied.
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
-        real(dp) , intent(in) :: CurrH_I(NCurrH)
-        integer, intent(in) :: nI(nel), ExcitLevelI
+        integer, intent(in) :: nI(nel), ExcitLevelI, j
         logical, intent(in), optional :: tCoreSpaceDet
         real(dp), dimension(lenof_sign) :: IterDetOcc
         integer(n_int) :: SpinCoupDet(0:nIfTot)
@@ -997,9 +997,7 @@ MODULe nElRDMMod
         integer :: IterLastRDMFill, AvSignIters, IterRDM
         
         ! This is the number of iterations this determinant has been occupied.
-        do part_type=1,lenof_sign
-            IterDetOcc(part_type) = real(Iter+PreviousCycles,dp) - CurrH_I(1+lenof_sign+part_type) + 1.0_dp
-        enddo
+        IterDetOcc(1:lenof_sign) = real(Iter+PreviousCycles,dp) - get_iter_occ(j) + 1.0_dp
         AvSignIters=min(IterDetOcc(1), IterDetOcc(inum_runs))
         
         ! IterLastRDMFill is the number of iterations from the last time the energy was calculated 
@@ -1013,7 +1011,7 @@ MODULe nElRDMMod
             IterRDM = AvSignIters
         endif
 
-        AvSignCurr=CurrH_I(2:1+lenof_sign)
+        AvSignCurr = get_av_sgn(j)
 
         if(tHPHF) then
             if(.not.TestClosedShellDet(iLutnI)) then
@@ -1056,84 +1054,14 @@ MODULe nElRDMMod
 
     end subroutine fill_rdm_diag_currdet_norm
 
-!    subroutine fill_rdm_diag_currdet_hfsd(iLutnI, nI, SignCurr, ExcitLevelI, tCoreSpaceDet)
-! This routine calculates the diagonal RDM contribution, and explicit connections to the HF, from the 
-! current determinant. 
-! Each determinant (iLutnI/nI), has Hii element CurrH_I(1), average 
-! population CurrH_I(2), and has been occupied since iteration CurrH_I(3).
-! IterLastRDMFill is the number of iterations since the last time the RDM contributions were added in 
-! (often the frequency of the RDM energy calculation). 
-! We need to multiply the RDM contributions by either this, or the number of iterations 
-! the determinant has been occupied, which ever is fewer.
-!        integer(n_int), intent(in) :: iLutnI(0:nIfTot)
-!        real(dp) , intent(in) :: SignCurr(lenof_sign)
-!        logical, intent(in), optional :: tCoreSpaceDet
-!        integer, intent(in) :: nI(nel), ExcitLevelI
-!        integer(n_int) :: SpinCoupDet(0:nIfTot)
-!        integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel, part_type
-!
-!        call Add_RDM_HFConnections_HF_S_D(iLutnI, nI, SignCurr, ExcitLevelI, tCoreSpaceDet)
-!
-!    end subroutine fill_rdm_diag_currdet_hfsd
 
-!    subroutine fill_rdm_softexit(nDets)
-! !This routine is called if a softexit command is used.  
-! !In this case, the diagonal RDM elements, and explicit connections to the HF will not have been 
-! !calculated in the final iteration.  
-! !Need to run over the occupied determinants and do so now. 
-! !This is clearly not all that efficient, and so could be incorporated into the popsfile write out 
-! !if it becomes an issue.
- !       integer(int64) , intent(in) :: nDets
-  !      integer :: nI(nel), ExcitLevel, i
-
-  !      ! If it happens to be an iteration where the diagonal RDM elements are already being 
-  !      ! calculated, then no need to do this.
-  !      if(.not.((Iter.eq.NMCyc).or.(mod((Iter - IterRDMStart + 1),RDMEnergyIter).eq.0))) then
-
-  !          ! IterLastRDMFill is the number of iterations from the last time the RDM elements 
-  !          ! were included.
-  !          IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter)
-
-  !          ! Run over all determinants in the occupied (CurrentDets) list.
-  !          do i = 1, int(nDets,sizeof_int)
-
-  !              ! If we are only using initiators to calculate the RDMs, only add in the diagonal and 
-  !              ! explicit contributions if the average population is greater than n_add = InitiatorWalkNo.
-  !              if((abs(CurrentH(2,i)).gt.real(InitiatorWalkNo,dp)).or.(.not.tInitiatorRDM)) then
-
-  !                  if(tRef_Not_HF) then
-  !                      ExcitLevel = FindBitExcitLevel (iLutHF_true, CurrentDets(:,i), 2) 
-  !                  else
-  !                      ExcitLevel = FindBitExcitLevel (iLutRef, CurrentDets(:,i), 2)
-  !                  endif
-
-  !                  call decode_bit_det (nI, CurrentDets(:,i))
-
-
-  !                  if(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
-  !                      call fill_rdm_diag_currdet_hfsd(CurrentDets(:,i), nI, CurrentH(:,i), &
-  !                                                                      ExcitLevel)
-  !                  else
-  !                      call fill_rdm_diag_currdet_norm(CurrentDets(:,i), nI, CurrentH(:,i), &
-  !                                                                      ExcitLevel)
-  !                  endif
-  !                  
-  !              endif
-
-  !          enddo
-
-  !          !Now would need to add in off-diagonal contributions from the deterministic space
-
-  !      endif
-
-  !  end subroutine fill_rdm_softexit
-
-    subroutine det_removed_fill_diag_rdm( iLutnI, CurrH_I )
+    subroutine det_removed_fill_diag_rdm( iLutnI, j)
 ! This routine is called if a determinant is removed from the list of currently occupied.  
 ! At this point we need to add in its diagonal contribution for the number of iterations it has 
 ! been occupied (or since the contribution was last included). 
+! j --> which element of the main list CurrentDets are we considering
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
-        real(dp) , intent(in) :: CurrH_I(NCurrH)
+        integer, intent(in) :: j
         integer :: nI(nel), ExcitLevel, IterLastRDMFill
 
         ! If the determinant is removed on an iteration that the diagonal RDM elements are 
@@ -1154,7 +1082,7 @@ MODULe nElRDMMod
             !                                    IterLastRDMFill, tFinalRDMContrib, tDetRemoved)
             !else
 
-            call fill_rdm_diag_currdet_norm(iLutnI, nI, CurrH_I, ExcitLevel, .false.)
+            call fill_rdm_diag_currdet_norm(iLutnI, nI, j, ExcitLevel, .false.)
             !endif
 
         endif

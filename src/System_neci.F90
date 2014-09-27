@@ -33,8 +33,6 @@ MODULE System
       tComplexOrbs_RealInts = .false.
       tReadFreeFormat=.false.
       tMolproMimic=.false.
-      tAntisym_MI=.false.
-      tMomInv=.false.
       tNoSingExcits=.false.
       tOneElecDiag=.false.
       tMCSizeTruncSpace=.false.
@@ -193,6 +191,7 @@ MODULE System
       CHARACTER (LEN=100) w
       INTEGER I,Odd_EvenHPHF,Odd_EvenMI
       integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
+      character(len=*), parameter :: t_r='SysReadInput'
       
       ! The system block is specified with at least one keyword on the same
       ! line, giving the system type being used.
@@ -532,20 +531,7 @@ system: do
 !in bad, bad times.
             tAssumeSizeExcitgen=.true.
         case("MOMINVSYM")
-            tMomInv=.true.
-            tAntisym_MI=.false.
-            if(item.lt.nitems) then
-                call geti(Odd_EvenMI)
-                if(Odd_EvenMI.eq.1) then
-                    !Converging on the antisymmetric state (- symmetry)
-                    tAntisym_MI=.true.
-                elseif(Odd_EvenMI.eq.0) then
-                    !Converging on the symmetric state (+ symmetry)
-                    !This is done by default
-                else
-                    call stop_all("SysReadInput","Invalid variable given to MOMINVSYM option: 0 = + sym; 1 = - sym")
-                endif
-            endif
+            call stop_all(t_r,'Deprecated function. Look in defunct_code folder if you want to see it')
         case("HPHF")
             tHPHF=.true.
             if(item.lt.nitems) then

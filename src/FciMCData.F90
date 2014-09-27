@@ -17,10 +17,6 @@ MODULE FciMCData
           type(ll_node), pointer :: next => null()
       end type
 
-      !Variables for popsfile mapping
-      integer, allocatable :: PopsMapping(:)    !Mapping function between old basis and new basis
-      integer :: MappingNIfD,MappingNIfTot      !Original basis NIfD and NIfTot
-
       integer :: iPopsTimers    !Number of timed popsfiles written out (initiatlised to 1)
 
       real(dp) :: MaxTimeExit   !Max time before exiting out of MC
@@ -34,16 +30,13 @@ MODULE FciMCData
       integer :: Tot_Unique_Dets_Unit 
 
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: WalkVecDets(:,:)                !Contains determinant list
-      REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVecH(:,:)                    !Diagonal hamiltonian element
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
 
       INTEGER(TagIntType) :: WalkVecDetsTag=0
-      INTEGER(TagIntType) :: WalkVecHTag=0
       INTEGER(TagIntType) :: SpawnVecTag=0,SpawnVec2Tag=0
 
 !Pointers to point at the correct arrays for use
       INTEGER(KIND=n_int) , POINTER :: CurrentDets(:,:)
-      real(dp) , POINTER :: CurrentH(:,:)
       INTEGER(KIND=n_int) , POINTER :: SpawnedParts(:,:),SpawnedParts2(:,:)
 
       INTEGER(KIND=n_int) , ALLOCATABLE :: Spawned_Parents(:,:)
@@ -54,7 +47,7 @@ MODULE FciMCData
       LOGICAL :: tFillingStochRDMonFly, tFillingExplicRDMonFly
       logical :: tFill_RDM
       integer :: IterLastRDMFill
-      integer :: Spawned_Parts_Zero, HFInd, NCurrH
+      integer :: Spawned_Parts_Zero, HFInd
       integer :: IterRDMStart
       integer, dimension(inum_runs) :: IterRDM_HF
       real(dp), dimension(lenof_sign) :: InstNoatHf
