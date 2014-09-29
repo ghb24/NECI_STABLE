@@ -879,7 +879,8 @@ MODULE AnnihilationMod
                 ! returned .true. and PartInd will hold the position of the
                 ! determinant in CurrentDets. Else, tSuccess will be returned
                 ! .false. (and PartInd shouldn't be accessed.
-                call hash_table_lookup(nJ, SpawnedParts(:,i), NIfDBO, HashIndex, CurrentDets, PartInd, tSuccess)
+                ! Also, the hash value, DetHash, is returned by this routine.
+                call hash_table_lookup(nJ, SpawnedParts(:,i), NIfDBO, HashIndex, CurrentDets, PartInd, DetHash, tSuccess)
             else
                 CALL BinSearchParts(SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
             endif

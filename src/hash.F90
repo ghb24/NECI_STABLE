@@ -308,7 +308,7 @@ module hash
 
     end subroutine add_hash_table_entry
 
-    pure subroutine hash_table_lookup(nI, ilut, max_elem, hash_table, dets, ind, found)
+    pure subroutine hash_table_lookup(nI, ilut, max_elem, hash_table, dets, ind, hash_val, found)
 
         ! Perform a search of dets for ilut, by using hash_table.
         ! Only elements 0:max_elem will be used in comparing ilut.
@@ -324,9 +324,9 @@ module hash
         type(ll_node), pointer, intent(inout) :: hash_table(:)
         integer(n_int), intent(in) :: dets(0:,:)
         integer, intent(out) :: ind
+        integer, intent(out) :: hash_val
         logical, intent(out) :: found
 
-        integer :: hash_val
         type(ll_node), pointer :: temp_node
 
         found = .false.
