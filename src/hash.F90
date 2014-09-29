@@ -248,5 +248,42 @@ module hash
         temp_node => null()
 
     end subroutine remove_node
+
+    subroutine remove_hash_table_entry(hash_table, nI, ind)
+
+        ! Find and remove the entry in hash_table corresponding to nI, which
+        ! must have index ind in the hash table. If not found then an error
+        ! will be thrown.
+
+        type(ll_node), pointer, intent(inout) :: hash_table(:)
+        integer, intent(in) :: nI(:)
+        integer, intent(in) :: ind
+
+        integer :: hash_val
+        type(ll_node), pointer :: prev, curr
+        logical :: found
+
+        found = .false.
+
+        hash_val = FindWalkerHash(nI, size(hash_table))
+        curr => hash_table(hash_val)
+        prev => null()
+        do while (associated(curr))
+            if (curr%ind == ind) then
+                ! If this is the state to be removed.
+                found = .true.
+                call remove_node(prev, curr)
+                exit
+            end if
+            prev => curr
+            curr => curr%next
+        end do
+
+        nullify(prev)
+        nullify(curr)
+
+        ASSERT(found)
+
+    end subroutine remove_hash_table_entry
       
 end module hash

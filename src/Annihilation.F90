@@ -954,7 +954,7 @@ MODULE AnnihilationMod
                             !All walkers in this main list have been annihilated away
                             !Remove it from the hash index array so that no others find it (it is impossible to have
                             !another spawned walker yet to find this determinant)
-                            call RemoveDetHashIndex(nJ,PartInd)
+                            call remove_hash_table_entry(HashIndex, nJ, PartInd)
                             !Add to "freeslot" list so it can be filled in
                             iEndFreeSlot=iEndFreeSlot+1
                             FreeSlot(iEndFreeSlot)=PartInd
@@ -1093,7 +1093,7 @@ MODULE AnnihilationMod
                             !All walkers in this main list have been annihilated away
                             !Remove it from the hash index array so that no others find it (it is impossible to have
                             !another spawned walker yet to find this determinant)
-                            call RemoveDetHashIndex(nJ,PartInd)
+                            call remove_hash_table_entry(HashIndex, nJ, PartInd)
                             !Add to "freeslot" list so it can be filled in
                             iEndFreeSlot=iEndFreeSlot+1
                             FreeSlot(iEndFreeSlot)=PartInd
@@ -1170,7 +1170,7 @@ MODULE AnnihilationMod
                                 !All walkers in this main list have died, and none have been spawned onto it.
                                 !Remove it from the hash index array so that no others find it (it is impossible to have
                                 !another spawned walker yet to find this determinant)
-                                call RemoveDetHashIndex(nJ,PartInd)
+                                call remove_hash_table_entry(HashIndex, nJ, PartInd)
                                 !Add to "freeslot" list so it can be filled in
                                 iEndFreeSlot=iEndFreeSlot+1
                                 FreeSlot(iEndFreeSlot)=PartInd
@@ -1456,7 +1456,7 @@ MODULE AnnihilationMod
                                     call nullify_ilut_part(CurrentDets(:,i), j)
                                     call decode_bit_det(nI, CurrentDets(:,i))
                                     if (IsUnoccDet(CurrentSign)) then
-                                        call RemoveDetHashIndex(nI,i)
+                                        call remove_hash_table_entry(HashIndex, nI, i)
                                         iEndFreeSlot=iEndFreeSlot+1
                                         FreeSlot(iEndFreeSlot)=i
                                     end if
@@ -1553,41 +1553,6 @@ MODULE AnnihilationMod
         endif
 
     END SUBROUTINE CalcHashTableStats
-    
-    !Routine to find and remove the index to a determinant from the HashIndex array
-    !This could potentially be speeded up by an ordered HashIndex array, and binary searching
-    subroutine RemoveDetHashIndex(nI,DetPosition)
-        implicit none
-        integer, intent(in) :: nI(nel) 
-        integer, intent(in) :: DetPosition
-        integer :: DetHash
-        type(ll_node), pointer :: Curr, Prev
-        logical :: tStateFound
-        character(*), parameter :: this_routine="RemoveDetHashIndex"
-
-        tStateFound = .false.
-        DetHash = FindWalkerHash(nI,nWalkerHashes)
-        Curr => HashIndex(DetHash)
-        Prev => null()
-        do while (associated(Curr))
-            if (Curr%Ind == DetPosition) then
-                ! If this is the state to be removed.
-                tStateFound = .true.
-                call remove_node(Prev, Curr)
-                exit
-            end if
-            Prev => Curr
-            Curr => Curr%Next
-        end do
-
-        ASSERT(tStateFound)
-
-!        write(6,*) "Det: ",nI(:)
-!        write(6,*) "DetHash: ",DetHash
-!        write(6,*) "DetPosition: ",DetPosition
-
-    end subroutine RemoveDetHashIndex
-
     
 !This routine will run through the total list of particles (TotWalkersNew in CurrentDets 
 !with sign CurrentSign) and the list of newly-spawned but

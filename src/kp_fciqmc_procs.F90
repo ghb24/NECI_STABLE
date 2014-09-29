@@ -2,7 +2,7 @@
  
 module kp_fciqmc_procs
  
-    use AnnihilationMod, only: SendProcNewParts, CompressSpawnedList, RemoveDetHashIndex
+    use AnnihilationMod, only: SendProcNewParts, CompressSpawnedList
     use bit_rep_data
     use bit_reps, only: decode_bit_det, encode_sign, flag_is_initiator
     use CalcData, only: tTruncInitiator, tStartSinglePart, InitialPart, InitWalkers
@@ -1732,6 +1732,9 @@ contains
         character(25) :: ind1, filename
         character(len=*), parameter :: stem = "lowdin"
 
+        ! TODO: Remove
+        integer :: j
+
         write(ind1,'(i15)') kp%iconfig
         filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
         temp_unit = get_free_unit()
@@ -1788,6 +1791,12 @@ contains
 
                 inter_hamil = matmul(kp_hamil_mean, transform_matrix)
                 kp_final_hamil = matmul(transpose(transform_matrix), inter_hamil)
+
+                do i = 1, nkeep
+                    do j = i, nkeep
+                        write(6,'(1X,i3,1X,i3,1X,es20.13)') i, j, kp_final_hamil(i,j)
+                    end do
+                end do
 
                 call dsyev('V', 'U', nkeep, kp_final_hamil, nkeep, kp_hamil_eigv, work, lwork, info)
 

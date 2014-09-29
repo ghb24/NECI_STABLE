@@ -5,7 +5,6 @@
 
 module semi_stoch_procs
 
-    use AnnihilationMod, only: RemoveDetHashIndex
     use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag, &
                             flag_is_initiator, NOffSgn, NIfSgn
     use bit_reps, only: decode_bit_det, set_flag, extract_part_sign, extract_sign, &

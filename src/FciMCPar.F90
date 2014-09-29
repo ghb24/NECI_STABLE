@@ -99,7 +99,7 @@ MODULE FciMCParMod
     USE dSFMT_interface , only : genrand_real2_dSFMT
     USE Parallel_neci
     USE FciMCData
-    USE AnnihilationMod, only: DirectAnnihilation, RemoveDetHashIndex
+    USE AnnihilationMod, only: DirectAnnihilation
     use PopsfileMod, only: ReadFromPopsfilePar, FindPopsfileVersion, &
                            WriteToPopsFileParOneArr, open_pops_head, &
                            readpopsheadv3, readpopsheadv4, CheckPopsParams, &
@@ -109,7 +109,7 @@ MODULE FciMCParMod
                          FindBitExcitLevel, countbits, TestClosedShellDet, &
                          FindSpatialBitExcitLevel, IsAllowedHPHF, count_open_orbs, &
                          ilut_gt, get_bit_excitmat
-    use hash, only: DetermineDetNode, FindWalkerHash
+    use hash, only: DetermineDetNode, FindWalkerHash, remove_hash_table_entry
     use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
                               hphf_spawn_sign, hphf_off_diag_helement_spawn
@@ -1999,7 +1999,7 @@ MODULE FciMCParMod
             endif
             if(tHashWalkerList.and.(.not.tFillingStochRDMonFly)) then
                 !Remove the determinant from the indexing list
-                call RemoveDetHashIndex(DetCurr,DetPosition)
+                call remove_hash_table_entry(HashIndex, DetCurr, DetPosition)
                 !Add to the "freeslot" list
                 iEndFreeSlot=iEndFreeSlot+1
                 FreeSlot(iEndFreeSlot)=DetPosition
