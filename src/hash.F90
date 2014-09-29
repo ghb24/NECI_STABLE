@@ -82,7 +82,7 @@ module hash
 
     end function DetermineDetNode
 
-    ! Routin to find the correct position in the hash table
+    ! Routine to find the correct position in the hash table.
     pure function FindWalkerHash(nJ, HashIndexLength) result(hashInd)
         implicit none
         integer, intent(in) :: nJ(nel)
@@ -91,7 +91,6 @@ module hash
         integer :: i
         integer(int64) :: hash
         hash = 0
-!        write(6,*) "nJ: ",nJ(:)
         if(tCSF) then
             do i = 1, nel
                 hash = (1099511628211_int64 * hash) + &
@@ -101,32 +100,17 @@ module hash
             do i = 1, nel
                 hash = (1099511628211_int64 * hash) + &
                         int(RandomHash2(nJ(i))*i,int64)
-
-!                        (RandomHash(mod(nI(i)+offset-1,int(nBasis,int64))+1) * i)
             enddo
         endif
         hashInd = int(abs(mod(hash, int(HashIndexLength, int64))),sizeof_int)+1
 
     end function FindWalkerHash
 
-    FUNCTION CreateHash(DetCurr)
-        INTEGER :: DetCurr(NEl),i
-        INTEGER(KIND=int64) :: CreateHash
-
-        CreateHash=0
-        do i=1,NEl
-!            CreateHash=13*CreateHash+i*DetCurr(i)
-            CreateHash=(1099511628211_int64*CreateHash)+i*DetCurr(i)
-            
-!            CreateHash=mod(1099511628211*CreateHash,2**64)
-!            CreateHash=XOR(CreateHash,DetCurr(i))
-        enddo
-!        WRITE(6,*) CreateHash
-        RETURN
-
-    END FUNCTION CreateHash
-
     pure subroutine init_hash_table(hash_table)
+
+        ! Take a just-allocated hash table, which must be empty, and
+        ! initialise it by nullifying all pointers and setting all entries to
+        ! zero.
 
         type(ll_node), pointer, intent(inout) :: hash_table(:)
         integer :: i
@@ -140,22 +124,31 @@ module hash
 
     pure subroutine clear_hash_table(hash_table)
 
+        ! Take hash_table and clear it. This is done by nullifying all pointers
+        ! in all the linked lists that form the hash table, and setting the
+        ! first index to zero.
+
         type(ll_node), pointer, intent(inout) :: hash_table(:)
         type(ll_node), pointer :: curr, prev
         integer :: i
 
-        ! Reset the hash index array.
+        ! Loop over all entries corresponding to different hash values.
         do i = 1, size(hash_table)
+            ! Point to the second entry in this linked list.
             curr => hash_table(i)%next
+            ! Point to the first entry in this linked list.
             prev => hash_table(i)
+            ! Set the first index to zero.
             prev%ind = 0
             nullify(prev%next)
+            ! Loop over the whole linked list and deallocate all pointers.
             do while (associated(curr))
                 prev => curr
                 curr => curr%next
                 deallocate(prev)
             end do
         end do
+
         nullify(curr)
         nullify(prev)
 
