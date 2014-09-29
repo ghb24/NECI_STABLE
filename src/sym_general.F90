@@ -15,6 +15,11 @@ module sym_general_mod
         module procedure ClassCountInd_orb
     end interface
 
+    interface ClassCountInv
+        module procedure ClassCountInv_32
+        module procedure ClassCountInv_64
+    end interface
+
     interface CCIndS
         module procedure CCIndS_32
         module procedure CCIndS_64
@@ -52,7 +57,7 @@ contains
             endif
         endif
 
-    end functioN
+    end function
 
     elemental function ClassCountInd_full_64(Spin, Sym, Mom) result(ind)
 
@@ -83,7 +88,7 @@ contains
             endif
         endif
 
-    end functioN
+    end function
 
     elemental function ClassCountInd_orb (orb) result(ind)
 
@@ -133,6 +138,103 @@ contains
 
         ind =  ((ClassCountInd(1,sym,mom)-1)/2) + 1
     end function
+
+    elemental function class_count_spin (cc_ind) result(spn)
+
+        ! Given a class count index, return the spin of the relevant orbitals.
+        ! alpha = 1, beta = 2
+
+        integer, intent(in) :: cc_ind
+        integer :: spn
+
+        spn = 2 - mod(cc_ind, 2)
+
+    end function
+
+    elemental function class_count_ms (cc_ind) result(ms)
+
+        ! Given a class count index, return 2*ms for the relevant orbiatls.
+
+        integer, intent(in) :: cc_ind
+        integer :: ms
+
+        ms = 2 * mod(cc_ind, 2) - 1
+
+    end function
+
+    elemental function class_count_ml (cc_ind) result(ml)
+
+        ! Given a class count index, return ml for the relevant orbitals
+
+        integer, intent(in) :: cc_ind
+        integer :: ml
+        integer :: spn, sym2
+
+        if (tNoSymGenRandExcits .or. .not. tFixLz) then
+            ml = 0
+        else
+            spn = 2 - mod(cc_ind, 2)
+            sym2 = (mod(cc_ind-1, 2*nSymLabels) + 1 - spn) / 2
+            ml = ((cc_ind - 2*sym2 - spn) / (2 * nSymLabels)) - iMaxLz
+        end if
+
+    end function
+
+    elemental subroutine ClassCountInv_32 (ind, sym, spin, mom)
+
+        ! Given a Class Count Index, return the symmetry, spin and momentum
+        ! of the relevant orbitals
+
+        integer, intent(in) :: ind
+        integer, intent(out) :: spin, mom
+        integer(int32), intent(out) :: sym
+
+        ! The spin is determined by the even/odd status
+        ! n.b. alpha == 1, beta == 2
+        spin = 2 - mod(ind, 2)
+
+        ! How we get the symmetry/momentum depends on the parameters of the
+        ! calculation
+        if (tNoSymGenRandExcits) then
+            mom = 0
+            sym = 0
+        else if (tFixLz) then
+            sym = int((mod(ind-1, 2*nSymLabels)+1 - spin) / 2,int32)
+            mom = int(((ind - 2 * sym - spin) / (2 * nSymLabels)) - iMaxLz,int32)
+        else
+            sym = int((ind - spin) / 2,int32)
+            mom = 0
+        end if
+
+    end subroutine
+
+    elemental subroutine ClassCountInv_64 (ind, sym, spin, mom)
+
+        ! Given a Class Count Index, return the symmetry, spin and momentum
+        ! of the relevant orbitals
+
+        integer, intent(in) :: ind
+        integer, intent(out) :: spin, mom
+        integer(int64), intent(out) :: sym
+
+        ! The spin is determined by the even/odd status
+        ! n.b. alpha == 1, beta == 2
+        spin = 2 - mod(ind, 2)
+
+        ! How we get the symmetry/momentum depends on the parameters of the
+        ! calculation
+        if (tNoSymGenRandExcits) then
+            mom = 0
+            sym = 0
+        else if (tFixLz) then
+            sym = (mod(ind-1, 2*nSymLabels)+1 - spin) / 2
+            mom = int(((ind - 2 * sym - spin) / (2 * nSymLabels)) - iMaxLz)
+        else
+            sym = (ind - spin) / 2
+            mom = 0
+        end if
+
+    end subroutine
 
 
 end module

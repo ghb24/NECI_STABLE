@@ -7,9 +7,8 @@ module spectral_lanczos
     use CalcData, only: NMCyc, tSemiStochastic, pops_norm
     use constants
     use DetBitOps, only: DetBitLT
-    use FciMCData, only: HFDet, ilutHF, iHFProc, CurrentDets, core_hamiltonian, &
-                         determ_proc_sizes, determ_space_size, partial_determ_vector, &
-                         TotWalkers
+    use FciMCData, only: HFDet, ilutHF, iHFProc, CurrentDets, determ_proc_sizes, &
+                         determ_space_size, partial_determ_vector, TotWalkers
     use ftlm_neci, only: subspace_expansion_lanczos, calc_final_hamil_elem
     use Parallel_neci, only: iProcIndex, nProcessors, MPIAllGather, MPISumAll, MPIBCast
     use ParallelHelper, only: root

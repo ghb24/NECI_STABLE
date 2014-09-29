@@ -12,10 +12,12 @@ module kp_fciqmc_procs
     use DetBitOps, only: DetBitEq, EncodeBitDet, IsAllowedHPHF, FindBitExcitLevel
     use Determinants, only: get_helement
     use dSFMT_interface , only: dSFMT_init, genrand_real2_dSFMT
+    use fcimc_helper, only: create_particle
     use FciMCData
-    use FciMCParMod, only: create_particle, InitFCIMC_HF, SetupParameters, InitFCIMCCalcPar
+    use FciMCParMod, only: InitFCIMC_HF, SetupParameters, InitFCIMCCalcPar
     use FciMCParMod, only: init_fcimc_fn_pointers, WriteFciMCStats, WriteFciMCStatsHeader
     use FciMCParMod, only: rezero_iter_stats_each_iter, tSinglePartPhase
+    use global_det_data, only: det_diagH
     use gndts_mod, only: gndts
     use hash, only: FindWalkerHash, init_hash_table, reset_hash_table, fill_in_hash_table
     use hash, only: DetermineDetNode, remove_node
@@ -28,7 +30,7 @@ module kp_fciqmc_procs
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
     use PopsfileMod, only: read_popsfile_wrapper
     use procedure_pointers
-    use semi_stoch_procs, only: copy_core_dets_this_proc_to_spawnedparts, fill_in_CurrentH
+    use semi_stoch_procs, only: copy_core_dets_this_proc_to_spawnedparts, fill_in_diag_helements
     use semi_stoch_procs, only: add_core_states_currentdet_hash, start_walkers_from_core_ground
     use semi_stoch_procs, only: check_determ_flag
     use sym_mod, only: getsym
@@ -743,7 +745,7 @@ contains
         end if
 
         ! Calculate and store the diagonal element of the Hamiltonian for determinants in CurrentDets.
-        call fill_in_CurrentH()
+        call fill_in_diag_helements()
 
         ! If starting from this configuration more than once, store the relevant data for next time.
         if (kp%nrepeats > 1 .and. kp%irepeat == 1) then
@@ -1175,7 +1177,7 @@ contains
                 ! Copy determinant data across.
                 krylov_vecs(0:NIfDBO,det_ind) = CurrentDets(0:NIfDBO,idet)
                 krylov_vecs(sign_ind:sign_ind+lenof_sign-1,det_ind) = int_sign
-                krylov_vecs(hdiag_ind,det_ind) = transfer(CurrentH(1,idet), temp)
+                krylov_vecs(hdiag_ind,det_ind) = transfer(det_diagH(idet), temp)
                 if (tUseFlags) krylov_vecs(flag_ind,det_ind) = CurrentDets(NOffFlag,idet)
             end if
 

@@ -174,25 +174,28 @@ MODULE ReadInput_neci
 
         ! Check that the specified runtime options are consistent and valid
 
-        use SystemData, only: nel, tStarStore, tUseBrillouin, beta, &
+        use SystemData, only: nel, tStarStore, tUseBrillouin, beta, tFixLz, &
                               tFindCINatOrbs, tNoRenormRandExcits, LMS, STOT,&
-                              tCSF, tSpn, tUHF
+                              tCSF, tSpn, tUHF, tGenHelWeighted, tHPHF, &
+                              tGen_4ind_weighted, tGen_4ind_reverse
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
                             TNoSameExcit, TInitStar, tMP2Standalone, &
-                            GrowMaxFactor, MemoryFacPart, tTruncInitiator, &
+                            MemoryFacPart, tTruncInitiator, &
                             tSpawnSpatialInit, tSpatialOnlyHash, InitWalkers, &
-                            tUniqueHFNode, tKP_FCIQMC
+                            tUniqueHFNode, InitiatorCutoffEnergy, tCCMC, &
+                            tSurvivalInitiatorThreshold, tKP_FCIQMC
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
                                  tNoDoubs
         use IntegralsData, only: tDiagStarStars, tExcitStarsRootChange, &
                                  tRmRootExcitStarsRootChange, tLinRootChange
-        use LoggingData, only: iLogging, tCalcFCIMCPsi, tHistHamil, &
+        use LoggingData, only: iLogging, tCalcFCIMCPsi, &
                            tCalcInstantS2, tDiagAllSpaceEver, &
-                           tCalcVariationalEnergy, tCalcInstantS2Init
+                           tCalcVariationalEnergy, tCalcInstantS2Init, &
+                           tPopsFile
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
         use input_neci
         use constants
@@ -201,6 +204,7 @@ MODULE ReadInput_neci
         use FciMCData, only: nWalkerHashes,HashLengthFrac,tHashWalkerList
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes,nProcessors
+        use UMatCache, only: tDeferred_Umat2d
 
         implicit none
 
@@ -231,10 +235,6 @@ MODULE ReadInput_neci
         if (tCalcFCIMCPsi .or. tHistSpawn) then
            tFindDets = .true.
            tCompressDets = .true.
-        endif
-        if (tHistHamil) then
-            tCalcHMat = .true.
-            tCompressDets = .true.
         endif
 
         ! We need to have found the dets before calculating the H mat.
@@ -418,6 +418,42 @@ MODULE ReadInput_neci
             write(6,*) 'nProcessors: ', nProcessors
             call stop_all (t_r, 'At least two nodes required to designate &
                           &a node uniquely to the HF determinant')
+        end if
+
+        if (tGenHelWeighted) then
+            write(6,*)
+            write(6,*) '*** WARNING ***'
+            write(6,*) 'Slow HElement biased excitation generators in use.'
+            write(6,*) 'NOT FOR PRODUCTION RUNS'
+            write(6,*) '***************'
+            write(6,*)
+        end if
+
+        if (tGen_4ind_weighted .or. tGen_4ind_reverse) then
+
+            ! We want to use UMAT2D...
+            tDeferred_Umat2d = .true.
+
+            if (tCSF) &
+                call stop_all (t_r, 'Integral weighted excitation generators &
+                              &not yet implemented with these keywords')
+        end if
+
+        if (tHPHF .and. tUHF) then
+            call stop_all(t_r, 'HPHF functions cannot work with UHF')
+        end if
+
+        if (tCCMC .and. .not. (InitiatorCutoffEnergy > 1.0e99_dp)) then
+            call stop_all(t_r, 'Initiator cutoff not implemented for CCMC')
+        end if
+
+        if (tPopsFile .and. tSurvivalInitiatorThreshold) then
+            write(6,*) 'The initiator initial iteration details have not yet &
+                       &been added to the POPSFILE reading/writing routines.'
+            write(6,*) '--> Simulations will not display consistent behaviour &
+                       &over restarts until this is implemented'
+            call stop_all(t_r, 'POPSFILES cannot be used with initiator &
+                               &survival criterion')
         end if
 
     end subroutine checkinput

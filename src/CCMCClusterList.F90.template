@@ -575,7 +575,7 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
          CS%%C%%dAbsAmplitude=abs(dNorm)
          CS%%C%%dClusterNorm=1
          IFDEBUG(iDebug,5) Write(6,*) "Generating New Cluster.  Max size ",iMaxSize
-         dCumlFactor=1
+         dCumlFactor=1.0_dp
          IsImag=.false.
          do i=1,iMaxSize
    ! Calculate the probability that we've reached this far in the loop
@@ -590,10 +590,10 @@ FUNCTION GetNextCluster (CS,Dets,nDet,AL,iCurAmpList,dTotAbsAmpl,dTotLocAbsAmpl,
             r = genrand_real2_dSFMT()  !On GHB's advice
             if(tCCNoCuml) then !Don't use the cumulative list
                if(CS%%iRefPos>=0) then  !If we've got the ref det we can't select it.
-                  dCumlFactor=1.0/(nDet-1)
+                  dCumlFactor=1.0_dp/(nDet-1)
                   k=int(r*(nDet-1))+1
                else
-                  dCumlFactor=1.0/nDet
+                  dCumlFactor=1.0_dp/nDet
                   k=int(r*nDet)+1
                endif
                if(k.eq.CS%%iRefPos) then

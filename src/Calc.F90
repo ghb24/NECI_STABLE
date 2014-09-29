@@ -1,7 +1,13 @@
+#include "macros.h"
+
 MODULE Calc
         
     use CalcData
-    use SystemData, only: beta, nel, STOT, tCSF, LMS, tSpn
+    use SystemData, only: beta, nel, STOT, tCSF, LMS, tSpn, AA_elec_pairs, &
+                          BB_elec_pairs, par_elec_pairs, AB_elec_pairs, &
+                          AA_hole_pairs, BB_hole_pairs, AB_hole_pairs, &
+                          par_hole_pairs, hole_pairs, nholes_a, nholes_b, &
+                          nholes
     use Determinants, only: write_det
     use spin_project, only: spin_proj_interval, tSpinProject, &
                             spin_proj_gamma, spin_proj_shift, &
@@ -20,9 +26,10 @@ MODULE Calc
     use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
                         tSpawnProp, nClustSelections, tExactEnergy,     &
                         dClustSelectionRatio,tSharedExcitors
-    use FciMCData, only: proje_update_comb,proje_linear_comb, proje_ref_det_init,tTimeExit,MaxTimeExit, &
-                         InputDiagSft,tSearchTau,proje_spatial,nWalkerHashes,tHashWalkerList,HashLengthFrac, &
-                         tTrialHash, tIncCancelledInitEnergy, tStartCoreGroundState, pops_pert, &
+    use FciMCData, only: tTimeExit,MaxTimeExit, InputDiagSft, tSearchTau, &
+                         nWalkerHashes, tHashWalkerList, HashLengthFrac, &
+                         tTrialHash, tIncCancelledInitEnergy, MaxTau, &
+                         tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets
     use semi_stoch_gen, only: core_ras
     use ftlm_neci
@@ -64,20 +71,18 @@ contains
 
 !       Calc defaults 
           tStartCoreGroundState = .true.
-          tVaryInitThresh=.false.
           tHashWalkerList=.false.
           HashLengthFrac=0.0_dp
           nWalkerHashes=0
           tTrialHash=.true.
           tIncCancelledInitEnergy = .false.
           iExitWalkers=-1
-          FracLargerDet=1.2
+          FracLargerDet=1.2_dp
           iReadWalkersRoot=0 
           tShiftonHFPop=.false.
           MaxWalkerBloom=-1
           tSearchTau=.true.
           InputDiagSft=0.0_dp
-          tPopsMapping=.false.
           tTimeExit=.false.
           MaxTimeExit=0.0_dp
           tMaxBloom=.false.
@@ -94,19 +99,16 @@ contains
           iDetGroup=2
           tFindDets=.false.
           SinglesBias=1.0_dp
-          tFindGroundDet=.false.
           tSpawnAsDet=.false.
           tDirectAnnihil=.true.
-          tRegenDiagHEls=.false.
           tRotoAnnihil=.false.
           OccCASorbs=0
           VirtCASorbs=0
           TUnbiasPGeninProjE=.false.
           TRegenExcitgens=.false.
           MemoryFacPart=10.0_dp
-          MemoryFacAnnihil=10.0_dp
-          MemoryFacSpawn=0.5
-          MemoryFacInit = 0.3
+          MemoryFacSpawn=0.5_dp
+          MemoryFacInit = 0.3_dp
           TStartSinglePart=.true.
           TFixParticleSign=.false.
           TProjEMP2=.false.
@@ -120,8 +122,6 @@ contains
           PRet=1.0_dp
           TNoAnnihil=.false.
           TFullUnbias=.false.
-          GrowMaxFactor=5.0_dp
-          CullFactor=2.0_dp
           TFCIMC=.false.
           tRPA_QBA=.false.
           TCCMC=.false.
@@ -163,7 +163,7 @@ contains
           TInitStar=.false.
           NoMoveDets=1
           TMoveDets=.false.
-          GraphBias=0.99
+          GraphBias=0.99_dp
           TBiasing=.false.
           NDets=400
           Iters=10
@@ -199,7 +199,7 @@ contains
           TMPTHEORY=.FALSE.
           tMP2Standalone=.FALSE.
           TMODMPTHEORY=.FALSE.
-          G_VMC_PI = 0.95
+          G_VMC_PI = 0.95_dp
           G_VMC_SEED = -7
           G_VMC_FAC = 16
           TUPOWER=.false.
@@ -234,18 +234,13 @@ contains
           TLADDER=.false. 
           tDefineDet=.false.
           tTruncInitiator=.false.
-          tDelayTruncInit=.false.
-!          tKeepDoubleSpawns=.false.
           tAddtoInitiator=.false.
           tRetestAddtoInit=.true.
           InitiatorWalkNo=10.0_dp
-          IterTruncInit=0
           tInitIncDoubs=.false.
           MaxNoatHF=0
           HFPopThresh=0
           tSpatialOnlyHash = .false.
-          tSpawn_Only_Init = .false.
-          tSpawn_Only_Init_Grow = .false.
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset 
           !(by Calc readinput) if I_VMAX=1 and TENERGY is false
 
@@ -259,7 +254,7 @@ contains
           tRealCoeffByExcitLevel=.false.
           RealCoeffExcitThresh=2
           tRealSpawnCutoff=.false.
-          RealSpawnCutoff=1.0e-5
+          RealSpawnCutoff=1.0e-5_dp
           OccupiedThresh=1.0_dp
           tJumpShift = .false.
 !Feb 08 default set.
@@ -268,7 +263,7 @@ contains
           ENDIF
 
           ! Spin Projection defaults
-          spin_proj_gamma = 0.1
+          spin_proj_gamma = 0.1_dp
           tSpinProject  = .false.
           spin_proj_stochastic_yama = .false.
           spin_proj_spawn_initiators = .true.
@@ -286,11 +281,7 @@ contains
           ! Truncation based on number of unpaired electrons
           tTruncNOpen = .false.
 
-          proje_linear_comb = .false.
-          proje_update_comb = .false.
-          proje_spatial = .false.
           hash_shift=0
-          tContinueAfterMP2=.false.
           tUniqueHFNode = .false.
 
           ! Semi-stochastic and trial wavefunction options.
@@ -306,7 +297,6 @@ contains
           tReadCore = .false.
           tLowECore = .false.
           tMP1Core = .false.
-          tSparseCoreHamil = .true.
           num_det_generation_loops = 1
           n_core_pops = 0
           low_e_core_excit = 0
@@ -351,7 +341,16 @@ contains
           spectral_ground_energy = 0.0_dp
           tIncludeGroundSpectral = .false.
           alloc_popsfile_dets = .false.
-      
+
+          pParallel = 0.5
+
+          InitiatorCutoffEnergy = 99.99e99_dp
+          InitiatorCutoffWalkNo = 99.0_dp
+
+          tSurvivalInitiatorThreshold = .false.
+          nItersInitiator = 100
+          MaxTau = 1.0_dp
+
         end subroutine SetCalcDefaults
 
         SUBROUTINE CalcReadInput()
@@ -914,7 +913,7 @@ contains
             case("TOTALWALKERS")
 !This is now input as the total number, rather than the number per processor, and it is changed to the number per processor here.
                 call getf(InitWalkers)
-                InitWalkers=NINT(REAL(InitWalkers)/REAL(nProcessors),int64)
+                InitWalkers=NINT(REAL(InitWalkers,dp)/REAL(nProcessors,dp),int64)
             case("TIME")
                 !Input the desired runtime (in MINUTES) before exiting out of the MC.
                 call getf(MaxTimeExit)
@@ -933,7 +932,7 @@ contains
                     call geti(tempHFPopThresh)
                     HFPopThresh=tempHFPopThresh
                 else
-                    HFPopThresh=MaxNoatHF 
+                    HFPopThresh=int(MaxNoatHF,int64) 
                 end if
             case("INITAMPLITUDE")
 !For Amplitude CCMC the initial amplitude.
@@ -965,7 +964,7 @@ contains
 !For FCIMC, this is the amount extra the diagonal elements will be shifted. This is proportional to the deathrate of 
 !walkers on the determinant
                 call getf(DiagSft(1))
-                if(inum_runs.eq.2) DiagSft(2)=DiagSft(1)
+                if(inum_runs.eq.2) DiagSft(inum_runs)=DiagSft(1)
                 InputDiagSft = DiagSft
 
             case("TAUFACTOR")
@@ -973,10 +972,30 @@ contains
                 tSearchTau=.false.  !Tau is set, so don't search for it.
                 call getf(TauFactor)
             case("TAU")
-!For FCIMC, this can be considered the timestep of the simulation. It is a constant which will increase/decrease the rate 
-!of spawning/death for a given iteration.
-                tSearchTau=.false.  !Tau is set, so don't search for it.
+                ! For FCIMC, this can be considered the timestep of the
+                ! simulation. It is a constant which will increase/decrease
+                ! the rate of spawning/death for a given iteration.
                 call getf(Tau)
+
+                ! If SEARCH is provided, use this value as the starting value
+                ! for tau searching
+                if (item < nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("SEARCH")
+                        tSearchTau = .true.
+                    case default
+                        tSearchTau = .false.
+                    end select
+                else
+                    tSearchTau = .false.
+                end if
+
+            case("MAX-TAU")
+                ! For tau searching, set a maximum value of tau. This places
+                ! a limit to prevent craziness at the start of a calculation
+                call getf(MaxTau)
+
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
                 call geti(MaxWalkerBloom)
@@ -991,7 +1010,7 @@ contains
                 if(item.lt.nitems) then
                     call getf(HashLengthFrac)
                 else
-                    HashLengthFrac=0.7
+                    HashLengthFrac=0.7_dp
                 endif
             case("SEMI-STOCHASTIC")
                 tSemiStochastic = .true.
@@ -1052,8 +1071,6 @@ contains
                 call geti(n_core_pops)
             case("READ-CORE")
                 tReadCore = .true.
-            case("FULL-CORE-HAMIL")
-                tSparseCoreHamil = .false.
             case("LOW-ENERGY-CORE")
     ! Input values: The first integer is the maximum excitation level to go up to.
     !               The second integer is the maximum number of states to keep for a subsequent iteration.
@@ -1139,8 +1156,6 @@ contains
             case("INC-CANCELLED-INIT-ENERGY")
 !If true, include the spawnings cancelled due the the initiator criterion in the trial energy.
                 tIncCancelledInitEnergy = .true.
-            case("CORE-INIT-THRESH")
-                tVaryInitThresh = .true.
             case("STEPSSHIFTIMAG")
 !For FCIMC, this is the amount of imaginary time which will elapse between updates of the shift.
                 call getf(StepsSftImag)
@@ -1155,8 +1170,8 @@ contains
                 call getf(TargetGrowRate(1))
                 call getiLong(TargetGrowRateWalk(1))
                 if(inum_runs.eq.2) then
-                    TargetGrowRate(2)=TargetGrowRate(1)
-                    TargetGrowRateWalk(2)=TargetGrowRateWalk(1)
+                    TargetGrowRate(inum_runs)=TargetGrowRate(1)
+                    TargetGrowRateWalk(inum_runs)=TargetGrowRateWalk(1)
                 endif
             case("READPOPS")
 !For FCIMC, this indicates that the initial walker configuration will be read in from the file POPSFILE, which must be present.
@@ -1174,7 +1189,7 @@ contains
             case("POPSFILEMAPPING")
 !This indicates that we will be mapping a popsfile from a smaller basis calculation, into a bigger basis calculation.
 !Requires a "mapping" file.
-                tPopsMapping=.true.
+                call stop_all(t_r,'POPSFILEMAPPING deprecated')
             case("READPOPSTHRESH")
 !When reading in a popsfile, this will only save the determinant, if the number of particles on this 
 !determinant is greater than iWeightPopRead.
@@ -1224,8 +1239,6 @@ contains
                     !change dramatically to start with.
                     call getf(InitialPart)
                 endif
-            case("CONTINUEAFTERMP2")
-                tContinueAfterMP2=.true.
             case("STARTCAS")
 !For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
 !                CALL Stop_All(t_r,"STARTMP1 option depreciated")
@@ -1238,12 +1251,6 @@ contains
                     !change dramatically to start with.
                     call getf(InitialPart)
                 endif
-            case("GROWMAXFACTOR")
-!For FCIMC, this is the factor to which the initial number of particles is allowed to go before it is culled
-                call getf(GrowMaxFactor)
-            case("CULLFACTOR")
-!For FCIMC, this is the factor to which the total number of particles is reduced once it reaches the GrowMaxFactor limit
-                call getf(CullFactor)
             case("EQUILSTEPS")
 !For FCIMC, this indicates the number of cycles which have to
 !pass before the energy of the system from the doubles (HF)
@@ -1340,24 +1347,6 @@ contains
                     tInstGrowthRate = .false.
                 end if
 
-            case("PROJE-SPATIAL")
-                ! Calculate the projected energy by projection onto a linear
-                ! combination of determinants, specified by a particular 
-                ! spatial determinant.
-                proje_linear_comb = .true.
-                proje_spatial = .true.
-                if (.not. allocated(proje_ref_det_init)) &
-                    allocate(proje_ref_det_init(nel))
-                proje_ref_det_init = 0
-                i = 1
-                do while (item < nitems .and. i <= nel)
-                    call geti(proje_ref_det_init(i))
-                    i = i+1
-                enddo
-            case("PROJE-LINEAR-COMB")
-                ! Calculate the projected energy by projection onto a linear
-                ! combination of determinants.
-                proje_linear_comb = .true.
             case("RESTARTLARGEPOP")
                 tCheckHighestPop=.true.
                 tRestartHighPop=.true.
@@ -1397,7 +1386,7 @@ contains
 !the processor during annihilation compared to InitWalkers. This will generally want to be larger than
 !memoryfacPart, because the parallel annihilation may not be exactly load-balanced because of differences 
 !in the wavevector and uniformity of the hashing algorithm.
-                CALL Getf(MemoryFacAnnihil)
+                call stop_all(t_r,'MEMORYFACANNIHIL should not be needed any more')
             case("MEMORYFACSPAWN")
 !A parallel FCIMC option for use with ROTOANNIHILATION. This is the factor by which space will be made 
 !available for spawned particles each iteration. 
@@ -1413,10 +1402,14 @@ contains
 !An FCIMC option. With this, the excitation generators for the walkers will NOT be stored, and regenerated 
 !each time. This will be slower, but save on memory.
                 TRegenExcitGens=.true.
+
             case("REGENDIAGHELS")
-!A parallel FCIMC option. With this, the diagonal elements of the hamiltonian matrix will not be stored with 
-!each particle. This will generally be slower, but save on memory.
-                tRegenDiagHEls=.true.
+                ! A parallel FCIMC option. With this, the diagonal elements of
+                ! the hamiltonian matrix will not be stored with each particle.
+                ! This will generally be slower, but save on memory.
+                call stop_all(t_r, 'This option (REGENDIAGHELS) has been &
+                                   &deprecated')
+
             case("FIXSHELLSHIFT")
 !An FCIMC option. With this, the shift is fixed at a value given here, but only for excitations which are less than 
 !<ShellFix>. This will almost definitly give the wrong answers for both the energy
@@ -1464,17 +1457,6 @@ contains
 !can only spawn back on to the determinant from which they came.  This is the star approximation from the CAS space. 
                 tTruncInitiator=.true.
 
-            case("DELAYTRUNCINITIATOR")
-!This keyword is used if we are eventually going to want to include the inactive space in a 
-!truncinitiator kind of way, but we want to start off by just doing a truncated calculation.                
-!Because we are simply using a larger NIfTot - this needs to be changed at the very beginning of 
-!a calculation - then we can either set the iteration at which we want to start including 
-!the rest of the space or we can do this dynamically.
-                tDelayTruncInit=.true.
-                IF(item.lt.nitems) then
-                    call Geti(IterTruncInit)
-                ENDIF
-
             case("KEEPDOUBSPAWNS")
 !This means that two sets of walkers spawned on the same determinant with the same sign will live, 
 !whether they've come from inside or outside the CAS space.  Before, if both of these
@@ -1489,20 +1471,15 @@ contains
                 tAddtoInitiator=.true.
                 call getf(InitiatorWalkNo)
 
-            case("SPAWNONLYINIT")
-!This option means only the initiators have the ability to spawn.  The non-initiators can live/die but not 
-!spawn walkers of their own.
-                tSpawn_Only_Init = .true.
-
-            case("SPAWNONLYINITGROWTH")
-                ! Only allow initiators to spawn progeny. Non-initiators can
-                ! live/die but are not allowed to spawn.
+            case("INITIATOR-ENERGY-CUTOFF")
                 !
-                ! This option is disabled in variable shift mode. Allows
-                ! rapid but controlled growth of walkers
-                tSpawn_Only_Init = .true.
-                tSpawn_Only_Init_Grow = .true.
+                ! Specify both a threshold an an addtoinitiator value for
+                ! varying the thresholds
+                call getf(InitiatorCutoffEnergy)
+                call getf(InitiatorCutoffWalkNo)
 
+            case("SPAWNONLYINIT", "SPAWNONLYINITGROWTH")
+                call stop_all(t_r, 'Option (SPAWNONLYINIT) deprecated')
 
             case("RETESTINITPOP")                
 !This keyword is on by default.  It corresponds to the original initiator algorithm whereby a determinant may 
@@ -1511,16 +1488,6 @@ contains
 !Having this on means the population is tested at every iteration, turning it off means that once a determinant 
 !becomes an initiator by virtue of its population, it remains an initiator 
 !for the rest of the simulation.
-                if(item.lt.nitems) then
-                    call readu(w)
-                    select case(w)
-                    case("OFF")
-                        tRetestAddtoInit=.false.
-                    end select
-                else
-                    tRetestAddtoInit=.true.
-                end if
-
  
             case("INCLDOUBSINITIATOR")
 !This keyword includes any doubly excited determinant in the 'initiator' space so that it may spawn as usual
@@ -1612,11 +1579,10 @@ contains
 !                tSymmetricField=.false.
 !                call Geti(NoMagDets)
 !                call Getf(BField)
+
             case("FINDGROUNDDET")
-!A parallel FCIMC option. If this is on, then if a determinant is found with an energy lower than the energy of the 
-!current reference determinant, the energies are rezeroed and the
-!reference changed to the new determinant. For a HF basis, this cannot happen, but with rotated orbital will be important.
-                tFindGroundDet=.true.
+                call stop_all(t_r, 'Option (FINDGROUNDDET) deprecated')
+
             case("STARORBS")
 !A parallel FCIMC option. Star orbs means that determinants which contain these orbitals can only be spawned 
 !at from the HF determinant, and conversly, can only spawn back at the HF determinant.
@@ -1980,6 +1946,19 @@ contains
                     call init_perturbation_creation(right_perturb_spectral(i))
                 end do
 
+            case("TAU-CNT-THRESHOLD")
+                write(6,*) 'WARNING: This option is unused in this branch'
+
+            case("INITIATOR-SURVIVAL-CRITERION")
+                ! If a site survives for at least a certain number of
+                ! iterations, it should be treated as an initiator.
+                ! --> Soft expand the range of the initiators in the Hilbert
+                !     space
+                tSurvivalInitiatorThreshold = .true.
+                if (item < nitems) then
+                    call readi(nItersInitiator)
+                end if
+
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)
@@ -2021,7 +2000,7 @@ contains
           real(dp) CalcT, CalcT2, GetRhoEps
           
           
-          INTEGER I, IC,J
+          INTEGER I, IC,J, norb
           INTEGER nList
           HElement_t HDiagTemp
           character(*), parameter :: this_routine='CalcInit'
@@ -2107,6 +2086,42 @@ call neci_flush(6)
           ElecPairs=(NEl*(NEl-1))/2
           MaxABPairs=(nBasis*(nBasis-1)/2)
 
+          ! And stats on the number of different types of electron pairs
+          ! that can be found
+          AA_elec_pairs = nOccAlpha * (nOccAlpha - 1) / 2
+          BB_elec_pairs = nOccBeta * (nOccBeta - 1) / 2
+          par_elec_pairs = AA_elec_pairs + BB_elec_pairs
+          AB_elec_pairs = nOccAlpha * nOccBeta
+          if (AA_elec_pairs + BB_elec_pairs + AB_elec_pairs /= ElecPairs) &
+              call stop_all(this_routine, "Calculation of electron pairs failed")
+
+          write(6,*) '    ', AA_elec_pairs, &
+              ' alpha-alpha occupied electron pairs'
+          write(6,*) '    ', BB_elec_pairs, &
+              ' beta-beta occupied electron pairs'
+          write(6,*) '    ', AB_elec_pairs, &
+              ' alpha-beta occupied electron pairs'
+
+          ! Get some stats about available numbers of holes, etc.
+          ASSERT(.not. btest(nbasis, 0))
+          norb = nbasis / 2
+          nholes = nbasis - nel
+          nholes_a = norb - nOccAlpha
+          nholes_b = norb - nOccBeta
+
+          ! And count the available hole pairs!
+          hole_pairs = nholes * (nholes - 1) / 2
+          AA_hole_pairs = nholes_a * (nholes_a - 1) / 2
+          BB_hole_pairs = nholes_b * (nholes_b - 1) / 2
+          AB_hole_pairs = nholes_a * nholes_b
+          par_hole_pairs = AA_hole_pairs + BB_hole_pairs
+          if (par_hole_pairs + AB_hole_pairs /= hole_pairs) &
+              call stop_all(this_routine, "Calculation of hole pairs failed")
+
+          write(6,*) '    ', AA_hole_pairs, 'alpha-alpha (vacant) hole pairs'
+          write(6,*) '    ', BB_hole_pairs, 'beta-beta (vacant) hole pairs'
+          write(6,*) '    ', AB_hole_pairs, 'alpha-beta (vacant) hole pairs'
+
           IF(tExactSizeSpace) THEN
               IF(ICILevel.eq.0) THEN
                   CALL FindSymSizeofSpace(6)
@@ -2173,8 +2188,8 @@ call neci_flush(6)
           use Parallel_Calc
           use util_mod, only: get_free_unit, NECI_ICOPY
           use sym_mod
-          use davidson, only: davidson_direct_ci_init, davidson_direct_ci_end, perform_davidson
-          use davidson, only: direct_ci_type
+          use davidson_neci, only: davidson_direct_ci_init, davidson_direct_ci_end, perform_davidson
+          use davidson_neci, only: direct_ci_type
           use kp_fciqmc, only: perform_kp_fciqmc
           use kp_fciqmc_procs, only: kp
 

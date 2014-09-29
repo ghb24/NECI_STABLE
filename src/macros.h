@@ -1,5 +1,7 @@
+#define log_alloc(arr, tag, ierr) call LogMemAlloc("arr",size(arr),tbs_(arr),t_r,tag,ierr)
 #define LogAlloc(ERR,NAME,LEN,SIZE,TAG) CALL LogMemAlloc(NAME,LEN,SIZE,this_routine,TAG)
 #define LogDealloc(TAG) CALL LogMemDealloc(this_routine,TAG)
+#define log_dealloc(tag) LogDealloc(tag)
 #define IsNullDet(nI) (nI(1).eq.0)
 
 ! Is the specified orbital occupied or not?

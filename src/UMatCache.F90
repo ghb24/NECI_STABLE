@@ -47,7 +47,7 @@ MODULE UMatCache
 !     <ij|ij> is stored in the upper diagaonal, <ij|ji> in the
 !     off-diagonal elements of the lower triangle.
       HElement_t, Pointer :: UMat2D(:,:) => null() !(nStates,nStates)
-      LOGICAL :: tUMat2D
+      LOGICAL :: tUMat2D, tDeferred_Umat2d
 
 ! This vector stores the energy ordering for each spatial orbital, which is the inverse of the BRR vector
 ! This is needed for the memory saving star indexing system.
@@ -852,7 +852,7 @@ MODULE UMatCache
          ! Reverse of GetCacheIndex.
          IMPLICIT NONE
          INTEGER I,J,IND
-         J=int(SQRT(2.0*IND))
+         J=int(SQRT(2.0d0*IND))
          IF(J*(J+1)/2.LT.IND) J=J+1
          I=IND-J*(J-1)/2
       END SUBROUTINE GetCacheIndexStates
@@ -1058,7 +1058,7 @@ MODULE UMatCache
               CALL Stop_All("CacheFCIDUMP","Overwriting UMATLABELS")
           ENDIF
           UMATLABELS(CacheInd(A),A)=B
-          IF(REAL(UMatCacheData(nTypes-1,CacheInd(A),A)).ne.0.0_dp) THEN
+          IF(REAL(UMatCacheData(nTypes-1,CacheInd(A),A),dp).ne.0.0_dp) THEN
               CALL Stop_All("CacheFCIDUMP","Overwriting when trying to fill cache.")
           ENDIF
           UMatCacheData(nTypes-1,CacheInd(A),A)=Z

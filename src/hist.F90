@@ -2,19 +2,19 @@
 
 module hist
 
-    use DeterminantData, only: get_lexicographic
+    use DeterminantData, only: get_lexicographic, calculated_ms
     use MemoryManager
     use SystemData, only: tHistSpinDist, ilut_spindist, nbasis, nel, LMS, &
                           hist_spin_dist_iter, nI_spindist, LMS, tHPHF, &
                           tOddS_HPHF, G1
     use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
                          DetBitEq, count_open_orbs, TestClosedShellDet, &
-                         CalcOpenOrbs, IsAllowedHPHF
-    use hash, only: DetermineDetNode                     
+                         CalcOpenOrbs, IsAllowedHPHF, FindBitExcitLevel
+    use hash, only : DetermineDetNode                     
     use CalcData, only: tFCIMC, tTruncInitiator
     use DetCalcData, only: FCIDetIndex, det
     use FciMCData, only: tFlippedSign, TotWalkers, CurrentDets, iter, &
-                         all_norm_psi_squared
+                         all_norm_psi_squared, ilutRef
     use util_mod, only: choose, get_free_unit, binary_search
     use HPHFRandExcitMod, only: FindExcitBitDetSym
     use hphf_integrals, only: hphf_sign
@@ -28,6 +28,7 @@ module hist
     use hist_data
     use timing_neci
     use Determinants, only: write_det
+    use util_mod
 
     implicit none
 
@@ -349,7 +350,7 @@ contains
 
             if (tHPHF) then
                 call FindExcitBitDetSym (ilut, ilut_sym)
-                if (.not. DetBitEq(ilut, ilut_sym)) delta = delta / sqrt(2.0)
+                if (.not. DetBitEq(ilut, ilut_sym)) delta = delta / sqrt(2.0_dp)
             endif
 
             if (tFlippedSign) delta = -delta
@@ -374,7 +375,7 @@ contains
                                           PartInd, tSuccess)
                 endif
                 if (tSuccess) then
-                    delta = (sign / sqrt(2.0)) / dProbFin
+                    delta = (sign / sqrt(2.0_dp)) / dProbFin
 
                     call CalcOpenOrbs(ilut_sym, open_orbs)
                     if ((mod(open_orbs, 2) == 1) .neqv. tOddS_HPHF) &
@@ -425,7 +426,7 @@ contains
 
     end subroutine
 
-    subroutine add_hist_energies (ilut, Sign, HDiag, ExcitLevel)
+    subroutine add_hist_energies (ilut, Sign, HDiag)
 
         ! This will histogram the energies of the particles, rather than the
         ! determinants themselves.
@@ -433,7 +434,6 @@ contains
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         real(dp), dimension(lenof_sign), intent(in) :: Sign
         real(dp), intent(in) :: HDiag
-        integer, intent(in) :: ExcitLevel
         integer :: bin
         character(*), parameter :: t_r = "add_hist_energies"
         
@@ -535,7 +535,7 @@ contains
 
             S2 = 0
             do S = LMS, nel, 2
-                S2 = S2 + real(S * (S + 2) * S_coeffs(S)) / 4
+                S2 = S2 + real(S * (S + 2) * S_coeffs(S),dp) / 4
             enddo
             
             write(6,*) 'Scoeffs', iter, S_coeffs
@@ -633,8 +633,8 @@ contains
         ! --> This could be generalised to an arbitrary list of iluts. We 
         !     would also then need to calculate the value of psi_squared
 
-        real(dp), dimension(inum_runs) :: ssq
-        integer :: i, lms_tmp
+        real(dp) :: ssq(inum_runs), tmp(inum_runs)
+        integer :: i, run
         logical, intent(in) :: only_init
         type(timer), save :: s2_timer
 
@@ -654,13 +654,23 @@ contains
         enddo
 
         ! Sum over all processors and normalise
-        call MPISum_inplace (ssq)
-        ssq = ssq / all_norm_psi_squared
+        call MPISum (ssq, tmp)
+        ssq = tmp
 
-        ! TODO: n.b. This is a hack. LMS appears to contain -2*Ms of the system
-        !            I am somewhat astounded I haven't noticed this before...
-        lms_tmp = -LMS
-        ssq = ssq + real(lms_tmp * (lms_tmp + 2), dp) / 4
+        do run = 1, inum_runs
+            if (all_norm_psi_squared(run) == 0) then
+                ssq(run) = 0.0_dp
+            else
+
+                ssq(run) = ssq(run) / all_norm_psi_squared(run)
+
+                ! TODO: n.b. This is a hack. LMS appears to contain -2*Ms of the
+                !            system I am somewhat astounded I haven't noticed this
+                !            before...
+                ssq(run) = ssq(run) &
+                         + real(calculated_ms * (calculated_ms + 2), dp) / 4
+            end if
+        end do
 
         call halt_timer (s2_timer)
 
@@ -689,12 +699,12 @@ contains
              result(ssq)
 
         integer :: i, j, k, orb2, orbtmp, pos, ierr
-        integer :: nI(nel), nJ(nel), proc, lms_tmp
+        integer :: nI(nel), nJ(nel), proc
         integer(n_int), pointer :: detcurr(:)
         integer(n_int) :: splus(0:NIfTot), sminus(0:NIfTot)
         logical :: running, any_running
-        real(dp), dimension(inum_runs) :: ssq, Allssq
-        integer :: max_per_proc, max_spawned
+        real(dp), dimension(inum_runs) :: ssq, Allssq, tmp
+        integer :: max_per_proc, max_spawned, run
         real(dp) :: sgn1(lenof_sign), sgn2(lenof_sign)
 
 
@@ -800,13 +810,22 @@ contains
 
         enddo
 
-        call MPISum_inplace (ssq)
-        ssq = ssq / all_norm_psi_squared
+        call MPISum (ssq, tmp)
+        ssq = tmp
 
-        ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the system
-        !            I am somewhat astounded I haven't noticed this before...
-        lms_tmp = -LMS
-        ssq = ssq + real(lms_tmp * (lms_tmp + 2), dp) / 4
+        do run = 1, inum_runs
+            if (all_norm_psi_squared(run) == 0) then
+                ssq(run) = 0.0_dp
+            else
+                ssq(run) = ssq(run) / all_norm_psi_squared(run)
+
+                ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the
+                !            system. I am somewhat astounded I haven't noticed
+                !            this before...
+                ssq(run) = ssq(run) &
+                         + real(calculated_ms * (calculated_ms + 2), dp) / 4
+            end if
+        end do
 
     end function
 
@@ -816,8 +835,8 @@ contains
         real(dp), dimension(inum_runs) :: ssq
         integer, parameter :: max_per_proc = 1000
         integer(n_int) :: recv_dets(0:NIfTot,max_per_proc)
-        integer :: proc_dets, start_pos, nsend, i, lms_tmp, p
-        integer :: bcast_tmp(2)
+        integer :: proc_dets, start_pos, nsend, i, p
+        integer :: bcast_tmp(2), run
         real(dp) :: sgn_tmp(lenof_sign)
         type(timer), save :: s2_timer, s2_timer_init
         real(dp), dimension(inum_runs) :: ssq_sum, psi_squared
@@ -919,12 +938,20 @@ contains
         end if
         call MPISum(ssq_sum, All_ssq_sum)
         ssq_sum=All_ssq_sum
-        ssq = real(ssq_sum,dp) / psi_squared
-         
-        ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the system
-        !            I am somewhat astounded I haven't noticed this before...
-        lms_tmp = -LMS
-        ssq = ssq + real(lms_tmp * (lms_tmp + 2), dp) / 4
+
+        do run = 1, inum_runs
+            if (psi_squared(run) == 0) then
+                ssq(run) = 0.0_dp
+            else
+                ssq(run) = real(ssq_sum(run),dp) / psi_squared(run)
+             
+                ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the
+                !            system. I am somewhat astounded I haven't noticed
+                !            this before...
+                ssq(run) = ssq(run) &
+                         + real(calculated_ms * (calculated_ms + 2), dp) / 4
+            end if
+        end do
 
         if (only_init) then
             call halt_timer(s2_timer_init)
@@ -1016,7 +1043,7 @@ contains
                             end if
 
                             call extract_sign (CurrentDets(:,pos), sgn2)
-                            ssq = ssq + (sgn(1) * sgn2(1) * sgn_hphf) 
+                            ssq = ssq + int(sgn(1) * sgn2(1) * sgn_hphf,int64) 
                         endif
                     endif
                 enddo
@@ -1024,5 +1051,99 @@ contains
         enddo
 
     end function
+
+
+    subroutine init_hist_excit_tofrom()
+        
+        integer :: ierr
+        character(*), parameter :: t_r = 'init_hist_excit_tofrom'
+
+        ! Initialise storage for these excitaitons
+        allocate(hist_excit_tofrom(0:nel, 0:nel), stat=ierr)
+        log_alloc(hist_excit_tofrom, tag_hist_excit, ierr)
+
+        ! Zero everything
+        hist_excit_tofrom = 0
+
+        if (iProcIndex == root) then
+
+            ! Open an output file
+            excit_tofrom_unit = get_free_unit()
+            open(excit_tofrom_unit, file='spawns_tofrom_excit', &
+                 status='replace')
+
+            ! Write a header in the output file
+            write(excit_tofrom_unit, '("# Number of particles spawned between &
+                                       &excitation levels from the Hartree--&
+                                       &Fock on this update cycle")')
+            write(excit_tofrom_unit,'("# iter,  0-->0,  0-->1,  0-->2, ..., &
+                                      &1-->0, ...")')
+
+        end if
+
+    end subroutine
+
+    subroutine clean_hist_excit_tofrom ()
+
+        character(*), parameter :: this_routine = 'clean_hist_excit_tofrom'
+
+        ! Clean up the stored data.
+        deallocate(hist_excit_tofrom)
+        log_dealloc(tag_hist_excit)
+
+        ! Close the output file
+        if (iProcIndex == root) &
+            close(excit_tofrom_unit)
+
+    end subroutine
+
+    subroutine add_hist_excit_tofrom (iluti, ilutj, child)
+
+        integer(n_int), intent(in) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
+        real(dp), intent(in) :: child(lenof_sign)
+        real(dp) :: abschild
+        integer :: exlevelI, exlevelJ
+
+        ! We want a total count of the particle weight formed.
+        abschild = sum(abs(child))
+
+        ! Get the excitation levels of the source and target
+        exlevelI = FindBitExcitLevel(ilutRef, ilutI)
+        exlevelJ = FindBitExcitLevel(ilutRef, ilutJ)
+
+        ! And store it!
+        hist_excit_tofrom(exlevelI, exlevelJ) = &
+            hist_excit_tofrom(exlevelI, exlevelJ) + abschild
+
+    end subroutine
+
+    subroutine write_zero_hist_excit_tofrom()
+
+        real(dp) :: all_hist(0:nel, 0:nel)
+        integer :: i, j
+
+        ! Gather the accumulator data to this process, and then zero the data
+        ! for the next update cycle.
+        call MPISum(hist_excit_tofrom, all_hist)
+        hist_excit_tofrom = 0
+
+        if (iProcIndex == root) then
+
+            ! Output the current iteration
+            write(excit_tofrom_unit, '(i12)', advance='no') iter
+
+            ! And output the accumulated data
+            do i = 0, nel
+                do j = 0, nel
+                    write(excit_tofrom_unit, '(f16.5)', advance='no') &
+                        all_hist(i, j)
+                end do
+            end do
+            write(excit_tofrom_unit, *)
+        end if
+
+    end subroutine
+
+
 
 end module

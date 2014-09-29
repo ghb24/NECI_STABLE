@@ -1,8 +1,12 @@
+#include "macros.h"
+
 module bit_reps
     use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart
     use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level
     use CalcData, only: tTruncInitiator, tUseRealCoeffs, tSemiStochastic, &
-                        tCSFCore, tTrialWavefunction
+                        tCSFCore, tTrialWavefunction, &
+                        tSurvivalInitiatorThreshold
+
     use csf_data, only: csf_yama_bit, csf_test_bit
     use constants, only: lenof_sign, end_n_int, bits_n_int, n_int, dp,sizeof_int
     use DetBitOps, only: count_open_orbs, CountBits
@@ -199,9 +203,11 @@ contains
                 NIfFlag = 0
             end if
             NOffFlag = NOffSgn + NIfSgn
+            NOffIter = NOffFlag + NIfFlag
         else
             NIfFlag = 0
             NOffFlag = NOffSgn
+            NOffIter = NOffSgn + NIfSgn
         end if
 #else
         if (tUseFlags) then
@@ -214,14 +220,26 @@ contains
             NIfFlag = 0
         endif
         NOffFlag = NOffSgn + NIfSgn
+        NOffIter = NOffFlag + NIfFlag
 #endif
+
+        ! If we are using the initiator survival threshold, then we need to
+        ! store some additional data!
+        if (tSurvivalInitiatorThreshold) then
+            NIfIter = 1
+        else
+            nIfIter = 0
+        end if
+        ! NOffIter needs to be set relative to NOffSgn _or_ NOffFlag depending
+        ! on configuration settings - so we set it above, not here
+        !NOffIter = NOffFlag + NIfFlag
 
         ! N.B. Flags MUST be last!!!!!
         !      If we change this bit, then we need to adjust ilut_lt and 
         !      ilut_gt.
 
         ! The total number of bits_n_int-bit integers used - 1
-        NIfTot = NIfD + NIfY + NIfSgn + NIfFlag
+        NIfTot = NIfD + NIfY + NIfSgn + NIfFlag + NIfIter
 
         WRITE(6,"(A,I6)") "Setting integer length of determinants as bit-strings to: ", NIfTot + 1
         WRITE(6,"(A,I6)") "Setting integer bit-length of determinants as bit-strings to: ", bits_n_int
@@ -267,6 +285,31 @@ contains
             flags = int(ishft(iLut(NOffFlag), -flag_bit_offset), sizeof_int)
 
     end subroutine extract_bit_rep
+
+    function extract_first_iter (ilut) result(iter)
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer :: iter
+        character(*), parameter :: this_routine = 'extract_first_iter'
+
+        ASSERT(nIfIter == 1)
+        ASSERT(tSurvivalInitiatorThreshold)
+        iter = int(ilut(nOffIter))
+
+    end function
+
+    subroutine encode_first_iter (ilut, iter)
+
+        integer(n_int), intent(inout) :: ilut(0:NIfTot)
+        integer, intent(in) :: iter
+        character(*), parameter :: this_routine = 'encode_first_iter'
+
+        if (tSurvivalInitiatorThreshold) then
+            ASSERT(nIfIter == 1)
+            ilut(nOffIter) = int(iter, n_int)
+        end if
+    end subroutine
+
 
     function extract_flags (iLut) result(flags)
         integer(n_int), intent(in) :: ilut(0:nIfTot)
@@ -547,63 +590,6 @@ contains
         ilut(NOffFlag) = ibclr(ilut(NOffFlag), flg + flag_bit_offset)
 
     end subroutine clr_flag
-
-    subroutine create_nsteps_mask()
-
-        nsteps_mask = 0
-        nsteps_mask = ibset(nsteps_mask, flag_bit_offset+flag_nsteps1)
-        nsteps_mask = ibset(nsteps_mask, flag_bit_offset+flag_nsteps2)
-        nsteps_mask = ibset(nsteps_mask, flag_bit_offset+flag_nsteps3)
-        nsteps_mask = ibset(nsteps_mask, flag_bit_offset+flag_nsteps4)
-
-        nsteps_not_mask_unsft = not(int(ishft(nsteps_mask, -flag_bit_offset),sizeof_int))
-
-        nsteps_not_mask = not(nsteps_mask)
-   
-    end subroutine create_nsteps_mask
-
-    pure function return_nsteps(ilut) result(nsteps)
-
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer(n_int) :: nsteps
-        
-        nsteps = ishft(iand(nsteps_mask, ilut(NOffFlag)), -(flag_bit_offset+flag_nsteps1))
-
-    end function return_nsteps
-
-    pure subroutine keep_smallest_nsteps(cum_ilut, new_ilut)
-
-        integer(n_int), intent(inout) :: cum_ilut(0:NIfTot)
-        integer(n_int), intent(in) :: new_ilut(0:NIfTot)
-        integer(n_int) :: flag1, flag2
-
-        flag1 = iand(nsteps_mask, cum_ilut(NOffFlag))
-        flag2 = iand(nsteps_mask, new_ilut(NOffFlag))
-        ! Only is flag2 is smaller than flag1 do we keep the new nsteps value.
-        if (flag2 < flag1) then
-            cum_ilut(NOffFlag) = iand(nsteps_not_mask, cum_ilut(NOffFlag))
-            cum_ilut(NOffFlag) = ior(flag2, cum_ilut(NOffFlag))
-        end if
-
-    end subroutine keep_smallest_nsteps
-
-    pure subroutine update_nsteps_flag(new_flag, ilut)
-
-        ! Add one to the number of steps from the core space, as encoded in the flags.
-
-        integer, intent(inout) :: new_flag
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer(n_int) :: old_flag
-
-        old_flag = ilut(NOffFlag)
-        old_flag = iand(nsteps_mask, old_flag)
-        old_flag = ishft(old_flag, -(flag_bit_offset+flag_nsteps1))
-        ! Only add one if we're less than the maximum number which can be stored.
-        if (old_flag < 15) old_flag = old_flag + 1
-        new_flag = iand(nsteps_not_mask_unsft,new_flag)
-        new_flag = ior(ishft(int(old_flag,sizeof_int),flag_nsteps1), new_flag)
-
-    end subroutine update_nsteps_flag
 
     ! function test_flag is in bit_rep_data
     ! This avoids a circular dependence with DetBitOps.

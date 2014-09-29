@@ -33,8 +33,6 @@ MODULE System
       tComplexOrbs_RealInts = .false.
       tReadFreeFormat=.false.
       tMolproMimic=.false.
-      tAntisym_MI=.false.
-      tMomInv=.false.
       tNoSingExcits=.false.
       tOneElecDiag=.false.
       tMCSizeTruncSpace=.false.
@@ -108,14 +106,14 @@ MODULE System
       TTILT = .false.
       TALPHA = .false.
       ISTATE = 1
-      OrbECutoff=1e20
+      OrbECutoff=1e20_dp
       tOrbECutoff=.false.
-      gCutoff=1e20 ! This shouldn't be used
+      gCutoff=1e20_dp ! This shouldn't be used
       tgCutoff=.false.
       tMadelung=.false.
       Madelung=0.0_dp
       tUEGFreeze=.false.
-      FreezeCutoff=1e20 ! This shouldn't be used
+      FreezeCutoff=1e20_dp ! This shouldn't be used
       tMP2UEGRestrict=.false.
       tStoreAsExcitations=.false.
       TBIN=.false.
@@ -127,9 +125,9 @@ MODULE System
       tShake=.false.
       lNoSymmetry=.false.
       tRotateOrbs=.false.
-      TimeStep=0.01
-      ConvergedForce=0.001
-      ShakeConverged=0.001
+      TimeStep=0.01_dp
+      ConvergedForce=0.001_dp
+      ShakeConverged=0.001_dp
       tShakeApprox=.false.
       tShakeDelay=.false.
       ShakeStart=1
@@ -170,6 +168,9 @@ MODULE System
       tPickVirtUniform = .false.
       modk_offdiag = .false.
       tAllSymSectors = .false.
+      tGenHelWeighted = .false.
+      tGen_4ind_weighted = .false.
+      tGen_4ind_reverse = .false.
 
 !Feb08 defaults:
       IF(Feb08) THEN
@@ -192,6 +193,7 @@ MODULE System
       CHARACTER (LEN=100) w
       INTEGER I,Odd_EvenHPHF,Odd_EvenMI
       integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
+      character(len=*), parameter :: t_r='SysReadInput'
       
       ! The system block is specified with at least one keyword on the same
       ! line, giving the system type being used.
@@ -531,20 +533,7 @@ system: do
 !in bad, bad times.
             tAssumeSizeExcitgen=.true.
         case("MOMINVSYM")
-            tMomInv=.true.
-            tAntisym_MI=.false.
-            if(item.lt.nitems) then
-                call geti(Odd_EvenMI)
-                if(Odd_EvenMI.eq.1) then
-                    !Converging on the antisymmetric state (- symmetry)
-                    tAntisym_MI=.true.
-                elseif(Odd_EvenMI.eq.0) then
-                    !Converging on the symmetric state (+ symmetry)
-                    !This is done by default
-                else
-                    call stop_all("SysReadInput","Invalid variable given to MOMINVSYM option: 0 = + sym; 1 = - sym")
-                endif
-            endif
+            call stop_all(t_r,'Deprecated function. Look in defunct_code folder if you want to see it')
         case("HPHF")
             tHPHF=.true.
             if(item.lt.nitems) then
@@ -848,6 +837,24 @@ system: do
                         ! (symrandexcit3.F90)
                         tPickVirtUniform = .true.
                         tBuildOccVirtList = .true.
+                    case("HEL-WEIGHTED-SLOW")
+                        ! Pick excitations from any site with a generation
+                        ! probability proportional to the connectiong HElement
+                        ! --> Lots of enumeration
+                        ! --> Very slow
+                        ! --> Maximal possible values of tau.
+                        tGenHelWeighted = .true.
+                    case("4IND-WEIGHTED")
+                        ! Weight excitations based on the magnitude of the
+                        ! 4-index integrals (ij|ij)
+                        tGen_4ind_weighted = .true.
+                    case("4IND-REVERSE")
+                        ! Weight excitations based on the magnitude of the
+                        ! actual hamiltonian matrix elements (at least for
+                        ! doubles). This is effectively the "reverse" of
+                        ! 4IND-WEIGHTED as above.
+                        tGen_4ind_reverse = .true.
+
                     case default
                         call Stop_All("ReadSysInp",trim(w)//" not a valid keyword")
                 end select
@@ -1185,7 +1192,7 @@ system: do
            WRITE(6,*) " Fermi Energy EF=",FKF*FKF/2
            write(6,*) " Unscaled fermi vector kF=", FKF/k_lattice_constant
            WRITE(6,*) " Unscaled Fermi Energy nmax**2=",(FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2)         
-           IF(OrbECutoff.ne.1e-20) WRITE(6,*) " Orbital Energy Cutoff:",OrbECutoff
+           IF(OrbECutoff.ne.1e-20_dp) WRITE(6,*) " Orbital Energy Cutoff:",OrbECutoff
            WRITE(6,'(1X,A,F19.5)') '  VOLUME : ' , OMEGA
            WRITE(6,*) ' TALPHA : ' , TALPHA
            WRITE(6,'(1X,A,F19.5)') '  ALPHA : ' , ALPHA
@@ -1331,7 +1338,7 @@ system: do
               ENDDO
 
               IF(LEN.NE.IG) THEN
-                  if(OrbECutoff.gt.-1e20) then
+                  if(OrbECutoff.gt.-1e20_dp) then
                       write(6,*) " Have removed ", LEN-IG, " high energy orbitals "
                       ! Resize arr and brr.
                       allocate(arr_tmp(nbasis,2),brr_tmp(nbasis),stat=ierr)
@@ -1560,7 +1567,7 @@ system: do
              WRITE(6,*) " Fermi Energy EF=",FKF*FKF/2
              WRITE(6,*) " Unscaled Fermi Energy nmax**2=",(FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2)
           ENDIF
-          IF(OrbECutoff.ne.1e-20) WRITE(6,*) " Orbital Energy Cutoff:",OrbECutoff
+          IF(OrbECutoff.ne.1e-20_dp) WRITE(6,*) " Orbital Energy Cutoff:",OrbECutoff
           WRITE(6,'(1X,A,F19.5)') '  VOLUME : ' , OMEGA
           WRITE(6,*) ' TALPHA : ' , TALPHA
           WRITE(6,'(1X,A,F19.5)') '  ALPHA : ' , ALPHA
@@ -1715,7 +1722,7 @@ system: do
          WRITE(6,*) ' NUMBER OF BASIS FUNCTIONS : ' , IG 
          NBASIS=IG
          IF(LEN.NE.IG) THEN
-            IF(OrbECutoff.gt.-1e20) then
+            IF(OrbECutoff.gt.-1e20_dp) then
                write(6,*) " Have removed ", LEN-IG, " high energy orbitals "
                ! Resize arr and brr.
                allocate(arr_tmp(nbasis,2),brr_tmp(nbasis),stat=ierr)

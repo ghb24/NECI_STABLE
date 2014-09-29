@@ -10,10 +10,11 @@ MODULE FciMCLoggingMod
     use bit_reps, only: NIfTot, NIfDBO
     USE SymData , only : nSymLabels
     USE Determinants , only : get_helement, get_helement_excit
-    USE CalcData , only : NMCyc,StepsSft
+    use CalcData, only: NMCyc, StepsSft, InitiatorWalkNo
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
     use constants, only: dp,n_int
     use MemoryManager, only: TagIntType
+    use FciMCData, only: HighPopNeg, HighPopPos, MaxInitPopNeg, MaxInitPopPos
 
     IMPLICIT NONE
     save
@@ -50,9 +51,9 @@ MODULE FciMCLoggingMod
         ! This is the iteration the blocking was started.
 
         IF(tBlockEveryIteration) THEN
-            TotNoBlockSizes=FLOOR( (LOG10(REAL(NMCyc-StartBlockIter))) / (LOG10(2.0_dp)) )
+            TotNoBlockSizes=FLOOR( (LOG10(REAL(NMCyc-StartBlockIter,dp))) / (LOG10(2.0_dp)) )
         ELSE
-            TotNoBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartBlockIter))/(REAL(StepsSft)))) / (LOG10(2.0_dp)) )
+            TotNoBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartBlockIter,dp))/(REAL(StepsSft,dp)))) / (LOG10(2.0_dp)) )
         ENDIF
         WRITE(6,*) 'Beginning blocking analysis of the errors in the projected energies.'
         WRITE(6,"(A,I6)") "The total number of different block sizes possible is: ",TotNoBlockSizes
@@ -92,7 +93,7 @@ MODULE FciMCLoggingMod
         StartShiftBlockIter=Iter 
         ! This is the iteration the blocking was started.
 
-        TotNoShiftBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartShiftBlockIter))/(REAL(StepsSft)))) / (LOG10(2.0_dp)) )
+        TotNoShiftBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartShiftBlockIter,dp))/(REAL(StepsSft,dp)))) / (LOG10(2.0_dp)) )
         WRITE(6,*) 'Beginning blocking analysis of the errors in the shift.'
         WRITE(6,"(A,I6)") "The total number of different block sizes possible is: ",TotNoShiftBlockSizes
         ! The blocks will have size 1,2,4,8,....,2**TotNoBlockSizes
@@ -133,9 +134,9 @@ MODULE FciMCLoggingMod
 
         TotNoBlockSizes=0
         IF(tBlockEveryIteration) THEN
-            TotNoBlockSizes=FLOOR( (LOG10(REAL(NMCyc-StartBlockIter))) / (LOG10(2.0_dp)) )
+            TotNoBlockSizes=FLOOR( (LOG10(REAL(NMCyc-StartBlockIter,dp))) / (LOG10(2.0_dp)) )
         ELSE
-            TotNoBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartBlockIter))/(REAL(StepsSft)))) / (LOG10(2.0_dp)) )
+            TotNoBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartBlockIter,dp))/(REAL(StepsSft,dp)))) / (LOG10(2.0_dp)) )
         ENDIF
 
         if (allocated(CurrBlockSum)) CurrBlockSum(:)=0.0_dp
@@ -154,7 +155,7 @@ MODULE FciMCLoggingMod
         ! ChangeVars gets called at the end of the run, wont actually start until the next iteration.
 
         TotNoShiftBlockSizes=0
-        TotNoShiftBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartShiftBlockIter))/(REAL(StepsSft)))) / (LOG10(2.0_dp)) )
+        TotNoShiftBlockSizes=FLOOR( (LOG10((REAL(NMCyc-StartShiftBlockIter,dp))/(REAL(StepsSft,dp)))) / (LOG10(2.0_dp)) )
 
         if (allocated(CurrShiftBlockSum)) CurrShiftBlockSum(:)=0.0_dp
         if (allocated(ShiftBlockSum)) ShiftBlockSum(:)=0.0_dp
@@ -247,7 +248,7 @@ MODULE FciMCLoggingMod
         IF(NoContrib.eq.1) RETURN
 
         NoBlockSizes=0
-        NoBlockSizes=FLOOR( (LOG10(REAL(NoContrib-1)))/ (LOG10(2.0_dp)))
+        NoBlockSizes=FLOOR( (LOG10(REAL(NoContrib-1,dp)))/ (LOG10(2.0_dp)))
 
         iunit = get_free_unit()
         IF(tSaveBlocking) THEN
@@ -269,19 +270,19 @@ MODULE FciMCLoggingMod
             ! First need to find out how many blocks of this particular size contributed to the final sum in BlockSum.
             ! NoContrib is the total number of contributions to the blocking throughout the simulation.
             NoBlocks=0
-            NoBlocks=FLOOR(REAL(NoContrib/(2**i)))
+            NoBlocks=FLOOR(REAL(NoContrib/(2**i),dp))
             ! This finds the lowest integer multiple of 2**i (the block size). 
 
-            MeanEn=BlockSum(i)/REAL(NoBlocks)
-            MeanEnSqrd=BlockSqrdSum(i)/REAL(NoBlocks)
+            MeanEn=BlockSum(i)/REAL(NoBlocks,dp)
+            MeanEnSqrd=BlockSqrdSum(i)/REAL(NoBlocks,dp)
 
             StandardDev=SQRT(MeanEnSqrd-(MeanEn**2))
             IF(StandardDev.eq.0.0_dp) THEN
                 Error=0.0_dp
                 ErrorinError=0.0_dp
             ELSE
-                Error=StandardDev/SQRT(REAL(NoBlocks-1))
-                ErrorinError=Error/SQRT(2.0_dp*(REAL(NoBlocks-1)))
+                Error=StandardDev/SQRT(REAL(NoBlocks-1,dp))
+                ErrorinError=Error/SQRT(2.0_dp*(REAL(NoBlocks-1,dp)))
             ENDIF
 
 !This is from the blocking paper, and indicates the error in the blocking error, due to the limited number of blocks available.
@@ -307,7 +308,7 @@ MODULE FciMCLoggingMod
         NoContrib=((Iter-StartShiftBlockIter)/StepsSft)+1
 
         NoBlockSizes=0
-        NoBlockSizes=FLOOR( (LOG10(REAL(NoContrib-1)))/ (LOG10(2.0_dp)))
+        NoBlockSizes=FLOOR( (LOG10(REAL(NoContrib-1,dp)))/ (LOG10(2.0_dp)))
 
         iunit = get_free_unit()
         OPEN(iunit,file='SHIFTBLOCKINGANALYSIS',status='unknown')
@@ -321,19 +322,19 @@ MODULE FciMCLoggingMod
             ! NoContrib is the total number of contributions to the blocking throughout the simulation.
 
             NoBlocks=0
-            NoBlocks=FLOOR(REAL(NoContrib/(2**i)))
+            NoBlocks=FLOOR(REAL(NoContrib/(2**i),dp))
             ! This finds the lowest integer multiple of 2**i (the block size). 
 
-            MeanShift=ShiftBlockSum(i)/REAL(NoBlocks)
-            MeanShiftSqrd=ShiftBlockSqrdSum(i)/REAL(NoBlocks)
+            MeanShift=ShiftBlockSum(i)/REAL(NoBlocks,dp)
+            MeanShiftSqrd=ShiftBlockSqrdSum(i)/REAL(NoBlocks,dp)
 
             StandardDev=SQRT(MeanShiftSqrd-(MeanShift**2))
             IF(StandardDev.eq.0.0_dp) THEN
                 Error=0.0_dp
                 ErrorinError=0.0_dp
             ELSE
-                Error=StandardDev/SQRT(REAL(NoBlocks-1))
-                ErrorinError=Error/SQRT(2.0_dp*(REAL(NoBlocks-1)))
+                Error=StandardDev/SQRT(REAL(NoBlocks-1,dp))
+                ErrorinError=Error/SQRT(2.0_dp*(REAL(NoBlocks-1,dp)))
             ENDIF
 
 !This is from the blocking paper, and indicates the error in the blocking error, due to the limited number of blocks available.
@@ -417,7 +418,7 @@ MODULE FciMCLoggingMod
             AllHistInitPops = 0
         endif
 
-        InitBinMin=log(REAL(InitiatorWalkNo+1))
+        InitBinMin=log(REAL(InitiatorWalkNo+1,dp))
         InitBinMax=log(1000000.0_dp)
         InitBinIter=ABS(InitBinMax-InitBinMin)/25000.0
 
@@ -542,6 +543,42 @@ MODULE FciMCLoggingMod
         ENDIF
 
     ENDSUBROUTINE PrintSpawnAttemptStats
+
+    subroutine HistInitPopulations (SignCurr, VecSlot)
+
+        integer, intent(in) :: VecSlot
+        real(dp), intent(in) :: SignCurr
+        integer :: InitBinNo
+        character(*), parameter :: this_routine = 'HistInitPopulations'
+
+        if (abs(SignCurr) > InitiatorWalkNo) then
+            ! Just summing in those determinants which are initiators. 
+            ! Need to figure out which bin to put them in though.
+            InitBinNo = floor((log(abs(SignCurr)) - InitBinMin) / &
+                              InitBinIter) + 1
+            if (InitBinNo >= 1 .and. InitBinNo <= 25000) then
+                if (SignCurr < 0) then
+                    HistInitPops(1,InitBinNo) = HistInitPops(1, InitBinNo) + 1
+                else
+                    HistInitPops(2,InitBinNo) = HistInitPops(2,InitBinNo) + 1
+                end if
+!            else
+!                call stop_all (this_routine, 'Trying to histogram outside&
+!                              & the range of the bins.')
+            end if
+        end if
+
+        if (SignCurr < MaxInitPopNeg) then
+            MaxInitPopNeg = SignCurr
+            HighPopNeg = VecSlot
+        end if
+        if (SignCurr > MaxInitPopPos) then
+            MaxInitPopPos = SignCurr
+            HighPopPos = VecSlot
+        end if
+
+    end subroutine HistInitPopulations
+
 
 ENDMODULE FciMCLoggingMod
 

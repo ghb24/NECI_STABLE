@@ -23,8 +23,8 @@ LOGICAL :: THFRetBias,TProjEMP2,TFixParticleSign
 LOGICAL :: TStartSinglePart,TRegenExcitgens
 LOGICAL :: TUnbiasPGeninProjE, tCheckHighestPopOnce
 LOGICAL :: tCheckHighestPop,tRestartHighPop,tChangeProjEDet
-LOGICAL :: tRotoAnnihil,tRegenDiagHEls,tSpawnAsDet,tFindGroundDet
-LOGICAL :: tTruncCAS,tTruncInitiator,tDelayTruncInit,tAddtoInitiator    !Truncation the FCIMC excitation space by CAS
+LOGICAL :: tRotoAnnihil,tSpawnAsDet
+LOGICAL :: tTruncCAS,tTruncInitiator,tAddtoInitiator    !Truncation the FCIMC excitation space by CAS
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange,tRetestAddtoInit
 logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
 logical :: tAllRealCoeff, tUseRealCoeffs
@@ -35,7 +35,6 @@ real(dp) :: RealSpawnCutoff, OccupiedThresh
 logical :: tEnhanceRemainder
 logical :: tRPA_QBA     !RPA calculation with QB approximation
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
-logical :: tPopsMapping !Map popsfile from smaller basis onto larger basis
 logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
 
 ! Base hash values only on spatial orbitals
@@ -46,17 +45,13 @@ logical :: tSpatialOnlyHash
 ! with the same spatial configuration is an initiator?
 logical :: tSpawnSpatialInit
 
-!These options mean that only initiators can spawn walkers.
-!tSpawn_Only_Init_Grow means that this option is removed once variable shift is entered.
-logical :: tSpawn_Only_Init,tSpawn_Only_Init_Grow
-
 ! Do we truncate spawning based on the number of unpaired electrons
 logical :: tTruncNOpen
 integer :: trunc_nopen_max
 
 logical :: tMaxBloom    !If this is on, then we only print out a bloom warning if it is the biggest to date.
 
-INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits,IterTruncInit,NShiftEquilSteps
+INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits,NShiftEquilSteps
 INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp,iFullSpaceIter
 INTEGER :: IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets,iDetGroup
 INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
@@ -80,8 +75,8 @@ real(dp) :: g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
 real(dp) :: G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
 real(dp) :: BETAP,RHOEPSILON,DBETA,STARCONV,GraphBias
 real(dp) :: GrowGraphsExpo,Tau,SftDamp,ScaleWalkers
-real(dp) :: GrowMaxFactor,CullFactor,PRet,FracLargerDet
-real(dp) :: MemoryFacPart,MemoryFacAnnihil
+real(dp) :: PRet,FracLargerDet
+real(dp) :: MemoryFacPart
 real(dp) :: MemoryFacSpawn,SinglesBias,TauFactor,StepsSftImag
 
 real(dp) :: MemoryFacInit
@@ -107,12 +102,7 @@ LOGICAL tUseProcsAsNodes  !Set if we treat each processor as its own node.
 INTEGER iLogicalNodeSize  !An alternative to the above, create logical nodes of at most this size.
                           ! 0 means use physical nodes.
 
-logical :: tContinueAfterMP2 ! UEG option only
     logical :: tJumpShift
-
-! If true, the initiator threshold for a given state will be equal to the (minimum) number of spawning
-! attempts away from the core space it took to create the state.
-logical :: tVaryInitThresh
 
 ! Perform a Davidson calculation if true.
 logical :: tDavidson
@@ -237,5 +227,14 @@ logical :: tLetInitialPopDie
 logical :: tWritePopsNorm
 real(dp) :: pops_norm
 integer :: pops_norm_unit
+
+! What is the maximum energy, above which all particles are treated as
+! initiators
+real(dp) :: InitiatorCutoffEnergy, InitiatorCutoffWalkNo
+
+! Do we make sites into initiators if they have survived more than a certain
+! period of time?
+logical :: tSurvivalInitiatorThreshold
+integer :: nItersInitiator
 
 end module CalcData

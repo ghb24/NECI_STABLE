@@ -10,9 +10,8 @@ module ftlm_neci
     use CalcData, only: NMCyc, tSemiStochastic
     use constants
     use DetBitOps, only: DetBitLT
-    use FciMCData, only: HFDet, ilutHF, iHFProc, CurrentDets, core_hamiltonian, &
-                         determ_proc_sizes, determ_space_size, partial_determ_vector, &
-                         TotWalkers
+    use FciMCData, only: HFDet, ilutHF, iHFProc, CurrentDets, determ_proc_sizes, &
+                         determ_space_size, partial_determ_vector, TotWalkers
     use Parallel_neci, only: iProcIndex, nProcessors, MPIAllGatherV, MPIAllGather, &
                              MPISumAll
     use ParallelHelper, only: root

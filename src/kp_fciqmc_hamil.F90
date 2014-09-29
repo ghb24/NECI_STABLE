@@ -98,7 +98,7 @@ contains
 
                     ! If spawning is both too and from the core space, abort it.
                     if (tSemiStochasticKPHamil) then
-                        tChildIsDeterm = is_core_state(ilut_child)
+                        tChildIsDeterm = is_core_state(ilut_child, nI_child)
                         if (tParentIsDeterm .and. tChildIsDeterm) cycle
                     end if
 

@@ -152,7 +152,7 @@ MODULE SymExcit3
         INTEGER(KIND=n_int), intent(in) :: iLut(0:NIfTot)
         INTEGER, intent(in) :: nI(NEl)
         integer, intent(out) :: nJ(NEl)
-        integer, intent(inout) :: ExcitMat3(2,2),exflag
+        integer, intent(inout) :: ExcitMat3(2,2), exflag
         LOGICAL, intent(out) :: tAllExcitFound,tParity
         LOGICAL, intent(in) :: ti_lt_a_only
 

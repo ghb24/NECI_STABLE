@@ -14,7 +14,7 @@ MODULE CCMC
                          MaxIndex, TotParts, Walker_time, &
                          ValidSpawnedList, InitialSpawnedSlots, ilutHF, &
                          CurrentDets, iter_data_ccmc, fcimc_excit_gen_store, &
-                         tTruncSpace, CurrentH, NoBorn, SpawnedParts, NoDied,&
+                         tTruncSpace, NoBorn, SpawnedParts, NoDied,&
                          Annihil_Time, Hii, ENumCyc, Acceptances, MaxSpawned,&
                          HFDet, SumWalkersCyc, SpawnFromSing, MaxWalkersPart,&
                          exFlag
@@ -32,12 +32,9 @@ MODULE CCMC
     use hash, only: DetermineDetNode
     use procedure_pointers, only: get_spawn_helement
     use searching, only: BinSearchParts
+    use global_det_data, only: global_determinant_data, det_diagH, &
+                               set_det_diagH
    IMPLICIT NONE
-#ifdef MOLPRO
-    include "common/tapes"
-#else
-    integer, parameter :: iout = 6
-#endif
     integer :: iPartBloom
    CONTAINS
 
@@ -76,7 +73,7 @@ MODULE CCMC
         rat=Tau*(Kii-DiagSft(1))*abs(WSign(1))*dProb
 
         iKill=INT(rat)
-        rat=rat-REAL(iKill)
+        rat=rat-REAL(iKill,dp)
 
 !Stochastically choose whether to die or not
         r = genrand_real2_dSFMT() 
@@ -315,7 +312,7 @@ MODULE CCMC
                   iMaxExTemp=1
                   iMaxEx=0
                   k=int(TotParts(1),sizeof_int)-iCumlExcits  !iCumlExcits includes this det.
-                  if(j.lt.iHFDet) k=k-HFcount
+                  if(j.lt.iHFDet) k=k-int(HFcount)
 !Count the number of allowed composites - this allows for all numbers of composites
                   IFDEBUG(iDebug,6) WRITE(iout,*) "Counting Excitations:  Level,#, Cuml"
                   ! -1 because we've already chosen this excitor.  +1 to
@@ -348,7 +345,7 @@ MODULE CCMC
                   iCompositeSize=0
                   call decode_bit_det (DetCurr, iLutnI)
 !Also take into account the contributions from the dets in the list
-                  HDiagCurr=CurrentH(1,j)
+                  HDiagCurr = det_diagH(j)
                   if(tHistSpawn) then
                      WalkExcitLevel = FindBitExcitLevel(iLutHF, iLutnI, nel)
                   else
@@ -686,16 +683,16 @@ MODULE CCMC
                        NoBorn=NoBorn+abs(Child(1))     !Update counter about particle birth
                        iter_data_ccmc%nborn(1) = iter_data_ccmc%nborn(1) + abs(Child(1))
                        IF(IC.eq.1) THEN
-                           SpawnFromSing=SpawnFromSing+abs(Child(1))
+                           SpawnFromSing=SpawnFromSing+int(abs(Child(1)),kind(SpawnFromSing))
                        ENDIF
 
                        IF(abs(Child(1)).gt.25) THEN
    !If more than 25 particles are created in one go, then log this fact and print out later that this has happened.
                            IF(abs(Child(1)).gt.abs(iPartBloom)) THEN
                                IF(IC.eq.1) THEN
-                                   iPartBloom=-abs(Child(1))
+                                   iPartBloom=-int(abs(Child(1)))
                                ELSE
-                                   iPartBloom=abs(Child(1))
+                                   iPartBloom=int(abs(Child(1)))
                                ENDIF
                            ENDIF
    !                        WRITE(iout,"(A,I10,A)") "LARGE PARTICLE BLOOM - ",Child," particles created in one attempt."
@@ -724,7 +721,8 @@ MODULE CCMC
                        ! SpawnedSign(ValidSpawnedList(Proc))=Child
                        ValidSpawnedList(Proc)=ValidSpawnedList(Proc)+1
 
-                       Acceptances=Acceptances+ABS(Child(1))      !Sum the number of created children to use in acceptance ratio
+                       Acceptances=Acceptances+int(ABS(Child(1)),kind(Acceptances))      
+                            !Sum the number of created children to use in acceptance ratio
                 
                   ENDIF   !End if child created
 
@@ -748,7 +746,7 @@ MODULE CCMC
                ELSE
                   dProbDecompose=1
                   iPartDie=j
-                  HDiagCurr=CurrentH(1,j)
+                  HDiagCurr = det_diagH(j)
                ENDIF 
                dProb=dClusterProb*dProbDecompose
 
@@ -808,7 +806,7 @@ MODULE CCMC
                   ! The number of deaths we need to modify in the particle 
                   ! list, not the sum of the number that died
                   iDeaths=iDeaths+1
-                  iKillDetIndices(1,iDeaths)=iDie
+                  iKillDetIndices(1,iDeaths)=int(iDie)
                   iKillDetIndices(2,iDeaths)=iPartDie
                endif
 !               TotParts=TotParts-abs(CurrentSign(iPartDie))
@@ -872,7 +870,7 @@ MODULE CCMC
             ENDIF
 
             ! HDiags are stored.
-            HDiagCurr=CurrentH(1,j)
+            HDiagCurr = det_diagH(j)
             call decode_bit_det (DetCurr, CurrentDets(:,j))
 
 !Sum in any energy contribution from the determinant, including other parameters, such as excitlevel info
@@ -882,13 +880,13 @@ MODULE CCMC
             !   iSgn(1)=CurrentSign(j)
 !            CALL SumEContrib(DetCurr,WalkExcitLevel,iSgn,CurrentDets(:,j),HDiagCurr,1.0_dp)
             ! CopySign=CurrentSign(j)
-            CopySign=TempSign3(1)
+            CopySign=int(TempSign3(1))
             IF(CopySign.ne.0.or.WalkExcitLevel.eq.0) THEN
                 call encode_det(CurrentDets(:,VecSlot),CurrentDets(:,j))
                 call encode_sign(CurrentDets(:,VecSlot),TempSign3)
                 ! CurrentDets(:,VecSlot)=CurrentDets(:,j)
                 ! CurrentSign(VecSlot)=CopySign
-                CurrentH(1,VecSlot)=CurrentH(1,j)
+                call set_det_diagH(VecSlot, det_diagH(j))
                 VecSlot=VecSlot+1
             ENDIF   !To kill if
         enddo
@@ -917,7 +915,7 @@ MODULE CCMC
 
 
         rat=(TotWalkersNew+0.0_dp)/(MaxWalkersPart+0.0_dp)
-        IF(rat.gt.0.95) THEN
+        IF(rat.gt.0.95_dp) THEN
             WRITE(iout,*) "*WARNING* - Number of particles/determinants has increased to over 95% of MaxWalkersPart"
             CALL neci_flush(6)
         ENDIF
@@ -927,14 +925,14 @@ MODULE CCMC
         IF(nProcessors.gt.1) THEN
             do i=0,nProcessors-1
                 rat=(ValidSpawnedList(i)-InitialSpawnedSlots(i))/(InitialSpawnedSlots(1)+0.0_dp)
-                IF(rat.gt.0.95) THEN
+                IF(rat.gt.0.95_dp) THEN
                     WRITE(iout,*) "*WARNING* - Highest processor spawned particles has reached over 95% of MaxSpawned"
                     CALL neci_flush(6)
                 ENDIF
             enddo
         ELSE
             rat=(ValidSpawnedList(0)+0.0_dp)/(MaxSpawned+0.0_dp)
-            IF(rat.gt.0.9) THEN
+            IF(rat.gt.0.9_dp) THEN
                 WRITE(iout,*) "*WARNING* - Number of spawned particles has reached over 90% of MaxSpawned"
                 CALL neci_flush(6)
             ENDIF
@@ -1550,7 +1548,7 @@ subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,WalkerScale,iDebug)
       endif
       write(iout,*)
    endif
-   if(abs(rat).gt.1e-4*dTol) then
+   if(abs(rat).gt.1e-4_dp*dTol) then
 !Now add in a contribution from the child
       IC = FindBitExcitLevel(iLutHF, S%iLutnJ(:), nEl)
       CALL BinSearchParts3(S%iLutnJ(:),FCIDets(:,:),Det,FCIDetIndex(IC),FCIDetIndex(IC+1)-1,PartIndex,tSuc)
@@ -1792,7 +1790,8 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
       nSpawned=nSpawned+1 !The index into the spawning list
       iter_data_ccmc%nborn=iter_data_ccmc%nborn+1
 !      if(nSpawned>nMaxSpawn) call Stop_All("AttemptSpawnParticle","Not enough space in spawning list.")
-      call create_particle(S%nJ,S%iLutnJ,iSpawnAmp,C%initFlag,1)
+      call create_particle(S%nJ, S%iLutnJ, iSpawnAmp, C%initFlag, 1, &
+                           C%ilutDetCurr, TempSign, -1, 0.0_dp, -1)
       IFDEBUG(iDebug,4) THEN
    !We've not printed this out before
          WRITE(iout,*) "  Spawned ",iSpawnAmp
@@ -1939,7 +1938,8 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,nSpawned)
          iSpawnAmp(1)=0
       endif
 #endif
-      call create_particle(C%DetCurr,C%iLutDetCurr,iSpawnAmp,initFlag,1)
+      call create_particle(C%DetCurr, C%iLutDetCurr, iSpawnAmp, initFlag, 1, &
+                           C%ilutDetCurr, iSpawnAmp, -1, 0.0_dp, -1)
 
       IFDEBUG(iDebug,4) then
          Write(iout,'(A)',advance='no') " Killing at excitor: "
@@ -2369,7 +2369,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use CalcData, only: TStartSinglePart
    use timing_neci, only: print_timing_report
    use Parallel_neci
-   use shared_alloc, only: shared_allocate_iluts, shared_deallocate
+   use shared_alloc, only: shared_allocate_iluts, shared_deallocate, &
+                           shared_allocate
    use CalcData, only: tAddToInitiator,InitiatorWalkNo,tTruncInitiator
    use bit_reps, only: encode_sign,extract_sign
    use FciMCParMod, only: tReadPops, ChangeVars
@@ -2489,8 +2490,10 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    write(iout,*) "Max Amplitude List size: ", nMaxAmpl
    if(tSharedExcitors) then
       call shared_allocate_iluts("DetList",DetList,(/nIfTot,nMaxAmpl/),iNodeIndex)
+      call shared_allocate("global_determinant_data", global_determinant_data, (/1, nMaxAmpl/), iNodeIndex)
    else
       Allocate(DetList(0:nIfTot,nMaxAmpl))
+      allocate(global_determinant_data(1,nmaxampl))
    endif
    ierr=0
    LogAlloc(ierr,'DetList',(nIfTot+1)*nMaxAmpl,4,tagDetList)
@@ -2950,15 +2953,18 @@ end subroutine
 
 SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
       use PopsfileMod
-      real(dp) ::  dNorm
+      real(dp) ::  dNorm, read_psingles, read_pparallel
+      integer :: read_nnodes
+      integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
       INTEGER :: ierr,iunithead
       LOGICAL :: formpops,binpops
       INTEGER :: PopsVersion,WalkerListSize
       INTEGER(kind=n_int), pointer :: DetList(:,:)
       logical :: tPop64Bit,tPopHPHF,tPopLz
-      integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
+      integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,Popinum_runs
+      integer :: PopRandomHash(1024)
       integer(int64) :: iPopAllTotWalkers, CurrParts(lenof_sign)
-      real(dp) :: PopDiagSft,read_tau, tmp_dp(lenof_sign)
+      real(dp) :: PopDiagSft,PopDiagSft2,read_tau, tmp_dp(lenof_sign)
       integer nMaxAmpl,nAmpl,PopBlockingIter
       real(dp) :: PopSumNoatHF(lenof_sign)
       integer :: ReadBatch    !This parameter determines the length of the array to batch read in walkers from a popsfile
@@ -2983,11 +2989,17 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
              call ReadPopsHeadv3(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                    iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
-             read_tau=0.0_dp
+
+             ! Make sure we deal correctly with the POPSFILE parameters that
+             ! aren't read in
+             read_tau = 0.0_dp
+             read_nnodes = 0
          elseif(PopsVersion.eq.4) then
              call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                   iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                   PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,read_tau,PopBlockingIter)
+                   iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                   PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau,&
+                   PopBlockingIter, PopRandomHash, read_pparallel, read_pparallel, &
+                   read_nnodes, read_walkers_on_nodes)
          endif
 
          ! We don't currently ever apply a perturbation operator to the popsfile
@@ -2996,15 +3008,16 @@ SUBROUTINE ReadPopsFileCCMC(DetList,nMaxAmpl,nAmpl,dNorm)
          perturb_nannihilate = 0
 
          call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-               iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-               PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau, &
-               PopBlockingIter, perturb_ncreate, perturb_nannihilate)
+               iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+               PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,WalkerListSize,read_tau, &
+               PopBlockingIter, read_psingles, read_pparallel, perturb_ncreate, perturb_nannihilate)
 
          if(iProcIndex.eq.root) close(iunithead)
          tmp_dp = CurrParts
-         call ReadFromPopsfile(iPopAllTotWalkers,ReadBatch,TotWalkers,tmp_dp,NoatHF,DetList,&
-                                nMaxAmpl, PopNifSgn, iPopNel, .true.)
-         CurrParts = tmp_dp
+         call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, TotWalkers, &
+                               tmp_dp, NoatHF, DetList, nMaxAmpl, read_nnodes, &
+                               read_walkers_on_nodes, PopNIfSgn, iPopNel, .true.)
+         CurrParts = int(tmp_dp)
          nAmpl=int(TotWalkers,sizeof_int)
          dNorm=NoatHF(1)
       endif
@@ -3274,11 +3287,6 @@ subroutine WriteExcitorListP(iUnit,Dets,offset,nDet,dTol,Title)
    use FciMCData, only: iLutHF
    use bit_reps, only: extract_sign,extract_flags
    IMPLICIT NONE
-#ifdef MOLPRO
-    include "common/tapes"
-#else
-    integer, parameter :: iout = 6
-#endif
    INTEGER iUnit,nDet
    INTEGER(KIND=n_int) Dets(0:nIfTot,nDet)
    integer dTol
@@ -3304,11 +3312,6 @@ subroutine WriteExcitorListP2(iUnit,Dets,starts,ends,dTol,Title)
    use bit_reps, only: extract_sign,extract_flags
    use Parallel_neci
    IMPLICIT NONE
-#ifdef MOLPRO
-    include "common/tapes"
-#else
-    integer, parameter :: iout = 6
-#endif
    INTEGER iUnit,nDet
    INTEGER(KIND=n_int) Dets(0:nIfTot,*)
    integer dTol

@@ -13,16 +13,17 @@ module sparse_arrays
 
     use bit_rep_data, only: NIfTot, NIfDBO
     use bit_reps, only: decode_bit_det
-    use CalcData, only: tRegenDiagHEls, tReadPops
+    use CalcData, only: tReadPops
     use constants
     use DetBitOps, only: DetBitEq
     use Determinants, only: get_helement
     use FciMCData, only: determ_space_size, determ_proc_sizes, determ_proc_indices, &
-                         SpawnedParts, CurrentH, Hii, core_ham_diag
+                         SpawnedParts, Hii, core_ham_diag
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier, MPIAllGatherV
     use SystemData, only: tHPHF, nel
+    use global_det_data, only: set_det_diagH
 
     implicit none
 
@@ -33,8 +34,8 @@ module sparse_arrays
     end type sparse_matrix_real
 
     type sparse_matrix_int
-        integer(sp), allocatable, dimension(:) :: elements
-        integer(sp), allocatable, dimension(:) :: positions
+        integer, allocatable, dimension(:) :: elements
+        integer, allocatable, dimension(:) :: positions
         integer :: num_elements
     end type sparse_matrix_int
 
@@ -44,6 +45,13 @@ module sparse_arrays
         ! The number of clashes for ths hash value.
         integer :: nclash
     end type trial_hashtable
+
+    type core_hashtable
+        ! The indices of states with this hash table.
+        integer, allocatable, dimension(:) :: ind
+        ! The number of clashes for this hash value.
+        integer :: nclash
+    end type core_hashtable
 
     type(sparse_matrix_real), allocatable, dimension(:) :: sparse_ham
     integer(TagIntType), allocatable, dimension(:,:) :: SparseHamilTags
@@ -62,6 +70,7 @@ module sparse_arrays
 
     type(trial_hashtable), allocatable, dimension(:) :: trial_ht
     type(trial_hashtable), allocatable, dimension(:) :: con_ht
+    type(core_hashtable), allocatable, dimension(:) :: core_ht
 
 contains
 
@@ -291,7 +300,7 @@ contains
 
     end subroutine calculate_sparse_hamiltonian_parallel
 
-    subroutine calculate_determ_hamiltonian_sparse()
+    subroutine calc_determ_hamil_sparse()
 
         integer :: i, j, row_size, counter, ierr
         integer :: nI(nel), nJ(nel)
@@ -333,8 +342,10 @@ contains
                         hamiltonian_row(j) = get_helement(nI, nJ, 0) - Hii
                     end if
                     core_ham_diag(i) = hamiltonian_row(j)
-                    ! We calculate and store CurrentH at this point for ease.
-                    if ((.not. tRegenDiagHEls) .and. (.not. tReadPops)) CurrentH(1,i) = hamiltonian_row(j)
+                    ! We calculate and store the diagonal matrix element at
+                    ! this point for later access.
+                    if (.not. tReadPops) &
+                        call set_det_diagH(i, hamiltonian_row(j))
                     ! Always include the diagonal elements.
                     row_size = row_size + 1
                 else
@@ -368,14 +379,17 @@ contains
 
         end do
 
-        call MPIBarrier(ierr)
+        ! Don't time the mpi_barrier call, because if we did then we wouldn't
+        ! be able separate out some of the core Hamiltonian creation time from
+        ! the MPIBarrier calls in the main loop.
+        call MPIBarrier(ierr, tTimeIn=.false.)
 
         deallocate(temp_store, stat=ierr)
         call LogMemDealloc(t_r, TempStoreTag, ierr)
         deallocate(hamiltonian_row, stat=ierr)
         call LogMemDealloc(t_r, HRTag, ierr)
 
-    end subroutine calculate_determ_hamiltonian_sparse
+    end subroutine calc_determ_hamil_sparse
 
     subroutine allocate_sparse_ham_row(sparse_matrix, row, sparse_row_size, sparse_matrix_name, sparse_tags)
 

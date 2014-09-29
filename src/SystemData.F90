@@ -17,7 +17,7 @@ logical :: tNoSingExcits    !True if there are no single excitations in the syst
 logical :: tStarBin, tReadInt, tHFOrder, tDFRead, tPBC, tUEG, tUEG2, tCPMD, tHUB, tHeisenberg
 logical :: tHPHF, tHPHFInts, tUHF, tSPN, tParity, tUseBrillouin, tExch, tReal
 logical :: tTilt, tUmatEps, tOneElIntMax, tOnePartOrbEnMax, tROHF, tBrillouinsDefault
-logical :: tNoBrillouin, tVirtCoulombMax, tVirtExchangeMin, tHijSqrdMin, tMomInv
+logical :: tNoBrillouin, tVirtCoulombMax, tVirtExchangeMin, tHijSqrdMin
 logical :: tDiagonalizehij, tHFSingDoubExcMax, tSpinOrbs, tReadInCoeff
 logical :: tUseMP2VarDenMat, tAlpha, tStoreAsExcitations, tBin, tStarStore
 logical :: tVASP, tOffDiagSqrdMin, tOffDiagSqrdMax, tOffDiagmax, tShakeDelay
@@ -47,7 +47,9 @@ logical :: tISKFuncs      ! Only for use in systems where the kpoint mesh has in
                           ! integrals are real.
 logical :: tOddS_HPHF     !If this is true, and you are using HPHF, then it will converge onto an Odd S HPHF state.
 logical :: tAntisym_MI    !Antisymmetric MI functions.
-logical :: tComplexOrbs_RealInts    !We are using complex orbitals, but real integrals. Therefore, check the mom sym before looking up integral, since we only have 4x perm sym.
+logical :: tComplexOrbs_RealInts    !We are using complex orbitals, but real integrals. 
+                                    !Therefore, check the mom sym before looking up integral, 
+                                    !since we only have 4x perm sym.
 integer :: iParity(5), nMaxX, nMaxY, nMaxZ, nMSH, coulDampOrb, elecPairs
 integer :: roIterMax, iRanLuxLev, DiagMaxMinFac, OneElmaxMinFac, iState
 integer :: iTiltX, iTiltY, nOccAlpha, nOccBeta, ShakeIterMax, ShakeStart
@@ -56,6 +58,10 @@ real(dp) :: BOX, BOA, COA, fUEGRs, fRc, OrbECutoff, UHUB, BHUB
 real(dp) :: Diagweight, OffDiagWeight, OrbEnMaxAlpha, Alpha, fCoulDampBeta
 real(dp) :: fCoulDampMu, TimeStep, ConvergedForce, ShakeConverged, UMATEps
 real(dp) :: OneElWeight
+
+integer :: AA_elec_pairs, BB_elec_pairs, par_elec_pairs, AB_elec_pairs
+integer :: AA_hole_pairs, BB_hole_pairs, par_hole_pairs, AB_hole_pairs
+integer :: hole_pairs, nholes_a, nholes_b, nholes
 
 
 integer :: nEl             ! Number of (non-frozen) electrons in the system
@@ -207,9 +213,11 @@ LOGICAL :: tSymIgnoreEnergies
     ! Should we use |K| for FCIQMC?
     logical :: modk_offdiag
 
-! True if we are performing a calculation in all symmetry sectors at once.
-! This is used in finite-temperature KP-FCIQMC calculations.
-logical :: tAllSymSectors
+    ! True if we are performing a calculation in all symmetry sectors at once.
+    ! This is used in finite-temperature KP-FCIQMC calculations.
+    logical :: tAllSymSectors
+
+    logical :: tGenHelWeighted, tGen_4ind_weighted, tGen_4ind_reverse
 
 ! Operators for type(symmetry)
 interface assignment (=)

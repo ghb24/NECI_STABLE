@@ -24,6 +24,7 @@ MODULE Logging
       use default_sets
       implicit none
 
+      tDipoles = .false.
       tPrintInitiators = .false.
       tDiagAllSpaceEver = .false.
       tCalcVariationalEnergy = .false.
@@ -34,21 +35,16 @@ MODULE Logging
       iHighPopWrite = 15    !How many highest weighted determinants to write out at the end of an FCIQMC calc.
       tDiagWalkerSubspace = .false.
       iDiagSubspaceIter = 1
-      tSplitProjEHist = .false.
-      tSplitProjEHistG = .false.
-      tSplitProjEHistK3 = .false.
       PopsfileTimer=0.0_dp
       tMCOutput=.true.
       tLogComplexPops=.false.
       iWriteBlockingEvery=1000
       tSaveBlocking=.false.
-      OffDiagBinRange=0.001
+      OffDiagBinRange=0.001_dp
       OffDiagMax=1.0_dp
-      BinRange=0.001
+      BinRange=0.001_dp
       iNoBins=100000
       tHistEnergies=.false.
-      tHistHamil=.false.
-      iWriteHamilEvery=-1
       tHistSpawn=.false.
       iWriteHistEvery=-1
       NoACDets(:)=0
@@ -87,8 +83,6 @@ MODULE Logging
       tPrintFCIMCPsi=.false.
       tCalcFCIMCPsi=.false.
       NHistEquilSteps=0
-      tPrintDoubsUEG=.false.
-      StartPrintDoubsUEG=0
       tPrintOrbOcc=.false.
       StartPrintOrbOcc=0
       tPrintOrbOccInit=.false.
@@ -99,7 +93,6 @@ MODULE Logging
       IterStartBlocking=0
       HFPopStartBlocking=100
       tInitShiftBlocking=.false.
-      IterShiftBlock=0
       NoDumpTruncs=0
       tWriteTransMat=.false.
       tCCMCLogTransitions=.false.
@@ -124,16 +117,17 @@ MODULE Logging
       RDMExcitLevel=1
       tDo_Not_Calc_RDMEnergy = .false.
       tExplicitAllRDM = .false.
-      tHF_S_D_Ref = .false.
-      tHF_S_D = .false.
-      tHF_Ref_Explicit = .false.
+!      tHF_S_D_Ref = .false.
+!      tHF_S_D = .false.
+!      tHF_Ref_Explicit = .false.
       twrite_normalised_RDMs = .true. 
       twrite_RDMs_to_read = .false.
       tno_RDMs_to_read = .false.
+      !tReadRDMAvPop=.false.
       tReadRDMs = .false.
+      tNoNewRDMContrib=.false.
       IterWriteRDMs = 10000
       tWriteMultRDMs = .false.
-      tInitiatorRDM = .false.
       tThreshOccRDMDiag=.false.
       ThreshOccRDM=2.0_dp
       tDumpForcesInfo = .false.
@@ -142,9 +136,24 @@ MODULE Logging
       binarypops_min_weight = 0
       tSplitPops = .false.
       tWriteCore = .false.
+      tWriteCoreEnd = .false.
+      write_end_core_size = 0
       tWriteTrial = .false.
       tCompareTrialAmps = .false.
       compare_amps_period = 0
+      tHistExcitToFrom = .false.
+      tForceCauchySchwarz = .false.
+      tBrokenSymNOs = .false.
+      occ_numb_diff = 0.001_dp
+      tBreakSymNOs = .false.
+      local_cutoff = 0
+      rottwo = 0
+      rotthree = 0
+      rotfour = 0
+      tRDMInstEnergy=.true.
+      tFullHFAv=.false.
+
+      tFCIMCStats2 = .false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -196,15 +205,10 @@ MODULE Logging
         case("CALCVARIATIONALENERGY")
             !Calculate the variational energy of the FCIQMC dynamic each time Histspawn is calculated
             tCalcVariationalEnergy=.true.
-        case("SPLITPROJE")
-            !Partition contribution from doubles, and write them out
-            tSplitProjEHist=.true.
-        case("SPLITPROJE-G")
-            !Partition contribution from doubles, and write them out; bin according to g
-            tSplitProjEHistG=.true.
-        case("SPLITPROJE-K3")
-            !Partition contribution from doubles, and write them out; bin according to k3
-            tSplitProjEHistK3=.true.
+
+        case("SPLITPROJE", "SPLITPROJE-G", "SPLITPROJE-K3")
+            call stop_all(t_r, 'Option (SPLITPROJE*) deprecated')
+
         case("NOMCOUTPUT")
             !No output to stdout from the fcimc or ccmc iterations
             tMCOutput=.false.
@@ -254,7 +258,7 @@ MODULE Logging
         case("SHIFTBLOCKINGSTARTITER")
 !This keyword can be used if we want to start the blocking error analysis of the shift at a particular 
 !iteration after the shift begins to change.            
-            call readi(IterShiftBlock)
+            call stop_all(t_r,'SHIFTBLOCKINGSTARTITER option deprecated')
 
         case("BLOCKINGSTARTHFPOP")            
 !This keyword can be used if we want to start the blocking error analysis at a particular HF population.
@@ -499,6 +503,11 @@ MODULE Logging
 !This sets the calculation to diagonalise the *1* electron reduced density matrix.   
 !The eigenvalues give the occupation numbers of the natural orbitals (eigenfunctions).
             tDiagRDM=.true.
+        
+        case("FULLHFAV")
+            !Continue to accumulate the average of N_HF even when it goes to zero
+            !Necessary for good RDM accumulation in systems with small N_HF (i.e. multireference)
+            tFullHFAv=.true.
 
         case("NONOTRANSFORM")
 ! This tells the calc that we don't want to print the NO_TRANSFORM matrix.            
@@ -520,6 +529,55 @@ MODULE Logging
 !wavefunction we've found, and then use the MOTRANSFORM file printed to 
 ! visualise the natural orbitals with large occupation numbers.
 
+        case("FORCECAUCHYSCHWARZ")
+            tForceCauchySchwarz=.true.
+!This forces the inequality gamma_pq <= sqrt(gamma_pp * gamma_qq) is obeyed.
+!we choose min(gamma_pq, sqrt(gamma_pp * gamma_qq) to ensure a positive-definite matrix
+!May be of use for getting orbitals from an approximate initial FCIQMC calc.
+
+        case("BROKENSYMNOS")
+            tBrokenSymNOs = .true.
+            call readi(rottwo)
+            call readi(rotthree)
+            call readi(rotfour)
+            call readi(local_cutoff)
+            call readf(occ_numb_diff)
+! This is to rotate the obtained natural orbitals (NOs) again in order to obtain
+! symmetry broken NOs: pairs of NOs whose occupation numbers differ by less 
+! than the specified threshold occ_numb_diff (relative difference, i.e. difference
+! divided by absolute value) will be rotated so as to 
+! maximally localise them using and Edminston Ruedenberg type localisation
+! local_cutoff is the index of the spatial orbital which is the borderline
+! for performing localisation or delocalisation of the NO: all chosen NOs pairs with 
+! orbital index less or equal to (and hence occupation numbers larger than)
+! this orbital will be delocalised while the others will be localised
+! If BREAKSYMNOS is specified rottwo gives number of pairs to rotate, rotthree the 
+! number of triples to rotate and rotfour the number of quadruples to rotate
+! If BREAKSYMNOS is not present these will be ignored
+! A new FCIDUMP file (BSFCIDUMP) with the rotated NOs is printed out
+
+        case("BREAKSYMNOS")
+            tBreakSymNOs = .true.
+! This is another option for BROKENSYMNOS p1 p2... t1 t2 t3... q1 q2 q3 q4...
+! This contains just an ordered list of the spatial orbital indices of the NOs
+! to rotate, firstly the doubles, then triples, then quadruples (the number of 
+! pairs, triples and quadruples is specified with the BROKENSYMNOS options), e.g.
+! BROKENSYMNOS 2 1 1 0 0.1
+! BREAKSYMNOS 3 4 4 5 1 5 6 7 8 9 10
+! will rotate (2,3) (4,5) (1,5,6) (7,8,9,10)
+            allocate(RotNOs((2*rottwo)+(3*rotthree)+(4*rotfour)),stat=ierr)
+            tagRotNOs = 0
+            call LogMemAlloc('RotNOs',((2*rottwo)+(3*rotthree)+(4*rotfour))&
+                &,4,t_r,tagRotNOs,ierr)
+            RotNOs(:) = 0
+            do i=1,((2*rottwo)+(3*rotthree)+(4*rotfour))
+                call geti(RotNOs(i))
+            enddo
+
+        case("DIPOLE_MOMENTS")
+            !Calculate the dipole moments if we are in molpro
+            tDipoles = .true.
+
         case("CALCRDMENERGY")
 !This takes the 1 and 2 electron RDM and calculates the energy using the RDM expression.            
 !For this to be calculated, RDMExcitLevel must be = 3, so there is a check to make sure this 
@@ -533,23 +591,28 @@ MODULE Logging
             ELSE
                 tDo_Not_Calc_RDMEnergy=.false.
             ENDIF
+        
+        case("NORDMINSTENERGY")
+!Only calculate and print out the RDM energy (from the 2-RDM) at the end of the simulation
+!This saves memory by only having to store one set of RDMs on the headnode rather than two
+            tRDMInstEnergy=.false.
 
         case("EXPLICITALLRDM")
 !Explicitly calculates all the elements of the RDM.            
             tExplicitAllRDM = .true.
 
-        case("HFREFRDMEXPLICIT")
+!        case("HFREFRDMEXPLICIT")
 !Uses the HF as a reference and explicitly calculates the RDM to find the energy - should be same as projected energy, 
 !when printing out every shift update.
-            tHF_Ref_Explicit = .true.
+!            tHF_Ref_Explicit = .true.
 
-        case("HFSDRDM")
+!        case("HFSDRDM")
 !Calculate the RDM for the HF, singles and doubles only - symmetrically.            
-            tHF_S_D = .true.
+!            tHF_S_D = .true.
 
-        case("HFSDREFRDM")
+!        case("HFSDREFRDM")
 !Uses the HF, singles and doubles as a multiconfigurational reference and calculates the RDM to find the energy.            
-            tHF_S_D_Ref = .true.
+!            tHF_S_D_Ref = .true.
 
         case("WRITEINITIATORS")
 ! Requires a popsfile to be written out.  Writes out the initiator populations. 
@@ -571,6 +634,13 @@ MODULE Logging
                 tno_RDMs_to_read = .false. 
             ENDIF
 
+       ! case("READRDMAVPOP")
+! Use in conjunction with READRDMS.  This can be used in the previous calculation had "WRITEBINRDMNODIAG" switched on.
+! We will read in the information in RDM_Av_Pop which contains some of the data from CurrentH in the previous round -- the cumulative
+! sum of this determinant's populations during its lifetime (updated every iter), and the number of iters it has been occupied.
+! This information will get assigned into currentH and allow us to continue the RDM accumulation without bias.
+        !    tReadRDMAvPop=.true.
+
         case("NONORMRDMS")            
 ! Does not print out the normalised (final) RDMs - to be used if you know the calculation will not be converged, and don't  
 ! want to take up disk space.
@@ -579,18 +649,29 @@ MODULE Logging
         case("READRDMS")
 ! Read in the RDMs from a previous calculation, and continue accumulating the RDMs from the very beginning of this restart. 
             tReadRDMs = .true.
+        
+        case("RDMGHOSTCHILD")
+! In this case, if the probability of spawning on a given Dj, generated from Di, is less than GhostThresh (a real), 
+! the acceptance probability is increased GhostThresh. If the spawning is accepted, a 'ghost child' is created,
+! i.e. child is still equal to zero, but the DiDj pair are put in the spawning array to later contribute to the reduced density matrices.
+            tSpawnGhostChild = .true.
+            call readf(GhostThresh)
+
+        case("NONEWRDMCONTRIB")
+            !To be used with READRDMs.  This option makes sure that we don't add in any 
+            !new contributions to the RDM if filling stochastically
+            !This is useful if we want to read in an RDM from another calculation and then 
+            !just print out the analysis, without adding in any more information.
+            tNoNewRDMContrib=.true.
 
         case("WRITERDMSEVERY")
 ! Write out the normalised, hermitian RDMs every IterWriteRDMs iterations.  
             tWriteMultRDMs = .true.
             call readi(IterWriteRDMs)
 
-        case("INITIATORRDM")
-! Use only the determinants that are (on average) initiators to calculate the RDMs.
-            tInitiatorRDM = .true.
-        
         case("THRESHOCCONLYRDMDIAG")
-            !Only add in a contribution to the diagonal elements of the RDM if the average sign of the determinant is greater than [ThreshOccRDM]
+            !Only add in a contribution to the diagonal elements of the RDM if the average sign 
+            !of the determinant is greater than [ThreshOccRDM]
             tThreshOccRDMDiag=.true.
             call Getf(ThreshOccRDM)
 
@@ -638,8 +719,7 @@ MODULE Logging
 !This option will histogram the spawned hamiltonian, averaged over all previous iterations. It scales horrifically 
 !and can only be done for small systems
 !which can be diagonalized. It will write out the hamiltonian every iWriteHamilEvery.
-            tHistHamil=.true.
-            IF(item.lt.nitems) call readi(iWriteHamilEvery)
+            call stop_all(t_r,'HISTHAMIL option deprecated')
         case("BLOCKEVERYITER")
 !This will block the projected energy every iteration with the aim of achieving accurate error estimates. 
 !However, this does require a small amount of additional communication.
@@ -656,11 +736,10 @@ MODULE Logging
 !contribution of each orbital to the total wavefunction.  
             tPrintOrbOcc=.true.
             IF(item.lt.nitems) call readi(StartPrintOrbOcc)
+
         case("PRINTDOUBSUEG")
-!This option initiates the above histogramming of doubles for the UEG
-!            if (.not.tUEG) call stop_all("Logging","Printdoubs doesn't work with systems other than UEG")
-            tPrintDoubsUEG=.true.
-            IF(item.lt.nitems) call readi(StartPrintDoubsUEG)
+            call stop_all(t_r, 'This option (PRINTDOUBSUEG) has been deprecated')
+
         case("PRINTORBOCCSINIT")
 !This option initiates the above histogramming of determinant populations and then 
 !at the end of the spawning uses these to find the normalised  
@@ -883,6 +962,12 @@ MODULE Logging
             ! Output the semi-stochastic core space to a file.
             tWriteCore = .true.
 
+        case("WRITE-MOST-POP-CORE-END")
+            ! At the end of a calculation, find the write_end_core_size most
+            ! populated determinants and write them to a CORESPACE file.
+            tWriteCoreEnd = .true.
+            call readi(write_end_core_size)
+
         case("WRITE-TRIAL")
             ! Output the trial wavefunction space to a file.
             tWriteTrial = .true.
@@ -891,8 +976,28 @@ MODULE Logging
             tCompareTrialAmps = .true.
             call readi(compare_amps_period)
 
+        case("HIST-EXCIT-TOFROM")
+            ! Histogram how many particles are spawned between sites with
+            ! varying excitation levels from the Hartree--Fock.
+            tHistExcitToFrom = .true.
+
         case("ENDLOG")
             exit logging
+
+        case("TAU-SEARCH")
+            ! Log the output of tau searching
+            call stop_all(t_r,'TAU-SEARCH option now deprecated')
+
+        case("POPS-MAX-TAU")
+            ! If we were using the full enumeration excitation generator,
+            ! what would the maximum acceptable value of tau be for the
+            ! read-in walker distribution?
+            call stop_all(t_r,'POPS-MAX-TAU Deprecated')
+
+        case("FCIMCSTATS-2")
+            ! Use the new-style FCIMCStats output.
+            tFCIMCStats2 = .true.
+
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)
         end select

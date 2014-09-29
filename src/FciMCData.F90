@@ -15,13 +15,9 @@ MODULE FciMCData
 
       ! Type for creating linked lists for the linear scaling algorithm.
       type ll_node
-          integer(sp) :: ind
+          integer :: ind
           type(ll_node), pointer :: next => null()
       end type
-
-      !Variables for popsfile mapping
-      integer, allocatable :: PopsMapping(:)    !Mapping function between old basis and new basis
-      integer :: MappingNIfD,MappingNIfTot      !Original basis NIfD and NIfTot
 
       integer :: iPopsTimers    !Number of timed popsfiles written out (initiatlised to 1)
 
@@ -36,17 +32,14 @@ MODULE FciMCData
       integer :: Tot_Unique_Dets_Unit 
 
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: WalkVecDets(:,:)                !Contains determinant list
-      REAL(KIND=dp) , ALLOCATABLE , TARGET :: WalkVecH(:,:)                    !Diagonal hamiltonian element
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVecKP(:,:), SpawnVecKP2(:,:)
 
       INTEGER(TagIntType) :: WalkVecDetsTag=0
-      INTEGER(TagIntType) :: WalkVecHTag=0
       INTEGER(TagIntType) :: SpawnVecTag=0,SpawnVec2Tag=0
 
 !Pointers to point at the correct arrays for use
       INTEGER(KIND=n_int) , POINTER :: CurrentDets(:,:)
-      real(dp) , POINTER :: CurrentH(:,:)
       INTEGER(KIND=n_int) , POINTER :: SpawnedParts(:,:),SpawnedParts2(:,:)
       INTEGER(KIND=n_int) , POINTER :: SpawnedPartsKP(:,:), SpawnedPartsKP2(:,:)
 
@@ -66,10 +59,11 @@ MODULE FciMCData
       LOGICAL :: tFillingStochRDMonFly, tFillingExplicRDMonFly
       logical :: tFill_RDM
       integer :: IterLastRDMFill
-      integer :: Spawned_Parts_Zero, HFInd, NCurrH
+      integer :: Spawned_Parts_Zero, HFInd
       integer :: IterRDMStart
       integer, dimension(inum_runs) :: IterRDM_HF
       real(dp), dimension(lenof_sign) :: InstNoatHf
+      logical :: tGhostChild, tFinalRDMEnergy
 
       INTEGER(KIND=n_int) , ALLOCATABLE :: TempSpawnedParts(:,:)
       INTEGER :: TempSpawnedPartsTag, TempSpawnedPartsInd
@@ -82,18 +76,18 @@ MODULE FciMCData
       INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS, HighPopNeg, HighPopPos
       REAL(dp) :: MaxInitPopNeg,MaxInitPopPos
 
-    real(dp), dimension(inum_runs) :: NoAborted, AllNoAborted, AllNoAbortedOld
-    real(dp), dimension(inum_runs) :: NoRemoved, AllNoRemoved, AllNoRemovedOld
-    integer(int64), dimension(inum_runs) :: NoAddedInitiators, NoInitDets, NoNonInitDets
-    real(dp), dimension(inum_runs) :: NoInitWalk, NoNonInitWalk
-    integer(int64), dimension(inum_runs) :: NoExtraInitDoubs, InitRemoved
+    real(dp), dimension(lenof_sign) :: NoAborted, AllNoAborted, AllNoAbortedOld
+    real(dp), dimension(lenof_sign) :: NoRemoved, AllNoRemoved, AllNoRemovedOld
+    integer(int64), dimension(lenof_sign) :: NoAddedInitiators, NoInitDets, NoNonInitDets
+    real(dp), dimension(lenof_sign) :: NoInitWalk, NoNonInitWalk
+    integer(int64), dimension(lenof_sign) :: NoExtraInitDoubs, InitRemoved
     integer :: no_spatial_init_dets
 
-    integer(int64), dimension(inum_runs) :: AllNoAddedInitiators, AllNoInitDets
-    integer(int64), dimension(inum_runs) :: AllNoNonInitDets
+    integer(int64), dimension(lenof_sign) :: AllNoAddedInitiators, AllNoInitDets
+    integer(int64), dimension(lenof_sign) :: AllNoNonInitDets
     real(dp), dimension(inum_runs) :: AllNoInitWalk, AllNoNonInitWalk
-    integer(int64), dimension(inum_runs) :: AllNoExtraInitDoubs, AllInitRemoved
-    integer(int64), dimension(inum_runs) :: AllGrowRateAbort
+    integer(int64), dimension(lenof_sign) :: AllNoExtraInitDoubs, AllInitRemoved
+    integer(int64), dimension(lenof_sign) :: AllGrowRateAbort
 
       LOGICAL :: tHFInitiator,tPrintHighPop, tcurr_initiator
       logical :: tHashWalkerList    !Option to store occupied determinant in a hash table
@@ -153,17 +147,18 @@ MODULE FciMCData
 
       real(dp), dimension(inum_runs) :: trial_numerator, tot_trial_numerator
       real(dp), dimension(inum_runs) :: trial_denom, tot_trial_denom
-      !This is the sum over all previous cycles of the number of particles at the HF determinant
+
+      ! This is the sum over all previous cycles of the number of particles at the HF determinant
       real(dp), dimension(lenof_sign) :: SumNoatHF 
       real(dp) :: AvSign           !This is the average sign of the particles on each node
       real(dp) :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
       real(dp), dimension(inum_runs) :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
-      Real(dp), dimension(inum_runs) :: Annihilated      !This is the number annihilated on one processor
+      Real(dp), dimension(lenof_sign) :: Annihilated      !This is the number annihilated on one processor
       REAL(dp), DIMENSION(lenof_sign) :: NoatHF           !This is the instantaneous number of particles at the HF determinant
       REAL(dp), dimension(inum_runs) :: NoatDoubs
       REAL(dp), dimension(inum_runs) :: Acceptances      !This is the number of accepted spawns - this is only calculated per node.
       real(dp), dimension(inum_runs) :: AccRat            !Acceptance ratio for each node over the update cycle
-      INTEGER :: PreviousCycles   
+      INTEGER :: PreviousCycles
       !This is just for the head node, so that it can store the number of previous cycles when reading from POPSFILE
       REAL(dp),dimension(inum_runs) :: NoBorn,NoDied
       REAL(dp),dimension(inum_runs) :: SpawnFromSing  
@@ -250,7 +245,7 @@ MODULE FciMCData
 
       ! The approximate fraction of singles and doubles. This is calculated
       ! using the HF determinant, if using non-uniform random excitations.
-      real(dp) :: pDoubles, pSingles
+      real(dp) :: pDoubles, pSingles, pParallel
       integer :: nSingles, nDoubles
       
       ! Bit representation of the HF determinant
@@ -337,16 +332,6 @@ MODULE FciMCData
       TYPE(BasisFN) :: HFSym
       integer :: iMaxBloom !If tMaxBloom is on, this stores the largest bloom to date.
 
-      ! If we are calculating the projected energy based on a linear
-      ! sum of multiple determinants, we need them and their coeffs
-      ! to have been enumerated.
-      logical :: proje_linear_comb,proje_update_comb,proje_spatial
-      integer(n_int), allocatable :: proje_ref_iluts(:,:)
-      integer :: nproje_sum
-      integer, allocatable :: proje_ref_dets(:,:), proje_ref_det_init(:)
-      real(dp), allocatable :: proje_ref_coeffs(:)
-      real(dp), allocatable :: All_proje_ref_coeffs(:)
-      integer(TagIntType) :: tag_ref_iluts = 0, tag_ref_dets = 0, tag_ref_coeffs = 0
       real(dp) :: proje_denominator_cyc(lenof_sign)
       real(dp) :: proje_denominator_sum(lenof_sign)
       logical :: tRestart   !Whether to restart a calculation
@@ -385,7 +370,7 @@ MODULE FciMCData
 
       !Tau searching variables
       logical :: tSearchTau
-      real(dp) :: MaxSpawnProb,AllMaxSpawnProb,MaxAllowedSpawnProb
+      real(dp) :: MaxTau
 
       !Variables for diagonalisation of the walker subspace
       integer :: unitWalkerDiag
@@ -395,10 +380,6 @@ MODULE FciMCData
 ! -Ln_2 (Cycletime), where CycleTime is the average number of cycles until a det returns to its processor
       integer :: hash_shift      
 
-      !Variables for very useful histogramming of projected energy contributions
-      real(dp), allocatable :: ENumCycHistG(:),AllENumCycHistG(:),ENumCycHistK3(:),AllENumCycHistK3(:)
-      integer :: unit_splitprojEHistG,unit_splitprojEHistK3
-
       ! This array stores the Hamiltonian matrix, or part of it, when performing a diagonalisation. It is currently
       ! only used for the code for the Davidson method and semi-stochastic method.
       real(dp), allocatable, dimension(:,:) :: hamiltonian
@@ -406,10 +387,6 @@ MODULE FciMCData
       integer(TagIntType) :: HamTag, DavidsonTag
 
       ! Semi-stochastic data.
-
-      ! The core Hamiltonian (with the Hartree-Fock energy removed from the diagonal) is stored in this array for
-      ! the whole simulation.
-      real(dp), allocatable, dimension(:,:) :: core_hamiltonian 
 
       ! The diagonal elements of the core-space Hamiltonian (with Hii taken away).
       real(dp), allocatable, dimension(:) :: core_ham_diag
@@ -420,7 +397,7 @@ MODULE FciMCData
       ! This stores all the amplitudes of the walkers in the deterministic space. This vector has the size of the part
       ! of the deterministic space stored on *this* processor only. It is therefore used to store the deterministic vector
       ! on this processor, before it is combined to give the whole vector, which is stored in full_determ_vector.
-      ! Later in the iteration, it is also used to store the result of the multiplication by core_hamiltonian on
+      ! Later in the iteration, it is also used to store the result of the multiplication by the core Hamiltonian on
       ! full_determ_vector.
       real(dp), allocatable, dimension(:,:) :: partial_determ_vector
       real(dp), allocatable, dimension(:,:) :: full_determ_vector
@@ -429,23 +406,23 @@ MODULE FciMCData
       real(dp), allocatable, dimension(:,:) :: partial_determ_vecs_kp
       real(dp), allocatable, dimension(:,:) :: full_determ_vecs_kp
 
+      ! determ_proc_sizes(i) holds the core space size on processor i.
       integer(MPIArg), allocatable, dimension(:) :: determ_proc_sizes
+      ! determ_proc_indices(i) holds sum(determ_proc_sizes(i-1)), that is, the
+      ! total number of core states on all processors up to processor i.
+      ! (determ_proc_indices(1) == 0).
       integer(MPIArg), allocatable, dimension(:) :: determ_proc_indices
+      ! The total size of the core space on all processors.
       integer(MPIArg) :: determ_space_size
+      ! determ_space_size_int is identical to determ_space_size, but converted
+      ! to the default integer kind.
+      integer :: determ_space_size_int
 
       ! This vector will store the indicies of the deterministic states in CurrentDets. This is worked out in the main loop.
       integer, allocatable, dimension(:) :: indices_of_determ_states
 
-      ! This integer is used in the Annnihilation routines. It denotes the index of the first non deterministic state in
-      ! the spawned list (once this list has been compressed). This is used to skip over performing certain annihilation
-      ! routines on the deterministic state, which are not removed from the list.
-      integer :: index_of_first_non_determ
-
-      ! For using the hashing trick to search the core space.
-      type(ll_node), pointer :: CoreHashIndex(:)
-
-      ! If true (as is the case by default) then semi-stochastic calculations will start from the ground state
-      ! of the core space.
+      ! If true (as is the case by default) then semi-stochastic calculations
+      ! will start from the ground state of the core space
       logical :: tStartCoreGroundState
 
       ! Trial wavefunction data.
@@ -522,9 +499,11 @@ MODULE FciMCData
       ! Data for performing the direct-ci Davidson algorithm.
       type(ras_parameters) :: davidson_ras
       type(ras_class_data), allocatable, dimension(:) :: davidson_classes
-      integer(sp), allocatable, dimension(:,:) :: davidson_strings
+      integer, allocatable, dimension(:,:) :: davidson_strings
       integer(n_int), allocatable, dimension(:,:) :: davidson_iluts
       type(direct_ci_excit), allocatable, dimension(:) :: davidson_excits
+
+      real(dp) :: max_cyc_spawn, all_max_cyc_spawn
 
       ! Type containing information on a perturbation operator, constructed from
       ! a string of creation and annihilation operators.

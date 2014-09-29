@@ -156,7 +156,7 @@ contains
 
                 if (sym1 == -1) then
                     ! Pick electrons uniformly
-                    e1 = ceiling((1.0 + sqrt(real(1 + 8*i))) / 2)
+                    e1 = ceiling((1.0_dp + sqrt(real(1 + 8*i,8))) / 2)
                     e2 = i - ((e1 - 1) * (e1 - 2)) / 2
                     orb1 = nI(e1);    orb1a = ab_pair(orb1)
                     orb2 = nI(e2);    orb2a = ab_pair(orb2)
@@ -170,7 +170,7 @@ contains
                         cycle
                     end if
 
-                    sym_prod = ieor(G1(orb1)%Sym%S, G1(orb2)%Sym%S)
+                    sym_prod = int(ieor(G1(orb1)%Sym%S, G1(orb2)%Sym%S))
 
                     sym1 = 0
                 end if
@@ -366,6 +366,7 @@ contains
 
     subroutine generate_connected_space_kpnt(original_space_size, original_space, &
             connected_space_size, connected_space, tSinglesOnlyOpt)
+    use neci_intfce
 
         ! This is the same as generate_connected_space, but using the old excitations
         ! generators because the new ones don't work with the tKPntSym option.

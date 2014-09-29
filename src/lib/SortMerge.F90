@@ -19,22 +19,25 @@
 !nlist2 = ValidSpawned
 !list2 = SpawnedParts(:,1:nlist2)
     SUBROUTINE MergeListswH(nlist1,nlist2,list2)
-        USE FciMCParMOD , only : Hii,CurrentDets,CurrentH
+        USE FciMCParMOD , only : Hii,CurrentDets
         use FciMCData , only : tFillingStochRDMonFly, InstNoatHF, ntrial_occ, &
                                ncon_occ, occ_trial_amps, occ_con_amps, &
-                               trial_temp, con_temp, tTrialHash
-        use SystemData, only: nel, tHPHF,tMomInv
+                               trial_temp, con_temp, tTrialHash, iLutHF_True, &
+                               iter
+        use SystemData, only: nel, tHPHF
         use bit_rep_data, only: extract_sign, flag_trial, flag_connected
-        use bit_reps, only: NIfTot, NIfDBO, decode_bit_det, test_flag
+        use bit_reps, only: NIfTot, NIfDBO, decode_bit_det, test_flag, &
+                            encode_first_iter
         USE Determinants , only : get_helement
         use DetBitOps, only: DetBitEQ
         use hphf_integrals, only: hphf_diag_helement
-        use MI_integrals, only: MI_diag_helement
         USE CalcData , only : tTruncInitiator, tTrialWavefunction
         USE HElem
         use constants, only: dp,n_int,lenof_sign
         use util_mod, only: binary_search_custom
         use searching, only: find_trial_and_con_states_bin, find_trial_and_con_states_hash
+        use global_det_data, only: global_determinant_data, set_det_diagH, &
+                                   det_diagH, set_av_sgn
         IMPLICIT NONE
         INTEGER :: nlisto,nlist1,nlist2,i
         INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
@@ -106,10 +109,11 @@
                end if
 
                CurrentDets(:,j+i)=CurrentDets(:,j)
-               CurrentH(:,j+i)=CurrentH(:,j)
+               global_determinant_data(:,j+i) = global_determinant_data(:,j)
            enddo
 
-           IF(tTruncInitiator) CALL FlagifDetisInitiator(list2(:,i))
+           IF(tTruncInitiator) &
+               CALL FlagifDetisInitiator(list2(:,i), det_diagH(i))
 ! Insert DetCurr into its position in the completely merged list (i-1 elements
 ! below it still to be inserted).
            CurrentDets(:,ips+i-1)=list2(:,i)
@@ -130,16 +134,24 @@
            call decode_bit_det (nJ, list2(:,i))
            if (tHPHF) then
                HDiagTemp = hphf_diag_helement (nJ, list2(:,i))
-           elseif(tMomInv) then
-               HDiagTemp = MI_diag_helement(nJ,list2(:,i))
            else
                HDiagTemp = get_helement (nJ, nJ, 0)
            endif
            HDiag=(REAL(HDiagTemp,dp))-Hii
-           CurrentH(1,ips+i-1)=HDiag
-           if(HDiag.eq.0.0_dp) &
-               call extract_sign(CurrentDets(:,ips+i-1),InstNoatHF)
-           if(tFillingStochRDMonFly) CurrentH(2:1+2*lenof_sign,ips+i-1) = 0.0_dp
+           call set_det_diagH(ips+i-1, HDiag)
+           if(DetBitEQ(CurrentDets(:,ips+i-1),iLutHF_True,NIfDBO)) call extract_sign(CurrentDets(:,ips+i-1),InstNoatHF)
+
+           ! Store the initial iteration for this created particle
+           call encode_first_iter(CurrentDets(:,ips+i-1), iter)
+           
+           if (tFillingStochRDMonFly) then
+               if (lenof_sign == 2) then
+                   call set_av_sgn(ips+i-1, (/0.0_dp, 0.0_dp/))
+               else
+                   call set_av_sgn(ips+i-1, (/0.0_dp/))
+               end if
+           end if
+               
 ! Next element to be inserted must be smaller than DetCurr, so must be inserted
 ! at (at most) at ips-1.
 ! If nlisto=0 then all remaining elements in list2 must be inserted directly
@@ -167,7 +179,7 @@
         use bit_reps, only: NIfTot
         USE CalcData , only : tTruncInitiator
         USE HElem
-        use constants, only : n_int
+        use constants, only : n_int, dp
         IMPLICIT NONE
         INTEGER :: nlisto,nlist1,nlist2,i
         INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
@@ -204,7 +216,8 @@
 !           enddo
 !           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
 
-           IF(tTruncInitiator) CALL FlagifDetisInitiator(list2(:,i))
+           IF(tTruncInitiator) &
+               CALL FlagifDetisInitiator(list2(:,i), 0.0_dp)
  
            CurrentDets(0:NIfTot,ips+i-1)=list2(0:NIfTot,i)
                
@@ -438,11 +451,12 @@
 
 !This routine takes each determinant as it is about to be merged into the CurrentDets array, 
 !and determines whether or not it is an initiator.
-    SUBROUTINE FlagifDetisInitiator(DetCurr)
+    SUBROUTINE FlagifDetisInitiator(DetCurr, DiagH)
         USE FciMCData , only : NoExtraInitDoubs,iLutRef,NoAddedInitiators,iLutHF,Iter
         USE FciMCParMOD , only : TestIfDetInCASBit
         USE CalcData, only: tTruncCAS, tInitIncDoubs, tAddtoInitiator, &
-                            InitiatorWalkNo, tSpawnSpatialInit
+                            InitiatorWalkNo, tSpawnSpatialInit, &
+                            InitiatorCutoffEnergy, InitiatorCutoffWalkNo
         use spatial_initiator, only: add_initiator_list
         USE DetBitOps , only : FindBitExcitLevel,DetBitEQ
         use bit_reps, only: extract_sign, encode_flags, set_flag, test_flag, &
@@ -451,10 +465,12 @@
         use constants
         implicit none
         INTEGER(KIND=n_int), INTENT(INOUT) :: DetCurr(0:NIfTot)
+        real(dp) :: diagH
         real(dp) :: SignCurr(lenof_sign)
         INTEGER :: CurrExcitLevel
         INTEGER :: part_type
         LOGICAL :: tDetInCAS, is_init
+        character(*), parameter :: this_routine = 'FlagifDetisInitiator'
 
 !DetCurr has come from the spawning array.
 !The current flags at NIfTot therefore refer to the parent of the spawned walkers.
@@ -472,7 +488,10 @@
         ! space, it is the HF det or if its population > n_add.
         do part_type=1,lenof_sign
             is_init = .false.
-            if (tDetInCAS) then
+            if (DiagH > InitiatorCutoffEnergy .and. &
+                abs(SignCurr(part_type)) > InitiatorCutoffWalkNo) then
+                    is_init = .true.
+            else if (tDetInCAS) then
                 is_init = .true.
             else if ((tAddtoInitiator .and. &
                       abs(SignCurr(part_type)) > InitiatorWalkNo) .or. &

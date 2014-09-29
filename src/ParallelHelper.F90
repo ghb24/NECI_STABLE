@@ -241,8 +241,8 @@ contains
 
 
 
-    subroutine MPIErr (err)
-        integer, intent(in) :: err
+    subroutine MPIErr (iunit, err)
+        integer, intent(in) :: err, iunit
         integer(MPIArg) :: l, e
 #ifdef PARALLEL
         character(len=MPI_MAX_ERROR_STRING) :: s
@@ -251,20 +251,29 @@ contains
         e=0
         call MPI_Error_string (int(err, MPIArg), s, l, e)
 
-        write(6,*) s
+        write(iunit,*) s
 #endif
 
     end subroutine
 
 
 
-    subroutine MPIBarrier (err, Node)
+    subroutine MPIBarrier (err, Node, tTimeIn)
 
         integer, intent(out) :: err
         type(CommI), intent(in), optional :: Node
+        logical, intent(in), optional :: tTimeIn
         integer(MPIArg) :: comm, ierr
+        logical :: tTime
 
-        call set_timer(Sync_Time)
+        ! By default, do time the call.
+        if (.not. present(tTimeIn)) then
+            tTime = .true.
+        else
+            tTime = tTimeIn
+        end if
+
+        if (tTime) call set_timer(Sync_Time)
 
 #ifdef PARALLEL
         call GetComm (comm, node)
@@ -275,7 +284,7 @@ contains
         err = 0
 #endif
 
-        call halt_timer(Sync_Time)
+        if (tTime) call halt_timer(Sync_Time)
 
     end subroutine
 

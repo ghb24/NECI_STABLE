@@ -12,22 +12,22 @@ module semi_stoch_procs
                         encode_sign
     use CalcData
     use constants
-    use davidson, only: davidson_eigenvector, parallel_sparse_hamil_type, perform_davidson
+    use davidson_neci, only: davidson_eigenvector, parallel_sparse_hamil_type, perform_davidson
     use DetBitOps, only: ilut_lt, ilut_gt, FindBitExcitLevel, DetBitLT, &
                          count_set_bits, DetBitEq, sign_lt, sign_gt, IsAllowedHPHF, &
                          EncodeBitDet
     use Determinants, only: get_helement, GetH0Element3, GetH0Element4
-    use FciMCData, only: ilutHF, Hii, CurrentH, determ_proc_sizes, determ_proc_indices, &
-                         full_determ_vector, partial_determ_vector, core_hamiltonian, &
+    use FciMCData, only: ilutHF, Hii, determ_proc_sizes, determ_proc_indices, &
+                         full_determ_vector, partial_determ_vector, &
                          determ_space_size, SpawnedParts, SemiStoch_Comms_Time, &
                          SemiStoch_Multiply_Time, TotWalkers, CurrentDets, CoreTag, &
                          PDetermTag, FDetermTag, IDetermTag, indices_of_determ_states, &
                          HashIndex, core_space, CoreSpaceTag, ll_node, nWalkerHashes, &
-                         tFill_RDM, IterLastRDMFill, full_determ_vector_av, &
-                         tFillingStochRDMonFly, Iter, IterRDMStart, CoreHashIndex, &
-                         core_ham_diag, DavidsonTag, Fii, HFDet, partial_determ_vecs_kp, &
-                         full_determ_vecs_kp
-    use hash, only: DetermineDetNode, FindWalkerHash, init_hash_table, reset_hash_table
+                         full_determ_vector_av, tFill_RDM, determ_space_size_int, &
+                         tFillingStochRDMonFly, Iter, IterRDMStart, &
+                         core_ham_diag, DavidsonTag, Fii, HFDet, PreviousCycles, &
+                         partial_determ_vecs_kp, full_determ_vecs_kp
+    use hash, only: DetermineDetNode, FindWalkerHash, reset_hash_table
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use nElRDMMod, only: fill_RDM_offdiag_deterministic
@@ -39,8 +39,9 @@ module semi_stoch_procs
     use sort_mod, only: sort
     use sparse_arrays, only: sparse_core_ham, SparseCoreHamilTags, deallocate_sparse_ham, &
                             core_connections, sparse_ham, hamil_diag, HDiagTag, &
-                            SparseHamilTags, allocate_sparse_ham_row
-    use SystemData, only: nel, tHPHF, nBasis, BRR, ARR, tUEG, tMomInv
+                            SparseHamilTags, allocate_sparse_ham_row, core_ht, core_hashtable
+    use SystemData, only: nel, tHPHF, nBasis, BRR, ARR, tUEG
+    use global_det_data, only: set_det_diagH
     use timing_neci
     use util_mod, only: get_free_unit
 
@@ -54,7 +55,7 @@ contains
         ! that the full vector for the whole deterministic space is stored on each processor.
         ! It then performs the deterministic multiplication of the projector on this full vector.
 
-        integer :: i, j, info, ierr
+        integer :: i, j, k, info, ierr
 
         call MPIBarrier(ierr)
 
@@ -65,68 +66,33 @@ contains
 
         call halt_timer(SemiStoch_Comms_Time)
 
-        call MPIBarrier(ierr)
-
         call set_timer(SemiStoch_Multiply_Time)
 
-        if(tFillingStochRDMonFly) then !Update the average signs in full_determ_vector_av
-            full_determ_vector_av=(((real(Iter,dp)-IterRDMStart)*full_determ_vector_av) &
-                                      + full_determ_vector)/(real(Iter,dp) - IterRDMStart + 1.0_dp)
+        if(tFillingStochRDMonFly) then ! Update the average signs in full_determ_vector_av.
+            full_determ_vector_av=(((real(Iter+PreviousCycles,dp)-IterRDMStart)*full_determ_vector_av) &
+                                      + full_determ_vector)/(real(Iter+PreviousCycles,dp) - IterRDMStart + 1.0_dp)
         endif
             
         if (determ_proc_sizes(iProcIndex) >= 1) then
 
-            ! Perform the multiplication. This can be done in two ways depending on
-            ! whether the the core Hamiltonian uses a sparse representation or not.
-            if (tSparseCoreHamil) then
-                
-                if(tFill_RDM) call fill_RDM_offdiag_deterministic()
+            ! For the moment, we're only adding in these contributions when we need the energy
+            ! This will need refinement if we want to continue with the option of inst vs true full RDMs
+            ! (as in another CMO branch).
+            if(tFill_RDM) call fill_RDM_offdiag_deterministic()
 
-                !For the moment, we're only adding in these contributions when we need the energy
-                !This will need refinement if we want to continue with the option of inst vs true full RDMs
-                ! (as in another CMO branch).
+            ! Perform the multiplication
 
-                partial_determ_vector = 0.0_dp
+            partial_determ_vector = 0.0_dp
 
-                do i = 1, determ_proc_sizes(iProcIndex)
-                    do j = 1, sparse_core_ham(i)%num_elements
-                        partial_determ_vector(:,i) = partial_determ_vector(:,i) - &
-                            sparse_core_ham(i)%elements(j)*full_determ_vector(:,sparse_core_ham(i)%positions(j))
-                    end do
+            do i = 1, determ_proc_sizes(iProcIndex)
+                do j = 1, sparse_core_ham(i)%num_elements
+                    partial_determ_vector(:,i) = partial_determ_vector(:,i) - &
+                        sparse_core_ham(i)%elements(j)*full_determ_vector(:,sparse_core_ham(i)%positions(j))
                 end do
-
-            else
-
-                do i = 1, lenof_sign
-                    ! This function performs y := alpha*A*x + beta*y
-                    ! N specifies not to use the transpose of A.
-                    ! determ_proc_sizes(iProcIndex) is the number of rows in A.
-                    ! determ_space_size is the number of columns of A.
-                    ! alpha = -1.0_dp.
-                    ! A = core_hamiltonian.
-                    ! determ_proc_sizes(iProcIndex) is the first dimension of A.
-                    ! input x = full_determ_vector.
-                    ! 1 is the increment of the elements of x.
-                    ! beta = 0.0_dp.
-                    ! output y = partial_determ_vector.
-                    ! 1 is the incremenet of the elements of y.
-                    call dgemv('N', &
-                               determ_proc_sizes(iProcIndex), &
-                               determ_space_size, &
-                               -1.0_dp, &
-                               core_hamiltonian, &
-                               determ_proc_sizes(iProcIndex), &
-                               full_determ_vector(i,:), &
-                               1, &
-                               0.0_dp, &
-                               partial_determ_vector(i,:), &
-                               1)
-                end do
-
-            end if
+            end do
 
             ! Now add shift*full_determ_vector to account for the shift, not stored in
-            ! core_hamiltonian.
+            ! sparse_core_ham.
             do i = 1, determ_proc_sizes(iProcIndex)
                 partial_determ_vector(:,i) = partial_determ_vector(:,i) + &
                    DiagSft * full_determ_vector(:,i+determ_proc_indices(iProcIndex))
@@ -159,62 +125,42 @@ contains
         call set_timer(SemiStoch_Multiply_Time)
 
         if (determ_proc_sizes(iProcIndex) >= 1) then
-            ! Perform the multiplication. This can be done in two ways depending on
-            ! whether the the core Hamiltonian uses a sparse representation or not.
-            if (tSparseCoreHamil) then
-                
-                ! Start with this because sparse_core_hamil has Hii taken off, but actually we
-                ! don't want the projected Hamiltonian to be relative to the HF determinant.
-                partial_determ_vecs_kp = Hii*full_determ_vecs_kp(:, determ_proc_indices(iProcIndex)+1:&
-                                                  determ_proc_indices(iProcIndex)+determ_proc_sizes(iProcIndex))
+            ! Start with this because sparse_core_hamil has Hii taken off, but actually we
+            ! don't want the projected Hamiltonian to be relative to the HF determinant.
+            partial_determ_vecs_kp = Hii*full_determ_vecs_kp(:, determ_proc_indices(iProcIndex)+1:&
+                                              determ_proc_indices(iProcIndex)+determ_proc_sizes(iProcIndex))
 
-                do i = 1, determ_proc_sizes(iProcIndex)
-                    do j = 1, sparse_core_ham(i)%num_elements
-                        partial_determ_vecs_kp(:,i) = partial_determ_vecs_kp(:,i) + &
-                            sparse_core_ham(i)%elements(j)*full_determ_vecs_kp(:,sparse_core_ham(i)%positions(j))
-                    end do
+            do i = 1, determ_proc_sizes(iProcIndex)
+                do j = 1, sparse_core_ham(i)%num_elements
+                    partial_determ_vecs_kp(:,i) = partial_determ_vecs_kp(:,i) + &
+                        sparse_core_ham(i)%elements(j)*full_determ_vecs_kp(:,sparse_core_ham(i)%positions(j))
                 end do
-
-            else
-                call stop_all('deterministic_projection_kp_hamil', 'You cannot use the full-core-hamil option &
-                                &with KS-FCIQMC.')
-            end if
+            end do
         end if
 
         call halt_timer(SemiStoch_Multiply_Time)
 
     end subroutine deterministic_projection_kp_hamil
 
-    function is_core_state(ilut) result (core_state)
+    function is_core_state(ilut, nI) result (core_state)
 
         use FciMCData, only: ll_node
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer :: nI(nel)
-        integer :: DetHash, PartInd
-        type(ll_node), pointer :: temp_node
+        integer, intent(in) :: nI(:)
+        integer :: i, hash
         logical :: core_state
 
         core_state = .false.
 
-        call decode_bit_det(nI, ilut)
-        DetHash = FindWalkerHash(nI, int(determ_space_size,sizeof_int))
-        temp_node => CoreHashIndex(DetHash)
+        hash = FindWalkerHash(nI, determ_space_size_int)
 
-        if (temp_node%ind == 0) then
-            ! If there are no core states with this hash value.
-            nullify(temp_node)
-            return
-        else
-            do while (associated(temp_node))
-                if (DetBitEQ(ilut, core_space(:,temp_node%ind),NIfDBO)) then
-                    core_state = .true.
-                    nullify(temp_node)
-                    return
-                end if
-                temp_node => temp_node%next
-            end do
-        end if
+        do i = 1, core_ht(hash)%nclash
+            if (all(ilut(0:NIfDBO) == core_space(0:NIfDBO,core_ht(hash)%ind(i)) )) then
+                core_state = .true.
+                return
+            end if
+        end do
 
     end function is_core_state
 
@@ -235,100 +181,29 @@ contains
 
     end function check_determ_flag
 
-    subroutine calculate_determ_hamiltonian_normal()
+    subroutine recalc_core_hamil_diag(old_Hii, new_Hii)
 
-        integer :: i, j, iproc, col_index, ierr
-        integer :: nI(nel), nJ(nel)
-        integer(n_int), allocatable, dimension(:,:) :: temp_store
-        integer(TagIntType) :: TempStoreTag
-        character(len=*), parameter :: t_r = "calculate_determ_hamiltonian_normal"
+        real(dp) :: old_Hii, new_Hii
+        real(dp) :: Hii_shift
+        integer :: i, j
 
-        ! Allocate the core hamiltonian.
-        allocate(core_hamiltonian(determ_proc_sizes(iProcIndex), determ_space_size), stat=ierr)
-        call LogMemAlloc('core_hamiltonian', int(determ_space_size*&
-                         &determ_proc_sizes(iProcIndex),sizeof_int), 8, t_r, CoreTag, ierr)
-        allocate(core_ham_diag(determ_proc_sizes(iProcIndex)), stat=ierr)
+        write(6,'(a56)') "Recalculating diagonal elements of the core Hamiltonian."
 
-        ! temp_store is storage space for bitstrings so that the Hamiltonian matrix
-        ! elements can be calculated.
-        allocate(temp_store(0:NIfTot, maxval(determ_proc_sizes)), stat=ierr)
-        call LogMemAlloc('temp_store', maxval(determ_proc_sizes)*(NIfTot+1), 8, t_r, &
-                         TempStoreTag, ierr)
+        Hii_shift = old_Hii - new_Hii
 
-        ! Loop over each processor in order and broadcast the sorted vector of bitstrings
-        ! from the processor to all other processors so that all matrix elements can be found.
-        do iproc = 0, nProcessors-1
-
-            ! If we are broadcasting from this processor next, transfer the bitstrings
-            ! to the array temp_store.
-            if (iproc == iProcIndex) temp_store(:,1:determ_proc_sizes(iproc)) = &
-                                      SpawnedParts(:,1:determ_proc_sizes(iproc))
-
-            ! Perform the broadcasting to other all other processors.
-            call MPIBCast(temp_store, size(temp_store), iproc)
-
-            ! The index of the column before the first column of the block of the
-            ! Hamiltonian currently being calculated.
-            col_index = determ_proc_indices(iproc)
-
-            ! Loop over all the elements in the block of the Hamiltonian corresponding
-            ! to these two processors.
-            do i = 1, determ_proc_sizes(iProcIndex)
-
-                call decode_bit_det(nI, SpawnedParts(:, i))
-
-                do j = 1, determ_proc_sizes(iproc)
-
-                    call decode_bit_det(nJ, temp_store(:, j))
-
-                    ! If on the diagonal of the Hamiltonian.
-                    if ((iProcIndex == iproc) .and. (i == j)) then
-                        if (tHPHF) then
-                            core_hamiltonian(i, col_index + j) = &
-                                hphf_diag_helement(nI, SpawnedParts(:,i)) - Hii
-                        else
-                            core_hamiltonian(i, col_index + j) = &
-                                get_helement(nI, nJ, 0) - Hii
-                        end if
-                        core_ham_diag(i) = core_hamiltonian(i, col_index + j)
-                        ! We calculate and store CurrentH at this point for ease.
-                        if ((.not. tRegenDiagHEls) .and. (.not. tReadPops)) &
-                            CurrentH(1,i) = core_hamiltonian(i, col_index + j)
-                    else
-                        if (tHPHF) then
-                            core_hamiltonian(i, col_index + j) = &
-                                hphf_off_diag_helement(nI, nJ, SpawnedParts(:,i), &
-                                temp_store(:,j))
-                        else
-                            core_hamiltonian(i, col_index + j) = &
-                                get_helement(nI, nJ, SpawnedParts(:, i), temp_store(:, j))
-                        end if
-                    end if
-
-                end do
+        do i = 1, determ_proc_sizes(iProcIndex)
+            do j = 1, sparse_core_ham(i)%num_elements
+                if (sparse_core_ham(i)%positions(j) == i + determ_proc_indices(iProcIndex)) then
+                    sparse_core_ham(i)%elements(j) = sparse_core_ham(i)%elements(j) + Hii_shift
+                end if
             end do
-
         end do
 
-        call MPIBarrier(ierr)
+        core_ham_diag = core_ham_diag + Hii_shift
 
-        deallocate(temp_store, stat=ierr)
-        call LogMemDealloc(t_r, TempStoreTag, ierr)
-
-    end subroutine calculate_determ_hamiltonian_normal
+    end subroutine recalc_core_hamil_diag
 
     subroutine generate_core_connections()
-
-        if (tSparseCoreHamil) then
-            call generate_core_connections_sparse()
-        else
-            ! To be implemented.
-            ! call generate_core_connections_full()
-        end if
-
-    end subroutine generate_core_connections
-
-    subroutine generate_core_connections_sparse()
 
         integer :: i, j, ic, counter, ierr
         integer :: Ex(2,nel)
@@ -389,7 +264,7 @@ contains
         deallocate(temp_store, stat=ierr)
         call LogMemDealloc(t_r, TempStoreTag, ierr)
 
-    end subroutine generate_core_connections_sparse
+    end subroutine generate_core_connections
 
     subroutine store_whole_core_space()
 
@@ -413,31 +288,36 @@ contains
         use SystemData, only: nel
 
         integer :: nI(nel)
-        integer :: i, ierr, DetHash, counter, total
-        type(ll_node), pointer :: temp_node
+        integer :: i, ierr, hash
         character(len=*), parameter :: t_r = "initialise_core_hash_table"
 
-        allocate(CoreHashIndex(determ_space_size), stat=ierr)
-        call init_hash_table(CoreHashIndex)
+        allocate(core_ht(determ_space_size), stat=ierr)
 
         do i = 1, determ_space_size
-            call decode_bit_det(nI, core_space(:,i))
-            DetHash = FindWalkerHash(nI, int(determ_space_size,sizeof_int))
-            temp_node => CoreHashIndex(DetHash)
-            ! If the first element in the list has not been used.
-            if (temp_node%ind == 0) then
-                temp_node%ind = i
-            else
-                do while (associated(temp_node%next))
-                    temp_node => temp_node%next
-                end do
-                allocate(temp_node%next)
-                nullify(temp_node%next%next)
-                temp_node%next%ind = i
-            end if
+            core_ht(i)%nclash = 0
         end do
 
-        nullify(temp_node)
+        ! Count the number of states with each hash value.
+        do i = 1, determ_space_size
+            call decode_bit_det(nI, core_space(:,i))
+            hash = FindWalkerHash(nI, int(determ_space_size,sizeof_int))
+            core_ht(hash)%nclash = core_ht(hash)%nclash + 1
+        end do
+
+        do i = 1, determ_space_size
+            allocate(core_ht(i)%ind(core_ht(i)%nclash), stat=ierr)
+            core_ht(i)%ind = 0
+            ! Reset this for now.
+            core_ht(i)%nclash = 0
+        end do
+
+        ! Now fill in the indices of the states in core_space.
+        do i = 1, determ_space_size
+            call decode_bit_det(nI, core_space(:,i))
+            hash = FindWalkerHash(nI, int(determ_space_size,sizeof_int))
+            core_ht(hash)%nclash = core_ht(hash)%nclash + 1
+            core_ht(hash)%ind(core_ht(hash)%nclash) = i
+        end do
 
     end subroutine initialise_core_hash_table
 
@@ -482,7 +362,7 @@ contains
         if (tParallel) then
             call MPISumAll(int(num_states, MPIArg), tot_num_states)
         else
-            tot_num_states = num_states
+            tot_num_states = int(num_states,MPIArg)
         end if
 
         if (tot_num_states <= target_num_states) return
@@ -504,7 +384,7 @@ contains
             do j = 1, num_states
                 occupied = btest(ilut_list(elem, j), bit)
                 if (occupied) then
-                    ilut_list(:, j) = 0
+                    ilut_list(:, j) = 0_n_int
                     states_rmvd_this_proc = states_rmvd_this_proc + 1
                 end if
             end do
@@ -512,7 +392,7 @@ contains
             if (tParallel) then
                 call MPISumAll(int(states_rmvd_this_proc, MPIArg), states_rmvd_all_procs)
             else
-                states_rmvd_all_procs = states_rmvd_this_proc
+                states_rmvd_all_procs = int(states_rmvd_this_proc,MPIArg)
             end if
 
             ! If there are degenerate orbitals, then cycle to remove the
@@ -531,7 +411,7 @@ contains
         counter = 0
         do i = 1, num_states
             ! If the state wasn't set to 0:
-            if (.not. all(ilut_list(:,i) == 0)) then
+            if (.not. all(ilut_list(:,i) == 0_n_int)) then
                 counter = counter + 1
                 ilut_list(:, counter) = ilut_list(:, i)
             end if
@@ -640,7 +520,7 @@ contains
         do i = 1, ilut_list_size
             call decode_bit_det(nI, ilut_list(:,i))
             proc_list(i) = DetermineDetNode(nel,nI,0)
-            num_states_procs(proc_list(i)) = num_states_procs(proc_list(i)) + 1
+            num_states_procs(proc_list(i)) = int(num_states_procs(proc_list(i)) + 1, MPIArg)
         end do
 
         counter(0) = 0
@@ -662,32 +542,29 @@ contains
 
     end subroutine sort_space_by_proc
 
-    subroutine fill_in_CurrentH()
+    subroutine fill_in_diag_helements()
 
-        use MI_integrals, only: MI_diag_helement
-
-        integer :: i
+        integer(int64) :: i
         integer :: nI(nel)
-
-        CurrentH = 0.0_dp
+        real(dp) :: tmpH
 
         do i = 1, TotWalkers
             call decode_bit_det(nI, CurrentDets(:,i))
 
             if (tHPHF) then
-                CurrentH(1,i) = hphf_diag_helement(nI, CurrentDets(:,i)) - Hii
-            else if (tMomInv) then
-                CurrentH(1,i) = MI_diag_helement(nI, CurrentDets(:,i)) - Hii
+                tmpH = hphf_diag_helement(nI, CurrentDets(:,i)) - Hii
             else
-                CurrentH(1,i) = get_helement(nI, nI, 0) - Hii
+                tmpH = get_helement(nI, nI, 0) - Hii
             end if
+            call set_det_diagh(i, tmpH)
+
         end do
 
-    end subroutine fill_in_CurrentH
+    end subroutine fill_in_diag_helements
 
     subroutine write_core_space()
 
-        integer :: i, j, k, iunit, ierr
+        integer :: i, k, iunit, ierr
         logical :: texist
         character(len=*), parameter :: t_r='write_core_space'
 
@@ -695,36 +572,22 @@ contains
 
         iunit = get_free_unit()
 
-        ! Let each processor write its core states to the file. Each processor waits for
-        ! the processor before it to finish before starting.
-        do i = 0, nProcessors-1
+        ! Only let the root process write the states.
+        if (iProcIndex == root) then
+            open(iunit, file='CORESPACE', status='replace')
 
-            if (iProcIndex == i) then
-
-                if (i == 0) then
-                    open(iunit, file='CORESPACE', status='replace')
-                else
-                    inquire(file='CORESPACE',exist=texist)
-                    if(.not.texist) call stop_all(t_r,'"CORESPACE" file cannot be found')
-                    open(iunit, file='CORESPACE', status='old', position='append')
-                end if
-                
-                do j = 1, TotWalkers 
-                    if (test_flag(CurrentDets(:,j), flag_deterministic)) then
-                        do k = 0, NIfDBO
-                            write(iunit, '(i24)', advance='no') CurrentDets(k,j)
-                        end do
-                        write(iunit, *)
-                    end if
+            do i = 1, determ_space_size
+                do k = 0, NIfDBO
+                    write(iunit, '(i24)', advance='no') core_space(k,i)
                 end do
+                write(iunit, '()')
+            end do
 
-                close(iunit)
+            call neci_flush(iunit)
+            close(iunit)
+        end if
 
-            end if
-
-            call MPIBarrier(ierr)
-
-        end do
+        call MPIBarrier(ierr)
 
     end subroutine write_core_space
 
@@ -928,8 +791,8 @@ contains
 #endif
             if (present(norm)) norm = norm + (sign_curr_real**2.0)
 
-            ! Is this determinant more populated than the smallest. First in the list is always
-            ! the smallest.
+            ! Is this determinant more populated than the smallest? First in
+            ! the list is always the smallest.
             if (sign_curr_real > smallest_sign) then
                 largest_walkers(:,smallest_pos) = CurrentDets(:,i)
 
@@ -946,9 +809,9 @@ contains
                 do j = 2, n_keep
                     call extract_sign(largest_walkers(:,j), low_sign)
 #ifdef __CMPLX
-                        sign_curr_real = sqrt(real(low_sign(1),dp)**2+real(low_sign(lenof_sign),dp)**2)
+                    sign_curr_real = sqrt(real(low_sign(1),dp)**2+real(low_sign(lenof_sign),dp)**2)
 #else
-                        sign_curr_real = sum(real(abs(low_sign),dp))
+                    sign_curr_real = sum(real(abs(low_sign),dp))
 #endif
                     if (sign_curr_real < smallest_sign .or. all(largest_walkers(:,j) == 0_n_int)) then
                         smallest_pos = j
@@ -1012,6 +875,8 @@ contains
 
     subroutine start_walkers_from_core_ground(tPrintInfo)
 
+        use davidson_neci, only: davidson_eigenvalue
+
         logical, intent(in) :: tPrintInfo
         integer :: i, counter, ierr
         real(dp) :: eigenvec_pop
@@ -1044,6 +909,7 @@ contains
 
         if (tPrintInfo) then
             write(6,'(a30)') "Davidson calculation complete."
+            write(6,'("Deterministic subspace correlation energy:",1X,f15.10)') davidson_eigenvalue
             call neci_flush(6)
         end if
 
@@ -1070,7 +936,7 @@ contains
 
         ! Finally, copy these amplitudes across to the corresponding states in CurrentDets.
         counter = 0
-        do i = 1, TotWalkers
+        do i = 1, int(TotWalkers)
             if (test_flag(CurrentDets(:,i), flag_deterministic)) then
                 counter = counter + 1
                 call encode_sign(CurrentDets(:,i), partial_determ_vector(:,counter))
@@ -1118,8 +984,6 @@ contains
         ! GenExcitations3 routine. This will return nI, ex and tParity which can be input into this
         ! routine.
 
-        use MI_integrals, only: MI_off_diag_helement
-
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: ex(2,2)
@@ -1142,8 +1006,6 @@ contains
             ! beta orbitals of the same spatial orbital have the same
             ! fock energies, so can consider either.
             hel = hphf_off_diag_helement(HFDet, nI, iLutHF, ilut)
-        else if (tMomInv) then
-            hel = MI_off_diag_helement(HFDet, nI, iLutHF, ilut)
         else
             hel = get_helement(HFDet, nI, ic, ex, tParity)
         end if
@@ -1181,12 +1043,8 @@ contains
         character(len=*), parameter :: t_r = "end_semistoch"
         integer :: ierr
 
-        if (tSparseCoreHamil) call deallocate_sparse_ham(sparse_core_ham, 'sparse_core_ham', SparseCoreHamilTags)
+        call deallocate_sparse_ham(sparse_core_ham, 'sparse_core_ham', SparseCoreHamilTags)
 
-        if (allocated(core_hamiltonian)) then
-            deallocate(core_hamiltonian, stat=ierr)
-            call LogMemDealloc(t_r, CoreTag, ierr)
-        end if
         if (allocated(full_determ_vector)) then
             deallocate(full_determ_vector, stat=ierr)
             call LogMemDealloc(t_r, FDetermTag, ierr)

@@ -203,7 +203,8 @@ subroutine NECICalcInit(iCacheFlag)
 
     use System, only : SysInit
     use SystemData, only : tRotateOrbs,tFindCINatOrbs
-    use Integrals_neci, only : IntInit,IntFreeze,tPostFreezeHF
+    use Integrals_neci, only : IntInit,IntFreeze,tPostFreezeHF,DumpFCIDUMP
+    use IntegralsData, only : tDumpFCIDUMP
     use DetCalc, only : DetCalcInit,DoDetCalc
     use Determinants, only : DetPreFreezeInit,DetInit
     use Calc, only : CalcInit
@@ -232,6 +233,11 @@ subroutine NECICalcInit(iCacheFlag)
     if (.not.tPostFreezeHF) call HFDoCalc()
     call IntFreeze()
     if (tPostFreezeHF) call HFDoCalc()
+
+    if(tDumpFCIDUMP) then
+        !If wanted, write out a new FCIDUMP file (with the core frozen if necessary)
+        call DumpFCIDUMP()
+    endif
 
     call DetInit()
 

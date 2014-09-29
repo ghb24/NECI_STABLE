@@ -1,12 +1,12 @@
 [main]
-fc = mpif90
-cc = mpic++
-ld = mpif90
+fc = mpiifort
+cc = mpiicc
+ld = mpiifort
 ldflags = -i-dynamic -L $(LD_LIBRARY_PATH) -rdynamic
 compiler = INTEL-ifort9-on-LINUX
-cpp = cpp -C -traditional
-cppflags = -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2 -D__INT64 -D__SHARED_MEM -DDISABLE_FFTW -D__IFORT -D__DOUBLERUN
-libs = -lacml -cxxlib -lrt
+cpp = cpp -traditional
+cppflags = -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2 -D__INT64 -D__SHARED_MEM -DDISABLE_FFTW -D__IFORT
+libs = -lmkl_intel_ilp64 -lmkl_core -lmkl_sequential -cxxlib -lrt
 module_flag = -module
 
 [dbg]

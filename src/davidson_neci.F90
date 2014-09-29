@@ -1,4 +1,4 @@
-module davidson
+module davidson_neci
 
 ! This module performs the Davidson method to find the ground state of a diagonally-
 ! dominant matrix. For details of the theory behind the method, see i.e:
@@ -16,7 +16,7 @@ use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
 implicit none
 
 integer :: max_num_davidson_iters = 25
-real(dp) :: residual_norm_target = 0.00000001
+real(dp) :: residual_norm_target = 0.0000001_dp
 
 integer :: hamil_type
 ! The value of hamil_type specifies what form the Hamiltonian is stored in.
@@ -32,6 +32,9 @@ integer :: space_size
 ! This array stores the basis vectors used in its columns, i.e. basis_vector(:,1) stores
 ! the components of the first basis vector.
 real(dp), allocatable, dimension(:,:) :: basis_vectors
+! This array stores the basis vectors multiplied by H in its columns, i.e.
+! multiplied_basis_vectors(:,1) = H*basis_vector(:,1).
+real(dp), allocatable, dimension(:,:) :: multiplied_basis_vectors
 ! The projected Hamiltonian is H_p = U^T H U, where U is the array of basis vectors.
 real(dp), allocatable, dimension(:,:) :: projected_hamil
 ! This is used as scrap space for the projected Hamiltonian.
@@ -41,6 +44,8 @@ real(dp), allocatable, dimension(:,:) :: projected_hamil_scrap
 ! stores this same state, but in the *original* basis set. It therefore has a dimension
 ! the same size as the vector space.
 real(dp), allocatable, dimension(:) :: davidson_eigenvector
+! This array holds the components of davidson_eigenvector in the basis of Krylov vectors.
+real(dp), allocatable, dimension(:) :: eigenvector_proj
 ! The residual is defined as r = H*v - E*v, where H is the Hamiltonian matrix, v is the
 ! ground state estimate (stored in davidson_eigenvector) and E is the corresponding
 ! energy eigenvalue. If v is an exact eigenstate then all the components of the residual
@@ -65,21 +70,29 @@ integer(MPIArg), allocatable, dimension(:) :: space_sizes, davidson_disps
 
 type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
 
-integer(TagIntType) :: ResidualTag
-
     contains
 
-    subroutine perform_davidson(input_hamil_type, print_info)
+    subroutine perform_davidson(input_hamil_type, print_info_in)
 
         integer, intent(in) :: input_hamil_type
-        logical, intent(in) :: print_info
+        logical, intent(in) :: print_info_in
+        logical :: print_info, skip_calc
         integer :: i
+        real :: start_time, end_time
 
         hamil_type = input_hamil_type
+        ! Only let the root processor print information.
+        print_info = print_info_in .and. (iProcIndex == root)
 
-        call init_davidson()
+        call init_davidson(print_info, skip_calc)
+
+        if (print_info) write(6,'(1X,"Iteration",4X,"Residual norm",12X,"Energy",7X,"Time")'); call neci_flush(6)
 
         do i = 2, max_num_davidson_iters
+
+            if (skip_calc) exit
+
+            call cpu_time(start_time)
 
             if (iProcIndex == root) call subspace_expansion(i)
 
@@ -87,24 +100,26 @@ integer(TagIntType) :: ResidualTag
 
             if (iProcIndex == root) call subspace_extraction(i)
 
-            call calculate_residual()
+            call calculate_residual(i)
 
             call calculate_residual_norm()
 
-            if (print_info) write(6,'(a10,1X,i2,5X,a14,1X,f12.10,5x,a7,1x,f15.10)') &
-                "Iteration:", i-1, "residual norm:", residual_norm, "energy:", davidson_eigenvalue
+            call cpu_time(end_time)
+
+            if (print_info) write(6,'(8X,i2,3X,f14.9,2x,f16.10,2x,f9.3)') i-1, residual_norm, &
+                davidson_eigenvalue, end_time-start_time; call neci_flush(6)
 
             if (residual_norm < residual_norm_target) exit
-            
+
         end do
 
-        if (print_info) write(6,'(a24,1X,f14.10)') "Final calculated energy:", davidson_eigenvalue
+        if (print_info) write(6,'(/,1x,"Final calculated energy:",1X,f16.10)') davidson_eigenvalue
 
         call end_davidson()
 
     end subroutine perform_davidson
 
-    subroutine init_davidson()
+    subroutine init_davidson(print_info, skip_calc)
     
         ! This subroutine initialises the Davdison method by allocating the necessary arrays,
         ! defining the initial basis vector and projected Hamiltonian, and setting an initial
@@ -114,8 +129,12 @@ integer(TagIntType) :: ResidualTag
         use direct_ci, only: create_ham_diag_direct_ci
         use FciMCData, only: davidson_ras, davidson_classes, davidson_strings
         use ras, only: find_ras_size
+        use util_mod, only: int_fmt
 
-        integer :: i, HFindex, ierr
+        logical, intent(in) :: print_info
+        logical, intent(out) :: skip_calc
+
+        integer :: i, HFindex, mem_reqd, residual_mem_reqd, ierr
         integer(MPIArg) :: mpi_temp
         real(dp), allocatable, dimension(:) :: hamil_diag_temp
         character (len=*), parameter :: t_r = "init_davidson"
@@ -133,16 +152,20 @@ integer(TagIntType) :: ResidualTag
                 do i = 1, space_size
                     hamil_diag(i) = hamiltonian(i,i)
                 end do
-            else if (hamil_type == parallel_sparse_hamil_type .or. &
-                     hamil_type == sparse_hamil_type) then
+            else if (hamil_type == parallel_sparse_hamil_type .or. hamil_type == sparse_hamil_type) then
                     ! In the case of sparse implementations, the diagonal should be
                     ! created when the Hamiltonian itself is.
-                    call stop_all("t_r", "The diagonal of the Hamiltonian has not been allocated. Cannot perform &
-                                         &Davidson calculation.")
+                    call stop_all("t_r", "The diagonal of the Hamiltonian has not been allocated. &
+                                         &Cannot perform Davidson calculation.")
             end if
         end if
 
         space_size = size(hamil_diag)
+        if (print_info) then
+            write(6,'(1X,"Number of determinants:",'//int_fmt(space_size,1)//')') space_size; call neci_flush(6)
+            write(6,'(1X,"Allocating space for up to",'//int_fmt(max_num_davidson_iters,1)//',1X,"Krylov vectors.")') &
+            max_num_davidson_iters; call neci_flush(6)
+        end if
 
         if (hamil_type == parallel_sparse_hamil_type) then
             allocate(partial_davidson_vector(space_size))
@@ -180,14 +203,30 @@ integer(TagIntType) :: ResidualTag
         if (iProcIndex == root) then
             HFindex = maxloc((-hamil_diag),1)
 
+            ! The memory required to allocate each of basis_vectors and
+            ! multipied_basis_vectors, in MB.
+            mem_reqd = max_num_davidson_iters*space_size*8/1000000
+            ! The memory required to allocate residual.
+            residual_mem_reqd = space_size*8/1000000
+
             ! Allocate the necessary arrays:
+            if (print_info) write(6,'(1X,"Allocating array to hold Krylov vectors (",'&
+                //int_fmt(mem_reqd,0)//',1X,"MB).")') mem_reqd; call neci_flush(6)
             allocate(basis_vectors(space_size, max_num_davidson_iters))
+            if (print_info) write(6,'(1X,"Allocating array to hold multiplied Krylov vectors (",'&
+                //int_fmt(mem_reqd,0)//',1X,"MB).")') mem_reqd; call neci_flush(6)
+            allocate(multiplied_basis_vectors(space_size, max_num_davidson_iters))
             allocate(projected_hamil(max_num_davidson_iters,max_num_davidson_iters))
             allocate(projected_hamil_scrap(max_num_davidson_iters,max_num_davidson_iters))
+            allocate(eigenvector_proj(max_num_davidson_iters))
+            if (print_info) write(6,'(1X,"Allocating array to hold the residual vector (",'&
+                //int_fmt(residual_mem_reqd,0)//',1X,"MB).",/)') residual_mem_reqd; call neci_flush(6)
             allocate(residual(space_size))
-            call LogMemAlloc("residual", space_size, 8, t_r, ResidualTag, ierr)
-            projected_hamil = 0.0_dp
+
             basis_vectors = 0.0_dp
+            multiplied_basis_vectors = 0.0_dp
+            projected_hamil = 0.0_dp
+            eigenvector_proj = 0.0_dp
             residual = 0.0_dp
 
             ! If there is only one state in the space being diagonalised:
@@ -201,6 +240,7 @@ integer(TagIntType) :: ResidualTag
             ! For the initial basis vector, choose the Hartree-Fock state:
             basis_vectors(HFindex, 1) = 1.0_dp
             ! Choose the Hartree-Fock state as the initial guess at the ground state, too.
+            eigenvector_proj(1) = 1.0_dp
             davidson_eigenvector(HFindex) = 1.0_dp
 
             ! Fill in the projected Hamiltonian so far.
@@ -208,15 +248,40 @@ integer(TagIntType) :: ResidualTag
             ! Take the initial eigenvalue to be the Hartree-Fock energy minus some small
             ! amount. This value cannot be exactly the Hartree-Fock energy, as this will
             ! result in dividing by zero in the subspace expansion step.
-            davidson_eigenvalue = hamil_diag(HFindex) - 0.001
+            davidson_eigenvalue = hamil_diag(HFindex) - 0.001_dp
 
         else
             allocate(temp_in(space_size))
             allocate(temp_out(space_size))
         end if
 
-        ! Calculate the corresponding residual.
-        call calculate_residual()
+        if (print_info) write(6,'(1X,"Calculating the initial residual vector...")',advance='no'); call neci_flush(6)
+
+        ! Check that multiplying the initial vector by the Hamiltonian doesn't give back
+        ! the same vector. If it does then the initial vector (the HF determinant) is
+        ! the ground state, so just keep that and exit the calculation.
+        ! Also, the result of the multiplied basis vector is used to calculate the
+        ! initial residual vector, if the above condition is not true.
+        skip_calc = .false.
+        if (iProcIndex == root) then
+            call multiply_hamil_and_vector(davidson_eigenvector, multiplied_basis_vectors(:,1))
+        else
+            call multiply_hamil_and_vector(davidson_eigenvector, temp_out)
+        end if
+        if (iProcIndex == root) then
+            if (all(abs(multiplied_basis_vectors(:,1)-hamil_diag(HFindex)*davidson_eigenvector) < 1.0e-12_dp)) then
+                skip_calc = .true.
+                davidson_eigenvalue = hamil_diag(HFindex)
+            end if
+        end if
+        if (hamil_type == parallel_sparse_hamil_type) call MPIBCast(skip_calc)
+        if (skip_calc) return
+
+        ! Calculate the intial residual vector.
+        call calculate_residual(basis_index=1)
+        call calculate_residual_norm()
+
+        if (print_info) write(6,'(1X,"Done.",/)'); call neci_flush(6)
 
     end subroutine init_davidson
 
@@ -224,7 +289,7 @@ integer(TagIntType) :: ResidualTag
 
         integer, intent(in) :: basis_index
         integer :: i
-        real(dp) :: dot_prod, ddot, norm
+        real(dp) :: dot_prod, norm
 
         ! Create the new basis state from the residual. This step performs
         ! t = (D - EI)^(-1) r,
@@ -238,13 +303,13 @@ integer(TagIntType) :: ResidualTag
         ! t <- t - (t,v)v
         ! for each basis vector v, where (t,v) denotes the dot product.
         do i = 1, basis_index - 1
-            dot_prod = ddot(space_size, basis_vectors(:,basis_index), 1, basis_vectors(:,i), 1)
+            dot_prod = dot_product(basis_vectors(:,basis_index), basis_vectors(:,i))
             basis_vectors(:, basis_index) = basis_vectors(:, basis_index) - dot_prod*basis_vectors(:,i)
         end do
 
         ! Finally we calculate the norm of the new basis vector and then normalise it to have a norm of 1.
         ! The new basis vector is stored in the next available column in the basis_vectors array.
-        norm = ddot(space_size, basis_vectors(:,basis_index), 1, basis_vectors(:,basis_index), 1)
+        norm = dot_product(basis_vectors(:,basis_index), basis_vectors(:,basis_index))
         norm = sqrt(norm)
         basis_vectors(:,basis_index) = basis_vectors(:,basis_index)/norm
 
@@ -254,20 +319,19 @@ integer(TagIntType) :: ResidualTag
 
         integer, intent(in) :: basis_index
         integer :: i
-        real(dp) :: multiplied_basis_vector(space_size), ddot
 
         if (iProcIndex == root) then
             ! Multiply the new basis_vector by the hamiltonian and store the result in
-            ! multiplied_basis_vector.
+            ! multiplied_basis_vectors.
             call multiply_hamil_and_vector(basis_vectors(:,basis_index), &
-                multiplied_basis_vector)
+                multiplied_basis_vectors(:,basis_index))
 
             ! Now multiply U^T by (H U) to find projected_hamil. The projected Hamiltonian will
             ! only differ in the new final column and row. Also, projected_hamil is symmetric.
             ! Hence, we only need to calculate the final column, and use this to update the final
             ! row also.
             do i = 1, basis_index
-                projected_hamil(i, basis_index) = ddot(space_size, basis_vectors(:, i), 1, multiplied_basis_vector, 1)
+                projected_hamil(i, basis_index) = dot_product(basis_vectors(:, i), multiplied_basis_vectors(:,basis_index))
                 projected_hamil(basis_index, i) = projected_hamil(i, basis_index)
             end do
 
@@ -287,7 +351,6 @@ integer(TagIntType) :: ResidualTag
         integer :: lwork, info
         real(dp), allocatable, dimension(:) :: work
         real(dp) :: eigenvalue_list(basis_index)
-        real(dp) :: eigenvector_proj(basis_index)
 
         ! Scrap space for the diagonaliser.
         lwork = max(1,3*basis_index-1)
@@ -308,7 +371,7 @@ integer(TagIntType) :: ResidualTag
 
         davidson_eigenvalue = eigenvalue_list(1)
         ! The first column stores the ground state.
-        eigenvector_proj = projected_hamil_scrap(1:basis_index,1)
+        eigenvector_proj(1:basis_index) = projected_hamil_scrap(1:basis_index,1)
 
         deallocate(work)
 
@@ -323,7 +386,7 @@ integer(TagIntType) :: ResidualTag
         ! alpha = 1.0_dp.
         ! a = basis_vectors(:,1:basis_index).
         ! space_size is the first dimension of a.
-        ! input x = eigenvector_proj.
+        ! input x = eigenvector_proj(1:basis_index).
         ! 1 is the increment of the elements of x.
         ! beta = 0.0_dp.
         ! output y = davidson_eigenvector.
@@ -334,7 +397,7 @@ integer(TagIntType) :: ResidualTag
                    1.0_dp, &
                    basis_vectors(:,1:basis_index), &
                    space_size, &
-                   eigenvector_proj, &
+                   eigenvector_proj(1:basis_index), &
                    1, &
                    0.0_dp, &
                    davidson_eigenvector, &
@@ -342,7 +405,9 @@ integer(TagIntType) :: ResidualTag
         
     end subroutine subspace_extraction
 
-    subroutine calculate_residual()
+    subroutine calculate_residual(basis_index)
+
+        integer, intent(in) :: basis_index
 
         ! This routine calculates the residual, r, corresponding to the new estimate of the
         ! ground state, stored in davidson_eigenvector. This is defined as
@@ -350,13 +415,13 @@ integer(TagIntType) :: ResidualTag
         ! where H is the Hamiltonian, v is the ground state vector estimate and E is the 
         ! ground state energy estimate.
 
-        ! First multiply davidson_eigenvector by the Hamiltonian.
         if (iProcIndex == root) then 
-            call multiply_hamil_and_vector(davidson_eigenvector, residual)
-            ! Then simply take of the eigenvalue multiplied by the davidson_eigenvector...
+            ! Calculate r = Hv - Ev:
+            ! Note that, here, eigenvector_proj holds the components of v in the Krylov basis,
+            ! and multiplied_basis_vectors holds the Krylov vectors multiplied by H, hence
+            ! the matmul below does indeed retturn Hv.
+            residual = matmul(multiplied_basis_vectors(:,1:basis_index), eigenvector_proj(1:basis_index))
             residual = residual - davidson_eigenvalue*davidson_eigenvector
-        else
-            call multiply_hamil_and_vector(temp_in, temp_out)
         end if
 
     end subroutine calculate_residual
@@ -366,10 +431,8 @@ integer(TagIntType) :: ResidualTag
         ! This subroutine calculates the Euclidean norm of the reisudal vector, r:
         ! residual_norm^2 = \sum_i r_i^2
 
-        real(dp) :: ddot
-
         if (iProcIndex == root) then
-            residual_norm = ddot(space_size, residual, 1, residual, 1)
+            residual_norm = dot_product(residual, residual)
             residual_norm = sqrt(residual_norm)
         end if
 
@@ -385,11 +448,11 @@ integer(TagIntType) :: ResidualTag
         if (hamil_type == full_hamil_type) then
             call multiply_hamil_and_vector_full(input_vector, output_vector)
         else if (hamil_type == sparse_hamil_type) then
-            call multiply_hamil_and_vector_sparse(input_vector, output_vector)
+            call mult_hamil_vector_sparse(input_vector, output_vector)
         else if (hamil_type == parallel_sparse_hamil_type) then
-            call multiply_hamil_and_vector_parallel_sparse(input_vector, output_vector)
+            call mult_hamil_vector_par_sparse(input_vector, output_vector)
         else if (hamil_type == direct_ci_type) then
-            call multiply_hamil_and_vector_direct_ci(input_vector, output_vector)
+            call mult_hamil_vector_direct_ci(input_vector, output_vector)
         end if
 
     end subroutine multiply_hamil_and_vector
@@ -425,7 +488,7 @@ integer(TagIntType) :: ResidualTag
 
     end subroutine multiply_hamil_and_vector_full
 
-    subroutine multiply_hamil_and_vector_sparse(input_vector, output_vector)
+    subroutine mult_hamil_vector_sparse(input_vector, output_vector)
 
         real(dp), intent(in) :: input_vector(space_size)
         real(dp), intent(out) :: output_vector(space_size)
@@ -439,9 +502,9 @@ integer(TagIntType) :: ResidualTag
             end do
         end do
 
-    end subroutine multiply_hamil_and_vector_sparse
+    end subroutine mult_hamil_vector_sparse
 
-    subroutine multiply_hamil_and_vector_parallel_sparse(input_vector, output_vector)
+    subroutine mult_hamil_vector_par_sparse(input_vector, output_vector)
 
         real(dp), intent(in) :: input_vector(space_size)
         real(dp), intent(out) :: output_vector(space_size)
@@ -450,7 +513,7 @@ integer(TagIntType) :: ResidualTag
         ! Use output_vector as temporary space.
         output_vector = input_vector
 
-        call MPIBarrier(ierr)
+        call MPIBarrier(ierr, tTimeIn=.false.)
 
         call MPIBCast(output_vector)
 
@@ -465,9 +528,9 @@ integer(TagIntType) :: ResidualTag
 
         call MPIGatherV(partial_davidson_vector, output_vector, space_sizes, davidson_disps, ierr)
 
-    end subroutine multiply_hamil_and_vector_parallel_sparse
+    end subroutine mult_hamil_vector_par_sparse
 
-    subroutine multiply_hamil_and_vector_direct_ci(input_vector, output_vector)
+    subroutine mult_hamil_vector_direct_ci(input_vector, output_vector)
 
         use direct_ci, only: perform_multiplication, transfer_from_block_form, transfer_to_block_form
         use FciMCData, only: davidson_ras, davidson_classes, davidson_strings, davidson_iluts, davidson_excits
@@ -490,7 +553,7 @@ integer(TagIntType) :: ResidualTag
         ! contribution now.
         output_vector = output_vector + ecore*input_vector
 
-    end subroutine multiply_hamil_and_vector_direct_ci
+    end subroutine mult_hamil_vector_direct_ci
 
     subroutine end_davidson()
 
@@ -499,6 +562,7 @@ integer(TagIntType) :: ResidualTag
         ! Deallocate all Davidson arrays. Note that the eigenvector is not deallocated,
         ! so that it can be used later.
         if (allocated(basis_vectors)) deallocate(basis_vectors)
+        if (allocated(multiplied_basis_vectors)) deallocate(multiplied_basis_vectors)
         if (allocated(projected_hamil)) deallocate(projected_hamil)
         if (allocated(projected_hamil_scrap)) deallocate(projected_hamil_scrap)
         if (allocated(partial_davidson_vector)) deallocate(partial_davidson_vector)
@@ -506,10 +570,8 @@ integer(TagIntType) :: ResidualTag
         if (allocated(davidson_disps)) deallocate(davidson_disps)
         if (allocated(temp_in)) deallocate(temp_in)
         if (allocated(temp_out)) deallocate(temp_out)
-        if (allocated(residual)) then
-            deallocate(residual, stat=ierr)
-            call LogMemDealloc("end_davidson", ResidualTag, ierr)
-        end if
+        if (allocated(residual)) deallocate(residual)
+        if (allocated(eigenvector_proj)) deallocate(eigenvector_proj)
 
     end subroutine end_davidson
 
@@ -521,6 +583,8 @@ integer(TagIntType) :: ResidualTag
         use ras, only: initialise_ras_space, find_ras_size
 
         integer :: class_i, class_j, j, sym_i, sym_j
+
+        write(6,'(/,1X,"Beginning Direct CI Davidson calculation.",/)'); call neci_flush(6)
 
         call initialise_ras_space(davidson_ras, davidson_classes)
         ! The total hilbert space dimension of calculation to be performed.
@@ -541,7 +605,7 @@ integer(TagIntType) :: ResidualTag
             do j = 1, davidson_classes(class_i)%num_comb
                 class_j = davidson_classes(class_i)%allowed_combns(j)
                 do sym_i = 0, 7
-                    sym_j = ieor(int(HFSym_sp,sizeof_int), sym_i)
+                    sym_j = ieor(int(HFSym_ras,sizeof_int), sym_i)
                     if (davidson_classes(class_i)%num_sym(sym_i) == 0) cycle
                     if (davidson_classes(class_j)%num_sym(sym_j) == 0) cycle
                     allocate(direct_ci_inp(class_i,class_j,sym_i)%&
@@ -567,8 +631,10 @@ integer(TagIntType) :: ResidualTag
             call LogMemDealloc("davidson_direct_ci_end", DavidsonTag, ierr)
         end if
 
-        write(6,"(/,a10,f19.9)") "GROUND E =", davidson_eigenvalue
+        write(6,'(/,1X,"Direct CI Davidson calculation complete.",/)'); call neci_flush(6)
+
+        write(6,"(1X,a10,f16.10)") "GROUND E =", davidson_eigenvalue; call neci_flush(6)
 
     end subroutine davidson_direct_ci_end
 
-end module davidson
+end module davidson_neci

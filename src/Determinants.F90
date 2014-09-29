@@ -129,6 +129,9 @@ contains
          E0HFDET=E0HFDET+ARR(NUHFDET(i),2)
       ENDDO     
       WRITE(6,*) "Fock operator energy:",E0HFDET
+
+      ! Store the value of Ms for use in other areas
+      calculated_ms = sum(get_spin_pn(fdet(1:nel)))
     End Subroutine DetPreFreezeInit
 
     
@@ -136,11 +139,10 @@ contains
         Use global_utilities
         use constants, only: dp,int64
         use SystemData, only: nel, Alat, Boa, Coa, BOX, BRR, ECore
-        use SystemData, only: G1, LMS, nBasis, STot, tCSFOLD, Arr,tHub,tUEG,tMomInv
+        use SystemData, only: G1, LMS, nBasis, STot, tCSFOLD, Arr,tHub,tUEG
         use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
         use IntegralsData, only: nfrozen
         use sym_mod
-        use MomInv, only: SetupMomInv
       
       real(dp) DNDET
       integer i,j
@@ -283,7 +285,6 @@ contains
                 call SpinOrbSymSetup ()
             endif
 
-            if(tMomInv) call SetupMomInv()
         ENDIF
 ! From now on, the orbitals are also contained in symlabellist2 and symlabelcounts2.
 ! These are stored using spin orbitals.

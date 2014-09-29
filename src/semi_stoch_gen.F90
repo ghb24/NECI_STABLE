@@ -3,10 +3,10 @@
 module semi_stoch_gen
 
     use bit_rep_data, only: flag_deterministic, nIfDBO, nOffY, nIfY, NIfD, &
-                            flag_is_initiator, flag_determ_parent, NOffSgn, NIfTot, &
-                            flag_connected, flag_trial
+                            flag_is_initiator, NOffSgn, NIfTot, flag_connected, &
+                            flag_trial
     use bit_reps, only: decode_bit_det, encode_bit_rep, set_flag, extract_sign, &
-                        clr_flag, create_nsteps_mask
+                        clr_flag
     use CalcData
     use csf, only: csf_get_yamas, get_num_csfs, get_csf_bit_yama, csf_apply_yama
     use csf_data, only: csf_orbital_mask
@@ -17,7 +17,7 @@ module semi_stoch_gen
     use enumerate_excitations
     use FciMCData, only: HFDet, ilutHF, iHFProc, CurrentDets, determ_proc_sizes, &
                          determ_proc_indices, full_determ_vector, partial_determ_vector, &
-                         core_hamiltonian, determ_space_size, TotWalkers, TotWalkersOld, &
+                         determ_space_size, determ_space_size_int, TotWalkers, TotWalkersOld, &
                          indices_of_determ_states, SpawnedParts, FDetermTag, FDetermAvTag, &
                          PDetermTag, IDetermTag, trial_space, trial_space_size, &
                          SemiStoch_Init_Time, tHashWalkerList, full_determ_vector_av, &
@@ -27,7 +27,7 @@ module semi_stoch_gen
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
 
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIArg, MPIAllGatherV, &
-                             MPIAllGather, MPIScatter, MPIScatterV
+                             MPIAllGather, MPIScatter, MPIScatterV, MPIBarrier
     use ParallelHelper, only: root
     use ras
     use semi_stoch_procs
@@ -65,28 +65,28 @@ contains
         call stop_all(t_r, "Semi-stochastic has not been implemented with complex coefficients.")
 #endif
 
+        call MPIBarrier(ierr, tTimeIn=.false.)
+
         call set_timer(SemiStoch_Init_Time)
 
-        write(6,'(/,12("="),1x,a30,1x,12("="))') "Semi-stochastic initialisation"
-        call neci_flush(6)
+        write(6,'(/,12("="),1x,a30,1x,12("="))') "Semi-stochastic initialisation"; call neci_flush(6)
 
         allocate(determ_proc_sizes(0:nProcessors-1))
         allocate(determ_proc_indices(0:nProcessors-1))
-        determ_proc_sizes = 0
-        determ_proc_indices = 0
+        determ_proc_sizes = 0_MPIArg
+        determ_proc_indices = 0_MPIArg
 
         if (.not. (tStartCAS .or. tPopsCore .or. tDoublesCore .or. tCASCore .or. tRASCore .or. &
                    tOptimisedCore .or. tLowECore .or. tReadCore .or. tMP1Core .or. &
                    tFCICore .or. tHeisenbergFCICore)) then
-            call stop_all("init_semi_stochastic", "You have not selected a semi-stochastic core &
-                          &space to use.")
+            call stop_all("init_semi_stochastic", "You have not selected a semi-stochastic core space to use.")
         end if
+        if (.not. tUseRealCoeffs) call stop_all(t_r, "To use semi-stochastic you must also use real coefficients.")
 
         ! Call the enumerating subroutines to create all excitations and add these states to
         ! SpawnedParts on the correct processor. As they do this, they count the size of the
         ! deterministic space (on their own processor only).
-        write(6,'(a37)') "Generating the deterministic space..."
-        call neci_flush(6)
+        write(6,'("Generating the deterministic space...")'); call neci_flush(6)
         call generate_space()
 
         ! So that all procs store the size of the deterministic spaces on all procs.
@@ -94,25 +94,25 @@ contains
         call MPIAllGather(mpi_temp, determ_proc_sizes, ierr)
 
         determ_space_size = sum(determ_proc_sizes)
+        determ_space_size_int = int(determ_space_size,sizeof_int)
 
-        write(6,'(a34,1X,i8)') "Total size of deterministic space:", determ_space_size
-        write(6,'(a46,1X,i8)') "Size of deterministic space on this processor:", &
-                    determ_proc_sizes(iProcIndex)
+        write(6,'("Total size of deterministic space:",1X,i8)') determ_space_size
+        write(6,'("Size of deterministic space on this processor:",1X,i8)') determ_proc_sizes(iProcIndex)
         call neci_flush(6)
 
         ! Allocate the vectors to store the walker amplitudes and the deterministic Hamiltonian.
         allocate(full_determ_vector(lenof_sign,determ_space_size), stat=ierr)
-        call LogMemAlloc('full_determ_vector', int(determ_space_size,sizeof_int)*lenof_sign, &
+        call LogMemAlloc('full_determ_vector', determ_space_size_int*lenof_sign, &
                          8, t_r, FDetermTag, ierr)
         allocate(full_determ_vector_av(lenof_sign,determ_space_size), stat=ierr)
-        call LogMemAlloc('full_determ_vector_av', int(determ_space_size,sizeof_int)*lenof_sign, &
+        call LogMemAlloc('full_determ_vector_av', determ_space_size_int*lenof_sign, &
                          8, t_r, FDetermAvTag, ierr)
         allocate(partial_determ_vector(lenof_sign,determ_proc_sizes(iProcIndex)), stat=ierr)
         call LogMemAlloc('partial_determ_vector', int(determ_proc_sizes(iProcIndex), &
                          sizeof_int)*lenof_sign, 8, t_r, PDetermTag, ierr)
 
-        full_determ_vector = 0.0_dp
-        full_determ_vector_av = 0.0_dp
+        full_determ_vector(:,:) = 0.0_dp
+        full_determ_vector_av(:,:) = 0.0_dp
         partial_determ_vector = 0.0_dp
 
         ! This array will hold the positions of the deterministic states in CurrentDets.
@@ -136,7 +136,7 @@ contains
             comp = DetBitLT(SpawnedParts(:, i-1), SpawnedParts(:, i), NIfDBO, .false.)
             if (comp == 0) then
                 call decode_bit_det(nI, SpawnedParts(:,i))
-                write(6,'(a18)') "State found twice:"
+                write(6,'("State found twice:")')
                 write(6,*) SpawnedParts(:,i)
                 call write_det(6, nI, .true.)
                 call stop_all("init_semi_stochastic", &
@@ -149,15 +149,10 @@ contains
         ! Create the hash table to address the core determinants.
         call initialise_core_hash_table()
 
-        if (tVaryInitThresh) call create_nsteps_mask()
+        if (tWriteCore) call write_core_space()
 
-        write(6,'(a56)') "Generating the Hamiltonian in the deterministic space..."
-        call neci_flush(6)
-        if (tSparseCoreHamil) then
-            call calculate_determ_hamiltonian_sparse()
-        else
-            call calculate_determ_hamiltonian_normal()
-        end if
+        write(6,'("Generating the Hamiltonian in the deterministic space...")'); call neci_flush(6)
+        call calc_determ_hamil_sparse()
 
         if (tRDMonFly) call generate_core_connections()
 
@@ -168,21 +163,24 @@ contains
             call add_core_states_currentdets()
         end if
 
-        ! If starting from a popsfile then CurrentH won't have been filled in yet.
-        if ((.not. tRegenDiagHels) .and. tReadPops) call fill_in_CurrentH()
+        ! If starting from a popsfile then global_determinant_data will not
+        ! have been initialised.
+        if (tReadPops) call fill_in_diag_helements()
         SpawnedParts = 0_n_int
         TotWalkersOld = TotWalkers
 
         if (tStartCoreGroundState .and. (.not. tReadPops)) &
             call start_walkers_from_core_ground(tPrintInfo = .true.)
 
-        if (tWriteCore) call write_core_space()
+        ! Call MPIBarrier here so that Semistoch_Init_Time will give the
+        ! initialisation time for all processors to finish.
+        call MPIBarrier(ierr, tTimeIn=.false.)
 
         call halt_timer(SemiStoch_Init_Time)
 
-        write(6,'(a40)') "Semi-stochastic initialisation complete."
-        write(6,'(a62, f9.3)') "Total time (seconds) taken for semi-stochastic initialisation:", &
-                   get_total_time(SemiStoch_Init_Time)
+        write(6,'("Semi-stochastic initialisation complete.")')
+        write(6,'("Total time (seconds) taken for semi-stochastic initialisation:", f9.3)') &
+           get_total_time(SemiStoch_Init_Time)
         call neci_flush(6)
 
     end subroutine init_semi_stochastic
@@ -191,7 +189,9 @@ contains
 
         ! A wrapper to call the correct generating routine.
 
-        integer :: i, space_size, ierr
+        integer :: space_size, ierr
+        integer(int64) :: i
+        character (len=*), parameter :: t_r = "generate_space"
 
         ! Choose the correct generating routine.
         if (tStartCAS) then
@@ -202,7 +202,10 @@ contains
             end do
             call MPIAllGather(int(TotWalkers, MPIArg), determ_proc_sizes, ierr)
         else if (tPopsCore) then
-            call generate_space_from_pops(called_from_semistoch)
+            if (.not. tReadPops) then
+                call stop_all(t_r, "NECI must be started from a popsfile to use the pops-core and pops-trial options.")
+            end if
+            call generate_space_most_populated(called_from_semistoch, n_core_pops)
         else if (tReadCore) then
             call generate_space_from_file(called_from_semistoch)
         else if (.not. tCSFCore) then
@@ -253,7 +256,7 @@ contains
             space_size = determ_proc_sizes(iProcIndex)
             call remove_high_energy_orbs(SpawnedParts(:, 1:space_size), space_size, &
                                            max_determ_size, .true.)
-            determ_proc_sizes(iProcIndex) = space_size
+            determ_proc_sizes(iProcIndex) = int(space_size,MPIArg)
         end if
 
     end subroutine generate_space
@@ -310,7 +313,7 @@ contains
             end if
 
             ! Keep track of the size of the deterministic space on this processor.
-            determ_proc_sizes(proc) = determ_proc_sizes(proc) + 1
+            determ_proc_sizes(proc) = determ_proc_sizes(proc) + 1_MPIArg
 
             ! Add the state to the space.
             call encode_bit_rep(SpawnedParts(0:NIfTot, determ_proc_sizes(iProcIndex)), &
@@ -414,7 +417,7 @@ contains
 
             call decode_bit_det(nI, ilut)
 
-            call generate_all_csfs_from_orb_config(ilut, nI, called_from)
+            call gen_all_csfs_from_orb_config(ilut, nI, called_from)
 
         end do
 
@@ -483,7 +486,7 @@ contains
         integer(n_int) :: ilut(0:NIfTot)
         integer(n_int), allocatable, dimension(:,:) :: ilut_store
         integer :: HFdet_loc(nel)
-        integer :: num_active_orbs, elec, nCASDet, i, j, counter, comp, ierr
+        integer :: num_active_orbs, nCASDet, i, j, counter, comp, ierr
         integer, allocatable :: CASBrr(:), CASRef(:)
         integer(n_int) :: cas_bitmask(0:NIfD), cas_not_bitmask(0:NIfD)
         integer, pointer :: CASDets(:,:) => null()
@@ -520,7 +523,7 @@ contains
 
         ! Create a bit mask which has 1's in the bits which represent active orbitals and 0's in
         ! all other orbitals.
-        cas_bitmask = 0
+        cas_bitmask = 0_n_int
         do i = 1, num_active_orbs
             set_orb(cas_bitmask, CASBrr(i))
         end do
@@ -532,14 +535,9 @@ contains
         ! orbitals, we just want a determinant, so use a state without the CSF information.
         HFdet_loc = iand(HFDet, csf_orbital_mask)
 
-        elec = 1
-        do i = nel-OccOrbs+1, nel
-            ! CASRef(elec) will store the orbital number of the electron elec in the reference
-            ! state, HFDet. elec runs from 1 to the number of electrons in the active space.
-            CASRef(elec) = HFDet_loc(i)
-            elec = elec + 1
-        end do
-
+        ! CASRef holds the part of the HF determinant in the active space.
+        CASRef = CasBRR(1:OccOrbs)
+        call sort(CasRef)
         call GetSym(CASRef, OccOrbs, G1, nBasisMax, CASSym)
 
         ! First, generate all excitations so we know how many there are, to allocate the arrays.
@@ -554,10 +552,10 @@ contains
         call LogMemAlloc("CASDets", OccOrbs*nCASDet, 8, t_r, CASDetsTag, ierr)
         CASDets(:,:) = 0
 
-        if (tCASCore) then
+        if (tCSFCore) then
             allocate(ilut_store(nCASDet-1, 0:NIfTot), stat=ierr)
             call LogMemAlloc("ilut_store", (nCASDet-1)*(NIfTot+1), size_n_int, t_r, IlutTag, ierr)
-            ilut_store = 0
+            ilut_store = 0_n_int
             counter = 1
         end if
 
@@ -603,8 +601,10 @@ contains
         deallocate(CASRef)
         deallocate(CASDets, stat=ierr)
         call LogMemDealloc(t_r, CASDetsTag, ierr)
-        deallocate(ilut_store, stat=ierr)
-        call LogMemDealloc(t_r, IlutTag, ierr)
+        if (tCSFCore) then
+            deallocate(ilut_store, stat=ierr)
+            call LogMemDealloc(t_r, IlutTag, ierr)
+        end if
 
     end subroutine generate_cas
 
@@ -627,7 +627,7 @@ contains
         ! In: called_from - Integer to specify whether this routine was called from the
         !     the semi-stochastic generation code or the trial vector generation code.
 
-        use davidson, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
+        use davidson_neci, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
                             sparse_hamil_type
         use sparse_arrays, only: sparse_ham, hamil_diag
 
@@ -688,8 +688,8 @@ contains
             call LogMemAlloc("ilut_store", 1000000*(NIfTot+1), size_n_int, t_r, IlutTag, ierr)
             allocate(temp_space(0:NIfTot, 1000000), stat=ierr)
             call LogMemAlloc("temp_store", 1000000*(NIfTot+1), size_n_int, t_r, TempTag, ierr)
-            ilut_store = 0
-            temp_space = 0
+            ilut_store = 0_n_int
+            temp_space = 0_n_int
 
             ! Put the Hartree-Fock state in the list first.
             ilut_store(0:NIfTot, 1) = ilutHF(0:NIfTot)
@@ -792,16 +792,16 @@ contains
             call sort_space_by_proc(ilut_store, old_num_states, proc_space_sizes)
 
             ! Create displacement and sendcount arrays for MPIScatterV later:
-            sendcounts = proc_space_sizes*(NIfTot+1)
+            sendcounts = int(proc_space_sizes*(NIfTot+1),MPIArg)
             disps(0) = 0
             do i = 1, nProcessors-1
-                disps(i) = sum(proc_space_sizes(0:i-1))*(NIfTot+1)
+                disps(i) = int(sum(proc_space_sizes(0:i-1))*(NIfTot+1),MPIArg)
             end do
         end if
 
         ! Send the number of states on each processor to the corresponding processor.
         call MPIScatter(proc_space_sizes, this_proc_size, ierr)
-        recvcount = this_proc_size*(NIfTot+1)
+        recvcount = int(this_proc_size*(NIfTot+1),MPIArg)
         ! Finally send the actual states to the SpawnedParts array.
         call MPIScatterV(ilut_store, sendcounts, disps, &
                          SpawnedParts(:, 1:this_proc_size), recvcount, ierr)
@@ -838,12 +838,15 @@ contains
 
     end subroutine generate_optimised_core
 
-    subroutine generate_space_from_pops(called_from)
+    subroutine generate_space_most_populated(called_from, target_space_size)
 
         ! In: called_from - Integer to specify whether this routine was called from the
         !     the semi-stochastic generation code or the trial vector generation code.
+        !     target_space_size - The number of states to keep from CurrentDets.
 
         integer, intent(in) :: called_from
+        integer, intent(in) :: target_space_size
+
         real(dp), allocatable, dimension(:) :: amps_this_proc, amps_all_procs
         real(dp) :: real_sign(lenof_sign)
         integer(MPIArg) :: length_this_proc, total_length
@@ -853,32 +856,18 @@ contains
         integer, allocatable, dimension(:) :: indices_to_keep
         integer :: i, j, ierr, comp, ind, n_pops_keep, min_ind, max_ind, n_states_this_proc
         integer(TagIntType) :: TagA, TagB, TagC, TagD
-        character (len=*), parameter :: t_r = "generate_space_from_pops"
+        character (len=*), parameter :: t_r = "generate_space_most_populated"
 
-        if (called_from == called_from_semistoch) then
-            n_pops_keep = n_core_pops
-        else if (called_from == called_from_trial) then
-            n_pops_keep = n_trial_pops
-        end if
+        n_pops_keep = target_space_size
 
-        if (.not. tReadPops) then
-            if (called_from == called_from_semistoch) then
-                call stop_all("generate_space_from_pops", "NECI must be started &
-                               &from a popsfile to use the pops-core option.")
-            else if (called_from == called_from_trial) then
-                call stop_all("generate_space_from_pops", "NECI must be started &
-                               &from a popsfile to use the pops-trial option.")
-            end if
-        end if
-
-        length_this_proc = min(n_pops_keep, TotWalkers)
+        length_this_proc = min(int(n_pops_keep,MPIArg), int(TotWalkers,MPIArg))
 
         call MPIAllGather(length_this_proc, lengths, ierr)
         total_length = sum(lengths)
         if (total_length < n_pops_keep) then
-            call warning_neci("generate_space_from_pops", "The number of states in &
-                              &POPSFILE is less than the number you requested. All states &
-                              &will be used.")
+            call warning_neci(t_r, "The number of states in POPSFILE is less &
+                                   &than the number you requested. All states &
+                                   &will be used.")
             n_pops_keep = total_length
         end if
 
@@ -958,7 +947,7 @@ contains
         deallocate(largest_states)
         call LogMemDealloc(t_r, TagD, ierr)
 
-    end subroutine generate_space_from_pops
+    end subroutine generate_space_most_populated
 
     subroutine generate_space_from_file(called_from)
 
@@ -981,7 +970,7 @@ contains
         iunit = get_free_unit()
         open(iunit, file=filename, status='old')
 
-        ilut = 0
+        ilut = 0_n_int
 
         do
             read(iunit, *, iostat=stat) ilut(0:NIfDBO)
@@ -1035,8 +1024,8 @@ contains
         call LogMemAlloc("ilut_store", 1000000*(NIfTot+1), size_n_int, t_r, IlutTag, ierr)
         allocate(temp_space(0:NIfTot, 1000000), stat=ierr)
         call LogMemAlloc("temp_store", 1000000*(NIfTot+1), size_n_int, t_r, TempTag, ierr)
-        ilut_store = 0
-        temp_space = 0
+        ilut_store = 0_n_int
+        temp_space = 0_n_int
 
         ! Put the Hartree-Fock state in the list first.
         ilut_store(0:NIfTot, 1) = ilutHF(0:NIfTot)
@@ -1103,7 +1092,7 @@ contains
 
     end subroutine generate_low_energy_core
 
-    subroutine generate_all_csfs_from_orb_config(ilut, nI, called_from)
+    subroutine gen_all_csfs_from_orb_config(ilut, nI, called_from)
 
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
         integer, intent(inout) :: nI(nel)
@@ -1142,7 +1131,7 @@ contains
             call add_state_to_space(ilut, called_from, nI)
         end do
 
-    end subroutine generate_all_csfs_from_orb_config
+    end subroutine gen_all_csfs_from_orb_config
 
     subroutine generate_using_mp1_criterion(called_from)
 
@@ -1164,8 +1153,8 @@ contains
 
         allocate(amp_list(target_ndets))
         allocate(ilut_list(0:NIfD, target_ndets))
-        amp_list = 0
-        ilut_list = 0.0_dp
+        amp_list = 0.0_dp
+        ilut_list = 0_n_int
 
         ! Should we generate just singles (1), just doubles (2), or both (3)?
         if (tUEG .or. tNoSingExcits) then
@@ -1185,7 +1174,7 @@ contains
         ! Count the HF determinant.
         ndets = 1
         ex = 0
-        ilut = 0
+        ilut = 0_n_int
 
         ! Start by adding the HF state.
         ilut_list(0:NIfD, 1) = ilutHF(0:NIfD)
@@ -1213,7 +1202,7 @@ contains
             if (.not. tAllExcitFound) then
                 call return_mp1_amp_and_mp2_energy(nI, ilut, ex, tParity, amp, energy_contrib)
                 
-                pos = binary_search_real(amp_list, -abs(amp))
+                pos = binary_search_real(amp_list, -abs(amp), 1.0e-8_dp)
 
                 ! If pos is less then there isn't another determinant with the same amplitude
                 ! (which will be common), but -pos specifies where in the list it should be
@@ -1258,6 +1247,7 @@ contains
 
     subroutine enumerate_sing_doub_kpnt(ex_flag, nSing, nDoub, called_from)
 
+        use neci_intfce
         integer, intent(in) :: ex_flag
         integer, intent(out) :: nSing, nDoub
         integer, optional, intent(in) :: called_from
@@ -1409,5 +1399,60 @@ contains
         end do
 
     end subroutine generate_fci_core_all_sym
+
+    subroutine write_most_populated_core_at_end(space_size)
+
+        integer, intent(in) :: space_size
+        integer :: i, j, k, ierr, iunit
+        logical :: texist
+        character(*), parameter :: t_r = "write_most_populated_core_at_end"
+
+        write(6,'(/,"Finding most populated states...")'); call neci_flush(6)
+
+        ! Reset determ_proc_sizes, as this is used by
+        ! generate_space_most_populated to count the space size on each process.
+        if (.not. allocated(determ_proc_sizes)) allocate(determ_proc_sizes(0:nProcessors-1))
+        determ_proc_sizes = 0_MPIArg
+
+        ! Calling this routine will find the most populated states in
+        ! CurrentDets and copy them across to SpawnedParts, to the first
+        ! determ_proc_sizes(iProcIndex) slots in it (overwriting anything which
+        ! was there before, which presumably won't be needed now).
+        call generate_space_most_populated(called_from_semistoch, space_size)
+
+        write(6,'("Writing the most populated states to CORESPACE...")'); call neci_flush(6)
+
+        iunit = get_free_unit()
+
+        ! Let each process write its states to the file. Each process waits for
+        ! the process before it to finish before starting.
+        do i = 0, nProcessors-1
+
+            if (iProcIndex == i) then
+
+                if (i == 0) then
+                    open(iunit, file='CORESPACE', status='replace')
+                else
+                    inquire(file='CORESPACE',exist=texist)
+                    if(.not.texist) call stop_all(t_r,'"CORESPACE" file cannot be found')
+                    open(iunit, file='CORESPACE', status='old', position='append')
+                end if
+                
+                do j = 1, determ_proc_sizes(iProcIndex)
+                    do k = 0, NIfDBO
+                        write(iunit, '(i24)', advance='no') SpawnedParts(k,j)
+                    end do
+                    write(iunit, *)
+                end do
+
+                close(iunit)
+
+            end if
+
+            call MPIBarrier(ierr)
+
+        end do
+
+    end subroutine write_most_populated_core_at_end
 
 end module semi_stoch_gen

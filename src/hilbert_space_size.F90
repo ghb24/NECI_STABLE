@@ -1051,10 +1051,10 @@ contains
          IF(mod((ClassCountsOcc(i)+ClassCountsVirt(i)),2).ne.0) THEN
              STOP 'Error counting determinants'
          ENDIF
-         ClassCountsOccMax(i)=CEILING(REAL(ClassCountsOcc(i))/2.0_dp)
-         ClassCountsVirtMax(i)=CEILING(REAL(ClassCountsVirt(i))/2.0_dp)
-         ClassCountsOcc(i)=FLOOR(REAL(ClassCountsOcc(i))/2.0_dp)
-         ClassCountsVirt(i)=FLOOR(REAL(ClassCountsVirt(i))/2.0_dp)
+         ClassCountsOccMax(i)=CEILING(REAL(ClassCountsOcc(i),dp)/2.0_dp)
+         ClassCountsVirtMax(i)=CEILING(REAL(ClassCountsVirt(i),dp)/2.0_dp)
+         ClassCountsOcc(i)=FLOOR(REAL(ClassCountsOcc(i),dp)/2.0_dp)
+         ClassCountsVirt(i)=FLOOR(REAL(ClassCountsVirt(i),dp)/2.0_dp)
          
 !         ClassCounts(i)=ClassCounts(i)/2
          enddo

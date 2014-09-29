@@ -1,5 +1,7 @@
 module util_mod
     use util_mod_comparisons
+    use util_mod_numerical
+    use util_mod_byte_size
     use util_mod_cpts
     use dSFMT_interface, only: genrand_real2_dSFMT
     use constants
@@ -37,6 +39,13 @@ module util_mod
         module procedure abs_int4_sign
         module procedure abs_int8_sign
         module procedure abs_real_sign
+    end interface
+
+    interface abs_l1
+        module procedure abs_l1_dp
+        module procedure abs_l1_sp
+        module procedure abs_l1_cdp
+        module procedure abs_l1_csp
     end interface
 
     ! sds: It would be nice to use a proper private/public interface here,
@@ -134,6 +143,49 @@ contains
 #else
             abs_real_sign = abs(sgn(1))
 #endif
+    end function
+
+! --------- L1 norm function
+! These return the absolute L1 norm of the specified value
+!
+! --> for complex numbers this is not sqrt(r**2 + i**2), but is the sum
+!     of the absolute values of the terms
+!----------------------------
+
+    pure function abs_l1_sp (val) result (ret)
+
+        real(sp), intent(in) :: val
+        real(sp) :: ret
+
+        ret = abs(val)
+
+    end function
+
+    pure function abs_l1_dp (val) result (ret)
+
+        real(dp), intent(in) :: val
+        real(dp) :: ret
+
+        ret = abs(val)
+
+    end function
+
+    pure function abs_l1_csp (val) result (ret)
+
+        complex(sp), intent(in) :: val
+        real(sp) :: ret
+
+        ret = abs(real(val, sp)) + abs(aimag(val))
+
+    end function
+
+    pure function abs_l1_cdp (val) result (ret)
+
+        complex(dp), intent(in) :: val
+        real(dp) :: ret
+
+        ret = abs(real(val, dp)) + abs(aimag(val))
+
     end function
 
 !--- Array utilities ---
@@ -341,7 +393,7 @@ contains
         integer, intent(in) :: i
         integer, intent(in), optional :: padding
         integer :: p
-        real :: r
+        real(sp) :: r
 
         if (present(padding)) then
             p = padding
@@ -352,7 +404,7 @@ contains
         if (i == 0 .or. i==1) then
             r = 1.0
         else
-            r = log10(real(abs(i)+1))
+            r = log10(real(abs(i)+1,sp))
         end if
         p = ceiling(r+p)
 
@@ -368,45 +420,6 @@ contains
     end function int_fmt
 
 !--- Searching ---
-
-    function binary_search_first_ge (arr, val) result(pos)
-
-        ! Find the first element in an array which is >= val, in an array
-        ! which has been sorted.
-        !
-        ! If there is no such element, the function returns -1.
-        ! TODO: Should this only happen in debug mode?
-
-        integer, intent(in) :: val
-        integer, intent(in) :: arr(:)
-        integer :: pos
-
-        integer :: hi, lo
-
-        ! The search range
-        lo = lbound(arr, 1)
-        hi = ubound(arr, 1)
-
-        ! Test if such an element exists
-        if (arr(hi) < val) then
-            pos = -1
-            return
-        endif
-
-        do while (hi /= lo)
-            pos = int(real(hi + lo) / 2)
-
-            if (arr(pos) >= val) then
-                hi = pos
-            else
-                lo = pos + 1
-            endif
-        enddo
-
-        ! Return the converged value.
-        pos = hi
-
-    end function
 
     ! NOTE: This can only be used for binary searching determinant bit
     !       strings now. We can template it if it wants to be more general
@@ -446,7 +459,7 @@ contains
 
         ! Narrow the search range down in steps.
         do while (hi /= lo)
-            pos = int(real(hi + lo) / 2)
+            pos = int(real(hi + lo,sp) / 2_sp)
 
             if (all(arr(data_lo:data_hi,pos) == val(val_lo:val_hi))) then
                 exit
@@ -483,12 +496,13 @@ contains
 
     end function binary_search
 
-    function binary_search_real (arr, val) &
+    function binary_search_real (arr, val, thresh) &
                                  result(pos)
         use constants, only: n_int
 
         real(dp), intent(in) :: arr(:)
         real(dp), intent(in) :: val
+        real(dp), intent(in) :: thresh
         integer :: pos
 
         integer :: hi, lo
@@ -505,9 +519,9 @@ contains
 
         ! Narrow the search range down in steps.
         do while (hi /= lo)
-            pos = int(real(hi + lo) / 2)
+            pos = int(real(hi + lo,sp) / 2_sp)
 
-            if (arr(pos) == val) then
+            if (abs(arr(pos) - val) < thresh) then
                 exit
             else if (val > arr(pos)) then
                 ! val is "greater" than arr(:len,pos).
@@ -531,7 +545,7 @@ contains
         ! then return -pos to indicate that the item is not present, but that
         ! this is the location it should be in.
         if (hi == lo) then
-            if (arr(hi) == val) then
+            if (abs(arr(hi) - val) < thresh) then
                 pos = hi
             else if (val > arr(hi)) then
                 pos = -hi - 1
@@ -586,7 +600,7 @@ contains
 
         ! Narrow the search range down in steps.
         do while (hi /= lo)
-            pos = int(real(hi + lo) / 2)
+            pos = int(real(hi + lo,sp) / 2_sp)
 
             if (DetBitLT(arr(data_lo:data_hi,pos), val(val_lo:val_hi), &
                     use_flags_opt = .false.) == 0) then
@@ -790,12 +804,12 @@ contains
 
     end function error_function
 
-    subroutine find_next_comb(comb, k, n, finish)
+    pure subroutine find_next_comb(comb, k, n, finish)
 
-        integer(sp), intent(in) :: k, n
-        integer(sp), intent(inout) :: comb(k)
+        integer, intent(in) :: k, n
+        integer, intent(inout) :: comb(k)
         logical, intent(out) :: finish
-        integer(sp) :: i
+        integer :: i
 
         if (k == 0 .or. n == 0) then
             finish = .true.
@@ -924,6 +938,11 @@ end module
 
 
     subroutine neci_flush(un)
+#ifdef MOLPRO
+    implicit none
+    integer, intent(in) :: un
+    flush(un)
+#else
 #ifdef NAGF95
     USe f90_unix, only: flush
     use constants, only: int32
@@ -941,6 +960,7 @@ end module
         call flush(dummy)
 #else
         call flush(un)
+#endif
 #endif
 #endif
     end subroutine neci_flush

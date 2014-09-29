@@ -18,13 +18,14 @@ contains
         use constants
         use DetBitOps, only: FindBitExcitLevel, return_ms
         use FciMCData, only: fcimc_excit_gen_store, FreeSlot, iEndFreeSlot
-        use FciMCData, only: TotWalkers, CurrentDets, CurrentH, iLutRef, max_calc_ex_level
-        use FciMCData, only: iter_data_fciqmc, TotParts, NCurrH, exFlag, iter
+        use FciMCData, only: TotWalkers, CurrentDets, iLutRef, max_calc_ex_level
+        use FciMCData, only: iter_data_fciqmc, TotParts, exFlag, iter
         use FciMCData, only: indices_of_determ_states, partial_determ_vector
         use FciMCParMod, only: create_particle, CalcParentFlag, decide_num_to_spawn
         use FciMCParMod, only: calculate_new_shift_wrapper, walker_death, end_iter_stats
         use FciMCParMod, only: update_iter_data, CalcApproxpDoubles, SumEContrib
         use FciMCParMod, only: end_iteration_print_warn
+        use global_det_data, only: det_diagH
         use LoggingData, only: tPopsFile
         use Parallel_neci, only: iProcIndex
         use ParallelHelper, only: root
@@ -44,7 +45,7 @@ contains
         integer :: nI_parent(nel), nI_child(nel)
         integer(n_int) :: ilut_child(0:NIfTot)
         integer(n_int), pointer :: ilut_parent(:)
-        real(dp) :: prob, unused_rdm_real
+        real(dp) :: prob, unused_rdm_real, parent_hdiag
         real(dp), dimension(lenof_sign) :: child_sign, parent_sign
         real(dp), dimension(lenof_sign) :: unused_sign1, unused_sign2
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
@@ -99,7 +100,7 @@ contains
                         iter = iter + 1
                         call init_kp_fciqmc_iter(iter_data_fciqmc, determ_ind)
 
-                        !if (iter > 590) then
+                        !if (iter < 10) then
                         !    write(6,*) "CurrentDets before:"
                         !    do idet = 1, int(TotWalkers, sizeof_int)
                         !        call extract_bit_rep(CurrentDets(:, idet), nI_parent, parent_sign, unused_flags, &
@@ -168,10 +169,13 @@ contains
                                 cycle
                             end if
 
-                            if (tTruncInitiator) call CalcParentFlag(idet, idet, parent_flags)
+                            ! The current diagonal matrix element is stored persistently.
+                            parent_hdiag = det_diagH(idet)
+
+                            if (tTruncInitiator) call CalcParentFlag(idet, idet, parent_flags, parent_hdiag)
 
                             call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
-                                               CurrentH(1,idet), 1.0_dp, idet)
+                                               parent_hdiag, 1.0_dp, idet)
 
                             if (tAllSymSectors) then
                                 ms_parent = return_ms(ilut_parent)
@@ -203,7 +207,7 @@ contains
                                             if (tUseFlags) ilut_child(nOffFlag) = 0_n_int
 
                                             if (tSemiStochastic) then
-                                                tChildIsDeterm = is_core_state(ilut_child)
+                                                tChildIsDeterm = is_core_state(ilut_child, nI_child)
 
                                                 ! Is the parent state in the core space?
                                                 if (tParentIsDeterm) then
@@ -245,7 +249,7 @@ contains
                             ! If this is a core-space determinant then the death step is done in
                             ! deterministic_projection.
                             if (.not. tParentIsDeterm) then
-                                call walker_death (iter_data_fciqmc, nI_parent, ilut_parent, CurrentH(1,idet), &
+                                call walker_death (iter_data_fciqmc, nI_parent, ilut_parent, parent_hdiag, &
                                                     parent_sign, unused_sign2, unused_sign1, idet, idet, &
                                                     ex_level_to_ref)
                             end if
