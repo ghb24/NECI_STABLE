@@ -5,9 +5,9 @@ module hash
     use bit_rep_data, only: NIfTot, extract_sign, test_flag, flag_deterministic
     use bit_reps, only: set_flag, decode_bit_det
     use constants
-    use FciMCData , only : hash_iter, hash_shift, RandomHash, RandomHash2, HFDet, ll_node
-    use Parallel_neci , only : nNodes
-    use constants , only : int64,sizeof_int
+    use FciMCData, only: hash_iter, hash_shift, RandomHash, RandomHash2, HFDet, ll_node
+    use Parallel_neci, only: nNodes
+    use constants, only: int64,sizeof_int
     use csf_data, only: csf_orbital_mask
     use Systemdata, only: nel, tCSF, nBasis
     use CalcData, only: tUniqueHFNode, tSemiStochastic
@@ -19,8 +19,9 @@ module hash
     pure function DetermineDetNode (nel_loc, nI, iIterOffset) result(node)
 
         ! Depending on the Hash, determine which node determinant nI
-        ! belongs to in the DirectAnnihilation scheme. NB FCIMC has each processor as a separate logical node.
-        !
+        ! belongs to in the DirectAnnihilation scheme. NB FCIMC has each
+        ! processor as a separate logical node.
+
         ! In:  nI   - Integer ordered list for the determinant
         ! In:  iIterOffset - Offset this iteration by this amount
         ! Out: proc - The (0-based) processor index.
@@ -45,10 +46,14 @@ module hash
             end if
         end if
 
-!sum(nI) ensures that a random number is generated for each different nI, which is then added to the iteration,
-!  and the result shifted.  Consequently, the less significant bits (but not the least, as these have been shifted away)
-!  for each nI will change on average once per 2^hash_shift iterations, but the change spread throughout the different iters.
-        if (hash_iter>0) then  !generate a hash to work out an offset.  Probably very inefficient
+        ! sum(nI) ensures that a random number is generated for each different
+        ! nI, which is then added to the iteration, and the result shifted.
+        ! Consequently, the less significant bits (but not the least, as these
+        ! have been shifted away) for each nI will change on average once per
+        ! 2^hash_shift iterations, but the change spread throughout the
+        ! different iters.
+        ! Generate a hash to work out an offset.  Probably very inefficient.
+        if (hash_iter>0) then  
            acc = 0
            do i = 1, nel_loc
                acc = (large_prime * acc) + &
