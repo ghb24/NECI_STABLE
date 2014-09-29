@@ -1395,18 +1395,8 @@ MODULE AnnihilationMod
             current_trial_amps(DetPosition) = trial_amp
         end if
 
-        TempNode => HashIndex(DetHash)
-        if (TempNode%Ind == 0) then
-            TempNode%Ind = DetPosition
-        else
-            do while (associated(TempNode%Next))
-                TempNode => TempNode%Next
-            end do
-            allocate(TempNode%Next)
-            nullify(TempNode%Next%Next)
-            TempNode%Next%Ind = DetPosition
-        end if
-        nullify(TempNode)
+        ! Add the new determinant to the hash table.
+        call add_hash_table_entry(HashIndex, DetPosition, DetHash)
 
     end subroutine AddNewHashDet
 

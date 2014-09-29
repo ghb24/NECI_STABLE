@@ -176,7 +176,7 @@ module hash
         logical, intent(in) :: ignore_unocc
 
         type(ll_node), pointer :: temp_node
-        integer :: i, DetHash, nI(nel)
+        integer :: i, hash_val, nI(nel)
         real(dp) :: real_sign(lenof_sign)
         logical :: tCoreDet
 
@@ -193,10 +193,12 @@ module hash
             end if
 
             call decode_bit_det(nI, walker_list(:,i))
-            DetHash = FindWalkerHash(nI, table_length)
-            temp_node => hash_table(DetHash)
-            ! If the first element in the list has not been used.
+            ! Find the hash value corresponding to this determinant.
+            hash_val = FindWalkerHash(nI, table_length)
+            ! Point to the start of the linked list corresponding to hash_val.
+            temp_node => hash_table(hash_val)
             if (temp_node%ind == 0) then
+                ! If we get here then this linked list is currently empty.
                 temp_node%ind = i
             else
                 do while (associated(temp_node%next))
@@ -210,6 +212,44 @@ module hash
         end do
 
     end subroutine fill_in_hash_table
+
+    subroutine remove_hash_table_entry(hash_table, nI, ind)
+
+        ! Find and remove the entry in hash_table corresponding to nI, which
+        ! must have index ind in the hash table. If not found then an error
+        ! will be thrown.
+
+        type(ll_node), pointer, intent(inout) :: hash_table(:)
+        integer, intent(in) :: nI(:)
+        integer, intent(in) :: ind
+
+        integer :: hash_val
+        type(ll_node), pointer :: prev, curr
+        logical :: found
+
+        found = .false.
+
+        ! Find the hash value corresponding to this determinant.
+        hash_val = FindWalkerHash(nI, size(hash_table))
+        ! Point at the start of the linked list for this hash value.
+        curr => hash_table(hash_val)
+        prev => null()
+        ! Loop over all entries in the linked list until we find the one equal
+        ! to ind, the entry that we want to remove.
+        do while (associated(curr))
+            if (curr%ind == ind) then
+                ! If this is the state to be removed.
+                found = .true.
+                call remove_node(prev, curr)
+                exit
+            end if
+            prev => curr
+            curr => curr%next
+        end do
+
+        ASSERT(found)
+
+    end subroutine remove_hash_table_entry
 
     pure subroutine remove_node(prev, curr)
 
@@ -249,41 +289,36 @@ module hash
 
     end subroutine remove_node
 
-    subroutine remove_hash_table_entry(hash_table, nI, ind)
+    subroutine add_hash_table_entry(hash_table, ind, hash_val)
 
-        ! Find and remove the entry in hash_table corresponding to nI, which
-        ! must have index ind in the hash table. If not found then an error
-        ! will be thrown.
+        ! Add an entry of ind into hash_table at an index specified by hash_val.
 
         type(ll_node), pointer, intent(inout) :: hash_table(:)
-        integer, intent(in) :: nI(:)
         integer, intent(in) :: ind
+        integer, intent(in) :: hash_val
 
-        integer :: hash_val
-        type(ll_node), pointer :: prev, curr
-        logical :: found
+        type(ll_node), pointer :: temp_node
+        
+        ! Point to the start of the linked list corresponding to hash_val.
+        temp_node => hash_table(hash_val)
+        if (temp_node%ind == 0) then
+            ! If here then this linked list is empty.
+            ! Just need to add the index to the hash table and exit.
+            temp_node%ind = ind
+        else
+            ! If here then there is at least one entry in this linked list.
+            ! Cycle to the end of the linked list, and add this new entry on
+            ! the end.
+            do while (associated(temp_node%next))
+                temp_node => temp_node%next
+            end do
+            allocate(temp_node%next)
+            nullify(temp_node%next%next)
+            temp_node%next%ind = ind
+        end if
 
-        found = .false.
+        nullify(temp_node)
 
-        hash_val = FindWalkerHash(nI, size(hash_table))
-        curr => hash_table(hash_val)
-        prev => null()
-        do while (associated(curr))
-            if (curr%ind == ind) then
-                ! If this is the state to be removed.
-                found = .true.
-                call remove_node(prev, curr)
-                exit
-            end if
-            prev => curr
-            curr => curr%next
-        end do
-
-        nullify(prev)
-        nullify(curr)
-
-        ASSERT(found)
-
-    end subroutine remove_hash_table_entry
+    end subroutine add_hash_table_entry
       
 end module hash
