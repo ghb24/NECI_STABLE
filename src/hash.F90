@@ -138,7 +138,7 @@ module hash
 
     end subroutine init_hash_table
 
-    pure subroutine reset_hash_table(hash_table)
+    pure subroutine clear_hash_table(hash_table)
 
         type(ll_node), pointer, intent(inout) :: hash_table(:)
         type(ll_node), pointer :: curr, prev
@@ -159,11 +159,11 @@ module hash
         nullify(curr)
         nullify(prev)
 
-    end subroutine reset_hash_table
+    end subroutine clear_hash_table
 
     subroutine fill_in_hash_table(hash_table, table_length, walker_list, list_length, ignore_unocc)
 
-        ! This assumes that the input hash table is clear (use reset_hash_table)
+        ! This assumes that the input hash table is clear (use clear_hash_table)
         ! and that there are no repeats in walker_list.
 
         ! If ignore_unocc dets is input as .true. then unoccupied determinants
@@ -195,20 +195,8 @@ module hash
             call decode_bit_det(nI, walker_list(:,i))
             ! Find the hash value corresponding to this determinant.
             hash_val = FindWalkerHash(nI, table_length)
-            ! Point to the start of the linked list corresponding to hash_val.
-            temp_node => hash_table(hash_val)
-            if (temp_node%ind == 0) then
-                ! If we get here then this linked list is currently empty.
-                temp_node%ind = i
-            else
-                do while (associated(temp_node%next))
-                    temp_node => temp_node%next
-                end do
-                allocate(temp_node%next)
-                nullify(temp_node%next%next)
-                temp_node%next%ind = i
-            end if
-            nullify(temp_node)
+
+            call add_hash_table_entry(hash_table, i, hash_val)
         end do
 
     end subroutine fill_in_hash_table

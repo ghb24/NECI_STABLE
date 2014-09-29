@@ -13,7 +13,7 @@ MODULE PopsfileMod
                         tCCMC, pops_norm, tWritePopsNorm
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt
-    use hash, only: DetermineDetNode, FindWalkerHash, reset_hash_table, &
+    use hash, only: DetermineDetNode, FindWalkerHash, clear_hash_table, &
                     fill_in_hash_table
     use Determinants, only: get_helement, write_det
     use hphf_integrals, only: hphf_diag_helement
@@ -236,7 +236,7 @@ contains
         if (tCalcExtraInfo) then
 
             if (tHashWalkerList) then
-                call reset_hash_table(HashIndex)
+                call clear_hash_table(HashIndex)
                 call fill_in_hash_table(HashIndex, nWalkerHashes, Dets, CurrWalkers, .true.)
             endif
 
@@ -799,7 +799,7 @@ r_loop: do while(.not.tStoreDet)
                               pops_walkers, perturbs)
 
         use CalcData, only : iReadWalkersRoot
-        use hash, only: reset_hash_table, fill_in_hash_table
+        use hash, only: clear_hash_table, fill_in_hash_table
         use perturbations, only: apply_perturbation_array
         use semi_stoch_procs, only: fill_in_diag_helements
 
@@ -855,7 +855,7 @@ r_loop: do while(.not.tStoreDet)
         call fill_in_diag_helements()
 
         if (tHashWalkerList) then
-            call reset_hash_table(HashIndex)
+            call clear_hash_table(HashIndex)
             call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, TotWalkers, .true.)
         end if
 

@@ -26,7 +26,7 @@ module semi_stoch_procs
                          tFillingStochRDMonFly, Iter, IterRDMStart, &
                          core_ham_diag, DavidsonTag, Fii, HFDet, PreviousCycles, &
                          partial_determ_vecs_kp, full_determ_vecs_kp
-    use hash, only: DetermineDetNode, FindWalkerHash, reset_hash_table
+    use hash, only: DetermineDetNode, FindWalkerHash, clear_hash_table
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use nElRDMMod, only: fill_RDM_offdiag_deterministic
@@ -730,7 +730,7 @@ contains
             CurrentDets(:,i) = SpawnedParts(:,i)
         end do
 
-        call reset_hash_table(HashIndex)
+        call clear_hash_table(HashIndex)
 
         ! Finally, add the indices back into the hash index array.
         do i = 1, nwalkers

@@ -19,7 +19,7 @@ module kp_fciqmc_procs
     use FciMCParMod, only: rezero_iter_stats_each_iter, tSinglePartPhase
     use global_det_data, only: det_diagH
     use gndts_mod, only: gndts
-    use hash, only: FindWalkerHash, init_hash_table, reset_hash_table, fill_in_hash_table
+    use hash, only: FindWalkerHash, init_hash_table, clear_hash_table, fill_in_hash_table
     use hash, only: DetermineDetNode, remove_node
     use hilbert_space_size, only: CreateRandomExcitLevDetUnbias, create_rand_heisenberg_det
     use hilbert_space_size, only: create_rand_det_no_sym
@@ -600,7 +600,7 @@ contains
 
         call create_initial_config(kp)
 
-        call reset_hash_table(krylov_vecs_ht)
+        call clear_hash_table(krylov_vecs_ht)
         krylov_vecs = 0_n_int
 
         ! Rezero all the necessary data.
@@ -657,7 +657,7 @@ contains
         character(len=*), parameter :: t_r = "create_init_config"
 
         ! Clear everything from any previous repeats or starting configurations.
-        call reset_hash_table(HashIndex)
+        call clear_hash_table(HashIndex)
 
         if (tStartSinglePart) then
             nwalkers_target = real(InitialPart,dp)
