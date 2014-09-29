@@ -199,7 +199,7 @@ module hash
 
     end subroutine fill_in_hash_table
 
-    pure subroutine remove_hash_table_entry(hash_table, nI, ind)
+    subroutine remove_hash_table_entry(hash_table, nI, ind)
 
         ! Find and remove the entry in hash_table corresponding to nI, which
         ! must have index ind in the hash table. If not found then an error
@@ -212,6 +212,7 @@ module hash
         integer :: hash_val
         type(ll_node), pointer :: prev, curr
         logical :: found
+        character(len=*), parameter :: this_routine = "remove_hash_table_entry"
 
         found = .false.
 
