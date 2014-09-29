@@ -194,7 +194,7 @@ module hash
 
     end subroutine fill_in_hash_table
 
-    subroutine remove_hash_table_entry(hash_table, nI, ind)
+    pure subroutine remove_hash_table_entry(hash_table, nI, ind)
 
         ! Find and remove the entry in hash_table corresponding to nI, which
         ! must have index ind in the hash table. If not found then an error
@@ -270,7 +270,7 @@ module hash
 
     end subroutine remove_node
 
-    subroutine add_hash_table_entry(hash_table, ind, hash_val)
+    pure subroutine add_hash_table_entry(hash_table, ind, hash_val)
 
         ! Add an entry of ind into hash_table at an index specified by hash_val.
 
@@ -301,5 +301,51 @@ module hash
         nullify(temp_node)
 
     end subroutine add_hash_table_entry
+
+    pure subroutine hash_table_lookup(nI, ilut, max_elem, hash_table, dets, ind, found)
+
+        ! Perform a search of dets for ilut, by using hash_table.
+        ! Only elements 0:max_elem will be used in comparing ilut.
+        ! If ilut is found then found will be returned as .true. and ind will
+        ! contain the index of ilut in dets. Else, found will be
+        ! returned as .false. and ind will be unset.
+
+        integer, intent(in) :: nI(:)
+        integer(n_int), intent(in) :: ilut(0:)
+        integer, intent(in) :: max_elem
+        ! Note that hash_table won't actually change, but we need the inout
+        ! label to make this routine pure.
+        type(ll_node), pointer, intent(inout) :: hash_table(:)
+        integer(n_int), intent(in) :: dets(0:,:)
+        integer, intent(out) :: ind
+        logical, intent(out) :: found
+
+        integer :: hash_val
+        type(ll_node), pointer :: temp_node
+
+        found = .false.
+
+        hash_val = FindWalkerHash(nI, size(hash_table))
+        ! Point to the first node in the linked list for this hash value.
+        temp_node => hash_table(hash_val)
+        ! If temp_node%ind = 0 then there are no determinants in dets
+        ! with this hash, so the determinant is not in dets, so return.
+        if (temp_node%ind /= 0) then
+            do while (associated(temp_node))
+                ! Check using the index stored in temp_node to see if we have
+                ! found the searched-for determinant.
+                if (all(ilut(0:max_elem) == dets(0:max_elem, temp_node%ind))) then
+                    found = .true.
+                    ind = temp_node%ind
+                    exit
+                end if
+                ! Move on to the next determinant with this hash value.
+                temp_node => temp_node%next
+            end do
+        end if
+
+        nullify(temp_node)
+
+    end subroutine hash_table_lookup
       
 end module hash

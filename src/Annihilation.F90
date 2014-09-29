@@ -873,27 +873,13 @@ MODULE AnnihilationMod
 !            enddo
 
             if(tHashWalkerList) then
-                !Do not need to binary search list. It is not sorted, but there is a hash table to it.
-                tSuccess=.false.
-                call decode_bit_det (nJ, SpawnedParts(:,i))              
-!                write(6,*) "Sending to hash func 1: ",nJ(:)
-                DetHash=FindWalkerHash(nJ,nWalkerHashes)
-!                write(6,*) "DetHash: ",DetHash
-                TempNode => HashIndex(DetHash)
-                ! If there is atleast one state in CurrentDets with this hash value.
-                if (TempNode%Ind /= 0) then
-                    do while (associated(TempNode))
-                        ASSERT(TempNode%Ind.le.TotWalkersNew)
-                        if(DetBitEQ(SpawnedParts(:,i),CurrentDets(:,TempNode%Ind),NIfDBO)) then
-                            ! We have found the matching determinant
-                            tSuccess=.true.
-                            PartInd=TempNode%Ind
-!                           write(6,*) "Found it at: ",PartInd
-                            exit
-                        endif
-                        TempNode => TempNode%Next
-                    enddo
-                end if
+                call decode_bit_det(nJ, SpawnedParts(:,i)) 
+                ! Search the hash table HashIndex for the determinant defined by
+                ! nJ and SpawnedParts(:,i). If it is found, tSuccess will be
+                ! returned .true. and PartInd will hold the position of the
+                ! determinant in CurrentDets. Else, tSuccess will be returned
+                ! .false. (and PartInd shouldn't be accessed.
+                call hash_table_lookup(nJ, SpawnedParts(:,i), NIfDBO, HashIndex, CurrentDets, PartInd, tSuccess)
             else
                 CALL BinSearchParts(SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
             endif
@@ -1343,7 +1329,6 @@ MODULE AnnihilationMod
         integer :: DetPosition
         HElement_t :: HDiag
         real(dp) :: trial_amp
-        type(ll_node), pointer :: TempNode
         character(len=*), parameter :: t_r="AddNewHashDet"
 
         !update its flag
