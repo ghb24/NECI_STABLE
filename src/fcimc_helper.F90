@@ -54,15 +54,19 @@ contains
         ! ValidSpawnedList
 
         ! 'type' of the particle - i.e. real/imag
+
         integer, intent(in) :: nJ(nel), parent_flags, part_type
-        integer, intent(in) :: WalkersToSpawn, WalkerNo
-        integer(n_int), intent(in) :: iLutJ(0:niftot), ilutI(0:niftot)
-        real(dp), intent(in) :: child(lenof_sign), RDMBiasFacCurr
-        real(dp), intent(in) :: SignCurr(lenof_sign)
+        integer(n_int), intent(in) :: iLutJ(0:niftot)
+        real(dp), intent(in) :: child(lenof_sign)
+        integer(n_int), intent(in), optional :: ilutI(0:niftot)
+        real(dp), intent(in), optional :: SignCurr(lenof_sign)
+        integer, intent(in), optional :: WalkerNo
+        real(dp), intent(in), optional :: RDMBiasFacCurr
+        integer, intent(in), optional :: WalkersToSpawn
         integer :: proc, flags, j
         logical :: parent_init
 
-        proc = DetermineDetNode(nJ,0)    ! 0 -> nNodes-1)
+        proc = DetermineDetNode(nel,nJ,0)    ! 0 -> nNodes-1)
         ! We need to include any flags set both from the parent and from the
         ! spawning steps. No we don't! - ghb
         ! This is highly yucky and needs cleaning up.

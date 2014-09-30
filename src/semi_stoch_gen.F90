@@ -22,8 +22,7 @@ module semi_stoch_gen
                          PDetermTag, IDetermTag, trial_space, trial_space_size, &
                          SemiStoch_Init_Time, tHashWalkerList, full_determ_vector_av, &
                          tStartCoreGroundState
-    use gndts_mod, only: gndts
-    use hash, only: DetermineDetNode
+    use gndts_mod, only: gndts, gndts_all_sym_this_proc
     use LoggingData, only: tWriteCore, tRDMonFly
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
 
@@ -70,7 +69,7 @@ contains
 
         call set_timer(SemiStoch_Init_Time)
 
-        write(6,'(/,"============ Semi-stochastic initialisation ============")'); call neci_flush(6)
+        write(6,'(/,12("="),1x,a30,1x,12("="))') "Semi-stochastic initialisation"; call neci_flush(6)
 
         allocate(determ_proc_sizes(0:nProcessors-1))
         allocate(determ_proc_indices(0:nProcessors-1))
@@ -78,7 +77,8 @@ contains
         determ_proc_indices = 0_MPIArg
 
         if (.not. (tStartCAS .or. tPopsCore .or. tDoublesCore .or. tCASCore .or. tRASCore .or. &
-                   tOptimisedCore .or. tLowECore .or. tReadCore .or. tMP1Core)) then
+                   tOptimisedCore .or. tLowECore .or. tReadCore .or. tMP1Core .or. &
+                   tFCICore .or. tHeisenbergFCICore)) then
             call stop_all("init_semi_stochastic", "You have not selected a semi-stochastic core space to use.")
         end if
         if (.not. tUseRealCoeffs) call stop_all(t_r, "To use semi-stochastic you must also use real coefficients.")
@@ -164,12 +164,13 @@ contains
         end if
 
         ! If starting from a popsfile then global_determinant_data will not
-        ! have been initialised
+        ! have been initialised.
         if (tReadPops) call fill_in_diag_helements()
         SpawnedParts = 0_n_int
         TotWalkersOld = TotWalkers
 
-        if (tStartCoreGroundState .and. (.not. tReadPops)) call start_walkers_from_core_ground()
+        if (tStartCoreGroundState .and. (.not. tReadPops)) &
+            call start_walkers_from_core_ground(tPrintInfo = .true.)
 
         ! Call MPIBarrier here so that Semistoch_Init_Time will give the
         ! initialisation time for all processors to finish.
@@ -220,6 +221,14 @@ contains
                 call generate_low_energy_core(called_from_semistoch)
             else if (tMP1Core) then
                 call generate_using_mp1_criterion(called_from_semistoch)
+            else if (tFCICore) then
+                if (tAllSymSectors) then
+                    call generate_fci_core_all_sym(called_from_semistoch)
+                else
+                    call generate_fci_core(called_from_semistoch)
+                end if
+            else if (tHeisenbergFCICore) then
+                call generate_heisenberg_fci(called_from_semistoch)
             end if
         else if (tCSFCore) then
             if (tDoublesCore) then
@@ -267,6 +276,8 @@ contains
         !     called from, and hence which space this state should be added to.
         ! In (optional) : nI_in - A list of the occupied orbitals in the determinant.
 
+        use hash, only: DetermineDetNode
+
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: called_from
         integer, optional :: nI_in(nel)
@@ -286,7 +297,7 @@ contains
             call decode_bit_det(nI, ilut)
         end if
 
-        proc = DetermineDetNode(nI,0)
+        proc = DetermineDetNode(nel,nI,0)
 
         if (.not. (proc == iProcIndex)) return
 
@@ -837,6 +848,7 @@ contains
         integer, intent(in) :: target_space_size
 
         real(dp), allocatable, dimension(:) :: amps_this_proc, amps_all_procs
+        real(dp) :: real_sign(lenof_sign)
         integer(MPIArg) :: length_this_proc, total_length
         integer(MPIArg) :: lengths(0:nProcessors-1), disps(0:nProcessors-1)
         integer(n_int) :: temp_ilut(0:NIfTot)
@@ -880,9 +892,9 @@ contains
 
         ! Store the amplitudes in their real form.
         do i = 1, length_this_proc
-            call extract_sign(largest_states(:,i), amps_this_proc(i))
+            call extract_sign(largest_states(:,i), real_sign)
             ! We are interested in the absolute values of the ampltiudes.
-            amps_this_proc(i) = abs(amps_this_proc(i))
+            amps_this_proc(i) = sum(abs(real_sign))
         end do
 
         ! Now we want to combine all the most populated states from each processor to find
@@ -1298,6 +1310,96 @@ contains
 
     end subroutine enumerate_sing_doub_kpnt
 
+    subroutine generate_heisenberg_fci(called_from)
+
+        integer, intent(in) :: called_from
+        integer :: nsites, nup
+        integer :: up_spins(nel/2)
+
+        nsites = nbasis/2
+        nup = nel/2
+        call generate_heisenberg_fci_r(1, up_spins, nsites, nup, called_from)
+
+    end subroutine generate_heisenberg_fci
+
+    recursive subroutine generate_heisenberg_fci_r(ispin, up_spins, nsites, nup, called_from)
+
+        integer, intent(in) :: ispin
+        integer, intent(inout) :: up_spins(nel)
+        integer, intent(in) :: nsites, nup, called_from
+        integer :: i, isite, counter, starting_site
+        integer :: alpha_ind, beta_ind, pos
+        integer(n_int) :: ilut(0:NIfTot)
+
+        starting_site = 1
+        if (ispin > 1) starting_site = up_spins(ispin-1) + 1
+
+        do isite = starting_site, nsites
+            counter = 1
+            ilut = 0_n_int
+            up_spins(ispin) = isite
+            ! If we're on the last spin.
+            if (ispin == nup) then
+                do i = 1, nsites
+                    ! If this site has been chosen to have an up spin on it.
+                    if (i == up_spins(counter)) then
+                        alpha_ind = 2*i
+                        pos = (alpha_ind - 1)/bits_n_int
+                        ilut(pos) = ibset(ilut(pos), mod(alpha_ind-1, bits_n_int))
+                        ! Consider the next up spin on the next loop.
+                        counter = counter + 1
+                    else
+                        beta_ind = 2*i-1 
+                        pos = (beta_ind - 1)/bits_n_int
+                        ilut(pos) = ibset(ilut(pos), mod(beta_ind-1, bits_n_int))
+                    end if
+                end do
+                call add_state_to_space(ilut, called_from)
+            else
+                call generate_heisenberg_fci_r(ispin+1, up_spins, nsites, nup, called_from)
+            end if
+        end do 
+        
+    end subroutine generate_heisenberg_fci_r
+
+    subroutine generate_fci_core(called_from)
+
+        integer, intent(in) :: called_from 
+        integer, allocatable :: nI_list(:,:)
+        integer(n_int) :: ilut(0:NIfTot)
+        integer :: proc, temp(1,1), hf_ind, ndets, i
+
+        ! Count the total number of determinants.
+        call gndts(nel, nbasis, BRR, nBasisMax, temp, .true., G1, tSpn, lms, tParity, SymRestrict, ndets, hf_ind)
+        allocate(nI_list(nel, ndets))
+        ! Generate and store all the determinants in nI_list.
+        call gndts(nel, nbasis, BRR, nBasisMax, nI_list, .false., G1, tSpn, lms, tParity, SymRestrict, ndets, hf_ind)
+
+        do i = 1, ndets
+            call EncodeBitDet(nI_list(:,i), ilut)
+            call add_state_to_space(ilut, called_from, nI_list(:,i))
+        end do
+
+    end subroutine generate_fci_core
+
+    subroutine generate_fci_core_all_sym(called_from)
+
+        integer, intent(in) :: called_from 
+        integer :: ndets_this_proc, i
+        integer(n_int), allocatable :: ilut_list(:,:)
+
+        ! Generate and count all the determinants on this processor, but don't store them.
+        call gndts_all_sym_this_proc(ilut_list, .true., ndets_this_proc)
+        allocate(ilut_list(0:NIfTot, ndets_this_proc))
+        ! Now generate them again and store them this time.
+        call gndts_all_sym_this_proc(ilut_list, .false., ndets_this_proc)
+
+        do i = 1, ndets_this_proc
+            call add_state_to_space(ilut_list(:,i), called_from)
+        end do
+
+    end subroutine generate_fci_core_all_sym
+
     subroutine write_most_populated_core_at_end(space_size)
 
         integer, intent(in) :: space_size
@@ -1352,6 +1454,5 @@ contains
         end do
 
     end subroutine write_most_populated_core_at_end
-
 
 end module semi_stoch_gen

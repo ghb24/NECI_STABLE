@@ -11,10 +11,11 @@
 
 module sparse_arrays
 
-    use CalcData, only: tReadPops
-    use constants
     use bit_rep_data, only: NIfTot, NIfDBO
     use bit_reps, only: decode_bit_det
+    use CalcData, only: tReadPops
+    use constants
+    use DetBitOps, only: DetBitEq
     use Determinants, only: get_helement
     use FciMCData, only: determ_space_size, determ_proc_sizes, determ_proc_indices, &
                          SpawnedParts, Hii, core_ham_diag
@@ -85,6 +86,7 @@ contains
         character(len=*), parameter :: t_r = "calculate_sparse_hamiltonian"
 
         allocate(sparse_ham(num_states))
+        allocate(SparseHamilTags(2, num_states))
         allocate(hamiltonian_row(num_states), stat=ierr)
         call LogMemAlloc('hamiltonian_row', num_states, 8, t_r, HRTag, ierr)
         allocate(hamil_diag(num_states), stat=ierr)
@@ -95,8 +97,6 @@ contains
         call LogMemAlloc('sparse_diag_positions', num_states, bytes_int, t_r, SDTag, ierr)
         allocate(indices(num_states), stat=ierr)
         call LogMemAlloc('indices', num_states, bytes_int, t_r, ITag, ierr)
-
-        allocate(SparseHamilTags(2, num_states))
 
         ! Set each element to one to count the diagonal elements straight away.
         sparse_row_sizes = 1
@@ -191,6 +191,115 @@ contains
 
     end subroutine calculate_sparse_hamiltonian
 
+    subroutine calculate_sparse_hamiltonian_parallel(num_states, ilut_list, tPrintInfo)
+
+        integer(MPIArg), intent(in) :: num_states(0:nProcessors-1)
+        integer(n_int), intent(in) :: ilut_list(0:NIfTot, num_states(iProcIndex))
+        logical, intent(in) :: tPrintInfo
+        integer(MPIArg) :: disps(0:nProcessors-1)
+        integer :: i, j, row_size, counter, num_states_tot, ierr, bytes_required
+        integer :: nI(nel), nJ(nel)
+        integer(n_int), allocatable, dimension(:,:) :: temp_store
+        integer(TagIntType) :: TempStoreTag, HRTag, SDTag
+        real(dp), allocatable, dimension(:) :: hamiltonian_row
+        character(len=*), parameter :: t_r = "calculate_sparse_hamiltonian_parallel"
+
+        num_states_tot = int(sum(num_states), sizeof_int)
+        disps(0) = 0
+        do i = 1, nProcessors-1
+            disps(i) = sum(num_states(:i-1))
+        end do
+
+        allocate(sparse_ham(num_states(iProcIndex)))
+        allocate(SparseHamilTags(2, num_states(iProcIndex)))
+        allocate(hamiltonian_row(num_states_tot), stat=ierr)
+        call LogMemAlloc('hamiltonian_row', num_states_tot, 8, t_r, HRTag, ierr)
+        allocate(hamil_diag(num_states(iProcIndex)), stat=ierr)
+        call LogMemAlloc('hamil_diag', int(num_states(iProcIndex),sizeof_int), 8, t_r, HDiagTag, ierr)
+        allocate(temp_store(0:NIfTot, num_states_tot), stat=ierr)
+        call LogMemAlloc('temp_store', num_states_tot*(NIfTot+1), 8, t_r, TempStoreTag, ierr)
+
+        ! Stick together the determinants from all processors, on all processors.
+        call MPIAllGatherV(ilut_list(:,1:num_states(iProcIndex)), temp_store, num_states, disps)
+
+        ! Loop over all determinants on this processor.
+        do i = 1, num_states(iProcIndex)
+
+            call decode_bit_det(nI, ilut_list(:,i))
+
+            row_size = 0
+            hamiltonian_row = 0.0_dp
+
+            ! Loop over all determinants on all processors.
+            do j = 1, num_states_tot
+
+                call decode_bit_det(nJ, temp_store(:,j))
+
+                ! If on the diagonal of the Hamiltonian.
+                if (DetBitEq(ilut_list(:,i), temp_store(:,j), NIfDBO)) then
+                    if (tHPHF) then
+                        hamiltonian_row(j) = hphf_diag_helement(nI, ilut_list(:,i))
+                    else
+                        hamiltonian_row(j) = get_helement(nI, nJ, 0)
+                    end if
+                    hamil_diag(i) = hamiltonian_row(j)
+                    ! Always include the diagonal elements.
+                    row_size = row_size + 1
+                else
+                    if (tHPHF) then
+                        hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, ilut_list(:,i), temp_store(:,j))
+                    else
+                        hamiltonian_row(j) = get_helement(nI, nJ, ilut_list(:,i), temp_store(:,j))
+                    end if
+                    if (abs(hamiltonian_row(j)) > 0.0_dp) row_size = row_size + 1
+                end if
+
+            end do
+
+            if (tPrintInfo) then
+                if (i == 1) then
+                    bytes_required = row_size*(8+bytes_int)
+                    write(6,'(1x,a43)') "About to allocate first row of Hamiltonian."
+                    write(6,'(1x,a40,1x,i8)') "The memory (bytes) required for this is:", bytes_required
+                    write(6,'(1x,a71,1x,i7)') "The total number of determinants (and hence rows) on this processor is:", &
+                                               num_states(iProcIndex)
+                    write(6,'(1x,a58,1x,i7)') "The total number of determinants across all processors is:", num_states_tot
+                    write(6,'(1x,a77,1x,i7)') "It is therefore expected that the total memory (MB) required will be roughly:", &
+                                               num_states_tot*bytes_required/1000000
+                else if (mod(i,1000) == 0) then
+                    write(6,'(1x,a23,1x,i7)') "Finished computing row:", i
+                end if
+            end if
+
+            ! Now we know the number of non-zero elements in this row of the Hamiltonian, so allocate it.
+            call allocate_sparse_ham_row(sparse_ham, i, row_size, "sparse_ham", SparseHamilTags(:,i)) 
+
+            sparse_ham(i)%elements = 0.0_dp
+            sparse_ham(i)%positions = 0
+            sparse_ham(i)%num_elements = row_size
+
+            counter = 1
+            do j = 1, num_states_tot
+                ! If non-zero or a diagonal element.
+                if (abs(hamiltonian_row(j)) > 0.0_dp .or. (j == i + disps(iProcIndex)) ) then
+                    sparse_ham(i)%positions(counter) = j
+                    sparse_ham(i)%elements(counter) = hamiltonian_row(j)
+                    counter = counter + 1
+                end if
+                if (counter == row_size + 1) exit
+            end do
+
+        end do
+
+        call MPIBarrier(ierr)
+
+        deallocate(temp_store, stat=ierr)
+        call LogMemDealloc(t_r, TempStoreTag, ierr)
+        deallocate(hamiltonian_row, stat=ierr)
+        call LogMemDealloc(t_r, HRTag, ierr)
+
+    end subroutine calculate_sparse_hamiltonian_parallel
+
     subroutine calc_determ_hamil_sparse()
 
         integer :: i, j, row_size, counter, ierr
@@ -206,8 +315,7 @@ contains
         call LogMemAlloc('hamiltonian_row', int(determ_space_size,sizeof_int), 8, t_r, HRTag, ierr)
         allocate(core_ham_diag(determ_proc_sizes(iProcIndex)), stat=ierr)
         allocate(temp_store(0:NIfTot, determ_space_size), stat=ierr)
-        call LogMemAlloc('temp_store', maxval(determ_proc_sizes)*(NIfTot+1), 8, t_r, &
-                         TempStoreTag, ierr)
+        call LogMemAlloc('temp_store', determ_space_size*(NIfTot+1), 8, t_r, TempStoreTag, ierr)
 
         ! Stick together the deterministic states from all processors, on all processors.
         call MPIAllGatherV(SpawnedParts(:,1:determ_proc_sizes(iProcIndex)), temp_store, &

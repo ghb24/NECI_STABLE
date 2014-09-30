@@ -15,7 +15,8 @@ LOGICAL :: TLADDER,TMC,TREADRHO,TRHOIJ,TBiasing,TMoveDets
 LOGICAL :: TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
 LOGICAL :: TInitStar,TNoSameExcit,TLanczos,TStarTrips
 LOGICAL :: TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
-LOGICAL ::THDiag,TMCStar,TReadPops,TBinCancel,TFCIMC,TMCDets,tDirectAnnihil,tCCMC, tDetermProj
+LOGICAL ::THDiag,TMCStar,TReadPops,TBinCancel,TFCIMC,TMCDets,tDirectAnnihil,tCCMC
+LOGICAL :: tDetermProj, tFTLM, tSpecLanc, tExactSpec, tExactDiagAllSym
 LOGICAL :: TFullUnbias,TNoAnnihil,tStartMP1
 LOGICAL :: TRhoElems,TReturnPathMC,TSignShift
 LOGICAL :: THFRetBias,TProjEMP2,TFixParticleSign
@@ -59,7 +60,8 @@ INTEGER :: NEquilSteps
 real(dp) :: InitialPart
 real(dp), dimension(lenof_sign) :: InitialPartVec
 INTEGER :: OccCASorbs,VirtCASorbs,iAnnInterval
-integer :: iPopsFileNoRead, iPopsFileNoWrite,iWeightPopRead,iRestartWalkNum
+integer :: iPopsFileNoRead, iPopsFileNoWrite,iRestartWalkNum
+real(dp) :: iWeightPopRead
 integer :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
 INTEGER(int64) :: HFPopThresh
 real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo
@@ -125,6 +127,10 @@ logical :: tLowECore
 ! of the determinants in the MP1 wave function will be used to determine which to keep. Otherwise all singles and
 ! doubles are kept.
 logical :: tMP1Core 
+! Use the entire Hilbert space as the core space.
+logical :: tFCICore
+logical :: tHeisenbergFCICore
+logical :: tSparseCoreHamil ! Use a sparse representation of the core Hamiltonian.
 ! cas_determ_bitmask has all bits that refer to the active space set, and all other bits unset.
 ! cas_not_determ_bitmask is simply the result after the not operation is applied to cas_determ_bitmask.
 integer(n_int), allocatable, dimension(:) :: cas_determ_bitmask
@@ -181,6 +187,9 @@ logical :: tLowETrial
 ! of the determinants in the MP1 wave function will be used to determine which to keep. Otherwise all singles and
 ! doubles are kept.
 logical :: tMP1Trial
+! Use the entire Hilbert space as the trial space.
+logical :: tFCITrial
+logical :: tHeisenbergFCITrial
 real(dp), allocatable, dimension(:) :: trial_space_cutoff_amp
 integer, allocatable, dimension(:) :: trial_space_cutoff_num
 ! When using a CAS trial space, these integers store the number of orbitals above and below the Fermi energy to
@@ -205,6 +214,19 @@ integer :: low_e_trial_num_keep
 logical :: tLowETrialAllDoubles
 ! When using the tMP1Trial option, this specifies how many determinants to keep.
 integer :: trial_mp1_ndets
+
+! True if running a kp-fciqmc calculation.
+logical :: tKP_FCIQMC
+
+! If this is true then we only start varying shift when we get *below* the target population, rather than above it.
+! This is useful when we want to start from a large and high-energy population and let many walkers quickly die with
+! a constant shift (i.e. finite-temperature calculations).
+logical :: tLetInitialPopDie
+
+! Calculate the norms of the *unperturbed* POPSFILE wave functions and output them to a file.
+logical :: tWritePopsNorm
+real(dp) :: pops_norm
+integer :: pops_norm_unit
 
 ! What is the maximum energy, above which all particles are treated as
 ! initiators

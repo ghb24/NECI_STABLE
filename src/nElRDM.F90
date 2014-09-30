@@ -2058,7 +2058,7 @@ MODULe nElRDMMod
             iLutnJ(:)=0
             CALL EncodeBitDet(nJ,iLutnJ)
 
-            Proc = DetermineDetNode(nJ,0)   
+            Proc = DetermineDetNode(nel,nJ,0)   
             !This will return a value between 0 -> nProcessors-1
             Sing_ExcDjs(:,Sing_ExcList(Proc)) = iLutnJ(:)
             Sing_ExcList(Proc) = Sing_ExcList(Proc)+1
@@ -2105,7 +2105,7 @@ MODULe nElRDMMod
                 iLutnJ(:)=0
                 CALL EncodeBitDet(nJ,iLutnJ)
 
-                Proc = DetermineDetNode(nJ,0)   
+                Proc = DetermineDetNode(nel,nJ,0)   
                 !This will return a value between 0 -> nProcessors-1
                 Doub_ExcDjs(:,Doub_ExcList(Proc)) = iLutnJ(:)
                 ! All the double excitations from this particular nI are being 
@@ -2180,7 +2180,7 @@ MODULe nElRDMMod
             iLutnJ(:)=0
             CALL EncodeBitDet(nJ,iLutnJ)
 
-            Proc = DetermineDetNode(nJ,0)   
+            Proc = DetermineDetNode(nel,nJ,0)   
             !This will return a value between 0 -> nProcessors-1
             Sing_ExcDjs(:,Sing_ExcList(Proc)) = iLutnJ(:)
             Sing_ExcList(Proc) = Sing_ExcList(Proc)+1
@@ -2227,7 +2227,7 @@ MODULe nElRDMMod
                 iLutnJ(:)=0
                 CALL EncodeBitDet(nJ,iLutnJ)
 
-                Proc = DetermineDetNode(nJ,0)   
+                Proc = DetermineDetNode(nel,nJ,0)   
                 !This will return a value between 0 -> nProcessors-1
                 Doub_ExcDjs(:,Doub_ExcList(Proc)) = iLutnJ(:)
                 ! All the double excitations from this particular nI are being 

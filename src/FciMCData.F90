@@ -1,3 +1,5 @@
+#include "macros.h"
+
 MODULE FciMCData
       use iso_c_hack
       use SystemData, only: BasisFN
@@ -31,6 +33,7 @@ MODULE FciMCData
 
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: WalkVecDets(:,:)                !Contains determinant list
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
+      INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVecKP(:,:), SpawnVecKP2(:,:)
 
       INTEGER(TagIntType) :: WalkVecDetsTag=0
       INTEGER(TagIntType) :: SpawnVecTag=0,SpawnVec2Tag=0
@@ -38,6 +41,15 @@ MODULE FciMCData
 !Pointers to point at the correct arrays for use
       INTEGER(KIND=n_int) , POINTER :: CurrentDets(:,:)
       INTEGER(KIND=n_int) , POINTER :: SpawnedParts(:,:),SpawnedParts2(:,:)
+      INTEGER(KIND=n_int) , POINTER :: SpawnedPartsKP(:,:), SpawnedPartsKP2(:,:)
+
+      ! In some instances (such as when applying a perturbation operator) it is
+      ! useful to store the vector read in from the popsfile in a separate
+      ! array. This is what popsfile_dets is used for.
+      integer(n_int), allocatable :: popsfile_dets(:,:)
+      ! If true then the above array will be allocated to be the same size as
+      ! WalkVecDets.
+      logical :: alloc_popsfile_dets
 
       INTEGER(KIND=n_int) , ALLOCATABLE :: Spawned_Parents(:,:)
       INTEGER , ALLOCATABLE :: Spawned_Parents_Index(:,:)
@@ -94,6 +106,7 @@ MODULE FciMCData
       INTEGER(TagIntType) :: HFDetTag=0
 
       INTEGER :: MaxWalkersPart,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
+      integer :: MaxWalkersUncorrected
       integer(int64) :: TotWalkers, TotWalkersOld
       real(dp), dimension(lenof_sign) :: TotParts, TotPartsOld
       real(dp), dimension(inum_runs) :: norm_psi_squared
@@ -135,8 +148,8 @@ MODULE FciMCData
       real(dp), dimension(inum_runs) :: trial_numerator, tot_trial_numerator
       real(dp), dimension(inum_runs) :: trial_denom, tot_trial_denom
 
-      real(dp), dimension(lenof_sign) :: SumNoatHF !This is the sum over all previous cycles of the number of particles at 
-                                                   !the HF determinant
+      ! This is the sum over all previous cycles of the number of particles at the HF determinant
+      real(dp), dimension(lenof_sign) :: SumNoatHF 
       real(dp) :: AvSign           !This is the average sign of the particles on each node
       real(dp) :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
       real(dp), dimension(inum_runs) :: SumWalkersCyc    !This is the sum of all walkers over an update cycle on each processor
@@ -215,7 +228,8 @@ MODULE FciMCData
                            Comms_Time, AnnSpawned_time, AnnMain_time, &
                            BinSearch_time, SemiStoch_Comms_Time, &
                            SemiStoch_Multiply_Time, Trial_Search_Time, &
-                           SemiStoch_Init_Time, Trial_Init_Time
+                           SemiStoch_Init_Time, Trial_Init_Time, &
+                           kp_generate_time
       
       ! Store the current value of S^2 between update cycles
       real(dp), dimension(inum_runs) :: curr_S2, curr_S2_init
@@ -259,6 +273,9 @@ MODULE FciMCData
       INTEGER , ALLOCATABLE :: ValidSpawnedList(:) 
  !This is set up as the initial ValidSpawnedList elements, so that it does not need to be reevaluated each time.
       INTEGER , ALLOCATABLE :: InitialSpawnedSlots(:) 
+
+      ! For use in kp-fciqmc code. How many different determinants are spawned onto this processor?
+      integer :: max_spawned_ind
 
       integer :: WalkersDiffProc, PartsDiffProc
 
@@ -386,6 +403,9 @@ MODULE FciMCData
       real(dp), allocatable, dimension(:,:) :: full_determ_vector
       real(dp), allocatable, dimension(:,:) :: full_determ_vector_av
 
+      real(dp), allocatable, dimension(:,:) :: partial_determ_vecs_kp
+      real(dp), allocatable, dimension(:,:) :: full_determ_vecs_kp
+
       ! determ_proc_sizes(i) holds the core space size on processor i.
       integer(MPIArg), allocatable, dimension(:) :: determ_proc_sizes
       ! determ_proc_indices(i) holds sum(determ_proc_sizes(i-1)), that is, the
@@ -484,5 +504,100 @@ MODULE FciMCData
       type(direct_ci_excit), allocatable, dimension(:) :: davidson_excits
 
       real(dp) :: max_cyc_spawn, all_max_cyc_spawn
+
+      ! Type containing information on a perturbation operator, constructed from
+      ! a string of creation and annihilation operators.
+      type perturbation
+          ! The number of annihilation operators in the perturbation.
+          integer :: nannihilate = 0
+          ! The orbitals to be annihilated.
+          integer, allocatable :: ann_orbs(:)
+          ! The elements in the ilut representation where the occupation of the above orbs are encoded.
+          integer, allocatable :: ann_elems(:)
+          ! The positions of the bits in the bitstring representation where the above orbs are encoded.
+          integer, allocatable :: ann_bits(:)
+
+          ! The number of creation operators in the perturbation.
+          integer :: ncreate = 0
+          ! The orbitals to be created.
+          integer, allocatable :: crtn_orbs(:)
+          ! The elements in the ilut representation where the occupation of the above orbs are encoded.
+          integer, allocatable :: crtn_elems(:)
+          ! The positions of the bits in the bitstring representation where the above orbs are encoded.
+          integer, allocatable :: crtn_bits(:)
+      end type perturbation
+
+      type(perturbation), allocatable :: pops_pert(:)
+
+contains
+
+    subroutine set_initial_global_data(ndets, ilut_list)
+
+        use bit_rep_data, only: NIfTot, NIfDBO, extract_sign
+        use Parallel_neci, only: iProcIndex, MPISumAll
+
+        ! Take in a list of determinants and calculate and set all of the
+        ! global data needed for the start of a FCIQMC calculation.
+
+        integer, intent(in) :: ndets
+        integer(n_int), intent(inout) :: ilut_list(0:NIfTot,ndets)
+
+        integer :: i, run
+        real(dp) :: real_sign(lenof_sign)
+        character(*), parameter :: t_r = 'set_initial_global_data'
+
+        TotParts = 0.0_dp
+        NoAtHF = 0.0_dp
+
+        ! First, find the population of the walkers in walker_list.
+        do i = 1, ndets
+            call extract_sign(ilut_list(:,i), real_sign)
+            TotParts = TotParts + abs(real_sign)
+            if ( all(ilut_list(0:NIfDBO,i) == iLutRef(0:NIfDBO)) ) NoAtHF = real_sign
+        end do
+
+        TotWalkers = ndets
+        TotWalkersOld = TotWalkers
+        call MPISumAll(TotWalkers,AllTotWalkers)
+        AllTotWalkersOld = AllTotWalkers
+
+        TotPartsOld = TotParts
+        call MPISumAll(TotParts, AllTotParts)
+        AllTotPartsOld = AllTotParts
+
+        call MPISumAll(NoatHF, AllNoatHF)
+        OldAllNoatHF = AllNoatHF
+
+#ifdef __CMPLX
+        OldAllAvWalkersCyc = sum(AllTotParts)
+#else
+        OldAllAvWalkersCyc = AllTotParts
+#endif
+
+        do run = 1, inum_runs
+            OldAllHFCyc(run) = ARR_RE_OR_CPLX(AllNoatHF, run)
+        end do
+
+        AllNoAbortedOld(:) = 0.0_dp
+
+        iter_data_fciqmc%tot_parts_old = AllTotParts
+        
+        ! Calculate the projected energy for this iteration.
+        do run = 1, inum_runs
+            if (ARR_RE_OR_CPLX(AllSumNoAtHF,run) /= 0) &
+                ProjectionE(run) = AllSumENum(run) / ARR_RE_OR_CPLX(AllSumNoatHF,run)
+        enddo 
+
+        if (iProcIndex == iHFProc) then
+            SumNoatHF(:) = AllSumNoatHF(:)
+            SumENum(:) = AllSumENum(:)
+            InstNoatHF(:) = NoatHF(:)
+
+            if ( any(AllNoatHF /= NoatHF) ) then
+                call stop_all(t_r, "HF particles spread across different processors.")
+            endif
+        endif
+
+    end subroutine set_initial_global_data
 
 END MODULE FciMCData
