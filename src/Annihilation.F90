@@ -1448,7 +1448,7 @@ MODULE AnnihilationMod
                     enddo
 
                     TotParts=TotParts+abs(CurrentSign)
-#ifdef __CMPLX || __DOUBLERUN
+#if defined(__CMPLX) || defined(__DOUBLERUN)
                     norm_psi_squared = norm_psi_squared + sum(CurrentSign**2)
                     if(tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + sum(CurrentSign**2)
 #else
@@ -1486,9 +1486,9 @@ MODULE AnnihilationMod
                 if(tFillingStochRDMonFly .and. (.not. tIsStateDeterm)) then
                     if(inum_runs.eq.2) then
 
-                        if ((CurrentSign(1) == 0 .and. get_av_sgn(i, 2) /= 0) .or. &
+                        if ((CurrentSign(1) == 0 .and. get_iter_occ(i, 1) /= 0) .or. &
                             (CurrentSign(inum_runs) == 0 .and. get_iter_occ(i, 2) /= 0) .or. &
-                            (CurrentSign(1) /= 0 .and. get_av_sgn(i, 2) == 0) .or. &
+                            (CurrentSign(1) /= 0 .and. get_iter_occ(i, 1) == 0) .or. &
                             (CurrentSign(inum_runs) /= 0 .and. get_iter_occ(i, 2) == 0)) then
                         !if(((CurrentSign(1).eq.0).and.(CurrentH(2+lenof_sign,i).ne.0)) .or. &
                         !        & ((CurrentSign(inum_runs).eq.0).and.(CurrentH(1+2*lenof_sign,i).ne.0)) .or. &
@@ -1633,9 +1633,9 @@ MODULE AnnihilationMod
                 if(tFillingStochRDMonFly .and. (.not. tIsStateDeterm)) then
                     if(inum_runs.eq.2) then
 
-                        if ((CurrentSign(1) == 0 .and. get_av_sgn(i, 2) /= 0) .or. &
+                        if ((CurrentSign(1) == 0 .and. get_iter_occ(i, 1) /= 0) .or. &
                             (CurrentSign(inum_runs) == 0 .and. get_iter_occ(i, 2) /= 0) .or. &
-                            (CurrentSign(1) /= 0 .and. get_av_sgn(i, 2) == 0) .or. &
+                            (CurrentSign(1) /= 0 .and. get_iter_occ(i, 1) == 0) .or. &
                             (CurrentSign(inum_runs) /= 0 .and. get_iter_occ(i, 2) == 0)) then
                         
                         !((CurrentSign(1).eq.0).and.(CurrentH(2+lenof_sign,i).ne.0)) .or. &
