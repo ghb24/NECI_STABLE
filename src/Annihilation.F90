@@ -31,7 +31,7 @@ MODULE AnnihilationMod
     use LoggingData , only : tNoNewRDMContrib
     use util_mod, only: get_free_unit, binary_search_custom
     use sparse_arrays, only: trial_ht, con_ht
-    use global_det_data, only: set_det_diagH, get_iter_occ, get_av_sgn, &
+    use global_det_data, only: set_det_diagH, get_iter_occ, &
                                global_determinant_data
     use searching
     use hash
