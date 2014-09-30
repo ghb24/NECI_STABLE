@@ -543,7 +543,7 @@ contains
 
     subroutine fill_in_diag_helements()
 
-        integer(int64) :: i
+        integer :: i
         integer :: nI(nel)
         real(dp) :: tmpH
 
