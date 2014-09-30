@@ -878,7 +878,7 @@ MODULE AnnihilationMod
                 ! nJ and SpawnedParts(:,i). If it is found, tSuccess will be
                 ! returned .true. and PartInd will hold the position of the
                 ! determinant in CurrentDets. Else, tSuccess will be returned
-                ! .false. (and PartInd shouldn't be accessed.
+                ! .false. (and PartInd shouldn't be accessed).
                 ! Also, the hash value, DetHash, is returned by this routine.
                 call hash_table_lookup(nJ, SpawnedParts(:,i), NIfDBO, HashIndex, CurrentDets, PartInd, DetHash, tSuccess)
             else
@@ -1486,9 +1486,9 @@ MODULE AnnihilationMod
                 if(tFillingStochRDMonFly .and. (.not. tIsStateDeterm)) then
                     if(inum_runs.eq.2) then
 
-                        if ((CurrentSign(1) == 0 .and. get_av_sgn(i, 2) /= 0) .or. &
+                        if ((CurrentSign(1) == 0 .and. get_iter_occ(i, 1) /= 0) .or. &
                             (CurrentSign(inum_runs) == 0 .and. get_iter_occ(i, 2) /= 0) .or. &
-                            (CurrentSign(1) /= 0 .and. get_av_sgn(i, 2) == 0) .or. &
+                            (CurrentSign(1) /= 0 .and. get_iter_occ(i, 1) == 0) .or. &
                             (CurrentSign(inum_runs) /= 0 .and. get_iter_occ(i, 2) == 0)) then
                         !if(((CurrentSign(1).eq.0).and.(CurrentH(2+lenof_sign,i).ne.0)) .or. &
                         !        & ((CurrentSign(inum_runs).eq.0).and.(CurrentH(1+2*lenof_sign,i).ne.0)) .or. &
@@ -1633,9 +1633,9 @@ MODULE AnnihilationMod
                 if(tFillingStochRDMonFly .and. (.not. tIsStateDeterm)) then
                     if(inum_runs.eq.2) then
 
-                        if ((CurrentSign(1) == 0 .and. get_av_sgn(i, 2) /= 0) .or. &
+                        if ((CurrentSign(1) == 0 .and. get_iter_occ(i, 1) /= 0) .or. &
                             (CurrentSign(inum_runs) == 0 .and. get_iter_occ(i, 2) /= 0) .or. &
-                            (CurrentSign(1) /= 0 .and. get_av_sgn(i, 2) == 0) .or. &
+                            (CurrentSign(1) /= 0 .and. get_iter_occ(i, 1) == 0) .or. &
                             (CurrentSign(inum_runs) /= 0 .and. get_iter_occ(i, 2) == 0)) then
                         
                         !((CurrentSign(1).eq.0).and.(CurrentH(2+lenof_sign,i).ne.0)) .or. &
