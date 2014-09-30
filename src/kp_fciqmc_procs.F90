@@ -25,7 +25,7 @@ module kp_fciqmc_procs
     use hilbert_space_size, only: create_rand_det_no_sym
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use LoggingData, only: tIncrementPops
-    use Parallel_neci, only: MPIBarrier, iProcIndex, MPISum, MPIReduce, nProcessors, MPIAllReduce
+    use Parallel_neci, only: MPIBarrier, iProcIndex, MPISum, MPISumAll, nProcessors
     use ParallelHelper, only: root
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
     use PopsfileMod, only: read_popsfile_wrapper
@@ -758,7 +758,7 @@ contains
                 if (IsUnoccDet(real_sign) .and. (.not. tCoreDet)) HolesInList = HolesInList + 1
             end do
             TotWalkersInit = TotWalkers - HolesInList
-            call MPIAllReduce(TotWalkersInit, MPI_SUM, AllTotWalkers)
+            call MPISumAll(TotWalkersInit, AllTotWalkers)
             AllTotWalkersInit = AllTotWalkers
             TotPartsInit = TotParts
             AllTotPartsInit = AllTotParts
@@ -876,7 +876,7 @@ contains
         ! Add the entries into the hash table.
         call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, ndets, .true.)
 
-        call MPIReduce(TotParts, MPI_SUM, AllTotParts)
+        call MPISum(TotParts, AllTotParts)
         AllTotPartsOld = AllTotParts
         TotWalkers = int(ndets, int64)
 
@@ -1005,7 +1005,7 @@ contains
 
         end do
 
-        call MPIReduce(TotParts, MPI_SUM, AllTotParts)
+        call MPISum(TotParts, AllTotParts)
         TotPartsOld = TotParts
         AllTotPartsOld = AllTotParts
         TotWalkers = int(ndets, int64)
@@ -1089,7 +1089,7 @@ contains
             input_pop = input_pop + abs(real_sign)
         end do
 
-        call MPIAllReduce(input_pop, MPI_SUM, all_input_pop)
+        call MPISumAll(input_pop, all_input_pop)
 
         ! Just use the first particle type to determine the scaing factor.
         scaling_factor = target_pop/all_input_pop(1)
