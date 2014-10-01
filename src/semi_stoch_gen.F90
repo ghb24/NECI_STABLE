@@ -1400,12 +1400,18 @@ contains
 
     end subroutine generate_fci_core_all_sym
 
-    subroutine write_most_populated_core_at_end(space_size)
+    subroutine write_most_pop_core_at_end(space_size)
+
+        ! Write the most populated states in CurrentDets to a CORESPACE file,
+        ! using the routine generate_space_most_populated, which is the same
+        ! routine used by the pops-core semi-stochastic input option. So this
+        ! routine basically generates a pops-core space, but can be used at the
+        ! end of a calculation, rather than at the start.
 
         integer, intent(in) :: space_size
         integer :: i, j, k, ierr, iunit
         logical :: texist
-        character(*), parameter :: t_r = "write_most_populated_core_at_end"
+        character(*), parameter :: t_r = "write_most_pop_core_at_end"
 
         write(6,'(/,"Finding most populated states...")'); call neci_flush(6)
 
@@ -1453,6 +1459,6 @@ contains
 
         end do
 
-    end subroutine write_most_populated_core_at_end
+    end subroutine write_most_pop_core_at_end
 
 end module semi_stoch_gen

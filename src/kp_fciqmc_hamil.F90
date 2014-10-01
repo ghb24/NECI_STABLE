@@ -17,7 +17,7 @@ contains
         use FciMCData, only: fcimc_excit_gen_store, exFlag, partial_determ_vecs_kp
         use procedure_pointers, only: generate_excitation, encode_child, get_spawn_helement
         use semi_stoch_procs, only: is_core_state, check_determ_flag
-        use semi_stoch_procs, only: deterministic_projection_kp_hamil
+        use semi_stoch_procs, only: determ_projection_kp_hamil
         use SystemData, only: nbasis, tAllSymSectors, nOccAlpha, nOccBeta
         use util_mod, only: stochastic_round
         
@@ -135,7 +135,7 @@ contains
         call calc_hamil_contribs_diag(kp)
 
         if (tSemiStochasticKPHamil) then
-            call deterministic_projection_kp_hamil()
+            call determ_projection_kp_hamil()
             call calc_hamil_contribs_semistoch(kp)
         end if
 

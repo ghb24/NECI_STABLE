@@ -136,8 +136,8 @@ MODULE FciMCParMod
                          fill_rdm_diag_currdet_norm, calc_rdmbiasfac
     use determ_proj, only: perform_determ_proj
     use semi_stoch_gen, only: init_semi_stochastic, enumerate_sing_doub_kpnt, &
-                              write_most_populated_core_at_end
-    use semi_stoch_procs, only: deterministic_projection, return_most_populated_states, &
+                              write_most_pop_core_at_end
+    use semi_stoch_procs, only: determ_projection, return_most_populated_states, &
                                 end_semistoch, is_core_state, return_mp1_amp_and_mp2_energy, &
                                 recalc_core_hamil_diag
     use trial_wf_gen, only: init_trial_wf, update_compare_trial_file, end_trial_wf
@@ -544,7 +544,7 @@ MODULE FciMCParMod
 
         ! If requested, write the most populated states in CurrentDets to a
         ! CORESPACE file, for use in future semi-stochastic calculations.
-        if (tWriteCoreEnd) call write_most_populated_core_at_end(write_end_core_size)
+        if (tWriteCoreEnd) call write_most_pop_core_at_end(write_end_core_size)
 
         IF(tHistSpawn) CALL WriteHistogram()
 
@@ -1094,7 +1094,7 @@ MODULE FciMCParMod
 
         ! For semi-stochastic calculations only: Gather together the parts of the deterministic vector stored
         ! on each processor, and then perform the multiplication of the exact projector on this vector.
-        if (tSemiStochastic) call deterministic_projection()
+        if (tSemiStochastic) call determ_projection()
 
         if(tHashWalkerList) then
             !With this algorithm, the determinants do not move, and therefore TotWalkersNew is simply equal

@@ -19,7 +19,7 @@ module determ_proj
                          determ_space_size, partial_determ_vector, full_determ_vector, &
                          determ_proc_indices, TotWalkers
     use Parallel_neci, only: iProcIndex, MPIAllGatherV, MPISum
-    use semi_stoch_procs, only: deterministic_projection
+    use semi_stoch_procs, only: determ_projection
     use sparse_arrays, only: sparse_core_ham
 
     implicit none
@@ -83,7 +83,7 @@ contains
 
             partial_determ_vector(1,:) = wavefunction
 
-            call deterministic_projection()
+            call determ_projection()
 
             wavefunction = wavefunction + partial_determ_vector(1,:)
 

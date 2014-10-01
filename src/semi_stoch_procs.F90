@@ -48,7 +48,7 @@ module semi_stoch_procs
 
 contains
 
-    subroutine deterministic_projection()
+    subroutine determ_projection()
 
         ! This subroutine gathers together the partial_determ_vectors from each processor so
         ! that the full vector for the whole deterministic space is stored on each processor.
@@ -104,9 +104,9 @@ contains
 
         call halt_timer(SemiStoch_Multiply_Time)
 
-    end subroutine deterministic_projection
+    end subroutine determ_projection
 
-    subroutine deterministic_projection_kp_hamil()
+    subroutine determ_projection_kp_hamil()
 
         integer :: i, j, info, ierr
 
@@ -139,7 +139,7 @@ contains
 
         call halt_timer(SemiStoch_Multiply_Time)
 
-    end subroutine deterministic_projection_kp_hamil
+    end subroutine determ_projection_kp_hamil
 
     function is_core_state(ilut, nI) result (core_state)
 
@@ -951,11 +951,14 @@ contains
 
     end subroutine start_walkers_from_core_ground
 
-    subroutine copy_core_dets_this_proc_to_spawnedparts()
+    subroutine copy_core_dets_to_spawnedparts()
+
+        ! This routine will copy all the core determinants *ON THIS PROCESS
+        ! ONLY* to the SpawnedParts array.
 
         integer :: i, ncore, proc
         integer :: nI(nel)
-        character (len=*), parameter :: t_r = "copy_core_dets_this_proc_to_spawnedparts"
+        character (len=*), parameter :: t_r = "copy_core_dets_to_spawnedparts"
 
         ncore = 0
         SpawnedParts = 0_n_int
@@ -972,7 +975,7 @@ contains
         if (ncore /= determ_proc_sizes(iProcIndex)) call stop_all("t_r", "The number of &
             &core determinants counted is less than was previously counted.")
 
-    end subroutine copy_core_dets_this_proc_to_spawnedparts
+    end subroutine copy_core_dets_to_spawnedparts
 
     subroutine return_mp1_amp_and_mp2_energy(nI, ilut, ex, tParity, amp, energy_contrib)
 

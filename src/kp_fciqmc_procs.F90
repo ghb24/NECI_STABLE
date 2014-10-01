@@ -30,7 +30,7 @@ module kp_fciqmc_procs
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
     use PopsfileMod, only: read_popsfile_wrapper
     use procedure_pointers
-    use semi_stoch_procs, only: copy_core_dets_this_proc_to_spawnedparts, fill_in_diag_helements
+    use semi_stoch_procs, only: copy_core_dets_to_spawnedparts, fill_in_diag_helements
     use semi_stoch_procs, only: add_core_states_currentdet_hash, start_walkers_from_core_ground
     use semi_stoch_procs, only: check_determ_flag
     use sym_mod, only: getsym
@@ -691,7 +691,7 @@ contains
                 if (tSemiStochastic) then
                     ! core_space stores all core determinants from all processors. Move those on this
                     ! processor to SpawnedParts, which add_core_states_currentdet_hash uses.
-                    call copy_core_dets_this_proc_to_spawnedparts()
+                    call copy_core_dets_to_spawnedparts()
                     ! Any core space determinants which are not already in CurrentDets will be added
                     ! by this routine.
                     call add_core_states_currentdet_hash()
@@ -883,7 +883,7 @@ contains
         if (tSemiStochastic) then
             ! Always need the core determinants to be at the top of CurrentDets, even when unoccupied.
             ! These routines will do this.
-            call copy_core_dets_this_proc_to_spawnedparts()
+            call copy_core_dets_to_spawnedparts()
             call add_core_states_currentdet_hash()
         end if
 
@@ -1013,7 +1013,7 @@ contains
         if (tSemiStochastic) then
             ! Always need the core determinants to be at the top of CurrentDets, even when unoccupied.
             ! These routines will do this.
-            call copy_core_dets_this_proc_to_spawnedparts()
+            call copy_core_dets_to_spawnedparts()
             call add_core_states_currentdet_hash()
         else
             ! Remove the nodes of all unoccupied determinants from the hash table.
@@ -1707,14 +1707,16 @@ contains
 
     end subroutine output_average_kp_matrix
 
-    subroutine average_and_communicate_pert_overlaps(nrepeats)
+    subroutine average_and_comm_pert_overlaps(nrepeats)
+
+        ! Average and perform MPI communication.
 
         integer, intent(in) :: nrepeats
 
         pert_overlaps = pert_overlaps/nrepeats
         call MPISum(pert_overlaps, kp_all_pert_overlaps)
 
-    end subroutine average_and_communicate_pert_overlaps
+    end subroutine average_and_comm_pert_overlaps
 
     subroutine find_and_output_lowdin_eigv(kp, s_high, s_low, h_low, h_high)
 
@@ -1823,7 +1825,10 @@ contains
 
     end subroutine find_and_output_lowdin_eigv
 
-    subroutine find_and_output_gram_schmidt_eigv(kp)
+    subroutine find_and_output_gs_eigv(kp)
+
+        ! Use the Gram-Schmidt approach rather than the Lowdin approach above
+        ! (see Phys. Rev. B. 85, 205119).
 
         type(kp_fciqmc_data), intent(in) :: kp
         integer :: lwork, counter, nkeep, nkeep_len, temp_unit
@@ -1848,7 +1853,7 @@ contains
         ! Use the following allocated arrays as work space for the following routine. Not ideal, I know...
         allocate(kp_final_hamil(kp%nvecs, kp%nvecs))
         associate(S_tilde => kp_inter_hamil, N => kp_init_overlaps)
-            call construct_gram_schmidt_transform_matrix(kp_overlap_mean, kp_transform_matrix, S_tilde, kp_final_hamil, N, kp%nvecs)
+            call construct_gs_transform_matrix(kp_overlap_mean, kp_transform_matrix, S_tilde, kp_final_hamil, N, kp%nvecs)
             npositive = 0
             do i = 1, kp%nvecs
                 if (N(i) > 0.0_dp) then
@@ -1908,9 +1913,9 @@ contains
 
         close(temp_unit)
 
-    end subroutine find_and_output_gram_schmidt_eigv
+    end subroutine find_and_output_gs_eigv
 
-    subroutine construct_gram_schmidt_transform_matrix(overlap, S, S_tilde, k, N, matrix_size)
+    subroutine construct_gs_transform_matrix(overlap, S, S_tilde, k, N, matrix_size)
 
         ! Construct the matrix, S, which transforms the Krylov vectors to a set of orthogonal vectors.
 
@@ -1958,7 +1963,7 @@ contains
             S(:,m) = S_tilde(:,m)/sqrt(N(m))
         end do
 
-    end subroutine construct_gram_schmidt_transform_matrix
+    end subroutine construct_gs_transform_matrix
 
     subroutine print_populations_kp(kp)
     
