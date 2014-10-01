@@ -237,7 +237,7 @@ contains
 
             if (tHashWalkerList) then
                 call clear_hash_table(HashIndex)
-                call fill_in_hash_table(HashIndex, nWalkerHashes, Dets, CurrWalkers, .true.)
+                call fill_in_hash_table(HashIndex, nWalkerHashes, Dets, int(CurrWalkers,sizeof_int), .true.)
             endif
 
             ! Run through all determinants on each node, and calculate the total number of walkers, and noathf
@@ -252,7 +252,7 @@ contains
                         call stop_all(this_routine,"HF already found, but shouldn't have")
                     endif
                     CurrHF=CurrHF+SignTemp 
-                    if (.not. tSemiStochastic) call set_det_diagH(i, 0.0_dp)
+                    if (.not. tSemiStochastic) call set_det_diagH(int(i, sizeof_int), 0.0_dp)
                 else
                     if (.not. tSemiStochastic) then
                     ! Calculate diagonal matrix element
@@ -262,7 +262,7 @@ contains
                         else
                             HElemTemp = get_helement (TempnI, TempnI, 0)
                         endif
-                        call set_det_diagH(i, real(HElemTemp, dp) - Hii)
+                        call set_det_diagH(int(i, sizeof_int), real(HElemTemp, dp) - Hii)
                     endif
                 endif
             enddo

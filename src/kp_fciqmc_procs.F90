@@ -1073,7 +1073,7 @@ contains
         ! order for the walker list to have the requested target population.
 
         integer(n_int), intent(inout) :: walker_list(:,:)
-        integer, intent(in) :: ndets
+        integer(int64), intent(in) :: ndets
         real(dp), intent(in) :: target_pop
         real(dp), intent(out) :: input_pop(lenof_sign)
         real(dp), intent(out) :: scaling_factor
