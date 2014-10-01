@@ -1,67 +1,67 @@
 #include "macros.h"
 
-    module global_det_data
+module global_det_data
 
-        use FciMCData, only: MaxWalkersPart
-        use LoggingData, only: tRDMonFly, tExplicitAllRDM
-        use constants
-        use util_mod
-        implicit none
+    use FciMCData, only: MaxWalkersPart
+    use LoggingData, only: tRDMonFly, tExplicitAllRDM
+    use constants
+    use util_mod
+    implicit none
 
-        ! This is the tag for allocation/deallocation
-        private :: glob_tag
-        integer :: glob_tag = 0
+    ! This is the tag for allocation/deallocation
+    private :: glob_tag
+    integer :: glob_tag = 0
 
-        ! This is the data used to find the elements inside the storage array
-        private :: pos_hel, len_hel
+    ! This is the data used to find the elements inside the storage array
+    private :: pos_hel, len_hel
 
-        ! The diagonal matrix element is always stored. As it is a real value it
-        ! always has a length of 1 (never cplx). Therefore, encode these values
-        ! as parameters to assist optimisation.
-        integer, parameter :: pos_hel = 1, len_hel = 1
-        
-        ! Average sign and first occupation of iteration
-        private :: pos_av_sgn, len_av_sgn, pos_iter_occ, len_iter_occ
-        integer :: pos_av_sgn, len_av_sgn
-        integer :: pos_iter_occ, len_iter_occ
+    ! The diagonal matrix element is always stored. As it is a real value it
+    ! always has a length of 1 (never cplx). Therefore, encode these values
+    ! as parameters to assist optimisation.
+    integer, parameter :: pos_hel = 1, len_hel = 1
+    
+    ! Average sign and first occupation of iteration
+    private :: pos_av_sgn, len_av_sgn, pos_iter_occ, len_iter_occ
+    integer :: pos_av_sgn, len_av_sgn
+    integer :: pos_iter_occ, len_iter_occ
 
-        ! And somewhere to store the actual data
-        real(dp), pointer :: global_determinant_data(:,:) => null()
+    ! And somewhere to store the actual data
+    real(dp), pointer :: global_determinant_data(:,:) => null()
 
-        interface set_av_sgn
-            module procedure set_av_sgn_sgl
-            module procedure set_av_sgn_all
-        end interface
+    interface set_av_sgn
+        module procedure set_av_sgn_sgl
+        module procedure set_av_sgn_all
+    end interface
 
-        interface get_av_sgn
-            module procedure get_av_sgn_sgl
-            module procedure get_av_sgn_all
-        end interface
+    interface get_av_sgn
+        module procedure get_av_sgn_sgl
+        module procedure get_av_sgn_all
+    end interface
 
-        interface set_iter_occ
-            module procedure set_iter_occ_sgl
-            module procedure set_iter_occ_all
-        end interface
+    interface set_iter_occ
+        module procedure set_iter_occ_sgl
+        module procedure set_iter_occ_all
+    end interface
 
-        interface get_iter_occ
-            module procedure get_iter_occ_sgl
-            module procedure get_iter_occ_all
-        end interface
+    interface get_iter_occ
+        module procedure get_iter_occ_sgl
+        module procedure get_iter_occ_all
+    end interface
 
-    contains
+contains
 
-        subroutine init_global_det_data ()
+    subroutine init_global_det_data ()
 
-            ! Initialise the global storage of determinant specific persistent
-            ! data
-            !
-            ! --> This is the data that should not be transmitted with each
-            !     particle
-            ! --> It is not stored in the bit representation
+        ! Initialise the global storage of determinant specific persistent
+        ! data
+        !
+        ! --> This is the data that should not be transmitted with each
+        !     particle
+        ! --> It is not stored in the bit representation
 
-            integer :: tot_len
-            integer :: ierr
-            character(*), parameter :: t_r = 'init_global_det_data'
+        integer :: tot_len
+        integer :: ierr
+        character(*), parameter :: t_r = 'init_global_det_data'
 
         ! The position and size of diagonal matrix elements in the array.
         ! This is set as a module wide parameter, rather than as runtime, as
@@ -93,7 +93,8 @@
 
         write(6,'(a,f14.6,a)') &
             ' Determinant related persistent storage requires: ', &
-            8.0_dp * real(tot_len,dp) / 1048576_dp, ' Mb / processor'
+            8.0_dp * real(tot_len * MaxWalkersPart,dp) / 1048576_dp, &
+            ' Mb / processor'
 
         ! As an added safety feature
         global_determinant_data = 0.0_dp
