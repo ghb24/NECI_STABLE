@@ -813,10 +813,10 @@ r_loop: do while(.not.tStoreDet)
         ! Perturbation operators to apply to the determinants after they have
         ! been read in.
         type(perturbation), intent(in), allocatable, optional :: perturbs(:)
-
         integer :: run, ReadBatch
         integer :: nI(nel)
         logical :: apply_pert
+        integer :: TotWalkersIn
 
         if (iReadWalkersRoot == 0) then
             ! ReadBatch is the number of walkers to read in from the 
@@ -845,7 +845,9 @@ r_loop: do while(.not.tStoreDet)
                                   popsfile_dets, MaxWalkersPart, pops_nnodes, pops_walkers, PopNIfSgn, &
                                   PopNel, tCalcExtraInfo=.false.)
 
-            call apply_perturbation_array(perturbs, int(TotWalkers, sizeof_int) popsfile_dets, CurrentDets)
+            TotWalkersIn = int(TotWalkers, sizeof_int)
+            call apply_perturbation_array(perturbs, TotWalkersIn, popsfile_dets, CurrentDets)
+            TotWalkers = int(TotWalkersIn, int64)
         else
             call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, TotWalkers, TotParts, NoatHF, &
                                   CurrentDets, MaxWalkersPart, pops_nnodes, pops_walkers, PopNIfSgn, &
@@ -856,7 +858,7 @@ r_loop: do while(.not.tStoreDet)
 
         if (tHashWalkerList) then
             call clear_hash_table(HashIndex)
-            call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int) .true.)
+            call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int), .true.)
         end if
 
         call set_initial_global_data(TotWalkers, CurrentDets)

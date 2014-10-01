@@ -13,7 +13,7 @@ module spectral_lanczos
     use Parallel_neci, only: iProcIndex, nProcessors, MPIAllGather, MPISumAll, MPIBCast
     use ParallelHelper, only: root
     use PopsfileMod, only: read_popsfile_wrapper
-    use sparse_arrays, only: calculate_sparse_hamiltonian_parallel, sparse_ham
+    use sparse_arrays, only: calculate_sparse_ham_par, sparse_ham
     use spectral_data
 
     implicit none
@@ -154,7 +154,7 @@ contains
 
         write(6,'(1x,a48)') "Allocating and calculating Hamiltonian matrix..."
         call neci_flush(6)
-        call calculate_sparse_hamiltonian_parallel(ndets_sl, ilut_list, .true.)
+        call calculate_sparse_ham_par(ndets_sl, ilut_list, .true.)
         write(6,'(1x,a48,/)') "Hamiltonian allocation and calculation complete."
         call neci_flush(6)
 

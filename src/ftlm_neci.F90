@@ -15,7 +15,7 @@ module ftlm_neci
     use Parallel_neci, only: iProcIndex, nProcessors, MPIAllGatherV, MPIAllGather, &
                              MPISumAll
     use ParallelHelper, only: root
-    use sparse_arrays, only: calculate_sparse_hamiltonian_parallel, sparse_ham
+    use sparse_arrays, only: calculate_sparse_ham_par, sparse_ham
 
     implicit none
 
@@ -148,7 +148,7 @@ contains
 
         write(6,'(1x,a48)') "Allocating and calculating Hamiltonian matrix..."
         call neci_flush(6)
-        call calculate_sparse_hamiltonian_parallel(ndets_ftlm, ilut_list, .true.)
+        call calculate_sparse_ham_par(ndets_ftlm, ilut_list, .true.)
         write(6,'(1x,a48,/)') "Hamiltonian allocation and calculation complete."
         call neci_flush(6)
 
