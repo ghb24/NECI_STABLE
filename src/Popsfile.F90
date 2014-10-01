@@ -845,7 +845,7 @@ r_loop: do while(.not.tStoreDet)
                                   popsfile_dets, MaxWalkersPart, pops_nnodes, pops_walkers, PopNIfSgn, &
                                   PopNel, tCalcExtraInfo=.false.)
 
-            call apply_perturbation_array(perturbs, TotWalkers, popsfile_dets, CurrentDets)
+            call apply_perturbation_array(perturbs, int(TotWalkers, sizeof_int) popsfile_dets, CurrentDets)
         else
             call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, TotWalkers, TotParts, NoatHF, &
                                   CurrentDets, MaxWalkersPart, pops_nnodes, pops_walkers, PopNIfSgn, &
@@ -856,7 +856,7 @@ r_loop: do while(.not.tStoreDet)
 
         if (tHashWalkerList) then
             call clear_hash_table(HashIndex)
-            call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, TotWalkers, .true.)
+            call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int) .true.)
         end if
 
         call set_initial_global_data(TotWalkers, CurrentDets)
