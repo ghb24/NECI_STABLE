@@ -1045,25 +1045,6 @@ contains
 
         SpawnedParts = 0_n_int
 
-        ! Loop through the hash table and see if the Hartree-Fock is occupied.
-        do idet = 1, nWalkerHashes
-            temp_node => HashIndex(idet)
-            if (temp_node%ind /= 0) then
-                do while (associated(temp_node))
-                    if (all(ilutHF(0:NIfD) == CurrentDets(0:NIfD, temp_node%ind))) then
-                        call extract_sign(CurrentDets(:,temp_node%ind),real_sign_1)
-                        if (.not. IsUnoccDet(real_sign_1)) then
-                            write(6,*) "HF occupied!"
-                            call neci_flush(6)
-                        end if
-                    end if
-                    temp_node => temp_node%next
-                end do
-            end if
-        end do
-
-        write(6,*) "ndets:", ndets
-
     end subroutine generate_init_config_this_proc
 
     subroutine scale_population(walker_list, ndets, target_pop, input_pop, scaling_factor)
