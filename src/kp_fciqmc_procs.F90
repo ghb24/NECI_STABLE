@@ -19,8 +19,7 @@ module kp_fciqmc_procs
     use FciMCParMod, only: rezero_iter_stats_each_iter, tSinglePartPhase
     use global_det_data, only: det_diagH
     use gndts_mod, only: gndts
-    use hash, only: FindWalkerHash, init_hash_table, clear_hash_table, fill_in_hash_table
-    use hash, only: DetermineDetNode, remove_node
+    use hash
     use hilbert_space_size, only: CreateRandomExcitLevDetUnbias, create_rand_heisenberg_det
     use hilbert_space_size, only: create_rand_det_no_sym
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
@@ -902,14 +901,13 @@ contains
         integer, intent(in) :: nwalkers
         real(dp) :: nwalkers_per_site_init
         logical, intent(in) :: tOccupyDetermSpace
-        integer :: proc, excit, nattempts, idet, DetHash, det_ind, nI(nel)
+        integer :: proc, excit, nattempts, hash_val, det_ind, nI(nel)
         integer :: ideterm, ndets
         integer(n_int) :: ilut(0:NIfTot), int_sign(lenof_sign)
-        type(ll_node), pointer :: prev, temp_node
         real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
-        real(dp) :: new_sign(lenof_sign), r
-        logical :: tDetFound, tDetermAllOccupied
-        character(len=*), parameter :: this_routine = "generate_init_config_this_proc"
+        real(dp) :: new_sign(lenof_sign)
+        real(dp) :: r
+        logical :: tDetermAllOccupied, tDetFound
 
         ilut = 0_n_int
         ndets = 0
@@ -955,52 +953,31 @@ contains
             int_sign = transfer(real_sign_1, int_sign)
 
             tDetFound = .false.
-            DetHash = FindWalkerHash(nI, nWalkerHashes)
-            temp_node => HashIndex(DetHash)
-            prev => null()
-            ! If the first element in the list for this hash value has been used.
-            if (.not. temp_node%ind == 0) then
-                ! Loop over all determinants with this hash value which are already in the list.
-                do while (associated(temp_node))
-                    if (DetBitEQ(CurrentDets(:,temp_node%ind), ilut, NIfDBO)) then
-                        ! This determinant is already in the list.
-                        tDetFound = .true.
-                        int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1, temp_node%ind)
-                        real_sign_2 = transfer(int_sign, real_sign_2)
-                        new_sign = real_sign_1 + real_sign_2
-                        call encode_sign(CurrentDets(:, temp_node%ind), new_sign)
-                        TotParts = TotParts - abs(real_sign_2) + abs(new_sign)
-                        exit
-                    end if
-                    ! Move on to the next determinant with this hash value.
-                    prev => temp_node
-                    temp_node => temp_node%next
-                end do
-
-                if (.not. tDetFound) then
-                    ! We need to add a new determinant in the next position in the list.
-                    ! So create that next position!
-                    allocate(prev%next)
-                    temp_node => prev%next
-                    nullify(temp_node%next)
-                end if
-            end if
-
-            if (.not. tDetFound) then
+            ! Search the hash table to see if this determinant is in CurrentDets
+            ! already.
+            call hash_table_lookup(nI, ilut, NIfDBO, HashIndex, CurrentDets, det_ind, hash_val, tDetFound)
+            if (tDetFound) then
+                ! This determinant is already in CurrentDets. Just need to add
+                ! the sign of this new walker on and update stats.
+                int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1, det_ind)
+                real_sign_2 = transfer(int_sign, real_sign_2)
+                new_sign = real_sign_1 + real_sign_2
+                call encode_sign(CurrentDets(:, det_ind), new_sign)
+                TotParts = TotParts - abs(real_sign_2) + abs(new_sign)
+            else
                 ! A new determiant needs to be added.
                 ndets = ndets + 1
-                TotParts = TotParts + abs(real_sign_1)
                 det_ind = ndets
-                temp_node%ind = det_ind
+                ! Add the new determinant to the hash table.
+                call add_hash_table_entry(HashIndex, det_ind, hash_val)
                 ! Copy determinant data across.
                 CurrentDets(0:NIfDBO, det_ind) = ilut(0:NIfDBO)
                 CurrentDets(NOffSgn:NOffSgn+lenof_sign-1, det_ind) = int_sign
                 if (tUseFlags) CurrentDets(NOffFlag, det_ind) = 0_n_int
-
-                nullify(temp_node)
-                nullify(prev)
+                TotParts = TotParts + abs(real_sign_1)
             end if
 
+            ! If we've reached the total requested number of walkers, finish.
             if (TotParts(1) >= nwalkers) exit
 
         end do
@@ -1016,31 +993,11 @@ contains
             call copy_core_dets_to_spawnedparts()
             call add_core_states_currentdet_hash()
         else
-            ! Remove the nodes of all unoccupied determinants from the hash table.
-            ! For semi-stochastic calculations, this is done in add_core_states_currentdet_hash.
-            do idet = 1, ndets
-                call extract_sign(CurrentDets(:,idet),real_sign_1)
-                if (.not. IsUnoccDet(real_sign_1)) cycle
-                tDetFound = .false.
-                call decode_bit_det(nI, CurrentDets(:, idet))
-                DetHash = FindWalkerHash(nI, nWalkerHashes)
-                temp_node => HashIndex(DetHash)
-                prev => null()
-                if (.not. temp_node%ind == 0) then
-                    ! Loop over all determinants with this hash value.
-                    do while (associated(temp_node))
-                        if (temp_node%ind == idet) then
-                            tDetFound = .true.
-                            call remove_node(prev, temp_node)
-                            exit
-                        end if
-                        ! Move on to the next determinant with this hash value.
-                        prev => temp_node
-                        temp_node => temp_node%next
-                    end do
-                end if
-                ASSERT(tDetFound)
-            end do
+            ! Some determinants may have become occupied and then unoccupied in
+            ! the course of the above. We need to remove the entries for these
+            ! determinants from the hash table. For semi-stochastic calculations
+            ! this is done in add_core_states_currentdet_hash.
+            call rm_unocc_dets_from_hash_table(HashIndex, CurrentDets, ndets)
         end if
 
         SpawnedParts = 0_n_int

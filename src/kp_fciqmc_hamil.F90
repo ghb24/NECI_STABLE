@@ -256,7 +256,6 @@ contains
         ilut_spawn = 0_n_int
 
         do idet = 1, nspawns_this_proc
-            call neci_flush(6)
             ilut_spawn(0:NIfDBO) = SpawnedPartsKP(0:NIfDBO, idet)
             int_sign = SpawnedPartsKP(NOffSgn:NOffSgn+lenof_sign_kp-1, idet)
             real_sign_1 = transfer(int_sign, real_sign_1)
