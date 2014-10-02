@@ -6,7 +6,7 @@ module exact_spectrum
     use FciMCData, only: hamiltonian, perturbation
     use PopsfileMod, only: read_popsfile_wrapper
     use spectral_data
-    use spectral_lanczos, only: output_spectrum, return_perturbed_ground_spectral
+    use spectral_lanczos, only: output_spectrum, return_perturbed_ground_spec
 
     implicit none
 
@@ -135,8 +135,8 @@ contains
         write(6,'(1x,a33)') "Hamiltonian calculation complete."
         call neci_flush(6)
 
-        call return_perturbed_ground_spectral(left_perturb_spectral, ilut_list, pert_ground_left, left_pert_norm)
-        call return_perturbed_ground_spectral(right_perturb_spectral, ilut_list, pert_ground_right, right_pert_norm)
+        call return_perturbed_ground_spec(left_perturb_spectral, ilut_list, pert_ground_left, left_pert_norm)
+        call return_perturbed_ground_spec(right_perturb_spectral, ilut_list, pert_ground_right, right_pert_norm)
 
         deallocate(ilut_list)
         deallocate(nI_list)

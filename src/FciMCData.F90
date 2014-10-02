@@ -539,7 +539,7 @@ contains
         ! Take in a list of determinants and calculate and set all of the
         ! global data needed for the start of a FCIQMC calculation.
 
-        integer, intent(in) :: ndets
+        integer(int64), intent(in) :: ndets
         integer(n_int), intent(inout) :: ilut_list(0:NIfTot,ndets)
 
         integer :: i, run

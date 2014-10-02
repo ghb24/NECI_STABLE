@@ -13,7 +13,7 @@ module spectral_lanczos
     use Parallel_neci, only: iProcIndex, nProcessors, MPIAllGather, MPISumAll, MPIBCast
     use ParallelHelper, only: root
     use PopsfileMod, only: read_popsfile_wrapper
-    use sparse_arrays, only: calculate_sparse_hamiltonian_parallel, sparse_ham
+    use sparse_arrays, only: calculate_sparse_ham_par, sparse_ham
     use spectral_data
 
     implicit none
@@ -154,12 +154,12 @@ contains
 
         write(6,'(1x,a48)') "Allocating and calculating Hamiltonian matrix..."
         call neci_flush(6)
-        call calculate_sparse_hamiltonian_parallel(ndets_sl, ilut_list, .true.)
+        call calculate_sparse_ham_par(ndets_sl, ilut_list, .true.)
         write(6,'(1x,a48,/)') "Hamiltonian allocation and calculation complete."
         call neci_flush(6)
 
-        call return_perturbed_ground_spectral(left_perturb_spectral, ilut_list, pert_ground_left, left_pert_norm)
-        call return_perturbed_ground_spectral(right_perturb_spectral, ilut_list, sl_vecs(:,1), right_pert_norm)
+        call return_perturbed_ground_spec(left_perturb_spectral, ilut_list, pert_ground_left, left_pert_norm)
+        call return_perturbed_ground_spec(right_perturb_spectral, ilut_list, sl_vecs(:,1), right_pert_norm)
         
         ! Normalise the perturbed wave function, currently stored in sl_vecs(:,1),
         ! so that it can be used as the first lanczos vector.
@@ -169,7 +169,16 @@ contains
 
     end subroutine init_spectral_lanczos
 
-    subroutine return_perturbed_ground_spectral(perturbs, ilut_list, pert_ground_local, all_norm_pert)
+    subroutine return_perturbed_ground_spec(perturbs, ilut_list, pert_ground_local, all_norm_pert)
+
+        ! This routine takes a perturbation operator, the list of all
+        ! possible determinants (ilut_list). It reads in a popsfile, applies
+        ! the perturbation to the read in state, and then copies the amplitudes
+        ! of this perturbed popsfile state to pert_ground_local, using an
+        ! ordering and addressing defined by ilut_list. It all divides these
+        ! amplitudes by the norm of the read in wave function *BEFORE* the
+        ! perturbation is applied (as needed for spectral calculations) and
+        ! returns the norm of the perturbed popsfile as an output.
 
         use bit_rep_data, only: NIfDBO, extract_sign
         use bit_reps, only: decode_bit_det
@@ -188,7 +197,7 @@ contains
         integer :: nI(nel)
         real(dp) :: real_sign(lenof_sign)
         real(dp) :: norm_pert
-        character(len=*), parameter :: t_r = 'return_perturbed_ground_spectral'
+        character(len=*), parameter :: t_r = 'return_perturbed_ground_spec'
 
         pert_ground_local = 0.0_dp
 
@@ -227,7 +236,7 @@ contains
         call MPISumAll(norm_pert, all_norm_pert)
         all_norm_pert = sqrt(all_norm_pert)
 
-    end subroutine return_perturbed_ground_spectral
+    end subroutine return_perturbed_ground_spec
 
     subroutine subspace_extraction_sl()
 

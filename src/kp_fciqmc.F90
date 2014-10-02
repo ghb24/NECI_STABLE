@@ -32,7 +32,7 @@ contains
         use PopsFileMod, only: WriteToPopsFileParOneArr
         use procedure_pointers, only: generate_excitation, attempt_create, encode_child
         use procedure_pointers, only: new_child_stats, extract_bit_rep_avsign
-        use semi_stoch_procs, only: is_core_state, check_determ_flag, deterministic_projection
+        use semi_stoch_procs, only: is_core_state, check_determ_flag, determ_projection
         use soft_exit, only: ChangeVars
         use SystemData, only: nel, lms, nbasis, tAllSymSectors, nOccAlpha, nOccBeta
         use timing_neci, only: set_timer, halt_timer
@@ -247,7 +247,7 @@ contains
                             end if ! If connected determinants exist to spawn to.
 
                             ! If this is a core-space determinant then the death step is done in
-                            ! deterministic_projection.
+                            ! determ_projection.
                             if (.not. tParentIsDeterm) then
                                 call walker_death (iter_data_fciqmc, nI_parent, ilut_parent, parent_hdiag, &
                                                     parent_sign, unused_sign2, unused_sign1, idet, idet, &
@@ -256,7 +256,7 @@ contains
 
                         end do ! Over all determinants.
 
-                        if (tSemiStochastic) call deterministic_projection()
+                        if (tSemiStochastic) call determ_projection()
 
                         TotWalkersNew = int(TotWalkers, sizeof_int)
                         call end_iter_stats(TotWalkersNew)
@@ -301,12 +301,12 @@ contains
 
             end do ! Over all repeats for a fixed initial walker configuration.
 
-            if (tOverlapPert) call average_and_communicate_pert_overlaps(kp%nrepeats)
+            if (tOverlapPert) call average_and_comm_pert_overlaps(kp%nrepeats)
 
             if (iProcIndex == root .and. tStoreKPMatrices) then
                 call average_kp_matrices_wrapper(kp)
                 call find_and_output_lowdin_eigv(kp, s_low, s_high, h_low, h_high)
-                call find_and_output_gram_schmidt_eigv(kp)
+                call find_and_output_gs_eigv(kp)
             end if
 
         end do outer_loop ! Over all initial walker configurations.

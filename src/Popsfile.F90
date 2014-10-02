@@ -237,7 +237,7 @@ contains
 
             if (tHashWalkerList) then
                 call clear_hash_table(HashIndex)
-                call fill_in_hash_table(HashIndex, nWalkerHashes, Dets, CurrWalkers, .true.)
+                call fill_in_hash_table(HashIndex, nWalkerHashes, Dets, int(CurrWalkers,sizeof_int), .true.)
             endif
 
             ! Run through all determinants on each node, and calculate the total number of walkers, and noathf
@@ -252,7 +252,7 @@ contains
                         call stop_all(this_routine,"HF already found, but shouldn't have")
                     endif
                     CurrHF=CurrHF+SignTemp 
-                    if (.not. tSemiStochastic) call set_det_diagH(i, 0.0_dp)
+                    if (.not. tSemiStochastic) call set_det_diagH(int(i, sizeof_int), 0.0_dp)
                 else
                     if (.not. tSemiStochastic) then
                     ! Calculate diagonal matrix element
@@ -262,7 +262,7 @@ contains
                         else
                             HElemTemp = get_helement (TempnI, TempnI, 0)
                         endif
-                        call set_det_diagH(i, real(HElemTemp, dp) - Hii)
+                        call set_det_diagH(int(i, sizeof_int), real(HElemTemp, dp) - Hii)
                     endif
                 endif
             enddo
@@ -813,10 +813,10 @@ r_loop: do while(.not.tStoreDet)
         ! Perturbation operators to apply to the determinants after they have
         ! been read in.
         type(perturbation), intent(in), allocatable, optional :: perturbs(:)
-
         integer :: run, ReadBatch
         integer :: nI(nel)
         logical :: apply_pert
+        integer :: TotWalkersIn
 
         if (iReadWalkersRoot == 0) then
             ! ReadBatch is the number of walkers to read in from the 
@@ -845,7 +845,9 @@ r_loop: do while(.not.tStoreDet)
                                   popsfile_dets, MaxWalkersPart, pops_nnodes, pops_walkers, PopNIfSgn, &
                                   PopNel, tCalcExtraInfo=.false.)
 
-            call apply_perturbation_array(perturbs, TotWalkers, popsfile_dets, CurrentDets)
+            TotWalkersIn = int(TotWalkers, sizeof_int)
+            call apply_perturbation_array(perturbs, TotWalkersIn, popsfile_dets, CurrentDets)
+            TotWalkers = int(TotWalkersIn, int64)
         else
             call ReadFromPopsfile(iPopAllTotWalkers, ReadBatch, TotWalkers, TotParts, NoatHF, &
                                   CurrentDets, MaxWalkersPart, pops_nnodes, pops_walkers, PopNIfSgn, &
@@ -856,7 +858,7 @@ r_loop: do while(.not.tStoreDet)
 
         if (tHashWalkerList) then
             call clear_hash_table(HashIndex)
-            call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, TotWalkers, .true.)
+            call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int), .true.)
         end if
 
         call set_initial_global_data(TotWalkers, CurrentDets)

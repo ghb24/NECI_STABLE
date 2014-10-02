@@ -191,7 +191,7 @@ contains
 
     end subroutine calculate_sparse_hamiltonian
 
-    subroutine calculate_sparse_hamiltonian_parallel(num_states, ilut_list, tPrintInfo)
+    subroutine calculate_sparse_ham_par(num_states, ilut_list, tPrintInfo)
 
         integer(MPIArg), intent(in) :: num_states(0:nProcessors-1)
         integer(n_int), intent(in) :: ilut_list(0:NIfTot, num_states(iProcIndex))
@@ -202,7 +202,7 @@ contains
         integer(n_int), allocatable, dimension(:,:) :: temp_store
         integer(TagIntType) :: TempStoreTag, HRTag, SDTag
         real(dp), allocatable, dimension(:) :: hamiltonian_row
-        character(len=*), parameter :: t_r = "calculate_sparse_hamiltonian_parallel"
+        character(len=*), parameter :: t_r = "calculate_sparse_ham_par"
 
         num_states_tot = int(sum(num_states), sizeof_int)
         disps(0) = 0
@@ -298,7 +298,7 @@ contains
         deallocate(hamiltonian_row, stat=ierr)
         call LogMemDealloc(t_r, HRTag, ierr)
 
-    end subroutine calculate_sparse_hamiltonian_parallel
+    end subroutine calculate_sparse_ham_par
 
     subroutine calc_determ_hamil_sparse()
 
