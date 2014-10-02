@@ -1044,12 +1044,11 @@ contains
     subroutine store_krylov_vec(kp)
 
         type(kp_fciqmc_data), intent(in) :: kp
-        integer :: idet, iamp, sign_ind, hdiag_ind, flag_ind, DetHash, det_ind
+        integer :: idet, iamp, sign_ind, hdiag_ind, flag_ind, hash_val, det_ind
         integer :: nI(nel)
         integer(n_int) :: temp, int_sign(lenof_sign)
         logical :: tDetFound, tCoreDet
         real(dp) :: amp_fraction, real_sign(lenof_sign)
-        type(ll_node), pointer :: temp_node, prev
         character(2) :: int_fmt
         character(len=*), parameter :: t_r = "store_krylov_vec"
 
@@ -1068,59 +1067,36 @@ contains
             tCoreDet = check_determ_flag(CurrentDets(:,idet))
             ! Don't add unoccpied determinants, unless they are core determinants.
             if (IsUnoccDet(real_sign) .and. (.not. tCoreDet)) cycle
+
             tDetFound = .false.
             call decode_bit_det(nI, CurrentDets(:,idet))
-            DetHash = FindWalkerHash(nI, nhashes_kp)
-            temp_node => krylov_vecs_ht(DetHash)
-
-            ! If the first element in the list for this hash value has been used.
-            if (.not. temp_node%ind == 0) then
-                ! Loop over all determinants with this hash value which are already in the list.
-                do while (associated(temp_node))
-                    if (DetBitEQ(CurrentDets(:,idet), krylov_vecs(:,temp_node%ind), NIfDBO)) then
-                        ! This determinant is already in the list.
-                        det_ind = temp_node%ind
-                        ! Add the amplitude for the new Krylov vector. The determinant and flag are
-                        ! there already.
-                        krylov_vecs(sign_ind:sign_ind+lenof_sign-1,det_ind) = int_sign
-                        tDetFound = .true.
-                        exit
-                    end if
-                    ! Move on to the next determinant with this hash value.
-                    prev => temp_node
-                    temp_node => temp_node%next
-                end do
-
-                if (.not. tDetFound) then
-                    ! We need to add a new determinant in the next position in the list.
-                    ! So create that next position!
-                    allocate(prev%next)
-                    temp_node => prev%next
-                    nullify(temp_node%next)
-                end if
-            end if
-
-            if (.not. tDetFound) then
+            ! Search the hash table for this determinant.
+            call hash_table_lookup(nI, CurrentDets(:,idet), NIfDBO, krylov_vecs_ht, krylov_vecs, det_ind, hash_val, tDetFound)
+            if (tDetFound) then
+                ! In this case the determinant is already in the Krylov vector
+                ! array.
+                krylov_vecs(sign_ind:sign_ind+lenof_sign-1, det_ind) = int_sign
+            else
                 ! A new determiant needs to be added.
                 TotWalkersKP = TotWalkersKP + 1
                 det_ind = TotWalkersKP
-                temp_node%ind = det_ind
-
                 if (TotWalkersKP > krylov_vecs_length) then
                     call stop_all(t_r, "There are no slots left in the krylov_vecs array for the next determinant. &
                                        &You can increase the size of this array using the memory-factor option in &
                                        &the kp-fciqmc block of the input file.")
                 end if
 
+                ! Add the determinant's index to the hash table.
+                call add_hash_table_entry(krylov_vecs_ht, det_ind, hash_val)
+
                 ! Copy determinant data across.
-                krylov_vecs(0:NIfDBO,det_ind) = CurrentDets(0:NIfDBO,idet)
-                krylov_vecs(sign_ind:sign_ind+lenof_sign-1,det_ind) = int_sign
-                krylov_vecs(hdiag_ind,det_ind) = transfer(det_diagH(idet), temp)
-                if (tUseFlags) krylov_vecs(flag_ind,det_ind) = CurrentDets(NOffFlag,idet)
+                krylov_vecs(0:NIfDBO, det_ind) = CurrentDets(0:NIfDBO, idet)
+                krylov_vecs(sign_ind:sign_ind+lenof_sign-1, det_ind) = int_sign
+                krylov_vecs(hdiag_ind, det_ind) = transfer(det_diagH(idet), temp)
+                if (tUseFlags) krylov_vecs(flag_ind, det_ind) = CurrentDets(NOffFlag, idet)
             end if
 
-            nullify(temp_node)
-            nullify(prev)
+            ! Update information about how much of the hash table is filled.
             do iamp = 1, lenof_sign
                 if (real_sign(iamp) /= 0_n_int) then
                     nkrylov_amp_elems_used = nkrylov_amp_elems_used + 1
