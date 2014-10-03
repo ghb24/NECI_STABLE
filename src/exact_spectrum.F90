@@ -149,8 +149,8 @@ contains
 
         write(6,'(/,1X,64("="))')
         write(6,'(1X,"Exact spectrum testsuite data:")')
-        write(6,'(1X,"Exact lowest eigenvalue of H:",15X,es20.13)') eigv_low
-        write(6,'(1X,"Exact highest eigenvalue of H:",14X,es20.13)') eigv_high
+        write(6,'(1X,"Lowest eigenvalue of H:",21X,es20.13)') eigv_low
+        write(6,'(1X,"Highest eigenvalue of H:",20X,es20.13)') eigv_high
         write(6,'(1X,"Spectral weight at the lowest omega value:",2X,es20.13)') spec_low
         write(6,'(1X,"Spectral weight at the highest omega value:",1X,es20.13)') spec_high
         write(6,'(1X,64("="))')
