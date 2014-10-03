@@ -47,8 +47,6 @@
         INTEGER :: nJ(NEl),j,ntrial,ncon,ncon_old,ntrial_old
         logical :: tTrialState, tConState
 
-        !write(6,*) "Here!"
-
         if (tTrialWavefunction .and. nlist2 > 0) then
             ! If using a trial wavefunction, count the number of states to be merged
             ! in which are in the trial and connected space. This routine also stores
