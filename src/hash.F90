@@ -308,6 +308,49 @@ module hash
 
     end subroutine add_hash_table_entry
 
+    subroutine rm_unocc_dets_from_hash_table(hash_table, walker_list, list_length)
+
+        ! This routine loops through all determinants in walker_list removes
+        ! all entries from hash_table for determinants which are both
+        ! unoccupied and not core determinants.
+
+        type(ll_node), pointer, intent(inout) :: hash_table(:)
+        integer(n_int), intent(in) :: walker_list(0:,:)
+        integer, intent(in) :: list_length
+
+        integer :: i, hash_val, nI(nel)
+        real(dp) :: real_sign(lenof_sign)
+        logical :: found, tCoreDet
+        type(ll_node), pointer :: temp_node, prev
+
+        do i = 1, list_length
+            call extract_sign(walker_list(:,i), real_sign)
+            tCoreDet = .false.
+            if (tSemiStochastic) tCoreDet = test_flag(walker_list(:,i), flag_deterministic)
+            if ((.not. IsUnoccDet(real_sign)) .or. tCoreDet) cycle
+            found = .false.
+            call decode_bit_det(nI, walker_list(:, i))
+            hash_val = FindWalkerHash(nI, size(hash_table))
+            temp_node => hash_table(hash_val)
+            prev => null()
+            if (.not. temp_node%ind == 0) then
+                ! Loop over all entries with this hash value.
+                do while (associated(temp_node))
+                    if (temp_node%ind == i) then
+                        found = .true.
+                        call remove_node(prev, temp_node)
+                        exit
+                    end if
+                    ! Move on to the next determinant with this hash value.
+                    prev => temp_node
+                    temp_node => temp_node%next
+                end do
+            end if
+            ASSERT(found)
+        end do
+
+    end subroutine rm_unocc_dets_from_hash_table
+
     pure subroutine hash_table_lookup(nI, ilut, max_elem, hash_table, dets, ind, hash_val, found)
 
         ! Perform a search of dets for ilut, by using hash_table.
