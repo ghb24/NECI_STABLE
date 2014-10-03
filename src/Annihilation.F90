@@ -1087,16 +1087,18 @@ MODULE AnnihilationMod
                         endif
                     endif
 
+                    if(tFillingStochRDMonFly.and.(.not.tNoNewRDMContrib)) then
+                        call extract_sign(CurrentDets(:,PartInd),TempCurrentSign)
+                        !We must use the instantaneous value for the off-diagonal contribution
+                        !However, we can't just use currentsign from prev iteration, as this has been subject
+                        !to death but not the new walkers. Must add on SpawnedSign, so we're effectively taking
+                        !the inst value from the next iter. This is fine as it's from the other population,
+                        !and the Di and Dj signs are already strictly uncorrelated
+                        call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),TempCurrentSign)
+                    endif 
+
                 endif
-                if(tFillingStochRDMonFly.and.(.not.tNoNewRDMContrib)) then
-                    call extract_sign(CurrentDets(:,PartInd),TempCurrentSign)
-                    !We must use the instantaneous value for the off-diagonal contribution
-                    !However, we can't just use currentsign from prev iteration, as this has been subject
-                    !to death but not the new walkers. Must add on SpawnedSign, so we're effectively taking
-                    !the inst value from the next iter. This is fine as it's from the other population,
-                    !and the Di and Dj signs are already strictly uncorrelated
-                    call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),TempCurrentSign)
-                endif 
+
             endif
                 
             if((.not.tSuccess).or.(tSuccess.and.(sum(abs(CurrentSign)) .eq. 0.0_dp))) then
@@ -1244,8 +1246,9 @@ MODULE AnnihilationMod
                         call AddNewHashDet(TotWalkersNew,SpawnedParts(:,i),DetHash,nJ)
                     endif
                 endif
+
                 if(tFillingStochRDMonFly.and.(.not.tNoNewRDMContrib)) then
-                    !We must use the instantaneous value for the off-diagonal contribution
+                    ! We must use the instantaneous value for the off-diagonal contribution.
                     call check_fillRDM_DiDj(i,SpawnedParts(0:NifTot,i),SignTemp)
                 endif 
             endif
@@ -1360,7 +1363,7 @@ MODULE AnnihilationMod
 
         ! For the RDM code we need to set all of the elements of CurrentH to 0,
         ! except the first one, holding the diagonal Hamiltonian element.
-        global_determinant_data(:,DetPosition) = 0
+        global_determinant_data(:,DetPosition) = 0.0_dp
         call set_det_diagH(DetPosition, real(HDiag,dp) - Hii)
 
         ! Store the iteration, as this is the iteration on which the particle
@@ -1490,14 +1493,10 @@ MODULE AnnihilationMod
                             (CurrentSign(inum_runs) == 0 .and. get_iter_occ(i, 2) /= 0) .or. &
                             (CurrentSign(1) /= 0 .and. get_iter_occ(i, 1) == 0) .or. &
                             (CurrentSign(inum_runs) /= 0 .and. get_iter_occ(i, 2) == 0)) then
-                        !if(((CurrentSign(1).eq.0).and.(CurrentH(2+lenof_sign,i).ne.0)) .or. &
-                        !        & ((CurrentSign(inum_runs).eq.0).and.(CurrentH(1+2*lenof_sign,i).ne.0)) .or. &
-                        !        & ((CurrentSign(1).ne.0).and.(CurrentH(2+lenof_sign,i).eq.0)) .or. &
-                        !        & ((CurrentSign(inum_runs).ne.0).and.(CurrentH(1+2*lenof_sign,i).eq.0))) then
                                
-                            !At least one of the signs has just gone to zero or just become reoccupied
-                            !so we need to consider adding in diagonal elements and connections to HF
-                            !The block that's just ended was occupied in at least one population.
+                            ! At least one of the signs has just gone to zero or just become reoccupied
+                            ! so we need to consider adding in diagonal elements and connections to HF
+                            ! The block that's just ended was occupied in at least one population.
                             call det_removed_fill_diag_rdm(CurrentDets(:,i), i)
                         endif
                     else
@@ -1638,14 +1637,9 @@ MODULE AnnihilationMod
                             (CurrentSign(1) /= 0 .and. get_iter_occ(i, 1) == 0) .or. &
                             (CurrentSign(inum_runs) /= 0 .and. get_iter_occ(i, 2) == 0)) then
                         
-                        !((CurrentSign(1).eq.0).and.(CurrentH(2+lenof_sign,i).ne.0)) .or. &
-                        !        & ((CurrentSign(inum_runs).eq.0).and.(CurrentH(1+2*lenof_sign,i).ne.0)) .or. &
-                        !        & ((CurrentSign(1).ne.0).and.(CurrentH(2+lenof_sign,i).eq.0)) .or. &
-                        !        & ((CurrentSign(inum_runs).ne.0).and.(CurrentH(1+2*lenof_sign,i).eq.0))) then
-                               
-                            !At least one of the signs has just gone to zero or just become reoccupied
-                            !so we need to consider adding in diagonal elements and connections to HF
-                            !The block that's just ended was occupied in at least one population.
+                            ! At least one of the signs has just gone to zero or just become reoccupied
+                            ! so we need to consider adding in diagonal elements and connections to HF
+                            ! The block that's just ended was occupied in at least one population.
                             call det_removed_fill_diag_rdm(CurrentDets(:,i), i)
                         endif
                     else

@@ -133,13 +133,14 @@ MODULE FciMCParMod
                          extract_bit_rep_avsign_norm, &
                          extract_bit_rep_avsign_no_rdm, &
                          zero_rdms, store_parent_with_spawned, &
-                         fill_rdm_diag_currdet_norm, calc_rdmbiasfac
+                         fill_rdm_diag_currdet_norm, calc_rdmbiasfac, &
+                         det_removed_fill_diag_rdm
     use determ_proj, only: perform_determ_proj
     use semi_stoch_gen, only: init_semi_stochastic, enumerate_sing_doub_kpnt, &
                               write_most_populated_core_at_end
     use semi_stoch_procs, only: deterministic_projection, return_most_populated_states, &
                                 end_semistoch, is_core_state, return_mp1_amp_and_mp2_energy, &
-                                recalc_core_hamil_diag
+                                recalc_core_hamil_diag, check_determ_flag
     use trial_wf_gen, only: init_trial_wf, update_compare_trial_file, end_trial_wf
     use ftlm_neci, only: perform_ftlm
     use spectral_lanczos, only: perform_spectral_lanczos
@@ -841,11 +842,13 @@ MODULE FciMCParMod
             ! became occupied (IterRDMStartCurr) and the average population during that time 
             ! (AvSignCurr).
 
+            ! Is this state is in the deterministic space?
+            tCoreDet = check_determ_flag(CurrentDets(:,j))
+
             call extract_bit_rep_avsign (CurrentDets(:,j), j, &
                                         DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
                                         AvSignCurr, fcimc_excit_gen_store)
 
-            
             ! We only need to find out if determinant is connected to the
             ! reference (so no ex. level above 2 required, 
             ! truncated etc.)
@@ -859,6 +862,20 @@ MODULE FciMCParMod
                 walkExcitLevel_toHF = walkExcitLevel
             endif
 
+            if (tFillingStochRDMonFly) then
+                ! Set the average sign and occupation iteration which were
+                ! found in extract_bit_rep_avsign.
+                call set_av_sgn(j, AvSignCurr)
+                call set_iter_occ(j, IterRDMStartCurr)
+                ! If this is an iteration where print out the RDM energy,
+                ! calculate the diagonal contribution to the RDM for this
+                ! determinant.
+                if(tFill_RDM .and. (.not. tNoNewRDMContrib)) then
+                    call fill_rdm_diag_currdet(CurrentDets(:,j), DetCurr, j, &
+                                                walkExcitLevel_toHF, tCoreDet)
+                endif
+            endif
+
             ! A general index whose value depends on whether the following option is used.
             if (tHashWalkerList) then
                 gen_ind = j
@@ -866,42 +883,28 @@ MODULE FciMCParMod
                 gen_ind = VecSlot
             end if
 
-            tCoreDet = .false.
-            ! If this state is in the deterministic space.
-            if (tSemiStochastic) then
-                if (test_flag(CurrentDets(:,j), flag_deterministic)) then
-                    tCoreDet = .true.
+            ! This if-statement is only entered when using semi-stochastic and
+            ! only if this determinant is in the core space.
+            if (tCoreDet) then
+                ! Store the index of this state, for use in annihilation later.
+                indices_of_determ_states(determ_index) = gen_ind
 
-                    ! Store the index of this state, for use in annihilation later.
-                    indices_of_determ_states(determ_index) = gen_ind
+                ! Add this amplitude to the deterministic vector.
+                partial_determ_vector(:,determ_index) = SignCurr
 
-                    ! Add this amplitude to the deterministic vector.
-                    partial_determ_vector(:,determ_index) = SignCurr
+                determ_index = determ_index + 1
 
-                    determ_index = determ_index + 1
-
-                    ! The deterministic states are always kept in CurrentDets, even when
-                    ! the amplitude is zero. Hence we must check if the amplitude is zero,
-                    ! and if so, skip the state.
-                    if (IsUnoccDet(SignCurr)) then
-                        CurrentDets(:,gen_ind) = CurrentDets(:,j)
-                        if (tFillingStochRDMonFly) then
-                            call set_av_sgn(gen_ind, AvSignCurr)
-                            call set_iter_occ(gen_ind, IterRDMStartCurr)
-                        endif
-                        VecSlot = VecSlot + 1
-                        if(tFill_RDM .and. (.not. tNoNewRDMContrib)) then
-
-                            ! If tFill_RDM is true, this is an iteration where the diagonal 
-                            ! RDM elements are calculated, along with the contributions from 
-                            ! connections to the (true) HF determinant.
-
-                            call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, &
-                                        gen_ind, walkExcitLevel_toHF, .true.)
-                        endif
-                        cycle
-                    end if
-                 
+                ! The deterministic states are always kept in CurrentDets, even when
+                ! the amplitude is zero. Hence we must check if the amplitude is zero,
+                ! and if so, skip the state.
+                if (IsUnoccDet(SignCurr)) then
+                    CurrentDets(:,gen_ind) = CurrentDets(:,j)
+                    if (tFillingStochRDMonFly) then
+                        call set_av_sgn(gen_ind, AvSignCurr)
+                        call set_iter_occ(gen_ind, IterRDMStartCurr)
+                    endif
+                    VecSlot = VecSlot + 1
+                    cycle
                 end if
             end if
 
@@ -1068,9 +1071,10 @@ MODULE FciMCParMod
                     if (tFillingStochRDMonFly) then
                         call set_av_sgn(gen_ind, AvSignCurr)
                         call set_iter_occ(gen_ind, IterRDMStartCurr)
-                        ! NB We never overwrite the deterministic states, so move the next spawning slot
-                        ! in CurrentDets to the next state.
+
                     endif
+                    ! We never overwrite the deterministic states, so move the
+                    ! next slot in CurrentDets to the next state.
                     VecSlot = VecSlot + 1
                 end if
             else
@@ -1079,11 +1083,6 @@ MODULE FciMCParMod
                                    AvSignCurr, IterRDMStartCurr, VecSlot, j, WalkExcitLevel)
             end if
 
-            if(tFill_RDM .and. (.not. tNoNewRDMContrib)) then
-                call fill_rdm_diag_currdet(CurrentDets(:,gen_ind), DetCurr, j,&
-                                            walkExcitLevel_toHF, tCoreDet)
-            endif
-        
         enddo ! Loop over determinants.
         IFDEBUGTHEN(FCIMCDebug,2) 
             write(iout,*) 'Finished loop over determinants'
@@ -1092,13 +1091,14 @@ MODULE FciMCParMod
             endif
         ENDIFDEBUG
 
-        ! For semi-stochastic calculations only: Gather together the parts of the deterministic vector stored
-        ! on each processor, and then perform the multiplication of the exact projector on this vector.
+        ! For semi-stochastic calculations only: Gather together the parts of
+        ! the deterministic vector stored on each processor, and then perform
+        ! the multiplication of the exact projector on this vector.
         if (tSemiStochastic) call deterministic_projection()
 
         if(tHashWalkerList) then
-            !With this algorithm, the determinants do not move, and therefore TotWalkersNew is simply equal
-            !to TotWalkers
+            ! With this algorithm, the determinants do not move, and therefore
+            ! TotWalkersNew is simply equal to TotWalkers
             TotWalkersNew=int(TotWalkers,sizeof_int)
         else
             ! Since VecSlot holds the next vacant slot in the array, TotWalkers
@@ -1969,23 +1969,16 @@ MODULE FciMCParMod
                 VecSlot=VecSlot+1
             endif
         else
-            !All walkers died
+            ! All walkers died.
             if(tFillingStochRDMonFly) then
-                ! If we're stochastically filling the RDMs, we want to keep determinants even if 
-                ! their walkers have all died.
-                ! This is because we're using the sign of each determinant before death.
-                ! But if the walker is removed from the list altogether, this would be lost too.
-                if(tHashWalkerList) then
-                    call encode_sign(CurrentDets(:,DetPosition),CopySign)
-                    call set_av_sgn(DetPosition, wAvSign)
-                    call set_iter_occ(DetPosition, IterRDMStartCurr)
-                else
-                    call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
-                    call set_det_diagH(VecSlot, Kii)
-                    call set_av_sgn(VecSlot, wAvSign)
-                    call set_iter_occ(VecSlot, IterRDMStartCurr)
-                    VecSlot = VecSlot + 1
-                endif
+                call det_removed_fill_diag_rdm(CurrentDets(:,DetPosition), DetPosition)
+                if (tHashWalkerList) then
+                    ! Set the average sign and occupation iteration to zero, so
+                    ! that the same contribution will not be added in in
+                    ! CalcHashTableStats, if this determinant is not overwritten
+                    ! before then
+                    global_determinant_data(:,DetPosition) = 0.0_dp
+                end if
             endif
             if(tTruncInitiator) then
                 ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
@@ -1997,7 +1990,7 @@ MODULE FciMCParMod
                     if (tSpawnSpatialInit) call rm_initiator_list (ilutCurr)
                 endif
             endif
-            if(tHashWalkerList.and.(.not.tFillingStochRDMonFly)) then
+            if(tHashWalkerList) then
                 !Remove the determinant from the indexing list
                 call remove_hash_table_entry(HashIndex, DetCurr, DetPosition)
                 !Add to the "freeslot" list

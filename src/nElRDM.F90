@@ -135,13 +135,6 @@ MODULe nElRDMMod
         CAll Stop_All(this_routine,'Filling of reduced density matrices not working with &
                                     &complex walkers yet.')
 #endif
-        if(tRDMonFly.and.tHashWalkerList) &
-            call stop_all("FciMCPar", "Linear scaling + RDMs doesn't give the correct &
-            & solution yet. If realcoeffs are turned on, it runs but gives the wrong RDM energy, &
-            & but in a very non-obvious way.  No particular elements or groups of elements &
-            & seem especially wrong, but the RDM energy is clearly incorrect.  If using integer &
-            & coefficients it doesn't even run -- this is a problem somewhere in annihilation &
-            & that comes about from the sign and flag being stored together")
         
         ! Only spatial orbitals for the 2-RDMs (and F12).
         if((.not.TestClosedShellDet(iLutRef)).and.(RDMExcitLevel.ne.1)) &
@@ -1022,7 +1015,7 @@ MODULe nElRDMMod
 ! Add in I.
                 call FindExcitBitDetSym(iLutnI, SpinCoupDet)
                 call decode_bit_det (nSpinCoup, SpinCoupDet)
-                ! Find out if it's + or - in the above expression.                
+                ! Find out if it's + or - in the above expression.
                 SignFac = hphf_sign(iLutnI)
 
                 call Fill_Diag_RDM(nSpinCoup, real(SignFac,dp)*AvSignCurr/SQRT(2.0_dp), tCoreSpaceDet, IterRDM)
