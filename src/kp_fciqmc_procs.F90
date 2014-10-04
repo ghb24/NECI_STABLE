@@ -603,8 +603,8 @@ contains
         krylov_vecs = 0_n_int
 
         ! Rezero all the necessary data.
-        kp%overlap_matrix = 0.0_dp
-        kp%hamil_matrix = 0.0_dp
+        kp%overlap_matrix(:,:) = 0.0_dp
+        kp%hamil_matrix(:,:) = 0.0_dp
         TotWalkersKP = 0
         nkrylov_amp_elems_used = 0
         iter = 0

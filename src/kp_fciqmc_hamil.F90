@@ -33,7 +33,7 @@ contains
         logical :: tNearlyFull, tFinished, tAllFinished
         HElement_t :: HElGen, HEl
 
-        kp%hamil_matrix = 0.0_dp
+        kp%hamil_matrix(:,:) = 0.0_dp
 
         ilut_parent = 0_n_int
         if (tUseFlags) flag_ind = NIfDBO + lenof_sign_kp + 2
