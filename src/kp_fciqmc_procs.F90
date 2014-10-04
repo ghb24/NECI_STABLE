@@ -1616,7 +1616,7 @@ contains
 
     end subroutine average_and_comm_pert_overlaps
 
-    subroutine find_and_output_lowdin_eigv(kp, s_high, s_low, h_low, h_high)
+    subroutine find_and_output_lowdin_eigv(kp, s_low, s_high, h_low, h_high)
 
         type(kp_fciqmc_data), intent(in) :: kp
         ! Data for the testsuite to use.
