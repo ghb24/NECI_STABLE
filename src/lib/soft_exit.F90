@@ -139,7 +139,6 @@ module soft_exit
     use FCIMCLoggingMOD, only: PrintBlocking, RestartBlocking, &
                                PrintShiftBlocking_proc => PrintShiftBlocking,&
                                RestartShiftBlocking_proc=>RestartShiftBlocking
-!    use AnnihilationMod, only: DetermineDetNode
     use constants, only: lenof_sign, int32, dp
     use bit_rep_data, only: extract_sign
     use bit_reps, only: encode_sign
@@ -147,8 +146,7 @@ module soft_exit
                             spin_proj_interval, spin_proj_shift, &
                             spin_proj_cutoff, spin_proj_spawn_initiators, &
                             spin_proj_no_death, spin_proj_iter_count
-!    use DetBitOps, only: DetermineDetNode                        
-    use hash, only : DetermineDetNode
+    use hash, only: DetermineDetNode
     use hist_data, only: Histogram, tHistSpawn
     use Parallel_neci
     implicit none
@@ -711,7 +709,7 @@ contains
                            hfScaleFactor
 
                 SumNoatHF = nint(real(SumNoatHF,dp) * hfScaleFactor,int64)
-                if (iNodeIndex == DetermineDetNode(HFDet,0).and. bNodeRoot) then
+                if (iNodeIndex == DetermineDetNode(nel,HFDet,0).and. bNodeRoot) then
                     pos = binary_search (CurrentDets(:,1:TotWalkers), &
                                          iLutHF)
                     call extract_sign (CurrentDets(:,pos), hfsign)

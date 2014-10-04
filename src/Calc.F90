@@ -29,8 +29,14 @@ MODULE Calc
     use FciMCData, only: tTimeExit,MaxTimeExit, InputDiagSft, tSearchTau, &
                          nWalkerHashes, tHashWalkerList, HashLengthFrac, &
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
-                         tStartCoreGroundState, pParallel
+                         tStartCoreGroundState, pParallel, pops_pert, &
+                         alloc_popsfile_dets
     use semi_stoch_gen, only: core_ras
+    use ftlm_neci
+    use spectral_data
+    use spectral_lanczos, only: n_lanc_vecs_sl
+    use exact_spectrum
+    use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
 
     implicit none
 
@@ -77,12 +83,11 @@ contains
           MaxWalkerBloom=-1
           tSearchTau=.true.
           InputDiagSft=0.0_dp
-          tPopsMapping=.false.
           tTimeExit=.false.
           MaxTimeExit=0.0_dp
           tMaxBloom=.false.
           iRestartWalkNum=0
-          iWeightPopRead=0
+          iWeightPopRead=1.0e-12
           tCheckHighestPop=.false.
           StepsSftImag=0.0_dp
           TauFactor=0.0_dp
@@ -102,7 +107,6 @@ contains
           TUnbiasPGeninProjE=.false.
           TRegenExcitgens=.false.
           MemoryFacPart=10.0_dp
-          MemoryFacAnnihil=10.0_dp
           MemoryFacSpawn=0.5_dp
           MemoryFacInit = 0.3_dp
           TStartSinglePart=.true.
@@ -118,8 +122,6 @@ contains
           PRet=1.0_dp
           TNoAnnihil=.false.
           TFullUnbias=.false.
-          GrowMaxFactor=5.0_dp
-          CullFactor=2.0_dp
           TFCIMC=.false.
           tRPA_QBA=.false.
           TCCMC=.false.
@@ -232,12 +234,9 @@ contains
           TLADDER=.false. 
           tDefineDet=.false.
           tTruncInitiator=.false.
-          tDelayTruncInit=.false.
-!          tKeepDoubleSpawns=.false.
           tAddtoInitiator=.false.
           tRetestAddtoInit=.true.
           InitiatorWalkNo=10.0_dp
-          IterTruncInit=0
           tInitIncDoubs=.false.
           MaxNoatHF=0
           HFPopThresh=0
@@ -283,7 +282,6 @@ contains
           tTruncNOpen = .false.
 
           hash_shift=0
-          tContinueAfterMP2=.false.
           tUniqueHFNode = .false.
 
           ! Semi-stochastic and trial wavefunction options.
@@ -293,6 +291,8 @@ contains
           tCASCore = .false.
           tRASCore = .false.
           tOptimisedCore = .false.
+          tFCICore = .false.
+          tHeisenbergFCICore = .false.
           tPopsCore = .false.
           tReadCore = .false.
           tLowECore = .false.
@@ -316,6 +316,8 @@ contains
           tReadTrial = .false.
           tLowETrial = .false.
           tMP1Trial = .false.
+          tFCITrial = .false.
+          tHeisenbergFCITrial = .false.
           num_trial_generation_loops = 1
           n_trial_pops = 0
           low_e_trial_excit = 0
@@ -323,6 +325,22 @@ contains
           trial_mp1_ndets = 0
           tLowETrialAllDoubles = .false.
           tTrialAmplitudeCutoff = .false.
+          tKP_FCIQMC = .false.
+          tLetInitialPopDie = .false.
+          tWritePopsNorm = .false.
+          pops_norm_unit = 0
+          n_init_vecs_ftlm = 20
+          n_lanc_vecs_ftlm = 20
+          nbeta_ftlm = 100
+          delta_beta_ftlm = 0.1_dp
+          n_lanc_vecs_sl = 20
+          nomega_spectral = 100
+          delta_omega_spectral = 0.01_dp
+          min_omega_spectral = 0.0_dp
+          spectral_broadening = 0.05_dp
+          spectral_ground_energy = 0.0_dp
+          tIncludeGroundSpectral = .false.
+          alloc_popsfile_dets = .false.
 
           pParallel = 0.5
 
@@ -333,7 +351,6 @@ contains
           nItersInitiator = 100
           MaxTau = 1.0_dp
 
-      
         end subroutine SetCalcDefaults
 
         SUBROUTINE CalcReadInput()
@@ -358,10 +375,11 @@ contains
           CHARACTER (LEN=100) w
           CHARACTER (LEN=100) input_string
           CHARACTER(*),PARAMETER :: t_r='CalcReadInput'
-          INTEGER :: l,i,ierr
-          INTEGER :: tempMaxNoatHF,tempHFPopThresh
+          integer :: l, i, j, ierr
+          integer :: tempMaxNoatHF,tempHFPopThresh
           logical :: tExitNow
           integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
+          integer :: npops_pert, npert_spectral_left, npert_spectral_right
 
           calc: do
             call read_line(eof)
@@ -1044,6 +1062,10 @@ contains
                 do I = 1, num_det_generation_loops
                     call geti(determ_space_cutoff_num(I))
                 end do
+            case("FCI-CORE")
+                tFCICore = .true.
+            case("HEISENBERG-FCI-CORE")
+                tHeisenbergFCICore = .true.
             case("POPS-CORE")
                 tPopsCore = .true.
                 call geti(n_core_pops)
@@ -1123,6 +1145,10 @@ contains
                         call stop_all("SysReadInput","Input string is not recognised.")
                     end if
                 end if
+            case("FCI-TRIAL")
+                tFCITrial = .false.
+            case("HEISENBERG-FCI-TRIAL")
+                tHeisenbergFCITrial = .false.
             case("TRIAL-BIN-SEARCH")
                 tTrialHash = .false.
             case("START-FROM-HF")
@@ -1163,12 +1189,12 @@ contains
             case("POPSFILEMAPPING")
 !This indicates that we will be mapping a popsfile from a smaller basis calculation, into a bigger basis calculation.
 !Requires a "mapping" file.
-                tPopsMapping=.true.
+                call stop_all(t_r,'POPSFILEMAPPING deprecated')
             case("READPOPSTHRESH")
 !When reading in a popsfile, this will only save the determinant, if the number of particles on this 
 !determinant is greater than iWeightPopRead.
                 tReadPops=.true.
-                call readi(iWeightPopRead)
+                call readf(iWeightPopRead)
                 if (item.lt.nitems) then
                     call readi(iPopsFileNoRead)
                     iPopsFileNoWrite = iPopsFileNoRead
@@ -1213,8 +1239,6 @@ contains
                     !change dramatically to start with.
                     call getf(InitialPart)
                 endif
-            case("CONTINUEAFTERMP2")
-                tContinueAfterMP2=.true.
             case("STARTCAS")
 !For FCIMC, this has an initial configuration of walkers which is proportional to the MP1 wavefunction
 !                CALL Stop_All(t_r,"STARTMP1 option depreciated")
@@ -1227,12 +1251,6 @@ contains
                     !change dramatically to start with.
                     call getf(InitialPart)
                 endif
-            case("GROWMAXFACTOR")
-!For FCIMC, this is the factor to which the initial number of particles is allowed to go before it is culled
-                call getf(GrowMaxFactor)
-            case("CULLFACTOR")
-!For FCIMC, this is the factor to which the total number of particles is reduced once it reaches the GrowMaxFactor limit
-                call getf(CullFactor)
             case("EQUILSTEPS")
 !For FCIMC, this indicates the number of cycles which have to
 !pass before the energy of the system from the doubles (HF)
@@ -1368,7 +1386,7 @@ contains
 !the processor during annihilation compared to InitWalkers. This will generally want to be larger than
 !memoryfacPart, because the parallel annihilation may not be exactly load-balanced because of differences 
 !in the wavevector and uniformity of the hashing algorithm.
-                CALL Getf(MemoryFacAnnihil)
+                call stop_all(t_r,'MEMORYFACANNIHIL should not be needed any more')
             case("MEMORYFACSPAWN")
 !A parallel FCIMC option for use with ROTOANNIHILATION. This is the factor by which space will be made 
 !available for spawned particles each iteration. 
@@ -1439,17 +1457,6 @@ contains
 !can only spawn back on to the determinant from which they came.  This is the star approximation from the CAS space. 
                 tTruncInitiator=.true.
 
-            case("DELAYTRUNCINITIATOR")
-!This keyword is used if we are eventually going to want to include the inactive space in a 
-!truncinitiator kind of way, but we want to start off by just doing a truncated calculation.                
-!Because we are simply using a larger NIfTot - this needs to be changed at the very beginning of 
-!a calculation - then we can either set the iteration at which we want to start including 
-!the rest of the space or we can do this dynamically.
-                tDelayTruncInit=.true.
-                IF(item.lt.nitems) then
-                    call Geti(IterTruncInit)
-                ENDIF
-
             case("KEEPDOUBSPAWNS")
 !This means that two sets of walkers spawned on the same determinant with the same sign will live, 
 !whether they've come from inside or outside the CAS space.  Before, if both of these
@@ -1481,16 +1488,6 @@ contains
 !Having this on means the population is tested at every iteration, turning it off means that once a determinant 
 !becomes an initiator by virtue of its population, it remains an initiator 
 !for the rest of the simulation.
-                if(item.lt.nitems) then
-                    call readu(w)
-                    select case(w)
-                    case("OFF")
-                        tRetestAddtoInit=.false.
-                    end select
-                else
-                    tRetestAddtoInit=.true.
-                end if
-
  
             case("INCLDOUBSINITIATOR")
 !This keyword includes any doubly excited determinant in the 'initiator' space so that it may spawn as usual
@@ -1757,6 +1754,198 @@ contains
                 ! TODO: Set a default cutoff criterion for this
                 tUniqueHFNode = .true.
 
+            case("LET-INIT-POP-DIE")
+                tLetInitialPopDie = .true.
+
+            case("POPS-ANNIHILATE")
+                alloc_popsfile_dets = .true.
+                tWritePopsNorm = .true.
+
+                ! Read in the number of perturbation operators which are about
+                ! to be read in.
+                call readi(npops_pert)
+                if (.not. allocated(pops_pert)) then
+                    allocate(pops_pert(npops_pert))
+                else
+                    if (npops_pert /= size(pops_pert)) then
+                        call stop_all(t_r, "A different number of creation and annihilation perturbation have been requested.")
+                    end if
+                end if
+
+                do i = 1, npops_pert
+                    call read_line(eof)
+                    pops_pert(i)%nannihilate = nitems
+                    allocate(pops_pert(i)%ann_orbs(nitems))
+                    do j = 1, nitems
+                        call readi(pops_pert(i)%ann_orbs(j))
+                    end do
+                    ! Create the rest of the annihilation-related
+                    ! components of the pops_pert object.
+                    call init_perturbation_annihilation(pops_pert(i))
+                end do
+
+            case("POPS-CREATION")
+                alloc_popsfile_dets = .true.
+                tWritePopsNorm = .true.
+
+                ! Read in the number of perturbation operators which are about
+                ! to be read in.
+                call readi(npops_pert)
+                if (.not. allocated(pops_pert)) then
+                    allocate(pops_pert(npops_pert))
+                else
+                    if (npops_pert /= size(pops_pert)) then
+                        call stop_all(t_r, "A different number of creation and annihilation perturbation have been requested.")
+                    end if
+                end if
+
+                do i = 1, npops_pert
+                    call read_line(eof)
+                    pops_pert(i)%ncreate = nitems
+                    allocate(pops_pert(i)%crtn_orbs(nitems))
+                    do j = 1, nitems
+                        call readi(pops_pert(i)%crtn_orbs(j))
+                    end do
+                    ! Create the rest of the creation-related
+                    ! components of the pops_pert object.
+                    call init_perturbation_creation(pops_pert(i))
+                end do
+
+            case("WRITE-POPS-NORM")
+                tWritePopsNorm = .true.
+
+            ! Options relating to finite-temperature Lanczos calculations.
+            case("NUM-INIT-VECS-FTLM")
+                call geti(n_init_vecs_ftlm)
+            case("NUM-LANC-VECS-FTLM")
+                call geti(n_lanc_vecs_ftlm)
+            case("NUM-BETA-FTLM")
+                call geti(nbeta_ftlm)
+            case("BETA-FTLM")
+                call getf(delta_beta_ftlm)
+
+            ! Options relating to exact spectral calculations.
+            case("NUM-LANC-VECS-SPECTRAL")
+                call geti(n_lanc_vecs_sl)
+            case("NUM-OMEGA-SPECTRAL")
+                call geti(nomega_spectral)
+            case("OMEGA-SPECTRAL")
+                call getf(delta_omega_spectral)
+            case("MIN-OMEGA-SPECTRAL")
+                call getf(min_omega_spectral)
+            case("BROADENING_SPECTRAL")
+                call getf(spectral_broadening)
+            case("INCLUDE-GROUND-SPECTRAL")
+                tIncludeGroundSpectral = .true.
+            case("GROUND-ENERGY-SPECTRAL")
+                call getf(spectral_ground_energy)
+
+            case("LEFT-ANNIHILATE-SPECTRAL")
+                alloc_popsfile_dets = .true.
+                tWritePopsNorm = .true.
+
+                ! Read in the number of perturbation operators which are about
+                ! to be read in.
+                call readi(npert_spectral_left)
+                if (.not. allocated(left_perturb_spectral)) then
+                    allocate(left_perturb_spectral(npert_spectral_left))
+                else
+                    if (npert_spectral_left /= size(left_perturb_spectral)) then
+                        call stop_all(t_r, "A different number of creation and annihilation perturbation have been requested.")
+                    end if
+                end if
+
+                do i = 1, npert_spectral_left
+                    call read_line(eof)
+                    left_perturb_spectral(i)%nannihilate = nitems
+                    allocate(left_perturb_spectral(i)%ann_orbs(nitems))
+                    do j = 1, nitems
+                        call readi(left_perturb_spectral(i)%ann_orbs(j))
+                    end do
+                    ! Create the rest of the annihilation-related
+                    ! components of the left_perturb_spectral object.
+                    call init_perturbation_annihilation(left_perturb_spectral(i))
+                end do
+            case("LEFT-CREATION-SPECTRAL")
+                alloc_popsfile_dets = .true.
+                tWritePopsNorm = .true.
+
+                ! Read in the number of perturbation operators which are about
+                ! to be read in.
+                call readi(npert_spectral_left)
+                if (.not. allocated(left_perturb_spectral)) then
+                    allocate(left_perturb_spectral(npert_spectral_left))
+                else
+                    if (npert_spectral_left /= size(left_perturb_spectral)) then
+                        call stop_all(t_r, "A different number of creation and annihilation perturbation have been requested.")
+                    end if
+                end if
+
+                do i = 1, npert_spectral_left
+                    call read_line(eof)
+                    left_perturb_spectral(i)%ncreate = nitems
+                    allocate(left_perturb_spectral(i)%crtn_orbs(nitems))
+                    do j = 1, nitems
+                        call readi(left_perturb_spectral(i)%crtn_orbs(j))
+                    end do
+                    ! Create the rest of the creation-related
+                    ! components of the left_perturb_spectral object.
+                    call init_perturbation_creation(left_perturb_spectral(i))
+                end do
+
+            case("RIGHT-ANNIHILATE-SPECTRAL")
+                alloc_popsfile_dets = .true.
+                tWritePopsNorm = .true.
+
+                ! Read in the number of perturbation operators which are about
+                ! to be read in.
+                call readi(npert_spectral_right)
+                if (.not. allocated(right_perturb_spectral)) then
+                    allocate(right_perturb_spectral(npert_spectral_right))
+                else
+                    if (npert_spectral_right /= size(right_perturb_spectral)) then
+                        call stop_all(t_r, "A different number of creation and annihilation perturbation have been requested.")
+                    end if
+                end if
+
+                do i = 1, npert_spectral_right
+                    call read_line(eof)
+                    right_perturb_spectral(i)%nannihilate = nitems
+                    allocate(right_perturb_spectral(i)%ann_orbs(nitems))
+                    do j = 1, nitems
+                        call readi(right_perturb_spectral(i)%ann_orbs(j))
+                    end do
+                    ! Create the rest of the annihilation-related
+                    ! components of the right_perturb_spectral object.
+                    call init_perturbation_annihilation(right_perturb_spectral(i))
+                end do
+            case("RIGHT-CREATION-SPECTRAL")
+                alloc_popsfile_dets = .true.
+                tWritePopsNorm = .true.
+
+                ! Read in the number of perturbation operators which are about
+                ! to be read in.
+                call readi(npert_spectral_right)
+                if (.not. allocated(right_perturb_spectral)) then
+                    allocate(right_perturb_spectral(npert_spectral_right))
+                else
+                    if (npert_spectral_right /= size(right_perturb_spectral)) then
+                        call stop_all(t_r, "A different number of creation and annihilation perturbation have been requested.")
+                    end if
+                end if
+
+                do i = 1, npert_spectral_right
+                    call read_line(eof)
+                    right_perturb_spectral(i)%ncreate = nitems
+                    allocate(right_perturb_spectral(i)%crtn_orbs(nitems))
+                    do j = 1, nitems
+                        call readi(right_perturb_spectral(i)%crtn_orbs(j))
+                    end do
+                    ! Create the rest of the creation-related
+                    ! components of the right_perturb_spectral object.
+                    call init_perturbation_creation(right_perturb_spectral(i))
+                end do
+
             case("TAU-CNT-THRESHOLD")
                 write(6,*) 'WARNING: This option is unused in this branch'
 
@@ -2001,6 +2190,8 @@ call neci_flush(6)
           use sym_mod
           use davidson_neci, only: davidson_direct_ci_init, davidson_direct_ci_end, perform_davidson
           use davidson_neci, only: direct_ci_type
+          use kp_fciqmc, only: perform_kp_fciqmc
+          use kp_fciqmc_procs, only: kp
 
 !Calls
 !          real(dp) DMonteCarlo2
@@ -2048,6 +2239,8 @@ call neci_flush(6)
              elseif(tRPA_QBA) then
                 call RunRPA_QBA(WeightDum,EnerDum)
                 WRITE(6,*) "Summed approx E(Beta)=",EnerDum
+             elseif(tKP_FCIQMC) then
+                 call perform_kp_fciqmc(kp)
              else
 
 
@@ -2272,7 +2465,8 @@ call neci_flush(6)
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
          use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,tCCMC
-         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes,tRPA_QBA, tDetermProj
+         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes,tRPA_QBA, tDetermProj, tFTLM, tSpecLanc
+         use CalcData, only: tExactSpec, tExactDiagAllSym
          use RPA_Mod, only : tDirectRPA
          use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer,tCCNoCuml
          use LoggingData, only: tCalcFCIMCPsi
@@ -2479,9 +2673,29 @@ call neci_flush(6)
                    I_HMAX=-21
                    TFCIMC=.true.
                    tUseProcsAsNodes=.true.
+               case("FTLM")
+                   tFTLM = .true.
+                   I_HMAX=-21
+                   TFCIMC=.true.
+                   tUseProcsAsNodes=.true.
+               case("EXACT-SPECTRUM")
+                   tExactSpec = .true.
+                   I_HMAX=-21
+                   TFCIMC=.true.
+                   tUseProcsAsNodes=.true.
+               case("EXACT-DIAG")
+                   tExactDiagAllSym = .true.
+                   I_HMAX=-21
+                   TFCIMC=.true.
+                   tUseProcsAsNodes=.true.
+               case("SPECTRAL-LANCZOS")
+                   tSpecLanc = .true.
+                   I_HMAX=-21
+                   TFCIMC=.true.
+                   tUseProcsAsNodes=.true.
                case default
-               call report("Keyword error with "//trim(w),     &
-     &                 .true.)
+                   call report("Keyword error with "//trim(w),     &
+         &                 .true.)
                end select
            case default
                call report("Error.  Method not specified."     &

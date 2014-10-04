@@ -1,10 +1,11 @@
+
 #include "macros.h"
 !This module is to be used for various types of walker MC annihilation in serial and parallel.
 MODULE AnnihilationMod
     use SystemData , only : NEl, tHPHF, nBasis, tCSF
     use CalcData , only : TRegenExcitgens, tEnhanceRemainder, &
                           tTruncInitiator, tSpawnSpatialInit, OccupiedThresh, &
-                          tSemiStochastic, tTrialWavefunction
+                          tSemiStochastic, tTrialWavefunction, tKP_FCIQMC
     USE DetCalcData , only : Det,FCIDetIndex
     USE Parallel_neci
     USE dSFMT_interface, only : genrand_real2_dSFMT
@@ -30,6 +31,8 @@ MODULE AnnihilationMod
     use LoggingData , only : tNoNewRDMContrib
     use util_mod, only: get_free_unit, binary_search_custom
     use sparse_arrays, only: trial_ht, con_ht
+    use global_det_data, only: set_det_diagH, get_iter_occ, &
+                               global_determinant_data
     use searching
     use hash
 
@@ -191,7 +194,6 @@ MODULE AnnihilationMod
 
         CALL CompressSpawnedList(MaxIndex, iter_data)  
 
-
 !        if(bNodeRoot) call sort(SpawnedParts(:,1:MaxIndex), ilut_lt, ilut_gt)
         call halt_timer(Compress_time)
 
@@ -226,6 +228,7 @@ MODULE AnnihilationMod
         integer(MPIArg), dimension(nProcessors) :: sendcounts, disps, &
                                                    recvcounts, recvdisps
         INTEGER :: MaxSendIndex
+        integer(MPIArg) :: SpawnedPartsWidth
         INTEGER, INTENT(OUT) :: MaxIndex
         LOGICAL, intent(in) :: tSingleProc
 
@@ -260,7 +263,6 @@ MODULE AnnihilationMod
            enddo
         endif
 
-
 !        WRITE(6,*) 'sendcounts',sendcounts
 !        WRITE(6,*) 'disps',disps
 
@@ -280,26 +282,14 @@ MODULE AnnihilationMod
             recvdisps(i)=recvdisps(i-1)+recvcounts(i-1)
         enddo
         MaxIndex=recvdisps(nProcessors)+recvcounts(nProcessors)
-        IF(tFillingStochRDMonFly.and.(.not.tNoNewRDMContrib)) THEN            
-            ! When we are filling the RDM, the SpawnedParts array contains 
-            ! | Dj (0:NIfTot) | Di (0:NIfDBO) | Ci (1) | 
-            ! All this needs to be passed around to the processor where Dj will be stored if 
-            ! already occupied.  We then need to search the CurrentDets of that processor 
-            ! to find Cj - while remembering the Di (and Ci) it goes with.
-            do i=1,nProcessors
-                recvdisps(i)=recvdisps(i)*int(NIfTot+NIfDBO+3,MPIArg)
-                recvcounts(i)=recvcounts(i)*int(NIfTot+NIfDBO+3,MPIArg)
-                sendcounts(i)=sendcounts(i)*int(NIfTot+NIfDBO+3,MPIArg)
-                disps(i)=disps(i)*int(NIfTot+NIfDBO+3,MPIArg)
-            enddo
-        ELSE
-            do i=1,nProcessors
-                recvdisps(i)=recvdisps(i)*int(NIfTot+1,MPIArg)
-                recvcounts(i)=recvcounts(i)*int(NIfTot+1,MPIArg)
-                sendcounts(i)=sendcounts(i)*int(NIfTot+1,MPIArg)
-                disps(i)=disps(i)*int(NIfTot+1,MPIArg)
-            enddo
-        ENDIF
+
+        SpawnedPartsWidth = int(size(SpawnedParts, 1), MPIArg)
+        do i=1,nProcessors
+            recvdisps(i)=recvdisps(i)*SpawnedPartsWidth
+            recvcounts(i)=recvcounts(i)*SpawnedPartsWidth
+            sendcounts(i)=sendcounts(i)*SpawnedPartsWidth
+            disps(i)=disps(i)*SpawnedPartsWidth
+        enddo
 
 !Max index is the largest occupied index in the array of hashes to be ordered in each processor 
         IF(MaxIndex.gt.(0.9_dp*MaxSpawned)) THEN
@@ -349,7 +339,7 @@ MODULE AnnihilationMod
 !        do i=1,MaxIndex
 !            WRITE(6,*) SpawnedParts2(:,i)
 !        enddo
-        
+
         CALL halt_timer(Comms_Time)
 
     END SUBROUTINE SendProcNewParts
@@ -367,12 +357,6 @@ MODULE AnnihilationMod
         integer(n_int) :: cum_det (0:niftot), temp_det(0:niftot)
         CHARACTER(len=*), parameter :: this_routine='CompressSpawnedList'
         TYPE(timer),save :: Sort_time
-    
-!        write(6,*) "SpawnedParts before:"
-!        do j = 1, ValidSpawned
-!            write(6,*) SpawnedParts(:,j), test_flag(SpawnedParts(:,j),flag_deterministic), &
-!                                          test_flag(SpawnedParts(:,j),flag_determ_parent)
-!        end do
 
 !We want to sort the list of newly spawned particles, in order for quicker binary searching later on. 
 !(this is not essential, but should proove faster)
@@ -384,7 +368,7 @@ MODULE AnnihilationMod
         call set_timer(Sort_time,20)
 
         call sort(SpawnedParts(:,1:ValidSpawned), ilut_lt, ilut_gt)
-        
+
         CALL halt_timer(Sort_time)
 
         IF(tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
@@ -577,8 +561,14 @@ MODULE AnnihilationMod
         PointTemp => SpawnedParts2
         SpawnedParts2 => SpawnedParts
         SpawnedParts => PointTemp
-        
-!
+
+        ! For kp-fciqmc calculations, store the current state of the spawning array.
+        if (tKP_FCIQMC) then
+            max_spawned_ind = ValidSpawned
+            do i = 1, ValidSpawned
+                SpawnedPartsKP(0:NIfDBO+lenof_sign,i) = SpawnedParts(0:NIfDBO+lenof_sign,i)
+            end do
+        end if
 
 !        WRITE(6,*) 'Spawned Parents'
 !        do i = 1, No_Spawned_Parents
@@ -883,27 +873,14 @@ MODULE AnnihilationMod
 !            enddo
 
             if(tHashWalkerList) then
-                !Do not need to binary search list. It is not sorted, but there is a hash table to it.
-                tSuccess=.false.
-                call decode_bit_det (nJ, SpawnedParts(:,i))              
-!                write(6,*) "Sending to hash func 1: ",nJ(:)
-                DetHash=FindWalkerHash(nJ,nWalkerHashes)
-!                write(6,*) "DetHash: ",DetHash
-                TempNode => HashIndex(DetHash)
-                ! If there is atleast one state in CurrentDets with this hash value.
-                if (TempNode%Ind /= 0) then
-                    do while (associated(TempNode))
-                        ASSERT(TempNode%Ind.le.TotWalkersNew)
-                        if(DetBitEQ(SpawnedParts(:,i),CurrentDets(:,TempNode%Ind),NIfDBO)) then
-                            ! We have found the matching determinant
-                            tSuccess=.true.
-                            PartInd=TempNode%Ind
-!                           write(6,*) "Found it at: ",PartInd
-                            exit
-                        endif
-                        TempNode => TempNode%Next
-                    enddo
-                end if
+                call decode_bit_det(nJ, SpawnedParts(:,i)) 
+                ! Search the hash table HashIndex for the determinant defined by
+                ! nJ and SpawnedParts(:,i). If it is found, tSuccess will be
+                ! returned .true. and PartInd will hold the position of the
+                ! determinant in CurrentDets. Else, tSuccess will be returned
+                ! .false. (and PartInd shouldn't be accessed).
+                ! Also, the hash value, DetHash, is returned by this routine.
+                call hash_table_lookup(nJ, SpawnedParts(:,i), NIfDBO, HashIndex, CurrentDets, PartInd, DetHash, tSuccess)
             else
                 CALL BinSearchParts(SpawnedParts(:,i),MinInd,TotWalkersNew,PartInd,tSuccess)
             endif
@@ -959,6 +936,17 @@ MODULE AnnihilationMod
                             call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentSign+SpawnedSign)
                         endif 
 
+                        if (tHashWalkerList .and. IsUnoccDet(SpawnedSign + CurrentSign) .and. &
+                              (.not. test_flag(CurrentDets(:,PartInd), flag_deterministic))) then
+                            !All walkers in this main list have been annihilated away
+                            !Remove it from the hash index array so that no others find it (it is impossible to have
+                            !another spawned walker yet to find this determinant)
+                            call remove_hash_table_entry(HashIndex, nJ, PartInd)
+                            !Add to "freeslot" list so it can be filled in
+                            iEndFreeSlot=iEndFreeSlot+1
+                            FreeSlot(iEndFreeSlot)=PartInd
+                        endif
+
                         cycle
 
                     end if
@@ -987,18 +975,20 @@ MODULE AnnihilationMod
                         if (CurrentSign(j).eq.0) then
                             !This determinant is actually /unoccupied/ for the walker type/set we're considering
                             !We need to decide whether to abort it or not
-                            if (tTruncInitiator.and.(.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j)) .and. &
-                                .not. test_flag (SpawnedParts(:,i), flag_make_initiator(j)))) then
-                                if (tSpawnSpatialInit) then
-                                    if (is_spatial_init(SpawnedParts(:,i))) then
-                                        call set_flag (SpawnedParts(:,i), &
-                                                       flag_parent_initiator(j))
+                            if (tTruncInitiator) then
+                                if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j)) .and. &
+                                    .not. test_flag (SpawnedParts(:,i), flag_make_initiator(j))) then
+                                    if (tSpawnSpatialInit) then
+                                        if (is_spatial_init(SpawnedParts(:,i))) then
+                                            call set_flag (SpawnedParts(:,i), &
+                                                           flag_parent_initiator(j))
+                                        endif
                                     endif
+                                    ! Walkers came from outside initiator space.
+                                    NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
+                                    iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
+                                    call encode_part_sign (CurrentDets(:,PartInd), 0.0_dp, j)
                                 endif
-                                ! Walkers came from outside initiator space.
-                                NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
-                                iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
-                                call encode_part_sign (CurrentDets(:,PartInd), 0.0_dp, j)
                             endif
                         elseif(SignProd(j) < 0) then
 #else
@@ -1040,19 +1030,6 @@ MODULE AnnihilationMod
                                     endif
                                 endif
                             ENDIF
-
-                            if(tHashWalkerList) then
-                                call extract_sign (CurrentDets(:,PartInd), SignTemp)
-                                if (IsUnoccDet(SignTemp)) then
-                                    !All walkers in this main list have been annihilated away
-                                    !Remove it from the hash index array so that no others find it (it is impossible to have
-                                    !another spawned walker yet to find this determinant)
-                                    call RemoveDetHashIndex(nJ,PartInd)
-                                    !Add to "freeslot" list so it can be filled in
-                                    iEndFreeSlot=iEndFreeSlot+1
-                                    FreeSlot(iEndFreeSlot)=PartInd
-                                endif
-                            endif
      
                             IF(tHistSpawn) THEN
 !We want to histogram where the particle annihilations are taking place.
@@ -1096,16 +1073,32 @@ MODULE AnnihilationMod
                         ENDIF
 
                     enddo   !Finish running over components of signs
+
+                    if(tHashWalkerList) then
+                        call extract_sign (CurrentDets(:,PartInd), SignTemp)
+                        if (IsUnoccDet(SignTemp)) then
+                            !All walkers in this main list have been annihilated away
+                            !Remove it from the hash index array so that no others find it (it is impossible to have
+                            !another spawned walker yet to find this determinant)
+                            call remove_hash_table_entry(HashIndex, nJ, PartInd)
+                            !Add to "freeslot" list so it can be filled in
+                            iEndFreeSlot=iEndFreeSlot+1
+                            FreeSlot(iEndFreeSlot)=PartInd
+                        endif
+                    endif
+
+                    if(tFillingStochRDMonFly.and.(.not.tNoNewRDMContrib)) then
+                        call extract_sign(CurrentDets(:,PartInd),TempCurrentSign)
+                        !We must use the instantaneous value for the off-diagonal contribution
+                        !However, we can't just use currentsign from prev iteration, as this has been subject
+                        !to death but not the new walkers. Must add on SpawnedSign, so we're effectively taking
+                        !the inst value from the next iter. This is fine as it's from the other population,
+                        !and the Di and Dj signs are already strictly uncorrelated
+                        call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),TempCurrentSign)
+                    endif 
+
                 endif
-                if(tFillingStochRDMonFly.and.(.not.tNoNewRDMContrib)) then
-                    call extract_sign(CurrentDets(:,PartInd),TempCurrentSign)
-                    !We must use the instantaneous value for the off-diagonal contribution
-                    !However, we can't just use currentsign from prev iteration, as this has been subject
-                    !to death but not the new walkers. Must add on SpawnedSign, so we're effectively taking
-                    !the inst value from the next iter. This is fine as it's from the other population,
-                    !and the Di and Dj signs are already strictly uncorrelated
-                    call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),TempCurrentSign)
-                endif 
+
             endif
                 
             if((.not.tSuccess).or.(tSuccess.and.(sum(abs(CurrentSign)) .eq. 0.0_dp))) then
@@ -1166,7 +1159,7 @@ MODULE AnnihilationMod
                                 !All walkers in this main list have died, and none have been spawned onto it.
                                 !Remove it from the hash index array so that no others find it (it is impossible to have
                                 !another spawned walker yet to find this determinant)
-                                call RemoveDetHashIndex(nJ,PartInd)
+                                call remove_hash_table_entry(HashIndex, nJ, PartInd)
                                 !Add to "freeslot" list so it can be filled in
                                 iEndFreeSlot=iEndFreeSlot+1
                                 FreeSlot(iEndFreeSlot)=PartInd
@@ -1253,8 +1246,9 @@ MODULE AnnihilationMod
                         call AddNewHashDet(TotWalkersNew,SpawnedParts(:,i),DetHash,nJ)
                     endif
                 endif
+
                 if(tFillingStochRDMonFly.and.(.not.tNoNewRDMContrib)) then
-                    !We must use the instantaneous value for the off-diagonal contribution
+                    ! We must use the instantaneous value for the off-diagonal contribution.
                     call check_fillRDM_DiDj(i,SpawnedParts(0:NifTot,i),SignTemp)
                 endif 
             endif
@@ -1303,7 +1297,6 @@ MODULE AnnihilationMod
                 PointTemp => SpawnedParts2
                 SpawnedParts2 => SpawnedParts
                 SpawnedParts => PointTemp
-
             ENDIF
         else
 
@@ -1340,7 +1333,6 @@ MODULE AnnihilationMod
         integer :: DetPosition
         HElement_t :: HDiag
         real(dp) :: trial_amp
-        type(ll_node), pointer :: TempNode
         character(len=*), parameter :: t_r="AddNewHashDet"
 
         !update its flag
@@ -1368,7 +1360,11 @@ MODULE AnnihilationMod
         else
             HDiag = get_helement (nJ, nJ, 0)
         endif
-        CurrentH(1,DetPosition)=real(HDiag,dp)-Hii
+
+        ! For the RDM code we need to set all of the elements of CurrentH to 0,
+        ! except the first one, holding the diagonal Hamiltonian element.
+        global_determinant_data(:,DetPosition) = 0.0_dp
+        call set_det_diagH(DetPosition, real(HDiag,dp) - Hii)
 
         ! Store the iteration, as this is the iteration on which the particle
         ! is created
@@ -1388,25 +1384,16 @@ MODULE AnnihilationMod
             current_trial_amps(DetPosition) = trial_amp
         end if
 
-        TempNode => HashIndex(DetHash)
-        if (TempNode%Ind == 0) then
-            TempNode%Ind = DetPosition
-        else
-            do while (associated(TempNode%Next))
-                TempNode => TempNode%Next
-            end do
-            allocate(TempNode%Next)
-            nullify(TempNode%Next%Next)
-            TempNode%Next%Ind = DetPosition
-        end if
-        nullify(TempNode)
+        ! Add the new determinant to the hash table.
+        call add_hash_table_entry(HashIndex, DetPosition, DetHash)
 
     end subroutine AddNewHashDet
 
     SUBROUTINE CalcHashTableStats(TotWalkersNew, iter_data)
+        use nElRDMMod , only : det_removed_fill_diag_rdm 
         use util_mod, only: abs_sign
         use CalcData , only : tCheckHighestPop
-        integer, intent(in) :: TotWalkersNew
+        integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
         INTEGER :: i, j, AnnihilatedDet
         real(dp) :: CurrentSign(lenof_sign), SpawnedSign(lenof_sign)
@@ -1422,10 +1409,12 @@ MODULE AnnihilationMod
         iHighestPop=0
         AnnihilatedDet=0
         tIsStateDeterm = .false.
+        InstNoAtHf = 0.0_dp
 
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
+                if (DetBitEQ(CurrentDets(:,i), iLutHF_True, NIfDBO)) InstNoAtHF=CurrentSign
                 if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
 
                 IF(IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
@@ -1445,9 +1434,11 @@ MODULE AnnihilationMod
                                     CurrentSign(j) = 0.0_dp
                                     call nullify_ilut_part(CurrentDets(:,i), j)
                                     call decode_bit_det(nI, CurrentDets(:,i))
-                                    call RemoveDetHashIndex(nI,i)
-                                    iEndFreeSlot=iEndFreeSlot+1
-                                    FreeSlot(iEndFreeSlot)=i
+                                    if (IsUnoccDet(CurrentSign)) then
+                                        call remove_hash_table_entry(HashIndex, nI, i)
+                                        iEndFreeSlot=iEndFreeSlot+1
+                                        FreeSlot(iEndFreeSlot)=i
+                                    end if
                                 elseif (tEnhanceRemainder) then
                                     NoBorn(j) = NoBorn(j) + OccupiedThresh - abs(CurrentSign(j))
                                     iter_data%nborn(j) = iter_data%nborn(j) &
@@ -1460,7 +1451,7 @@ MODULE AnnihilationMod
                     enddo
 
                     TotParts=TotParts+abs(CurrentSign)
-#ifdef __CMPLX
+#if defined(__CMPLX) || defined(__DOUBLERUN)
                     norm_psi_squared = norm_psi_squared + sum(CurrentSign**2)
                     if(tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + sum(CurrentSign**2)
 #else
@@ -1481,6 +1472,39 @@ MODULE AnnihilationMod
                         end if
                     ENDIF
                 ENDIF
+
+                IF(IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
+                    if (DetBitEQ(CurrentDets(:,i), iLutHF_True, NIfDBO)) then
+                        !We have to do this such that AvNoAtHF matches up with AvSign.
+                        !AvSign is extracted from CurrentH, and if the HFDet is unoccupied
+                        !at this moment during annihilation, it's CurrentH entry is removed
+                        !and the averaging information in it is lost.
+                        !In some cases (a successful spawning event) a CurrentH entry will
+                        !be recreated, but with AvSign 0, so we must match this here.
+                        AvNoAtHF=0.0_dp 
+                        IterRDM_HF = Iter + 1 
+                    endif
+                end if
+
+                if(tFillingStochRDMonFly .and. (.not. tIsStateDeterm)) then
+                    if(inum_runs.eq.2) then
+
+                        if ((CurrentSign(1) == 0 .and. get_iter_occ(i, 1) /= 0) .or. &
+                            (CurrentSign(inum_runs) == 0 .and. get_iter_occ(i, 2) /= 0) .or. &
+                            (CurrentSign(1) /= 0 .and. get_iter_occ(i, 1) == 0) .or. &
+                            (CurrentSign(inum_runs) /= 0 .and. get_iter_occ(i, 2) == 0)) then
+                               
+                            ! At least one of the signs has just gone to zero or just become reoccupied
+                            ! so we need to consider adding in diagonal elements and connections to HF
+                            ! The block that's just ended was occupied in at least one population.
+                            call det_removed_fill_diag_rdm(CurrentDets(:,i), i)
+                        endif
+                    else
+                        if (IsUnoccDet(CurrentSign)) then
+                            call det_removed_fill_diag_rdm(CurrentDets(:,i), i)
+                        endif
+                    endif
+                endif
 
                 IF(IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm) .and. tTruncInitiator) then
                     do j=1,lenof_sign
@@ -1504,65 +1528,6 @@ MODULE AnnihilationMod
         endif
 
     END SUBROUTINE CalcHashTableStats
-    
-    !Routine to find and remove the index to a determinant from the HashIndex array
-    !This could potentially be speeded up by an ordered HashIndex array, and binary searching
-    subroutine RemoveDetHashIndex(nI,DetPosition)
-        implicit none
-        integer, intent(in) :: nI(nel) 
-        integer, intent(in) :: DetPosition
-        integer :: DetHash
-        type(ll_node), pointer :: Curr, Prev
-        logical :: tStateFound
-        character(*), parameter :: this_routine="RemoveDetHashIndex"
-
-        tStateFound = .false.
-        DetHash = FindWalkerHash(nI,nWalkerHashes)
-        Curr => HashIndex(DetHash)
-        Prev => null()
-        do while (associated(Curr))
-            if (Curr%Ind == DetPosition) then
-                ! If this is the state to be removed.
-                tStateFound = .true.
-                if (associated(Prev)) then
-                    ! If not the first state in the list.
-                    Prev%Next => Curr%Next
-                    deallocate(Curr)
-                    exit
-                else
-                    ! If the first state in the list.
-                    if (associated(Curr%Next)) then
-                        ! If the first but not the only state in the list.
-                        ! Move the details of the second entry in the list to the
-                        ! first entry, and then deallocate it.
-                        Curr => Curr%Next
-                        HashIndex(DetHash)%Ind = Curr%Ind
-                        HashIndex(DetHash)%Next => Curr%Next
-                        deallocate(Curr)
-                        exit
-                    else
-                        ! If the first and only state in the list.
-                        Curr%Ind = 0
-                        Curr%Next => null()
-                        exit
-                    end if
-                end if
-            end if
-            Prev => Curr
-            Curr => Curr%Next
-        end do
-
-        nullify(Curr)
-        nullify(Prev)
-
-        ASSERT(tStateFound)
-
-!        write(6,*) "Det: ",nI(:)
-!        write(6,*) "DetHash: ",DetHash
-!        write(6,*) "DetPosition: ",DetPosition
-
-    end subroutine RemoveDetHashIndex
-
     
 !This routine will run through the total list of particles (TotWalkersNew in CurrentDets 
 !with sign CurrentSign) and the list of newly-spawned but
@@ -1603,15 +1568,15 @@ MODULE AnnihilationMod
 !Annihilated determinants first are removed from the main array (zero sign). 
 !Surely we only need to perform this loop if the number of annihilated particles > 0?
         TotParts=0.0
-        norm_psi_squared = 0.0
-        norm_semistoch_squared = 0.0
+        norm_psi_squared = 0.0_dp
+        norm_semistoch_squared = 0.0_dp
         DetsMerged=0
         trial_merged = 0
         i_trial = 0
         con_merged = 0
         i_conn = 0
         iHighestPop=0
-        InstNoatHF = 0.0
+        InstNoatHF = 0.0_dp
 
         IF(TotWalkersNew.gt.0) THEN
             do i=1,TotWalkersNew
@@ -1667,19 +1632,19 @@ MODULE AnnihilationMod
                 if(tFillingStochRDMonFly .and. (.not. tIsStateDeterm)) then
                     if(inum_runs.eq.2) then
 
-                        if(((CurrentSign(1).eq.0).and.(CurrentH(2+lenof_sign,i).ne.0)) .or. &
-                                & ((CurrentSign(inum_runs).eq.0).and.(CurrentH(1+2*lenof_sign,i).ne.0)) .or. &
-                                & ((CurrentSign(1).ne.0).and.(CurrentH(2+lenof_sign,i).eq.0)) .or. &
-                                & ((CurrentSign(inum_runs).ne.0).and.(CurrentH(1+2*lenof_sign,i).eq.0))) then
-                               
-                            !At least one of the signs has just gone to zero or just become reoccupied
-                            !so we need to consider adding in diagonal elements and connections to HF
-                            !The block that's just ended was occupied in at least one population.
-                            call det_removed_fill_diag_rdm(CurrentDets(:,i), CurrentH(1:NCurrH,i))
+                        if ((CurrentSign(1) == 0 .and. get_iter_occ(i, 1) /= 0) .or. &
+                            (CurrentSign(inum_runs) == 0 .and. get_iter_occ(i, 2) /= 0) .or. &
+                            (CurrentSign(1) /= 0 .and. get_iter_occ(i, 1) == 0) .or. &
+                            (CurrentSign(inum_runs) /= 0 .and. get_iter_occ(i, 2) == 0)) then
+                        
+                            ! At least one of the signs has just gone to zero or just become reoccupied
+                            ! so we need to consider adding in diagonal elements and connections to HF
+                            ! The block that's just ended was occupied in at least one population.
+                            call det_removed_fill_diag_rdm(CurrentDets(:,i), i)
                         endif
                     else
                         if (IsUnoccDet(CurrentSign)) then
-                            call det_removed_fill_diag_rdm(CurrentDets(:,i), CurrentH(1:NCurrH,i))
+                            call det_removed_fill_diag_rdm(CurrentDets(:,i), i)
                         endif
                     endif
                 endif
@@ -1694,10 +1659,10 @@ MODULE AnnihilationMod
 
                     if(i.eq.HFInd) then
                         !We have to do this such that AvNoAtHF matches up with AvSign.
-                        !AvSign is extracted from CurrentH, and if the HFDet is unoccupied
-                        !at this moment during annihilation, it's CurrentH entry is removed
+                        !AvSign is extracted from global_determinant_data, and if the HFDet is unoccupied
+                        !at this moment during annihilation, it's global_determinant_data entry is removed
                         !and the averaging information in it is lost.
-                        !In some cases (a successful spawning event) a CurrentH entry will
+                        !In some cases (a successful spawning event) a global_determinant_data entry will
                         !be recreated, but with AvSign 0, so we must match this here.
                         AvNoAtHF=0.0_dp 
                         IterRDM_HF = Iter + 1 
@@ -1713,10 +1678,15 @@ MODULE AnnihilationMod
                         enddo
                     ENDIF
                 ELSE
-!We want to move all the elements above this point down to 'fill in' the annihilated determinant.
+                    ! We want to move all the elements above this point down
+                    ! to 'fill in' the annihilated determinant.
                     IF(DetsMerged.ne.0) THEN
                         CurrentDets(0:NIfTot,i-DetsMerged)=CurrentDets(0:NIfTot,i)
-                        CurrentH(:, i-DetsMerged) = CurrentH(:, i)
+                        ! It isn't normally acceptable to access this array
+                        ! directly (it has accessor functions). But we are
+                        ! merely shuffling data in blocks, so its OK.
+                        global_determinant_data(:, i - DetsMerged) = &
+                            global_determinant_data(:, i)
 
                         ! Move the elements in the occupied trial and connected vectors to fill in
                         ! the values of the annihilated determinants.
@@ -1841,7 +1811,7 @@ MODULE AnnihilationMod
                     endif
                     HDiag=(REAL(HDiagTemp,dp))-Hii
                 endif
-                CurrentH(1,i)=HDiag
+                call set_det_diagH(i, HDiag)
 
                 ! Store the iteration this particle is being created on
                 call encode_first_iter(CurrentDets(:,i), iter)

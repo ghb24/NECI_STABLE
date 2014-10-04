@@ -18,6 +18,8 @@ MODULE ReadInput_neci
         use SystemData, only : tMolpro
         use System,     only : SysReadInput,SetSysDefaults
         use Calc,       only : CalcReadInput,SetCalcDefaults
+        use CalcData, only: tKP_FCIQMC, tUseProcsAsNodes
+        use kp_fciqmc_procs, only: kp_fciqmc_read_inp
         use Integrals_neci,  only : IntReadInput,SetIntDefaults
         Use Logging,    only : LogReadInput,SetLogDefaults
         use Parallel_neci,   only : iProcIndex
@@ -145,6 +147,10 @@ MODULE ReadInput_neci
                 call IntReadInput()
             case("LOGGING")
                 call LogReadInput()
+            case("KP-FCIQMC")
+                tKP_FCIQMC = .true.
+                tUseProcsAsNodes = .true.
+                call kp_fciqmc_read_inp()
             case("END")
                 exit
             case default
@@ -176,17 +182,17 @@ MODULE ReadInput_neci
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
                             TNoSameExcit, TInitStar, tMP2Standalone, &
-                            GrowMaxFactor, MemoryFacPart, tTruncInitiator, &
+                            MemoryFacPart, tTruncInitiator, &
                             tSpawnSpatialInit, tSpatialOnlyHash, InitWalkers, &
                             tUniqueHFNode, InitiatorCutoffEnergy, tCCMC, &
-                            tSurvivalInitiatorThreshold
+                            tSurvivalInitiatorThreshold, tKP_FCIQMC
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
                                  tNoDoubs
         use IntegralsData, only: tDiagStarStars, tExcitStarsRootChange, &
                                  tRmRootExcitStarsRootChange, tLinRootChange
-        use LoggingData, only: iLogging, tCalcFCIMCPsi, tHistHamil, &
+        use LoggingData, only: iLogging, tCalcFCIMCPsi, &
                            tCalcInstantS2, tDiagAllSpaceEver, &
                            tCalcVariationalEnergy, tCalcInstantS2Init, &
                            tPopsFile
@@ -229,10 +235,6 @@ MODULE ReadInput_neci
         if (tCalcFCIMCPsi .or. tHistSpawn) then
            tFindDets = .true.
            tCompressDets = .true.
-        endif
-        if (tHistHamil) then
-            tCalcHMat = .true.
-            tCompressDets = .true.
         endif
 
         ! We need to have found the dets before calculating the H mat.
@@ -344,7 +346,7 @@ MODULE ReadInput_neci
   
         !..   Testing ILOGGING
         !     ILOGGING = 0771
-        if (I_VMAX == 0 .and. nPaths /= 0) then
+        if (I_VMAX == 0 .and. nPaths /= 0 .and. (.not. tKP_FCIQMC)) then
             call report ('NPATHS!=0 and I_VMAX=0.  VERTEX SUM max level not &
                          &set', .true.)
         endif

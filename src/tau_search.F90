@@ -3,7 +3,7 @@
 module tau_search
 
     use SystemData, only: AB_elec_pairs, par_elec_pairs, tGen_4ind_weighted, &
-                          tHPHF, tCSF, tKpntSym, tMomInv, nel, G1, nbasis, &
+                          tHPHF, tCSF, tKpntSym, nel, G1, nbasis, &
                           AB_hole_pairs, par_hole_pairs, tGen_4ind_reverse, &
                           nOccAlpha, nOccBeta
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
@@ -328,7 +328,7 @@ contains
         integer :: ic,nJ(nel),nJ2(nel),ierr,iExcit,ex_saved(2,2)
         integer(kind=n_int) :: iLutnJ(0:niftot),iLutnJ2(0:niftot)
 
-        if(tCSF.or.tMomInv) call stop_all(t_r,"TauSearching needs fixing to work with CSFs or MI funcs")
+        if(tCSF) call stop_all(t_r,"TauSearching needs fixing to work with CSFs or MI funcs")
 
         if(MaxWalkerBloom.eq.-1) then
             !No MaxWalkerBloom specified
