@@ -41,7 +41,7 @@ module enumerate_excitations
     type simple_excit_store
         integer :: i, j
     end type
-    
+
 contains
 
     subroutine enumerate_spatial_excitations (ilutI, nI, ilut_ret, exflag, &
@@ -240,7 +240,6 @@ contains
                         return
                     end do
                     j = 0 ! Break loop
-
 
                 enddo
                 sym1 = -1 ! Break loop

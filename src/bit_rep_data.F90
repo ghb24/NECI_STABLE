@@ -5,7 +5,6 @@ module bit_rep_data
 
     use CalcData, only: tUseRealCoeffs
     use constants
-    use CalcData, only: tUseRealCoeffs
 
     implicit none
 
@@ -35,6 +34,7 @@ module bit_rep_data
 
     integer :: nOffSgn  ! Offset of signs in integers
     integer :: nIfSgn   ! Number of integers used for signs
+    integer :: nIfTotKP ! Upper bound of krylov_vecs.
 
     integer :: nOffIter ! The iteration where a site was first occupied
     integer :: nIfIter  ! Obviously either one, or zero.
@@ -79,7 +79,16 @@ contains
 !        off = mod(flg, bits_n_int)
 
 !        bSet = btest(ilut(ind), off)
-        bSet = btest(ilut(NOffFlag), flg + flag_bit_offset)
+
+        bSet = .false.
+
+#ifdef __INT64
+        if ((.not. tUseRealCoeffs) .or. tUseFlags) then
+#else
+        if (tUseFlags) then
+#endif
+            bSet = btest(ilut(NOffFlag), flg + flag_bit_offset)
+        end if
 
     end function test_flag
 

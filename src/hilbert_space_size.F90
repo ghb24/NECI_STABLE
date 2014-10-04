@@ -194,6 +194,53 @@ contains
 
      END SUBROUTINE CreateRandomExcitLevDetUnbias
 
+    subroutine create_rand_heisenberg_det(ilut)
+
+        use bit_rep_data, only: NIfTot
+        use dSFMT_interface , only : genrand_real2_dSFMT
+        use SystemData, only: nbasis, lms
+
+        integer(n_int), intent(out) :: ilut(0:NIfTot)
+        integer :: i, nsites, n_up, n_flipped, site_ind, bit_ind, elem
+        integer :: beta_ind, alpha_ind
+        real(dp) :: r
+        logical :: is_alpha, is_beta
+
+        ! Start from all spins down and pick random spins to flip up.
+        ilut = 0_n_int
+        n_flipped = 0
+
+        nsites = nbasis/2
+        n_up = (lms + nsites)/2
+
+        do
+            r = genrand_real2_dSFMT()
+            site_ind = int(r*nsites) + 1
+            bit_ind = 2*site_ind
+            elem = (bit_ind - 1)/bits_n_int
+            ! If this spin has already been flipped.
+            if (btest(ilut(elem), mod(bit_ind-1, bits_n_int))) cycle
+            ! Flip the spin up.
+            ilut(elem) = ibset(ilut(elem), mod(bit_ind-1, bits_n_int))
+            n_flipped = n_flipped + 1
+            if (n_flipped == n_up) exit
+        end do
+
+        do i = 1, nsites
+            ! If both alpha and beta bits are down, set the beta one up, to
+            ! represent a down spin.
+            beta_ind = 2*i-1 
+            alpha_ind = 2*i
+            elem = (alpha_ind - 1)/bits_n_int
+            is_alpha = btest(ilut(elem), mod(alpha_ind-1, bits_n_int))
+            is_beta = btest(ilut(elem), mod(beta_ind-1, bits_n_int))
+            if ((.not. is_alpha) .and. (.not. is_beta)) then
+                ilut(elem) = ibset(ilut(elem), mod(beta_ind-1, bits_n_int))
+            end if
+        end do
+
+    end subroutine create_rand_heisenberg_det
+
 !Create stochastically a random symmetry-allowed determinant from excitation level iExcitLevTest or less, with respect to i
 !the bit representation determinant iLutFDet, which is passed in.
 !The determinant is returned in bit-form in iLut, and the excitation level of the determinant in ExcitLev.
@@ -301,6 +348,37 @@ contains
          enddo
 
      END SUBROUTINE CreateRandomExcitLevDet
+
+    subroutine create_rand_det_no_sym(ilut)
+
+        ! Create a determinant with no symmetry imposed whatsoever, apart from using nel electrons.
+        ! This routine simply picks nel orbitals uniformly and returns a determinant with these occupied.
+
+        use bit_rep_data, only: NIfTot
+        USE dSFMT_interface , only : genrand_real2_dSFMT
+        use SystemData, only: nbasis, nel
+
+        integer(n_int), intent(out) :: ilut(0:NIfTot)
+        integer :: i, n_occ, orb_ind, elem
+        real(dp) :: r
+
+        ! Start from all orbitals unoccupied.
+        ilut = 0_n_int
+        n_occ = 0
+
+        do
+            r = genrand_real2_dSFMT()
+            orb_ind = int(r*nbasis) + 1
+            elem = (orb_ind - 1)/bits_n_int
+            ! If this orbital has already been occupied then choose another.
+            if (btest(ilut(elem), mod(orb_ind-1, bits_n_int))) cycle
+            ! Occupy the orbital.
+            ilut(elem) = ibset(ilut(elem), mod(orb_ind-1, bits_n_int))
+            n_occ = n_occ + 1
+            if (n_occ == nel) exit
+        end do
+
+    end subroutine create_rand_det_no_sym
 
 !This routine *stochastically* finds the size of the determinant space. For certain symmetries, its hard to find the
 !allowed size of the determinant space. However, it can be simply found using a MC technique.

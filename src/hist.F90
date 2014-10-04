@@ -13,7 +13,7 @@ module hist
     use DetBitOps, only: count_open_orbs, EncodeBitDet, spatial_bit_det, &
                          DetBitEq, count_open_orbs, TestClosedShellDet, &
                          CalcOpenOrbs, IsAllowedHPHF, FindBitExcitLevel
-    use hash , only : DetermineDetNode                     
+    use hash, only : DetermineDetNode                     
     use CalcData, only: tFCIMC, tTruncInitiator
     use DetCalcData, only: FCIDetIndex, det
     use FciMCData, only: tFlippedSign, TotWalkers, CurrentDets, iter, &
@@ -28,7 +28,6 @@ module hist
     use parallel_neci
     use csf, only: get_num_csfs, csf_coeff, csf_get_yamas, write_yama, &
                    extract_dorder
-!    use AnnihilationMod, only: DetermineDetNode
     use hist_data
     use timing_neci
     use Determinants, only: write_det
@@ -760,7 +759,7 @@ contains
 
                                 ! Store this det (n.b. contains original sgn)
                                 call decode_bit_det(nJ, sminus)
-                                proc = DetermineDetNode(nJ, 0) + 1
+                                proc = DetermineDetNode(nel,nJ, 0) + 1
                                 det_list(:,proc_pos(proc)) = sminus
                                 proc_pos(proc) = proc_pos(proc) + 1
                             endif

@@ -2655,12 +2655,17 @@ MODULE GenRandSymExcitNUMod
     FUNCTION IsMomentumAllowed(nJ)
 
         use sym_mod, only: mompbcsym
-        use SystemData, only:kvec, tUEG2
+        use SystemData, only:kvec, tUEG2, tAllSymSectors
         
         LOGICAL :: IsMomentumAllowed ! Returns whether the determinant is momentum allowed for  
                                     ! UEG and Hubbard models
                                     ! Compares the total k from a determinant nI with kTotal
         INTEGER :: nJ(NEl),kx,ky,kz,ktrial(3),i
+
+        if (tAllSymSectors) then
+            IsMomentumAllowed=.true.
+            return
+        end if
 
         IsMomentumAllowed=.false.
 

@@ -8,7 +8,7 @@ module trial_wf_gen
     use CalcData
     use davidson_neci, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
                         sparse_hamil_type
-    use DetBitOps, only: FindBitExcitLevel, ilut_lt, ilut_gt, DetBitEq
+    use DetBitOps, only: ilut_lt, ilut_gt, DetBitEq
     use DeterminantData, only: write_det
     use FciMCData, only: trial_space, trial_space_size, con_space, &
                          con_space_size, trial_wf, trial_energy, &
@@ -82,13 +82,21 @@ contains
         elseif (tOptimisedTrial) then
             call generate_optimised_core(called_from_trial)
         elseif (tPopsTrial) then
-            call generate_space_from_pops(called_from_trial)
+            call generate_space_most_populated(called_from_trial, n_trial_pops)
         elseif (tReadTrial) then
             call generate_space_from_file(called_from_trial)
         elseif (tLowETrial) then
             call generate_low_energy_core(called_from_trial)
         else if (tMP1Trial) then
             call generate_using_mp1_criterion(called_from_trial)
+        else if (tFCITrial) then
+            if (tAllSymSectors) then
+                call generate_fci_core_all_sym(called_from_semistoch)
+            else
+                call generate_fci_core(called_from_semistoch)
+            end if
+        else if (tHeisenbergFCITrial) then
+            call generate_heisenberg_fci(called_from_trial)
         end if
 
         if (tLimitTrialSpace) call remove_high_energy_orbs&
@@ -364,6 +372,8 @@ contains
     end subroutine initialise_trial_linscale
 
     subroutine remove_states_not_on_proc(ilut_list, ilut_list_size, update_trial_vector)
+        
+        use hash, only: DetermineDetNode
 
         integer, intent(inout) :: ilut_list_size
         integer(n_int), intent(inout) :: ilut_list(0:NIfTot, ilut_list_size)
@@ -374,7 +384,7 @@ contains
         counter = 0
         do i = 1, ilut_list_size
             call decode_bit_det(nI, ilut_list(0:NIfTot, i))
-            proc = DetermineDetNode(nI, 0)
+            proc = DetermineDetNode(nel, nI, 0)
             ! If this state and the previous one were identical, don't add this state to the
             ! list so that repeats aren't included.
             if (proc == iProcIndex) then

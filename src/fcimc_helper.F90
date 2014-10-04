@@ -7,7 +7,7 @@ module fcimc_helper
 
     use constants
     use util_mod
-    use systemData, only: nel, tHPHF, tMomInv, tNoBrillouin, G1, tUEG, &
+    use systemData, only: nel, tHPHF, tNoBrillouin, G1, tUEG, &
                           tLatticeGens, nBasis
     use bit_reps, only: NIfTot, flag_is_initiator, test_flag, extract_flags, &
                         flag_parent_initiator, encode_bit_rep, NIfD, &
@@ -22,7 +22,6 @@ module fcimc_helper
     use hist, only: test_add_hist_spin_dist_det, add_hist_spawn, &
                     add_hist_energies, HistMinInd, tHistSpawn
     use hphf_integrals, only: hphf_off_diag_helement
-    use MI_integrals, only: MI_off_diag_helement
     use Logging, only: OrbOccs, tPrintOrbOcc, tPrintOrbOccInit, &
                        tHistSpinDist, tHistSpawn, tHistEnergies, &
                        RDMEnergyIter, tFullHFAv, &
@@ -58,15 +57,19 @@ contains
         ! ValidSpawnedList
 
         ! 'type' of the particle - i.e. real/imag
+
         integer, intent(in) :: nJ(nel), parent_flags, part_type
-        integer, intent(in) :: WalkersToSpawn, WalkerNo
-        integer(n_int), intent(in) :: iLutJ(0:niftot), ilutI(0:niftot)
-        real(dp), intent(in) :: child(lenof_sign), RDMBiasFacCurr
-        real(dp), intent(in) :: SignCurr(lenof_sign)
+        integer(n_int), intent(in) :: iLutJ(0:niftot)
+        real(dp), intent(in) :: child(lenof_sign)
+        integer(n_int), intent(in), optional :: ilutI(0:niftot)
+        real(dp), intent(in), optional :: SignCurr(lenof_sign)
+        integer, intent(in), optional :: WalkerNo
+        real(dp), intent(in), optional :: RDMBiasFacCurr
+        integer, intent(in), optional :: WalkersToSpawn
         integer :: proc, flags, j
         logical :: parent_init
 
-        proc = DetermineDetNode(nJ,0)    ! 0 -> nNodes-1)
+        proc = DetermineDetNode(nel,nJ,0)    ! 0 -> nNodes-1)
         ! We need to include any flags set both from the parent and from the
         ! spawning steps. No we don't! - ghb
         ! This is highly yucky and needs cleaning up.
@@ -95,24 +98,27 @@ contains
                                             proc, part_type)
         end if
 
-        IF(lenof_sign.eq.2) THEN
-            !With complex walkers, things are a little more tricky.
-            !We want to transfer the flag for all particles created (both real and imag)
-            !from the specific type of parent particle.
-            !This can mean real walker flags being transfered to imaginary children and
-            !vice versa.
-            !This is unneccesary for real walkers.
-            !Test the specific flag corresponding to the parent, of type 'part_type'
-            parent_init = test_flag(SpawnedParts(:,ValidSpawnedList(proc)), &
-                                    flag_parent_initiator(part_type))
-            !Assign this flag to all spawned children
-            do j=1,lenof_sign
-                if (child(j) /= 0) then
-                    call set_flag (SpawnedParts(:,ValidSpawnedList(proc)), &
-                                   flag_parent_initiator(j), parent_init)
-                endif
-            enddo
-        ENDIF
+        if (tTruncInitiator) then
+            IF(lenof_sign.eq.2) THEN
+                ! With complex walkers, things are a little more tricky.
+                ! We want to transfer the flag for all particles created (both
+                ! real and imag) from the specific type of parent particle. This
+                ! can mean real walker flags being transfered to imaginary
+                ! children and vice versa.
+                ! This is unneccesary for real walkers.
+                ! Test the specific flag corresponding to the parent, of type
+                ! 'part_type'
+                parent_init = test_flag(SpawnedParts(:,ValidSpawnedList(proc)), &
+                                        flag_parent_initiator(part_type))
+                !Assign this flag to all spawned children
+                do j=1,lenof_sign
+                    if (child(j) /= 0) then
+                        call set_flag (SpawnedParts(:,ValidSpawnedList(proc)), &
+                                       flag_parent_initiator(j), parent_init)
+                    endif
+                enddo
+            ENDIF
+        end if
 
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
         
@@ -236,8 +242,6 @@ contains
             if (tHPHF) then
                 HOffDiag = hphf_off_diag_helement (ProjEDet, nI, iLutRef,&
                                                    ilut)
-            elseif(tMomInv) then
-                HOffDiag = MI_off_diag_helement (ProjEDet, nI, iLutRef, ilut)
             else
                 HOffDiag = get_helement (ProjEDet, nI, ExcitLevel, &
                                          ilutRef, ilut)
@@ -486,7 +490,7 @@ contains
                             IterRDM_HF(inum_runs) = 0.0_dp 
                             AvNoatHF(inum_runs) = 0.0_dp
                         endif
-                   elseif(((InstNoAtHF(1).eq.0.0).and.(IterRDM_HF(1).ne.0)) .or. &
+                    elseif(((InstNoAtHF(1).eq.0.0).and.(IterRDM_HF(1).ne.0)) .or. &
                        &  ((InstNoAtHF(inum_runs).eq.0.0).and.(IterRDM_HF(inum_runs).ne.0))) then
                         !At least one of the populations has just become zero
                         !Start a new averaging block
@@ -700,7 +704,7 @@ contains
             ! disallowed if double. If higher, then all excits could
             ! be disallowed. If HPHF, excit could be single or double,
             ! and IC not returned --> Always test.
-            if (tMomInv .or. tHPHF .or. WalkExcitLevel >= ICILevel .or. &
+            if (tHPHF .or. WalkExcitLevel >= ICILevel .or. &
                 (WalkExcitLevel == (ICILevel-1) .and. IC == 2)) then
                 ExcitLevel = FindBitExcitLevel (iLutHF, ilutnJ, ICILevel)
                 if (ExcitLevel > ICILevel) &

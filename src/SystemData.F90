@@ -17,10 +17,10 @@ character(12) :: MolproID
 
 logical :: tNoSingExcits    !True if there are no single excitations in the system
 
-logical :: tStarBin, tReadInt, tHFOrder, tDFRead, tPBC, tUEG, tUEG2, tCPMD, tHUB
+logical :: tStarBin, tReadInt, tHFOrder, tDFRead, tPBC, tUEG, tUEG2, tCPMD, tHUB, tHeisenberg
 logical :: tHPHF, tHPHFInts, tUHF, tSPN, tParity, tUseBrillouin, tExch, tReal
 logical :: tTilt, tUmatEps, tOneElIntMax, tOnePartOrbEnMax, tROHF, tBrillouinsDefault
-logical :: tNoBrillouin, tVirtCoulombMax, tVirtExchangeMin, tHijSqrdMin, tMomInv
+logical :: tNoBrillouin, tVirtCoulombMax, tVirtExchangeMin, tHijSqrdMin
 logical :: tDiagonalizehij, tHFSingDoubExcMax, tSpinOrbs, tReadInCoeff
 logical :: tUseMP2VarDenMat, tAlpha, tStoreAsExcitations, tBin, tStarStore
 logical :: tVASP, tOffDiagSqrdMin, tOffDiagSqrdMax, tOffDiagmax, tShakeDelay
@@ -215,6 +215,10 @@ LOGICAL :: tSymIgnoreEnergies
 
     ! Should we use |K| for FCIQMC?
     logical :: modk_offdiag
+
+    ! True if we are performing a calculation in all symmetry sectors at once.
+    ! This is used in finite-temperature KP-FCIQMC calculations.
+    logical :: tAllSymSectors
 
     logical :: tGenHelWeighted, tGen_4ind_weighted, tGen_4ind_reverse
 

@@ -650,7 +650,6 @@ contains
       use UMatCache, only: GetUMatSize
       use constants, only: dp,bits_n_int
       use SymData , only : TwoCycleSymGens
-      use CalcData , only : tTruncInitiator,tDelayTruncInit
       use FciMCData , only : tDebug
       use MemoryManager, only: TagIntType
       use global_utilities

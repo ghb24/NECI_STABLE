@@ -569,6 +569,8 @@ type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
         if (allocated(projected_hamil)) deallocate(projected_hamil)
         if (allocated(projected_hamil_scrap)) deallocate(projected_hamil_scrap)
         if (allocated(partial_davidson_vector)) deallocate(partial_davidson_vector)
+        if (allocated(space_sizes)) deallocate(space_sizes)
+        if (allocated(davidson_disps)) deallocate(davidson_disps)
         if (allocated(temp_in)) deallocate(temp_in)
         if (allocated(temp_out)) deallocate(temp_out)
         if (allocated(residual)) deallocate(residual)
