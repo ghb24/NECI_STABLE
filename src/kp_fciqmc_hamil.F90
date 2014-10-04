@@ -59,7 +59,7 @@ contains
             tot_pop = sum(abs(parent_sign))
 
             tParentIsDeterm = check_determ_flag(ilut_parent)
-            tParentUnoccupied = IsUnoccDet(parent_sign)
+            tParentUnoccupied = all(abs(parent_sign) < 1.e-16_dp)
 
             ! If this determinant is in the deterministic space then store the relevant
             ! data in arrays for later use.
