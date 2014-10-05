@@ -878,7 +878,8 @@ contains
 
         logical, intent(in) :: tPrintInfo
         integer :: i, counter, ierr
-        real(dp) :: eigenvec_pop
+        real(dp) :: eigenvec_pop, pop_sign(lenof_sign)
+        real(dp), allocatable :: temp_determ_vec(:)
         character(len=*), parameter :: t_r = "start_walkers_from_core_ground"
 
         ! Create the arrays used by the Davidson routine.
@@ -926,28 +927,28 @@ contains
             end if
         end if
 
-        ! Send the components to the correct processors and use partial_determ_vector as
-        ! temporary space.
+        ! Send the components to the correct processors using the following
+        ! array as temporary space.
+        allocate(temp_determ_vec(determ_proc_sizes(iProcIndex)))
         call MPIScatterV(davidson_eigenvector, determ_proc_sizes, determ_proc_indices, &
-                         partial_determ_vector(1,:), determ_proc_sizes(iProcIndex), ierr)
-
-        if (lenof_sign == 2) partial_determ_vector(2,:) = partial_determ_vector(1,:)
+                         temp_determ_vec, determ_proc_sizes(iProcIndex), ierr)
 
         ! Finally, copy these amplitudes across to the corresponding states in CurrentDets.
         counter = 0
-        do i = 1, int(TotWalkers)
+        do i = 1, int(TotWalkers, sizeof_int)
             if (test_flag(CurrentDets(:,i), flag_deterministic)) then
                 counter = counter + 1
-                call encode_sign(CurrentDets(:,i), partial_determ_vector(:,counter))
+                pop_sign = temp_determ_vec(counter)
+                call encode_sign(CurrentDets(:,i), pop_sign)
             end if
         end do
 
-        partial_determ_vector = 0.0_dp
         deallocate(davidson_eigenvector)
         call LogMemDealloc(t_r, DavidsonTag, ierr)
         deallocate(hamil_diag, stat=ierr)
         call LogMemDealloc(t_r, HDiagTag, ierr)
         call deallocate_sparse_ham(sparse_ham, 'sparse_ham', SparseHamilTags)
+        deallocate(temp_determ_vec)
 
     end subroutine start_walkers_from_core_ground
 
