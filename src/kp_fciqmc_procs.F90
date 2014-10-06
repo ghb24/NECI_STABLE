@@ -1762,7 +1762,7 @@ contains
             end do
 
             write(temp_unit,'(4("-"),a21,45("-"))') "Normalisation factors"
-            do i = 1, npositive+1
+            do i = 1, npositive
                 write(temp_unit,'(1x,es19.12)') N(i)
             end do
         end associate
