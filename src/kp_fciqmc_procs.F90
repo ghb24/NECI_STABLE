@@ -606,8 +606,8 @@ contains
         krylov_vecs = 0_n_int
 
         ! Rezero all the necessary data.
-        kp%overlap_matrix = 0.0_dp
-        kp%hamil_matrix = 0.0_dp
+        kp%overlap_matrix(:,:) = 0.0_dp
+        kp%hamil_matrix(:,:) = 0.0_dp
         TotWalkersKP = 0
         nkrylov_amp_elems_used = 0
         iter = 0
@@ -1765,7 +1765,7 @@ contains
             end do
 
             write(temp_unit,'(4("-"),a21,45("-"))') "Normalisation factors"
-            do i = 1, npositive+1
+            do i = 1, npositive
                 write(temp_unit,'(1x,es19.12)') N(i)
             end do
         end associate

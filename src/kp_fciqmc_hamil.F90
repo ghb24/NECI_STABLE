@@ -36,7 +36,7 @@ contains
         logical :: tNearlyFull, tFinished, tAllFinished
         HElement_t :: HElGen, HEl
 
-        kp%hamil_matrix = 0.0_dp
+        kp%hamil_matrix(:,:) = 0.0_dp
 
         ilut_parent = 0_n_int
         if (tUseFlags) flag_ind = NIfDBO + lenof_sign_kp + 2
@@ -62,7 +62,7 @@ contains
             tot_pop = sum(abs(parent_sign))
 
             tParentIsDeterm = check_determ_flag(ilut_parent)
-            tParentUnoccupied = IsUnoccDet(parent_sign)
+            tParentUnoccupied = all(abs(parent_sign) < 1.e-16_dp)
 
             ! If this determinant is in the deterministic space then store the relevant
             ! data in arrays for later use.

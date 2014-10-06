@@ -325,6 +325,7 @@ module hash
         real(dp) :: real_sign(lenof_sign)
         logical :: found, tCoreDet
         type(ll_node), pointer :: temp_node, prev
+        character(len=*), parameter :: this_routine = "rm_unocc_dets_from_hash_table"
 
         do i = 1, list_length
             call extract_sign(walker_list(:,i), real_sign)
