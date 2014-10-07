@@ -991,7 +991,7 @@ MODULe nElRDMMod
         
         ! This is the number of iterations this determinant has been occupied.
         IterDetOcc(1:lenof_sign) = real(Iter+PreviousCycles,dp) - get_iter_occ(j) + 1.0_dp
-        AvSignIters=min(IterDetOcc(1), IterDetOcc(inum_runs))
+        AvSignIters = min(IterDetOcc(1), IterDetOcc(inum_runs))
         
         ! IterLastRDMFill is the number of iterations from the last time the energy was calculated 
         IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter)
@@ -3984,8 +3984,11 @@ MODULe nElRDMMod
             ! Obviously this 'instantaneous' energy is actually accumulated between energy 
             ! print outs.
             if(tRDMInstEnergy) then
+                !WRITE(Energies_unit, "(I31,2(2X,F30.15))") Iter+PreviousCycles, RDMEnergy_Inst/Norm_2RDM_Inst, &
+                !                                               1.0_dp/Norm_2RDM_Inst
                 WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy_Inst, RDMEnergy
             else
+                !WRITE(Energies_unit, "(I31,2X,F30.15)") Iter+PreviousCycles, RDMEnergy
                 WRITE(Energies_unit, "(I31,F30.15)") Iter+PreviousCycles, RDMEnergy
             endif
             call neci_flush(Energies_unit)
@@ -6334,18 +6337,24 @@ MODULe nElRDMMod
 
     END SUBROUTINE BinSearchParts_rdm
     
-    subroutine fill_RDM_offdiag_deterministic() 
+    subroutine fill_RDM_offdiag_deterministic()
+
+        use bit_rep_data, only: NIfD
+
         integer :: i, j
-        integer, dimension(2) :: SingEx
-        integer, dimension(2,2) :: Ex
+        integer :: SingEx(2,1), Ex(2,2)
         real(dp) :: InstSignI, InstSignJ
         real(dp) :: AvSignI, AvSignJ
         logical :: tParity
-        integer(kind=n_int) :: iLutI(0:niftot), iLutJ(0:niftot)
+        integer(n_int) :: iLutI(0:niftot), iLutJ(0:niftot)
         integer :: nI(nel), nJ(nel), IC
         integer :: IterRDM, connect_elem
 
+        ! IterRDM will be the number of iterations that the contributions are
+        ! ech weighted by.
         if (mod((iter - IterRDMStart + 1), RDMEnergyIter) == 0) then
+            ! This numer of iterations is how regularly the energy is printed
+            ! out.
             IterRDM = RDMEnergyIter
         else
             ! This must be the final iteration, as we've got tFill_RDM=.true.
@@ -6355,70 +6364,70 @@ MODULe nElRDMMod
         
         Ex(:,:)=0
 
-        do i = 1, determ_proc_sizes(iProcIndex) !Core dets on this proc
-            iLutI=core_space(:,determ_proc_indices(iProcIndex)+i)
+        ! Cycle over all core dets on this process.
+        do i = 1, determ_proc_sizes(iProcIndex)
+            iLutI = core_space(:,determ_proc_indices(iProcIndex)+i)
                          
-            if(DetBitEq(iLutI,iLutHF_True,NifDBO)) cycle  !Connections to HF done elsewhere.
+            ! Connections to the HF are added in elsewhere, so skip them here.
+            if (DetBitEq(iLutI, iLutHF_True, NifDBO)) cycle
            
-!            InstSignI=partial_determ_vector(i)
-            AvSignI=full_determ_vector_av(1,determ_proc_indices(iProcIndex)+i)
+            AvSignI = full_determ_vector_av(1,determ_proc_indices(iProcIndex)+i)
 
-            CALL decode_bit_det(nI,iLutI)
-                        
-            do j = 1, sparse_core_ham(i)%num_elements-1   
-                 !Running over all non-zero off-diag matrix elements
-                 !Connections to whole space (1 row), excluding diagonal elements
+            call decode_bit_det(nI,iLutI)
+ 
+            do j = 1, sparse_core_ham(i)%num_elements-1
+                 ! Running over all non-zero off-diag matrix elements
+                 ! Connections to whole space (1 row), excluding diagonal elements
 
-                 !Note: determ_proc_indices holds sum(determ_proc_sizes(0:proc-1))
-                 !Core space holds all the core determinants on every processor, so we need
-                 !to shuffle up to the range of indices corresponding to this proc
-                 ! (using determ_proc_indices) and then select the correct one, i
+                 ! Note: determ_proc_indices holds sum(determ_proc_sizes(0:proc-1))
+                 ! Core space holds all the core determinants on every processor,
+                 ! so we need to shuffle up to the range of indices corresponding
+                 ! to this proc (using determ_proc_indices) and then select the
+                 ! correct one, i.
                  
-                 iLutJ=core_space(:,core_connections(i)%positions(j))
-                 if(DetBitEq(iLutJ,iLutHF_True,NifDBO)) cycle
-                 !Connections to HF done elsewhere.
+                 iLutJ = core_space(:,core_connections(i)%positions(j))
+
+                 ! Connections to the HF are added in elsewhere, so skip them here.
+                 if (DetBitEq(iLutJ, iLutHF_True, NifDBO)) cycle
                  
-!                 InstSignJ=full_determ_vector(core_connections(i)%positions(j))
-                 AvSignJ=full_determ_vector_av(inum_runs,core_connections(i)%positions(j))
-          
+                 AvSignJ = full_determ_vector_av(inum_runs,core_connections(i)%positions(j))
 
-                 connect_elem=core_connections(i)%elements(j)
+                 connect_elem = core_connections(i)%elements(j)
 
-                 IC=abs(connect_elem)
+                 IC = abs(connect_elem)
 
-                 if(sign(1, connect_elem).gt.0) then
-                     tParity=.false.
+                 if (sign(1, connect_elem) .gt. 0) then
+                     tParity = .false.
                  else
-                     tParity=.true.
-                 endif
+                     tParity = .true.
+                 end if
 
-                 if(tHPHF) then
-
+                 if (tHPHF) then
                      call decode_bit_det(nJ, iLutJ)
 
                      call Fill_Spin_Coupled_RDM_v2(iLutI, iLutJ, nI, nJ, AvSignI*IterRDM, AvSignJ,.false.)
-
                  else
-                     if(IC.eq.1) then
+                     if (IC .eq. 1) then
                          !Single excitation - contributes to 1- and 2-RDM (if calculated)
                           
                          !Note: get_bit_excitmat may be buggy (DetBitOps), but will do for now as we need the Ex...
-                         call get_bit_excitmat(iLutI,iLutJ,SingEx,IC)
-                         Ex(:,1)=SingEx(:)
+                         call get_bit_excitmat(iLutI(0:NIfD),iLutJ(0:NIfD), SingEx, IC)
+                         Ex(:,1) = SingEx(:,1)
                         
-                         !No need to explicitly fill symmetrically as we'll generate pairs of 
+                         ! No need to explicitly fill symmetrically as we'll generate pairs of
                          ! determinants both ways around using the connectivity matrix.
                          call Fill_Sings_RDM(nI,Ex,tParity,AvSignI*IterRDM,AvSignJ,.false.)
 
-                     elseif((IC.eq.2).and.(RDMExcitLevel.ne.1)) then
+                     else if ((IC .eq. 2) .and. (RDMExcitLevel .ne. 1)) then
                          
-                         !Note: get_bit_excitmat may be buggy (DetBitOps), but will do for now as we need the Ex...
-                         call get_bit_excitmat(iLutI,iLutJ,Ex,IC)
+                         ! Note: get_bit_excitmat may be buggy (DetBitOps), but will do for now as we need the Ex...
+                         call get_bit_excitmat(iLutI(0:NIfD), iLutJ(0:NIfD), Ex, IC)
                          call Fill_Doubs_RDM(Ex,tParity,AvSignI*IterRDM,AvSignJ,.false.)
                      endif
                  endif
              end do
         end do
+
     end subroutine fill_RDM_offdiag_deterministic 
 
     !To calculate the dipole moments, the casscf routine has to be called from molpro. i.e.
