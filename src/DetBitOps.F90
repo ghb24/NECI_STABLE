@@ -258,6 +258,7 @@ module DetBitOps
     end function FindSpatialBitExcitLevel
 
     !WARNING - I think this *may* be buggy - use with caution - ghb24 8/6/10
+    ! I fixed a bug (bits_n_int -> bits_n_int-1), but maybe there's more... - NSB 7/10/14
     pure subroutine get_bit_excitmat (ilutI, iLutJ, ex, IC)
         
         ! Obatin the excitation matrix between two determinants from their bit
@@ -268,11 +269,11 @@ module DetBitOps
         !                       number of orbital I,J differ by
         ! Out:   ex           - Excitation matrix between I,J
 
-        integer(kind=n_int), intent(in) :: iLutI(0:NIfD), iLutJ(0:NIfD)
+        integer(n_int), intent(in) :: iLutI(0:NIfD), iLutJ(0:NIfD)
         integer, intent(inout)  :: IC
-        integer, intent(out), dimension(2,IC) :: ex
+        integer, intent(out) :: ex(2,IC)
 
-        integer(kind=n_int) :: ilut(0:NIfD,2)
+        integer(n_int) :: ilut(0:NIfD,2)
         integer :: pos(2), max_ic, i, j, k
 
         ! Obtain bit representations of I,J containing only unique orbitals
@@ -283,21 +284,22 @@ module DetBitOps
         max_ic = IC
         pos = 0
         IC = 0
-        do i=0,NIfD
-            do j=0,bits_n_int
-                do k=1,2
+        do i = 0, NIfD
+            do j = 0, bits_n_int-1
+                do k = 1, 2
                     if (pos(k) < max_ic) then
                         if (btest(ilut(i,k), j)) then
                             pos(k) = pos(k) + 1
                             IC = max(IC, pos(k))
                             ex(k, pos(k)) = bits_n_int*i + j + 1
-                        endif
-                    endif
-                enddo
+                        end if
+                    end if
+                end do
                 if (pos(1) >= max_ic .and. pos(2) >= max_ic) return
-            enddo
-        enddo
-    end subroutine
+            end do
+        end do
+
+    end subroutine get_bit_excitmat
     
     subroutine get_bit_open_unique_ind (iLutI, iLutJ, op_ind, nop, &
                                         tsign_id, nsign, IC)
