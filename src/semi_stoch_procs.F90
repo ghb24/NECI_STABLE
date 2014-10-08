@@ -23,7 +23,7 @@ module semi_stoch_procs
                          PDetermTag, FDetermTag, IDetermTag, indices_of_determ_states, &
                          HashIndex, core_space, CoreSpaceTag, ll_node, nWalkerHashes, &
                          full_determ_vector_av, tFill_RDM, determ_space_size_int, &
-                         tFillingStochRDMonFly, Iter, IterRDMStart, &
+
                          core_ham_diag, DavidsonTag, Fii, HFDet, PreviousCycles, &
                          partial_determ_vecs_kp, full_determ_vecs_kp
     use hash, only: DetermineDetNode, FindWalkerHash, clear_hash_table
@@ -67,19 +67,13 @@ contains
 
         call set_timer(SemiStoch_Multiply_Time)
 
-        if(tFillingStochRDMonFly) then ! Update the average signs in full_determ_vector_av.
-            full_determ_vector_av=(((real(Iter+PreviousCycles,dp)-IterRDMStart)*full_determ_vector_av) &
-                                      + full_determ_vector)/(real(Iter+PreviousCycles,dp) - IterRDMStart + 1.0_dp)
-        endif
-            
         if (determ_proc_sizes(iProcIndex) >= 1) then
 
             ! For the moment, we're only adding in these contributions when we need the energy
             ! This will need refinement if we want to continue with the option of inst vs true full RDMs
             ! (as in another CMO branch).
-            if(tFill_RDM) call fill_RDM_offdiag_deterministic()
 
-            ! Perform the multiplication
+            ! Perform the multiplication.
 
             partial_determ_vector = 0.0_dp
 
@@ -140,6 +134,31 @@ contains
         call halt_timer(SemiStoch_Multiply_Time)
 
     end subroutine determ_projection_kp_hamil
+
+    subroutine average_determ_vector()
+
+        use FciMCData, only: Iter, tFillingStochRDMonFly, IterRDMStart
+        use LoggingData, only: RDMEnergyIter
+
+        real(dp) :: iter_curr, iter_start_av
+
+        ! If this condition is met then RDM energies were added in on the
+        ! previous iteration. We now want to start a new averaging block so
+        ! that the same contributions aren't added in again later.
+        if (mod(Iter+PreviousCycles - IterRDMStart, RDMEnergyIter) == 0) then 
+            full_determ_vector_av = 0.0_dp
+        end if
+
+        ! The current iteration, converted to a double precision real.
+        iter_curr = real(Iter+PreviousCycles, dp)
+        ! The iteration that this averaging block started on.
+        iter_start_av = real(RDMEnergyIter*((Iter+PreviousCycles - IterRDMStart)/RDMEnergyIter) + IterRDMStart, dp)
+
+        ! Add in the current deterministic vector to the running average.
+        full_determ_vector_av = (((iter_curr - iter_start_av)*full_determ_vector_av) + full_determ_vector)/&
+                                 (iter_curr - iter_start_av + 1.0_dp)
+
+    end subroutine average_determ_vector
 
     function is_core_state(ilut, nI) result (core_state)
 

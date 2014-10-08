@@ -134,13 +134,14 @@ MODULE FciMCParMod
                          extract_bit_rep_avsign_no_rdm, &
                          zero_rdms, store_parent_with_spawned, &
                          fill_rdm_diag_currdet_norm, calc_rdmbiasfac, &
-                         det_removed_fill_diag_rdm
+                         det_removed_fill_diag_rdm, fill_rdm_offdiag_deterministic
     use determ_proj, only: perform_determ_proj
     use semi_stoch_gen, only: init_semi_stochastic, enumerate_sing_doub_kpnt, &
                               write_most_pop_core_at_end
     use semi_stoch_procs, only: determ_projection, return_most_populated_states, &
                                 end_semistoch, is_core_state, return_mp1_amp_and_mp2_energy, &
-                                recalc_core_hamil_diag, check_determ_flag
+                                recalc_core_hamil_diag, check_determ_flag, &
+                                average_determ_vector
     use trial_wf_gen, only: init_trial_wf, update_compare_trial_file, end_trial_wf
     use ftlm_neci, only: perform_ftlm
     use spectral_lanczos, only: perform_spectral_lanczos
@@ -1071,7 +1072,6 @@ MODULE FciMCParMod
                     if (tFillingStochRDMonFly) then
                         call set_av_sgn(gen_ind, AvSignCurr)
                         call set_iter_occ(gen_ind, IterRDMStartCurr)
-
                     endif
                     ! We never overwrite the deterministic states, so move the
                     ! next slot in CurrentDets to the next state.
@@ -1091,10 +1091,24 @@ MODULE FciMCParMod
             endif
         ENDIFDEBUG
 
-        ! For semi-stochastic calculations only: Gather together the parts of
-        ! the deterministic vector stored on each processor, and then perform
-        ! the multiplication of the exact projector on this vector.
-        if (tSemiStochastic) call determ_projection()
+        if (tSemiStochastic) then
+            ! For semi-stochastic calculations only: Gather together the parts
+            ! of the deterministic vector stored on each processor, and then
+            ! perform the multiplication of the exact projector on this vector.
+            call determ_projection()
+
+            if (tFillingStochRDMonFly) then
+                ! For RDM calculations, add the current core amplitudes into the
+                ! running average.
+                call average_determ_vector()
+                ! If this is an iteration where the RDM energy is printed then
+                ! add the off-diagonal contributions from the core determinants
+                ! (the diagonal contributions are done in the same place for
+                ! all determinants, regardless of whether they are core or not,
+                ! so are not added in here).
+                if(tFill_RDM) call fill_RDM_offdiag_deterministic()
+            end if
+        end if
 
         if(tHashWalkerList) then
             ! With this algorithm, the determinants do not move, and therefore
