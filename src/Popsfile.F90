@@ -23,6 +23,7 @@ MODULE PopsfileMod
     use bit_reps
     use constants
     use Parallel_neci
+    use fcimc_helper, only: ChangeRefDet
     use LoggingData, only: iWritePopsEvery, tPopsFile, iPopsPartEvery, tBinPops, &
                        tPrintPopsDefault, tIncrementPops, tPrintInitiators, &
                        tSplitPops, tZeroProjE, tRDMonFly, tExplicitAllRDM, &

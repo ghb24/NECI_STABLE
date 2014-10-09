@@ -29,7 +29,9 @@ module fcimc_helper
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, tSurvivalInitiatorThreshold, &
                         tSemiStochastic, tTrialWavefunction, nItersInitiator, &
-                        InitiatorCutoffEnergy, InitiatorCutoffWalkNo
+                        InitiatorCutoffEnergy, InitiatorCutoffWalkNo, &
+                        tLogComplexPops
+    use DeterminantData, only: FDet
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use DetCalcData, only: FCIDetIndex, ICILevel
@@ -38,6 +40,8 @@ module fcimc_helper
     use Parallel_neci
     use FciMCLoggingMod, only: HistInitPopulations, WriteInitPops
     use csf_data, only: csf_orbital_mask
+    use fcimc_initialisation, only: DeallocFCIMCMemPar, SetupParameters, &
+                                    InitFCIMCCalcPar
     implicit none
     save
 
@@ -778,4 +782,48 @@ contains
 
 
     end function CheckAllowedTruncSpawn
+
+    ! This routine will change the reference determinant to DetCurr. It will 
+    ! also re-zero all the energy estimators, since they now correspond to
+    ! projection onto a different determinant.
+    subroutine ChangeRefDet(DetCurr)
+        INTEGER :: DetCurr(NEl),i
+
+        do i=1,NEl
+            FDet(i)=DetCurr(i)
+        enddo
+
+        WRITE(iout,"(A)") "*** Changing the reference determinant ***"
+        WRITE(iout,"(A)") "Switching reference and zeroing energy counters - restarting simulation"
+    !        
+    !Initialise variables for calculation on each node
+        Iter=1
+        CALL DeallocFCIMCMemPar()
+        IF(iProcIndex.eq.Root) THEN
+            CLOSE(fcimcstats_unit)
+            if(inum_runs.eq.2) CLOSE(fcimcstats_unit2)
+            IF(tTruncInitiator) CLOSE(initiatorstats_unit)
+            IF(tLogComplexPops) CLOSE(complexstats_unit)
+        ENDIF
+        IF(TDebug) CLOSE(11)
+        CALL SetupParameters()
+        CALL InitFCIMCCalcPar()
+
+    end subroutine ChangeRefDet
+
+    ! 
+    ! This is a null routine for encoding spawned sites
+    ! --> DOES NOTHING!!!
+    subroutine null_encode_child (ilutI, ilutJ, ic, ex)
+        implicit none
+        integer(kind=n_int), intent(in) :: ilutI(0:niftot)
+        integer, intent(in) :: ic, ex(2,2)
+        integer(kind=n_int), intent(inout) :: ilutj(0:niftot)
+
+        ! Avoid compiler warnings
+        integer :: iUnused
+        integer(n_int) :: iUnused2
+        iLutJ(0) = iLutJ(0); iUnused = IC; iUnused = ex(2,2)
+        iUnused2 = iLutI(0)
+    end subroutine
 end module
