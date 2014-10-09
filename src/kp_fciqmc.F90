@@ -23,8 +23,10 @@ contains
         use FciMCData, only: indices_of_determ_states, partial_determ_vector
         use FciMCParMod, only: create_particle, CalcParentFlag, decide_num_to_spawn
         use FciMCParMod, only: calculate_new_shift_wrapper, walker_death, end_iter_stats
-        use FciMCParMod, only: update_iter_data, CalcApproxpDoubles, SumEContrib
+        use FciMCParMod, only: update_iter_data
         use FciMCParMod, only: end_iteration_print_warn
+        use fcimc_initialisation, only: CalcApproxpDoubles
+        use fcimc_helper, only: SumEContrib
         use global_det_data, only: det_diagH
         use LoggingData, only: tPopsFile
         use Parallel_neci, only: iProcIndex

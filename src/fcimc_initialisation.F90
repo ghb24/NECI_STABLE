@@ -8,9 +8,9 @@ module fcimc_initialisation
                           tNoSingExcits, tOddS_HPHF, tSpn, tNoBrillouin, G1, &
                           tAssumeSizeExcitgen, tMolproMimic, tMolpro, tFixLz, &
                           tRef_Not_HF, LzTot, LMS, tKPntSym, tReal, nBasisMax,&
-                         tRotatedOrbs, MolproID, nBasis, arr, brr, nel, tCSF,&
-                          tHistSpinDist, tPickVirtUniform, &
-                          tGenHelWeighted, tGen_4ind_weighted
+                          tRotatedOrbs, MolproID, nBasis, arr, brr, nel, tCSF,&
+                          tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
+                          tGenHelWeighted, tGen_4ind_weighted, tLatticeGens
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
                         tCheckHighestPop, tSpatialOnlyHash, tStartCAS, tau, &
@@ -21,44 +21,67 @@ module fcimc_initialisation
                         VirtCASOrbs, StepsSft, tStartSinglePart, InitWalkers, &
                         tShiftOnHFPop, tReadPopsRestart, tTruncNOpen, &
                         trunc_nopen_max, tSpawnSpatialInit, MemoryFacInit, &
-                        MaxNoatHF, HFPopThresh
+                        MaxNoatHF, HFPopThresh, tAddToInitiator, &
+                        InitiatorWalkNo, tRestartHighPop, tAllRealCoeff, &
+                        tRealCoeffByExcitLevel, tTruncInitiator, &
+                        RealCoeffExcitThresh
     use spin_project, only: tSpinProject
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
-                            get_helement
-    use hphf_integrals, only: hphf_diag_helement
+                            get_helement, get_helement_det_only
+    use hphf_integrals, only: hphf_diag_helement, hphf_spawn_sign, &
+                              hphf_off_diag_helement_spawn
     use SymData, only: SymLabelList, SymLabelCounts, TwoCycleSymGens, &
-                       SymClassSize, nSymLabels
+                       SymClassSize, nSymLabels, sym_psi
     use DeterminantData, only: write_det, write_det_len, FDet
     use LoggingData, only: tTruncRODump, tCalcVariationalEnergy, tReadRDMs, &
                            tDiagAllSpaceEver, tFCIMCStats2, tCalcFCIMCPsi, &
                            tLogComplexPops, tHistExcitToFrom, tPopsFile, &
                            iWritePopsEvery, tExplicitAllRDM, tRDMOnFly, &
                            tDiagWalkerSubspace, tPrintOrbOcc, OrbOccs, &
-                           tHistInitPops, OrbOccsTag, tHistEnergies
+                           tHistInitPops, OrbOccsTag, tHistEnergies, &
+                           HistInitPops, AllHistInitPops, OffDiagMax, &
+                           OffDiagBinRange, iDiagSubspaceIter, &
+                           AllHistInitPopsTag, HistInitPopsTag
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
-                           ICILevel
+                           ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
-                             nVirtPartFrozen
-    use bit_rep_data, only: NIfTot, NIfD, NIfDBO
+                             nVirtPartFrozen, nPartFrozen, nelVirtFrozen
+    use bit_rep_data, only: NIfTot, NIfD, NIfDBO, flag_is_initiator, &
+                            flag_deterministic
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
-                         BeforeNormHist, InstHist, iNoBins, &
-                         HistogramEnergy, AllHistogramEnergy
-!    use PopsfileMod, only: FindPopsfileVersion
+                         BeforeNormHist, InstHist, iNoBins, AllInstHist, &
+                         HistogramEnergy, AllHistogramEnergy, AllHistogram, &
+                         BinRange
+    use PopsfileMod, only: FindPopsfileVersion
     use HPHFRandExcitMod, only: gen_hphf_excit
     use GenRandSymExcitCSF, only: gen_csf_excit
-    use procedure_pointers, only: generate_excitation
+    use GenRandSymExcitNUMod, only: gen_rand_excit
+    use procedure_pointers, only: generate_excitation, attempt_create, &
+                                  get_spawn_helement, encode_child, &
+                                  attempt_die, extract_bit_rep_avsign, &
+                                  fill_rdm_diag_currdet, new_child_stats
     use symrandexcit3, only: gen_rand_excit3
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
                                        gen_excit_4ind_weighted, &
                                        gen_excit_4ind_reverse
-    use hash, only: DetermineDetNode
+    use hash, only: DetermineDetNode, FindWalkerHash
     use SymExcit3, only: CountExcitations3 
     use constants, only: bits_n_int
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD , only : InitHistInitPops
-    use nElRDMMod, only: DeallocateRDM, InitRDM
-    use DetBitOps, only: FindBitExcitLevel, CountBits, TestClosedShellDet
+    use nElRDMMod, only: DeallocateRDM, InitRDM, fill_rdm_diag_currdet_norm, &
+                         extract_bit_rep_avsign_no_rdm
+    use DetBitOps, only: FindBitExcitLevel, CountBits, TestClosedShellDet, &
+                         FindExcitBitDet, IsAllowedHPHF, DetBitEq
+    use fcimc_pointed_fns, only: att_create_trunc_spawn_enc, &
+                                 attempt_create_normal, &
+                                 attempt_create_trunc_spawn, &
+                                 new_child_stats_hist_hamil, &
+                                 new_child_stats_normal, &
+                                 null_encode_child, attempt_die_normal
     use csf_data, only: csf_orbital_mask
+    use global_det_data, only: global_determinant_data
+    use csf, only: get_csf_helement
     use Parallel_neci
     use FciMCData
     use util_mod

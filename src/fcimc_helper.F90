@@ -21,7 +21,7 @@ module fcimc_helper
     use hphf_integrals, only: hphf_off_diag_helement
     use Logging, only: OrbOccs, tPrintOrbOcc, tPrintOrbOccInit, &
                        tHistSpinDist, tHistSpawn, tHistEnergies, &
-                       RDMEnergyIter, tFullHFAv, &
+                       RDMEnergyIter, tFullHFAv, tLogComplexPops, &
                        nHistEquilSteps, tCalcFCIMCPsi, StartPrintOrbOcc, &
                        HistInitPopsIter, tHistInitPops
     use CalcData, only: NEquilSteps, tFCIMC, tSpawnSpatialInit, tTruncCAS, &
@@ -29,8 +29,7 @@ module fcimc_helper
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, tSurvivalInitiatorThreshold, &
                         tSemiStochastic, tTrialWavefunction, nItersInitiator, &
-                        InitiatorCutoffEnergy, InitiatorCutoffWalkNo, &
-                        tLogComplexPops
+                        InitiatorCutoffEnergy, InitiatorCutoffWalkNo
     use DeterminantData, only: FDet
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
@@ -40,8 +39,6 @@ module fcimc_helper
     use Parallel_neci
     use FciMCLoggingMod, only: HistInitPopulations, WriteInitPops
     use csf_data, only: csf_orbital_mask
-    use fcimc_initialisation, only: DeallocFCIMCMemPar, SetupParameters, &
-                                    InitFCIMCCalcPar
     implicit none
     save
 
@@ -784,19 +781,4 @@ contains
     end function CheckAllowedTruncSpawn
 
 
-    ! 
-    ! This is a null routine for encoding spawned sites
-    ! --> DOES NOTHING!!!
-    subroutine null_encode_child (ilutI, ilutJ, ic, ex)
-        implicit none
-        integer(kind=n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(in) :: ic, ex(2,2)
-        integer(kind=n_int), intent(inout) :: ilutj(0:niftot)
-
-        ! Avoid compiler warnings
-        integer :: iUnused
-        integer(n_int) :: iUnused2
-        iLutJ(0) = iLutJ(0); iUnused = IC; iUnused = ex(2,2)
-        iUnused2 = iLutI(0)
-    end subroutine
 end module

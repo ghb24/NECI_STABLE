@@ -14,8 +14,9 @@ module kp_fciqmc_procs
     use dSFMT_interface , only: dSFMT_init, genrand_real2_dSFMT
     use fcimc_helper, only: create_particle
     use FciMCData
-    use FciMCParMod, only: InitFCIMC_HF, SetupParameters, InitFCIMCCalcPar
-    use FciMCParMod, only: init_fcimc_fn_pointers, WriteFciMCStats, WriteFciMCStatsHeader
+    use fcimc_initialisation, only: InitFCIMC_HF, SetupParameters, &
+                                    InitFCIMCCalcPar, init_fcimc_fn_pointers
+    use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
     use FciMCParMod, only: rezero_iter_stats_each_iter, tSinglePartPhase
     use global_det_data, only: det_diagH
     use gndts_mod, only: gndts
