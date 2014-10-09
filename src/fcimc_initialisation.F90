@@ -8,8 +8,8 @@ module fcimc_initialisation
                           tNoSingExcits, tOddS_HPHF, tSpn, tNoBrillouin, G1, &
                           tAssumeSizeExcitgen, tMolproMimic, tMolpro, tFixLz, &
                           tRef_Not_HF, LzTot, LMS, tKPntSym, tReal, nBasisMax,&
-                          tRotatedOrbs, MolproID, nBasis, arr, brr, nel, tCSF,&
-                          tHistSpinDist, tSpinProject, tPickVirtUniform, &
+                         tRotatedOrbs, MolproID, nBasis, arr, brr, nel, tCSF,&
+                          tHistSpinDist, tPickVirtUniform, &
                           tGenHelWeighted, tGen_4ind_weighted
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
@@ -22,6 +22,7 @@ module fcimc_initialisation
                         tShiftOnHFPop, tReadPopsRestart, tTruncNOpen, &
                         trunc_nopen_max, tSpawnSpatialInit, MemoryFacInit, &
                         MaxNoatHF, HFPopThresh
+    use spin_project, only: tSpinProject
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement
     use hphf_integrals, only: hphf_diag_helement
@@ -42,11 +43,11 @@ module fcimc_initialisation
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
                          BeforeNormHist, InstHist, iNoBins, &
                          HistogramEnergy, AllHistogramEnergy
-    use PopsfileMod, only: FindPopsfileVersion
+!    use PopsfileMod, only: FindPopsfileVersion
     use HPHFRandExcitMod, only: gen_hphf_excit
     use GenRandSymExcitCSF, only: gen_csf_excit
     use procedure_pointers, only: generate_excitation
-    use symranexcit3, only: gen_rand_excit3
+    use symrandexcit3, only: gen_rand_excit3
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
                                        gen_excit_4ind_weighted, &
                                        gen_excit_4ind_reverse
@@ -2517,3 +2518,37 @@ module fcimc_initialisation
     END SUBROUTINE CalcApproxpDoubles
 
 end module
+
+    ! This routine will change the reference determinant to DetCurr. It will 
+    ! also re-zero all the energy estimators, since they now correspond to
+    ! projection onto a different determinant.
+    !
+    ! n.b. NOT MODULARISED. This is a little evil, but there is an unbreakable
+    !      circular dependency otherwise.
+    !
+    ! **** See interface in Popsfile.F90 ****
+    subroutine ChangeRefDet(DetCurr)
+        use fcimc_initialisation
+        INTEGER :: DetCurr(NEl),i
+
+        do i=1,NEl
+            FDet(i)=DetCurr(i)
+        enddo
+
+        WRITE(iout,"(A)") "*** Changing the reference determinant ***"
+        WRITE(iout,"(A)") "Switching reference and zeroing energy counters - restarting simulation"
+    !        
+    !Initialise variables for calculation on each node
+        Iter=1
+        CALL DeallocFCIMCMemPar()
+        IF(iProcIndex.eq.Root) THEN
+            CLOSE(fcimcstats_unit)
+            if(inum_runs.eq.2) CLOSE(fcimcstats_unit2)
+            IF(tTruncInitiator) CLOSE(initiatorstats_unit)
+            IF(tLogComplexPops) CLOSE(complexstats_unit)
+        ENDIF
+        IF(TDebug) CLOSE(11)
+        CALL SetupParameters()
+        CALL InitFCIMCCalcPar()
+
+    end subroutine ChangeRefDet

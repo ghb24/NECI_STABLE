@@ -23,7 +23,6 @@ MODULE PopsfileMod
     use bit_reps
     use constants
     use Parallel_neci
-    use fcimc_helper, only: ChangeRefDet
     use LoggingData, only: iWritePopsEvery, tPopsFile, iPopsPartEvery, tBinPops, &
                        tPrintPopsDefault, tIncrementPops, tPrintInitiators, &
                        tSplitPops, tZeroProjE, tRDMonFly, tExplicitAllRDM, &
@@ -38,6 +37,14 @@ MODULE PopsfileMod
     implicit none
 
     logical :: tRealPOPSfile
+
+    interface
+        subroutine ChangeRefDet(det)
+            use SystemData, only: nel
+            implicit none
+            integer :: det(nel)
+        end subroutine
+    end interface
 
 contains
 

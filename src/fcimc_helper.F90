@@ -783,33 +783,6 @@ contains
 
     end function CheckAllowedTruncSpawn
 
-    ! This routine will change the reference determinant to DetCurr. It will 
-    ! also re-zero all the energy estimators, since they now correspond to
-    ! projection onto a different determinant.
-    subroutine ChangeRefDet(DetCurr)
-        INTEGER :: DetCurr(NEl),i
-
-        do i=1,NEl
-            FDet(i)=DetCurr(i)
-        enddo
-
-        WRITE(iout,"(A)") "*** Changing the reference determinant ***"
-        WRITE(iout,"(A)") "Switching reference and zeroing energy counters - restarting simulation"
-    !        
-    !Initialise variables for calculation on each node
-        Iter=1
-        CALL DeallocFCIMCMemPar()
-        IF(iProcIndex.eq.Root) THEN
-            CLOSE(fcimcstats_unit)
-            if(inum_runs.eq.2) CLOSE(fcimcstats_unit2)
-            IF(tTruncInitiator) CLOSE(initiatorstats_unit)
-            IF(tLogComplexPops) CLOSE(complexstats_unit)
-        ENDIF
-        IF(TDebug) CLOSE(11)
-        CALL SetupParameters()
-        CALL InitFCIMCCalcPar()
-
-    end subroutine ChangeRefDet
 
     ! 
     ! This is a null routine for encoding spawned sites
