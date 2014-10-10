@@ -7,7 +7,8 @@ MODULE CCMC
     use bit_rep_data, only: NIfDBO, NIfTot, extract_sign
     use bit_reps, only: encode_det, encode_sign
     use Parallel_neci
-    use DetBitOps, only: FindBitExcitLevel, FindExcitBitDet
+    use DetBitOps, only: FindBitExcitLevel, FindExcitBitDet, EncodeBitDet, &
+                         DetBitLt
     use fcimc_helper, only: CheckAllowedTruncSpawn
     use fcimc_pointed_fns, only: attempt_create_normal
     use FciMCData, only: iter, tDebug, TotWalkers, NoatHF, Noatdoubs, &
@@ -40,6 +41,10 @@ MODULE CCMC
     use searching, only: BinSearchParts
     use global_det_data, only: global_determinant_data, det_diagH, &
                                set_det_diagH
+    use fcimc_helper, only: create_particle, SumEContrib, InitHistMin
+    use fcimc_initialisation, only: SetupParameters
+    use fcimc_iter_utils, only: calculate_new_shift_wrapper
+    use fcimc_output, only: WriteFCIMCStatsHeader, WriteHistogram
    IMPLICIT NONE
     integer :: iPartBloom
    CONTAINS
@@ -3465,6 +3470,104 @@ END SUBROUTINE
         ENDIF
 
     END FUNCTION AttemptCreatePar
+
+    ! This is the same as BinSearchParts1, but this time, the list to search 
+    ! is passed in as an argument. The list goes from 1 to Length, but only 
+    ! between MinInd and MaxInd is actually searched.
+    SUBROUTINE BinSearchParts3(iLut,List,Length,MinInd,MaxInd,PartInd,tSuccess)
+        INTEGER :: MinInd,MaxInd,PartInd
+        INTEGER :: Length
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot), List(0:NIfTot,Length)
+        INTEGER :: i,j,N,Comp
+        LOGICAL :: tSuccess
+
+!        WRITE(iout,*) "Binary searching between ",MinInd, " and ",MaxInd
+!        CALL neci_flush(iout)
+        i=MinInd
+        j=MaxInd
+        IF(i-j.eq.0) THEN
+            Comp=DetBitLT(List(:,MaxInd),iLut(:),NIfDBO)
+            IF(Comp.eq.0) THEN
+                tSuccess=.true.
+                PartInd=MaxInd
+                RETURN
+            ELSE
+                tSuccess=.false.
+                PartInd=MinInd
+            ENDIF
+        ENDIF
+        do while(j-i.gt.0)  !End when the upper and lower bound are the same.
+            N=(i+j)/2       !Find the midpoint of the two indices
+!            WRITE(iout,*) i,j,n
+
+            ! Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it 
+            ! is more or 0 if they are the same
+            Comp=DetBitLT(List(:,N),iLut(:),NIfDBO)
+
+            IF(Comp.eq.0) THEN
+!Praise the lord, we've found it!
+                tSuccess=.true.
+                PartInd=N
+                RETURN
+            ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
+                ! The value of the determinant at N is LESS than the 
+                ! determinant we're looking for. Therefore, move the lower 
+                ! bound of the search up to N. However, if the lower bound is
+                ! already equal to N then the two bounds are consecutive and 
+                ! we have failed...
+                i=N
+            ELSEIF(i.eq.N) THEN
+
+
+                IF(i.eq.MaxInd-1) THEN
+                    ! This deals with the case where we are interested in the
+                    ! final/first entry in the list. Check the final entry of
+                    ! the list and leave We need to check the last index.
+                    Comp=DetBitLT(List(:,i+1),iLut(:),NIfDBO)
+                    IF(Comp.eq.0) THEN
+                        tSuccess=.true.
+                        PartInd=i+1
+                        RETURN
+                    ELSEIF(Comp.eq.1) THEN
+!final entry is less than the one we want.
+                        tSuccess=.false.
+                        PartInd=i+1
+                        RETURN
+                    ELSE
+                        tSuccess=.false.
+                        PartInd=i
+                        RETURN
+                    ENDIF
+
+                ELSEIF(i.eq.MinInd) THEN
+                    tSuccess=.false.
+                    PartInd=i
+                    RETURN
+                ELSE
+                    i=j
+                ENDIF
+
+
+            ELSEIF(Comp.eq.-1) THEN
+                ! The value of the determinant at N is MORE than the 
+                ! determinant we're looking for. Move the upper bound of the 
+                ! search down to N.
+                j=N
+            ELSE
+!We have failed - exit loop
+                i=j
+            ENDIF
+
+        enddo
+
+        ! If we have failed, then we want to find the index that is one less 
+        ! than where the particle would have been.
+        tSuccess=.false.
+        PartInd=MAX(MinInd,i-1)
+
+    END SUBROUTINE BinSearchParts3
+    
+
 
 END MODULE CCMC
 

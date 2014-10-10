@@ -10,10 +10,11 @@ module fcimc_helper
                         flag_parent_initiator, encode_bit_rep, NIfD, &
                         set_flag_general, flag_make_initiator, NIfDBO, &
                         extract_sign, set_flag, extract_first_iter, &
-                        flag_trial, flag_connected, flag_deterministic
+                        flag_trial, flag_connected, flag_deterministic, &
+                        extract_part_sign, encode_part_sign
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
-                         DetBitEQ, count_open_orbs
+                         DetBitEQ, count_open_orbs, EncodeBitDet
     use Determinants, only: get_helement
     use FciMCData
     use hist, only: test_add_hist_spin_dist_det, add_hist_spawn, &
@@ -33,12 +34,13 @@ module fcimc_helper
     use DeterminantData, only: FDet
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
-    use DetCalcData, only: FCIDetIndex, ICILevel
+    use DetCalcData, only: FCIDetIndex, ICILevel, det
     use hash, only: DetermineDetNode
     use nElRDMMod, only: store_parent_with_spawned
     use Parallel_neci
     use FciMCLoggingMod, only: HistInitPopulations, WriteInitPops
     use csf_data, only: csf_orbital_mask
+    use global_det_data, only: get_av_sgn, set_av_sgn
     implicit none
     save
 
@@ -779,6 +781,281 @@ contains
 
 
     end function CheckAllowedTruncSpawn
+
+!Routine which takes a set of determinants and returns the ground state energy
+    subroutine LanczosFindGroundE(Dets,DetLen,GroundE,ProjGroundE,tInit)
+        use DetCalcData, only : NKRY,NBLK,B2L,nCycle
+        implicit none
+        real(dp) , intent(out) :: GroundE,ProjGroundE
+        logical , intent(in) :: tInit
+        integer, intent(in) :: DetLen
+        integer, intent(in) :: Dets(NEl,DetLen)
+        integer :: gc,ierr,icmax,lenhamil,nKry1,nBlock,LScr,LIScr
+        integer(n_int) :: ilut(0:NIfTot)
+        logical :: tmc,tSuccess
+        real(dp) , allocatable :: A_Arr(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),W(:)
+        HElement_t, allocatable :: Work(:)
+        HElement_t, allocatable :: CkN(:,:),Hamil(:),TruncWavefunc(:)
+        HElement_t, allocatable :: Ck(:,:)  !This holds eigenvectors in the end
+        HElement_t :: Num,Denom,HDiagTemp
+        integer , allocatable :: LAB(:),NROW(:),INDEX(:),ISCR(:)
+        integer(TagIntType) :: LabTag=0,NRowTag=0,ATag=0,VTag=0,AMTag=0,BMTag=0,TTag=0,tagCKN=0,tagCK=0
+        integer(TagIntType) :: WTTag=0,SCRTag=0,ISCRTag=0,INDEXTag=0,WHTag=0,Work2Tag=0,V2Tag=0,tagW=0
+        integer(TagIntType) :: tagHamil=0,WorkTag=0
+        integer :: nEval,nBlocks,nBlockStarts(2),ExcitLev,iGetExcitLevel,i,nDoubles
+        character(*), parameter :: t_r='LanczosFindGroundE'
+        real(dp) :: norm
+        integer :: PartInd,ioTrunc
+        character(24) :: abstr
+        
+        if(DetLen.gt.1300) then
+            nEval = 3
+        else
+            nEval = DetLen
+        endif
+
+        write(iout,'(A,I10)') 'DetLen = ',DetLen
+!C..
+        Allocate(Ck(DetLen,nEval), stat=ierr)
+        call LogMemAlloc('CK',DetLen*nEval, 8,t_r, tagCK,ierr)
+        CK=(0.0_dp)
+!C..
+        allocate(W(nEval), stat=ierr)
+        call LogMemAlloc('W', nEval,8,t_r,tagW,ierr)
+        W=0.0_dp
+!        write(iout,*) "Calculating H matrix"
+!C..We need to measure HAMIL and LAB first 
+        allocate(NROW(DetLen),stat=ierr)
+        call LogMemAlloc('NROW',DetLen,4,t_r,NROWTag,ierr)
+        NROW(:)=0
+        ICMAX=1
+        TMC=.FALSE.
+        call DETHAM(DetLen,NEL,Dets,HAMIL,LAB,NROW,.TRUE.,ICMAX,GC,TMC)
+!        WRITE(iout,*) ' FINISHED COUNTING '
+        WRITE(iout,*) "Allocating memory for hamiltonian: ",GC*2
+        CALL neci_flush(iout)
+!C..Now we know size, allocate memory to HAMIL and LAB
+        LENHAMIL=GC
+        Allocate(Hamil(LenHamil), stat=ierr)
+        call LogMemAlloc('HAMIL', LenHamil, 8, t_r,tagHamil,ierr)
+        HAMIL=(0.0_dp)
+!C..
+        ALLOCATE(LAB(LENHAMIL),stat=ierr)
+        CALL LogMemAlloc('LAB',LenHamil,4,t_r,LabTag,ierr)
+
+        LAB(1:LENHAMIL)=0
+!C..Now we store HAMIL and LAB 
+        CALL DETHAM(DetLen,NEL,Dets,HAMIL,LAB,NROW,.FALSE.,ICMAX,GC,TMC)
+
+        if(DetLen.gt.1300) then
+            !Lanczos diag
+
+            Allocate(CkN(DetLen,nEval), stat=ierr)
+            call LogMemAlloc('CKN',DetLen*nEval, 8,t_r, tagCKN,ierr)
+            CKN=(0.0_dp)
+
+            NKRY1=NKRY+1
+            NBLOCK=MIN(NEVAL,NBLK)
+            LSCR=MAX(DetLen*NEVAL,8*NBLOCK*NKRY)
+            LISCR=6*NBLOCK*NKRY
+    !C..
+    !       write (iout,'(7X," *",19X,A,18X,"*")') ' LANCZOS DIAGONALISATION '
+    !C..Set up memory for FRSBLKH
+
+            ALLOCATE(A_Arr(NEVAL,NEVAL),stat=ierr)
+            CALL LogMemAlloc('A_Arr',NEVAL**2,8,t_r,ATag,ierr)
+            A_Arr=0.0_dp
+    !C..
+    !C,, W is now allocated with CK
+    !C..
+            ALLOCATE(V(DetLen*NBLOCK*NKRY1),stat=ierr)
+            CALL LogMemAlloc('V',DetLen*NBLOCK*NKRY1,8,t_r,VTag,ierr)
+            V=0.0_dp
+    !C..   
+            ALLOCATE(AM(NBLOCK*NBLOCK*NKRY1),stat=ierr)
+            CALL LogMemAlloc('AM',NBLOCK*NBLOCK*NKRY1,8,t_r,AMTag,ierr)
+            AM=0.0_dp
+    !C..
+            ALLOCATE(BM(NBLOCK*NBLOCK*NKRY),stat=ierr)
+            CALL LogMemAlloc('BM',NBLOCK*NBLOCK*NKRY,8,t_r,BMTag,ierr)
+            BM=0.0_dp
+    !C..
+            ALLOCATE(T(3*NBLOCK*NKRY*NBLOCK*NKRY),stat=ierr)
+            CALL LogMemAlloc('T',3*NBLOCK*NKRY*NBLOCK*NKRY,8,t_r,TTag,ierr)
+            T=0.0_dp
+    !C..
+            ALLOCATE(WT(NBLOCK*NKRY),stat=ierr)
+            CALL LogMemAlloc('WT',NBLOCK*NKRY,8,t_r,WTTag,ierr)
+            WT=0.0_dp
+    !C..
+            ALLOCATE(SCR(LScr),stat=ierr)
+            CALL LogMemAlloc('SCR',LScr,8,t_r,SCRTag,ierr)
+            SCR=0.0_dp
+            ALLOCATE(ISCR(LIScr),stat=ierr)
+            CALL LogMemAlloc('IScr',LIScr,4,t_r,IScrTag,ierr)
+            ISCR(1:LISCR)=0
+            ALLOCATE(INDEX(NEVAL),stat=ierr)
+            CALL LogMemAlloc('INDEX',NEVAL,4,t_r,INDEXTag,ierr)
+            INDEX(1:NEVAL)=0
+    !C..
+            ALLOCATE(WH(DetLen),stat=ierr)
+            CALL LogMemAlloc('WH',DetLen,8,t_r,WHTag,ierr)
+            WH=0.0_dp
+            ALLOCATE(WORK2(3*DetLen),stat=ierr)
+            CALL LogMemAlloc('WORK2',3*DetLen,8,t_r,WORK2Tag,ierr)
+            WORK2=0.0_dp
+            ALLOCATE(V2(DetLen,NEVAL),stat=ierr)
+            CALL LogMemAlloc('V2',DetLen*NEVAL,8,t_r,V2Tag,ierr)
+            V2=0.0_dp
+    !C..Lanczos iterative diagonalising routine
+            CALL NECI_FRSBLKH(DetLen,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A_Arr,W,V,AM,BM,T,WT, &
+             &  SCR,ISCR,INDEX,NCYCLE,B2L,.true.,.false.,.false.,.false.)
+
+            !Eigenvalues may come out wrong sign - multiply by -1
+            if(W(1).gt.0.0_dp) then
+                GroundE = -W(1)
+            else
+                GroundE = W(1)
+            endif
+
+            deallocate(A_Arr,V,AM,BM,T,WT,SCR,WH,V2,CkN,Index,IScr)
+            call LogMemDealloc(t_r,ATag)
+            call LogMemDealloc(t_r,VTag)
+            call LogMemDealloc(t_r,AMTag)
+            call LogMemDealloc(t_r,BMTag)
+            call LogMemDealloc(t_r,TTag)
+            call LogMemDealloc(t_r,tagCKN)
+            call LogMemDealloc(t_r,WTTag)
+            call LogMemDealloc(t_r,SCRTag)
+            call LogMemDealloc(t_r,ISCRTag)
+            call LogMemDealloc(t_r,IndexTag)
+            call LogMemDealloc(t_r,WHTag)
+            call LogMemDealloc(t_r,V2Tag)
+        else
+            !Full diag
+            allocate(Work(4*DetLen),stat=ierr)
+            call LogMemAlloc('Work',4*DetLen,8,t_r,WorkTag,ierr)
+            allocate(Work2(3*DetLen),stat=ierr)
+            call logMemAlloc('Work2',3*DetLen,8,t_r,Work2Tag,ierr)
+            nBlockStarts(1) = 1
+            nBlockStarts(2) = DetLen+1
+            nBlocks = 1
+            call HDIAG_neci(DetLen,Hamil,Lab,nRow,CK,W,Work2,Work,nBlockStarts,nBlocks)
+            GroundE = W(1)
+            deallocate(Work)
+            call LogMemDealloc(t_r,WorkTag)
+        endif
+
+        !Calculate proje.
+        nDoubles = 0
+        Num = 0.0_dp
+        do i=1,DetLen
+            ExcitLev = iGetExcitLevel(HFDet,Dets(:,i),NEl)
+            if((ExcitLev.eq.1).or.(ExcitLev.eq.2)) then
+                HDiagTemp = get_helement(HFDet,Dets(:,i),ExcitLev)
+                Num = Num + (HDiagTemp * CK(i,1))
+                nDoubles = nDoubles + 1
+            elseif(ExcitLev.eq.0) then
+                Denom = CK(i,1)
+            endif
+        enddo
+        ProjGroundE = (Num / Denom) + Hii
+!        write(iout,*) "***", nDoubles
+
+        if(tHistSpawn.and..not.tInit) then
+            !Write out the ground state wavefunction for this truncated calculation.
+            !This needs to be sorted, into the order given in the original FCI in DetCalc.
+            allocate(TruncWavefunc(Det),stat=ierr)
+            if(ierr.ne.0) call stop_all(t_r,"Alloc error")
+            TruncWavefunc(:) = 0.0_dp
+
+            Norm = 0.0_dp
+            do i=1,DetLen
+            !Loop over iluts in instantaneous list.
+
+                call EncodeBitDet(Dets(:,i),iLut)
+                !Calculate excitation level (even if hf isn't in list)
+                ExcitLev = FindBitExcitLevel(iLutHF,iLut,NEl)
+
+                if(ExcitLev.eq.nel) then
+                    call BinSearchParts2(iLut,FCIDetIndex(ExcitLev),Det,PartInd,tSuccess)
+                elseif(ExcitLev.eq.0) then
+                    PartInd = 1
+                    tSuccess = .true.
+                else
+                    call BinSearchParts2(iLut,FCIDetIndex(ExcitLev),FCIDetIndex(ExcitLev+1)-1,PartInd,tSuccess)
+                endif
+                if(.not.tSuccess) then
+                    call stop_all(t_r,"Error here as cannot find corresponding determinant in FCI expansion")
+                endif
+                TruncWavefunc(PartInd) = CK(i,1)
+
+                !Check normalisation
+                Norm = Norm + CK(i,1)**2.0_dp
+            enddo
+            Norm = sqrt(Norm)
+            if(abs(Norm-1.0_dp).gt.1.0e-7_dp) then
+                write(iout,*) "***",norm
+                call warning_neci(t_r,"Normalisation not correct for diagonalised wavefunction!")
+            endif
+
+            !Now write out...
+            abstr=''
+            write(abstr,'(I12)') Iter
+            abstr='TruncWavefunc-'//adjustl(abstr)
+            ioTrunc = get_free_unit()
+            open(ioTrunc,file=abstr,status='unknown')
+            do i=1,Det
+                write(ioTrunc,"(I13,F25.16)") i,TruncWavefunc(i)/norm
+            enddo
+            close(ioTrunc)
+
+            deallocate(TruncWavefunc)
+
+        endif
+
+
+        deallocate(Work2,W,Hamil,Lab,nRow,CK)
+        call LogMemDealloc(t_r,Work2Tag)
+        call LogMemDealloc(t_r,tagW)
+        call LogMemDealloc(t_r,tagHamil)
+        call LogMemDealloc(t_r,LabTag)
+        call LogMemDealloc(t_r,NRowTag)
+        call LogMemDealloc(t_r,tagCK)
+    
+    end subroutine LanczosFindGroundE
+
+    subroutine FlipSign(part_type)
+
+        ! This routine flips the sign of all particles on the node with a
+        ! given particle type. This allows us to keep multiple parallel
+        ! simulations sign coherent.
+
+        integer, intent(in) :: part_type
+        character(*), parameter :: t_r = 'FlipSign'
+        integer :: i
+        real(dp) :: sgn
+    
+        do i = 1, int(TotWalkers, sizeof_int)
+
+            sgn = extract_part_sign(CurrentDets(:,i), part_type)
+            sgn = -sgn
+            call encode_part_sign(CurrentDets(:,i), sgn, part_type)
+
+            ! Flip average signs too.
+            if (tFillingStochRDMOnFly) then
+                if (lenof_sign /= 1) &
+                    call stop_all(t_r, 'Not yet implemented')
+                call set_av_sgn(i, -get_av_sgn(i))
+            end if
+
+        enddo
+
+        ! Reverse the flag for whether the sign of the particles has been
+        ! flipped so the ACF can be correctly calculated
+        tFlippedSign = .not. tFlippedSign
+    
+    end subroutine FlipSign
 
 
 end module

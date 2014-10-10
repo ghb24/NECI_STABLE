@@ -25,7 +25,7 @@ module fcimc_initialisation
                         InitiatorWalkNo, tRestartHighPop, tAllRealCoeff, &
                         tRealCoeffByExcitLevel, tTruncInitiator, &
                         RealCoeffExcitThresh
-    use spin_project, only: tSpinProject
+    use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
     use hphf_integrals, only: hphf_diag_helement, hphf_spawn_sign, &
@@ -48,14 +48,21 @@ module fcimc_initialisation
                              nVirtPartFrozen, nPartFrozen, nelVirtFrozen
     use bit_rep_data, only: NIfTot, NIfD, NIfDBO, flag_is_initiator, &
                             flag_deterministic
+    use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
+                        encode_first_iter, decode_bit_det
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
                          BeforeNormHist, InstHist, iNoBins, AllInstHist, &
                          HistogramEnergy, AllHistogramEnergy, AllHistogram, &
                          BinRange
-    use PopsfileMod, only: FindPopsfileVersion
+    use hist, only: init_hist_spin_dist, init_hist_excit_tofrom, &
+                    clean_hist_spin_dist, clean_hist_excit_tofrom
+    use PopsfileMod, only: FindPopsfileVersion, initfcimc_pops, &
+                           ReadFromPopsfilePar, ReadPopsHeadv3, &
+                           ReadPopsHeadv4, open_pops_head, checkpopsparams
     use HPHFRandExcitMod, only: gen_hphf_excit
     use GenRandSymExcitCSF, only: gen_csf_excit
-    use GenRandSymExcitNUMod, only: gen_rand_excit
+    use GenRandSymExcitNUMod, only: gen_rand_excit, init_excit_gen_store, &
+                                    clean_excit_gen_store
     use procedure_pointers, only: generate_excitation, attempt_create, &
                                   get_spawn_helement, encode_child, &
                                   attempt_die, extract_bit_rep_avsign, &
@@ -65,14 +72,15 @@ module fcimc_initialisation
                                        gen_excit_4ind_weighted, &
                                        gen_excit_4ind_reverse
     use hash, only: DetermineDetNode, FindWalkerHash
-    use SymExcit3, only: CountExcitations3 
+    use SymExcit3, only: CountExcitations3, GenExcitations3
     use constants, only: bits_n_int
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD , only : InitHistInitPops
     use nElRDMMod, only: DeallocateRDM, InitRDM, fill_rdm_diag_currdet_norm, &
                          extract_bit_rep_avsign_no_rdm
     use DetBitOps, only: FindBitExcitLevel, CountBits, TestClosedShellDet, &
-                         FindExcitBitDet, IsAllowedHPHF, DetBitEq
+                         FindExcitBitDet, IsAllowedHPHF, DetBitEq, &
+                         EncodeBitDet
     use fcimc_pointed_fns, only: att_create_trunc_spawn_enc, &
                                  attempt_create_normal, &
                                  attempt_create_trunc_spawn, &
@@ -80,11 +88,22 @@ module fcimc_initialisation
                                  new_child_stats_normal, &
                                  null_encode_child, attempt_die_normal
     use csf_data, only: csf_orbital_mask
-    use global_det_data, only: global_determinant_data
+    use global_det_data, only: global_determinant_data, set_det_diagH, &
+                               clean_global_det_data, init_global_det_data
+    use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
+                              enumerate_sing_doub_kpnt
+    use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
+    use spatial_initiator, only: add_initiator_list
+    use trial_wf_gen, only: init_trial_wf, end_trial_wf
+    use gndts_mod, only: gndts
     use csf, only: get_csf_helement
+    use tau_search, only: init_tau_search
+    use fcimc_helper, only: CalcParentFlag
+    use get_excit, only: make_double
     use Parallel_neci
     use FciMCData
     use util_mod
+    use sort_mod
     use sym_mod
     use HElem
     use constants
@@ -2540,38 +2559,383 @@ module fcimc_initialisation
 
     END SUBROUTINE CalcApproxpDoubles
 
-end module
+    SUBROUTINE CreateSpinInvBRR()
+    ! Create an SpinInvBRR containing spin orbitals, 
+    ! unlike 'createInvBRR' which only has spatial orbitals.
+    ! This is used for the FixCASshift option in establishing whether or not
+    ! a determinant is in the complete active space.
+    ! In:
+    !    BRR(i)=j: orbital i is the j-th lowest in energy.
+    !    nBasis: size of basis
+    ! SpinInvBRR is the inverse of BRR.  SpinInvBRR(j)=i: the j-th lowest energy
+    ! orbital corresponds to the i-th orbital in the original basis.
+    ! i.e the position in SpinInvBRR now corresponds to the orbital number and 
+    ! the value to the relative energy of this orbital. 
+    
+        IMPLICIT NONE
+        INTEGER :: I,t,ierr
+        CHARACTER(len=*), PARAMETER :: this_routine='CreateSpinInvBrr'
 
-    ! This routine will change the reference determinant to DetCurr. It will 
-    ! also re-zero all the energy estimators, since they now correspond to
-    ! projection onto a different determinant.
-    !
-    ! n.b. NOT MODULARISED. This is a little evil, but there is an unbreakable
-    !      circular dependency otherwise.
-    !
-    ! **** See interface in Popsfile.F90 ****
-    subroutine ChangeRefDet(DetCurr)
-        use fcimc_initialisation
-        INTEGER :: DetCurr(NEl),i
+        IF(ALLOCATED(SpinInvBRR)) RETURN
+            
+        ALLOCATE(SpinInvBRR(NBASIS),STAT=ierr)
+        CALL LogMemAlloc('SpinInvBRR',NBASIS,4,this_routine,SpinInvBRRTag,ierr)
+            
 
-        do i=1,NEl
-            FDet(i)=DetCurr(i)
+!        IF(iProcIndex.eq.root) THEN
+!            WRITE(iout,*) "================================"
+!            WRITE(iout,*) "BRR is "
+!            WRITE(iout,*) BRR(:)
+!        ENDIF
+        
+        SpinInvBRR(:)=0
+        
+        t=0
+        DO I=1,NBASIS
+            t=t+1
+            SpinInvBRR(BRR(I))=t
+        ENDDO
+
+!        IF(iProcIndex.eq.root) THEN
+!            WRITE(iout,*) "================================"
+!            WRITE(iout,*) "SpinInvBRR is "
+!            WRITE(iout,*) SpinInvBRR(:)
+!        ENDIF
+        
+        RETURN
+        
+    END SUBROUTINE CreateSpinInvBRR
+
+   subroutine SetupValidSpawned(WalkerListSize)
+      use CalcData, only: MemoryFacSpawn
+      implicit none
+      integer(int64), intent(in) :: WalkerListSize
+      integer ierr,i,j
+      real(dp) Gap
+
+      !When running normally, WalkerListSize will be equal to initwalkers
+      !However, when reading in (and not continuing to grow) it should be equal to the number of dets in the popsfile
+      MaxSpawned=NINT(MemoryFacSpawn*WalkerListSize*inum_runs)
+!            WRITE(iout,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
+            
+!      WRITE(iout,"(A)") "*Direct Annihilation* in use...Explicit load-balancing disabled."
+      ALLOCATE(ValidSpawnedList(0:nNodes-1),stat=ierr)
+      ! InitialSpawnedSlots is now filled later, once the number of particles
+      ! wanted is known
+      !(it can change according to the POPSFILE).
+      ALLOCATE(InitialSpawnedSlots(0:nNodes-1),stat=ierr)
+      ! InitialSpawnedSlots now holds the first free position in the 
+      ! newly-spawned list for each processor, so it does not need to be 
+      ! reevaluated each iteration.
+!      MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
+      Gap=REAL(MaxSpawned,dp)/REAL(nNodes,dp)
+      do j=0,nNodes-1
+          InitialSpawnedSlots(j)=NINT(Gap*j)+1
+      enddo
+      ! ValidSpawndList now holds the next free position in the newly-spawned
+      ! list, but for each processor.
+      ValidSpawnedList(:)=InitialSpawnedSlots(:)
+
+   end subroutine
+
+    subroutine CalcUEGMP2()
+        use SymExcitDataMod, only: kPointToBasisFn
+        use SystemData, only: ElecPairs,NMAXX,NMAXY,NMAXZ,OrbECutOff,tGCutoff,GCutoff, &
+                                tMP2UEGRestrict,kiRestrict,kiMsRestrict,kjRestrict,kjMsRestrict, &
+                                Madelung,tMadelung,tUEGFreeze,FreezeCutoff, kvec, tUEG2
+        use Determinants, only: GetH0Element4, get_helement_excit
+        integer :: Ki(3),Kj(3),Ka(3),LowLoop,HighLoop,X,i,Elec1Ind,Elec2Ind,K,Orbi,Orbj
+        integer :: iSpn,FirstA,nJ(NEl),a_loc,Ex(2,2),kx,ky,kz,OrbB,FirstB
+        integer :: ki2,kj2
+        logical :: tParity,tMom
+        real(dp) :: Ranger,mp2,mp2all,length,length_g,length_g_2
+        HElement_t :: hel,H0tmp
+
+        !Divvy up the ij pairs
+        Ranger=real(ElecPairs,dp)/real(nProcessors,dp)
+        LowLoop=int(iProcIndex*Ranger)+1
+        Highloop=int((iProcIndex+1)*Ranger)
+
+        if((iProcIndex+1).eq.nProcessors) Highloop=ElecPairs
+        if(iProcIndex.eq.0) then
+            if(lowLoop.ne.1) write(iout,*) "Error here!"
+        endif
+        write(iout,*) "Total ij pairs: ",ElecPairs
+        write(iout,*) "Considering ij pairs from: ",LowLoop," to ",HighLoop  
+!        write(iout,*) "HFDet: ",HFDet(:)
+
+        do i=LowLoop,HighLoop   !Looping over electron pairs on this processor
+
+            X=ElecPairs-i
+            K=INT((SQRT(8.0_dp*REAL(X,dp)+1.0_dp)-1.0_dp)/2.0_dp)
+            Elec1Ind=NEl-1-K
+            Elec2Ind=NEl-X+((K*(K+1))/2)
+            Orbi=HFDet(Elec1Ind)
+            Orbj=HFDet(Elec2Ind)
+            Ki=G1(Orbi)%k
+            Kj=G1(Orbj)%k
+            !=======================================
+            if (tUEG2) then
+                Ki=kvec(Orbi, 1:3)
+                Kj=kvec(Orbj, 1:3)
+            end if
+            !=======================================
+            if (tUEGFreeze) then
+                ki2=ki(1)**2+ki(2)**2+ki(3)**2
+                kj2=kj(1)**2+kj(2)**2+kj(3)**2
+                if (.not.(ki2.gt.FreezeCutoff.and.kj2.gt.FreezeCutoff)) cycle
+            endif
+            if (tMP2UEGRestrict) then
+                if (.not. ( &
+                ( kiRestrict(1).eq.ki(1).and.kiRestrict(2).eq.ki(2).and.kiRestrict(3).eq.ki(3) .and. & 
+                kjRestrict(1).eq.kj(1).and.kjRestrict(2).eq.kj(2).and.kjRestrict(3).eq.kj(3) .and. & 
+                kjMsRestrict.eq.G1(Orbi)%Ms.and.kiMsRestrict.eq.G1(Orbj)%Ms ) .or. &
+                ! the other way round
+                ( kiRestrict(1).eq.kj(1).and.kiRestrict(2).eq.kj(2).and.kiRestrict(3).eq.kj(3) .and. & 
+                kjRestrict(1).eq.ki(1).and.kjRestrict(2).eq.ki(2).and.kjRestrict(3).eq.ki(3) .and. & 
+                kiMsRestrict.eq.G1(Orbi)%Ms.and.kjMsRestrict.eq.G1(Orbj)%Ms ) ) &
+                ) cycle
+                write(iout,*) "Restricting calculation to i,j pair: ",Orbi,Orbj
+            endif
+
+            IF((G1(Orbi)%Ms)*(G1(Orbj)%Ms).eq.-1) THEN
+!We have an alpha beta pair of electrons.
+                iSpn=2
+            ELSE
+                IF(G1(Orbi)%Ms.eq.1) THEN
+!We have an alpha alpha pair of electrons.
+                    iSpn=3
+                ELSE
+!We have a beta beta pair of electrons.
+                    iSpn=1
+                ENDIF
+            ENDIF
+
+!            write(iout,*) "ijpair: ",Orbi,Orbj
+
+            if((iSpn.eq.3).or.(iSpn.eq.1)) then
+                if(iSpn.eq.3) then
+                    FirstA=2    !Loop over alpha
+                else
+                    FirstA=1    !Loop over beta
+                endif
+
+                do a_loc=FirstA,nBasis,2
+                    !Loop over all a
+
+                    !Reject if a is occupied
+                    if(IsOcc(iLutHF,a_loc)) cycle
+
+                    Ka=G1(a_loc)%k
+                    !=======================================
+                    if (tUEG2) then
+                        Ka=kvec(a_loc, 1:3)
+                    end if
+                    !=======================================
+
+                    !Find k labels of b
+                    kx=Ki(1)+Kj(1)-Ka(1)
+                    if(abs(kx).gt.NMAXX) cycle
+                    ky=Ki(2)+Kj(2)-Ka(2)
+                    if(abs(ky).gt.NMAXY) cycle
+                    kz=Ki(3)+Kj(3)-Ka(3)
+                    if(abs(kz).gt.NMAXZ) cycle
+                    !if(tGCutoff) then
+                    !    length_g=real((kx-kj(1))**2+(ky-kj(2))**2+(kz-kj(3))**2)
+                    !    length_g_2=real((kx-ki(1))**2+(ky-ki(2))**2+(kz-ki(3))**2)
+                    !    if(length_g.gt.gCutoff.and.length_g_2.gt.gCutoff) cycle
+                    !endif
+                    length=real((kx**2)+(ky**2)+(kz**2),dp)
+                    if(length.gt.OrbECutoff) cycle
+
+                    !Find the actual k orbital
+                    if(iSpn.eq.3) then
+                        !want alpha
+                        OrbB=kPointToBasisFn(kx,ky,kz,2)
+                    else
+                        !want beta
+                        OrbB=kPointToBasisFn(kx,ky,kz,1)
+                    endif
+
+                    !Reject k orbital if it is occupied or gt a
+                    if(IsOcc(iLutHF,OrbB)) cycle
+                    if(OrbB.ge.a_loc) cycle
+
+                    !Find det
+!                    write(iout,*) "OrbB: ",OrbB
+                    call make_double (HFDet, nJ, elec1ind, elec2ind, a_loc, &
+                                      orbB, ex, tParity)
+                    !Sum in mp2 contrib
+                    hel=get_helement_excit(HFDet,nJ,2,Ex,tParity)
+
+                    H0tmp=getH0Element4(nJ,HFDet)
+                    H0tmp=Fii-H0tmp
+                    if(tMadelung) then
+                        H0tmp=H0tmp+2.0_dp*Madelung
+                    endif
+                    mp2=mp2+(hel**2)/H0tmp
+!                    write(iout,*) (hel**2),H0tmp
+                enddo
+
+            elseif(iSpn.eq.2) then
+                do a_loc=1,nBasis
+                    !Loop over all a_loc
+!                    write(iout,*) "a_loc: ",a_loc
+
+                    !Reject if a is occupied
+                    if(IsOcc(iLutHF,a_loc)) cycle
+
+                    Ka=G1(a_loc)%k
+                    !=======================================
+                    if (tUEG2) then
+                        Ka=kvec(a_loc, 1:3)
+                    end if
+                    !=======================================
+
+                    !Find k labels of b
+                    kx=Ki(1)+Kj(1)-Ka(1)
+                    if(abs(kx).gt.NMAXX) cycle
+                    ky=Ki(2)+Kj(2)-Ka(2)
+                    if(abs(ky).gt.NMAXY) cycle
+                    kz=Ki(3)+Kj(3)-Ka(3)
+                    if(abs(kz).gt.NMAXZ) cycle
+                    !if(tGCutoff) then
+                    !    length_g=real((kx-kj(1))**2+(ky-kj(2))**2+(kz-kj(3))**2)
+                    !    length_g_2=real((kx-ki(1))**2+(ky-ki(2))**2+(kz-ki(3))**2)
+                    !    if(length_g.gt.gCutoff.and.length_g_2.gt.gCutoff) cycle
+                    !endif
+                    length=real((kx**2)+(ky**2)+(kz**2),dp)
+                    if(length.gt.OrbECutoff) cycle
+
+                    !Find the actual k orbital
+                    if(is_beta(a_loc)) then
+                        !want alpha b orbital
+                        OrbB=kPointToBasisFn(kx,ky,kz,2)
+                    else
+                        !want beta
+                        OrbB=kPointToBasisFn(kx,ky,kz,1)
+                    endif
+
+                    !Reject k orbital if it is occupied or gt a
+                    if(IsOcc(iLutHF,OrbB)) cycle
+                    if(OrbB.ge.a_loc) cycle
+
+!                    write(iout,*) "OrbB: ",OrbB
+                    !Find det
+                    call make_double (HFDet, nJ, elec1ind, elec2ind, a_loc, &
+                                      orbB, ex, tParity)
+                    !Sum in mp2 contrib
+                    hel=get_helement_excit(HFDet,nJ,2,Ex,tParity)
+                    H0tmp=getH0Element4(nJ,HFDet)
+                    H0tmp=Fii-H0tmp
+                    if(tMadelung) then
+                        H0tmp=H0tmp+2.0_dp*Madelung
+                    endif
+                    mp2=mp2+(hel**2)/H0tmp
+!                    write(iout,*) (hel**2),H0tmp
+                enddo
+            endif
+
         enddo
 
-        WRITE(iout,"(A)") "*** Changing the reference determinant ***"
-        WRITE(iout,"(A)") "Switching reference and zeroing energy counters - restarting simulation"
-    !        
-    !Initialise variables for calculation on each node
-        Iter=1
-        CALL DeallocFCIMCMemPar()
-        IF(iProcIndex.eq.Root) THEN
-            CLOSE(fcimcstats_unit)
-            if(inum_runs.eq.2) CLOSE(fcimcstats_unit2)
-            IF(tTruncInitiator) CLOSE(initiatorstats_unit)
-            IF(tLogComplexPops) CLOSE(complexstats_unit)
-        ENDIF
-        IF(TDebug) CLOSE(11)
-        CALL SetupParameters()
-        CALL InitFCIMCCalcPar()
+!        write(iout,*) "mp2: ",mp2
+        mp2all=0.0_dp
+        
+        !Sum contributions across nodes.
+        call MPISumAll(mp2,mp2all)
+        write(iout,"(A,2G25.15)") "MP2 energy calculated: ",MP2All,MP2All+Hii
+        call neci_flush(iout)
 
-    end subroutine ChangeRefDet
+    end subroutine CalcUEGMP2
+
+    !Ensure that the new FCIMCStats file which is about to be opened does not overwrite any other FCIMCStats
+    !files. If there is already an FCIMCStats file present, then move it to FCIMCStats.x, where x is a largest
+    !free filename.
+    subroutine MoveFCIMCStatsFiles()
+#ifdef NAGF95
+        USe f90_unix_dir, only: rename
+#endif
+        integer :: extension,stat
+        logical :: exists
+        character(len=22) :: abstr
+!        character(len=36) :: command
+        character(len=*), parameter :: t_r='MoveFCIMCStatsFiles'
+
+        if(tMolpro) then
+            inquire(file='FCIQMCStats',exist=exists)
+        else
+            inquire(file='FCIMCStats',exist=exists)
+        endif
+        if(exists) then
+            !We already have an FCIMCStats file - move it to the end of the list of FCIMCStats files.
+
+            extension=1
+            do while(.true.)
+                abstr=''
+                write(abstr,'(I12)') extension
+                if(tMolpro) then
+                    abstr='FCIQMCStats.'//adjustl(abstr)
+                else
+                    abstr='FCIMCStats.'//adjustl(abstr)
+                endif
+                inquire(file=abstr,exist=exists)
+                if(.not.exists) exit
+                extension=extension+1
+                if(extension.gt.10000) then
+                    call stop_all(t_r,"Error finding free FCIMCStats name")
+                endif
+            enddo
+            
+            !We have got a unique filename
+            !Do not use system call
+!            command = 'mv' // ' FCIMCStats ' // abstr
+!            stat = neci_system(trim(command))
+
+            if(tMolpro) then
+                call rename('FCIQMCStats',abstr)
+            else
+                call rename('FCIMCStats',abstr)
+            endif
+            !Doesn't like the stat argument
+!            if(stat.ne.0) then
+!                call stop_all(t_r,"Error with renaming FCIMCStats file")
+!            endif
+        endif
+
+    end subroutine MoveFCIMCStatsFiles
+
+end module
+
+! This routine will change the reference determinant to DetCurr. It will 
+! also re-zero all the energy estimators, since they now correspond to
+! projection onto a different determinant.
+!
+! n.b. NOT MODULARISED. This is a little evil, but there is an unbreakable
+!      circular dependency otherwise.
+!
+! **** See interface in Popsfile.F90 ****
+subroutine ChangeRefDet(DetCurr)
+    use fcimc_initialisation
+    INTEGER :: DetCurr(NEl),i
+
+    do i=1,NEl
+        FDet(i)=DetCurr(i)
+    enddo
+
+    WRITE(iout,"(A)") "*** Changing the reference determinant ***"
+    WRITE(iout,"(A)") "Switching reference and zeroing energy counters - restarting simulation"
+!        
+!Initialise variables for calculation on each node
+    Iter=1
+    CALL DeallocFCIMCMemPar()
+    IF(iProcIndex.eq.Root) THEN
+        CLOSE(fcimcstats_unit)
+        if(inum_runs.eq.2) CLOSE(fcimcstats_unit2)
+        IF(tTruncInitiator) CLOSE(initiatorstats_unit)
+        IF(tLogComplexPops) CLOSE(complexstats_unit)
+    ENDIF
+    IF(TDebug) CLOSE(11)
+    CALL SetupParameters()
+    CALL InitFCIMCCalcPar()
+
+end subroutine ChangeRefDet

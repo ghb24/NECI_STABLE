@@ -10,8 +10,11 @@ module fcimc_pointed_fns
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement
     use fcimc_helper, only: CheckAllowedTruncSpawn
-    use DetBitOps, only: FindBitExcitLevel
+    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use bit_rep_data, only: NIfTot
+    use tau_search, only: log_death_magnitude, log_spawn_magnitude
+    use nElRDMMod, only: calc_rdmbiasfac
+    use hist, only: add_hist_excit_tofrom
     use util_mod
     use FciMCData
     use constants
