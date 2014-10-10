@@ -11,7 +11,7 @@ module fcimc_helper
                         set_flag_general, flag_make_initiator, NIfDBO, &
                         extract_sign, set_flag, extract_first_iter, &
                         flag_trial, flag_connected, flag_deterministic, &
-                        extract_part_sign, encode_part_sign
+                        extract_part_sign, encode_part_sign, decode_bit_det
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet
@@ -1122,6 +1122,93 @@ contains
         tFlippedSign = .not. tFlippedSign
     
     end subroutine FlipSign
+
+!This routine takes the walkers from all subspaces, constructs the hamiltonian, and diagonalises it.
+!Currently, this only works in serial.
+    subroutine DiagWalkerSubspace()
+        implicit none
+        integer :: i,iSubspaceSize,ierr,iSubspaceSizeFull
+        real(dp) :: CurrentSign(lenof_sign)
+        integer, allocatable :: ExpandedWalkerDets(:,:)
+        integer(TagIntType) :: ExpandedWalkTag=0
+        real(dp) :: GroundEFull,GroundEInit,CreateNan,ProjGroundEFull,ProjGroundEInit
+        character(*), parameter :: t_r='DiagWalkerSubspace'
+
+        if(nProcessors.gt.1) call stop_all(t_r,"Walker subspace diagonalisation only works in serial")
+        if(lenof_sign.ne.1) call stop_all(t_r,'Cannot do Lanczos on complex orbitals.')
+
+        if(tTruncInitiator) then
+            !First, diagonalise initiator subspace
+            write(iout,'(A)') 'Diagonalising initator subspace...'
+
+            iSubspaceSize = 0
+            do i=1,int(TotWalkers,sizeof_int)
+                call extract_sign(CurrentDets(:,i),CurrentSign)
+                if((abs(CurrentSign(1)) > InitiatorWalkNo) .or. &
+                        (DetBitEQ(CurrentDets(:,i),iLutHF,NIfDBO))) then
+                    !Is allowed initiator. Add to subspace.
+                    iSubspaceSize = iSubspaceSize + 1
+                endif
+            enddo
+
+            write(iout,'(A,I12)') "Number of initiators found to diagonalise: ",iSubspaceSize
+            allocate(ExpandedWalkerDets(NEl,iSubspaceSize),stat=ierr)
+            call LogMemAlloc('ExpandedWalkerDets',NEl*iSubspaceSize,4,t_r,ExpandedWalkTag,ierr)
+
+            iSubspaceSize = 0
+            do i=1,int(TotWalkers,sizeof_int)
+                call extract_sign(CurrentDets(:,i),CurrentSign)
+                if((abs(CurrentSign(1)) > InitiatorWalkNo) .or. &
+                        (DetBitEQ(CurrentDets(:,i),iLutHF,NIfDBO))) then
+                    !Is allowed initiator. Add to subspace.
+                    iSubspaceSize = iSubspaceSize + 1
+                    call decode_bit_det(ExpandedWalkerDets(:,iSubspaceSize),CurrentDets(:,i))
+                endif
+            enddo
+
+            if(iSubspaceSize.gt.0) then
+!Routine to diagonalise a set of determinants, and return the ground state energy
+                call LanczosFindGroundE(ExpandedWalkerDets,iSubspaceSize,GroundEInit,ProjGroundEInit,.true.)
+                write(iout,'(A,G25.10)') 'Ground state energy of initiator walker subspace = ',GroundEInit
+            else
+                CreateNan=-1.0_dp
+                write(iout,'(A,G25.10)') 'Ground state energy of initiator walker subspace = ',sqrt(CreateNan)
+            endif
+
+
+            deallocate(ExpandedWalkerDets)
+            call LogMemDealloc(t_r,ExpandedWalkTag)
+
+        endif
+
+        iSubspaceSizeFull = int(TotWalkers,sizeof_int)
+
+        !Allocate memory for walker list.
+        write(iout,'(A)') "Allocating memory for diagonalisation of full walker subspace"
+        write(iout,'(A,I12,A)') "Size = ",iSubspaceSizeFull," walkers."
+
+        allocate(ExpandedWalkerDets(NEl,iSubspaceSizeFull),stat=ierr)
+        call LogMemAlloc('ExpandedWalkerDets',NEl*iSubspaceSizeFull,4,t_r,ExpandedWalkTag,ierr)
+        do i=1,iSubspaceSizeFull
+            call decode_bit_det(ExpandedWalkerDets(:,i),CurrentDets(:,i))
+        enddo
+
+!Routine to diagonalise a set of determinants, and return the ground state energy
+        call LanczosFindGroundE(ExpandedWalkerDets,iSubspaceSizeFull,GroundEFull,ProjGroundEFull,.false.)
+
+        write(iout,'(A,G25.10)') 'Ground state energy of full walker subspace = ',GroundEFull
+
+        if(tTruncInitiator) then
+            write(unitWalkerDiag,'(3I14,4G25.15)') Iter,iSubspaceSize,iSubspaceSizeFull,GroundEInit-Hii,    &
+                    GroundEFull-Hii,ProjGroundEInit-Hii,ProjGroundEFull-Hii
+        else
+            write(unitWalkerDiag,'(2I14,2G25.15)') Iter,iSubspaceSizeFull,GroundEFull-Hii,ProjGroundEFull-Hii
+        endif
+        
+        deallocate(ExpandedWalkerDets)
+        call LogMemDealloc(t_r,ExpandedWalkTag)
+
+    end subroutine DiagWalkerSubspace
 
 
 
