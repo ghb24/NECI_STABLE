@@ -21,14 +21,13 @@ contains
         use FciMCData, only: TotWalkers, CurrentDets, iLutRef, max_calc_ex_level
         use FciMCData, only: iter_data_fciqmc, TotParts, exFlag, iter
         use FciMCData, only: indices_of_determ_states, partial_determ_vector
-        use FciMCParMod, only: decide_num_to_spawn
-        use FciMCParMod, only: walker_death
-        use FciMCParMod, only: update_iter_data
         use fcimc_initialisation, only: CalcApproxpDoubles
         use fcimc_helper, only: SumEContrib, end_iter_stats, create_particle, &
-                                CalcParentFlag
+                                CalcParentFlag, walker_death, &
+                                decide_num_to_spawn
         use fcimc_output, only: end_iteration_print_warn
-        use fcimc_iter_utils, only: calculate_new_shift_wrapper
+        use fcimc_iter_utils, only: calculate_new_shift_wrapper, &
+                                    update_iter_data
         use global_det_data, only: det_diagH
         use LoggingData, only: tPopsFile
         use Parallel_neci, only: iProcIndex

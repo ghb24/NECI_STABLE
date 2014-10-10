@@ -5,26 +5,28 @@ module fcimc_helper
     use constants
     use util_mod
     use systemData, only: nel, tHPHF, tNoBrillouin, G1, tUEG, &
-                          tLatticeGens, nBasis
+                          tLatticeGens, nBasis, tHistSpinDist
     use bit_reps, only: NIfTot, flag_is_initiator, test_flag, extract_flags, &
                         flag_parent_initiator, encode_bit_rep, NIfD, &
                         set_flag_general, flag_make_initiator, NIfDBO, &
                         extract_sign, set_flag, extract_first_iter, &
                         flag_trial, flag_connected, flag_deterministic, &
-                        extract_part_sign, encode_part_sign, decode_bit_det
+                        extract_part_sign, encode_part_sign, decode_bit_det, &
+                        encode_sign
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet
     use Determinants, only: get_helement
     use FciMCData
     use hist, only: test_add_hist_spin_dist_det, add_hist_spawn, &
-                    add_hist_energies, HistMinInd, tHistSpawn
+                    add_hist_energies, HistMinInd
+    use hist_data, only: tHistSpawn
     use hphf_integrals, only: hphf_off_diag_helement
-    use Logging, only: OrbOccs, tPrintOrbOcc, tPrintOrbOccInit, &
-                       tHistSpinDist, tHistSpawn, tHistEnergies, &
-                       RDMEnergyIter, tFullHFAv, tLogComplexPops, &
-                       nHistEquilSteps, tCalcFCIMCPsi, StartPrintOrbOcc, &
-                       HistInitPopsIter, tHistInitPops
+    use LoggingData, only: OrbOccs, tPrintOrbOcc, tPrintOrbOccInit, &
+                           tHistEnergies, tExplicitAllRDM, RDMExcitLevel, &
+                           RDMEnergyIter, tFullHFAv, tLogComplexPops, &
+                           nHistEquilSteps, tCalcFCIMCPsi, StartPrintOrbOcc, &
+                           HistInitPopsIter, tHistInitPops, iterRDMOnFly
     use CalcData, only: NEquilSteps, tFCIMC, tSpawnSpatialInit, tTruncCAS, &
                         tRetestAddToInit, tAddToInitiator, InitiatorWalkNo, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
@@ -34,14 +36,17 @@ module fcimc_helper
     use DeterminantData, only: FDet
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
+    use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
     use DetCalcData, only: FCIDetIndex, ICILevel, det
-    use hash, only: DetermineDetNode
-    use nElRDMMod, only: store_parent_with_spawned
+    use hash, only: DetermineDetNode, remove_hash_table_entry
+    use nElRDMMod, only: store_parent_with_spawned, det_removed_fill_diag_rdm,&
+                         extract_bit_rep_avsign_norm
     use Parallel_neci
     use FciMCLoggingMod, only: HistInitPopulations, WriteInitPops
     use csf_data, only: csf_orbital_mask
     use csf, only: iscsf
-    use global_det_data, only: get_av_sgn, set_av_sgn
+    use global_det_data, only: get_av_sgn, set_av_sgn, set_det_diagH, &
+                               global_determinant_data, set_iter_occ
     use searching, only: BinSearchParts2
     implicit none
     save
@@ -1210,6 +1215,203 @@ contains
 
     end subroutine DiagWalkerSubspace
 
+
+    subroutine decide_num_to_spawn(parent_pop, av_spawns_per_walker, nspawn)
+
+        real(dp), intent(in) :: parent_pop
+        real(dp), intent(in) :: av_spawns_per_walker
+        integer, intent(out) :: nspawn
+        real(dp) :: prob_extra_walker, r
+
+        nspawn = abs(int(parent_pop*av_spawns_per_walker))
+        if (abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp) > 0) then
+            prob_extra_walker = abs(parent_pop*av_spawns_per_walker) - real(nspawn,dp)
+            r = genrand_real2_dSFMT()
+            if (prob_extra_walker > r) nspawn = nspawn + 1
+        end if
+
+    end subroutine decide_num_to_spawn
+
+    subroutine walker_death (iter_data, DetCurr, iLutCurr, Kii, &
+                             RealwSign, wAvSign, IterRDMStartCurr, VecSlot, &
+                             DetPosition, walkExcitLevel)
+
+        integer, intent(in) :: DetCurr(nel) 
+        real(dp), dimension(lenof_sign), intent(in) :: RealwSign
+        integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
+        integer, intent(inout) :: VecSlot
+        real(dp), intent(in) :: Kii
+        real(dp), intent(in), dimension(lenof_sign) :: wAvSign, IterRDMStartCurr
+        integer, intent(in) :: DetPosition
+        type(fcimc_iter_data), intent(inout) :: iter_data
+        real(dp), dimension(lenof_sign) :: iDie
+        real(dp), dimension(lenof_sign) :: CopySign
+        integer, intent(in) :: walkExcitLevel
+        integer :: i
+        character(len=*), parameter :: t_r="walker_death"
+
+        ! Do particles on determinant die? iDie can be both +ve (deaths), or
+        ! -ve (births, if shift > 0)
+        iDie = attempt_die (DetCurr, Kii, realwSign, WalkExcitLevel)
+
+        IFDEBUG(FCIMCDebug,3) then 
+            if(sum(abs(iDie)).ne.0) write(iout,"(A,2f10.5)") "Death: ",iDie(:)
+        endif
+
+        ! Update death counter
+        iter_data%ndied = iter_data%ndied + min(iDie, abs(RealwSign))
+#ifdef __CMPLX
+        NoDied = NoDied + sum(min(iDie, abs(RealwSign)))
+#else
+        NoDied = NoDied + min(iDie, abs(RealwSign))
+#endif
+
+        ! Count any antiparticles
+        iter_data%nborn = iter_data%nborn + max(iDie - abs(RealwSign), 0.0_dp)
+#ifdef __CMPLX
+        NoBorn = NoBorn + sum(max(iDie - abs(RealwSign), 0.0_dp))
+#else
+        NoBorn = NoBorn + max(iDie - abs(RealwSign), 0.0_dp)
+#endif
+
+        ! Calculate new number of signed particles on the det.
+        CopySign = RealwSign - (iDie * sign(1.0_dp, RealwSign))
+
+        ! In the initiator approximation, abort any anti-particles.
+        if (tTruncInitiator .and. any(CopySign /= 0)) then
+            do i = 1, lenof_sign
+                if (sign(1.0_dp, CopySign(i)) /= &
+                        sign(1.0_dp, RealwSign(i))) then
+                    NoAborted = NoAborted + abs(CopySign(i))
+                    iter_data%naborted(i) = iter_data%naborted(i) &
+                                          + abs(CopySign(i))
+                    if (test_flag(ilutCurr, flag_is_initiator(i))) &
+                        NoAddedInitiators = NoAddedInitiators - 1
+                    CopySign(i) = 0
+                end if
+            end do
+        end if
+
+        if (any(CopySign /= 0)) then
+            ! Normal method slots particles back in main array at position
+            ! vecslot. The list is shuffled up if a particle is destroyed.
+            ! For HashWalkerList, the particles don't move, so just adjust
+            ! the weight.
+            if (tHashWalkerList) then
+                call encode_sign (CurrentDets(:,DetPosition), CopySign)
+                if (tFillingStochRDMonFly) then
+                    call set_av_sgn(DetPosition, wAvSign)
+                    call set_iter_occ(DetPosition, IterRDMStartCurr)
+                endif
+            else
+                call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
+                call set_det_diagH(VecSlot, Kii)
+                if (tFillingStochRDMonFly) then
+                    call set_av_sgn(VecSlot, wAvSign)
+                    call set_iter_occ(VecSlot, IterRDMStartCurr)
+                endif
+                VecSlot=VecSlot+1
+            endif
+        else
+            ! All walkers died.
+            if(tFillingStochRDMonFly) then
+                call det_removed_fill_diag_rdm(CurrentDets(:,DetPosition), DetPosition)
+                if (tHashWalkerList) then
+                    ! Set the average sign and occupation iteration to zero, so
+                    ! that the same contribution will not be added in in
+                    ! CalcHashTableStats, if this determinant is not overwritten
+                    ! before then
+                    global_determinant_data(:,DetPosition) = 0.0_dp
+                end if
+            endif
+            if(tTruncInitiator) then
+                ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
+                if(test_flag(iLutCurr,flag_is_initiator(1))) then
+                    NoAddedInitiators=NoAddedInitiators-1
+                    if (tSpawnSpatialInit) call rm_initiator_list (ilutCurr)
+                elseif(test_flag(iLutCurr,flag_is_initiator(lenof_sign))) then
+                    NoAddedInitiators(inum_runs)=NoAddedInitiators(inum_runs)-1
+                    if (tSpawnSpatialInit) call rm_initiator_list (ilutCurr)
+                endif
+            endif
+            if(tHashWalkerList) then
+                !Remove the determinant from the indexing list
+                call remove_hash_table_entry(HashIndex, DetCurr, DetPosition)
+                !Add to the "freeslot" list
+                iEndFreeSlot=iEndFreeSlot+1
+                FreeSlot(iEndFreeSlot)=DetPosition
+                !Encode a null det to be picked up
+                call encode_sign(CurrentDets(:,DetPosition),null_part)
+            endif
+        endif
+
+        !Test - testsuite, RDM still work, both still work with Linscalealgo (all in debug)
+        !Null particle not kept if antiparticles aborted.
+        !When are the null particles removed?
+
+    end subroutine
+
+    
+
+    subroutine check_start_rdm()
+! This routine checks if we should start filling the RDMs - and does so if we should.        
+        use nElRDMMod , only : DeAlloc_Alloc_SpawnedParts
+        use LoggingData, only: tReadRDMs
+        implicit none
+        logical :: tFullVaryshift
+        integer :: iunit_4
+
+        tFullVaryShift=.false.
+
+        if (.not. tSinglePartPhase(1).and.(.not.tSinglePartPhase(inum_runs))) tFullVaryShift=.true.
+
+        !If we're reading in the RDMs we've already started accumulating them in a previous calculation
+        ! We don't want to put in an arbitrary break now!
+        if(tReadRDMs)   IterRDMonFly=0
+
+        IF(tFullVaryShift .and. ((Iter - maxval(VaryShiftIter)).eq.(IterRDMonFly+1))) THEN
+        ! IterRDMonFly is the number of iterations after the shift has changed that we want 
+        ! to fill the RDMs.  If this many iterations have passed, start accumulating the RDMs! 
+        
+            IterRDMStart = Iter+PreviousCycles
+            IterRDM_HF = Iter+PreviousCycles
+
+            !if(tReadRDMs .and. tReadRDMAvPop) then
+                !We need to read in the values of IterRDMStart and IterRDM_HF
+            !    iunit_4=get_free_unit()
+            !    OPEN(iunit_4,FILE='ITERRDMSTART',status='old')
+            !    read(iunit_4, *) IterRDMStart, IterRDM_HF, AvNoAtHF
+
+            !endif
+
+            !We have reached the iteration where we want to start filling the RDM.
+            if(tExplicitAllRDM) then
+                ! Explicitly calculating all connections - expensive...
+                if(inum_runs.eq.2) call stop_all('check_start_rdm',"Cannot yet do replica RDM sampling with explicit RDMs. &
+                    & e.g Hacky bit in Gen_Hist_ExcDjs to make it compile")
+                
+                tFillingExplicRDMonFly = .true.
+                if(tHistSpawn) NHistEquilSteps = Iter
+            else
+                extract_bit_rep_avsign => extract_bit_rep_avsign_norm
+                !By default - we will do a stochastic calculation of the RDM.
+                tFillingStochRDMonFly = .true.
+                !if(.not.tHF_Ref_Explicit) call DeAlloc_Alloc_SpawnedParts()
+                call DeAlloc_Alloc_SpawnedParts()
+                !The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
+                !parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
+                !Don't need any of this if we're just doing HF_Ref_Explicit calculation.
+                !This is all done in the add_rdm_hfconnections routine.
+            endif
+            if(RDMExcitLevel.eq.1) then
+                WRITE(6,'(A)') 'Calculating the 1 electron density matrix on the fly.'
+            else
+                WRITE(6,'(A)') 'Calculating the 2 electron density matrix on the fly.'
+            endif
+            WRITE(6,'(A,I10)') 'Beginning to fill the RDMs during iteration',Iter
+        ENDIF
+
+    end subroutine check_start_rdm
 
 
 end module
