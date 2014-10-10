@@ -810,4 +810,16 @@ contains
 
     end subroutine calculate_new_shift_wrapper
 
+    subroutine update_iter_data(iter_data)
+
+        type(fcimc_iter_data), intent(inout) :: iter_data
+
+        iter_data%update_growth = iter_data%update_growth + iter_data%nborn &
+                                - iter_data%ndied - iter_data%nannihil &
+                                - iter_data%naborted - iter_data%nremoved
+        iter_data%update_iters = iter_data%update_iters + 1
+
+    end subroutine update_iter_data
+
+
 end module

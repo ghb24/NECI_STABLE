@@ -15,6 +15,7 @@ module fcimc_pointed_fns
     use tau_search, only: log_death_magnitude, log_spawn_magnitude
     use nElRDMMod, only: calc_rdmbiasfac
     use hist, only: add_hist_excit_tofrom
+    use searching, only: BinSearchParts2
     use util_mod
     use FciMCData
     use constants

@@ -40,7 +40,9 @@ module fcimc_helper
     use Parallel_neci
     use FciMCLoggingMod, only: HistInitPopulations, WriteInitPops
     use csf_data, only: csf_orbital_mask
+    use csf, only: iscsf
     use global_det_data, only: get_av_sgn, set_av_sgn
+    use searching, only: BinSearchParts2
     implicit none
     save
 
@@ -607,6 +609,70 @@ contains
 
     end function TestIfDETinCASBit
 
+    LOGICAL FUNCTION TestifDETinCAS(CASDet)
+        INTEGER :: k,z,CASDet(NEl), orb
+        LOGICAL :: tElecInVirt, bIsCsf
+
+        ! CASmax is the max spin orbital number (when ordered energetically) 
+        ! within the chosen active space. Spin orbitals with energies larger 
+        ! than this maximum value must be unoccupied for the determinant to 
+        ! be in the active space.
+!        CASmax=NEl+VirtCASorbs
+
+        ! CASmin is the max spin orbital number below the active space.  As 
+        ! well as the above criteria, spin orbitals with energies equal to,
+        ! or below that of the CASmin orbital must be completely occupied for
+        ! the determinant to be in the active space.
+        !
+        ! (These have been moved to the InitCalc subroutine so they're not
+        !  calculated each time).
+!        CASmin=NEl-OccCASorbs
+
+        bIsCsf = iscsf(CASDet)
+
+        z=0
+        tElecInVirt=.false.
+        do k=1,NEl      ! running over all electrons
+            ! TODO: is it reasonable to just apply the orbital mask anyway?
+            !       it is probably faster than running iscsf...
+            if (bIsCsf) then
+                orb = iand(CASDet(k), csf_orbital_mask)
+            else
+                orb = CASDet(k)
+            endif
+
+            if (SpinInvBRR(orb).gt.CASmax) THEN
+                tElecInVirt=.true.
+                EXIT            
+                ! if at any stage an electron has an energy greater than the 
+                ! CASmax value, the determinant can be ruled out of the active
+                ! space.  Upon identifying this, it is not necessary to check
+                ! the remaining electrons.
+            else
+                if (SpinInvBRR(orb).le.CASmin) THEN
+                    z=z+1
+                endif
+                ! while running over all electrons, the number that occupy 
+                ! orbitals equal to or below the CASmin cutoff are counted.
+            endif
+        enddo
+
+        if(tElecInVirt.or.(z.ne.CASmin)) THEN
+            ! if an electron is in an orbital above the active space, or the 
+            ! inactive orbitals are not full, the determinant is automatically
+            ! ruled out.
+            TestifDETinCAS=.false.
+        else
+            ! no orbital in virtual and the inactive orbitals are completely 
+            ! full - det in active space.        
+            TestifDETinCAS=.true.
+        endif
+        
+        RETURN
+
+    END FUNCTION TestifDETinCAS
+
+
 
     SUBROUTINE FindHighPopDet(TotWalkersNew)
 
@@ -1056,6 +1122,7 @@ contains
         tFlippedSign = .not. tFlippedSign
     
     end subroutine FlipSign
+
 
 
 end module

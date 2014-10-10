@@ -339,4 +339,102 @@ contains
 
     end subroutine find_trial_and_con_states_hash
 
+    ! This is the same as BinSearchParts1, but this time, it searches though the 
+    ! full list of determinants created by the full diagonalizer when the 
+    ! histogramming option is on. 
+    !
+    ! This is outside the module so it is accessible to AnnihilateMod
+    SUBROUTINE BinSearchParts2(iLut,MinInd,MaxInd,PartInd,tSuccess)
+        use DetCalcData , only : FCIDets
+        use DetBitOps, only: DetBitLT
+        use constants, only: n_int
+        use bit_reps, only: NIfTot,NIfDBO
+        IMPLICIT NONE
+        INTEGER :: MinInd,MaxInd,PartInd
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot)
+        INTEGER :: i,j,N,Comp
+        LOGICAL :: tSuccess
+
+    !    WRITE(iout,*) "Binary searching between ",MinInd, " and ",MaxInd
+    !    CALL neci_flush(iout)
+        i=MinInd
+        j=MaxInd
+        IF(i-j.eq.0) THEN
+            Comp=DetBitLT(FCIDets(:,MaxInd),iLut(:),NIfDBO)
+            IF(Comp.eq.0) THEN
+                tSuccess=.true.
+                PartInd=MaxInd
+                RETURN
+            ELSE
+                tSuccess=.false.
+                PartInd=MinInd
+            ENDIF
+        ENDIF
+        do while(j-i.gt.0)  !End when the upper and lower bound are the same.
+            N=(i+j)/2       !Find the midpoint of the two indices
+    !        WRITE(iout,*) i,j,n
+
+            ! Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is 
+            ! more or 0 if they are the same
+            Comp=DetBitLT(FCIDets(:,N),iLut(:),NIfDBO)
+
+            IF(Comp.eq.0) THEN
+    !Praise the lord, we've found it!
+                tSuccess=.true.
+                PartInd=N
+                RETURN
+            ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
+                ! The value of the determinant at N is LESS than the determinant 
+                ! we're looking for. Therefore, move the lower bound of the 
+                ! search up to N. However, if the lower bound is already equal to
+                ! N then the two bounds are consecutive and we have failed...
+                i=N
+            ELSEIF(i.eq.N) THEN
+
+
+                IF(i.eq.MaxInd-1) THEN
+                    ! This deals with the case where we are interested in the 
+                    ! final/first entry in the list. Check the final entry of the
+                    ! list and leave. We need to check the last index.
+                    Comp=DetBitLT(FCIDets(:,i+1),iLut(:),NIfDBO)
+                    IF(Comp.eq.0) THEN
+                        tSuccess=.true.
+                        PartInd=i+1
+                        RETURN
+                    ELSEIF(Comp.eq.1) THEN
+    !final entry is less than the one we want.
+                        tSuccess=.false.
+                        PartInd=i+1
+                        RETURN
+                    ELSE
+                        tSuccess=.false.
+                        PartInd=i
+                        RETURN
+                    ENDIF
+
+                ELSEIF(i.eq.MinInd) THEN
+                    tSuccess=.false.
+                    PartInd=i
+                    RETURN
+                ELSE
+                    i=j
+                ENDIF
+
+
+            ELSEIF(Comp.eq.-1) THEN
+    !The value of the determinant at N is MORE than the determinant we're looking for. Move the upper bound of the search down to N.
+                j=N
+            ELSE
+    !We have failed - exit loop
+                i=j
+            ENDIF
+
+        enddo
+
+    !If we have failed, then we want to find the index that is one less than where the particle would have been.
+        tSuccess=.false.
+        PartInd=MAX(MinInd,i-1)
+
+    END SUBROUTINE BinSearchParts2
+
 end module searching
