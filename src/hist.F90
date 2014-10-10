@@ -25,6 +25,7 @@ module hist
     use parallel_neci
     use csf, only: get_num_csfs, csf_coeff, csf_get_yamas, write_yama, &
                    extract_dorder
+    use searching, only: BinSearchParts2
     use hist_data
     use timing_neci
     use Determinants, only: write_det
