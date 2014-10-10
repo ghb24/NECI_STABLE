@@ -1,182 +1,66 @@
 #include "macros.h"
-!This is a parallel MPI version of the FciMC code.
-!All variables refer to values per processor
+module FciMCParMod
 
-!   The module now has the same structure with and without PARALLEL being defined.
-!   Some routines require MPI and are enclosed in the #ifdef PARALLEL section.  These
-!   should have dummy replacements in the #else of this if required.
-!   At the end are functions which do not require parallel directives, and are accessible
-!   for both parallel and non-parallel.
-MODULE FciMCParMod
-    use SystemData, only: nel, Brr, nBasis, nBasisMax, LMS, tHPHF, tHub, &
-                          tReal, tRotatedOrbs, tFindCINatOrbs, tFixLz, &
-                          LzTot, tUEG, tLatticeGens, tCSF, G1, Arr, &
-                          tNoBrillouin, tKPntSym, tPickVirtUniform, &
-                          tMolpro, csf_trunc_level, tMolproMimic, &
-                          tTruncateCSF, tRef_Not_HF, &
-                          MolproID, tGenHelWeighted, &
-                          tGen_4ind_weighted, tGen_4ind_reverse
-    use bit_rep_data, only: extract_sign, flag_trial, flag_connected, tUseFlags
-    use bit_reps, only: NIfD, NIfTot, NIfDBO, NOffY, decode_bit_det, &
-                        encode_bit_rep, encode_det, extract_bit_rep, &
-                        test_flag, set_flag, extract_flags, &
-                        flag_is_initiator, clear_all_flags, &
-                        extract_sign, nOffSgn, flag_make_initiator, &
-                        flag_parent_initiator, encode_sign, &
-                        clr_flag, flag_trial, flag_connected, nOffFlag, &
-                        flag_deterministic, flag_determ_parent, clr_flag, &
-                        extract_part_sign, encode_part_sign, encode_first_iter
-    use CalcData, only: InitWalkers, NMCyc, DiagSft, Tau, SftDamp, StepsSft, &
-                        OccCASorbs, VirtCASorbs, NEquilSteps,&
-                        tReadPops, iFullSpaceIter, MaxNoAtHF,&
-                        tStartSinglePart, tCCMC, &
-                        HFPopThresh, tTruncCAS, AvMCExcits, &
-                        tTruncInitiator, &
-                        NShiftEquilSteps, tWalkContGrow, &
-                        tAddToInitiator, InitiatorWalkNo, &
-                        tReadPopsRestart, tCheckHighestPopOnce, &
-                        iRestartWalkNum, tRestartHighPop, FracLargerDet, &
-                        tChangeProjEDet, tCheckHighestPop, tSpawnSpatialInit,&
-                        MemoryFacInit, tMaxBloom, tTruncNOpen, tFCIMC, &
-                        trunc_nopen_max, RealSpawnCutoff, &
-                        TargetGrowRate, TargetGrowRateWalk, tShiftonHFPop, &
-                        iExitWalkers,MemoryFacPart, &
-                        tAllRealCoeff, tRealCoeffByExcitLevel, &
-                        RealCoeffExcitThresh, &
-                        tRealSpawnCutoff, RealSpawnCutoff, tDetermProj, &
-                        tJumpShift, tUseRealCoeffs, tSpatialOnlyHash, &
-                        tSemiStochastic, tTrialWavefunction, &
-                        InitiatorCutoffEnergy, InitiatorCutoffWalkNo, &
-                        tLetInitialPopDie, tFTLM, tWritePopsNorm, pops_norm_unit, &
-                        tSpecLanc, tExactSpec, tExactDiagAllSym, tKP_FCIQMC
-    use spatial_initiator, only: add_initiator_list, rm_initiator_list
-    use HPHFRandExcitMod, only: FindExcitBitDetSym, gen_hphf_excit
-    use Determinants, only: FDet, get_helement, write_det, &
-                            get_helement_det_only, lexicographic_store, &
-                            get_lexicographic_dets, DefDet
-    use DetCalcData, only: ICILevel, nDet, Det, FCIDetIndex, FCIDets, lab, &
-                           nRow, Hamil, ReIndex
-    use GenRandSymExcitNUMod, only: gen_rand_excit, GenRandSymExcitNU, &
-                                    ScratchSize, TestGenRandSymExcitNU, &
-                                    ScratchSize1, ScratchSize2, ScratchSize3,&
-                                    init_excit_gen_store,clean_excit_gen_store
-    use GenRandSymExcitCSF, only: gen_csf_excit
-    use IntegralsData, only: tPartFreezeCore, NPartFrozen, &
-                             NHolesFrozen, tPartFreezeVirt, NVirtPartFrozen, &
-                             NElVirtFrozen
-    use LoggingData, only: iWritePopsEvery, TPopsFile, iPopsPartEvery, tBinPops, &
-                           iWriteHistEvery, tHistEnergies, FCIMCDebug, &
-                           AllHistInitPops, &
-                           OffDiagBinRange, OffDiagMax, AllHistInitPopsTag, &
-                           tLogComplexPops, tPrintFCIMCPsi, tCalcFCIMCPsi, &
-                           NHistEquilSteps, tPrintOrbOcc, &
-                           HistInitPopsTag, OrbOccs, OrbOccsTag, &
-                           tPrintPopsDefault, tHistInitPops, HistInitPops, &
-                           tCalcInstantS2, instant_s2_multiplier, tMCOutput, &
-                           tDiagWalkerSubspace,iDiagSubspaceIter, &
-                           tRDMonFly, IterRDMonFly,RDMExcitLevel, RDMEnergyIter, &
-                           tChangeVarsRDM, tExplicitAllRDM, &
-                           tDiagWalkerSubspace, iDiagSubspaceIter, &
-                           tCalcInstantS2Init, instant_s2_multiplier_init, &
-                           tJustBlocking, iBlockEquilShift, iBlockEquilProjE, &
-                           tDiagAllSpaceEver, tCalcVariationalEnergy, tCompareTrialAmps, &
-                           compare_amps_period, tNoNewRDMContrib, &
-                           tFCIMCStats2, tHistExcitToFrom, &
-                           tSpawnGhostChild, GhostThresh, &
-                           tWriteCoreEnd, write_end_core_size
-    use hist, only: init_hist_spin_dist, clean_hist_spin_dist, &
-                    hist_spin_dist, ilut_spindist, tHistSpinDist, &
-                    write_clear_hist_spin_dist, hist_spin_dist_iter, &
-                    tHistSpawn, AllHistogramEnergy, &
-                    AllHistogram, HistogramEnergy, Histogram, AllInstHist, &
-                    InstHist, HistMinInd, project_spins, calc_s_squared, &
-                    project_spin_csfs, calc_s_squared_multi, &
-                    calc_s_squared_star, init_hist_excit_tofrom, &
-                    add_hist_excit_tofrom, write_zero_hist_excit_tofrom, &
-                    clean_hist_excit_tofrom
-    use hist_data, only: beforenormhist, HistMinInd2, BinRange, iNoBins
-    USE SymData , only : nSymLabels, Sym_Psi
-    USE dSFMT_interface , only : genrand_real2_dSFMT
-    USE Parallel_neci
-    USE FciMCData
-    USE AnnihilationMod, only: DirectAnnihilation
-    use PopsfileMod, only: ReadFromPopsfilePar, FindPopsfileVersion, &
-                           WriteToPopsFileParOneArr, open_pops_head, &
-                           readpopsheadv3, readpopsheadv4, CheckPopsParams, &
-                           ReadFromPopsFile, InitFCIMC_pops
-    use sort_mod
-    use DetBitops, only: EncodeBitDet, DetBitEQ, DetBitLT, FindExcitBitDet, &
-                         FindBitExcitLevel, countbits, TestClosedShellDet, &
-                         FindSpatialBitExcitLevel, IsAllowedHPHF, count_open_orbs, &
-                         ilut_gt, get_bit_excitmat
-    use hash, only: DetermineDetNode, FindWalkerHash, remove_hash_table_entry
-    use csf, only: get_csf_bit_yama, iscsf, csf_orbital_mask, get_csf_helement
-    use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement, &
-                              hphf_spawn_sign, hphf_off_diag_helement_spawn
-    use util_mod
-    use constants
-    use soft_exit, only: ChangeVars 
+    ! This module contains the main loop for FCIMC calculations, and the
+    ! main per-iteration processing loop.
+
+    use SystemData, only: nel, tUEG2, hist_spin_dist_iter
+    use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
+                        tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
+                        AvMCExcits, pops_norm_unit, iExitWalkers, &
+                        iFullSpaceIter
+    use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
+                           tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
+                           compare_amps_period, tSpawnGhostChild, &
+                           PopsFileTimer, write_end_core_size
+    use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
+                            spin_proj_iter_count, generate_excit_spin_proj, &
+                            get_spawn_helement_spin_proj, iter_data_spin_proj,&
+                            attempt_die_spin_proj
+    use nElRDMMod, only: tCalc_RDMEnergy, FinaliseRDM, calc_energy_from_rdm, &
+                         fill_explicitrdm_this_iter, &
+                         fill_rdm_offdiag_deterministic, &
+                         fill_hist_explicitrdm_this_iter
+    use procedure_pointers, only: attempt_die_t, generate_excitation_t, &
+                                  get_spawn_helement_t
+    use semi_stoch_procs, only: is_core_state, check_determ_flag, &
+                                determ_projection, average_determ_vector
+    use trial_wf_gen, only: update_compare_trial_file, &
+                            update_compare_trial_file
+    use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
+    use exact_diag, only: perform_exact_diag_all_symmetry
+    use semi_stoch_gen, only: write_most_pop_core_at_end
+    use spectral_lanczos, only: perform_spectral_lanczos
+    use bit_rep_data, only: nOffFlag, flag_determ_parent
+    use errors, only: standalone_errors, error_analysis
+    use PopsFileMod, only: WriteToPopsFileParOneArr
+    use AnnihilationMod, only: DirectAnnihilation
+    use exact_spectrum, only: get_exact_spectrum
+    use determ_proj, only: perform_determ_proj
+    use bit_reps, only: set_flag, clr_flag
+    use global_det_data, only: det_diagH
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
-    use spin_project, only: tSpinProject, spin_proj_interval, &
-                            spin_proj_gamma, get_spawn_helement_spin_proj, &
-                            generate_excit_spin_proj, attempt_die_spin_proj, &
-                            iter_data_spin_proj, test_spin_proj, &
-                            spin_proj_shift, spin_proj_iter_count, &
-                            init_yama_store, clean_yama_store, &
-                            disable_spin_proj_varyshift
-    use symrandexcit3, only: gen_rand_excit3, test_sym_excit3
-    USE SymExcit3 , only : GenExcitations3
-    use errors, only: error_analysis, standalone_errors
-    use nElRDMMod, only: FinaliseRDM,Fill_ExplicitRDM_this_Iter,calc_energy_from_rdm, &
-                         fill_hist_explicitrdm_this_iter, tCalc_RDMEnergy, &
-                         extract_bit_rep_avsign_norm, &
-                         extract_bit_rep_avsign_no_rdm, &
-                         zero_rdms, store_parent_with_spawned, &
-                         fill_rdm_diag_currdet_norm, calc_rdmbiasfac, &
-                         det_removed_fill_diag_rdm, fill_rdm_offdiag_deterministic
-    use determ_proj, only: perform_determ_proj
-    use semi_stoch_gen, only: init_semi_stochastic, enumerate_sing_doub_kpnt, &
-                              write_most_pop_core_at_end
-    use semi_stoch_procs, only: determ_projection, return_most_populated_states, &
-                                end_semistoch, is_core_state, return_mp1_amp_and_mp2_energy, &
-                                recalc_core_hamil_diag, check_determ_flag, &
-                                average_determ_vector
-    use trial_wf_gen, only: init_trial_wf, update_compare_trial_file, end_trial_wf
     use ftlm_neci, only: perform_ftlm
-    use spectral_lanczos, only: perform_spectral_lanczos
-    use exact_spectrum, only: get_exact_spectrum
-    use exact_diag, only: perform_exact_diag_all_symmetry
-    use gndts_mod, only: gndts
-    use sort_mod
-    use get_excit, only: make_double
-    use sltcnd_mod, only: sltcnd_excit
-    use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
-                                       gen_excit_4ind_weighted, &
-                                       test_excit_gen_4ind, &
-                                       gen_excit_4ind_reverse
-    use procedure_pointers
+    use soft_exit, only: ChangeVars
     use fcimc_initialisation
     use fcimc_iter_utils
     use fcimc_helper
     use fcimc_output
-    use tau_search, only: init_tau_search, log_spawn_magnitude, update_tau, &
-                          log_death_magnitude
-    use global_det_data, only: init_global_det_data, clean_global_det_data, &
-                               global_determinant_data, set_det_diagH, &
-                               det_diagH, get_av_sgn, set_av_sgn, set_iter_occ
+    use FciMCData
+    use constants
+
+#ifdef MOLPRO
+    use outputResult
+#endif
 
     implicit none
 
     contains
 
     SUBROUTINE FciMCPar(Weight,Energyxw)
-        use LoggingData, only: PopsfileTimer
-        use nElRDMMod, only: InitRDM
-        use sym_mod, only: getsym
-        use SystemData, only: tUEG2, SymRestrict
+
 #ifdef MOLPRO
-        use outputResult
         integer :: nv,ityp(1)
 #endif
         integer :: iroot,isymh
