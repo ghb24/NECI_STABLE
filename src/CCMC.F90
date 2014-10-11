@@ -10,9 +10,10 @@ MODULE CCMC
     use bit_rep_data, only: NIfDBO, NIfTot, extract_sign
     use bit_reps, only: encode_det, encode_sign
     use Parallel_neci
-    use DetBitOps, only: FindBitExcitLevel, FindExcitBitDet
-    use FciMCParMod, only: calculate_new_shift_wrapper, AttemptCreatePar, &
-                           CheckAllowedTruncSpawn, SumEContrib
+    use DetBitOps, only: FindBitExcitLevel, FindExcitBitDet, EncodeBitDet, &
+                         DetBitLt
+    use fcimc_helper, only: CheckAllowedTruncSpawn
+    use fcimc_pointed_fns, only: attempt_create_normal
     use FciMCData, only: iter, tDebug, TotWalkers, NoatHF, Noatdoubs, &
                          MaxIndex, TotParts, Walker_time, &
                          ValidSpawnedList, InitialSpawnedSlots, ilutHF, &
@@ -20,13 +21,19 @@ MODULE CCMC
                          tTruncSpace, NoBorn, SpawnedParts, NoDied,&
                          Annihil_Time, Hii, ENumCyc, Acceptances, MaxSpawned,&
                          HFDet, SumWalkersCyc, SpawnFromSing, MaxWalkersPart,&
-                         exFlag
-    use CalcData, only: StepsSft
-    use hist_data, only: tHistSpawn, HistMinInd
-    use SystemData, only: tHPHF, nel
+                         exFlag, tGenMatHel, SinglesHistVirtVirt, &
+                         SinglesHistOccOcc, SinglesHistOccVirt, SinglesHist, &
+                         AttemptHist, SinglesAttemptHist, DoublesHist, &
+                         SinglesHistVirtOcc, SpawnHist, DoublesAttemptHist, &
+                         iOffDiagNoBins
+    use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
+    use CalcData, only: StepsSft, AvMCExcits, tau
+    use hist_data, only: tHistSpawn, HistMinInd, BinRange, iNoBins
+    use SystemData, only: tHPHF, nel, tCSF, brr
     use Determinants, only: get_helement
     use DetCalcData, only: FCIDetIndex, ICILevel
-    use LoggingData, only: CCMCDebug, tCalcFCIMCPsi
+    use LoggingData, only: CCMCDebug, tCalcFCIMCPsi, OffDiagMax, &
+                           tHistEnergies, OffDiagBinRange
     use GenRandSymExcitNUMod, only: gen_rand_excit
     use dSFMT_interface, only: genrand_real2_dSFMT
     use AnnihilationMod, only: DirectAnnihilation
@@ -37,6 +44,10 @@ MODULE CCMC
     use searching, only: BinSearchParts
     use global_det_data, only: global_determinant_data, det_diagH, &
                                set_det_diagH
+    use fcimc_helper, only: create_particle, SumEContrib, InitHistMin
+    use fcimc_initialisation, only: SetupParameters
+    use fcimc_iter_utils, only: calculate_new_shift_wrapper
+    use fcimc_output, only: WriteFCIMCStatsHeader, WriteHistogram
    IMPLICIT NONE
     integer :: iPartBloom
    CONTAINS
@@ -63,7 +74,6 @@ MODULE CCMC
     real(dp) function AttemptDieProbPar (Kii,WSign,dProb)
         use CalcData , only : DiagSft,Tau
         use FciMCData
-        use FciMCParMod, only: TestifDETinCAS
         use DetBitOps, only: FindExcitBitDet, FindBitExcitLevel
         use dSFMT_interface
         IMPLICIT NONE
@@ -1054,7 +1064,6 @@ MODULE CCMC
     ! in base Det sum_{i=1}^{|X|} (X_i)*(Det)**(i-1)
    SUBROUTINE WriteClusterInd(iUnit,ind0,lTerm,TL,tNonUniq)
       use DetCalcData, only: Det,FciDets       ! The number of Dets/Excitors in FCIDets
-      use FCIMCParMod, only: iLutHF
       use CCMCData, only: Cluster,CCTransitionLog,WriteCluster
       IMPLICIT NONE
       INTEGER ind,ind0,i
@@ -1151,7 +1160,6 @@ LOGICAL FUNCTION GetNextSpawner(S,iDebug)
    use CCMCData
    use FciMCData, only: pDoubles, tTruncSpace
    use SymExcitDataMod, only: excit_gen_store_type
-   use FciMCParMod, only: CheckAllowedTruncSpawn
    use GenRandSymExcitNUMod , only : gen_rand_excit, scratchsize
    use SymExcit3, only: GenExcitations3
    use DetBitOps, only: FindExcitBitDet
@@ -1410,7 +1418,6 @@ SUBROUTINE InitMP1Amplitude(tFCI,Amplitude,nExcit,ExcitList,ExcitLevelIndex,dIni
    use CCMCData
    use SystemData, only: nel
    use FciMCData, only: HFDet,iLutHF
-   use FciMCParMod, only: SumEContrib,BinSearchParts3
    use Determinants, only: GetH0Element3
    use bit_reps, only: decode_bit_det
    use constants, only: dp
@@ -1477,7 +1484,6 @@ SUBROUTINE InitRandAmplitude(Amplitude,nExcit,dInitAmp,dTotAbsAmpl)
    use CCMCData
    use SystemData, only: nEl
    use FciMCData, only: HFDet,iLutHF
-   use FciMCParMod, only: SumEContrib,BinSearchParts3
    use Determinants, only: GetH0Element3
    use constants, only: dp
    use dSFMT_interface , only : genrand_real2_dSFMT
@@ -1499,7 +1505,6 @@ END SUBROUTINE
 subroutine AttemptSpawn(S,C,Amplitude,dTol,TL,WalkerScale,iDebug)
    use SystemData, only: nEl
    use CCMCData, only: Spawner, Cluster,CCTransitionLog
-   use FciMCParMod, only: BinSearchParts3
    Use CalcData, only: Tau
    use DetBitOps, only: FindBitExcitLevel
    use DetCalcData, only: FCIDets   ! (0:NIfDBO, Det).  Lists all allowed excitors in compressed form
@@ -1589,7 +1594,6 @@ subroutine AttemptDie(C,CurAmpl,OldAmpl,TL,WalkerScale,iDebug)
    use constants, only: dp
    Use LoggingData, only: lLogTransitions=>tCCMCLogTransitions
    use CalcData, only: NEquilSteps
-   use FciMCParMod, only: BinSearchParts3
    use dSFMT_interface , only : genrand_real2_dSFMT
    
    implicit none
@@ -1723,7 +1727,6 @@ subroutine AttemptSpawnParticle(S,C,iDebug,SpawnList,nSpawned,nMaxSpawn)
    USE dSFMT_interface , only : genrand_real2_dSFMT
    use bit_reps, only: encode_bit_rep,extract_flags,set_flag,clr_flag
    use bit_rep_data
-   use FciMCParMod, only: create_particle, attempt_create_normal
    use hphf_integrals, only: hphf_spawn_sign
    implicit none
    type(Spawner) S
@@ -1815,7 +1818,6 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,nSpawned)
    use SystemData, only : nEl
    use bit_reps, only: encode_bit_rep,set_flag
    use bit_rep_data
-   use FciMCParMod, only: create_particle
    
    implicit none
    Type(Cluster) C
@@ -1978,15 +1980,11 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    use FciMCData, only: TotParts,TotWalkers,TotWalkersOld,TotPartsOld,AllTotPartsOld,AllTotWalkersOld,AllTotParts
    use FciMCData, only: tTruncSpace,Hii
    use FciMCData, only: ProjectionE,iLutHF,tRestart
-   use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
-   use FciMCParMod, only: InitHistMin, calculate_new_shift_wrapper
    use FciMCData, only: NoatHF,NoatDoubs
-   use FciMCParMod, only: WriteHistogram,SumEContrib
    Use LoggingData, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
    USE LoggingData , only : iWriteHistEvery
    USE DetCalcData , only : ICILevel
    use CalcData, only: NEquilSteps
-   use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
    use constants, only: dp
    use CCMCData, only: WriteCluster
    use ClusterList
@@ -2357,14 +2355,10 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    use FciMCData, only: NoatHF,NoatDoubs
    use FciMCData, only: tTruncSpace
    use FciMCData, only: ProjectionE,iLutHF,tRestart
-   use FciMCParMod, only: CheckAllowedTruncSpawn, SetupParameters,BinSearchParts3
-   use FciMCParMod, only: InitHistMin, calculate_new_shift_wrapper
-   use FciMCParMod, only: WriteHistogram,SumEContrib
    Use LoggingData, only: CCMCDebug,tCCMCLogTransitions,tCCMCLogUniq
    USE LoggingData , only : iWriteHistEvery,tPopsFile
    USE DetCalcData , only : ICILevel
    use CalcData, only: InitWalkers, NEquilSteps, tReadPops
-   use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
    USE dSFMT_interface , only : genrand_real2_dSFMT
    use CalcData, only: MemoryFacSpawn
    use AnnihilationMod, only: AnnihilationInterface
@@ -2376,7 +2370,6 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
                            shared_allocate
    use CalcData, only: tAddToInitiator,InitiatorWalkNo,tTruncInitiator
    use bit_reps, only: encode_sign,extract_sign
-   use FciMCParMod, only: tReadPops, ChangeVars
    use PopsFileMod, only: WriteToPopsFileParOneArr, ReadFromPopsfileOnly
    use FciMCData, only: SpawnedParts,ValidSpawnedList,InitialSpawnedSlots
    use FciMCData, only: hash_shift, hash_iter !For cycle-dependent hashes
@@ -3280,6 +3273,304 @@ END SUBROUTINE
 !      Call WriteClusterInd(iout,i,.false.,TL)
 !      WRITE(iout,"(I)") i
    end subroutine LogCluster
+
+    ! Depreciated function - only used for CCMC
+    !
+    ! This function tells us whether we should create a child particle on nJ,
+    ! from a parent particle on DetCurr with sign WSign, created with 
+    ! probability Prob. It returns zero if we are not going to create a child,
+    ! or -1/+1 if we are to create a child, giving the sign of the new
+    ! particle
+    INTEGER FUNCTION AttemptCreatePar(DetCurr,iLutCurr,RealWSign,nJ,iLutnJ,Prob,IC,Ex,tParity)
+        use GenRandSymExcitNUMod , only : GenRandSymExcitBiased
+        use LoggingData, only : CCMCDebug
+        INTEGER :: DetCurr(NEl),nJ(NEl),IC,ExtraCreate,Ex(2,2),Bin
+        INTEGER(KIND=n_int) :: iLutCurr(0:NIfTot),iLutnJ(0:NIfTot)
+        logical :: tParity
+        real(dp) :: Prob, r, rat, RealAttemptCreatePar
+        real(dp), dimension(lenof_sign), intent(in) :: RealwSign
+        HElement_t :: rh
+
+        ! If each walker does not have exactly one spawning attempt
+        ! (if AvMCExcits /= 1.0_dp) then the probability of an excitation
+        ! having been chosen, prob, must be altered accordingly.
+        prob = prob * AvMCExcits
+            
+
+!Calculate off diagonal hamiltonian matrix element between determinants
+!        rh=GetHElement2(DetCurr,nJ,NEl,nBasisMax,G1,nBasis,Brr,NMsh,fck,NMax,ALat,UMat,IC,ECore)
+        IF(tHPHF) THEN
+            IF(tGenMatHEl) THEN
+!The prob is actually prob/HEl, since the matrix element was generated at the same time as the excitation
+
+                write(iout,*) "AttemptCreatePar is depreciated, and not compatible with HPHF - use attempt_create_normal"
+                call stop_all("AttemptCreatePar","This is a depreciated routine.")
+
+!                rat=Tau/abs(Prob)
+
+!                rh=Prob ! to get the signs right for later on.
+!                WRITE(iout,*) Prob, DetCurr(:),"***",nJ(:)
+!                WRITE(iout,*) "******"
+!                CALL HPHFGetOffDiagHElement(DetCurr,nJ,iLutCurr,iLutnJ,rh)
+
+            ELSE
+                ! The IC given doesn't really matter. It just needs to know 
+                ! whether it is a diagonal or off-diagonal matrix element.
+                ! However, the excitation generator can generate the same 
+                ! HPHF again. If this is done, the routine will send the 
+                ! matrix element back as zero.
+                rh = hphf_off_diag_helement (DetCurr, nJ, iLutCurr, iLutnJ)
+
+                ! Divide by the probability of creating the excitation to 
+                ! negate the fact that we are only creating a few determinants
+                rat=Tau*abs(rh)/Prob
+!                WRITE(iout,*) Prob/rh, DetCurr(:),"***",nJ(:)
+!                WRITE(iout,*) "******"
+
+            ENDIF
+        ELSE
+!Normal determinant spawn
+
+            rh = get_helement (DetCurr, nJ, IC, Ex, tParity)
+            !WRITE(iout,*) rh
+
+!Divide by the probability of creating the excitation to negate the fact that we are only creating a few determinants
+            rat=Tau*abs(rh)/Prob
+        ENDIF
+        IF(CCMCDebug.gt.5) WRITE(iout,*) "Connection H-element to spawnee:",rh
+
+!If probability is > 1, then we can just create multiple children at the chosen determinant
+        ExtraCreate=INT(rat)
+        rat=rat-REAL(ExtraCreate,dp)
+
+!Stochastically choose whether to create or not according to ranlux 
+        r = genrand_real2_dSFMT() 
+        IF(rat.gt.r) THEN
+!            IF(Iter.eq.18925) THEN
+!                WRITE(iout,*) "Created",rh,rat
+!            ENDIF
+
+!Child is created - what sign is it?
+            IF(RealwSign(1).gt.0) THEN
+!Parent particle is positive
+                IF(real(rh,dp).gt.0.0_dp) THEN
+                    AttemptCreatePar=-1     !-ve walker created
+                ELSE
+                    AttemptCreatePar=1      !+ve walker created
+                ENDIF
+
+            ELSE
+!Parent particle is negative
+                IF(real(rh,dp).gt.0.0_dp) THEN
+                    AttemptCreatePar=1      !+ve walker created
+                ELSE
+                    AttemptCreatePar=-1     !-ve walker created
+                ENDIF
+            ENDIF
+
+        ELSE
+!No child particle created
+!            IF(Iter.eq.18925) THEN
+!                WRITE(iout,*) "Not Created",rh,rat
+!            ENDIF
+            AttemptCreatePar=0
+        ENDIF
+
+        IF(ExtraCreate.ne.0) THEN
+!Need to include the definitely create additional particles from a initial probability > 1
+
+            IF(AttemptCreatePar.lt.0) THEN
+!In this case particles are negative
+                AttemptCreatePar=AttemptCreatePar-ExtraCreate
+            ELSEIF(AttemptCreatePar.gt.0) THEN
+!Include extra positive particles
+                AttemptCreatePar=AttemptCreatePar+ExtraCreate
+            ELSEIF(AttemptCreatePar.eq.0) THEN
+!No particles were stochastically created, but some particles are still definatly created - we need to determinant their sign...
+                if (RealwSign(1) > 0) then
+                    if (real(rh,dp) > 0.0_dp) then
+                        AttemptCreatePar=-ExtraCreate    !Additional particles are negative
+                    ELSE
+                        AttemptCreatePar=ExtraCreate       !Additional particles are positive
+                    ENDIF
+                ELSE
+                    IF(real(rh,dp).gt.0.0_dp) THEN
+                        AttemptCreatePar=ExtraCreate
+                    ELSE
+                        AttemptCreatePar=-ExtraCreate
+                    ENDIF
+                ENDIF
+            ENDIF
+        ENDIF
+
+        RealAttemptCreatePar=real(AttemptCreatePar,dp)
+        AttemptCreatePar=transfer(RealAttemptCreatePar, AttemptCreatePar)
+
+        
+!We know we want to create a particle. Return the bit-representation of this particle (if we have not already got it)
+        IF(.not.tHPHF.and.AttemptCreatePar.ne.0) THEN
+            if (tCSF) then
+                ! This makes sure that the Yamanouchi symbol is correct. It
+                ! also makes it work if we have tTruncateCSF on, and ex would
+                ! therefore leave all singles as beta, when we switch to dets.
+                call EncodeBitDet (nJ, iLutnJ)
+            else
+                call FindExcitBitDet(iLutCurr,iLutnJ,IC,Ex)
+            endif
+        ENDIF
+
+!        IF(AttemptCreatePar.ne.0) THEN
+!            WRITE(iout,"(A,F15.5,I5,G25.15,I8,G25.15)") "Outwards ", rat,ExtraCreate,real(rh),Prob
+!        ENDIF
+
+        IF(tHistEnergies) THEN
+!First histogram off-diagonal matrix elements.
+            Bin=INT((real(rh,dp)+OffDiagMax)/OffDiagBinRange)+1
+            IF(Bin.le.0.or.Bin.gt.iOffDiagNoBins) THEN
+                CALL Stop_All("AttemptCreatePar","Trying to histogram off-diagonal matrix elements, "&
+                & //"but outside histogram array bounds.")
+            ENDIF
+            IF(IC.eq.1) THEN
+                SinglesAttemptHist(Bin)=SinglesAttemptHist(Bin)+(Tau/Prob)
+                IF(RealAttemptCreatePar.ne.0) THEN
+                    SinglesHist(Bin)=SinglesHist(Bin)+abs(RealAttemptCreatePar)
+                    IF(BRR(Ex(1,1)).le.NEl) THEN
+                        IF(BRR(Ex(2,1)).le.NEl) THEN
+                            SinglesHistOccOcc(Bin)=SinglesHistOccOcc(Bin)+abs(RealAttemptCreatePar)
+                        ELSE
+                            SinglesHistOccVirt(Bin)=SinglesHistOccVirt(Bin)+abs(RealAttemptCreatePar)
+                        ENDIF
+                    ELSE
+                        IF(BRR(Ex(2,1)).le.NEl) THEN
+                            SinglesHistVirtOcc(Bin)=SinglesHistVirtOcc(Bin)+abs(RealAttemptCreatePar)
+                        ELSE
+                            SinglesHistVirtVirt(Bin)=SinglesHistVirtVirt(Bin)+abs(RealAttemptCreatePar)
+                        ENDIF
+                    ENDIF
+                ENDIF
+            ELSEIF(IC.eq.2) THEN
+                DoublesAttemptHist(Bin)=DoublesAttemptHist(Bin)+(Tau/Prob)
+                IF(RealAttemptCreatePar.ne.0) THEN
+                    DoublesHist(Bin)=DoublesHist(Bin)+abs(RealAttemptCreatePar)
+                ENDIF
+            ENDIF
+
+            IF(tHPHF) THEN
+                rh = hphf_diag_helement (nJ, iLutnJ)
+            ELSE
+                rh = get_helement (nJ, nJ, 0)
+            ENDIF
+            Bin=INT((real(rh,dp)-Hii)/BinRange)+1
+            IF(Bin.gt.iNoBins) THEN
+                CALL Stop_All("AttemptCreatePar","Histogramming energies higher than the arrays can cope with. "&
+                & //"Increase iNoBins or BinRange")
+            ENDIF
+            IF(RealAttemptCreatePar.ne.0) THEN
+                SpawnHist(Bin)=SpawnHist(Bin)+abs(RealAttemptCreatePar)
+!                WRITE(iout,*) "Get Here!", abs(RealAttemptCreatePar),Bin
+            ENDIF
+            AttemptHist(Bin)=AttemptHist(Bin)+(Tau/Prob)
+        ENDIF
+
+    END FUNCTION AttemptCreatePar
+
+    ! This is the same as BinSearchParts1, but this time, the list to search 
+    ! is passed in as an argument. The list goes from 1 to Length, but only 
+    ! between MinInd and MaxInd is actually searched.
+    SUBROUTINE BinSearchParts3(iLut,List,Length,MinInd,MaxInd,PartInd,tSuccess)
+        INTEGER :: MinInd,MaxInd,PartInd
+        INTEGER :: Length
+        INTEGER(KIND=n_int) :: iLut(0:NIfTot), List(0:NIfTot,Length)
+        INTEGER :: i,j,N,Comp
+        LOGICAL :: tSuccess
+
+!        WRITE(iout,*) "Binary searching between ",MinInd, " and ",MaxInd
+!        CALL neci_flush(iout)
+        i=MinInd
+        j=MaxInd
+        IF(i-j.eq.0) THEN
+            Comp=DetBitLT(List(:,MaxInd),iLut(:),NIfDBO)
+            IF(Comp.eq.0) THEN
+                tSuccess=.true.
+                PartInd=MaxInd
+                RETURN
+            ELSE
+                tSuccess=.false.
+                PartInd=MinInd
+            ENDIF
+        ENDIF
+        do while(j-i.gt.0)  !End when the upper and lower bound are the same.
+            N=(i+j)/2       !Find the midpoint of the two indices
+!            WRITE(iout,*) i,j,n
+
+            ! Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it 
+            ! is more or 0 if they are the same
+            Comp=DetBitLT(List(:,N),iLut(:),NIfDBO)
+
+            IF(Comp.eq.0) THEN
+!Praise the lord, we've found it!
+                tSuccess=.true.
+                PartInd=N
+                RETURN
+            ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
+                ! The value of the determinant at N is LESS than the 
+                ! determinant we're looking for. Therefore, move the lower 
+                ! bound of the search up to N. However, if the lower bound is
+                ! already equal to N then the two bounds are consecutive and 
+                ! we have failed...
+                i=N
+            ELSEIF(i.eq.N) THEN
+
+
+                IF(i.eq.MaxInd-1) THEN
+                    ! This deals with the case where we are interested in the
+                    ! final/first entry in the list. Check the final entry of
+                    ! the list and leave We need to check the last index.
+                    Comp=DetBitLT(List(:,i+1),iLut(:),NIfDBO)
+                    IF(Comp.eq.0) THEN
+                        tSuccess=.true.
+                        PartInd=i+1
+                        RETURN
+                    ELSEIF(Comp.eq.1) THEN
+!final entry is less than the one we want.
+                        tSuccess=.false.
+                        PartInd=i+1
+                        RETURN
+                    ELSE
+                        tSuccess=.false.
+                        PartInd=i
+                        RETURN
+                    ENDIF
+
+                ELSEIF(i.eq.MinInd) THEN
+                    tSuccess=.false.
+                    PartInd=i
+                    RETURN
+                ELSE
+                    i=j
+                ENDIF
+
+
+            ELSEIF(Comp.eq.-1) THEN
+                ! The value of the determinant at N is MORE than the 
+                ! determinant we're looking for. Move the upper bound of the 
+                ! search down to N.
+                j=N
+            ELSE
+!We have failed - exit loop
+                i=j
+            ENDIF
+
+        enddo
+
+        ! If we have failed, then we want to find the index that is one less 
+        ! than where the particle would have been.
+        tSuccess=.false.
+        PartInd=MAX(MinInd,i-1)
+
+    END SUBROUTINE BinSearchParts3
+    
+
 
 END MODULE CCMC
 
