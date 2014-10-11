@@ -1828,4 +1828,49 @@ MODULE AnnihilationMod
 
     END SUBROUTINE InsertRemoveParts
 
+    SUBROUTINE CheckOrdering(DetArray,SignArray,NoDets,tCheckSignCoher)
+        INTEGER :: NoDets,i,j
+        INTEGER(KIND=n_int) :: DetArray(0:NIfTot,1:NoDets)
+        INTEGER :: SignArray(1:NoDets),Comp
+        LOGICAL :: tCheckSignCoher
+
+        IF(NoDets.gt.0) THEN
+            IF(SignArray(1).eq.0) THEN
+                WRITE(iout,*) "Iter: ",Iter,1
+                CALL Stop_All("CheckOrdering","Array has annihilated particles in it...")
+            ENDIF
+        ENDIF
+        do i=2,NoDets
+            IF(SignArray(i).eq.0) THEN
+                WRITE(iout,*) "Iter: ",Iter,i
+                CALL Stop_All("CheckOrdering","Array has annihilated particles in it...")
+            ENDIF
+            Comp=DetBitLT(DetArray(:,i-1),DetArray(:,i),NIfDBO)
+            IF(Comp.eq.-1) THEN
+!Array is in reverse numerical order for these particles
+                do j=max(i-5,1),min(i+5,NoDets)
+                    WRITE(iout,*) Iter,j,DetArray(:,j),SignArray(j)
+                enddo
+                CALL Stop_All("CheckOrdering","Array not ordered correctly")
+            ELSEIF(Comp.eq.0) THEN
+!Dets are the same - see if we want to check sign-coherence
+                IF(tCheckSignCoher) THEN
+!!This bit checks that there is only one copy of the determinants in the list
+                    do j=max(i-5,1),min(i+5,NoDets)
+                        WRITE(iout,*) Iter,j,DetArray(:,j),SignArray(j)
+                    enddo
+                    CALL Stop_All("CheckOrdering","Determinant same as previous one...")
+                ENDIF
+                IF(tCheckSignCoher.and.(SignArray(i-1).ne.SignArray(i))) THEN
+!This checks that any multple copies in the list are sign-coherent...
+                    do j=i-5,i+5
+                        WRITE(iout,*) Iter,j,DetArray(:,j),SignArray(j)
+                    enddo
+                    CALL Stop_All("CheckOrdering","Array not sign-coherent")
+                ENDIF
+            ENDIF
+        enddo
+
+    END SUBROUTINE CheckOrdering
+        
 END MODULE AnnihilationMod
