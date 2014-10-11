@@ -38,6 +38,14 @@ MODULE PopsfileMod
 
     logical :: tRealPOPSfile
 
+    interface
+        subroutine ChangeRefDet(det)
+            use SystemData, only: nel
+            implicit none
+            integer :: det(nel)
+        end subroutine
+    end interface
+
 contains
 
     !   V.3/4 POPSFILE ROUTINES   !
