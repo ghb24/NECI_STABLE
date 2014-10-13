@@ -348,7 +348,7 @@ contains
           InitiatorCutoffWalkNo = 99.0_dp
 
           tSurvivalInitiatorThreshold = .false.
-          nItersInitiator = 100
+          im_time_init_thresh = 0.1_dp
           MaxTau = 1.0_dp
 
         end subroutine SetCalcDefaults
@@ -1956,7 +1956,7 @@ contains
                 !     space
                 tSurvivalInitiatorThreshold = .true.
                 if (item < nitems) then
-                    call readi(nItersInitiator)
+                    call readf(im_time_init_thresh)
                 end if
 
             case default

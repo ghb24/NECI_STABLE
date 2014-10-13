@@ -23,11 +23,10 @@
         use FciMCData , only : tFillingStochRDMonFly, InstNoatHF, ntrial_occ, &
                                ncon_occ, occ_trial_amps, occ_con_amps, &
                                trial_temp, con_temp, tTrialHash, iLutHF_True, &
-                               iter
+                               TotImagTime
         use SystemData, only: nel, tHPHF
         use bit_rep_data, only: extract_sign, flag_trial, flag_connected
-        use bit_reps, only: NIfTot, NIfDBO, decode_bit_det, test_flag, &
-                            encode_first_iter
+        use bit_reps, only: NIfTot, NIfDBO, decode_bit_det, test_flag
         USE Determinants , only : get_helement
         use DetBitOps, only: DetBitEQ
         use hphf_integrals, only: hphf_diag_helement
@@ -37,7 +36,8 @@
         use util_mod, only: binary_search_custom
         use searching, only: find_trial_and_con_states_bin, find_trial_and_con_states_hash
         use global_det_data, only: global_determinant_data, set_det_diagH, &
-                                   det_diagH, set_av_sgn, set_iter_occ
+                                   det_diagH, set_av_sgn, set_iter_occ, &
+                                   set_part_init_time
         IMPLICIT NONE
         INTEGER :: nlisto,nlist1,nlist2,i
         INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
@@ -140,7 +140,7 @@
            if(DetBitEQ(CurrentDets(:,ips+i-1),iLutHF_True,NIfDBO)) call extract_sign(CurrentDets(:,ips+i-1),InstNoatHF)
 
            ! Store the initial iteration for this created particle
-           call encode_first_iter(CurrentDets(:,ips+i-1), iter)
+           call set_part_init_time(ips+i-1, TotImagTime)
            
            if (tFillingStochRDMonFly) then
                if (lenof_sign == 2) then
