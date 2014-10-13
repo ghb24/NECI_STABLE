@@ -1370,8 +1370,6 @@ MODULE AnnihilationMod
         ! is created
         call encode_first_iter(CurrentDets(:,DetPosition), iter)
 
-        if(tTruncInitiator) call FlagifDetisInitiator(iLutCurr, HDiag)
-
         ! If using a trial wavefunction, search to see if this state is in either the trial or
         ! connected space. If so, bin_search_trial sets the correct flag and returns the corresponding
         ! amplitude, which is stored.
@@ -1816,9 +1814,6 @@ MODULE AnnihilationMod
                 ! Store the iteration this particle is being created on
                 call encode_first_iter(CurrentDets(:,i), iter)
 
-                IF(tTruncInitiator) &
-                    CALL FlagifDetisInitiator(CurrentDets(0:NIfTot,i), &
-                                              HDiag)
             enddo
         ELSE
             CALL MergeListswH(TotWalkersNew,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned))
