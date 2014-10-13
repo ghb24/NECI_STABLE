@@ -247,8 +247,9 @@ contains
         real(dp), intent(in) :: tm
         character(*), parameter :: this_routine = 'set_part_init_time'
 
-        ASSERT(tSurvivalInitiatorThreshold)
-        global_determinant_data(pos_tm_occ, j) = tm
+        if (tSurvivalInitiatorThreshold) then
+            global_determinant_data(pos_tm_occ, j) = tm
+        end if
 
     end subroutine
 
@@ -258,8 +259,11 @@ contains
         real(dp) :: tm
         character(*), parameter :: this_routine = 'get_part_init_time'
 
-        ASSERT(tSurvivalInitiatorThreshold)
-        tm = global_determinant_data(pos_tm_occ, j)
+        if (tSurvivalInitiatorThreshold) then
+            tm = global_determinant_data(pos_tm_occ, j)
+        else
+            tm = 0.0_dp
+        end if
 
     end function
 

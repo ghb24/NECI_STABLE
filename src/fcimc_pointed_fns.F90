@@ -3,7 +3,8 @@
 module fcimc_pointed_fns
 
     use SystemData, only: nel
-    use LoggingData, only: tSpawnGhostChild, GhostThresh, tHistExcitToFrom
+    use LoggingData, only: tSpawnGhostChild, GhostThresh, tHistExcitToFrom, &
+                           FciMCDebug
     use CalcData, only: RealSpawnCutoff, tRealSpawnCutoff, tAllRealCoeff, &
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
                         tRealCoeffByExcitLevel, InitiatorWalkNo

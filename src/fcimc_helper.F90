@@ -25,7 +25,8 @@ module fcimc_helper
                            tHistEnergies, tExplicitAllRDM, RDMExcitLevel, &
                            RDMEnergyIter, tFullHFAv, tLogComplexPops, &
                            nHistEquilSteps, tCalcFCIMCPsi, StartPrintOrbOcc, &
-                           HistInitPopsIter, tHistInitPops, iterRDMOnFly
+                           HistInitPopsIter, tHistInitPops, iterRDMOnFly, &
+                           FciMCDebug
     use CalcData, only: NEquilSteps, tFCIMC, tSpawnSpatialInit, tTruncCAS, &
                         tRetestAddToInit, tAddToInitiator, InitiatorWalkNo, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
