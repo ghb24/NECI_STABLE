@@ -25,14 +25,14 @@ MODULE AnnihilationMod
                         encode_sign, encode_flags, test_flag, set_flag, &
                         clr_flag, flag_parent_initiator, encode_part_sign, &
                         extract_part_sign, copy_flag, nullify_ilut, &
-                        nullify_ilut_part, encode_first_iter
+                        nullify_ilut_part
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData , only : tNoNewRDMContrib
     use util_mod, only: get_free_unit, binary_search_custom
     use sparse_arrays, only: trial_ht, con_ht
     use global_det_data, only: set_det_diagH, get_iter_occ, &
-                               global_determinant_data
+                               global_determinant_data, set_part_init_time
     use searching
     use hash
 
@@ -1368,9 +1368,7 @@ MODULE AnnihilationMod
 
         ! Store the iteration, as this is the iteration on which the particle
         ! is created
-        call encode_first_iter(CurrentDets(:,DetPosition), iter)
-
-        if(tTruncInitiator) call FlagifDetisInitiator(iLutCurr, HDiag)
+        call set_part_init_time(DetPosition, TotImagTime)
 
         ! If using a trial wavefunction, search to see if this state is in either the trial or
         ! connected space. If so, bin_search_trial sets the correct flag and returns the corresponding
@@ -1814,11 +1812,8 @@ MODULE AnnihilationMod
                 call set_det_diagH(i, HDiag)
 
                 ! Store the iteration this particle is being created on
-                call encode_first_iter(CurrentDets(:,i), iter)
+                call set_part_init_time(i, TotImagTime)
 
-                IF(tTruncInitiator) &
-                    CALL FlagifDetisInitiator(CurrentDets(0:NIfTot,i), &
-                                              HDiag)
             enddo
         ELSE
             CALL MergeListswH(TotWalkersNew,ValidSpawned,SpawnedParts(0:NIfTot,1:ValidSpawned))
