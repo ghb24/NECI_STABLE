@@ -7,6 +7,7 @@ module global_det_data
 
     use FciMCData, only: MaxWalkersPart
     use LoggingData, only: tRDMonFly, tExplicitAllRDM
+    use CalcData, only: tSurvivalInitiatorThreshold
     use constants
     use util_mod
     implicit none
@@ -27,6 +28,7 @@ module global_det_data
     private :: pos_av_sgn, len_av_sgn, pos_iter_occ, len_iter_occ
     integer :: pos_av_sgn, len_av_sgn
     integer :: pos_iter_occ, len_iter_occ
+    integer :: pos_tm_occ, len_tm_occ
 
     ! And somewhere to store the actual data
     real(dp), pointer :: global_determinant_data(:,:) => null()
@@ -84,11 +86,18 @@ contains
             len_iter_occ = 0
         end if
 
+        ! If we are recording when particles were first created, then
+        ! we need somewhere to put them!
+        if (tSurvivalInitiatorThreshold) then
+            len_tm_occ = 1
+        end if
+
         ! Get the starting positions
         pos_av_sgn = pos_hel + len_hel
         pos_iter_occ = pos_av_sgn + len_av_sgn
+        pos_tm_occ = pos_iter_occ + len_iter_occ
 
-        tot_len = len_hel + len_av_sgn + len_iter_occ
+        tot_len = len_hel + len_av_sgn + len_iter_occ + len_tm_occ
 
         ! Allocate and log the required memory (globally)
         allocate(global_determinant_data(tot_len, MaxWalkersPart), stat=ierr)
@@ -232,6 +241,32 @@ contains
 
         iter_occ = global_determinant_data(pos_iter_occ: &
                                    pos_iter_occ + len_iter_occ - 1, j)
+
+    end function
+
+    subroutine set_part_init_time (j, tm)
+
+        integer, intent(in) :: j
+        real(dp), intent(in) :: tm
+        character(*), parameter :: this_routine = 'set_part_init_time'
+
+        if (tSurvivalInitiatorThreshold) then
+            global_determinant_data(pos_tm_occ, j) = tm
+        end if
+
+    end subroutine
+
+    function get_part_init_time (j) result(tm)
+
+        integer, intent(in) :: j
+        real(dp) :: tm
+        character(*), parameter :: this_routine = 'get_part_init_time'
+
+        if (tSurvivalInitiatorThreshold) then
+            tm = global_determinant_data(pos_tm_occ, j)
+        else
+            tm = 0.0_dp
+        end if
 
     end function
 

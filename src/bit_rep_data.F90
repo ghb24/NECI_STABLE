@@ -36,9 +36,6 @@ module bit_rep_data
     integer :: nIfSgn   ! Number of integers used for signs
     integer :: nIfTotKP ! Upper bound of krylov_vecs.
 
-    integer :: nOffIter ! The iteration where a site was first occupied
-    integer :: nIfIter  ! Obviously either one, or zero.
-
     ! Flags which we can store
     logical :: tUseflags
     integer, parameter :: flag_is_initiator(2) = (/0,1/), &

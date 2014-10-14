@@ -52,7 +52,7 @@ module fcimc_initialisation
     use bit_rep_data, only: NIfTot, NIfD, NIfDBO, flag_is_initiator, &
                             flag_deterministic
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
-                        encode_first_iter, decode_bit_det
+                        decode_bit_det
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
                          BeforeNormHist, InstHist, iNoBins, AllInstHist, &
                          HistogramEnergy, AllHistogramEnergy, AllHistogram, &
@@ -92,7 +92,8 @@ module fcimc_initialisation
                                  null_encode_child, attempt_die_normal
     use csf_data, only: csf_orbital_mask
     use global_det_data, only: global_determinant_data, set_det_diagH, &
-                               clean_global_det_data, init_global_det_data
+                               clean_global_det_data, init_global_det_data, &
+                               set_part_init_time
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
@@ -1625,7 +1626,7 @@ module fcimc_initialisation
             HFInd = 1
 
             ! Set the initial iteration number
-            call encode_first_iter(CurrentDets(:,1), 1)
+            call set_part_init_time(1, TotImagTime)
 
             ! Obtain the initial sign
             InitialSign = 0
@@ -2063,7 +2064,7 @@ module fcimc_initialisation
                     call set_det_diagH(DetIndex, real(HDiagTemp, dp) - Hii)
 
                     ! Set the initial iteration number
-                    call encode_first_iter(CurrentDets(:,DetIndex), 1)
+                    call set_part_init_time(DetIndex, TotImagTime)
 
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
@@ -2268,7 +2269,7 @@ module fcimc_initialisation
                     call set_det_diagH(DetIndex, real(HDiagtemp, dp) - Hii)
 
                     ! Set the initial iteration number
-                    call encode_first_iter(CurrentDets(:,DetIndex), 1)
+                    call set_part_init_time(DetIndex, TotImagTime)
 
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
@@ -2330,7 +2331,7 @@ module fcimc_initialisation
                 call set_det_diagH(DetIndex, 0.0_dp)
 
                 ! Set the initial iteration number
-                call encode_first_iter(CurrentDets(:,DetIndex), 1)
+                call set_part_init_time(DetIndex, TotImagTime)
 
                 if (tHashWalkerList) then
                     ! Now add the Hartree-Fock determinant (not with index 1).

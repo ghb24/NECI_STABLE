@@ -12,10 +12,9 @@ module fcimc_helper
     use bit_reps, only: NIfTot, flag_is_initiator, test_flag, extract_flags, &
                         flag_parent_initiator, encode_bit_rep, NIfD, &
                         set_flag_general, flag_make_initiator, NIfDBO, &
-                        extract_sign, set_flag, extract_first_iter, &
+                        extract_sign, set_flag, encode_sign, &
                         flag_trial, flag_connected, flag_deterministic, &
-                        extract_part_sign, encode_part_sign, decode_bit_det, &
-                        encode_sign
+                        extract_part_sign, encode_part_sign, decode_bit_det
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet
@@ -29,13 +28,15 @@ module fcimc_helper
                            tHistEnergies, tExplicitAllRDM, RDMExcitLevel, &
                            RDMEnergyIter, tFullHFAv, tLogComplexPops, &
                            nHistEquilSteps, tCalcFCIMCPsi, StartPrintOrbOcc, &
-                           HistInitPopsIter, tHistInitPops, iterRDMOnFly
+                           HistInitPopsIter, tHistInitPops, iterRDMOnFly, &
+                           FciMCDebug
     use CalcData, only: NEquilSteps, tFCIMC, tSpawnSpatialInit, tTruncCAS, &
                         tRetestAddToInit, tAddToInitiator, InitiatorWalkNo, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, tSurvivalInitiatorThreshold, &
-                        tSemiStochastic, tTrialWavefunction, nItersInitiator, &
-                        InitiatorCutoffEnergy, InitiatorCutoffWalkNo
+                        tSemiStochastic, tTrialWavefunction, &
+                        InitiatorCutoffEnergy, InitiatorCutoffWalkNo, &
+                        im_time_init_thresh
     use DeterminantData, only: FDet
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
@@ -49,7 +50,8 @@ module fcimc_helper
     use csf_data, only: csf_orbital_mask
     use csf, only: iscsf
     use global_det_data, only: get_av_sgn, set_av_sgn, set_det_diagH, &
-                               global_determinant_data, set_iter_occ
+                               global_determinant_data, set_iter_occ, &
+                               get_part_init_time
     use searching, only: BinSearchParts2
     implicit none
     save
@@ -327,8 +329,9 @@ contains
         integer, intent(out) :: parent_flags
         real(dp) :: CurrentSign(lenof_sign), init_thresh, low_init_thresh
         real(dp), intent(in) :: diagH
-        integer :: part_type, nopen, first_iter
+        integer :: part_type, nopen
         logical :: tDetinCAS, parent_init
+        real(dp) :: init_tm
         character(*), parameter :: this_routine = 'CalcParentFlag'
 
         call extract_sign (CurrentDets(:,j), CurrentSign)
@@ -391,14 +394,14 @@ contains
                 ! would not be an initiator, then it is possible we ought
                 ! to be considering it as well.
                 if (.not. parent_init .and. tSurvivalInitiatorThreshold) then
-                    first_iter = extract_first_iter(CurrentDets(:,j))
-                    if ((iter - first_iter) > nItersInitiator) &
+                    init_tm = get_part_init_time(j)
+                    if ((TotImagTime - init_tm) > im_time_init_thresh) &
                         parent_init = .true.
                 end if
 #ifdef __DEBUG
                 if (tSurvivalInitiatorThreshold) then
-                    first_iter = extract_first_iter(CurrentDets(:,j))
-                    ASSERT(first_iter <= iter .and. first_iter > 0)
+                    init_tm = get_part_init_time(j)
+                    ASSERT(init_tm >= 0.0_dp)
                 end if
 #endif
             endif
