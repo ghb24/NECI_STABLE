@@ -8,7 +8,8 @@ MODULE AnnihilationMod
     use SystemData , only : NEl, tHPHF, nBasis, tCSF
     use CalcData , only : TRegenExcitgens, tEnhanceRemainder, &
                           tTruncInitiator, tSpawnSpatialInit, OccupiedThresh, &
-                          tSemiStochastic, tTrialWavefunction, tKP_FCIQMC
+                          tSemiStochastic, tTrialWavefunction, tKP_FCIQMC, &
+                          InitiatorOccupiedThresh, tInitOccThresh
     USE DetCalcData , only : Det,FCIDetIndex
     USE Parallel_neci
     USE dSFMT_interface, only : genrand_real2_dSFMT
@@ -28,7 +29,8 @@ MODULE AnnihilationMod
                         encode_sign, encode_flags, test_flag, set_flag, &
                         clr_flag, flag_parent_initiator, encode_part_sign, &
                         extract_part_sign, copy_flag, nullify_ilut, &
-                        nullify_ilut_part
+                        nullify_ilut_part, clear_has_been_initiator, &
+                        set_has_been_initiator, flag_has_been_initiator
     use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData , only : tNoNewRDMContrib
@@ -1168,7 +1170,31 @@ MODULE AnnihilationMod
                                 FreeSlot(iEndFreeSlot)=PartInd
                             endif
                         endif
-
+                        
+                        if(tInitOccThresh.and.test_flag(CurrentDets(:,j), flag_has_been_initiator(1)))then
+                                    if((abs(SignTemp(j)).gt.0.0_dp).and.(abs(SignTemp(j)).lt.InitiatorOccupiedThresh)) then
+                                        pRemove=(InitiatorOccupiedThresh-abs(SignTemp(j)))/InitiatorOccupiedThresh
+                                        r = genrand_real2_dSFMT ()
+                                        if(pRemove.gt.r) then
+                                            !Remove determinant
+                                            NoRemoved(j) = NoRemoved(j)+abs(SignTemp(j))
+                                            iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                            + abs(SignTemp(j))
+                                            SignTemp(j) = 0.0_dp
+                                            call nullify_ilut_part(SpawnedParts(:,i),j)
+                                            !Also cancel the has_been_initiator_flag
+                                            call clear_has_been_initiator(CurrentDets(:,j),flag_has_been_initiator(1))
+                                        elseif(tEnhanceRemainder) then
+                                            NoBorn(j) = NoBorn(j) + InitiatorOccupiedThresh - abs(SignTemp(j))
+                                            iter_data%nborn(j) = iter_data%nborn(j) &
+                                            + InitiatorOccupiedThresh - abs(SignTemp(j))
+                                            SignTemp(j) = sign(InitiatorOccupiedThresh, SignTemp(j))
+                                            call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
+                                        endif
+                                endif
+                        else
+                            !Either the determinant has never been an initiator,
+                            !Or we want to treat them all the same, as before.
                         if ((abs(SignTemp(j)).gt.0.0_dp) .and. (abs(SignTemp(j)).lt.OccupiedThresh)) then
                             !We remove this walker with probability 1-RealSignTemp
                             pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
@@ -1189,6 +1215,7 @@ MODULE AnnihilationMod
                                 SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
                                 call encode_part_sign (SpawnedParts(:,i), SignTemp(j), j)
                             endif
+                        endif
                         endif
                     enddo
 
@@ -1423,7 +1450,36 @@ MODULE AnnihilationMod
                 ELSE
                     do j=1, lenof_sign
                         if (.not. tIsStateDeterm) then
-                            if ((abs(CurrentSign(j)).gt.0.0) .and. (abs(CurrentSign(j)).lt.OccupiedThresh)) then
+                            !!!!!
+                            if(tInitOccThresh.and.test_flag(CurrentDets(:,j), flag_has_been_initiator(1)))then
+                                   if ((abs(CurrentSign(j)).gt.0.0) .and. (abs(CurrentSign(j)).lt.InitiatorOccupiedThresh)) then
+                                !We remove this walker with probability 1-RealSignTemp
+                                pRemove=(InitiatorOccupiedThresh-abs(CurrentSign(j)))/InitiatorOccupiedThresh
+                                r = genrand_real2_dSFMT ()
+                                if (pRemove .gt. r) then
+                                    !Remove this walker
+                                    NoRemoved(j) = NoRemoved(j) + abs(CurrentSign(j))
+                                    iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                                          + abs(CurrentSign(j))
+                                    CurrentSign(j) = 0.0_dp
+                                    call nullify_ilut_part(CurrentDets(:,i), j)
+                                    call decode_bit_det(nI, CurrentDets(:,i))
+                                    call clear_has_been_initiator(CurrentDets(:,j),flag_has_been_initiator(1))
+                                    if (IsUnoccDet(CurrentSign)) then
+                                        call remove_hash_table_entry(HashIndex, nI, i)
+                                        iEndFreeSlot=iEndFreeSlot+1
+                                        FreeSlot(iEndFreeSlot)=i
+                                    end if
+                                elseif (tEnhanceRemainder) then
+                                    NoBorn(j) = NoBorn(j) + InitiatorOccupiedThresh - abs(CurrentSign(j))
+                                    iter_data%nborn(j) = iter_data%nborn(j) &
+                                         + InitiatorOccupiedThresh - abs(CurrentSign(j))
+                                    CurrentSign(j) = sign(InitiatorOccupiedThresh, CurrentSign(j))
+                                    call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
+                                endif
+                            endif
+                            else
+                                if ((abs(CurrentSign(j)).gt.0.0) .and. (abs(CurrentSign(j)).lt.OccupiedThresh)) then
                                 !We remove this walker with probability 1-RealSignTemp
                                 pRemove=(OccupiedThresh-abs(CurrentSign(j)))/OccupiedThresh
                                 r = genrand_real2_dSFMT ()
@@ -1448,6 +1504,8 @@ MODULE AnnihilationMod
                                     call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
                                 endif
                             endif
+                            endif
+                            !!!!
                         endif
                     enddo
 
@@ -1585,6 +1643,33 @@ MODULE AnnihilationMod
                 if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
                 do j=1, lenof_sign
                     if (.not. tIsStateDeterm) then
+                        !!!
+                        if(tInitOccThresh.and.test_flag(CurrentDets(:,j),flag_has_been_initiator(1)))then
+                            if ((abs(CurrentSign(j)).gt.0.0) .and. (abs(CurrentSign(j)).lt.InitiatorOccupiedThresh)) then
+                            !We remove this walker with probability 1-RealSignTemp
+                            pRemove=(InitiatorOccupiedThresh-abs(CurrentSign(j)))/InitiatorOccupiedThresh
+                            r = genrand_real2_dSFMT ()
+                            if (pRemove .gt. r) then
+                                !Remove this walker
+                                NoRemoved(j) = NoRemoved(j) + abs(CurrentSign(j))
+                                !Annihilated = Annihilated + abs(CurrentSign(j))
+                                !iter_data%nannihil = iter_data%nannihil + abs(CurrentSign(j))
+                                iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                                      + abs(CurrentSign(j))
+                                CurrentSign(j) = 0
+                                call nullify_ilut_part (CurrentDets(:,i), j)
+                                call clear_has_been_initiator(CurrentDets(:,j),flag_has_been_initiator(1))
+                            elseif (tEnhanceRemainder) then
+                                ! SDS: TODO: Account for the TotParts Changes
+                                ! Should we always do this here? Probably. Should
+                                NoBorn(j) = NoBorn(j) + InitiatorOccupiedThresh - abs(CurrentSign(j))
+                                iter_data%nborn(j) = iter_data%nborn(j) &
+                                         + InitiatorOccupiedThresh - abs(CurrentSign(j))
+                                CurrentSign(j) = sign(InitiatorOccupiedThresh, CurrentSign(j))
+                                call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
+                            endif
+                        endif
+                        else
                         if ((abs(CurrentSign(j)).gt.0.0) .and. (abs(CurrentSign(j)).lt.OccupiedThresh)) then
                             !We remove this walker with probability 1-RealSignTemp
                             pRemove=(OccupiedThresh-abs(CurrentSign(j)))/OccupiedThresh
@@ -1608,6 +1693,8 @@ MODULE AnnihilationMod
                                 call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
                             endif
                         endif
+                        endif
+                        !!!
                     endif
                 enddo
                 

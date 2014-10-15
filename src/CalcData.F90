@@ -34,8 +34,9 @@ logical :: tAllRealCoeff, tUseRealCoeffs
 logical :: tRealSpawnCutoff
 logical :: tRealCoeffByExcitLevel
 integer :: RealCoeffExcitThresh
-real(dp) :: RealSpawnCutoff, OccupiedThresh
+real(dp) :: RealSpawnCutoff, OccupiedThresh, InitiatorOccupiedThresh
 logical :: tEnhanceRemainder
+logical :: tInitOccThresh
 logical :: tRPA_QBA     !RPA calculation with QB approximation
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
 logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
