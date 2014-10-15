@@ -256,6 +256,8 @@ contains
           tRealSpawnCutoff=.false.
           RealSpawnCutoff=1.0e-5_dp
           OccupiedThresh=1.0_dp
+          tInitOccThresh=.false.
+          InitiatorOccupiedThresh=0.1_dp
           tJumpShift = .false.
 !Feb 08 default set.
           IF(Feb08) THEN
@@ -1741,6 +1743,10 @@ contains
                 call Getf(RealSpawnCutoff)
             case("SETOCCUPIEDTHRESH")
                 call Getf(OccupiedThresh)
+            case("SETINITOCCUPIEDTHRESH")
+                tInitOccThresh=.true.
+                tAllRealCoeff=.true.
+                call Getf(InitiatorOccupiedThresh)
 
             case("JUMP-SHIFT")
                 ! When variable shift is enabled, jump the shift to the value

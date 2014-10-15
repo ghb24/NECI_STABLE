@@ -11,7 +11,8 @@ module fcimc_helper
                         set_flag_general, flag_make_initiator, NIfDBO, &
                         extract_sign, set_flag, encode_sign, &
                         flag_trial, flag_connected, flag_deterministic, &
-                        extract_part_sign, encode_part_sign, decode_bit_det
+                        extract_part_sign, encode_part_sign, decode_bit_det, &
+                        set_has_been_initiator, flag_has_been_initiator
     use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet
@@ -418,6 +419,7 @@ contains
             
             if(parent_init) then                           
                 tcurr_initiator = .true.
+                call set_has_been_initiator(CurrentDets(:,j),flag_has_been_initiator(1))
             endif
 
         enddo
