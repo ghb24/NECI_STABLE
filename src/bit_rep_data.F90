@@ -42,10 +42,11 @@ module bit_rep_data
                           flag_determ_parent = 5, &
                           flag_trial = 6, &
                           flag_connected = 7, &
-                          flag_negative_sign = 8
+                          flag_negative_sign = 8, &
+                          flag_has_been_initiator(1) = (9)
 
     ! IMPORTANT
-    integer, parameter :: num_flags = 9, &
+    integer, parameter :: num_flags = 10, &
                           flag_bit_offset = bits_n_int - num_flags
     integer(n_int), parameter :: sign_mask = ishft(not(0_n_int), -num_flags), &
                                  flags_mask = not(sign_mask), &
