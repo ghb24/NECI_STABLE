@@ -31,9 +31,10 @@ module fcimc_helper
                         tRetestAddToInit, tAddToInitiator, InitiatorWalkNo, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, tSurvivalInitiatorThreshold, &
-                        tSemiStochastic, tTrialWavefunction, &
+                        tSemiStochastic, tTrialWavefunction, DiagSft, &
                         InitiatorCutoffEnergy, InitiatorCutoffWalkNo, &
-                        im_time_init_thresh
+                        im_time_init_thresh, tSurvivalInitMultThresh, &
+                        init_survival_mult, MaxWalkerBloom
     use DeterminantData, only: FDet
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
@@ -48,7 +49,7 @@ module fcimc_helper
     use csf, only: iscsf
     use global_det_data, only: get_av_sgn, set_av_sgn, set_det_diagH, &
                                global_determinant_data, set_iter_occ, &
-                               get_part_init_time
+                               get_part_init_time, det_diagH
     use searching, only: BinSearchParts2
     implicit none
     save
@@ -328,7 +329,7 @@ contains
         real(dp), intent(in) :: diagH
         integer :: part_type, nopen
         logical :: tDetinCAS, parent_init
-        real(dp) :: init_tm
+        real(dp) :: init_tm, expected_lifetime, hdiag
         character(*), parameter :: this_routine = 'CalcParentFlag'
 
         call extract_sign (CurrentDets(:,j), CurrentSign)
@@ -368,7 +369,7 @@ contains
                     tDetInCas = .false.
                     if (tTruncCAS) &
                         tDetInCas = TestIfDetInCASBit (CurrentDets(0:NIfD,j))
-                   
+
                     ! If det. in fixed initiator space, or is the HF det, or it
                     ! is in the deterministic space, then it must remain an initiator.
                     if (.not. tDetInCas .and. &
@@ -401,6 +402,22 @@ contains
                     ASSERT(init_tm >= 0.0_dp)
                 end if
 #endif
+
+                if (.not. parent_init .and. tSurvivalInitMultThresh) then
+                    init_tm = get_part_init_time(j)
+                    hdiag = det_diagH(j) - DiagSft(part_type)
+                    if (hdiag > 0) then
+                        expected_lifetime = log(2.0_dp * MaxWalkerBloom) &
+                                          / hdiag
+                        if ((TotImagTime - init_tm) > & !0.5_dp) then !&
+                                init_survival_mult * expected_lifetime) then
+                            parent_init = .true.
+                        !    write(6,*) 'allowing', j, totimagtime-init_tm, &
+                        !        expected_lifetime, init_survival_mult*expected_lifetime, &
+                        !        init_survival_mult
+                        end if
+                    end if
+                end if
             endif
 
             ! Update counters as required.

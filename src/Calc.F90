@@ -348,7 +348,9 @@ contains
           InitiatorCutoffWalkNo = 99.0_dp
 
           tSurvivalInitiatorThreshold = .false.
+          tSurvivalInitMultThresh = .false.
           im_time_init_thresh = 0.1_dp
+          init_survival_mult = 3.0_dp
           MaxTau = 1.0_dp
 
         end subroutine SetCalcDefaults
@@ -1957,6 +1959,16 @@ contains
                 tSurvivalInitiatorThreshold = .true.
                 if (item < nitems) then
                     call readf(im_time_init_thresh)
+                end if
+
+            case("INITIATOR-SURVIVAL-MULTIPLIER")
+                ! If a site survives for a certain multiple of how long it
+                ! would _expect_ to have survived, then it should be treated
+                ! as an initiator
+                ! --> A more flexible version of INITIATOR-SURVIVAL-CRITERION
+                tSurvivalInitMultThresh = .true.
+                if (item < nitems) then
+                    call readf(init_survival_mult)
                 end if
 
             case default

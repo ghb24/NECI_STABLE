@@ -234,7 +234,7 @@ real(dp) :: InitiatorCutoffEnergy, InitiatorCutoffWalkNo
 
 ! Do we make sites into initiators if they have survived more than a certain
 ! period of time?
-logical :: tSurvivalInitiatorThreshold
-real(dp) :: im_time_init_thresh
+logical :: tSurvivalInitiatorThreshold, tSurvivalInitMultThresh
+real(dp) :: im_time_init_thresh, init_survival_mult
 
 end module CalcData
