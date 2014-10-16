@@ -7,7 +7,7 @@ module global_det_data
 
     use FciMCData, only: MaxWalkersPart
     use LoggingData, only: tRDMonFly, tExplicitAllRDM
-    use CalcData, only: tSurvivalInitiatorThreshold
+    use CalcData, only: tSurvivalInitiatorThreshold, tSurvivalInitMultThresh
     use constants
     use util_mod
     implicit none
@@ -88,7 +88,7 @@ contains
 
         ! If we are recording when particles were first created, then
         ! we need somewhere to put them!
-        if (tSurvivalInitiatorThreshold) then
+        if (tSurvivalInitiatorThreshold .or. tSurvivalInitMultThresh) then
             len_tm_occ = 1
         end if
 
@@ -250,7 +250,7 @@ contains
         real(dp), intent(in) :: tm
         character(*), parameter :: this_routine = 'set_part_init_time'
 
-        if (tSurvivalInitiatorThreshold) then
+        if (tSurvivalInitiatorThreshold .or. tSurvivalInitMultThresh) then
             global_determinant_data(pos_tm_occ, j) = tm
         end if
 
@@ -262,7 +262,7 @@ contains
         real(dp) :: tm
         character(*), parameter :: this_routine = 'get_part_init_time'
 
-        if (tSurvivalInitiatorThreshold) then
+        if (tSurvivalInitiatorThreshold .or. tSurvivalInitMultThresh) then
             tm = global_determinant_data(pos_tm_occ, j)
         else
             tm = 0.0_dp

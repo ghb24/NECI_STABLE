@@ -188,7 +188,8 @@ MODULE ReadInput_neci
                             MemoryFacPart, tTruncInitiator, &
                             tSpawnSpatialInit, tSpatialOnlyHash, InitWalkers, &
                             tUniqueHFNode, InitiatorCutoffEnergy, tCCMC, &
-                            tSurvivalInitiatorThreshold, tKP_FCIQMC
+                            tSurvivalInitiatorThreshold, tKP_FCIQMC, &
+                            tSurvivalInitMultThresh
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -450,7 +451,8 @@ MODULE ReadInput_neci
             call stop_all(t_r, 'Initiator cutoff not implemented for CCMC')
         end if
 
-        if (tPopsFile .and. tSurvivalInitiatorThreshold) then
+        if (tPopsFile .and. (tSurvivalInitiatorThreshold .or. &
+                             tSurvivalInitMultThresh)) then
             write(6,*) 'The initiator initial iteration details have not yet &
                        &been added to the POPSFILE reading/writing routines.'
             write(6,*) '--> Simulations will not display consistent behaviour &
