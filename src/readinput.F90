@@ -186,7 +186,7 @@ MODULE ReadInput_neci
                             tSpawnSpatialInit, tSpatialOnlyHash, InitWalkers, &
                             tUniqueHFNode, InitiatorCutoffEnergy, tCCMC, &
                             tSurvivalInitiatorThreshold, tKP_FCIQMC, &
-                            tSurvivalInitMultThresh
+                            tSurvivalInitMultThresh, tAddToInitiator
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
