@@ -407,8 +407,8 @@ contains
                     init_tm = get_part_init_time(j)
                     hdiag = det_diagH(j) - DiagSft(part_type)
                     if (hdiag > 0) then
-                        expected_lifetime = log(2.0_dp * MaxWalkerBloom) &
-                                          / hdiag
+                        expected_lifetime = &
+                            log(2.0_dp * max(MaxWalkerBloom, 1)) / hdiag
                         if ((TotImagTime - init_tm) > & !0.5_dp) then !&
                                 init_survival_mult * expected_lifetime) then
                             parent_init = .true.
