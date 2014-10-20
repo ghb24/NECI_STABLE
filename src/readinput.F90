@@ -458,6 +458,15 @@ MODULE ReadInput_neci
                                &survival criterion')
         end if
 
+        if ((tSurvivalInitiatorThreshold .or. tSurvivalInitMultThresh) .and. &
+            .not. tAddToInitiator) then
+
+            write(6,*) 'Without the ADDTOINITIATOR option, the survival based &
+                       &initiator thresholds do nothing'
+            write(6,*) 'If ONLY survival based thresholds are desired, set &
+                       &initiator walker number absurdly high'
+        end if
+
     end subroutine checkinput
 
 end Module ReadInput_neci
