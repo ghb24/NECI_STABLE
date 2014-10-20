@@ -29,7 +29,7 @@ module fcimc_helper
                            HistInitPopsIter, tHistInitPops, iterRDMOnFly, &
                            FciMCDebug
     use CalcData, only: NEquilSteps, tFCIMC, tSpawnSpatialInit, tTruncCAS, &
-                        tRetestAddToInit, tAddToInitiator, InitiatorWalkNo, &
+                        tAddToInitiator, InitiatorWalkNo, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, tSurvivalInitiatorThreshold, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
@@ -362,11 +362,10 @@ contains
                         if (tSpawnSpatialInit) &
                             call add_initiator_list (CurrentDets(:,j))
                     endif
-                elseif (tRetestAddToInit) then
+                else
                     ! The source determinant is already an initiator.            
-                    ! If tRetestAddToInit is on, the determinants become 
-                    ! non-initiators again if their population falls below 
-                    ! n_add (this is on by default).
+                    ! the determinants become non-initiators again if their
+                    ! population falls below n_add (this is on by default).
                     tDetInCas = .false.
                     if (tTruncCAS) &
                         tDetInCas = TestIfDetInCASBit (CurrentDets(0:NIfD,j))
