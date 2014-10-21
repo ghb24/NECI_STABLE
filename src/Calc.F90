@@ -235,7 +235,6 @@ contains
           tDefineDet=.false.
           tTruncInitiator=.false.
           tAddtoInitiator=.false.
-          tRetestAddtoInit=.true.
           InitiatorWalkNo=10.0_dp
           tInitIncDoubs=.false.
           MaxNoatHF=0
