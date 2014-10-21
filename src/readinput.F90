@@ -186,7 +186,7 @@ MODULE ReadInput_neci
                             tSpawnSpatialInit, tSpatialOnlyHash, InitWalkers, &
                             tUniqueHFNode, InitiatorCutoffEnergy, tCCMC, &
                             tSurvivalInitiatorThreshold, tKP_FCIQMC, &
-                            tSurvivalInitMultThresh
+                            tSurvivalInitMultThresh, tAddToInitiator
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -456,6 +456,15 @@ MODULE ReadInput_neci
                        &over restarts until this is implemented'
             call stop_all(t_r, 'POPSFILES cannot be used with initiator &
                                &survival criterion')
+        end if
+
+        if ((tSurvivalInitiatorThreshold .or. tSurvivalInitMultThresh) .and. &
+            .not. tAddToInitiator) then
+
+            write(6,*) 'Without the ADDTOINITIATOR option, the survival based &
+                       &initiator thresholds do nothing'
+            write(6,*) 'If ONLY survival based thresholds are desired, set &
+                       &initiator walker number absurdly high'
         end if
 
     end subroutine checkinput
