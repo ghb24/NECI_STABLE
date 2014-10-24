@@ -188,8 +188,8 @@ def read_cols (f, last_iter=None, last_im_time=None):
     }
 
     # Invert the label dictionary for easy lookup
-    label_lookup = { hdr: title for title in col_labels
-                                for hdr in col_labels[title]}
+    label_lookup = dict([(hdr, title) for title in col_labels
+                                for hdr in col_labels[title]])
 
     rows = []
     iter_col = None
