@@ -5,9 +5,9 @@ compiler = GCC-f95-on-LINUX
 fc = mpif90
 f77flags = -m64 -fcray-pointer
 f90flags = -m64 -fcray-pointer -ffree-line-length-none
-cc = mpic++
+cc = mpicxx
 ld = mpif90
-ldflags = -m64 -rdynamic
+ldflags = -m64 
 libs = -framework Accelerate -lstdc++ -lm
 module_flag = -J
 
