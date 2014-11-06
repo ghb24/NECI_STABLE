@@ -51,8 +51,6 @@ module LoggingData
     logical :: tPrintLagrangian  !Print out the 1RDM,2RDM and Lagrangian to file at the end of a run as long as 2RDM is calculated
     real(dp) :: ThreshOccRDM
     logical :: tFullHFAv, tThreshOccRDMDiag
-    logical :: tSpawnGhostChild
-    real(dp) :: GhostThresh
     logical :: tRDMInstEnergy
 
     logical :: tCalcInstantS2, tCalcInstSCpts, tCalcInstantS2Init
