@@ -6,8 +6,7 @@
 module fcimc_pointed_fns
 
     use SystemData, only: nel
-    use LoggingData, only: tSpawnGhostChild, GhostThresh, tHistExcitToFrom, &
-                           FciMCDebug
+    use LoggingData, only: tHistExcitToFrom, FciMCDebug
     use CalcData, only: RealSpawnCutoff, tRealSpawnCutoff, tAllRealCoeff, &
                         RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
                         tRealCoeffByExcitLevel, InitiatorWalkNo
@@ -196,8 +195,6 @@ module fcimc_pointed_fns
 #endif
             end if
             
-            tGhostChild=.false.
-
             nSpawn = - tau * MatEl * walkerweight / prob
             
             ! n.b. if we ever end up with |walkerweight| /= 1, then this
@@ -238,19 +235,6 @@ module fcimc_pointed_fns
                 if (nspawn - real(int(nspawn),dp) == 0.0_dp) r = genrand_real2_dSFMT()
                 nSpawn = real(stochastic_round (nSpawn), dp)
                 
-                if(tFillingStochRDMonFly .and. tSpawnGhostChild .and. (abs(tau*MatEl*walkerweight/prob).lt.GhostThresh)) then
-                    !For elements of this type, there are potentially 2 chances to include an RDM contribution
-                    !The first chance (the actual spawning attempt) has probability x. If this fails, there is a
-                    ! second chance with probability ghostthresh (y)
-                    !The total probability of including a contrib is therefore x + (1-x)y
-                    p_spawn_rdmfac=abs(tau*MatEl*walkerweight/prob) + GhostThresh - abs(tau*MatEl*walkerweight/prob)*GhostThresh
-                    
-                    if(nSpawn.eq.0) then
-                        r=genrand_real2_dSFMT()
-                        if (r .lt. GhostThresh) tGhostChild=.true.
-                    endif
-
-                endif
             endif
 #ifdef __CMPLX
             ! And create the parcticles
@@ -263,8 +247,7 @@ module fcimc_pointed_fns
 
        
         if(tFillingStochRDMonFly) then
-            !if(((child(part_type).ne.0) .or. tGhostChild) .and.(.not.tHF_Ref_Explicit).and.(part_type.eq.1)) then
-            if(((child(part_type).ne.0) .or. tGhostChild)) then
+            if (child(part_type).ne.0) then
                 !Only add in contributions for spawning events within population 1
                 !(Otherwise it becomes tricky in annihilation as spawnedparents doesn't tell you which population
                 !the event came from at present)

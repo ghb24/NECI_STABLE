@@ -435,10 +435,6 @@ MODULE AnnihilationMod
                         elseif (temp_sign(lenof_sign) .ne. 0) then
                             !The child (and therefore parent) are from population 2
                             Spawned_Parents(NIfDBO+2,Parent_Array_Ind) = lenof_sign
-                        else
-                            !Both are zero, so it must be a ghost spawning event
-
-                            !!!TODO -- check the ghost flag to determine the NIFDBO+2 entry
                         endif
                         
                         ! The first NIfDBO of the Spawned_Parents entry is the parent determinant, 
@@ -757,7 +753,6 @@ MODULE AnnihilationMod
         if(((tFillingStochRDMonFly.and.(.not.tNoNewRDMContrib)).and.&
             (.not.DetBitZero(new_det(NIfTot+1:NIfTot+NIfDBO+1),NIfDBO)))) then
             if (new_sgn.ne.0) then
-                !TODO or put in a ghost flag thing
                 ! No matter what the final sign is, always want to add any Di stored in 
                 ! SpawnedParts to the parent array.
                 Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = new_det(NIfTot+1:NIfTot+NIfDBO+2)

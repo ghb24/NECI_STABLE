@@ -14,8 +14,8 @@ module FciMCParMod
                         iFullSpaceIter
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
-                           compare_amps_period, tSpawnGhostChild, &
-                           PopsFileTimer, write_end_core_size
+                           compare_amps_period, PopsFileTimer, &
+                           write_end_core_size
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -187,15 +187,6 @@ module FciMCParMod
             
             if(tRDMonFly .and. (.not. tFillingExplicRDMonFly) &
                 & .and. (.not.tFillingStochRDMonFly)) call check_start_rdm()
-
-            if(tRDMonFly .and. tSpawnGhostChild) &
-                    call stop_all("FciMCPar", "tSpawnGhostChild is not yet working correctly with &
-                    & the RDMs.  I need to introduce a ghost flag for the ghost progeny so that &
-                    & we know which population the spawning event came from once we get to annihilation. &
-                    & See approx line 449 in Annihilation.F90 where we assign &
-                    & Spawned_Parents NIfDBO+2,Parent_Array_Ind to say which pop the spawning event &
-                    & came from")
-
 
             if (tCCMC) then
                 if (tUseRealCoeffs) &
@@ -902,7 +893,7 @@ module FciMCParMod
                     endif
 
                     ! Children have been chosen to be spawned.
-                    if (any(child /= 0) .or. tGhostChild ) then
+                    if (any(child /= 0)) then
 
                         !Encode child if not done already
                         if(.not. (tSemiStochastic)) call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)

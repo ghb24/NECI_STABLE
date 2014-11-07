@@ -653,13 +653,6 @@ MODULE Logging
 ! Read in the RDMs from a previous calculation, and continue accumulating the RDMs from the very beginning of this restart. 
             tReadRDMs = .true.
         
-        case("RDMGHOSTCHILD")
-! In this case, if the probability of spawning on a given Dj, generated from Di, is less than GhostThresh (a real), 
-! the acceptance probability is increased GhostThresh. If the spawning is accepted, a 'ghost child' is created,
-! i.e. child is still equal to zero, but the DiDj pair are put in the spawning array to later contribute to the reduced density matrices.
-            tSpawnGhostChild = .true.
-            call readf(GhostThresh)
-
         case("NONEWRDMCONTRIB")
             !To be used with READRDMs.  This option makes sure that we don't add in any 
             !new contributions to the RDM if filling stochastically
