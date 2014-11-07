@@ -62,6 +62,16 @@ integer, parameter :: inum_runs = 1
 !This is the integer type which is used in MPI call arguments
 !This should normally be integer(4)'s.
 integer, parameter :: MPIArg=int32
+!A hack. Some of the more recent mac gfortran compilers require the MPI_LOGICALx MPI indetifyer, rather than just pretending that it is an integer type
+#ifdef PARALLEL
+#ifdef __MPILOGTYPE
+integer(MPIArg), parameter :: MPI_LOGTYPE4 = MPI_LOGICAL4
+integer(MPIArg), parameter :: MPI_LOGTYPE8 = MPI_LOGICAL8
+#else
+integer(MPIArg), parameter :: MPI_LOGTYPE4 = MPI_INTEGER4
+integer(MPIArg), parameter :: MPI_LOGTYPE8 = MPI_INTEGER8
+#endif
+#endif
 
 #ifdef __INT64
 
