@@ -21,12 +21,12 @@ mpitype=MPI_DOUBLE_PRECISION
 
 [log4]
 type1=logical(kind=int32)
-mpitype=MPI_INTEGER4
+mpitype=MPI_LOGTYPE4
 conditional_enable = !defined(SX)
 
 [log8]
 type1=logical(kind=int64)
-mpitype=MPI_INTEGER8
+mpitype=MPI_LOGTYPE8
 
 [comp]
 type1=complex(dp)
@@ -60,11 +60,11 @@ mpitype=MPI_DOUBLE_COMPLEX
 
 [arr_log4]
 type1=logical(kind=int32), dimension(:)
-mpitype=MPI_INTEGER4
+mpitype=MPI_LOGTYPE4
 
 [arr_log8]
 type1=logical(kind=int64), dimension(:)
-mpitype=MPI_INTEGER8
+mpitype=MPI_LOGTYPE8
 ######################
 # 2-D Arrays
 ######################
@@ -92,12 +92,12 @@ mpitype=MPI_DOUBLE_COMPLEX
 
 [arr2_log4]
 type1=logical(kind=int32), dimension(:,:)
-mpitype=MPI_INTEGER4
+mpitype=MPI_LOGTYPE4
 conditional_enable = !defined(SX)
 
 [arr2_log8]
 type1=logical(kind=int64), dimension(:,:)
-mpitype=MPI_INTEGER8
+mpitype=MPI_LOGTYPE8
 ######################
 # 3-D Arrays
 ######################

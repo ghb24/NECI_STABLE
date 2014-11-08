@@ -2081,8 +2081,6 @@ contains
           ENDIF
 
 ! Find out the number of alpha and beta electrons. For restricted calculations, these should be the same.
-write(6,*) 'FDET', fdet
-call neci_flush(6)
           if (tCSF) then
               nOccAlpha = (nel / 2) + LMS 
               nOccBeta =  (nel / 2) - LMS
