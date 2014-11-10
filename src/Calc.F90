@@ -88,7 +88,8 @@ contains
           tMaxBloom=.false.
           iRestartWalkNum=0
           iWeightPopRead=1.0e-12
-          tCheckHighestPop=.false.
+          tCheckHighestPop = .true.
+          tChangeProjEDet = .true.
           StepsSftImag=0.0_dp
           TauFactor=0.0_dp
           tStartMP1=.false.
