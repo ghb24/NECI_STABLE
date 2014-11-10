@@ -1761,7 +1761,7 @@ contains
                 if (item < nitems) then
                     call readu(w)
                     select case(w)
-                    case("OFF")
+                    case("OFF", "FALSE")
                         tJumpShift = .false.
                     case default
                     end select

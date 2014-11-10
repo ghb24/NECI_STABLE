@@ -31,7 +31,7 @@ MODULE System
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
       tComplexOrbs_RealInts = .false.
-      tReadFreeFormat=.false.
+      tReadFreeFormat=.true.
       tMolproMimic=.false.
       tNoSingExcits=.false.
       tOneElecDiag=.false.
@@ -345,8 +345,31 @@ system: do
             IF(tHub) THEN
                 CALL Stop_All("SysReadInput","Cannot turn off symmetry with the hubbard model.")
             ENDIF
+
         case("FREEFORMAT")
+            ! Relax the formatting requirements for reading in FCIDUMP files.
+            !
+            ! For historical reasons, QChem uses a very fixed format for
+            ! outputting FCIDUMP files. As a result the columns of orbital
+            ! indices will merge whenever there are more than 99 spatial
+            ! orbitals. To correctly read these files a FIXED format is
+            ! required for reading. Obviously, this is non-ideal when reading
+            ! FCIDUMP formats from elsewhere.
+            !
+            ! The QChem behaviour used to be default, but this has been
+            ! deprecated. To obtain the fixed behaviour use
+            ! "FREEFORMAT OFF" or "FREEFORMAT FALSE"
+
             tReadFreeFormat = .true.
+            if (item < nitems) then
+                call readu(w)
+                select case(w)
+                case("OFF", "FALSE")
+                    tReadFreeFormat = .false.
+                case default
+                end select
+            end if
+
         case("SYM")
             TPARITY = .true.
             do I = 1,4
