@@ -91,10 +91,10 @@ contains
         ! error message
         list_full = .false.
         if (proc == nNodes - 1) then
+            if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
+        else
             if (ValidSpawnedList(proc) > InitialSpawnedSlots(proc+1)) &
                 list_full=.true.
-        else
-            if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
         end if
         if (list_full) then
             write(6,*) "Attempting to spawn particle onto processor: ", proc
