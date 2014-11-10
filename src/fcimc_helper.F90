@@ -78,9 +78,31 @@ contains
         real(dp), intent(in), optional :: RDMBiasFacCurr
         integer, intent(in), optional :: WalkersToSpawn
         integer :: proc, flags, j
-        logical :: parent_init
+        logical :: parent_init, list_full
+        character(*), parameter :: this_routine = 'create_particle'
 
+        ! Determine which processor the particle should end up on in the
+        ! DirectAnnihilation algorithm
         proc = DetermineDetNode(nel,nJ,0)    ! 0 -> nNodes-1)
+
+        ! Check that the position described by ValidSpawnedList is acceptable.
+        ! If we have filled up the memory that would be acceptable, then
+        ! kill the calculation hard (i.e. stop_all) with a descriptive
+        ! error message
+        list_full = .false.
+        if (proc == nNodes - 1) then
+            if (ValidSpawnedList(proc) > InitialSpawnedSlots(proc+1)) &
+                list_full=.true.
+        else
+            if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
+        end if
+        if (list_full) then
+            write(6,*) "Attempting to spawn particle onto processor: ", proc
+            write(6,*) "No memory slots available for this spawn."
+            write(6,*) "Please increase MEMORYFACSPAWN"
+            call stop_all(this_routine, "Out of memory for spawned particles")
+        end if
+
         ! We need to include any flags set both from the parent and from the
         ! spawning steps. No we don't! - ghb
         ! This is highly yucky and needs cleaning up.
