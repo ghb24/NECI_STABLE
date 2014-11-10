@@ -609,66 +609,6 @@ contains
 
     end subroutine write_core_space
 
-    subroutine add_core_states_currentdets()
-
-        ! And if the state is already present, simply set its flag.
-        ! Also sort the states afterwards.
-
-        integer :: i, comp, MinInd, PartInd, nwalkers
-        logical :: tSuccess
-
-        integer :: j
-
-        MinInd = 1
-        nwalkers = int(TotWalkers,sizeof_int)
-
-        do i = 1, determ_proc_sizes(iProcIndex)
-
-            if (nwalkers > 0) then
-                ! If there is only one state in CurrentDets to check then BinSearchParts doesn't
-                ! return the desired value for PartInd, so do this separately...
-                if (MinInd == nwalkers) then
-                    comp = DetBitLT(CurrentDets(:,MinInd), SpawnedParts(:,i), NIfDBO, .false.)
-                    if (comp == 0) then
-                        tSuccess = .true.
-                        PartInd = MinInd
-                    else if (comp == 1) then
-                        tSuccess = .false.
-                        PartInd = MinInd
-                    else if (comp == -1) then
-                        tSuccess = .false.
-                        PartInd = MinInd - 1
-                    end if
-                else
-                    call BinSearchParts(SpawnedParts(:,i), MinInd, nwalkers, PartInd, tSuccess)
-                end if
-            else
-                tSuccess = .false.
-                PartInd = 0
-            end if
-
-            if (tSuccess) then
-                call set_flag(CurrentDets(:,PartInd), flag_deterministic)
-                if (tTruncInitiator) then
-                    call set_flag(CurrentDets(:,PartInd), flag_is_initiator(1))
-                    call set_flag(CurrentDets(:,PartInd), flag_is_initiator(2))
-                end if
-                MinInd = PartInd
-            else
-                ! Move all states below PartInd down one and insert the new state in the slot.
-                CurrentDets(:, PartInd+2:nwalkers+1) = CurrentDets(:, PartInd+1:nwalkers)
-                CurrentDets(:, PartInd+1) = SpawnedParts(:,i)
-                nwalkers = nwalkers + 1
-                MinInd = PartInd + 1
-            end if
-
-        end do
-
-        call sort(CurrentDets(:,1:nwalkers), ilut_lt, ilut_gt)
-
-        TotWalkers = int(nwalkers, int64)
-
-    end subroutine add_core_states_currentdets
 
     subroutine add_core_states_currentdet_hash()
 
@@ -676,7 +616,7 @@ contains
         ! such states already in CurrentDets, we want to keep the amplitude (which
         ! may have come from a popsfile).
 
-        ! This routine is for when the tHashWalkerList option is used. In this case,
+        ! This routine is for when the hashed walker main list. In this case,
         ! as all core states are always kept in the list, it is beneficial to keep
         ! them at the top always. So, in this routine, we move the non-core states
         ! in CurrentDets to the end and add the new core states in the gaps.

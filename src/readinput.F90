@@ -202,7 +202,7 @@ MODULE ReadInput_neci
         use constants
         use global_utilities
         use spin_project, only: tSpinProject, spin_proj_nopen_max
-        use FciMCData, only: nWalkerHashes,HashLengthFrac,tHashWalkerList
+        use FciMCData, only: nWalkerHashes,HashLengthFrac
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes,nProcessors
         use UMatCache, only: tDeferred_Umat2d
@@ -223,9 +223,7 @@ MODULE ReadInput_neci
             call stop_all(t_r,"CALCVARIATIONALENERGY requires initial FCI calculation")
         endif
 
-        if(tHashWalkerList) then
-            nWalkerHashes=nint(HashLengthFrac*InitWalkers)
-        endif
+        nWalkerHashes=nint(HashLengthFrac*InitWalkers)
 
 
         ! Turn on histogramming of fcimc wavefunction in order to find density

@@ -239,14 +239,10 @@ contains
         call halt_timer(read_timer)
         call set_timer(process_timer)
 
-        if (.not. tHashWalkerList) call sort(dets(:,1:CurrWalkers), ilut_lt, ilut_gt)
-
         if (tCalcExtraInfo) then
 
-            if (tHashWalkerList) then
-                call clear_hash_table(HashIndex)
-                call fill_in_hash_table(HashIndex, nWalkerHashes, Dets, int(CurrWalkers,sizeof_int), .true.)
-            endif
+            call clear_hash_table(HashIndex)
+            call fill_in_hash_table(HashIndex, nWalkerHashes, Dets, int(CurrWalkers,sizeof_int), .true.)
 
             ! Run through all determinants on each node, and calculate the total number of walkers, and noathf
             CurrHF = 0.0_dp
@@ -864,10 +860,8 @@ r_loop: do while(.not.tStoreDet)
 
         call fill_in_diag_helements()
 
-        if (tHashWalkerList) then
-            call clear_hash_table(HashIndex)
-            call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int), .true.)
-        end if
+        call clear_hash_table(HashIndex)
+        call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int), .true.)
 
         call set_initial_global_data(TotWalkers, CurrentDets)
 
@@ -1358,25 +1352,16 @@ r_loop: do while(.not.tStoreDet)
 !We have to make the distinction here between the number of entries to expect,
 !and the number of determinants we are writing out. Since the list is not
 !necessarily contiguous any more, we have to calculate Alltotwalkers seperately.
-        if(tHashwalkerlist) then
-            Writeoutdet=0
-            do i=1,int(nDets,sizeof_int)
-                call extract_sign(Dets(:,i),TempSign)
-                if(.not.IsUnoccDet(TempSign)) then
-                    !Count this det in AllTotWalkers
-                    Writeoutdet=Writeoutdet+1
-                endif
-            enddo
-            writeoutdet=int(writeoutdet/iPopsPartEvery)
-            call mpisum(writeoutdet,1,AllTotWalkers)
-        else
-            if(iProcIndex.eq.Root) then
-                AllTotWalkers=0
-                do i=0,nNodes-1
-                    AllTotWalkers=AllTotWalkers+INT(WalkersonNodes(i)/iPopsPartEvery)
-                enddo
+        Writeoutdet=0
+        do i=1,int(nDets,sizeof_int)
+            call extract_sign(Dets(:,i),TempSign)
+            if(.not.IsUnoccDet(TempSign)) then
+                !Count this det in AllTotWalkers
+                Writeoutdet=Writeoutdet+1
             endif
-        endif
+        enddo
+        writeoutdet=int(writeoutdet/iPopsPartEvery)
+        call mpisum(writeoutdet,1,AllTotWalkers)
 
         ! We only want to be using space/speed saving devices if we are doing
         ! them to the best of our ability.

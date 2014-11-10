@@ -193,34 +193,16 @@ contains
         ! Add in the contributions to the numerator and denominator of the trial
         ! estimator, if it is being used.
         if (tTrialWavefunction .and. present(ind)) then
-            if (tHashWalkerlist) then
-                if (test_flag(ilut, flag_trial)) then
-                    do run = 1, inum_runs
-                        trial_denom(run) = trial_denom(run) &
-                                    + current_trial_amps(ind)*RealwSign(run)
-                    end do
-                else if (test_flag(ilut, flag_connected)) then
-                    do run = 1, inum_runs
-                        trial_numerator(run) = trial_numerator(run) &
-                                    + current_trial_amps(ind) * RealwSign(run)
-                    end do
-                end if
-            else
-                if (test_flag(ilut, flag_trial)) then
-                    ! Take the next element in the occupied trial vector.
-                    trial_ind = trial_ind + 1
-                    do run = 1, inum_runs
-                        trial_denom(run) = trial_denom(run) &
-                                + occ_trial_amps(trial_ind) * RealwSign(run)
-                    end do
-                else if (test_flag(ilut, flag_connected)) then
-                    ! Take the next element in the occupied connected vector.
-                    con_ind = con_ind + 1
-                    do run = 1, inum_runs
-                        trial_numerator(run) = trial_numerator(run) &
-                                    + occ_con_amps(con_ind) * RealwSign(run)
-                    end do
-                end if
+            if (test_flag(ilut, flag_trial)) then
+                do run = 1, inum_runs
+                    trial_denom(run) = trial_denom(run) &
+                                + current_trial_amps(ind)*RealwSign(run)
+                end do
+            else if (test_flag(ilut, flag_connected)) then
+                do run = 1, inum_runs
+                    trial_numerator(run) = trial_numerator(run) &
+                                + current_trial_amps(ind) * RealwSign(run)
+                end do
             end if
         end if
 
@@ -584,8 +566,6 @@ contains
         endif
         HFInd = 0
 
-        trial_ind = 0
-        con_ind = 0
         min_trial_ind = 1
         min_conn_ind = 1
 
@@ -1336,36 +1316,22 @@ contains
         end if
 
         if (any(CopySign /= 0)) then
-            ! Normal method slots particles back in main array at position
-            ! vecslot. The list is shuffled up if a particle is destroyed.
-            ! For HashWalkerList, the particles don't move, so just adjust
-            ! the weight.
-            if (tHashWalkerList) then
-                call encode_sign (CurrentDets(:,DetPosition), CopySign)
-                if (tFillingStochRDMonFly) then
-                    call set_av_sgn(DetPosition, wAvSign)
-                    call set_iter_occ(DetPosition, IterRDMStartCurr)
-                endif
-            else
-                call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
-                call set_det_diagH(VecSlot, Kii)
-                if (tFillingStochRDMonFly) then
-                    call set_av_sgn(VecSlot, wAvSign)
-                    call set_iter_occ(VecSlot, IterRDMStartCurr)
-                endif
-                VecSlot=VecSlot+1
+            ! For the hashed walker main list, the particles don't move.
+            ! Therefore just adjust the weight.
+            call encode_sign (CurrentDets(:,DetPosition), CopySign)
+            if (tFillingStochRDMonFly) then
+                call set_av_sgn(DetPosition, wAvSign)
+                call set_iter_occ(DetPosition, IterRDMStartCurr)
             endif
         else
             ! All walkers died.
             if(tFillingStochRDMonFly) then
                 call det_removed_fill_diag_rdm(CurrentDets(:,DetPosition), DetPosition)
-                if (tHashWalkerList) then
-                    ! Set the average sign and occupation iteration to zero, so
-                    ! that the same contribution will not be added in in
-                    ! CalcHashTableStats, if this determinant is not overwritten
-                    ! before then
-                    global_determinant_data(:,DetPosition) = 0.0_dp
-                end if
+                ! Set the average sign and occupation iteration to zero, so
+                ! that the same contribution will not be added in in
+                ! CalcHashTableStats, if this determinant is not overwritten
+                ! before then
+                global_determinant_data(:,DetPosition) = 0.0_dp
             endif
             if(tTruncInitiator) then
                 ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
@@ -1377,15 +1343,14 @@ contains
                     if (tSpawnSpatialInit) call rm_initiator_list (ilutCurr)
                 endif
             endif
-            if(tHashWalkerList) then
-                !Remove the determinant from the indexing list
-                call remove_hash_table_entry(HashIndex, DetCurr, DetPosition)
-                !Add to the "freeslot" list
-                iEndFreeSlot=iEndFreeSlot+1
-                FreeSlot(iEndFreeSlot)=DetPosition
-                !Encode a null det to be picked up
-                call encode_sign(CurrentDets(:,DetPosition),null_part)
-            endif
+
+            ! Remove the determinant from the indexing list
+            call remove_hash_table_entry(HashIndex, DetCurr, DetPosition)
+            ! Add to the "freeslot" list
+            iEndFreeSlot=iEndFreeSlot+1
+            FreeSlot(iEndFreeSlot)=DetPosition
+            ! Encode a null det to be picked up
+            call encode_sign(CurrentDets(:,DetPosition),null_part)
         endif
 
         !Test - testsuite, RDM still work, both still work with Linscalealgo (all in debug)

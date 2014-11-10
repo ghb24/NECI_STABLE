@@ -27,7 +27,7 @@ MODULE Calc
                         tSpawnProp, nClustSelections, tExactEnergy,     &
                         dClustSelectionRatio,tSharedExcitors
     use FciMCData, only: tTimeExit,MaxTimeExit, InputDiagSft, tSearchTau, &
-                         nWalkerHashes, tHashWalkerList, HashLengthFrac, &
+                         nWalkerHashes, HashLengthFrac, &
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets
@@ -71,8 +71,7 @@ contains
 
 !       Calc defaults 
           tStartCoreGroundState = .true.
-          tHashWalkerList=.false.
-          HashLengthFrac=0.0_dp
+          HashLengthFrac = 0.7_dp
           nWalkerHashes=0
           tTrialHash=.true.
           tIncCancelledInitEnergy = .false.
@@ -1006,16 +1005,19 @@ contains
             case("SHIFTDAMP")
 !For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
                 call getf(SftDamp)
+
             case("LINSCALEFCIMCALGO")
-                !Use the linear scaling FCIMC algorithm
-                !Instead of the absolute length of the hash table, read in the fraction of initwalkers that it wants to be.
-!                call geti(nWalkerHashes)
-                tHashWalkerList=.true.
-                if(item.lt.nitems) then
-                    call getf(HashLengthFrac)
-                else
-                    HashLengthFrac=0.7_dp
-                endif
+                ! Use the linear scaling FCIMC algorithm
+                ! This option is now deprecated, as it is default.
+                call stop_all(t_r, "Option LINSCALEFCIMCALGO deprecated")
+
+            case("PARTICLE-HASH-MULTIPLIER")
+                ! Determine the absolute length of the hash table relative to
+                ! the target number of walkers (InitWalkers)
+                ! 
+                ! By default this value is 0.7 (see above)
+                call getf(HashLengthFrac)
+
             case("SEMI-STOCHASTIC")
                 tSemiStochastic = .true.
                 if (item < nitems) then

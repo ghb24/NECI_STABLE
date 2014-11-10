@@ -20,7 +20,7 @@ module semi_stoch_gen
                          determ_space_size, determ_space_size_int, TotWalkers, TotWalkersOld, &
                          indices_of_determ_states, SpawnedParts, FDetermTag, FDetermAvTag, &
                          PDetermTag, IDetermTag, trial_space, trial_space_size, &
-                         SemiStoch_Init_Time, tHashWalkerList, full_determ_vector_av, &
+                         SemiStoch_Init_Time, full_determ_vector_av, &
                          tStartCoreGroundState
     use gndts_mod, only: gndts, gndts_all_sym_this_proc
     use LoggingData, only: tWriteCore, tRDMonFly
@@ -157,11 +157,7 @@ contains
         if (tRDMonFly) call generate_core_connections()
 
         ! Move the states to CurrentDets.
-        if (tHashWalkerList) then
-            call add_core_states_currentdet_hash()
-        else
-            call add_core_states_currentdets()
-        end if
+        call add_core_states_currentdet_hash()
 
         ! If starting from a popsfile then global_determinant_data will not
         ! have been initialised.

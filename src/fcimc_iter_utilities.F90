@@ -369,7 +369,6 @@ contains
 
         ! 64bit integers
         !Remove the holes in the main list when wanting the number of uniquely occupied determinants
-        !this should only change the number for tHashWalkerList
         TotWalkersTemp=TotWalkers-HolesInList
         call MPIReduce(TotwalkersTemp, MPI_SUM, AllTotWalkers)
         call MPIReduce(norm_psi_squared,MPI_SUM,all_norm_psi_squared)
