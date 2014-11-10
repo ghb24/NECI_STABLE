@@ -4,8 +4,8 @@
 MODULE AnnihilationMod
     use SystemData , only : NEl, tHPHF, nBasis, tCSF
     use CalcData , only : TRegenExcitgens, tEnhanceRemainder, &
-                          tTruncInitiator, tSpawnSpatialInit, OccupiedThresh, &
-                          tSemiStochastic, tTrialWavefunction, tKP_FCIQMC, &
+                          tTruncInitiator, OccupiedThresh, tSemiStochastic, &
+                          tTrialWavefunction, tKP_FCIQMC, &
                           InitiatorOccupiedThresh, tInitOccThresh
     USE DetCalcData , only : Det,FCIDetIndex
     USE Parallel_neci
@@ -13,9 +13,6 @@ MODULE AnnihilationMod
     USE FciMCData
     use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel, ilut_lt, &
                          ilut_gt, DetBitZero
-    use spatial_initiator, only: add_initiator_list, rm_initiator_list, &
-                                 is_spatial_init
-    use CalcData, only : tTruncInitiator, tSpawnSpatialInit
     use DeterminantData, only: write_det
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
@@ -975,12 +972,6 @@ MODULE AnnihilationMod
                             if (tTruncInitiator) then
                                 if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j)) .and. &
                                     .not. test_flag (SpawnedParts(:,i), flag_make_initiator(j))) then
-                                    if (tSpawnSpatialInit) then
-                                        if (is_spatial_init(SpawnedParts(:,i))) then
-                                            call set_flag (SpawnedParts(:,i), &
-                                                           flag_parent_initiator(j))
-                                        endif
-                                    endif
                                     ! Walkers came from outside initiator space.
                                     NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
                                     iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
@@ -1012,8 +1003,6 @@ MODULE AnnihilationMod
                                         call set_flag (CurrentDets(:,PartInd), flag_is_initiator(j))
                                         call set_flag (CurrentDets(:,PartInd), flag_make_initiator(j))
                                         NoAddedInitiators(j) = NoAddedInitiators(j) + 1
-                                        if (tSpawnSpatialInit) &
-                                            call add_initiator_list (CurrentDets(:,PartInd))
                                     else
                                         ! If the residual particles were spawned from non-initiator 
                                         ! particles, abort them. Encode only the correct 'type'
@@ -1063,8 +1052,6 @@ MODULE AnnihilationMod
                                     call set_flag (CurrentDets(:,PartInd), flag_is_initiator(j))
                                     call set_flag (CurrentDets(:,PartInd), flag_make_initiator(j))
                                     NoAddedInitiators(j) = NoAddedInitiators(j) + 1
-                                    if (tSpawnSpatialInit) &
-                                        call add_initiator_list (CurrentDets(:,PartInd))
                                 endif
                             endif
                         ENDIF
@@ -1129,15 +1116,6 @@ MODULE AnnihilationMod
                             ! Are we allowing particles to survive if there is an
                             ! initiator with the same spatial structure?
                             ! TODO: optimise this. Only call it once?
-
-                            ! TODO: Surely this doesn't work? Need to avoid aborting
-                            !       the particle?
-                            if (tSpawnSpatialInit) then
-                                if (is_spatial_init(SpawnedParts(:,i))) then
-                                    call set_flag (SpawnedParts(:,i), &
-                                                   flag_parent_initiator(j))
-                                endif
-                            endif
 
                             ! If this option is on, include the walker to be cancelled in the trial energy estimate.
                             if (tIncCancelledInitEnergy) call add_trial_energy_contrib(SpawnedParts(:,i), SignTemp(j))
@@ -1562,8 +1540,6 @@ MODULE AnnihilationMod
                         if (test_flag(CurrentDets(:,i),flag_parent_initiator(j))) then
                             !determinant was an initiator...it obviously isn't any more...
                             NoAddedInitiators(j)=NoAddedInitiators(j)-1
-                            if (tSpawnSpatialInit) &
-                                call rm_initiator_list (CurrentDets(:,i))
                         endif
                     enddo
                 ENDIF
@@ -1752,8 +1728,6 @@ MODULE AnnihilationMod
                             if (test_flag(CurrentDets(:,i),flag_parent_initiator(part_type))) then
                                 !determinant was an initiator...it obviously isn't any more...
                                 NoAddedInitiators(part_type)=NoAddedInitiators(part_type)-1
-                                if (tSpawnSpatialInit) &
-                                    call rm_initiator_list (CurrentDets(:,i))
                             endif
                         enddo
                     ENDIF

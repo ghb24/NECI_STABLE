@@ -183,8 +183,8 @@ MODULE ReadInput_neci
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
                             TNoSameExcit, TInitStar, tMP2Standalone, &
                             MemoryFacPart, tTruncInitiator, &
-                            tSpawnSpatialInit, tSpatialOnlyHash, InitWalkers, &
-                            tUniqueHFNode, InitiatorCutoffEnergy, tCCMC, &
+                            tSpatialOnlyHash, InitWalkers, tUniqueHFNode, &
+                            InitiatorCutoffEnergy, tCCMC, &
                             tSurvivalInitiatorThreshold, tKP_FCIQMC, &
                             tSurvivalInitMultThresh, tAddToInitiator
         Use Determinants, only: SpecDet, tagSpecDet
@@ -394,16 +394,6 @@ MODULE ReadInput_neci
 
             ! Set the value of STOT as required
             STOT = LMS
-        endif
-  
-        if (tSpawnSpatialInit) then
-            if (.not. tTruncInitiator) &
-                call stop_all (t_r, "The spatial initiator survival critereon&
-                                    & requires TRUNCINITIATOR to be set")
-            if (.not. tSpatialOnlyHash) &
-                call stop_all (t_r, "The spatial initiator survival criteron &
-                                    &requires a spatial-only hash to be used.&
-                                    & (SPATIAL-ONLY-HASH)")
         endif
   
         if (tCalcInstantS2 .or. tCalcInstantS2Init) then
