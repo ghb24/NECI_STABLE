@@ -18,7 +18,7 @@ MODULE Calc
     use default_sets
     use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace, &
                             tDefineDet
-    use DetCalc, only: iObs, jObs, kObs, tCorr, DETINV, &
+    use DetCalc, only: iObs, jObs, kObs, DETINV, &
                        icilevel, tBlock, tCalcHMat, tEnergy, tRead, &
                        tFindDets
     use DetCalcData, only: B2L, nKry, nEval, nBlk, nCycle
@@ -53,7 +53,6 @@ contains
           TargetGrowRateWalk(:)=500000
           TargetGrowRate(:)=0.0_dp
           InitialPart=1
-          TCORR = .false.
           B2L = 1.0e-13_dp
           TMC = .false.
           NHISTBOXES = 0
@@ -357,7 +356,7 @@ contains
           Use Determinants, only : iActiveBasis, SpecDet, tagSpecDet, tSpecDet, nActiveSpace
           Use Determinants, only : tDefineDet, DefDet, tagDefDet
           use SystemData, only : Beta,nEl
-          Use DetCalc, only: iObs, jObs, kObs, tCorr, B2L, DETINV
+          Use DetCalc, only: iObs, jObs, kObs, B2L, DETINV
           Use DetCalc, only: icilevel, nBlk, nCycle, nEval, nKry, tBlock, tCalcHMat
           Use DetCalc, only: tEnergy, tRead,tFindDets
           use IntegralsData, only: tNeedsVirts,NFROZEN

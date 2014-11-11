@@ -15,7 +15,6 @@ MODULE DetCalc
 !From input
       INTEGER DETINV !The index in the list of dets of a det to investigate
       INTEGER IOBS,JOBS,KOBS
-      LOGICAL TCORR
 
       LOGICAL TCALCHMAT,TENERGY,TREAD,TBLOCK
       LOGICAL tFindDets           !Set if we are to enumerate all determinants within given constraints
@@ -404,11 +403,7 @@ CONTAINS
           WRITE(6,*) ' NEVAL : ' , NEVAL
 
           WRITE(6,*) ' NCYCLE : ' , NCYCLE
-          WRITE(6,*) ' TCORR : ' , TCORR
           WRITE(6,*) ' TENERGY : ' , TENERGY
-          IF(TCORR) THEN
-            WRITE(6,*) ' *** EXCHANGE-CORRELATION HOLE WILL BE CALCULATED *** ' 
-          ENDIF
           WRITE(6,*) ' IOBS : ' , IOBS 
           WRITE(6,*) ' JOBS : ' , JOBS 
           WRITE(6,*) ' KOBS : ' , KOBS 
