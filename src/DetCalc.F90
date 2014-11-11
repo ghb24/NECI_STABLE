@@ -15,7 +15,7 @@ MODULE DetCalc
 !From input
       INTEGER DETINV !The index in the list of dets of a det to investigate
       INTEGER IOBS,JOBS,KOBS
-      LOGICAL TCORR,TFODM
+      LOGICAL TCORR
 
       LOGICAL TCALCHMAT,TENERGY,TREAD,TBLOCK
       LOGICAL tFindDets           !Set if we are to enumerate all determinants within given constraints
@@ -852,10 +852,6 @@ CONTAINS
 !C.. Jump to here if just read Psi in
       CONTINUE
 
-      IF(TFODM) THEN
-        Call CalcFoDM()
-      ENDIF
-
       !Now deallocate NMRKS if tFindDets and not tEnergy
       if (tFindDets.and.tCompressDets.and.(.not.tEnergy)) then
          DEALLOCATE(NMRKS)
@@ -864,20 +860,6 @@ CONTAINS
 
         End Subroutine DoDetCalc
 
-    Subroutine CalcFoDM()
-        Use global_utilities
-        use SystemData, only: G1, nBasis, nMaxX, nMaxY, nMaxZ, nEl
-        real(dp) , ALLOCATABLE :: SUMA(:,:,:)
-        INTEGER(TagIntType) :: SUMATag=0
-        INTEGER ISTATE,ierr
-        character(25), parameter :: this_routine = 'CalcFoDM'
-        ISTATE=0
-        WRITE(6,*) ' ISTATE : ' , ISTATE 
-        ALLOCATE(SUMA(NMAXX,NMAXY,NMAXZ),stat=ierr)
-        CALL LogMemAlloc('SUMA',NMAXX*NMAXY*NMAXZ,8,this_routine,SUMATag,ierr)
-        SUMA=0.0_dp
-        CALL FODMAT(NEL,NBasis,NDET,NEVAL,ISTATE,NMRKS,G1,CK,NMAXX,NMAXY,NMAXZ,SUMA)
-    End Subroutine CalcFoDM
 END MODULE DetCalc
 
 ! If we have a list of determinants NMRKS calculate 'PATHS' for NPATHS of them.
