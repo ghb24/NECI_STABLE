@@ -277,8 +277,6 @@ contains
           disable_spin_proj_varyshift = .false.
           tUseProcsAsNodes=.false.
 
-          tSpawnSpatialInit = .false.
-
           ! Truncation based on number of unpaired electrons
           tTruncNOpen = .false.
 
@@ -1712,12 +1710,6 @@ contains
                 else
                     disable_spin_proj_varyshift = .true.
                 endif
-
-            case("ALLOW-SPATIAL-INIT-SPAWNS")
-                ! If a determinant is an initiator, all spawns to other dets
-                ! with the same spatial structure should be allowed.
-                tSpawnSpatialInit = .true.
-                tSpatialOnlyHash = .true.
 
             case("TRUNC-NOPEN")
                 ! Truncate determinant spawning at a specified number of
