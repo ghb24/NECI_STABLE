@@ -42,10 +42,6 @@ logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF 
 ! --> All dets with same spatial structure on the same processor.
 logical :: tSpatialOnlyHash
 
-! Do we allow walkers to survive (in the initiator approx.) if a determinant
-! with the same spatial configuration is an initiator?
-logical :: tSpawnSpatialInit
-
 ! Do we truncate spawning based on the number of unpaired electrons
 logical :: tTruncNOpen
 integer :: trunc_nopen_max
