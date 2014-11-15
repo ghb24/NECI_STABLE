@@ -85,7 +85,8 @@ contains
           tMaxBloom=.false.
           iRestartWalkNum=0
           iWeightPopRead=1.0e-12
-          tCheckHighestPop=.false.
+          tCheckHighestPop = .true.
+          tChangeProjEDet = .true.
           StepsSftImag=0.0_dp
           TauFactor=0.0_dp
           tStartMP1=.false.
@@ -254,7 +255,7 @@ contains
           OccupiedThresh=1.0_dp
           tInitOccThresh=.false.
           InitiatorOccupiedThresh=0.1_dp
-          tJumpShift = .false.
+          tJumpShift = .true.
 !Feb 08 default set.
           IF(Feb08) THEN
               RhoEpsilon=1.0e-8_dp
@@ -1743,7 +1744,18 @@ contains
                 ! predicted by the projected energy!
                 ! --> Reduce the waiting time while the number of particles is
                 !     growing.
+                !
+                ! This is now the default behaviour. Use JUMP-SHIFT OFF to
+                ! disable it (likely only useful in some of the tests).
                 tJumpShift = .true.
+                if (item < nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("OFF", "FALSE")
+                        tJumpShift = .false.
+                    case default
+                    end select
+                end if
 
             case("UNIQUE-HF-NODE")
                 ! Assign the HF processor to a unique node.
