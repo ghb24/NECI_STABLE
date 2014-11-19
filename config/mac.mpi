@@ -1,6 +1,6 @@
 [main]
 cpp = cpp -P -C -traditional 
-cppflags = -D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8 -DPARALLEL -D__INT64 -D__SHARED_MEM -DDISABLE_FFTW
+cppflags = -D__Linux -DLAPACK -DFFT_DEFAULT -DPOINTER8 -DPARALLEL -D__INT64 -D__SHARED_MEM -DDISABLE_FFTW -D__GFORTRAN__ -D__MPILOGTYPE
 compiler = GCC-f95-on-LINUX
 fc = mpif90
 f77flags = -m64 -fcray-pointer

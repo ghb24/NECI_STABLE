@@ -18,7 +18,6 @@ MODULE DetCalc
 !From input
       INTEGER DETINV !The index in the list of dets of a det to investigate
       INTEGER IOBS,JOBS,KOBS
-      LOGICAL TRHOOFR,TCORR,TFODM
 
       LOGICAL TCALCHMAT,TENERGY,TREAD,TBLOCK
       LOGICAL tFindDets           !Set if we are to enumerate all determinants within given constraints
@@ -407,11 +406,7 @@ CONTAINS
           WRITE(6,*) ' NEVAL : ' , NEVAL
 
           WRITE(6,*) ' NCYCLE : ' , NCYCLE
-          WRITE(6,*) ' TCORR : ' , TCORR
           WRITE(6,*) ' TENERGY : ' , TENERGY
-          IF(TCORR) THEN
-            WRITE(6,*) ' *** EXCHANGE-CORRELATION HOLE WILL BE CALCULATED *** ' 
-          ENDIF
           WRITE(6,*) ' IOBS : ' , IOBS 
           WRITE(6,*) ' JOBS : ' , JOBS 
           WRITE(6,*) ' KOBS : ' , KOBS 
@@ -855,13 +850,6 @@ CONTAINS
 !C.. Jump to here if just read Psi in
       CONTINUE
 
-      IF(TRHOOFR) THEN
-        Call CalcRhoOfR()
-      ENDIF
-      IF(TFODM) THEN
-        Call CalcFoDM()
-      ENDIF
-
       !Now deallocate NMRKS if tFindDets and not tEnergy
       if (tFindDets.and.tCompressDets.and.(.not.tEnergy)) then
          DEALLOCATE(NMRKS)
@@ -870,74 +858,6 @@ CONTAINS
 
         End Subroutine DoDetCalc
 
-!Routines to plot the real-space density of solutions to the electron in a box problem
-    Subroutine CalcRhoOfR()
-        Use global_utilities
-        use SystemData, only: Alat, G1, nBasis, Omega, nEl,nMsh
-        use IntegralsData, only: nMax
-!= This variable used to be an allocatable array of size NMSH*NMSH*NMSH, but seemed to be only used as a real - ghb24 21/09/08
-        real(dp) SCRTCH
-
-        real(dp) , ALLOCATABLE :: DLINE(:),PSIR(:),RHO(:,:,:),SITAB(:,:),XCHOLE(:,:,:)!,SCRTCH()
-        INTEGER(TagIntType) :: DLINETag=0,PSIRTag=0,RHOTag=0,SITABTag=0,XCHOLETag=0!SCRTCHTag=0
-
-        character(25), parameter :: this_routine = 'CalcRhoOfR'
-        INTEGER iXD, iYD, iZD,ierr
-        real(dp) SPAC, Rs
-!C..Generate memory for RHO and SITAB
-        ALLOCATE(RHO(NMSH,NMSH,NMSH),stat=ierr)
-        CALL LogMemAlloc('RHO',NMSH**3,8,this_routine,RHOTag,ierr)
-        ALLOCATE(SITAB(NMSH,NMAX),stat=ierr)
-        CALL LogMemAlloc('SITAB',NMSH*NMAX,8,this_routine,SITABTag,ierr)
-!C..Calculate RHOOFR
-        CALL NECI_RHOOFR(nBasis,CK,G1,RHO,NMSH,SITAB,NMAX,NMRKS,NEL,NDET,NEVAL,RS,ALAT,OMEGA)
-!C..
-        ALLOCATE(DLINE(NMSH),stat=ierr)
-        CALL LogMemAlloc('DLINE',NMSH,8,this_routine,DLINETag,ierr)
-        DLINE=0.0_dp
-!C..Calculate RHOOFR in certain directions
-!C..001
-        CALL PLANARAV(RHO,NMSH,DLINE,0,0,1,SPAC,ALAT)
-        !CALL WRITE_LINE(8,'RHOAV001',DLINE,1,NMSH,-1,-1,-1,SPAC,RS)
-!C..100
-        CALL PLANARAV(RHO,NMSH,DLINE,1,0,0,SPAC,ALAT)
-        !CALL WRITE_LINE(8,'RHOAV100',DLINE,1,NMSH,-1,-1,-1,SPAC,RS)
-!C..010
-        CALL PLANARAV(RHO,NMSH,DLINE,0,1,0,SPAC,ALAT)
-        !CALL WRITE_LINE(8,'RHOAV010',DLINE,1,NMSH,-1,-1,-1,SPAC,RS)
-        IF(TCORR) THEN
-!C..Now generate memory for XCHOLE
-          ALLOCATE(XCHOLE(NMSH,NMSH,NMSH),stat=ierr)
-          CALL LogMemAlloc('XCHOLE',NMSH**3,8,this_routine,XCHOLETag,ierr)
-          ALLOCATE(PSIR(-NMSH:NMSH),stat=ierr)
-          CALL LogMemAlloc('PSIR',2*NMSH+1,8,this_routine,PSIRTag,ierr)
-          PSIR=0.0_dp
-!C..
-          IXD=1
-          IYD=0
-          IZD=0
-          SPAC=0.0_dp
-          CALL GEN_XCHOLE(CK,PSIR,IOBS,JOBS,KOBS,G1,SITAB,NMAX,NMSH,nBasis,IXD,IYD,IZD,RHO,.TRUE.,XCHOLE, &
-            SPAC,ALAT,OMEGA,NMRKS,NDET,NEVAL,NEL)
-          CALL WRITE_RHO(10,'COMPXCHOLE',XCHOLE,NMSH,NMSH,NMSH,ALAT,.FALSE.,.TRUE.,RS)
-!C..
-          CALL XCHOLES(CK,PSIR,IOBS,JOBS,KOBS,G1,SITAB,NMAX,NMSH,nBasis,RHO,XCHOLE,SPAC,RS,ALAT,OMEGA,NMRKS,NDET,NEL,NEVAL)
-        ENDIF
-    End Subroutine CalcRhoOfR
-    Subroutine CalcFoDM()
-        Use global_utilities
-        use SystemData, only: G1, nBasis, nMaxX, nMaxY, nMaxZ, nEl
-        real(dp) , ALLOCATABLE :: SUMA(:,:,:)
-        INTEGER(TagIntType) :: SUMATag=0
-        INTEGER ISTATE,ierr
-        character(25), parameter :: this_routine = 'CalcFoDM'
-        ISTATE=0
-        WRITE(6,*) ' ISTATE : ' , ISTATE 
-        ALLOCATE(SUMA(NMAXX,NMAXY,NMAXZ),stat=ierr)
-        CALL LogMemAlloc('SUMA',NMAXX*NMAXY*NMAXZ,8,this_routine,SUMATag,ierr)
-        SUMA=0.0_dp
-        CALL FODMAT(NEL,NBasis,NDET,NEVAL,ISTATE,NMRKS,G1,CK,NMAXX,NMAXY,NMAXZ,SUMA)
-    End Subroutine CalcFoDM
 END MODULE DetCalc
 
 ! If we have a list of determinants NMRKS calculate 'PATHS' for NPATHS of them.

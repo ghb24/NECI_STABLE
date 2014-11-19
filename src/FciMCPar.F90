@@ -97,6 +97,11 @@ module FciMCParMod
         character(6), parameter :: excit_descriptor(0:2) = &
                                         (/"IC0   ", "single", "double"/)
 
+        ! Set the output energy value to zero, as it is not used by all
+        ! of the calculations, and is therefore giving spurious uninitialised
+        ! values for the testcode to pick up...
+        Energyxw = 0.0_dp
+
         if(tJustBlocking) then
             !Just reblock the current data, and do not perform an fcimc calculation
             write(6,"(A)") "Skipping FCIQMC calculation and simply reblocking previous output"

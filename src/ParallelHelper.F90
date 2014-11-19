@@ -127,13 +127,23 @@ module ParallelHelper
     end interface
 #endif
 
+#ifdef PARALLEL
     ! MpiDetInt needs to be defined here, so that it can make use of the
     ! above
-#ifdef PARALLEL
 #ifdef __INT64
     integer(MPIArg), parameter :: MpiDetInt = MPI_INTEGER8
 #else
     integer(MPIArg), parameter :: MpiDetInt = MPI_INTEGER4
+#endif
+
+! This is a hack to work around disagreement between compilers on what
+! datatype is acceptable for logical variables in MPI routines.
+#ifdef __MPILOGTYPE
+    integer(MPIArg), parameter :: MPI_LOGTYPE4 = MPI_LOGICAL4
+    integer(MPIArg), parameter :: MPI_LOGTYPE8 = MPI_LOGICAL8
+#else
+    integer(MPIArg), parameter :: MPI_LOGTYPE4 = MPI_INTEGER4
+    integer(MPIArg), parameter :: MPI_LOGTYPE8 = MPI_INTEGER8
 #endif
 #else
     ! In serial, set this to a nonsense value

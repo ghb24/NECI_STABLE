@@ -84,7 +84,6 @@ MODULE FciMCData
     integer(int64), dimension(lenof_sign) :: NoAddedInitiators, NoInitDets, NoNonInitDets
     real(dp), dimension(lenof_sign) :: NoInitWalk, NoNonInitWalk
     integer(int64), dimension(lenof_sign) :: NoExtraInitDoubs, InitRemoved
-    integer :: no_spatial_init_dets
 
     integer(int64), dimension(lenof_sign) :: AllNoAddedInitiators, AllNoInitDets
     integer(int64), dimension(lenof_sign) :: AllNoNonInitDets

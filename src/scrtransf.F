@@ -194,8 +194,6 @@ C..The two electron integrals are to be done
              IQ=IQ+1
 C          ID(IQ) = GTID(NDET1(I))
              ID(IQ)=NDET1(I)
-C             CALL CHK(G(4,NDET1(I)),G(4,ND1),IDS1(IQ))
-C             CALL CHK(G(4,NDET1(I)),G(4,ND2),IDS2(IQ))
              IF(IQ.GE.(NEL-1)) GOTO 500
            ENDIF 
          ENDDO 
@@ -203,8 +201,6 @@ C             CALL CHK(G(4,NDET1(I)),G(4,ND2),IDS2(IQ))
          IF(ND1.EQ.ND2) STOP ' !!! PROBLEM IN SCR1T !!! '
 C         ID1 = GTID(ND1)
 C         ID2 = GTID(ND2)
-C..
-C      CALL CHK(G(4,ND1),G(4,ND2),IDS)
 C..
          SUM2=0.0_dp
          DO I=1,NEL-1

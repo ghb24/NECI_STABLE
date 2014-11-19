@@ -23,10 +23,9 @@ module fcimc_initialisation
                         tTrialWavefunction, tSemiStochastic, OccCASOrbs, &
                         VirtCASOrbs, StepsSft, tStartSinglePart, InitWalkers, &
                         tShiftOnHFPop, tReadPopsRestart, tTruncNOpen, &
-                        trunc_nopen_max, tSpawnSpatialInit, MemoryFacInit, &
-                        MaxNoatHF, HFPopThresh, tAddToInitiator, &
-                        InitiatorWalkNo, tRestartHighPop, tAllRealCoeff, &
-                        tRealCoeffByExcitLevel, tTruncInitiator, &
+                        trunc_nopen_max, MemoryFacInit, MaxNoatHF, HFPopThresh, &
+                        tAddToInitiator, InitiatorWalkNo, tRestartHighPop, &
+                        tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
                         RealCoeffExcitThresh
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
@@ -97,7 +96,6 @@ module fcimc_initialisation
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
-    use spatial_initiator, only: add_initiator_list
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
     use gndts_mod, only: gndts
     use csf, only: get_csf_helement
@@ -1223,15 +1221,6 @@ module fcimc_initialisation
             InstNoatHF(:)=0.0_dp
             AvNoatHF(:) = 0.0_dp
 
-            if (tSpawnSpatialInit) then
-                max_inits = int(MemoryFacInit * INitWalkers)
-                no_spatial_init_dets = 0
-                allocate(CurrentInits(0:nIfTot, max_inits), stat=ierr)
-                call LogMemAlloc('CurrentInits', max_inits * (NIfTot+1), &
-                                 size_n_int, this_routine, CurrentInitTag, &
-                                 ierr)
-            endif
-
             ! If we have a popsfile, read the walkers in now.
             if(tReadPops .and. .not.tPopsAlreadyRead) then
                 call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, iPopNel, read_nnodes, &
@@ -1324,9 +1313,6 @@ module fcimc_initialisation
         ! CurrentDets, calculating and storing all Hamiltonian matrix elements and initalising all
         ! arrays required to store and distribute the vectors in the deterministic space later.
         if (tSemiStochastic) call init_semi_stochastic()
-
-        if (tSpawnSpatialInit .and. (inum_runs.eq.2)) call stop_all('InitFCIMCCalcPar', &
-                    & "Double run not set up to use with tSpawnSpatialInit.  e.g. likely problem with rm_initiator_list")
 
         ! Initialise the trial wavefunction information which can be used for the energy estimator.
         ! This includes generating the trial space, generating the space connected to the trial space,
@@ -1613,8 +1599,6 @@ module fcimc_initialisation
             if (tTruncInitiator) then
                 call set_flag (CurrentDets(:,1), flag_is_initiator(1))
                 call set_flag (CurrentDets(:,1), flag_is_initiator(2))
-                if (tSpawnSpatialInit) &
-                    call add_initiator_list (CurrentDets(:,1))
             endif
 
             ! If running a semi-stochastic simulation, set flag to specify the Hartree-Fock is in the
