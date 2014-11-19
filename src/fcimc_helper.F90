@@ -13,7 +13,6 @@ module fcimc_helper
                         flag_trial, flag_connected, flag_deterministic, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
                         set_has_been_initiator, flag_has_been_initiator
-    use spatial_initiator, only: add_initiator_list, rm_initiator_list
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet
     use Determinants, only: get_helement
@@ -28,7 +27,7 @@ module fcimc_helper
                            nHistEquilSteps, tCalcFCIMCPsi, StartPrintOrbOcc, &
                            HistInitPopsIter, tHistInitPops, iterRDMOnFly, &
                            FciMCDebug
-    use CalcData, only: NEquilSteps, tFCIMC, tSpawnSpatialInit, tTruncCAS, &
+    use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
                         tAddToInitiator, InitiatorWalkNo, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, tSurvivalInitiatorThreshold, &
@@ -78,9 +77,31 @@ contains
         real(dp), intent(in), optional :: RDMBiasFacCurr
         integer, intent(in), optional :: WalkersToSpawn
         integer :: proc, flags, j
-        logical :: parent_init
+        logical :: parent_init, list_full
+        character(*), parameter :: this_routine = 'create_particle'
 
+        ! Determine which processor the particle should end up on in the
+        ! DirectAnnihilation algorithm
         proc = DetermineDetNode(nel,nJ,0)    ! 0 -> nNodes-1)
+
+        ! Check that the position described by ValidSpawnedList is acceptable.
+        ! If we have filled up the memory that would be acceptable, then
+        ! kill the calculation hard (i.e. stop_all) with a descriptive
+        ! error message
+        list_full = .false.
+        if (proc == nNodes - 1) then
+            if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
+        else
+            if (ValidSpawnedList(proc) > InitialSpawnedSlots(proc+1)) &
+                list_full=.true.
+        end if
+        if (list_full) then
+            write(6,*) "Attempting to spawn particle onto processor: ", proc
+            write(6,*) "No memory slots available for this spawn."
+            write(6,*) "Please increase MEMORYFACSPAWN"
+            call stop_all(this_routine, "Out of memory for spawned particles")
+        end if
+
         ! We need to include any flags set both from the parent and from the
         ! spawning steps. No we don't! - ghb
         ! This is highly yucky and needs cleaning up.
@@ -359,8 +380,6 @@ contains
                         .or. abs(CurrentSign(part_type)) > init_thresh) then
                         parent_init = .true.
                         NoAddedInitiators = NoAddedInitiators + 1
-                        if (tSpawnSpatialInit) &
-                            call add_initiator_list (CurrentDets(:,j))
                     endif
                 else
                     ! The source determinant is already an initiator.            
@@ -383,8 +402,6 @@ contains
                         ! removed.
                         parent_init = .false.
                         NoAddedInitiators = NoAddedInitiators - 1
-                        if (tSpawnSpatialInit) &
-                            call rm_initiator_list (CurrentDets(:,j))
                     endif
                 endif
 
@@ -1349,10 +1366,8 @@ contains
                 ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
                 if(test_flag(iLutCurr,flag_is_initiator(1))) then
                     NoAddedInitiators=NoAddedInitiators-1
-                    if (tSpawnSpatialInit) call rm_initiator_list (ilutCurr)
                 elseif(test_flag(iLutCurr,flag_is_initiator(lenof_sign))) then
                     NoAddedInitiators(inum_runs)=NoAddedInitiators(inum_runs)-1
-                    if (tSpawnSpatialInit) call rm_initiator_list (ilutCurr)
                 endif
             endif
             if(tHashWalkerList) then

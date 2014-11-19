@@ -12,7 +12,7 @@ module fcimc_output
                          BeforeNormHist, iNoBins, BinRange, HistogramEnergy, &
                          AllHistogramEnergy
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
-                        DiagSft, tSpatialOnlyHash, StepsSft, tSpawnSpatialInit
+                        DiagSft, tSpatialOnlyHash, StepsSft
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
     use DetCalcData, only: det, fcidets, ReIndex, NDet, NRow, HAMIL, LAB
@@ -1263,16 +1263,6 @@ contains
                                      &particles has reached over 95% of allotted memory.&
                                      &Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
                 endif
-                call neci_flush(iout)
-            endif
-        endif
-
-        ! Are we near the end of the spatial initiator list
-        if (tSpawnSpatialInit) then
-            rat = real(no_spatial_init_dets,dp) / real(max_inits,dp)
-            if (rat > 0.95_dp) then
-                write(iout, '(a)') '*WARNING* - Number of spatial initiators has&
-                                & reached over 95% f max_inits.'
                 call neci_flush(iout)
             endif
         endif

@@ -18,7 +18,7 @@ MODULE Calc
     use default_sets
     use Determinants, only: iActiveBasis, SpecDet, tSpecDet, nActiveSpace, &
                             tDefineDet
-    use DetCalc, only: iObs, jObs, kObs, tCorr, tRhoOfR, tFodM, DETINV, &
+    use DetCalc, only: iObs, jObs, kObs, DETINV, &
                        icilevel, tBlock, tCalcHMat, tEnergy, tRead, &
                        tFindDets
     use DetCalcData, only: B2L, nKry, nEval, nBlk, nCycle
@@ -53,9 +53,6 @@ contains
           TargetGrowRateWalk(:)=500000
           TargetGrowRate(:)=0.0_dp
           InitialPart=1
-          TRHOOFR = .false.
-          TCORR = .false.
-          TFODM = .false.
           B2L = 1.0e-13_dp
           TMC = .false.
           NHISTBOXES = 0
@@ -88,7 +85,8 @@ contains
           tMaxBloom=.false.
           iRestartWalkNum=0
           iWeightPopRead=1.0e-12
-          tCheckHighestPop=.false.
+          tCheckHighestPop = .true.
+          tChangeProjEDet = .true.
           StepsSftImag=0.0_dp
           TauFactor=0.0_dp
           tStartMP1=.false.
@@ -257,7 +255,7 @@ contains
           OccupiedThresh=1.0_dp
           tInitOccThresh=.false.
           InitiatorOccupiedThresh=0.1_dp
-          tJumpShift = .false.
+          tJumpShift = .true.
 !Feb 08 default set.
           IF(Feb08) THEN
               RhoEpsilon=1.0e-8_dp
@@ -276,8 +274,6 @@ contains
           spin_proj_nopen_max = -1
           disable_spin_proj_varyshift = .false.
           tUseProcsAsNodes=.false.
-
-          tSpawnSpatialInit = .false.
 
           ! Truncation based on number of unpaired electrons
           tTruncNOpen = .false.
@@ -361,7 +357,7 @@ contains
           Use Determinants, only : iActiveBasis, SpecDet, tagSpecDet, tSpecDet, nActiveSpace
           Use Determinants, only : tDefineDet, DefDet, tagDefDet
           use SystemData, only : Beta,nEl
-          Use DetCalc, only: iObs, jObs, kObs, tCorr, B2L, tRhoOfR, tFodM, DETINV
+          Use DetCalc, only: iObs, jObs, kObs, B2L, DETINV
           Use DetCalc, only: icilevel, nBlk, nCycle, nEval, nKry, tBlock, tCalcHMat
           Use DetCalc, only: tEnergy, tRead,tFindDets
           use IntegralsData, only: tNeedsVirts,NFROZEN
@@ -1713,12 +1709,6 @@ contains
                     disable_spin_proj_varyshift = .true.
                 endif
 
-            case("ALLOW-SPATIAL-INIT-SPAWNS")
-                ! If a determinant is an initiator, all spawns to other dets
-                ! with the same spatial structure should be allowed.
-                tSpawnSpatialInit = .true.
-                tSpatialOnlyHash = .true.
-
             case("TRUNC-NOPEN")
                 ! Truncate determinant spawning at a specified number of
                 ! unpaired electrons.
@@ -1754,7 +1744,18 @@ contains
                 ! predicted by the projected energy!
                 ! --> Reduce the waiting time while the number of particles is
                 !     growing.
+                !
+                ! This is now the default behaviour. Use JUMP-SHIFT OFF to
+                ! disable it (likely only useful in some of the tests).
                 tJumpShift = .true.
+                if (item < nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("OFF", "FALSE")
+                        tJumpShift = .false.
+                    case default
+                    end select
+                end if
 
             case("UNIQUE-HF-NODE")
                 ! Assign the HF processor to a unique node.
@@ -2081,8 +2082,6 @@ contains
           ENDIF
 
 ! Find out the number of alpha and beta electrons. For restricted calculations, these should be the same.
-write(6,*) 'FDET', fdet
-call neci_flush(6)
           if (tCSF) then
               nOccAlpha = (nel / 2) + LMS 
               nOccBeta =  (nel / 2) - LMS
