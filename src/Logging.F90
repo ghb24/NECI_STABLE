@@ -13,6 +13,7 @@ MODULE Logging
     use hist_data, only: iNoBins, tHistSpawn, BinRange
     use errors, only: Errordebug 
     use LoggingData
+    use spectral_data, only: tPrint_sl_eigenvecs
 
     IMPLICIT NONE
 
@@ -990,6 +991,9 @@ MODULE Logging
         case("FCIMCSTATS-2")
             ! Use the new-style FCIMCStats output.
             tFCIMCStats2 = .true.
+
+        case("PRINT-SL-EIGENVECS")
+            tPrint_sl_eigenvecs = .true.
 
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)
