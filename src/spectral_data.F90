@@ -26,4 +26,8 @@ module spectral_data
     logical :: tIncludeGroundSpectral
     real(dp) :: spectral_ground_energy
 
+    ! It true then print the final eigenvectors for a spectral Lanczos
+    ! calculation.
+    logical :: tPrint_sl_eigenvecs
+
 end module spectral_data
