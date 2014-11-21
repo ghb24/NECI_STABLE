@@ -13,7 +13,8 @@ module spectral_lanczos
     use FciMCData, only: HFDet, ilutHF, iHFProc, CurrentDets, determ_proc_sizes, &
                          determ_space_size, partial_determ_vector, TotWalkers
     use ftlm_neci, only: subspace_expansion_lanczos, calc_final_hamil_elem
-    use Parallel_neci, only: iProcIndex, nProcessors, MPIAllGather, MPISumAll, MPIBCast
+    use Parallel_neci, only: iProcIndex, nProcessors, MPIAllGather, MPISumAll, &
+                             MPIBCast, MPIBarrier
     use ParallelHelper, only: root
     use PopsfileMod, only: read_popsfile_wrapper
     use sparse_arrays, only: calculate_sparse_ham_par, sparse_ham
@@ -23,6 +24,10 @@ module spectral_lanczos
 
     real(dp), allocatable :: sl_hamil(:,:), sl_vecs(:,:)
     real(dp), allocatable :: full_vec_sl(:)
+    real(dp), allocatable :: full_eigenvecs(:,:)
+
+    ! Stores all of the ilut-form determinants on this processor.
+    integer(n_int), allocatable :: sl_ilut_list(:,:)
 
     integer(MPIArg), allocatable :: ndets_sl(:), disps_sl(:)
     integer :: n_lanc_vecs_sl
@@ -54,6 +59,8 @@ contains
 
         call output_spectrum(n_lanc_vecs_sl, sl_h_eigv, spec_low, spec_high)
 
+        if (tPrint_sl_eigenvecs) call print_sl_eigenvecs()
+
         call write_spec_lanc_testsuite_data(spec_low, spec_high)
 
         call end_spectral_lanczos()
@@ -73,7 +80,7 @@ contains
         integer :: ndets_this_proc, ndets_tot
         integer(MPIArg) :: mpi_temp
         integer, allocatable :: nI_list(:,:)
-        integer(n_int), allocatable :: ilut_list(:,:)
+
         integer(n_int) :: ilut(0:NIfTot)
         character(len=*), parameter :: t_r = 'init_spectral_lanczos'
         integer :: i, j, ndets, proc, ierr, temp(1,1), hf_ind
@@ -102,8 +109,8 @@ contains
             if (proc == iProcIndex) ndets_this_proc = ndets_this_proc + 1
         end do
 
-        allocate(ilut_list(0:NIfTot, ndets_this_proc))
-        ilut_list = 0_n_int
+        allocate(sl_ilut_list(0:NIfTot, ndets_this_proc))
+        sl_ilut_list = 0_n_int
 
         j = 0
         do i = 1, ndets
@@ -111,11 +118,11 @@ contains
             if (proc == iProcIndex) then
                 call EncodeBitDet(nI_list(:,i), ilut)
                 j = j + 1
-                ilut_list(0:NIfDBO, j) = ilut(0:NIfDBO)
+                sl_ilut_list(0:NIfDBO, j) = ilut(0:NIfDBO)
             end if
         end do
 
-        call sort(ilut_list, ilut_lt, ilut_gt)
+        call sort(sl_ilut_list, ilut_lt, ilut_gt)
 
         write(6,'(1x,a9)') "Complete."
         call neci_flush(6)
@@ -157,18 +164,16 @@ contains
 
         write(6,'(1x,a48)') "Allocating and calculating Hamiltonian matrix..."
         call neci_flush(6)
-        call calculate_sparse_ham_par(ndets_sl, ilut_list, .true.)
+        call calculate_sparse_ham_par(ndets_sl, sl_ilut_list, .true.)
         write(6,'(1x,a48,/)') "Hamiltonian allocation and calculation complete."
         call neci_flush(6)
 
-        call return_perturbed_ground_spec(left_perturb_spectral, ilut_list, pert_ground_left, left_pert_norm)
-        call return_perturbed_ground_spec(right_perturb_spectral, ilut_list, sl_vecs(:,1), right_pert_norm)
+        call return_perturbed_ground_spec(left_perturb_spectral, sl_ilut_list, pert_ground_left, left_pert_norm)
+        call return_perturbed_ground_spec(right_perturb_spectral, sl_ilut_list, sl_vecs(:,1), right_pert_norm)
         
         ! Normalise the perturbed wave function, currently stored in sl_vecs(:,1),
         ! so that it can be used as the first lanczos vector.
         sl_vecs(:,1) = sl_vecs(:,1)*sqrt(pops_norm)/right_pert_norm
-
-        deallocate(ilut_list)
 
     end subroutine init_spectral_lanczos
 
@@ -272,9 +277,7 @@ contains
         ! of the Lanczos vectors.
         allocate(left_pert_overlaps(n_lanc_vecs_sl))
         allocate(left_pert_overlaps_all(n_lanc_vecs_sl))
-        do i = 1, n_lanc_vecs_sl
-            left_pert_overlaps = matmul(pert_ground_left, sl_vecs)
-        end do
+        left_pert_overlaps = matmul(pert_ground_left, sl_vecs)
         ! Sum the contributions to the overlaps from all processes.
         call MPISumAll(left_pert_overlaps, left_pert_overlaps_all)
         ! And then use these overlaps to calculate the overlaps of the
@@ -284,6 +287,52 @@ contains
         deallocate(left_pert_overlaps_all)
 
     end subroutine subspace_extraction_sl
+
+    subroutine print_sl_eigenvecs()
+
+        use bit_rep_data, only: NIfDBO
+        use util_mod, only: get_free_unit
+
+        integer :: ndets_this_proc, ndets_tot
+        integer :: k, idet, iproc, iunit, ierr
+
+        ndets_this_proc = ndets_sl(iProcIndex)
+        ndets_tot = sum(ndets_sl)
+
+        allocate(full_eigenvecs(ndets_this_proc, ndets_tot))
+        
+        ! The following operation returns the components of the eigenvectors in
+        ! the full basis in the columns of full_eigenvecs.
+        ! sl_hamil will now store the eigenvectors in the Lanczos basis in its
+        ! columns. sl_vecs stores the components of the Lanczos vectors in the
+        ! full basis in its columns.
+        full_eigenvecs = matmul(sl_vecs, sl_hamil)
+
+        if (iProcIndex == root) then
+            iunit = get_free_unit()
+            open(iunit, file='EIGENVECS', status='replace', recl=50000)
+        end if
+
+        do iproc = 0, nProcessors-1
+            if (iproc == iProcIndex) then
+                do idet = 1, ndets_this_proc
+                    do k = 0, NIfDBO
+                        write(iunit, '(i12)', advance='no') sl_ilut_list(k,idet)
+                    end do
+                    do k = 1, n_lanc_vecs_sl
+                        write(iunit, '(f18.8)', advance='no') full_eigenvecs(idet,k)
+                    end do
+                    write(iunit, '()')
+                end do
+            end if
+            call MPIBarrier(ierr)
+        end do
+
+        if (iProcIndex == root) close(iunit)
+
+        deallocate(full_eigenvecs)
+
+    end subroutine print_sl_eigenvecs
     
     subroutine output_spectrum(neigv, eigv, spec_low, spec_high)
 
@@ -362,6 +411,7 @@ contains
         deallocate(sl_h_eigv)
         deallocate(ndets_sl)
         deallocate(disps_sl)
+        deallocate(sl_ilut_list)
 
         write(6,'(/,1x,a30,/)') "Exiting Spectral Lanczos code."
         call neci_flush(6)

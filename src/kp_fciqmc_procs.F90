@@ -673,7 +673,11 @@ contains
                 if (tReadPops) then
                     ! Call a wrapper function which will call the various functions
                     ! required to read in a popsfile.
-                    call read_popsfile_wrapper(pops_pert)
+                    if (allocated(pops_pert)) then
+                        call read_popsfile_wrapper(pops_pert)
+                    else
+                        call read_popsfile_wrapper()
+                    end if
 
                     if (tScalePopulation) then
                         call scale_population(CurrentDets, TotWalkers, nwalkers_target, TotPartsCheck, scaling_factor)
