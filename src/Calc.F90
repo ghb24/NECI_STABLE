@@ -2187,7 +2187,7 @@ contains
     
     
     
-        Subroutine CalcDoCalc()
+        Subroutine CalcDoCalc(kp)
           use SystemData, only: Alat, Arr,Brr, Beta, ECore, G1, LMS, LMS2, nBasis,NMSH, nBasisMax
           use SystemData, only: SymRestrict, tCSFOLD, tParity, tSpn, ALat, Beta,tMolpro,tMolproMimic
           use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB,nEl
@@ -2207,13 +2207,14 @@ contains
           use davidson_neci, only: davidson_direct_ci_init, davidson_direct_ci_end, perform_davidson
           use davidson_neci, only: direct_ci_type
           use kp_fciqmc, only: perform_kp_fciqmc
-          use kp_fciqmc_procs, only: kp
+          use kp_fciqmc_procs, only: kp_fciqmc_data
 
 !Calls
 !          real(dp) DMonteCarlo2
 !Local Vars
           real(dp) EN,WeightDum,EnerDum
           integer iSeed,iunit
+          type(kp_fciqmc_data), intent(inout) :: kp
           iSeed=7 
 
 !C.. we need to calculate a value for RHOEPS, so we approximate that

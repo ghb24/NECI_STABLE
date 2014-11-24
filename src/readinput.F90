@@ -13,13 +13,13 @@ MODULE ReadInput_neci
 
     contains
 
-    Subroutine ReadInputMain(cFilename,ios,tOverride_input)
+    Subroutine ReadInputMain(cFilename,ios,tOverride_input, kp)
         USE input_neci
         use SystemData, only : tMolpro
         use System,     only : SysReadInput,SetSysDefaults
         use Calc,       only : CalcReadInput,SetCalcDefaults
         use CalcData, only: tKP_FCIQMC, tUseProcsAsNodes
-        use kp_fciqmc_procs, only: kp_fciqmc_read_inp
+        use kp_fciqmc_procs, only: kp_fciqmc_read_inp, kp_fciqmc_data
         use Integrals_neci,  only : IntReadInput,SetIntDefaults
         Use Logging,    only : LogReadInput,SetLogDefaults
         use Parallel_neci,   only : iProcIndex
@@ -47,6 +47,7 @@ MODULE ReadInput_neci
         Integer             idDef       !What default set do we use
         integer neci_iargc
         logical, intent(in) :: tOverride_input  !If running through molpro, is this an override input?
+        type(kp_fciqmc_data), intent(inout) :: kp
         
         cTitle=""
         idDef=idDefault                 !use the Default defaults (pre feb08)
@@ -150,7 +151,7 @@ MODULE ReadInput_neci
             case("KP-FCIQMC")
                 tKP_FCIQMC = .true.
                 tUseProcsAsNodes = .true.
-                call kp_fciqmc_read_inp()
+                call kp_fciqmc_read_inp(kp)
             case("END")
                 exit
             case default

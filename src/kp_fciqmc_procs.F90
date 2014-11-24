@@ -76,8 +76,6 @@ module kp_fciqmc_procs
         real(dp), pointer :: hamil_matrix(:,:)
     end type
 
-    type(kp_fciqmc_data) :: kp
-
     ! Information for the krylov_vecs arrays, which holds all of the Krylov
     ! vectors together simultaneously.
     ! The number of hash values for the hash table used to access krylov_vecs.
@@ -237,10 +235,11 @@ module kp_fciqmc_procs
 
 contains
 
-    subroutine kp_fciqmc_read_inp()
+    subroutine kp_fciqmc_read_inp(kp)
 
         use input_neci
 
+        type(kp_fciqmc_data), intent(inout) :: kp
         logical :: eof
         character(len=100) :: w
         integer :: i, j, niters_temp, nvecs_temp, npert
@@ -1124,7 +1123,6 @@ contains
 
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: idet, jvec, ind(kp%ivec)
-        type(ll_node), pointer :: temp_node
         integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
 
