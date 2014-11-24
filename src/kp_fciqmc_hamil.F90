@@ -9,7 +9,7 @@ module kp_fciqmc_hamil
 
 contains
 
-    subroutine calc_projected_hamil(kp)
+    subroutine calc_projected_hamil(kp, krylov_array, krylov_ht, array_len)
 
         use bit_reps, only: decode_bit_det
         use constants
@@ -22,6 +22,10 @@ contains
         use util_mod, only: stochastic_round
         
         type(kp_fciqmc_data), intent(inout) :: kp
+        integer(n_int), intent(in) :: krylov_array(0:,:)
+        type(ll_node), pointer, intent(in) :: krylov_ht(:)
+        integer, intent(in) :: array_len
+
         integer :: idet, ispawn, nspawn, i, j
         integer :: determ_ind, flag_ind, ic, ex(2,2), ms_parent
         integer :: nI_parent(nel), nI_child(nel)
@@ -42,11 +46,11 @@ contains
         tFinished = .false.
         determ_ind = 1
 
-        do idet = 1, TotWalkersKp
+        do idet = 1, array_len
 
             ! The 'parent' determinant from which spawning is to be attempted.
-            ilut_parent(0:NIfDBO) = krylov_vecs(0:NIfDBO,idet)
-            if (tUseFlags) ilut_parent(NOffFlag) = krylov_vecs(flag_ind,idet)
+            ilut_parent(0:NIfDBO) = krylov_array(0:NIfDBO,idet)
+            if (tUseFlags) ilut_parent(NOffFlag) = krylov_array(flag_ind,idet)
 
             ! Indicate that the scratch storage used for excitation generation from the
             ! same walker has not been filled (it is filled when we excite from the first
@@ -54,7 +58,7 @@ contains
             fcimc_excit_gen_store%tFilled = .false.
 
             call decode_bit_det(nI_parent, ilut_parent)
-            int_sign = krylov_vecs(NIfDBO+1:NIfDBO+lenof_sign_kp, idet)
+            int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_sign_kp, idet)
             parent_sign = transfer(int_sign, parent_sign)
             tot_pop = sum(abs(parent_sign))
 
@@ -116,7 +120,7 @@ contains
                     call create_particle_kp_hamil(nI_child, ilut_child, child_sign, tNearlyFull)
 
                     if (tNearlyFull) then
-                        call add_in_hamil_contribs(kp, tFinished, tAllFinished)
+                        call add_in_hamil_contribs(kp, krylov_array, krylov_ht, tFinished, tAllFinished)
                         tNearlyFull = .false.
                     end if
 
@@ -128,15 +132,15 @@ contains
 
         tFinished = .true.
         do
-            call add_in_hamil_contribs(kp, tFinished, tAllFinished)
+            call add_in_hamil_contribs(kp, krylov_array, krylov_ht, tFinished, tAllFinished)
             if (tAllFinished) exit
         end do
 
-        call calc_hamil_contribs_diag(kp)
+        call calc_hamil_contribs_diag(kp, krylov_array, array_len)
 
         if (tSemiStochasticKPHamil) then
             call determ_projection_kp_hamil()
-            call calc_hamil_contribs_semistoch(kp)
+            call calc_hamil_contribs_semistoch(kp, krylov_array)
         end if
 
         ! Symmetrise the projected Hamiltonian.
@@ -219,11 +223,14 @@ contains
 
     end subroutine distribute_spawns_kp_hamil
 
-    subroutine add_in_hamil_contribs(kp, tFinished, tAllFinished)
+    subroutine add_in_hamil_contribs(kp, krylov_array, krylov_ht, tFinished, tAllFinished)
 
         use Parallel_neci, only: MPIAllGather
 
         type(kp_fciqmc_data), intent(inout) :: kp
+        integer(n_int), intent(in) :: krylov_array(0:,:)
+        type(ll_node), pointer, intent(in) :: krylov_ht(:)
+
         logical, intent(in) :: tFinished
         logical, intent(out) :: tAllFinished
         logical :: tFinished_AllProcs(nProcessors)
@@ -231,7 +238,7 @@ contains
 
         call distribute_spawns_kp_hamil(nspawns_this_proc)
 
-        call calc_hamil_contribs_spawn(kp, nspawns_this_proc)
+        call calc_hamil_contribs_spawn(kp, krylov_array, krylov_ht, nspawns_this_proc)
 
         ValidSpawnedList = InitialSpawnedSlots
 
@@ -241,9 +248,11 @@ contains
 
     end subroutine add_in_hamil_contribs
 
-    subroutine calc_hamil_contribs_spawn(kp, nspawns_this_proc)
+    subroutine calc_hamil_contribs_spawn(kp, krylov_array, krylov_ht, nspawns_this_proc)
 
         type(kp_fciqmc_data), intent(inout) :: kp
+        integer(n_int), intent(in) :: krylov_array(0:,:)
+        type(ll_node), pointer, intent(in) :: krylov_ht(:)
         integer, intent(in) :: nspawns_this_proc
         integer :: idet, DetHash, det_ind, i, j
         integer(n_int) :: ilut_spawn(0:NIfTot)
@@ -261,16 +270,16 @@ contains
             real_sign_1 = transfer(int_sign, real_sign_1)
             call decode_bit_det(nI_spawn, ilut_spawn)
             DetHash = FindWalkerHash(nI_spawn, nhashes_kp)
-            ! Point to the first node with this hash value in krylov_vecs.
-            temp_node => krylov_vecs_ht(DetHash)
+            ! Point to the first node with this hash value in krylov_array.
+            temp_node => krylov_ht(DetHash)
             if (temp_node%ind == 0) then
-                ! If there are no determinants at all with this hash value in krylov_vecs.
+                ! If there are no determinants at all with this hash value in krylov_array.
                 cycle
             else
                 tDetFound = .false.
                 do while (associated(temp_node))
-                    if (DetBitEQ(ilut_spawn, krylov_vecs(:,temp_node%ind), NIfDBO)) then
-                        ! If this CurrentDets determinant has been found in krylov_vecs.
+                    if (DetBitEQ(ilut_spawn, krylov_array(:,temp_node%ind), NIfDBO)) then
+                        ! If this CurrentDets determinant has been found in krylov_array.
                         det_ind = temp_node%ind
                         tDetFound = .true.
                         exit
@@ -279,7 +288,7 @@ contains
                     temp_node => temp_node%next
                 end do
                 if (tDetFound) then
-                    int_sign = krylov_vecs(NOffSgn:NOffSgn+lenof_sign_kp-1, det_ind)
+                    int_sign = krylov_array(NOffSgn:NOffSgn+lenof_sign_kp-1, det_ind)
                     real_sign_2 = transfer(int_sign, real_sign_1)
                     if (IsUnoccDet(real_sign_2)) cycle
 
@@ -301,11 +310,14 @@ contains
 
     end subroutine calc_hamil_contribs_spawn
 
-    subroutine calc_hamil_contribs_diag(kp)
+    subroutine calc_hamil_contribs_diag(kp, krylov_array, array_len)
     
         use FciMCData, only: determ_proc_sizes
 
         type(kp_fciqmc_data), intent(inout) :: kp
+        integer(n_int), intent(in) :: krylov_array(0:,:)
+        integer, intent(in) :: array_len
+
         integer :: idet, i, j, min_idet, hdiag_ind
         integer :: nI_spawn(nel)
         integer(n_int) :: int_sign(lenof_sign_kp)
@@ -324,10 +336,10 @@ contains
 
         hdiag_ind = NIfDBO + lenof_sign_kp + 1
 
-        do idet = min_idet, TotWalkersKp
-            int_sign = krylov_vecs(NOffSgn:NOffSgn+lenof_sign_kp-1, idet)
+        do idet = min_idet, array_len
+            int_sign = krylov_array(NOffSgn:NOffSgn+lenof_sign_kp-1, idet)
             real_sign = transfer(int_sign, real_sign)
-            h_diag = transfer(krylov_vecs(hdiag_ind, idet), h_diag) + Hii
+            h_diag = transfer(krylov_array(hdiag_ind, idet), h_diag) + Hii
 
             ! Finally, add in the contribution to the projected Hamiltonian for each pair of Krylov vectors.
             do i = 1, kp%nvecs
@@ -346,18 +358,20 @@ contains
 
     end subroutine calc_hamil_contribs_diag
 
-    subroutine calc_hamil_contribs_semistoch(kp)
+    subroutine calc_hamil_contribs_semistoch(kp, krylov_array)
     
         use FciMCData, only: partial_determ_vecs_kp
 
         type(kp_fciqmc_data), intent(inout) :: kp
+        integer(n_int), intent(in) :: krylov_array(0:,:)
+
         integer :: idet, i, j
         integer :: nI_spawn(nel)
         integer(n_int) :: int_sign(lenof_sign_kp)
         real(dp) :: real_sign(lenof_sign_kp)
 
         do idet = 1, determ_proc_sizes(iProcIndex)
-            int_sign = krylov_vecs(NOffSgn:NOffSgn+lenof_sign_kp-1, idet)
+            int_sign = krylov_array(NOffSgn:NOffSgn+lenof_sign_kp-1, idet)
             real_sign = transfer(int_sign, real_sign)
 
             do i = 1, kp%nvecs
