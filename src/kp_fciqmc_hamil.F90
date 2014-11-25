@@ -9,7 +9,7 @@ module kp_fciqmc_hamil
 
 contains
 
-    subroutine calc_projected_hamil(kp, krylov_array, krylov_ht, array_len)
+    subroutine calc_projected_hamil(kp, krylov_array, krylov_ht, array_len, h_diag)
 
         use bit_reps, only: decode_bit_det
         use constants
@@ -25,6 +25,7 @@ contains
         integer(n_int), intent(in) :: krylov_array(0:,:)
         type(ll_node), pointer, intent(in) :: krylov_ht(:)
         integer, intent(in) :: array_len
+        real(dp), intent(in), optional :: h_diag(:)
 
         integer :: idet, ispawn, nspawn, i, j
         integer :: determ_ind, flag_ind, ic, ex(2,2), ms_parent
@@ -40,7 +41,7 @@ contains
         kp%hamil_matrix(:,:) = 0.0_dp
 
         ilut_parent = 0_n_int
-        if (tUseFlags) flag_ind = NIfDBO + lenof_sign_kp + 2
+        if (tUseFlags) flag_ind = NIfDBO + lenof_sign_kp + 1
         ValidSpawnedList = InitialSpawnedSlots
         tNearlyFull = .false.
         tFinished = .false.
@@ -136,7 +137,7 @@ contains
             if (tAllFinished) exit
         end do
 
-        call calc_hamil_contribs_diag(kp, krylov_array, array_len)
+        call calc_hamil_contribs_diag(kp, krylov_array, array_len, h_diag)
 
         if (tSemiStochasticKPHamil) then
             call determ_projection_kp_hamil()
@@ -310,19 +311,21 @@ contains
 
     end subroutine calc_hamil_contribs_spawn
 
-    subroutine calc_hamil_contribs_diag(kp, krylov_array, array_len)
+    subroutine calc_hamil_contribs_diag(kp, krylov_array, array_len, h_diag)
     
         use FciMCData, only: determ_proc_sizes
+        use global_det_data, only: det_diagH
 
         type(kp_fciqmc_data), intent(inout) :: kp
         integer(n_int), intent(in) :: krylov_array(0:,:)
         integer, intent(in) :: array_len
+        real(dp), intent(in), optional :: h_diag(:)
 
-        integer :: idet, i, j, min_idet, hdiag_ind
+        integer :: idet, i, j, min_idet
         integer :: nI_spawn(nel)
         integer(n_int) :: int_sign(lenof_sign_kp)
         real(dp) :: real_sign(lenof_sign_kp)
-        real(dp) :: h_diag
+        real(dp) :: h_diag_elem
 
         ! In semi-stochastic calculations the diagonal elements of the core space
         ! are taken care of in the core Hamiltonian calculation, so skip them here.
@@ -334,22 +337,24 @@ contains
             min_idet = 1
         end if
 
-        hdiag_ind = NIfDBO + lenof_sign_kp + 1
-
         do idet = min_idet, array_len
             int_sign = krylov_array(NOffSgn:NOffSgn+lenof_sign_kp-1, idet)
             real_sign = transfer(int_sign, real_sign)
-            h_diag = transfer(krylov_array(hdiag_ind, idet), h_diag) + Hii
+            if (present(h_diag)) then
+                h_diag_elem = h_diag(idet) + Hii
+            else
+                h_diag_elem = det_diagH(idet) + Hii
+            end if
 
             ! Finally, add in the contribution to the projected Hamiltonian for each pair of Krylov vectors.
             do i = 1, kp%nvecs
                 do j = i, kp%nvecs
 #ifdef __DOUBLERUN
                     kp%hamil_matrix(i,j) = kp%hamil_matrix(i,j) + &
-                        h_diag*(real_sign(2*i-1)*real_sign(2*j) + &
+                        h_diag_elem*(real_sign(2*i-1)*real_sign(2*j) + &
                         real_sign(2*i)*real_sign(2*j-1))/2.0_dp
 #else
-                    kp%hamil_matrix(i,j) = kp%hamil_matrix(i,j) + h_diag*real_sign(i)*real_sign(j)
+                    kp%hamil_matrix(i,j) = kp%hamil_matrix(i,j) + h_diag_elem*real_sign(i)*real_sign(j)
 #endif
                 end do
             end do

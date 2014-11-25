@@ -91,7 +91,11 @@ module kp_fciqmc_procs
     ! The current number of different determinants held in krylov_vecs.
     integer :: TotWalkersKP
     integer(n_int), allocatable :: krylov_vecs(:,:)
-    type(ll_node), pointer :: krylov_vecs_ht(:) 
+    ! The diagonal Hamiltonian elements of the vectors in krylov_vecs, in the
+    ! same order.
+    real(dp), allocatable :: krylov_helems(:)
+    ! The has table used to access determinant data in krylov_vecs.
+    type(ll_node), pointer :: krylov_vecs_ht(:)
 
     ! The number of elements in krylov_vecs which are used to store amplitudes.
     integer(int64) :: nkrylov_amp_elems_tot
@@ -445,8 +449,7 @@ contains
         ! The number of elements required to store all replicas of all Krylov vectors.
         lenof_sign_kp = lenof_sign*kp%nvecs
         ! The total length of a bitstring containing all Krylov vectors.
-        ! Note that the 1 is added because we store the diagonal Hamiltonian element in the array.
-        NIfTotKP = NIfDBO + lenof_sign_kp + 1 + NIfFlag
+        NIfTotKP = NIfDBO + lenof_sign_kp + NIfFlag
 
         ! Allocate all of the KP arrays.
         nhashes_kp = nWalkerHashes
@@ -461,8 +464,7 @@ contains
         write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_vecs_memory)+1)))
         write(6,'(a73,1x,'//mem_fmt//')') "About to allocate array to hold all Krylov vectors. &
                                        &Memory required (MB):", krylov_vecs_memory
-        write(6,'(a13)',advance='no') "Allocating..."
-        call neci_flush(6)
+        write(6,'(a13)',advance='no') "Allocating..."; call neci_flush(6)
         allocate(krylov_vecs(0:NIfTotKP, krylov_vecs_length), stat=ierr)
         if (ierr /= 0) then
             write(6,'(1x,a11,1x,i5)') "Error code:", ierr
@@ -473,6 +475,23 @@ contains
         call neci_flush(6)
         krylov_vecs = 0_n_int
 
+        ! Allocate the krylov_helems array.
+        ! The number of MB of memory required to allocate krylov_helems.
+        krylov_vecs_memory = krylov_vecs_length*size_n_int/1000000
+        write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_vecs_memory)+1)))
+        write(6,'(a103,1x,'//mem_fmt//')') "About to allocate array to hold diagonal Hamiltonian &
+                                       &elements for Krylov vectors. Memory required (MB):", krylov_vecs_memory
+        write(6,'(a13)',advance='no') "Allocating..."; call neci_flush(6)
+        allocate(krylov_helems(krylov_vecs_length), stat=ierr)
+        if (ierr /= 0) then
+            write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+            call stop_all(t_r, "Error allocating krylov_helems array.")
+        else
+            write(6,'(1x,a5)') "Done."
+        end if
+        call neci_flush(6)
+        krylov_helems = 0.0_dp
+
         ! Allocate the hash table to krylov_vecs.
         ! The number of MB of memory required to allocate krylov_vecs_ht.
         ! Each node requires 16 bytes.
@@ -480,8 +499,7 @@ contains
         write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_ht_memory)+1)))
         write(6,'(a78,1x,'//mem_fmt//')') "About to allocate hash table to the Krylov vector array. &
                                        &Memory required (MB):", krylov_ht_memory
-        write(6,'(a13)',advance='no') "Allocating..."
-        call neci_flush(6)
+        write(6,'(a13)',advance='no') "Allocating..."; call neci_flush(6)
         allocate(krylov_vecs_ht(nhashes_kp), stat=ierr)
         if (ierr /= 0) then
             write(6,'(1x,a11,1x,i5)') "Error code:", ierr
@@ -1034,7 +1052,7 @@ contains
     subroutine store_krylov_vec(kp)
 
         type(kp_fciqmc_data), intent(in) :: kp
-        integer :: idet, iamp, sign_ind, hdiag_ind, flag_ind, hash_val, det_ind
+        integer :: idet, iamp, sign_ind, flag_ind, hash_val, det_ind
         integer :: nI(nel)
         integer(n_int) :: temp, int_sign(lenof_sign)
         logical :: tDetFound, tCoreDet
@@ -1047,8 +1065,7 @@ contains
 
         ! The index of the first element referring to the sign, for this ivec.
         sign_ind = NIfDBO + lenof_sign*(kp%ivec-1) + 1
-        hdiag_ind = NIfDBO + lenof_sign_kp + 1
-        if (tUseFlags) flag_ind = NIfDBO + lenof_sign_kp + 2
+        if (tUseFlags) flag_ind = NIfDBO + lenof_sign_kp + 1
 
         ! Loop over all occupied determinants for this new Krylov vector.
         do idet = 1, TotWalkers
@@ -1082,7 +1099,7 @@ contains
                 ! Copy determinant data across.
                 krylov_vecs(0:NIfDBO, det_ind) = CurrentDets(0:NIfDBO, idet)
                 krylov_vecs(sign_ind:sign_ind+lenof_sign-1, det_ind) = int_sign
-                krylov_vecs(hdiag_ind, det_ind) = transfer(det_diagH(idet), temp)
+                krylov_helems(det_ind) = det_diagH(idet)
                 if (tUseFlags) krylov_vecs(flag_ind, det_ind) = CurrentDets(NOffFlag, idet)
             end if
 
@@ -1198,10 +1215,14 @@ contains
 
     end subroutine calc_perturbation_overlap
 
-    subroutine calc_hamil_exact(kp)
+    subroutine calc_hamil_exact(kp, krylov_array, array_len, h_diag)
 
         type(kp_fciqmc_data), intent(inout) :: kp
-        integer :: i, j, idet, jdet, ic, hdiag_ind
+        integer(n_int), intent(in) :: krylov_array(0:,:)
+        integer, intent(in) :: array_len
+        real(dp), intent(in), optional :: h_diag(:)
+
+        integer :: i, j, idet, jdet, ic
         integer(n_int) :: ilut_1(0:NIfTot), ilut_2(0:NIfTot)
         integer(n_int) :: int_sign(lenof_sign_kp)
         integer :: nI(nel), nJ(nel)
@@ -1210,21 +1231,19 @@ contains
         logical :: any_occ, occ_1, occ_2
         integer(4), allocatable :: occ_flags(:)
 
-        hdiag_ind = NIfDBO + lenof_sign_kp + 1
-
         associate(h_matrix => kp%hamil_matrix)
 
             h_matrix = 0.0_dp
 
-            allocate(occ_flags(TotWalkersKP))
+            allocate(occ_flags(array_len))
             occ_flags = 0
 
             ilut_1 = 0_n_int
             ilut_2 = 0_n_int
 
             ! Check to see if there are any replica 1 or 2 walkers on this determinant.
-            do idet = 1, TotWalkersKP
-                int_sign = krylov_vecs(NIfDBO+1:NIfDBO+lenof_sign_kp, idet)
+            do idet = 1, array_len
+                int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_sign_kp, idet)
 
                 any_occ = .false.
 #ifdef __DOUBLERUN
@@ -1246,32 +1265,36 @@ contains
 #endif
             end do
 
-            ! Loop over all determinants in krylov_vecs.
-            do idet = 1, TotWalkersKP
-                ilut_1 = krylov_vecs(0:NIfDBO, idet)
+            ! Loop over all determinants in krylov_array.
+            do idet = 1, array_len
+                ilut_1 = krylov_array(0:NIfDBO, idet)
                 call decode_bit_det(nI, ilut_1)
-                int_sign = krylov_vecs(NIfDBO+1:NIfDBO+lenof_sign_kp, idet)
+                int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_sign_kp, idet)
                 real_sign_1 = transfer(int_sign, real_sign_1)
                 occ_1 = btest(occ_flags(idet),0)
                 occ_2 = btest(occ_flags(idet),1)
 
-                do jdet = idet, TotWalkersKP
+                do jdet = idet, array_len
 #ifdef __DOUBLERUN
                     if (.not. ((occ_1 .and. btest(occ_flags(jdet),1)) .or. &
                         (occ_2 .and. btest(occ_flags(jdet),0)))) cycle
 #else
                     if (.not. (occ_1 .and. btest(occ_flags(jdet),0)) ) cycle
 #endif
-                    ilut_2 = krylov_vecs(0:NIfDBO, jdet)
+                    ilut_2 = krylov_array(0:NIfDBO, jdet)
                     ic = FindBitExcitLevel(ilut_1, ilut_2)
                     if (ic > 2) cycle
 
                     call decode_bit_det(nJ, ilut_2)
-                    int_sign = krylov_vecs(NIfDBO+1:NIfDBO+lenof_sign_kp, jdet)
+                    int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_sign_kp, jdet)
                     real_sign_2 = transfer(int_sign, real_sign_1)
                     
                     if (idet == jdet) then
-                        h_elem = transfer(krylov_vecs(hdiag_ind, idet), h_elem) + Hii
+                        if (present(h_diag)) then
+                            h_elem = h_diag(idet) + Hii
+                        else
+                            h_elem = det_diagH(idet) + Hii
+                        end if
                     else
                         if (tHPHF) then
                             h_elem = hphf_off_diag_helement(nI, nJ, ilut_1, ilut_2)
