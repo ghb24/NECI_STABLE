@@ -274,8 +274,6 @@ contains
 
                         call halt_timer(annihil_time)
 
-                        if (iiter == 1 .and. tHamilOnFly) call calc_hamil_on_fly(kp)
-
                         call update_iter_data(iter_data_fciqmc)
 
                         if (mod(iter, StepsSft) == 0) then
@@ -294,7 +292,7 @@ contains
 
                 if (tExactHamil) then
                     call calc_hamil_exact(kp)
-                else if (.not. tHamilOnFly) then
+                else
                     call calc_projected_hamil(kp, krylov_vecs, krylov_vecs_ht, TotWalkersKP)
                 end if
 
@@ -366,7 +364,7 @@ contains
 
                 if (tExactHamil) then
                     call calc_hamil_exact(kp)
-                else if (.not. tHamilOnFly) then
+                else
                     call calc_projected_hamil(kp, CurrentDets, HashIndex, int(TotWalkers, sizeof_int))
                 end if
 

@@ -115,9 +115,6 @@ module kp_fciqmc_procs
     ! If true then calculate the projected Hamiltonian exactly (useful for
     ! testing only, in practice).
     logical :: tExactHamil
-    ! If true, use the spawning from the main FCIQMC iterations to
-    ! calculate the projected Hamiltonian.
-    logical :: tHamilOnFly
     ! If true then use the semi-stochastic approach in the calculation
     ! of the projected Hamiltonian. This is on by default, if
     ! tSemiStochastic is true. If tFullyStochasticHamil if true then
@@ -256,7 +253,6 @@ contains
         tFiniteTemp = .false.
         tMultiplePopStart = .false.
         tExactHamil = .false.
-        tHamilOnFly = .false.
         tFullyStochasticHamil = .false.
         tInitCorrectNWalkers = .false.
         tOccDetermInit = .false.
@@ -320,8 +316,6 @@ contains
                 call getf(av_mc_excits_kp)
             case("EXACT-HAMIL")
                 tExactHamil = .true.
-            case("HAMIL-ON-FLY")
-                tHamilOnFly = .true.
             case("FULLY-STOCHASTIC-HAMIL")
                 tFullyStochasticHamil = .true.
             case("INIT-CORRECT-WALKER-POP")
@@ -500,25 +494,17 @@ contains
 
         call init_hash_table(krylov_vecs_ht)
 
-        if (tHamilOnFly) then
-            allocate(SpawnVecKP(0:NIfTot,MaxSpawned),stat=ierr)
-            SpawnVecKP(:,:) = 0_n_int
-            SpawnedPartsKP => SpawnVecKP
-            ! Do one extra iteration so that the Hamiltonian can be calculated for the final Krylov vector.
-            kp%niters(kp%nvecs) = 1
-        else
-            allocate(SpawnVecKP(0:NOffSgn+lenof_sign_kp-1,MaxSpawned),stat=ierr)
-            allocate(SpawnVecKP2(0:NOffSgn+lenof_sign_kp-1,MaxSpawned),stat=ierr)
-            SpawnVecKP(:,:) = 0_n_int
-            SpawnVecKP2(:,:) = 0_n_int
-            SpawnedPartsKP => SpawnVecKP
-            SpawnedPartsKP2 => SpawnVecKP2
-            if (tSemiStochastic) then
-                allocate(partial_determ_vecs_kp(lenof_sign_kp,determ_proc_sizes(iProcIndex)), stat=ierr)
-                allocate(full_determ_vecs_kp(lenof_sign_kp,determ_space_size), stat=ierr)
-                partial_determ_vecs_kp = 0.0_dp
-                full_determ_vecs_kp = 0.0_dp
-            end if
+        allocate(SpawnVecKP(0:NOffSgn+lenof_sign_kp-1,MaxSpawned),stat=ierr)
+        allocate(SpawnVecKP2(0:NOffSgn+lenof_sign_kp-1,MaxSpawned),stat=ierr)
+        SpawnVecKP(:,:) = 0_n_int
+        SpawnVecKP2(:,:) = 0_n_int
+        SpawnedPartsKP => SpawnVecKP
+        SpawnedPartsKP2 => SpawnVecKP2
+        if (tSemiStochastic) then
+            allocate(partial_determ_vecs_kp(lenof_sign_kp,determ_proc_sizes(iProcIndex)), stat=ierr)
+            allocate(full_determ_vecs_kp(lenof_sign_kp,determ_space_size), stat=ierr)
+            partial_determ_vecs_kp = 0.0_dp
+            full_determ_vecs_kp = 0.0_dp
         end if
 
         if (tStoreKPMatrices) then
@@ -1211,124 +1197,6 @@ contains
         end associate
 
     end subroutine calc_perturbation_overlap
-
-    subroutine calc_hamil_on_fly(kp)
-
-        type(kp_fciqmc_data), intent(inout) :: kp
-        integer :: idet, jvec, ind(kp%ivec), nI(nel)
-        integer :: det_ind, hdiag_ind, flag_ind, ideterm, DetHash
-        integer(n_int) :: int_sign(lenof_sign)
-        real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
-        real(dp) :: temp
-        type(ll_node), pointer :: temp_node
-        logical :: tDetFound, tDeterm
-        character(len=*), parameter :: t_r = "calc_hamil_elems_on_fly"
-
-        associate(h_matrix => kp%hamil_matrix, ivec => kp%ivec)
-
-            h_matrix(1:ivec, ivec) = 0.0_dp
-            h_matrix(ivec, 1:ivec) = 0.0_dp
-
-            do jvec = 1, ivec
-                ! The first index of the sign in krylov_vecs, for each Krylov vector.
-                ind(jvec) = NIfDBO + lenof_sign*(jvec-1) + 1
-            end do
-            hdiag_ind = NIfDBO + lenof_sign_kp + 1
-            if (tUseFlags) flag_ind = NIfDBO + lenof_sign_kp + 2
-
-            ideterm = 0
-
-            ! Loop over all determinants in SpawnedPartsKP.
-            do idet = 1, max_spawned_ind
-                int_sign = SpawnedPartsKP(NOffSgn:NOffSgn+lenof_sign-1, idet)
-                real_sign_1 = transfer(int_sign, real_sign_1)
-                call decode_bit_det(nI, SpawnedPartsKP(:,idet))
-                DetHash = FindWalkerHash(nI, nhashes_kp)
-                ! Point to the first node with this hash value in krylov_vecs.
-                temp_node => krylov_vecs_ht(DetHash)
-                if (temp_node%ind == 0) then
-                    ! If there are no determinants at all with this hash value in krylov_vecs.
-                    cycle
-                else
-                    tDetFound = .false.
-                    do while (associated(temp_node))
-                        if (DetBitEQ(SpawnedPartsKP(:,idet), krylov_vecs(:,temp_node%ind), NIfDBO)) then
-                            ! If this determinant has been found in krylov_vecs.
-                            det_ind = temp_node%ind
-                            tDetFound = .true.
-                            exit
-                        end if
-                        ! Move on to the next determinant with this hash value.
-                        temp_node => temp_node%next
-                    end do
-                    if (tDetFound) then
-                        ! Add in the contribution to the projected Hamiltonian, for each Krylov vector.
-                        do jvec = 1, ivec
-                            int_sign = krylov_vecs(ind(jvec):ind(jvec)+lenof_sign-1, det_ind)
-                            real_sign_2 = transfer(int_sign, real_sign_1)
-                            if (IsUnoccDet(real_sign_2)) cycle
-#ifdef __DOUBLERUN
-                            h_matrix(jvec,ivec) = h_matrix(jvec,ivec) - &
-                                (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
-#else
-                            h_matrix(jvec,ivec) = h_matrix(jvec,ivec) - real_sign_1(1)*real_sign_2(1)
-#endif
-                        end do
-                    end if
-                end if
-            end do
-
-            ! Loop over all determinants in krylov_vecs.
-            do idet = 1, TotWalkersKP
-
-                real_sign_1 = 0.0_dp
-                tDeterm = .false.
-                if (tUseFlags) then
-                    tDeterm = btest(krylov_vecs(flag_ind, idet), flag_deterministic + flag_bit_offset)
-                end if
-
-                if (tDeterm) then
-                    ideterm  = ideterm + 1
-                    real_sign_1 = - partial_determ_vector(:,ideterm) + &
-                             (DiagSft+Hii) * tau * full_determ_vector(:, ideterm + determ_proc_indices(iProcIndex))
-                else
-                    int_sign = krylov_vecs(ind(ivec):ind(ivec)+lenof_sign-1, idet)
-                    real_sign_1 = transfer(int_sign, real_sign_1)
-                    real_sign_1 = tau * real_sign_1 * (transfer(krylov_vecs(hdiag_ind, idet), temp) + Hii)
-                end if
-                if (IsUnoccDet(real_sign_1)) cycle
-
-                ! Loop over all Krylov vectors currently stored.
-                do jvec = 1, ivec
-                    int_sign = krylov_vecs(ind(jvec):ind(jvec)+lenof_sign-1, idet)
-                    real_sign_2 = transfer(int_sign, real_sign_1)
-                    if (IsUnoccDet(real_sign_2)) cycle
-#ifdef __DOUBLERUN
-                    h_matrix(jvec,ivec) = h_matrix(jvec,ivec) + &
-                        (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
-#else
-                    h_matrix(jvec,ivec) = h_matrix(jvec,ivec) + real_sign_1(1)*real_sign_2(1)
-#endif
-                end do
-            end do
-
-            do jvec = 1, ivec
-                h_matrix(jvec,ivec) = h_matrix(jvec,ivec)/tau
-                h_matrix(ivec,jvec) = h_matrix(jvec,ivec)
-            end do
-
-            if (tSemiStochastic) then
-                if (ideterm /= determ_proc_sizes(iProcIndex)) then
-                    write(6,*) "determ_proc_sizes(iProcIndex):", determ_proc_sizes(iProcIndex)
-                    write(6,*) "ideterm:", ideterm
-                    call neci_flush(6)
-                    call stop_all(t_r, "An incorrect number of core determinants have been counted.")
-                end if
-            end if
-
-        end associate
-
-    end subroutine calc_hamil_on_fly
 
     subroutine calc_hamil_exact(kp)
 
