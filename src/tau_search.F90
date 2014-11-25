@@ -3,13 +3,13 @@
 module tau_search
 
     use SystemData, only: AB_elec_pairs, par_elec_pairs, tGen_4ind_weighted, &
-                          tHPHF, tCSF, tKpntSym, tMomInv, nel, G1, nbasis, &
+                          tHPHF, tCSF, tKpntSym, nel, G1, nbasis, &
                           AB_hole_pairs, par_hole_pairs, tGen_4ind_reverse, &
                           nOccAlpha, nOccBeta
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
-                         ProjEDet, ilutRef
+                         ProjEDet, ilutRef, MaxTau
     use GenRandSymExcitNUMod, only: construct_class_counts, &
                                     init_excit_gen_store, clean_excit_gen_store
     use SymExcit3, only: GenExcitations3
@@ -279,6 +279,9 @@ contains
         if (tau_death < tau_new) &
             tau_new = tau_death
 
+        ! And a last sanity check/hard limit
+        tau_new = min(tau_new, MaxTau)
+
         ! If the calculated tau is less than the current tau, we should ALWAYS
         ! update it. Once we have a reasonable sample of excitations, then we
         ! can permit tau to increase if we have started too low.
@@ -325,7 +328,7 @@ contains
         integer :: ic,nJ(nel),nJ2(nel),ierr,iExcit,ex_saved(2,2)
         integer(kind=n_int) :: iLutnJ(0:niftot),iLutnJ2(0:niftot)
 
-        if(tCSF.or.tMomInv) call stop_all(t_r,"TauSearching needs fixing to work with CSFs or MI funcs")
+        if(tCSF) call stop_all(t_r,"TauSearching needs fixing to work with CSFs or MI funcs")
 
         if(MaxWalkerBloom.eq.-1) then
             !No MaxWalkerBloom specified

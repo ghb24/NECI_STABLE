@@ -5,7 +5,6 @@
 
 module semi_stoch_procs
 
-    use AnnihilationMod, only: RemoveDetHashIndex
     use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag, &
                             flag_is_initiator, NOffSgn, NIfSgn
     use bit_reps, only: decode_bit_det, set_flag, extract_part_sign, extract_sign, &
@@ -17,20 +16,19 @@ module semi_stoch_procs
                          count_set_bits, DetBitEq, sign_lt, sign_gt, IsAllowedHPHF, &
                          EncodeBitDet
     use Determinants, only: get_helement, GetH0Element3, GetH0Element4
-    use FciMCData, only: ilutHF, Hii, CurrentH, determ_proc_sizes, determ_proc_indices, &
+    use FciMCData, only: ilutHF, Hii, determ_proc_sizes, determ_proc_indices, &
                          full_determ_vector, partial_determ_vector, &
                          determ_space_size, SpawnedParts, SemiStoch_Comms_Time, &
                          SemiStoch_Multiply_Time, TotWalkers, CurrentDets, CoreTag, &
                          PDetermTag, FDetermTag, IDetermTag, indices_of_determ_states, &
                          HashIndex, core_space, CoreSpaceTag, ll_node, nWalkerHashes, &
-                         full_determ_vector_av, tFill_RDM, &
-                         tFillingStochRDMonFly, Iter, IterRDMStart, &
-                         core_ham_diag, DavidsonTag, Fii, HFDet, PreviousCycles
-    use hash, only: DetermineDetNode, FindWalkerHash
+                         full_determ_vector_av, tFill_RDM, determ_space_size_int, &
+
+                         core_ham_diag, DavidsonTag, Fii, HFDet, PreviousCycles, &
+                         partial_determ_vecs_kp, full_determ_vecs_kp
+    use hash, only: DetermineDetNode, FindWalkerHash, clear_hash_table
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
-    use MI_integrals, only: MI_off_diag_helement
-    use MomInv, only: IsAllowedMI
     use nElRDMMod, only: fill_RDM_offdiag_deterministic
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, MPIArg, &
                              MPIAllGatherV, MPISum, MPISumAll, MPIScatterV
@@ -41,7 +39,8 @@ module semi_stoch_procs
     use sparse_arrays, only: sparse_core_ham, SparseCoreHamilTags, deallocate_sparse_ham, &
                             core_connections, sparse_ham, hamil_diag, HDiagTag, &
                             SparseHamilTags, allocate_sparse_ham_row, core_ht, core_hashtable
-    use SystemData, only: nel, tHPHF, nBasis, BRR, ARR, tUEG, tMomInv
+    use SystemData, only: nel, tHPHF, nBasis, BRR, ARR, tUEG
+    use global_det_data, only: set_det_diagH
     use timing_neci
     use util_mod, only: get_free_unit
 
@@ -49,7 +48,7 @@ module semi_stoch_procs
 
 contains
 
-    subroutine deterministic_projection()
+    subroutine determ_projection()
 
         ! This subroutine gathers together the partial_determ_vectors from each processor so
         ! that the full vector for the whole deterministic space is stored on each processor.
@@ -66,74 +65,139 @@ contains
 
         call halt_timer(SemiStoch_Comms_Time)
 
-        call MPIBarrier(ierr)
-
         call set_timer(SemiStoch_Multiply_Time)
 
-        if(tFillingStochRDMonFly) then !Update the average signs in full_determ_vector_av
-            full_determ_vector_av=(((real(Iter+PreviousCycles,dp)-IterRDMStart)*full_determ_vector_av) &
-                                      + full_determ_vector)/(real(Iter+PreviousCycles,dp) - IterRDMStart + 1.0_dp)
-        endif
-            
         if (determ_proc_sizes(iProcIndex) >= 1) then
 
-            ! Perform the multiplication
-            if(tFill_RDM) call fill_RDM_offdiag_deterministic()
+            ! For the moment, we're only adding in these contributions when we need the energy
+            ! This will need refinement if we want to continue with the option of inst vs true full RDMs
+            ! (as in another CMO branch).
 
-                !For the moment, we're only adding in these contributions when we need the energy
-                !This will need refinement if we want to continue with the option of inst vs true full RDMs
-                ! (as in another CMO branch).
+            ! Perform the multiplication.
 
             partial_determ_vector = 0.0_dp
 
             do i = 1, determ_proc_sizes(iProcIndex)
                 do j = 1, sparse_core_ham(i)%num_elements
-                    do k=1,lenof_sign
-                        partial_determ_vector(k,i) = partial_determ_vector(k,i) - &
-                            sparse_core_ham(i)%elements(j)*full_determ_vector(k,sparse_core_ham(i)%positions(j))
-                    enddo
+                    partial_determ_vector(:,i) = partial_determ_vector(:,i) - &
+                        sparse_core_ham(i)%elements(j)*full_determ_vector(:,sparse_core_ham(i)%positions(j))
                 end do
             end do
 
-            ! Now add shift*full_determ_vector, to account for the shift, not stored in
+            ! Now add shift*full_determ_vector to account for the shift, not stored in
             ! sparse_core_ham.
-            do k=1,lenof_sign
-                partial_determ_vector(k,:) = partial_determ_vector(k,:) + &
-                   DiagSft(1) * full_determ_vector(k,determ_proc_indices(iProcIndex)+1:&
-                     determ_proc_indices(iProcIndex)+determ_proc_sizes(iProcIndex))
+            do i = 1, determ_proc_sizes(iProcIndex)
+                partial_determ_vector(:,i) = partial_determ_vector(:,i) + &
+                   DiagSft * full_determ_vector(:,i+determ_proc_indices(iProcIndex))
+            end do
 
-                ! Now multiply the vector by tau to get the final projected vector.
-                partial_determ_vector(k,:) = partial_determ_vector(k,:) * tau
-            enddo
+            ! Now multiply the vector by tau to get the final projected vector.
+            partial_determ_vector = partial_determ_vector * tau
 
         end if
 
         call halt_timer(SemiStoch_Multiply_Time)
 
-    end subroutine deterministic_projection
+    end subroutine determ_projection
 
-    function is_core_state(ilut) result (core_state)
+    subroutine determ_projection_kp_hamil()
+
+        integer :: i, j, info, ierr
+
+        call MPIBarrier(ierr)
+
+        call set_timer(SemiStoch_Comms_Time)
+
+        call MPIAllGatherV(partial_determ_vecs_kp, full_determ_vecs_kp, &
+                            determ_proc_sizes, determ_proc_indices)
+
+        call halt_timer(SemiStoch_Comms_Time)
+
+        call MPIBarrier(ierr)
+
+        call set_timer(SemiStoch_Multiply_Time)
+
+        if (determ_proc_sizes(iProcIndex) >= 1) then
+            ! Start with this because sparse_core_hamil has Hii taken off, but actually we
+            ! don't want the projected Hamiltonian to be relative to the HF determinant.
+            partial_determ_vecs_kp = Hii*full_determ_vecs_kp(:, determ_proc_indices(iProcIndex)+1:&
+                                              determ_proc_indices(iProcIndex)+determ_proc_sizes(iProcIndex))
+
+            do i = 1, determ_proc_sizes(iProcIndex)
+                do j = 1, sparse_core_ham(i)%num_elements
+                    partial_determ_vecs_kp(:,i) = partial_determ_vecs_kp(:,i) + &
+                        sparse_core_ham(i)%elements(j)*full_determ_vecs_kp(:,sparse_core_ham(i)%positions(j))
+                end do
+            end do
+        end if
+
+        call halt_timer(SemiStoch_Multiply_Time)
+
+    end subroutine determ_projection_kp_hamil
+
+    subroutine average_determ_vector()
+
+        use FciMCData, only: Iter, tFillingStochRDMonFly, IterRDMStart
+        use LoggingData, only: RDMEnergyIter
+
+        real(dp) :: iter_curr, iter_start_av
+
+        ! If this condition is met then RDM energies were added in on the
+        ! previous iteration. We now want to start a new averaging block so
+        ! that the same contributions aren't added in again later.
+        if (mod(Iter+PreviousCycles - IterRDMStart, RDMEnergyIter) == 0) then 
+            full_determ_vector_av = 0.0_dp
+        end if
+
+        ! The current iteration, converted to a double precision real.
+        iter_curr = real(Iter+PreviousCycles, dp)
+        ! The iteration that this averaging block started on.
+        iter_start_av = real(RDMEnergyIter*((Iter+PreviousCycles - IterRDMStart)/RDMEnergyIter) + IterRDMStart, dp)
+
+        ! Add in the current deterministic vector to the running average.
+        full_determ_vector_av = (((iter_curr - iter_start_av)*full_determ_vector_av) + full_determ_vector)/&
+                                 (iter_curr - iter_start_av + 1.0_dp)
+
+    end subroutine average_determ_vector
+
+    function is_core_state(ilut, nI) result (core_state)
 
         use FciMCData, only: ll_node
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer :: nI(nel)
+        integer, intent(in) :: nI(:)
         integer :: i, hash
         logical :: core_state
 
         core_state = .false.
 
-        call decode_bit_det(nI, ilut)
-        hash = FindWalkerHash(nI, int(determ_space_size,sizeof_int))
+        hash = FindWalkerHash(nI, determ_space_size_int)
 
         do i = 1, core_ht(hash)%nclash
-            if (DetBitEQ(ilut, core_space(:,core_ht(hash)%ind(i)), NIfDBO)) then
+            if (all(ilut(0:NIfDBO) == core_space(0:NIfDBO,core_ht(hash)%ind(i)) )) then
                 core_state = .true.
                 return
             end if
         end do
 
     end function is_core_state
+
+    function check_determ_flag(ilut) result (core_state)
+    
+        ! The reason for using this instead of just using test_flag is that test_flag
+        ! crashes if flags are not being used. Calling this function therefore makes
+        ! things neater!
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        logical :: core_state
+
+        if (tSemiStochastic) then
+            core_state = test_flag(ilut, flag_deterministic)
+        else
+            core_state = .false.
+        end if
+
+    end function check_determ_flag
 
     subroutine recalc_core_hamil_diag(old_Hii, new_Hii)
 
@@ -228,6 +292,7 @@ contains
         allocate(core_space(0:NIfTot, determ_space_size), stat=ierr)
         call LogMemAlloc('core_space', maxval(determ_proc_sizes)*(NIfTot+1), 8, t_r, &
                          CoreSpaceTag, ierr)
+        core_space = 0_n_int
 
         call MPIAllGatherV(SpawnedParts(:,1:determ_proc_sizes(iProcIndex)), core_space, &
                        determ_proc_sizes, determ_proc_indices)
@@ -472,8 +537,8 @@ contains
         ! Create a list, proc_list, with the processor numbers of the corresponding iluts.
         do i = 1, ilut_list_size
             call decode_bit_det(nI, ilut_list(:,i))
-            proc_list(i) = DetermineDetNode(nI,0)
-            num_states_procs(proc_list(i)) = int(num_states_procs(proc_list(i)) + 1,MPIArg)
+            proc_list(i) = DetermineDetNode(nel,nI,0)
+            num_states_procs(proc_list(i)) = int(num_states_procs(proc_list(i)) + 1, MPIArg)
         end do
 
         counter(0) = 0
@@ -495,31 +560,29 @@ contains
 
     end subroutine sort_space_by_proc
 
-    subroutine fill_in_CurrentH()
+    subroutine fill_in_diag_helements()
 
-        integer(int64) :: i
+        integer :: i
         integer :: nI(nel)
-
-        CurrentH = 0.0_dp
+        real(dp) :: tmpH
 
         do i = 1, TotWalkers
-
             call decode_bit_det(nI, CurrentDets(:,i))
 
             if (tHPHF) then
-                CurrentH(1,i) = hphf_diag_helement(nI, CurrentDets(:,i)) - Hii
+                tmpH = hphf_diag_helement(nI, CurrentDets(:,i)) - Hii
             else
-                CurrentH(1,i) = get_helement(nI, nI, 0) - Hii
+                tmpH = get_helement(nI, nI, 0) - Hii
             end if
+            call set_det_diagh(i, tmpH)
 
         end do
 
-    end subroutine fill_in_CurrentH
+    end subroutine fill_in_diag_helements
 
     subroutine write_core_space()
 
         integer :: i, k, iunit, ierr
-        integer(int64) :: j
         logical :: texist
         character(len=*), parameter :: t_r='write_core_space'
 
@@ -527,36 +590,22 @@ contains
 
         iunit = get_free_unit()
 
-        ! Let each processor write its core states to the file. Each processor waits for
-        ! the processor before it to finish before starting.
-        do i = 0, nProcessors-1
+        ! Only let the root process write the states.
+        if (iProcIndex == root) then
+            open(iunit, file='CORESPACE', status='replace')
 
-            if (iProcIndex == i) then
-
-                if (i == 0) then
-                    open(iunit, file='CORESPACE', status='replace')
-                else
-                    inquire(file='CORESPACE',exist=texist)
-                    if(.not.texist) call stop_all(t_r,'"CORESPACE" file cannot be found')
-                    open(iunit, file='CORESPACE', status='old', position='append')
-                end if
-                
-                do j = 1, TotWalkers 
-                    if (test_flag(CurrentDets(:,j), flag_deterministic)) then
-                        do k = 0, NIfDBO
-                            write(iunit, '(i24)', advance='no') CurrentDets(k,j)
-                        end do
-                        write(iunit, *)
-                    end if
+            do i = 1, determ_space_size
+                do k = 0, NIfDBO
+                    write(iunit, '(i24)', advance='no') core_space(k,i)
                 end do
+                write(iunit, '()')
+            end do
 
-                close(iunit)
+            call neci_flush(iunit)
+            close(iunit)
+        end if
 
-            end if
-
-            call MPIBarrier(ierr)
-
-        end do
+        call MPIBarrier(ierr)
 
     end subroutine write_core_space
 
@@ -621,7 +670,7 @@ contains
 
     end subroutine add_core_states_currentdets
 
-    subroutine add_core_states_currentdet_hash
+    subroutine add_core_states_currentdet_hash()
 
         ! This routine adds the core states in SpawnedParts into CurrentDets. For all
         ! such states already in CurrentDets, we want to keep the amplitude (which
@@ -632,15 +681,27 @@ contains
         ! them at the top always. So, in this routine, we move the non-core states
         ! in CurrentDets to the end and add the new core states in the gaps.
 
+        ! WARNING: If there are any determinants in CurrentDets on input which are
+        ! unoccupied then, for this function to work correctly, the determiant
+        ! *must* have an entry in the hash table. Otherwise, these determinants
+        ! will end up being repeated in CurrentDets is they are core determinants.
+        ! This isn't ideal because when the FCIQMC calculation starts, such
+        ! unoccupied determinants should *not* be in the hash table. During this
+        ! routine, such detereminants will be removed from the hash table and so
+        ! on output, everything will be fine and ready for the FCIQMC calculation
+        ! to start.
+
         integer :: i, DetHash, PartInd, nwalkers, i_non_core
         integer :: nI(nel)
         real(dp) :: walker_sign(lenof_sign)
-        type(ll_node), pointer :: temp_node, curr, prev
+        type(ll_node), pointer :: temp_node
         logical :: tSuccess
 
         nwalkers = int(TotWalkers,sizeof_int)
 
         ! First find which CurrentDet states are in the core space.
+        ! The warning above refers to this bit of code: If a core determinant is not in the
+        ! hash table then they won't be found here and the deterministic flag won't be set!
         do i = 1, determ_proc_sizes(iProcIndex)
 
             tSuccess = .false.
@@ -688,23 +749,14 @@ contains
             CurrentDets(:,i) = SpawnedParts(:,i)
         end do
 
-        ! Reset the hash index array.
-        do i = 1, nWalkerHashes
-            curr => HashIndex(i)%next
-            prev => HashIndex(i)
-            prev%ind = 0
-            nullify(prev%next)
-            do while (associated(curr))
-                prev => curr
-                curr => curr%next
-                deallocate(prev)
-            end do
-        end do
-        nullify(curr)
-        nullify(prev)
+        call clear_hash_table(HashIndex)
 
         ! Finally, add the indices back into the hash index array.
         do i = 1, nwalkers
+            call extract_sign(CurrentDets(:,i), walker_sign)
+            ! Don't add the determinant to the hash table if its unoccupied and not
+            ! in the core space.
+            if (IsUnoccDet(walker_sign) .and. (.not. test_flag(CurrentDets(:,i), flag_deterministic))) cycle
             call decode_bit_det(nI, CurrentDets(:,i))
             DetHash = FindWalkerHash(nI,nWalkerHashes)
             temp_node => HashIndex(DetHash)
@@ -753,13 +805,12 @@ contains
 #ifdef __CMPLX
             sign_curr_real = sqrt(real(sign_curr(1),dp)**2 + real(sign_curr(lenof_sign),dp)**2)
 #else
-            !Just return most populated states for set1 if doing a doublerun
-            sign_curr_real = real(abs(sign_curr(1)),dp)
+            sign_curr_real = sum(real(abs(sign_curr),dp))
 #endif
             if (present(norm)) norm = norm + (sign_curr_real**2.0)
 
-            ! Is this determinant more populated than the smallest. First in the list is always
-            ! the smallest.
+            ! Is this determinant more populated than the smallest? First in
+            ! the list is always the smallest.
             if (sign_curr_real > smallest_sign) then
                 largest_walkers(:,smallest_pos) = CurrentDets(:,i)
 
@@ -769,19 +820,18 @@ contains
 #ifdef __CMPLX
                 smallest_sign = sqrt(real(low_sign(1),dp)**2+real(low_sign(lenof_sign),dp)**2)
 #else
-                smallest_sign = real(abs(low_sign(1)),dp)
+                smallest_sign = sum(real(abs(low_sign),dp))
 #endif
 
                 smallest_pos = 1
                 do j = 2, n_keep
-                    if (smallest_sign < 1.0e-7_dp) exit
                     call extract_sign(largest_walkers(:,j), low_sign)
 #ifdef __CMPLX
-                        sign_curr_real = sqrt(real(low_sign(1),dp)**2+real(low_sign(lenof_sign),dp)**2)
+                    sign_curr_real = sqrt(real(low_sign(1),dp)**2+real(low_sign(lenof_sign),dp)**2)
 #else
-                        sign_curr_real = real(abs(low_sign(1)),dp)
+                    sign_curr_real = sum(real(abs(low_sign),dp))
 #endif
-                    if (sign_curr_real < smallest_sign) then
+                    if (sign_curr_real < smallest_sign .or. all(largest_walkers(:,j) == 0_n_int)) then
                         smallest_pos = j
                         smallest_sign = sign_curr_real
                     end if
@@ -822,7 +872,6 @@ contains
 
                 smallest_pos = 1
                 do j = 2, n_keep
-                    if (smallest_sign < 1.0e-7_dp) exit
                     ind = largest_indices(j)
                     if (ind == 0) then
                         low_sign = 0.0_dp
@@ -832,22 +881,24 @@ contains
 
                     sign_curr_abs = abs(low_sign)
 
-                    if (sign_curr_abs < smallest_sign) then
+                    if (sign_curr_abs < smallest_sign .or. largest_indices(j) == 0) then
                         smallest_pos = j
                         smallest_sign = sign_curr_abs
                     end if
                 end do
-            endif
+            end if
         end do
 
     end subroutine return_largest_indices
 
-    subroutine start_walkers_from_core_ground()
+    subroutine start_walkers_from_core_ground(tPrintInfo)
 
         use davidson_neci, only: davidson_eigenvalue
 
+        logical, intent(in) :: tPrintInfo
         integer :: i, counter, ierr
-        real(dp) :: eigenvec_pop
+        real(dp) :: eigenvec_pop, pop_sign(lenof_sign)
+        real(dp), allocatable :: temp_determ_vec(:)
         character(len=*), parameter :: t_r = "start_walkers_from_core_ground"
 
         ! Create the arrays used by the Davidson routine.
@@ -866,16 +917,20 @@ contains
         call LogMemAlloc('hamil_diag', int(determ_proc_sizes(iProcIndex),sizeof_int), 8, t_r, HDiagTag, ierr)
         hamil_diag = core_ham_diag
 
-        write(6,'(a69)') "Using the deterministic ground state as initial walker configuration."
-        write(6,'(a34)') "Performing Davidson calculation..."
-        call neci_flush(6)
+        if (tPrintInfo) then
+            write(6,'(a69)') "Using the deterministic ground state as initial walker configuration."
+            write(6,'(a34)') "Performing Davidson calculation..."
+            call neci_flush(6)
+        end if
 
         ! Call the Davidson routine to find the ground state of the core space. 
         call perform_davidson(parallel_sparse_hamil_type, .false.)
 
-        write(6,'(a30)') "Davidson calculation complete."
-        write(6,'("Deterministic subspace correlation energy:",1X,f15.10)') davidson_eigenvalue
-        call neci_flush(6)
+        if (tPrintInfo) then
+            write(6,'(a30)') "Davidson calculation complete."
+            write(6,'("Deterministic subspace correlation energy:",1X,f15.10)') davidson_eigenvalue
+            call neci_flush(6)
+        end if
 
         ! The ground state compnents are now stored in davidson_eigenvector on the root.
         ! First, we need to normalise this vector to have the correct 'number of walkers'.
@@ -891,30 +946,56 @@ contains
             end if
         end if
 
-        ! Send the components to the correct processors and use partial_determ_vector as
-        ! temporary space.
+        ! Send the components to the correct processors using the following
+        ! array as temporary space.
+        allocate(temp_determ_vec(determ_proc_sizes(iProcIndex)))
         call MPIScatterV(davidson_eigenvector, determ_proc_sizes, determ_proc_indices, &
-                         partial_determ_vector(1,:), determ_proc_sizes(iProcIndex), ierr)
-
-        if (lenof_sign == 2) partial_determ_vector(2,:) = partial_determ_vector(1,:)
+                         temp_determ_vec, determ_proc_sizes(iProcIndex), ierr)
 
         ! Finally, copy these amplitudes across to the corresponding states in CurrentDets.
         counter = 0
-        do i = 1, int(TotWalkers)
+        do i = 1, int(TotWalkers, sizeof_int)
             if (test_flag(CurrentDets(:,i), flag_deterministic)) then
                 counter = counter + 1
-                call encode_sign(CurrentDets(:,i), partial_determ_vector(:,counter))
+                pop_sign = temp_determ_vec(counter)
+                call encode_sign(CurrentDets(:,i), pop_sign)
             end if
         end do
 
-        partial_determ_vector = 0.0_dp
         deallocate(davidson_eigenvector)
         call LogMemDealloc(t_r, DavidsonTag, ierr)
         deallocate(hamil_diag, stat=ierr)
         call LogMemDealloc(t_r, HDiagTag, ierr)
         call deallocate_sparse_ham(sparse_ham, 'sparse_ham', SparseHamilTags)
+        deallocate(temp_determ_vec)
 
     end subroutine start_walkers_from_core_ground
+
+    subroutine copy_core_dets_to_spawnedparts()
+
+        ! This routine will copy all the core determinants *ON THIS PROCESS
+        ! ONLY* to the SpawnedParts array.
+
+        integer :: i, ncore, proc
+        integer :: nI(nel)
+        character (len=*), parameter :: t_r = "copy_core_dets_to_spawnedparts"
+
+        ncore = 0
+        SpawnedParts = 0_n_int
+
+        do i = 1, determ_space_size
+            call decode_bit_det(nI, core_space(:,i))
+            proc = DetermineDetNode(nel,nI,0)
+            if (proc == iProcIndex) then
+                ncore = ncore + 1
+                SpawnedParts(:,ncore) = core_space(:,i)
+            end if
+        end do
+
+        if (ncore /= determ_proc_sizes(iProcIndex)) call stop_all("t_r", "The number of &
+            &core determinants counted is less than was previously counted.")
+
+    end subroutine copy_core_dets_to_spawnedparts
 
     subroutine return_mp1_amp_and_mp2_energy(nI, ilut, ex, tParity, amp, energy_contrib)
 
@@ -947,8 +1028,6 @@ contains
             ! beta orbitals of the same spatial orbital have the same
             ! fock energies, so can consider either.
             hel = hphf_off_diag_helement(HFDet, nI, iLutHF, ilut)
-        else if (tMomInv) then
-            hel = MI_off_diag_helement(HFDet, nI, iLutHF, ilut)
         else
             hel = get_helement(HFDet, nI, ic, ex, tParity)
         end if

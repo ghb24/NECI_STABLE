@@ -2,7 +2,6 @@ module bit_rep_data
 
     use CalcData, only: tUseRealCoeffs
     use constants
-    use CalcData, only: tUseRealCoeffs
 
     implicit none
 
@@ -32,9 +31,7 @@ module bit_rep_data
 
     integer :: nOffSgn  ! Offset of signs in integers
     integer :: nIfSgn   ! Number of integers used for signs
-
-    integer :: nOffIter ! The iteration where a site was first occupied
-    integer :: nIfIter  ! Obviously either one, or zero.
+    integer :: nIfTotKP ! Upper bound of krylov_vecs.
 
     ! Flags which we can store
     logical :: tUseflags
@@ -42,10 +39,10 @@ module bit_rep_data
                           flag_determ_parent = 1, &
                           flag_trial = 2, &
                           flag_connected = 3, &
-                          flag_nsteps1 = 4, &
-                          flag_nsteps2 = 5, &
-                          flag_nsteps3 = 6, &
-                          flag_nsteps4 = 7, &
+                          flag_has_been_initiator(1) = 4
+                          flag_unused1 = 5, &
+                          flag_unused2 = 6, &
+                          flag_unused3 = 7, &
                           flag_ic0_spawn = 8, &
                           flag_death_done = 9, &
                           flag_negative_sign = 10
@@ -95,7 +92,16 @@ contains
 !        off = mod(flg, bits_n_int)
 
 !        bSet = btest(ilut(ind), off)
-        bSet = btest(ilut(NOffFlag), flg + flag_bit_offset)
+
+        bSet = .false.
+
+#ifdef __INT64
+        if ((.not. tUseRealCoeffs) .or. tUseFlags) then
+#else
+        if (tUseFlags) then
+#endif
+            bSet = btest(ilut(NOffFlag), flg + flag_bit_offset)
+        end if
 
     end function test_flag
 

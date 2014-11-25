@@ -18,6 +18,8 @@ MODULE ReadInput_neci
         use SystemData, only : tMolpro
         use System,     only : SysReadInput,SetSysDefaults
         use Calc,       only : CalcReadInput,SetCalcDefaults
+        use CalcData, only: tKP_FCIQMC, tUseProcsAsNodes
+        use kp_fciqmc_procs, only: kp_fciqmc_read_inp
         use Integrals_neci,  only : IntReadInput,SetIntDefaults
         Use Logging,    only : LogReadInput,SetLogDefaults
         use Parallel_neci,   only : iProcIndex
@@ -145,6 +147,10 @@ MODULE ReadInput_neci
                 call IntReadInput()
             case("LOGGING")
                 call LogReadInput()
+            case("KP-FCIQMC")
+                tKP_FCIQMC = .true.
+                tUseProcsAsNodes = .true.
+                call kp_fciqmc_read_inp()
             case("END")
                 exit
             case default
@@ -176,17 +182,18 @@ MODULE ReadInput_neci
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
                             TNoSameExcit, TInitStar, tMP2Standalone, &
-                            GrowMaxFactor, MemoryFacPart, tTruncInitiator, &
-                            tSpawnSpatialInit, tSpatialOnlyHash, InitWalkers, &
-                            tUniqueHFNode, InitiatorCutoffEnergy, tCCMC, &
-                            tSemiStochastic, tSurvivalInitiatorThreshold
+                            MemoryFacPart, tTruncInitiator, tSemiStochastic, &
+                            tSpatialOnlyHash, InitWalkers, tUniqueHFNode, &
+                            InitiatorCutoffEnergy, tCCMC, &
+                            tSurvivalInitiatorThreshold, tKP_FCIQMC, &
+                            tSurvivalInitMultThresh, tAddToInitiator
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
                                  tNoDoubs
         use IntegralsData, only: tDiagStarStars, tExcitStarsRootChange, &
                                  tRmRootExcitStarsRootChange, tLinRootChange
-        use LoggingData, only: iLogging, tCalcFCIMCPsi, tHistHamil, &
+        use LoggingData, only: iLogging, tCalcFCIMCPsi, &
                            tCalcInstantS2, tDiagAllSpaceEver, &
                            tCalcVariationalEnergy, tCalcInstantS2Init, &
                            tPopsFile
@@ -229,10 +236,6 @@ MODULE ReadInput_neci
         if (tCalcFCIMCPsi .or. tHistSpawn) then
            tFindDets = .true.
            tCompressDets = .true.
-        endif
-        if (tHistHamil) then
-            tCalcHMat = .true.
-            tCompressDets = .true.
         endif
 
         ! We need to have found the dets before calculating the H mat.
@@ -344,7 +347,7 @@ MODULE ReadInput_neci
   
         !..   Testing ILOGGING
         !     ILOGGING = 0771
-        if (I_VMAX == 0 .and. nPaths /= 0) then
+        if (I_VMAX == 0 .and. nPaths /= 0 .and. (.not. tKP_FCIQMC)) then
             call report ('NPATHS!=0 and I_VMAX=0.  VERTEX SUM max level not &
                          &set', .true.)
         endif
@@ -391,16 +394,6 @@ MODULE ReadInput_neci
 
             ! Set the value of STOT as required
             STOT = LMS
-        endif
-  
-        if (tSpawnSpatialInit) then
-            if (.not. tTruncInitiator) &
-                call stop_all (t_r, "The spatial initiator survival critereon&
-                                    & requires TRUNCINITIATOR to be set")
-            if (.not. tSpatialOnlyHash) &
-                call stop_all (t_r, "The spatial initiator survival criteron &
-                                    &requires a spatial-only hash to be used.&
-                                    & (SPATIAL-ONLY-HASH)")
         endif
   
         if (tCalcInstantS2 .or. tCalcInstantS2Init) then
@@ -454,13 +447,23 @@ MODULE ReadInput_neci
         end if
 #endif
 
-        if (tPopsFile .and. tSurvivalInitiatorThreshold) then
+        if (tPopsFile .and. (tSurvivalInitiatorThreshold .or. &
+                             tSurvivalInitMultThresh)) then
             write(6,*) 'The initiator initial iteration details have not yet &
                        &been added to the POPSFILE reading/writing routines.'
             write(6,*) '--> Simulations will not display consistent behaviour &
                        &over restarts until this is implemented'
             call stop_all(t_r, 'POPSFILES cannot be used with initiator &
                                &survival criterion')
+        end if
+
+        if ((tSurvivalInitiatorThreshold .or. tSurvivalInitMultThresh) .and. &
+            .not. tAddToInitiator) then
+
+            write(6,*) 'Without the ADDTOINITIATOR option, the survival based &
+                       &initiator thresholds do nothing'
+            write(6,*) 'If ONLY survival based thresholds are desired, set &
+                       &initiator walker number absurdly high'
         end if
 
     end subroutine checkinput

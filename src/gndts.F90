@@ -1,5 +1,6 @@
 module gndts_mod
 
+    use constants, only: n_int 
     use SystemData, only: BasisFN, BasisFNSize, Symmetry, NullBasisFn, LzTot, &
                           tFixLz
     use sort_mod
@@ -44,7 +45,6 @@ contains
         if (tFixLz) then
             kJ%Ml=LzTot
         endif
-
 
         ! Start with the first electron
         call gndts_r (nel, nhg, brr, nBasisMax, nMrks, tCount, G1, tSpn, LMS, &
@@ -125,5 +125,58 @@ contains
 
     end subroutine
 
-end module
+    subroutine gndts_all_sym_this_proc(ilut_list, tCount, ndets)
 
+        use SystemData, only: nel
+
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
+        logical, intent(in) :: tCount
+        integer, intent(out) :: ndets
+        integer :: nI(nel)
+
+        ndets = 0
+        nI = 0
+        call gndts_all_sym_this_proc_r(ilut_list, tCount, ndets, nI, ielec=1)
+
+    end subroutine gndts_all_sym_this_proc
+
+    recursive subroutine gndts_all_sym_this_proc_r(ilut_list, tCount, ndets, nI, ielec)
+
+        use bit_rep_data, only: NIfD, NIfTot
+        use DetBitOps, only: EncodeBitDet
+        use hash, only: DetermineDetNode
+        use Parallel_neci, only: iProcIndex
+        use SystemData, only: nel, nbasis
+
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
+        logical, intent(in) :: tCount
+        integer, intent(inout) :: ndets
+        integer, intent(inout) :: nI(nel)
+        integer, intent(in) :: ielec
+        integer :: starting_orb, iorb, proc
+        integer(n_int) :: ilut(0:NIfTot)
+
+        ilut = 0_n_int
+        starting_orb = 1
+        if (ielec > 1) starting_orb = nI(ielec-1) + 1
+
+        do iorb = starting_orb, nbasis
+            nI(ielec) = iorb
+            ! If we're on the last spin.
+            if (ielec == nel) then
+                proc = DetermineDetNode(nel,nI,0)
+                if (proc == iProcIndex) then
+                    ndets = ndets + 1
+                    if (.not. tCount) then
+                        call EncodeBitDet(nI, ilut)
+                        ilut_list(0:NIfD, ndets) = ilut(0:NIfD)
+                    end if
+                end if
+            else
+                call gndts_all_sym_this_proc_r(ilut_list, tCount, ndets, nI, ielec+1)
+            end if
+        end do 
+
+    end subroutine gndts_all_sym_this_proc_r
+
+end module

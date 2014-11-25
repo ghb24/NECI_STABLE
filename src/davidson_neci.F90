@@ -161,9 +161,11 @@ type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
         end if
 
         space_size = size(hamil_diag)
-        write(6,'(1X,"Number of determinants:",'//int_fmt(space_size,1)//')') space_size; call neci_flush(6)
-        write(6,'(1X,"Allocating space for up to",'//int_fmt(max_num_davidson_iters,1)//',1X,"Krylov vectors.")') &
+        if (print_info) then
+            write(6,'(1X,"Number of determinants:",'//int_fmt(space_size,1)//')') space_size; call neci_flush(6)
+            write(6,'(1X,"Allocating space for up to",'//int_fmt(max_num_davidson_iters,1)//',1X,"Krylov vectors.")') &
             max_num_davidson_iters; call neci_flush(6)
+        end if
 
         if (hamil_type == parallel_sparse_hamil_type) then
             allocate(partial_davidson_vector(space_size))
@@ -208,18 +210,19 @@ type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
             residual_mem_reqd = space_size*8/1000000
 
             ! Allocate the necessary arrays:
-            write(6,'(1X,"Allocating array to hold Krylov vectors (",'//int_fmt(mem_reqd,0)//',1X,"MB).")') &
-                mem_reqd; call neci_flush(6)
+            if (print_info) write(6,'(1X,"Allocating array to hold Krylov vectors (",'&
+                //int_fmt(mem_reqd,0)//',1X,"MB).")') mem_reqd; call neci_flush(6)
             allocate(basis_vectors(space_size, max_num_davidson_iters))
-            write(6,'(1X,"Allocating array to hold multiplied Krylov vectors (",'//int_fmt(mem_reqd,0)//',1X,"MB).")') &
-                mem_reqd; call neci_flush(6)
+            if (print_info) write(6,'(1X,"Allocating array to hold multiplied Krylov vectors (",'&
+                //int_fmt(mem_reqd,0)//',1X,"MB).")') mem_reqd; call neci_flush(6)
             allocate(multiplied_basis_vectors(space_size, max_num_davidson_iters))
             allocate(projected_hamil(max_num_davidson_iters,max_num_davidson_iters))
             allocate(projected_hamil_scrap(max_num_davidson_iters,max_num_davidson_iters))
             allocate(eigenvector_proj(max_num_davidson_iters))
-            write(6,'(1X,"Allocating array to hold the residual vector (",'//int_fmt(residual_mem_reqd,0)//',1X,"MB).",/)') &
-                residual_mem_reqd; call neci_flush(6)
+            if (print_info) write(6,'(1X,"Allocating array to hold the residual vector (",'&
+                //int_fmt(residual_mem_reqd,0)//',1X,"MB).",/)') residual_mem_reqd; call neci_flush(6)
             allocate(residual(space_size))
+
             basis_vectors = 0.0_dp
             multiplied_basis_vectors = 0.0_dp
             projected_hamil = 0.0_dp
@@ -252,7 +255,7 @@ type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
             allocate(temp_out(space_size))
         end if
 
-        write(6,'(1X,"Calculating the initial residual vector...")',advance='no'); call neci_flush(6)
+        if (print_info) write(6,'(1X,"Calculating the initial residual vector...")',advance='no'); call neci_flush(6)
 
         ! Check that multiplying the initial vector by the Hamiltonian doesn't give back
         ! the same vector. If it does then the initial vector (the HF determinant) is
@@ -260,7 +263,11 @@ type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
         ! Also, the result of the multiplied basis vector is used to calculate the
         ! initial residual vector, if the above condition is not true.
         skip_calc = .false.
-        call multiply_hamil_and_vector(davidson_eigenvector, multiplied_basis_vectors(:,1))
+        if (iProcIndex == root) then
+            call multiply_hamil_and_vector(davidson_eigenvector, multiplied_basis_vectors(:,1))
+        else
+            call multiply_hamil_and_vector(davidson_eigenvector, temp_out)
+        end if
         if (iProcIndex == root) then
             if (all(abs(multiplied_basis_vectors(:,1)-hamil_diag(HFindex)*davidson_eigenvector) < 1.0e-12_dp)) then
                 skip_calc = .true.
@@ -274,7 +281,7 @@ type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
         call calculate_residual(basis_index=1)
         call calculate_residual_norm()
 
-        write(6,'(1X,"Done.",/)'); call neci_flush(6)
+        if (print_info) write(6,'(1X,"Done.",/)'); call neci_flush(6)
 
     end subroutine init_davidson
 
@@ -413,7 +420,7 @@ type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
             ! Note that, here, eigenvector_proj holds the components of v in the Krylov basis,
             ! and multiplied_basis_vectors holds the Krylov vectors multiplied by H, hence
             ! the matmul below does indeed retturn Hv.
-            residual = matmul(multiplied_basis_vectors, eigenvector_proj(1:basis_index))
+            residual = matmul(multiplied_basis_vectors(:,1:basis_index), eigenvector_proj(1:basis_index))
             residual = residual - davidson_eigenvalue*davidson_eigenvector
         end if
 
@@ -506,7 +513,7 @@ type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
         ! Use output_vector as temporary space.
         output_vector = input_vector
 
-        call MPIBarrier(ierr)
+        call MPIBarrier(ierr, tTimeIn=.false.)
 
         call MPIBCast(output_vector)
 
@@ -555,12 +562,16 @@ type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
         ! Deallocate all Davidson arrays. Note that the eigenvector is not deallocated,
         ! so that it can be used later.
         if (allocated(basis_vectors)) deallocate(basis_vectors)
+        if (allocated(multiplied_basis_vectors)) deallocate(multiplied_basis_vectors)
         if (allocated(projected_hamil)) deallocate(projected_hamil)
         if (allocated(projected_hamil_scrap)) deallocate(projected_hamil_scrap)
         if (allocated(partial_davidson_vector)) deallocate(partial_davidson_vector)
+        if (allocated(space_sizes)) deallocate(space_sizes)
+        if (allocated(davidson_disps)) deallocate(davidson_disps)
         if (allocated(temp_in)) deallocate(temp_in)
         if (allocated(temp_out)) deallocate(temp_out)
-        if (allocated(residual)) deallocate(residual, stat=ierr)
+        if (allocated(residual)) deallocate(residual)
+        if (allocated(eigenvector_proj)) deallocate(eigenvector_proj)
 
     end subroutine end_davidson
 

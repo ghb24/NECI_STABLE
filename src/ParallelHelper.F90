@@ -124,13 +124,23 @@ module ParallelHelper
     end interface
 #endif
 
+#ifdef PARALLEL
     ! MpiDetInt needs to be defined here, so that it can make use of the
     ! above
-#ifdef PARALLEL
 #ifdef __INT64
     integer(MPIArg), parameter :: MpiDetInt = MPI_INTEGER8
 #else
     integer(MPIArg), parameter :: MpiDetInt = MPI_INTEGER4
+#endif
+
+! This is a hack to work around disagreement between compilers on what
+! datatype is acceptable for logical variables in MPI routines.
+#ifdef __MPILOGTYPE
+    integer(MPIArg), parameter :: MPI_LOGTYPE4 = MPI_LOGICAL4
+    integer(MPIArg), parameter :: MPI_LOGTYPE8 = MPI_LOGICAL8
+#else
+    integer(MPIArg), parameter :: MPI_LOGTYPE4 = MPI_INTEGER4
+    integer(MPIArg), parameter :: MPI_LOGTYPE8 = MPI_INTEGER8
 #endif
 #else
     ! In serial, set this to a nonsense value
@@ -258,13 +268,22 @@ contains
 
 
 
-    subroutine MPIBarrier (err, Node)
+    subroutine MPIBarrier (err, Node, tTimeIn)
 
         integer, intent(out) :: err
         type(CommI), intent(in), optional :: Node
+        logical, intent(in), optional :: tTimeIn
         integer(MPIArg) :: comm, ierr
+        logical :: tTime
 
-        call set_timer(Sync_Time)
+        ! By default, do time the call.
+        if (.not. present(tTimeIn)) then
+            tTime = .true.
+        else
+            tTime = tTimeIn
+        end if
+
+        if (tTime) call set_timer(Sync_Time)
 
 #ifdef PARALLEL
         call GetComm (comm, node)
@@ -275,7 +294,7 @@ contains
         err = 0
 #endif
 
-        call halt_timer(Sync_Time)
+        if (tTime) call halt_timer(Sync_Time)
 
     end subroutine
 

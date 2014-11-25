@@ -13,6 +13,7 @@ MODULE Logging
     use hist_data, only: iNoBins, tHistSpawn, BinRange
     use errors, only: Errordebug 
     use LoggingData
+    use spectral_data, only: tPrint_sl_eigenvecs
 
     IMPLICIT NONE
 
@@ -45,8 +46,6 @@ MODULE Logging
       BinRange=0.001_dp
       iNoBins=100000
       tHistEnergies=.false.
-      tHistHamil=.false.
-      iWriteHamilEvery=-1
       tHistSpawn=.false.
       iWriteHistEvery=-1
       NoACDets(:)=0
@@ -95,7 +94,6 @@ MODULE Logging
       IterStartBlocking=0
       HFPopStartBlocking=100
       tInitShiftBlocking=.false.
-      IterShiftBlock=0
       NoDumpTruncs=0
       tWriteTransMat=.false.
       tCCMCLogTransitions=.false.
@@ -139,6 +137,8 @@ MODULE Logging
       binarypops_min_weight = 0
       tSplitPops = .false.
       tWriteCore = .false.
+      tWriteCoreEnd = .false.
+      write_end_core_size = 0
       tWriteTrial = .false.
       tCompareTrialAmps = .false.
       compare_amps_period = 0
@@ -154,8 +154,6 @@ MODULE Logging
       tRDMInstEnergy=.true.
       tFullHFAv=.false.
 
-      tLogTauSearchStats = .false.
-      tLogPopsMaxTau = .false.
 #ifdef __PROG_NUMRUNS
       tFCIMCStats2 = .true.
 #else
@@ -265,7 +263,7 @@ MODULE Logging
         case("SHIFTBLOCKINGSTARTITER")
 !This keyword can be used if we want to start the blocking error analysis of the shift at a particular 
 !iteration after the shift begins to change.            
-            call readi(IterShiftBlock)
+            call stop_all(t_r,'SHIFTBLOCKINGSTARTITER option deprecated')
 
         case("BLOCKINGSTARTHFPOP")            
 !This keyword can be used if we want to start the blocking error analysis at a particular HF population.
@@ -657,13 +655,6 @@ MODULE Logging
 ! Read in the RDMs from a previous calculation, and continue accumulating the RDMs from the very beginning of this restart. 
             tReadRDMs = .true.
         
-        case("RDMGHOSTCHILD")
-! In this case, if the probability of spawning on a given Dj, generated from Di, is less than GhostThresh (a real), 
-! the acceptance probability is increased GhostThresh. If the spawning is accepted, a 'ghost child' is created,
-! i.e. child is still equal to zero, but the DiDj pair are put in the spawning array to later contribute to the reduced density matrices.
-            tSpawnGhostChild = .true.
-            call readf(GhostThresh)
-
         case("NONEWRDMCONTRIB")
             !To be used with READRDMs.  This option makes sure that we don't add in any 
             !new contributions to the RDM if filling stochastically
@@ -726,8 +717,7 @@ MODULE Logging
 !This option will histogram the spawned hamiltonian, averaged over all previous iterations. It scales horrifically 
 !and can only be done for small systems
 !which can be diagonalized. It will write out the hamiltonian every iWriteHamilEvery.
-            tHistHamil=.true.
-            IF(item.lt.nitems) call readi(iWriteHamilEvery)
+            call stop_all(t_r,'HISTHAMIL option deprecated')
         case("BLOCKEVERYITER")
 !This will block the projected energy every iteration with the aim of achieving accurate error estimates. 
 !However, this does require a small amount of additional communication.
@@ -970,6 +960,12 @@ MODULE Logging
             ! Output the semi-stochastic core space to a file.
             tWriteCore = .true.
 
+        case("WRITE-MOST-POP-CORE-END")
+            ! At the end of a calculation, find the write_end_core_size most
+            ! populated determinants and write them to a CORESPACE file.
+            tWriteCoreEnd = .true.
+            call readi(write_end_core_size)
+
         case("WRITE-TRIAL")
             ! Output the trial wavefunction space to a file.
             tWriteTrial = .true.
@@ -988,17 +984,20 @@ MODULE Logging
 
         case("TAU-SEARCH")
             ! Log the output of tau searching
-            tLogTauSearchStats = .true.
+            call stop_all(t_r,'TAU-SEARCH option now deprecated')
 
         case("POPS-MAX-TAU")
             ! If we were using the full enumeration excitation generator,
             ! what would the maximum acceptable value of tau be for the
             ! read-in walker distribution?
-            tLogPopsMaxTau = .true.
+            call stop_all(t_r,'POPS-MAX-TAU Deprecated')
 
         case("FCIMCSTATS-2")
             ! Use the new-style FCIMCStats output.
             tFCIMCStats2 = .true.
+
+        case("PRINT-SL-EIGENVECS")
+            tPrint_sl_eigenvecs = .true.
 
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)

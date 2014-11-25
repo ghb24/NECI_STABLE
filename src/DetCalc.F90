@@ -15,7 +15,6 @@ MODULE DetCalc
 !From input
       INTEGER DETINV !The index in the list of dets of a det to investigate
       INTEGER IOBS,JOBS,KOBS
-      LOGICAL TRHOOFR,TCORR,TFODM
 
       LOGICAL TCALCHMAT,TENERGY,TREAD,TBLOCK
       LOGICAL tFindDets           !Set if we are to enumerate all determinants within given constraints
@@ -361,9 +360,9 @@ CONTAINS
       use util_mod, only: get_free_unit
       use Determinants , only : get_helement,FDet
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
-      use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot,tMomInv
+      use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot
       use IntegralsData, only: FCK,NMAX, UMat
-      Use LoggingData, only: iLogging,tHistHamil,tLogDets, tCalcVariationalEnergy
+      Use LoggingData, only: iLogging,tLogDets, tCalcVariationalEnergy
       use SystemData, only  : tCSFOLD
       use Parallel_neci, only : iProcIndex
       use DetBitops, only: DetBitEQ,EncodeBitDet,FindBitExcitLevel
@@ -373,7 +372,6 @@ CONTAINS
       use sym_mod
       use HElem
       use MemoryManager, only: TagIntType
-      use MomInv, only : IsBitMomSelfInv,InvertMomDet  
       use hist_data, only: tHistSpawn
 
       real(dp) , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
@@ -405,11 +403,7 @@ CONTAINS
           WRITE(6,*) ' NEVAL : ' , NEVAL
 
           WRITE(6,*) ' NCYCLE : ' , NCYCLE
-          WRITE(6,*) ' TCORR : ' , TCORR
           WRITE(6,*) ' TENERGY : ' , TENERGY
-          IF(TCORR) THEN
-            WRITE(6,*) ' *** EXCHANGE-CORRELATION HOLE WILL BE CALCULATED *** ' 
-          ENDIF
           WRITE(6,*) ' IOBS : ' , IOBS 
           WRITE(6,*) ' JOBS : ' , JOBS 
           WRITE(6,*) ' KOBS : ' , KOBS 
@@ -446,37 +440,6 @@ CONTAINS
 !C..Now we store HAMIL and LAB 
          CALL DETHAM(NDET,NEL,NMRKS,HAMIL,LAB,NROW,.FALSE.,ICMAX,GC,TMC)
       
-         IF(tHistHamil) THEN
-!We are storing the entire hamiltonain in expanded form, to histogram against in the spawning routines.
-             ALLOCATE(ExpandedHamil(NDet,NDet),stat=ierr)
-             IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold ExpandedHamil")
-             DO I=1,NDet
-                DO J=1,NDet
-                   ExpandedHamil(I,J)=0.0_dp
-                ENDDO
-             ENDDO
-             IND=1
-             INDZ=1
-             DO I=1,NDet
-                INDZ=INDZ+NROW(I)
-                DO WHILE (IND.LT.INDZ)
-                   ExpandedHamil(I,LAB(IND))=REAL(HAMIL(IND),dp)
-                   ExpandedHamil(LAB(IND),I)=REAL(HAMIL(IND),dp)
-                   IND=IND+1
-                ENDDO
-             ENDDO
-             iunit = get_free_unit()
-             OPEN(iunit,FILE='FULLHAMIL',STATUS='UNKNOWN')
-             DO I=1,NDET
-                 DO J=1,NDET
-                     WRITE(iunit,*) J,I,ExpandedHamil(J,I)
-                 ENDDO
-                 WRITE(iunit,*) ""
-             ENDDO
-             CLOSE(iunit)
-             DEALLOCATE(ExpandedHamil)
-         ENDIF
-
          IF(BTEST(ILOGGING,7)) THEN
 !C.. we write out H now
             iunit = get_free_unit()
@@ -770,114 +733,6 @@ CONTAINS
                 ENDIF
             enddo
 
-!            if(tMomInv.and..false.) then    
-!                !These are some tests for the MomInv functions. Off and commented out by default
-!                PairedUnit = get_free_unit()
-!                open(PairedUnit,file='LzPairedDets',status='unknown')
-!                SelfInvUnit = get_free_unit()
-!                open(SelfInvUnit,file='SelfInvDet',status='unknown')
-!                do i=1,Det
-!                    if(abs(FCIGS(i)).lt.1.0e-8_dp) cycle
-!                    !Ignore if self-inverse
-!                    if(IsBitMomSelfInv(FCIDets(:,i))) then
-!                        call decode_bit_det(TempnI,FCIDets(:,i))
-!                        write(SelfInvUnit,"(I16,6I4,G19.8)") FCIDets(0:NIfD,i),TempnI(:),FCIGS(i)
-!                        cycle
-!                    endif
-!                    
-!                    IC = FindBitExcitLevel(iLut,FCIDets(:,i),nel)
-!                    !Decode
-!                    call decode_bit_det(TempnI,FCIDets(:,i))
-!
-!                    !Find inverse det
-!                    call InvertMomDet(TempnI,MomSymDet)
-!
-!                    !Encode
-!                    call EncodeBitDet(MomSymDet,iLutMomSym)
-!
-!                    !Find excit level of mom sym det
-!                    ICSym = FindBitExcitLevel(iLut,iLutMomSym,nel)
-!
-!                    !Search for it...
-!                    if(ICSym.eq.nel) then
-!                        call BinSearchParts2(iLutMomSym,FCIDetIndex(ICSym),Det,Ind,tSuccess)
-!                    elseif(ICSym.eq.0) then
-!                        call stop_all(this_routine,"HF det is not self-inverse?!")
-!                    else
-!                        call BinSearchParts2(iLutMomSym,FCIDetIndex(ICSym),FCIDetIndex(ICSym+1)-1,Ind,tSuccess)
-!                    endif
-!                    if(.not.tSuccess) then
-!                        call stop_all(this_routine,"Sym partner not found")
-!                    endif
-!                    ICConnect = FindBitExcitLevel(FCIDets(:,i),iLutMomSym,nel)
-!                    write(PairedUnit,"(2I16,15I4,2G19.8)") FCIDets(0:NIfD,i),
-                        !iLutMomSym(0:NIfD),TempnI(:),MomSymDet(:),IC,ICSym,ICConnect,FCIGS(i),FCIGS(Ind)
-!                enddo
-!                close(PairedUnit)
-!                close(SelfInvUnit)
-!
-!                call TestMomInvInts() 
-!
-!            endif
-
-!This will sort the determinants into ascending order, for quick binary searching later on.
-!            IF(.not.tFindDets) THEN
-!                CALL SortBitDetswH(Det,FCIDets(0:NIfD,1:Det),NIfD,temp,FCIGS)
-!            ELSE
-!                CALL SortBitDets(Det,FCIDets(0:NIfD,1:Det),NIfD,temp)
-!
-!            ENDIF
-
-!DEBUGGING CODE - NOT FOR USE
-!            OPEN(23,FILE='SpinCoupDets',STATUS='UNKNOWN')
-!            do i=1,Det
-!                CALL FindExcitBitDetSym(FCIDets(0:NIfD,i),iLutSym(0:NIfD))
-!                Found=.false.
-!                do j=1,Det
-!                    IF(DetBitEQ(iLutSym,FCIDets(0:NIfDBO,j))) THEN
-!                        Found=.true.
-!                        EXIT
-!                    ENDIF
-!                enddo
-!                IF(.not.Found) THEN
-!                    WRITE(6,*) i,FCIDets(0:NIfDBO,i),iLutSym(0:NIfDBO)
-!                    CALL Stop_All("DetCalc","Cannot find spin-coupled determinant")
-!                ELSE
-!                    CALL CalcOpenOrbs(FCIDets(:,i),OpenOrbs)
-!                    CALL CalcOpenOrbs(iLutSym(:),OpenOrbsSym)
-!                    IF(OpenOrbs.ne.OpenOrbsSym) THEN
-!                        CALL Stop_All("DetCalc","Error here")
-!                    ENDIF
-!
-!                    IF(TestClosedShellDet(FCIDets(:,i))) THEN
-!                            WRITE(6,*) "Get Here"
-!                            CALL DecodeBitDet(nK,FCIDets(0:NIfDBO,i))
-!!                            CALL DecodeBitDet(nJ,FCIDets(0:NIfDBO,j))
-!                            IF(.not.DetBitEQ(FCIDets(0:NIfDBO,1),FCIDets(0:NIfDBO,i),NIfDBO)) THEN
-!                                CALL HPHFGetOffDiagHElement(NMRKS(1:NEl,1),nK,MatEl)
-!                            ENDIF
-!                            CALL HPHFGetDiagHElement(nK,MatEl2)
-!!                            WRITE(23,"(A,2I14,3G20.10,I5,2G20.10)") "Closed ",FCIDets(0:NIfD,i),iLutSym(:),
-                            !FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs,MatEl,MatEl2
-!!                        WRITE(23,"(A,2I14,3G20.10,I5)") "Closed ",FCIDets(0:NIfD,i),iLutSym(:),FCIGS(i),
-                                !FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs
-!                    ELSE
-!                        IF(abs(FCIGS(i)).gt.1.0e-5_dp) THEN 
-!!Find Hi0 element
-!                            CALL DecodeBitDet(nK,FCIDets(0:NIfDBO,i))
-!!                            CALL DecodeBitDet(nJ,FCIDets(0:NIfDBO,j))
-!                            CALL HPHFGetOffDiagHElement(NMRKS(1:NEl,1),nK,MatEl)
-!                            CALL HPHFGetDiagHElement(nK,MatEl2)
-!!                            Ex(1,1)=NEl
-!!                            CALL GETEXCITATION(nJ,nK,NEl,Ex,TSign)
-!                            WRITE(23,"(A,3I14,3G20.10,I5,2G20.10)") "Open   ",i,FCIDets(0:NIfD,i),iLutSym(:),i
-                                        !FCIGS(i),FCIGS(j),FCIGS(i)+FCIGS(j),OpenOrbs,MatEl,MatEl2
-!                        ENDIF
-!                    ENDIF
-!                ENDIF
-!            enddo
-!            CLOSE(23)
-            
             IF(tEnergy) THEN
                 IF(tLogDETS.and.iProcIndex.eq.0) THEN
                     iunit = get_free_unit()
@@ -992,13 +847,6 @@ CONTAINS
 !C.. Jump to here if just read Psi in
       CONTINUE
 
-      IF(TRHOOFR) THEN
-        Call CalcRhoOfR()
-      ENDIF
-      IF(TFODM) THEN
-        Call CalcFoDM()
-      ENDIF
-
       !Now deallocate NMRKS if tFindDets and not tEnergy
       if (tFindDets.and.tCompressDets.and.(.not.tEnergy)) then
          DEALLOCATE(NMRKS)
@@ -1007,74 +855,6 @@ CONTAINS
 
         End Subroutine DoDetCalc
 
-!Routines to plot the real-space density of solutions to the electron in a box problem
-    Subroutine CalcRhoOfR()
-        Use global_utilities
-        use SystemData, only: Alat, G1, nBasis, Omega, nEl,nMsh
-        use IntegralsData, only: nMax
-!= This variable used to be an allocatable array of size NMSH*NMSH*NMSH, but seemed to be only used as a real - ghb24 21/09/08
-        real(dp) SCRTCH
-
-        real(dp) , ALLOCATABLE :: DLINE(:),PSIR(:),RHO(:,:,:),SITAB(:,:),XCHOLE(:,:,:)!,SCRTCH()
-        INTEGER(TagIntType) :: DLINETag=0,PSIRTag=0,RHOTag=0,SITABTag=0,XCHOLETag=0!SCRTCHTag=0
-
-        character(25), parameter :: this_routine = 'CalcRhoOfR'
-        INTEGER iXD, iYD, iZD,ierr
-        real(dp) SPAC, Rs
-!C..Generate memory for RHO and SITAB
-        ALLOCATE(RHO(NMSH,NMSH,NMSH),stat=ierr)
-        CALL LogMemAlloc('RHO',NMSH**3,8,this_routine,RHOTag,ierr)
-        ALLOCATE(SITAB(NMSH,NMAX),stat=ierr)
-        CALL LogMemAlloc('SITAB',NMSH*NMAX,8,this_routine,SITABTag,ierr)
-!C..Calculate RHOOFR
-        CALL NECI_RHOOFR(nBasis,CK,G1,RHO,NMSH,SITAB,NMAX,NMRKS,NEL,NDET,NEVAL,RS,ALAT,OMEGA)
-!C..
-        ALLOCATE(DLINE(NMSH),stat=ierr)
-        CALL LogMemAlloc('DLINE',NMSH,8,this_routine,DLINETag,ierr)
-        DLINE=0.0_dp
-!C..Calculate RHOOFR in certain directions
-!C..001
-        CALL PLANARAV(RHO,NMSH,DLINE,0,0,1,SPAC,ALAT)
-        !CALL WRITE_LINE(8,'RHOAV001',DLINE,1,NMSH,-1,-1,-1,SPAC,RS)
-!C..100
-        CALL PLANARAV(RHO,NMSH,DLINE,1,0,0,SPAC,ALAT)
-        !CALL WRITE_LINE(8,'RHOAV100',DLINE,1,NMSH,-1,-1,-1,SPAC,RS)
-!C..010
-        CALL PLANARAV(RHO,NMSH,DLINE,0,1,0,SPAC,ALAT)
-        !CALL WRITE_LINE(8,'RHOAV010',DLINE,1,NMSH,-1,-1,-1,SPAC,RS)
-        IF(TCORR) THEN
-!C..Now generate memory for XCHOLE
-          ALLOCATE(XCHOLE(NMSH,NMSH,NMSH),stat=ierr)
-          CALL LogMemAlloc('XCHOLE',NMSH**3,8,this_routine,XCHOLETag,ierr)
-          ALLOCATE(PSIR(-NMSH:NMSH),stat=ierr)
-          CALL LogMemAlloc('PSIR',2*NMSH+1,8,this_routine,PSIRTag,ierr)
-          PSIR=0.0_dp
-!C..
-          IXD=1
-          IYD=0
-          IZD=0
-          SPAC=0.0_dp
-          CALL GEN_XCHOLE(CK,PSIR,IOBS,JOBS,KOBS,G1,SITAB,NMAX,NMSH,nBasis,IXD,IYD,IZD,RHO,.TRUE.,XCHOLE, &
-            SPAC,ALAT,OMEGA,NMRKS,NDET,NEVAL,NEL)
-          CALL WRITE_RHO(10,'COMPXCHOLE',XCHOLE,NMSH,NMSH,NMSH,ALAT,.FALSE.,.TRUE.,RS)
-!C..
-          CALL XCHOLES(CK,PSIR,IOBS,JOBS,KOBS,G1,SITAB,NMAX,NMSH,nBasis,RHO,XCHOLE,SPAC,RS,ALAT,OMEGA,NMRKS,NDET,NEL,NEVAL)
-        ENDIF
-    End Subroutine CalcRhoOfR
-    Subroutine CalcFoDM()
-        Use global_utilities
-        use SystemData, only: G1, nBasis, nMaxX, nMaxY, nMaxZ, nEl
-        real(dp) , ALLOCATABLE :: SUMA(:,:,:)
-        INTEGER(TagIntType) :: SUMATag=0
-        INTEGER ISTATE,ierr
-        character(25), parameter :: this_routine = 'CalcFoDM'
-        ISTATE=0
-        WRITE(6,*) ' ISTATE : ' , ISTATE 
-        ALLOCATE(SUMA(NMAXX,NMAXY,NMAXZ),stat=ierr)
-        CALL LogMemAlloc('SUMA',NMAXX*NMAXY*NMAXZ,8,this_routine,SUMATag,ierr)
-        SUMA=0.0_dp
-        CALL FODMAT(NEL,NBasis,NDET,NEVAL,ISTATE,NMRKS,G1,CK,NMAXX,NMAXY,NMAXZ,SUMA)
-    End Subroutine CalcFoDM
 END MODULE DetCalc
 
 ! If we have a list of determinants NMRKS calculate 'PATHS' for NPATHS of them.

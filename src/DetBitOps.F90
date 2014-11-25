@@ -255,6 +255,7 @@ module DetBitOps
     end function FindSpatialBitExcitLevel
 
     !WARNING - I think this *may* be buggy - use with caution - ghb24 8/6/10
+    ! I fixed a bug (bits_n_int -> bits_n_int-1), but maybe there's more... - NSB 7/10/14
     pure subroutine get_bit_excitmat (ilutI, iLutJ, ex, IC)
         
         ! Obatin the excitation matrix between two determinants from their bit
@@ -265,11 +266,11 @@ module DetBitOps
         !                       number of orbital I,J differ by
         ! Out:   ex           - Excitation matrix between I,J
 
-        integer(kind=n_int), intent(in) :: iLutI(0:NIfD), iLutJ(0:NIfD)
+        integer(n_int), intent(in) :: iLutI(0:NIfD), iLutJ(0:NIfD)
         integer, intent(inout)  :: IC
-        integer, intent(out), dimension(2,IC) :: ex
+        integer, intent(out) :: ex(2,IC)
 
-        integer(kind=n_int) :: ilut(0:NIfD,2)
+        integer(n_int) :: ilut(0:NIfD,2)
         integer :: pos(2), max_ic, i, j, k
 
         ! Obtain bit representations of I,J containing only unique orbitals
@@ -280,21 +281,22 @@ module DetBitOps
         max_ic = IC
         pos = 0
         IC = 0
-        do i=0,NIfD
-            do j=0,bits_n_int
-                do k=1,2
+        do i = 0, NIfD
+            do j = 0, bits_n_int-1
+                do k = 1, 2
                     if (pos(k) < max_ic) then
                         if (btest(ilut(i,k), j)) then
                             pos(k) = pos(k) + 1
                             IC = max(IC, pos(k))
                             ex(k, pos(k)) = bits_n_int*i + j + 1
-                        endif
-                    endif
-                enddo
+                        end if
+                    end if
+                end do
                 if (pos(1) >= max_ic .and. pos(2) >= max_ic) return
-            enddo
-        enddo
-    end subroutine
+            end do
+        end do
+
+    end subroutine get_bit_excitmat
     
     subroutine get_bit_open_unique_ind (iLutI, iLutJ, op_ind, nop, &
                                         tsign_id, nsign, IC)
@@ -781,6 +783,25 @@ module DetBitOps
 
     end subroutine FindExcitBitDet
 
+    pure function return_ms(ilut) result (ms_local)
+
+        ! Return the Ms value for the input ilut.
+
+        ! **WARNING** This function assumes that the number of electrons in the
+        ! determinant (the number of set bits in ilut) is equal to nel.
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer(n_int) :: ilut_alpha(0:NIfD)
+        integer :: nup
+        integer :: ms_local
+
+        ilut_alpha = iand(ilut(0:NIfD), MaskAlpha)
+        nup = sum(count_set_bits(ilut_alpha))
+        ! *Assuming ndown = nel - nup*
+        ms_local = 2*nup - nel
+
+    end function return_ms
+
     subroutine shift_det_bit_singles_to_beta (iLut)
         integer(kind=n_int), intent(inout) :: iLut(0:NIfD)
         integer(kind=n_int) :: iA(0:NIfD), iB(0:NIfD)
@@ -1017,7 +1038,6 @@ module DetBitOps
 
 
     end function
-
 
 end module
 

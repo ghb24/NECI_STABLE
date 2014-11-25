@@ -129,18 +129,20 @@ module procedure_pointers
 
         !
         ! Generic extract_bit_rep_avsign routine
-        subroutine extract_bit_rep_avsign_t (ilutI, CurrH_I, nI, signI, &
+        subroutine extract_bit_rep_avsign_t (ilutI, j, nI, signI, &
                                              flagsI, IterRDMStartI, AvSignI, &
                                              store)
 
+            ! j --> Which slot in CurrentDets are we examining.
+
             use SystemData, only: nel
             use bit_rep_data, only: NIfTot
-            use FciMCData, only: excit_gen_store_type, NCurrH
+            use FciMCData, only: excit_gen_store_type
             use constants
             implicit none
 
             integer(n_int), intent(in) :: ilutI(0:NIfTot)
-            real(dp), intent(in) :: CurrH_I(NCurrH)
+            integer, intent(in) :: j
             real(dp), dimension(lenof_sign), intent(out) :: IterRDMStartI, AvSignI
             integer, intent(out) :: nI(nel), FlagsI
             real(dp), intent(out) :: SignI(lenof_sign)
@@ -151,18 +153,18 @@ module procedure_pointers
 
         !
         ! Generic fill_rdm_diag_currdet routine
-        subroutine fill_rdm_diag_currdet_t (ilutI, nI, CurrH_I, ExcitLevelI, &
+        subroutine fill_rdm_diag_currdet_t (ilutI, nI, j, ExcitLevelI, &
                                             tCoreSpaceDet)
+
+            ! j --> Which slot in CurrentDets are we examining.
 
             use SystemData, only: nel
             use bit_rep_data, only: NIfTot
-            use FciMCData, only: NCurrH
             use constants
             implicit none
 
             integer(n_int), intent(in) :: ilutI(0:NIfTot)
-            real(dp), intent(in) :: CurrH_I(NCurrH)
-            integer, intent(in) :: nI(nel), ExcitLevelI
+            integer, intent(in) :: nI(nel), ExcitLevelI, j
             logical, intent(in), optional :: tCoreSpaceDet
 
         end subroutine

@@ -15,7 +15,8 @@ LOGICAL :: TLADDER,TMC,TREADRHO,TRHOIJ,TBiasing,TMoveDets
 LOGICAL :: TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
 LOGICAL :: TInitStar,TNoSameExcit,TLanczos,TStarTrips
 LOGICAL :: TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
-LOGICAL ::THDiag,TMCStar,TReadPops,TBinCancel,TFCIMC,TMCDets,tDirectAnnihil,tCCMC, tDetermProj
+LOGICAL ::THDiag,TMCStar,TReadPops,TBinCancel,TFCIMC,TMCDets,tDirectAnnihil,tCCMC
+LOGICAL :: tDetermProj, tFTLM, tSpecLanc, tExactSpec, tExactDiagAllSym
 LOGICAL :: TFullUnbias,TNoAnnihil,tStartMP1
 LOGICAL :: TRhoElems,TReturnPathMC,TSignShift
 LOGICAL :: THFRetBias,TProjEMP2,TFixParticleSign
@@ -23,27 +24,23 @@ LOGICAL :: TStartSinglePart,TRegenExcitgens
 LOGICAL :: TUnbiasPGeninProjE, tCheckHighestPopOnce
 LOGICAL :: tCheckHighestPop,tRestartHighPop,tChangeProjEDet
 LOGICAL :: tRotoAnnihil,tSpawnAsDet
-LOGICAL :: tTruncCAS,tTruncInitiator,tDelayTruncInit,tAddtoInitiator    !Truncation the FCIMC excitation space by CAS
-LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange,tRetestAddtoInit
+LOGICAL :: tTruncCAS,tTruncInitiator,tAddtoInitiator    !Truncation the FCIMC excitation space by CAS
+LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange
 logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
 logical :: tAllRealCoeff, tUseRealCoeffs
 logical :: tRealSpawnCutoff
 logical :: tRealCoeffByExcitLevel
 integer :: RealCoeffExcitThresh
-real(dp) :: RealSpawnCutoff, OccupiedThresh
+real(dp) :: RealSpawnCutoff, OccupiedThresh, InitiatorOccupiedThresh
 logical :: tEnhanceRemainder
+logical :: tInitOccThresh
 logical :: tRPA_QBA     !RPA calculation with QB approximation
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
-logical :: tPopsMapping !Map popsfile from smaller basis onto larger basis
 logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
 
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.
 logical :: tSpatialOnlyHash
-
-! Do we allow walkers to survive (in the initiator approx.) if a determinant
-! with the same spatial configuration is an initiator?
-logical :: tSpawnSpatialInit
 
 ! Do we truncate spawning based on the number of unpaired electrons
 logical :: tTruncNOpen
@@ -51,7 +48,7 @@ integer :: trunc_nopen_max
 
 logical :: tMaxBloom    !If this is on, then we only print out a bloom warning if it is the biggest to date.
 
-INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits,IterTruncInit,NShiftEquilSteps
+INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits,NShiftEquilSteps
 INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp,iFullSpaceIter
 INTEGER :: IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets,iDetGroup
 INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
@@ -60,7 +57,8 @@ INTEGER :: NEquilSteps
 real(dp) :: InitialPart
 real(dp) :: InitialPartVec(lenof_sign_max)
 INTEGER :: OccCASorbs,VirtCASorbs,iAnnInterval
-integer :: iPopsFileNoRead, iPopsFileNoWrite,iWeightPopRead,iRestartWalkNum
+integer :: iPopsFileNoRead, iPopsFileNoWrite,iRestartWalkNum
+real(dp) :: iWeightPopRead
 integer :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
 INTEGER(int64) :: HFPopThresh
 real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo
@@ -74,8 +72,8 @@ real(dp) :: g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
 real(dp) :: G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
 real(dp) :: BETAP,RHOEPSILON,DBETA,STARCONV,GraphBias
 real(dp) :: GrowGraphsExpo,Tau,SftDamp,ScaleWalkers
-real(dp) :: GrowMaxFactor,CullFactor,PRet,FracLargerDet
-real(dp) :: MemoryFacPart,MemoryFacAnnihil
+real(dp) :: PRet,FracLargerDet
+real(dp) :: MemoryFacPart
 real(dp) :: MemoryFacSpawn,SinglesBias,TauFactor,StepsSftImag
 
 real(dp) :: MemoryFacInit
@@ -102,7 +100,6 @@ LOGICAL tUseProcsAsNodes  !Set if we treat each processor as its own node.
 INTEGER iLogicalNodeSize  !An alternative to the above, create logical nodes of at most this size.
                           ! 0 means use physical nodes.
 
-logical :: tContinueAfterMP2 ! UEG option only
     logical :: tJumpShift
 
 ! Perform a Davidson calculation if true.
@@ -128,6 +125,10 @@ logical :: tLowECore
 ! of the determinants in the MP1 wave function will be used to determine which to keep. Otherwise all singles and
 ! doubles are kept.
 logical :: tMP1Core 
+! Use the entire Hilbert space as the core space.
+logical :: tFCICore
+logical :: tHeisenbergFCICore
+logical :: tSparseCoreHamil ! Use a sparse representation of the core Hamiltonian.
 ! cas_determ_bitmask has all bits that refer to the active space set, and all other bits unset.
 ! cas_not_determ_bitmask is simply the result after the not operation is applied to cas_determ_bitmask.
 integer(n_int), allocatable, dimension(:) :: cas_determ_bitmask
@@ -184,6 +185,9 @@ logical :: tLowETrial
 ! of the determinants in the MP1 wave function will be used to determine which to keep. Otherwise all singles and
 ! doubles are kept.
 logical :: tMP1Trial
+! Use the entire Hilbert space as the trial space.
+logical :: tFCITrial
+logical :: tHeisenbergFCITrial
 real(dp), allocatable, dimension(:) :: trial_space_cutoff_amp
 integer, allocatable, dimension(:) :: trial_space_cutoff_num
 ! When using a CAS trial space, these integers store the number of orbitals above and below the Fermi energy to
@@ -209,6 +213,19 @@ logical :: tLowETrialAllDoubles
 ! When using the tMP1Trial option, this specifies how many determinants to keep.
 integer :: trial_mp1_ndets
 
+! True if running a kp-fciqmc calculation.
+logical :: tKP_FCIQMC
+
+! If this is true then we only start varying shift when we get *below* the target population, rather than above it.
+! This is useful when we want to start from a large and high-energy population and let many walkers quickly die with
+! a constant shift (i.e. finite-temperature calculations).
+logical :: tLetInitialPopDie
+
+! Calculate the norms of the *unperturbed* POPSFILE wave functions and output them to a file.
+logical :: tWritePopsNorm
+real(dp) :: pops_norm
+integer :: pops_norm_unit
+
 ! What is the maximum energy, above which all particles are treated as
 ! initiators
 real(dp) :: InitiatorCutoffEnergy, InitiatorCutoffWalkNo
@@ -225,7 +242,7 @@ logical, parameter :: tMultiReplicaInitiators = .false.
 
 ! Do we make sites into initiators if they have survived more than a certain
 ! period of time?
-logical :: tSurvivalInitiatorThreshold
-integer :: nItersInitiator
+logical :: tSurvivalInitiatorThreshold, tSurvivalInitMultThresh
+real(dp) :: im_time_init_thresh, init_survival_mult
 
 end module CalcData

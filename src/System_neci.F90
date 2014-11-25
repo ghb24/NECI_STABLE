@@ -31,10 +31,8 @@ MODULE System
 !     Any further addition of defaults should change these after via
 !     specifying a new set of DEFAULTS.
       tComplexOrbs_RealInts = .false.
-      tReadFreeFormat=.false.
+      tReadFreeFormat=.true.
       tMolproMimic=.false.
-      tAntisym_MI=.false.
-      tMomInv=.false.
       tNoSingExcits=.false.
       tOneElecDiag=.false.
       tMCSizeTruncSpace=.false.
@@ -74,6 +72,7 @@ MODULE System
       THUB=.false.
       TUEG=.false.
       tUEG2=.false.
+      tHeisenberg = .false.
       tLatticeGens =.false.
       tNoFailAb=.false.
       LMS=0
@@ -168,6 +167,7 @@ MODULE System
       tSymIgnoreEnergies=.false.
       tPickVirtUniform = .false.
       modk_offdiag = .false.
+      tAllSymSectors = .false.
       tGenHelWeighted = .false.
       tGen_4ind_weighted = .false.
       tGen_4ind_reverse = .false.
@@ -345,8 +345,31 @@ system: do
             IF(tHub) THEN
                 CALL Stop_All("SysReadInput","Cannot turn off symmetry with the hubbard model.")
             ENDIF
+
         case("FREEFORMAT")
+            ! Relax the formatting requirements for reading in FCIDUMP files.
+            !
+            ! For historical reasons, QChem uses a very fixed format for
+            ! outputting FCIDUMP files. As a result the columns of orbital
+            ! indices will merge whenever there are more than 99 spatial
+            ! orbitals. To correctly read these files a FIXED format is
+            ! required for reading. Obviously, this is non-ideal when reading
+            ! FCIDUMP formats from elsewhere.
+            !
+            ! The QChem behaviour used to be default, but this has been
+            ! deprecated. To obtain the fixed behaviour use
+            ! "FREEFORMAT OFF" or "FREEFORMAT FALSE"
+
             tReadFreeFormat = .true.
+            if (item < nitems) then
+                call readu(w)
+                select case(w)
+                case("OFF", "FALSE")
+                    tReadFreeFormat = .false.
+                case default
+                end select
+            end if
+
         case("SYM")
             TPARITY = .true.
             do I = 1,4
@@ -533,20 +556,7 @@ system: do
 !in bad, bad times.
             tAssumeSizeExcitgen=.true.
         case("MOMINVSYM")
-            tMomInv=.true.
-            tAntisym_MI=.false.
-            if(item.lt.nitems) then
-                call geti(Odd_EvenMI)
-                if(Odd_EvenMI.eq.1) then
-                    !Converging on the antisymmetric state (- symmetry)
-                    tAntisym_MI=.true.
-                elseif(Odd_EvenMI.eq.0) then
-                    !Converging on the symmetric state (+ symmetry)
-                    !This is done by default
-                else
-                    call stop_all("SysReadInput","Invalid variable given to MOMINVSYM option: 0 = + sym; 1 = - sym")
-                endif
-            endif
+            call stop_all(t_r,'Deprecated function. Look in defunct_code folder if you want to see it')
         case("HPHF")
             tHPHF=.true.
             if(item.lt.nitems) then
@@ -929,6 +939,10 @@ system: do
             call stop_all(t_r, "mneci.x build must be used for running with &
                                &multiple simultaneous replicas")
 #endif
+
+          case("HEISENBERG")
+              tHeisenberg = .true.
+
         case("ENDSYS") 
             exit system
         case default
