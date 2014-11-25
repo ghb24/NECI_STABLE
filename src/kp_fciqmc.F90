@@ -91,8 +91,6 @@ contains
                     ! Copy the current state of CurrentDets to krylov_vecs.
                     call store_krylov_vec(kp)
 
-                    call calc_overlap_matrix_elems(kp)
-
                     ! Calculate the overlap of the perturbed ground state vector
                     ! with the new Krylov vector, if requested.
                     if (tOverlapPert) call calc_perturbation_overlap(kp)
@@ -292,6 +290,8 @@ contains
 
                 end do ! Over all Krylov vectors.
 
+                call calc_overlap_matrix(kp, krylov_vecs, TotWalkersKP)
+
                 if (tExactHamil) then
                     call calc_hamil_exact(kp)
                 else if (.not. tHamilOnFly) then
@@ -362,7 +362,7 @@ contains
 
             do ireport = 1, kp%nvecs
 
-                call calc_overlap_matrix_elems(kp)
+                call calc_overlap_matrix(kp, CurrentDets, int(TotWalkers, sizeof_int))
 
                 if (tExactHamil) then
                     call calc_hamil_exact(kp)

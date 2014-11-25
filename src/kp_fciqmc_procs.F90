@@ -1119,51 +1119,54 @@ contains
 
     end subroutine store_krylov_vec
 
-    subroutine calc_overlap_matrix_elems(kp)
+    subroutine calc_overlap_matrix(kp, krylov_array, array_len)
 
         type(kp_fciqmc_data), intent(inout) :: kp
-        integer :: idet, jvec, ind(kp%ivec)
+        integer(n_int), intent(in) :: krylov_array(0:,:)
+        integer, intent(in) :: array_len
+
+        integer :: idet, ivec, jvec, ind(kp%nvecs)
         integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
 
-        associate(s_matrix => kp%overlap_matrix, ivec => kp%ivec)
+        associate(s_matrix => kp%overlap_matrix)
 
             ! Just in case!
-            s_matrix(1:ivec, ivec) = 0.0_dp
-            s_matrix(ivec, 1:ivec) = 0.0_dp
+            s_matrix(:,:) = 0.0_dp
 
-            do jvec = 1, ivec
-                ! The first index of the sign in krylov_vecs, for each Krylov vector.
+            do jvec = 1, kp%nvecs
+                ! The first index of the sign in krylov_array, for each vector.
                 ind(jvec) = NIfDBO + lenof_sign*(jvec-1) + 1
             end do
 
-            ! Loop over all determinants in krylov_vecs.
-            do idet = 1, TotWalkersKP
-                int_sign = krylov_vecs(ind(ivec):ind(ivec)+lenof_sign-1, idet)
-                real_sign_1 = transfer(int_sign, real_sign_1)
-                if (IsUnoccDet(real_sign_1)) cycle
-                ! Loop over all Krylov vectors currently stored.
-                do jvec = 1, ivec
-                    int_sign = krylov_vecs(ind(jvec):ind(jvec)+lenof_sign-1, idet)
-                    real_sign_2 = transfer(int_sign, real_sign_1)
-                    if (IsUnoccDet(real_sign_2)) cycle
+            ! Loop over all determinants in the Krylov array.
+            do idet = 1, array_len
+                ! Loop over all Krylov vectors.
+                do ivec = 1, kp%nvecs
+                    int_sign = krylov_array(ind(ivec):ind(ivec)+1, idet)
+                    real_sign_1 = transfer(int_sign, real_sign_1)
+                    if (IsUnoccDet(real_sign_1)) cycle
+
+                    do jvec = 1, ivec
+                        int_sign = krylov_array(ind(jvec):ind(jvec)+1, idet)
+                        real_sign_2 = transfer(int_sign, real_sign_1)
+                        if (IsUnoccDet(real_sign_2)) cycle
+
 #ifdef __DOUBLERUN
                     s_matrix(jvec,ivec) = s_matrix(jvec,ivec) + &
                         (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
 #else
                     s_matrix(jvec,ivec) = s_matrix(jvec,ivec) + real_sign_1(1)*real_sign_2(1)
 #endif
+                    ! Fill in the lower-half of the overlap matrix.
+                    s_matrix(ivec,jvec) = s_matrix(jvec,ivec)
+                    end do
                 end do
-            end do
-
-            ! Fill in the lower-half of the overlap matrix.
-            do jvec = 1, ivec
-                s_matrix(ivec,jvec) = s_matrix(jvec,ivec)
             end do
 
         end associate
 
-    end subroutine calc_overlap_matrix_elems
+    end subroutine calc_overlap_matrix
 
     subroutine calc_perturbation_overlap(kp)
 
