@@ -183,7 +183,7 @@ MODULE FciMCData
       !This is the sum of abs(double*sign*Hij) over all processors over the course of the updat
 
       ! The projected energy over the current update cycle.
-      HElement_t :: ProjECyc(:)
+      HElement_t, allocatable :: ProjECyc(:)
       
       real(dp) :: bloom_sizes(0:2), bloom_max(0:2)
       integer :: bloom_count(0:2), all_bloom_count(0:2)
@@ -317,7 +317,7 @@ MODULE FciMCData
       
       ! An instantaneous value of the shift from the particle growth
       real(dp), allocatable :: InstShift(:)
-      real(dp), allocatable :: OldAllNoatHF(l:)
+      real(dp), allocatable :: OldAllNoatHF(:)
 
       INTEGER :: iHFProc    !Processor index for HF determinant
 

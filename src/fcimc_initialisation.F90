@@ -23,7 +23,8 @@ module fcimc_initialisation
                         trunc_nopen_max, MemoryFacInit, MaxNoatHF, HFPopThresh, &
                         tAddToInitiator, InitiatorWalkNo, tRestartHighPop, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
-                        RealCoeffExcitThresh
+                        RealCoeffExcitThresh, TargetGrowRate, &
+                        TargetGrowRateWalk
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -96,7 +97,8 @@ module fcimc_initialisation
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
     use gndts_mod, only: gndts
     use csf, only: get_csf_helement
-    use CCMCData, only: iSgnCCMC => iSgn
+!    use CCMCData, only: iSgn => iSgnCCMC
+!    use CCMCData, only: iSgn
     use tau_search, only: init_tau_search
     use fcimc_helper, only: CalcParentFlag
     use get_excit, only: make_double
@@ -125,7 +127,7 @@ contains
         if (inum_runs > inum_runs_max .or. lenof_sign > lenof_sign_max) then
             write(6,*) "System has too many replicas"
             write(6,*) "This breaks the use of initiator flags, and &
-                       &potentially other things."\
+                       &potentially other things."
             call stop_all(this_routine, "Too many replicas requested")
         end if
 
@@ -167,7 +169,7 @@ contains
                  AllGrowRateAbort(lenof_sign), &
 
                  ! CCMCage
-                 iSgnCCMC(lenof_sign), &
+                 !!iSgnCCMC(lenof_sign), &
 
                  stat=ierr)
 
@@ -241,7 +243,7 @@ contains
                  iter_data_ccmc%nremoved(lenof_sign), &
                  iter_data_ccmc%update_growth(lenof_sign), &
                  iter_data_ccmc%update_growth_tot(lenof_sign), &
-                 iter_data_ccmc%tot_parts_old(lenof_sign)
+                 iter_data_ccmc%tot_parts_old(lenof_sign), &
 
                  stat=ierr)
 
@@ -254,7 +256,7 @@ contains
         deallocate(AvNoatHF, &
                    InstNoatHF, &
                    IterRDM_HF, &
-                   SumNoatHF, AllSumNoatHF&
+                   SumNoatHF, AllSumNoatHF, &
                    NoatHF, AllNoatHF, OldAllNoatHF, &
 
                    TotParts, AllTotParts, &
@@ -287,7 +289,7 @@ contains
                    AllGrowRateAbort, &
 
                    ! CCMCage
-                   iSgnCCMC, &
+                   !!iSgnCCMC, &
 
                    NoatDoubs, AllNoatDoubs, &
                    AccRat, &
