@@ -791,7 +791,7 @@ contains
 
     subroutine calculate_new_shift_wrapper (iter_data, tot_parts_new)
 
-        type(fcimc_iter_data) :: iter_data
+        type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
         real(dp), dimension(lenof_sign) :: tot_parts_new_all
 

@@ -55,14 +55,14 @@ MODULE FciMCData
       INTEGER , ALLOCATABLE :: Spawned_Parents_Index(:,:)
       INTEGER :: Spawned_ParentsTag, Spawned_Parents_IndexTag
       REAL(dp) :: SumSigns, SumSpawns
-      REAL(dp) :: AvNoatHF(lenof_sign_max)
+      real(dp), allocatable :: AvNoatHF(:)
       LOGICAL :: tFillingStochRDMonFly, tFillingExplicRDMonFly
       logical :: tFill_RDM
       integer :: IterLastRDMFill
       integer :: Spawned_Parts_Zero, HFInd
       integer :: IterRDMStart
-      integer :: IterRDM_HF(inum_runs_max)
-      real(dp) :: InstNoatHf(lenof_sign_max)
+      integer, allocatable :: IterRDM_HF(:)
+      real(dp), allocatable :: InstNoatHf(:)
       logical :: tFinalRDMEnergy
 
       INTEGER(KIND=n_int) , ALLOCATABLE :: TempSpawnedParts(:,:)
@@ -76,17 +76,17 @@ MODULE FciMCData
       INTEGER :: NoAbortedInCAS,NoAbortedOutCAS,NoInCAS,NoOutCAS, HighPopNeg, HighPopPos
       REAL(dp) :: MaxInitPopNeg,MaxInitPopPos
 
-    real(dp), dimension(lenof_sign_max) :: NoAborted, AllNoAborted, AllNoAbortedOld
-    real(dp), dimension(lenof_sign_max) :: NoRemoved, AllNoRemoved, AllNoRemovedOld
-    integer(int64), dimension(lenof_sign_max) :: NoAddedInitiators, NoInitDets, NoNonInitDets
-    real(dp), dimension(lenof_sign_max) :: NoInitWalk, NoNonInitWalk
-    integer(int64), dimension(lenof_sign_max) :: NoExtraInitDoubs, InitRemoved
+    real(dp), allocatable :: NoAborted(:), AllNoAborted(:), AllNoAbortedOld(:)
+    real(dp), allocatable :: NoRemoved(:), AllNoRemoved(:), AllNoRemovedOld(:)
+    integer(int64), allocatable :: NoAddedInitiators(:), NoInitDets(:), NoNonInitDets(:)
+    real(dp), allocatable :: NoInitWalk(:), NoNonInitWalk(:)
+    integer(int64), allocatable :: NoExtraInitDoubs(:), InitRemoved(:)
 
-    integer(int64), dimension(lenof_sign_max) :: AllNoAddedInitiators, AllNoInitDets
-    integer(int64), dimension(lenof_sign_max) :: AllNoNonInitDets
-    real(dp), dimension(inum_runs_max) :: AllNoInitWalk, AllNoNonInitWalk
-    integer(int64), dimension(lenof_sign_max) :: AllNoExtraInitDoubs, AllInitRemoved
-    integer(int64), dimension(lenof_sign_max) :: AllGrowRateAbort
+    integer(int64), allocatable :: AllNoAddedInitiators(:), AllNoInitDets(:)
+    integer(int64), allocatable :: AllNoNonInitDets(:)
+    real(dp),allocatable :: AllNoInitWalk(:), AllNoNonInitWalk(:)
+    integer(int64), allocatable :: AllNoExtraInitDoubs(:), AllInitRemoved(:)
+    integer(int64), allocatable :: AllGrowRateAbort(:)
 
       LOGICAL :: tHFInitiator, tPrintHighPop
       logical :: tHashWalkerList    !Option to store occupied determinant in a hash table
@@ -107,19 +107,13 @@ MODULE FciMCData
       INTEGER :: MaxWalkersPart,PreviousNMCyc,Iter,NoComps,MaxWalkersAnnihil
       integer :: MaxWalkersUncorrected
       integer(int64) :: TotWalkers, TotWalkersOld
-      real(dp), dimension(lenof_sign_max) :: TotParts, TotPartsOld
-      real(dp) :: norm_psi_squared(inum_runs_max)
-      real(dp) :: norm_semistoch_squared(inum_runs_max)
-      real(dp) :: all_norm_psi_squared(inum_runs_max)
-#ifdef __CMPLX
-      real(dp) :: norm_psi
+      real(dp), allocatable :: TotParts(:), TotPartsOld(:)
+      real(dp), allocatable :: norm_psi_squared(:)
+      real(dp), allocatable :: norm_semistoch_squared(:)
+      real(dp), allocatable :: all_norm_psi_squared(:)
+      real(dp), allocatable :: norm_psi(:)
       ! The norm of the wavefunction in just the semi-stochastic space.
-      real(dp) :: norm_semistoch
-#else
-      real(dp) :: norm_psi(inum_runs_max)
-      ! The norm of the wavefunction in just the semi-stochastic space.
-      real(dp) :: norm_semistoch(inum_runs_max)
-#endif
+      real(dp), allocatable :: norm_semistoch(:)
 
       INTEGER :: exFlag=3
       real(dp) :: AccumRDMNorm, AccumRDMNorm_Inst, AllAccumRDMNorm
@@ -132,93 +126,94 @@ MODULE FciMCData
 !The following variables are calculated as per processor, but at the end of each update cycle, 
 !are combined to the root processor
       real(dp) :: GrowRate,DieRat
-      HElement_t :: SumENum(inum_runs_max)
+      HElement_t, allocatable :: SumENum(:)
 
       ! The averaged projected energy - calculated from accumulated values.
-      HElement_t :: ProjectionE(inum_runs_max)
+      HElement_t, allocatable :: ProjectionE(:)
       HElement_t :: ProjectionE_tot
 
       ! The averaged projected energy - calculated over the last update cycle
-      HElement_t :: proje_iter(inum_runs_max)
+      HElement_t, allocatable :: proje_iter(:)
       HElement_t :: proje_iter_tot
 
       ! The averaged 'absolute' projected energy - calculated over the last update cycle
       ! The magnitude of each contribution is taken before it is summed in
-      HElement_t :: AbsProjE(inum_runs_max)
+      HElement_t, allocatable :: AbsProjE(:)
 
-      real(dp) :: trial_numerator(inum_runs_max)
-      real(dp) :: tot_trial_numerator(inum_runs_max)
-      real(dp) :: trial_denom(inum_runs_max), tot_trial_denom(inum_runs_max)
+      real(dp), allocatable :: trial_numerator(:), tot_trial_numerator(:)
+      real(dp), allocatable :: trial_denom(:), tot_trial_denom(:)
 
       ! The sum over all previous cycles of the number of particles on the
       ! reference site
-      real(dp) :: SumNoatHF(lenof_sign_max)
+      real(dp), allocatable :: SumNoatHF(:)
       real(dp) :: AvSign           !This is the average sign of the particles on each node
       real(dp) :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
 
       ! The sum of all walkers over an update cycle on each processor
-      real(dp) :: SumWalkersCyc(inum_runs_max)
+      real(dp), allocatable :: SumWalkersCyc(:)
       ! The number annihilated per processor
-      real(dp) :: Annihilated(lenof_sign_max)
+      real(dp), allocatable :: Annihilated(:)
       ! The (instantaneous) number of particles on the Reference det
-      real(dp) :: NoatHF(lenof_sign_max)
-      real(dp) :: NoatDoubs(inum_runs_max)
+      real(dp), allocatable :: NoatHF(:)
+      real(dp), allocatable :: NoatDoubs(:)
       ! Number of accepted spawns (separately on each node)
-      real(dp) :: Acceptances(inum_runs_max)
+      real(dp), allocatable :: Acceptances(:)
       ! Acceptance ratio (on each node) over the update cycle
-      real(dp) :: AccRat(inum_runs_max)
+      real(dp), allocatable :: AccRat(:)
+      ! This is just for the head node, so that it can store the number of
+      ! previous cycles when reading from POPSFILE
       INTEGER :: PreviousCycles
-      !This is just for the head node, so that it can store the number of previous cycles when reading from POPSFILE
-      REAL(dp) :: NoBorn(inum_runs_max), NoDied(inum_runs_max)
-      REAL(dp) :: SpawnFromSing  (inum_runs_max)
-      !These will output the number of particles in the last update cycle which have been spawned by a single excitation.
-      REAL(dp) :: AllSpawnFromSing(inum_runs_max)
-      REAL(dp) :: HFCyc(lenof_sign_max)
+      REAL(dp), allocatable :: NoBorn(:), NoDied(:)
+      ! These will output the number of particles in the last update cycle
+      ! which have been spawned by a single excitation.
+      real(dp), allocatable :: SpawnFromSing (:), AllSpawnFromSing(:)
+      REAL(dp), allocatable :: HFCyc(:)
       !This is the number of HF*sign particles on a given processor over the course of the update cycle
-      HElement_t  :: AllHFCyc(inum_runs_max) 
+      HElement_t, allocatable :: AllHFCyc(:) 
       !This is the sum of HF*sign particles over all processors over the course of the update cycle
-      HElement_t :: OldAllHFCyc(inum_runs_max) 
+      HElement_t, allocatable :: OldAllHFCyc(:) 
       !This is the old *average* (not sum) of HF*sign over all procs over previous update cycle
-      HElement_t :: ENumCyc(inum_runs_max)
+      HElement_t, allocatable :: ENumCyc(:)
       !This is the sum of doubles*sign*Hij on a given processor over the course of the update c
-      HElement_t :: AllENumCyc(inum_runs_max)
+      HElement_t, allocatable :: AllENumCyc(:)
       !This is the sum of double*sign*Hij over all processors over the course of the update cyc
-      HElement_t :: ENumCycAbs(inum_runs_max)
+      HElement_t, allocatable :: ENumCycAbs(:)
       !This is the sum of abs(doubles*sign*Hij) on a given processor "" "" "" 
-      HElement_t :: AllENumCycAbs(inum_runs_max)
+      HElement_t, allocatable :: AllENumCycAbs(:)
       !This is the sum of abs(double*sign*Hij) over all processors over the course of the updat
 
       ! The projected energy over the current update cycle.
-      HElement_t :: ProjECyc(inum_runs_max)
+      HElement_t :: ProjECyc(:)
       
       real(dp) :: bloom_sizes(0:2), bloom_max(0:2)
       integer :: bloom_count(0:2), all_bloom_count(0:2)
 
       ! Global, accumulated, values calculated on the root processor from
       ! the above per-node values
-      real(dp) :: AllGrowRate(inum_runs_max)
+      real(dp), allocatable :: AllGrowRate(:)
       integer(int64) :: AllTotWalkers, AllTotWalkersOld
-      real(dp) :: AllTotParts(lenof_sign_max), AllTotPartsOld(lenof_sign_max)
-      real(dp) :: AllSumNoatHF(lenof_sign_max)
-      real(dp) :: AllSumWalkersCyc(inum_runs_max)
-      real(dp) :: OldAllAvWalkersCyc(inum_runs_max)
-      real(dp) :: AllAnnihilated(inum_runs_max)
-      real(dp) :: AllNoAtDoubs(inum_runs_max)
-      real(dp) :: AllNoatHF(lenof_sign_max)
-      HElement_t, dimension(inum_runs_max) :: sum_proje_denominator, &
-                        cyc_proje_denominator, all_cyc_proje_denominator, &
-                        all_sum_proje_denominator
+      real(dp), allocatable :: AllTotParts(:), AllTotPartsOld(:)
+      real(dp), allocatable :: AllSumNoatHF(:)
+      real(dp), allocatable :: AllSumWalkersCyc(:)
+      real(dp), allocatable :: OldAllAvWalkersCyc(:)
+      real(dp), allocatable :: AllAnnihilated(:)
+      real(dp), allocatable :: AllNoAtDoubs(:)
+      real(dp), allocatable :: AllNoatHF(:)
+      HElement_t, allocatable :: sum_proje_denominator(:)
+      HElement_t, allocatable :: all_sum_proje_denominator(:)
+      HElement_t, allocatable :: cyc_proje_denominator(:)
+      HElement_t, allocatable :: all_cyc_proje_denominator(:)
       real(dp) :: AllAvSign,AllAvSignHFD
       INTEGER :: MaxSpawned
-      real(dp) :: AllNoBorn(inum_runs_max), AllNoDied(inum_runs_max)
-      HElement_t :: AllSumENum(inum_runs_max)
+      real(dp), allocatable :: AllNoBorn(:), AllNoDied(:)
+      HElement_t, allocatable :: AllSumENum(:)
 
       HElement_t :: rhii
       real(dp) :: Hii,Fii
 
       ! This is true if tStartSinglePart is true, and we are still in the
       ! phase where the shift is fixed and particle numbers are growing
-      logical :: tSinglePartPhase(inum_runs_max)                 
+      logical, allocatable :: tSinglePartPhase(:) 
 
 !      INTEGER :: mpilongintegertype               !This is used to create an MPI derived type to cope with 8 byte integers
 
@@ -226,7 +221,7 @@ MODULE FciMCData
       INTEGER :: MaxIndex
 
       ! The iteration to begin automatic blocking from
-      integer :: iBlockingIter(inum_runs_max)
+      integer, allocatable :: iBlockingIter(:)
 
  !This becomes true when the blocking error analysis begins, and initiates the calling of the blocking routine.
       LOGICAL :: tErrorBlocking=.false.           
@@ -244,7 +239,7 @@ MODULE FciMCData
                            kp_generate_time
       
       ! Store the current value of S^2 between update cycles
-      real(dp) :: curr_S2(inum_runs_max), curr_S2_init(inum_runs_max)
+      real(dp), allocatable :: curr_S2(:), curr_S2_init(:)
 
       integer :: HolesInList    !This is for tHashWalkerList and indicates the number of holes in the main list this iter
 
@@ -295,14 +290,14 @@ MODULE FciMCData
       LOGICAL , PARAMETER :: tGenMatHEl=.true.      
 
       ! Number of update cycles that the shift has been allowed to vary
-      integer :: VaryShiftCycles(inum_runs_max)
+      integer, allocatable :: VaryShiftCycles(:)
 
       ! The iteration the shift is allowed to vary from
-      integer :: VaryShiftIter(inum_runs_max)
+      integer, allocatable :: VaryShiftIter(:)
 
       ! The average diagonal shift value since it started varying, and the sum
       ! of the shifts since it started varying.
-      real(dp), dimension(inum_runs_max) :: AvDiagSft, SumDiagSft                
+      real(dp), allocatable :: AvDiagSft(:), SumDiagSft(:)
 
 !These arrays are for histogramming the hamiltonian when tHistHamil is set.
       real(dp) , ALLOCATABLE :: HistHamil(:,:),AllHistHamil(:,:),AvHistHamil(:,:),AllAvHistHamil(:,:) 
@@ -318,11 +313,11 @@ MODULE FciMCData
 
       ! A 'shift'-like value for the total energy, taken from the growth of
       ! walkers on the reference site
-      real(dp) :: HFShift(inum_runs_max)
+      real(dp), allocatable :: HFShift(:)
       
       ! An instantaneous value of the shift from the particle growth
-      real(dp) :: InstShift(inum_runs_max)
-      real(dp) :: OldAllNoatHF(lenof_sign_max)
+      real(dp), allocatable :: InstShift(:)
+      real(dp), allocatable :: OldAllNoatHF(l:)
 
       INTEGER :: iHFProc    !Processor index for HF determinant
 
@@ -352,26 +347,26 @@ MODULE FciMCData
       TYPE(BasisFN) :: HFSym
       integer :: iMaxBloom !If tMaxBloom is on, this stores the largest bloom to date.
 
-      real(dp) :: proje_denominator_cyc(lenof_sign_max)
-      real(dp) :: proje_denominator_sum(lenof_sign_max)
+      real(dp), allocatable :: proje_denominator_cyc(:)
+      real(dp), allocatable :: proje_denominator_sum(:)
       logical :: tRestart   !Whether to restart a calculation
 
       ! Diag shift from the input file, if it needed to be reset after restart
-      real(dp) :: InputDiagSft(inum_runs_max)
+      real(dp), allocatable :: InputDiagSft(:)
       
 
       ! ********************** FCIMCPar control variables *****************
       ! Store data from one fcimc iteration
       !  --> We can deal with different types of iteration separately
       type fcimc_iter_data
-          real(dp) :: nborn(lenof_sign_max)
-          real(dp) :: ndied(lenof_sign_max)
-          real(dp) :: nannihil(lenof_sign_max)
-          real(dp) :: naborted(lenof_sign_max)
-          real(dp) :: nremoved(lenof_sign_max)
-          real(dp) :: update_growth(lenof_sign_max)
-          real(dp) :: update_growth_tot(lenof_sign_max)
-          real(dp) :: tot_parts_old(lenof_sign_max)
+          real(dp), allocatable :: nborn(:)
+          real(dp), allocatable :: ndied(:)
+          real(dp), allocatable :: nannihil(:)
+          real(dp), allocatable :: naborted(:)
+          real(dp), allocatable :: nremoved(:)
+          real(dp), allocatable :: update_growth(:)
+          real(dp), allocatable :: update_growth_tot(:)
+          real(dp), allocatable :: tot_parts_old(:)
           integer :: update_iters
       end type
       

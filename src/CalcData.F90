@@ -55,7 +55,7 @@ INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
 INTEGER :: NMCyc,StepsSft,CLMax
 INTEGER :: NEquilSteps
 real(dp) :: InitialPart
-real(dp) :: InitialPartVec(lenof_sign_max)
+real(dp), allocatable :: InitialPartVec(:)
 INTEGER :: OccCASorbs,VirtCASorbs,iAnnInterval
 integer :: iPopsFileNoRead, iPopsFileNoWrite,iRestartWalkNum
 real(dp) :: iWeightPopRead
@@ -78,13 +78,13 @@ real(dp) :: MemoryFacSpawn,SinglesBias,TauFactor,StepsSftImag
 
 real(dp) :: MemoryFacInit
 
-real(dp), target :: DiagSft(inum_runs_max)
+real(dp), allocatable, target :: DiagSft(:)
 
 real(dp) :: GraphEpsilon
 real(dp) :: PGenEpsilon
-real(dp) :: TargetGrowRate(inum_runs_max)
+real(dp), allocatable :: TargetGrowRate(:)
 ! Number of particles before targetgrowrate kicks in
-integer(int64) :: TargetGrowRateWalk(inum_runs_max)
+integer(int64), allocatable :: TargetGrowRateWalk(:)
 integer(int64) :: iExitWalkers  !Exit criterion, based on total walker number
 
 
