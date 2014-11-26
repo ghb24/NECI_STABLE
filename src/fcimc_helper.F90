@@ -34,7 +34,8 @@ module fcimc_helper
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
                         InitiatorCutoffEnergy, InitiatorCutoffWalkNo, &
                         im_time_init_thresh, tSurvivalInitMultThresh, &
-                        init_survival_mult, MaxWalkerBloom
+                        init_survival_mult, MaxWalkerBloom, &
+                        tMultiReplicaInitiators, tSurvivalInitiatorThreshold
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
@@ -349,7 +350,7 @@ contains
         real(dp) :: CurrentSign(lenof_sign)
         real(dp), intent(in) :: diagH
         integer :: part_type, nopen
-        logical :: tDetinCAS, parent_init
+        logical :: tDetinCAS, parent_init, make_initiator
         real(dp) :: init_tm, expected_lifetime, hdiag
         character(*), parameter :: this_routine = 'CalcParentFlag'
 
@@ -375,7 +376,7 @@ contains
                 ! positive walkers on it, this is a sensible test.
                 parent_init = TestInitiator(CurrentDets(:,j), parent_init, &
                                             sum(CurrentSign), diagH, &
-                                            make_initiator)
+                                            make_initiator, j, part_type)
             end if
 
             ! Now loop over the particle types, and update the flags
@@ -392,7 +393,7 @@ contains
                     ! for spawning purposes.
                     parent_init = TestInitiator(CurrentDets(:,j), parent_init,&
                                                 CurrentSign(part_type), diagH,&
-                                                make_initiator)
+                                                make_initiator, j, part_type)
                 end if
 
                 ! Update counters as required.
@@ -436,7 +437,8 @@ contains
     end subroutine CalcParentFlag
 
 
-    function TestInitiator(ilut, is_init, sgn, diagH, make_initiator) &
+    function TestInitiator(ilut, is_init, sgn, diagH, make_initiator, &
+                           site_idx, part_type) &
              result(initiator)
 
         ! For a given particle (with its given particle type), should it
@@ -449,12 +451,12 @@ contains
         !      This means we can call it for individual, or aggregate,
         !      particles.
 
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer(n_int), intent(in) :: ilut(0:NIfTot), site_idx, part_type
         logical, intent(in) :: is_init, make_initiator
         real(dp), intent(in) :: sgn, diagH
         logical :: initiator, tDetInCAS
-        integer :: first_iter
-        real(dp) :: init_thresh, low_init_thresh
+        real(dp) :: init_thresh, low_init_thresh, init_tm, expected_lifetime
+        real(dp) :: hdiag
 
         ! By default the particles status will stay the same
         initiator = is_init
@@ -476,7 +478,7 @@ contains
                 NoAddedInitiators = NoAddedInitiators + 1
             endif
 
-        elseif (tRetestAddToInit) then
+        else
 
             ! The source determinant is already an initiator.            
             ! If tRetestAddToInit is on, the determinants become 
@@ -505,27 +507,27 @@ contains
             ! would not be an initiator, then it is possible we ought
             ! to be considering it as well.
             if (.not. initiator .and. tSurvivalInitiatorThreshold) then
-                first_iter = extract_first_iter(ilut)
-                if ((iter - first_iter) > nItersInitiator) &
+                init_tm = get_part_init_time(site_idx)
+                if ((TotImagTime - init_tm) > im_time_init_thresh) &
                     initiator = .true.
             end if
 
 #ifdef __DEBUG
             if (tSurvivalInitiatorThreshold) then
-                init_tm = get_part_init_time(j)
+                init_tm = get_part_init_time(site_idx)
                 ASSERT(init_tm >= 0.0_dp)
             end if
 #endif
 
-            if (.not. parent_init .and. tSurvivalInitMultThresh) then
-                init_tm = get_part_init_time(j)
-                hdiag = det_diagH(j) - DiagSft(part_type)
+            if (.not. initiator .and. tSurvivalInitMultThresh) then
+                init_tm = get_part_init_time(site_idx)
+                hdiag = det_diagH(site_idx) - DiagSft(part_type)
                 if (hdiag > 0) then
                     expected_lifetime = &
                         log(2.0_dp * max(MaxWalkerBloom, 1)) / hdiag
                     if ((TotImagTime - init_tm) > & !0.5_dp) then !&
                             init_survival_mult * expected_lifetime) then
-                        parent_init = .true.
+                        initiator = .true.
                     !    write(6,*) 'allowing', j, totimagtime-init_tm, &
                     !        expected_lifetime, init_survival_mult*expected_lifetime, &
                     !        init_survival_mult

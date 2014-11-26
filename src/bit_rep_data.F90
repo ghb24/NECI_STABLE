@@ -39,7 +39,7 @@ module bit_rep_data
                           flag_determ_parent = 1, &
                           flag_trial = 2, &
                           flag_connected = 3, &
-                          flag_has_been_initiator(1) = 4
+                          flag_has_been_initiator(1) = 4, &
                           flag_unused1 = 5, &
                           flag_unused2 = 6, &
                           flag_unused3 = 7, &
