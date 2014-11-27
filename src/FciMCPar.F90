@@ -587,6 +587,7 @@ module FciMCParMod
  
         !Deallocate memory
         CALL DeallocFCIMCMemPar()
+        call clean_replica_arrays()
 
     END SUBROUTINE FciMCPar
 
@@ -1019,8 +1020,6 @@ module FciMCParMod
                 CALL Fill_ExplicitRDM_this_Iter(TotWalkers)
             ENDIF
         ENDIF
-
-        call clean_replica_arrays()
 
     end subroutine
 
