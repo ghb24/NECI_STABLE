@@ -97,6 +97,8 @@ module fcimc_initialisation
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
     use gndts_mod, only: gndts
     use csf, only: get_csf_helement
+    use kp_fciqmc_data_mod, only: TotPartsInit, AllTotPartsInit, &
+                                  tSinglePartPhaseKPInit
 !    use CCMCData, only: iSgn => iSgnCCMC
 !    use CCMCData, only: iSgn
     use tau_search, only: init_tau_search
@@ -222,9 +224,7 @@ contains
                  InstShift(inum_runs), &
                  AvDiagSft(inum_runs), SumDiagSft(inum_runs), &
                  DiagSft(inum_runs), InputDiagSft(inum_runs), &
-                 tSinglePartPhase(inum_runs), &
-
-                 stat=ierr)
+                 tSinglePartPhase(inum_runs), stat=ierr)
 
         ! Iteration data
         allocate(iter_data_fciqmc%nborn(lenof_sign), &
@@ -243,13 +243,16 @@ contains
                  iter_data_ccmc%nremoved(lenof_sign), &
                  iter_data_ccmc%update_growth(lenof_sign), &
                  iter_data_ccmc%update_growth_tot(lenof_sign), &
-                 iter_data_ccmc%tot_parts_old(lenof_sign), &
+                 iter_data_ccmc%tot_parts_old(lenof_sign), stat=ierr)
 
-                 stat=ierr)
+        ! KPFCIQMC
+        allocate(TotPartsInit(lenof_sign), &
+                 AllTotPartsInit(lenof_sign), &
+                 tSinglePartPhaseKPInit(inum_runs), stat=ierr)
 
     end subroutine
 
-    subroutine clena_replica_arrays()
+    subroutine clean_replica_arrays()
 
         ! The reverse of the above routine...
 
@@ -340,7 +343,11 @@ contains
                    iter_data_ccmc%nremoved, &
                    iter_data_ccmc%update_growth, &
                    iter_data_ccmc%update_growth_tot, &
-                   iter_data_ccmc%tot_parts_old)
+                   iter_data_ccmc%tot_parts_old, &
+
+                   ! KPFCIQMC
+                   TotPartsInit, &
+                   AllTotPartsInit)
 
     end subroutine
 
