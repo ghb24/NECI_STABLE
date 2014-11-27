@@ -2333,10 +2333,11 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    if(tCCBuffer) then
       call DeAllocateAmplitudeList(ALBuffer)
    endif
-   call clean_replica_arrays()
    Weight=0.0_dp
    Energyxw=ProjectionE(1)+Hii
    call halt_timer(CCMC_time)
+
+   call clean_replica_arrays()
 END SUBROUTINE CCMCStandalone
 
 SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
@@ -2820,7 +2821,6 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    LogDealloc(tagSpawnList)
    Deallocate(SpawnList)
    call DeallocateAmplitudeList(AL)
-   call clean_replica_arrays()
    LogDealloc(tagDetList)
    if(tSharedExcitors) then
       call shared_deallocate(DetList)
@@ -2830,6 +2830,8 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    Weight=0.0_dp
    Energyxw=ProjectionE(1)+Hii
    call halt_timer(CCMC_time)
+
+   call clean_replica_arrays()
 END SUBROUTINE CCMCStandaloneParticle
 
 subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
