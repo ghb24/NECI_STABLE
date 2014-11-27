@@ -352,7 +352,7 @@ MODULE FciMCData
       logical :: tRestart   !Whether to restart a calculation
 
       ! Diag shift from the input file, if it needed to be reset after restart
-      real(dp), allocatable :: InputDiagSft(:)
+      real(dp) :: InputDiagSft
       
 
       ! ********************** FCIMCPar control variables *****************

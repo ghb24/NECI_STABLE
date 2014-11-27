@@ -223,7 +223,7 @@ contains
                  HFShift(inum_runs), &
                  InstShift(inum_runs), &
                  AvDiagSft(inum_runs), SumDiagSft(inum_runs), &
-                 DiagSft(inum_runs), InputDiagSft(inum_runs), &
+                 DiagSft(inum_runs), &
                  tSinglePartPhase(inum_runs), stat=ierr)
 
         ! Iteration data
@@ -324,7 +324,7 @@ contains
                    HFShift, &
                    InstShift, &
                    AvDiagSft, SumDiagSft, &
-                   DiagSft, InputDiagSft, &
+                   DiagSft, &
                    tSinglePartPhase, &
 
                    iter_data_fciqmc%nborn, &
@@ -718,6 +718,9 @@ contains
         ENDIF
         HFConn=nSingles+nDoubles
 
+        ! Set the DiagSft to its original value
+        DiagSft = InputDiagSft
+
         ! Initialise random number seed - since the seeds need to be different
         ! on different processors, subract processor rank from random number
         if(.not.tRestart) then
@@ -741,9 +744,6 @@ contains
                     call stop_all(t_r,"Iteration number/Time unknown for simulation - contact ghb")
                 endif
             endif
-        else
-            !Reset the DiagSft to its original value
-            DiagSft = InputDiagSft
         endif
         
         ! Option tRandomiseHashOrbs has now been removed.

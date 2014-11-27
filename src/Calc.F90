@@ -143,7 +143,6 @@ contains
           tSharedExcitors=.false.
           tSpawnProp=.false.
           NMCyc = -1
-          DiagSft=0.0_dp
           HApp=1
           TMCStar=.false.
           THDiag=.false.
@@ -962,9 +961,7 @@ contains
             case("DIAGSHIFT")
 !For FCIMC, this is the amount extra the diagonal elements will be shifted. This is proportional to the deathrate of 
 !walkers on the determinant
-                call getf(DiagSft(1))
-                if(inum_runs.eq.2) DiagSft(inum_runs)=DiagSft(1)
-                InputDiagSft = DiagSft
+                call getf(InputDiagSft)
 
             case("TAUFACTOR")
 !For FCIMC, this is the factor by which 1/(HF connectivity) will be multiplied by to give the timestep for the calculation.
