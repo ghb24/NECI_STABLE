@@ -454,6 +454,8 @@ contains
         integer(n_int), intent(in) :: ilut(0:NIfTot), site_idx, part_type
         logical, intent(in) :: is_init, make_initiator
         real(dp), intent(in) :: sgn, diagH
+        character(*), parameter :: this_routine = 'TestInitiator'
+
         logical :: initiator, tDetInCAS
         real(dp) :: init_thresh, low_init_thresh, init_tm, expected_lifetime
         real(dp) :: hdiag
