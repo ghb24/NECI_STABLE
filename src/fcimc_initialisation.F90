@@ -245,6 +245,11 @@ contains
                  AllTotPartsInit(lenof_sign), &
                  tSinglePartPhaseKPInit(inum_runs), stat=ierr)
 
+        ! Hacky bugfixes, for variables that aren't clearly set elsewhere.
+        ! These particularly apply to the CCMC code where SDS doesn't really
+        ! know where a non-hacky place to set these would be...
+        VaryShiftIter = 0
+
     end subroutine
 
     subroutine clean_replica_arrays()
