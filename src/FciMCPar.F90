@@ -116,7 +116,6 @@ module FciMCParMod
         ! wiped just when we need it!
         tPopsAlreadyRead = .false.
 
-        call init_replica_arrays()
         call SetupParameters()
         call InitFCIMCCalcPar()
         call init_fcimc_fn_pointers() 
@@ -587,7 +586,6 @@ module FciMCParMod
  
         !Deallocate memory
         CALL DeallocFCIMCMemPar()
-        call clean_replica_arrays()
 
     END SUBROUTINE FciMCPar
 

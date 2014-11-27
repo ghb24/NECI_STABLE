@@ -42,8 +42,7 @@ MODULE CCMC
     use global_det_data, only: global_determinant_data, det_diagH, &
                                set_det_diagH
     use fcimc_helper, only: create_particle, SumEContrib, InitHistMin
-    use fcimc_initialisation, only: SetupParameters, init_replica_arrays, &
-                                    clean_replica_arrays
+    use fcimc_initialisation, only: SetupParameters
     use fcimc_iter_utils, only: calculate_new_shift_wrapper
     use fcimc_output, only: WriteFCIMCStatsHeader, WriteHistogram
    IMPLICIT NONE
@@ -2051,7 +2050,6 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    iRefPos=1  !Always first element
    iDebug=CCMCDebug
 
-   call init_replica_arrays()
    Call SetupParameters()
 
    ! Reset counters
@@ -2337,7 +2335,6 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    Energyxw=ProjectionE(1)+Hii
    call halt_timer(CCMC_time)
 
-   call clean_replica_arrays()
 END SUBROUTINE CCMCStandalone
 
 SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
@@ -2459,7 +2456,6 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       write(iout,*) "AVGROWTHRATE is ON, but is not compatible with CCMC. Turning it off."
       tInstGrowthRate=.true.
    endif
-   call init_replica_arrays()
    Call SetupParameters()
 !Init hash shifting data
    hash_iter=0
@@ -2831,7 +2827,6 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    Energyxw=ProjectionE(1)+Hii
    call halt_timer(CCMC_time)
 
-   call clean_replica_arrays()
 END SUBROUTINE CCMCStandaloneParticle
 
 subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)

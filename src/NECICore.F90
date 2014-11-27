@@ -211,10 +211,16 @@ subroutine NECICalcInit(iCacheFlag)
     use HFCalc, only: HFDoCalc
     use RotateOrbsMod, only : RotateOrbs
     use semi_stoch_gen, only: init_semi_stochastic
+    use replica_data, only: init_replica_arrays
 
     implicit none
     integer,intent(in) :: iCacheFlag
-   
+    
+    ! Initialise the global data arrays, whose size depends on global values
+    ! that used to be constant.
+    ! These are essentially constant arrays available after the input has
+    ! been read
+    call init_replica_arrays()   
 
 !   Initlialize the system.  Sets up ...
 !   Symmetry is a subset of the system
@@ -278,6 +284,7 @@ subroutine NECICalcEnd(iCacheFlag)
     use Determinants, only: DetCleanup
     use Calc, only: CalcCleanup
     use shared_alloc, only: cleanup_shared_alloc
+    use replica_data, only: clean_replica_arrays
 
     implicit none
     integer,intent(in) :: iCacheFlag
@@ -288,6 +295,7 @@ subroutine NECICalcEnd(iCacheFlag)
     call IntCleanup(iCacheFlag)
     call SysCleanup()
     call cleanup_shared_alloc ()
+    call clean_replica_arrays()
 
     return
 end subroutine NECICalcEnd
