@@ -82,6 +82,8 @@ real(dp), allocatable, target :: DiagSft(:)
 
 real(dp) :: GraphEpsilon
 real(dp) :: PGenEpsilon
+real(dp) :: InputTargetGrowRate
+integer(int64) :: InputTargetGrowRateWalk
 real(dp), allocatable :: TargetGrowRate(:)
 ! Number of particles before targetgrowrate kicks in
 integer(int64), allocatable :: TargetGrowRateWalk(:)

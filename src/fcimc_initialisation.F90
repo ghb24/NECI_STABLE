@@ -24,7 +24,8 @@ module fcimc_initialisation
                         tAddToInitiator, InitiatorWalkNo, tRestartHighPop, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
                         RealCoeffExcitThresh, TargetGrowRate, &
-                        TargetGrowRateWalk
+                        TargetGrowRateWalk, InputTargetGrowRate, &
+                        InputTargetGrowRateWalk
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -387,6 +388,10 @@ contains
         SemiStoch_Init_Time%timer_name='SemiStochInitTime'
         Trial_Init_Time%timer_name='TrialInitTime'
         kp_generate_time%timer_name='KPGenerateTime'
+
+        ! Initialise allocated arrays with input data
+        TargetGrowRate(:) = InputTargetGrowRate
+        TargetGrowRateWalk(:) = InputTargetGrowRateWalk
 
         IF(TDebug) THEN
 !This will open a file called LOCALPOPS-"iprocindex" on unit number 11 on every node.

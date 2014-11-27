@@ -50,8 +50,8 @@ contains
         ! Values for old parameters.
         ! These have no input options to change the defaults, but are used in
         ! the code.
-          TargetGrowRateWalk(:)=500000
-          TargetGrowRate(:)=0.0_dp
+          InputTargetGrowRateWalk = 500000
+          InputTargetGrowRate = 0.0_dp
           InitialPart=1
           B2L = 1.0e-13_dp
           TMC = .false.
@@ -1161,14 +1161,12 @@ contains
             case("EXITWALKERS")
 !For FCIMC, this is an exit criterion based on the total number of walkers in the system.
                 call getiLong(iExitWalkers)
+
             case("TARGETGROWRATE")
-!For FCIMC, this is the target growth rate once in vary shift mode.
-                call getf(TargetGrowRate(1))
-                call getiLong(TargetGrowRateWalk(1))
-                if(inum_runs.eq.2) then
-                    TargetGrowRate(inum_runs)=TargetGrowRate(1)
-                    TargetGrowRateWalk(inum_runs)=TargetGrowRateWalk(1)
-                endif
+                ! For FCIMC, this is the target growth rate once in vary shift mode.
+                call getf(InputTargetGrowRate)
+                call getiLong(InputTargetGrowRateWalk)
+
             case("READPOPS")
 !For FCIMC, this indicates that the initial walker configuration will be read in from the file POPSFILE, which must be present.
 !DiagSft and InitWalkers will be overwritten with the values in that file.
