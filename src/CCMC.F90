@@ -42,7 +42,8 @@ MODULE CCMC
     use global_det_data, only: global_determinant_data, det_diagH, &
                                set_det_diagH
     use fcimc_helper, only: create_particle, SumEContrib, InitHistMin
-    use fcimc_initialisation, only: SetupParameters
+    use fcimc_initialisation, only: SetupParameters, init_replica_arrays, &
+                                    clean_replica_arrays
     use fcimc_iter_utils, only: calculate_new_shift_wrapper
     use fcimc_output, only: WriteFCIMCStatsHeader, WriteHistogram
    IMPLICIT NONE
@@ -2050,6 +2051,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    iRefPos=1  !Always first element
    iDebug=CCMCDebug
 
+   call init_replica_arrays()
    Call SetupParameters()
 
    ! Reset counters
@@ -2331,6 +2333,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    if(tCCBuffer) then
       call DeAllocateAmplitudeList(ALBuffer)
    endif
+   call clean_replica_arrays()
    Weight=0.0_dp
    Energyxw=ProjectionE(1)+Hii
    call halt_timer(CCMC_time)
@@ -2455,6 +2458,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
       write(iout,*) "AVGROWTHRATE is ON, but is not compatible with CCMC. Turning it off."
       tInstGrowthRate=.true.
    endif
+   call init_replica_arrays()
    Call SetupParameters()
 !Init hash shifting data
    hash_iter=0
@@ -2816,6 +2820,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    LogDealloc(tagSpawnList)
    Deallocate(SpawnList)
    call DeallocateAmplitudeList(AL)
+   call clean_replica_arrays()
    LogDealloc(tagDetList)
    if(tSharedExcitors) then
       call shared_deallocate(DetList)

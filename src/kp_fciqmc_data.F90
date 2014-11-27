@@ -1,11 +1,11 @@
 module kp_fciqmc_data_mod
 
-	! This module contains data associated with KPFCIQMC to avoid circular
-	! use statements
+    ! This module contains data associated with KPFCIQMC to avoid circular
+    ! use statements
 
     use FciMCData, only: ll_node, perturbation
-	use constants
-	implicit none
+    use constants
+    implicit none
 
     type kp_fciqmc_data
         ! The number of different initial walker configurations to start

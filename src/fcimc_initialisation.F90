@@ -99,8 +99,6 @@ module fcimc_initialisation
     use csf, only: get_csf_helement
     use kp_fciqmc_data_mod, only: TotPartsInit, AllTotPartsInit, &
                                   tSinglePartPhaseKPInit
-!    use CCMCData, only: iSgn => iSgnCCMC
-!    use CCMCData, only: iSgn
     use tau_search, only: init_tau_search
     use fcimc_helper, only: CalcParentFlag
     use get_excit, only: make_double
@@ -169,9 +167,6 @@ contains
                  AllNoInitWalk(lenof_sign), AllNoNonInitWalk(lenof_sign), &
                  AllNoExtraInitDoubs(lenof_sign), AllInitRemoved(lenof_sign), &
                  AllGrowRateAbort(lenof_sign), &
-
-                 ! CCMCage
-                 !!iSgnCCMC(lenof_sign), &
 
                  stat=ierr)
 
@@ -290,9 +285,6 @@ contains
                    Acceptances, &
                    SpawnFromSing, AllSpawnFromSing, &
                    AllGrowRateAbort, &
-
-                   ! CCMCage
-                   !!iSgnCCMC, &
 
                    NoatDoubs, AllNoatDoubs, &
                    AccRat, &
