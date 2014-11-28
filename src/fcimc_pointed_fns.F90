@@ -167,7 +167,7 @@ module fcimc_pointed_fns
         ! imaginary parent particles has slightly different rules:
         !       - Attempt to spawn REAL walkers with prob +AIMAG(Hij)/P
         !       - Attempt to spawn IMAG walkers with prob -REAL(Hij)/P
-#ifdef __PROG_NUMRUNS
+#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
         child = 0
         tgt_cpt = part_type
         walkerweight = sign(1.0_dp, RealwSign(part_type))
@@ -245,7 +245,7 @@ module fcimc_pointed_fns
             ! And create the parcticles
             child(tgt_cpt) = nSpawn
 
-#ifndef __PROG_NUMRUNS
+#if !(defined(__PROG_NUMRUNS) || defined(__DOUBLERUN))
         enddo
 #endif
 
