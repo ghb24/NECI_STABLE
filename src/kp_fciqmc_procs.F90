@@ -36,6 +36,7 @@ module kp_fciqmc_procs
     use sym_mod, only: getsym
     use SystemData, only: nel, nbasis, BRR, nBasisMax, G1, tSpn, lms, tParity, SymRestrict
     use SystemData, only: BasisFn, tHeisenberg, tHPHF, tAllSymSectors
+    use replica_data, only: allocate_iter_data, clean_iter_data
     use util_mod, only: get_free_unit
     use kp_fciqmc_data_mod
 
@@ -627,6 +628,8 @@ contains
         type(fcimc_iter_data) :: unused_data
         integer(n_int), pointer :: PointTemp(:,:)
 
+        call allocate_iter_data(unused_data)
+
         ! Turn off the initiator method for the annihilation steps to be used here.
         tInitiatorTemp = tTruncInitiator
         tTruncInitiator = .false.
@@ -702,6 +705,8 @@ contains
 
         ! Turn the initiator method back on, if it was turned off at the start of this routine.
         tTruncInitiator = tInitiatorTemp
+
+        call clean_iter_data(unused_data)
 
     end subroutine generate_init_config_basic
 

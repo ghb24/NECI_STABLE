@@ -116,23 +116,8 @@ contains
                  tSinglePartPhase(inum_runs), stat=ierr)
 
         ! Iteration data
-        allocate(iter_data_fciqmc%nborn(lenof_sign), &
-                 iter_data_fciqmc%ndied(lenof_sign), &
-                 iter_data_fciqmc%nannihil(lenof_sign), &
-                 iter_data_fciqmc%naborted(lenof_sign), &
-                 iter_data_fciqmc%nremoved(lenof_sign), &
-                 iter_data_fciqmc%update_growth(lenof_sign), &
-                 iter_data_fciqmc%update_growth_tot(lenof_sign), &
-                 iter_data_fciqmc%tot_parts_old(lenof_sign), &
-                 
-                 iter_data_ccmc%nborn(lenof_sign), &
-                 iter_data_ccmc%ndied(lenof_sign), &
-                 iter_data_ccmc%nannihil(lenof_sign), &
-                 iter_data_ccmc%naborted(lenof_sign), &
-                 iter_data_ccmc%nremoved(lenof_sign), &
-                 iter_data_ccmc%update_growth(lenof_sign), &
-                 iter_data_ccmc%update_growth_tot(lenof_sign), &
-                 iter_data_ccmc%tot_parts_old(lenof_sign), stat=ierr)
+        call allocate_iter_data(iter_data_fciqmc)
+        call allocate_iter_data(iter_data_ccmc)
 
         ! KPFCIQMC
         allocate(TotPartsInit(lenof_sign), &
@@ -218,28 +203,45 @@ contains
                    DiagSft, &
                    tSinglePartPhase, &
 
-                   iter_data_fciqmc%nborn, &
-                   iter_data_fciqmc%ndied, &
-                   iter_data_fciqmc%nannihil, &
-                   iter_data_fciqmc%naborted, &
-                   iter_data_fciqmc%nremoved, &
-                   iter_data_fciqmc%update_growth, &
-                   iter_data_fciqmc%update_growth_tot, &
-                   iter_data_fciqmc%tot_parts_old, &
-                   
-                   iter_data_ccmc%nborn, &
-                   iter_data_ccmc%ndied, &
-                   iter_data_ccmc%nannihil, &
-                   iter_data_ccmc%naborted, &
-                   iter_data_ccmc%nremoved, &
-                   iter_data_ccmc%update_growth, &
-                   iter_data_ccmc%update_growth_tot, &
-                   iter_data_ccmc%tot_parts_old, &
-
                    ! KPFCIQMC
                    TotPartsInit, &
                    AllTotPartsInit)
 
+        call clean_iter_data(iter_data_fciqmc)
+        call clean_iter_data(iter_data_ccmc)
+
     end subroutine
+
+    subroutine allocate_iter_data(iter_data)
+
+        type(fcimc_iter_data), intent(inout) :: iter_data
+        integer :: ierr
+
+        allocate(iter_data%nborn(lenof_sign), &
+                 iter_data%ndied(lenof_sign), &
+                 iter_data%nannihil(lenof_sign), &
+                 iter_data%naborted(lenof_sign), &
+                 iter_data%nremoved(lenof_sign), &
+                 iter_data%update_growth(lenof_sign), &
+                 iter_data%update_growth_tot(lenof_sign), &
+                 iter_data%tot_parts_old(lenof_sign), stat=ierr)
+
+    end subroutine
+
+    subroutine clean_iter_data(iter_data)
+
+        type(fcimc_iter_data), intent(inout) :: iter_data
+
+        deallocate(iter_data%nborn, &
+                   iter_data%ndied, &
+                   iter_data%nannihil, &
+                   iter_data%naborted, &
+                   iter_data%nremoved, &
+                   iter_data%update_growth, &
+                   iter_data%update_growth_tot, &
+                   iter_data%tot_parts_old)
+
+    end subroutine
+
 
 end module
