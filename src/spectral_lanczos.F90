@@ -37,7 +37,7 @@ contains
 
         integer :: i
         ! Data for the testsuite to use.
-        real(dp) :: spec_low, spec_high
+        real(dp) :: h_sum, spec_low, spec_high
 
         call init_spectral_lanczos()
 
@@ -49,6 +49,8 @@ contains
 
         call calc_final_hamil_elem(sl_vecs, full_vec_sl, sl_hamil, ndets_sl, disps_sl)
 
+        h_sum = sum(sl_hamil)
+
         call subspace_extraction_sl()
 
         write(6,'(1x,a60,/)') "Spectral Lanczos calculation complete. Outputting results..."
@@ -58,7 +60,7 @@ contains
 
         if (tPrint_sl_eigenvecs) call print_sl_eigenvecs()
 
-        call write_spec_lanc_testsuite_data(spec_low, spec_high)
+        if (iProcIndex == root) call write_spec_lanc_testsuite_data(h_sum, spec_low, spec_high)
 
         call end_spectral_lanczos()
 
@@ -382,16 +384,15 @@ contains
 
     end subroutine output_spectrum
 
-    subroutine write_spec_lanc_testsuite_data(spec_low, spec_high)
+    subroutine write_spec_lanc_testsuite_data(h_sum, spec_low, spec_high)
 
-        real(dp), intent(in) :: spec_low, spec_high
+        real(dp), intent(in) :: h_sum, spec_low, spec_high
 
         write(6,'(/,1X,64("="))')
         write(6,'(1X,"Spectral Lanczos testsuite data:")')
-        write(6,'(1X,"Lowest eigenvalue of H from the last Lanczos space:",2X,es20.13)') sl_h_eigv(1)
-        write(6,'(1X,"Highest eigenvalue of H from the last Lanczos space:",1X,es20.13)') sl_h_eigv(n_lanc_vecs_sl)
-        write(6,'(1X,"Spectral weight at the lowest omega value:",11X,es20.13)') spec_low
-        write(6,'(1X,"Spectral weight at the highest omega value:",10X,es20.13)') spec_high
+        write(6,'(1X,"Sum of H elements from the last Lanczos space:",2X,es20.13)') h_sum
+        write(6,'(1X,"Spectral weight at the lowest omega value:",6X,es20.13)') spec_low
+        write(6,'(1X,"Spectral weight at the highest omega value:",5X,es20.13)') spec_high
         write(6,'(1X,64("="))')
 
     end subroutine write_spec_lanc_testsuite_data
