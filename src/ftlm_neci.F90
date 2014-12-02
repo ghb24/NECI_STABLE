@@ -35,6 +35,8 @@ contains
     subroutine perform_ftlm()
 
         integer :: i, j
+        ! Data for the testsuite to use.
+        real(dp) :: h_sum
 
         call init_ftlm()
 
@@ -58,6 +60,8 @@ contains
             call calc_final_hamil_elem(ftlm_vecs, full_vec_ftlm, &
                                         ftlm_hamil, ndets_ftlm, disps_ftlm)
 
+            h_sum = sum(ftlm_hamil)
+
             call subspace_extraction_ftlm()
 
             call add_in_contribs_to_energy()
@@ -72,7 +76,7 @@ contains
 
         call output_ftlm()
 
-        call write_ftlm_testsuite_data()
+        if (iProcIndex == root) call write_ftlm_testsuite_data(h_sum)
 
         call end_ftlm()
 
@@ -324,14 +328,15 @@ contains
 
     end subroutine output_ftlm
 
-    subroutine write_ftlm_testsuite_data()
+    subroutine write_ftlm_testsuite_data(h_sum)
+
+        real(dp), intent(in) :: h_sum
 
         write(6,'(/,1X,64("="))')
         write(6,'(1X,"FTLM testsuite data:")')
-        write(6,'(1X,"Lowest eigenvalue of H from the last Lanczos space:",2X,es20.13)') ftlm_h_eigv(1)
-        write(6,'(1X,"Highest eigenvalue of H from the last Lanczos space:",1X,es20.13)') ftlm_h_eigv(n_lanc_vecs_ftlm)
-        write(6,'(1X,"FT energy at lowest beta value:",22X,es20.13)') ftlm_e_num(1)/ftlm_trace(1)
-        write(6,'(1X,"FT energy at highest beta value:",21X,es20.13)') ftlm_e_num(nbeta_ftlm+1)/ftlm_trace(nbeta_ftlm+1)
+        write(6,'(1X,"Sum of H elements from the last Lanczos space:",2X,es20.13)') h_sum
+        write(6,'(1X,"FT energy at lowest beta value:",17X,es20.13)') ftlm_e_num(1)/ftlm_trace(1)
+        write(6,'(1X,"FT energy at highest beta value:",16X,es20.13)') ftlm_e_num(nbeta_ftlm+1)/ftlm_trace(nbeta_ftlm+1)
         write(6,'(1X,64("="))')
 
     end subroutine write_ftlm_testsuite_data
