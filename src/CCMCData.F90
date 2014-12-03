@@ -1,5 +1,5 @@
 module CCMCData
-   use constants, only: dp,n_int,end_n_int,lenof_sign
+    use constants
    implicit none
    save
    real(dp)   dT1SqCuml
@@ -30,7 +30,7 @@ TYPE Cluster
                                                                 !collapsing this cluster in bit representation
    INTEGER, allocatable :: DetCurr(:)                 !(nEl) The determinant made from collapsing this cluster.
    INTEGER  iSize
-   real(dp) :: iSgn(lenof_sign)    !The sign of the determinant after collapsing the cluster
+   real(dp) :: iSgn(lenof_sign_max)    !The sign of the determinant after collapsing the cluster
    INTEGER iExcitLevel                                !The excitation level of the resultant det
 
    INTEGER initFlag                                   !Zero if this cluster is an initiator, or 1 if it isn't

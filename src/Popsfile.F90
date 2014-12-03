@@ -1091,7 +1091,7 @@ r_loop: do while(.not.tStoreDet)
 
     !Routine for reading in from iunit the header information from a popsile v4 file.
     subroutine ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter,   &
+                iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF_out,PopAllSumENum,iPopIter,   &
                 PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau, &
                 PopBlockingIter, PopRandomHash, read_psingles, read_pparallel, &
                 read_nnodes, read_walkers_on_nodes)
@@ -1104,8 +1104,9 @@ r_loop: do while(.not.tStoreDet)
         integer(int64), intent(out) :: read_walkers_on_nodes(0:nProcessors-1)
         integer(int64) , intent(out) :: iPopAllTotWalkers
         real(dp) , intent(out) :: PopDiagSft,PopDiagSft2, read_tau, read_psingles
+        real(dp), intent(out) :: PopSumNoatHF_out(lenof_sign/inum_runs)
+        real(dp) :: PopSumNoatHF(1024)
         real(dp), intent(out) :: read_pparallel
-        real(dp) , dimension(lenof_sign/inum_runs) , intent(out) :: PopSumNoatHF
         HElement_t , intent(out) :: PopAllSumENum
         integer :: PopsVersion
         !Variables for the namelist
@@ -1144,7 +1145,8 @@ r_loop: do while(.not.tStoreDet)
         call MPIBCast(PopTotwalk)
         call MPIBCast(PopSft)
         call MPIBCast(PopSft2)
-        call MPIBCast(PopSumNoatHF)
+        PopSumNoatHF_out = PopSumNoatHF(1:lenof_sign/inum_runs)
+        call MPIBCast(PopSumNoatHF_out)
         call MPIBCast(PopSumENum)
         call MPIBCast(PopCyc)
         call MPIBCast(PopNIfD)

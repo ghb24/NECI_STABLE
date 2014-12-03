@@ -2334,6 +2334,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    Weight=0.0_dp
    Energyxw=ProjectionE(1)+Hii
    call halt_timer(CCMC_time)
+
 END SUBROUTINE CCMCStandalone
 
 SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
@@ -2825,6 +2826,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    Weight=0.0_dp
    Energyxw=ProjectionE(1)+Hii
    call halt_timer(CCMC_time)
+
 END SUBROUTINE CCMCStandaloneParticle
 
 subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
