@@ -392,8 +392,8 @@ contains
     implicit none
 
     integer :: iunit,iobjloc(1),iobj,i
-    integer(li) :: ObjectSizes(nLargeObjects+MaxLen)
-    type(MemLogEl) :: AllMemEl(nLargeObjects+MaxLen)
+    integer(li), allocatable :: ObjectSizes(:)
+    type(MemLogEl), allocatable :: AllMemEl(:)
     character(len=*), parameter :: memoryfile = 'TMPMemoryusage.dat'
     character(len=*), parameter :: fmt1='(3a19)'
 
@@ -401,6 +401,9 @@ contains
         if (err_output) write (6,*) 'Memory manager not initialised. Cannot leave memory manager.'
         return
     end if
+
+    allocate(ObjectSizes(nLargeObjects+MaxLen))
+    allocate(AllMemEl(nLargeObjects+MaxLen))
 
     if (MemoryUsed.eq.MaxMemoryUsed) then
         ! Peak memory usage is now.
@@ -462,7 +465,9 @@ contains
     deallocate(PeakMemLog)
     deallocate(LookupPointer)
 
-    return
+    deallocate(ObjectSizes)
+    deallocate(AllMemEl)
+    
     end subroutine LeaveMemoryManager
 
 
