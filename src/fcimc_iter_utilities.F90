@@ -732,6 +732,7 @@ contains
                             / sum(all_sum_proje_denominator(1:inum_runs))
             proje_iter_tot = sum(AllENumCyc(1:inum_runs)) &
                            / sum(all_cyc_proje_denominator(1:inum_runs))
+#endif
 
         endif ! iProcIndex == root
 
