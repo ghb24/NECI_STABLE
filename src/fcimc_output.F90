@@ -533,6 +533,8 @@ contains
                                 'Shift (' // trim(adjustl(tmpc)) // ")")
                 call stats_out (state, .false., proje_iter(p), &
                                 'ProjE (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., proje_iter(p) + Hii, &
+                                'Tot ProjE (' // trim(adjustl(tmpc)) // ")")
             end do
 #endif
 
