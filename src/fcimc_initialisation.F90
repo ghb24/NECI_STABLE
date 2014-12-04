@@ -23,7 +23,9 @@ module fcimc_initialisation
                         trunc_nopen_max, MemoryFacInit, MaxNoatHF, HFPopThresh, &
                         tAddToInitiator, InitiatorWalkNo, tRestartHighPop, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
-                        RealCoeffExcitThresh
+                        RealCoeffExcitThresh, TargetGrowRate, &
+                        TargetGrowRateWalk, InputTargetGrowRate, &
+                        InputTargetGrowRateWalk
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -109,7 +111,8 @@ module fcimc_initialisation
 
     implicit none
 
-    contains
+contains
+
 
     SUBROUTINE SetupParameters()
 
@@ -150,6 +153,10 @@ module fcimc_initialisation
         SemiStoch_Init_Time%timer_name='SemiStochInitTime'
         Trial_Init_Time%timer_name='TrialInitTime'
         kp_generate_time%timer_name='KPGenerateTime'
+
+        ! Initialise allocated arrays with input data
+        TargetGrowRate(:) = InputTargetGrowRate
+        TargetGrowRateWalk(:) = InputTargetGrowRateWalk
 
         IF(TDebug) THEN
 !This will open a file called LOCALPOPS-"iprocindex" on unit number 11 on every node.
@@ -478,6 +485,9 @@ module fcimc_initialisation
         ENDIF
         HFConn=nSingles+nDoubles
 
+        ! Set the DiagSft to its original value
+        DiagSft = InputDiagSft
+
         ! Initialise random number seed - since the seeds need to be different
         ! on different processors, subract processor rank from random number
         if(.not.tRestart) then
@@ -501,9 +511,6 @@ module fcimc_initialisation
                     call stop_all(t_r,"Iteration number/Time unknown for simulation - contact ghb")
                 endif
             endif
-        else
-            !Reset the DiagSft to its original value
-            DiagSft = InputDiagSft
         endif
         
         ! Option tRandomiseHashOrbs has now been removed.

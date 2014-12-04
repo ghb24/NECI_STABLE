@@ -3,7 +3,6 @@ module FciMCParMod
 
     ! This module contains the main loop for FCIMC calculations, and the
     ! main per-iteration processing loop.
-
     use SystemData, only: nel, tUEG2, hist_spin_dist_iter
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
@@ -28,6 +27,7 @@ module FciMCParMod
     use trial_wf_gen, only: update_compare_trial_file, &
                             update_compare_trial_file
     use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
+    use bit_reps, only: set_flag, clr_flag, add_ilut_lists
     use exact_diag, only: perform_exact_diag_all_symmetry
     use semi_stoch_gen, only: write_most_pop_core_at_end
     use spectral_lanczos, only: perform_spectral_lanczos
@@ -37,7 +37,6 @@ module FciMCParMod
     use AnnihilationMod, only: DirectAnnihilation
     use exact_spectrum, only: get_exact_spectrum
     use determ_proj, only: perform_determ_proj
-    use bit_reps, only: set_flag, clr_flag
     use global_det_data, only: det_diagH
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
@@ -613,7 +612,7 @@ module FciMCParMod
         integer :: proc, pos
         real(dp) :: r, sgn(lenof_sign), prob_extra_walker
         integer :: determ_index, gen_ind
-        integer :: DetHash, FinalVal, clash, PartInd, k
+        integer :: DetHash, FinalVal, clash, PartInd, k, y
         type(ll_node), pointer :: TempNode
 
         call set_timer(Walker_Time,30)
@@ -794,11 +793,11 @@ module FciMCParMod
 
             !Debug output.
             IFDEBUGTHEN(FCIMCDebug,3)
-                if(lenof_sign.eq.2) then
-                    write(iout,"(A,I10,2f12.5,I5)",advance='no') "TW:", j,SignCurr,FlagsCurr
-                else
-                    write(iout,"(A,I10,f12.5,I5)",advance='no') "TW:", j,SignCurr,FlagsCurr
-                endif
+                write(iout, "(A,I10,a)", advance='no') 'TW:', j, '['
+                do part_type = 1, lenof_sign
+                    write(iout, "(f10.5)", advance='no') SignCurr(part_type)
+                end do
+                write(iout, '(a,i7)', advance='no') '] ', FlagsCurr
                 call WriteBitDet(iout,CurrentDets(:,j),.true.)
                 call neci_flush(iout) 
             ENDIFDEBUG
@@ -884,12 +883,12 @@ module FciMCParMod
                     endif
 
                     IFDEBUG(FCIMCDebug, 3) then
-#ifdef __CMPLX
-                        write(iout,"(a,2f12.5)",advance='no') &
-#else
-                        write(iout,"(a,f12.5)",advance='no') &
-#endif
-                            "SP:", child
+                        write(iout, '(a)', advance='no') 'SP: ['
+                        do y = 1, lenof_sign
+                            write(iout, '(f12.5)', advance='no') &
+                                child(y)
+                        end do
+                        write(iout, '("] ")', advance='no')
                         call write_det(6, nJ, .true.)
                         call neci_flush(iout) 
                     endif
@@ -1025,8 +1024,6 @@ module FciMCParMod
 
     subroutine test_routine()
 
-        use bit_reps, only: add_ilut_lists
-
         integer(n_int) :: list_1(0:NIfTot, 10)
         integer(n_int) :: list_2(0:NIfTot, 12)
         integer(n_int) :: list_out(0:NIfTot, 11)
@@ -1080,7 +1077,6 @@ module FciMCParMod
         end do
 
     end subroutine test_routine
-
 
 END MODULE FciMCParMod
 

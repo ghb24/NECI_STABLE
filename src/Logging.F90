@@ -155,7 +155,11 @@ MODULE Logging
       tRDMInstEnergy=.true.
       tFullHFAv=.false.
 
+#ifdef __PROG_NUMRUNS
+      tFCIMCStats2 = .true.
+#else
       tFCIMCStats2 = .false.
+#endif
 
 ! Feb08 defaults
       IF(Feb08) THEN
