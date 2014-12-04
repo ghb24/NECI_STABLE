@@ -451,9 +451,10 @@ contains
         !      This means we can call it for individual, or aggregate,
         !      particles.
 
-        integer(n_int), intent(in) :: ilut(0:NIfTot), site_idx, part_type
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
         logical, intent(in) :: is_init, make_initiator
         real(dp), intent(in) :: sgn, diagH
+        integer, intent(in) :: site_idx, part_type
         character(*), parameter :: this_routine = 'TestInitiator'
 
         logical :: initiator, tDetInCAS
@@ -538,7 +539,7 @@ contains
             end if
         endif
 
-    end function
+    end function TestInitiator
 
 
     subroutine rezero_iter_stats_each_iter (iter_data)
