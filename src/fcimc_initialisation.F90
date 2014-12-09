@@ -1580,6 +1580,7 @@ contains
         integer :: run, DetHash
         real(dp) , dimension(lenof_sign) :: InitialSign
 
+        InitialPartVec = 0.0_dp
         do run=1,inum_runs
             InitialPartVec(run)=InitialPart
         enddo
@@ -1617,7 +1618,7 @@ contains
             call set_part_init_time(1, TotImagTime)
 
             ! Obtain the initial sign
-            InitialSign = 0
+            InitialSign = 0.0_dp
             if (tStartSinglePart) then
                 InitialSign(:) = InitialPartVec(:)
                 TotParts(:) = InitialPartVec(:)
