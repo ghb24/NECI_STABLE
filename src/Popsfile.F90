@@ -75,11 +75,9 @@ contains
         integer :: Slot, nJ(nel)
         integer :: iunit,j,ierr,PopsInitialSlots(0:nNodes-1), iunit_3
         integer(int64) :: i
-        INTEGER(TagIntType) :: BatchReadTag=0
         real(dp) :: BatchSize
         integer :: PopsSendList(0:nNodes-1),proc
         integer :: MaxSendIndex,err,DetHash
-        integer(n_int) , allocatable :: BatchRead(:,:)
         integer(n_int) :: WalkerTemp(0:NIfTot)
         integer(int64) :: Det, AllCurrWalkers
         logical :: FormPops,BinPops,tReadAllPops,tStoreDet
@@ -414,11 +412,13 @@ contains
         integer(int64) :: CurrWalkers
         character(*), parameter :: this_routine = 'read_pops_splitpops'
 
-        integer(n_int) :: BatchRead(0:NifTot, 1:MaxWalkersPart)
+        integer(n_int), allocatable :: BatchRead(:,:)
         integer(n_int) :: ilut_tmp(0:NIfTot)
         logical :: tEOF
         integer :: det
         integer :: proc
+
+        allocate(BatchRead(0:NifTot, 1:MaxWalkersPart))
 
         write(6,*) 'Reading a maximum of ', MaxWalkersPart, ' particles to &
                    &each node from split POPSFILES'
@@ -461,7 +461,9 @@ contains
 
         endif
 
-    end function
+        deallocate(BatchRead)
+
+    end function read_pops_splitpops
 
 
     function read_pops_general (iunit, PopNel, det_tmp, binary_pops, det_list, &
@@ -491,13 +493,14 @@ contains
         integer :: batch_size, MaxSendIndex, i, j, det, nBatches, err, proc
         integer(n_int) :: ilut_tmp(0:NIfTot)
 
+        integer(n_int), allocatable :: BatchRead(:,:)
+
         ! If we are on the root processor, we need a buffer array which stores
         ! the particles as they are read in. 
         !
         ! If we are on another processor, allocate a one-element array to avoid
         ! segfaults in MPIScatter.
-        integer(n_int) :: BatchRead(0:NIfTot, &
-                                    merge(ReadBatch, 1, iProcIndex == root))
+        allocate(BatchRead(0:NIfTot, merge(ReadBatch, 1, iProcIndex == root)))
 
         if (iProcIndex == root) then
 
@@ -543,7 +546,6 @@ r_loop: do while (.not. tReadAllPops)
                     tEOF = read_popsfile_det (iunit, PopNel, binary_pops, &
                                               ilut_tmp, det_tmp, PopNIfSgn, &
                                               iunit_3, .true.)
-
                     ! Add the contribution from this determinant to the
                     ! norm of the popsfile wave function.
                     call add_pops_norm_contrib(ilut_tmp)
@@ -618,8 +620,9 @@ r_loop: do while (.not. tReadAllPops)
         write(6,*) "Number of configurations read in to this process: ", &
                    CurrWalkers 
 
+        deallocate(BatchRead)
 
-    end function
+    end function read_pops_general
 
     ! This routine reads the next determinant entry from a popsfile and stores
     ! it in WalkerTemp, ready to be distributed.
@@ -635,12 +638,12 @@ r_loop: do while (.not. tReadAllPops)
         integer, intent(in) :: nel_loc
         integer(n_int), intent(out) :: WalkerTemp(0:NIfTot)
         integer, intent(out) :: nI(nel_loc)
+        integer, intent(in) :: PopNifSgn
         integer, intent(in), optional :: iunit_3
         logical, intent(in) :: BinPops, decode_det
         integer(n_int) :: WalkerTemp2(0:NIfTot)
-        integer(n_int) :: sgn_int(lenof_sign)
+        integer(n_int) :: sgn_int(PopNifSgn)
         integer :: elec, flg, i, j, stat, k
-        integer :: PopNifSgn
         real(dp) :: sgn(PopNifSgn)
         real(dp) :: new_sgn(lenof_sign)
         integer(n_int) :: flg_read
@@ -726,12 +729,10 @@ r_loop: do while(.not.tStoreDet)
             endif
             
             ! Test if we actually want to store this walker...
-            do i = 1, lenof_sign
-                if (abs(sgn(i)) >= iWeightPopRead) then
-                    tStoreDet = .true.
-                    exit
-                end if
-            end do
+            if (any(abs(sgn) >= iWeightPopRead)) then
+                tStoreDet = .true.
+                exit
+            end if
         enddo r_loop
 
         ! Decode the determinant as required
