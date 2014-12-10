@@ -527,7 +527,7 @@ contains
 
             end do ! Over all report cycles.
 
-        end do outer_loop ! Over all repeats for a fixed initial walker configuration.
+        end do outer_loop ! Over all repeats of the whole calculation.
 
         if (.not. tSoftExitFound) then
             if (iProcIndex == root .and. tStoreKPMatrices) then

@@ -76,6 +76,11 @@ module kp_fciqmc_procs
         real(dp), pointer :: hamil_matrix(:,:)
     end type
 
+    ! If true then we generate the initial Krylov subspace by using estimates
+    ! of the lowest excited states, and project all of these trial states
+    ! every iteration.
+    logical :: tExcitedStateKP
+
     ! Information for the krylov_vecs arrays, which holds all of the Krylov
     ! vectors together simultaneously.
     ! The number of hash values for the hash table used to access krylov_vecs.
@@ -247,6 +252,7 @@ contains
         character (len=*), parameter :: t_r = "kp_fciqmc_read_inp"
 
         ! Default values.
+        tExcitedStateKP = .false.
         kp%nconfigs = 1
         kp%nrepeats = 1
         kp%nvecs = 0
@@ -278,6 +284,9 @@ contains
             select case(w)
             case("END-KP-FCIQMC")
                 exit read_inp
+            case("EXCITED-STATE-KP")
+                tExcitedStateKP = .true.
+                call geti(kp%nvecs)
             case("FINITE-TEMPERATURE")
                 tFiniteTemp = .true.
             case("MULTIPLE-POPS")
@@ -590,18 +599,22 @@ contains
         write(int_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(kp%irepeat)+1)))
         write(6,'(1x,a22,1x,'//int_fmt//')') "Starting repeat number", kp%irepeat
 
-        ! If starting from multiple POPSFILEs then set this counter so that the
-        ! correct POPSFILE is read in this time. To read in POPSFILE.x,
-        ! iPopsFileNoRead needs to be set to -x-1. We want to read in POPSFILE
-        ! numbers 0 to kp%nconfigs-1
-        if (tMultiplePopStart) iPopsFileNoRead = -(kp%iconfig-1)-1
+        if (tExcitedStateKP) then
+            call create_trial_states(kp)
+        else
+            ! If starting from multiple POPSFILEs then set this counter so that the
+            ! correct POPSFILE is read in this time. To read in POPSFILE.x,
+            ! iPopsFileNoRead needs to be set to -x-1. We want to read in POPSFILE
+            ! numbers 0 to kp%nconfigs-1
+            if (tMultiplePopStart) iPopsFileNoRead = -(kp%iconfig-1)-1
 
-        if (tOverlapPert .and. kp%irepeat == 1) then
-            pert_overlaps = 0.0_dp
-            call create_overlap_pert_vec()
+            if (tOverlapPert .and. kp%irepeat == 1) then
+                pert_overlaps = 0.0_dp
+                call create_overlap_pert_vec()
+            end if
+
+            call create_initial_config(kp)
         end if
-
-        call create_initial_config(kp)
 
         call clear_hash_table(krylov_vecs_ht)
         krylov_vecs = 0_n_int
@@ -1011,6 +1024,12 @@ contains
         SpawnedParts = 0_n_int
 
     end subroutine generate_init_config_this_proc
+
+    subroutine create_trial_states(kp)
+
+        type(kp_fciqmc_data), intent(inout) :: kp
+
+    end subroutine create_trial_states
 
     subroutine scale_population(walker_list, ndets, target_pop, input_pop, scaling_factor)
 
