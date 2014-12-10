@@ -24,6 +24,7 @@ module kp_fciqmc_procs
     use hilbert_space_size, only: CreateRandomExcitLevDetUnbias, create_rand_heisenberg_det
     use hilbert_space_size, only: create_rand_det_no_sym
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
+    use lanczos_wrapper, only: frsblk_wrapper
     use LoggingData, only: tIncrementPops
     use Parallel_neci, only: MPIBarrier, iProcIndex, MPISum, MPISumAll, nProcessors
     use ParallelHelper, only: root
@@ -305,8 +306,8 @@ contains
                 else
                     kp%nvecs = nvecs_temp
                     allocate(kp%niters(kp%nvecs))
+                    kp%niters(kp%nvecs) = 0
                 end if
-                kp%niters(kp%nvecs) = 0
             case("NUM-ITERS-BETWEEN-VECS")
                 call geti(niters_temp)
             case("NUM-ITERS-BETWEEN-VECS-VARY")
@@ -414,6 +415,7 @@ contains
         end do read_inp
 
         if (.not. vary_niters) then
+            if (.not. allocated(kp%niters)) allocate(kp%niters(kp%nvecs))
             kp%niters = niters_temp
             kp%niters(kp%nvecs) = 0
         end if
@@ -1028,6 +1030,38 @@ contains
     subroutine create_trial_states(kp)
 
         type(kp_fciqmc_data), intent(inout) :: kp
+
+        integer, allocatable :: core_det_list(:,:)
+        integer :: i, ierr, ndets, nexcit
+        real(dp), allocatable :: evals(:)
+        real(dp), allocatable :: evecs(:,:)
+        character(len=*), parameter :: t_r = "create_trial_states"
+
+        if (.not. allocated(core_space)) call stop_all(t_r, "The semi-stochastic option must be used &
+                                                             &to create the trial states.")
+
+        nexcit = kp%nvecs
+
+        ndets = size(core_space, 2)
+        allocate(core_det_list(nel, determ_space_size))
+
+        do i = 1, ndets
+            call decode_bit_det(core_det_list(:,i), core_space(:,i))
+        end do
+
+        allocate(evecs(ndets, nexcit), stat=ierr)
+        if (ierr /= 0) call stop_all(t_r, "Error allocating eigenvectors array.")
+        evecs = 0.0_dp
+
+        allocate(evals(nexcit), stat=ierr)
+        if (ierr /= 0) call stop_all(t_r, "Error allocating eigenvalues array.")
+        evals = 0.0_dp
+        
+        call frsblk_wrapper(core_det_list, ndets, nexcit, evals, evecs)
+
+        deallocate(core_det_list)
+        deallocate(evals)
+        deallocate(evecs)
 
     end subroutine create_trial_states
 
