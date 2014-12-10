@@ -1029,39 +1029,90 @@ contains
 
     subroutine create_trial_states(kp)
 
+        use Parallel_neci, only: MPIScatterV, MPIArg
+
         type(kp_fciqmc_data), intent(inout) :: kp
 
         integer, allocatable :: core_det_list(:,:)
-        integer :: i, ierr, ndets, nexcit
+        integer :: i, j, ierr, ndets, nexcit
+        integer(MPIArg) :: sndcnts(0:nProcessors-1), displs(0:nProcessors-1)
+        integer(MPIArg) :: rcvcnts
+        real(dp) :: eigenvec_pop
         real(dp), allocatable :: evals(:)
-        real(dp), allocatable :: evecs(:,:)
+        real(dp), allocatable :: evecs(:,:), evecs_transpose(:,:)
+        real(dp), allocatable :: evecs_this_proc(:,:)
         character(len=*), parameter :: t_r = "create_trial_states"
+
+        real(dp) :: norm
 
         if (.not. allocated(core_space)) call stop_all(t_r, "The semi-stochastic option must be used &
                                                              &to create the trial states.")
 
         nexcit = kp%nvecs
-
         ndets = size(core_space, 2)
-        allocate(core_det_list(nel, determ_space_size))
 
-        do i = 1, ndets
-            call decode_bit_det(core_det_list(:,i), core_space(:,i))
-        end do
+        ! Only perform the diagonalisation on the root process.
+        if (iProcIndex == root) then
+            allocate(core_det_list(nel, determ_space_size))
 
-        allocate(evecs(ndets, nexcit), stat=ierr)
-        if (ierr /= 0) call stop_all(t_r, "Error allocating eigenvectors array.")
-        evecs = 0.0_dp
+            do i = 1, ndets
+                call decode_bit_det(core_det_list(:,i), core_space(:,i))
+            end do
 
-        allocate(evals(nexcit), stat=ierr)
-        if (ierr /= 0) call stop_all(t_r, "Error allocating eigenvalues array.")
-        evals = 0.0_dp
-        
-        call frsblk_wrapper(core_det_list, ndets, nexcit, evals, evecs)
+            allocate(evecs(ndets, nexcit), stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, "Error allocating eigenvectors array.")
+            evecs = 0.0_dp
 
-        deallocate(core_det_list)
-        deallocate(evals)
-        deallocate(evecs)
+            allocate(evals(nexcit), stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, "Error allocating eigenvalues array.")
+            evals = 0.0_dp
+            
+            ! Perform the Lanczos procedure.
+            call frsblk_wrapper(core_det_list, ndets, nexcit, evals, evecs)
+
+            ! We need to normalise all of the vectors to have the correct number of
+            ! walkers.
+            do j = 1, nexcit
+                eigenvec_pop = 0.0_dp
+                do i = 1, ndets
+                    eigenvec_pop = eigenvec_pop + abs(evecs(i,j))
+                end do
+
+                if (tStartSinglePart) then
+                    evecs(:,j) = evecs(:,j)*InitialPart/eigenvec_pop
+                else
+                    evecs(:,j) = evecs(:,j)*InitWalkers/eigenvec_pop
+                end if
+            end do
+        end if
+
+        ! Unfortunately to perform the MPIScatterV call we need the transpose
+        ! of the eigenvector array.
+        allocate(evecs_transpose(nexcit, ndets), stat=ierr)
+        if (ierr /= 0) call stop_all(t_r, "Error allocating transposed eigenvectors array.")
+        evecs_transpose = transpose(evecs)
+
+        ! The number of elements to send and receive in the MPI call, and the
+        ! displacements.
+        sndcnts = determ_proc_sizes*nexcit
+        rcvcnts = determ_proc_sizes(iProcIndex)*nexcit
+        displs = determ_proc_indices*nexcit
+
+        ! Send the components to the correct processors using the following
+        ! array as temporary space.
+        allocate(evecs_this_proc(nexcit, determ_proc_sizes(iProcIndex)))
+        call MPIScatterV(evecs_transpose, sndcnts, displs, evecs_this_proc, rcvcnts, ierr)
+
+        if (ierr /= 0) call stop_all(t_r, "Error in MPIScatterV call.")
+
+        ! Now copy the amplitudes across to the CurrentDets array.
+
+        if (iProcIndex == root) then
+            deallocate(core_det_list)
+            deallocate(evals)
+            deallocate(evecs)
+        end if
+        deallocate(evecs_this_proc)
 
     end subroutine create_trial_states
 
