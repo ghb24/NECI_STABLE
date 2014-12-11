@@ -348,6 +348,7 @@ contains
           im_time_init_thresh = 0.1_dp
           init_survival_mult = 3.0_dp
           MaxTau = 1.0_dp
+          tMultiReplicaInitiators = .false.
 
         end subroutine SetCalcDefaults
 
@@ -1971,6 +1972,14 @@ contains
                 if (item < nitems) then
                     call readf(init_survival_mult)
                 end if
+
+            case("MULTI-REPLICA-INITIATORS")
+                ! Aggregate particle counts across all of the simulation
+                ! replicas to determine which sites are considered to be
+                ! initiators.
+                ! Obviously, this only does anything with system-replicas
+                ! set...
+                tMultiReplicaInitiators = .true.
 
             case default
                 call report("Keyword "                                &
