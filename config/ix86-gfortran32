@@ -12,7 +12,7 @@ module_flag = -J
 [dbg]
 fflags = -fcray-pointer -ffree-line-length-none -g -m32
 cflags = -g -m32
-f90flags = -fbound-check
+f90flags = -fbounds-check
 
 [opt]
 fflags = -fcray-pointer -ffree-line-length-none -O4 -m32
