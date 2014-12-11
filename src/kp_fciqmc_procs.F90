@@ -266,13 +266,13 @@ contains
         nhashes_kp = nWalkerHashes
         TotWalkersKP = 0
         krylov_vecs_length = nint(MaxWalkersUncorrected*memory_factor_kp*kp%nvecs)
-        write(kp_length_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_vecs_length)+1)))
+        write(kp_length_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_vecs_length)+1,dp)))
         nkrylov_amp_elems_tot = lenof_sign*kp%nvecs*krylov_vecs_length
 
         ! Allocate the krylov_vecs array.
         ! The number of MB of memory required to allocate krylov_vecs.
         krylov_vecs_memory = krylov_vecs_length*(NIfTotKP+1)*size_n_int/1000000
-        write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_vecs_memory)+1)))
+        write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_vecs_memory)+1,dp)))
         write(6,'(a73,1x,'//mem_fmt//')') "About to allocate array to hold all Krylov vectors. &
                                        &Memory required (MB):", krylov_vecs_memory
         write(6,'(a13)',advance='no') "Allocating..."
@@ -291,7 +291,7 @@ contains
         ! The number of MB of memory required to allocate krylov_vecs_ht.
         ! Each node requires 16 bytes.
         krylov_ht_memory = nhashes_kp*16/1000000
-        write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_ht_memory)+1)))
+        write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_ht_memory)+1,dp)))
         write(6,'(a78,1x,'//mem_fmt//')') "About to allocate hash table to the Krylov vector array. &
                                        &Memory required (MB):", krylov_ht_memory
         write(6,'(a13)',advance='no') "Allocating..."
@@ -336,7 +336,7 @@ contains
             ! 18 arrays with (kp%nvecs**2) 8-byte elements each.
             matrix_memory = 18*(kp%nvecs**2)*8/1000000
         end if
-        write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(matrix_memory)+1)))
+        write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(matrix_memory)+1,dp)))
         write(6,'(a66,1x,'//mem_fmt//')') "About to allocate various subspace matrices. &
                                        &Memory required (MB):", matrix_memory
         write(6,'(a13)',advance='no') "Allocating..."
@@ -375,7 +375,7 @@ contains
         ! If av_mc_excits_kp hasn't been set by the user, just use AvMCExcits.
         if (av_mc_excits_kp == 0.0_dp) av_mc_excits_kp = AvMCExcits
 
-        MaxSpawnedEachProc = int(0.88*real(MaxSpawned,dp)/nProcessors)
+        MaxSpawnedEachProc = int(0.88_dp*real(MaxSpawned,dp)/nProcessors)
 
         call WriteFciMCStatsHeader()
         call MPIBarrier(ierr)
@@ -391,7 +391,7 @@ contains
         type(kp_fciqmc_data), intent(inout) :: kp
         character(2) :: int_fmt
 
-        write(int_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(kp%irepeat)+1)))
+        write(int_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(kp%irepeat)+1,dp)))
         write(6,'(1x,a22,1x,'//int_fmt//')') "Starting repeat number", kp%irepeat
 
         ! If starting from multiple POPSFILEs then set this counter so that the
@@ -486,7 +486,7 @@ contains
                     if (tScalePopulation) then
                         call scale_population(CurrentDets, TotWalkers, nwalkers_target, TotPartsCheck, scaling_factor)
                         ! Update global data.
-                        if (any(abs(TotPartsCheck-TotParts) > 1.0e-12)) then
+                        if (any(abs(TotPartsCheck-TotParts) > 1.0e-12_dp)) then
                             call stop_all(t_r, "Inconsistent values of TotParts calculated.")
                         end if
                         TotParts = TotParts*scaling_factor
@@ -594,7 +594,7 @@ contains
         ! Print info about memory usage to the user.
         ! Memory required in MB.
         mem_reqd = TotWalkers*(NIfTotKP+1)*size_n_int/1000000
-        write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(mem_reqd)+1)))
+        write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(mem_reqd)+1,dp)))
 
         write(6,'(a73,1x,'//mem_fmt//')') "About to allocate array to hold the perturbed &
                                            &ground state. Memory required (MB):", mem_reqd
@@ -657,7 +657,7 @@ contains
             ! 50% chance of each.
             walker_amp = nwalkers_per_site_init
             r = genrand_real2_dSFMT()
-            if (r < 0.5) walker_amp = -1.0_dp*walker_amp
+            if (r < 0.5_dp) walker_amp = -1.0_dp*walker_amp
 
             do ireplica = 1, inum_runs
                 walker_sign = 0.0_dp
@@ -765,7 +765,7 @@ contains
             ! 50% chance of each.
             real_sign_1 = nwalkers_per_site_init
             r = genrand_real2_dSFMT()
-            if (r < 0.5) real_sign_1 = -1.0_dp*real_sign_1
+            if (r < 0.5_dp) real_sign_1 = -1.0_dp*real_sign_1
             int_sign = transfer(real_sign_1, int_sign)
 
             tDetFound = .false.
@@ -922,7 +922,7 @@ contains
         end do
 
         write(6,'(1x,a5)',advance='yes') "Done."
-        write(int_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(TotWalkersKP)+1)))
+        write(int_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(TotWalkersKP)+1,dp)))
         write(6,'(a56,1x,'//int_fmt//',1x,a17,1x,'//kp_length_fmt//')') "# Number unique determinants in the Krylov &
                                              &vector array:", TotWalkersKP, "out of a possible", krylov_vecs_length
         amp_fraction = real(nkrylov_amp_elems_used,dp)/real(nkrylov_amp_elems_tot,dp)
@@ -1319,12 +1319,12 @@ contains
         ! Write all the components of the various estimates of the matrix, above and including the
         ! diagonal, one after another on separate lines.
         do i = 1, kp%nvecs
-            ilen = ceiling(log10(real(abs(i)+1)))
+            ilen = ceiling(log10(real(abs(i)+1,dp)))
             ! ifmt will hold the correct integer length so that there will be no spaces printed out.
             ! Note that this assumes that ilen < 10, which is very reasonable!
             write(ifmt,'(a1,i1)') "i", ilen
             do j = i, kp%nvecs
-                jlen = ceiling(log10(real(abs(j)+1)))
+                jlen = ceiling(log10(real(abs(j)+1,dp)))
                 write(jfmt,'(a1,i1)') "i", jlen
 
                 ! Write the index of the matrix element.
@@ -1396,12 +1396,12 @@ contains
         ! Write all the components of the various estimates of the matrix, above and including the
         ! diagonal, one after another on separate lines.
         do i = 1, kp%nvecs
-            ilen = ceiling(log10(real(abs(i)+1)))
+            ilen = ceiling(log10(real(abs(i)+1,dp)))
             ! ifmt will hold the correct integer length so that there will be no spaces printed out.
             ! Note that this assumes that ilen < 10, which is very reasonable!
             write(ifmt,'(a1,i1)') "i", ilen
             do j = i, kp%nvecs
-                jlen = ceiling(log10(real(abs(j)+1)))
+                jlen = ceiling(log10(real(abs(j)+1,dp)))
                 write(jfmt,'(a1,i1)') "i", jlen
 
                 ! Write the index of the matrix element.
@@ -1507,7 +1507,7 @@ contains
 
                 if (tOverlapPert) kp_pert_energy_overlaps(1:nkeep) = matmul(kp_all_pert_overlaps, eigenvecs_krylov)
 
-                nkeep_len = ceiling(log10(real(abs(nkeep)+1)))
+                nkeep_len = ceiling(log10(real(abs(nkeep)+1,dp)))
                 write(nkeep_fmt,'(a1,i1)') "i", nkeep_len
                 write(string_fmt,'(i2,a5)') 15-nkeep_len, '("-")'
                 write(temp_unit,'(/,4("-"),a37,1x,'//nkeep_fmt//',1x,a12,'//string_fmt//')') &
@@ -1599,7 +1599,7 @@ contains
 
                 init_overlaps = kp_final_hamil(:,1)*sqrt(kp_overlap_mean(1,1))
 
-                nkeep_len = ceiling(log10(real(abs(nkeep)+1)))
+                nkeep_len = ceiling(log10(real(abs(nkeep)+1,dp)))
                 write(nkeep_fmt,'(a1,i1)') "i", nkeep_len
                 write(string_fmt,'(i2,a5)') 15-nkeep_len, '("-")'
                 write(temp_unit,'(/,4("-"),a37,1x,'//nkeep_fmt//',1x,a12,'//string_fmt//')') &
@@ -1759,7 +1759,7 @@ contains
                     temp_node => temp_node%next
                 end do
             end if
-            ilen = ceiling(log10(real(abs(counter)+1)))
+            ilen = ceiling(log10(real(abs(counter)+1,dp)))
             ! ifmt will hold the correct integer length so that there will be no spaces printed out.
             ! Note that this assumes that ilen < 10, which is very reasonable!
             write(ifmt,'(a1,i1)') "i", ilen

@@ -52,7 +52,7 @@ contains
         ! the code.
           InputTargetGrowRateWalk = 500000
           InputTargetGrowRate = 0.0_dp
-          InitialPart=1
+          InitialPart = 1.0_dp
           B2L = 1.0e-13_dp
           TMC = .false.
           NHISTBOXES = 0
@@ -84,7 +84,7 @@ contains
           MaxTimeExit=0.0_dp
           tMaxBloom=.false.
           iRestartWalkNum=0
-          iWeightPopRead=1.0e-12
+          iWeightPopRead=1.0e-12_dp
           tCheckHighestPop = .true.
           tChangeProjEDet = .true.
           StepsSftImag=0.0_dp
@@ -131,14 +131,14 @@ contains
           iPopsFileNoWrite = 0
           tWalkContGrow=.false.
           StepsSft=100
-          SftDamp=10.0
+          SftDamp=10.0_dp
           Tau=0.0_dp
-          InitWalkers=3000
+          InitWalkers=3000.0_dp
           dInitAmplitude=1.0_dp
           dProbSelNewExcitor=0.7_dp
           nSpawnings=1
           nClustSelections=1
-          dClustSelectionRatio=1
+          dClustSelectionRatio=1.0_dp
           tExactEnergy=.false.
           tSharedExcitors=.false.
           tSpawnProp=.false.
@@ -187,7 +187,7 @@ contains
           NDETWORK = 50000
           I_HMAX=0
           I_VMAX=0
-          g_MultiWeight(:)=0
+          g_MultiWeight(:)=0.0_dp
 !This is whether to calculate the expected variance for a MC run when doing full sum (seperate denominator and numerator at present
           TVARCALC(:)=.false.              
           TBIN=.false.
@@ -198,7 +198,7 @@ contains
           TMODMPTHEORY=.FALSE.
           G_VMC_PI = 0.95_dp
           G_VMC_SEED = -7
-          G_VMC_FAC = 16
+          G_VMC_FAC = 16.0_dp
           TUPOWER=.false.
           G_VMC_EXCITWEIGHT(:)=0.0_dp
           G_VMC_EXCITWEIGHTS(:,:)=0.0_dp
@@ -211,19 +211,19 @@ contains
           TMONTE = .false.
           IMCSTEPS = 0
           IEQSTEPS = 0
-          BETAEQ = 0
+          BETAEQ = 0.0_dp
           TMCDET = .false.
           MDK(:) = 0
           DETINV = 0
           TSPECDET = .false.
           TTROT=.true.
-          BETA = 1000
+          BETA = 1000.0_dp
           BETAP=1.0e-4_dp
           TBETAP=.false.
           RHOEPSILON=1.0e-6_dp
           DBETA=-1.0_dp
-          GraphEpsilon=0
-          PGenEpsilon=0
+          GraphEpsilon=0.0_dp
+          PGenEpsilon=0.0_dp
           StarConv=1.0e-3_dp
           calcp_sub2vstar=.false.
           calcp_logweight=.false.
@@ -234,7 +234,7 @@ contains
           tAddtoInitiator=.false.
           InitiatorWalkNo=10.0_dp
           tInitIncDoubs=.false.
-          MaxNoatHF=0
+          MaxNoatHF=0.0_dp
           HFPopThresh=0
           tSpatialOnlyHash = .false.
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset 
@@ -267,7 +267,7 @@ contains
           spin_proj_spawn_initiators = .true.
           spin_proj_no_death = .false.
           spin_proj_interval = 5
-          spin_proj_shift = 0
+          spin_proj_shift = 0.0_dp
           spin_proj_cutoff = 0
           spin_proj_iter_count = 1
           spin_proj_nopen_max = -1
@@ -338,7 +338,7 @@ contains
           tIncludeGroundSpectral = .false.
           alloc_popsfile_dets = .false.
 
-          pParallel = 0.5
+          pParallel = 0.5_dp
 
           InitiatorCutoffEnergy = 99.99e99_dp
           InitiatorCutoffWalkNo = 99.0_dp
@@ -2048,7 +2048,7 @@ contains
 !             STOP "G_VNC_FAC LE 0"
 !          ENDIF
 
-          IF(BETAP.NE.0) THEN 
+          IF(BETAP.NE.0.0_dp) THEN 
              I_P=NINT(BETA/BETAP)
              IF(.not.tFCIMC) THEN
                  WRITE(6,*) 'BETAP=',BETAP
