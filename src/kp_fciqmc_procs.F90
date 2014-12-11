@@ -657,7 +657,7 @@ contains
             ! 50% chance of each.
             walker_amp = nwalkers_per_site_init
             r = genrand_real2_dSFMT()
-            if (r < 0.5) walker_amp = -1.0_dp*walker_amp
+            if (r < 0.5_dp) walker_amp = -1.0_dp*walker_amp
 
             do ireplica = 1, inum_runs
                 walker_sign = 0.0_dp

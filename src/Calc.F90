@@ -338,7 +338,7 @@ contains
           tIncludeGroundSpectral = .false.
           alloc_popsfile_dets = .false.
 
-          pParallel = 0.5
+          pParallel = 0.5_dp
 
           InitiatorCutoffEnergy = 99.99e99_dp
           InitiatorCutoffWalkNo = 99.0_dp
