@@ -486,7 +486,7 @@ contains
                     if (tScalePopulation) then
                         call scale_population(CurrentDets, TotWalkers, nwalkers_target, TotPartsCheck, scaling_factor)
                         ! Update global data.
-                        if (any(abs(TotPartsCheck-TotParts) > 1.0e-12)) then
+                        if (any(abs(TotPartsCheck-TotParts) > 1.0e-12_dp)) then
                             call stop_all(t_r, "Inconsistent values of TotParts calculated.")
                         end if
                         TotParts = TotParts*scaling_factor
