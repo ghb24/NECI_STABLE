@@ -375,7 +375,7 @@ contains
         ! If av_mc_excits_kp hasn't been set by the user, just use AvMCExcits.
         if (av_mc_excits_kp == 0.0_dp) av_mc_excits_kp = AvMCExcits
 
-        MaxSpawnedEachProc = int(0.88*real(MaxSpawned,dp)/nProcessors)
+        MaxSpawnedEachProc = int(0.88_dp*real(MaxSpawned,dp)/nProcessors)
 
         call WriteFciMCStatsHeader()
         call MPIBarrier(ierr)
@@ -765,7 +765,7 @@ contains
             ! 50% chance of each.
             real_sign_1 = nwalkers_per_site_init
             r = genrand_real2_dSFMT()
-            if (r < 0.5) real_sign_1 = -1.0_dp*real_sign_1
+            if (r < 0.5_dp) real_sign_1 = -1.0_dp*real_sign_1
             int_sign = transfer(real_sign_1, int_sign)
 
             tDetFound = .false.

@@ -131,7 +131,7 @@ contains
           iPopsFileNoWrite = 0
           tWalkContGrow=.false.
           StepsSft=100
-          SftDamp=10.0
+          SftDamp=10.0_dp
           Tau=0.0_dp
           InitWalkers=3000
           dInitAmplitude=1.0_dp
