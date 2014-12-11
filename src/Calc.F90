@@ -84,7 +84,7 @@ contains
           MaxTimeExit=0.0_dp
           tMaxBloom=.false.
           iRestartWalkNum=0
-          iWeightPopRead=1.0e-12
+          iWeightPopRead=1.0e-12_dp
           tCheckHighestPop = .true.
           tChangeProjEDet = .true.
           StepsSftImag=0.0_dp
