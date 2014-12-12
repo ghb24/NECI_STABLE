@@ -196,6 +196,7 @@ MODULE CCMC
         iter_data_ccmc%nborn = 0
         iter_data_ccmc%ndied = 0
         iter_data_ccmc%nannihil = 0
+        iter_data_ccmc%update_growth = 0
 
         IF(mod(Iter,StepsSft).eq.0) THEN
     
@@ -2056,6 +2057,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    iter_data_ccmc%nborn = 0
    iter_data_ccmc%ndied = 0
    iter_data_ccmc%nannihil = 0
+   iter_data_ccmc%update_growth = 0.0_dp
 
    lLogTransitions=tCCMCLogTransitions
    dTolerance=0 !1e-16
@@ -2463,6 +2465,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    iter_data_ccmc%nborn = 0
    iter_data_ccmc%ndied = 0
    iter_data_ccmc%nannihil = 0
+   iter_data_ccmc%update_growth = 0
 
    dTolerance=0 !1e-16
 

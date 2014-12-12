@@ -48,7 +48,9 @@ contains
 
 
 #ifndef __CMPLX
-        if (.not. tKP_FCIQMC) then
+        ! This is disabled for CCMC, as in CCMCStandalone then CurrentDets
+        ! is not allocated.
+        if (.not. tKP_FCIQMC .and. .not. tCCMC) then
             do part_type = 1, lenof_sign
                 if ((.not.tFillingStochRDMonFly).or.(inum_runs.eq.1)) then
                     if (AllNoAtHF(part_type) < 0.0_dp) then
