@@ -182,11 +182,12 @@ MODULE ReadInput_neci
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
                             TNoSameExcit, TInitStar, tMP2Standalone, &
-                            MemoryFacPart, tTruncInitiator, &
+                            MemoryFacPart, tTruncInitiator, tSemiStochastic, &
                             tSpatialOnlyHash, InitWalkers, tUniqueHFNode, &
                             InitiatorCutoffEnergy, tCCMC, &
                             tSurvivalInitiatorThreshold, tKP_FCIQMC, &
-                            tSurvivalInitMultThresh, tAddToInitiator
+                            tSurvivalInitMultThresh, tAddToInitiator, &
+                            tMultiReplicaInitiators
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -438,6 +439,15 @@ MODULE ReadInput_neci
             call stop_all(t_r, 'Initiator cutoff not implemented for CCMC')
         end if
 
+#ifdef __PROG_NUMRUNS
+        if (tSemiStochastic) then
+            write(6,*) '*** WARNING ***'
+            write(6,*) "Multiple runs has not been implemented considering &
+                       &semi stochastic. This almost certainly won't work"
+            call stop_all(t_r, 'Not yet implemented')
+        end if
+#endif
+
         if (tPopsFile .and. (tSurvivalInitiatorThreshold .or. &
                              tSurvivalInitMultThresh)) then
             write(6,*) 'The initiator initial iteration details have not yet &
@@ -455,6 +465,21 @@ MODULE ReadInput_neci
                        &initiator thresholds do nothing'
             write(6,*) 'If ONLY survival based thresholds are desired, set &
                        &initiator walker number absurdly high'
+            call stop_all(t_r, 'Inconsistent options')
+        end if
+
+        if (tMultiReplicaInitiators) then
+#ifndef __PROG_NUMRUNS
+            call stop_all(t_r, 'Aggregated initiator thresholds require &
+                               &multiple simulations')
+#endif
+#ifdef __CMPLX
+            call stop_all(t_r, 'Aggregated initator thresholds are not (yet) &
+                               &implemented for complex particles')
+#endif
+            if (lenof_sign == 1) &
+                call stop_all(t_r, 'Aggregated initator thresholds make no &
+                                   &sense with only one system replica')
         end if
 
     end subroutine checkinput

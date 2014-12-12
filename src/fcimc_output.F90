@@ -498,37 +498,43 @@ contains
             call stats_out(state,.true., sum(abs(AllTotParts)), 'Tot. parts')
             call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
 #ifdef __CMPLX
-            call stats_out(state,.true., real(proje_iter(1)), 'Re Proj. E')
-            call stats_out(state,.true., aimag(proje_iter(1)), 'Im Proj. E')
+            call stats_out(state,.true., real(proje_iter_tot), 'Re Proj. E')
+            call stats_out(state,.true., aimag(proje_iter_tot), 'Im Proj. E')
 #else
-            call stats_out(state,.true., proje_iter(1), 'Proj. E (cyc)')
+            call stats_out(state,.true., proje_iter_tot, 'Proj. E (cyc)')
 #endif
-            call stats_out(state,.true., DiagSft(1), 'Shift. (cyc)')
+            call stats_out(state,.true., sum(DiagSft / inum_runs), 'Shift. (cyc)')
             call stats_out(state,.true., IterTime, 'Iter. time')
-            call stats_out(state,.false., AllNoBorn(1), 'No. born')
-            call stats_out(state,.false., AllNoDied(1), 'No. died')
-            call stats_out(state,.false., AllAnnihilated(1), 'No. annihil')
-            call stats_out(state,.false., AllGrowRate(1), 'Growth fac.')
-            call stats_out(state,.false., AccRat(1), 'Acc. rate')
+            call stats_out(state,.false., sum(AllNoBorn), 'No. born')
+            call stats_out(state,.false., sum(AllNoDied), 'No. died')
+            call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
+!!            call stats_out(state,.false., AllGrowRate(1), 'Growth fac.')
+!!            call stats_out(state,.false., AccRat(1), 'Acc. rate')
             call stats_out(state,.false., TotImagTime, 'Im. time')
 #ifdef __CMPLX
-            call stats_out(state,.true., real(proje_iter(1)) + Hii, &
+            call stats_out(state,.true., real(proje_iter_tot) + Hii, &
                            'Tot. Proj. E')
-            call stats_out(state,.true., aimag(proje_iter(1)) + Hii, &
+            call stats_out(state,.true., aimag(proje_iter_tot) + Hii, &
                            'Tot. Proj. E')
 #else
-            call stats_out(state,.true., proje_iter(1) + Hii, 'Tot. Proj. E')
+            call stats_out(state,.true., proje_iter_tot + Hii, 'Tot. Proj. E')
 #endif
 
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
-#ifdef __PROG_LENOFSIGN
-            do p = 1, lenof_sign
+#ifdef __PROG_NUMRUNS
+            do p = 1, inum_runs
                 write(tmpc, '(i5)') p
                 call stats_out (state, .false., AllTotParts(p), &
                                 'Parts (' // trim(adjustl(tmpc)) // ")")
                 call stats_out (state, .false., AllNoatHF(p), &
                                 'Ref (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., DiagSft(p), &
+                                'Shift (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., proje_iter(p), &
+                                'ProjE (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., proje_iter(p) + Hii, &
+                                'Tot ProjE (' // trim(adjustl(tmpc)) // ")")
             end do
 #endif
 

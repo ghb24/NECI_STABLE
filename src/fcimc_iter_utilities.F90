@@ -48,7 +48,9 @@ contains
 
 
 #ifndef __CMPLX
-        if (.not. tKP_FCIQMC) then
+        ! This is disabled for CCMC, as in CCMCStandalone then CurrentDets
+        ! is not allocated.
+        if (.not. tKP_FCIQMC .and. .not. tCCMC) then
             do part_type = 1, lenof_sign
                 if ((.not.tFillingStochRDMonFly).or.(inum_runs.eq.1)) then
                     if (AllNoAtHF(part_type) < 0.0_dp) then
@@ -723,6 +725,17 @@ contains
                 endif
             enddo
 
+            ! Get some totalled values
+#ifdef __CMPLX
+            projectionE_tot = ProjectionE(1)
+            proje_iter_tot = proje_iter(1)
+#else
+            projectionE_tot = sum(AllSumENum(1:inum_runs)) &
+                            / sum(all_sum_proje_denominator(1:inum_runs))
+            proje_iter_tot = sum(AllENumCyc(1:inum_runs)) &
+                           / sum(all_cyc_proje_denominator(1:inum_runs))
+#endif
+
         endif ! iProcIndex == root
 
         ! Broadcast the shift from root to all the other processors
@@ -791,7 +804,7 @@ contains
 
     subroutine calculate_new_shift_wrapper (iter_data, tot_parts_new)
 
-        type(fcimc_iter_data) :: iter_data
+        type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
         real(dp), dimension(lenof_sign) :: tot_parts_new_all
 

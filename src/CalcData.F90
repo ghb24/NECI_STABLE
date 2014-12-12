@@ -1,6 +1,6 @@
 module CalcData
 
-    use constants, only: dp,int64, lenof_sign, inum_runs, n_int
+    use constants
     use MemoryManager, only: TagIntType
     implicit none
 
@@ -55,7 +55,7 @@ INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
 INTEGER :: NMCyc,StepsSft,CLMax
 INTEGER :: NEquilSteps
 real(dp) :: InitialPart
-real(dp), dimension(lenof_sign) :: InitialPartVec
+real(dp), allocatable :: InitialPartVec(:)
 INTEGER :: OccCASorbs,VirtCASorbs,iAnnInterval
 integer :: iPopsFileNoRead, iPopsFileNoWrite,iRestartWalkNum
 real(dp) :: iWeightPopRead
@@ -78,12 +78,15 @@ real(dp) :: MemoryFacSpawn,SinglesBias,TauFactor,StepsSftImag
 
 real(dp) :: MemoryFacInit
 
-real(dp), dimension(inum_runs), target :: DiagSft
+real(dp), allocatable, target :: DiagSft(:)
 
 real(dp) :: GraphEpsilon
 real(dp) :: PGenEpsilon
-real(dp), dimension(inum_runs) :: TargetGrowRate
-integer(int64), dimension(inum_runs) :: TargetGrowRateWalk    !Number of walkers before targetgrowrate kicks in
+real(dp) :: InputTargetGrowRate
+integer(int64) :: InputTargetGrowRateWalk
+real(dp), allocatable :: TargetGrowRate(:)
+! Number of particles before targetgrowrate kicks in
+integer(int64), allocatable :: TargetGrowRateWalk(:)
 integer(int64) :: iExitWalkers  !Exit criterion, based on total walker number
 
 
@@ -228,6 +231,10 @@ integer :: pops_norm_unit
 ! What is the maximum energy, above which all particles are treated as
 ! initiators
 real(dp) :: InitiatorCutoffEnergy, InitiatorCutoffWalkNo
+
+! Should we aggregate particle counts across all of the simulations in
+! determining which sites are initiators (in system-replica mode).
+logical :: tMultiReplicaInitiators = .false.
 
 ! Do we make sites into initiators if they have survived more than a certain
 ! period of time?
