@@ -10,7 +10,7 @@ MODULE System
 
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList
-    use constants, only: sp,dp,int64, Pi, third
+    use constants
     use iso_c_hack
     use util_mod, only: error_function, error_function_c
 
@@ -196,7 +196,7 @@ MODULE System
       CHARACTER (LEN=100) w
       INTEGER I,Odd_EvenHPHF,Odd_EvenMI
       integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
-      character(len=*), parameter :: t_r='SysReadInput'
+      character(*), parameter :: t_r = 'SysReadInput'
       
       ! The system block is specified with at least one keyword on the same
       ! line, giving the system type being used.
@@ -925,8 +925,27 @@ system: do
             !We have complex orbitals, but real integrals. This means that we only have 4x permutational symmetry,
             !so we need to check the (momentum) symmetry before we look up any integrals
             tComplexOrbs_RealInts = .true.
+
+        case("SYSTEM-REPLICAS")
+            ! How many copies of the simulation do we want to run in parallel?
+            ! This can only be done using mneci.x, where the size of the
+            ! representation (i.e. lenof_sign) is permitted to vary at runtime
+#ifdef __PROG_NUMRUNS
+            call readi(inum_runs)
+            lenof_sign = inum_runs
+            if (inum_runs > inum_runs_max) then
+                write(6,*) 'Maximum SYSTEM-REPLICAS: ', inum_runs_max
+                call stop_all(t_r, 'SYSTEM-REPLICAS is greater than maximum &
+                                   &permitted value')
+            end if
+#else
+            call stop_all(t_r, "mneci.x build must be used for running with &
+                               &multiple simultaneous replicas")
+#endif
+
           case("HEISENBERG")
               tHeisenberg = .true.
+
         case("ENDSYS") 
             exit system
         case default

@@ -171,13 +171,13 @@ contains
 
         ! The signs array
         NOffSgn = NOffY + NIfY
-        NIfSgn = 1
-#ifdef __CMPLX 
-        WRITE(6,*) "Complex walkers in use."
-        NIfSgn = NIfSgn + 1     !TODO: If __INT64, adjust packing into one integer
-#elif __DOUBLERUN
+        NIfSgn = lenof_sign
+#ifdef __PROG_NUMRUNS
+        write(6,*) 'Setting replica count in bit representation: ', NIfSgn
+#elif defined(__DOUBLERUN)
         WRITE(6,*) "Double run in use."
-        NIfSgn = NIfSgn + 1     !TODO: If __INT64, adjust packing into one integer
+#elif defined(__CMPLX)
+        WRITE(6,*) "Complex walkers in use."
 #endif
 
         ! The number of integers used for sorting / other bit manipulations
@@ -189,8 +189,18 @@ contains
         else
             tUseFlags = .false.
         end if
+#ifdef __PROG_NUMRUNS
+        if (lenof_sign_max /= 20) then
+            call stop_all(this_routine, "Invalid build configuration. Update &
+                         &flags to account for new lenof_sign_max, then &
+                         &update this message")
+        end if
+#endif
 
-#ifdef __INT64
+! If we are using programattic lenofsign, then we also need to use separate
+! integers for the flags, as the number of initiator/parent flags increases
+! dramatically!
+#if defined(__INT64) && !defined(__PROG_NUMRUNS)
         ! If we are using 64-bit integers, we can put the flags into the same
         ! integers as the signs, as there is plenty of redundancy. This avoids
         ! using 1/3 of our communication to just say if we are spawning from
@@ -250,7 +260,7 @@ contains
             call decode_bit_det (nI, ilut)
         endif
 
-#ifdef __INT64
+#if defined(__INT64) && !defined(__PROG_NUMRUNS)
         if (tUseRealCoeffs) then
             ! Get the signs, and splat them onto the reals.
             sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
@@ -260,8 +270,8 @@ contains
             ! --> If we store them as integers, we can still combine things.
             sgn(1) = iand(ilut(NOffSgn), sign_mask)
             if (test_flag(ilut, flag_negative_sign)) sgn(1) = -sgn(1)
-            if (lenof_sign == 2) then
-                sgn(lenof_sign) = ilut(NOffSgn+1)
+            if (lenof_sign /= 1) then
+                sgn(2:lenof_sign) = ilut(NOffSgn+1:NOffSgn+lenof_sign-1)
             end if
             real_sgn = real(sgn, dp)
         end if
@@ -293,7 +303,7 @@ contains
         integer(n_int) :: sgn
         real(dp) :: real_sgn
 
-#ifdef __INT64
+#if defined(__INT64) && !defined(__PROG_NUMRUNS)
         if (tUseRealCoeffs) then
             sgn = ilut(nOffSgn + part_type - 1)
             real_sgn = transfer(sgn, real_sgn)
@@ -324,14 +334,15 @@ contains
         iLut(0:NIfDBO) = Det
         flag_local = flag
 
-#ifdef __INT64
+#if defined(__INT64) && !defined(__PROG_NUMRUNS)
         if (tUseRealCoeffs) then
             sgn = transfer(real_sgn, sgn)
             ilut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
         else
             ! In this encode step we don't have to worry about trampling on
             ! existing flags, as we are about to set them below.
-            sgn(lenof_sign) = int(real_sgn(lenof_sign), dp)
+            if (lenof_sign /= 1) &
+                sgn(2:lenof_sign) = int(real_sgn(2:lenof_sign), dp)
             sgn(1) = int(real_sgn(1), n_int)
 
             ilut(NOffSgn) = abs(sgn(1))
@@ -340,8 +351,8 @@ contains
             else
                 flag_local = ibclr(flag_local, flag_negative_sign)
             endif
-            if (lenof_sign == 2) &
-                ilut(NOffSgn+1) = sgn(lenof_sign)
+            if (lenof_sign /= 1) &
+                ilut(NOffSgn+1:NOffSgn+lenof_sign-1) = sgn(2:lenof_sign)
         end if
 #else
         sgn = transfer(real_sgn, sgn)
@@ -353,7 +364,7 @@ contains
         !
         ! We have ensured that the flags are correct INCLUDING the sign bit,
         ! so we don't have to deal with that specially.
-#ifdef __INT64
+#if defined(__INT64) && !defined(__PROG_NUMRUNS)
         if ((.not. tUseRealCoeffs) .or. tUseFlags) then
 #else
         if (tUseFlags) then
@@ -401,21 +412,22 @@ contains
         real(dp), intent(in) :: real_sgn(lenof_sign)
         integer(n_int) :: sgn(lenof_sign)
 
-#ifdef __INT64
+#if defined(__INT64) && !defined(__PROG_NUMRUNS)
         if (tUseRealCoeffs) then
             sgn = transfer(real_sgn, sgn)
             ilut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
         else
 
-            sgn(lenof_sign) = int(real_sgn(lenof_sign), n_int)
+            if (lenof_sign /= 1) &
+                sgn(2:lenof_sign) = int(real_sgn(2:lenof_sign), n_int)
             sgn(1) = int(real_sgn(1), n_int)
 
             ! Ensure that we don't trample on flags (which have already been 
             ! set).
             ilut(NOffSgn) = ior(iand(flags_mask, ilut(NOffSgn)), abs(sgn(1)))
             call set_flag(ilut, flag_negative_sign, sgn(1) < 0)
-            if (lenof_sign == 2) &
-                ilut(NOffSgn+1) = sgn(lenof_sign)
+            if (lenof_sign /= 1) &
+                ilut(NOffSgn+1:NOffSgn+lenof_sign-1) = sgn(2:lenof_sign)
         end if
 #else
         sgn = transfer(real_sgn, sgn)
@@ -438,7 +450,7 @@ contains
         real(dp), intent(in) :: real_sgn
         integer(n_int) :: sgn
 
-#ifdef __INT64
+#if defined(__INT64) && !defined(__PROG_NUMRUNS)
         if (tUseRealCoeffs) then
             sgn = transfer(real_sgn, sgn)
             ilut(NOffSgn+part_type-1) = sgn

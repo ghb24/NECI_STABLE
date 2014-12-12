@@ -199,6 +199,7 @@ MODULE CCMC
         iter_data_ccmc%nborn = 0
         iter_data_ccmc%ndied = 0
         iter_data_ccmc%nannihil = 0
+        iter_data_ccmc%update_growth = 0
 
         IF(mod(Iter,StepsSft).eq.0) THEN
     
@@ -2059,6 +2060,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    iter_data_ccmc%nborn = 0
    iter_data_ccmc%ndied = 0
    iter_data_ccmc%nannihil = 0
+   iter_data_ccmc%update_growth = 0.0_dp
 
    lLogTransitions=tCCMCLogTransitions
    dTolerance=0 !1e-16
@@ -2337,6 +2339,7 @@ SUBROUTINE CCMCStandalone(Weight,Energyxw)
    Weight=0.0_dp
    Energyxw=ProjectionE(1)+Hii
    call halt_timer(CCMC_time)
+
 END SUBROUTINE CCMCStandalone
 
 SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
@@ -2465,6 +2468,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    iter_data_ccmc%nborn = 0
    iter_data_ccmc%ndied = 0
    iter_data_ccmc%nannihil = 0
+   iter_data_ccmc%update_growth = 0
 
    dTolerance=0 !1e-16
 
@@ -2828,6 +2832,7 @@ SUBROUTINE CCMCStandaloneParticle(Weight,Energyxw)
    Weight=0.0_dp
    Energyxw=ProjectionE(1)+Hii
    call halt_timer(CCMC_time)
+
 END SUBROUTINE CCMCStandaloneParticle
 
 subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)

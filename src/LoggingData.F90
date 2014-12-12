@@ -30,7 +30,7 @@ module LoggingData
     LOGICAL tReadRDMAvPop
     LOGICAL tWriteTransMat,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit, tWriteMultRDMs
     !LOGICAL tHF_S_D_Ref, tHF_S_D, tHF_Ref_Explicit, 
-    LOGICAL tExplicitAllRDM, twrite_normalised_RDMs, twrite_RDMs_to_read 
+    LOGICAL tExplicitAllRDM, twrite_normalised_RDMs, tWriteSpinFreeRDM, twrite_RDMs_to_read 
     LOGICAL tNoNOTransform, tPrint1RDM, tPrintInitiators
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps
     INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter, IterWriteRDMs 

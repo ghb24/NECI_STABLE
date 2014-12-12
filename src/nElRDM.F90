@@ -74,7 +74,7 @@ MODULe nElRDMMod
                        ThreshOccRDM, tThreshOccRDMDiag, tDipoles,&
                        tBrokenSymNOs, occ_numb_diff, tForceCauchySchwarz, &
                        tBreakSymNOs, RotNOs, tagRotNOs, local_cutoff, rottwo, &
-                       rotthree, rotfour, tRDMInstEnergy,tFullHFAv
+                       rotthree, rotfour, tRDMInstEnergy,tFullHFAv, tWriteSpinFreeRDM
     use RotateOrbsData, only: CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt, &
                               SymLabelCounts2_rot,SymLabelList2_rot, &
                               SymLabelListInv_rot,NoOrbs, SpatOrbs, &
@@ -3834,6 +3834,8 @@ MODULe nElRDMMod
         close(abab_RDM_unit)
         close(abba_RDM_unit)
 
+        if (tWriteSpinFreeRDM) call Write_spinfree_RDM(Norm_2RDM)
+
         !if(tNormalise.and.(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref))) then
         if(tNormalise) then
             write(6,'(I15,F30.20,A20,A39)') Iter+PreviousCycles, Max_Error_Hermiticity, &
@@ -3847,7 +3849,48 @@ MODULe nElRDMMod
     end subroutine Write_out_2RDM
 
 
-    SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
+    subroutine Write_spinfree_RDM (Norm_2RDM)
+
+        ! Writes out the spinfree 2RDM for MPQC
+
+        real(dp) , intent(in) :: Norm_2RDM
+        integer :: i, j, a, b
+        integer :: read_stat
+        integer :: spinfree_RDM_unit
+        integer :: spat_brr(SpatOrbs)
+
+        ! Orders spatial MO’s by energy
+        do i = 1, SpatOrbs
+            spat_brr(i) = ( Brr(i*2) + 1) /2
+        end do
+
+        write(6,*) "Writing out the spinfree RDM"
+        spinfree_RDM_unit = get_free_unit()
+        open(spinfree_RDM_unit, file="spinfree_TwoRDM", status="replace")
+        
+        do j = 1, SpatOrbs
+            do b = 1, SpatOrbs
+                do a = 1, SpatOrbs
+                    do i = 1, SpatOrbs
+                        if (abs(Find_Spatial_2RDM_Chem(spat_brr(i), spat_brr(j), &
+                             spat_brr(a), spat_brr(b),  Norm_2RDM) ) > 1.0e-12) then
+
+                            write(spinfree_RDM_unit,"(4I15,F30.20)") i, a, j, b, &
+                                   Find_Spatial_2RDM_Chem(spat_brr(i), spat_brr(j), &
+                                   spat_brr(a), spat_brr(b), Norm_2RDM)
+                        end if
+                    end do
+                end do
+            end do
+        end do
+
+        write(spinfree_RDM_unit, "(4I15,F30.20)") -1, -1, -1, -1, -1.0_dp
+        close(spinfree_RDM_unit)
+
+    end subroutine Write_spinfree_RDM
+
+
+SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
 ! This routine takes the 1 electron and 2 electron reduced density matrices 
 ! and calculated the energy they give.    
 ! The equation for the energy is as follows:

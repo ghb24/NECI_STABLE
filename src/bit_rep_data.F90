@@ -38,19 +38,37 @@ module bit_rep_data
 
     ! Flags which we can store
     logical :: tUseflags
-    integer, parameter :: flag_is_initiator(2) = (/0,1/), &
-                          flag_parent_initiator(2) = (/0,1/), & ! n.b. the same
-                          flag_make_initiator(2) = (/2,3/), &
-                          flag_deterministic = 4, &
-                          flag_determ_parent = 5, &
-                          flag_trial = 6, &
-                          flag_connected = 7, &
-                          flag_negative_sign = 8, &
-                          flag_has_been_initiator(1) = (9)
+    integer, parameter :: flag_deterministic = 0, &
+                          flag_determ_parent = 1, &
+                          flag_trial = 2, &
+                          flag_connected = 3, &
+                          flag_has_been_initiator(1) = 4, &
+                          flag_unused1 = 5, &
+                          flag_unused2 = 6, &
+                          flag_unused3 = 7, &
+                          flag_ic0_spawn = 8, &
+                          flag_death_done = 9, &
+                          flag_negative_sign = 10
+
+#ifdef __PROG_NUMRUNS
+    integer, parameter :: flag_is_initiator(lenof_sign_max) &
+                            = (/11, 12, 13, 14, 15, 16, 17, 18, 19, 20, &
+                                21, 22, 23, 24, 25, 26, 27, 28, 29, 30/), &
+                          flag_parent_initiator(lenof_sign_max) &
+                            = flag_is_initiator, &
+                          flag_make_initiator(lenof_sign_max) &
+                            = (/31, 32, 33, 34, 35, 36, 37, 38, 39, 40, &
+                                41, 42, 43, 44, 45, 46, 47, 48, 49, 50/), &
+                          num_flags = 51
+#else
+    integer, parameter :: flag_is_initiator(2) = (/11,12/), &
+                          flag_parent_initiator(2) = (/11,12/), & ! n.b. the same
+                          flag_make_initiator(2) = (/13,14/), &
+                          num_flags = 15
+#endif
 
     ! IMPORTANT
-    integer, parameter :: num_flags = 10, &
-                          flag_bit_offset = bits_n_int - num_flags
+    integer, parameter :: flag_bit_offset = bits_n_int - num_flags
     integer(n_int), parameter :: sign_mask = ishft(not(0_n_int), -num_flags), &
                                  flags_mask = not(sign_mask), &
                                  sign_neg_mask = ibset(sign_mask, &
@@ -95,7 +113,7 @@ contains
         real(dp), intent(out) :: real_sgn(lenof_sign)
         integer(n_int) :: sgn(lenof_sign)
 
-#ifdef __INT64
+#if defined(__INT64) && !defined(__PROG_NUMRUNS)
         if (tUseRealCoeffs) then
             sgn = ilut(NOffSgn:NOffSgn+lenof_sign-1)
             real_sgn = transfer(sgn, real_sgn)

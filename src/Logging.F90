@@ -125,6 +125,7 @@ MODULE Logging
 !      tHF_S_D = .false.
 !      tHF_Ref_Explicit = .false.
       twrite_normalised_RDMs = .true. 
+      tWriteSpinFreeRDM = .false.
       twrite_RDMs_to_read = .false.
       tno_RDMs_to_read = .false.
       !tReadRDMAvPop=.false.
@@ -157,7 +158,11 @@ MODULE Logging
       tRDMInstEnergy=.true.
       tFullHFAv=.false.
 
+#ifdef __PROG_NUMRUNS
+      tFCIMCStats2 = .true.
+#else
       tFCIMCStats2 = .false.
+#endif
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -649,6 +654,9 @@ MODULE Logging
 ! Does not print out the normalised (final) RDMs - to be used if you know the calculation will not be converged, and don't  
 ! want to take up disk space.
             twrite_normalised_RDMs = .false.
+
+        case("WRITE-SPIN-FREE-RDM")
+            tWriteSpinFreeRDM = .true.
 
         case("READRDMS")
 ! Read in the RDMs from a previous calculation, and continue accumulating the RDMs from the very beginning of this restart. 

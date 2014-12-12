@@ -197,7 +197,7 @@ contains
              ! If not TwoCycleSymGens we assume the user has already
              ! done so...
              nprop=1
-             nprop(1:nSymGen)=2
+             nprop(1:min(nSymGen,3))=2
          end if
 
 !   Now generate a list of sym labels.

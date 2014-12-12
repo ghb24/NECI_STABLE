@@ -22,9 +22,11 @@ contains
         integer :: lwork, info, ndets
         real(dp), allocatable :: work(:)
         ! Data for the testsuite to use.
-        real(dp) :: spec_low, spec_high
+        real(dp) :: h_sum, spec_low, spec_high
 
         call init_exact_spectrum(ndets)
+
+        h_sum = sum(hamiltonian)
 
         ! Create the workspace for dsyev.
         lwork = max(1,3*ndets-1)
@@ -44,7 +46,7 @@ contains
 
         call output_spectrum(ndets, eigv_es, spec_low, spec_high)
 
-        call write_exact_spec_testsuite_data(eigv_es(1), eigv_es(ndets), spec_low, spec_high)
+        call write_exact_spec_testsuite_data(h_sum, spec_low, spec_high)
 
         call end_exact_spectrum()
 
@@ -146,14 +148,13 @@ contains
 
     end subroutine init_exact_spectrum
 
-    subroutine write_exact_spec_testsuite_data(eigv_low, eigv_high, spec_low, spec_high)
+    subroutine write_exact_spec_testsuite_data(h_sum, spec_low, spec_high)
 
-        real(dp), intent(in) :: eigv_low, eigv_high, spec_low, spec_high
+        real(dp), intent(in) :: h_sum, spec_low, spec_high
 
         write(6,'(/,1X,64("="))')
         write(6,'(1X,"Exact spectrum testsuite data:")')
-        write(6,'(1X,"Lowest eigenvalue of H:",21X,es20.13)') eigv_low
-        write(6,'(1X,"Highest eigenvalue of H:",20X,es20.13)') eigv_high
+        write(6,'(1X,"Sum of H elements:",26X,es20.13)') h_sum
         write(6,'(1X,"Spectral weight at the lowest omega value:",2X,es20.13)') spec_low
         write(6,'(1X,"Spectral weight at the highest omega value:",1X,es20.13)') spec_high
         write(6,'(1X,64("="))')
