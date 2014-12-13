@@ -1034,10 +1034,11 @@ contains
         type(kp_fciqmc_data), intent(inout) :: kp
 
         integer, allocatable :: core_det_list(:,:)
-        integer :: i, j, ierr, ndets, nexcit
+        integer :: i, j, ierr, ndets, ndets_this_proc, nexcit
+        integer :: min_ind, max_ind
         integer(MPIArg) :: sndcnts(0:nProcessors-1), displs(0:nProcessors-1)
         integer(MPIArg) :: rcvcnts
-        real(dp) :: eigenvec_pop
+        real(dp) :: eigenvec_pop, real_sign(lenof_sign)
         real(dp), allocatable :: evals(:)
         real(dp), allocatable :: evecs(:,:), evecs_transpose(:,:)
         real(dp), allocatable :: evecs_this_proc(:,:)
@@ -1070,6 +1071,9 @@ contains
             ! Perform the Lanczos procedure.
             call frsblk_wrapper(core_det_list, ndets, nexcit, evals, evecs)
 
+            deallocate(core_det_list)
+            deallocate(evals)
+
             ! We need to normalise all of the vectors to have the correct number of
             ! walkers.
             do j = 1, nexcit
@@ -1084,32 +1088,64 @@ contains
                     evecs(:,j) = evecs(:,j)*InitWalkers/eigenvec_pop
                 end if
             end do
+
+            ! Unfortunately to perform the MPIScatterV call we need the transpose
+            ! of the eigenvector array.
+            allocate(evecs_transpose(nexcit, ndets), stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, "Error allocating transposed eigenvectors array.")
+            evecs_transpose = transpose(evecs)
         end if
 
-        ! Unfortunately to perform the MPIScatterV call we need the transpose
-        ! of the eigenvector array.
-        allocate(evecs_transpose(nexcit, ndets), stat=ierr)
-        if (ierr /= 0) call stop_all(t_r, "Error allocating transposed eigenvectors array.")
-        evecs_transpose = transpose(evecs)
-
+        ndets_this_proc = determ_proc_sizes(iProcIndex)
         ! The number of elements to send and receive in the MPI call, and the
         ! displacements.
         sndcnts = determ_proc_sizes*nexcit
-        rcvcnts = determ_proc_sizes(iProcIndex)*nexcit
+        rcvcnts = ndets_this_proc*nexcit
         displs = determ_proc_indices*nexcit
 
         ! Send the components to the correct processors using the following
         ! array as temporary space.
-        allocate(evecs_this_proc(nexcit, determ_proc_sizes(iProcIndex)))
+        allocate(evecs_this_proc(nexcit, ndets_this_proc))
         call MPIScatterV(evecs_transpose, sndcnts, displs, evecs_this_proc, rcvcnts, ierr)
 
         if (ierr /= 0) call stop_all(t_r, "Error in MPIScatterV call.")
 
-        ! Now copy the amplitudes across to the CurrentDets array.
+        ! Now copy the amplitudes across to the CurrentDets array:
+        ! First, get the correct states in CurrentDets.
+        CurrentDets = 0_n_int
+        min_ind = determ_proc_indices(iProcIndex) + 1
+        max_ind = determ_proc_indices(iProcIndex) + ndets_this_proc
+        CurrentDets(0:NIfDBO, 1:ndets_this_proc) = core_space(0:NIfDBO, min_ind:max_ind)
 
+        ! Set flags and signs.
+        do i = 1, ndets_this_proc
+            call set_flag(CurrentDets(:,i), flag_deterministic)
+            ! Construct the sign array to be encoded.
+            do j = 2, lenof_sign, 2
+                real_sign(j-1:j) = evecs_this_proc(j/2,i)
+            end do
+            call encode_sign(CurrentDets(:,i), real_sign)
+        end do
+        if (tTruncInitiator) then
+            do i = 1, ndets_this_proc
+                call set_flag(CurrentDets(:,i), flag_is_initiator(1))
+                call set_flag(CurrentDets(:,i), flag_is_initiator(2))
+            end do
+        end if
+
+        ! Reset and fill in the hash table.
+        call clear_hash_table(HashIndex)
+        call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, ndets_this_proc, .true.)
+
+        ! Calculate and store the diagonal elements of the Hamiltonian for
+        ! determinants in CurrentDets.
+        TotWalkers = determ_proc_sizes(iProcIndex)
+        call fill_in_diag_helements()
+
+        call set_initial_global_data(ndets_this_proc, CurrentDets)
+
+        ! Clean up.
         if (iProcIndex == root) then
-            deallocate(core_det_list)
-            deallocate(evals)
             deallocate(evecs)
         end if
         deallocate(evecs_this_proc)
