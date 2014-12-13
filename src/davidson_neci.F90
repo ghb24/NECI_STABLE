@@ -78,7 +78,7 @@ type(ras_vector), allocatable, dimension(:,:,:) :: direct_ci_inp, direct_ci_out
         logical, intent(in) :: print_info_in
         logical :: print_info, skip_calc
         integer :: i
-        real :: start_time, end_time
+        real(sp) :: start_time, end_time
 
         hamil_type = input_hamil_type
         ! Only let the root processor print information.
