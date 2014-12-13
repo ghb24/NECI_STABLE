@@ -312,7 +312,7 @@ module FciMCParMod
                 ENDIF
                 IF(tTimeExit.and.(TotalTime8.ge.MaxTimeExit)) THEN
                     !Is it time to exit yet?
-                    write(iout,"(A,F8.2,A)") "Time limit reached for simulation of: ",MaxTimeExit/60.0," minutes - exiting..."
+                    write(iout,"(A,F8.2,A)") "Time limit reached for simulation of: ",MaxTimeExit/60.0_dp," minutes - exiting..."
                     NMCyc=Iter+StepsSft  
                     ! Set this to false so that this if statement won't be entered next time.
                     tTimeExit = .false.
@@ -474,9 +474,11 @@ module FciMCParMod
             write (iout,'(1X,a34,1X,i18,/)') 'Max number of determinants/process:',MaxWalkers
         end if
        
+#ifndef __PROG_NUMRUNS
         !Automatic error analysis
         call error_analysis(tSinglePartPhase(1),iBlockingIter(1),mean_ProjE_re,ProjE_Err_re,  &
             mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue)
+#endif
 
         call MPIBCast(ProjectionE)
         call MPIBCast(mean_ProjE_re)
@@ -617,8 +619,8 @@ module FciMCParMod
 
         call set_timer(Walker_Time,30)
 
-        MaxInitPopPos=0.0
-        MaxInitPopNeg=0.0
+        MaxInitPopPos=0.0_dp
+        MaxInitPopNeg=0.0_dp
         HighPopNeg=1
         HighPopPos=1
         FlagsCurr=0
@@ -1035,10 +1037,10 @@ module FciMCParMod
         real(dp) :: real_sign(lenof_sign)
 
         dets_1 =  (/28,   47,  1,   23,   32,  57/)
-        signs_1 = (/-1.0, 2.0, 1.3, 4.0, 1.0, 7.0/)
+        signs_1 = (/-1.0_dp, 2.0_dp, 1.3_dp, 4.0_dp, 1.0_dp, 7.0_dp/)
 
         dets_2 =  (/47,  23,  32,  38,  57,  63/)
-        signs_2 = (/7.0, 4.0, 1.0, 2.0, 1.2, 2.4/)
+        signs_2 = (/7.0_dp, 4.0_dp, 1.0_dp, 2.0_dp, 1.2_dp, 2.4_dp/)
 
         do i = 1, 6
             list_1(0,i) = dets_1(i) 
