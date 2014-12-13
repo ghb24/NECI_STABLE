@@ -57,7 +57,7 @@ contains
         HElement_t :: HElGen
 
         ! Variables to hold information output for the test suite.
-        real(dp) :: s_low, s_high, h_low, h_high
+        real(dp) :: s_sum, h_sum
 
         integer(n_int) :: int_sign(lenof_sign_kp)
         real(dp) :: test_sign(lenof_sign_kp)
@@ -307,15 +307,19 @@ contains
 
             if (iProcIndex == root .and. tStoreKPMatrices) then
                 call average_kp_matrices_wrapper(kp)
-                call find_and_output_lowdin_eigv(kp, s_low, s_high, h_low, h_high)
+                call find_and_output_lowdin_eigv(kp)
                 call find_and_output_gs_eigv(kp)
+
+                ! Calculate data for the testsuite.
+                s_sum = sum(kp_overlap_mean)
+                h_sum = sum(kp_hamil_mean)
             end if
 
         end do outer_loop ! Over all initial walker configurations.
 
         if (tPopsFile) call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
 
-        call write_kpfciqmc_testsuite_data(s_low, s_high, h_low, h_high)
+        if (iProcIndex == root) call write_kpfciqmc_testsuite_data(s_sum, h_sum)
 
     end subroutine perform_kp_fciqmc
 
@@ -337,7 +341,7 @@ contains
         HElement_t :: HElGen
 
         ! Variables to hold information output for the test suite.
-        real(dp) :: s_low, s_high, h_low, h_high
+        real(dp) :: s_sum, h_sum
 
         kp%irepeat => irepeat
         kp%ivec => ireport
@@ -532,14 +536,18 @@ contains
         if (.not. tSoftExitFound) then
             if (iProcIndex == root .and. tStoreKPMatrices) then
                 call average_kp_matrices_wrapper(kp)
-                call find_and_output_lowdin_eigv(kp, s_low, s_high, h_low, h_high)
+                call find_and_output_lowdin_eigv(kp)
                 call find_and_output_gs_eigv(kp)
+
+                ! Calculate data for the testsuite.
+                s_sum = sum(kp_overlap_mean)
+                h_sum = sum(kp_hamil_mean)
             end if
         end if
 
         if (tPopsFile) call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
 
-        call write_kpfciqmc_testsuite_data(s_low, s_high, h_low, h_high)
+        call write_kpfciqmc_testsuite_data(s_sum, h_sum)
 
     end subroutine perform_subspace_fciqmc
 

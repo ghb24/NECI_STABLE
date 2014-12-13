@@ -112,7 +112,7 @@ module fcimc_pointed_fns
         integer :: extracreate, tgt_cpt, component, i, iUnused
         integer :: TargetExcitLevel
         logical :: tRealSpawning
-        HElement_t :: rh
+        HElement_t :: rh, rh_used
 
         ! Just in case
         child = 0
@@ -158,13 +158,21 @@ module fcimc_pointed_fns
         ! We actually want to calculate Hji - take the complex conjugate, 
         ! rather than swap around DetCurr and nJ.
 #ifdef __CMPLX
-        rh = conjg(rh)
+        rh_used = conjg(rh)
+#else
+        rh_used = rh
 #endif
         
         ! Spawn to real and imaginary particles. Note that spawning from
         ! imaginary parent particles has slightly different rules:
         !       - Attempt to spawn REAL walkers with prob +AIMAG(Hij)/P
         !       - Attempt to spawn IMAG walkers with prob -REAL(Hij)/P
+#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
+        child = 0
+        tgt_cpt = part_type
+        walkerweight = sign(1.0_dp, RealwSign(part_type))
+        matEl = real(rh_used, dp)
+#else
         do tgt_cpt = 1, (lenof_sign/inum_runs)
 
             ! Real, single run:    inum_runs=1, lenof_sign=1 --> 1 loop
@@ -180,10 +188,10 @@ module fcimc_pointed_fns
             ! Get the correct part of the matrix element
             walkerweight = sign(1.0_dp, RealwSign(part_type))
             if (component == 1) then
-                MatEl = real(rh, dp)
+                MatEl = real(rh_used, dp)
             else
 #ifdef __CMPLX
-                MatEl = real(aimag(rh), dp)
+                MatEl = real(aimag(rh_used), dp)
                 ! n.b. In this case, spawning is of opposite sign.
                 if (part_type == 2) walkerweight = -walkerweight
 #else
@@ -191,6 +199,7 @@ module fcimc_pointed_fns
                         & "ERROR: We shouldn't reach this part of the code unless complex calc")
 #endif
             end if
+#endif
             
             nSpawn = - tau * MatEl * walkerweight / prob
             
@@ -233,14 +242,12 @@ module fcimc_pointed_fns
                 nSpawn = real(stochastic_round (nSpawn), dp)
                 
             endif
-#ifdef __CMPLX
             ! And create the parcticles
             child(tgt_cpt) = nSpawn
-#else
-            ! And create the parcticles
-            child(part_type) = nSpawn
-#endif
+
+#if !(defined(__PROG_NUMRUNS) || defined(__DOUBLERUN))
         enddo
+#endif
 
        
         if(tFillingStochRDMonFly) then

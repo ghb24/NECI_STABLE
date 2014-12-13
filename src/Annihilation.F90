@@ -1663,7 +1663,8 @@ MODULE AnnihilationMod
                 enddo
                 
                 !if(i.eq.HFInd)  InstNoatHF = CurrentSign
-                if (DetBitEQ(CurrentDets(:,i), iLutHF_True, NIfDBO)) InstNoAtHF=CurrentSign
+                if (DetBitEQ(CurrentDets(:,i), iLutHF_True, NIfDBO)) &
+                    InstNoAtHF(1:lenof_sign) = CurrentSign
 
                 ! Is this state a trial or connected state, or neither?
                 if (tTrialWavefunction) then
@@ -1747,13 +1748,16 @@ MODULE AnnihilationMod
 
                     ENDIF
 
-                    TotParts=TotParts+abs(CurrentSign)
+                    TotParts(1:lenof_sign) = TotParts(1:lenof_sign) &
+                                           + abs(CurrentSign)
 #ifdef __CMPLX
                     norm_psi_squared = norm_psi_squared + sum(CurrentSign**2)
                     if(tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + sum(CurrentSign**2)
 #else
-                    norm_psi_squared = norm_psi_squared + CurrentSign**2
-                    if(tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + CurrentSign**2
+                    norm_psi_squared(1:inum_runs) = &
+                            norm_psi_squared(1:inum_runs) + CurrentSign**2
+                    if(tIsStateDeterm) norm_semistoch_squared(1:inum_runs) = &
+                        norm_semistoch_squared(1:inum_runs) + CurrentSign**2
 #endif
                     
                     IF(tCheckHighestPop) THEN
@@ -1782,21 +1786,23 @@ MODULE AnnihilationMod
 !The list has previously been compressed.
         IF(ValidSpawned.gt.0) THEN
             call extract_sign(SpawnedParts(:,1),SpawnedSign)
-            TotParts=TotParts+abs(SpawnedSign)
+            TotParts(1:lenof_sign) = TotParts(1:lenof_sign) + abs(SpawnedSign)
 #ifdef __CMPLX
             norm_psi_squared = norm_psi_squared + sum(SpawnedSign**2)
 #else
-            norm_psi_squared = norm_psi_squared + SpawnedSign**2
+            norm_psi_squared(1:inum_runs) = norm_psi_squared(1:inum_runs) &
+                                          + SpawnedSign**2
 #endif
 
         ENDIF
         do i=2,ValidSpawned
             call extract_sign(SpawnedParts(:,i),SpawnedSign)
-            TotParts=TotParts+abs(SpawnedSign)
+            TotParts(1:lenof_sign) = TotParts(1:lenof_sign) + abs(SpawnedSign)
 #ifdef __CMPLX
             norm_psi_squared = norm_psi_squared + sum(SpawnedSign**2)
 #else
-            norm_psi_squared = norm_psi_squared + SpawnedSign**2
+            norm_psi_squared(1:inum_runs) = &
+                         norm_psi_squared(1:inum_runs) + SpawnedSign**2
 #endif
         enddo
 

@@ -183,7 +183,7 @@ MODULE ReadInput_neci
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
                             TNoSameExcit, TInitStar, tMP2Standalone, &
-                            MemoryFacPart, tTruncInitiator, &
+                            MemoryFacPart, tTruncInitiator, tSemiStochastic, &
                             tSpatialOnlyHash, InitWalkers, tUniqueHFNode, &
                             InitiatorCutoffEnergy, tCCMC, &
                             tSurvivalInitiatorThreshold, tKP_FCIQMC, &
@@ -438,6 +438,15 @@ MODULE ReadInput_neci
         if (tCCMC .and. .not. (InitiatorCutoffEnergy > 1.0e99_dp)) then
             call stop_all(t_r, 'Initiator cutoff not implemented for CCMC')
         end if
+
+#ifdef __PROG_NUMRUNS
+        if (tSemiStochastic) then
+            write(6,*) '*** WARNING ***'
+            write(6,*) "Multiple runs has not been implemented considering &
+                       &semi stochastic. This almost certainly won't work"
+            call stop_all(t_r, 'Not yet implemented')
+        end if
+#endif
 
         if (tPopsFile .and. (tSurvivalInitiatorThreshold .or. &
                              tSurvivalInitMultThresh)) then

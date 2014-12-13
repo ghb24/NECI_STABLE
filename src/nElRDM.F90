@@ -71,7 +71,7 @@ MODULe nElRDMMod
                        ThreshOccRDM, tThreshOccRDMDiag, tDipoles,&
                        tBrokenSymNOs, occ_numb_diff, tForceCauchySchwarz, &
                        tBreakSymNOs, RotNOs, tagRotNOs, local_cutoff, rottwo, &
-                       rotthree, rotfour, tRDMInstEnergy,tFullHFAv
+                       rotthree, rotfour, tRDMInstEnergy,tFullHFAv, tWriteSpinFreeRDM
     use RotateOrbsData, only: CoeffT1Tag, tTurnStoreSpinOff, NoFrozenVirt, &
                               SymLabelCounts2_rot,SymLabelList2_rot, &
                               SymLabelListInv_rot,NoOrbs, SpatOrbs, &
@@ -490,9 +490,9 @@ MODULe nElRDMMod
         ! Open file to keep track of RDM Energies (if they're being calculated). 
         IF((iProcIndex.eq.0).and.tCalc_RDMEnergy) THEN
             Energies_unit = get_free_unit()
-            OPEN(Energies_unit,file='RDMEnergies',status='unknown',position='append')
+            OPEN(Energies_unit,file='RDMEstimates',status='unknown',position='append')
 
-            WRITE(Energies_unit, "(A1,3A30)") '#','Iteration','RDM Energy - Inst','RDM Energy - Accum'
+            WRITE(Energies_unit, "('#', 4X, 'Iteration', 6X, 'Energy numerator', 6X, 'Spin^2 numerator', 9X, 'Normalisation')")
         ENDIF
         tFinalRDMEnergy = .false.
 
@@ -3620,7 +3620,6 @@ MODULe nElRDMMod
 ! the bbbb elements.  We only want to print the aaaa elements.
         real(dp) , intent(in) :: Norm_2RDM
         logical , intent(in) :: tNormalise, tmake_herm
-        real(dp) :: Tot_Spin_Projection, SpinPlus, SpinMinus
         real(dp) :: ParityFactor,Divide_Factor 
         integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab, iunit_4
         integer :: aaaa_RDM_unit, abab_RDM_unit, abba_RDM_unit, No_Herm_Elements
@@ -3660,16 +3659,12 @@ MODULe nElRDMMod
         Sum_Error_Hermiticity = 0.0_dp
         Sum_Herm_Percent = 0.0_dp
         No_Herm_Elements = 0
-        Tot_Spin_Projection = 0.0_dp
         do i = 1, SpatOrbs
 
             do j = i, SpatOrbs
 
                 Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + i
                 Ind1_ab = ( ( (j-1) * j ) / 2 ) + i
-
-                ! TODO : Fix this.
-!                    call sum_in_spin_proj(i,j,Ind1,Norm_2RDM,Tot_Spin_Projection)
 
                 do a = 1, SpatOrbs
 
@@ -3836,6 +3831,8 @@ MODULe nElRDMMod
         close(abab_RDM_unit)
         close(abba_RDM_unit)
 
+        if (tWriteSpinFreeRDM) call Write_spinfree_RDM(Norm_2RDM)
+
         !if(tNormalise.and.(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref))) then
         if(tNormalise) then
             write(6,'(I15,F30.20,A20,A39)') Iter+PreviousCycles, Max_Error_Hermiticity, &
@@ -3846,28 +3843,51 @@ MODULe nElRDMMod
                                             '( Iteration,',' AVERAGE ABS PERCENTAGE HERMITICITY ERROR )'
         endif
 
-!        Tot_Spin_Projection = Tot_Spin_Projection + (3.0_dp * real(NEl,dp))
-!! Tot_Spin_Projection is now equal to 4S(S+1) - find S. 
-!        Tot_Spin_Projection = Tot_Spin_Projection/4.0_dp
-!        if((1.0_dp + 4.0_dp*Tot_Spin_Projection).le.0) then
-!            call Warning_neci('Write_out_1and_2RDM',"Complex spin calculated from density matrices!")
-!        else
-!            SpinPlus = (-1.0_dp + sqrt(1.0_dp + 4.0_dp*Tot_Spin_Projection))/2.0_dp
-!            SpinMinus = (-1.0_dp + sqrt(1.0_dp + 4.0_dp*Tot_Spin_Projection))/2.0_dp
-!!            write(6,*) 'SpinPlus',SpinPlus
-!!            write(6,*) 'SpinMinus',SpinMinus
-!        endif
-
-!        if(RDMExcitLevel.eq.3) then
-!            write(6,*) ''
-!            write(6,'(A22,F30.20)') ' TOTAL SPIN PROJECTION', Max(SpinPlus,SpinMinus) 
-!            write(6,*) ''
-!        endif
-
     end subroutine Write_out_2RDM
 
 
-    SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
+    subroutine Write_spinfree_RDM (Norm_2RDM)
+
+        ! Writes out the spinfree 2RDM for MPQC
+
+        real(dp) , intent(in) :: Norm_2RDM
+        integer :: i, j, a, b
+        integer :: read_stat
+        integer :: spinfree_RDM_unit
+        integer :: spat_brr(SpatOrbs)
+
+        ! Orders spatial MO’s by energy
+        do i = 1, SpatOrbs
+            spat_brr(i) = ( Brr(i*2) + 1) /2
+        end do
+
+        write(6,*) "Writing out the spinfree RDM"
+        spinfree_RDM_unit = get_free_unit()
+        open(spinfree_RDM_unit, file="spinfree_TwoRDM", status="replace")
+        
+        do j = 1, SpatOrbs
+            do b = 1, SpatOrbs
+                do a = 1, SpatOrbs
+                    do i = 1, SpatOrbs
+                        if (abs(Find_Spatial_2RDM_Chem(spat_brr(i), spat_brr(j), &
+                             spat_brr(a), spat_brr(b),  Norm_2RDM) ) > 1.0e-12) then
+
+                            write(spinfree_RDM_unit,"(4I15,F30.20)") i, a, j, b, &
+                                   Find_Spatial_2RDM_Chem(spat_brr(i), spat_brr(j), &
+                                   spat_brr(a), spat_brr(b), Norm_2RDM)
+                        end if
+                    end do
+                end do
+            end do
+        end do
+
+        write(spinfree_RDM_unit, "(4I15,F30.20)") -1, -1, -1, -1, -1.0_dp
+        close(spinfree_RDM_unit)
+
+    end subroutine Write_spinfree_RDM
+
+
+SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
 ! This routine takes the 1 electron and 2 electron reduced density matrices 
 ! and calculated the energy they give.    
 ! The equation for the energy is as follows:
@@ -3882,8 +3902,8 @@ MODULe nElRDMMod
         real(dp) :: Norm_2RDM_Inst
         INTEGER :: i,j,a,b,Ind1_aa,Ind1_ab,Ind2_aa,Ind2_ab,ierr
         INTEGER :: iSpin, jSpin, error
-        REAL(dp) :: RDMEnergy_Inst, RDMEnergy, Coul, Exch, Parity_Factor
-        REAL(dp) :: Trace_2RDM_New, RDMEnergy1, RDMEnergy2
+        REAL(dp) :: RDMEnergy_Inst, RDMEnergy, Coul, Exch
+        REAL(dp) :: Trace_2RDM_New, RDMEnergy1, RDMEnergy2, spin_est
 
         CALL set_timer(RDMEnergy_Time,30)
 
@@ -3933,7 +3953,7 @@ MODULe nElRDMMod
                             if((i.ne.j).and.(a.ne.b)) then
                                 ! Cannot get i=j or a=b contributions in aaaa.
                                 if (tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + ( aaaa_RDM(Ind1_aa,Ind2_aa) &
-                                                                    * Norm_2RDM_Inst * ( Coul - Exch ) )
+                                                                    * ( Coul - Exch ) )
                                 RDMEnergy2 = RDMEnergy2 + ( aaaa_RDM_full(Ind1_aa,Ind2_aa) &
                                                             * Norm_2RDM * ( Coul - Exch ) ) 
                                 if(Ind1_aa.eq.Ind2_aa) &
@@ -3941,8 +3961,7 @@ MODULe nElRDMMod
                                                         aaaa_RDM_full(Ind1_aa,Ind2_aa) * Norm_2RDM
 
                                 ! For abab cases, coul element will be non-zero, exchange zero.
-                                if (tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + ( abab_RDM(Ind1_ab,Ind2_ab) &
-                                                                        * Norm_2RDM_Inst * Coul )
+                                if (tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + ( abab_RDM(Ind1_ab,Ind2_ab) * Coul )
                                 RDMEnergy2 = RDMEnergy2 + ( abab_RDM_full(Ind1_ab,Ind2_ab) &
                                                             * Norm_2RDM * Coul ) 
                                 if(Ind1_ab.eq.Ind2_ab) &
@@ -3950,8 +3969,7 @@ MODULe nElRDMMod
                                                         abab_RDM_full(Ind1_ab,Ind2_ab) * Norm_2RDM
 
                                 ! For abba cases, coul element will be zero, exchange non-zero.
-                                if (tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst - ( abba_RDM(Ind1_aa,Ind2_aa) &
-                                                                        * Norm_2RDM_Inst * Exch )
+                                if (tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst - ( abba_RDM(Ind1_aa,Ind2_aa) * Exch )
                                 RDMEnergy2 = RDMEnergy2 - ( abba_RDM_full(Ind1_aa,Ind2_aa) &
                                                             * Norm_2RDM * Exch ) 
                             else
@@ -3959,9 +3977,8 @@ MODULe nElRDMMod
                                 ! abab has both abab and abba elements in them effectively.
                                 ! half will have non-zero coul, and half non-zero exchange.
                                 if (tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + ( 0.5_dp * abab_RDM(Ind1_ab,Ind2_ab) &
-                                                                        * Norm_2RDM_Inst * Coul ) &
-                                                                + ( 0.5_dp * abab_RDM(Ind1_ab,Ind2_ab) &
-                                                                        * Norm_2RDM_Inst * Exch )
+                                                                        * Coul ) &
+                                                                + ( 0.5_dp * abab_RDM(Ind1_ab,Ind2_ab) * Exch )
                                 RDMEnergy2 = RDMEnergy2 + ( 0.5_dp * abab_RDM_full(Ind1_ab,Ind2_ab) &
                                                             * Norm_2RDM * Coul ) &
                                                         + ( 0.5_dp * abab_RDM_full(Ind1_ab,Ind2_ab) &
@@ -3978,17 +3995,18 @@ MODULe nElRDMMod
                 enddo
             enddo
 
-            if (tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + Ecore
+            if (tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + Ecore/Norm_2RDM_Inst
             RDMEnergy = RDMEnergy1 + RDMEnergy2 + Ecore 
+
+            ! Calculate the instantaneous estimate of <S^2> using the 2RDM.
+            spin_est = calc_2rdm_spin_estimate(Norm_2RDM_Inst)
 
             ! Obviously this 'instantaneous' energy is actually accumulated between energy 
             ! print outs.
             if(tRDMInstEnergy) then
-                !WRITE(Energies_unit, "(I31,2(2X,F30.15))") Iter+PreviousCycles, RDMEnergy_Inst/Norm_2RDM_Inst, &
-                !                                               1.0_dp/Norm_2RDM_Inst
-                WRITE(Energies_unit, "(I31,2F30.15)") Iter+PreviousCycles, RDMEnergy_Inst, RDMEnergy
+                WRITE(Energies_unit, "(1X,I13,3(2X,es20.13))") Iter+PreviousCycles, RDMEnergy_Inst, spin_est, &
+                                                                1.0_dp/Norm_2RDM_Inst
             else
-                !WRITE(Energies_unit, "(I31,2X,F30.15)") Iter+PreviousCycles, RDMEnergy
                 WRITE(Energies_unit, "(I31,F30.15)") Iter+PreviousCycles, RDMEnergy
             endif
             call neci_flush(Energies_unit)
@@ -4018,6 +4036,43 @@ MODULe nElRDMMod
 
     END SUBROUTINE Calc_Energy_from_RDM
     
+    function calc_2rdm_spin_estimate(Norm_2RDM_Inst) result(spin_est)
+
+        ! Return the (unnormalised) estimate of <S^2> from the instantaneous
+        ! 2RDM estimates.
+
+        real(dp), intent(in) :: Norm_2RDM_Inst
+        integer :: i, j
+        integer :: Ind1_aa, Ind1_ab
+        real(dp) :: spin_est
+
+        spin_est = 0.0_dp
+
+        do i = 1, SpatOrbs
+
+            do j = i+1, SpatOrbs
+
+                Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + i
+                Ind1_ab = ( ( (j-1) * j ) / 2 ) + i
+
+                spin_est = spin_est + 2*aaaa_RDM(Ind1_aa, Ind1_aa) &
+                                    - 2*abab_RDM(Ind1_ab, Ind1_ab) &
+                                    + 4*abba_RDM(Ind1_aa, Ind1_aa)
+            end do
+
+            ! i = j term.
+            Ind1_ab = ( ( (i-1) * i ) / 2 ) + i
+
+            spin_est = spin_est - 6*abab_RDM(Ind1_ab, Ind1_ab)
+
+        end do 
+
+        spin_est = spin_est + 3*real(nel,dp)/Norm_2RDM_Inst
+
+        spin_est = spin_est/4.0_dp
+
+    end function calc_2rdm_spin_estimate
+
     SUBROUTINE Calc_Lagrangian_from_RDM(Norm_1RDM,Norm_2RDM)
 ! CMO
 ! This routine takes the 1 electron and 2 electron reduced density matrices 
@@ -4155,7 +4210,7 @@ MODULe nElRDMMod
         if(((i.le.a).and.(j.le.a)).or.((i.ge.a).and.(j.ge.a))) then
 
             if(tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + &
-                            ( (abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM_Inst) &
+                            ( (abab_RDM(Ind1_1e_ab,Ind2_1e_ab) ) &
                                                 * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) )
             RDMEnergy1 = RDMEnergy1 + ( (abab_RDM_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
@@ -4174,7 +4229,7 @@ MODULe nElRDMMod
             ! i =< j and therefore we need to sum in the opposite contribution too.
             if(Ind1_1e_ab.ne.Ind2_1e_ab) then                                                                
                 if (tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + &
-                                ( (abab_RDM(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM_Inst) &
+                                ( (abab_RDM(Ind2_1e_ab,Ind1_1e_ab) ) &
                                                     * REAL(TMAT2D(jSpin,iSpin),dp) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
                 RDMEnergy1 = RDMEnergy1 + ( (abab_RDM_full(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM) &
@@ -4194,7 +4249,7 @@ MODULe nElRDMMod
             ! (whereas it should be counted twice).
             if((i.eq.j).and.(i.eq.a)) then                                                                
                 if (tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + &
-                      ( (abab_RDM(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM_Inst) &
+                      ( (abab_RDM(Ind1_1e_ab,Ind2_1e_ab) ) &
                                             * REAL(TMAT2D(iSpin,jSpin),dp) &
                                             * (1.0_dp / real(NEl - 1,dp)) )
                 RDMEnergy1 = RDMEnergy1 + ( (abab_RDM_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
@@ -4218,7 +4273,7 @@ MODULe nElRDMMod
 
             if((i.ne.j).and.((i.lt.a).and.(j.gt.a)).or.((i.gt.a).and.(j.lt.a))) then
                 if(tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst - &
-                              ( (abba_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM_Inst) &
+                              ( (abba_RDM(Ind1_1e_aa,Ind2_1e_aa) ) &
                                                     * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
                 RDMEnergy1 = RDMEnergy1 - ( (abba_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
@@ -4234,7 +4289,7 @@ MODULe nElRDMMod
 
                 if(Ind1_1e_aa.ne.Ind2_1e_aa) then
                     if (tRDmInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst - &
-                                  ( (abba_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM_Inst) &
+                                  ( (abba_RDM(Ind2_1e_aa,Ind1_1e_aa) ) &
                                                         * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                         * (1.0_dp / real(NEl - 1,dp)) )
                     RDMEnergy1 = RDMEnergy1 - ( (abba_RDM_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM) &
@@ -4258,7 +4313,7 @@ MODULe nElRDMMod
             endif
 !
             if (tRDmInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + &
-                          ( (aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM_Inst) &
+                          ( (aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) ) &
                                                 * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
             RDMEnergy1 = RDMEnergy1 + ( (aaaa_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
@@ -4274,7 +4329,7 @@ MODULe nElRDMMod
 
             if(Ind1_1e_aa.ne.Ind2_1e_aa) then
                 if (tRDmInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + &
-                          ( (aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM_Inst) &
+                          ( (aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) ) &
                                                 * REAL(TMAT2D(jSpin,iSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
                 RDMEnergy1 = RDMEnergy1 + ( (aaaa_RDM_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM) &

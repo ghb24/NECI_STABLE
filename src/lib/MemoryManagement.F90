@@ -79,10 +79,10 @@ public :: TagIntType
 
 integer, parameter :: TagIntType = sizeof_int   !This is for CPMD which needs to know what type of integer to pass as a tag
 ! Configuration.
-integer, parameter :: MaxLen = 50000   ! size of memory log (max number of arrays
-                                       ! that can be logged at any one time if 
-                                       ! CachingMemLog=.true., else max total number of 
-                                       ! arrays that can be logged in a calculation).
+integer, parameter :: MaxLen = 500000   ! size of memory log (max number of arrays
+                                        ! that can be logged at any one time if 
+                                        ! CachingMemLog=.true., else max total number of 
+                                        ! arrays that can be logged in a calculation).
 integer, parameter :: MaxWarn = 10     ! maximum number of low memory warning messages to be printed.
 integer, parameter :: nLargeObjects = 10 ! maximum number of the largest memory allocations remember.
 logical, save :: CachingMemLog = .true. ! See above for how MemLog is used.
@@ -392,8 +392,8 @@ contains
     implicit none
 
     integer :: iunit,iobjloc(1),iobj,i
-    integer(li) :: ObjectSizes(nLargeObjects+MaxLen)
-    type(MemLogEl) :: AllMemEl(nLargeObjects+MaxLen)
+    integer(li), allocatable :: ObjectSizes(:)
+    type(MemLogEl), allocatable :: AllMemEl(:)
     character(len=*), parameter :: memoryfile = 'TMPMemoryusage.dat'
     character(len=*), parameter :: fmt1='(3a19)'
 
@@ -401,6 +401,9 @@ contains
         if (err_output) write (6,*) 'Memory manager not initialised. Cannot leave memory manager.'
         return
     end if
+
+    allocate(ObjectSizes(nLargeObjects+MaxLen))
+    allocate(AllMemEl(nLargeObjects+MaxLen))
 
     if (MemoryUsed.eq.MaxMemoryUsed) then
         ! Peak memory usage is now.
@@ -462,7 +465,9 @@ contains
     deallocate(PeakMemLog)
     deallocate(LookupPointer)
 
-    return
+    deallocate(ObjectSizes)
+    deallocate(AllMemEl)
+    
     end subroutine LeaveMemoryManager
 
 
