@@ -89,8 +89,12 @@ contains
             case("END-KP-FCIQMC")
                 exit read_inp
             case("EXCITED-STATE-KP")
+#ifdef __PROG_NUMRUNS
                 tExcitedStateKP = .true.
                 call geti(kp%nvecs)
+#else
+                call stop_all(t_r, "NECI must be compiled with multiple replicas (mneci) to use the excited-state-kp option.")
+#endif
             case("FINITE-TEMPERATURE")
                 tFiniteTemp = .true.
             case("MULTIPLE-POPS")
@@ -235,16 +239,19 @@ contains
         character (len=*), parameter :: t_r = "init_kp_fciqmc"
 
         ! Checks.
-        if (.not. tHashWalkerList) call stop_all('t_r','kp-fciqmc can only be run using &
+        if (.not. tHashWalkerList) call stop_all(t_r,'kp-fciqmc can only be run using &
             &the linscalefcimcalgo option (the linear scaling algorithm).')
-        if (.not. tUseRealCoeffs) call stop_all('t_r','kp-fciqmc can only be run using &
+        if (.not. tUseRealCoeffs) call stop_all(t_r,'kp-fciqmc can only be run using &
             &real coefficients).')
-        if (tExactHamil .and. nProcessors /= 1) call stop_all('t_r','The exact-hamil &
+        if (tExactHamil .and. nProcessors /= 1) call stop_all(t_r,'The exact-hamil &
             &option can only be used when running with one processor.')
-        if (theisenberg .and. tAllSymSectors) call stop_all('t_r','The option to use all &
+        if (theisenberg .and. tAllSymSectors) call stop_all(t_r,'The option to use all &
             &symmetry sectors at once has not been implemented with the Heisenberg model.')
-        if (n_int == 4) call stop_all('t_r', 'Use of RealCoefficients does not work with 32 bit &
+        if (n_int == 4) call stop_all(t_r, 'Use of RealCoefficients does not work with 32 bit &
              &integers due to the use of the transfer operation from dp reals to 64 bit integers.')
+        if (tExcitedStateKP .and. inum_runs /= 2*kp%nvecs) call stop_all(t_r, 'When using the &
+             &ExcitedStateKP option the number of replicas must be twice the number of states to &
+             &be calculated.')
 
         ! Call external NECI initialisation routines.
         tPopsAlreadyRead = .false.
@@ -261,9 +268,9 @@ contains
         end if
 
         ! The number of elements required to store all replicas of all Krylov vectors.
-        lenof_sign_kp = lenof_sign*kp%nvecs
+        lenof_all_signs = lenof_sign*kp%nvecs
         ! The total length of a bitstring containing all Krylov vectors.
-        NIfTotKP = NIfDBO + lenof_sign_kp + NIfFlag
+        NIfTotKP = NIfDBO + lenof_all_signs + NIfFlag
 
         ! Allocate all of the KP arrays.
         nhashes_kp = nWalkerHashes
@@ -326,15 +333,15 @@ contains
 
         call init_hash_table(krylov_vecs_ht)
 
-        allocate(SpawnVecKP(0:NOffSgn+lenof_sign_kp-1,MaxSpawned),stat=ierr)
-        allocate(SpawnVecKP2(0:NOffSgn+lenof_sign_kp-1,MaxSpawned),stat=ierr)
+        allocate(SpawnVecKP(0:NOffSgn+lenof_all_signs-1,MaxSpawned),stat=ierr)
+        allocate(SpawnVecKP2(0:NOffSgn+lenof_all_signs-1,MaxSpawned),stat=ierr)
         SpawnVecKP(:,:) = 0_n_int
         SpawnVecKP2(:,:) = 0_n_int
         SpawnedPartsKP => SpawnVecKP
         SpawnedPartsKP2 => SpawnVecKP2
         if (tSemiStochastic) then
-            allocate(partial_determ_vecs_kp(lenof_sign_kp,determ_proc_sizes(iProcIndex)), stat=ierr)
-            allocate(full_determ_vecs_kp(lenof_sign_kp,determ_space_size), stat=ierr)
+            allocate(partial_determ_vecs_kp(lenof_all_signs,determ_proc_sizes(iProcIndex)), stat=ierr)
+            allocate(full_determ_vecs_kp(lenof_all_signs,determ_space_size), stat=ierr)
             partial_determ_vecs_kp = 0.0_dp
             full_determ_vecs_kp = 0.0_dp
         end if
@@ -419,10 +426,10 @@ contains
             end if
 
             call create_initial_config(kp)
-        end if
 
-        call clear_hash_table(krylov_vecs_ht)
-        krylov_vecs = 0_n_int
+            call clear_hash_table(krylov_vecs_ht)
+            krylov_vecs = 0_n_int
+        end if
 
         ! Rezero all the necessary data.
         kp%overlap_matrix(:,:) = 0.0_dp
@@ -437,6 +444,7 @@ contains
         else
             OldAllAvWalkersCyc = InitWalkers*nProcessors
         end if
+
         ! Setting this variable to true stops the shift from varying instantly.
         tSinglePartPhase = tSinglePartPhaseKPInit
 
@@ -469,8 +477,8 @@ contains
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: DetHash, nwalkers_int
         integer :: i
-        integer(n_int) :: int_sign(lenof_sign)
-        real(dp) :: real_sign(lenof_sign), TotPartsCheck(lenof_sign)
+        integer(n_int) :: int_sign(lenof_sign_kp)
+        real(dp) :: real_sign(lenof_sign_kp), TotPartsCheck(lenof_sign_kp)
         real(dp) :: nwalkers_target
         real(dp) :: norm, all_norm
         real(sp) :: total_time_before, total_time_after
@@ -562,7 +570,7 @@ contains
             AllTotPartsOld = AllTotPartsInit
             do i = 1, int(TotWalkers, sizeof_int)
                 ! Copy across the bitstring encoding of the determinant and also the walker signs.
-                CurrentDets(0:NOffSgn+lenof_sign-1,i) = krylov_vecs(0:NOffSgn+lenof_sign-1,i)
+                CurrentDets(0:NOffSgn+lenof_sign_kp-1,i) = krylov_vecs(0:NOffSgn+lenof_sign_kp-1,i)
                 ! Copy across the flags.
                 CurrentDets(NIfTot,i) = krylov_vecs(NIfTotKP,i)
             end do
@@ -576,7 +584,7 @@ contains
         if (kp%nrepeats > 1 .and. kp%irepeat == 1) then
             HolesInList = 0
             do i = 1, TotWalkers
-                int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,i)
+                int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign_kp-1,i)
                 call extract_sign (CurrentDets(:,i), real_sign)
                 tCoreDet = check_determ_flag(CurrentDets(:,i))
                 ! Don't add unoccpied determinants, unless they are core determinants.
@@ -637,7 +645,7 @@ contains
         integer :: nspawns, ndets
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel)
-        real(dp) :: r, walker_amp, walker_sign(lenof_sign)
+        real(dp) :: r, walker_amp, walker_sign(lenof_sign_kp)
         logical :: tInitiatorTemp
         type(fcimc_iter_data) :: unused_data
         integer(n_int), pointer :: PointTemp(:,:)
@@ -695,7 +703,7 @@ contains
         TotParts = 0.0_dp
         do i = 1, ndets
             CurrentDets(:,i) = SpawnedParts(:,i)
-            walker_sign = transfer(CurrentDets(NOffSgn:NOffSgn+lenof_sign-1, i), walker_sign)
+            walker_sign = transfer(CurrentDets(NOffSgn:NOffSgn+lenof_sign_kp-1, i), walker_sign)
             TotParts = TotParts + abs(walker_sign)
         end do
         TotPartsOld = TotParts
@@ -733,9 +741,9 @@ contains
         logical, intent(in) :: tOccupyDetermSpace
         integer :: proc, excit, nattempts, hash_val, det_ind, nI(nel)
         integer :: ideterm, ndets
-        integer(n_int) :: ilut(0:NIfTot), int_sign(lenof_sign)
-        real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
-        real(dp) :: new_sign(lenof_sign)
+        integer(n_int) :: ilut(0:NIfTot), int_sign(lenof_sign_kp)
+        real(dp) :: real_sign_1(lenof_sign_kp), real_sign_2(lenof_sign_kp)
+        real(dp) :: new_sign(lenof_sign_kp)
         real(dp) :: r
         logical :: tDetermAllOccupied, tDetFound
 
@@ -789,7 +797,7 @@ contains
             if (tDetFound) then
                 ! This determinant is already in CurrentDets. Just need to add
                 ! the sign of this new walker on and update stats.
-                int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1, det_ind)
+                int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign_kp-1, det_ind)
                 real_sign_2 = transfer(int_sign, real_sign_2)
                 new_sign = real_sign_1 + real_sign_2
                 call encode_sign(CurrentDets(:, det_ind), new_sign)
@@ -802,7 +810,7 @@ contains
                 call add_hash_table_entry(HashIndex, det_ind, hash_val)
                 ! Copy determinant data across.
                 CurrentDets(0:NIfDBO, det_ind) = ilut(0:NIfDBO)
-                CurrentDets(NOffSgn:NOffSgn+lenof_sign-1, det_ind) = int_sign
+                CurrentDets(NOffSgn:NOffSgn+lenof_sign_kp-1, det_ind) = int_sign
                 if (tUseFlags) CurrentDets(NOffFlag, det_ind) = 0_n_int
                 TotParts = TotParts + abs(real_sign_1)
             end if
@@ -845,7 +853,7 @@ contains
         integer :: min_ind, max_ind
         integer(MPIArg) :: sndcnts(0:nProcessors-1), displs(0:nProcessors-1)
         integer(MPIArg) :: rcvcnts
-        real(dp) :: eigenvec_pop, real_sign(lenof_sign)
+        real(dp) :: eigenvec_pop, real_sign(lenof_sign_kp)
         real(dp), allocatable :: evals(:)
         real(dp), allocatable :: evecs(:,:), evecs_transpose(:,:)
         real(dp), allocatable :: evecs_this_proc(:,:)
@@ -928,7 +936,7 @@ contains
         do i = 1, ndets_this_proc
             call set_flag(CurrentDets(:,i), flag_deterministic)
             ! Construct the sign array to be encoded.
-            do j = 2, lenof_sign, 2
+            do j = 2, lenof_sign_kp, 2
                 real_sign(j-1:j) = evecs_this_proc(j/2,i)
             end do
             call encode_sign(CurrentDets(:,i), real_sign)
@@ -968,11 +976,11 @@ contains
         integer(n_int), intent(inout) :: walker_list(:,:)
         integer(int64), intent(in) :: ndets
         real(dp), intent(in) :: target_pop
-        real(dp), intent(out) :: input_pop(lenof_sign)
+        real(dp), intent(out) :: input_pop(lenof_sign_kp)
         real(dp), intent(out) :: scaling_factor
 
         integer :: i
-        real(dp) :: real_sign(lenof_sign), all_input_pop(lenof_sign)
+        real(dp) :: real_sign(lenof_sign_kp), all_input_pop(lenof_sign_kp)
 
         input_pop = 0.0_dp
 
@@ -1001,9 +1009,9 @@ contains
         type(kp_fciqmc_data), intent(in) :: kp
         integer :: idet, iamp, sign_ind, flag_ind, hash_val, det_ind
         integer :: nI(nel)
-        integer(n_int) :: temp, int_sign(lenof_sign)
+        integer(n_int) :: temp, int_sign(lenof_sign_kp)
         logical :: tDetFound, tCoreDet
-        real(dp) :: amp_fraction, real_sign(lenof_sign)
+        real(dp) :: amp_fraction, real_sign(lenof_sign_kp)
         character(2) :: int_fmt
         character(len=*), parameter :: t_r = "store_krylov_vec"
 
@@ -1011,12 +1019,12 @@ contains
         call neci_flush(6)
 
         ! The index of the first element referring to the sign, for this ivec.
-        sign_ind = NIfDBO + lenof_sign*(kp%ivec-1) + 1
-        if (tUseFlags) flag_ind = NIfDBO + lenof_sign_kp + 1
+        sign_ind = NIfDBO + lenof_sign_kp*(kp%ivec-1) + 1
+        if (tUseFlags) flag_ind = NIfDBO + lenof_all_signs + 1
 
         ! Loop over all occupied determinants for this new Krylov vector.
         do idet = 1, TotWalkers
-            int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,idet)
+            int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign_kp-1,idet)
             call extract_sign (CurrentDets(:,idet), real_sign)
             tCoreDet = check_determ_flag(CurrentDets(:,idet))
             ! Don't add unoccpied determinants, unless they are core determinants.
@@ -1029,7 +1037,7 @@ contains
             if (tDetFound) then
                 ! In this case the determinant is already in the Krylov vector
                 ! array.
-                krylov_vecs(sign_ind:sign_ind+lenof_sign-1, det_ind) = int_sign
+                krylov_vecs(sign_ind:sign_ind+lenof_sign_kp-1, det_ind) = int_sign
             else
                 ! A new determiant needs to be added.
                 TotWalkersKP = TotWalkersKP + 1
@@ -1045,13 +1053,13 @@ contains
 
                 ! Copy determinant data across.
                 krylov_vecs(0:NIfDBO, det_ind) = CurrentDets(0:NIfDBO, idet)
-                krylov_vecs(sign_ind:sign_ind+lenof_sign-1, det_ind) = int_sign
+                krylov_vecs(sign_ind:sign_ind+lenof_sign_kp-1, det_ind) = int_sign
                 krylov_helems(det_ind) = det_diagH(idet)
                 if (tUseFlags) krylov_vecs(flag_ind, det_ind) = CurrentDets(NOffFlag, idet)
             end if
 
             ! Update information about how much of the hash table is filled.
-            do iamp = 1, lenof_sign
+            do iamp = 1, lenof_sign_kp
                 if (real_sign(iamp) /= 0_n_int) then
                     nkrylov_amp_elems_used = nkrylov_amp_elems_used + 1
                 end if
@@ -1076,8 +1084,8 @@ contains
         integer, intent(in) :: array_len
 
         integer :: idet, ivec, jvec, ind(kp%nvecs)
-        integer(n_int) :: int_sign(lenof_sign)
-        real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
+        integer(n_int) :: int_sign(lenof_sign_kp)
+        real(dp) :: real_sign_1(lenof_sign_kp), real_sign_2(lenof_sign_kp)
 
         associate(s_matrix => kp%overlap_matrix)
 
@@ -1086,30 +1094,30 @@ contains
 
             do jvec = 1, kp%nvecs
                 ! The first index of the sign in krylov_array, for each vector.
-                ind(jvec) = NIfDBO + lenof_sign*(jvec-1) + 1
+                ind(jvec) = NIfDBO + lenof_sign_kp*(jvec-1) + 1
             end do
 
             ! Loop over all determinants in the Krylov array.
             do idet = 1, array_len
                 ! Loop over all Krylov vectors.
                 do ivec = 1, kp%nvecs
-                    int_sign = krylov_array(ind(ivec):ind(ivec)+1, idet)
+                    int_sign = krylov_array(ind(ivec):ind(ivec)+lenof_sign_kp-1, idet)
                     real_sign_1 = transfer(int_sign, real_sign_1)
                     if (IsUnoccDet(real_sign_1)) cycle
 
                     do jvec = 1, ivec
-                        int_sign = krylov_array(ind(jvec):ind(jvec)+1, idet)
+                        int_sign = krylov_array(ind(jvec):ind(jvec)+lenof_sign_kp-1, idet)
                         real_sign_2 = transfer(int_sign, real_sign_1)
                         if (IsUnoccDet(real_sign_2)) cycle
 
-#ifdef __DOUBLERUN
-                    s_matrix(jvec,ivec) = s_matrix(jvec,ivec) + &
-                        (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
+#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
+                        s_matrix(jvec,ivec) = s_matrix(jvec,ivec) + &
+                            (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
 #else
-                    s_matrix(jvec,ivec) = s_matrix(jvec,ivec) + real_sign_1(1)*real_sign_2(1)
+                        s_matrix(jvec,ivec) = s_matrix(jvec,ivec) + real_sign_1(1)*real_sign_2(1)
 #endif
-                    ! Fill in the lower-half of the overlap matrix.
-                    s_matrix(ivec,jvec) = s_matrix(jvec,ivec)
+                        ! Fill in the lower-half of the overlap matrix.
+                        s_matrix(ivec,jvec) = s_matrix(jvec,ivec)
                     end do
                 end do
             end do
@@ -1123,8 +1131,8 @@ contains
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: idet, sign_ind, hash_val, det_ind
         integer :: nI(nel)
-        integer(n_int) :: int_sign(lenof_sign)
-        real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
+        integer(n_int) :: int_sign(lenof_sign_kp)
+        real(dp) :: real_sign_1(lenof_sign_kp), real_sign_2(lenof_sign_kp)
         real(dp) :: overlap
         logical :: tDetFound
 
@@ -1132,7 +1140,7 @@ contains
 
             overlap = 0.0_dp
 
-            sign_ind = NIfDBO + lenof_sign*(ivec-1) + 1
+            sign_ind = NIfDBO + lenof_sign_kp*(ivec-1) + 1
 
             ! Loop over all determinants in perturbed_ground
             do idet = 1, size(perturbed_ground, dim=2)
@@ -1146,7 +1154,7 @@ contains
                 if (tDetFound) then
                     ! If here then this determinant was found in the hash table.
                     ! Add in the contributions to the overlap.
-                    int_sign = krylov_vecs(sign_ind:sign_ind+lenof_sign-1, det_ind)
+                    int_sign = krylov_vecs(sign_ind:sign_ind+lenof_sign_kp-1, det_ind)
                     real_sign_2 = transfer(int_sign, real_sign_1)
 #ifdef __DOUBLERUN
                     overlap = overlap + (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
@@ -1171,9 +1179,9 @@ contains
 
         integer :: i, j, idet, jdet, ic
         integer(n_int) :: ilut_1(0:NIfTot), ilut_2(0:NIfTot)
-        integer(n_int) :: int_sign(lenof_sign_kp)
+        integer(n_int) :: int_sign(lenof_all_signs)
         integer :: nI(nel), nJ(nel)
-        real(dp) :: real_sign_1(lenof_sign_kp), real_sign_2(lenof_sign_kp)
+        real(dp) :: real_sign_1(lenof_all_signs), real_sign_2(lenof_all_signs)
         real(dp) :: h_elem
         logical :: any_occ, occ_1, occ_2
         integer(4), allocatable :: occ_flags(:)
@@ -1190,10 +1198,10 @@ contains
 
             ! Check to see if there are any replica 1 or 2 walkers on this determinant.
             do idet = 1, array_len
-                int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_sign_kp, idet)
+                int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_all_signs, idet)
 
                 any_occ = .false.
-#ifdef __DOUBLERUN
+#if defined(__DOUBLERUN) || defined(__PROG__NUMRUNS)
                 do i = 1, kp%nvecs
                     any_occ = any_occ .or. (int_sign(2*i-1) /= 0)
                 end do
@@ -1216,13 +1224,13 @@ contains
             do idet = 1, array_len
                 ilut_1 = krylov_array(0:NIfDBO, idet)
                 call decode_bit_det(nI, ilut_1)
-                int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_sign_kp, idet)
+                int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_all_signs, idet)
                 real_sign_1 = transfer(int_sign, real_sign_1)
                 occ_1 = btest(occ_flags(idet),0)
                 occ_2 = btest(occ_flags(idet),1)
 
                 do jdet = idet, array_len
-#ifdef __DOUBLERUN
+#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
                     if (.not. ((occ_1 .and. btest(occ_flags(jdet),1)) .or. &
                         (occ_2 .and. btest(occ_flags(jdet),0)))) cycle
 #else
@@ -1233,7 +1241,7 @@ contains
                     if (ic > 2) cycle
 
                     call decode_bit_det(nJ, ilut_2)
-                    int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_sign_kp, jdet)
+                    int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_all_signs, jdet)
                     real_sign_2 = transfer(int_sign, real_sign_1)
                     
                     if (idet == jdet) then
@@ -1253,7 +1261,7 @@ contains
                     ! Finally, add in the contribution to all of the Hamiltonian elements.
                     do i = 1, kp%nvecs
                         do j = i, kp%nvecs
-#ifdef __DOUBLERUN
+#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
                             if (idet == jdet) then
                                 h_matrix(i,j) = h_matrix(i,j) + &
                                     h_elem*(real_sign_1(2*i-1)*real_sign_2(2*j) + &
@@ -1706,8 +1714,8 @@ contains
 
         type(kp_fciqmc_data), intent(in) :: kp
         integer :: ihash
-        integer(n_int) :: int_sign(lenof_sign_kp)
-        real(dp) :: real_sign(lenof_sign_kp), total_pop(lenof_sign_kp)
+        integer(n_int) :: int_sign(lenof_all_signs)
+        real(dp) :: real_sign(lenof_all_signs), total_pop(lenof_all_signs)
         type(ll_node), pointer :: temp_node
 
         int_sign = 0_n_int
@@ -1718,7 +1726,7 @@ contains
             temp_node => krylov_vecs_ht(ihash)
             if (temp_node%ind /= 0) then
                 do while (associated(temp_node))
-                    int_sign = krylov_vecs(NIfDBO+1:NIfDBO+lenof_sign_kp, temp_node%ind)
+                    int_sign = krylov_vecs(NIfDBO+1:NIfDBO+lenof_all_signs, temp_node%ind)
                     real_sign = transfer(int_sign, real_sign)
                     total_pop = total_pop + abs(real_sign)
                     temp_node => temp_node%next
@@ -1792,7 +1800,7 @@ contains
             ! Note that this assumes that ilen < 10, which is very reasonable!
             write(ifmt,'(a1,i1)') "i", ilen
             do j = 1, lenof_sign
-                ! This assumes that lenof_sign < 10. Probably will always be 1 or 2.
+                ! This assumes that lenof_sign < 10.
                 write(temp_unit,'(a1,'//ifmt//',a1,i1,a1,1x,es19.12)') "(", counter,",", j, ")", real_sign(j)
             end do
         end do

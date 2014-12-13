@@ -2210,7 +2210,8 @@ contains
           use sym_mod
           use davidson_neci, only: davidson_direct_ci_init, davidson_direct_ci_end, perform_davidson
           use davidson_neci, only: direct_ci_type
-          use kp_fciqmc, only: perform_kp_fciqmc
+          use kp_fciqmc, only: perform_kp_fciqmc, perform_subspace_fciqmc
+          use kp_fciqmc_data_mod, only: tExcitedStateKP
           use kp_fciqmc_procs, only: kp_fciqmc_data
 
 !Calls
@@ -2261,7 +2262,11 @@ contains
                 call RunRPA_QBA(WeightDum,EnerDum)
                 WRITE(6,*) "Summed approx E(Beta)=",EnerDum
              elseif(tKP_FCIQMC) then
-                 call perform_kp_fciqmc(kp)
+                 if (tExcitedStateKP) then
+                     call perform_subspace_fciqmc(kp)
+                 else
+                     call perform_kp_fciqmc(kp)
+                 end if
              else
 
 

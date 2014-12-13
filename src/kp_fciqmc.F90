@@ -59,8 +59,8 @@ contains
         ! Variables to hold information output for the test suite.
         real(dp) :: s_sum, h_sum
 
-        integer(n_int) :: int_sign(lenof_sign_kp)
-        real(dp) :: test_sign(lenof_sign_kp)
+        integer(n_int) :: int_sign(lenof_all_signs)
+        real(dp) :: test_sign(lenof_all_signs)
         type(ll_node), pointer :: temp_node
 
         kp%iconfig => iconfig

@@ -32,8 +32,8 @@ contains
         integer :: nI_parent(nel), nI_child(nel)
         integer(n_int) :: ilut_child(0:NIfTot), ilut_parent(0:NIfTot)
         real(dp) :: prob, tot_pop
-        real(dp), dimension(lenof_sign_kp) :: child_sign, parent_sign
-        integer(n_int) :: int_sign(lenof_sign_kp)
+        real(dp), dimension(lenof_all_signs) :: child_sign, parent_sign
+        integer(n_int) :: int_sign(lenof_all_signs)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied, tParity
         logical :: tNearlyFull, tFinished, tAllFinished
         HElement_t :: HElGen, HEl
@@ -41,7 +41,7 @@ contains
         kp%hamil_matrix(:,:) = 0.0_dp
 
         ilut_parent = 0_n_int
-        if (tUseFlags) flag_ind = NIfDBO + lenof_sign_kp + 1
+        if (tUseFlags) flag_ind = NIfDBO + lenof_all_signs + 1
         ValidSpawnedList = InitialSpawnedSlots
         tNearlyFull = .false.
         tFinished = .false.
@@ -59,7 +59,7 @@ contains
             fcimc_excit_gen_store%tFilled = .false.
 
             call decode_bit_det(nI_parent, ilut_parent)
-            int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_sign_kp, idet)
+            int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_all_signs, idet)
             parent_sign = transfer(int_sign, parent_sign)
             tot_pop = sum(abs(parent_sign))
 
@@ -155,11 +155,11 @@ contains
 
     function calc_amp_kp_hamil(parent_sign, prob, av_nspawn, HEl) result(child_sign)
 
-        real(dp), intent(in) :: parent_sign(lenof_sign_kp)
+        real(dp), intent(in) :: parent_sign(lenof_all_signs)
         real(dp), intent(in) :: prob
         real(dp), intent(in) :: av_nspawn
         HElement_t, intent(in) :: HEl
-        real(dp) :: child_sign(lenof_sign_kp)
+        real(dp) :: child_sign(lenof_all_signs)
         real(dp) :: Hel_real, corrected_prob
 
         HEl_real = real(HEl, dp)
@@ -175,16 +175,16 @@ contains
 
         integer, intent(in) :: nI_child(nel)
         integer(n_int), intent(in) :: ilut_child(0:NIfTot)
-        real(dp), intent(in) :: child_sign(lenof_sign_kp)
+        real(dp), intent(in) :: child_sign(lenof_all_signs)
         logical, intent(inout) :: tNearlyFull
-        integer(n_int) :: int_sign(lenof_sign_kp)
+        integer(n_int) :: int_sign(lenof_all_signs)
         integer :: proc
 
         proc = DetermineDetNode(nel, nI_child, 0)
 
         SpawnedPartsKP(0:NIfDBO, ValidSpawnedList(proc)) = ilut_child(0:NIfDBO)
         int_sign = transfer(child_sign, int_sign)
-        SpawnedPartsKP(NOffSgn:NOffSgn+lenof_sign_kp-1, ValidSpawnedList(proc)) = int_sign
+        SpawnedPartsKP(NOffSgn:NOffSgn+lenof_all_signs-1, ValidSpawnedList(proc)) = int_sign
 
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
 
@@ -258,8 +258,8 @@ contains
         integer :: idet, DetHash, det_ind, i, j
         integer(n_int) :: ilut_spawn(0:NIfTot)
         integer :: nI_spawn(nel)
-        integer(n_int) :: int_sign(lenof_sign_kp)
-        real(dp) :: real_sign_1(lenof_sign_kp), real_sign_2(lenof_sign_kp)
+        integer(n_int) :: int_sign(lenof_all_signs)
+        real(dp) :: real_sign_1(lenof_all_signs), real_sign_2(lenof_all_signs)
         type(ll_node), pointer :: temp_node
         logical :: tDetFound
 
@@ -267,7 +267,7 @@ contains
 
         do idet = 1, nspawns_this_proc
             ilut_spawn(0:NIfDBO) = SpawnedPartsKP(0:NIfDBO, idet)
-            int_sign = SpawnedPartsKP(NOffSgn:NOffSgn+lenof_sign_kp-1, idet)
+            int_sign = SpawnedPartsKP(NOffSgn:NOffSgn+lenof_all_signs-1, idet)
             real_sign_1 = transfer(int_sign, real_sign_1)
             call decode_bit_det(nI_spawn, ilut_spawn)
             DetHash = FindWalkerHash(nI_spawn, nhashes_kp)
@@ -289,14 +289,14 @@ contains
                     temp_node => temp_node%next
                 end do
                 if (tDetFound) then
-                    int_sign = krylov_array(NOffSgn:NOffSgn+lenof_sign_kp-1, det_ind)
+                    int_sign = krylov_array(NOffSgn:NOffSgn+lenof_all_signs-1, det_ind)
                     real_sign_2 = transfer(int_sign, real_sign_1)
                     if (IsUnoccDet(real_sign_2)) cycle
 
                     ! Finally, add in the contribution to the projected Hamiltonian for each pair of Krylov vectors.
                     do i = 1, kp%nvecs
                         do j = i, kp%nvecs
-#ifdef __DOUBLERUN
+#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
                             kp%hamil_matrix(i,j) = kp%hamil_matrix(i,j) + &
                                 (real_sign_1(2*i-1)*real_sign_2(2*j) + &
                                 real_sign_1(2*i)*real_sign_2(2*j-1))/2.0_dp
@@ -323,8 +323,8 @@ contains
 
         integer :: idet, i, j, min_idet
         integer :: nI_spawn(nel)
-        integer(n_int) :: int_sign(lenof_sign_kp)
-        real(dp) :: real_sign(lenof_sign_kp)
+        integer(n_int) :: int_sign(lenof_all_signs)
+        real(dp) :: real_sign(lenof_all_signs)
         real(dp) :: h_diag_elem
 
         ! In semi-stochastic calculations the diagonal elements of the core space
@@ -338,7 +338,7 @@ contains
         end if
 
         do idet = min_idet, array_len
-            int_sign = krylov_array(NOffSgn:NOffSgn+lenof_sign_kp-1, idet)
+            int_sign = krylov_array(NOffSgn:NOffSgn+lenof_all_signs-1, idet)
             real_sign = transfer(int_sign, real_sign)
             if (present(h_diag)) then
                 h_diag_elem = h_diag(idet) + Hii
@@ -349,7 +349,7 @@ contains
             ! Finally, add in the contribution to the projected Hamiltonian for each pair of Krylov vectors.
             do i = 1, kp%nvecs
                 do j = i, kp%nvecs
-#ifdef __DOUBLERUN
+#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
                     kp%hamil_matrix(i,j) = kp%hamil_matrix(i,j) + &
                         h_diag_elem*(real_sign(2*i-1)*real_sign(2*j) + &
                         real_sign(2*i)*real_sign(2*j-1))/2.0_dp
@@ -372,16 +372,16 @@ contains
 
         integer :: idet, i, j
         integer :: nI_spawn(nel)
-        integer(n_int) :: int_sign(lenof_sign_kp)
-        real(dp) :: real_sign(lenof_sign_kp)
+        integer(n_int) :: int_sign(lenof_all_signs)
+        real(dp) :: real_sign(lenof_all_signs)
 
         do idet = 1, determ_proc_sizes(iProcIndex)
-            int_sign = krylov_array(NOffSgn:NOffSgn+lenof_sign_kp-1, idet)
+            int_sign = krylov_array(NOffSgn:NOffSgn+lenof_all_signs-1, idet)
             real_sign = transfer(int_sign, real_sign)
 
             do i = 1, kp%nvecs
                 do j = i, kp%nvecs
-#ifdef __DOUBLERUN
+#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
                     kp%hamil_matrix(i,j) = kp%hamil_matrix(i,j) + &
                         (real_sign(2*i-1)*partial_determ_vecs_kp(2*j, idet) + &
                         real_sign(2*i)*partial_determ_vecs_kp(2*j-1, idet))/2.0_dp
