@@ -226,7 +226,7 @@ contains
 
     subroutine add_in_hamil_contribs(kp, krylov_array, krylov_ht, tFinished, tAllFinished)
 
-        use Parallel_neci, only: MPIAllGather
+        use Parallel_neci, only: MPIAllGather, nProcessors
 
         type(kp_fciqmc_data), intent(inout) :: kp
         integer(n_int), intent(in) :: krylov_array(0:,:)
