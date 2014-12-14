@@ -177,7 +177,7 @@ contains
         ! Becuase tot_trial_numerator/tot_trial_denom is the energy relative to the the trial
         ! energy, add on this contribution to make it relative to the HF energy.
         if (tTrialWavefunction) then
-            tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*(trial_energy-Hii))
+            tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energy)
         end if
 
 #ifdef __CMPLX
