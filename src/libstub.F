@@ -17,8 +17,9 @@ C ============================================================
          STOP 'FFTW library not installed for CPMD NECI'
       RETURN
       END
-      FUNCTION ZIO(K)
+      complex FUNCTION ZIO(K)
          STOP 'FFTW library not installed for CPMD NECI'
+         zio = 0
       RETURN
       END
 C==========================================================
