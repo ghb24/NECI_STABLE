@@ -302,8 +302,7 @@ contains
             if (iProcIndex == root) then
                 call average_kp_matrices_wrapper(kp%iconfig, kp%nrepeats, kp%overlap_matrices, kp%hamil_matrices, &
                                                  kp_overlap_mean, kp_hamil_mean, kp_overlap_se, kp_hamil_se)
-                call find_and_output_lowdin_eigv(kp)
-                call find_and_output_gs_eigv(kp)
+                call find_and_output_lowdin_eigv(kp%iconfig, kp%nvecs)
 
                 ! Calculate data for the testsuite.
                 s_sum = sum(kp_overlap_mean)
@@ -525,8 +524,7 @@ contains
             if (iProcIndex == root) then
                 call average_kp_matrices_wrapper(kp%iconfig, kp%nrepeats, kp%overlap_matrices, kp%hamil_matrices, &
                                                  kp_overlap_mean, kp_hamil_mean, kp_overlap_se, kp_hamil_se)
-                call find_and_output_lowdin_eigv(kp)
-                call find_and_output_gs_eigv(kp)
+                call find_and_output_lowdin_eigv(kp%iconfig, kp%nvecs)
             end if
         end if
 

@@ -1472,21 +1472,21 @@ contains
 
     end subroutine average_and_comm_pert_overlaps
 
-    subroutine find_and_output_lowdin_eigv(kp)
+    subroutine find_and_output_lowdin_eigv(config_label, nvecs)
 
-        type(kp_fciqmc_data), intent(in) :: kp
+        integer, intent(in) :: config_label, nvecs
 
         integer :: lwork, counter, i, nkeep, nkeep_len, temp_unit
         integer :: npositive, info, ierr
         real(dp), allocatable :: work(:)
         real(dp), allocatable :: kp_final_hamil(:,:), kp_hamil_eigv(:)
-        real(dp) :: kp_pert_energy_overlaps(kp%nvecs)
+        real(dp) :: kp_pert_energy_overlaps(nvecs)
         character(2) :: nkeep_fmt
         character(7) :: string_fmt
         character(25) :: ind1, filename
         character(len=*), parameter :: stem = "lowdin"
 
-        write(ind1,'(i15)') kp%iconfig
+        write(ind1,'(i15)') config_label
         filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
         temp_unit = get_free_unit()
         open(temp_unit, file=trim(filename), status='replace')
@@ -1497,17 +1497,17 @@ contains
         end if
 
         ! Create the workspace for the diagonaliser.
-        lwork = max(1,3*kp%nvecs-1)
+        lwork = max(1,3*nvecs-1)
         allocate(work(lwork), stat=ierr)
 
         kp_overlap_eigenvecs = kp_overlap_mean
 
         ! Now perform the diagonalisation.
-        call dsyev('V', 'U', kp%nvecs, kp_overlap_eigenvecs, kp%nvecs, kp_overlap_eigv, work, lwork, info)
+        call dsyev('V', 'U', nvecs, kp_overlap_eigenvecs, nvecs, kp_overlap_eigv, work, lwork, info)
 
         npositive = 0
         write(temp_unit,'(4("-"),a26,40("-"))') "Overlap matrix eigenvalues"
-        do i = 1, kp%nvecs
+        do i = 1, nvecs
             write(temp_unit,'(1x,es19.12)') kp_overlap_eigv(i)
             if (kp_overlap_eigv(i) > 0.0_dp) npositive = npositive + 1
         end do
@@ -1526,13 +1526,13 @@ contains
             allocate(kp_final_hamil(nkeep,nkeep))
             allocate(kp_hamil_eigv(nkeep))
 
-            associate(transform_matrix => kp_transform_matrix(1:kp%nvecs, 1:nkeep), &
-                      inter_hamil => kp_inter_hamil(1:kp%nvecs, 1:nkeep), &
-                      eigenvecs_krylov => kp_eigenvecs_krylov(1:kp%nvecs, 1:nkeep), &
+            associate(transform_matrix => kp_transform_matrix(1:nvecs, 1:nkeep), &
+                      inter_hamil => kp_inter_hamil(1:nvecs, 1:nkeep), &
+                      eigenvecs_krylov => kp_eigenvecs_krylov(1:nvecs, 1:nkeep), &
                       init_overlaps => kp_init_overlaps(1:nkeep))
 
                 counter = 0
-                do i = kp%nvecs-nkeep+1, kp%nvecs
+                do i = nvecs-nkeep+1, nvecs
                     counter = counter + 1
                     transform_matrix(:,counter) = kp_overlap_eigenvecs(:, i)/sqrt(kp_overlap_eigv(i))
                 end do
@@ -1571,12 +1571,13 @@ contains
 
     end subroutine find_and_output_lowdin_eigv
 
-    subroutine find_and_output_gs_eigv(kp)
+    subroutine find_and_output_gs_eigv(config_label, nvecs)
 
         ! Use the Gram-Schmidt approach rather than the Lowdin approach above
         ! (see Phys. Rev. B. 85, 205119).
 
-        type(kp_fciqmc_data), intent(in) :: kp
+        integer, intent(in) :: config_label, nvecs
+
         integer :: lwork, counter, nkeep, nkeep_len, temp_unit
         integer :: npositive, info, ierr
         integer :: i, j, n, m
@@ -1587,21 +1588,21 @@ contains
         character(25) :: ind1, filename
         character(len=*), parameter :: stem = "gram_schmidt"
 
-        write(ind1,'(i15)') kp%iconfig
+        write(ind1,'(i15)') config_label
         filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
         temp_unit = get_free_unit()
         open(temp_unit, file=trim(filename), status='replace')
 
         ! Create the workspace for the diagonaliser.
-        lwork = max(1,3*kp%nvecs-1)
+        lwork = max(1,3*nvecs-1)
         allocate(work(lwork), stat=ierr)
 
         ! Use the following allocated arrays as work space for the following routine. Not ideal, I know...
-        allocate(kp_final_hamil(kp%nvecs, kp%nvecs))
+        allocate(kp_final_hamil(nvecs, nvecs))
         associate(S_tilde => kp_inter_hamil, N => kp_init_overlaps)
-            call construct_gs_transform_matrix(kp_overlap_mean, kp_transform_matrix, S_tilde, kp_final_hamil, N, kp%nvecs)
+            call construct_gs_transform_matrix(kp_overlap_mean, kp_transform_matrix, S_tilde, kp_final_hamil, N, nvecs)
             npositive = 0
-            do i = 1, kp%nvecs
+            do i = 1, nvecs
                 if (N(i) > 0.0_dp) then
                     npositive = npositive + 1
                 else
@@ -1621,7 +1622,7 @@ contains
             allocate(kp_final_hamil(nkeep,nkeep))
             allocate(kp_hamil_eigv(nkeep))
 
-            associate(S => kp_transform_matrix(1:kp%nvecs, 1:nkeep), &
+            associate(S => kp_transform_matrix(1:nvecs, 1:nkeep), &
                       init_overlaps => kp_init_overlaps(1:nkeep))
 
                 kp_final_hamil = 0.0_dp
