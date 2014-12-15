@@ -1065,58 +1065,56 @@ contains
 
     end subroutine store_krylov_vec
 
-    subroutine calc_overlap_matrix(kp, krylov_array, array_len)
+    subroutine calc_overlap_matrix(nvecs, krylov_array, array_len, s_matrix)
 
-        type(kp_fciqmc_data), intent(inout) :: kp
+        integer, intent(in) :: nvecs
         integer(n_int), intent(in) :: krylov_array(0:,:)
         integer, intent(in) :: array_len
+        real(dp), intent(out) :: s_matrix(:,:)
 
-        integer :: idet, ivec, jvec, ind(kp%nvecs)
+        integer :: idet, ivec, jvec, ind(nvecs)
         integer(n_int) :: int_sign(lenof_sign_kp)
         real(dp) :: real_sign_1(lenof_sign_kp), real_sign_2(lenof_sign_kp)
 
-        associate(s_matrix => kp%overlap_matrix)
+        ! Just in case!
+        s_matrix(:,:) = 0.0_dp
 
-            ! Just in case!
-            s_matrix(:,:) = 0.0_dp
+        do jvec = 1, nvecs
+            ! The first index of the sign in krylov_array, for each vector.
+            ind(jvec) = NIfDBO + lenof_sign_kp*(jvec-1) + 1
+        end do
 
-            do jvec = 1, kp%nvecs
-                ! The first index of the sign in krylov_array, for each vector.
-                ind(jvec) = NIfDBO + lenof_sign_kp*(jvec-1) + 1
-            end do
+        ! Loop over all determinants in the Krylov array.
+        do idet = 1, array_len
+            ! Loop over all Krylov vectors.
+            do ivec = 1, nvecs
+                int_sign = krylov_array(ind(ivec):ind(ivec)+lenof_sign_kp-1, idet)
+                real_sign_1 = transfer(int_sign, real_sign_1)
+                if (IsUnoccDet(real_sign_1)) cycle
 
-            ! Loop over all determinants in the Krylov array.
-            do idet = 1, array_len
-                ! Loop over all Krylov vectors.
-                do ivec = 1, kp%nvecs
-                    int_sign = krylov_array(ind(ivec):ind(ivec)+lenof_sign_kp-1, idet)
-                    real_sign_1 = transfer(int_sign, real_sign_1)
-                    if (IsUnoccDet(real_sign_1)) cycle
-
-                    do jvec = 1, ivec
-                        int_sign = krylov_array(ind(jvec):ind(jvec)+lenof_sign_kp-1, idet)
-                        real_sign_2 = transfer(int_sign, real_sign_1)
-                        if (IsUnoccDet(real_sign_2)) cycle
+                do jvec = 1, ivec
+                    int_sign = krylov_array(ind(jvec):ind(jvec)+lenof_sign_kp-1, idet)
+                    real_sign_2 = transfer(int_sign, real_sign_1)
+                    if (IsUnoccDet(real_sign_2)) cycle
 
 #if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
-                        s_matrix(jvec,ivec) = s_matrix(jvec,ivec) + &
-                            (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
+                    s_matrix(jvec,ivec) = s_matrix(jvec,ivec) + &
+                        (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
 #else
-                        s_matrix(jvec,ivec) = s_matrix(jvec,ivec) + real_sign_1(1)*real_sign_2(1)
+                    s_matrix(jvec,ivec) = s_matrix(jvec,ivec) + real_sign_1(1)*real_sign_2(1)
 #endif
-                        ! Fill in the lower-half of the overlap matrix.
-                        s_matrix(ivec,jvec) = s_matrix(jvec,ivec)
-                    end do
+                    ! Fill in the lower-half of the overlap matrix.
+                    s_matrix(ivec,jvec) = s_matrix(jvec,ivec)
                 end do
             end do
-
-        end associate
+        end do
 
     end subroutine calc_overlap_matrix
 
-    subroutine calc_perturbation_overlap(kp)
+    subroutine calc_perturbation_overlap(ivec)
 
-        type(kp_fciqmc_data), intent(inout) :: kp
+        integer, intent(in) :: ivec
+
         integer :: idet, sign_ind, hash_val, det_ind
         integer :: nI(nel)
         integer(n_int) :: int_sign(lenof_sign_kp)
@@ -1124,45 +1122,42 @@ contains
         real(dp) :: overlap
         logical :: tDetFound
 
-        associate(s_matrix => kp%overlap_matrix, ivec => kp%ivec)
+        overlap = 0.0_dp
 
-            overlap = 0.0_dp
+        sign_ind = NIfDBO + lenof_sign_kp*(ivec-1) + 1
 
-            sign_ind = NIfDBO + lenof_sign_kp*(ivec-1) + 1
+        ! Loop over all determinants in perturbed_ground
+        do idet = 1, size(perturbed_ground, dim=2)
+            call extract_sign(perturbed_ground(:,idet), real_sign_1)
+            if (IsUnoccDet(real_sign_1)) cycle
 
-            ! Loop over all determinants in perturbed_ground
-            do idet = 1, size(perturbed_ground, dim=2)
-                call extract_sign(perturbed_ground(:,idet), real_sign_1)
-                if (IsUnoccDet(real_sign_1)) cycle
-
-                call decode_bit_det(nI, perturbed_ground(:,idet))
-                ! Search to see if this determinant is in any Krylov vector.
-                call hash_table_lookup(nI, perturbed_ground(:,idet), NIfDBO, krylov_vecs_ht, krylov_vecs, &
-                                        det_ind, hash_val, tDetFound)
-                if (tDetFound) then
-                    ! If here then this determinant was found in the hash table.
-                    ! Add in the contributions to the overlap.
-                    int_sign = krylov_vecs(sign_ind:sign_ind+lenof_sign_kp-1, det_ind)
-                    real_sign_2 = transfer(int_sign, real_sign_1)
+            call decode_bit_det(nI, perturbed_ground(:,idet))
+            ! Search to see if this determinant is in any Krylov vector.
+            call hash_table_lookup(nI, perturbed_ground(:,idet), NIfDBO, krylov_vecs_ht, krylov_vecs, &
+                                    det_ind, hash_val, tDetFound)
+            if (tDetFound) then
+                ! If here then this determinant was found in the hash table.
+                ! Add in the contributions to the overlap.
+                int_sign = krylov_vecs(sign_ind:sign_ind+lenof_sign_kp-1, det_ind)
+                real_sign_2 = transfer(int_sign, real_sign_1)
 #ifdef __DOUBLERUN
-                    overlap = overlap + (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
+                overlap = overlap + (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
 #else
-                    overlap = overlap + real_sign_1(1)*real_sign_2(1)
+                overlap = overlap + real_sign_1(1)*real_sign_2(1)
 #endif
-                end if
-            end do
+            end if
+        end do
 
-            pert_overlaps(ivec) = pert_overlaps(ivec) + overlap
-
-        end associate
+        pert_overlaps(ivec) = pert_overlaps(ivec) + overlap
 
     end subroutine calc_perturbation_overlap
 
-    subroutine calc_hamil_exact(kp, krylov_array, array_len, h_diag)
+    subroutine calc_hamil_exact(nvecs, krylov_array, array_len, h_matrix, h_diag)
 
-        type(kp_fciqmc_data), intent(inout) :: kp
+        integer, intent(in) :: nvecs
         integer(n_int), intent(in) :: krylov_array(0:,:)
         integer, intent(in) :: array_len
+        real(dp), intent(out) :: h_matrix(:,:)
         real(dp), intent(in), optional :: h_diag(:)
 
         integer :: i, j, idet, jdet, ic
@@ -1174,118 +1169,114 @@ contains
         logical :: any_occ, occ_1, occ_2
         integer(4), allocatable :: occ_flags(:)
 
-        associate(h_matrix => kp%hamil_matrix)
+        h_matrix = 0.0_dp
 
-            h_matrix = 0.0_dp
+        allocate(occ_flags(array_len))
+        occ_flags = 0
 
-            allocate(occ_flags(array_len))
-            occ_flags = 0
+        ilut_1 = 0_n_int
+        ilut_2 = 0_n_int
 
-            ilut_1 = 0_n_int
-            ilut_2 = 0_n_int
+        ! Check to see if there are any replica 1 or 2 walkers on this determinant.
+        do idet = 1, array_len
+            int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_all_signs, idet)
 
-            ! Check to see if there are any replica 1 or 2 walkers on this determinant.
-            do idet = 1, array_len
-                int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_all_signs, idet)
-
-                any_occ = .false.
+            any_occ = .false.
 #if defined(__DOUBLERUN) || defined(__PROG__NUMRUNS)
-                do i = 1, kp%nvecs
-                    any_occ = any_occ .or. (int_sign(2*i-1) /= 0)
-                end do
-                if (any_occ) occ_flags = ibset(occ_flags(idet), 0)
-
-                any_occ = .false.
-                do i = 1, kp%nvecs
-                    any_occ = any_occ .or. (int_sign(2*i) /= 0)
-                end do
-                if (any_occ) occ_flags = ibset(occ_flags(idet), 1)
-#else
-                do i = 1, kp%nvecs
-                    any_occ = any_occ .or. (int_sign(i) /= 0)
-                end do
-                if (any_occ) occ_flags = ibset(occ_flags(idet), 0)
-#endif
+            do i = 1, nvecs
+                any_occ = any_occ .or. (int_sign(2*i-1) /= 0)
             end do
+            if (any_occ) occ_flags = ibset(occ_flags(idet), 0)
 
-            ! Loop over all determinants in krylov_array.
-            do idet = 1, array_len
-                ilut_1 = krylov_array(0:NIfDBO, idet)
-                call decode_bit_det(nI, ilut_1)
-                int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_all_signs, idet)
-                real_sign_1 = transfer(int_sign, real_sign_1)
-                occ_1 = btest(occ_flags(idet),0)
-                occ_2 = btest(occ_flags(idet),1)
-
-                do jdet = idet, array_len
-#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
-                    if (.not. ((occ_1 .and. btest(occ_flags(jdet),1)) .or. &
-                        (occ_2 .and. btest(occ_flags(jdet),0)))) cycle
+            any_occ = .false.
+            do i = 1, nvecs
+                any_occ = any_occ .or. (int_sign(2*i) /= 0)
+            end do
+            if (any_occ) occ_flags = ibset(occ_flags(idet), 1)
 #else
-                    if (.not. (occ_1 .and. btest(occ_flags(jdet),0)) ) cycle
+            do i = 1, nvecs
+                any_occ = any_occ .or. (int_sign(i) /= 0)
+            end do
+            if (any_occ) occ_flags = ibset(occ_flags(idet), 0)
 #endif
-                    ilut_2 = krylov_array(0:NIfDBO, jdet)
-                    ic = FindBitExcitLevel(ilut_1, ilut_2)
-                    if (ic > 2) cycle
+        end do
 
-                    call decode_bit_det(nJ, ilut_2)
-                    int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_all_signs, jdet)
-                    real_sign_2 = transfer(int_sign, real_sign_1)
-                    
-                    if (idet == jdet) then
-                        if (present(h_diag)) then
-                            h_elem = h_diag(idet) + Hii
-                        else
-                            h_elem = det_diagH(idet) + Hii
-                        end if
+        ! Loop over all determinants in krylov_array.
+        do idet = 1, array_len
+            ilut_1 = krylov_array(0:NIfDBO, idet)
+            call decode_bit_det(nI, ilut_1)
+            int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_all_signs, idet)
+            real_sign_1 = transfer(int_sign, real_sign_1)
+            occ_1 = btest(occ_flags(idet),0)
+            occ_2 = btest(occ_flags(idet),1)
+
+            do jdet = idet, array_len
+#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
+                if (.not. ((occ_1 .and. btest(occ_flags(jdet),1)) .or. &
+                    (occ_2 .and. btest(occ_flags(jdet),0)))) cycle
+#else
+                if (.not. (occ_1 .and. btest(occ_flags(jdet),0)) ) cycle
+#endif
+                ilut_2 = krylov_array(0:NIfDBO, jdet)
+                ic = FindBitExcitLevel(ilut_1, ilut_2)
+                if (ic > 2) cycle
+
+                call decode_bit_det(nJ, ilut_2)
+                int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_all_signs, jdet)
+                real_sign_2 = transfer(int_sign, real_sign_1)
+                
+                if (idet == jdet) then
+                    if (present(h_diag)) then
+                        h_elem = h_diag(idet) + Hii
                     else
-                        if (tHPHF) then
-                            h_elem = hphf_off_diag_helement(nI, nJ, ilut_1, ilut_2)
-                        else
-                            h_elem = get_helement(nI, nJ, ic, ilut_1, ilut_2)
-                        end if
+                        h_elem = det_diagH(idet) + Hii
                     end if
+                else
+                    if (tHPHF) then
+                        h_elem = hphf_off_diag_helement(nI, nJ, ilut_1, ilut_2)
+                    else
+                        h_elem = get_helement(nI, nJ, ic, ilut_1, ilut_2)
+                    end if
+                end if
 
-                    ! Finally, add in the contribution to all of the Hamiltonian elements.
-                    do i = 1, kp%nvecs
-                        do j = i, kp%nvecs
+                ! Finally, add in the contribution to all of the Hamiltonian elements.
+                do i = 1, nvecs
+                    do j = i, nvecs
 #if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
-                            if (idet == jdet) then
-                                h_matrix(i,j) = h_matrix(i,j) + &
-                                    h_elem*(real_sign_1(2*i-1)*real_sign_2(2*j) + &
-                                    real_sign_1(2*i)*real_sign_2(2*j-1))/2
-                            else
-                                h_matrix(i,j) = h_matrix(i,j) + &
-                                    h_elem*(real_sign_1(2*i-1)*real_sign_2(2*j) + &
-                                    real_sign_1(2*i)*real_sign_2(2*j-1) + &
-                                    real_sign_1(2*j-1)*real_sign_2(2*i) + &
-                                    real_sign_1(2*j)*real_sign_2(2*i-1))/2
-                            end if
+                        if (idet == jdet) then
+                            h_matrix(i,j) = h_matrix(i,j) + &
+                                h_elem*(real_sign_1(2*i-1)*real_sign_2(2*j) + &
+                                real_sign_1(2*i)*real_sign_2(2*j-1))/2
+                        else
+                            h_matrix(i,j) = h_matrix(i,j) + &
+                                h_elem*(real_sign_1(2*i-1)*real_sign_2(2*j) + &
+                                real_sign_1(2*i)*real_sign_2(2*j-1) + &
+                                real_sign_1(2*j-1)*real_sign_2(2*i) + &
+                                real_sign_1(2*j)*real_sign_2(2*i-1))/2
+                        end if
 #else
-                            if (idet == jdet) then
-                                h_matrix(i,j) = h_matrix(i,j) + &
-                                    h_elem*real_sign_1(i)*real_sign_2(j)
-                            else
-                                h_matrix(i,j) = h_matrix(i,j) + &
-                                    h_elem*(real_sign_1(i)*real_sign_2(j) + &
-                                    real_sign_1(j)*real_sign_2(i))
-                            end if
+                        if (idet == jdet) then
+                            h_matrix(i,j) = h_matrix(i,j) + &
+                                h_elem*real_sign_1(i)*real_sign_2(j)
+                        else
+                            h_matrix(i,j) = h_matrix(i,j) + &
+                                h_elem*(real_sign_1(i)*real_sign_2(j) + &
+                                real_sign_1(j)*real_sign_2(i))
+                        end if
 #endif
-                        end do
                     end do
-
                 end do
+
             end do
+        end do
 
-            do i = 1, kp%nvecs
-                do j = 1, i-1
-                    h_matrix(i,j) = h_matrix(j,i)
-                end do
+        do i = 1, nvecs
+            do j = 1, i-1
+                h_matrix(i,j) = h_matrix(j,i)
             end do
+        end do
 
-            deallocate(occ_flags)
-
-        end associate
+        deallocate(occ_flags)
 
     end subroutine calc_hamil_exact
 

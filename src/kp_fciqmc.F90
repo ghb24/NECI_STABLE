@@ -87,7 +87,7 @@ contains
 
                     ! Calculate the overlap of the perturbed ground state vector
                     ! with the new Krylov vector, if requested.
-                    if (tOverlapPert) call calc_perturbation_overlap(kp)
+                    if (tOverlapPert) call calc_perturbation_overlap(ivec)
 
                     do iiter = 1, kp%niters(ivec)
 
@@ -282,10 +282,10 @@ contains
 
                 end do ! Over all Krylov vectors.
 
-                call calc_overlap_matrix(kp, krylov_vecs, TotWalkersKP)
+                call calc_overlap_matrix(kp%nvecs, krylov_vecs, TotWalkersKP, kp%overlap_matrix)
 
                 if (tExactHamil) then
-                    call calc_hamil_exact(kp, krylov_vecs, TotWalkersKP, krylov_helems)
+                    call calc_hamil_exact(kp%nvecs, krylov_vecs, TotWalkersKP, kp%hamil_matrix, krylov_helems)
                 else
                     call calc_projected_hamil(kp, krylov_vecs, krylov_vecs_ht, TotWalkersKP, krylov_helems)
                 end if
@@ -354,10 +354,10 @@ contains
 
             do ireport = 1, kp%nvecs
 
-                call calc_overlap_matrix(kp, CurrentDets, int(TotWalkers, sizeof_int))
+                call calc_overlap_matrix(kp%nvecs, CurrentDets, int(TotWalkers, sizeof_int), kp%overlap_matrix)
 
                 if (tExactHamil) then
-                    call calc_hamil_exact(kp, CurrentDets, int(TotWalkers, sizeof_int))
+                    call calc_hamil_exact(kp%nvecs, CurrentDets, int(TotWalkers, sizeof_int), kp%hamil_matrix)
                 else
                     call calc_projected_hamil(kp, CurrentDets, HashIndex, int(TotWalkers, sizeof_int))
                 end if
