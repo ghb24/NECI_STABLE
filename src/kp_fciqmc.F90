@@ -326,7 +326,7 @@ contains
 
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: iiter, idet, ireplica, ispawn
-        integer, target :: irepeat, ireport
+        integer, target :: iconfig, irepeat, ireport
         integer :: nspawn, parent_flags, unused_flags, ex_level_to_ref
         integer :: TotWalkersNew, determ_ind, ic, ex(2,2)
         integer :: nI_parent(nel), nI_child(nel)
@@ -342,6 +342,11 @@ contains
         ! Variables to hold information output for the test suite.
         real(dp) :: s_sum, h_sum
 
+        ! We only ever start from one specific set of configurations for this
+        ! version of the KP algorithm.
+        iconfig = 1
+
+        kp%iconfig => iconfig
         kp%irepeat => irepeat
         kp%ivec => ireport
         call init_kp_fciqmc(kp)
