@@ -31,11 +31,6 @@ module kp_fciqmc_data_mod
         integer, allocatable :: niters(:)
 
         ! Stores of the overlap and projected Hamiltonian matrices.
-        ! If tStoreKPMatrices is .true., then all matrices will be held for
-        ! the current initial configuration, including all repeats. The third
-        ! index will therefore run from 1 to nrepeats.
-        ! If tKPMatrices is .false., then only the matrices from the current
-        ! repeat will be held, and the third index will always be 1.
         real(dp), pointer :: overlap_matrices(:,:,:)
         real(dp), pointer :: hamil_matrices(:,:,:)
         ! Pointers to the matrices for the current repeat only.
@@ -134,14 +129,6 @@ module kp_fciqmc_data_mod
     logical :: tUseInitConfigSeeds
     ! See comments above.
     integer, allocatable :: init_config_seeds(:)
-    ! If true, all repeats of the projected Hamiltonian and overlap matrices
-    ! will be stored in memory for a given starting configuration until
-    ! we move onto the next starting configuration. This means that we don't
-    ! have to read all the matrices in again before averaging at the end
-    ! of a tarting configuration, and so makes things a bit quicker. However,
-    ! if this will use too much memory then this option can be turned off
-    ! and the matrices will be read in before averaging instead.
-    logical :: tStoreKPMatrices
     ! If true then the averaged projected Hamiltonian and overlap matrices
     ! will be output after completing all repeats of a given initial configuration.
     ! If more than one repeat has been performed, then the standard error

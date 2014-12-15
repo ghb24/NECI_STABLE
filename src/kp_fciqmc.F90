@@ -74,13 +74,8 @@ contains
 
                 ! Point to the regions of memory where the projected Hamiltonian
                 ! and overlap matrices for this repeat will be accumulated and stored.
-                if (tStoreKPMatrices) then
-                    kp%hamil_matrix => kp%hamil_matrices(:,:,irepeat)
-                    kp%overlap_matrix => kp%overlap_matrices(:,:,irepeat)
-                else
-                    kp%hamil_matrix => kp%hamil_matrices(:,:,1)
-                    kp%overlap_matrix => kp%overlap_matrices(:,:,1)
-                end if
+                kp%hamil_matrix => kp%hamil_matrices(:,:,irepeat)
+                kp%overlap_matrix => kp%overlap_matrices(:,:,irepeat)
 
                 call init_kp_fciqmc_repeat(kp)
                 call WriteFCIMCStats()
@@ -298,13 +293,13 @@ contains
                 ! Sum the overlap and projected Hamiltonian matrices from the various processors.
                 call communicate_kp_matrices(kp%overlap_matrix, kp%hamil_matrix)
 
-                call output_kp_matrices_wrapper(kp)
+                call output_kp_matrices_wrapper(kp%iconfig, kp%overlap_matrices, kp%hamil_matrices)
 
             end do ! Over all repeats for a fixed initial walker configuration.
 
             if (tOverlapPert) call average_and_comm_pert_overlaps(kp%nrepeats)
 
-            if (iProcIndex == root .and. tStoreKPMatrices) then
+            if (iProcIndex == root) then
                 call average_kp_matrices_wrapper(kp)
                 call find_and_output_lowdin_eigv(kp)
                 call find_and_output_gs_eigv(kp)
@@ -351,13 +346,8 @@ contains
 
             ! Point to the regions of memory where the projected Hamiltonian
             ! and overlap matrices for this repeat will be accumulated and stored.
-            if (tStoreKPMatrices) then
-                kp%hamil_matrix => kp%hamil_matrices(:,:,irepeat)
-                kp%overlap_matrix => kp%overlap_matrices(:,:,irepeat)
-            else
-                kp%hamil_matrix => kp%hamil_matrices(:,:,1)
-                kp%overlap_matrix => kp%overlap_matrices(:,:,1)
-            end if
+            kp%hamil_matrix => kp%hamil_matrices(:,:,irepeat)
+            kp%overlap_matrix => kp%overlap_matrices(:,:,irepeat)
 
             call init_kp_fciqmc_repeat(kp)
             call write_fcimcstats2(iter_data_fciqmc)
@@ -526,12 +516,12 @@ contains
                 ! Sum the overlap and projected Hamiltonian matrices from the various processors.
                 call communicate_kp_matrices(kp%overlap_matrix, kp%hamil_matrix)
 
-                call output_kp_matrices_wrapper(kp)
+                call output_kp_matrices_wrapper(kp%iconfig, kp%overlap_matrices, kp%hamil_matrices)
 
             end do ! Over all report cycles.
 
         if (.not. tSoftExitFound) then
-            if (iProcIndex == root .and. tStoreKPMatrices) then
+            if (iProcIndex == root) then
                 call average_kp_matrices_wrapper(kp)
                 call find_and_output_lowdin_eigv(kp)
                 call find_and_output_gs_eigv(kp)

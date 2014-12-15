@@ -73,7 +73,6 @@ contains
         vary_niters = .false.
         tUseInitConfigSeeds = .false.
         tAllSymSectors = .false.
-        tStoreKPMatrices = .true.
         tOutputAverageKPMatrices = .false.
         tOverlapPert = .false.
         tScalePopulation = .false.
@@ -153,8 +152,6 @@ contains
                 end do
             case("ALL-SYM-SECTORS")
                 tAllSymSectors = .true.
-            case("WRITE-MATRICES-SEPARATE")
-                tStoreKPMatrices = .false.
             case("WRITE-AVERAGE-MATRICES")
                 tOutputAverageKPMatrices = .true.
             case("SCALE-POPULATION")
@@ -346,13 +343,8 @@ contains
             full_determ_vecs_kp = 0.0_dp
         end if
 
-        if (tStoreKPMatrices) then
-            ! (2*kp%nrepeats+16) arrays with (kp%nvecs**2) 8-byte elements each.
-            matrix_memory = (2*kp%nrepeats+16)*(kp%nvecs**2)*8/1000000
-        else
-            ! 18 arrays with (kp%nvecs**2) 8-byte elements each.
-            matrix_memory = 18*(kp%nvecs**2)*8/1000000
-        end if
+        ! (2*kp%nrepeats+16) arrays with (kp%nvecs**2) 8-byte elements each.
+        matrix_memory = (2*kp%nrepeats+16)*(kp%nvecs**2)*8/1000000
         write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(matrix_memory)+1,dp)))
         write(6,'(a66,1x,'//mem_fmt//')') "About to allocate various subspace matrices. &
                                        &Memory required (MB):", matrix_memory
@@ -364,13 +356,8 @@ contains
             allocate(kp_all_pert_overlaps(kp%nvecs))
         end if
 
-        if (tStoreKPMatrices) then
-            allocate(kp%overlap_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
-            allocate(kp%hamil_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
-        else
-            allocate(kp%overlap_matrices(kp%nvecs, kp%nvecs, 1), stat=ierr)
-            allocate(kp%hamil_matrices(kp%nvecs, kp%nvecs, 1), stat=ierr)
-        end if
+        allocate(kp%overlap_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
+        allocate(kp%hamil_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
 
         allocate(kp_hamil_mean(kp%nvecs, kp%nvecs))
         allocate(kp_overlap_mean(kp%nvecs, kp%nvecs))
@@ -1333,52 +1320,50 @@ contains
 
     end subroutine communicate_kp_matrices
 
-    subroutine output_kp_matrices_wrapper(kp)
+    subroutine output_kp_matrices_wrapper(config_label, overlap_mats, hamil_mats)
 
-        type(kp_fciqmc_data), intent(in) :: kp
+        integer, intent(in) :: config_label
+        real(dp), intent(in) :: overlap_mats(:,:,:)
+        real(dp), intent(in) :: hamil_mats(:,:,:)
 
         if (iProcIndex == root) then
-            call output_kp_matrices(kp, 'hamil  ', kp%hamil_matrices)
-            call output_kp_matrices(kp, 'overlap', kp%overlap_matrices)
+            call output_kp_matrices(config_label, 'overlap', overlap_mats)
+            call output_kp_matrices(config_label, 'hamil  ', hamil_mats)
         end if
 
     end subroutine output_kp_matrices_wrapper
 
-    subroutine output_kp_matrices(kp, stem, matrices)
+    subroutine output_kp_matrices(config_label, stem, matrices)
 
-        type(kp_fciqmc_data), intent(in) :: kp
+        integer, intent(in) :: config_label
         character(7), intent(in) :: stem
         real(dp), intent(in) :: matrices(:,:,:)
         character(2) :: ifmt, jfmt
         character(25) :: ind1, ind2, filename
-        integer :: i, j, k, ilen, jlen, temp_unit, repeat_ind
+        integer :: i, j, k, ilen, jlen, temp_unit, nrepeats
 
-        write(ind1,'(i15)') kp%iconfig
-        if (tStoreKPMatrices) then
-            filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
-            repeat_ind = kp%irepeat
-        else
-            write(ind2,'(i15)') kp%irepeat
-            filename = trim(trim(stem)//'.'//trim(adjustl(ind1))//'.'//trim(adjustl(ind2)))
-            repeat_ind = 1
-        end if
+        write(ind1,'(i15)') config_label
+
+        filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
+        nrepeats = size(matrices,3)
         temp_unit = get_free_unit()
+
         open(temp_unit, file=trim(filename), status='replace')
 
         ! Write all the components of the various estimates of the matrix, above and including the
         ! diagonal, one after another on separate lines.
-        do i = 1, kp%nvecs
+        do i = 1, size(matrices,1)
             ilen = ceiling(log10(real(abs(i)+1,dp)))
             ! ifmt will hold the correct integer length so that there will be no spaces printed out.
             ! Note that this assumes that ilen < 10, which is very reasonable!
             write(ifmt,'(a1,i1)') "i", ilen
-            do j = i, kp%nvecs
+            do j = i, size(matrices,2)
                 jlen = ceiling(log10(real(abs(j)+1,dp)))
                 write(jfmt,'(a1,i1)') "i", jlen
 
                 ! Write the index of the matrix element.
                 write(temp_unit,'(a1,'//ifmt//',a1,'//jfmt//',a1)',advance='no') "(",i,",",j,")"
-                do k = 1, repeat_ind
+                do k = 1, nrepeats
                     write(temp_unit,'(1x,es19.12)',advance='no') matrices(i,j,k)
                 end do
                 write(temp_unit,'()',advance='yes')
