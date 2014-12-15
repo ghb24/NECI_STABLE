@@ -173,11 +173,6 @@ module kp_fciqmc_data_mod
     ! root process.
     real(dp), allocatable :: kp_all_pert_overlaps(:)
 
-    ! Matrices used in the communication of the projected Hamiltonian and
-    ! overlap matrices.
-    real(dp), allocatable :: kp_mpi_matrices_in(:,:)
-    real(dp), allocatable :: kp_mpi_matrices_out(:,:)
-
     ! After all repeats for a given initial configuration are complete, these
     ! arrays will hold the means and standard errors of the projected
     ! Hamiltonian and overlap matrices (unless only one sample was obtained,

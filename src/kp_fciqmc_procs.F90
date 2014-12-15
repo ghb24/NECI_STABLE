@@ -372,9 +372,6 @@ contains
             allocate(kp%hamil_matrices(kp%nvecs, kp%nvecs, 1), stat=ierr)
         end if
 
-        allocate(kp_mpi_matrices_in(2*kp%nvecs, kp%nvecs))
-        allocate(kp_mpi_matrices_out(2*kp%nvecs, kp%nvecs))
-
         allocate(kp_hamil_mean(kp%nvecs, kp%nvecs))
         allocate(kp_overlap_mean(kp%nvecs, kp%nvecs))
         allocate(kp_hamil_se(kp%nvecs, kp%nvecs))
@@ -1305,22 +1302,34 @@ contains
 
     end subroutine calc_hamil_exact
 
-    subroutine communicate_kp_matrices(kp)
+    subroutine communicate_kp_matrices(overlap_matrix, hamil_matrix)
 
-        ! Add all the overlap and projected Hamiltonian matrices together, with the result being
-        ! held only on the root node.
+        ! Add all the overlap and projected Hamiltonian matrices together, with
+        ! the result being held only on the root node.
 
-        type(kp_fciqmc_data), intent(inout) :: kp
+        real(dp), intent(inout) :: overlap_matrix(:,:)
+        real(dp), intent(inout) :: hamil_matrix(:,:)
 
-        kp_mpi_matrices_in(1:kp%nvecs, 1:kp%nvecs) = kp%overlap_matrix
-        kp_mpi_matrices_in(kp%nvecs+1:2*kp%nvecs, 1:kp%nvecs) = kp%hamil_matrix
+        real(dp), allocatable :: mpi_mat_in(:,:), mpi_mat_out(:,:)
+        integer :: nrow
 
-        call MPISum(kp_mpi_matrices_in, kp_mpi_matrices_out)
+        nrow = size(hamil_matrix,1)
+
+        allocate(mpi_mat_in(nrow, 2*nrow))
+        allocate(mpi_mat_out(nrow, 2*nrow))
+
+        mpi_mat_in(1:nrow, 1:nrow) = overlap_matrix
+        mpi_mat_in(1:nrow, nrow+1:2*nrow) = hamil_matrix
+
+        call MPISum(mpi_mat_in, mpi_mat_out)
 
         if (iProcIndex == root) then
-            kp%overlap_matrix = kp_mpi_matrices_out(1:kp%nvecs, 1:kp%nvecs)
-            kp%hamil_matrix = kp_mpi_matrices_out(kp%nvecs+1:2*kp%nvecs, 1:kp%nvecs)
+            overlap_matrix = mpi_mat_out(1:nrow, 1:nrow)
+            hamil_matrix = mpi_mat_out(1:nrow, nrow+1:2*nrow)
         end if
+
+        deallocate(mpi_mat_in)
+        deallocate(mpi_mat_out)
 
     end subroutine communicate_kp_matrices
 

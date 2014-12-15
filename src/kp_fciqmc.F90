@@ -296,7 +296,7 @@ contains
                 end if
 
                 ! Sum the overlap and projected Hamiltonian matrices from the various processors.
-                call communicate_kp_matrices(kp)
+                call communicate_kp_matrices(kp%overlap_matrix, kp%hamil_matrix)
 
                 call output_kp_matrices_wrapper(kp)
 
@@ -524,7 +524,7 @@ contains
                 end do ! Over all iterations per report cycle.
 
                 ! Sum the overlap and projected Hamiltonian matrices from the various processors.
-                call communicate_kp_matrices(kp)
+                call communicate_kp_matrices(kp%overlap_matrix, kp%hamil_matrix)
 
                 call output_kp_matrices_wrapper(kp)
 
