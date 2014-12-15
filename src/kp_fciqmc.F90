@@ -300,7 +300,8 @@ contains
             if (tOverlapPert) call average_and_comm_pert_overlaps(kp%nrepeats)
 
             if (iProcIndex == root) then
-                call average_kp_matrices_wrapper(kp)
+                call average_kp_matrices_wrapper(kp%iconfig, kp%nrepeats, kp%overlap_matrices, kp%hamil_matrices, &
+                                                 kp_overlap_mean, kp_hamil_mean, kp_overlap_se, kp_hamil_se)
                 call find_and_output_lowdin_eigv(kp)
                 call find_and_output_gs_eigv(kp)
 
@@ -522,7 +523,8 @@ contains
 
         if (.not. tSoftExitFound) then
             if (iProcIndex == root) then
-                call average_kp_matrices_wrapper(kp)
+                call average_kp_matrices_wrapper(kp%iconfig, kp%nrepeats, kp%overlap_matrices, kp%hamil_matrices, &
+                                                 kp_overlap_mean, kp_hamil_mean, kp_overlap_se, kp_hamil_se)
                 call find_and_output_lowdin_eigv(kp)
                 call find_and_output_gs_eigv(kp)
             end if

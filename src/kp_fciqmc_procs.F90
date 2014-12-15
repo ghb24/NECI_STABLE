@@ -1374,15 +1374,19 @@ contains
 
     end subroutine output_kp_matrices
 
-    subroutine average_kp_matrices_wrapper(kp)
+    subroutine average_kp_matrices_wrapper(config_label, nrepeats, overlap_mats, hamil_mats, &
+                                           overlap_mean, hamil_mean, overlap_se, hamil_se)
 
-        type(kp_fciqmc_data), intent(in) :: kp
+        integer, intent(in) :: config_label, nrepeats
+        real(dp), intent(in) :: overlap_mats(:,:,:), hamil_mats(:,:,:)
+        real(dp), intent(out) :: overlap_mean(:,:), hamil_mean(:,:)
+        real(dp), intent(out) :: overlap_se(:,:), hamil_se(:,:)
 
-        call average_kp_matrices(kp%nrepeats, kp%hamil_matrices, kp_hamil_mean, kp_hamil_se)
-        call average_kp_matrices(kp%nrepeats, kp%overlap_matrices, kp_overlap_mean, kp_overlap_se)
+        call average_kp_matrices(nrepeats, hamil_mats, hamil_mean, hamil_se)
+        call average_kp_matrices(nrepeats, overlap_mats, overlap_mean, overlap_se)
         if (tOutputAverageKPMatrices) then
-            call output_average_kp_matrix(kp, 'av_hamil  ', kp_hamil_mean, kp_hamil_se)
-            call output_average_kp_matrix(kp, 'av_overlap', kp_overlap_mean, kp_overlap_se)
+            call output_average_kp_matrix(config_label, nrepeats, 'av_hamil  ', hamil_mean, hamil_se)
+            call output_average_kp_matrix(config_label, nrepeats, 'av_overlap', overlap_mean, overlap_se)
         end if
 
     end subroutine average_kp_matrices_wrapper
@@ -1391,7 +1395,8 @@ contains
 
         integer, intent(in) :: nrepeats
         real(dp), intent(in) :: matrices(:,:,:)
-        real(dp), intent(inout) :: mean(:,:), se(:,:)
+        real(dp), intent(out) :: mean(:,:), se(:,:)
+
         integer :: irepeat
 
         mean = 0.0_dp
@@ -1412,38 +1417,39 @@ contains
 
     end subroutine average_kp_matrices
 
-    subroutine output_average_kp_matrix(kp, stem, mean, se)
+    subroutine output_average_kp_matrix(config_label, nrepeats, stem, mean, se)
 
-        type(kp_fciqmc_data), intent(in) :: kp
+        integer, intent(in) :: config_label, nrepeats
         character(10), intent(in) :: stem
-        real(dp), intent(inout) :: mean(:,:), se(:,:)
+        real(dp), intent(in) :: mean(:,:), se(:,:)
+
         integer :: irepeat
         character(2) :: ifmt, jfmt
         character(25) :: ind1, filename
         integer :: i, j, k, ilen, jlen, temp_unit, repeat_ind
 
-        write(ind1,'(i15)') kp%iconfig
+        write(ind1,'(i15)') config_label
         filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
         temp_unit = get_free_unit()
         open(temp_unit, file=trim(filename), status='replace')
 
         ! Write all the components of the various estimates of the matrix, above and including the
         ! diagonal, one after another on separate lines.
-        do i = 1, kp%nvecs
+        do i = 1, size(mean,1)
             ilen = ceiling(log10(real(abs(i)+1,dp)))
             ! ifmt will hold the correct integer length so that there will be no spaces printed out.
             ! Note that this assumes that ilen < 10, which is very reasonable!
             write(ifmt,'(a1,i1)') "i", ilen
-            do j = i, kp%nvecs
+            do j = i, size(mean,2)
                 jlen = ceiling(log10(real(abs(j)+1,dp)))
                 write(jfmt,'(a1,i1)') "i", jlen
 
                 ! Write the index of the matrix element.
                 write(temp_unit,'(a1,'//ifmt//',a1,'//jfmt//',a1)',advance='no') "(",i,",",j,")"
-                if (kp%nrepeats > 1) then
+                if (nrepeats > 1) then
                     ! Write the mean and standard error.
                     write(temp_unit,'(1x,es19.12,1x,a3,es19.12)') mean(i,j), "+/-", se(i,j)
-                else if (kp%nrepeats == 1) then
+                else if (nrepeats == 1) then
                     ! If we only have one sample then a standard error was not calculated, so
                     ! only output the mean.
                     write(temp_unit,'(1x,es19.12)') mean(i,j)
