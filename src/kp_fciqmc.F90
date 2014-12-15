@@ -18,11 +18,10 @@ module kp_fciqmc
     use FciMCData, only: indices_of_determ_states, partial_determ_vector
     use fcimc_initialisation, only: CalcApproxpDoubles
     use fcimc_helper, only: SumEContrib, end_iter_stats, create_particle, &
-                            CalcParentFlag, walker_death, &
-                            decide_num_to_spawn
-    use fcimc_output, only: end_iteration_print_warn
-    use fcimc_iter_utils, only: calculate_new_shift_wrapper, &
-                                update_iter_data
+                            CalcParentFlag, walker_death, decide_num_to_spawn
+    use fcimc_output, only: end_iteration_print_warn, WriteFCIMCStats, &
+                            write_fcimcstats2
+    use fcimc_iter_utils, only: calculate_new_shift_wrapper, update_iter_data
     use global_det_data, only: det_diagH
     use LoggingData, only: tPopsFile
     use Parallel_neci, only: iProcIndex
@@ -360,7 +359,7 @@ contains
             end if
 
             call init_kp_fciqmc_repeat(kp)
-            call WriteFCIMCStats()
+            call write_fcimcstats2(iter_data_fciqmc)
 
             do ireport = 1, kp%nvecs
 
@@ -464,7 +463,6 @@ contains
                                     child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
                                                         nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
                                                         ex_level_to_ref, ireplica, unused_sign2, unused_rdm_real)
-
                                 else
                                     child_sign = 0.0_dp
                                 end if

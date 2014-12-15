@@ -16,7 +16,7 @@ module kp_fciqmc_procs
     use FciMCData
     use fcimc_initialisation, only: InitFCIMC_HF, SetupParameters, &
                                     InitFCIMCCalcPar, init_fcimc_fn_pointers
-    use FciMCParMod, only: WriteFciMCStats, WriteFciMCStatsHeader
+    use FciMCParMod, only: WriteFciMCStatsHeader, write_fcimcstats2
     use FciMCParMod, only: rezero_iter_stats_each_iter, tSinglePartPhase
     use global_det_data, only: det_diagH
     use gndts_mod, only: gndts
@@ -25,7 +25,7 @@ module kp_fciqmc_procs
     use hilbert_space_size, only: create_rand_det_no_sym
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use lanczos_wrapper, only: frsblk_wrapper
-    use LoggingData, only: tIncrementPops
+    use LoggingData, only: tIncrementPops, tFCIMCStats2
     use Parallel_neci, only: MPIBarrier, iProcIndex, MPISum, MPISumAll, nProcessors
     use ParallelHelper, only: root
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
@@ -268,7 +268,7 @@ contains
         end if
 
         ! The number of elements required to store all replicas of all Krylov vectors.
-        lenof_all_signs = lenof_sign*kp%nvecs
+        lenof_all_signs = lenof_sign_kp*kp%nvecs
         ! The total length of a bitstring containing all Krylov vectors.
         NIfTotKP = NIfDBO + lenof_all_signs + NIfFlag
 
@@ -394,7 +394,11 @@ contains
 
         MaxSpawnedEachProc = int(0.88_dp*real(MaxSpawned,dp)/nProcessors)
 
-        call WriteFciMCStatsHeader()
+        if (tFCIMCStats2) then
+            call write_fcimcstats2(iter_data_fciqmc, initial=.true.)
+        else
+            call WriteFciMCStatsHeader()
+        end if
         call MPIBarrier(ierr)
 
         ! Store the initial state of tSinglePartPhase so that we can stop the
@@ -853,7 +857,7 @@ contains
         integer :: min_ind, max_ind
         integer(MPIArg) :: sndcnts(0:nProcessors-1), displs(0:nProcessors-1)
         integer(MPIArg) :: rcvcnts
-        real(dp) :: eigenvec_pop, real_sign(lenof_sign_kp)
+        real(dp) :: eigenvec_pop, real_sign(lenof_sign)
         real(dp), allocatable :: evals(:)
         real(dp), allocatable :: evecs(:,:), evecs_transpose(:,:)
         real(dp), allocatable :: evecs_this_proc(:,:)
@@ -936,7 +940,7 @@ contains
         do i = 1, ndets_this_proc
             call set_flag(CurrentDets(:,i), flag_deterministic)
             ! Construct the sign array to be encoded.
-            do j = 2, lenof_sign_kp, 2
+            do j = 2, lenof_sign, 2
                 real_sign(j-1:j) = evecs_this_proc(j/2,i)
             end do
             call encode_sign(CurrentDets(:,i), real_sign)

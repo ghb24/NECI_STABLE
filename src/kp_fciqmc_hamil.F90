@@ -3,6 +3,7 @@
 module kp_fciqmc_hamil
 
     use bit_rep_data, only: NIfTot, NIfDBO, NOffFlag
+    use kp_fciqmc_data_mod
     use kp_fciqmc_procs
     use SystemData, only: nel
     implicit none
