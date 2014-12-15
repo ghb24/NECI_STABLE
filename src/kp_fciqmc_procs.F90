@@ -356,9 +356,6 @@ contains
             allocate(kp_all_pert_overlaps(kp%nvecs))
         end if
 
-        allocate(kp%overlap_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
-        allocate(kp%hamil_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
-
         allocate(kp_hamil_mean(kp%nvecs, kp%nvecs))
         allocate(kp_overlap_mean(kp%nvecs, kp%nvecs))
         allocate(kp_hamil_se(kp%nvecs, kp%nvecs))
@@ -420,8 +417,6 @@ contains
         end if
 
         ! Rezero all the necessary data.
-        kp%overlap_matrix(:,:) = 0.0_dp
-        kp%hamil_matrix(:,:) = 0.0_dp
         TotWalkersKP = 0
         nkrylov_amp_elems_used = 0
         iter = 0

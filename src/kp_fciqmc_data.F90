@@ -29,13 +29,6 @@ module kp_fciqmc_data_mod
         ! it is always set to 1 (because we don't want to go any further
         ! beyond the final Krylov vector).
         integer, allocatable :: niters(:)
-
-        ! Stores of the overlap and projected Hamiltonian matrices.
-        real(dp), pointer :: overlap_matrices(:,:,:)
-        real(dp), pointer :: hamil_matrices(:,:,:)
-        ! Pointers to the matrices for the current repeat only.
-        real(dp), pointer :: overlap_matrix(:,:)
-        real(dp), pointer :: hamil_matrix(:,:)
     end type
 
     ! If true then we generate the initial Krylov subspace by using estimates
