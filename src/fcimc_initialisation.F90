@@ -74,7 +74,6 @@ module fcimc_initialisation
                                        gen_excit_4ind_reverse
     use hash, only: DetermineDetNode, FindWalkerHash
     use SymExcit3, only: CountExcitations3, GenExcitations3
-    use constants, only: bits_n_int
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD , only : InitHistInitPops
     use nElRDMMod, only: DeallocateRDM, InitRDM, fill_rdm_diag_currdet_norm, &
