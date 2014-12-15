@@ -342,13 +342,9 @@ contains
         ! Variables to hold information output for the test suite.
         real(dp) :: s_sum, h_sum
 
-        ! We only ever start from one specific set of configurations for this
-        ! version of the KP algorithm.
-        iconfig = 1
-
-        kp%iconfig => iconfig
+        kp%iconfig => ireport
         kp%irepeat => irepeat
-        kp%ivec => ireport
+
         call init_kp_fciqmc(kp)
 
         outer_loop: do irepeat = 1, kp%nrepeats
@@ -534,19 +530,20 @@ contains
 
             end do ! Over all report cycles.
 
-        end do outer_loop ! Over all repeats of the whole calculation.
-
         if (.not. tSoftExitFound) then
             if (iProcIndex == root .and. tStoreKPMatrices) then
                 call average_kp_matrices_wrapper(kp)
                 call find_and_output_lowdin_eigv(kp)
                 call find_and_output_gs_eigv(kp)
-
-                ! Calculate data for the testsuite.
-                s_sum = sum(kp_overlap_mean)
-                h_sum = sum(kp_hamil_mean)
             end if
         end if
+
+        end do outer_loop ! Over all repeats of the whole calculation.
+
+        ! Calculate data for the testsuite.
+        s_sum = sum(kp_overlap_mean)
+        h_sum = sum(kp_hamil_mean)
+
 
         if (tPopsFile) call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
 
