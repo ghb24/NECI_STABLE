@@ -10,7 +10,7 @@ module kp_fciqmc_hamil
 
 contains
 
-    subroutine calc_projected_hamil(kp, krylov_array, krylov_ht, array_len, h_diag)
+    subroutine calc_projected_hamil(kp, krylov_array, krylov_ht, array_len, h_matrix, h_diag)
 
         use bit_reps, only: decode_bit_det
         use constants
@@ -26,6 +26,7 @@ contains
         integer(n_int), intent(in) :: krylov_array(0:,:)
         type(ll_node), pointer, intent(in) :: krylov_ht(:)
         integer, intent(in) :: array_len
+        real(dp), intent(out) :: h_matrix(:,:)
         real(dp), intent(in), optional :: h_diag(:)
 
         integer :: idet, ispawn, nspawn, i, j
@@ -39,7 +40,7 @@ contains
         logical :: tNearlyFull, tFinished, tAllFinished
         HElement_t :: HElGen, HEl
 
-        kp%hamil_matrix(:,:) = 0.0_dp
+        h_matrix(:,:) = 0.0_dp
 
         ilut_parent = 0_n_int
         if (tUseFlags) flag_ind = NIfDBO + lenof_all_signs + 1
@@ -122,7 +123,7 @@ contains
                     call create_particle_kp_hamil(nI_child, ilut_child, child_sign, tNearlyFull)
 
                     if (tNearlyFull) then
-                        call add_in_hamil_contribs(kp, krylov_array, krylov_ht, tFinished, tAllFinished)
+                        call add_in_hamil_contribs(kp, krylov_array, krylov_ht, tFinished, tAllFinished, h_matrix)
                         tNearlyFull = .false.
                     end if
 
@@ -134,21 +135,21 @@ contains
 
         tFinished = .true.
         do
-            call add_in_hamil_contribs(kp, krylov_array, krylov_ht, tFinished, tAllFinished)
+            call add_in_hamil_contribs(kp, krylov_array, krylov_ht, tFinished, tAllFinished, h_matrix)
             if (tAllFinished) exit
         end do
 
-        call calc_hamil_contribs_diag(kp, krylov_array, array_len, h_diag)
+        call calc_hamil_contribs_diag(kp, krylov_array, array_len, h_matrix, h_diag)
 
         if (tSemiStochasticKPHamil) then
             call determ_projection_kp_hamil()
-            call calc_hamil_contribs_semistoch(kp, krylov_array)
+            call calc_hamil_contribs_semistoch(kp, krylov_array, h_matrix)
         end if
 
         ! Symmetrise the projected Hamiltonian.
         do i = 1, kp%nvecs
             do j = 1, i-1
-                kp%hamil_matrix(i,j) = kp%hamil_matrix(j,i)
+                h_matrix(i,j) = h_matrix(j,i)
             end do
         end do
 
@@ -225,13 +226,14 @@ contains
 
     end subroutine distribute_spawns_kp_hamil
 
-    subroutine add_in_hamil_contribs(kp, krylov_array, krylov_ht, tFinished, tAllFinished)
+    subroutine add_in_hamil_contribs(kp, krylov_array, krylov_ht, tFinished, tAllFinished, h_matrix)
 
         use Parallel_neci, only: MPIAllGather, nProcessors
 
         type(kp_fciqmc_data), intent(inout) :: kp
         integer(n_int), intent(in) :: krylov_array(0:,:)
         type(ll_node), pointer, intent(in) :: krylov_ht(:)
+        real(dp), intent(inout) :: h_matrix(:,:)
 
         logical, intent(in) :: tFinished
         logical, intent(out) :: tAllFinished
@@ -240,7 +242,7 @@ contains
 
         call distribute_spawns_kp_hamil(nspawns_this_proc)
 
-        call calc_hamil_contribs_spawn(kp, krylov_array, krylov_ht, nspawns_this_proc)
+        call calc_hamil_contribs_spawn(kp, krylov_array, krylov_ht, nspawns_this_proc, h_matrix)
 
         ValidSpawnedList = InitialSpawnedSlots
 
@@ -250,12 +252,14 @@ contains
 
     end subroutine add_in_hamil_contribs
 
-    subroutine calc_hamil_contribs_spawn(kp, krylov_array, krylov_ht, nspawns_this_proc)
+    subroutine calc_hamil_contribs_spawn(kp, krylov_array, krylov_ht, nspawns_this_proc, h_matrix)
 
         type(kp_fciqmc_data), intent(inout) :: kp
         integer(n_int), intent(in) :: krylov_array(0:,:)
         type(ll_node), pointer, intent(in) :: krylov_ht(:)
         integer, intent(in) :: nspawns_this_proc
+        real(dp), intent(inout) :: h_matrix(:,:)
+
         integer :: idet, DetHash, det_ind, i, j
         integer(n_int) :: ilut_spawn(0:NIfTot)
         integer :: nI_spawn(nel)
@@ -298,11 +302,11 @@ contains
                     do i = 1, kp%nvecs
                         do j = i, kp%nvecs
 #if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
-                            kp%hamil_matrix(i,j) = kp%hamil_matrix(i,j) + &
+                            h_matrix(i,j) = h_matrix(i,j) + &
                                 (real_sign_1(2*i-1)*real_sign_2(2*j) + &
                                 real_sign_1(2*i)*real_sign_2(2*j-1))/2.0_dp
 #else
-                            kp%hamil_matrix(i,j) = kp%hamil_matrix(i,j) + real_sign_1(i)*real_sign_2(j)
+                            h_matrix(i,j) = h_matrix(i,j) + real_sign_1(i)*real_sign_2(j)
 #endif
                         end do
                     end do
@@ -312,7 +316,7 @@ contains
 
     end subroutine calc_hamil_contribs_spawn
 
-    subroutine calc_hamil_contribs_diag(kp, krylov_array, array_len, h_diag)
+    subroutine calc_hamil_contribs_diag(kp, krylov_array, array_len, h_matrix, h_diag)
     
         use FciMCData, only: determ_proc_sizes
         use global_det_data, only: det_diagH
@@ -320,6 +324,7 @@ contains
         type(kp_fciqmc_data), intent(inout) :: kp
         integer(n_int), intent(in) :: krylov_array(0:,:)
         integer, intent(in) :: array_len
+        real(dp), intent(inout) :: h_matrix(:,:)
         real(dp), intent(in), optional :: h_diag(:)
 
         integer :: idet, i, j, min_idet
@@ -351,11 +356,11 @@ contains
             do i = 1, kp%nvecs
                 do j = i, kp%nvecs
 #if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
-                    kp%hamil_matrix(i,j) = kp%hamil_matrix(i,j) + &
+                    h_matrix(i,j) = h_matrix(i,j) + &
                         h_diag_elem*(real_sign(2*i-1)*real_sign(2*j) + &
                         real_sign(2*i)*real_sign(2*j-1))/2.0_dp
 #else
-                    kp%hamil_matrix(i,j) = kp%hamil_matrix(i,j) + h_diag_elem*real_sign(i)*real_sign(j)
+                    h_matrix(i,j) = h_matrix(i,j) + h_diag_elem*real_sign(i)*real_sign(j)
 #endif
                 end do
             end do
@@ -364,12 +369,13 @@ contains
 
     end subroutine calc_hamil_contribs_diag
 
-    subroutine calc_hamil_contribs_semistoch(kp, krylov_array)
+    subroutine calc_hamil_contribs_semistoch(kp, krylov_array, h_matrix)
     
         use FciMCData, only: partial_determ_vecs_kp
 
         type(kp_fciqmc_data), intent(inout) :: kp
         integer(n_int), intent(in) :: krylov_array(0:,:)
+        real(dp), intent(inout) :: h_matrix(:,:)
 
         integer :: idet, i, j
         integer :: nI_spawn(nel)
@@ -383,11 +389,11 @@ contains
             do i = 1, kp%nvecs
                 do j = i, kp%nvecs
 #if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
-                    kp%hamil_matrix(i,j) = kp%hamil_matrix(i,j) + &
+                    h_matrix(i,j) = h_matrix(i,j) + &
                         (real_sign(2*i-1)*partial_determ_vecs_kp(2*j, idet) + &
                         real_sign(2*i)*partial_determ_vecs_kp(2*j-1, idet))/2.0_dp
 #else
-                    kp%hamil_matrix(i,j) = kp%hamil_matrix(i,j) + real_sign(i)*partial_determ_vecs_kp(j, idet)
+                    h_matrix(i,j) = h_matrix(i,j) + real_sign(i)*partial_determ_vecs_kp(j, idet)
 #endif
                 end do
             end do

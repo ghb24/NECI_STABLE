@@ -287,7 +287,7 @@ contains
                 if (tExactHamil) then
                     call calc_hamil_exact(kp%nvecs, krylov_vecs, TotWalkersKP, kp%hamil_matrix, krylov_helems)
                 else
-                    call calc_projected_hamil(kp, krylov_vecs, krylov_vecs_ht, TotWalkersKP, krylov_helems)
+                    call calc_projected_hamil(kp, krylov_vecs, krylov_vecs_ht, TotWalkersKP, kp%hamil_matrix, krylov_helems)
                 end if
 
                 ! Sum the overlap and projected Hamiltonian matrices from the various processors.
@@ -359,7 +359,7 @@ contains
                 if (tExactHamil) then
                     call calc_hamil_exact(kp%nvecs, CurrentDets, int(TotWalkers, sizeof_int), kp%hamil_matrix)
                 else
-                    call calc_projected_hamil(kp, CurrentDets, HashIndex, int(TotWalkers, sizeof_int))
+                    call calc_projected_hamil(kp, CurrentDets, HashIndex, int(TotWalkers, sizeof_int), kp%hamil_matrix)
                 end if
 
                 do iiter = 1, kp%niters(ireport)
