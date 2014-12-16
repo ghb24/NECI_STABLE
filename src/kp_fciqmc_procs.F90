@@ -1210,7 +1210,7 @@ contains
             int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_all_signs, idet)
 
             any_occ = .false.
-#if defined(__DOUBLERUN) || defined(__PROG__NUMRUNS)
+#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
             do i = 1, nvecs
                 any_occ = any_occ .or. (int_sign(2*i-1) /= 0)
             end do
@@ -1231,7 +1231,7 @@ contains
 
         ! Loop over all determinants in krylov_array.
         do idet = 1, array_len
-            ilut_1 = krylov_array(0:NIfDBO, idet)
+            ilut_1(0:NIfDBO) = krylov_array(0:NIfDBO, idet)
             call decode_bit_det(nI, ilut_1)
             int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_all_signs, idet)
             real_sign_1 = transfer(int_sign, real_sign_1)
@@ -1245,7 +1245,7 @@ contains
 #else
                 if (.not. (occ_1 .and. btest(occ_flags(jdet),0)) ) cycle
 #endif
-                ilut_2 = krylov_array(0:NIfDBO, jdet)
+                ilut_2(0:NIfDBO) = krylov_array(0:NIfDBO, jdet)
                 ic = FindBitExcitLevel(ilut_1, ilut_2)
                 if (ic > 2) cycle
 
