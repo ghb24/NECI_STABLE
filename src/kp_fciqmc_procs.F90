@@ -243,14 +243,16 @@ contains
             end select
         end do read_inp
 
-        if (.not. vary_niters) then
+        if ( (.not. vary_niters)) then
             if (tExcitedStateKP) then
                 if (.not. allocated(kp%niters)) allocate(kp%niters(kp%nreports))
+                kp%niters = niters_temp
+                kp%niters(kp%nreports) = 0
             else
                 if (.not. allocated(kp%niters)) allocate(kp%niters(kp%nvecs))
+                kp%niters = niters_temp
+                kp%niters(kp%nvecs) = 0
             end if
-            kp%niters = niters_temp
-            kp%niters(kp%nvecs) = 0
         end if
 
     end subroutine kp_fciqmc_read_inp
@@ -1838,6 +1840,45 @@ contains
         deallocate(nI_list)
 
     end subroutine print_amplitudes_kp
+
+    subroutine write_final_ex_state_data(niters, nlowdin, lowdin_evals)
+
+        integer, intent(in) :: niters(:)
+        integer, intent(in) :: nlowdin(:)
+        real(dp), intent(in) :: lowdin_evals(:,:,:)
+
+        integer :: ivec, ireport, nvecs, nreports
+        integer :: temp_unit
+        character(len=*), parameter :: filename = "EIGV_DATA"
+
+        temp_unit = get_free_unit()
+        open(temp_unit, file=trim(filename), status='replace')
+
+        nreports = size(nlowdin,1)
+        nvecs = size(lowdin_evals,1)
+      
+        write(6,*) "niters:", niters
+
+        ! Write header.
+        write(temp_unit,'("#",1X,"Iteration")',advance='no')
+        do ivec = 1, nvecs
+            write(temp_unit,'(11X,"Energy",1X,i2)',advance='no') ivec
+        end do
+
+        do ireport = 1, nreports
+            write(temp_unit,'(/,2X,i9)',advance='no') sum(niters(1:ireport-1))
+
+            do ivec = 1, nlowdin(ireport)
+                write(temp_unit,'(1X,es19.12)',advance='no') lowdin_evals(ivec, nlowdin(ireport), ireport)
+            end do
+            do ivec = nlowdin(ireport)+1, nvecs
+                write(temp_unit,'(9X,3a,7X)',advance='no') "NaN"
+            end do
+        end do
+
+        close(temp_unit)
+
+    end subroutine write_final_ex_state_data
 
     subroutine write_kpfciqmc_testsuite_data(s_sum, h_sum)
 
