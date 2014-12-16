@@ -439,15 +439,6 @@ MODULE ReadInput_neci
             call stop_all(t_r, 'Initiator cutoff not implemented for CCMC')
         end if
 
-#ifdef __PROG_NUMRUNS
-        if (tSemiStochastic) then
-            write(6,*) '*** WARNING ***'
-            write(6,*) "Multiple runs has not been implemented considering &
-                       &semi stochastic. This almost certainly won't work"
-            call stop_all(t_r, 'Not yet implemented')
-        end if
-#endif
-
         if (tPopsFile .and. (tSurvivalInitiatorThreshold .or. &
                              tSurvivalInitMultThresh)) then
             write(6,*) 'The initiator initial iteration details have not yet &

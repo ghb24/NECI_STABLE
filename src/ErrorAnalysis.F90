@@ -502,8 +502,7 @@ module errors
 
                 if(lenof_sign.eq.2) then
                     !complex fcimcstats
-                    read(iunit, "(i12,5g16.7,7g17.9,g13.5,i12,g13.5,g17.5,&
-                                 &i13,g13.5,8g17.9,3i13)", iostat=eof) &
+                    read(iunit, *, iostat=eof) &
                         iters, &                !1.
                         shift, &                              !2.
                         change, &   !3.
@@ -527,8 +526,7 @@ module errors
                         InstShift, &                                 !21.
                         denom     !24     |n0|^2  This is the denominator for both calcs
                 else
-                    read(iunit,"(i12,7g16.7,5g17.9,g13.5,i12,g13.5,g17.5,i13,&
-                                &g13.5,5g17.9)", iostat=eof) &
+                    read(iunit, *, iostat=eof) &
                         Iters, &
                         shift, &
                         change, &
@@ -639,8 +637,7 @@ module errors
 
                 if(lenof_sign.eq.2) then
                     ! complex fcimcstats
-                    read(iunit,"(i12,5g16.7,7g17.9,g13.5,i12,g13.5,g17.5,i13,&
-                                &g13.5,8g17.9,3i13)", iostat=eof) &
+                    read(iunit, *, iostat=eof) &
                         iters, &                !1.
                         shift, &                              !2.
                         change, &   !3.
@@ -669,8 +666,7 @@ module errors
                         norm_psi, &
                         curr_S2
                 else
-                    read(iunit,"(i12,7g16.7,5g17.9,g13.5,i12,g13.5,g17.5,&
-                                &i13,g13.5,11g17.9)", iostat=eof) &
+                    read(iunit, *, iostat=eof) &
                         Iters, &
                         shift, &
                         change, &

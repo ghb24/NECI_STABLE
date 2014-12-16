@@ -177,7 +177,7 @@ contains
         ! Becuase tot_trial_numerator/tot_trial_denom is the energy relative to the the trial
         ! energy, add on this contribution to make it relative to the HF energy.
         if (tTrialWavefunction) then
-            tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*(trial_energy-Hii))
+            tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energy)
         end if
 
 #ifdef __CMPLX
@@ -248,7 +248,8 @@ contains
             endif
 #elif __DOUBLERUN
             write(fcimcstats_unit2,"(i12,7g16.7,5g17.9,g13.5,i12,g13.5,g17.5,&
-                                   &i13,g13.5,11g17.9,i13,2g16.7)",advance = 'no') &
+                                   &i13,g13.5,4g17.9,1X,2(es18.11,1X),5g17.9,&
+                                   &i13,2g16.7)",advance = 'no') &
                 Iter + PreviousCycles, &                   ! 1.
                 DiagSft(2), &                              ! 2.
                 AllTotParts(2) - AllTotPartsOld(2), &      ! 3.
@@ -282,7 +283,7 @@ contains
                 norm_semistoch(2)/norm_psi(2), &           ! 32.
                 all_max_cyc_spawn                          ! 33.
                 if (tTrialWavefunction) then
-                    write(fcimcstats_unit2, "(3G16.7)", advance = 'no') &
+                    write(fcimcstats_unit2, "(3(1X,es17.10))", advance = 'no') &
                     (tot_trial_numerator(2) / StepsSft), &
                     (tot_trial_denom(2) / StepsSft), &
                     abs(tot_trial_denom(2) / (norm_psi(2)*StepsSft))
@@ -293,7 +294,8 @@ contains
 #ifndef __CMPLX
 
             write(fcimcstats_unit,"(i12,7g16.7,5g17.9,g13.5,i12,g13.5,g17.5,&
-                                  &i13,g13.5,11g17.9,i13,2g16.7)",advance = 'no') &
+                                   &i13,g13.5,4g17.9,1X,2(es18.11,1X),5g17.9,&
+                                   &i13,2g16.7)",advance = 'no') &
                 Iter + PreviousCycles, &                   ! 1.
                 DiagSft(1), &                              ! 2.
                 AllTotParts(1) - AllTotPartsOld(1), &      ! 3.
@@ -327,7 +329,7 @@ contains
                 norm_semistoch(1)/norm_psi(1), &           ! 32.
                 all_max_cyc_spawn                          ! 33.
                 if (tTrialWavefunction) then
-                    write(fcimcstats_unit, "(3g16.7)", advance = 'no') &
+                    write(fcimcstats_unit, "(3(1X,es18.11))", advance = 'no') &
                     (tot_trial_numerator / StepsSft), &             ! 34.
                     (tot_trial_denom / StepsSft), &                 ! 35.
                     abs((tot_trial_denom / (norm_psi*StepsSft)))    ! 36.
@@ -347,7 +349,7 @@ contains
                     ProjectionE(1), &
                     AvDiagSft(1), &
                     proje_iter(1)
-                if (tTrialWavefunction) write(iout, "(G16.7)", advance = 'no') &
+                if (tTrialWavefunction) write(iout, "(G20.11)", advance = 'no') &
                     (tot_trial_numerator(1)/tot_trial_denom(1))
                 write (iout, "(3G16.7,I12,G13.5)", advance = 'yes') &
                     AllNoatHF(1), &
