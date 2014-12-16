@@ -388,29 +388,29 @@ contains
 
     end subroutine init_kp_fciqmc
 
-    subroutine init_kp_fciqmc_repeat(kp)
+    subroutine init_kp_fciqmc_repeat(iconfig, irepeat, nrepeats, nvecs)
 
-        type(kp_fciqmc_data), intent(inout) :: kp
+        integer, intent(in) :: iconfig, irepeat, nrepeats, nvecs
         character(2) :: int_fmt
 
-        write(int_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(kp%irepeat)+1,dp)))
-        write(6,'(1x,a22,1x,'//int_fmt//')') "Starting repeat number", kp%irepeat
+        write(int_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(irepeat)+1,dp)))
+        write(6,'(1x,a22,1x,'//int_fmt//')') "Starting repeat number", irepeat
 
         if (tExcitedStateKP) then
-            call create_trial_states(kp)
+            call create_trial_states(nvecs)
         else
             ! If starting from multiple POPSFILEs then set this counter so that the
             ! correct POPSFILE is read in this time. To read in POPSFILE.x,
             ! iPopsFileNoRead needs to be set to -x-1. We want to read in POPSFILE
             ! numbers 0 to kp%nconfigs-1
-            if (tMultiplePopStart) iPopsFileNoRead = -(kp%iconfig-1)-1
+            if (tMultiplePopStart) iPopsFileNoRead = -(iconfig-1)-1
 
-            if (tOverlapPert .and. kp%irepeat == 1) then
+            if (tOverlapPert .and. irepeat == 1) then
                 pert_overlaps = 0.0_dp
                 call create_overlap_pert_vec()
             end if
 
-            call create_initial_config(kp)
+            call create_initial_config(iconfig, irepeat, nrepeats)
 
             call clear_hash_table(krylov_vecs_ht)
             krylov_vecs = 0_n_int
@@ -455,9 +455,10 @@ contains
 
     end subroutine init_kp_fciqmc_iter
 
-    subroutine create_initial_config(kp)
+    subroutine create_initial_config(iconfig, irepeat, nrepeats)
 
-        type(kp_fciqmc_data), intent(inout) :: kp
+        integer, intent(in) :: iconfig, irepeat, nrepeats
+
         integer :: DetHash, nwalkers_int
         integer :: i
         integer(n_int) :: int_sign(lenof_sign_kp)
@@ -477,7 +478,7 @@ contains
             nwalkers_target = InitWalkers*nProcessors
         end if
 
-        if (kp%irepeat == 1) then
+        if (irepeat == 1) then
             if (.not. tFiniteTemp) then
                 if (tReadPops) then
                     ! Call a wrapper function which will call the various functions
@@ -523,7 +524,7 @@ contains
 
                 ! If requested, reset the random number generator with the requested seed
                 ! before creating the random initial configuration.
-                if (tUseInitConfigSeeds) call dSFMT_init((iProcIndex+1)*init_config_seeds(kp%iconfig))
+                if (tUseInitConfigSeeds) call dSFMT_init((iProcIndex+1)*init_config_seeds(iconfig))
 
                 write (6,'(a44)',advance='no') "# Generating initial walker configuration..."
                 call set_timer(kp_generate_time)
@@ -541,7 +542,7 @@ contains
                 write(6,'(1x,a31,f9.3)') "Complete. Time taken (seconds):", total_time_after-total_time_before
 
             end if
-        else if (kp%irepeat > 1) then
+        else if (irepeat > 1) then
             ! If repeating from a previsouly generated initial configuration, simpy reset the following
             ! data and copy the first Krylov vector (which is always the starting configuration) from
             ! the last run to CurrentDets.
@@ -564,7 +565,7 @@ contains
         call fill_in_diag_helements()
 
         ! If starting from this configuration more than once, store the relevant data for next time.
-        if (kp%nrepeats > 1 .and. kp%irepeat == 1) then
+        if (nrepeats > 1 .and. irepeat == 1) then
             HolesInList = 0
             do i = 1, TotWalkers
                 int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign_kp-1,i)
@@ -825,11 +826,11 @@ contains
 
     end subroutine generate_init_config_this_proc
 
-    subroutine create_trial_states(kp)
+    subroutine create_trial_states(nvecs)
 
         use Parallel_neci, only: MPIScatterV, MPIArg
 
-        type(kp_fciqmc_data), intent(inout) :: kp
+        integer, intent(in) :: nvecs
 
         integer, allocatable :: core_det_list(:,:)
         integer :: i, j, ierr, ndets, ndets_this_proc, nexcit
@@ -847,7 +848,7 @@ contains
         if (.not. allocated(core_space)) call stop_all(t_r, "The semi-stochastic option must be used &
                                                              &to create the trial states.")
 
-        nexcit = kp%nvecs
+        nexcit = nvecs
         ndets = size(core_space, 2)
 
         ! Only perform the diagonalisation on the root process.
@@ -987,9 +988,10 @@ contains
 
     end subroutine scale_population
 
-    subroutine store_krylov_vec(kp)
+    subroutine store_krylov_vec(ivec)
 
-        type(kp_fciqmc_data), intent(in) :: kp
+        integer, intent(in) :: ivec
+
         integer :: idet, iamp, sign_ind, flag_ind, hash_val, det_ind
         integer :: nI(nel)
         integer(n_int) :: temp, int_sign(lenof_sign_kp)
@@ -1002,7 +1004,7 @@ contains
         call neci_flush(6)
 
         ! The index of the first element referring to the sign, for this ivec.
-        sign_ind = NIfDBO + lenof_sign_kp*(kp%ivec-1) + 1
+        sign_ind = NIfDBO + lenof_sign_kp*(ivec-1) + 1
         if (tUseFlags) flag_ind = NIfDBO + lenof_all_signs + 1
 
         ! Loop over all occupied determinants for this new Krylov vector.

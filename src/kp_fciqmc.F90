@@ -69,9 +69,6 @@ contains
         real(dp) :: test_sign(lenof_all_signs)
         type(ll_node), pointer :: temp_node
 
-        kp%iconfig => iconfig
-        kp%irepeat => irepeat
-        kp%ivec => ivec
         call init_kp_fciqmc(kp)
         allocate(overlap_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
         allocate(hamil_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
@@ -86,7 +83,7 @@ contains
                 hamil_matrix => hamil_matrices(:,:,irepeat)
                 overlap_matrix => overlap_matrices(:,:,irepeat)
 
-                call init_kp_fciqmc_repeat(kp)
+                call init_kp_fciqmc_repeat(iconfig, irepeat, kp%nrepeats, kp%nvecs)
                 overlap_matrix(:,:) = 0.0_dp
                 hamil_matrix(:,:) = 0.0_dp
                 call WriteFCIMCStats()
@@ -94,7 +91,7 @@ contains
                 do ivec = 1, kp%nvecs
 
                     ! Copy the current state of CurrentDets to krylov_vecs.
-                    call store_krylov_vec(kp)
+                    call store_krylov_vec(ivec)
 
                     ! Calculate the overlap of the perturbed ground state vector
                     ! with the new Krylov vector, if requested.
@@ -298,22 +295,23 @@ contains
                 if (tExactHamil) then
                     call calc_hamil_exact(kp%nvecs, krylov_vecs, TotWalkersKP, hamil_matrix, krylov_helems)
                 else
-                    call calc_projected_hamil(kp, krylov_vecs, krylov_vecs_ht, TotWalkersKP, hamil_matrix, krylov_helems)
+                    call calc_projected_hamil(kp%nvecs, krylov_vecs, krylov_vecs_ht, TotWalkersKP, &
+                                              hamil_matrix, krylov_helems)
                 end if
 
                 ! Sum the overlap and projected Hamiltonian matrices from the various processors.
                 call communicate_kp_matrices(overlap_matrix, hamil_matrix)
 
-                call output_kp_matrices_wrapper(kp%iconfig, overlap_matrices, hamil_matrices)
+                call output_kp_matrices_wrapper(iconfig, overlap_matrices, hamil_matrices)
 
             end do ! Over all repeats for a fixed initial walker configuration.
 
             if (tOverlapPert) call average_and_comm_pert_overlaps(kp%nrepeats)
 
             if (iProcIndex == root) then
-                call average_kp_matrices_wrapper(kp%iconfig, kp%nrepeats, overlap_matrices, hamil_matrices, &
+                call average_kp_matrices_wrapper(iconfig, kp%nrepeats, overlap_matrices, hamil_matrices, &
                                                  kp_overlap_mean, kp_hamil_mean, kp_overlap_se, kp_hamil_se)
-                call find_and_output_lowdin_eigv(kp%iconfig, kp%nvecs)
+                call find_and_output_lowdin_eigv(iconfig, kp%nvecs)
 
                 ! Calculate data for the testsuite.
                 s_sum = sum(kp_overlap_mean)
@@ -358,9 +356,6 @@ contains
         ! Variables to hold information output for the test suite.
         real(dp) :: s_sum, h_sum
 
-        kp%iconfig => ireport
-        kp%irepeat => irepeat
-
         call init_kp_fciqmc(kp)
         allocate(overlap_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
         allocate(hamil_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
@@ -372,7 +367,7 @@ contains
             hamil_matrix => hamil_matrices(:,:,irepeat)
             overlap_matrix => overlap_matrices(:,:,irepeat)
 
-            call init_kp_fciqmc_repeat(kp)
+            call init_kp_fciqmc_repeat(iconfig, irepeat, kp%nrepeats, kp%nvecs)
             overlap_matrix(:,:) = 0.0_dp
             hamil_matrix(:,:) = 0.0_dp
             call write_fcimcstats2(iter_data_fciqmc)
@@ -384,7 +379,8 @@ contains
                 if (tExactHamil) then
                     call calc_hamil_exact(kp%nvecs, CurrentDets, int(TotWalkers, sizeof_int), hamil_matrix)
                 else
-                    call calc_projected_hamil(kp, CurrentDets, HashIndex, int(TotWalkers, sizeof_int), hamil_matrix)
+                    call calc_projected_hamil(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers, sizeof_int), &
+                                              hamil_matrix)
                 end if
 
                 do iiter = 1, kp%niters(ireport)
@@ -541,15 +537,15 @@ contains
                 ! Sum the overlap and projected Hamiltonian matrices from the various processors.
                 call communicate_kp_matrices(overlap_matrix, hamil_matrix)
 
-                call output_kp_matrices_wrapper(kp%iconfig, overlap_matrices, hamil_matrices)
+                call output_kp_matrices_wrapper(ireport, overlap_matrices, hamil_matrices)
 
             end do ! Over all report cycles.
 
         if (.not. tSoftExitFound) then
             if (iProcIndex == root) then
-                call average_kp_matrices_wrapper(kp%iconfig, kp%nrepeats, overlap_matrices, hamil_matrices, &
+                call average_kp_matrices_wrapper(ireport, kp%nrepeats, overlap_matrices, hamil_matrices, &
                                                  kp_overlap_mean, kp_hamil_mean, kp_overlap_se, kp_hamil_se)
-                call find_and_output_lowdin_eigv(kp%iconfig, kp%nvecs)
+                call find_and_output_lowdin_eigv(ireport, kp%nvecs)
             end if
         end if
 

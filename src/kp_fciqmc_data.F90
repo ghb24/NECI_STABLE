@@ -11,18 +11,12 @@ module kp_fciqmc_data_mod
         ! The number of different initial walker configurations to start
         ! calculations from.
         integer :: nconfigs
-        ! The current configuration.
-        integer, pointer :: iconfig
         ! The number of simulations to perform for each initial walker
         ! configuration.
         integer :: nrepeats
-        ! The current repeat.
-        integer, pointer :: irepeat
         ! The number of different Krylov vectors to sample (the number of
         ! vectors which form the Krylov subspace at the end of a calculation).
         integer :: nvecs
-        ! The current Krylov vector.
-        integer, pointer :: ivec
         ! The number of iterations to perform *between each Krylov vector being
         ! sampled*. niters(i) holds the number to be performed between the
         ! i-th and (i+1)th vectors. The final element is not set by the user,

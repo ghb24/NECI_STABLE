@@ -10,7 +10,7 @@ module kp_fciqmc_hamil
 
 contains
 
-    subroutine calc_projected_hamil(kp, krylov_array, krylov_ht, array_len, h_matrix, h_diag)
+    subroutine calc_projected_hamil(nvecs, krylov_array, krylov_ht, array_len, h_matrix, h_diag)
 
         use bit_reps, only: decode_bit_det
         use constants
@@ -22,7 +22,7 @@ contains
         use SystemData, only: nbasis, tAllSymSectors, nOccAlpha, nOccBeta
         use util_mod, only: stochastic_round
         
-        type(kp_fciqmc_data), intent(inout) :: kp
+        integer, intent(in) :: nvecs
         integer(n_int), intent(in) :: krylov_array(0:,:)
         type(ll_node), pointer, intent(in) :: krylov_ht(:)
         integer, intent(in) :: array_len
@@ -123,7 +123,7 @@ contains
                     call create_particle_kp_hamil(nI_child, ilut_child, child_sign, tNearlyFull)
 
                     if (tNearlyFull) then
-                        call add_in_hamil_contribs(kp, krylov_array, krylov_ht, tFinished, tAllFinished, h_matrix)
+                        call add_in_hamil_contribs(nvecs, krylov_array, krylov_ht, tFinished, tAllFinished, h_matrix)
                         tNearlyFull = .false.
                     end if
 
@@ -135,19 +135,19 @@ contains
 
         tFinished = .true.
         do
-            call add_in_hamil_contribs(kp, krylov_array, krylov_ht, tFinished, tAllFinished, h_matrix)
+            call add_in_hamil_contribs(nvecs, krylov_array, krylov_ht, tFinished, tAllFinished, h_matrix)
             if (tAllFinished) exit
         end do
 
-        call calc_hamil_contribs_diag(kp, krylov_array, array_len, h_matrix, h_diag)
+        call calc_hamil_contribs_diag(nvecs, krylov_array, array_len, h_matrix, h_diag)
 
         if (tSemiStochasticKPHamil) then
             call determ_projection_kp_hamil()
-            call calc_hamil_contribs_semistoch(kp, krylov_array, h_matrix)
+            call calc_hamil_contribs_semistoch(nvecs, krylov_array, h_matrix)
         end if
 
         ! Symmetrise the projected Hamiltonian.
-        do i = 1, kp%nvecs
+        do i = 1, nvecs
             do j = 1, i-1
                 h_matrix(i,j) = h_matrix(j,i)
             end do
@@ -226,11 +226,11 @@ contains
 
     end subroutine distribute_spawns_kp_hamil
 
-    subroutine add_in_hamil_contribs(kp, krylov_array, krylov_ht, tFinished, tAllFinished, h_matrix)
+    subroutine add_in_hamil_contribs(nvecs, krylov_array, krylov_ht, tFinished, tAllFinished, h_matrix)
 
         use Parallel_neci, only: MPIAllGather, nProcessors
 
-        type(kp_fciqmc_data), intent(inout) :: kp
+        integer, intent(in) :: nvecs
         integer(n_int), intent(in) :: krylov_array(0:,:)
         type(ll_node), pointer, intent(in) :: krylov_ht(:)
         real(dp), intent(inout) :: h_matrix(:,:)
@@ -242,7 +242,7 @@ contains
 
         call distribute_spawns_kp_hamil(nspawns_this_proc)
 
-        call calc_hamil_contribs_spawn(kp, krylov_array, krylov_ht, nspawns_this_proc, h_matrix)
+        call calc_hamil_contribs_spawn(nvecs, krylov_array, krylov_ht, nspawns_this_proc, h_matrix)
 
         ValidSpawnedList = InitialSpawnedSlots
 
@@ -252,9 +252,9 @@ contains
 
     end subroutine add_in_hamil_contribs
 
-    subroutine calc_hamil_contribs_spawn(kp, krylov_array, krylov_ht, nspawns_this_proc, h_matrix)
+    subroutine calc_hamil_contribs_spawn(nvecs, krylov_array, krylov_ht, nspawns_this_proc, h_matrix)
 
-        type(kp_fciqmc_data), intent(inout) :: kp
+        integer, intent(in) :: nvecs
         integer(n_int), intent(in) :: krylov_array(0:,:)
         type(ll_node), pointer, intent(in) :: krylov_ht(:)
         integer, intent(in) :: nspawns_this_proc
@@ -299,8 +299,8 @@ contains
                     if (IsUnoccDet(real_sign_2)) cycle
 
                     ! Finally, add in the contribution to the projected Hamiltonian for each pair of Krylov vectors.
-                    do i = 1, kp%nvecs
-                        do j = i, kp%nvecs
+                    do i = 1, nvecs
+                        do j = i, nvecs
 #if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
                             h_matrix(i,j) = h_matrix(i,j) + &
                                 (real_sign_1(2*i-1)*real_sign_2(2*j) + &
@@ -316,12 +316,12 @@ contains
 
     end subroutine calc_hamil_contribs_spawn
 
-    subroutine calc_hamil_contribs_diag(kp, krylov_array, array_len, h_matrix, h_diag)
+    subroutine calc_hamil_contribs_diag(nvecs, krylov_array, array_len, h_matrix, h_diag)
     
         use FciMCData, only: determ_proc_sizes
         use global_det_data, only: det_diagH
 
-        type(kp_fciqmc_data), intent(inout) :: kp
+        integer, intent(in) :: nvecs
         integer(n_int), intent(in) :: krylov_array(0:,:)
         integer, intent(in) :: array_len
         real(dp), intent(inout) :: h_matrix(:,:)
@@ -353,8 +353,8 @@ contains
             end if
 
             ! Finally, add in the contribution to the projected Hamiltonian for each pair of Krylov vectors.
-            do i = 1, kp%nvecs
-                do j = i, kp%nvecs
+            do i = 1, nvecs
+                do j = i, nvecs
 #if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
                     h_matrix(i,j) = h_matrix(i,j) + &
                         h_diag_elem*(real_sign(2*i-1)*real_sign(2*j) + &
@@ -369,11 +369,11 @@ contains
 
     end subroutine calc_hamil_contribs_diag
 
-    subroutine calc_hamil_contribs_semistoch(kp, krylov_array, h_matrix)
+    subroutine calc_hamil_contribs_semistoch(nvecs, krylov_array, h_matrix)
     
         use FciMCData, only: partial_determ_vecs_kp
 
-        type(kp_fciqmc_data), intent(inout) :: kp
+        integer, intent(in) :: nvecs
         integer(n_int), intent(in) :: krylov_array(0:,:)
         real(dp), intent(inout) :: h_matrix(:,:)
 
@@ -386,8 +386,8 @@ contains
             int_sign = krylov_array(NOffSgn:NOffSgn+lenof_all_signs-1, idet)
             real_sign = transfer(int_sign, real_sign)
 
-            do i = 1, kp%nvecs
-                do j = i, kp%nvecs
+            do i = 1, nvecs
+                do j = i, nvecs
 #if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
                     h_matrix(i,j) = h_matrix(i,j) + &
                         (real_sign(2*i-1)*partial_determ_vecs_kp(2*j, idet) + &
