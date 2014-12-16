@@ -405,7 +405,7 @@ contains
                 call output_kp_matrices_wrapper(iter, overlap_matrices(:,:,:,ireport), hamil_matrices(:,:,:,ireport))
 
                 if (iProcIndex == root) then
-                    call average_kp_matrices_wrapper(iter, kp%nrepeats, overlap_matrices(:,:,1:irepeat,ireport), &
+                    call average_kp_matrices_wrapper(iter, irepeat, overlap_matrices(:,:,1:irepeat,ireport), &
                                                      hamil_matrices(:,:,1:irepeat,ireport), kp_overlap_mean, &
                                                      kp_hamil_mean, kp_overlap_se, kp_hamil_se)
                     call find_and_output_lowdin_eigv(iter, kp%nvecs, nlowdin(ireport), lowdin_evals(:,:,ireport))
