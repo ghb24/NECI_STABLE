@@ -42,7 +42,7 @@ contains
 
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: iiter, idet, ireplica, ispawn, ierr
-        integer, target :: iconfig, irepeat, ivec
+        integer :: iconfig, irepeat, ivec
         integer :: nspawn, parent_flags, unused_flags, ex_level_to_ref
         integer :: TotWalkersNew, determ_ind, ic, ex(2,2), ms_parent
         integer :: nI_parent(nel), nI_child(nel)
@@ -70,9 +70,12 @@ contains
         type(ll_node), pointer :: temp_node
 
         call init_kp_fciqmc(kp)
+        if (.not. tAllSymSectors) ms_parent = lms
+
         allocate(overlap_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
         allocate(hamil_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
-        if (.not. tAllSymSectors) ms_parent = lms
+        overlap_matrices = 0.0_dp
+        hamil_matrices = 0.0_dp
 
         outer_loop: do iconfig = 1, kp%nconfigs
 
@@ -80,12 +83,12 @@ contains
 
                 ! Point to the regions of memory where the projected Hamiltonian
                 ! and overlap matrices for this repeat will be accumulated and stored.
-                hamil_matrix => hamil_matrices(:,:,irepeat)
                 overlap_matrix => overlap_matrices(:,:,irepeat)
-
-                call init_kp_fciqmc_repeat(iconfig, irepeat, kp%nrepeats, kp%nvecs)
+                hamil_matrix => hamil_matrices(:,:,irepeat)
                 overlap_matrix(:,:) = 0.0_dp
                 hamil_matrix(:,:) = 0.0_dp
+
+                call init_kp_fciqmc_repeat(iconfig, irepeat, kp%nrepeats, kp%nvecs)
                 call WriteFCIMCStats()
 
                 do ivec = 1, kp%nvecs
@@ -333,7 +336,7 @@ contains
 
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: iiter, idet, ireplica, ispawn, ierr
-        integer, target :: iconfig, irepeat, ireport
+        integer :: iconfig, irepeat, ireport
         integer :: nspawn, parent_flags, unused_flags, ex_level_to_ref
         integer :: TotWalkersNew, determ_ind, ic, ex(2,2)
         integer :: nI_parent(nel), nI_child(nel)
@@ -347,9 +350,9 @@ contains
         HElement_t :: HElGen
 
         ! Stores of the overlap and projected Hamiltonian matrices.
-        real(dp), pointer :: overlap_matrices(:,:,:)
-        real(dp), pointer :: hamil_matrices(:,:,:)
-        ! Pointers to the matrices for a given repeat only.
+        real(dp), pointer :: overlap_matrices(:,:,:,:)
+        real(dp), pointer :: hamil_matrices(:,:,:,:)
+        ! Pointers to the matrices for a given report and repeat only.
         real(dp), pointer :: overlap_matrix(:,:)
         real(dp), pointer :: hamil_matrix(:,:)
 
@@ -357,22 +360,25 @@ contains
         real(dp) :: s_sum, h_sum
 
         call init_kp_fciqmc(kp)
-        allocate(overlap_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
-        allocate(hamil_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
+
+        allocate(overlap_matrices(kp%nvecs, kp%nvecs, kp%nrepeats, kp%nreports), stat=ierr)
+        allocate(hamil_matrices(kp%nvecs, kp%nvecs, kp%nrepeats, kp%nreports), stat=ierr)
+        overlap_matrices = 0.0_dp
+        hamil_matrices = 0.0_dp
 
         outer_loop: do irepeat = 1, kp%nrepeats
 
-            ! Point to the regions of memory where the projected Hamiltonian
-            ! and overlap matrices for this repeat will be accumulated and stored.
-            hamil_matrix => hamil_matrices(:,:,irepeat)
-            overlap_matrix => overlap_matrices(:,:,irepeat)
-
             call init_kp_fciqmc_repeat(iconfig, irepeat, kp%nrepeats, kp%nvecs)
-            overlap_matrix(:,:) = 0.0_dp
-            hamil_matrix(:,:) = 0.0_dp
             call write_fcimcstats2(iter_data_fciqmc)
 
             do ireport = 1, kp%nreports
+
+                ! Point to the regions of memory where the projected Hamiltonian
+                ! and overlap matrices for this repeat will be accumulated and stored.
+                overlap_matrix => overlap_matrices(:,:,irepeat,ireport)
+                hamil_matrix => hamil_matrices(:,:,irepeat,ireport)
+                overlap_matrix(:,:) = 0.0_dp
+                hamil_matrix(:,:) = 0.0_dp
 
                 call calc_overlap_matrix(kp%nvecs, CurrentDets, int(TotWalkers, sizeof_int), overlap_matrix)
 
@@ -381,6 +387,18 @@ contains
                 else
                     call calc_projected_hamil(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers, sizeof_int), &
                                               hamil_matrix)
+                end if
+
+                ! Sum the overlap and projected Hamiltonian matrices from the various processors.
+                call communicate_kp_matrices(overlap_matrix, hamil_matrix)
+
+                call output_kp_matrices_wrapper(ireport, overlap_matrices(:,:,:,ireport), hamil_matrices(:,:,:,ireport))
+
+                if (iProcIndex == root) then
+                    call average_kp_matrices_wrapper(ireport, kp%nrepeats, overlap_matrices(:,:,1:irepeat,ireport), &
+                                                     hamil_matrices(:,:,1:irepeat,ireport), kp_overlap_mean, &
+                                                     kp_hamil_mean, kp_overlap_se, kp_hamil_se)
+                    call find_and_output_lowdin_eigv(ireport, kp%nvecs)
                 end if
 
                 do iiter = 1, kp%niters(ireport)
@@ -534,20 +552,7 @@ contains
 
                 end do ! Over all iterations per report cycle.
 
-                ! Sum the overlap and projected Hamiltonian matrices from the various processors.
-                call communicate_kp_matrices(overlap_matrix, hamil_matrix)
-
-                call output_kp_matrices_wrapper(ireport, overlap_matrices, hamil_matrices)
-
             end do ! Over all report cycles.
-
-        if (.not. tSoftExitFound) then
-            if (iProcIndex == root) then
-                call average_kp_matrices_wrapper(ireport, kp%nrepeats, overlap_matrices, hamil_matrices, &
-                                                 kp_overlap_mean, kp_hamil_mean, kp_overlap_se, kp_hamil_se)
-                call find_and_output_lowdin_eigv(ireport, kp%nvecs)
-            end if
-        end if
 
         end do outer_loop ! Over all repeats of the whole calculation.
 

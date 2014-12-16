@@ -58,7 +58,7 @@ contains
         ! Default values.
         tExcitedStateKP = .false.
         kp%nconfigs = 1
-        kp%nreports = 1
+        kp%nreports = 0
         kp%nrepeats = 1
         kp%nvecs = 0
         niters_temp = 1
@@ -118,7 +118,7 @@ contains
             case("NREPORTS")
                 call geti(nreports_temp)
                 if (kp%nreports /= 0) then
-                    if (kp%nreports /= nvecs_temp) call stop_all(t_r, 'The number of values specified for the number of &
+                    if (kp%nreports /= nreports_temp) call stop_all(t_r, 'The number of values specified for the number of &
                         &iterations between reports is not consistent with the number of reports requested.')
                 else
                     kp%nreports = nreports_temp
