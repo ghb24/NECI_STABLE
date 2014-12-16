@@ -68,6 +68,9 @@ custom_compare_prefix =
 op_gt = .localgt.
 op_lt = .locallt.
 
+[a_i_custom]
+type1 = integer(kind=int32), dimension(:)
+
 [a_d]
 type1 = real(dp), dimension(:)
 custom_comparisons =
