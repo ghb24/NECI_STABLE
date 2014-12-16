@@ -1489,12 +1489,14 @@ contains
 
     end subroutine average_and_comm_pert_overlaps
 
-    subroutine find_and_output_lowdin_eigv(config_label, nvecs)
+    subroutine find_and_output_lowdin_eigv(config_label, nvecs, npositive, all_evals)
 
         integer, intent(in) :: config_label, nvecs
+        integer, intent(out) :: npositive
+        real(dp), intent(out) :: all_evals(:,:)
 
-        integer :: lwork, counter, i, nkeep, nkeep_len, temp_unit
-        integer :: npositive, info, ierr
+        integer :: lwork, counter, i, nkeep, nkeep_len
+        integer :: info, ierr, temp_unit
         real(dp), allocatable :: work(:)
         real(dp), allocatable :: kp_final_hamil(:,:), kp_hamil_eigv(:)
         real(dp) :: kp_pert_energy_overlaps(nvecs)
@@ -1523,6 +1525,8 @@ contains
         call dsyev('V', 'U', nvecs, kp_overlap_eigenvecs, nvecs, kp_overlap_eigv, work, lwork, info)
 
         npositive = 0
+        all_evals = 0.0_dp
+
         write(temp_unit,'(4("-"),a26,40("-"))') "Overlap matrix eigenvalues"
         do i = 1, nvecs
             write(temp_unit,'(1x,es19.12)') kp_overlap_eigv(i)
@@ -1574,6 +1578,8 @@ contains
                     if (tOverlapPert) write(temp_unit,'(1x,es19.12)',advance='no') kp_pert_energy_overlaps(i)
                     write(temp_unit,'()',advance='yes')
                 end do
+
+                all_evals(1:nkeep, nkeep) = kp_hamil_eigv(1:nkeep)
 
             end associate
 

@@ -42,15 +42,16 @@ contains
 
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: iiter, idet, ireplica, ispawn, ierr
-        integer :: iconfig, irepeat, ivec
+        integer :: iconfig, irepeat, ivec, nlowdin
         integer :: nspawn, parent_flags, unused_flags, ex_level_to_ref
         integer :: TotWalkersNew, determ_ind, ic, ex(2,2), ms_parent
         integer :: nI_parent(nel), nI_child(nel)
         integer(n_int) :: ilut_child(0:NIfTot)
         integer(n_int), pointer :: ilut_parent(:)
         real(dp) :: prob, unused_rdm_real, parent_hdiag
-        real(dp), dimension(lenof_sign) :: child_sign, parent_sign
-        real(dp), dimension(lenof_sign) :: unused_sign1, unused_sign2
+        real(dp) :: child_sign(lenof_sign), parent_sign(lenof_sign)
+        real(dp) :: unused_sign1(lenof_sign), unused_sign2(lenof_sign)
+        real(dp), allocatable :: lowdin_evals(:,:)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
         logical :: tParity, tSoftExitFound, tSingBiasChange, tWritePopsFound
         HElement_t :: HElGen
@@ -74,6 +75,7 @@ contains
 
         allocate(overlap_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
         allocate(hamil_matrices(kp%nvecs, kp%nvecs, kp%nrepeats), stat=ierr)
+        allocate(lowdin_evals(kp%nvecs, kp%nvecs), stat=ierr)
         overlap_matrices = 0.0_dp
         hamil_matrices = 0.0_dp
 
@@ -314,7 +316,7 @@ contains
             if (iProcIndex == root) then
                 call average_kp_matrices_wrapper(iconfig, kp%nrepeats, overlap_matrices, hamil_matrices, &
                                                  kp_overlap_mean, kp_hamil_mean, kp_overlap_se, kp_hamil_se)
-                call find_and_output_lowdin_eigv(iconfig, kp%nvecs)
+                call find_and_output_lowdin_eigv(iconfig, kp%nvecs, nlowdin, lowdin_evals)
 
                 ! Calculate data for the testsuite.
                 s_sum = sum(kp_overlap_mean)
@@ -325,6 +327,7 @@ contains
 
         deallocate(overlap_matrices)
         deallocate(hamil_matrices)
+        deallocate(lowdin_evals)
 
         if (tPopsFile) call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
 
@@ -336,15 +339,16 @@ contains
 
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: iiter, idet, ireplica, ispawn, ierr
-        integer :: iconfig, irepeat, ireport
+        integer :: iconfig, irepeat, ireport, nlowdin
         integer :: nspawn, parent_flags, unused_flags, ex_level_to_ref
         integer :: TotWalkersNew, determ_ind, ic, ex(2,2)
         integer :: nI_parent(nel), nI_child(nel)
         integer(n_int) :: ilut_child(0:NIfTot)
         integer(n_int), pointer :: ilut_parent(:)
         real(dp) :: prob, unused_rdm_real, parent_hdiag
-        real(dp), dimension(lenof_sign) :: child_sign, parent_sign
-        real(dp), dimension(lenof_sign) :: unused_sign1, unused_sign2
+        real(dp) :: child_sign(lenof_sign), parent_sign(lenof_sign)
+        real(dp) :: unused_sign1(lenof_sign), unused_sign2(lenof_sign)
+        real(dp), allocatable :: lowdin_evals(:,:)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
         logical :: tParity, tSoftExitFound, tSingBiasChange, tWritePopsFound
         HElement_t :: HElGen
@@ -363,6 +367,7 @@ contains
 
         allocate(overlap_matrices(kp%nvecs, kp%nvecs, kp%nrepeats, kp%nreports), stat=ierr)
         allocate(hamil_matrices(kp%nvecs, kp%nvecs, kp%nrepeats, kp%nreports), stat=ierr)
+        allocate(lowdin_evals(kp%nvecs, kp%nvecs), stat=ierr)
         overlap_matrices = 0.0_dp
         hamil_matrices = 0.0_dp
 
@@ -392,13 +397,13 @@ contains
                 ! Sum the overlap and projected Hamiltonian matrices from the various processors.
                 call communicate_kp_matrices(overlap_matrix, hamil_matrix)
 
-                call output_kp_matrices_wrapper(ireport, overlap_matrices(:,:,:,ireport), hamil_matrices(:,:,:,ireport))
+                call output_kp_matrices_wrapper(iter, overlap_matrices(:,:,:,ireport), hamil_matrices(:,:,:,ireport))
 
                 if (iProcIndex == root) then
-                    call average_kp_matrices_wrapper(ireport, kp%nrepeats, overlap_matrices(:,:,1:irepeat,ireport), &
+                    call average_kp_matrices_wrapper(iter, kp%nrepeats, overlap_matrices(:,:,1:irepeat,ireport), &
                                                      hamil_matrices(:,:,1:irepeat,ireport), kp_overlap_mean, &
                                                      kp_hamil_mean, kp_overlap_se, kp_hamil_se)
-                    call find_and_output_lowdin_eigv(ireport, kp%nvecs)
+                    call find_and_output_lowdin_eigv(iter, kp%nvecs, nlowdin, lowdin_evals)
                 end if
 
                 do iiter = 1, kp%niters(ireport)
@@ -562,6 +567,7 @@ contains
 
         deallocate(overlap_matrices)
         deallocate(hamil_matrices)
+        deallocate(lowdin_evals)
 
         if (tPopsFile) call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
 
