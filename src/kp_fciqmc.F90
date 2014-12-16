@@ -45,7 +45,7 @@ contains
         integer, target :: iconfig, irepeat, ivec
         integer :: nspawn, parent_flags, unused_flags, ex_level_to_ref
         integer :: TotWalkersNew, determ_ind, ic, ex(2,2), ms_parent
-        integer :: nI_parent(nel), nI_child(nel)
+        integer :: nI_parent(nel), nI_child(nel), unused_vecslot
         integer(n_int) :: ilut_child(0:NIfTot)
         integer(n_int), pointer :: ilut_parent(:)
         real(dp) :: prob, unused_rdm_real, parent_hdiag
@@ -253,7 +253,7 @@ contains
                             ! determ_projection.
                             if (.not. tParentIsDeterm) then
                                 call walker_death (iter_data_fciqmc, nI_parent, ilut_parent, parent_hdiag, &
-                                                    parent_sign, unused_sign2, unused_sign1, idet, idet, &
+                                                    parent_sign, unused_sign2, unused_sign1, unused_vecslot, idet, &
                                                     ex_level_to_ref)
                             end if
 
