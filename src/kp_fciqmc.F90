@@ -372,7 +372,7 @@ contains
             hamil_matrix(:,:) = 0.0_dp
             call write_fcimcstats2(iter_data_fciqmc)
 
-            do ireport = 1, kp%nvecs
+            do ireport = 1, kp%nreports
 
                 call calc_overlap_matrix(kp%nvecs, CurrentDets, int(TotWalkers, sizeof_int), overlap_matrix)
 

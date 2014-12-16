@@ -11,6 +11,10 @@ module kp_fciqmc_data_mod
         ! The number of different initial walker configurations to start
         ! calculations from.
         integer :: nconfigs
+        ! This is only used in the excited-state KP algorithm.
+        ! The number of times that data about the subspace Hamiltonian and
+        ! overlap matrices are output during a single run.
+        integer :: nreports
         ! The number of simulations to perform for each initial walker
         ! configuration.
         integer :: nrepeats

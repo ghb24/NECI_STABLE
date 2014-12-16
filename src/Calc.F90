@@ -2268,8 +2268,6 @@ contains
                      call perform_kp_fciqmc(kp)
                  end if
              else
-
-
                  WRITE(6,*) "Calculating ",NPATHS," W_Is..."
                  iunit =get_free_unit()
                  IF(BTEST(ILOGGING,1)) THEN

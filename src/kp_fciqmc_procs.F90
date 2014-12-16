@@ -52,12 +52,13 @@ contains
         type(kp_fciqmc_data), intent(inout) :: kp
         logical :: eof
         character(len=100) :: w
-        integer :: i, j, niters_temp, nvecs_temp, npert
+        integer :: i, j, niters_temp, nvecs_temp, nreports_temp, npert
         character (len=*), parameter :: t_r = "kp_fciqmc_read_inp"
 
         ! Default values.
         tExcitedStateKP = .false.
         kp%nconfigs = 1
+        kp%nreports = 1
         kp%nrepeats = 1
         kp%nvecs = 0
         niters_temp = 1
@@ -114,7 +115,19 @@ contains
                     allocate(kp%niters(kp%nvecs))
                     kp%niters(kp%nvecs) = 0
                 end if
+            case("NREPORTS")
+                call geti(nreports_temp)
+                if (kp%nreports /= 0) then
+                    if (kp%nreports /= nvecs_temp) call stop_all(t_r, 'The number of values specified for the number of &
+                        &iterations between reports is not consistent with the number of reports requested.')
+                else
+                    kp%nreports = nreports_temp
+                    allocate(kp%niters(kp%nreports))
+                    kp%niters(kp%nreports) = 0
+                end if
             case("NUM-ITERS-BETWEEN-VECS")
+                call geti(niters_temp)
+            case("NUM-ITERS-BETWEEN-REPORTS")
                 call geti(niters_temp)
             case("NUM-ITERS-BETWEEN-VECS-VARY")
                 vary_niters = .true.
@@ -128,6 +141,18 @@ contains
                     call geti(kp%niters(i))
                 end do
                 kp%niters(kp%nvecs) = 0
+            case("NUM-ITERS-BETWEEN-REPORTS-VARY")
+                vary_niters = .true.
+                if (kp%nreports /= 0) then
+                    if (kp%nreports /= nitems) call stop_all(t_r, 'The number of values specified for the number of &
+                        &iterations between reports is not consistent with the number of reports requested.')
+                end if
+                kp%nreports = nitems
+                if (.not. allocated(kp%niters)) allocate(kp%niters(kp%nreports))
+                do i = 1, kp%nreports-1
+                    call geti(kp%niters(i))
+                end do
+                kp%niters(kp%nreports) = 0
             case("MEMORY-FACTOR")
                 call getf(memory_factor_kp)
             case("NUM-WALKERS-PER-SITE-INIT")
@@ -219,7 +244,11 @@ contains
         end do read_inp
 
         if (.not. vary_niters) then
-            if (.not. allocated(kp%niters)) allocate(kp%niters(kp%nvecs))
+            if (tExcitedStateKP) then
+                if (.not. allocated(kp%niters)) allocate(kp%niters(kp%nreports))
+            else
+                if (.not. allocated(kp%niters)) allocate(kp%niters(kp%nvecs))
+            end if
             kp%niters = niters_temp
             kp%niters(kp%nvecs) = 0
         end if
