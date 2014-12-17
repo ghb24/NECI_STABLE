@@ -300,66 +300,68 @@ contains
         ! The total length of a bitstring containing all Krylov vectors.
         NIfTotKP = NIfDBO + lenof_all_signs + NIfFlag
 
-        ! Allocate all of the KP arrays.
-        nhashes_kp = nWalkerHashes
-        TotWalkersKP = 0
-        krylov_vecs_length = nint(MaxWalkersUncorrected*memory_factor_kp*kp%nvecs)
-        write(kp_length_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_vecs_length)+1,dp)))
-        nkrylov_amp_elems_tot = lenof_sign*kp%nvecs*krylov_vecs_length
+        if (.not. tExcitedStateKP) then
+            ! Allocate all of the KP arrays.
+            nhashes_kp = nWalkerHashes
+            TotWalkersKP = 0
+            krylov_vecs_length = nint(MaxWalkersUncorrected*memory_factor_kp*kp%nvecs)
+            write(kp_length_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_vecs_length)+1,dp)))
+            nkrylov_amp_elems_tot = lenof_sign*kp%nvecs*krylov_vecs_length
 
-        ! Allocate the krylov_vecs array.
-        ! The number of MB of memory required to allocate krylov_vecs.
-        krylov_vecs_memory = krylov_vecs_length*(NIfTotKP+1)*size_n_int/1000000
-        write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_vecs_memory)+1,dp)))
-        write(6,'(a73,1x,'//mem_fmt//')') "About to allocate array to hold all Krylov vectors. &
-                                       &Memory required (MB):", krylov_vecs_memory
-        write(6,'(a13)',advance='no') "Allocating..."; call neci_flush(6)
-        allocate(krylov_vecs(0:NIfTotKP, krylov_vecs_length), stat=ierr)
-        if (ierr /= 0) then
-            write(6,'(1x,a11,1x,i5)') "Error code:", ierr
-            call stop_all(t_r, "Error allocating krylov_vecs array.")
-        else
-            write(6,'(1x,a5)') "Done."
+            ! Allocate the krylov_vecs array.
+            ! The number of MB of memory required to allocate krylov_vecs.
+            krylov_vecs_memory = krylov_vecs_length*(NIfTotKP+1)*size_n_int/1000000
+            write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_vecs_memory)+1,dp)))
+            write(6,'(a73,1x,'//mem_fmt//')') "About to allocate array to hold all Krylov vectors. &
+                                           &Memory required (MB):", krylov_vecs_memory
+            write(6,'(a13)',advance='no') "Allocating..."; call neci_flush(6)
+            allocate(krylov_vecs(0:NIfTotKP, krylov_vecs_length), stat=ierr)
+            if (ierr /= 0) then
+                write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+                call stop_all(t_r, "Error allocating krylov_vecs array.")
+            else
+                write(6,'(1x,a5)') "Done."
+            end if
+            call neci_flush(6)
+            krylov_vecs = 0_n_int
+
+            ! Allocate the krylov_helems array.
+            ! The number of MB of memory required to allocate krylov_helems.
+            krylov_vecs_memory = krylov_vecs_length*size_n_int/1000000
+            write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_vecs_memory)+1)))
+            write(6,'(a103,1x,'//mem_fmt//')') "About to allocate array to hold diagonal Hamiltonian &
+                                           &elements for Krylov vectors. Memory required (MB):", krylov_vecs_memory
+            write(6,'(a13)',advance='no') "Allocating..."; call neci_flush(6)
+            allocate(krylov_helems(krylov_vecs_length), stat=ierr)
+            if (ierr /= 0) then
+                write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+                call stop_all(t_r, "Error allocating krylov_helems array.")
+            else
+                write(6,'(1x,a5)') "Done."
+            end if
+            call neci_flush(6)
+            krylov_helems = 0.0_dp
+
+            ! Allocate the hash table to krylov_vecs.
+            ! The number of MB of memory required to allocate krylov_vecs_ht.
+            ! Each node requires 16 bytes.
+            krylov_ht_memory = nhashes_kp*16/1000000
+            write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_ht_memory)+1,dp)))
+            write(6,'(a78,1x,'//mem_fmt//')') "About to allocate hash table to the Krylov vector array. &
+                                           &Memory required (MB):", krylov_ht_memory
+            write(6,'(a13)',advance='no') "Allocating..."; call neci_flush(6)
+            allocate(krylov_vecs_ht(nhashes_kp), stat=ierr)
+            if (ierr /= 0) then
+                write(6,'(1x,a11,1x,i5)') "Error code:", ierr
+                call stop_all(t_r, "Error allocating krylov_vecs array.")
+            else
+                write(6,'(1x,a5)') "Done."
+                write(6,'(a106)') "Note that the hash table uses linked lists, and the memory usage will &
+                                  &increase as further nodes are added."
+            end if
+
+            call init_hash_table(krylov_vecs_ht)
         end if
-        call neci_flush(6)
-        krylov_vecs = 0_n_int
-
-        ! Allocate the krylov_helems array.
-        ! The number of MB of memory required to allocate krylov_helems.
-        krylov_vecs_memory = krylov_vecs_length*size_n_int/1000000
-        write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_vecs_memory)+1)))
-        write(6,'(a103,1x,'//mem_fmt//')') "About to allocate array to hold diagonal Hamiltonian &
-                                       &elements for Krylov vectors. Memory required (MB):", krylov_vecs_memory
-        write(6,'(a13)',advance='no') "Allocating..."; call neci_flush(6)
-        allocate(krylov_helems(krylov_vecs_length), stat=ierr)
-        if (ierr /= 0) then
-            write(6,'(1x,a11,1x,i5)') "Error code:", ierr
-            call stop_all(t_r, "Error allocating krylov_helems array.")
-        else
-            write(6,'(1x,a5)') "Done."
-        end if
-        call neci_flush(6)
-        krylov_helems = 0.0_dp
-
-        ! Allocate the hash table to krylov_vecs.
-        ! The number of MB of memory required to allocate krylov_vecs_ht.
-        ! Each node requires 16 bytes.
-        krylov_ht_memory = nhashes_kp*16/1000000
-        write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_ht_memory)+1,dp)))
-        write(6,'(a78,1x,'//mem_fmt//')') "About to allocate hash table to the Krylov vector array. &
-                                       &Memory required (MB):", krylov_ht_memory
-        write(6,'(a13)',advance='no') "Allocating..."; call neci_flush(6)
-        allocate(krylov_vecs_ht(nhashes_kp), stat=ierr)
-        if (ierr /= 0) then
-            write(6,'(1x,a11,1x,i5)') "Error code:", ierr
-            call stop_all(t_r, "Error allocating krylov_vecs array.")
-        else
-            write(6,'(1x,a5)') "Done."
-            write(6,'(a106)') "Note that the hash table uses linked lists, and the memory usage will &
-                              &increase as further nodes are added."
-        end if
-
-        call init_hash_table(krylov_vecs_ht)
 
         allocate(SpawnVecKP(0:NOffSgn+lenof_all_signs-1,MaxSpawned),stat=ierr)
         allocate(SpawnVecKP2(0:NOffSgn+lenof_all_signs-1,MaxSpawned),stat=ierr)
