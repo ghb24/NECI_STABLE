@@ -10,12 +10,13 @@ module kp_fciqmc_hamil
 
 contains
 
-    subroutine calc_projected_hamil(nvecs, krylov_array, krylov_ht, array_len, h_matrix, h_diag)
+    subroutine calc_projected_hamil(nvecs, krylov_array, krylov_ht, ndets, h_matrix, h_diag)
 
         use bit_reps, only: decode_bit_det
         use constants
         use DetBitOps, only: return_ms
         use FciMCData, only: fcimc_excit_gen_store, exFlag, partial_determ_vecs_kp
+        use FciMCData, only: SpawnVec, SpawnVec2
         use procedure_pointers, only: generate_excitation, encode_child, get_spawn_helement
         use semi_stoch_procs, only: is_core_state, check_determ_flag
         use semi_stoch_procs, only: determ_projection_kp_hamil
@@ -25,7 +26,7 @@ contains
         integer, intent(in) :: nvecs
         integer(n_int), intent(in) :: krylov_array(0:,:)
         type(ll_node), pointer, intent(in) :: krylov_ht(:)
-        integer, intent(in) :: array_len
+        integer, intent(in) :: ndets
         real(dp), intent(out) :: h_matrix(:,:)
         real(dp), intent(in), optional :: h_diag(:)
 
@@ -49,7 +50,15 @@ contains
         tFinished = .false.
         determ_ind = 1
 
-        do idet = 1, array_len
+        if (.not. tExcitedStateKP) then
+            ! We want SpawnedParts and SpawnedParts2 to point to the 'wider' spawning arrays which
+            ! hold all the signs of *all* the Krylov vectors. This is because SendProcNewParts uses
+            ! SpawnedParts and SpawnedParts2.
+            SpawnedParts => SpawnVecKP
+            SpawnedParts2 => SpawnVecKP2
+        end if
+
+        do idet = 1, ndets
 
             ! The 'parent' determinant from which spawning is to be attempted.
             ilut_parent(0:NIfDBO) = krylov_array(0:NIfDBO,idet)
@@ -139,7 +148,7 @@ contains
             if (tAllFinished) exit
         end do
 
-        call calc_hamil_contribs_diag(nvecs, krylov_array, array_len, h_matrix, h_diag)
+        call calc_hamil_contribs_diag(nvecs, krylov_array, ndets, h_matrix, h_diag)
 
         if (tSemiStochasticKPHamil) then
             call determ_projection_kp_hamil()
@@ -152,6 +161,13 @@ contains
                 h_matrix(i,j) = h_matrix(j,i)
             end do
         end do
+
+        if (.not. tExcitedStateKP) then
+            ! Now let SpawnedParts and SpawnedParts2 point back to their
+            ! original arrays.
+            SpawnedParts => SpawnVec
+            SpawnedParts2 => SpawnVec2
+        end if
 
     end subroutine calc_projected_hamil
 
@@ -184,9 +200,9 @@ contains
 
         proc = DetermineDetNode(nel, nI_child, 0)
 
-        SpawnedPartsKP(0:NIfDBO, ValidSpawnedList(proc)) = ilut_child(0:NIfDBO)
+        SpawnedParts(0:NIfDBO, ValidSpawnedList(proc)) = ilut_child(0:NIfDBO)
         int_sign = transfer(child_sign, int_sign)
-        SpawnedPartsKP(NOffSgn:NOffSgn+lenof_all_signs-1, ValidSpawnedList(proc)) = int_sign
+        SpawnedParts(NOffSgn:NOffSgn+lenof_all_signs-1, ValidSpawnedList(proc)) = int_sign
 
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
 
@@ -197,32 +213,18 @@ contains
     subroutine distribute_spawns_kp_hamil(nspawns_this_proc)
 
         use AnnihilationMod, only: SendProcNewParts
-        use FciMCData, only: SpawnedParts, SpawnedParts2, SpawnedPartsKP, SpawnedPartsKP2
+        use FciMCData, only: SpawnedParts, SpawnedParts2
 
         integer, intent(out) :: nspawns_this_proc
-        integer(n_int), pointer :: PointTemp(:,:), PointTemp2(:,:)
-
-        ! We want SpawnedParts and SpawnedParts2 to point to the 'wider' spawning arrays which
-        ! hold all the signs of *all* the Krylov vectors. This is because SendProcNewParts uses
-        ! SpawnedParts and SpawnedParts2.
-        PointTemp => SpawnedParts
-        PointTemp2 => SpawnedParts2
-        SpawnedParts => SpawnedPartsKP
-        SpawnedParts2 => SpawnedPartsKP2
+        integer(n_int), pointer :: PointTemp(:,:)
 
         call SendProcNewParts(nspawns_this_proc, .false.)
 
-        ! Now we want SpawnedPartsKP to point to SpawnedParts2, which holds the output of
-        ! the communication of the spawns.
-        SpawnedPartsKP => SpawnedParts2
-        SpawnedPartsKP2 => SpawnedParts
-
-        ! Now let SpawnedParts1 and SpawnedParts2 to point to their original arrays.
+        PointTemp => SpawnedParts2
+        SpawnedParts2 => SpawnedParts
         SpawnedParts => PointTemp
-        SpawnedParts2 => PointTemp2
 
         nullify(PointTemp)
-        nullify(PointTemp2)
 
     end subroutine distribute_spawns_kp_hamil
 
@@ -271,8 +273,8 @@ contains
         ilut_spawn = 0_n_int
 
         do idet = 1, nspawns_this_proc
-            ilut_spawn(0:NIfDBO) = SpawnedPartsKP(0:NIfDBO, idet)
-            int_sign = SpawnedPartsKP(NOffSgn:NOffSgn+lenof_all_signs-1, idet)
+            ilut_spawn(0:NIfDBO) = SpawnedParts(0:NIfDBO, idet)
+            int_sign = SpawnedParts(NOffSgn:NOffSgn+lenof_all_signs-1, idet)
             real_sign_1 = transfer(int_sign, real_sign_1)
             call decode_bit_det(nI_spawn, ilut_spawn)
             DetHash = FindWalkerHash(nI_spawn, size(krylov_ht))
@@ -316,14 +318,14 @@ contains
 
     end subroutine calc_hamil_contribs_spawn
 
-    subroutine calc_hamil_contribs_diag(nvecs, krylov_array, array_len, h_matrix, h_diag)
+    subroutine calc_hamil_contribs_diag(nvecs, krylov_array, ndets, h_matrix, h_diag)
     
         use FciMCData, only: determ_proc_sizes
         use global_det_data, only: det_diagH
 
         integer, intent(in) :: nvecs
         integer(n_int), intent(in) :: krylov_array(0:,:)
-        integer, intent(in) :: array_len
+        integer, intent(in) :: ndets
         real(dp), intent(inout) :: h_matrix(:,:)
         real(dp), intent(in), optional :: h_diag(:)
 
@@ -343,7 +345,7 @@ contains
             min_idet = 1
         end if
 
-        do idet = min_idet, array_len
+        do idet = min_idet, ndets
             int_sign = krylov_array(NOffSgn:NOffSgn+lenof_all_signs-1, idet)
             real_sign = transfer(int_sign, real_sign)
             if (present(h_diag)) then

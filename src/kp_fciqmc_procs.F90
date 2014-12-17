@@ -361,14 +361,16 @@ contains
             end if
 
             call init_hash_table(krylov_vecs_ht)
+
+            allocate(SpawnVecKP(0:NOffSgn+lenof_all_signs-1,MaxSpawned),stat=ierr)
+            allocate(SpawnVecKP2(0:NOffSgn+lenof_all_signs-1,MaxSpawned),stat=ierr)
+            SpawnVecKP(:,:) = 0_n_int
+            SpawnVecKP2(:,:) = 0_n_int
+            SpawnedPartsKP => SpawnVecKP
+            SpawnedPartsKP2 => SpawnVecKP2
+
         end if
 
-        allocate(SpawnVecKP(0:NOffSgn+lenof_all_signs-1,MaxSpawned),stat=ierr)
-        allocate(SpawnVecKP2(0:NOffSgn+lenof_all_signs-1,MaxSpawned),stat=ierr)
-        SpawnVecKP(:,:) = 0_n_int
-        SpawnVecKP2(:,:) = 0_n_int
-        SpawnedPartsKP => SpawnVecKP
-        SpawnedPartsKP2 => SpawnVecKP2
         if (tSemiStochastic) then
             allocate(partial_determ_vecs_kp(lenof_all_signs,determ_proc_sizes(iProcIndex)), stat=ierr)
             allocate(full_determ_vecs_kp(lenof_all_signs,determ_space_size), stat=ierr)
@@ -1859,8 +1861,6 @@ contains
         nreports = size(nlowdin,1)
         nvecs = size(lowdin_evals,1)
       
-        write(6,*) "niters:", niters
-
         ! Write header.
         write(temp_unit,'("#",1X,"Iteration")',advance='no')
         do ivec = 1, nvecs
