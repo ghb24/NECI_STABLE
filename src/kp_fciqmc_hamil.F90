@@ -275,7 +275,7 @@ contains
             int_sign = SpawnedPartsKP(NOffSgn:NOffSgn+lenof_all_signs-1, idet)
             real_sign_1 = transfer(int_sign, real_sign_1)
             call decode_bit_det(nI_spawn, ilut_spawn)
-            DetHash = FindWalkerHash(nI_spawn, nhashes_kp)
+            DetHash = FindWalkerHash(nI_spawn, size(krylov_ht))
             ! Point to the first node with this hash value in krylov_array.
             temp_node => krylov_ht(DetHash)
             if (temp_node%ind == 0) then
