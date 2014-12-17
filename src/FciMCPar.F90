@@ -491,7 +491,7 @@ module FciMCParMod
         call MPIBCast(tNoShiftValue)
         Weight=(0.0_dp)
         if (tTrialWavefunction) then
-            Energyxw = tot_trial_numerator(1)/tot_trial_denom(1) + Hii
+            Energyxw = tot_trial_numerator(1)/tot_trial_denom(1)
         else
             Energyxw=(ProjectionE(1)+Hii)
         end if
