@@ -281,9 +281,6 @@ MODULE FciMCData
  !This is set up as the initial ValidSpawnedList elements, so that it does not need to be reevaluated each time.
       INTEGER , ALLOCATABLE :: InitialSpawnedSlots(:) 
 
-      ! For use in kp-fciqmc code. How many different determinants are spawned onto this processor?
-      integer :: max_spawned_ind
-
       integer :: WalkersDiffProc, PartsDiffProc
 
       !This is whether to generate matrix elements as generating excitations for the HPHF/MI/ISK options

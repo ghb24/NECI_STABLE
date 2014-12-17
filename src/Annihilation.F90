@@ -557,14 +557,6 @@ MODULE AnnihilationMod
         SpawnedParts2 => SpawnedParts
         SpawnedParts => PointTemp
 
-        ! For kp-fciqmc calculations, store the current state of the spawning array.
-        if (tKP_FCIQMC) then
-            max_spawned_ind = ValidSpawned
-            do i = 1, ValidSpawned
-                SpawnedPartsKP(0:NIfDBO+lenof_sign,i) = SpawnedParts(0:NIfDBO+lenof_sign,i)
-            end do
-        end if
-
 !        WRITE(6,*) 'Spawned Parents'
 !        do i = 1, No_Spawned_Parents
 !            WRITE(6,*) Spawned_Parents(:,i)
