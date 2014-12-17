@@ -45,7 +45,7 @@ contains
         integer, target :: iconfig, irepeat, ivec
         integer :: nspawn, parent_flags, unused_flags, ex_level_to_ref
         integer :: TotWalkersNew, determ_ind, ic, ex(2,2), ms_parent
-        integer :: nI_parent(nel), nI_child(nel)
+        integer :: nI_parent(nel), nI_child(nel), unused_vecslot
         integer(n_int) :: ilut_child(0:NIfTot)
         integer(n_int), pointer :: ilut_parent(:)
         real(dp) :: prob, unused_rdm_real, parent_hdiag
@@ -56,7 +56,7 @@ contains
         HElement_t :: HElGen
 
         ! Variables to hold information output for the test suite.
-        real(dp) :: s_low, s_high, h_low, h_high
+        real(dp) :: s_sum, h_sum
 
         integer(n_int) :: int_sign(lenof_sign_kp)
         real(dp) :: test_sign(lenof_sign_kp)
@@ -253,7 +253,7 @@ contains
                             ! determ_projection.
                             if (.not. tParentIsDeterm) then
                                 call walker_death (iter_data_fciqmc, nI_parent, ilut_parent, parent_hdiag, &
-                                                    parent_sign, unused_sign2, unused_sign1, idet, idet, &
+                                                    parent_sign, unused_sign2, unused_sign1, unused_vecslot, idet, &
                                                     ex_level_to_ref)
                             end if
 
@@ -308,15 +308,19 @@ contains
 
             if (iProcIndex == root .and. tStoreKPMatrices) then
                 call average_kp_matrices_wrapper(kp)
-                call find_and_output_lowdin_eigv(kp, s_low, s_high, h_low, h_high)
+                call find_and_output_lowdin_eigv(kp)
                 call find_and_output_gs_eigv(kp)
+
+                ! Calculate data for the testsuite.
+                s_sum = sum(kp_overlap_mean)
+                h_sum = sum(kp_hamil_mean)
             end if
 
         end do outer_loop ! Over all initial walker configurations.
 
         if (tPopsFile) call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
 
-        call write_kpfciqmc_testsuite_data(s_low, s_high, h_low, h_high)
+        if (iProcIndex == root) call write_kpfciqmc_testsuite_data(s_sum, h_sum)
 
     end subroutine perform_kp_fciqmc
 

@@ -177,7 +177,7 @@ contains
         ! Becuase tot_trial_numerator/tot_trial_denom is the energy relative to the the trial
         ! energy, add on this contribution to make it relative to the HF energy.
         if (tTrialWavefunction) then
-            tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*(trial_energy-Hii))
+            tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energy)
         end if
 
 #ifdef __CMPLX
@@ -248,7 +248,8 @@ contains
             endif
 #elif __DOUBLERUN
             write(fcimcstats_unit2,"(i12,7g16.7,5g17.9,g13.5,i12,g13.5,g17.5,&
-                                   &i13,g13.5,11g17.9,i13,2g16.7)",advance = 'no') &
+                                   &i13,g13.5,4g17.9,1X,2(es18.11,1X),5g17.9,&
+                                   &i13,2g16.7)",advance = 'no') &
                 Iter + PreviousCycles, &                   ! 1.
                 DiagSft(2), &                              ! 2.
                 AllTotParts(2) - AllTotPartsOld(2), &      ! 3.
@@ -282,7 +283,7 @@ contains
                 norm_semistoch(2)/norm_psi(2), &           ! 32.
                 all_max_cyc_spawn                          ! 33.
                 if (tTrialWavefunction) then
-                    write(fcimcstats_unit2, "(3G16.7)", advance = 'no') &
+                    write(fcimcstats_unit2, "(3(1X,es17.10))", advance = 'no') &
                     (tot_trial_numerator(2) / StepsSft), &
                     (tot_trial_denom(2) / StepsSft), &
                     abs(tot_trial_denom(2) / (norm_psi(2)*StepsSft))
@@ -293,7 +294,8 @@ contains
 #ifndef __CMPLX
 
             write(fcimcstats_unit,"(i12,7g16.7,5g17.9,g13.5,i12,g13.5,g17.5,&
-                                  &i13,g13.5,11g17.9,i13,2g16.7)",advance = 'no') &
+                                   &i13,g13.5,4g17.9,1X,2(es18.11,1X),5g17.9,&
+                                   &i13,2g16.7)",advance = 'no') &
                 Iter + PreviousCycles, &                   ! 1.
                 DiagSft(1), &                              ! 2.
                 AllTotParts(1) - AllTotPartsOld(1), &      ! 3.
@@ -327,7 +329,7 @@ contains
                 norm_semistoch(1)/norm_psi(1), &           ! 32.
                 all_max_cyc_spawn                          ! 33.
                 if (tTrialWavefunction) then
-                    write(fcimcstats_unit, "(3g16.7)", advance = 'no') &
+                    write(fcimcstats_unit, "(3(1X,es18.11))", advance = 'no') &
                     (tot_trial_numerator / StepsSft), &             ! 34.
                     (tot_trial_denom / StepsSft), &                 ! 35.
                     abs((tot_trial_denom / (norm_psi*StepsSft)))    ! 36.
@@ -347,7 +349,7 @@ contains
                     ProjectionE(1), &
                     AvDiagSft(1), &
                     proje_iter(1)
-                if (tTrialWavefunction) write(iout, "(G16.7)", advance = 'no') &
+                if (tTrialWavefunction) write(iout, "(G20.11)", advance = 'no') &
                     (tot_trial_numerator(1)/tot_trial_denom(1))
                 write (iout, "(3G16.7,I12,G13.5)", advance = 'yes') &
                     AllNoatHF(1), &
@@ -498,37 +500,43 @@ contains
             call stats_out(state,.true., sum(abs(AllTotParts)), 'Tot. parts')
             call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
 #ifdef __CMPLX
-            call stats_out(state,.true., real(proje_iter(1)), 'Re Proj. E')
-            call stats_out(state,.true., aimag(proje_iter(1)), 'Im Proj. E')
+            call stats_out(state,.true., real(proje_iter_tot), 'Re Proj. E')
+            call stats_out(state,.true., aimag(proje_iter_tot), 'Im Proj. E')
 #else
-            call stats_out(state,.true., proje_iter(1), 'Proj. E (cyc)')
+            call stats_out(state,.true., proje_iter_tot, 'Proj. E (cyc)')
 #endif
-            call stats_out(state,.true., DiagSft(1), 'Shift. (cyc)')
+            call stats_out(state,.true., sum(DiagSft / inum_runs), 'Shift. (cyc)')
             call stats_out(state,.true., IterTime, 'Iter. time')
-            call stats_out(state,.false., AllNoBorn(1), 'No. born')
-            call stats_out(state,.false., AllNoDied(1), 'No. died')
-            call stats_out(state,.false., AllAnnihilated(1), 'No. annihil')
-            call stats_out(state,.false., AllGrowRate(1), 'Growth fac.')
-            call stats_out(state,.false., AccRat(1), 'Acc. rate')
+            call stats_out(state,.false., sum(AllNoBorn), 'No. born')
+            call stats_out(state,.false., sum(AllNoDied), 'No. died')
+            call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
+!!            call stats_out(state,.false., AllGrowRate(1), 'Growth fac.')
+!!            call stats_out(state,.false., AccRat(1), 'Acc. rate')
             call stats_out(state,.false., TotImagTime, 'Im. time')
 #ifdef __CMPLX
-            call stats_out(state,.true., real(proje_iter(1)) + Hii, &
+            call stats_out(state,.true., real(proje_iter_tot) + Hii, &
                            'Tot. Proj. E')
-            call stats_out(state,.true., aimag(proje_iter(1)) + Hii, &
+            call stats_out(state,.true., aimag(proje_iter_tot) + Hii, &
                            'Tot. Proj. E')
 #else
-            call stats_out(state,.true., proje_iter(1) + Hii, 'Tot. Proj. E')
+            call stats_out(state,.true., proje_iter_tot + Hii, 'Tot. Proj. E')
 #endif
 
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
-#ifdef __PROG_LENOFSIGN
-            do p = 1, lenof_sign
+#ifdef __PROG_NUMRUNS
+            do p = 1, inum_runs
                 write(tmpc, '(i5)') p
                 call stats_out (state, .false., AllTotParts(p), &
                                 'Parts (' // trim(adjustl(tmpc)) // ")")
                 call stats_out (state, .false., AllNoatHF(p), &
                                 'Ref (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., DiagSft(p), &
+                                'Shift (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., proje_iter(p), &
+                                'ProjE (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., proje_iter(p) + Hii, &
+                                'Tot ProjE (' // trim(adjustl(tmpc)) // ")")
             end do
 #endif
 

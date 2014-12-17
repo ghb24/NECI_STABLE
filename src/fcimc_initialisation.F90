@@ -23,7 +23,9 @@ module fcimc_initialisation
                         trunc_nopen_max, MemoryFacInit, MaxNoatHF, HFPopThresh, &
                         tAddToInitiator, InitiatorWalkNo, tRestartHighPop, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
-                        RealCoeffExcitThresh
+                        RealCoeffExcitThresh, TargetGrowRate, &
+                        TargetGrowRateWalk, InputTargetGrowRate, &
+                        InputTargetGrowRateWalk
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -72,7 +74,6 @@ module fcimc_initialisation
                                        gen_excit_4ind_reverse
     use hash, only: DetermineDetNode, FindWalkerHash
     use SymExcit3, only: CountExcitations3, GenExcitations3
-    use constants, only: bits_n_int
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD , only : InitHistInitPops
     use nElRDMMod, only: DeallocateRDM, InitRDM, fill_rdm_diag_currdet_norm, &
@@ -109,7 +110,8 @@ module fcimc_initialisation
 
     implicit none
 
-    contains
+contains
+
 
     SUBROUTINE SetupParameters()
 
@@ -151,6 +153,10 @@ module fcimc_initialisation
         Trial_Init_Time%timer_name='TrialInitTime'
         kp_generate_time%timer_name='KPGenerateTime'
 
+        ! Initialise allocated arrays with input data
+        TargetGrowRate(:) = InputTargetGrowRate
+        TargetGrowRateWalk(:) = InputTargetGrowRateWalk
+
         IF(TDebug) THEN
 !This will open a file called LOCALPOPS-"iprocindex" on unit number 11 on every node.
             abstr=''
@@ -180,6 +186,7 @@ module fcimc_initialisation
                     endif
                 end if
             end if
+#ifndef __PROG_NUMRUNS
             if(inum_runs.eq.2) then
                 fcimcstats_unit2 = get_free_unit()
                 if (tReadPops) then
@@ -199,7 +206,7 @@ module fcimc_initialisation
                     endif
                 end if
             endif
-
+#endif
 
             IF(tTruncInitiator) THEN
                 initiatorstats_unit = get_free_unit()
@@ -478,6 +485,9 @@ module fcimc_initialisation
         ENDIF
         HFConn=nSingles+nDoubles
 
+        ! Set the DiagSft to its original value
+        DiagSft = InputDiagSft
+
         ! Initialise random number seed - since the seeds need to be different
         ! on different processors, subract processor rank from random number
         if(.not.tRestart) then
@@ -501,9 +511,6 @@ module fcimc_initialisation
                     call stop_all(t_r,"Iteration number/Time unknown for simulation - contact ghb")
                 endif
             endif
-        else
-            !Reset the DiagSft to its original value
-            DiagSft = InputDiagSft
         endif
         
         ! Option tRandomiseHashOrbs has now been removed.
@@ -1563,6 +1570,7 @@ module fcimc_initialisation
         integer :: run, DetHash
         real(dp) , dimension(lenof_sign) :: InitialSign
 
+        InitialPartVec = 0.0_dp
         do run=1,inum_runs
             InitialPartVec(run)=InitialPart
         enddo
@@ -1599,7 +1607,7 @@ module fcimc_initialisation
             call set_part_init_time(1, TotImagTime)
 
             ! Obtain the initial sign
-            InitialSign = 0
+            InitialSign = 0.0_dp
             if (tStartSinglePart) then
                 InitialSign(:) = InitialPartVec(:)
                 TotParts(:) = InitialPartVec(:)

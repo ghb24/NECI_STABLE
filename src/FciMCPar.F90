@@ -3,7 +3,6 @@ module FciMCParMod
 
     ! This module contains the main loop for FCIMC calculations, and the
     ! main per-iteration processing loop.
-
     use SystemData, only: nel, tUEG2, hist_spin_dist_iter
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
@@ -28,6 +27,7 @@ module FciMCParMod
     use trial_wf_gen, only: update_compare_trial_file, &
                             update_compare_trial_file
     use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
+    use bit_reps, only: set_flag, clr_flag, add_ilut_lists
     use exact_diag, only: perform_exact_diag_all_symmetry
     use semi_stoch_gen, only: write_most_pop_core_at_end
     use spectral_lanczos, only: perform_spectral_lanczos
@@ -37,7 +37,6 @@ module FciMCParMod
     use AnnihilationMod, only: DirectAnnihilation
     use exact_spectrum, only: get_exact_spectrum
     use determ_proj, only: perform_determ_proj
-    use bit_reps, only: set_flag, clr_flag
     use global_det_data, only: det_diagH
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
@@ -313,7 +312,7 @@ module FciMCParMod
                 ENDIF
                 IF(tTimeExit.and.(TotalTime8.ge.MaxTimeExit)) THEN
                     !Is it time to exit yet?
-                    write(iout,"(A,F8.2,A)") "Time limit reached for simulation of: ",MaxTimeExit/60.0," minutes - exiting..."
+                    write(iout,"(A,F8.2,A)") "Time limit reached for simulation of: ",MaxTimeExit/60.0_dp," minutes - exiting..."
                     NMCyc=Iter+StepsSft  
                     ! Set this to false so that this if statement won't be entered next time.
                     tTimeExit = .false.
@@ -475,9 +474,11 @@ module FciMCParMod
             write (iout,'(1X,a34,1X,i18,/)') 'Max number of determinants/process:',MaxWalkers
         end if
        
+#ifndef __PROG_NUMRUNS
         !Automatic error analysis
         call error_analysis(tSinglePartPhase(1),iBlockingIter(1),mean_ProjE_re,ProjE_Err_re,  &
             mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue)
+#endif
 
         call MPIBCast(ProjectionE)
         call MPIBCast(mean_ProjE_re)
@@ -490,7 +491,7 @@ module FciMCParMod
         call MPIBCast(tNoShiftValue)
         Weight=(0.0_dp)
         if (tTrialWavefunction) then
-            Energyxw = tot_trial_numerator(1)/tot_trial_denom(1) + Hii
+            Energyxw = tot_trial_numerator(1)/tot_trial_denom(1)
         else
             Energyxw=(ProjectionE(1)+Hii)
         end if
@@ -613,13 +614,13 @@ module FciMCParMod
         integer :: proc, pos
         real(dp) :: r, sgn(lenof_sign), prob_extra_walker
         integer :: determ_index, gen_ind
-        integer :: DetHash, FinalVal, clash, PartInd, k
+        integer :: DetHash, FinalVal, clash, PartInd, k, y
         type(ll_node), pointer :: TempNode
 
         call set_timer(Walker_Time,30)
 
-        MaxInitPopPos=0.0
-        MaxInitPopNeg=0.0
+        MaxInitPopPos=0.0_dp
+        MaxInitPopNeg=0.0_dp
         HighPopNeg=1
         HighPopPos=1
         FlagsCurr=0
@@ -785,11 +786,11 @@ module FciMCParMod
 
             !Debug output.
             IFDEBUGTHEN(FCIMCDebug,3)
-                if(lenof_sign.eq.2) then
-                    write(iout,"(A,I10,2f12.5,I5)",advance='no') "TW:", j,SignCurr,FlagsCurr
-                else
-                    write(iout,"(A,I10,f12.5,I5)",advance='no') "TW:", j,SignCurr,FlagsCurr
-                endif
+                write(iout, "(A,I10,a)", advance='no') 'TW:', j, '['
+                do part_type = 1, lenof_sign
+                    write(iout, "(f10.5)", advance='no') SignCurr(part_type)
+                end do
+                write(iout, '(a,i7)', advance='no') '] ', FlagsCurr
                 call WriteBitDet(iout,CurrentDets(:,j),.true.)
                 call neci_flush(iout) 
             ENDIFDEBUG
@@ -875,12 +876,12 @@ module FciMCParMod
                     endif
 
                     IFDEBUG(FCIMCDebug, 3) then
-#ifdef __CMPLX
-                        write(iout,"(a,2f12.5)",advance='no') &
-#else
-                        write(iout,"(a,f12.5)",advance='no') &
-#endif
-                            "SP:", child
+                        write(iout, '(a)', advance='no') 'SP: ['
+                        do y = 1, lenof_sign
+                            write(iout, '(f12.5)', advance='no') &
+                                child(y)
+                        end do
+                        write(iout, '("] ")', advance='no')
                         call write_det(6, nJ, .true.)
                         call neci_flush(iout) 
                     endif
@@ -1009,8 +1010,6 @@ module FciMCParMod
 
     subroutine test_routine()
 
-        use bit_reps, only: add_ilut_lists
-
         integer(n_int) :: list_1(0:NIfTot, 10)
         integer(n_int) :: list_2(0:NIfTot, 12)
         integer(n_int) :: list_out(0:NIfTot, 11)
@@ -1022,10 +1021,10 @@ module FciMCParMod
         real(dp) :: real_sign(lenof_sign)
 
         dets_1 =  (/28,   47,  1,   23,   32,  57/)
-        signs_1 = (/-1.0, 2.0, 1.3, 4.0, 1.0, 7.0/)
+        signs_1 = (/-1.0_dp, 2.0_dp, 1.3_dp, 4.0_dp, 1.0_dp, 7.0_dp/)
 
         dets_2 =  (/47,  23,  32,  38,  57,  63/)
-        signs_2 = (/7.0, 4.0, 1.0, 2.0, 1.2, 2.4/)
+        signs_2 = (/7.0_dp, 4.0_dp, 1.0_dp, 2.0_dp, 1.2_dp, 2.4_dp/)
 
         do i = 1, 6
             list_1(0,i) = dets_1(i) 
@@ -1064,7 +1063,6 @@ module FciMCParMod
         end do
 
     end subroutine test_routine
-
 
 END MODULE FciMCParMod
 

@@ -13,6 +13,7 @@ MODULE Logging
     use hist_data, only: iNoBins, tHistSpawn, BinRange
     use errors, only: Errordebug 
     use LoggingData
+    use spectral_data, only: tPrint_sl_eigenvecs
 
     IMPLICIT NONE
 
@@ -121,6 +122,7 @@ MODULE Logging
 !      tHF_S_D = .false.
 !      tHF_Ref_Explicit = .false.
       twrite_normalised_RDMs = .true. 
+      tWriteSpinFreeRDM = .false.
       twrite_RDMs_to_read = .false.
       tno_RDMs_to_read = .false.
       !tReadRDMAvPop=.false.
@@ -153,7 +155,11 @@ MODULE Logging
       tRDMInstEnergy=.true.
       tFullHFAv=.false.
 
+#ifdef __PROG_NUMRUNS
+      tFCIMCStats2 = .true.
+#else
       tFCIMCStats2 = .false.
+#endif
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -646,6 +652,9 @@ MODULE Logging
 ! want to take up disk space.
             twrite_normalised_RDMs = .false.
 
+        case("WRITE-SPIN-FREE-RDM")
+            tWriteSpinFreeRDM = .true.
+
         case("READRDMS")
 ! Read in the RDMs from a previous calculation, and continue accumulating the RDMs from the very beginning of this restart. 
             tReadRDMs = .true.
@@ -990,6 +999,9 @@ MODULE Logging
         case("FCIMCSTATS-2")
             ! Use the new-style FCIMCStats output.
             tFCIMCStats2 = .true.
+
+        case("PRINT-SL-EIGENVECS")
+            tPrint_sl_eigenvecs = .true.
 
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)

@@ -1103,10 +1103,6 @@ MODULE AnnihilationMod
                     do j = 1, lenof_sign
                         if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j)) .and. &
                             .not. test_flag (SpawnedParts(:,i), flag_make_initiator(j))) then
-                            ! Are we allowing particles to survive if there is an
-                            ! initiator with the same spatial structure?
-                            ! TODO: optimise this. Only call it once?
-
                             ! If this option is on, include the walker to be cancelled in the trial energy estimate.
                             if (tIncCancelledInitEnergy) call add_trial_energy_contrib(SpawnedParts(:,i), SignTemp(j))
 
@@ -1515,7 +1511,6 @@ MODULE AnnihilationMod
 
     END SUBROUTINE CalcHashTableStats
     
-
     SUBROUTINE CheckOrdering(DetArray,SignArray,NoDets,tCheckSignCoher)
         INTEGER :: NoDets,i,j
         INTEGER(KIND=n_int) :: DetArray(0:NIfTot,1:NoDets)
