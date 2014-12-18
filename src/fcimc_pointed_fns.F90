@@ -369,8 +369,8 @@ module fcimc_pointed_fns
 
         ! Count the number of children born
 #ifdef __CMPLX
-        NoBorn = NoBorn + sum(abs(child))
-        if (ic == 1) SpawnFromSing = SpawnFromSing + sum(abs(child))
+        NoBorn(1) = NoBorn(1) + sum(abs(child))
+        if (ic == 1) SpawnFromSing(1) = SpawnFromSing(1) + sum(abs(child))
         
         ! Count particle blooms, and their sources
         if (sum(abs(child)) > InitiatorWalkNo) then

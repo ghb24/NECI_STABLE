@@ -155,7 +155,11 @@ contains
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
         
         ! Sum the number of created children to use in acceptance ratio.
-        acceptances = acceptances + int(sum(abs(child)), kind(acceptances))
+#ifdef __CMPLX
+        acceptances(1) = acceptances(1) + sum(abs(child)), kind(acceptances)
+#else
+        acceptances = acceptances + abs(child)
+#endif
     end subroutine
 
 
@@ -1364,7 +1368,7 @@ contains
         ! Update death counter
         iter_data%ndied = iter_data%ndied + min(iDie, abs(RealwSign))
 #ifdef __CMPLX
-        NoDied = NoDied + sum(min(iDie, abs(RealwSign)))
+        NoDied(1) = NoDied(1) + sum(min(iDie, abs(RealwSign)))
 #else
         NoDied = NoDied + min(iDie, abs(RealwSign))
 #endif
@@ -1372,7 +1376,7 @@ contains
         ! Count any antiparticles
         iter_data%nborn = iter_data%nborn + max(iDie - abs(RealwSign), 0.0_dp)
 #ifdef __CMPLX
-        NoBorn = NoBorn + sum(max(iDie - abs(RealwSign), 0.0_dp))
+        NoBorn(1) = NoBorn(1) + sum(max(iDie - abs(RealwSign), 0.0_dp))
 #else
         NoBorn = NoBorn + max(iDie - abs(RealwSign), 0.0_dp)
 #endif
