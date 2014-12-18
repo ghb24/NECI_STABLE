@@ -156,7 +156,7 @@ contains
         
         ! Sum the number of created children to use in acceptance ratio.
 #ifdef __CMPLX
-        acceptances(1) = acceptances(1) + sum(abs(child)), kind(acceptances)
+        acceptances(1) = acceptances(1) + sum(abs(child))
 #else
         acceptances = acceptances + abs(child)
 #endif

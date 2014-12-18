@@ -657,6 +657,7 @@ MODULE AnnihilationMod
         integer, intent(inout) :: Parent_Array_Ind
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp) :: new_sgn, cum_sgn, updated_sign, sgn_prod
+        integer :: run
 
         ! Obtain the signs and sign product. Ignore new particle if zero.
         new_sgn = extract_part_sign (new_det, part_type)
@@ -733,11 +734,8 @@ MODULE AnnihilationMod
 
         ! Update annihilation statistics (is this really necessary?)
         if (sgn_prod < 0.0_dp) then
-#ifdef __CMPLX
-            Annihilated(1) = Annihilated(1) + 2*sum(min(abs(cum_sgn), abs(new_sgn)))
-#else
-            Annihilated = Annihilated + 2*min(abs(cum_sgn), abs(new_sgn))
-#endif
+            run = part_type_to_run(part_type)
+            Annihilated = Annihilated(run) + 2*min(abs(cum_sgn), abs(new_sgn))
             iter_data%nannihil(part_type) = iter_data%nannihil(part_type)&
                 + 2 * min(abs(cum_sgn), abs(new_sgn))
         endif
