@@ -1777,6 +1777,7 @@ r_loop: do while(.not.tStoreDet)
         integer(int64) :: TempTotParts(lenof_sign),TempCurrWalkers
         INTEGER :: TempInitWalkers,error,i,j,l,total,ierr,MemoryAlloc,Tag,Proc,CurrWalkers,ii
         INTEGER , DIMENSION(lenof_sign) :: TempSign
+        integer(int64) :: TempSign64
         real(dp) :: RealTempSign(lenof_sign)
         integer(int64) :: iLutTemp64(0:nBasis/64+1)
         INTEGER :: iLutTemp32(0:nBasis/32+1)
@@ -2084,7 +2085,8 @@ r_loop: do while(.not.tStoreDet)
                 ENDIF
             ENDIF
             do j=1,lenof_sign
-                RealTempSign(j) = transfer(TempSign(j), RealTempSign(j))
+                TempSign64 = TempSign(j)
+                RealTempSign(j) = transfer(TempSign64, RealTempSign(j))
             enddo
 
 #ifdef __INT64
@@ -2304,6 +2306,7 @@ r_loop: do while(.not.tStoreDet)
         REAL(dp) :: TempTotParts(lenof_sign)
         INTEGER :: TempInitWalkers,error,i,j,l,total,ierr,MemoryAlloc,Tag,Proc,CurrWalkers,ii
         INTEGER , DIMENSION(lenof_sign) :: TempSign
+        integer(int64) :: TempSign64
         REAL(dp) , DIMENSION(lenof_sign) :: RealTempSign
         integer(int64) :: iLutTemp64(0:nBasis/64+1)
         INTEGER :: iLutTemp32(0:nBasis/32+1)
@@ -2532,7 +2535,8 @@ r_loop: do while(.not.tStoreDet)
                 ENDIF
             ENDIF
             do j=1,lenof_sign
-                RealTempSign(j) = transfer(TempSign(j), RealTempSign(j))
+                TempSign64 = TempSign(j)
+                RealTempSign(j) = transfer(TempSign64, RealTempSign(j))
             enddo
 
 #ifdef __INT64

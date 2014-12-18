@@ -444,23 +444,22 @@ module fcimc_pointed_fns
 
         if ((tRealCoeffByExcitLevel .and. (WalkExcitLevel .le. RealCoeffExcitThresh)) &
             .or. tAllRealCoeff ) then
-            do i=1, lenof_sign
-                if(inum_runs.eq.2) then
-                    ndie(i)=fac(i)*abs(realwSign(i))
-                else
-                    ndie(i)=fac(1)*abs(realwSign(i))
-                endif
-            enddo
+#ifdef __CMPLX
+            ndie=fac(1)*abs(realwSign)
+#else
+            ndie=fac*abs(realwSign)
+#endif
+
         else
             do i=1,lenof_sign
                 
                 ! Subtract the current value of the shift, and multiply by tau.
                 ! If there are multiple particles, scale the probability.
-                if(inum_runs.eq.2) then
-                    rat = fac(i) * abs(realwSign(i))
-                else
+#ifdef __CMPLX
                     rat = fac(1) * abs(realwSign(i))
-                endif
+#else
+                    rat = fac(i) * abs(realwSign(i))
+#endif
 
                 ndie(i) = real(int(rat), dp)
                 rat = rat - ndie(i)
