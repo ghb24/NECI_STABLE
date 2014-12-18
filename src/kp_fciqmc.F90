@@ -340,7 +340,7 @@ contains
         type(kp_fciqmc_data), intent(inout) :: kp
 
         integer :: iiter, idet, ireplica, ispawn, ierr
-        integer :: iconfig, irepeat, ireport
+        integer :: iconfig, irepeat, ireport, nlowdin
         integer :: nspawn, parent_flags, unused_flags, ex_level_to_ref
         integer :: TotWalkersNew, determ_ind, ic, ex(2,2)
         integer :: nI_parent(nel), nI_child(nel), unused_vecslot
@@ -349,8 +349,7 @@ contains
         real(dp) :: prob, unused_rdm_real, parent_hdiag
         real(dp) :: child_sign(lenof_sign), parent_sign(lenof_sign)
         real(dp) :: unused_sign1(lenof_sign), unused_sign2(lenof_sign)
-        integer, allocatable :: nlowdin(:)
-        real(dp), allocatable :: lowdin_evals(:,:,:)
+        real(dp), allocatable :: lowdin_evals(:,:)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
         logical :: tParity, tSoftExitFound, tSingBiasChange, tWritePopsFound
         HElement_t :: HElGen
@@ -369,12 +368,12 @@ contains
 
         allocate(overlap_matrices(kp%nvecs, kp%nvecs, kp%nrepeats, kp%nreports), stat=ierr)
         allocate(hamil_matrices(kp%nvecs, kp%nvecs, kp%nrepeats, kp%nreports), stat=ierr)
-        allocate(nlowdin(kp%nreports), stat=ierr)
-        allocate(lowdin_evals(kp%nvecs, kp%nvecs, kp%nreports), stat=ierr)
+        allocate(lowdin_evals(kp%nvecs, kp%nvecs), stat=ierr)
         overlap_matrices = 0.0_dp
         hamil_matrices = 0.0_dp
-        nlowdin = 0
         lowdin_evals = 0.0_dp
+
+        call write_ex_state_header(kp%nvecs)
 
         outer_loop: do irepeat = 1, kp%nrepeats
 
@@ -408,7 +407,8 @@ contains
                     call average_kp_matrices_wrapper(iter, irepeat, overlap_matrices(:,:,1:irepeat,ireport), &
                                                      hamil_matrices(:,:,1:irepeat,ireport), kp_overlap_mean, &
                                                      kp_hamil_mean, kp_overlap_se, kp_hamil_se)
-                    call find_and_output_lowdin_eigv(iter, kp%nvecs, nlowdin(ireport), lowdin_evals(:,:,ireport))
+                    call find_and_output_lowdin_eigv(iter, kp%nvecs, nlowdin, lowdin_evals)
+                    call write_ex_state_data(iter, nlowdin, lowdin_evals)
                 end if
 
                 do iiter = 1, kp%niters(ireport)
@@ -566,15 +566,12 @@ contains
 
         end do outer_loop ! Over all repeats of the whole calculation.
 
-        call write_final_ex_state_data(kp%niters, nlowdin, lowdin_evals)
-
         ! Calculate data for the testsuite.
         s_sum = sum(kp_overlap_mean)
         h_sum = sum(kp_hamil_mean)
 
         deallocate(overlap_matrices)
         deallocate(hamil_matrices)
-        deallocate(nlowdin)
         deallocate(lowdin_evals)
 
         if (tPopsFile) call WriteToPopsfileParOneArr(CurrentDets,TotWalkers)

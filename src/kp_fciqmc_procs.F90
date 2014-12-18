@@ -1845,42 +1845,53 @@ contains
 
     end subroutine print_amplitudes_kp
 
-    subroutine write_final_ex_state_data(niters, nlowdin, lowdin_evals)
+    subroutine write_ex_state_header(nvecs)
 
-        integer, intent(in) :: niters(:)
-        integer, intent(in) :: nlowdin(:)
-        real(dp), intent(in) :: lowdin_evals(:,:,:)
-
-        integer :: ivec, ireport, nvecs, nreports
+        integer, intent(in) :: nvecs
+        integer :: ivec
         integer :: temp_unit
         character(len=*), parameter :: filename = "EIGV_DATA"
 
         temp_unit = get_free_unit()
         open(temp_unit, file=trim(filename), status='replace')
 
-        nreports = size(nlowdin,1)
-        nvecs = size(lowdin_evals,1)
-      
         ! Write header.
         write(temp_unit,'("#",1X,"Iteration")',advance='no')
         do ivec = 1, nvecs
-            write(temp_unit,'(11X,"Energy",1X,i2)',advance='no') ivec
-        end do
-
-        do ireport = 1, nreports
-            write(temp_unit,'(/,2X,i9)',advance='no') sum(niters(1:ireport-1))
-
-            do ivec = 1, nlowdin(ireport)
-                write(temp_unit,'(1X,es19.12)',advance='no') lowdin_evals(ivec, nlowdin(ireport), ireport)
-            end do
-            do ivec = nlowdin(ireport)+1, nvecs
-                write(temp_unit,'(9X,3a,7X)',advance='no') "NaN"
-            end do
+            write(temp_unit,'(13X,"Energy",1X,i2)',advance='no') ivec
         end do
 
         close(temp_unit)
 
-    end subroutine write_final_ex_state_data
+    end subroutine write_ex_state_header
+
+    subroutine write_ex_state_data(niters, nlowdin, lowdin_evals)
+
+        integer, intent(in) :: niters
+        integer, intent(in) :: nlowdin
+        real(dp), intent(in) :: lowdin_evals(:,:)
+
+        integer :: ivec, nvecs
+        integer :: temp_unit
+        character(len=*), parameter :: filename = "EIGV_DATA"
+
+        temp_unit = get_free_unit()
+        open(temp_unit, file=trim(filename), status='old', position='append')
+
+        nvecs = size(lowdin_evals,1)
+
+        write(temp_unit,'(2X,i9)',advance='no') niters
+
+        do ivec = 1, nlowdin
+            write(temp_unit,'(3X,es19.12)',advance='no') lowdin_evals(ivec, nlowdin)
+        end do
+        do ivec = nlowdin+1, nvecs
+            write(temp_unit,'(12X,3a,7X)',advance='no') "NaN"
+        end do
+
+        close(temp_unit)
+
+    end subroutine write_ex_state_data
 
     subroutine write_kpfciqmc_testsuite_data(s_sum, h_sum)
 
