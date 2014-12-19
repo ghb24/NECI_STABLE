@@ -307,7 +307,7 @@ contains
                 ! Sum the overlap and projected Hamiltonian matrices from the various processors.
                 call communicate_kp_matrices(overlap_matrix, hamil_matrix)
 
-                call output_kp_matrices_wrapper(iconfig, overlap_matrices, hamil_matrices)
+                if (iProcIndex == root) call output_kp_matrices_wrapper(iconfig, overlap_matrices, hamil_matrices)
 
             end do ! Over all repeats for a fixed initial walker configuration.
 
@@ -373,12 +373,11 @@ contains
         hamil_matrices = 0.0_dp
         lowdin_evals = 0.0_dp
 
-        call write_ex_state_header(kp%nvecs)
-
         outer_loop: do irepeat = 1, kp%nrepeats
 
             call init_kp_fciqmc_repeat(iconfig, irepeat, kp%nrepeats, kp%nvecs)
             call write_fcimcstats2(iter_data_fciqmc)
+            call write_ex_state_header(kp%nvecs)
 
             do ireport = 1, kp%nreports
 
@@ -401,9 +400,9 @@ contains
                 ! Sum the overlap and projected Hamiltonian matrices from the various processors.
                 call communicate_kp_matrices(overlap_matrix, hamil_matrix)
 
-                call output_kp_matrices_wrapper(iter, overlap_matrices(:,:,:,ireport), hamil_matrices(:,:,:,ireport))
-
                 if (iProcIndex == root) then
+                    call output_kp_matrices_wrapper(iter, overlap_matrices(:,:,1:irepeat,ireport), &
+                                                            hamil_matrices(:,:,1:irepeat,ireport))
                     call average_kp_matrices_wrapper(iter, irepeat, overlap_matrices(:,:,1:irepeat,ireport), &
                                                      hamil_matrices(:,:,1:irepeat,ireport), kp_overlap_mean, &
                                                      kp_hamil_mean, kp_overlap_se, kp_hamil_se)

@@ -1349,10 +1349,8 @@ contains
         real(dp), intent(in) :: overlap_mats(:,:,:)
         real(dp), intent(in) :: hamil_mats(:,:,:)
 
-        if (iProcIndex == root) then
-            call output_kp_matrices(config_label, 'overlap', overlap_mats)
-            call output_kp_matrices(config_label, 'hamil  ', hamil_mats)
-        end if
+        call output_kp_matrices(config_label, 'overlap', overlap_mats)
+        call output_kp_matrices(config_label, 'hamil  ', hamil_mats)
 
     end subroutine output_kp_matrices_wrapper
 
