@@ -660,6 +660,7 @@ MODULE AnnihilationMod
         integer, intent(inout) :: Parent_Array_Ind
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp) :: new_sgn, cum_sgn, updated_sign, sgn_prod
+        integer :: run
 
         ! Obtain the signs and sign product. Ignore new particle if zero.
         new_sgn = extract_part_sign (new_det, part_type)
@@ -736,7 +737,8 @@ MODULE AnnihilationMod
 
         ! Update annihilation statistics (is this really necessary?)
         if (sgn_prod < 0.0_dp) then
-            Annihilated = Annihilated + 2*min(abs(cum_sgn), abs(new_sgn))
+            run = part_type_to_run(part_type)
+            Annihilated = Annihilated(run) + 2*min(abs(cum_sgn), abs(new_sgn))
             iter_data%nannihil(part_type) = iter_data%nannihil(part_type)&
                 + 2 * min(abs(cum_sgn), abs(new_sgn))
         endif
@@ -809,7 +811,7 @@ MODULE AnnihilationMod
         INTEGER(KIND=n_int) , POINTER :: PointTemp(:,:)
         LOGICAL :: tSuccess,tSuc,tPrevOcc, tAlwaysAllow
         character(len=*), parameter :: this_routine="AnnihilateSpawnedParts"
-        integer :: comp
+        integer :: comp, run
         type(ll_node), pointer :: TempNode
 
         if(.not.bNodeRoot) return  !Only node roots to do this.
@@ -968,6 +970,7 @@ MODULE AnnihilationMod
                     if(sum(abs(SpawnedSign)) .ne. 0.0_dp) ToRemove=ToRemove+1
 
                     do j=1,lenof_sign   !Run over real (& imag ) components
+                        run = part_type_to_run(j)
 #ifdef __DOUBLERUN
                         if (CurrentSign(j).eq.0) then
                             !This determinant is actually /unoccupied/ for the walker type/set we're considering
@@ -988,7 +991,7 @@ MODULE AnnihilationMod
 
                             ! This indicates that the particle has found the same particle of 
                             ! opposite sign to annihilate with
-                            Annihilated(j)=Annihilated(j)+2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
+                            Annihilated(run)=Annihilated(run)+2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
                             iter_data%nannihil(j) = iter_data%nannihil(j) + &
                                                2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
 
@@ -1114,6 +1117,7 @@ MODULE AnnihilationMod
                     if (.not. IsUnoccDet(SignTemp)) tPrevOcc=.true.   
                         
                     do j = 1, lenof_sign
+                        run = part_type_to_run(j)
                         if (.not. test_flag (SpawnedParts(:,i), flag_parent_initiator(j)) .and. &
                             .not. test_flag (SpawnedParts(:,i), flag_make_initiator(j))) then
                             ! If this option is on, include the walker to be cancelled in the trial energy estimate.
@@ -1146,7 +1150,7 @@ MODULE AnnihilationMod
                                         r = genrand_real2_dSFMT ()
                                         if(pRemove.gt.r) then
                                             !Remove determinant
-                                            NoRemoved(j) = NoRemoved(j)+abs(SignTemp(j))
+                                            NoRemoved(run) = NoRemoved(run)+abs(SignTemp(j))
                                             iter_data%nremoved(j) = iter_data%nremoved(j) &
                                             + abs(SignTemp(j))
                                             SignTemp(j) = 0.0_dp
@@ -1154,7 +1158,7 @@ MODULE AnnihilationMod
                                             !Also cancel the has_been_initiator_flag
                                             call clear_has_been_initiator(CurrentDets(:,j),flag_has_been_initiator(1))
                                         elseif(tEnhanceRemainder) then
-                                            NoBorn(j) = NoBorn(j) + InitiatorOccupiedThresh - abs(SignTemp(j))
+                                            NoBorn(run) = NoBorn(run) + InitiatorOccupiedThresh - abs(SignTemp(j))
                                             iter_data%nborn(j) = iter_data%nborn(j) &
                                             + InitiatorOccupiedThresh - abs(SignTemp(j))
                                             SignTemp(j) = sign(InitiatorOccupiedThresh, SignTemp(j))
@@ -1170,7 +1174,7 @@ MODULE AnnihilationMod
                             r = genrand_real2_dSFMT ()
                             if (pRemove .gt. r) then
                                 !Remove this walker
-                                NoRemoved(j) = NoRemoved(j) + abs(SignTemp(j))
+                                NoRemoved(run) = NoRemoved(run) + abs(SignTemp(j))
                                 !Annihilated = Annihilated + abs(SignTemp(j))
                                 !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
                                 iter_data%nremoved(j) = iter_data%nremoved(j) &
@@ -1178,7 +1182,7 @@ MODULE AnnihilationMod
                                 SignTemp(j) = 0.0_dp
                                 call nullify_ilut_part (SpawnedParts(:,i), j)
                             elseif (tEnhanceRemainder) then
-                                NoBorn(j) = NoBorn(j) + OccupiedThresh - abs(SignTemp(j))
+                                NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
                                 iter_data%nborn(j) = iter_data%nborn(j) &
                                           + OccupiedThresh - abs(SignTemp(j))
                                 SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
@@ -1210,13 +1214,14 @@ MODULE AnnihilationMod
                     if (.not. IsUnoccDet(SignTemp)) tPrevOcc=.true. 
                     
                     do j = 1, lenof_sign
+                        run = part_type_to_run(j)
                         if ((abs(SignTemp(j)).gt.0.0_dp) .and. (abs(SignTemp(j)).lt.OccupiedThresh)) then
                             !We remove this walker with probability 1-RealSignTemp
                             pRemove=(OccupiedThresh-abs(SignTemp(j)))/OccupiedThresh
                             r = genrand_real2_dSFMT ()
                             if (pRemove .gt. r) then
                                 !Remove this walker
-                                NoRemoved(j) = NoRemoved(j) + abs(SignTemp(j))
+                                NoRemoved(run) = NoRemoved(run) + abs(SignTemp(j))
                                 !Annihilated = Annihilated + abs(SignTemp(j))
                                 !iter_data%nannihil = iter_data%nannihil + abs(SignTemp(j))
                                 iter_data%nremoved(j) = iter_data%nremoved(j) &
@@ -1224,7 +1229,7 @@ MODULE AnnihilationMod
                                 SignTemp(j) = 0
                                 call nullify_ilut_part (SpawnedParts(:,i), j)
                             elseif (tEnhanceRemainder) then
-                                NoBorn(j) = NoBorn(j) + OccupiedThresh - abs(SignTemp(j))
+                                NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(SignTemp(j))
                                 iter_data%nborn(j) = iter_data%nborn(j) &
                                             + OccupiedThresh - abs(SignTemp(j))
                                 SignTemp(j) = sign(OccupiedThresh, SignTemp(j))
@@ -1395,7 +1400,7 @@ MODULE AnnihilationMod
         INTEGER :: i, j, AnnihilatedDet
         real(dp) :: CurrentSign(lenof_sign), SpawnedSign(lenof_sign)
         real(dp) :: pRemove, r
-        integer :: nI(nel)
+        integer :: nI(nel), run
         logical :: tIsStateDeterm
         character(*), parameter :: t_r = 'CalcHashTableStats'
 
@@ -1418,6 +1423,7 @@ MODULE AnnihilationMod
                     AnnihilatedDet=AnnihilatedDet+1 
                 ELSE
                     do j=1, lenof_sign
+                        run = part_type_to_run(j)
                         if (.not. tIsStateDeterm) then
                             !!!!!
                             if(tInitOccThresh.and.test_flag(CurrentDets(:,j), flag_has_been_initiator(1)))then
@@ -1427,7 +1433,7 @@ MODULE AnnihilationMod
                                 r = genrand_real2_dSFMT ()
                                 if (pRemove .gt. r) then
                                     !Remove this walker
-                                    NoRemoved(j) = NoRemoved(j) + abs(CurrentSign(j))
+                                    NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
                                     iter_data%nremoved(j) = iter_data%nremoved(j) &
                                                           + abs(CurrentSign(j))
                                     CurrentSign(j) = 0.0_dp
@@ -1440,7 +1446,7 @@ MODULE AnnihilationMod
                                         FreeSlot(iEndFreeSlot)=i
                                     end if
                                 elseif (tEnhanceRemainder) then
-                                    NoBorn(j) = NoBorn(j) + InitiatorOccupiedThresh - abs(CurrentSign(j))
+                                    NoBorn(run) = NoBorn(run) + InitiatorOccupiedThresh - abs(CurrentSign(j))
                                     iter_data%nborn(j) = iter_data%nborn(j) &
                                          + InitiatorOccupiedThresh - abs(CurrentSign(j))
                                     CurrentSign(j) = sign(InitiatorOccupiedThresh, CurrentSign(j))
@@ -1454,7 +1460,7 @@ MODULE AnnihilationMod
                                 r = genrand_real2_dSFMT ()
                                 if (pRemove .gt. r) then
                                     !Remove this walker
-                                    NoRemoved(j) = NoRemoved(j) + abs(CurrentSign(j))
+                                    NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
                                     iter_data%nremoved(j) = iter_data%nremoved(j) &
                                                           + abs(CurrentSign(j))
                                     CurrentSign(j) = 0.0_dp
@@ -1466,7 +1472,7 @@ MODULE AnnihilationMod
                                         FreeSlot(iEndFreeSlot)=i
                                     end if
                                 elseif (tEnhanceRemainder) then
-                                    NoBorn(j) = NoBorn(j) + OccupiedThresh - abs(CurrentSign(j))
+                                    NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(CurrentSign(j))
                                     iter_data%nborn(j) = iter_data%nborn(j) &
                                          + OccupiedThresh - abs(CurrentSign(j))
                                     CurrentSign(j) = sign(OccupiedThresh, CurrentSign(j))
@@ -1575,7 +1581,7 @@ MODULE AnnihilationMod
         integer, intent(inout) :: TotWalkersNew
         real(dp) :: CurrentSign(lenof_sign), SpawnedSign(lenof_sign)
         real(dp) :: HDiag, pRemove, r
-        INTEGER :: i,DetsMerged,nJ(NEl),part_type, ExcitLevelCurr, j
+        INTEGER :: i,DetsMerged,nJ(NEl),part_type, ExcitLevelCurr, j, run
         integer :: trial_merged, con_merged, i_trial, i_conn
         LOGICAL :: TestClosedShellDet
         logical :: tIsStateDeterm, tTrialState, tConState
@@ -1609,6 +1615,7 @@ MODULE AnnihilationMod
                 call extract_sign(CurrentDets(:,i),CurrentSign)
                 if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
                 do j=1, lenof_sign
+                    run = part_type_to_run(j)
                     if (.not. tIsStateDeterm) then
                         !!!
                         if(tInitOccThresh.and.test_flag(CurrentDets(:,j),flag_has_been_initiator(1)))then
@@ -1618,7 +1625,7 @@ MODULE AnnihilationMod
                             r = genrand_real2_dSFMT ()
                             if (pRemove .gt. r) then
                                 !Remove this walker
-                                NoRemoved(j) = NoRemoved(j) + abs(CurrentSign(j))
+                                NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
                                 !Annihilated = Annihilated + abs(CurrentSign(j))
                                 !iter_data%nannihil = iter_data%nannihil + abs(CurrentSign(j))
                                 iter_data%nremoved(j) = iter_data%nremoved(j) &
@@ -1629,7 +1636,7 @@ MODULE AnnihilationMod
                             elseif (tEnhanceRemainder) then
                                 ! SDS: TODO: Account for the TotParts Changes
                                 ! Should we always do this here? Probably. Should
-                                NoBorn(j) = NoBorn(j) + InitiatorOccupiedThresh - abs(CurrentSign(j))
+                                NoBorn(run) = NoBorn(run) + InitiatorOccupiedThresh - abs(CurrentSign(j))
                                 iter_data%nborn(j) = iter_data%nborn(j) &
                                          + InitiatorOccupiedThresh - abs(CurrentSign(j))
                                 CurrentSign(j) = sign(InitiatorOccupiedThresh, CurrentSign(j))
@@ -1643,7 +1650,7 @@ MODULE AnnihilationMod
                             r = genrand_real2_dSFMT ()
                             if (pRemove .gt. r) then
                                 !Remove this walker
-                                NoRemoved(j) = NoRemoved(j) + abs(CurrentSign(j))
+                                NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
                                 !Annihilated = Annihilated + abs(CurrentSign(j))
                                 !iter_data%nannihil = iter_data%nannihil + abs(CurrentSign(j))
                                 iter_data%nremoved(j) = iter_data%nremoved(j) &
@@ -1653,7 +1660,7 @@ MODULE AnnihilationMod
                             elseif (tEnhanceRemainder) then
                                 ! SDS: TODO: Account for the TotParts Changes
                                 ! Should we always do this here? Probably. Should
-                                NoBorn(j) = NoBorn(j) + OccupiedThresh - abs(CurrentSign(j))
+                                NoBorn(run) = NoBorn(run) + OccupiedThresh - abs(CurrentSign(j))
                                 iter_data%nborn(j) = iter_data%nborn(j) &
                                          + OccupiedThresh - abs(CurrentSign(j))
                                 CurrentSign(j) = sign(OccupiedThresh, CurrentSign(j))
