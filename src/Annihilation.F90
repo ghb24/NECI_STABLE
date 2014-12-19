@@ -758,11 +758,11 @@ MODULE AnnihilationMod
         real(dp), dimension(lenof_sign) :: SpawnedSign, CurrentSign, SignProd
         logical :: tSuccess
 
-        ! Copy across the weights from partial_determ_vector (the result of the deterministic projection)
+        ! Copy across the weights from partial_determ_vecs (the result of the deterministic projection)
         ! to CurrentDets:
         do i = 1, determ_proc_sizes(iProcIndex)
             call extract_sign(CurrentDets(:, indices_of_determ_states(i)), CurrentSign)
-            SpawnedSign = partial_determ_vector(:,i)
+            SpawnedSign = partial_determ_vecs(:,i)
             call encode_sign(CurrentDets(:, indices_of_determ_states(i)), SpawnedSign + CurrentSign)
 
             ! Update stats:

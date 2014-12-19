@@ -411,15 +411,12 @@ MODULE FciMCData
 
       ! This stores all the amplitudes of the walkers in the deterministic space. This vector has the size of the part
       ! of the deterministic space stored on *this* processor only. It is therefore used to store the deterministic vector
-      ! on this processor, before it is combined to give the whole vector, which is stored in full_determ_vector.
+      ! on this processor, before it is combined to give the whole vector, which is stored in full_determ_vecs.
       ! Later in the iteration, it is also used to store the result of the multiplication by the core Hamiltonian on
-      ! full_determ_vector.
-      real(dp), allocatable, dimension(:,:) :: partial_determ_vector
-      real(dp), allocatable, dimension(:,:) :: full_determ_vector
-      real(dp), allocatable, dimension(:,:) :: full_determ_vector_av
-
-      real(dp), allocatable, dimension(:,:) :: partial_determ_vecs_kp
-      real(dp), allocatable, dimension(:,:) :: full_determ_vecs_kp
+      ! full_determ_vecs.
+      real(dp), allocatable, dimension(:,:) :: partial_determ_vecs
+      real(dp), allocatable, dimension(:,:) :: full_determ_vecs
+      real(dp), allocatable, dimension(:,:) :: full_determ_vecs_av
 
       ! determ_proc_sizes(i) holds the core space size on processor i.
       integer(MPIArg), allocatable, dimension(:) :: determ_proc_sizes

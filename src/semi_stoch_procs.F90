@@ -17,15 +17,13 @@ module semi_stoch_procs
                          EncodeBitDet
     use Determinants, only: get_helement, GetH0Element3, GetH0Element4
     use FciMCData, only: ilutHF, Hii, determ_proc_sizes, determ_proc_indices, &
-                         full_determ_vector, partial_determ_vector, &
+                         full_determ_vecs, partial_determ_vecs, &
                          determ_space_size, SpawnedParts, SemiStoch_Comms_Time, &
                          SemiStoch_Multiply_Time, TotWalkers, CurrentDets, CoreTag, &
                          PDetermTag, FDetermTag, IDetermTag, indices_of_determ_states, &
                          HashIndex, core_space, CoreSpaceTag, ll_node, nWalkerHashes, &
-                         full_determ_vector_av, tFill_RDM, determ_space_size_int, &
-
-                         core_ham_diag, DavidsonTag, Fii, HFDet, PreviousCycles, &
-                         partial_determ_vecs_kp, full_determ_vecs_kp
+                         full_determ_vecs_av, tFill_RDM, determ_space_size_int, &
+                         core_ham_diag, DavidsonTag, Fii, HFDet, PreviousCycles
     use hash, only: DetermineDetNode, FindWalkerHash, clear_hash_table
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
@@ -50,7 +48,7 @@ contains
 
     subroutine determ_projection()
 
-        ! This subroutine gathers together the partial_determ_vectors from each processor so
+        ! This subroutine gathers together partial_determ_vecs from each processor so
         ! that the full vector for the whole deterministic space is stored on each processor.
         ! It then performs the deterministic multiplication of the projector on this full vector.
 
@@ -60,7 +58,7 @@ contains
 
         call set_timer(SemiStoch_Comms_Time)
 
-        call MPIAllGatherV(partial_determ_vector, full_determ_vector, &
+        call MPIAllGatherV(partial_determ_vecs, full_determ_vecs, &
                             determ_proc_sizes, determ_proc_indices)
 
         call halt_timer(SemiStoch_Comms_Time)
@@ -75,24 +73,24 @@ contains
 
             ! Perform the multiplication.
 
-            partial_determ_vector = 0.0_dp
+            partial_determ_vecs = 0.0_dp
 
             do i = 1, determ_proc_sizes(iProcIndex)
                 do j = 1, sparse_core_ham(i)%num_elements
-                    partial_determ_vector(:,i) = partial_determ_vector(:,i) - &
-                        sparse_core_ham(i)%elements(j)*full_determ_vector(:,sparse_core_ham(i)%positions(j))
+                    partial_determ_vecs(:,i) = partial_determ_vecs(:,i) - &
+                        sparse_core_ham(i)%elements(j)*full_determ_vecs(:,sparse_core_ham(i)%positions(j))
                 end do
             end do
 
-            ! Now add shift*full_determ_vector to account for the shift, not stored in
+            ! Now add shift*full_determ_vecs to account for the shift, not stored in
             ! sparse_core_ham.
             do i = 1, determ_proc_sizes(iProcIndex)
-                partial_determ_vector(:,i) = partial_determ_vector(:,i) + &
-                   DiagSft * full_determ_vector(:,i+determ_proc_indices(iProcIndex))
+                partial_determ_vecs(:,i) = partial_determ_vecs(:,i) + &
+                   DiagSft * full_determ_vecs(:,i+determ_proc_indices(iProcIndex))
             end do
 
             ! Now multiply the vector by tau to get the final projected vector.
-            partial_determ_vector = partial_determ_vector * tau
+            partial_determ_vecs = partial_determ_vecs * tau
 
         end if
 
@@ -100,7 +98,11 @@ contains
 
     end subroutine determ_projection
 
-    subroutine determ_projection_kp_hamil()
+    subroutine determ_projection_kp_hamil(partial_vecs, full_vecs, determ_sizes, determ_disps)
+
+        real(dp), allocatable, intent(inout) :: partial_vecs(:,:)
+        real(dp), allocatable, intent(inout) :: full_vecs(:,:)
+        integer(MPIArg), allocatable, intent(in) :: determ_sizes(:), determ_disps(:)
 
         integer :: i, j, info, ierr
 
@@ -108,8 +110,7 @@ contains
 
         call set_timer(SemiStoch_Comms_Time)
 
-        call MPIAllGatherV(partial_determ_vecs_kp, full_determ_vecs_kp, &
-                            determ_proc_sizes, determ_proc_indices)
+        call MPIAllGatherV(partial_vecs, full_vecs, determ_sizes, determ_disps)
 
         call halt_timer(SemiStoch_Comms_Time)
 
@@ -117,16 +118,16 @@ contains
 
         call set_timer(SemiStoch_Multiply_Time)
 
-        if (determ_proc_sizes(iProcIndex) >= 1) then
+        if (determ_sizes(iProcIndex) >= 1) then
             ! Start with this because sparse_core_hamil has Hii taken off, but actually we
             ! don't want the projected Hamiltonian to be relative to the HF determinant.
-            partial_determ_vecs_kp = Hii*full_determ_vecs_kp(:, determ_proc_indices(iProcIndex)+1:&
-                                              determ_proc_indices(iProcIndex)+determ_proc_sizes(iProcIndex))
+            partial_vecs = Hii*full_vecs(:, determ_disps(iProcIndex)+1:&
+                                            determ_disps(iProcIndex)+determ_sizes(iProcIndex))
 
-            do i = 1, determ_proc_sizes(iProcIndex)
+            do i = 1, determ_sizes(iProcIndex)
                 do j = 1, sparse_core_ham(i)%num_elements
-                    partial_determ_vecs_kp(:,i) = partial_determ_vecs_kp(:,i) + &
-                        sparse_core_ham(i)%elements(j)*full_determ_vecs_kp(:,sparse_core_ham(i)%positions(j))
+                    partial_vecs(:,i) = partial_vecs(:,i) + &
+                        sparse_core_ham(i)%elements(j)*full_vecs(:,sparse_core_ham(i)%positions(j))
                 end do
             end do
         end if
@@ -146,7 +147,7 @@ contains
         ! previous iteration. We now want to start a new averaging block so
         ! that the same contributions aren't added in again later.
         if (mod(Iter+PreviousCycles - IterRDMStart, RDMEnergyIter) == 0) then 
-            full_determ_vector_av = 0.0_dp
+            full_determ_vecs_av = 0.0_dp
         end if
 
         ! The current iteration, converted to a double precision real.
@@ -155,7 +156,7 @@ contains
         iter_start_av = real(RDMEnergyIter*((Iter+PreviousCycles - IterRDMStart)/RDMEnergyIter) + IterRDMStart, dp)
 
         ! Add in the current deterministic vector to the running average.
-        full_determ_vector_av = (((iter_curr - iter_start_av)*full_determ_vector_av) + full_determ_vector)/&
+        full_determ_vecs_av = (((iter_curr - iter_start_av)*full_determ_vecs_av) + full_determ_vecs)/&
                                  (iter_curr - iter_start_av + 1.0_dp)
 
     end subroutine average_determ_vector
@@ -1067,12 +1068,12 @@ contains
 
         call deallocate_sparse_ham(sparse_core_ham, 'sparse_core_ham', SparseCoreHamilTags)
 
-        if (allocated(full_determ_vector)) then
-            deallocate(full_determ_vector, stat=ierr)
+        if (allocated(full_determ_vecs)) then
+            deallocate(full_determ_vecs, stat=ierr)
             call LogMemDealloc(t_r, FDetermTag, ierr)
         end if
-        if (allocated(partial_determ_vector)) then
-            deallocate(partial_determ_vector, stat=ierr)
+        if (allocated(partial_determ_vecs)) then
+            deallocate(partial_determ_vecs, stat=ierr)
             call LogMemDealloc(t_r, PDetermTag, ierr)
         end if
         if (allocated(indices_of_determ_states)) then

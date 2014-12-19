@@ -15,7 +15,8 @@ module kp_fciqmc
     use FciMCData, only: fcimc_excit_gen_store, FreeSlot, iEndFreeSlot
     use FciMCData, only: TotWalkers, CurrentDets, iLutRef, max_calc_ex_level
     use FciMCData, only: iter_data_fciqmc, TotParts, exFlag, iter
-    use FciMCData, only: indices_of_determ_states, partial_determ_vector
+    use FciMCData, only: indices_of_determ_states, partial_determ_vecs
+    use FciMCData, only: full_determ_vecs
     use fcimc_initialisation, only: CalcApproxpDoubles
     use fcimc_helper, only: SumEContrib, end_iter_stats, create_particle, &
                             CalcParentFlag, walker_death, decide_num_to_spawn
@@ -161,7 +162,7 @@ contains
                                 ! Store the index of this state, for use in annihilation later.
                                 indices_of_determ_states(determ_ind) = idet
                                 ! Add the amplitude to the deterministic vector.
-                                partial_determ_vector(:,determ_ind) = parent_sign
+                                partial_determ_vecs(:,determ_ind) = parent_sign
                                 determ_ind = determ_ind + 1
 
                                 ! The deterministic states are always kept in CurrentDets, even when
@@ -300,8 +301,13 @@ contains
                 if (tExactHamil) then
                     call calc_hamil_exact(kp%nvecs, krylov_vecs, TotWalkersKP, hamil_matrix, krylov_helems)
                 else
-                    call calc_projected_hamil(kp%nvecs, krylov_vecs, krylov_vecs_ht, TotWalkersKP, &
-                                              hamil_matrix, krylov_helems)
+                    if (tSemiStochastic) then
+                        call calc_projected_hamil(kp%nvecs, krylov_vecs, krylov_vecs_ht, TotWalkersKP, hamil_matrix, &
+                                                   partial_determ_vecs_kp, full_determ_vecs_kp, krylov_helems)
+                    else
+                        call calc_projected_hamil(kp%nvecs, krylov_vecs, krylov_vecs_ht, TotWalkersKP, hamil_matrix, &
+                                                   h_diag=krylov_helems)
+                    end if
                 end if
 
                 ! Sum the overlap and projected Hamiltonian matrices from the various processors.
@@ -393,8 +399,13 @@ contains
                 if (tExactHamil) then
                     call calc_hamil_exact(kp%nvecs, CurrentDets, int(TotWalkers, sizeof_int), hamil_matrix)
                 else
-                    call calc_projected_hamil(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers, sizeof_int), &
-                                              hamil_matrix)
+                    if (tSemiStochastic) then
+                        call calc_projected_hamil(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers, sizeof_int), &
+                                                  hamil_matrix, partial_determ_vecs, full_determ_vecs)
+                    else
+                        call calc_projected_hamil(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers, sizeof_int), &
+                                                  hamil_matrix)
+                    end if
                 end if
 
                 ! Sum the overlap and projected Hamiltonian matrices from the various processors.
@@ -442,7 +453,7 @@ contains
                             ! Store the index of this state, for use in annihilation later.
                             indices_of_determ_states(determ_ind) = idet
                             ! Add the amplitude to the deterministic vector.
-                            partial_determ_vector(:,determ_ind) = parent_sign
+                            partial_determ_vecs(:,determ_ind) = parent_sign
                             determ_ind = determ_ind + 1
 
                             ! The deterministic states are always kept in CurrentDets, even when

@@ -58,9 +58,9 @@ MODULe nElRDMMod
                          IterRDMStart, ValidSpawnedList, &
                          TempSpawnedPartsInd, TempSpawnedParts, TotParts, &
                          TotWalkers, iLutHF, core_space, IterLastRDMFill, &
-                         determ_proc_sizes,determ_proc_indices, partial_determ_vector, &
-                         full_determ_vector, full_determ_vector_av, tFill_RDM, &
-                         VaryShiftIter, tHashWalkerList, IterRDM_HF, tFinalRDMEnergy
+                         determ_proc_sizes, determ_proc_indices, &
+                         full_determ_vecs_av, tFill_RDM, VaryShiftIter, &
+                         tHashWalkerList, IterRDM_HF, tFinalRDMEnergy
     use LoggingData, only: RDMExcitLevel, tROFciDump, NoDumpTruncs, &
                        tExplicitAllRDM, tPrint1RDM, RDMEnergyIter, &
                        tDo_Not_Calc_RDMEnergy, tDiagRDM, tReadRDMs, &
@@ -6426,7 +6426,7 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
             ! Connections to the HF are added in elsewhere, so skip them here.
             if (DetBitEq(iLutI, iLutHF_True, NifDBO)) cycle
            
-            AvSignI = full_determ_vector_av(1,determ_proc_indices(iProcIndex)+i)
+            AvSignI = full_determ_vecs_av(1,determ_proc_indices(iProcIndex)+i)
 
             call decode_bit_det(nI,iLutI)
  
@@ -6445,7 +6445,7 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
                  ! Connections to the HF are added in elsewhere, so skip them here.
                  if (DetBitEq(iLutJ, iLutHF_True, NifDBO)) cycle
                  
-                 AvSignJ = full_determ_vector_av(inum_runs,core_connections(i)%positions(j))
+                 AvSignJ = full_determ_vecs_av(inum_runs,core_connections(i)%positions(j))
 
                  connect_elem = core_connections(i)%elements(j)
 

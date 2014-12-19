@@ -369,13 +369,13 @@ contains
             SpawnedPartsKP => SpawnVecKP
             SpawnedPartsKP2 => SpawnVecKP2
 
-        end if
+            if (tSemiStochastic) then
+                allocate(partial_determ_vecs_kp(lenof_all_signs,determ_proc_sizes(iProcIndex)), stat=ierr)
+                allocate(full_determ_vecs_kp(lenof_all_signs,determ_space_size), stat=ierr)
+                partial_determ_vecs_kp = 0.0_dp
+                full_determ_vecs_kp = 0.0_dp
+            end if
 
-        if (tSemiStochastic) then
-            allocate(partial_determ_vecs_kp(lenof_all_signs,determ_proc_sizes(iProcIndex)), stat=ierr)
-            allocate(full_determ_vecs_kp(lenof_all_signs,determ_space_size), stat=ierr)
-            partial_determ_vecs_kp = 0.0_dp
-            full_determ_vecs_kp = 0.0_dp
         end if
 
         ! (2*kp%nrepeats+16) arrays with (kp%nvecs**2) 8-byte elements each.

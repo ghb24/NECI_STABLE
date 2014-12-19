@@ -16,11 +16,11 @@ module semi_stoch_gen
     use DeterminantData, only: write_det
     use enumerate_excitations
     use FciMCData, only: HFDet, ilutHF, iHFProc, CurrentDets, determ_proc_sizes, &
-                         determ_proc_indices, full_determ_vector, partial_determ_vector, &
+                         determ_proc_indices, full_determ_vecs, partial_determ_vecs, &
                          determ_space_size, determ_space_size_int, TotWalkers, TotWalkersOld, &
                          indices_of_determ_states, SpawnedParts, FDetermTag, FDetermAvTag, &
                          PDetermTag, IDetermTag, trial_space, trial_space_size, &
-                         SemiStoch_Init_Time, tHashWalkerList, full_determ_vector_av, &
+                         SemiStoch_Init_Time, tHashWalkerList, full_determ_vecs_av, &
                          tStartCoreGroundState
     use gndts_mod, only: gndts, gndts_all_sym_this_proc
     use LoggingData, only: tWriteCore, tRDMonFly
@@ -101,19 +101,19 @@ contains
         call neci_flush(6)
 
         ! Allocate the vectors to store the walker amplitudes and the deterministic Hamiltonian.
-        allocate(full_determ_vector(lenof_sign,determ_space_size), stat=ierr)
-        call LogMemAlloc('full_determ_vector', determ_space_size_int*lenof_sign, &
+        allocate(full_determ_vecs(lenof_sign,determ_space_size), stat=ierr)
+        call LogMemAlloc('full_determ_vecs', determ_space_size_int*lenof_sign, &
                          8, t_r, FDetermTag, ierr)
-        allocate(full_determ_vector_av(lenof_sign,determ_space_size), stat=ierr)
-        call LogMemAlloc('full_determ_vector_av', determ_space_size_int*lenof_sign, &
+        allocate(full_determ_vecs_av(lenof_sign,determ_space_size), stat=ierr)
+        call LogMemAlloc('full_determ_vecs_av', determ_space_size_int*lenof_sign, &
                          8, t_r, FDetermAvTag, ierr)
-        allocate(partial_determ_vector(lenof_sign,determ_proc_sizes(iProcIndex)), stat=ierr)
-        call LogMemAlloc('partial_determ_vector', int(determ_proc_sizes(iProcIndex), &
+        allocate(partial_determ_vecs(lenof_sign,determ_proc_sizes(iProcIndex)), stat=ierr)
+        call LogMemAlloc('partial_determ_vecs', int(determ_proc_sizes(iProcIndex), &
                          sizeof_int)*lenof_sign, 8, t_r, PDetermTag, ierr)
 
-        full_determ_vector(:,:) = 0.0_dp
-        full_determ_vector_av(:,:) = 0.0_dp
-        partial_determ_vector = 0.0_dp
+        full_determ_vecs = 0.0_dp
+        full_determ_vecs_av = 0.0_dp
+        partial_determ_vecs = 0.0_dp
 
         ! This array will hold the positions of the deterministic states in CurrentDets.
         allocate(indices_of_determ_states(determ_proc_sizes(iProcIndex)), stat=ierr)

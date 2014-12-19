@@ -757,7 +757,7 @@ module FciMCParMod
                 indices_of_determ_states(determ_index) = gen_ind
 
                 ! Add this amplitude to the deterministic vector.
-                partial_determ_vector(:,determ_index) = SignCurr
+                partial_determ_vecs(:,determ_index) = SignCurr
 
                 determ_index = determ_index + 1
 

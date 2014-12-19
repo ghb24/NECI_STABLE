@@ -10,12 +10,12 @@ module kp_fciqmc_hamil
 
 contains
 
-    subroutine calc_projected_hamil(nvecs, krylov_array, krylov_ht, ndets, h_matrix, h_diag)
+    subroutine calc_projected_hamil(nvecs, krylov_array, krylov_ht, ndets, h_matrix, partial_vecs, full_vecs, h_diag)
 
         use bit_reps, only: decode_bit_det
         use constants
         use DetBitOps, only: return_ms
-        use FciMCData, only: fcimc_excit_gen_store, exFlag, partial_determ_vecs_kp
+        use FciMCData, only: fcimc_excit_gen_store, exFlag
         use FciMCData, only: SpawnVec, SpawnVec2
         use procedure_pointers, only: generate_excitation, encode_child, get_spawn_helement
         use semi_stoch_procs, only: is_core_state, check_determ_flag
@@ -28,6 +28,7 @@ contains
         type(ll_node), pointer, intent(in) :: krylov_ht(:)
         integer, intent(in) :: ndets
         real(dp), intent(out) :: h_matrix(:,:)
+        real(dp), allocatable, intent(inout), optional :: partial_vecs(:,:), full_vecs(:,:)
         real(dp), intent(in), optional :: h_diag(:)
 
         integer :: idet, ispawn, nspawn, i, j
@@ -81,7 +82,7 @@ contains
             ! data in arrays for later use.
             if (tParentIsDeterm) then
                 ! Add the amplitude to the deterministic vector.
-                partial_determ_vecs_kp(:,determ_ind) = parent_sign
+                partial_vecs(:,determ_ind) = parent_sign
                 determ_ind = determ_ind + 1
             end if
 
@@ -151,8 +152,8 @@ contains
         call calc_hamil_contribs_diag(nvecs, krylov_array, ndets, h_matrix, h_diag)
 
         if (tSemiStochasticKPHamil) then
-            call determ_projection_kp_hamil()
-            call calc_hamil_contribs_semistoch(nvecs, krylov_array, h_matrix)
+            call determ_projection_kp_hamil(partial_vecs, full_vecs, determ_proc_sizes, determ_proc_indices)
+            call calc_hamil_contribs_semistoch(nvecs, krylov_array, h_matrix, partial_vecs)
         end if
 
         ! Symmetrise the projected Hamiltonian.
@@ -371,13 +372,12 @@ contains
 
     end subroutine calc_hamil_contribs_diag
 
-    subroutine calc_hamil_contribs_semistoch(nvecs, krylov_array, h_matrix)
+    subroutine calc_hamil_contribs_semistoch(nvecs, krylov_array, h_matrix, partial_vecs)
     
-        use FciMCData, only: partial_determ_vecs_kp
-
         integer, intent(in) :: nvecs
         integer(n_int), intent(in) :: krylov_array(0:,:)
         real(dp), intent(inout) :: h_matrix(:,:)
+        real(dp), intent(in) :: partial_vecs(:,:)
 
         integer :: idet, i, j
         integer :: nI_spawn(nel)
@@ -392,10 +392,9 @@ contains
                 do j = i, nvecs
 #if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
                     h_matrix(i,j) = h_matrix(i,j) + &
-                        (real_sign(2*i-1)*partial_determ_vecs_kp(2*j, idet) + &
-                        real_sign(2*i)*partial_determ_vecs_kp(2*j-1, idet))/2.0_dp
+                        (real_sign(2*i-1)*partial_vecs(2*j, idet) + real_sign(2*i)*partial_vecs(2*j-1, idet))/2.0_dp
 #else
-                    h_matrix(i,j) = h_matrix(i,j) + real_sign(i)*partial_determ_vecs_kp(j, idet)
+                    h_matrix(i,j) = h_matrix(i,j) + real_sign(i)*partial_vecs(j, idet)
 #endif
                 end do
             end do
