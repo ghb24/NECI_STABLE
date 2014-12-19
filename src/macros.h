@@ -86,6 +86,20 @@ endif
 #define ARR_ABS(arr) abs(arr(1))
 #endif
 
+#ifdef __CMPLX
+#ifdef __PROG_NUMRUNS
+#define part_type_to_run(pt) 99999
+#else
+#define part_type_to_run(pt) 1
+#endif
+#else
+#ifdef __PROG_NUMRUNS
+#define part_type_to_run(pt) pt
+#else
+#define part_type_to_run(pt) 1
+#endif
+#endif
+
 
 
 ! Define types for C pointers to work between various compilers with
