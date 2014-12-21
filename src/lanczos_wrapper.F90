@@ -30,7 +30,7 @@ contains
         use DetCalcData, only: nkry, nblk, b2l, ncycle
         use SystemData, only: nel, tHPHF
 
-        integer(n_int), intent(in) :: det_list(:,:)
+        integer, intent(in) :: det_list(:,:)
         integer, intent(in) :: ndets
         integer, intent(in) :: nexcit 
         real(dp), intent(out) :: evals(:)

@@ -868,8 +868,9 @@ contains
         integer, intent(in) :: nvecs
 
         integer, allocatable :: core_det_list(:,:)
-        integer :: i, j, ierr, ndets, ndets_this_proc, nexcit
-        integer :: min_ind, max_ind
+        integer :: i, j, ierr, ndets, nexcit
+        integer(MPIArg) :: ndets_this_proc
+        integer(MPIArg) :: min_ind, max_ind
         integer(MPIArg) :: sndcnts(0:nProcessors-1), displs(0:nProcessors-1)
         integer(MPIArg) :: rcvcnts
         real(dp) :: eigenvec_pop, real_sign(lenof_sign)
@@ -933,9 +934,9 @@ contains
         ndets_this_proc = determ_proc_sizes(iProcIndex)
         ! The number of elements to send and receive in the MPI call, and the
         ! displacements.
-        sndcnts = determ_proc_sizes*nexcit
-        rcvcnts = ndets_this_proc*nexcit
-        displs = determ_proc_indices*nexcit
+        sndcnts = determ_proc_sizes*int(nexcit, MPIArg)
+        rcvcnts = ndets_this_proc*int(nexcit, MPIArg)
+        displs = determ_proc_indices*int(nexcit, MPIArg)
 
         ! Send the components to the correct processors using the following
         ! array as temporary space.
@@ -947,12 +948,12 @@ contains
         ! Now copy the amplitudes across to the CurrentDets array:
         ! First, get the correct states in CurrentDets.
         CurrentDets = 0_n_int
-        min_ind = determ_proc_indices(iProcIndex) + 1
+        min_ind = determ_proc_indices(iProcIndex) + 1_MPIArg
         max_ind = determ_proc_indices(iProcIndex) + ndets_this_proc
         CurrentDets(0:NIfDBO, 1:ndets_this_proc) = core_space(0:NIfDBO, min_ind:max_ind)
 
         ! Set flags and signs.
-        do i = 1, ndets_this_proc
+        do i = 1, int(ndets_this_proc, sizeof_int)
             call set_flag(CurrentDets(:,i), flag_deterministic)
             ! Construct the sign array to be encoded.
             do j = 2, lenof_sign, 2
@@ -961,7 +962,7 @@ contains
             call encode_sign(CurrentDets(:,i), real_sign)
         end do
         if (tTruncInitiator) then
-            do i = 1, ndets_this_proc
+            do i = 1, int(ndets_this_proc, sizeof_int)
                 call set_flag(CurrentDets(:,i), flag_is_initiator(1))
                 call set_flag(CurrentDets(:,i), flag_is_initiator(2))
             end do
@@ -969,14 +970,14 @@ contains
 
         ! Reset and fill in the hash table.
         call clear_hash_table(HashIndex)
-        call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, ndets_this_proc, .true.)
+        call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(ndets_this_proc, sizeof_int), .true.)
 
         ! Calculate and store the diagonal elements of the Hamiltonian for
         ! determinants in CurrentDets.
-        TotWalkers = determ_proc_sizes(iProcIndex)
+        TotWalkers = int(determ_proc_sizes(iProcIndex), int64)
         call fill_in_diag_helements()
 
-        call set_initial_global_data(ndets_this_proc, CurrentDets)
+        call set_initial_global_data(int(ndets_this_proc, int64), CurrentDets)
 
         ! Clean up.
         if (iProcIndex == root) then
