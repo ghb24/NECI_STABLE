@@ -114,9 +114,8 @@ contains
                     call encode_child (ilut_parent, ilut_child, ic, ex)
 
                     ! If spawning is both too and from the core space, abort it.
-                    if (tSemiStochasticKPHamil) then
-                        tChildIsDeterm = is_core_state(ilut_child, nI_child)
-                        if (tParentIsDeterm .and. tChildIsDeterm) cycle
+                    if (tSemiStochasticKPHamil .and. tParentisDeterm) then
+                        if(is_core_state(ilut_child, nI_child)) cycle
                     end if
 
                     HEl = get_spawn_helement(nI_parent, nI_child, ilut_parent, ilut_child, ic, ex, &
