@@ -322,7 +322,7 @@ contains
             if (iProcIndex == root) then
                 call average_kp_matrices_wrapper(iconfig, kp%nrepeats, overlap_matrices, hamil_matrices, &
                                                  kp_overlap_mean, kp_hamil_mean, kp_overlap_se, kp_hamil_se)
-                call find_and_output_lowdin_eigv(iconfig, kp%nvecs, nlowdin, lowdin_evals)
+                call find_and_output_lowdin_eigv(iconfig, kp%nvecs, kp_overlap_mean, kp_hamil_mean, nlowdin, lowdin_evals)
 
                 ! Calculate data for the testsuite.
                 s_sum = sum(kp_overlap_mean)
@@ -383,7 +383,7 @@ contains
 
             call init_kp_fciqmc_repeat(iconfig, irepeat, kp%nrepeats, kp%nvecs)
             call write_fcimcstats2(iter_data_fciqmc)
-            call write_ex_state_header(kp%nvecs)
+            if (iProcIndex == root) call write_ex_state_header(kp%nvecs, irepeat)
 
             do ireport = 1, kp%nreports
 
@@ -417,7 +417,7 @@ contains
                     call average_kp_matrices_wrapper(iter, irepeat, overlap_matrices(:,:,1:irepeat,ireport), &
                                                      hamil_matrices(:,:,1:irepeat,ireport), kp_overlap_mean, &
                                                      kp_hamil_mean, kp_overlap_se, kp_hamil_se)
-                    call find_and_output_lowdin_eigv(iter, kp%nvecs, nlowdin, lowdin_evals)
+                    call find_and_output_lowdin_eigv(iter, kp%nvecs, overlap_matrix, hamil_matrix, nlowdin, lowdin_evals)
                     call write_ex_state_data(iter, nlowdin, lowdin_evals)
                 end if
 

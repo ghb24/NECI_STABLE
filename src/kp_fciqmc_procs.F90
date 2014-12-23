@@ -1494,9 +1494,10 @@ contains
 
     end subroutine average_and_comm_pert_overlaps
 
-    subroutine find_and_output_lowdin_eigv(config_label, nvecs, npositive, all_evals)
+    subroutine find_and_output_lowdin_eigv(config_label, nvecs, overlap_matrix, hamil_matrix, npositive, all_evals)
 
         integer, intent(in) :: config_label, nvecs
+        real(dp), intent(in) :: overlap_matrix(:,:), hamil_matrix(:,:)
         integer, intent(out) :: npositive
         real(dp), intent(out) :: all_evals(:,:)
 
@@ -1524,7 +1525,7 @@ contains
         lwork = max(1,3*nvecs-1)
         allocate(work(lwork), stat=ierr)
 
-        kp_overlap_eigenvecs = kp_overlap_mean
+        kp_overlap_eigenvecs = overlap_matrix
 
         ! Now perform the diagonalisation.
         call dsyev('V', 'U', nvecs, kp_overlap_eigenvecs, nvecs, kp_overlap_eigv, work, lwork, info)
@@ -1563,13 +1564,13 @@ contains
                     transform_matrix(:,counter) = kp_overlap_eigenvecs(:, i)/sqrt(kp_overlap_eigv(i))
                 end do
 
-                inter_hamil = matmul(kp_hamil_mean, transform_matrix)
+                inter_hamil = matmul(hamil_matrix, transform_matrix)
                 kp_final_hamil = matmul(transpose(transform_matrix), inter_hamil)
 
                 call dsyev('V', 'U', nkeep, kp_final_hamil, nkeep, kp_hamil_eigv, work, lwork, info)
 
                 eigenvecs_krylov = matmul(transform_matrix, kp_final_hamil)
-                init_overlaps = matmul(kp_overlap_mean(1,:), eigenvecs_krylov)/scaling_factor
+                init_overlaps = matmul(overlap_matrix(1,:), eigenvecs_krylov)/scaling_factor
 
                 if (tOverlapPert) kp_pert_energy_overlaps(1:nkeep) = matmul(kp_all_pert_overlaps, eigenvecs_krylov)
 
@@ -1844,21 +1845,33 @@ contains
 
     end subroutine print_amplitudes_kp
 
-    subroutine write_ex_state_header(nvecs)
+    subroutine write_ex_state_header(nvecs, irepeat)
 
-        integer, intent(in) :: nvecs
+        use util_mod, only: int_fmt
+
+        integer, intent(in) :: nvecs, irepeat
         integer :: ivec
         integer :: temp_unit
         character(len=*), parameter :: filename = "EIGV_DATA"
 
         temp_unit = get_free_unit()
-        open(temp_unit, file=trim(filename), status='replace')
 
-        ! Write header.
-        write(temp_unit,'("#",1X,"Iteration")',advance='no')
-        do ivec = 1, nvecs
-            write(temp_unit,'(13X,"Energy",1X,i2)',advance='no') ivec
-        end do
+        if (irepeat == 1) then
+            open(temp_unit, file=trim(filename), status='replace')
+        else
+            open(temp_unit, file=trim(filename), status='old', position='append')
+        end if
+
+        if (irepeat == 1) then
+            ! Write header.
+            write(temp_unit,'("#",1X,"Iteration")',advance='no')
+            do ivec = 1, nvecs
+                write(temp_unit,'(13X,"Energy",1X,i2)',advance='no') ivec
+            end do
+            write(temp_unit,'()')
+        end if
+
+        write(temp_unit,'("#",1X,"Repeat",'//int_fmt(irepeat,1)//')') irepeat
 
         close(temp_unit)
 
