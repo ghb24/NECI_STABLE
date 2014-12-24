@@ -1373,7 +1373,7 @@ contains
         do i = 1, size(matrices,1)
             do j = i, size(matrices,2)
                 ! Write the index of the matrix element.
-                write(temp_unit,'(a1,'//int_fmt(i,0)//',a1,'//int_fmt(j,0)//',a1)',advance='no') "(",i,",",j,")"
+                write(temp_unit,'('//int_fmt(i,0)//', "," ,'//int_fmt(j,0)//')',advance='no') i, j
                 do k = 1, nrepeats
                     write(temp_unit,'(1x,es19.12)',advance='no') matrices(i,j,k)
                 end do
@@ -1450,7 +1450,7 @@ contains
         do i = 1, size(mean,1)
             do j = i, size(mean,2)
                 ! Write the index of the matrix element.
-                write(temp_unit,'(a1,'//int_fmt(i,0)//',a1,'//int_fmt(j,0)//',a1)',advance='no') "(",i,",",j,")"
+                write(temp_unit,'('//int_fmt(i,0)//', "1x" ,'//int_fmt(j,0)//')',advance='no') i, j
                 if (nrepeats > 1) then
                     ! Write the mean and standard error.
                     write(temp_unit,'(1x,es19.12,1x,a3,es19.12)') mean(i,j), "+/-", se(i,j)
