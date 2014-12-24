@@ -260,10 +260,10 @@ contains
     subroutine init_kp_fciqmc(kp)
 
         use SystemData, only: G1
+        use util_mod, only: int_fmt
 
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: ierr, krylov_vecs_memory, krylov_ht_memory, matrix_memory
-        character(2) :: mem_fmt
         character (len=*), parameter :: t_r = "init_kp_fciqmc"
 
         ! Checks.
@@ -305,14 +305,12 @@ contains
             nhashes_kp = nWalkerHashes
             TotWalkersKP = 0
             krylov_vecs_length = nint(MaxWalkersUncorrected*memory_factor_kp*kp%nvecs)
-            write(kp_length_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_vecs_length)+1,dp)))
             nkrylov_amp_elems_tot = lenof_sign*kp%nvecs*krylov_vecs_length
 
             ! Allocate the krylov_vecs array.
             ! The number of MB of memory required to allocate krylov_vecs.
             krylov_vecs_memory = krylov_vecs_length*(NIfTotKP+1)*size_n_int/1000000
-            write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_vecs_memory)+1,dp)))
-            write(6,'(a73,1x,'//mem_fmt//')') "About to allocate array to hold all Krylov vectors. &
+            write(6,'(a73,'//int_fmt(krylov_vecs_memory,1)//')') "About to allocate array to hold all Krylov vectors. &
                                            &Memory required (MB):", krylov_vecs_memory
             write(6,'(a13)',advance='no') "Allocating..."; call neci_flush(6)
             allocate(krylov_vecs(0:NIfTotKP, krylov_vecs_length), stat=ierr)
@@ -328,8 +326,7 @@ contains
             ! Allocate the krylov_helems array.
             ! The number of MB of memory required to allocate krylov_helems.
             krylov_vecs_memory = krylov_vecs_length*size_n_int/1000000
-            write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_vecs_memory)+1)))
-            write(6,'(a103,1x,'//mem_fmt//')') "About to allocate array to hold diagonal Hamiltonian &
+            write(6,'(a103,'//int_fmt(krylov_vecs_memory,1)//')') "About to allocate array to hold diagonal Hamiltonian &
                                            &elements for Krylov vectors. Memory required (MB):", krylov_vecs_memory
             write(6,'(a13)',advance='no') "Allocating..."; call neci_flush(6)
             allocate(krylov_helems(krylov_vecs_length), stat=ierr)
@@ -346,8 +343,7 @@ contains
             ! The number of MB of memory required to allocate krylov_vecs_ht.
             ! Each node requires 16 bytes.
             krylov_ht_memory = nhashes_kp*16/1000000
-            write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(krylov_ht_memory)+1,dp)))
-            write(6,'(a78,1x,'//mem_fmt//')') "About to allocate hash table to the Krylov vector array. &
+            write(6,'(a78,'//int_fmt(krylov_ht_memory,1)//')') "About to allocate hash table to the Krylov vector array. &
                                            &Memory required (MB):", krylov_ht_memory
             write(6,'(a13)',advance='no') "Allocating..."; call neci_flush(6)
             allocate(krylov_vecs_ht(nhashes_kp), stat=ierr)
@@ -380,8 +376,7 @@ contains
 
         ! (2*kp%nrepeats+16) arrays with (kp%nvecs**2) 8-byte elements each.
         matrix_memory = (2*kp%nrepeats+16)*(kp%nvecs**2)*8/1000000
-        write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(matrix_memory)+1,dp)))
-        write(6,'(a66,1x,'//mem_fmt//')') "About to allocate various subspace matrices. &
+        write(6,'(a66,'//int_fmt(matrix_memory,1)//')') "About to allocate various subspace matrices. &
                                        &Memory required (MB):", matrix_memory
         write(6,'(a13)',advance='no') "Allocating..."
         call neci_flush(6)
@@ -425,11 +420,11 @@ contains
 
     subroutine init_kp_fciqmc_repeat(iconfig, irepeat, nrepeats, nvecs)
 
-        integer, intent(in) :: iconfig, irepeat, nrepeats, nvecs
-        character(2) :: int_fmt
+        use util_mod, only: int_fmt
 
-        write(int_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(irepeat)+1,dp)))
-        write(6,'(1x,a22,1x,'//int_fmt//')') "Starting repeat number", irepeat
+        integer, intent(in) :: iconfig, irepeat, nrepeats, nvecs
+
+        write(6,'(1x,a22,'//int_fmt(irepeat,1)//')') "Starting repeat number", irepeat
 
         if (tExcitedStateKP) then
             call create_trial_states(nvecs)
@@ -622,8 +617,9 @@ contains
 
         ! Read in the popsfile and apply perturbation operator overlap_pert.
 
+        use util_mod, only: int_fmt
+
         integer :: mem_reqd, ierr
-        character(2) :: mem_fmt
         character(len=*), parameter :: t_r = "create_overlap_pert_vec"
 
         if (allocated(perturbed_ground)) deallocate(perturbed_ground)
@@ -635,9 +631,8 @@ contains
         ! Print info about memory usage to the user.
         ! Memory required in MB.
         mem_reqd = TotWalkers*(NIfTotKP+1)*size_n_int/1000000
-        write(mem_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(mem_reqd)+1,dp)))
 
-        write(6,'(a73,1x,'//mem_fmt//')') "About to allocate array to hold the perturbed &
+        write(6,'(a73,'//int_fmt(mem_reqd,1)//')') "About to allocate array to hold the perturbed &
                                            &ground state. Memory required (MB):", mem_reqd
         write(6,'(a13)',advance='no') "Allocating..."
         call neci_flush(6)
@@ -1026,6 +1021,8 @@ contains
 
     subroutine store_krylov_vec(ivec)
 
+        use util_mod, only: int_fmt
+
         integer, intent(in) :: ivec
 
         integer :: idet, iamp, sign_ind, flag_ind, hash_val, det_ind
@@ -1033,7 +1030,6 @@ contains
         integer(n_int) :: temp, int_sign(lenof_sign_kp)
         logical :: tDetFound, tCoreDet
         real(dp) :: amp_fraction, real_sign(lenof_sign_kp)
-        character(2) :: int_fmt
         character(len=*), parameter :: t_r = "store_krylov_vec"
 
         write(6,'(a71)',advance='no') "# Adding the current walker configuration to the Krylov vector array..."
@@ -1089,9 +1085,8 @@ contains
         end do
 
         write(6,'(1x,a5)',advance='yes') "Done."
-        write(int_fmt,'(a1,i1)') "i", ceiling(log10(real(abs(TotWalkersKP)+1,dp)))
-        write(6,'(a56,1x,'//int_fmt//',1x,a17,1x,'//kp_length_fmt//')') "# Number unique determinants in the Krylov &
-                                             &vector array:", TotWalkersKP, "out of a possible", krylov_vecs_length
+        write(6,'(a56,'//int_fmt(TotWalkersKP,1)//',1x,a17,'//int_fmt(krylov_vecs_length,1)//')') &
+            "# Number unique determinants in the Krylov vector array:", TotWalkersKP, "out of a possible", krylov_vecs_length
         amp_fraction = real(nkrylov_amp_elems_used,dp)/real(nkrylov_amp_elems_tot,dp)
         write(6,'(a69,1x,es10.4)') "# Fraction of the amplitude elements used in the Krylov vector array:", amp_fraction
         call neci_flush(6)
@@ -1357,12 +1352,13 @@ contains
 
     subroutine output_kp_matrices(config_label, stem, matrices)
 
+        use util_mod, only: int_fmt
+
         integer, intent(in) :: config_label
         character(7), intent(in) :: stem
         real(dp), intent(in) :: matrices(:,:,:)
-        character(2) :: ifmt, jfmt
-        character(25) :: ind1, ind2, filename
-        integer :: i, j, k, ilen, jlen, temp_unit, nrepeats
+        character(25) :: ind1, filename
+        integer :: i, j, k, temp_unit, nrepeats
 
         write(ind1,'(i15)') config_label
 
@@ -1375,16 +1371,9 @@ contains
         ! Write all the components of the various estimates of the matrix, above and including the
         ! diagonal, one after another on separate lines.
         do i = 1, size(matrices,1)
-            ilen = ceiling(log10(real(abs(i)+1,dp)))
-            ! ifmt will hold the correct integer length so that there will be no spaces printed out.
-            ! Note that this assumes that ilen < 10, which is very reasonable!
-            write(ifmt,'(a1,i1)') "i", ilen
             do j = i, size(matrices,2)
-                jlen = ceiling(log10(real(abs(j)+1,dp)))
-                write(jfmt,'(a1,i1)') "i", jlen
-
                 ! Write the index of the matrix element.
-                write(temp_unit,'(a1,'//ifmt//',a1,'//jfmt//',a1)',advance='no') "(",i,",",j,")"
+                write(temp_unit,'(a1,'//int_fmt(i,0)//',a1,'//int_fmt(j,0)//',a1)',advance='no') "(",i,",",j,")"
                 do k = 1, nrepeats
                     write(temp_unit,'(1x,es19.12)',advance='no') matrices(i,j,k)
                 end do
@@ -1441,14 +1430,15 @@ contains
 
     subroutine output_average_kp_matrix(config_label, nrepeats, stem, mean, se)
 
+        use util_mod, only: int_fmt
+
         integer, intent(in) :: config_label, nrepeats
         character(10), intent(in) :: stem
         real(dp), intent(in) :: mean(:,:), se(:,:)
 
         integer :: irepeat
-        character(2) :: ifmt, jfmt
         character(25) :: ind1, filename
-        integer :: i, j, k, ilen, jlen, temp_unit, repeat_ind
+        integer :: i, j, k, temp_unit, repeat_ind
 
         write(ind1,'(i15)') config_label
         filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
@@ -1458,16 +1448,9 @@ contains
         ! Write all the components of the various estimates of the matrix, above and including the
         ! diagonal, one after another on separate lines.
         do i = 1, size(mean,1)
-            ilen = ceiling(log10(real(abs(i)+1,dp)))
-            ! ifmt will hold the correct integer length so that there will be no spaces printed out.
-            ! Note that this assumes that ilen < 10, which is very reasonable!
-            write(ifmt,'(a1,i1)') "i", ilen
             do j = i, size(mean,2)
-                jlen = ceiling(log10(real(abs(j)+1,dp)))
-                write(jfmt,'(a1,i1)') "i", jlen
-
                 ! Write the index of the matrix element.
-                write(temp_unit,'(a1,'//ifmt//',a1,'//jfmt//',a1)',advance='no') "(",i,",",j,")"
+                write(temp_unit,'(a1,'//int_fmt(i,0)//',a1,'//int_fmt(j,0)//',a1)',advance='no') "(",i,",",j,")"
                 if (nrepeats > 1) then
                     ! Write the mean and standard error.
                     write(temp_unit,'(1x,es19.12,1x,a3,es19.12)') mean(i,j), "+/-", se(i,j)
@@ -1496,6 +1479,8 @@ contains
 
     subroutine find_and_output_lowdin_eigv(config_label, nvecs, overlap_matrix, hamil_matrix, npositive, all_evals)
 
+        use util_mod, only: int_fmt
+
         integer, intent(in) :: config_label, nvecs
         real(dp), intent(in) :: overlap_matrix(:,:), hamil_matrix(:,:)
         integer, intent(out) :: npositive
@@ -1506,7 +1491,6 @@ contains
         real(dp), allocatable :: work(:)
         real(dp), allocatable :: kp_final_hamil(:,:), kp_hamil_eigv(:)
         real(dp) :: kp_pert_energy_overlaps(nvecs)
-        character(2) :: nkeep_fmt
         character(7) :: string_fmt
         character(25) :: ind1, filename
         character(len=*), parameter :: stem = "lowdin"
@@ -1575,9 +1559,8 @@ contains
                 if (tOverlapPert) kp_pert_energy_overlaps(1:nkeep) = matmul(kp_all_pert_overlaps, eigenvecs_krylov)
 
                 nkeep_len = ceiling(log10(real(abs(nkeep)+1,dp)))
-                write(nkeep_fmt,'(a1,i1)') "i", nkeep_len
                 write(string_fmt,'(i2,a5)') 15-nkeep_len, '("-")'
-                write(temp_unit,'(/,4("-"),a37,1x,'//nkeep_fmt//',1x,a12,'//string_fmt//')') &
+                write(temp_unit,'(/,4("-"),a37,'//int_fmt(nkeep,1)//',1x,a12,'//string_fmt//')') &
                     "Eigenvalues and overlaps when keeping", nkeep, "eigenvectors"
                 do i = 1, nkeep
                     write(temp_unit,'(1x,es19.12,1x,es19.12)',advance='no') kp_hamil_eigv(i), init_overlaps(i)
@@ -1605,6 +1588,8 @@ contains
         ! Use the Gram-Schmidt approach rather than the Lowdin approach above
         ! (see Phys. Rev. B. 85, 205119).
 
+        use util_mod, only: int_fmt
+
         integer, intent(in) :: config_label, nvecs
 
         integer :: lwork, counter, nkeep, nkeep_len, temp_unit
@@ -1612,7 +1597,6 @@ contains
         integer :: i, j, n, m
         real(dp), allocatable :: work(:)
         real(dp), allocatable :: kp_final_hamil(:,:), kp_hamil_eigv(:)
-        character(2) :: nkeep_fmt
         character(7) :: string_fmt
         character(25) :: ind1, filename
         character(len=*), parameter :: stem = "gram_schmidt"
@@ -1670,9 +1654,8 @@ contains
                 init_overlaps = kp_final_hamil(:,1)*sqrt(kp_overlap_mean(1,1))
 
                 nkeep_len = ceiling(log10(real(abs(nkeep)+1,dp)))
-                write(nkeep_fmt,'(a1,i1)') "i", nkeep_len
                 write(string_fmt,'(i2,a5)') 15-nkeep_len, '("-")'
-                write(temp_unit,'(/,4("-"),a37,1x,'//nkeep_fmt//',1x,a12,'//string_fmt//')') &
+                write(temp_unit,'(/,4("-"),a37,'//int_fmt(nkeep,1)//',1x,a12,'//string_fmt//')') &
                     "Eigenvalues and overlaps when keeping", nkeep, "eigenvectors"
                 do i = 1, nkeep
                     write(temp_unit,'(1x,es19.12,1x,es19.12)') kp_hamil_eigv(i), init_overlaps(i)
@@ -1783,16 +1766,17 @@ contains
 
         ! Note that this routine will only work when using the tHashWalkerList option.
 
+        use util_mod, only: int_fmt
+
         integer, intent(in) :: irepeat
         integer, allocatable :: nI_list(:,:)
         integer :: temp(1,1), hf_ind, ndets
-        integer :: i, j, ilen, counter, temp_unit, DetHash
+        integer :: i, j, counter, temp_unit, DetHash
         integer(n_int) :: ilut(0:NIfTot)
         integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign(lenof_sign)
         type(ll_node), pointer :: temp_node
         type(BasisFn) :: iSym
-        character(2) :: ifmt
         character(15) :: ind, filename
 
         ! Determine the total number of determinants.
@@ -1829,13 +1813,9 @@ contains
                     temp_node => temp_node%next
                 end do
             end if
-            ilen = ceiling(log10(real(abs(counter)+1,dp)))
-            ! ifmt will hold the correct integer length so that there will be no spaces printed out.
-            ! Note that this assumes that ilen < 10, which is very reasonable!
-            write(ifmt,'(a1,i1)') "i", ilen
             do j = 1, lenof_sign
-                ! This assumes that lenof_sign < 10.
-                write(temp_unit,'(a1,'//ifmt//',a1,i1,a1,1x,es19.12)') "(", counter,",", j, ")", real_sign(j)
+                write(temp_unit,'(a1,'//int_fmt(counter,0)//',a1,'//int_fmt(j,0)//',a1,1x,es19.12)') &
+                    "(", counter,",", j, ")", real_sign(j)
             end do
         end do
 
