@@ -15,9 +15,9 @@ module determ_proj
     use CalcData, only: NMCyc, tSemiStochastic
     use constants
     use DetBitOps, only: DetBitLT
-    use FciMCData, only: HFDet, ilutHF, iHFProc, CurrentDets, determ_proc_sizes, &
+    use FciMCData, only: HFDet, ilutHF, iHFProc, CurrentDets, determ_sizes, &
                          determ_space_size, partial_determ_vecs, full_determ_vecs, &
-                         determ_proc_indices, TotWalkers
+                         determ_displs, TotWalkers
     use Parallel_neci, only: iProcIndex, MPIAllGatherV, MPISum
     use semi_stoch_procs, only: determ_projection
     use sparse_arrays, only: sparse_core_ham
@@ -38,8 +38,8 @@ contains
             call stop_all("determ_projection_only", "You must use the semi-stochastic &
                 &option and define a core space to use the determ-proj option.") 
 
-        allocate(wavefunction(determ_proc_sizes(iProcIndex)))
-        allocate(ham_times_hf(determ_proc_sizes(iProcIndex)))
+        allocate(wavefunction(determ_sizes(iProcIndex)))
+        allocate(ham_times_hf(determ_sizes(iProcIndex)))
 
         write(6,'()')
         write(6,'(a83)') "Performing a deterministic projection using the defined &
@@ -64,12 +64,12 @@ contains
         wavefunction = 0.0_dp
         if (iProcIndex == iHFProc) wavefunction(hf_index) = 1.0_dp
 
-        call MPIAllGatherV(wavefunction, full_determ_vecs(1,:), determ_proc_sizes, &
-                            determ_proc_indices)
+        call MPIAllGatherV(wavefunction, full_determ_vecs(1,:), determ_sizes, &
+                            determ_displs)
 
         partial_determ_vecs = 0.0_dp
 
-        do i = 1, determ_proc_sizes(iProcIndex)
+        do i = 1, determ_sizes(iProcIndex)
             do j = 1, sparse_core_ham(i)%num_elements
                 ham_times_hf(i) = ham_times_hf(i) - &
                     sparse_core_ham(i)%elements(j)*full_determ_vecs(1,sparse_core_ham(i)%positions(j))

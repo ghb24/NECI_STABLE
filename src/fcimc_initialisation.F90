@@ -481,7 +481,7 @@ contains
             CALL CountExcitations3(iand(HFDet, csf_orbital_mask),exflag,nSingles,nDoubles)
         ELSE
             ! Use Alex's old excitation generators to enumerate all excitations.
-            call enumerate_sing_doub_kpnt(exflag,nSingles,nDoubles)
+            call enumerate_sing_doub_kpnt(exflag, nSingles, nDoubles, .false.)
         ENDIF
         HFConn=nSingles+nDoubles
 
@@ -2491,7 +2491,7 @@ contains
                        &reference."
         exflag=3
         IF(tKPntSym) THEN
-            call enumerate_sing_doub_kpnt(exFlag, nSing, nDoub) 
+            call enumerate_sing_doub_kpnt(exFlag, nSing, nDoub, .false.) 
         ELSE
             CALL CountExcitations3(HFDet_loc,exflag,nSing,nDoub)
         ENDIF

@@ -366,7 +366,7 @@ contains
             SpawnedPartsKP2 => SpawnVecKP2
 
             if (tSemiStochastic) then
-                allocate(partial_determ_vecs_kp(lenof_all_signs,determ_proc_sizes(iProcIndex)), stat=ierr)
+                allocate(partial_determ_vecs_kp(lenof_all_signs,determ_sizes(iProcIndex)), stat=ierr)
                 allocate(full_determ_vecs_kp(lenof_all_signs,determ_space_size), stat=ierr)
                 partial_determ_vecs_kp = 0.0_dp
                 full_determ_vecs_kp = 0.0_dp
@@ -775,10 +775,10 @@ contains
             ! randomly and uniformly.
             if (tOccupyDetermSpace .and. (.not. tDetermAllOccupied)) then
                 ideterm = ideterm + 1
-                ilut = core_space(:,ideterm + determ_proc_indices(iProcIndex))
+                ilut = core_space(:,ideterm + determ_displs(iProcIndex))
                 call decode_bit_det(nI, ilut)
                 ! If we have now occupied all deterministic states.
-                if (ideterm == determ_proc_sizes(iProcIndex)) tDetermAllOccupied = .true.
+                if (ideterm == determ_sizes(iProcIndex)) tDetermAllOccupied = .true.
             else
                 ! Generate a random determinant (returned in ilut).
                 if (tAllSymSectors) then
@@ -926,12 +926,12 @@ contains
             evecs_transpose = transpose(evecs)
         end if
 
-        ndets_this_proc = determ_proc_sizes(iProcIndex)
+        ndets_this_proc = determ_sizes(iProcIndex)
         ! The number of elements to send and receive in the MPI call, and the
         ! displacements.
-        sndcnts = determ_proc_sizes*int(nexcit, MPIArg)
+        sndcnts = determ_sizes*int(nexcit, MPIArg)
         rcvcnts = ndets_this_proc*int(nexcit, MPIArg)
-        displs = determ_proc_indices*int(nexcit, MPIArg)
+        displs = determ_displs*int(nexcit, MPIArg)
 
         ! Send the components to the correct processors using the following
         ! array as temporary space.
@@ -943,8 +943,8 @@ contains
         ! Now copy the amplitudes across to the CurrentDets array:
         ! First, get the correct states in CurrentDets.
         CurrentDets = 0_n_int
-        min_ind = determ_proc_indices(iProcIndex) + 1_MPIArg
-        max_ind = determ_proc_indices(iProcIndex) + ndets_this_proc
+        min_ind = determ_displs(iProcIndex) + 1_MPIArg
+        max_ind = determ_displs(iProcIndex) + ndets_this_proc
         CurrentDets(0:NIfDBO, 1:ndets_this_proc) = core_space(0:NIfDBO, min_ind:max_ind)
 
         ! Set flags and signs.
@@ -969,7 +969,7 @@ contains
 
         ! Calculate and store the diagonal elements of the Hamiltonian for
         ! determinants in CurrentDets.
-        TotWalkers = int(determ_proc_sizes(iProcIndex), int64)
+        TotWalkers = int(determ_sizes(iProcIndex), int64)
         call fill_in_diag_helements()
 
         call set_initial_global_data(int(ndets_this_proc, int64), CurrentDets)
@@ -1848,20 +1848,23 @@ contains
             do ivec = 1, nvecs
                 write(temp_unit,'(13X,"Energy",1X,i2)',advance='no') ivec
             end do
+            do ivec = 1, nvecs
+                write(temp_unit,'(7X,"Diag. energy",1x,i2)',advance='no') ivec
+            end do
             write(temp_unit,'()')
         end if
-
         write(temp_unit,'("#",1X,"Repeat",'//int_fmt(irepeat,1)//')') irepeat
 
         close(temp_unit)
 
     end subroutine write_ex_state_header
 
-    subroutine write_ex_state_data(niters, nlowdin, lowdin_evals)
+    subroutine write_ex_state_data(niters, nlowdin, lowdin_evals, hamil_matrix, overlap_matrix)
 
         integer, intent(in) :: niters
         integer, intent(in) :: nlowdin
         real(dp), intent(in) :: lowdin_evals(:,:)
+        real(dp), intent(in) :: hamil_matrix(:,:), overlap_matrix(:,:)
 
         integer :: ivec, nvecs
         integer :: temp_unit
@@ -1879,6 +1882,11 @@ contains
         end do
         do ivec = nlowdin+1, nvecs
             write(temp_unit,'(12X,3a,7X)',advance='no') "NaN"
+        end do
+
+        ! Diagonal energies.
+        do ivec = 1, nvecs
+            write(temp_unit,'(3X,es19.12)',advance='no') hamil_matrix(ivec,ivec)/overlap_matrix(ivec,ivec)
         end do
 
         close(temp_unit)

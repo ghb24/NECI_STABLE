@@ -151,7 +151,7 @@ contains
         call calc_hamil_contribs_diag(nvecs, krylov_array, ndets, h_matrix, h_diag)
 
         if (tSemiStochasticKPHamil) then
-            call determ_projection_kp_hamil(partial_vecs, full_vecs, determ_proc_sizes, determ_proc_indices)
+            call determ_projection_kp_hamil(partial_vecs, full_vecs, determ_sizes, determ_displs)
             call calc_hamil_contribs_semistoch(nvecs, krylov_array, h_matrix, partial_vecs)
         end if
 
@@ -320,7 +320,7 @@ contains
 
     subroutine calc_hamil_contribs_diag(nvecs, krylov_array, ndets, h_matrix, h_diag)
     
-        use FciMCData, only: determ_proc_sizes
+        use FciMCData, only: determ_sizes
         use global_det_data, only: det_diagH
 
         integer, intent(in) :: nvecs
@@ -340,7 +340,7 @@ contains
         ! Core determinants are always kept at the top of the list, so they're simple
         ! to skip.
         if (tSemiStochasticKPHamil) then
-            min_idet = determ_proc_sizes(iProcIndex) + 1
+            min_idet = determ_sizes(iProcIndex) + 1
         else
             min_idet = 1
         end if
@@ -383,7 +383,7 @@ contains
         integer(n_int) :: int_sign(lenof_all_signs)
         real(dp) :: real_sign(lenof_all_signs)
 
-        do idet = 1, determ_proc_sizes(iProcIndex)
+        do idet = 1, determ_sizes(iProcIndex)
             int_sign = krylov_array(NOffSgn:NOffSgn+lenof_all_signs-1, idet)
             real_sign = transfer(int_sign, real_sign)
 

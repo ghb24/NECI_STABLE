@@ -418,7 +418,7 @@ contains
                                                      hamil_matrices(:,:,1:irepeat,ireport), kp_overlap_mean, &
                                                      kp_hamil_mean, kp_overlap_se, kp_hamil_se)
                     call find_and_output_lowdin_eigv(iter, kp%nvecs, overlap_matrix, hamil_matrix, nlowdin, lowdin_evals)
-                    call write_ex_state_data(iter, nlowdin, lowdin_evals)
+                    call write_ex_state_data(iter, nlowdin, lowdin_evals, hamil_matrix, overlap_matrix)
                 end if
 
                 do iiter = 1, kp%niters(ireport)

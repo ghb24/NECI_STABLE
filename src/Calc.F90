@@ -31,7 +31,7 @@ MODULE Calc
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets
-    use semi_stoch_gen, only: core_ras
+    use ras_data, only: core_ras
     use ftlm_neci
     use spectral_data
     use spectral_lanczos, only: n_lanc_vecs_sl
@@ -293,7 +293,7 @@ contains
           tReadCore = .false.
           tLowECore = .false.
           tMP1Core = .false.
-          num_det_generation_loops = 1
+          determ_opt_data%ngen_loops = 1
           n_core_pops = 0
           low_e_core_excit = 0
           low_e_core_num_keep = 0
@@ -303,7 +303,7 @@ contains
           tLimitTrialSpace = .false.
           max_determ_size = 0
           max_trial_size = 0
-          tDetermAmplitudeCutoff = .false.
+          determ_opt_data%tAmpCutoff = .false.
           tTrialWavefunction = .false.
           tDoublesTrial = .false.
           tCASTrial = .false.
@@ -314,13 +314,13 @@ contains
           tMP1Trial = .false.
           tFCITrial = .false.
           tHeisenbergFCITrial = .false.
-          num_trial_generation_loops = 1
+          trial_opt_data%ngen_loops = 1
           n_trial_pops = 0
           low_e_trial_excit = 0
           low_e_trial_num_keep = 0
           trial_mp1_ndets = 0
           tLowETrialAllDoubles = .false.
-          tTrialAmplitudeCutoff = .false.
+          trial_opt_data%tAmpCutoff = .false.
           tKP_FCIQMC = .false.
           tLetInitialPopDie = .false.
           tWritePopsNorm = .false.
@@ -1046,18 +1046,18 @@ contains
             case("OPTIMISED-CORE")
                 tOptimisedCore = .true.
             case("OPTIMISED-CORE-CUTOFF-AMP")
-                tDetermAmplitudeCutoff = .true.
-                num_det_generation_loops = nitems - 1
-                allocate(determ_space_cutoff_amp(num_det_generation_loops))
-                do I = 1, num_det_generation_loops
-                    call getf(determ_space_cutoff_amp(I))
+                determ_opt_data%tAmpCutoff = .true.
+                determ_opt_data%ngen_loops = nitems - 1
+                allocate(determ_opt_data%cutoff_amps(determ_opt_data%ngen_loops))
+                do I = 1, determ_opt_data%ngen_loops
+                    call getf(determ_opt_data%cutoff_amps(I))
                 end do
             case("OPTIMISED-CORE-CUTOFF-NUM")
-                tDetermAmplitudeCutoff = .false.
-                num_det_generation_loops = nitems - 1
-                allocate(determ_space_cutoff_num(num_det_generation_loops))
-                do I = 1, num_det_generation_loops
-                    call geti(determ_space_cutoff_num(I))
+                determ_opt_data%tAmpCutoff = .false.
+                determ_opt_data%ngen_loops = nitems - 1
+                allocate(determ_opt_data%cutoff_nums(determ_opt_data%ngen_loops))
+                do I = 1, determ_opt_data%ngen_loops
+                    call geti(determ_opt_data%cutoff_nums(I))
                 end do
             case("FCI-CORE")
                 tFCICore = .true.
@@ -1107,18 +1107,18 @@ contains
             case("OPTIMISED-TRIAL")
                 tOptimisedTrial = .true.
             case("OPTIMISED-TRIAL-CUTOFF-AMP")
-                tTrialAmplitudeCutoff = .true.
-                num_trial_generation_loops = nitems - 1
-                allocate(trial_space_cutoff_amp(num_trial_generation_loops))
-                do I = 1, num_trial_generation_loops
-                    call getf(trial_space_cutoff_amp(I))
+                trial_opt_data%tAmpCutoff = .true.
+                trial_opt_data%ngen_loops = nitems - 1
+                allocate(trial_opt_data%cutoff_amps(trial_opt_data%ngen_loops))
+                do I = 1, trial_opt_data%ngen_loops
+                    call getf(trial_opt_data%cutoff_amps(I))
                 end do
             case("OPTIMISED-TRIAL-CUTOFF-NUM")
-                tTrialAmplitudeCutoff = .false.
-                num_trial_generation_loops = nitems - 1
-                allocate(trial_space_cutoff_num(num_trial_generation_loops))
-                do I = 1, num_trial_generation_loops
-                    call geti(trial_space_cutoff_num(I))
+                trial_opt_data%tAmpCutoff = .false.
+                trial_opt_data%ngen_loops = nitems - 1
+                allocate(trial_opt_data%cutoff_nums(trial_opt_data%ngen_loops))
+                do I = 1, trial_opt_data%ngen_loops
+                    call geti(trial_opt_data%cutoff_nums(I))
                 end do
             case("POPS-TRIAL")
                 tPopsTrial = .true.
