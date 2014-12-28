@@ -1086,7 +1086,7 @@ contains
         ! determinants in CurrentDets.
         call fill_in_diag_helements()
 
-        call set_initial_global_data(int(ndets_this_proc, int64), CurrentDets)
+        call set_initial_global_data(TotWalkers, CurrentDets)
 
         ! Clean up.
         if (iProcIndex == root) then
