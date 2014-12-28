@@ -713,7 +713,7 @@ contains
         ! will end up being repeated in CurrentDets is they are core determinants.
         ! This isn't ideal because when the FCIQMC calculation starts, such
         ! unoccupied determinants should *not* be in the hash table. During this
-        ! routine, such detereminants will be removed from the hash table and so
+        ! routine, such determinants will be removed from the hash table and so
         ! on output, everything will be fine and ready for the FCIQMC calculation
         ! to start.
 

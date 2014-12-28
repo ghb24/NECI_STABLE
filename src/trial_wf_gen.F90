@@ -29,6 +29,7 @@ contains
         use LoggingData, only: tWriteTrial, tCompareTrialAmps
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
         use ParallelHelper, only: root
+        use ras_data, only: trial_ras
         use searching, only: find_trial_and_con_states_bin
         use sort_mod, only: sort
         use SystemData, only: tAllSymSectors
@@ -74,6 +75,8 @@ contains
             call generate_sing_doub_determinants(trial_space, trial_space_size)
         elseif (tCASTrial) then
             call generate_cas(OccTrialCASOrbs, VirtTrialCASOrbs, trial_space, trial_space_size)
+        else if (tRASCore) then
+            call generate_ras(trial_ras, trial_space, trial_space_size)
         elseif (tOptimisedTrial) then
             call generate_optimised_core(trial_opt_data, tLimitTrialSpace, trial_space, trial_space_size, max_trial_size)
         elseif (tPopsTrial) then

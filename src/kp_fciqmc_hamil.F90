@@ -2,25 +2,28 @@
 
 module kp_fciqmc_hamil
 
-    use bit_rep_data, only: NIfTot, NIfDBO, NOffFlag
-    use kp_fciqmc_data_mod
-    use kp_fciqmc_procs
-    use SystemData, only: nel
+    use bit_rep_data, only: NIfTot, NIfDBO
+    use constants
+    use kp_fciqmc_data_mod, only: lenof_all_signs
+
     implicit none
 
 contains
 
     subroutine calc_projected_hamil(nvecs, krylov_array, krylov_ht, ndets, h_matrix, partial_vecs, full_vecs, h_diag)
 
+        use bit_rep_data, only: NOffFlag, tUseFlags
         use bit_reps, only: decode_bit_det
         use constants
         use DetBitOps, only: return_ms
-        use FciMCData, only: fcimc_excit_gen_store, exFlag
-        use FciMCData, only: SpawnVec, SpawnVec2
+        use FciMCData, only: fcimc_excit_gen_store, exFlag, SpawnVecKP, SpawnVecKP2
+        use FciMCData, only: SpawnVec, SpawnVec2, determ_sizes, determ_displs, SpawnedParts
+        use FciMCData, only: SpawnedParts2, InitialSpawnedSlots, ValidSpawnedList, ll_node
+        use kp_fciqmc_data_mod, only: tSemiStochasticKPHamil, tExcitedStateKP, av_mc_excits_kp
         use procedure_pointers, only: generate_excitation, encode_child, get_spawn_helement
         use semi_stoch_procs, only: is_core_state, check_determ_flag
         use semi_stoch_procs, only: determ_projection_kp_hamil
-        use SystemData, only: nbasis, tAllSymSectors, nOccAlpha, nOccBeta
+        use SystemData, only: nbasis, tAllSymSectors, nOccAlpha, nOccBeta, nel
         use util_mod, only: stochastic_round
         
         integer, intent(in) :: nvecs
@@ -188,8 +191,11 @@ contains
 
     subroutine create_particle_kp_hamil (nI_child, ilut_child, child_sign, tNearlyFull)
 
+        use bit_rep_data, only: NOffSgn
         use hash, only: DetermineDetNode
-        use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots
+        use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots, SpawnedParts
+        use kp_fciqmc_data_mod, only: MaxSpawnedEachProc
+        use SystemData, only: nel
 
         integer, intent(in) :: nI_child(nel)
         integer(n_int), intent(in) :: ilut_child(0:NIfTot)
@@ -230,6 +236,7 @@ contains
 
     subroutine add_in_hamil_contribs(nvecs, krylov_array, krylov_ht, tFinished, tAllFinished, h_matrix)
 
+        use FciMCData, only: InitialSpawnedSlots, ValidSpawnedList, ll_node
         use Parallel_neci, only: MPIAllGather, nProcessors
 
         integer, intent(in) :: nvecs
@@ -255,6 +262,12 @@ contains
     end subroutine add_in_hamil_contribs
 
     subroutine calc_hamil_contribs_spawn(nvecs, krylov_array, krylov_ht, nspawns_this_proc, h_matrix)
+
+        use bit_rep_data, only: NOffSgn
+        use bit_reps, only: decode_bit_det
+        use FciMCData, only: SpawnedParts, ll_node
+        use hash, only: FindWalkerHash
+        use SystemData, only: nel
 
         integer, intent(in) :: nvecs
         integer(n_int), intent(in) :: krylov_array(0:,:)
@@ -286,7 +299,7 @@ contains
             else
                 tDetFound = .false.
                 do while (associated(temp_node))
-                    if (DetBitEQ(ilut_spawn, krylov_array(:,temp_node%ind), NIfDBO)) then
+                    if ( all(ilut_spawn(0:NIfDBO) == krylov_array(0:NIfDBO,temp_node%ind)) ) then
                         ! If this CurrentDets determinant has been found in krylov_array.
                         det_ind = temp_node%ind
                         tDetFound = .true.
@@ -320,8 +333,12 @@ contains
 
     subroutine calc_hamil_contribs_diag(nvecs, krylov_array, ndets, h_matrix, h_diag)
     
-        use FciMCData, only: determ_sizes
+        use bit_rep_data, only: NOffSgn
+        use FciMCData, only: determ_sizes, Hii
         use global_det_data, only: det_diagH
+        use kp_fciqmc_data_mod, only: tSemiStochasticKPHamil
+        use Parallel_neci, only: iProcIndex
+        use SystemData, only: nel
 
         integer, intent(in) :: nvecs
         integer(n_int), intent(in) :: krylov_array(0:,:)
@@ -372,6 +389,11 @@ contains
     end subroutine calc_hamil_contribs_diag
 
     subroutine calc_hamil_contribs_semistoch(nvecs, krylov_array, h_matrix, partial_vecs)
+
+        use bit_rep_data, only: NOffSgn
+        use FciMCData, only: determ_sizes
+        use Parallel_neci, only: iProcIndex
+        use SystemData, only: nel
     
         integer, intent(in) :: nvecs
         integer(n_int), intent(in) :: krylov_array(0:,:)

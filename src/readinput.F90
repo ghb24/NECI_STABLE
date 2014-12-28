@@ -19,7 +19,8 @@ MODULE ReadInput_neci
         use System,     only : SysReadInput,SetSysDefaults
         use Calc,       only : CalcReadInput,SetCalcDefaults
         use CalcData, only: tKP_FCIQMC, tUseProcsAsNodes
-        use kp_fciqmc_procs, only: kp_fciqmc_read_inp, kp_fciqmc_data
+        use kp_fciqmc_data_mod, only: kp_fciqmc_data
+        use kp_fciqmc_init, only: kp_fciqmc_read_inp
         use Integrals_neci,  only : IntReadInput,SetIntDefaults
         Use Logging,    only : LogReadInput,SetLogDefaults
         use Parallel_neci,   only : iProcIndex

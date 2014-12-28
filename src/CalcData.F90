@@ -131,9 +131,6 @@ logical :: tMP1Core
 logical :: tFCICore
 logical :: tHeisenbergFCICore
 logical :: tSparseCoreHamil ! Use a sparse representation of the core Hamiltonian.
-! Bitmasks with all bits corresponding to orbitals in RAS1 and RAS3, repectively, set.
-integer(n_int), allocatable, dimension(:) :: core_ras1_bitmask
-integer(n_int), allocatable, dimension(:) :: core_ras3_bitmask
 ! When using a CAS deterministic space, these integers store the number of orbitals above and below the Fermi energy to
 ! include in the CAS active space (the occupied and virtual orbitals).
 integer :: OccDetermCASOrbs
@@ -180,6 +177,7 @@ integer :: semistoch_mp1_ndets
 logical :: tTrialWavefunction ! Use a trial wavefunction-based energy estimator.
 logical :: tDoublesTrial ! Use single and double exciations for the trial space.
 logical :: tCASTrial ! Use a CAS space for the trial space.
+logical :: tRASTrial ! Use a RAS space for the trial space (see ras.F90 for definition).
 logical :: tOptimisedTrial ! Generate an optimised trial space by diagonalisaing part of the space.
 ! As for determ_cutoff_amp and determ_cutoff_num above, but the following two quantities refer to the trial space
 ! generation rather than the deterministic space generation.

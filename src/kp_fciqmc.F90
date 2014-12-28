@@ -2,6 +2,7 @@
 
 module kp_fciqmc
 
+    use kp_fciqmc_init
     use kp_fciqmc_hamil
     use kp_fciqmc_procs
 
@@ -16,7 +17,7 @@ module kp_fciqmc
     use FciMCData, only: TotWalkers, CurrentDets, iLutRef, max_calc_ex_level
     use FciMCData, only: iter_data_fciqmc, TotParts, exFlag, iter
     use FciMCData, only: indices_of_determ_states, partial_determ_vecs
-    use FciMCData, only: full_determ_vecs
+    use FciMCData, only: full_determ_vecs, walker_time, annihil_time
     use fcimc_initialisation, only: CalcApproxpDoubles
     use fcimc_helper, only: SumEContrib, end_iter_stats, create_particle, &
                             CalcParentFlag, walker_death, decide_num_to_spawn
@@ -342,6 +343,8 @@ contains
     end subroutine perform_kp_fciqmc
 
     subroutine perform_subspace_fciqmc(kp)
+
+        use FciMCData, only: HashIndex
 
         type(kp_fciqmc_data), intent(inout) :: kp
 

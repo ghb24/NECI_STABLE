@@ -110,8 +110,7 @@ contains
             determ_displs(i) = sum(determ_sizes(:i-1))
         end do
 
-        ! Sort the states to the order that is kept throughout the simulation.
-        call sort(SpawnedParts(:,1:determ_sizes(iProcIndex)), ilut_lt, ilut_gt)
+        call sort(spawnedparts(:,1:determ_sizes(iprocindex)), ilut_lt, ilut_gt)
 
         ! Do a check that no states are in the deterministic space twice. The list is sorted
         ! already so simply check states next to each other in the list.
@@ -174,17 +173,15 @@ contains
         use bit_rep_data, only: flag_deterministic, flag_is_initiator
         use bit_reps, only: set_flag, encode_sign
         use FciMCData, only: determ_sizes, SpawnedParts
+        use ras_data, only: core_ras
         use SystemData, only: tAllSymSectors
 
         integer :: space_size, i, ierr
-        real(dp), parameter :: real_sign(lenof_sign) = 0.0_dp
+        real(dp) :: zero_sign(lenof_sign)
         character (len=*), parameter :: t_r = "generate_space"
 
         ! Choose the correct generating routine.
         if (tPopsCore) then
-            if (.not. tReadPops) then
-                call stop_all(t_r, "NECI must be started from a popsfile to use the pops-core and pops-trial options.")
-            end if
             call generate_space_most_populated(n_core_pops, SpawnedParts, space_size)
         else if (tReadCore) then
             call generate_space_from_file('CORESPACE', SpawnedParts, space_size)
@@ -194,7 +191,7 @@ contains
             else if (tCASCore) then
                 call generate_cas(OccDetermCasOrbs, VirtDetermCasOrbs, SpawnedParts, space_size)
             else if (tRASCore) then
-                call generate_ras(SpawnedParts, space_size)
+                call generate_ras(core_ras, SpawnedParts, space_size)
             else if (tOptimisedCore) then
                 call generate_optimised_core(determ_opt_data, tLimitDetermSpace, SpawnedParts, space_size, max_determ_size)
             else if (tLowECore) then
@@ -232,8 +229,9 @@ contains
             end if
         end if
 
+        zero_sign = 0.0_dp
         do i = 1, space_size
-            call encode_sign(SpawnedParts(:,i), real_sign)
+            call encode_sign(SpawnedParts(:,i), zero_sign)
 
             call set_flag(SpawnedParts(:,i), flag_deterministic)
             if (tTruncInitiator) then
@@ -403,18 +401,20 @@ contains
 
     end subroutine generate_sing_doub_csfs
 
-    subroutine generate_ras(ilut_list, space_size)
+    subroutine generate_ras(ras_info, ilut_list, space_size)
 
+        ! In: ras - Parameters for the RAS space.
         ! Out: ilut_list - List of determinants generated.
         ! Out: space_size - Number of determinants in the generated space.
 
         use ras
         use SystemData, only: nel
 
+        type(ras_parameters), intent(inout) :: ras_info
         integer(n_int), intent(out) :: ilut_list(0:,:)
         integer, intent(out) :: space_size
 
-        type(ras_class_data), allocatable, dimension(:) :: core_classes
+        type(ras_class_data), allocatable, dimension(:) :: ras_classes
         integer(n_int), allocatable, dimension(:,:) :: temp_list
         integer :: nI(nel)
         integer :: temp_size, i
@@ -424,40 +424,27 @@ contains
         tot_norbs = nbasis/2
 
         ! Do a check that the RAS parameters are possible.
-        if (core_ras%size_1+core_ras%size_2+core_ras%size_3 /= tot_norbs .or. &
-            core_ras%min_1 > core_ras%size_1*2 .or. &
-            core_ras%max_3 > core_ras%size_3*2) &
+        if (ras_info%size_1+ras_info%size_2+ras_info%size_3 /= tot_norbs .or. &
+            ras_info%min_1 > ras_info%size_1*2 .or. &
+            ras_info%max_3 > ras_info%size_3*2) &
             call stop_all("generate_ras", "RAS parameters are not possible.")
 
-        if (mod(nel, 2) /= 0) call stop_all("generate_ras", "RAS-core only implmented for &
+        if (mod(nel, 2) /= 0) call stop_all("generate_ras", "RAS space only implmented for &
                                             & closed shell molecules.")
 
-        ! Create bitmasks, used in check_if_in_determ_space.
-        allocate(core_ras1_bitmask(0:NIfD))
-        core_ras1_bitmask = 0
-        do i = 1, core_ras%size_1*2
-            set_orb(core_ras1_bitmask, Brr(i))
-        end do
+        call initialise_ras_space(ras_info, ras_classes)
 
-        allocate(core_ras3_bitmask(0:NIfD))
-        core_ras3_bitmask = 0
-        do i = (core_ras%size_1+core_ras%size_2)*2+1, nbasis
-            set_orb(core_ras3_bitmask, Brr(i))
-        end do
-
-        call initialise_ras_space(core_ras, core_classes)
-
-        call find_ras_size(core_ras, core_classes, temp_size)
+        call find_ras_size(ras_info, ras_classes, temp_size)
 
         allocate(temp_list(0:NIfTot, temp_size))
 
-        call generate_entire_ras_space(core_ras, core_classes, temp_size, temp_list)
+        call generate_entire_ras_space(ras_info, ras_classes, temp_size, temp_list)
 
         do i = 1, temp_size
             call add_state_to_space(temp_list(:,i), ilut_list, space_size)
         end do
 
-        deallocate(core_classes)
+        deallocate(ras_classes)
         deallocate(temp_list)
 
     end subroutine generate_ras
@@ -804,6 +791,10 @@ contains
         integer :: i, j, ierr, ind, n_pops_keep, min_ind, max_ind, n_states_this_proc
         integer(TagIntType) :: TagA, TagB, TagC, TagD
         character (len=*), parameter :: t_r = "generate_space_most_populated"
+
+        if (.not. tReadPops) then
+            call stop_all(t_r, "NECI must be started from a popsfile to use the pops-core and pops-trial options.")
+        end if
 
         space_size = 0
 

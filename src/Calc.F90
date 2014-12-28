@@ -31,7 +31,7 @@ MODULE Calc
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets
-    use ras_data, only: core_ras
+    use ras_data, only: core_ras, trial_ras
     use ftlm_neci
     use spectral_data
     use spectral_lanczos, only: n_lanc_vecs_sl
@@ -307,6 +307,7 @@ contains
           tTrialWavefunction = .false.
           tDoublesTrial = .false.
           tCASTrial = .false.
+          tRASTrial = .false.
           tOptimisedTrial =.false.
           tPopsTrial = .false.
           tReadTrial = .false.
@@ -1104,6 +1105,18 @@ contains
                 tSpn = .true.
                 call geti(OccTrialCASOrbs)  !Number of electrons in CAS 
                 call geti(VirtTrialCASOrbs)  !Number of virtual spin-orbitals in CAS
+            case("RAS-TRIAL")
+                tRASTrial = .true.
+                call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
+                call geti(ras_size_2)  ! Number of spatial orbitals in RAS2.
+                call geti(ras_size_3)  ! Number of spatial orbitals in RAS3.
+                call geti(ras_min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs. 
+                call geti(ras_max_3)  ! Max number of electrons (alpha and beta) in RAS3 orbs.
+                trial_ras%size_1 = int(ras_size_1,sp)
+                trial_ras%size_2 = int(ras_size_2,sp)
+                trial_ras%size_3 = int(ras_size_3,sp)
+                trial_ras%min_1 = int(ras_min_1,sp)
+                trial_ras%max_3 = int(ras_max_3,sp)
             case("OPTIMISED-TRIAL")
                 tOptimisedTrial = .true.
             case("OPTIMISED-TRIAL-CUTOFF-AMP")
