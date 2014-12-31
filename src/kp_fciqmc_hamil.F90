@@ -19,6 +19,8 @@ contains
         use FciMCData, only: fcimc_excit_gen_store, exFlag, SpawnVecKP, SpawnVecKP2
         use FciMCData, only: SpawnVec, SpawnVec2, determ_sizes, determ_displs, SpawnedParts
         use FciMCData, only: SpawnedParts2, InitialSpawnedSlots, ValidSpawnedList, ll_node
+        use FciMCData, only: spawn_ht
+        use hash, only: clear_hash_table
         use kp_fciqmc_data_mod, only: tSemiStochasticKPHamil, tExcitedStateKP, av_mc_excits_kp
         use procedure_pointers, only: generate_excitation, encode_child, get_spawn_helement
         use semi_stoch_procs, only: is_core_state, check_determ_flag
@@ -46,10 +48,10 @@ contains
         HElement_t :: HElGen, HEl
 
         h_matrix(:,:) = 0.0_dp
-
         ilut_parent = 0_n_int
         if (tUseFlags) flag_ind = NIfDBO + lenof_all_signs + 1
         ValidSpawnedList = InitialSpawnedSlots
+        call clear_hash_table(spawn_ht)
         tNearlyFull = .false.
         tFinished = .false.
         determ_ind = 1
@@ -136,6 +138,7 @@ contains
 
                     if (tNearlyFull) then
                         call add_in_hamil_contribs(nvecs, krylov_array, krylov_ht, tFinished, tAllFinished, h_matrix)
+                        call clear_hash_table(spawn_ht)
                         tNearlyFull = .false.
                     end if
 
@@ -192,8 +195,8 @@ contains
     subroutine create_particle_kp_hamil (nI_child, ilut_child, child_sign, tNearlyFull)
 
         use bit_rep_data, only: NOffSgn
-        use hash, only: DetermineDetNode
-        use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots, SpawnedParts
+        use hash, only: DetermineDetNode, hash_table_lookup, add_hash_table_entry
+        use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots, SpawnedParts, spawn_ht
         use kp_fciqmc_data_mod, only: MaxSpawnedEachProc
         use SystemData, only: nel
 
@@ -201,18 +204,36 @@ contains
         integer(n_int), intent(in) :: ilut_child(0:NIfTot)
         real(dp), intent(in) :: child_sign(lenof_all_signs)
         logical, intent(inout) :: tNearlyFull
+
         integer(n_int) :: int_sign(lenof_all_signs)
-        integer :: proc
+        real(dp) :: real_sign(lenof_all_signs)
+        integer :: proc, ind, hash_val
+        logical :: tSuccess
 
-        proc = DetermineDetNode(nel, nI_child, 0)
+        call hash_table_lookup(nI_child, ilut_child, NIfDBO, spawn_ht, SpawnedParts, ind, hash_val, tSuccess)
 
-        SpawnedParts(0:NIfDBO, ValidSpawnedList(proc)) = ilut_child(0:NIfDBO)
-        int_sign = transfer(child_sign, int_sign)
-        SpawnedParts(NOffSgn:NOffSgn+lenof_all_signs-1, ValidSpawnedList(proc)) = int_sign
+        if (tSuccess) then
+            ! If this determinant is already in the spawned array.
+            ! Extract the old sign.
+            real_sign = transfer(SpawnedParts(NOffSgn:NOffSgn+lenof_all_signs-1, ind), real_sign)
+            ! Find the total new sign.
+            real_sign = real_sign + child_sign
+            ! Encode the new sign.
+            int_sign = transfer(real_sign, int_sign)
+            SpawnedParts(NOffSgn:NOffSgn+lenof_all_signs-1, ind) = int_sign
+        else
+            ! If this determinant is a new entry to the spawned array.
+            proc = DetermineDetNode(nel, nI_child, 0)
 
-        ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
+            SpawnedParts(0:NIfDBO, ValidSpawnedList(proc)) = ilut_child(0:NIfDBO)
+            int_sign = transfer(child_sign, int_sign)
+            SpawnedParts(NOffSgn:NOffSgn+lenof_all_signs-1, ValidSpawnedList(proc)) = int_sign
 
-        if (ValidSpawnedList(proc)-InitialSpawnedSlots(proc) > MaxSpawnedEachProc) tNearlyFull = .true.
+            call add_hash_table_entry(spawn_ht, ValidSpawnedList(proc), hash_val)
+            ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
+
+            if (ValidSpawnedList(proc)-InitialSpawnedSlots(proc) > MaxSpawnedEachProc) tNearlyFull = .true.
+        end if
 
     end subroutine create_particle_kp_hamil
 

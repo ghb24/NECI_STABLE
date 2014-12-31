@@ -35,6 +35,11 @@ MODULE FciMCData
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVecKP(:,:), SpawnVecKP2(:,:)
 
+      ! Hash table to spawning array. Currently only used in (parts of) KP-FCIQMC.
+      type(ll_node), pointer :: spawn_ht(:)
+      ! The number of unique hash values in the spawning hash table.
+      integer :: nhashes_spawn
+
       INTEGER(TagIntType) :: WalkVecDetsTag=0
       INTEGER(TagIntType) :: SpawnVecTag=0,SpawnVec2Tag=0
 
