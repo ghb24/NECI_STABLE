@@ -201,7 +201,7 @@ contains
                 call generate_using_mp1_criterion(semistoch_mp1_ndets, SpawnedParts, space_size)
             else if (tFCICore) then
                 if (tAllSymSectors) then
-                    call gndts_all_sym_this_proc(SpawnedParts, .true., space_size)
+                    call gndts_all_sym_this_proc(SpawnedParts, .false., space_size)
                 else
                     call generate_fci_core(SpawnedParts, space_size)
                 end if
