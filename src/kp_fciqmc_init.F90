@@ -53,6 +53,19 @@ contains
         tScalePopulation = .false.
         scaling_factor = 1.0_dp
 
+        tPops_KP_Space = .false.
+        tRead_KP_Space = .false.
+        tDoubles_KP_Space = .false.
+        tCAS_KP_Space = .false.
+        tRAS_KP_Space = .false. 
+        tMP1_KP_Space = .false.
+        tFCI_KP_Space = .false.
+        
+        n_kp_pops = 0
+        Occ_KP_CasOrbs = 0
+        Virt_KP_CasOrbs = 0
+        kp_mp1_ndets = 0
+
         read_inp: do
             call read_line(eof)
             if (eof) then
