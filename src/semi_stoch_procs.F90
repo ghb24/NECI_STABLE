@@ -6,7 +6,7 @@
 module semi_stoch_procs
 
     use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag, &
-                            flag_is_initiator, NOffSgn, NIfSgn
+                            flag_initiator, NOffSgn, NIfSgn
     use bit_reps, only: decode_bit_det, set_flag, extract_part_sign, extract_sign, &
                         encode_sign
     use CalcData
@@ -650,8 +650,8 @@ contains
             if (tSuccess) then
                 call set_flag(CurrentDets(:,PartInd), flag_deterministic)
                 if (tTruncInitiator) then
-                    call set_flag(CurrentDets(:,PartInd), flag_is_initiator(1))
-                    call set_flag(CurrentDets(:,PartInd), flag_is_initiator(2))
+                    call set_flag(CurrentDets(:,PartInd), flag_initiator(1))
+                    call set_flag(CurrentDets(:,PartInd), flag_initiator(2))
                 end if
                 MinInd = PartInd
             else
