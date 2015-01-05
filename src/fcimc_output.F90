@@ -1157,7 +1157,8 @@ contains
             if (allocated(frozen_orb_list)) then
                 allocate(tmp_ni(nel_pre_freezing))
                 tmp_ni(1:nel) = frozen_orb_reverse_map(ProjEDet)
-                tmp_ni(nel+1:nel_pre_freezing) = frozen_orb_list
+                if (nel /= nel_pre_freezing) &
+                    tmp_ni(nel+1:nel_pre_freezing) = frozen_orb_list
                 call sort(tmp_ni)
                 do i = 1, nel_pre_freezing
                     write(6, '(i3," ")', advance='no') tmp_ni(i)
