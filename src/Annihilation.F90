@@ -723,7 +723,7 @@ MODULE AnnihilationMod
         REAL(dp) :: pRemove, r
         INTEGER :: ExcitLevel, nJ(NEl),DetHash,FinalVal,clash,walkExcitLevel, dettemp(NEl)
         INTEGER(KIND=n_int) , POINTER :: PointTemp(:,:)
-        LOGICAL :: tSuccess,tSuc,tPrevOcc, tAlwaysAllow
+        LOGICAL :: tSuccess,tSuc,tPrevOcc
         character(len=*), parameter :: this_routine="AnnihilateSpawnedParts"
         integer :: comp, run
         type(ll_node), pointer :: TempNode
@@ -736,9 +736,6 @@ MODULE AnnihilationMod
 !        call flush(6)
 
         ToRemove=0  !The number of particles to annihilate
-
-        ! Logical for semi-stochastic code.
-        tAlwaysAllow = .false.
 
 !MinInd indicates the minimum bound of the main array in which the particle can be found.
 !Since the spawnedparts arrays are ordered in the same fashion as the main array, 
@@ -963,17 +960,8 @@ MODULE AnnihilationMod
             endif
                 
             if((.not.tSuccess) .or. (tSuccess .and. (sum(abs(CurrentSign)) .eq. 0.0_dp))) then
-                if (tSemiStochastic) then
-                    ! If performing a semi-stochastic simulation and spawning from the deterministic
-                    ! space always allow the spawning.
-                    if (test_flag(SpawnedParts(:,i), flag_determ_parent)) then
-                        tAlwaysAllow = .true.
-                    else
-                        tAlwaysAllow = .false.
-                    end if
-                end if
 
-                if(tTruncInitiator .and. (.not. tAlwaysAllow)) then
+                if (tTruncInitiator) then
                     ! Determinant in newly spawned list is not found in currentdets - usually this 
                     ! would mean the walkers just stay in this list and get merged later - but in 
                     ! this case we want to check where the walkers came from - because if the newly 
