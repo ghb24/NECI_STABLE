@@ -159,7 +159,6 @@ MODULE AnnihilationMod
 !and newlyspawned particles are sent here so that all the annihilations are
 !done on a predetermined processor, and not rotated around all of them.
     SUBROUTINE DirectAnnihilation(TotWalkersNew, iter_data, tSingleProc)
-        use bit_reps, only: test_flag
         integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
         INTEGER :: MaxIndex,ierr
@@ -349,7 +348,7 @@ MODULE AnnihilationMod
         type(fcimc_iter_data), intent(inout) :: iter_data
         INTEGER :: VecInd,ValidSpawned,DetsMerged,i,BeginningBlockDet,FirstInitIndex,CurrentBlockDet
         real(dp) :: SpawnedSign(lenof_sign), Temp_Sign(lenof_sign)
-        integer :: EndBlockDet, part_type, StartCycleInit, cum_count, j, Parent_Array_Ind
+        integer :: EndBlockDet, part_type, StartCycleInit, j, Parent_Array_Ind
         integer :: No_Spawned_Parents
         LOGICAL :: tSuc, tInc
         INTEGER(Kind=n_int) , POINTER :: PointTemp(:,:)
@@ -469,16 +468,13 @@ MODULE AnnihilationMod
            
             do part_type=1,lenof_sign   !Annihilate in this block seperately for real and imag walkers
 
-                ! How many of either real/imaginary spawns are there onto each det
-                cum_count = 0
-                
                 do i=BeginningBlockDet,EndBlockDet
                     if (tHistSpawn) then
                         call extract_sign (SpawnedParts(:,i), SpawnedSign)
                         call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
                         call HistAnnihilEvent (SpawnedParts, SpawnedSign, temp_sign, part_type)
                     endif
-                    call FindResidualParticle (cum_det, SpawnedParts(:,i), cum_count, part_type, iter_data, &
+                    call FindResidualParticle (cum_det, SpawnedParts(:,i), part_type, iter_data, &
                                                     VecInd, Parent_Array_Ind)
                 enddo
 
@@ -612,8 +608,7 @@ MODULE AnnihilationMod
     !and calculates what the residual particles and signs should be from them.
     !This deals with real and imaginary signs seperately, and so the 'signs' are integers.
 
-    subroutine FindResidualParticle (cum_det, new_det, cum_count, part_type, &
-                                     iter_data, Spawned_No, Parent_Array_Ind)
+    subroutine FindResidualParticle (cum_det, new_det, part_type, iter_data, Spawned_No, Parent_Array_Ind)
 
         ! This routine is called whilst compressing the spawned list during
         ! annihilation. It considers the sign and flags from two particles
@@ -625,12 +620,11 @@ MODULE AnnihilationMod
 
         integer(n_int), intent(inout) :: cum_det(0:nIfTot)
         integer(n_int), intent(in) :: new_det(0:niftot+nifdbo+2)
-        integer, intent(inout) :: cum_count
         integer, intent(in) :: part_type, Spawned_No 
         integer, intent(inout) :: Parent_Array_Ind
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp) :: new_sgn, cum_sgn, updated_sign, sgn_prod
-        integer :: run, new_flags, cum_flags, updated_flags
+        integer :: run
 
         ! Obtain the signs and sign product. Ignore new particle if zero.
         new_sgn = extract_part_sign (new_det, part_type)
@@ -642,21 +636,20 @@ MODULE AnnihilationMod
             ! Spawned_Parents array), can just ignore the zero entry.
             if(.not.tFillingStochRDMonFly) return
         endif
-        cum_sgn = extract_part_sign (cum_det, part_type)
 
+        ! If the cumulative and new signs for this replica are both non-zero
+        ! then there have been at least two spawning events to this site, so
+        ! set the initiator flag.
+        ! Also set the initiator flag if the new walker has its initiator flag
+        ! set.
+        if ((abs(cum_sgn) > 1.e-12_dp .and. abs(new_sgn) > 1.e-12_dp) .or. &
+             test_flag(new_det, flag_initiator(part_type))) &
+            call set_flag(cum_det, flag_initiator(part_type))
+
+        cum_sgn = extract_part_sign (cum_det, part_type)
         sgn_prod = cum_sgn * new_sgn
 
-        ! If we are including this det, then increment the count
-        cum_count = cum_count + 1
-
-        ! Combine the flags.
-        cum_flags = extract_flags(cum_det)
-        new_flags = extract_flags(new_det)
-        updated_flags = ior(cum_flags, new_flags)
-        call encode_flags(cum_det, updated_flags)
-        call set_flag(cum_det, flag_initiator(part_type))
-
-        ! Update annihilation statistics (is this really necessary?)
+        ! Update annihilation statistics.
         if (sgn_prod < 0.0_dp) then
             run = part_type_to_run(part_type)
             Annihilated = Annihilated(run) + 2*min(abs(cum_sgn), abs(new_sgn))
