@@ -881,8 +881,9 @@ MODULE AnnihilationMod
                     ! This only counts the walkers where the SpawnedSign has newly become zero, by merging with CurrentDets.
                     if(sum(abs(SpawnedSign)) .ne. 0.0_dp) ToRemove=ToRemove+1
 
-                    do j=1,lenof_sign   !Run over real (& imag ) components
+                    do j=1, lenof_sign
                         run = part_type_to_run(j)
+#ifndef __CMPLX
                         if (CurrentSign(j) == 0.0_dp) then
                             !This determinant is actually /unoccupied/ for the walker type/set we're considering
                             !We need to decide whether to abort it or not
@@ -895,6 +896,9 @@ MODULE AnnihilationMod
                                 end if
                             end if
                         else if (SignProd(j) < 0) then
+#else
+                        if (SignProd(j) < 0) then
+#endif
                             ! This indicates that the particle has found the same particle of 
                             ! opposite sign to annihilate with
                             Annihilated(run)=Annihilated(run)+2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
