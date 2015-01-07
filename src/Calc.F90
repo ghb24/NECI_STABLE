@@ -1006,7 +1006,9 @@ contains
             case("LINSCALEFCIMCALGO")
                 ! Use the linear scaling FCIMC algorithm
                 ! This option is now deprecated, as it is default.
-                call stop_all(t_r, "Option LINSCALEFCIMCALGO deprecated")
+                write(iout, '("WARNING: LINSCALEFCIMCALGO option has been &
+                              &deprecated, and now does nothing")')
+                !call stop_all(t_r, "Option LINSCALEFCIMCALGO deprecated")
 
             case("PARTICLE-HASH-MULTIPLIER")
                 ! Determine the absolute length of the hash table relative to
