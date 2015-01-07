@@ -824,6 +824,7 @@ contains
        INTEGER IDA,IDB
        INTEGER iSize,ierr
        INTEGER NEL
+       logical :: frozen_occ, frozen_virt
 !       TYPE(Symmetry) KSYM
        character(*), parameter :: this_routine='IntFreezeBasis'
 
@@ -884,8 +885,9 @@ contains
 !!C.. end up in the new set
 
        ! Allocate the frozen orbital list for later use
-       list_sz = nfrozen + ntfrozen + nfrozenin + ntfrozenin
-       if (list_sz /= 0) then
+       ! n.b. These are for frozen occupied orbs. Frozen virts are chucked.
+       list_sz = nfrozen + nfrozenin !ntfrozen + ntfrozenin
+       if (list_sz /= 0 .or. ntfrozen + ntfrozenin /= 0) then
            allocate(frozen_orb_list(list_sz), frozen_orb_reverse_map(nbasis), &
                     stat=ierr)
            call LogMemAlloc("frozen_orb_list", list_sz, sizeof_int, &
@@ -897,29 +899,32 @@ contains
        K=0
        frozen_count = 0
        DO I=1,NHG
-          L=1
+          frozen_occ = .false.
+          frozen_virt = .false.
           DO J=1,NFROZEN
               ! if (any(brr(1:nfrozen) == i))
 !C.. if orb I is to be frozen, L will become 0
-             IF(BRR(J).EQ.I) L=0
+             IF(BRR(J).EQ.I) frozen_occ = .true.
           ENDDO
           DO J=NEL-NFROZENIN+1,NEL
-             IF(BRR(J).EQ.I) L=0
+             IF(BRR(J).EQ.I) frozen_occ = .true.
           ENDDO
           DO J=NEL+1,NEL+NTFROZENIN
-             IF(BRR(J).EQ.I) L=0
+             IF(BRR(J).EQ.I) frozen_virt = .true.
           ENDDO
           DO J=NBASIS+NFROZEN+NFROZENIN+NTFROZENIN+1,NHG
 !C.. if orb I is to be frozen, L will become 0
-             IF(BRR(J).EQ.I) L=0
+             IF(BRR(J).EQ.I) frozen_virt = .true.
           ENDDO
-          IF(L.EQ.0) THEN
-             GG(I)=0
+          if (frozen_occ) then
+             GG(I) = 0
              frozen_count = frozen_count + 1
              frozen_orb_list(frozen_count) = i
+          else if (frozen_virt) then
+             GG(I) = 0
           ELSE
 !C.. we've got an orb which is not to be frozen 
-             K=K+L
+             K = k + 1
 !C.. GG(I) is the new position in G of the (old) orb I
              GG(I)=K
 !C.. copy the eigenvalue table to the new location
