@@ -129,27 +129,27 @@ contains
                                             proc, part_type)
         end if
 
+#ifdef __CMPLX
         if (tTruncInitiator) then
-            IF(lenof_sign.eq.2) THEN
-                ! With complex walkers, things are a little more tricky.
-                ! We want to transfer the flag for all particles created (both
-                ! real and imag) from the specific type of parent particle. This
-                ! can mean real walker flags being transfered to imaginary
-                ! children and vice versa.
-                ! This is unneccesary for real walkers.
-                ! Test the specific flag corresponding to the parent, of type
-                ! 'part_type'
-                parent_init = test_flag(SpawnedParts(:,ValidSpawnedList(proc)), &
-                                        flag_initiator(part_type))
-                !Assign this flag to all spawned children
-                do j=1,lenof_sign
-                    if (child(j) /= 0) then
-                        call set_flag (SpawnedParts(:,ValidSpawnedList(proc)), &
-                                       flag_initiator(j), parent_init)
-                    endif
-                enddo
-            ENDIF
+            ! With complex walkers, things are a little more tricky.
+            ! We want to transfer the flag for all particles created (both
+            ! real and imag) from the specific type of parent particle. This
+            ! can mean real walker flags being transfered to imaginary
+            ! children and vice versa.
+            ! This is unneccesary for real walkers.
+            ! Test the specific flag corresponding to the parent, of type
+            ! 'part_type'
+            parent_init = test_flag(SpawnedParts(:,ValidSpawnedList(proc)), &
+                                    flag_initiator(part_type))
+            !Assign this flag to all spawned children
+            do j=1,lenof_sign
+                if (child(j) /= 0) then
+                    call set_flag (SpawnedParts(:,ValidSpawnedList(proc)), &
+                                   flag_initiator(j), parent_init)
+                endif
+            enddo
         end if
+#endif
 
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
         
