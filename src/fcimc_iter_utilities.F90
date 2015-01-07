@@ -4,7 +4,7 @@ module fcimc_iter_utils
     use SystemData, only: nel, tHPHF, tNoBrillouin, tRef_Not_HF
     use CalcData, only: tSemiStochastic, tChangeProjEDet, tTrialWavefunction, &
                         tCheckHighestPopOnce, tRestartHighPop, StepsSft, tau, &
-                        tTruncInitiator, tJumpShift, TargetGrowRate, tCCMC, &
+                        tTruncInitiator, tJumpShift, TargetGrowRate, &
                         tLetInitialPopDie, InitWalkers, tCheckHighestPop, &
                         HFPopThresh, DiagSft, tShiftOnHFPop, iRestartWalkNum, &
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, &
@@ -48,9 +48,7 @@ contains
 
 
 #ifndef __CMPLX
-        ! This is disabled for CCMC, as in CCMCStandalone then CurrentDets
-        ! is not allocated.
-        if (.not. tKP_FCIQMC .and. .not. tCCMC) then
+        if (.not. tKP_FCIQMC) then
             do part_type = 1, lenof_sign
                 if ((.not.tFillingStochRDMonFly).or.(inum_runs.eq.1)) then
                     if (AllNoAtHF(part_type) < 0.0_dp) then
@@ -126,23 +124,19 @@ contains
         endif
 
         if(iProcIndex.eq.Root) then
-! AJWT dislikes doing this type of if based on a (seeminly unrelated) input option, but can't see another easy way.
-!  TODO:  Something to make it better
-            if(.not.tCCMC) then
-               ! Check how balanced the load on each processor is (even though
-               ! we cannot load balance with direct annihilation).
-               WalkersDiffProc = int(MaxWalkersProc - MinWalkersProc,sizeof_int)
-               ! Do the same for number of particles
-               PartsDiffProc = int(MaxPartsProc - MinPartsProc, sizeof_int)
+           ! Check how balanced the load on each processor is (even though
+           ! we cannot load balance with direct annihilation).
+           WalkersDiffProc = int(MaxWalkersProc - MinWalkersProc,sizeof_int)
+           ! Do the same for number of particles
+           PartsDiffProc = int(MaxPartsProc - MinPartsProc, sizeof_int)
 
-               mean_walkers = AllTotWalkers / real(nNodes,dp)
-               if (WalkersDiffProc > nint(mean_walkers / 10.0_dp) .and. &
-                   sum(AllTotParts) > real(nNodes * 500, dp)) then
-                   root_write (iout, '(a, i13,a,2i11)') &
-                       'Potential load-imbalance on iter ',iter + PreviousCycles,' Min/Max determinants on node: ', &
-                       MinWalkersProc,MaxWalkersProc
-               endif
-            endif
+           mean_walkers = AllTotWalkers / real(nNodes,dp)
+           if (WalkersDiffProc > nint(mean_walkers / 10.0_dp) .and. &
+               sum(AllTotParts) > real(nNodes * 500, dp)) then
+               root_write (iout, '(a, i13,a,2i11)') &
+                   'Potential load-imbalance on iter ',iter + PreviousCycles,' Min/Max determinants on node: ', &
+                   MinWalkersProc,MaxWalkersProc
+           endif
         endif
 
     end subroutine iter_diagnostics
@@ -540,13 +534,7 @@ contains
             tReZeroShift = .false.
             do run=1,inum_runs
                 if (TSinglePartPhase(run)) then
-    ! AJWT dislikes doing this type of if based on a (seeminly unrelated) input option, but can't see another easy way.
-    !  TODO:  Something to make it better
-                    if(.not.tCCMC) then
-                        tot_walkers = InitWalkers * int(nNodes,int64)
-                    else
-                        tot_walkers = InitWalkers
-                    endif
+                    tot_walkers = InitWalkers * int(nNodes,int64)
 
 #ifdef __CMPLX
                     if ((sum(AllTotParts) > tot_walkers) .or. &

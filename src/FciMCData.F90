@@ -379,7 +379,6 @@ MODULE FciMCData
       character(150) :: bloom_warn_string
       integer :: max_calc_ex_level
       type(fcimc_iter_data), target :: iter_data_fciqmc
-      type(fcimc_iter_data), target :: iter_data_ccmc
 
       integer :: yama_global (4)
 

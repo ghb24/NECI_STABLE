@@ -192,20 +192,8 @@ module FciMCParMod
             if(tRDMonFly .and. (.not. tFillingExplicRDMonFly) &
                 & .and. (.not.tFillingStochRDMonFly)) call check_start_rdm()
 
-            if (tCCMC) then
-                if (tUseRealCoeffs) &
-                    call stop_all("FciMCPar", "Continuous spawning not yet set up to work &
-                    & with CCMC.  Attention will be required in a number of routines, &
-                    & including AttemptCreatePar and PerformCCMCCycParInt")
-
-                if(inum_runs.eq.2) &
-                    call stop_all("FciMCPar", "Double runs not set up to work with CCMC")
-
-                CALL PerformCCMCCycPar()
-            else
-                if (.not. (tSpinProject .and. spin_proj_interval == -1)) &
-                    call PerformFciMCycPar(iter_data_fciqmc)
-            endif
+            if (.not. (tSpinProject .and. spin_proj_interval == -1)) &
+                call PerformFciMCycPar(iter_data_fciqmc)
 
             ! Are we projecting the spin out between iterations?
             if (tSpinProject .and. (mod(Iter, spin_proj_interval) == 0 .or. &
@@ -269,13 +257,7 @@ module FciMCParMod
                 ! Calculate the a new value for the shift (amongst other
                 ! things). Generally, collate information from all processors,
                 ! update statistics and output them to the user.
-                if (tCCMC) then
-                    call calculate_new_shift_wrapper (iter_data_ccmc, &
-                                                      TotParts)
-                else
-                    call calculate_new_shift_wrapper (iter_data_fciqmc, &
-                                                      TotParts)
-                endif
+                call calculate_new_shift_wrapper (iter_data_fciqmc, TotParts)
 
                 if(tRestart) cycle
 

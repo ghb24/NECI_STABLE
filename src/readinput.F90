@@ -184,7 +184,7 @@ MODULE ReadInput_neci
                             TNoSameExcit, TInitStar, tMP2Standalone, &
                             MemoryFacPart, tTruncInitiator, tSemiStochastic, &
                             tSpatialOnlyHash, InitWalkers, tUniqueHFNode, &
-                            InitiatorCutoffEnergy, tCCMC, &
+                            InitiatorCutoffEnergy, &
                             tSurvivalInitiatorThreshold, tKP_FCIQMC, &
                             tSurvivalInitMultThresh, tAddToInitiator, &
                             tMultiReplicaInitiators
@@ -431,10 +431,6 @@ MODULE ReadInput_neci
 
         if (tHPHF .and. tUHF) then
             call stop_all(t_r, 'HPHF functions cannot work with UHF')
-        end if
-
-        if (tCCMC .and. .not. (InitiatorCutoffEnergy > 1.0e99_dp)) then
-            call stop_all(t_r, 'Initiator cutoff not implemented for CCMC')
         end if
 
         if (tPopsFile .and. (tSurvivalInitiatorThreshold .or. &

@@ -10,7 +10,7 @@ MODULE PopsfileMod
                         iWeightPopRead, iPopsFileNoRead, Tau, &
                         InitiatorWalkNo, MemoryFacPart, &
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
-                        tCCMC, pops_norm, tWritePopsNorm
+                        pops_norm, tWritePopsNorm
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt
     use hash, only: DetermineDetNode, FindWalkerHash, clear_hash_table, &
@@ -179,7 +179,7 @@ contains
         if (tSplitPops) then
             CurrWalkers = read_pops_splitpops (iunit, PopNel, TempnI, BinPops, &
                                                Dets, DetsLen, iunit_3, PopNIfSgn)
-        else if (pops_nnodes == nProcessors .and. (.not. tCCMC) .and. PopsVersion == 4) then
+        else if (pops_nnodes == nProcessors .and. PopsVersion == 4) then
             CurrWalkers = read_pops_nnodes (iunit, PopNel, TempnI, BinPops, Dets, &
                                             DetsLen, read_walkers_on_nodes, &
                                             iunit_3, PopNIfSgn)

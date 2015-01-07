@@ -126,8 +126,6 @@ contains
         ! Potentially, ilutJ can be given the flag of its parent in
         ! FindExcitBitDet routine. I don't think it should be. To make things
         ! confusing, this only happens for non-HPHF/CSF runs.
-        ! Things are even more confusing given the fact that CCMC is using
-        ! tihs routine. Who knows whether theyrequire the flag there or not...
         ! TODO: CLEAN THIS UP. Make it clear, and transparent, with one way
         !       to change the flag. Otherwise, this will trip many people up
         !       in the future.

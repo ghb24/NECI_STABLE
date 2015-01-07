@@ -16,7 +16,7 @@ module fcimc_initialisation
                         tCheckHighestPop, tSpatialOnlyHash, tStartCAS, tau, &
                         MaxWalkerBloom, InitialPart, tStartMP1, tReadPops, &
                         InitialPartVec, iReadWalkersRoot, SinglesBias, NMCYC, &
-                        tTruncCAS, tTruncInitiator, DiagSft, tFCIMC, tCCMC, &
+                        tTruncCAS, tTruncInitiator, DiagSft, tFCIMC, &
                         tTrialWavefunction, tSemiStochastic, OccCASOrbs, &
                         VirtCASOrbs, StepsSft, tStartSinglePart, InitWalkers, &
                         tShiftOnHFPop, tReadPopsRestart, tTruncNOpen, &
@@ -905,16 +905,6 @@ contains
             IF(StepsSft.eq.0) StepsSft=1
             WRITE(iout,*) "StepsShift set to: ",StepsSft
         ENDIF
-        ! Once Alex's CCMC/FCIMC unification project is finished, we can
-        ! remove this. The problem is that ValidSpawnedList is now setup in
-        ! InitFCIMCCalcPar - this is for compatibility with POPSFILE v.3,
-        ! where MaxSpawned is calculated from the number in the POPSFILE.
-        !
-        ! Set it pu here for CCMC.
-        IF(tCCMC) then
-            if(inum_runs.eq.2) call stop_all('SetupParameters',"CCMC not set up to work with double run")
-            Call SetupValidSpawned(int(InitWalkers, int64))
-        endif
 
         IF(TPopsFile) THEN
             IF(mod(iWritePopsEvery,StepsSft).ne.0) then
