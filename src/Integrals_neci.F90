@@ -887,7 +887,7 @@ contains
        ! Allocate the frozen orbital list for later use
        ! n.b. These are for frozen occupied orbs. Frozen virts are chucked.
        list_sz = nfrozen + nfrozenin !ntfrozen + ntfrozenin
-       if (list_sz /= 0) then
+       if (list_sz /= 0 .or. ntfrozen + ntfrozenin /= 0) then
            allocate(frozen_orb_list(list_sz), frozen_orb_reverse_map(nbasis), &
                     stat=ierr)
            call LogMemAlloc("frozen_orb_list", list_sz, sizeof_int, &
