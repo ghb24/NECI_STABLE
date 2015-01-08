@@ -1556,6 +1556,7 @@ r_loop: do while(.not.tStoreDet)
             end if
 
             ! Close the output files
+            call neci_flush(iunit)
             close(iunit)
             if (tPrintInitiators) close(iunit_2)
 

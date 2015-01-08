@@ -38,7 +38,8 @@ module fcimc_helper
                         InitiatorCutoffEnergy, InitiatorCutoffWalkNo, &
                         im_time_init_thresh, tSurvivalInitMultThresh, &
                         init_survival_mult, MaxWalkerBloom, &
-                        tMultiReplicaInitiators, tSurvivalInitiatorThreshold
+                        tMultiReplicaInitiators, tSurvivalInitiatorThreshold, &
+                        NMCyc,iSampleRDMIters
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
@@ -58,6 +59,23 @@ module fcimc_helper
     save
 
 contains
+            
+    function TestMCExit(Iter,RDMSamplingIter) result(ExitCriterion)
+        implicit none
+        integer, intent(in) :: Iter,RDMSamplingIter
+        logical :: ExitCriterion
+
+        ExitCriterion = .false.
+        if((Iter.gt.NMCyc).and.(NMCyc.ne.-1)) then
+            write(6,"(A)") "Total iteration number limit reached. Finishing FCIQMC loop..."
+            ExitCriterion = .true.
+        elseif((RDMSamplingIter.gt.iSampleRDMIters).and.(iSampleRDMIters.ne.-1)) then
+            write(6,"(A)") "RDM Sampling iteration number limit reached. Finishing FCIQMC loop..."
+            ExitCriterion = .true.
+        endif
+
+    end function TestMCExit
+
 
     subroutine create_particle (nJ, iLutJ, child, parent_flags, part_type, &
                                 ilutI, SignCurr, WalkerNo, RDMBiasFacCurr, &

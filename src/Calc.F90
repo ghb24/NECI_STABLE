@@ -70,6 +70,7 @@ contains
           end if
 
 !       Calc defaults 
+          iSampleRDMIters = -1
           tStartCoreGroundState = .true.
           tHashWalkerList=.false.
           HashLengthFrac=0.0_dp
@@ -530,6 +531,9 @@ contains
                 if(I_HMAX.ne.0) call report("METHOD already set",.true.)
                 call inpgetmethod(I_HMAX,NWHTAY(1,1),0)
 
+            case("RDMSAMPLINGITERS")
+                !How many iterations do we want to sample the RDM for?
+                call readi(iSampleRDMIters)
             case("CYCLES")
                 call readi(NWHTAY(1,1))
                 if ( I_HMAX .ne. -7.and.                              &

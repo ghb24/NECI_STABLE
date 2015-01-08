@@ -56,7 +56,7 @@ INTEGER :: NDETWORK,I_HMAX,I_VMAX,G_VMC_SEED,HApp,iFullSpaceIter
 INTEGER :: IMCSTEPS,IEQSTEPS,MDK(5),Iters,NDets,iDetGroup
 INTEGER :: CUR_VERT,NHISTBOXES,I_P,LinePoints,iMaxExcitLevel
 INTEGER :: NMCyc,StepsSft,CLMax
-INTEGER :: NEquilSteps
+INTEGER :: NEquilSteps,iSampleRDMIters
 real(dp) :: InitialPart
 real(dp), allocatable :: InitialPartVec(:)
 INTEGER :: OccCASorbs,VirtCASorbs,iAnnInterval
