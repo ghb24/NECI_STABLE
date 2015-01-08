@@ -20,7 +20,7 @@ module fcimc_output
     use DetCalcData, only: det, fcidets, ReIndex, NDet, NRow, HAMIL, LAB
     use bit_reps, only: decode_bit_det, test_flag, extract_sign
     use semi_stoch_procs, only: return_most_populated_states
-    use bit_rep_data, only: niftot, nifd, flag_is_initiator
+    use bit_rep_data, only: niftot, nifd, flag_initiator
     use hist, only: calc_s_squared_star, calc_s_squared
     use fcimc_helper, only: LanczosFindGroundE
     use Determinants, only: write_det
@@ -1220,7 +1220,7 @@ contains
                     if(.not.tTruncInitiator) then
                         write(iout,"(A3)",advance='no') 'Y'
                     else
-                        if(test_flag(GlobalLargestWalkers(:,i),flag_is_initiator(j))) then
+                        if(test_flag(GlobalLargestWalkers(:,i),flag_initiator(j))) then
                             write(iout,"(A3)",advance='no') 'Y'
                         else
                             write(iout,"(A3)",advance='no') 'N'
