@@ -1934,7 +1934,7 @@ subroutine AttemptDieParticle(C,iDebug,SpawnList,nSpawned)
       initFlag=0
       if(C%iSize>1) initFlag=C%initFlag  !Death is always a certainty despite parentage (except if you're composite)
    !   call encode_bit_rep(SpawnList(:,nSpawned),C%iLutDetCurr(:),iSpawnAmp,0)  
-  !    if(tTruncInitiator.and.initFlag==0) call set_flag(SpawnList(:,nSpawned),flag_parent_initiator(1)) !meaning is initiator
+  !    if(tTruncInitiator.and.initFlag==0) call set_flag(SpawnList(:,nSpawned),flag_initiator(1)) !meaning is initiator
 #ifdef __CMPLX
       if(IsImag) then
          iSpawnAmp(2)=iSpawnAmp(1)
@@ -2836,7 +2836,7 @@ subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
       use SystemData, only : nEl
       use hash, only: DetermineDetNode
       use bit_reps, only: decode_bit_det, set_flag
-      use bit_rep_data, only: flag_parent_initiator
+      use bit_rep_data, only: flag_initiator
       use CCMCData, only: tSharedExcitors
       use CalcData, only: tTruncInitiator
       implicit none
@@ -2881,7 +2881,7 @@ subroutine ReHouseExcitors(DetList, nAmpl, SpawnList, ValidSpawnedList,iDebug)
 ! Beware - if initiator is on, we need to flag this as an initiator det, otherwise it'll die before reaching the new proc.
 ! This may need to change with complex walkers.
             if(tTruncInitiator) then
-              call set_flag(SpawnList(:,ValidSpawnedList(p)),flag_parent_initiator(1),.true.)
+              call set_flag(SpawnList(:,ValidSpawnedList(p)),flag_initiator(1),.true.)
             endif
 !            write(iout,*) "Det",i,"=>Node",p
             ValidSpawnedList(p)=ValidSpawnedList(p)+1
