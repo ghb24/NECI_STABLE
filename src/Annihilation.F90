@@ -594,7 +594,7 @@ module AnnihilationMod
             ! .false. (and PartInd shouldn't be accessed).
             ! Also, the hash value, DetHash, is returned by this routine.
             ! tSuccess will determine whether the particle has been found or not.
-            call hash_table_lookup(nJ, SpawnedParts(:,i), NIfDBO, HashIndex, &^
+            call hash_table_lookup(nJ, SpawnedParts(:,i), NIfDBO, HashIndex, &
                                    CurrentDets, PartInd, DetHash, tSuccess)
 
             tDetermState = .false.
