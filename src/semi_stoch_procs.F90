@@ -6,7 +6,7 @@
 module semi_stoch_procs
 
     use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag, &
-                            flag_is_initiator, NOffSgn, NIfSgn
+                            flag_initiator, NOffSgn, NIfSgn
     use bit_reps, only: decode_bit_det, set_flag, extract_part_sign, extract_sign, &
                         encode_sign
     use CalcData
@@ -650,8 +650,8 @@ contains
             if (tSuccess) then
                 call set_flag(CurrentDets(:,PartInd), flag_deterministic)
                 if (tTruncInitiator) then
-                    call set_flag(CurrentDets(:,PartInd), flag_is_initiator(1))
-                    call set_flag(CurrentDets(:,PartInd), flag_is_initiator(2))
+                    call set_flag(CurrentDets(:,PartInd), flag_initiator(1))
+                    call set_flag(CurrentDets(:,PartInd), flag_initiator(2))
                 end if
                 MinInd = PartInd
             else
@@ -676,7 +676,7 @@ contains
         ! such states already in CurrentDets, we want to keep the amplitude (which
         ! may have come from a popsfile).
 
-        ! This routine is for when the tHashWalkerList option is used. In this case,
+        ! This routine is for when the hashed walker main list. In this case,
         ! as all core states are always kept in the list, it is beneficial to keep
         ! them at the top always. So, in this routine, we move the non-core states
         ! in CurrentDets to the end and add the new core states in the gaps.

@@ -3,7 +3,7 @@
 module semi_stoch_gen
 
     use bit_rep_data, only: flag_deterministic, nIfDBO, nOffY, nIfY, NIfD, &
-                            flag_is_initiator, NOffSgn, NIfTot, flag_connected, &
+                            flag_initiator, NOffSgn, NIfTot, flag_connected, &
                             flag_trial
     use bit_reps, only: decode_bit_det, encode_bit_rep, set_flag, extract_sign, &
                         clr_flag
@@ -20,7 +20,7 @@ module semi_stoch_gen
                          determ_space_size, determ_space_size_int, TotWalkers, TotWalkersOld, &
                          indices_of_determ_states, SpawnedParts, FDetermTag, FDetermAvTag, &
                          PDetermTag, IDetermTag, trial_space, trial_space_size, &
-                         SemiStoch_Init_Time, tHashWalkerList, full_determ_vector_av, &
+                         SemiStoch_Init_Time, full_determ_vector_av, &
                          tStartCoreGroundState
     use gndts_mod, only: gndts, gndts_all_sym_this_proc
     use LoggingData, only: tWriteCore, tRDMonFly
@@ -157,11 +157,7 @@ contains
         if (tRDMonFly) call generate_core_connections()
 
         ! Move the states to CurrentDets.
-        if (tHashWalkerList) then
-            call add_core_states_currentdet_hash()
-        else
-            call add_core_states_currentdets()
-        end if
+        call add_core_states_currentdet_hash()
 
         ! If starting from a popsfile then global_determinant_data will not
         ! have been initialised.
@@ -189,7 +185,7 @@ contains
 
         ! A wrapper to call the correct generating routine.
 
-        integer :: space_size, ierr
+        integer :: space_size, j, ierr
         integer(int64) :: i
         character (len=*), parameter :: t_r = "generate_space"
 
@@ -197,8 +193,9 @@ contains
         if (tStartCAS) then
             do i = 1, TotWalkers
                 call set_flag(CurrentDets(:, i), flag_deterministic)
-                call set_flag(CurrentDets(:, i), flag_is_initiator(1))
-                call set_flag(CurrentDets(:, i), flag_is_initiator(2))
+                do j = 1, lenof_sign
+                    call set_flag(CurrentDets(:,i), flag_initiator(j))
+                end do
             end do
             call MPIAllGather(int(TotWalkers, MPIArg), determ_proc_sizes, ierr)
         else if (tPopsCore) then
@@ -282,7 +279,7 @@ contains
         integer, intent(in) :: called_from
         integer, optional :: nI_in(nel)
         integer :: nI(nel)
-        integer :: flags, proc, comp
+        integer :: flags, proc, comp, i
         real(dp) :: sgn(lenof_sign)
 
         ! If using HPHFs then only allow the correct HPHFs to be added to the list.
@@ -308,8 +305,9 @@ contains
             flags = 0
             flags = ibset(flags, flag_deterministic)
             if (tTruncInitiator) then
-                flags = ibset(flags, flag_is_initiator(1))
-                flags = ibset(flags, flag_is_initiator(2))
+                do i = 1, lenof_sign
+                    flags = ibset(flags, flag_initiator(i))
+                end do
             end if
 
             ! Keep track of the size of the deterministic space on this processor.
@@ -812,8 +810,9 @@ contains
         do i = 1, this_proc_size
             call set_flag(SpawnedParts(:,i), flag_deterministic)
             if (tTruncInitiator) then
-                call set_flag(SpawnedParts(:,i), flag_is_initiator(1))
-                call set_flag(SpawnedParts(:,i), flag_is_initiator(2))
+                do j = 1, lenof_sign
+                    call set_flag(SpawnedParts(:,i), flag_initiator(j))
+                end do
             end if
             comp = DetBitLT(SpawnedParts(:,i), ilutHF, NIfD, .false.)
             if (comp == 0) SpawnedParts(nOffSgn,i) = CurrentDets(nOffSgn,1)

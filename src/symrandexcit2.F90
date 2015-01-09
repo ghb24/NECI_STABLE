@@ -336,11 +336,6 @@ MODULE GenRandSymExcitNUMod
         nJ(:)=nI(:)
         CALL FindExcitDet(ExcitMat,nJ,2,tParity)
 
-        ! SDS: Remove this test for now. Breaks some of the CCMC code,
-        !      which CAN generate invalid dets, and throws them away
-        !      elsewhere.
-
-
     end subroutine FindNewDet
 
 

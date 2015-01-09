@@ -20,7 +20,7 @@ module fcimc_output
     use DetCalcData, only: det, fcidets, ReIndex, NDet, NRow, HAMIL, LAB
     use bit_reps, only: decode_bit_det, test_flag, extract_sign
     use semi_stoch_procs, only: return_most_populated_states
-    use bit_rep_data, only: niftot, nifd, flag_is_initiator
+    use bit_rep_data, only: niftot, nifd, flag_initiator
     use hist, only: calc_s_squared_star, calc_s_squared
     use fcimc_helper, only: LanczosFindGroundE
     use Determinants, only: write_det
@@ -332,9 +332,9 @@ contains
                 all_max_cyc_spawn                          ! 33.
                 if (tTrialWavefunction) then
                     write(fcimcstats_unit, "(3(1X,es18.11))", advance = 'no') &
-                    (tot_trial_numerator / StepsSft), &             ! 34.
-                    (tot_trial_denom / StepsSft), &                 ! 35.
-                    abs((tot_trial_denom / (norm_psi*StepsSft)))    ! 36.
+                    (tot_trial_numerator(1) / StepsSft), &              ! 34.
+                    (tot_trial_denom(1) / StepsSft), &                  ! 35.
+                    abs((tot_trial_denom(1) / (norm_psi(1)*StepsSft)))  ! 36.
                 end if
                 write(fcimcstats_unit, "()", advance = 'yes')
 
@@ -1220,7 +1220,7 @@ contains
                     if(.not.tTruncInitiator) then
                         write(iout,"(A3)",advance='no') 'Y'
                     else
-                        if(test_flag(GlobalLargestWalkers(:,i),flag_is_initiator(j))) then
+                        if(test_flag(GlobalLargestWalkers(:,i),flag_initiator(j))) then
                             write(iout,"(A3)",advance='no') 'Y'
                         else
                             write(iout,"(A3)",advance='no') 'N'
