@@ -170,13 +170,13 @@ contains
 
         ! A wrapper to call the correct generating routine.
 
-        use bit_rep_data, only: flag_deterministic, flag_is_initiator
+        use bit_rep_data, only: flag_deterministic, flag_initiator
         use bit_reps, only: set_flag, encode_sign
         use FciMCData, only: determ_sizes, SpawnedParts
         use ras_data, only: core_ras
         use SystemData, only: tAllSymSectors
 
-        integer :: space_size, i, ierr
+        integer :: space_size, i, j, ierr
         real(dp) :: zero_sign(lenof_sign)
         character (len=*), parameter :: t_r = "generate_space"
 
@@ -235,8 +235,9 @@ contains
 
             call set_flag(SpawnedParts(:,i), flag_deterministic)
             if (tTruncInitiator) then
-                call set_flag(SpawnedParts(:,i), flag_is_initiator(1))
-                call set_flag(SpawnedParts(:,i), flag_is_initiator(2))
+                do j = 1, lenof_sign
+                    call set_flag(SpawnedParts(:,i), flag_initiator(j))
+                end do
             end if
         end do
 
@@ -752,6 +753,7 @@ contains
         ! Send the number of states on each processor to the corresponding processor.
         call MPIScatter(proc_space_sizes, this_proc_size, ierr)
         recvcount = int(this_proc_size*(NIfTot+1),MPIArg)
+
         ! Finally send the actual determinants to the ilut_list array.
         call MPIScatterV(ilut_store, sendcounts, disps, ilut_list(:, 1:this_proc_size), recvcount, ierr)
 

@@ -634,16 +634,14 @@ contains
         ! And if the state is already present, simply set its flag.
         ! Also sort the states afterwards.
 
-        use bit_rep_data, only: flag_is_initiator
+        use bit_rep_data, only: flag_initiator
         use bit_reps, only: set_flag
         use DetBitOps, only: ilut_lt, ilut_gt, DetBitLT
         use searching, only: BinSearchParts
         use sort_mod, only: sort
 
-        integer :: i, comp, MinInd, PartInd, nwalkers
+        integer :: i, j, comp, MinInd, PartInd, nwalkers
         logical :: tSuccess
-
-        integer :: j
 
         MinInd = 1
         nwalkers = int(TotWalkers,sizeof_int)
@@ -676,8 +674,9 @@ contains
             if (tSuccess) then
                 call set_flag(CurrentDets(:,PartInd), flag_deterministic)
                 if (tTruncInitiator) then
-                    call set_flag(CurrentDets(:,PartInd), flag_is_initiator(1))
-                    call set_flag(CurrentDets(:,PartInd), flag_is_initiator(2))
+                    do j = 1, lenof_sign
+                        call set_flag(CurrentDets(:,PartInd), flag_initiator(j))
+                    end do
                 end if
                 MinInd = PartInd
             else

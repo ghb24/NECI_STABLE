@@ -5,9 +5,7 @@ module spin_project
                         tRealCoeffByExcitLevel, RealCoeffExcitThresh
     use SymExcitDataMod, only: scratchsize
     use bit_rep_data, only: extract_sign
-    use bit_reps, only: NIfD, NIfTot, flag_is_initiator, &
-                        flag_make_initiator, test_flag, set_flag, &
-                        flag_parent_initiator
+    use bit_reps, only: NIfD, NIfTot, flag_initiator, test_flag, set_flag
     use csf, only: csf_get_yamas, get_num_csfs, csf_coeff, random_spin_permute
     use constants, only: dp, bits_n_int, lenof_sign, n_int, end_n_int, int32,sizeof_int
     use FciMCData, only: TotWalkers, CurrentDets, fcimc_iter_data, &
@@ -517,14 +515,7 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         if (tTruncInitiator) then
             do i = 1, lenof_sign
                 ! We always want our particles to survive.
-                call set_flag (ilutJ, flag_parent_initiator(i))
-            
-                ! If we are spawning from an initiator, we may want to make
-                ! the ! target also an initiator.
-                if (spin_proj_spawn_initiators .and. &
-                    test_flag(ilutI, flag_is_initiator(i))) then
-                    call set_flag (ilutJ, flag_make_initiator(i))
-                endif
+                call set_flag (ilutJ, flag_initiator(i))
             enddo
         endif
 

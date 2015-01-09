@@ -71,7 +71,7 @@ module FciMCParMod
         INTEGER(int64) :: MaxWalkers,MinWalkers
         real(dp) :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
         integer, dimension(lenof_sign) :: tmp_sgn
-        integer :: tmp_int(lenof_sign), i, istart
+        integer :: tmp_int(lenof_sign), i, istart, iRDMSamplingIter
         real(dp) :: grow_rate,EnergyDiff,Norm_2RDM
         TYPE(BasisFn) RefSym
         real(dp) :: mean_ProjE_re,mean_ProjE_im,mean_Shift
@@ -173,6 +173,7 @@ module FciMCParMod
         ! number of iterations
         tIncrement = .true.
         Iter=1
+        iRDMSamplingIter = 1    !For how many iterations have we accumulated the RDM
 
         SumSigns = 0.0_dp
         SumSpawns = 0.0_dp
@@ -180,8 +181,10 @@ module FciMCParMod
         ! In we go - start the timer for scaling curve!
         start_time = neci_etime(tstart)
 
-        do while (Iter <= NMCyc .or. NMCyc == -1)
+        do while (.true.)
 !Main iteration loop...
+            if(TestMCExit(Iter,iRDMSamplingIter)) exit
+
             IFDEBUG(FCIMCDebug, 2) write(iout,*) 'Iter', iter
 
             if(iProcIndex.eq.root) s_start=neci_etime(tstart)
@@ -396,6 +399,7 @@ module FciMCParMod
                 call update_compare_trial_file(.false.)
 
             Iter=Iter+1
+            if(tFillingStochRDMonFly) iRDMSamplingIter = iRDMSamplingIter + 1 
 
 !End of MC cycle
         enddo

@@ -716,6 +716,7 @@ contains
 !         CALL N_MEMORY_CHECK()
          WRITE(6,*) "ECORE now",ECORE
          WRITE(6,*) "Number of orbitals remaining: ",NBASIS
+         nel_pre_freezing = nel
          NEL=NEL-NFROZEN-NFROZENIN
          NOCC=NEL/2
 !!C.. NEL now only includes active electrons
@@ -778,6 +779,16 @@ contains
             LogDealloc (tagUMat)
             call shared_deallocate (UMAT)
         endif
+        
+        if (allocated(frozen_orb_list)) then
+            LogDealloc(tagFrozen)
+            deallocate(frozen_orb_list)
+        end if
+        if (allocated(frozen_orb_reverse_map)) then
+            LogDealloc(tagFrozenMap)
+            deallocate(frozen_orb_reverse_map)
+        end if
+
     end subroutine
 
 !This routine takes the frozen orbitals and modifies ECORE, UMAT, BRR etc accordingly.
@@ -804,7 +815,7 @@ contains
        real(dp) ARR2(NBASIS,2)
        INTEGER NFROZEN,BRR(NHG),BRR2(NBASIS),GG(NHG)
        TYPE(BASISFN) G2(NHG)
-       INTEGER NTFROZEN,NFROZENIN,NTFROZENIN
+       INTEGER NTFROZEN,NFROZENIN,NTFROZENIN, frozen_count, list_sz
        INTEGER BLOCKMINW,BLOCKMAXW,FROZENBELOWW,BLOCKMINY,BLOCKMAXY,FROZENBELOWY
        INTEGER BLOCKMINX,BLOCKMAXX,FROZENBELOWX,BLOCKMINZ,BLOCKMAXZ,FROZENBELOWZ
        INTEGER I,J,K,L,A,B,IP,JP,IDI,IDJ,IDK,IDL,W,X,Y,Z
@@ -813,6 +824,7 @@ contains
        INTEGER IDA,IDB
        INTEGER iSize,ierr
        INTEGER NEL
+       logical :: frozen_occ, frozen_virt
 !       TYPE(Symmetry) KSYM
        character(*), parameter :: this_routine='IntFreezeBasis'
 
@@ -872,34 +884,59 @@ contains
 !!C.. We first need to work out where each of the current orbitals will
 !!C.. end up in the new set
 
+       ! Allocate the frozen orbital list for later use
+       ! n.b. These are for frozen occupied orbs. Frozen virts are chucked.
+       list_sz = nfrozen + nfrozenin !ntfrozen + ntfrozenin
+       if (list_sz /= 0 .or. ntfrozen + ntfrozenin /= 0) then
+           allocate(frozen_orb_list(list_sz), frozen_orb_reverse_map(nbasis), &
+                    stat=ierr)
+           call LogMemAlloc("frozen_orb_list", list_sz, sizeof_int, &
+                            this_routine, tagFrozen)
+           call LogMemAlloc("frozen_orb_reverse_map", nbasis, sizeof_int, &
+                            this_routine, tagFrozenMap)
+       end if
+
        K=0
+       frozen_count = 0
        DO I=1,NHG
-          L=1
+          frozen_occ = .false.
+          frozen_virt = .false.
           DO J=1,NFROZEN
+              ! if (any(brr(1:nfrozen) == i))
 !C.. if orb I is to be frozen, L will become 0
-             IF(BRR(J).EQ.I) L=0
+             IF(BRR(J).EQ.I) frozen_occ = .true.
           ENDDO
           DO J=NEL-NFROZENIN+1,NEL
-             IF(BRR(J).EQ.I) L=0
+             IF(BRR(J).EQ.I) frozen_occ = .true.
           ENDDO
           DO J=NEL+1,NEL+NTFROZENIN
-             IF(BRR(J).EQ.I) L=0
+             IF(BRR(J).EQ.I) frozen_virt = .true.
           ENDDO
           DO J=NBASIS+NFROZEN+NFROZENIN+NTFROZENIN+1,NHG
 !C.. if orb I is to be frozen, L will become 0
-             IF(BRR(J).EQ.I) L=0
+             IF(BRR(J).EQ.I) frozen_virt = .true.
           ENDDO
-          IF(L.EQ.0) THEN
-             GG(I)=0
+          if (frozen_occ) then
+             GG(I) = 0
+             frozen_count = frozen_count + 1
+             frozen_orb_list(frozen_count) = i
+          else if (frozen_virt) then
+             GG(I) = 0
           ELSE
 !C.. we've got an orb which is not to be frozen 
-             K=K+L
+             K = k + 1
 !C.. GG(I) is the new position in G of the (old) orb I
              GG(I)=K
 !C.. copy the eigenvalue table to the new location
              G2(K)=G1(I)
+
+             ! Store the reverse mapping as well
+             frozen_orb_reverse_map(k) = i
           ENDIF
        ENDDO
+
+       if (frozen_count /= list_sz .or. k /= nbasis) &
+           call stop_all(this_routine, 'Incorrect number of orbitals frozen')
 
 !C.. Now construct the new BRR and ARR
 !       DO I=1,NBASIS

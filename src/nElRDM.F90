@@ -917,6 +917,7 @@ MODULe nElRDMMod
         else
             !Now let's consider other instances in which we need to start a new block:
             if(inum_runs.eq.2) then
+#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS) || defined(__CMPLX)
                 if ((SignI(1).eq.0).and.(IterRDMStartI(1).ne.0)) then
                     ! The population has just gone to zero on population 1
                     ! Therefore, we need to start a new averaging block
@@ -953,6 +954,7 @@ MODULe nElRDMMod
                             + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
                     enddo
                 endif
+#endif
             else
                 do part_ind=1,lenof_sign
                    ! If there is nothing stored there yet, the first iteration the determinant 

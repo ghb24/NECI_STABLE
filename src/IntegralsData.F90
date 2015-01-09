@@ -45,4 +45,9 @@ real(dp) :: ChemPot
 ! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
 Logical :: tNeedsVirts  
 
+! Details to permit reversing freezing for convenience.
+integer :: nel_pre_freezing
+integer, allocatable :: frozen_orb_list(:), frozen_orb_reverse_map(:)
+integer(TagIntType) :: tagFrozen=0, tagFrozenMap=0
+
 end module IntegralsData

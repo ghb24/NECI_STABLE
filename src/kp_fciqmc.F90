@@ -9,7 +9,7 @@ module kp_fciqmc
     use AnnihilationMod, only: DirectAnnihilation
     use bit_rep_data, only: NIfTot, NOffFlag, tUseFlags, test_flag
     use bit_reps, only: flag_deterministic, flag_determ_parent, set_flag
-    use bit_reps, only: extract_bit_rep, flag_is_initiator
+    use bit_reps, only: extract_bit_rep
     use CalcData, only: AvMCExcits, tSemiStochastic, tTruncInitiator, StepsSft
     use constants
     use DetBitOps, only: FindBitExcitLevel, return_ms

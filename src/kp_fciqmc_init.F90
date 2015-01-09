@@ -947,7 +947,6 @@ contains
 
     subroutine create_trial_states(nvecs)
 
-        use bit_reps, only: flag_is_initiator, set_flag
         use CalcData, only: tTruncInitiator, tStartSinglePart, InitialPart
         use CalcData, only: InitWalkers, tSemiStochastic
         use DetBitOps, only: ilut_lt, ilut_gt
