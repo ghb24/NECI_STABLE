@@ -23,11 +23,8 @@ MODULE Calc
                        tFindDets
     use DetCalcData, only: B2L, nKry, nEval, nBlk, nCycle
     use IntegralsData, only: tNeedsVirts
-    use CCMCData, only: dInitAmplitude, dProbSelNewExcitor, nSpawnings, &
-                        tSpawnProp, nClustSelections, tExactEnergy,     &
-                        dClustSelectionRatio,tSharedExcitors
     use FciMCData, only: tTimeExit,MaxTimeExit, InputDiagSft, tSearchTau, &
-                         nWalkerHashes, tHashWalkerList, HashLengthFrac, &
+                         nWalkerHashes, HashLengthFrac, &
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets
@@ -69,8 +66,7 @@ contains
 !       Calc defaults 
           iSampleRDMIters = -1
           tStartCoreGroundState = .true.
-          tHashWalkerList=.false.
-          HashLengthFrac=0.0_dp
+          HashLengthFrac = 0.7_dp
           nWalkerHashes=0
           tTrialHash=.true.
           tIncCancelledInitEnergy = .false.
@@ -123,7 +119,6 @@ contains
           TFullUnbias=.false.
           TFCIMC=.false.
           tRPA_QBA=.false.
-          TCCMC=.false.
           TMCDets=.false.
           TBinCancel=.false.  
           ScaleWalkers=1.0_dp
@@ -135,14 +130,6 @@ contains
           SftDamp=10.0_dp
           Tau=0.0_dp
           InitWalkers=3000.0_dp
-          dInitAmplitude=1.0_dp
-          dProbSelNewExcitor=0.7_dp
-          nSpawnings=1
-          nClustSelections=1
-          dClustSelectionRatio=1.0_dp
-          tExactEnergy=.false.
-          tSharedExcitors=.false.
-          tSpawnProp=.false.
           NMCyc = -1
           HApp=1
           TMCStar=.false.
@@ -363,8 +350,6 @@ contains
           Use DetCalc, only: tEnergy, tRead,tFindDets
           use IntegralsData, only: tNeedsVirts,NFROZEN
           use UMatCache, only: gen2CPMDInts
-          use CCMCData, only: dInitAmplitude,dProbSelNewExcitor,nSpawnings,tSpawnProp,nClustSelections
-          use CCMCData, only: tExactEnergy,tSharedExcitors
           use FciMCData, only: hash_shift, davidson_ras
           use ras_data
           use global_utilities
@@ -937,29 +922,8 @@ contains
                 else
                     HFPopThresh=int(MaxNoatHF,int64) 
                 end if
-            case("INITAMPLITUDE")
-!For Amplitude CCMC the initial amplitude.
-                call getf(dInitAmplitude)
-            case("CLUSTERSIZEBIAS")
-                call getf(dProbSelNewExcitor)
-            case("NSPAWNINGS")
-!For Amplitude CCMC the number of spawnings for each cluster.
-                call geti(nSpawnings)
             case("HASH_SHIFT")
                 call geti(hash_shift)
-            case("NCLUSTSELECTIONS")
-!For Particle CCMC the number of  cluster.
-                call geti(nClustSelections)
-            case("CLUSTSELECTIONRATIO")
-!For Particle CCMC the number of  cluster.
-                call getf(dClustSelectionRatio)
-            case("CCMCEXACTENERGY")
-               tExactEnergy=.true.
-            case("CCMCSHAREDEXCITORS")
-               tSharedExcitors=.true.
-            case("SPAWNPROP")
-!For Amplitude CCMC use NSPAWNINGS as a total number of spawnings, and distribute them according to the Amplitudes of clusters.
-               tSpawnProp=.true.
             case("NMCYC")
 !For FCIMC, this is the number of MC cycles to perform
                 call geti(NMCyc)
@@ -1003,16 +967,21 @@ contains
             case("SHIFTDAMP")
 !For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
                 call getf(SftDamp)
+
             case("LINSCALEFCIMCALGO")
-                !Use the linear scaling FCIMC algorithm
-                !Instead of the absolute length of the hash table, read in the fraction of initwalkers that it wants to be.
-!                call geti(nWalkerHashes)
-                tHashWalkerList=.true.
-                if(item.lt.nitems) then
-                    call getf(HashLengthFrac)
-                else
-                    HashLengthFrac=0.7_dp
-                endif
+                ! Use the linear scaling FCIMC algorithm
+                ! This option is now deprecated, as it is default.
+                write(iout, '("WARNING: LINSCALEFCIMCALGO option has been &
+                              &deprecated, and now does nothing")')
+                !call stop_all(t_r, "Option LINSCALEFCIMCALGO deprecated")
+
+            case("PARTICLE-HASH-MULTIPLIER")
+                ! Determine the absolute length of the hash table relative to
+                ! the target number of walkers (InitWalkers)
+                ! 
+                ! By default this value is 0.7 (see above)
+                call getf(HashLengthFrac)
+
             case("SEMI-STOCHASTIC")
                 tSemiStochastic = .true.
                 if (item < nitems) then
@@ -2202,8 +2171,6 @@ contains
           Use DetCalcData, only : nDet, nEval, nmrks, w
           USE FciMCParMod , only : FciMCPar
           use RPA_Mod, only: RunRPA_QBA
-          USE CCMC, only: CCMCStandalone,CCMCStandaloneParticle
-          use CCMCData, only: tAmplitudes
           use DetCalc, only: CK, DetInv, tEnergy, tRead
           Use Determinants, only: FDet, nActiveBasis, SpecDet, tSpecDet
           use IntegralsData, only: FCK, NMAX, UMat, FCK
@@ -2253,13 +2220,6 @@ contains
                  call FciMCPar(WeightDum,EnerDum)
 
                  if((.not.tMolpro).and.(.not.tMolproMimic)) WRITE(6,*) "Summed approx E(Beta)=",EnerDum
-             elseif(tCCMC) then
-                  if(tAmplitudes) THEN
-                     CALL CCMCStandAlone(WeightDum,EnerDum)
-                  else
-                     CALL CCMCStandaloneParticle(WeightDum,EnerDum)
-                  endif
-                  WRITE(6,*) "Summed approx E(Beta)=",EnerDum
              elseif(tRPA_QBA) then
                 call RunRPA_QBA(WeightDum,EnerDum)
                 WRITE(6,*) "Summed approx E(Beta)=",EnerDum
@@ -2488,11 +2448,10 @@ contains
          use input_neci
          use UMatCache , only : TSTARSTORE
          use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
-         use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets,tCCMC
+         use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets
          use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes,tRPA_QBA, tDetermProj, tFTLM, tSpecLanc
          use CalcData, only: tExactSpec, tExactDiagAllSym
          use RPA_Mod, only : tDirectRPA
-         use CCMCData, only: tExactCluster,tCCMCFCI,tAmplitudes,tExactSpawn,tCCBuffer,tCCNoCuml
          use LoggingData, only: tCalcFCIMCPsi
          implicit none
          integer I_HMAX,NWHTAY,I_V
@@ -2529,41 +2488,6 @@ contains
                       case("DIRECT")
                           tDirectRPA=.true.
                       endselect
-                  enddo
-               case("CCMC")
-                  !Piggy-back on the FCIMC code
-                  I_HMAX=-21
-                  TFCIMC=.true.
-                  TCCMC=.true.
-                  tExactCluster=.false.
-                  tExactSpawn=.false.
-                  tCCMCFCI=.false.
-                  tAmplitudes=.false.
-                  tCCBuffer=.false.
-                  tCCNoCuml=.false.
-                  do while(item.lt.nitems)
-                    call readu(w)
-                    select case(w)
-                    case("PARTICLE")
-                       tFCIMC=.false.  !We don't use the FCIMC code, but use a standalone.
-                       tAmplitudes=.false.
-                    case("AMPLITUDE")
-                       tAmplitudes=.true.
-                       tFCIMC=.false.  !We don't use the FCIMC code, but use a standalone.
-                       tCalcFCIMCPsi=.true. !We want a full list of dets
-                    case("EXACTCLUSTER")
-                       tExactCluster=.true.
-                    case("EXACTSPAWN")
-                       tExactSpawn=.true.
-                    case("FCI")
-                       tCCMCFCI=.true.
-                    case("BUFFER")
-                        tCCBuffer=.true.
-                    case("NOCUML")
-                       tCCNoCuml=.true.
-                    case default
-                       call report("Keyword error with "//trim(w),.true.)
-                    end select
                   enddo
                case("RETURNPATHMC")
                    I_HMAX=-21

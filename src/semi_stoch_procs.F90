@@ -676,7 +676,7 @@ contains
         ! such states already in CurrentDets, we want to keep the amplitude (which
         ! may have come from a popsfile).
 
-        ! This routine is for when the tHashWalkerList option is used. In this case,
+        ! This routine is for when the hashed walker main list. In this case,
         ! as all core states are always kept in the list, it is beneficial to keep
         ! them at the top always. So, in this routine, we move the non-core states
         ! in CurrentDets to the end and add the new core states in the gaps.

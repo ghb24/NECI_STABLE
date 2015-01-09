@@ -8,7 +8,7 @@ module searching
     use DetBitOps, only: DetBitLt, ilut_gt, DetBitEq
     use FciMCData, only: CurrentDets, trial_space, min_trial_ind, trial_space_size, trial_wf, &
                          con_space, min_conn_ind, con_space_size, con_space_vector, &
-                         trial_numerator, trial_denom, Trial_Search_Time, trial_temp, con_temp
+                         trial_numerator, trial_denom, Trial_Search_Time
     use hash, only: FindWalkerHash
     use sparse_arrays, only: trial_ht, con_ht
     use SystemData, only: nel
@@ -244,63 +244,6 @@ contains
 
     end subroutine add_trial_energy_contrib
 
-    subroutine find_trial_and_con_states_bin(num_states, ilut_list, ntrial, ncon)
-
-        integer(int64), intent(in) :: num_states
-        integer(n_int), intent(inout) :: ilut_list(:,:)
-        integer, intent(out) :: ntrial, ncon
-        integer :: pos
-        integer(int64) :: i
-
-        min_trial_ind = 1
-        min_conn_ind = 1
-        ntrial = 0
-        ncon = 0
-
-        call set_timer(Trial_Search_Time)
-
-        do i = 1, num_states
-            ! Search both the trial space and connected space to see if this state exists in either list.
-            if (min_trial_ind <= trial_space_size) then
-                ! First the trial space:
-                pos = binary_search_custom(trial_space(:, min_trial_ind:trial_space_size), &
-                                           ilut_list(:,i), NIfTot+1, ilut_gt)
-
-                if (pos > 0) then
-                    ntrial = ntrial + 1
-                    trial_temp(ntrial) = trial_wf(pos+min_trial_ind-1)
-                    min_trial_ind = min_trial_ind + pos
-                    call set_flag(ilut_list(:,i), flag_trial)
-                else
-                    ! The state is not in the trial space. Just update min_trial_ind accordingly.
-                    min_trial_ind = min_trial_ind - pos - 1
-                end if
-            else
-                ! To make sure that the connected space can be searched next.
-                pos = -1
-            end if
-
-            ! If pos > 0 then the state is in the trial space. A state cannot be in both the trial and
-            ! connected space, so, unless pos < 0, don't bother doing the following binary search.
-            if (pos < 0 .and. min_conn_ind <= con_space_size) then
-
-                pos = binary_search_custom(con_space(:, min_conn_ind:con_space_size), &
-                                           ilut_list(:,i), NIfTot+1, ilut_gt)
-
-                if (pos > 0) then
-                    ncon = ncon + 1
-                    con_temp(ncon) = con_space_vector(pos+min_conn_ind-1)
-                    min_conn_ind = min_conn_ind + pos
-                    call set_flag(ilut_list(:,i), flag_connected)
-                else
-                    min_conn_ind = min_conn_ind - pos - 1
-                end if
-            end if
-        end do
-
-        call halt_timer(Trial_Search_Time)
-
-    end subroutine find_trial_and_con_states_bin
 
     subroutine find_trial_and_con_states_hash(num_states, ilut_list, ntrial, ncon)
 
@@ -327,11 +270,9 @@ contains
             if (test_flag(ilut_list(:,i),flag_trial)) then
                 ! If this state is in the trial space.
                 ntrial = ntrial + 1
-                trial_temp(ntrial) = amp
             else if(test_flag(ilut_list(:,i),flag_connected)) then
                 ! If this state is in the connected space.
                 ncon = ncon + 1
-                con_temp(ncon) = amp
             end if
         end do
 

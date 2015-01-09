@@ -332,9 +332,9 @@ contains
                 all_max_cyc_spawn                          ! 33.
                 if (tTrialWavefunction) then
                     write(fcimcstats_unit, "(3(1X,es18.11))", advance = 'no') &
-                    (tot_trial_numerator / StepsSft), &             ! 34.
-                    (tot_trial_denom / StepsSft), &                 ! 35.
-                    abs((tot_trial_denom / (norm_psi*StepsSft)))    ! 36.
+                    (tot_trial_numerator(1) / StepsSft), &              ! 34.
+                    (tot_trial_denom(1) / StepsSft), &                  ! 35.
+                    abs((tot_trial_denom(1) / (norm_psi(1)*StepsSft)))  ! 36.
                 end if
                 write(fcimcstats_unit, "()", advance = 'yes')
 
