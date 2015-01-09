@@ -415,33 +415,3 @@
 
 
 
-    ! Insert the (already sorted) items of n2 into the sorted array
-    ! n1 which only contains items up to position n1, but is large
-    ! enough to contain list2
-    subroutine int_list_merge (list1, list2, n1, n2)
-        integer, intent(in) :: n1, n2, list2(1:n2)
-        integer, intent(inout) :: list1(1:n1+n2)
-        integer i, j, pos
-
-        ! Work backwards through the lists, therefore never have to move
-        ! items out of the way.
-        ! j contains the reading position from list1
-        ! pos contains the writing position into list1
-        pos = n1+n2+1
-        j = n1
-        do i=n2,1,-1
-            do j=j,1,-1
-                pos = pos - 1
-                if (list2(i) > list1(j)) then
-                    list1(pos) = list2(i)
-                    exit
-                else
-                    list1(pos) = list1(j)
-                endif
-            enddo
-            if (j == 0) exit
-        enddo
-
-        list1(1:i) = list2(1:i)
-    end subroutine
-

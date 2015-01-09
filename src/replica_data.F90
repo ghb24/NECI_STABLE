@@ -117,7 +117,6 @@ contains
 
         ! Iteration data
         call allocate_iter_data(iter_data_fciqmc)
-        call allocate_iter_data(iter_data_ccmc)
 
         ! KPFCIQMC
         allocate(TotPartsInit(lenof_sign), &
@@ -125,8 +124,6 @@ contains
                  tSinglePartPhaseKPInit(inum_runs), stat=ierr)
 
         ! Hacky bugfixes, for variables that aren't clearly set elsewhere.
-        ! These particularly apply to the CCMC code where SDS doesn't really
-        ! know where a non-hacky place to set these would be...
         VaryShiftIter = 0
 
     end subroutine
@@ -208,7 +205,6 @@ contains
                    AllTotPartsInit)
 
         call clean_iter_data(iter_data_fciqmc)
-        call clean_iter_data(iter_data_ccmc)
 
     end subroutine
 
