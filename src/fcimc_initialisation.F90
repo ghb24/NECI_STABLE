@@ -47,7 +47,7 @@ module fcimc_initialisation
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
                              nVirtPartFrozen, nPartFrozen, nelVirtFrozen
-    use bit_rep_data, only: NIfTot, NIfD, NIfDBO, flag_is_initiator, &
+    use bit_rep_data, only: NIfTot, NIfD, NIfDBO, flag_initiator, &
                             flag_deterministic
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
                         decode_bit_det
@@ -1581,8 +1581,8 @@ contains
             ! Set reference determinant as an initiator if
             ! tTruncInitiator is set, for both imaginary and real flags
             if (tTruncInitiator) then
-                call set_flag (CurrentDets(:,1), flag_is_initiator(1))
-                call set_flag (CurrentDets(:,1), flag_is_initiator(2))
+                call set_flag (CurrentDets(:,1), flag_initiator(1))
+                call set_flag (CurrentDets(:,1), flag_initiator(2))
             endif
 
             ! If running a semi-stochastic simulation, set flag to specify the Hartree-Fock is in the
@@ -2285,8 +2285,8 @@ contains
                 call encode_sign(CurrentDets(:,DetIndex),temp_sign)
                 if(tTruncInitiator) then
                     !Set initiator flag (always for HF)
-                    call set_flag(CurrentDets(:,DetIndex),flag_is_initiator(1))
-                    call set_flag(CurrentDets(:,DetIndex),flag_is_initiator(2))
+                    call set_flag(CurrentDets(:,DetIndex),flag_initiator(1))
+                    call set_flag(CurrentDets(:,DetIndex),flag_initiator(2))
                 endif
                 call set_det_diagH(DetIndex, 0.0_dp)
 

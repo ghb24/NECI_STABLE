@@ -4,7 +4,7 @@ module kp_fciqmc_procs
  
     use AnnihilationMod, only: SendProcNewParts, CompressSpawnedList
     use bit_rep_data
-    use bit_reps, only: decode_bit_det, encode_sign, flag_is_initiator
+    use bit_reps, only: decode_bit_det, encode_sign
     use CalcData, only: tTruncInitiator, tStartSinglePart, InitialPart, InitWalkers
     use CalcData, only: tSemiStochastic, tReadPops, tUseRealCoeffs, tau, DiagSft
     use CalcData, only: AvMCExcits, tWritePopsNorm, iPopsFileNoRead, pops_norm
