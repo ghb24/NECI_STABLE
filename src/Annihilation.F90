@@ -578,6 +578,8 @@ module AnnihilationMod
             if (.not. tFillingStochRDMonFly) return
         end if
 
+        cum_sgn = extract_part_sign (cum_det, part_type)
+
         ! If the cumulative and new signs for this replica are both non-zero
         ! then there have been at least two spawning events to this site, so
         ! set the initiator flag.
@@ -587,7 +589,6 @@ module AnnihilationMod
              test_flag(new_det, flag_initiator(part_type))) &
             call set_flag(cum_det, flag_initiator(part_type))
 
-        cum_sgn = extract_part_sign (cum_det, part_type)
         sgn_prod = cum_sgn * new_sgn
 
         ! Update annihilation statistics.
