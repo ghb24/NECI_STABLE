@@ -601,64 +601,7 @@ module AnnihilationMod
 
 !            WRITE(6,*) 'i,SpawnedParts(:,i)',i,SpawnedParts(:,i)
             
-            IF(tSuccess) THEN
-
-                 !Our SpawnedParts determinant is found in CurrentDets
-                 !If we're using real coefficients, the "removal" step for these
-                 !Determinants (and the others in currentdets) will occur later
-                 !in InsertRemoveParts
-
-!                SearchInd=PartInd   !This can actually be min(1,PartInd-1) once we know that the binary search is working, 
-!                                   as we know that PartInd is the same particle.
-!                MinInd=PartInd      !Make sure we only have a smaller list to search next time since the next 
-!                                   particle will not be at an index smaller than PartInd
-!                AnnihilateInd=0    !AnnihilateInd indicates the index in CurrentDets of the particle we want to annihilate. 
-!                                   It will remain 0 if we find not complimentary particle.
-!                WRITE(6,'(3I20,A,3I20)') SpawnedParts(:,i),' equals ',CurrentDets(:,PartInd)
-
-!                WRITE(6,*) 'DET FOUND in list'
-
-                ! If spawning has occured from the deterministic (even partially) or to the deterministic space,
-                ! then we always allow the spawning to occur. Then simply cycle.
-                if (tSemiStochastic) then
-                    if (test_flag(CurrentDets(:,PartInd), flag_deterministic) .or. &
-                        test_flag(SpawnedParts(:, i), flag_determ_parent)) then
-                        call extract_sign(CurrentDets(:, PartInd), CurrentSign)
-                        call extract_sign(SpawnedParts(:, i), SpawnedSign)
-                        call encode_sign(CurrentDets(:, PartInd), SpawnedSign + CurrentSign)
-                        call encode_sign(SpawnedParts(:,i), null_part)
-                        if (sum(abs(SpawnedSign)).ne.0.0_dp) ToRemove = ToRemove + 1
-                        MinInd = PartInd
-
-                        ! Update stats:
-                        SignProd = CurrentSign*SpawnedSign
-                        do j = 1, lenof_sign
-                            if (SignProd(j) < 0.0_dp) iter_data%nannihil(j) = iter_data%nannihil(j) + &
-                                2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
-                        end do
-                        
-                        if(tFillingStochRDMonFly .and.(.not.tNoNewRDMContrib)) then
-                            !We must use the instantaneous value for the off-diagonal contribution
-                            !However, we can't just use currentsign, as this has been subject to death but not the
-                            !new walkers. Must add on SpawnedSign, so we're effectively taking the inst value from
-                            !the next iter. This is fine as it's from the other population, and the Di and Dj signs
-                            !are already strictly uncorrelated
-                            call check_fillRDM_DiDj(i,CurrentDets(:,PartInd),CurrentSign+SpawnedSign)
-                        endif 
-
-                        if (IsUnoccDet(SpawnedSign + CurrentSign) .and. &
-                            (.not. test_flag(CurrentDets(:,PartInd), flag_deterministic))) then
-                            !All walkers in this main list have been annihilated away
-                            !Remove it from the hash index array so that no others find it (it is impossible to have
-                            !another spawned walker yet to find this determinant)
-                            call remove_hash_table_entry(HashIndex, nJ, PartInd)
-                            !Add to "freeslot" list so it can be filled in
-                            iEndFreeSlot=iEndFreeSlot+1
-                            FreeSlot(iEndFreeSlot)=PartInd
-                        endif
-=======
             if (tSuccess) then
->>>>>>> a867856fc985c555413013f21215a17f3c32e0e9
 
                 ! Our SpawnedParts determinant is found in CurrentDets.
 
