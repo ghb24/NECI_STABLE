@@ -19,7 +19,7 @@ module kp_fciqmc
     use FciMCData, only: indices_of_determ_states, partial_determ_vecs
     use FciMCData, only: full_determ_vecs, walker_time, annihil_time
     use fcimc_initialisation, only: CalcApproxpDoubles
-    use fcimc_helper, only: SumEContrib, end_iter_stats, create_particle, &
+    use fcimc_helper, only: SumEContrib, end_iter_stats, &
                             CalcParentFlag, walker_death, decide_num_to_spawn
     use fcimc_output, only: end_iteration_print_warn, WriteFCIMCStats, &
                             write_fcimcstats2
@@ -41,6 +41,8 @@ module kp_fciqmc
 contains
 
     subroutine perform_kp_fciqmc(kp)
+
+        use fcimc_helper, only: create_particle
 
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: iiter, idet, ireplica, ispawn, ierr
@@ -344,6 +346,7 @@ contains
 
     subroutine perform_subspace_fciqmc(kp)
 
+        use fcimc_helper, only: create_particle_with_hash_table
         use FciMCData, only: HashIndex
 
         type(kp_fciqmc_data), intent(inout) :: kp
@@ -527,9 +530,8 @@ contains
                                                           nI_child, ilut_child, ic, ex_level_to_ref,&
                                                           child_sign, parent_flags, ireplica)
 
-                                    call create_particle (nI_child, ilut_child, child_sign, parent_flags, &
-                                                          ireplica, ilut_parent, parent_sign, &
-                                                          ispawn, unused_rdm_real, nspawn)
+                                    call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
+                                                                           parent_flags, ireplica, ilut_parent)
 
                                 end if ! If a child was spawned.
 

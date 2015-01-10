@@ -468,7 +468,8 @@ contains
     subroutine init_kp_fciqmc_repeat(iconfig, irepeat, nrepeats, nvecs)
 
         use CalcData, only: tStartSinglePart, InitialPart, InitWalkers, DiagSft, iPopsFileNoRead
-        use FciMCData, only: iter, InputDiagSft, PreviousCycles, OldAllAvWalkersCyc
+        use FciMCData, only: iter, InputDiagSft, PreviousCycles, OldAllAvWalkersCyc, proje_iter
+        use FciMCData, only: proje_iter_tot, AllGrowRate
         use FciMCParMod, only: tSinglePartPhase
         use hash, only: clear_hash_table
         use util_mod, only: int_fmt
@@ -508,6 +509,9 @@ contains
         else
             OldAllAvWalkersCyc = InitWalkers*nProcessors
         end if
+        proje_iter = 0.0_dp
+        proje_iter_tot = 0.0_dp
+        AllGrowRate = 0.0_dp
 
         ! Setting this variable to true stops the shift from varying instantly.
         tSinglePartPhase = tSinglePartPhaseKPInit
@@ -517,8 +521,9 @@ contains
     subroutine init_kp_fciqmc_iter(iter_data, determ_index)
 
         use FciMCData, only: FreeSlot, iStartFreeSlot, iEndFreeSlot, fcimc_iter_data, InitialSpawnedSlots
-        use FciMCData, only: ValidSpawnedList
+        use FciMCData, only: ValidSpawnedList, spawn_ht
         use FciMCParMod, only: rezero_iter_stats_each_iter
+        use hash, only: clear_hash_table
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(out) :: determ_index
@@ -533,6 +538,9 @@ contains
 
         ! Index for counting deterministic states.
         determ_index = 1
+
+        ! Clear the hash table for the spawning array.
+        call clear_hash_table(spawn_ht)
 
         call rezero_iter_stats_each_iter(iter_data)
 

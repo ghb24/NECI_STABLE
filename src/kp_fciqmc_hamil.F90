@@ -228,8 +228,8 @@ contains
             SpawnedParts(0:NIfDBO, ValidSpawnedList(proc)) = ilut_child(0:NIfDBO)
             int_sign = transfer(child_sign, int_sign)
             SpawnedParts(NOffSgn:NOffSgn+lenof_all_signs-1, ValidSpawnedList(proc)) = int_sign
-
             call add_hash_table_entry(spawn_ht, ValidSpawnedList(proc), hash_val)
+
             ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
 
             if (ValidSpawnedList(proc)-InitialSpawnedSlots(proc) > MaxSpawnedEachProc) tNearlyFull = .true.
