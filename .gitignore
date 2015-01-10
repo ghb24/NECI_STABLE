@@ -7,3 +7,7 @@ tags
 /lib
 /config/.default
 /utils/TransLz
+POPSFILE*
+CORESPACE
+test.err*
+test.out*
