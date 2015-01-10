@@ -14,8 +14,8 @@ module trial_wf_gen
                          con_space_size, trial_wf, trial_energy, &
                          con_space_vector, ilutHF, Hii, nSingles, nDoubles, &
                          ConTag, ConVecTag, DavidsonTag, TempTag, TrialTag, TrialWFTag, &
-                         iHFProc, Trial_Init_Time, trial_temp, con_temp, occ_trial_amps, &
-                         occ_con_amps, TrialTempTag, ConTempTag, OccTrialTag, OccConTag, &
+                         iHFProc, Trial_Init_Time, &
+                         TrialTempTag, ConTempTag, OccTrialTag, OccConTag, &
                          ntrial_occ, ncon_occ, CurrentTrialTag, &
                          current_trial_amps, MaxWalkersPart, min_trial_ind, min_conn_ind, &
                          HashIndex, tTrialHash, tIncCancelledInitEnergy
@@ -25,7 +25,7 @@ module trial_wf_gen
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci
     use ParallelHelper, only: root
-    use searching, only: BinSearchParts, hash_search_trial, find_trial_and_con_states_bin
+    use searching, only: BinSearchParts, hash_search_trial
     use semi_stoch_gen
     use semi_stoch_procs
     use sparse_arrays
@@ -283,33 +283,10 @@ contains
         if (tWriteTrial) call write_trial_space()
         if (tCompareTrialAmps) call update_compare_trial_file(.true.)
 
-        if (tHashWalkerList) then
-            allocate(current_trial_amps(MaxWalkersPart))
-            call LogMemAlloc('current_trial_amps', MaxWalkersPart, 8, t_r, CurrentTrialTag, ierr)
-            current_trial_amps = 0.0_dp
-            call initialise_trial_linscale()
-        else
-            ! Allocate the arrays which will store the trial and connected vector amplitudes of the
-            ! occupied trial and connected states.
-            allocate(trial_temp(trial_space_size))
-            call LogMemAlloc('trial_temp', trial_space_size, 8, t_r, TrialTempTag, ierr)
-            allocate(con_temp(con_space_size))
-            call LogMemAlloc('con_temp', con_space_size, 8, t_r, ConTempTag, ierr)
-            allocate(occ_trial_amps(trial_space_size))
-            call LogMemAlloc('occ_trial_amps', trial_space_size, 8, t_r, OccTrialTag, ierr)
-            allocate(occ_con_amps(con_space_size))
-            call LogMemAlloc('occ_con_amps', con_space_size, 8, t_r, OccConTag, ierr)
-            trial_temp = 0.0_dp
-            con_temp = 0.0_dp
-            occ_trial_amps = 0.0_dp
-            occ_con_amps = 0.0_dp
-            ! Find which states in CurrentDets are in the trial and connected states, set the corresponding
-            ! flags and return the corresponding trial and connected vector amplitudes to trial_temp and
-            ! con_temp. These are then copied across to the vectors below.
-            call find_trial_and_con_states_bin(TotWalkers, CurrentDets, ntrial_occ, ncon_occ)
-            occ_trial_amps(1:ntrial_occ) = trial_temp(1:ntrial_occ)
-            occ_con_amps(1:ncon_occ) = con_temp(1:ncon_occ)
-        end if
+        allocate(current_trial_amps(MaxWalkersPart))
+        call LogMemAlloc('current_trial_amps', MaxWalkersPart, 8, t_r, CurrentTrialTag, ierr)
+        current_trial_amps = 0.0_dp
+        call initialise_trial_linscale()
 
         if (tTrialHash) call create_trial_hashtables()
 
@@ -755,22 +732,6 @@ contains
         if (allocated(current_trial_amps)) then
             deallocate(current_trial_amps, stat=ierr)
             call LogMemDealloc(t_r, CurrentTrialTag, ierr)
-        end if
-        if (allocated(trial_temp)) then
-            deallocate(trial_temp, stat=ierr)
-            call LogMemDealloc(t_r, TrialTempTag, ierr)
-        end if
-        if (allocated(con_temp)) then
-            deallocate(con_temp, stat=ierr)
-            call LogMemDealloc(t_r, ConTempTag, ierr)
-        end if
-        if (allocated(occ_trial_amps)) then
-            deallocate(occ_trial_amps, stat=ierr)
-            call LogMemDealloc(t_r, OccTrialTag, ierr)
-        end if
-        if (allocated(occ_con_amps)) then
-            deallocate(occ_con_amps, stat=ierr)
-            call LogMemDealloc(t_r, OccConTag, ierr)
         end if
 
     end subroutine end_trial_wf

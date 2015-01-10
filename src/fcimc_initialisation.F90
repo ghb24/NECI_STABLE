@@ -19,7 +19,7 @@ module fcimc_initialisation
                         tCheckHighestPop, tSpatialOnlyHash, tStartCAS, tau, &
                         MaxWalkerBloom, InitialPart, tStartMP1, tReadPops, &
                         InitialPartVec, iReadWalkersRoot, SinglesBias, NMCYC, &
-                        tTruncCAS, tTruncInitiator, DiagSft, tFCIMC, tCCMC, &
+                        tTruncCAS, tTruncInitiator, DiagSft, tFCIMC, &
                         tTrialWavefunction, tSemiStochastic, OccCASOrbs, &
                         VirtCASOrbs, StepsSft, tStartSinglePart, InitWalkers, &
                         tShiftOnHFPop, tReadPopsRestart, tTruncNOpen, &
@@ -50,7 +50,7 @@ module fcimc_initialisation
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
                              nVirtPartFrozen, nPartFrozen, nelVirtFrozen
-    use bit_rep_data, only: NIfTot, NIfD, NIfDBO, flag_is_initiator, &
+    use bit_rep_data, only: NIfTot, NIfD, NIfDBO, flag_initiator, &
                             flag_deterministic
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
                         decode_bit_det
@@ -524,15 +524,14 @@ contains
             CALL Stop_All(t_r,"Error in allocating RandomHash")
         ENDIF
         RandomHash(:)=0
-        if(tHashWalkerList .or. tSemiStochastic .or. (tTrialWavefunction .and. tTrialHash)) then
-            !We want another independent randomizing array for the hash table, so we do not introduce
-            !correlations between the two
-            ALLOCATE(RandomHash2(nBasis),stat=ierr)
-            IF(ierr.ne.0) THEN
-                CALL Stop_All(t_r,"Error in allocating RandomHash2")
-            ENDIF
-            RandomHash2(:)=0
-        endif
+
+        ! We want another independent randomizing array for the hash table, so
+        ! we do not introduce correlations between the two
+        allocate(RandomHash2(nBasis),stat=ierr)
+        if (ierr /= 0) &
+            call stop_all(t_r, "Error in allocating RandomHash2")
+        RandomHash2(:)=0
+
         IF(iProcIndex.eq.root) THEN
             do i=1,nBasis
                 ! If we want to hash only by spatial orbitals, then the
@@ -560,34 +559,34 @@ contains
                     RandomHash(i) = ChosenOrb
                 enddo
             enddo
-            if(tHashWalkerList .or. tSemiStochastic .or. (tTrialWavefunction .and. tTrialHash)) then
-                !Do again for RandomHash2
-                do i=1,nBasis
-                    ! If we want to hash only by spatial orbitals, then the
-                    ! spin paired orbitals must be set equal
-                    if (tSpatialOnlyHash) then
-                        if (.not. btest(i, 0)) then
-                            RandomHash2(i) = RandomHash2(i - 1)
-                            cycle
-                        endif
+
+
+            !Do again for RandomHash2
+            do i=1,nBasis
+                ! If we want to hash only by spatial orbitals, then the
+                ! spin paired orbitals must be set equal
+                if (tSpatialOnlyHash) then
+                    if (.not. btest(i, 0)) then
+                        RandomHash2(i) = RandomHash2(i - 1)
+                        cycle
                     endif
-                    ! Ensure that we don't set two values to be equal accidentally
-                    FoundPair=.false.
-                    do while(.not.FoundPair)
-                        r = genrand_real2_dSFMT()
-                        ChosenOrb=INT(nBasis*r*1000)+1
+                endif
+                ! Ensure that we don't set two values to be equal accidentally
+                FoundPair=.false.
+                do while(.not.FoundPair)
+                    r = genrand_real2_dSFMT()
+                    ChosenOrb=INT(nBasis*r*1000)+1
 
-                        ! Check all values which have already been set.
-                        do j=1,nBasis
-                            IF(RandomHash2(j).eq.ChosenOrb) EXIT
-                        enddo
-
-                        ! If not already used, then we can move on
-                        if (j == nBasis+1) FoundPair = .true.
-                        RandomHash2(i) = ChosenOrb
+                    ! Check all values which have already been set.
+                    do j=1,nBasis
+                        IF(RandomHash2(j).eq.ChosenOrb) EXIT
                     enddo
+
+                    ! If not already used, then we can move on
+                    if (j == nBasis+1) FoundPair = .true.
+                    RandomHash2(i) = ChosenOrb
                 enddo
-            endif
+            enddo
 
 !            WRITE(iout,*) "Random Orbital Indexing for hash:"
 !            WRITE(iout,*) RandomHash2(:)
@@ -600,26 +599,22 @@ contains
                 IF((RandomHash(i).eq.0).or.(RandomHash(i).gt.nBasis*1000)) THEN
                     CALL Stop_All(t_r,"Random Hash incorrectly calculated")
                 ENDIF
-                if(tHashWalkerList .or. tSemiStochastic .or. (tTrialWavefunction .and. tTrialHash)) then
-                    IF((RandomHash2(i).eq.0).or.(RandomHash2(i).gt.nBasis*1000)) THEN
-                        CALL Stop_All(t_r,"Random Hash 2 incorrectly calculated")
-                    ENDIF
-                endif
+                IF((RandomHash2(i).eq.0).or.(RandomHash2(i).gt.nBasis*1000)) THEN
+                    CALL Stop_All(t_r,"Random Hash 2 incorrectly calculated")
+                ENDIF
                 do j = i+step, nBasis, step
                     IF(RandomHash(i).eq.RandomHash(j)) THEN
                         CALL Stop_All(t_r,"Random Hash incorrectly calculated")
                     ENDIF
-                    if(tHashWalkerList .or. tSemiStochastic .or. (tTrialWavefunction .and. tTrialHash)) then
-                        IF(RandomHash2(i).eq.RandomHash2(j)) THEN
-                            CALL Stop_All(t_r,"Random Hash 2 incorrectly calculated")
-                        ENDIF
-                    endif
+                    IF(RandomHash2(i).eq.RandomHash2(j)) THEN
+                        CALL Stop_All(t_r,"Random Hash 2 incorrectly calculated")
+                    ENDIF
                 enddo
             enddo
         ENDIF
         !Now broadcast to all processors
         CALL MPIBCast(RandomHash,nBasis)
-        if(tHashWalkerList .or. tSemiStochastic .or. (tTrialWavefunction .and. tTrialHash)) call MPIBCast(RandomHash2,nBasis)
+        call MPIBCast(RandomHash2,nBasis)
 
         IF(tHPHF) THEN
             !IF(tLatticeGens) CALL Stop_All("SetupParameters","Cannot use HPHF with model systems currently.")
@@ -913,16 +908,6 @@ contains
             IF(StepsSft.eq.0) StepsSft=1
             WRITE(iout,*) "StepsShift set to: ",StepsSft
         ENDIF
-        ! Once Alex's CCMC/FCIMC unification project is finished, we can
-        ! remove this. The problem is that ValidSpawnedList is now setup in
-        ! InitFCIMCCalcPar - this is for compatibility with POPSFILE v.3,
-        ! where MaxSpawned is calculated from the number in the POPSFILE.
-        !
-        ! Set it pu here for CCMC.
-        IF(tCCMC) then
-            if(inum_runs.eq.2) call stop_all('SetupParameters',"CCMC not set up to work with double run")
-            Call SetupValidSpawned(int(InitWalkers, int64))
-        endif
 
         IF(TPopsFile) THEN
             IF(mod(iWritePopsEvery,StepsSft).ne.0) then
@@ -1193,25 +1178,23 @@ contains
 
             MemoryAlloc=MemoryAlloc+(NIfTot+1)*MaxSpawned*2*size_n_int
 
-            if(tHashWalkerList) then
-                write(iout,"(A)") "Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number"
-                write(iout,"(A,I15)") "Length of hash-table: ",nWalkerHashes
-                write(iout,"(A,F20.5)") "Length of hash-table as a fraction of targetwalkers: ",HashLengthFrac
-                ! TODO: Correct the memory usage.
-                !MemTemp=2*(8*(nClashMax+1)*nWalkerHashes)+8*MaxWalkersPart
-                !write(iout,"(A,F10.3,A)") "This will use ",real(MemTemp,dp)/1048576.0_dp,&
-                !    " Mb of memory per process, although this is likely to increase as it expands"
-                allocate(HashIndex(nWalkerHashes),stat=ierr)
-                if(ierr.ne.0) call stop_all(this_routine,"Error in allocation")
-                do i = 1, nWalkerHashes
-                    HashIndex(i)%ind = 0
-                end do
-                !Also need to allocate memory for the freeslot array
-                allocate(FreeSlot(MaxWalkersPart),stat=ierr)
-                if(ierr.ne.0) call stop_all(this_routine,"Error in allocation")
-                freeslot(:)=0
-                !MemoryAlloc=MemoryAlloc+MemTemp
-            endif
+            write(iout,"(A)") "Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number"
+            write(iout,"(A,I15)") "Length of hash-table: ",nWalkerHashes
+            write(iout,"(A,F20.5)") "Length of hash-table as a fraction of targetwalkers: ",HashLengthFrac
+            ! TODO: Correct the memory usage.
+            !MemTemp=2*(8*(nClashMax+1)*nWalkerHashes)+8*MaxWalkersPart
+            !write(iout,"(A,F10.3,A)") "This will use ",real(MemTemp,dp)/1048576.0_dp,&
+            !    " Mb of memory per process, although this is likely to increase as it expands"
+            allocate(HashIndex(nWalkerHashes),stat=ierr)
+            if(ierr.ne.0) call stop_all(this_routine,"Error in allocation")
+            do i = 1, nWalkerHashes
+                HashIndex(i)%ind = 0
+            end do
+            !Also need to allocate memory for the freeslot array
+            allocate(FreeSlot(MaxWalkersPart),stat=ierr)
+            if(ierr.ne.0) call stop_all(this_routine,"Error in allocation")
+            freeslot(:)=0
+            !MemoryAlloc=MemoryAlloc+MemTemp
 
             ! Allocate pointers to the correct walker arrays
             CurrentDets => WalkVecDets
@@ -1426,31 +1409,28 @@ contains
         type(ll_node), pointer :: Curr, Prev
         integer :: i, ierr
 
-        if(tHashWalkerList .or. tSemiStochastic .or. (tTrialWavefunction .and. tTrialHash)) then
-            deallocate(RandomHash2,stat=ierr)
-            if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
-        end if
-        if (tHashWalkerList) then
-            ! Deallocate the linked list
-            do i = 1, nWalkerHashes
-                Curr => HashIndex(i)%Next
-                Prev => HashIndex(i)
-                nullify(Prev%Next)
-                do while (associated(Curr))
-                    Prev => Curr
-                    Curr => Curr%Next
-                    deallocate(Prev)
-                    if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
-                end do
-            end do
-            deallocate(HashIndex,stat=ierr)
-            if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
-            nullify(Curr)
-            nullify(Prev)
+        deallocate(RandomHash2,stat=ierr)
+        if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
 
-            deallocate(FreeSlot,stat=ierr)
-            if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
-        endif
+        ! Deallocate the linked list
+        do i = 1, nWalkerHashes
+            Curr => HashIndex(i)%Next
+            Prev => HashIndex(i)
+            nullify(Prev%Next)
+            do while (associated(Curr))
+                Prev => Curr
+                Curr => Curr%Next
+                deallocate(Prev)
+                if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
+            end do
+        end do
+        deallocate(HashIndex,stat=ierr)
+        if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
+        nullify(Curr)
+        nullify(Prev)
+
+        deallocate(FreeSlot,stat=ierr)
+        if(ierr.ne.0) call stop_all(this_routine,"Err deallocating")
 
         IF(tHistSpawn.or.tCalcFCIMCPsi) THEN
             DEALLOCATE(Histogram)
@@ -1593,11 +1573,10 @@ contains
 
             ! Encode the reference determinant identification.
             call encode_det(CurrentDets(:,1), iLutHF)
-            if(tHashWalkerList) then
-                !Point at the correct position for the first walker
-                DetHash=FindWalkerHash(HFDet, nWalkerHashes)    !Find det hash position
-                HashIndex(DetHash)%Ind = 1
-            endif
+
+            !Point at the correct position for the first walker
+            DetHash=FindWalkerHash(HFDet, nWalkerHashes)    !Find det hash position
+            HashIndex(DetHash)%Ind = 1
 
             ! Clear the flags
             call clear_all_flags (CurrentDets(:,1))
@@ -1605,8 +1584,8 @@ contains
             ! Set reference determinant as an initiator if
             ! tTruncInitiator is set, for both imaginary and real flags
             if (tTruncInitiator) then
-                call set_flag (CurrentDets(:,1), flag_is_initiator(1))
-                call set_flag (CurrentDets(:,1), flag_is_initiator(2))
+                call set_flag (CurrentDets(:,1), flag_initiator(1))
+                call set_flag (CurrentDets(:,1), flag_initiator(2))
             endif
 
             ! If running a semi-stochastic simulation, set flag to specify the Hartree-Fock is in the
@@ -2064,22 +2043,20 @@ contains
                                             real(HDiagTemp, dp))
                     endif
 
-                    if (tHashWalkerList) then
-                        DetHash = FindWalkerHash(CASFullDets(:,i), nWalkerHashes)
-                        TempNode => HashIndex(DetHash)
-                        ! If the first element in the list has not been used.
-                        if (TempNode%Ind == 0) then
-                            TempNode%Ind = DetIndex
-                        else
-                            do while (associated(TempNode%Next))
-                                TempNode => TempNode%Next
-                            end do
-                            allocate(TempNode%Next)
-                            nullify(TempNode%Next%Next)
-                            TempNode%Next%Ind = DetIndex
-                        end if
-                        nullify(TempNode)
+                    DetHash = FindWalkerHash(CASFullDets(:,i), nWalkerHashes)
+                    TempNode => HashIndex(DetHash)
+                    ! If the first element in the list has not been used.
+                    if (TempNode%Ind == 0) then
+                        TempNode%Ind = DetIndex
+                    else
+                        do while (associated(TempNode%Next))
+                            TempNode => TempNode%Next
+                        end do
+                        allocate(TempNode%Next)
+                        nullify(TempNode%Next%Next)
+                        TempNode%Next%Ind = DetIndex
                     end if
+                    nullify(TempNode)
 
                     DetIndex=DetIndex+1
                     do run=1,inum_runs
@@ -2091,10 +2068,6 @@ contains
 
         TotWalkers=DetIndex-1   !This is the number of occupied determinants on each node
         TotWalkersOld=TotWalkers
-        if(.not.tHashWalkerList) then
-            call sort(CurrentDets(:,1:TotWalkers), &
-                      global_determinant_data(:, 1:TotWalkers))
-        endif
 
         !Set local&global variables
         TotPartsOld=TotParts
@@ -2269,22 +2242,20 @@ contains
                                             real(HDiagTemp, dp))
                     endif
 
-                    if (tHashWalkerList) then
-                        DetHash = FindWalkerHash(nJ, nWalkerHashes)
-                        TempNode => HashIndex(DetHash)
-                        ! If the first element in the list has not been used.
-                        if (TempNode%Ind == 0) then
-                            TempNode%Ind = DetIndex
-                        else
-                            do while (associated(TempNode%Next))
-                                TempNode => TempNode%Next
-                            end do
-                            allocate(TempNode%Next)
-                            nullify(TempNode%Next%Next)
-                            TempNode%Next%Ind = DetIndex
-                        end if
-                        nullify(TempNode)
+                    DetHash = FindWalkerHash(nJ, nWalkerHashes)
+                    TempNode => HashIndex(DetHash)
+                    ! If the first element in the list has not been used.
+                    if (TempNode%Ind == 0) then
+                        TempNode%Ind = DetIndex
+                    else
+                        do while (associated(TempNode%Next))
+                            TempNode => TempNode%Next
+                        end do
+                        allocate(TempNode%Next)
+                        nullify(TempNode%Next%Next)
+                        TempNode%Next%Ind = DetIndex
                     end if
+                    nullify(TempNode)
 
                     DetIndex=DetIndex+1
                     do run=1,inum_runs
@@ -2317,31 +2288,30 @@ contains
                 call encode_sign(CurrentDets(:,DetIndex),temp_sign)
                 if(tTruncInitiator) then
                     !Set initiator flag (always for HF)
-                    call set_flag(CurrentDets(:,DetIndex),flag_is_initiator(1))
-                    call set_flag(CurrentDets(:,DetIndex),flag_is_initiator(2))
+                    call set_flag(CurrentDets(:,DetIndex),flag_initiator(1))
+                    call set_flag(CurrentDets(:,DetIndex),flag_initiator(2))
                 endif
                 call set_det_diagH(DetIndex, 0.0_dp)
 
                 ! Set the initial iteration number
                 call set_part_init_time(DetIndex, TotImagTime)
 
-                if (tHashWalkerList) then
-                    ! Now add the Hartree-Fock determinant (not with index 1).
-                    DetHash = FindWalkerHash(HFDet, nWalkerHashes)
-                    TempNode => HashIndex(DetHash)
-                    ! If the first element in the list has not been used.
-                    if (TempNode%Ind == 0) then
-                        TempNode%Ind = DetIndex
-                    else
-                        do while (associated(TempNode%Next))
-                            TempNode => TempNode%Next
-                        end do
-                        allocate(TempNode%Next)
-                        nullify(TempNode%Next%Next)
-                        TempNode%Next%Ind = DetIndex
-                    end if
-                    nullify(TempNode)
+                ! Now add the Hartree-Fock determinant (not with index 1).
+                DetHash = FindWalkerHash(HFDet, nWalkerHashes)
+                TempNode => HashIndex(DetHash)
+                ! If the first element in the list has not been used.
+                if (TempNode%Ind == 0) then
+                    TempNode%Ind = DetIndex
+                else
+                    do while (associated(TempNode%Next))
+                        TempNode => TempNode%Next
+                    end do
+                    allocate(TempNode%Next)
+                    nullify(TempNode%Next%Next)
+                    TempNode%Next%Ind = DetIndex
                 end if
+                nullify(TempNode)
+
                 DetIndex=DetIndex+1
                 do run=1,inum_runs
                     TotParts(run)=TotParts(run)+abs(NoWalkers)
@@ -2357,11 +2327,6 @@ contains
         TotWalkers=DetIndex-1   !This is the number of occupied determinants on each node
         TotWalkersOld=TotWalkers
 
-
-        if(.not.tHashWalkerList) then
-            call sort(CurrentDets(:,1:TotWalkers), &
-                      global_determinant_data(:,1:TotWalkers))
-        endif
 
         !Set local&global variables
         TotPartsOld=TotParts

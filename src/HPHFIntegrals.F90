@@ -20,7 +20,6 @@ module hphf_integrals
 
     contains
 
-! NB AJWT has also cannibalized this for CCMC where he just passes in the HElGen.
     function hphf_spawn_sign (nI, nJ, iLutI, iLutJ, ic, ex, &
                                   tParity, HElGen) result (hel)
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)

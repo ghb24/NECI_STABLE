@@ -90,7 +90,6 @@ MODULE Logging
       tPrintOrbOcc=.false.
       StartPrintOrbOcc=0
       tPrintOrbOccInit=.false.
-      CCMCDebug=0
       FCIMCDebug=0
       tHFPopStartBlock=.false.
       tIterStartBlock=.false.
@@ -99,8 +98,6 @@ MODULE Logging
       tInitShiftBlocking=.false.
       NoDumpTruncs=0
       tWriteTransMat=.false.
-      tCCMCLogTransitions=.false.
-      tCCMCLogUniq=.true.
       tHistInitPops=.false.
       tHistSpinDist = .false.
       HistInitPopsIter=100000
@@ -219,7 +216,7 @@ MODULE Logging
             call stop_all(t_r, 'Option (SPLITPROJE*) deprecated')
 
         case("NOMCOUTPUT")
-            !No output to stdout from the fcimc or ccmc iterations
+            !No output to stdout from the fcimc iterations
             tMCOutput=.false.
         case("LOGCOMPLEXWALKERS")
             !This means that the complex walker populations are now logged.
@@ -796,29 +793,12 @@ MODULE Logging
         case("INCREMENTPOPS")
 ! Don't overwrite existing POPSFILES.
             tIncrementPops = .true.
-        case("CCMCDEBUG")
-!CCMC debugging level. Takes an integer 0-6
-            call readi(CCMCDebug)
         case("FCIMCDEBUG")
 !FCIQMC debugging level. Takes an integer 0-6
             call readi(FCIMCDebug)
         case("ERRORDEBUG")
 !Error analysus debugging level. Takes an integer 0-6
             call readi(ErrorDebug)
-        case("CCMCLOGTRANSITIONS")
-            tCCMCLogTransitions=.true.
-            do while(item.lt.nitems)
-               call readu(w)
-               select case(w)
-               case("NONUNIQUE")
-                  tCCMCLogUniq=.false.
-               case("UNIQUE")
-                  tCCMCLogUniq=.true.
-               case default
-                  CALL report("Logging keyword CCMCLOGTRANSITIONS "//trim(w)       &
-     &               //" not recognised",.true.)
-               end select
-            enddo
         case("WRITEDETE")
 !This logging option will write out the energies of all determinants which have been spawned at in the simulation
 ! The two input options are the number of bins, and the maximum determinant energy to be histogrammed.

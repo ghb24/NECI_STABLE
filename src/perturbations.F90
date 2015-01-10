@@ -109,7 +109,7 @@ contains
         use bit_reps, only: encode_sign, decode_bit_det
         use DetBitOps, only: ilut_lt, ilut_gt
         use hash, only: DetermineDetNode
-        use FciMCData, only: tHashWalkerList, HashIndex, SpawnedParts, SpawnedParts2
+        use FciMCData, only: HashIndex, SpawnedParts, SpawnedParts2
         use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots
         use sort_mod, only: sort
         use SystemData, only: nel

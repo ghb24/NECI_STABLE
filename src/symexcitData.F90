@@ -37,9 +37,10 @@ MODULE SymExcitDataMod
       ! --> Due to the allocatables, we can add as many things to here as
       !     we like without causing any problems :-).
     type excit_gen_store_type
-        ! These next two need to be pointers, rather than allocatable, to
-        ! work with the GetNextSpawner stuff in CCMC.F90. It isn't really
-        ! desirable
+        ! These are pointers rather than allocatable as a result of the
+        ! GetNextSpawner functionality in CCMC. As this has been removed,
+        ! these could now be swapped back to allocatable.
+        ! 
         ! --> Must ensure that init/clean_excit_gen_store is NEVER called on
         !     a store object being used in that way.
         integer, pointer :: ClassCountOcc(:) => null()

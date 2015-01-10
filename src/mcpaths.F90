@@ -3,6 +3,7 @@
  
 module mcpaths
     use util_mod, only: isnan_neci, neci_etime
+    use CalcData, only: tRPA_QBA
 contains
 
 !C.. Calculate RHO^(P)_II without having a stored H matrix
@@ -38,11 +39,8 @@ contains
          use CalcData , only : G_VMC_FAC,CUR_VERT,g_MultiWeight,         &
      &          TMPTHEORY,TMCDIRECTSUM,TDIAGNODES,TGraphMorph,           &
      &          calcp_logweight,TFCIMC,TReturnPathMC
-         use CalcData, only: tCCMC,tRPA_QBA
          use CalcData, only: TStarTrips
          USE LoggingData , only : G_VMC_LOGCOUNT
-         USE CCMC, only: CCMCStandalone,CCMCStandaloneParticle
-         use CCMCData, only:  tAmplitudes
          use global_utilities
          use mcpathsdata, only: EGP
          use mcpathshdiag, only: fmcpr3b2
@@ -216,12 +214,6 @@ contains
 !                    WRITE(6,*) "Get Here!: ",I_V,F(I_V),DLWDB2
                     CALL FciMCPar(F(I_V),DLWDB2)
 !                    WRITE(6,*) "Get Here!: ",I_V,F(I_V),DLWDB2
-               ELSEIF(tCCMC) THEN
-                  if(tAmplitudes) THEN
-                     CALL CCMCStandAlone(F(I_V),DLWDB2)
-                  else
-                     CALL CCMCStandaloneParticle(F(I_V),DLWDB2)
-                  endif
                ELSEIF(TReturnPathMC) THEN
 !A MC simulation involving replicating particles, constrained to returning paths is run
                     CALL ReturnPathMC(F(I_V),DLWDB2)
@@ -427,7 +419,7 @@ contains
          USE ReturnPathMCMod , only : ReturnPathMC
          use CalcData , only : TMPTHEORY,TDIAGNODES,TGraphMorph
          use CalcData, only : calcp_logweight,TFCIMC,TReturnPathMC
-         use CalcData, only: TStarTrips,tRPA_QBA
+         use CalcData, only: TStarTrips
          use RPA_Mod, only: RunRPA_QBA 
          use global_utilities
          use mcpathsdata, only: EGP

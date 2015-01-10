@@ -7,7 +7,7 @@ module kp_fciqmc_procs
  
     use AnnihilationMod, only: SendProcNewParts, CompressSpawnedList
     use bit_rep_data
-    use bit_reps, only: decode_bit_det, encode_sign, flag_is_initiator
+    use bit_reps, only: decode_bit_det, encode_sign
     use CalcData, only: tTruncInitiator, tStartSinglePart, InitialPart, InitWalkers
     use CalcData, only: tSemiStochastic, tReadPops, tUseRealCoeffs, tau, DiagSft
     use CalcData, only: AvMCExcits, tWritePopsNorm, iPopsFileNoRead, pops_norm
@@ -234,8 +234,6 @@ contains
         character (len=*), parameter :: t_r = "init_kp_fciqmc"
 
         ! Checks.
-        if (.not. tHashWalkerList) call stop_all('t_r','kp-fciqmc can only be run using &
-            &the linscalefcimcalgo option (the linear scaling algorithm).')
         if (.not. tUseRealCoeffs) call stop_all('t_r','kp-fciqmc can only be run using &
             &real coefficients).')
         if (tExactHamil .and. nProcessors /= 1) call stop_all('t_r','The exact-hamil &
@@ -1713,8 +1711,6 @@ contains
         ! in CurrentDets) of *all* determinants to a file. The amplitude of each replica will be printed
         ! one after the other. Since this is intended to be used with kp-fciqmc, irepeat is the number of
         ! the current repeat, but it will simply be used in naming the output file.
-
-        ! Note that this routine will only work when using the tHashWalkerList option.
 
         integer, intent(in) :: irepeat
         integer, allocatable :: nI_list(:,:)

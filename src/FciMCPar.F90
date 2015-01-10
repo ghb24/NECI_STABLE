@@ -195,20 +195,8 @@ module FciMCParMod
             if(tRDMonFly .and. (.not. tFillingExplicRDMonFly) &
                 & .and. (.not.tFillingStochRDMonFly)) call check_start_rdm()
 
-            if (tCCMC) then
-                if (tUseRealCoeffs) &
-                    call stop_all("FciMCPar", "Continuous spawning not yet set up to work &
-                    & with CCMC.  Attention will be required in a number of routines, &
-                    & including AttemptCreatePar and PerformCCMCCycParInt")
-
-                if(inum_runs.eq.2) &
-                    call stop_all("FciMCPar", "Double runs not set up to work with CCMC")
-
-                CALL PerformCCMCCycPar()
-            else
-                if (.not. (tSpinProject .and. spin_proj_interval == -1)) &
-                    call PerformFciMCycPar(iter_data_fciqmc)
-            endif
+            if (.not. (tSpinProject .and. spin_proj_interval == -1)) &
+                call PerformFciMCycPar(iter_data_fciqmc)
 
             ! Are we projecting the spin out between iterations?
             if (tSpinProject .and. (mod(Iter, spin_proj_interval) == 0 .or. &
@@ -272,13 +260,7 @@ module FciMCParMod
                 ! Calculate the a new value for the shift (amongst other
                 ! things). Generally, collate information from all processors,
                 ! update statistics and output them to the user.
-                if (tCCMC) then
-                    call calculate_new_shift_wrapper (iter_data_ccmc, &
-                                                      TotParts)
-                else
-                    call calculate_new_shift_wrapper (iter_data_fciqmc, &
-                                                      TotParts)
-                endif
+                call calculate_new_shift_wrapper (iter_data_fciqmc, TotParts)
 
                 if(tRestart) cycle
 
@@ -638,11 +620,9 @@ module FciMCParMod
         VecSlot = 1    ! Next position to write into CurrentDets
         ! Next free position in newly spawned list.
         ValidSpawnedList = InitialSpawnedSlots
-        if(tHashWalkerList) then
-            FreeSlot(1:iEndFreeSlot)=0  !Does this cover enough?
-            iStartFreeSlot=1
-            iEndFreeSlot=0
-        endif
+        FreeSlot(1:iEndFreeSlot)=0  !Does this cover enough?
+        iStartFreeSlot=1
+        iEndFreeSlot=0
 
         ! Index for counting deterministic states.
         determ_index = 1
@@ -659,20 +639,18 @@ module FciMCParMod
         if (tCSF) exFlag = 7
 
         IFDEBUGTHEN(FCIMCDebug,iout)
-            if(tHashWalkerList) then
-                write(iout,"(A)") "Hash Table: "
-                do j=1,nWalkerHashes
-                    TempNode => HashIndex(j)
-                    if (TempNode%Ind /= 0) then
-                        write(iout,'(i9)',advance='no') j
-                        do while (associated(TempNode))
-                            write(iout,'(i9)',advance='no') TempNode%Ind
-                            TempNode => TempNode%Next
-                        end do
-                        write(iout,'()',advance='yes')
-                    end if
-                end do
-            end if
+            write(iout,"(A)") "Hash Table: "
+            do j=1,nWalkerHashes
+                TempNode => HashIndex(j)
+                if (TempNode%Ind /= 0) then
+                    write(iout,'(i9)',advance='no') j
+                    do while (associated(TempNode))
+                        write(iout,'(i9)',advance='no') TempNode%Ind
+                        TempNode => TempNode%Next
+                    end do
+                    write(iout,'()',advance='yes')
+                end if
+            end do
         ENDIFDEBUG
 
         IFDEBUG(FCIMCDebug,3) write(iout,"(A,I12)") "Walker list length: ",TotWalkers
@@ -751,11 +729,7 @@ module FciMCParMod
             endif
 
             ! A general index whose value depends on whether the following option is used.
-            if (tHashWalkerList) then
-                gen_ind = j
-            else
-                gen_ind = VecSlot
-            end if
+            gen_ind = j
 
             ! This if-statement is only entered when using semi-stochastic and
             ! only if this determinant is in the core space.
@@ -788,16 +762,15 @@ module FciMCParMod
             if (tTruncInitiator) &
                 call CalcParentFlag (j, VecSlot, parent_flags, HDiagCurr)
 
-            if(tHashWalkerList) then
-                !Test here as to whether this is a "hole" or not...
-                !Unfortunately, the main list no longer needs to be contiguous
-                if(IsUnoccDet(SignCurr)) then
-                    !It has been removed from the hash table already
-                    !Add to the "freeslot" list
-                    iEndFreeSlot=iEndFreeSlot+1
-                    FreeSlot(iEndFreeSlot)=j
-                    cycle
-                endif
+
+            ! As the main list (which is storing a hash table) no longer needs
+            ! to be contiguous, we need to skip sites that are empty.
+            if(IsUnoccDet(SignCurr)) then
+                !It has been removed from the hash table already
+                !Add to the "freeslot" list
+                iEndFreeSlot=iEndFreeSlot+1
+                FreeSlot(iEndFreeSlot)=j
+                cycle
             endif
 
             !Debug output.
@@ -959,9 +932,7 @@ module FciMCParMod
         enddo ! Loop over determinants.
         IFDEBUGTHEN(FCIMCDebug,2) 
             write(iout,*) 'Finished loop over determinants'
-            if(tHashWalkerList) then
-                write(iout,*) "Holes in list: ",iEndFreeSlot
-            endif
+            write(iout,*) "Holes in list: ",iEndFreeSlot
         ENDIFDEBUG
 
         if (tSemiStochastic) then
@@ -983,16 +954,9 @@ module FciMCParMod
             end if
         end if
 
-        if(tHashWalkerList) then
-            ! With this algorithm, the determinants do not move, and therefore
-            ! TotWalkersNew is simply equal to TotWalkers
-            TotWalkersNew=int(TotWalkers,sizeof_int)
-        else
-            ! Since VecSlot holds the next vacant slot in the array, TotWalkers
-            ! should be one less than this. TotWalkersNew is now the number of particles
-            ! in the main array, before annihilation
-            TotWalkersNew = VecSlot - 1
-        endif
+        ! With this algorithm, the determinants do not move, and therefore
+        ! TotWalkersNew is simply equal to TotWalkers
+        TotWalkersNew=int(TotWalkers,sizeof_int)
 
         ! Update the statistics for the end of an iteration.
         ! Why is this done here - before annihilation!
@@ -1010,8 +974,10 @@ module FciMCParMod
         !They have already been removed from the hash table though.
         call DirectAnnihilation (totWalkersNew, iter_data,.false.) !.false. for not single processor
 
-        TotWalkers=TotWalkersNew    !with tHashWalkerList this indicates the number of determinants 
-                                    !in list + holes from annihilation
+        ! This indicates the number of determinants in the list + the number
+        ! of holes that have been introduced due to annihilation.
+        TotWalkers=TotWalkersNew
+
         CALL halt_timer(Annihil_Time)
         IFDEBUG(FCIMCDebug,2) WRITE(iout,*) "Finished Annihilation step"
 

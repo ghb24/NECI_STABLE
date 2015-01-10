@@ -36,7 +36,6 @@ MODULE DetCalc
                                                       !so that it can be histogrammed against.
 
       INTEGER iExcitLevel                 ! The excitation level at which determinants are cut off.  
-                                          !This differs from ICILevel for tCCBuffer.
     
 CONTAINS
     Subroutine DetCalcInit
@@ -49,7 +48,6 @@ CONTAINS
         use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
         use SystemData, only : tParity, tSpn,Symmetry,STot, NullBasisFn, tUHF,tMolpro
         use sym_mod
-        use CCMCData,   only : tCCBuffer !This is messy, but I don't see anywhere else to put it. AJWT
         use LoggingData,    only : tLogDets
         use legacy_data, only: irat
         use HElem
@@ -139,12 +137,6 @@ CONTAINS
 
 !C      IF(TCALCHMAT.OR.NPATHS.NE.0.OR.DETINV.GT.0.OR.TBLOCK) THEN
       iExcitLevel=ICILEVEL
-      if(tCCBuffer.and.iExcitLevel/=0) then
-!Buffered CC needs two excitation levels more than the level of truncation.
-         iExcitLevel=min(iExcitLevel+2,nEl)
-         if(iExcitLevel/=ICILEVEL) WRITE(6,*) "Extending determinant list to ",IExcitLevel,   &
-     &      "-fold excitations for Buffered CC."
-      endif
       IF(tFindDets) THEN
 !C..Need to determine the determinants
          IF(iExcitLevel.NE.0) THEN

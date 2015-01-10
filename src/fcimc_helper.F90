@@ -9,9 +9,8 @@ module fcimc_helper
     use util_mod
     use systemData, only: nel, tHPHF, tNoBrillouin, G1, tUEG, &
                           tLatticeGens, nBasis, tHistSpinDist
-    use bit_reps, only: NIfTot, flag_is_initiator, test_flag, extract_flags, &
-                        flag_parent_initiator, encode_bit_rep, NIfD, &
-                        set_flag_general, flag_make_initiator, NIfDBO, &
+    use bit_reps, only: NIfTot, flag_initiator, test_flag, extract_flags, &
+                        encode_bit_rep, NIfD, set_flag_general, NIfDBO, &
                         extract_sign, set_flag, encode_sign, &
                         flag_trial, flag_connected, flag_deterministic, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
@@ -129,8 +128,6 @@ contains
         ! Potentially, ilutJ can be given the flag of its parent in
         ! FindExcitBitDet routine. I don't think it should be. To make things
         ! confusing, this only happens for non-HPHF/CSF runs.
-        ! Things are even more confusing given the fact that CCMC is using
-        ! tihs routine. Who knows whether theyrequire the flag there or not...
         ! TODO: CLEAN THIS UP. Make it clear, and transparent, with one way
         !       to change the flag. Otherwise, this will trip many people up
         !       in the future.
@@ -151,27 +148,27 @@ contains
                                             proc, part_type)
         end if
 
+#ifdef __CMPLX
         if (tTruncInitiator) then
-            IF(lenof_sign.eq.2) THEN
-                ! With complex walkers, things are a little more tricky.
-                ! We want to transfer the flag for all particles created (both
-                ! real and imag) from the specific type of parent particle. This
-                ! can mean real walker flags being transfered to imaginary
-                ! children and vice versa.
-                ! This is unneccesary for real walkers.
-                ! Test the specific flag corresponding to the parent, of type
-                ! 'part_type'
-                parent_init = test_flag(SpawnedParts(:,ValidSpawnedList(proc)), &
-                                        flag_parent_initiator(part_type))
-                !Assign this flag to all spawned children
-                do j=1,lenof_sign
-                    if (child(j) /= 0) then
-                        call set_flag (SpawnedParts(:,ValidSpawnedList(proc)), &
-                                       flag_parent_initiator(j), parent_init)
-                    endif
-                enddo
-            ENDIF
+            ! With complex walkers, things are a little more tricky.
+            ! We want to transfer the flag for all particles created (both
+            ! real and imag) from the specific type of parent particle. This
+            ! can mean real walker flags being transfered to imaginary
+            ! children and vice versa.
+            ! This is unneccesary for real walkers.
+            ! Test the specific flag corresponding to the parent, of type
+            ! 'part_type'
+            parent_init = test_flag(SpawnedParts(:,ValidSpawnedList(proc)), &
+                                    flag_initiator(part_type))
+            !Assign this flag to all spawned children
+            do j=1,lenof_sign
+                if (child(j) /= 0) then
+                    call set_flag (SpawnedParts(:,ValidSpawnedList(proc)), &
+                                   flag_initiator(j), parent_init)
+                endif
+            enddo
         end if
+#endif
 
         ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
         
@@ -217,34 +214,16 @@ contains
         ! Add in the contributions to the numerator and denominator of the trial
         ! estimator, if it is being used.
         if (tTrialWavefunction .and. present(ind)) then
-            if (tHashWalkerlist) then
-                if (test_flag(ilut, flag_trial)) then
-                    do run = 1, inum_runs
-                        trial_denom(run) = trial_denom(run) &
-                                    + current_trial_amps(ind)*RealwSign(run)
-                    end do
-                else if (test_flag(ilut, flag_connected)) then
-                    do run = 1, inum_runs
-                        trial_numerator(run) = trial_numerator(run) &
-                                    + current_trial_amps(ind) * RealwSign(run)
-                    end do
-                end if
-            else
-                if (test_flag(ilut, flag_trial)) then
-                    ! Take the next element in the occupied trial vector.
-                    trial_ind = trial_ind + 1
-                    do run = 1, inum_runs
-                        trial_denom(run) = trial_denom(run) &
-                                + occ_trial_amps(trial_ind) * RealwSign(run)
-                    end do
-                else if (test_flag(ilut, flag_connected)) then
-                    ! Take the next element in the occupied connected vector.
-                    con_ind = con_ind + 1
-                    do run = 1, inum_runs
-                        trial_numerator(run) = trial_numerator(run) &
-                                    + occ_con_amps(con_ind) * RealwSign(run)
-                    end do
-                end if
+            if (test_flag(ilut, flag_trial)) then
+                do run = 1, inum_runs
+                    trial_denom(run) = trial_denom(run) &
+                                + current_trial_amps(ind)*RealwSign(run)
+                end do
+            else if (test_flag(ilut, flag_connected)) then
+                do run = 1, inum_runs
+                    trial_numerator(run) = trial_numerator(run) &
+                                + current_trial_amps(ind) * RealwSign(run)
+                end do
             end if
         end if
 
@@ -348,7 +327,7 @@ contains
                 if (tPrintOrbOccInit) &
                     write(6,*) 'Only doing so for initiator determinants'
             end if
-            if ((tPrintOrbOccInit .and. test_flag(ilut,flag_is_initiator(1)))&
+            if ((tPrintOrbOccInit .and. test_flag(ilut,flag_initiator(1)))&
                 .or. .not. tPrintOrbOccInit) then
                 forall (i = 1:nel) OrbOccs(iand(nI(i), csf_orbital_mask)) &
                         = OrbOccs(iand(nI(i), csf_orbital_mask)) &
@@ -375,7 +354,7 @@ contains
         real(dp) :: CurrentSign(lenof_sign)
         real(dp), intent(in) :: diagH
         integer :: part_type, nopen
-        logical :: tDetinCAS, parent_init, make_initiator
+        logical :: tDetinCAS, parent_init
         real(dp) :: init_tm, expected_lifetime, hdiag
         character(*), parameter :: this_routine = 'CalcParentFlag'
 
@@ -393,15 +372,12 @@ contains
             !      there to be initiators on multiple particle types, there
             !      must be some merging happening.
             if (tMultiReplicaInitiators) then
-                parent_init = test_flag (CurrentDets(:,j), &
-                                         flag_parent_initiator(1))
-                make_initiator = test_flag (CurrentDets(:,j), &
-                                            flag_make_initiator(1))
+                parent_init = test_flag (CurrentDets(:,j), flag_initiator(1))
                 ! We sum the sign. Given that the reference site always has
                 ! positive walkers on it, this is a sensible test.
                 parent_init = TestInitiator(CurrentDets(:,j), parent_init, &
                                             sum(CurrentSign), diagH, &
-                                            make_initiator, j, part_type)
+                                            j, part_type)
             end if
 
             ! Now loop over the particle types, and update the flags
@@ -409,16 +385,13 @@ contains
 
                 if (.not. tMultiReplicaInitiators) then
                     ! By default, the parent_flags are the flags of the parent.
-                    parent_init = test_flag (CurrentDets(:,j), &
-                                             flag_parent_initiator(part_type))
-                    make_initiator = test_flag (CurrentDets(:,j), &
-                                                flag_make_initiator(part_type))
+                    parent_init = test_flag (CurrentDets(:,j), flag_initiator(part_type))
 
                     ! Should this particle be considered to be an initiator
                     ! for spawning purposes.
-                    parent_init = TestInitiator(CurrentDets(:,j), parent_init,&
-                                                CurrentSign(part_type), diagH,&
-                                                make_initiator, j, part_type)
+                    parent_init = TestInitiator(CurrentDets(:,j), parent_init, &
+                                                CurrentSign(part_type), diagH, &
+                                                j, part_type)
                 end if
 
                 ! Update counters as required.
@@ -431,9 +404,7 @@ contains
                 endif
 
                 ! Update the parent flag as required.
-                call set_flag (CurrentDets(:,j), &
-                               flag_parent_initiator(part_type),&
-                               parent_init)
+                call set_flag (CurrentDets(:,j), flag_initiator(part_type), parent_init)
 
                 if (parent_init) &
                     call set_has_been_initiator(CurrentDets(:,j), &
@@ -462,9 +433,7 @@ contains
     end subroutine CalcParentFlag
 
 
-    function TestInitiator(ilut, is_init, sgn, diagH, make_initiator, &
-                           site_idx, part_type) &
-             result(initiator)
+    function TestInitiator(ilut, is_init, sgn, diagH, site_idx, part_type) result(initiator)
 
         ! For a given particle (with its given particle type), should it
         ! be considered as an initiator for the purposes of spawning.
@@ -477,7 +446,7 @@ contains
         !      particles.
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
-        logical, intent(in) :: is_init, make_initiator
+        logical, intent(in) :: is_init
         real(dp), intent(in) :: sgn, diagH
         integer, intent(in) :: site_idx, part_type
         character(*), parameter :: this_routine = 'TestInitiator'
@@ -500,8 +469,7 @@ contains
             !   population to become an initiator.
             if ((diagH > InitiatorCutoffEnergy &
                  .and. abs(sgn) > low_init_thresh) &
-                .or. abs(sgn) > init_thresh &
-                .or. make_initiator) then
+                .or. abs(sgn) > init_thresh) then
                 initiator = .true.
                 NoAddedInitiators = NoAddedInitiators + 1
             endif
@@ -523,8 +491,7 @@ contains
                 .not. (DetBitEQ(ilut, iLutHF, NIfDBO)) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
                 .and. abs(sgn) <= init_thresh &
-                .and. diagH <= InitiatorCutoffEnergy &
-                .and. .not. make_initiator) then
+                .and. diagH <= InitiatorCutoffEnergy) then
                 ! Population has fallen too low. Initiator status 
                 ! removed.
                 initiator = .false.
@@ -669,8 +636,6 @@ contains
         endif
         HFInd = 0
 
-        trial_ind = 0
-        con_ind = 0
         min_trial_ind = 1
         min_conn_ind = 1
 
@@ -1413,7 +1378,7 @@ contains
                     NoAborted = NoAborted + abs(CopySign(i))
                     iter_data%naborted(i) = iter_data%naborted(i) &
                                           + abs(CopySign(i))
-                    if (test_flag(ilutCurr, flag_is_initiator(i))) &
+                    if (test_flag(ilutCurr, flag_initiator(i))) &
                         NoAddedInitiators = NoAddedInitiators - 1
                     CopySign(i) = 0
                 end if
@@ -1421,54 +1386,39 @@ contains
         end if
 
         if (any(CopySign /= 0)) then
-            ! Normal method slots particles back in main array at position
-            ! vecslot. The list is shuffled up if a particle is destroyed.
-            ! For HashWalkerList, the particles don't move, so just adjust
-            ! the weight.
-            if (tHashWalkerList) then
-                call encode_sign (CurrentDets(:,DetPosition), CopySign)
-                if (tFillingStochRDMonFly) then
-                    call set_av_sgn(DetPosition, wAvSign)
-                    call set_iter_occ(DetPosition, IterRDMStartCurr)
-                endif
-            else
-                call encode_bit_rep(CurrentDets(:,VecSlot),iLutCurr,CopySign,extract_flags(iLutCurr))
-                call set_det_diagH(VecSlot, Kii)
-                if (tFillingStochRDMonFly) then
-                    call set_av_sgn(VecSlot, wAvSign)
-                    call set_iter_occ(VecSlot, IterRDMStartCurr)
-                endif
-                VecSlot=VecSlot+1
+            ! For the hashed walker main list, the particles don't move.
+            ! Therefore just adjust the weight.
+            call encode_sign (CurrentDets(:,DetPosition), CopySign)
+            if (tFillingStochRDMonFly) then
+                call set_av_sgn(DetPosition, wAvSign)
+                call set_iter_occ(DetPosition, IterRDMStartCurr)
             endif
         else
             ! All walkers died.
             if(tFillingStochRDMonFly) then
                 call det_removed_fill_diag_rdm(CurrentDets(:,DetPosition), DetPosition)
-                if (tHashWalkerList) then
-                    ! Set the average sign and occupation iteration to zero, so
-                    ! that the same contribution will not be added in in
-                    ! CalcHashTableStats, if this determinant is not overwritten
-                    ! before then
-                    global_determinant_data(:,DetPosition) = 0.0_dp
-                end if
+                ! Set the average sign and occupation iteration to zero, so
+                ! that the same contribution will not be added in in
+                ! CalcHashTableStats, if this determinant is not overwritten
+                ! before then
+                global_determinant_data(:,DetPosition) = 0.0_dp
             endif
             if(tTruncInitiator) then
                 ! All particles on this determinant have gone. If the determinant was an initiator, update the stats
-                if(test_flag(iLutCurr,flag_is_initiator(1))) then
+                if(test_flag(iLutCurr,flag_initiator(1))) then
                     NoAddedInitiators=NoAddedInitiators-1
-                elseif(test_flag(iLutCurr,flag_is_initiator(lenof_sign))) then
+                elseif(test_flag(iLutCurr,flag_initiator(lenof_sign))) then
                     NoAddedInitiators(inum_runs)=NoAddedInitiators(inum_runs)-1
                 endif
             endif
-            if(tHashWalkerList) then
-                !Remove the determinant from the indexing list
-                call remove_hash_table_entry(HashIndex, DetCurr, DetPosition)
-                !Add to the "freeslot" list
-                iEndFreeSlot=iEndFreeSlot+1
-                FreeSlot(iEndFreeSlot)=DetPosition
-                !Encode a null det to be picked up
-                call encode_sign(CurrentDets(:,DetPosition),null_part)
-            endif
+
+            ! Remove the determinant from the indexing list
+            call remove_hash_table_entry(HashIndex, DetCurr, DetPosition)
+            ! Add to the "freeslot" list
+            iEndFreeSlot=iEndFreeSlot+1
+            FreeSlot(iEndFreeSlot)=DetPosition
+            ! Encode a null det to be picked up
+            call encode_sign(CurrentDets(:,DetPosition),null_part)
         endif
 
         !Test - testsuite, RDM still work, both still work with Linscalealgo (all in debug)

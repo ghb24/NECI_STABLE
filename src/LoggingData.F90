@@ -34,11 +34,8 @@ module LoggingData
     LOGICAL tNoNOTransform, tPrint1RDM, tPrintInitiators
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps
     INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter, IterWriteRDMs 
-    INTEGER CCMCDebug  !CCMC Debugging Level 0-6.  Default 0
     INTEGER FCIMCDebug !FciMC Debugging Level 0-6.  Default 0
 
-    LOGICAL tCCMCLogTransitions !Do we log transitions?  Only possible for very small systems
-    LOGICAL tCCMCLogUniq !Do we log only unique clusters
     LOGICAL tSaveBlocking !Do not overwrite blocking files
     INTEGER iWriteBlockingEvery !How often to write out blocking files
     INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs
