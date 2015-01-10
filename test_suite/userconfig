@@ -1,0 +1,23 @@
+[neci]
+exe = ../bin/neci.x
+inputs_args = ('*.inp', '')
+vcs = git
+extract_program = ./tools/extract.py
+
+[dneci]
+exe = ../bin/dneci.x
+inputs_args = ('*.inp', '')
+vcs = git
+extract_program = ./tools/extract.py
+
+[kneci]
+exe = ../bin/kneci.x
+inputs_args = ('*.inp', '')
+vcs = git
+extract_program = ./tools/extract.py
+
+[user]
+diff = vimdiff
+default_program = neci
+benchmark = dneci-7b077df.kneci-7b077df.neci-7b077df
+
