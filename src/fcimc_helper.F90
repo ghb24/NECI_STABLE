@@ -335,7 +335,7 @@ contains
     end subroutine SumEContrib
 
 
-    subroutine CalcParentFlag(j, VecSlot, parent_flags, diagH)
+    subroutine CalcParentFlag(j, parent_flags, diagH)
 
         ! In the CurrentDets array, the flag at NIfTot refers to whether that
         ! determinant *itself* is an initiator or not. We need to decide if 
@@ -346,7 +346,7 @@ contains
         ! the SpawnedDets array and refers to whether or not the walkers 
         ! *parent* is an initiator or not.
 
-        integer, intent(in) :: j, VecSlot
+        integer, intent(in) :: j
         integer, intent(out) :: parent_flags
         real(dp) :: CurrentSign(lenof_sign)
         real(dp), intent(in) :: diagH
@@ -424,7 +424,7 @@ contains
 
         if ((tHistInitPops .and. mod(iter, histInitPopsIter) == 0) &
             .or. tPrintHighPop) then
-             call HistInitPopulations (CurrentSign(1), VecSlot)
+             call HistInitPopulations (CurrentSign(1), j)
         endif
 
     end subroutine CalcParentFlag
@@ -1322,14 +1322,12 @@ contains
 
     end subroutine decide_num_to_spawn
 
-    subroutine walker_death (iter_data, DetCurr, iLutCurr, Kii, &
-                             RealwSign, wAvSign, IterRDMStartCurr, VecSlot, &
-                             DetPosition, walkExcitLevel)
+    subroutine walker_death (iter_data, DetCurr, iLutCurr, Kii, RealwSign, &
+                            wAvSign, IterRDMStartCurr, DetPosition, walkExcitLevel)
 
         integer, intent(in) :: DetCurr(nel) 
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
-        integer, intent(inout) :: VecSlot
         real(dp), intent(in) :: Kii
         real(dp), intent(in), dimension(lenof_sign) :: wAvSign, IterRDMStartCurr
         integer, intent(in) :: DetPosition
