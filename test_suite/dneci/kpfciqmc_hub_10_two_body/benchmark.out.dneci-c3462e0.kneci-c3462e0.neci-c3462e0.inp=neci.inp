@@ -1,0 +1,1234 @@
+ STARTING NECI
+ Initing MPI
+ STARTING NECI
+ Initing MPI
+ Number of processors:                      2
+ Processor                      1 /                     2  as head node.
+ Number of processors:                      2
+ Processor                      2 /                     2 
+  moving to local output.
+ outfile=NodeFile2           
+ Sum:                      3
+ Memory Manager initialised with   2048.0 MB
+
+ ================================================================
+ Compiled on Jan 10 2015 at 15:19:11
+ Compiled using configuration:
+     PC-ifort64-MPI.(optimised)
+ VCS BASE repository version:
+     c3462e02158751832208791a35ca05181ed073e5
+ Working directory contains local changes.
+ Working directory: 
+     /home/nsb37/projects/NECI_2/test_suite/dneci/kpfciqmc_hub_10_two_body
+ Running on: dredd
+ Started running on 10/01/2015 at 15:31:17
+ ================================================================
+
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+system hubbard
+cell 10 1 1
+b -1
+u 1
+spin-restrict 0
+sym 1 0 0 0
+kpoints
+nonuniformrandexcits nosymgen
+lattice-excitgen
+electrons 8
+endsys
+
+calc
+tau 0.01
+totalwalkers 2000
+shiftdamp 0.5
+diagshift 0.0
+stepsshift 1
+memoryfacpart 20.0
+memoryfacspawn 10.0
+allrealcoeff
+realspawncutoff 0.01
+semi-stochastic
+doubles-core
+readpops
+pops-annihilate 1
+13 4
+definedet 6 7 8 9 10 11 12 15
+seed 26940
+endcalc
+
+kp-fciqmc
+num-krylov-vecs 35
+num-iters-between-vecs-vary 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34
+num-repeats-per-init-config 1
+averagemcexcits-hamil 10
+overlap-perturb-annihilate 1
+7 10
+scale-population
+end-kp-fciqmc
+
+integral
+endint
+
+logging
+popsfile -1
+endlog
+end
+
+****************************************************************
+
+ Allocating each processor as a separate node.
+ Processor      Node
+         0         0
+         1         1
+ I am the node root for node                      0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :     8
+  Restricting the spin state of the system, TSPN :  T
+  GLOBAL MS :                      0
+  *** HUBBARD MODEL ***  
+  MOMENTUM :                      1                     0                     0
+  NMAXX :    10
+  NMAXY :     1
+  NMAXZ :     1
+  NMSH :    32
+   HUBBARD T :            -1.00000
+   HUBBARD U :             1.00000
+  X-LENGTH OF HUBBARD CHAIN:                    10
+  Y-LENGTH OF HUBBARD CHAIN:                     1
+  Z-LENGTH OF HUBBARD CHAIN:                     1
+  Periodic Boundary Conditions: T
+  Orbital Energy Cutoff:  1.000000000000000E+020
+   VOLUME :            10.00000
+  TALPHA :  F
+   ALPHA :             0.00000
+   SCALED ALPHA :             0.00000
+  NUMBER OF SPIN ORBITALS IN BASIS :    20
+ Creating plane wave basis.
+  NUMBER OF BASIS FUNCTIONS :                     20
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      9      0      0      0     -1    1   0       -2.000000000       -2.000000000
+      2     10      0      0      0      1    1   0       -2.000000000       -2.000000000
+      3      7     -1      0      0     -1    1   0       -1.618033989       -1.618033989
+      4      8     -1      0      0      1    1   0       -1.618033989       -1.618033989
+      5     11      1      0      0     -1    1   0       -1.618033989       -1.618033989
+      6     12      1      0      0      1    1   0       -1.618033989       -1.618033989
+      7      5     -2      0      0     -1    1   0       -0.618033989       -0.618033989
+      8      6     -2      0      0      1    1   0       -0.618033989       -0.618033989
+      9     13      2      0      0     -1    1   0       -0.618033989       -0.618033989
+     10     14      2      0      0      1    1   0       -0.618033989       -0.618033989
+     11      3     -3      0      0     -1    1   0        0.618033989        0.618033989
+     12      4     -3      0      0      1    1   0        0.618033989        0.618033989
+     13     15      3      0      0     -1    1   0        0.618033989        0.618033989
+     14     16      3      0      0      1    1   0        0.618033989        0.618033989
+     15      1     -4      0      0     -1    1   0        1.618033989        1.618033989
+     16      2     -4      0      0      1    1   0        1.618033989        1.618033989
+     17     17      4      0      0     -1    1   0        1.618033989        1.618033989
+     18     18      4      0      0      1    1   0        1.618033989        1.618033989
+     19     19      5      0      0     -1    1   0        2.000000000        2.000000000
+     20     20      5      0      0      1    1   0        2.000000000        2.000000000
+Generating abelian symmetry table with 10 generators for Hubbard momentum
+ SIZES                     0                    20 F F F F
+ Symmetry, Symmetry Conjugate
+                     1                     1
+                     2                     9
+                     3                     8
+                     4                     7
+                     5                     6
+                     6                     5
+                     7                     4
+                     8                     3
+                     9                     2
+                    10                    10
+HF determinant not yet defined.
+      1      9      0      0      0     -1    1   0       -2.000000000       -2.000000000
+      2     10      0      0      0      1    1   0       -2.000000000       -2.000000000
+      3      7     -1      0      0     -1   10   0       -1.618033989       -1.618033989
+      4      8     -1      0      0      1   10   0       -1.618033989       -1.618033989
+      5     11      1      0      0     -1   20   0       -1.618033989       -1.618033989
+      6     12      1      0      0      1   20   0       -1.618033989       -1.618033989
+      7      5     -2      0      0     -1    8   0       -0.618033989       -0.618033989
+      8      6     -2      0      0      1    8   0       -0.618033989       -0.618033989
+      9     13      2      0      0     -1   40   0       -0.618033989       -0.618033989
+     10     14      2      0      0      1   40   0       -0.618033989       -0.618033989
+     11      3     -3      0      0     -1    4   0        0.618033989        0.618033989
+     12      4     -3      0      0      1    4   0        0.618033989        0.618033989
+     13     15      3      0      0     -1   80   0        0.618033989        0.618033989
+     14     16      3      0      0      1   80   0        0.618033989        0.618033989
+     15      1     -4      0      0     -1    2   0        1.618033989        1.618033989
+     16      2     -4      0      0      1    2   0        1.618033989        1.618033989
+     17     17      4      0      0     -1  100   0        1.618033989        1.618033989
+     18     18      4      0      0      1  100   0        1.618033989        1.618033989
+     19     19      5      0      0     -1  200   0        2.000000000        2.000000000
+     20     20      5      0      0      1  200   0        2.000000000        2.000000000
+ Not precomputing HUBBARD 2-e integrals
+Allocated          8 bytes of shared memory named: umat
+ Defining FDet according to input
+ Fermi det (D0):(    6,    7,    8,    9,   10,   11,   12,   15)
+ Symmetry:    20
+ Fock operator energy:  -10.4721359549996     
+ Double run in use.
+Setting integer length of determinants as bit-strings to:      4
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+    1    2    4    8   10   20   40   80  100  200
+    2   40   80  100  200    4    8   10    1   20
+    4   80  100  200    2    8   10    1   20   40
+    8  100  200    2    4   10    1   20   40   80
+   10  200    2    4    8    1   20   40   80  100
+   20    4    8   10    1   40   80  100  200    2
+   40    8   10    1   20   80  100  200    2    4
+   80   10    1   20   40  100  200    2    4    8
+  100    1   20   40   80  200    2    4    8   10
+  200   20   40   80  100    2    4    8   10    1
+ Fast Abelian excitation generators specified,
+ but abelian symmetry not in use.  Using slow generators.
+                    55  STATE PAIRS
+                    10  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Total momentum is                     1                     0
+                     0
+ Not storing the H matrix.
+ BETAP=  1.000000000000000E-004
+ RESETTING P 
+ *** WARNING I_P=              10000000
+ BETA, P :   1000.00000000000                   10000000
+ DBETA=  -1.00000000000000     
+ <D0|H|D0>=  -8.87213595499958     
+ <D0|T|D0>=  -10.4721359549996     
+ FDet has     4 alpha electrons, and     4 beta electrons.
+                          6  alpha-alpha occupied electron pairs
+                          6  beta-beta occupied electron pairs
+                         16  alpha-beta occupied electron pairs
+                         15 alpha-alpha (vacant) hole pairs
+                         15 beta-beta (vacant) hole pairs
+                         36 alpha-beta (vacant) hole pairs
+ 
+ Performing Parallel FCIQMC....
+ 
+ Using an open shell reference determinant in a basis of restricted HF orbitals; Brillouins theorem is being turned off. 
+Symmetry of reference determinant is:         32
+Value for seed is:        26940
+Reference Energy set to:        -8.8721359550
+Highest energy determinant is (approximately):      13.3082039324994    
+Corresponding to a correlation energy of:      22.1803398874989    
+ Since we are using a momentum-space hubbard model/UEG, only double excitaitons 
+                           are connected and will be generated.
+ Connectivity of HF determinant is:                     95
+ POPSFILE VERSION                      4  detected.
+ Number of iterations in previous simulation:                  10000
+Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors
+Memory allocated for a maximum particle number per node of:         524288
+ Determinant related persistent storage requires:       4.000000 Mb / processor
+Spawning vectors allowing for a total of        20000 particles to be spawned in any one iteration per core.
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:             700
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        1
+Initial reference is: (    6,    7,    8,    9,   10,   11,   12,   15)
+Although            2816 configurations will be read in, only determinants with a weight of over  1.0000000000E-12 will be stored.
+Reading in a maximum of        20000 determinants at a time from POPSFILE'
+Number of batches required to distribute all determinants in POPSFILE:        1
+ Number of configurations read in to this process:                   1410
+ CurrWalkers:                   1410
+ Initial memory (without excitgens + temp arrays) consists of :      17.220703 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+
+============ Semi-stochastic initialisation ============
+Generating the deterministic space...
+Total size of deterministic space:       96
+Size of deterministic space on this processor:       37
+Generating the Hamiltonian in the deterministic space...
+Semi-stochastic initialisation complete.
+Total time (seconds) taken for semi-stochastic initialisation:    0.020
+
+============ KP-FCIQMC ============
+About to allocate array to hold all Krylov vectors. Memory required (MB): 28
+Allocating... Done.       
+About to allocate hash table to the Krylov vector array. Memory required (MB): 0
+Allocating... Done.       
+Note that the hash table uses linked lists, and the memory usage will increase as further nodes are added.
+About to allocate various subspace matrices. Memory required (MB): 0
+Allocating... Done.       
+ 
+        Step    Shift           WalkerCng       GrowRate        TotWalkers      Annihil         NoDied          NoBorn          Proj.E          Av.Shift        Proj.E.Cyc      NoatHF          NoatDoubs       AccRat        UniqueDets   IterTime
+ Starting repeat number 1
+ Number of iterations in previous simulation:                  10000
+Although            2816 configurations will be read in, only determinants with a weight of over  1.0000000000E-12 will be stored.
+Reading in a maximum of        20000 determinants at a time from POPSFILE'
+Number of batches required to distribute all determinants in POPSFILE:        1
+ Number of configurations read in to this process:                   1410
+ CurrWalkers:                   1410
+About to allocate array to hold the perturbed ground state. Memory requir 0
+Allocating... Done.       
+ Number of iterations in previous simulation:                  10000
+Although            2816 configurations will be read in, only determinants with a weight of over  1.0000000000E-12 will be stored.
+Reading in a maximum of        20000 determinants at a time from POPSFILE'
+Number of batches required to distribute all determinants in POPSFILE:        1
+ Number of configurations read in to this process:                   1410
+ CurrWalkers:                   1410
+           0    0.000000        0.000000        0.000000        2000.000        0.000000        0.000000        0.000000      -0.1701366        0.000000       0.6949911-309   -86.24786        0.000000       0.6949911-309         673   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 313 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 1.2552E-04
+Potential load-imbalance on iter             1 Min/Max determinants on node:         356        435
+           1    0.000000       -12.80943       1.0000000        1987.191        62.03076        79.37609        205.8880      -0.1701382        0.000000       0.2896322E-01   -143.8099        763.6287       0.5888845E-01         791   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 356 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 2.7192E-04
+Potential load-imbalance on iter             2 Min/Max determinants on node:         398        483
+           2   0.3212658       -20.76795       0.9935953        1966.423        65.83672        79.03386        209.4539      -0.1701398        0.000000       0.2367624E-01   -143.7683        753.0050       0.5870958E-01         881   0.0000    
+Potential load-imbalance on iter             3 Min/Max determinants on node:         431        521
+           3   0.8465609      -0.6368294       0.9895491        1965.786        64.72317        75.47176        207.2956      -0.1701414        0.000000       0.1951204E-01   -143.7342        742.1923       0.5991541E-01         952   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 433 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 4.4063E-04
+Potential load-imbalance on iter             4 Min/Max determinants on node:         463        556
+           4   0.8627561       -1.819164       0.9996761        1963.967        66.14199        70.41592        227.7466      -0.1701429        0.000000       0.1398499E-01   -144.1680        733.8656       0.6001516E-01        1019   0.0000    
+Potential load-imbalance on iter             5 Min/Max determinants on node:         492        577
+           5   0.9090482       -12.70381       0.9990746        1951.263        64.57660        70.16584        225.3821      -0.1701444        0.000000       0.9152786E-02   -145.3683        729.3151       0.6025936E-01        1069   0.0000    
+Potential load-imbalance on iter             6 Min/Max determinants on node:         516        596
+           6    1.233521       -2.233562       0.9935316        1949.029        67.77600        68.94413        225.4954      -0.1701458        0.000000       0.4624424E-02   -146.6091        724.3551       0.5681297E-01        1112   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 547 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 6.3747E-04
+Potential load-imbalance on iter             7 Min/Max determinants on node:         551        610
+           7    1.290787        25.17627       0.9988553        1974.206        64.96026        65.56500        253.4024      -0.1701472        0.000000      -0.1332701E-03   -147.9351        720.6784       0.6095419E-01        1161   0.0000    
+           8   0.6490563        18.13530        1.012917        1992.341        69.70588        66.96974        255.7820      -0.1701487        0.000000      -0.4306134E-02   -149.7601        720.1429       0.5952886E-01        1194   0.0000    
+           9   0.1918469       -7.824339        1.009186        1984.516        68.26001        75.14127        248.9279      -0.1701501        0.000000      -0.8782231E-02   -151.6996        720.1482       0.6047808E-01        1222   0.0000    
+Potential load-imbalance on iter            10 Min/Max determinants on node:         591        655
+          10   0.3885940       -5.458454       0.9960728        1979.058        66.81600        80.12429        268.3930      -0.1701514        0.000000      -0.1274172E-01   -152.6976        714.8545       0.6005255E-01        1246   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 670 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 8.5778E-04
+Potential load-imbalance on iter            11 Min/Max determinants on node:         594        661
+          11   0.5263095       -14.41668       0.9972495        1964.641        71.71719        78.64688        256.6738      -0.1701528        0.000000      -0.1644613E-01   -153.0100        705.8732       0.6027932E-01        1255   0.0000    
+Potential load-imbalance on iter            12 Min/Max determinants on node:         599        676
+          12   0.8918734        7.381067       0.9927154        1972.022        74.68800        76.87965        278.4323      -0.1701541        0.000000      -0.2056631E-01   -153.6297        698.8898       0.6052227E-01        1275   0.0000    
+Potential load-imbalance on iter            13 Min/Max determinants on node:         606        688
+          13   0.7043777      -0.1674749        1.003757        1971.855        70.27200        73.95656        263.8052      -0.1701554        0.000000      -0.2458385E-01   -154.4699        693.1369       0.5894988E-01        1294   0.0000    
+Potential load-imbalance on iter            14 Min/Max determinants on node:         620        701
+          14   0.7086242       -22.82999       0.9999151        1949.025        74.09514        76.05641        263.1828      -0.1701566        0.000000      -0.2855219E-01   -155.8855        690.8880       0.5908369E-01        1321   0.0000    
+Potential load-imbalance on iter            15 Min/Max determinants on node:         628        701
+          15    1.290898       -9.133784       0.9884221        1939.891        72.38400        73.88388        258.5664      -0.1701579        0.000000      -0.3200735E-01   -157.0281        686.0643       0.5972348E-01        1329   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 793 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 1.0888E-03
+Potential load-imbalance on iter            16 Min/Max determinants on node:         623        704
+          16    1.525765       -13.92451       0.9953137        1925.967        65.49612        67.03778        253.8932      -0.1701591        0.000000      -0.3606102E-01   -158.1911        683.1780       0.5997796E-01        1327   0.0000    
+Potential load-imbalance on iter            17 Min/Max determinants on node:         619        700
+          17    1.885959        16.78424       0.9928220        1942.751        66.24000        62.88643        256.2833      -0.1701603        0.000000      -0.3939417E-01   -160.2902        683.2045       0.6010353E-01        1319   0.0000    
+Potential load-imbalance on iter            18 Min/Max determinants on node:         618        716
+          18    1.452111        14.61968        1.008715        1957.371        71.40389        59.41161        255.2773      -0.1701614        0.000000      -0.4319232E-01   -162.7990        685.8181       0.5747130E-01        1334   0.0000    
+Potential load-imbalance on iter            19 Min/Max determinants on node:         638        718
+          19    1.077257        5.372960        1.007525        1962.744        66.66332        64.28394        260.7192      -0.1701626        0.000000      -0.4659113E-01   -165.9396        690.3225       0.5844739E-01        1356   0.0000    
+Potential load-imbalance on iter            20 Min/Max determinants on node:         632        728
+          20   0.9401957        15.47491        1.002745        1978.218        68.73600        68.80936        267.0145      -0.1701638        0.000000      -0.5010187E-01   -168.4266        692.3517       0.5965022E-01        1360   0.0000    
+Potential load-imbalance on iter            21 Min/Max determinants on node:         650        747
+          21   0.5475254        2.452467        1.007884        1980.671        67.99652        71.87563        273.8964      -0.1701649        0.000000      -0.5354433E-01   -170.3254        691.8023       0.6101589E-01        1397   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 924 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 1.3277E-03
+Potential load-imbalance on iter            22 Min/Max determinants on node:         651        759
+          22   0.4855771        14.99445        1.001240        1995.665        68.12781        76.21571        273.2471      -0.1701660        0.000000      -0.5718131E-01   -172.0180        691.2965       0.5703430E-01        1410   0.0000    
+Potential load-imbalance on iter            23 Min/Max determinants on node:         665        764
+          23   0.1084833       -17.39919        1.007570        1978.266        64.89600        78.50315        273.8111      -0.1701671        0.000000      -0.6044976E-01   -173.0582        687.7802       0.5755487E-01        1429   0.0000    
+Potential load-imbalance on iter            24 Min/Max determinants on node:         659        759
+          24   0.5463191       -22.48574       0.9912815        1955.780        66.50723        81.22883        270.9722      -0.1701681        0.000000      -0.6430350E-01   -174.0031        685.3346       0.5804948E-01        1418   0.0000    
+Potential load-imbalance on iter            25 Min/Max determinants on node:         661        762
+          25    1.117893       -2.585544       0.9886336        1953.195        69.13951        75.26087        268.2094      -0.1701692        0.000000      -0.6707703E-01   -174.3038        679.1940       0.5644288E-01        1423   0.0000    
+Potential load-imbalance on iter            26 Min/Max determinants on node:         670        770
+          26    1.184037       0.7821260       0.9986780        1953.977        73.49218        68.76510        279.5935      -0.1701702        0.000000      -0.7011218E-01   -175.3729        676.3564       0.5963670E-01        1440   0.0000    
+Potential load-imbalance on iter            27 Min/Max determinants on node:         671        770
+          27    1.164019        1.874016        1.000400        1955.851        76.39948        67.95118        260.6853      -0.1701711        0.000000      -0.7279350E-01   -177.4564        676.5344       0.5995144E-01        1441   0.0000    
+Potential load-imbalance on iter            28 Min/Max determinants on node:         673        774
+          28    1.116088        4.185682        1.000959        1960.037        78.14400        68.21132        279.0179      -0.1701721        0.000000      -0.7573544E-01   -179.6867        677.8640       0.5962809E-01        1447   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1051 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 1.5753E-03
+Potential load-imbalance on iter            29 Min/Max determinants on node:         670        775
+          29    1.009198        3.076403        1.002140        1963.113        69.35781        68.69999        267.7541      -0.1701731        0.000000      -0.7850426E-01   -181.9144        679.0081       0.5885264E-01        1445   0.0000    
+Potential load-imbalance on iter            30 Min/Max determinants on node:         669        768
+          30   0.9307817       -1.092503        1.001570        1962.021        71.42400        69.76915        257.7188      -0.1701740        0.000000      -0.8178569E-01   -184.0875        681.4869       0.6006324E-01        1437   0.0000    
+Potential load-imbalance on iter            31 Min/Max determinants on node:         669        760
+          31   0.9586153        2.344345       0.9994435        1964.365        61.05600        70.38602        255.3083      -0.1701749        0.000000      -0.8462099E-01   -186.0959        682.2439       0.5947068E-01        1429   0.0000    
+Potential load-imbalance on iter            32 Min/Max determinants on node:         686        760
+          32   0.8989078        3.130543        1.001195        1967.496        65.08800        69.88526        263.6799      -0.1701758        0.000000      -0.8718783E-01   -187.9855        682.6497       0.5910018E-01        1446   0.0000    
+Potential load-imbalance on iter            33 Min/Max determinants on node:         683        764
+          33   0.8192879       -20.12094        1.001594        1947.375        70.27200        70.28586        248.0158      -0.1701767        0.000000      -0.8999595E-01   -189.9514        684.1875       0.5765325E-01        1447   0.0000    
+Potential load-imbalance on iter            34 Min/Max determinants on node:         686        774
+          34    1.333254        1.880771       0.9897733        1949.255        64.32000        69.37255        274.5714      -0.1701775        0.000000      -0.9213198E-01   -191.8299        683.5688       0.5748027E-01        1460   0.0000    
+Potential load-imbalance on iter            35 Min/Max determinants on node:         683        770
+          35    1.284988       0.4083481        1.000966        1949.664        71.19725        64.39837        264.7422      -0.1701783        0.000000      -0.9487776E-01   -193.5783        683.6742       0.5896728E-01        1453   0.0000    
+Potential load-imbalance on iter            36 Min/Max determinants on node:         688        762
+          36    1.274514        19.07494        1.000209        1968.739        71.60386        64.14109        270.6279      -0.1701792        0.000000      -0.9709530E-01   -196.3428        686.1327       0.6199716E-01        1450   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1170 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 1.8312E-03
+          37   0.7877066        26.02407        1.009784        1994.763        66.62400        65.57093        262.8011      -0.1701800        0.000000      -0.9927292E-01   -199.0564        688.7980       0.6110268E-01        1460   0.0000    
+          38   0.1311041        14.44872        1.013219        2009.211        66.98854        72.75982        273.3620      -0.1701807        0.000000      -0.1016861       -201.7910        692.7544       0.5980680E-01        1476   0.0000    
+          39  -0.2297570       -19.74864        1.007243        1989.463        65.49861        80.94305        270.7577      -0.1701815        0.000000      -0.1040524       -203.5858        692.5683       0.6123528E-01        1489   0.0000    
+          40   0.2641266       -13.47891       0.9901710        1975.984        67.18822        83.77835        273.5931      -0.1701823        0.000000      -0.1064257       -204.0645        687.3708       0.5887744E-01        1490   0.0000    
+          41   0.6040369        1.264227       0.9932249        1977.248        70.27200        78.60146        281.0365      -0.1701830        0.000000      -0.1091242       -203.8128        681.1157       0.5920158E-01        1502   0.0000    
+          42   0.5720573       -19.06056        1.000640        1958.188        71.51931        75.12430        272.3712      -0.1701837        0.000000      -0.1109458       -204.5736        677.3854       0.6082268E-01        1494   0.0000    
+          43    1.056393       -16.06102       0.9903601        1942.127        68.64866        73.64992        267.4251      -0.1701843        0.000000      -0.1132773       -206.0362        676.0708       0.5917765E-01        1484   0.0000    
+          44    1.468183        2.655953       0.9917980        1944.782        65.47200        67.22693        269.1799      -0.1701850        0.000000      -0.1152662       -207.4483        675.1888       0.6052579E-01        1478   0.0000    
+          45    1.399852        6.445032        1.001368        1951.228        72.76800        62.85632        260.9054      -0.1701856        0.000000      -0.1174281       -209.8789        677.7534       0.6298804E-01        1477   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1278 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 2.0829E-03
+Potential load-imbalance on iter            46 Min/Max determinants on node:         698        777
+          46    1.234426        18.48925        1.003314        1969.717        70.84800        63.44970        270.6021      -0.1701862        0.000000      -0.1196644       -213.2067        683.5738       0.6230794E-01        1475   0.0000    
+Potential load-imbalance on iter            47 Min/Max determinants on node:         695        779
+          47   0.7628710        15.94714        1.009476        1985.664        63.36000        66.20285        256.4239      -0.1701868        0.000000      -0.1219746       -216.4464        689.2113       0.5815984E-01        1474   0.0000    
+Potential load-imbalance on iter            48 Min/Max determinants on node:         708        799
+          48   0.3596930        10.54669        1.008096        1996.211        70.27200        71.57361        283.4885      -0.1701874        0.000000      -0.1240082       -219.3823        693.6231       0.6021146E-01        1507   0.0000    
+Potential load-imbalance on iter            49 Min/Max determinants on node:         702        796
+          49   0.9482485E-01    4.372294        1.005311        2000.583        72.79325        76.66988        274.1840      -0.1701880        0.000000      -0.1257415       -221.3280        694.3858       0.5946858E-01        1498   0.0000    
+Potential load-imbalance on iter            50 Min/Max determinants on node:         692        802
+          50  -0.1457023E-01   -17.68330        1.002190        1982.900        72.96000        80.53783        270.1189      -0.1701885        0.000000      -0.1276147       -222.4024        692.1148       0.6356685E-01        1494   0.0000    
+Potential load-imbalance on iter            51 Min/Max determinants on node:         693        800
+          51   0.4293482       -17.84023       0.9911609        1965.059        67.96800        80.69266        277.2901      -0.1701890        0.000000      -0.1294481       -222.8971        688.1487       0.6190047E-01        1493   0.0000    
+Potential load-imbalance on iter            52 Min/Max determinants on node:         703        795
+          52   0.8812362        6.011349       0.9910030        1971.071        69.88800        75.12331        286.4106      -0.1701895        0.000000      -0.1313684       -223.1531        683.2572       0.5823105E-01        1498   0.0000    
+Potential load-imbalance on iter            53 Min/Max determinants on node:         715        801
+          53   0.7285138       -1.228161        1.003059        1969.843        67.00800        71.32457        279.1117      -0.1701900        0.000000      -0.1330173       -224.4044        681.0413       0.6316016E-01        1516   0.0000    
+          54   0.7596781      -0.5950505       0.9993769        1969.248        66.04800        72.42423        284.1594      -0.1701904        0.000000      -0.1346706       -226.6804        682.7986       0.5977117E-01        1517   0.0000    
+          55   0.7747844        3.225716       0.9996979        1972.473        70.32202        71.84972        278.7790      -0.1701909        0.000000      -0.1361970       -228.6371        683.2042       0.6270516E-01        1514   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1378 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 2.3385E-03
+          56   0.6929492       -1.144976        1.001638        1971.328        66.23967        71.78905        272.2452      -0.1701913        0.000000      -0.1375628       -230.6854        684.2898       0.5892019E-01        1491   0.0000    
+          57   0.7219815       0.7120078       0.9994195        1972.040        64.51200        72.17524        268.2727      -0.1701917        0.000000      -0.1389846       -232.7900        685.0851       0.6143981E-01        1484   0.0000    
+          58   0.7039257        6.327497        1.000361        1978.368        63.03103        71.64331        276.2578      -0.1701921        0.000000      -0.1404628       -234.7267        686.2232       0.5828157E-01        1499   0.0000    
+          59   0.5437523        11.37745        1.003209        1989.745        66.59584        71.72454        287.8197      -0.1701925        0.000000      -0.1421515       -236.7511        687.0902       0.5967711E-01        1519   0.0000    
+          60   0.2570296       -11.71888        1.005751        1978.026        69.69600        74.22934        296.6942      -0.1701929        0.000000      -0.1439568       -238.7542        688.4323       0.5835081E-01        1541   0.0000    
+          61   0.5523822       -25.95937       0.9941104        1952.067        72.85540        76.10256        285.2135      -0.1701932        0.000000      -0.1452759       -240.3961        688.5449       0.5686594E-01        1532   0.0000    
+          62    1.212920       -23.42379       0.9868761        1928.643        69.69600        70.76508        274.8315      -0.1701935        0.000000      -0.1466136       -241.3632        686.1150       0.6032863E-01        1517   0.0000    
+          63    1.816523        28.00316       0.9880005        1956.646        66.04800        62.27306        281.0256      -0.1701938        0.000000      -0.1481634       -243.0504        686.4262       0.6346536E-01        1502   0.0000    
+          64    1.095762        19.06886        1.014520        1975.715        67.20000        57.36578        269.1226      -0.1701941        0.000000      -0.1494310       -246.3585        691.6334       0.5619224E-01        1506   0.0000    
+          65   0.6108367        10.27989        1.009746        1985.995        62.40000        64.98878        256.9870      -0.1701944        0.000000      -0.1505458       -251.2018        700.6310       0.5859661E-01        1482   0.0000    
+          66   0.3513551        28.21279        1.005203        2014.208        68.77435        69.46042        290.8964      -0.1701947        0.000000      -0.1520712       -254.3325        706.2370       0.5813555E-01        1494   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1468 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 2.6026E-03
+          67  -0.3539406       -21.83566        1.014206        1992.372        68.27658        74.02205        276.2527      -0.1701949        0.000000      -0.1533702       -256.2728        707.7719       0.5884621E-01        1513   0.0000    
+          68   0.1910599       -2.112210       0.9891592        1990.260        67.77600        79.54737        280.1792      -0.1701951        0.000000      -0.1548666       -257.5663        707.9126       0.6105000E-01        1492   0.0000    
+          69   0.2440954       -6.736758       0.9989399        1983.523        62.40000        74.71330        274.2116      -0.1701953        0.000000      -0.1560367       -257.0536        701.7043       0.5953120E-01        1501   0.0000    
+          70   0.4136256       -7.931394       0.9966151        1975.592        69.40954        73.54884        260.8241      -0.1701955        0.000000      -0.1572529       -257.9458        700.3394       0.5829865E-01        1473   0.0000    
+          71   0.6139584       -13.14125       0.9960014        1962.451        68.90111        71.36950        274.9648      -0.1701957        0.000000      -0.1584391       -258.9811        699.0320       0.6165488E-01        1476   0.0000    
+          72   0.9476597       -2.844774       0.9933482        1959.606        58.80947        68.03382        265.9664      -0.1701959        0.000000      -0.1595219       -260.4626        698.8588       0.5832740E-01        1462   0.0000    
+          73    1.020192        10.88551       0.9985504        1970.491        61.95878        63.71188        267.4824      -0.1701960        0.000000      -0.1606192       -262.4772        700.7251       0.6128756E-01        1451   0.0000    
+          74   0.7432134        4.755006        1.005555        1975.246        65.04027        62.96422        262.9164      -0.1701961        0.000000      -0.1616169       -265.3862        704.3350       0.5866091E-01        1457   0.0000    
+          75   0.6227034        11.15285        1.002413        1986.399        63.93600        65.61248        288.9468      -0.1701963        0.000000      -0.1626316       -268.5226        708.3791       0.5776359E-01        1479   0.0000    
+          76   0.3411821       -3.744071        1.005646        1982.655        62.38080        66.85721        270.7411      -0.1701964        0.000000      -0.1637326       -270.9550        711.1814       0.6028694E-01        1469   0.0000    
+          77   0.4355136        7.480694       0.9981151        1990.136        61.58540        69.24365        272.7632      -0.1701964        0.000000      -0.1649080       -273.0859        713.4780       0.5845824E-01        1469   0.0000    
+          78   0.2472152       -7.215354        1.003773        1982.920        66.82550        68.36516        295.3930      -0.1701965        0.000000      -0.1657398       -274.4679        712.6198       0.5800530E-01        1489   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1542 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 2.8574E-03
+          79   0.4288225        10.73777       0.9963744        1993.658        67.80607        69.51168        279.0848      -0.1701966        0.000000      -0.1669372       -276.1182        714.2051       0.5953526E-01        1473   0.0000    
+          80   0.1587964       -7.843497        1.005415        1985.815        66.62400        68.37244        272.2821      -0.1701966        0.000000      -0.1682098       -277.2617        713.9795       0.5983172E-01        1464   0.0000    
+          81   0.3558956       -10.16571       0.9960658        1975.649        69.82387        70.33374        276.9501      -0.1701966        0.000000      -0.1691701       -278.9171        715.1401       0.5840336E-01        1447   0.0000    
+          82   0.6125112       -20.19709       0.9948808        1955.452        68.79809        67.32579        261.1219      -0.1701966        0.000000      -0.1701875       -279.8318        715.1175       0.6069594E-01        1438   0.0000    
+          83    1.126293       -3.097768       0.9897770        1952.354        61.28571        62.64030        266.4490      -0.1701966        0.000000      -0.1713471       -281.3040        715.7764       0.5849613E-01        1415   0.0000    
+          84    1.205564        12.86217       0.9984158        1965.216        63.32127        56.99430        253.8662      -0.1701966        0.000000      -0.1719682       -283.5090        717.3348       0.5771136E-01        1404   0.0000    
+          85   0.8772428        12.33658        1.006588        1977.553        70.60481        56.59357        259.2898      -0.1701965        0.000000      -0.1730781       -287.1897        724.1706       0.6120435E-01        1407   0.0000    
+          86   0.5643504        14.17985        1.006277        1991.733        63.93600        60.20271        266.1297      -0.1701965        0.000000      -0.1739235       -291.1490        731.3363       0.5680501E-01        1402   0.0000    
+          87   0.2071095        7.095794        1.007170        1998.829        64.12800        63.51836        276.7439      -0.1701964        0.000000      -0.1745534       -294.2094        734.9593       0.5861948E-01        1417   0.0000    
+          88   0.2929491E-01    15.20082        1.003563        2014.029        63.36000        67.02770        265.9311      -0.1701963        0.000000      -0.1755335       -296.3834        737.8401       0.6107305E-01        1409   0.0000    
+Potential load-imbalance on iter            89 Min/Max determinants on node:         675        748
+          89  -0.3495097        8.114028        1.007605        2022.143        62.78945        70.22150        287.5306      -0.1701962        0.000000      -0.1764938       -297.5175        737.4760       0.5962664E-01        1423   0.0000    
+          90  -0.5505427       -11.46820        1.004029        2010.675        64.70400        75.06829        287.7355      -0.1701961        0.000000      -0.1772962       -298.1297        736.6081       0.5858980E-01        1435   0.0000    
+          91  -0.2661700       -9.105070       0.9943287        2001.570        62.40000        76.81558        281.7442      -0.1701959        0.000000      -0.1780840       -297.6163        732.5425       0.5780318E-01        1442   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1590 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 3.1073E-03
+          92  -0.3923756E-01   -1.015945       0.9954716        2000.554        65.08800        74.02054        277.7710      -0.1701958        0.000000      -0.1786288       -296.5078        726.6115       0.5859462E-01        1436   0.0000    
+          93  -0.1385243E-01   -19.69102       0.9994924        1980.863        59.87179        72.38819        259.0762      -0.1701956        0.000000      -0.1795884       -296.2482        723.6452       0.5844380E-01        1437   0.0000    
+          94   0.4807248      -0.6729328       0.9901572        1980.190        64.32000        69.92847        282.7616      -0.1701955        0.000000      -0.1806134       -296.6640        722.7836       0.5849554E-01        1446   0.0000    
+          95   0.4977136       -1.775112       0.9996603        1978.415        64.32000        65.69468        281.2720      -0.1701953        0.000000      -0.1812834       -297.1587        721.3543       0.5566489E-01        1459   0.0000    
+          96   0.5425554        15.79458       0.9991036        1994.210        68.27872        64.56613        283.4240      -0.1701951        0.000000      -0.1819107       -299.1260        723.7385       0.5805342E-01        1457   0.0000    
+          97   0.1449677        15.50481        1.007983        2009.715        62.92583        65.10169        291.5093      -0.1701948        0.000000      -0.1828747       -301.1589        727.3359       0.5829376E-01        1479   0.0000    
+          98  -0.2422746       -9.150457        1.007775        2000.564        61.05600        69.90376        273.0778      -0.1701946        0.000000      -0.1837141       -303.3436        731.4454       0.6157780E-01        1482   0.0000    
+          99  -0.1409913E-01   -4.322184       0.9954469        1996.242        62.78400        72.46639        293.1562      -0.1701944        0.000000      -0.1845957       -304.3406        733.2013       0.5978227E-01        1461   0.0000    
+         100   0.9404186E-01   -3.156185       0.9978395        1993.086        62.59200        70.77817        281.6503      -0.1701941        0.000000      -0.1855180       -304.1651        731.5436       0.5792395E-01        1459   0.0000    
+         101   0.1731576        2.542337       0.9984189        1995.628        63.74400        69.34280        290.0396      -0.1701938        0.000000      -0.1863871       -304.6865        731.5918       0.5808086E-01        1464   0.0000    
+Potential load-imbalance on iter           102 Min/Max determinants on node:         683        776
+         102   0.1094193      -0.5933545        1.001276        1995.035        58.85199        68.70792        289.5572      -0.1701935        0.000000      -0.1873592       -305.5409        732.6506       0.5895761E-01        1459   0.0000    
+Potential load-imbalance on iter           103 Min/Max determinants on node:         685        774
+         103   0.1242879        4.730155       0.9997027        1999.765        62.01600        69.02564        283.6763      -0.1701932        0.000000      -0.1880201       -306.6424        733.2473       0.5755960E-01        1459   0.0000    
+Potential load-imbalance on iter           104 Min/Max determinants on node:         687        764
+         104   0.5880013E-02   -2.315099        1.002371        1997.450        64.12800        69.48893        281.7439      -0.1701929        0.000000      -0.1885413       -307.5545        734.0048       0.6169338E-01        1451   0.0000    
+Potential load-imbalance on iter           105 Min/Max determinants on node:         664        761
+         105   0.6379782E-01    2.315194       0.9988423        1999.765        60.09600        70.48269        273.3507      -0.1701925        0.000000      -0.1893334       -308.5166        735.0001       0.5782454E-01        1425   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1645 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 3.3430E-03
+Potential load-imbalance on iter           106 Min/Max determinants on node:         674        759
+         106   0.5877634E-02    1.377596        1.001159        2001.143        57.98400        70.07936        278.0673      -0.1701922        0.000000      -0.1898887       -309.1189        734.8632       0.6085741E-01        1433   0.0000    
+Potential load-imbalance on iter           107 Min/Max determinants on node:         664        756
+         107  -0.2855446E-01   -18.78787        1.000689        1982.355        64.00994        70.90498        270.6358      -0.1701918        0.000000      -0.1903464       -309.9031        734.8140       0.5721230E-01        1420   0.0000    
+Potential load-imbalance on iter           108 Min/Max determinants on node:         664        757
+         108   0.4430916        5.237958       0.9906114        1987.593        58.56000        69.25933        276.8365      -0.1701915        0.000000      -0.1910443       -310.5112        734.9614       0.5697032E-01        1421   0.0000    
+Potential load-imbalance on iter           109 Min/Max determinants on node:         652        766
+         109   0.3111513        3.902501        1.002642        1991.495        57.98400        65.36106        276.6501      -0.1701911        0.000000      -0.1916065       -311.0157        734.9823       0.5851899E-01        1418   0.0000    
+Potential load-imbalance on iter           110 Min/Max determinants on node:         649        768
+         110   0.2130760        20.45805        1.001963        2011.953        57.98400        66.61078        279.3657      -0.1701907        0.000000      -0.1921577       -312.9897        738.0352       0.5782497E-01        1417   0.0000    
+Potential load-imbalance on iter           111 Min/Max determinants on node:         657        779
+         111  -0.2979391       0.9948436        1.010273        2012.948        60.48787        69.19345        282.0799      -0.1701903        0.000000      -0.1925129       -314.5651        740.1565       0.6033227E-01        1436   0.0000    
+Potential load-imbalance on iter           112 Min/Max determinants on node:         673        772
+         112  -0.3226563       -13.40485        1.000494        1999.543        60.86400        74.14921        288.4628      -0.1701899        0.000000      -0.1930779       -315.8409        741.8864       0.5943000E-01        1445   0.0000    
+Potential load-imbalance on iter           113 Min/Max determinants on node:         667        772
+         113   0.1142299E-01   -25.20190       0.9933407        1974.341        58.36800        73.02415        269.5492      -0.1701895        0.000000      -0.1935141       -315.5097        739.5771       0.5796112E-01        1439   0.0000    
+Potential load-imbalance on iter           114 Min/Max determinants on node:         670        764
+         114   0.6456196       0.5619706       0.9873962        1974.903        61.63200        67.93471        284.4183      -0.1701890        0.000000      -0.1940938       -315.1022        737.2265       0.6113819E-01        1434   0.0000    
+Potential load-imbalance on iter           115 Min/Max determinants on node:         671        761
+         115   0.6313898        20.72218        1.000285        1995.625        62.15127        61.95670        292.8596      -0.1701886        0.000000      -0.1946880       -315.7498        737.5701       0.5966946E-01        1432   0.0000    
+Potential load-imbalance on iter           116 Min/Max determinants on node:         679        762
+         116   0.1094853        14.36367        1.010493        2009.989        61.24800        63.05653        283.6461      -0.1701881        0.000000      -0.1950522       -318.4031        742.3826       0.6017448E-01        1441   0.0000    
+Potential load-imbalance on iter           117 Min/Max determinants on node:         681        758
+         117  -0.2491046       -1.028212        1.007198        2008.961        58.36800        68.83953        285.8811      -0.1701877        0.000000      -0.1955913       -321.0345        747.5793       0.6045830E-01        1439   0.0000    
+         118  -0.2235205       -3.113546       0.9994884        2005.847        54.91200        71.63456        281.0856      -0.1701872        0.000000      -0.1961853       -322.0139        748.9390       0.5793071E-01        1423   0.0000    
+         119  -0.1459689       -20.74034       0.9984502        1985.107        52.69614        71.68769        277.7010      -0.1701867        0.000000      -0.1965314       -321.8435        747.3546       0.5813995E-01        1424   0.0000    
+         120   0.3737195        8.657516       0.9896601        1993.764        59.13600        68.94377        285.7395      -0.1701862        0.000000      -0.1969592       -321.7566        745.6101       0.6085659E-01        1405   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1689 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 3.5793E-03
+         121   0.1561320        2.372130        1.004361        1996.137        54.53793        64.63848        274.3555      -0.1701857        0.000000      -0.1974334       -321.9207        744.7559       0.5843879E-01        1399   0.0000    
+         122   0.9667861E-01    7.886035        1.001190        2004.023        57.65018        65.96514        279.2564      -0.1701852        0.000000      -0.1979842       -323.7594        748.5636       0.5971759E-01        1408   0.0000    
+         123  -0.1004647        6.510981        1.003951        2010.534        53.56800        67.29407        288.3493      -0.1701847        0.000000      -0.1982586       -324.9059        749.4366       0.5887375E-01        1424   0.0000    
+         124  -0.2626491        5.017139        1.003249        2015.551        57.40800        69.61804        276.5731      -0.1701842        0.000000      -0.1987649       -325.8641        750.4774       0.6099718E-01        1414   0.0000    
+         125  -0.3872650       -12.63917        1.002495        2002.912        59.52000        72.00756        287.4688      -0.1701836        0.000000      -0.1993135       -326.1845        750.5354       0.6292131E-01        1419   0.0000    
+         126  -0.7273655E-01   -19.49476       0.9937292        1983.417        64.51200        71.99755        290.8201      -0.1701831        0.000000      -0.1997646       -325.9779        749.1086       0.5839177E-01        1422   0.0000    
+         127   0.4163079       -1.562636       0.9902668        1981.854        59.70724        67.74134        279.7148      -0.1701825        0.000000      -0.1999655       -325.3666        745.7672       0.5921592E-01        1417   0.0000    
+         128   0.4557159      -0.1559120       0.9992121        1981.698        57.21278        63.31160        267.1127      -0.1701819        0.000000      -0.2003120       -325.7806        745.9080       0.5845464E-01        1399   0.0000    
+         129   0.4596496        7.545965       0.9999213        1989.244        59.52000        62.22935        280.5802      -0.1701814        0.000000      -0.2005324       -327.7894        749.3400       0.6241381E-01        1387   0.0000    
+         130   0.2696198        12.02493        1.003808        2001.269        57.14581        62.24927        277.9286      -0.1701808        0.000000      -0.2009292       -329.9406        753.9016       0.5776637E-01        1389   0.0000    
+Potential load-imbalance on iter           131 Min/Max determinants on node:         658        731
+         131  -0.3171906E-01    14.08442        1.006045        2015.354        59.63361        64.57054        273.3061      -0.1701802        0.000000      -0.2013460       -332.1201        758.5125       0.5951376E-01        1389   0.0000    
+Potential load-imbalance on iter           132 Min/Max determinants on node:         641        734
+         132  -0.3823738       -5.695518        1.007038        2009.658        58.36800        67.91792        261.7144      -0.1701796        0.000000      -0.2017217       -333.6842        761.3720       0.5711190E-01        1375   0.0000    
+Potential load-imbalance on iter           133 Min/Max determinants on node:         629        729
+         133  -0.2408706       -8.025167       0.9971739        2001.633        57.02400        70.01869        273.9503      -0.1701790        0.000000      -0.2023206       -334.2515        762.6131       0.5959816E-01        1358   0.0000    
+Potential load-imbalance on iter           134 Min/Max determinants on node:         637        715
+         134  -0.4080587E-01   -11.73077       0.9960067        1989.902        53.50783        68.64630        268.6267      -0.1701784        0.000000      -0.2027323       -333.6497        761.4821       0.5922808E-01        1352   0.0000    
+         135   0.2530862        3.673303       0.9941394        1993.575        55.35748        65.89044        265.0415      -0.1701778        0.000000      -0.2028777       -333.5224        760.3289       0.5921952E-01        1352   0.0000    
+         136   0.1608727       -12.58210        1.001846        1980.993        63.50150        63.24761        264.1963      -0.1701771        0.000000      -0.2030840       -334.0630        760.9734       0.6167272E-01        1352   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1732 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 3.8030E-03
+         137   0.4774390        14.55910       0.9936887        1995.552        60.48000        62.54138        265.9072      -0.1701765        0.000000      -0.2034596       -335.5869        764.3055       0.5888279E-01        1349   0.0000    
+         138   0.1113130        13.94884        1.007349        2009.501        55.10400        60.89460        265.8487      -0.1701758        0.000000      -0.2040801       -336.8095        767.7510       0.5714790E-01        1360   0.0000    
+         139  -0.2369693        1.102495        1.006990        2010.604        52.67065        64.59306        268.6277      -0.1701752        0.000000      -0.2044777       -339.1049        772.6199       0.6025333E-01        1364   0.0000    
+Potential load-imbalance on iter           140 Min/Max determinants on node:         649        718
+         140  -0.2643939        1.835069        1.000549        2012.439        58.06732        67.54376        268.4244      -0.1701745        0.000000      -0.2049518       -340.1758        775.9481       0.6156969E-01        1367   0.0000    
+         141  -0.3100078        7.356494        1.000913        2019.795        54.02829        68.11850        280.3823      -0.1701738        0.000000      -0.2052212       -340.0669        775.6738       0.5946375E-01        1383   0.0000    
+         142  -0.4924502        2.702952        1.003656        2022.498        53.42580        69.12186        273.9421      -0.1701731        0.000000      -0.2056287       -339.8657        775.9536       0.6026707E-01        1375   0.0000    
+         143  -0.5593170      -0.3785040        1.001338        2022.120        51.84000        70.90040        272.4260      -0.1701724        0.000000      -0.2061430       -339.5109        776.3056       0.5789731E-01        1365   0.0000    
+         144  -0.5499588       -27.15685       0.9998129        1994.963        59.04869        72.07063        269.8771      -0.1701717        0.000000      -0.2061915       -338.5389        773.5596       0.6043744E-01        1363   0.0000    
+         145   0.1260858        11.11667       0.9865701        2006.080        52.80000        69.57476        287.5348      -0.1701710        0.000000      -0.2063308       -337.3434        771.0359       0.5899714E-01        1378   0.0000    
+         146  -0.1517592       -6.411448        1.005572        1999.668        53.37600        64.56907        262.9906      -0.1701703        0.000000      -0.2067611       -336.1842        768.8578       0.5846936E-01        1371   0.0000    
+         147   0.8297134E-02    10.05544       0.9968040        2009.724        54.33600        65.75995        279.7261      -0.1701696        0.000000      -0.2068645       -337.3032        771.2104       0.5727199E-01        1372   0.0000    
+         148  -0.2425005        11.66308        1.005029        2021.387        54.33600        64.40705        294.3381      -0.1701689        0.000000      -0.2073730       -337.4891        772.8037       0.5803077E-01        1388   0.0000    
+         149  -0.5318280        4.217811        1.005803        2025.604        61.82400        67.30591        286.4439      -0.1701682        0.000000      -0.2078158       -338.2169        774.8604       0.5885916E-01        1406   0.0000    
+         150  -0.6360490       -8.417004        1.002087        2017.187        59.71200        70.87650        296.3413      -0.1701675        0.000000      -0.2080796       -338.0996        774.8973       0.6170840E-01        1418   0.0000    
+         151  -0.4278508       -13.29780       0.9958447        2003.890        56.18809        71.37467        285.3444      -0.1701667        0.000000      -0.2083696       -337.0050        772.5953       0.6091149E-01        1405   0.0000    
+         152  -0.9714714E-01    4.324376       0.9934078        2008.214        55.70291        68.17684        281.6290      -0.1701660        0.000000      -0.2087739       -335.5637        770.4738       0.5772032E-01        1381   0.0000    
+         153  -0.2049304       -1.145750        1.002158        2007.068        59.13600        65.66221        275.6916      -0.1701652        0.000000      -0.2092009       -334.8286        769.4824       0.6130199E-01        1372   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1770 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 4.0387E-03
+         154  -0.1763957        1.082743       0.9994295        2008.151        54.33600        66.16266        265.9235      -0.1701645        0.000000      -0.2095079       -335.2038        771.0403       0.5926434E-01        1374   0.0000    
+         155  -0.2033617       -9.559133        1.000539        1998.592        52.73712        66.11180        261.6047      -0.1701637        0.000000      -0.2097255       -335.2191        771.5688       0.6120269E-01        1370   0.0000    
+         156   0.3521491E-01    19.49887       0.9952398        2018.091        51.67022        65.49501        296.0540      -0.1701630        0.000000      -0.2101702       -335.3308        772.9764       0.5795494E-01        1374   0.0000    
+         157  -0.4502359        3.764605        1.009756        2021.855        59.08364        65.25773        288.1640      -0.1701622        0.000000      -0.2102919       -335.3537        772.7159       0.5880813E-01        1381   0.0000    
+         158  -0.5434205       -20.23592        1.001865        2001.619        57.79200        69.42442        270.7412      -0.1701614        0.000000      -0.2107604       -336.1770        775.7436       0.5518712E-01        1366   0.0000    
+         159  -0.4046987E-01   -13.48396       0.9899914        1988.135        53.39468        68.80983        277.8283      -0.1701606        0.000000      -0.2108983       -335.3719        773.6465       0.6209992E-01        1364   0.0000    
+         160   0.2974960        12.17133       0.9932635        2000.307        51.54200        63.11446        282.7637      -0.1701598        0.000000      -0.2110383       -334.2567        771.3425       0.5853799E-01        1378   0.0000    
+         161  -0.7670028E-02    15.23873        1.006122        2015.546        55.87200        61.23907        282.1785      -0.1701591        0.000000      -0.2113185       -334.8269        773.1092       0.5730648E-01        1396   0.0000    
+         162  -0.3871363        15.47852        1.007618        2031.024        56.35713        65.38518        279.9772      -0.1701583        0.000000      -0.2116754       -336.5305        777.5741       0.6080810E-01        1393   0.0000    
+         163  -0.7696477       -6.677456        1.007680        2024.347        55.68000        69.72549        277.4093      -0.1701575        0.000000      -0.2118759       -337.2171        779.6791       0.5746107E-01        1390   0.0000    
+         164  -0.6049905       -25.31081       0.9967123        1999.036        57.65056        72.86420        268.4992      -0.1701567        0.000000      -0.2119616       -336.6260        778.2982       0.5728389E-01        1380   0.0000    
+         165   0.2411067E-01   -6.927987       0.9874968        1992.108        54.32609        69.88268        279.8913      -0.1701559        0.000000      -0.2119648       -334.7487        773.2470       0.6075870E-01        1362   0.0000    
+         166   0.1976948        5.825304       0.9965343        1997.933        57.60000        64.02889        274.6806      -0.1701551        0.000000      -0.2120626       -333.4331        770.1436       0.6156586E-01        1356   0.0000    
+         167   0.5169864E-01    33.82819        1.002924        2031.761        58.36800        62.53355        290.4761      -0.1701542        0.000000      -0.2123698       -334.2206        772.8006       0.5898052E-01        1363   0.0000    
+         168  -0.7877938        5.288229        1.016932        2037.050        54.91200        66.16251        281.8314      -0.1701534        0.000000      -0.2125037       -335.5911        776.3252       0.5711270E-01        1386   0.0000    
+         169  -0.9177638       -1.395451        1.002603        2035.654        57.02400        74.72349        289.9493      -0.1701526        0.000000      -0.2128712       -336.4777        779.2291       0.5764962E-01        1387   0.0000    
+         170  -0.8835003       -4.814053       0.9993150        2030.840        59.32800        76.85956        292.4050      -0.1701518        0.000000      -0.2132111       -334.5432        775.6095       0.6181474E-01        1387   0.0000    
+         171  -0.7651169       -14.10331       0.9976351        2016.737        57.56661        76.54204        275.3063      -0.1701510        0.000000      -0.2135760       -332.1862        770.9030       0.6146219E-01        1351   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1804 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 4.2634E-03
+Potential load-imbalance on iter           172 Min/Max determinants on node:         642        726
+         172  -0.4166770        10.12225       0.9930554        2026.859        61.91331        75.07580        293.5162      -0.1701501        0.000000      -0.2141687       -329.9608        767.0650       0.6006614E-01        1368   0.0000    
+Potential load-imbalance on iter           173 Min/Max determinants on node:         638        741
+         173  -0.6670054       -6.976704        1.005019        2019.882        59.71200        73.26513        280.4421      -0.1701493        0.000000      -0.2144241       -328.1429        763.3802       0.5826756E-01        1379   0.0000    
+Potential load-imbalance on iter           174 Min/Max determinants on node:         635        726
+         174  -0.4946022       -12.42612       0.9965579        2007.456        51.04460        75.10031        271.9047      -0.1701485        0.000000      -0.2145613       -327.4792        762.1493       0.6061552E-01        1361   0.0000    
+Potential load-imbalance on iter           175 Min/Max determinants on node:         635        716
+         175  -0.1860571       -17.53049       0.9938481        1989.926        53.15470        72.71724        262.9422      -0.1701476        0.000000      -0.2146735       -325.9976        758.4727       0.5830722E-01        1351   0.0000    
+         176   0.2524951       -13.17222       0.9912673        1976.753        60.10738        68.35788        261.3446      -0.1701468        0.000000      -0.2150254       -325.0850        757.1407       0.6052943E-01        1330   0.0000    
+         177   0.5845680        15.26466       0.9933805        1992.018        55.87200        62.87623        267.5303      -0.1701460        0.000000      -0.2153397       -325.1792        758.0115       0.6057411E-01        1333   0.0000    
+         178   0.1999470        7.845380        1.007722        1999.863        52.86079        60.80806        264.6131      -0.1701451        0.000000      -0.2156129       -326.7005        762.1029       0.5797613E-01        1339   0.0000    
+Potential load-imbalance on iter           179 Min/Max determinants on node:         636        704
+         179   0.3413316E-02    14.86244        1.003938        2014.726        52.08993        63.84227        279.2849      -0.1701443        0.000000      -0.2157345       -329.3147        768.7828       0.5964824E-01        1340   0.0000    
+Potential load-imbalance on iter           180 Min/Max determinants on node:         637        713
+         180  -0.3667990        6.711958        1.007432        2021.438        54.19201        66.56700        282.9669      -0.1701434        0.000000      -0.2160607       -330.6836        772.8727       0.5941523E-01        1350   0.0000    
+Potential load-imbalance on iter           181 Min/Max determinants on node:         637        709
+         181  -0.5330947       -5.561918        1.003331        2015.876        59.66334        69.90049        276.4125      -0.1701425        0.000000      -0.2162364       -331.4093        774.8023       0.5684710E-01        1346   0.0000    
+Potential load-imbalance on iter           182 Min/Max determinants on node:         632        713
+         182  -0.3953317       0.4813184       0.9972485        2016.357        57.79200        70.84508        285.6961      -0.1701416        0.000000      -0.2164146       -330.9103        773.6418       0.6106047E-01        1345   0.0000    
+Potential load-imbalance on iter           183 Min/Max determinants on node:         625        716
+         183  -0.4072685       -8.259071        1.000239        2008.098        54.33600        69.95627        266.5356      -0.1701408        0.000000      -0.2167948       -329.8624        771.7294       0.5875539E-01        1341   0.0000    
+Potential load-imbalance on iter           184 Min/Max determinants on node:         612        718
+         184  -0.2020461        1.950549       0.9959040        2010.049        51.26400        69.29667        272.4090      -0.1701399        0.000000      -0.2171638       -329.2735        771.2566       0.5762104E-01        1330   0.0000    
+Potential load-imbalance on iter           185 Min/Max determinants on node:         621        720
+         185  -0.2505896       -23.42265        1.000971        1986.626        60.09600        67.61107        265.6590      -0.1701390        0.000000      -0.2174073       -328.6475        770.3928       0.5961283E-01        1341   0.0000    
+Potential load-imbalance on iter           186 Min/Max determinants on node:         614        712
+         186   0.3354706        8.622958       0.9883472        1995.249        51.11401        65.75195        269.4835      -0.1701381        0.000000      -0.2177035       -328.6980        771.1032       0.5748448E-01        1326   0.0000    
+Potential load-imbalance on iter           187 Min/Max determinants on node:         612        720
+         187   0.1189151        12.95186        1.004341        2008.201        57.21600        60.87790        284.0254      -0.1701372        0.000000      -0.2179633       -328.5899        771.4802       0.5890302E-01        1332   0.0000    
+Potential load-imbalance on iter           188 Min/Max determinants on node:         612        736
+         188  -0.2046036        24.31578        1.006491        2032.517        52.03200        63.56407        280.8460      -0.1701363        0.000000      -0.2180730       -330.4084        775.9355       0.5690953E-01        1348   0.0000    
+Potential load-imbalance on iter           189 Min/Max determinants on node:         615        745
+         189  -0.8063798        3.552713        1.012108        2036.069        53.93140        68.08666        275.2308      -0.1701354        0.000000      -0.2183617       -331.5219        779.3353       0.5734363E-01        1360   0.0000    
+Potential load-imbalance on iter           190 Min/Max determinants on node:         619        747
+         190  -0.8937004       -23.84954        1.001748        2012.220        59.72704        74.33610        279.6983      -0.1701345        0.000000      -0.2182729       -331.5675        779.0733       0.5675837E-01        1366   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1820 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 4.4799E-03
+Potential load-imbalance on iter           191 Min/Max determinants on node:         618        738
+         191  -0.3045673        13.54045       0.9882865        2025.760        51.09574        73.54507        295.8487      -0.1701336        0.000000      -0.2184854       -329.6175        774.5365       0.6047141E-01        1356   0.0000    
+Potential load-imbalance on iter           192 Min/Max determinants on node:         621        737
+         192  -0.6398959       -6.563750        1.006729        2019.197        56.06400        70.12271        276.0582      -0.1701326        0.000000      -0.2190272       -327.3919        770.9088       0.5755514E-01        1358   0.0000    
+Potential load-imbalance on iter           193 Min/Max determinants on node:         648        738
+         193  -0.4776258      -0.9318214       0.9967599        2018.265        57.98400        72.34343        298.2488      -0.1701317        0.000000      -0.2192031       -327.1118        770.6858       0.6091495E-01        1386   0.0000    
+Potential load-imbalance on iter           194 Min/Max determinants on node:         644        718
+         194  -0.4545464       -6.448075       0.9995385        2011.817        56.83200        71.81879        261.1371      -0.1701308        0.000000      -0.2194068       -325.7357        767.9672       0.5853882E-01        1362   0.0000    
+Potential load-imbalance on iter           195 Min/Max determinants on node:         636        721
+         195  -0.2945476        7.549452       0.9968051        2019.366        63.37846        71.49827        281.6662      -0.1701299        0.000000      -0.2194310       -324.8946        765.9279       0.6200175E-01        1357   0.0000    
+         196  -0.4818242       -12.92439        1.003753        2006.442        56.45597        70.94455        269.6511      -0.1701290        0.000000      -0.2195802       -324.1307        764.5473       0.5970558E-01        1351   0.0000    
+         197  -0.1607847       0.5879266       0.9935998        2007.030        52.99200        71.22641        286.1296      -0.1701281        0.000000      -0.2199671       -323.8877        765.0814       0.5987653E-01        1351   0.0000    
+         198  -0.1754335       -11.78607        1.000293        1995.244        54.14400        68.57491        275.2808      -0.1701271        0.000000      -0.2199878       -323.0396        763.3881       0.6149497E-01        1350   0.0000    
+         199   0.1190518        13.05708       0.9941276        2008.301        50.95132        67.69843        270.5543      -0.1701262        0.000000      -0.2203150       -323.2309        764.5518       0.6231708E-01        1332   0.0000    
+         200  -0.2070873       0.6075254        1.006544        2008.908        57.40800        66.20121        259.1879      -0.1701253        0.000000      -0.2205987       -323.3759        765.1882       0.5954798E-01        1333   0.0000    
+         201  -0.2222104       -14.27096        1.000303        1994.637        54.14400        68.10248        272.5733      -0.1701243        0.000000      -0.2207849       -324.4743        768.2757       0.5944574E-01        1341   0.0000    
+         202   0.1342493        16.35310       0.9928962        2010.990        51.45600        66.68782        280.7230      -0.1701234        0.000000      -0.2210904       -324.5187        768.9653       0.6107439E-01        1342   0.0000    
+Potential load-imbalance on iter           203 Min/Max determinants on node:         629        712
+         203  -0.2740062        10.50068        1.008199        2021.491        54.36482        64.68051        269.1858      -0.1701224        0.000000      -0.2212132       -324.5151        769.6288       0.6008936E-01        1341   0.0000    
+Potential load-imbalance on iter           204 Min/Max determinants on node:         632        706
+         204  -0.5344092       -1.270325        1.005222        2020.221        51.84000        68.85112        266.1330      -0.1701215        0.000000      -0.2214258       -325.6686        772.9086       0.5939212E-01        1338   0.0000    
+Potential load-imbalance on iter           205 Min/Max determinants on node:         637        714
+         205  -0.5029788        4.533408       0.9993716        2024.754        52.93564        71.55757        286.1352      -0.1701205        0.000000      -0.2216428       -325.4974        772.7040       0.5867070E-01        1351   0.0000    
+Potential load-imbalance on iter           206 Min/Max determinants on node:         633        738
+         206  -0.6150540        12.55491        1.002244        2037.309        51.84000        71.82635        296.7464      -0.1701196        0.000000      -0.2219729       -324.4793        770.8285       0.6125332E-01        1371   0.0000    
+Potential load-imbalance on iter           207 Min/Max determinants on node:         629        725
+         207  -0.9241322       -19.10578        1.006201        2018.203        57.86846        73.90768        281.3082      -0.1701186        0.000000      -0.2221550       -323.5675        769.1725       0.5815008E-01        1354   0.0000    
+Potential load-imbalance on iter           208 Min/Max determinants on node:         633        717
+         208  -0.4530224        3.865477       0.9906221        2022.069        51.10796        75.49133        274.7868      -0.1701176        0.000000      -0.2223357       -322.2962        766.4539       0.5994272E-01        1350   0.0000    
+         209  -0.5486961       -4.119832        1.001915        2017.949        54.52800        72.67748        292.8856      -0.1701167        0.000000      -0.2225466       -320.0344        761.6796       0.6008046E-01        1381   0.0000    
+Potential load-imbalance on iter           210 Min/Max determinants on node:         647        726
+         210  -0.4467205       -2.801666       0.9979626        2015.147        55.48800        73.11012        279.6234      -0.1701157        0.000000      -0.2225795       -319.2968        759.7596       0.6117891E-01        1373   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1846 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 4.7008E-03
+Potential load-imbalance on iter           211 Min/Max determinants on node:         650        724
+         211  -0.3772536        5.897987       0.9986116        2021.045        55.29600        72.04656        279.9699      -0.1701148        0.000000      -0.2227706       -318.2555        758.2971       0.5895313E-01        1374   0.0000    
+Potential load-imbalance on iter           212 Min/Max determinants on node:         647        722
+         212  -0.5233812        15.68378        1.002927        2036.729        52.80000        71.96807        289.9345      -0.1701138        0.000000      -0.2228400       -317.5427        756.5364       0.5929592E-01        1369   0.0000    
+         213  -0.9098950       -22.51861        1.007760        2014.210        52.41600        74.60467        264.2591      -0.1701129        0.000000      -0.2229741       -317.0524        756.0024       0.6016989E-01        1367   0.0000    
+         214  -0.3540031       -26.77441       0.9889437        1987.436        51.23778        76.20681        272.1244      -0.1701119        0.000000      -0.2231412       -316.1000        754.1713       0.5785909E-01        1352   0.0000    
+         215   0.3150916       -12.75359       0.9867072        1974.682        53.82082        69.03935        264.1102      -0.1701109        0.000000      -0.2234305       -313.9291        749.7231       0.5950268E-01        1336   0.0000    
+         216   0.6369810        4.119339       0.9935829        1978.802        51.37077        61.56572        261.6473      -0.1701100        0.000000      -0.2238994       -313.5192        750.2438       0.5870660E-01        1333   0.0000    
+         217   0.5327858        14.02477        1.002086        1992.826        55.48800        58.15267        263.8321      -0.1701090        0.000000      -0.2242039       -315.2091        754.7953       0.5929988E-01        1318   0.0000    
+         218   0.1796605        32.66319        1.007088        2025.490        54.14400        58.86616        283.1677      -0.1701080        0.000000      -0.2244693       -317.9236        762.0040       0.6173507E-01        1326   0.0000    
+         219  -0.6332151        25.78154        1.016390        2051.271        53.06480        63.91675        272.4998      -0.1701070        0.000000      -0.2246960       -320.3311        768.7589       0.5871867E-01        1329   0.0000    
+         220   -1.265626       -4.898546        1.012729        2046.373        58.56000        73.93412        275.4143      -0.1701060        0.000000      -0.2246506       -321.6264        771.3187       0.5831863E-01        1344   0.0000    
+         221   -1.146081       -21.81007       0.9976119        2024.563        56.58282        79.98638        294.8046      -0.1701050        0.000000      -0.2250312       -320.3123        769.4544       0.6183976E-01        1363   0.0000    
+         222  -0.6103246       -6.327064       0.9893421        2018.236        53.59820        77.33114        281.1593      -0.1701040        0.000000      -0.2252816       -316.9792        761.8251       0.6010320E-01        1354   0.0000    
+         223  -0.4538224       -5.192288       0.9968748        2013.043        51.39854        72.92385        283.7772      -0.1701030        0.000000      -0.2253824       -314.0604        755.1075       0.6093649E-01        1365   0.0000    
+         224  -0.3250223       -10.82753       0.9974273        2002.216        55.87200        71.30620        270.9167      -0.1701020        0.000000      -0.2254552       -312.8515        751.8428       0.5629934E-01        1380   0.0000    
+         225  -0.5536217E-01    4.112069       0.9946213        2006.328        54.39918        69.09962        280.4466      -0.1701010        0.000000      -0.2256599       -312.1370        750.6809       0.5892356E-01        1375   0.0000    
+         226  -0.1579448        10.08175        1.002054        2016.410        55.68000        67.10070        289.4462      -0.1701000        0.000000      -0.2259836       -311.8269        751.4343       0.6095838E-01        1379   0.0000    
+         227  -0.4085646        13.12641        1.005025        2029.536        51.70344        68.97882        292.7691      -0.1700990        0.000000      -0.2262403       -312.3589        753.6097       0.6091725E-01        1388   0.0000    
+         228  -0.7329995       -9.685253        1.006510        2019.851        55.12172        72.92370        273.7350      -0.1700980        0.000000      -0.2265270       -312.5723        754.8600       0.5917487E-01        1381   0.0000    
+Potential load-imbalance on iter           229 Min/Max determinants on node:         642        734
+         229  -0.4938208       -7.983073       0.9952278        2011.868        55.84341        74.85197        280.7586      -0.1700970        0.000000      -0.2267483       -312.0033        754.0683       0.6086456E-01        1376   0.0000    
+Potential load-imbalance on iter           230 Min/Max determinants on node:         653        736
+         230  -0.2958138       -12.12955       0.9960477        1999.738        52.62692        72.08142        283.8595      -0.1700960        0.000000      -0.2269079       -310.4237        750.5472       0.5810088E-01        1389   0.0000    
+Potential load-imbalance on iter           231 Min/Max determinants on node:         640        738
+         231   0.6548704E-02   -3.514206       0.9939710        1996.224        55.43025        69.60673        262.7049      -0.1700950        0.000000      -0.2269768       -309.5952        748.7703       0.5796860E-01        1378   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1868 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 4.9240E-03
+Potential load-imbalance on iter           232 Min/Max determinants on node:         638        747
+         232   0.9449267E-01    23.22313       0.9982427        2019.447        53.76000        66.20888        283.5812      -0.1700940        0.000000      -0.2273913       -309.3821        749.5052       0.6347102E-01        1385   0.0000    
+Potential load-imbalance on iter           233 Min/Max determinants on node:         644        748
+         233  -0.4838265       -1.922500        1.011634        2017.524        52.22400        67.42242        280.4985      -0.1700929        0.000000      -0.2277325       -310.1058        752.3872       0.5833120E-01        1392   0.0000    
+Potential load-imbalance on iter           234 Min/Max determinants on node:         645        730
+         234  -0.4362041       -6.789991       0.9990480        2010.735        58.33107        71.58863        267.3524      -0.1700919        0.000000      -0.2280963       -311.1051        756.1105       0.5974381E-01        1375   0.0000    
+Potential load-imbalance on iter           235 Min/Max determinants on node:         645        731
+         235  -0.2676450       -4.610663       0.9966345        2006.124        58.17677        70.89370        288.7654      -0.1700909        0.000000      -0.2281087       -310.3095        754.2501       0.6379128E-01        1376   0.0000    
+Potential load-imbalance on iter           236 Min/Max determinants on node:         653        731
+         236  -0.1528622        12.77121       0.9977070        2018.895        53.64200        69.04234        289.2961      -0.1700899        0.000000      -0.2286255       -309.6637        753.7392       0.6174344E-01        1384   0.0000    
+Potential load-imbalance on iter           237 Min/Max determinants on node:         654        732
+         237  -0.4701588       -3.923315        1.006366        2014.972        55.12092        69.22934        274.2694      -0.1700888        0.000000      -0.2286590       -309.5429        753.4432       0.5831681E-01        1386   0.0000    
+Potential load-imbalance on iter           238 Min/Max determinants on node:         648        723
+         238  -0.3728993        14.78186       0.9980567        2029.754        57.98400        71.86450        285.6813      -0.1700878        0.000000      -0.2286074       -309.7775        753.6730       0.5815572E-01        1371   0.0000    
+Potential load-imbalance on iter           239 Min/Max determinants on node:         652        736
+         239  -0.7383612        1.160484        1.007336        2030.914        53.78161        72.79610        287.2798      -0.1700867        0.000000      -0.2289368       -309.0293        752.7094       0.6029934E-01        1388   0.0000    
+Potential load-imbalance on iter           240 Min/Max determinants on node:         659        729
+         240  -0.7669398       -5.410115        1.000572        2025.504        59.13600        77.03540        289.6221      -0.1700857        0.000000      -0.2290370       -308.5844        751.9720       0.6151767E-01        1388   0.0000    
+         241  -0.6335680        3.167070       0.9973361        2028.671        57.98400        77.05300        296.1389      -0.1700847        0.000000      -0.2295160       -307.0127        749.4556       0.5962275E-01        1406   0.0000    
+         242  -0.7116868       -9.827773        1.001564        2018.843        52.45069        76.64241        291.6863      -0.1700836        0.000000      -0.2297355       -305.3627        746.0448       0.5756579E-01        1412   0.0000    
+Potential load-imbalance on iter           243 Min/Max determinants on node:         669        742
+         243  -0.4688762       -10.22247       0.9951556        2008.621        55.90640        76.49018        288.9375      -0.1700826        0.000000      -0.2300479       -304.1296        743.6385       0.6087361E-01        1411   0.0000    
+         244  -0.2150565       -15.94800       0.9949365        1992.673        50.30400        73.40674        265.3207      -0.1700815        0.000000      -0.2302333       -302.6648        740.2518       0.5808594E-01        1400   0.0000    
+Potential load-imbalance on iter           245 Min/Max determinants on node:         669        742
+         245   0.1835168        6.106175       0.9920602        1998.779        51.79163        69.45222        293.9363      -0.1700805        0.000000      -0.2302302       -301.9425        738.3445       0.6095746E-01        1411   0.0000    
+Potential load-imbalance on iter           246 Min/Max determinants on node:         667        738
+         246   0.3053537E-01    8.294262        1.003064        2007.073        57.07179        65.76508        274.1316      -0.1700794        0.000000      -0.2302046       -301.9883        738.3103       0.5678354E-01        1405   0.0000    
+         247  -0.1765186        1.508791        1.004150        2008.582        61.64848        67.93790        279.5802      -0.1700784        0.000000      -0.2301232       -303.2377        741.2412       0.5866550E-01        1391   0.0000    
+         248  -0.2140913       0.9741094        1.000752        2009.556        55.87200        69.68448        268.9102      -0.1700774        0.000000      -0.2301754       -304.0281        743.1936       0.5816066E-01        1376   0.0000    
+Potential load-imbalance on iter           249 Min/Max determinants on node:         653        725
+         249  -0.2383341        6.875681        1.000485        2016.432        55.64158        70.47479        273.2798      -0.1700763        0.000000      -0.2304835       -304.1912        744.6045       0.6082814E-01        1378   0.0000    
+         250  -0.4091167        5.102040        1.003421        2021.534        50.64990        71.29788        284.5802      -0.1700753        0.000000      -0.2307925       -304.2411        746.0647       0.6120813E-01        1389   0.0000    
+         251  -0.5354685        2.399503        1.002530        2023.933        54.33600        73.26453        291.6755      -0.1700742        0.000000      -0.2309377       -304.2181        746.5106       0.5968463E-01        1401   0.0000    
+         252  -0.5947819       -18.95581        1.001187        2004.978        58.75200        74.91968        280.8771      -0.1700731        0.000000      -0.2311771       -303.6761        745.8652       0.6260465E-01        1393   0.0000    
+         253  -0.1242837       -4.974497       0.9906342        2000.003        54.14400        73.48052        290.3970      -0.1700721        0.000000      -0.2312534       -302.7520        744.0699       0.5739046E-01        1386   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1889 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 5.1606E-03
+         254  -0.7586008E-04   -4.930359       0.9975189        1995.073        56.85566        68.19027        287.9463      -0.1700710        0.000000      -0.2318428       -301.6514        742.9961       0.6081383E-01        1382   0.0000    
+         255   0.1233351        20.12035       0.9975348        2015.193        50.30400        65.90728        290.1260      -0.1700699        0.000000      -0.2319685       -301.9759        744.1979       0.5982652E-01        1387   0.0000    
+         256  -0.3783903        12.73768        1.010085        2027.931        58.56000        66.02625        283.3204      -0.1700689        0.000000      -0.2321575       -302.6762        746.3466       0.6386138E-01        1387   0.0000    
+         257  -0.6934369        3.733247        1.006321        2031.664        56.44800        71.27308        286.7627      -0.1700678        0.000000      -0.2323205       -303.7521        749.8373       0.6276711E-01        1388   0.0000    
+         258  -0.7853980       -11.56321        1.001841        2020.101        54.14400        74.85333        299.4233      -0.1700667        0.000000      -0.2326076       -303.3085        749.7625       0.6010550E-01        1414   0.0000    
+         259  -0.5000101       -3.507904       0.9943085        2016.593        53.76000        75.05376        280.8721      -0.1700656        0.000000      -0.2329620       -301.9107        747.5239       0.5780497E-01        1389   0.0000    
+         260  -0.4131096       -10.16919       0.9982635        2006.424        51.63245        72.66875        277.6343      -0.1700645        0.000000      -0.2332209       -300.2429        743.9314       0.5796958E-01        1380   0.0000    
+         261  -0.1603338        3.148519       0.9949572        2009.572        54.52800        71.15149        273.4510      -0.1700634        0.000000      -0.2333466       -299.4418        742.2839       0.5875132E-01        1371   0.0000    
+         262  -0.2387333       -5.938242        1.001569        2003.634        54.78177        69.28629        280.2237      -0.1700623        0.000000      -0.2334775       -298.9036        741.4925       0.6117906E-01        1368   0.0000    
+         263  -0.9076564E-01   -1.371457       0.9970450        2002.262        57.88455        68.98650        268.1599      -0.1700613        0.000000      -0.2338385       -299.1222        742.5921       0.6239578E-01        1373   0.0000    
+         264  -0.5652967E-01    11.37964       0.9993155        2013.642        56.84602        67.22040        278.5500      -0.1700602        0.000000      -0.2340241       -299.1075        743.1815       0.6210841E-01        1367   0.0000    
+         265  -0.3398948        1.517406        1.005683        2015.160        58.11717        67.41547        273.2933      -0.1700591        0.000000      -0.2345008       -299.5360        746.0099       0.6109861E-01        1366   0.0000    
+         266  -0.3775588        1.308750        1.000754        2016.468        53.33017        70.05202        274.4953      -0.1700579        0.000000      -0.2346501       -300.0691        747.9882       0.6081036E-01        1357   0.0000    
+         267  -0.4100209       -7.363441        1.000649        2009.105        61.63200        70.60852        281.3429      -0.1700568        0.000000      -0.2348602       -299.7533        747.0560       0.6036143E-01        1362   0.0000    
+         268  -0.2271040        4.779134       0.9963483        2013.884        53.40825        70.12599        272.0629      -0.1700557        0.000000      -0.2350313       -299.3256        747.0639       0.5712979E-01        1362   0.0000    
+         269  -0.3458997       -7.845715        1.002379        2006.038        51.77779        68.59152        269.6318      -0.1700546        0.000000      -0.2352713       -298.8018        746.6963       0.6080970E-01        1356   0.0000    
+         270  -0.1507287        7.782378       0.9961042        2013.821        51.68386        68.53081        284.1315      -0.1700535        0.000000      -0.2354499       -298.8262        747.2253       0.6262799E-01        1358   0.0000    
+         271  -0.3443272        2.451097        1.003879        2016.272        55.85035        67.41658        285.7302      -0.1700524        0.000000      -0.2358520       -298.4961        747.4441       0.6127087E-01        1369   0.0000    
+         272  -0.4051471       -1.135948        1.001217        2015.136        53.95200        69.18810        269.8978      -0.1700512        0.000000      -0.2362143       -298.7502        749.5906       0.5929494E-01        1373   0.0000    
+         273  -0.3769696        8.265035       0.9994366        2023.401        55.68000        69.88693        289.8823      -0.1700501        0.000000      -0.2362154       -298.4272        748.6231       0.5911967E-01        1379   0.0000    
+         274  -0.5816241      -0.1446636E-01    1.004101        2023.386        53.95636        70.50843        288.4696      -0.1700490        0.000000      -0.2364490       -297.9231        748.0029       0.5685954E-01        1382   0.0000    
+Potential load-imbalance on iter           275 Min/Max determinants on node:         652        732
+         275  -0.5812666       -24.18786       0.9999929        1999.198        62.01600        72.89524        277.8407      -0.1700478        0.000000      -0.2363929       -297.5045        746.3681       0.6059354E-01        1384   0.0000    
+Potential load-imbalance on iter           276 Min/Max determinants on node:         647        740
+         276   0.2004213E-01   -3.047628       0.9880458        1996.151        56.83200        71.27773        278.5192      -0.1700467        0.000000      -0.2368315       -296.4774        745.0279       0.5824834E-01        1387   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1913 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 5.3882E-03
+Potential load-imbalance on iter           277 Min/Max determinants on node:         648        724
+         277   0.9632152E-01    10.95448       0.9984756        2007.105        57.08782        65.40322        280.2684      -0.1700456        0.000000      -0.2372283       -295.4562        742.9998       0.6190291E-01        1372   0.0000    
+         278  -0.1773183        5.412419        1.005488        2012.518        58.82702        64.70193        272.1819      -0.1700444        0.000000      -0.2373321       -296.2163        745.4791       0.6222161E-01        1361   0.0000    
+         279  -0.3119683        30.41300        1.002697        2042.931        59.25832        67.54604        290.7324      -0.1700433        0.000000      -0.2374349       -297.2047        748.5579       0.6114802E-01        1388   0.0000    
+         280   -1.061912        10.34795        1.015112        2053.279        55.55292        72.08092        293.5504      -0.1700421        0.000000      -0.2375737       -297.3833        749.3510       0.6387492E-01        1406   0.0000    
+         281   -1.314535       -35.82168        1.005065        2017.457        53.95200        80.58403        278.6850      -0.1700410        0.000000      -0.2379959       -297.1621        750.0880       0.6024442E-01        1398   0.0000    
+         282  -0.4345316       -24.49953       0.9825539        1992.957        61.11869        80.42208        278.5065      -0.1700398        0.000000      -0.2380448       -294.7137        744.2258       0.5759022E-01        1381   0.0000    
+         283   0.1763737        10.45702       0.9878562        2003.414        56.06400        70.70746        294.5863      -0.1700387        0.000000      -0.2381316       -291.5412        736.7920       0.5736366E-01        1374   0.0000    
+         284  -0.8528964E-01    21.99571        1.005247        2025.410        54.33600        66.11098        288.2480      -0.1700376        0.000000      -0.2382871       -290.9686        735.6448       0.6201998E-01        1367   0.0000    
+         285  -0.6312535       -5.406451        1.010979        2020.004        60.86400        70.38418        276.0139      -0.1700364        0.000000      -0.2382841       -292.1751        738.3497       0.6218286E-01        1365   0.0000    
+         286  -0.4976095        1.428958       0.9973307        2021.433        59.07577        74.77022        285.3403      -0.1700353        0.000000      -0.2387091       -292.6221        740.8863       0.6029624E-01        1365   0.0000    
+         287  -0.5329671      -0.3508883        1.000707        2021.082        57.75560        73.93790        273.6077      -0.1700341        0.000000      -0.2386987       -291.4735        738.1024       0.5796272E-01        1352   0.0000    
+         288  -0.5242872       -21.61911       0.9998264        1999.463        55.48800        74.36190        257.2539      -0.1700330        0.000000      -0.2389597       -290.7188        736.8441       0.6104976E-01        1335   0.0000    
+         289   0.1343407E-01    6.704888       0.9893032        2006.168        54.54730        72.49684        274.6483      -0.1700318        0.000000      -0.2391519       -289.8641        735.2920       0.5763759E-01        1329   0.0000    
+         290  -0.1539527        25.86954        1.003353        2032.037        52.24818        67.92058        285.7616      -0.1700307        0.000000      -0.2393149       -289.0376        733.2241       0.5985805E-01        1348   0.0000    
+         291  -0.7945814       0.2260833        1.012895        2032.263        55.26285        71.50714        289.2205      -0.1700295        0.000000      -0.2397449       -289.7681        736.5952       0.6069052E-01        1367   0.0000    
+Potential load-imbalance on iter           292 Min/Max determinants on node:         653        725
+         292  -0.8001441       -5.717198        1.000111        2026.546        55.98122        78.18174        283.5367      -0.1700284        0.000000      -0.2399021       -290.0167        737.3300       0.5892738E-01        1378   0.0000    
+         293  -0.6592850       -18.89727       0.9971868        2007.649        53.87967        77.89994        285.6748      -0.1700272        0.000000      -0.2402208       -288.4080        734.1617       0.5632018E-01        1379   0.0000    
+         294  -0.1908541       -7.070784       0.9906751        2000.578        54.72000        75.19314        281.9870      -0.1700260        0.000000      -0.2405746       -286.7932        731.3543       0.5748262E-01        1366   0.0000    
+Potential load-imbalance on iter           295 Min/Max determinants on node:         655        730
+         295  -0.1444717E-01    12.00660       0.9964781        2012.585        52.26873        70.39584        290.4923      -0.1700249        0.000000      -0.2406527       -285.5923        728.5990       0.5923794E-01        1385   0.0000    
+Potential load-imbalance on iter           296 Min/Max determinants on node:         648        732
+         296  -0.3136285        4.044013        1.006002        2016.629        52.12160        69.34510        281.6324      -0.1700237        0.000000      -0.2405725       -285.7346        728.6173       0.6157130E-01        1380   0.0000    
+Potential load-imbalance on iter           297 Min/Max determinants on node:         650        749
+         297  -0.4139958        22.30057        1.002009        2038.929        63.36000        72.12231        309.0899      -0.1700226        0.000000      -0.2407379       -286.3807        730.6366       0.6213478E-01        1399   0.0000    
+Potential load-imbalance on iter           298 Min/Max determinants on node:         656        756
+         298  -0.9638781        10.60255        1.011058        2049.532        59.66645        75.17779        303.2254      -0.1700214        0.000000      -0.2410048       -286.1719        730.4754       0.5968764E-01        1412   0.0000    
+Potential load-imbalance on iter           299 Min/Max determinants on node:         671        744
+         299   -1.223207       -14.35356        1.005200        2035.178        61.45129        82.31007        294.5222      -0.1700202        0.000000      -0.2413056       -285.6769        730.0251       0.6134050E-01        1415   0.0000    
+         300  -0.8718087       0.4963132       0.9929967        2035.674        51.45600        84.03637        301.2110      -0.1700191        0.000000      -0.2416700       -283.6127        725.4263       0.5839662E-01        1416   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1936 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 5.6320E-03
+         301  -0.8840006       -8.395674        1.000244        2027.279        56.75034        82.00249        293.9766      -0.1700179        0.000000      -0.2418641       -280.8289        719.3718       0.6195971E-01        1431   0.0000    
+         302  -0.6773606       -17.67345       0.9958757        2009.605        56.64000        82.29007        292.4636      -0.1700168        0.000000      -0.2420281       -279.0598        715.3188       0.6018958E-01        1430   0.0000    
+Potential load-imbalance on iter           303 Min/Max determinants on node:         669        763
+         303  -0.2395586       -4.415057       0.9912822        2005.190        55.48800        78.80787        291.5905      -0.1700156        0.000000      -0.2420903       -277.2683        710.5300       0.6027240E-01        1432   0.0000    
+Potential load-imbalance on iter           304 Min/Max determinants on node:         666        768
+         304  -0.1295888       -4.837299       0.9978030        2000.353        53.32918        74.13278        288.3209      -0.1700145        0.000000      -0.2421581       -276.0615        707.5623       0.6072960E-01        1434   0.0000    
+Potential load-imbalance on iter           305 Min/Max determinants on node:         660        769
+         305  -0.8823662E-02    3.324365       0.9975876        2003.677        61.04236        72.26384        285.7118      -0.1700133        0.000000      -0.2423318       -276.0687        708.0019       0.6056435E-01        1429   0.0000    
+Potential load-imbalance on iter           306 Min/Max determinants on node:         650        782
+         306  -0.9184916E-01   -6.689073        1.001662        1996.988        62.04652        70.89441        277.8058      -0.1700122        0.000000      -0.2423321       -276.3799        708.4716       0.5831595E-01        1432   0.0000    
+Potential load-imbalance on iter           307 Min/Max determinants on node:         646        776
+         307   0.7535001E-01    22.66429       0.9966616        2019.653        58.66503        70.40426        299.7644      -0.1700110        0.000000      -0.2426496       -277.0253        711.1453       0.6204520E-01        1422   0.0000    
+Potential load-imbalance on iter           308 Min/Max determinants on node:         646        761
+         308  -0.4889158       -13.73303        1.011349        2005.920        63.36000        70.10105        270.6290      -0.1700099        0.000000      -0.2425791       -277.4430        711.9606       0.6198594E-01        1407   0.0000    
+Potential load-imbalance on iter           309 Min/Max determinants on node:         642        746
+         309  -0.1477698       -3.152319       0.9932003        2002.767        55.10400        73.75872        267.0724      -0.1700087        0.000000      -0.2426598       -278.3251        714.1855       0.5815524E-01        1388   0.0000    
+Potential load-imbalance on iter           310 Min/Max determinants on node:         644        740
+         310  -0.6913255E-01    10.69186       0.9984285        2013.459        55.69637        69.97076        284.8262      -0.1700076        0.000000      -0.2429170       -277.6397        713.4584       0.5846203E-01        1384   0.0000    
+Potential load-imbalance on iter           311 Min/Max determinants on node:         656        727
+         311  -0.3353498        10.78826        1.005339        2024.247        60.54900        69.84902        274.3214      -0.1700064        0.000000      -0.2429334       -277.9039        714.5723       0.6158373E-01        1383   0.0000    
+Potential load-imbalance on iter           312 Min/Max determinants on node:         651        723
+         312  -0.6025382       0.2367776        1.005358        2024.484        54.07931        73.32884        264.2355      -0.1700052        0.000000      -0.2437122       -278.3869        717.8276       0.6260124E-01        1374   0.0000    
+Potential load-imbalance on iter           313 Min/Max determinants on node:         661        736
+         313  -0.6083864       -1.414774        1.000117        2023.069        60.28800        76.83396        295.1624      -0.1700041        0.000000      -0.2439799       -278.1318        718.1130       0.6156028E-01        1397   0.0000    
+         314  -0.5734326       -2.117304       0.9993012        2020.952        62.14934        77.56583        291.9236      -0.1700029        0.000000      -0.2442775       -277.1345        716.4592       0.6152250E-01        1408   0.0000    
+         315  -0.5210762        2.288587       0.9989534        2023.241        54.52800        77.22773        296.6480      -0.1700017        0.000000      -0.2443993       -276.1254        713.8582       0.6246407E-01        1407   0.0000    
+         316  -0.5776657       -3.080389        1.001132        2020.160        56.31198        77.21456        284.0310      -0.1700005        0.000000      -0.2448360       -275.2169        712.6148       0.6054056E-01        1398   0.0000    
+         317  -0.5014825       -16.90323       0.9984775        2003.257        67.14591        77.51431        288.8873      -0.1699993        0.000000      -0.2451203       -274.4566        711.0501       0.6049427E-01        1401   0.0000    
+         318  -0.8135883E-01    10.33080       0.9916327        2013.588        56.06864        75.15794        289.6704      -0.1699982        0.000000      -0.2452946       -273.5439        709.4469       0.6098787E-01        1387   0.0000    
+         319  -0.3385463       -3.627352        1.005157        2009.960        50.29531        72.37574        285.0700      -0.1699970        0.000000      -0.2455431       -272.8431        708.3768       0.5888309E-01        1408   0.0000    
+         320  -0.2483932       -5.762530       0.9981986        2004.198        60.53927        74.44753        285.3222      -0.1699958        0.000000      -0.2454995       -273.2911        709.3988       0.6114897E-01        1405   0.0000    
+         321  -0.1048380        7.657655       0.9971330        2011.856        56.64000        72.75488        289.6110      -0.1699946        0.000000      -0.2457171       -273.0368        709.2930       0.6210506E-01        1397   0.0000    
+         322  -0.2955144        12.09114        1.003821        2023.947        52.41600        72.00858        293.6263      -0.1699934        0.000000      -0.2459403       -273.0295        710.1386       0.5923892E-01        1403   0.0000    
+         323  -0.5951122        2.861208        1.006010        2026.808        55.68000        75.37931        293.1014      -0.1699922        0.000000      -0.2461880       -273.4148        711.8716       0.6098609E-01        1404   0.0000    
+         324  -0.6657462      -0.4792363        1.001414        2026.329        60.32403        78.85726        295.4549      -0.1699910        0.000000      -0.2466755       -273.2799        713.0974       0.6093101E-01        1417   0.0000    
+         325  -0.6539224       0.4819647       0.9997636        2026.811        51.45600        79.96965        292.5698      -0.1699898        0.000000      -0.2466648       -272.3277        710.6342       0.6216327E-01        1405   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1952 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 5.8760E-03
+         326  -0.6658135       -8.313131        1.000238        2018.498        59.65145        79.99178        292.7554      -0.1699886        0.000000      -0.2467652       -271.1864        707.9974       0.6125787E-01        1394   0.0000    
+         327  -0.4603126       -15.22532       0.9958984        2003.272        61.05196        79.58657        286.5254      -0.1699875        0.000000      -0.2469052       -270.0823        705.3828       0.6186190E-01        1395   0.0000    
+         328  -0.8173829E-01   -29.53776       0.9924571        1973.734        59.71200        76.40133        267.8679      -0.1699863        0.000000      -0.2473291       -268.9509        703.8033       0.5919471E-01        1361   0.0000    
+         329   0.6609887       -4.370008       0.9852552        1969.364        56.65833        70.00754        262.9215      -0.1699851        0.000000      -0.2475333       -268.3780        702.6213       0.6004347E-01        1354   0.0000    
+         330   0.7718155        7.458179       0.9977859        1976.823        59.71200        61.52418        267.8530      -0.1699839        0.000000      -0.2478840       -268.8230        704.6827       0.6073460E-01        1350   0.0000    
+         331   0.5828182        37.78806        1.003787        2014.611        58.17600        59.73642        284.4126      -0.1699827        0.000000      -0.2481139       -271.2663        712.1755       0.6362334E-01        1353   0.0000    
+         332  -0.3639391        44.64428        1.019116        2059.255        56.64000        64.00439        287.0631      -0.1699814        0.000000      -0.2484152       -274.0330        720.0389       0.6282932E-01        1370   0.0000    
+         333   -1.459853       -4.478860        1.022160        2054.776        59.32800        76.33054        276.8245      -0.1699802        0.000000      -0.2487340       -276.3108        727.4574       0.6093121E-01        1386   0.0000    
+         334   -1.350985       -29.34886       0.9978250        2025.427        57.06111        87.16609        291.3867      -0.1699789        0.000000      -0.2487967       -275.9925        727.1376       0.6283163E-01        1383   0.0000    
+         335  -0.6316739       -18.88207       0.9857168        2006.545        58.28044        84.25023        276.4200      -0.1699777        0.000000      -0.2493637       -272.6501        719.6669       0.6035866E-01        1364   0.0000    
+         336  -0.1633620       -3.366266       0.9906775        2003.179        57.66457        75.93664        279.5932      -0.1699765        0.000000      -0.2496803       -269.6465        712.8607       0.6385942E-01        1360   0.0000    
+         337  -0.7940936E-01   -8.049735       0.9983224        1995.129        68.54400        71.31402        280.7700      -0.1699752        0.000000      -0.2497892       -268.6165        710.1195       0.5998117E-01        1351   0.0000    
+         338   0.1219195        16.24836       0.9959815        2011.378        53.32727        69.48206        267.8974      -0.1699740        0.000000      -0.2498351       -268.8486        710.5676       0.6037334E-01        1343   0.0000    
+         339  -0.2836322        8.592024        1.008144        2019.970        51.07200        68.43471        284.8874      -0.1699728        0.000000      -0.2501327       -269.3068        712.5914       0.6005407E-01        1372   0.0000    
+         340  -0.4967629        11.18011        1.004272        2031.150        55.95658        73.38284        287.6513      -0.1699715        0.000000      -0.2502454       -270.3088        715.7529       0.6053766E-01        1379   0.0000    
+         341  -0.7727395       -8.853792        1.005535        2022.296        60.67200        76.60102        295.7869      -0.1699703        0.000000      -0.2505435       -270.2185        716.3182       0.6314513E-01        1388   0.0000    
+         342  -0.5543128       -16.76737       0.9956410        2005.528        59.71200        78.90821        294.9483      -0.1699690        0.000000      -0.2506159       -269.5532        714.8432       0.6094251E-01        1384   0.0000    
+         343  -0.1380218        8.119547       0.9917087        2013.648        55.04923        75.30043        278.9356      -0.1699678        0.000000      -0.2509162       -268.1458        712.0150       0.6131644E-01        1376   0.0000    
+         344  -0.3400422        4.522972        1.004049        2018.171        60.86400        71.73030        289.1162      -0.1699665        0.000000      -0.2509307       -267.3323        709.8922       0.6342251E-01        1380   0.0000    
+         345  -0.4522242        15.71963        1.002246        2033.891        53.95200        73.30233        289.9637      -0.1699653        0.000000      -0.2513482       -267.6341        711.8090       0.5955702E-01        1384   0.0000    
+         346  -0.8401677        5.194405        1.007789        2039.085        57.07432        76.28443        277.4864      -0.1699640        0.000000      -0.2514285       -267.3967        711.3945       0.5737796E-01        1382   0.0000    
+Potential load-imbalance on iter           347 Min/Max determinants on node:         658        728
+         347  -0.9677012       -15.60288        1.002554        2023.482        61.24800        80.79353        273.8357      -0.1699628        0.000000      -0.2518018       -266.8598        711.3445       0.5911011E-01        1386   0.0000    
+Potential load-imbalance on iter           348 Min/Max determinants on node:         651        732
+         348  -0.5836348       -8.481754       0.9923481        2015.000        56.69606        81.30716        282.3643      -0.1699615        0.000000      -0.2523850       -265.2897        708.7834       0.6092751E-01        1383   0.0000    
+Potential load-imbalance on iter           349 Min/Max determinants on node:         650        722
+         349  -0.3736112       -3.351451       0.9958083        2011.649        58.94400        77.15495        280.9104      -0.1699603        0.000000      -0.2528599       -263.3920        705.0852       0.6126289E-01        1372   0.0000    
+Potential load-imbalance on iter           350 Min/Max determinants on node:         644        724
+         350  -0.2903794       -9.959275       0.9983367        2001.690        58.94400        74.52860        266.1595      -0.1699590        0.000000      -0.2531163       -262.5208        703.4046       0.5855799E-01        1368   0.0000    
+Potential load-imbalance on iter           351 Min/Max determinants on node:         647        735
+         351  -0.4222453E-01    18.15261       0.9950492        2019.842        55.87200        72.74975        298.2456      -0.1699578        0.000000      -0.2535219       -262.2045        703.6006       0.6072940E-01        1382   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1962 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 6.1039E-03
+Potential load-imbalance on iter           352 Min/Max determinants on node:         644        725
+         352  -0.4936130       0.1061588        1.009069        2019.948        62.46842        71.67060        274.2394      -0.1699565        0.000000      -0.2536343       -262.1078        703.7119       0.6554679E-01        1369   0.0000    
+Potential load-imbalance on iter           353 Min/Max determinants on node:         628        738
+         353  -0.4962408       -4.069542        1.000053        2015.879        55.77662        75.81895        281.2995      -0.1699553        0.000000      -0.2538251       -262.6620        705.5189       0.6321547E-01        1366   0.0000    
+Potential load-imbalance on iter           354 Min/Max determinants on node:         620        745
+         354  -0.3954054       -24.20862       0.9979853        1991.670        57.79200        75.33513        278.7234      -0.1699540        0.000000      -0.2536119       -262.0321        703.4250       0.6267692E-01        1365   0.0000    
+Potential load-imbalance on iter           355 Min/Max determinants on node:         603        728
+         355   0.2086774       -1.466169       0.9879910        1990.204        59.40253        72.61713        261.9121      -0.1699528        0.000000      -0.2537486       -261.3964        702.5208       0.6300429E-01        1331   0.0000    
+Potential load-imbalance on iter           356 Min/Max determinants on node:         611        735
+         356   0.2454984        2.066607       0.9992638        1992.271        56.98780        65.86192        277.7299      -0.1699515        0.000000      -0.2538883       -261.0261        702.3387       0.6096457E-01        1346   0.0000    
+Potential load-imbalance on iter           357 Min/Max determinants on node:         603        729
+         357   0.1936059        15.51178        1.001038        2007.783        57.21600        65.01530        267.0332      -0.1699502        0.000000      -0.2539616       -262.2335        705.5994       0.6008488E-01        1332   0.0000    
+Potential load-imbalance on iter           358 Min/Max determinants on node:         622        722
+         358  -0.1941854        24.11226        1.007786        2031.895        58.75200        65.89146        277.4774      -0.1699490        0.000000      -0.2542132       -263.5432        709.8439       0.6367489E-01        1344   0.0000    
+Potential load-imbalance on iter           359 Min/Max determinants on node:         627        725
+         359  -0.7910784       -7.149625        1.012009        2024.745        54.99539        71.35713        286.8233      -0.1699477        0.000000      -0.2543126       -264.7234        713.2510       0.6270355E-01        1352   0.0000    
+Potential load-imbalance on iter           360 Min/Max determinants on node:         627        740
+         360  -0.6148332       -10.69789       0.9964813        2014.047        58.56000        76.71007        289.3447      -0.1699464        0.000000      -0.2545896       -264.8826        714.2005       0.6006577E-01        1367   0.0000    
+Potential load-imbalance on iter           361 Min/Max determinants on node:         641        735
+         361  -0.3499541        18.75986       0.9947164        2032.807        63.74400        74.48844        296.1178      -0.1699451        0.000000      -0.2546417       -263.4615        710.6804       0.6351326E-01        1376   0.0000    
+Potential load-imbalance on iter           362 Min/Max determinants on node:         635        741
+         362  -0.8135238       -2.454570        1.009315        2030.353        55.87200        73.86444        276.9935      -0.1699438        0.000000      -0.2548107       -262.5126        708.7344       0.6278918E-01        1376   0.0000    
+Potential load-imbalance on iter           363 Min/Max determinants on node:         625        752
+         363  -0.7531134        5.042682       0.9987925        2035.395        56.56380        78.59457        304.0207      -0.1699426        0.000000      -0.2549829       -262.2628        708.4758       0.6257421E-01        1377   0.0000    
+Potential load-imbalance on iter           364 Min/Max determinants on node:         636        745
+         364  -0.8771419       -25.73581        1.002484        2009.659        63.16800        79.16865        284.0708      -0.1699413        0.000000      -0.2552343       -260.7980        704.7615       0.6134389E-01        1381   0.0000    
+Potential load-imbalance on iter           365 Min/Max determinants on node:         635        731
+         365  -0.2409043       -8.998145       0.9873559        2000.661        55.68000        78.29582        277.4044      -0.1699400        0.000000      -0.2554104       -259.4995        701.5085       0.5969898E-01        1366   0.0000    
+Potential load-imbalance on iter           366 Min/Max determinants on node:         639        741
+         366  -0.1652917E-01    16.66461       0.9955226        2017.326        60.44281        71.45458        283.7495      -0.1699387        0.000000      -0.2555863       -257.8861        697.8860       0.6276616E-01        1380   0.0000    
+Potential load-imbalance on iter           367 Min/Max determinants on node:         650        743
+         367  -0.4312817        21.42596        1.008330        2038.752        53.22768        70.12598        292.4188      -0.1699375        0.000000      -0.2558651       -257.9240        698.6987       0.6257563E-01        1393   0.0000    
+Potential load-imbalance on iter           368 Min/Max determinants on node:         668        752
+         368  -0.9595299        4.737461        1.010621        2043.489        61.55344        76.06418        299.6059      -0.1699362        0.000000      -0.2560289       -258.5413        700.8412       0.6332649E-01        1420   0.0000    
+Potential load-imbalance on iter           369 Min/Max determinants on node:         661        749
+         369   -1.075580       -19.80255        1.002324        2023.687        65.20852        82.96555        293.1730      -0.1699349        0.000000      -0.2561935       -258.0882        699.6410       0.6227307E-01        1410   0.0000    
+Potential load-imbalance on iter           370 Min/Max determinants on node:         656        752
+         370  -0.5886896       -20.49313       0.9903094        2003.194        56.37633        82.75974        312.5079      -0.1699337        0.000000      -0.2562472       -256.2730        694.7634       0.6255474E-01        1408   0.0000    
+Potential load-imbalance on iter           371 Min/Max determinants on node:         663        749
+         371  -0.7977690E-01   -6.227950       0.9898734        1996.966        66.18651        75.65415        301.4695      -0.1699324        0.000000      -0.2566121       -254.1732        690.1835       0.6445254E-01        1412   0.0000    
+Potential load-imbalance on iter           372 Min/Max determinants on node:         658        734
+         372   0.7591577E-01   -1.323827       0.9968910        1995.642        58.94400        69.76596        290.0880      -0.1699311        0.000000      -0.2567384       -253.3292        688.2284       0.6240236E-01        1392   0.0000    
+Potential load-imbalance on iter           373 Min/Max determinants on node:         651        728
+         373   0.1090727        10.42438       0.9993371        2006.066        58.94400        67.63593        284.1608      -0.1699299        0.000000      -0.2569826       -253.7775        689.9476       0.6200441E-01        1379   0.0000    
+Potential load-imbalance on iter           374 Min/Max determinants on node:         647        732
+         374  -0.1514261        1.714709        1.005224        2007.781        62.20800        67.91723        281.5943      -0.1699286        0.000000      -0.2571890       -254.6223        692.9450       0.6028055E-01        1379   0.0000    
+Potential load-imbalance on iter           375 Min/Max determinants on node:         650        724
+         375  -0.1941460       -17.39455        1.000855        1990.386        56.83200        70.21305        283.0485      -0.1699273        0.000000      -0.2573195       -255.5549        695.7950       0.6120045E-01        1374   0.0000    
+         376   0.2409197        9.319351       0.9913364        1999.706        64.70400        68.60407        291.5104      -0.1699260        0.000000      -0.2574201       -255.8255        697.2549       0.6216063E-01        1373   0.0000    
+Potential load-imbalance on iter           377 Min/Max determinants on node:         659        731
+         377   0.7357025E-02    33.50007        1.004682        2033.206        53.55927        65.49795        284.7922      -0.1699247        0.000000      -0.2573788       -255.9874        696.8851       0.5996003E-01        1390   0.0000    
+         378  -0.8233293        23.37484        1.016753        2056.581        54.77747        70.40602        282.9701      -0.1699235        0.000000      -0.2574183       -257.2630        700.3626       0.6275495E-01        1389   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1969 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 6.3375E-03
+         379   -1.394877      -0.2663073E-01    1.011497        2056.554        58.60761        81.11148        295.5150      -0.1699222        0.000000      -0.2576131       -257.9441        702.7237       0.6130195E-01        1391   0.0000    
+Potential load-imbalance on iter           380 Min/Max determinants on node:         672        748
+         380   -1.394230       -37.19748       0.9999871        2019.357        55.86055        88.22032        288.4640      -0.1699209        0.000000      -0.2581520       -256.4849        700.2344       0.6271506E-01        1420   0.0000    
+         381  -0.4815868       -13.50043       0.9819127        2005.856        60.67856        86.26837        301.2600      -0.1699196        0.000000      -0.2584229       -253.5694        692.9659       0.6069772E-01        1429   0.0000    
+         382  -0.1461888       -14.77962       0.9933145        1991.076        61.76085        76.13046        282.4054      -0.1699183        0.000000      -0.2587384       -250.6893        686.1798       0.6193650E-01        1411   0.0000    
+         383   0.2235869        1.609107       0.9926318        1992.686        58.61958        71.31775        291.7721      -0.1699170        0.000000      -0.2592861       -250.1306        685.7963       0.6023045E-01        1405   0.0000    
+         384   0.1831952        15.96695        1.000808        2008.653        54.52800        67.32559        293.1454      -0.1699157        0.000000      -0.2595472       -250.4135        687.1715       0.6133541E-01        1410   0.0000    
+         385  -0.2158473        2.331937        1.008013        2010.984        60.32190        68.57519        280.1568      -0.1699144        0.000000      -0.2598394       -251.6234        691.1409       0.6393208E-01        1394   0.0000    
+Potential load-imbalance on iter           386 Min/Max determinants on node:         666        741
+         386  -0.2738609        8.524537        1.001161        2019.509        58.14328        72.29001        283.5280      -0.1699131        0.000000      -0.2600535       -252.7381        694.8457       0.5865197E-01        1407   0.0000    
+Potential load-imbalance on iter           387 Min/Max determinants on node:         673        747
+         387  -0.4853623        1.105670        1.004239        2020.615        59.92454        73.60807        286.8735      -0.1699118        0.000000      -0.2600435       -252.8499        695.9912       0.6059066E-01        1420   0.0000    
+         388  -0.5127295       -7.078370        1.000547        2013.536        58.94400        75.46792        275.8072      -0.1699105        0.000000      -0.2603816       -252.8149        696.7161       0.6149320E-01        1398   0.0000    
+Potential load-imbalance on iter           389 Min/Max determinants on node:         654        737
+         389  -0.3372682       -4.565543       0.9964969        2008.971        58.61552        75.10646        277.5148      -0.1699092        0.000000      -0.2606270       -252.2462        696.0280       0.6451919E-01        1391   0.0000    
+Potential load-imbalance on iter           390 Min/Max determinants on node:         655        742
+         390  -0.2237682       -4.146773       0.9977326        2004.824        57.98400        72.92672        292.0594      -0.1699079        0.000000      -0.2609852       -251.6102        695.0621       0.5810029E-01        1397   0.0000    
+Potential load-imbalance on iter           391 Min/Max determinants on node:         662        743
+         391  -0.1204551        16.85526       0.9979359        2021.679        57.79200        71.27561        298.6688      -0.1699066        0.000000      -0.2611388       -251.4183        695.0754       0.6392855E-01        1405   0.0000    
+         392  -0.5390655        14.84576        1.008407        2036.525        59.95434        71.74474        291.1960      -0.1699052        0.000000      -0.2614086       -251.5123        695.9720       0.6451232E-01        1404   0.0000    
+         393  -0.9048880       0.6166630        1.007343        2037.142        58.68858        77.55598        290.5700      -0.1699039        0.000000      -0.2615581       -251.8668        696.7197       0.6192639E-01        1405   0.0000    
+         394  -0.9200258       -4.576295        1.000303        2032.565        58.75200        81.54834        292.1331      -0.1699026        0.000000      -0.2617924       -251.1678        695.7399       0.6136145E-01        1404   0.0000    
+         395  -0.8075780       -6.888625       0.9977536        2025.677        57.40800        81.39126        293.4846      -0.1699013        0.000000      -0.2616336       -249.5526        691.2245       0.6436645E-01        1399   0.0000    
+         396  -0.6378337       -17.43518       0.9966109        2008.242        59.71200        80.09637        273.0816      -0.1699000        0.000000      -0.2616393       -247.9095        686.6414       0.6363870E-01        1385   0.0000    
+         397  -0.2056167       -11.72770       0.9913929        1996.514        62.01600        76.98885        294.5685      -0.1698987        0.000000      -0.2618792       -246.5561        683.8289       0.6041759E-01        1389   0.0000    
+         398   0.8722845E-01   -7.894464       0.9941602        1988.619        60.73788        71.85178        270.4611      -0.1698974        0.000000      -0.2618800       -245.6292        680.8287       0.5727197E-01        1374   0.0000    
+         399   0.2853266        19.51513       0.9960459        2008.135        56.97139        68.08356        287.2083      -0.1698961        0.000000      -0.2619227       -245.7674        681.4817       0.6289552E-01        1385   0.0000    
+         400  -0.2029519        10.41093        1.009813        2018.546        58.75200        68.03250        282.9549      -0.1698948        0.000000      -0.2621219       -246.6255        684.4217       0.5989553E-01        1381   0.0000    
+         401  -0.4615011        2.459993        1.005184        2021.005        60.29774        73.60204        276.4565      -0.1698935        0.000000      -0.2625887       -247.9756        689.3049       0.5944233E-01        1373   0.0000    
+         402  -0.5223988       -4.637250        1.001219        2016.368        54.69353        76.37067        282.6635      -0.1698921        0.000000      -0.2629186       -248.1235        690.3120       0.6047488E-01        1378   0.0000    
+Potential load-imbalance on iter           403 Min/Max determinants on node:         650        720
+         403  -0.4075407       -1.821192       0.9977055        2014.547        59.11249        76.40873        277.7604      -0.1698908        0.000000      -0.2629724       -247.6308        688.7915       0.6322685E-01        1370   0.0000    
+Potential load-imbalance on iter           404 Min/Max determinants on node:         647        726
+         404  -0.3623601       -3.172888       0.9990968        2011.374        54.33028        75.40515        283.4797      -0.1698895        0.000000      -0.2629133       -246.9883        686.9055       0.6324709E-01        1373   0.0000    
+         405  -0.2835486        18.32529       0.9984250        2029.699        56.74057        75.22261        288.3947      -0.1698882        0.000000      -0.2632216       -246.6311        686.5751       0.6521856E-01        1391   0.0000    
+         406  -0.7370274        2.379468        1.009111        2032.079        61.89167        75.88637        288.6235      -0.1698869        0.000000      -0.2636862       -246.3866        687.3349       0.6578915E-01        1392   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 1988 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 6.5753E-03
+         407  -0.7956094       -6.468008        1.001172        2025.611        63.19477        81.09999        292.5958      -0.1698855        0.000000      -0.2637919       -246.3377        687.2479       0.6106968E-01        1400   0.0000    
+         408  -0.6362080        3.265954       0.9968170        2028.877        59.32800        81.32531        296.8810      -0.1698842        0.000000      -0.2640990       -245.1719        684.5432       0.6374804E-01        1394   0.0000    
+         409  -0.7167596       -14.91002        1.001612        2013.967        65.28000        80.25163        284.9600      -0.1698829        0.000000      -0.2645990       -243.8688        682.5049       0.6101512E-01        1381   0.0000    
+         410  -0.3479576       -1.782181       0.9926511        2012.185        48.38400        80.04054        274.8928      -0.1698816        0.000000      -0.2647318       -242.9626        680.8580       0.5827214E-01        1375   0.0000    
+         411  -0.3036925        2.294402       0.9991151        2014.479        53.18400        76.28740        280.2879      -0.1698802        0.000000      -0.2647900       -241.8643        678.2697       0.6188809E-01        1369   0.0000    
+         412  -0.3606727        12.25177        1.001140        2026.731        56.70202        75.90797        282.8877      -0.1698789        0.000000      -0.2648564       -241.6632        677.7184       0.6003723E-01        1367   0.0000    
+         413  -0.6638446       -13.99882        1.006082        2012.732        60.55205        77.54088        287.5437      -0.1698776        0.000000      -0.2652054       -241.5693        677.9125       0.6121391E-01        1377   0.0000    
+         414  -0.3172918       -6.861439       0.9930929        2005.871        56.83200        79.90173        276.3549      -0.1698763        0.000000      -0.2656651       -241.3387        678.6505       0.6337820E-01        1361   0.0000    
+         415  -0.1465497        10.37585       0.9965910        2016.246        56.15266        75.77489        287.7499      -0.1698749        0.000000      -0.2657135       -240.3777        676.3007       0.6155082E-01        1362   0.0000    
+         416  -0.4045201       -10.00692        1.005173        2006.240        54.41162        74.75773        297.1923      -0.1698736        0.000000      -0.2656933       -240.2537        676.1368       0.6362495E-01        1376   0.0000    
+         417  -0.1557450        13.58823       0.9950369        2019.828        61.44000        76.21307        304.4287      -0.1698723        0.000000      -0.2657968       -240.5400        677.0240       0.6249936E-01        1398   0.0000    
+         418  -0.4932526        4.995096        1.006773        2024.823        56.25600        74.79053        290.6738      -0.1698710        0.000000      -0.2659070       -240.2063        676.2880       0.6248456E-01        1404   0.0000    
+         419  -0.6167515       -8.823505        1.002473        2015.999        64.25809        78.80840        293.9952      -0.1698697        0.000000      -0.2659031       -240.4709        676.9618       0.6144951E-01        1391   0.0000    
+         420  -0.3983920       -13.76174       0.9956423        2002.238        59.90400        79.22366        281.6447      -0.1698683        0.000000      -0.2659881       -239.9242        675.5398       0.6338265E-01        1376   0.0000    
+Potential load-imbalance on iter           421 Min/Max determinants on node:         641        714
+         421  -0.5590856E-01   -4.505087       0.9931737        1997.733        60.67200        76.12816        271.7722      -0.1698670        0.000000      -0.2661974       -239.0826        674.0111       0.6198100E-01        1355   0.0000    
+         422   0.5671951E-01    5.731446       0.9977500        2003.464        58.14119        72.18941        284.3351      -0.1698657        0.000000      -0.2662463       -238.7666        673.1839       0.6145207E-01        1362   0.0000    
+         423  -0.8652389E-01    4.300799        1.002869        2007.765        58.47885        71.30121        286.1448      -0.1698644        0.000000      -0.2663404       -239.2688        674.7198       0.6156005E-01        1384   0.0000    
+Potential load-imbalance on iter           424 Min/Max determinants on node:         658        731
+         424  -0.1937429       -4.322189        1.002147        2003.443        59.21105        72.69279        290.8399      -0.1698630        0.000000      -0.2664392       -240.0418        676.9524       0.6169700E-01        1389   0.0000    
+Potential load-imbalance on iter           425 Min/Max determinants on node:         652        733
+         425  -0.8599004E-01   0.5818578E-01   0.9978473        2003.501        62.91025        72.96965        283.0416      -0.1698617        0.000000      -0.2666583       -240.4737        678.4623       0.6197897E-01        1385   0.0000    
+Potential load-imbalance on iter           426 Min/Max determinants on node:         664        746
+         426  -0.8744217E-01    29.80522        1.000029        2033.306        57.89142        71.11231        304.6567      -0.1698604        0.000000      -0.2667155       -240.6490        678.6733       0.6142835E-01        1410   0.0000    
+Potential load-imbalance on iter           427 Min/Max determinants on node:         673        745
+         427  -0.8257921        25.52052        1.014877        2058.826        59.07624        74.33958        300.1040      -0.1698590        0.000000      -0.2667350       -241.0839        679.9299       0.6215422E-01        1418   0.0000    
+         428   -1.449449       -10.00611        1.012551        2048.820        61.85829        85.19595        293.2874      -0.1698577        0.000000      -0.2669163       -241.5162        681.6318       0.6181871E-01        1419   0.0000    
+         429   -1.205851       -29.79544       0.9951399        2019.025        60.86400        91.67487        292.1997      -0.1698563        0.000000      -0.2672197       -240.1664        678.7151       0.6107701E-01        1412   0.0000    
+         430  -0.4733756       -13.68888       0.9854573        2005.336        61.98509        86.94360        305.4070      -0.1698550        0.000000      -0.2674061       -237.3271        670.9059       0.6040308E-01        1407   0.0000    
+         431  -0.1332239       -3.372238       0.9932201        2001.964        58.75200        78.60879        290.9693      -0.1698537        0.000000      -0.2680021       -235.0999        666.2781       0.6067906E-01        1400   0.0000    
+Potential load-imbalance on iter           432 Min/Max determinants on node:         664        736
+         432  -0.4907147E-01    22.70440       0.9983184        2024.668        55.29600        74.51115        286.4058      -0.1698524        0.000000      -0.2684183       -234.6171        665.8589       0.6393841E-01        1400   0.0000    
+         433  -0.6129332       -2.245080        1.011341        2022.423        59.65047        75.31705        288.2711      -0.1698510        0.000000      -0.2685857       -234.9342        667.4124       0.6063232E-01        1411   0.0000    
+         434  -0.5574593       -17.80884       0.9988911        2004.614        56.64000        80.71973        284.6178      -0.1698497        0.000000      -0.2687129       -235.4500        669.0418       0.6035242E-01        1406   0.0000    
+         435  -0.1152245       -20.05835       0.9911943        1984.556        61.11150        78.32693        277.6935      -0.1698484        0.000000      -0.2692524       -234.6395        667.9694       0.6282071E-01        1380   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 2003 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 6.8121E-03
+         436   0.3875998        14.22152       0.9899939        1998.777        55.69537        71.75923        292.4897      -0.1698470        0.000000      -0.2694147       -233.9632        666.2991       0.6233790E-01        1389   0.0000    
+         437   0.3057274E-01    12.07211        1.007166        2010.850        64.70400        67.28114        298.4156      -0.1698457        0.000000      -0.2694920       -234.3240        667.1962       0.6038935E-01        1427   0.0000    
+         438  -0.2705064        9.574455        1.006040        2020.424        59.92448        71.20182        277.5279      -0.1698443        0.000000      -0.2696142       -235.8637        671.9540       0.6200337E-01        1404   0.0000    
+         439  -0.5080113       -15.80215        1.004761        2004.622        58.69382        74.67446        283.0133      -0.1698430        0.000000      -0.2698494       -236.5718        675.1884       0.6071623E-01        1398   0.0000    
+         440  -0.1154137        2.695739       0.9921788        2007.318        58.94400        75.55350        279.6994      -0.1698416        0.000000      -0.2696006       -236.5702        674.7475       0.6255800E-01        1391   0.0000    
+         441  -0.1826066       -3.033093        1.001345        2004.285        62.75855        71.59388        272.1586      -0.1698403        0.000000      -0.2697720       -236.0062        673.3016       0.6236603E-01        1379   0.0000    
+         442  -0.1069986       0.6332256       0.9984890        2004.918        63.57160        71.86605        272.7553      -0.1698389        0.000000      -0.2698266       -236.3705        673.9509       0.5909493E-01        1367   0.0000    
+         443  -0.1227929       -5.768825        1.000316        1999.149        63.00337        70.87815        289.0661      -0.1698375        0.000000      -0.2699275       -236.5766        674.9525       0.6324697E-01        1368   0.0000    
+         444   0.2128132E-01   -13.05331       0.9971227        1986.096        60.05205        70.06368        285.2745      -0.1698362        0.000000      -0.2701500       -236.9621        677.1664       0.6345780E-01        1363   0.0000    
+         445   0.3488236        4.885389       0.9934706        1990.981        56.28198        67.01396        289.8514      -0.1698348        0.000000      -0.2703316       -237.3113        678.0622       0.5965852E-01        1368   0.0000    
+         446   0.2259849        20.23400        1.002460        2011.215        65.56540        63.09185        295.5428      -0.1698334        0.000000      -0.2709245       -238.0033        681.6065       0.6177240E-01        1381   0.0000    
+         447  -0.2795918        2.928473        1.010163        2014.143        66.24000        65.18369        281.3560      -0.1698320        0.000000      -0.2711791       -239.4783        685.9694       0.6382502E-01        1371   0.0000    
+         448  -0.3523424        4.386336        1.001456        2018.530        61.26928        70.48920        281.3474      -0.1698306        0.000000      -0.2709570       -240.6689        689.2956       0.6307303E-01        1363   0.0000    
+         449  -0.4611124       -9.701834        1.002178        2008.828        62.40000        71.30785        280.4296      -0.1698292        0.000000      -0.2715513       -240.6481        690.4313       0.6158217E-01        1364   0.0000    
+         450  -0.2202137        1.980963       0.9951936        2010.809        59.52000        71.85880        277.0077      -0.1698278        0.000000      -0.2718467       -240.4537        690.5536       0.6052164E-01        1357   0.0000    
+         451  -0.2694958        41.54308        1.000986        2052.352        57.08185        69.29370        300.5438      -0.1698264        0.000000      -0.2720646       -239.9986        689.8320       0.6332047E-01        1377   0.0000    
+Potential load-imbalance on iter           452 Min/Max determinants on node:         660        740
+         452   -1.291964        9.088333        1.020660        2061.440        66.16338        74.03534        287.6761      -0.1698250        0.000000      -0.2723970       -240.1231        691.5306       0.6439311E-01        1400   0.0000    
+Potential load-imbalance on iter           453 Min/Max determinants on node:         657        737
+         453   -1.512888       -12.05003        1.004428        2049.390        63.01779        86.31635        304.0210      -0.1698236        0.000000      -0.2727210       -240.1300        692.5895       0.6390519E-01        1394   0.0000    
+Potential load-imbalance on iter           454 Min/Max determinants on node:         655        743
+         454   -1.219758       -3.899779       0.9941546        2045.491        59.36106        88.72171        310.3861      -0.1698222        0.000000      -0.2727544       -237.6825        685.5859       0.6332610E-01        1398   0.0000    
+Potential load-imbalance on iter           455 Min/Max determinants on node:         663        747
+         455   -1.124523       -5.639368       0.9980971        2039.851        53.95200        86.98297        300.2950      -0.1698208        0.000000      -0.2728852       -234.7349        677.4853       0.6207082E-01        1410   0.0000    
+Potential load-imbalance on iter           456 Min/Max determinants on node:         676        756
+         456  -0.9864835       -4.172733       0.9972430        2035.678        59.66056        86.43034        299.6450      -0.1698194        0.000000      -0.2730673       -232.5123        671.6433       0.6395310E-01        1432   0.0000    
+         457  -0.8840984       -5.509997       0.9979544        2030.168        62.34935        85.59024        304.3775      -0.1698180        0.000000      -0.2738367       -230.5326        668.3255       0.6356936E-01        1431   0.0000    
+         458  -0.7485793       0.2143586       0.9972933        2030.383        57.81984        84.54977        312.8488      -0.1698167        0.000000      -0.2739695       -228.8897        662.6429       0.6157494E-01        1437   0.0000    
+Potential load-imbalance on iter           459 Min/Max determinants on node:         688        761
+         459  -0.7538584        1.762779        1.000106        2032.146        64.60611        82.78118        310.1262      -0.1698153        0.000000      -0.2742262       -227.4932        659.5119       0.6466291E-01        1449   0.0000    
+         460  -0.7972495       -6.731985        1.000868        2025.414        54.05127        83.05437        292.7582      -0.1698140        0.000000      -0.2741456       -226.4140        655.8941       0.6187573E-01        1429   0.0000    
+         461  -0.6313372       -22.74457       0.9966873        2002.669        58.40568        83.23877        291.4167      -0.1698126        0.000000      -0.2742860       -225.3279        653.5470       0.5986010E-01        1422   0.0000    
+         462  -0.6668123E-01   -10.22981       0.9887704        1992.439        57.98400        79.59830        272.4809      -0.1698112        0.000000      -0.2748553       -224.1495        651.0364       0.6055333E-01        1396   0.0000    
+         463   0.1893778       -15.17150       0.9948919        1977.268        65.78501        72.72136        285.3810      -0.1698099        0.000000      -0.2750226       -223.3505        648.5904       0.6569090E-01        1395   0.0000    
+         464   0.5715616        11.31622       0.9923855        1988.584        61.05401        68.38575        280.3658      -0.1698086        0.000000      -0.2748479       -223.8158        649.3349       0.6339194E-01        1377   0.0000    
+         465   0.2862192        16.41503        1.005723        2004.999        55.93677        64.50748        284.6978      -0.1698072        0.000000      -0.2750334       -224.8548        652.4939       0.6053735E-01        1377   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 2015 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 7.0469E-03
+         466  -0.1248183        20.84403        1.008255        2025.843        61.45095        68.30277        289.8787      -0.1698058        0.000000      -0.2749225       -226.7584        658.1090       0.6261701E-01        1388   0.0000    
+         467  -0.6419363       -12.08560        1.010396        2013.757        59.25815        74.12524        294.1308      -0.1698044        0.000000      -0.2753295       -228.0309        662.9130       0.6177268E-01        1414   0.0000    
+         468  -0.3427573       -6.177338       0.9940343        2007.580        55.68000        78.31043        275.6161      -0.1698031        0.000000      -0.2754749       -228.3741        664.3951       0.6248236E-01        1408   0.0000    
+         469  -0.1891431        13.34967       0.9969324        2020.930        59.06446        74.48237        294.9400      -0.1698017        0.000000      -0.2758314       -227.5372        662.4378       0.6041405E-01        1381   0.0000    
+         470  -0.5205242       -2.985455        1.006650        2017.944        58.36800        74.18351        304.1975      -0.1698003        0.000000      -0.2762773       -227.3849        663.1910       0.6411298E-01        1399   0.0000    
+         471  -0.4466062        12.54728       0.9985227        2030.492        59.90400        77.00027        291.5167      -0.1697989        0.000000      -0.2766309       -227.5830        664.5659       0.6157211E-01        1400   0.0000    
+         472  -0.7565362        12.62198        1.006218        2043.114        56.11400        77.71931        308.0280      -0.1697975        0.000000      -0.2768907       -227.0280        663.6247       0.5868329E-01        1426   0.0000    
+Potential load-imbalance on iter           473 Min/Max determinants on node:         676        748
+         473   -1.066385       -14.43079        1.006216        2028.683        61.92410        81.85279        280.6273      -0.1697961        0.000000      -0.2772754       -226.6427        663.5572       0.6114362E-01        1424   0.0000    
+         474  -0.7119751       -5.985670       0.9929369        2022.697        59.24062        84.29510        279.6195      -0.1697947        0.000000      -0.2776536       -225.5564        661.2235       0.6086012E-01        1416   0.0000    
+         475  -0.5642310       -2.721267       0.9970495        2019.976        60.10640        80.70220        286.6787      -0.1697933        0.000000      -0.2782586       -223.7774        657.1039       0.6008487E-01        1413   0.0000    
+Potential load-imbalance on iter           476 Min/Max determinants on node:         659        738
+         476  -0.4969175       -21.75939       0.9986546        1998.216        64.35415        79.43672        280.0901      -0.1697919        0.000000      -0.2782950       -222.8068        654.6183       0.6206760E-01        1397   0.0000    
+         477   0.4460982E-01   -5.170480       0.9892279        1993.046        57.59195        76.91446        274.0710      -0.1697905        0.000000      -0.2784200       -222.1698        652.8730       0.6148398E-01        1391   0.0000    
+         478   0.1741549        8.064997       0.9974125        2001.111        58.86513        70.08804        269.9714      -0.1697891        0.000000      -0.2790658       -221.6843        653.1448       0.6136008E-01        1381   0.0000    
+         479  -0.2776528E-01    3.081937        1.004047        2004.193        57.79200        69.41766        273.1411      -0.1697877        0.000000      -0.2793067       -222.4019        655.7107       0.6008297E-01        1378   0.0000    
+         480  -0.1047117        1.140661        1.001540        2005.334        64.33819        70.82994        283.9718      -0.1697863        0.000000      -0.2797906       -223.4104        659.7535       0.6184885E-01        1383   0.0000    
+         481  -0.1331605        7.038306        1.000569        2012.372        62.36954        71.37943        286.2679      -0.1697849        0.000000      -0.2798696       -223.9734        661.7503       0.6614697E-01        1389   0.0000    
+         482  -0.3083429        16.98044        1.003510        2029.352        58.24973        72.37778        285.9846      -0.1697835        0.000000      -0.2802561       -224.3657        664.0401       0.6299905E-01        1375   0.0000    
+         483  -0.7284740       -4.269956        1.008438        2025.082        54.58040        75.65931        275.1008      -0.1697821        0.000000      -0.2805076       -224.6958        665.6602       0.6092349E-01        1379   0.0000    
+         484  -0.6231583       -1.013436       0.9978959        2024.069        64.92056        80.23192        304.4506      -0.1697806        0.000000      -0.2805885       -224.6332        665.8373       0.6423339E-01        1388   0.0000    
+         485  -0.5981299        5.933817       0.9994996        2030.003        61.62766        79.41031        299.9029      -0.1697792        0.000000      -0.2806306       -223.6271        662.9809       0.6406019E-01        1399   0.0000    
+         486  -0.7444969       -26.54732        1.002932        2003.455        61.83124        80.10843        271.9397      -0.1697778        0.000000      -0.2811543       -222.8611        661.7480       0.6228238E-01        1382   0.0000    
+         487  -0.8630964E-01   -19.64486       0.9869225        1983.811        57.48264        79.80784        280.2775      -0.1697764        0.000000      -0.2815412       -222.1547        661.1471       0.6040949E-01        1376   0.0000    
+         488   0.4063844        13.00051       0.9901945        1996.811        58.39970        70.92992        297.7896      -0.1697749        0.000000      -0.2818388       -221.1262        658.9048       0.6114271E-01        1387   0.0000    
+         489   0.7978820E-01    11.14702        1.006553        2007.958        59.57536        66.27015        280.1055      -0.1697735        0.000000      -0.2819625       -221.5586        660.5376       0.6293958E-01        1383   0.0000    
+         490  -0.1985563        21.51249        1.005582        2029.471        62.39901        69.26007        282.9288      -0.1697721        0.000000      -0.2822198       -223.0837        665.7228       0.6595617E-01        1381   0.0000    
+         491  -0.7313879        1.962371        1.010714        2031.433        61.87982        74.07841        276.4248      -0.1697706        0.000000      -0.2823805       -223.8913        668.8454       0.6156766E-01        1390   0.0000    
+         492  -0.7797114       -7.067043        1.000967        2024.366        65.77431        80.25885        292.7672      -0.1697692        0.000000      -0.2827489       -224.0790        670.2256       0.6539035E-01        1400   0.0000    
+         493  -0.6054658       -22.13667       0.9965212        2002.229        58.72589        80.42966        284.1103      -0.1697677        0.000000      -0.2830664       -223.0737        667.5662       0.6344591E-01        1378   0.0000    
+         494  -0.5569885E-01   -13.72705       0.9890649        1988.502        60.28800        76.47047        277.6280      -0.1697663        0.000000      -0.2833018       -221.9658        664.8345       0.6292574E-01        1372   0.0000    
+         495   0.2882758        12.87278       0.9931441        2001.375        56.47196        69.00304        286.9538      -0.1697648        0.000000      -0.2835370       -221.2507        662.9819       0.6270886E-01        1366   0.0000    
+         496  -0.3436136E-01    8.200662        1.006474        2009.576        67.58400        66.41442        271.2233      -0.1697634        0.000000      -0.2838588       -221.7548        665.0761       0.6158539E-01        1357   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 2022 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 7.2904E-03
+         497  -0.2388185        17.27602        1.004098        2026.852        59.13600        70.06739        293.0765      -0.1697619        0.000000      -0.2839593       -223.0235        669.4635       0.6154331E-01        1360   0.0000    
+         498  -0.6668238       -1.629471        1.008597        2025.222        60.20060        73.53576        292.5477      -0.1697604        0.000000      -0.2840652       -223.5802        671.6173       0.6408753E-01        1368   0.0000    
+         499  -0.6266105        8.120584       0.9991961        2033.343        63.77034        77.91028        296.1329      -0.1697590        0.000000      -0.2845990       -223.6813        672.8768       0.6665319E-01        1384   0.0000    
+         500  -0.8266959       -6.394351        1.004010        2026.948        63.27241        79.07119        281.1057      -0.1697575        0.000000      -0.2848619       -222.8264        670.8296       0.6135453E-01        1375   0.0000    
+         501  -0.6692108       -10.91443       0.9968553        2016.034        65.02806        81.41620        305.6453      -0.1697560        0.000000      -0.2851292       -222.0649        669.5003       0.6157314E-01        1385   0.0000    
+         502  -0.3992502        7.337509       0.9946153        2023.371        60.00746        78.98772        279.9354      -0.1697546        0.000000      -0.2851801       -220.8622        665.8632       0.6245597E-01        1369   0.0000    
+         503  -0.5808986        1.552435        1.003640        2024.924        59.71200        76.64739        274.6897      -0.1697531        0.000000      -0.2857673       -220.0140        664.2917       0.6278538E-01        1370   0.0000    
+         504  -0.6192465       -4.589794        1.000767        2020.334        54.94950        78.68541        289.3664      -0.1697516        0.000000      -0.2859508       -219.7644        664.0332       0.6001307E-01        1370   0.0000    
+         505  -0.5057854       -17.35088       0.9977334        2002.983        65.47200        78.25453        284.5726      -0.1697501        0.000000      -0.2866128       -219.1162        663.7105       0.6096312E-01        1371   0.0000    
+         506  -0.7452458E-01    8.782863       0.9914119        2011.766        61.11906        75.51451        287.8993      -0.1697487        0.000000      -0.2867762       -218.3873        661.7531       0.6242221E-01        1359   0.0000    
+         507  -0.2932898        2.650346        1.004385        2014.416        56.45314        72.00921        291.4967      -0.1697472        0.000000      -0.2867664       -217.9090        660.5978       0.6033176E-01        1372   0.0000    
+         508  -0.3591176        33.93459        1.001317        2048.351        57.96843        74.07396        291.2167      -0.1697457        0.000000      -0.2867631       -218.3715        661.8543       0.6245991E-01        1371   0.0000    
+         509   -1.194395       -7.396365        1.016846        2040.955        61.63028        77.55097        304.2228      -0.1697443        0.000000      -0.2868502       -218.3573        662.1654       0.6307868E-01        1398   0.0000    
+         510   -1.013524       -7.292946       0.9963891        2033.662        59.57321        86.17858        307.2550      -0.1697428        0.000000      -0.2866803       -218.1995        661.3469       0.6391408E-01        1380   0.0000    
+         511  -0.8345390       -10.93416       0.9964267        2022.728        61.08739        84.54199        288.1768      -0.1697414        0.000000      -0.2865660       -216.2188        655.0303       0.6199454E-01        1385   0.0000    
+         512  -0.5649843       -7.747410       0.9946234        2014.980        59.97084        82.24830        296.3243      -0.1697399        0.000000      -0.2866935       -214.6470        649.9408       0.5981002E-01        1381   0.0000    
+         513  -0.3731076       -10.02628       0.9961698        2004.954        58.66110        78.71279        277.1046      -0.1697385        0.000000      -0.2871774       -213.4711        647.4343       0.6236256E-01        1366   0.0000    
+         514  -0.1236929        1.081074       0.9950241        2006.035        58.17600        76.26279        293.7512      -0.1697370        0.000000      -0.2871537       -212.8781        645.7690       0.6292726E-01        1372   0.0000    
+         515  -0.1506457        1.298702        1.000539        2007.334        60.95220        73.06313        286.1133      -0.1697356        0.000000      -0.2873633       -212.6951        645.8404       0.6050412E-01        1376   0.0000    
+         516  -0.1830051       -5.038568        1.000647        2002.295        60.76416        73.54994        284.1451      -0.1697342        0.000000      -0.2878010       -213.0432        648.2166       0.6548627E-01        1379   0.0000    
+         517  -0.5734336E-01    4.631131       0.9974899        2006.926        60.00801        72.70896        291.8351      -0.1697327        0.000000      -0.2881508       -213.3354        650.0062       0.6166011E-01        1385   0.0000    
+         518  -0.1728554        9.082254        1.002313        2016.008        65.66400        71.85785        286.2809      -0.1697313        0.000000      -0.2884917       -213.5597        651.6746       0.6148119E-01        1385   0.0000    
+         519  -0.3986177        3.654141        1.004525        2019.663        59.39368        73.12309        295.2545      -0.1697298        0.000000      -0.2888699       -214.0534        653.7531       0.6348841E-01        1397   0.0000    
+         520  -0.4891638        17.38260        1.001813        2037.045        69.69319        75.92388        308.1518      -0.1697283        0.000000      -0.2892844       -214.3017        655.0800       0.6398721E-01        1410   0.0000    
+         521  -0.9176566       0.9820575        1.008607        2038.027        61.46019        79.29622        293.5041      -0.1697268        0.000000      -0.2894713       -214.0674        654.7444       0.6249704E-01        1414   0.0000    
+         522  -0.9417558       -14.15865        1.000482        2023.869        59.52000        84.95103        281.5384      -0.1697254        0.000000      -0.2898871       -213.6399        654.2120       0.6328848E-01        1396   0.0000    
+         523  -0.5931819       -1.128869       0.9930528        2022.740        56.28630        83.71639        287.2620      -0.1697239        0.000000      -0.2902488       -212.2987        650.9645       0.6174195E-01        1384   0.0000    
+         524  -0.5652852       0.1821378       0.9994422        2022.922        63.09728        80.27021        284.2600      -0.1697224        0.000000      -0.2905243       -210.9156        647.5967       0.6367342E-01        1376   0.0000    
+         525  -0.5697873      -0.8015987        1.000090        2022.120        62.59740        79.97386        295.0322      -0.1697210        0.000000      -0.2909004       -210.2772        646.2820       0.6251625E-01        1389   0.0000    
+         526  -0.5499705        9.749711       0.9996037        2031.870        61.50253        80.16205        288.1728      -0.1697195        0.000000      -0.2911017       -209.7003        645.4254       0.6407007E-01        1381   0.0000    
+         527  -0.7904676       -5.094758        1.004822        2026.775        59.88773        80.76164        294.4983      -0.1697180        0.000000      -0.2914962       -209.1159        644.9608       0.6226138E-01        1393   0.0000    
+         528  -0.6649390       -16.43264       0.9974926        2010.343        61.24800        83.78386        281.1605      -0.1697166        0.000000      -0.2921634       -208.5754        644.7275       0.6325039E-01        1392   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 2027 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 7.5304E-03
+         529  -0.2578978        12.69819       0.9918922        2023.041        59.52000        81.04222        321.8414      -0.1697151        0.000000      -0.2923605       -207.5360        642.3748       0.6435479E-01        1413   0.0000    
+         530  -0.5727261       -1.007619        1.006316        2022.033        59.97726        77.68466        288.3386      -0.1697137        0.000000      -0.2931240       -206.7628        641.8974       0.6354860E-01        1393   0.0000    
+         531  -0.5478164       -7.218374       0.9995019        2014.815        64.12800        81.14475        310.3275      -0.1697122        0.000000      -0.2932574       -206.8356        642.9248       0.6230059E-01        1403   0.0000    
+         532  -0.3690040       0.8635229       0.9964301        2015.678        62.20800        80.39119        305.7596      -0.1697107        0.000000      -0.2933945       -206.2576        641.0542       0.6295496E-01        1413   0.0000    
+         533  -0.3904288       -13.23579        1.000429        2002.442        67.77600        78.11812        273.8836      -0.1697093        0.000000      -0.2932555       -205.7328        639.0809       0.6392017E-01        1399   0.0000    
+         534  -0.6102518E-01   -7.841773       0.9934336        1994.601        70.22057        77.22522        294.7233      -0.1697078        0.000000      -0.2934137       -205.5770        638.7803       0.5909466E-01        1401   0.0000    
+         535   0.1351644        28.50139       0.9960839        2023.102        59.92420        72.91682        307.6614      -0.1697063        0.000000      -0.2936231       -205.3775        638.1690       0.6363609E-01        1417   0.0000    
+         536  -0.5742427       -7.224681        1.014289        2015.877        63.47560        72.77636        284.0151      -0.1697049        0.000000      -0.2933120       -205.8552        639.8241       0.5948993E-01        1403   0.0000    
+         537  -0.3953686       -13.38203       0.9964289        2002.495        59.90400        79.85502        290.6336      -0.1697034        0.000000      -0.2937683       -206.7373        643.9215       0.6184354E-01        1399   0.0000    
+Potential load-imbalance on iter           538 Min/Max determinants on node:         651        722
+         538  -0.6234640E-01   -16.29741       0.9933617        1986.198        63.95717        76.66042        267.5845      -0.1697019        0.000000      -0.2937409       -206.1574        642.4518       0.6258349E-01        1373   0.0000    
+Potential load-imbalance on iter           539 Min/Max determinants on node:         648        718
+         539   0.3462460        11.44585       0.9918615        1997.644        61.83279        71.50724        287.9757      -0.1697005        0.000000      -0.2938097       -205.9479        641.6501       0.6454253E-01        1366   0.0000    
+         540   0.5893829E-01    32.00665        1.005763        2029.651        55.20801        67.99669        288.5740      -0.1696990        0.000000      -0.2938765       -206.4246        643.5613       0.6169993E-01        1384   0.0000    
+Potential load-imbalance on iter           541 Min/Max determinants on node:         653        728
+         541  -0.7358218        12.57410        1.016022        2042.225        60.09600        73.83583        282.5464      -0.1696975        0.000000      -0.2939955       -207.7460        647.8885       0.6412289E-01        1381   0.0000    
+         542   -1.044626       -21.47928        1.006195        2020.745        59.71200        83.60754        280.5833      -0.1696960        0.000000      -0.2940184       -208.4792        650.3958       0.6209234E-01        1377   0.0000    
+         543  -0.5159618       -29.91991       0.9894824        1990.825        58.26774        85.29039        283.4946      -0.1696945        0.000000      -0.2943247       -207.5581        647.9288       0.6069329E-01        1351   0.0000    
+Potential load-imbalance on iter           544 Min/Max determinants on node:         627        700
+         544   0.2298924       -13.78274       0.9851936        1977.043        59.39672        77.39194        269.0814      -0.1696931        0.000000      -0.2943008       -206.0008        643.0938       0.6166647E-01        1327   0.0000    
+Potential load-imbalance on iter           545 Min/Max determinants on node:         629        705
+         545   0.5772525        22.52971       0.9930769        1999.572        56.89138        67.91406        272.4463      -0.1696916        0.000000      -0.2940987       -205.5442        641.1978       0.6088678E-01        1334   0.0000    
+Potential load-imbalance on iter           546 Min/Max determinants on node:         638        707
+         546   0.1069152E-01    32.17523        1.011396        2031.748        59.71200        64.81061        277.4756      -0.1696901        0.000000      -0.2945213       -206.6212        645.4259       0.6278727E-01        1345   0.0000    
+Potential load-imbalance on iter           547 Min/Max determinants on node:         638        714
+         547  -0.7874569        11.98726        1.016091        2043.735        63.47598        73.06832        286.9339      -0.1696886        0.000000      -0.2947528       -208.4225        651.4407       0.6333320E-01        1352   0.0000    
+Potential load-imbalance on iter           548 Min/Max determinants on node:         643        712
+         548   -1.081589       -4.578494        1.005900        2039.156        58.05077        83.06538        295.3607      -0.1696871        0.000000      -0.2950833       -209.0591        654.3073       0.6309987E-01        1355   0.0000    
+         549  -0.9694501       -2.248383       0.9977597        2036.908        63.55200        86.25994        292.3058      -0.1696856        0.000000      -0.2957730       -208.0298        652.4412       0.5871822E-01        1363   0.0000    
+         550  -0.9142895       -2.355831       0.9988974        2034.552        60.48000        85.70555        291.2947      -0.1696841        0.000000      -0.2959436       -206.3950        647.7649       0.6197960E-01        1369   0.0000    
+         551  -0.8564274        4.551665       0.9988434        2039.104        58.05243        85.56887        298.7910      -0.1696826        0.000000      -0.2964020       -205.0049        644.5338       0.6127724E-01        1388   0.0000    
+Potential load-imbalance on iter           552 Min/Max determinants on node:         646        716
+         552  -0.9681616       -16.52534        1.002237        2022.578        61.44000        86.16119        267.2487      -0.1696811        0.000000      -0.2967602       -203.7382        641.8910       0.6083067E-01        1362   0.0000    
+Potential load-imbalance on iter           553 Min/Max determinants on node:         633        712
+         553  -0.5612998       -27.61237       0.9918958        1994.966        64.37159        86.40863        279.0145      -0.1696796        0.000000      -0.2973604       -202.5980        640.1524       0.6207549E-01        1345   0.0000    
+Potential load-imbalance on iter           554 Min/Max determinants on node:         626        695
+         554   0.1260058       -8.646634       0.9863479        1986.319        62.69947        79.54002        274.0751      -0.1696781        0.000000      -0.2973279       -201.2390        635.8490       0.6295540E-01        1321   0.0000    
+         555   0.3431881        5.925088       0.9956658        1992.245        55.48800        71.38897        276.8431      -0.1696767        0.000000      -0.2974571       -200.7077        634.3636       0.6284493E-01        1340   0.0000    
+         556   0.1942627        29.46948        1.002983        2021.714        55.29600        68.58979        288.3306      -0.1696752        0.000000      -0.2974061       -201.5577        636.7026       0.6505262E-01        1356   0.0000    
+         557  -0.5399254        18.24242        1.014792        2039.956        59.56431        71.96629        293.8139      -0.1696737        0.000000      -0.2977825       -202.8488        640.8329       0.6194559E-01        1365   0.0000    
+         558  -0.9890642       -1.205837        1.009023        2038.751        59.74900        81.66799        291.0534      -0.1696722        0.000000      -0.2979970       -203.8469        644.4682       0.6204650E-01        1380   0.0000    
+         559  -0.9595000       -11.57065       0.9994089        2027.180        63.55200        86.87911        297.1154      -0.1696707        0.000000      -0.2980669       -203.3538        642.5510       0.6467972E-01        1375   0.0000    
+         560  -0.6749236       -10.69316       0.9943246        2016.487        62.97600        86.05433        292.8852      -0.1696692        0.000000      -0.2985723       -201.9486        638.9405       0.6366849E-01        1379   0.0000    
+         561  -0.4104809       -4.255427       0.9947251        2012.231        59.13600        82.12606        290.0592      -0.1696677        0.000000      -0.2989262       -200.6139        635.7301       0.6331544E-01        1376   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 2035 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 7.7664E-03
+         562  -0.3048535       -10.13631       0.9978897        2002.095        61.09848        78.57054        281.7969      -0.1696662        0.000000      -0.2989026       -199.8596        633.0239       0.6365457E-01        1370   0.0000    
+         563  -0.5234958E-01    15.60005       0.9949627        2017.695        60.67200        76.15547        284.7073      -0.1696647        0.000000      -0.2995658       -199.6366        632.6610       0.6260814E-01        1372   0.0000    
+         564  -0.4404327       -1.674879        1.007792        2016.020        63.10623        74.47252        279.6738      -0.1696632        0.000000      -0.2998319       -199.6260        633.7595       0.6237758E-01        1375   0.0000    
+Potential load-imbalance on iter           565 Min/Max determinants on node:         652        726
+         565  -0.3989107       -3.893393       0.9991699        2012.127        55.29600        78.87032        284.7120      -0.1696617        0.000000      -0.3001840       -200.1201        636.0874       0.6439652E-01        1378   0.0000    
+Potential load-imbalance on iter           566 Min/Max determinants on node:         662        736
+         566  -0.3022559        19.65670       0.9980688        2031.784        61.45707        78.11890        300.9001      -0.1696602        0.000000      -0.3006770       -199.8394        636.3487       0.6360509E-01        1398   0.0000    
+Potential load-imbalance on iter           567 Min/Max determinants on node:         666        738
+         567  -0.7883414      -0.6615110        1.009769        2031.122        66.09522        79.21037        298.3943      -0.1696587        0.000000      -0.3006293       -199.6431        635.4868       0.6361243E-01        1404   0.0000    
+         568  -0.7720597       -6.567892       0.9996744        2024.554        64.47313        84.79130        290.7668      -0.1696572        0.000000      -0.3004089       -199.6398        635.0925       0.6334432E-01        1388   0.0000    
+         569  -0.6101163       -15.91408       0.9967664        2008.640        63.54409        84.12843        274.0116      -0.1696557        0.000000      -0.3008738       -198.6657        632.7255       0.6312033E-01        1367   0.0000    
+         570  -0.2155367        1.130280       0.9921395        2009.770        65.47200        81.22220        284.6239      -0.1696542        0.000000      -0.3013251       -197.7296        630.3580       0.6328889E-01        1360   0.0000    
+Potential load-imbalance on iter           571 Min/Max determinants on node:         643        713
+         571  -0.2436642        9.348065        1.000563        2019.118        56.99368        76.36069        272.7808      -0.1696527        0.000000      -0.3016185       -197.1191        629.3134       0.6274419E-01        1356   0.0000    
+         572  -0.4756905        4.448193        1.004651        2023.567        61.13328        77.36217        284.2947      -0.1696512        0.000000      -0.3018213       -197.2887        630.0870       0.6333104E-01        1370   0.0000    
+         573  -0.5857212        4.153670        1.002203        2027.720        61.31495        80.13918        285.2077      -0.1696497        0.000000      -0.3018286       -197.4035        630.6939       0.6696181E-01        1363   0.0000    
+         574  -0.6882484       -8.249859        1.002053        2019.470        60.18193        81.24446        295.4089      -0.1696482        0.000000      -0.3020370       -197.0603        630.1134       0.6047829E-01        1372   0.0000    
+         575  -0.4844065       -10.93209       0.9959315        2008.538        56.18241        82.19136        284.9319      -0.1696467        0.000000      -0.3019505       -196.5012        627.5922       0.6291110E-01        1367   0.0000    
+         576  -0.2130040       -10.34460       0.9945867        1998.194        60.57879        78.31080        276.8099      -0.1696453        0.000000      -0.3023671       -195.7422        625.9856       0.6251813E-01        1345   0.0000    
+         577   0.4517717E-01    18.27491       0.9948497        2016.469        61.88949        73.98520        288.5164      -0.1696438        0.000000      -0.3027199       -195.3858        625.9585       0.5972314E-01        1358   0.0000    
+         578  -0.4100302       -10.75328        1.009146        2005.715        64.26719        72.13902        270.9238      -0.1696423        0.000000      -0.3032222       -195.5611        627.5297       0.6287637E-01        1360   0.0000    
+         579  -0.1426803        10.64635       0.9946673        2016.362        56.80439        75.69940        272.4957      -0.1696407        0.000000      -0.3037722       -196.2425        630.9146       0.6161771E-01        1344   0.0000    
+         580  -0.4073786        5.215053        1.005308        2021.577        60.07273        73.55695        282.6563      -0.1696392        0.000000      -0.3043077       -196.0339        631.5185       0.6353724E-01        1351   0.0000    
+         581  -0.5365301       -12.25679        1.002586        2009.320        62.61715        76.88727        288.4450      -0.1696377        0.000000      -0.3047271       -196.3508        633.4802       0.6264088E-01        1365   0.0000    
+Potential load-imbalance on iter           582 Min/Max determinants on node:         647        719
+         582  -0.2324580      -0.6472372       0.9939370        2008.673        61.44000        77.33861        282.5072      -0.1696362        0.000000      -0.3049934       -196.1492        633.0506       0.6299427E-01        1366   0.0000    
+         583  -0.2163496       -3.452506       0.9996779        2005.220        64.68924        74.36400        275.8138      -0.1696347        0.000000      -0.3051617       -195.6951        632.1938       0.6286186E-01        1357   0.0000    
+Potential load-imbalance on iter           584 Min/Max determinants on node:         634        726
+         584  -0.1303356        7.903746       0.9982812        2013.124        61.45771        73.42883        281.6079      -0.1696331        0.000000      -0.3052383       -195.8373        632.7451       0.6162605E-01        1360   0.0000    
+Potential load-imbalance on iter           585 Min/Max determinants on node:         639        722
+         585  -0.3270275        28.14640        1.003942        2041.270        59.52000        72.72262        290.9200      -0.1696316        0.000000      -0.3054558       -196.0114        633.7466       0.6256585E-01        1361   0.0000    
+Potential load-imbalance on iter           586 Min/Max determinants on node:         639        737
+         586   -1.021258      -0.6910353        1.013981        2040.579        65.47200        77.29551        291.6349      -0.1696301        0.000000      -0.3060116       -196.3547        635.8659       0.6464870E-01        1376   0.0000    
+Potential load-imbalance on iter           587 Min/Max determinants on node:         643        723
+         587   -1.004329       -17.86701       0.9996615        2022.712        60.28800        85.61986        285.2582      -0.1696285        0.000000      -0.3061082       -196.3134        635.8459       0.6163600E-01        1366   0.0000    
+         588  -0.5646085       -5.166932       0.9912442        2017.545        56.89478        84.39490        288.7217      -0.1696270        0.000000      -0.3061547       -194.9095        631.0298       0.6172525E-01        1344   0.0000    
+         589  -0.4367222        17.80987       0.9974455        2035.355        58.27782        79.07091        299.8343      -0.1696255        0.000000      -0.3066041       -193.5487        628.1030       0.6585295E-01        1360   0.0000    
+         590  -0.8761603        8.846564        1.008827        2044.202        62.40000        78.86440        289.1217      -0.1696239        0.000000      -0.3070507       -193.0493        627.2658       0.6403543E-01        1366   0.0000    
+         591   -1.093012        1.612945        1.004346        2045.815        62.40000        84.60731        301.3956      -0.1696224        0.000000      -0.3076475       -192.7990        627.7233       0.6203641E-01        1386   0.0000    
+         592   -1.132448       -6.822298        1.000789        2038.992        58.26053        87.86603        293.8079      -0.1696209        0.000000      -0.3082413       -191.7029        625.3153       0.6264987E-01        1407   0.0000    
+         593  -0.9654313       -16.57674       0.9966652        2022.416        63.78803        88.14079        302.7850      -0.1696194        0.000000      -0.3087874       -190.1985        621.5764       0.6105726E-01        1416   0.0000    
+         594  -0.5572765       -10.71183       0.9918701        2011.704        65.47200        85.70263        290.6222      -0.1696178        0.000000      -0.3091786       -188.6319        617.0487       0.6461798E-01        1402   0.0000    
+         595  -0.2917450        5.322291       0.9947034        2017.026        55.13559        80.18371        300.3013      -0.1696163        0.000000      -0.3092615       -187.3940        613.5720       0.6320237E-01        1423   0.0000    
+# Adding the current walker configuration to the Krylov vector array... Done.                                                                 
+# Number unique determinants in the Krylov vector array: 2042 out of a possible 49280
+# Fraction of the amplitude elements used in the Krylov vector array: 8.0140E-03
+
+ ================================================================
+ KP-FCIQMC testsuite data:
+ Sum of overlap matrix elements:             1.0432318667839E+08
+ Sum of H elements:                         -9.3814505910974E+08
+ ================================================================
+ 
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :    2048.0
+ Maximum memory used is    (MB) :      21.2
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkVecDets       InitFCIMCPar       not deallocated      16.0MB
+ global_determinantinit_global_det_datnot deallocated       4.0MB
+ SpawnVec          InitFCIMCPar       not deallocated     625.0KB
+ SpawnVec2         InitFCIMCPar       not deallocated     625.0KB
+ SymPairProds      GenSymStatePairs   EndSym                4.7KB
+ TMAT2D            SetupTMAT          not deallocated       3.1KB
+ temp_store        calculate_det_hamilcalculate_det_hamil   3.0KB
+ core_space        store_whole_core_spnot deallocated       1.8KB
+ full_determ_vectorinit_semi_stochastinot deallocated       1.5KB
+ full_determ_vectorinit_semi_stochastinot deallocated       1.5KB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+
+ Procedure                    Calls       CPU    system     total
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ NECICUBE                         1      1.26      0.00      1.26
+ WalkerTime                     595      0.62      0.00      0.62
+ SyncTime                      1230      0.23      0.00      0.23
+ AnnMainTime                    595      0.19      0.00      0.19
+ Compress Sort interface        595      0.13      0.00      0.13
+ CommsTime                      623      0.11      0.00      0.11
+ SortTime                       595      0.05      0.00      0.05
+ Compression interface          595      0.04      0.00      0.04
+ SemiStochInitTime                1      0.02      0.00      0.02
+ POPS-read                        3      0.02      0.00      0.02
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                   2.66      0.00      2.66
+
+ Global CPU time          2.76
+ Global system time       0.00
+ Global total time        2.76
+ ================================================================
+ Calculation ended 10/01/2015 at 15:31:20
+ ================================================================
