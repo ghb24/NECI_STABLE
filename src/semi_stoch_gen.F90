@@ -631,7 +631,11 @@ contains
 
         space_size = 0
 
-        if (iProcIndex == root) then
+        if (iProcIndex /= root) then
+            ! Allocate some space so that the MPIScatterV call does not crash.
+            allocate(ilut_store(0:1, 1), stat=ierr)
+            call LogMemAlloc("ilut_store", 1000000*(NIfTot+1), size_n_int, t_r, IlutTag, ierr)
+        else if (iProcIndex == root) then
             ! Allocate the stores of ilut's that will hold these deterministic states.
             ! For now, assume that we won't have a deterministic space of more than one
             ! million states. Could make this user-specified later.
@@ -760,11 +764,13 @@ contains
         space_size = int(this_proc_size, sizeof_int)
 
         ! Finally, deallocate arrays.
+        if (allocated(ilut_store)) then
+            deallocate(ilut_store, stat=ierr)
+            call LogMemDealloc(t_r, IlutTag, ierr)
+        end if
         if (iProcIndex == root) then
             deallocate(temp_space, stat=ierr)
             call LogMemDealloc(t_r, TempTag, ierr)
-            deallocate(ilut_store, stat=ierr)
-            call LogMemDealloc(t_r, IlutTag, ierr)
         end if
 
     end subroutine generate_optimised_core
