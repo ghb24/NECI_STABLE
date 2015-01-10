@@ -576,9 +576,11 @@ module AnnihilationMod
         ! set the initiator flag.
         ! Also set the initiator flag if the new walker has its initiator flag
         ! set.
-        if ((abs(cum_sgn) > 1.e-12_dp .and. abs(new_sgn) > 1.e-12_dp) .or. &
-             test_flag(new_det, flag_initiator(part_type))) &
-            call set_flag(cum_det, flag_initiator(part_type))
+        if (tTruncInitiator) then
+            if ((abs(cum_sgn) > 1.e-12_dp .and. abs(new_sgn) > 1.e-12_dp) .or. &
+                 test_flag(new_det, flag_initiator(part_type))) &
+                call set_flag(cum_det, flag_initiator(part_type))
+        end if
 
         sgn_prod = cum_sgn * new_sgn
 
