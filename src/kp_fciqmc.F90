@@ -49,7 +49,7 @@ contains
         integer :: iconfig, irepeat, ivec, nlowdin
         integer :: nspawn, parent_flags, unused_flags, ex_level_to_ref
         integer :: TotWalkersNew, determ_ind, ic, ex(2,2), ms_parent
-        integer :: nI_parent(nel), nI_child(nel), unused_vecslot
+        integer :: nI_parent(nel), nI_child(nel)
         integer(n_int) :: ilut_child(0:NIfTot)
         integer(n_int), pointer :: ilut_parent(:)
         real(dp) :: prob, unused_rdm_real, parent_hdiag
@@ -185,7 +185,7 @@ contains
                             ! The current diagonal matrix element is stored persistently.
                             parent_hdiag = det_diagH(idet)
 
-                            if (tTruncInitiator) call CalcParentFlag(idet, idet, parent_flags, parent_hdiag)
+                            if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
 
                             call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
                                                parent_hdiag, 1.0_dp, idet)
@@ -263,7 +263,7 @@ contains
                             ! determ_projection.
                             if (.not. tParentIsDeterm) then
                                 call walker_death (iter_data_fciqmc, nI_parent, ilut_parent, parent_hdiag, &
-                                                    parent_sign, unused_sign2, unused_sign1, unused_vecslot, idet, &
+                                                    parent_sign, unused_sign2, unused_sign1, idet, &
                                                     ex_level_to_ref)
                             end if
 
@@ -479,7 +479,7 @@ contains
                         ! The current diagonal matrix element is stored persistently.
                         parent_hdiag = det_diagH(idet)
 
-                        if (tTruncInitiator) call CalcParentFlag(idet, idet, parent_flags, parent_hdiag)
+                        if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
 
                         call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
                                            parent_hdiag, 1.0_dp, idet)
@@ -543,8 +543,7 @@ contains
                         ! determ_projection.
                         if (.not. tParentIsDeterm) then
                             call walker_death (iter_data_fciqmc, nI_parent, ilut_parent, parent_hdiag, &
-                                                parent_sign, unused_sign2, unused_sign1, unused_vecslot, idet, &
-                                                ex_level_to_ref)
+                                                parent_sign, unused_sign2, unused_sign1, idet, ex_level_to_ref)
                         end if
 
                     end do ! Over all determinants.

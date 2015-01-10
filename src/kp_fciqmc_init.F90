@@ -278,7 +278,7 @@ contains
 
         use CalcData, only: tSemiStochastic, tUseRealCoeffs, AvMCExcits
         use fcimc_initialisation, only: SetupParameters, InitFCIMCCalcPar, init_fcimc_fn_pointers
-        use FciMCData, only: tHashWalkerList, tPopsAlreadyRead, nWalkerHashes, SpawnVecKP
+        use FciMCData, only: tPopsAlreadyRead, nWalkerHashes, SpawnVecKP
         use FciMCData, only: SpawnVecKP2, MaxSpawned, determ_space_size, determ_sizes
         use FciMCData, only: SpawnedPartsKP, SpawnedPartsKP2, MaxWalkersUncorrected
         use FciMCData, only: iter_data_fciqmc, spawn_ht, nhashes_spawn
@@ -294,8 +294,6 @@ contains
         character (len=*), parameter :: t_r = "init_kp_fciqmc"
 
         ! Checks.
-        if (.not. tHashWalkerList) call stop_all(t_r,'kp-fciqmc can only be run using &
-            &the linscalefcimcalgo option (the linear scaling algorithm).')
         if (.not. tUseRealCoeffs) call stop_all(t_r,'kp-fciqmc can only be run using &
             &real coefficients).')
         if (tExactHamil .and. nProcessors /= 1) call stop_all(t_r,'The exact-hamil &

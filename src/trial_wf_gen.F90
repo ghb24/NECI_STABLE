@@ -18,11 +18,10 @@ contains
         use davidson_neci, only: perform_davidson, davidson_eigenvalue
         use davidson_neci, only: davidson_eigenvector, sparse_hamil_type
         use DetBitOps, only: ilut_lt, ilut_gt
-        use FciMCData, only: tHashWalkerList
         use FciMCData, only: trial_space, trial_space_size, con_space, con_space_size, trial_wf
         use FciMCData, only: trial_energy, ConTag, ConVecTag, DavidsonTag, TempTag, TrialTag
-        use FciMCData, only: TrialWFTag, iHFProc, Trial_Init_Time, trial_temp, con_temp
-        use FciMCData, only: occ_trial_amps, occ_con_amps, TrialTempTag, ConTempTag, OccTrialTag
+        use FciMCData, only: TrialWFTag, iHFProc, Trial_Init_Time
+        use FciMCData, only: TrialTempTag, ConTempTag, OccTrialTag
         use FciMCData, only: OccConTag, ntrial_occ, ncon_occ, CurrentTrialTag, current_trial_amps
         use FciMCData, only: MaxWalkersPart, tTrialHash, tIncCancelledInitEnergy
         use enumerate_excitations, only: generate_connected_space
@@ -30,7 +29,6 @@ contains
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
         use ParallelHelper, only: root
         use ras_data, only: trial_ras
-        use searching, only: find_trial_and_con_states_bin
         use sort_mod, only: sort
         use SystemData, only: tAllSymSectors
 
@@ -282,33 +280,10 @@ contains
         if (tWriteTrial) call write_trial_space()
         if (tCompareTrialAmps) call update_compare_trial_file(.true.)
 
-        if (tHashWalkerList) then
-            allocate(current_trial_amps(MaxWalkersPart))
-            call LogMemAlloc('current_trial_amps', MaxWalkersPart, 8, t_r, CurrentTrialTag, ierr)
-            current_trial_amps = 0.0_dp
-            call initialise_trial_linscale()
-        else
-            ! Allocate the arrays which will store the trial and connected vector amplitudes of the
-            ! occupied trial and connected states.
-            allocate(trial_temp(trial_space_size))
-            call LogMemAlloc('trial_temp', trial_space_size, 8, t_r, TrialTempTag, ierr)
-            allocate(con_temp(con_space_size))
-            call LogMemAlloc('con_temp', con_space_size, 8, t_r, ConTempTag, ierr)
-            allocate(occ_trial_amps(trial_space_size))
-            call LogMemAlloc('occ_trial_amps', trial_space_size, 8, t_r, OccTrialTag, ierr)
-            allocate(occ_con_amps(con_space_size))
-            call LogMemAlloc('occ_con_amps', con_space_size, 8, t_r, OccConTag, ierr)
-            trial_temp = 0.0_dp
-            con_temp = 0.0_dp
-            occ_trial_amps = 0.0_dp
-            occ_con_amps = 0.0_dp
-            ! Find which states in CurrentDets are in the trial and connected states, set the corresponding
-            ! flags and return the corresponding trial and connected vector amplitudes to trial_temp and
-            ! con_temp. These are then copied across to the vectors below.
-            call find_trial_and_con_states_bin(TotWalkers, CurrentDets, ntrial_occ, ncon_occ)
-            occ_trial_amps(1:ntrial_occ) = trial_temp(1:ntrial_occ)
-            occ_con_amps(1:ncon_occ) = con_temp(1:ncon_occ)
-        end if
+        allocate(current_trial_amps(MaxWalkersPart))
+        call LogMemAlloc('current_trial_amps', MaxWalkersPart, 8, t_r, CurrentTrialTag, ierr)
+        current_trial_amps = 0.0_dp
+        call initialise_trial_linscale()
 
         if (tTrialHash) call create_trial_hashtables()
 
@@ -758,8 +733,7 @@ contains
 
         use FciMCData, only: trial_space, con_space, con_space_vector, TrialTag, ConTag
         use FciMCData, only: TrialWFTag, ConVecTag, CurrentTrialTag, ConTempTag, OccTrialTag
-        use FciMCData, only: OccConTag, TrialTempTag, current_trial_amps, trial_wf, trial_temp
-        use FciMCData, only: occ_trial_amps, occ_con_amps, con_temp
+        use FciMCData, only: OccConTag, TrialTempTag, current_trial_amps, trial_wf
         use MemoryManager, only: LogMemDealloc
 
         character(len=*), parameter :: t_r = "end_trial_wf"
@@ -784,22 +758,6 @@ contains
         if (allocated(current_trial_amps)) then
             deallocate(current_trial_amps, stat=ierr)
             call LogMemDealloc(t_r, CurrentTrialTag, ierr)
-        end if
-        if (allocated(trial_temp)) then
-            deallocate(trial_temp, stat=ierr)
-            call LogMemDealloc(t_r, TrialTempTag, ierr)
-        end if
-        if (allocated(con_temp)) then
-            deallocate(con_temp, stat=ierr)
-            call LogMemDealloc(t_r, ConTempTag, ierr)
-        end if
-        if (allocated(occ_trial_amps)) then
-            deallocate(occ_trial_amps, stat=ierr)
-            call LogMemDealloc(t_r, OccTrialTag, ierr)
-        end if
-        if (allocated(occ_con_amps)) then
-            deallocate(occ_con_amps, stat=ierr)
-            call LogMemDealloc(t_r, OccConTag, ierr)
         end if
 
     end subroutine end_trial_wf

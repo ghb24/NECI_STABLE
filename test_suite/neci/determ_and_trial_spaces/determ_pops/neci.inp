@@ -1,0 +1,36 @@
+title
+
+system read
+electrons 4
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+memoryfacspawn 5.0
+memoryfacpart 2.0
+totalwalkers 10000
+tau 0.01
+startsinglepart 10000
+shiftdamp 0.5
+stepsshift 1
+allrealcoeff
+realspawncutoff 0.01
+nmcyc 400
+semi-stochastic
+pops-core 110
+linscalefcimcalgo
+readpops
+truncinitiator
+addtoinitiator 3
+endcalc
+
+integral
+endint
+
+logging
+write-most-pop-core-end 50
+popsfile -1
+endlog
+end

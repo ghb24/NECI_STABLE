@@ -775,8 +775,6 @@ contains
         ! one after the other. Since this is intended to be used with kp-fciqmc, irepeat is the number of
         ! the current repeat, but it will simply be used in naming the output file.
 
-        ! Note that this routine will only work when using the tHashWalkerList option.
-
         use DetBitOps, only: EncodeBitDet, IsAllowedHPHF
         use FciMCData, only: nWalkerHashes, HashIndex, CurrentDets, HFSym
         use hash, only: FindWalkerHash

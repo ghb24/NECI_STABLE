@@ -1,0 +1,31 @@
+title
+
+system read
+electrons 10
+endsys
+
+calc
+methods
+method vertex fcimc 
+endmethods
+nmcyc 2250
+totalwalkers 10000
+startsinglepart
+shiftdamp 0.03
+jump-shift
+memoryfacspawn 3.0
+stepsshift 10
+averagemcexcits 3.0
+truncinitiator
+addtoinitiator 3
+tau-cnt-threshold 50
+endcalc
+
+integral
+freeze 2,0
+endint
+
+logging
+popsfile -1
+endlog
+end

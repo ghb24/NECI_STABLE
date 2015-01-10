@@ -35,7 +35,7 @@ contains
         use FciMCData, only: partial_determ_vecs, determ_space_size, determ_space_size_int
         use FciMCData, only: TotWalkers, TotWalkersOld, indices_of_determ_states, SpawnedParts
         use FciMCData, only: FDetermTag, FDetermAvTag, PDetermTag, IDetermTag, SemiStoch_Init_Time
-        use FciMCData, only: tHashWalkerList, tStartCoreGroundState
+        use FciMCData, only: tStartCoreGroundState
         use sort_mod, only: sort
         use SystemData, only: nel
 
@@ -138,11 +138,7 @@ contains
         if (tRDMonFly) call generate_core_connections()
 
         ! Move the states to CurrentDets.
-        if (tHashWalkerList) then
-            call add_core_states_currentdet_hash()
-        else
-            call add_core_states_currentdets()
-        end if
+        call add_core_states_currentdet_hash()
 
         ! If starting from a popsfile then global_determinant_data will not
         ! have been initialised.

@@ -93,8 +93,8 @@ MODULE FciMCData
     integer(int64), allocatable :: AllNoExtraInitDoubs(:), AllInitRemoved(:)
     integer(int64), allocatable :: AllGrowRateAbort(:)
 
-      LOGICAL :: tHFInitiator, tPrintHighPop
-      logical :: tHashWalkerList    !Option to store occupied determinant in a hash table
+      logical :: tHFInitiator, tPrintHighPop, tcurr_initiator
+
       integer, allocatable :: FreeSlot(:)   !List of the free slots in the main list
       integer :: iStartFreeSlot     !=1 at the beginning of an iteration, will increment
       !as free slots are used up for *newly spawned* walkers onto previously unoccupied determinants only
@@ -246,7 +246,8 @@ MODULE FciMCData
       ! Store the current value of S^2 between update cycles
       real(dp), allocatable :: curr_S2(:), curr_S2_init(:)
 
-      integer :: HolesInList    !This is for tHashWalkerList and indicates the number of holes in the main list this iter
+      ! The number of holes in the main list.
+      integer :: HolesInList
 
 !These are variables needed for the FixCASshift option in which an active space is chosen and the 
 !shift fixed only for determinants within this space
@@ -311,7 +312,10 @@ MODULE FciMCData
 
       INTEGER , ALLOCATABLE :: RandomHash(:)    !This is a random indexing scheme by which the orbital indices 
                                                 !are randomised to attempt to provide a better hashing performance
-      integer, allocatable :: RandomHash2(:)    !Another random index scheme for the hashing used by tHashWalkerList
+
+      ! A second random hash, for use with hashing the location of walkers
+      ! inside the main particle list.
+      integer, allocatable :: RandomHash2(:)
 
       ! A 'shift'-like value for the total energy, taken from the growth of
       ! walkers on the reference site
@@ -377,7 +381,6 @@ MODULE FciMCData
       character(150) :: bloom_warn_string
       integer :: max_calc_ex_level
       type(fcimc_iter_data), target :: iter_data_fciqmc
-      type(fcimc_iter_data), target :: iter_data_ccmc
 
       integer :: yama_global (4)
 
@@ -458,17 +461,8 @@ MODULE FciMCData
       ! This vector stores the trial wavefunction itself.
       ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
       real(dp), allocatable, dimension(:) :: trial_wf
-      ! This vector stores the values of trial_wf for the occupied trial state in CurrentDets, in the same order as these
-      ! states in CurrentDets. If not all trial states are occupied then the final elements store junk and aren't used.
-      real(dp), allocatable, dimension(:) :: occ_trial_amps
       ! Holds the number of occupied trial states in CurrentDets.
       integer :: ntrial_occ
-      ! Holds the index of the element in occ_trial_amps to access when the next trial space state is found.
-      integer :: trial_ind
-      ! When new states are about to inserted into CurrentDets, a search is performed to see if any of them are in the
-      ! trial space. If they are then the corresponding amplitudes are stored in this vector until they are merged
-      ! into occ_trial_amps, to prevent overwriting during the merging process.
-      real(dp), allocatable, dimension(:) :: trial_temp
 
       real(dp) :: trial_energy
       ! This vector's elements store the quantity
@@ -477,17 +471,8 @@ MODULE FciMCData
       ! to *but not included in* the trial vector space.
       ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
       real(dp), allocatable, dimension(:) :: con_space_vector
-      ! This vector stores the values of con_space_vector for the occupied connected state in CurrentDets, in the same order as
-      ! these states in CurrentDets. If not all connected states are occupied then the final elements store junk and aren't used.
-      real(dp), allocatable, dimension(:) :: occ_con_amps
       ! Holds the number of occupied connected states in CurrentDets.
       integer :: ncon_occ
-      ! Holds the index of the element in occ_con_amps to access when the next connected space state is found.
-      integer :: con_ind
-      ! When new states are about to inserted into CurrentDets, a search is performed to see if any of them are in the
-      ! connected space. If they are then the corresponding amplitudes are stored in this vector until they are merged
-      ! into occ_con_amps, to prevent overwriting during the merging process.
-      real(dp), allocatable, dimension(:) :: con_temp
 
       ! If index i in CurrentDets is a trial state then index i of this array stores the corresponding amplitude of
       ! trial_wf. If index i in the CurrentDets is a connected state then index i of this array stores the corresponding

@@ -60,7 +60,7 @@ MODULe nElRDMMod
                          TotWalkers, iLutHF, core_space, IterLastRDMFill, &
                          determ_sizes, determ_displs, &
                          full_determ_vecs_av, tFill_RDM, VaryShiftIter, &
-                         tHashWalkerList, IterRDM_HF, tFinalRDMEnergy
+                         IterRDM_HF, tFinalRDMEnergy
     use LoggingData, only: RDMExcitLevel, tROFciDump, NoDumpTruncs, &
                        tExplicitAllRDM, tPrint1RDM, RDMEnergyIter, &
                        tDo_Not_Calc_RDMEnergy, tDiagRDM, tReadRDMs, &
