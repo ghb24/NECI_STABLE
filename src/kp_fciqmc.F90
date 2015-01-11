@@ -280,7 +280,10 @@ contains
                         call update_iter_data(iter_data_fciqmc)
 
                         if (mod(iter, StepsSft) == 0) then
+                            call set_timer(Stats_Comms_Time)
                             call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts)
+                            call halt_timer(Stats_Comms_Time)
+
                             call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)
                             if (tWritePopsFound) call WriteToPopsfileParOneArr(CurrentDets, TotWalkers)
                             if (tSingBiasChange) call CalcApproxpDoubles()
