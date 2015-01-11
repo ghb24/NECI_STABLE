@@ -1,0 +1,32 @@
+title
+
+system read
+electrons 4
+hphf
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+memoryfacspawn 8.0
+totalwalkers 1000
+tau 0.001
+startsinglepart 10
+shiftdamp 0.1
+stepsshift 1
+nmcyc 6000
+diagshift 1.0
+allrealcoeff
+realspawncutoff 0.01
+semi-stochastic
+doubles-core
+endcalc
+
+integral
+endint
+
+logging
+popsfile -1
+endlog
+end

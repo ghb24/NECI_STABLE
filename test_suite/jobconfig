@@ -1,0 +1,42 @@
+# Job config.
+
+[kneci/*/]
+program = kneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
+[dneci/*/]
+program = dneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
+[neci/serial/*/]
+max_nprocs = 1
+
+[neci/parallel/*/]
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
+# Jobs to test the various spaces in use for semi-stochastic and trial
+# wavefunctions.
+[neci/determ_and_trial_spaces/*/]
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
+# Specify non-default tolerances.
+[dneci/kpfciqmc_fci_all_sym/]
+program = dneci
+tolerance = (2e-8, None, 'hamil_sum')
+
+[dneci/ftlm_hub_6/]
+program = dneci
+tolerance = (2e-9, None, 'overlap_sum')
+
+[categories]
+
+_default_ = neci kneci dneci
+kp_fciqmc = dneci/kpfciqmc_*

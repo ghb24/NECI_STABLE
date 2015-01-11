@@ -1,0 +1,33 @@
+title
+
+system read
+electrons 32
+nonuniformrandexcits
+spin-restrict 0
+hphf
+endsys
+
+calc
+methods
+method vertex fcimc 
+endmethods
+nmcyc 40000 
+diagshift 0.0
+totalwalkers 2500 
+taufactor 35.0
+singlesbias 1.5
+regenexcitgens
+startsinglepart
+shiftdamp 0.1
+memoryfacpart 1.7
+memoryfacspawn 0.5
+stepsshift 25
+truncinitiator
+addtoinitiator 3
+endcalc
+
+logging
+binarypops
+popsfile -1 
+endlog
+end

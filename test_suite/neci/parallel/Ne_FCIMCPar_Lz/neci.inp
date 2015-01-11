@@ -1,0 +1,36 @@
+title
+
+system read
+electrons 10
+nonuniformrandexcits
+lztot 0
+spin-restrict 0
+sym 0 0 0 0
+endsys
+
+calc
+eigenvalues 10
+methods
+method vertex fcimc 
+endmethods
+nmcyc 40000
+diagshift 0.0
+initwalkers 10000
+tau 0.0015
+seed -17
+startsinglepart
+directannihilation
+shiftdamp 0.1
+memoryfacpart 3.0
+memoryfacspawn 1.0
+stepsshift 250
+endcalc
+
+integral
+freeze 0,0
+endint
+
+logging
+popsfile -1000
+endlog
+end

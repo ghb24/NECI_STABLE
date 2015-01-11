@@ -2036,7 +2036,7 @@ contains
 
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
-                        call CalcParentFlag(DetIndex, 1, iInit, &
+                        call CalcParentFlag(DetIndex, iInit, &
                                             real(HDiagTemp, dp))
                     endif
 
@@ -2235,7 +2235,7 @@ contains
 
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
-                        call CalcParentFlag(DetIndex, 1, iInit, &
+                        call CalcParentFlag(DetIndex, iInit, &
                                             real(HDiagTemp, dp))
                     endif
 
