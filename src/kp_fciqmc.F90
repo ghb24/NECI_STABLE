@@ -21,6 +21,7 @@ contains
         use FciMCData, only: TotWalkers, CurrentDets, iLutRef, max_calc_ex_level
         use FciMCData, only: iter_data_fciqmc, TotParts, exFlag, iter
         use FciMCData, only: indices_of_determ_states, partial_determ_vector
+        use FciMCData, only: Stats_Comms_Time
         use fcimc_initialisation, only: CalcApproxpDoubles
         use fcimc_helper, only: SumEContrib, end_iter_stats, create_particle, &
                                 CalcParentFlag, walker_death, &
