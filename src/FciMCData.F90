@@ -43,6 +43,11 @@ MODULE FciMCData
       INTEGER(KIND=n_int) , POINTER :: SpawnedParts(:,:),SpawnedParts2(:,:)
       INTEGER(KIND=n_int) , POINTER :: SpawnedPartsKP(:,:), SpawnedPartsKP2(:,:)
 
+      ! The number of walkers spawned onto this process.
+      integer :: nspawned
+      ! The number of walkers spawned in total, on all processes.
+      integer :: nspawned_tot
+
       ! In some instances (such as when applying a perturbation operator) it is
       ! useful to store the vector read in from the popsfile in a separate
       ! array. This is what popsfile_dets is used for.
