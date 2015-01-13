@@ -1,0 +1,18 @@
+title
+
+system read
+electrons 4
+endsys
+
+calc
+methods
+davidson 2 0 8 0 4
+endmethods
+endcalc
+
+integral
+endint
+
+logging
+endlog
+end

@@ -1,0 +1,35 @@
+title
+
+system read noorder
+symignoreenergies
+electrons 7
+nonuniformrandexcits
+spin-restrict -3
+umatepsilon 1.d-5
+readcacheints
+nobrillouintheorem
+endsys
+
+calc
+methods
+method vertex fcimc 
+endmethods
+nmcyc 15000 
+initwalkers 750     
+tau 0.0025
+regenexcitgens
+startsinglepart
+shiftdamp 0.03
+memoryfacpart 1.75
+memoryfacspawn 0.25
+stepsshift 10
+endcalc
+
+integral
+freeze 0,0
+endint
+
+logging
+popsfile -1000
+endlog
+end
