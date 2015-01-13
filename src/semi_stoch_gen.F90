@@ -1209,7 +1209,7 @@ contains
         integer, intent(in) :: ex_flag
         integer, intent(out) :: nSing, nDoub
         logical, intent(in) :: tStore
-        integer, optional, intent(inout) :: ilut_list(:,:)
+        integer(n_int), optional, intent(inout) :: ilut_list(:,:)
         integer, optional, intent(inout) :: space_size
 
         integer, allocatable :: excit_gen(:)
