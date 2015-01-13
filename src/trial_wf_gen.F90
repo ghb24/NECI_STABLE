@@ -194,7 +194,8 @@ contains
         allocate(temp_space(0:NIfTot, con_space_size), stat=ierr)
         call LogMemAlloc('temp_space', con_space_size*(NIfTot+1), size_n_int, t_r, TempTag, ierr)
 
-        call MPIAlltoAllV(con_space, sendcounts, senddisps, temp_space, recvcounts, recvdisps, ierr)
+        call MPIAlltoAllV(con_space(:,1:con_space_size), sendcounts, senddisps, temp_space(:,1:con_space_size), &
+                           recvcounts, recvdisps, ierr)
 
         if (allocated(con_space)) then
             deallocate(con_space, stat=ierr)
