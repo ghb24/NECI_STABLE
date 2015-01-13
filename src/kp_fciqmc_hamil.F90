@@ -19,13 +19,14 @@ contains
         use FciMCData, only: fcimc_excit_gen_store, exFlag, SpawnVecKP, SpawnVecKP2
         use FciMCData, only: SpawnVec, SpawnVec2, determ_sizes, determ_displs, SpawnedParts
         use FciMCData, only: SpawnedParts2, InitialSpawnedSlots, ValidSpawnedList, ll_node
-        use FciMCData, only: spawn_ht
+        use FciMCData, only: spawn_ht, subspace_hamil_time
         use hash, only: clear_hash_table
         use kp_fciqmc_data_mod, only: tSemiStochasticKPHamil, tExcitedStateKP, av_mc_excits_kp
         use procedure_pointers, only: generate_excitation, encode_child, get_spawn_helement
         use semi_stoch_procs, only: is_core_state, check_determ_flag
         use semi_stoch_procs, only: determ_projection_kp_hamil
         use SystemData, only: nbasis, tAllSymSectors, nOccAlpha, nOccBeta, nel
+        use timing_neci, only: set_timer, halt_timer
         use util_mod, only: stochastic_round
         
         integer, intent(in) :: nvecs
@@ -46,6 +47,8 @@ contains
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied, tParity
         logical :: tNearlyFull, tFinished, tAllFinished
         HElement_t :: HElGen, HEl
+
+        call set_timer(subspace_hamil_time)
 
         h_matrix(:,:) = 0.0_dp
         ilut_parent = 0_n_int
@@ -174,6 +177,8 @@ contains
             SpawnedParts => SpawnVec
             SpawnedParts2 => SpawnVec2
         end if
+
+        call halt_timer(subspace_hamil_time)
 
     end subroutine calc_projected_hamil
 
