@@ -415,6 +415,9 @@ contains
         call MPISumAll (NoatHF, AllNoatHF)
         call MPISumAll (SumWalkersCyc, AllSumWalkersCyc)
 
+        ! The total number of spawned determinants.
+        call MPISum (nspawned, nspawned_tot)
+
         !        WRITE(iout,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
 
         if (tSearchTau .and. (.not. tFillingStochRDMonFly)) &

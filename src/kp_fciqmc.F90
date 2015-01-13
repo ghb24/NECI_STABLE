@@ -18,6 +18,7 @@ module kp_fciqmc
     use FciMCData, only: iter_data_fciqmc, TotParts, exFlag, iter
     use FciMCData, only: indices_of_determ_states, partial_determ_vecs
     use FciMCData, only: full_determ_vecs, walker_time, annihil_time
+    use FciMCData, only: Stats_Comms_Time
     use fcimc_initialisation, only: CalcApproxpDoubles
     use fcimc_helper, only: SumEContrib, end_iter_stats, &
                             CalcParentFlag, walker_death, decide_num_to_spawn
@@ -288,7 +289,10 @@ contains
                         call update_iter_data(iter_data_fciqmc)
 
                         if (mod(iter, StepsSft) == 0) then
+                            call set_timer(Stats_Comms_Time)
                             call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts)
+                            call halt_timer(Stats_Comms_Time)
+
                             call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)
                             if (tWritePopsFound) call WriteToPopsfileParOneArr(CurrentDets, TotWalkers)
                             if (tSingBiasChange) call CalcApproxpDoubles()
@@ -567,7 +571,10 @@ contains
                     call update_iter_data(iter_data_fciqmc)
 
                     if (mod(iter, StepsSft) == 0) then
+                        call set_timer(Stats_Comms_Time)
                         call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts)
+                        call halt_timer(Stats_Comms_Time)
+
                         call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)
                         if (tWritePopsFound) call WriteToPopsfileParOneArr(CurrentDets, TotWalkers)
                         if (tSingBiasChange) call CalcApproxpDoubles()

@@ -138,6 +138,9 @@ module AnnihilationMod
 
         call MPIAlltoAll(sendcounts,1,recvcounts,1,error)
 
+        ! Set this global data - the total number of spawned determants.
+        nspawned = sum(recvcounts)
+
         ! We can now get recvdisps from recvcounts, since we want the data to
         ! be contiguous after the move.
         recvdisps(1) = 0

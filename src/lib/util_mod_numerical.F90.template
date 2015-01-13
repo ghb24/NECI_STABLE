@@ -1,13 +1,13 @@
 [int]
 type = integer(kind=int32)
 conditional_enable = !defined(SX)
-width = 12
-fmtstr = i12
+width = 15
+fmtstr = i15
 
 [int64]
 type = integer(kind=int64)
-width = 12
-fmtstr = i12
+width = 15
+fmtstr = i15
 
 [real]
 type = real(kind=sp)

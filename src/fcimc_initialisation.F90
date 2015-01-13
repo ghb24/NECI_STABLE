@@ -152,6 +152,7 @@ contains
         SemiStoch_Init_Time%timer_name='SemiStochInitTime'
         Trial_Init_Time%timer_name='TrialInitTime'
         kp_generate_time%timer_name='KPGenerateTime'
+        Stats_Comms_Time%timer_name='StatsCommsTime'
 
         ! Initialise allocated arrays with input data
         TargetGrowRate(:) = InputTargetGrowRate

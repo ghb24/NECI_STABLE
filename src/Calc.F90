@@ -2062,7 +2062,7 @@ contains
 !             CALL WRITETMAT(NBASIS)
              IC=0
              HDiagTemp = get_helement(fDet, fDet, 0)
-             WRITE(6,*) '<D0|H|D0>=',real(HDiagTemp)
+             WRITE(6,*) '<D0|H|D0>=',real(HDiagTemp,dp)
              WRITE(6,*) '<D0|T|D0>=',CALCT(FDET,NEL)
           
              IF(TUEG) THEN
