@@ -179,7 +179,8 @@ MODULE ReadInput_neci
         use SystemData, only: nel, tStarStore, tUseBrillouin, beta, tFixLz, &
                               tFindCINatOrbs, tNoRenormRandExcits, LMS, STOT,&
                               tCSF, tSpn, tUHF, tGenHelWeighted, tHPHF, &
-                              tGen_4ind_weighted, tGen_4ind_reverse
+                              tGen_4ind_weighted, tGen_4ind_reverse, &
+                              tMultiReplicas
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -468,6 +469,18 @@ MODULE ReadInput_neci
                 call stop_all(t_r, 'Aggregated initator thresholds make no &
                                    &sense with only one system replica')
         end if
+
+#if __PROG_NUMRUNS
+        if (tKP_FCIQMC .and. .not. tMultiReplicas) then
+
+            write(6,*) 'Using KPFCIQMC without explicitly specifying the &
+                       &number of replica simulations'
+            write(6,*) 'Defaulting to using 2 replicas'
+            lenof_sign = 2
+            inum_runs = 2
+
+        end if
+#endif
 
     end subroutine checkinput
 

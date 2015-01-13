@@ -169,7 +169,7 @@ contains
                 ! Add in the contributions to the overlap.
                 int_sign = krylov_vecs(sign_ind:sign_ind+lenof_sign_kp-1, det_ind)
                 real_sign_2 = transfer(int_sign, real_sign_1)
-#ifdef __DOUBLERUN
+#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
                 overlap = overlap + (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
 #else
                 overlap = overlap + real_sign_1(1)*real_sign_2(1)

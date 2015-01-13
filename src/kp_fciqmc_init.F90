@@ -254,7 +254,6 @@ contains
                 tRead_KP_Space = .true.
             case("FCI-TRIAL")
                 tFCI_KP_Space = .false.
-
             case default
                 call report("Keyword "//trim(w)//" not recognized in kp-fciqmc block", .true.)
             end select
