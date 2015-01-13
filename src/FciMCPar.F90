@@ -599,9 +599,8 @@ module FciMCParMod
         HElement_t :: HDiagTemp,HElGen
         character(*), parameter :: this_routine = 'PerformFCIMCycPar' 
         HElement_t, dimension(inum_runs) :: delta
-        integer :: proc, pos
+        integer :: proc, pos, determ_index
         real(dp) :: r, sgn(lenof_sign), prob_extra_walker
-        integer :: determ_index, gen_ind
         integer :: DetHash, FinalVal, clash, PartInd, k, y
         type(ll_node), pointer :: TempNode
 
@@ -726,14 +725,11 @@ module FciMCParMod
                 endif
             endif
 
-            ! A general index whose value depends on whether the following option is used.
-            gen_ind = j
-
             ! This if-statement is only entered when using semi-stochastic and
             ! only if this determinant is in the core space.
             if (tCoreDet) then
                 ! Store the index of this state, for use in annihilation later.
-                indices_of_determ_states(determ_index) = gen_ind
+                indices_of_determ_states(determ_index) = j
 
                 ! Add this amplitude to the deterministic vector.
                 partial_determ_vector(:,determ_index) = SignCurr
@@ -744,10 +740,9 @@ module FciMCParMod
                 ! the amplitude is zero. Hence we must check if the amplitude is zero,
                 ! and if so, skip the state.
                 if (IsUnoccDet(SignCurr)) then
-                    CurrentDets(:,gen_ind) = CurrentDets(:,j)
                     if (tFillingStochRDMonFly) then
-                        call set_av_sgn(gen_ind, AvSignCurr)
-                        call set_iter_occ(gen_ind, IterRDMStartCurr)
+                        call set_av_sgn(j, AvSignCurr)
+                        call set_iter_occ(j, IterRDMStartCurr)
                     endif
                     cycle
                 end if
@@ -908,10 +903,9 @@ module FciMCParMod
                                        CurrentDets(:,j), HDiagCurr, SignCurr, &
                                        AvSignCurr, IterRDMStartCurr, j, WalkExcitLevel)
                 else
-                    CurrentDets(:,gen_ind) = CurrentDets(:,j)
                     if (tFillingStochRDMonFly) then
-                        call set_av_sgn(gen_ind, AvSignCurr)
-                        call set_iter_occ(gen_ind, IterRDMStartCurr)
+                        call set_av_sgn(j, AvSignCurr)
+                        call set_iter_occ(j, IterRDMStartCurr)
                     endif
                 end if
             else
