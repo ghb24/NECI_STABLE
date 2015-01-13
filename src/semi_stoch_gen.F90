@@ -170,32 +170,28 @@ contains
         use bit_reps, only: set_flag, encode_sign
         use FciMCData, only: determ_sizes, SpawnedParts
         use ras_data, only: core_ras
+        use searching, only: remove_repeated_states
         use SystemData, only: tAllSymSectors
 
         integer :: space_size, i, j, ierr
         real(dp) :: zero_sign(lenof_sign)
         character (len=*), parameter :: t_r = "generate_space"
 
-        ! Choose the correct generating routine.
-        if (tPopsCore) then
-            call generate_space_most_populated(n_core_pops, SpawnedParts, space_size)
-        else if (tReadCore) then
-            call generate_space_from_file('CORESPACE', SpawnedParts, space_size)
-        else if (.not. tCSFCore) then
-            if (tDoublesCore) then
-                call generate_sing_doub_determinants(SpawnedParts, space_size)
-            else if (tCASCore) then
-                call generate_cas(OccDetermCasOrbs, VirtDetermCasOrbs, SpawnedParts, space_size)
-            else if (tRASCore) then
-                call generate_ras(core_ras, SpawnedParts, space_size)
-            else if (tOptimisedCore) then
-                call generate_optimised_core(determ_opt_data, tLimitDetermSpace, SpawnedParts, space_size, max_determ_size)
-            else if (tLowECore) then
-                call generate_low_energy_core(low_e_core_excit, tLowECoreAllDoubles, &
+        space_size = 0
+
+        ! Call the requested generating routines.
+        if (tPopsCore) call generate_space_most_populated(n_core_pops, SpawnedParts, space_size)
+        if (tReadCore) call generate_space_from_file('CORESPACE', SpawnedParts, space_size)
+        if (.not. tCSFCore) then
+            if (tDoublesCore) call generate_sing_doub_determinants(SpawnedParts, space_size)
+            if (tCASCore) call generate_cas(OccDetermCasOrbs, VirtDetermCasOrbs, SpawnedParts, space_size)
+            if (tRASCore) call generate_ras(core_ras, SpawnedParts, space_size)
+            if (tOptimisedCore) call generate_optimised_core(determ_opt_data, tLimitDetermSpace, &
+                                                             SpawnedParts, space_size, max_determ_size)
+            if (tLowECore) call generate_low_energy_core(low_e_core_excit, tLowECoreAllDoubles, &
                                               low_e_core_num_keep, max_determ_size, SpawnedParts, space_size)
-            else if (tMP1Core) then
-                call generate_using_mp1_criterion(semistoch_mp1_ndets, SpawnedParts, space_size)
-            else if (tFCICore) then
+            if (tMP1Core) call generate_using_mp1_criterion(semistoch_mp1_ndets, SpawnedParts, space_size)
+            if (tFCICore) then
                 if (tAllSymSectors) then
                     call gndts_all_sym_this_proc(SpawnedParts, .false., space_size)
                 else
@@ -224,6 +220,11 @@ contains
                               &with CSFs is not implemented.")
             end if
         end if
+
+        ! If two different deterministic spaces have been called then there may
+        ! be some repeated states. We don't want repeats, so remove them and
+        ! update space_size accordingly.
+        call remove_repeated_states(SpawnedParts, space_size)
 
         zero_sign = 0.0_dp
         do i = 1, space_size
@@ -293,24 +294,29 @@ contains
 
     end subroutine add_state_to_space
 
-    subroutine generate_sing_doub_determinants(ilut_list, space_size)
+    subroutine generate_sing_doub_determinants(ilut_list, space_size) 
 
-        ! Out: ilut_list - List of determinants generated.
-        ! Out: space_size - Number of determinants in the generated space.
+        ! In/Out: ilut_list - List of determinants generated.
+        ! In/Out: space_size - Number of determinants in the generated space.
+        !             If ilut_list is not empty on input and you want to keep
+        !             the states already in it, then on input space_size should
+        !             be equal to the number of states to be kept in ilut_list,
+        !             and new states will be added in from space_size+1.
+        !             Otherwise, space_size must equal 0 on input.
+        !             On output space_size will equal the total number of
+        !             generated plus what space_size was on input.
 
         use SymExcit3, only: GenExcitations3
         use SystemData, only: nel, tKPntSym
 
-        integer(n_int), intent(out) :: ilut_list(0:,:)
-        integer, intent(out) :: space_size
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
+        integer, intent(inout) :: space_size
 
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel)
         integer :: excit(2,2)
         integer :: nsing, ndoub, ex_flag
         logical :: tAllExcitFound, tParity
-
-        space_size = 0
 
         ! Always generate both the single and double excitations.
         ex_flag = 3
@@ -340,16 +346,23 @@ contains
 
     subroutine generate_sing_doub_csfs(ilut_list, space_size)
 
-        ! Out: ilut_list - List of determinants generated.
-        ! Out: space_size - Number of determinants in the generated space.
+        ! In/Out: ilut_list - List of determinants generated.
+        ! In/Out: space_size - Number of determinants in the generated space.
+        !             If ilut_list is not empty on input and you want to keep
+        !             the states already in it, then on input space_size should
+        !             be equal to the number of states to be kept in ilut_list,
+        !             and new states will be added in from space_size+1.
+        !             Otherwise, space_size must equal 0 on input.
+        !             On output space_size will equal the total number of
+        !             generated plus what space_size was on input.
 
         use bit_rep_data, only: nOffY
         use csf_data, only: csf_orbital_mask
         use enumerate_excitations, only: excit_store, enumerate_spatial_excitations
         use SystemData, only: nel, tFixLz
 
-        integer(n_int), intent(out) :: ilut_list(0:,:)
-        integer, intent(out) :: space_size
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
+        integer, intent(inout) :: space_size
 
         type(excit_store), target :: gen_store
         integer(n_int) :: ilutHF_loc(0:NIfTot), ilut(0:NIfTot)
@@ -359,8 +372,6 @@ contains
 
         if (tFixLz) call stop_all("generate_sing_doub_csfs", "The CSF generating routine &
             &does not work when Lz symmetry is applied.")
-
-        space_size = 0
 
         ! Setting the first two bits of this flag tells the generating subroutine to
         ! generate both single and double spatial excitations.
@@ -401,22 +412,28 @@ contains
     subroutine generate_ras(ras_info, ilut_list, space_size)
 
         ! In: ras - Parameters for the RAS space.
-        ! Out: ilut_list - List of determinants generated.
-        ! Out: space_size - Number of determinants in the generated space.
+        ! In/Out: ilut_list - List of determinants generated.
+        ! In/Out: space_size - Number of determinants in the generated space.
+        !             If ilut_list is not empty on input and you want to keep
+        !             the states already in it, then on input space_size should
+        !             be equal to the number of states to be kept in ilut_list,
+        !             and new states will be added in from space_size+1.
+        !             Otherwise, space_size must equal 0 on input.
+        !             On output space_size will equal the total number of
+        !             generated plus what space_size was on input.
 
         use ras
         use SystemData, only: nel
 
         type(ras_parameters), intent(inout) :: ras_info
-        integer(n_int), intent(out) :: ilut_list(0:,:)
-        integer, intent(out) :: space_size
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
+        integer, intent(inout) :: space_size
 
         type(ras_class_data), allocatable, dimension(:) :: ras_classes
         integer(n_int), allocatable, dimension(:,:) :: temp_list
         integer :: nI(nel)
         integer :: temp_size, i
 
-        space_size = 0
         tot_nelec = nel/2
         tot_norbs = nbasis/2
 
@@ -450,8 +467,15 @@ contains
 
         ! In: occ_orbs - The number of electrons in the CAS space.
         ! In: virt_orbs - The number of virtual spin orbitals in the CAS space.
-        ! Out: ilut_list - List of determinants generated.
-        ! Out: space_size - Number of determinants in the generated space.
+        ! In/Out: ilut_list - List of determinants generated.
+        ! In/Out: space_size - Number of determinants in the generated space.
+        !             If ilut_list is not empty on input and you want to keep
+        !             the states already in it, then on input space_size should
+        !             be equal to the number of states to be kept in ilut_list,
+        !             and new states will be added in from space_size+1.
+        !             Otherwise, space_size must equal 0 on input.
+        !             On output space_size will equal the total number of
+        !             generated plus what space_size was on input.
 
         use csf_data, only: csf_orbital_mask
         use DetBitOps, only: DetBitLT
@@ -460,8 +484,8 @@ contains
         use SystemData, only: nel, tSpn, G1, nBasisMax, LMS, BasisFn, BRR
 
         integer, intent(in) :: occ_orbs, virt_orbs
-        integer(n_int), intent(out) :: ilut_list(0:,:)
-        integer, intent(out) :: space_size
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
+        integer, intent(inout) :: space_size
 
         type(BasisFN) :: CASSym
         integer(n_int) :: ilut(0:NIfTot)
@@ -473,8 +497,6 @@ contains
         integer, pointer :: CASDets(:,:) => null()
         integer(TagIntType) :: CASDetsTag, IlutTag
         character (len=*), parameter :: t_r = "generate_cas"
-
-        space_size = 0
 
         ! Start by adding the HF state.
         call add_state_to_space(ilutHF, ilut_list, space_size)
@@ -597,22 +619,30 @@ contains
         !     all connections have generated, the space is cut off to have a space with
         !     a maximum size of max_space_size. This is done by removing the highest
         !     energy determinants.
-        ! Out: ilut_list - List of determinants generated.
-        ! Out: space_size - Number of determinants in the generated space.
+        ! In/Out: ilut_list - List of determinants generated.
+        ! In/Out: space_size - Number of determinants in the generated space.
+        !             If ilut_list is not empty on input and you want to keep
+        !             the states already in it, then on input space_size should
+        !             be equal to the number of states to be kept in ilut_list,
+        !             and new states will be added in from space_size+1.
+        !             Otherwise, space_size must equal 0 on input.
+        !             On output space_size will equal the total number of
+        !             generated plus what space_size was on input.
         ! In (optional): max_space_size - Only used if tLimitSpace is true. See
         !     tLimitSpace for an explanation of use.
 
         use davidson_neci, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
                             sparse_hamil_type
         use enumerate_excitations, only: generate_connected_space
+        use searching, only: remove_repeated_states
         use sort_mod, only: sort
         use sparse_arrays, only: sparse_ham, hamil_diag
         use SystemData, only: nel
 
         type(opt_space_data), intent(in) :: opt_data
         logical :: tLimitSpace
-        integer(n_int), intent(out) :: ilut_list(:,:)
-        integer, intent(out) :: space_size
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
+        integer, intent(inout) :: space_size
         integer, optional, intent(in) :: max_space_size
 
         integer(n_int), allocatable, dimension(:,:) :: ilut_store, temp_space
@@ -624,8 +654,6 @@ contains
                            sendcounts(0:nProcessors-1), recvcount, this_proc_size
         integer(TagIntType) :: IlutTag, TempTag, FinalTag
         character (len=*), parameter :: t_r = "generate_optimised_core"
-
-        space_size = 0
 
         if (iProcIndex /= root) then
             ! Allocate some space so that the MPIScatterV call does not crash.
@@ -675,7 +703,7 @@ contains
 
                 new_num_states = new_num_states + old_num_states
 
-                call remove_repeated_states(ilut_store(:, 1:new_num_states), new_num_states)
+                call remove_repeated_states(ilut_store, new_num_states)
 
                 write(6,'(i8,1X,a13)') new_num_states, "states found."
                 call neci_flush(6)
@@ -755,9 +783,9 @@ contains
         recvcount = int(this_proc_size*(NIfTot+1),MPIArg)
 
         ! Finally send the actual determinants to the ilut_list array.
-        call MPIScatterV(ilut_store, sendcounts, disps, ilut_list(:, 1:this_proc_size), recvcount, ierr)
+        call MPIScatterV(ilut_store, sendcounts, disps, ilut_list(:, space_size+1:space_size+this_proc_size), recvcount, ierr)
 
-        space_size = int(this_proc_size, sizeof_int)
+        space_size = space_size + int(this_proc_size, sizeof_int)
 
         ! Finally, deallocate arrays.
         if (allocated(ilut_store)) then
@@ -775,15 +803,22 @@ contains
 
         ! In: target_space_size - The number of determinants to attempt to keep from
         !     if less determinants are present then use all of them.
-        ! Out: ilut_list - List of determinants generated.
-        ! Out: space_size - Number of determinants in the generated space.
+        ! In/Out: ilut_list - List of determinants generated.
+        ! In/Out: space_size - Number of determinants in the generated space.
+        !             If ilut_list is not empty on input and you want to keep
+        !             the states already in it, then on input space_size should
+        !             be equal to the number of states to be kept in ilut_list,
+        !             and new states will be added in from space_size+1.
+        !             Otherwise, space_size must equal 0 on input.
+        !             On output space_size will equal the total number of
+        !             generated plus what space_size was on input.
 
         use bit_reps, only: extract_sign
         use FciMCData, only: TotWalkers
 
         integer, intent(in) :: target_space_size
-        integer(n_int), intent(out) :: ilut_list(0:,:)
-        integer, intent(out) :: space_size
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
+        integer, intent(inout) :: space_size
 
         real(dp), allocatable, dimension(:) :: amps_this_proc, amps_all_procs
         real(dp) :: real_sign(lenof_sign)
@@ -799,8 +834,6 @@ contains
         if (.not. tReadPops) then
             call stop_all(t_r, "NECI must be started from a popsfile to use the pops-core and pops-trial options.")
         end if
-
-        space_size = 0
 
         n_pops_keep = target_space_size
 
@@ -893,20 +926,25 @@ contains
     subroutine generate_space_from_file(filename, ilut_list, space_size)
 
         ! In: filename - Name of file to read for determinants.
-        ! Out: ilut_list - List of determinants generated.
-        ! Out: space_size - Number of determinants in the generated space.
+        ! In/Out: ilut_list - List of determinants generated.
+        ! In/Out: space_size - Number of determinants in the generated space.
+        !             If ilut_list is not empty on input and you want to keep
+        !             the states already in it, then on input space_size should
+        !             be equal to the number of states to be kept in ilut_list,
+        !             and new states will be added in from space_size+1.
+        !             Otherwise, space_size must equal 0 on input.
+        !             On output space_size will equal the total number of
+        !             generated plus what space_size was on input.
 
         use util_mod, only: get_free_unit
 
         character(*), intent(in) :: filename
-        integer(n_int), intent(out) :: ilut_list(0:,:)
-        integer, intent(out) :: space_size
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
+        integer, intent(inout) :: space_size
 
         integer :: iunit, stat
         integer(n_int) :: ilut(0:NIfTot)
         logical :: does_exist
-
-        space_size = 0
 
         inquire(file=filename, exist=does_exist)
         if (.not. does_exist) call stop_all("generate_space_from_file", &
@@ -938,24 +976,30 @@ contains
         ! In: nstates_keep - The number of determinants to keep after each iteration.
         ! In: max_space_size - The number of determinants to keep after the final
         !     iteration of the generating algorithm.
-        ! Out: ilut_list - List of determinants generated.
-        ! Out: space_size - Number of determinants in the generated space.
+        ! In/Out: ilut_list - List of determinants generated.
+        ! In/Out: space_size - Number of determinants in the generated space.
+        !             If ilut_list is not empty on input and you want to keep
+        !             the states already in it, then on input space_size should
+        !             be equal to the number of states to be kept in ilut_list,
+        !             and new states will be added in from space_size+1.
+        !             Otherwise, space_size must equal 0 on input.
+        !             On output space_size will equal the total number of
+        !             generated plus what space_size was on input.
 
         use enumerate_excitations, only: generate_connected_space
+        use searching, only: remove_repeated_states
 
         integer, intent(in) :: max_excit
         logical, intent(in) :: tAllDoub
         integer, intent(in) :: nstates_keep, max_space_size
-        integer(n_int), intent(out) :: ilut_list(0:,:)
-        integer, intent(out) :: space_size
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
+        integer, intent(inout) :: space_size
 
         integer :: i, num_loops, ierr, old_num_states, new_num_states
         logical :: tSinglesOnly
         integer(n_int), allocatable, dimension(:,:) :: ilut_store, temp_space
         integer(TagIntType) :: IlutTag, TempTag
         character (len=*), parameter :: t_r = "generate_low_energy_core"
-
-        space_size = 0
 
         ! max_excit holds the maximum excitation level to go to. In the first loop,
         ! generate both single and double excitations.
@@ -1007,7 +1051,7 @@ contains
 
             new_num_states = new_num_states + old_num_states
 
-            call remove_repeated_states(ilut_store(:, 1:new_num_states), new_num_states)
+            call remove_repeated_states(ilut_store, new_num_states)
 
             write(6,'(i8,1X,a13)') new_num_states, "states found."
             call neci_flush(6)
@@ -1039,6 +1083,16 @@ contains
 
     subroutine gen_all_csfs_from_orb_config(ilut, nI, ilut_list, space_size)
 
+        ! In/Out: ilut_list - List of determinants generated.
+        ! In/Out: space_size - Number of determinants in the generated space.
+        !             If ilut_list is not empty on input and you want to keep
+        !             the states already in it, then on input space_size should
+        !             be equal to the number of states to be kept in ilut_list,
+        !             and new states will be added in from space_size+1.
+        !             Otherwise, space_size must equal 0 on input.
+        !             On output space_size will equal the total number of
+        !             generated plus what space_size was on input.
+
         use bit_rep_data, only: NIfY, NOffY
         use csf, only: csf_get_yamas, get_num_csfs, get_csf_bit_yama, csf_apply_yama
         use DetBitOps, only: count_open_orbs
@@ -1046,7 +1100,7 @@ contains
 
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
         integer, intent(inout) :: nI(nel)
-        integer(n_int), intent(inout) :: ilut_list(:,:)
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
         integer, intent(inout) :: space_size
 
         integer :: i, n_open, num_csfs, max_num_csfs
@@ -1090,8 +1144,15 @@ contains
         ! In: target_ndets - The number of determinants to keep, unless there are less
         !     singles and doubles than this value, in which case all singles and doubles
         !     will be kept.
-        ! Out: ilut_list - List of determinants generated.
-        ! Out: space_size - Number of determinants in the generated space.
+        ! In/Out: ilut_list - List of determinants generated.
+        ! In/Out: space_size - Number of determinants in the generated space.
+        !             If ilut_list is not empty on input and you want to keep
+        !             the states already in it, then on input space_size should
+        !             be equal to the number of states to be kept in ilut_list,
+        !             and new states will be added in from space_size+1.
+        !             Otherwise, space_size must equal 0 on input.
+        !             On output space_size will equal the total number of
+        !             generated plus what space_size was on input.
 
         use DetBitOps, only: IsAllowedHPHF
         use SymExcit3, only: GenExcitations3
@@ -1099,8 +1160,8 @@ contains
         use util_mod, only: binary_search_real
 
         integer, intent(in) :: target_ndets
-        integer(n_int), intent(out) :: ilut_list(0:,:)
-        integer, intent(out) :: space_size
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
+        integer, intent(inout) :: space_size
 
         integer(n_int), allocatable :: temp_list(:,:)
         real(dp), allocatable :: amp_list(:)
@@ -1110,8 +1171,6 @@ contains
         integer :: pos, i
         real(dp) :: amp, energy_contrib
         logical :: tAllExcitFound, tParity
-
-        space_size = 0
 
         allocate(amp_list(target_ndets))
         allocate(temp_list(0:NIfD, target_ndets))
@@ -1202,6 +1261,16 @@ contains
 
     subroutine enumerate_sing_doub_kpnt(ex_flag, nSing, nDoub, tStore, ilut_list, space_size)
 
+        ! In/Out: ilut_list - List of determinants generated.
+        ! In/Out: space_size - Number of determinants in the generated space.
+        !             If ilut_list is not empty on input and you want to keep
+        !             the states already in it, then on input space_size should
+        !             be equal to the number of states to be kept in ilut_list,
+        !             and new states will be added in from space_size+1.
+        !             Otherwise, space_size must equal 0 on input.
+        !             On output space_size will equal the total number of
+        !             generated plus what space_size was on input.
+
         use csf_data, only: csf_orbital_mask
         use neci_intfce
         use SystemData, only: nel, G1, tUseBrillouin, nBasis
@@ -1209,7 +1278,7 @@ contains
         integer, intent(in) :: ex_flag
         integer, intent(out) :: nSing, nDoub
         logical, intent(in) :: tStore
-        integer(n_int), optional, intent(inout) :: ilut_list(:,:)
+        integer(n_int), optional, intent(inout) :: ilut_list(0:,:)
         integer, optional, intent(inout) :: space_size
 
         integer, allocatable :: excit_gen(:)
@@ -1273,15 +1342,24 @@ contains
 
     subroutine generate_heisenberg_fci(ilut_list, space_size)
 
+        ! In/Out: ilut_list - List of determinants generated.
+        ! In/Out: space_size - Number of determinants in the generated space.
+        !             If ilut_list is not empty on input and you want to keep
+        !             the states already in it, then on input space_size should
+        !             be equal to the number of states to be kept in ilut_list,
+        !             and new states will be added in from space_size+1.
+        !             Otherwise, space_size must equal 0 on input.
+        !             On output space_size will equal the total number of
+        !             generated plus what space_size was on input.
+
         use SystemData, only: nel, nbasis
 
-        integer(n_int), intent(out) :: ilut_list(:,:)
-        integer, intent(out) :: space_size
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
+        integer, intent(inout) :: space_size
 
         integer :: nsites, nup
         integer :: up_spins(nel/2)
 
-        space_size = 0
         nsites = nbasis/2
         nup = nel/2
         call generate_heisenberg_fci_r(1, up_spins, nsites, nup, ilut_list, space_size)
@@ -1295,7 +1373,7 @@ contains
         integer, intent(in) :: ispin
         integer, intent(inout) :: up_spins(nel)
         integer, intent(in) :: nsites, nup
-        integer(n_int), intent(inout) :: ilut_list(:,:)
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
         integer, intent(inout) :: space_size
 
         integer :: i, isite, counter, starting_site
@@ -1320,7 +1398,7 @@ contains
                         ! Consider the next up spin on the next loop.
                         counter = counter + 1
                     else
-                        beta_ind = 2*i-1 
+                        beta_ind = 2*i-1
                         pos = (beta_ind - 1)/bits_n_int
                         ilut(pos) = ibset(ilut(pos), mod(beta_ind-1, bits_n_int))
                     end if
@@ -1335,16 +1413,24 @@ contains
 
     subroutine generate_fci_core(ilut_list, space_size)
 
+        ! In/Out: ilut_list - List of determinants generated.
+        ! In/Out: space_size - Number of determinants in the generated space.
+        !             If ilut_list is not empty on input and you want to keep
+        !             the states already in it, then on input space_size should
+        !             be equal to the number of states to be kept in ilut_list,
+        !             and new states will be added in from space_size+1.
+        !             Otherwise, space_size must equal 0 on input.
+        !             On output space_size will equal the total number of
+        !             generated plus what space_size was on input.
+
         use SystemData, only: nel, nbasis, BRR, nBasisMax, G1, tSpn, lms, tParity, SymRestrict
 
-        integer(n_int), intent(out) :: ilut_list(:,:)
-        integer, intent(out) :: space_size
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
+        integer, intent(inout) :: space_size
 
         integer, allocatable :: nI_list(:,:)
         integer(n_int) :: ilut(0:NIfTot)
         integer :: proc, temp(1,1), hf_ind, ndets, i
-
-        space_size = 0
 
         ! Count the total number of determinants.
         call gndts(nel, nbasis, BRR, nBasisMax, temp, .true., G1, tSpn, lms, tParity, SymRestrict, ndets, hf_ind)
@@ -1377,6 +1463,8 @@ contains
         character(*), parameter :: t_r = "write_most_pop_core_at_end"
 
         write(6,'(/,"Finding most populated states...")'); call neci_flush(6)
+
+        space_size = 0
 
         ! Calling this routine will find the most populated states in
         ! CurrentDets and copy them across to SpawnedParts, to the first
