@@ -472,7 +472,7 @@ module AnnihilationMod
         ! Update annihilation statistics.
         if (sgn_prod < 0.0_dp) then
             run = part_type_to_run(part_type)
-            Annihilated = Annihilated(run) + 2*min(abs(cum_sgn), abs(new_sgn))
+            Annihilated(run) = Annihilated(run) + 2*min(abs(cum_sgn), abs(new_sgn))
             iter_data%nannihil(part_type) = iter_data%nannihil(part_type)&
                 + 2 * min(abs(cum_sgn), abs(new_sgn))
         end if
