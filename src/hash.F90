@@ -28,7 +28,6 @@ module hash
         ! In:  iIterOffset - Offset this iteration by this amount
         ! Out: proc - The (0-based) processor index.
 
-        implicit none
         integer, intent(in) :: nel_loc
         integer, intent(in) :: nI(nel_loc)
         integer, intent(in) :: iIterOffset
@@ -91,7 +90,7 @@ module hash
 
     ! Routine to find the correct position in the hash table.
     pure function FindWalkerHash(nJ, HashIndexLength) result(hashInd)
-        implicit none
+
         integer, intent(in) :: nJ(nel)
         integer, intent(in) :: HashIndexLength
         integer :: hashInd

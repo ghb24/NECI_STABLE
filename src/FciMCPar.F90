@@ -260,7 +260,9 @@ module FciMCParMod
                 ! Calculate the a new value for the shift (amongst other
                 ! things). Generally, collate information from all processors,
                 ! update statistics and output them to the user.
+                call set_timer(Stats_Comms_Time)
                 call calculate_new_shift_wrapper (iter_data_fciqmc, TotParts)
+                call halt_timer(Stats_Comms_Time)
 
                 if(tRestart) cycle
 
@@ -587,7 +589,7 @@ module FciMCParMod
         type(fcimc_iter_data), intent(inout) :: iter_data
 
         ! Now the local, iteration specific, variables
-        integer :: VecSlot, j, p, error, proc_temp, i, HFPartInd,isym
+        integer :: j, p, error, proc_temp, i, HFPartInd,isym
         integer :: DetCurr(nel), nJ(nel), FlagsCurr, parent_flags
         real(dp), dimension(lenof_sign) :: SignCurr, child
         integer(kind=n_int) :: iLutnJ(0:niftot)
@@ -617,7 +619,6 @@ module FciMCParMod
 !        CALL MPIBarrier(error)
 
         ! Reset iteration variables
-        VecSlot = 1    ! Next position to write into CurrentDets
         ! Next free position in newly spawned list.
         ValidSpawnedList = InitialSpawnedSlots
         FreeSlot(1:iEndFreeSlot)=0  !Does this cover enough?
@@ -751,7 +752,6 @@ module FciMCParMod
                         call set_av_sgn(gen_ind, AvSignCurr)
                         call set_iter_occ(gen_ind, IterRDMStartCurr)
                     endif
-                    VecSlot = VecSlot + 1
                     cycle
                 end if
             end if
@@ -760,7 +760,7 @@ module FciMCParMod
             HDiagCurr = det_diagH(j)
 
             if (tTruncInitiator) &
-                call CalcParentFlag (j, VecSlot, parent_flags, HDiagCurr)
+                call CalcParentFlag (j, parent_flags, HDiagCurr)
 
 
             ! As the main list (which is storing a hash table) no longer needs
@@ -786,7 +786,7 @@ module FciMCParMod
 
 !            call test_sym_excit3 (DetCurr, 1000000, pDoubles, 3)
 
-            if(walkExcitLevel_toHF.eq.0) HFInd = VecSlot
+            if(walkExcitLevel_toHF.eq.0) HFInd = j
             
             IFDEBUGTHEN(FCIMCDebug,1)
                 if(j.gt.1) then
@@ -903,30 +903,24 @@ module FciMCParMod
 
             enddo   ! Cycling over 'type' of particle on a given determinant.
             
-            ! DEBUG
-            ! if (VecSlot > j) call stop_all (this_routine, 'vecslot > j')
-
             if (tSemiStochastic) then
                 ! If we are performing a semi-stochastic simulation and this state is in the
                 ! deterministic space, then the death step is performed deterministically later.
                 if (.not. tCoreDet) then
                     call walker_death (iter_data, DetCurr, &
                                        CurrentDets(:,j), HDiagCurr, SignCurr, &
-                                       AvSignCurr, IterRDMStartCurr, VecSlot, j, WalkExcitLevel)
+                                       AvSignCurr, IterRDMStartCurr, j, WalkExcitLevel)
                 else
                     CurrentDets(:,gen_ind) = CurrentDets(:,j)
                     if (tFillingStochRDMonFly) then
                         call set_av_sgn(gen_ind, AvSignCurr)
                         call set_iter_occ(gen_ind, IterRDMStartCurr)
                     endif
-                    ! We never overwrite the deterministic states, so move the
-                    ! next slot in CurrentDets to the next state.
-                    VecSlot = VecSlot + 1
                 end if
             else
                 call walker_death (iter_data, DetCurr, &
                                    CurrentDets(:,j), HDiagCurr, SignCurr, &
-                                   AvSignCurr, IterRDMStartCurr, VecSlot, j, WalkExcitLevel)
+                                   AvSignCurr, IterRDMStartCurr, j, WalkExcitLevel)
             end if
 
         enddo ! Loop over determinants.

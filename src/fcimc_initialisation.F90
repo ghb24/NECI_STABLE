@@ -155,6 +155,7 @@ contains
         SemiStoch_Init_Time%timer_name='SemiStochInitTime'
         Trial_Init_Time%timer_name='TrialInitTime'
         kp_generate_time%timer_name='KPGenerateTime'
+        Stats_Comms_Time%timer_name='StatsCommsTime'
 
         ! Initialise allocated arrays with input data
         TargetGrowRate(:) = InputTargetGrowRate
@@ -2039,7 +2040,7 @@ contains
 
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
-                        call CalcParentFlag(DetIndex, 1, iInit, &
+                        call CalcParentFlag(DetIndex, iInit, &
                                             real(HDiagTemp, dp))
                     endif
 
@@ -2238,7 +2239,7 @@ contains
 
                     if(tTruncInitiator) then
                         !Set initiator flag if needed (always for HF)
-                        call CalcParentFlag(DetIndex, 1, iInit, &
+                        call CalcParentFlag(DetIndex, iInit, &
                                             real(HDiagTemp, dp))
                     endif
 

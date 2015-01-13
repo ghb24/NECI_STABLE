@@ -647,8 +647,11 @@ contains
         integer(TagIntType) :: IlutTag, TempTag, FinalTag
         character (len=*), parameter :: t_r = "generate_optimised_core"
 
-        if (iProcIndex == root) then
-
+        if (iProcIndex /= root) then
+            ! Allocate some space so that the MPIScatterV call does not crash.
+            allocate(ilut_store(0:1, 1), stat=ierr)
+            call LogMemAlloc("ilut_store", 1000000*(NIfTot+1), size_n_int, t_r, IlutTag, ierr)
+        else if (iProcIndex == root) then
             ! Use the correct set of parameters, depending this function was called
             ! from for generating the deterministic space or the trial space:
             if (called_from == called_from_semistoch) then
@@ -758,7 +761,7 @@ contains
                 if (tAmplitudeCutoff) then
                     counter = 0
                     do j = 1, new_num_states
-                        if (davidson_eigenvector(j) > space_cutoff_amp(i)) then
+                        if (abs(davidson_eigenvector(j)) > space_cutoff_amp(i)) then
                             counter = counter + 1
                             ilut_store(:, counter) = ilut_store(:, j)
                         end if
@@ -807,7 +810,11 @@ contains
         call MPIScatterV(ilut_store, sendcounts, disps, &
                          SpawnedParts(:, 1:this_proc_size), recvcount, ierr)
 
-        determ_proc_sizes(iProcIndex) = this_proc_size
+        if (called_from == called_from_semistoch) then
+            determ_proc_sizes(iProcIndex) = this_proc_size
+        else
+            trial_space_size = this_proc_size
+        end if
 
         ! Set the flags and the amplitude on the HF.
         do i = 1, this_proc_size
@@ -831,11 +838,13 @@ contains
         ! Finally, deallocate arrays.
         if (allocated(space_cutoff_num)) deallocate(space_cutoff_num)
         if (allocated(space_cutoff_amp)) deallocate(space_cutoff_amp)
+        if (allocated(ilut_store)) then
+            deallocate(ilut_store, stat=ierr)
+            call LogMemDealloc(t_r, IlutTag, ierr)
+        end if
         if (iProcIndex == root) then
             deallocate(temp_space, stat=ierr)
             call LogMemDealloc(t_r, TempTag, ierr)
-            deallocate(ilut_store, stat=ierr)
-            call LogMemDealloc(t_r, IlutTag, ierr)
         end if
 
     end subroutine generate_optimised_core

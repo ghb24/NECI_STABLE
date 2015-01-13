@@ -58,7 +58,7 @@ contains
                        &WalkerCng(Im)    TotWalkers(Re)   TotWalkers(Im)    &
                        &Proj.E(Re)   ProjE(Im)     Proj.E.ThisCyc(Re)  &
                        &Proj.E.ThisCyc(Im)   NoatHF(Re)   NoatHF(Im)   &
-                       &NoatDoubs      AccRat     UniqueDets     IterTime"
+                       &NoatDoubs      AccRat     UniqueDets   NumDetsSpawned   IterTime"
             endif
             write(fcimcstats_unit, "(a,i4,a,l1,a,l1,a,l1)") &
                    "# FCIMCStats VERSION 2 - COMPLEX : NEl=", nel, &
@@ -108,7 +108,7 @@ contains
                 if (tTrialWavefunction) write(iout, "(A)", advance = 'no') &
                       "    Trial.E.Cyc "
                 write(iout, "(A)", advance = 'yes') "      NoatHF          NoatDoubs       &
-                &AccRat        UniqueDets   IterTime"
+                &AccRat        UniqueDets    NumDetsSpawned   IterTime"
             endif
             write(fcimcstats_unit, "(a,i4,a,l1,a,l1,a,l1)") &
                   "# FCIMCStats VERSION 2 - REAL : NEl=", nel, &
@@ -221,7 +221,7 @@ contains
                 all_max_cyc_spawn                     !29.
 
             if(tMCOutput) then
-                write (iout, "(I12,13G16.7,I12,G13.5)") &
+                write (iout, "(I12,13G16.7,2I12,G13.5)") &
                     Iter + PreviousCycles, &
                     DiagSft, &
                     AllTotParts(1) - AllTotPartsOld(1), &
@@ -237,6 +237,7 @@ contains
                     AllNoatDoubs, &
                     AccRat, &
                     AllTotWalkers, &
+                    nspawned_tot, &
                     IterTime
             endif
             if (tTruncInitiator) then
@@ -356,11 +357,12 @@ contains
                     proje_iter(1)
                 if (tTrialWavefunction) write(iout, "(G20.11)", advance = 'no') &
                     (tot_trial_numerator(1)/tot_trial_denom(1))
-                write (iout, "(3G16.7,I12,G13.5)", advance = 'yes') &
+                write (iout, "(3G16.7,2I12,G13.5)", advance = 'yes') &
                     AllNoatHF(1), &
                     AllNoatDoubs(1), &
                     AccRat(1), &
                     AllTotWalkers, &
+                    nspawned_tot, &
                     IterTime
             endif
             if (tTruncInitiator) then
@@ -511,6 +513,8 @@ contains
             call stats_out(state,.true., proje_iter_tot, 'Proj. E (cyc)')
 #endif
             call stats_out(state,.true., sum(DiagSft / inum_runs), 'Shift. (cyc)')
+            call stats_out(state,.true., AllTotWalkers, 'Dets occ.')
+            call stats_out(state,.true., nspawned_tot, 'Dets spawned')
             call stats_out(state,.true., IterTime, 'Iter. time')
             call stats_out(state,.false., sum(AllNoBorn), 'No. born')
             call stats_out(state,.false., sum(AllNoDied), 'No. died')

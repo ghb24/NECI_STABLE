@@ -5,34 +5,30 @@
 
 module AnnihilationMod
 
-    use SystemData, only: NEl, tHPHF, nBasis, tCSF
-    use CalcData, only: TRegenExcitgens, tEnhanceRemainder, &
+    use SystemData, only: NEl, tHPHF
+    use CalcData, only: tEnhanceRemainder, &
                           tTruncInitiator, OccupiedThresh, tSemiStochastic, &
                           tTrialWavefunction, tKP_FCIQMC, &
                           InitiatorOccupiedThresh, tInitOccThresh
-    USE DetCalcData, only: Det,FCIDetIndex
-    USE Parallel_neci
-    USE dSFMT_interface, only: genrand_real2_dSFMT
-    USE FciMCData
-    use DetBitOps, only: DetBitEQ, DetBitLT, FindBitExcitLevel, ilut_lt, &
+    use DetCalcData, only: Det, FCIDetIndex
+    use Parallel_neci
+    use dSFMT_interface, only: genrand_real2_dSFMT
+    use FciMCData
+    use DetBitOps, only: DetBitEQ, FindBitExcitLevel, ilut_lt, &
                          ilut_gt, DetBitZero
-    use DeterminantData, only: write_det
     use Determinants, only: get_helement
-    use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
+    use hphf_integrals, only: hphf_diag_helement
     use sort_mod
-    use constants, only: n_int,lenof_sign,null_part,sizeof_int
+    use constants, only: n_int, lenof_sign, null_part, sizeof_int
     use bit_rep_data
-    use bit_reps, only: decode_bit_det, extract_flags, &
-                        encode_sign, encode_flags, test_flag, set_flag, &
-                        clr_flag, flag_initiator, encode_part_sign, &
-                        extract_part_sign, copy_flag, nullify_ilut, &
+    use bit_reps, only: decode_bit_det, &
+                        encode_sign, test_flag, set_flag, &
+                        flag_initiator, encode_part_sign, &
+                        extract_part_sign, &
                         nullify_ilut_part, clear_has_been_initiator, &
                         set_has_been_initiator, flag_has_been_initiator
-    use csf_data, only: csf_orbital_mask
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
-    use util_mod, only: get_free_unit, binary_search_custom
-    use sparse_arrays, only: trial_ht, con_ht
     use global_det_data, only: set_det_diagH, get_iter_occ, &
                                global_determinant_data, set_part_init_time
     use searching
@@ -46,11 +42,10 @@ module AnnihilationMod
 
         integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
-        integer :: MaxIndex,ierr
+        integer :: MaxIndex
         integer(kind=n_int), pointer :: PointTemp(:,:)
         logical, intent(in) :: tSingleProc
         type(timer), save :: Compress_time
-        integer :: i
 
         ! This routine will send all the newly-spawned particles to their
         ! correct processor. 
@@ -96,12 +91,11 @@ module AnnihilationMod
         integer, intent(out) :: MaxIndex
         logical, intent(in) :: tSingleProc
 
-        integer :: i, j, error
+        integer :: i, error
         integer(MPIArg), dimension(nProcessors) :: sendcounts, disps, &
                                                    recvcounts, recvdisps
         integer :: MaxSendIndex
         integer(MPIArg) :: SpawnedPartsWidth
-        real :: Gap
 
         if (tSingleProc) then
             ! Put all particles and gap on one proc.
@@ -147,6 +141,9 @@ module AnnihilationMod
 
         call MPIAlltoAll(sendcounts,1,recvcounts,1,error)
 
+        ! Set this global data - the total number of spawned determants.
+        nspawned = sum(recvcounts)
+
         ! We can now get recvdisps from recvcounts, since we want the data to
         ! be contiguous after the move.
         recvdisps(1) = 0
@@ -186,9 +183,8 @@ module AnnihilationMod
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer :: VecInd,ValidSpawned,DetsMerged,i,BeginningBlockDet,FirstInitIndex,CurrentBlockDet
         real(dp) :: SpawnedSign(lenof_sign), Temp_Sign(lenof_sign)
-        integer :: EndBlockDet, part_type, StartCycleInit, j, Parent_Array_Ind
+        integer :: EndBlockDet, part_type, Parent_Array_Ind
         integer :: No_Spawned_Parents
-        logical :: tSuc, tInc
         integer(kind=n_int), pointer :: PointTemp(:,:)
         integer(n_int) :: cum_det(0:niftot), temp_det(0:niftot)
         character(len=*), parameter :: t_r = 'CompressSpawnedList'
@@ -410,9 +406,9 @@ module AnnihilationMod
         ! Histogram a possible annihilation event.
 
         integer(kind=n_int), intent(in) :: iLut(0:NIfTot)
-        real(dp), dimension(lenof_sign), intent(in) :: Sign1,Sign2
+        real(dp), dimension(lenof_sign), intent(in) :: Sign1, Sign2
         integer, intent(in) :: part_type
-        integer :: ExcitLevel,PartIndex
+        integer :: ExcitLevel, PartIndex
         logical :: tSuc
 
         ! We want to histogram where the particle annihilations are taking place.
@@ -477,9 +473,11 @@ module AnnihilationMod
         ! set the initiator flag.
         ! Also set the initiator flag if the new walker has its initiator flag
         ! set.
-        if ((abs(cum_sgn) > 1.e-12_dp .and. abs(new_sgn) > 1.e-12_dp) .or. &
-             test_flag(new_det, flag_initiator(part_type))) &
-            call set_flag(cum_det, flag_initiator(part_type))
+        if (tTruncInitiator) then
+            if ((abs(cum_sgn) > 1.e-12_dp .and. abs(new_sgn) > 1.e-12_dp) .or. &
+                 test_flag(new_det, flag_initiator(part_type))) &
+                call set_flag(cum_det, flag_initiator(part_type))
+        end if
 
         sgn_prod = cum_sgn * new_sgn
 
@@ -514,10 +512,9 @@ module AnnihilationMod
     subroutine deterministic_annihilation(iter_data)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
-        integer :: i, j, MinInd, MaxInd, PartInd
+        integer :: i, j
         integer :: nI(nel)
         real(dp), dimension(lenof_sign) :: SpawnedSign, CurrentSign, SignProd
-        logical :: tSuccess
 
         ! Copy across the weights from partial_determ_vector (the result of the deterministic projection)
         ! to CurrentDets:
@@ -539,7 +536,7 @@ module AnnihilationMod
 
     end subroutine deterministic_annihilation
     
-    subroutine AnnihilateSpawnedParts(ValidSpawned,TotWalkersNew, iter_data)
+    subroutine AnnihilateSpawnedParts(ValidSpawned, TotWalkersNew, iter_data)
 
         ! In this routine we want to search through the list of spawned
         ! particles. For each spawned particle, we search the list of particles
@@ -555,33 +552,20 @@ module AnnihilationMod
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(inout) :: TotWalkersNew
         integer, intent(inout) :: ValidSpawned 
-        integer :: MinInd,PartInd,i,j,ToRemove,DetsMerged,PartIndex
+        integer :: PartInd, i, j, PartIndex
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
-        real(dp), dimension(lenof_sign) :: TempCurrentSign
-        real(dp), dimension(lenof_sign) :: SignProd, NewSignTemp
+        real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
         real(dp) :: pRemove, r
-        integer :: ExcitLevel, nJ(NEl),DetHash,FinalVal,clash,walkExcitLevel, dettemp(NEl)
-        integer(kind=n_int), pointer :: PointTemp(:,:)
-        logical :: tSuccess,tSuc,tPrevOcc, tDetermState
+        integer :: ExcitLevel, DetHash, nJ(nel)
+        logical :: tSuccess, tSuc, tPrevOcc, tDetermState
         character(len=*), parameter :: t_r = "AnnihilateSpawnedParts"
-        integer :: comp, run
+        integer :: run
         type(ll_node), pointer :: TempNode
 
         ! Only node roots to do this.
         if (.not. bNodeRoot) return
 
         call set_timer(AnnMain_time, 30)
-
-        ! The number of particles to annihilate.
-        ToRemove = 0
-        
-        ! MinInd indicates the minimum bound of the main array in which the
-        ! particle can be found (and is only relevant when not using the
-        ! linear scaling algorithm). Since the SpawnedParts array is ordered in
-        ! the same fashion as the main array, we can find the particle position
-        ! in the main array by only searching a subset.
-        MinInd = 1
-        PartInd = 1
 
         if (tHistSpawn) HistMinInd2(1:nEl) = FCIDetIndex(1:nEl)
 
@@ -619,14 +603,6 @@ module AnnihilationMod
                     ! Transfer new sign across.
                     call encode_sign(CurrentDets(:,PartInd), SpawnedSign+CurrentSign)
                     call encode_sign(SpawnedParts(:,i), null_part)
-
-                    ! The only way SpawnedSign can be zero is if we are
-                    ! calculating the RDM. If this is the case, we would have
-                    ! already added the SpawnedDet to Spawned_Parts_Zero when it
-                    ! was compressed and all walkers were annihilated. This only
-                    ! counts the walkers where the SpawnedSign has newly become
-                    ! zero, by merging with CurrentDets.
-                    if (sum(abs(SpawnedSign)) /= 0.0_dp) ToRemove = ToRemove + 1
 
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)
@@ -727,8 +703,6 @@ module AnnihilationMod
 
                     call extract_sign (SpawnedParts(:,i), SignTemp)
 
-                    ! If we abort these particles, we'll still need to add them
-                    ! to ToRemove.
                     tPrevOcc=.false.
                     if (.not. IsUnoccDet(SignTemp)) tPrevOcc=.true.   
                         
@@ -800,13 +774,7 @@ module AnnihilationMod
                         end if
                     end do
 
-                    if (IsUnoccDet(SignTemp) .and. tPrevOcc) then
-                        ! All particle 'types' have been aborted. The zero sign
-                        ! has already been taken into account in Spawned_Parts_Zero,
-                        ! if it was zero directly after the compress. Only add in
-                        ! here if not already taken care of there.
-                         ToRemove = ToRemove + 1
-                    else if (.not. IsUnoccDet(SignTemp)) then
+                    if (.not. IsUnoccDet(SignTemp)) then
                         ! Walkers have not been aborted and so we should copy the
                         ! determinant straight over to the main list. We do not
                         ! need to recompute the hash, since this should be the
@@ -820,8 +788,6 @@ module AnnihilationMod
                     ! CurrentDets. If coeff <1, apply removal criterion.
                     call extract_sign (SpawnedParts(:,i), SignTemp)
                     
-                    ! If we abort these particles, we'll still need to add
-                    ! them to ToRemove.
                     tPrevOcc = .false.
                     if (.not. IsUnoccDet(SignTemp)) tPrevOcc = .true. 
                     
@@ -850,13 +816,7 @@ module AnnihilationMod
                         end if
                     end do
                     
-                    if (IsUnoccDet(SignTemp) .and. tPrevOcc) then
-                        ! All particle 'types' have been aborted. The zero sign
-                        ! has already been taken into account in Spawned_Parts_Zero,
-                        ! if it was zero directly after the compress. Only add in
-                        ! here if not already taken care of there.
-                         ToRemove = ToRemove + 1
-                    else if (.not. IsUnoccDet(SignTemp)) then
+                    if (.not. IsUnoccDet(SignTemp)) then
                         ! Walkers have not been aborted and so we should copy the
                         ! determinant straight over to the main list. We do not
                         ! need to recompute the hash, since this should be the
@@ -870,10 +830,6 @@ module AnnihilationMod
                     call check_fillRDM_DiDj(i,SpawnedParts(0:NifTot,i),SignTemp)
                 end if 
             end if
-
-            ! Even if a corresponding particle wasn't found, we can still
-            ! search a smaller list next time... so not all bad news then...
-            MinInd = PartInd
 
         end do
 
@@ -1118,9 +1074,9 @@ module AnnihilationMod
         end if
 
         if (AnnihilatedDet /= HolesInList) then
-            write(6,*) "TotWalkersNew: ",TotWalkersNew
-            write(6,*) "AnnihilatedDet: ",AnnihilatedDet
-            write(6,*) "HolesInList: ",HolesInList
+            write(6,*) "TotWalkersNew: ", TotWalkersNew
+            write(6,*) "AnnihilatedDet: ", AnnihilatedDet
+            write(6,*) "HolesInList: ", HolesInList
             call stop_all(t_r, "Error in determining annihilated determinants")
         end if
 
