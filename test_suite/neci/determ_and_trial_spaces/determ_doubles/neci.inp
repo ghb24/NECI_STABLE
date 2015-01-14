@@ -23,6 +23,7 @@ doubles-core
 linscalefcimcalgo
 truncinitiator
 addtoinitiator 2
+stochastic-hf-spawning
 endcalc
 
 integral

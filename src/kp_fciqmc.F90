@@ -11,6 +11,7 @@ module kp_fciqmc
     use bit_reps, only: flag_deterministic, flag_determ_parent, set_flag
     use bit_reps, only: extract_bit_rep
     use CalcData, only: AvMCExcits, tSemiStochastic, tTruncInitiator, StepsSft
+    use CalcData, only: tDoublesCore, tDetermHFSpawning
     use constants
     use DetBitOps, only: FindBitExcitLevel, return_ms
     use FciMCData, only: fcimc_excit_gen_store, FreeSlot, iEndFreeSlot
@@ -18,7 +19,7 @@ module kp_fciqmc
     use FciMCData, only: iter_data_fciqmc, TotParts, exFlag, iter
     use FciMCData, only: indices_of_determ_states, partial_determ_vecs
     use FciMCData, only: full_determ_vecs, walker_time, annihil_time
-    use FciMCData, only: Stats_Comms_Time
+    use FciMCData, only: Stats_Comms_Time, iLutHF_True
     use fcimc_initialisation, only: CalcApproxpDoubles
     use fcimc_helper, only: SumEContrib, end_iter_stats, &
                             CalcParentFlag, walker_death, decide_num_to_spawn
@@ -35,6 +36,7 @@ module kp_fciqmc
     use semi_stoch_procs, only: is_core_state, check_determ_flag, determ_projection
     use soft_exit, only: ChangeVars
     use SystemData, only: nel, lms, nbasis, tAllSymSectors, nOccAlpha, nOccBeta
+    use SystemData, only: tRef_Not_HF
     use timing_neci, only: set_timer, halt_timer
 
     implicit none
@@ -48,7 +50,8 @@ contains
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: iiter, idet, ireplica, ispawn, ierr
         integer :: iconfig, irepeat, ivec, nlowdin
-        integer :: nspawn, parent_flags, unused_flags, ex_level_to_ref
+        integer :: nspawn, parent_flags, unused_flags
+        integer :: ex_level_to_ref, ex_level_to_hf
         integer :: TotWalkersNew, determ_ind, ic, ex(2,2), ms_parent
         integer :: nI_parent(nel), nI_child(nel)
         integer(n_int) :: ilut_child(0:NIfTot)
@@ -156,6 +159,11 @@ contains
                                                   fcimc_excit_gen_store)
 
                             ex_level_to_ref = FindBitExcitLevel(iLutRef, ilut_parent, max_calc_ex_level)
+                            if(tRef_Not_HF) then
+                                ex_level_to_hf = FindBitExcitLevel (iLutHF_true, ilut_parent, max_calc_ex_level)
+                            else
+                                ex_level_to_hf = ex_level_to_ref
+                            endif
 
                             tParentIsDeterm = check_determ_flag(ilut_parent)
                             tParentUnoccupied = IsUnoccDet(parent_sign)
@@ -190,6 +198,12 @@ contains
 
                             call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
                                                parent_hdiag, 1.0_dp, idet)
+
+                            ! If we're on the Hartree-Fock, and all singles and
+                            ! doubles are in the core space, then there will be
+                            ! no stochastic spawning from this determinant, so
+                            ! we can the rest of this loop.
+                            if (tDoublesCore .and. ex_level_to_hf == 0 .and. tDetermHFSpawning) cycle
 
                             if (tAllSymSectors) then
                                 ms_parent = return_ms(ilut_parent)
@@ -357,7 +371,8 @@ contains
 
         integer :: iiter, idet, ireplica, ispawn, ierr
         integer :: iconfig, irepeat, ireport, nlowdin
-        integer :: nspawn, parent_flags, unused_flags, ex_level_to_ref
+        integer :: nspawn, parent_flags, unused_flags
+        integer :: ex_level_to_ref, ex_level_to_hf
         integer :: TotWalkersNew, determ_ind, ic, ex(2,2)
         integer :: nI_parent(nel), nI_child(nel), unused_vecslot
         integer(n_int) :: ilut_child(0:NIfTot)
@@ -453,6 +468,11 @@ contains
                                               fcimc_excit_gen_store)
 
                         ex_level_to_ref = FindBitExcitLevel(iLutRef, ilut_parent, max_calc_ex_level)
+                        if(tRef_Not_HF) then
+                            ex_level_to_hf = FindBitExcitLevel (iLutHF_true, ilut_parent, max_calc_ex_level)
+                        else
+                            ex_level_to_hf = ex_level_to_ref
+                        endif
 
                         tParentIsDeterm = check_determ_flag(ilut_parent)
                         tParentUnoccupied = IsUnoccDet(parent_sign)
@@ -487,6 +507,12 @@ contains
 
                         call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
                                            parent_hdiag, 1.0_dp, idet)
+
+                        ! If we're on the Hartree-Fock, and all singles and
+                        ! doubles are in the core space, then there will be no
+                        ! stochastic spawning from this determinant, so we can
+                        ! the rest of this loop.
+                        if (tDoublesCore .and. ex_level_to_hf == 0 .and. tDetermHFSpawning) cycle
 
                         do ireplica = 1, lenof_sign
 

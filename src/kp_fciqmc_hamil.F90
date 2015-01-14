@@ -14,12 +14,13 @@ contains
 
         use bit_rep_data, only: NOffFlag, tUseFlags
         use bit_reps, only: decode_bit_det
+        use CalcData, only: tDoublesCore, tDetermHFSpawning
         use constants
-        use DetBitOps, only: return_ms
+        use DetBitOps, only: return_ms, FindBitExcitLevel
         use FciMCData, only: fcimc_excit_gen_store, exFlag, SpawnVecKP, SpawnVecKP2
         use FciMCData, only: SpawnVec, SpawnVec2, determ_sizes, determ_displs, SpawnedParts
         use FciMCData, only: SpawnedParts2, InitialSpawnedSlots, ValidSpawnedList, ll_node
-        use FciMCData, only: spawn_ht, subspace_hamil_time
+        use FciMCData, only: spawn_ht, subspace_hamil_time, iLutHF_True, max_calc_ex_level
         use hash, only: clear_hash_table
         use kp_fciqmc_data_mod, only: tSemiStochasticKPHamil, tExcitedStateKP, av_mc_excits_kp
         use procedure_pointers, only: generate_excitation, encode_child, get_spawn_helement
@@ -37,7 +38,7 @@ contains
         real(dp), allocatable, intent(inout), optional :: partial_vecs(:,:), full_vecs(:,:)
         real(dp), intent(in), optional :: h_diag(:)
 
-        integer :: idet, ispawn, nspawn, i, j
+        integer :: idet, ispawn, nspawn, i, j, ex_level_to_hf
         integer :: determ_ind, flag_ind, ic, ex(2,2), ms_parent
         integer :: nI_parent(nel), nI_child(nel)
         integer(n_int) :: ilut_child(0:NIfTot), ilut_parent(0:NIfTot)
@@ -95,6 +96,11 @@ contains
             end if
 
             if (tParentUnoccupied) cycle
+
+            if (tDoublesCore .and. tDetermHFSpawning) then
+                ex_level_to_hf = FindBitExcitLevel (iLutHF_true, ilut_parent, max_calc_ex_level)
+                if (ex_level_to_hf == 0) cycle
+            end if
 
             if (tAllSymSectors) then
                 ms_parent = return_ms(ilut_parent)

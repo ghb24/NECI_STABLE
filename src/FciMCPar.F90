@@ -7,7 +7,7 @@ module FciMCParMod
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
-                        iFullSpaceIter
+                        iFullSpaceIter, tDoublesCore, tDetermHFSpawning
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, &
@@ -793,13 +793,24 @@ module FciMCParMod
             ! This is where the projected energy is calculated.
             call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, j)
 
+            ! If we're on the Hartree-Fock, and all singles and doubles are in
+            ! the core space, then there will be no stochastic spawning from
+            ! this determinant, so we can the rest of this loop.
+            if (tDoublesCore .and. walkExcitLevel_toHF == 0 .and. tDetermHFSpawning) then
+                if (tFillingStochRDMonFly) then
+                    call set_av_sgn(j, AvSignCurr)
+                    call set_iter_occ(j, IterRDMStartCurr)
+                endif
+                cycle
+            end if
+
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles
             ! lenof_sign == 2 --> complex walkers
             !                 --> part_type == 1, 2; real and complex walkers
             !                 --> OR double run
             !                 --> part_type == 1, 2; population sets 1 and 2, both real
-            do part_type=1,lenof_sign
+            do part_type = 1, lenof_sign
             
                 TempSpawnedPartsInd = 0
 

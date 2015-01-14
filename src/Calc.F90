@@ -326,6 +326,7 @@ contains
           spectral_ground_energy = 0.0_dp
           tIncludeGroundSpectral = .false.
           alloc_popsfile_dets = .false.
+          tDetermHFSpawning = .true.
 
           pParallel = 0.5_dp
 
@@ -1062,15 +1063,18 @@ contains
             case("MAX-CORE-SIZE")
                 tLimitDetermSpace = .true.
                 call geti(max_determ_size)
-            case("MAX-TRIAL-SIZE")
-                tLimitTrialSpace = .true.
-                call geti(max_trial_size)
+            case("STOCHASTIC-HF-SPAWNING")
+                tDetermHFSpawning = .false.
+
             case("TRIAL-WAVEFUNCTION")
                 tTrialWavefunction = .true.
                 if (item < nitems) then
                     call geti(trial_mp1_ndets)
                     tMP1Trial = .true.
                 end if
+            case("MAX-TRIAL-SIZE")
+                tLimitTrialSpace = .true.
+                call geti(max_trial_size)
             case("DOUBLES-TRIAL")
                 tDoublesTrial = .true.
             case("CAS-TRIAL")

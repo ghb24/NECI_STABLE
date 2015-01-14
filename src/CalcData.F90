@@ -173,6 +173,12 @@ logical :: tLowECoreAllDoubles
 ! When using the tMP1Core option, this specifies how many determinants to keep.
 integer :: semistoch_mp1_ndets
 
+! If true then, if using a deterministic space of all singles and doubles, no
+! stochastic spawning will be attempted from the Hartree-Fock. This is allowed
+! because all 'spawnings' from the Hartree-Fock in this case will be
+! deterministic.
+logical :: tDetermHFSpawning
+
 ! Options relating to the trial wavefunction.
 logical :: tTrialWavefunction ! Use a trial wavefunction-based energy estimator.
 logical :: tDoublesTrial ! Use single and double exciations for the trial space.

@@ -983,27 +983,25 @@ contains
         character(len=*), parameter :: t_r = "create_trial_states"
 
         nexcit = nvecs
+        ndets_this_proc = 0
 
         ! Choose the correct generating routine.
-        if (tPops_KP_Space) then
-            call generate_space_most_populated(n_kp_pops, SpawnedParts, ndets_this_proc)
-        else if (tRead_KP_Space) then
-            call generate_space_from_file('DETFILE', SpawnedParts, ndets_this_proc)
-        else if (tDoubles_KP_Space) then
-            call generate_sing_doub_determinants(SpawnedParts, ndets_this_proc)
-        else if (tCAS_KP_Space) then
-            call generate_cas(Occ_KP_CasOrbs, Virt_KP_CasOrbs, SpawnedParts, ndets_this_proc)
-        else if (tRAS_KP_Space) then
-            call generate_ras(kp_ras, SpawnedParts, ndets_this_proc)
-        else if (tMP1_KP_Space) then
-            call generate_using_mp1_criterion(kp_mp1_ndets, SpawnedParts, ndets_this_proc)
-        else if (tFCI_KP_Space) then
+        if (tPops_KP_Space) call generate_space_most_populated(n_kp_pops, SpawnedParts, ndets_this_proc)
+        if (tRead_KP_Space) call generate_space_from_file('DETFILE', SpawnedParts, ndets_this_proc)
+        if (tDoubles_KP_Space) call generate_sing_doub_determinants(SpawnedParts, ndets_this_proc)
+        if (tCAS_KP_Space) call generate_cas(Occ_KP_CasOrbs, Virt_KP_CasOrbs, SpawnedParts, ndets_this_proc)
+        if (tRAS_KP_Space) call generate_ras(kp_ras, SpawnedParts, ndets_this_proc)
+        if (tMP1_KP_Space) call generate_using_mp1_criterion(kp_mp1_ndets, SpawnedParts, ndets_this_proc)
+        if (tFCI_KP_Space) then
             if (tAllSymSectors) then
                 call gndts_all_sym_this_proc(SpawnedParts, .true., ndets_this_proc)
             else
                 call generate_fci_core(SpawnedParts, ndets_this_proc)
             end if
-        else
+        end if
+
+        if (.not. (tPops_KP_Space .or. tRead_KP_Space .or. tDoubles_KP_Space .or. tCAS_KP_Space &
+                    .or. tRAS_KP_Space .or. tMP1_KP_Space .or. tFCI_KP_Space)) then
             call stop_all(t_r, "A space for the trial functions was not chosen.")
         end if
 
