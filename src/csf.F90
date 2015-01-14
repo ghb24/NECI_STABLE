@@ -1698,7 +1698,11 @@ contains
                     c = coeffs(i)
                 else
                     call extract_sign (iluts(:,i), sgn)
-                    c = ARR_ABS(sgn)
+#ifdef __CMPLX
+                    c = abs(cmplx(sgn(1), sgn(2)))
+#else
+                    c = abs(sgn(1))
+#endif
                 endif
 
                 if (c > threshold) nopen_min = nopen
