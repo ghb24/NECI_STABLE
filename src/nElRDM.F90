@@ -58,9 +58,9 @@ MODULe nElRDMMod
                          IterRDMStart, ValidSpawnedList, &
                          TempSpawnedPartsInd, TempSpawnedParts, TotParts, &
                          TotWalkers, iLutHF, core_space, IterLastRDMFill, &
-                         determ_proc_sizes,determ_proc_indices, partial_determ_vector, &
-                         full_determ_vector, full_determ_vector_av, tFill_RDM, &
-                         VaryShiftIter, IterRDM_HF, tFinalRDMEnergy
+                         determ_sizes, determ_displs, &
+                         full_determ_vecs_av, tFill_RDM, VaryShiftIter, &
+                         IterRDM_HF, tFinalRDMEnergy
     use LoggingData, only: RDMExcitLevel, tROFciDump, NoDumpTruncs, &
                        tExplicitAllRDM, tPrint1RDM, RDMEnergyIter, &
                        tDo_Not_Calc_RDMEnergy, tDiagRDM, tReadRDMs, &
@@ -6422,13 +6422,13 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
         Ex(:,:)=0
 
         ! Cycle over all core dets on this process.
-        do i = 1, determ_proc_sizes(iProcIndex)
-            iLutI = core_space(:,determ_proc_indices(iProcIndex)+i)
+        do i = 1, determ_sizes(iProcIndex)
+            iLutI = core_space(:,determ_displs(iProcIndex)+i)
                          
             ! Connections to the HF are added in elsewhere, so skip them here.
             if (DetBitEq(iLutI, iLutHF_True, NifDBO)) cycle
            
-            AvSignI = full_determ_vector_av(1,determ_proc_indices(iProcIndex)+i)
+            AvSignI = full_determ_vecs_av(1,determ_displs(iProcIndex)+i)
 
             call decode_bit_det(nI,iLutI)
  
@@ -6436,10 +6436,10 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
                  ! Running over all non-zero off-diag matrix elements
                  ! Connections to whole space (1 row), excluding diagonal elements
 
-                 ! Note: determ_proc_indices holds sum(determ_proc_sizes(0:proc-1))
+                 ! Note: determ_displs holds sum(determ_sizes(0:proc-1))
                  ! Core space holds all the core determinants on every processor,
                  ! so we need to shuffle up to the range of indices corresponding
-                 ! to this proc (using determ_proc_indices) and then select the
+                 ! to this proc (using determ_displs) and then select the
                  ! correct one, i.
                  
                  iLutJ = core_space(:,core_connections(i)%positions(j))
@@ -6447,7 +6447,7 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
                  ! Connections to the HF are added in elsewhere, so skip them here.
                  if (DetBitEq(iLutJ, iLutHF_True, NifDBO)) cycle
                  
-                 AvSignJ = full_determ_vector_av(inum_runs,core_connections(i)%positions(j))
+                 AvSignJ = full_determ_vecs_av(inum_runs,core_connections(i)%positions(j))
 
                  connect_elem = core_connections(i)%elements(j)
 

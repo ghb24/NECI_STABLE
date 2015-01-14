@@ -387,15 +387,6 @@ module AnnihilationMod
         SpawnedParts2 => SpawnedParts
         SpawnedParts => PointTemp
 
-        ! For kp-fciqmc calculations, store the current state of the spawning
-        ! array.
-        if (tKP_FCIQMC) then
-            max_spawned_ind = ValidSpawned
-            do i = 1, ValidSpawned
-                SpawnedPartsKP(0:NIfDBO+lenof_sign,i) = SpawnedParts(0:NIfDBO+lenof_sign,i)
-            end do
-        end if
-
     end subroutine CompressSpawnedList
 
     subroutine HistAnnihilEvent(iLut, Sign1, Sign2, part_type)
@@ -481,7 +472,7 @@ module AnnihilationMod
         ! Update annihilation statistics.
         if (sgn_prod < 0.0_dp) then
             run = part_type_to_run(part_type)
-            Annihilated = Annihilated(run) + 2*min(abs(cum_sgn), abs(new_sgn))
+            Annihilated(run) = Annihilated(run) + 2*min(abs(cum_sgn), abs(new_sgn))
             iter_data%nannihil(part_type) = iter_data%nannihil(part_type)&
                 + 2 * min(abs(cum_sgn), abs(new_sgn))
         end if
@@ -513,11 +504,11 @@ module AnnihilationMod
         integer :: nI(nel)
         real(dp), dimension(lenof_sign) :: SpawnedSign, CurrentSign, SignProd
 
-        ! Copy across the weights from partial_determ_vector (the result of the deterministic projection)
+        ! Copy across the weights from partial_determ_vecs (the result of the deterministic projection)
         ! to CurrentDets:
-        do i = 1, determ_proc_sizes(iProcIndex)
+        do i = 1, determ_sizes(iProcIndex)
             call extract_sign(CurrentDets(:, indices_of_determ_states(i)), CurrentSign)
-            SpawnedSign = partial_determ_vector(:,i)
+            SpawnedSign = partial_determ_vecs(:,i)
             call encode_sign(CurrentDets(:, indices_of_determ_states(i)), SpawnedSign + CurrentSign)
 
             ! Update stats:
@@ -846,10 +837,10 @@ module AnnihilationMod
 
     subroutine AddNewHashDet(TotWalkersNew, iLutCurr, DetHash, nJ)
 
-        ! Add a new determinant to the main list when tHashWalkerList is true.
-        ! This involves updating the list length, copying it across, updating
-        ! its flag, adding its diagonal helement(if neccessary). We also need
-        ! to update the hash table to point at it correctly
+        ! Add a new determinant to the main list. This involves updating the
+        ! list length, copying it across, updating its flag, adding its diagonal
+        ! helement (if neccessary). We also need to update the hash table to
+        ! point at it correctly.
 
         integer, intent(inout) :: TotWalkersNew 
         integer(n_int), intent(inout) :: iLutCurr(0:NIfTot)

@@ -115,7 +115,7 @@ module fcimc_pointed_fns
         HElement_t :: rh, rh_used
 
         ! Just in case
-        child = 0
+        child = 0.0_dp
 
         ! If each walker does not have exactly one spawning attempt
         ! (if AvMCExcits /= 1.0_dp) then the probability of an excitation
@@ -168,7 +168,7 @@ module fcimc_pointed_fns
         !       - Attempt to spawn REAL walkers with prob +AIMAG(Hij)/P
         !       - Attempt to spawn IMAG walkers with prob -REAL(Hij)/P
 #if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
-        child = 0
+        child = 0.0_dp
         tgt_cpt = part_type
         walkerweight = sign(1.0_dp, RealwSign(part_type))
         matEl = real(rh_used, dp)

@@ -219,6 +219,9 @@ LOGICAL :: tSymIgnoreEnergies
 
     logical :: tGenHelWeighted, tGen_4ind_weighted, tGen_4ind_reverse
 
+    ! Are we using multiple replicas?
+    logical :: tMultiReplicas
+
 ! Operators for type(symmetry)
 interface assignment (=)
     module procedure SymAssign

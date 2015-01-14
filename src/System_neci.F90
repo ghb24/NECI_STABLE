@@ -172,6 +172,13 @@ MODULE System
       tGen_4ind_weighted = .false.
       tGen_4ind_reverse = .false.
 
+      tMultiReplicas = .false.
+
+#ifdef __PROG_NUMRUNS
+      inum_runs = 1
+      lenof_sign = 1
+#endif
+
 !Feb08 defaults:
       IF(Feb08) THEN
           !...add defaults...
@@ -929,6 +936,7 @@ system: do
             ! representation (i.e. lenof_sign) is permitted to vary at runtime
 #ifdef __PROG_NUMRUNS
             call readi(inum_runs)
+            tMultiReplicas = .true.
             lenof_sign = inum_runs
             if (inum_runs > inum_runs_max) then
                 write(6,*) 'Maximum SYSTEM-REPLICAS: ', inum_runs_max
