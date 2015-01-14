@@ -131,31 +131,33 @@ logical :: tMP1Core
 logical :: tFCICore
 logical :: tHeisenbergFCICore
 logical :: tSparseCoreHamil ! Use a sparse representation of the core Hamiltonian.
-! cas_determ_bitmask has all bits that refer to the active space set, and all other bits unset.
-! cas_not_determ_bitmask is simply the result after the not operation is applied to cas_determ_bitmask.
-integer(n_int), allocatable, dimension(:) :: cas_determ_bitmask
-integer(n_int), allocatable, dimension(:) :: cas_determ_not_bitmask
-! Bitmasks with all bits corresponding to orbitals in RAS1 and RAS3, repectively, set.
-integer(n_int), allocatable, dimension(:) :: core_ras1_bitmask
-integer(n_int), allocatable, dimension(:) :: core_ras3_bitmask
 ! When using a CAS deterministic space, these integers store the number of orbitals above and below the Fermi energy to
 ! include in the CAS active space (the occupied and virtual orbitals).
 integer :: OccDetermCASOrbs
 integer :: VirtDetermCASOrbs
-! When using tOptimisedCore, this specifies the minimum amplitude that a basis state should have in the ground state
-! (of the deterministic space generated) in order to be kept in the next deterministic space. The first component
-! refers to the first iteration, the second component to the second iteration...
-real(dp), allocatable, dimension(:) :: determ_space_cutoff_amp
-! When using tOptimisedCore, this specifies how many basis states (of the deterministic space generated) should be kept
-! in the next deterministic space. The first component refers to the first iteration, the second component to the second
-! iteration... i.e. if determ_space_cutoff_num(1) = 5 then in the first iteration, the 5 basis states with the largest
-! amplitudes in the ground state are kept.
-integer, allocatable, dimension(:) :: determ_space_cutoff_num
-! If this logical is true, then the cutoff criterion is done using the amplitude. If false, it is done using a fixed number.
-logical :: tDetermAmplitudeCutoff
-! When using the optimised core option for semi-stochastic simulations, this option specifies how many iterations of
-! the generation procedure should be performed.
-integer :: num_det_generation_loops
+
+! This type refers to data that specifies optimised core spaces. It is passed to
+! the routine generate_optimised_core. See this routine for an explanation.
+type opt_space_data
+    ! The number of generation loops for the algorithm to perform. 
+    integer :: ngen_loops
+    ! If true then perform cutoff of determinants each iteration by using
+    ! amplitudes les than the values in cutoff_amps, else perform cutoff using the
+    ! number of determinants in cutoff_nums.
+    logical :: tAmpCutoff
+    ! If tAmpCutoff is .true. then this will be allocated and used to perform the
+    ! cutoff of determinants each iteration.
+    real(dp), allocatable :: cutoff_amps(:)
+    ! If tAmpCutoff is .false. then this will be allocated and used to perform the
+    ! cutoff of determinants each iteration.
+    integer, allocatable :: cutoff_nums(:)
+end type
+
+! Optimised space data for generating a semi-stohastic space.
+type(opt_space_data) :: determ_opt_data
+! Optimised space data for generating a trial wave function space.
+type(opt_space_data) :: trial_opt_data
+
 ! If this is true then set a limit on the maximum deterministic space size.
 logical :: tLimitDetermSpace
 ! This is maximum number of elements in the deterministic space, if tLimitDetermSpace is true.
@@ -175,8 +177,9 @@ integer :: semistoch_mp1_ndets
 logical :: tTrialWavefunction ! Use a trial wavefunction-based energy estimator.
 logical :: tDoublesTrial ! Use single and double exciations for the trial space.
 logical :: tCASTrial ! Use a CAS space for the trial space.
+logical :: tRASTrial ! Use a RAS space for the trial space (see ras.F90 for definition).
 logical :: tOptimisedTrial ! Generate an optimised trial space by diagonalisaing part of the space.
-! As for determ_space_cutoff_amp and determ_space_cutoff_num above, but the following two quantities refer to the trial space
+! As for determ_cutoff_amp and determ_cutoff_num above, but the following two quantities refer to the trial space
 ! generation rather than the deterministic space generation.
 logical :: tReadTrial ! Read in the trial space from the TRIALSPACE file.
 logical :: tPopsTrial ! Use the most populated states from a POPSFILE for the trial space.
@@ -190,16 +193,10 @@ logical :: tMP1Trial
 ! Use the entire Hilbert space as the trial space.
 logical :: tFCITrial
 logical :: tHeisenbergFCITrial
-real(dp), allocatable, dimension(:) :: trial_space_cutoff_amp
-integer, allocatable, dimension(:) :: trial_space_cutoff_num
 ! When using a CAS trial space, these integers store the number of orbitals above and below the Fermi energy to
 ! include in the CAS active space (the occupied and virtual orbitals).
 integer :: OccTrialCASOrbs
 integer :: VirtTrialCASOrbs
-! If this logical is true, then the cutoff criterion is done using the amplitude. If false, it is done using a fixed number.
-logical :: tTrialAmplitudeCutoff
-! As for num_determ_generation_loops above, but here for the trial wavefunction generation.
-integer :: num_trial_generation_loops
 ! If this is true then set a limit on the maximum trial space size.
 logical :: tLimitTrialSpace
 ! This is maximum number of elements in the trial space, if tLimitDetermSpace is true.

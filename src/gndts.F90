@@ -129,7 +129,7 @@ contains
 
         use SystemData, only: nel
 
-        integer(n_int), intent(inout) :: ilut_list(0:,:)
+        integer(n_int), intent(out) :: ilut_list(0:,:)
         logical, intent(in) :: tCount
         integer, intent(out) :: ndets
         integer :: nI(nel)
