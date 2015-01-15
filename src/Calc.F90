@@ -31,7 +31,7 @@ MODULE Calc
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets
-    use semi_stoch_gen, only: core_ras
+    use ras_data, only: core_ras, trial_ras
     use ftlm_neci
     use spectral_data
     use spectral_lanczos, only: n_lanc_vecs_sl
@@ -284,7 +284,7 @@ contains
           tReadCore = .false.
           tLowECore = .false.
           tMP1Core = .false.
-          num_det_generation_loops = 1
+          determ_opt_data%ngen_loops = 1
           n_core_pops = 0
           low_e_core_excit = 0
           low_e_core_num_keep = 0
@@ -294,10 +294,11 @@ contains
           tLimitTrialSpace = .false.
           max_determ_size = 0
           max_trial_size = 0
-          tDetermAmplitudeCutoff = .false.
+          determ_opt_data%tAmpCutoff = .false.
           tTrialWavefunction = .false.
           tDoublesTrial = .false.
           tCASTrial = .false.
+          tRASTrial = .false.
           tOptimisedTrial =.false.
           tPopsTrial = .false.
           tReadTrial = .false.
@@ -305,13 +306,13 @@ contains
           tMP1Trial = .false.
           tFCITrial = .false.
           tHeisenbergFCITrial = .false.
-          num_trial_generation_loops = 1
+          trial_opt_data%ngen_loops = 1
           n_trial_pops = 0
           low_e_trial_excit = 0
           low_e_trial_num_keep = 0
           trial_mp1_ndets = 0
           tLowETrialAllDoubles = .false.
-          tTrialAmplitudeCutoff = .false.
+          trial_opt_data%tAmpCutoff = .false.
           tKP_FCIQMC = .false.
           tLetInitialPopDie = .false.
           tWritePopsNorm = .false.
@@ -1022,18 +1023,18 @@ contains
             case("OPTIMISED-CORE")
                 tOptimisedCore = .true.
             case("OPTIMISED-CORE-CUTOFF-AMP")
-                tDetermAmplitudeCutoff = .true.
-                num_det_generation_loops = nitems - 1
-                allocate(determ_space_cutoff_amp(num_det_generation_loops))
-                do I = 1, num_det_generation_loops
-                    call getf(determ_space_cutoff_amp(I))
+                determ_opt_data%tAmpCutoff = .true.
+                determ_opt_data%ngen_loops = nitems - 1
+                allocate(determ_opt_data%cutoff_amps(determ_opt_data%ngen_loops))
+                do I = 1, determ_opt_data%ngen_loops
+                    call getf(determ_opt_data%cutoff_amps(I))
                 end do
             case("OPTIMISED-CORE-CUTOFF-NUM")
-                tDetermAmplitudeCutoff = .false.
-                num_det_generation_loops = nitems - 1
-                allocate(determ_space_cutoff_num(num_det_generation_loops))
-                do I = 1, num_det_generation_loops
-                    call geti(determ_space_cutoff_num(I))
+                determ_opt_data%tAmpCutoff = .false.
+                determ_opt_data%ngen_loops = nitems - 1
+                allocate(determ_opt_data%cutoff_nums(determ_opt_data%ngen_loops))
+                do I = 1, determ_opt_data%ngen_loops
+                    call geti(determ_opt_data%cutoff_nums(I))
                 end do
             case("FCI-CORE")
                 tFCICore = .true.
@@ -1080,21 +1081,33 @@ contains
                 tSpn = .true.
                 call geti(OccTrialCASOrbs)  !Number of electrons in CAS 
                 call geti(VirtTrialCASOrbs)  !Number of virtual spin-orbitals in CAS
+            case("RAS-TRIAL")
+                tRASTrial = .true.
+                call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
+                call geti(ras_size_2)  ! Number of spatial orbitals in RAS2.
+                call geti(ras_size_3)  ! Number of spatial orbitals in RAS3.
+                call geti(ras_min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs. 
+                call geti(ras_max_3)  ! Max number of electrons (alpha and beta) in RAS3 orbs.
+                trial_ras%size_1 = int(ras_size_1,sp)
+                trial_ras%size_2 = int(ras_size_2,sp)
+                trial_ras%size_3 = int(ras_size_3,sp)
+                trial_ras%min_1 = int(ras_min_1,sp)
+                trial_ras%max_3 = int(ras_max_3,sp)
             case("OPTIMISED-TRIAL")
                 tOptimisedTrial = .true.
             case("OPTIMISED-TRIAL-CUTOFF-AMP")
-                tTrialAmplitudeCutoff = .true.
-                num_trial_generation_loops = nitems - 1
-                allocate(trial_space_cutoff_amp(num_trial_generation_loops))
-                do I = 1, num_trial_generation_loops
-                    call getf(trial_space_cutoff_amp(I))
+                trial_opt_data%tAmpCutoff = .true.
+                trial_opt_data%ngen_loops = nitems - 1
+                allocate(trial_opt_data%cutoff_amps(trial_opt_data%ngen_loops))
+                do I = 1, trial_opt_data%ngen_loops
+                    call getf(trial_opt_data%cutoff_amps(I))
                 end do
             case("OPTIMISED-TRIAL-CUTOFF-NUM")
-                tTrialAmplitudeCutoff = .false.
-                num_trial_generation_loops = nitems - 1
-                allocate(trial_space_cutoff_num(num_trial_generation_loops))
-                do I = 1, num_trial_generation_loops
-                    call geti(trial_space_cutoff_num(I))
+                trial_opt_data%tAmpCutoff = .false.
+                trial_opt_data%ngen_loops = nitems - 1
+                allocate(trial_opt_data%cutoff_nums(trial_opt_data%ngen_loops))
+                do I = 1, trial_opt_data%ngen_loops
+                    call geti(trial_opt_data%cutoff_nums(I))
                 end do
             case("POPS-TRIAL")
                 tPopsTrial = .true.
@@ -2167,7 +2180,7 @@ contains
     
     
     
-        Subroutine CalcDoCalc()
+        Subroutine CalcDoCalc(kp)
           use SystemData, only: Alat, Arr,Brr, Beta, ECore, G1, LMS, LMS2, nBasis,NMSH, nBasisMax
           use SystemData, only: SymRestrict, tCSFOLD, tParity, tSpn, ALat, Beta,tMolpro,tMolproMimic
           use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,BasisFN,BasisFNSize,BasisFNSizeB,nEl
@@ -2184,14 +2197,16 @@ contains
           use sym_mod
           use davidson_neci, only: davidson_direct_ci_init, davidson_direct_ci_end, perform_davidson
           use davidson_neci, only: direct_ci_type
-          use kp_fciqmc, only: perform_kp_fciqmc
-          use kp_fciqmc_procs, only: kp
+          use kp_fciqmc, only: perform_kp_fciqmc, perform_subspace_fciqmc
+          use kp_fciqmc_data_mod, only: tExcitedStateKP
+          use kp_fciqmc_procs, only: kp_fciqmc_data
 
 !Calls
 !          real(dp) DMonteCarlo2
 !Local Vars
           real(dp) EN,WeightDum,EnerDum
           integer iSeed,iunit
+          type(kp_fciqmc_data), intent(inout) :: kp
           iSeed=7 
 
 !C.. we need to calculate a value for RHOEPS, so we approximate that
@@ -2227,10 +2242,12 @@ contains
                 call RunRPA_QBA(WeightDum,EnerDum)
                 WRITE(6,*) "Summed approx E(Beta)=",EnerDum
              elseif(tKP_FCIQMC) then
-                 call perform_kp_fciqmc(kp)
+                 if (tExcitedStateKP) then
+                     call perform_subspace_fciqmc(kp)
+                 else
+                     call perform_kp_fciqmc(kp)
+                 end if
              else
-
-
                  WRITE(6,*) "Calculating ",NPATHS," W_Is..."
                  iunit =get_free_unit()
                  IF(BTEST(ILOGGING,1)) THEN

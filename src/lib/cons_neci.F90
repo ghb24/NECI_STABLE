@@ -43,6 +43,7 @@ integer, parameter :: sizeof_sp = 4
 #if defined(__PROG_NUMRUNS)
     integer :: lenof_sign
     integer :: inum_runs
+    integer, parameter :: lenof_sign_kp = 2
     integer, parameter :: lenof_sign_max = 20
     integer, parameter :: inum_runs_max = 20
     integer, parameter :: sizeof_helement = 8
@@ -50,6 +51,7 @@ integer, parameter :: sizeof_sp = 4
 #elif defined(__DOUBLERUN)
     integer, parameter :: lenof_sign = 2
     integer, parameter :: inum_runs = lenof_sign
+    integer, parameter :: lenof_sign_kp = 2
     integer, parameter :: lenof_sign_max = lenof_sign
     integer, parameter :: inum_runs_max = inum_runs
     integer, parameter :: sizeof_helement = 8
@@ -57,6 +59,7 @@ integer, parameter :: sizeof_sp = 4
 #elif defined(__CMPLX)
     integer, parameter :: lenof_sign = 2
     integer, parameter :: inum_runs = 1
+    integer, parameter :: lenof_sign_kp = 2
     integer, parameter :: lenof_sign_max = lenof_sign
     integer, parameter :: inum_runs_max = inum_runs
     integer, parameter :: sizeof_helement = 16
@@ -64,6 +67,7 @@ integer, parameter :: sizeof_sp = 4
 #else
     integer, parameter :: lenof_sign = 1
     integer, parameter :: inum_runs = 1
+    integer, parameter :: lenof_sign_kp = 1
     integer, parameter :: lenof_sign_max = lenof_sign
     integer, parameter :: inum_runs_max = inum_runs
     integer, parameter :: sizeof_helement = 8

@@ -8,44 +8,16 @@
 
 module semi_stoch_procs
 
-    use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag, &
-                            flag_initiator, NOffSgn, NIfSgn
-    use bit_reps, only: decode_bit_det, set_flag, extract_part_sign, extract_sign, &
-                        encode_sign
+    use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag
+    use bit_reps, only: decode_bit_det
     use CalcData
     use constants
-    use davidson_neci, only: davidson_eigenvector, parallel_sparse_hamil_type, perform_davidson
-    use DetBitOps, only: ilut_lt, ilut_gt, FindBitExcitLevel, DetBitLT, &
-                         count_set_bits, DetBitEq, sign_lt, sign_gt, IsAllowedHPHF, &
-                         EncodeBitDet
-    use Determinants, only: get_helement, GetH0Element3, GetH0Element4
-    use FciMCData, only: ilutHF, Hii, determ_proc_sizes, determ_proc_indices, &
-                         full_determ_vector, partial_determ_vector, &
-                         determ_space_size, SpawnedParts, SemiStoch_Comms_Time, &
-                         SemiStoch_Multiply_Time, TotWalkers, CurrentDets, CoreTag, &
-                         PDetermTag, FDetermTag, IDetermTag, indices_of_determ_states, &
-                         HashIndex, core_space, CoreSpaceTag, ll_node, nWalkerHashes, &
-                         full_determ_vector_av, tFill_RDM, determ_space_size_int, &
-
-                         core_ham_diag, DavidsonTag, Fii, HFDet, PreviousCycles, &
-                         partial_determ_vecs_kp, full_determ_vecs_kp
-    use hash, only: DetermineDetNode, FindWalkerHash, clear_hash_table
-    use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
-    use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
-    use nElRDMMod, only: fill_RDM_offdiag_deterministic
-    use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIBarrier, MPIArg, &
-                             MPIAllGatherV, MPISum, MPISumAll, MPIScatterV
-    use ParallelHelper, only: root
-    use ras, only: core_ras
-    use searching, only: BinSearchParts
-    use sort_mod, only: sort
-    use sparse_arrays, only: sparse_core_ham, SparseCoreHamilTags, deallocate_sparse_ham, &
-                            core_connections, sparse_ham, hamil_diag, HDiagTag, &
-                            SparseHamilTags, allocate_sparse_ham_row, core_ht, core_hashtable
-    use SystemData, only: nel, tHPHF, nBasis, BRR, ARR, tUEG
-    use global_det_data, only: set_det_diagH
+    use FciMCData, only: determ_sizes, determ_displs, determ_space_size, SpawnedParts
+    use FciMCData, only: TotWalkers, CurrentDets, core_space
+    use Parallel_neci, only: iProcIndex, nProcessors, MPIArg
+    use sparse_arrays, only: sparse_core_ham
+    use SystemData, only: nel
     use timing_neci
-    use util_mod, only: get_free_unit
 
     implicit none
 
@@ -53,9 +25,13 @@ contains
 
     subroutine determ_projection()
 
-        ! This subroutine gathers together the partial_determ_vectors from each processor so
+        ! This subroutine gathers together partial_determ_vecs from each processor so
         ! that the full vector for the whole deterministic space is stored on each processor.
         ! It then performs the deterministic multiplication of the projector on this full vector.
+
+        use FciMCData, only: partial_determ_vecs, full_determ_vecs, SemiStoch_Comms_Time
+        use FciMCData, only: SemiStoch_Multiply_Time
+        use Parallel_neci, only: MPIBarrier, MPIAllGatherV
 
         integer :: i, j, k, info, ierr
 
@@ -63,14 +39,14 @@ contains
 
         call set_timer(SemiStoch_Comms_Time)
 
-        call MPIAllGatherV(partial_determ_vector, full_determ_vector, &
-                            determ_proc_sizes, determ_proc_indices)
+        call MPIAllGatherV(partial_determ_vecs, full_determ_vecs, &
+                            determ_sizes, determ_displs)
 
         call halt_timer(SemiStoch_Comms_Time)
 
         call set_timer(SemiStoch_Multiply_Time)
 
-        if (determ_proc_sizes(iProcIndex) >= 1) then
+        if (determ_sizes(iProcIndex) >= 1) then
 
             ! For the moment, we're only adding in these contributions when we need the energy
             ! This will need refinement if we want to continue with the option of inst vs true full RDMs
@@ -78,24 +54,24 @@ contains
 
             ! Perform the multiplication.
 
-            partial_determ_vector = 0.0_dp
+            partial_determ_vecs = 0.0_dp
 
-            do i = 1, determ_proc_sizes(iProcIndex)
+            do i = 1, determ_sizes(iProcIndex)
                 do j = 1, sparse_core_ham(i)%num_elements
-                    partial_determ_vector(:,i) = partial_determ_vector(:,i) - &
-                        sparse_core_ham(i)%elements(j)*full_determ_vector(:,sparse_core_ham(i)%positions(j))
+                    partial_determ_vecs(:,i) = partial_determ_vecs(:,i) - &
+                        sparse_core_ham(i)%elements(j)*full_determ_vecs(:,sparse_core_ham(i)%positions(j))
                 end do
             end do
 
-            ! Now add shift*full_determ_vector to account for the shift, not stored in
+            ! Now add shift*full_determ_vecs to account for the shift, not stored in
             ! sparse_core_ham.
-            do i = 1, determ_proc_sizes(iProcIndex)
-                partial_determ_vector(:,i) = partial_determ_vector(:,i) + &
-                   DiagSft * full_determ_vector(:,i+determ_proc_indices(iProcIndex))
+            do i = 1, determ_sizes(iProcIndex)
+                partial_determ_vecs(:,i) = partial_determ_vecs(:,i) + &
+                   DiagSft * full_determ_vecs(:,i+determ_displs(iProcIndex))
             end do
 
             ! Now multiply the vector by tau to get the final projected vector.
-            partial_determ_vector = partial_determ_vector * tau
+            partial_determ_vecs = partial_determ_vecs * tau
 
         end if
 
@@ -103,7 +79,14 @@ contains
 
     end subroutine determ_projection
 
-    subroutine determ_projection_kp_hamil()
+    subroutine determ_projection_kp_hamil(partial_vecs, full_vecs, determ_sizes, determ_disps)
+
+        use FciMCData, only: Hii, SemiStoch_Comms_Time, SemiStoch_Multiply_Time
+        use Parallel_neci, only: MPIBarrier, MPIAllGatherV
+
+        real(dp), allocatable, intent(inout) :: partial_vecs(:,:)
+        real(dp), allocatable, intent(inout) :: full_vecs(:,:)
+        integer(MPIArg), allocatable, intent(in) :: determ_sizes(:), determ_disps(:)
 
         integer :: i, j, info, ierr
 
@@ -111,8 +94,7 @@ contains
 
         call set_timer(SemiStoch_Comms_Time)
 
-        call MPIAllGatherV(partial_determ_vecs_kp, full_determ_vecs_kp, &
-                            determ_proc_sizes, determ_proc_indices)
+        call MPIAllGatherV(partial_vecs, full_vecs, determ_sizes, determ_disps)
 
         call halt_timer(SemiStoch_Comms_Time)
 
@@ -120,16 +102,16 @@ contains
 
         call set_timer(SemiStoch_Multiply_Time)
 
-        if (determ_proc_sizes(iProcIndex) >= 1) then
+        if (determ_sizes(iProcIndex) >= 1) then
             ! Start with this because sparse_core_hamil has Hii taken off, but actually we
             ! don't want the projected Hamiltonian to be relative to the HF determinant.
-            partial_determ_vecs_kp = Hii*full_determ_vecs_kp(:, determ_proc_indices(iProcIndex)+1:&
-                                              determ_proc_indices(iProcIndex)+determ_proc_sizes(iProcIndex))
+            partial_vecs = Hii*full_vecs(:, determ_disps(iProcIndex)+1:&
+                                            determ_disps(iProcIndex)+determ_sizes(iProcIndex))
 
-            do i = 1, determ_proc_sizes(iProcIndex)
+            do i = 1, determ_sizes(iProcIndex)
                 do j = 1, sparse_core_ham(i)%num_elements
-                    partial_determ_vecs_kp(:,i) = partial_determ_vecs_kp(:,i) + &
-                        sparse_core_ham(i)%elements(j)*full_determ_vecs_kp(:,sparse_core_ham(i)%positions(j))
+                    partial_vecs(:,i) = partial_vecs(:,i) + &
+                        sparse_core_ham(i)%elements(j)*full_vecs(:,sparse_core_ham(i)%positions(j))
                 end do
             end do
         end if
@@ -141,6 +123,7 @@ contains
     subroutine average_determ_vector()
 
         use FciMCData, only: Iter, tFillingStochRDMonFly, IterRDMStart
+        use FciMCData, only: full_determ_vecs, full_determ_vecs_av, PreviousCycles
         use LoggingData, only: RDMEnergyIter
 
         real(dp) :: iter_curr, iter_start_av
@@ -149,7 +132,7 @@ contains
         ! previous iteration. We now want to start a new averaging block so
         ! that the same contributions aren't added in again later.
         if (mod(Iter+PreviousCycles - IterRDMStart, RDMEnergyIter) == 0) then 
-            full_determ_vector_av = 0.0_dp
+            full_determ_vecs_av = 0.0_dp
         end if
 
         ! The current iteration, converted to a double precision real.
@@ -158,26 +141,28 @@ contains
         iter_start_av = real(RDMEnergyIter*((Iter+PreviousCycles - IterRDMStart)/RDMEnergyIter) + IterRDMStart, dp)
 
         ! Add in the current deterministic vector to the running average.
-        full_determ_vector_av = (((iter_curr - iter_start_av)*full_determ_vector_av) + full_determ_vector)/&
+        full_determ_vecs_av = (((iter_curr - iter_start_av)*full_determ_vecs_av) + full_determ_vecs)/&
                                  (iter_curr - iter_start_av + 1.0_dp)
 
     end subroutine average_determ_vector
 
     function is_core_state(ilut, nI) result (core_state)
 
-        use FciMCData, only: ll_node
+        use FciMCData, only: ll_node, determ_space_size_int
+        use hash, only: FindWalkerHash
+        use sparse_arrays, only: core_ht
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: nI(:)
-        integer :: i, hash
+        integer :: i, hash_val
         logical :: core_state
 
         core_state = .false.
 
-        hash = FindWalkerHash(nI, determ_space_size_int)
+        hash_val = FindWalkerHash(nI, determ_space_size_int)
 
-        do i = 1, core_ht(hash)%nclash
-            if (all(ilut(0:NIfDBO) == core_space(0:NIfDBO,core_ht(hash)%ind(i)) )) then
+        do i = 1, core_ht(hash_val)%nclash
+            if (all(ilut(0:NIfDBO) == core_space(0:NIfDBO,core_ht(hash_val)%ind(i)) )) then
                 core_state = .true.
                 return
             end if
@@ -204,6 +189,8 @@ contains
 
     subroutine recalc_core_hamil_diag(old_Hii, new_Hii)
 
+        use FciMCData, only: core_ham_diag
+
         real(dp) :: old_Hii, new_Hii
         real(dp) :: Hii_shift
         integer :: i, j
@@ -212,9 +199,9 @@ contains
 
         Hii_shift = old_Hii - new_Hii
 
-        do i = 1, determ_proc_sizes(iProcIndex)
+        do i = 1, determ_sizes(iProcIndex)
             do j = 1, sparse_core_ham(i)%num_elements
-                if (sparse_core_ham(i)%positions(j) == i + determ_proc_indices(iProcIndex)) then
+                if (sparse_core_ham(i)%positions(j) == i + determ_displs(iProcIndex)) then
                     sparse_core_ham(i)%elements(j) = sparse_core_ham(i)%elements(j) + Hii_shift
                 end if
             end do
@@ -226,6 +213,11 @@ contains
 
     subroutine generate_core_connections()
 
+        use DetBitOps, only: FindBitExcitLevel
+        use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
+        use Parallel_neci, only: MPIAllGatherV
+        use sparse_arrays, only: core_connections
+
         integer :: i, j, ic, counter, ierr
         integer :: Ex(2,nel)
         logical :: tSign
@@ -235,18 +227,18 @@ contains
 
         integer :: nI(nel), nJ(nel)
 
-        allocate(core_connections(determ_proc_sizes(iProcIndex)))
+        allocate(core_connections(determ_sizes(iProcIndex)))
 
         allocate(temp_store(0:NIfTot, determ_space_size), stat=ierr)
-        call LogMemAlloc('temp_store', maxval(determ_proc_sizes)*(NIfTot+1), 8, t_r, &
+        call LogMemAlloc('temp_store', maxval(determ_sizes)*(NIfTot+1), 8, t_r, &
                          TempStoreTag, ierr)
 
         ! Stick together the deterministic states from all processors, on all processors.
-        call MPIAllGatherV(SpawnedParts(:,1:determ_proc_sizes(iProcIndex)), temp_store, &
-                       determ_proc_sizes, determ_proc_indices)
+        call MPIAllGatherV(SpawnedParts(:,1:determ_sizes(iProcIndex)), temp_store, &
+                       determ_sizes, determ_displs)
 
         ! Over all core states on this processor.
-        do i = 1, determ_proc_sizes(iProcIndex)
+        do i = 1, determ_sizes(iProcIndex)
 
             ! The number of non-zero elements in this array will be almost the same as in
             ! the core Hamiltonian array, except the diagonal element is not considered,
@@ -260,7 +252,7 @@ contains
             counter = 0
             do j = 1, sparse_core_ham(i)%num_elements
                 ! If not the diagonal element.
-                if (sparse_core_ham(i)%positions(j) /= i + determ_proc_indices(iProcIndex)) then
+                if (sparse_core_ham(i)%positions(j) /= i + determ_displs(iProcIndex)) then
                     Ex = 0
                     Ex(1,1) = nel
                     counter = counter + 1
@@ -289,16 +281,20 @@ contains
 
     subroutine store_whole_core_space()
 
+        use FciMCData, only: CoreSpaceTag
+        use MemoryManager, only: LogMemAlloc
+        use Parallel_neci, only: MPIAllGatherV
+
         integer :: ierr
         character(len=*), parameter :: t_r = "store_whole_core_space"
 
         allocate(core_space(0:NIfTot, determ_space_size), stat=ierr)
-        call LogMemAlloc('core_space', maxval(determ_proc_sizes)*(NIfTot+1), 8, t_r, &
+        call LogMemAlloc('core_space', maxval(determ_sizes)*(NIfTot+1), 8, t_r, &
                          CoreSpaceTag, ierr)
         core_space = 0_n_int
 
-        call MPIAllGatherV(SpawnedParts(:,1:determ_proc_sizes(iProcIndex)), core_space, &
-                       determ_proc_sizes, determ_proc_indices)
+        call MPIAllGatherV(SpawnedParts(:,1:determ_sizes(iProcIndex)), core_space, &
+                       determ_sizes, determ_displs)
 
     end subroutine store_whole_core_space
 
@@ -306,10 +302,12 @@ contains
 
         use bit_reps, only: decode_bit_det
         use FciMCData, only: core_space
+        use hash, only: FindWalkerHash
+        use sparse_arrays, only: core_ht
         use SystemData, only: nel
 
         integer :: nI(nel)
-        integer :: i, ierr, hash
+        integer :: i, ierr, hash_val
         character(len=*), parameter :: t_r = "initialise_core_hash_table"
 
         allocate(core_ht(determ_space_size), stat=ierr)
@@ -321,8 +319,8 @@ contains
         ! Count the number of states with each hash value.
         do i = 1, determ_space_size
             call decode_bit_det(nI, core_space(:,i))
-            hash = FindWalkerHash(nI, int(determ_space_size,sizeof_int))
-            core_ht(hash)%nclash = core_ht(hash)%nclash + 1
+            hash_val = FindWalkerHash(nI, int(determ_space_size,sizeof_int))
+            core_ht(hash_val)%nclash = core_ht(hash_val)%nclash + 1
         end do
 
         do i = 1, determ_space_size
@@ -335,27 +333,29 @@ contains
         ! Now fill in the indices of the states in core_space.
         do i = 1, determ_space_size
             call decode_bit_det(nI, core_space(:,i))
-            hash = FindWalkerHash(nI, int(determ_space_size,sizeof_int))
-            core_ht(hash)%nclash = core_ht(hash)%nclash + 1
-            core_ht(hash)%ind(core_ht(hash)%nclash) = i
+            hash_val = FindWalkerHash(nI, int(determ_space_size,sizeof_int))
+            core_ht(hash_val)%nclash = core_ht(hash_val)%nclash + 1
+            core_ht(hash_val)%ind(core_ht(hash_val)%nclash) = i
         end do
 
     end subroutine initialise_core_hash_table
 
     subroutine remove_repeated_states(list, list_size)
 
+        use DetBitOps, only: ilut_lt, ilut_gt
+        use sort_mod, only: sort
+
         integer, intent(inout) :: list_size
         integer(n_int), intent(inout) :: list(0:NIfTot, list_size)
-        integer :: i, counter, comp
+        integer :: i, counter
 
         ! Annihilation-like steps to remove repeated states.
         call sort(list(:, 1:list_size), ilut_lt, ilut_gt)
         counter = 1
         do i = 2, list_size
-            comp = DetBitLT(list(:, i-1), list(:, i), NIfD, .false.)
             ! If this state and the previous one were identical, don't add this state to the
             ! list so that repeats aren't included.
-            if (comp /= 0) then
+            if (.not. all(list(0:NIfD, i-1) == list(0:NIfD, i)) ) then
                 counter = counter + 1
                 list(:, counter) = list(:, i)
             end if
@@ -366,6 +366,10 @@ contains
     end subroutine remove_repeated_states
 
     subroutine remove_high_energy_orbs(ilut_list, num_states, target_num_states, tParallel)
+
+        use Parallel_neci, only: MPISumAll
+        use sort_mod, only: sort
+        use SystemData, only: nBasis, BRR, Arr
 
         integer, intent(inout) :: num_states
         integer(n_int), intent(inout) :: ilut_list(0:NIfTot, 1:num_states)
@@ -463,8 +467,11 @@ contains
         ! Note: If requested, keep all doubles at the top, then sort by energy.
 
         use bit_reps, only: decode_bit_det
+        use DetBitOps, only: FindBitExcitLevel
         use Determinants, only: get_helement
+        use FciMCData, only: ilutHF
         use hphf_integrals, only: hphf_diag_helement
+        use sort_mod, only: sort
         use SystemData, only: tHPHF
 
         integer, intent(in) :: num_states
@@ -517,6 +524,9 @@ contains
 
         ! And also output the number of states on each processor in the space.
 
+        use hash, only: DetermineDetNode
+        use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
+
         integer, intent(in) :: ilut_list_size
         integer(n_int), intent(inout) :: ilut_list(0:NIfTot, 1:ilut_list_size)
         integer(MPIArg), intent(out) :: num_states_procs(0:nProcessors-1)
@@ -565,6 +575,12 @@ contains
 
     subroutine fill_in_diag_helements()
 
+        use Determinants, only: get_helement
+        use FciMCData, only: Hii
+        use global_det_data, only: set_det_diagH
+        use hphf_integrals, only: hphf_diag_helement
+        use SystemData, only: tHPHF
+
         integer :: i
         integer :: nI(nel)
         real(dp) :: tmpH
@@ -584,6 +600,10 @@ contains
     end subroutine fill_in_diag_helements
 
     subroutine write_core_space()
+
+        use Parallel_neci, only: MPIBarrier
+        use ParallelHelper, only: root
+        use util_mod, only: get_free_unit
 
         integer :: i, k, iunit, ierr
         logical :: texist
@@ -617,15 +637,19 @@ contains
         ! And if the state is already present, simply set its flag.
         ! Also sort the states afterwards.
 
-        integer :: i, comp, MinInd, PartInd, nwalkers
-        logical :: tSuccess
+        use bit_rep_data, only: flag_initiator
+        use bit_reps, only: set_flag
+        use DetBitOps, only: ilut_lt, ilut_gt, DetBitLT
+        use searching, only: BinSearchParts
+        use sort_mod, only: sort
 
-        integer :: j
+        integer :: i, j, comp, MinInd, PartInd, nwalkers
+        logical :: tSuccess
 
         MinInd = 1
         nwalkers = int(TotWalkers,sizeof_int)
 
-        do i = 1, determ_proc_sizes(iProcIndex)
+        do i = 1, determ_sizes(iProcIndex)
 
             if (nwalkers > 0) then
                 ! If there is only one state in CurrentDets to check then BinSearchParts doesn't
@@ -653,8 +677,9 @@ contains
             if (tSuccess) then
                 call set_flag(CurrentDets(:,PartInd), flag_deterministic)
                 if (tTruncInitiator) then
-                    call set_flag(CurrentDets(:,PartInd), flag_initiator(1))
-                    call set_flag(CurrentDets(:,PartInd), flag_initiator(2))
+                    do j = 1, lenof_sign
+                        call set_flag(CurrentDets(:,PartInd), flag_initiator(j))
+                    end do
                 end if
                 MinInd = PartInd
             else
@@ -690,11 +715,15 @@ contains
         ! will end up being repeated in CurrentDets is they are core determinants.
         ! This isn't ideal because when the FCIQMC calculation starts, such
         ! unoccupied determinants should *not* be in the hash table. During this
-        ! routine, such detereminants will be removed from the hash table and so
+        ! routine, such determinants will be removed from the hash table and so
         ! on output, everything will be fine and ready for the FCIQMC calculation
         ! to start.
 
-        integer :: i, DetHash, PartInd, nwalkers, i_non_core
+        use bit_reps, only: set_flag, extract_sign, encode_sign
+        use FciMCData, only: ll_node, indices_of_determ_states, HashIndex, nWalkerHashes
+        use hash, only: clear_hash_table, FindWalkerHash
+
+        integer :: i, hash_val, PartInd, nwalkers, i_non_core
         integer :: nI(nel)
         real(dp) :: walker_sign(lenof_sign)
         type(ll_node), pointer :: temp_node
@@ -705,15 +734,15 @@ contains
         ! First find which CurrentDet states are in the core space.
         ! The warning above refers to this bit of code: If a core determinant is not in the
         ! hash table then they won't be found here and the deterministic flag won't be set!
-        do i = 1, determ_proc_sizes(iProcIndex)
+        do i = 1, determ_sizes(iProcIndex)
 
             tSuccess = .false.
             call decode_bit_det (nI, SpawnedParts(:,i))
-            DetHash = FindWalkerHash(nI, nWalkerHashes)
-            temp_node => HashIndex(DetHash)
+            hash_val = FindWalkerHash(nI, nWalkerHashes)
+            temp_node => HashIndex(hash_val)
             if (temp_node%ind /= 0) then
                 do while (associated(temp_node))
-                    if (DetBitEQ(SpawnedParts(:,i), CurrentDets(:,temp_node%ind),NIfDBO)) then
+                    if ( all(SpawnedParts(0:NIfDBO, i) == CurrentDets(0:NIfDBO, temp_node%ind)) ) then
                         tSuccess = .true.
                         PartInd = temp_node%ind
                         exit
@@ -738,7 +767,7 @@ contains
 
         ! Next loop through CurrentDets and move all non-core states to after the last
         ! core state slot in SpawnedParts.
-        i_non_core = determ_proc_sizes(iProcIndex)
+        i_non_core = determ_sizes(iProcIndex)
         do i = 1, int(TotWalkers,sizeof_int)
             if (.not. test_flag(CurrentDets(:,i), flag_deterministic)) then
                 i_non_core = i_non_core + 1
@@ -761,8 +790,8 @@ contains
             ! in the core space.
             if (IsUnoccDet(walker_sign) .and. (.not. test_flag(CurrentDets(:,i), flag_deterministic))) cycle
             call decode_bit_det(nI, CurrentDets(:,i))
-            DetHash = FindWalkerHash(nI,nWalkerHashes)
-            temp_node => HashIndex(DetHash)
+            hash_val = FindWalkerHash(nI,nWalkerHashes)
+            temp_node => HashIndex(hash_val)
             ! If the first element in the list has not been used.
             if (temp_node%ind == 0) then
                 temp_node%ind = i
@@ -777,7 +806,7 @@ contains
             nullify(temp_node)
 
             ! These core states will always stay in the same position.
-            if (i <= determ_proc_sizes(iProcIndex)) indices_of_determ_states(i) = i
+            if (i <= determ_sizes(iProcIndex)) indices_of_determ_states(i) = i
         end do
 
         TotWalkers = int(nwalkers, int64)
@@ -788,6 +817,10 @@ contains
 
         ! Return the most populated states in CurrentDets on *this* processor only. 
         ! Also return the norm of these states, if requested.
+
+        use bit_reps, only: extract_sign
+        use DetBitOps, only: sign_lt, sign_gt
+        use sort_mod, only: sort
 
         integer, intent(in) :: n_keep
         integer(n_int), intent(out) :: largest_walkers(0:NIfTot, n_keep)
@@ -896,7 +929,15 @@ contains
 
     subroutine start_walkers_from_core_ground(tPrintInfo)
 
-        use davidson_neci, only: davidson_eigenvalue
+        use bit_reps, only: encode_sign
+        use davidson_neci, only: davidson_eigenvalue, parallel_sparse_hamil_type, perform_davidson
+        use davidson_neci, only: davidson_eigenvector
+        use FciMCData, only: core_ham_diag, DavidsonTag
+        use MemoryManager, only: LogMemAlloc, LogMemDealloc
+        use Parallel_neci, only: MPIScatterV
+        use ParallelHelper, only: root
+        use sparse_arrays, only: deallocate_sparse_ham, sparse_ham, hamil_diag, HDiagTag
+        use sparse_arrays, only: SparseHamilTags, allocate_sparse_ham_row
 
         logical, intent(in) :: tPrintInfo
         integer :: i, counter, ierr
@@ -906,9 +947,9 @@ contains
 
         ! Create the arrays used by the Davidson routine.
         ! First, the whole Hamiltonian in sparse form.
-        allocate(sparse_ham(determ_proc_sizes(iProcIndex)))
-        allocate(SparseHamilTags(2, determ_proc_sizes(iProcIndex)))
-        do i = 1, determ_proc_sizes(iProcIndex)
+        allocate(sparse_ham(determ_sizes(iProcIndex)))
+        allocate(SparseHamilTags(2, determ_sizes(iProcIndex)))
+        do i = 1, determ_sizes(iProcIndex)
             call allocate_sparse_ham_row(sparse_ham, i, sparse_core_ham(i)%num_elements, "sparse_ham", SparseHamilTags(:,i)) 
             sparse_ham(i)%elements = sparse_core_ham(i)%elements
             sparse_ham(i)%positions = sparse_core_ham(i)%positions
@@ -916,8 +957,8 @@ contains
         end do
 
         ! Next create the diagonal used by Davidson by copying the core one.
-        allocate(hamil_diag(determ_proc_sizes(iProcIndex)),stat=ierr)
-        call LogMemAlloc('hamil_diag', int(determ_proc_sizes(iProcIndex),sizeof_int), 8, t_r, HDiagTag, ierr)
+        allocate(hamil_diag(determ_sizes(iProcIndex)),stat=ierr)
+        call LogMemAlloc('hamil_diag', int(determ_sizes(iProcIndex),sizeof_int), 8, t_r, HDiagTag, ierr)
         hamil_diag = core_ham_diag
 
         if (tPrintInfo) then
@@ -951,9 +992,9 @@ contains
 
         ! Send the components to the correct processors using the following
         ! array as temporary space.
-        allocate(temp_determ_vec(determ_proc_sizes(iProcIndex)))
-        call MPIScatterV(davidson_eigenvector, determ_proc_sizes, determ_proc_indices, &
-                         temp_determ_vec, determ_proc_sizes(iProcIndex), ierr)
+        allocate(temp_determ_vec(determ_sizes(iProcIndex)))
+        call MPIScatterV(davidson_eigenvector, determ_sizes, determ_displs, &
+                         temp_determ_vec, determ_sizes(iProcIndex), ierr)
 
         ! Finally, copy these amplitudes across to the corresponding states in CurrentDets.
         counter = 0
@@ -979,6 +1020,8 @@ contains
         ! This routine will copy all the core determinants *ON THIS PROCESS
         ! ONLY* to the SpawnedParts array.
 
+        use hash, only: DetermineDetNode
+
         integer :: i, ncore, proc
         integer :: nI(nel)
         character (len=*), parameter :: t_r = "copy_core_dets_to_spawnedparts"
@@ -995,7 +1038,7 @@ contains
             end if
         end do
 
-        if (ncore /= determ_proc_sizes(iProcIndex)) call stop_all("t_r", "The number of &
+        if (ncore /= determ_sizes(iProcIndex)) call stop_all("t_r", "The number of &
             &core determinants counted is less than was previously counted.")
 
     end subroutine copy_core_dets_to_spawnedparts
@@ -1008,6 +1051,11 @@ contains
         ! To use this routine, generate an excitation from the Hartree-Fock determinant using the
         ! GenExcitations3 routine. This will return nI, ex and tParity which can be input into this
         ! routine.
+
+        use Determinants, only: get_helement, GetH0Element3, GetH0Element4
+        use FciMCData, only: ilutHF, HFDet, Fii
+        use hphf_integrals, only: hphf_off_diag_helement
+        use SystemData, only: tHPHF, tUEG
 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -1065,18 +1113,28 @@ contains
 
     subroutine end_semistoch()
 
+        use FciMCData, only: partial_determ_vecs, full_determ_vecs, full_determ_vecs_av
+        use FciMCData, only: PDetermTag, FDetermTag, FDetermAvTag, IDetermTag
+        use FciMCData, only: indices_of_determ_states
+        use MemoryManager, only: LogMemDealloc
+        use sparse_arrays, only: SparseCoreHamilTags, deallocate_sparse_ham
+
         character(len=*), parameter :: t_r = "end_semistoch"
         integer :: ierr
 
         call deallocate_sparse_ham(sparse_core_ham, 'sparse_core_ham', SparseCoreHamilTags)
 
-        if (allocated(full_determ_vector)) then
-            deallocate(full_determ_vector, stat=ierr)
+        if (allocated(partial_determ_vecs)) then
+            deallocate(partial_determ_vecs, stat=ierr)
+            call LogMemDealloc(t_r, PDetermTag, ierr)
+        end if
+        if (allocated(full_determ_vecs)) then
+            deallocate(full_determ_vecs, stat=ierr)
             call LogMemDealloc(t_r, FDetermTag, ierr)
         end if
-        if (allocated(partial_determ_vector)) then
-            deallocate(partial_determ_vector, stat=ierr)
-            call LogMemDealloc(t_r, PDetermTag, ierr)
+        if (allocated(full_determ_vecs_av)) then
+            deallocate(full_determ_vecs_av, stat=ierr)
+            call LogMemDealloc(t_r, FDetermAvTag, ierr)
         end if
         if (allocated(indices_of_determ_states)) then
             deallocate(indices_of_determ_states, stat=ierr)

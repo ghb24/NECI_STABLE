@@ -4,28 +4,8 @@
 module trial_wf_gen
 
     use bit_rep_data, only: NIfTot, NIfDBO, flag_trial, flag_connected
-    use bit_reps, only: encode_det, set_flag
     use CalcData
-    use davidson_neci, only: perform_davidson, davidson_eigenvalue, davidson_eigenvector, &
-                        sparse_hamil_type
-    use DetBitOps, only: ilut_lt, ilut_gt, DetBitEq
-    use DeterminantData, only: write_det
-    use FciMCData, only: trial_space, trial_space_size, con_space, &
-                         con_space_size, trial_wf, trial_energy, &
-                         con_space_vector, ilutHF, Hii, nSingles, nDoubles, &
-                         ConTag, ConVecTag, DavidsonTag, TempTag, TrialTag, TrialWFTag, &
-                         iHFProc, Trial_Init_Time, &
-                         TrialTempTag, ConTempTag, OccTrialTag, OccConTag, &
-                         ntrial_occ, ncon_occ, CurrentTrialTag, &
-                         current_trial_amps, MaxWalkersPart, min_trial_ind, min_conn_ind, &
-                         HashIndex, tTrialHash, tIncCancelledInitEnergy
-    use hash, only: FindWalkerHash
-    use hphf_integrals, only: hphf_off_diag_helement
-    use LoggingData, only: tWriteTrial, tCompareTrialAmps
-    use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci
-    use ParallelHelper, only: root
-    use searching, only: BinSearchParts, hash_search_trial
     use semi_stoch_gen
     use semi_stoch_procs
     use sparse_arrays
@@ -37,6 +17,23 @@ module trial_wf_gen
 contains
 
     subroutine init_trial_wf()
+
+        use davidson_neci, only: perform_davidson, davidson_eigenvalue
+        use davidson_neci, only: davidson_eigenvector, sparse_hamil_type
+        use DetBitOps, only: ilut_lt, ilut_gt
+        use FciMCData, only: trial_space, trial_space_size, con_space, con_space_size, trial_wf
+        use FciMCData, only: trial_energy, ConTag, ConVecTag, DavidsonTag, TempTag, TrialTag
+        use FciMCData, only: TrialWFTag, iHFProc, Trial_Init_Time
+        use FciMCData, only: TrialTempTag, ConTempTag, OccTrialTag
+        use FciMCData, only: OccConTag, ntrial_occ, ncon_occ, CurrentTrialTag, current_trial_amps
+        use FciMCData, only: MaxWalkersPart, tTrialHash, tIncCancelledInitEnergy
+        use enumerate_excitations, only: generate_connected_space
+        use LoggingData, only: tWriteTrial, tCompareTrialAmps
+        use MemoryManager, only: LogMemAlloc, LogMemDealloc
+        use ParallelHelper, only: root
+        use ras_data, only: trial_ras
+        use sort_mod, only: sort
+        use SystemData, only: tAllSymSectors
 
         integer :: i, ierr, num_states_on_proc
         integer :: excit, tot_trial_space_size, tot_con_space_size
@@ -76,27 +73,30 @@ contains
 
         ! Generate the trial space and place the corresponding states in trial_space.
         if (tDoublesTrial) then
-            call generate_sing_doub_determinants(called_from_trial)
+            call generate_sing_doub_determinants(trial_space, trial_space_size)
         elseif (tCASTrial) then
-            call generate_cas(called_from_trial)
+            call generate_cas(OccTrialCASOrbs, VirtTrialCASOrbs, trial_space, trial_space_size)
+        else if (tRASCore) then
+            call generate_ras(trial_ras, trial_space, trial_space_size)
         elseif (tOptimisedTrial) then
-            call generate_optimised_core(called_from_trial)
+            call generate_optimised_core(trial_opt_data, tLimitTrialSpace, trial_space, trial_space_size, max_trial_size)
         elseif (tPopsTrial) then
-            call generate_space_most_populated(called_from_trial, n_trial_pops)
+            call generate_space_most_populated(n_trial_pops, trial_space, trial_space_size)
         elseif (tReadTrial) then
-            call generate_space_from_file(called_from_trial)
+            call generate_space_from_file('TRIALSPACE', trial_space, trial_space_size)
         elseif (tLowETrial) then
-            call generate_low_energy_core(called_from_trial)
+            call generate_low_energy_core(low_e_trial_excit, tLowETrialAllDoubles, low_e_trial_num_keep, &
+                                           max_trial_size, trial_space, trial_space_size)
         else if (tMP1Trial) then
-            call generate_using_mp1_criterion(called_from_trial)
+            call generate_using_mp1_criterion(trial_mp1_ndets, trial_space, trial_space_size)
         else if (tFCITrial) then
             if (tAllSymSectors) then
-                call generate_fci_core_all_sym(called_from_semistoch)
+                call gndts_all_sym_this_proc(trial_space, .true., trial_space_size)
             else
-                call generate_fci_core(called_from_semistoch)
+                call generate_fci_core(trial_space, trial_space_size)
             end if
         else if (tHeisenbergFCITrial) then
-            call generate_heisenberg_fci(called_from_trial)
+            call generate_heisenberg_fci(trial_space, trial_space_size)
         end if
 
         if (tLimitTrialSpace) call remove_high_energy_orbs&
@@ -197,7 +197,8 @@ contains
         allocate(temp_space(0:NIfTot, con_space_size), stat=ierr)
         call LogMemAlloc('temp_space', con_space_size*(NIfTot+1), size_n_int, t_r, TempTag, ierr)
 
-        call MPIAlltoAllV(con_space, sendcounts, senddisps, temp_space, recvcounts, recvdisps, ierr)
+        call MPIAlltoAllV(con_space(:,1:con_space_size), sendcounts, senddisps, temp_space(:,1:con_space_size), &
+                           recvcounts, recvdisps, ierr)
 
         if (allocated(con_space)) then
             deallocate(con_space, stat=ierr)
@@ -308,6 +309,11 @@ contains
 
     subroutine initialise_trial_linscale()
 
+        use bit_reps, only: set_flag
+        use FciMCData, only: ll_node, trial_space, trial_space_size, con_space, con_space_size
+        use FciMCData, only: con_space_vector, current_trial_amps, HashIndex, trial_wf, nWalkerHashes
+        use hash, only: FindWalkerHash
+
         integer :: i, hash_val
         integer :: nI(nel)
         type(ll_node), pointer :: temp_node
@@ -318,7 +324,7 @@ contains
             temp_node => HashIndex(hash_val)
             if (temp_node%ind /= 0) then
                 do while (associated(temp_node))
-                    if (DetBitEQ(trial_space(:,i), CurrentDets(:,temp_node%ind),NIfDBO)) then
+                    if ( all(trial_space(0:NIfDBO,i) == CurrentDets(0:NIfDBO,temp_node%ind)) ) then
                         call set_flag(CurrentDets(:,temp_node%ind), flag_trial)
                         current_trial_amps(temp_node%ind) = trial_wf(i)
                         exit
@@ -335,7 +341,7 @@ contains
             temp_node => HashIndex(hash_val)
             if (temp_node%ind /= 0) then
                 do while (associated(temp_node))
-                    if (DetBitEQ(con_space(:,i), CurrentDets(:,temp_node%ind),NIfDBO)) then
+                    if ( all(con_space(0:NIfDBO,i) == CurrentDets(0:NIfDBO,temp_node%ind)) ) then
                         call set_flag(CurrentDets(:,temp_node%ind), flag_connected)
                         current_trial_amps(temp_node%ind) = con_space_vector(i)
                         exit
@@ -350,10 +356,11 @@ contains
 
     subroutine remove_states_not_on_proc(ilut_list, ilut_list_size, update_trial_vector)
         
+        use FciMCData, only: trial_wf
         use hash, only: DetermineDetNode
 
         integer, intent(inout) :: ilut_list_size
-        integer(n_int), intent(inout) :: ilut_list(0:NIfTot, ilut_list_size)
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
         logical, intent(in) :: update_trial_vector
         integer :: i, counter, proc
         integer :: nI(nel)
@@ -422,6 +429,11 @@ contains
         ! where \psi^T is the trial vector, j runs over all trial space vectors and i runs over
         ! all connected space vectors. This quantity is stored in the con_space_vector array.
 
+        use FciMCData, only: trial_space, trial_space_size, con_space, con_space_size
+        use FciMCData, only: trial_wf, con_space_vector, ConVecTag
+        use hphf_integrals, only: hphf_off_diag_helement
+        use MemoryManager, only: LogMemAlloc
+
         integer :: i, j, ierr
         integer :: nI(nel), nJ(nel)
         real(dp) :: H_ij
@@ -488,6 +500,8 @@ contains
 
     subroutine write_trial_space()
 
+        use FciMCData, only: trial_space, trial_space_size
+
         integer :: i, j, k, iunit, ierr
         logical :: texist
         character(len=*), parameter :: t_r='write_trial_space'
@@ -532,6 +546,11 @@ contains
 
         ! Routine to output the trial wavefunction amplitudes and FCIQMC amplitudes in the trial
         ! space. This is a test routine and is very unoptimised.
+
+        use bit_reps, only: extract_sign
+        use FciMCData, only: trial_space, trial_space_size, trial_wf
+        use ParallelHelper, only: root
+        use searching, only: BinSearchParts
 
         logical, intent(in) :: tFirstCall
         logical :: tSuccess
@@ -599,6 +618,12 @@ contains
     end subroutine update_compare_trial_file
 
     subroutine create_trial_hashtables()
+
+        use FciMCData, only: trial_space, trial_space_size, con_space, con_space_size
+        use FciMCData, only: con_space_vector, TrialTag, ConTag, TrialWFTag, ConVecTag
+        use FciMCData, only: trial_wf
+        use hash, only: FindWalkerHash
+        use MemoryManager, only: LogMemDealloc
     
         integer :: i, n_clash, hash_val, ierr
         integer :: nI(nel)
@@ -709,6 +734,11 @@ contains
     end subroutine create_trial_hashtables
 
     subroutine end_trial_wf()
+
+        use FciMCData, only: trial_space, con_space, con_space_vector, TrialTag, ConTag
+        use FciMCData, only: TrialWFTag, ConVecTag, CurrentTrialTag, ConTempTag, OccTrialTag
+        use FciMCData, only: OccConTag, TrialTempTag, current_trial_amps, trial_wf
+        use MemoryManager, only: LogMemDealloc
 
         character(len=*), parameter :: t_r = "end_trial_wf"
         integer :: ierr

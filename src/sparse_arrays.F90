@@ -20,7 +20,7 @@ module sparse_arrays
     use constants
     use DetBitOps, only: DetBitEq
     use Determinants, only: get_helement
-    use FciMCData, only: determ_space_size, determ_proc_sizes, determ_proc_indices, &
+    use FciMCData, only: determ_space_size, determ_sizes, determ_displs, &
                          SpawnedParts, Hii, core_ham_diag
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
@@ -312,20 +312,20 @@ contains
         real(dp), allocatable, dimension(:) :: hamiltonian_row
         character(len=*), parameter :: t_r = "calculate_det_hamiltonian_sparse"
 
-        allocate(sparse_core_ham(determ_proc_sizes(iProcIndex)), stat=ierr)
-        allocate(SparseCoreHamilTags(2, determ_proc_sizes(iProcIndex)))
+        allocate(sparse_core_ham(determ_sizes(iProcIndex)), stat=ierr)
+        allocate(SparseCoreHamilTags(2, determ_sizes(iProcIndex)))
         allocate(hamiltonian_row(determ_space_size), stat=ierr)
         call LogMemAlloc('hamiltonian_row', int(determ_space_size,sizeof_int), 8, t_r, HRTag, ierr)
-        allocate(core_ham_diag(determ_proc_sizes(iProcIndex)), stat=ierr)
+        allocate(core_ham_diag(determ_sizes(iProcIndex)), stat=ierr)
         allocate(temp_store(0:NIfTot, determ_space_size), stat=ierr)
         call LogMemAlloc('temp_store', determ_space_size*(NIfTot+1), 8, t_r, TempStoreTag, ierr)
 
         ! Stick together the deterministic states from all processors, on all processors.
-        call MPIAllGatherV(SpawnedParts(:,1:determ_proc_sizes(iProcIndex)), temp_store, &
-                       determ_proc_sizes, determ_proc_indices)
+        call MPIAllGatherV(SpawnedParts(:,1:determ_sizes(iProcIndex)), temp_store, &
+                       determ_sizes, determ_displs)
 
         ! Loop over all deterministic states on this processor.
-        do i = 1, determ_proc_sizes(iProcIndex)
+        do i = 1, determ_sizes(iProcIndex)
 
             call decode_bit_det(nI, SpawnedParts(:, i))
 
@@ -372,7 +372,7 @@ contains
             counter = 1
             do j = 1, determ_space_size
                 ! If non-zero or a diagonal element.
-                if (abs(hamiltonian_row(j)) > 0.0_dp .or. (j == i + determ_proc_indices(iProcIndex)) ) then
+                if (abs(hamiltonian_row(j)) > 0.0_dp .or. (j == i + determ_displs(iProcIndex)) ) then
                     sparse_core_ham(i)%positions(counter) = j
                     sparse_core_ham(i)%elements(counter) = hamiltonian_row(j)
                     counter = counter + 1

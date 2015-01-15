@@ -6,17 +6,12 @@
 module spectral_lanczos
 
     use bit_rep_data, only: NIfTot
-    use bit_reps, only: test_flag
-    use CalcData, only: NMCyc, tSemiStochastic, pops_norm
+    use CalcData, only: pops_norm
     use constants
-    use DetBitOps, only: DetBitLT
-    use FciMCData, only: HFDet, ilutHF, iHFProc, CurrentDets, determ_proc_sizes, &
-                         determ_space_size, partial_determ_vector, TotWalkers
     use ftlm_neci, only: subspace_expansion_lanczos, calc_final_hamil_elem
     use Parallel_neci, only: iProcIndex, nProcessors, MPIAllGather, MPISumAll, &
                              MPIBCast, MPIBarrier
     use ParallelHelper, only: root
-    use PopsfileMod, only: read_popsfile_wrapper
     use sparse_arrays, only: calculate_sparse_ham_par, sparse_ham
     use spectral_data
 
@@ -192,9 +187,9 @@ contains
 
         use bit_rep_data, only: NIfDBO, extract_sign
         use bit_reps, only: decode_bit_det
-        use CalcData, only: pops_norm
         use DetBitOps, only: DetBitEq, EncodeBitDet, ilut_lt, ilut_gt
         use FciMCData, only: TotWalkers, CurrentDets
+        use PopsfileMod, only: read_popsfile_wrapper
         use sort_mod, only: sort
         use SystemData, only: nel
 

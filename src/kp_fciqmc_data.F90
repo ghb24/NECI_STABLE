@@ -3,50 +3,41 @@
  
 module kp_fciqmc_data_mod
 
-    ! This module contains data associated with KPFCIQMC to avoid circular
-    ! use statements
+    ! This module contains data associated with KP-FCIQMC to avoid circular
+    ! use statements.
 
-    use FciMCData, only: ll_node, perturbation
     use constants
+    use FciMCData, only: ll_node, perturbation
+    use ras_data, only: ras_parameters
+
     implicit none
 
     type kp_fciqmc_data
         ! The number of different initial walker configurations to start
         ! calculations from.
         integer :: nconfigs
-        ! The current configuration.
-        integer, pointer :: iconfig
+        ! This is only used in the excited-state KP algorithm.
+        ! The number of times that data about the subspace Hamiltonian and
+        ! overlap matrices are output during a single run.
+        integer :: nreports
         ! The number of simulations to perform for each initial walker
         ! configuration.
         integer :: nrepeats
-        ! The current repeat.
-        integer, pointer :: irepeat
         ! The number of different Krylov vectors to sample (the number of
         ! vectors which form the Krylov subspace at the end of a calculation).
         integer :: nvecs
-        ! The current Krylov vector.
-        integer, pointer :: ivec
         ! The number of iterations to perform *between each Krylov vector being
         ! sampled*. niters(i) holds the number to be performed between the
         ! i-th and (i+1)th vectors. The final element is not set by the user,
         ! it is always set to 1 (because we don't want to go any further
         ! beyond the final Krylov vector).
         integer, allocatable :: niters(:)
-
-        ! Stores of the overlap and projected Hamiltonian matrices.
-        ! If tStoreKPMatrices is .true., then all matrices will be held for
-        ! the current initial configuration, including all repeats. The third
-        ! index will therefore run from 1 to nrepeats.
-        ! If tKPMatrices is .false., then only the matrices from the current
-        ! repeat will be held, and the third index will always be 1.
-        real(dp), pointer :: overlap_matrices(:,:,:)
-        real(dp), pointer :: hamil_matrices(:,:,:)
-        ! Pointers to the matrices for the current repeat only.
-        real(dp), pointer :: overlap_matrix(:,:)
-        real(dp), pointer :: hamil_matrix(:,:)
     end type
 
-    type(kp_fciqmc_data) :: kp
+    ! If true then we generate the initial Krylov subspace by using estimates
+    ! of the lowest excited states, and project all of these trial states
+    ! every iteration.
+    logical :: tExcitedStateKP
 
     ! Information for the krylov_vecs arrays, which holds all of the Krylov
     ! vectors together simultaneously.
@@ -63,7 +54,20 @@ module kp_fciqmc_data_mod
     ! The current number of different determinants held in krylov_vecs.
     integer :: TotWalkersKP
     integer(n_int), allocatable :: krylov_vecs(:,:)
+    ! The diagonal Hamiltonian elements of the vectors in krylov_vecs, in the
+    ! same order.
+    real(dp), allocatable :: krylov_helems(:)
+    ! The hash is table used to access determinant data in krylov_vecs.
     type(ll_node), pointer :: krylov_vecs_ht(:) 
+
+    ! These arrays are used if tExcitedState = .false. in calc_projected_hamil
+    ! in semi-stochasti calculations. They are used to store the deterministic
+    ! vectors before and after the deterministic projection occurs. They have
+    ! the same purpose as partial_determ_vecs and full_determ_vecs, except they
+    ! are allocated to hold more vectors (all Krylov vectors), as is necessary
+    ! if tExcitedState = .false.
+    real(dp), allocatable, dimension(:,:) :: partial_determ_vecs_kp
+    real(dp), allocatable, dimension(:,:) :: full_determ_vecs_kp
 
     ! The number of elements in krylov_vecs which are used to store amplitudes.
     integer(int64) :: nkrylov_amp_elems_tot
@@ -82,7 +86,7 @@ module kp_fciqmc_data_mod
     logical :: vary_niters
 
     ! The total sign length for all Krylov vectors together.
-    integer :: lenof_sign_kp
+    integer :: lenof_all_signs
 
     ! If true then calculate the projected Hamiltonian exactly (useful for
     ! testing only, in practice).
@@ -130,14 +134,6 @@ module kp_fciqmc_data_mod
     logical :: tUseInitConfigSeeds
     ! See comments above.
     integer, allocatable :: init_config_seeds(:)
-    ! If true, all repeats of the projected Hamiltonian and overlap matrices
-    ! will be stored in memory for a given starting configuration until
-    ! we move onto the next starting configuration. This means that we don't
-    ! have to read all the matrices in again before averaging at the end
-    ! of a tarting configuration, and so makes things a bit quicker. However,
-    ! if this will use too much memory then this option can be turned off
-    ! and the matrices will be read in before averaging instead.
-    logical :: tStoreKPMatrices
     ! If true then the averaged projected Hamiltonian and overlap matrices
     ! will be output after completing all repeats of a given initial configuration.
     ! If more than one repeat has been performed, then the standard error
@@ -168,11 +164,6 @@ module kp_fciqmc_data_mod
     ! iterations in a repeat have been performed and only stored on the
     ! root process.
     real(dp), allocatable :: kp_all_pert_overlaps(:)
-
-    ! Matrices used in the communication of the projected Hamiltonian and
-    ! overlap matrices.
-    real(dp), allocatable :: kp_mpi_matrices_in(:,:)
-    real(dp), allocatable :: kp_mpi_matrices_out(:,:)
 
     ! After all repeats for a given initial configuration are complete, these
     ! arrays will hold the means and standard errors of the projected
@@ -205,6 +196,19 @@ module kp_fciqmc_data_mod
     ! the Krylov basis.
     real(dp), allocatable :: kp_eigenvecs_krylov(:,:)
 
-
+    ! Options for the trial wave function space for excited-state calculations.
+    logical :: tPops_KP_Space
+    logical :: tRead_KP_Space
+    logical :: tDoubles_KP_Space
+    logical :: tCAS_KP_Space
+    logical :: tRAS_KP_Space
+    logical :: tMP1_KP_Space
+    logical :: tFCI_KP_Space
+    
+    integer :: n_kp_pops
+    integer :: Occ_KP_CasOrbs
+    integer :: Virt_KP_CasOrbs
+    integer :: kp_mp1_ndets
+    type(ras_parameters) :: kp_ras
 
 end module

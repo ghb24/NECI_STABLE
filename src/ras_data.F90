@@ -88,7 +88,9 @@ module ras_data
     ! that can be treated so far...)
     integer :: HFSym_ras
 
-    ! For a semi-stochastic ras core space.
+    ! For a semi-stochastic ras space.
     type(ras_parameters) :: core_ras
+    ! For a trial-wavefunction ras space.
+    type(ras_parameters) :: trial_ras
 
 end module ras_data

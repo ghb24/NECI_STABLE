@@ -173,6 +173,7 @@ contains
         NOffSgn = NOffY + NIfY
         NIfSgn = lenof_sign
 #ifdef __PROG_NUMRUNS
+        write(6,*) 'Calculation supports multiple parallel runs'
         write(6,*) 'Setting replica count in bit representation: ', NIfSgn
 #elif defined(__DOUBLERUN)
         WRITE(6,*) "Double run in use."

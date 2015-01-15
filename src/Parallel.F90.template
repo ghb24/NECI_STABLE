@@ -1133,7 +1133,7 @@ contains
         if (ierr /= MPI_SUCCESS) &
                         call stop_all (t_r, 'MPI Error. Terminating.')
 #else
-        ret(Disps(1):Disps(1)+Lengths(1)) = v(:)
+        ret(Disps(1)+1:Disps(1)+Lengths(1)) = v(:)
         ierr = 0
 #endif
     end subroutine
@@ -1259,7 +1259,7 @@ contains
                 rt, comm, err)
         ierr = err
 #else
-        ret(Disps(1):Disps(1)+Lengths(1)) = v(:)
+        ret(Disps(1)+1:Disps(1)+Lengths(1)) = v(:)
         ierr = 0
 #endif
     end subroutine

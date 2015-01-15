@@ -5,14 +5,13 @@ program lowdin
     integer, parameter :: dp = selected_real_kind(15,307)
     integer :: i, j, k
     integer :: lwork, counter, naverage, nkeep
-    integer :: ilen, jlen, nkeep_len
+    integer :: nkeep_len, int1, int2
     integer :: npositive, info, ierr, nargs, stat
     integer :: hamil_unit, overlap_unit
     integer :: nrows, nrepeats
     real(dp), allocatable :: work(:)
-    character(2) :: index_fmt, nkeep_fmt
+    character(2) :: nkeep_fmt
     character(7) :: string_fmt
-    character(25) :: ind1
     character(256) :: hamil_filename, overlap_filename
     character(256) :: nrows_str, nrepeats_str, temp_str
     character(len=*), parameter :: stem = "lowdin"
@@ -79,13 +78,8 @@ program lowdin
     open(hamil_unit, file=hamil_filename, status='old')
     ! Read in the hamil elements and errors to the above arrays.
     do i = 1, nrows
-        ilen = ceiling(log10(real(abs(i)+1)))
         do j = i, nrows
-            jlen = ceiling(log10(real(abs(j)+1)))
-            write(index_fmt,'(a1,i1)') "a", ilen + jlen + 3
-
-            read(hamil_unit, '('//index_fmt//','//trim(nrepeats_str)//'(1x,es19.12))', iostat=stat) &
-                temp_str, hamil_estimates
+            read(hamil_unit, *, iostat=stat) int1, int2, hamil_estimates
 
             do k = 1, nrepeats
                 hamil_mean(i,j) = hamil_mean(i,j) + hamil_estimates(k)
@@ -99,13 +93,8 @@ program lowdin
     overlap_unit = 10
     open(overlap_unit, file=overlap_filename, status='old')
     do i = 1, nrows
-        ilen = ceiling(log10(real(abs(i)+1)))
         do j = i, nrows
-            jlen = ceiling(log10(real(abs(j)+1)))
-            write(index_fmt,'(a1,i1)') "a", ilen + jlen + 3
-
-            read(hamil_unit, '('//index_fmt//','//trim(nrepeats_str)//'(1x,es19.12))', iostat=stat) &
-                temp_str, overlap_estimates
+            read(hamil_unit, *, iostat=stat) int1, int2, overlap_estimates
 
             write(*,*) overlap_estimates
 

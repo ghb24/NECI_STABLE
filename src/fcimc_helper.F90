@@ -101,13 +101,13 @@ contains
         character(*), parameter :: this_routine = 'create_particle'
 
         ! Determine which processor the particle should end up on in the
-        ! DirectAnnihilation algorithm
-        proc = DetermineDetNode(nel,nJ,0)    ! 0 -> nNodes-1)
+        ! DirectAnnihilation algorithm.
+        proc = DetermineDetNode(nel,nJ,0)    ! (0 -> nNodes-1)
 
         ! Check that the position described by ValidSpawnedList is acceptable.
         ! If we have filled up the memory that would be acceptable, then
         ! kill the calculation hard (i.e. stop_all) with a descriptive
-        ! error message
+        ! error message.
         list_full = .false.
         if (proc == nNodes - 1) then
             if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
@@ -160,7 +160,7 @@ contains
             ! 'part_type'
             parent_init = test_flag(SpawnedParts(:,ValidSpawnedList(proc)), &
                                     flag_initiator(part_type))
-            !Assign this flag to all spawned children
+            ! Assign this flag to all spawned children.
             do j=1,lenof_sign
                 if (child(j) /= 0) then
                     call set_flag (SpawnedParts(:,ValidSpawnedList(proc)), &
@@ -178,8 +178,78 @@ contains
 #else
         acceptances = acceptances + abs(child)
 #endif
-    end subroutine
 
+    end subroutine create_particle
+
+    subroutine create_particle_with_hash_table (nI_child, ilut_child, child_sign, parent_flags, part_type, ilut_parent)
+
+        use hash, only: hash_table_lookup, add_hash_table_entry
+
+        integer, intent(in) :: nI_child(nel), parent_flags, part_type
+        integer(n_int), intent(in) :: ilut_child(0:NIfTot), ilut_parent(0:NIfTot)
+        real(dp), intent(in) :: child_sign(lenof_sign)
+
+        integer :: proc, flags, ind, hash_val
+        integer(n_int) :: int_sign(lenof_sign)
+        real(dp) :: real_sign_old(lenof_sign), real_sign_new(lenof_sign)
+        logical :: list_full, tSuccess
+        character(*), parameter :: this_routine = 'create_particle'
+
+        call hash_table_lookup(nI_child, ilut_child, NIfDBO, spawn_ht, SpawnedParts, ind, hash_val, tSuccess)
+
+        if (tSuccess) then
+            ! If the spawned child is already in the spawning array.
+            ! Extract the old sign.
+            call extract_sign(SpawnedParts(:,ind), real_sign_old)
+            ! Find the total new sign.
+            real_sign_new = real_sign_old + child_sign
+            ! Encode the new sign.
+            call encode_sign(SpawnedParts(:,ind), real_sign_new)
+
+            ! Set the initiator flags appropriately.
+            ! If this determinant (on this replica) has already been spawned to
+            ! then set the initiator flag. Also if this child was spawned from
+            ! an initiator, set the initiator flag.
+            if (abs(real_sign_old(part_type)) > 1.e-12_dp .or. test_flag(ilut_parent, flag_initiator(part_type))) &
+                call set_flag(SpawnedParts(:,ind), flag_initiator(part_type))
+        else
+            ! Determine which processor the particle should end up on in the
+            ! DirectAnnihilation algorithm.
+            proc = DetermineDetNode(nel, nI_child, 0)
+
+            ! Check that the position described by ValidSpawnedList is acceptable.
+            ! If we have filled up the memory that would be acceptable, then
+            ! kill the calculation hard (i.e. stop_all) with a descriptive
+            ! error message.
+            list_full = .false.
+            if (proc == nNodes - 1) then
+                if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
+            else
+                if (ValidSpawnedList(proc) > InitialSpawnedSlots(proc+1)) &
+                    list_full=.true.
+            end if
+            if (list_full) then
+                write(6,*) "Attempting to spawn particle onto processor: ", proc
+                write(6,*) "No memory slots available for this spawn."
+                write(6,*) "Please increase MEMORYFACSPAWN"
+                call stop_all(this_routine, "Out of memory for spawned particles")
+            end if
+
+            flags = ior(parent_flags, extract_flags(ilut_child))
+            call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), ilut_child(0:NIfDBO), child_sign, flags)
+            call add_hash_table_entry(spawn_ht, ValidSpawnedList(proc), hash_val)
+
+            ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
+        end if
+        
+        ! Sum the number of created children to use in acceptance ratio.
+#ifdef __CMPLX
+        acceptances(1) = acceptances(1) + sum(abs(child_sign))
+#else
+        acceptances = acceptances + abs(child_sign)
+#endif
+
+    end subroutine create_particle_with_hash_table
 
     ! This routine sums in the energy contribution from a given walker and 
     ! updates stats such as mean excit level AJWT added optional argument 

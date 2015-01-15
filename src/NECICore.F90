@@ -23,9 +23,10 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,int_name,filename_in)
     ! main-level modules.
     use Calc, only: CalcDoCalc
     use CalcData, only: tUseProcsAsNodes
+    use kp_fciqmc_procs, only: kp_fciqmc_data
     use Parallel_neci, only: MPINodes, iProcIndex
-    use read_fci, only: FCIDUMP_name
     use ParallelHelper, only: Root
+    use read_fci, only: FCIDUMP_name
 
     ! Utility modules.
     use global_utilities
@@ -40,6 +41,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,int_name,filename_in)
     character(*), parameter :: this_routine = 'NECICore'
     character(64) :: Filename
     logical :: toverride_input,tFCIDUMP_exist
+    type(kp_fciqmc_data) :: kp
 #ifdef MOLPRO
     include "common/tapes"
 #else
@@ -90,7 +92,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,int_name,filename_in)
         ! CPMD and VASP calculations call the input parser *before* they call
         ! NECICore.  This is to allow the NECI input filename(s) to be specified
         ! easily from within the CPMD/VASP input files.
-        call ReadInputMain(Filename,ios,toverride_input)
+        call ReadInputMain(Filename,ios,toverride_input,kp)
         If (ios.ne.0) stop 'Error in Read'
     endif
 
@@ -99,7 +101,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,int_name,filename_in)
     call NECICalcInit(iCacheFlag)
 
 !   Actually do the calculations we're meant to.  :-)
-    call CalcDoCalc()
+    call CalcDoCalc(kp)
 
 !   And all done: pick up after ourselves and settle down for a cup of tea.
     call NECICalcEnd(iCacheFlag)

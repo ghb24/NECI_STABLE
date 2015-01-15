@@ -38,6 +38,11 @@ MODULE FciMCData
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVecKP(:,:), SpawnVecKP2(:,:)
 
+      ! Hash table to spawning array. Currently only used in (parts of) KP-FCIQMC.
+      type(ll_node), pointer :: spawn_ht(:)
+      ! The number of unique hash values in the spawning hash table.
+      integer :: nhashes_spawn
+
       INTEGER(TagIntType) :: WalkVecDetsTag=0
       INTEGER(TagIntType) :: SpawnVecTag=0,SpawnVec2Tag=0
 
@@ -244,7 +249,8 @@ MODULE FciMCData
                            BinSearch_time, SemiStoch_Comms_Time, &
                            SemiStoch_Multiply_Time, Trial_Search_Time, &
                            SemiStoch_Init_Time, Trial_Init_Time, &
-                           kp_generate_time, Stats_Comms_Time
+                           kp_generate_time, Stats_Comms_Time, &
+                           subspace_hamil_time
       
       ! Store the current value of S^2 between update cycles
       real(dp), allocatable :: curr_S2(:), curr_S2_init(:)
@@ -289,9 +295,6 @@ MODULE FciMCData
       INTEGER , ALLOCATABLE :: ValidSpawnedList(:) 
  !This is set up as the initial ValidSpawnedList elements, so that it does not need to be reevaluated each time.
       INTEGER , ALLOCATABLE :: InitialSpawnedSlots(:) 
-
-      ! For use in kp-fciqmc code. How many different determinants are spawned onto this processor?
-      integer :: max_spawned_ind
 
       integer :: WalkersDiffProc, PartsDiffProc
 
@@ -425,22 +428,19 @@ MODULE FciMCData
 
       ! This stores all the amplitudes of the walkers in the deterministic space. This vector has the size of the part
       ! of the deterministic space stored on *this* processor only. It is therefore used to store the deterministic vector
-      ! on this processor, before it is combined to give the whole vector, which is stored in full_determ_vector.
+      ! on this processor, before it is combined to give the whole vector, which is stored in full_determ_vecs.
       ! Later in the iteration, it is also used to store the result of the multiplication by the core Hamiltonian on
-      ! full_determ_vector.
-      real(dp), allocatable, dimension(:,:) :: partial_determ_vector
-      real(dp), allocatable, dimension(:,:) :: full_determ_vector
-      real(dp), allocatable, dimension(:,:) :: full_determ_vector_av
+      ! full_determ_vecs.
+      real(dp), allocatable, dimension(:,:) :: partial_determ_vecs
+      real(dp), allocatable, dimension(:,:) :: full_determ_vecs
+      real(dp), allocatable, dimension(:,:) :: full_determ_vecs_av
 
-      real(dp), allocatable, dimension(:,:) :: partial_determ_vecs_kp
-      real(dp), allocatable, dimension(:,:) :: full_determ_vecs_kp
-
-      ! determ_proc_sizes(i) holds the core space size on processor i.
-      integer(MPIArg), allocatable, dimension(:) :: determ_proc_sizes
-      ! determ_proc_indices(i) holds sum(determ_proc_sizes(i-1)), that is, the
+      ! determ_sizes(i) holds the core space size on processor i.
+      integer(MPIArg), allocatable, dimension(:) :: determ_sizes
+      ! determ_displs(i) holds sum(determ_sizes(i-1)), that is, the
       ! total number of core states on all processors up to processor i.
-      ! (determ_proc_indices(1) == 0).
-      integer(MPIArg), allocatable, dimension(:) :: determ_proc_indices
+      ! (determ_displs(1) == 0).
+      integer(MPIArg), allocatable, dimension(:) :: determ_displs
       ! The total size of the core space on all processors.
       integer(MPIArg) :: determ_space_size
       ! determ_space_size_int is identical to determ_space_size, but converted
