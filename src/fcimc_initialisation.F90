@@ -25,7 +25,7 @@ module fcimc_initialisation
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
                         RealCoeffExcitThresh, TargetGrowRate, &
                         TargetGrowRateWalk, InputTargetGrowRate, &
-                        InputTargetGrowRateWalk
+                        InputTargetGrowRateWalk, use_spawn_hash_table
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -72,7 +72,7 @@ module fcimc_initialisation
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
                                        gen_excit_4ind_weighted, &
                                        gen_excit_4ind_reverse
-    use hash, only: DetermineDetNode, FindWalkerHash
+    use hash, only: DetermineDetNode, FindWalkerHash, init_hash_table
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD , only : InitHistInitPops
@@ -1167,6 +1167,12 @@ contains
             CALL LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVecTag,ierr)
             ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawned),stat=ierr)
             CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
+
+            if (use_spawn_hash_table) then
+                nhashes_spawn = 0.8*MaxSpawned
+                allocate(spawn_ht(nhashes_spawn), stat=ierr)
+                call init_hash_table(spawn_ht)
+            end if
 
             SpawnVec(:,:)=0
             SpawnVec2(:,:)=0

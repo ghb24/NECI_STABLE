@@ -7,7 +7,8 @@ module FciMCParMod
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
-                        iFullSpaceIter, tDoublesCore, tDetermHFSpawning
+                        iFullSpaceIter, tDoublesCore, tDetermHFSpawning, &
+                        use_spawn_hash_table
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, &
@@ -26,6 +27,7 @@ module FciMCParMod
                                 determ_projection, average_determ_vector
     use trial_wf_gen, only: update_compare_trial_file, &
                             update_compare_trial_file
+    use hash, only: clear_hash_table
     use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
     use bit_reps, only: set_flag, clr_flag, add_ilut_lists
     use exact_diag, only: perform_exact_diag_all_symmetry
@@ -621,6 +623,9 @@ module FciMCParMod
         iStartFreeSlot=1
         iEndFreeSlot=0
 
+        ! Clear the hash table for the spawning array.
+        if (use_spawn_hash_table) call clear_hash_table(spawn_ht)
+
         ! Index for counting deterministic states.
         determ_index = 1
         
@@ -671,7 +676,7 @@ module FciMCParMod
                 IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter)
             endif
         endif
-        
+
         do j=1,int(TotWalkers,sizeof_int)
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
@@ -881,7 +886,7 @@ module FciMCParMod
                     ! Children have been chosen to be spawned.
                     if (any(child /= 0)) then
 
-                        !Encode child if not done already
+                        ! Encode child if not done already.
                         if(.not. (tSemiStochastic)) call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
                         ! FindExcitBitDet copies the parent flags so that unwanted flags must be unset.
                         ! Should it really do this?
@@ -893,12 +898,16 @@ module FciMCParMod
                         call new_child_stats (iter_data, CurrentDets(:,j), &
                                               nJ, iLutnJ, ic, walkExcitLevel,&
                                               child, parent_flags, part_type)
-                        call create_particle (nJ, iLutnJ, child, &
-                                              parent_flags, part_type,& 
-                                              CurrentDets(:,j),SignCurr,p,&
-                                              RDMBiasFacCurr, WalkersToSpawn)
-                                              ! RDMBiasFacCurr is only used if we're 
-                                              ! doing an RDM calculation.
+
+                        if (use_spawn_hash_table) then
+                            call create_particle_with_hash_table (nJ, ilutnJ, child, parent_flags, &
+                                                                  part_type, CurrentDets(:,j))
+                        else
+                            call create_particle (nJ, iLutnJ, child, &
+                                                  parent_flags, part_type,& 
+                                                  CurrentDets(:,j),SignCurr,p,&
+                                                  RDMBiasFacCurr, WalkersToSpawn)
+                        end if
 
                     endif ! (child /= 0). Child created
 

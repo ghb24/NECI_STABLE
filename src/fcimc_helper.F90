@@ -190,7 +190,7 @@ contains
         integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign_old(lenof_sign), real_sign_new(lenof_sign)
         logical :: list_full, tSuccess
-        character(*), parameter :: this_routine = 'create_particle'
+        character(*), parameter :: this_routine = 'create_particle_with_hash_table'
 
         call hash_table_lookup(nI_child, ilut_child, NIfDBO, spawn_ht, SpawnedParts, ind, hash_val, tSuccess)
 

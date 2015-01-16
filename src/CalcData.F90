@@ -244,4 +244,9 @@ logical :: tMultiReplicaInitiators = .false.
 logical :: tSurvivalInitiatorThreshold, tSurvivalInitMultThresh
 real(dp) :: im_time_init_thresh, init_survival_mult
 
+! If true then a hash table is kept for the spawning array and is used when
+! new spawnings are added to the spawned list, to prevent adding the same
+! determinant multiple times.
+logical :: use_spawn_hash_table
+
 end module CalcData

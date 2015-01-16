@@ -340,6 +340,8 @@ contains
           MaxTau = 1.0_dp
           tMultiReplicaInitiators = .false.
 
+          use_spawn_hash_table = .false.
+
         end subroutine SetCalcDefaults
 
         SUBROUTINE CalcReadInput()
@@ -1970,6 +1972,9 @@ contains
                 ! Obviously, this only does anything with system-replicas
                 ! set...
                 tMultiReplicaInitiators = .true.
+
+            case("USE-SPAWN-HASH-TABLE")
+                use_spawn_hash_table = .true.
 
             case default
                 call report("Keyword "                                &
