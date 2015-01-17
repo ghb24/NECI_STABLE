@@ -427,6 +427,12 @@ contains
         if (tTrialWavefunction) then
             call MPIAllReduce(trial_numerator, MPI_SUM, tot_trial_numerator)
             call MPIAllReduce(trial_denom, MPI_SUM, tot_trial_denom)
+
+            ! Becuase tot_trial_numerator/tot_trial_denom is the energy
+            ! relative to the the trial energy, add on this contribution to
+            ! make it relative to the HF energy.
+            tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energy)
+
         end if
         
 #ifdef __DEBUG
