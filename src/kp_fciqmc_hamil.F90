@@ -17,16 +17,21 @@ contains
         use CalcData, only: tDoublesCore, tDetermHFSpawning
         use constants
         use DetBitOps, only: return_ms, FindBitExcitLevel
+        use enumerate_excitations, only: generate_connection_normal
         use FciMCData, only: fcimc_excit_gen_store, exFlag, SpawnVecKP, SpawnVecKP2
         use FciMCData, only: SpawnVec, SpawnVec2, determ_sizes, determ_displs, SpawnedParts
         use FciMCData, only: SpawnedParts2, InitialSpawnedSlots, ValidSpawnedList, ll_node
         use FciMCData, only: spawn_ht, subspace_hamil_time, iLutHF_True, max_calc_ex_level
+        use FCIMCData, only: HFConn, Hii
+        use global_det_data, only: det_diagH
         use hash, only: clear_hash_table
         use kp_fciqmc_data_mod, only: tSemiStochasticKPHamil, tExcitedStateKP, av_mc_excits_kp
+        use kp_fciqmc_data_mod, only: kp_hamil_exact_frac
         use procedure_pointers, only: generate_excitation, encode_child, get_spawn_helement
         use semi_stoch_procs, only: is_core_state, check_determ_flag
         use semi_stoch_procs, only: determ_projection_kp_hamil
         use SystemData, only: nbasis, tAllSymSectors, nOccAlpha, nOccBeta, nel
+        use SystemData, only: tReal, tHub, tUEG
         use timing_neci, only: set_timer, halt_timer
         use util_mod, only: stochastic_round
         
@@ -40,13 +45,14 @@ contains
 
         integer :: idet, ispawn, nspawn, i, j, ex_level_to_hf
         integer :: determ_ind, flag_ind, ic, ex(2,2), ms_parent
+        integer :: ex_flag, ex_flag_temp
         integer :: nI_parent(nel), nI_child(nel)
         integer(n_int) :: ilut_child(0:NIfTot), ilut_parent(0:NIfTot)
-        real(dp) :: prob, tot_pop
+        real(dp) :: prob, tot_pop, h_diag_elem
         real(dp), dimension(lenof_all_signs) :: child_sign, parent_sign
         integer(n_int) :: int_sign(lenof_all_signs)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied, tParity
-        logical :: tNearlyFull, tFinished, tAllFinished
+        logical :: tNearlyFull, tFinished, tAllFinished, all_excits_found
         HElement_t :: HElGen, HEl
 
         call set_timer(subspace_hamil_time)
@@ -59,6 +65,18 @@ contains
         tNearlyFull = .false.
         tFinished = .false.
         determ_ind = 1
+
+        if (tHub) then
+            if (tReal) then
+                ex_flag = 1
+            else
+                ex_flag = 2
+            end if
+        else if (tUEG) then
+            ex_flag = 2
+        else
+            ex_flag = 3
+        end if
 
         if (.not. tExcitedStateKP) then
             ! We want SpawnedParts and SpawnedParts2 to point to the 'wider' spawning arrays which
@@ -111,38 +129,35 @@ contains
                 nOccBeta = (nel-ms_parent)/2
             end if
 
-            nspawn = stochastic_round(av_mc_excits_kp*tot_pop)
-            
-            do ispawn = 1, nspawn
+            if (av_mc_excits_kp*tot_pop >= real(HFConn,dp)*kp_hamil_exact_frac) then
+                ! Reset variables used by the enumerating routine.
+                all_excits_found = .false.
+                ex = 0
+                ex_flag_temp = ex_flag
 
-                ! Zero the bit representation, to ensure no extraneous data gets through.
-                ilut_child = 0_n_int
+                ! We no longer want to treat these deterministic states by the
+                ! usual deterministic projection. So set the corresponding
+                ! amplitude in the deterministic vector to 0 and add in the
+                ! diagonal element separately.
+                if (tParentIsDeterm) then
+                    partial_vecs(:,determ_ind-1) = 0.0_dp
 
-                call generate_excitation (nI_parent, ilut_parent, nI_child, &
-                                    ilut_child, exFlag, ic, ex, tParity, prob, &
-                                    HElGen, fcimc_excit_gen_store)
-
-                ! If a valid excitation.
-                if (.not. IsNullDet(nI_child)) then
-
-                    call encode_child (ilut_parent, ilut_child, ic, ex)
-
-                    ! If spawning is both too and from the core space, abort it.
-                    if (tSemiStochasticKPHamil .and. tParentisDeterm) then
-                        if(is_core_state(ilut_child, nI_child)) cycle
+                    if (present(h_diag)) then
+                        h_diag_elem = h_diag(idet) + Hii
+                    else
+                        h_diag_elem = det_diagH(idet) + Hii
                     end if
 
-                    HEl = get_spawn_helement(nI_parent, nI_child, ilut_parent, ilut_child, ic, ex, &
-                                             tParity, HElGen)
-
-                    child_sign = calc_amp_kp_hamil(parent_sign, prob, av_mc_excits_kp*tot_pop, HEl)
-                else
-                    child_sign = 0.0_dp
+                    child_sign = calc_amp_kp_hamil(parent_sign, 1.0_dp, 1.0_dp, h_diag_elem)
+                    call create_particle_kp_hamil(nI_parent, ilut_parent, child_sign, tNearlyFull)
                 end if
 
-                ! If any (valid) children have been spawned.
-                if ((any(child_sign /= 0)) .and. (ic /= 0) .and. (ic <= 2)) then
+                do while(.true.)
+                    call generate_connection_normal(nI_parent, ilut_parent, nI_child, ilut_child, ex_flag_temp, ex, &
+                                                     all_excits_found, hel=HEl)
+                    if (all_excits_found) exit
 
+                    child_sign = calc_amp_kp_hamil(parent_sign, 1.0_dp, 1.0_dp, HEl)
                     call create_particle_kp_hamil(nI_child, ilut_child, child_sign, tNearlyFull)
 
                     if (tNearlyFull) then
@@ -150,10 +165,54 @@ contains
                         call clear_hash_table(spawn_ht)
                         tNearlyFull = .false.
                     end if
+                end do
 
-                end if ! If a child was spawned.
+            else
 
-            end do ! Over mulitple spawns from the same determinant.
+                nspawn = stochastic_round(av_mc_excits_kp*tot_pop)
+                
+                do ispawn = 1, nspawn
+
+                    ! Zero the bit representation, to ensure no extraneous data gets through.
+                    ilut_child = 0_n_int
+
+                    call generate_excitation (nI_parent, ilut_parent, nI_child, &
+                                        ilut_child, exFlag, ic, ex, tParity, prob, &
+                                        HElGen, fcimc_excit_gen_store)
+
+                    ! If a valid excitation.
+                    if (.not. IsNullDet(nI_child)) then
+
+                        call encode_child (ilut_parent, ilut_child, ic, ex)
+
+                        ! If spawning is both too and from the core space, abort it.
+                        if (tSemiStochasticKPHamil .and. tParentisDeterm) then
+                            if(is_core_state(ilut_child, nI_child)) cycle
+                        end if
+
+                        HEl = get_spawn_helement(nI_parent, nI_child, ilut_parent, ilut_child, ic, ex, &
+                                                 tParity, HElGen)
+
+                        child_sign = calc_amp_kp_hamil(parent_sign, prob, av_mc_excits_kp*tot_pop, HEl)
+                    else
+                        child_sign = 0.0_dp
+                    end if
+
+                    ! If any (valid) children have been spawned.
+                    if ((any(child_sign /= 0)) .and. (ic /= 0) .and. (ic <= 2)) then
+
+                        call create_particle_kp_hamil(nI_child, ilut_child, child_sign, tNearlyFull)
+
+                        if (tNearlyFull) then
+                            call add_in_hamil_contribs(nvecs, krylov_array, krylov_ht, tFinished, tAllFinished, h_matrix)
+                            call clear_hash_table(spawn_ht)
+                            tNearlyFull = .false.
+                        end if
+
+                    end if ! If a child was spawned.
+
+                end do ! Over mulitple spawns from the same determinant.
+            end if
 
         end do ! Over all determinants.
 
@@ -194,10 +253,10 @@ contains
         real(dp), intent(in) :: prob
         real(dp), intent(in) :: av_nspawn
         HElement_t, intent(in) :: HEl
-        real(dp) :: child_sign(lenof_all_signs)
-        real(dp) :: Hel_real, corrected_prob
 
-        HEl_real = real(HEl, dp)
+        real(dp) :: child_sign(lenof_all_signs)
+        real(dp) :: corrected_prob
+
         corrected_prob = prob*av_nspawn
         child_sign = HEl*parent_sign/corrected_prob
 

@@ -67,7 +67,8 @@ module fcimc_initialisation
     use procedure_pointers, only: generate_excitation, attempt_create, &
                                   get_spawn_helement, encode_child, &
                                   attempt_die, extract_bit_rep_avsign, &
-                                  fill_rdm_diag_currdet, new_child_stats
+                                  fill_rdm_diag_currdet, new_child_stats, &
+                                  get_conn_helement
     use symrandexcit3, only: gen_rand_excit3
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
                                        gen_excit_4ind_weighted, &
@@ -116,7 +117,7 @@ contains
     SUBROUTINE SetupParameters()
 
         INTEGER :: ierr,i,j,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
-        INTEGER :: HFConn,LargestOrb,nBits,HighEDet(NEl),orb
+        INTEGER :: LargestOrb,nBits,HighEDet(NEl),orb
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         HElement_t :: TempHii
         real(dp) :: TotDets,SymFactor,r,Gap,UpperTau
@@ -154,6 +155,7 @@ contains
         kp_generate_time%timer_name='KPGenerateTime'
         Stats_Comms_Time%timer_name='StatsCommsTime'
         subspace_hamil_time%timer_name='SubspaceHamilTime'
+        exact_subspace_h_time%timer_name='ExactSubspace_H_Time'
 
         ! Initialise allocated arrays with input data
         TargetGrowRate(:) = InputTargetGrowRate
@@ -1371,6 +1373,17 @@ contains
             endif
         else
             get_spawn_helement => get_helement_det_only
+        endif
+
+        ! When calling routines to generate all possible connections, this
+        ! routine is called to generate the corresponding Hamiltonian matrix
+        ! elements.
+        if (tCSF) then
+            get_conn_helement => get_csf_helement
+        elseif (tHPHF) then
+            get_conn_helement => hphf_off_diag_helement_spawn
+        else
+            get_conn_helement => get_helement_det_only
         endif
 
         ! Once we have generated the children, do we need to encode them?

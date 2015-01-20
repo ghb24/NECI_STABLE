@@ -293,7 +293,7 @@ contains
         integer(n_int) :: ilut(0:NIfTot), ilut_tmp(0:NIfTot)
         integer :: nI(nel), nJ(nel)
         integer :: i, excit(2,2), ex_flag, ex_flag_temp
-        logical :: tAllExcitFound, tParity, tStoreConnSpace, tSinglesOnly
+        logical :: tAllExcitFound, tStoreConnSpace, tSinglesOnly
 
         if (present(connected_space)) then
             tStoreConnSpace = .true.
@@ -337,24 +337,9 @@ contains
 
             do while(.true.)
 
-                ! Generate the next determinant.
-                call GenExcitations3(nI, original_space(:,i), nJ, ex_flag_temp, excit, tParity, &
-                                      tAllExcitFound, .false.)
+                call generate_connection_normal(nI, original_space(:,i), nJ, ilut, ex_flag_temp, excit, &
+                                                 tAllExcitFound, ncon=connected_space_size)
                 if (tAllExcitFound) exit
-
-                ! Encode nJ in ilut.
-                call EncodeBitDet(nJ, ilut)
-
-                ! If using HPHFs, and if this isn't the allowed state for this HPHF, find
-                ! the the allowed state and continue with this as ilut.
-                if (tHPHF .and. (.not. TestClosedShellDet(ilut))) then
-                    if (.not. IsAllowedHPHF(ilut(0:NIfD))) then
-                        ilut_tmp = ilut
-                        call FindExcitBitDetSym(ilut_tmp, ilut)
-                    end if
-                end if
-
-                connected_space_size = connected_space_size + 1
 
                 if (tStoreConnSpace) connected_space(0:NIfD, connected_space_size) = ilut(0:NIfD)
 
@@ -363,6 +348,56 @@ contains
         end do
 
     end subroutine generate_connected_space_normal
+
+    subroutine generate_connection_normal(nI, ilutI, nJ, ilutJ, ex_flag, excit, tAllExcitFound, hel, ncon)
+
+        use procedure_pointers, only: get_conn_helement
+
+        use determinants, only: get_helement
+        use hphf_integrals, only: hphf_off_diag_helement
+
+        integer :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel)
+        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        integer, intent(inout) :: ex_flag
+        integer, intent(inout) :: excit(2,2)
+        logical, intent(inout) :: tAllExcitFound
+        HElement_t, optional, intent(out) :: hel
+        integer, optional, intent(inout) :: ncon
+
+        integer(n_int) :: ilut_tmp(0:NIfTot)
+        integer :: ic
+        logical :: tParity
+        HElement_t :: hel_unused
+
+        ! Generate the next determinant.
+        call GenExcitations3(nI, ilutI, nJ, ex_flag, excit, tParity, &
+                              tAllExcitFound, .false.)
+        if (tAllExcitFound) return
+
+        ! Encode nJ in ilutJ.
+        call EncodeBitDet(nJ, ilutJ)
+
+        ! If using HPHFs, and if this isn't the allowed state for this HPHF, find
+        ! the the allowed state and continue with this as ilut.
+        if (tHPHF .and. (.not. TestClosedShellDet(ilutJ))) then
+            if (.not. IsAllowedHPHF(ilutJ(0:NIfD))) then
+                ilut_tmp = ilutJ
+                call FindExcitBitDetSym(ilut_tmp, ilutJ)
+            end if
+        end if
+
+        if (present(HEl)) then
+            ! Map ex_flag values (1, 2 or 3) to 1, 2 and 1, respectively.
+            ic = 2 - mod(ex_flag,2)
+            HEl = get_conn_helement(nI, nJ, ilutI, ilutJ, ic, excit, tParity, hel_unused)
+            !HEl = 0.0_dp
+        end if
+
+        if (present(ncon)) ncon = ncon + 1
+
+    end subroutine generate_connection_normal
 
     subroutine generate_connected_space_kpnt(original_space_size, original_space, &
             connected_space_size, connected_space, tSinglesOnlyOpt)
