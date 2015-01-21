@@ -253,6 +253,65 @@ contains
 
     end subroutine enumerate_spatial_excitations
 
+    subroutine init_generate_connected_space(nI, ex_flag, tAllExcitFound, excit, excit_gen, nstore, tTempUseBrill)
+
+        use SymExcit2, only: gensymexcitit2par_worker
+
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: ex_flag
+        logical, intent(out) :: tAllExcitFound
+        integer, intent(out) :: excit(2,2)
+        integer, allocatable, intent(out) :: excit_gen(:)
+        integer, intent(out) :: nStore(6)
+        logical, intent(out) :: tTempUseBrill
+
+        integer :: iMaxExcit, nExcitMemLen(1), nJ(nel), ierr
+        character(*), parameter :: t_r = 'init_generate_connected_space'
+
+        ! Which excitations levels should be considered?
+        ! Singles only (1), doubles only (2) or singles and doubles (3).
+        if (tHub) then
+            if (tReal) then
+                ex_flag = 1
+            else
+                ex_flag = 2
+            end if
+        else if (tUEG) then
+            ex_flag = 2
+        else
+            ex_flag = 3
+        end if
+
+        tAllExcitFound = .false.
+
+        if (tKPntSym) then
+            ! We have to ensure that brillouins theorem isn't on for the
+            ! excitation generator.
+            if (tUseBrillouin) then
+                tTempUseBrill = .true.
+                tUseBrillouin = .false.
+            else
+                tTempUseBrill = .false.
+            end if
+
+            iMaxExcit = 0
+            nStore = 0
+
+            call GenSymExcitIt2Par_worker(nI, nel, G1, nBasis, .true., nExcitMemLen, nJ, &
+                                           iMaxExcit, nStore, ex_flag, 1, nel)
+
+            allocate(excit_gen(nExcitMemLen(1)), stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, "Problem allocating excitation generator.")
+            excit_gen = 0
+
+            call GenSymExcitIt2Par_worker(nI, nel, G1, nBasis, .true., excit_gen, nJ, &
+                                           iMaxExcit, nStore, ex_flag, 1, nel)
+        else
+            excit = 0
+        end if
+
+    end subroutine init_generate_connected_space
+
     subroutine generate_connected_space(original_space_size, original_space, &
             connected_space_size, connected_space, tSinglesOnlyOpt)
 
@@ -292,8 +351,10 @@ contains
 
         integer(n_int) :: ilutJ(0:NIfTot), ilut_tmp(0:NIfTot)
         integer :: nI(nel), nJ(nel)
-        integer :: i, excit(2,2), ex_flag, ex_flag_temp
-        logical :: tAllExcitFound, tStoreConnSpace, tSinglesOnly
+        integer :: i, excit(2,2), ex_flag
+        integer, allocatable :: excit_gen(:)
+        integer :: nStore(6)
+        logical :: tAllExcitFound, tStoreConnSpace, tSinglesOnly, tTempUseBrill
 
         if (present(connected_space)) then
             tStoreConnSpace = .true.
@@ -306,24 +367,6 @@ contains
             if (tSinglesOnlyOpt) tSinglesOnly = .true.
         end if
 
-        ! Which excitations levels should be considered?
-        ! Singles only (1), doubles only (2) or singles and doubles (3).
-        if (tSinglesOnly) then
-            ex_flag = 1
-        else
-            if (tHub) then
-                if (tReal) then
-                    ex_flag = 1
-                else
-                    ex_flag = 2
-                end if
-            else if (tUEG) then
-                ex_flag = 2
-            else
-                ex_flag = 3
-            end if
-        end if
-
         connected_space_size = 0
 
         ! Over all the states in the original list:
@@ -331,13 +374,12 @@ contains
 
             call decode_bit_det(nI, original_space(:,i))
 
-            tAllExcitFound = .false.
-            excit = 0
-            ex_flag_temp = ex_flag
+            call init_generate_connected_space(nI, ex_flag, tAllExcitFound, excit, excit_gen, nstore, tTempUseBrill)
+            if (tSinglesOnly) ex_flag = 1
 
             do while(.true.)
 
-                call generate_connection_normal(nI, original_space(:,i), nJ, ilutJ, ex_flag_temp, excit, &
+                call generate_connection_normal(nI, original_space(:,i), nJ, ilutJ, ex_flag, excit, &
                                                  tAllExcitFound, ncon=connected_space_size)
                 if (tAllExcitFound) exit
 
@@ -419,10 +461,10 @@ contains
         integer(n_int) :: ilutJ(0:NIfTot), ilut_tmp(0:NIfTot)
         integer :: nI(nel), nJ(nel)
         integer :: i, excit(2,2), ex_flag
-        integer :: nStore(6), nExcitMemLen(1), iMaxExcit, ierr
+        integer :: nStore(6), iMaxExcit
         integer, allocatable :: excit_gen(:)
         logical :: tStoreConnSpace, tSinglesOnly, tTempUseBrill, tAllExcitFound
-        character(*), parameter :: t_r = 'generate_connected_space_kpnt'
+
 
         if (present(connected_space)) then
             tStoreConnSpace = .true.
@@ -435,33 +477,6 @@ contains
             if (tSinglesOnlyOpt) tSinglesOnly = .true.
         end if
 
-        ! Which excitations levels should be considered?
-        ! Singles only (1), doubles only (2) or singles and doubles (3).
-        if (tSinglesOnly) then
-            ex_flag = 1
-        else
-            if (tHub) then
-                if (tReal) then
-                    ex_flag = 1
-                else
-                    ex_flag = 2
-                end if
-            else if (tUEG) then
-                ex_flag = 2
-            else
-                ex_flag = 3
-            end if
-        end if
-
-        ! We have to ensure that brillouins theorem isn't on for the excitation
-        ! generator.
-        if (tUseBrillouin) then
-            tTempUseBrill = .true.
-            tUseBrillouin = .false.
-        else
-            tTempUseBrill = .false.
-        end if
-
         connected_space_size = 0
 
         ! Over all the states in the original list:
@@ -469,23 +484,8 @@ contains
 
             call decode_bit_det(nI, original_space(:,i))
 
-            ! This is all initialisation stuff for the excitation generator:
-
-            tAllExcitFound = .false.
-            iMaxExcit = 0
-            nStore(1:6) = 0
-
-            call GenSymExcitIt2Par_worker(nI, nel, G1, nBasis, .true., nExcitMemLen, nJ, &
-                                           iMaxExcit, nStore, ex_flag, 1, nel)
-
-            allocate(excit_gen(nExcitMemLen(1)), stat=ierr)
-            if (ierr /= 0) call stop_all(t_r, "Problem allocating excitation generator.")
-            excit_gen = 0
-
-            call GenSymExcitIt2Par_worker(nI, nel, G1, nBasis, .true., excit_gen, nJ, &
-                                           iMaxExcit, nStore, ex_flag, 1, nel)
-
-            ! Initialisation finished.
+            call init_generate_connected_space(nI, ex_flag, tAllExcitFound, excit, excit_gen, nstore, tTempUseBrill)
+            if (tSinglesOnly) ex_flag = 1
 
             do while(.true.)
 
