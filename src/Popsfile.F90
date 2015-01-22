@@ -301,7 +301,7 @@ contains
         ! The buffer is able to store the maximum number of particles on any
         ! determinant.
         integer(n_int), allocatable :: buffer(:,:)
-        integer :: ndets, det, ierr, nelem, proc, nread
+        integer :: ndets, det, ierr, nelem, proc, nread, nattempts
         logical :: tEOF
 
         integer :: i
@@ -338,6 +338,7 @@ contains
             do proc = 0, nProcessors - 1
 
                 ndets = 0
+                nattempts = 1
                 do while (ndets < read_walkers_on_nodes(proc))
 
                     ! Read and store a particle for transmission
@@ -346,14 +347,16 @@ contains
                                               buffer(:, ndets), unused, &
                                               PopNIfSgn, iunit_3, .false., &
                                               nread)
+                    nattempts = nattempts + nread
 
                     ! Add the contribution from this determinant to the
                     ! norm of the popsfile wave function.
                     call add_pops_norm_contrib(buffer(:, ndets))
 
                     ! Catch a premature End-Of-File
-                    if (tEOF) call stop_all(this_routine, &
-                                            "Too few determinants found.")
+                    if (tEOF .and. nattempts < read_walkers_on_nodes(proc)) &
+                        call stop_all(this_routine, &
+                                      "Too few determinants found.")
 
                 end do
 
