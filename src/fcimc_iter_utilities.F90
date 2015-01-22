@@ -425,7 +425,7 @@ contains
         ! enabled, and now tau is outside the range acceptable for tau
         ! searching
         if (.not. tSearchTau) then
-            call MPIReduce(tSearchTauDeath, MPI_LOR, ltmp)
+            call MPIAllReduce(tSearchTauDeath, MPI_LOR, ltmp)
             tSearchTauDeath = ltmp
         end if
         if ((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) .and. &
