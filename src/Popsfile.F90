@@ -301,7 +301,7 @@ contains
         ! The buffer is able to store the maximum number of particles on any
         ! determinant.
         integer(n_int), allocatable :: buffer(:,:)
-        integer :: ndets, det, ierr, nelem, proc
+        integer :: ndets, det, ierr, nelem, proc, nread
         logical :: tEOF
 
         integer :: i
@@ -344,7 +344,8 @@ contains
                     ndets = ndets + 1
                     tEOF = read_popsfile_det (iunit, PopNel, binary_pops, &
                                               buffer(:, ndets), unused, &
-                                              PopNIfSgn, iunit_3, .false.)
+                                              PopNIfSgn, iunit_3, .false., &
+                                              nread)
 
                     ! Add the contribution from this determinant to the
                     ! norm of the popsfile wave function.
@@ -411,8 +412,7 @@ contains
         integer(n_int), allocatable :: BatchRead(:,:)
         integer(n_int) :: ilut_tmp(0:NIfTot)
         logical :: tEOF
-        integer :: det
-        integer :: proc
+        integer :: nread, proc
 
         allocate(BatchRead(0:NifTot, 1:MaxWalkersPart))
 
@@ -436,7 +436,7 @@ contains
                 tEOF = read_popsfile_det (iunit, PopNel, binary_pops, &
                                           det_list(:, CurrWalkers), &
                                           det_tmp, PopNIfSgn, iunit_3, &
-                                          .true.)
+                                          .true., nread)
 
                 ! Add the contribution from this determinant to the
                 ! norm of the popsfile wave function.
@@ -486,8 +486,8 @@ contains
         integer(MPIArg) :: sendcounts(nNodes), disps(nNodes), recvcount
         integer(MPIArg) :: sendcounts2(nNodes), disps2(nNodes), recvcount2
         integer :: PopsInitialSlots(0:nNodes-1), PopsSendList(0:nNodes-1)
-        integer :: batch_size, MaxSendIndex, i, j, det, nBatches, err, proc
-        integer(n_int) :: ilut_tmp(0:NIfTot)
+        integer :: batch_size, MaxSendIndex, i, j, nBatches, err, proc
+        integer(n_int) :: ilut_tmp(0:NIfTot), det_attempt, nread
 
         integer(n_int), allocatable :: BatchRead(:,:)
 
@@ -515,7 +515,7 @@ contains
         end if
 
         ! Keep reading until all of the particles have been read in!
-        det = 1
+        det_attempt = 1
         tReadAllPops = .false.
         CurrWalkers = 0
         pops_norm = 0.0_dp
@@ -534,21 +534,22 @@ r_loop: do while (.not. tReadAllPops)
                 BatchRead(:,:) = 0
                 PopsSendList(:) = PopsInitialSlots(:)
 
-                do while (Det <= EndPopsList .or. tSplitPops)
+                do while (det_attempt <= EndPopsList .or. tSplitPops)
 
                     ! Read the next entry, and store the walker in ilut_tmp.
                     ! The decoded form is placed in det_tmp
-                    det = det + 1
                     tEOF = read_popsfile_det (iunit, PopNel, binary_pops, &
                                               ilut_tmp, det_tmp, PopNIfSgn, &
-                                              iunit_3, .true.)
+                                              iunit_3, .true., nread)
+                    det_attempt = det_attempt + nread
                     ! Add the contribution from this determinant to the
                     ! norm of the popsfile wave function.
                     call add_pops_norm_contrib(ilut_tmp)
 
                     ! When we have got to the end of the file, we are done.
-                    if (tEOF) call stop_all (this_routine, &
-                                             "Too few determinants found.")
+                    if (tEOF .and. det_attempt <= EndPopsList) &
+                        call stop_all (this_routine, &
+                                       "Too few determinants found.")
 
                     ! Where should this particle be going?
                     proc = DetermineDetNode(PopNel, det_tmp, 0)
@@ -570,7 +571,7 @@ r_loop: do while (.not. tReadAllPops)
                 enddo
 
                 ! Have we read in all of the particles?
-                if (det > EndPopsList) tReadAllPops = .true.
+                if (det_attempt > EndPopsList) tReadAllPops = .true.
 
                 ! Prep the counts for transmitting the particles to all of
                 ! the nodes.
@@ -628,7 +629,8 @@ r_loop: do while (.not. tReadAllPops)
     ! BinPops = Binary popsfile or formatted
     ! WalkerTemp = Determinant entry returned
     function read_popsfile_det (iunit, nel_loc, BinPops, WalkerTemp, nI, &
-                                PopNifSgn, iunit_3, decode_det) result(tEOF)
+                                PopNifSgn, iunit_3, decode_det, &
+                                nread) result(tEOF)
 
         integer, intent(in) :: iunit
         integer, intent(in) :: nel_loc
@@ -637,6 +639,7 @@ r_loop: do while (.not. tReadAllPops)
         integer, intent(in) :: PopNifSgn
         integer, intent(in), optional :: iunit_3
         logical, intent(in) :: BinPops, decode_det
+        integer, intent(out) :: nread
         integer(n_int) :: WalkerTemp2(0:NIfTot)
         integer(n_int) :: sgn_int(PopNifSgn)
         integer :: elec, flg, i, j, stat, k
@@ -648,6 +651,7 @@ r_loop: do while (.not. tReadAllPops)
         WalkerTemp = 0_n_int
         tStoreDet=.false.
         tEOF = .false.
+        nread = 0
 r_loop: do while(.not.tStoreDet)
 
             ! All basis parameters match --> Read in directly.
@@ -692,6 +696,7 @@ r_loop: do while(.not.tStoreDet)
                 tEOF = .true. ! End of file reached.
                 exit r_loop
             end if
+            nread = nread + 1
             
             if((inum_runs.eq.2).and.(PopNifSgn.eq.1)) then
                 !Read in pops from a single run. Distribute an identical set of walkers to each walker set
