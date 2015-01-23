@@ -502,7 +502,8 @@ contains
         integer(MPIArg) :: sendcounts2(nNodes), disps2(nNodes), recvcount2
         integer :: PopsInitialSlots(0:nNodes-1), PopsSendList(0:nNodes-1)
         integer :: batch_size, MaxSendIndex, i, j, nBatches, err, proc
-        integer(n_int) :: ilut_tmp(0:NIfTot), det_attempt, nread
+        integer(n_int) :: ilut_tmp(0:NIfTot)
+        integer(int64) :: det_attempt, nread
 
         integer(n_int), allocatable :: BatchRead(:,:)
 
