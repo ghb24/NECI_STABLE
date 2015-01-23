@@ -330,6 +330,7 @@ contains
         real(dp), dimension(max(lenof_sign,inum_runs)) :: RealAllHFCyc
         real(dp), dimension(inum_runs) :: all_norm_psi_squared, all_norm_semistoch_squared
         real(dp) :: bloom_sz_tmp(0:2)
+        logical :: ltmp
         integer :: run
     
         ! Communicate the integers needing summation
@@ -420,8 +421,17 @@ contains
 
         !        WRITE(iout,*) "***",iter_data%update_growth_tot,AllTotParts-AllTotPartsOld
 
-        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) &
+        ! We should update tau searching if it is enabled, or if it has been
+        ! enabled, and now tau is outside the range acceptable for tau
+        ! searching
+        if (.not. tSearchTau) then
+            call MPIAllReduce(tSearchTauDeath, MPI_LOR, ltmp)
+            tSearchTauDeath = ltmp
+        end if
+        if ((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) .and. &
+                            .not. tFillingStochRDMOnFly) then   
             call update_tau()
+        end if
 
         !TODO CMO:Make sure these are length 2 as well
         if (tTrialWavefunction) then
