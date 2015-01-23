@@ -301,7 +301,8 @@ contains
         ! The buffer is able to store the maximum number of particles on any
         ! determinant.
         integer(n_int), allocatable :: buffer(:,:)
-        integer :: ndets, det, ierr, nelem, proc, nread, nattempts
+        integer :: ndets, det, ierr, nelem, proc, nread
+        integer(int64) :: nattempts
         logical :: tEOF
 
         integer :: i
@@ -654,7 +655,7 @@ r_loop: do while (.not. tReadAllPops)
         integer, intent(in), optional :: iunit_3
         logical, intent(in) :: BinPops, decode_det
         integer, intent(out) :: nread
-        integer, intent(in), optional :: read_max
+        integer(int64), intent(in), optional :: read_max
         integer(n_int) :: WalkerTemp2(0:NIfTot)
         integer(n_int) :: sgn_int(PopNifSgn)
         integer :: elec, flg, i, j, stat, k
