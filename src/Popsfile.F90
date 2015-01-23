@@ -182,7 +182,7 @@ contains
         else if (pops_nnodes == nProcessors .and. PopsVersion == 4) then
             CurrWalkers = read_pops_nnodes (iunit, PopNel, TempnI, BinPops, Dets, &
                                             DetsLen, read_walkers_on_nodes, &
-                                            iunit_3, PopNIfSgn)
+                                            iunit_3, PopNIfSgn, iPopAllTotWalkers)
         else
             CurrWalkers = read_pops_general (iunit, PopNel, TempnI, BinPops, Dets, &
                                              DetsLen, ReadBatch, EndPopsList, &
@@ -281,7 +281,7 @@ contains
 
     function read_pops_nnodes (iunit, PopNel, unused, binary_pops, det_list, &
                                max_dets, read_walkers_on_nodes, iunit_3, &
-                               PopNIfSgn) &
+                               PopNIfSgn, totW) &
                               result(CurrWalkers)
 
         ! A routine to read in popsfiles, making use of the stored information
@@ -292,10 +292,10 @@ contains
 
         integer, intent(in) :: iunit, PopNel, max_dets, iunit_3, PopNIfSgn
         integer, intent(out) :: unused(PopNel)
-        integer(int64), intent(in) :: read_walkers_on_nodes(0:nProcessors-1)
+        integer(int64), intent(in) :: read_walkers_on_nodes(0:nProcessors-1), totW
         integer(n_int), intent(out) :: det_list(0:NIfTot, max_dets)
         logical, intent(in) :: binary_pops
-        integer(int64) :: CurrWalkers
+        integer(int64) :: CurrWalkers, cntW, cnt2
         character(*), parameter :: this_routine = 'read_pops_nnodes'
 
         ! The buffer is able to store the maximum number of particles on any
@@ -309,6 +309,7 @@ contains
         ! A tag is used to identify this send/recv pair over any others
         integer, parameter :: mpi_tag = 123456  !z'beef'
         integer, parameter :: mpi_tag_h = 123457
+        integer, parameter :: mpi_tag_dets = 123458
 
         ! Initialise counters
         CurrWalkers = 0
@@ -335,28 +336,38 @@ contains
             if (ierr /= 0) &
                 call stop_all(this_routine, 'Allocation of H-buffer failed')
 
+            cntW = 0
+            cnt2 = 0
             do proc = 0, nProcessors - 1
+                cntW = cntW + read_walkers_on_nodes(proc)
 
                 ndets = 0
-                nattempts = 1
-                do while (ndets < read_walkers_on_nodes(proc))
+                nattempts = 0
+                do while (nattempts < read_walkers_on_nodes(proc))
 
                     ! Read and store a particle for transmission
                     ndets = ndets + 1
                     tEOF = read_popsfile_det (iunit, PopNel, binary_pops, &
                                               buffer(:, ndets), unused, &
                                               PopNIfSgn, iunit_3, .false., &
-                                              nread)
+                                              nread, &
+                                      read_walkers_on_nodes(proc) - nattempts)
                     nattempts = nattempts + nread
+                    cnt2 = cnt2 + nread
 
-                    ! Add the contribution from this determinant to the
-                    ! norm of the popsfile wave function.
-                    call add_pops_norm_contrib(buffer(:, ndets))
-
-                    ! Catch a premature End-Of-File
-                    if (tEOF .and. nattempts < read_walkers_on_nodes(proc)) &
-                        call stop_all(this_routine, &
-                                      "Too few determinants found.")
+                    ! Catch a premature End-Of-File, or cases where the last
+                    ! determinant in the set is not readable.
+                    if (tEOF) then
+                        ndets = ndets - 1
+                        if (nattempts < read_walkers_on_nodes(proc)) then
+                            call stop_all(this_routine, &
+                                          "Too few determinants found.")
+                        end if
+                    else
+                        ! Add the contribution from this determinant to the
+                        ! norm of the popsfile wave function.
+                        call add_pops_norm_contrib(buffer(:, ndets))
+                    end if
 
                 end do
 
@@ -372,6 +383,7 @@ contains
                     ! Send the particles to the relevant processor. The counts
                     ! have already been transmitted.
                     nelem = ndets * (1 + NIfTot)
+                    call MPISend(ndets, 1, proc, mpi_tag_dets, ierr)
                     call MPISend(buffer(:,1:ndets), nelem, proc, mpi_tag, ierr)
 
                 end if
@@ -384,10 +396,9 @@ contains
         else if (bNodeRoot) then
 
             ! And receive the dets!
-            ndets = int(read_walkers_on_nodes(iProcIndex))
+            call MPIRecv(ndets, 1, root, mpi_tag_dets, ierr)
             nelem = ndets * (1 + NIfTot)
             call MPIRecv(det_list, nelem, root, mpi_tag, ierr)
-
 
             ! Now we know how many particles are on this node
             CurrWalkers = ndets
@@ -633,7 +644,7 @@ r_loop: do while (.not. tReadAllPops)
     ! WalkerTemp = Determinant entry returned
     function read_popsfile_det (iunit, nel_loc, BinPops, WalkerTemp, nI, &
                                 PopNifSgn, iunit_3, decode_det, &
-                                nread) result(tEOF)
+                                nread, read_max) result(tEOF)
 
         integer, intent(in) :: iunit
         integer, intent(in) :: nel_loc
@@ -643,6 +654,7 @@ r_loop: do while (.not. tReadAllPops)
         integer, intent(in), optional :: iunit_3
         logical, intent(in) :: BinPops, decode_det
         integer, intent(out) :: nread
+        integer, intent(in), optional :: read_max
         integer(n_int) :: WalkerTemp2(0:NIfTot)
         integer(n_int) :: sgn_int(PopNifSgn)
         integer :: elec, flg, i, j, stat, k
@@ -656,6 +668,15 @@ r_loop: do while (.not. tReadAllPops)
         tEOF = .false.
         nread = 0
 r_loop: do while(.not.tStoreDet)
+
+            ! If we have specified a maximum number of read attempts, then
+            ! stick to that!
+            if (present(read_max)) then
+                if (nread == read_max) then
+                    tEOF = .true.
+                    exit
+                end if
+            end if
 
             ! All basis parameters match --> Read in directly.
             if (tRealPOPSfile) then
