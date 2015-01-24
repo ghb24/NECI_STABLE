@@ -185,10 +185,11 @@ contains
 
         use DetBitOps, only: FindBitExcitLevel
         use Determinants, only: get_helement
-        use FciMCData, only: Hii
+        use FciMCData, only: Hii, exact_subspace_h_time
         use global_det_data, only: det_diagH
         use hphf_integrals, only: hphf_off_diag_helement
         use SystemData, only: tHPHF, nel
+        use timing_neci, only: set_timer, halt_timer
 
         integer, intent(in) :: nvecs
         integer(n_int), intent(in) :: krylov_array(0:,:)
@@ -204,6 +205,8 @@ contains
         real(dp) :: h_elem
         logical :: any_occ, occ_1, occ_2
         integer(4), allocatable :: occ_flags(:)
+
+        call set_timer(exact_subspace_h_time)
 
         h_matrix = 0.0_dp
 
@@ -313,6 +316,8 @@ contains
         end do
 
         deallocate(occ_flags)
+
+        call halt_timer(exact_subspace_h_time)
 
     end subroutine calc_hamil_exact
 

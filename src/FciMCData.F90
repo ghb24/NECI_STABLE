@@ -247,7 +247,7 @@ MODULE FciMCData
                            SemiStoch_Multiply_Time, Trial_Search_Time, &
                            SemiStoch_Init_Time, Trial_Init_Time, &
                            kp_generate_time, Stats_Comms_Time, &
-                           subspace_hamil_time
+                           subspace_hamil_time, exact_subspace_h_time
       
       ! Store the current value of S^2 between update cycles
       real(dp), allocatable :: curr_S2(:), curr_S2_init(:)
@@ -266,6 +266,8 @@ MODULE FciMCData
       ! using the HF determinant, if using non-uniform random excitations.
       real(dp) :: pDoubles, pSingles, pParallel
       integer :: nSingles, nDoubles
+      ! The number of determinants connected to the Hartree-Fock determinant.
+      integer :: HFConn
       
       ! Bit representation of the HF determinant
       integer(kind=n_int), allocatable :: iLutHF(:), iLutHF_True(:)

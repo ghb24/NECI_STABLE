@@ -39,6 +39,7 @@ contains
 
         nwalkers_per_site_init = 1.0_dp
         av_mc_excits_kp = 0.0_dp
+        kp_hamil_exact_frac = 1.0_dp
         tFiniteTemp = .false.
         tMultiplePopStart = .false.
         tExactHamil = .false.
@@ -146,6 +147,8 @@ contains
                 call getf(nwalkers_per_site_init)
             case("AVERAGEMCEXCITS-HAMIL")
                 call getf(av_mc_excits_kp)
+            case("EXACT-HAMIL-FRAC")
+                call getf(kp_hamil_exact_frac)
             case("EXACT-HAMIL")
                 tExactHamil = .true.
             case("FULLY-STOCHASTIC-HAMIL")
