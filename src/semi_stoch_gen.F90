@@ -183,7 +183,7 @@ contains
         if (tPopsCore) call generate_space_most_populated(n_core_pops, SpawnedParts, space_size)
         if (tReadCore) call generate_space_from_file('CORESPACE', SpawnedParts, space_size)
         if (.not. tCSFCore) then
-            if (tDoublesCore) call generate_sing_doub_determinants(SpawnedParts, space_size)
+            if (tDoublesCore) call generate_sing_doub_determinants(SpawnedParts, space_size, tHFConnCore)
             if (tCASCore) call generate_cas(OccDetermCasOrbs, VirtDetermCasOrbs, SpawnedParts, space_size)
             if (tRASCore) call generate_ras(core_ras, SpawnedParts, space_size)
             if (tOptimisedCore) call generate_optimised_core(determ_opt_data, tLimitDetermSpace, &
@@ -294,7 +294,7 @@ contains
 
     end subroutine add_state_to_space
 
-    subroutine generate_sing_doub_determinants(ilut_list, space_size) 
+    subroutine generate_sing_doub_determinants(ilut_list, space_size, only_keep_conn)
 
         ! In/Out: ilut_list - List of determinants generated.
         ! In/Out: space_size - Number of determinants in the generated space.
@@ -306,17 +306,20 @@ contains
         !             On output space_size will equal the total number of
         !             generated plus what space_size was on input.
 
+        use determinants, only: get_helement
         use SymExcit3, only: GenExcitations3
         use SystemData, only: nel, tKPntSym
 
         integer(n_int), intent(inout) :: ilut_list(0:,:)
         integer, intent(inout) :: space_size
+        logical, intent(in) :: only_keep_conn
 
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel)
         integer :: excit(2,2)
         integer :: nsing, ndoub, ex_flag
         logical :: tAllExcitFound, tParity
+        HElement_t :: HEl
 
         ! Always generate both the single and double excitations.
         ex_flag = 3
@@ -325,7 +328,7 @@ contains
         call add_state_to_space(ilutHF, ilut_list, space_size)
 
         if (tKPntSym) then
-            call enumerate_sing_doub_kpnt(ex_flag, nsing, ndoub, .true., ilut_list, space_size)
+            call enumerate_sing_doub_kpnt(ex_flag, only_keep_conn, nsing, ndoub, .true., ilut_list, space_size)
         else
 
             tAllExcitFound = .false.
@@ -337,6 +340,12 @@ contains
                 if (tAllExcitFound) exit
 
                 call EncodeBitDet(nI, ilut)
+                ! If using a deterministic space connected to the Hartree-Fock
+                ! then check that this determinant is actually connected to it!
+                if (only_keep_conn) then
+                    HEl = get_helement(HFDet, nI, ilutHF, ilut)
+                    if (abs(real(HEl,dp)) < 1.e-12_dp) cycle
+                end if
                 call add_state_to_space(ilut, ilut_list, space_size, nI)
             end do
 
@@ -1259,7 +1268,7 @@ contains
 
     end subroutine generate_using_mp1_criterion
 
-    subroutine enumerate_sing_doub_kpnt(ex_flag, nSing, nDoub, tStore, ilut_list, space_size)
+    subroutine enumerate_sing_doub_kpnt(ex_flag, only_keep_conn, nSing, nDoub, tStore, ilut_list, space_size)
 
         ! In/Out: ilut_list - List of determinants generated.
         ! In/Out: space_size - Number of determinants in the generated space.
@@ -1276,6 +1285,7 @@ contains
         use SystemData, only: nel, G1, tUseBrillouin, nBasis
 
         integer, intent(in) :: ex_flag
+        logical, intent(in) :: only_keep_conn
         integer, intent(out) :: nSing, nDoub
         logical, intent(in) :: tStore
         integer(n_int), optional, intent(inout) :: ilut_list(0:,:)
@@ -1287,6 +1297,7 @@ contains
         integer :: nJ(nel), hfdet_loc(nel), nStore(6), nExcitMemLen(1)
         logical :: tTempUseBrill
         character(*), parameter :: t_r = 'enumerate_doubles_kpnt'
+        HElement_t :: HEl
 
         ! A quick hack. Count excitations as though we were a determinant.
         ! We could fix this later...
@@ -1324,6 +1335,12 @@ contains
 
             if (tStore) then
                 call EncodeBitDet(nJ,ilut)
+                ! If using a deterministic space connected to the Hartree-Fock
+                ! then check that this determinant is actually connected to it!
+                if (only_keep_conn) then
+                    HEl = get_helement(HFDet_loc, nJ, ilutHF, ilut)
+                    if (abs(real(HEl,dp)) < 1.e-12_dp) cycle
+                end if
                 call add_state_to_space(ilut, ilut_list, space_size, nJ)
             end if
 

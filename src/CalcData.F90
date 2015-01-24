@@ -116,6 +116,7 @@ logical :: tSemiStochastic ! Performing a semi-stochastic simulation if true.
 logical :: tCSFCore ! Use CSFs for the core states.
 logical :: tOptimisedCore ! Generate an optimised deterministic space by diagonalising part of the space.
 logical :: tDoublesCore ! Use single and double excitations for the core states.
+logical :: tHFConnCore ! Use all determinants connected to the Hartree-Fock for the core states.
 logical :: tCASCore ! Use Determinants where orbitals within an active space can differ from the Hartree-Fock for core states.
 logical :: tRASCore ! Use a RAS space for the core space (see ras.F90 for definition).
 logical :: tPopsCore ! Use the most populated states from a POPSFILE for the core space.

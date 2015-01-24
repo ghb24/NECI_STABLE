@@ -69,7 +69,7 @@ contains
         write(6,'(a29)') "Generating the trial space..."; call neci_flush(6)
 
         ! Generate the trial space and place the corresponding states in trial_space.
-        if (tDoublesTrial) call generate_sing_doub_determinants(trial_space, trial_space_size)
+        if (tDoublesTrial) call generate_sing_doub_determinants(trial_space, trial_space_size, .false.)
         if (tCASTrial) call generate_cas(OccTrialCASOrbs, VirtTrialCASOrbs, trial_space, trial_space_size)
         if (tRASCore) call generate_ras(trial_ras, trial_space, trial_space_size)
         if (tOptimisedTrial) call generate_optimised_core(trial_opt_data, tLimitTrialSpace, trial_space, &

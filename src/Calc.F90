@@ -272,6 +272,7 @@ contains
           tSemiStochastic = .false.
           tCSFCore = .false.
           tDoublesCore = .false.
+          tHFConnCore = .false.
           tCASCore = .false.
           tRASCore = .false.
           tOptimisedCore = .false.
@@ -1003,6 +1004,9 @@ contains
                 LMS = STOT
             case("DOUBLES-CORE")
                 tDoublesCore = .true.
+            case("HF-CONN-CORE")
+                tDoublesCore = .true.
+                tHFConnCore = .true.
             case("CAS-CORE")
                 tCASCore = .true.
                 tSpn = .true.
