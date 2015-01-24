@@ -142,7 +142,7 @@ contains
                                                     nstore, tTempUseBrill)
 
                 do while(.true.)
-                    if (.not. tKPntSym) then
+                    if (tKPntSym) then
                         call generate_connection_kpnt(nI_parent, ilut_parent, nI_child, ilut_child, ex_flag, &
                                                          all_excits_found, nstore, excit_gen, hel=HEl)
                     else
