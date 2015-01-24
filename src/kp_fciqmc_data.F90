@@ -85,6 +85,10 @@ module kp_fciqmc_data_mod
     ! The total sign length for all Krylov vectors together.
     integer :: lenof_all_signs
 
+    ! If true then, in the stochastic determination of the projected
+    ! Hamiltonian, perform spawning from more highly weighted determinants
+    ! exactly.
+    logical :: tExactHamilSpawning
     ! If true then calculate the projected Hamiltonian exactly (useful for
     ! testing only, in practice).
     logical :: tExactHamil

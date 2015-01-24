@@ -43,6 +43,7 @@ contains
         tFiniteTemp = .false.
         tMultiplePopStart = .false.
         tExactHamil = .false.
+        tExactHamilSpawning = .false.
         tFullyStochasticHamil = .false.
         tInitCorrectNWalkers = .false.
         tOccDetermInit = .false.
@@ -147,7 +148,9 @@ contains
                 call getf(nwalkers_per_site_init)
             case("AVERAGEMCEXCITS-HAMIL")
                 call getf(av_mc_excits_kp)
-            case("EXACT-HAMIL-FRAC")
+            case("EXACT-HAMIL-SPAWNING")
+                tExactHamilSpawning = .true.
+            case("EXACT-HAMIL-SPAWNING-FRAC")
                 call getf(kp_hamil_exact_frac)
             case("EXACT-HAMIL")
                 tExactHamil = .true.
