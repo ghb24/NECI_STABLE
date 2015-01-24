@@ -21,7 +21,7 @@ module kp_fciqmc
     use FciMCData, only: full_determ_vecs, walker_time, annihil_time
     use FciMCData, only: Stats_Comms_Time, iLutHF_True
     use fcimc_initialisation, only: CalcApproxpDoubles
-    use fcimc_helper, only: SumEContrib, end_iter_stats, &
+    use fcimc_helper, only: SumEContrib, end_iter_stats, create_particle_with_hash_table, &
                             CalcParentFlag, walker_death, decide_num_to_spawn
     use fcimc_output, only: end_iteration_print_warn, WriteFCIMCStats, &
                             write_fcimcstats2
@@ -44,8 +44,6 @@ module kp_fciqmc
 contains
 
     subroutine perform_kp_fciqmc(kp)
-
-        use fcimc_helper, only: create_particle
 
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: iiter, idet, ireplica, ispawn, ierr
@@ -259,12 +257,11 @@ contains
                                         if ((any(child_sign /= 0)) .and. (ic /= 0) .and. (ic <= 2)) then
 
                                             call new_child_stats (iter_data_fciqmc, ilut_parent, &
-                                                                  nI_child, ilut_child, ic, ex_level_to_ref,&
+                                                                  nI_child, ilut_child, ic, ex_level_to_ref, &
                                                                   child_sign, parent_flags, ireplica)
 
-                                            call create_particle (nI_child, ilut_child, child_sign, parent_flags, &
-                                                                  ireplica, ilut_parent, parent_sign, &
-                                                                  ispawn, unused_rdm_real, nspawn)
+                                            call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
+                                                                                   ireplica, ilut_parent)
 
                                         end if ! If a child was spawned.
 
@@ -560,8 +557,9 @@ contains
                                                           nI_child, ilut_child, ic, ex_level_to_ref,&
                                                           child_sign, parent_flags, ireplica)
 
+
                                     call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
-                                                                           parent_flags, ireplica, ilut_parent)
+                                                                           ireplica, ilut_parent)
 
                                 end if ! If a child was spawned.
 

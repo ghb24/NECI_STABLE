@@ -242,6 +242,15 @@ module AnnihilationMod
                 !               copy it across rather than explicitly searching
                 !               the list.
 
+                ! If this one entry has no amplitude then don't add it to the
+                ! compressed list, but just cycle.
+                call extract_sign (SpawnedParts(:, BeginningBlockDet), temp_sign)
+                if ( (sum(abs(temp_sign)) < 1.e-12_dp) .and. (.not. (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib))) ) then
+                    DetsMerged = DetsMerged + 1
+                    BeginningBlockDet = CurrentBlockDet 
+                    cycle
+                end if
+
                 ! Transfer all info to the other array.
                 SpawnedParts2(:,VecInd) = SpawnedParts(:, BeginningBlockDet)   
 
