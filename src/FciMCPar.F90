@@ -896,16 +896,15 @@ module FciMCParMod
                         end if
 
                         call new_child_stats (iter_data, CurrentDets(:,j), &
-                                              nJ, iLutnJ, ic, walkExcitLevel,&
+                                              nJ, iLutnJ, ic, walkExcitLevel, &
                                               child, parent_flags, part_type)
 
                         if (use_spawn_hash_table) then
-                            call create_particle_with_hash_table (nJ, ilutnJ, child, parent_flags, &
+                            call create_particle_with_hash_table (nJ, ilutnJ, child, &
                                                                   part_type, CurrentDets(:,j))
                         else
-                            call create_particle (nJ, iLutnJ, child, &
-                                                  parent_flags, part_type,& 
-                                                  CurrentDets(:,j),SignCurr,p,&
+                            call create_particle (nJ, iLutnJ, child, part_type, & 
+                                                  CurrentDets(:,j),SignCurr,p, &
                                                   RDMBiasFacCurr, WalkersToSpawn)
                         end if
 
