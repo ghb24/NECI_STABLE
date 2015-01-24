@@ -788,7 +788,7 @@ contains
             do ireplica = 1, inum_runs
                 walker_sign = 0.0_dp
                 walker_sign(ireplica) = walker_amp
-                call create_particle(nI, ilut, walker_sign, 0, ireplica)
+                call create_particle(nI, ilut, walker_sign, ireplica)
             end do
         end do
 
