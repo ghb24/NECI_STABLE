@@ -840,10 +840,6 @@ contains
         integer(TagIntType) :: TagA, TagB, TagC, TagD
         character (len=*), parameter :: t_r = "generate_space_most_populated"
 
-        if (.not. tReadPops) then
-            call stop_all(t_r, "NECI must be started from a popsfile to use the pops-core and pops-trial options.")
-        end if
-
         n_pops_keep = target_space_size
 
         length_this_proc = min(int(n_pops_keep,MPIArg), int(TotWalkers,MPIArg))
