@@ -182,7 +182,7 @@ contains
         else if (pops_nnodes == nProcessors .and. PopsVersion == 4) then
             CurrWalkers = read_pops_nnodes (iunit, PopNel, TempnI, BinPops, Dets, &
                                             DetsLen, read_walkers_on_nodes, &
-                                            iunit_3, PopNIfSgn)
+                                            iunit_3, PopNIfSgn, iPopAllTotWalkers)
         else
             CurrWalkers = read_pops_general (iunit, PopNel, TempnI, BinPops, Dets, &
                                              DetsLen, ReadBatch, EndPopsList, &
@@ -281,7 +281,7 @@ contains
 
     function read_pops_nnodes (iunit, PopNel, unused, binary_pops, det_list, &
                                max_dets, read_walkers_on_nodes, iunit_3, &
-                               PopNIfSgn) &
+                               PopNIfSgn, totW) &
                               result(CurrWalkers)
 
         ! A routine to read in popsfiles, making use of the stored information
@@ -292,16 +292,17 @@ contains
 
         integer, intent(in) :: iunit, PopNel, max_dets, iunit_3, PopNIfSgn
         integer, intent(out) :: unused(PopNel)
-        integer(int64), intent(in) :: read_walkers_on_nodes(0:nProcessors-1)
+        integer(int64), intent(in) :: read_walkers_on_nodes(0:nProcessors-1), totW
         integer(n_int), intent(out) :: det_list(0:NIfTot, max_dets)
         logical, intent(in) :: binary_pops
-        integer(int64) :: CurrWalkers
+        integer(int64) :: CurrWalkers, cntW, cnt2
         character(*), parameter :: this_routine = 'read_pops_nnodes'
 
         ! The buffer is able to store the maximum number of particles on any
         ! determinant.
         integer(n_int), allocatable :: buffer(:,:)
         integer :: ndets, det, ierr, nelem, proc
+        integer(int64) :: nattempts, nread
         logical :: tEOF
 
         integer :: i
@@ -309,6 +310,7 @@ contains
         ! A tag is used to identify this send/recv pair over any others
         integer, parameter :: mpi_tag = 123456  !z'beef'
         integer, parameter :: mpi_tag_h = 123457
+        integer, parameter :: mpi_tag_dets = 123458
 
         ! Initialise counters
         CurrWalkers = 0
@@ -335,24 +337,39 @@ contains
             if (ierr /= 0) &
                 call stop_all(this_routine, 'Allocation of H-buffer failed')
 
+            cntW = 0
+            cnt2 = 0
             do proc = 0, nProcessors - 1
+                cntW = cntW + read_walkers_on_nodes(proc)
 
                 ndets = 0
-                do while (ndets < read_walkers_on_nodes(proc))
+                nattempts = 0
+                do while (nattempts < read_walkers_on_nodes(proc))
 
                     ! Read and store a particle for transmission
                     ndets = ndets + 1
                     tEOF = read_popsfile_det (iunit, PopNel, binary_pops, &
                                               buffer(:, ndets), unused, &
-                                              PopNIfSgn, iunit_3, .false.)
+                                              PopNIfSgn, iunit_3, .false., &
+                                              nread, &
+                                      read_walkers_on_nodes(proc) - nattempts)
+                    nattempts = nattempts + nread
+                    cnt2 = cnt2 + nread
 
-                    ! Add the contribution from this determinant to the
-                    ! norm of the popsfile wave function.
-                    call add_pops_norm_contrib(buffer(:, ndets))
-
-                    ! Catch a premature End-Of-File
-                    if (tEOF) call stop_all(this_routine, &
-                                            "Too few determinants found.")
+                    ! Catch a premature End-Of-File, or cases where the last
+                    ! determinant in the set is not readable.
+                    if (tEOF) then
+                        ndets = ndets - 1
+                        if (nattempts < read_walkers_on_nodes(proc)) then
+                            call stop_all(this_routine, &
+                                          "Too few determinants found.")
+                        end if
+                        exit
+                    else
+                        ! Add the contribution from this determinant to the
+                        ! norm of the popsfile wave function.
+                        call add_pops_norm_contrib(buffer(:, ndets))
+                    end if
 
                 end do
 
@@ -368,6 +385,7 @@ contains
                     ! Send the particles to the relevant processor. The counts
                     ! have already been transmitted.
                     nelem = ndets * (1 + NIfTot)
+                    call MPISend(ndets, 1, proc, mpi_tag_dets, ierr)
                     call MPISend(buffer(:,1:ndets), nelem, proc, mpi_tag, ierr)
 
                 end if
@@ -380,10 +398,9 @@ contains
         else if (bNodeRoot) then
 
             ! And receive the dets!
-            ndets = int(read_walkers_on_nodes(iProcIndex))
+            call MPIRecv(ndets, 1, root, mpi_tag_dets, ierr)
             nelem = ndets * (1 + NIfTot)
             call MPIRecv(det_list, nelem, root, mpi_tag, ierr)
-
 
             ! Now we know how many particles are on this node
             CurrWalkers = ndets
@@ -411,8 +428,8 @@ contains
         integer(n_int), allocatable :: BatchRead(:,:)
         integer(n_int) :: ilut_tmp(0:NIfTot)
         logical :: tEOF
-        integer :: det
         integer :: proc
+        integer(int64) :: nread
 
         allocate(BatchRead(0:NifTot, 1:MaxWalkersPart))
 
@@ -436,7 +453,7 @@ contains
                 tEOF = read_popsfile_det (iunit, PopNel, binary_pops, &
                                           det_list(:, CurrWalkers), &
                                           det_tmp, PopNIfSgn, iunit_3, &
-                                          .true.)
+                                          .true., nread)
 
                 ! Add the contribution from this determinant to the
                 ! norm of the popsfile wave function.
@@ -486,8 +503,9 @@ contains
         integer(MPIArg) :: sendcounts(nNodes), disps(nNodes), recvcount
         integer(MPIArg) :: sendcounts2(nNodes), disps2(nNodes), recvcount2
         integer :: PopsInitialSlots(0:nNodes-1), PopsSendList(0:nNodes-1)
-        integer :: batch_size, MaxSendIndex, i, j, det, nBatches, err, proc
+        integer :: batch_size, MaxSendIndex, i, j, nBatches, err, proc
         integer(n_int) :: ilut_tmp(0:NIfTot)
+        integer(int64) :: det_attempt, nread
 
         integer(n_int), allocatable :: BatchRead(:,:)
 
@@ -515,7 +533,7 @@ contains
         end if
 
         ! Keep reading until all of the particles have been read in!
-        det = 1
+        det_attempt = 1
         tReadAllPops = .false.
         CurrWalkers = 0
         pops_norm = 0.0_dp
@@ -534,21 +552,27 @@ r_loop: do while (.not. tReadAllPops)
                 BatchRead(:,:) = 0
                 PopsSendList(:) = PopsInitialSlots(:)
 
-                do while (Det <= EndPopsList .or. tSplitPops)
+                do while (.true.)
 
                     ! Read the next entry, and store the walker in ilut_tmp.
                     ! The decoded form is placed in det_tmp
-                    det = det + 1
                     tEOF = read_popsfile_det (iunit, PopNel, binary_pops, &
                                               ilut_tmp, det_tmp, PopNIfSgn, &
-                                              iunit_3, .true.)
+                                              iunit_3, .true., nread)
+                    det_attempt = det_attempt + nread
+
+                    ! When we have got to the end of the file, we are done.
+                    if (tEOF) then
+                        if (det_attempt <= EndPopsList) then
+                            call stop_all (this_routine, &
+                                           "Too few determinants found.")
+                        end if
+                        exit
+                    end if
+
                     ! Add the contribution from this determinant to the
                     ! norm of the popsfile wave function.
                     call add_pops_norm_contrib(ilut_tmp)
-
-                    ! When we have got to the end of the file, we are done.
-                    if (tEOF) call stop_all (this_routine, &
-                                             "Too few determinants found.")
 
                     ! Where should this particle be going?
                     proc = DetermineDetNode(PopNel, det_tmp, 0)
@@ -570,11 +594,12 @@ r_loop: do while (.not. tReadAllPops)
                 enddo
 
                 ! Have we read in all of the particles?
-                if (det > EndPopsList) tReadAllPops = .true.
+                if (det_attempt > EndPopsList) tReadAllPops = .true.
 
                 ! Prep the counts for transmitting the particles to all of
                 ! the nodes.
                 do j = 0, nNodes - 1
+                    write(6,*) 'J', popssendlist(j), popsinitialslots(j)
                     sendcounts(j+1) = &
                         int((PopsSendList(j) - PopsInitialSlots(j)) * &
                             (NIfTot + 1), MPIArg)
@@ -628,7 +653,8 @@ r_loop: do while (.not. tReadAllPops)
     ! BinPops = Binary popsfile or formatted
     ! WalkerTemp = Determinant entry returned
     function read_popsfile_det (iunit, nel_loc, BinPops, WalkerTemp, nI, &
-                                PopNifSgn, iunit_3, decode_det) result(tEOF)
+                                PopNifSgn, iunit_3, decode_det, &
+                                nread, read_max) result(tEOF)
 
         integer, intent(in) :: iunit
         integer, intent(in) :: nel_loc
@@ -637,6 +663,8 @@ r_loop: do while (.not. tReadAllPops)
         integer, intent(in) :: PopNifSgn
         integer, intent(in), optional :: iunit_3
         logical, intent(in) :: BinPops, decode_det
+        integer(int64), intent(out) :: nread
+        integer(int64), intent(in), optional :: read_max
         integer(n_int) :: WalkerTemp2(0:NIfTot)
         integer(n_int) :: sgn_int(PopNifSgn)
         integer :: elec, flg, i, j, stat, k
@@ -648,7 +676,17 @@ r_loop: do while (.not. tReadAllPops)
         WalkerTemp = 0_n_int
         tStoreDet=.false.
         tEOF = .false.
+        nread = 0
 r_loop: do while(.not.tStoreDet)
+
+            ! If we have specified a maximum number of read attempts, then
+            ! stick to that!
+            if (present(read_max)) then
+                if (nread == read_max) then
+                    tEOF = .true.
+                    exit
+                end if
+            end if
 
             ! All basis parameters match --> Read in directly.
             if (tRealPOPSfile) then
@@ -692,6 +730,7 @@ r_loop: do while(.not.tStoreDet)
                 tEOF = .true. ! End of file reached.
                 exit r_loop
             end if
+            nread = nread + 1
             
             if((inum_runs.eq.2).and.(PopNifSgn.eq.1)) then
                 !Read in pops from a single run. Distribute an identical set of walkers to each walker set
@@ -719,7 +758,7 @@ r_loop: do while(.not.tStoreDet)
             endif
             
             ! Test if we actually want to store this walker...
-            if (any(abs(sgn) >= iWeightPopRead)) then
+            if (any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) then
                 tStoreDet = .true.
                 exit
             end if
@@ -1309,6 +1348,7 @@ r_loop: do while(.not.tStoreDet)
         integer(kind=n_int),intent(in) :: Dets(0:nIfTot,1:nDets)
         INTEGER :: error
         integer(int64) :: WalkersonNodes(0:nNodes-1),writeoutdet
+        integer(int64) :: node_write_attempts(0:nNodes-1)
         INTEGER :: Tag, Tag2
         INTEGER :: Total,i,j,k
         INTEGER(KIND=n_int), ALLOCATABLE :: Parts(:,:)
@@ -1339,10 +1379,6 @@ r_loop: do while(.not.tStoreDet)
         CALL MPISum(SumNoatHF,1,AllSumNoatHF)
         CALL MPISum(SumENum,1,AllSumENum)
 
-!We also need to tell the root processor how many particles to expect from 
-!each node - these are gathered into WalkersonNodes
-        if(bNodeRoot) CALL MPIAllGather(nDets,WalkersonNodes,error,Roots)
-
         Tag=125
         Tag2=126
 
@@ -1352,13 +1388,20 @@ r_loop: do while(.not.tStoreDet)
         Writeoutdet=0
         do i=1,int(nDets,sizeof_int)
             call extract_sign(Dets(:,i),TempSign)
-            if(.not.IsUnoccDet(TempSign)) then
+            if(sum(abs(tempsign)) > binarypops_min_weight) then
                 !Count this det in AllTotWalkers
                 Writeoutdet=Writeoutdet+1
             endif
         enddo
         writeoutdet=int(writeoutdet/iPopsPartEvery)
         call mpisum(writeoutdet,1,AllTotWalkers)
+
+        ! We also need to tell the root processor how many particles to expect
+        ! from each node - these are gathered into WalkersonNodes
+        if (bNodeRoot) then
+            call MPIAllGather(ndets, node_write_attempts, error, Roots)
+            call MPIAllGather(writeoutdet, WalkersonNodes, error, Roots)
+        end if
 
         ! We only want to be using space/speed saving devices if we are doing
         ! them to the best of our ability.
@@ -1471,10 +1514,6 @@ r_loop: do while(.not.tStoreDet)
                     !    write(iunit_3) CurrentH(1:1+2*lenof_sign,j)
                     !endif
                     write_count = write_count + 1
-                else
-                    ! Zero determinants don't get written to binary popsfiles
-                    ! --> Adjust the counts to deal with this.
-                    WalkersOnNodes(0) = WalkersOnNodes(0) - 1
                 end if
             end do
 
@@ -1487,7 +1526,7 @@ r_loop: do while(.not.tStoreDet)
                 !       should we have deallocated spawnedparts by here to 
                 !       ensure we have room, or does the deallocated space from
                 !       dealing with freezing give us plenty of room?
-                nMaxDets = int(maxval(WalkersOnNodes), sizeof_int)
+                nMaxDets = int(maxval(node_write_attempts), sizeof_int)
                 allocate(Parts(0:NIfTot, nMaxDets), stat=error)
 
                 call LogMemAlloc ('Parts', int(nMaxDets,int32)*(NIfTot+1), &
@@ -1498,8 +1537,8 @@ r_loop: do while(.not.tStoreDet)
                 do i = 1, nNodes - 1
 
                     ! Calculate the amount of data to receive, and get it.
-                    j = int(WalkersonNodes(i), sizeof_int) * (NIfTot+1)
-                    call MPIRecv (Parts(:, 1:WalkersonNodes(i)), j, &
+                    j = int(node_write_attempts(i), sizeof_int) * (NIfTot+1)
+                    call MPIRecv (Parts(:, 1:node_write_attempts(i)), j, &
                                   NodeRoots(i), Tag, error)
                     
                     ! SDS: Catherine seems to have disabled writing these out
@@ -1512,18 +1551,13 @@ r_loop: do while(.not.tStoreDet)
                     !!!endif
 
                     ! Then write it out in the same way as above.
-                    nwrite = int(WalkersOnNodes(i), sizeof_int)
+                    nwrite = int(node_write_attempts(i), sizeof_int)
                     do j = 1, nwrite
                         if (write_pops_det(iunit, iunit_2, Parts(:,j), j)) then
                             !if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
                             !    write(iunit_3) AllCurrentH(1:1+2*lenof_sign,j)
                             !endif
                             write_count = write_count + 1
-                        else
-                            ! We have found a zero determinant. This doesn't
-                            ! get added to the binary popsfile, so adjust
-                            ! the count here.
-                            WalkersOnNodes(i) = WalkersOnNodes(i) - 1
                         end if
                     end do
 
@@ -1680,20 +1714,12 @@ r_loop: do while(.not.tStoreDet)
 
         call extract_sign(det, real_sgn)
 
-        if (tBinPops) then
-            ! We don't want to bother outputting empty particles, or those
-            ! with a weight which is lower than specified as the cutoff
-            if (sum(abs(real_sgn)) > binarypops_min_weight) then
-                if (mod(j, iPopsPartEvery) == 0) then 
-                    bWritten = .true.
-                end if
+        ! We don't want to bother outputting empty particles, or those
+        ! with a weight which is lower than specified as the cutoff
+        if (sum(abs(real_sgn)) > binarypops_min_weight) then
+            if (mod(j, iPopsPartEvery) == 0) then 
+                bWritten = .true.
             end if
-        else
-            ! If not using a binary popsfile, the header has already been written,
-            ! and the total number of determinants was written out. Therefore, all
-            ! determinants must be printed out, else there will be an error reading
-            ! them in again.
-            bWritten = .true.
         end if
 
         if (bWritten) then
@@ -1740,7 +1766,6 @@ r_loop: do while(.not.tStoreDet)
                 write(iunit_2,'(i30,i30,f20.10)') ex_level, nopen, detenergy
 
             end if
-
         end if
 
     end function write_pops_det

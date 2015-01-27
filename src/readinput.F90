@@ -197,7 +197,7 @@ MODULE ReadInput_neci
                                  tNoDoubs
         use IntegralsData, only: tDiagStarStars, tExcitStarsRootChange, &
                                  tRmRootExcitStarsRootChange, tLinRootChange
-        use LoggingData, only: iLogging, tCalcFCIMCPsi, &
+        use LoggingData, only: iLogging, tCalcFCIMCPsi, tRDMOnFly, &
                            tCalcInstantS2, tDiagAllSpaceEver, &
                            tCalcVariationalEnergy, tCalcInstantS2Init, &
                            tPopsFile
@@ -476,9 +476,32 @@ MODULE ReadInput_neci
             write(6,*) 'Using KPFCIQMC without explicitly specifying the &
                        &number of replica simulations'
             write(6,*) 'Defaulting to using 2 replicas'
+            tMultiReplicas = .true.
             lenof_sign = 2
             inum_runs = 2
 
+        end if
+#endif
+
+        write(6,*) 'CHECKING'
+#if __PROG_NUMRUNS
+        if (tRDMonFly) then
+            write(6,*) 'RDM on fly'
+
+            if (tMultiReplicas) then
+                if (inum_runs /= lenof_sign .or. &
+                    .not. (inum_runs == 1 .or. inum_runs == 2)) &
+                    call stop_all(t_r, 'Stochastic filling of RDMs only works &
+                                       &with either 1 or 2 replicas')
+            else
+                write(6,*) 'unspecified'
+                write(6,*) 'Filling RDMs without explicitly specifying the &
+                           &number of replica simplations'
+                write(6,*) 'Defaulting to using 2 replicas'
+                tMultiReplicas = .true.
+                lenof_sign = 2
+                inum_runs = 2
+            end if
         end if
 #endif
 

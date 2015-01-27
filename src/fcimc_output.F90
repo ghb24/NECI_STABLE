@@ -176,12 +176,6 @@ contains
 
         if (iProcIndex == root) then
 
-        ! Becuase tot_trial_numerator/tot_trial_denom is the energy relative to the the trial
-        ! energy, add on this contribution to make it relative to the HF energy.
-        if (tTrialWavefunction) then
-            tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energy)
-        end if
-
 #ifdef __CMPLX
             write(fcimcstats_unit,"(I12,5G16.7,7G17.9,&
                                   &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9,I13,&
