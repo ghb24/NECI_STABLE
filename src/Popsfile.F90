@@ -1511,10 +1511,6 @@ r_loop: do while(.not.tStoreDet)
                     !    write(iunit_3) CurrentH(1:1+2*lenof_sign,j)
                     !endif
                     write_count = write_count + 1
-                else
-                    ! Zero determinants don't get written to binary popsfiles
-                    ! --> Adjust the counts to deal with this.
-                    WalkersOnNodes(0) = WalkersOnNodes(0) - 1
                 end if
             end do
 
