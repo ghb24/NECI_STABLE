@@ -208,6 +208,21 @@ def process_header ():
                             print "%d integers in spin-orb representation" % \
                                                 (nifd + 1)
 
+                        elif split[pos] == "PopNIfFlag":
+                            pos += 1
+                            nifflag = int(split[pos])
+                            print "%d integers in flags" % nifflag
+
+                        elif split[pos] == "PopNIfY":
+                            pos += 1
+                            nify = int(split[pos])
+                            print "%d integers in Yamanouchi symbol" % nify
+
+                        elif split[pos] == "PopNIfSgn":
+                            pos += 1
+                            nifsgn = int(split[pos])
+                            print "%d integers in sign representation" % nifsgn
+
                         elif split[pos] == "PopRandomHash":
                             pos += 1
                             while pos < len(split):
@@ -229,7 +244,11 @@ def process_header ():
         usage ()
         sys.exit(-1)
 
-    return (bits, niftot, nifd, random_hash)
+    if niftot != nifd + nify + nifsgn + nifflag:
+        print "Sizes in header file don't match"
+        sys.exit(-1)
+
+    return (bits, niftot, nifd, nify, nifsgn, nifflag, random_hash)
 
 
 
@@ -240,24 +259,36 @@ def count_pops ():
     """
 
     # Extract the header information.
-    (bits, niftot, nifd, random_hash) = process_header()
+    (bits, niftot, nifd, nify, nifsgn, nifflag, random_hash) = process_header()
 
     # Read length (in bytes)
     readlen = (1 + niftot) * (bits / 8)
+
+    # Where is the sign information kept?
+    noffsgn = nifd + nify + 1
+    print "Sign offset: %d" % noffsgn
 
     # Loop through, reading 
     try:
         with fort_readwrite(open("POPSFILEBIN", 'rb')) as f:
 
-            print "Opened"
+            print "Opened POPSFILEBIN"
             print "Read length: %d" % readlen
 
-            unpack_str = "@" + ((nifd + 1) * "Q" if bits == 64 else "L")
+            unpack_str = (
+                "@" + 
+                ((nifd + 1) * "Q" if bits == 64 else "L") +
+                (nify * "Q" if bits == 64 else "L") +
+                (nifsgn * "d" if bits == 64 else "f") +
+                (nifflag * "Q" if bits == 64 else "L")
+            )
+
             print "Unpack str |%s|" % unpack_str
 
             # Use a nifty sentinel value for iter, to read until there
             # is no more data!
             totwalkers = 0
+            occ_sites = 0
             for data in iter(lambda: f.read(readlen), None):
 
                 # Check that we have the right data length
@@ -266,17 +297,20 @@ def count_pops ():
                     sys.exit(-1)
 
                 # Decode the determinant
-                #ilut = struct.unpack_from(unpack_str, data)
+                ilut = struct.unpack_from(unpack_str, data)
                 #node = determine_det_node(ilut_to_ni(ilut, bits), random_hash, nprocs, bits)
 
                 # Write the determinant back out to the relevant output file.
                 #outfiles[node].write(data)
                 totwalkers += 1
+                if any((s != 0 for s in ilut[noffsgn:noffsgn+nifsgn])):
+                    occ_sites += 1
 
                 if totwalkers % 10000 == 0:
                     print totwalkers
 
-            print "Total number of occupied determinants: %d" % totwalkers
+            print "Total number of determinants: %d" % totwalkers
+            print "Total number of occupied determinants: %d" % occ_sites
 
 
             
