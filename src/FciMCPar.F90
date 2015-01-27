@@ -398,7 +398,6 @@ module FciMCParMod
         ! upon leaving the loop (If done naturally).
         IF(TIncrement) Iter=Iter-1
         IF(TPopsFile) THEN
-            WRITE(6,*) "Totwalkers", TotWalkers
             CALL WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
         ENDIF
         IF(tCalcFCIMCPsi) THEN
