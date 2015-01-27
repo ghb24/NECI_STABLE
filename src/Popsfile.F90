@@ -1348,6 +1348,7 @@ r_loop: do while(.not.tStoreDet)
         integer(kind=n_int),intent(in) :: Dets(0:nIfTot,1:nDets)
         INTEGER :: error
         integer(int64) :: WalkersonNodes(0:nNodes-1),writeoutdet
+        integer(int64) :: node_write_attempts(0:nNodes-1)
         INTEGER :: Tag, Tag2
         INTEGER :: Total,i,j,k
         INTEGER(KIND=n_int), ALLOCATABLE :: Parts(:,:)
@@ -1397,8 +1398,10 @@ r_loop: do while(.not.tStoreDet)
 
         ! We also need to tell the root processor how many particles to expect
         ! from each node - these are gathered into WalkersonNodes
-        if (bNodeRoot) &
+        if (bNodeRoot) then
+            call MPIAllGather(ndets, node_write_attempts, error, Roots)
             call MPIAllGather(writeoutdet, WalkersonNodes, error, Roots)
+        end if
 
         ! We only want to be using space/speed saving devices if we are doing
         ! them to the best of our ability.
@@ -1511,10 +1514,6 @@ r_loop: do while(.not.tStoreDet)
                     !    write(iunit_3) CurrentH(1:1+2*lenof_sign,j)
                     !endif
                     write_count = write_count + 1
-                else
-                    ! Zero determinants don't get written to binary popsfiles
-                    ! --> Adjust the counts to deal with this.
-                    WalkersOnNodes(0) = WalkersOnNodes(0) - 1
                 end if
             end do
 
@@ -1527,7 +1526,7 @@ r_loop: do while(.not.tStoreDet)
                 !       should we have deallocated spawnedparts by here to 
                 !       ensure we have room, or does the deallocated space from
                 !       dealing with freezing give us plenty of room?
-                nMaxDets = int(maxval(WalkersOnNodes), sizeof_int)
+                nMaxDets = int(maxval(node_write_attempts), sizeof_int)
                 allocate(Parts(0:NIfTot, nMaxDets), stat=error)
 
                 call LogMemAlloc ('Parts', int(nMaxDets,int32)*(NIfTot+1), &
@@ -1538,8 +1537,8 @@ r_loop: do while(.not.tStoreDet)
                 do i = 1, nNodes - 1
 
                     ! Calculate the amount of data to receive, and get it.
-                    j = int(WalkersonNodes(i), sizeof_int) * (NIfTot+1)
-                    call MPIRecv (Parts(:, 1:WalkersonNodes(i)), j, &
+                    j = int(node_write_attempts(i), sizeof_int) * (NIfTot+1)
+                    call MPIRecv (Parts(:, 1:node_write_attempts(i)), j, &
                                   NodeRoots(i), Tag, error)
                     
                     ! SDS: Catherine seems to have disabled writing these out
@@ -1552,18 +1551,13 @@ r_loop: do while(.not.tStoreDet)
                     !!!endif
 
                     ! Then write it out in the same way as above.
-                    nwrite = int(WalkersOnNodes(i), sizeof_int)
+                    nwrite = int(node_write_attempts(i), sizeof_int)
                     do j = 1, nwrite
                         if (write_pops_det(iunit, iunit_2, Parts(:,j), j)) then
                             !if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
                             !    write(iunit_3) AllCurrentH(1:1+2*lenof_sign,j)
                             !endif
                             write_count = write_count + 1
-                        else
-                            ! We have found a zero determinant. This doesn't
-                            ! get added to the binary popsfile, so adjust
-                            ! the count here.
-                            WalkersOnNodes(i) = WalkersOnNodes(i) - 1
                         end if
                     end do
 
@@ -1772,7 +1766,6 @@ r_loop: do while(.not.tStoreDet)
                 write(iunit_2,'(i30,i30,f20.10)') ex_level, nopen, detenergy
 
             end if
-
         end if
 
     end function write_pops_det
