@@ -614,7 +614,7 @@ contains
 
         type(opt_space_data), intent(in) :: opt_data
         logical :: tLimitSpace
-        integer(n_int), intent(out) :: ilut_list(:,:)
+        integer(n_int), intent(out) :: ilut_list(0:,:)
         integer, intent(out) :: space_size
         integer, optional, intent(in) :: max_space_size
 
@@ -1049,7 +1049,7 @@ contains
 
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
         integer, intent(inout) :: nI(nel)
-        integer(n_int), intent(inout) :: ilut_list(:,:)
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
         integer, intent(inout) :: space_size
 
         integer :: i, n_open, num_csfs, max_num_csfs
@@ -1212,7 +1212,7 @@ contains
         integer, intent(in) :: ex_flag
         integer, intent(out) :: nSing, nDoub
         logical, intent(in) :: tStore
-        integer(n_int), optional, intent(inout) :: ilut_list(:,:)
+        integer(n_int), optional, intent(inout) :: ilut_list(0:,:)
         integer, optional, intent(inout) :: space_size
 
         integer, allocatable :: excit_gen(:)
@@ -1278,11 +1278,11 @@ contains
 
         use SystemData, only: nel, nbasis
 
-        integer(n_int), intent(out) :: ilut_list(:,:)
+        integer(n_int), intent(out) :: ilut_list(0:,:)
         integer, intent(out) :: space_size
 
         integer :: nsites, nup
-        integer :: up_spins(nel/2)
+        integer :: up_spins(nel/2+1)
 
         space_size = 0
         nsites = nbasis/2
@@ -1296,9 +1296,9 @@ contains
         use SystemData, only: nel
 
         integer, intent(in) :: ispin
-        integer, intent(inout) :: up_spins(nel)
+        integer, intent(inout) :: up_spins(nel/2+1)
         integer, intent(in) :: nsites, nup
-        integer(n_int), intent(inout) :: ilut_list(:,:)
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
         integer, intent(inout) :: space_size
 
         integer :: i, isite, counter, starting_site

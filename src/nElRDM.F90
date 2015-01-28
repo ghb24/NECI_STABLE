@@ -6412,14 +6412,14 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
 
         ! IterRDM will be the number of iterations that the contributions are
         ! ech weighted by.
-        if (mod((iter - IterRDMStart + 1), RDMEnergyIter) == 0) then
+        if (mod((iter+PreviousCycles - IterRDMStart + 1), RDMEnergyIter) == 0) then
             ! This numer of iterations is how regularly the energy is printed
             ! out.
             IterRDM = RDMEnergyIter
         else
             ! This must be the final iteration, as we've got tFill_RDM=.true.
             ! for an iteration where we wouldn't normally need the energy
-            IterRDM = mod((Iter - IterRDMStart + 1), RDMEnergyIter)
+            IterRDM = mod((Iter+PreviousCycles - IterRDMStart + 1), RDMEnergyIter)
         end if
         
         Ex(:,:)=0

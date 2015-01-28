@@ -202,7 +202,7 @@ MODULE System
       LOGICAL eof
       CHARACTER (LEN=100) w
       INTEGER I,Odd_EvenHPHF,Odd_EvenMI
-      integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
+      integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3, itmp
       character(*), parameter :: t_r = 'SysReadInput'
       
       ! The system block is specified with at least one keyword on the same
@@ -947,8 +947,15 @@ system: do
                                    &permitted value')
             end if
 #else
-            call stop_all(t_r, "mneci.x build must be used for running with &
-                               &multiple simultaneous replicas")
+            call readi(itmp)
+#ifdef __DOUBLERUN
+            if (itmp /= 2) then
+#else
+            if (itmp /= 1) then
+#endif
+                call stop_all(t_r, "mneci.x build must be used for running &
+                                   &with multiple simultaneous replicas")
+            endif
 #endif
 
           case("HEISENBERG")

@@ -400,8 +400,14 @@ MODULE FciMCData
 !      ! Excitation generation storage 
       type(excit_gen_store_type) :: fcimc_excit_gen_store
 
-      !Tau searching variables
-      logical :: tSearchTau
+      ! Tau searching variables
+      ! tSearchTau specifies if we are searching tau
+      ! tSearchTauOption specifies if we have ever searched for tau
+      ! tSearchTauDeath is an override - if we need to adjust tau due to
+      !     particle death, when tSearchTau is disabled, but tSearchTauOption
+      !     is enabled.
+      logical :: tSearchTau, tSearchTauOption
+      logical :: tSearchTauDeath
       real(dp) :: MaxTau
 
       !Variables for diagonalisation of the walker subspace

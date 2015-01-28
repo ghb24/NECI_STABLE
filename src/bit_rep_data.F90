@@ -91,7 +91,7 @@ contains
 
         bSet = .false.
 
-#ifdef __INT64
+#if defined(__INT64) && !defined(__PROG_NUMRUNS)
         if ((.not. tUseRealCoeffs) .or. tUseFlags) then
 #else
         if (tUseFlags) then

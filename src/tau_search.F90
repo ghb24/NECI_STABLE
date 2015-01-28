@@ -12,7 +12,8 @@ module tau_search
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
-                         ProjEDet, ilutRef, MaxTau
+                         ProjEDet, ilutRef, MaxTau, tSearchTau, &
+                         tSearchTauOption, tSearchTauDeath
     use GenRandSymExcitNUMod, only: construct_class_counts, &
                                     init_excit_gen_store, clean_excit_gen_store
     use SymExcit3, only: GenExcitations3
@@ -197,8 +198,10 @@ contains
 
         real(dp) :: mult
 
-        if (mult > max_death_cpt) &
+        if (mult > max_death_cpt) then
+            tSearchTauDeath = .true.
             max_death_cpt = mult
+        end if
 
     end subroutine
 
@@ -206,6 +209,37 @@ contains
 
         real(dp) :: psingles_new, tau_new, mpi_tmp, tau_death, pParallel_new
         logical :: mpi_ltmp
+
+        ! This is an override. In case we need to adjust tau due to particle
+        ! death rates, when it otherwise wouldn't be adjusted
+        if (.not. tSearchTau) then
+            
+            ! Check that the override has actually occurred.
+            ASSERT(tSearchTauOption)
+            ASSERT(tSearchTauDeath)
+
+            ! The range of tau is restricted by particle death. It MUST be <=
+            ! the value obtained to restrict the maximum death-factor to 1.0.
+            call MPIAllReduce (max_death_cpt, MPI_MAX, mpi_tmp)
+            max_death_cpt = mpi_tmp
+            tau_death = 1.0_dp / max_death_cpt
+
+            ! If this actually constrains tau, then adjust it!
+            if (tau_death < tau) then
+                tau = tau_death
+
+                root_print "******"
+                root_print "WARNING: Updating time step due to particle death &
+                           &magnitude"
+                root_print "This occurs despite variable shift mode"
+                root_print "Updating time-step. New time-step = ", tau_new
+                root_print "******"
+            end if
+
+            ! Condition met --> no need to do this again next iteration
+            tSearchTauDeath = .false.
+
+        end if
 
         ! What needs doing depends on the number of parametrs that are being
         ! updated.

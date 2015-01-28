@@ -27,10 +27,10 @@ MODULE Calc
     use DetCalcData, only: B2L, nKry, nEval, nBlk, nCycle
     use IntegralsData, only: tNeedsVirts
     use FciMCData, only: tTimeExit,MaxTimeExit, InputDiagSft, tSearchTau, &
-                         nWalkerHashes, HashLengthFrac, &
+                         nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
-                         alloc_popsfile_dets
+                         alloc_popsfile_dets, tSearchTauOption
     use ras_data, only: core_ras, trial_ras
     use ftlm_neci
     use spectral_data
@@ -79,12 +79,14 @@ contains
           tShiftonHFPop=.false.
           MaxWalkerBloom=-1
           tSearchTau=.true.
+          tSearchTauOption = .true.
+          tSearchTauDeath = .false.
           InputDiagSft=0.0_dp
           tTimeExit=.false.
           MaxTimeExit=0.0_dp
           tMaxBloom=.false.
           iRestartWalkNum=0
-          iWeightPopRead=1.0e-12_dp
+          iWeightPopRead=0.0_dp
           tCheckHighestPop = .true.
           tChangeProjEDet = .true.
           StepsSftImag=0.0_dp
@@ -939,6 +941,7 @@ contains
             case("TAUFACTOR")
 !For FCIMC, this is the factor by which 1/(HF connectivity) will be multiplied by to give the timestep for the calculation.
                 tSearchTau=.false.  !Tau is set, so don't search for it.
+                tSearchTauOption = .false.
                 call getf(TauFactor)
             case("TAU")
                 ! For FCIMC, this can be considered the timestep of the
@@ -953,11 +956,14 @@ contains
                     select case(w)
                     case("SEARCH")
                         tSearchTau = .true.
+                        tSearchTauOption = .true.
                     case default
                         tSearchTau = .false.
+                        tSearchTauOption = .false.
                     end select
                 else
                     tSearchTau = .false.
+                    tSearchTauOption = .false.
                 end if
 
             case("MAX-TAU")

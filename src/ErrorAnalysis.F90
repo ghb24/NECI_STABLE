@@ -476,13 +476,21 @@ module errors
         if(tMolpro .and. .not. tMolproMimic) then
             filename = 'FCIQMCStats_' // adjustl(MolproID) 
             inquire(file=filename,exist=exists)
-            if(.not.exists) call stop_all(t_r,'No FCIQMCStats file found for error analysis')
+            if (.not. exists) then
+                write(iout,*) 'No FCIQMCStats file found for error analysis'
+                tFailRead = .true.
+                return
+            end if
             OPEN(iunit,file=filename,status='old',action='read',position='rewind')
             write(6,"(A)") "Reading back in FCIQMCStats datafile..."
         else
             filename = 'FCIMCStats'
             inquire(file='FCIMCStats',exist=exists)
-            if(.not.exists) call stop_all(t_r,'No FCIMCStats file found for error analysis')
+            if (.not. exists) then
+                write(iout, *) 'No FCIMCStats file found for error analysis'
+                tFailRead = .true.
+                return
+            end if
             OPEN(iunit,file='FCIMCStats',status='old',action='read',position='rewind')
             write(6,"(A)") "Reading back in FCIMCStats datafile..."
         endif
