@@ -994,7 +994,7 @@ module AnnihilationMod
                     end do
 
                     TotParts = TotParts + abs(CurrentSign)
-#if defined(__CMPLX) || defined(__DOUBLERUN)
+#if defined(__CMPLX)
                     norm_psi_squared = norm_psi_squared + sum(CurrentSign**2)
                     if (tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + sum(CurrentSign**2)
 #else

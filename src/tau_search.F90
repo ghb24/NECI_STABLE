@@ -206,6 +206,7 @@ contains
 
         real(dp) :: psingles_new, tau_new, mpi_tmp, tau_death, pParallel_new
         logical :: mpi_ltmp
+        character(*), parameter :: this_routine = "update_tau"
 
         ! This is an override. In case we need to adjust tau due to particle
         ! death rates, when it otherwise wouldn't be adjusted
