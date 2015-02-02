@@ -336,6 +336,8 @@ contains
 
           tSurvivalInitiatorThreshold = .false.
           tSurvivalInitMultThresh = .false.
+          tSpawnCountInitiatorThreshold = .false.
+          init_spawn_thresh = 5
           im_time_init_thresh = 0.1_dp
           init_survival_mult = 3.0_dp
           MaxTau = 1.0_dp
@@ -1963,6 +1965,15 @@ contains
                 tSurvivalInitMultThresh = .true.
                 if (item < nitems) then
                     call readf(init_survival_mult)
+                end if
+
+            case("INITIATOR-SPAWN-CRITERION")
+                ! A site becomes an initiator once a certain number of
+                ! spawns have occurred to it (these must be independent
+                ! spawns, rather than a certain magnitude of spawning)
+                tSpawnCountInitiatorThreshold = .true.
+                if (item < nitems) then
+                    call readi(init_spawn_thresh)
                 end if
 
             case("MULTI-REPLICA-INITIATORS")

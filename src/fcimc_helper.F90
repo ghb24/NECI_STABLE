@@ -34,8 +34,8 @@ module fcimc_helper
                         InitiatorCutoffEnergy, InitiatorCutoffWalkNo, &
                         im_time_init_thresh, tSurvivalInitMultThresh, &
                         init_survival_mult, MaxWalkerBloom, &
-                        tMultiReplicaInitiators, tSurvivalInitiatorThreshold, &
-                        NMCyc,iSampleRDMIters
+                        tMultiReplicaInitiators, NMCyc, iSampleRDMIters, &
+                        tSpawnCountInitiatorThreshold, init_spawn_thresh
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
@@ -49,7 +49,7 @@ module fcimc_helper
     use csf, only: iscsf
     use global_det_data, only: get_av_sgn, set_av_sgn, set_det_diagH, &
                                global_determinant_data, set_iter_occ, &
-                               get_part_init_time, det_diagH
+                               get_part_init_time, det_diagH, get_spawn_count
     use searching, only: BinSearchParts2
     implicit none
     save
@@ -521,6 +521,7 @@ contains
         logical :: initiator, tDetInCAS
         real(dp) :: init_thresh, low_init_thresh, init_tm, expected_lifetime
         real(dp) :: hdiag
+        integer :: spwn_cnt
 
         ! By default the particles status will stay the same
         initiator = is_init
@@ -595,6 +596,11 @@ contains
                     !        init_survival_mult
                     end if
                 end if
+            end if
+
+            if (.not. initiator .and. tSpawnCountInitiatorThreshold) then
+                spwn_cnt = get_spawn_count(site_idx)
+                if (spwn_cnt >= init_spawn_thresh) initiator = .true.
             end if
         endif
 
