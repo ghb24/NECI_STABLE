@@ -123,22 +123,6 @@ contains
             return
         endif
 
-        if(iProcIndex.eq.Root) then
-           ! Check how balanced the load on each processor is (even though
-           ! we cannot load balance with direct annihilation).
-           WalkersDiffProc = int(MaxWalkersProc - MinWalkersProc,sizeof_int)
-           ! Do the same for number of particles
-           PartsDiffProc = int(MaxPartsProc - MinPartsProc, sizeof_int)
-
-           mean_walkers = AllTotWalkers / real(nNodes,dp)
-           if (WalkersDiffProc > nint(mean_walkers / 10.0_dp) .and. &
-               sum(AllTotParts) > real(nNodes * 500, dp)) then
-               root_write (iout, '(a, i13,a,2i11)') &
-                   'Potential load-imbalance on iter ',iter + PreviousCycles,' Min/Max determinants on node: ', &
-                   MinWalkersProc,MaxWalkersProc
-           endif
-        endif
-
     end subroutine iter_diagnostics
 
     subroutine population_check ()
