@@ -9,7 +9,7 @@ module fcimc_iter_utils
                         HFPopThresh, DiagSft, tShiftOnHFPop, iRestartWalkNum, &
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, &
                         nShiftEquilSteps, TargetGrowRateWalk
-    use LoggingData, only: tFCIMCStats2
+    use LoggingData, only: tFCIMCStats2, tPrintDataTables
     use semi_stoch_procs, only: recalc_core_hamil_diag
     use DetBitOps, only: TestClosedShellDet
     use bit_rep_data, only: NIfD, NIfTot, NIfDBO
@@ -803,10 +803,12 @@ contains
         if(tRestart) return
         call population_check ()
         call update_shift (iter_data)
-        if (tFCIMCStats2) then
-            call write_fcimcstats2(iter_data_fciqmc)
-        else
-            call WriteFCIMCStats ()
+        if (tPrintDataTables) then
+            if (tFCIMCStats2) then
+                call write_fcimcstats2(iter_data_fciqmc)
+            else
+                call WriteFCIMCStats ()
+            end if
         end if
         
         call rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)

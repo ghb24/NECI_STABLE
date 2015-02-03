@@ -27,7 +27,7 @@ module kp_fciqmc
                             write_fcimcstats2
     use fcimc_iter_utils, only: calculate_new_shift_wrapper, update_iter_data
     use global_det_data, only: det_diagH
-    use LoggingData, only: tPopsFile
+    use LoggingData, only: tPopsFile, tPrintDataTables
     use Parallel_neci, only: iProcIndex
     use ParallelHelper, only: root
     use PopsFileMod, only: WriteToPopsFileParOneArr
@@ -97,7 +97,7 @@ contains
                 hamil_matrix(:,:) = 0.0_dp
 
                 call init_kp_fciqmc_repeat(iconfig, irepeat, kp%nrepeats, kp%nvecs)
-                call WriteFCIMCStats()
+                if (tPrintDataTables) call WriteFCIMCStats()
 
                 do ivec = 1, kp%nvecs
 
