@@ -34,8 +34,8 @@ module fcimc_helper
                         InitiatorCutoffEnergy, InitiatorCutoffWalkNo, &
                         im_time_init_thresh, tSurvivalInitMultThresh, &
                         init_survival_mult, MaxWalkerBloom, &
-                        tMultiReplicaInitiators, tSurvivalInitiatorThreshold, &
-                        NMCyc,iSampleRDMIters
+                        tMultiReplicaInitiators, NMCyc, iSampleRDMIters, &
+                        tSpawnCountInitiatorThreshold, init_spawn_thresh
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
@@ -49,7 +49,7 @@ module fcimc_helper
     use csf, only: iscsf
     use global_det_data, only: get_av_sgn, set_av_sgn, set_det_diagH, &
                                global_determinant_data, set_iter_occ, &
-                               get_part_init_time, det_diagH
+                               get_part_init_time, det_diagH, get_spawn_count
     use searching, only: BinSearchParts2
     implicit none
     save
@@ -521,6 +521,7 @@ contains
         logical :: initiator, tDetInCAS
         real(dp) :: init_thresh, low_init_thresh, init_tm, expected_lifetime
         real(dp) :: hdiag
+        integer :: spwn_cnt
 
         ! By default the particles status will stay the same
         initiator = is_init
@@ -565,38 +566,45 @@ contains
                 NoAddedInitiators = NoAddedInitiators - 1
             endif
 
-            ! If this site has survived for a long time, but otherwise
-            ! would not be an initiator, then it is possible we ought
-            ! to be considering it as well.
-            if (.not. initiator .and. tSurvivalInitiatorThreshold) then
-                init_tm = get_part_init_time(site_idx)
-                if ((TotImagTime - init_tm) > im_time_init_thresh) &
-                    initiator = .true.
-            end if
+        end if
+
+        ! If this site has survived for a long time, but otherwise
+        ! would not be an initiator, then it is possible we ought
+        ! to be considering it as well.
+        if (.not. initiator .and. tSurvivalInitiatorThreshold) then
+            init_tm = get_part_init_time(site_idx)
+            if ((TotImagTime - init_tm) > im_time_init_thresh) &
+                initiator = .true.
+        end if
 
 #ifdef __DEBUG
-            if (tSurvivalInitiatorThreshold) then
-                init_tm = get_part_init_time(site_idx)
-                ASSERT(init_tm >= 0.0_dp)
-            end if
+        if (tSurvivalInitiatorThreshold) then
+            init_tm = get_part_init_time(site_idx)
+            ASSERT(init_tm >= 0.0_dp)
+        end if
 #endif
 
-            if (.not. initiator .and. tSurvivalInitMultThresh) then
-                init_tm = get_part_init_time(site_idx)
-                hdiag = det_diagH(site_idx) - DiagSft(part_type)
-                if (hdiag > 0) then
-                    expected_lifetime = &
-                        log(2.0_dp * max(MaxWalkerBloom, 1)) / hdiag
-                    if ((TotImagTime - init_tm) > & !0.5_dp) then !&
-                            init_survival_mult * expected_lifetime) then
-                        initiator = .true.
-                    !    write(6,*) 'allowing', j, totimagtime-init_tm, &
-                    !        expected_lifetime, init_survival_mult*expected_lifetime, &
-                    !        init_survival_mult
-                    end if
+        if (.not. initiator .and. tSurvivalInitMultThresh) then
+            init_tm = get_part_init_time(site_idx)
+            hdiag = det_diagH(site_idx) - DiagSft(part_type)
+            if (hdiag > 0) then
+                expected_lifetime = &
+                    log(2.0_dp * max(MaxWalkerBloom, 1)) / hdiag
+                if ((TotImagTime - init_tm) > & !0.5_dp) then !&
+                        init_survival_mult * expected_lifetime) then
+                    initiator = .true.
+                !    write(6,*) 'allowing', j, totimagtime-init_tm, &
+                !        expected_lifetime, init_survival_mult*expected_lifetime, &
+                !        init_survival_mult
                 end if
             end if
-        endif
+        end if
+
+        if (.not. initiator .and. tSpawnCountInitiatorThreshold) then
+            spwn_cnt = get_spawn_count(site_idx)
+            if (spwn_cnt >= init_spawn_thresh) &
+                initiator = .true.
+        end if
 
     end function TestInitiator
 

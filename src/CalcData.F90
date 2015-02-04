@@ -238,4 +238,8 @@ logical :: tMultiReplicaInitiators = .false.
 logical :: tSurvivalInitiatorThreshold, tSurvivalInitMultThresh
 real(dp) :: im_time_init_thresh, init_survival_mult
 
+! Do we make sites into initiators depending on the number of spawns to them?
+logical :: tSpawnCountInitiatorThreshold
+integer :: init_spawn_thresh
+
 end module CalcData
