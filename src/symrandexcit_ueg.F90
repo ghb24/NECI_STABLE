@@ -2,11 +2,12 @@
 
 module ueg_excit_gens
 
-    use SystemData, only: kvec, nel, nbasis, tOrbECutoff, ElecPairs, &
-                          OrbECutoff
+    use SystemData, only: nel, nbasis, tOrbECutoff, ElecPairs, OrbECutoff, &
+                          nmaxx, nmaxy, nmaxz, G1
     use dSFMT_interface, only: genrand_real2_dSFMT
     use SymExcitDataMod, only: KPointToBasisFn
     use FciMCData, only: excit_gen_store_type
+    use DeterminantData, only: write_det
     use get_excit, only: make_double
     use bit_rep_data, only: NIfTot
     use sltcnd_mod, only: sltcnd_2
@@ -51,8 +52,8 @@ contains
         ! Obtain the orbitals and their momentum vectors for the given elecs.
         orbi = nI(eleci)
         orbj = nI(elecj)
-        ki = kvec(orbi, 1:3)
-        kj = kvec(orbj, 1:3)
+        ki = G1(orbi)%k
+        kj = G1(orbj)%k
         ex(1, 1) = orbi
         ex(1, 2) = orbj
 
@@ -81,12 +82,14 @@ contains
                        (iSpn == 3 .and. is_beta(orba))))) then
 
                 ! Obtain the new momentum vectors
-                ka = kvec(orba, 1:3)
+                ka = G1(orba)%k
                 kb = ki + kj - ka
 
                 ! Is kb allowed by the size of the space?
                 testE = sum(kb**2)
-                if (.not. (tOrbECutoff .and. (testE > OrbECutoff))) then
+                if (abs(kb(1)) <= nmaxx .and. abs(kb(2)) <= nmaxy .and. &
+                    abs(kb(3)) <= nmaxz .and. &
+                    (.not. (tOrbECutoff .and. (testE > OrbECutoff)))) then
 
                     ! What would the spin of orbital b be? (1=al, 2=be)
                     if (iSpn == 1) then
@@ -130,7 +133,7 @@ contains
         orba = binary_search_first_ge(cum_arr, r)
 
         ! Given A, calculate B in the same way as before
-        ka = kvec(orba, 1:3)
+        ka = G1(orba)%k
         kb = ki + kj - ka
         if (iSpn == 1) then
             spnb = 2
