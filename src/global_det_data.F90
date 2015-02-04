@@ -7,7 +7,8 @@ module global_det_data
 
     use FciMCData, only: MaxWalkersPart
     use LoggingData, only: tRDMonFly, tExplicitAllRDM
-    use CalcData, only: tSurvivalInitiatorThreshold, tSurvivalInitMultThresh
+    use CalcData, only: tSurvivalInitiatorThreshold, tSurvivalInitMultThresh, &
+                        tSpawnCountInitiatorThreshold
     use constants
     use util_mod
     implicit none
@@ -29,6 +30,7 @@ module global_det_data
     integer :: pos_av_sgn, len_av_sgn
     integer :: pos_iter_occ, len_iter_occ
     integer :: pos_tm_occ, len_tm_occ
+    integer :: pos_spawn_cnt, len_spawn_cnt
 
     ! And somewhere to store the actual data
     real(dp), pointer :: global_determinant_data(:,:) => null()
@@ -88,16 +90,26 @@ contains
 
         ! If we are recording when particles were first created, then
         ! we need somewhere to put them!
+        len_tm_occ = 0
         if (tSurvivalInitiatorThreshold .or. tSurvivalInitMultThresh) then
             len_tm_occ = 1
+        end if
+
+        ! If we are determining which sites are initiators by how many spawns
+        ! have reached them since they were created, then this is the place
+        len_spawn_cnt = 0
+        if (tSpawnCountInitiatorThreshold) then
+            len_spawn_cnt = 1
         end if
 
         ! Get the starting positions
         pos_av_sgn = pos_hel + len_hel
         pos_iter_occ = pos_av_sgn + len_av_sgn
         pos_tm_occ = pos_iter_occ + len_iter_occ
+        pos_spawn_cnt = pos_tm_occ + len_tm_occ
 
-        tot_len = len_hel + len_av_sgn + len_iter_occ + len_tm_occ
+        tot_len = len_hel + len_av_sgn + len_iter_occ + len_tm_occ &
+                + len_spawn_cnt
 
         ! Allocate and log the required memory (globally)
         allocate(global_determinant_data(tot_len, MaxWalkersPart), stat=ierr)
@@ -270,5 +282,28 @@ contains
 
     end function
 
+    subroutine inc_spawn_count(j)
+
+        integer, intent(in) :: j
+
+        if (tSpawnCountInitiatorThreshold) then
+            global_determinant_data(pos_spawn_cnt, j) = &
+                global_determinant_data(pos_spawn_cnt, j) + 1
+        end if
+
+    end subroutine
+
+    function get_spawn_count(j) result(cnt)
+
+        integer, intent(in) :: j
+        integer :: cnt
+
+        if (tSpawnCountInitiatorThreshold) then
+            cnt = global_determinant_data(pos_spawn_cnt, j)
+        else
+            cnt = 0
+        end if
+
+    end function
 
 end module
