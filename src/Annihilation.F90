@@ -27,7 +27,8 @@ module AnnihilationMod
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
     use global_det_data, only: set_det_diagH, get_iter_occ, &
-                               global_determinant_data, set_part_init_time
+                               global_determinant_data, set_part_init_time, &
+                               inc_spawn_count, get_spawn_count, pos_spawn_cnt
     use searching
     use hash
 
@@ -77,7 +78,7 @@ module AnnihilationMod
         CALL set_timer(Sort_Time,30)
         call CalcHashTableStats(TotWalkersNew, iter_data) 
         CALL halt_timer(Sort_Time)
-        
+
     end subroutine DirectAnnihilation
 
     subroutine SendProcNewParts(MaxIndex,tSingleProc)
@@ -547,7 +548,7 @@ module AnnihilationMod
         integer :: ExcitLevel, DetHash, nJ(nel)
         logical :: tSuccess, tSuc, tPrevOcc, tDetermState
         character(len=*), parameter :: t_r = "AnnihilateSpawnedParts"
-        integer :: run
+        integer :: run, tmp
         type(ll_node), pointer :: TempNode
 
         ! Only node roots to do this.
@@ -591,6 +592,10 @@ module AnnihilationMod
                     ! Transfer new sign across.
                     call encode_sign(CurrentDets(:,PartInd), SpawnedSign+CurrentSign)
                     call encode_sign(SpawnedParts(:,i), null_part)
+
+                    ! If we are spawning onto a site and growing it, then
+                    ! count that spawn for initiator purposes
+                    if (any(signprod > 0)) call inc_spawn_count(PartInd)
 
                     do j = 1, lenof_sign
                         run = part_type_to_run(j)
@@ -880,6 +885,9 @@ module AnnihilationMod
         ! Store the iteration, as this is the iteration on which the particle
         ! is created
         call set_part_init_time(DetPosition, TotImagTime)
+
+        ! There is at least one spawning count here
+        call inc_spawn_count(DetPosition)
 
         ! If using a trial wavefunction, search to see if this state is in either the trial or
         ! connected space. If so, bin_search_trial sets the correct flag and returns the corresponding
