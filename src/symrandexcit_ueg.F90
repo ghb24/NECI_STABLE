@@ -116,7 +116,7 @@ contains
 
             ! Increment the cumulative sum
             cum_sum = cum_sum + elem
-            cum_arr(orba) = elem
+            cum_arr(orba) = cum_sum
 
         end do
 
