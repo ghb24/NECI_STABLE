@@ -38,7 +38,7 @@ contains
         character(*), parameter :: this_routine = 'gen_ueg_excit'
 
         real(dp) :: cum_sum, cum_arr(nbasis), pelec, porb, elem, r, testE
-        integer :: eleci, elecj, spna, spnb, ind, iSpn
+        integer :: eleci, elecj, spnb, ind, iSpn
         integer :: orbi, orbj, orba, orbb
         integer :: ki(3), kj(3), ka(3), kb(3)
 
@@ -91,13 +91,13 @@ contains
                     abs(kb(3)) <= nmaxz .and. &
                     (.not. (tOrbECutoff .and. (testE > OrbECutoff)))) then
 
-                    ! What would the spin of orbital b be? (1=al, 2=be)
+                    ! What would the spin of orbital b be? (2=al, 1=be)
                     if (iSpn == 1) then
-                        spnb = 2
-                    elseif (iSpn == 2) then
-                        spna = 3 - get_spin(orba)
-                    elseif(iSpn == 3) then
                         spnb = 1
+                    elseif (iSpn == 2) then
+                        spnb = (G1(orba)%Ms)/2 + 1
+                    elseif(iSpn == 3) then
+                        spnb = 2
                     end if
 
                     ! Obtain the b-orbital
@@ -124,6 +124,7 @@ contains
         ! excitation
         if (cum_sum == 0.0_dp) then
             nJ(1) = 0
+            write(6,*) 'reject', eleci, elecj
             return
         end if
 
@@ -136,11 +137,11 @@ contains
         ka = G1(orba)%k
         kb = ki + kj - ka
         if (iSpn == 1) then
-            spnb = 2
-        elseif (iSpn == 2) then
-            spna = 3 - get_spin(orba)
-        elseif(iSpn == 3) then
             spnb = 1
+        elseif (iSpn == 2) then
+            spnb = (G1(orba)%Ms)/2 + 1
+        elseif(iSpn == 3) then
+            spnb = 2
         end if
         orbb = KPointToBasisFn(kb(1), kb(2), kb(3), spnb)
 
