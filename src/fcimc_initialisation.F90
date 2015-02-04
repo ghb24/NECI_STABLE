@@ -758,6 +758,13 @@ contains
         AllNoNonInitWalk=0.0_dp
         AllNoExtraInitDoubs=0
         AllInitRemoved=0
+        proje_iter = 0
+        AccRat = 0
+        HFShift = 0
+        InstShift = 0
+        AbsProjE = 0
+        norm_semistoch = 0
+        norm_psi = 0
 
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0.0_dp
