@@ -889,6 +889,7 @@ system: do
                         ! Use the new UEG excitation generator.
                         ! TODO: This probably isn't the best way to do this
                         tUEGNewGenerator = .true.
+                        tLatticeGens = .true.
 
                     case default
                         call Stop_All("ReadSysInp",trim(w)//" not a valid keyword")
