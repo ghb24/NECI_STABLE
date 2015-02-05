@@ -124,7 +124,6 @@ contains
         ! excitation
         if (cum_sum == 0.0_dp) then
             nJ(1) = 0
-            write(6,*) 'reject', eleci, elecj
             return
         end if
 
