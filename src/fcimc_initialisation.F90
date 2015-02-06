@@ -13,7 +13,8 @@ module fcimc_initialisation
                           tRef_Not_HF, LzTot, LMS, tKPntSym, tReal, nBasisMax,&
                           tRotatedOrbs, MolproID, nBasis, arr, brr, nel, tCSF,&
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
-                          tGenHelWeighted, tGen_4ind_weighted, tLatticeGens
+                          tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
+                          tUEGNewGenerator
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
                         tCheckHighestPop, tSpatialOnlyHash, tStartCAS, tau, &
@@ -98,6 +99,7 @@ module fcimc_initialisation
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
+    use ueg_excit_gens, only: gen_ueg_excit
     use gndts_mod, only: gndts
     use csf, only: get_csf_helement
     use tau_search, only: init_tau_search
@@ -759,6 +761,13 @@ contains
         AllNoNonInitWalk=0.0_dp
         AllNoExtraInitDoubs=0
         AllInitRemoved=0
+        proje_iter = 0
+        AccRat = 0
+        HFShift = 0
+        InstShift = 0
+        AbsProjE = 0
+        norm_semistoch = 0
+        norm_psi = 0
 
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0.0_dp
@@ -1319,6 +1328,8 @@ contains
         ! Select the excitation generator
         if (tHPHF) then
             generate_excitation => gen_hphf_excit
+        elseif (tUEGNewGenerator) then
+            generate_excitation => gen_ueg_excit
         elseif (tCSF) then
             generate_excitation => gen_csf_excit
         elseif (tPickVirtUniform) then
