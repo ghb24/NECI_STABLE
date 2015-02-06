@@ -177,8 +177,8 @@ contains
         if (iProcIndex == root) then
 
 #ifdef __CMPLX
-            write(fcimcstats_unit,"(I12,5G16.7,7G17.9,&
-                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G17.9,I13,&
+            write(fcimcstats_unit,"(I12,5G16.7,7G18.9e3,&
+                                  &G13.5,I12,G13.5,G17.5,I13,G13.5,8G18.9e3,I13,&
 
                                   &g16.7)") &
                 Iter + PreviousCycles, &                !1.
@@ -244,8 +244,8 @@ contains
                     sum(AllTotParts), AllTotParts(1), AllTotParts(lenof_sign)
             endif
 #elif __DOUBLERUN
-            write(fcimcstats_unit2,"(i12,7g16.7,5g17.9,g13.5,i12,g13.5,g17.5,&
-                                   &i13,g13.5,4g17.9,1X,2(es18.11,1X),5g17.9,&
+            write(fcimcstats_unit2,"(i12,7g16.7,5g18.9e3,g13.5,i12,g13.5,g17.5,&
+                                   &i13,g13.5,4g18.9e3,1X,2(es18.11,1X),5g18.9e3,&
                                    &i13,2g16.7)",advance = 'no') &
                 Iter + PreviousCycles, &                   ! 1.
                 DiagSft(2), &                              ! 2.
@@ -290,8 +290,8 @@ contains
 #endif
 #ifndef __CMPLX
 
-            write(fcimcstats_unit,"(i12,7g16.7,5g17.9,g13.5,i12,g13.5,g17.5,&
-                                   &i13,g13.5,4g17.9,1X,2(es18.11,1X),5g17.9,&
+            write(fcimcstats_unit,"(i12,7g16.7,5g18.9e3,g13.5,i12,g13.5,g17.5,&
+                                   &i13,g13.5,4g18.9e3,1X,2(es18.11,1X),5g18.9e3,&
                                    &i13,2g16.7)",advance = 'no') &
                 Iter + PreviousCycles, &                   ! 1.
                 DiagSft(1), &                              ! 2.

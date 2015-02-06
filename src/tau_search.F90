@@ -5,7 +5,7 @@ module tau_search
     use SystemData, only: AB_elec_pairs, par_elec_pairs, tGen_4ind_weighted, &
                           tHPHF, tCSF, tKpntSym, nel, G1, nbasis, &
                           AB_hole_pairs, par_hole_pairs, tGen_4ind_reverse, &
-                          nOccAlpha, nOccBeta
+                          nOccAlpha, nOccBeta, tUEG
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
@@ -295,7 +295,7 @@ contains
 
             ! Get the values of pSingles and tau that correspond to the stored
             ! values
-            if (enough_sing .and. enough_doub) then
+            if ((tUEG .or. enough_sing) .and. enough_doub) then
                 psingles_new = gamma_sing / (gamma_doub + gamma_sing)
                 tau_new = max_permitted_spawn / (gamma_doub + gamma_sing)
             else
@@ -311,8 +311,9 @@ contains
         call MPIAllReduce (max_death_cpt, MPI_MAX, mpi_tmp)
         max_death_cpt = mpi_tmp
         tau_death = 1.0_dp / max_death_cpt
-        if (tau_death < tau_new) &
+        if (tau_death < tau_new) then
             tau_new = tau_death
+        end if
 
         ! And a last sanity check/hard limit
         tau_new = min(tau_new, MaxTau)
@@ -320,7 +321,7 @@ contains
         ! If the calculated tau is less than the current tau, we should ALWAYS
         ! update it. Once we have a reasonable sample of excitations, then we
         ! can permit tau to increase if we have started too low.
-        if (tau_new < tau .or. (enough_sing .and. enough_doub)) then
+        if (tau_new < tau .or. ((tUEG .or. enough_sing) .and. enough_doub))then
             if (abs(tau - tau_new) / tau > 0.001_dp) then
                 root_print "Updating time-step. New time-step = ", tau_new
             end if

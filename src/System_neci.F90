@@ -171,6 +171,7 @@ MODULE System
       tGenHelWeighted = .false.
       tGen_4ind_weighted = .false.
       tGen_4ind_reverse = .false.
+      tUEGNewGenerator = .false.
 
       tMultiReplicas = .false.
 
@@ -884,6 +885,11 @@ system: do
                         ! doubles). This is effectively the "reverse" of
                         ! 4IND-WEIGHTED as above.
                         tGen_4ind_reverse = .true.
+                    case("UEG")
+                        ! Use the new UEG excitation generator.
+                        ! TODO: This probably isn't the best way to do this
+                        tUEGNewGenerator = .true.
+                        tLatticeGens = .true.
 
                     case default
                         call Stop_All("ReadSysInp",trim(w)//" not a valid keyword")
