@@ -76,7 +76,7 @@ MODULE FciMCData
       logical :: tFinalRDMEnergy
 
       INTEGER(KIND=n_int) , ALLOCATABLE :: TempSpawnedParts(:,:)
-      INTEGER :: TempSpawnedPartsTag, TempSpawnedPartsInd
+      INTEGER :: TempSpawnedPartsTag, TempSpawnedPartsInd, TempSpawnedPartsSize
 
       ! Be able to store a list of the current initiators
       integer(n_int), allocatable :: CurrentInits(:,:)
