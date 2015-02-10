@@ -10,6 +10,7 @@ MODULE Logging
     use MemoryManager, only: LogMemAlloc, LogMemDealloc,TagIntType
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter
+    use CalcData, only: tCheckHighestPop
     use constants, only: n_int, size_n_int, bits_n_int
     use bit_rep_data, only: NIfTot, NIfD
     use DetBitOps, only: EncodeBitDet
@@ -501,6 +502,7 @@ MODULE Logging
 !If RDMExcitLevel = 1, only the 1 electron RDM is found, if RDMExcitLevel = 2, 
 ! only the 2 electron RDM is found and if RDMExcitLevel = 3, both are found. 
             tRDMonFly=.true.
+            tCheckHighestPop = .true.
             call readi(RDMExcitLevel)
             call readi(IterRDMonFly)
             call readi(RDMEnergyIter)

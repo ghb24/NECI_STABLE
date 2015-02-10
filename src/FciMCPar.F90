@@ -123,6 +123,11 @@ module FciMCParMod
         call InitFCIMCCalcPar()
         call init_fcimc_fn_pointers() 
 
+        ! We want to do some population checking before we run any iterations.
+        ! In the normal case this is run between iterations, but it is
+        ! helpful to do it here.
+        call population_check()
+
         if(n_int.eq.4) CALL Stop_All('Setup Parameters', &
                 'Use of RealCoefficients does not work with 32 bit integers due to the use &
                 &of the transfer operation from dp reals to 64 bit integers.')

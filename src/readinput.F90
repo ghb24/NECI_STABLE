@@ -190,7 +190,7 @@ MODULE ReadInput_neci
                             TNoSameExcit, TInitStar, tMP2Standalone, &
                             MemoryFacPart, tTruncInitiator, tSemiStochastic, &
                             tSpatialOnlyHash, InitWalkers, tUniqueHFNode, &
-                            InitiatorCutoffEnergy, &
+                            InitiatorCutoffEnergy, tCheckHighestPop, &
                             tSurvivalInitiatorThreshold, tKP_FCIQMC, &
                             tSurvivalInitMultThresh, tAddToInitiator, &
                             tMultiReplicaInitiators
@@ -507,6 +507,13 @@ MODULE ReadInput_neci
             end if
         end if
 #endif
+
+        if (tRDMOnFly .and. .not. tCheckHighestPop) then
+            write(6,*) 'Highest population checking required for calculating &
+                       &RDMs on the fly'
+            write(6,*) 'If you are seeing this, it is an input parsing error'
+            call stop_all(t_r, 'RDMs without CheckHighestPop')
+        end if
 
     end subroutine checkinput
 
