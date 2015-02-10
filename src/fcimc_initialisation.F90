@@ -1156,20 +1156,6 @@ contains
             ! elements, i.e. CurrentH; now global_determinant_data).
             call init_global_det_data()
 
-            !if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
-            if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
-                !Allocate memory to hold walkers spawned from one determinant and population at a time.
-                !Walkers are temporarily stored here, so we can check if we're spawning onto the same Dj multiple times.
-                !If only using connections to the HF (tHF_Ref_Explicit), no stochastic RDM construction is done, and this 
-                !is not necessary.
-                ALLOCATE(TempSpawnedParts(0:NIfDBO,20000),stat=ierr)
-                CALL LogMemAlloc('TempSpawnedParts',20000*(NIfDBO+1),size_n_int,this_routine,TempSpawnedPartsTag,ierr)
-                TempSpawnedParts(0:NIfDBO,1:20000)=0
-                MemoryAlloc=MemoryAlloc + (NIfDBO+1)*20000*size_n_int    !Memory Allocated in bytes
-                WRITE(6,"(A)") " Allocating temporary array for walkers spawned from a particular Di."
-                WRITE(6,"(A,F14.6,A)") " This requires ", REAL(((NIfDBO+1)*20000*size_n_int),dp)/1048576.0_dp," Mb/Processor"
-            endif
-            
             WRITE(iout,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned, &
                     " particles to be spawned in any one iteration per core."
             ALLOCATE(SpawnVec(0:NIftot,MaxSpawned),stat=ierr)
@@ -1492,9 +1478,9 @@ contains
         DEALLOCATE(SpawnVec2)
         CALL LogMemDealloc(this_routine,SpawnVec2Tag)
         !if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
-        if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
-            DEALLOCATE(TempSpawnedParts)
-            CALL LogMemDealloc(this_routine,TempSpawnedPartsTag)
+        if(allocated(TempSpawnedParts)) then
+            deallocate(TempSpawnedParts)
+            log_dealloc(TempSpawnedPartsTag)
         endif
         DEALLOCATE(HFDet)
         CALL LogMemDealloc(this_routine,HFDetTag)

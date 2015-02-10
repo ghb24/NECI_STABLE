@@ -145,10 +145,12 @@ contains
         use HPHFRandExcitMod, only: ReturnAlphaOpenDet
         integer :: pop_highest, proc_highest
         real(dp) :: pop_change, old_Hii
-        integer :: det(nel), i, error
+        integer :: det(nel), i, error, ierr
         integer(int32) :: int_tmp(2)
-        logical :: tSwapped
+        logical :: tSwapped, allocate_temp_parts
         HElement_t :: h_tmp
+        character(*), parameter :: this_routine = 'population_check'
+        character(*), parameter :: t_r = this_routine
 
         if (tCheckHighestPop) then
 
@@ -164,6 +166,49 @@ contains
             ! by ignoring the fractional population here
 
             ! How many walkers do we need to switch dets?
+
+
+            ! If we are accumulating RDMs, then a temporary spawning array is
+            ! required of <~ the size of the largest occupied det.
+            !
+            ! This memry holds walkers spawned from one determinant. This
+            ! allows us to test if we are spawning onto the same Dj multiple
+            ! times. If only using connections to the HF (tHF_Ref_Explicit)
+            ! no stochastic RDM construction is done, and this is not
+            ! necessary.
+            if (tRDMOnFly .and. .not. tExplicitAllRDM) then
+
+                ! Test if we need to allocate or re-allocate the temporary
+                ! spawned parts array
+                allocate_temp_parts = .false.
+                if (.not. allocated(TempSpawnedParts)) then
+                    allocate_temp_parts = .true.
+                    TempSpawnedPartsSize = 1000
+                elseif (1.1 * iHighestPop > TempSpawnedPartsSize) then
+                    ! This testing routine is only called once every update
+                    ! cycle. The 1.1 gives us a buffer to cope with particle
+                    ! growth
+                    deallocate(TempSpawnedParts)
+                    log_dealloc(TempSpawnedPartsTag)
+                    TempSpawnedPartsSize = iHighestPop * 1.5
+                    allocate_temp_parts = .true.
+                end if
+
+                ! If we need to allocate this array, then do so.
+                if (allocate_temp_parts) then
+                    allocate(TempSpawnedParts(0:NIfDBO, TempSpawnedPartsSize), &
+                             stat=ierr)
+                    log_alloc(TempSpawnedParts,TempSpawnedPartsTag,ierr)
+                    TempSpawnedParts = 0
+                    write(6,"(' Allocating temporary array for walkers spawned &
+                               &from a particular Di.')")
+                    write(6,"(a,f14.6,a)") " This requires ", &
+                        real(((NIfDBO+1) * TempSpawnedPartsSize * size_n_int), dp)&
+                            /1048576.0_dp, " Mb/Processor"
+                end if
+
+
+            end if
             
             ! If doing a double run, we only test population 1. abs_sign considers element 1
             ! unless we're running the complex code.
