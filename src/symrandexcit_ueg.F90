@@ -103,7 +103,8 @@ contains
                     ! Obtain the b-orbital
                     orbb = KPointToBasisFn(kb(1), kb(2), kb(3), spnb)
 
-                    if (IsNotOcc(ilutI, orbb)) then
+                    ! n.b. we enforce strict selection a-b, not b-a
+                    if (orbb > orba .and. IsNotOcc(ilutI, orbb)) then
 
                         ! We don't need to worry about which a,b is which, as
                         ! we don't care about the overall sign.
