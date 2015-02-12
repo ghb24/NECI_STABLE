@@ -934,7 +934,6 @@ module AnnihilationMod
         if (TotWalkersNew > 0) then
             do i=1,TotWalkersNew
                 call extract_sign(CurrentDets(:,i),CurrentSign)
-                if (DetBitEQ(CurrentDets(:,i), iLutHF_True, NIfDBO)) InstNoAtHF=CurrentSign
                 if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
 
                 if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
@@ -943,7 +942,7 @@ module AnnihilationMod
                     do j=1, lenof_sign
                         run = part_type_to_run(j)
                         if (.not. tIsStateDeterm) then
-                            if (tInitOccThresh.and.test_flag(CurrentDets(:,j), flag_has_been_initiator(1)))then
+                            if (tInitOccThresh.and.test_flag(CurrentDets(:,i), flag_has_been_initiator(1)))then
                                 if ((abs(CurrentSign(j)) > 0.0) .and. (abs(CurrentSign(j)) < InitiatorOccupiedThresh)) then
                                     ! We remove this walker with probability 1-RealSignTemp.
                                     pRemove = (InitiatorOccupiedThresh-abs(CurrentSign(j)))/InitiatorOccupiedThresh
@@ -956,7 +955,7 @@ module AnnihilationMod
                                         CurrentSign(j) = 0.0_dp
                                         call nullify_ilut_part(CurrentDets(:,i), j)
                                         call decode_bit_det(nI, CurrentDets(:,i))
-                                        call clear_has_been_initiator(CurrentDets(:,j),flag_has_been_initiator(1))
+                                        call clear_has_been_initiator(CurrentDets(:,i),flag_has_been_initiator(1))
                                         if (IsUnoccDet(CurrentSign)) then
                                             call remove_hash_table_entry(HashIndex, nI, i)
                                             iEndFreeSlot=iEndFreeSlot+1
@@ -1064,6 +1063,12 @@ module AnnihilationMod
                             NoAddedInitiators(j)=NoAddedInitiators(j)-1
                         end if
                     end do
+                end if
+
+                ! This InstNoAtHF call must be placed at the END of the routine
+                ! as the value of CurrentSign can change during it!
+                if (DetBitEQ(CurrentDets(:,i), iLutHF_True, NIfDBO)) then
+                    InstNoAtHF=CurrentSign
                 end if
 
             end do

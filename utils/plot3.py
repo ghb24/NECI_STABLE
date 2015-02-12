@@ -1258,14 +1258,10 @@ if __name__ == "__main__":
 
     plot.proc_args()
 
-    print "DO PLOT"
     plot.do_plot()
-    print "DONE"
 
     # Enter plotting main loop
     plot.fig.canvas.mpl_connect('key_release_event', keypress_callback)
 #    plot.fig.canvas.mpl_connect('resize_event', resize_callback)
 #    plot.fig.canvas.mpl_connect('scroll_event', scroll_callback)
-    print "SHOW"
     show()
-    print "SHOWN"
