@@ -7,7 +7,7 @@ module FciMCParMod
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
-                        iFullSpaceIter
+                        iFullSpaceIter, semistoch_shift_iter
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, &
@@ -22,6 +22,7 @@ module FciMCParMod
                          fill_hist_explicitrdm_this_iter
     use procedure_pointers, only: attempt_die_t, generate_excitation_t, &
                                   get_spawn_helement_t
+    use semi_stoch_gen, only: write_most_pop_core_at_end, init_semi_stochastic
     use semi_stoch_procs, only: is_core_state, check_determ_flag, &
                                 determ_projection, average_determ_vector
     use trial_wf_gen, only: update_compare_trial_file, &
@@ -29,7 +30,6 @@ module FciMCParMod
     use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
     use bit_reps, only: set_flag, clr_flag, add_ilut_lists
     use exact_diag, only: perform_exact_diag_all_symmetry
-    use semi_stoch_gen, only: write_most_pop_core_at_end
     use spectral_lanczos, only: perform_spectral_lanczos
     use bit_rep_data, only: nOffFlag, flag_determ_parent
     use errors, only: standalone_errors, error_analysis
@@ -193,6 +193,14 @@ module FciMCParMod
             IFDEBUG(FCIMCDebug, 2) write(iout,*) 'Iter', iter
 
             if(iProcIndex.eq.root) s_start=neci_etime(tstart)
+
+            ! Is this an iteration where semi-stochastic is turned on?
+            if (semistoch_shift_iter /= 0 .and. all(.not. tSinglePartPhase)) then
+                if ((Iter - maxval(VaryShiftIter)) == semistoch_shift_iter + 1) then
+                    tSemiStochastic = .true.
+                    call init_semi_stochastic()
+                end if
+            end if
             
             if(tRDMonFly .and. (.not. tFillingExplicRDMonFly) &
                 & .and. (.not.tFillingStochRDMonFly)) call check_start_rdm()
