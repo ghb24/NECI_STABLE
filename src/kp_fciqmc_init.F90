@@ -282,7 +282,7 @@ contains
 
     subroutine init_kp_fciqmc(kp)
 
-        use CalcData, only: tSemiStochastic, tUseRealCoeffs, AvMCExcits
+        use CalcData, only: tSemiStochastic, tUseRealCoeffs, AvMCExcits, tCheckHighestPop
         use fcimc_initialisation, only: SetupParameters, InitFCIMCCalcPar, init_fcimc_fn_pointers
         use FciMCData, only: tPopsAlreadyRead, nWalkerHashes, SpawnVecKP
         use FciMCData, only: SpawnVecKP2, MaxSpawned, determ_space_size, determ_sizes
@@ -466,6 +466,9 @@ contains
         ! Store the initial state of tSinglePartPhase so that we can stop the
         ! shift from varying on subsequent repeats.
         tSinglePartPhaseKPInit = tSinglePartPhase
+
+        ! Never change the reference when using KP-FCIQMC.
+        tCheckHighestPop = .false.
 
     end subroutine init_kp_fciqmc
 
