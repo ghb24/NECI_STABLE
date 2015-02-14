@@ -7,7 +7,7 @@ MODULE Logging
     use MemoryManager, only: LogMemAlloc, LogMemDealloc,TagIntType
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter
-    use CalcData, only: tCheckHighestPop
+    use CalcData, only: tCheckHighestPop, semistoch_shift_iter
     use constants, only: n_int, size_n_int, bits_n_int
     use bit_rep_data, only: NIfTot, NIfD
     use DetBitOps, only: EncodeBitDet
@@ -503,6 +503,9 @@ MODULE Logging
             call readi(RDMExcitLevel)
             call readi(IterRDMonFly)
             call readi(RDMEnergyIter)
+
+            if (IterRDMOnFly < semistoch_shift_iter) call stop_all(t_r,"Semi-stochastic needs to be turned on before &
+                                                                        &RDMs are turned on.")
 
         case("DIAGFLYONERDM")
 !This sets the calculation to diagonalise the *1* electron reduced density matrix.   
