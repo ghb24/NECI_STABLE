@@ -103,7 +103,7 @@ MODULE FciMCData
       integer, allocatable :: FreeSlot(:)   !List of the free slots in the main list
       integer :: iStartFreeSlot     !=1 at the beginning of an iteration, will increment
       !as free slots are used up for *newly spawned* walkers onto previously unoccupied determinants only
-      integer :: iEndFreeSlot   !Position of last free slot, so after we exceed this, just add the the end of the main list.
+      integer :: iEndFreeSlot = 0   !Position of last free slot, so after we exceed this, just add the the end of the main list.
  
 !      real(dp) :: AvDiagSftAbort,SumDiagSftAbort,DiagSftAbort     
 !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying, and
@@ -253,7 +253,7 @@ MODULE FciMCData
       real(dp), allocatable :: curr_S2(:), curr_S2_init(:)
 
       ! The number of holes in the main list.
-      integer :: HolesInList
+      integer :: HolesInList = 0
 
 !These are variables needed for the FixCASshift option in which an active space is chosen and the 
 !shift fixed only for determinants within this space

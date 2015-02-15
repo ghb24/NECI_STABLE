@@ -4,7 +4,7 @@ module bit_reps
     use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart
     use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level
     use CalcData, only: tTruncInitiator, tUseRealCoeffs, tSemiStochastic, &
-                        tCSFCore, tTrialWavefunction
+                        tCSFCore, tTrialWavefunction, semistoch_shift_iter
 
     use csf_data, only: csf_yama_bit, csf_test_bit
     use constants, only: lenof_sign, end_n_int, bits_n_int, n_int, dp,sizeof_int
@@ -182,7 +182,7 @@ contains
         NIfDBO = NIfD + NIfY
 
         ! Do we have any flags to store?
-        if (tTruncInitiator .or. tSemiStochastic .or. tTrialWavefunction) then
+        if (tTruncInitiator .or. tSemiStochastic .or. tTrialWavefunction .or. (semistoch_shift_iter /= 0)) then
             tUseFlags = .true.
         else
             tUseFlags = .false.
