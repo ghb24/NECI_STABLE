@@ -144,8 +144,10 @@ contains
         call add_core_states_currentdet_hash()
 
         ! If starting from a popsfile then global_determinant_data will not
-        ! have been initialised.
-        if (tReadPops) call fill_in_diag_helements()
+        ! have been initialised, or if in the middle of a calculation then new
+        ! determinants may have been added.
+        if (tReadPops .or. (semistoch_shift_iter /= 0)) call fill_in_diag_helements()
+
         SpawnedParts = 0_n_int
         TotWalkersOld = TotWalkers
 
@@ -159,7 +161,7 @@ contains
         call halt_timer(SemiStoch_Init_Time)
 
         write(6,'("Semi-stochastic initialisation complete.")')
-        write(6,'("Total time (seconds) taken for semi-stochastic initialisation:", f9.3)') &
+        write(6,'("Total time (seconds) taken for semi-stochastic initialisation:", f9.3, /)') &
            get_total_time(SemiStoch_Init_Time)
         call neci_flush(6)
 
@@ -798,21 +800,26 @@ contains
         integer :: i, j, ierr, ind, n_pops_keep, min_ind, max_ind, n_states_this_proc
         integer(TagIntType) :: TagA, TagB, TagC, TagD
         character (len=*), parameter :: t_r = "generate_space_most_populated"
-
-        if (.not. tReadPops) then
-            call stop_all(t_r, "NECI must be started from a popsfile to use the pops-core and pops-trial options.")
-        end if
+        integer :: nzero_dets
 
         space_size = 0
 
         n_pops_keep = target_space_size
 
-        length_this_proc = min(int(n_pops_keep,MPIArg), int(TotWalkers,MPIArg))
+        ! Quickly loop through and find the number of determinants with
+        ! zero sign.
+        nzero_dets = 0
+        do i = 1, TotWalkers
+            call extract_sign(CurrentDets(:,i), real_sign)
+            if (sum(abs(real_sign)) < 1.e-8_dp) nzero_dets = nzero_dets + 1
+        end do
+
+        length_this_proc = min(int(n_pops_keep,MPIArg), int(TotWalkers-nzero_dets,MPIArg))
 
         call MPIAllGather(length_this_proc, lengths, ierr)
         total_length = sum(lengths)
         if (total_length < n_pops_keep) then
-            call warning_neci(t_r, "The number of states in POPSFILE is less &
+            call warning_neci(t_r, "The number of states in the walker list is less &
                                    &than the number you requested. All states &
                                    &will be used.")
             n_pops_keep = total_length
