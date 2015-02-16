@@ -288,6 +288,7 @@ contains
           low_e_core_excit = 0
           low_e_core_num_keep = 0
           semistoch_mp1_ndets = 0
+          semistoch_shift_iter = 0
           tLowECoreAllDoubles = .false.
           tLimitDetermSpace = .false.
           tLimitTrialSpace = .false.
@@ -993,9 +994,12 @@ contains
 
             case("SEMI-STOCHASTIC")
                 tSemiStochastic = .true.
+                ! If there is ane extra item, it should specify that we turn
+                ! semi-stochastic on later.
                 if (item < nitems) then
-                    call geti(semistoch_mp1_ndets)
-                    tMP1Core = .true.
+                    call geti(semistoch_shift_iter)
+                    tSemiStochastic = .false.
+                    tStartCoreGroundState = .false.
                 end if
             case("CSF-CORE")
                 if(item.lt.nitems) then
@@ -1048,6 +1052,9 @@ contains
             case("POPS-CORE")
                 tPopsCore = .true.
                 call geti(n_core_pops)
+            case("MP1-CORE")
+                tMP1Core = .true.
+                call geti(semistoch_mp1_ndets)
             case("READ-CORE")
                 tReadCore = .true.
             case("LOW-ENERGY-CORE")

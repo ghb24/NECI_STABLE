@@ -173,6 +173,10 @@ logical :: tLowECoreAllDoubles
 ! When using the tMP1Core option, this specifies how many determinants to keep.
 integer :: semistoch_mp1_ndets
 
+! If this is non-zero then we turn semi-stochastic semistoch_shift_iter
+! iterations after the shift starts to vary.
+integer :: semistoch_shift_iter
+
 ! Options relating to the trial wavefunction.
 logical :: tTrialWavefunction ! Use a trial wavefunction-based energy estimator.
 logical :: tDoublesTrial ! Use single and double exciations for the trial space.
