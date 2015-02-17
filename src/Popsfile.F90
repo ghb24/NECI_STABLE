@@ -599,7 +599,6 @@ r_loop: do while (.not. tReadAllPops)
                 ! Prep the counts for transmitting the particles to all of
                 ! the nodes.
                 do j = 0, nNodes - 1
-                    write(6,*) 'J', popssendlist(j), popsinitialslots(j)
                     sendcounts(j+1) = &
                         int((PopsSendList(j) - PopsInitialSlots(j)) * &
                             (NIfTot + 1), MPIArg)
