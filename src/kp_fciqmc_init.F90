@@ -507,6 +507,8 @@ contains
 
             ! Create the trial excited states.
             call calc_trial_states(nexcit, ndets_this_proc, evecs_this_proc, SpawnedParts)
+            ! Set the populations of these states to the requested value.
+            call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
             ! Set the trial excited state as the FCIQMC wave functions.
             call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts)
 
@@ -519,6 +521,8 @@ contains
             call calc_trial_states(nexcit, ndets_this_proc, evecs_this_proc, SpawnedParts)
             ! Extract the desried initial excited states and average them.
             call create_init_excited_state(ndets_this_proc, evecs_this_proc, kpfciqmc_ex_labels, init_vecs)
+            ! Set the populations of these states to the requested value.
+            call set_trial_populations(1, ndets_this_proc, init_vecs)
             ! Set the trial excited state as the FCIQMC wave functions.
             call set_trial_states(ndets_this_proc, init_vecs, SpawnedParts)
 
@@ -999,8 +1003,6 @@ contains
 
     subroutine calc_trial_states(nexcit, ndets_this_proc, evecs_this_proc, trial_iluts)
 
-        use CalcData, only: tStartSinglePart, InitialPart
-        use CalcData, only: InitWalkers
         use DetBitOps, only: ilut_lt, ilut_gt
         use lanczos_wrapper, only: frsblk_wrapper
         use Parallel_neci, only: MPIScatterV, MPIGatherV, MPIArg
@@ -1021,7 +1023,6 @@ contains
         integer(MPIArg) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
         integer(MPIArg) :: sndcnts(0:nProcessors-1), displs(0:nProcessors-1)
         integer(MPIArg) :: rcvcnts
-        real(dp) :: eigenvec_pop
         real(dp), allocatable :: evals(:)
         real(dp), allocatable :: evecs(:,:), evecs_transpose(:,:)
         character(len=*), parameter :: t_r = "calc_trial_states"
@@ -1095,21 +1096,6 @@ contains
             deallocate(det_list)
             deallocate(evals)
 
-            ! We need to normalise all of the vectors to have the correct number of
-            ! walkers.
-            do j = 1, nexcit
-                eigenvec_pop = 0.0_dp
-                do i = 1, ndets_all_procs
-                    eigenvec_pop = eigenvec_pop + abs(evecs(i,j))
-                end do
-
-                if (tStartSinglePart) then
-                    evecs(:,j) = evecs(:,j)*InitialPart/eigenvec_pop
-                else
-                    evecs(:,j) = evecs(:,j)*InitWalkers/eigenvec_pop
-                end if
-            end do
-
             ! Unfortunately to perform the MPIScatterV call we need the transpose
             ! of the eigenvector array.
             allocate(evecs_transpose(nexcit, ndets_all_procs), stat=ierr)
@@ -1163,6 +1149,35 @@ contains
         end do
 
     end subroutine create_init_excited_state
+
+    subroutine set_trial_populations(nexcit, ndets_this_proc, trial_vecs)
+
+        use CalcData, only: InitialPart, InitWalkers, tStartSinglePart
+
+        integer, intent(in) :: nexcit, ndets_this_proc
+        real(dp), intent(inout) :: trial_vecs(:,:)
+
+        real(dp) :: eigenvec_pop, tot_eigenvec_pop
+        integer :: i, j
+
+            ! We need to normalise all of the vectors to have the correct number of
+            ! walkers.
+            do j = 1, nexcit
+                eigenvec_pop = 0.0_dp
+                do i = 1, ndets_this_proc
+                    eigenvec_pop = eigenvec_pop + abs(trial_vecs(j,i))
+                end do
+
+                call MPISumAll(eigenvec_pop, tot_eigenvec_pop)
+
+                if (tStartSinglePart) then
+                    trial_vecs(j,:) = trial_vecs(j,:)*InitialPart/tot_eigenvec_pop
+                else
+                    trial_vecs(j,:) = trial_vecs(j,:)*InitWalkers/tot_eigenvec_pop
+                end if
+            end do
+
+    end subroutine set_trial_populations
 
     subroutine set_trial_states(ndets_this_proc, init_vecs, trial_iluts)
 
