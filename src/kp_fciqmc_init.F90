@@ -24,7 +24,7 @@ contains
         type(kp_fciqmc_data), intent(inout) :: kp
         logical :: eof
         character(len=100) :: w
-        integer :: i, j, niters_temp, nvecs_temp, nreports_temp, npert
+        integer :: i, j, niters_temp, nvecs_temp, nreports_temp, npert, nexcit
         integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
         character (len=*), parameter :: t_r = "kp_fciqmc_read_inp"
 
@@ -37,10 +37,13 @@ contains
         niters_temp = 1
         memory_factor_kp = 1.0_dp
 
+        tFiniteTemp = .false.
+        tExcitedInitState = .false.
+
         nwalkers_per_site_init = 1.0_dp
         av_mc_excits_kp = 0.0_dp
         kp_hamil_exact_frac = 1.0_dp
-        tFiniteTemp = .false.
+
         tMultiplePopStart = .false.
         tExactHamil = .false.
         tExactHamilSpawning = .false.
@@ -174,6 +177,17 @@ contains
                 tOutputAverageKPMatrices = .true.
             case("SCALE-POPULATION")
                 tScalePopulation = .true.
+            case("EXCITED-INIT-STATE")
+                tExcitedInitState = .true.
+                ! Read in the number of excited states to be used.
+                call readi(nexcit)
+                allocate(kpfciqmc_ex_labels(nexcit))
+                call read_line(eof)
+
+                ! Read in which excited states to use.
+                do j = 1, nitems
+                    call readi(kpfciqmc_ex_labels(j))
+                end do
 
             case("OVERLAP-PERTURB-ANNIHILATE")
                 alloc_popsfile_dets = .true.
@@ -476,17 +490,40 @@ contains
 
         use CalcData, only: tStartSinglePart, InitialPart, InitWalkers, DiagSft, iPopsFileNoRead
         use FciMCData, only: iter, InputDiagSft, PreviousCycles, OldAllAvWalkersCyc, proje_iter
-        use FciMCData, only: proje_iter_tot, AllGrowRate
+        use FciMCData, only: proje_iter_tot, AllGrowRate, SpawnedParts
         use FciMCParMod, only: tSinglePartPhase
         use hash, only: clear_hash_table
         use util_mod, only: int_fmt
 
         integer, intent(in) :: iconfig, irepeat, nrepeats, nvecs
 
+        integer :: ndets_this_proc, nexcit
+        real(dp), allocatable :: evecs_this_proc(:,:), init_vecs(:,:)
+
         write(6,'(1x,a22,'//int_fmt(irepeat,1)//')') "Starting repeat number", irepeat
 
         if (tExcitedStateKP) then
-            call create_trial_states(nvecs)
+            nexcit = nvecs
+
+            ! Create the trial excited states.
+            call calc_trial_states(nexcit, ndets_this_proc, evecs_this_proc, SpawnedParts)
+            ! Set the trial excited state as the FCIQMC wave functions.
+            call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts)
+
+            deallocate(evecs_this_proc)
+
+        else if (tExcitedInitState) then
+            nexcit = maxval(kpfciqmc_ex_labels)
+
+            ! Create the trial excited states.
+            call calc_trial_states(nexcit, ndets_this_proc, evecs_this_proc, SpawnedParts)
+            ! Extract the desried initial excited states and average them.
+            call create_init_excited_state(ndets_this_proc, evecs_this_proc, kpfciqmc_ex_labels, init_vecs)
+            ! Set the trial excited state as the FCIQMC wave functions.
+            call set_trial_states(ndets_this_proc, init_vecs, SpawnedParts)
+
+            deallocate(evecs_this_proc, init_vecs)
+
         else
             ! If starting from multiple POPSFILEs then set this counter so that the
             ! correct POPSFILE is read in this time. To read in POPSFILE.x,
@@ -960,52 +997,49 @@ contains
 
     end subroutine generate_init_config_this_proc
 
-    subroutine create_trial_states(nvecs)
+    subroutine calc_trial_states(nexcit, ndets_this_proc, evecs_this_proc, trial_iluts)
 
-        use CalcData, only: tTruncInitiator, tStartSinglePart, InitialPart
-        use CalcData, only: InitWalkers, tSemiStochastic
+        use CalcData, only: tStartSinglePart, InitialPart
+        use CalcData, only: InitWalkers
         use DetBitOps, only: ilut_lt, ilut_gt
-        use FciMCData, only: nWalkerHashes, HashIndex, TotWalkers, CurrentDets
-        use FciMCData, only: set_initial_global_data, SpawnedParts
-        use hash, only: clear_hash_table, fill_in_hash_table
         use lanczos_wrapper, only: frsblk_wrapper
         use Parallel_neci, only: MPIScatterV, MPIGatherV, MPIArg
         use ParallelHelper, only: root
         use semi_stoch_gen
-        use semi_stoch_procs, only: fill_in_diag_helements
         use sort_mod, only: sort
         use SystemData, only: nel, tAllSymSectors
 
-        integer, intent(in) :: nvecs
+        integer, intent(in) :: nexcit
+        integer, intent(out) :: ndets_this_proc
+        real(dp), allocatable, intent(out) :: evecs_this_proc(:,:)
+        integer(n_int), intent(out) :: trial_iluts(0:,:)
 
         integer(n_int), allocatable :: ilut_list(:,:)
         integer, allocatable :: det_list(:,:)
-        integer :: i, j, ierr, nexcit, ndets_this_proc
+        integer :: i, j, ierr
         integer(MPIArg) :: ndets_all_procs, ndets_this_proc_mpi
         integer(MPIArg) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
         integer(MPIArg) :: sndcnts(0:nProcessors-1), displs(0:nProcessors-1)
         integer(MPIArg) :: rcvcnts
-        real(dp) :: eigenvec_pop, real_sign(lenof_sign)
+        real(dp) :: eigenvec_pop
         real(dp), allocatable :: evals(:)
         real(dp), allocatable :: evecs(:,:), evecs_transpose(:,:)
-        real(dp), allocatable :: evecs_this_proc(:,:)
-        character(len=*), parameter :: t_r = "create_trial_states"
+        character(len=*), parameter :: t_r = "calc_trial_states"
 
-        nexcit = nvecs
         ndets_this_proc = 0
 
         ! Choose the correct generating routine.
-        if (tPops_KP_Space) call generate_space_most_populated(n_kp_pops, SpawnedParts, ndets_this_proc)
-        if (tRead_KP_Space) call generate_space_from_file('DETFILE', SpawnedParts, ndets_this_proc)
-        if (tDoubles_KP_Space) call generate_sing_doub_determinants(SpawnedParts, ndets_this_proc, .false.)
-        if (tCAS_KP_Space) call generate_cas(Occ_KP_CasOrbs, Virt_KP_CasOrbs, SpawnedParts, ndets_this_proc)
-        if (tRAS_KP_Space) call generate_ras(kp_ras, SpawnedParts, ndets_this_proc)
-        if (tMP1_KP_Space) call generate_using_mp1_criterion(kp_mp1_ndets, SpawnedParts, ndets_this_proc)
+        if (tPops_KP_Space) call generate_space_most_populated(n_kp_pops, trial_iluts, ndets_this_proc)
+        if (tRead_KP_Space) call generate_space_from_file('DETFILE', trial_iluts, ndets_this_proc)
+        if (tDoubles_KP_Space) call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
+        if (tCAS_KP_Space) call generate_cas(Occ_KP_CasOrbs, Virt_KP_CasOrbs, trial_iluts, ndets_this_proc)
+        if (tRAS_KP_Space) call generate_ras(kp_ras, trial_iluts, ndets_this_proc)
+        if (tMP1_KP_Space) call generate_using_mp1_criterion(kp_mp1_ndets, trial_iluts, ndets_this_proc)
         if (tFCI_KP_Space) then
             if (tAllSymSectors) then
-                call gndts_all_sym_this_proc(SpawnedParts, .true., ndets_this_proc)
+                call gndts_all_sym_this_proc(trial_iluts, .true., ndets_this_proc)
             else
-                call generate_fci_core(SpawnedParts, ndets_this_proc)
+                call generate_fci_core(trial_iluts, ndets_this_proc)
             end if
         end if
 
@@ -1023,7 +1057,7 @@ contains
             space_displs(i) = sum(space_sizes(:i-1))
         end do
 
-        call sort(SpawnedParts(:,1:ndets_this_proc), ilut_lt, ilut_gt)
+        call sort(trial_iluts(:,1:ndets_this_proc), ilut_lt, ilut_gt)
 
         if (iProcIndex == root) then
             allocate(ilut_list(0:NIfTot, ndets_all_procs))
@@ -1031,10 +1065,10 @@ contains
             ! On these other processes ilut_list is not needed, but we need
             ! it to be allocated for the MPI wrapper function to work, so just
             ! allocate it to be small.
-            allocate(ilut_list(1, 1))
+            allocate(ilut_list(1,1))
         end if
 
-        call MPIGatherV(SpawnedParts(:,1:space_sizes(iProcIndex)), ilut_list, &
+        call MPIGatherV(trial_iluts(:,1:space_sizes(iProcIndex)), ilut_list, &
                         space_sizes, space_displs, ierr)
 
         ! Only perform the diagonalisation on the root process.
@@ -1094,20 +1128,68 @@ contains
 
         ! Send the components to the correct processors using the following
         ! array as temporary space.
-        allocate(evecs_this_proc(nexcit, ndets_this_proc))
+        allocate(evecs_this_proc(nexcit, ndets_this_proc), stat=ierr)
         call MPIScatterV(evecs_transpose, sndcnts, displs, evecs_this_proc, rcvcnts, ierr)
         if (ierr /= 0) call stop_all(t_r, "Error in MPIScatterV call.")
+
+        ! Clean up.
+        if (iProcIndex == root) then
+            deallocate(evecs)
+            deallocate(evecs_transpose)
+        end if
+
+    end subroutine calc_trial_states
+
+    subroutine create_init_excited_state(ndets_this_proc, trial_vecs, ex_state_labels, init_vec)
+
+        integer, intent(in) :: ndets_this_proc
+        real(dp), intent(in) :: trial_vecs(:,:)
+        integer, intent(in) :: ex_state_labels(:)
+        real(dp), allocatable, intent(out) :: init_vec(:,:)
+
+        real(dp) :: real_sign(lenof_sign)
+        integer :: i, j, ierr
+        character(len=*), parameter :: t_r = "create_init_excited_state"
+
+        allocate(init_vec(1,ndets_this_proc), stat=ierr)
+        if (ierr /= 0) call stop_all(t_r, "Error in MPIScatterV call.")
+         
+        do i = 1, ndets_this_proc
+            init_vec(1,i) = 0.0_dp
+            do j = 1, size(ex_state_labels)
+                init_vec(1,i) = init_vec(1,i) + trial_vecs(ex_state_labels(j), i)
+            end do
+            init_vec(1,i) = init_vec(1,i)/size(ex_state_labels)
+        end do
+
+    end subroutine create_init_excited_state
+
+    subroutine set_trial_states(ndets_this_proc, init_vecs, trial_iluts)
+
+        use CalcData, only: tSemiStochastic
+        use FciMCData, only: nWalkerHashes, HashIndex, TotWalkers, CurrentDets
+        use FciMCData, only: set_initial_global_data
+        use hash, only: clear_hash_table, fill_in_hash_table
+        use semi_stoch_procs, only: fill_in_diag_helements, copy_core_dets_to_spawnedparts
+        use semi_stoch_procs, only: add_core_states_currentdet_hash
+
+        integer, intent(in) :: ndets_this_proc
+        real(dp), intent(in) :: init_vecs(:,:)
+        integer(n_int), intent(in) :: trial_iluts(0:,:) 
+
+        real(dp) :: real_sign(lenof_sign)
+        integer :: i, j
 
         ! Now copy the amplitudes across to the CurrentDets array:
         ! First, get the correct states in CurrentDets.
         CurrentDets(0:NIfTot, 1:ndets_this_proc) = 0_n_int
-        CurrentDets(0:NIfDBO, 1:ndets_this_proc) = SpawnedParts(0:NIfDBO, 1:ndets_this_proc)
+        CurrentDets(0:NIfDBO, 1:ndets_this_proc) = trial_iluts(0:NIfDBO, 1:ndets_this_proc)
 
         ! Set signs.
         do i = 1, ndets_this_proc
             ! Construct the sign array to be encoded.
             do j = 2, lenof_sign, 2
-                real_sign(j-1:j) = evecs_this_proc(j/2,i)
+                real_sign(j-1:j) = init_vecs(j/2,i)
             end do
             call encode_sign(CurrentDets(:,i), real_sign)
         end do
@@ -1120,7 +1202,7 @@ contains
 
         if (tSemiStochastic) then
             ! core_space stores all core determinants from all processors. Move those on this
-            ! processor to SpawnedParts, which add_core_states_currentdet_hash uses.
+            ! processor to trial_iluts, which add_core_states_currentdet_hash uses.
             call copy_core_dets_to_spawnedparts()
             ! Any core space determinants which are not already in CurrentDets will be added
             ! by this routine.
@@ -1133,14 +1215,7 @@ contains
 
         call set_initial_global_data(TotWalkers, CurrentDets)
 
-        ! Clean up.
-        if (iProcIndex == root) then
-            deallocate(evecs)
-            deallocate(evecs_transpose)
-        end if
-        deallocate(evecs_this_proc)
-
-    end subroutine create_trial_states
+    end subroutine set_trial_states
 
     subroutine scale_population(walker_list, ndets, target_pop, input_pop, scaling_factor)
 

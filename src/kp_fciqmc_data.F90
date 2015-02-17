@@ -204,6 +204,14 @@ module kp_fciqmc_data_mod
     ! the Krylov basis.
     real(dp), allocatable :: kp_eigenvecs_krylov(:,:)
 
+    ! If true then use an estimate of an excited state (or linear
+    ! combination of excited states) to form the initial wave function.
+    logical :: tExcitedInitState
+    ! When using the excited-init-state option, this array is read in
+    ! from the input file and specifies which excited states to take
+    ! a weighted average of to form the initial state.
+    integer, allocatable :: kpfciqmc_ex_labels(:)
+
     ! Options for the trial wave function space for excited-state calculations.
     logical :: tPops_KP_Space
     logical :: tRead_KP_Space
