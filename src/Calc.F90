@@ -104,7 +104,7 @@ contains
           TUnbiasPGeninProjE=.false.
           TRegenExcitgens=.false.
           MemoryFacPart=10.0_dp
-          MemoryFacSpawn=0.5_dp
+          MemoryFacSpawn=3.0_dp
           MemoryFacInit = 0.3_dp
           TStartSinglePart=.true.
           TFixParticleSign=.false.

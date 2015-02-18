@@ -9,8 +9,9 @@ module semi_stoch_procs
     use bit_reps, only: decode_bit_det
     use CalcData
     use constants
-    use FciMCData, only: determ_sizes, determ_displs, determ_space_size, SpawnedParts
-    use FciMCData, only: TotWalkers, CurrentDets, core_space
+    use FciMCData, only: determ_sizes, determ_displs, determ_space_size, &
+                         SpawnedParts, TotWalkers, CurrentDets, core_space, &
+                         MaxSpawned
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg
     use sparse_arrays, only: sparse_core_ham
     use SystemData, only: nel
@@ -725,8 +726,17 @@ contains
         real(dp) :: walker_sign(lenof_sign)
         type(ll_node), pointer :: temp_node
         logical :: tSuccess
+        character(*), parameter :: this_routine = 'add_core_states_currentdet'
 
         nwalkers = int(TotWalkers,sizeof_int)
+
+        ! Test that SpawnedParts is going to be big enough
+        if (determ_sizes(iProcIndex) > MaxSpawned) then
+            write(6,*) 'Spawned parts array will not be big enough for &
+                       &Semi-Stochastic initialisation'
+            write(6,*) 'Please increase MEMORYFACSPAWN'
+            call stop_all(this_routine, "Insufficient memory assigned")
+        end if
 
         ! First find which CurrentDet states are in the core space.
         ! The warning above refers to this bit of code: If a core determinant is not in the
@@ -768,6 +778,16 @@ contains
         do i = 1, int(TotWalkers,sizeof_int)
             if (.not. test_flag(CurrentDets(:,i), flag_deterministic)) then
                 i_non_core = i_non_core + 1
+
+                ! Add a quick test in, to ensure that we don't overflow the
+                ! spawned parts array...
+                if (i_non_core > MaxSpawned) then
+                    write(6,*) 'Spawned parts array too small for &
+                               &semi-stochastic initialisation'
+                    write(6,*) 'Please increase MEMORYFACSPAWN'
+                    call stop_all(this_routine, 'Insufficient memory assigned')
+                end if
+                
                 SpawnedParts(:,i_non_core) = CurrentDets(:,i)
             end if
         end do
