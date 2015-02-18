@@ -190,7 +190,8 @@ MODULE ReadInput_neci
                             InitiatorCutoffEnergy, tCheckHighestPop, &
                             tSurvivalInitiatorThreshold, tKP_FCIQMC, &
                             tSurvivalInitMultThresh, tAddToInitiator, &
-                            tMultiReplicaInitiators
+                            tMultiReplicaInitiators, tRealCoeffByExcitLevel, &
+                            tAllRealCoeff, tUseRealCoeffs
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -510,6 +511,17 @@ MODULE ReadInput_neci
                        &RDMs on the fly'
             write(6,*) 'If you are seeing this, it is an input parsing error'
             call stop_all(t_r, 'RDMs without CheckHighestPop')
+        end if
+
+        if (tSemiStochastic .and. .not.(tAllRealCoeff.and.tUseRealCoeffs)) then
+            write(6,*) 'Semi-stochastic simulations only supported when using &
+                       &ALLREALCOEFF option'
+            call stop_all(t_r, 'Semistochastic without ALLREALCOEFF')
+        end if
+
+        if (tAllRealCoeff .and. tRealCoeffByExcitLevel) then
+            call stop_all(t_r, 'Options ALLREALCOEFF and REALCOEFFBYEXCITLEVEL&
+                               & are incompatibile')
         end if
 
     end subroutine checkinput
