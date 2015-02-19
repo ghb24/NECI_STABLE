@@ -343,6 +343,8 @@ contains
           init_survival_mult = 3.0_dp
           MaxTau = 1.0_dp
           tMultiReplicaInitiators = .false.
+          tOrthogonaliseReplicas = .false.
+          orthogonalise_iter = 0
 
         end subroutine SetCalcDefaults
 
@@ -1990,6 +1992,15 @@ contains
                 ! Obviously, this only does anything with system-replicas
                 ! set...
                 tMultiReplicaInitiators = .true.
+
+            case("ORTHOGONALISE-REPLICAS")
+                ! Apply Gram Schmidt ortgogonalisation to replicas, starting
+                ! with replica 1, so that we will collect excited states of
+                ! a given symmetry
+                tOrthogonaliseReplicas = .true.
+                if (item < nitems) then
+                    call readi(orthogonalise_iter)
+                endif
 
             case default
                 call report("Keyword "                                &

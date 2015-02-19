@@ -191,7 +191,8 @@ MODULE ReadInput_neci
                             tSurvivalInitiatorThreshold, tKP_FCIQMC, &
                             tSurvivalInitMultThresh, tAddToInitiator, &
                             tMultiReplicaInitiators, tRealCoeffByExcitLevel, &
-                            tAllRealCoeff, tUseRealCoeffs
+                            tAllRealCoeff, tUseRealCoeffs, &
+                            tOrthogonaliseReplicas
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -522,6 +523,19 @@ MODULE ReadInput_neci
         if (tAllRealCoeff .and. tRealCoeffByExcitLevel) then
             call stop_all(t_r, 'Options ALLREALCOEFF and REALCOEFFBYEXCITLEVEL&
                                & are incompatibile')
+        end if
+
+        if (tOrthogonaliseReplicas) then
+            if (.not. tMultiReplicas) then
+                call stop_all(t_r, 'Replica orthogonalisation requires &
+                                   &SYSTEM-REPLICAS to determine the number &
+                                   &of simulations')
+            end if
+
+            if (inum_runs /= 2) then
+                call stop_all(t_r, "Replica orthogonalisation is only &
+                                   &(currently) implemented for 2 replicas")
+            end if
         end if
 
     end subroutine checkinput

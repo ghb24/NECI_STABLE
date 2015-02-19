@@ -246,4 +246,8 @@ real(dp) :: im_time_init_thresh, init_survival_mult
 logical :: tSpawnCountInitiatorThreshold
 integer :: init_spawn_thresh
 
+! Are we orthogonalising replicas?
+logical :: tOrthogonaliseReplicas
+integer :: orthogonalise_iter
+
 end module CalcData

@@ -7,7 +7,8 @@ module FciMCParMod
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
-                        iFullSpaceIter, semistoch_shift_iter
+                        iFullSpaceIter, semistoch_shift_iter, &
+                        tOrthogonaliseReplicas, orthogonalise_iter
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, &
@@ -33,6 +34,7 @@ module FciMCParMod
     use spectral_lanczos, only: perform_spectral_lanczos
     use bit_rep_data, only: nOffFlag, flag_determ_parent
     use errors, only: standalone_errors, error_analysis
+    use orthogonalise, only: orthogonalise_replicas
     use PopsFileMod, only: WriteToPopsFileParOneArr
     use AnnihilationMod, only: DirectAnnihilation
     use exact_spectrum, only: get_exact_spectrum
@@ -975,6 +977,11 @@ module FciMCParMod
 
         CALL halt_timer(Annihil_Time)
         IFDEBUG(FCIMCDebug,2) WRITE(iout,*) "Finished Annihilation step"
+        
+        ! If we are orthogonalising the replica wavefunctions, to generate
+        ! excited states, then do that here.
+        if (tOrthogonaliseReplicas .and. iter > orthogonalise_iter) &
+            call orthogonalise_replicas()
 
         call update_iter_data(iter_data)
 
