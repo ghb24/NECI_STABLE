@@ -1,9 +1,12 @@
+#include <stdlib.h>
+#include <string.h>
+
+#ifdef __SHARED_MEM
+
 #include <stdio.h>
 #include <stdint.h>
 #include <stdarg.h>
 #include <errno.h>
-#include <string.h>
-#include <stdlib.h>
 #include <algorithm>
 #include <fcntl.h>
 #include <map>
@@ -357,10 +360,15 @@ extern "C" void dealloc_shared_worker (void * ptr)
 }
 
 
+#endif // __SHARED_MEM
+
 //
 // Clean up any shared allocations which have not been properly deallocated.
+// n.b. This routine _is_ defined even if not using shared memory (although
+//      it won't do anything).
 extern "C" void cleanup_shared_alloc ()
 {
+#ifdef __SHARED_MEM
 #ifdef _WIN32
 	// Iterate through the list of shared allocations and clear up (windows)
 	map<void*,map_det_t>::iterator iter;
@@ -407,6 +415,7 @@ extern "C" void cleanup_shared_alloc ()
 		g_shm_list.clear();
 	}
 #endif
+#endif // __SHARED_MEM
 }
 
 
@@ -415,6 +424,4 @@ extern "C" size_t strlen_wrap (const char * str )
 {
 	return strlen (str);
 }
-
-
 
