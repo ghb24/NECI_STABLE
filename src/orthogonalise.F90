@@ -48,7 +48,7 @@ contains
             
             ! Adjust the wavefunctions
             call extract_sign(CurrentDets(:,j), sgn)
-            delta = - sgn(1) * sgn(2) / psi_squared(1)
+            delta = - sgn(1) * scal_prod / psi_squared(1)
             sgn(2) = sgn(2) + delta
 
             ! And stochastically round, so that the minimum particle sign
