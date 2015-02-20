@@ -26,7 +26,7 @@ module fcimc_initialisation
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
                         RealCoeffExcitThresh, TargetGrowRate, &
                         TargetGrowRateWalk, InputTargetGrowRate, &
-                        InputTargetGrowRateWalk
+                        InputTargetGrowRateWalk, tOrthogonaliseReplicas
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -77,6 +77,7 @@ module fcimc_initialisation
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD , only : InitHistInitPops
+    use SymExcitDataMod, only: SymLabelList2, OrbClassCount
     use nElRDMMod, only: DeallocateRDM, InitRDM, fill_rdm_diag_currdet_norm, &
                          extract_bit_rep_avsign_no_rdm
     use DetBitOps, only: FindBitExcitLevel, CountBits, TestClosedShellDet, &
@@ -95,6 +96,7 @@ module fcimc_initialisation
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
+    use sym_general_mod, only: ClassCountInd
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
     use ueg_excit_gens, only: gen_ueg_excit
     use gndts_mod, only: gndts
@@ -102,6 +104,7 @@ module fcimc_initialisation
     use tau_search, only: init_tau_search
     use fcimc_helper, only: CalcParentFlag
     use get_excit, only: make_double
+    use sltcnd_mod, only: sltcnd_0
     use Parallel_neci
     use FciMCData
     use util_mod
@@ -285,9 +288,7 @@ contains
         
         ! The reference / projected energy determinants are the same as the
         ! HF determinant.
-        ! TODO: Make these pointers rather than copies?
-        iLutRef = iLutHF
-        ProjEDet = HFDet
+        call assign_reference_dets()
 
         ALLOCATE(iLutHF_True(0:NIfTot),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for iLutHF_True")
@@ -313,7 +314,9 @@ contains
                 ALLOCATE(RefDetFlip(NEl))
                 ALLOCATE(iLutRefFlip(0:NIfTot))
                 !We need to ensure that the correct pair of the HPHF det is used to project onto/start from.
-                call ReturnAlphaOpenDet(ProjEDet,RefDetFlip,iLutRef,iLutRefFlip,.true.,.true.,tSwapped)
+                call ReturnAlphaOpenDet(ProjEDet(:,1), RefDetFlip, &
+                                        iLutRef(:,1), iLutRefFlip, .true., &
+                                        .true., tSwapped)
                 if(tSwapped) then
                     write(iout,*) "HPHF used, and open shell determinant spin-flipped for consistency."
                 endif
@@ -1762,8 +1765,8 @@ contains
 
         ! Get the first part of a determinant with the lowest energy, rather
         ! than lowest index number orbitals
-        energytmp = ARR(ProjEDet, 2)
-        tmp_det = ProjEDet
+        energytmp = ARR(ProjEDet(:,1), 2)
+        tmp_det = ProjEDet(:,1)
         call sort(energytmp, tmp_det)
 
         ! Construct the determinants resulting from the CAS expansion.
@@ -1948,7 +1951,7 @@ contains
 
          !If the reference det is not the maximum weighted det, suggest that
          !we change it!
-        if (.not. all(CASFullDets(:, det_max) == ProjEDet)) then
+        if (.not. all(CASFullDets(:, det_max) == ProjEDet(:,1))) then
             write(iout,*) 'The specified reference determinant is not the &
                        &maximum weighted determinant in the CAS expansion'
             write(iout,*) 'Use following det as reference:'
@@ -2009,7 +2012,7 @@ contains
 
                 if(NoWalkers.ne.0.0) then
                     call EncodeBitDet(CASFullDets(:,i),iLutnJ)
-                    if(DetBitEQ(iLutnJ,iLutRef,NIfDBO)) then
+                    if(DetBitEQ(iLutnJ, iLutRef(:,1), NIfDBO)) then
                         !Check if this determinant is reference determinant, so we can count number on hf.
                         do run=1,inum_runs
                             NoatHF(run) = NoWalkers
@@ -2860,6 +2863,87 @@ contains
         endif
 
     end subroutine MoveFCIMCStatsFiles
+
+    subroutine assign_reference_dets()
+
+        ! Depending on the configuration we may have one, or multiple,
+        ! reference determinants.
+
+        integer :: det(nel), orbs(nel), orb, orb2, norb
+        integer :: run, cc_idx, label_idx, i, j
+        real(dp) :: energies(nel), hdiag
+        character(*), parameter :: this_routine = 'assign_reference_dets'
+
+        if (.not. tOrthogonaliseReplicas) then
+
+            ! This is the normal case. All simultions are essentially doing
+            ! the same thing...
+
+            do run = 1, inum_runs
+                ilutRef(:, run) = ilutHF
+                ProjEDet(:, run) = HFDet
+            end do
+
+            ! And make sure that the rest of the code knows this
+            tReplicaReferencesDiffer = .false.
+
+        else
+
+            ! A protection against unimplemented code
+            if (inum_runs /= 2) then
+                call stop_all(this_routine, "Multiple references only &
+                             &implemented for two replicas")
+            end if
+
+            ! The first replica is just a normal FCIQMC simulation.
+            ilutRef(:, 1) = ilutHF
+            ProjEDet(:, 1) = HFDet
+
+            ! Now we want to find the lowest energy single excitation with
+            ! the same symmetry as the reference site.
+            do i = 1, nel
+                ! Find the excitations, and their energy
+                orb = HFDet(i)
+                cc_idx = ClassCountInd(get_spin(orb), G1(orb)%Sym%S, &
+                                        G1(orb)%Ml)
+                label_idx = SymLabelCounts(1, cc_idx)
+                norb = OrbClassCount(cc_idx)
+
+                ! nb. sltcnd_0 does not depend on the ordering of the det,
+                !     so we don't need to do any sorting here.
+                energies(j) = 9999999.9_dp
+                do j = 1, norb
+                    orb2 = SymLabelList2(label_idx + j - 1)
+                    if (orb2 /= orb) then
+                        det = HFDet
+                        det(i) = orb2
+                        hdiag = real(sltcnd_0(det), dp)
+                        if (hdiag < energies(i)) then
+                            energies(i) = hdiag
+                            orbs(i) = orb2
+                        end if
+                    end if
+                end do
+            end do
+
+            ! Which of the electrons that is excited gives the lowest energy?
+            i = minloc(energies, 1)
+
+            ! Construct that determinant, and set it as the reference.
+            ProjEDet(:, 2) = HFDet
+            ProjEDet(i, 2) = orbs(i)
+            call sort(ProjEDet(:, 2))
+            call EncodeBitDet(ProjEDet(:, 2), ilutRef(:, 2))
+
+        end if
+
+        write(6,*) 'Generated reference determinants:'
+        call write_det(6, ProjEDet(:, 1), .true.)
+        call write_det(6, ProjEDet(:, 2), .true.)
+
+        call stop_all(this_routine, "Done det setup")
+
+    end subroutine
 
 end module
 

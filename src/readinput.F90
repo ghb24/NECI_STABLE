@@ -191,8 +191,8 @@ MODULE ReadInput_neci
                             tSurvivalInitiatorThreshold, tKP_FCIQMC, &
                             tSurvivalInitMultThresh, tAddToInitiator, &
                             tMultiReplicaInitiators, tRealCoeffByExcitLevel, &
-                            tAllRealCoeff, tUseRealCoeffs, &
-                            tOrthogonaliseReplicas
+                            tAllRealCoeff, tUseRealCoeffs, tChangeProjEDet, &
+                            tOrthogonaliseReplicas, tReadPops
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &

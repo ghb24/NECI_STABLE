@@ -351,11 +351,11 @@ contains
                         HOffDiag(run) = get_helement (ProjEDet(:,run), nI, ExcitLevel, &
                                                       ilutRef(:,run), ilut)
                     endif
-                end if
+                end do
             else
                 if (tHPHF) then
-                    HOffDiag(1:inum_runs) = hphf_off_diag_helement (ProjEDet(:,1), &
-                                                                    nI, iLutRef, ilut)
+                    HOffDiag(1:inum_runs) = hphf_off_diag_helement (ProjEDet(:,1), nI, &
+                                                                    iLutRef(:,1), ilut)
                 else
                     HOffDiag(1:inum_runs) = get_helement (ProjEDet(:,1), nI, &
                                                           ExcitLevel, ilutRef(:,1), ilut)
