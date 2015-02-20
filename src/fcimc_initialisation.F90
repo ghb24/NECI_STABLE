@@ -77,7 +77,7 @@ module fcimc_initialisation
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD , only : InitHistInitPops
-    use SymExcitDataMod, only: SymLabelList2, OrbClassCount
+    use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2
     use nElRDMMod, only: DeallocateRDM, InitRDM, fill_rdm_diag_currdet_norm, &
                          extract_bit_rep_avsign_no_rdm
     use DetBitOps, only: FindBitExcitLevel, CountBits, TestClosedShellDet, &
@@ -2904,17 +2904,16 @@ contains
             do i = 1, nel
                 ! Find the excitations, and their energy
                 orb = HFDet(i)
-                cc_idx = ClassCountInd(get_spin(orb), G1(orb)%Sym%S, &
-                                        G1(orb)%Ml)
-                label_idx = SymLabelCounts(1, cc_idx)
+                cc_idx = ClassCountInd(orb)
+                label_idx = SymLabelCounts2(1, cc_idx)
                 norb = OrbClassCount(cc_idx)
 
                 ! nb. sltcnd_0 does not depend on the ordering of the det,
                 !     so we don't need to do any sorting here.
-                energies(j) = 9999999.9_dp
+                energies(i) = 9999999.9_dp
                 do j = 1, norb
                     orb2 = SymLabelList2(label_idx + j - 1)
-                    if (orb2 /= orb) then
+                    if (.not. any(orb2 == HFDet)) then
                         det = HFDet
                         det(i) = orb2
                         hdiag = real(sltcnd_0(det), dp)

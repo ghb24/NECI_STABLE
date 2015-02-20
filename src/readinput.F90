@@ -543,8 +543,12 @@ MODULE ReadInput_neci
             end if
 
             if (tChangeProjeDet) then
-                call stop_all(t_r, "Changing proje dets is NOT supported with &
-                                   &differing reference sites (yet)")
+                write(6,*) "*** *** Changing proje dets is NOT supported with&
+                           & differing reference sites (yet) *** ***"
+                write(6,*) "WARNING: Disabling PROJE CHANGEREF"
+                tChangeProjEDet = .false.
+!                call stop_all(t_r, "Changing proje dets is NOT supported with &
+!                                   &differing reference sites (yet)")
             end if
         end if
 
