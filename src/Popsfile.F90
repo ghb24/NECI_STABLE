@@ -249,7 +249,7 @@ contains
                 call extract_sign(Dets(:,i),SignTemp)
                 
                 CurrParts=CurrParts+abs(SignTemp)
-                if(DetBitEQ(Dets(:,i),iLutRef,NIfDBO)) then
+                if(DetBitEQ(Dets(:,i),iLutRef(:,1),NIfDBO)) then
                     if(CurrHF(1).ne.0) then
                         call stop_all(this_routine,"HF already found, but shouldn't have")
                     endif
@@ -1751,7 +1751,7 @@ r_loop: do while(.not.tStoreDet)
                 abs(real_sgn(1)) > InitiatorWalkNo) then
                 ! Testing using the sign now, because after annihilation
                 ! the current flag will not necessarily be correct.
-                ex_level = FindBitExcitLevel(ilutRef, det, nel)
+                ex_level = FindBitExcitLevel(ilutRef(:,1), det, nel)
                 nopen = count_open_orbs(det)
                 call decode_bit_det(nI, det)
                 if(tHPHF)then
@@ -2212,18 +2212,18 @@ r_loop: do while(.not.tStoreDet)
         ! If we are changing the reference determinant to the largest
         ! weighted one in the file, do it here
         if (tReadPopsChangeRef .or. tReadPopsRestart) then
-            if (.not. DetBitEq(ilut_largest, iLutRef, NIfDBO)) then
+            if (.not. DetBitEq(ilut_largest, iLutRef(:,1), NIfDBO)) then
 
                 ! Set new reference
-                iLutRef = ilut_largest
-                call decode_bit_det (ProjEDet, iLutRef)
+                iLutRef(:,1) = ilut_largest
+                call decode_bit_det (ProjEDet(:,1), iLutRef(:,1))
                 tNoBrillouin = .true.
 
                 ! Recalculate the reference E
                 if (tHPHF) then
-                    HElemTemp = hphf_diag_helement (ProjEDet, iLutRef)
+                    HElemTemp = hphf_diag_helement (ProjEDet(:,1), iLutRef(:,1))
                 else
-                    HElemTemp = get_helement (ProjEDet, ProjEDet, 0)
+                    HElemTemp = get_helement (ProjEDet(:,1), ProjEDet(:,1), 0)
                 endif
                 Hii = real(HElemTemp, dp)
 
@@ -2231,7 +2231,7 @@ r_loop: do while(.not.tStoreDet)
                 if (iProcIndex == root) then
                     write(6, '(a)', advance='no') &
                         "Changing projected energy reference determinant to: "
-                    call write_det (6, ProjEDet, .true.)
+                    call write_det (6, ProjEDet(:,1), .true.)
                     write (6, '(a)') &
                         "Ensuring that Brillouin's theorem is no longer used."
                     write (6, '(a,g25.15)') &
@@ -2272,7 +2272,7 @@ r_loop: do while(.not.tStoreDet)
 
         if (tReadPopsRestart) then
             tPopsAlreadyRead = .true.
-            call ChangeRefDet (ProjEDet)
+            call ChangeRefDet (ProjEDet(:,1))
             tPopsAlreadyRead = .false.
         endif
 
@@ -2669,7 +2669,7 @@ r_loop: do while(.not.tStoreDet)
 
         if (tReadPopsRestart) then
             tPopsAlreadyRead = .true.
-            call ChangeRefDet (ProjEDet)
+            call ChangeRefDet (ProjEDet(:,1))
             tPopsAlreadyRead = .false.
         endif
 

@@ -497,7 +497,7 @@ module FciMCParMod
         end if
         
         iroot=1
-        CALL GetSym(ProjEDet,NEl,G1,NBasisMax,RefSym)
+        CALL GetSym(ProjEDet(:,1),NEl,G1,NBasisMax,RefSym)
         isymh=int(RefSym%Sym%S,sizeof_int)+1
         write (iout,10101) iroot,isymh
 10101   format(//'RESULTS FOR STATE',i2,'.',i1/'====================='/)

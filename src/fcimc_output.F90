@@ -1145,34 +1145,46 @@ contains
 
 
             write(iout,*) ""
-            write(iout,'(A)') "Current reference: "
-            call write_det (iout, ProjEDet, .true.)
-            call writeDetBit(iout,iLutRef,.true.)
+            if (tReplicaReferencesDiffer) then
+                write(iout,'(A)') "Current references: "
+                do run = 1, inum_runs
+                    call write_det(iout, ProjEDet(:,run), .true.)
+                    call writeDetBit(iout, ilutRef(:, run), .true.)
+                end do
+            else
+                write(iout,'(A)') "Current reference: "
+                call write_det (iout, ProjEDet(:,1), .true.)
+                call writeDetBit(iout,iLutRef(:,1),.true.)
+            end if
 
             write(iout,*)
             write(iout,'("Input DEFINEDET line (includes frozen orbs):")')
-            write(6,'("definedet ")', advance='no')
-            if (allocated(frozen_orb_list)) then
-                allocate(tmp_ni(nel_pre_freezing))
-                tmp_ni(1:nel) = frozen_orb_reverse_map(ProjEDet)
-                if (nel /= nel_pre_freezing) &
-                    tmp_ni(nel+1:nel_pre_freezing) = frozen_orb_list
-                call sort(tmp_ni)
-                do i = 1, nel_pre_freezing
-                    write(6, '(i3," ")', advance='no') tmp_ni(i)
-                end do
-                deallocate(tmp_ni)
-            else
+            do run = 1, inum_runs
+                write(6,'("definedet ")', advance='no')
+                if (allocated(frozen_orb_list)) then
+                    allocate(tmp_ni(nel_pre_freezing))
+                    tmp_ni(1:nel) = frozen_orb_reverse_map(ProjEDet(:,run))
+                    if (nel /= nel_pre_freezing) &
+                        tmp_ni(nel+1:nel_pre_freezing) = frozen_orb_list
+                    call sort(tmp_ni)
+                    do i = 1, nel_pre_freezing
+                        write(6, '(i3," ")', advance='no') tmp_ni(i)
+                    end do
+                    deallocate(tmp_ni)
+                else
+                    do i = 1, nel
+                        write(6, '(i3," ")', advance='no') ProjEDet(i, run)
+                    end do
+                end if
                 do i = 1, nel
-                    write(6, '(i3," ")', advance='no') ProjEDet(i)
+                    full_orb = ProjEDet(i, run)
+                    if (allocated(frozen_orb_list)) &
+                        full_orb = full_orb  + count(frozen_orb_list <= ProjEDet(i, run))
                 end do
-            end if
-            do i = 1, nel
-                full_orb = ProjEDet(i)
-                if (allocated(frozen_orb_list)) &
-                    full_orb = full_orb  + count(frozen_orb_list <= ProjEDet(i))
+                write(iout,*)
+
+                if (.not. tReplicaReferencesDiffer) exit
             end do
-            write(iout,*)
 
             write(iout,*) ""
             write(iout,"(A,I10,A)") "Most occupied ",counter," determinants as excitations from reference: "

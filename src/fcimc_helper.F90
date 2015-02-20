@@ -269,7 +269,7 @@ contains
         real(dp) :: ovp
         logical tSuccess
         integer :: iUEG1, iUEG2, ProjEBin
-        HElement_t :: HOffDiag
+        HElement_t :: HOffDiag(inum_runs)
         HElement_t :: HDoubDiag
         integer :: DoubEx(2,2),DoubEx2(2,2),kDoub(3) ! For histogramming UEG doubles
         integer :: ExMat(2,2), nopen
@@ -342,13 +342,25 @@ contains
             end if
 
             ! Obtain off-diagonal element
-            if (tHPHF) then
-                HOffDiag = hphf_off_diag_helement (ProjEDet, nI, iLutRef,&
-                                                   ilut)
+            if (tReplicaReferencesDiffer) then
+                do run = 1, inum_runs
+                    if (tHPHF) then
+                        HOffDiag(run) = hphf_off_diag_helement(ProjEDet(:,run), nI, &
+                                                               iLutRef(:,run), ilut)
+                    else
+                        HOffDiag(run) = get_helement (ProjEDet(:,run), nI, ExcitLevel, &
+                                                      ilutRef(:,run), ilut)
+                    endif
+                end if
             else
-                HOffDiag = get_helement (ProjEDet, nI, ExcitLevel, &
-                                         ilutRef, ilut)
-            endif
+                if (tHPHF) then
+                    HOffDiag(1:inum_runs) = hphf_off_diag_helement (ProjEDet(:,1), &
+                                                                    nI, iLutRef, ilut)
+                else
+                    HOffDiag(1:inum_runs) = get_helement (ProjEDet(:,1), nI, &
+                                                          ExcitLevel, ilutRef(:,1), ilut)
+                endif
+            end if
 
         endif ! ExcitLevel_local == 1, 2, 3
 
@@ -356,11 +368,11 @@ contains
         ! Sum in energy contribution
         do run=1, inum_runs
             if (iter > NEquilSteps) &
-                SumENum(run) = SumENum(run) + (HOffDiag * ARR_RE_OR_CPLX(RealwSign,run)) &
+                SumENum(run) = SumENum(run) + (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) &
                                   / dProbFin
 
-            ENumCyc(run) = ENumCyc(run) + (HOffDiag * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
-            ENumCycAbs(run) = ENumCycAbs(run) + abs(HoffDiag * ARR_RE_OR_CPLX(RealwSign,run)) &
+            ENumCyc(run) = ENumCyc(run) + (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
+            ENumCycAbs(run) = ENumCycAbs(run) + abs(HoffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) &
                                       / dProbFin
         end do
 

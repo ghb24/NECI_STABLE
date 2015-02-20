@@ -339,8 +339,9 @@ MODULE FciMCData
       INTEGER :: iHighestPop
       INTEGER :: QuadDetsEst !Estimate of the number of symmetry allowed determinants at excit level 4
       INTEGER :: DoubDetsEst !Estimate of the number of symmetry allowed determinants at excit level 2
-      INTEGER , ALLOCATABLE :: ProjEDet(:)
-      INTEGER(KIND=n_int) , ALLOCATABLE :: HighestPopDet(:),iLutRef(:)
+      logical :: tReplicaReferencesDiffer
+      INTEGER , ALLOCATABLE :: ProjEDet(:, :)
+      INTEGER(KIND=n_int) , ALLOCATABLE :: HighestPopDet(:), iLutRef(:, :)
       INTEGER(n_int) , ALLOCATABLE :: iLutRefFlip(:)     !If we are using HPHF and projecting onto 
                                                         !an open-shell determinant, then it is useful
                                                         !to store the spin-coupled determinant, 

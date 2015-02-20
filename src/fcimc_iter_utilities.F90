@@ -230,15 +230,15 @@ contains
                     ! Communicate the change to all dets and print out.
                     call MPIBcast (HighestPopDet(0:NIfTot), NIfTot+1, proc_highest)
                     iLutRef = 0
-                    iLutRef(0:NIfDBO) = HighestPopDet(0:NIfDBO)
-                    call decode_bit_det (ProjEDet, iLutRef)
+                    iLutRef(0:NIfDBO, 1) = HighestPopDet(0:NIfDBO)
+                    call decode_bit_det (ProjEDet(:,1), iLutRef(:,1))
                     write (iout, '(a)', advance='no') 'Changing projected &
                           &energy reference determinant for the next update cycle to: '
-                    call write_det (iout, ProjEDet, .true.)
+                    call write_det (iout, ProjEDet(:,1), .true.)
                     tRef_Not_HF = .true.
 
                     if(tHPHF) then
-                        if(.not.TestClosedShellDet(iLutRef)) then
+                        if(.not.TestClosedShellDet(iLutRef(:,1))) then
                             !Complications. We are now effectively projecting onto a LC of two dets.
                             !Ensure this is done correctly.
                             if(.not.Allocated(RefDetFlip)) then
@@ -247,7 +247,7 @@ contains
                                 RefDetFlip = 0
                                 iLutRefFlip = 0
                             endif
-                            call ReturnAlphaOpenDet(ProjEDet,RefDetFlip,iLutRef,iLutRefFlip,.true.,.true.,tSwapped)
+                            call ReturnAlphaOpenDet(ProjEDet(:,1),RefDetFlip,iLutRef(:,1),iLutRefFlip,.true.,.true.,tSwapped)
                             if(tSwapped) then
                                 !The iLutRef should already be the correct one, since it was obtained by the normal calculation!
                                 call stop_all("population_check","Error in changing reference determinant to open shell HPHF")
@@ -268,9 +268,9 @@ contains
                     ! Update the reference energy
                     old_Hii = Hii
                     if (tHPHF) then
-                        h_tmp = hphf_diag_helement (ProjEDet, iLutRef)
+                        h_tmp = hphf_diag_helement (ProjEDet(:,1), iLutRef(:,1))
                     else
-                        h_tmp = get_helement (ProjEDet, ProjEDet, 0)
+                        h_tmp = get_helement (ProjEDet(:,1), ProjEDet(:,1), 0)
                     endif
                     Hii = real(h_tmp, dp)
                     write (iout, '(a, g25.15)') 'Reference energy now set to: ',&
@@ -323,13 +323,13 @@ contains
                     ! Broadcast the changed det to all processors
                     call MPIBcast (HighestPopDet, NIfTot+1, proc_highest)
                     iLutRef = 0
-                    iLutRef(0:NIfDBO) = HighestPopDet(0:NIfDBO)
+                    iLutRef(0:NIfDBO, 1) = HighestPopDet(0:NIfDBO)
                     tRef_Not_HF = .true.
 
-                    call decode_bit_det (ProjEDet, iLutRef)
+                    call decode_bit_det (ProjEDet(:,1), iLutRef(:,1))
                     write (iout, '(a)', advance='no') 'Changing projected &
                              &energy reference determinant to: '
-                    call write_det (iout, ProjEDet, .true.)
+                    call write_det (iout, ProjEDet(:,1), .true.)
 
                     ! We can't use Brillouin's theorem if not a converged,
                     ! closed shell, ground state HF det.
@@ -339,9 +339,9 @@ contains
                     
                     ! Update the reference energy
                     if (tHPHF) then
-                        h_tmp = hphf_diag_helement (ProjEDet, iLutRef)
+                        h_tmp = hphf_diag_helement (ProjEDet(:,1), iLutRef(:,1))
                     else
-                        h_tmp = get_helement (ProjEDet, ProjEDet, 0)
+                        h_tmp = get_helement (ProjEDet(:,1), ProjEDet(:,1), 0)
                     endif
                     Hii = real(h_tmp, dp)
                     write (iout, '(a, g25.15)') 'Reference energy now set to: ',&
@@ -354,7 +354,7 @@ contains
                         tCheckHighestPopOnce = .false.
                     endif
 
-                    call ChangeRefDet (ProjEDet)
+                    call ChangeRefDet (ProjEDet(:,1))
                 endif
 
             endif

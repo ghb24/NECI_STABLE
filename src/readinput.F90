@@ -536,6 +536,16 @@ MODULE ReadInput_neci
                 call stop_all(t_r, "Replica orthogonalisation is only &
                                    &(currently) implemented for 2 replicas")
             end if
+
+            if (tReadPops .or. tPopsfile) then
+                call stop_all(t_r, "POPSFILES will not work, as they do not &
+                                   &support multiple reference dets")
+            end if
+
+            if (tChangeProjeDet) then
+                call stop_all(t_r, "Changing proje dets is NOT supported with &
+                                   &differing reference sites (yet)")
+            end if
         end if
 
     end subroutine checkinput
