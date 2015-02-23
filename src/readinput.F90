@@ -192,7 +192,8 @@ MODULE ReadInput_neci
                             tSurvivalInitMultThresh, tAddToInitiator, &
                             tMultiReplicaInitiators, tRealCoeffByExcitLevel, &
                             tAllRealCoeff, tUseRealCoeffs, tChangeProjEDet, &
-                            tOrthogonaliseReplicas, tReadPops
+                            tOrthogonaliseReplicas, tReadPops, tStartMP1, &
+                            tStartCAS
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -549,6 +550,11 @@ MODULE ReadInput_neci
                 tChangeProjEDet = .false.
 !                call stop_all(t_r, "Changing proje dets is NOT supported with &
 !                                   &differing reference sites (yet)")
+            end if
+            
+            if (tStartMP1 .or. tStartCAS) then
+                call stop_all(t_r, "MP1 or CAS starting not implemented for &
+                                   &orthogonalised calculations")
             end if
         end if
 

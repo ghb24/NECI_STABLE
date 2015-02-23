@@ -74,6 +74,7 @@ contains
                  Annihilated(inum_runs), AllAnnihilated(inum_runs), &
                  Acceptances(inum_runs), &
                  SpawnFromSing(inum_runs), AllSpawnFromSing(inum_runs), &
+                 iRefProc(inum_runs), &
 
                  NoatDoubs(inum_runs), AllNoatDoubs(inum_runs), &
                  AccRat(inum_runs), &
@@ -137,6 +138,7 @@ contains
                    IterRDM_HF, &
                    SumNoatHF, AllSumNoatHF, &
                    NoatHF, AllNoatHF, OldAllNoatHF, &
+                   iRefProc, &
 
                    TotParts, AllTotParts, &
                    TotPartsOld, AllTotPartsOld, &

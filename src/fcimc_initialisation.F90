@@ -51,7 +51,7 @@ module fcimc_initialisation
     use bit_rep_data, only: NIfTot, NIfD, NIfDBO, flag_initiator, &
                             flag_deterministic
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
-                        decode_bit_det
+                        decode_bit_det, nullify_ilut, encode_part_sign
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
                          BeforeNormHist, InstHist, iNoBins, AllInstHist, &
                          HistogramEnergy, AllHistogramEnergy, AllHistogram, &
@@ -73,7 +73,7 @@ module fcimc_initialisation
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
                                        gen_excit_4ind_weighted, &
                                        gen_excit_4ind_reverse
-    use hash, only: DetermineDetNode, FindWalkerHash
+    use hash, only: DetermineDetNode, FindWalkerHash, add_hash_table_entry
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD , only : InitHistInitPops
@@ -1197,10 +1197,12 @@ contains
             CurrentDets => WalkVecDets
 
             ! Get the (0-based) processor index for the HF det.
-            iHFProc = DetermineDetNode(nel,HFDet,0)
-            WRITE(iout,"(A,I8)") "Reference processor is: ",iHFProc
+            do run = 1, inum_runs
+                iRefProc(run) = DetermineDetNode(nel, ProjEDet(:, run), 0)
+            end do
+            WRITE(iout,"(A,I8)") "Reference processor is: ",iRefProc(1)
             write(iout,"(A)",advance='no') "Initial reference is: "
-            call write_det(iout,HFDet,.true.)
+            call write_det(iout, ProjEDet(:, 1), .true.)
 
             TotParts(:)=0.0
             TotPartsOld(:)=0.0
@@ -1562,13 +1564,19 @@ contains
         integer :: run, DetHash
         real(dp) , dimension(lenof_sign) :: InitialSign
 
+        call stop_all("This", "next")
+        if (tOrthogonaliseReplicas) then
+            call InitFCIMC_HF_orthog()
+            return
+        end if
+
         InitialPartVec = 0.0_dp
         do run=1,inum_runs
             InitialPartVec(run)=InitialPart
         enddo
 
         !Setup initial walker local variables for HF walkers start
-        IF(iProcIndex.eq.iHFProc) THEN
+        IF(iProcIndex.eq.iRefProc(1)) THEN
 
             ! Encode the reference determinant identification.
             call encode_det(CurrentDets(:,1), iLutHF)
@@ -1660,6 +1668,125 @@ contains
         ENDIF
 
     end subroutine InitFCIMC_HF
+
+    subroutine InitFCIMC_HF_orthog()
+
+        ! This is a reimplementation of InitFCIMC_HF to work with multiple
+        ! different reference states.
+        !
+        ! In the end, we expect to be able to just substitute it back in
+        ! for the original. It should give the same results
+        ! TODO: Substitute back
+
+        integer :: run, site, hash_val, i
+        logical :: repeated
+        HElement_t :: hdiag
+        character(*), parameter :: this_routine = 'InitFCIMC_HF_orthog'
+
+        ! Add some implementation guards
+#ifdef __CMPLX
+        call stop_all(this_routine, "Complex not yet supported")
+#endif
+        if (inum_runs /= lenof_sign) &
+            call stop_all(this_routine, "Not yet supported")
+
+        ! Default values, unless overridder for individual procs
+        NoatHF = 0.0_dp
+        TotWalkers = 0.0_dp
+        TotWalkersOld = 0.0_dp
+
+        !
+        ! Initialise each of the runs separately.
+        site = 0
+        do run = 1, inum_runs
+
+            ! If this run should have the reference on this site, then
+            ! initialise it as appropriate.
+            if (iProcIndex == iRefProc(run)) then
+
+                ! Check if this reference is the same as any of the previous
+                ! ones. If it is not, then at the end of the loop (i == site+1)
+                repeated = .false.
+                do i = 1, site
+                    if (DetBitEQ(CurrentDets(:, i), ilutRef(:, run))) then
+                        repeated = .true.
+                        exit
+                    end if
+                end do
+                site = i
+
+                if (.not. repeated) then
+                    ! Add the site to the main list (unless it is already there)
+                    call encode_det(CurrentDets(:, site), ilutRef(:, run))
+                    hash_val = FindWalkerHash(ProjEDet(:, run), nWalkerHashes)
+                    call add_hash_table_entry(HashIndex, site, hash_val)
+                    
+                    ! Clear all the flags and sign
+                    call clear_all_flags(CurrentDets(:, site))
+                    call nullify_ilut(CurrentDets(:, site))
+                end if
+
+                ! Set reference determinant as an initiator if tTruncInitiator
+                if (tTruncInitiator) then
+                    call set_flag(CurrentDets(:, site), flag_initiator(run))
+#ifdef __CMPLX
+                    call stop_all(this_routine, "Needs adjusting")
+#endif
+                end if
+
+                ! TODO: Support semi-stochastic simulations
+                !       --> Consider what we mean by deterministic spaces?
+                if (tSemiStochastic) &
+                    call stop_all(this_routine, "Not yet supported")
+
+                ! The global reference is the HF and is primary for printed
+                ! energies.
+                if (run == 1) HFInd = site
+                if (tHPHF) then
+                    hdiag = hphf_diag_helement(ilutRef(:,run), ProjEDet(:,run))
+                else
+                    hdiag = get_helement(ProjEDet(:, run), ProjEDet(:, run), 0)
+                endif
+                call set_det_diagH(site, real(hdiag, dp) - Hii)
+
+                ! Set the initial occupation time
+                call set_part_init_time(site, TotImagTime)
+
+                ! Obtain the initial sign
+                if (.not. tStartSinglePart) &
+                    call stop_all(this_routine, "Only startsinglepart supported")
+                call encode_part_sign(CurrentDets(:,site), InitialPart, run)
+                
+                ! Initial control values
+                TotWalkers = site
+                TotWalkersOld = site
+                NoatHF(run) = InitialPart
+                TotParts(run) = real(InitialPart, dp)
+                TotPartsOld(run) = real(InitialPart, dp)
+            end if
+        end do
+
+        ! Check to ensure that the following code is valid
+        if (.not. tStartSinglePart) &
+            call stop_all(this_routine, "Only startsinglepart supported")
+
+        ! Initialise global variabes for calculation on the root node
+        OldAllNoatHF = 0.0_dp
+        AllNoatHF = 0.0_dp
+        if (iProcIndex == root) then
+            OldAllNoatHF(:) = InitialPart
+            OldAllAvWalkersCyc(:) = InitialPart
+            AllNoatHF(:) = InitialPart
+            InstNoatHF(:) = InitialPart
+            AllTotParts(:) = InitialPart
+            AllNoAbortedOld(:) = InitialPart
+            OldAllHFCyc(:) = InitialPart
+            
+            call MPISum(TotWalkers, AllTotWalkers)
+            TotWalkersOld = TotWalkers
+        end if
+
+    end subroutine InitFCIMC_HF_orthog
 
     !Routine to initialise the particle distribution according to a CAS diagonalisation. 
     !This hopefully will help with close-lying excited states of the same sym.
@@ -2267,7 +2394,7 @@ contains
         enddo
 
         !Now for the walkers on the HF det
-        if(iHFProc.eq.iProcIndex) then
+        if(iRefProc(1) .eq. iProcIndex) then
             if (tAllRealCoeff .or. tRealCoeffByExcitLevel) then
                     NoWalkers=PartFac
             else
@@ -2939,8 +3066,6 @@ contains
         write(6,*) 'Generated reference determinants:'
         call write_det(6, ProjEDet(:, 1), .true.)
         call write_det(6, ProjEDet(:, 2), .true.)
-
-        call stop_all(this_routine, "Done det setup")
 
     end subroutine
 

@@ -331,7 +331,8 @@ MODULE FciMCData
       real(dp), allocatable :: InstShift(:)
       real(dp), allocatable :: OldAllNoatHF(:)
 
-      INTEGER :: iHFProc    !Processor index for HF determinant
+      ! Where is the reference site being stored?
+      integer, allocatable :: iRefProc(:)
 
       !This data is for calculating the highest population determinant, 
       !and potentially restarting the calculation based on this determinant, 
@@ -597,21 +598,20 @@ contains
 
         iter_data_fciqmc%tot_parts_old = AllTotParts
         
-        ! Calculate the projected energy for this iteration.
         do run = 1, inum_runs
+
+            ! Calculate the projected energy for this iteration.
             if (ARR_RE_OR_CPLX(AllSumNoAtHF,run) /= 0) &
                 ProjectionE(run) = AllSumENum(run) / ARR_RE_OR_CPLX(AllSumNoatHF,run)
+            
+            ! Keep track of where the particles are
+            if (iProcIndex == iRefProc(run)) then
+                SumNoatHF(run) = AllSumNoatHF(run)
+                SumENum(run) = AllSumENum(run)
+                InstNoatHF(run) = NoatHF(run)
+            end if
+
         enddo 
-
-        if (iProcIndex == iHFProc) then
-            SumNoatHF(:) = AllSumNoatHF(:)
-            SumENum(:) = AllSumENum(:)
-            InstNoatHF(:) = NoatHF(:)
-
-            if ( any(AllNoatHF /= NoatHF) ) then
-                call stop_all(t_r, "HF particles spread across different processors.")
-            endif
-        endif
 
     end subroutine set_initial_global_data
 
