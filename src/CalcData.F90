@@ -72,7 +72,7 @@ real(dp) :: g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
 real(dp) :: G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
 real(dp) :: BETAP,RHOEPSILON,DBETA,STARCONV,GraphBias
 real(dp) :: GrowGraphsExpo,Tau,SftDamp,ScaleWalkers
-real(dp) :: PRet,FracLargerDet
+real(dp) :: PRet,FracLargerDet,pop_change_min
 real(dp) :: MemoryFacPart
 real(dp) :: MemoryFacSpawn,SinglesBias,TauFactor,StepsSftImag
 

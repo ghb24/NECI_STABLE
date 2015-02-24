@@ -8,7 +8,7 @@ module fcimc_iter_utils
                         tLetInitialPopDie, InitWalkers, tCheckHighestPop, &
                         HFPopThresh, DiagSft, tShiftOnHFPop, iRestartWalkNum, &
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, &
-                        nShiftEquilSteps, TargetGrowRateWalk
+                        nShiftEquilSteps, TargetGrowRateWalk, pop_change_min
     use LoggingData, only: tFCIMCStats2
     use semi_stoch_procs, only: recalc_core_hamil_diag
     use DetBitOps, only: TestClosedShellDet
@@ -218,7 +218,7 @@ contains
                 pop_change = FracLargerDet * abs(AllNoAtHF(1))
             endif
 !            write(iout,*) "***",AllNoAtHF,FracLargerDet,pop_change, pop_highest,proc_highest
-            if (pop_change < pop_highest .and. pop_highest > 50) then
+            if (pop_change < pop_highest .and. pop_highest > pop_change_min) then
 
                 ! Write out info!
                     root_print 'Highest weighted determinant not reference &
