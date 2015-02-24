@@ -1579,7 +1579,6 @@ contains
         integer :: run, DetHash
         real(dp) , dimension(lenof_sign) :: InitialSign
 
-        call stop_all("This", "next")
         if (tOrthogonaliseReplicas) then
             call InitFCIMC_HF_orthog()
             return
@@ -1788,6 +1787,7 @@ contains
         ! Initialise global variabes for calculation on the root node
         OldAllNoatHF = 0.0_dp
         AllNoatHF = 0.0_dp
+        call MPISum(TotWalkers, AllTotWalkers)
         if (iProcIndex == root) then
             OldAllNoatHF(:) = InitialPart
             OldAllAvWalkersCyc(:) = InitialPart
@@ -1797,7 +1797,6 @@ contains
             AllNoAbortedOld(:) = InitialPart
             OldAllHFCyc(:) = InitialPart
             
-            call MPISum(TotWalkers, AllTotWalkers)
             TotWalkersOld = TotWalkers
         end if
 
