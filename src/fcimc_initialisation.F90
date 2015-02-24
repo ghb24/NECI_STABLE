@@ -667,6 +667,7 @@ contains
         ! runs should be adjusted so that it is still relative to the first
         ! replica, but is offset by the replica's reference's diagonal energy.
         DiagSft = InputDiagSft
+        proje_ref_energy_offsets = 0
         if (tOrthogonaliseReplicas) then
             do run = 1, inum_runs
                 if (tHPHF) then
@@ -674,7 +675,8 @@ contains
                 else
                     TempHii = get_helement (ProjEDet(:,run), ProjEDet(:,run), 0)
                 endif
-                DiagSft(run) = DiagSft(run) + real(TempHii,dp) - Hii
+                proje_ref_energy_offsets(run) = real(TempHii, dp) - Hii
+                DiagSft(run) = DiagSft(run) + real(TempHii, dp) - Hii
             end do
         end if
 

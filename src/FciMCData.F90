@@ -341,12 +341,19 @@ MODULE FciMCData
       INTEGER :: QuadDetsEst !Estimate of the number of symmetry allowed determinants at excit level 4
       INTEGER :: DoubDetsEst !Estimate of the number of symmetry allowed determinants at excit level 2
       logical :: tReplicaReferencesDiffer
-      INTEGER , ALLOCATABLE :: ProjEDet(:, :)
-      INTEGER(KIND=n_int) , ALLOCATABLE :: HighestPopDet(:), iLutRef(:, :)
-      INTEGER(n_int) , ALLOCATABLE :: iLutRefFlip(:)     !If we are using HPHF and projecting onto 
+
+      integer, allocatable :: ProjEDet(:, :)
+      integer(n_int), allocatable :: HighestPopDet(:), iLutRef(:, :)
+      integer(n_int), allocatable :: iLutRefFlip(:)     !If we are using HPHF and projecting onto 
                                                         !an open-shell determinant, then it is useful
                                                         !to store the spin-coupled determinant, 
                                                         !so we can calculate projection onto both.
+
+      ! Even with multiple reference determinants, the calculation is done
+      ! relative to Hii. So we need to adjust the calculated projected energy
+      ! by a different amount.
+      real(dp), allocatable :: proje_ref_energy_offsets(:)
+
       INTEGER , ALLOCATABLE :: RefDetFlip(:)
       LOGICAL :: tSpinCoupProjE
       

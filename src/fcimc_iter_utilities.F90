@@ -756,15 +756,21 @@ contains
                  ! Calculate the projected energy.
                  if((lenof_sign.eq.2).and.(inum_runs.eq.1)) then
                      if (any(AllSumNoatHF /= 0.0)) then
-                         ProjectionE = (AllSumENum) / (all_sum_proje_denominator) 
-                         proje_iter = (AllENumCyc) / (all_cyc_proje_denominator) 
-                        AbsProjE = (AllENumCycAbs) / (all_cyc_proje_denominator)
+                         ProjectionE = (AllSumENum) / (all_sum_proje_denominator) &
+                                     + proje_ref_energy_offsets
+                         proje_iter = (AllENumCyc) / (all_cyc_proje_denominator) &
+                                    + proje_ref_energy_offsets
+                        AbsProjE = (AllENumCycAbs) / (all_cyc_proje_denominator) &
+                                 + proje_ref_energy_offsets
                     endif
                  else
                      if ((AllSumNoatHF(run) /= 0.0)) then
-                         ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) 
-                         proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) 
-                        AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run))
+                         ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) &
+                                          + proje_ref_energy_offsets(run)
+                         proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) &
+                                         + proje_ref_energy_offsets(run)
+                        AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
+                                      + proje_ref_energy_offsets(run)
                     endif
                 endif
                 ! If we are re-zeroing the shift
