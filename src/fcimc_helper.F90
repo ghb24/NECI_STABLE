@@ -35,7 +35,8 @@ module fcimc_helper
                         im_time_init_thresh, tSurvivalInitMultThresh, &
                         init_survival_mult, MaxWalkerBloom, &
                         tMultiReplicaInitiators, NMCyc, iSampleRDMIters, &
-                        tSpawnCountInitiatorThreshold, init_spawn_thresh
+                        tSpawnCountInitiatorThreshold, init_spawn_thresh, &
+                        tOrthogonaliseReplicas
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
@@ -276,6 +277,11 @@ contains
         integer :: doub_parity, doub_parity2, parity
         character(*), parameter :: this_routine = 'SumEContrib'
 
+        if (tReplicaReferencesDiffer) then
+            call SumEContrib_orthog(nI, realWSign, ilut, dProbFin)
+            return
+        endif
+
         HOffDiag = 0
 
         ! Add in the contributions to the numerator and denominator of the trial
@@ -342,25 +348,13 @@ contains
             end if
 
             ! Obtain off-diagonal element
-            if (tReplicaReferencesDiffer) then
-                do run = 1, inum_runs
-                    if (tHPHF) then
-                        HOffDiag(run) = hphf_off_diag_helement(ProjEDet(:,run), nI, &
-                                                               iLutRef(:,run), ilut)
-                    else
-                        HOffDiag(run) = get_helement (ProjEDet(:,run), nI, ExcitLevel, &
-                                                      ilutRef(:,run), ilut)
-                    endif
-                end do
+            if (tHPHF) then
+                HOffDiag(1:inum_runs) = hphf_off_diag_helement (ProjEDet(:,1), nI, &
+                                                                iLutRef(:,1), ilut)
             else
-                if (tHPHF) then
-                    HOffDiag(1:inum_runs) = hphf_off_diag_helement (ProjEDet(:,1), nI, &
-                                                                    iLutRef(:,1), ilut)
-                else
-                    HOffDiag(1:inum_runs) = get_helement (ProjEDet(:,1), nI, &
-                                                          ExcitLevel, ilutRef(:,1), ilut)
-                endif
-            end if
+                HOffDiag(1:inum_runs) = get_helement (ProjEDet(:,1), nI, &
+                                                      ExcitLevel, ilutRef(:,1), ilut)
+            endif
 
         endif ! ExcitLevel_local == 1, 2, 3
 
@@ -415,6 +409,88 @@ contains
         endif
         
     end subroutine SumEContrib
+
+
+    subroutine SumEContrib_orthog(nI, sgn, ilut, dProbFin)
+
+        ! This is a modified version of SumEContrib for use with replica
+        ! orthogonalisation (where the projected energies need to be calculated
+        ! relative to differing references.
+        !
+        ! TODO: Implement trial wavefunctions, need to talk to Nick
+        !
+        ! Some of the arguments to SumeEContrib have been dropped, as they
+        ! only refer to the first of the replicas, and thus cannot be relied on
+
+        ! n.b. We don't want to just modify SumEContrib for this, as performing
+        !      the calculations _inside_ a sum over runs would radically slow
+        !      down any simulations that were not using differing references
+
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:NifTot)
+        real(dp), intent(in) :: sgn(lenof_sign), dProbFin
+
+        integer :: run, exlevel
+        real(dp) :: sgn_run
+        HElement_t :: hoffdiag
+        character(*), parameter :: this_routine = 'SumEContrib_orthog'
+
+        ASSERT(inum_runs == lenof_sign)
+        ASSERT(tReplicaReferencesDiffer)
+        ASSERT(tOrthogonaliseReplicas) ! This is the only way to get the above
+#ifdef __CMPLX
+        call stop_all(this_routine, "Complex not supported")
+#endif
+        if (tSpinCoupProjE .or. tTrialWavefunction .or. tHistSpawn .or. &
+            (tCalcFCIMCPsi .and. tFCIMC) .or. tHistEnergies .or. &
+            tHistSpinDist .or. tPrintOrbOcc) &
+            call stop_all(this_routine, "Not yet supported")
+
+        !
+        ! This is the normal projected energy calculation, but split over
+        ! multiple runs, rather than done in one go.
+        do run = 1, inum_runs
+
+            ! We need to use the excitation level relevant for this run
+            exlevel = FindBitExcitLevel(ilut, ilutRef(:, run))
+            sgn_run = sgn(run)
+
+            hoffdiag = 0
+            if (exlevel == 0) then
+
+                if (iter > nEquilSteps) &
+                    SumNoatHF(run) = SumNoatHF(run) + sgn_run
+                NoatHF(run) = NoatHF(run) + sgn_run
+                HFCyc(run) = HFCyc(run) + sgn_run
+
+            else if (exlevel == 2 .or. (exlevel == 1 .and. tNoBrillouin)) then
+
+                ! n.b. Brillouins theorem cannot hold for real-space Hubbard
+                ! model or for rotated orbitals.
+
+                if (exlevel == 2) &
+                    NoatDoubs(run) = NoatDoubs(run) + sgn_run
+
+                ! Obtain the off-diagonal elements
+                if (tHPHF) then
+                    hoffdiag = hphf_off_diag_helement(ProjEDet(:,run), nI, &
+                                                      iLutRef(:,run), ilut)
+                else
+                    hoffdiag = get_helement (ProjEDet(:,run), nI, exlevel, &
+                                             ilutRef(:,run), ilut)
+                endif
+
+            end if
+
+            ! Sum in energy contributions
+            if (iter > nEquilSteps) &
+                SumENum(run) = SumENum(run) + (hoffdiag * sgn_run) / dProbFin
+            ENumCyc(run) = ENumCyc(run) + (hoffdiag * sgn_run) / dProbFin
+            ENumCycAbs(run) = ENumCycAbs(run) + abs(hoffdiag * sgn_run) / dProbFin
+
+        end do
+
+    end subroutine SumEContrib_orthog
 
 
     subroutine CalcParentFlag(j, parent_flags, diagH)

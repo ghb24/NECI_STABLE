@@ -556,11 +556,14 @@ MODULE ReadInput_neci
                 call stop_all(t_r, "MP1 or CAS starting not implemented for &
                                    &orthogonalised calculations")
             end if
+
+            if (tHPHF) then
+                call stop_all(t_r, "HPHF not yet supported. Need to use &
+                                   &spin-flipped references")
+            end if
         end if
 
     end subroutine checkinput
 
 end Module ReadInput_neci
-
-        
 

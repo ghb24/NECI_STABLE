@@ -129,7 +129,7 @@ contains
         CHARACTER(len=12) :: abstr
         character(len=24) :: filename, filename2
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,tAlreadyOcc
-        INTEGER :: HFLz,ChosenOrb,KPnt(3), step,SymFinal
+        INTEGER :: HFLz,ChosenOrb,KPnt(3), step,SymFinal, run
         integer(int64) :: ExcitLevPop,SymHF
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
@@ -492,9 +492,6 @@ contains
         ENDIF
         HFConn=nSingles+nDoubles
 
-        ! Set the DiagSft to its original value
-        DiagSft = InputDiagSft
-
         ! Initialise random number seed - since the seeds need to be different
         ! on different processors, subract processor rank from random number
         if(.not.tRestart) then
@@ -664,6 +661,22 @@ contains
         else
             UpperTau=0.0_dp
         ENDIF
+
+        ! Initialise DiagSft according to the input parameters. If we have
+        ! multiple projected-energy references, then the shift on each of the
+        ! runs should be adjusted so that it is still relative to the first
+        ! replica, but is offset by the replica's reference's diagonal energy.
+        DiagSft = InputDiagSft
+        if (tOrthogonaliseReplicas) then
+            do run = 1, inum_runs
+                if (tHPHF) then
+                    TempHii = hphf_diag_helement (ProjEDet(:,run), ilutRef(:,run))
+                else
+                    TempHii = get_helement (ProjEDet(:,run), ProjEDet(:,run), 0)
+                endif
+                DiagSft(run) = DiagSft(run) + real(TempHii,dp) - Hii
+            end do
+        end if
 
         IF(tHub) THEN
             IF(tReal) THEN
@@ -3015,6 +3028,8 @@ contains
             tReplicaReferencesDiffer = .false.
 
         else
+
+            tReplicaReferencesDiffer = .true.
 
             ! A protection against unimplemented code
             if (inum_runs /= 2) then
