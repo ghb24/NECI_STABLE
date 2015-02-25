@@ -211,6 +211,9 @@ module kp_fciqmc_data_mod
     ! from the input file and specifies which excited states to take
     ! a weighted average of to form the initial state.
     integer, allocatable :: kpfciqmc_ex_labels(:)
+    ! How much weight do we give to each trial state in the initial
+    ! Krylov vector?
+    real(dp), allocatable :: kpfciqmc_ex_weights(:)
 
     ! Options for the trial wave function space for excited-state calculations.
     logical :: tPops_KP_Space

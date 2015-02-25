@@ -182,12 +182,22 @@ contains
                 ! Read in the number of excited states to be used.
                 call readi(nexcit)
                 allocate(kpfciqmc_ex_labels(nexcit))
-                call read_line(eof)
+                allocate(kpfciqmc_ex_weights(nexcit))
 
                 ! Read in which excited states to use.
+                call read_line(eof)
                 do j = 1, nitems
                     call readi(kpfciqmc_ex_labels(j))
                 end do
+
+                ! Read in the relative weights for the trial excited states in
+                ! the initial state.
+                call read_line(eof)
+                do j = 1, nitems
+                    call getf(kpfciqmc_ex_weights(j))
+                end do
+                ! Normalise weights so that they sum to 1.
+                kpfciqmc_ex_weights = kpfciqmc_ex_weights/sum(kpfciqmc_ex_weights)
 
             case("OVERLAP-PERTURB-ANNIHILATE")
                 alloc_popsfile_dets = .true.
@@ -520,7 +530,7 @@ contains
             ! Create the trial excited states.
             call calc_trial_states(nexcit, ndets_this_proc, evecs_this_proc, SpawnedParts)
             ! Extract the desried initial excited states and average them.
-            call create_init_excited_state(ndets_this_proc, evecs_this_proc, kpfciqmc_ex_labels, init_vecs)
+            call create_init_excited_state(ndets_this_proc, evecs_this_proc, kpfciqmc_ex_labels, kpfciqmc_ex_weights, init_vecs)
             ! Set the populations of these states to the requested value.
             call set_trial_populations(1, ndets_this_proc, init_vecs)
             ! Set the trial excited state as the FCIQMC wave functions.
@@ -1126,11 +1136,12 @@ contains
 
     end subroutine calc_trial_states
 
-    subroutine create_init_excited_state(ndets_this_proc, trial_vecs, ex_state_labels, init_vec)
+    subroutine create_init_excited_state(ndets_this_proc, trial_vecs, ex_state_labels, ex_state_weights, init_vec)
 
         integer, intent(in) :: ndets_this_proc
         real(dp), intent(in) :: trial_vecs(:,:)
         integer, intent(in) :: ex_state_labels(:)
+        real(dp), intent(in) :: ex_state_weights(:)
         real(dp), allocatable, intent(out) :: init_vec(:,:)
 
         real(dp) :: real_sign(lenof_sign)
@@ -1143,9 +1154,8 @@ contains
         do i = 1, ndets_this_proc
             init_vec(1,i) = 0.0_dp
             do j = 1, size(ex_state_labels)
-                init_vec(1,i) = init_vec(1,i) + trial_vecs(ex_state_labels(j), i)
+                init_vec(1,i) = init_vec(1,i) + ex_state_weights(j)*trial_vecs(ex_state_labels(j), i)
             end do
-            init_vec(1,i) = init_vec(1,i)/size(ex_state_labels)
         end do
 
     end subroutine create_init_excited_state
