@@ -17,7 +17,7 @@ contains
         ! |psi_2'> = |psi_2> - (|psi_1><psi_1|psi_2>)/(<psi_1|psi_1>)
 
         integer :: j
-        real(dp) :: sgn(lenof_sign), delta, scal_prod
+        real(dp) :: sgn(lenof_sign), delta, scal_prod, all_scal_prod
         real(dp) :: psi_squared(lenof_sign), all_psi_squared(lenof_sign)
         character(*), parameter :: this_routine = 'orthogonalise_replicas'
 
@@ -38,7 +38,7 @@ contains
             scal_prod = scal_prod + sgn(1) * sgn(2)
         end do
         call MPISumAll(psi_squared, all_psi_squared)
-
+        call MPISumAll(scal_prod, all_scal_prod)
 
 #ifndef __PROG_NUMRUNS
         call stop_all(this_routine, "orthogonalise replicas requires mneci.x")
@@ -48,7 +48,7 @@ contains
             
             ! Adjust the wavefunctions
             call extract_sign(CurrentDets(:,j), sgn)
-            delta = - sgn(1) * scal_prod / psi_squared(1)
+            delta = - sgn(1) * all_scal_prod / all_psi_squared(1)
             sgn(2) = sgn(2) + delta
 
             ! And stochastically round, so that the minimum particle sign
