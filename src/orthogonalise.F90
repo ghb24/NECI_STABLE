@@ -3,6 +3,7 @@ module orthogonalise
 
     use FciMCData, only: TotWalkers, CurrentDets, all_norm_psi_squared
     use bit_reps, only: extract_sign, encode_sign
+    use dSFMT_interface, only: genrand_real2_dSFMT
     use Parallel_neci
     use constants
     implicit none
@@ -17,7 +18,7 @@ contains
         ! |psi_2'> = |psi_2> - (|psi_1><psi_1|psi_2>)/(<psi_1|psi_1>)
 
         integer :: j
-        real(dp) :: sgn(lenof_sign), delta, scal_prod, all_scal_prod
+        real(dp) :: sgn(lenof_sign), delta, scal_prod, all_scal_prod, r
         real(dp) :: psi_squared(lenof_sign), all_psi_squared(lenof_sign)
         character(*), parameter :: this_routine = 'orthogonalise_replicas'
 
@@ -54,11 +55,16 @@ contains
 
             ! And stochastically round, so that the minimum particle sign
             ! is maintained in an unbiased way.
-            ! 
-            ! ... TODO: Don't worry about this for now...
+            if (abs(sgn(2)) < 1.0_dp) then
+                r = genrand_real2_dSFMT()
+                if (r > abs(sgn(2))) then
+                    sgn(2) = sign(1.0_dp, sgn(2))
+                else
+                    sgn(2) = 0.0_dp
+                endif
+            end if
 
             call encode_sign(CurrentDets(:,j), sgn)
-
         end do
 #endif
 
