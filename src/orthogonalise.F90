@@ -24,6 +24,10 @@ contains
         ASSERT(inum_runs == 2)
         ASSERT(lenof_sign == 2)
 
+#ifndef __PROG_NUMRUNS
+        call stop_all(this_routine, "orthogonalise replicas requires mneci.x")
+#else
+
         ! We need the norm of the wavefunction to do anything. Don't trust
         ! the global values here, as they aren't valid until after the
         ! communication --> not set yet.
@@ -40,9 +44,6 @@ contains
         call MPISumAll(psi_squared, all_psi_squared)
         call MPISumAll(scal_prod, all_scal_prod)
 
-#ifndef __PROG_NUMRUNS
-        call stop_all(this_routine, "orthogonalise replicas requires mneci.x")
-#else
         ! Calculate the change
         do j = 1, int(TotWalkers, sizeof_int)
             
