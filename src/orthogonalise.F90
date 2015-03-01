@@ -53,6 +53,8 @@ contains
             
             ! Adjust the wavefunctions
             call extract_sign(CurrentDets(:,j), sgn)
+            if (IsUnoccDet(sgn)) cycle
+
             delta = - sgn(1) * all_scal_prod / all_psi_squared(1)
             sgn_orig = sgn(2)
             sgn(2) = sgn(2) + delta
@@ -69,6 +71,11 @@ contains
             end if
 
             call encode_sign(CurrentDets(:,j), sgn)
+
+            ! Note that we shouldn't be able to kill all particles on a site,
+            ! as we can only change run 2 if run 1 is occupied, and run 1
+            ! doesn't change...
+            ASSERT(.not. IsUnoccDet(sgn))
 
             ! Now we need to do our accounting to make sure that the NoBorn/
             ! Died/etc. counters remain reasonable.
@@ -91,10 +98,6 @@ contains
 
         end do
 
-        ! Note that we shouldn't be able to kill all particles on a site, as
-        ! we can only change run 2 if run 1 is occupied, and run 1 doesn't
-        ! change...
-        ASSERT(.not. IsUnoccDet(sgn))
 #endif
 
     end subroutine
