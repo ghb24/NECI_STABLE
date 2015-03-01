@@ -981,7 +981,7 @@ module FciMCParMod
         ! If we are orthogonalising the replica wavefunctions, to generate
         ! excited states, then do that here.
         if (tOrthogonaliseReplicas .and. iter > orthogonalise_iter) &
-            call orthogonalise_replicas()
+            call orthogonalise_replicas(iter_data)
 
         call update_iter_data(iter_data)
 
