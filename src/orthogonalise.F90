@@ -90,6 +90,11 @@ contains
 
 
         end do
+
+        ! Note that we shouldn't be able to kill all particles on a site, as
+        ! we can only change run 2 if run 1 is occupied, and run 1 doesn't
+        ! change...
+        ASSERT(.not. IsUnoccDet(sgn))
 #endif
 
     end subroutine
