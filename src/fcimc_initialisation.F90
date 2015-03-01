@@ -1794,6 +1794,7 @@ contains
             AllNoatHF(:) = InitialPart
             InstNoatHF(:) = InitialPart
             AllTotParts(:) = InitialPart
+            AllTotPartsOld(:) = InitialPart
             AllNoAbortedOld(:) = InitialPart
             OldAllHFCyc(:) = InitialPart
             
