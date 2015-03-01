@@ -609,7 +609,7 @@ contains
         logical :: initiator, tDetInCAS
         real(dp) :: init_thresh, low_init_thresh, init_tm, expected_lifetime
         real(dp) :: hdiag
-        integer :: spwn_cnt
+        integer :: spwn_cnt, run
 
         ! By default the particles status will stay the same
         initiator = is_init
@@ -617,6 +617,7 @@ contains
         ! Nice numbers
         init_thresh = InitiatorWalkNo
         low_init_thresh = InitiatorCutoffWalkNo
+        run = part_type_to_run(part_type)
 
         if (.not. is_init) then
 
@@ -644,7 +645,7 @@ contains
             ! If det. in fixed initiator space, or is the HF det, or it
             ! is in the deterministic space, then it must remain an initiator.
             if (.not. tDetInCas .and. &
-                .not. (DetBitEQ(ilut, iLutHF, NIfDBO)) &
+                .not. (DetBitEQ(ilut, iLutRef(:,run), NIfDBO)) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
                 .and. abs(sgn) <= init_thresh &
                 .and. diagH <= InitiatorCutoffEnergy) then

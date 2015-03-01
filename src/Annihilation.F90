@@ -957,7 +957,6 @@ module AnnihilationMod
                                         call decode_bit_det(nI, CurrentDets(:,i))
                                         call clear_has_been_initiator(CurrentDets(:,i),flag_has_been_initiator(1))
                                         if (IsUnoccDet(CurrentSign)) then
-                                            write(6,*) 'Unocc A'
                                             call remove_hash_table_entry(HashIndex, nI, i)
                                             iEndFreeSlot=iEndFreeSlot+1
                                             FreeSlot(iEndFreeSlot)=i
@@ -984,7 +983,6 @@ module AnnihilationMod
                                     call nullify_ilut_part(CurrentDets(:,i), j)
                                     call decode_bit_det(nI, CurrentDets(:,i))
                                     if (IsUnoccDet(CurrentSign)) then
-                                        write(6,*) 'Unocc B'
                                         call remove_hash_table_entry(HashIndex, nI, i)
                                         iEndFreeSlot=iEndFreeSlot+1
                                         FreeSlot(iEndFreeSlot)=i
