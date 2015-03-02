@@ -3,8 +3,9 @@ module orthogonalise
 
     use FciMCData, only: TotWalkers, CurrentDets, all_norm_psi_squared, &
                          NoBorn, NoDied, fcimc_iter_data
-    use bit_reps, only: extract_sign, encode_sign
     use dSFMT_interface, only: genrand_real2_dSFMT
+    use bit_reps, only: extract_sign, encode_sign
+    use CalcData, only: OccupiedThresh
     use Parallel_neci
     use constants
     implicit none
@@ -12,6 +13,108 @@ module orthogonalise
 contains
 
     subroutine orthogonalise_replicas (iter_data)
+
+        ! Apply a Gram Schmidt orthogonalisation to the different system
+        ! replicas.
+        !
+        ! |psi_2'> = |psi_2> - (|psi_1><psi_1|psi_2>)/(<psi_1|psi_1>)
+
+        type(fcimc_iter_data), intent(inout) :: iter_data
+        integer :: tgt_run, src_run, run, j
+        real(dp) :: norms(inum_runs), overlaps(inum_runs, inum_runs)
+        real(dp) :: all_norms(inum_runs), all_overlaps(inum_runs, inum_runs)
+        real(dp) :: sgn(lenof_sign), sgn_orig, delta, r
+
+        ASSERT(inum_runs == lenof_sign)
+#ifndef __PROG_NUMRUNS
+        call stop_all(this_routine, "orthogonalise replicas requires mneci.x")
+#else
+
+        norms = 0
+        overlaps = 0
+        do tgt_run = 1, inum_runs
+
+            do j = 1, int(TotWalkers, sizeof_int)
+
+                ! n.b. We are using a non-contiguous list (Hash algorith)
+                call extract_sign(CurrentDets(:,j), sgn)
+                if (IsUnoccDet(sgn)) cycle
+
+                ! Loop over source runs, and subtract out components
+                sgn_orig = sgn(tgt_run)
+                do src_run = 1, tgt_run - 1
+                    delta = - sgn(src_run) * all_overlaps(src_run, tgt_run) &
+                                           / all_norms(src_run)
+                    sgn(tgt_run) = sgn(tgt_run) + delta
+                end do
+
+                ! TODO: Consider InitiatorOccupiedThresh?
+                if (abs(sgn(tgt_run)) < OccupiedThresh) then
+                    r = genrand_real2_dSFMT()
+                    if (r > abs(sgn(tgt_run)) / OccupiedThresh) then
+                        sgn(tgt_run) = sign(OccupiedThresh, sgn(tgt_run))
+                    else
+                        sgn(tgt_run) = 0.0_dp
+                    end if
+                end if
+
+                call encode_sign(CurrentDets(:,j), sgn)
+
+                ! Note that we shouldn't be able to kill all particles on a
+                ! site, as we can only change a run if there are particles in
+                ! a lower indexed run to change...
+                ASSERT(.not. IsUnoccDet(sgn))
+
+                ! Now we need to to our accounting to make sure that NoBorn/
+                ! Died/etc. counters remain reasonable.
+                !
+                ! n.b. we don't worry about the delta=0 case, as adding 0 to
+                !      the accumulators doesn't cause errors...
+                if (sgn(tgt_run) >= 0 .eqv. sgn_orig >= 0) then
+                    NoDied(tgt_run) = NoDied(tgt_run) + abs(sgn_orig)
+                    iter_data%ndied(tgt_run) = iter_data%ndied(tgt_run) &
+                                             + abs(sgn_orig)
+                    NoBorn(tgt_run) = NoBorn(tgt_run) + abs(sgn(tgt_run))
+                    iter_data%nborn(tgt_run) = iter_data%nborn(tgt_run) &
+                                             + abs(sgn(tgt_run))
+                else if (abs(sgn(tgt_run)) >= abs(sgn_orig)) then
+                    NoDied(tgt_run) = NoBorn(tgt_run) &
+                                    + abs(sgn(tgt_run) - sgn_orig)
+                    iter_data%ndied(tgt_run) = iter_data%ndied(tgt_run) &
+                                             + abs(sgn(tgt_run) - sgn_orig)
+                else
+                    NoBorn(tgt_run) = NoBorn(tgt_run) &
+                                    + abs(sgn(tgt_run) - sgn_orig)
+                    iter_data%nborn(tgt_run) = iter_data%nborn(tgt_run) &
+                                             + abs(sgn(tgt_run) - sgn_orig)
+                end if
+
+                ! We should be accumulating the norm for this run, so it can
+                ! be used in processing later runs. We should also be
+                ! accumulating the overlap terms for doing the same
+                !
+                ! n.b. These are the values _after_ orthogonalisation with
+                !      the previous runs
+                norms(tgt_run) = norms(tgt_run) + sgn(tgt_run)**2
+                do run = tgt_run + 1, inum_runs
+                    overlaps(tgt_run, run) = overlaps(tgt_run, run) &
+                                           * sgn(tgt_run) * sgn(run)
+                    overlaps(run, tgt_run) = 99999999.0_dp ! invalid
+                end do
+
+            end do
+
+            ! And ensure that the norm/overlap data is accumulated onto all
+            ! of the processors
+            call MPISumAll(norms, all_norms)
+            call MPISumAll(overlaps, all_overlaps)
+
+        end do
+#endif
+
+    end subroutine
+
+    subroutine orthogonalise_replicas_2runs (iter_data)
 
         ! Apply a Gram Schmidt orthogonalisation to the different system
         ! replicas.
