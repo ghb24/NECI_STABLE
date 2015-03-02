@@ -147,7 +147,7 @@ contains
         real(dp) :: pop_change, old_Hii
         integer :: det(nel), i, error, ierr, run
         integer(int32) :: int_tmp(2)
-        logical :: tSwapped, allocate_temp_parts
+        logical :: tSwapped, allocate_temp_parts, changed_any
         HElement_t :: h_tmp
         character(*), parameter :: this_routine = 'population_check'
         character(*), parameter :: t_r = this_routine
@@ -222,6 +222,7 @@ contains
         end if
 
 
+        changed_any = .false.
         do run = 1, inum_runs
 
             ! If using the same reference for all, then we don't consider the
@@ -242,6 +243,7 @@ contains
             if (pop_change < pop_highest(run) .and. pop_highest(run) > 50) then
 
                 ! Write out info!
+                changed_any = .true.
                 root_print 'Highest weighted determinant on run', run, &
                            'not reference det: ', pop_highest, abs_sign(AllNoAtHF)
 
@@ -416,8 +418,27 @@ contains
 
                 endif
 
+
             endif
         end do
+
+        ! Ensure that our energy offsets for outputting the correct
+        ! data have been updated correctly.
+        if (changed_any) then
+            proje_ref_energy_offsets = 0
+            if (tOrthogonaliseReplicas) then
+                do run = 1, inum_runs
+                    if (tHPHF) then
+                        h_tmp = hphf_diag_helement (ProjEDet(:,run), &
+                                                    ilutRef(:,run))
+                    else
+                        h_tmp = get_helement (ProjEDet(:,run), &
+                                              ProjEDet(:,run), 0)
+                    endif
+                    proje_ref_energy_offsets(run) = real(h_tmp, dp) - Hii
+                end do
+            end if
+        end if
                     
     end subroutine
 

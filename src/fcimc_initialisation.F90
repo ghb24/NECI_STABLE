@@ -372,6 +372,7 @@ contains
         ALLOCATE(HighestPopDet(0:NIfTot, inum_runs),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for HighestPopDet")
         HighestPopDet(:,:)=0
+        iHighestPop = 0
 
 !Check that the symmetry routines have set the symmetry up correctly...
         tSuccess=.true.
