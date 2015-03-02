@@ -337,12 +337,14 @@ MODULE FciMCData
       !This data is for calculating the highest population determinant, 
       !and potentially restarting the calculation based on this determinant, 
       !or changing the determiant which the energy is calculated from.
-      INTEGER :: iHighestPop
+      !integer, allocatable:: iHighestPop(:)
+      integer :: iHighestPop
       INTEGER :: QuadDetsEst !Estimate of the number of symmetry allowed determinants at excit level 4
       INTEGER :: DoubDetsEst !Estimate of the number of symmetry allowed determinants at excit level 2
       logical :: tReplicaReferencesDiffer
 
       integer, allocatable :: ProjEDet(:, :)
+      !integer(n_int), allocatable :: HighestPopDet(:,:), iLutRef(:, :)
       integer(n_int), allocatable :: HighestPopDet(:), iLutRef(:, :)
       integer(n_int), allocatable :: iLutRefFlip(:)     !If we are using HPHF and projecting onto 
                                                         !an open-shell determinant, then it is useful

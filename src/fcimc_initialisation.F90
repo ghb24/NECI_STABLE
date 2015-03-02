@@ -369,6 +369,7 @@ contains
             CALL Stop_All(t_r,"CountBits FAIL")
         ENDIF
 
+        !ALLOCATE(HighestPopDet(0:NIfTot, inum_runs),stat=ierr)
         ALLOCATE(HighestPopDet(0:NIfTot),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for HighestPopDet")
         HighestPopDet(:)=0
@@ -1708,6 +1709,8 @@ contains
         NoatHF = 0.0_dp
         TotWalkers = 0.0_dp
         TotWalkersOld = 0.0_dp
+        tRef_Not_HF = .true.
+        tNoBrillouin = .true.
 
         !
         ! Initialise each of the runs separately.
