@@ -543,15 +543,6 @@ MODULE ReadInput_neci
                                    &support multiple reference dets")
             end if
 
-            if (tChangeProjeDet) then
-                write(6,*) "*** *** Changing proje dets is NOT supported with&
-                           & differing reference sites (yet) *** ***"
-                write(6,*) "WARNING: Disabling PROJE CHANGEREF"
-                tChangeProjEDet = .false.
-!                call stop_all(t_r, "Changing proje dets is NOT supported with &
-!                                   &differing reference sites (yet)")
-            end if
-            
             if (tStartMP1 .or. tStartCAS) then
                 call stop_all(t_r, "MP1 or CAS starting not implemented for &
                                    &orthogonalised calculations")

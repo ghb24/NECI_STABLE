@@ -369,10 +369,9 @@ contains
             CALL Stop_All(t_r,"CountBits FAIL")
         ENDIF
 
-        !ALLOCATE(HighestPopDet(0:NIfTot, inum_runs),stat=ierr)
-        ALLOCATE(HighestPopDet(0:NIfTot),stat=ierr)
+        ALLOCATE(HighestPopDet(0:NIfTot, inum_runs),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for HighestPopDet")
-        HighestPopDet(:)=0
+        HighestPopDet(:,:)=0
 
 !Check that the symmetry routines have set the symmetry up correctly...
         tSuccess=.true.

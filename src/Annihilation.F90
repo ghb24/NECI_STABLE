@@ -914,7 +914,7 @@ module AnnihilationMod
 
         integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
-        integer :: i, j, AnnihilatedDet
+        integer :: i, j, AnnihilatedDet, lbnd, ubnd
         real(dp) :: CurrentSign(lenof_sign), SpawnedSign(lenof_sign)
         real(dp) :: pRemove, r
         integer :: nI(nel), run
@@ -1016,10 +1016,14 @@ module AnnihilationMod
                         !
                         ! Record the highest weighted determinant on each 
                         ! processor. If double run, only consider set 1 to keep things simple.
-                        if (abs_sign(ceiling(CurrentSign)) > iHighestPop) then
-                            iHighestPop = int(abs_sign(ceiling(CurrentSign)))
-                            HighestPopDet(:)=CurrentDets(:,i)
-                        end if
+                        do run = 1, inum_runs
+                            lbnd = min_part_type(run)
+                            ubnd = max_part_type(run)
+                            if (abs_sign(CurrentSign(lbnd:ubnd)) > iHighestPop(run)) then
+                                iHighestPop(run) = int(abs_sign(CurrentSign(lbnd:ubnd)))
+                                HighestPopDet(:,run)=CurrentDets(:,i)
+                            end if
+                        end do
                     end if
                 end if
 
