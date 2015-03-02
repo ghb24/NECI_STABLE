@@ -533,9 +533,9 @@ MODULE ReadInput_neci
                                    &of simulations')
             end if
 
-            if (inum_runs /= 2) then
+            if (inum_runs /= lenof_sign) then
                 call stop_all(t_r, "Replica orthogonalisation is only &
-                                   &(currently) implemented for 2 replicas")
+                                   &(currently) implemented for real systems")
             end if
 
             if (tReadPops .or. tPopsfile) then
