@@ -3015,7 +3015,7 @@ contains
         ! reference determinants.
 
         integer :: det(nel), orbs(nel), orb, orb2, norb
-        integer :: run, cc_idx, label_idx, i, j
+        integer :: run, cc_idx, label_idx, i, j, found_orbs(inum_runs)
         real(dp) :: energies(nel), hdiag
         character(*), parameter :: this_routine = 'assign_reference_dets'
 
@@ -3036,56 +3036,59 @@ contains
 
             tReplicaReferencesDiffer = .true.
 
-            ! A protection against unimplemented code
-            if (inum_runs /= 2) then
-                call stop_all(this_routine, "Multiple references only &
-                             &implemented for two replicas")
-            end if
-
             ! The first replica is just a normal FCIQMC simulation.
             ilutRef(:, 1) = ilutHF
             ProjEDet(:, 1) = HFDet
 
-            ! Now we want to find the lowest energy single excitation with
-            ! the same symmetry as the reference site.
-            do i = 1, nel
-                ! Find the excitations, and their energy
-                orb = HFDet(i)
-                cc_idx = ClassCountInd(orb)
-                label_idx = SymLabelCounts2(1, cc_idx)
-                norb = OrbClassCount(cc_idx)
+            found_orbs = 0
+            do run = 2, inum_runs
 
-                ! nb. sltcnd_0 does not depend on the ordering of the det,
-                !     so we don't need to do any sorting here.
-                energies(i) = 9999999.9_dp
-                do j = 1, norb
-                    orb2 = SymLabelList2(label_idx + j - 1)
-                    if (.not. any(orb2 == HFDet)) then
-                        det = HFDet
-                        det(i) = orb2
-                        hdiag = real(sltcnd_0(det), dp)
-                        if (hdiag < energies(i)) then
-                            energies(i) = hdiag
-                            orbs(i) = orb2
+                ! Now we want to find the lowest energy single excitation with
+                ! the same symmetry as the reference site.
+                do i = 1, nel
+                    ! Find the excitations, and their energy
+                    orb = HFDet(i)
+                    cc_idx = ClassCountInd(orb)
+                    label_idx = SymLabelCounts2(1, cc_idx)
+                    norb = OrbClassCount(cc_idx)
+
+                    ! nb. sltcnd_0 does not depend on the ordering of the det,
+                    !     so we don't need to do any sorting here.
+                    energies(i) = 9999999.9_dp
+                    do j = 1, norb
+                        orb2 = SymLabelList2(label_idx + j - 1)
+                        if ((.not. any(orb2 == HFDet)) .and. &
+                            (.not. any(orb2 == found_orbs))) then
+                            det = HFDet
+                            det(i) = orb2
+                            hdiag = real(sltcnd_0(det), dp)
+                            if (hdiag < energies(i)) then
+                                energies(i) = hdiag
+                                orbs(i) = orb2
+                            end if
                         end if
-                    end if
+                    end do
                 end do
+
+                ! Which of the electrons that is excited gives the lowest energy?
+                i = minloc(energies, 1)
+                found_orbs(run) = orbs(i)
+
+                ! Construct that determinant, and set it as the reference.
+                ProjEDet(:, run) = HFDet
+                ProjEDet(i, run) = orbs(i)
+                call sort(ProjEDet(:, run))
+                call EncodeBitDet(ProjEDet(:, run), ilutRef(:, run))
+
             end do
-
-            ! Which of the electrons that is excited gives the lowest energy?
-            i = minloc(energies, 1)
-
-            ! Construct that determinant, and set it as the reference.
-            ProjEDet(:, 2) = HFDet
-            ProjEDet(i, 2) = orbs(i)
-            call sort(ProjEDet(:, 2))
-            call EncodeBitDet(ProjEDet(:, 2), ilutRef(:, 2))
 
         end if
 
+
         write(6,*) 'Generated reference determinants:'
-        call write_det(6, ProjEDet(:, 1), .true.)
-        call write_det(6, ProjEDet(:, 2), .true.)
+        do run = 1, inum_runs
+            call write_det(6, ProjEDet(:, run), .true.)
+        end do
 
     end subroutine
 
