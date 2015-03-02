@@ -204,7 +204,7 @@ contains
         !      of error here, by ignoring the fractional part...
         if (tReplicaReferencesDiffer) then
 
-            do i = 1, inum_runs
+            do run = 1, inum_runs
                 call MPIAllReduceDatatype (&
                     (/int(iHighestPop(run),int32), int(iProcIndex,int32)/), 1, &
                                            MPI_MAXLOC, MPI_2INTEGER, int_tmp)
