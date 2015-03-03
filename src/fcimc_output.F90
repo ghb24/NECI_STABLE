@@ -495,32 +495,35 @@ contains
             state%cols_mc = 0
             state%mc_out = tMCOutput
             call stats_out(state,.true., iter, 'Iter.')
-            call stats_out(state,.true., sum(abs(AllTotParts)), 'Tot. parts')
-            call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
+            if (.not. tOrthogonaliseReplicas) then
+                call stats_out(state,.true., sum(abs(AllTotParts)), 'Tot. parts')
+                call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
 #ifdef __CMPLX
-            call stats_out(state,.true., real(proje_iter_tot), 'Re Proj. E')
-            call stats_out(state,.true., aimag(proje_iter_tot), 'Im Proj. E')
+                call stats_out(state,.true., real(proje_iter_tot), 'Re Proj. E')
+                call stats_out(state,.true., aimag(proje_iter_tot), 'Im Proj. E')
 #else
-            call stats_out(state,.true., proje_iter_tot, 'Proj. E (cyc)')
+                call stats_out(state,.true., proje_iter_tot, 'Proj. E (cyc)')
 #endif
-            call stats_out(state,.true., sum(DiagSft / inum_runs), 'Shift. (cyc)')
-            call stats_out(state,.true., AllTotWalkers, 'Dets occ.')
-            call stats_out(state,.true., nspawned_tot, 'Dets spawned')
-            call stats_out(state,.true., IterTime, 'Iter. time')
-            call stats_out(state,.false., sum(AllNoBorn), 'No. born')
-            call stats_out(state,.false., sum(AllNoDied), 'No. died')
-            call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
+                call stats_out(state,.true., sum(DiagSft / inum_runs), 'Shift. (cyc)')
+                call stats_out(state,.true., AllTotWalkers, 'Dets occ.')
+                call stats_out(state,.true., nspawned_tot, 'Dets spawned')
+                call stats_out(state,.false., sum(AllNoBorn), 'No. born')
+                call stats_out(state,.false., sum(AllNoDied), 'No. died')
+                call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
 !!            call stats_out(state,.false., AllGrowRate(1), 'Growth fac.')
 !!            call stats_out(state,.false., AccRat(1), 'Acc. rate')
-            call stats_out(state,.false., TotImagTime, 'Im. time')
 #ifdef __CMPLX
-            call stats_out(state,.true., real(proje_iter_tot) + Hii, &
-                           'Tot. Proj. E')
-            call stats_out(state,.true., aimag(proje_iter_tot) + Hii, &
-                           'Tot. Proj. E')
+                call stats_out(state,.true., real(proje_iter_tot) + Hii, &
+                               'Tot. Proj. E')
+                call stats_out(state,.true., aimag(proje_iter_tot) + Hii, &
+                               'Tot. Proj. E')
 #else
-            call stats_out(state,.true., proje_iter_tot + Hii, 'Tot. Proj. E')
+                call stats_out(state,.true., proje_iter_tot + Hii, &
+                               'Tot. Proj. E')
 #endif
+
+            call stats_out(state,.true., IterTime, 'Iter. time')
+            call stats_out(state,.false., TotImagTime, 'Im. time')
 
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
@@ -531,10 +534,8 @@ contains
                                 'Parts (' // trim(adjustl(tmpc)) // ")")
                 call stats_out (state, .false., AllNoatHF(p), &
                                 'Ref (' // trim(adjustl(tmpc)) // ")")
-                call stats_out (state, .false., DiagSft(p), &
+                call stats_out (state, .false., DiagSft(p) + Hii, &
                                 'Shift (' // trim(adjustl(tmpc)) // ")")
-                call stats_out (state, .false., proje_iter(p), &
-                                'ProjE (' // trim(adjustl(tmpc)) // ")")
                 call stats_out (state, .false., proje_iter(p) + Hii, &
                                 'Tot ProjE (' // trim(adjustl(tmpc)) // ")")
             end do
