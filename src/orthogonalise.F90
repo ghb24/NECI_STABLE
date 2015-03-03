@@ -41,6 +41,8 @@ contains
                 if (IsUnoccDet(sgn)) cycle
 
                 ! Loop over source runs, and subtract out components
+                if (tgt_run > 1) then
+
                 sgn_orig = sgn(tgt_run)
                 do src_run = 1, tgt_run - 1
                     delta = - sgn(src_run) * all_overlaps(src_run, tgt_run) &
@@ -88,6 +90,7 @@ contains
                     iter_data%nborn(tgt_run) = iter_data%nborn(tgt_run) &
                                              + abs(sgn(tgt_run) - sgn_orig)
                 end if
+                end if
 
                 ! We should be accumulating the norm for this run, so it can
                 ! be used in processing later runs. We should also be
@@ -98,7 +101,7 @@ contains
                 norms(tgt_run) = norms(tgt_run) + sgn(tgt_run)**2
                 do run = tgt_run + 1, inum_runs
                     overlaps(tgt_run, run) = overlaps(tgt_run, run) &
-                                           * sgn(tgt_run) * sgn(run)
+                                           + sgn(tgt_run) * sgn(run)
                     overlaps(run, tgt_run) = 99999999.0_dp ! invalid
                 end do
 
