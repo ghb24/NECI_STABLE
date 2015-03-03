@@ -2,7 +2,7 @@
 module orthogonalise
 
     use FciMCData, only: TotWalkers, CurrentDets, all_norm_psi_squared, &
-                         NoBorn, NoDied, fcimc_iter_data
+                         NoBorn, NoDied, fcimc_iter_data, replica_overlaps
     use dSFMT_interface, only: genrand_real2_dSFMT
     use bit_reps, only: extract_sign, encode_sign
     use CalcData, only: OccupiedThresh
@@ -113,6 +113,19 @@ contains
             call MPISumAll(overlaps, all_overlaps)
 
         end do
+
+        ! Store a normalised overlap matrix for each of the replicas
+        do src_run = 1, inum_runs - 1
+            do tgt_run = src_run + 1, inum_runs
+                replica_overlaps(src_run, tgt_run) = &
+                    all_overlaps(src_run, tgt_run) / &
+                    sqrt(all_norms(src_run) * all_norms(tgt_run))
+                replica_overlaps(src_run, tgt_run) = &
+                    replica_overlaps(src_run, tgt_run)
+            end do
+        end do
+
+
 #endif
 
     end subroutine

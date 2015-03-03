@@ -76,6 +76,7 @@ contains
                  SpawnFromSing(inum_runs), AllSpawnFromSing(inum_runs), &
                  iRefProc(inum_runs), proje_ref_energy_offsets(inum_runs), &
                  iHighestPop(inum_runs), &
+                 replica_overlaps(inum_runs, inum_runs), &
 
                  NoatDoubs(inum_runs), AllNoatDoubs(inum_runs), &
                  AccRat(inum_runs), &
@@ -141,6 +142,7 @@ contains
                    NoatHF, AllNoatHF, OldAllNoatHF, &
                    iRefProc, proje_ref_energy_offsets, &
                    iHighestPop, &
+                   replica_overlaps, &
 
                    TotParts, AllTotParts, &
                    TotPartsOld, AllTotPartsOld, &

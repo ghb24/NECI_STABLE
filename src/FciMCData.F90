@@ -552,6 +552,8 @@ MODULE FciMCData
 
       type(perturbation), allocatable :: pops_pert(:)
 
+      real(dp), allocatable :: replica_overlaps(:, :)
+
 contains
 
     subroutine set_initial_global_data(ndets, ilut_list)

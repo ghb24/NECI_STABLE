@@ -1325,6 +1325,8 @@ contains
         ! in the connected space, required for the energy estimator.
         if (tTrialWavefunction) call init_trial_wf()
 
+        replica_overlaps(:, :) = 0
+
     end subroutine InitFCIMCCalcPar
 
     subroutine init_fcimc_fn_pointers ()

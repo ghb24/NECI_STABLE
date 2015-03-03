@@ -12,7 +12,8 @@ module fcimc_output
                          BeforeNormHist, iNoBins, BinRange, HistogramEnergy, &
                          AllHistogramEnergy
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
-                        DiagSft, tSpatialOnlyHash, StepsSft
+                        DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
+                        StepsSft
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
     use IntegralsData, only: frozen_orb_list, frozen_orb_reverse_map, &
@@ -451,8 +452,8 @@ contains
         ! Use a state type to keep things compact and tidy below.
         type(write_state_t), save :: state
         logical, save :: inited = .false.
-        character(5) :: tmpc
-        integer :: p
+        character(5) :: tmpc, tmpc2
+        integer :: p, q
         logical :: init
 
         ! Provide default 'initial' option
@@ -521,9 +522,19 @@ contains
                 call stats_out(state,.true., proje_iter_tot + Hii, &
                                'Tot. Proj. E')
 #endif
+            end if
 
             call stats_out(state,.true., IterTime, 'Iter. time')
             call stats_out(state,.false., TotImagTime, 'Im. time')
+
+            ! Put the conditional columns at the end, so that the column
+            ! numbers of the data are as stable as reasonably possible (for
+            ! people who want to use gnuplot/not analyse column headers too
+            ! frequently).
+            ! This also makes column contiguity on resumes as likely as
+            ! possible.
+            if (tTruncInitiator) &
+                call stats_out(state,.false., AllNoAborted(1), 'No. aborted')
 
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
@@ -538,17 +549,23 @@ contains
                                 'Shift (' // trim(adjustl(tmpc)) // ")")
                 call stats_out (state, .false., proje_iter(p) + Hii, &
                                 'Tot ProjE (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., AllHFCyc(p) / StepsSft, &
+                                'ProjE Denom (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., &
+                                (AllENumCyc(p) + Hii*AllHFCyc(p)) / StepsSft,&
+                                'ProjE Num (' // trim(adjustl(tmpc)) // ")")
+                if (tOrthogonaliseReplicas) then
+                    do q = p+1, inum_runs
+                        write(tmpc2, '(i5)') q
+                        call stats_out(state, .false., replica_overlaps(p, q),&
+                                       '<psi_' // trim(adjustl(tmpc)) // '|' &
+                                       // 'psi_' // trim(adjustl(tmpc2)) &
+                                       // '>')
+
+                    end do
+                end if
             end do
 #endif
-
-            ! Put the conditional columns at the end, so that the column
-            ! numbers of the data are as stable as reasonably possible (for
-            ! people who want to use gnuplot/not analyse column headers too
-            ! frequently).
-            ! This also makes column contiguity on resumes as likely as
-            ! possible.
-            if (tTruncInitiator) &
-                call stats_out(state,.false., AllNoAborted(1), 'No. aborted')
 
             ! And we are done
             write(state%funit, *)
