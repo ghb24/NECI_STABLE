@@ -2,8 +2,10 @@
 module orthogonalise
 
     use FciMCData, only: TotWalkers, CurrentDets, all_norm_psi_squared, &
-                         NoBorn, NoDied, fcimc_iter_data, replica_overlaps
+                         NoBorn, NoDied, fcimc_iter_data, replica_overlaps, &
+                         HolesInList
     use dSFMT_interface, only: genrand_real2_dSFMT
+    use AnnihilationMod, only: CalcHashTableStats
     use bit_reps, only: extract_sign, encode_sign
     use CalcData, only: OccupiedThresh
     use Parallel_neci
@@ -24,6 +26,7 @@ contains
         real(dp) :: norms(inum_runs), overlaps(inum_runs, inum_runs)
         real(dp) :: all_norms(inum_runs), all_overlaps(inum_runs, inum_runs)
         real(dp) :: sgn(lenof_sign), sgn_orig, delta, r
+        character(*), parameter :: this_routine = 'orthogonalise_replicas'
 
         ASSERT(inum_runs == lenof_sign)
 #ifndef __PROG_NUMRUNS
@@ -34,15 +37,17 @@ contains
         overlaps = 0
         do tgt_run = 1, inum_runs
 
+            HolesInList = 0
             do j = 1, int(TotWalkers, sizeof_int)
 
                 ! n.b. We are using a non-contiguous list (Hash algorith)
                 call extract_sign(CurrentDets(:,j), sgn)
-                if (IsUnoccDet(sgn)) cycle
+                if (IsUnoccDet(sgn)) then
+                    HolesInList = HolesInList + 1
+                    cycle
+                end if
 
                 ! Loop over source runs, and subtract out components
-                if (tgt_run > 1) then
-
                 sgn_orig = sgn(tgt_run)
                 do src_run = 1, tgt_run - 1
                     delta = - sgn(src_run) * all_overlaps(src_run, tgt_run) &
@@ -50,15 +55,15 @@ contains
                     sgn(tgt_run) = sgn(tgt_run) + delta
                 end do
 
-                ! TODO: Consider InitiatorOccupiedThresh?
-                if (abs(sgn(tgt_run)) < OccupiedThresh) then
-                    r = genrand_real2_dSFMT()
-                    if (r > abs(sgn(tgt_run)) / OccupiedThresh) then
-                        sgn(tgt_run) = sign(OccupiedThresh, sgn(tgt_run))
-                    else
-                        sgn(tgt_run) = 0.0_dp
-                    end if
-                end if
+                ! Rounding is now done in CalcHashTableStats
+                !if (abs(sgn(tgt_run)) < OccupiedThresh) then
+                !    r = genrand_real2_dSFMT()
+                !    if (r > abs(sgn(tgt_run)) / OccupiedThresh) then
+                !        sgn(tgt_run) = sign(OccupiedThresh, sgn(tgt_run))
+                !    else
+                !        sgn(tgt_run) = 0.0_dp
+                !    end if
+                !end if
 
                 call encode_sign(CurrentDets(:,j), sgn)
 
@@ -72,7 +77,7 @@ contains
                 !
                 ! n.b. we don't worry about the delta=0 case, as adding 0 to
                 !      the accumulators doesn't cause errors...
-                if (sgn(tgt_run) >= 0 .eqv. sgn_orig >= 0) then
+                if (sgn(tgt_run) >= 0 .neqv. sgn_orig >= 0) then
                     NoDied(tgt_run) = NoDied(tgt_run) + abs(sgn_orig)
                     iter_data%ndied(tgt_run) = iter_data%ndied(tgt_run) &
                                              + abs(sgn_orig)
@@ -89,7 +94,6 @@ contains
                                     + abs(sgn(tgt_run) - sgn_orig)
                     iter_data%nborn(tgt_run) = iter_data%nborn(tgt_run) &
                                              + abs(sgn(tgt_run) - sgn_orig)
-                end if
                 end if
 
                 ! We should be accumulating the norm for this run, so it can
@@ -128,6 +132,10 @@ contains
 
 #endif
 
+        ! We now need to aggregate statistics here, rather than at the end
+        ! of annihilation, as they have been modified by this routine...
+        call CalcHashTableStats(TotWalkers, iter_data) 
+
     end subroutine
 
     subroutine orthogonalise_replicas_2runs (iter_data)
@@ -142,7 +150,7 @@ contains
         real(dp) :: sgn_orig
         real(dp) :: psi_squared(lenof_sign), all_psi_squared(lenof_sign)
         type(fcimc_iter_data), intent(inout) :: iter_data
-        character(*), parameter :: this_routine = 'orthogonalise_replicas'
+        character(*), parameter :: this_routine = 'orthogonalise_replicas_2runs'
 
         ASSERT(inum_runs == 2)
         ASSERT(lenof_sign == 2)
@@ -201,7 +209,7 @@ contains
             !
             ! n.b. we don't worry about the delta=0 case, as adding 0 to the
             !      accumulators doesn't cause errors.
-            if (sgn(2) >= 0 .eqv. sgn_orig >= 0) then
+            if (sgn(2) >= 0 .neqv. sgn_orig >= 0) then
                 NoDied(2) = NoDied(2) + abs(sgn_orig)
                 iter_data%ndied(2) = iter_data%ndied(2) + abs(sgn_orig)
                 NoBorn(2) = NoBorn(2) + abs(sgn(2))
@@ -218,6 +226,10 @@ contains
         end do
 
 #endif
+
+        ! We now need to aggregate statistics here, rather than at the end
+        ! of annihilation, as they have been modified by this routine...
+        call CalcHashTableStats(TotWalkers, iter_data) 
 
     end subroutine
 
