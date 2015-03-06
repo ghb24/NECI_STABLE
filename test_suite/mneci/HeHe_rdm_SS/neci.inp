@@ -20,6 +20,7 @@ realspawncutoff 0.01
 nmcyc 20000
 semi-stochastic
 doubles-core
+stochastic-hf-spawning
 endcalc
 
 integral

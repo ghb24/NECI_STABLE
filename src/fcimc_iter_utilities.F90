@@ -9,7 +9,7 @@ module fcimc_iter_utils
                         HFPopThresh, DiagSft, tShiftOnHFPop, iRestartWalkNum, &
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, &
                         nShiftEquilSteps, TargetGrowRateWalk
-    use LoggingData, only: tFCIMCStats2
+    use LoggingData, only: tFCIMCStats2, tPrintDataTables
     use semi_stoch_procs, only: recalc_core_hamil_diag
     use DetBitOps, only: TestClosedShellDet
     use bit_rep_data, only: NIfD, NIfTot, NIfDBO
@@ -121,22 +121,6 @@ contains
                 call WriteFCIMCStats()
             end if
             return
-        endif
-
-        if(iProcIndex.eq.Root) then
-           ! Check how balanced the load on each processor is (even though
-           ! we cannot load balance with direct annihilation).
-           WalkersDiffProc = int(MaxWalkersProc - MinWalkersProc,sizeof_int)
-           ! Do the same for number of particles
-           PartsDiffProc = int(MaxPartsProc - MinPartsProc, sizeof_int)
-
-           mean_walkers = AllTotWalkers / real(nNodes,dp)
-           if (WalkersDiffProc > nint(mean_walkers / 10.0_dp) .and. &
-               sum(AllTotParts) > real(nNodes * 500, dp)) then
-               root_write (iout, '(a, i13,a,2i11)') &
-                   'Potential load-imbalance on iter ',iter + PreviousCycles,' Min/Max determinants on node: ', &
-                   MinWalkersProc,MaxWalkersProc
-           endif
         endif
 
     end subroutine iter_diagnostics
@@ -864,10 +848,12 @@ contains
         if(tRestart) return
         call population_check ()
         call update_shift (iter_data)
-        if (tFCIMCStats2) then
-            call write_fcimcstats2(iter_data_fciqmc)
-        else
-            call WriteFCIMCStats ()
+        if (tPrintDataTables) then
+            if (tFCIMCStats2) then
+                call write_fcimcstats2(iter_data_fciqmc)
+            else
+                call WriteFCIMCStats ()
+            end if
         end if
         
         call rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)

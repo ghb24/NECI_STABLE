@@ -85,6 +85,10 @@ module kp_fciqmc_data_mod
     ! The total sign length for all Krylov vectors together.
     integer :: lenof_all_signs
 
+    ! If true then, in the stochastic determination of the projected
+    ! Hamiltonian, perform spawning from more highly weighted determinants
+    ! exactly.
+    logical :: tExactHamilSpawning
     ! If true then calculate the projected Hamiltonian exactly (useful for
     ! testing only, in practice).
     logical :: tExactHamil
@@ -113,6 +117,13 @@ module kp_fciqmc_data_mod
     ! how many spawns (on average) each of the walkers in each of the
     ! Kyrlov vectors contribute.
     real(dp) :: av_mc_excits_kp
+    ! When estimating the projected Hamiltonian, this parameter will be
+    ! used to decide how many determinants have *exact* spawning performed
+    ! for them. Specifically, if the total population on a determinant
+    ! (across all replicas) multiplied by kp_hamil_exact_frac is greater
+    ! than or equal to the number of determinants connected to the
+    ! Hartree-Fock, then exact spawning is performed.
+    real(dp) :: kp_hamil_exact_frac
     ! If true then use generate_init_config_this_proc to generate the initial
     ! walker distribution for finite-temperature calculations. This will always
     ! generate the requested number of walkers (except for rounding when splitting
@@ -192,6 +203,17 @@ module kp_fciqmc_data_mod
     ! we do the inverse of the transformation procedure to get back to
     ! the Krylov basis.
     real(dp), allocatable :: kp_eigenvecs_krylov(:,:)
+
+    ! If true then use an estimate of an excited state (or linear
+    ! combination of excited states) to form the initial wave function.
+    logical :: tExcitedInitState
+    ! When using the excited-init-state option, this array is read in
+    ! from the input file and specifies which excited states to take
+    ! a weighted average of to form the initial state.
+    integer, allocatable :: kpfciqmc_ex_labels(:)
+    ! How much weight do we give to each trial state in the initial
+    ! Krylov vector?
+    real(dp), allocatable :: kpfciqmc_ex_weights(:)
 
     ! Options for the trial wave function space for excited-state calculations.
     logical :: tPops_KP_Space

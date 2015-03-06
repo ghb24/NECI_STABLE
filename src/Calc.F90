@@ -274,6 +274,7 @@ contains
           tSemiStochastic = .false.
           tCSFCore = .false.
           tDoublesCore = .false.
+          tHFConnCore = .false.
           tCASCore = .false.
           tRASCore = .false.
           tOptimisedCore = .false.
@@ -329,6 +330,7 @@ contains
           spectral_ground_energy = 0.0_dp
           tIncludeGroundSpectral = .false.
           alloc_popsfile_dets = .false.
+          tDetermHFSpawning = .true.
 
           pParallel = 0.5_dp
 
@@ -343,6 +345,8 @@ contains
           init_survival_mult = 3.0_dp
           MaxTau = 1.0_dp
           tMultiReplicaInitiators = .false.
+
+          use_spawn_hash_table = .false.
 
         end subroutine SetCalcDefaults
 
@@ -1012,6 +1016,9 @@ contains
                 LMS = STOT
             case("DOUBLES-CORE")
                 tDoublesCore = .true.
+            case("HF-CONN-CORE")
+                tDoublesCore = .true.
+                tHFConnCore = .true.
             case("CAS-CORE")
                 tCASCore = .true.
                 tSpn = .true.
@@ -1077,15 +1084,18 @@ contains
             case("MAX-CORE-SIZE")
                 tLimitDetermSpace = .true.
                 call geti(max_determ_size)
-            case("MAX-TRIAL-SIZE")
-                tLimitTrialSpace = .true.
-                call geti(max_trial_size)
+            case("STOCHASTIC-HF-SPAWNING")
+                tDetermHFSpawning = .false.
+
             case("TRIAL-WAVEFUNCTION")
                 tTrialWavefunction = .true.
                 if (item < nitems) then
                     call geti(trial_mp1_ndets)
                     tMP1Trial = .true.
                 end if
+            case("MAX-TRIAL-SIZE")
+                tLimitTrialSpace = .true.
+                call geti(max_trial_size)
             case("DOUBLES-TRIAL")
                 tDoublesTrial = .true.
             case("CAS-TRIAL")
@@ -1990,6 +2000,9 @@ contains
                 ! Obviously, this only does anything with system-replicas
                 ! set...
                 tMultiReplicaInitiators = .true.
+
+            case("USE-SPAWN-HASH-TABLE")
+                use_spawn_hash_table = .true.
 
             case default
                 call report("Keyword "                                &
