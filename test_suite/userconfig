@@ -25,5 +25,5 @@ extract_program = ./tools/extract.py
 [user]
 diff = vimdiff
 default_program = neci
-benchmark = dneci-d2db9e3.neci-d2db9e3.kneci-d2db9e3.mneci-d2db9e3 dneci-51e3505.kneci-51e3505.neci-51e3505 dneci-c3462e0.kneci-c3462e0.neci-c3462e0
+benchmark = dneci-9ee5a95.neci-9ee5a95.kneci-9ee5a95.mneci-9ee5a95 dneci-d2db9e3.neci-d2db9e3.kneci-d2db9e3.mneci-d2db9e3 dneci-51e3505.kneci-51e3505.neci-51e3505 dneci-c3462e0.kneci-c3462e0.neci-c3462e0
 

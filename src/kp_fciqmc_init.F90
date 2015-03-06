@@ -1028,11 +1028,12 @@ contains
 
         integer(n_int), allocatable :: ilut_list(:,:)
         integer, allocatable :: det_list(:,:)
-        integer :: i, j, ierr
+        integer :: i, j, max_elem_ind(1), ierr
         integer(MPIArg) :: ndets_all_procs, ndets_this_proc_mpi
         integer(MPIArg) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
         integer(MPIArg) :: sndcnts(0:nProcessors-1), displs(0:nProcessors-1)
         integer(MPIArg) :: rcvcnts
+        integer, allocatable :: evec_abs(:)
         real(dp), allocatable :: evals(:)
         real(dp), allocatable :: evecs(:,:), evecs_transpose(:,:)
         character(len=*), parameter :: t_r = "calc_trial_states"
@@ -1099,12 +1100,35 @@ contains
             allocate(evals(nexcit), stat=ierr)
             if (ierr /= 0) call stop_all(t_r, "Error allocating eigenvalues array.")
             evals = 0.0_dp
+
+            allocate(evec_abs(ndets_all_procs), stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, "Error allocating evec_abs array.")
+            evec_abs = 0.0_dp
             
             ! Perform the Lanczos procedure.
             call frsblk_wrapper(det_list, int(ndets_all_procs, sizeof_int), nexcit, evals, evecs)
 
+            ! For consistency between compilers, enforce a rule for the sign of
+            ! the eigenvector. To do this, make sure that the largest component
+            ! of each vector is positive. The largest component is found using
+            ! maxloc. If there are multiple determinants with the same weight
+            ! then the FORTRAN standard says that the first such component will
+            ! be used, so this will hopefully be consistent across compilers.
+            ! To avoid numerical errors bwteen compilers for such elements, we
+            ! also round the array components to integers. Because evecs will
+            ! be normalised, also multiply by 100000 before rounding.
+            do i = 1, nexcit
+                ! First find the maximum element.
+                evec_abs = nint(100000.0_dp*abs(evecs(:,i)))
+                max_elem_ind = maxloc(evec_abs)
+                if (evecs(max_elem_ind(1),i) < 0.0_dp) then
+                    evecs(:,i) = -evecs(:,i)
+                end if
+            end do
+
             deallocate(det_list)
             deallocate(evals)
+            deallocate(evec_abs)
 
             ! Unfortunately to perform the MPIScatterV call we need the transpose
             ! of the eigenvector array.
