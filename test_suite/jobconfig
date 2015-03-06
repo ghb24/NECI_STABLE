@@ -42,6 +42,14 @@ tolerance = (2e-8, None, 'hamil_sum')
 program = dneci
 tolerance = (2e-9, None, 'overlap_sum')
 
+[mneci/HeHe_5_states/]
+program = mneci
+tolerance = (3e-8, None, 'hamil_sum'), (2e-7, None, 'overlap_sum')
+
+[mneci/HeHe_5_states_exact_hamil/]
+program = mneci
+tolerance = (3e-8, None, 'hamil_sum'), (2e-7, None, 'overlap_sum')
+
 [categories]
 
 _default_ = neci kneci dneci mneci
