@@ -1078,10 +1078,10 @@ contains
         integer :: PopRandomHash(1024)
         integer(int64) :: iPopAllTotWalkers
         integer :: i
-        real(dp) :: PopDiagSft, PopDiagSft2
+        real(dp) :: PopDiagSft(1:inum_runs)
         real(dp) , dimension(lenof_sign) :: InitialSign
         real(dp) , dimension(lenof_sign/inum_runs) :: PopSumNoatHF
-        HElement_t :: PopAllSumENum
+        HElement_t :: PopAllSumENum(1:inum_runs)
         integer :: perturb_ncreate, perturb_nannihilate
         
         !default
@@ -1122,7 +1122,7 @@ contains
                     ! in via a namelist, so that we can add more details 
                     ! whenever we want.
                     call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                            iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter, &
+                            iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
                             PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
                             read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
                             read_pparallel, read_nnodes, read_walkers_on_nodes)
@@ -1150,7 +1150,7 @@ contains
                 end if
 
                 call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                        iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter, &
+                        iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
                         PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
                         MaxWalkersUncorrected,read_tau,PopBlockingIter, read_psingles, read_pparallel, &
                         perturb_ncreate, perturb_nannihilate)

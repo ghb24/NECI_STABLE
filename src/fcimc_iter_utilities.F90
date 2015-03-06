@@ -9,13 +9,13 @@ module fcimc_iter_utils
                         HFPopThresh, DiagSft, tShiftOnHFPop, iRestartWalkNum, &
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, &
                         nShiftEquilSteps, TargetGrowRateWalk
-    use LoggingData, only: tFCIMCStats2
     use semi_stoch_procs, only: recalc_core_hamil_diag
-    use DetBitOps, only: TestClosedShellDet
+    use fcimc_helper, only: update_run_reference
     use bit_rep_data, only: NIfD, NIfTot, NIfDBO
-    use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement
     use global_det_data, only: set_det_diagH
+    use Determinants, only: get_helement
+    use LoggingData, only: tFCIMCStats2
     use tau_search, only: update_tau
     use Parallel_neci
     use fcimc_initialisation
@@ -257,89 +257,8 @@ contains
                     ! Communicate the change to all dets and print out.
                     call MPIBcast (HighestPopDet(0:NIfTot, run), NIfTot+1, &
                                    proc_highest(run))
-                    iLutRef(:, run) = 0
-                    iLutRef(0:NIfDBO, run) = HighestPopDet(0:NIfDBO, run)
-                    call decode_bit_det (ProjEDet(:, run), iLutRef(:, run))
-                    write (iout, '(a,i3,a)', advance='no') 'Changing projected &
-                          &energy reference determinant for run', run, &
-                          ' on the next update cycle to: '
-                    call write_det (iout, ProjEDet(:, run), .true.)
 
-                    if(tHPHF) then
-                        if(.not.Allocated(RefDetFlip)) then
-                            allocate(RefDetFlip(NEl, inum_runs), &
-                                     ilutRef(0:NifTot, inum_runs))
-                            RefDetFlip = 0
-                            iLutRefFlip = 0
-                        endif
-                        if(.not. TestClosedShellDet(iLutRef(:, run))) then
-                            ! Complications. We are now effectively projecting
-                            ! onto a LC of two dets. Ensure this is done correctly.
-                            call ReturnAlphaOpenDet(ProjEDet(:,run), &
-                                                    RefDetFlip(:, run), &
-                                                    iLutRef(:,run), &
-                                                    iLutRefFlip(:, run), &
-                                                    .true., .true., tSwapped)
-                            if(tSwapped) then
-                                ! The iLutRef should already be the correct
-                                ! one, since it was obtained by the normal
-                                ! calculation!
-                                call stop_all(this_routine, &
-                                    "Error in changing reference determinant &
-                                    &to open shell HPHF")
-                            endif
-                            write(iout,"(A)") "Now projecting onto open-shell &
-                                &HPHF as a linear combo of two determinants...&
-                                & for run", run
-                            tSpinCoupProjE(run) = .true.
-                        endif
-                    else
-                        ! In case it was already on, and is now projecting
-                        ! onto a CS HPHF.
-                        tSpinCoupProjE(run) = .false.
-                    endif
-
-                    ! We can't use Brillouin's theorem if not a converged,
-                    ! closed shell, ground state HF det.
-                    tNoBrillouin = .true.
-                    tRef_Not_HF = .true.
-                    root_print "Ensuring that Brillouin's theorem is no &
-                               &longer used."
-
-                    ! If this is the first replica, update the global reference
-                    ! energy.
-                    if (run == 1) then
-
-                        old_Hii = Hii
-                        if (tHPHF) then
-                            h_tmp = hphf_diag_helement (ProjEDet(:,1), &
-                                                        iLutRef(:,1))
-                        else
-                            h_tmp = get_helement (ProjEDet(:,1), &
-                                                  ProjEDet(:,1), 0)
-                        endif
-                        Hii = real(h_tmp, dp)
-                        write (iout, '(a, g25.15)') &
-                            'Reference energy now set to: ', Hii
-
-                        ! Regenerate all the diagonal elements relative to the
-                        ! new reference det.
-                        write (iout,*) 'Regenerating the stored diagonal &
-                                       &HElements for all walkers.'
-                        do i = 1, int(Totwalkers,sizeof_int)
-                            call decode_bit_det (det, CurrentDets(:,i))
-                            if (tHPHF) then
-                                h_tmp = hphf_diag_helement (det, &
-                                                            CurrentDets(:,i))
-                            else
-                                h_tmp = get_helement (det, det, 0)
-                            endif
-                            call set_det_diagH(i, real(h_tmp, dp) - Hii)
-                        enddo
-                        if (tSemiStochastic) &
-                            call recalc_core_hamil_diag(old_Hii, Hii)
-
-                    end if ! run == 1
+                    call update_run_reference(HighestPopDet(:, run), run)
 
                     ! Reset averages
                     SumENum = 0
@@ -441,6 +360,8 @@ contains
         end if
                     
     end subroutine
+
+
 
     subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
         integer :: int_tmp(5+2*lenof_sign), proc, pos, i

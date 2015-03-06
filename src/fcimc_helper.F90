@@ -5,7 +5,9 @@ module fcimc_helper
     use constants
     use util_mod
     use systemData, only: nel, tHPHF, tNoBrillouin, G1, tUEG, &
-                          tLatticeGens, nBasis, tHistSpinDist
+                          tLatticeGens, nBasis, tHistSpinDist, tRef_Not_HF
+    use HPHFRandExcitMod, only: ReturnAlphaOpenDet
+    use semi_stoch_procs, only: recalc_core_hamil_diag
     use bit_reps, only: NIfTot, flag_initiator, test_flag, extract_flags, &
                         encode_bit_rep, NIfD, set_flag_general, NIfDBO, &
                         extract_sign, set_flag, encode_sign, &
@@ -13,8 +15,9 @@ module fcimc_helper
                         extract_part_sign, encode_part_sign, decode_bit_det, &
                         set_has_been_initiator, flag_has_been_initiator
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
-                         DetBitEQ, count_open_orbs, EncodeBitDet
-    use Determinants, only: get_helement
+                         DetBitEQ, count_open_orbs, EncodeBitDet, &
+                         TestClosedShellDet
+    use Determinants, only: get_helement, write_det
     use FciMCData
     use hist, only: test_add_hist_spin_dist_det, add_hist_spawn, &
                     add_hist_energies, HistMinInd
@@ -48,6 +51,7 @@ module fcimc_helper
     use FciMCLoggingMod, only: HistInitPopulations, WriteInitPops
     use csf_data, only: csf_orbital_mask
     use csf, only: iscsf
+    use hphf_integrals, only: hphf_diag_helement
     use global_det_data, only: get_av_sgn, set_av_sgn, set_det_diagH, &
                                global_determinant_data, set_iter_occ, &
                                get_part_init_time, det_diagH, get_spawn_count
@@ -1657,6 +1661,108 @@ contains
         ENDIF
 
     end subroutine check_start_rdm
+
+    subroutine update_run_reference(ilut, run)
+
+        ! Update the reference used for a particular run to the one specified.
+        ! Update the HPHF flipped arrays, and adjust the stored diagonal
+        ! energies to account for the change if necessary.
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: run
+        character(*), parameter :: this_routine = 'update_run_reference'
+
+        HElement_t :: h_tmp
+        real(dp) :: old_hii
+        integer :: i, det(nel)
+        logical :: tSwapped
+
+        iLutRef(:, run) = 0
+        iLutRef(0:NIfDBO, run) = ilut(0:NIfDBO)
+        call decode_bit_det (ProjEDet(:, run), iLutRef(:, run))
+        write (iout, '(a,i3,a)', advance='no') 'Changing projected &
+              &energy reference determinant for run', run, &
+              ' on the next update cycle to: '
+        call write_det (iout, ProjEDet(:, run), .true.)
+
+        if(tHPHF) then
+            if(.not.Allocated(RefDetFlip)) then
+                allocate(RefDetFlip(NEl, inum_runs), &
+                         ilutRef(0:NifTot, inum_runs))
+                RefDetFlip = 0
+                iLutRefFlip = 0
+            endif
+            if(.not. TestClosedShellDet(iLutRef(:, run))) then
+                ! Complications. We are now effectively projecting
+                ! onto a LC of two dets. Ensure this is done correctly.
+                call ReturnAlphaOpenDet(ProjEDet(:,run), &
+                                        RefDetFlip(:, run), &
+                                        iLutRef(:,run), &
+                                        iLutRefFlip(:, run), &
+                                        .true., .true., tSwapped)
+                if(tSwapped) then
+                    ! The iLutRef should already be the correct
+                    ! one, since it was obtained by the normal
+                    ! calculation!
+                    call stop_all(this_routine, &
+                        "Error in changing reference determinant &
+                        &to open shell HPHF")
+                endif
+                write(iout,"(A)") "Now projecting onto open-shell &
+                    &HPHF as a linear combo of two determinants...&
+                    & for run", run
+                tSpinCoupProjE(run) = .true.
+            endif
+        else
+            ! In case it was already on, and is now projecting
+            ! onto a CS HPHF.
+            tSpinCoupProjE(run) = .false.
+        endif
+
+        ! We can't use Brillouin's theorem if not a converged,
+        ! closed shell, ground state HF det.
+        tNoBrillouin = .true.
+        tRef_Not_HF = .true.
+        root_print "Ensuring that Brillouin's theorem is no &
+                   &longer used."
+
+        ! If this is the first replica, update the global reference
+        ! energy.
+        if (run == 1) then
+
+            old_Hii = Hii
+            if (tHPHF) then
+                h_tmp = hphf_diag_helement (ProjEDet(:,1), &
+                                            iLutRef(:,1))
+            else
+                h_tmp = get_helement (ProjEDet(:,1), &
+                                      ProjEDet(:,1), 0)
+            endif
+            Hii = real(h_tmp, dp)
+            write (iout, '(a, g25.15)') &
+                'Reference energy now set to: ', Hii
+
+            ! Regenerate all the diagonal elements relative to the
+            ! new reference det.
+            write (iout,*) 'Regenerating the stored diagonal &
+                           &HElements for all walkers.'
+            do i = 1, int(Totwalkers,sizeof_int)
+                call decode_bit_det (det, CurrentDets(:,i))
+                if (tHPHF) then
+                    h_tmp = hphf_diag_helement (det, &
+                                                CurrentDets(:,i))
+                else
+                    h_tmp = get_helement (det, det, 0)
+                endif
+                call set_det_diagH(i, real(h_tmp, dp) - Hii)
+            enddo
+            if (tSemiStochastic) &
+                call recalc_core_hamil_diag(old_Hii, Hii)
+
+        end if ! run == 1
+
+    end subroutine
+
 
 
 end module
