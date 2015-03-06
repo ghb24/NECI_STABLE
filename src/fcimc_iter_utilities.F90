@@ -266,20 +266,19 @@ contains
                     call write_det (iout, ProjEDet(:, run), .true.)
 
                     if(tHPHF) then
-                        if (tReplicaReferencesDiffer) then
-                            call stop_all(this_routine, "not yet implemented")
-                        end if
-                        if(.not.TestClosedShellDet(iLutRef(:,1))) then
+                        if(.not.Allocated(RefDetFlip)) then
+                            allocate(RefDetFlip(NEl, inum_runs), &
+                                     ilutRef(0:NifTot, inum_runs))
+                            RefDetFlip = 0
+                            iLutRefFlip = 0
+                        endif
+                        if(.not. TestClosedShellDet(iLutRef(:, run))) then
                             ! Complications. We are now effectively projecting
                             ! onto a LC of two dets. Ensure this is done correctly.
-                            if(.not.Allocated(RefDetFlip)) then
-                                allocate(RefDetFlip(NEl))
-                                allocate(iLutRefFlip(0:NIfTot))
-                                RefDetFlip = 0
-                                iLutRefFlip = 0
-                            endif
-                            call ReturnAlphaOpenDet(ProjEDet(:,1), RefDetFlip,&
-                                                    iLutRef(:,1), iLutRefFlip,&
+                            call ReturnAlphaOpenDet(ProjEDet(:,run), &
+                                                    RefDetFlip(:, run), &
+                                                    iLutRef(:,run), &
+                                                    iLutRefFlip(:, run), &
                                                     .true., .true., tSwapped)
                             if(tSwapped) then
                                 ! The iLutRef should already be the correct
@@ -290,13 +289,14 @@ contains
                                     &to open shell HPHF")
                             endif
                             write(iout,"(A)") "Now projecting onto open-shell &
-                                &HPHF as a linear combo of two determinants..."
-                            tSpinCoupProjE=.true.
+                                &HPHF as a linear combo of two determinants...&
+                                & for run", run
+                            tSpinCoupProjE(run) = .true.
                         endif
                     else
                         ! In case it was already on, and is now projecting
                         ! onto a CS HPHF.
-                        tSpinCoupProjE=.false.
+                        tSpinCoupProjE(run) = .false.
                     endif
 
                     ! We can't use Brillouin's theorem if not a converged,

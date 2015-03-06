@@ -307,27 +307,38 @@ contains
         endif
 
         if(tHPHF) then
-            if(.not.TestClosedShellDet(iLutRef)) then
-                !We test here whether the reference determinant actually corresponds to an open shell HPHF.
-                !If so, we need to ensure that we are specifying the correct determinant of the pair, and also
-                !indicate that the projected energy needs to be calculated as a projection onto both of these determinants.
-                ALLOCATE(RefDetFlip(NEl))
-                ALLOCATE(iLutRefFlip(0:NIfTot))
-                !We need to ensure that the correct pair of the HPHF det is used to project onto/start from.
-                call ReturnAlphaOpenDet(ProjEDet(:,1), RefDetFlip, &
-                                        iLutRef(:,1), iLutRefFlip, .true., &
-                                        .true., tSwapped)
-                if(tSwapped) then
-                    write(iout,*) "HPHF used, and open shell determinant spin-flipped for consistency."
-                endif
-                write(iout,*) "Two *different* determinants contained in initial HPHF"
-                write(iout,*) "Projected energy will be calculated as projection onto both of these"
-                tSpinCoupProjE=.true.
-            else
-                tSpinCoupProjE=.false.
-            endif
+            allocate(RefDetFlip(NEl, inum_runs), &
+                     ilutRefFlip(0:NifTot, inum_runs))
+            do run = 1, inum_runs
+                if (.not. TestClosedShellDet(ilutRef(:, run))) then
+
+                    ! If the reference determinant corresponds to an open shell
+                    ! HPHF, then we need to specify the paired determinant and
+                    ! mark that this needs to be considered in calculating
+                    ! the projected energy.
+
+                    tSpinCoupProjE(run) = .true.
+                    call ReturnAlphaOpenDet(ProjEDet(:, run), &
+                                            RefDetFlip(:, run), &
+                                            ilutRef(:, run), &
+                                            ilutRefFlip(:, run), &
+                                            .true., .true., tSwapped)
+                    if (tSwapped) &
+                        write(iout,*) 'HPHF used, and open shell determinant &
+                                      &for run ', run, ' spin-flippd for &
+                                      &consistency.'
+                    write(iout,*) "Two *different* determinants contained in &
+                                  &initial HPHF for run ", run
+                    write(iout,*) "Projected energy will be calculated as &
+                                  &projection onto both of these."
+
+                else
+                    tSpinCoupProjE(run) = .false.
+                end if
+            end do
+
         else
-            tSpinCoupProjE=.false.
+            tSpinCoupProjE(:) = .false.
         endif
 
 !Init hash shifting data

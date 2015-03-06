@@ -309,8 +309,8 @@ contains
         !
         ! For determinants, set ExcitLevel_local == ExcitLevel.
         ExcitLevel_local = ExcitLevel
-        if (tSpinCoupProjE .and. (ExcitLevel /= 0)) then
-            ExcitLevelSpinCoup = FindBitExcitLevel (iLutRefFlip, &
+        if (tSpinCoupProjE(1) .and. (ExcitLevel /= 0)) then
+            ExcitLevelSpinCoup = FindBitExcitLevel (iLutRefFlip(:, 1), &
                                                     ilut, 2)
             if (ExcitLevelSpinCoup <= 2 .or. ExcitLevel <= 2) &
                 ExcitLevel_local = 2
@@ -441,7 +441,7 @@ contains
 #ifdef __CMPLX
         call stop_all(this_routine, "Complex not supported")
 #endif
-        if (tSpinCoupProjE .or. tTrialWavefunction .or. tHistSpawn .or. &
+        if (tTrialWavefunction .or. tHistSpawn .or. &
             (tCalcFCIMCPsi .and. tFCIMC) .or. tHistEnergies .or. &
             tHistSpinDist .or. tPrintOrbOcc) &
             call stop_all(this_routine, "Not yet supported")
@@ -453,6 +453,13 @@ contains
 
             ! We need to use the excitation level relevant for this run
             exlevel = FindBitExcitLevel(ilut, ilutRef(:, run))
+            if (tSpinCoupProjE(run) .and. exlevel /= 0) then
+                if (exlevel <= 2) then
+                    exlevel = 2
+                else if (FindBitExcitLevel(ilut, ilutRefFlip(:,run)) <= 2) then
+                    exlevel = 2
+                end if
+            end if
             sgn_run = sgn(run)
 
             hoffdiag = 0

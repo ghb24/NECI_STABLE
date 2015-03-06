@@ -77,6 +77,7 @@ contains
                  iRefProc(inum_runs), proje_ref_energy_offsets(inum_runs), &
                  iHighestPop(inum_runs), &
                  replica_overlaps(inum_runs, inum_runs), &
+                 tSpinCoupProjE(inum_runs), &
 
                  NoatDoubs(inum_runs), AllNoatDoubs(inum_runs), &
                  AccRat(inum_runs), &
@@ -143,6 +144,7 @@ contains
                    iRefProc, proje_ref_energy_offsets, &
                    iHighestPop, &
                    replica_overlaps, &
+                   tSpinCoupProjE, &
 
                    TotParts, AllTotParts, &
                    TotPartsOld, AllTotPartsOld, &

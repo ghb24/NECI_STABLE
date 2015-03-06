@@ -344,7 +344,7 @@ MODULE FciMCData
 
       integer, allocatable :: ProjEDet(:, :)
       integer(n_int), allocatable :: HighestPopDet(:,:), iLutRef(:, :)
-      integer(n_int), allocatable :: iLutRefFlip(:)     !If we are using HPHF and projecting onto 
+      integer(n_int), allocatable :: iLutRefFlip(:, :)     !If we are using HPHF and projecting onto 
                                                         !an open-shell determinant, then it is useful
                                                         !to store the spin-coupled determinant, 
                                                         !so we can calculate projection onto both.
@@ -354,8 +354,8 @@ MODULE FciMCData
       ! by a different amount.
       real(dp), allocatable :: proje_ref_energy_offsets(:)
 
-      INTEGER , ALLOCATABLE :: RefDetFlip(:)
-      LOGICAL :: tSpinCoupProjE
+      integer, allocatable :: RefDetFlip(:, :)
+      logical, allocatable :: tSpinCoupProjE(:)
       
       !Extra data recorded for using RealCoefficients
       INTEGER :: WalkersToSpawn
