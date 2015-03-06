@@ -1773,7 +1773,7 @@ contains
                 ! energies.
                 if (run == 1) HFInd = site
                 if (tHPHF) then
-                    hdiag = hphf_diag_helement(ilutRef(:,run), ProjEDet(:,run))
+                    hdiag = hphf_diag_helement(ProjEDet(:,run), ilutRef(:,run))
                 else
                     hdiag = get_helement(ProjEDet(:, run), ProjEDet(:, run), 0)
                 endif
