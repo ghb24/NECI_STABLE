@@ -1,0 +1,30 @@
+title
+
+system read
+electrons 4
+spin-restrict 0
+system-replicas 2
+endsys
+
+calc
+methods
+method vertex exact-spectrum
+endmethods
+omega-spectral 0.01
+num-omega-spectral 1500
+allrealcoeff
+left-annihilate-spectral 1
+1 2
+right-annihilate-spectral 1
+1 2
+ground-energy-spectral -12.61441
+include-ground-spectral
+endcalc
+
+integral
+endint
+
+logging
+popsfile -1
+endlog
+end
