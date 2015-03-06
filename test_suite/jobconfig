@@ -12,6 +12,12 @@ nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
 
+[mneci/*/]
+program = mneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
 [neci/serial/*/]
 max_nprocs = 1
 
@@ -38,5 +44,5 @@ tolerance = (2e-9, None, 'overlap_sum')
 
 [categories]
 
-_default_ = neci kneci dneci
+_default_ = neci kneci dneci mneci
 kp_fciqmc = dneci/kpfciqmc_*
