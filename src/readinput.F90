@@ -538,11 +538,6 @@ MODULE ReadInput_neci
                                    &(currently) implemented for real systems")
             end if
 
-            if (tReadPops .or. tPopsfile) then
-                call stop_all(t_r, "POPSFILES will not work, as they do not &
-                                   &support multiple reference dets")
-            end if
-
             if (tStartMP1 .or. tStartCAS) then
                 call stop_all(t_r, "MP1 or CAS starting not implemented for &
                                    &orthogonalised calculations")
