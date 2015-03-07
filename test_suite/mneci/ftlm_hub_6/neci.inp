@@ -1,0 +1,24 @@
+title
+
+system hubbard
+cell 6 1 1
+b -1
+u 1
+spin-restrict 0
+sym 0 0 0 0
+kpoints
+electrons 6
+endsys
+
+calc
+methods
+method vertex ftlm
+endmethods
+beta-ftlm 0.1
+num-init-vecs-ftlm 20
+num-lanc-vecs-ftlm 40
+num-beta-ftlm 60
+jump-shift off
+endcalc
+
+end
