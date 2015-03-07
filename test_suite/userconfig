@@ -4,8 +4,8 @@ inputs_args = ('*.inp', '')
 vcs = git
 extract_program = ./tools/extract.py
 
-[dneci]
-exe = ../bin/dneci.x
+[mneci]
+exe = ../bin/mneci.x
 inputs_args = ('*.inp', '')
 vcs = git
 extract_program = ./tools/extract.py
