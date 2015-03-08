@@ -152,6 +152,7 @@ MODULE Logging
       rotfour = 0
       tRDMInstEnergy=.true.
       tFullHFAv=.false.
+      tPrintDataTables = .true.
 
 #ifdef __PROG_NUMRUNS
       tFCIMCStats2 = .true.
@@ -987,6 +988,9 @@ MODULE Logging
 
         case("PRINT-SL-EIGENVECS")
             tPrint_sl_eigenvecs = .true.
+
+        case("DONT-PRINT-DATA-TABLES")
+            tPrintDataTables = .false.
 
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)
