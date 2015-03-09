@@ -94,4 +94,7 @@ module LoggingData
     integer :: rottwo,rotthree,rotfour,local_cutoff
     integer, allocatable :: RotNOs(:)
     integer(TagIntType) :: tagRotNOs
+
+    ! If not true then don't output data tables to FCIMCStats, INITIATORStats or standard output. 
+    logical :: tPrintDataTables
 end module LoggingData

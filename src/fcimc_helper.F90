@@ -73,9 +73,8 @@ contains
     end function TestMCExit
 
 
-    subroutine create_particle (nJ, iLutJ, child, parent_flags, part_type, &
-                                ilutI, SignCurr, WalkerNo, RDMBiasFacCurr, &
-                                WalkersToSpawn)
+    subroutine create_particle (nJ, iLutJ, child, part_type, ilutI, SignCurr, &
+                                WalkerNo, RDMBiasFacCurr, WalkersToSpawn)
 
         ! Create a child in the spawned particles arrays. We spawn particles
         ! into a separate array, but non-contiguously. The processor that the
@@ -85,7 +84,7 @@ contains
 
         ! 'type' of the particle - i.e. real/imag
 
-        integer, intent(in) :: nJ(nel), parent_flags, part_type
+        integer, intent(in) :: nJ(nel), part_type
         integer(n_int), intent(in) :: iLutJ(0:niftot)
         real(dp), intent(in) :: child(lenof_sign)
         integer(n_int), intent(in), optional :: ilutI(0:niftot)
@@ -93,7 +92,8 @@ contains
         integer, intent(in), optional :: WalkerNo
         real(dp), intent(in), optional :: RDMBiasFacCurr
         integer, intent(in), optional :: WalkersToSpawn
-        integer :: proc, flags, j
+        integer :: proc, j
+        integer, parameter :: flags = 0
         logical :: parent_init, list_full
         character(*), parameter :: this_routine = 'create_particle'
 
@@ -119,19 +119,15 @@ contains
             call stop_all(this_routine, "Out of memory for spawned particles")
         end if
 
-        ! We need to include any flags set both from the parent and from the
-        ! spawning steps. No we don't! - ghb
-        ! This is highly yucky and needs cleaning up.
-        ! Potentially, ilutJ can be given the flag of its parent in
-        ! FindExcitBitDet routine. I don't think it should be. To make things
-        ! confusing, this only happens for non-HPHF/CSF runs.
-        ! TODO: CLEAN THIS UP. Make it clear, and transparent, with one way
-        !       to change the flag. Otherwise, this will trip many people up
-        !       in the future.
-        flags = ior(parent_flags, extract_flags(ilutJ))
-
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, flags)
+
+        ! If the parent was an initiator then set the initiator flag for the
+        ! child, to allow it to survive.
+        if (tTruncInitiator) then
+            if (test_flag(ilutI, flag_initiator(part_type))) &
+                call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), flag_initiator(part_type))
+        end if
 
         if (tFillingStochRDMonFly) then
             ! We are spawning from ilutI to 
@@ -178,19 +174,20 @@ contains
 
     end subroutine create_particle
 
-    subroutine create_particle_with_hash_table (nI_child, ilut_child, child_sign, parent_flags, part_type, ilut_parent)
+    subroutine create_particle_with_hash_table (nI_child, ilut_child, child_sign, part_type, ilut_parent)
 
         use hash, only: hash_table_lookup, add_hash_table_entry
 
-        integer, intent(in) :: nI_child(nel), parent_flags, part_type
+        integer, intent(in) :: nI_child(nel), part_type
         integer(n_int), intent(in) :: ilut_child(0:NIfTot), ilut_parent(0:NIfTot)
         real(dp), intent(in) :: child_sign(lenof_sign)
 
-        integer :: proc, flags, ind, hash_val
+        integer :: proc, ind, hash_val
         integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign_old(lenof_sign), real_sign_new(lenof_sign)
         logical :: list_full, tSuccess
-        character(*), parameter :: this_routine = 'create_particle'
+        integer, parameter :: flags = 0
+        character(*), parameter :: this_routine = 'create_particle_with_hash_table'
 
         call hash_table_lookup(nI_child, ilut_child, NIfDBO, spawn_ht, SpawnedParts, ind, hash_val, tSuccess)
 
@@ -232,8 +229,14 @@ contains
                 call stop_all(this_routine, "Out of memory for spawned particles")
             end if
 
-            flags = ior(parent_flags, extract_flags(ilut_child))
             call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), ilut_child(0:NIfDBO), child_sign, flags)
+            ! If the parent was an initiator then set the initiator flag for the
+            ! child, to allow it to survive.
+            if (tTruncInitiator) then
+                if (test_flag(ilut_parent, flag_initiator(part_type))) &
+                    call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), flag_initiator(part_type))
+            end if
+
             call add_hash_table_entry(spawn_ht, ValidSpawnedList(proc), hash_val)
 
             ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1

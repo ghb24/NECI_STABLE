@@ -21,7 +21,7 @@ module AnnihilationMod
     use bit_reps, only: decode_bit_det, &
                         encode_sign, test_flag, set_flag, &
                         flag_initiator, encode_part_sign, &
-                        extract_part_sign, &
+                        extract_part_sign, extract_bit_rep, &
                         nullify_ilut_part, clear_has_been_initiator, &
                         set_has_been_initiator, flag_has_been_initiator
     use hist_data, only: tHistSpawn, HistMinInd2
@@ -243,6 +243,15 @@ module AnnihilationMod
                 !               copy it across rather than explicitly searching
                 !               the list.
 
+                ! If this one entry has no amplitude then don't add it to the
+                ! compressed list, but just cycle.
+                call extract_sign (SpawnedParts(:, BeginningBlockDet), temp_sign)
+                if ( (sum(abs(temp_sign)) < 1.e-12_dp) .and. (.not. (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib))) ) then
+                    DetsMerged = DetsMerged + 1
+                    BeginningBlockDet = CurrentBlockDet 
+                    cycle
+                end if
+
                 ! Transfer all info to the other array.
                 SpawnedParts2(:,VecInd) = SpawnedParts(:, BeginningBlockDet)   
 
@@ -302,7 +311,7 @@ module AnnihilationMod
             end if
 
             ! Reset the cumulative determinant
-            cum_det = 0
+            cum_det = 0_n_int
             cum_det (0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
         
             if (tFillingStochRDMonFly.and.(.not.tNoNewRDmContrib)) then
@@ -318,8 +327,8 @@ module AnnihilationMod
                 Spawned_Parents_Index(2,VecInd) = 0
             end if
 
-            ! Annihilate in this block seperately for real and imag walkers.
-            do part_type = 1, lenof_sign   
+            ! Annihilate in this block seperately for walkers of different types.
+            do part_type = 1, lenof_sign
 
                 do i = BeginningBlockDet, EndBlockDet
                     if (tHistSpawn) then
@@ -444,17 +453,7 @@ module AnnihilationMod
         real(dp) :: new_sgn, cum_sgn, updated_sign, sgn_prod
         integer :: run
 
-        ! Obtain the signs and sign product. Ignore new particle if zero.
         new_sgn = extract_part_sign (new_det, part_type)
-
-        if (new_sgn == 0.0_dp) then
-            ! New sign is just an entry from SpawnedParts - this should only ever be zero
-            ! in the complex case. 
-            ! If it is 0 and we're not filling the RDM (and therefore filling up the 
-            ! Spawned_Parents array), can just ignore the zero entry.
-            if (.not. tFillingStochRDMonFly) return
-        end if
-
         cum_sgn = extract_part_sign (cum_det, part_type)
 
         ! If the cumulative and new signs for this replica are both non-zero
@@ -478,7 +477,7 @@ module AnnihilationMod
                 + 2 * min(abs(cum_sgn), abs(new_sgn))
         end if
 
-        ! Update the cumulative sign count
+        ! Update the cumulative sign count.
         updated_sign = cum_sgn + new_sgn
         call encode_part_sign (cum_det, updated_sign, part_type)
 
@@ -548,8 +547,7 @@ module AnnihilationMod
         integer :: ExcitLevel, DetHash, nJ(nel)
         logical :: tSuccess, tSuc, tPrevOcc, tDetermState
         character(len=*), parameter :: t_r = "AnnihilateSpawnedParts"
-        integer :: run, tmp
-        type(ll_node), pointer :: TempNode
+        integer :: run
 
         ! Only node roots to do this.
         if (.not. bNodeRoot) return

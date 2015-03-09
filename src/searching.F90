@@ -378,4 +378,31 @@ contains
 
     END SUBROUTINE BinSearchParts2
 
+    subroutine remove_repeated_states(list, list_size)
+
+        use DetBitOps, only: ilut_lt, ilut_gt
+        use sort_mod, only: sort
+
+        integer, intent(inout) :: list_size
+        integer(n_int), intent(inout) :: list(0:,:)
+        integer :: i, counter
+
+        if (list_size > 0) then
+            ! Annihilation-like steps to remove repeated states.
+            call sort(list(:, 1:list_size), ilut_lt, ilut_gt)
+            counter = 1
+            do i = 2, list_size
+                ! If this state and the previous one were identical, don't add this state to the
+                ! list so that repeats aren't included.
+                if (.not. all(list(0:NIfDBO, i-1) == list(0:NIfDBO, i)) ) then
+                    counter = counter + 1
+                    list(:, counter) = list(:, i)
+                end if
+            end do
+
+            list_size = counter
+        end if
+
+    end subroutine remove_repeated_states
+
 end module searching
