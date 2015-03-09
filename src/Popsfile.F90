@@ -95,7 +95,7 @@ contains
         integer(int64) :: iPopAllTotWalkers
         real(dp) :: PopDiagSft(inum_runs), read_tau, read_psingles
         real(dp) :: read_pparallel
-        real(dp) , dimension(lenof_sign/inum_runs) :: PopSumNoatHF
+        real(dp) , dimension(lenof_sign) :: PopSumNoatHF
         integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
         integer, intent(in) :: DetsLen
         INTEGER(kind=n_int), intent(out) :: Dets(0:nIfTot,DetsLen)
@@ -786,7 +786,7 @@ r_loop: do while(.not.tStoreDet)
         integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
         real(dp) :: PopDiagSft(inum_runs), read_tau
         real(dp) :: read_psingles, read_pparallel
-        real(dp), dimension(lenof_sign/inum_runs) :: PopSumNoatHF
+        real(dp), dimension(lenof_sign) :: PopSumNoatHF
         HElement_t :: PopAllSumENum(inum_runs)
         integer :: perturb_ncreate, perturb_nannihilate
 
@@ -1119,8 +1119,9 @@ r_loop: do while(.not.tStoreDet)
         integer(int64), intent(out) :: read_walkers_on_nodes(0:nProcessors-1)
         integer(int64) , intent(out) :: iPopAllTotWalkers
         real(dp) , intent(out) :: PopDiagSft(inum_runs),read_tau, read_psingles
-        real(dp), intent(out) :: PopSumNoatHF_out(lenof_sign/inum_runs)
-        real(dp) :: PopSumNoatHF(1024)
+        real(dp), intent(out) :: PopSumNoatHF_out(lenof_sign)
+        real(dp) :: PopSumNoatHF(1024), PopMultiSft(1024)
+        real(dp) :: PopMultiSumENum(1024), PopMultiSumNoatHF(1024)
         real(dp), intent(out) :: read_pparallel
         HElement_t , intent(out) :: PopAllSumENum(inum_runs)
         integer :: PopsVersion
@@ -1133,8 +1134,6 @@ r_loop: do while(.not.tStoreDet)
         real(dp) :: PopSft, PopTau, PopPSingles, PopPParallel, PopGammaSing
         real(dp) :: PopGammaDoub, PopGammaOpp, PopGammaPar, PopMaxDeathCpt
         real(dp) :: PopTotImagTime, PopSft2, PopParBias
-        real(dp) :: PopMultiSft(inum_runs), PopMultiSumNoatHF(lenof_sign)
-        real(dp) :: PopMultiSumENum(inum_runs)
         character(*), parameter :: t_r = 'ReadPopsHeadv4'
         HElement_t :: PopSumENum
         namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopLensign,PopNEl, &
@@ -1218,9 +1217,9 @@ r_loop: do while(.not.tStoreDet)
         TotImagTime = PopTotImagTime
 
         if (tReplicaReferencesDiffer) then
-            PopDiagSft = PopMultiSft
-            PopAllSumENum = PopMultiSumENum
-            PopSumNoatHF_out = PopMultiSumNoatHF
+            PopDiagSft = PopMultiSft(1:inum_runs)
+            PopAllSumENum = PopMultiSumENum(1:inum_runs)
+            PopSumNoatHF_out = PopMultiSumNoatHF(1:lenof_sign)
         else
             ! If we want the walker number to be stable, take the shift
             ! from the POPSFILE, otherwise, keep the input value.
@@ -1238,7 +1237,7 @@ r_loop: do while(.not.tStoreDet)
                 PopDiagSft(1:inum_runs) = PopSft
             endif
             PopAllSumENum(1:inum_runs) = PopSumENum
-            PopSumNoatHF_out = PopSumNoatHF(1:lenof_sign/inum_runs)
+            PopSumNoatHF_out = PopSumNoatHF(1:lenof_sign)
         end if
         call MPIBCast(PopSumNoatHF_out)
 

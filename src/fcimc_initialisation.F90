@@ -1080,7 +1080,7 @@ contains
         integer :: i
         real(dp) :: PopDiagSft(1:inum_runs)
         real(dp) , dimension(lenof_sign) :: InitialSign
-        real(dp) , dimension(lenof_sign/inum_runs) :: PopSumNoatHF
+        real(dp) , dimension(lenof_sign) :: PopSumNoatHF
         HElement_t :: PopAllSumENum(1:inum_runs)
         integer :: perturb_ncreate, perturb_nannihilate
         
