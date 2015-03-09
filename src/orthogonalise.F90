@@ -22,7 +22,7 @@ contains
         ! |psi_2'> = |psi_2> - (|psi_1><psi_1|psi_2>)/(<psi_1|psi_1>)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
-        integer :: tgt_run, src_run, run, j
+        integer :: tgt_run, src_run, run, j, TotWalkersNew
         real(dp) :: norms(inum_runs), overlaps(inum_runs, inum_runs)
         real(dp) :: all_norms(inum_runs), all_overlaps(inum_runs, inum_runs)
         real(dp) :: sgn(lenof_sign), sgn_orig, delta, r
@@ -134,7 +134,13 @@ contains
 
         ! We now need to aggregate statistics here, rather than at the end
         ! of annihilation, as they have been modified by this routine...
-        call CalcHashTableStats(TotWalkers, iter_data) 
+        !
+        ! n.b. TotWalkersNew is integer, TotWalkers is int64 to ensure that it
+        !      can be collected using AllTotWalkers (which may end up with far
+        !      to many walkers).
+        TotWalkersNew = int(TotWalkers)
+        call CalcHashTableStats(TotWalkersNew, iter_data) 
+        TotWalkers = TotWalkersNew
 
     end subroutine
 
@@ -145,7 +151,7 @@ contains
         !
         ! |psi_2'> = |psi_2> - (|psi_1><psi_1|psi_2>)/(<psi_1|psi_1>)
 
-        integer :: j
+        integer :: j, TotWalkersNew
         real(dp) :: sgn(lenof_sign), delta, scal_prod, all_scal_prod, r
         real(dp) :: sgn_orig
         real(dp) :: psi_squared(lenof_sign), all_psi_squared(lenof_sign)
@@ -229,7 +235,13 @@ contains
 
         ! We now need to aggregate statistics here, rather than at the end
         ! of annihilation, as they have been modified by this routine...
-        call CalcHashTableStats(TotWalkers, iter_data) 
+        !
+        ! n.b. TotWalkersNew is integer, TotWalkers is int64 to ensure that it
+        !      can be collected using AllTotWalkers (which may end up with far
+        !      to many walkers).
+        TotWalkersNew = int(TotWalkers)
+        call CalcHashTableStats(TotWalkersNew, iter_data) 
+        TotWalkers = TotWalkersNew
 
     end subroutine
 
