@@ -17,6 +17,7 @@ contains
         use FciMCData, only: TotWalkers, CurrentDets
         use global_det_data, only: det_diagH
         use hash, only: hash_table_lookup, add_hash_table_entry
+        use Loggingdata, only: tPrintDataTables
         use semi_stoch_procs, only: check_determ_flag
         use SystemData, only: nel
         use util_mod, only: int_fmt
@@ -30,8 +31,10 @@ contains
         real(dp) :: amp_fraction, real_sign(lenof_sign_kp)
         character(len=*), parameter :: t_r = "store_krylov_vec"
 
-        write(6,'(a71)',advance='no') "# Adding the current walker configuration to the Krylov vector array..."
-        call neci_flush(6)
+        if (tPrintDataTables) then
+            write(6,'(a71)',advance='no') "# Adding the current walker configuration to the Krylov vector array..."
+            call neci_flush(6)
+        end if
 
         ! The index of the first element referring to the sign, for this ivec.
         sign_ind = NIfDBO + lenof_sign_kp*(ivec-1) + 1
@@ -82,12 +85,14 @@ contains
 
         end do
 
-        write(6,'(1x,a5)',advance='yes') "Done."
-        write(6,'(a56,'//int_fmt(TotWalkersKP,1)//',1x,a17,'//int_fmt(krylov_vecs_length,1)//')') &
-            "# Number unique determinants in the Krylov vector array:", TotWalkersKP, "out of a possible", krylov_vecs_length
-        amp_fraction = real(nkrylov_amp_elems_used,dp)/real(nkrylov_amp_elems_tot,dp)
-        write(6,'(a69,1x,es10.4)') "# Fraction of the amplitude elements used in the Krylov vector array:", amp_fraction
-        call neci_flush(6)
+        if (tPrintDataTables) then
+            write(6,'(1x,a5)',advance='yes') "Done."
+            write(6,'(a56,'//int_fmt(TotWalkersKP,1)//',1x,a17,'//int_fmt(krylov_vecs_length,1)//')') &
+                "# Number unique determinants in the Krylov vector array:", TotWalkersKP, "out of a possible", krylov_vecs_length
+            amp_fraction = real(nkrylov_amp_elems_used,dp)/real(nkrylov_amp_elems_tot,dp)
+            write(6,'(a69,1x,es10.4)') "# Fraction of the amplitude elements used in the Krylov vector array:", amp_fraction
+            call neci_flush(6)
+        end if
 
     end subroutine store_krylov_vec
 
@@ -185,10 +190,11 @@ contains
 
         use DetBitOps, only: FindBitExcitLevel
         use Determinants, only: get_helement
-        use FciMCData, only: Hii
+        use FciMCData, only: Hii, exact_subspace_h_time
         use global_det_data, only: det_diagH
         use hphf_integrals, only: hphf_off_diag_helement
         use SystemData, only: tHPHF, nel
+        use timing_neci, only: set_timer, halt_timer
 
         integer, intent(in) :: nvecs
         integer(n_int), intent(in) :: krylov_array(0:,:)
@@ -204,6 +210,8 @@ contains
         real(dp) :: h_elem
         logical :: any_occ, occ_1, occ_2
         integer(4), allocatable :: occ_flags(:)
+
+        call set_timer(exact_subspace_h_time)
 
         h_matrix = 0.0_dp
 
@@ -313,6 +321,8 @@ contains
         end do
 
         deallocate(occ_flags)
+
+        call halt_timer(exact_subspace_h_time)
 
     end subroutine calc_hamil_exact
 

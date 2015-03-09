@@ -22,7 +22,8 @@ truncinitiator
 addtoinitiator 3
 allrealcoeff
 realspawncutoff 0.01
-semi-stochastic 50
+semi-stochastic
+mp1-core 50
 trial-wavefunction 200
 endcalc
 

@@ -26,7 +26,8 @@ module fcimc_initialisation
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
                         RealCoeffExcitThresh, TargetGrowRate, &
                         TargetGrowRateWalk, InputTargetGrowRate, &
-                        InputTargetGrowRateWalk, tOrthogonaliseReplicas
+                        InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
+                        use_spawn_hash_table
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -68,12 +69,14 @@ module fcimc_initialisation
     use procedure_pointers, only: generate_excitation, attempt_create, &
                                   get_spawn_helement, encode_child, &
                                   attempt_die, extract_bit_rep_avsign, &
-                                  fill_rdm_diag_currdet, new_child_stats
+                                  fill_rdm_diag_currdet, new_child_stats, &
+                                  get_conn_helement
     use symrandexcit3, only: gen_rand_excit3
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
                                        gen_excit_4ind_weighted, &
                                        gen_excit_4ind_reverse
-    use hash, only: DetermineDetNode, FindWalkerHash, add_hash_table_entry
+    use hash, only: DetermineDetNode, FindWalkerHash, add_hash_table_entry, &
+                    init_hash_table
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD , only : InitHistInitPops
@@ -121,7 +124,7 @@ contains
     SUBROUTINE SetupParameters()
 
         INTEGER :: ierr,i,j,HFDetTest(NEl),Seed,alpha,beta,symalpha,symbeta,endsymstate
-        INTEGER :: HFConn,LargestOrb,nBits,HighEDet(NEl),orb
+        INTEGER :: LargestOrb,nBits,HighEDet(NEl),orb
         INTEGER(KIND=n_int) :: iLutTemp(0:NIfTot)
         HElement_t :: TempHii
         real(dp) :: TotDets,SymFactor,r,Gap,UpperTau
@@ -159,6 +162,7 @@ contains
         kp_generate_time%timer_name='KPGenerateTime'
         Stats_Comms_Time%timer_name='StatsCommsTime'
         subspace_hamil_time%timer_name='SubspaceHamilTime'
+        exact_subspace_h_time%timer_name='ExactSubspace_H_Time'
 
         ! Initialise allocated arrays with input data
         TargetGrowRate(:) = InputTargetGrowRate
@@ -500,7 +504,7 @@ contains
             CALL CountExcitations3(iand(HFDet, csf_orbital_mask),exflag,nSingles,nDoubles)
         ELSE
             ! Use Alex's old excitation generators to enumerate all excitations.
-            call enumerate_sing_doub_kpnt(exflag, nSingles, nDoubles, .false.)
+            call enumerate_sing_doub_kpnt(exflag, .false., nSingles, nDoubles, .false.)
         ENDIF
         HFConn=nSingles+nDoubles
 
@@ -1193,6 +1197,12 @@ contains
             ALLOCATE(SpawnVec2(0:NIfTot,MaxSpawned),stat=ierr)
             CALL LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+1),size_n_int,this_routine,SpawnVec2Tag,ierr)
 
+            if (use_spawn_hash_table) then
+                nhashes_spawn = 0.8*MaxSpawned
+                allocate(spawn_ht(nhashes_spawn), stat=ierr)
+                call init_hash_table(spawn_ht)
+            end if
+
             SpawnVec(:,:)=0
             SpawnVec2(:,:)=0
 
@@ -1396,6 +1406,17 @@ contains
             endif
         else
             get_spawn_helement => get_helement_det_only
+        endif
+
+        ! When calling routines to generate all possible connections, this
+        ! routine is called to generate the corresponding Hamiltonian matrix
+        ! elements.
+        if (tCSF) then
+            get_conn_helement => get_csf_helement
+        elseif (tHPHF) then
+            get_conn_helement => hphf_off_diag_helement_spawn
+        else
+            get_conn_helement => get_helement_det_only
         endif
 
         ! Once we have generated the children, do we need to encode them?
@@ -2616,7 +2637,7 @@ contains
                        &reference."
         exflag=3
         IF(tKPntSym) THEN
-            call enumerate_sing_doub_kpnt(exFlag, nSing, nDoub, .false.) 
+            call enumerate_sing_doub_kpnt(exFlag, .false., nSing, nDoub, .false.) 
         ELSE
             CALL CountExcitations3(HFDet_loc,exflag,nSing,nDoub)
         ENDIF

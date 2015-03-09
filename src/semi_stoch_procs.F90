@@ -338,31 +338,6 @@ contains
 
     end subroutine initialise_core_hash_table
 
-    subroutine remove_repeated_states(list, list_size)
-
-        use DetBitOps, only: ilut_lt, ilut_gt
-        use sort_mod, only: sort
-
-        integer, intent(inout) :: list_size
-        integer(n_int), intent(inout) :: list(0:NIfTot, list_size)
-        integer :: i, counter
-
-        ! Annihilation-like steps to remove repeated states.
-        call sort(list(:, 1:list_size), ilut_lt, ilut_gt)
-        counter = 1
-        do i = 2, list_size
-            ! If this state and the previous one were identical, don't add this state to the
-            ! list so that repeats aren't included.
-            if (.not. all(list(0:NIfD, i-1) == list(0:NIfD, i)) ) then
-                counter = counter + 1
-                list(:, counter) = list(:, i)
-            end if
-        end do
-
-        list_size = counter
-
-    end subroutine remove_repeated_states
-
     subroutine remove_high_energy_orbs(ilut_list, num_states, target_num_states, tParallel)
 
         use Parallel_neci, only: MPISumAll

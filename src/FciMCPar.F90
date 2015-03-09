@@ -8,7 +8,9 @@ module FciMCParMod
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
                         iFullSpaceIter, semistoch_shift_iter, &
-                        tOrthogonaliseReplicas, orthogonalise_iter
+                        tOrthogonaliseReplicas, orthogonalise_iter, &
+                        tDoublesCore, tDetermHFSpawning, use_spawn_hash_table,&
+                        semistoch_shift_iter
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, &
@@ -28,6 +30,7 @@ module FciMCParMod
                                 determ_projection, average_determ_vector
     use trial_wf_gen, only: update_compare_trial_file, &
                             update_compare_trial_file
+    use hash, only: clear_hash_table
     use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
     use bit_reps, only: set_flag, clr_flag, add_ilut_lists
     use exact_diag, only: perform_exact_diag_all_symmetry
@@ -633,6 +636,9 @@ module FciMCParMod
         iStartFreeSlot=1
         iEndFreeSlot=0
 
+        ! Clear the hash table for the spawning array.
+        if (use_spawn_hash_table) call clear_hash_table(spawn_ht)
+
         ! Index for counting deterministic states.
         determ_index = 1
         
@@ -683,7 +689,7 @@ module FciMCParMod
                 IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter)
             endif
         endif
-        
+
         do j=1,int(TotWalkers,sizeof_int)
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
@@ -805,13 +811,24 @@ module FciMCParMod
             ! This is where the projected energy is calculated.
             call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, j)
 
+            ! If we're on the Hartree-Fock, and all singles and doubles are in
+            ! the core space, then there will be no stochastic spawning from
+            ! this determinant, so we can the rest of this loop.
+            if (tDoublesCore .and. walkExcitLevel_toHF == 0 .and. tDetermHFSpawning) then
+                if (tFillingStochRDMonFly) then
+                    call set_av_sgn(j, AvSignCurr)
+                    call set_iter_occ(j, IterRDMStartCurr)
+                endif
+                cycle
+            end if
+
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles
             ! lenof_sign == 2 --> complex walkers
             !                 --> part_type == 1, 2; real and complex walkers
             !                 --> OR double run
             !                 --> part_type == 1, 2; population sets 1 and 2, both real
-            do part_type=1,lenof_sign
+            do part_type = 1, lenof_sign
             
                 TempSpawnedPartsInd = 0
 
@@ -882,7 +899,7 @@ module FciMCParMod
                     ! Children have been chosen to be spawned.
                     if (any(child /= 0)) then
 
-                        !Encode child if not done already
+                        ! Encode child if not done already.
                         if(.not. (tSemiStochastic)) call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
                         ! FindExcitBitDet copies the parent flags so that unwanted flags must be unset.
                         ! Should it really do this?
@@ -892,14 +909,17 @@ module FciMCParMod
                         end if
 
                         call new_child_stats (iter_data, CurrentDets(:,j), &
-                                              nJ, iLutnJ, ic, walkExcitLevel,&
+                                              nJ, iLutnJ, ic, walkExcitLevel, &
                                               child, parent_flags, part_type)
-                        call create_particle (nJ, iLutnJ, child, &
-                                              parent_flags, part_type,& 
-                                              CurrentDets(:,j),SignCurr,p,&
-                                              RDMBiasFacCurr, WalkersToSpawn)
-                                              ! RDMBiasFacCurr is only used if we're 
-                                              ! doing an RDM calculation.
+
+                        if (use_spawn_hash_table) then
+                            call create_particle_with_hash_table (nJ, ilutnJ, child, &
+                                                                  part_type, CurrentDets(:,j))
+                        else
+                            call create_particle (nJ, iLutnJ, child, part_type, & 
+                                                  CurrentDets(:,j),SignCurr,p, &
+                                                  RDMBiasFacCurr, WalkersToSpawn)
+                        end if
 
                     endif ! (child /= 0). Child created
 

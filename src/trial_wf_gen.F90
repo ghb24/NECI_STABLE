@@ -29,6 +29,7 @@ contains
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
         use ParallelHelper, only: root
         use ras_data, only: trial_ras
+        use searching, only: remove_repeated_states
         use sort_mod, only: sort
         use SystemData, only: tAllSymSectors
 
@@ -65,28 +66,20 @@ contains
         trial_space = 0
         trial_space_size = 0
 
-        write(6,'(a29)') "Generating the trial space..."
-        call neci_flush(6)
+        write(6,'(a29)') "Generating the trial space..."; call neci_flush(6)
 
         ! Generate the trial space and place the corresponding states in trial_space.
-        if (tDoublesTrial) then
-            call generate_sing_doub_determinants(trial_space, trial_space_size)
-        elseif (tCASTrial) then
-            call generate_cas(OccTrialCASOrbs, VirtTrialCASOrbs, trial_space, trial_space_size)
-        else if (tRASCore) then
-            call generate_ras(trial_ras, trial_space, trial_space_size)
-        elseif (tOptimisedTrial) then
-            call generate_optimised_core(trial_opt_data, tLimitTrialSpace, trial_space, trial_space_size, max_trial_size)
-        elseif (tPopsTrial) then
-            call generate_space_most_populated(n_trial_pops, trial_space, trial_space_size)
-        elseif (tReadTrial) then
-            call generate_space_from_file('TRIALSPACE', trial_space, trial_space_size)
-        elseif (tLowETrial) then
-            call generate_low_energy_core(low_e_trial_excit, tLowETrialAllDoubles, low_e_trial_num_keep, &
-                                           max_trial_size, trial_space, trial_space_size)
-        else if (tMP1Trial) then
-            call generate_using_mp1_criterion(trial_mp1_ndets, trial_space, trial_space_size)
-        else if (tFCITrial) then
+        if (tDoublesTrial) call generate_sing_doub_determinants(trial_space, trial_space_size, .false.)
+        if (tCASTrial) call generate_cas(OccTrialCASOrbs, VirtTrialCASOrbs, trial_space, trial_space_size)
+        if (tRASCore) call generate_ras(trial_ras, trial_space, trial_space_size)
+        if (tOptimisedTrial) call generate_optimised_core(trial_opt_data, tLimitTrialSpace, trial_space, &
+                                                           trial_space_size, max_trial_size)
+        if (tPopsTrial) call generate_space_most_populated(n_trial_pops, trial_space, trial_space_size)
+        if (tReadTrial) call generate_space_from_file('TRIALSPACE', trial_space, trial_space_size)
+        if (tLowETrial) call generate_low_energy_core(low_e_trial_excit, tLowETrialAllDoubles, low_e_trial_num_keep, &
+                                                       max_trial_size, trial_space, trial_space_size)
+        if (tMP1Trial) call generate_using_mp1_criterion(trial_mp1_ndets, trial_space, trial_space_size)
+        if (tFCITrial) then
             if (tAllSymSectors) then
                 call gndts_all_sym_this_proc(trial_space, .true., trial_space_size)
             else

@@ -1,0 +1,53 @@
+title
+
+system ueg
+electrons 10
+cell 8 8 0
+rs 1.0
+spin-restrict 0
+sym 0 0 0 0
+lattice-excitgen
+ueg-offset 0.0 0.0 0.0
+ueg-scaled-energies
+energy-cutoff 4
+endsys
+
+calc
+tau 0.01
+totalwalkers 1000
+shiftdamp 0.5
+diagshift 0.0
+stepsshift 1
+memoryfacpart 20.0
+memoryfacspawn 10.0
+allrealcoeff
+realspawncutoff 0.01
+semi-stochastic
+doubles-core
+stochastic-hf-spawning
+readpops
+pops-creation 1
+25
+pops-annihilate 1
+25
+truncinitiator
+addtoinitiator 3
+jump-shift off
+(Add the following line so that the reference does not change after this option was made default)
+proje-changeref 100.0
+endcalc
+
+kp-fciqmc
+num-krylov-vecs 35
+num-iters-between-vecs-vary 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34
+num-repeats-per-init-config 10
+averagemcexcits-hamil 10
+end-kp-fciqmc
+
+integral
+endint
+
+logging
+popsfile -1
+endlog
+end

@@ -116,6 +116,7 @@ logical :: tSemiStochastic ! Performing a semi-stochastic simulation if true.
 logical :: tCSFCore ! Use CSFs for the core states.
 logical :: tOptimisedCore ! Generate an optimised deterministic space by diagonalising part of the space.
 logical :: tDoublesCore ! Use single and double excitations for the core states.
+logical :: tHFConnCore ! Use all determinants connected to the Hartree-Fock for the core states.
 logical :: tCASCore ! Use Determinants where orbitals within an active space can differ from the Hartree-Fock for core states.
 logical :: tRASCore ! Use a RAS space for the core space (see ras.F90 for definition).
 logical :: tPopsCore ! Use the most populated states from a POPSFILE for the core space.
@@ -176,6 +177,12 @@ integer :: semistoch_mp1_ndets
 ! If this is non-zero then we turn semi-stochastic semistoch_shift_iter
 ! iterations after the shift starts to vary.
 integer :: semistoch_shift_iter
+
+! If true then, if using a deterministic space of all singles and doubles, no
+! stochastic spawning will be attempted from the Hartree-Fock. This is allowed
+! because all 'spawnings' from the Hartree-Fock in this case will be
+! deterministic.
+logical :: tDetermHFSpawning
 
 ! Options relating to the trial wavefunction.
 logical :: tTrialWavefunction ! Use a trial wavefunction-based energy estimator.
@@ -249,5 +256,10 @@ integer :: init_spawn_thresh
 ! Are we orthogonalising replicas?
 logical :: tOrthogonaliseReplicas
 integer :: orthogonalise_iter
+
+! If true then a hash table is kept for the spawning array and is used when
+! new spawnings are added to the spawned list, to prevent adding the same
+! determinant multiple times.
+logical :: use_spawn_hash_table
 
 end module CalcData
