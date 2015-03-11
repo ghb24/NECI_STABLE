@@ -317,9 +317,13 @@ contains
                     if ((ibeta .and. jbeta) .or. (ialpha .and. jalpha)) then
                         do i = 1, nvecs
                             do j = i, nvecs
+#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
                                 spin_matrix(i,j) = spin_matrix(i,j) + &
                                     0.5_dp*(parent_sign(2*i-1)*parent_sign(2*j) + &
                                             parent_sign(2*i)*parent_sign(2*j-1))/2.0_dp
+#else
+                                spin_matrix(i,j) = spin_matrix(i,j) + 0.5_dp*parent_sign(i)*parent_sign(j)
+#endif
                             end do
                         end do
                     else
@@ -329,9 +333,13 @@ contains
                         ! from and to the same determinant.
                         do i = 1, nvecs
                             do j = i, nvecs
+#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
                                 spin_matrix(i,j) = spin_matrix(i,j) - &
                                     0.5_dp*(parent_sign(2*i-1)*parent_sign(2*j) + &
                                             parent_sign(2*i)*parent_sign(2*j-1))/2.0_dp
+#else
+                                spin_matrix(i,j) = spin_matrix(i,j) - 0.5_dp*parent_sign(i)*parent_sign(j)
+#endif
                             end do
                         end do
 
@@ -346,9 +354,13 @@ contains
                             ! Only take each contribution once.
                             do i = 1, nvecs
                                 do j = i, nvecs
+#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
                                     spin_matrix(i,j) = spin_matrix(i,j) - &
                                         (parent_sign(2*i-1)*parent_sign(2*j) + &
                                          parent_sign(2*i)*parent_sign(2*j-1))/2.0_dp
+#else
+                                    spin_matrix(i,j) = spin_matrix(i,j) - parent_sign(i)*parent_sign(j)
+#endif
                                 end do
                             end do
                         else
