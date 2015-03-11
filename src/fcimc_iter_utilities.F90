@@ -199,7 +199,7 @@ contains
         else
 
             call MPIAllReduceDatatype (&
-                (/int(maxval(iHighestPop),int32), int(iProcIndex,int32)/), 1, &
+                (/int(iHighestPop(1),int32), int(iProcIndex,int32)/), 1, &
                                        MPI_MAXLOC, MPI_2INTEGER, int_tmp)
             pop_highest = int_tmp(1)
             proc_highest = int_tmp(2)
@@ -220,8 +220,10 @@ contains
                 pop_change = FracLargerDet * abs_sign(AllNoAtHF)
             else if (lenof_sign /= inum_runs) then
                 call stop_all(this_routine, "Complex not yet supported in multi-run mode")
-            else
+            else if (tReplicaReferencesDiffer) then
                 pop_change = FracLargerDet * abs(AllNoAtHF(run))
+            else
+                pop_change = FracLargerDet * abs(AllNoATHF(1))
             endif
 
             ! Do we need to do a change?
