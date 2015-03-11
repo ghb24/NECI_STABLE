@@ -135,7 +135,7 @@ contains
                     end if
 
                     child_sign = calc_amp_kp_hamil(parent_sign, 1.0_dp, 1.0_dp, h_diag_elem)
-                    call create_particle_kp_hamil(nI_parent, ilut_parent, child_sign, tNearlyFull)
+                    call create_particle_kp_estimates(nI_parent, ilut_parent, child_sign, tNearlyFull)
                 end if
 
                 call init_generate_connected_space(nI_parent, ex_flag, all_excits_found, ex, excit_gen, &
@@ -153,7 +153,7 @@ contains
                     if (all_excits_found) exit
 
                     child_sign = calc_amp_kp_hamil(parent_sign, 1.0_dp, 1.0_dp, real(HEl,dp))
-                    call create_particle_kp_hamil(nI_child, ilut_child, child_sign, tNearlyFull)
+                    call create_particle_kp_estimates(nI_child, ilut_child, child_sign, tNearlyFull)
 
                     if (tNearlyFull) then
                         call add_in_hamil_contribs(nvecs, krylov_array, krylov_ht, tFinished, tAllFinished, h_matrix)
@@ -201,7 +201,7 @@ contains
                     ! If any (valid) children have been spawned.
                     if ((any(child_sign /= 0)) .and. (ic /= 0) .and. (ic <= 2)) then
 
-                        call create_particle_kp_hamil(nI_child, ilut_child, child_sign, tNearlyFull)
+                        call create_particle_kp_estimates(nI_child, ilut_child, child_sign, tNearlyFull)
 
                         if (tNearlyFull) then
                             call add_in_hamil_contribs(nvecs, krylov_array, krylov_ht, tFinished, tAllFinished, h_matrix)
@@ -262,7 +262,7 @@ contains
 
     end function calc_amp_kp_hamil
 
-    subroutine create_particle_kp_hamil (nI_child, ilut_child, child_sign, tNearlyFull)
+    subroutine create_particle_kp_estimates (nI_child, ilut_child, child_sign, tNearlyFull)
 
         use bit_rep_data, only: NOffSgn
         use hash, only: DetermineDetNode, hash_table_lookup, add_hash_table_entry
@@ -305,9 +305,9 @@ contains
             if (ValidSpawnedList(proc)-InitialSpawnedSlots(proc) > MaxSpawnedEachProc) tNearlyFull = .true.
         end if
 
-    end subroutine create_particle_kp_hamil
+    end subroutine create_particle_kp_estimates
 
-    subroutine distribute_spawns_kp_hamil(nspawns_this_proc)
+    subroutine distribute_spawns_kp_estimates(nspawns_this_proc)
 
         use AnnihilationMod, only: SendProcNewParts
         use FciMCData, only: SpawnedParts, SpawnedParts2
@@ -323,7 +323,7 @@ contains
 
         nullify(PointTemp)
 
-    end subroutine distribute_spawns_kp_hamil
+    end subroutine distribute_spawns_kp_estimates
 
     subroutine add_in_hamil_contribs(nvecs, krylov_array, krylov_ht, tFinished, tAllFinished, h_matrix)
 
@@ -340,7 +340,7 @@ contains
         logical :: tFinished_AllProcs(nProcessors)
         integer :: nspawns_this_proc, ierr
 
-        call distribute_spawns_kp_hamil(nspawns_this_proc)
+        call distribute_spawns_kp_estimates(nspawns_this_proc)
 
         call calc_hamil_contribs_spawn(nvecs, krylov_array, krylov_ht, nspawns_this_proc, h_matrix)
 
@@ -366,7 +366,7 @@ contains
         integer, intent(in) :: nspawns_this_proc
         real(dp), intent(inout) :: h_matrix(:,:)
 
-        integer :: idet, DetHash, det_ind, i, j
+        integer :: idet, det_hash, det_ind, i, j
         integer(n_int) :: ilut_spawn(0:NIfTot)
         integer :: nI_spawn(nel)
         integer(n_int) :: int_sign(lenof_all_signs)
@@ -377,13 +377,15 @@ contains
         ilut_spawn = 0_n_int
 
         do idet = 1, nspawns_this_proc
+
             ilut_spawn(0:NIfDBO) = SpawnedParts(0:NIfDBO, idet)
             int_sign = SpawnedParts(NOffSgn:NOffSgn+lenof_all_signs-1, idet)
             real_sign_1 = transfer(int_sign, real_sign_1)
             call decode_bit_det(nI_spawn, ilut_spawn)
-            DetHash = FindWalkerHash(nI_spawn, size(krylov_ht))
+            det_hash = FindWalkerHash(nI_spawn, size(krylov_ht))
             ! Point to the first node with this hash value in krylov_array.
-            temp_node => krylov_ht(DetHash)
+            temp_node => krylov_ht(det_hash)
+
             if (temp_node%ind == 0) then
                 ! If there are no determinants at all with this hash value in krylov_array.
                 cycle
