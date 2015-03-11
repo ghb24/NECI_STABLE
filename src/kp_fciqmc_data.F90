@@ -36,6 +36,10 @@ module kp_fciqmc_data_mod
     ! every iteration.
     logical :: tExcitedStateKP
 
+    ! If true then calculate and output the spin squared operator in the
+    ! Krylov basis.
+    logical :: tCalcSpin
+
     ! Information for the krylov_vecs arrays, which holds all of the Krylov
     ! vectors together simultaneously.
     ! The number of hash values for the hash table used to access krylov_vecs.

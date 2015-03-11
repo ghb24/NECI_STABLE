@@ -40,6 +40,8 @@ contains
         tFiniteTemp = .false.
         tExcitedInitState = .false.
 
+        tCalcSpin = .false.
+
         nwalkers_per_site_init = 1.0_dp
         av_mc_excits_kp = 0.0_dp
         kp_hamil_exact_frac = 1.0_dp
@@ -89,6 +91,10 @@ contains
 #endif
             case("FINITE-TEMPERATURE")
                 tFiniteTemp = .true.
+
+            case("CALC-SPIN")
+                tCalcSpin = .true.
+
             case("MULTIPLE-POPS")
                 tMultiplePopStart = .true.
                 tIncrementPops = .true.
@@ -1013,6 +1019,7 @@ contains
     subroutine calc_trial_states(nexcit, ndets_this_proc, evecs_this_proc, trial_iluts)
 
         use DetBitOps, only: ilut_lt, ilut_gt
+        use FciMCData, only: ilutHF
         use lanczos_wrapper, only: frsblk_wrapper
         use Parallel_neci, only: MPIScatterV, MPIGatherV, MPIArg
         use ParallelHelper, only: root
@@ -1058,6 +1065,8 @@ contains
                     .or. tRAS_KP_Space .or. tMP1_KP_Space .or. tFCI_KP_Space)) then
             call stop_all(t_r, "A space for the trial functions was not chosen.")
         end if
+
+        !call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
 
         ndets_this_proc_mpi = int(ndets_this_proc, MPIArg)
         call MPIAllGather(ndets_this_proc_mpi, space_sizes, ierr)

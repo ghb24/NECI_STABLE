@@ -362,7 +362,8 @@ contains
     subroutine perform_subspace_fciqmc(kp)
 
         use fcimc_helper, only: create_particle_with_hash_table
-        use FciMCData, only: HashIndex
+        use FciMCData, only: HashIndex, nWalkerHashes
+        use ex_state_spin, only: calc_projected_spin
 
         type(kp_fciqmc_data), intent(inout) :: kp
 
@@ -382,12 +383,16 @@ contains
         logical :: tParity, tSoftExitFound, tSingBiasChange, tWritePopsFound
         HElement_t :: HElGen
 
-        ! Stores of the overlap and projected Hamiltonian matrices.
+        ! Stores of the overlap, projected Hamiltonian and spin matrices.
         real(dp), pointer :: overlap_matrices(:,:,:,:)
         real(dp), pointer :: hamil_matrices(:,:,:,:)
+        real(dp), pointer :: spin_matrices(:,:,:,:)
         ! Pointers to the matrices for a given report and repeat only.
         real(dp), pointer :: overlap_matrix(:,:)
         real(dp), pointer :: hamil_matrix(:,:)
+        real(dp), pointer :: spin_matrix(:,:)
+
+        type(ll_node), pointer :: temp_node
 
         ! Variables to hold information output for the test suite.
         real(dp) :: s_sum, h_sum
@@ -396,9 +401,11 @@ contains
 
         allocate(overlap_matrices(kp%nvecs, kp%nvecs, kp%nrepeats, kp%nreports), stat=ierr)
         allocate(hamil_matrices(kp%nvecs, kp%nvecs, kp%nrepeats, kp%nreports), stat=ierr)
+        if (tCalcSpin) allocate(spin_matrices(kp%nvecs, kp%nvecs, kp%nrepeats, kp%nreports), stat=ierr)
         allocate(lowdin_evals(kp%nvecs, kp%nvecs), stat=ierr)
         overlap_matrices = 0.0_dp
         hamil_matrices = 0.0_dp
+        if (tCalcSpin) spin_matrices = 0.0_dp
         lowdin_evals = 0.0_dp
 
         outer_loop: do irepeat = 1, kp%nrepeats
@@ -413,8 +420,10 @@ contains
                 ! and overlap matrices for this repeat will be accumulated and stored.
                 overlap_matrix => overlap_matrices(:,:,irepeat,ireport)
                 hamil_matrix => hamil_matrices(:,:,irepeat,ireport)
+                if (tCalcSpin) spin_matrix => spin_matrices(:,:,irepeat,ireport)
                 overlap_matrix(:,:) = 0.0_dp
                 hamil_matrix(:,:) = 0.0_dp
+                if (tCalcSpin) spin_matrix(:,:) = 0.0_dp
 
                 call calc_overlap_matrix(kp%nvecs, CurrentDets, int(TotWalkers, sizeof_int), overlap_matrix)
 
@@ -430,8 +439,40 @@ contains
                     end if
                 end if
 
+                !write(6,*) "CurrentDets before:"
+                !do idet = 1, int(TotWalkers, sizeof_int)
+                !    call extract_bit_rep(CurrentDets(:, idet), nI_parent, parent_sign, unused_flags, &
+                !                          fcimc_excit_gen_store)
+                !    if (tUseFlags) then
+                !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7, 4x, l1)') idet, CurrentDets(0,idet), parent_sign, &
+                !            test_flag(CurrentDets(:,idet), flag_deterministic)
+                !    else
+                !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') idet, CurrentDets(0,idet), parent_sign
+                !    end if
+                !end do
+
+                !write(6,"(A)") "Hash Table: "
+                !do idet = 1, nWalkerHashes
+                !    temp_node => HashIndex(idet)
+                !    if (temp_node%ind /= 0) then
+                !        write(6,'(i9)',advance='no') idet
+                !        do while (associated(temp_node))
+                !            write(6,'(i9)',advance='no') temp_node%ind
+                !            temp_node => temp_node%next
+                !        end do
+                !        write(6,'()',advance='yes')
+                !    end if
+                !end do
+
+                if (tCalcSpin) call calc_projected_spin(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers, sizeof_int), &
+                                                        spin_matrix)
+
                 ! Sum the overlap and projected Hamiltonian matrices from the various processors.
-                call communicate_kp_matrices(overlap_matrix, hamil_matrix)
+                if (tCalcSpin) then
+                    call communicate_kp_matrices(overlap_matrix, hamil_matrix, spin_matrix)
+                else
+                    call communicate_kp_matrices(overlap_matrix, hamil_matrix)
+                end if
 
                 if (iProcIndex == root) then
                     call output_kp_matrices_wrapper(iter, overlap_matrices(:,:,1:irepeat,ireport), &
@@ -440,7 +481,11 @@ contains
                                                      hamil_matrices(:,:,1:irepeat,ireport), kp_overlap_mean, &
                                                      kp_hamil_mean, kp_overlap_se, kp_hamil_se)
                     call find_and_output_lowdin_eigv(iter, kp%nvecs, overlap_matrix, hamil_matrix, nlowdin, lowdin_evals)
-                    call write_ex_state_data(iter, nlowdin, lowdin_evals, hamil_matrix, overlap_matrix)
+                    if (tCalcSpin) then
+                        call write_ex_state_data(iter, nlowdin, lowdin_evals, hamil_matrix, overlap_matrix, spin_matrix)
+                    else
+                        call write_ex_state_data(iter, nlowdin, lowdin_evals, hamil_matrix, overlap_matrix)
+                    end if
                 end if
 
                 do iiter = 1, kp%niters(ireport)

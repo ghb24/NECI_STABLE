@@ -1,4 +1,3 @@
-                                                            real_sign(2*i)*real_sign(2*j-1))/2.0_dp
 #include "macros.h"
 
 module fcimc_initialisation

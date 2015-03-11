@@ -326,7 +326,7 @@ contains
 
     end subroutine calc_hamil_exact
 
-    subroutine communicate_kp_matrices(overlap_matrix, hamil_matrix)
+    subroutine communicate_kp_matrices(overlap_matrix, hamil_matrix, spin_matrix)
 
         ! Add all the overlap and projected Hamiltonian matrices together, with
         ! the result being held only on the root node.
@@ -335,23 +335,32 @@ contains
 
         real(dp), intent(inout) :: overlap_matrix(:,:)
         real(dp), intent(inout) :: hamil_matrix(:,:)
+        real(dp), optional, intent(inout) :: spin_matrix(:,:)
 
         real(dp), allocatable :: mpi_mat_in(:,:), mpi_mat_out(:,:)
-        integer :: nrow
+        integer :: nrow, ncol
 
         nrow = size(hamil_matrix,1)
 
-        allocate(mpi_mat_in(nrow, 2*nrow))
-        allocate(mpi_mat_out(nrow, 2*nrow))
+        if (present(spin_matrix)) then
+            ncol = 3*nrow
+        else
+            ncol = 2*nrow
+        end if
+
+        allocate(mpi_mat_in(nrow, ncol))
+        allocate(mpi_mat_out(nrow, ncol))
 
         mpi_mat_in(1:nrow, 1:nrow) = overlap_matrix
         mpi_mat_in(1:nrow, nrow+1:2*nrow) = hamil_matrix
+        if (present(spin_matrix))  mpi_mat_in(1:nrow, 2*nrow+1:3*nrow) = spin_matrix
 
         call MPISum(mpi_mat_in, mpi_mat_out)
 
         if (iProcIndex == root) then
             overlap_matrix = mpi_mat_out(1:nrow, 1:nrow)
             hamil_matrix = mpi_mat_out(1:nrow, nrow+1:2*nrow)
+            if (present(spin_matrix)) spin_matrix = mpi_mat_out(1:nrow, 2*nrow+1:3*nrow)
         end if
 
         deallocate(mpi_mat_in)
@@ -876,6 +885,11 @@ contains
             do ivec = 1, nvecs
                 write(temp_unit,'(7X,"Diag. energy",1x,i2)',advance='no') ivec
             end do
+            if (tCalcSpin) then
+                do ivec = 1, nvecs
+                    write(temp_unit,'(9X,"Diag. spin",1x,i2)',advance='no') ivec
+                end do
+            end if
             write(temp_unit,'()')
         end if
         write(temp_unit,'("#",1X,"Repeat",'//int_fmt(irepeat,1)//')') irepeat
@@ -884,14 +898,16 @@ contains
 
     end subroutine write_ex_state_header
 
-    subroutine write_ex_state_data(niters, nlowdin, lowdin_evals, hamil_matrix, overlap_matrix)
+    subroutine write_ex_state_data(niters, nlowdin, lowdin_evals, hamil_matrix, overlap_matrix, spin_matrix)
 
+        use SystemData, only: nel
         use util_mod, only: get_free_unit
 
         integer, intent(in) :: niters
         integer, intent(in) :: nlowdin
         real(dp), intent(in) :: lowdin_evals(:,:)
         real(dp), intent(in) :: hamil_matrix(:,:), overlap_matrix(:,:)
+        real(dp), optional, intent(in) :: spin_matrix(:,:)
 
         integer :: ivec, nvecs
         integer :: temp_unit
@@ -915,6 +931,13 @@ contains
         do ivec = 1, nvecs
             write(temp_unit,'(3X,es19.12)',advance='no') hamil_matrix(ivec,ivec)/overlap_matrix(ivec,ivec)
         end do
+
+        ! Diagonal spin entries.
+        if (present(spin_matrix)) then
+            do ivec = 1, nvecs
+                write(temp_unit,'(3X,es19.12)',advance='no') spin_matrix(ivec,ivec)/overlap_matrix(ivec,ivec) + (0.75_dp*nel)
+            end do
+        end if
 
         close(temp_unit)
 
