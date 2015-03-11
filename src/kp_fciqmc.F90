@@ -3,7 +3,7 @@
 module kp_fciqmc
 
     use kp_fciqmc_init
-    use kp_fciqmc_hamil
+    use kp_fciqmc_proj_est
     use kp_fciqmc_procs
 
     use AnnihilationMod, only: DirectAnnihilation
@@ -363,7 +363,6 @@ contains
 
         use fcimc_helper, only: create_particle_with_hash_table
         use FciMCData, only: HashIndex, nWalkerHashes
-        use ex_state_spin, only: calc_projected_spin
 
         type(kp_fciqmc_data), intent(inout) :: kp
 
