@@ -1855,8 +1855,10 @@ contains
         ! Use the code generated for the KPFCIQMC excited state calculations
         ! to initialise the FCIQMC simulation.
 
-        integer :: nexcit, ndets_this_proc
+        integer :: nexcit, ndets_this_proc, i, det(nel)
         real(dp), allocatable :: evecs_this_proc(:,:), init_vecs(:,:)
+        type(basisfn) :: sym
+        character(*), parameter :: this_routine = 'InitFCIMC_trial'
 
         nexcit = inum_runs
 
@@ -1874,6 +1876,14 @@ contains
         call set_initial_run_references()
 
         deallocate(evecs_this_proc)
+
+        ! Add an initialisation check on symmetries
+        do i = 1, TotWalkers
+            call decode_bit_det(det, CurrentDets(:,i))
+            call getsym_wrapper(det, sym)
+            if (sym%sym%S /= HFSym%sym%S .or. sym%ml /= HFSym%Ml) &
+                call stop_all(this_routine, "Invalid det found")
+        end do
 
     end subroutine
 
