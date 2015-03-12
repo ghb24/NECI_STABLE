@@ -27,7 +27,7 @@ module fcimc_initialisation
                         RealCoeffExcitThresh, TargetGrowRate, &
                         TargetGrowRateWalk, InputTargetGrowRate, &
                         InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
-                        use_spawn_hash_table
+                        use_spawn_hash_table, tReplicaSingleDetStart
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -1263,6 +1263,11 @@ contains
                     !Initialise walkers according to a CAS diagonalisation.
                     call InitFCIMC_CAS()
 
+                else if (tOrthogonaliseReplicas .and. &
+                         .not. tReplicaSingleDetStart) then
+
+                    call InitFCIMC_trial()
+
                 else !Set up walkers on HF det
 
                     if(tStartSinglePart) then
@@ -1862,8 +1867,6 @@ contains
         call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts)
 
         deallocate(evecs_this_proc)
-
-
 
     end subroutine
 

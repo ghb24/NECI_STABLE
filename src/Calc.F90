@@ -347,6 +347,7 @@ contains
           tMultiReplicaInitiators = .false.
           tOrthogonaliseReplicas = .false.
           orthogonalise_iter = 0
+          tReplicaSingleDetStart = .true.
 
           use_spawn_hash_table = .false.
 
@@ -2011,6 +2012,12 @@ contains
                 if (item < nitems) then
                     call readi(orthogonalise_iter)
                 endif
+
+            case("REPLICA-SINGLE-DET-START")
+                ! If we want to start off multiple replicas from single dets
+                ! chosen fairly naively as excited states of the HF, then use
+                ! this option
+                tReplicaSingleDetStart = .true.
 
             case("USE-SPAWN-HASH-TABLE")
                 use_spawn_hash_table = .true.

@@ -254,7 +254,7 @@ logical :: tSpawnCountInitiatorThreshold
 integer :: init_spawn_thresh
 
 ! Are we orthogonalising replicas?
-logical :: tOrthogonaliseReplicas
+logical :: tOrthogonaliseReplicas, tReplicaSingleDetStart
 integer :: orthogonalise_iter
 
 ! If true then a hash table is kept for the spawning array and is used when
