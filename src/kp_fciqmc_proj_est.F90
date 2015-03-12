@@ -254,11 +254,12 @@ contains
         use DetBitOps, only: EncodeBitDet
         use FciMCData, only: spawn_ht, SpawnVecKP, SpawnVecKP2, SpawnVec, SpawnVec2
         use FciMCData, only: ll_node, SpawnedParts, SpawnedParts2, InitialSpawnedSlots
-        use FciMCData, only: ValidSpawnedList
+        use FciMCData, only: ValidSpawnedList, subspace_spin_time
         use get_excit, only: make_double
         use hash, only: clear_hash_table
         use kp_fciqmc_data_mod, only: tExcitedStateKP
         use SystemData, only: nel
+        use timing_neci, only: set_timer, halt_timer
 
         integer, intent(in) :: nvecs
         integer(n_int), intent(in) :: krylov_array(0:,:)
@@ -274,6 +275,8 @@ contains
         real(dp) :: parent_sign(lenof_all_signs), child_sign(lenof_all_signs)
         logical :: tNearlyFull, tFinished, tAllFinished, tParity
         integer :: ex(2,2)
+
+        call set_timer(subspace_spin_time)
 
         spin_matrix(:,:) = 0.0_dp
         ilut_parent = 0_n_int
@@ -415,6 +418,8 @@ contains
             SpawnedParts => SpawnVec
             SpawnedParts2 => SpawnVec2
         end if
+
+        call halt_timer(subspace_spin_time)
 
     end subroutine calc_projected_spin
 
