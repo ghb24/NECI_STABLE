@@ -1764,6 +1764,17 @@ contains
 
         end if ! run == 1
 
+        ! Ensure that our energy offsets for outputting the correct
+        ! data have been updated correctly.
+        if (tHPHF) then
+            h_tmp = hphf_diag_helement (ProjEDet(:,run), &
+                                        ilutRef(:,run))
+        else
+            h_tmp = get_helement (ProjEDet(:,run), &
+                                  ProjEDet(:,run), 0)
+        endif
+        proje_ref_energy_offsets(run) = real(h_tmp, dp) - Hii
+
     end subroutine
 
 

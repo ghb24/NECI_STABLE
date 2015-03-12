@@ -52,7 +52,8 @@ module fcimc_initialisation
     use bit_rep_data, only: NIfTot, NIfD, NIfDBO, flag_initiator, &
                             flag_deterministic
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
-                        decode_bit_det, nullify_ilut, encode_part_sign
+                        decode_bit_det, nullify_ilut, encode_part_sign, &
+                        extract_part_sign
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
                          BeforeNormHist, InstHist, iNoBins, AllInstHist, &
                          HistogramEnergy, AllHistogramEnergy, AllHistogram, &
@@ -109,7 +110,7 @@ module fcimc_initialisation
     use gndts_mod, only: gndts
     use csf, only: get_csf_helement
     use tau_search, only: init_tau_search
-    use fcimc_helper, only: CalcParentFlag
+    use fcimc_helper, only: CalcParentFlag, update_run_reference
     use get_excit, only: make_double
     use sltcnd_mod, only: sltcnd_0
     use Parallel_neci
@@ -1870,8 +1871,51 @@ contains
         ! Set the trial excited states as the FCIQMC wave functions
         call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts, &
                               .false.)
+        call set_initial_run_references()
 
         deallocate(evecs_this_proc)
+
+    end subroutine
+
+    subroutine set_initial_run_references()
+
+        ! Analyse each of the runs, and set the reference determinant to the
+        ! det with the largest coefficient, rather than the currently guessed
+        ! one...
+
+        real(dp) :: largest_coeff, sgn
+        integer(n_int) :: largest_det(0:NIfTot)
+        integer :: run, j, proc_highest
+        integer(int32) :: int_tmp(2)
+
+        ASSERT(inum_runs == lenof_sign)
+        do run = 1, inum_runs
+
+            ! Find the largest det on this processor
+            largest_coeff = 0
+            do j = 1, TotWalkers
+                sgn = extract_part_sign(CurrentDets(:,j), run)
+                if (abs(sgn) > largest_coeff) then
+                    largest_coeff = abs(sgn)
+                    largest_det = CurrentDets(:,j)
+                end if
+            end do
+            
+            ! Find the largest det on any processor (n.b. discard the
+            ! non-integer part. This isn't all that important).
+            call MPIAllReduceDatatype(&
+                (/int(largest_coeff, int32), int(iProcIndex, int32)/), 1, &
+                MPI_MAXLOC, MPI_2INTEGER, int_tmp)
+            proc_highest = int_tmp(2)
+            call MPIBCast(largest_det, NIfTot+1, proc_highest)
+
+            write(6,*) 'Setting ref', run
+            call writebitdet(6, largest_det, .true.)
+
+            ! Set this det as the reference
+            call update_run_reference(largest_det, run)
+
+        end do
 
     end subroutine
 

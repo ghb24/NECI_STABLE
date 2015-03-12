@@ -283,35 +283,12 @@ contains
                     ! Broadcast the changed det to all processors
                     call MPIBcast (HighestPopDet(:,run), NIfTot+1, &
                                    proc_highest(run))
-                    iLutRef(:, run) = 0
-                    iLutRef(0:NIfDBO, run) = HighestPopDet(0:NIfDBO, run)
 
-                    call decode_bit_det (ProjEDet(:,run), iLutRef(:,run))
-                    write (iout, '(a,i3,a)',advance='no') 'Changing projected &
-                             &energy reference determinant for run ', run, &
-                             ' to: '
-                    call write_det (iout, ProjEDet(:,1), .true.)
-
-                    ! We can't use Brillouin's theorem if not a converged,
-                    ! closed shell, ground state HF det.
-                    tNoBrillouin = .true.
-                    tRef_Not_HF = .true.
-                    root_print "Ensuring that Brillouin's theorem is no &
-                               &longer used."
+                    call update_run_reference(HighestPopDet(:, run), run)
                     
                     ! Only update the global reference energies if they
                     ! correspond to run 1 (which is used for those)
                     if (run == 1) then
-                        ! Update the reference energy
-                        if (tHPHF) then
-                            h_tmp = hphf_diag_helement (ProjEDet(:,1), iLutRef(:,1))
-                        else
-                            h_tmp = get_helement (ProjEDet(:,1), ProjEDet(:,1), 0)
-                        endif
-                        Hii = real(h_tmp, dp)
-                        write (iout, '(a, g25.15)') &
-                            'Reference energy now set to: ', Hii
-
                         call ChangeRefDet (ProjEDet(:, 1))
                     end if
 
@@ -328,27 +305,7 @@ contains
             endif
         end do
 
-        ! Ensure that our energy offsets for outputting the correct
-        ! data have been updated correctly.
-        if (changed_any) then
-            proje_ref_energy_offsets = 0
-            if (tOrthogonaliseReplicas) then
-                do run = 1, inum_runs
-                    if (tHPHF) then
-                        h_tmp = hphf_diag_helement (ProjEDet(:,run), &
-                                                    ilutRef(:,run))
-                    else
-                        h_tmp = get_helement (ProjEDet(:,run), &
-                                              ProjEDet(:,run), 0)
-                    endif
-                    proje_ref_energy_offsets(run) = real(h_tmp, dp) - Hii
-                end do
-            end if
-        end if
-                    
     end subroutine
-
-
 
     subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
         integer :: int_tmp(5+2*lenof_sign), proc, pos, i
