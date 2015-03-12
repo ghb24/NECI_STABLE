@@ -93,6 +93,9 @@ module fcimc_initialisation
                                  new_child_stats_normal, &
                                  null_encode_child, attempt_die_normal
     use csf_data, only: csf_orbital_mask
+    use kp_fciqmc_break_circular, only: calc_trial_states, &
+                                        set_trial_populations, &
+                                        set_trial_states
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                clean_global_det_data, init_global_det_data, &
                                set_part_init_time
@@ -1839,6 +1842,30 @@ contains
         end if
 
     end subroutine InitFCIMC_HF_orthog
+
+    subroutine InitFCIMC_trial()
+
+        ! Use the code generated for the KPFCIQMC excited state calculations
+        ! to initialise the FCIQMC simulation.
+
+        integer :: nexcit, ndets_this_proc
+        real(dp), allocatable :: evecs_this_proc(:,:), init_vecs(:,:)
+
+        nexcit = inum_runs
+
+        ! Create the trial excited states
+        call calc_trial_states(nexcit, ndets_this_proc, evecs_this_proc, &
+                               SpawnedParts)
+        ! Determine the walker populations associated with these states
+        call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
+        ! Set the trial excited states as the FCIQMC wave functions
+        call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts)
+
+        deallocate(evecs_this_proc)
+
+
+
+    end subroutine
 
     !Routine to initialise the particle distribution according to a CAS diagonalisation. 
     !This hopefully will help with close-lying excited states of the same sym.
