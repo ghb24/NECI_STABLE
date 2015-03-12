@@ -882,8 +882,9 @@ contains
         use util_mod, only: int_fmt, get_free_unit
 
         integer, intent(in) :: nvecs, irepeat
-        integer :: ivec
+        integer :: ivec, icolumn
         integer :: temp_unit
+        character(22) :: column_label
         character(len=*), parameter :: filename = "EIGV_DATA"
 
         temp_unit = get_free_unit()
@@ -894,25 +895,46 @@ contains
             open(temp_unit, file=trim(filename), status='old', position='append')
         end if
 
+        ! Write header.
         if (irepeat == 1) then
-            ! Write header.
-            write(temp_unit,'("#",1X,"Iteration")',advance='no')
+            ! The number of the column.
+            icolumn = 1
+
+            write(temp_unit,'("#",1X,"1. Iteration")',advance='no')
+
+            ! Energy estimates.
             do ivec = 1, nvecs
-                write(temp_unit,'(13X,"Energy",1X,i2)',advance='no') ivec
+                icolumn = icolumn + 1
+                write(column_label,'('//int_fmt(icolumn,0)//',".",1X,"Energy",1X,'//int_fmt(ivec,0)//')') icolumn, ivec
+                column_label = adjustr(column_label)
+                write(temp_unit, '(a22)', advance='no') column_label
             end do
             do ivec = 1, nvecs
-                write(temp_unit,'(6X,"Spin [S(S+1)]",1X,i2)',advance='no') ivec
+                icolumn = icolumn + 1
+                write(column_label,'('//int_fmt(icolumn,0)//',".",1X,"Diag. energy",1X,'//int_fmt(ivec,0)//')') icolumn, ivec
+                column_label = adjustr(column_label)
+                write(temp_unit, '(a22)', advance='no') column_label
             end do
-            do ivec = 1, nvecs
-                write(temp_unit,'(7X,"Diag. energy",1x,i2)',advance='no') ivec
-            end do
+
+            ! Spin estimates.
             if (tCalcSpin) then
                 do ivec = 1, nvecs
-                    write(temp_unit,'(9X,"Diag. spin",1x,i2)',advance='no') ivec
+                    icolumn = icolumn + 1
+                    write(column_label,'('//int_fmt(icolumn,0)//',".",1X,"Spin^2",1X,'//int_fmt(ivec,0)//')') icolumn, ivec
+                    column_label = adjustr(column_label)
+                    write(temp_unit, '(a22)', advance='no') column_label
+                end do
+                do ivec = 1, nvecs
+                    icolumn = icolumn + 1
+                    write(column_label,'('//int_fmt(icolumn,0)//',".",1X,"Diag spin^2",1X,'//int_fmt(ivec,0)//')') icolumn, ivec
+                    column_label = adjustr(column_label)
+                    write(temp_unit, '(a22)', advance='no') column_label
                 end do
             end if
+
             write(temp_unit,'()')
         end if
+
         write(temp_unit,'("#",1X,"Repeat",'//int_fmt(irepeat,1)//')') irepeat
 
         close(temp_unit)
@@ -939,7 +961,7 @@ contains
 
         nvecs = size(lowdin_evals,1)
 
-        write(temp_unit,'(2X,i9)',advance='no') niters
+        write(temp_unit,'(5X,i9)',advance='no') niters
 
         do ivec = 1, nlowdin
             write(temp_unit,'(3X,es19.12)',advance='no') lowdin_evals(ivec, nlowdin)

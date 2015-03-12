@@ -426,7 +426,7 @@ contains
                 hamil_matrix => hamil_matrices(:,:,irepeat,ireport)
                 overlap_matrix(:,:) = 0.0_dp
                 hamil_matrix(:,:) = 0.0_dp
-                if (tCalcSpin)
+                if (tCalcSpin) then
                     spin_matrix => spin_matrices(:,:,irepeat,ireport)
                     spin_matrix(:,:) = 0.0_dp
                 end if
