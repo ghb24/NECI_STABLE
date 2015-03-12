@@ -331,18 +331,16 @@ contains
         ! data have been updated correctly.
         if (changed_any) then
             proje_ref_energy_offsets = 0
-            if (tOrthogonaliseReplicas) then
-                do run = 1, inum_runs
-                    if (tHPHF) then
-                        h_tmp = hphf_diag_helement (ProjEDet(:,run), &
-                                                    ilutRef(:,run))
-                    else
-                        h_tmp = get_helement (ProjEDet(:,run), &
-                                              ProjEDet(:,run), 0)
-                    endif
-                    proje_ref_energy_offsets(run) = real(h_tmp, dp) - Hii
-                end do
-            end if
+            do run = 1, inum_runs
+                if (tHPHF) then
+                    h_tmp = hphf_diag_helement (ProjEDet(:,run), &
+                                                ilutRef(:,run))
+                else
+                    h_tmp = get_helement (ProjEDet(:,run), &
+                                          ProjEDet(:,run), 0)
+                endif
+                proje_ref_energy_offsets(run) = real(h_tmp, dp) - Hii
+            end do
         end if
                     
     end subroutine

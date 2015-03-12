@@ -314,12 +314,12 @@ contains
 
     subroutine init_kp_fciqmc(kp)
 
-        use CalcData, only: tSemiStochastic, tUseRealCoeffs, AvMCExcits, tCheckHighestPop
+        use CalcData, only: tSemiStochastic, tUseRealCoeffs, AvMCExcits
         use fcimc_initialisation, only: SetupParameters, InitFCIMCCalcPar, init_fcimc_fn_pointers
         use FciMCData, only: tPopsAlreadyRead, nWalkerHashes, SpawnVecKP
         use FciMCData, only: SpawnVecKP2, MaxSpawned, determ_space_size, determ_sizes
         use FciMCData, only: SpawnedPartsKP, SpawnedPartsKP2, MaxWalkersUncorrected
-        use FciMCData, only: iter_data_fciqmc, spawn_ht, nhashes_spawn
+        use FciMCData, only: iter_data_fciqmc, spawn_ht, nhashes_spawn, tReplicaReferencesDiffer
         use FciMCParMod, only: WriteFciMCStatsHeader, write_fcimcstats2, tSinglePartPhase
         use hash, only: init_hash_table
         use LoggingData, only: tFCIMCStats2
@@ -499,8 +499,8 @@ contains
         ! shift from varying on subsequent repeats.
         tSinglePartPhaseKPInit = tSinglePartPhase
 
-        ! Never change the reference when using KP-FCIQMC.
-        tCheckHighestPop = .false.
+        ! Allow different replicas to have different references in this case.
+        if (tExcitedStateKP) tReplicaReferencesDiffer = .true.
 
     end subroutine init_kp_fciqmc
 
