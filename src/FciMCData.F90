@@ -333,22 +333,31 @@ MODULE FciMCData
       real(dp), allocatable :: InstShift(:)
       real(dp), allocatable :: OldAllNoatHF(:)
 
-      INTEGER :: iHFProc    !Processor index for HF determinant
+      ! Where is the reference site being stored?
+      integer, allocatable :: iRefProc(:)
 
       !This data is for calculating the highest population determinant, 
       !and potentially restarting the calculation based on this determinant, 
       !or changing the determiant which the energy is calculated from.
-      INTEGER :: iHighestPop
+      integer, allocatable:: iHighestPop(:)
       INTEGER :: QuadDetsEst !Estimate of the number of symmetry allowed determinants at excit level 4
       INTEGER :: DoubDetsEst !Estimate of the number of symmetry allowed determinants at excit level 2
-      INTEGER , ALLOCATABLE :: ProjEDet(:)
-      INTEGER(KIND=n_int) , ALLOCATABLE :: HighestPopDet(:),iLutRef(:)
-      INTEGER(n_int) , ALLOCATABLE :: iLutRefFlip(:)     !If we are using HPHF and projecting onto 
+      logical :: tReplicaReferencesDiffer
+
+      integer, allocatable :: ProjEDet(:, :)
+      integer(n_int), allocatable :: HighestPopDet(:,:), iLutRef(:, :)
+      integer(n_int), allocatable :: iLutRefFlip(:, :)     !If we are using HPHF and projecting onto 
                                                         !an open-shell determinant, then it is useful
                                                         !to store the spin-coupled determinant, 
                                                         !so we can calculate projection onto both.
-      INTEGER , ALLOCATABLE :: RefDetFlip(:)
-      LOGICAL :: tSpinCoupProjE
+
+      ! Even with multiple reference determinants, the calculation is done
+      ! relative to Hii. So we need to adjust the calculated projected energy
+      ! by a different amount.
+      real(dp), allocatable :: proje_ref_energy_offsets(:)
+
+      integer, allocatable :: RefDetFlip(:, :)
+      logical, allocatable :: tSpinCoupProjE(:)
       
       !Extra data recorded for using RealCoefficients
       INTEGER :: WalkersToSpawn
@@ -545,6 +554,8 @@ MODULE FciMCData
 
       type(perturbation), allocatable :: pops_pert(:)
 
+      real(dp), allocatable :: replica_overlaps(:, :)
+
 contains
 
     subroutine set_initial_global_data(ndets, ilut_list)
@@ -569,7 +580,7 @@ contains
         do i = 1, ndets
             call extract_sign(ilut_list(:,i), real_sign)
             TotParts = TotParts + abs(real_sign)
-            if ( all(ilut_list(0:NIfDBO,i) == iLutRef(0:NIfDBO)) ) NoAtHF = real_sign
+            if ( all(ilut_list(0:NIfDBO,i) == iLutRef(0:NIfDBO, 1)) ) NoAtHF = real_sign
         end do
 
         TotWalkers = ndets
@@ -598,21 +609,20 @@ contains
 
         iter_data_fciqmc%tot_parts_old = AllTotParts
         
-        ! Calculate the projected energy for this iteration.
         do run = 1, inum_runs
+
+            ! Calculate the projected energy for this iteration.
             if (ARR_RE_OR_CPLX(AllSumNoAtHF,run) /= 0) &
                 ProjectionE(run) = AllSumENum(run) / ARR_RE_OR_CPLX(AllSumNoatHF,run)
+            
+            ! Keep track of where the particles are
+            if (iProcIndex == iRefProc(run)) then
+                SumNoatHF(run) = AllSumNoatHF(run)
+                SumENum(run) = AllSumENum(run)
+                InstNoatHF(run) = NoatHF(run)
+            end if
+
         enddo 
-
-        if (iProcIndex == iHFProc) then
-            SumNoatHF(:) = AllSumNoatHF(:)
-            SumENum(:) = AllSumENum(:)
-            InstNoatHF(:) = NoatHF(:)
-
-            if ( any(AllNoatHF /= NoatHF) ) then
-                call stop_all(t_r, "HF particles spread across different processors.")
-            endif
-        endif
 
     end subroutine set_initial_global_data
 

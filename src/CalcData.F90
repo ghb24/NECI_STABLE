@@ -253,6 +253,10 @@ real(dp) :: im_time_init_thresh, init_survival_mult
 logical :: tSpawnCountInitiatorThreshold
 integer :: init_spawn_thresh
 
+! Are we orthogonalising replicas?
+logical :: tOrthogonaliseReplicas
+integer :: orthogonalise_iter
+
 ! If true then a hash table is kept for the spawning array and is used when
 ! new spawnings are added to the spawned list, to prevent adding the same
 ! determinant multiple times.

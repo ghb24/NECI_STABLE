@@ -5,7 +5,9 @@ module fcimc_helper
     use constants
     use util_mod
     use systemData, only: nel, tHPHF, tNoBrillouin, G1, tUEG, &
-                          tLatticeGens, nBasis, tHistSpinDist
+                          tLatticeGens, nBasis, tHistSpinDist, tRef_Not_HF
+    use HPHFRandExcitMod, only: ReturnAlphaOpenDet
+    use semi_stoch_procs, only: recalc_core_hamil_diag
     use bit_reps, only: NIfTot, flag_initiator, test_flag, extract_flags, &
                         encode_bit_rep, NIfD, set_flag_general, NIfDBO, &
                         extract_sign, set_flag, encode_sign, &
@@ -13,8 +15,9 @@ module fcimc_helper
                         extract_part_sign, encode_part_sign, decode_bit_det, &
                         set_has_been_initiator, flag_has_been_initiator
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
-                         DetBitEQ, count_open_orbs, EncodeBitDet
-    use Determinants, only: get_helement
+                         DetBitEQ, count_open_orbs, EncodeBitDet, &
+                         TestClosedShellDet
+    use Determinants, only: get_helement, write_det
     use FciMCData
     use hist, only: test_add_hist_spin_dist_det, add_hist_spawn, &
                     add_hist_energies, HistMinInd
@@ -35,7 +38,8 @@ module fcimc_helper
                         im_time_init_thresh, tSurvivalInitMultThresh, &
                         init_survival_mult, MaxWalkerBloom, &
                         tMultiReplicaInitiators, NMCyc, iSampleRDMIters, &
-                        tSpawnCountInitiatorThreshold, init_spawn_thresh
+                        tSpawnCountInitiatorThreshold, init_spawn_thresh, &
+                        tOrthogonaliseReplicas
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
@@ -47,6 +51,7 @@ module fcimc_helper
     use FciMCLoggingMod, only: HistInitPopulations, WriteInitPops
     use csf_data, only: csf_orbital_mask
     use csf, only: iscsf
+    use hphf_integrals, only: hphf_diag_helement
     use global_det_data, only: get_av_sgn, set_av_sgn, set_det_diagH, &
                                global_determinant_data, set_iter_occ, &
                                get_part_init_time, det_diagH, get_spawn_count
@@ -272,12 +277,17 @@ contains
         real(dp) :: ovp
         logical tSuccess
         integer :: iUEG1, iUEG2, ProjEBin
-        HElement_t :: HOffDiag
+        HElement_t :: HOffDiag(inum_runs)
         HElement_t :: HDoubDiag
         integer :: DoubEx(2,2),DoubEx2(2,2),kDoub(3) ! For histogramming UEG doubles
         integer :: ExMat(2,2), nopen
         integer :: doub_parity, doub_parity2, parity
         character(*), parameter :: this_routine = 'SumEContrib'
+
+        if (tReplicaReferencesDiffer) then
+            call SumEContrib_orthog(nI, realWSign, ilut, dProbFin)
+            return
+        endif
 
         HOffDiag = 0
 
@@ -306,8 +316,8 @@ contains
         !
         ! For determinants, set ExcitLevel_local == ExcitLevel.
         ExcitLevel_local = ExcitLevel
-        if (tSpinCoupProjE .and. (ExcitLevel /= 0)) then
-            ExcitLevelSpinCoup = FindBitExcitLevel (iLutRefFlip, &
+        if (tSpinCoupProjE(1) .and. (ExcitLevel /= 0)) then
+            ExcitLevelSpinCoup = FindBitExcitLevel (iLutRefFlip(:, 1), &
                                                     ilut, 2)
             if (ExcitLevelSpinCoup <= 2 .or. ExcitLevel <= 2) &
                 ExcitLevel_local = 2
@@ -346,11 +356,11 @@ contains
 
             ! Obtain off-diagonal element
             if (tHPHF) then
-                HOffDiag = hphf_off_diag_helement (ProjEDet, nI, iLutRef,&
-                                                   ilut)
+                HOffDiag(1:inum_runs) = hphf_off_diag_helement (ProjEDet(:,1), nI, &
+                                                                iLutRef(:,1), ilut)
             else
-                HOffDiag = get_helement (ProjEDet, nI, ExcitLevel, &
-                                         ilutRef, ilut)
+                HOffDiag(1:inum_runs) = get_helement (ProjEDet(:,1), nI, &
+                                                      ExcitLevel, ilutRef(:,1), ilut)
             endif
 
         endif ! ExcitLevel_local == 1, 2, 3
@@ -359,11 +369,11 @@ contains
         ! Sum in energy contribution
         do run=1, inum_runs
             if (iter > NEquilSteps) &
-                SumENum(run) = SumENum(run) + (HOffDiag * ARR_RE_OR_CPLX(RealwSign,run)) &
+                SumENum(run) = SumENum(run) + (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) &
                                   / dProbFin
 
-            ENumCyc(run) = ENumCyc(run) + (HOffDiag * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
-            ENumCycAbs(run) = ENumCycAbs(run) + abs(HoffDiag * ARR_RE_OR_CPLX(RealwSign,run)) &
+            ENumCyc(run) = ENumCyc(run) + (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
+            ENumCycAbs(run) = ENumCycAbs(run) + abs(HoffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) &
                                       / dProbFin
         end do
 
@@ -406,6 +416,95 @@ contains
         endif
         
     end subroutine SumEContrib
+
+
+    subroutine SumEContrib_orthog(nI, sgn, ilut, dProbFin)
+
+        ! This is a modified version of SumEContrib for use with replica
+        ! orthogonalisation (where the projected energies need to be calculated
+        ! relative to differing references.
+        !
+        ! TODO: Implement trial wavefunctions, need to talk to Nick
+        !
+        ! Some of the arguments to SumeEContrib have been dropped, as they
+        ! only refer to the first of the replicas, and thus cannot be relied on
+
+        ! n.b. We don't want to just modify SumEContrib for this, as performing
+        !      the calculations _inside_ a sum over runs would radically slow
+        !      down any simulations that were not using differing references
+
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilut(0:NifTot)
+        real(dp), intent(in) :: sgn(lenof_sign), dProbFin
+
+        integer :: run, exlevel
+        real(dp) :: sgn_run
+        HElement_t :: hoffdiag
+        character(*), parameter :: this_routine = 'SumEContrib_orthog'
+
+        ASSERT(inum_runs == lenof_sign)
+        ASSERT(tReplicaReferencesDiffer)
+        ASSERT(tOrthogonaliseReplicas) ! This is the only way to get the above
+#ifdef __CMPLX
+        call stop_all(this_routine, "Complex not supported")
+#endif
+        if (tTrialWavefunction .or. tHistSpawn .or. &
+            (tCalcFCIMCPsi .and. tFCIMC) .or. tHistEnergies .or. &
+            tHistSpinDist .or. tPrintOrbOcc) &
+            call stop_all(this_routine, "Not yet supported")
+
+        !
+        ! This is the normal projected energy calculation, but split over
+        ! multiple runs, rather than done in one go.
+        do run = 1, inum_runs
+
+            ! We need to use the excitation level relevant for this run
+            exlevel = FindBitExcitLevel(ilut, ilutRef(:, run))
+            if (tSpinCoupProjE(run) .and. exlevel /= 0) then
+                if (exlevel <= 2) then
+                    exlevel = 2
+                else if (FindBitExcitLevel(ilut, ilutRefFlip(:,run)) <= 2) then
+                    exlevel = 2
+                end if
+            end if
+            sgn_run = sgn(run)
+
+            hoffdiag = 0
+            if (exlevel == 0) then
+
+                if (iter > nEquilSteps) &
+                    SumNoatHF(run) = SumNoatHF(run) + sgn_run
+                NoatHF(run) = NoatHF(run) + sgn_run
+                HFCyc(run) = HFCyc(run) + sgn_run
+
+            else if (exlevel == 2 .or. (exlevel == 1 .and. tNoBrillouin)) then
+
+                ! n.b. Brillouins theorem cannot hold for real-space Hubbard
+                ! model or for rotated orbitals.
+
+                if (exlevel == 2) &
+                    NoatDoubs(run) = NoatDoubs(run) + sgn_run
+
+                ! Obtain the off-diagonal elements
+                if (tHPHF) then
+                    hoffdiag = hphf_off_diag_helement(ProjEDet(:,run), nI, &
+                                                      iLutRef(:,run), ilut)
+                else
+                    hoffdiag = get_helement (ProjEDet(:,run), nI, exlevel, &
+                                             ilutRef(:,run), ilut)
+                endif
+
+            end if
+
+            ! Sum in energy contributions
+            if (iter > nEquilSteps) &
+                SumENum(run) = SumENum(run) + (hoffdiag * sgn_run) / dProbFin
+            ENumCyc(run) = ENumCyc(run) + (hoffdiag * sgn_run) / dProbFin
+            ENumCycAbs(run) = ENumCycAbs(run) + abs(hoffdiag * sgn_run) / dProbFin
+
+        end do
+
+    end subroutine SumEContrib_orthog
 
 
     subroutine CalcParentFlag(j, parent_flags, diagH)
@@ -524,7 +623,7 @@ contains
         logical :: initiator, tDetInCAS
         real(dp) :: init_thresh, low_init_thresh, init_tm, expected_lifetime
         real(dp) :: hdiag
-        integer :: spwn_cnt
+        integer :: spwn_cnt, run
 
         ! By default the particles status will stay the same
         initiator = is_init
@@ -532,6 +631,7 @@ contains
         ! Nice numbers
         init_thresh = InitiatorWalkNo
         low_init_thresh = InitiatorCutoffWalkNo
+        run = part_type_to_run(part_type)
 
         if (.not. is_init) then
 
@@ -559,7 +659,7 @@ contains
             ! If det. in fixed initiator space, or is the HF det, or it
             ! is in the deterministic space, then it must remain an initiator.
             if (.not. tDetInCas .and. &
-                .not. (DetBitEQ(ilut, iLutHF, NIfDBO)) &
+                .not. (DetBitEQ(ilut, iLutRef(:,run), NIfDBO)) &
                 .and. .not. test_flag(ilut, flag_deterministic) &
                 .and. abs(sgn) <= init_thresh &
                 .and. diagH <= InitiatorCutoffEnergy) then
@@ -1564,6 +1664,108 @@ contains
         ENDIF
 
     end subroutine check_start_rdm
+
+    subroutine update_run_reference(ilut, run)
+
+        ! Update the reference used for a particular run to the one specified.
+        ! Update the HPHF flipped arrays, and adjust the stored diagonal
+        ! energies to account for the change if necessary.
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: run
+        character(*), parameter :: this_routine = 'update_run_reference'
+
+        HElement_t :: h_tmp
+        real(dp) :: old_hii
+        integer :: i, det(nel)
+        logical :: tSwapped
+
+        iLutRef(:, run) = 0
+        iLutRef(0:NIfDBO, run) = ilut(0:NIfDBO)
+        call decode_bit_det (ProjEDet(:, run), iLutRef(:, run))
+        write (iout, '(a,i3,a)', advance='no') 'Changing projected &
+              &energy reference determinant for run', run, &
+              ' on the next update cycle to: '
+        call write_det (iout, ProjEDet(:, run), .true.)
+
+        if(tHPHF) then
+            if(.not.Allocated(RefDetFlip)) then
+                allocate(RefDetFlip(NEl, inum_runs), &
+                         ilutRef(0:NifTot, inum_runs))
+                RefDetFlip = 0
+                iLutRefFlip = 0
+            endif
+            if(.not. TestClosedShellDet(iLutRef(:, run))) then
+                ! Complications. We are now effectively projecting
+                ! onto a LC of two dets. Ensure this is done correctly.
+                call ReturnAlphaOpenDet(ProjEDet(:,run), &
+                                        RefDetFlip(:, run), &
+                                        iLutRef(:,run), &
+                                        iLutRefFlip(:, run), &
+                                        .true., .true., tSwapped)
+                if(tSwapped) then
+                    ! The iLutRef should already be the correct
+                    ! one, since it was obtained by the normal
+                    ! calculation!
+                    call stop_all(this_routine, &
+                        "Error in changing reference determinant &
+                        &to open shell HPHF")
+                endif
+                write(iout,"(A)") "Now projecting onto open-shell &
+                    &HPHF as a linear combo of two determinants...&
+                    & for run", run
+                tSpinCoupProjE(run) = .true.
+            endif
+        else
+            ! In case it was already on, and is now projecting
+            ! onto a CS HPHF.
+            tSpinCoupProjE(run) = .false.
+        endif
+
+        ! We can't use Brillouin's theorem if not a converged,
+        ! closed shell, ground state HF det.
+        tNoBrillouin = .true.
+        tRef_Not_HF = .true.
+        root_print "Ensuring that Brillouin's theorem is no &
+                   &longer used."
+
+        ! If this is the first replica, update the global reference
+        ! energy.
+        if (run == 1) then
+
+            old_Hii = Hii
+            if (tHPHF) then
+                h_tmp = hphf_diag_helement (ProjEDet(:,1), &
+                                            iLutRef(:,1))
+            else
+                h_tmp = get_helement (ProjEDet(:,1), &
+                                      ProjEDet(:,1), 0)
+            endif
+            Hii = real(h_tmp, dp)
+            write (iout, '(a, g25.15)') &
+                'Reference energy now set to: ', Hii
+
+            ! Regenerate all the diagonal elements relative to the
+            ! new reference det.
+            write (iout,*) 'Regenerating the stored diagonal &
+                           &HElements for all walkers.'
+            do i = 1, int(Totwalkers,sizeof_int)
+                call decode_bit_det (det, CurrentDets(:,i))
+                if (tHPHF) then
+                    h_tmp = hphf_diag_helement (det, &
+                                                CurrentDets(:,i))
+                else
+                    h_tmp = get_helement (det, det, 0)
+                endif
+                call set_det_diagH(i, real(h_tmp, dp) - Hii)
+            enddo
+            if (tSemiStochastic) &
+                call recalc_core_hamil_diag(old_Hii, Hii)
+
+        end if ! run == 1
+
+    end subroutine
+
 
 
 end module

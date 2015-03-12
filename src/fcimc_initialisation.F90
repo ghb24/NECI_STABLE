@@ -26,7 +26,8 @@ module fcimc_initialisation
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
                         RealCoeffExcitThresh, TargetGrowRate, &
                         TargetGrowRateWalk, InputTargetGrowRate, &
-                        InputTargetGrowRateWalk, use_spawn_hash_table
+                        InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
+                        use_spawn_hash_table
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -51,7 +52,7 @@ module fcimc_initialisation
     use bit_rep_data, only: NIfTot, NIfD, NIfDBO, flag_initiator, &
                             flag_deterministic
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
-                        decode_bit_det
+                        decode_bit_det, nullify_ilut, encode_part_sign
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
                          BeforeNormHist, InstHist, iNoBins, AllInstHist, &
                          HistogramEnergy, AllHistogramEnergy, AllHistogram, &
@@ -74,10 +75,12 @@ module fcimc_initialisation
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
                                        gen_excit_4ind_weighted, &
                                        gen_excit_4ind_reverse
-    use hash, only: DetermineDetNode, FindWalkerHash, init_hash_table
+    use hash, only: DetermineDetNode, FindWalkerHash, add_hash_table_entry, &
+                    init_hash_table
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD , only : InitHistInitPops
+    use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2
     use nElRDMMod, only: DeallocateRDM, InitRDM, fill_rdm_diag_currdet_norm, &
                          extract_bit_rep_avsign_no_rdm
     use DetBitOps, only: FindBitExcitLevel, CountBits, TestClosedShellDet, &
@@ -96,6 +99,7 @@ module fcimc_initialisation
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
+    use sym_general_mod, only: ClassCountInd
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
     use ueg_excit_gens, only: gen_ueg_excit
     use gndts_mod, only: gndts
@@ -103,6 +107,7 @@ module fcimc_initialisation
     use tau_search, only: init_tau_search
     use fcimc_helper, only: CalcParentFlag
     use get_excit, only: make_double
+    use sltcnd_mod, only: sltcnd_0
     use Parallel_neci
     use FciMCData
     use util_mod
@@ -127,7 +132,7 @@ contains
         CHARACTER(len=12) :: abstr
         character(len=24) :: filename, filename2
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,tAlreadyOcc
-        INTEGER :: HFLz,ChosenOrb,KPnt(3), step,SymFinal
+        INTEGER :: HFLz,ChosenOrb,KPnt(3), step,SymFinal, run
         integer(int64) :: ExcitLevPop,SymHF
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
@@ -280,16 +285,14 @@ contains
 
         !iLutRef is the reference determinant for the projected energy.
         !Initially, it is chosen to be the same as the inputted reference determinant
-        ALLOCATE(iLutRef(0:NIfTot),stat=ierr)
-        ALLOCATE(ProjEDet(NEl),stat=ierr)
+        ALLOCATE(iLutRef(0:NIfTot, inum_runs), stat=ierr)
+        ALLOCATE(ProjEDet(NEl, inum_runs), stat=ierr)
 
         IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for iLutRef")
         
         ! The reference / projected energy determinants are the same as the
         ! HF determinant.
-        ! TODO: Make these pointers rather than copies?
-        iLutRef = iLutHF
-        ProjEDet = HFDet
+        call assign_reference_dets()
 
         ALLOCATE(iLutHF_True(0:NIfTot),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for iLutHF_True")
@@ -308,25 +311,38 @@ contains
         endif
 
         if(tHPHF) then
-            if(.not.TestClosedShellDet(iLutRef)) then
-                !We test here whether the reference determinant actually corresponds to an open shell HPHF.
-                !If so, we need to ensure that we are specifying the correct determinant of the pair, and also
-                !indicate that the projected energy needs to be calculated as a projection onto both of these determinants.
-                ALLOCATE(RefDetFlip(NEl))
-                ALLOCATE(iLutRefFlip(0:NIfTot))
-                !We need to ensure that the correct pair of the HPHF det is used to project onto/start from.
-                call ReturnAlphaOpenDet(ProjEDet,RefDetFlip,iLutRef,iLutRefFlip,.true.,.true.,tSwapped)
-                if(tSwapped) then
-                    write(iout,*) "HPHF used, and open shell determinant spin-flipped for consistency."
-                endif
-                write(iout,*) "Two *different* determinants contained in initial HPHF"
-                write(iout,*) "Projected energy will be calculated as projection onto both of these"
-                tSpinCoupProjE=.true.
-            else
-                tSpinCoupProjE=.false.
-            endif
+            allocate(RefDetFlip(NEl, inum_runs), &
+                     ilutRefFlip(0:NifTot, inum_runs))
+            do run = 1, inum_runs
+                if (.not. TestClosedShellDet(ilutRef(:, run))) then
+
+                    ! If the reference determinant corresponds to an open shell
+                    ! HPHF, then we need to specify the paired determinant and
+                    ! mark that this needs to be considered in calculating
+                    ! the projected energy.
+
+                    tSpinCoupProjE(run) = .true.
+                    call ReturnAlphaOpenDet(ProjEDet(:, run), &
+                                            RefDetFlip(:, run), &
+                                            ilutRef(:, run), &
+                                            ilutRefFlip(:, run), &
+                                            .true., .true., tSwapped)
+                    if (tSwapped) &
+                        write(iout,*) 'HPHF used, and open shell determinant &
+                                      &for run ', run, ' spin-flippd for &
+                                      &consistency.'
+                    write(iout,*) "Two *different* determinants contained in &
+                                  &initial HPHF for run ", run
+                    write(iout,*) "Projected energy will be calculated as &
+                                  &projection onto both of these."
+
+                else
+                    tSpinCoupProjE(run) = .false.
+                end if
+            end do
+
         else
-            tSpinCoupProjE=.false.
+            tSpinCoupProjE(:) = .false.
         endif
 
 !Init hash shifting data
@@ -368,9 +384,10 @@ contains
             CALL Stop_All(t_r,"CountBits FAIL")
         ENDIF
 
-        ALLOCATE(HighestPopDet(0:NIfTot),stat=ierr)
+        ALLOCATE(HighestPopDet(0:NIfTot, inum_runs),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for HighestPopDet")
-        HighestPopDet(:)=0
+        HighestPopDet(:,:)=0
+        iHighestPop = 0
 
 !Check that the symmetry routines have set the symmetry up correctly...
         tSuccess=.true.
@@ -490,9 +507,6 @@ contains
             call enumerate_sing_doub_kpnt(exflag, .false., nSingles, nDoubles, .false.)
         ENDIF
         HFConn=nSingles+nDoubles
-
-        ! Set the DiagSft to its original value
-        DiagSft = InputDiagSft
 
         ! Initialise random number seed - since the seeds need to be different
         ! on different processors, subract processor rank from random number
@@ -663,6 +677,24 @@ contains
         else
             UpperTau=0.0_dp
         ENDIF
+
+        ! Initialise DiagSft according to the input parameters. If we have
+        ! multiple projected-energy references, then the shift on each of the
+        ! runs should be adjusted so that it is still relative to the first
+        ! replica, but is offset by the replica's reference's diagonal energy.
+        DiagSft = InputDiagSft
+        proje_ref_energy_offsets = 0
+        if (tOrthogonaliseReplicas) then
+            do run = 1, inum_runs
+                if (tHPHF) then
+                    TempHii = hphf_diag_helement (ProjEDet(:,run), ilutRef(:,run))
+                else
+                    TempHii = get_helement (ProjEDet(:,run), ProjEDet(:,run), 0)
+                endif
+                proje_ref_energy_offsets(run) = real(TempHii, dp) - Hii
+                DiagSft(run) = DiagSft(run) + real(TempHii, dp) - Hii
+            end do
+        end if
 
         IF(tHub) THEN
             IF(tReal) THEN
@@ -1050,10 +1082,10 @@ contains
         integer :: PopRandomHash(1024)
         integer(int64) :: iPopAllTotWalkers
         integer :: i
-        real(dp) :: PopDiagSft, PopDiagSft2
+        real(dp) :: PopDiagSft(1:inum_runs)
         real(dp) , dimension(lenof_sign) :: InitialSign
-        real(dp) , dimension(lenof_sign/inum_runs) :: PopSumNoatHF
-        HElement_t :: PopAllSumENum
+        real(dp) , dimension(lenof_sign) :: PopSumNoatHF
+        HElement_t :: PopAllSumENum(1:inum_runs)
         integer :: perturb_ncreate, perturb_nannihilate
         
         !default
@@ -1094,7 +1126,7 @@ contains
                     ! in via a namelist, so that we can add more details 
                     ! whenever we want.
                     call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                            iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter, &
+                            iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
                             PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
                             read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
                             read_pparallel, read_nnodes, read_walkers_on_nodes)
@@ -1122,7 +1154,7 @@ contains
                 end if
 
                 call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
-                        iPopAllTotWalkers,PopDiagSft,PopDiagSft2,PopSumNoatHF,PopAllSumENum,iPopIter, &
+                        iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
                         PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
                         MaxWalkersUncorrected,read_tau,PopBlockingIter, read_psingles, read_pparallel, &
                         perturb_ncreate, perturb_nannihilate)
@@ -1202,10 +1234,12 @@ contains
             CurrentDets => WalkVecDets
 
             ! Get the (0-based) processor index for the HF det.
-            iHFProc = DetermineDetNode(nel,HFDet,0)
-            WRITE(iout,"(A,I8)") "Reference processor is: ",iHFProc
+            do run = 1, inum_runs
+                iRefProc(run) = DetermineDetNode(nel, ProjEDet(:, run), 0)
+            end do
+            WRITE(iout,"(A,I8)") "Reference processor is: ",iRefProc(1)
             write(iout,"(A)",advance='no') "Initial reference is: "
-            call write_det(iout,HFDet,.true.)
+            call write_det(iout, ProjEDet(:, 1), .true.)
 
             TotParts(:)=0.0
             TotPartsOld(:)=0.0
@@ -1311,6 +1345,8 @@ contains
         ! diagonalising the trial space to find the trial wavefunction and calculating the vector
         ! in the connected space, required for the energy estimator.
         if (tTrialWavefunction) call init_trial_wf()
+
+        replica_overlaps(:, :) = 0
 
     end subroutine InitFCIMCCalcPar
 
@@ -1578,13 +1614,18 @@ contains
         integer :: run, DetHash
         real(dp) , dimension(lenof_sign) :: InitialSign
 
+        if (tOrthogonaliseReplicas) then
+            call InitFCIMC_HF_orthog()
+            return
+        end if
+
         InitialPartVec = 0.0_dp
         do run=1,inum_runs
             InitialPartVec(run)=InitialPart
         enddo
 
         !Setup initial walker local variables for HF walkers start
-        IF(iProcIndex.eq.iHFProc) THEN
+        IF(iProcIndex.eq.iRefProc(1)) THEN
 
             ! Encode the reference determinant identification.
             call encode_det(CurrentDets(:,1), iLutHF)
@@ -1676,6 +1717,128 @@ contains
         ENDIF
 
     end subroutine InitFCIMC_HF
+
+    subroutine InitFCIMC_HF_orthog()
+
+        ! This is a reimplementation of InitFCIMC_HF to work with multiple
+        ! different reference states.
+        !
+        ! In the end, we expect to be able to just substitute it back in
+        ! for the original. It should give the same results
+        ! TODO: Substitute back
+
+        integer :: run, site, hash_val, i
+        logical :: repeated
+        HElement_t :: hdiag
+        character(*), parameter :: this_routine = 'InitFCIMC_HF_orthog'
+
+        ! Add some implementation guards
+#ifdef __CMPLX
+        call stop_all(this_routine, "Complex not yet supported")
+#endif
+        if (inum_runs /= lenof_sign) &
+            call stop_all(this_routine, "Not yet supported")
+
+        ! Default values, unless overridder for individual procs
+        NoatHF = 0.0_dp
+        TotWalkers = 0.0_dp
+        TotWalkersOld = 0.0_dp
+        tRef_Not_HF = .true.
+        tNoBrillouin = .true.
+
+        !
+        ! Initialise each of the runs separately.
+        site = 0
+        do run = 1, inum_runs
+
+            ! If this run should have the reference on this site, then
+            ! initialise it as appropriate.
+            if (iProcIndex == iRefProc(run)) then
+
+                ! Check if this reference is the same as any of the previous
+                ! ones. If it is not, then at the end of the loop (i == site+1)
+                repeated = .false.
+                do i = 1, site
+                    if (DetBitEQ(CurrentDets(:, i), ilutRef(:, run))) then
+                        repeated = .true.
+                        exit
+                    end if
+                end do
+                site = i
+
+                if (.not. repeated) then
+                    ! Add the site to the main list (unless it is already there)
+                    call encode_det(CurrentDets(:, site), ilutRef(:, run))
+                    hash_val = FindWalkerHash(ProjEDet(:, run), nWalkerHashes)
+                    call add_hash_table_entry(HashIndex, site, hash_val)
+                    
+                    ! Clear all the flags and sign
+                    call clear_all_flags(CurrentDets(:, site))
+                    call nullify_ilut(CurrentDets(:, site))
+                end if
+
+                ! Set reference determinant as an initiator if tTruncInitiator
+                if (tTruncInitiator) then
+                    call set_flag(CurrentDets(:, site), flag_initiator(run))
+#ifdef __CMPLX
+                    call stop_all(this_routine, "Needs adjusting")
+#endif
+                end if
+
+                ! TODO: Support semi-stochastic simulations
+                !       --> Consider what we mean by deterministic spaces?
+                if (tSemiStochastic) &
+                    call stop_all(this_routine, "Not yet supported")
+
+                ! The global reference is the HF and is primary for printed
+                ! energies.
+                if (run == 1) HFInd = site
+                if (tHPHF) then
+                    hdiag = hphf_diag_helement(ProjEDet(:,run), ilutRef(:,run))
+                else
+                    hdiag = get_helement(ProjEDet(:, run), ProjEDet(:, run), 0)
+                endif
+                call set_det_diagH(site, real(hdiag, dp) - Hii)
+
+                ! Set the initial occupation time
+                call set_part_init_time(site, TotImagTime)
+
+                ! Obtain the initial sign
+                if (.not. tStartSinglePart) &
+                    call stop_all(this_routine, "Only startsinglepart supported")
+                call encode_part_sign(CurrentDets(:,site), InitialPart, run)
+                
+                ! Initial control values
+                TotWalkers = site
+                TotWalkersOld = site
+                NoatHF(run) = InitialPart
+                TotParts(run) = real(InitialPart, dp)
+                TotPartsOld(run) = real(InitialPart, dp)
+            end if
+        end do
+
+        ! Check to ensure that the following code is valid
+        if (.not. tStartSinglePart) &
+            call stop_all(this_routine, "Only startsinglepart supported")
+
+        ! Initialise global variabes for calculation on the root node
+        OldAllNoatHF = 0.0_dp
+        AllNoatHF = 0.0_dp
+        call MPISum(TotWalkers, AllTotWalkers)
+        if (iProcIndex == root) then
+            OldAllNoatHF(:) = InitialPart
+            OldAllAvWalkersCyc(:) = InitialPart
+            AllNoatHF(:) = InitialPart
+            InstNoatHF(:) = InitialPart
+            AllTotParts(:) = InitialPart
+            AllTotPartsOld(:) = InitialPart
+            AllNoAbortedOld(:) = InitialPart
+            OldAllHFCyc(:) = InitialPart
+            
+            TotWalkersOld = TotWalkers
+        end if
+
+    end subroutine InitFCIMC_HF_orthog
 
     !Routine to initialise the particle distribution according to a CAS diagonalisation. 
     !This hopefully will help with close-lying excited states of the same sym.
@@ -1781,8 +1944,8 @@ contains
 
         ! Get the first part of a determinant with the lowest energy, rather
         ! than lowest index number orbitals
-        energytmp = ARR(ProjEDet, 2)
-        tmp_det = ProjEDet
+        energytmp = ARR(ProjEDet(:,1), 2)
+        tmp_det = ProjEDet(:,1)
         call sort(energytmp, tmp_det)
 
         ! Construct the determinants resulting from the CAS expansion.
@@ -1967,7 +2130,7 @@ contains
 
          !If the reference det is not the maximum weighted det, suggest that
          !we change it!
-        if (.not. all(CASFullDets(:, det_max) == ProjEDet)) then
+        if (.not. all(CASFullDets(:, det_max) == ProjEDet(:,1))) then
             write(iout,*) 'The specified reference determinant is not the &
                        &maximum weighted determinant in the CAS expansion'
             write(iout,*) 'Use following det as reference:'
@@ -2028,7 +2191,7 @@ contains
 
                 if(NoWalkers.ne.0.0) then
                     call EncodeBitDet(CASFullDets(:,i),iLutnJ)
-                    if(DetBitEQ(iLutnJ,iLutRef,NIfDBO)) then
+                    if(DetBitEQ(iLutnJ, iLutRef(:,1), NIfDBO)) then
                         !Check if this determinant is reference determinant, so we can count number on hf.
                         do run=1,inum_runs
                             NoatHF(run) = NoWalkers
@@ -2283,7 +2446,7 @@ contains
         enddo
 
         !Now for the walkers on the HF det
-        if(iHFProc.eq.iProcIndex) then
+        if(iRefProc(1) .eq. iProcIndex) then
             if (tAllRealCoeff .or. tRealCoeffByExcitLevel) then
                     NoWalkers=PartFac
             else
@@ -2879,6 +3042,89 @@ contains
         endif
 
     end subroutine MoveFCIMCStatsFiles
+
+    subroutine assign_reference_dets()
+
+        ! Depending on the configuration we may have one, or multiple,
+        ! reference determinants.
+
+        integer :: det(nel), orbs(nel), orb, orb2, norb
+        integer :: run, cc_idx, label_idx, i, j, found_orbs(inum_runs)
+        real(dp) :: energies(nel), hdiag
+        character(*), parameter :: this_routine = 'assign_reference_dets'
+
+        if (.not. tOrthogonaliseReplicas) then
+
+            ! This is the normal case. All simultions are essentially doing
+            ! the same thing...
+
+            do run = 1, inum_runs
+                ilutRef(:, run) = ilutHF
+                ProjEDet(:, run) = HFDet
+            end do
+
+            ! And make sure that the rest of the code knows this
+            tReplicaReferencesDiffer = .false.
+
+        else
+
+            tReplicaReferencesDiffer = .true.
+
+            ! The first replica is just a normal FCIQMC simulation.
+            ilutRef(:, 1) = ilutHF
+            ProjEDet(:, 1) = HFDet
+
+            found_orbs = 0
+            do run = 2, inum_runs
+
+                ! Now we want to find the lowest energy single excitation with
+                ! the same symmetry as the reference site.
+                do i = 1, nel
+                    ! Find the excitations, and their energy
+                    orb = HFDet(i)
+                    cc_idx = ClassCountInd(orb)
+                    label_idx = SymLabelCounts2(1, cc_idx)
+                    norb = OrbClassCount(cc_idx)
+
+                    ! nb. sltcnd_0 does not depend on the ordering of the det,
+                    !     so we don't need to do any sorting here.
+                    energies(i) = 9999999.9_dp
+                    do j = 1, norb
+                        orb2 = SymLabelList2(label_idx + j - 1)
+                        if ((.not. any(orb2 == HFDet)) .and. &
+                            (.not. any(orb2 == found_orbs))) then
+                            det = HFDet
+                            det(i) = orb2
+                            hdiag = real(sltcnd_0(det), dp)
+                            if (hdiag < energies(i)) then
+                                energies(i) = hdiag
+                                orbs(i) = orb2
+                            end if
+                        end if
+                    end do
+                end do
+
+                ! Which of the electrons that is excited gives the lowest energy?
+                i = minloc(energies, 1)
+                found_orbs(run) = orbs(i)
+
+                ! Construct that determinant, and set it as the reference.
+                ProjEDet(:, run) = HFDet
+                ProjEDet(i, run) = orbs(i)
+                call sort(ProjEDet(:, run))
+                call EncodeBitDet(ProjEDet(:, run), ilutRef(:, run))
+
+            end do
+
+        end if
+
+
+        write(6,*) 'Generated reference determinants:'
+        do run = 1, inum_runs
+            call write_det(6, ProjEDet(:, run), .true.)
+        end do
+
+    end subroutine
 
 end module
 

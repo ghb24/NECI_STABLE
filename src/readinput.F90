@@ -191,7 +191,9 @@ MODULE ReadInput_neci
                             tSurvivalInitiatorThreshold, tKP_FCIQMC, &
                             tSurvivalInitMultThresh, tAddToInitiator, &
                             tMultiReplicaInitiators, tRealCoeffByExcitLevel, &
-                            tAllRealCoeff, tUseRealCoeffs
+                            tAllRealCoeff, tUseRealCoeffs, tChangeProjEDet, &
+                            tOrthogonaliseReplicas, tReadPops, tStartMP1, &
+                            tStartCAS
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -524,9 +526,25 @@ MODULE ReadInput_neci
                                & are incompatibile')
         end if
 
+        if (tOrthogonaliseReplicas) then
+            if (.not. tMultiReplicas) then
+                call stop_all(t_r, 'Replica orthogonalisation requires &
+                                   &SYSTEM-REPLICAS to determine the number &
+                                   &of simulations')
+            end if
+
+            if (inum_runs /= lenof_sign) then
+                call stop_all(t_r, "Replica orthogonalisation is only &
+                                   &(currently) implemented for real systems")
+            end if
+
+            if (tStartMP1 .or. tStartCAS) then
+                call stop_all(t_r, "MP1 or CAS starting not implemented for &
+                                   &orthogonalised calculations")
+            end if
+        end if
+
     end subroutine checkinput
 
 end Module ReadInput_neci
-
-        
 

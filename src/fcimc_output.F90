@@ -12,7 +12,8 @@ module fcimc_output
                          BeforeNormHist, iNoBins, BinRange, HistogramEnergy, &
                          AllHistogramEnergy
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
-                        DiagSft, tSpatialOnlyHash, StepsSft
+                        DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
+                        StepsSft
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
     use IntegralsData, only: frozen_orb_list, frozen_orb_reverse_map, &
@@ -451,8 +452,8 @@ contains
         ! Use a state type to keep things compact and tidy below.
         type(write_state_t), save :: state
         logical, save :: inited = .false.
-        character(5) :: tmpc
-        integer :: p
+        character(5) :: tmpc, tmpc2
+        integer :: p, q
         logical :: init
 
         ! Provide default 'initial' option
@@ -495,32 +496,45 @@ contains
             state%cols_mc = 0
             state%mc_out = tMCOutput
             call stats_out(state,.true., iter, 'Iter.')
-            call stats_out(state,.true., sum(abs(AllTotParts)), 'Tot. parts')
-            call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
+            if (.not. tOrthogonaliseReplicas) then
+                call stats_out(state,.true., sum(abs(AllTotParts)), 'Tot. parts')
+                call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
 #ifdef __CMPLX
-            call stats_out(state,.true., real(proje_iter_tot), 'Re Proj. E')
-            call stats_out(state,.true., aimag(proje_iter_tot), 'Im Proj. E')
+                call stats_out(state,.true., real(proje_iter_tot), 'Re Proj. E')
+                call stats_out(state,.true., aimag(proje_iter_tot), 'Im Proj. E')
 #else
-            call stats_out(state,.true., proje_iter_tot, 'Proj. E (cyc)')
+                call stats_out(state,.true., proje_iter_tot, 'Proj. E (cyc)')
 #endif
-            call stats_out(state,.true., sum(DiagSft / inum_runs), 'Shift. (cyc)')
-            call stats_out(state,.true., AllTotWalkers, 'Dets occ.')
-            call stats_out(state,.true., nspawned_tot, 'Dets spawned')
-            call stats_out(state,.true., IterTime, 'Iter. time')
-            call stats_out(state,.false., sum(AllNoBorn), 'No. born')
-            call stats_out(state,.false., sum(AllNoDied), 'No. died')
-            call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
+                call stats_out(state,.true., sum(DiagSft / inum_runs), 'Shift. (cyc)')
+                call stats_out(state,.true., AllTotWalkers, 'Dets occ.')
+                call stats_out(state,.true., nspawned_tot, 'Dets spawned')
+                call stats_out(state,.false., sum(AllNoBorn), 'No. born')
+                call stats_out(state,.false., sum(AllNoDied), 'No. died')
+                call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
 !!            call stats_out(state,.false., AllGrowRate(1), 'Growth fac.')
 !!            call stats_out(state,.false., AccRat(1), 'Acc. rate')
-            call stats_out(state,.false., TotImagTime, 'Im. time')
 #ifdef __CMPLX
-            call stats_out(state,.true., real(proje_iter_tot) + Hii, &
-                           'Tot. Proj. E')
-            call stats_out(state,.true., aimag(proje_iter_tot) + Hii, &
-                           'Tot. Proj. E')
+                call stats_out(state,.true., real(proje_iter_tot) + Hii, &
+                               'Tot. Proj. E')
+                call stats_out(state,.true., aimag(proje_iter_tot) + Hii, &
+                               'Tot. Proj. E')
 #else
-            call stats_out(state,.true., proje_iter_tot + Hii, 'Tot. Proj. E')
+                call stats_out(state,.true., proje_iter_tot + Hii, &
+                               'Tot. Proj. E')
 #endif
+            end if
+
+            call stats_out(state,.true., IterTime, 'Iter. time')
+            call stats_out(state,.false., TotImagTime, 'Im. time')
+
+            ! Put the conditional columns at the end, so that the column
+            ! numbers of the data are as stable as reasonably possible (for
+            ! people who want to use gnuplot/not analyse column headers too
+            ! frequently).
+            ! This also makes column contiguity on resumes as likely as
+            ! possible.
+            if (tTruncInitiator) &
+                call stats_out(state,.false., AllNoAborted(1), 'No. aborted')
 
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
@@ -531,23 +545,27 @@ contains
                                 'Parts (' // trim(adjustl(tmpc)) // ")")
                 call stats_out (state, .false., AllNoatHF(p), &
                                 'Ref (' // trim(adjustl(tmpc)) // ")")
-                call stats_out (state, .false., DiagSft(p), &
+                call stats_out (state, .false., DiagSft(p) + Hii, &
                                 'Shift (' // trim(adjustl(tmpc)) // ")")
-                call stats_out (state, .false., proje_iter(p), &
-                                'ProjE (' // trim(adjustl(tmpc)) // ")")
                 call stats_out (state, .false., proje_iter(p) + Hii, &
                                 'Tot ProjE (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., AllHFCyc(p) / StepsSft, &
+                                'ProjE Denom (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., &
+                                (AllENumCyc(p) + Hii*AllHFCyc(p)) / StepsSft,&
+                                'ProjE Num (' // trim(adjustl(tmpc)) // ")")
+                if (tOrthogonaliseReplicas) then
+                    do q = p+1, inum_runs
+                        write(tmpc2, '(i5)') q
+                        call stats_out(state, .false., replica_overlaps(p, q),&
+                                       '<psi_' // trim(adjustl(tmpc)) // '|' &
+                                       // 'psi_' // trim(adjustl(tmpc2)) &
+                                       // '>')
+
+                    end do
+                end if
             end do
 #endif
-
-            ! Put the conditional columns at the end, so that the column
-            ! numbers of the data are as stable as reasonably possible (for
-            ! people who want to use gnuplot/not analyse column headers too
-            ! frequently).
-            ! This also makes column contiguity on resumes as likely as
-            ! possible.
-            if (tTruncInitiator) &
-                call stats_out(state,.false., AllNoAborted(1), 'No. aborted')
 
             ! And we are done
             write(state%funit, *)
@@ -1054,7 +1072,7 @@ contains
     SUBROUTINE PrintHighPops()
         real(dp), dimension(lenof_sign) :: SignCurr, LowSign
         integer :: ierr,i,j,counter,ExcitLev,SmallestPos,HighPos,nopen
-        integer :: full_orb
+        integer :: full_orb, run
         real(dp) :: HighSign,reduce_in(1:2),reduce_out(1:2),Norm,AllNorm
         integer(n_int) , allocatable :: LargestWalkers(:,:)
         integer(n_int) , allocatable :: GlobalLargestWalkers(:,:)
@@ -1145,34 +1163,46 @@ contains
 
 
             write(iout,*) ""
-            write(iout,'(A)') "Current reference: "
-            call write_det (iout, ProjEDet, .true.)
-            call writeDetBit(iout,iLutRef,.true.)
+            if (tReplicaReferencesDiffer) then
+                write(iout,'(A)') "Current references: "
+                do run = 1, inum_runs
+                    call write_det(iout, ProjEDet(:,run), .true.)
+                    call writeDetBit(iout, ilutRef(:, run), .true.)
+                end do
+            else
+                write(iout,'(A)') "Current reference: "
+                call write_det (iout, ProjEDet(:,1), .true.)
+                call writeDetBit(iout,iLutRef(:,1),.true.)
+            end if
 
             write(iout,*)
             write(iout,'("Input DEFINEDET line (includes frozen orbs):")')
-            write(6,'("definedet ")', advance='no')
-            if (allocated(frozen_orb_list)) then
-                allocate(tmp_ni(nel_pre_freezing))
-                tmp_ni(1:nel) = frozen_orb_reverse_map(ProjEDet)
-                if (nel /= nel_pre_freezing) &
-                    tmp_ni(nel+1:nel_pre_freezing) = frozen_orb_list
-                call sort(tmp_ni)
-                do i = 1, nel_pre_freezing
-                    write(6, '(i3," ")', advance='no') tmp_ni(i)
-                end do
-                deallocate(tmp_ni)
-            else
+            do run = 1, inum_runs
+                write(6,'("definedet ")', advance='no')
+                if (allocated(frozen_orb_list)) then
+                    allocate(tmp_ni(nel_pre_freezing))
+                    tmp_ni(1:nel) = frozen_orb_reverse_map(ProjEDet(:,run))
+                    if (nel /= nel_pre_freezing) &
+                        tmp_ni(nel+1:nel_pre_freezing) = frozen_orb_list
+                    call sort(tmp_ni)
+                    do i = 1, nel_pre_freezing
+                        write(6, '(i3," ")', advance='no') tmp_ni(i)
+                    end do
+                    deallocate(tmp_ni)
+                else
+                    do i = 1, nel
+                        write(6, '(i3," ")', advance='no') ProjEDet(i, run)
+                    end do
+                end if
                 do i = 1, nel
-                    write(6, '(i3," ")', advance='no') ProjEDet(i)
+                    full_orb = ProjEDet(i, run)
+                    if (allocated(frozen_orb_list)) &
+                        full_orb = full_orb  + count(frozen_orb_list <= ProjEDet(i, run))
                 end do
-            end if
-            do i = 1, nel
-                full_orb = ProjEDet(i)
-                if (allocated(frozen_orb_list)) &
-                    full_orb = full_orb  + count(frozen_orb_list <= ProjEDet(i))
+                write(iout,*)
+
+                if (.not. tReplicaReferencesDiffer) exit
             end do
-            write(iout,*)
 
             write(iout,*) ""
             write(iout,"(A,I10,A)") "Most occupied ",counter," determinants as excitations from reference: "
