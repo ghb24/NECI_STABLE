@@ -1074,6 +1074,10 @@ contains
         call MPIAllGather(ndets_this_proc_mpi, space_sizes, ierr)
         ndets_all_procs = sum(space_sizes)
 
+        if (ndets_all_procs < nexcit) call stop_all(t_r, "The number of excited states that you have asked &
+            &for is larger than the size of the trial space used to create the excited states. Since this &
+            &routine generates trial states that are orthogonal, this is not possible.")
+
         space_displs(0) = 0_MPIArg
         do i = 1, nProcessors-1
             space_displs(i) = sum(space_sizes(:i-1))
