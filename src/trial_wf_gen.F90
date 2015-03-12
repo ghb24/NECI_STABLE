@@ -20,7 +20,7 @@ contains
         use DetBitOps, only: ilut_lt, ilut_gt
         use FciMCData, only: trial_space, trial_space_size, con_space, con_space_size, trial_wf
         use FciMCData, only: trial_energy, ConTag, ConVecTag, DavidsonTag, TempTag, TrialTag
-        use FciMCData, only: TrialWFTag, iHFProc, Trial_Init_Time
+        use FciMCData, only: TrialWFTag, Trial_Init_Time
         use FciMCData, only: TrialTempTag, ConTempTag, OccTrialTag
         use FciMCData, only: OccConTag, ntrial_occ, ncon_occ, CurrentTrialTag, current_trial_amps
         use FciMCData, only: MaxWalkersPart, tTrialHash, tIncCancelledInitEnergy

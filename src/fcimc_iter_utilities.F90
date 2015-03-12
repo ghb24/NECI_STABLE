@@ -11,11 +11,12 @@ module fcimc_iter_utils
                         nShiftEquilSteps, TargetGrowRateWalk
     use LoggingData, only: tFCIMCStats2, tPrintDataTables
     use semi_stoch_procs, only: recalc_core_hamil_diag
-    use DetBitOps, only: TestClosedShellDet
+    use fcimc_helper, only: update_run_reference
     use bit_rep_data, only: NIfD, NIfTot, NIfDBO
-    use Determinants, only: get_helement
     use hphf_integrals, only: hphf_diag_helement
     use global_det_data, only: set_det_diagH
+    use Determinants, only: get_helement
+    use LoggingData, only: tFCIMCStats2
     use tau_search, only: update_tau
     use Parallel_neci
     use fcimc_initialisation
@@ -127,165 +128,136 @@ contains
 
     subroutine population_check ()
         use HPHFRandExcitMod, only: ReturnAlphaOpenDet
-        integer :: pop_highest, proc_highest
+        integer :: pop_highest(inum_runs), proc_highest(inum_runs)
         real(dp) :: pop_change, old_Hii
-        integer :: det(nel), i, error, ierr
+        integer :: det(nel), i, error, ierr, run
         integer(int32) :: int_tmp(2)
-        logical :: tSwapped, allocate_temp_parts
+        logical :: tSwapped, allocate_temp_parts, changed_any
         HElement_t :: h_tmp
         character(*), parameter :: this_routine = 'population_check'
         character(*), parameter :: t_r = this_routine
 
-        if (tCheckHighestPop) then
+        ! If we aren't doing this, then bail out...
+        if (.not. tCheckHighestPop) &
+            return
 
-            ! Obtain the determinant (and its processor) with the highest
-            ! population. To keep this simple, do it only for set 1 if using double run,
-            ! as we need to keep a consistent HF det for the two runs.
-            call MPIAllReduceDatatype ((/int(iHighestPop,int32), int(iProcIndex,int32)/), 1, &
+
+        ! If we are accumulating RDMs, then a temporary spawning array is
+        ! required of <~ the size of the largest occupied det.
+        !
+        ! This memry holds walkers spawned from one determinant. This
+        ! allows us to test if we are spawning onto the same Dj multiple
+        ! times. If only using connections to the HF (tHF_Ref_Explicit)
+        ! no stochastic RDM construction is done, and this is not
+        ! necessary.
+        if (tRDMOnFly .and. .not. tExplicitAllRDM) then
+
+            ! Test if we need to allocate or re-allocate the temporary
+            ! spawned parts array
+            allocate_temp_parts = .false.
+            if (.not. allocated(TempSpawnedParts)) then
+                allocate_temp_parts = .true.
+                TempSpawnedPartsSize = 1000
+            elseif (1.1 * iHighestPop(1) > TempSpawnedPartsSize) then
+                ! This testing routine is only called once every update
+                ! cycle. The 1.1 gives us a buffer to cope with particle
+                ! growth
+                deallocate(TempSpawnedParts)
+                log_dealloc(TempSpawnedPartsTag)
+                TempSpawnedPartsSize = iHighestPop(1) * 1.5
+                allocate_temp_parts = .true.
+            end if
+
+            ! If we need to allocate this array, then do so.
+            if (allocate_temp_parts) then
+                allocate(TempSpawnedParts(0:NIfDBO, TempSpawnedPartsSize), &
+                         stat=ierr)
+                log_alloc(TempSpawnedParts,TempSpawnedPartsTag,ierr)
+                TempSpawnedParts = 0
+                write(6,"(' Allocating temporary array for walkers spawned &
+                           &from a particular Di.')")
+                write(6,"(a,f14.6,a)") " This requires ", &
+                    real(((NIfDBO+1) * TempSpawnedPartsSize * size_n_int), dp)&
+                        /1048576.0_dp, " Mb/Processor"
+            end if
+
+        end if ! Allocating memory for RDMs
+
+        ! Obtain the determinant (and its processor) with the highest pop
+        ! in each of the runs.
+        ! n.b. the use of int(iHighestPop) obviously introduces a small amount
+        !      of error here, by ignoring the fractional part...
+        if (tReplicaReferencesDiffer) then
+
+            do run = 1, inum_runs
+                call MPIAllReduceDatatype (&
+                    (/int(iHighestPop(run),int32), int(iProcIndex,int32)/), 1, &
+                                           MPI_MAXLOC, MPI_2INTEGER, int_tmp)
+                pop_highest(run) = int_tmp(1)
+                proc_highest(run) = int_tmp(2)
+            end do
+        else
+
+            call MPIAllReduceDatatype (&
+                (/int(iHighestPop(1),int32), int(iProcIndex,int32)/), 1, &
                                        MPI_MAXLOC, MPI_2INTEGER, int_tmp)
             pop_highest = int_tmp(1)
             proc_highest = int_tmp(2)
 
-            ! NB: the use if int(iHighestPop) obviously introduces a small amount of error
-            ! by ignoring the fractional population here
-
-            ! How many walkers do we need to switch dets?
+        end if
 
 
-            ! If we are accumulating RDMs, then a temporary spawning array is
-            ! required of <~ the size of the largest occupied det.
-            !
-            ! This memry holds walkers spawned from one determinant. This
-            ! allows us to test if we are spawning onto the same Dj multiple
-            ! times. If only using connections to the HF (tHF_Ref_Explicit)
-            ! no stochastic RDM construction is done, and this is not
-            ! necessary.
-            if (tRDMOnFly .and. .not. tExplicitAllRDM) then
+        changed_any = .false.
+        do run = 1, inum_runs
 
-                ! Test if we need to allocate or re-allocate the temporary
-                ! spawned parts array
-                allocate_temp_parts = .false.
-                if (.not. allocated(TempSpawnedParts)) then
-                    allocate_temp_parts = .true.
-                    TempSpawnedPartsSize = 1000
-                elseif (1.1 * iHighestPop > TempSpawnedPartsSize) then
-                    ! This testing routine is only called once every update
-                    ! cycle. The 1.1 gives us a buffer to cope with particle
-                    ! growth
-                    deallocate(TempSpawnedParts)
-                    log_dealloc(TempSpawnedPartsTag)
-                    TempSpawnedPartsSize = iHighestPop * 1.5
-                    allocate_temp_parts = .true.
-                end if
-
-                ! If we need to allocate this array, then do so.
-                if (allocate_temp_parts) then
-                    allocate(TempSpawnedParts(0:NIfDBO, TempSpawnedPartsSize), &
-                             stat=ierr)
-                    log_alloc(TempSpawnedParts,TempSpawnedPartsTag,ierr)
-                    TempSpawnedParts = 0
-                    write(6,"(' Allocating temporary array for walkers spawned &
-                               &from a particular Di.')")
-                    write(6,"(a,f14.6,a)") " This requires ", &
-                        real(((NIfDBO+1) * TempSpawnedPartsSize * size_n_int), dp)&
-                            /1048576.0_dp, " Mb/Processor"
-                end if
-
-
-            end if
+            ! If using the same reference for all, then we don't consider the
+            ! populations seperately...
+            if (run /= 1 .and. .not. tReplicaReferencesDiffer) &
+                exit
             
-            ! If doing a double run, we only test population 1. abs_sign considers element 1
-            ! unless we're running the complex code.
-            if((lenof_sign.eq.2).and.(inum_runs.eq.1)) then 
+            ! What are the change conditions?
+            if((lenof_sign == 2) .and. (inum_runs == 1)) then 
                 pop_change = FracLargerDet * abs_sign(AllNoAtHF)
+            else if (lenof_sign /= inum_runs) then
+                call stop_all(this_routine, "Complex not yet supported in multi-run mode")
+            else if (tReplicaReferencesDiffer) then
+                pop_change = FracLargerDet * abs(AllNoAtHF(run))
             else
-                pop_change = FracLargerDet * abs(AllNoAtHF(1))
+                pop_change = FracLargerDet * abs(AllNoATHF(1))
             endif
-!            write(iout,*) "***",AllNoAtHF,FracLargerDet,pop_change, pop_highest,proc_highest
-            if (pop_change < pop_highest .and. pop_highest > 50) then
+
+            ! Do we need to do a change?
+            if (pop_change < pop_highest(run) .and. pop_highest(run) > 50) then
 
                 ! Write out info!
-                    root_print 'Highest weighted determinant not reference &
-                               &det: ', pop_highest, abs_sign(AllNoAtHF)
-                    
+                changed_any = .true.
+                root_print 'Highest weighted determinant on run', run, &
+                           'not reference det: ', pop_highest, abs_sign(AllNoAtHF)
 
-                ! Are we changing the reference determinant?
                 if (tChangeProjEDet) then
+
+                    !
+                    ! Here we are changing the reference det on the fly.
+                    ! --> else block for restarting simulation.
+                    !
+
                     ! Communicate the change to all dets and print out.
-                    call MPIBcast (HighestPopDet(0:NIfTot), NIfTot+1, proc_highest)
-                    iLutRef = 0
-                    iLutRef(0:NIfDBO) = HighestPopDet(0:NIfDBO)
-                    call decode_bit_det (ProjEDet, iLutRef)
-                    write (iout, '(a)', advance='no') 'Changing projected &
-                          &energy reference determinant for the next update cycle to: '
-                    call write_det (iout, ProjEDet, .true.)
-                    tRef_Not_HF = .true.
+                    call MPIBcast (HighestPopDet(0:NIfTot, run), NIfTot+1, &
+                                   proc_highest(run))
 
-                    if(tHPHF) then
-                        if(.not.TestClosedShellDet(iLutRef)) then
-                            !Complications. We are now effectively projecting onto a LC of two dets.
-                            !Ensure this is done correctly.
-                            if(.not.Allocated(RefDetFlip)) then
-                                allocate(RefDetFlip(NEl))
-                                allocate(iLutRefFlip(0:NIfTot))
-                                RefDetFlip = 0
-                                iLutRefFlip = 0
-                            endif
-                            call ReturnAlphaOpenDet(ProjEDet,RefDetFlip,iLutRef,iLutRefFlip,.true.,.true.,tSwapped)
-                            if(tSwapped) then
-                                !The iLutRef should already be the correct one, since it was obtained by the normal calculation!
-                                call stop_all("population_check","Error in changing reference determinant to open shell HPHF")
-                            endif
-                            write(iout,"(A)") "Now projecting onto open-shell HPHF as a linear combo of two determinants..."
-                            tSpinCoupProjE=.true.
-                        endif
-                    else
-                        tSpinCoupProjE=.false.  !In case it was already on, and is now projecting onto a CS HPHF.
-                    endif
-
-                    ! We can't use Brillouin's theorem if not a converged,
-                    ! closed shell, ground state HF det.
-                    tNoBrillouin = .true.
-                    root_print "Ensuring that Brillouin's theorem is no &
-                               &longer used."
-
-                    ! Update the reference energy
-                    old_Hii = Hii
-                    if (tHPHF) then
-                        h_tmp = hphf_diag_helement (ProjEDet, iLutRef)
-                    else
-                        h_tmp = get_helement (ProjEDet, ProjEDet, 0)
-                    endif
-                    Hii = real(h_tmp, dp)
-                    write (iout, '(a, g25.15)') 'Reference energy now set to: ',&
-                                             Hii
+                    call update_run_reference(HighestPopDet(:, run), run)
 
                     ! Reset averages
-                    SumENum(:)=0
-                    sum_proje_denominator(:) = 0
-                    cyc_proje_denominator(:) = 0
-                    SumNoatHF(:) = 0.0_dp
-                    VaryShiftCycles(:) = 0
-                    SumDiagSft(:) = 0
+                    SumENum = 0
+                    sum_proje_denominator = 0
+                    cyc_proje_denominator = 0
+                    SumNoatHF = 0.0_dp
+                    VaryShiftCycles = 0
+                    SumDiagSft = 0
                     root_print 'Zeroing all energy estimators.'
 
                     !Since we have a new reference, we must block only from after this point
                     iBlockingIter = Iter + PreviousCycles
-
-                    ! Regenerate all the diagonal elements relative to the
-                    ! new reference det.
-                    write (iout,*) 'Regenerating the stored diagonal HElements &
-                                &for all walkers.'
-                    do i = 1, int(Totwalkers,sizeof_int)
-                        call decode_bit_det (det, CurrentDets(:,i))
-                        if (tHPHF) then
-                            h_tmp = hphf_diag_helement (det, CurrentDets(:,i))
-                        else
-                            h_tmp = get_helement (det, det, 0)
-                        endif
-                        call set_det_diagH(i, real(h_tmp, dp) - Hii)
-                    enddo
-                    if (tSemiStochastic) call recalc_core_hamil_diag(old_Hii, Hii)
 
                     ! Reset values introduced in soft_exit (CHANGEVARS)
                     if (tCHeckHighestPopOnce) then
@@ -303,33 +275,45 @@ contains
                 elseif (tRestartHighPop .and. &
                         iRestartWalkNum < AllTotParts(1)) then
 #endif
+                    !
+                    ! Here we are restarting the simulation with a new
+                    ! reference. See above block for doing it on the fly.
+                    !
                     
                     ! Broadcast the changed det to all processors
-                    call MPIBcast (HighestPopDet, NIfTot+1, proc_highest)
-                    iLutRef = 0
-                    iLutRef(0:NIfDBO) = HighestPopDet(0:NIfDBO)
-                    tRef_Not_HF = .true.
+                    call MPIBcast (HighestPopDet(:,run), NIfTot+1, &
+                                   proc_highest(run))
+                    iLutRef(:, run) = 0
+                    iLutRef(0:NIfDBO, run) = HighestPopDet(0:NIfDBO, run)
 
-                    call decode_bit_det (ProjEDet, iLutRef)
-                    write (iout, '(a)', advance='no') 'Changing projected &
-                             &energy reference determinant to: '
-                    call write_det (iout, ProjEDet, .true.)
+                    call decode_bit_det (ProjEDet(:,run), iLutRef(:,run))
+                    write (iout, '(a,i3,a)',advance='no') 'Changing projected &
+                             &energy reference determinant for run ', run, &
+                             ' to: '
+                    call write_det (iout, ProjEDet(:,1), .true.)
 
                     ! We can't use Brillouin's theorem if not a converged,
                     ! closed shell, ground state HF det.
                     tNoBrillouin = .true.
+                    tRef_Not_HF = .true.
                     root_print "Ensuring that Brillouin's theorem is no &
                                &longer used."
                     
-                    ! Update the reference energy
-                    if (tHPHF) then
-                        h_tmp = hphf_diag_helement (ProjEDet, iLutRef)
-                    else
-                        h_tmp = get_helement (ProjEDet, ProjEDet, 0)
-                    endif
-                    Hii = real(h_tmp, dp)
-                    write (iout, '(a, g25.15)') 'Reference energy now set to: ',&
-                                             Hii
+                    ! Only update the global reference energies if they
+                    ! correspond to run 1 (which is used for those)
+                    if (run == 1) then
+                        ! Update the reference energy
+                        if (tHPHF) then
+                            h_tmp = hphf_diag_helement (ProjEDet(:,1), iLutRef(:,1))
+                        else
+                            h_tmp = get_helement (ProjEDet(:,1), ProjEDet(:,1), 0)
+                        endif
+                        Hii = real(h_tmp, dp)
+                        write (iout, '(a, g25.15)') &
+                            'Reference energy now set to: ', Hii
+
+                        call ChangeRefDet (ProjEDet(:, 1))
+                    end if
 
                     ! Reset values introduced in soft_exit (CHANGEVARS)
                     if (tCHeckHighestPopOnce) then
@@ -338,13 +322,33 @@ contains
                         tCheckHighestPopOnce = .false.
                     endif
 
-                    call ChangeRefDet (ProjEDet)
                 endif
 
+
             endif
-        endif
+        end do
+
+        ! Ensure that our energy offsets for outputting the correct
+        ! data have been updated correctly.
+        if (changed_any) then
+            proje_ref_energy_offsets = 0
+            if (tOrthogonaliseReplicas) then
+                do run = 1, inum_runs
+                    if (tHPHF) then
+                        h_tmp = hphf_diag_helement (ProjEDet(:,run), &
+                                                    ilutRef(:,run))
+                    else
+                        h_tmp = get_helement (ProjEDet(:,run), &
+                                              ProjEDet(:,run), 0)
+                    endif
+                    proje_ref_energy_offsets(run) = real(h_tmp, dp) - Hii
+                end do
+            end if
+        end if
                     
     end subroutine
+
+
 
     subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
         integer :: int_tmp(5+2*lenof_sign), proc, pos, i
@@ -740,15 +744,21 @@ contains
                  ! Calculate the projected energy.
                  if((lenof_sign.eq.2).and.(inum_runs.eq.1)) then
                      if (any(AllSumNoatHF /= 0.0)) then
-                         ProjectionE = (AllSumENum) / (all_sum_proje_denominator) 
-                         proje_iter = (AllENumCyc) / (all_cyc_proje_denominator) 
-                        AbsProjE = (AllENumCycAbs) / (all_cyc_proje_denominator)
+                         ProjectionE = (AllSumENum) / (all_sum_proje_denominator) &
+                                     + proje_ref_energy_offsets
+                         proje_iter = (AllENumCyc) / (all_cyc_proje_denominator) &
+                                    + proje_ref_energy_offsets
+                        AbsProjE = (AllENumCycAbs) / (all_cyc_proje_denominator) &
+                                 + proje_ref_energy_offsets
                     endif
                  else
                      if ((AllSumNoatHF(run) /= 0.0)) then
-                         ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) 
-                         proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) 
-                        AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run))
+                         ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) &
+                                          + proje_ref_energy_offsets(run)
+                         proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) &
+                                         + proje_ref_energy_offsets(run)
+                        AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
+                                      + proje_ref_energy_offsets(run)
                     endif
                 endif
                 ! If we are re-zeroing the shift

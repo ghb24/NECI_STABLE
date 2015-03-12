@@ -7,8 +7,10 @@ module FciMCParMod
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
-                        iFullSpaceIter, tDoublesCore, tDetermHFSpawning, &
-                        use_spawn_hash_table, semistoch_shift_iter
+                        iFullSpaceIter, semistoch_shift_iter, &
+                        tOrthogonaliseReplicas, orthogonalise_iter, &
+                        tDoublesCore, tDetermHFSpawning, use_spawn_hash_table,&
+                        semistoch_shift_iter
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, &
@@ -35,6 +37,7 @@ module FciMCParMod
     use spectral_lanczos, only: perform_spectral_lanczos
     use bit_rep_data, only: nOffFlag, flag_determ_parent
     use errors, only: standalone_errors, error_analysis
+    use orthogonalise, only: orthogonalise_replicas
     use PopsFileMod, only: WriteToPopsFileParOneArr
     use AnnihilationMod, only: DirectAnnihilation
     use exact_spectrum, only: get_exact_spectrum
@@ -497,7 +500,7 @@ module FciMCParMod
         end if
         
         iroot=1
-        CALL GetSym(ProjEDet,NEl,G1,NBasisMax,RefSym)
+        CALL GetSym(ProjEDet(:,1),NEl,G1,NBasisMax,RefSym)
         isymh=int(RefSym%Sym%S,sizeof_int)+1
         write (iout,10101) iroot,isymh
 10101   format(//'RESULTS FOR STATE',i2,'.',i1/'====================='/)
@@ -994,6 +997,11 @@ module FciMCParMod
 
         CALL halt_timer(Annihil_Time)
         IFDEBUG(FCIMCDebug,2) WRITE(iout,*) "Finished Annihilation step"
+        
+        ! If we are orthogonalising the replica wavefunctions, to generate
+        ! excited states, then do that here.
+        if (tOrthogonaliseReplicas .and. iter > orthogonalise_iter) &
+            call orthogonalise_replicas(iter_data)
 
         call update_iter_data(iter_data)
 
