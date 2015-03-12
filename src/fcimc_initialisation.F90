@@ -168,6 +168,7 @@ contains
         Stats_Comms_Time%timer_name='StatsCommsTime'
         subspace_hamil_time%timer_name='SubspaceHamilTime'
         exact_subspace_h_time%timer_name='ExactSubspace_H_Time'
+        subspace_spin_time%timer_name='SubspaceSpinTime'
 
         ! Initialise allocated arrays with input data
         TargetGrowRate(:) = InputTargetGrowRate

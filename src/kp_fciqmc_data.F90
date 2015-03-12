@@ -36,6 +36,10 @@ module kp_fciqmc_data_mod
     ! every iteration.
     logical :: tExcitedStateKP
 
+    ! If true then calculate and output the spin squared operator in the
+    ! Krylov basis.
+    logical :: tCalcSpin
+
     ! Information for the krylov_vecs arrays, which holds all of the Krylov
     ! vectors together simultaneously.
     ! The number of hash values for the hash table used to access krylov_vecs.
@@ -195,8 +199,8 @@ module kp_fciqmc_data_mod
     ! The matrix used to transform the Krylov vectors to a orthonormal basis.
     real(dp), allocatable :: kp_transform_matrix(:,:)
     ! Matrix used as temporary space during the transformation of the
-    ! projected Hamiltonian into an orthonormal basis, in the Lowdin appraoch.
-    real(dp), allocatable :: kp_inter_hamil(:,:)
+    ! projected matrices into an orthonormal basis, in the Lowdin approach.
+    real(dp), allocatable :: kp_inter_matrix(:,:)
     ! The final eigenvectors, but in the basis of Krylov vectors.
     ! This is used in the Lowdin approach: diagonalising kp_final_hamil
     ! will give the final eigenvectors in the orthonormal basis, then
@@ -216,6 +220,7 @@ module kp_fciqmc_data_mod
     real(dp), allocatable :: kpfciqmc_ex_weights(:)
 
     ! Options for the trial wave function space for excited-state calculations.
+    logical :: tHF_KP_Space
     logical :: tPops_KP_Space
     logical :: tRead_KP_Space
     logical :: tDoubles_KP_Space

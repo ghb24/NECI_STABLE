@@ -41,6 +41,8 @@ contains
         tFiniteTemp = .false.
         tExcitedInitState = .false.
 
+        tCalcSpin = .false.
+
         nwalkers_per_site_init = 1.0_dp
         av_mc_excits_kp = 0.0_dp
         kp_hamil_exact_frac = 1.0_dp
@@ -59,6 +61,7 @@ contains
         tScalePopulation = .false.
         scaling_factor = 1.0_dp
 
+        tHF_KP_Space = .false.
         tPops_KP_Space = .false.
         tRead_KP_Space = .false.
         tDoubles_KP_Space = .false.
@@ -90,6 +93,10 @@ contains
 #endif
             case("FINITE-TEMPERATURE")
                 tFiniteTemp = .true.
+
+            case("CALC-SPIN")
+                tCalcSpin = .true.
+
             case("MULTIPLE-POPS")
                 tMultiplePopStart = .true.
                 tIncrementPops = .true.
@@ -278,6 +285,8 @@ contains
             case("MP1-TRIAL")
                 tMP1_KP_Space = .true.
                 call geti(kp_mp1_ndets)
+            case("HF-TRIAL")
+                tHF_KP_Space = .true.
             case("POPS-TRIAL")
                 tPops_KP_Space = .true.
                 call geti(n_kp_pops)
@@ -306,12 +315,12 @@ contains
 
     subroutine init_kp_fciqmc(kp)
 
-        use CalcData, only: tSemiStochastic, tUseRealCoeffs, AvMCExcits, tCheckHighestPop
+        use CalcData, only: tSemiStochastic, tUseRealCoeffs, AvMCExcits
         use fcimc_initialisation, only: SetupParameters, InitFCIMCCalcPar, init_fcimc_fn_pointers
         use FciMCData, only: tPopsAlreadyRead, nWalkerHashes, SpawnVecKP
         use FciMCData, only: SpawnVecKP2, MaxSpawned, determ_space_size, determ_sizes
         use FciMCData, only: SpawnedPartsKP, SpawnedPartsKP2, MaxWalkersUncorrected
-        use FciMCData, only: iter_data_fciqmc, spawn_ht, nhashes_spawn
+        use FciMCData, only: iter_data_fciqmc, spawn_ht, nhashes_spawn, tReplicaReferencesDiffer
         use FciMCParMod, only: WriteFciMCStatsHeader, write_fcimcstats2, tSinglePartPhase
         use hash, only: init_hash_table
         use LoggingData, only: tFCIMCStats2
@@ -470,7 +479,7 @@ contains
         allocate(kp_init_overlaps(kp%nvecs))
         allocate(kp_overlap_eigenvecs(kp%nvecs, kp%nvecs))
         allocate(kp_transform_matrix(kp%nvecs, kp%nvecs))
-        allocate(kp_inter_hamil(kp%nvecs, kp%nvecs))
+        allocate(kp_inter_matrix(kp%nvecs, kp%nvecs))
         allocate(kp_eigenvecs_krylov(kp%nvecs, kp%nvecs))
 
         write(6,'(1x,a5)') "Done."
@@ -491,8 +500,8 @@ contains
         ! shift from varying on subsequent repeats.
         tSinglePartPhaseKPInit = tSinglePartPhase
 
-        ! Never change the reference when using KP-FCIQMC.
-        tCheckHighestPop = .false.
+        ! Allow different replicas to have different references in this case.
+        if (tExcitedStateKP) tReplicaReferencesDiffer = .true.
 
     end subroutine init_kp_fciqmc
 
@@ -1010,7 +1019,6 @@ contains
         end if
 
     end subroutine generate_init_config_this_proc
-
 
     subroutine create_init_excited_state(ndets_this_proc, trial_vecs, ex_state_labels, ex_state_weights, init_vec)
 
