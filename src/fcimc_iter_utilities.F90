@@ -72,7 +72,6 @@ contains
             end do
         end if
 #endif
-
         if (iProcIndex == Root) then
             ! Have all of the particles died?
 #ifdef __CMPLX

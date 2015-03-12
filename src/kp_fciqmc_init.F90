@@ -40,6 +40,8 @@ contains
         tFiniteTemp = .false.
         tExcitedInitState = .false.
 
+        tCalcSpin = .false.
+
         nwalkers_per_site_init = 1.0_dp
         av_mc_excits_kp = 0.0_dp
         kp_hamil_exact_frac = 1.0_dp
@@ -58,6 +60,7 @@ contains
         tScalePopulation = .false.
         scaling_factor = 1.0_dp
 
+        tHF_KP_Space = .false.
         tPops_KP_Space = .false.
         tRead_KP_Space = .false.
         tDoubles_KP_Space = .false.
@@ -89,6 +92,10 @@ contains
 #endif
             case("FINITE-TEMPERATURE")
                 tFiniteTemp = .true.
+
+            case("CALC-SPIN")
+                tCalcSpin = .true.
+
             case("MULTIPLE-POPS")
                 tMultiplePopStart = .true.
                 tIncrementPops = .true.
@@ -277,6 +284,8 @@ contains
             case("MP1-TRIAL")
                 tMP1_KP_Space = .true.
                 call geti(kp_mp1_ndets)
+            case("HF-TRIAL")
+                tHF_KP_Space = .true.
             case("POPS-TRIAL")
                 tPops_KP_Space = .true.
                 call geti(n_kp_pops)
@@ -469,7 +478,7 @@ contains
         allocate(kp_init_overlaps(kp%nvecs))
         allocate(kp_overlap_eigenvecs(kp%nvecs, kp%nvecs))
         allocate(kp_transform_matrix(kp%nvecs, kp%nvecs))
-        allocate(kp_inter_hamil(kp%nvecs, kp%nvecs))
+        allocate(kp_inter_matrix(kp%nvecs, kp%nvecs))
         allocate(kp_eigenvecs_krylov(kp%nvecs, kp%nvecs))
 
         write(6,'(1x,a5)') "Done."
@@ -1013,6 +1022,7 @@ contains
     subroutine calc_trial_states(nexcit, ndets_this_proc, evecs_this_proc, trial_iluts)
 
         use DetBitOps, only: ilut_lt, ilut_gt
+        use FciMCData, only: ilutHF
         use lanczos_wrapper, only: frsblk_wrapper
         use Parallel_neci, only: MPIScatterV, MPIGatherV, MPIArg
         use ParallelHelper, only: root
@@ -1040,6 +1050,7 @@ contains
         ndets_this_proc = 0
 
         ! Choose the correct generating routine.
+        if (tHF_KP_Space) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
         if (tPops_KP_Space) call generate_space_most_populated(n_kp_pops, trial_iluts, ndets_this_proc)
         if (tRead_KP_Space) call generate_space_from_file('DETFILE', trial_iluts, ndets_this_proc)
         if (tDoubles_KP_Space) call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
@@ -1055,13 +1066,17 @@ contains
         end if
 
         if (.not. (tPops_KP_Space .or. tRead_KP_Space .or. tDoubles_KP_Space .or. tCAS_KP_Space &
-                    .or. tRAS_KP_Space .or. tMP1_KP_Space .or. tFCI_KP_Space)) then
+                    .or. tRAS_KP_Space .or. tMP1_KP_Space .or. tFCI_KP_Space .or. tHF_KP_Space)) then
             call stop_all(t_r, "A space for the trial functions was not chosen.")
         end if
 
         ndets_this_proc_mpi = int(ndets_this_proc, MPIArg)
         call MPIAllGather(ndets_this_proc_mpi, space_sizes, ierr)
         ndets_all_procs = sum(space_sizes)
+
+        if (ndets_all_procs < nexcit) call stop_all(t_r, "The number of excited states that you have asked &
+            &for is larger than the size of the trial space used to create the excited states. Since this &
+            &routine generates trial states that are orthogonal, this is not possible.")
 
         space_displs(0) = 0_MPIArg
         do i = 1, nProcessors-1

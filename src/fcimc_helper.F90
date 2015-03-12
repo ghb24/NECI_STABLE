@@ -209,8 +209,10 @@ contains
             ! If this determinant (on this replica) has already been spawned to
             ! then set the initiator flag. Also if this child was spawned from
             ! an initiator, set the initiator flag.
-            if (abs(real_sign_old(part_type)) > 1.e-12_dp .or. test_flag(ilut_parent, flag_initiator(part_type))) &
-                call set_flag(SpawnedParts(:,ind), flag_initiator(part_type))
+            if (tTruncInitiator) then
+                if (abs(real_sign_old(part_type)) > 1.e-12_dp .or. test_flag(ilut_parent, flag_initiator(part_type))) &
+                    call set_flag(SpawnedParts(:,ind), flag_initiator(part_type))
+            end if
         else
             ! Determine which processor the particle should end up on in the
             ! DirectAnnihilation algorithm.

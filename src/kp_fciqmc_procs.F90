@@ -326,7 +326,7 @@ contains
 
     end subroutine calc_hamil_exact
 
-    subroutine communicate_kp_matrices(overlap_matrix, hamil_matrix)
+    subroutine communicate_kp_matrices(overlap_matrix, hamil_matrix, spin_matrix)
 
         ! Add all the overlap and projected Hamiltonian matrices together, with
         ! the result being held only on the root node.
@@ -335,23 +335,32 @@ contains
 
         real(dp), intent(inout) :: overlap_matrix(:,:)
         real(dp), intent(inout) :: hamil_matrix(:,:)
+        real(dp), optional, intent(inout) :: spin_matrix(:,:)
 
         real(dp), allocatable :: mpi_mat_in(:,:), mpi_mat_out(:,:)
-        integer :: nrow
+        integer :: nrow, ncol
 
         nrow = size(hamil_matrix,1)
 
-        allocate(mpi_mat_in(nrow, 2*nrow))
-        allocate(mpi_mat_out(nrow, 2*nrow))
+        if (present(spin_matrix)) then
+            ncol = 3*nrow
+        else
+            ncol = 2*nrow
+        end if
+
+        allocate(mpi_mat_in(nrow, ncol))
+        allocate(mpi_mat_out(nrow, ncol))
 
         mpi_mat_in(1:nrow, 1:nrow) = overlap_matrix
         mpi_mat_in(1:nrow, nrow+1:2*nrow) = hamil_matrix
+        if (present(spin_matrix))  mpi_mat_in(1:nrow, 2*nrow+1:3*nrow) = spin_matrix
 
         call MPISum(mpi_mat_in, mpi_mat_out)
 
         if (iProcIndex == root) then
             overlap_matrix = mpi_mat_out(1:nrow, 1:nrow)
             hamil_matrix = mpi_mat_out(1:nrow, nrow+1:2*nrow)
+            if (present(spin_matrix)) spin_matrix = mpi_mat_out(1:nrow, 2*nrow+1:3*nrow)
         end if
 
         deallocate(mpi_mat_in)
@@ -497,7 +506,8 @@ contains
 
     end subroutine average_and_comm_pert_overlaps
 
-    subroutine find_and_output_lowdin_eigv(config_label, nvecs, overlap_matrix, hamil_matrix, npositive, all_evals)
+    subroutine find_and_output_lowdin_eigv(config_label, nvecs, overlap_matrix, hamil_matrix, npositive, &
+                                           all_evals, spin_matrix, all_spin)
 
         use CalcData, only: tWritePopsNorm, pops_norm
         use util_mod, only: int_fmt, get_free_unit
@@ -506,11 +516,13 @@ contains
         real(dp), intent(in) :: overlap_matrix(:,:), hamil_matrix(:,:)
         integer, intent(out) :: npositive
         real(dp), intent(out) :: all_evals(:,:)
+        real(dp), optional, intent(in) :: spin_matrix(:,:)
+        real(dp), optional, intent(out) :: all_spin(:,:)
 
         integer :: lwork, counter, i, nkeep, nkeep_len
         integer :: info, ierr, temp_unit
         real(dp), allocatable :: work(:)
-        real(dp), allocatable :: kp_final_hamil(:,:), kp_hamil_eigv(:)
+        real(dp), allocatable :: kp_final_hamil(:,:), kp_hamil_eigv(:), rotated_spin(:,:)
         real(dp) :: kp_pert_energy_overlaps(nvecs)
         character(7) :: string_fmt
         character(25) :: ind1, filename
@@ -537,6 +549,7 @@ contains
 
         npositive = 0
         all_evals = 0.0_dp
+        if (present(spin_matrix)) all_spin = 0.0_dp
 
         write(temp_unit,'(4("-"),a26,40("-"))') "Overlap matrix eigenvalues"
         do i = 1, nvecs
@@ -557,9 +570,10 @@ contains
 
             allocate(kp_final_hamil(nkeep,nkeep))
             allocate(kp_hamil_eigv(nkeep))
+            if (present(spin_matrix)) allocate(rotated_spin(nkeep,nkeep))
 
             associate(transform_matrix => kp_transform_matrix(1:nvecs, 1:nkeep), &
-                      inter_hamil => kp_inter_hamil(1:nvecs, 1:nkeep), &
+                      inter_matrix => kp_inter_matrix(1:nvecs, 1:nkeep), &
                       eigenvecs_krylov => kp_eigenvecs_krylov(1:nvecs, 1:nkeep), &
                       init_overlaps => kp_init_overlaps(1:nkeep))
 
@@ -569,8 +583,8 @@ contains
                     transform_matrix(:,counter) = kp_overlap_eigenvecs(:, i)/sqrt(kp_overlap_eigv(i))
                 end do
 
-                inter_hamil = matmul(hamil_matrix, transform_matrix)
-                kp_final_hamil = matmul(transpose(transform_matrix), inter_hamil)
+                inter_matrix = matmul(hamil_matrix, transform_matrix)
+                kp_final_hamil = matmul(transpose(transform_matrix), inter_matrix)
 
                 call dsyev('V', 'U', nkeep, kp_final_hamil, nkeep, kp_hamil_eigv, work, lwork, info)
 
@@ -578,6 +592,13 @@ contains
                 init_overlaps = matmul(overlap_matrix(1,:), eigenvecs_krylov)/scaling_factor
 
                 if (tOverlapPert) kp_pert_energy_overlaps(1:nkeep) = matmul(kp_all_pert_overlaps, eigenvecs_krylov)
+
+                ! The spin matrix in the final eigenvalue basis.
+                if (present(spin_matrix)) then
+                    ! Use inter_matrix as temporary space.
+                    inter_matrix = matmul(spin_matrix, eigenvecs_krylov)
+                    rotated_spin = matmul(transpose(eigenvecs_krylov), inter_matrix)
+                end if
 
                 nkeep_len = ceiling(log10(real(abs(nkeep)+1,dp)))
                 write(string_fmt,'(i2,a5)') 15-nkeep_len, '("-")'
@@ -590,11 +611,17 @@ contains
                 end do
 
                 all_evals(1:nkeep, nkeep) = kp_hamil_eigv(1:nkeep)
+                if (present(spin_matrix)) then
+                    do i = 1, nkeep
+                        all_spin(i, nkeep) = rotated_spin(i,i)
+                    end do
+                end if
 
             end associate
 
             deallocate(kp_final_hamil)
             deallocate(kp_hamil_eigv)
+            if (allocated(rotated_spin)) deallocate(rotated_spin)
 
         end do
 
@@ -633,7 +660,7 @@ contains
 
         ! Use the following allocated arrays as work space for the following routine. Not ideal, I know...
         allocate(kp_final_hamil(nvecs, nvecs))
-        associate(S_tilde => kp_inter_hamil, N => kp_init_overlaps)
+        associate(S_tilde => kp_inter_matrix, N => kp_init_overlaps)
             call construct_gs_transform_matrix(kp_overlap_mean, kp_transform_matrix, S_tilde, kp_final_hamil, N, nvecs)
             npositive = 0
             do i = 1, nvecs
@@ -855,8 +882,9 @@ contains
         use util_mod, only: int_fmt, get_free_unit
 
         integer, intent(in) :: nvecs, irepeat
-        integer :: ivec
+        integer :: ivec, icolumn
         integer :: temp_unit
+        character(22) :: column_label
         character(len=*), parameter :: filename = "EIGV_DATA"
 
         temp_unit = get_free_unit()
@@ -867,31 +895,62 @@ contains
             open(temp_unit, file=trim(filename), status='old', position='append')
         end if
 
+        ! Write header.
         if (irepeat == 1) then
-            ! Write header.
-            write(temp_unit,'("#",1X,"Iteration")',advance='no')
+            ! The number of the column.
+            icolumn = 1
+
+            write(temp_unit,'("#",1X,"1. Iteration")',advance='no')
+
+            ! Energy estimates.
             do ivec = 1, nvecs
-                write(temp_unit,'(13X,"Energy",1X,i2)',advance='no') ivec
+                icolumn = icolumn + 1
+                write(column_label,'('//int_fmt(icolumn,0)//',".",1X,"Energy",1X,'//int_fmt(ivec,0)//')') icolumn, ivec
+                column_label = adjustr(column_label)
+                write(temp_unit, '(a22)', advance='no') column_label
             end do
             do ivec = 1, nvecs
-                write(temp_unit,'(7X,"Diag. energy",1x,i2)',advance='no') ivec
+                icolumn = icolumn + 1
+                write(column_label,'('//int_fmt(icolumn,0)//',".",1X,"Diag. energy",1X,'//int_fmt(ivec,0)//')') icolumn, ivec
+                column_label = adjustr(column_label)
+                write(temp_unit, '(a22)', advance='no') column_label
             end do
+
+            ! Spin estimates.
+            if (tCalcSpin) then
+                do ivec = 1, nvecs
+                    icolumn = icolumn + 1
+                    write(column_label,'('//int_fmt(icolumn,0)//',".",1X,"Spin^2",1X,'//int_fmt(ivec,0)//')') icolumn, ivec
+                    column_label = adjustr(column_label)
+                    write(temp_unit, '(a22)', advance='no') column_label
+                end do
+                do ivec = 1, nvecs
+                    icolumn = icolumn + 1
+                    write(column_label,'('//int_fmt(icolumn,0)//',".",1X,"Diag spin^2",1X,'//int_fmt(ivec,0)//')') icolumn, ivec
+                    column_label = adjustr(column_label)
+                    write(temp_unit, '(a22)', advance='no') column_label
+                end do
+            end if
+
             write(temp_unit,'()')
         end if
+
         write(temp_unit,'("#",1X,"Repeat",'//int_fmt(irepeat,1)//')') irepeat
 
         close(temp_unit)
 
     end subroutine write_ex_state_header
 
-    subroutine write_ex_state_data(niters, nlowdin, lowdin_evals, hamil_matrix, overlap_matrix)
+    subroutine write_ex_state_data(niters, nlowdin, lowdin_evals, hamil_matrix, overlap_matrix, spin_matrix, lowdin_spin)
 
+        use SystemData, only: nel
         use util_mod, only: get_free_unit
 
         integer, intent(in) :: niters
         integer, intent(in) :: nlowdin
         real(dp), intent(in) :: lowdin_evals(:,:)
         real(dp), intent(in) :: hamil_matrix(:,:), overlap_matrix(:,:)
+        real(dp), optional, intent(in) :: spin_matrix(:,:), lowdin_spin(:,:)
 
         integer :: ivec, nvecs
         integer :: temp_unit
@@ -902,7 +961,7 @@ contains
 
         nvecs = size(lowdin_evals,1)
 
-        write(temp_unit,'(2X,i9)',advance='no') niters
+        write(temp_unit,'(5X,i9)',advance='no') niters
 
         do ivec = 1, nlowdin
             write(temp_unit,'(3X,es19.12)',advance='no') lowdin_evals(ivec, nlowdin)
@@ -911,10 +970,26 @@ contains
             write(temp_unit,'(12X,3a,7X)',advance='no') "NaN"
         end do
 
+        if (present(lowdin_spin)) then
+            do ivec = 1, nlowdin
+                write(temp_unit,'(3X,es19.12)',advance='no') lowdin_spin(ivec, nlowdin) + (0.75_dp*nel)
+            end do
+            do ivec = nlowdin+1, nvecs
+                write(temp_unit,'(12X,3a,7X)',advance='no') "NaN"
+            end do
+        end if
+
         ! Diagonal energies.
         do ivec = 1, nvecs
             write(temp_unit,'(3X,es19.12)',advance='no') hamil_matrix(ivec,ivec)/overlap_matrix(ivec,ivec)
         end do
+
+        ! Diagonal spin entries.
+        if (present(spin_matrix)) then
+            do ivec = 1, nvecs
+                write(temp_unit,'(3X,es19.12)',advance='no') spin_matrix(ivec,ivec)/overlap_matrix(ivec,ivec) + (0.75_dp*nel)
+            end do
+        end if
 
         close(temp_unit)
 

@@ -33,7 +33,7 @@ contains
         use sort_mod, only: sort
         use SystemData, only: tAllSymSectors
 
-        integer :: i, ierr, num_states_on_proc
+        integer :: i, ierr, num_states_on_proc, con_space_size_old
         integer :: excit, tot_trial_space_size, tot_con_space_size
         integer :: min_elem, max_elem, num_elem
         integer(MPIArg) :: sendcounts(0:nProcessors-1), recvcounts(0:nProcessors-1)
@@ -69,6 +69,7 @@ contains
         write(6,'(a29)') "Generating the trial space..."; call neci_flush(6)
 
         ! Generate the trial space and place the corresponding states in trial_space.
+        if (tHFTrial) call add_state_to_space(ilutHF, trial_space, trial_space_size)
         if (tDoublesTrial) call generate_sing_doub_determinants(trial_space, trial_space_size, .false.)
         if (tCASTrial) call generate_cas(OccTrialCASOrbs, VirtTrialCASOrbs, trial_space, trial_space_size)
         if (tRASCore) call generate_ras(trial_ras, trial_space, trial_space_size)
@@ -93,8 +94,7 @@ contains
                                        (trial_space(:, 1:trial_space_size), &
                                         trial_space_size, max_trial_size, .true.)
 
-        write(6,'(a38,1X,i8)') "Size of trial space on this processor:", trial_space_size
-        call neci_flush(6)
+        write(6,'(a38,1X,i8)') "Size of trial space on this processor:", trial_space_size; call neci_flush(6)
 
         ! At this point, each processor has only those states which reside on them, and
         ! have only counted those states. Send all states to all processors for the next bit.
@@ -105,8 +105,7 @@ contains
             recvdisps(i) = sum(recvcounts(:i-1))
         end do
 
-        write(6,'(a30,1X,i8)') "Total size of the trial space:", tot_trial_space_size
-        call neci_flush(6)
+        write(6,'(a30,1X,i8)') "Total size of the trial space:", tot_trial_space_size; call neci_flush(6)
 
         ! Use SpawnedParts as temporary space:
         SpawnedParts(:, 1:trial_space_size) = trial_space(:, 1:trial_space_size)
@@ -129,28 +128,24 @@ contains
             ! Find the states connected to the trial space. This typically takes a long time, so
             ! it is done in parallel by letting each processor find the states connected to a
             ! portion of the trial space.
-            write(6,'(a58)') "Calculating the number of states in the connected space..."
-            call neci_flush(6)
+            write(6,'(a58)') "Calculating the number of states in the connected space..."; call neci_flush(6)
 
             call generate_connected_space(num_elem, trial_space(:,min_elem:max_elem), con_space_size)
 
             write(6,"(A,F12.3,A)") "Attempting to allocate con_space. Size = ", &
-                    real(con_space_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp," Mb"
-            call neci_flush(6)
+                    real(con_space_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp," Mb"; call neci_flush(6)
             allocate(con_space(0:NIfTot, con_space_size), stat=ierr)
             call LogMemAlloc('con_space', con_space_size*(NIfTot+1), size_n_int, t_r, ConTag, ierr)
             con_space = 0
 
             write(6,'(a50,1X,i8)') "States found on this processor, including repeats:", con_space_size
 
-            write(6,'(a45)') "Generating and storing the connected space..."
-            call neci_flush(6)
+            write(6,'(a45)') "Generating and storing the connected space..."; call neci_flush(6)
 
             call generate_connected_space(num_elem, trial_space(:, min_elem:max_elem), &
                                           con_space_size, con_space)
 
-            write(6,'(a52)') "Removing repeated states and sorting by processor..."
-            call neci_flush(6)
+            write(6,'(a52)') "Removing repeated states and sorting by processor..."; call neci_flush(6)
 
             call remove_repeated_states(con_space, con_space_size)
 
@@ -159,17 +154,16 @@ contains
         else
             con_space_size = 0
             sendcounts = 0
-            write(6,'(a52)') "This processor will not search for connected states."
-            call neci_flush(6)
+            write(6,'(a52)') "This processor will not search for connected states."; call neci_flush(6)
         end if
 
-        write(6,'(a51)') "Performing MPI communication of connected states..."
-        call neci_flush(6)
+        write(6,'(a51)') "Performing MPI communication of connected states..."; call neci_flush(6)
 
         ! Send the connected states to their processors.
         ! sendcounts holds the number of states to send to other processors from this one.
         ! recvcounts will hold the number of states to be sent to this processor from the others.
         call MPIAlltoAll(sendcounts, 1, recvcounts, 1, ierr)
+        con_space_size_old = con_space_size
         con_space_size = sum(recvcounts)
         ! The displacements necessary for mpi_alltoall.
         sendcounts = sendcounts*int(NIfTot+1,MPIArg)
@@ -182,12 +176,11 @@ contains
         end do
 
         write(6,"(A,F12.3,A)") "Attempting to allocate temp_space. Size = ",    &
-            real(con_space_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp," Mb"
-        call neci_flush(6)
+            real(con_space_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp," Mb"; call neci_flush(6)
         allocate(temp_space(0:NIfTot, con_space_size), stat=ierr)
         call LogMemAlloc('temp_space', con_space_size*(NIfTot+1), size_n_int, t_r, TempTag, ierr)
 
-        call MPIAlltoAllV(con_space(:,1:con_space_size), sendcounts, senddisps, temp_space(:,1:con_space_size), &
+        call MPIAlltoAllV(con_space(:,1:con_space_size_old), sendcounts, senddisps, temp_space(:,1:con_space_size), &
                            recvcounts, recvdisps, ierr)
 
         if (allocated(con_space)) then
@@ -195,8 +188,7 @@ contains
             call LogMemDealloc(t_r, ConTag, ierr)
         end if
         write(6,"(A,F12.3,A)") "Attempting to allocate con_space. Size = ",     &
-            real(con_space_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp," Mb"
-        call neci_flush(6)
+            real(con_space_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp," Mb"; call neci_flush(6)
         allocate(con_space(0:NIfTot, 1:con_space_size), stat=ierr)
         call LogMemAlloc('con_space', con_space_size*(NIfTot+1), size_n_int, t_r, ConTag, ierr)
         con_space = temp_space
@@ -218,12 +210,10 @@ contains
 
         ! Only perform this on the root processor, due to memory demands.
         if (iProcindex == root) then
-            write(6,'(a50)') "Calculating the Hamiltonian for the trial space..."
-            call neci_flush(6)
+            write(6,'(a50)') "Calculating the Hamiltonian for the trial space..."; call neci_flush(6)
             call calculate_sparse_hamiltonian(trial_space_size, trial_space(0:NIfTot, 1:trial_space_size))
 
-            write(6,'(a50)') "Calculating the ground state in the trial space..."
-            call neci_flush(6)
+            write(6,'(a50)') "Calculating the ground state in the trial space..."; call neci_flush(6)
             call perform_davidson(sparse_hamil_type, .false.)
 
             trial_wf = davidson_eigenvector
@@ -244,8 +234,7 @@ contains
         call MPIBCast(trial_energy, 1, root)
         call MPIBCast(trial_wf, size(trial_wf), root)
 
-        write(6,'(a47)') "Generating the vector \sum_j H_{ij} \psi^T_j..."
-        call neci_flush(6)
+        write(6,'(a47)') "Generating the vector \sum_j H_{ij} \psi^T_j..."; call neci_flush(6)
         call generate_connected_space_vector()
 
         ! Remove all states in trial_space that do not belong to this processor (and move the
@@ -274,7 +263,7 @@ contains
         if (tWriteTrial) call write_trial_space()
         if (tCompareTrialAmps) call update_compare_trial_file(.true.)
 
-        allocate(current_trial_amps(MaxWalkersPart))
+        allocate(current_trial_amps(MaxWalkersPart), stat=ierr)
         call LogMemAlloc('current_trial_amps', MaxWalkersPart, 8, t_r, CurrentTrialTag, ierr)
         current_trial_amps = 0.0_dp
         call initialise_trial_linscale()
