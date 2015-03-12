@@ -772,7 +772,6 @@ module FciMCParMod
             if (tTruncInitiator) &
                 call CalcParentFlag (j, parent_flags, HDiagCurr)
 
-
             ! As the main list (which is storing a hash table) no longer needs
             ! to be contiguous, we need to skip sites that are empty.
             if(IsUnoccDet(SignCurr)) then
@@ -926,7 +925,7 @@ module FciMCParMod
                 enddo ! Cycling over mulitple particles on same determinant.
 
             enddo   ! Cycling over 'type' of particle on a given determinant.
-            
+
             if (tSemiStochastic) then
                 ! If we are performing a semi-stochastic simulation and this state is in the
                 ! deterministic space, then the death step is performed deterministically later.

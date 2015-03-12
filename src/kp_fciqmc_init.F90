@@ -60,6 +60,7 @@ contains
         tScalePopulation = .false.
         scaling_factor = 1.0_dp
 
+        tHF_KP_Space = .false.
         tPops_KP_Space = .false.
         tRead_KP_Space = .false.
         tDoubles_KP_Space = .false.
@@ -283,6 +284,8 @@ contains
             case("MP1-TRIAL")
                 tMP1_KP_Space = .true.
                 call geti(kp_mp1_ndets)
+            case("HF-TRIAL")
+                tHF_KP_Space = .true.
             case("POPS-TRIAL")
                 tPops_KP_Space = .true.
                 call geti(n_kp_pops)
@@ -1047,6 +1050,7 @@ contains
         ndets_this_proc = 0
 
         ! Choose the correct generating routine.
+        if (tHF_KP_Space) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
         if (tPops_KP_Space) call generate_space_most_populated(n_kp_pops, trial_iluts, ndets_this_proc)
         if (tRead_KP_Space) call generate_space_from_file('DETFILE', trial_iluts, ndets_this_proc)
         if (tDoubles_KP_Space) call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
@@ -1062,11 +1066,9 @@ contains
         end if
 
         if (.not. (tPops_KP_Space .or. tRead_KP_Space .or. tDoubles_KP_Space .or. tCAS_KP_Space &
-                    .or. tRAS_KP_Space .or. tMP1_KP_Space .or. tFCI_KP_Space)) then
+                    .or. tRAS_KP_Space .or. tMP1_KP_Space .or. tFCI_KP_Space .or. tHF_KP_Space)) then
             call stop_all(t_r, "A space for the trial functions was not chosen.")
         end if
-
-        !call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
 
         ndets_this_proc_mpi = int(ndets_this_proc, MPIArg)
         call MPIAllGather(ndets_this_proc_mpi, space_sizes, ierr)

@@ -220,6 +220,7 @@ module kp_fciqmc_data_mod
     real(dp), allocatable :: kpfciqmc_ex_weights(:)
 
     ! Options for the trial wave function space for excited-state calculations.
+    logical :: tHF_KP_Space
     logical :: tPops_KP_Space
     logical :: tRead_KP_Space
     logical :: tDoubles_KP_Space
