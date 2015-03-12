@@ -347,7 +347,7 @@ contains
           tMultiReplicaInitiators = .false.
           tOrthogonaliseReplicas = .false.
           orthogonalise_iter = 0
-          tReplicaSingleDetStart = .true.
+          tReplicaSingleDetStart = .false.
 
           use_spawn_hash_table = .false.
 

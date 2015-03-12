@@ -179,33 +179,42 @@ contains
         real(dp) :: eigenvec_pop, tot_eigenvec_pop
         integer :: i, j
 
-            ! We need to normalise all of the vectors to have the correct number of
-            ! walkers.
-            do j = 1, nexcit
-                eigenvec_pop = 0.0_dp
-                do i = 1, ndets_this_proc
-                    eigenvec_pop = eigenvec_pop + abs(trial_vecs(j,i))
-                end do
-
-                call MPISumAll(eigenvec_pop, tot_eigenvec_pop)
-
-                if (tStartSinglePart) then
-                    trial_vecs(j,:) = trial_vecs(j,:)*InitialPart/tot_eigenvec_pop
-                else
-                    trial_vecs(j,:) = trial_vecs(j,:)*InitWalkers/tot_eigenvec_pop
-                end if
+        ! We need to normalise all of the vectors to have the correct number of
+        ! walkers.
+        do j = 1, nexcit
+            eigenvec_pop = 0.0_dp
+            do i = 1, ndets_this_proc
+                eigenvec_pop = eigenvec_pop + abs(trial_vecs(j,i))
             end do
+
+            call MPISumAll(eigenvec_pop, tot_eigenvec_pop)
+
+            if (tStartSinglePart) then
+                trial_vecs(j,:) = trial_vecs(j,:)*InitialPart/tot_eigenvec_pop
+            else
+                trial_vecs(j,:) = trial_vecs(j,:)*InitWalkers/tot_eigenvec_pop
+            end if
+        end do
 
     end subroutine set_trial_populations
 
-    subroutine set_trial_states(ndets_this_proc, init_vecs, trial_iluts)
+    subroutine set_trial_states(ndets_this_proc, init_vecs, trial_iluts, &
+                                paired_replicas)
 
         integer, intent(in) :: ndets_this_proc
         real(dp), intent(in) :: init_vecs(:,:)
         integer(n_int), intent(in) :: trial_iluts(0:,:) 
+        logical, intent(in), optional :: paired_replicas
 
         real(dp) :: real_sign(lenof_sign)
         integer :: i, j
+        logical :: paired_reps_local
+
+        if (present(paired_replicas)) then
+            paired_reps_local = paired_replicas
+        else
+            paired_reps_local = .true.
+        end if
 
         ! Now copy the amplitudes across to the CurrentDets array:
         ! First, get the correct states in CurrentDets.
@@ -215,9 +224,15 @@ contains
         ! Set signs.
         do i = 1, ndets_this_proc
             ! Construct the sign array to be encoded.
-            do j = 2, lenof_sign, 2
-                real_sign(j-1:j) = init_vecs(j/2,i)
-            end do
+            if (paired_reps_local) then
+                do j = 2, lenof_sign, 2
+                    real_sign(j-1:j) = init_vecs(j/2,i)
+                end do
+            else
+                do j = 1, lenof_sign
+                    real_sign(j) = init_vecs(j, i)
+                end do
+            end if
             call encode_sign(CurrentDets(:,i), real_sign)
         end do
 

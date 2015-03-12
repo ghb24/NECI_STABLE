@@ -96,6 +96,7 @@ module fcimc_initialisation
     use kp_fciqmc_break_circular, only: calc_trial_states, &
                                         set_trial_populations, &
                                         set_trial_states
+    use kp_fciqmc_data_mod, only: tDoubles_KP_Space
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                clean_global_det_data, init_global_det_data, &
                                set_part_init_time
@@ -1858,13 +1859,17 @@ contains
 
         nexcit = inum_runs
 
+        ! For now, use the doubles to generate this space
+        tDoubles_KP_Space = .true.
+
         ! Create the trial excited states
         call calc_trial_states(nexcit, ndets_this_proc, evecs_this_proc, &
                                SpawnedParts)
         ! Determine the walker populations associated with these states
         call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
         ! Set the trial excited states as the FCIQMC wave functions
-        call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts)
+        call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts, &
+                              .false.)
 
         deallocate(evecs_this_proc)
 
