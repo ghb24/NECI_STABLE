@@ -199,8 +199,8 @@ module kp_fciqmc_data_mod
     ! The matrix used to transform the Krylov vectors to a orthonormal basis.
     real(dp), allocatable :: kp_transform_matrix(:,:)
     ! Matrix used as temporary space during the transformation of the
-    ! projected Hamiltonian into an orthonormal basis, in the Lowdin appraoch.
-    real(dp), allocatable :: kp_inter_hamil(:,:)
+    ! projected matrices into an orthonormal basis, in the Lowdin approach.
+    real(dp), allocatable :: kp_inter_matrix(:,:)
     ! The final eigenvectors, but in the basis of Krylov vectors.
     ! This is used in the Lowdin approach: diagonalising kp_final_hamil
     ! will give the final eigenvectors in the orthonormal basis, then

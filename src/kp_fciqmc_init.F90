@@ -475,7 +475,7 @@ contains
         allocate(kp_init_overlaps(kp%nvecs))
         allocate(kp_overlap_eigenvecs(kp%nvecs, kp%nvecs))
         allocate(kp_transform_matrix(kp%nvecs, kp%nvecs))
-        allocate(kp_inter_hamil(kp%nvecs, kp%nvecs))
+        allocate(kp_inter_matrix(kp%nvecs, kp%nvecs))
         allocate(kp_eigenvecs_krylov(kp%nvecs, kp%nvecs))
 
         write(6,'(1x,a5)') "Done."

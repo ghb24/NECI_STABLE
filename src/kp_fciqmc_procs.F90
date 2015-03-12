@@ -506,7 +506,8 @@ contains
 
     end subroutine average_and_comm_pert_overlaps
 
-    subroutine find_and_output_lowdin_eigv(config_label, nvecs, overlap_matrix, hamil_matrix, npositive, all_evals)
+    subroutine find_and_output_lowdin_eigv(config_label, nvecs, overlap_matrix, hamil_matrix, npositive, &
+                                           all_evals, spin_matrix, all_spin)
 
         use CalcData, only: tWritePopsNorm, pops_norm
         use util_mod, only: int_fmt, get_free_unit
@@ -515,11 +516,13 @@ contains
         real(dp), intent(in) :: overlap_matrix(:,:), hamil_matrix(:,:)
         integer, intent(out) :: npositive
         real(dp), intent(out) :: all_evals(:,:)
+        real(dp), optional, intent(in) :: spin_matrix(:,:)
+        real(dp), optional, intent(out) :: all_spin(:,:)
 
         integer :: lwork, counter, i, nkeep, nkeep_len
         integer :: info, ierr, temp_unit
         real(dp), allocatable :: work(:)
-        real(dp), allocatable :: kp_final_hamil(:,:), kp_hamil_eigv(:)
+        real(dp), allocatable :: kp_final_hamil(:,:), kp_hamil_eigv(:), rotated_spin(:,:)
         real(dp) :: kp_pert_energy_overlaps(nvecs)
         character(7) :: string_fmt
         character(25) :: ind1, filename
@@ -546,6 +549,7 @@ contains
 
         npositive = 0
         all_evals = 0.0_dp
+        if (present(spin_matrix)) all_spin = 0.0_dp
 
         write(temp_unit,'(4("-"),a26,40("-"))') "Overlap matrix eigenvalues"
         do i = 1, nvecs
@@ -566,9 +570,10 @@ contains
 
             allocate(kp_final_hamil(nkeep,nkeep))
             allocate(kp_hamil_eigv(nkeep))
+            if (present(spin_matrix)) allocate(rotated_spin(nkeep,nkeep))
 
             associate(transform_matrix => kp_transform_matrix(1:nvecs, 1:nkeep), &
-                      inter_hamil => kp_inter_hamil(1:nvecs, 1:nkeep), &
+                      inter_matrix => kp_inter_matrix(1:nvecs, 1:nkeep), &
                       eigenvecs_krylov => kp_eigenvecs_krylov(1:nvecs, 1:nkeep), &
                       init_overlaps => kp_init_overlaps(1:nkeep))
 
@@ -578,8 +583,8 @@ contains
                     transform_matrix(:,counter) = kp_overlap_eigenvecs(:, i)/sqrt(kp_overlap_eigv(i))
                 end do
 
-                inter_hamil = matmul(hamil_matrix, transform_matrix)
-                kp_final_hamil = matmul(transpose(transform_matrix), inter_hamil)
+                inter_matrix = matmul(hamil_matrix, transform_matrix)
+                kp_final_hamil = matmul(transpose(transform_matrix), inter_matrix)
 
                 call dsyev('V', 'U', nkeep, kp_final_hamil, nkeep, kp_hamil_eigv, work, lwork, info)
 
@@ -587,6 +592,13 @@ contains
                 init_overlaps = matmul(overlap_matrix(1,:), eigenvecs_krylov)/scaling_factor
 
                 if (tOverlapPert) kp_pert_energy_overlaps(1:nkeep) = matmul(kp_all_pert_overlaps, eigenvecs_krylov)
+
+                ! The spin matrix in the final eigenvalue basis.
+                if (present(spin_matrix)) then
+                    ! Use inter_matrix as temporary space.
+                    inter_matrix = matmul(spin_matrix, eigenvecs_krylov)
+                    rotated_spin = matmul(transpose(eigenvecs_krylov), inter_matrix)
+                end if
 
                 nkeep_len = ceiling(log10(real(abs(nkeep)+1,dp)))
                 write(string_fmt,'(i2,a5)') 15-nkeep_len, '("-")'
@@ -599,11 +611,17 @@ contains
                 end do
 
                 all_evals(1:nkeep, nkeep) = kp_hamil_eigv(1:nkeep)
+                if (present(spin_matrix)) then
+                    do i = 1, nkeep
+                        all_spin(i, nkeep) = rotated_spin(i,i)
+                    end do
+                end if
 
             end associate
 
             deallocate(kp_final_hamil)
             deallocate(kp_hamil_eigv)
+            if (allocated(rotated_spin)) deallocate(rotated_spin)
 
         end do
 
@@ -642,7 +660,7 @@ contains
 
         ! Use the following allocated arrays as work space for the following routine. Not ideal, I know...
         allocate(kp_final_hamil(nvecs, nvecs))
-        associate(S_tilde => kp_inter_hamil, N => kp_init_overlaps)
+        associate(S_tilde => kp_inter_matrix, N => kp_init_overlaps)
             call construct_gs_transform_matrix(kp_overlap_mean, kp_transform_matrix, S_tilde, kp_final_hamil, N, nvecs)
             npositive = 0
             do i = 1, nvecs
@@ -883,6 +901,9 @@ contains
                 write(temp_unit,'(13X,"Energy",1X,i2)',advance='no') ivec
             end do
             do ivec = 1, nvecs
+                write(temp_unit,'(6X,"Spin [S(S+1)]",1X,i2)',advance='no') ivec
+            end do
+            do ivec = 1, nvecs
                 write(temp_unit,'(7X,"Diag. energy",1x,i2)',advance='no') ivec
             end do
             if (tCalcSpin) then
@@ -898,7 +919,7 @@ contains
 
     end subroutine write_ex_state_header
 
-    subroutine write_ex_state_data(niters, nlowdin, lowdin_evals, hamil_matrix, overlap_matrix, spin_matrix)
+    subroutine write_ex_state_data(niters, nlowdin, lowdin_evals, hamil_matrix, overlap_matrix, spin_matrix, lowdin_spin)
 
         use SystemData, only: nel
         use util_mod, only: get_free_unit
@@ -907,7 +928,7 @@ contains
         integer, intent(in) :: nlowdin
         real(dp), intent(in) :: lowdin_evals(:,:)
         real(dp), intent(in) :: hamil_matrix(:,:), overlap_matrix(:,:)
-        real(dp), optional, intent(in) :: spin_matrix(:,:)
+        real(dp), optional, intent(in) :: spin_matrix(:,:), lowdin_spin(:,:)
 
         integer :: ivec, nvecs
         integer :: temp_unit
@@ -926,6 +947,15 @@ contains
         do ivec = nlowdin+1, nvecs
             write(temp_unit,'(12X,3a,7X)',advance='no') "NaN"
         end do
+
+        if (present(lowdin_spin)) then
+            do ivec = 1, nlowdin
+                write(temp_unit,'(3X,es19.12)',advance='no') lowdin_spin(ivec, nlowdin) + (0.75_dp*nel)
+            end do
+            do ivec = nlowdin+1, nvecs
+                write(temp_unit,'(12X,3a,7X)',advance='no') "NaN"
+            end do
+        end if
 
         ! Diagonal energies.
         do ivec = 1, nvecs

@@ -275,6 +275,7 @@ contains
         logical :: tNearlyFull, tFinished, tAllFinished, tParity
         integer :: ex(2,2)
 
+        spin_matrix(:,:) = 0.0_dp
         ilut_parent = 0_n_int
         ValidSpawnedList = InitialSpawnedSlots
         call clear_hash_table(spawn_ht)
