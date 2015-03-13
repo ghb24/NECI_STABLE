@@ -170,6 +170,8 @@ MODULE System
       tAllSymSectors = .false.
       tGenHelWeighted = .false.
       tGen_4ind_weighted = .false.
+      tGen_4ind_part_exact = .false.
+      tGen_4ind_lin_exact = .false.
       tGen_4ind_reverse = .false.
       tUEGNewGenerator = .false.
 
@@ -885,6 +887,22 @@ system: do
                         ! doubles). This is effectively the "reverse" of
                         ! 4IND-WEIGHTED as above.
                         tGen_4ind_reverse = .true.
+                    case("4IND-WEIGHTED-PART-EXACT")
+                        ! Weight excitations as in 4IND-WEIGHTED, except for
+                        ! double excitations with the same spin which are
+                        ! weighted according to:
+                        ! sqrt(((ii|aa) + (jj|aa))(<ij|ab>-<ij|ba>))
+                        tGen_4ind_weighted = .true.
+                        tGen_4ind_part_exact = .true.
+                    case("4IND-WEIGHTED-LIN-EXACT")
+                        ! Weight excitations as in 4IND-WEIGHTED, except for
+                        ! double excitations with the same spin which are
+                        ! weighted according to:
+                        ! (1/M)(<ij|ab> - <ij|ba>)
+                        ! (The second half of this only affecting the choice
+                        ! of electron b)
+                        tGen_4ind_weighted = .true.
+                        tGen_4ind_lin_exact = .true.
                     case("UEG")
                         ! Use the new UEG excitation generator.
                         ! TODO: This probably isn't the best way to do this

@@ -218,7 +218,7 @@ LOGICAL :: tSymIgnoreEnergies
     logical :: tAllSymSectors
 
     logical :: tGenHelWeighted, tGen_4ind_weighted, tGen_4ind_reverse
-    logical :: tUEGNewGenerator
+    logical :: tUEGNewGenerator, tGen_4ind_part_exact, tGen_4ind_lin_exact
 
     ! Are we using multiple replicas?
     logical :: tMultiReplicas

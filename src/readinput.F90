@@ -180,7 +180,8 @@ MODULE ReadInput_neci
                               tFindCINatOrbs, tNoRenormRandExcits, LMS, STOT,&
                               tCSF, tSpn, tUHF, tGenHelWeighted, tHPHF, &
                               tGen_4ind_weighted, tGen_4ind_reverse, &
-                              tMultiReplicas
+                              tMultiReplicas, tGen_4ind_part_exact, &
+                              tGen_4ind_lin_exact
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -542,6 +543,14 @@ MODULE ReadInput_neci
                 call stop_all(t_r, "MP1 or CAS starting not implemented for &
                                    &orthogonalised calculations")
             end if
+        end if
+
+        if (tHPHF .and. tGen_4ind_weighted .and. &
+                (tGen_4ind_part_exact .or. tGen_4ind_lin_exact)) then
+            write(6,*) "Using 4IND-PART-EXACT or 4IND-LIN-EXACT with HPHFs &
+                       &requires updating pgen calculations for paired det"
+            call stop_all(t_r, "Modifications to 4ind weighted excit gen &
+                               &not (yet) available with HPHF")
         end if
 
     end subroutine checkinput

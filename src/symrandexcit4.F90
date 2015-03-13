@@ -5,7 +5,8 @@ module excit_gens_int_weighted
     use SystemData, only: nel, nbasis, nOccAlpha, nOccBeta, G1, nOccAlpha, &
                           nOccBeta, tExch, AA_elec_pairs, BB_elec_pairs, &
                           AB_elec_pairs, par_elec_pairs, AA_hole_pairs, &
-                          par_hole_pairs, AB_hole_pairs, iMaxLz
+                          par_hole_pairs, AB_hole_pairs, iMaxLz, &
+                          tGen_4ind_part_exact, tGen_4ind_lin_exact
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
                                pDoubNew, ScratchSize
@@ -581,6 +582,7 @@ contains
 
         integer :: elecs(2), orbs(2), src(2)
         real(dp) :: int_cpt(2), cum_sum(2), cc_cum(ScratchSize), cc_tot, r
+        real(dp) :: cpt_pair(2), sum_pair(2)
         integer :: sym_product, ispn, sum_ml
         integer :: cc_i, cc_j
 
@@ -635,12 +637,25 @@ contains
         ! Adjust the probabilities. If we are selecting two orbitals from
         ! the same list, then we could have selected them either way around.
         if (cc_i == cc_j) then
-            pgen = pgen * ( &
-                   (int_cpt(1) / cum_sum(1) * int_cpt(2) / cum_sum(2)) &
-                 + (int_cpt(2) / cum_sum(1) * &
-                    int_cpt(1) / (cum_sum(1) - int_cpt(2))))
+            if (tGen_4ind_lin_exact .or. tGen_4ind_part_exact) then
+                call pgen_select_orb(ilutI, src, -1, orbs(2), cpt_pair(1), &
+                                     sum_pair(1))
+                call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
+                                     cpt_pair(2), sum_pair(2))
+            else
+                cpt_pair(1) = int_cpt(2)
+                cpt_pair(2) = int_cpt(1)
+                sum_pair(1) = cum_sum(1)
+                sum_pair(2) = cum_sum(1) - int_cpt(2)
+                pgen = pgen * ( &
+                       (int_cpt(1) / cum_sum(1) * int_cpt(2) / cum_sum(2)) &
+                     + (int_cpt(2) / cum_sum(1) * &
+                        int_cpt(1) / (cum_sum(1) - int_cpt(2))))
+            end if
+            pgen = pgen * (product(int_cpt) / product(cum_sum) + &
+                           product(cpt_pair) / product(sum_pair))
         else
-            pgen = pgen * (int_cpt(1) / cum_sum(1)) * (int_cpt(2) / cum_sum(2))
+            pgen = pgen * (product(int_cpt) / product(cum_sum))
         end if
 
         ! And generate the actual excitation.
@@ -769,10 +784,8 @@ contains
                 orb = SymLabelList2(label_index + i - 1)
                 if (IsNotOcc(ilut, orb) .and. orb /= orb_pair) then
                     orbid = gtID(orb)
-                    tmp = sqrt(abs_l1(UMat2D(max(srcid(1), orbid), &
-                                             min(srcid(1), orbid)))) &
-                        + sqrt(abs_l1(UMat2D(max(srcid(2), orbid), &
-                                             min(srcid(2), orbid))))
+                    tmp = same_spin_pair_contrib(srcid(1), srcid(2), &
+                                                 orb, orb_pair)
                     cum_sum = cum_sum + tmp
                     if (orb == tgt) cpt = tmp
                 end if
@@ -805,6 +818,47 @@ contains
     end subroutine
 
 
+    function same_spin_pair_contrib(indi, indj, orba, orbb) result(contrib)
+
+        ! What term should be be summing into the list of the contributions
+        ! from the ij term
+
+        integer, intent(in) :: indi, indj, orba, orbb
+        real(dp) :: contrib
+        integer :: ida, idb
+
+        if (tGen_4ind_part_exact .and. orbb > 0) then
+            ! Include a contribution of:
+            ! sqrt(abs(<ij|ab> - <ij|ba>))
+            ida = gtID(orba)
+            idb = gtID(orbb)
+            contrib = sqrt(abs(get_umat_el(indi, indj, ida, idb) &
+                             - get_umat_el(indi, indj, idb, ida)))
+        else if (tGen_4ind_lin_exact) then
+            if (orbb > 0) then
+                ! Include a contribution of:
+                ! abs(<ij|ab> - <ij|ba>)
+                ida = gtID(orba)
+                idb = gtID(orbb)
+                contrib = abs(get_umat_el(indi, indj, ida, idb) &
+                            - get_umat_el(indi, indj, idb, ida))
+            else
+                ! Select orbital electron linearly.
+                contrib = 1.0_dp
+            end if
+        else
+            ! Include a contribution of (orb can be a or b):
+            ! sqrt((ii|aa) + (jj|aa))
+            ida = gtID(orba)
+            contrib = sqrt(abs_l1(UMat2D(max(indi, ida), min(indi, ida))))&
+                    + sqrt(abs_l1(UMat2D(max(indj, ida), min(indj, ida))))
+            !sqrt(abs_l1(get_umat_el(srcid(1), srcid(1), ida, ida))) + &
+            !sqrt(abs_l1(get_umat_el(srcid(2), srcid(2), ida, ida)))
+        end if
+
+    end function
+
+
     function select_orb (ilut, src, cc_index, orb_pair, cpt, cum_sum) &
             result(orb)
 
@@ -818,7 +872,7 @@ contains
         integer :: orb
 
         integer :: label_index, orb_index, norb, i, orbid, srcid(2), ms
-        integer :: src_orb, src_id
+        integer :: src_orb, src_id, orbid2
 
         ! Our biasing arrays must consider all of the possible orbitals with
         ! the correct symmetry.
@@ -847,12 +901,8 @@ contains
             
                 orb = SymLabelList2(label_index + i - 1)
                 if (IsNotOcc(ilut, orb) .and. orb /= orb_pair) then
-                    orbid = gtID(orb)
-                    cum_sum = cum_sum &
-                    + sqrt(abs_l1(UMat2D(max(srcid(1), orbid), &
-                                         min(srcid(1), orbid)))) &
-                    + sqrt(abs_l1(UMat2D(max(srcid(2), orbid), &
-                                         min(srcid(2), orbid))))
+                    cum_sum = cum_sum + same_spin_pair_contrib(&
+                                             srcid(1), srcid(2), orb, orb_pair)
                 end if
                 cumulative_arr(i) = cum_sum
 
@@ -900,15 +950,10 @@ contains
         ! And return the relevant value.
         ! TODO: We don't need to call get_umat_ell. Already known.
         orb = SymLabelList2(label_index + orb_index - 1)
-        orbid = gtID(orb)
         if (G1(src(1))%Ms == G1(src(2))%Ms) then
-            cpt = sqrt(abs_l1(UMat2D(max(srcid(1), orbid), &
-                                     min(srcid(1), orbid)))) + &
-                  sqrt(abs_l1(UMat2D(max(srcid(2), orbid), &
-                                     min(srcid(2), orbid))))
-            !sqrt(abs_l1(get_umat_el(srcid(1), srcid(1), orbid, orbid))) + &
-            !sqrt(abs_l1(get_umat_el(srcid(2), srcid(2), orbid, orbid)))
+            cpt = same_spin_pair_contrib(srcid(1), srcid(2), orb, orb_pair)
         else
+            orbid = gtID(orb)
             cpt = sqrt(abs_l1(UMat2D(max(src_id, orbid), min(src_id, orbid))))
             !get_umat_el(src_id, src_id, orbid, orbid)))
         end if
