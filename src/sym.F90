@@ -756,6 +756,17 @@ contains
 !   Identify all part-filled degenerate non-reduced representations
 !     Use SYMPROD and ADDELECSYM to generate the resultant symmetry of these
 
+      subroutine getsym_wrapper(det, sym)
+
+          use SystemData, only: G1, nel, nBasisMax, BasisFn
+
+          integer, intent(in) :: det(nel)
+          type(basisfn), intent(out) :: sym
+
+          call getsym(det, nel, G1, nBasisMax, sym)
+
+      end subroutine
+
 
       SUBROUTINE GETSYM(NI2,NEL,G1,NBASISMAX,ISYM)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB

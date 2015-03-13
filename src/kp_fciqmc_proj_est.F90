@@ -1,6 +1,6 @@
 #include "macros.h"
 
-module kp_fciqmc_hamil
+module kp_fciqmc_proj_est
 
     use bit_rep_data, only: NIfTot, NIfDBO
     use constants
@@ -135,7 +135,7 @@ contains
                     end if
 
                     child_sign = calc_amp_kp_hamil(parent_sign, 1.0_dp, 1.0_dp, h_diag_elem)
-                    call create_particle_kp_hamil(nI_parent, ilut_parent, child_sign, tNearlyFull)
+                    call create_particle_kp_estimates(nI_parent, ilut_parent, child_sign, tNearlyFull)
                 end if
 
                 call init_generate_connected_space(nI_parent, ex_flag, all_excits_found, ex, excit_gen, &
@@ -153,10 +153,10 @@ contains
                     if (all_excits_found) exit
 
                     child_sign = calc_amp_kp_hamil(parent_sign, 1.0_dp, 1.0_dp, real(HEl,dp))
-                    call create_particle_kp_hamil(nI_child, ilut_child, child_sign, tNearlyFull)
+                    call create_particle_kp_estimates(nI_child, ilut_child, child_sign, tNearlyFull)
 
                     if (tNearlyFull) then
-                        call add_in_hamil_contribs(nvecs, krylov_array, krylov_ht, tFinished, tAllFinished, h_matrix)
+                        call add_in_contribs(nvecs, krylov_array, krylov_ht, tFinished, tAllFinished, 1.0_dp, h_matrix)
                         call clear_hash_table(spawn_ht)
                         tNearlyFull = .false.
                     end if
@@ -201,10 +201,10 @@ contains
                     ! If any (valid) children have been spawned.
                     if ((any(child_sign /= 0)) .and. (ic /= 0) .and. (ic <= 2)) then
 
-                        call create_particle_kp_hamil(nI_child, ilut_child, child_sign, tNearlyFull)
+                        call create_particle_kp_estimates(nI_child, ilut_child, child_sign, tNearlyFull)
 
                         if (tNearlyFull) then
-                            call add_in_hamil_contribs(nvecs, krylov_array, krylov_ht, tFinished, tAllFinished, h_matrix)
+                            call add_in_contribs(nvecs, krylov_array, krylov_ht, tFinished, tAllFinished, 1.0_dp, h_matrix)
                             call clear_hash_table(spawn_ht)
                             tNearlyFull = .false.
                         end if
@@ -218,7 +218,7 @@ contains
 
         tFinished = .true.
         do
-            call add_in_hamil_contribs(nvecs, krylov_array, krylov_ht, tFinished, tAllFinished, h_matrix)
+            call add_in_contribs(nvecs, krylov_array, krylov_ht, tFinished, tAllFinished, 1.0_dp, h_matrix)
             if (tAllFinished) exit
         end do
 
@@ -247,6 +247,182 @@ contains
 
     end subroutine calc_projected_hamil
 
+    subroutine calc_projected_spin(nvecs, krylov_array, krylov_ht, ndets, spin_matrix)
+
+        use bit_rep_data, only: NOffSgn
+        use bit_reps, only: decode_bit_det
+        use DetBitOps, only: EncodeBitDet
+        use FciMCData, only: spawn_ht, SpawnVecKP, SpawnVecKP2, SpawnVec, SpawnVec2
+        use FciMCData, only: ll_node, SpawnedParts, SpawnedParts2, InitialSpawnedSlots
+        use FciMCData, only: ValidSpawnedList, subspace_spin_time
+        use get_excit, only: make_double
+        use hash, only: clear_hash_table
+        use kp_fciqmc_data_mod, only: tExcitedStateKP
+        use SystemData, only: nel
+        use timing_neci, only: set_timer, halt_timer
+
+        integer, intent(in) :: nvecs
+        integer(n_int), intent(in) :: krylov_array(0:,:)
+        type(ll_node), pointer, intent(in) :: krylov_ht(:)
+        integer, intent(in) :: ndets
+        real(dp), intent(out) :: spin_matrix(:,:)
+
+        integer :: idet, iel, jel, iorb, jorb, i, j
+        integer(n_int) :: ilut_child(0:NIfTot), ilut_parent(0:NIfTot)
+        integer :: nI_parent(nel), nI_child(nel)
+        logical :: ialpha, jalpha, ibeta, jbeta
+        integer(n_int) :: int_sign(lenof_all_signs)
+        real(dp) :: parent_sign(lenof_all_signs), child_sign(lenof_all_signs)
+        logical :: tNearlyFull, tFinished, tAllFinished, tParity
+        integer :: ex(2,2)
+
+        call set_timer(subspace_spin_time)
+
+        spin_matrix(:,:) = 0.0_dp
+        ilut_parent = 0_n_int
+        ValidSpawnedList = InitialSpawnedSlots
+        call clear_hash_table(spawn_ht)
+        tNearlyFull = .false.
+        tFinished = .false.
+
+        if (.not. tExcitedStateKP) then
+            ! We want SpawnedParts and SpawnedParts2 to point to the 'wider' spawning arrays which
+            ! hold all the signs of *all* the Krylov vectors. This is because SendProcNewParts uses
+            ! SpawnedParts and SpawnedParts2.
+            SpawnedParts => SpawnVecKP
+            SpawnedParts2 => SpawnVecKP2
+        end if
+
+        ! Loop over all states and add all contributions.
+        do idet = 1, ndets
+
+            ! The 'parent' determinant to consider 'spawning' from.
+            ilut_parent(0:NIfDBO) = krylov_array(0:NIfDBO,idet)
+
+            ! Get the real walker amplitudes.
+            int_sign = krylov_array(NOffSgn:NOffSgn+lenof_all_signs-1, idet)
+            parent_sign = transfer(int_sign, parent_sign)
+
+            call decode_bit_det(nI_parent, ilut_parent)
+
+            do iel = 1, nel
+                iorb = nI_parent(iel)
+                ibeta = is_beta(iorb)
+                ialpha = .not. ibeta
+
+                do jel = iel+1, nel
+
+                    jorb = nI_parent(jel)
+                    jbeta = is_beta(jorb)
+                    jalpha = .not. jbeta
+
+                    ! If both are beta orbitals, or both are alpha orbitals,
+                    ! then add the contributions to spin matrix.
+                    if ((ibeta .and. jbeta) .or. (ialpha .and. jalpha)) then
+                        do i = 1, nvecs
+                            do j = i, nvecs
+#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
+                                spin_matrix(i,j) = spin_matrix(i,j) + &
+                                    0.5_dp*(parent_sign(2*i-1)*parent_sign(2*j) + &
+                                            parent_sign(2*i)*parent_sign(2*j-1))/2.0_dp
+#else
+                                spin_matrix(i,j) = spin_matrix(i,j) + 0.5_dp*parent_sign(i)*parent_sign(j)
+#endif
+                            end do
+                        end do
+                    else
+                        ! One orbital has alpha spin, the other has beta spin.
+
+                        ! First add the elements corresponding to 'spawning'
+                        ! from and to the same determinant.
+                        do i = 1, nvecs
+                            do j = i, nvecs
+#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
+                                spin_matrix(i,j) = spin_matrix(i,j) - &
+                                    0.5_dp*(parent_sign(2*i-1)*parent_sign(2*j) + &
+                                            parent_sign(2*i)*parent_sign(2*j-1))/2.0_dp
+#else
+                                spin_matrix(i,j) = spin_matrix(i,j) - 0.5_dp*parent_sign(i)*parent_sign(j)
+#endif
+                            end do
+                        end do
+
+                        ! Now for the more tricky bit - 'spawning' to
+                        ! different determinants.
+                        
+                        ! First check if the two electrons are in the same
+                        ! spatial orbital. If they are then this will actually
+                        ! 'spawn' to the same determinant, so just add the
+                        ! contribution in.
+                        if (is_in_pair(iorb, jorb)) then
+                            ! Only take each contribution once.
+                            do i = 1, nvecs
+                                do j = i, nvecs
+#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
+                                    spin_matrix(i,j) = spin_matrix(i,j) - &
+                                        (parent_sign(2*i-1)*parent_sign(2*j) + &
+                                         parent_sign(2*i)*parent_sign(2*j-1))/2.0_dp
+#else
+                                    spin_matrix(i,j) = spin_matrix(i,j) - parent_sign(i)*parent_sign(j)
+#endif
+                                end do
+                            end do
+                        else
+                            ! If one of the new orbitals is already occupied
+                            ! then there will be no contribution.
+                            if (IsOcc(ilut_parent, ab_pair(iorb)) .or. &
+                                IsOcc(ilut_parent, ab_pair(jorb))) cycle
+                            ! Otherwise, we need to spawn to a different
+                            ! determinant. Create it and find the parity.
+                            call make_double(nI_parent, nI_child, iel, jel, ab_pair(iorb), ab_pair(jorb), ex, tParity)
+                            call EncodeBitDet(nI_child, ilut_child)
+
+                            if (tParity) then
+                                child_sign = parent_sign
+                            else
+                                child_sign = -parent_sign
+                            end if
+
+                            call create_particle_kp_estimates(nI_child, ilut_child, child_sign, tNearlyFull)
+
+                            if (tNearlyFull) then
+                                call add_in_contribs(nvecs, krylov_array, krylov_ht, tFinished, tAllFinished, -1.0_dp, spin_matrix)
+                                call clear_hash_table(spawn_ht)
+                                tNearlyFull = .false.
+                            end if
+
+                        end if
+                    end if
+
+                end do ! Over all occupied electrons > iel (jel).
+            end do ! Over all occupied electrons in this determiant (iel).
+
+        end do ! Over all occupied determinants.
+
+        tFinished = .true.
+        do
+            call add_in_contribs(nvecs, krylov_array, krylov_ht, tFinished, tAllFinished, -1.0_dp, spin_matrix)
+            if (tAllFinished) exit
+        end do
+
+        ! Symmetrise the spin matrix.
+        do i = 1, nvecs
+            do j = 1, i-1
+                spin_matrix(i,j) = spin_matrix(j,i)
+            end do
+        end do
+
+        if (.not. tExcitedStateKP) then
+            ! Now let SpawnedParts and SpawnedParts2 point back to their
+            ! original arrays.
+            SpawnedParts => SpawnVec
+            SpawnedParts2 => SpawnVec2
+        end if
+
+        call halt_timer(subspace_spin_time)
+
+    end subroutine calc_projected_spin
+
     function calc_amp_kp_hamil(parent_sign, prob, av_nspawn, HEl) result(child_sign)
 
         real(dp), intent(in) :: parent_sign(lenof_all_signs)
@@ -262,7 +438,7 @@ contains
 
     end function calc_amp_kp_hamil
 
-    subroutine create_particle_kp_hamil (nI_child, ilut_child, child_sign, tNearlyFull)
+    subroutine create_particle_kp_estimates (nI_child, ilut_child, child_sign, tNearlyFull)
 
         use bit_rep_data, only: NOffSgn
         use hash, only: DetermineDetNode, hash_table_lookup, add_hash_table_entry
@@ -305,9 +481,9 @@ contains
             if (ValidSpawnedList(proc)-InitialSpawnedSlots(proc) > MaxSpawnedEachProc) tNearlyFull = .true.
         end if
 
-    end subroutine create_particle_kp_hamil
+    end subroutine create_particle_kp_estimates
 
-    subroutine distribute_spawns_kp_hamil(nspawns_this_proc)
+    subroutine distribute_spawns_kp_estimates(nspawns_this_proc)
 
         use AnnihilationMod, only: SendProcNewParts
         use FciMCData, only: SpawnedParts, SpawnedParts2
@@ -323,9 +499,9 @@ contains
 
         nullify(PointTemp)
 
-    end subroutine distribute_spawns_kp_hamil
+    end subroutine distribute_spawns_kp_estimates
 
-    subroutine add_in_hamil_contribs(nvecs, krylov_array, krylov_ht, tFinished, tAllFinished, h_matrix)
+    subroutine add_in_contribs(nvecs, krylov_array, krylov_ht, tFinished, tAllFinished, fac, est_matrix)
 
         use FciMCData, only: InitialSpawnedSlots, ValidSpawnedList, ll_node
         use Parallel_neci, only: MPIAllGather, nProcessors
@@ -333,16 +509,17 @@ contains
         integer, intent(in) :: nvecs
         integer(n_int), intent(in) :: krylov_array(0:,:)
         type(ll_node), pointer, intent(in) :: krylov_ht(:)
-        real(dp), intent(inout) :: h_matrix(:,:)
+        real(dp), intent(in) :: fac
+        real(dp), intent(inout) :: est_matrix(:,:)
 
         logical, intent(in) :: tFinished
         logical, intent(out) :: tAllFinished
         logical :: tFinished_AllProcs(nProcessors)
         integer :: nspawns_this_proc, ierr
 
-        call distribute_spawns_kp_hamil(nspawns_this_proc)
+        call distribute_spawns_kp_estimates(nspawns_this_proc)
 
-        call calc_hamil_contribs_spawn(nvecs, krylov_array, krylov_ht, nspawns_this_proc, h_matrix)
+        call calc_contribs_spawn(nvecs, krylov_array, krylov_ht, nspawns_this_proc, fac, est_matrix)
 
         ValidSpawnedList = InitialSpawnedSlots
 
@@ -350,9 +527,9 @@ contains
 
         tAllFinished = all(tFinished_AllProcs)
 
-    end subroutine add_in_hamil_contribs
+    end subroutine add_in_contribs
 
-    subroutine calc_hamil_contribs_spawn(nvecs, krylov_array, krylov_ht, nspawns_this_proc, h_matrix)
+    subroutine calc_contribs_spawn(nvecs, krylov_array, krylov_ht, nspawns_this_proc, fac, est_matrix)
 
         use bit_rep_data, only: NOffSgn
         use bit_reps, only: decode_bit_det
@@ -364,9 +541,10 @@ contains
         integer(n_int), intent(in) :: krylov_array(0:,:)
         type(ll_node), pointer, intent(in) :: krylov_ht(:)
         integer, intent(in) :: nspawns_this_proc
-        real(dp), intent(inout) :: h_matrix(:,:)
+        real(dp), intent(in) :: fac
+        real(dp), intent(inout) :: est_matrix(:,:)
 
-        integer :: idet, DetHash, det_ind, i, j
+        integer :: idet, det_hash, det_ind, i, j
         integer(n_int) :: ilut_spawn(0:NIfTot)
         integer :: nI_spawn(nel)
         integer(n_int) :: int_sign(lenof_all_signs)
@@ -377,13 +555,15 @@ contains
         ilut_spawn = 0_n_int
 
         do idet = 1, nspawns_this_proc
+
             ilut_spawn(0:NIfDBO) = SpawnedParts(0:NIfDBO, idet)
             int_sign = SpawnedParts(NOffSgn:NOffSgn+lenof_all_signs-1, idet)
             real_sign_1 = transfer(int_sign, real_sign_1)
             call decode_bit_det(nI_spawn, ilut_spawn)
-            DetHash = FindWalkerHash(nI_spawn, size(krylov_ht))
+            det_hash = FindWalkerHash(nI_spawn, size(krylov_ht))
             ! Point to the first node with this hash value in krylov_array.
-            temp_node => krylov_ht(DetHash)
+            temp_node => krylov_ht(det_hash)
+
             if (temp_node%ind == 0) then
                 ! If there are no determinants at all with this hash value in krylov_array.
                 cycle
@@ -408,11 +588,11 @@ contains
                     do i = 1, nvecs
                         do j = i, nvecs
 #if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
-                            h_matrix(i,j) = h_matrix(i,j) + &
-                                (real_sign_1(2*i-1)*real_sign_2(2*j) + &
-                                real_sign_1(2*i)*real_sign_2(2*j-1))/2.0_dp
+                            est_matrix(i,j) = est_matrix(i,j) + &
+                                fac*(real_sign_1(2*i-1)*real_sign_2(2*j) + &
+                                     real_sign_1(2*i)*real_sign_2(2*j-1))/2.0_dp
 #else
-                            h_matrix(i,j) = h_matrix(i,j) + real_sign_1(i)*real_sign_2(j)
+                            est_matrix(i,j) = est_matrix(i,j) + fac*real_sign_1(i)*real_sign_2(j)
 #endif
                         end do
                     end do
@@ -420,7 +600,7 @@ contains
             end if
         end do
 
-    end subroutine calc_hamil_contribs_spawn
+    end subroutine calc_contribs_spawn
 
     subroutine calc_hamil_contribs_diag(nvecs, krylov_array, ndets, h_matrix, h_diag)
     
@@ -515,4 +695,4 @@ contains
 
     end subroutine calc_hamil_contribs_semistoch
 
-end module kp_fciqmc_hamil
+end module kp_fciqmc_proj_est

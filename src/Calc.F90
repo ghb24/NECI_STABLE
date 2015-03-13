@@ -280,6 +280,7 @@ contains
           tOptimisedCore = .false.
           tFCICore = .false.
           tHeisenbergFCICore = .false.
+          tHFCore  = .false.
           tPopsCore = .false.
           tReadCore = .false.
           tLowECore = .false.
@@ -301,6 +302,7 @@ contains
           tCASTrial = .false.
           tRASTrial = .false.
           tOptimisedTrial =.false.
+          tHFTrial = .false.
           tPopsTrial = .false.
           tReadTrial = .false.
           tLowETrial = .false.
@@ -347,6 +349,7 @@ contains
           tMultiReplicaInitiators = .false.
           tOrthogonaliseReplicas = .false.
           orthogonalise_iter = 0
+          tReplicaSingleDetStart = .false.
 
           use_spawn_hash_table = .false.
 
@@ -1058,6 +1061,8 @@ contains
                 tFCICore = .true.
             case("HEISENBERG-FCI-CORE")
                 tHeisenbergFCICore = .true.
+            case("HF-CORE")
+                tHFCore = .true.
             case("POPS-CORE")
                 tPopsCore = .true.
                 call geti(n_core_pops)
@@ -1133,6 +1138,8 @@ contains
                 do I = 1, trial_opt_data%ngen_loops
                     call geti(trial_opt_data%cutoff_nums(I))
                 end do
+            case("HF-TRIAL")
+                tHFTrial = .true.
             case("POPS-TRIAL")
                 tPopsTrial = .true.
                 call geti(n_trial_pops)
@@ -2011,6 +2018,12 @@ contains
                 if (item < nitems) then
                     call readi(orthogonalise_iter)
                 endif
+
+            case("REPLICA-SINGLE-DET-START")
+                ! If we want to start off multiple replicas from single dets
+                ! chosen fairly naively as excited states of the HF, then use
+                ! this option
+                tReplicaSingleDetStart = .true.
 
             case("USE-SPAWN-HASH-TABLE")
                 use_spawn_hash_table = .true.

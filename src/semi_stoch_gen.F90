@@ -11,7 +11,7 @@ module semi_stoch_gen
     use gndts_mod, only: gndts, gndts_all_sym_this_proc
     use LoggingData, only: tWriteCore, tRDMonFly
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
-    use Parallel_neci, only: iProcIndex, nProcessors, MPIBCast, MPIArg, MPIAllGatherV, &
+    use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIAllGatherV, &
                              MPIAllGather, MPIScatter, MPIScatterV, MPIBarrier
     use ParallelHelper, only: root
     use semi_stoch_procs
@@ -61,7 +61,7 @@ contains
 
         if (.not. (tStartCAS .or. tPopsCore .or. tDoublesCore .or. tCASCore .or. tRASCore .or. &
                    tOptimisedCore .or. tLowECore .or. tReadCore .or. tMP1Core .or. &
-                   tFCICore .or. tHeisenbergFCICore)) then
+                   tFCICore .or. tHeisenbergFCICore .or. tHFCore)) then
             call stop_all("init_semi_stochastic", "You have not selected a semi-stochastic core space to use.")
         end if
         if (.not. tUseRealCoeffs) call stop_all(t_r, "To use semi-stochastic you must also use real coefficients.")
@@ -182,6 +182,7 @@ contains
         space_size = 0
 
         ! Call the requested generating routines.
+        if (tHFCore) call add_state_to_space(ilutHF, SpawnedParts, space_size)
         if (tPopsCore) call generate_space_most_populated(n_core_pops, SpawnedParts, space_size)
         if (tReadCore) call generate_space_from_file('CORESPACE', SpawnedParts, space_size)
         if (.not. tCSFCore) then
