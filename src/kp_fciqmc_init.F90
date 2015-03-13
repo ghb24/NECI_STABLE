@@ -7,7 +7,6 @@ module kp_fciqmc_init
     use constants
     use Parallel_neci, only: iProcIndex, MPISum, MPISumAll, nProcessors
     use kp_fciqmc_data_mod
-    use kp_fciqmc_break_circular
 
     implicit none
 
@@ -512,6 +511,7 @@ contains
         use FciMCData, only: proje_iter_tot, AllGrowRate, SpawnedParts
         use FciMCParMod, only: tSinglePartPhase
         use hash, only: clear_hash_table
+        use initial_trial_states
         use util_mod, only: int_fmt
 
         integer, intent(in) :: iconfig, irepeat, nrepeats, nvecs

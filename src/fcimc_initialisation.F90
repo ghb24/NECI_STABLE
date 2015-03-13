@@ -94,9 +94,8 @@ module fcimc_initialisation
                                  new_child_stats_normal, &
                                  null_encode_child, attempt_die_normal
     use csf_data, only: csf_orbital_mask
-    use kp_fciqmc_break_circular, only: calc_trial_states, &
-                                        set_trial_populations, &
-                                        set_trial_states
+    use initial_trial_states, only: calc_trial_states, set_trial_populations, &
+                                    set_trial_states
     use kp_fciqmc_data_mod, only: tDoubles_KP_Space
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                clean_global_det_data, init_global_det_data, &
