@@ -8,9 +8,10 @@ module initial_trial_states
 
 contains
 
-    subroutine calc_trial_states(nexcit, ndets_this_proc, evecs_this_proc, trial_iluts)
+    subroutine calc_trial_states(spaces_in, nexcit, ndets_this_proc, evecs_this_proc, trial_iluts)
 
         use bit_reps, only: decode_bit_det
+        use CalcData, only: subspace_in
         use DetBitOps, only: ilut_lt, ilut_gt
         use lanczos_wrapper, only: frsblk_wrapper
         use Parallel_neci, only: MPIScatterV, MPIGatherV, MPIArg, iProcIndex
@@ -20,6 +21,7 @@ contains
         use sort_mod, only: sort
         use SystemData, only: nel, tAllSymSectors
 
+        type(subspace_in) :: spaces_in
         integer, intent(in) :: nexcit
         integer, intent(out) :: ndets_this_proc
         real(dp), allocatable, intent(out) :: evecs_this_proc(:,:)
@@ -40,13 +42,13 @@ contains
         ndets_this_proc = 0
 
         ! Choose the correct generating routine.
-        if (tPops_KP_Space) call generate_space_most_populated(n_kp_pops, trial_iluts, ndets_this_proc)
-        if (tRead_KP_Space) call generate_space_from_file('DETFILE', trial_iluts, ndets_this_proc)
-        if (tDoubles_KP_Space) call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
-        if (tCAS_KP_Space) call generate_cas(Occ_KP_CasOrbs, Virt_KP_CasOrbs, trial_iluts, ndets_this_proc)
-        if (tRAS_KP_Space) call generate_ras(kp_ras, trial_iluts, ndets_this_proc)
-        if (tMP1_KP_Space) call generate_using_mp1_criterion(kp_mp1_ndets, trial_iluts, ndets_this_proc)
-        if (tFCI_KP_Space) then
+        if (spaces_in%tPops) call generate_space_most_populated(n_kp_pops, trial_iluts, ndets_this_proc)
+        if (spaces_in%tRead) call generate_space_from_file('DETFILE', trial_iluts, ndets_this_proc)
+        if (spaces_in%tDoubles) call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
+        if (spaces_in%tCAS) call generate_cas(Occ_KP_CasOrbs, Virt_KP_CasOrbs, trial_iluts, ndets_this_proc)
+        if (spaces_in%tRAS) call generate_ras(kp_ras, trial_iluts, ndets_this_proc)
+        if (spaces_in%tMP1) call generate_using_mp1_criterion(kp_mp1_ndets, trial_iluts, ndets_this_proc)
+        if (spaces_in%tFCI) then
             if (tAllSymSectors) then
                 call gndts_all_sym_this_proc(trial_iluts, .true., ndets_this_proc)
             else
@@ -54,8 +56,8 @@ contains
             end if
         end if
 
-        if (.not. (tPops_KP_Space .or. tRead_KP_Space .or. tDoubles_KP_Space .or. tCAS_KP_Space &
-                    .or. tRAS_KP_Space .or. tMP1_KP_Space .or. tFCI_KP_Space)) then
+        if (.not. (spaces_in%tPops .or. spaces_in%tRead .or. spaces_in%tDoubles .or. spaces_in%tCAS .or. &
+                   spaces_in%tRAS .or. spaces_in%tMP1 .or. spaces_in%tFCI)) then
             call stop_all(t_r, "A space for the trial functions was not chosen.")
         end if
 

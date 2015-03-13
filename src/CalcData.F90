@@ -259,6 +259,8 @@ integer :: init_spawn_thresh
 ! Are we orthogonalising replicas?
 logical :: tOrthogonaliseReplicas, tReplicaSingleDetStart
 integer :: orthogonalise_iter
+! Information on a trial space to create trial excited states with.
+type(subspace_in) :: init_trial_in
 
 ! If true then a hash table is kept for the spawning array and is used when
 ! new spawnings are added to the spawned list, to prevent adding the same
