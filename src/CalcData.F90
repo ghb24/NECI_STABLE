@@ -114,6 +114,7 @@ logical :: tSemiStochastic ! Performing a semi-stochastic simulation if true.
 ! Options regarding splitting the space into core and non-core elements. Needed, for example when performing a
 ! semi-stochastic simulation, to specify the deterministic space.
 logical :: tCSFCore ! Use CSFs for the core states.
+logical :: tHFCore ! Just use the Hartree-Fock determinant for the deterministic space.
 logical :: tOptimisedCore ! Generate an optimised deterministic space by diagonalising part of the space.
 logical :: tDoublesCore ! Use single and double excitations for the core states.
 logical :: tHFConnCore ! Use all determinants connected to the Hartree-Fock for the core states.
@@ -186,6 +187,7 @@ logical :: tDetermHFSpawning
 
 ! Options relating to the trial wavefunction.
 logical :: tTrialWavefunction ! Use a trial wavefunction-based energy estimator.
+logical :: tHFTrial ! Just use the Hartree-Fock determinant for the trial space.
 logical :: tDoublesTrial ! Use single and double exciations for the trial space.
 logical :: tCASTrial ! Use a CAS space for the trial space.
 logical :: tRASTrial ! Use a RAS space for the trial space (see ras.F90 for definition).
@@ -254,7 +256,7 @@ logical :: tSpawnCountInitiatorThreshold
 integer :: init_spawn_thresh
 
 ! Are we orthogonalising replicas?
-logical :: tOrthogonaliseReplicas
+logical :: tOrthogonaliseReplicas, tReplicaSingleDetStart
 integer :: orthogonalise_iter
 
 ! If true then a hash table is kept for the spawning array and is used when

@@ -230,12 +230,13 @@ contains
                 root_print "WARNING: Updating time step due to particle death &
                            &magnitude"
                 root_print "This occurs despite variable shift mode"
-                root_print "Updating time-step. New time-step = ", tau_new
+                root_print "Updating time-step. New time-step = ", tau
                 root_print "******"
             end if
 
             ! Condition met --> no need to do this again next iteration
             tSearchTauDeath = .false.
+            return
 
         end if
 

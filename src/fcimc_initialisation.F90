@@ -27,7 +27,7 @@ module fcimc_initialisation
                         RealCoeffExcitThresh, TargetGrowRate, &
                         TargetGrowRateWalk, InputTargetGrowRate, &
                         InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
-                        use_spawn_hash_table
+                        use_spawn_hash_table, tReplicaSingleDetStart
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -52,7 +52,8 @@ module fcimc_initialisation
     use bit_rep_data, only: NIfTot, NIfD, NIfDBO, flag_initiator, &
                             flag_deterministic
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
-                        decode_bit_det, nullify_ilut, encode_part_sign
+                        decode_bit_det, nullify_ilut, encode_part_sign, &
+                        extract_part_sign
     use hist_data, only: tHistSpawn, HistMinInd, HistMinInd2, Histogram, &
                          BeforeNormHist, InstHist, iNoBins, AllInstHist, &
                          HistogramEnergy, AllHistogramEnergy, AllHistogram, &
@@ -93,6 +94,10 @@ module fcimc_initialisation
                                  new_child_stats_normal, &
                                  null_encode_child, attempt_die_normal
     use csf_data, only: csf_orbital_mask
+    use kp_fciqmc_break_circular, only: calc_trial_states, &
+                                        set_trial_populations, &
+                                        set_trial_states
+    use kp_fciqmc_data_mod, only: tDoubles_KP_Space
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                clean_global_det_data, init_global_det_data, &
                                set_part_init_time
@@ -105,7 +110,7 @@ module fcimc_initialisation
     use gndts_mod, only: gndts
     use csf, only: get_csf_helement
     use tau_search, only: init_tau_search
-    use fcimc_helper, only: CalcParentFlag
+    use fcimc_helper, only: CalcParentFlag, update_run_reference
     use get_excit, only: make_double
     use sltcnd_mod, only: sltcnd_0
     use Parallel_neci
@@ -163,6 +168,7 @@ contains
         Stats_Comms_Time%timer_name='StatsCommsTime'
         subspace_hamil_time%timer_name='SubspaceHamilTime'
         exact_subspace_h_time%timer_name='ExactSubspace_H_Time'
+        subspace_spin_time%timer_name='SubspaceSpinTime'
 
         ! Initialise allocated arrays with input data
         TargetGrowRate(:) = InputTargetGrowRate
@@ -1260,6 +1266,11 @@ contains
                     !Initialise walkers according to a CAS diagonalisation.
                     call InitFCIMC_CAS()
 
+                else if (tOrthogonaliseReplicas .and. &
+                         .not. tReplicaSingleDetStart) then
+
+                    call InitFCIMC_trial()
+
                 else !Set up walkers on HF det
 
                     if(tStartSinglePart) then
@@ -1839,6 +1850,85 @@ contains
         end if
 
     end subroutine InitFCIMC_HF_orthog
+
+    subroutine InitFCIMC_trial()
+
+        ! Use the code generated for the KPFCIQMC excited state calculations
+        ! to initialise the FCIQMC simulation.
+
+        integer :: nexcit, ndets_this_proc, i, det(nel)
+        real(dp), allocatable :: evecs_this_proc(:,:), init_vecs(:,:)
+        type(basisfn) :: sym
+        character(*), parameter :: this_routine = 'InitFCIMC_trial'
+
+        nexcit = inum_runs
+
+        ! For now, use the doubles to generate this space
+        tDoubles_KP_Space = .true.
+
+        ! Create the trial excited states
+        call calc_trial_states(nexcit, ndets_this_proc, evecs_this_proc, &
+                               SpawnedParts)
+        ! Determine the walker populations associated with these states
+        call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
+        ! Set the trial excited states as the FCIQMC wave functions
+        call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts, &
+                              .false.)
+        call set_initial_run_references()
+
+        deallocate(evecs_this_proc)
+
+        ! Add an initialisation check on symmetries
+        do i = 1, TotWalkers
+            call decode_bit_det(det, CurrentDets(:,i))
+            call getsym_wrapper(det, sym)
+            if (sym%sym%S /= HFSym%sym%S .or. sym%ml /= HFSym%Ml) &
+                call stop_all(this_routine, "Invalid det found")
+        end do
+
+    end subroutine
+
+    subroutine set_initial_run_references()
+
+        ! Analyse each of the runs, and set the reference determinant to the
+        ! det with the largest coefficient, rather than the currently guessed
+        ! one...
+
+        real(dp) :: largest_coeff, sgn
+        integer(n_int) :: largest_det(0:NIfTot)
+        integer :: run, j, proc_highest
+        integer(int32) :: int_tmp(2)
+
+        ASSERT(inum_runs == lenof_sign)
+        do run = 1, inum_runs
+
+            ! Find the largest det on this processor
+            largest_coeff = 0
+            do j = 1, TotWalkers
+                sgn = extract_part_sign(CurrentDets(:,j), run)
+                if (abs(sgn) > largest_coeff) then
+                    largest_coeff = abs(sgn)
+                    largest_det = CurrentDets(:,j)
+                end if
+            end do
+            
+            ! Find the largest det on any processor (n.b. discard the
+            ! non-integer part. This isn't all that important).
+            call MPIAllReduceDatatype(&
+                (/int(largest_coeff, int32), int(iProcIndex, int32)/), 1, &
+                MPI_MAXLOC, MPI_2INTEGER, int_tmp)
+            proc_highest = int_tmp(2)
+            call MPIBCast(largest_det, NIfTot+1, proc_highest)
+
+            write(6,*) 'Setting ref', run
+            call writebitdet(6, largest_det, .true.)
+
+            ! Set this det as the reference
+            call update_run_reference(largest_det, run)
+
+        end do
+
+    end subroutine
 
     !Routine to initialise the particle distribution according to a CAS diagonalisation. 
     !This hopefully will help with close-lying excited states of the same sym.
