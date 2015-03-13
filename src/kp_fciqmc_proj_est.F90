@@ -14,7 +14,7 @@ contains
 
         use bit_rep_data, only: NOffFlag, tUseFlags
         use bit_reps, only: decode_bit_det
-        use CalcData, only: tDoublesCore, tDetermHFSpawning
+        use CalcData, only: ss_space_in, tDetermHFSpawning
         use constants
         use DetBitOps, only: return_ms, FindBitExcitLevel
         use enumerate_excitations, only: generate_connection_normal, generate_connection_kpnt
@@ -105,7 +105,7 @@ contains
 
             if (tParentUnoccupied) cycle
 
-            if (tDoublesCore .and. tDetermHFSpawning) then
+            if (ss_space_in%tDoubles .and. tDetermHFSpawning) then
                 ex_level_to_hf = FindBitExcitLevel (iLutHF_true, ilut_parent, max_calc_ex_level)
                 if (ex_level_to_hf == 0) cycle
             end if

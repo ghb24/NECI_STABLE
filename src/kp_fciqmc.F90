@@ -11,7 +11,7 @@ module kp_fciqmc
     use bit_reps, only: flag_deterministic, flag_determ_parent, set_flag
     use bit_reps, only: extract_bit_rep
     use CalcData, only: AvMCExcits, tSemiStochastic, tTruncInitiator, StepsSft
-    use CalcData, only: tDoublesCore, tDetermHFSpawning
+    use CalcData, only: tDetermHFSpawning, ss_space_in
     use constants
     use DetBitOps, only: FindBitExcitLevel, return_ms
     use FciMCData, only: fcimc_excit_gen_store, FreeSlot, iEndFreeSlot
@@ -201,7 +201,7 @@ contains
                             ! doubles are in the core space, then there will be
                             ! no stochastic spawning from this determinant, so
                             ! we can the rest of this loop.
-                            if (tDoublesCore .and. ex_level_to_hf == 0 .and. tDetermHFSpawning) cycle
+                            if (ss_space_in%tDoubles .and. ex_level_to_hf == 0 .and. tDetermHFSpawning) cycle
 
                             if (tAllSymSectors) then
                                 ms_parent = return_ms(ilut_parent)
@@ -562,7 +562,7 @@ contains
                         ! doubles are in the core space, then there will be no
                         ! stochastic spawning from this determinant, so we can
                         ! the rest of this loop.
-                        if (tDoublesCore .and. ex_level_to_hf == 0 .and. tDetermHFSpawning) cycle
+                        if (ss_space_in%tDoubles .and. ex_level_to_hf == 0 .and. tDetermHFSpawning) cycle
 
                         do ireplica = 1, lenof_sign
 
