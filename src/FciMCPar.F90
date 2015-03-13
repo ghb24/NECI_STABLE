@@ -9,8 +9,8 @@ module FciMCParMod
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
                         iFullSpaceIter, semistoch_shift_iter, &
                         tOrthogonaliseReplicas, orthogonalise_iter, &
-                        tDoublesCore, tDetermHFSpawning, use_spawn_hash_table,&
-                        semistoch_shift_iter
+                        tDetermHFSpawning, use_spawn_hash_table, &
+                        semistoch_shift_iter, ss_space_in
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, &
@@ -203,7 +203,7 @@ module FciMCParMod
             if (semistoch_shift_iter /= 0 .and. all(.not. tSinglePartPhase)) then
                 if ((Iter - maxval(VaryShiftIter)) == semistoch_shift_iter + 1) then
                     tSemiStochastic = .true.
-                    call init_semi_stochastic()
+                    call init_semi_stochastic(ss_space_in)
                 end if
             end if
             
@@ -813,7 +813,7 @@ module FciMCParMod
             ! If we're on the Hartree-Fock, and all singles and doubles are in
             ! the core space, then there will be no stochastic spawning from
             ! this determinant, so we can the rest of this loop.
-            if (tDoublesCore .and. walkExcitLevel_toHF == 0 .and. tDetermHFSpawning) then
+            if (ss_space_in%tDoubles .and. walkExcitLevel_toHF == 0 .and. tDetermHFSpawning) then
                 if (tFillingStochRDMonFly) then
                     call set_av_sgn(j, AvSignCurr)
                     call set_iter_occ(j, IterRDMStartCurr)

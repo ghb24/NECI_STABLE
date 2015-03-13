@@ -22,7 +22,7 @@ module semi_stoch_gen
 
 contains
 
-    subroutine init_semi_stochastic()
+    subroutine init_semi_stochastic(core_in)
 
         ! Initialise the semi-stochastic information. This includes enumerating a list of all
         ! determinants or CSFs in the deterministic space and calculating and storing the resulting
@@ -38,6 +38,8 @@ contains
         use FciMCData, only: tStartCoreGroundState
         use sort_mod, only: sort
         use SystemData, only: nel
+
+        type(subspace_in) :: core_in
 
         integer :: i, j, ierr
         integer :: nI(nel)
@@ -59,9 +61,9 @@ contains
         determ_sizes = 0_MPIArg
         determ_displs = 0_MPIArg
 
-        if (.not. (tStartCAS .or. tPopsCore .or. tDoublesCore .or. tCASCore .or. tRASCore .or. &
-                   tOptimisedCore .or. tLowECore .or. tReadCore .or. tMP1Core .or. &
-                   tFCICore .or. tHeisenbergFCICore .or. tHFCore)) then
+        if (.not. (tStartCAS .or. core_in%tPops .or. core_in%tDoubles .or. core_in%tCAS .or. core_in%tRAS .or. &
+                   core_in%tOptimised .or. core_in%tLowE .or. core_in%tRead .or. core_in%tMP1 .or. &
+                   core_in%tFCI .or. core_in%tHeisenbergFCI .or. core_in%tHF)) then
             call stop_all("init_semi_stochastic", "You have not selected a semi-stochastic core space to use.")
         end if
         if (.not. tUseRealCoeffs) call stop_all(t_r, "To use semi-stochastic you must also use real coefficients.")
@@ -70,7 +72,7 @@ contains
         ! SpawnedParts on the correct processor. As they do this, they count the size of the
         ! deterministic space (on their own processor only).
         write(6,'("Generating the deterministic space...")'); call neci_flush(6)
-        call generate_space()
+        call generate_space(core_in)
 
         ! So that all procs store the size of the deterministic spaces on all procs.
         mpi_temp = determ_sizes(iProcIndex)
@@ -164,7 +166,7 @@ contains
 
     end subroutine init_semi_stochastic
 
-    subroutine generate_space()
+    subroutine generate_space(core_in)
 
         ! A wrapper to call the correct generating routine.
 
@@ -175,6 +177,8 @@ contains
         use searching, only: remove_repeated_states
         use SystemData, only: tAllSymSectors
 
+        type(subspace_in) :: core_in
+
         integer :: space_size, i, j, ierr
         real(dp) :: zero_sign(lenof_sign)
         character (len=*), parameter :: t_r = "generate_space"
@@ -182,43 +186,43 @@ contains
         space_size = 0
 
         ! Call the requested generating routines.
-        if (tHFCore) call add_state_to_space(ilutHF, SpawnedParts, space_size)
-        if (tPopsCore) call generate_space_most_populated(n_core_pops, SpawnedParts, space_size)
-        if (tReadCore) call generate_space_from_file('CORESPACE', SpawnedParts, space_size)
+        if (core_in%tHF) call add_state_to_space(ilutHF, SpawnedParts, space_size)
+        if (core_in%tPops) call generate_space_most_populated(n_core_pops, SpawnedParts, space_size)
+        if (core_in%tRead) call generate_space_from_file('CORESPACE', SpawnedParts, space_size)
         if (.not. tCSFCore) then
-            if (tDoublesCore) call generate_sing_doub_determinants(SpawnedParts, space_size, tHFConnCore)
-            if (tCASCore) call generate_cas(OccDetermCasOrbs, VirtDetermCasOrbs, SpawnedParts, space_size)
-            if (tRASCore) call generate_ras(core_ras, SpawnedParts, space_size)
-            if (tOptimisedCore) call generate_optimised_core(determ_opt_data, tLimitDetermSpace, &
+            if (core_in%tDoubles) call generate_sing_doub_determinants(SpawnedParts, space_size, core_in%tHFConn)
+            if (core_in%tCAS) call generate_cas(OccDetermCasOrbs, VirtDetermCasOrbs, SpawnedParts, space_size)
+            if (core_in%tRAS) call generate_ras(core_ras, SpawnedParts, space_size)
+            if (core_in%tOptimised) call generate_optimised_core(determ_opt_data, tLimitDetermSpace, &
                                                              SpawnedParts, space_size, max_determ_size)
-            if (tLowECore) call generate_low_energy_core(low_e_core_excit, tLowECoreAllDoubles, &
+            if (core_in%tLowE) call generate_low_energy_core(low_e_core_excit, tLowECoreAllDoubles, &
                                               low_e_core_num_keep, max_determ_size, SpawnedParts, space_size)
-            if (tMP1Core) call generate_using_mp1_criterion(semistoch_mp1_ndets, SpawnedParts, space_size)
-            if (tFCICore) then
+            if (core_in%tMP1) call generate_using_mp1_criterion(semistoch_mp1_ndets, SpawnedParts, space_size)
+            if (core_in%tFCI) then
                 if (tAllSymSectors) then
                     call gndts_all_sym_this_proc(SpawnedParts, .false., space_size)
                 else
                     call generate_fci_core(SpawnedParts, space_size)
                 end if
-            else if (tHeisenbergFCICore) then
+            else if (core_in%tHeisenbergFCI) then
                 call generate_heisenberg_fci(SpawnedParts, space_size)
             end if
         else if (tCSFCore) then
-            if (tDoublesCore) then
+            if (core_in%tDoubles) then
                 call generate_sing_doub_csfs(SpawnedParts, space_size)
-            else if (tCASCore) then
+            else if (core_in%tCAS) then
                 call stop_all("init_semi_stochastic", "CAS core space with CSFs is not &
                               &currently implemented.")
-            else if (tCASCore) then
+            else if (core_in%tCAS) then
                 call stop_all("init_semi_stochastic", "Cannot use a RAS core space with &
                               &CSFs.")
-            else if (tOptimisedCore) then
+            else if (core_in%tOptimised) then
                 call stop_all("init_semi_stochastic", "Optimised core space with CSFs is not &
                               &currently implemented.")
-            else if (tLowECore) then
+            else if (core_in%tLowE) then
                 call stop_all("init_semi_stochastic", "Low energy core space with CSFs is not &
                               &currently implemented.")
-            else if (tMP1Core) then
+            else if (core_in%tMP1) then
                 call stop_all("init_semi_stochastic", "The use of the MP1 wave function criterion &
                               &with CSFs is not implemented.")
             end if

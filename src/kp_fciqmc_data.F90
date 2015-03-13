@@ -1,8 +1,6 @@
 module kp_fciqmc_data_mod
 
-    ! This module contains data associated with KP-FCIQMC to avoid circular
-    ! use statements.
-
+    use CalcData, only: subspace_in
     use constants
     use FciMCData, only: ll_node, perturbation
     use ras_data, only: ras_parameters
@@ -219,15 +217,8 @@ module kp_fciqmc_data_mod
     ! Krylov vector?
     real(dp), allocatable :: kpfciqmc_ex_weights(:)
 
-    ! Options for the trial wave function space for excited-state calculations.
-    logical :: tHF_KP_Space
-    logical :: tPops_KP_Space
-    logical :: tRead_KP_Space
-    logical :: tDoubles_KP_Space
-    logical :: tCAS_KP_Space
-    logical :: tRAS_KP_Space
-    logical :: tMP1_KP_Space
-    logical :: tFCI_KP_Space
+    ! Type for the trial wave function space for excited-state calculations.
+    type(subspace_in) :: kp_trial_space_in
     
     integer :: n_kp_pops
     integer :: Occ_KP_CasOrbs

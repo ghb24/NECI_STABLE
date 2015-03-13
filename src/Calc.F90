@@ -273,18 +273,6 @@ contains
           ! Semi-stochastic and trial wavefunction options.
           tSemiStochastic = .false.
           tCSFCore = .false.
-          tDoublesCore = .false.
-          tHFConnCore = .false.
-          tCASCore = .false.
-          tRASCore = .false.
-          tOptimisedCore = .false.
-          tFCICore = .false.
-          tHeisenbergFCICore = .false.
-          tHFCore  = .false.
-          tPopsCore = .false.
-          tReadCore = .false.
-          tLowECore = .false.
-          tMP1Core = .false.
           determ_opt_data%ngen_loops = 1
           n_core_pops = 0
           low_e_core_excit = 0
@@ -298,17 +286,6 @@ contains
           max_trial_size = 0
           determ_opt_data%tAmpCutoff = .false.
           tTrialWavefunction = .false.
-          tDoublesTrial = .false.
-          tCASTrial = .false.
-          tRASTrial = .false.
-          tOptimisedTrial =.false.
-          tHFTrial = .false.
-          tPopsTrial = .false.
-          tReadTrial = .false.
-          tLowETrial = .false.
-          tMP1Trial = .false.
-          tFCITrial = .false.
-          tHeisenbergFCITrial = .false.
           trial_opt_data%ngen_loops = 1
           n_trial_pops = 0
           low_e_trial_excit = 0
@@ -1020,17 +997,17 @@ contains
                 tCSF = .true.
                 LMS = STOT
             case("DOUBLES-CORE")
-                tDoublesCore = .true.
+                ss_space_in%tDoubles = .true.
             case("HF-CONN-CORE")
-                tDoublesCore = .true.
-                tHFConnCore = .true.
+                ss_space_in%tDoubles = .true.
+                ss_space_in%tHFConn = .true.
             case("CAS-CORE")
-                tCASCore = .true.
+                ss_space_in%tCAS = .true.
                 tSpn = .true.
                 call geti(OccDetermCASOrbs)  !Number of electrons in CAS 
                 call geti(VirtDetermCASOrbs)  !Number of virtual spin-orbitals in CAS
             case("RAS-CORE")
-                tRASCore = .true.
+                ss_space_in%tRAS = .true.
                 call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
                 call geti(ras_size_2)  ! Number of spatial orbitals in RAS2.
                 call geti(ras_size_3)  ! Number of spatial orbitals in RAS3.
@@ -1042,7 +1019,7 @@ contains
                 core_ras%min_1 = int(ras_min_1,sp)
                 core_ras%max_3 = int(ras_max_3,sp)
             case("OPTIMISED-CORE")
-                tOptimisedCore = .true.
+                ss_space_in%tOptimised = .true.
             case("OPTIMISED-CORE-CUTOFF-AMP")
                 determ_opt_data%tAmpCutoff = .true.
                 determ_opt_data%ngen_loops = nitems - 1
@@ -1058,26 +1035,26 @@ contains
                     call geti(determ_opt_data%cutoff_nums(I))
                 end do
             case("FCI-CORE")
-                tFCICore = .true.
+                ss_space_in%tFCI = .true.
             case("HEISENBERG-FCI-CORE")
-                tHeisenbergFCICore = .true.
+                ss_space_in%tHeisenbergFCI = .true.
             case("HF-CORE")
-                tHFCore = .true.
+                ss_space_in%tHF = .true.
             case("POPS-CORE")
-                tPopsCore = .true.
+                ss_space_in%tPops = .true.
                 call geti(n_core_pops)
             case("MP1-CORE")
-                tMP1Core = .true.
+                ss_space_in%tMP1 = .true.
                 call geti(semistoch_mp1_ndets)
             case("READ-CORE")
-                tReadCore = .true.
+                ss_space_in%tRead = .true.
             case("LOW-ENERGY-CORE")
     ! Input values: The first integer is the maximum excitation level to go up to.
     !               The second integer is the maximum number of states to keep for a subsequent iteration.
     !               If desired, you can put "All-Doubles" after these two integers to keep all singles and doubles.
     !               If max-core-size is specified then this value will be used to select the number of states kept
     !               after the *final* iteration.
-                tLowECore = .true.
+                ss_space_in%tLowE = .true.
                 call geti(low_e_core_excit)
                 call geti(low_e_core_num_keep)
                 if (nitems > 3) then
@@ -1098,20 +1075,20 @@ contains
                 tTrialWavefunction = .true.
                 if (item < nitems) then
                     call geti(trial_mp1_ndets)
-                    tMP1Trial = .true.
+                    trial_space_in%tMP1 = .true.
                 end if
             case("MAX-TRIAL-SIZE")
                 tLimitTrialSpace = .true.
                 call geti(max_trial_size)
             case("DOUBLES-TRIAL")
-                tDoublesTrial = .true.
+                trial_space_in%tDoubles = .true.
             case("CAS-TRIAL")
-                tCASTrial = .true.
+                trial_space_in%tCAS = .true.
                 tSpn = .true.
                 call geti(OccTrialCASOrbs)  !Number of electrons in CAS 
                 call geti(VirtTrialCASOrbs)  !Number of virtual spin-orbitals in CAS
             case("RAS-TRIAL")
-                tRASTrial = .true.
+                trial_space_in%tRAS = .true.
                 call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
                 call geti(ras_size_2)  ! Number of spatial orbitals in RAS2.
                 call geti(ras_size_3)  ! Number of spatial orbitals in RAS3.
@@ -1123,7 +1100,7 @@ contains
                 trial_ras%min_1 = int(ras_min_1,sp)
                 trial_ras%max_3 = int(ras_max_3,sp)
             case("OPTIMISED-TRIAL")
-                tOptimisedTrial = .true.
+                trial_space_in%tOptimised = .true.
             case("OPTIMISED-TRIAL-CUTOFF-AMP")
                 trial_opt_data%tAmpCutoff = .true.
                 trial_opt_data%ngen_loops = nitems - 1
@@ -1139,19 +1116,19 @@ contains
                     call geti(trial_opt_data%cutoff_nums(I))
                 end do
             case("HF-TRIAL")
-                tHFTrial = .true.
+                trial_space_in%tHF = .true.
             case("POPS-TRIAL")
-                tPopsTrial = .true.
+                trial_space_in%tPops = .true.
                 call geti(n_trial_pops)
             case("READ-TRIAL")
-                tReadTrial = .true.
+                trial_space_in%tRead = .true.
             case("LOW-ENERGY-TRIAL")
     ! Input values: The first integer is the maximum excitation level to go up to.
     !               The second integer is the maximum number of states to keep for a subsequent iteration.
     !               If desired, you can put "All-Doubles" after these two integers to keep all singles and doubles.
     !               If max-trial-size is specified then this value will be used to select the number of states kept
     !               after the *final* iteration.
-                tLowETrial = .true.
+                trial_space_in%tLowE = .true.
                 call geti(low_e_trial_excit)
                 call geti(low_e_trial_num_keep)
                 if (nitems > 3) then
@@ -1163,9 +1140,9 @@ contains
                     end if
                 end if
             case("FCI-TRIAL")
-                tFCITrial = .false.
+                trial_space_in%tFCI = .false.
             case("HEISENBERG-FCI-TRIAL")
-                tHeisenbergFCITrial = .false.
+                trial_space_in%tHeisenbergFCI = .false.
             case("TRIAL-BIN-SEARCH")
                 tTrialHash = .false.
             case("START-FROM-HF")

@@ -7,7 +7,6 @@ module kp_fciqmc_init
     use constants
     use Parallel_neci, only: iProcIndex, MPISum, MPISumAll, nProcessors
     use kp_fciqmc_data_mod
-    use kp_fciqmc_break_circular
 
     implicit none
 
@@ -61,15 +60,6 @@ contains
         tScalePopulation = .false.
         scaling_factor = 1.0_dp
 
-        tHF_KP_Space = .false.
-        tPops_KP_Space = .false.
-        tRead_KP_Space = .false.
-        tDoubles_KP_Space = .false.
-        tCAS_KP_Space = .false.
-        tRAS_KP_Space = .false. 
-        tMP1_KP_Space = .false.
-        tFCI_KP_Space = .false.
-        
         n_kp_pops = 0
         Occ_KP_CasOrbs = 0
         Virt_KP_CasOrbs = 0
@@ -264,14 +254,14 @@ contains
                 end do
 
             case("DOUBLES-TRIAL")
-                tDoubles_KP_Space = .true.
+                kp_trial_space_in%tDoubles = .true.
             case("CAS-TRIAL")
-                tCAS_KP_Space = .true.
+                kp_trial_space_in%tCAS = .true.
                 tSpn = .true.
                 call geti(Occ_KP_CASOrbs)  ! Number of electrons in the CAS 
                 call geti(Virt_KP_CASOrbs) ! Number of virtual spin-orbitals in the CAS
             case("RAS-TRIAL")
-                tRAS_KP_Space = .true.
+                kp_trial_space_in%tRAS = .true.
                 call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
                 call geti(ras_size_2)  ! Number of spatial orbitals in RAS2.
                 call geti(ras_size_3)  ! Number of spatial orbitals in RAS3.
@@ -283,17 +273,17 @@ contains
                 kp_ras%min_1 = int(ras_min_1,sp)
                 kp_ras%max_3 = int(ras_max_3,sp)
             case("MP1-TRIAL")
-                tMP1_KP_Space = .true.
+                kp_trial_space_in%tMP1 = .true.
                 call geti(kp_mp1_ndets)
             case("HF-TRIAL")
-                tHF_KP_Space = .true.
+                kp_trial_space_in%tHF = .true.
             case("POPS-TRIAL")
-                tPops_KP_Space = .true.
+                kp_trial_space_in%tPops = .true.
                 call geti(n_kp_pops)
             case("READ-TRIAL")
-                tRead_KP_Space = .true.
+                kp_trial_space_in%tRead = .true.
             case("FCI-TRIAL")
-                tFCI_KP_Space = .false.
+                kp_trial_space_in%tFCI = .false.
             case default
                 call report("Keyword "//trim(w)//" not recognized in kp-fciqmc block", .true.)
             end select
@@ -512,6 +502,7 @@ contains
         use FciMCData, only: proje_iter_tot, AllGrowRate, SpawnedParts
         use FciMCParMod, only: tSinglePartPhase
         use hash, only: clear_hash_table
+        use initial_trial_states
         use util_mod, only: int_fmt
 
         integer, intent(in) :: iconfig, irepeat, nrepeats, nvecs
@@ -525,10 +516,10 @@ contains
             nexcit = nvecs
 
             ! Create the trial excited states.
-            call calc_trial_states(nexcit, ndets_this_proc, evecs_this_proc, SpawnedParts)
+            call calc_trial_states(kp_trial_space_in, nexcit, ndets_this_proc, evecs_this_proc, SpawnedParts)
             ! Set the populations of these states to the requested value.
             call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
-            ! Set the trial excited state as the FCIQMC wave functions.
+            ! Set the trial excited states as the FCIQMC wave functions.
             call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts)
 
             deallocate(evecs_this_proc)
@@ -537,12 +528,12 @@ contains
             nexcit = maxval(kpfciqmc_ex_labels)
 
             ! Create the trial excited states.
-            call calc_trial_states(nexcit, ndets_this_proc, evecs_this_proc, SpawnedParts)
+            call calc_trial_states(kp_trial_space_in, nexcit, ndets_this_proc, evecs_this_proc, SpawnedParts)
             ! Extract the desried initial excited states and average them.
             call create_init_excited_state(ndets_this_proc, evecs_this_proc, kpfciqmc_ex_labels, kpfciqmc_ex_weights, init_vecs)
             ! Set the populations of these states to the requested value.
             call set_trial_populations(1, ndets_this_proc, init_vecs)
-            ! Set the trial excited state as the FCIQMC wave functions.
+            ! Set the trial excited states as the FCIQMC wave functions.
             call set_trial_states(ndets_this_proc, init_vecs, SpawnedParts)
 
             deallocate(evecs_this_proc, init_vecs)
