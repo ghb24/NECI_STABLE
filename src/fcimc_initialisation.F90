@@ -27,7 +27,8 @@ module fcimc_initialisation
                         RealCoeffExcitThresh, TargetGrowRate, &
                         TargetGrowRateWalk, InputTargetGrowRate, &
                         InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
-                        use_spawn_hash_table, tReplicaSingleDetStart
+                        use_spawn_hash_table, tReplicaSingleDetStart, &
+                        ss_space_in, trial_space_in, init_trial_in
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -94,10 +95,8 @@ module fcimc_initialisation
                                  new_child_stats_normal, &
                                  null_encode_child, attempt_die_normal
     use csf_data, only: csf_orbital_mask
-    use kp_fciqmc_break_circular, only: calc_trial_states, &
-                                        set_trial_populations, &
-                                        set_trial_states
-    use kp_fciqmc_data_mod, only: tDoubles_KP_Space
+    use initial_trial_states, only: calc_trial_states, set_trial_populations, &
+                                    set_trial_states
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                clean_global_det_data, init_global_det_data, &
                                set_part_init_time
@@ -1349,13 +1348,13 @@ contains
         ! deterministic space, finding their processors, ordering them, inserting them into
         ! CurrentDets, calculating and storing all Hamiltonian matrix elements and initalising all
         ! arrays required to store and distribute the vectors in the deterministic space later.
-        if (tSemiStochastic) call init_semi_stochastic()
+        if (tSemiStochastic) call init_semi_stochastic(ss_space_in)
 
         ! Initialise the trial wavefunction information which can be used for the energy estimator.
         ! This includes generating the trial space, generating the space connected to the trial space,
         ! diagonalising the trial space to find the trial wavefunction and calculating the vector
         ! in the connected space, required for the energy estimator.
-        if (tTrialWavefunction) call init_trial_wf()
+        if (tTrialWavefunction) call init_trial_wf(trial_space_in)
 
         replica_overlaps(:, :) = 0
 
@@ -1864,11 +1863,11 @@ contains
         nexcit = inum_runs
 
         ! For now, use the doubles to generate this space
-        tDoubles_KP_Space = .true.
+        init_trial_in%tDoubles = .true.
 
         ! Create the trial excited states
-        call calc_trial_states(nexcit, ndets_this_proc, evecs_this_proc, &
-                               SpawnedParts)
+        call calc_trial_states(init_trial_in, nexcit, ndets_this_proc, &
+                               evecs_this_proc, SpawnedParts)
         ! Determine the walker populations associated with these states
         call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
         ! Set the trial excited states as the FCIQMC wave functions

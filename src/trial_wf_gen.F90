@@ -13,7 +13,7 @@ module trial_wf_gen
 
 contains
 
-    subroutine init_trial_wf()
+    subroutine init_trial_wf(trial_in)
 
         use davidson_neci, only: perform_davidson, davidson_eigenvalue
         use davidson_neci, only: davidson_eigenvector, sparse_hamil_type
@@ -32,6 +32,8 @@ contains
         use searching, only: remove_repeated_states
         use sort_mod, only: sort
         use SystemData, only: tAllSymSectors
+
+        type(subspace_in) :: trial_in
 
         integer :: i, ierr, num_states_on_proc, con_space_size_old
         integer :: excit, tot_trial_space_size, tot_con_space_size
@@ -69,24 +71,24 @@ contains
         write(6,'(a29)') "Generating the trial space..."; call neci_flush(6)
 
         ! Generate the trial space and place the corresponding states in trial_space.
-        if (tHFTrial) call add_state_to_space(ilutHF, trial_space, trial_space_size)
-        if (tDoublesTrial) call generate_sing_doub_determinants(trial_space, trial_space_size, .false.)
-        if (tCASTrial) call generate_cas(OccTrialCASOrbs, VirtTrialCASOrbs, trial_space, trial_space_size)
-        if (tRASCore) call generate_ras(trial_ras, trial_space, trial_space_size)
-        if (tOptimisedTrial) call generate_optimised_core(trial_opt_data, tLimitTrialSpace, trial_space, &
+        if (trial_in%tHF) call add_state_to_space(ilutHF, trial_space, trial_space_size)
+        if (trial_in%tDoubles) call generate_sing_doub_determinants(trial_space, trial_space_size, .false.)
+        if (trial_in%tCAS) call generate_cas(OccTrialCASOrbs, VirtTrialCASOrbs, trial_space, trial_space_size)
+        if (trial_in%tRAS) call generate_ras(trial_ras, trial_space, trial_space_size)
+        if (trial_in%tOptimised) call generate_optimised_core(trial_opt_data, tLimitTrialSpace, trial_space, &
                                                            trial_space_size, max_trial_size)
-        if (tPopsTrial) call generate_space_most_populated(n_trial_pops, trial_space, trial_space_size)
-        if (tReadTrial) call generate_space_from_file('TRIALSPACE', trial_space, trial_space_size)
-        if (tLowETrial) call generate_low_energy_core(low_e_trial_excit, tLowETrialAllDoubles, low_e_trial_num_keep, &
+        if (trial_in%tPops) call generate_space_most_populated(n_trial_pops, trial_space, trial_space_size)
+        if (trial_in%tRead) call generate_space_from_file('TRIALSPACE', trial_space, trial_space_size)
+        if (trial_in%tLowE) call generate_low_energy_core(low_e_trial_excit, tLowETrialAllDoubles, low_e_trial_num_keep, &
                                                        max_trial_size, trial_space, trial_space_size)
-        if (tMP1Trial) call generate_using_mp1_criterion(trial_mp1_ndets, trial_space, trial_space_size)
-        if (tFCITrial) then
+        if (trial_in%tMP1) call generate_using_mp1_criterion(trial_mp1_ndets, trial_space, trial_space_size)
+        if (trial_in%tFCI) then
             if (tAllSymSectors) then
                 call gndts_all_sym_this_proc(trial_space, .true., trial_space_size)
             else
                 call generate_fci_core(trial_space, trial_space_size)
             end if
-        else if (tHeisenbergFCITrial) then
+        else if (trial_in%tHeisenbergFCI) then
             call generate_heisenberg_fci(trial_space, trial_space_size)
         end if
 

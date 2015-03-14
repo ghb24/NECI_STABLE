@@ -17,7 +17,7 @@ MODULE FciMCData
       type ll_node
           integer :: ind
           type(ll_node), pointer :: next => null()
-      end type
+      end type ll_node
 
       integer :: iPopsTimers    !Number of timed popsfiles written out (initiatlised to 1)
 
