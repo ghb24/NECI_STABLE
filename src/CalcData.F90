@@ -6,6 +6,40 @@ module CalcData
 
     save
 
+! Type containing logicals, which will tell various routines which
+! routines to call when generating a subspace. This is used, for example,
+! by semi-stochastic and trial wave function initialisation.
+type subspace_in
+  ! Just the Hartree-Fock determinant.
+  logical :: tHF = .false.
+  ! Use the most populated states in CurrentDets.
+  logical :: tPops = .false.
+  ! Read states from a file.
+  logical :: tRead = .false.
+  ! Use the space of all single and double excitations from the
+  ! Hartree-Fock determinant (and also include the HF determinant).
+  logical :: tDoubles = .false.
+  ! Use all connections to the Hartree-Fock.
+  logical :: tHFConn = .false.
+  ! Use a CAS space.
+  logical :: tCAS = .false.
+  ! Use a RAS space.
+  logical :: tRAS = .false.
+  ! Use the determinants with the largest amplitudes in the MP1
+  ! wave function.
+  logical :: tMP1 = .false.
+  ! Use the iterative approach described by Petruzielo et. al. (PRL 109, 230201).
+  logical :: tOptimised = .false.
+  ! Like the optimised space, but instead of diagonalising the space
+  ! each iteration to find which states to keep, we keep the states
+  ! with the lowest energies.
+  logical :: tLowE = .false.
+  ! Use the entire FCI space.
+  logical :: tFCI = .false.
+  ! Use the entire FCI space in Heisenberg model calculations.
+  logical :: tHeisenbergFCI = .false.
+end type subspace_in
+
 LOGICAL :: TSTAR,TTROT,TGrowInitGraph
 LOGICAL :: TNEWEXCITATIONS,TVARCALC(0:10),TBIN,TVVDISALLOW
 LOGICAL :: TMCDIRECTSUM,TMPTHEORY,TMODMPTHEORY,TUPOWER,tMP2Standalone
@@ -111,27 +145,11 @@ logical :: tUniqueHFNode
 
 ! Options relating to the semi-stochastic code.
 logical :: tSemiStochastic ! Performing a semi-stochastic simulation if true.
+! Input type describing which space(s) type to use.
+type(subspace_in) :: ss_space_in
 ! Options regarding splitting the space into core and non-core elements. Needed, for example when performing a
 ! semi-stochastic simulation, to specify the deterministic space.
 logical :: tCSFCore ! Use CSFs for the core states.
-logical :: tHFCore ! Just use the Hartree-Fock determinant for the deterministic space.
-logical :: tOptimisedCore ! Generate an optimised deterministic space by diagonalising part of the space.
-logical :: tDoublesCore ! Use single and double excitations for the core states.
-logical :: tHFConnCore ! Use all determinants connected to the Hartree-Fock for the core states.
-logical :: tCASCore ! Use Determinants where orbitals within an active space can differ from the Hartree-Fock for core states.
-logical :: tRASCore ! Use a RAS space for the core space (see ras.F90 for definition).
-logical :: tPopsCore ! Use the most populated states from a POPSFILE for the core space.
-logical :: tReadCore ! Read in the core space from the CORESPACE file.
-! Like the optimised core space, but instead of diagonalising the space each iteration to find which states to keep, we
-! keep the states with the lowest energies.
-logical :: tLowECore
-! If a number of determinants smaller than the number of singles and doubles to the HF is requested, then the amplitude
-! of the determinants in the MP1 wave function will be used to determine which to keep. Otherwise all singles and
-! doubles are kept.
-logical :: tMP1Core 
-! Use the entire Hilbert space as the core space.
-logical :: tFCICore
-logical :: tHeisenbergFCICore
 logical :: tSparseCoreHamil ! Use a sparse representation of the core Hamiltonian.
 ! When using a CAS deterministic space, these integers store the number of orbitals above and below the Fermi energy to
 ! include in the CAS active space (the occupied and virtual orbitals).
@@ -187,25 +205,8 @@ logical :: tDetermHFSpawning
 
 ! Options relating to the trial wavefunction.
 logical :: tTrialWavefunction ! Use a trial wavefunction-based energy estimator.
-logical :: tHFTrial ! Just use the Hartree-Fock determinant for the trial space.
-logical :: tDoublesTrial ! Use single and double exciations for the trial space.
-logical :: tCASTrial ! Use a CAS space for the trial space.
-logical :: tRASTrial ! Use a RAS space for the trial space (see ras.F90 for definition).
-logical :: tOptimisedTrial ! Generate an optimised trial space by diagonalisaing part of the space.
-! As for determ_cutoff_amp and determ_cutoff_num above, but the following two quantities refer to the trial space
-! generation rather than the deterministic space generation.
-logical :: tReadTrial ! Read in the trial space from the TRIALSPACE file.
-logical :: tPopsTrial ! Use the most populated states from a POPSFILE for the trial space.
-! Like the optimised trial space, but instead of diagonalising the space each iteration to find which states to keep, we
-! keep the states with the lowest energies.
-logical :: tLowETrial
-! If a number of determinants smaller than the number of singles and doubles to the HF is requested, then the amplitude
-! of the determinants in the MP1 wave function will be used to determine which to keep. Otherwise all singles and
-! doubles are kept.
-logical :: tMP1Trial
-! Use the entire Hilbert space as the trial space.
-logical :: tFCITrial
-logical :: tHeisenbergFCITrial
+! Input type describing which space(s) type to use.
+type(subspace_in) :: trial_space_in
 ! When using a CAS trial space, these integers store the number of orbitals above and below the Fermi energy to
 ! include in the CAS active space (the occupied and virtual orbitals).
 integer :: OccTrialCASOrbs
@@ -258,6 +259,8 @@ integer :: init_spawn_thresh
 ! Are we orthogonalising replicas?
 logical :: tOrthogonaliseReplicas, tReplicaSingleDetStart
 integer :: orthogonalise_iter
+! Information on a trial space to create trial excited states with.
+type(subspace_in) :: init_trial_in
 
 ! If true then a hash table is kept for the spawning array and is used when
 ! new spawnings are added to the spawned list, to prevent adding the same

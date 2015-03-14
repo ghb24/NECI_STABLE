@@ -212,7 +212,6 @@ subroutine NECICalcInit(iCacheFlag)
     use Calc, only : CalcInit
     use HFCalc, only: HFDoCalc
     use RotateOrbsMod, only : RotateOrbs
-    use semi_stoch_gen, only: init_semi_stochastic
     use replica_data, only: init_replica_arrays
 
     implicit none

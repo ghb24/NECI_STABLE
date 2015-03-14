@@ -26,6 +26,8 @@ def extract_data(data_files, cutoff):
             pairs.append( [float(values[0]), float(values[1])] )
         if start_str in line:
             have_data = True
+
+    f.close()
                 
     return pairs
 
