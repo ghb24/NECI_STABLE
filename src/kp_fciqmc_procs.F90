@@ -970,6 +970,11 @@ contains
             write(temp_unit,'(12X,3a,7X)',advance='no') "NaN"
         end do
 
+        ! Diagonal energies.
+        do ivec = 1, nvecs
+            write(temp_unit,'(3X,es19.12)',advance='no') hamil_matrix(ivec,ivec)/overlap_matrix(ivec,ivec)
+        end do
+
         if (present(lowdin_spin)) then
             do ivec = 1, nlowdin
                 write(temp_unit,'(3X,es19.12)',advance='no') lowdin_spin(ivec, nlowdin) + (0.75_dp*nel)
@@ -978,11 +983,6 @@ contains
                 write(temp_unit,'(12X,3a,7X)',advance='no') "NaN"
             end do
         end if
-
-        ! Diagonal energies.
-        do ivec = 1, nvecs
-            write(temp_unit,'(3X,es19.12)',advance='no') hamil_matrix(ivec,ivec)/overlap_matrix(ivec,ivec)
-        end do
 
         ! Diagonal spin entries.
         if (present(spin_matrix)) then
