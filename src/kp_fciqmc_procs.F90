@@ -128,12 +128,10 @@ contains
                     real_sign_2 = transfer(int_sign, real_sign_1)
                     if (IsUnoccDet(real_sign_2)) cycle
 
-#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
                     s_matrix(jvec,ivec) = s_matrix(jvec,ivec) + &
-                        (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
-#else
-                    s_matrix(jvec,ivec) = s_matrix(jvec,ivec) + real_sign_1(1)*real_sign_2(1)
-#endif
+                        (real_sign_1(kp_ind_1(1))*real_sign_2(kp_ind_2(1)) + &
+                         real_sign_1(kp_ind_2(1))*real_sign_2(kp_ind_1(1)))/2.0_dp
+
                     ! Fill in the lower-half of the overlap matrix.
                     s_matrix(ivec,jvec) = s_matrix(jvec,ivec)
                 end do
@@ -174,11 +172,8 @@ contains
                 ! Add in the contributions to the overlap.
                 int_sign = krylov_vecs(sign_ind:sign_ind+lenof_sign_kp-1, det_ind)
                 real_sign_2 = transfer(int_sign, real_sign_1)
-#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
-                overlap = overlap + (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
-#else
-                overlap = overlap + real_sign_1(1)*real_sign_2(1)
-#endif
+                overlap = overlap + (real_sign_1(kp_ind_1(1))*real_sign_2(kp_ind_2(1)) + &
+                                     real_sign_1(kp_ind_2(1))*real_sign_2(kp_ind_1(1)))/2.0_dp
             end if
         end do
 
@@ -226,23 +221,16 @@ contains
             int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_all_signs, idet)
 
             any_occ = .false.
-#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
             do i = 1, nvecs
-                any_occ = any_occ .or. (int_sign(2*i-1) /= 0)
+                any_occ = any_occ .or. (int_sign(kp_ind_1(i)) /= 0)
             end do
             if (any_occ) occ_flags = ibset(occ_flags(idet), 0)
 
             any_occ = .false.
             do i = 1, nvecs
-                any_occ = any_occ .or. (int_sign(2*i) /= 0)
+                any_occ = any_occ .or. (int_sign(kp_ind_2(i)) /= 0)
             end do
             if (any_occ) occ_flags = ibset(occ_flags(idet), 1)
-#else
-            do i = 1, nvecs
-                any_occ = any_occ .or. (int_sign(i) /= 0)
-            end do
-            if (any_occ) occ_flags = ibset(occ_flags(idet), 0)
-#endif
         end do
 
         ! Loop over all determinants in krylov_array.
@@ -255,12 +243,11 @@ contains
             occ_2 = btest(occ_flags(idet),1)
 
             do jdet = idet, array_len
-#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
+                ! If one of the two determinants are unoccupied in all vectors,
+                ! then cycle.
                 if (.not. ((occ_1 .and. btest(occ_flags(jdet),1)) .or. &
                     (occ_2 .and. btest(occ_flags(jdet),0)))) cycle
-#else
-                if (.not. (occ_1 .and. btest(occ_flags(jdet),0)) ) cycle
-#endif
+
                 ilut_2(0:NIfDBO) = krylov_array(0:NIfDBO, jdet)
                 ic = FindBitExcitLevel(ilut_1, ilut_2)
                 if (ic > 2) cycle
@@ -286,28 +273,17 @@ contains
                 ! Finally, add in the contribution to all of the Hamiltonian elements.
                 do i = 1, nvecs
                     do j = i, nvecs
-#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
                         if (idet == jdet) then
                             h_matrix(i,j) = h_matrix(i,j) + &
-                                h_elem*(real_sign_1(2*i-1)*real_sign_2(2*j) + &
-                                real_sign_1(2*i)*real_sign_2(2*j-1))/2
+                                h_elem*(real_sign_1(kp_ind_1(i))*real_sign_2(kp_ind_2(j)) + &
+                                        real_sign_1(kp_ind_2(i))*real_sign_2(kp_ind_1(j)))/2
                         else
                             h_matrix(i,j) = h_matrix(i,j) + &
-                                h_elem*(real_sign_1(2*i-1)*real_sign_2(2*j) + &
-                                real_sign_1(2*i)*real_sign_2(2*j-1) + &
-                                real_sign_1(2*j-1)*real_sign_2(2*i) + &
-                                real_sign_1(2*j)*real_sign_2(2*i-1))/2
+                                h_elem*(real_sign_1(kp_ind_1(i))*real_sign_2(kp_ind_2(j)) + &
+                                        real_sign_1(kp_ind_2(i))*real_sign_2(kp_ind_1(j)) + &
+                                        real_sign_1(kp_ind_1(j))*real_sign_2(kp_ind_2(i)) + &
+                                        real_sign_1(kp_ind_2(j))*real_sign_2(kp_ind_1(i)))/2
                         end if
-#else
-                        if (idet == jdet) then
-                            h_matrix(i,j) = h_matrix(i,j) + &
-                                h_elem*real_sign_1(i)*real_sign_2(j)
-                        else
-                            h_matrix(i,j) = h_matrix(i,j) + &
-                                h_elem*(real_sign_1(i)*real_sign_2(j) + &
-                                real_sign_1(j)*real_sign_2(i))
-                        end if
-#endif
                     end do
                 end do
 
