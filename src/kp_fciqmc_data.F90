@@ -6,6 +6,7 @@ module kp_fciqmc_data_mod
     use ras_data, only: ras_parameters
 
     implicit none
+    save
 
     type kp_fciqmc_data
         ! The number of different initial walker configurations to start
