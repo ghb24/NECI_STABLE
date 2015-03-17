@@ -483,7 +483,7 @@ contains
     end subroutine average_and_comm_pert_overlaps
 
     subroutine find_and_output_lowdin_eigv(config_label, nvecs, overlap_matrix, hamil_matrix, npositive, &
-                                           all_evals, spin_matrix, all_spin)
+                                           all_evals, tOutput, spin_matrix, all_spin)
 
         use CalcData, only: tWritePopsNorm, pops_norm
         use util_mod, only: int_fmt, get_free_unit
@@ -492,6 +492,7 @@ contains
         real(dp), intent(in) :: overlap_matrix(:,:), hamil_matrix(:,:)
         integer, intent(out) :: npositive
         real(dp), intent(out) :: all_evals(:,:)
+        logical, intent(in) :: tOutput
         real(dp), optional, intent(in) :: spin_matrix(:,:)
         real(dp), optional, intent(out) :: all_spin(:,:)
 
@@ -504,14 +505,16 @@ contains
         character(25) :: ind1, filename
         character(len=*), parameter :: stem = "lowdin"
 
-        write(ind1,'(i15)') config_label
-        filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
-        temp_unit = get_free_unit()
-        open(temp_unit, file=trim(filename), status='replace')
-    
-        if (tWritePopsNorm) then
-            write(temp_unit, '(4("-"),a41,25("-"))') "Norm of unperturbed initial wave function"
-            write(temp_unit,'(1x,es19.12,/)') sqrt(pops_norm)
+        if (tOutput) then
+            write(ind1,'(i15)') config_label
+            filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
+            temp_unit = get_free_unit()
+            open(temp_unit, file=trim(filename), status='replace')
+
+            if (tWritePopsNorm) then
+                write(temp_unit, '(4("-"),a41,25("-"))') "Norm of unperturbed initial wave function"
+                write(temp_unit,'(1x,es19.12,/)') sqrt(pops_norm)
+            end if
         end if
 
         ! Create the workspace for the diagonaliser.
@@ -527,13 +530,13 @@ contains
         all_evals = 0.0_dp
         if (present(spin_matrix)) all_spin = 0.0_dp
 
-        write(temp_unit,'(4("-"),a26,40("-"))') "Overlap matrix eigenvalues"
+        if (tOutput) write(temp_unit,'(4("-"),a26,40("-"))') "Overlap matrix eigenvalues"
         do i = 1, nvecs
-            write(temp_unit,'(1x,es19.12)') kp_overlap_eigv(i)
+            if (tOutput) write(temp_unit,'(1x,es19.12)') kp_overlap_eigv(i)
             if (kp_overlap_eigv(i) > 0.0_dp) npositive = npositive + 1
         end do
 
-        if (tOverlapPert) then
+        if (tOutput .and. tOverlapPert) then
             write(temp_unit,'(/,"# The overlap of each final Hamiltonian eigenstate with each &
                               &requested perturbed ground state will be printed. The first &
                               &printed overlap is that with the first Krylov vector. The second &
@@ -576,15 +579,17 @@ contains
                     rotated_spin = matmul(transpose(eigenvecs_krylov), inter_matrix)
                 end if
 
-                nkeep_len = ceiling(log10(real(abs(nkeep)+1,dp)))
-                write(string_fmt,'(i2,a5)') 15-nkeep_len, '("-")'
-                write(temp_unit,'(/,4("-"),a37,'//int_fmt(nkeep,1)//',1x,a12,'//string_fmt//')') &
-                    "Eigenvalues and overlaps when keeping", nkeep, "eigenvectors"
-                do i = 1, nkeep
-                    write(temp_unit,'(1x,es19.12,1x,es19.12)',advance='no') kp_hamil_eigv(i), init_overlaps(i)
-                    if (tOverlapPert) write(temp_unit,'(1x,es19.12)',advance='no') kp_pert_energy_overlaps(i)
-                    write(temp_unit,'()',advance='yes')
-                end do
+                if (tOutput) then
+                    nkeep_len = ceiling(log10(real(abs(nkeep)+1,dp)))
+                    write(string_fmt,'(i2,a5)') 15-nkeep_len, '("-")'
+                    write(temp_unit,'(/,4("-"),a37,'//int_fmt(nkeep,1)//',1x,a12,'//string_fmt//')') &
+                        "Eigenvalues and overlaps when keeping", nkeep, "eigenvectors"
+                    do i = 1, nkeep
+                        write(temp_unit,'(1x,es19.12,1x,es19.12)',advance='no') kp_hamil_eigv(i), init_overlaps(i)
+                        if (tOverlapPert) write(temp_unit,'(1x,es19.12)',advance='no') kp_pert_energy_overlaps(i)
+                        write(temp_unit,'()',advance='yes')
+                    end do
+                end if
 
                 all_evals(1:nkeep, nkeep) = kp_hamil_eigv(1:nkeep)
                 if (present(spin_matrix)) then
@@ -603,7 +608,7 @@ contains
 
         deallocate(work)
 
-        close(temp_unit)
+        if (tOutput) close(temp_unit)
 
     end subroutine find_and_output_lowdin_eigv
 
