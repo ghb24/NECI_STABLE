@@ -1767,7 +1767,7 @@ contains
             ! Ensure that the energy references for all of the runs are
             ! relative to the new Hii
             do i = 1, inum_runs
-                proje_ref_energy_offsets(i) = proje_ref_energy_offsets &
+                proje_ref_energy_offsets(i) = proje_ref_energy_offsets(i) &
                                             + old_hii - hii
             end do
 
