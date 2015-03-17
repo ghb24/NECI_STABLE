@@ -177,17 +177,14 @@ contains
         write(6,'(a42,1X,i10)') "Size of connected space on this processor:", con_space_size
         call neci_flush(6)
 
-        ! TODO: Remove this comment.
-        ! Davidson was performed here before.
-
         allocate(trial_wf(trial_space_size), stat=ierr)
         call LogMemAlloc('trial_wf', trial_space_size, 8, t_r, TrialWFTag, ierr)
         trial_wf = evecs_this_proc(1,1:trial_space_size)
 
         call MPIAllGatherV(evecs_this_proc, evecs_all_procs, trial_counts, trial_displs)
 
-        call MPIAllGatherV(trial_space(:, 1:trial_space_size), &
-                           SpawnedParts(:, 1:tot_trial_space_size), trial_counts, trial_displs)
+        !call MPIAllGatherV(trial_space(:, 1:trial_space_size), &
+        !                   SpawnedParts(:, 1:tot_trial_space_size), trial_counts, trial_displs)
 
         call sort_space_by_proc(SpawnedParts(:, 1:tot_trial_space_size), tot_trial_space_size, trial_counts)
 
