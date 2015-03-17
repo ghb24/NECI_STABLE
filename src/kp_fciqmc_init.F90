@@ -60,6 +60,8 @@ contains
         tScalePopulation = .false.
         scaling_factor = 1.0_dp
 
+        tPairedReplicas = .true.
+
         n_kp_pops = 0
         Occ_KP_CasOrbs = 0
         Virt_KP_CasOrbs = 0
@@ -284,6 +286,8 @@ contains
                 kp_trial_space_in%tRead = .true.
             case("FCI-TRIAL")
                 kp_trial_space_in%tFCI = .false.
+            case("UNPAIRED-REPLICAS")
+                tPairedReplicas = .false.
             case default
                 call report("Keyword "//trim(w)//" not recognized in kp-fciqmc block", .true.)
             end select
@@ -319,7 +323,7 @@ contains
         use util_mod, only: int_fmt
 
         type(kp_fciqmc_data), intent(inout) :: kp
-        integer :: ierr, krylov_vecs_mem, krylov_ht_mem, matrix_mem, spawn_ht_mem
+        integer :: ierr, krylov_vecs_mem, krylov_ht_mem, matrix_mem, spawn_ht_mem, i
         character (len=*), parameter :: t_r = "init_kp_fciqmc"
 
         ! Checks.
@@ -331,9 +335,15 @@ contains
             &symmetry sectors at once has not been implemented with the Heisenberg model.')
         if (n_int == 4) call stop_all(t_r, 'Use of RealCoefficients does not work with 32 bit &
              &integers due to the use of the transfer operation from dp reals to 64 bit integers.')
-        if (tExcitedStateKP .and. inum_runs /= 2*kp%nvecs) call stop_all(t_r, 'When using the &
-             &ExcitedStateKP option the number of replicas must be twice the number of states to &
-             &be calculated.')
+        if (tExcitedStateKP) then
+            if (tPairedReplicas .and. inum_runs /= 2*kp%nvecs) then
+                call stop_all(t_r, 'When using the ExcitedStateKP option with paired replicas, the &
+                                   &number of replicas must be twice the number of states to be calculated.')
+            else if ((.not. tPairedReplicas) .and. inum_runs /= kp%nvecs) then
+                call stop_all(t_r, 'When using the ExcitedStateKP option without paired replicas, the &
+                                   &number of replicas must be equal to the number of states to be calculated.')
+            end if
+        end if
 
         ! Call external NECI initialisation routines.
         tPopsAlreadyRead = .false.
@@ -349,10 +359,38 @@ contains
             tSemiStochasticKPHamil = .false.
         end if
 
+#if defined(__PROG_NUMRUNS)
+        ! The number of *repeated* replicas for a particular state.
+        ! i.e. if tExcitedState = .true. then this is the number of repeated
+        ! replicas for each excited state. If tExcitedState = .false. (doing
+        ! the old KP-FCIQMC algorithm), this is the number of repeats for the
+        ! KP-FCIQMC wave function.
+        if (tPairedReplicas) then
+            lenof_sign_kp = 2
+        else
+            lenof_sign_kp = 1
+        end if
+#endif
         ! The number of elements required to store all replicas of all Krylov vectors.
         lenof_all_signs = lenof_sign_kp*kp%nvecs
         ! The total length of a bitstring containing all Krylov vectors.
         NIfTotKP = NIfDBO + lenof_all_signs + NIfFlag
+
+        ! Set up kp_ind_* arrays.
+        allocate(kp_ind_1(kp%nvecs))
+        allocate(kp_ind_2(kp%nvecs))
+
+        if (tPairedReplicas) then
+            do i = 1, kp%nvecs
+                kp_ind_1(i) = 2*i-1
+                kp_ind_2(i) = 2*i
+            end do
+        else
+            do i = 1, kp%nvecs
+                kp_ind_1(i) = i
+                kp_ind_2(i) = i
+            end do
+        end if
 
         if (.not. tExcitedStateKP) then
             ! Allocate all of the KP arrays.
@@ -520,7 +558,7 @@ contains
             ! Set the populations of these states to the requested value.
             call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
             ! Set the trial excited states as the FCIQMC wave functions.
-            call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts)
+            call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts, tPairedReplicas)
 
             deallocate(evecs_this_proc)
 
@@ -534,7 +572,7 @@ contains
             ! Set the populations of these states to the requested value.
             call set_trial_populations(1, ndets_this_proc, init_vecs)
             ! Set the trial excited states as the FCIQMC wave functions.
-            call set_trial_states(ndets_this_proc, init_vecs, SpawnedParts)
+            call set_trial_states(ndets_this_proc, init_vecs, SpawnedParts, tPairedReplicas)
 
             deallocate(evecs_this_proc, init_vecs)
 

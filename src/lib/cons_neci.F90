@@ -43,7 +43,7 @@ integer, parameter :: sizeof_sp = 4
 #if defined(__PROG_NUMRUNS)
     integer :: lenof_sign
     integer :: inum_runs
-    integer, parameter :: lenof_sign_kp = 2
+    integer :: lenof_sign_kp
     integer, parameter :: lenof_sign_max = 20
     integer, parameter :: inum_runs_max = 20
     integer, parameter :: sizeof_helement = 8
