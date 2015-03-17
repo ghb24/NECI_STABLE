@@ -4,7 +4,7 @@ module kp_fciqmc_proj_est
 
     use bit_rep_data, only: NIfTot, NIfDBO
     use constants
-    use kp_fciqmc_data_mod, only: lenof_all_signs
+    use kp_fciqmc_data_mod, only: lenof_all_signs, tPairedReplicas, kp_ind_1, kp_ind_2
 
     implicit none
 
@@ -321,13 +321,9 @@ contains
                     if ((ibeta .and. jbeta) .or. (ialpha .and. jalpha)) then
                         do i = 1, nvecs
                             do j = i, nvecs
-#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
                                 spin_matrix(i,j) = spin_matrix(i,j) + &
-                                    0.5_dp*(parent_sign(2*i-1)*parent_sign(2*j) + &
-                                            parent_sign(2*i)*parent_sign(2*j-1))/2.0_dp
-#else
-                                spin_matrix(i,j) = spin_matrix(i,j) + 0.5_dp*parent_sign(i)*parent_sign(j)
-#endif
+                                    0.5_dp*(parent_sign(kp_ind_1(i))*parent_sign(kp_ind_2(j)) + &
+                                            parent_sign(kp_ind_2(i))*parent_sign(kp_ind_1(j)))/2.0_dp
                             end do
                         end do
                     else
@@ -337,13 +333,9 @@ contains
                         ! from and to the same determinant.
                         do i = 1, nvecs
                             do j = i, nvecs
-#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
                                 spin_matrix(i,j) = spin_matrix(i,j) - &
-                                    0.5_dp*(parent_sign(2*i-1)*parent_sign(2*j) + &
-                                            parent_sign(2*i)*parent_sign(2*j-1))/2.0_dp
-#else
-                                spin_matrix(i,j) = spin_matrix(i,j) - 0.5_dp*parent_sign(i)*parent_sign(j)
-#endif
+                                    0.5_dp*(parent_sign(kp_ind_1(i))*parent_sign(kp_ind_2(j)) + &
+                                            parent_sign(kp_ind_2(i))*parent_sign(kp_ind_1(j)))/2.0_dp
                             end do
                         end do
 
@@ -358,13 +350,9 @@ contains
                             ! Only take each contribution once.
                             do i = 1, nvecs
                                 do j = i, nvecs
-#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
                                     spin_matrix(i,j) = spin_matrix(i,j) - &
-                                        (parent_sign(2*i-1)*parent_sign(2*j) + &
-                                         parent_sign(2*i)*parent_sign(2*j-1))/2.0_dp
-#else
-                                    spin_matrix(i,j) = spin_matrix(i,j) - parent_sign(i)*parent_sign(j)
-#endif
+                                        (parent_sign(kp_ind_1(i))*parent_sign(kp_ind_2(j)) + &
+                                         parent_sign(kp_ind_2(i))*parent_sign(kp_ind_1(j)))/2.0_dp
                                 end do
                             end do
                         else
@@ -587,13 +575,9 @@ contains
                     ! Finally, add in the contribution to the projected Hamiltonian for each pair of Krylov vectors.
                     do i = 1, nvecs
                         do j = i, nvecs
-#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
                             est_matrix(i,j) = est_matrix(i,j) + &
-                                fac*(real_sign_1(2*i-1)*real_sign_2(2*j) + &
-                                     real_sign_1(2*i)*real_sign_2(2*j-1))/2.0_dp
-#else
-                            est_matrix(i,j) = est_matrix(i,j) + fac*real_sign_1(i)*real_sign_2(j)
-#endif
+                                fac*(real_sign_1(kp_ind_1(i))*real_sign_2(kp_ind_2(j)) + &
+                                     real_sign_1(kp_ind_2(i))*real_sign_2(kp_ind_1(j)))/2.0_dp
                         end do
                     end do
                 end if
@@ -645,13 +629,9 @@ contains
             ! Finally, add in the contribution to the projected Hamiltonian for each pair of Krylov vectors.
             do i = 1, nvecs
                 do j = i, nvecs
-#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
                     h_matrix(i,j) = h_matrix(i,j) + &
-                        h_diag_elem*(real_sign(2*i-1)*real_sign(2*j) + &
-                        real_sign(2*i)*real_sign(2*j-1))/2.0_dp
-#else
-                    h_matrix(i,j) = h_matrix(i,j) + h_diag_elem*real_sign(i)*real_sign(j)
-#endif
+                        h_diag_elem*(real_sign(kp_ind_1(i))*real_sign(kp_ind_2(j)) + &
+                                     real_sign(kp_ind_2(i))*real_sign(kp_ind_1(j)))/2.0_dp
                 end do
             end do
 
@@ -682,12 +662,9 @@ contains
 
             do i = 1, nvecs
                 do j = i, nvecs
-#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
                     h_matrix(i,j) = h_matrix(i,j) + &
-                        (real_sign(2*j)*partial_vecs(2*i-1, idet) + real_sign(2*j-1)*partial_vecs(2*i, idet))/2.0_dp
-#else
-                    h_matrix(i,j) = h_matrix(i,j) + real_sign(i)*partial_vecs(j, idet)
-#endif
+                        (real_sign(kp_ind_2(j))*partial_vecs(kp_ind_1(i), idet) + &
+                         real_sign(kp_ind_1(j))*partial_vecs(kp_ind_2(i), idet))/2.0_dp
                 end do
             end do
 

@@ -6,6 +6,7 @@ module kp_fciqmc_data_mod
     use ras_data, only: ras_parameters
 
     implicit none
+    save
 
     type kp_fciqmc_data
         ! The number of different initial walker configurations to start
@@ -219,6 +220,16 @@ module kp_fciqmc_data_mod
 
     ! Type for the trial wave function space for excited-state calculations.
     type(subspace_in) :: kp_trial_space_in
+
+    ! If true then perform two replicas for each excited state. Otherwise,
+    ! only perform one for each.
+    logical :: tPairedReplicas
+
+    ! Arrays used to access the signs of different Krylov vector signs in the
+    ! Krylov vector arrays. If tPairedReplicas is .false. then these arrays
+    ! are identical, otherwise the first array gives access to the first set
+    ! of vectors and the second array to the second set.
+    integer, allocatable :: kp_ind_1(:), kp_ind_2(:)
     
     integer :: n_kp_pops
     integer :: Occ_KP_CasOrbs

@@ -620,17 +620,21 @@ MODULE Logging
 !            tHF_S_D = .true.
 
 !        case("HFSDREFRDM")
-!Uses the HF, singles and doubles as a multiconfigurational reference and calculates the RDM to find the energy.            
+            ! Uses the HF, singles and doubles as a multiconfigurational
+            ! reference and calculates the RDM to find the energy.
 !            tHF_S_D_Ref = .true.
 
         case("WRITEINITIATORS")
-! Requires a popsfile to be written out.  Writes out the initiator populations. 
+            ! Requires a popsfile to be written out.  Writes out the initiator
+            ! populations. 
             tPrintInitiators = .true.
         
         case("WRITERDMSTOREAD")
-! Writes out the unnormalised RDMs (in binary), so they can be read back in, and the calculations restarted at a later point 
-! This is also tied to the POPSFILE/BINARYPOPS keyword - so if we're writing a normal POPSFILE, we'll write this too, 
-! unless **WRITERDMSTOREAD** OFF is used.
+            ! Writes out the unnormalised RDMs (in binary), so they can be read
+            ! back in, and the calculations restarted at a later point This is
+            ! also tied to the POPSFILE/BINARYPOPS keyword - so if we're
+            ! writing a normal POPSFILE, we'll write this too, unless
+            ! **WRITERDMSTOREAD** OFF is used.
             IF(item.lt.nitems) THEN
                 call readu(w)
                 select case(w)
@@ -644,15 +648,20 @@ MODULE Logging
             ENDIF
 
        ! case("READRDMAVPOP")
-! Use in conjunction with READRDMS.  This can be used in the previous calculation had "WRITEBINRDMNODIAG" switched on.
-! We will read in the information in RDM_Av_Pop which contains some of the data from CurrentH in the previous round -- the cumulative
-! sum of this determinant's populations during its lifetime (updated every iter), and the number of iters it has been occupied.
-! This information will get assigned into currentH and allow us to continue the RDM accumulation without bias.
+            ! Use in conjunction with READRDMS.  This can be used in the
+            ! previous calculation had "WRITEBINRDMNODIAG" switched on. We will
+            ! read in the information in RDM_Av_Pop which contains some of the
+            ! data from CurrentH in the previous round -- the cumulative sum of
+            ! this determinant's populations during its lifetime (updated every
+            ! iter), and the number of iters it has been occupied. This
+            ! information will get assigned into currentH and allow us to
+            ! continue the RDM accumulation without bias.
         !    tReadRDMAvPop=.true.
 
         case("NONORMRDMS")            
-! Does not print out the normalised (final) RDMs - to be used if you know the calculation will not be converged, and don't  
-! want to take up disk space.
+            ! Does not print out the normalised (final) RDMs - to be used if
+            ! you know the calculation will not be converged, and don't want to
+            ! take up disk space.
             twrite_normalised_RDMs = .false.
 
         case("WRITE-SPIN-FREE-RDM")
