@@ -340,7 +340,7 @@ contains
             if (iProcIndex == root) then
                 call average_kp_matrices_wrapper(iconfig, kp%nrepeats, overlap_matrices, hamil_matrices, &
                                                  kp_overlap_mean, kp_hamil_mean, kp_overlap_se, kp_hamil_se)
-                call find_and_output_lowdin_eigv(iconfig, kp%nvecs, kp_overlap_mean, kp_hamil_mean, nlowdin, lowdin_evals)
+                call find_and_output_lowdin_eigv(iconfig, kp%nvecs, kp_overlap_mean, kp_hamil_mean, nlowdin, lowdin_evals, .true.)
 
                 ! Calculate data for the testsuite.
                 s_sum = sum(kp_overlap_mean)
@@ -482,16 +482,14 @@ contains
                 if (iProcIndex == root) then
                     call output_kp_matrices_wrapper(iter, overlap_matrices(:,:,1:irepeat,ireport), &
                                                             hamil_matrices(:,:,1:irepeat,ireport))
-                    call average_kp_matrices_wrapper(iter, irepeat, overlap_matrices(:,:,1:irepeat,ireport), &
-                                                     hamil_matrices(:,:,1:irepeat,ireport), kp_overlap_mean, &
-                                                     kp_hamil_mean, kp_overlap_se, kp_hamil_se)
                     if (tCalcSpin) then
                         call find_and_output_lowdin_eigv(iter, kp%nvecs, overlap_matrix, hamil_matrix, nlowdin, &
-                                                         lowdin_evals, spin_matrix, lowdin_spin)
+                                                         lowdin_evals, .false., spin_matrix, lowdin_spin)
                         call write_ex_state_data(iter, nlowdin, lowdin_evals, hamil_matrix, overlap_matrix, &
                                                  spin_matrix, lowdin_spin)
                     else
-                        call find_and_output_lowdin_eigv(iter, kp%nvecs, overlap_matrix, hamil_matrix, nlowdin, lowdin_evals)
+                        call find_and_output_lowdin_eigv(iter, kp%nvecs, overlap_matrix, hamil_matrix, nlowdin, &
+                                                         lowdin_evals, .false.)
                         call write_ex_state_data(iter, nlowdin, lowdin_evals, hamil_matrix, overlap_matrix)
                     end if
                 end if
@@ -663,6 +661,25 @@ contains
             end do ! Over all report cycles.
 
         end do outer_loop ! Over all repeats of the whole calculation.
+
+        ! Output the Lowdin estimates for the final *averaged* matrices.
+        if (iProcIndex == root) then
+            iter = 0
+            do ireport = 1, kp%nreports
+                call average_kp_matrices_wrapper(iter, kp%nrepeats, overlap_matrices(:,:,1:kp%nrepeats,ireport), &
+                                                 hamil_matrices(:,:,1:kp%nrepeats,ireport), kp_overlap_mean, &
+                                                 kp_hamil_mean, kp_overlap_se, kp_hamil_se)
+                if (tCalcSpin) then
+                    call find_and_output_lowdin_eigv(iter, kp%nvecs, kp_overlap_mean, kp_hamil_mean, nlowdin, &
+                                                     lowdin_evals, .true., spin_matrix, lowdin_spin)
+                else
+                    call find_and_output_lowdin_eigv(iter, kp%nvecs, kp_overlap_mean, kp_hamil_mean, nlowdin, &
+                                                     lowdin_evals, .true.)
+                end if
+                ! Update the iteration label.
+                iter = iter + kp%niters(ireport)
+            end do
+        end if
 
         ! Calculate data for the testsuite.
         s_sum = sum(kp_overlap_mean)
