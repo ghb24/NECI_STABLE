@@ -158,7 +158,6 @@ contains
         ! If pos > 0 then the state is in the trial space. A state cannot be in both the trial and
         ! connected space, so, unless pos < 0, don't bother doing the following binary search.
         if (pos < 0) then
-
             pos = binary_search_custom(con_space(:, min_conn_ind:con_space_size), ilut, NIfTot+1, ilut_gt)
 
             if (pos > 0) then
@@ -180,27 +179,30 @@ contains
         integer :: i, hash_val
 
         amp = 0.0_dp
-        
-        if (con_space_size > 0) then
+
+        ! Note we search the trial space first, and don't add a contribution
+        ! from the connected space if we are also in the trial space.
+
+        if (trial_space_size > 0) then
             ! Find the hash value of this state.
+            hash_val = FindWalkerHash(nI, trial_space_size)
+            do i = 1, trial_ht(hash_val)%nclash
+                if (DetBitEq(ilut, trial_ht(hash_val)%states(0:NIfDBO,i))) then
+                    call set_flag(ilut, flag_trial)
+                    amp = transfer(trial_ht(hash_val)%states(NIfDBO+1,i), amp)
+                    return
+                end if
+            end do
+        end if
+        
+        ! If it wasn't in the trial space, check to see if it is in the connected space.
+        if (con_space_size > 0) then
             hash_val = FindWalkerHash(nI, con_space_size)
             ! Loop over all hash clashes for this hash value.
             do i = 1, con_ht(hash_val)%nclash
                 if (DetBitEq(ilut, con_ht(hash_val)%states(0:NIfDBO,i))) then
                     call set_flag(ilut, flag_connected)
                     amp = transfer(con_ht(hash_val)%states(NIfDBO+1,i), amp)
-                    return
-                end if
-            end do
-        end if
-
-        if (trial_space_size > 0) then
-            ! If it wasn't in the connected space, check to see if it is in the trial space.
-            hash_val = FindWalkerHash(nI, trial_space_size)
-            do i = 1, trial_ht(hash_val)%nclash
-                if (DetBitEq(ilut, trial_ht(hash_val)%states(0:NIfDBO,i))) then
-                    call set_flag(ilut, flag_trial)
-                    amp = transfer(trial_ht(hash_val)%states(NIfDBO+1,i), amp)
                     return
                 end if
             end do
@@ -218,19 +220,7 @@ contains
 
         call decode_bit_det(nI, ilut)
 
-        ! First search the connected space.
-        if (con_space_size > 0) then
-            hash_val = FindWalkerHash(nI, con_space_size)
-            do i = 1, con_ht(hash_val)%nclash
-                if (DetBitEq(con_ht(hash_val)%states(0:NIfDBO,i), ilut)) then
-                    amp = transfer(con_ht(hash_val)%states(NIfDBO+1,i), amp)
-                    trial_numerator = trial_numerator + amp*RealwSign
-                    return
-                end if
-            end do
-        end if
-
-        ! If not in the connected space, search the trial space.
+        ! First search the trial space.
         if (trial_space_size > 0) then
             hash_val = FindWalkerHash(nI, trial_space_size)
             do i = 1, trial_ht(hash_val)%nclash
@@ -242,8 +232,19 @@ contains
             end do
         end if
 
-    end subroutine add_trial_energy_contrib
+        ! If not in the trial space, search the connected space.
+        if (con_space_size > 0) then
+            hash_val = FindWalkerHash(nI, con_space_size)
+            do i = 1, con_ht(hash_val)%nclash
+                if (DetBitEq(con_ht(hash_val)%states(0:NIfDBO,i), ilut)) then
+                    amp = transfer(con_ht(hash_val)%states(NIfDBO+1,i), amp)
+                    trial_numerator = trial_numerator + amp*RealwSign
+                    return
+                end if
+            end do
+        end if
 
+    end subroutine add_trial_energy_contrib
 
     subroutine find_trial_and_con_states_hash(num_states, ilut_list, ntrial, ncon)
 

@@ -302,6 +302,8 @@ contains
                                 + current_trial_amps(ind)*RealwSign(run)
                 end do
             else if (test_flag(ilut, flag_connected)) then
+                ! Note, only attempt to add in a contribution from the
+                ! connected space if we're not also in the trial space.
                 do run = 1, inum_runs
                     trial_numerator(run) = trial_numerator(run) &
                                 + current_trial_amps(ind) * RealwSign(run)

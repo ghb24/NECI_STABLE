@@ -169,7 +169,9 @@ contains
         call remove_repeated_states(con_space, con_space_size)
 
         ! Remove states in the connected space which are also in the trial space.
-        call remove_list1_states_from_list2(SpawnedParts, con_space, tot_trial_space_size, con_space_size)
+        ! We don't use this anymore, but may want to try using it again at
+        ! some point, so just leave it commented out.
+!        call remove_list1_states_from_list2(SpawnedParts, con_space, tot_trial_space_size, con_space_size)
 
         call MPISumAll(con_space_size, tot_con_space_size)
 
@@ -182,9 +184,6 @@ contains
         trial_wf = evecs_this_proc(1,1:trial_space_size)
 
         call MPIAllGatherV(evecs_this_proc, evecs_all_procs, trial_counts, trial_displs)
-
-        !call MPIAllGatherV(trial_space(:, 1:trial_space_size), &
-        !                   SpawnedParts(:, 1:tot_trial_space_size), trial_counts, trial_displs)
 
         call sort_space_by_proc(SpawnedParts(:, 1:tot_trial_space_size), tot_trial_space_size, trial_counts)
 
@@ -250,8 +249,13 @@ contains
             if (temp_node%ind /= 0) then
                 do while (associated(temp_node))
                     if ( all(con_space(0:NIfDBO,i) == CurrentDets(0:NIfDBO,temp_node%ind)) ) then
-                        call set_flag(CurrentDets(:,temp_node%ind), flag_connected)
-                        current_trial_amps(temp_node%ind) = con_space_vector(i)
+                        ! If not also in the trial space. If it is, then we
+                        ! don't want the connected flag to be set, or the
+                        ! connected vector amplitude to be used.
+                        if (.not. test_flag(CurrentDets(:,temp_node%ind), flag_trial)) then
+                            call set_flag(CurrentDets(:,temp_node%ind), flag_connected)
+                            current_trial_amps(temp_node%ind) = con_space_vector(i)
+                        end if
                         exit
                     end if
                     temp_node => temp_node%next
