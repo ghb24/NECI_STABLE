@@ -647,10 +647,6 @@ contains
                 cpt_pair(2) = int_cpt(1)
                 sum_pair(1) = cum_sum(1)
                 sum_pair(2) = cum_sum(1) - int_cpt(2)
-                pgen = pgen * ( &
-                       (int_cpt(1) / cum_sum(1) * int_cpt(2) / cum_sum(2)) &
-                     + (int_cpt(2) / cum_sum(1) * &
-                        int_cpt(1) / (cum_sum(1) - int_cpt(2))))
             end if
             pgen = pgen * (product(int_cpt) / product(cum_sum) + &
                            product(cpt_pair) / product(sum_pair))
