@@ -588,7 +588,7 @@ contains
 
         ! Only let the root process write the states.
         if (iProcIndex == root) then
-            open(iunit, file='CORESPACE', status='replace')
+            open(iunit, file='DETFILE', status='replace')
 
             do i = 1, determ_space_size
                 do k = 0, NIfDBO

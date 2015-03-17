@@ -3,7 +3,6 @@ module kp_fciqmc_data_mod
     use CalcData, only: subspace_in
     use constants
     use FciMCData, only: ll_node, perturbation
-    use ras_data, only: ras_parameters
 
     implicit none
     save
@@ -231,10 +230,4 @@ module kp_fciqmc_data_mod
     ! of vectors and the second array to the second set.
     integer, allocatable :: kp_ind_1(:), kp_ind_2(:)
     
-    integer :: n_kp_pops
-    integer :: Occ_KP_CasOrbs
-    integer :: Virt_KP_CasOrbs
-    integer :: kp_mp1_ndets
-    type(ras_parameters) :: kp_ras
-
 end module

@@ -1856,8 +1856,10 @@ contains
         ! to initialise the FCIQMC simulation.
 
         integer :: nexcit, ndets_this_proc, i, det(nel)
-        real(dp), allocatable :: evecs_this_proc(:,:), init_vecs(:,:)
         type(basisfn) :: sym
+        real(dp) :: evals(inum_runs)
+        real(dp), allocatable :: evecs_this_proc(:,:)
+        integer(MPIArg) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
         character(*), parameter :: this_routine = 'InitFCIMC_trial'
 
         nexcit = inum_runs
@@ -1867,7 +1869,8 @@ contains
 
         ! Create the trial excited states
         call calc_trial_states(init_trial_in, nexcit, ndets_this_proc, &
-                               evecs_this_proc, SpawnedParts)
+                               SpawnedParts, evecs_this_proc, evals, &
+                               space_sizes, space_displs)
         ! Determine the walker populations associated with these states
         call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
         ! Set the trial excited states as the FCIQMC wave functions
@@ -1897,6 +1900,7 @@ contains
         integer(n_int) :: largest_det(0:NIfTot)
         integer :: run, j, proc_highest
         integer(int32) :: int_tmp(2)
+        character(*), parameter :: this_routine = 'set_initial_run_references'
 
         ASSERT(inum_runs == lenof_sign)
         do run = 1, inum_runs
