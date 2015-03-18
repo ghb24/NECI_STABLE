@@ -5907,12 +5907,6 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
             CALL LogMemDeAlloc(this_routine,abba_RDM_fullTag)
         end if
 
-        if(allocated(NatOrbMat)) then
-            DEALLOCATE(NatOrbMat)
-            CALL LogMemDeAlloc(this_routine,NatOrbMatTag)
-        endif
-
-
     END SUBROUTINE DeallocateRDM
 
     subroutine convert_mats_Molpforces(Norm_1RDM, Norm_2RDM)
