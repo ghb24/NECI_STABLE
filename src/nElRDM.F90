@@ -5828,12 +5828,17 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
             ENDIF
 
         !ELSEIF(.not.tHF_Ref_Explicit) THEN
+        else
 
-        !    DEALLOCATE(Spawned_Parents)
-        !    CALL LogMemDeAlloc(this_routine,Spawned_ParentsTag)
-!
-        !    DEALLOCATE(Spawned_Parents_Index)
-        !    CALL LogMemDeAlloc(this_routine,Spawned_Parents_IndexTag)
+            if (allocated(Spawned_Parents)) then
+                DEALLOCATE(Spawned_Parents)
+                CALL LogMemDeAlloc(this_routine,Spawned_ParentsTag)
+            end if
+
+            if (allocated(Spawned_Parents_Index)) then
+                DEALLOCATE(Spawned_Parents_Index)
+                CALL LogMemDeAlloc(this_routine,Spawned_Parents_IndexTag)
+            end if
 
         ENDIF
 
