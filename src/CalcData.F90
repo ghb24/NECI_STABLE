@@ -258,6 +258,7 @@ integer :: init_spawn_thresh
 
 ! Are we orthogonalising replicas?
 logical :: tOrthogonaliseReplicas, tReplicaSingleDetStart
+logical :: tOrthogonaliseSymmetric
 integer :: orthogonalise_iter
 ! Information on a trial space to create trial excited states with.
 type(subspace_in) :: init_trial_in

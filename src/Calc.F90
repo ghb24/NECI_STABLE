@@ -325,6 +325,7 @@ contains
           MaxTau = 1.0_dp
           tMultiReplicaInitiators = .false.
           tOrthogonaliseReplicas = .false.
+          tOrthogonaliseSymmetric = .false.
           orthogonalise_iter = 0
           tReplicaSingleDetStart = .false.
 
@@ -1995,6 +1996,15 @@ contains
                 if (item < nitems) then
                     call readi(orthogonalise_iter)
                 endif
+
+            case("ORTHOGONALISE-REPLICAS-SYMMETRIC")
+                ! Use the Lowdin (symmetric) orthogonaliser instead of the 
+                ! Gram Schmidt one from the ORTHOGONALISE-REPLICAS option
+                tOrthogonaliseReplicas = .true.
+                tOrthogonaliseSymmetric = .true.
+                if (item < nitems) then
+                    call readi(orthogonalise_iter)
+                end if
 
             case("REPLICA-SINGLE-DET-START")
                 ! If we want to start off multiple replicas from single dets

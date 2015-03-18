@@ -7,9 +7,10 @@ module orthogonalise
     use dSFMT_interface, only: genrand_real2_dSFMT
     use AnnihilationMod, only: CalcHashTableStats
     use bit_reps, only: extract_sign, encode_sign
-    use CalcData, only: OccupiedThresh
+    use CalcData, only: OccupiedThresh, tOrthogonaliseSymmetric
     use Parallel_neci
     use constants
+    use util_mod
     implicit none
 
 contains
@@ -32,6 +33,13 @@ contains
 #ifndef __PROG_NUMRUNS
         call stop_all(this_routine, "orthogonalise replicas requires mneci.x")
 #else
+
+        ! If we are using the symmetric orthogonaliser, then bypass this
+        ! routine...
+        if (tOrthogonaliseSymmetric) then
+            call orthogonalise_replicas_lowdin(iter_data)
+            return
+        end if
 
         norms = 0
         overlaps = 0
@@ -85,7 +93,7 @@ contains
                     iter_data%nborn(tgt_run) = iter_data%nborn(tgt_run) &
                                              + abs(sgn(tgt_run))
                 else if (abs(sgn(tgt_run)) >= abs(sgn_orig)) then
-                    NoDied(tgt_run) = NoBorn(tgt_run) &
+                    NoDied(tgt_run) = NoDied(tgt_run) &
                                     + abs(sgn(tgt_run) - sgn_orig)
                     iter_data%ndied(tgt_run) = iter_data%ndied(tgt_run) &
                                              + abs(sgn(tgt_run) - sgn_orig)
@@ -221,13 +229,188 @@ contains
                 NoBorn(2) = NoBorn(2) + abs(sgn(2))
                 iter_data%nborn(2) = iter_data%nborn(2) + abs(sgn(2))
             else if (abs(sgn(2)) >= abs(sgn_orig)) then
-                NoDied(2) = NoBorn(2) + abs(sgn(2) - sgn_orig)
+                NoDied(2) = NoDied(2) + abs(sgn(2) - sgn_orig)
                 iter_data%ndied(2) = iter_data%ndied(2) + abs(sgn(2) -sgn_orig)
             else
                 NoBorn(2) = NoBorn(2) + abs(sgn(2) - sgn_orig)
                 iter_data%nborn(2) = iter_data%nborn(2) + abs(sgn(2) -sgn_orig)
             end if
 
+
+        end do
+
+#endif
+
+        ! We now need to aggregate statistics here, rather than at the end
+        ! of annihilation, as they have been modified by this routine...
+        !
+        ! n.b. TotWalkersNew is integer, TotWalkers is int64 to ensure that it
+        !      can be collected using AllTotWalkers (which may end up with far
+        !      to many walkers).
+        TotWalkersNew = int(TotWalkers)
+        call CalcHashTableStats(TotWalkersNew, iter_data) 
+        TotWalkers = TotWalkersNew
+
+    end subroutine
+
+    subroutine write_mat(mat)
+
+        real(dp) :: mat(:,:)
+        integer :: i, j
+
+        do i = lbound(mat, 1), ubound(mat, 1)
+            do j = lbound(mat, 2), ubound(mat, 2)
+                write(6, '(f17.9, " ")', advance='no') mat(i, j)
+            end do
+            write(6,*)
+        end do
+
+    end subroutine
+
+
+    subroutine orthogonalise_replicas_lowdin(iter_data)
+
+        ! Perform a symmetric (Lowdin) orthogonalisation
+
+        type(fcimc_iter_data), intent(inout) :: iter_data
+        character(*), parameter :: this_routine='orthogonalise_replicas_lowdin'
+
+        real(dp) :: S(inum_runs, inum_runs), S_all(inum_runs, inum_runs)
+        real(dp) :: evecs(inum_runs, inum_runs), evecs_t(inum_runs, inum_runs)
+        real(dp) :: S_half(inum_runs, inum_runs)
+        real(dp) :: elem, sgn(lenof_sign), norm, sgn_orig(lenof_sign)
+
+        real(dp) :: work(3*inum_runs-1), evals(inum_runs)
+
+        integer :: j, run, runa, runb, info, TotWalkersNew
+
+        ! Not implemented for complex (yet)
+        ASSERT(inum_runs == lenof_sign)
+#ifndef __PROG_NUMRUNS
+        call stop_all(this_routine, "orthogonalise replicas requires mneci.x")
+#else
+
+        ! Generate the overlap matrix (unnormalised)
+        do j = 1, int(TotWalkers, sizeof_int)
+
+            call extract_sign(CurrentDets(:,j), sgn)
+            if (IsUnoccDet(sgn)) cycle
+
+            do runa = 1, inum_runs
+                do runb = runa, inum_runs
+                    elem = sgn(runa) * sgn(runb)
+                    S(runa, runb) = S(runa, runb) + elem
+                    if (runa /= runb) &
+                        S(runb, runa) = S(runb, runa) + elem
+                end do
+            end do
+        end do
+        call MPISumAll(S, S_all)
+
+        write(6,*) '----'
+        write(6,*) 'SMat'
+        call write_mat(S_all)
+
+        ! Normalise everything (the diagonal terms give the normalisation
+        ! constants)
+        S = S_all
+        do run = 1, inum_runs
+            norm = sqrt(S_all(run, run))
+            S(run, :) = S(run, :) / norm
+            S(:, run) = S(:, run) / norm
+        end do
+        evecs = S
+
+        write(6,*) '----'
+        write(6,*) 'SMat'
+        call write_mat(S)
+
+        ! Diagonalise the S matrix
+        call dsyev('V', 'U', inum_runs, evecs, inum_runs, evals, work, &
+                   size(work), info)
+
+        write(6,*) '----'
+        write(6,*) 'INFO', info
+        write(6,*) 'EVals', evals
+        write(6,*) '....'
+        call write_mat(evecs)
+
+        if (any(evals < 0)) then
+            write(6,*) '*** WARNING ***'
+            write(6,*) "Not orthogonalising this iteration."
+            write(6,*) 'Negative eigenvalue of overlap matrix found'
+            return
+        end if
+
+        ! Take the square roots of the eigenvalues
+        evals = sqrt(evals)
+        evecs_t = transpose(evecs)
+
+        ! Multiply through by the square root, and obtain S^{-0.5}
+        do j = 1, inum_runs
+            evecs_t(j, :) = evecs_t(j, :) * evals(j)
+        end do
+
+        write(6,*) '___________________'
+        write(6,*) '_T'
+        call write_mat(evecs_t)
+
+        S_half = matmul(evecs, evecs_t)
+
+        write(6,*) '-------'
+        write(6,*) 'S_half'
+        call write_mat(S_half)
+
+        write(6,*) 'ISNAN', isnan(s_half)
+        if (any(isnan(s_half))) &
+            call stop_all(this_routine, "NaNs found")
+
+        S = matmul(S_half, S_half)
+        write(6,*) '-------'
+        write(6,*) 'S'
+        call write_mat(S)
+
+        write(6,*) '======================================================'
+
+
+        ! Go through and update the values!
+        HolesInList = 0
+        do j = 1, int(TotWalkers, sizeof_int)
+
+            ! n.b. We are using a non-contiguous list (Hash algorith)
+            call extract_sign(CurrentDets(:,j), sgn_orig)
+            if (IsUnoccDet(sgn_orig)) then
+                HolesInList = HolesInList + 1
+                cycle
+            end if
+
+            ! Obtain the new sign values
+            sgn = matmul(S_half, sgn_orig)
+            !>>>!write(6,*) "J", j, sgn
+            call encode_sign(CurrentDets(:,j), sgn)
+
+            ! We should not be able to kill all particles on a site. This is
+            ! a rotation.
+            ASSERT(.not. IsUnoccDet(sgn))
+
+            ! Do some particle accounting
+            do run = 1, inum_runs
+                if (sgn(run) >= 0 .neqv. sgn_orig(run) >= 0) then
+                    NoDied(run) = NoDied(run) + abs(sgn_orig(run))
+                    iter_data%ndied(run) = iter_data%ndied(run) &
+                                         + abs(sgn_orig(run))
+                    NoBorn(run) = NoBorn(run) + abs(sgn(run))
+                    iter_data%nborn(run) = iter_data%nborn(run) + abs(sgn(run))
+                else if (abs(sgn(run)) >= abs(sgn_orig(run))) then
+                    NoBorn(run) = NoBorn(run) + abs(sgn(run) - sgn_orig(run))
+                    iter_data%nborn(run) = iter_data%nborn(run) &
+                                         + abs(sgn(run) - sgn_orig(run))
+                else
+                    NoDied(run) = NoDied(run) + abs(sgn(run) - sgn_orig(run))
+                    iter_data%ndied(run) = iter_data%ndied(run) &
+                                         + abs(sgn(run) - sgn_orig(run))
+                end if
+            end do
 
         end do
 
