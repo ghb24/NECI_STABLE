@@ -361,8 +361,8 @@ contains
         write(6,*) 'S_half'
         call write_mat(S_half)
 
-        write(6,*) 'ISNAN', isnan(s_half)
-        if (any(isnan(s_half))) &
+        write(6,*) 'ISNAN', isnan_neci(s_half)
+        if (any(isnan_neci(s_half))) &
             call stop_all(this_routine, "NaNs found")
 
         S = matmul(S_half, S_half)
