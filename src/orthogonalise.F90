@@ -291,6 +291,7 @@ contains
 #else
 
         ! Generate the overlap matrix (unnormalised)
+        S = 0
         do j = 1, int(TotWalkers, sizeof_int)
 
             call extract_sign(CurrentDets(:,j), sgn)
@@ -307,10 +308,6 @@ contains
         end do
         call MPISumAll(S, S_all)
 
-        write(6,*) '----'
-        write(6,*) 'SMat'
-        call write_mat(S_all)
-
         ! Normalise everything (the diagonal terms give the normalisation
         ! constants)
         S = S_all
@@ -321,19 +318,9 @@ contains
         end do
         evecs = S
 
-        write(6,*) '----'
-        write(6,*) 'SMat'
-        call write_mat(S)
-
         ! Diagonalise the S matrix
         call dsyev('V', 'U', inum_runs, evecs, inum_runs, evals, work, &
                    size(work), info)
-
-        write(6,*) '----'
-        write(6,*) 'INFO', info
-        write(6,*) 'EVals', evals
-        write(6,*) '....'
-        call write_mat(evecs)
 
         if (any(evals < 0)) then
             write(6,*) '*** WARNING ***'
@@ -343,7 +330,7 @@ contains
         end if
 
         ! Take the square roots of the eigenvalues
-        evals = sqrt(evals)
+        evals = 1.0_dp / sqrt(evals)
         evecs_t = transpose(evecs)
 
         ! Multiply through by the square root, and obtain S^{-0.5}
@@ -351,27 +338,10 @@ contains
             evecs_t(j, :) = evecs_t(j, :) * evals(j)
         end do
 
-        write(6,*) '___________________'
-        write(6,*) '_T'
-        call write_mat(evecs_t)
-
         S_half = matmul(evecs, evecs_t)
 
-        write(6,*) '-------'
-        write(6,*) 'S_half'
-        call write_mat(S_half)
-
-        write(6,*) 'ISNAN', isnan_neci(s_half)
         if (any(isnan_neci(s_half))) &
             call stop_all(this_routine, "NaNs found")
-
-        S = matmul(S_half, S_half)
-        write(6,*) '-------'
-        write(6,*) 'S'
-        call write_mat(S)
-
-        write(6,*) '======================================================'
-
 
         ! Go through and update the values!
         HolesInList = 0
@@ -386,7 +356,6 @@ contains
 
             ! Obtain the new sign values
             sgn = matmul(S_half, sgn_orig)
-            !>>>!write(6,*) "J", j, sgn
             call encode_sign(CurrentDets(:,j), sgn)
 
             ! We should not be able to kill all particles on a site. This is
