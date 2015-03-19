@@ -265,7 +265,7 @@ def output_file (fin):
         parts = [x.strip('.') for x in path.basename(fin).partition('FCIQMCStats')]
 
     # File bases for output files
-    out_base_in = ['OUT', 'OUTPUT', 'OUT.FCIMC', 'OUTPUT.FCIMC', 'out', 'output.FCIMC', 'output', 'out_']
+    out_base_in = ['OUT', 'OUTPUT', 'OUT.FCIMC', 'OUTPUT.FCIMC', 'out', 'output.FCIMC', 'output', 'out_', 'neci.out', 'neci.out_']
     out_base = []
     map(out_base.extend, [(a, '.'+a, a+'.', '.'+a+'.') for a in out_base_in])
 

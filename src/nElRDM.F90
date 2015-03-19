@@ -5828,87 +5828,84 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
             ENDIF
 
         !ELSEIF(.not.tHF_Ref_Explicit) THEN
+        else
 
-        !    DEALLOCATE(Spawned_Parents)
-        !    CALL LogMemDeAlloc(this_routine,Spawned_ParentsTag)
-!
-        !    DEALLOCATE(Spawned_Parents_Index)
-        !    CALL LogMemDeAlloc(this_routine,Spawned_Parents_IndexTag)
+            if (allocated(Spawned_Parents)) then
+                DEALLOCATE(Spawned_Parents)
+                CALL LogMemDeAlloc(this_routine,Spawned_ParentsTag)
+            end if
+
+            if (allocated(Spawned_Parents_Index)) then
+                DEALLOCATE(Spawned_Parents_Index)
+                CALL LogMemDeAlloc(this_routine,Spawned_Parents_IndexTag)
+            end if
 
         ENDIF
 
-        IF(RDMExcitLevel.eq.1) THEN
+        if(allocated(NatOrbMat)) then
+            DEALLOCATE(NatOrbMat)
+            CALL LogMemDeAlloc(this_routine,NatOrbMatTag)
+        endif
 
-            if(allocated(NatOrbMat)) then
-                DEALLOCATE(NatOrbMat)
-                CALL LogMemDeAlloc(this_routine,NatOrbMatTag)
-            endif
+        if(allocated(Evalues)) then
+            DEALLOCATE(Evalues)
+            CALL LogMemDeAlloc(this_routine,EvaluesTag)
+        endif
 
-            IF((iProcIndex.eq.0).and.tDiagRDM) THEN
-                if(allocated(Evalues)) then
-                    DEALLOCATE(Evalues)
-                    CALL LogMemDeAlloc(this_routine,EvaluesTag)
-                endif
+        if(allocated(Rho_ii)) then
+            DEALLOCATE(Rho_ii)
+            CALL LogMemDeAlloc(this_routine,Rho_iiTag)
+        endif
 
-                if(allocated(Rho_ii)) then
-                    DEALLOCATE(Rho_ii)
-                    CALL LogMemDeAlloc(this_routine,Rho_iiTag)
-                endif
+        if(allocated(FourIndInts)) then
+            DEALLOCATE(FourIndInts)
+            CALL LogMemDeAlloc(this_routine,FourIndIntsTag)
+        endif
 
-                IF(tPrintRODump) THEN
-                    if(allocated(FourIndInts)) then
-                        DEALLOCATE(FourIndInts)
-                        CALL LogMemDeAlloc(this_routine,FourIndIntsTag)
-                    endif
-                ENDIF
-
-            ENDIF
-
+        if (allocated(SymLabelCounts2_rot)) then
             DEALLOCATE(SymLabelCounts2_rot)
             CALL LogMemDeAlloc(this_routine,SymLabelCounts2_rotTag)
+        end if
 
+        if (allocated(SymLabelList2_rot)) then
             DEALLOCATE(SymLabelList2_rot)
             CALL LogMemDeAlloc(this_routine,SymLabelList2_rotTag)
+        end if
 
+        if (allocated(SymLabelListInv_rot)) then
             DEALLOCATE(SymLabelListInv_rot)
             CALL LogMemDeAlloc(this_routine,SymLabelListInv_rotTag)
+        end if
 
-        ELSE
-            if (tRDMInstEnergy) then
+        if (allocated(aaaa_RDM_inst)) then
+            DEALLOCATE(aaaa_RDM_inst)
+            CALL LogMemDeAlloc(this_routine,aaaa_RDM_instTag)
+        end if
 
-                DEALLOCATE(aaaa_RDM_inst)
-                CALL LogMemDeAlloc(this_routine,aaaa_RDM_instTag)
-                DEALLOCATE(abab_RDM_inst)
-                CALL LogMemDeAlloc(this_routine,abab_RDM_instTag)
-                DEALLOCATE(abba_RDM_inst)
-                CALL LogMemDeAlloc(this_routine,abba_RDM_instTag)
+        if (allocated(abab_RDM_inst)) then
+            DEALLOCATE(abab_RDM_inst)
+            CALL LogMemDeAlloc(this_routine,abab_RDM_instTag)
+        end if
 
-                IF(iProcIndex.eq.0) THEN
-                    DEALLOCATE(aaaa_RDM_full)
-                    CALL LogMemDeAlloc(this_routine,aaaa_RDM_fullTag)
-                    DEALLOCATE(abab_RDM_full)
-                    CALL LogMemDeAlloc(this_routine,abab_RDM_fullTag)
-                    DEALLOCATE(abba_RDM_full)
-                    CALL LogMemDeAlloc(this_routine,abba_RDM_fullTag)
-                endif
-            else
-                DEALLOCATE(aaaa_RDM_full)
-                CALL LogMemDeAlloc(this_routine,aaaa_RDM_fullTag)
-                DEALLOCATE(abab_RDM_full)
-                CALL LogMemDeAlloc(this_routine,abab_RDM_fullTag)
-                DEALLOCATE(abba_RDM_full)
-                CALL LogMemDeAlloc(this_routine,abba_RDM_fullTag)
-            endif
-            if(iProcindex.eq.0) then
-                if(tDiagRDM.or.tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
-                    if(allocated(NatOrbMat)) then
-                        DEALLOCATE(NatOrbMat)
-                        CALL LogMemDeAlloc(this_routine,NatOrbMatTag)
-                    endif
-                endif
-            ENDIF
+        if (allocated(abba_RDM_inst)) then
+            DEALLOCATE(abba_RDM_inst)
+            CALL LogMemDeAlloc(this_routine,abba_RDM_instTag)
+        end if
 
-        ENDIF
+        if (allocated(aaaa_RDM_full)) then
+            DEALLOCATE(aaaa_RDM_full)
+            CALL LogMemDeAlloc(this_routine,aaaa_RDM_fullTag)
+        end if
+
+        if (allocated(abab_RDM_full)) then
+            DEALLOCATE(abab_RDM_full)
+            CALL LogMemDeAlloc(this_routine,abab_RDM_fullTag)
+        end if
+
+        if (allocated(abba_RDM_full)) then
+            DEALLOCATE(abba_RDM_full)
+            CALL LogMemDeAlloc(this_routine,abba_RDM_fullTag)
+        end if
 
     END SUBROUTINE DeallocateRDM
 
