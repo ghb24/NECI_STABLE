@@ -187,17 +187,15 @@ contains
 
         ! Call the requested generating routines.
         if (core_in%tHF) call add_state_to_space(ilutHF, SpawnedParts, space_size)
-        if (core_in%tPops) call generate_space_most_populated(n_core_pops, SpawnedParts, space_size)
-        if (core_in%tRead) call generate_space_from_file('CORESPACE', SpawnedParts, space_size)
+        if (core_in%tPops) call generate_space_most_populated(core_in%npops, SpawnedParts, space_size)
+        if (core_in%tRead) call generate_space_from_file('DETFILE', SpawnedParts, space_size)
         if (.not. tCSFCore) then
             if (core_in%tDoubles) call generate_sing_doub_determinants(SpawnedParts, space_size, core_in%tHFConn)
-            if (core_in%tCAS) call generate_cas(OccDetermCasOrbs, VirtDetermCasOrbs, SpawnedParts, space_size)
-            if (core_in%tRAS) call generate_ras(core_ras, SpawnedParts, space_size)
-            if (core_in%tOptimised) call generate_optimised_core(determ_opt_data, tLimitDetermSpace, &
-                                                             SpawnedParts, space_size, max_determ_size)
-            if (core_in%tLowE) call generate_low_energy_core(low_e_core_excit, tLowECoreAllDoubles, &
-                                              low_e_core_num_keep, max_determ_size, SpawnedParts, space_size)
-            if (core_in%tMP1) call generate_using_mp1_criterion(semistoch_mp1_ndets, SpawnedParts, space_size)
+            if (core_in%tCAS) call generate_cas(core_in%occ_cas, core_in%virt_cas, SpawnedParts, space_size)
+            if (core_in%tRAS) call generate_ras(core_in%ras, SpawnedParts, space_size)
+            if (core_in%tOptimised) call generate_optimised_space(core_in%opt_data, core_in%tLimitSpace, &
+                                                             SpawnedParts, space_size, core_in%max_size)
+            if (core_in%tMP1) call generate_using_mp1_criterion(core_in%mp1_ndets, SpawnedParts, space_size)
             if (core_in%tFCI) then
                 if (tAllSymSectors) then
                     call gndts_all_sym_this_proc(SpawnedParts, .false., space_size)
@@ -249,9 +247,9 @@ contains
         determ_sizes(iProcIndex) = int(space_size, MPIArg)
 
         ! If requested, remove high energy orbitals so that the space size is below some max.
-        if (tLimitDetermSpace) then
+        if (core_in%tLimitSpace) then
             call remove_high_energy_orbs(SpawnedParts(:, 1:space_size), space_size, &
-                                           max_determ_size, .true.)
+                                           core_in%max_size, .true.)
             determ_sizes(iProcIndex) = int(space_size, MPIArg)
         end if
 
@@ -613,7 +611,7 @@ contains
 
     end subroutine generate_cas
 
-    subroutine generate_optimised_core(opt_data, tLimitSpace, ilut_list, space_size, max_space_size)
+    subroutine generate_optimised_space(opt_data, tLimitSpace, ilut_list, space_size, max_space_size)
 
         ! This routine generates a deterministic space by diagonalising a small fraction
         ! of the whole space, and choosing the basis states with the largest weights in
@@ -669,7 +667,7 @@ contains
         integer(MPIArg) :: proc_space_sizes(0:nProcessors-1), disps(0:nProcessors-1), &
                            sendcounts(0:nProcessors-1), recvcount, this_proc_size
         integer(TagIntType) :: IlutTag, TempTag, FinalTag
-        character (len=*), parameter :: t_r = "generate_optimised_core"
+        character (len=*), parameter :: t_r = "generate_optimised_space"
 
         if (iProcIndex /= root) then
             ! Allocate some space so that the MPIScatterV call does not crash.
@@ -813,7 +811,7 @@ contains
             call LogMemDealloc(t_r, TempTag, ierr)
         end if
 
-    end subroutine generate_optimised_core
+    end subroutine generate_optimised_space
 
     subroutine generate_space_most_populated(target_space_size, ilut_list, space_size)
 
@@ -988,119 +986,6 @@ contains
         close(iunit)
 
     end subroutine generate_space_from_file
-
-    subroutine generate_low_energy_core(max_excit, tAllDoub, nstates_keep, max_space_size, ilut_list, space_size)
-
-        ! In: max_excit - The maximum excitation level to generate up to.
-        ! In: tAllDoub - If true then always keep all singles and doubles first, before
-        !     aplying the energy criterion to remove determinants.
-        ! In: nstates_keep - The number of determinants to keep after each iteration.
-        ! In: max_space_size - The number of determinants to keep after the final
-        !     iteration of the generating algorithm.
-        ! In/Out: ilut_list - List of determinants generated.
-        ! In/Out: space_size - Number of determinants in the generated space.
-        !             If ilut_list is not empty on input and you want to keep
-        !             the states already in it, then on input space_size should
-        !             be equal to the number of states to be kept in ilut_list,
-        !             and new states will be added in from space_size+1.
-        !             Otherwise, space_size must equal 0 on input.
-        !             On output space_size will equal the total number of
-        !             generated plus what space_size was on input.
-
-        use enumerate_excitations, only: generate_connected_space
-        use searching, only: remove_repeated_states
-
-        integer, intent(in) :: max_excit
-        logical, intent(in) :: tAllDoub
-        integer, intent(in) :: nstates_keep, max_space_size
-        integer(n_int), intent(inout) :: ilut_list(0:,:)
-        integer, intent(inout) :: space_size
-
-        integer :: i, num_loops, ierr, old_num_states, new_num_states
-        logical :: tSinglesOnly
-        integer(n_int), allocatable, dimension(:,:) :: ilut_store, temp_space
-        integer(TagIntType) :: IlutTag, TempTag
-        character (len=*), parameter :: t_r = "generate_low_energy_core"
-
-        ! max_excit holds the maximum excitation level to go to. In the first loop,
-        ! generate both single and double excitations.
-        num_loops = max(max_excit-1, 1)
-
-        if (max_excit == 1) call warning_neci("generate_low_energy_core", "You asked for &
-                                                &singles only, but both singles and doubles &
-                                                &will be generated in the first iteration.")
-
-        allocate(ilut_store(0:NIfTot, 1000000), stat=ierr)
-        call LogMemAlloc("ilut_store", 1000000*(NIfTot+1), size_n_int, t_r, IlutTag, ierr)
-        allocate(temp_space(0:NIfTot, 1000000), stat=ierr)
-        call LogMemAlloc("temp_store", 1000000*(NIfTot+1), size_n_int, t_r, TempTag, ierr)
-        ilut_store = 0_n_int
-        temp_space = 0_n_int
-
-        ! Put the Hartree-Fock state in the list first.
-        ilut_store(0:NIfTot, 1) = ilutHF(0:NIfTot)
-
-        ! old_num_states will hold the number of deterministic states in the current
-        ! space. This is just 1 for now, with only the Hartree-Fock.
-        old_num_states = 1
-        new_num_states = 1
-
-        do i = 1, num_loops
-
-            write(6,'(a38,1X,i2)') "Low energy space generation: Iteration", i
-            call neci_flush(6)
-
-            ! The number of states in the list to work with, after the last iteration.
-            old_num_states = min(new_num_states, nstates_keep)
-
-            ! In the first iteration, generate all singles and doubles.
-            if (i == 1) then
-                tSinglesOnly = .false.
-            else
-                tSinglesOnly = .true.
-            end if
-
-            ! Find all *single* excitations (not doubles) to the states in ilut_store.
-            ! Allow for up to 1 million connected states.
-            new_num_states = 1000000
-            call generate_connected_space(old_num_states, ilut_store(:, 1:old_num_states), &
-                                          new_num_states, temp_space(:, 1:1000000), tSinglesOnly)
-
-            ! Add these states to the ones already in the ilut stores.
-            ilut_store(:, old_num_states+1:old_num_states+new_num_states) = &
-                temp_space(:, 1:new_num_states)
-
-            new_num_states = new_num_states + old_num_states
-
-            call remove_repeated_states(ilut_store, new_num_states)
-
-            write(6,'(i8,1X,a13)') new_num_states, "states found."
-            call neci_flush(6)
-
-            call sort_states_by_energy(ilut_store, new_num_states, tAllDoub)
-
-            ! If user has asked to keep all singles and doubles but has not asked for enough
-            ! states to be kept.
-            if (i == 1 .and. new_num_states > nstates_keep .and. tAllDoub) &
-                call warning_neci("generate_low_energy_core", "You have asked to keep all &
-                                   &singles and doubles, but the maximum number of states &
-                                   &you have asked to keep is to small for this. Some singles &
-                                   &or doubles will not be kept.")
-
-        end do
-
-        if (max_space_size /= 0) new_num_states = min(new_num_states, max_space_size)
-
-        do i = 1, new_num_states
-            call add_state_to_space(ilut_store(:, i), ilut_list, space_size)
-        end do
-
-        deallocate(temp_space, stat=ierr)
-        call LogMemDealloc(t_r, TempTag, ierr)
-        deallocate(ilut_store, stat=ierr)
-        call LogMemDealloc(t_r, IlutTag, ierr)
-
-    end subroutine generate_low_energy_core
 
     subroutine gen_all_csfs_from_orb_config(ilut, nI, ilut_list, space_size)
 
@@ -1479,7 +1364,7 @@ contains
         use FciMCData, only: SpawnedParts
         use util_mod, only: get_free_unit
 
-        ! Write the most populated states in CurrentDets to a CORESPACE file,
+        ! Write the most populated states in CurrentDets to a DETFILE file,
         ! using the routine generate_space_most_populated, which is the same
         ! routine used by the pops-core semi-stochastic input option. So this
         ! routine basically generates a pops-core space, but can be used at the
@@ -1501,7 +1386,7 @@ contains
         ! which presumably won't be needed now).
         call generate_space_most_populated(target_space_size, SpawnedParts, space_size)
 
-        write(6,'("Writing the most populated states to CORESPACE...")'); call neci_flush(6)
+        write(6,'("Writing the most populated states to DETFILE...")'); call neci_flush(6)
 
         iunit = get_free_unit()
 
@@ -1512,11 +1397,11 @@ contains
             if (iProcIndex == i) then
 
                 if (i == 0) then
-                    open(iunit, file='CORESPACE', status='replace')
+                    open(iunit, file='DETFILE', status='replace')
                 else
-                    inquire(file='CORESPACE',exist=texist)
-                    if(.not.texist) call stop_all(t_r,'"CORESPACE" file cannot be found')
-                    open(iunit, file='CORESPACE', status='old', position='append')
+                    inquire(file='DETFILE',exist=texist)
+                    if(.not.texist) call stop_all(t_r,'"DETFILE" file cannot be found')
+                    open(iunit, file='DETFILE', status='old', position='append')
                 end if
                 
                 do j = 1, space_size

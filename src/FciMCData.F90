@@ -373,7 +373,7 @@ MODULE FciMCData
 
       real(dp), allocatable :: proje_denominator_cyc(:)
       real(dp), allocatable :: proje_denominator_sum(:)
-      logical :: tRestart   !Whether to restart a calculation
+      logical :: tRestart = .false.   !Whether to restart a calculation
 
       ! Diag shift from the input file, if it needed to be reset after restart
       real(dp) :: InputDiagSft
@@ -471,47 +471,53 @@ MODULE FciMCData
 
       ! Trial wavefunction data.
 
-      ! This list stores the iluts from which the trial wavefunction is formed, but only those that reside on this processor.
-      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
+      ! This list stores the iluts from which the trial wavefunction is formed,
+      ! but only those that reside on this processor.
       integer(n_int), allocatable, dimension(:,:) :: trial_space
       ! The number of states in the trial vector space.
       integer :: trial_space_size = 0
-      ! This list stores the iluts from which the trial wavefunction is formed, but only those that reside on this processor.
-      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
+      ! This list stores the iluts from which the trial wavefunction is formed,
+      ! but only those that reside on this processor.
       integer(n_int), allocatable, dimension(:,:) :: con_space
-      ! The number of states in the space connected to (but not including) the trial vector space.
+      ! The number of states in the space connected to (but not including) the
+      ! trial vector space.
       integer :: con_space_size = 0
 
-      ! This vector stores the trial wavefunction itself.
-      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
-      real(dp), allocatable, dimension(:) :: trial_wf
-      ! Holds the number of occupied trial states in CurrentDets.
-      integer :: ntrial_occ
+      ! This vector stores the trial wavefunction(s) themselves, but only the
+      ! components on this processor.
+      real(dp), allocatable, dimension(:,:) :: trial_wfs
 
-      real(dp) :: trial_energy
-      ! This vector's elements store the quantity
+      ! The energy eigenvalues of the trial wave functions in the trial
+      ! subspace.
+      real(dp), allocatable :: trial_energies(:)
+
+      ! This vector's elements store the quantities
       ! \sum_j H_{ij} \psi^T_j,
-      ! where \psi is the trial wavefunction. These elements are stored only in the space of states which are connected
-      ! to *but not included in* the trial vector space.
-      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
-      real(dp), allocatable, dimension(:) :: con_space_vector
-      ! Holds the number of occupied connected states in CurrentDets.
-      integer :: ncon_occ
+      ! where \psi^T are trial wavefunctions.
+      real(dp), allocatable, dimension(:,:) :: con_space_vecs
 
-      ! If index i in CurrentDets is a trial state then index i of this array stores the corresponding amplitude of
-      ! trial_wf. If index i in the CurrentDets is a connected state then index i of this array stores the corresponding
-      ! amplitude of con_space_vector. Else, it will be zero.
-      real(dp), allocatable, dimension(:) :: current_trial_amps
-      ! Only used with the linscalefcimcalgo option: Because in AnnihilateSpawendParts trial and connected states are
-      ! sorted in the same order, a smaller section of the trial and connected space can be searched for each state.
-      ! These indices hold the indices to be searched from next time.
+      ! If index i in CurrentDets is a trial state then index i of this array
+      ! stores the corresponding amplitudes of trial_wfs. If index i in the
+      ! CurrentDets is a connected state then index i of this array stores
+      ! the corresponding amplitudes of con_space_vecs. Else, it will be zero.
+      real(dp), allocatable, dimension(:,:) :: current_trial_amps
+      ! Only used when tTrialHash is .false. (it is .true. by default).
+      ! Because in AnnihilateSpawendParts trial and connected states are
+      ! sorted in the same order, a smaller section of the trial and connected
+      ! space can be searched for each state. These indices hold the indices to
+      ! be searched from next time.
       integer :: min_trial_ind, min_conn_ind
 
-      ! If true (which it is by default) then the trial and connected space states are stored in a trial_ht and
-      ! con_ht and are accessed by a hash lookup.
+      ! The number of trial wave functions for different excited states used.
+      integer :: ntrial_excits
+
+      ! If true (which it is by default) then the trial and connected space
+      ! states are stored in a trial_ht and con_ht and are accessed by a hash
+      ! lookup.
       logical :: tTrialHash
-      ! If true, include the walkers that get cancelled by the initiator criterion in the trial energy estimate.
-      ! tTrialHash needs to be used for this option.
+      ! If true, include the walkers that get cancelled by the initiator
+      ! criterion in the trial energy estimate. tTrialHash needs to be used
+      ! for this option.
       logical :: tIncCancelledInitEnergy
 
       ! Semi-stochastic tags:
