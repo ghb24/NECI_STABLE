@@ -258,7 +258,7 @@ contains
             call add_core_states_currentdet_hash()
         end if
 
-        if (tTrialWavefunction) call init_current_trial_amps()
+        if (tTrialWavefunction) call reinit_current_trial_amps()
 
         ! Calculate and store the diagonal elements of the Hamiltonian for
         ! determinants in CurrentDets.
@@ -268,18 +268,22 @@ contains
 
     end subroutine set_trial_states
 
-    subroutine init_current_trial_amps()
+    subroutine reinit_current_trial_amps()
 
-        use bit_reps, only: set_flag, decode_bit_det
-        use FciMCData, only: ll_node, trial_space, trial_space_size, con_space, con_space_size
-        use FciMCData, only: con_space_vecs, current_trial_amps, HashIndex, trial_wfs, nWalkerHashes
-        use FciMCData, only: CurrentDets
-        use hash, only: FindWalkerHash
+        ! Recreate current trial amps, without using arrays such as trial_space
+        ! and trial_wfs, which are deallocated after the first init_trial_wf
+        ! call.
+
+        use bit_reps, only: decode_bit_det, set_flag
+        use FciMCData, only: CurrentDets, TotWalkers, HashIndex, nWalkerHashes
+        use FciMCData, only: tTrialHash, current_trial_amps, ntrial_excits
+        use searching, only: hash_search_trial, bin_search_trial
         use SystemData, only: nel
 
-        integer :: i, hash_val
+        integer :: i
         integer :: nI(nel)
-        type(ll_node), pointer :: temp_node
+        real(dp) :: trial_amps(ntrial_excits)
+        logical :: tTrial, tCon
 
         ! Don't do anything is this is called before the trial wave function
         ! initialisation.
@@ -287,45 +291,31 @@ contains
 
         current_trial_amps = 0.0_dp
 
-        do i = 1, trial_space_size
-            call decode_bit_det(nI, trial_space(:,i))
-            hash_val = FindWalkerHash(nI,nWalkerHashes)
-            temp_node => HashIndex(hash_val)
-            if (temp_node%ind /= 0) then
-                do while (associated(temp_node))
-                    if ( all(trial_space(0:NIfDBO,i) == CurrentDets(0:NIfDBO,temp_node%ind)) ) then
-                        call set_flag(CurrentDets(:,temp_node%ind), flag_trial)
-                        current_trial_amps(:,temp_node%ind) = trial_wfs(:,i)
-                        exit
-                    end if
-                    temp_node => temp_node%next
-                end do
+        do i = 1, TotWalkers
+            if (tTrialHash) then
+                call decode_bit_det(nI, CurrentDets(:,i))
+                call hash_search_trial(CurrentDets(:,i), nI, trial_amps, tTrial, tCon)
+            else
+                call bin_search_trial(CurrentDets(:,i), trial_amps, tTrial, tCon)
             end if
-            nullify(temp_node)
+
+            ! Set the appropraite flag (if any). Unset flags which aren't
+            ! appropriate, just in case.
+            if (tTrial) then
+                call set_flag(CurrentDets(:,i), flag_trial, .true.)
+                call set_flag(CurrentDets(:,i), flag_connected, .false.)
+            else if (tCon) then
+                call set_flag(CurrentDets(:,i), flag_trial, .false.)
+                call set_flag(CurrentDets(:,i), flag_connected, .true.)
+            else
+                call set_flag(CurrentDets(:,i), flag_trial, .false.)
+                call set_flag(CurrentDets(:,i), flag_connected, .false.)
+            end if
+
+            ! Set the amplitude (which may be zero).
+            current_trial_amps(:,i) = trial_amps
         end do
 
-        do i = 1, con_space_size
-            call decode_bit_det(nI, con_space(:,i))
-            hash_val = FindWalkerHash(nI,nWalkerHashes)
-            temp_node => HashIndex(hash_val)
-            if (temp_node%ind /= 0) then
-                do while (associated(temp_node))
-                    if ( all(con_space(0:NIfDBO,i) == CurrentDets(0:NIfDBO,temp_node%ind)) ) then
-                        ! If not also in the trial space. If it is, then we
-                        ! don't want the connected flag to be set, or the
-                        ! connected vector amplitude to be used.
-                        if (.not. test_flag(CurrentDets(:,temp_node%ind), flag_trial)) then
-                            call set_flag(CurrentDets(:,temp_node%ind), flag_connected)
-                            current_trial_amps(:,temp_node%ind) = con_space_vecs(:,i)
-                        end if
-                        exit
-                    end if
-                    temp_node => temp_node%next
-                end do
-            end if
-            nullify(temp_node)
-        end do
-
-    end subroutine init_current_trial_amps
+    end subroutine reinit_current_trial_amps
 
 end module initial_trial_states

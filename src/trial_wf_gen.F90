@@ -24,7 +24,7 @@ contains
         use FciMCData, only: MaxWalkersPart, tTrialHash, tIncCancelledInitEnergy
         use FciMCData, only: con_space_vecs, ntrial_excits, trial_numerator, trial_denom
         use FciMCData, only: tot_trial_numerator, tot_trial_denom
-        use initial_trial_states, only: calc_trial_states, init_current_trial_amps
+        use initial_trial_states, only: calc_trial_states
         use LoggingData, only: tWriteTrial, tCompareTrialAmps
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
         use ParallelHelper, only: root
@@ -487,6 +487,66 @@ contains
 
     end subroutine update_compare_trial_file
 
+    subroutine init_current_trial_amps()
+
+        use bit_reps, only: set_flag, decode_bit_det
+        use FciMCData, only: ll_node, trial_space, trial_space_size, con_space, con_space_size
+        use FciMCData, only: con_space_vecs, current_trial_amps, HashIndex, trial_wfs, nWalkerHashes
+        use FciMCData, only: CurrentDets
+        use hash, only: FindWalkerHash
+        use SystemData, only: nel
+
+        integer :: i, hash_val
+        integer :: nI(nel)
+        type(ll_node), pointer :: temp_node
+
+        ! Don't do anything is this is called before the trial wave function
+        ! initialisation.
+        if (.not. allocated(current_trial_amps)) return
+
+        current_trial_amps = 0.0_dp
+
+        do i = 1, trial_space_size
+            call decode_bit_det(nI, trial_space(:,i))
+            hash_val = FindWalkerHash(nI,nWalkerHashes)
+            temp_node => HashIndex(hash_val)
+            if (temp_node%ind /= 0) then
+                do while (associated(temp_node))
+                    if ( all(trial_space(0:NIfDBO,i) == CurrentDets(0:NIfDBO,temp_node%ind)) ) then
+                        call set_flag(CurrentDets(:,temp_node%ind), flag_trial)
+                        current_trial_amps(:,temp_node%ind) = trial_wfs(:,i)
+                        exit
+                    end if
+                    temp_node => temp_node%next
+                end do
+            end if
+            nullify(temp_node)
+        end do
+
+        do i = 1, con_space_size
+            call decode_bit_det(nI, con_space(:,i))
+            hash_val = FindWalkerHash(nI,nWalkerHashes)
+            temp_node => HashIndex(hash_val)
+            if (temp_node%ind /= 0) then
+                do while (associated(temp_node))
+                    if ( all(con_space(0:NIfDBO,i) == CurrentDets(0:NIfDBO,temp_node%ind)) ) then
+                        ! If not also in the trial space. If it is, then we
+                        ! don't want the connected flag to be set, or the
+                        ! connected vector amplitude to be used.
+                        if (.not. test_flag(CurrentDets(:,temp_node%ind), flag_trial)) then
+                            call set_flag(CurrentDets(:,temp_node%ind), flag_connected)
+                            current_trial_amps(:,temp_node%ind) = con_space_vecs(:,i)
+                        end if
+                        exit
+                    end if
+                    temp_node => temp_node%next
+                end do
+            end if
+            nullify(temp_node)
+        end do
+
+    end subroutine init_current_trial_amps
+
     subroutine create_trial_hashtables(nexcit)
 
         use FciMCData, only: trial_space, trial_space_size, con_space, con_space_size
@@ -583,24 +643,23 @@ contains
             end if
         end do
 
-        ! TODO: Figure out what to do about this.
         ! No longer need these trial and connected spaces stored in this form.
-        !if (allocated(trial_space)) then
-        !    deallocate(trial_space, stat=ierr)
-        !    call LogMemDealloc(t_r, TrialTag, ierr)
-        !end if
-        !if (allocated(trial_wfs)) then
-        !    deallocate(trial_wfs, stat=ierr)
-        !    call LogMemDealloc(t_r, TrialWFTag, ierr)
-        !end if
-        !if (allocated(con_space)) then
-        !    deallocate(con_space, stat=ierr)
-        !    call LogMemDealloc(t_r, ConTag, ierr)
-        !end if
-        !if (allocated(con_space_vecs)) then
-        !    deallocate(con_space_vecs, stat=ierr)
-        !    call LogMemDealloc(t_r, ConVecTag, ierr)
-        !end if
+        if (allocated(trial_space)) then
+            deallocate(trial_space, stat=ierr)
+            call LogMemDealloc(t_r, TrialTag, ierr)
+        end if
+        if (allocated(trial_wfs)) then
+            deallocate(trial_wfs, stat=ierr)
+            call LogMemDealloc(t_r, TrialWFTag, ierr)
+        end if
+        if (allocated(con_space)) then
+            deallocate(con_space, stat=ierr)
+            call LogMemDealloc(t_r, ConTag, ierr)
+        end if
+        if (allocated(con_space_vecs)) then
+            deallocate(con_space_vecs, stat=ierr)
+            call LogMemDealloc(t_r, ConVecTag, ierr)
+        end if
 
     end subroutine create_trial_hashtables
 

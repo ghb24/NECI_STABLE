@@ -850,9 +850,8 @@ module AnnihilationMod
         integer(n_int), intent(inout) :: iLutCurr(0:NIfTot)
         integer, intent(in) :: DetHash, nJ(nel)
         integer :: DetPosition
-        integer, parameter :: flags = 0
         HElement_t :: HDiag
-        real(dp) :: trial_amp(ntrial_excits)
+        real(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
         character(len=*), parameter :: t_r = "AddNewHashDet"
 
@@ -871,8 +870,6 @@ module AnnihilationMod
             CurrentDets(:,DetPosition) = iLutCurr(:)
         end if
 
-        if (tUseFlags) call encode_flags(CurrentDets(:,DetPosition), flags)
-        
         ! Calculate the diagonal hamiltonian matrix element for the new particle to be merged.
         if (tHPHF) then
             HDiag = hphf_diag_helement (nJ,CurrentDets(:,DetPosition))
@@ -900,20 +897,26 @@ module AnnihilationMod
             ! retreive the corresponding amplitude (zero if neither a trial or
             ! connected state).
             if (tTrialHash) then
-                call hash_search_trial(CurrentDets(:,DetPosition), nJ, trial_amp, tTrial, tCon)
+                call hash_search_trial(CurrentDets(:,DetPosition), nJ, trial_amps, tTrial, tCon)
             else
-                call bin_search_trial(CurrentDets(:,DetPosition), trial_amp, tTrial, tCon)
+                call bin_search_trial(CurrentDets(:,DetPosition), trial_amps, tTrial, tCon)
             end if
 
-            ! Set the appropraite flag (if any).
+            ! Set the appropraite flag (if any). Unset flags which aren't
+            ! appropriate, just in case.
             if (tTrial) then
-                call set_flag(CurrentDets(:,DetPosition), flag_trial)
+                call set_flag(CurrentDets(:,DetPosition), flag_trial, .true.)
+                call set_flag(CurrentDets(:,DetPosition), flag_connected, .false.)
             else if (tCon) then
-                call set_flag(CurrentDets(:,DetPosition), flag_connected)
+                call set_flag(CurrentDets(:,DetPosition), flag_trial, .false.)
+                call set_flag(CurrentDets(:,DetPosition), flag_connected, .true.)
+            else
+                call set_flag(CurrentDets(:,DetPosition), flag_trial, .false.)
+                call set_flag(CurrentDets(:,DetPosition), flag_connected, .false.)
             end if
 
             ! Set the amplitude (which may be zero).
-            current_trial_amps(:,DetPosition) = trial_amp
+            current_trial_amps(:,DetPosition) = trial_amps
         end if
 
         ! Add the new determinant to the hash table.
