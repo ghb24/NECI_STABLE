@@ -554,6 +554,16 @@ contains
                 call stats_out (state, .false., &
                                 (AllENumCyc(p) + Hii*AllHFCyc(p)) / StepsSft,&
                                 'ProjE Num (' // trim(adjustl(tmpc)) // ")")
+
+                if (tTrialWavefunction) then
+                    call stats_out (state, .false., &
+                                    tot_trial_numerator(p) / StepsSft, &
+                                    'TrialE Num (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out (state, .false., &
+                                    tot_trial_denom(p) / StepsSft, &
+                                    'TrialE Denom (' // trim(adjustl(tmpc)) // ")")
+                end if
+
                 if (tOrthogonaliseReplicas) then
                     do q = p+1, inum_runs
                         write(tmpc2, '(i5)') q

@@ -103,6 +103,7 @@ module fcimc_initialisation
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
+    use kp_fciqmc_data_mod, only: tExcitedStateKP
     use sym_general_mod, only: ClassCountInd
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
     use ueg_excit_gens, only: gen_ueg_excit
@@ -1354,7 +1355,13 @@ contains
         ! This includes generating the trial space, generating the space connected to the trial space,
         ! diagonalising the trial space to find the trial wavefunction and calculating the vector
         ! in the connected space, required for the energy estimator.
-        if (tTrialWavefunction) call init_trial_wf(trial_space_in)
+        if (tTrialWavefunction) then
+            if (tOrthogonaliseReplicas) then
+                call init_trial_wf(trial_space_in, inum_runs)
+            else
+                call init_trial_wf(trial_space_in, 1)
+            end if
+        end if
 
         replica_overlaps(:, :) = 0
 
@@ -1875,7 +1882,7 @@ contains
         call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
         ! Set the trial excited states as the FCIQMC wave functions
         call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts, &
-                              .false.)
+                              .false., .false.)
         call set_initial_run_references()
 
         deallocate(evecs_this_proc)

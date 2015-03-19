@@ -557,7 +557,7 @@ contains
             ! Set the populations of these states to the requested value.
             call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
             ! Set the trial excited states as the FCIQMC wave functions.
-            call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts, tPairedReplicas)
+            call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts, tPairedReplicas, .true.)
 
             deallocate(evecs_this_proc, evals)
 
@@ -573,7 +573,7 @@ contains
             ! Set the populations of these states to the requested value.
             call set_trial_populations(1, ndets_this_proc, init_vecs)
             ! Set the trial excited states as the FCIQMC wave functions.
-            call set_trial_states(ndets_this_proc, init_vecs, SpawnedParts, tPairedReplicas)
+            call set_trial_states(ndets_this_proc, init_vecs, SpawnedParts, tPairedReplicas, .true.)
 
             deallocate(evecs_this_proc, init_vecs, evals)
 

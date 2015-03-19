@@ -13,17 +13,18 @@ module trial_wf_gen
 
 contains
 
-    subroutine init_trial_wf(trial_in)
+    subroutine init_trial_wf(trial_in, nexcit)
 
         use DetBitOps, only: ilut_lt, ilut_gt
         use enumerate_excitations, only: generate_connected_space
-        use FciMCData, only: trial_space, trial_space_size, con_space, con_space_size, trial_wf
-        use FciMCData, only: trial_energy, ConTag, ConVecTag, TempTag, TrialTag, TrialWFTag
+        use FciMCData, only: trial_space, trial_space_size, con_space, con_space_size, trial_wfs
+        use FciMCData, only: trial_energies, ConTag, ConVecTag, TempTag, TrialTag, TrialWFTag
         use FciMCData, only: TrialTempTag, ConTempTag, OccTrialTag, Trial_Init_Time
-        use FciMCData, only: OccConTag, ntrial_occ, ncon_occ, CurrentTrialTag, current_trial_amps
+        use FciMCData, only: OccConTag, CurrentTrialTag, current_trial_amps
         use FciMCData, only: MaxWalkersPart, tTrialHash, tIncCancelledInitEnergy
-        use FciMCData, only: con_space_vector
-        use initial_trial_states, only: calc_trial_states
+        use FciMCData, only: con_space_vecs, ntrial_excits, trial_numerator, trial_denom
+        use FciMCData, only: tot_trial_numerator, tot_trial_denom
+        use initial_trial_states, only: calc_trial_states, init_current_trial_amps
         use LoggingData, only: tWriteTrial, tCompareTrialAmps
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
         use ParallelHelper, only: root
@@ -33,6 +34,7 @@ contains
         use SystemData, only: tAllSymSectors
 
         type(subspace_in) :: trial_in
+        integer, intent(in) :: nexcit
 
         integer :: i, ierr, num_states_on_proc, con_space_size_old
         integer :: excit, tot_trial_space_size, tot_con_space_size
@@ -41,9 +43,8 @@ contains
         integer(MPIArg) :: con_sendcounts(0:nProcessors-1), con_recvcounts(0:nProcessors-1)
         integer(MPIArg) :: con_senddispls(0:nProcessors-1), con_recvdispls(0:nProcessors-1)
         integer(n_int), allocatable, dimension(:,:) :: temp_space
-        real(dp), allocatable :: evecs_this_proc(:,:), evecs_all_procs(:,:)
-        integer, parameter :: nexcit = 1
-        real(dp) :: trial_amp, evals(nexcit)
+        real(dp), allocatable :: trial_wfs_all_procs(:,:)
+        real(dp) :: trial_amp
         character (len=*), parameter :: t_r = "init_trial_wf"
 
 #ifdef __CMPLX
@@ -63,17 +64,20 @@ contains
         write(6,'()')
         write(6,'(a56)') "=========== Trial wavefunction initialisation =========="
 
+        ntrial_excits = nexcit
+
         ! Simply allocate the trial vector to have up to 1 million elements for now...
         allocate(trial_space(0:NIfTot, 1000000), stat=ierr)
         call LogMemAlloc('trial_space', 1000000*(NIfTot+1), size_n_int, t_r, TrialTag, ierr)
+
+        allocate(trial_energies(nexcit))
 
         trial_space = 0_n_int
 
         write(6,'(a29)') "Generating the trial space..."; call neci_flush(6)
 
-        call calc_trial_states(trial_in, nexcit, trial_space_size, trial_space, evecs_this_proc, evals, &
-                               trial_counts, trial_displs)
-        trial_energy = evals(1)
+        call calc_trial_states(trial_in, nexcit, trial_space_size, trial_space, trial_wfs, &
+                               trial_energies, trial_counts, trial_displs)
 
         write(6,'(a38,1X,i8)') "Size of trial space on this processor:", trial_space_size; call neci_flush(6)
 
@@ -81,8 +85,6 @@ contains
         ! have only counted those states. Send all states to all processors for the next bit.
         tot_trial_space_size = int(sum(trial_counts), sizeof_int)
         write(6,'(a30,1X,i8)') "Total size of the trial space:", tot_trial_space_size; call neci_flush(6)
-
-        allocate(evecs_all_procs(nexcit, tot_trial_space_size), stat=ierr)
 
         ! Use SpawnedParts as temporary space:
         call MPIAllGatherV(trial_space(:, 1:trial_space_size), &
@@ -179,96 +181,50 @@ contains
         write(6,'(a42,1X,i10)') "Size of connected space on this processor:", con_space_size
         call neci_flush(6)
 
-        allocate(trial_wf(trial_space_size), stat=ierr)
-        call LogMemAlloc('trial_wf', trial_space_size, 8, t_r, TrialWFTag, ierr)
-        trial_wf = evecs_this_proc(1,1:trial_space_size)
-
-        call MPIAllGatherV(evecs_this_proc, evecs_all_procs, trial_counts, trial_displs)
+        ! Create the trial wavefunction from all processors, on all processors.
+        allocate(trial_wfs_all_procs(nexcit, tot_trial_space_size), stat=ierr)
+        call MPIAllGatherV(trial_wfs, trial_wfs_all_procs, trial_counts, trial_displs)
 
         call sort_space_by_proc(SpawnedParts(:, 1:tot_trial_space_size), tot_trial_space_size, trial_counts)
 
         write(6,'(a47)') "Generating the vector \sum_j H_{ij} \psi^T_j..."; call neci_flush(6)
-        allocate(con_space_vector(con_space_size), stat=ierr)
-        call LogMemAlloc('con_space_vector', con_space_size, 8, t_r, ConVecTag, ierr)
-        call generate_connected_space_vector(SpawnedParts, evecs_all_procs(1,:), con_space, con_space_vector)
+        allocate(con_space_vecs(nexcit, con_space_size), stat=ierr)
+        call LogMemAlloc('con_space_vecs', con_space_size, 8, t_r, ConVecTag, ierr)
+        call generate_connected_space_vector(SpawnedParts, trial_wfs_all_procs, con_space, con_space_vecs)
 
         call MPIBarrier(ierr)
 
         if (tWriteTrial) call write_trial_space()
         if (tCompareTrialAmps) call update_compare_trial_file(.true.)
 
-        allocate(current_trial_amps(MaxWalkersPart), stat=ierr)
-        call LogMemAlloc('current_trial_amps', MaxWalkersPart, 8, t_r, CurrentTrialTag, ierr)
-        current_trial_amps = 0.0_dp
-        call initialise_trial_linscale()
+        allocate(current_trial_amps(nexcit, MaxWalkersPart), stat=ierr)
+        call LogMemAlloc('current_trial_amps', nexcit*MaxWalkersPart, 8, t_r, CurrentTrialTag, ierr)
+        call init_current_trial_amps()
 
-        if (tTrialHash) call create_trial_hashtables()
+        if (tTrialHash) call create_trial_hashtables(nexcit)
+
+        ! Set these to zero, to prevent junk being printed in the initial report.
+        trial_numerator = 0.0_dp
+        tot_trial_numerator = 0.0_dp
+        trial_denom = 0.0_dp
+        tot_trial_denom = 0.0_dp
 
         call halt_timer(Trial_Init_Time)
 
-        write(6,'(a37,1X,f13.7)') "Energy eigenvalue of the trial space:", trial_energy
-        write(6,'(a43)') "Trial wavefunction initialisation complete."
-        write(6,'(a65, f9.3)') "Total time (seconds) taken for trial wavefunction initialisation:", &
+        write(6,'("Energy eigenvalue(s) of the trial space:")', advance='no')
+        do i = 1, nexcit
+            write(6,'(2X,g16.9e3)', advance='no') trial_energies(i)
+        end do
+        write(6,'(/,"Trial wavefunction initialisation complete.")')
+        write(6,'("Total time (seconds) taken for trial wavefunction initialisation:", f9.3)'), &
                    get_total_time(Trial_Init_Time)
         call neci_flush(6)
 
     end subroutine init_trial_wf
 
-    subroutine initialise_trial_linscale()
-
-        use bit_reps, only: set_flag
-        use FciMCData, only: ll_node, trial_space, trial_space_size, con_space, con_space_size
-        use FciMCData, only: con_space_vector, current_trial_amps, HashIndex, trial_wf, nWalkerHashes
-        use hash, only: FindWalkerHash
-
-        integer :: i, hash_val
-        integer :: nI(nel)
-        type(ll_node), pointer :: temp_node
-
-        do i = 1, trial_space_size
-            call decode_bit_det(nI, trial_space(:,i))
-            hash_val = FindWalkerHash(nI,nWalkerHashes)
-            temp_node => HashIndex(hash_val)
-            if (temp_node%ind /= 0) then
-                do while (associated(temp_node))
-                    if ( all(trial_space(0:NIfDBO,i) == CurrentDets(0:NIfDBO,temp_node%ind)) ) then
-                        call set_flag(CurrentDets(:,temp_node%ind), flag_trial)
-                        current_trial_amps(temp_node%ind) = trial_wf(i)
-                        exit
-                    end if
-                    temp_node => temp_node%next
-                end do
-            end if
-            nullify(temp_node)
-        end do
-
-        do i = 1, con_space_size
-            call decode_bit_det(nI, con_space(:,i))
-            hash_val = FindWalkerHash(nI,nWalkerHashes)
-            temp_node => HashIndex(hash_val)
-            if (temp_node%ind /= 0) then
-                do while (associated(temp_node))
-                    if ( all(con_space(0:NIfDBO,i) == CurrentDets(0:NIfDBO,temp_node%ind)) ) then
-                        ! If not also in the trial space. If it is, then we
-                        ! don't want the connected flag to be set, or the
-                        ! connected vector amplitude to be used.
-                        if (.not. test_flag(CurrentDets(:,temp_node%ind), flag_trial)) then
-                            call set_flag(CurrentDets(:,temp_node%ind), flag_connected)
-                            current_trial_amps(temp_node%ind) = con_space_vector(i)
-                        end if
-                        exit
-                    end if
-                    temp_node => temp_node%next
-                end do
-            end if
-            nullify(temp_node)
-        end do
-
-    end subroutine initialise_trial_linscale
-
     subroutine remove_states_not_on_proc(ilut_list, ilut_list_size, update_trial_vector)
         
-        use FciMCData, only: trial_wf
+        use FciMCData, only: trial_wfs
         use hash, only: DetermineDetNode
 
         integer, intent(inout) :: ilut_list_size
@@ -286,7 +242,7 @@ contains
             if (proc == iProcIndex) then
                 counter = counter + 1
                 ilut_list(:, counter) = ilut_list(:, i)
-                if (update_trial_vector) trial_wf(counter) = trial_wf(i)
+                if (update_trial_vector) trial_wfs(:,counter) = trial_wfs(:,i)
             end if
         end do
 
@@ -334,31 +290,32 @@ contains
 
     end subroutine remove_list1_states_from_list2
 
-    subroutine generate_connected_space_vector(trial_space, trial_vec, con_space, con_vec)
+    subroutine generate_connected_space_vector(trial_space, trial_vecs, con_space, con_vecs)
 
         ! Calculate the vector
         ! \sum_j H_{ij} \psi^T_j,
-        ! where \psi^T is the trial vector, j runs over all trial space vectors and i runs over
-        ! all connected space vectors. This is output in con_vec
+        ! where \psi^T is the trial vector, j runs over all trial space
+        ! states and i runs over all connected space states. This is output
+        ! in con_vecs.
 
         use hphf_integrals, only: hphf_off_diag_helement
         use MemoryManager, only: LogMemAlloc
 
         integer(n_int), intent(in) :: trial_space(0:,:)
-        real(dp), intent(in) :: trial_vec(:)
+        real(dp), intent(in) :: trial_vecs(:,:)
         integer(n_int), intent(in) :: con_space(0:,:)
-        real(dp), intent(out) :: con_vec(:)
+        real(dp), intent(out) :: con_vecs(:,:)
 
         integer :: i, j, ierr
         integer :: nI(nel), nJ(nel)
         real(dp) :: H_ij
         character (len=*), parameter :: t_r = "generate_connected_space_vector"
 
-        con_vec = 0.0_dp
+        con_vecs = 0.0_dp
 
-        do i = 1, size(con_vec)
+        do i = 1, size(con_vecs,2)
             call decode_bit_det(nI, con_space(0:NIfTot, i))
-            do j = 1, size(trial_vec)
+            do j = 1, size(trial_vecs,2)
                 call decode_bit_det(nJ, trial_space(0:NIfTot, j))
                 ! Note that, because the connected and trial spaces do not contain any common
                 ! states, we never have diagonal Hamiltonian elements.
@@ -367,7 +324,7 @@ contains
                 else
                     H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                 end if
-                con_vec(i) = con_vec(i) + H_ij*trial_vec(j)
+                con_vecs(:,i) = con_vecs(:,i) + H_ij*trial_vecs(:,j)
             end do
         end do
 
@@ -461,7 +418,7 @@ contains
         ! space. This is a test routine and is very unoptimised.
 
         use bit_reps, only: extract_sign
-        use FciMCData, only: trial_space, trial_space_size, trial_wf
+        use FciMCData, only: trial_space, trial_space_size, trial_wfs
         use ParallelHelper, only: root
         use searching, only: BinSearchParts
 
@@ -505,7 +462,7 @@ contains
                     end if
 
                     do j = 1, trial_space_size 
-                        write(iunit, '(es15.8,3x)', advance = 'no') trial_wf(j)
+                        write(iunit, '(es15.8,3x)', advance = 'no') trial_wfs(1,j)
 
                         call BinSearchParts(trial_space(:,j), MinInd, n_walkers, PartInd, tSuccess)
 
@@ -530,22 +487,24 @@ contains
 
     end subroutine update_compare_trial_file
 
-    subroutine create_trial_hashtables()
+    subroutine create_trial_hashtables(nexcit)
 
         use FciMCData, only: trial_space, trial_space_size, con_space, con_space_size
-        use FciMCData, only: con_space_vector, TrialTag, ConTag, TrialWFTag, ConVecTag
-        use FciMCData, only: trial_wf
+        use FciMCData, only: con_space_vecs, TrialTag, ConTag, TrialWFTag, ConVecTag
+        use FciMCData, only: trial_wfs
         use hash, only: FindWalkerHash
         use MemoryManager, only: LogMemDealloc
+
+        integer, intent(in) :: nexcit
     
         integer :: i, n_clash, hash_val, ierr
         integer :: nI(nel)
         integer(n_int), allocatable, dimension(:,:) :: temp_states
-        integer(n_int) :: temp
+        integer(n_int) :: temp(nexcit)
         character(len=*), parameter :: t_r = "create_trial_hashtables"
 
         ! Assume no more than 1000 hash clashes.
-        allocate(temp_states(0:NIfDBO+1, 100), stat=ierr)
+        allocate(temp_states(0:NIfDBO+nexcit, 100), stat=ierr)
         if (ierr /= 0) then
             write(6,*) "ierr:", ierr
             call neci_flush(6)
@@ -571,20 +530,20 @@ contains
 
             if (trial_ht(hash_val)%nclash == 0) then
                 ! If there are no states currently with this hash value.
-                allocate(trial_ht(hash_val)%states(0:NIfDBO+1,1))
+                allocate(trial_ht(hash_val)%states(0:NIfDBO+nexcit,1))
                 trial_ht(hash_val)%nclash = 1
                 trial_ht(hash_val)%states(0:NIfDBO,1) = trial_space(0:NIfDBO,i)
                 ! Store the amplitude as an integer.
-                trial_ht(hash_val)%states(NIfDBO+1:,1) = transfer(trial_wf(i), temp)
+                trial_ht(hash_val)%states(NIfDBO+1:,1) = transfer(trial_wfs(:,i), temp)
             else
                 n_clash = trial_ht(hash_val)%nclash
                 temp_states(:,1:n_clash) = trial_ht(hash_val)%states(:,1:n_clash)
                 deallocate(trial_ht(hash_val)%states, stat=ierr)
-                allocate(trial_ht(hash_val)%states(0:NIfDBO+1,n_clash+1))
+                allocate(trial_ht(hash_val)%states(0:NIfDBO+nexcit,n_clash+1))
                 trial_ht(hash_val)%nclash = n_clash + 1
                 trial_ht(hash_val)%states(:,1:n_clash) = temp_states(:, 1:n_clash)
                 trial_ht(hash_val)%states(0:NIfDBO,n_clash+1) = trial_space(0:NIfDBO,i)
-                trial_ht(hash_val)%states(NIfDBO+1,n_clash+1) = transfer(trial_wf(i), temp)
+                trial_ht(hash_val)%states(NIfDBO+1:,n_clash+1) = transfer(trial_wfs(:,i), temp)
             end if
         end do
 
@@ -607,50 +566,52 @@ contains
 
             if (con_ht(hash_val)%nclash == 0) then
                 ! If there are no states currently with this hash value.
-                allocate(con_ht(hash_val)%states(0:NIfDBO+1,1))
+                allocate(con_ht(hash_val)%states(0:NIfDBO+nexcit,1))
                 con_ht(hash_val)%nclash = 1
                 con_ht(hash_val)%states(0:NIfDBO,1) = con_space(0:NIfDBO,i)
                 ! Store the amplitude as an integer.
-                con_ht(hash_val)%states(NIfDBO+1:,1) = transfer(con_space_vector(i), temp)
+                con_ht(hash_val)%states(NIfDBO+1:,1) = transfer(con_space_vecs(:,i), temp)
             else
                 n_clash = con_ht(hash_val)%nclash
                 temp_states(:,1:n_clash) = con_ht(hash_val)%states(:,1:n_clash)
                 deallocate(con_ht(hash_val)%states, stat=ierr)
-                allocate(con_ht(hash_val)%states(0:NIfDBO+1,n_clash+1))
+                allocate(con_ht(hash_val)%states(0:NIfDBO+nexcit,n_clash+1))
                 con_ht(hash_val)%nclash = n_clash + 1
                 con_ht(hash_val)%states(:,1:n_clash) = temp_states(:, 1:n_clash)
                 con_ht(hash_val)%states(0:NIfDBO,n_clash+1) = con_space(0:NIfDBO,i)
-                con_ht(hash_val)%states(NIfDBO+1,n_clash+1) = transfer(con_space_vector(i), temp)
+                con_ht(hash_val)%states(NIfDBO+1:,n_clash+1) = transfer(con_space_vecs(:,i), temp)
             end if
         end do
 
         deallocate(temp_states)
 
+        ! TODO: Figure out what to do about this.
         ! No longer need these trial and connected spaces stored in this form.
-        if (allocated(trial_space)) then
-            deallocate(trial_space, stat=ierr)
-            call LogMemDealloc(t_r, TrialTag, ierr)
-        end if
-        if (allocated(trial_wf)) then
-            deallocate(trial_wf, stat=ierr)
-            call LogMemDealloc(t_r, TrialWFTag, ierr)
-        end if
-        if (allocated(con_space)) then
-            deallocate(con_space, stat=ierr)
-            call LogMemDealloc(t_r, ConTag, ierr)
-        end if
-        if (allocated(con_space_vector)) then
-            deallocate(con_space_vector, stat=ierr)
-            call LogMemDealloc(t_r, ConVecTag, ierr)
-        end if
+        !if (allocated(trial_space)) then
+        !    deallocate(trial_space, stat=ierr)
+        !    call LogMemDealloc(t_r, TrialTag, ierr)
+        !end if
+        !if (allocated(trial_wfs)) then
+        !    deallocate(trial_wfs, stat=ierr)
+        !    call LogMemDealloc(t_r, TrialWFTag, ierr)
+        !end if
+        !if (allocated(con_space)) then
+        !    deallocate(con_space, stat=ierr)
+        !    call LogMemDealloc(t_r, ConTag, ierr)
+        !end if
+        !if (allocated(con_space_vecs)) then
+        !    deallocate(con_space_vecs, stat=ierr)
+        !    call LogMemDealloc(t_r, ConVecTag, ierr)
+        !end if
 
     end subroutine create_trial_hashtables
 
     subroutine end_trial_wf()
 
-        use FciMCData, only: trial_space, con_space, con_space_vector, TrialTag, ConTag
+        use FciMCData, only: trial_space, con_space, con_space_vecs, TrialTag, ConTag
         use FciMCData, only: TrialWFTag, ConVecTag, CurrentTrialTag, ConTempTag, OccTrialTag
-        use FciMCData, only: OccConTag, TrialTempTag, current_trial_amps, trial_wf
+        use FciMCData, only: OccConTag, TrialTempTag, current_trial_amps
+        use FciMCData, only: trial_wfs, trial_energies
         use MemoryManager, only: LogMemDealloc
 
         character(len=*), parameter :: t_r = "end_trial_wf"
@@ -660,22 +621,23 @@ contains
             deallocate(trial_space, stat=ierr)
             call LogMemDealloc(t_r, TrialTag, ierr)
         end if
-        if (allocated(trial_wf)) then
-            deallocate(trial_wf, stat=ierr)
+        if (allocated(trial_wfs)) then
+            deallocate(trial_wfs, stat=ierr)
             call LogMemDealloc(t_r, TrialWFTag, ierr)
         end if
         if (allocated(con_space)) then
             deallocate(con_space, stat=ierr)
             call LogMemDealloc(t_r, ConTag, ierr)
         end if
-        if (allocated(con_space_vector)) then
-            deallocate(con_space_vector, stat=ierr)
+        if (allocated(con_space_vecs)) then
+            deallocate(con_space_vecs, stat=ierr)
             call LogMemDealloc(t_r, ConVecTag, ierr)
         end if
         if (allocated(current_trial_amps)) then
             deallocate(current_trial_amps, stat=ierr)
             call LogMemDealloc(t_r, CurrentTrialTag, ierr)
         end if
+        if (allocated(trial_energies)) deallocate(trial_energies)
 
     end subroutine end_trial_wf
 

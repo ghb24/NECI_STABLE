@@ -23,7 +23,8 @@ module AnnihilationMod
                         flag_initiator, encode_part_sign, &
                         extract_part_sign, extract_bit_rep, &
                         nullify_ilut_part, clear_has_been_initiator, &
-                        set_has_been_initiator, flag_has_been_initiator
+                        set_has_been_initiator, flag_has_been_initiator, &
+                        encode_flags
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
     use global_det_data, only: set_det_diagH, get_iter_occ, &
@@ -702,7 +703,7 @@ module AnnihilationMod
                         if ( .not. test_flag (SpawnedParts(:,i), flag_initiator(j)) ) then
                             ! If this option is on, include the walker to be
                             ! cancelled in the trial energy estimate.
-                            if (tIncCancelledInitEnergy) call add_trial_energy_contrib(SpawnedParts(:,i), SignTemp(j))
+                            if (tIncCancelledInitEnergy) call add_trial_energy_contrib(SpawnedParts(:,i), SignTemp(j), j)
 
                             ! Walkers came from outside initiator space.
                             NoAborted(j) = NoAborted(j) + abs(SignTemp(j))
@@ -849,8 +850,10 @@ module AnnihilationMod
         integer(n_int), intent(inout) :: iLutCurr(0:NIfTot)
         integer, intent(in) :: DetHash, nJ(nel)
         integer :: DetPosition
+        integer, parameter :: flags = 0
         HElement_t :: HDiag
-        real(dp) :: trial_amp
+        real(dp) :: trial_amp(ntrial_excits)
+        logical :: tTrial, tCon
         character(len=*), parameter :: t_r = "AddNewHashDet"
 
         if (iStartFreeSlot <= iEndFreeSlot) then
@@ -867,6 +870,8 @@ module AnnihilationMod
             end if
             CurrentDets(:,DetPosition) = iLutCurr(:)
         end if
+
+        call encode_flags(CurrentDets(:,DetPosition), flags)
         
         ! Calculate the diagonal hamiltonian matrix element for the new particle to be merged.
         if (tHPHF) then
@@ -887,16 +892,28 @@ module AnnihilationMod
         ! There is at least one spawning count here
         call inc_spawn_count(DetPosition)
 
-        ! If using a trial wavefunction, search to see if this state is in either the trial or
-        ! connected space. If so, bin_search_trial sets the correct flag and returns the corresponding
-        ! amplitude, which is stored.
+        ! If using a trial wavefunction, search to see if this state is in
+        ! either the trial or connected space. If so, *_search_trial returns
+        ! the corresponding amplitude, which is stored.
         if (tTrialWavefunction) then
+            ! Search to see if this is a trial or connected state, and
+            ! retreive the corresponding amplitude (zero if neither a trial or
+            ! connected state).
             if (tTrialHash) then
-                call hash_search_trial(CurrentDets(:,DetPosition), nJ, trial_amp)
+                call hash_search_trial(CurrentDets(:,DetPosition), nJ, trial_amp, tTrial, tCon)
             else
-                call bin_search_trial(CurrentDets(:,DetPosition), trial_amp)
+                call bin_search_trial(CurrentDets(:,DetPosition), trial_amp, tTrial, tCon)
             end if
-            current_trial_amps(DetPosition) = trial_amp
+
+            ! Set the appropraite flag (if any).
+            if (tTrial) then
+                call set_flag(CurrentDets(:,DetPosition), flag_trial)
+            else if (tCon) then
+                call set_flag(CurrentDets(:,DetPosition), flag_connected)
+            end if
+
+            ! Set the amplitude (which may be zero).
+            current_trial_amps(:,DetPosition) = trial_amp
         end if
 
         ! Add the new determinant to the hash table.
@@ -906,7 +923,7 @@ module AnnihilationMod
 
     subroutine CalcHashTableStats(TotWalkersNew, iter_data)
 
-        use nElRDMMod, only: det_removed_fill_diag_rdm 
+        use nElRDMMod, only: det_removed_fill_diag_rdm
         use util_mod, only: abs_sign
         use CalcData, only: tCheckHighestPop
 

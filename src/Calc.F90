@@ -1088,9 +1088,9 @@ contains
             case("READ-TRIAL")
                 trial_space_in%tRead = .true.
             case("FCI-TRIAL")
-                trial_space_in%tFCI = .false.
+                trial_space_in%tFCI = .true.
             case("HEISENBERG-FCI-TRIAL")
-                trial_space_in%tHeisenbergFCI = .false.
+                trial_space_in%tHeisenbergFCI = .true.
             case("TRIAL-BIN-SEARCH")
                 tTrialHash = .false.
             case("START-FROM-HF")
@@ -1943,6 +1943,10 @@ contains
                 if (item < nitems) then
                     call readi(orthogonalise_iter)
                 endif
+
+                ! Don't start all replicas from the deterministic ground state
+                ! when using this option.
+                tStartCoreGroundState = .false.
 
             case("REPLICA-SINGLE-DET-START")
                 ! If we want to start off multiple replicas from single dets

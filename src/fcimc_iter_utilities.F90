@@ -422,7 +422,6 @@ contains
             call update_tau()
         end if
 
-        !TODO CMO:Make sure these are length 2 as well
         if (tTrialWavefunction) then
             call MPIAllReduce(trial_numerator, MPI_SUM, tot_trial_numerator)
             call MPIAllReduce(trial_denom, MPI_SUM, tot_trial_denom)
@@ -430,8 +429,11 @@ contains
             ! Becuase tot_trial_numerator/tot_trial_denom is the energy
             ! relative to the the trial energy, add on this contribution to
             ! make it relative to the HF energy.
-            tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energy)
-
+            if (ntrial_excits == 1) then
+                tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies(1))
+            else if (ntrial_excits == lenof_sign) then
+                tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies)
+            end if
         end if
         
 #ifdef __DEBUG

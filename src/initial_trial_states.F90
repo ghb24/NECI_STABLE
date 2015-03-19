@@ -197,10 +197,10 @@ contains
     end subroutine set_trial_populations
 
     subroutine set_trial_states(ndets_this_proc, init_vecs, trial_iluts, &
-                                paired_replicas)
+                                semistoch_started, paired_replicas)
 
         use bit_reps, only: encode_sign
-        use CalcData, only: tSemiStochastic
+        use CalcData, only: tSemiStochastic, tTrialWavefunction
         use FciMCData, only: CurrentDets, TotWalkers, HashIndex, nWalkerHashes
         use FciMCData, only: set_initial_global_data
         use hash, only: clear_hash_table, fill_in_hash_table
@@ -210,6 +210,7 @@ contains
         integer, intent(in) :: ndets_this_proc
         real(dp), intent(in) :: init_vecs(:,:)
         integer(n_int), intent(in) :: trial_iluts(0:,:) 
+        logical, intent(in) :: semistoch_started
         logical, intent(in), optional :: paired_replicas
 
         real(dp) :: real_sign(lenof_sign)
@@ -248,7 +249,7 @@ contains
         call clear_hash_table(HashIndex)
         call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, ndets_this_proc, .true.)
 
-        if (tSemiStochastic) then
+        if (tSemiStochastic .and. semistoch_started) then
             ! core_space stores all core determinants from all processors. Move those on this
             ! processor to trial_iluts, which add_core_states_currentdet_hash uses.
             call copy_core_dets_to_spawnedparts()
@@ -257,6 +258,8 @@ contains
             call add_core_states_currentdet_hash()
         end if
 
+        if (tTrialWavefunction) call init_current_trial_amps()
+
         ! Calculate and store the diagonal elements of the Hamiltonian for
         ! determinants in CurrentDets.
         call fill_in_diag_helements()
@@ -264,5 +267,65 @@ contains
         call set_initial_global_data(TotWalkers, CurrentDets)
 
     end subroutine set_trial_states
+
+    subroutine init_current_trial_amps()
+
+        use bit_reps, only: set_flag, decode_bit_det
+        use FciMCData, only: ll_node, trial_space, trial_space_size, con_space, con_space_size
+        use FciMCData, only: con_space_vecs, current_trial_amps, HashIndex, trial_wfs, nWalkerHashes
+        use FciMCData, only: CurrentDets
+        use hash, only: FindWalkerHash
+        use SystemData, only: nel
+
+        integer :: i, hash_val
+        integer :: nI(nel)
+        type(ll_node), pointer :: temp_node
+
+        ! Don't do anything is this is called before the trial wave function
+        ! initialisation.
+        if (.not. allocated(current_trial_amps)) return
+
+        current_trial_amps = 0.0_dp
+
+        do i = 1, trial_space_size
+            call decode_bit_det(nI, trial_space(:,i))
+            hash_val = FindWalkerHash(nI,nWalkerHashes)
+            temp_node => HashIndex(hash_val)
+            if (temp_node%ind /= 0) then
+                do while (associated(temp_node))
+                    if ( all(trial_space(0:NIfDBO,i) == CurrentDets(0:NIfDBO,temp_node%ind)) ) then
+                        call set_flag(CurrentDets(:,temp_node%ind), flag_trial)
+                        current_trial_amps(:,temp_node%ind) = trial_wfs(:,i)
+                        exit
+                    end if
+                    temp_node => temp_node%next
+                end do
+            end if
+            nullify(temp_node)
+        end do
+
+        do i = 1, con_space_size
+            call decode_bit_det(nI, con_space(:,i))
+            hash_val = FindWalkerHash(nI,nWalkerHashes)
+            temp_node => HashIndex(hash_val)
+            if (temp_node%ind /= 0) then
+                do while (associated(temp_node))
+                    if ( all(con_space(0:NIfDBO,i) == CurrentDets(0:NIfDBO,temp_node%ind)) ) then
+                        ! If not also in the trial space. If it is, then we
+                        ! don't want the connected flag to be set, or the
+                        ! connected vector amplitude to be used.
+                        if (.not. test_flag(CurrentDets(:,temp_node%ind), flag_trial)) then
+                            call set_flag(CurrentDets(:,temp_node%ind), flag_connected)
+                            current_trial_amps(:,temp_node%ind) = con_space_vecs(:,i)
+                        end if
+                        exit
+                    end if
+                    temp_node => temp_node%next
+                end do
+            end if
+            nullify(temp_node)
+        end do
+
+    end subroutine init_current_trial_amps
 
 end module initial_trial_states
