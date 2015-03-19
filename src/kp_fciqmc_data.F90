@@ -222,7 +222,7 @@ module kp_fciqmc_data_mod
 
     ! If true then perform two replicas for each excited state. Otherwise,
     ! only perform one for each.
-    logical :: tPairedReplicas
+    logical :: tPairedKPReplicas
 
     ! Arrays used to access the signs of different Krylov vector signs in the
     ! Krylov vector arrays. If tPairedReplicas is .false. then these arrays

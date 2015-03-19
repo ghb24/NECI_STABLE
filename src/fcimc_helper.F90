@@ -265,12 +265,13 @@ contains
     ! det (only in the projected energy) by dividing its contribution by 
     ! this number 
     subroutine SumEContrib (nI, ExcitLevel, RealWSign, ilut, HDiagCurr, &
-                            dProbFin, ind)
+                            dProbFin, tPairedReplicas, ind)
 
         integer, intent(in) :: nI(nel), ExcitLevel
         real(dp), intent(in) :: RealwSign(lenof_sign)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         real(dp), intent(in) :: HDiagCurr, dProbFin
+        logical, intent(in) :: tPairedReplicas
         integer, intent(in), optional :: ind
 
         integer :: i, k, bin, pos, ExcitLevel_local, ExcitLevelSpinCoup
@@ -287,7 +288,7 @@ contains
         character(*), parameter :: this_routine = 'SumEContrib'
 
         if (tReplicaReferencesDiffer) then
-            call SumEContrib_different_refs(nI, realWSign, ilut, dProbFin, ind)
+            call SumEContrib_different_refs(nI, realWSign, ilut, dProbFin, tPairedReplicas, ind)
             return
         endif
 
@@ -424,7 +425,7 @@ contains
     end subroutine SumEContrib
 
 
-    subroutine SumEContrib_different_refs(nI, sgn, ilut, dProbFin, ind)
+    subroutine SumEContrib_different_refs(nI, sgn, ilut, dProbFin, tPairedReplicas, ind)
 
         ! This is a modified version of SumEContrib for use where the
         ! projected energies need to be calculated relative to differing
@@ -440,6 +441,7 @@ contains
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:NifTot)
         real(dp), intent(in) :: sgn(lenof_sign), dProbFin
+        logical, intent(in) :: tPairedReplicas
         integer, intent(in), optional :: ind
 
         integer :: run, exlevel
@@ -457,27 +459,40 @@ contains
             tHistSpinDist .or. tPrintOrbOcc) &
             call stop_all(this_routine, "Not yet supported")
 
+
         ! Add in the contributions to the numerator and denominator of the trial
         ! estimator, if it is being used.
         if (tTrialWavefunction .and. present(ind)) then
             if (test_flag(ilut, flag_trial)) then
                 if (ntrial_excits == 1) then
                     trial_denom = trial_denom + current_trial_amps(1,ind)*sgn
-                else if (ntrial_excits == lenof_sign) then
-                    trial_denom = trial_denom + current_trial_amps(:,ind)*sgn
+                else
+                    if (tPairedReplicas) then
+                        do run = 2, inum_runs, 2
+                            trial_denom(run-1:run) = trial_denom(run-1:run) + current_trial_amps(run/2,ind)*sgn(run-1:run)
+                        end do
+                    else
+                        trial_denom = trial_denom + current_trial_amps(:,ind)*sgn
+                    end if
                 end if
             else if (test_flag(ilut, flag_connected)) then
                 ! Note, only attempt to add in a contribution from the
                 ! connected space if we're not also in the trial space.
                 if (ntrial_excits == 1) then
                     trial_numerator = trial_numerator + current_trial_amps(1,ind)*sgn
-                else if (ntrial_excits == lenof_sign) then
-                    trial_numerator = trial_numerator + current_trial_amps(:,ind)*sgn
+                else
+                    if (tPairedReplicas) then
+                        do run = 2, inum_runs, 2
+                            trial_numerator(run-1:run) = trial_numerator(run-1:run) + current_trial_amps(run/2,ind)*sgn(run-1:run)
+                        end do
+                    else
+                        trial_numerator = trial_numerator + current_trial_amps(:,ind)*sgn
+                    end if
                 end if
             end if
         end if
 
-        !
+
         ! This is the normal projected energy calculation, but split over
         ! multiple runs, rather than done in one go.
         do run = 1, inum_runs

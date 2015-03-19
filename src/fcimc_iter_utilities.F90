@@ -306,15 +306,18 @@ contains
 
     end subroutine
 
-    subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
+    subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all, tPairedReplicas)
+
+        type(fcimc_iter_data) :: iter_data
+        real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
+        real(dp), dimension(lenof_sign), intent(out) :: tot_parts_new_all
+        logical, intent(in) :: tPairedReplicas
+
         integer :: int_tmp(5+2*lenof_sign), proc, pos, i
         real(dp) :: sgn(lenof_sign)
         HElement_t :: helem_tmp(3*inum_runs)
         HElement_t :: real_tmp(2*inum_runs) !*lenof_sign
         integer(int64) :: int64_tmp(8),TotWalkersTemp
-        type(fcimc_iter_data) :: iter_data
-        real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
-        real(dp), dimension(lenof_sign), intent(out) :: tot_parts_new_all
         character(len=*), parameter :: this_routine='collate_iter_data'
         real(dp), dimension(max(lenof_sign,inum_runs)) :: RealAllHFCyc
         real(dp), dimension(inum_runs) :: all_norm_psi_squared, all_norm_semistoch_squared
@@ -431,13 +434,20 @@ contains
             ! make it relative to the HF energy.
             if (ntrial_excits == 1) then
                 tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies(1))
-            else if (ntrial_excits == lenof_sign) then
-                tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies)
+            else
+                if (tPairedReplicas) then
+                    do run = 2, inum_runs, 2
+                        tot_trial_numerator(run-1:run) = tot_trial_numerator(run-1:run) + &
+                            tot_trial_denom(run-1:run)*trial_energies(run/2)
+                    end do
+                else
+                    tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies)
+                end if
             end if
         end if
         
 #ifdef __DEBUG
-        !Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
+        ! Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
         if ((iProcIndex == root) .and. .not. tSpinProject .and. &
          all(abs(iter_data%update_growth_tot-(AllTotParts-AllTotPartsOld)) > 1.0e-5)) then
             write(iout,*) "update_growth: ",iter_data%update_growth_tot
@@ -805,13 +815,14 @@ contains
 
     end subroutine
 
-    subroutine calculate_new_shift_wrapper (iter_data, tot_parts_new)
+    subroutine calculate_new_shift_wrapper (iter_data, tot_parts_new, tPairedReplicas)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
         real(dp), dimension(lenof_sign) :: tot_parts_new_all
+        logical, intent(in) :: tPairedReplicas
 
-        call collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
+        call collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all, tPairedReplicas)
         call iter_diagnostics ()
         if(tRestart) return
         call population_check ()

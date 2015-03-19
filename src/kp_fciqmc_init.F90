@@ -60,7 +60,7 @@ contains
         tScalePopulation = .false.
         scaling_factor = 1.0_dp
 
-        tPairedReplicas = .true.
+        tPairedKPReplicas = .true.
 
         read_inp: do
             call read_line(eof)
@@ -282,7 +282,7 @@ contains
             case("FCI-TRIAL")
                 kp_trial_space_in%tFCI = .false.
             case("UNPAIRED-REPLICAS")
-                tPairedReplicas = .false.
+                tPairedKPReplicas = .false.
             case default
                 call report("Keyword "//trim(w)//" not recognized in kp-fciqmc block", .true.)
             end select
@@ -331,10 +331,10 @@ contains
         if (n_int == 4) call stop_all(t_r, 'Use of RealCoefficients does not work with 32 bit &
              &integers due to the use of the transfer operation from dp reals to 64 bit integers.')
         if (tExcitedStateKP) then
-            if (tPairedReplicas .and. inum_runs /= 2*kp%nvecs) then
+            if (tPairedKPReplicas .and. inum_runs /= 2*kp%nvecs) then
                 call stop_all(t_r, 'When using the ExcitedStateKP option with paired replicas, the &
                                    &number of replicas must be twice the number of states to be calculated.')
-            else if ((.not. tPairedReplicas) .and. inum_runs /= kp%nvecs) then
+            else if ((.not. tPairedKPReplicas) .and. inum_runs /= kp%nvecs) then
                 call stop_all(t_r, 'When using the ExcitedStateKP option without paired replicas, the &
                                    &number of replicas must be equal to the number of states to be calculated.')
             end if
@@ -360,7 +360,7 @@ contains
         ! replicas for each excited state. If tExcitedState = .false. (doing
         ! the old KP-FCIQMC algorithm), this is the number of repeats for the
         ! KP-FCIQMC wave function.
-        if (tPairedReplicas) then
+        if (tPairedKPReplicas) then
             lenof_sign_kp = 2
         else
             lenof_sign_kp = 1
@@ -375,7 +375,7 @@ contains
         allocate(kp_ind_1(kp%nvecs))
         allocate(kp_ind_2(kp%nvecs))
 
-        if (tPairedReplicas) then
+        if (tPairedKPReplicas) then
             do i = 1, kp%nvecs
                 kp_ind_1(i) = 2*i-1
                 kp_ind_2(i) = 2*i
@@ -557,7 +557,7 @@ contains
             ! Set the populations of these states to the requested value.
             call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
             ! Set the trial excited states as the FCIQMC wave functions.
-            call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts, tPairedReplicas, .true.)
+            call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts, .true., tPairedKPReplicas)
 
             deallocate(evecs_this_proc, evals)
 
@@ -573,7 +573,7 @@ contains
             ! Set the populations of these states to the requested value.
             call set_trial_populations(1, ndets_this_proc, init_vecs)
             ! Set the trial excited states as the FCIQMC wave functions.
-            call set_trial_states(ndets_this_proc, init_vecs, SpawnedParts, tPairedReplicas, .true.)
+            call set_trial_states(ndets_this_proc, init_vecs, SpawnedParts, .true., tPairedKPReplicas)
 
             deallocate(evecs_this_proc, init_vecs, evals)
 

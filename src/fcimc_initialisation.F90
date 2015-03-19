@@ -103,7 +103,7 @@ module fcimc_initialisation
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
-    use kp_fciqmc_data_mod, only: tExcitedStateKP
+    use kp_fciqmc_data_mod, only: tExcitedStateKP, tPairedKPReplicas
     use sym_general_mod, only: ClassCountInd
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
     use ueg_excit_gens, only: gen_ueg_excit
@@ -1356,8 +1356,10 @@ contains
         ! diagonalising the trial space to find the trial wavefunction and calculating the vector
         ! in the connected space, required for the energy estimator.
         if (tTrialWavefunction) then
-            if (tOrthogonaliseReplicas) then
+            if (tOrthogonaliseReplicas .or. (tExcitedStateKP .and. .not. tPairedKPReplicas)) then
                 call init_trial_wf(trial_space_in, inum_runs)
+            else if (tExcitedStateKP .and. tPairedKPReplicas) then
+                call init_trial_wf(trial_space_in, inum_runs/2)
             else
                 call init_trial_wf(trial_space_in, 1)
             end if

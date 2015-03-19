@@ -373,7 +373,7 @@ MODULE FciMCData
 
       real(dp), allocatable :: proje_denominator_cyc(:)
       real(dp), allocatable :: proje_denominator_sum(:)
-      logical :: tRestart   !Whether to restart a calculation
+      logical :: tRestart = .false.   !Whether to restart a calculation
 
       ! Diag shift from the input file, if it needed to be reset after restart
       real(dp) :: InputDiagSft

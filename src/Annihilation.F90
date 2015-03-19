@@ -871,7 +871,7 @@ module AnnihilationMod
             CurrentDets(:,DetPosition) = iLutCurr(:)
         end if
 
-        call encode_flags(CurrentDets(:,DetPosition), flags)
+        if (tUseFlags) call encode_flags(CurrentDets(:,DetPosition), flags)
         
         ! Calculate the diagonal hamiltonian matrix element for the new particle to be merged.
         if (tHPHF) then
