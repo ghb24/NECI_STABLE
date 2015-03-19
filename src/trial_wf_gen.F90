@@ -497,19 +497,10 @@ contains
 
         integer, intent(in) :: nexcit
     
-        integer :: i, n_clash, hash_val, ierr
+        integer :: i, nclash, hash_val, mode, ierr
         integer :: nI(nel)
-        integer(n_int), allocatable, dimension(:,:) :: temp_states
         integer(n_int) :: temp(nexcit)
         character(len=*), parameter :: t_r = "create_trial_hashtables"
-
-        ! Assume no more than 1000 hash clashes.
-        allocate(temp_states(0:NIfDBO+nexcit, 100), stat=ierr)
-        if (ierr /= 0) then
-            write(6,*) "ierr:", ierr
-            call neci_flush(6)
-            call stop_all("t_r", "Error in allocating temp_states array.")
-        end if
 
         ! Create the trial space hash table.
 
@@ -524,26 +515,32 @@ contains
             trial_ht(i)%nclash = 0
         end do
 
-        do i = 1, trial_space_size
-            call decode_bit_det(nI, trial_space(:,i))
-            hash_val = FindWalkerHash(nI, trial_space_size)
+        ! When mode = 1, count the number of clashes.
+        ! Alllocate arrays at the end of the mode = 1 loop.
+        ! When mode = 2, fill in arrays.
+        do mode = 1, 2
+            do i = 1, trial_space_size
+                call decode_bit_det(nI, trial_space(:,i))
+                hash_val = FindWalkerHash(nI, trial_space_size)
 
-            if (trial_ht(hash_val)%nclash == 0) then
-                ! If there are no states currently with this hash value.
-                allocate(trial_ht(hash_val)%states(0:NIfDBO+nexcit,1))
-                trial_ht(hash_val)%nclash = 1
-                trial_ht(hash_val)%states(0:NIfDBO,1) = trial_space(0:NIfDBO,i)
-                ! Store the amplitude as an integer.
-                trial_ht(hash_val)%states(NIfDBO+1:,1) = transfer(trial_wfs(:,i), temp)
-            else
-                n_clash = trial_ht(hash_val)%nclash
-                temp_states(:,1:n_clash) = trial_ht(hash_val)%states(:,1:n_clash)
-                deallocate(trial_ht(hash_val)%states, stat=ierr)
-                allocate(trial_ht(hash_val)%states(0:NIfDBO+nexcit,n_clash+1))
-                trial_ht(hash_val)%nclash = n_clash + 1
-                trial_ht(hash_val)%states(:,1:n_clash) = temp_states(:, 1:n_clash)
-                trial_ht(hash_val)%states(0:NIfDBO,n_clash+1) = trial_space(0:NIfDBO,i)
-                trial_ht(hash_val)%states(NIfDBO+1:,n_clash+1) = transfer(trial_wfs(:,i), temp)
+                if (mode == 1) then
+                    trial_ht(hash_val)%nclash = trial_ht(hash_val)%nclash + 1
+                else
+                    nclash = trial_ht(hash_val)%nclash + 1
+                    trial_ht(hash_val)%nclash = nclash
+                    trial_ht(hash_val)%states(0:NIfDBO,nclash) = trial_space(0:NIfDBO,i)
+                    trial_ht(hash_val)%states(NIfDBO+1:,nclash) = transfer(trial_wfs(:,i), temp)
+                end if
+            end do
+
+            if (mode == 1) then
+                do i = 1, size(trial_ht)
+                    nclash = trial_ht(i)%nclash
+                    allocate(trial_ht(i)%states(0:NIfDBO+nexcit,nclash))
+                    ! Set this back to zero to use it as a counter next time
+                    ! around (when mode == 2).
+                    trial_ht(i)%nclash = 0
+                end do
             end if
         end do
 
@@ -560,30 +557,31 @@ contains
             con_ht(i)%nclash = 0
         end do
 
-        do i = 1, con_space_size
-            call decode_bit_det(nI, con_space(:,i))
-            hash_val = FindWalkerHash(nI, con_space_size)
+        do mode = 1, 2
+            do i = 1, con_space_size
+                call decode_bit_det(nI, con_space(:,i))
+                hash_val = FindWalkerHash(nI, con_space_size)
 
-            if (con_ht(hash_val)%nclash == 0) then
-                ! If there are no states currently with this hash value.
-                allocate(con_ht(hash_val)%states(0:NIfDBO+nexcit,1))
-                con_ht(hash_val)%nclash = 1
-                con_ht(hash_val)%states(0:NIfDBO,1) = con_space(0:NIfDBO,i)
-                ! Store the amplitude as an integer.
-                con_ht(hash_val)%states(NIfDBO+1:,1) = transfer(con_space_vecs(:,i), temp)
-            else
-                n_clash = con_ht(hash_val)%nclash
-                temp_states(:,1:n_clash) = con_ht(hash_val)%states(:,1:n_clash)
-                deallocate(con_ht(hash_val)%states, stat=ierr)
-                allocate(con_ht(hash_val)%states(0:NIfDBO+nexcit,n_clash+1))
-                con_ht(hash_val)%nclash = n_clash + 1
-                con_ht(hash_val)%states(:,1:n_clash) = temp_states(:, 1:n_clash)
-                con_ht(hash_val)%states(0:NIfDBO,n_clash+1) = con_space(0:NIfDBO,i)
-                con_ht(hash_val)%states(NIfDBO+1:,n_clash+1) = transfer(con_space_vecs(:,i), temp)
+                if (mode == 1) then
+                    con_ht(hash_val)%nclash = con_ht(hash_val)%nclash + 1
+                else
+                    nclash = con_ht(hash_val)%nclash + 1
+                    con_ht(hash_val)%nclash = nclash
+                    con_ht(hash_val)%states(0:NIfDBO,nclash) = con_space(0:NIfDBO,i)
+                    con_ht(hash_val)%states(NIfDBO+1:,nclash) = transfer(con_space_vecs(:,i), temp)
+                end if
+            end do
+
+            if (mode == 1) then
+                do i = 1, size(con_ht)
+                    nclash = con_ht(i)%nclash
+                    allocate(con_ht(i)%states(0:NIfDBO+nexcit,nclash))
+                    ! Set this back to zero to use it as a counter next time
+                    ! around (when mode == 2).
+                    con_ht(i)%nclash = 0
+                end do
             end if
         end do
-
-        deallocate(temp_states)
 
         ! TODO: Figure out what to do about this.
         ! No longer need these trial and connected spaces stored in this form.
