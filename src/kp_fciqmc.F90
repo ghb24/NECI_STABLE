@@ -195,7 +195,7 @@ contains
                             if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
 
                             call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
-                                               parent_hdiag, 1.0_dp, idet)
+                                               parent_hdiag, 1.0_dp, tPairedKPReplicas, idet)
 
                             ! If we're on the Hartree-Fock, and all singles and
                             ! doubles are in the core space, then there will be
@@ -301,7 +301,7 @@ contains
 
                         if (mod(iter, StepsSft) == 0) then
                             call set_timer(Stats_Comms_Time)
-                            call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts)
+                            call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts, tPairedKPReplicas)
                             call halt_timer(Stats_Comms_Time)
 
                             call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)
@@ -450,10 +450,10 @@ contains
                 !    call extract_bit_rep(CurrentDets(:, idet), nI_parent, parent_sign, unused_flags, &
                 !                          fcimc_excit_gen_store)
                 !    if (tUseFlags) then
-                !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7, 4x, l1)') idet, CurrentDets(0,idet), parent_sign, &
+                !        write(6,'(i7, i12, 4x, 3(f18.7, 4x), l1)') idet, CurrentDets(0,idet), parent_sign, &
                 !            test_flag(CurrentDets(:,idet), flag_deterministic)
                 !    else
-                !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') idet, CurrentDets(0,idet), parent_sign
+                !        write(6,'(i7, i12, 3(4x, f18.7))') idet, CurrentDets(0,idet), parent_sign
                 !    end if
                 !end do
 
@@ -554,7 +554,7 @@ contains
                         if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
 
                         call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
-                                           parent_hdiag, 1.0_dp, idet)
+                                           parent_hdiag, 1.0_dp, tPairedKPReplicas, idet)
 
                         ! If we're on the Hartree-Fock, and all singles and
                         ! doubles are in the core space, then there will be no
@@ -647,7 +647,7 @@ contains
 
                     if (mod(iter, StepsSft) == 0) then
                         call set_timer(Stats_Comms_Time)
-                        call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts)
+                        call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts, tPairedKPReplicas)
                         call halt_timer(Stats_Comms_Time)
 
                         call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)

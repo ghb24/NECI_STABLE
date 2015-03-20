@@ -60,12 +60,7 @@ contains
         tScalePopulation = .false.
         scaling_factor = 1.0_dp
 
-        tPairedReplicas = .true.
-
-        n_kp_pops = 0
-        Occ_KP_CasOrbs = 0
-        Virt_KP_CasOrbs = 0
-        kp_mp1_ndets = 0
+        tPairedKPReplicas = .true.
 
         read_inp: do
             call read_line(eof)
@@ -260,8 +255,8 @@ contains
             case("CAS-TRIAL")
                 kp_trial_space_in%tCAS = .true.
                 tSpn = .true.
-                call geti(Occ_KP_CASOrbs)  ! Number of electrons in the CAS 
-                call geti(Virt_KP_CASOrbs) ! Number of virtual spin-orbitals in the CAS
+                call geti(kp_trial_space_in%occ_cas)  ! Number of electrons in the CAS 
+                call geti(kp_trial_space_in%virt_cas) ! Number of virtual spin-orbitals in the CAS
             case("RAS-TRIAL")
                 kp_trial_space_in%tRAS = .true.
                 call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
@@ -269,25 +264,25 @@ contains
                 call geti(ras_size_3)  ! Number of spatial orbitals in RAS3.
                 call geti(ras_min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs. 
                 call geti(ras_max_3)  ! Max number of electrons (alpha and beta) in RAS3 orbs.
-                kp_ras%size_1 = int(ras_size_1,sp)
-                kp_ras%size_2 = int(ras_size_2,sp)
-                kp_ras%size_3 = int(ras_size_3,sp)
-                kp_ras%min_1 = int(ras_min_1,sp)
-                kp_ras%max_3 = int(ras_max_3,sp)
+                kp_trial_space_in%ras%size_1 = int(ras_size_1,sp)
+                kp_trial_space_in%ras%size_2 = int(ras_size_2,sp)
+                kp_trial_space_in%ras%size_3 = int(ras_size_3,sp)
+                kp_trial_space_in%ras%min_1 = int(ras_min_1,sp)
+                kp_trial_space_in%ras%max_3 = int(ras_max_3,sp)
             case("MP1-TRIAL")
                 kp_trial_space_in%tMP1 = .true.
-                call geti(kp_mp1_ndets)
+                call geti(kp_trial_space_in%mp1_ndets)
             case("HF-TRIAL")
                 kp_trial_space_in%tHF = .true.
             case("POPS-TRIAL")
                 kp_trial_space_in%tPops = .true.
-                call geti(n_kp_pops)
+                call geti(kp_trial_space_in%npops)
             case("READ-TRIAL")
                 kp_trial_space_in%tRead = .true.
             case("FCI-TRIAL")
                 kp_trial_space_in%tFCI = .false.
             case("UNPAIRED-REPLICAS")
-                tPairedReplicas = .false.
+                tPairedKPReplicas = .false.
             case default
                 call report("Keyword "//trim(w)//" not recognized in kp-fciqmc block", .true.)
             end select
@@ -336,10 +331,10 @@ contains
         if (n_int == 4) call stop_all(t_r, 'Use of RealCoefficients does not work with 32 bit &
              &integers due to the use of the transfer operation from dp reals to 64 bit integers.')
         if (tExcitedStateKP) then
-            if (tPairedReplicas .and. inum_runs /= 2*kp%nvecs) then
+            if (tPairedKPReplicas .and. inum_runs /= 2*kp%nvecs) then
                 call stop_all(t_r, 'When using the ExcitedStateKP option with paired replicas, the &
                                    &number of replicas must be twice the number of states to be calculated.')
-            else if ((.not. tPairedReplicas) .and. inum_runs /= kp%nvecs) then
+            else if ((.not. tPairedKPReplicas) .and. inum_runs /= kp%nvecs) then
                 call stop_all(t_r, 'When using the ExcitedStateKP option without paired replicas, the &
                                    &number of replicas must be equal to the number of states to be calculated.')
             end if
@@ -365,7 +360,7 @@ contains
         ! replicas for each excited state. If tExcitedState = .false. (doing
         ! the old KP-FCIQMC algorithm), this is the number of repeats for the
         ! KP-FCIQMC wave function.
-        if (tPairedReplicas) then
+        if (tPairedKPReplicas) then
             lenof_sign_kp = 2
         else
             lenof_sign_kp = 1
@@ -380,7 +375,7 @@ contains
         allocate(kp_ind_1(kp%nvecs))
         allocate(kp_ind_2(kp%nvecs))
 
-        if (tPairedReplicas) then
+        if (tPairedKPReplicas) then
             do i = 1, kp%nvecs
                 kp_ind_1(i) = 2*i-1
                 kp_ind_2(i) = 2*i
@@ -546,35 +541,41 @@ contains
         integer, intent(in) :: iconfig, irepeat, nrepeats, nvecs
 
         integer :: ndets_this_proc, nexcit
+        real(dp), allocatable :: evals(:)
         real(dp), allocatable :: evecs_this_proc(:,:), init_vecs(:,:)
+        integer(MPIArg) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
 
         write(6,'(1x,a22,'//int_fmt(irepeat,1)//')') "Starting repeat number", irepeat
 
         if (tExcitedStateKP) then
             nexcit = nvecs
+            allocate(evals(nexcit))
 
             ! Create the trial excited states.
-            call calc_trial_states(kp_trial_space_in, nexcit, ndets_this_proc, evecs_this_proc, SpawnedParts)
+            call calc_trial_states(kp_trial_space_in, nexcit, ndets_this_proc, SpawnedParts, &
+                                   evecs_this_proc, evals, space_sizes, space_displs)
             ! Set the populations of these states to the requested value.
             call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
             ! Set the trial excited states as the FCIQMC wave functions.
-            call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts, tPairedReplicas)
+            call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts, .true., tPairedKPReplicas)
 
-            deallocate(evecs_this_proc)
+            deallocate(evecs_this_proc, evals)
 
         else if (tExcitedInitState) then
             nexcit = maxval(kpfciqmc_ex_labels)
+            allocate(evals(nexcit))
 
             ! Create the trial excited states.
-            call calc_trial_states(kp_trial_space_in, nexcit, ndets_this_proc, evecs_this_proc, SpawnedParts)
+            call calc_trial_states(kp_trial_space_in, nexcit, ndets_this_proc, SpawnedParts, &
+                                   evecs_this_proc, evals, space_sizes, space_displs)
             ! Extract the desried initial excited states and average them.
             call create_init_excited_state(ndets_this_proc, evecs_this_proc, kpfciqmc_ex_labels, kpfciqmc_ex_weights, init_vecs)
             ! Set the populations of these states to the requested value.
             call set_trial_populations(1, ndets_this_proc, init_vecs)
             ! Set the trial excited states as the FCIQMC wave functions.
-            call set_trial_states(ndets_this_proc, init_vecs, SpawnedParts, tPairedReplicas)
+            call set_trial_states(ndets_this_proc, init_vecs, SpawnedParts, .true., tPairedKPReplicas)
 
-            deallocate(evecs_this_proc, init_vecs)
+            deallocate(evecs_this_proc, init_vecs, evals)
 
         else
             ! If starting from multiple POPSFILEs then set this counter so that the

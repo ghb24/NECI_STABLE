@@ -12,13 +12,13 @@ fmtstr = i15
 [real]
 type = real(kind=sp)
 conditional_enable = !defined(SX)
-width = 18
-fmtstr = g18.9e3
+width = 20
+fmtstr = g20.9e3
 
 [doub]
 type = real(kind=dp)
-width = 18
-fmtstr = g18.9e3
+width = 20
+fmtstr = g20.9e3
 
 =========================
 
