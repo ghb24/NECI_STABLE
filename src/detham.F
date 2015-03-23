@@ -5,15 +5,21 @@
       Use Determinants, only: get_helement
       use SystemData , only : BasisFN
       use CalcData , only : TStar
+      use bit_rep_data, only: NIfTot
+      use SystemData, only: tHPHF
+      use hphf_integrals, only: hphf_diag_helement
+      use hphf_integrals, only: hphf_off_diag_helement
+      use DetBitOps, only: EncodeBitDet
       IMPLICIT NONE
       HElement_t HAMIL(*)
       INTEGER NDET,NEL
       INTEGER LAB(*)
       INTEGER NMRKS(NEL,*)
       INTEGER NROW(NDET),GC
-      INTEGER ICMAX,KI,IBEG,IBEGJ,KJ,IC,IMAX,IDAMAX
+      INTEGER ICMAX,KI,IBEG,IBEGJ,KJ,IMAX,IDAMAX
       LOGICAL TCOUNT,TMC
       INTEGER IGETEXCITLEVEL_2,STEP,IMAXJ
+      integer :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
       HElement_t totSUM
       type(timer), save :: proc_timer
 !      LOGICAL TSTAR
@@ -27,6 +33,7 @@ C..Global counter
       IBEG=0
 C..   Now we need to match up any two determinants
       DO KI=1,NDET
+         call EncodeBitDet(NMRKS(:,KI), ilutI)
          IF(mod(KI,1000).eq.0) WRITE(6,*) KI
          IF(KI.EQ.1) THEN
            IBEG=0
@@ -56,22 +63,25 @@ C..   Now we need to match up any two determinants
          ENDIF
          IF(STEP.EQ.0) STEP=1
          DO KJ=IBEGJ,IMAXJ,STEP
-C..   IC is the number of pairs which are the *SAME* in both determinants
-            IC=0
-            IF(KI.EQ.KJ) THEN
-              IC=NEL
-            ELSE
-C..              IC=NEL-IGETEXCITLEVEL(NMRKS(1,KI),NMRKS(1,KJ),NEL)
-              IC=NEL-IGETEXCITLEVEL_2(NMRKS(1,KI),NMRKS(1,KJ),NEL,2)
-C..   If determinants differ by more than 2 spin orbitals IC < 2
-              IF(IC.LT.(NEL-2)) GOTO 500
-            ENDIF
-C..
+            call EncodeBitDet(NMRKS(:,KJ), ilutJ)
 !            CALL WRITEDET(6,NMRKS(1,KI),NEL,.FALSE.)
 !            CALL WRITEDET(6,NMRKS(1,KJ),NEL,.TRUE.)
-            totsum = get_helement(NMRKS(:,KI), NMRKS(:,KJ),nel-ic)
+            if (tHPHF) then
+              if (KI == KJ) then
+                totsum = hphf_diag_helement(NMRKS(:,KI), ilutI)
+              else
+                totsum = hphf_off_diag_helement(NMRKS(:,KI), 
+     &                            NMRKS(:,KJ), ilutI, ilutJ)
+              end if
+            else
+              if (KI == KJ) then
+                totsum = get_helement(NMRKS(:,KI), NMRKS(:,KJ), 0)
+              else
+                totsum = get_helement(NMRKS(:,KI), NMRKS(:,KJ),
+     &                                 ilutI, ilutJ)
+              end if
+            end if
 C            CALL SLTCND(NEL,NBASISMAX,NHG,
-C     &     NMRKS(1:NEL,KI),NMRKS(1:NEL,KJ),G1,IC,NMSH,
 C     &     FCK,NMAX,ALAT,UMAT,TOTSUM)
             IF(ABS(TOTSUM).LT.1.0e-10_dp) TOTSUM=0.0_dp
             IF(TOTSUM.NE.0.0_dp.OR.KI.EQ.KJ) THEN
