@@ -202,7 +202,7 @@ contains
         use bit_reps, only: encode_sign
         use CalcData, only: tSemiStochastic, tTrialWavefunction
         use FciMCData, only: CurrentDets, TotWalkers, HashIndex, nWalkerHashes
-        use FciMCData, only: set_initial_global_data
+        use replica_data, only: set_initial_global_data
         use hash, only: clear_hash_table, fill_in_hash_table
         use semi_stoch_procs, only: fill_in_diag_helements, copy_core_dets_to_spawnedparts
         use semi_stoch_procs, only: add_core_states_currentdet_hash

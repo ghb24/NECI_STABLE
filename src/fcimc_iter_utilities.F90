@@ -157,18 +157,21 @@ contains
             if (.not. allocated(TempSpawnedParts)) then
                 allocate_temp_parts = .true.
                 TempSpawnedPartsSize = 1000
-            elseif (1.1 * iHighestPop(1) > TempSpawnedPartsSize) then
+            end if
+            if (1.1 * maxval(iHighestPop) > TempSpawnedPartsSize) then
                 ! This testing routine is only called once every update
                 ! cycle. The 1.1 gives us a buffer to cope with particle
                 ! growth
-                deallocate(TempSpawnedParts)
-                log_dealloc(TempSpawnedPartsTag)
                 TempSpawnedPartsSize = iHighestPop(1) * 1.5
                 allocate_temp_parts = .true.
             end if
 
             ! If we need to allocate this array, then do so.
             if (allocate_temp_parts) then
+                if (allocated(TempSpawnedParts)) then
+                    deallocate(TempSpawnedParts)
+                    log_dealloc(TempSpawnedPartsTag)
+                end if
                 allocate(TempSpawnedParts(0:NIfDBO, TempSpawnedPartsSize), &
                          stat=ierr)
                 log_alloc(TempSpawnedParts,TempSpawnedPartsTag,ierr)
@@ -849,6 +852,4 @@ contains
         iter_data%update_iters = iter_data%update_iters + 1
 
     end subroutine update_iter_data
-
-
 end module
