@@ -28,6 +28,14 @@ min_nprocs = 2
 max_nprocs = 2
 
 # Specify non-default tolerances.
+[neci/serial/Ne_SS_Trial_Pops/]
+program = neci
+tolerance = (5e-10, None, 'energy_summed')
+
+[neci/parallel/Ne_SS_Trial_Pops/]
+program = neci
+tolerance = (5e-10, None, 'energy_summed')
+
 [mneci/kpfciqmc_fci_all_sym/]
 program = mneci
 tolerance = (2e-8, None, 'hamil_sum')
