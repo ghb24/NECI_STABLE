@@ -650,7 +650,6 @@ contains
         end if
         if (allocated(trial_wfs)) then
             deallocate(trial_wfs, stat=ierr)
-            call LogMemDealloc(t_r, TrialWFTag, ierr)
         end if
         if (allocated(con_space)) then
             deallocate(con_space, stat=ierr)

@@ -34,6 +34,7 @@ MODULE PopsfileMod
     use global_det_data, only: global_determinant_data, set_iter_occ, &
                                init_global_det_data, set_det_diagH
     use fcimc_helper, only: update_run_reference
+    use replica_data, only: set_initial_global_data
 
     implicit none
 

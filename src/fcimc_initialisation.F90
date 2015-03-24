@@ -947,8 +947,17 @@ contains
             WRITE(iout,*) "Timestep set to: ",Tau
         ENDIF
 
-        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) &
+        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
             call init_tau_search()
+        else
+            ! Add a couple of checks for sanity
+            if (nOccAlpha == 0 .or. nOccBeta == 0) then
+                pParallel = 1.0_dp
+            end if
+            if (nOccAlpha == 1 .and. nOccBeta == 1) then
+                pParallel = 0.0_dp
+            end if
+        end if
 
         IF(StepsSftImag.ne.0.0_dp) THEN
             WRITE(iout,*) "StepsShiftImag detected. Resetting StepsShift."
