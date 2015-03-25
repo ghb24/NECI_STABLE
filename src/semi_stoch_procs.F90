@@ -193,19 +193,23 @@ contains
         real(dp) :: Hii_shift
         integer :: i, j
 
-        write(6,'(a56)') "Recalculating diagonal elements of the core Hamiltonian."
+        ! Only attempt this if we have already performed the semi-stochastic
+        ! initialisation, in which case determ_sizes will have been allocated.
+        if (allocated(determ_sizes)) then
+            write(6,'(a56)') "Recalculating diagonal elements of the core Hamiltonian."
 
-        Hii_shift = old_Hii - new_Hii
+            Hii_shift = old_Hii - new_Hii
 
-        do i = 1, determ_sizes(iProcIndex)
-            do j = 1, sparse_core_ham(i)%num_elements
-                if (sparse_core_ham(i)%positions(j) == i + determ_displs(iProcIndex)) then
-                    sparse_core_ham(i)%elements(j) = sparse_core_ham(i)%elements(j) + Hii_shift
-                end if
+            do i = 1, determ_sizes(iProcIndex)
+                do j = 1, sparse_core_ham(i)%num_elements
+                    if (sparse_core_ham(i)%positions(j) == i + determ_displs(iProcIndex)) then
+                        sparse_core_ham(i)%elements(j) = sparse_core_ham(i)%elements(j) + Hii_shift
+                    end if
+                end do
             end do
-        end do
 
-        core_ham_diag = core_ham_diag + Hii_shift
+            core_ham_diag = core_ham_diag + Hii_shift
+        end if
 
     end subroutine recalc_core_hamil_diag
 
@@ -588,7 +592,7 @@ contains
 
         ! Only let the root process write the states.
         if (iProcIndex == root) then
-            open(iunit, file='CORESPACE', status='replace')
+            open(iunit, file='DETFILE', status='replace')
 
             do i = 1, determ_space_size
                 do k = 0, NIfDBO
@@ -1030,7 +1034,7 @@ contains
             end if
         end do
 
-        if (ncore /= determ_sizes(iProcIndex)) call stop_all("t_r", "The number of &
+        if (ncore /= determ_sizes(iProcIndex)) call stop_all(t_r, "The number of &
             &core determinants counted is less than was previously counted.")
 
     end subroutine copy_core_dets_to_spawnedparts

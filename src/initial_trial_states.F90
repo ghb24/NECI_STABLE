@@ -8,47 +8,53 @@ module initial_trial_states
 
 contains
 
-    subroutine calc_trial_states(spaces_in, nexcit, ndets_this_proc, evecs_this_proc, trial_iluts)
+    subroutine calc_trial_states(space_in, nexcit, ndets_this_proc, trial_iluts, evecs_this_proc, evals, &
+                                 space_sizes, space_displs)
 
         use bit_reps, only: decode_bit_det
         use CalcData, only: subspace_in
         use DetBitOps, only: ilut_lt, ilut_gt
+        use FciMCData, only: ilutHF
         use lanczos_wrapper, only: frsblk_wrapper
-        use Parallel_neci, only: MPIScatterV, MPIGatherV, MPIArg, iProcIndex
+        use Parallel_neci, only: MPIScatterV, MPIGatherV, MPIBCast, MPIArg, iProcIndex
         use Parallel_neci, only: nProcessors
         use ParallelHelper, only: root
         use semi_stoch_gen
         use sort_mod, only: sort
         use SystemData, only: nel, tAllSymSectors
 
-        type(subspace_in) :: spaces_in
+        type(subspace_in) :: space_in
         integer, intent(in) :: nexcit
         integer, intent(out) :: ndets_this_proc
-        real(dp), allocatable, intent(out) :: evecs_this_proc(:,:)
         integer(n_int), intent(out) :: trial_iluts(0:,:)
+        real(dp), allocatable, intent(out) :: evecs_this_proc(:,:)
+        real(dp), intent(out) :: evals(:)
+        integer(MPIArg), intent(out) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
 
         integer(n_int), allocatable :: ilut_list(:,:)
         integer, allocatable :: det_list(:,:)
         integer :: i, j, max_elem_ind(1), ierr
         integer(MPIArg) :: ndets_all_procs, ndets_this_proc_mpi
-        integer(MPIArg) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
         integer(MPIArg) :: sndcnts(0:nProcessors-1), displs(0:nProcessors-1)
         integer(MPIArg) :: rcvcnts
         integer, allocatable :: evec_abs(:)
-        real(dp), allocatable :: evals(:)
         real(dp), allocatable :: evecs(:,:), evecs_transpose(:,:)
         character(len=*), parameter :: t_r = "calc_trial_states"
 
         ndets_this_proc = 0
+        trial_iluts = 0_n_int
 
         ! Choose the correct generating routine.
-        if (spaces_in%tPops) call generate_space_most_populated(n_kp_pops, trial_iluts, ndets_this_proc)
-        if (spaces_in%tRead) call generate_space_from_file('DETFILE', trial_iluts, ndets_this_proc)
-        if (spaces_in%tDoubles) call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
-        if (spaces_in%tCAS) call generate_cas(Occ_KP_CasOrbs, Virt_KP_CasOrbs, trial_iluts, ndets_this_proc)
-        if (spaces_in%tRAS) call generate_ras(kp_ras, trial_iluts, ndets_this_proc)
-        if (spaces_in%tMP1) call generate_using_mp1_criterion(kp_mp1_ndets, trial_iluts, ndets_this_proc)
-        if (spaces_in%tFCI) then
+        if (space_in%tHF) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
+        if (space_in%tPops) call generate_space_most_populated(space_in%npops, trial_iluts, ndets_this_proc)
+        if (space_in%tRead) call generate_space_from_file('DETFILE', trial_iluts, ndets_this_proc)
+        if (space_in%tDoubles) call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
+        if (space_in%tCAS) call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)
+        if (space_in%tRAS) call generate_ras(space_in%ras, trial_iluts, ndets_this_proc)
+        if (space_in%tOptimised) call generate_optimised_space(space_in%opt_data, space_in%tLimitSpace, &
+                                                         trial_iluts, ndets_this_proc, space_in%max_size)
+        if (space_in%tMP1) call generate_using_mp1_criterion(space_in%mp1_ndets, trial_iluts, ndets_this_proc)
+        if (space_in%tFCI) then
             if (tAllSymSectors) then
                 call gndts_all_sym_this_proc(trial_iluts, .true., ndets_this_proc)
             else
@@ -56,8 +62,8 @@ contains
             end if
         end if
 
-        if (.not. (spaces_in%tPops .or. spaces_in%tRead .or. spaces_in%tDoubles .or. spaces_in%tCAS .or. &
-                   spaces_in%tRAS .or. spaces_in%tMP1 .or. spaces_in%tFCI)) then
+        if (.not. (space_in%tPops .or. space_in%tRead .or. space_in%tDoubles .or. space_in%tCAS .or. &
+                   space_in%tRAS .or. space_in%tOptimised .or. space_in%tMP1 .or. space_in%tFCI)) then
             call stop_all(t_r, "A space for the trial functions was not chosen.")
         end if
 
@@ -78,10 +84,11 @@ contains
         if (iProcIndex == root) then
             allocate(ilut_list(0:NIfTot, ndets_all_procs))
         else
-            ! On these other processes ilut_list is not needed, but we need
-            ! it to be allocated for the MPI wrapper function to work, so just
-            ! allocate it to be small.
+            ! On these other processes ilut_list and evecs_transpose are not
+            ! needed, but we need them to be allocated for the MPI wrapper
+            ! function to work, so just allocate them to be small.
             allocate(ilut_list(1,1))
+            allocate(evecs_transpose(1,1))
         end if
 
         call MPIGatherV(trial_iluts(:,1:space_sizes(iProcIndex)), ilut_list, &
@@ -100,10 +107,6 @@ contains
             allocate(evecs(ndets_all_procs, nexcit), stat=ierr)
             if (ierr /= 0) call stop_all(t_r, "Error allocating eigenvectors array.")
             evecs = 0.0_dp
-
-            allocate(evals(nexcit), stat=ierr)
-            if (ierr /= 0) call stop_all(t_r, "Error allocating eigenvalues array.")
-            evals = 0.0_dp
 
             allocate(evec_abs(ndets_all_procs), stat=ierr)
             if (ierr /= 0) call stop_all(t_r, "Error allocating evec_abs array.")
@@ -131,7 +134,6 @@ contains
             end do
 
             deallocate(det_list)
-            deallocate(evals)
             deallocate(evec_abs)
 
             ! Unfortunately to perform the MPIScatterV call we need the transpose
@@ -142,6 +144,8 @@ contains
         else
             deallocate(ilut_list)
         end if
+
+        call MPIBCast(evals, size(evals), root)
 
         ndets_this_proc_mpi = space_sizes(iProcIndex)
         ! The number of elements to send and receive in the MPI call, and the
@@ -157,10 +161,8 @@ contains
         if (ierr /= 0) call stop_all(t_r, "Error in MPIScatterV call.")
 
         ! Clean up.
-        if (iProcIndex == root) then
-            deallocate(evecs)
-            deallocate(evecs_transpose)
-        end if
+        if (iProcIndex == root) deallocate(evecs)
+        deallocate(evecs_transpose)
 
     end subroutine calc_trial_states
 
@@ -195,12 +197,12 @@ contains
     end subroutine set_trial_populations
 
     subroutine set_trial_states(ndets_this_proc, init_vecs, trial_iluts, &
-                                paired_replicas)
+                                semistoch_started, paired_replicas)
 
         use bit_reps, only: encode_sign
-        use CalcData, only: tSemiStochastic
+        use CalcData, only: tSemiStochastic, tTrialWavefunction
         use FciMCData, only: CurrentDets, TotWalkers, HashIndex, nWalkerHashes
-        use FciMCData, only: set_initial_global_data
+        use replica_data, only: set_initial_global_data
         use hash, only: clear_hash_table, fill_in_hash_table
         use semi_stoch_procs, only: fill_in_diag_helements, copy_core_dets_to_spawnedparts
         use semi_stoch_procs, only: add_core_states_currentdet_hash
@@ -208,6 +210,7 @@ contains
         integer, intent(in) :: ndets_this_proc
         real(dp), intent(in) :: init_vecs(:,:)
         integer(n_int), intent(in) :: trial_iluts(0:,:) 
+        logical, intent(in) :: semistoch_started
         logical, intent(in), optional :: paired_replicas
 
         real(dp) :: real_sign(lenof_sign)
@@ -246,7 +249,7 @@ contains
         call clear_hash_table(HashIndex)
         call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, ndets_this_proc, .true.)
 
-        if (tSemiStochastic) then
+        if (tSemiStochastic .and. semistoch_started) then
             ! core_space stores all core determinants from all processors. Move those on this
             ! processor to trial_iluts, which add_core_states_currentdet_hash uses.
             call copy_core_dets_to_spawnedparts()
@@ -255,6 +258,8 @@ contains
             call add_core_states_currentdet_hash()
         end if
 
+        if (tTrialWavefunction) call reinit_current_trial_amps()
+
         ! Calculate and store the diagonal elements of the Hamiltonian for
         ! determinants in CurrentDets.
         call fill_in_diag_helements()
@@ -262,5 +267,55 @@ contains
         call set_initial_global_data(TotWalkers, CurrentDets)
 
     end subroutine set_trial_states
+
+    subroutine reinit_current_trial_amps()
+
+        ! Recreate current trial amps, without using arrays such as trial_space
+        ! and trial_wfs, which are deallocated after the first init_trial_wf
+        ! call.
+
+        use bit_reps, only: decode_bit_det, set_flag
+        use FciMCData, only: CurrentDets, TotWalkers, HashIndex, nWalkerHashes
+        use FciMCData, only: tTrialHash, current_trial_amps, ntrial_excits
+        use searching, only: hash_search_trial, bin_search_trial
+        use SystemData, only: nel
+
+        integer :: i
+        integer :: nI(nel)
+        real(dp) :: trial_amps(ntrial_excits)
+        logical :: tTrial, tCon
+
+        ! Don't do anything is this is called before the trial wave function
+        ! initialisation.
+        if (.not. allocated(current_trial_amps)) return
+
+        current_trial_amps = 0.0_dp
+
+        do i = 1, TotWalkers
+            if (tTrialHash) then
+                call decode_bit_det(nI, CurrentDets(:,i))
+                call hash_search_trial(CurrentDets(:,i), nI, trial_amps, tTrial, tCon)
+            else
+                call bin_search_trial(CurrentDets(:,i), trial_amps, tTrial, tCon)
+            end if
+
+            ! Set the appropraite flag (if any). Unset flags which aren't
+            ! appropriate, just in case.
+            if (tTrial) then
+                call set_flag(CurrentDets(:,i), flag_trial, .true.)
+                call set_flag(CurrentDets(:,i), flag_connected, .false.)
+            else if (tCon) then
+                call set_flag(CurrentDets(:,i), flag_trial, .false.)
+                call set_flag(CurrentDets(:,i), flag_connected, .true.)
+            else
+                call set_flag(CurrentDets(:,i), flag_trial, .false.)
+                call set_flag(CurrentDets(:,i), flag_connected, .false.)
+            end if
+
+            ! Set the amplitude (which may be zero).
+            current_trial_amps(:,i) = trial_amps
+        end do
+
+    end subroutine reinit_current_trial_amps
 
 end module initial_trial_states

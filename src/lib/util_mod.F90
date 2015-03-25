@@ -238,11 +238,15 @@ contains
     elemental logical function isnan_neci (r)
         real(dp), intent(in) :: r
 
+#ifdef __GFORTRAN__
+        isnan_neci = isnan(r)
+#else
         if ( (r == 0) .and. (r * 1 == 1) ) then
             isnan_neci = .true.
         else
             isnan_neci = .false.
         endif
+#endif
     end function
 
     elemental real(dp) function factrl (n)

@@ -23,7 +23,8 @@ module AnnihilationMod
                         flag_initiator, encode_part_sign, &
                         extract_part_sign, extract_bit_rep, &
                         nullify_ilut_part, clear_has_been_initiator, &
-                        set_has_been_initiator, flag_has_been_initiator
+                        set_has_been_initiator, flag_has_been_initiator, &
+                        encode_flags
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
     use global_det_data, only: set_det_diagH, get_iter_occ, &
@@ -702,7 +703,7 @@ module AnnihilationMod
                         if ( .not. test_flag (SpawnedParts(:,i), flag_initiator(j)) ) then
                             ! If this option is on, include the walker to be
                             ! cancelled in the trial energy estimate.
-                            if (tIncCancelledInitEnergy) call add_trial_energy_contrib(SpawnedParts(:,i), SignTemp(j))
+                            if (tIncCancelledInitEnergy) call add_trial_energy_contrib(SpawnedParts(:,i), SignTemp(j), j)
 
                             ! Walkers came from outside initiator space.
                             NoAborted(j) = NoAborted(j) + abs(SignTemp(j))
@@ -850,7 +851,8 @@ module AnnihilationMod
         integer, intent(in) :: DetHash, nJ(nel)
         integer :: DetPosition
         HElement_t :: HDiag
-        real(dp) :: trial_amp
+        real(dp) :: trial_amps(ntrial_excits)
+        logical :: tTrial, tCon
         character(len=*), parameter :: t_r = "AddNewHashDet"
 
         if (iStartFreeSlot <= iEndFreeSlot) then
@@ -867,7 +869,7 @@ module AnnihilationMod
             end if
             CurrentDets(:,DetPosition) = iLutCurr(:)
         end if
-        
+
         ! Calculate the diagonal hamiltonian matrix element for the new particle to be merged.
         if (tHPHF) then
             HDiag = hphf_diag_helement (nJ,CurrentDets(:,DetPosition))
@@ -887,16 +889,34 @@ module AnnihilationMod
         ! There is at least one spawning count here
         call inc_spawn_count(DetPosition)
 
-        ! If using a trial wavefunction, search to see if this state is in either the trial or
-        ! connected space. If so, bin_search_trial sets the correct flag and returns the corresponding
-        ! amplitude, which is stored.
+        ! If using a trial wavefunction, search to see if this state is in
+        ! either the trial or connected space. If so, *_search_trial returns
+        ! the corresponding amplitude, which is stored.
         if (tTrialWavefunction) then
+            ! Search to see if this is a trial or connected state, and
+            ! retreive the corresponding amplitude (zero if neither a trial or
+            ! connected state).
             if (tTrialHash) then
-                call hash_search_trial(CurrentDets(:,DetPosition), nJ, trial_amp)
+                call hash_search_trial(CurrentDets(:,DetPosition), nJ, trial_amps, tTrial, tCon)
             else
-                call bin_search_trial(CurrentDets(:,DetPosition), trial_amp)
+                call bin_search_trial(CurrentDets(:,DetPosition), trial_amps, tTrial, tCon)
             end if
-            current_trial_amps(DetPosition) = trial_amp
+
+            ! Set the appropraite flag (if any). Unset flags which aren't
+            ! appropriate, just in case.
+            if (tTrial) then
+                call set_flag(CurrentDets(:,DetPosition), flag_trial, .true.)
+                call set_flag(CurrentDets(:,DetPosition), flag_connected, .false.)
+            else if (tCon) then
+                call set_flag(CurrentDets(:,DetPosition), flag_trial, .false.)
+                call set_flag(CurrentDets(:,DetPosition), flag_connected, .true.)
+            else
+                call set_flag(CurrentDets(:,DetPosition), flag_trial, .false.)
+                call set_flag(CurrentDets(:,DetPosition), flag_connected, .false.)
+            end if
+
+            ! Set the amplitude (which may be zero).
+            current_trial_amps(:,DetPosition) = trial_amps
         end if
 
         ! Add the new determinant to the hash table.
@@ -906,7 +926,7 @@ module AnnihilationMod
 
     subroutine CalcHashTableStats(TotWalkersNew, iter_data)
 
-        use nElRDMMod, only: det_removed_fill_diag_rdm 
+        use nElRDMMod, only: det_removed_fill_diag_rdm
         use util_mod, only: abs_sign
         use CalcData, only: tCheckHighestPop
 

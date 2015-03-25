@@ -103,6 +103,7 @@ module fcimc_initialisation
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
+    use kp_fciqmc_data_mod, only: tExcitedStateKP, tPairedKPReplicas
     use sym_general_mod, only: ClassCountInd
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
     use ueg_excit_gens, only: gen_ueg_excit
@@ -946,8 +947,17 @@ contains
             WRITE(iout,*) "Timestep set to: ",Tau
         ENDIF
 
-        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) &
+        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
             call init_tau_search()
+        else
+            ! Add a couple of checks for sanity
+            if (nOccAlpha == 0 .or. nOccBeta == 0) then
+                pParallel = 1.0_dp
+            end if
+            if (nOccAlpha == 1 .and. nOccBeta == 1) then
+                pParallel = 0.0_dp
+            end if
+        end if
 
         IF(StepsSftImag.ne.0.0_dp) THEN
             WRITE(iout,*) "StepsShiftImag detected. Resetting StepsShift."
@@ -1354,7 +1364,15 @@ contains
         ! This includes generating the trial space, generating the space connected to the trial space,
         ! diagonalising the trial space to find the trial wavefunction and calculating the vector
         ! in the connected space, required for the energy estimator.
-        if (tTrialWavefunction) call init_trial_wf(trial_space_in)
+        if (tTrialWavefunction) then
+            if (tOrthogonaliseReplicas .or. (tExcitedStateKP .and. .not. tPairedKPReplicas)) then
+                call init_trial_wf(trial_space_in, inum_runs)
+            else if (tExcitedStateKP .and. tPairedKPReplicas) then
+                call init_trial_wf(trial_space_in, inum_runs/2)
+            else
+                call init_trial_wf(trial_space_in, 1)
+            end if
+        end if
 
         replica_overlaps(:, :) = 0
 
@@ -1856,8 +1874,10 @@ contains
         ! to initialise the FCIQMC simulation.
 
         integer :: nexcit, ndets_this_proc, i, det(nel)
-        real(dp), allocatable :: evecs_this_proc(:,:), init_vecs(:,:)
         type(basisfn) :: sym
+        real(dp) :: evals(inum_runs)
+        real(dp), allocatable :: evecs_this_proc(:,:)
+        integer(MPIArg) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
         character(*), parameter :: this_routine = 'InitFCIMC_trial'
 
         nexcit = inum_runs
@@ -1867,12 +1887,13 @@ contains
 
         ! Create the trial excited states
         call calc_trial_states(init_trial_in, nexcit, ndets_this_proc, &
-                               evecs_this_proc, SpawnedParts)
+                               SpawnedParts, evecs_this_proc, evals, &
+                               space_sizes, space_displs)
         ! Determine the walker populations associated with these states
         call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
         ! Set the trial excited states as the FCIQMC wave functions
         call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts, &
-                              .false.)
+                              .false., .false.)
         call set_initial_run_references()
 
         deallocate(evecs_this_proc)
@@ -1897,6 +1918,7 @@ contains
         integer(n_int) :: largest_det(0:NIfTot)
         integer :: run, j, proc_highest
         integer(int32) :: int_tmp(2)
+        character(*), parameter :: this_routine = 'set_initial_run_references'
 
         ASSERT(inum_runs == lenof_sign)
         do run = 1, inum_runs
@@ -1941,7 +1963,7 @@ contains
         integer , allocatable :: CASBrr(:),CASDet(:),CASFullDets(:,:),nRow(:),Lab(:),ISCR(:),INDEX(:)
         integer , pointer :: CASDetList(:,:) => null()
         integer(n_int) :: iLutnJ(0:NIfTot)
-        logical :: tMC
+        logical :: tMC, tHPHF_temp, tHPHFInts_temp
         HElement_t :: HDiagTemp
         real(dp) , allocatable :: CK(:,:),W(:),CKN(:,:),Hamil(:),A_Arr(:,:),V(:),BM(:),T(:),WT(:)
         real(dp) , allocatable :: SCR(:),WH(:),Work2(:),V2(:,:),AM(:)
@@ -2068,8 +2090,11 @@ contains
         tMC=.false.
 
         !HACK ALERT!! Need to fill up array in space of determinants, not HPHF functions.
-        !Turn of tHPHFInts and turn back on when hamiltonian constructed.
-        tHPHFInts=.false.
+        !Turn off tHPHFInts and tHPHF and turn back on after the hamiltonian constructed.
+        tHPHF_temp = tHPHF
+        tHPHFInts_temp = tHPHFInts
+        tHPHF = .false.
+        tHPHFInts = .false.
 
         CALL Detham(nCASDet,NEl,CASFullDets,Hamil,Lab,nRow,.true.,ICMax,GC,tMC)
         LenHamil=GC
@@ -2085,8 +2110,9 @@ contains
         CASRefEnergy=GETHELEMENT(1,1,HAMIL,LAB,NROW,NCASDET)
         write(iout,*) "Energy of first CAS det is: ",CASRefEnergy
 
-        !Turn back on HPHF integrals if needed.
-        if(tHPHF) tHPHFInts=.true.
+        ! Turn back on HPHFs if needed.
+        tHPHF = tHPHF_temp
+        tHPHFInts = tHPHFInts_temp
 
 !        if(abs(CASRefEnergy-Hii).gt.1.0e-7_dp) then
 !            call stop_all(this_routine,"CAS reference energy does not match reference energy of full space")
