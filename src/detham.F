@@ -1,7 +1,7 @@
       SUBROUTINE DETHAM(NDET,NEL,NMRKS, HAMIL,LAB,NROW,TCOUNT, 
      &  ICMAX,GC,TMC)
       use global_utilities
-      use constants, only: dp
+      use constants, only: dp, n_int
       Use Determinants, only: get_helement
       use SystemData , only : BasisFN
       use CalcData , only : TStar
@@ -19,7 +19,7 @@
       INTEGER ICMAX,KI,IBEG,IBEGJ,KJ,IMAX,IDAMAX
       LOGICAL TCOUNT,TMC
       INTEGER IGETEXCITLEVEL_2,STEP,IMAXJ
-      integer :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
+      integer(n_int) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
       HElement_t totSUM
       type(timer), save :: proc_timer
 !      LOGICAL TSTAR

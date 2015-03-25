@@ -1963,7 +1963,7 @@ contains
         integer , allocatable :: CASBrr(:),CASDet(:),CASFullDets(:,:),nRow(:),Lab(:),ISCR(:),INDEX(:)
         integer , pointer :: CASDetList(:,:) => null()
         integer(n_int) :: iLutnJ(0:NIfTot)
-        logical :: tMC
+        logical :: tMC, tHPHF_temp, tHPHFInts_temp
         HElement_t :: HDiagTemp
         real(dp) , allocatable :: CK(:,:),W(:),CKN(:,:),Hamil(:),A_Arr(:,:),V(:),BM(:),T(:),WT(:)
         real(dp) , allocatable :: SCR(:),WH(:),Work2(:),V2(:,:),AM(:)
@@ -2090,8 +2090,11 @@ contains
         tMC=.false.
 
         !HACK ALERT!! Need to fill up array in space of determinants, not HPHF functions.
-        !Turn of tHPHFInts and turn back on when hamiltonian constructed.
-        tHPHFInts=.false.
+        !Turn off tHPHFInts and tHPHF and turn back on after the hamiltonian constructed.
+        tHPHF_temp = tHPHF
+        tHPHFInts_temp = tHPHFInts
+        tHPHF = .false.
+        tHPHFInts = .false.
 
         CALL Detham(nCASDet,NEl,CASFullDets,Hamil,Lab,nRow,.true.,ICMax,GC,tMC)
         LenHamil=GC
@@ -2107,8 +2110,9 @@ contains
         CASRefEnergy=GETHELEMENT(1,1,HAMIL,LAB,NROW,NCASDET)
         write(iout,*) "Energy of first CAS det is: ",CASRefEnergy
 
-        !Turn back on HPHF integrals if needed.
-        if(tHPHF) tHPHFInts=.true.
+        ! Turn back on HPHFs if needed.
+        tHPHF = tHPHF_temp
+        tHPHFInts = tHPHFInts_temp
 
 !        if(abs(CASRefEnergy-Hii).gt.1.0e-7_dp) then
 !            call stop_all(this_routine,"CAS reference energy does not match reference energy of full space")
