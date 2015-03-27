@@ -19,7 +19,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,int_name,filename_in)
 
     ! main-level modules.
     use Calc, only: CalcDoCalc
-    use CalcData, only: tUseProcsAsNodes
+    use CalcData, only: tUseProcsAsNodes, s_global_start
     use kp_fciqmc_procs, only: kp_fciqmc_data
     use Parallel_neci, only: MPINodes, iProcIndex
     use ParallelHelper, only: Root
@@ -27,7 +27,8 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,int_name,filename_in)
 
     ! Utility modules.
     use global_utilities
-    use util_mod, only: get_free_unit
+    use constants
+    use util_mod
 
     Implicit none
     integer,intent(in) :: iCacheFlag
@@ -39,11 +40,12 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,int_name,filename_in)
     character(64) :: Filename
     logical :: toverride_input,tFCIDUMP_exist
     type(kp_fciqmc_data) :: kp
-#ifdef MOLPRO
-    include "common/tapes"
-#else
-    integer, parameter :: iout = 6
-#endif
+    real(sp) :: tend(2)
+
+    ! Measure when NECICore is called. We need to do this here, as molcas
+    ! and molpro can call NECI part way through a run, so it is no use to time
+    ! from when the _process_ began.
+    s_global_start = neci_etime(tend)
     
     tMolpro = tMolpro_local
 
