@@ -93,14 +93,14 @@ contains
                     iter_data%nborn(tgt_run) = iter_data%nborn(tgt_run) &
                                              + abs(sgn(tgt_run))
                 else if (abs(sgn(tgt_run)) >= abs(sgn_orig)) then
-                    NoDied(tgt_run) = NoDied(tgt_run) &
-                                    + abs(sgn(tgt_run) - sgn_orig)
-                    iter_data%ndied(tgt_run) = iter_data%ndied(tgt_run) &
-                                             + abs(sgn(tgt_run) - sgn_orig)
-                else
                     NoBorn(tgt_run) = NoBorn(tgt_run) &
                                     + abs(sgn(tgt_run) - sgn_orig)
                     iter_data%nborn(tgt_run) = iter_data%nborn(tgt_run) &
+                                             + abs(sgn(tgt_run) - sgn_orig)
+                else
+                    NoDied(tgt_run) = NoDied(tgt_run) &
+                                    + abs(sgn(tgt_run) - sgn_orig)
+                    iter_data%ndied(tgt_run) = iter_data%ndied(tgt_run) &
                                              + abs(sgn(tgt_run) - sgn_orig)
                 end if
 
@@ -229,11 +229,11 @@ contains
                 NoBorn(2) = NoBorn(2) + abs(sgn(2))
                 iter_data%nborn(2) = iter_data%nborn(2) + abs(sgn(2))
             else if (abs(sgn(2)) >= abs(sgn_orig)) then
-                NoDied(2) = NoDied(2) + abs(sgn(2) - sgn_orig)
-                iter_data%ndied(2) = iter_data%ndied(2) + abs(sgn(2) -sgn_orig)
-            else
                 NoBorn(2) = NoBorn(2) + abs(sgn(2) - sgn_orig)
                 iter_data%nborn(2) = iter_data%nborn(2) + abs(sgn(2) -sgn_orig)
+            else
+                NoDied(2) = NoDied(2) + abs(sgn(2) - sgn_orig)
+                iter_data%ndied(2) = iter_data%ndied(2) + abs(sgn(2) -sgn_orig)
             end if
 
 

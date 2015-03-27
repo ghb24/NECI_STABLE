@@ -216,7 +216,7 @@ contains
             write(6,'(2X,g16.9e3)', advance='no') trial_energies(i)
         end do
         write(6,'(/,"Trial wavefunction initialisation complete.")')
-        write(6,'("Total time (seconds) taken for trial wavefunction initialisation:", f9.3)'), &
+        write(6,'("Total time (seconds) taken for trial wavefunction initialisation:", f9.3)') &
                    get_total_time(Trial_Init_Time)
         call neci_flush(6)
 
