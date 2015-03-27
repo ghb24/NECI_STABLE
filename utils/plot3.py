@@ -164,18 +164,23 @@ def read_cols (f, last_iter=None, last_im_time=None):
     # The list of available column titles. Some are duplicates to
     # deal with where the labelling has adjusted, or to cope with
     # both FCIQMCStats and fciqmc_stats conventions.
+    max_runs = 20
     re_label = re.compile('^#\s*((\d+\.\s*.*?)\s*)+$')
     re_label_split = re.compile('#?\s*\d+\.')
     col_labels = {
         'iter': ('Step', 'Iter.'),
-        'shift': ('Shift. (cyc)', 'Shift'),
+        'shift': (('Shift. (cyc)', 'Shift') +
+                    tuple(('Shift ({})'.format(run+1) for run in range(max_runs)))),
         'growth': ('GrowRate', 'Growth fac.'),
-        'parts': ('TotWalkers', 'Tot. parts'),
-        'ref_parts': ('NoatHF', 'Tot. ref'),
+        'parts': (('TotWalkers', 'Tot. parts') +
+                    tuple(('Parts ({})'.format(run+1) for run in range(max_runs)))),
+        'ref_parts': (('NoatHF', 'Tot. ref') +
+                        tuple(('Ref ({})'.format(run+1) for run in range(max_runs)))),
         'im_time': ('TotImagTime', 'Im. time'),
         'it_time': ('Iter. time', "IterTime"),
         'proje_corr': ('Proj.E.ThisCyc', 'Proj. E (cyc)'),
-        'proje_tot': ('Tot-Proj.E.ThisCyc', 'Tot. Proj. E'),
+        'proje_tot': (('Tot-Proj.E.ThisCyc', 'Tot. Proj. E') +
+                    tuple(('Tot ProjE ({})'.format(run+1) for run in range(max_runs)))),
         'exp_av_proje': (),
         'av_proje': ('Proj.E',),
         'av_shift': ('Av.Shift',),
@@ -186,6 +191,14 @@ def read_cols (f, last_iter=None, last_im_time=None):
         'S2_init': (),
         'accept': ('AccRat', 'Acc. rate'),
     }
+    
+    # Which data columns can be repeated in an output files, for multiple run calculations
+    multi_run_cols = [
+        'shift',
+        'parts',
+        'ref_parts',
+        'proje_tot'
+    ]
 
     # Invert the label dictionary for easy lookup
     label_lookup = dict([(hdr, title) for title in col_labels
@@ -243,7 +256,12 @@ def read_cols (f, last_iter=None, last_im_time=None):
     data = column_data()
     for i, title in enumerate(col_titles):
         if title is not None:
-            data[title] = cols[i]
+            if title in multi_run_cols:
+                if title not in data:
+                    data[title] = []
+                data[title].append(cols[i])
+            else:
+                data[title] = cols[i]
 
     return data
 
@@ -824,8 +842,11 @@ class plotter:
 
                     # Adjust certain columns if they are there.
                     if 'shift' in cols:
-                        cols['shift'] = apply_ref_Es(cols['shift'],
-                                                     cols['iter'], ref_E)
+                        for i in range(len(cols['shift'])):
+                            # This is a bit of a hack...
+                            if abs(cols['shift'][i][-1]) < 10:
+                                cols['shift'][i] = apply_ref_Es(cols['shift'][i],
+                                                                 cols['iter'], ref_E)
 
                     if self.E.plot_exp_average and 'exp_av_projE' in cols:
                         cols['exp_av_projE'] = \
@@ -860,9 +881,11 @@ class plotter:
                 if self.E.plot:
                     ax = self.E.ax
                     fmt = '' if self.E.plot_lines else ','
-                    ax.plot (x, cols['shift'], col()+fmt, label=' '.join([leg_pre,'Inst. Shift']))
+                    for s in cols['shift']:
+                        ax.plot (x, s, col()+fmt, label=' '.join([leg_pre,'Inst. Shift']))
                     if self.E.total_energies:
-                        ax.plot (x, cols['proje_tot'], col()+fmt, label=' '.join([leg_pre,'Proj. E']))
+                        for p in cols['proje_tot']:
+                            ax.plot (x, p, col()+fmt, label=' '.join([leg_pre,'Proj. E']))
                     else:
                         ax.plot (x, cols['proje_corr'], col()+fmt, label=' '.join([leg_pre,'Proj. E']))
                     if self.fit_walkers_E:
@@ -880,8 +903,10 @@ class plotter:
                     if not self.share_walkers_E:
                         col.reset()
                     ax = self.W.ax
-                    ax.plot (x, cols['parts'], col(), label=' '.join([leg_pre,'No. Walkers']))
-                    ax.plot (x, cols['ref_parts'], col(), label=' '.join([leg_pre,'No. at Ref']))
+                    for p in cols['parts']:
+                        ax.plot (x, p, col(), label=' '.join([leg_pre,'No. Walkers']))
+                    for r in cols['ref_parts']:
+                        ax.plot (x, r, col(), label=' '.join([leg_pre,'No. at Ref']))
 
                     if self.W.plot_growth_cpts:
                         ax.plot (x, cols['born'], col(), label=' '.join([leg_pre,'No. Born']))
