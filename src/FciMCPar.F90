@@ -10,7 +10,7 @@ module FciMCParMod
                         iFullSpaceIter, semistoch_shift_iter, &
                         tOrthogonaliseReplicas, orthogonalise_iter, &
                         tDetermHFSpawning, use_spawn_hash_table, &
-                        semistoch_shift_iter, ss_space_in
+                        semistoch_shift_iter, ss_space_in, s_global_start
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, &
@@ -297,7 +297,8 @@ module FciMCParMod
                     ENDIF
                 ENDIF
 
-                if(iProcIndex.eq.root) TotalTime8=real(s_end,dp)
+                if(iProcIndex.eq.root) &
+                    TotalTime8 = real(s_end - s_global_start, dp)
                 call MPIBCast(TotalTime8)    !TotalTime is local - broadcast to all procs
 
 !This routine will check for a CHANGEVARS file and change the parameters of the calculation accordingly.
