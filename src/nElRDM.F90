@@ -4446,7 +4446,7 @@ MODULE nElRDMMod
                                                         - (abba_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM)) / &
                                                         (abs((abba_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
                                                         + (abba_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM)) / 2.0_dp) )
-                                        No_Herm_Elements = No_Herm_Elements + 1                                                        
+                                        No_Herm_Elements = No_Herm_Elements + 1
 
                                         if(tmake_herm) then                                                            
                                             Temp = (abba_RDM_full(Ind1_aa,Ind2_aa) + abba_RDM_full(Ind2_aa,Ind1_aa)) / 2.0_dp
@@ -5000,102 +5000,322 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
         ! if a's not aligned, a b b a.
         ! all a a a a will contain single excitations.
         if(((i.le.a).and.(j.le.a)).or.((i.ge.a).and.(j.ge.a))) then
+        ! baba --> iSpin-1, jSpin-1
+        !abab --> iSpin, jSpin.
 
-            if(tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + &
+            if(tRDMInstEnergy) then
+                RDMEnergy_Inst = RDMEnergy_Inst + &
                             ( (abab_RDM(Ind1_1e_ab,Ind2_1e_ab) ) &
                                                 * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) )
+
+                if(tOpenShell) RDMEnergy_Inst = RDMEnergy_Inst + &
+                            ( (baba_RDM(Ind1_1e_ab,Ind2_1e_ab) ) &
+                                                * REAL(TMAT2D(iSpin,jSpin),dp) &
+                                                * (1.0_dp / real(NEl - 1,dp)) )
+            endif !tRDMInstEnergy
+
             RDMEnergy1 = RDMEnergy1 + ( (abab_RDM_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
                                                 * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) )
 
+            if(tOpenShell) RDMEnergy1 = RDMEnergy1 + ( (baba_RDM_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
+                                                * REAL(TMAT2D(iSpin-1,jSpin-1),dp) &
+                                                * (1.0_dp / real(NEl - 1,dp)) )
+
             if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo.or.tDipoles)  &
                 .and.tFinalRDMEnergy) then                                                
+
+                if(tStoreSpinOrbs)then                     
+                    NatOrbMat(SymLabelListInv_rot(iSpin),SymLabelListInv_rot(jSpin)) = &
+                            NatOrbMat(SymLabelListInv_rot(iSpin),SymLabelListInv_rot(jSpin)) &
+                                        + ( abab_RDM_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
+                                                * (1.0_dp / real(NEl - 1,dp)) ) 
+
+                    NatOrbMat(SymLabelListInv_rot(iSpin-1),SymLabelListInv_rot(jSpin-1)) = &
+                            NatOrbMat(SymLabelListInv_rot(iSpin-1),SymLabelListInv_rot(jSpin-1)) &
+                                        + ( baba_RDM_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
+                                                * (1.0_dp / real(NEl - 1,dp)) ) 
+
+                else !not tStoreSpinOrbs
+
                 NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
                             NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
                                         + ( abab_RDM_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
                                                 * (1.0_dp / real(NEl - 1,dp)) ) 
-            endif
+                    if(tOpenShell) NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
+                            NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
+                                        + ( baba_RDM_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
+                                                * (1.0_dp / real(NEl - 1,dp)) ) 
+                endif ! not tStoreSpinOrbs
+
+            endif  !tFinalRDMEnergy
 
             ! For Gamma elements corresponding to 1-RDMs ( Gamma(i,a,j,a) ), we're only considering 
             ! i =< j and therefore we need to sum in the opposite contribution too.
             if(Ind1_1e_ab.ne.Ind2_1e_ab) then                                                                
-                if (tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + &
+                if (tRDMInstEnergy)then 
+                    RDMEnergy_Inst = RDMEnergy_Inst + &
                                 ( (abab_RDM(Ind2_1e_ab,Ind1_1e_ab) ) &
                                                     * REAL(TMAT2D(jSpin,iSpin),dp) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
+         
+                    if(tOpenShell) RDMEnergy_Inst = RDMEnergy_Inst + &
+                                ( (baba_RDM(Ind2_1e_ab,Ind1_1e_ab)) &
+                                                    * REAL(TMAT2D(jSpin,iSpin),dp) &
+                                                    * (1.0_dp / real(NEl - 1,dp)) )
+                endif !tRDMInstEnergy
+
                 RDMEnergy1 = RDMEnergy1 + ( (abab_RDM_full(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM) &
                                                     * REAL(TMAT2D(jSpin,iSpin),dp) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
 
+                if(tOpenShell) RDMEnergy1 = RDMEnergy1 + ( (baba_RDM_full(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM) &
+                                                    * REAL(TMAT2D(jSpin-1,iSpin-1),dp) &
+                                                    * (1.0_dp / real(NEl - 1,dp)) )
+
                 if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo.or.tDipoles).and.tFinalRDMEnergy) then  
-                    NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
+
+                    if(tStoreSpinOrbs)then  
+                        NatOrbMat(SymLabelListInv_rot(jSpin),SymLabelListInv_rot(iSpin)) = &
+                            NatOrbMat(SymLabelListInv_rot(jSpin),SymLabelListInv_rot(iSpin)) &
+                                        + ( abab_RDM_full(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
+                                                * (1.0_dp / real(NEl - 1,dp)) ) 
+
+                        NatOrbMat(SymLabelListInv_rot(jSpin-1),SymLabelListInv_rot(iSpin-1)) = &
+                            NatOrbMat(SymLabelListInv_rot(jSpin-1),SymLabelListInv_rot(iSpin-1)) &
+                                        + ( baba_RDM_full(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
+                                                * (1.0_dp / real(NEl - 1,dp)) ) 
+                    else
+
+                        NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                             NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                         + ( abab_RDM_full(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
                                                 * (1.0_dp / real(NEl - 1,dp)) ) 
-                endif
+                  
+                        if(tOpenShell) NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
+                            NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
+                                        + ( baba_RDM_full(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
+                                                * (1.0_dp / real(NEl - 1,dp)) ) 
 
-            endif
+                    endif !tStoreSpinOrbs
+                endif !tFinalRDMEnergy
+
+            endif  !Ind1_1e_ab.ne.Ind2_1e_ab
 
             ! But since we're running over all a, i a and a i will both be counted, but i i only once 
             ! (whereas it should be counted twice).
             if((i.eq.j).and.(i.eq.a)) then                                                                
-                if (tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + &
+                                                              
+                if (tRDMInstEnergy)then
+                    RDMEnergy_Inst = RDMEnergy_Inst + &
                       ( (abab_RDM(Ind1_1e_ab,Ind2_1e_ab) ) &
                                             * REAL(TMAT2D(iSpin,jSpin),dp) &
                                             * (1.0_dp / real(NEl - 1,dp)) )
+
+                    if(tOpenShell) RDMEnergy_Inst = RDMEnergy_Inst + &
+                                            ( (baba_RDM(Ind1_1e_ab,Ind2_1e_ab) ) &
+                                            * REAL(TMAT2D(iSpin-1,jSpin-1),dp) &
+                                            * (1.0_dp / real(NEl - 1,dp)) )
+                endif !tRDMInstEnergy
+
                 RDMEnergy1 = RDMEnergy1 + ( (abab_RDM_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
                                             * REAL(TMAT2D(iSpin,jSpin),dp) &
                                             * (1.0_dp / real(NEl - 1,dp)) )
 
+                if(tOpenShell) RDMEnergy1 = RDMEnergy1 + ( (baba_RDM_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
+                                            * REAL(TMAT2D(iSpin-1,jSpin-1),dp) &
+                                            * (1.0_dp / real(NEl - 1,dp)) )
+
                 if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo.or.tDipoles).and.tFinalRDMEnergy) then 
+                    
+                    if(tStoreSpinOrbs)then
+                        NatOrbMat(SymLabelListInv_rot(jSpin),SymLabelListInv_rot(iSpin)) = &
+                            NatOrbMat(SymLabelListInv_rot(jSpin),SymLabelListInv_rot(iSpin)) &
+                                        + ( abab_RDM_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
+                                                * (1.0_dp / real(NEl - 1,dp)) ) 
+                        NatOrbMat(SymLabelListInv_rot(jSpin-1),SymLabelListInv_rot(iSpin-1)) = &
+                            NatOrbMat(SymLabelListInv_rot(jSpin-1),SymLabelListInv_rot(iSpin-1)) &
+                                        + ( baba_RDM_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
+                                                * (1.0_dp / real(NEl - 1,dp)) ) 
+                    else !not tStoreSpinOrbs
                     NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                             NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                         + ( abab_RDM_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
                                                 * (1.0_dp / real(NEl - 1,dp)) ) 
-                endif
+                        if(tOpenShell) NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
+                            NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
+                                        + ( baba_RDM_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
+                                                * (1.0_dp / real(NEl - 1,dp)) ) 
+                    endif !not tStoreSpinOrbs
+                endif !tFinalRDMEnergy
 
-            endif
+            endif !(i.eq.j).and.(i.eq.a)
 
-        endif
+        endif !((i.le.a).and.(j.le.a)).or.((i.ge.a).and.(j.ge.a))
 
         if((i.ne.a).and.(j.ne.a)) then
             Ind1_1e_aa = ( ( (max(i,a)-2) * (max(i,a)-1) ) / 2 ) + min(i,a)
             Ind2_1e_aa = ( ( (max(j,a)-2) * (max(j,a)-1) ) / 2 ) + min(j,a)
 
             if((i.ne.j).and.((i.lt.a).and.(j.gt.a)).or.((i.gt.a).and.(j.lt.a))) then
-                if(tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst - &
+                !This is the one where it kicks off a bit. Need to take care of the inversions. 
+                if((i.lt.a).and.(j.gt.a))then
+
+                if(tRDMInstEnergy) then
+                    RDMEnergy_Inst = RDMEnergy_Inst - &
                               ( (abba_RDM(Ind1_1e_aa,Ind2_1e_aa) ) &
                                                     * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
+
+                    if(tOpenShell) RDMEnergy_Inst = RDMEnergy_Inst - &
+                              ( (baab_RDM(Ind1_1e_aa,Ind2_1e_aa) ) &
+                                                    * REAL(TMAT2D(iSpin-1,jSpin-1),dp) &
+                                                    * (1.0_dp / real(NEl - 1,dp)) )
+
+                endif !tRDMInstEnergy
+
                 RDMEnergy1 = RDMEnergy1 - ( (abba_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
                                                     * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                     * (1.0_dp / real(NEl - 1,dp)) )
 
+                if(tOpenShell) RDMEnergy1 = RDMEnergy1 - ( (baab_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
+                                                    * REAL(TMAT2D(iSpin-1,jSpin-1),dp) &
+                                                    * (1.0_dp / real(NEl - 1,dp)) )
+
                 if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo.or.tDipoles).and.tFinalRDMEnergy) then 
-                    NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
+
+                    if(tStoreSpinOrbs)then
+                        NatOrbMat(SymLabelListInv_rot(iSpin),SymLabelListInv_rot(jSpin)) = &
+                                NatOrbMat(SymLabelListInv_rot(iSpin),SymLabelListInv_rot(jSpin)) &
+                                            - ( abba_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
+                                                    * (1.0_dp / real(NEl - 1,dp)) ) 
+
+                        NatOrbMat(SymLabelListInv_rot(iSpin-1),SymLabelListInv_rot(jSpin-1)) = &
+                                NatOrbMat(SymLabelListInv_rot(iSpin-1),SymLabelListInv_rot(jSpin-1)) &
+                                            - ( baab_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
+                                                    * (1.0_dp / real(NEl - 1,dp)) ) 
+                    else ! not tStoreSpinOrbs
+                        NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
                                 NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
                                             - ( abba_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
                                                     * (1.0_dp / real(NEl - 1,dp)) ) 
-                endif
+
+                        if(tOpenShell) NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
+                                NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
+                                            - ( baab_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
+                                                    * (1.0_dp / real(NEl - 1,dp)) ) 
+                    endif ! not tStoreSpinOrbs
+
+                endif !tFinalRDMEnergy
+                               
+
+                elseif((i.gt.a).and.(j.lt.a))then
+
+                if(tRDMInstEnergy) then
+                    RDMEnergy_Inst = RDMEnergy_Inst - &
+                              ( (abba_RDM(Ind1_1e_aa,Ind2_1e_aa) ) &
+                                                    * REAL(TMAT2D(iSpin-1,jSpin-1),dp) &
+                                                    * (1.0_dp / real(NEl - 1,dp)) )
+
+                    if(tOpenShell) RDMEnergy_Inst = RDMEnergy_Inst - &
+                              ( (baab_RDM(Ind1_1e_aa,Ind2_1e_aa) ) &
+                                                    * REAL(TMAT2D(iSpin,jSpin),dp) &
+                                                    * (1.0_dp / real(NEl - 1,dp)) )
+
+                endif !tRDMInstEnergy 
+
+                RDMEnergy1 = RDMEnergy1 - &
+                              ( (abba_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
+                                                    * REAL(TMAT2D(iSpin-1,jSpin-1),dp) &
+                                                    * (1.0_dp / real(NEl - 1,dp)) )
+
+                if(tOpenShell) RDMEnergy1 = RDMEnergy1 - &
+                              ( (baab_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
+                                                    * REAL(TMAT2D(iSpin,jSpin),dp) &
+                                                    * (1.0_dp / real(NEl - 1,dp)) )
+
+                if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo.or.tDipoles).and.tFinalRDMEnergy) then 
+
+                    if(tStoreSpinOrbs)then
+
+                        NatOrbMat(SymLabelListInv_rot(iSpin-1),SymLabelListInv_rot(jSpin-1)) = &
+                                NatOrbMat(SymLabelListInv_rot(iSpin-1),SymLabelListInv_rot(jSpin-1)) &
+                                            - ( abba_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
+                                                    * (1.0_dp / real(NEl - 1,dp)) ) 
+
+                        NatOrbMat(SymLabelListInv_rot(iSpin),SymLabelListInv_rot(jSpin)) = &
+                                NatOrbMat(SymLabelListInv_rot(iSpin),SymLabelListInv_rot(jSpin)) &
+                                            - ( baab_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
+                                                    * (1.0_dp / real(NEl - 1,dp)) ) 
+
+                    else ! not tStoreSpinOrbs
+                        NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
+                                NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
+                                            - ( abba_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
+                                                    * (1.0_dp / real(NEl - 1,dp)) ) 
+
+                        if(tOpenShell) NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
+                                NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
+                                            - ( baab_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
+                                                    * (1.0_dp / real(NEl - 1,dp)) ) 
+                    endif ! not tStoreSpinOrbs
+
+                endif !tFinalRDMEnergy
+
+            endif !(i.gt.a).and.(j.lt.a)
+
 
                 if(Ind1_1e_aa.ne.Ind2_1e_aa) then
-                    if (tRDmInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst - &
+
+                    if (tRDmInstEnergy) then
+                        RDMEnergy_Inst = RDMEnergy_Inst - &
                                   ( (abba_RDM(Ind2_1e_aa,Ind1_1e_aa) ) &
                                                         * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                         * (1.0_dp / real(NEl - 1,dp)) )
-                    RDMEnergy1 = RDMEnergy1 - ( (abba_RDM_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM) &
-                                                        * REAL(TMAT2D(iSpin,jSpin),dp) &
+
+                        if(tOpenShell) RDMEnergy_Inst = RDMEnergy_Inst - &
+                                  ( (baab_RDM(Ind2_1e_aa,Ind1_1e_aa) ) &
+                                                        * REAL(TMAT2D(iSpin-1,jSpin-1),dp) &
                                                         * (1.0_dp / real(NEl - 1,dp)) )
+                    endif !tRDmInstEnergy
+
+                    RDMEnergy1 = RDMEnergy1 &
+                                  - ( (abba_RDM_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM) &
+                                  * REAL(TMAT2D(iSpin,jSpin),dp) &
+                                  * (1.0_dp / real(NEl - 1,dp)) )
+
+                    if(tOpenShell) RDMEnergy1 = RDMEnergy1 &
+                                  - ( (baab_RDM_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM) &
+                                  * REAL(TMAT2D(iSpin-1,jSpin-1),dp) &
+                                  * (1.0_dp / real(NEl - 1,dp)) )
 
                     if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo.or.tDipoles).and.tFinalRDMEnergy) then 
-                        NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
+                        if(tStoreSpinOrbs)then                       
+                            NatOrbMat(SymLabelListInv_rot(jSpin),SymLabelListInv_rot(iSpin)) = &
+                                NatOrbMat(SymLabelListInv_rot(jSpin),SymLabelListInv_rot(iSpin)) &
+                                            - ( ( abba_RDM_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
+                                                    * (1.0_dp / real(NEl - 1,dp)) ))
+
+                            NatOrbMat(SymLabelListInv_rot(jSpin-1),SymLabelListInv_rot(iSpin-1)) = &
+                                NatOrbMat(SymLabelListInv_rot(jSpin-1),SymLabelListInv_rot(iSpin-1)) &
+                                            + ( ( baab_RDM_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
+                                                    * (1.0_dp / real(NEl - 1,dp)) ))
+                         else !not tStoreSpinOrbs
+                        
+                            NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                                 NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                             - ( ( abba_RDM_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
                                                     * (1.0_dp / real(NEl - 1,dp)) ))
-                    endif
-                endif
-            endif
+                            if(tOpenShell) NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
+                                NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
+                                        + ( ( baab_RDM_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
+                                                * (1.0_dp / real(NEl - 1,dp)) ))
+                         endif !not tStoreSpinOrbs
+
+                    endif !tFinalRDMEnergy
+                endif  !Ind1_1e_aa.ne.Ind2_1e_aa
+            endif !(i.ne.j).and.((i.lt.a).and.(j.gt.a)).or.((i.gt.a).and.(j.lt.a))
 
 
             if(((i.lt.a).and.(j.lt.a)).or.((i.gt.a).and.(j.gt.a))) then
@@ -5103,39 +5323,105 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
             else
                 Parity_Factor = -1.0_dp
             endif
-!
-            if (tRDmInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + &
+
+            if (tRDmInstEnergy) then
+                RDMEnergy_Inst = RDMEnergy_Inst + &
                           ( (aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) ) &
                                                 * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
-            RDMEnergy1 = RDMEnergy1 + ( (aaaa_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
+
+                if(tOpenShell) RDMEnergy_Inst = RDMEnergy_Inst +&
+                          ( (bbbb_RDM(Ind1_1e_aa,Ind2_1e_aa)) &
+                                                * REAL(TMAT2D(iSpin-1,jSpin-1),dp) &
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor)
+
+            endif !tRDmInstEnergy
+
+            RDMEnergy1 = RDMEnergy1 + &
+                           ( (aaaa_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
                                                 * REAL(TMAT2D(iSpin,jSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
 
+            if (tOpenShell) RDMEnergy1 = RDMEnergy1 + &
+                           ( (bbbb_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
+                                                * REAL(TMAT2D(iSpin-1,jSpin-1),dp) &
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
+
             if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo.or.tDipoles).and.tFinalRDMEnergy) then 
+                if(tStoreSpinOrbs)then
+                    NatOrbMat(SymLabelListInv_rot(iSpin),SymLabelListInv_rot(jSpin)) = &
+                            NatOrbMat(SymLabelListInv_rot(iSpin),SymLabelListInv_rot(jSpin)) &
+                                        + ( aaaa_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) 
+
+                    NatOrbMat(SymLabelListInv_rot(iSpin-1),SymLabelListInv_rot(jSpin-1)) = & 
+                            NatOrbMat(SymLabelListInv_rot(iSpin-1),SymLabelListInv_rot(jSpin-1)) &
+                                        + ( bbbb_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) 
+                else !not tStoreSpinOrbs
+
                 NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
                             NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
                                         + ( aaaa_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) 
+
+                     if (tOpenShell) NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
+                            NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
+                                        + ( bbbb_RDM_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) 
+                endif  !not tStoreSpinOrbs
             endif
 
             if(Ind1_1e_aa.ne.Ind2_1e_aa) then
-                if (tRDmInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + &
+                if (tRDmInstEnergy) then
+                    RDMEnergy_Inst = RDMEnergy_Inst + &
                           ( (aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) ) &
                                                 * REAL(TMAT2D(jSpin,iSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
-                RDMEnergy1 = RDMEnergy1 + ( (aaaa_RDM_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM) &
+
+                    if (tOpenShell) RDMEnergy_Inst = RDMEnergy_Inst + &
+                          ( (bbbb_RDM(Ind2_1e_aa,Ind1_1e_aa) ) &
+                                                * REAL(TMAT2D(jSpin-1,iSpin-1),dp) &
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
+                endif !tRDmInstEnergy
+
+                RDMEnergy1 = RDMEnergy1 + & 
+                          ( (aaaa_RDM_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM) &
                                                 * REAL(TMAT2D(jSpin,iSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
 
+                if (tOpenShell) RDMEnergy1 = RDMEnergy1 +  &
+                          ( (bbbb_RDM_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM) &
+                                                * REAL(TMAT2D(jSpin-1,iSpin-1),dp) &
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
+
                 if((tDiagRDM.or.tPrint1RDM.or.tDumpForcesInfo.or.tDipoles).and.tFinalRDMEnergy) then 
+                    if(tStoreSpinOrbs)then
+                        NatOrbMat(SymLabelListInv_rot(jSpin),SymLabelListInv_rot(iSpin)) = &
+                            NatOrbMat(SymLabelListInv_rot(jSpin),SymLabelListInv_rot(iSpin)) &
+                                        + ( aaaa_RDM_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
+
+                        NatOrbMat(SymLabelListInv_rot(jSpin-1),SymLabelListInv_rot(iSpin-1)) = &
+                            NatOrbMat(SymLabelListInv_rot(jSpin-1),SymLabelListInv_rot(iSpin-1)) &
+                                        + ( bbbb_RDM_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
+                    else ! not tStoreSpinOrbs
+
                     NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                             NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                         + ( aaaa_RDM_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
-                endif
-            endif
-        endif
+
+                            if (tOpenShell) NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
+                                          NatOrbMat(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
+                                        + ( bbbb_RDM_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
+
+                    endif ! not tStoreSpinOrbs
+                endif !tFinalRDMEnergy
+            endif  !Ind1_1e_aa.ne.Ind2_1e_aa
+        endif  !(i.ne.a).and.(j.ne.a)
 
     end subroutine calc_1RDM_energy
     
