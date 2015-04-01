@@ -948,7 +948,7 @@ contains
             write(temp_unit,'(3X,es19.12)',advance='no') lowdin_evals(ivec, nlowdin)
         end do
         do ivec = nlowdin+1, nvecs
-            write(temp_unit,'(12X,3a,7X)',advance='no') "NaN"
+            write(temp_unit,'(12X,"NaN",7X)',advance='no')
         end do
 
         ! Diagonal energies.
@@ -961,7 +961,7 @@ contains
                 write(temp_unit,'(3X,es19.12)',advance='no') lowdin_spin(ivec, nlowdin) + (0.75_dp*nel)
             end do
             do ivec = nlowdin+1, nvecs
-                write(temp_unit,'(12X,3a,7X)',advance='no') "NaN"
+                write(temp_unit,'(12X,"NaN",7X)',advance='no')
             end do
         end if
 
