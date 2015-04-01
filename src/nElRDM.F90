@@ -1,4 +1,4 @@
-MODULe nElRDMMod
+MODULE nElRDMMod
 ! This file contains the routines used to find the full n electron reduced density matrix (nElRDM).
 ! This is done on the fly to avoid having to histogram the full wavefunction which is extremely 
 ! time and memory inefficient.
@@ -42,7 +42,7 @@ MODULe nElRDMMod
     use UMatCache, only: UMatInd, GTID
     use SystemData, only: NEl, nBasis, tStoreSpinOrbs, G1, BRR, lNoSymmetry, &
                           ARR, tUseMP2VarDenMat, Ecore, LMS, tHPHF, tFixLz, &
-                          iMaxLz, tRef_Not_HF, tOddS_hphf
+                          iMaxLz, tRef_Not_HF, tOddS_hphf, tROHF
     use NatOrbsMod, only: NatOrbMat, NatOrbMatTag, Evalues, EvaluesTag, &
                           SetupNatOrbLabels
     use CalcData, only: MemoryFacPart, NMCyc, InitiatorWalkNo
@@ -105,19 +105,29 @@ MODULe nElRDMMod
         INTEGER :: Sing_ExcDjsTag,Sing_ExcDjs2Tag
         INTEGER :: aaaa_RDM_instTag,abab_RDM_instTag, abba_RDM_instTag
         INTEGER :: aaaa_RDM_fullTag,abab_RDM_fullTag, abba_RDM_fullTag
+        INTEGER :: bbbb_RDM_instTag,baba_RDM_instTag, baab_RDM_instTag
+        INTEGER :: bbbb_RDM_fullTag,baba_RDM_fullTag, baab_RDM_fullTag
         INTEGER :: Doub_ExcDjsTag,Doub_ExcDjs2Tag,UMATTempTag
         INTEGER :: Energies_unit, ActualStochSign_unit
         INTEGER :: NoSymLabelCounts, Rho_iiTag
         REAL(dp) , ALLOCATABLE, TARGET :: aaaa_RDM_inst(:,:), abab_RDM_inst(:,:), abba_RDM_inst(:,:)
         REAL(dp) , ALLOCATABLE, TARGET :: aaaa_RDM_full(:,:),abab_RDM_full(:,:), abba_RDM_full(:,:)
+        REAL(dp) , ALLOCATABLE, TARGET :: bbbb_RDM_inst(:,:),baba_RDM_inst(:,:), baab_RDM_inst(:,:)
+        REAL(dp) , ALLOCATABLE, TARGET :: bbbb_RDM_full(:,:),baba_RDM_full(:,:), baab_RDM_full(:,:)
+
         REAL(dp) , POINTER :: aaaa_RDM(:,:) => null()
         REAL(dp), POINTER :: abab_RDM(:,:) => null()
         REAL(dp), POINTER :: abba_RDM(:,:) => null()
+        REAL(dp), POINTER :: bbbb_RDM(:,:) => null()
+        REAL(dp), POINTER :: baba_RDM(:,:) => null()
+        REAL(dp), POINTER :: baab_RDM(:,:) => null()
+
         real(dp), ALLOCATABLE :: AllNodes_aaaa_RDM(:,:), AllNodes_abab_RDM(:,:), AllNodes_abba_RDM(:,:) 
+        real(dp), ALLOCATABLE :: AllNodes_bbbb_RDM(:,:), AllNodes_baba_RDM(:,:), AllNodes_baab_RDM(:,:)  
         REAL(dp) , ALLOCATABLE :: UMATTemp(:,:), Rho_ii(:)
         REAL(dp) , ALLOCATABLE :: Lagrangian(:,:)
         REAL(dp) :: OneEl_Gap,TwoEl_Gap, Normalisation,Trace_2RDM_Inst, Trace_2RDM, Trace_1RDM, norm
-        LOGICAL :: tCalc_RDMEnergy 
+        LOGICAL :: tCalc_RDMEnergy, tOpenShell
         type(timer), save :: nElRDM_Time, FinaliseRDM_time, RDMEnergy_time
         logical :: trotatedNOs=.false.
 
@@ -135,7 +145,7 @@ MODULe nElRDMMod
         CAll Stop_All(this_routine,'Filling of reduced density matrices not working with &
                                     &complex walkers yet.')
 #endif
-        
+
         ! Only spatial orbitals for the 2-RDMs (and F12).
         if((.not.TestClosedShellDet(iLutRef)).and.(RDMExcitLevel.ne.1)) &
             call stop_all(this_routine,'2-RDM calculations not set up for open shell systems.')
@@ -143,7 +153,13 @@ MODULe nElRDMMod
         if(tStoreSpinOrbs.and.(RDMExcitLevel.ne.1)) &
             call stop_all(this_routine,'2-RDM calculations not set up for systems stored &
                                         &as spin orbitals.')
-    
+
+        if(tROHF .or. tStoreSpinOrbs) then
+            tOpenShell=.true.
+        else
+            tOpenShell=.false.
+        endif
+
         if(tExplicitAllRDM) then
             write(6,'(A)') " Explicitly calculating the reduced density matrices from the &
                                                         &FCIQMC wavefunction."
@@ -248,6 +264,29 @@ MODULe nElRDMMod
                 MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
                 MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
 
+                ! Extra arrays for open shell systems
+                if(tOpenShell) then
+                    ALLOCATE(bbbb_RDM_inst(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+                    IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating bbbb_RDM_inst array,')
+                    CALL LogMemAlloc('bbbb_RDM_inst',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,bbbb_RDM_instTag,ierr)
+                    bbbb_RDM_inst(:,:)=0.0_dp
+
+                    ALLOCATE(baab_RDM_inst(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+                    IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating baab_RDM_inst array,')
+                    CALL LogMemAlloc('baab_RDM_inst',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,baab_RDM_instTag,ierr)
+                    baab_RDM_inst(:,:)=0.0_dp
+                    MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
+                    MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 )
+
+                    ALLOCATE(baba_RDM_inst(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
+                    IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating baba_RDM_inst array,')
+                    CALL LogMemAlloc('baba_RDM_inst',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,baba_RDM_instTag,ierr)
+                    abab_RDM_inst(:,:)=0.0_dp     
+                    MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
+                    MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 )
+                endif
+
+
                 IF(iProcIndex.eq.0) THEN
                     ALLOCATE(aaaa_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
                     IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating aaaa_RDM_full array,')
@@ -269,11 +308,41 @@ MODULe nElRDMMod
                     MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
                     MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 8 ) 
 
+                    if(tOpenShell) then
+                        ALLOCATE(bbbb_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+                        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating bbbb_RDM_full array,')
+                        CALL LogMemAlloc('bbbb_RDM_full',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,bbbb_RDM_fullTag,ierr)
+                        bbbb_RDM_full(:,:)=0.0_dp
+
+                        ALLOCATE(baba_RDM_full(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
+                        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating baba_RDM_full array,')
+                        CALL LogMemAlloc('baba_RDM_full',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,baba_RDM_fullTag,ierr)
+                        baba_RDM_full(:,:)=0.0_dp
+
+                        ALLOCATE(baab_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+                        IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating baab_RDM_full array,')
+                        CALL LogMemAlloc('baab_RDM_full',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,baab_RDM_fullTag,ierr)
+                        baab_RDM_full(:,:)=0.0_dp
+
+                        MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
+                        MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 8 ) 
+                        MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
+                        MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 8 ) 
+
+                    endif
+
                 ENDIF
                 
                 aaaa_RDM => aaaa_RDM_inst
                 abba_RDM => abba_RDM_inst
                 abab_RDM => abab_RDM_inst
+
+                if(tOpenShell) then
+                    bbbb_RDM => bbbb_RDM_inst
+                    baab_RDM => baab_RDM_inst
+                    baba_RDM => baba_RDM_inst
+                endif
+
             else
                 !We're not calculating an instantaneous RDM energy
                 !Put RDM contributions directly into 'full' arrays, which are now allocated every core
@@ -307,7 +376,32 @@ MODULe nElRDMMod
                 aaaa_RDM => aaaa_RDM_full
                 abba_RDM => abba_RDM_full
                 abab_RDM => abab_RDM_full
-            endif
+
+                if(tOpenShell) then
+                    ALLOCATE(bbbb_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+                    IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating bbbb_RDM_full array,')
+                    CALL LogMemAlloc('bbbb_RDM_full',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,bbbb_RDM_fullTag,ierr)
+                    bbbb_RDM_full(:,:)=0.0_dp
+
+                    ALLOCATE(baab_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+                    IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating baab_RDM_full array,')
+                    CALL LogMemAlloc('baab_RDM_full',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,baab_RDM_fullTag,ierr)
+                    baab_RDM_full(:,:)=0.0_dp
+                    MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
+                    MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
+
+                    ALLOCATE(baba_RDM_full(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
+                    IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating baba_RDM_full array,')
+                    CALL LogMemAlloc('baba_RDM_full',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,baba_RDM_fullTag,ierr)
+                    baba_RDM(:,:)=0.0_dp
+                    MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
+                    MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
+      
+                    bbbb_RDM => bbbb_RDM_full
+                    baab_RDM => baab_RDM_full
+                    baba_RDM => baba_RDM_full
+                endif
+            endif  ! not instantaneous
 
             if (iProcindex.eq.0) then
                 if(tDiagRDM.or.tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
@@ -538,6 +632,16 @@ MODULe nElRDMMod
             AllNodes_aaaa_RDM(:,:) = 0.0_dp
             AllNodes_abab_RDM(:,:) = 0.0_dp
             AllNodes_abba_RDM(:,:) = 0.0_dp
+
+            if(tOpenShell) then
+                bbbb_RDM(:,:) = 0.0_dp
+                baba_RDM(:,:) = 0.0_dp
+                baab_RDM(:,:) = 0.0_dp
+                AllNodes_bbbb_RDM(:,:) = 0.0_dp
+                AllNodes_baba_RDM(:,:) = 0.0_dp
+                AllNodes_baab_RDM(:,:) = 0.0_dp
+            endif
+
         endif
 
         Trace_2RDM = 0.0_dp
@@ -551,7 +655,9 @@ MODULe nElRDMMod
 ! Reads in the arrays to restart the RDM calculation (and continue accumulating).
 ! These arrays are not normalised, so the trace is also calculated.
 ! The energy is then calculated (if required) from the RDMs read in only.
-        logical :: exists_aaaa,exists_abab,exists_abba,exists_one
+        logical :: exists_one
+        logical :: exists_aaaa,exists_abab,exists_abba
+        logical :: exists_bbbb,exists_baba,exists_baab
         integer :: RDM_unit, FileEnd
         integer :: i,j,a,b,Ind1,Ind2
         real(dp) :: Temp_RDM_Element, Norm_2RDM
@@ -594,6 +700,13 @@ MODULe nElRDMMod
                 INQUIRE(FILE='TwoRDM_POPS_aaaa',EXIST=exists_aaaa)
                 INQUIRE(FILE='TwoRDM_POPS_abab',EXIST=exists_abab)
                 INQUIRE(FILE='TwoRDM_POPS_abba',EXIST=exists_abba)
+
+                if(tOpenShell)then
+                    INQUIRE(FILE='TwoRDM_POPS_bbbb',EXIST=exists_bbbb)
+                    INQUIRE(FILE='TwoRDM_POPS_baba',EXIST=exists_baba)
+                    INQUIRE(FILE='TwoRDM_POPS_baab',EXIST=exists_baab)
+                endif
+
                 if(exists_aaaa.and.exists_abab.and.exists_abba) THEN
                     ! All TOREAD RDM files are present - read in.
                     RDM_unit = get_free_unit()
@@ -640,6 +753,54 @@ MODULe nElRDMMod
                     call neci_flush(6)
                     CALL Stop_All('Read_in_RDMs',"Attempting to read in the RDMs, &
                                     &but at least one of the TwoRDM_a***_TOREAD files are missing.")
+                endif
+
+                if(tOpenShell .and. exists_bbbb.and.exists_baba.and.exists_baab) THEN
+                    ! All TOREAD RDM files for open shell RDMs are present - read in.
+                    RDM_unit = get_free_unit()
+                    open(RDM_unit,FILE='TwoRDM_POPS_bbbb',status='old',form='unformatted')
+                    do while (.true.)
+                        read(RDM_unit,iostat=FileEnd) i,j,a,b,Temp_RDM_Element 
+                        if(FileEnd.gt.0) call stop_all("Read_In_RDMs","Error reading TwoRDM_POPS_bbbb")
+                        if(FileEnd.lt.0) exit
+
+                        Ind1 = ( ( (j-2) * (j-1) ) / 2 ) + i
+                        Ind2 = ( ( (b-2) * (b-1) ) / 2 ) + a
+                        bbbb_RDM_full(Ind1,Ind2) = Temp_RDM_Element
+                    enddo
+                    close(RDM_unit)
+
+                    open(RDM_unit,FILE='TwoRDM_POPS_baba',status='old',form='unformatted')
+                    do while (.true.)
+                        read(RDM_unit,iostat=FileEnd) i,j,a,b,Temp_RDM_Element 
+                        if(FileEnd.gt.0) call stop_all("Read_In_RDMs","Error reading TwoRDM_POPS_baba")
+                        if(FileEnd.lt.0) exit
+
+                        Ind1 = ( ( (j-1) * j ) / 2 ) + i
+                        Ind2 = ( ( (b-1) * b ) / 2 ) + a
+                        baba_RDM_full(Ind1,Ind2) = Temp_RDM_Element
+                    enddo
+                    close(RDM_unit)
+
+                    open(RDM_unit,FILE='TwoRDM_POPS_baab',status='old',form='unformatted')
+                    do while (.true.)
+                        read(RDM_unit,iostat=FileEnd) i,j,a,b,Temp_RDM_Element 
+                        if(FileEnd.gt.0) call stop_all("Read_In_RDMs","Error reading TwoRDM_POPS_baab")
+                        if(FileEnd.lt.0) exit
+
+                        Ind1 = ( ( (j-2) * (j-1) ) / 2 ) + i
+                        Ind2 = ( ( (b-2) * (b-1) ) / 2 ) + a
+                        baab_RDM_full(Ind1,Ind2) = Temp_RDM_Element
+                    enddo
+                    close(RDM_unit)
+
+                elseif(tOpenShell) then
+                    write(6,*) 'exists_bbbb',exists_bbbb
+                    write(6,*) 'exists_baba',exists_baba
+                    write(6,*) 'exists_baab',exists_baab
+                    call neci_flush(6)
+                    CALL Stop_All('Read_in_RDMs',"Attempting to read in the RDMs, &
+                                    &but at least one of the TwoRDM_b***_TOREAD files are missing.")
                 endif
 
             endif
@@ -2791,8 +2952,10 @@ MODULe nElRDMMod
             enddo
         else
             ! Only calculating 2-RDM.
+            ! nI(i) - spin orbital label. Odd=beta even=alpha.
             do i=1,NEl - 1
                 iSpat = gtID(nI(i))
+                if(tOpenShell) iSpat = (nI(i)-1)/2 + 1
 
                 ! Orbitals in nI ordered lowest to highest so nI(j) > nI(i), 
                 ! and jSpat >= iSpat (can only be equal if different spin).
@@ -4201,7 +4364,6 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
         integer :: Ind1_1e_ab, Ind2_1e_ab
         integer :: Ind1_1e_aa, Ind2_1e_aa
 
-
         Ind1_1e_ab = ( ( (max(i,a)-1) * max(i,a) ) / 2 ) + min(i,a)
         Ind2_1e_ab = ( ( (max(j,a)-1) * max(j,a) ) / 2 ) + min(j,a)
 
@@ -4477,6 +4639,7 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
                             CYCLE
                         endif
                     endif
+
                     if(tWrittenEvalue) then
                         if(NatOrbMat(SymLabelListInv_rot(jInd),i).ne.0.0_dp) &
                             write(NatOrbs_unit,'(2I6,G35.17)') j,NO_Number,NatOrbMat(SymLabelListInv_rot(jInd),i)
@@ -4488,6 +4651,7 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
                         endif
                     endif
                 enddo
+
                 NO_Number = NO_Number + 1
                 if(.not.tStoreSpinOrbs) then
                     tWrittenEvalue = .false.
@@ -4507,6 +4671,7 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
                                 tWrittenEvalue = .true.
                             endif
                         endif
+
                     enddo
                     NO_Number = NO_Number + 1
                 endif
@@ -5892,6 +6057,21 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
             CALL LogMemDeAlloc(this_routine,abba_RDM_instTag)
         end if
 
+        if (allocated(bbbb_RDM_inst)) then
+            DEALLOCATE(bbbb_RDM_inst)
+            CALL LogMemDeAlloc(this_routine,bbbb_RDM_instTag)
+        end if
+
+        if (allocated(baba_RDM_inst)) then
+            DEALLOCATE(baba_RDM_inst)
+            CALL LogMemDeAlloc(this_routine,baba_RDM_instTag)
+        end if
+
+        if (allocated(baab_RDM_inst)) then
+            DEALLOCATE(baab_RDM_inst)
+            CALL LogMemDeAlloc(this_routine,baab_RDM_instTag)
+        end if
+
         if (allocated(aaaa_RDM_full)) then
             DEALLOCATE(aaaa_RDM_full)
             CALL LogMemDeAlloc(this_routine,aaaa_RDM_fullTag)
@@ -5906,6 +6086,22 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
             DEALLOCATE(abba_RDM_full)
             CALL LogMemDeAlloc(this_routine,abba_RDM_fullTag)
         end if
+
+        if (allocated(bbbb_RDM_full)) then
+            DEALLOCATE(bbbb_RDM_full)
+            CALL LogMemDeAlloc(this_routine,bbbb_RDM_fullTag)
+        end if
+
+        if (allocated(baba_RDM_full)) then
+            DEALLOCATE(baba_RDM_full)
+            CALL LogMemDeAlloc(this_routine,baba_RDM_fullTag)
+        end if
+
+        if (allocated(baab_RDM_full)) then
+            DEALLOCATE(baab_RDM_full)
+            CALL LogMemDeAlloc(this_routine,baab_RDM_fullTag)
+        end if
+
 
     END SUBROUTINE DeallocateRDM
 
