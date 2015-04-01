@@ -3653,7 +3653,6 @@ MODULE nElRDMMod
 
             endif
             
-
             ! Write out the final, normalised, hermitian OneRDM.                
             if(twrite_normalised_RDMs) call Write_out_1RDM(Norm_1RDM,.true.)
 
@@ -3903,6 +3902,25 @@ MODULE nElRDMMod
             DEALLOCATE(AllNodes_abab_RDM)
             DEALLOCATE(AllNodes_abba_RDM)
 
+            if(tOpenShell) then
+                ALLOCATE(AllNodes_bbbb_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+                ALLOCATE(AllNodes_baab_RDM(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+                ALLOCATE(AllNodes_baba_RDM(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
+         
+                CALL MPISumAll(bbbb_RDM(:,:), AllNodes_bbbb_RDM(:,:))
+                CALL MPISumAll(baba_RDM(:,:), AllNodes_baba_RDM(:,:))
+                CALL MPISumAll(baab_RDM(:,:), AllNodes_baab_RDM(:,:))
+                
+                bbbb_RDM(:,:) = AllNodes_bbbb_RDM(:,:)
+                baba_RDM(:,:) = AllNodes_baba_RDM(:,:)
+                baab_RDM(:,:) = AllNodes_baab_RDM(:,:)
+
+                DEALLOCATE(AllNodes_bbbb_RDM)
+                DEALLOCATE(AllNodes_baba_RDM)
+                DEALLOCATE(AllNodes_baab_RDM)
+            endif
+
+
             ! The TwoElRDM on the root is now the sum of all 'instantaneous' RDMs (summed over 
             ! the energy update cycle).
             ! Whereas TwoElRDM_full is accumulated over the entire run.
@@ -3910,6 +3928,11 @@ MODULE nElRDMMod
                 aaaa_RDM_full(:,:)=aaaa_RDM_full(:,:)+aaaa_RDM(:,:)
                 abab_RDM_full(:,:)=abab_RDM_full(:,:)+abab_RDM(:,:)
                 abba_RDM_full(:,:)=abba_RDM_full(:,:)+abba_RDM(:,:)
+                if(tOpenShell) then
+                    bbbb_RDM_full(:,:)=bbbb_RDM_full(:,:)+bbbb_RDM(:,:)
+                    baba_RDM_full(:,:)=baba_RDM_full(:,:)+baba_RDM(:,:)
+                    baab_RDM_full(:,:)=baab_RDM_full(:,:)+baab_RDM(:,:)
+                endif
             endif
 
             AllAccumRDMNorm_Inst = 0.0_dp
@@ -3951,6 +3974,7 @@ MODULE nElRDMMod
 
                 ! This writes out the normalised, hermitian 2-RDMs.
                 if (twrite_normalised_RDMs) call Write_out_2RDM(Norm_2RDM, .true., tmake_herm)
+
              endif
         endif
 
@@ -3976,11 +4000,22 @@ MODULE nElRDMMod
 
         do i = 1, ((SpatOrbs*(SpatOrbs+1))/2)
             if(i.le.((SpatOrbs*(SpatOrbs-1))/2)) then
-                if (tRDMInstEnergy) Trace_2RDM_Inst = Trace_2RDM_Inst + aaaa_RDM(i,i)
+                if (tRDMInstEnergy) then
+                    Trace_2RDM_Inst = Trace_2RDM_Inst + aaaa_RDM(i,i)
+                    if(tOpenShell) Trace_2RDM_Inst = Trace_2RDM_Inst + bbbb_RDM(i,i)
+                endif
+
                 Trace_2RDM = Trace_2RDM + aaaa_RDM_full(i,i)
+                 if(tOpenShell)   Trace_2RDM = Trace_2RDM + bbbb_RDM_full(i,i) 
             endif
-            if (tRDMInstEnergy) Trace_2RDM_Inst = Trace_2RDM_Inst + abab_RDM(i,i)
+
+            if (tRDMInstEnergy) then
+                Trace_2RDM_Inst = Trace_2RDM_Inst + abab_RDM(i,i)
+                if(tOpenShell) Trace_2RDM_Inst = Trace_2RDM_Inst + baba_RDM(i,i)
+            endif
+
             Trace_2RDM = Trace_2RDM + abab_RDM_full(i,i)
+            if(tOpenShell) Trace_2RDM = Trace_2RDM + baba_RDM_full(i,i)
         enddo
 
         Norm_2RDM_Inst = 0.0_dp
@@ -4028,10 +4063,22 @@ MODULE nElRDMMod
 
                     Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
                                             abs((aaaa_RDM_full(i,j)*Norm_2RDM)-(aaaa_RDM_full(j,i)*Norm_2RDM))
-                    Temp = (aaaa_RDM_full(i,j) + aaaa_RDM_full(j,i)) / 2.0_dp
 
+                    Temp = (aaaa_RDM_full(i,j) + aaaa_RDM_full(j,i)) / 2.0_dp
                     aaaa_RDM_full(i,j) = Temp
                     aaaa_RDM_full(j,i) = Temp
+
+                    if(tOpenShell)then
+                        IF((abs((bbbb_RDM_full(i,j)*Norm_2RDM)-(bbbb_RDM_full(j,i)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                            Max_Error_Hermiticity = abs((bbbb_RDM_full(i,j)*Norm_2RDM)-(bbbb_RDM_full(j,i)*Norm_2RDM))
+
+                        Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
+                                            abs((bbbb_RDM_full(i,j)*Norm_2RDM)-(bbbb_RDM_full(j,i)*Norm_2RDM))
+
+                        Temp = (bbbb_RDM_full(i,j) + bbbb_RDM_full(j,i)) / 2.0_dp
+                        bbbb_RDM_full(i,j) = Temp
+                        bbbb_RDM_full(j,i) = Temp
+                    endif
 
                     IF((abs((abba_RDM_full(i,j)*Norm_2RDM)-(abba_RDM_full(j,i)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
                         Max_Error_Hermiticity = abs((abba_RDM_full(i,j)*Norm_2RDM)-(abba_RDM_full(j,i)*Norm_2RDM))
@@ -4040,9 +4087,21 @@ MODULE nElRDMMod
                                             abs((abba_RDM_full(i,j)*Norm_2RDM)-(abba_RDM_full(j,i)*Norm_2RDM))
 
                     Temp = (abba_RDM_full(i,j) + abba_RDM_full(j,i)) / 2.0_dp
-
                     abba_RDM_full(i,j) = Temp
                     abba_RDM_full(j,i) = Temp
+
+                    if(tOpenShell)then
+                        IF((abs((baab_RDM_full(i,j)*Norm_2RDM)-(baab_RDM_full(j,i)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                            Max_Error_Hermiticity = abs((baab_RDM_full(i,j)*Norm_2RDM)-(baab_RDM_full(j,i)*Norm_2RDM))
+
+                        Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
+                                            abs((baab_RDM_full(i,j)*Norm_2RDM)-(baab_RDM_full(j,i)*Norm_2RDM))
+
+                        Temp = (baab_RDM_full(i,j) + baab_RDM_full(j,i)) / 2.0_dp
+                        baab_RDM_full(i,j) = Temp
+                        baab_RDM_full(j,i) = Temp
+                    endif
+
                 endif
                 
                 IF((abs((abab_RDM_full(i,j)*Norm_2RDM)-(abab_RDM_full(j,i)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
@@ -4052,9 +4111,21 @@ MODULE nElRDMMod
                                         abs((abab_RDM_full(i,j)*Norm_2RDM)-(abab_RDM_full(j,i)*Norm_2RDM))
 
                 Temp = (abab_RDM_full(i,j) + abab_RDM_full(j,i)) / 2.0_dp
-
                 abab_RDM_full(i,j) = Temp
                 abab_RDM_full(j,i) = Temp
+
+                if(tOpenShell)then
+                    IF((abs((baba_RDM_full(i,j)*Norm_2RDM)-(baba_RDM_full(j,i)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                        Max_Error_Hermiticity = abs((baba_RDM_full(i,j)*Norm_2RDM)-(baba_RDM_full(j,i)*Norm_2RDM))
+
+                    Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
+                                        abs((baba_RDM_full(i,j)*Norm_2RDM)-(baba_RDM_full(j,i)*Norm_2RDM))
+
+                    Temp = (baba_RDM_full(i,j) + baba_RDM_full(j,i)) / 2.0_dp
+                    baba_RDM_full(i,j) = Temp
+                    baba_RDM_full(j,i) = Temp
+                endif
+
             enddo
         enddo
 
@@ -4072,8 +4143,11 @@ MODULE nElRDMMod
         logical , intent(in) :: tNormalise, tmake_herm
         real(dp) :: ParityFactor,Divide_Factor 
         integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab, iunit_4
-        integer :: aaaa_RDM_unit, abab_RDM_unit, abba_RDM_unit, No_Herm_Elements
+        integer :: No_Herm_Elements
+        integer :: aaaa_RDM_unit, abab_RDM_unit, abba_RDM_unit
+        integer :: bbbb_RDM_unit, baba_RDM_unit, baab_RDM_unit
         character(255) :: TwoRDM_aaaa_name, TwoRDM_abab_name, TwoRDM_abba_name
+        character(255) :: TwoRDM_bbbb_name, TwoRDM_baba_name, TwoRDM_baab_name
         real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity, Sum_Herm_Percent 
         real(dp) :: Temp
 
@@ -4094,6 +4168,21 @@ MODULE nElRDMMod
             call get_unique_filename('TwoRDM_abba',tWriteMultRDMs,.true.,1,TwoRDM_abba_name)
             abba_RDM_unit = get_free_unit()
             OPEN(abba_RDM_unit,file=TwoRDM_abba_name,status='unknown')
+
+            if(tOpenShell)then
+                call get_unique_filename('TwoRDM_bbbb',tWriteMultRDMs,.true.,1,TwoRDM_bbbb_name)
+                bbbb_RDM_unit = get_free_unit()
+                OPEN(bbbb_RDM_unit,file=TwoRDM_bbbb_name,status='unknown')
+
+                call get_unique_filename('TwoRDM_baba',tWriteMultRDMs,.true.,1,TwoRDM_baba_name)
+                baba_RDM_unit = get_free_unit()
+                OPEN(baba_RDM_unit,file=TwoRDM_baba_name,status='unknown')
+
+                call get_unique_filename('TwoRDM_baab',tWriteMultRDMs,.true.,1,TwoRDM_baab_name)
+                baab_RDM_unit = get_free_unit()
+                OPEN(baab_RDM_unit,file=TwoRDM_baab_name,status='unknown')
+            endif
+
         else
             write(6,*) 'Writing out the *unnormalised* 2 electron density matrix to file for reading in'
             call neci_flush(6)
@@ -4103,6 +4192,15 @@ MODULE nElRDMMod
             OPEN(abab_RDM_unit,file='TwoRDM_POPS_abab',status='unknown',form='unformatted')
             abba_RDM_unit = get_free_unit()
             OPEN(abba_RDM_unit,file='TwoRDM_POPS_abba',status='unknown',form='unformatted')
+
+            if(tOpenShell)then
+                bbbb_RDM_unit = get_free_unit()
+                OPEN(bbbb_RDM_unit,file='TwoRDM_POPS_bbbb',status='unknown',form='unformatted')
+                baba_RDM_unit = get_free_unit()
+                OPEN(baba_RDM_unit,file='TwoRDM_POPS_baba',status='unknown',form='unformatted')
+                baab_RDM_unit = get_free_unit()
+                OPEN(baab_RDM_unit,file='TwoRDM_POPS_baab',status='unknown',form='unformatted')
+            endif
         endif
        
         Max_Error_Hermiticity = 0.0_dp
@@ -4127,7 +4225,7 @@ MODULE nElRDMMod
                         ! we then need to divide each by 2.
                         ! but in cases where i and j, and a and b, are in the same spatial 
                         ! orbital, there will be only one contribution.
-                        if((i.eq.j).and.(a.eq.b)) then
+                        if(((i.eq.j).and.(a.eq.b)) .or. tOpenShell) then
                             Divide_Factor = 1.0_dp
                         else
                             Divide_Factor = 2.0_dp
@@ -4184,51 +4282,194 @@ MODULE nElRDMMod
                                     ! no divide factor, we just read them in as is.
                                     write(aaaa_RDM_unit) i,j,a,b, &
                                             aaaa_RDM_full(Ind1_aa,Ind2_aa)
-                                endif
-                            endif
+                                endif !tNormalise
+                            endif !aaaa_RDM_full
 
-                            if( (abba_RDM_full(Ind1_aa,Ind2_aa).ne.0.0_dp).or.&
+                            if(tOpenShell) then
+
+                                if( (bbbb_RDM_full(Ind1_aa,Ind2_aa).ne.0.0_dp).or.&
+                                    (bbbb_RDM_full(Ind2_aa,Ind1_aa).ne.0.0_dp) )then
+                                    ! If we're normalising (and have made the matrix hermitian) we only 
+                                    ! need to write out Ind1 < Ind2.
+                                    ! Otherwise we print out Ind1, Ind2 and Ind2, Ind1 so we can 
+                                    ! find the hermiticity error in the final matrix (after all runs).
+                                    !if(tNormalise.and.((Ind1_aa.le.Ind2_aa).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                                    if(tNormalise.and.(Ind1_aa.le.Ind2_aa)) then
+
+                                        IF((abs((bbbb_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                    - (bbbb_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                                            Max_Error_Hermiticity = abs((bbbb_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                                        - (bbbb_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM))
+
+                                        Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
+                                                                abs((bbbb_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                                        - (bbbb_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM))
+
+                                        Sum_Herm_Percent = Sum_Herm_Percent +   &
+                                                            (abs((bbbb_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                                    - (bbbb_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM)) / &
+                                                            (abs((bbbb_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                                    + (bbbb_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM)) / 2.0_dp) )
+                                        No_Herm_Elements = No_Herm_Elements + 1
+
+                                        if(tmake_herm) then
+                                            Temp = (bbbb_RDM_full(Ind1_aa,Ind2_aa) + bbbb_RDM_full(Ind2_aa,Ind1_aa)) / 2.0_dp
+
+                                            bbbb_RDM_full(Ind1_aa,Ind2_aa) = Temp
+                                            bbbb_RDM_full(Ind2_aa,Ind1_aa) = Temp
+                                endif
+
+                                        if(tFinalRDMEnergy) then
+                                            ! For the final calculation, the 2-RDMs will have been made hermitian.
+                                            write(bbbb_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                                    ( bbbb_RDM_full(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
+                                        else
+                                            ! If we're printing the 2-RDMs early (using WRITERDMSEVERY), the actual 
+                                            ! matrix will not be hermitian, but we want to print a hermitian version.
+                                            ! Average the values here.
+                                            write(bbbb_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                                ( ((bbbb_RDM_full(Ind1_aa,Ind2_aa) + bbbb_RDM_full(Ind2_aa,Ind1_aa))/2.0_dp) &
+                                                                    * Norm_2RDM ) / Divide_Factor
+                            endif
+                                    elseif(.not.tNormalise) then
+                                        ! for the POPS files, print everything to binary.
+                                        ! no divide factor, we just read them in as is.
+                                        write(bbbb_RDM_unit) i,j,a,b, &
+                                                bbbb_RDM_full(Ind1_aa,Ind2_aa)
+                                    endif  !tNormalise
+                                endif  !bbbb_RDM_full 
+                            endif !tStoreSpinOrbs
+
+                            if(tOpenShell)then
+
+                                if( (abba_RDM_full(Ind1_aa,Ind2_aa).ne.0.0_dp).or.&
+                                    (baab_RDM_full(Ind2_aa,Ind1_aa).ne.0.0_dp) ) then
+                                    !if(tNormalise.and.((Ind1_aa.le.Ind2_aa).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                                    if(tNormalise.and.(Ind1_aa.le.Ind2_aa)) then
+
+                                        IF((abs((abba_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                    - (baab_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                                            Max_Error_Hermiticity = abs((abba_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                    - (baab_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM))
+
+                                        Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
+                                                                abs((abba_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                                        - (baab_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM))
+
+                                        Sum_Herm_Percent = Sum_Herm_Percent +   &
+                                                            (abs((abba_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                            - (baab_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM)) / &
+                                                            (abs((abba_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                            + (baab_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM)) / 2.0_dp) )
+                                        No_Herm_Elements = No_Herm_Elements + 1                                                  
+
+
+                                        if(tmake_herm) then                                                            
+                                            Temp = (abba_RDM_full(Ind1_aa,Ind2_aa) + baab_RDM_full(Ind2_aa,Ind1_aa)) / 2.0_dp
+                                            abba_RDM_full(Ind1_aa,Ind2_aa) = Temp
+                                            baab_RDM_full(Ind2_aa,Ind1_aa) = Temp
+                                        endif
+
+                                        if(tFinalRDMEnergy) then
+                                            write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                                ( abba_RDM_full(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
+                                        else
+                                            write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                                ( ((abba_RDM_full(Ind1_aa,Ind2_aa) + abba_RDM_full(Ind2_aa,Ind1_aa))/2.0_dp) &
+                                                                        * Norm_2RDM ) / Divide_Factor
+                                        endif
+                                    elseif(.not.tNormalise) then
+                                        write(abba_RDM_unit) i,j,a,b, &
+                                            abba_RDM_full(Ind1_aa,Ind2_aa) 
+                                    endif
+                                endif !abba_RDM_full baab_RDM_full
+
+                                if( (baab_RDM_full(Ind1_aa,Ind2_aa).ne.0.0_dp).or.&
                                 (abba_RDM_full(Ind2_aa,Ind1_aa).ne.0.0_dp) ) then
                                 !if(tNormalise.and.((Ind1_aa.le.Ind2_aa).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
                                 if(tNormalise.and.(Ind1_aa.le.Ind2_aa)) then
 
-                                    IF((abs((abba_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                        IF((abs((baab_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                    - (abba_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                                            Max_Error_Hermiticity = abs((baab_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                    - (abba_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM))
+
+                                        Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
+                                                                abs((baab_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                                        - (abba_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM))
+
+                                        Sum_Herm_Percent = Sum_Herm_Percent +   &
+                                                            (abs((baab_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                            - (abba_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM)) / &
+                                                            (abs((baab_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
+                                                            + (abba_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM)) / 2.0_dp) )
+                                        No_Herm_Elements = No_Herm_Elements + 1
+
+                                        if(tmake_herm) then
+                                            Temp = (baab_RDM_full(Ind1_aa,Ind2_aa) + abba_RDM_full(Ind2_aa,Ind1_aa)) / 2.0_dp
+                                            baab_RDM_full(Ind1_aa,Ind2_aa) = Temp
+                                            abba_RDM_full(Ind2_aa,Ind1_aa) = Temp  
+                                        endif !tmake_herm
+
+                                        if(tFinalRDMEnergy) then
+                                            write(baab_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                                ( baab_RDM_full(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
+                                        else
+                                            write(baab_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                                ( ((baab_RDM_full(Ind1_aa,Ind2_aa) + baab_RDM_full(Ind2_aa,Ind1_aa))/2.0_dp) &
+                                                                        * Norm_2RDM ) / Divide_Factor
+                                        endif  !tFinalRDMEnergy
+
+                                    elseif(.not.tNormalise) then
+                                        write(baab_RDM_unit) i,j,a,b, &
+                                            baab_RDM_full(Ind1_aa,Ind2_aa) 
+                                    endif !tNormalise
+                                endif !baab_RDM_full abba_RDM_full
+
+                            else ! not tOpenShell
+
+                                if( (abba_RDM_full(Ind1_aa,Ind2_aa).ne.0.0_dp).or.&
+                                    (abba_RDM_full(Ind2_aa,Ind1_aa).ne.0.0_dp) ) then
+                                    !if(tNormalise.and.((Ind1_aa.le.Ind2_aa).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                                    if(tNormalise.and.(Ind1_aa.le.Ind2_aa)) then
+                                        IF((abs((abba_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
                                                 - (abba_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
                                         Max_Error_Hermiticity = abs((abba_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
                                                 - (abba_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM))
 
-                                    Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
+                                        Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
                                                             abs((abba_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
                                                                     - (abba_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM))
 
-                                    Sum_Herm_Percent = Sum_Herm_Percent +   &
+                                        Sum_Herm_Percent = Sum_Herm_Percent +   &
                                                         (abs((abba_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
                                                         - (abba_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM)) / &
                                                         (abs((abba_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
                                                         + (abba_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM)) / 2.0_dp) )
-                                    No_Herm_Elements = No_Herm_Elements + 1                                                        
+                                        No_Herm_Elements = No_Herm_Elements + 1                                                        
 
-                                    if(tmake_herm) then                                                            
-                                        Temp = (abba_RDM_full(Ind1_aa,Ind2_aa) + abba_RDM_full(Ind2_aa,Ind1_aa)) / 2.0_dp
-                                        abba_RDM_full(Ind1_aa,Ind2_aa) = Temp
-                                        abba_RDM_full(Ind2_aa,Ind1_aa) = Temp
-                                    endif
+                                        if(tmake_herm) then                                                            
+                                            Temp = (abba_RDM_full(Ind1_aa,Ind2_aa) + abba_RDM_full(Ind2_aa,Ind1_aa)) / 2.0_dp
+                                            abba_RDM_full(Ind1_aa,Ind2_aa) = Temp
+                                            abba_RDM_full(Ind2_aa,Ind1_aa) = Temp
+                                        endif
 
-                                    if(tFinalRDMEnergy) then
-                                        write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                            ( abba_RDM_full(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
-                                    else
-                                        write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
-                                            ( ((abba_RDM_full(Ind1_aa,Ind2_aa) + abba_RDM_full(Ind2_aa,Ind1_aa))/2.0_dp) &
+                                        if(tFinalRDMEnergy) then
+                                            write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                                ( abba_RDM_full(Ind1_aa,Ind2_aa) * Norm_2RDM ) / Divide_Factor
+                                        else
+                                            write(abba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                                ( ((abba_RDM_full(Ind1_aa,Ind2_aa) + abba_RDM_full(Ind2_aa,Ind1_aa))/2.0_dp) &
                                                                     * Norm_2RDM ) / Divide_Factor
+                                        endif
+                                    elseif(.not.tNormalise) then
+                                        write(abba_RDM_unit) i,j,a,b, &
+                                            abba_RDM_full(Ind1_aa,Ind2_aa) 
                                     endif
-                                elseif(.not.tNormalise) then
-                                    write(abba_RDM_unit) i,j,a,b, &
-                                        abba_RDM_full(Ind1_aa,Ind2_aa) 
                                 endif
-                            endif
+                            endif !not tOpenShell
 
-                        endif
+                        endif  !(i.ne.j).and.(a.ne.b) 
 
                         if( (abab_RDM_full(Ind1_ab,Ind2_ab).ne.0.0_dp).or.&
                             (abab_RDM_full(Ind2_ab,Ind1_ab).ne.0.0_dp) ) then
@@ -4271,15 +4512,109 @@ MODULE nElRDMMod
                             endif
                         endif
 
-                    enddo
-                enddo
+                        if(tOpenShell .and. ( (a .ne. b) .or. (i .ne. j) ))then
 
-            enddo
+                            if( (baba_RDM_full(Ind1_ab,Ind2_ab).ne.0.0_dp).or.&
+                                (baba_RDM_full(Ind2_ab,Ind1_ab).ne.0.0_dp) ) then
 
-        enddo
+                                IF((abs((baba_RDM_full(Ind1_ab,Ind2_ab)*Norm_2RDM) &
+                                            - (baba_RDM_full(Ind2_ab,Ind1_ab)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                                    Max_Error_Hermiticity = abs((baba_RDM_full(Ind1_ab,Ind2_ab)*Norm_2RDM) &
+                                            - (baba_RDM_full(Ind2_ab,Ind1_ab)*Norm_2RDM))
+
+                                Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
+                                                        abs((baba_RDM_full(Ind1_ab,Ind2_ab)*Norm_2RDM) &
+                                                            - (baba_RDM_full(Ind2_ab,Ind1_ab)*Norm_2RDM))
+
+                                Sum_Herm_Percent = Sum_Herm_Percent +   &
+                                                    (abs((baba_RDM_full(Ind1_ab,Ind2_ab)*Norm_2RDM) &
+                                                        - (baba_RDM_full(Ind2_ab,Ind1_ab)*Norm_2RDM)) / &
+                                                    (abs((baba_RDM_full(Ind1_ab,Ind2_ab)*Norm_2RDM) &
+                                                        + (baba_RDM_full(Ind2_ab,Ind1_ab)*Norm_2RDM)) / 2.0_dp) )
+                                No_Herm_Elements = No_Herm_Elements + 1                                                        
+
+                                if(tmake_herm) then                                                            
+                                    Temp = (baba_RDM_full(Ind1_ab,Ind2_ab) + baba_RDM_full(Ind2_ab,Ind1_ab)) / 2.0_dp
+                                    baba_RDM_full(Ind1_ab,Ind2_ab) = Temp
+                                    baba_RDM_full(Ind2_ab,Ind1_ab) = Temp
+                                endif
+
+                                !if(tNormalise.and.((Ind1_ab.le.Ind2_ab).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                                if(tNormalise.and.(Ind1_ab.le.Ind2_ab)) then
+                                    if(tFinalRDMEnergy) then
+                                        write(baba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                            ( baba_RDM_full(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor
+                                    else
+                                        write(baba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                            ( ((baba_RDM_full(Ind1_ab,Ind2_ab) + baba_RDM_full(Ind2_ab,Ind1_ab))/2.0_dp) &
+                                                                    * Norm_2RDM ) / Divide_Factor
+                                    endif
+                                elseif(.not.tNormalise) then
+                                    write(baba_RDM_unit) i,j,a,b, &
+                                        baba_RDM_full(Ind1_ab,Ind2_ab) 
+                                endif
+                            endif
+
+                         elseif (tOpenShell) then !a=b & i=j -> baba term saved in abab
+
+                            if( (abab_RDM_full(Ind1_ab,Ind2_ab).ne.0.0_dp).or.&
+                                (abab_RDM_full(Ind2_ab,Ind1_ab).ne.0.0_dp) ) then
+
+                                IF((abs((abab_RDM_full(Ind1_ab,Ind2_ab)*Norm_2RDM) &
+                                            - (abab_RDM_full(Ind2_ab,Ind1_ab)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                                    Max_Error_Hermiticity = abs((abab_RDM_full(Ind1_ab,Ind2_ab)*Norm_2RDM) &
+                                            - (abab_RDM_full(Ind2_ab,Ind1_ab)*Norm_2RDM))
+
+                                Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
+                                                        abs((abab_RDM_full(Ind1_ab,Ind2_ab)*Norm_2RDM) &
+                                                            - (abab_RDM_full(Ind2_ab,Ind1_ab)*Norm_2RDM))
+
+                                Sum_Herm_Percent = Sum_Herm_Percent +   &
+                                                    (abs((abab_RDM_full(Ind1_ab,Ind2_ab)*Norm_2RDM) &
+                                                        - (abab_RDM_full(Ind2_ab,Ind1_ab)*Norm_2RDM)) / &
+                                                    (abs((abab_RDM_full(Ind1_ab,Ind2_ab)*Norm_2RDM) &
+                                                        + (abab_RDM_full(Ind2_ab,Ind1_ab)*Norm_2RDM)) / 2.0_dp) )
+                                No_Herm_Elements = No_Herm_Elements + 1                                                        
+
+                                if(tmake_herm) then                                                             
+                                    Temp = (abab_RDM_full(Ind1_ab,Ind2_ab) + abab_RDM_full(Ind2_ab,Ind1_ab)) / 2.0_dp
+                                    abab_RDM_full(Ind1_ab,Ind2_ab) = Temp
+                                    abab_RDM_full(Ind2_ab,Ind1_ab) = Temp
+                                endif
+
+                                !if(tNormalise.and.((Ind1_ab.le.Ind2_ab).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+                                if(tNormalise.and.(Ind1_ab.le.Ind2_ab)) then
+                                    if(tFinalRDMEnergy) then
+                                        write(baba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                            ( abab_RDM_full(Ind1_ab,Ind2_ab) * Norm_2RDM ) / Divide_Factor
+                                    else
+                                        write(baba_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
+                                            ( ((abab_RDM_full(Ind1_ab,Ind2_ab) + abab_RDM_full(Ind2_ab,Ind1_ab))/2.0_dp) &
+                                                                    * Norm_2RDM ) / Divide_Factor
+                                    endif
+                                elseif(.not.tNormalise) then
+                                    write(baba_RDM_unit) i,j,a,b, &
+                                        abab_RDM_full(Ind1_ab,Ind2_ab) 
+                                endif
+                            endif
+
+                         endif !tOpenShell
+
+
+                    enddo  
+                enddo  
+
+            enddo  
+        enddo 
+
         close(aaaa_RDM_unit)
         close(abab_RDM_unit)
         close(abba_RDM_unit)
+        if(tOpenShell)then
+            close(bbbb_RDM_unit)
+            close(baba_RDM_unit)
+            close(baab_RDM_unit)
+        endif
 
         if (tWriteSpinFreeRDM) call Write_spinfree_RDM(Norm_2RDM)
 
@@ -4297,19 +4632,12 @@ MODULE nElRDMMod
 
 
     subroutine Write_spinfree_RDM (Norm_2RDM)
-
         ! Writes out the spinfree 2RDM for MPQC
 
         real(dp) , intent(in) :: Norm_2RDM
         integer :: i, j, a, b
         integer :: read_stat
         integer :: spinfree_RDM_unit
-        integer :: spat_brr(SpatOrbs)
-
-        ! Orders spatial MO’s by energy
-        do i = 1, SpatOrbs
-            spat_brr(i) = ( Brr(i*2) + 1) /2
-        end do
 
         write(6,*) "Writing out the spinfree RDM"
         spinfree_RDM_unit = get_free_unit()
@@ -4319,12 +4647,11 @@ MODULE nElRDMMod
             do b = 1, SpatOrbs
                 do a = 1, SpatOrbs
                     do i = 1, SpatOrbs
-                        if (abs(Find_Spatial_2RDM_Chem(spat_brr(i), spat_brr(j), &
-                             spat_brr(a), spat_brr(b),  Norm_2RDM) ) > 1.0e-12) then
+                        if(abs(Find_Spatial_2RDM_Chem(i,j,a,b,Norm_2RDM)) > 1.0e-12) then
 
                             write(spinfree_RDM_unit,"(4I15,F30.20)") i, a, j, b, &
-                                   Find_Spatial_2RDM_Chem(spat_brr(i), spat_brr(j), &
-                                   spat_brr(a), spat_brr(b), Norm_2RDM)
+                                   Find_Spatial_2RDM_Chem(i,j,a,b,Norm_2RDM)
+
                         end if
                     end do
                 end do
@@ -4335,7 +4662,6 @@ MODULE nElRDMMod
         close(spinfree_RDM_unit)
 
     end subroutine Write_spinfree_RDM
-
 
 SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
 ! This routine takes the 1 electron and 2 electron reduced density matrices 
@@ -4352,7 +4678,9 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
         real(dp) :: Norm_2RDM_Inst
         INTEGER :: i,j,a,b,Ind1_aa,Ind1_ab,Ind2_aa,Ind2_ab,ierr
         INTEGER :: iSpin, jSpin, error
-        REAL(dp) :: RDMEnergy_Inst, RDMEnergy, Coul, Exch
+        REAL(dp) :: RDMEnergy_Inst, RDMEnergy, Coul, Exch, Parity_Factor
+        REAL(dp) :: Coul_aaaa, Coul_bbbb, Coul_abba, Coul_baab, Coul_abab, Coul_baba
+        REAL(dp) :: Exch_aaaa, Exch_bbbb, Exch_abba, Exch_baab, Exch_abab, Exch_baba
         REAL(dp) :: Trace_2RDM_New, RDMEnergy1, RDMEnergy2, spin_est
 
         CALL set_timer(RDMEnergy_Time,30)
@@ -4478,6 +4806,13 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
             aaaa_RDM(:,:) = 0.0_dp
             abab_RDM(:,:) = 0.0_dp
             abba_RDM(:,:) = 0.0_dp
+
+            if(tOpenShell)then
+                bbbb_RDM(:,:) = 0.0_dp
+                baba_RDM(:,:) = 0.0_dp
+                baab_RDM(:,:) = 0.0_dp
+            endif
+
             AccumRDMNorm_Inst = 0.0_dp
             Trace_2RDM_Inst = 0.0_dp
         endif
@@ -4508,12 +4843,20 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
                 spin_est = spin_est + 2*aaaa_RDM(Ind1_aa, Ind1_aa) &
                                     - 2*abab_RDM(Ind1_ab, Ind1_ab) &
                                     + 4*abba_RDM(Ind1_aa, Ind1_aa)
+
+                if (tOpenShell) then
+                    spin_est = spin_est + 2*bbbb_RDM(Ind1_aa, Ind1_aa) &
+                                        - 2*baba_RDM(Ind1_ab, Ind1_ab) &
+                                        + 4*baab_RDM(Ind1_aa, Ind1_aa)
+                endif
+
             end do
 
             ! i = j term.
             Ind1_ab = ( ( (i-1) * i ) / 2 ) + i
 
             spin_est = spin_est - 6*abab_RDM(Ind1_ab, Ind1_ab)
+            if(tOpenShell) spin_est = spin_est - 6*baba_RDM(Ind1_ab, Ind1_ab)
 
         end do 
 
@@ -6601,24 +6944,40 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
         Ind2_aa = ( ( (s-2) * (s-1) ) / 2 ) + q
         Ind2_ab = ( ( (s-1) * s ) / 2 ) + q
         pqrs=pqrs+Mult_Factor*abab_RDM_full(Ind1_ab,Ind2_ab)*Norm_2RDM
-        if ((p.ne.r) .and. (q.ne.s)) pqrs=pqrs+Mult_Factor*aaaa_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM
+        if (tOpenShell) pqrs=pqrs+Mult_Factor*baba_RDM_full(Ind1_ab,Ind2_ab)*Norm_2RDM
+
+        if ((p.ne.r) .and. (q.ne.s)) then 
+            pqrs=pqrs+Mult_Factor*aaaa_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM
+            if (tOpenShell) pqrs=pqrs+Mult_Factor*bbbb_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM
+        endif
+
     elseif ((p.gt.r) .and. (s.gt.q)) then !Need to reorder D_pr,qs to -D_rp,qs
         Ind1_aa = ( ( (p-2) * (p-1) ) / 2 ) + r
         Ind2_aa = ( ( (s-2) * (s-1) ) / 2 ) + q
         pqrs=pqrs-Mult_Factor*abba_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM
+        if (tOpenShell) pqrs=pqrs-Mult_Factor*baab_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM
         pqrs=pqrs-Mult_Factor*aaaa_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM
+        if (tOpenShell) pqrs=pqrs-Mult_Factor*bbbb_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM
     elseif ((r.gt.p) .and. (q.gt.s)) then !Need to reorder D_pr,qs to -D_pr,sq
         Ind1_aa = ( ( (r-2) * (r-1) ) / 2 ) + p
         Ind2_aa = ( ( (q-2) * (q-1) ) / 2 ) + s
         pqrs=pqrs-Mult_Factor*abba_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM
+        if (tOpenShell) pqrs=pqrs-Mult_Factor*baab_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM
         pqrs=pqrs-Mult_Factor*aaaa_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM
+        if (tOpenShell) pqrs=pqrs-Mult_Factor*bbbb_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM
     else !Must need to reorder D_pr,qs to D_rp,sq
         Ind1_aa = ( ( (p-2) * (p-1) ) / 2 ) + r
         Ind1_ab = ( ( (p-1) * p ) / 2 ) + r
         Ind2_aa = ( ( (q-2) * (q-1) ) / 2 ) + s
         Ind2_ab = ( ( (q-1) * q ) / 2 ) + s
         pqrs=pqrs+Mult_Factor*abab_RDM_full(Ind1_ab,Ind2_ab)*Norm_2RDM
-        if ((p.ne.r) .and. (q.ne.s)) pqrs=pqrs+Mult_Factor*aaaa_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM
+        if (tOpenShell) pqrs=pqrs+Mult_Factor*baba_RDM_full(Ind1_ab,Ind2_ab)*Norm_2RDM
+
+        if ((p.ne.r) .and. (q.ne.s)) then
+            pqrs=pqrs+Mult_Factor*aaaa_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM
+            if (tOpenShell) pqrs=pqrs+Mult_Factor*bbbb_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM
+        endif
+
     endif
         
     end function
@@ -6988,7 +7347,8 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
     !wf,14,1,0;
     !restrict,2,2,3.1,4.1;       !This defines a set of orbitals which must be doubly occupied in all configurations to cut down the
     !restrict,2,2,1.2,1.3;       !size of the space, but ensure that the integrals are still calculated over the whole active space
-    !restrict,0,0,10.1,11.1,12.1,13.1,14.1;  !These are orbitals which must remain unoccupied to further reduce the size of the space
+    !restrict,0,0,10.1,11.1,12.1,13.1,14.1;  !These are orbitals which must remain unoccupied to further 
+                                             !reduce the size of the space
     !restrict,0,0,3.2,4.2,5.2,6.2;
     !restrict,0,0,3.3,4.3,5.3,6.3;
     !iprint,density,civector}
