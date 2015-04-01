@@ -698,7 +698,7 @@ contains
                     TempHii = get_helement (ProjEDet(:,run), ProjEDet(:,run), 0)
                 endif
                 proje_ref_energy_offsets(run) = real(TempHii, dp) - Hii
-                DiagSft(run) = DiagSft(run) + real(TempHii, dp) - Hii
+                !DiagSft(run) = DiagSft(run) + real(TempHii, dp) - Hii
             end do
         end if
 
