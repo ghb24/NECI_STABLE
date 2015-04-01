@@ -50,7 +50,7 @@ tolerance = (3e-8, None, 'hamil_sum'), (2e-7, None, 'overlap_sum')
 
 [mneci/HeHe_5_states_exact_hamil/]
 program = mneci
-tolerance = (4.5e-8, None, 'hamil_sum'), (2e-7, None, 'overlap_sum')
+tolerance = (4.5e-8, None, 'hamil_sum'), (2.1e-7, None, 'overlap_sum')
 
 [categories]
 
