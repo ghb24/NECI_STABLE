@@ -2961,25 +2961,49 @@ MODULE nElRDMMod
                 ! and jSpat >= iSpat (can only be equal if different spin).
                 do j=i+1,NEl
                     jSpat = gtID(nI(j))
+                     if (tOpenShell) jSpat = (nI(j)-1)/2 + 1 
                
-
-                    ! either alpha alpha or beta beta -> aaaa array.
-                    if( ((mod(nI(i),2).ne.0).and.(mod(nI(j),2).ne.0)) .or. &
+                    ! either alpha alpha or beta beta -> aaaa/bbbb arrays.
+                    if( ((mod(nI(i),2).eq.1).and.(mod(nI(j),2).eq.1)) .or. &
                         ((mod(nI(i),2).eq.0).and.(mod(nI(j),2).eq.0)) ) then
 
                         ! Ind doesn't include diagonal terms (when iSpat = jSpat).
                         Ind=( ( (jSpat-2) * (jSpat-1) ) / 2 ) + iSpat
-                        aaaa_RDM( Ind , Ind ) = aaaa_RDM( Ind , Ind ) &
+                        if(( mod(nI(i),2).eq.0) .or. (.not. tOpenShell))then
+                            !nI(i) is even --> aaaa 
+                            aaaa_RDM( Ind , Ind ) = aaaa_RDM( Ind , Ind ) &
                                           + ( realSignDi(1) * realSignDi(lenof_sign) * RDMIters)*ScaleContribFac
 
-                    ! either alpha beta or beta alpha -> abab array.                                              
-                    else
+                        elseif( mod(nI(i),2).eq.1)then
+                            !nI(i) is odd --> bbbb
+                            bbbb_RDM( Ind , Ind ) = bbbb_RDM( Ind , Ind ) &
+                                          + ( realSignDi(1) * realSignDi(lenof_sign) * RDMIters)*ScaleContribFac
 
+                        endif
+                    ! either alpha beta or beta alpha -> abab/baba arrays.                                              
+                    else
 
                         ! Ind does include diagonal terms (when iSpat = jSpat)
                         Ind=( ( (jSpat-1) * jSpat ) / 2 ) + iSpat
-                        abab_RDM( Ind , Ind ) = abab_RDM( Ind , Ind ) &
+
+                        if(jSpat.eq.iSpat)then
+                                !  aSpat = bSpat = iSpat = jSpat terms are saved in abab only  
+                                abab_RDM( Ind , Ind ) = abab_RDM( Ind , Ind ) &
+                                                + ( realSignDi(1) * realSignDi(lenof_sign) * RDMIters)*ScaleContribFac
+
+                        else 
+
+                            if((mod(nI(i),2).eq.0) .or. (.not. tOpenShell))then
+                                !nI(i) is even ---> abab
+                                abab_RDM( Ind , Ind ) = abab_RDM( Ind , Ind ) &
                                           + ( realSignDi(1) * realSignDi(lenof_sign) * RDMIters)*ScaleContribFac
+                            elseif(mod(nI(i),2).eq.1)then
+                                !nI(i) is odd ---> baba 
+                                baba_RDM( Ind , Ind ) = baba_RDM( Ind , Ind ) &
+                                               + ( realSignDi(1) * realSignDi(lenof_sign) * RDMIters)*ScaleContribFac
+                            endif
+
+                       endif 
 
                     endif
 
@@ -3041,34 +3065,128 @@ MODULE nElRDMMod
             
             iSpat = gtID(Ex(1,1))
             aSpat = gtID(Ex(2,1))   ! These two must have the same spin.
+            if(tOpenShell)then
+                iSpat = (Ex(1,1)-1)/2 + 1
+                aSpat = (Ex(2,1)-1)/2 + 1
+            endif
 
             do k = 1, NEl                            
 
                 kSpat = gtID(nI(k))
+                if(tOpenShell) kSpat = (nI(k)-1)/2 + 1
 
                 IF(nI(k).ne.Ex(1,1)) THEN
 
                     if((iSpat.eq.kSpat).or.(aSpat.eq.kSpat)) then
-                        ! the only array with i = j and a = b is abab.
+                        ! It is possible for i = k or a = k if they 
+                        ! have different spins.
+                        ! the only arrays with i = j or a = b are abab/baba.
+                        ! -> abba/baab terms must be reordered to become abab/baba
 
                         Indik=( ( (max(iSpat,kSpat)-1) * max(iSpat,kSpat) ) / 2 ) + min(iSpat,kSpat)
                         Indak=( ( (max(aSpat,kSpat)-1) * max(aSpat,kSpat) ) / 2 ) + min(aSpat,kSpat)
 
-                        ! This could be either abab or abba, but in both cases, add into the abab.
-                        ! Kind of pretent the abba is of the form abab.
-                        abab_RDM( Indik , Indak ) = abab_RDM( Indik , Indak ) + ( ParityFactor * &
+                        if ((iSpat .eq. aSpat) .or. (.not. tOpenShell) )then
+                            ! The iSpat = jSpat = aSpat = bSpat term is saved in the abab array only (not in baba)
+                            abab_RDM( Indik , Indak ) = abab_RDM( Indik , Indak ) + ( ParityFactor * &
                                                                          realSignDi * realSignDj )
-
-                        if(tFill_CiCj_Symm) then
-                            abab_RDM( Indak , Indik ) = abab_RDM( Indak , Indik ) + ( ParityFactor * &
+                            if(tFill_CiCj_Symm) then
+                                abab_RDM( Indak , Indik ) = abab_RDM( Indak , Indik ) + ( ParityFactor * &
                                                                          realSignDi * realSignDj )
-                        endif
+                            endif
 
+                        else if (iSpat.eq.kSpat) then
+                            ! We get the term k i -> k a, which is abab or baba.
+                            ! If iSpat=kSpat and aSpat>kSpat, the indeces are already ordered correctly. 
+                            ! If they are not ordered correctly (aSpat<kSpat), then we need to swap a and k
+                            ! This results into an abba/baab term, but for equal spatial orbitals, there is no 
+                            ! abba/baab array, and so we save the equivalent abab/baba term.
+                            ! Therefore i and k have to be swapped as well, giving an abab/baba term.
+                            ! Because there are none or two swaps, the parity does not change!
 
-                    else
+                            if (aSpat .gt. kSpat) then
+
+                                if( (mod(Ex(2,1),2).eq.1) .or. (.not. tOpenShell) )then ! ki, ka -> last index beta
+                                    abab_RDM( Indik , Indak ) = abab_RDM( Indik , Indak ) + ( ParityFactor * &
+                                                                         realSignDi * realSignDj )
+                                    if(tFill_CiCj_Symm) then
+                                        abab_RDM( Indak , Indik ) = abab_RDM( Indak , Indik ) + ( ParityFactor * &
+                                                                            realSignDi * realSignDj )
+                                    endif
+
+                                elseif(mod(Ex(2,1),2).eq.0)then ! ki, ka -> last index alpha
+                                    baba_RDM( Indik , Indak ) = baba_RDM( Indik , Indak ) + ( ParityFactor * &
+                                                                         realSignDi * realSignDj )
+                                    if(tFill_CiCj_Symm) then
+                                        baba_RDM( Indak , Indik ) = baba_RDM( Indak , Indik ) + ( ParityFactor * &
+                                                                            realSignDi * realSignDj )
+                                    endif
+                                endif
+! 
+                            elseif  (aSpat .lt. kSpat) then
+! 
+                                if( (mod(Ex(2,1),2).eq.0) .or. (.not. tOpenShell) )then ! ik, ak -> third index alpha
+                                    abab_RDM( Indik , Indak ) = abab_RDM( Indik , Indak ) + ( ParityFactor * &
+                                                                         realSignDi * realSignDj )
+                                    if(tFill_CiCj_Symm) then
+                                        abab_RDM( Indak , Indik ) = abab_RDM( Indak , Indik ) + ( ParityFactor * &
+                                                                            realSignDi * realSignDj )
+                                    endif
+                                elseif(mod(Ex(2,1),2).eq.1)then ! ik, ak -> third index beta
+                                    baba_RDM( Indik , Indak ) = baba_RDM( Indik , Indak ) + ( ParityFactor * &
+                                                                         realSignDi * realSignDj )
+                                    if(tFill_CiCj_Symm) then
+                                        baba_RDM( Indak , Indik ) = baba_RDM( Indak , Indik ) + ( ParityFactor * &
+                                                                            realSignDi * realSignDj )
+                                    endif
+                                endif
+
+                            endif
+
+                        else if (aSpat.eq.kSpat) then
+
+                            if (iSpat .gt. kSpat) then 
+                                if( (mod(Ex(1,1),2) .eq. 1) .or. (.not. tOpenShell) )then ! ki, ka -> second index beta
+                                    abab_RDM( Indik , Indak ) = abab_RDM( Indik , Indak ) + ( ParityFactor * &
+                                                                         realSignDi * realSignDj )
+                                    if(tFill_CiCj_Symm) then
+                                        abab_RDM( Indak , Indik ) = abab_RDM( Indak , Indik ) + ( ParityFactor * &
+                                                                            realSignDi * realSignDj )
+                                    endif
+                                elseif(mod(Ex(1,1),2).eq.0)then ! ki, ka -> second index alpha
+                                    baba_RDM( Indik , Indak ) = baba_RDM( Indik , Indak ) + ( ParityFactor * &
+                                                                         realSignDi * realSignDj )
+                                    if(tFill_CiCj_Symm) then
+                                        baba_RDM( Indak , Indik ) = baba_RDM( Indak , Indik ) + ( ParityFactor * &
+                                                                            realSignDi * realSignDj )
+                                    endif
+                                endif
+
+                            elseif  (iSpat .lt. kSpat) then
+
+                                if( (mod(Ex(1,1),2).eq.0) .or. (.not. tOpenShell) )then ! ik, ak -> first index alpha
+                                    abab_RDM( Indik , Indak ) = abab_RDM( Indik , Indak ) + ( ParityFactor * &
+                                                                         realSignDi * realSignDj )
+                                    if(tFill_CiCj_Symm) then
+                                        abab_RDM( Indak , Indik ) = abab_RDM( Indak , Indik ) + ( ParityFactor * &
+                                                                            realSignDi * realSignDj )
+                                    endif
+                                elseif(mod(Ex(1,1),2).eq.1)then ! ik, ak -> first index beta
+                                    baba_RDM( Indik , Indak ) = baba_RDM( Indik , Indak ) + ( ParityFactor * &
+                                                                         realSignDi * realSignDj )
+                                    if(tFill_CiCj_Symm) then
+                                        baba_RDM( Indak , Indik ) = baba_RDM( Indak , Indik ) + ( ParityFactor * &
+                                                                            realSignDi * realSignDj )
+                                    endif
+                                endif
+! 
+                            endif
+                        endif  ! a=k
+! 
+                    else  ! not (iSpat.eq.kSpat).or.(aSpat.eq.kSpat))
                         ! Checking spins of i and k.
                         ! If same, i.e alpha alpha or beta beta -> aaaa array.
-                        if( ((mod(Ex(1,1),2).ne.0).and.(mod(nI(k),2).ne.0)) .or. &
+                        if( ((mod(Ex(1,1),2).eq.1).and.(mod(nI(k),2).eq.1)) .or. &
                             ((mod(Ex(1,1),2).eq.0).and.(mod(nI(k),2).eq.0)) ) then
 
                             ! 2-RDM(i,j,a,b) is defined to have i < j and a < b, as that is how the unique 
@@ -3088,57 +3206,149 @@ MODULE nElRDMMod
                             Indik=( ( (max(iSpat,kSpat)-2) * (max(iSpat,kSpat)-1) ) / 2 ) + min(iSpat,kSpat)
                             Indak=( ( (max(aSpat,kSpat)-2) * (max(aSpat,kSpat)-1) ) / 2 ) + min(aSpat,kSpat)
 
-                            aaaa_RDM( Indik , Indak ) = aaaa_RDM( Indik , Indak ) + ( ParityFactor2 * &
-                                                                                 realSignDi * realSignDj )
+                            !nI(k) even or odd. odd=bbbb, even=aaaa.                          
+                            If((mod(nI(k),2).eq.0) .or. (.not. tOpenShell)) then
+                                aaaa_RDM( Indik , Indak ) = aaaa_RDM( Indik , Indak ) + ( ParityFactor2 * &
+                                                                                    realSignDi * realSignDj )
+                                if(tFill_CiCj_Symm) then
+                                    aaaa_RDM( Indak , Indik ) = aaaa_RDM( Indak , Indik ) + ( ParityFactor2 * &
+                                                                                    realSignDi * realSignDj )
+                                endif
 
-                            if(tFill_CiCj_Symm) then
-                                aaaa_RDM( Indak , Indik ) = aaaa_RDM( Indak , Indik ) + ( ParityFactor2 * &
+                            elseif(mod(nI(k),2).eq.1)then
+                                bbbb_RDM( Indik , Indak ) = bbbb_RDM( Indik , Indak ) + ( ParityFactor2 * &
                                                                                  realSignDi * realSignDj )
+                                if(tFill_CiCj_Symm) then
+                                        bbbb_RDM( Indak , Indik ) = bbbb_RDM( Indak , Indik ) + ( ParityFactor2 * &
+                                                                                 realSignDi * realSignDj )
+                                endif
                             endif
 
-                        ! either abab or abba array. 
+                        ! either abab/baba or abba/baab array. 
                         ! we distinguish between these because i<j and a<b.
-                        else
+                        else   ! abab/baba or abba/baab
 
-                            ! ordered with k's aligned, i k j k -> abab array.
-                            if( ((Ex(1,1).lt.nI(k)).and.(Ex(2,1).lt.nI(k))).or. &
-                                ((Ex(1,1).gt.nI(k)).and.(Ex(2,1).gt.nI(k))) ) then
+                            if( (Ex(1,1).lt.nI(k)).and.(Ex(2,1).lt.nI(k)) )then
+                            !i k a k -> abab/baba 
 
                                 ! It is possible for i = k or j = k if they are spat orbitals 
                                 ! and have different spins.
                                 Indik=( ( (max(iSpat,kSpat)-1) * max(iSpat,kSpat) ) / 2 ) + min(iSpat,kSpat)
                                 Indak=( ( (max(aSpat,kSpat)-1) * max(aSpat,kSpat) ) / 2 ) + min(aSpat,kSpat)
 
-                                abab_RDM( Indik , Indak ) = abab_RDM( Indik , Indak ) + ( ParityFactor * &
+                                !Ex(1,1) (i spin orb): first index even or odd 
+                                if((mod(Ex(1,1),2).eq.0) .or. (.not. tOpenShell)) then
+                                    abab_RDM( Indik , Indak ) = abab_RDM( Indik , Indak ) + ( ParityFactor * &
                                                                                  realSignDi * realSignDj )
-
-                                if(tFill_CiCj_Symm) then
-                                    abab_RDM( Indak , Indik ) = abab_RDM( Indak , Indik ) + ( ParityFactor * &
+                                    if(tFill_CiCj_Symm) then
+                                        abab_RDM( Indak , Indik ) = abab_RDM( Indak , Indik ) + ( ParityFactor * &
+                                                                                    realSignDi * realSignDj )
+                                    endif
+                                elseif(mod(Ex(1,1),2).eq.1)then
+                                    baba_RDM( Indik , Indak ) = baba_RDM( Indik , Indak ) + ( ParityFactor * &
                                                                                  realSignDi * realSignDj )
+                                    if(tFill_CiCj_Symm) then
+                                            baba_RDM( Indak , Indik ) = baba_RDM( Indak , Indik ) + ( ParityFactor * &
+                                                                                    realSignDi * realSignDj ) 
+                                    endif
                                 endif
 
-                            ! ordered with k's not aligned, i k k j -> abba array
-                            else
+                            elseif( (Ex(1,1).gt.nI(k)).and.(Ex(2,1).gt.nI(k)) ) then
+                            ! k i k a -> abab/baba 
+
+                                Indik=( ( (max(iSpat,kSpat)-1) * max(iSpat,kSpat) ) / 2 ) + min(iSpat,kSpat)
+                                Indak=( ( (max(aSpat,kSpat)-1) * max(aSpat,kSpat) ) / 2 ) + min(aSpat,kSpat)
+
+                                !Ex(1,1) (i spin orb): second index even or odd 
+                                if((mod(Ex(1,1),2).eq.1) .or. (.not. tOpenShell)) then
+                                    abab_RDM( Indik , Indak ) = abab_RDM( Indik , Indak ) + ( ParityFactor * &
+                                                                                 realSignDi * realSignDj )
+
+                                    if(tFill_CiCj_Symm) then
+                                        abab_RDM( Indak , Indik ) = abab_RDM( Indak , Indik ) + ( ParityFactor * &
+                                                                                    realSignDi * realSignDj ) 
+                                    endif
+                                elseif(mod(Ex(1,1),2).eq.0)then
+                                    baba_RDM( Indik , Indak ) = baba_RDM( Indik , Indak ) + ( ParityFactor * &
+                                                                                 realSignDi * realSignDj )
+
+                                    if(tFill_CiCj_Symm) then
+                                            baba_RDM( Indak , Indik ) = baba_RDM( Indak , Indik ) + ( ParityFactor * &
+                                                                                    realSignDi * realSignDj )  
+                                    endif
+                                endif
+
+
+                            elseif( (Ex(1,1).gt.nI(k)).and.(Ex(2,1).lt.nI(k)) ) then 
+                            ! k i a k -> abba/baab
 
                                 ! Ind doesn't include diagonal terms (when iSpat = jSpat).
                                 Indik=( ( (max(iSpat,kSpat)-2) * (max(iSpat,kSpat)-1) ) / 2 ) + min(iSpat,kSpat)
                                 Indak=( ( (max(aSpat,kSpat)-2) * (max(aSpat,kSpat)-1) ) / 2 ) + min(aSpat,kSpat)
 
-                                abba_RDM( Indik , Indak ) = abba_RDM( Indik , Indak ) - ( ParityFactor * &
+                                !i spin orb: second odd or even. 
+                                if((mod(Ex(1,1),2).eq.1) .or. (.not. tOpenShell))then
+                                    abba_RDM( Indik , Indak ) = abba_RDM( Indik , Indak ) - ( ParityFactor * &
                                                                                  realSignDi * realSignDj )
 
-                                if(tFill_CiCj_Symm) then
-                                    abba_RDM( Indak , Indik ) = abba_RDM( Indak , Indik ) - ( ParityFactor * &
+                                    if(tFill_CiCj_Symm ) then
+                                        if(.not. tOpenShell) then
+                                            abba_RDM( Indak , Indik ) = abba_RDM( Indak , Indik ) - ( ParityFactor * &
+                                                                                    realSignDi * realSignDj )
+                                        else
+                                            baab_RDM( Indak , Indik ) = baab_RDM( Indak , Indik ) - ( ParityFactor * &
+                                                                                    realSignDi * realSignDj )
+                                        endif
+                                    endif
+
+                                elseif(mod(Ex(1,1),2).eq.0)then
+                                    baab_RDM( Indik , Indak ) = baab_RDM( Indik , Indak ) - ( ParityFactor * &
                                                                                  realSignDi * realSignDj )
+                                    if(tFill_CiCj_Symm) then
+                                        abba_RDM( Indak , Indik ) = abba_RDM( Indak , Indik ) - ( ParityFactor * &
+                                                                                     realSignDi * realSignDj )
+                                    endif
                                 endif
 
-                            endif
-                        endif
-                    endif
-                ENDIF
-            enddo
+                            elseif( (Ex(1,1).lt.nI(k)).and.(Ex(2,1).gt.nI(k)) ) then 
+                            ! i k k a -> abba/baab
 
-        endif
+                                ! Ind doesn't include diagonal terms (when iSpat = jSpat).
+                                Indik=( ( (max(iSpat,kSpat)-2) * (max(iSpat,kSpat)-1) ) / 2 ) + min(iSpat,kSpat)
+                                Indak=( ( (max(aSpat,kSpat)-2) * (max(aSpat,kSpat)-1) ) / 2 ) + min(aSpat,kSpat)
+
+                                !i spin orb: first index odd or even.
+                                if((mod(Ex(1,1),2).eq.0) .or. (.not. tOpenShell))then
+                                    abba_RDM( Indik , Indak ) = abba_RDM( Indik , Indak ) - ( ParityFactor * &
+                                                                                 realSignDi * realSignDj )
+                                    if(tFill_CiCj_Symm) then
+                                        if (.not. tOpenShell) then
+                                            abba_RDM( Indak , Indik ) = abba_RDM( Indak , Indik ) - ( ParityFactor * &
+                                                                                    realSignDi * realSignDj )
+                                        else
+                                            baab_RDM( Indak , Indik ) = baab_RDM( Indak , Indik ) - ( ParityFactor * &
+                                                                                    realSignDi * realSignDj )
+                                        endif
+                                    endif
+
+                                elseif(mod(Ex(1,1),2).eq.1)then
+                                    baab_RDM( Indik , Indak ) = baab_RDM( Indik , Indak ) - ( ParityFactor * &
+                                                                                 realSignDi * realSignDj )
+                                    if(tFill_CiCj_Symm) then
+                                        abba_RDM( Indak , Indik ) = abba_RDM( Indak , Indik ) - ( ParityFactor * &
+                                                                                 realSignDi * realSignDj )
+                                    endif
+                                endif
+
+                            endif ! order of k i k j
+
+                        endif !abab/baba or abba/baab
+                    endif  ! not (iSpat.eq.kSpat).or.(aSpat.eq.kSpat))
+
+                ENDIF !nI(k).ne.Ex(1,1)
+            enddo !k
+
+        endif  ! not (RDMExcitLevel.eq.1)
 
     end subroutine Fill_Sings_RDM
 
