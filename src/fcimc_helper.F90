@@ -1821,8 +1821,6 @@ contains
         endif
         proje_ref_energy_offsets(run) = real(h_tmp, dp) - Hii
 
-    end subroutine
-
-
+    end subroutine update_run_reference
 
 end module
