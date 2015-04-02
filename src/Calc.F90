@@ -78,7 +78,7 @@ contains
           tSearchTau=.true.
           tSearchTauOption = .true.
           tSearchTauDeath = .false.
-          InputDiagSft=0.0_dp
+
           tTimeExit=.false.
           MaxTimeExit=0.0_dp
           tMaxBloom=.false.
@@ -340,6 +340,12 @@ contains
           logical :: tExitNow
           integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
           integer :: npops_pert, npert_spectral_left, npert_spectral_right
+          real(dp) :: InputDiagSftSingle
+
+          ! Allocate and set this default here, because we don't have inum_runs
+          ! set when the other defaults are set.
+          allocate(InputDiagSft(inum_runs))
+          InputDiagSft=0.0_dp
 
           calc: do
             call read_line(eof)
@@ -905,7 +911,16 @@ contains
             case("DIAGSHIFT")
 !For FCIMC, this is the amount extra the diagonal elements will be shifted. This is proportional to the deathrate of 
 !walkers on the determinant
-                call getf(InputDiagSft)
+                if (nitems == 2) then
+                    call getf(InputDiagSftSingle)
+                    InputDiagSft = InputDiagSftSingle
+                else
+                    if (inum_runs /= nitems-1) call stop_all(t_r, "The number of initial shifts input is not equal to &
+                                                                  &the number of replicas being used.")
+                    do i = 1, inum_runs
+                        call getf(InputDiagSft(i))
+                    end do
+                end if
 
             case("TAUFACTOR")
 !For FCIMC, this is the factor by which 1/(HF connectivity) will be multiplied by to give the timestep for the calculation.
