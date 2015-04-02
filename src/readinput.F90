@@ -209,7 +209,7 @@ MODULE ReadInput_neci
         use constants
         use global_utilities
         use spin_project, only: tSpinProject, spin_proj_nopen_max
-        use FciMCData, only: nWalkerHashes,HashLengthFrac
+        use FciMCData, only: nWalkerHashes, HashLengthFrac, InputDiagSft
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes,nProcessors
         use UMatCache, only: tDeferred_Umat2d
@@ -217,6 +217,7 @@ MODULE ReadInput_neci
         implicit none
 
         integer :: vv, kk, cc, ierr
+        real(dp) :: InputDiagSftSingle
         logical :: check
         character(*), parameter :: t_r='checkinput'
 
@@ -483,6 +484,11 @@ MODULE ReadInput_neci
             lenof_sign = 2
             inum_runs = 2
 
+            ! Correct the size of InputDiagSft:
+            InputDiagSftSingle = InputDiagSft(1)
+            deallocate(InputDiagSft)
+            allocate(InputDiagSft(inum_runs))
+            InputDiagSft = InputDiagSftSingle
         end if
 #endif
 
@@ -504,6 +510,12 @@ MODULE ReadInput_neci
                 tMultiReplicas = .true.
                 lenof_sign = 2
                 inum_runs = 2
+
+                ! Correct the size of InputDiagSft:
+                InputDiagSftSingle = InputDiagSft(1)
+                deallocate(InputDiagSft)
+                allocate(InputDiagSft(inum_runs))
+                InputDiagSft = InputDiagSftSingle
             end if
         end if
 #endif
