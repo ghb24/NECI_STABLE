@@ -363,6 +363,7 @@ contains
 
         use fcimc_helper, only: create_particle_with_hash_table
         use FciMCData, only: HashIndex, nWalkerHashes
+        use orthogonalise, only: orthogonalise_replicas, orthogonalise_replica_pairs
 
         type(kp_fciqmc_data), intent(inout) :: kp
 
@@ -642,6 +643,14 @@ contains
                     TotWalkers = int(TotWalkersNew, int64)
 
                     call halt_timer(annihil_time)
+
+                    if (tOrthogKPReplicas .and. iter > orthog_kp_iter) then
+                        if (tPairedKPReplicas) then
+                            call orthogonalise_replica_pairs(iter_data_fciqmc)
+                        else
+                            call orthogonalise_replicas(iter_data_fciqmc)
+                        end if
+                    end if
 
                     call update_iter_data(iter_data_fciqmc)
 

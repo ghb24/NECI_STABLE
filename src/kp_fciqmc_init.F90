@@ -61,6 +61,8 @@ contains
         scaling_factor = 1.0_dp
 
         tPairedKPReplicas = .true.
+        tOrthogKPReplicas = .false.
+        orthog_kp_iter = 0
 
         read_inp: do
             call read_line(eof)
@@ -283,6 +285,11 @@ contains
                 kp_trial_space_in%tFCI = .false.
             case("UNPAIRED-REPLICAS")
                 tPairedKPReplicas = .false.
+            case("ORTHOGONALISE-REPLICAS")
+                tOrthogKPReplicas = .true.
+                if (item < nitems) then
+                    call readi(orthog_kp_iter)
+                endif
             case default
                 call report("Keyword "//trim(w)//" not recognized in kp-fciqmc block", .true.)
             end select
