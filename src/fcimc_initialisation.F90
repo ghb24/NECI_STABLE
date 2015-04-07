@@ -479,19 +479,19 @@ contains
             ENDIF
             WRITE(iout,'(A,I2,A,I2,A)') " In CAS notation, (spatial orbitals, electrons), this has been chosen as: (", &
                 (OccCASOrbs+VirtCASOrbs)/2,",",OccCASOrbs,")"
-            DO I=NEl-OccCASorbs+1,NEl
+            do I=NEl-OccCASorbs+1,NEl
                 WRITE(iout,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
                 CALL WRITESYM(iout,G1(BRR(I))%SYM,.FALSE.)
                 WRITE(iout,'(I4)',advance='no') G1(BRR(I))%Ml
                 WRITE(iout,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
-            ENDDO
+            end do
             WRITE(iout,'(A)') " ================================================================================================="
-            DO I=NEl+1,NEl+VirtCASOrbs
+            do I=NEl+1,NEl+VirtCASOrbs
                 WRITE(iout,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
                 CALL WRITESYM(iout,G1(BRR(I))%SYM,.FALSE.)
                 WRITE(iout,'(I4)',advance='no') G1(BRR(I))%Ml
                 WRITE(iout,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
-            ENDDO
+            end do
         ELSEIF(tTruncInitiator) THEN
             WRITE(iout,'(A)') "*********** INITIATOR METHOD IN USE ***********"
             WRITE(iout,'(A)') "Starting with only the reference determinant in the fixed initiator space."
@@ -1908,7 +1908,7 @@ contains
                 call stop_all(this_routine, "Invalid det found")
         end do
 
-    end subroutine
+    end subroutine InitFCIMC_trial
 
     subroutine set_initial_run_references()
 
@@ -1951,11 +1951,13 @@ contains
 
         end do
 
-    end subroutine
+    end subroutine set_initial_run_references
 
-    !Routine to initialise the particle distribution according to a CAS diagonalisation. 
-    !This hopefully will help with close-lying excited states of the same sym.
     subroutine InitFCIMC_CAS()
+
+        ! Routine to initialise the particle distribution according to a CAS diagonalisation. 
+        ! This hopefully will help with close-lying excited states of the same sym.
+
         type(BasisFN) :: CASSym
         integer :: i, j, ierr, nEval, NKRY1, NBLOCK, LSCR, LISCR, DetIndex
         integer :: iNode, nBlocks, nBlockStarts(2), DetHash, Slot
@@ -1990,19 +1992,19 @@ contains
         write(iout,*) "Initialising walkers proportional to a CAS diagonalisation..."
         write(iout,'(A,I2,A,I2,A)') " In CAS notation, (spatial orbitals, electrons), this has been chosen as: (" &
             ,(OccCASOrbs+VirtCASOrbs)/2,",",OccCASOrbs,")"
-        DO I=NEl-OccCASorbs+1,NEl
+        do I=NEl-OccCASorbs+1,NEl
             WRITE(iout,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
             CALL WRITESYM(iout,G1(BRR(I))%SYM,.FALSE.)
             WRITE(iout,'(I4)',advance='no') G1(BRR(I))%Ml
             WRITE(iout,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
-        ENDDO
+        end do
         WRITE(iout,'(A)') " ================================================================================================="
-        DO I=NEl+1,NEl+VirtCASOrbs
+        do I=NEl+1,NEl+VirtCASOrbs
             WRITE(iout,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
             CALL WRITESYM(iout,G1(BRR(I))%SYM,.FALSE.)
             WRITE(iout,'(I4)',advance='no') G1(BRR(I))%Ml
             WRITE(iout,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
-        ENDDO
+        end do
 
         CASSpinBasisSize=OccCASorbs+VirtCASorbs
         allocate(CASBrr(1:CASSpinBasisSize))
@@ -2735,12 +2737,12 @@ contains
                 WRITE(iout,*) "Since we are using a real-space hubbard model, only single excitations are connected &
                 &   and will be generated."
                 pDoubles=0.0_dp
-                RETURN
+                return
             ELSE
                 WRITE(iout,*) "Since we are using a momentum-space hubbard model/UEG, only double excitaitons &
      &                          are connected and will be generated."
                 pDoubles=1.0_dp
-                RETURN
+                return
             ENDIF
         elseif(tNoSingExcits) then
             write(iout,*) "Only double excitations will be generated"
@@ -2776,7 +2778,7 @@ contains
             WRITE(iout,*) "Number of singles or doubles found equals zero. pDoubles will be set to 0.95. Is this correct?"
             pDoubles = 0.95_dp
             pSingles = 0.05_dp
-            RETURN
+            return
         elseif ((NSing < 0) .or. (NDoub < 0) .or. (ncsf < 0)) then
             call stop_all("CalcApproxpDoubles", &
                           "Number of singles, doubles or Yamanouchi symbols &
@@ -2816,6 +2818,7 @@ contains
     END SUBROUTINE CalcApproxpDoubles
 
     SUBROUTINE CreateSpinInvBRR()
+
     ! Create an SpinInvBRR containing spin orbitals, 
     ! unlike 'createInvBRR' which only has spatial orbitals.
     ! This is used for the FixCASshift option in establishing whether or not
@@ -2832,38 +2835,27 @@ contains
         INTEGER :: I,t,ierr
         CHARACTER(len=*), PARAMETER :: this_routine='CreateSpinInvBrr'
 
-        IF(ALLOCATED(SpinInvBRR)) RETURN
+        IF(ALLOCATED(SpinInvBRR)) return
             
         ALLOCATE(SpinInvBRR(NBASIS),STAT=ierr)
         CALL LogMemAlloc('SpinInvBRR',NBASIS,4,this_routine,SpinInvBRRTag,ierr)
             
-
-!        IF(iProcIndex.eq.root) THEN
-!            WRITE(iout,*) "================================"
-!            WRITE(iout,*) "BRR is "
-!            WRITE(iout,*) BRR(:)
-!        ENDIF
-        
         SpinInvBRR(:)=0
         
         t=0
-        DO I=1,NBASIS
+        do I=1,NBASIS
             t=t+1
             SpinInvBRR(BRR(I))=t
-        ENDDO
-
-!        IF(iProcIndex.eq.root) THEN
-!            WRITE(iout,*) "================================"
-!            WRITE(iout,*) "SpinInvBRR is "
-!            WRITE(iout,*) SpinInvBRR(:)
-!        ENDIF
+        end do
         
-        RETURN
+        return
         
     END SUBROUTINE CreateSpinInvBRR
 
    subroutine SetupValidSpawned(WalkerListSize)
+
       use CalcData, only: MemoryFacSpawn
+
       implicit none
       integer(int64), intent(in) :: WalkerListSize
       integer ierr,i,j
@@ -2892,7 +2884,7 @@ contains
       ! list, but for each processor.
       ValidSpawnedList(:)=InitialSpawnedSlots(:)
 
-   end subroutine
+   end subroutine SetupValidSpawned
 
     subroutine CalcUEGMP2()
         use SymExcitDataMod, only: kPointToBasisFn
@@ -3235,15 +3227,14 @@ contains
 
         end if
 
-
         write(6,*) 'Generated reference determinants:'
         do run = 1, inum_runs
             call write_det(6, ProjEDet(:, run), .true.)
         end do
 
-    end subroutine
+    end subroutine assign_reference_dets
 
-end module
+end module fcimc_initialisation
 
 ! This routine will change the reference determinant to DetCurr. It will 
 ! also re-zero all the energy estimators, since they now correspond to

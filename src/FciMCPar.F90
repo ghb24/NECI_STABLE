@@ -172,7 +172,6 @@ module FciMCParMod
             call WriteFCIMCStats()
         end if
 
-
         ! Put a barrier here so all processes synchronise before we begin.
         call MPIBarrier(error)
         
