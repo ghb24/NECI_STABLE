@@ -266,8 +266,8 @@ contains
             end if
 
             ! What is the likelihood of picking the given symmetry?
-            sym_product = RandExcitSymLabelProd(int(G1(ex(1,1))%Sym%S), &
-                                                int(G1(ex(1,2))%Sym%S))
+            sym_product = RandExcitSymLabelProd(SpinOrbSymLabel(ex(1,1)), &
+                                                SpinOrbSymLabel(ex(1,2)))
             sum_ml = sum(G1(ex(1,:))%Ml)
             cc_i = ClassCountInd(get_spin(ex(2,1)), G1(ex(2,1))%Sym%S, &
                                  G1(ex(2,1))%Ml)
