@@ -242,7 +242,8 @@ MODULE nElRDMMod
                 aaaa_RDM_inst(:,:)=0.0_dp
 
                 ! The 2-RDM of the type alpha beta beta alpha ( = beta alpha alpha beta).
-                ! These also *do not* also include 2-RDM(i,j,a,b) terms where i=j or a=b (these are the same as the abab elements).
+                ! These also *do not* also include 2-RDM(i,j,a,b) terms where i=j or a=b 
+                !  (these are the same as the abab elements).
                 ALLOCATE(abba_RDM_inst(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating abba_RDM_inst array,')
                 CALL LogMemAlloc('abba_RDM_inst',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,abba_RDM_instTag,ierr)
@@ -279,7 +280,7 @@ MODULE nElRDMMod
                     ALLOCATE(baba_RDM_inst(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
                     IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating baba_RDM_inst array,')
                     CALL LogMemAlloc('baba_RDM_inst',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,baba_RDM_instTag,ierr)
-                    abab_RDM_inst(:,:)=0.0_dp     
+                    baba_RDM_inst(:,:)=0.0_dp     
                     MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
                     MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 )
                 endif
@@ -366,7 +367,7 @@ MODULE nElRDMMod
                 ALLOCATE(abab_RDM_full(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating abab_RDM_full array,')
                 CALL LogMemAlloc('abab_RDM_full',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,abab_RDM_fullTag,ierr)
-                abab_RDM(:,:)=0.0_dp
+                abab_RDM_full(:,:)=0.0_dp
 
                 MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
                 MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
@@ -391,7 +392,7 @@ MODULE nElRDMMod
                     ALLOCATE(baba_RDM_full(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
                     IF(ierr.ne.0) CALL Stop_All(this_routine,'Problem allocating baba_RDM_full array,')
                     CALL LogMemAlloc('baba_RDM_full',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,baba_RDM_fullTag,ierr)
-                    baba_RDM(:,:)=0.0_dp
+                    baba_RDM_full(:,:)=0.0_dp
                     MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
                     MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
       
@@ -1109,7 +1110,7 @@ MODULE nElRDMMod
                     !Nothing unusual has happened so update both populations as normal
                     do part_ind=1,lenof_sign
                         ! Update the average population.
-                        AvSignI(part_ind) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * get_av_sgn(j, part_ind)) &
+                        AvSignI(part_ind) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * get_av_sgn(j, part_ind))&
                             + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
                     enddo
                 endif
@@ -1616,7 +1617,7 @@ MODULE nElRDMMod
             ! from spawning events in both pop 1 and pop 2 -- i.e. doublecounted wrt diagonal elements
             IF(tHPHF) THEN
                 call Fill_Spin_Coupled_RDM_v2(Spawned_Parents(0:NIfDBO,i), iLutJ, nI, nJ, &
-                                                   (1.0_dp/real(lenof_sign,dp))*part_realSignI, realSignJ(dest_part_type), .false.)
+                           (1.0_dp/real(lenof_sign,dp))*part_realSignI, realSignJ(dest_part_type), .false.)
             ELSE
                 call Add_RDM_From_IJ_Pair(nI, nJ, (1.0_dp/real(lenof_sign,dp))*part_realSignI, realSignJ(dest_part_type), .false.)
             ENDIF
@@ -3052,7 +3053,6 @@ MODULE nElRDMMod
             if(tFill_CiCj_Symm) then                                
                 NatOrbMat( Indak , Indik ) = NatOrbMat( Indak , Indik ) + (ParityFactor * &
                                                              realSignDi * realSignDj )
-
             endif
         else
             ! Looking at elements of the type Gamma(i,k,a,k)
@@ -3120,9 +3120,9 @@ MODULE nElRDMMod
                                                                             realSignDi * realSignDj )
                                     endif
                                 endif
-! 
+
                             elseif  (aSpat .lt. kSpat) then
-! 
+
                                 if( (mod(Ex(2,1),2).eq.0) .or. (.not. tOpenShell) )then ! ik, ak -> third index alpha
                                     abab_RDM( Indik , Indak ) = abab_RDM( Indik , Indak ) + ( ParityFactor * &
                                                                          realSignDi * realSignDj )
@@ -3177,10 +3177,10 @@ MODULE nElRDMMod
                                                                             realSignDi * realSignDj )
                                     endif
                                 endif
-! 
+
                             endif
                         endif  ! a=k
-! 
+
                     else  ! not (iSpat.eq.kSpat).or.(aSpat.eq.kSpat))
                         ! Checking spins of i and k.
                         ! If same, i.e alpha alpha or beta beta -> aaaa array.
@@ -4254,7 +4254,7 @@ MODULE nElRDMMod
                                                                 - (aaaa_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM)) / &
                                                         (abs((aaaa_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
                                                                 + (aaaa_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM)) / 2.0_dp) )
-                                    No_Herm_Elements = No_Herm_Elements + 1                                                        
+                                    No_Herm_Elements = No_Herm_Elements + 1                                                      
 
                                     if(tmake_herm) then                                                            
                                         Temp = (aaaa_RDM_full(Ind1_aa,Ind2_aa) + aaaa_RDM_full(Ind2_aa,Ind1_aa)) / 2.0_dp
@@ -4336,7 +4336,7 @@ MODULE nElRDMMod
                                                 bbbb_RDM_full(Ind1_aa,Ind2_aa)
                                     endif  !tNormalise
                                 endif  !bbbb_RDM_full 
-                            endif !tStoreSpinOrbs
+                            endif !OpenShell
 
                             if(tOpenShell)then
 
@@ -4590,9 +4590,6 @@ MODULE nElRDMMod
                                             ( ((abab_RDM_full(Ind1_ab,Ind2_ab) + abab_RDM_full(Ind2_ab,Ind1_ab))/2.0_dp) &
                                                                     * Norm_2RDM ) / Divide_Factor
                                     endif
-                                elseif(.not.tNormalise) then
-                                    write(baba_RDM_unit) i,j,a,b, &
-                                        abab_RDM_full(Ind1_ab,Ind2_ab) 
                                 endif
                             endif
 
@@ -4853,7 +4850,7 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
                                     if(tOpenShell) RDMEnergy2 = RDMEnergy2 - ( baab_RDM_full(Ind1_aa,Ind2_aa) &
                                                             * Norm_2RDM * Exch ) 
 
-                               endif !not tStoreSpinOrbs	
+                               endif !not tStoreSpinOrbs
 
                            elseif( (i .eq. j) .or. (a .eq. b) )then
                                 ! i = j or a = b
@@ -5099,7 +5096,7 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
                         ! We made sure earlier that the 1RDM is contructed, so we can call directly from this
                         if(tStoreSpinOrbs) then
                             ! Include both aa and bb contributions
-                            Lagrangian(p,q)=Lagrangian(p,q)+2.0_dp*(NatOrbMat(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r)))* &
+                            Lagrangian(p,q)=Lagrangian(p,q)+2.0_dp*(NatOrbMat(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r)))*&
                                                                 REAL(TMAT2D(pSpin,rSpin),8)*Norm_1RDM
                         else
                             !We will be here most often (?)
