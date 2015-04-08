@@ -1,4 +1,5 @@
 #include "macros.h"
+
 module fcimc_iter_utils
 
     use SystemData, only: nel, tHPHF, tNoBrillouin, tRef_Not_HF
@@ -25,6 +26,7 @@ module fcimc_iter_utils
     use FciMCData
     use constants
     use util_mod
+
     implicit none
 
 contains
@@ -126,7 +128,9 @@ contains
     end subroutine iter_diagnostics
 
     subroutine population_check ()
+
         use HPHFRandExcitMod, only: ReturnAlphaOpenDet
+
         integer :: pop_highest(inum_runs), proc_highest(inum_runs)
         real(dp) :: pop_change, old_Hii
         integer :: det(nel), i, error, ierr, run
@@ -137,9 +141,7 @@ contains
         character(*), parameter :: t_r = this_routine
 
         ! If we aren't doing this, then bail out...
-        if (.not. tCheckHighestPop) &
-            return
-
+        if (.not. tCheckHighestPop) return
 
         ! If we are accumulating RDMs, then a temporary spawning array is
         ! required of <~ the size of the largest occupied det.
@@ -157,18 +159,21 @@ contains
             if (.not. allocated(TempSpawnedParts)) then
                 allocate_temp_parts = .true.
                 TempSpawnedPartsSize = 1000
-            elseif (1.1 * iHighestPop(1) > TempSpawnedPartsSize) then
+            end if
+            if (1.1 * maxval(iHighestPop) > TempSpawnedPartsSize) then
                 ! This testing routine is only called once every update
                 ! cycle. The 1.1 gives us a buffer to cope with particle
                 ! growth
-                deallocate(TempSpawnedParts)
-                log_dealloc(TempSpawnedPartsTag)
                 TempSpawnedPartsSize = iHighestPop(1) * 1.5
                 allocate_temp_parts = .true.
             end if
 
             ! If we need to allocate this array, then do so.
             if (allocate_temp_parts) then
+                if (allocated(TempSpawnedParts)) then
+                    deallocate(TempSpawnedParts)
+                    log_dealloc(TempSpawnedPartsTag)
+                end if
                 allocate(TempSpawnedParts(0:NIfDBO, TempSpawnedPartsSize), &
                          stat=ierr)
                 log_alloc(TempSpawnedParts,TempSpawnedPartsTag,ierr)
@@ -234,7 +239,6 @@ contains
                            'not reference det: ', pop_highest, abs_sign(AllNoAtHF)
 
                 if (tChangeProjEDet) then
-
                     !
                     ! Here we are changing the reference det on the fly.
                     ! --> else block for restarting simulation.
@@ -300,21 +304,23 @@ contains
 
                 endif
 
-
             endif
         end do
 
-    end subroutine
+    end subroutine population_check
 
-    subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
+    subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all, tPairedReplicas)
+
+        type(fcimc_iter_data) :: iter_data
+        real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
+        real(dp), dimension(lenof_sign), intent(out) :: tot_parts_new_all
+        logical, intent(in) :: tPairedReplicas
+
         integer :: int_tmp(5+2*lenof_sign), proc, pos, i
         real(dp) :: sgn(lenof_sign)
         HElement_t :: helem_tmp(3*inum_runs)
         HElement_t :: real_tmp(2*inum_runs) !*lenof_sign
         integer(int64) :: int64_tmp(8),TotWalkersTemp
-        type(fcimc_iter_data) :: iter_data
-        real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
-        real(dp), dimension(lenof_sign), intent(out) :: tot_parts_new_all
         character(len=*), parameter :: this_routine='collate_iter_data'
         real(dp), dimension(max(lenof_sign,inum_runs)) :: RealAllHFCyc
         real(dp), dimension(inum_runs) :: all_norm_psi_squared, all_norm_semistoch_squared
@@ -422,7 +428,6 @@ contains
             call update_tau()
         end if
 
-        !TODO CMO:Make sure these are length 2 as well
         if (tTrialWavefunction) then
             call MPIAllReduce(trial_numerator, MPI_SUM, tot_trial_numerator)
             call MPIAllReduce(trial_denom, MPI_SUM, tot_trial_denom)
@@ -430,12 +435,22 @@ contains
             ! Becuase tot_trial_numerator/tot_trial_denom is the energy
             ! relative to the the trial energy, add on this contribution to
             ! make it relative to the HF energy.
-            tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energy)
-
+            if (ntrial_excits == 1) then
+                tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies(1))
+            else
+                if (tPairedReplicas) then
+                    do run = 2, inum_runs, 2
+                        tot_trial_numerator(run-1:run) = tot_trial_numerator(run-1:run) + &
+                            tot_trial_denom(run-1:run)*trial_energies(run/2)
+                    end do
+                else
+                    tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies)
+                end if
+            end if
         end if
         
 #ifdef __DEBUG
-        !Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
+        ! Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
         if ((iProcIndex == root) .and. .not. tSpinProject .and. &
          all(abs(iter_data%update_growth_tot-(AllTotParts-AllTotPartsOld)) > 1.0e-5)) then
             write(iout,*) "update_growth: ",iter_data%update_growth_tot
@@ -449,6 +464,7 @@ contains
     end subroutine collate_iter_data
 
     subroutine update_shift (iter_data)
+
         use CalcData, only : tInstGrowthRate
      
         type(fcimc_iter_data), intent(in) :: iter_data
@@ -753,8 +769,6 @@ contains
 
     end subroutine update_shift 
 
-
-
     subroutine rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
         
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -785,7 +799,7 @@ contains
         !OldAllHFCyc is the average HF value for this update cycle
         OldAllHFCyc = AllHFCyc/real(StepsSft,dp)
         !OldAllAvWalkersCyc gives the average number of walkers per iteration in the last update cycle
-      !TODO CMO: are these summed across real/complex? 
+        !TODO CMO: are these summed across real/complex? 
         OldAllAvWalkersCyc = AllSumWalkersCyc/real(StepsSft,dp)
 
         ! Also the cumulative global variables
@@ -801,15 +815,16 @@ contains
 
         max_cyc_spawn = 0
 
-    end subroutine
+    end subroutine rezero_iter_stats_update_cycle
 
-    subroutine calculate_new_shift_wrapper (iter_data, tot_parts_new)
+    subroutine calculate_new_shift_wrapper (iter_data, tot_parts_new, tPairedReplicas)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
         real(dp), dimension(lenof_sign) :: tot_parts_new_all
+        logical, intent(in) :: tPairedReplicas
 
-        call collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all)
+        call collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all, tPairedReplicas)
         call iter_diagnostics ()
         if(tRestart) return
         call population_check ()
@@ -837,5 +852,4 @@ contains
 
     end subroutine update_iter_data
 
-
-end module
+end module fcimc_iter_utils

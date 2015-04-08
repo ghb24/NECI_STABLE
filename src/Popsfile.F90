@@ -34,6 +34,7 @@ MODULE PopsfileMod
     use global_det_data, only: global_determinant_data, set_iter_occ, &
                                init_global_det_data, set_det_diagH
     use fcimc_helper, only: update_run_reference
+    use replica_data, only: set_initial_global_data
 
     implicit none
 
@@ -450,20 +451,20 @@ contains
 
                 ! Read the next entry, and store the walker in ilut_tmp.
                 ! The decoded form is placed in det_tmp
-                CurrWalkers = CurrWalkers + 1
+                ! n.b. reading entry after CurrWalkers --> +1
                 tEOF = read_popsfile_det (iunit, PopNel, binary_pops, &
-                                          det_list(:, CurrWalkers), &
+                                          det_list(:, CurrWalkers+1), &
                                           det_tmp, PopNIfSgn, iunit_3, &
                                           .true., nread)
+
+                ! When we have got to the end of the file, we are done.
+                if (tEOF) exit
+
+                CurrWalkers = CurrWalkers + 1
 
                 ! Add the contribution from this determinant to the
                 ! norm of the popsfile wave function.
                 call add_pops_norm_contrib(det_list(:, CurrWalkers))
-
-                ! And store the current H-values
-
-                ! When we have got to the end of the file, we are done.
-                if (tEOF) exit
 
                 ! And a test that this split popsfile is somewhat valid...
                 proc = DetermineDetNode(PopNel, det_tmp, 0)

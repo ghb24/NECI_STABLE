@@ -506,8 +506,6 @@ contains
                 call stats_out(state,.true., proje_iter_tot, 'Proj. E (cyc)')
 #endif
                 call stats_out(state,.true., sum(DiagSft / inum_runs), 'Shift. (cyc)')
-                call stats_out(state,.true., AllTotWalkers, 'Dets occ.')
-                call stats_out(state,.true., nspawned_tot, 'Dets spawned')
                 call stats_out(state,.false., sum(AllNoBorn), 'No. born')
                 call stats_out(state,.false., sum(AllNoDied), 'No. died')
                 call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
@@ -523,6 +521,8 @@ contains
                                'Tot. Proj. E')
 #endif
             end if
+            call stats_out(state,.true., AllTotWalkers, 'Dets occ.')
+            call stats_out(state,.true., nspawned_tot, 'Dets spawned')
 
             call stats_out(state,.true., IterTime, 'Iter. time')
             call stats_out(state,.false., TotImagTime, 'Im. time')
@@ -554,6 +554,29 @@ contains
                 call stats_out (state, .false., &
                                 (AllENumCyc(p) + Hii*AllHFCyc(p)) / StepsSft,&
                                 'ProjE Num (' // trim(adjustl(tmpc)) // ")")
+
+                if (tTrialWavefunction) then
+                    call stats_out (state, .false., &
+                                    tot_trial_numerator(p) / StepsSft, &
+                                    'TrialE Num (' // trim(adjustl(tmpc)) // ")")
+                    call stats_out (state, .false., &
+                                    tot_trial_denom(p) / StepsSft, &
+                                    'TrialE Denom (' // trim(adjustl(tmpc)) // ")")
+                end if
+
+                call stats_out (state, .false., &
+                                AllNoBorn(p), &
+                                'Born (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., &
+                                AllNoDied(p), &
+                                'Died (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., &
+                                AllAnnihilated(p), &
+                                'Annihil (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., &
+                                AllNoAtDoubs(p), &
+                                'Doubs (' // trim(adjustl(tmpc)) // ")")
+
                 if (tOrthogonaliseReplicas) then
                     do q = p+1, inum_runs
                         write(tmpc2, '(i5)') q

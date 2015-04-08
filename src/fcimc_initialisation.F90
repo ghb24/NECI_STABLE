@@ -103,6 +103,7 @@ module fcimc_initialisation
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
+    use kp_fciqmc_data_mod, only: tExcitedStateKP, tPairedKPReplicas
     use sym_general_mod, only: ClassCountInd
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
     use ueg_excit_gens, only: gen_ueg_excit
@@ -478,19 +479,19 @@ contains
             ENDIF
             WRITE(iout,'(A,I2,A,I2,A)') " In CAS notation, (spatial orbitals, electrons), this has been chosen as: (", &
                 (OccCASOrbs+VirtCASOrbs)/2,",",OccCASOrbs,")"
-            DO I=NEl-OccCASorbs+1,NEl
+            do I=NEl-OccCASorbs+1,NEl
                 WRITE(iout,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
                 CALL WRITESYM(iout,G1(BRR(I))%SYM,.FALSE.)
                 WRITE(iout,'(I4)',advance='no') G1(BRR(I))%Ml
                 WRITE(iout,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
-            ENDDO
+            end do
             WRITE(iout,'(A)') " ================================================================================================="
-            DO I=NEl+1,NEl+VirtCASOrbs
+            do I=NEl+1,NEl+VirtCASOrbs
                 WRITE(iout,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
                 CALL WRITESYM(iout,G1(BRR(I))%SYM,.FALSE.)
                 WRITE(iout,'(I4)',advance='no') G1(BRR(I))%Ml
                 WRITE(iout,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
-            ENDDO
+            end do
         ELSEIF(tTruncInitiator) THEN
             WRITE(iout,'(A)') "*********** INITIATOR METHOD IN USE ***********"
             WRITE(iout,'(A)') "Starting with only the reference determinant in the fixed initiator space."
@@ -697,7 +698,9 @@ contains
                     TempHii = get_helement (ProjEDet(:,run), ProjEDet(:,run), 0)
                 endif
                 proje_ref_energy_offsets(run) = real(TempHii, dp) - Hii
-                DiagSft(run) = DiagSft(run) + real(TempHii, dp) - Hii
+                ! Comment this out for now, so that we can instead set each
+                ! shift manually.
+                !DiagSft(run) = DiagSft(run) + real(TempHii, dp) - Hii
             end do
         end if
 
@@ -946,8 +949,17 @@ contains
             WRITE(iout,*) "Timestep set to: ",Tau
         ENDIF
 
-        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) &
+        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
             call init_tau_search()
+        else
+            ! Add a couple of checks for sanity
+            if (nOccAlpha == 0 .or. nOccBeta == 0) then
+                pParallel = 1.0_dp
+            end if
+            if (nOccAlpha == 1 .and. nOccBeta == 1) then
+                pParallel = 0.0_dp
+            end if
+        end if
 
         IF(StepsSftImag.ne.0.0_dp) THEN
             WRITE(iout,*) "StepsShiftImag detected. Resetting StepsShift."
@@ -1354,7 +1366,15 @@ contains
         ! This includes generating the trial space, generating the space connected to the trial space,
         ! diagonalising the trial space to find the trial wavefunction and calculating the vector
         ! in the connected space, required for the energy estimator.
-        if (tTrialWavefunction) call init_trial_wf(trial_space_in)
+        if (tTrialWavefunction) then
+            if (tOrthogonaliseReplicas .or. (tExcitedStateKP .and. .not. tPairedKPReplicas)) then
+                call init_trial_wf(trial_space_in, inum_runs)
+            else if (tExcitedStateKP .and. tPairedKPReplicas) then
+                call init_trial_wf(trial_space_in, inum_runs/2)
+            else
+                call init_trial_wf(trial_space_in, 1)
+            end if
+        end if
 
         replica_overlaps(:, :) = 0
 
@@ -1856,8 +1876,10 @@ contains
         ! to initialise the FCIQMC simulation.
 
         integer :: nexcit, ndets_this_proc, i, det(nel)
-        real(dp), allocatable :: evecs_this_proc(:,:), init_vecs(:,:)
         type(basisfn) :: sym
+        real(dp) :: evals(inum_runs)
+        real(dp), allocatable :: evecs_this_proc(:,:)
+        integer(MPIArg) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
         character(*), parameter :: this_routine = 'InitFCIMC_trial'
 
         nexcit = inum_runs
@@ -1867,12 +1889,13 @@ contains
 
         ! Create the trial excited states
         call calc_trial_states(init_trial_in, nexcit, ndets_this_proc, &
-                               evecs_this_proc, SpawnedParts)
+                               SpawnedParts, evecs_this_proc, evals, &
+                               space_sizes, space_displs)
         ! Determine the walker populations associated with these states
         call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
         ! Set the trial excited states as the FCIQMC wave functions
         call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts, &
-                              .false.)
+                              .false., .false.)
         call set_initial_run_references()
 
         deallocate(evecs_this_proc)
@@ -1885,7 +1908,7 @@ contains
                 call stop_all(this_routine, "Invalid det found")
         end do
 
-    end subroutine
+    end subroutine InitFCIMC_trial
 
     subroutine set_initial_run_references()
 
@@ -1897,6 +1920,7 @@ contains
         integer(n_int) :: largest_det(0:NIfTot)
         integer :: run, j, proc_highest
         integer(int32) :: int_tmp(2)
+        character(*), parameter :: this_routine = 'set_initial_run_references'
 
         ASSERT(inum_runs == lenof_sign)
         do run = 1, inum_runs
@@ -1927,11 +1951,13 @@ contains
 
         end do
 
-    end subroutine
+    end subroutine set_initial_run_references
 
-    !Routine to initialise the particle distribution according to a CAS diagonalisation. 
-    !This hopefully will help with close-lying excited states of the same sym.
     subroutine InitFCIMC_CAS()
+
+        ! Routine to initialise the particle distribution according to a CAS diagonalisation. 
+        ! This hopefully will help with close-lying excited states of the same sym.
+
         type(BasisFN) :: CASSym
         integer :: i, j, ierr, nEval, NKRY1, NBLOCK, LSCR, LISCR, DetIndex
         integer :: iNode, nBlocks, nBlockStarts(2), DetHash, Slot
@@ -1941,7 +1967,7 @@ contains
         integer , allocatable :: CASBrr(:),CASDet(:),CASFullDets(:,:),nRow(:),Lab(:),ISCR(:),INDEX(:)
         integer , pointer :: CASDetList(:,:) => null()
         integer(n_int) :: iLutnJ(0:NIfTot)
-        logical :: tMC
+        logical :: tMC, tHPHF_temp, tHPHFInts_temp
         HElement_t :: HDiagTemp
         real(dp) , allocatable :: CK(:,:),W(:),CKN(:,:),Hamil(:),A_Arr(:,:),V(:),BM(:),T(:),WT(:)
         real(dp) , allocatable :: SCR(:),WH(:),Work2(:),V2(:,:),AM(:)
@@ -1966,19 +1992,19 @@ contains
         write(iout,*) "Initialising walkers proportional to a CAS diagonalisation..."
         write(iout,'(A,I2,A,I2,A)') " In CAS notation, (spatial orbitals, electrons), this has been chosen as: (" &
             ,(OccCASOrbs+VirtCASOrbs)/2,",",OccCASOrbs,")"
-        DO I=NEl-OccCASorbs+1,NEl
+        do I=NEl-OccCASorbs+1,NEl
             WRITE(iout,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
             CALL WRITESYM(iout,G1(BRR(I))%SYM,.FALSE.)
             WRITE(iout,'(I4)',advance='no') G1(BRR(I))%Ml
             WRITE(iout,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
-        ENDDO
+        end do
         WRITE(iout,'(A)') " ================================================================================================="
-        DO I=NEl+1,NEl+VirtCASOrbs
+        do I=NEl+1,NEl+VirtCASOrbs
             WRITE(iout,'(6I7)',advance='no') I,BRR(I),G1(BRR(I))%K(1), G1(BRR(I))%K(2),G1(BRR(I))%K(3), G1(BRR(I))%MS
             CALL WRITESYM(iout,G1(BRR(I))%SYM,.FALSE.)
             WRITE(iout,'(I4)',advance='no') G1(BRR(I))%Ml
             WRITE(iout,'(2F19.9)')  ARR(I,1),ARR(BRR(I),2)
-        ENDDO
+        end do
 
         CASSpinBasisSize=OccCASorbs+VirtCASorbs
         allocate(CASBrr(1:CASSpinBasisSize))
@@ -2068,8 +2094,11 @@ contains
         tMC=.false.
 
         !HACK ALERT!! Need to fill up array in space of determinants, not HPHF functions.
-        !Turn of tHPHFInts and turn back on when hamiltonian constructed.
-        tHPHFInts=.false.
+        !Turn off tHPHFInts and tHPHF and turn back on after the hamiltonian constructed.
+        tHPHF_temp = tHPHF
+        tHPHFInts_temp = tHPHFInts
+        tHPHF = .false.
+        tHPHFInts = .false.
 
         CALL Detham(nCASDet,NEl,CASFullDets,Hamil,Lab,nRow,.true.,ICMax,GC,tMC)
         LenHamil=GC
@@ -2085,8 +2114,9 @@ contains
         CASRefEnergy=GETHELEMENT(1,1,HAMIL,LAB,NROW,NCASDET)
         write(iout,*) "Energy of first CAS det is: ",CASRefEnergy
 
-        !Turn back on HPHF integrals if needed.
-        if(tHPHF) tHPHFInts=.true.
+        ! Turn back on HPHFs if needed.
+        tHPHF = tHPHF_temp
+        tHPHFInts = tHPHFInts_temp
 
 !        if(abs(CASRefEnergy-Hii).gt.1.0e-7_dp) then
 !            call stop_all(this_routine,"CAS reference energy does not match reference energy of full space")
@@ -2707,12 +2737,12 @@ contains
                 WRITE(iout,*) "Since we are using a real-space hubbard model, only single excitations are connected &
                 &   and will be generated."
                 pDoubles=0.0_dp
-                RETURN
+                return
             ELSE
                 WRITE(iout,*) "Since we are using a momentum-space hubbard model/UEG, only double excitaitons &
      &                          are connected and will be generated."
                 pDoubles=1.0_dp
-                RETURN
+                return
             ENDIF
         elseif(tNoSingExcits) then
             write(iout,*) "Only double excitations will be generated"
@@ -2748,7 +2778,7 @@ contains
             WRITE(iout,*) "Number of singles or doubles found equals zero. pDoubles will be set to 0.95. Is this correct?"
             pDoubles = 0.95_dp
             pSingles = 0.05_dp
-            RETURN
+            return
         elseif ((NSing < 0) .or. (NDoub < 0) .or. (ncsf < 0)) then
             call stop_all("CalcApproxpDoubles", &
                           "Number of singles, doubles or Yamanouchi symbols &
@@ -2788,6 +2818,7 @@ contains
     END SUBROUTINE CalcApproxpDoubles
 
     SUBROUTINE CreateSpinInvBRR()
+
     ! Create an SpinInvBRR containing spin orbitals, 
     ! unlike 'createInvBRR' which only has spatial orbitals.
     ! This is used for the FixCASshift option in establishing whether or not
@@ -2804,38 +2835,27 @@ contains
         INTEGER :: I,t,ierr
         CHARACTER(len=*), PARAMETER :: this_routine='CreateSpinInvBrr'
 
-        IF(ALLOCATED(SpinInvBRR)) RETURN
+        IF(ALLOCATED(SpinInvBRR)) return
             
         ALLOCATE(SpinInvBRR(NBASIS),STAT=ierr)
         CALL LogMemAlloc('SpinInvBRR',NBASIS,4,this_routine,SpinInvBRRTag,ierr)
             
-
-!        IF(iProcIndex.eq.root) THEN
-!            WRITE(iout,*) "================================"
-!            WRITE(iout,*) "BRR is "
-!            WRITE(iout,*) BRR(:)
-!        ENDIF
-        
         SpinInvBRR(:)=0
         
         t=0
-        DO I=1,NBASIS
+        do I=1,NBASIS
             t=t+1
             SpinInvBRR(BRR(I))=t
-        ENDDO
-
-!        IF(iProcIndex.eq.root) THEN
-!            WRITE(iout,*) "================================"
-!            WRITE(iout,*) "SpinInvBRR is "
-!            WRITE(iout,*) SpinInvBRR(:)
-!        ENDIF
+        end do
         
-        RETURN
+        return
         
     END SUBROUTINE CreateSpinInvBRR
 
    subroutine SetupValidSpawned(WalkerListSize)
+
       use CalcData, only: MemoryFacSpawn
+
       implicit none
       integer(int64), intent(in) :: WalkerListSize
       integer ierr,i,j
@@ -2864,7 +2884,7 @@ contains
       ! list, but for each processor.
       ValidSpawnedList(:)=InitialSpawnedSlots(:)
 
-   end subroutine
+   end subroutine SetupValidSpawned
 
     subroutine CalcUEGMP2()
         use SymExcitDataMod, only: kPointToBasisFn
@@ -3207,15 +3227,14 @@ contains
 
         end if
 
-
         write(6,*) 'Generated reference determinants:'
         do run = 1, inum_runs
             call write_det(6, ProjEDet(:, run), .true.)
         end do
 
-    end subroutine
+    end subroutine assign_reference_dets
 
-end module
+end module fcimc_initialisation
 
 ! This routine will change the reference determinant to DetCurr. It will 
 ! also re-zero all the energy estimators, since they now correspond to

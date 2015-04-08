@@ -373,10 +373,10 @@ MODULE FciMCData
 
       real(dp), allocatable :: proje_denominator_cyc(:)
       real(dp), allocatable :: proje_denominator_sum(:)
-      logical :: tRestart   !Whether to restart a calculation
+      logical :: tRestart = .false.   !Whether to restart a calculation
 
       ! Diag shift from the input file, if it needed to be reset after restart
-      real(dp) :: InputDiagSft
+      real(dp), allocatable :: InputDiagSft(:)
       
 
       ! ********************** FCIMCPar control variables *****************
@@ -471,47 +471,53 @@ MODULE FciMCData
 
       ! Trial wavefunction data.
 
-      ! This list stores the iluts from which the trial wavefunction is formed, but only those that reside on this processor.
-      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
+      ! This list stores the iluts from which the trial wavefunction is formed,
+      ! but only those that reside on this processor.
       integer(n_int), allocatable, dimension(:,:) :: trial_space
       ! The number of states in the trial vector space.
       integer :: trial_space_size = 0
-      ! This list stores the iluts from which the trial wavefunction is formed, but only those that reside on this processor.
-      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
+      ! This list stores the iluts from which the trial wavefunction is formed,
+      ! but only those that reside on this processor.
       integer(n_int), allocatable, dimension(:,:) :: con_space
-      ! The number of states in the space connected to (but not including) the trial vector space.
+      ! The number of states in the space connected to (but not including) the
+      ! trial vector space.
       integer :: con_space_size = 0
 
-      ! This vector stores the trial wavefunction itself.
-      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
-      real(dp), allocatable, dimension(:) :: trial_wf
-      ! Holds the number of occupied trial states in CurrentDets.
-      integer :: ntrial_occ
+      ! This vector stores the trial wavefunction(s) themselves, but only the
+      ! components on this processor.
+      real(dp), allocatable, dimension(:,:) :: trial_wfs
 
-      real(dp) :: trial_energy
-      ! This vector's elements store the quantity
+      ! The energy eigenvalues of the trial wave functions in the trial
+      ! subspace.
+      real(dp), allocatable :: trial_energies(:)
+
+      ! This vector's elements store the quantities
       ! \sum_j H_{ij} \psi^T_j,
-      ! where \psi is the trial wavefunction. These elements are stored only in the space of states which are connected
-      ! to *but not included in* the trial vector space.
-      ! Not that this is deallocated after initialisation when using the tTrialHash option (turned on by default).
-      real(dp), allocatable, dimension(:) :: con_space_vector
-      ! Holds the number of occupied connected states in CurrentDets.
-      integer :: ncon_occ
+      ! where \psi^T are trial wavefunctions.
+      real(dp), allocatable, dimension(:,:) :: con_space_vecs
 
-      ! If index i in CurrentDets is a trial state then index i of this array stores the corresponding amplitude of
-      ! trial_wf. If index i in the CurrentDets is a connected state then index i of this array stores the corresponding
-      ! amplitude of con_space_vector. Else, it will be zero.
-      real(dp), allocatable, dimension(:) :: current_trial_amps
-      ! Only used with the linscalefcimcalgo option: Because in AnnihilateSpawendParts trial and connected states are
-      ! sorted in the same order, a smaller section of the trial and connected space can be searched for each state.
-      ! These indices hold the indices to be searched from next time.
+      ! If index i in CurrentDets is a trial state then index i of this array
+      ! stores the corresponding amplitudes of trial_wfs. If index i in the
+      ! CurrentDets is a connected state then index i of this array stores
+      ! the corresponding amplitudes of con_space_vecs. Else, it will be zero.
+      real(dp), allocatable, dimension(:,:) :: current_trial_amps
+      ! Only used when tTrialHash is .false. (it is .true. by default).
+      ! Because in AnnihilateSpawendParts trial and connected states are
+      ! sorted in the same order, a smaller section of the trial and connected
+      ! space can be searched for each state. These indices hold the indices to
+      ! be searched from next time.
       integer :: min_trial_ind, min_conn_ind
 
-      ! If true (which it is by default) then the trial and connected space states are stored in a trial_ht and
-      ! con_ht and are accessed by a hash lookup.
+      ! The number of trial wave functions for different excited states used.
+      integer :: ntrial_excits
+
+      ! If true (which it is by default) then the trial and connected space
+      ! states are stored in a trial_ht and con_ht and are accessed by a hash
+      ! lookup.
       logical :: tTrialHash
-      ! If true, include the walkers that get cancelled by the initiator criterion in the trial energy estimate.
-      ! tTrialHash needs to be used for this option.
+      ! If true, include the walkers that get cancelled by the initiator
+      ! criterion in the trial energy estimate. tTrialHash needs to be used
+      ! for this option.
       logical :: tIncCancelledInitEnergy
 
       ! Semi-stochastic tags:
@@ -556,75 +562,5 @@ MODULE FciMCData
       type(perturbation), allocatable :: pops_pert(:)
 
       real(dp), allocatable :: replica_overlaps(:, :)
-
-contains
-
-    subroutine set_initial_global_data(ndets, ilut_list)
-
-        use bit_rep_data, only: NIfTot, NIfDBO, extract_sign
-        use Parallel_neci, only: iProcIndex, MPISumAll
-
-        ! Take in a list of determinants and calculate and set all of the
-        ! global data needed for the start of a FCIQMC calculation.
-
-        integer(int64), intent(in) :: ndets
-        integer(n_int), intent(inout) :: ilut_list(0:NIfTot,ndets)
-
-        integer :: i, run
-        real(dp) :: real_sign(lenof_sign)
-        character(*), parameter :: t_r = 'set_initial_global_data'
-
-        TotParts = 0.0_dp
-        NoAtHF = 0.0_dp
-
-        ! First, find the population of the walkers in walker_list.
-        do i = 1, ndets
-            call extract_sign(ilut_list(:,i), real_sign)
-            TotParts = TotParts + abs(real_sign)
-            if ( all(ilut_list(0:NIfDBO,i) == iLutRef(0:NIfDBO, 1)) ) NoAtHF = real_sign
-        end do
-
-        TotWalkers = ndets
-        TotWalkersOld = TotWalkers
-        call MPISumAll(TotWalkers,AllTotWalkers)
-        AllTotWalkersOld = AllTotWalkers
-
-        TotPartsOld = TotParts
-        call MPISumAll(TotParts, AllTotParts)
-        AllTotPartsOld = AllTotParts
-
-        call MPISumAll(NoatHF, AllNoatHF)
-        OldAllNoatHF = AllNoatHF
-
-#ifdef __CMPLX
-        OldAllAvWalkersCyc = sum(AllTotParts)
-#else
-        OldAllAvWalkersCyc = AllTotParts
-#endif
-
-        do run = 1, inum_runs
-            OldAllHFCyc(run) = ARR_RE_OR_CPLX(AllNoatHF, run)
-        end do
-
-        AllNoAbortedOld(:) = 0.0_dp
-
-        iter_data_fciqmc%tot_parts_old = AllTotParts
-        
-        do run = 1, inum_runs
-
-            ! Calculate the projected energy for this iteration.
-            if (ARR_RE_OR_CPLX(AllSumNoAtHF,run) /= 0) &
-                ProjectionE(run) = AllSumENum(run) / ARR_RE_OR_CPLX(AllSumNoatHF,run)
-            
-            ! Keep track of where the particles are
-            if (iProcIndex == iRefProc(run)) then
-                SumNoatHF(run) = AllSumNoatHF(run)
-                SumENum(run) = AllSumENum(run)
-                InstNoatHF(run) = NoatHF(run)
-            end if
-
-        enddo 
-
-    end subroutine set_initial_global_data
 
 END MODULE FciMCData

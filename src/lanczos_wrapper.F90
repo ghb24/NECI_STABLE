@@ -43,8 +43,6 @@ contains
         logical :: tMC
         character(len=*), parameter :: t_r = 'frsblk_wrapper'
 
-        if (tHPHF) call stop_all(t_r,"The Lanczos routine does not work with HPHFs.")
-
         allocate(nRow(ndets), stat=ierr)
         nRow = 0
         ICMax = 1

@@ -195,7 +195,7 @@ contains
                             if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
 
                             call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
-                                               parent_hdiag, 1.0_dp, idet)
+                                               parent_hdiag, 1.0_dp, tPairedKPReplicas, idet)
 
                             ! If we're on the Hartree-Fock, and all singles and
                             ! doubles are in the core space, then there will be
@@ -301,7 +301,7 @@ contains
 
                         if (mod(iter, StepsSft) == 0) then
                             call set_timer(Stats_Comms_Time)
-                            call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts)
+                            call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts, tPairedKPReplicas)
                             call halt_timer(Stats_Comms_Time)
 
                             call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)
@@ -340,7 +340,7 @@ contains
             if (iProcIndex == root) then
                 call average_kp_matrices_wrapper(iconfig, kp%nrepeats, overlap_matrices, hamil_matrices, &
                                                  kp_overlap_mean, kp_hamil_mean, kp_overlap_se, kp_hamil_se)
-                call find_and_output_lowdin_eigv(iconfig, kp%nvecs, kp_overlap_mean, kp_hamil_mean, nlowdin, lowdin_evals)
+                call find_and_output_lowdin_eigv(iconfig, kp%nvecs, kp_overlap_mean, kp_hamil_mean, nlowdin, lowdin_evals, .true.)
 
                 ! Calculate data for the testsuite.
                 s_sum = sum(kp_overlap_mean)
@@ -363,6 +363,7 @@ contains
 
         use fcimc_helper, only: create_particle_with_hash_table
         use FciMCData, only: HashIndex, nWalkerHashes
+        use orthogonalise, only: orthogonalise_replicas, orthogonalise_replica_pairs
 
         type(kp_fciqmc_data), intent(inout) :: kp
 
@@ -450,10 +451,10 @@ contains
                 !    call extract_bit_rep(CurrentDets(:, idet), nI_parent, parent_sign, unused_flags, &
                 !                          fcimc_excit_gen_store)
                 !    if (tUseFlags) then
-                !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7, 4x, l1)') idet, CurrentDets(0,idet), parent_sign, &
+                !        write(6,'(i7, i12, 4x, 3(f18.7, 4x), l1)') idet, CurrentDets(0,idet), parent_sign, &
                 !            test_flag(CurrentDets(:,idet), flag_deterministic)
                 !    else
-                !        write(6,'(i7, i12, 4x, f18.7, 4x, f18.7)') idet, CurrentDets(0,idet), parent_sign
+                !        write(6,'(i7, i12, 3(4x, f18.7))') idet, CurrentDets(0,idet), parent_sign
                 !    end if
                 !end do
 
@@ -482,16 +483,14 @@ contains
                 if (iProcIndex == root) then
                     call output_kp_matrices_wrapper(iter, overlap_matrices(:,:,1:irepeat,ireport), &
                                                             hamil_matrices(:,:,1:irepeat,ireport))
-                    call average_kp_matrices_wrapper(iter, irepeat, overlap_matrices(:,:,1:irepeat,ireport), &
-                                                     hamil_matrices(:,:,1:irepeat,ireport), kp_overlap_mean, &
-                                                     kp_hamil_mean, kp_overlap_se, kp_hamil_se)
                     if (tCalcSpin) then
                         call find_and_output_lowdin_eigv(iter, kp%nvecs, overlap_matrix, hamil_matrix, nlowdin, &
-                                                         lowdin_evals, spin_matrix, lowdin_spin)
+                                                         lowdin_evals, .false., spin_matrix, lowdin_spin)
                         call write_ex_state_data(iter, nlowdin, lowdin_evals, hamil_matrix, overlap_matrix, &
                                                  spin_matrix, lowdin_spin)
                     else
-                        call find_and_output_lowdin_eigv(iter, kp%nvecs, overlap_matrix, hamil_matrix, nlowdin, lowdin_evals)
+                        call find_and_output_lowdin_eigv(iter, kp%nvecs, overlap_matrix, hamil_matrix, nlowdin, &
+                                                         lowdin_evals, .false.)
                         call write_ex_state_data(iter, nlowdin, lowdin_evals, hamil_matrix, overlap_matrix)
                     end if
                 end if
@@ -556,7 +555,7 @@ contains
                         if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
 
                         call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
-                                           parent_hdiag, 1.0_dp, idet)
+                                           parent_hdiag, 1.0_dp, tPairedKPReplicas, idet)
 
                         ! If we're on the Hartree-Fock, and all singles and
                         ! doubles are in the core space, then there will be no
@@ -645,11 +644,19 @@ contains
 
                     call halt_timer(annihil_time)
 
+                    if (tOrthogKPReplicas .and. iter > orthog_kp_iter) then
+                        if (tPairedKPReplicas) then
+                            call orthogonalise_replica_pairs(iter_data_fciqmc)
+                        else
+                            call orthogonalise_replicas(iter_data_fciqmc)
+                        end if
+                    end if
+
                     call update_iter_data(iter_data_fciqmc)
 
                     if (mod(iter, StepsSft) == 0) then
                         call set_timer(Stats_Comms_Time)
-                        call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts)
+                        call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts, tPairedKPReplicas)
                         call halt_timer(Stats_Comms_Time)
 
                         call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)
@@ -663,6 +670,25 @@ contains
             end do ! Over all report cycles.
 
         end do outer_loop ! Over all repeats of the whole calculation.
+
+        ! Output the Lowdin estimates for the final *averaged* matrices.
+        if (iProcIndex == root) then
+            iter = 0
+            do ireport = 1, kp%nreports
+                call average_kp_matrices_wrapper(iter, kp%nrepeats, overlap_matrices(:,:,1:kp%nrepeats,ireport), &
+                                                 hamil_matrices(:,:,1:kp%nrepeats,ireport), kp_overlap_mean, &
+                                                 kp_hamil_mean, kp_overlap_se, kp_hamil_se)
+                if (tCalcSpin) then
+                    call find_and_output_lowdin_eigv(iter, kp%nvecs, kp_overlap_mean, kp_hamil_mean, nlowdin, &
+                                                     lowdin_evals, .true., spin_matrix, lowdin_spin)
+                else
+                    call find_and_output_lowdin_eigv(iter, kp%nvecs, kp_overlap_mean, kp_hamil_mean, nlowdin, &
+                                                     lowdin_evals, .true.)
+                end if
+                ! Update the iteration label.
+                iter = iter + kp%niters(ireport)
+            end do
+        end if
 
         ! Calculate data for the testsuite.
         s_sum = sum(kp_overlap_mean)

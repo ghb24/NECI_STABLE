@@ -3,9 +3,9 @@ module kp_fciqmc_data_mod
     use CalcData, only: subspace_in
     use constants
     use FciMCData, only: ll_node, perturbation
-    use ras_data, only: ras_parameters
 
     implicit none
+    save
 
     type kp_fciqmc_data
         ! The number of different initial walker configurations to start
@@ -59,12 +59,12 @@ module kp_fciqmc_data_mod
     ! The hash is table used to access determinant data in krylov_vecs.
     type(ll_node), pointer :: krylov_vecs_ht(:) 
 
-    ! These arrays are used if tExcitedState = .false. in calc_projected_hamil
+    ! These arrays are used if tExcitedStateKP = .false. in calc_projected_hamil
     ! in semi-stochasti calculations. They are used to store the deterministic
     ! vectors before and after the deterministic projection occurs. They have
     ! the same purpose as partial_determ_vecs and full_determ_vecs, except they
     ! are allocated to hold more vectors (all Krylov vectors), as is necessary
-    ! if tExcitedState = .false.
+    ! if tExcitedStateKP = .false.
     real(dp), allocatable, dimension(:,:) :: partial_determ_vecs_kp
     real(dp), allocatable, dimension(:,:) :: full_determ_vecs_kp
 
@@ -219,11 +219,22 @@ module kp_fciqmc_data_mod
 
     ! Type for the trial wave function space for excited-state calculations.
     type(subspace_in) :: kp_trial_space_in
-    
-    integer :: n_kp_pops
-    integer :: Occ_KP_CasOrbs
-    integer :: Virt_KP_CasOrbs
-    integer :: kp_mp1_ndets
-    type(ras_parameters) :: kp_ras
 
+    ! If true then perform two replicas for each excited state. Otherwise,
+    ! only perform one for each.
+    logical :: tPairedKPReplicas
+
+    ! Arrays used to access the signs of different Krylov vector signs in the
+    ! Krylov vector arrays. If tPairedReplicas is .false. then these arrays
+    ! are identical, otherwise the first array gives access to the first set
+    ! of vectors and the second array to the second set.
+    integer, allocatable :: kp_ind_1(:), kp_ind_2(:)
+
+    ! If true then perform an orthogonalisation step at the end of each
+    ! iteration. This only applies to the CFQMC approach.
+    logical :: tOrthogKPReplicas
+    ! After which iteration should we start performing the orthogonalisation
+    ! step?
+    integer :: orthog_kp_iter
+    
 end module

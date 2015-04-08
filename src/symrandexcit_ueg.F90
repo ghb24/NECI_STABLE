@@ -42,6 +42,9 @@ contains
         integer :: orbi, orbj, orba, orbb
         integer :: ki(3), kj(3), ka(3), kb(3)
 
+        ! Mitigate warnings
+        HelGen = 0.0_dp
+
         ! Pick a pair of electrons (i,j) to generate from.
         ! This uses a triangular mapping to pick them uniformly.
         ind = 1 + int(ElecPairs * genrand_real2_dSFMT())

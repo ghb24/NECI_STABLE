@@ -9,7 +9,8 @@ module excit_gens_int_weighted
                           tGen_4ind_part_exact, tGen_4ind_lin_exact
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
-                               pDoubNew, ScratchSize
+                               pDoubNew, ScratchSize, SpinOrbSymLabel, &
+                               SymInvLabel
     use sym_general_mod, only: ClassCountInd, ClassCountInv, class_count_ms, &
                                class_count_ml
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, pParallel
@@ -266,12 +267,12 @@ contains
             end if
 
             ! What is the likelihood of picking the given symmetry?
-            sym_product = RandExcitSymLabelProd(int(G1(ex(1,1))%Sym%S), &
-                                                int(G1(ex(1,2))%Sym%S))
+            sym_product = RandExcitSymLabelProd(SpinOrbSymLabel(ex(1,1)), &
+                                                SpinOrbSymLabel(ex(1,2)))
             sum_ml = sum(G1(ex(1,:))%Ml)
-            cc_i = ClassCountInd(get_spin(ex(2,1)), G1(ex(2,1))%Sym%S, &
+            cc_i = ClassCountInd(get_spin(ex(2,1)), SpinOrbSymLabel(ex(2,1)), &
                                  G1(ex(2,1))%Ml)
-            cc_j = ClassCountInd(get_spin(ex(2,2)), G1(ex(2,2))%Sym%S, &
+            cc_j = ClassCountInd(get_spin(ex(2,2)), SpinOrbSymLabel(ex(2,2)), &
                                  G1(ex(2,2))%Ml)
             cc_i_final = min(cc_i, cc_j)
             cc_j_final = max(cc_i, cc_j)
@@ -348,7 +349,7 @@ contains
 
         ! Get the paired symmetry
         !sym_j = ieor(sym_i, sym_product)
-        sym_j = RandExcitSymLabelProd (sym_i, sym_product)
+        sym_j = RandExcitSymLabelProd (SymInvLabel(sym_i), sym_product)
 
         ! Consider the paired symmetries permitted
         spn_j = spn_i
@@ -409,7 +410,8 @@ contains
         src = nI(elec)
 
         ! What is the symmetry category?
-        cc_index = ClassCountInd (get_spin(src), G1(src)%Sym%S, G1(src)%Ml)
+        cc_index = ClassCountInd (get_spin(src), SpinOrbSymLabel(src), &
+                                  G1(src)%Ml)
 
         ! Select the target orbital by approximate connection strength
         tgt = select_orb_sing (nI, ilutI, src, cc_index, pgen)
@@ -447,7 +449,8 @@ contains
         pgen = 1.0_dp / real(nel, dp)
 
         ! The class count index of the target orbital is known
-        cc_index = ClassCountInd (get_spin(tgt), G1(tgt)%Sym%S, G1(tgt)%Ml)
+        cc_index = ClassCountInd (get_spin(tgt), SpinOrbSymLabel(tgt), &
+                                  G1(tgt)%Ml)
          
         ! How many orbitals of the correct symmetry are there?
         norb = OrbClassCount(cc_index)
@@ -524,7 +527,7 @@ contains
             if (IsNotOcc(ilut, orb)) then
                 ASSERT(G1(orb)%Ms == G1(src)%Ms)
                 ASSERT(G1(orb)%Ml == G1(src)%Ml)
-                ASSERT(G1(orb)%Sym%S == G1(src)%Sym%S)
+                ASSERT(SpinOrbSymLabel(orb) == SpinOrbSymLabel(src))
 
                 ! For now, we want to assume that we can just use the
                 ! one-electron integrals as an approximation. If this is
@@ -749,8 +752,8 @@ contains
         sum_ml = sum(G1(src)%Ml)
 
         ! Get the symmetries
-        sym_prod = RandExcitSymLabelProd (int(G1(src(1))%Sym%S), &
-                                          int(G1(src(2))%Sym%S))
+        sym_prod = RandExcitSymLabelProd(SpinOrbSymLabel(src(1)), &
+                                         SpinOrbSymLabel(src(2)))
 
     end subroutine
 
@@ -766,7 +769,8 @@ contains
         real(dp) :: tmp
 
         ! How many orbitals are available with the given symmetry?
-        cc_index = ClassCountInd(get_spin(tgt), G1(tgt)%Sym%S, G1(tgt)%Ml)
+        cc_index = ClassCountInd(get_spin(tgt), SpinOrbSymLabel(tgt), &
+                                 G1(tgt)%Ml)
         label_index = SymLabelCounts2(1, cc_index)
         norb = OrbClassCount(cc_index)
 
@@ -1060,8 +1064,8 @@ contains
             ! Now consider all of the possible pairs of electrons
             tgt = ex(2,1:2)
             id_tgt = gtID(tgt)
-            sym_product = RandExcitSymLabelProd(int(G1(tgt(1))%Sym%S), &
-                                                int(G1(tgt(2))%Sym%S))
+            sym_product = RandExcitSymLabelProd(SpinOrbSymLabel(tgt(1)), &
+                                                SpinOrbSymLabel(tgt(2)))
             sum_ml = sum(G1(tgt)%Ml)
             cum_sum = 0
             do i = 2, nel
@@ -1071,8 +1075,8 @@ contains
                     ! Get the symmetries
                     src(2) = nI(j)
                     e_ispn = get_ispn(src(1), src(2))
-                    e_sym_prod = RandExcitSymLabelProd(int(G1(src(1))%Sym%S), &
-                                                       int(G1(src(2))%Sym%S))
+                    e_sym_prod = RandExcitSymLabelProd(SpinOrbSymLabel(src(1)), &
+                                                       SpinOrbSymLabel(src(2)))
                     e_sum_ml = sum(G1(src)%Ml)
                     
                     ! Calculate the cross HElements
@@ -1185,7 +1189,7 @@ contains
         ! Don't consider symmetry categories, do the components separately.
         ! --> Slightly quicker
         tgt_beta = is_beta(tgt)
-        tgt_sym = int(G1(tgt)%Sym%S)
+        tgt_sym = SpinOrbSymLabel(tgt)
         tgt_ml = G1(tgt)%Ml
 
         ! Spatial orbital IDs
@@ -1203,8 +1207,9 @@ contains
             ! If the symmetry/spin are not the same, then the matrix element
             ! will be zero --> don't calculate it!
             hel = 0
-            if ((is_beta(src) .eqv. tgt_beta) .and. G1(src)%Sym%S == tgt_sym &
-                .and. G1(src)%Ml == tgt_ml) then
+            if ((is_beta(src) .eqv. tgt_beta) .and. &
+                SpinOrbSymLabel(src) == tgt_sym .and. &
+                G1(src)%Ml == tgt_ml) then
 
                 ! Construct the hamiltonian matrix element (ignoring overall
                 ! sign). We can assume tExch, and we have just enforced that
@@ -1278,8 +1283,8 @@ contains
                 ! Get the symmetries
                 src(2) = nI(j)
                 e_ispn = get_ispn(src(1), src(2))
-                e_sym_prod = RandExcitSymLabelProd(int(G1(src(1))%Sym%s), &
-                                                   int(G1(src(2))%Sym%s))
+                e_sym_prod = RandExcitSymLabelProd(SpinOrbSymLabel(src(1)), &
+                                                   SpinOrbSymLabel(src(2)))
                 e_sum_ml = sum(G1(src)%Ml)
 
                 ! Get the weight (HElement) associated with the elecs/holes
@@ -1402,8 +1407,8 @@ contains
         sum_ml = sum(G1(orbs)%Ml)
 
         ! What are the symmetry/spin properties of this pick?
-        sym_prod = RandExcitSymLabelProd(int(G1(orbs(1))%Sym%S), &
-                                         int(G1(orbs(2))%Sym%S))
+        sym_prod = RandExcitSymLabelProd(SpinOrbSymLabel(orbs(1)), &
+                                         SpinOrbSymLabel(orbs(2)))
         ASSERT(iSpn == get_ispn(orbs(1), orbs(2)))
 
     end subroutine
@@ -1467,8 +1472,8 @@ contains
         pgen = 1.0_dp / real(nchoose, dp)
 
         ! What are the symmetry/spin properties of this pick?
-        sym_prod = RandExcitSymLabelProd (int(G1(orbs(1))%Sym%S), &
-                                          int(G1(orbs(2))%Sym%S))
+        sym_prod = RandExcitSymLabelProd (SpinOrbSymLabel(orbs(1)), &
+                                          SpinOrbSymLabel(orbs(2)))
         ispn = get_ispn(orbs(1), orbs(2))
         sum_ml = sum(G1(orbs)%Ml)
 

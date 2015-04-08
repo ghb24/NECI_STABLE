@@ -78,7 +78,7 @@ contains
           tSearchTau=.true.
           tSearchTauOption = .true.
           tSearchTauDeath = .false.
-          InputDiagSft=0.0_dp
+
           tTimeExit=.false.
           MaxTimeExit=0.0_dp
           tMaxBloom=.false.
@@ -273,26 +273,8 @@ contains
           ! Semi-stochastic and trial wavefunction options.
           tSemiStochastic = .false.
           tCSFCore = .false.
-          determ_opt_data%ngen_loops = 1
-          n_core_pops = 0
-          low_e_core_excit = 0
-          low_e_core_num_keep = 0
-          semistoch_mp1_ndets = 0
           semistoch_shift_iter = 0
-          tLowECoreAllDoubles = .false.
-          tLimitDetermSpace = .false.
-          tLimitTrialSpace = .false.
-          max_determ_size = 0
-          max_trial_size = 0
-          determ_opt_data%tAmpCutoff = .false.
           tTrialWavefunction = .false.
-          trial_opt_data%ngen_loops = 1
-          n_trial_pops = 0
-          low_e_trial_excit = 0
-          low_e_trial_num_keep = 0
-          trial_mp1_ndets = 0
-          tLowETrialAllDoubles = .false.
-          trial_opt_data%tAmpCutoff = .false.
           tKP_FCIQMC = .false.
           tLetInitialPopDie = .false.
           tWritePopsNorm = .false.
@@ -325,6 +307,7 @@ contains
           MaxTau = 1.0_dp
           tMultiReplicaInitiators = .false.
           tOrthogonaliseReplicas = .false.
+          tOrthogonaliseSymmetric = .false.
           orthogonalise_iter = 0
           tReplicaSingleDetStart = .false.
 
@@ -357,6 +340,12 @@ contains
           logical :: tExitNow
           integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
           integer :: npops_pert, npert_spectral_left, npert_spectral_right
+          real(dp) :: InputDiagSftSingle
+
+          ! Allocate and set this default here, because we don't have inum_runs
+          ! set when the other defaults are set.
+          allocate(InputDiagSft(inum_runs))
+          InputDiagSft=0.0_dp
 
           calc: do
             call read_line(eof)
@@ -922,7 +911,16 @@ contains
             case("DIAGSHIFT")
 !For FCIMC, this is the amount extra the diagonal elements will be shifted. This is proportional to the deathrate of 
 !walkers on the determinant
-                call getf(InputDiagSft)
+                if (nitems == 2) then
+                    call getf(InputDiagSftSingle)
+                    InputDiagSft = InputDiagSftSingle
+                else
+                    if (inum_runs /= nitems-1) call stop_all(t_r, "The number of initial shifts input is not equal to &
+                                                                  &the number of replicas being used.")
+                    do i = 1, inum_runs
+                        call getf(InputDiagSft(i))
+                    end do
+                end if
 
             case("TAUFACTOR")
 !For FCIMC, this is the factor by which 1/(HF connectivity) will be multiplied by to give the timestep for the calculation.
@@ -1004,8 +1002,8 @@ contains
             case("CAS-CORE")
                 ss_space_in%tCAS = .true.
                 tSpn = .true.
-                call geti(OccDetermCASOrbs)  !Number of electrons in CAS 
-                call geti(VirtDetermCASOrbs)  !Number of virtual spin-orbitals in CAS
+                call geti(ss_space_in%occ_cas)  !Number of electrons in CAS 
+                call geti(ss_space_in%virt_cas)  !Number of virtual spin-orbitals in CAS
             case("RAS-CORE")
                 ss_space_in%tRAS = .true.
                 call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
@@ -1013,26 +1011,26 @@ contains
                 call geti(ras_size_3)  ! Number of spatial orbitals in RAS3.
                 call geti(ras_min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs. 
                 call geti(ras_max_3)  ! Max number of electrons (alpha and beta) in RAS3 orbs.
-                core_ras%size_1 = int(ras_size_1,sp)
-                core_ras%size_2 = int(ras_size_2,sp)
-                core_ras%size_3 = int(ras_size_3,sp)
-                core_ras%min_1 = int(ras_min_1,sp)
-                core_ras%max_3 = int(ras_max_3,sp)
+                ss_space_in%ras%size_1 = int(ras_size_1,sp)
+                ss_space_in%ras%size_2 = int(ras_size_2,sp)
+                ss_space_in%ras%size_3 = int(ras_size_3,sp)
+                ss_space_in%ras%min_1 = int(ras_min_1,sp)
+                ss_space_in%ras%max_3 = int(ras_max_3,sp)
             case("OPTIMISED-CORE")
                 ss_space_in%tOptimised = .true.
             case("OPTIMISED-CORE-CUTOFF-AMP")
-                determ_opt_data%tAmpCutoff = .true.
-                determ_opt_data%ngen_loops = nitems - 1
-                allocate(determ_opt_data%cutoff_amps(determ_opt_data%ngen_loops))
-                do I = 1, determ_opt_data%ngen_loops
-                    call getf(determ_opt_data%cutoff_amps(I))
+                ss_space_in%opt_data%tAmpCutoff = .true.
+                ss_space_in%opt_data%ngen_loops = nitems - 1
+                allocate(ss_space_in%opt_data%cutoff_amps(ss_space_in%opt_data%ngen_loops))
+                do I = 1, ss_space_in%opt_data%ngen_loops
+                    call getf(ss_space_in%opt_data%cutoff_amps(I))
                 end do
             case("OPTIMISED-CORE-CUTOFF-NUM")
-                determ_opt_data%tAmpCutoff = .false.
-                determ_opt_data%ngen_loops = nitems - 1
-                allocate(determ_opt_data%cutoff_nums(determ_opt_data%ngen_loops))
-                do I = 1, determ_opt_data%ngen_loops
-                    call geti(determ_opt_data%cutoff_nums(I))
+                ss_space_in%opt_data%tAmpCutoff = .false.
+                ss_space_in%opt_data%ngen_loops = nitems - 1
+                allocate(ss_space_in%opt_data%cutoff_nums(ss_space_in%opt_data%ngen_loops))
+                do I = 1, ss_space_in%opt_data%ngen_loops
+                    call geti(ss_space_in%opt_data%cutoff_nums(I))
                 end do
             case("FCI-CORE")
                 ss_space_in%tFCI = .true.
@@ -1042,51 +1040,34 @@ contains
                 ss_space_in%tHF = .true.
             case("POPS-CORE")
                 ss_space_in%tPops = .true.
-                call geti(n_core_pops)
+                call geti(ss_space_in%npops)
             case("MP1-CORE")
                 ss_space_in%tMP1 = .true.
-                call geti(semistoch_mp1_ndets)
+                call geti(ss_space_in%mp1_ndets)
             case("READ-CORE")
                 ss_space_in%tRead = .true.
-            case("LOW-ENERGY-CORE")
-    ! Input values: The first integer is the maximum excitation level to go up to.
-    !               The second integer is the maximum number of states to keep for a subsequent iteration.
-    !               If desired, you can put "All-Doubles" after these two integers to keep all singles and doubles.
-    !               If max-core-size is specified then this value will be used to select the number of states kept
-    !               after the *final* iteration.
-                ss_space_in%tLowE = .true.
-                call geti(low_e_core_excit)
-                call geti(low_e_core_num_keep)
-                if (nitems > 3) then
-                    call geta(input_string)
-                    if (trim(input_string) == "All-Doubles") then
-                        tLowECoreAllDoubles = .true.
-                    else
-                        call stop_all("SysReadInput","Input string is not recognised.")
-                    end if
-                end if
             case("MAX-CORE-SIZE")
-                tLimitDetermSpace = .true.
-                call geti(max_determ_size)
+                ss_space_in%tLimitSpace = .true.
+                call geti(ss_space_in%max_size)
             case("STOCHASTIC-HF-SPAWNING")
                 tDetermHFSpawning = .false.
 
             case("TRIAL-WAVEFUNCTION")
                 tTrialWavefunction = .true.
                 if (item < nitems) then
-                    call geti(trial_mp1_ndets)
+                    call geti(trial_space_in%mp1_ndets)
                     trial_space_in%tMP1 = .true.
                 end if
             case("MAX-TRIAL-SIZE")
-                tLimitTrialSpace = .true.
-                call geti(max_trial_size)
+                trial_space_in%tLimitSpace = .true.
+                call geti(trial_space_in%max_size)
             case("DOUBLES-TRIAL")
                 trial_space_in%tDoubles = .true.
             case("CAS-TRIAL")
                 trial_space_in%tCAS = .true.
                 tSpn = .true.
-                call geti(OccTrialCASOrbs)  !Number of electrons in CAS 
-                call geti(VirtTrialCASOrbs)  !Number of virtual spin-orbitals in CAS
+                call geti(trial_space_in%occ_cas) ! Number of electrons in CAS 
+                call geti(trial_space_in%virt_cas) ! Number of virtual spin-orbitals in CAS
             case("RAS-TRIAL")
                 trial_space_in%tRAS = .true.
                 call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
@@ -1094,55 +1075,38 @@ contains
                 call geti(ras_size_3)  ! Number of spatial orbitals in RAS3.
                 call geti(ras_min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs. 
                 call geti(ras_max_3)  ! Max number of electrons (alpha and beta) in RAS3 orbs.
-                trial_ras%size_1 = int(ras_size_1,sp)
-                trial_ras%size_2 = int(ras_size_2,sp)
-                trial_ras%size_3 = int(ras_size_3,sp)
-                trial_ras%min_1 = int(ras_min_1,sp)
-                trial_ras%max_3 = int(ras_max_3,sp)
+                trial_space_in%ras%size_1 = int(ras_size_1,sp)
+                trial_space_in%ras%size_2 = int(ras_size_2,sp)
+                trial_space_in%ras%size_3 = int(ras_size_3,sp)
+                trial_space_in%ras%min_1 = int(ras_min_1,sp)
+                trial_space_in%ras%max_3 = int(ras_max_3,sp)
             case("OPTIMISED-TRIAL")
                 trial_space_in%tOptimised = .true.
             case("OPTIMISED-TRIAL-CUTOFF-AMP")
-                trial_opt_data%tAmpCutoff = .true.
-                trial_opt_data%ngen_loops = nitems - 1
-                allocate(trial_opt_data%cutoff_amps(trial_opt_data%ngen_loops))
-                do I = 1, trial_opt_data%ngen_loops
-                    call getf(trial_opt_data%cutoff_amps(I))
+                trial_space_in%opt_data%tAmpCutoff = .true.
+                trial_space_in%opt_data%ngen_loops = nitems - 1
+                allocate(trial_space_in%opt_data%cutoff_amps(trial_space_in%opt_data%ngen_loops))
+                do I = 1, trial_space_in%opt_data%ngen_loops
+                    call getf(trial_space_in%opt_data%cutoff_amps(I))
                 end do
             case("OPTIMISED-TRIAL-CUTOFF-NUM")
-                trial_opt_data%tAmpCutoff = .false.
-                trial_opt_data%ngen_loops = nitems - 1
-                allocate(trial_opt_data%cutoff_nums(trial_opt_data%ngen_loops))
-                do I = 1, trial_opt_data%ngen_loops
-                    call geti(trial_opt_data%cutoff_nums(I))
+                trial_space_in%opt_data%tAmpCutoff = .false.
+                trial_space_in%opt_data%ngen_loops = nitems - 1
+                allocate(trial_space_in%opt_data%cutoff_nums(trial_space_in%opt_data%ngen_loops))
+                do I = 1, trial_space_in%opt_data%ngen_loops
+                    call geti(trial_space_in%opt_data%cutoff_nums(I))
                 end do
             case("HF-TRIAL")
                 trial_space_in%tHF = .true.
             case("POPS-TRIAL")
                 trial_space_in%tPops = .true.
-                call geti(n_trial_pops)
+                call geti(trial_space_in%npops)
             case("READ-TRIAL")
                 trial_space_in%tRead = .true.
-            case("LOW-ENERGY-TRIAL")
-    ! Input values: The first integer is the maximum excitation level to go up to.
-    !               The second integer is the maximum number of states to keep for a subsequent iteration.
-    !               If desired, you can put "All-Doubles" after these two integers to keep all singles and doubles.
-    !               If max-trial-size is specified then this value will be used to select the number of states kept
-    !               after the *final* iteration.
-                trial_space_in%tLowE = .true.
-                call geti(low_e_trial_excit)
-                call geti(low_e_trial_num_keep)
-                if (nitems > 3) then
-                    call geta(input_string)
-                    if (trim(input_string) == "All-Doubles") then
-                        tLowETrialAllDoubles = .true.
-                    else
-                        call stop_all("SysReadInput","Input string is not recognised.")
-                    end if
-                end if
             case("FCI-TRIAL")
-                trial_space_in%tFCI = .false.
+                trial_space_in%tFCI = .true.
             case("HEISENBERG-FCI-TRIAL")
-                trial_space_in%tHeisenbergFCI = .false.
+                trial_space_in%tHeisenbergFCI = .true.
             case("TRIAL-BIN-SEARCH")
                 tTrialHash = .false.
             case("START-FROM-HF")
@@ -1995,6 +1959,23 @@ contains
                 if (item < nitems) then
                     call readi(orthogonalise_iter)
                 endif
+
+                ! Don't start all replicas from the deterministic ground state
+                ! when using this option.
+                tStartCoreGroundState = .false.
+
+            case("ORTHOGONALISE-REPLICAS-SYMMETRIC")
+                ! Use the Lowdin (symmetric) orthogonaliser instead of the 
+                ! Gram Schmidt one from the ORTHOGONALISE-REPLICAS option
+                tOrthogonaliseReplicas = .true.
+                tOrthogonaliseSymmetric = .true.
+                if (item < nitems) then
+                    call readi(orthogonalise_iter)
+                end if
+
+                ! Don't start all replicas from the deterministic ground state
+                ! when using this option.
+                tStartCoreGroundState = .false.
 
             case("REPLICA-SINGLE-DET-START")
                 ! If we want to start off multiple replicas from single dets

@@ -412,7 +412,8 @@ contains
                 !Calculate ic, tParity and Ex
                 call EncodeBitDet (nJ, iLutnJ)
                 Ex(:,:)=0
-                Ex(1,1)=FindBitExcitlevel(iLutnJ,iLutRef(:,1),2)
+                ic = FindBitExcitlevel(iLutnJ,iLutRef(:,1),2)
+                ex(1,1) = ic
                 call GetExcitation(ProjEDet(:,1),nJ,Nel,ex,tParity)
             else
                 CALL GenExcitations3(ProjEDet(:,1),iLutRef(:,1),nJ,exflag,Ex_saved,tParity,tAllExcitFound,.false.)

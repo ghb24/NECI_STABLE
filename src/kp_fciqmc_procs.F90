@@ -128,12 +128,10 @@ contains
                     real_sign_2 = transfer(int_sign, real_sign_1)
                     if (IsUnoccDet(real_sign_2)) cycle
 
-#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
                     s_matrix(jvec,ivec) = s_matrix(jvec,ivec) + &
-                        (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
-#else
-                    s_matrix(jvec,ivec) = s_matrix(jvec,ivec) + real_sign_1(1)*real_sign_2(1)
-#endif
+                        (real_sign_1(kp_ind_1(1))*real_sign_2(kp_ind_2(1)) + &
+                         real_sign_1(kp_ind_2(1))*real_sign_2(kp_ind_1(1)))/2.0_dp
+
                     ! Fill in the lower-half of the overlap matrix.
                     s_matrix(ivec,jvec) = s_matrix(jvec,ivec)
                 end do
@@ -174,11 +172,8 @@ contains
                 ! Add in the contributions to the overlap.
                 int_sign = krylov_vecs(sign_ind:sign_ind+lenof_sign_kp-1, det_ind)
                 real_sign_2 = transfer(int_sign, real_sign_1)
-#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
-                overlap = overlap + (real_sign_1(1)*real_sign_2(2) + real_sign_1(2)*real_sign_2(1))/2.0_dp
-#else
-                overlap = overlap + real_sign_1(1)*real_sign_2(1)
-#endif
+                overlap = overlap + (real_sign_1(kp_ind_1(1))*real_sign_2(kp_ind_2(1)) + &
+                                     real_sign_1(kp_ind_2(1))*real_sign_2(kp_ind_1(1)))/2.0_dp
             end if
         end do
 
@@ -226,23 +221,16 @@ contains
             int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_all_signs, idet)
 
             any_occ = .false.
-#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
             do i = 1, nvecs
-                any_occ = any_occ .or. (int_sign(2*i-1) /= 0)
+                any_occ = any_occ .or. (int_sign(kp_ind_1(i)) /= 0)
             end do
             if (any_occ) occ_flags = ibset(occ_flags(idet), 0)
 
             any_occ = .false.
             do i = 1, nvecs
-                any_occ = any_occ .or. (int_sign(2*i) /= 0)
+                any_occ = any_occ .or. (int_sign(kp_ind_2(i)) /= 0)
             end do
             if (any_occ) occ_flags = ibset(occ_flags(idet), 1)
-#else
-            do i = 1, nvecs
-                any_occ = any_occ .or. (int_sign(i) /= 0)
-            end do
-            if (any_occ) occ_flags = ibset(occ_flags(idet), 0)
-#endif
         end do
 
         ! Loop over all determinants in krylov_array.
@@ -255,12 +243,11 @@ contains
             occ_2 = btest(occ_flags(idet),1)
 
             do jdet = idet, array_len
-#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
+                ! If one of the two determinants are unoccupied in all vectors,
+                ! then cycle.
                 if (.not. ((occ_1 .and. btest(occ_flags(jdet),1)) .or. &
                     (occ_2 .and. btest(occ_flags(jdet),0)))) cycle
-#else
-                if (.not. (occ_1 .and. btest(occ_flags(jdet),0)) ) cycle
-#endif
+
                 ilut_2(0:NIfDBO) = krylov_array(0:NIfDBO, jdet)
                 ic = FindBitExcitLevel(ilut_1, ilut_2)
                 if (ic > 2) cycle
@@ -286,28 +273,17 @@ contains
                 ! Finally, add in the contribution to all of the Hamiltonian elements.
                 do i = 1, nvecs
                     do j = i, nvecs
-#if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS)
                         if (idet == jdet) then
                             h_matrix(i,j) = h_matrix(i,j) + &
-                                h_elem*(real_sign_1(2*i-1)*real_sign_2(2*j) + &
-                                real_sign_1(2*i)*real_sign_2(2*j-1))/2
+                                h_elem*(real_sign_1(kp_ind_1(i))*real_sign_2(kp_ind_2(j)) + &
+                                        real_sign_1(kp_ind_2(i))*real_sign_2(kp_ind_1(j)))/2
                         else
                             h_matrix(i,j) = h_matrix(i,j) + &
-                                h_elem*(real_sign_1(2*i-1)*real_sign_2(2*j) + &
-                                real_sign_1(2*i)*real_sign_2(2*j-1) + &
-                                real_sign_1(2*j-1)*real_sign_2(2*i) + &
-                                real_sign_1(2*j)*real_sign_2(2*i-1))/2
+                                h_elem*(real_sign_1(kp_ind_1(i))*real_sign_2(kp_ind_2(j)) + &
+                                        real_sign_1(kp_ind_2(i))*real_sign_2(kp_ind_1(j)) + &
+                                        real_sign_1(kp_ind_1(j))*real_sign_2(kp_ind_2(i)) + &
+                                        real_sign_1(kp_ind_2(j))*real_sign_2(kp_ind_1(i)))/2
                         end if
-#else
-                        if (idet == jdet) then
-                            h_matrix(i,j) = h_matrix(i,j) + &
-                                h_elem*real_sign_1(i)*real_sign_2(j)
-                        else
-                            h_matrix(i,j) = h_matrix(i,j) + &
-                                h_elem*(real_sign_1(i)*real_sign_2(j) + &
-                                real_sign_1(j)*real_sign_2(i))
-                        end if
-#endif
                     end do
                 end do
 
@@ -507,7 +483,7 @@ contains
     end subroutine average_and_comm_pert_overlaps
 
     subroutine find_and_output_lowdin_eigv(config_label, nvecs, overlap_matrix, hamil_matrix, npositive, &
-                                           all_evals, spin_matrix, all_spin)
+                                           all_evals, tOutput, spin_matrix, all_spin)
 
         use CalcData, only: tWritePopsNorm, pops_norm
         use util_mod, only: int_fmt, get_free_unit
@@ -516,6 +492,7 @@ contains
         real(dp), intent(in) :: overlap_matrix(:,:), hamil_matrix(:,:)
         integer, intent(out) :: npositive
         real(dp), intent(out) :: all_evals(:,:)
+        logical, intent(in) :: tOutput
         real(dp), optional, intent(in) :: spin_matrix(:,:)
         real(dp), optional, intent(out) :: all_spin(:,:)
 
@@ -528,14 +505,16 @@ contains
         character(25) :: ind1, filename
         character(len=*), parameter :: stem = "lowdin"
 
-        write(ind1,'(i15)') config_label
-        filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
-        temp_unit = get_free_unit()
-        open(temp_unit, file=trim(filename), status='replace')
-    
-        if (tWritePopsNorm) then
-            write(temp_unit, '(4("-"),a41,25("-"))') "Norm of unperturbed initial wave function"
-            write(temp_unit,'(1x,es19.12,/)') sqrt(pops_norm)
+        if (tOutput) then
+            write(ind1,'(i15)') config_label
+            filename = trim(trim(stem)//'.'//trim(adjustl(ind1)))
+            temp_unit = get_free_unit()
+            open(temp_unit, file=trim(filename), status='replace')
+
+            if (tWritePopsNorm) then
+                write(temp_unit, '(4("-"),a41,25("-"))') "Norm of unperturbed initial wave function"
+                write(temp_unit,'(1x,es19.12,/)') sqrt(pops_norm)
+            end if
         end if
 
         ! Create the workspace for the diagonaliser.
@@ -551,13 +530,13 @@ contains
         all_evals = 0.0_dp
         if (present(spin_matrix)) all_spin = 0.0_dp
 
-        write(temp_unit,'(4("-"),a26,40("-"))') "Overlap matrix eigenvalues"
+        if (tOutput) write(temp_unit,'(4("-"),a26,40("-"))') "Overlap matrix eigenvalues"
         do i = 1, nvecs
-            write(temp_unit,'(1x,es19.12)') kp_overlap_eigv(i)
+            if (tOutput) write(temp_unit,'(1x,es19.12)') kp_overlap_eigv(i)
             if (kp_overlap_eigv(i) > 0.0_dp) npositive = npositive + 1
         end do
 
-        if (tOverlapPert) then
+        if (tOutput .and. tOverlapPert) then
             write(temp_unit,'(/,"# The overlap of each final Hamiltonian eigenstate with each &
                               &requested perturbed ground state will be printed. The first &
                               &printed overlap is that with the first Krylov vector. The second &
@@ -600,15 +579,17 @@ contains
                     rotated_spin = matmul(transpose(eigenvecs_krylov), inter_matrix)
                 end if
 
-                nkeep_len = ceiling(log10(real(abs(nkeep)+1,dp)))
-                write(string_fmt,'(i2,a5)') 15-nkeep_len, '("-")'
-                write(temp_unit,'(/,4("-"),a37,'//int_fmt(nkeep,1)//',1x,a12,'//string_fmt//')') &
-                    "Eigenvalues and overlaps when keeping", nkeep, "eigenvectors"
-                do i = 1, nkeep
-                    write(temp_unit,'(1x,es19.12,1x,es19.12)',advance='no') kp_hamil_eigv(i), init_overlaps(i)
-                    if (tOverlapPert) write(temp_unit,'(1x,es19.12)',advance='no') kp_pert_energy_overlaps(i)
-                    write(temp_unit,'()',advance='yes')
-                end do
+                if (tOutput) then
+                    nkeep_len = ceiling(log10(real(abs(nkeep)+1,dp)))
+                    write(string_fmt,'(i2,a5)') 15-nkeep_len, '("-")'
+                    write(temp_unit,'(/,4("-"),a37,'//int_fmt(nkeep,1)//',1x,a12,'//string_fmt//')') &
+                        "Eigenvalues and overlaps when keeping", nkeep, "eigenvectors"
+                    do i = 1, nkeep
+                        write(temp_unit,'(1x,es19.12,1x,es19.12)',advance='no') kp_hamil_eigv(i), init_overlaps(i)
+                        if (tOverlapPert) write(temp_unit,'(1x,es19.12)',advance='no') kp_pert_energy_overlaps(i)
+                        write(temp_unit,'()',advance='yes')
+                    end do
+                end if
 
                 all_evals(1:nkeep, nkeep) = kp_hamil_eigv(1:nkeep)
                 if (present(spin_matrix)) then
@@ -627,7 +608,7 @@ contains
 
         deallocate(work)
 
-        close(temp_unit)
+        if (tOutput) close(temp_unit)
 
     end subroutine find_and_output_lowdin_eigv
 
@@ -967,7 +948,12 @@ contains
             write(temp_unit,'(3X,es19.12)',advance='no') lowdin_evals(ivec, nlowdin)
         end do
         do ivec = nlowdin+1, nvecs
-            write(temp_unit,'(12X,3a,7X)',advance='no') "NaN"
+            write(temp_unit,'(12X,"NaN",7X)',advance='no')
+        end do
+
+        ! Diagonal energies.
+        do ivec = 1, nvecs
+            write(temp_unit,'(3X,es19.12)',advance='no') hamil_matrix(ivec,ivec)/overlap_matrix(ivec,ivec)
         end do
 
         if (present(lowdin_spin)) then
@@ -975,14 +961,9 @@ contains
                 write(temp_unit,'(3X,es19.12)',advance='no') lowdin_spin(ivec, nlowdin) + (0.75_dp*nel)
             end do
             do ivec = nlowdin+1, nvecs
-                write(temp_unit,'(12X,3a,7X)',advance='no') "NaN"
+                write(temp_unit,'(12X,"NaN",7X)',advance='no')
             end do
         end if
-
-        ! Diagonal energies.
-        do ivec = 1, nvecs
-            write(temp_unit,'(3X,es19.12)',advance='no') hamil_matrix(ivec,ivec)/overlap_matrix(ivec,ivec)
-        end do
 
         ! Diagonal spin entries.
         if (present(spin_matrix)) then

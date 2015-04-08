@@ -21,6 +21,7 @@ nmcyc 400
 trial-wavefunction
 doubles-trial
 linscalefcimcalgo
+trial-bin-search
 endcalc
 
 integral
