@@ -8,7 +8,8 @@ module excit_gens_int_weighted
                           par_hole_pairs, AB_hole_pairs, iMaxLz
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
-                               pDoubNew, ScratchSize
+                               pDoubNew, ScratchSize, SpinOrbSymLabel, &
+                               SymInvLabel
     use sym_general_mod, only: ClassCountInd, ClassCountInv, class_count_ms, &
                                class_count_ml
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, pParallel
@@ -347,7 +348,7 @@ contains
 
         ! Get the paired symmetry
         !sym_j = ieor(sym_i, sym_product)
-        sym_j = RandExcitSymLabelProd (sym_i, sym_product)
+        sym_j = RandExcitSymLabelProd (SymInvLabel(sym_i), sym_product)
 
         ! Consider the paired symmetries permitted
         spn_j = spn_i
@@ -738,8 +739,8 @@ contains
         sum_ml = sum(G1(src)%Ml)
 
         ! Get the symmetries
-        sym_prod = RandExcitSymLabelProd (int(G1(src(1))%Sym%S), &
-                                          int(G1(src(2))%Sym%S))
+        sym_prod = RandExcitSymLabelProd(SpinOrbSymLabel(src(1)), &
+                                         SpinOrbSymLabel(src(2)))
 
     end subroutine
 
