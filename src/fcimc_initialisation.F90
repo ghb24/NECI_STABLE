@@ -1815,11 +1815,6 @@ contains
 #endif
                 end if
 
-                ! TODO: Support semi-stochastic simulations
-                !       --> Consider what we mean by deterministic spaces?
-                if (tSemiStochastic) &
-                    call stop_all(this_routine, "Not yet supported")
-
                 ! The global reference is the HF and is primary for printed
                 ! energies.
                 if (run == 1) HFInd = site
