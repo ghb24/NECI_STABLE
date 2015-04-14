@@ -316,6 +316,7 @@ contains
 
         integer, intent(in) :: j
         real(dp) :: rate
+        character(*), parameter :: this_routine = 'get_spawn_rate'
 
         ASSERT(tContTimeFCIMC .and. tContTimeFull)
         rate = global_determinant_data(pos_spawn_rate, j)
@@ -326,6 +327,7 @@ contains
 
         integer, intent(in) :: j
         real(dp), intent(in) :: rate
+        character(*), parameter :: this_routine = 'set_spawn_rate'
 
         ASSERT(tContTimeFCIMC .and. tContTimeFull)
         global_determinant_data(pos_spawn_rate, j) = rate

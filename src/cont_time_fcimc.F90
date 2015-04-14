@@ -16,6 +16,7 @@ module cont_time
     use hphf_integrals, only: hphf_diag_helement
     use Determinants, only: get_helement
     use bit_reps, only: extract_bit_rep
+    use LoggingData, only: FCIMCDebug
     use SystemData, only: nel, tHPHF
     use bit_reps, only: nullify_ilut
     use bit_rep_data, only: NIfTot

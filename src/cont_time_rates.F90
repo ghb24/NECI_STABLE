@@ -30,6 +30,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: det(nel)
         real(dp) :: rate
+        character(*), parameter :: this_routine = 'spawn_rate_full'
 
         integer :: ex(2,2), flag, det_spwn(nel)
         logical :: par, found_all
