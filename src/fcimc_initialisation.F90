@@ -28,7 +28,8 @@ module fcimc_initialisation
                         TargetGrowRateWalk, InputTargetGrowRate, &
                         InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
                         use_spawn_hash_table, tReplicaSingleDetStart, &
-                        ss_space_in, trial_space_in, init_trial_in
+                        ss_space_in, trial_space_in, init_trial_in, &
+                        tContTimeFCIMC, tContTimeFull
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -99,7 +100,7 @@ module fcimc_initialisation
                                     set_trial_states
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                clean_global_det_data, init_global_det_data, &
-                               set_part_init_time
+                               set_part_init_time, set_spawn_rate
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
@@ -111,6 +112,7 @@ module fcimc_initialisation
     use csf, only: get_csf_helement
     use tau_search, only: init_tau_search
     use fcimc_helper, only: CalcParentFlag, update_run_reference
+    use cont_time_rates, only: spawn_rate_full
     use get_excit, only: make_double
     use sltcnd_mod, only: sltcnd_0
     use Parallel_neci
@@ -1684,6 +1686,9 @@ contains
 
             ! Set the initial iteration number
             call set_part_init_time(1, TotImagTime)
+
+            if (tContTimeFCIMC .and. tContTimeFull) &
+                call set_spawn_rate(1, spawn_rate_full(HFDet, ilutHF))
 
             ! Obtain the initial sign
             InitialSign = 0.0_dp
