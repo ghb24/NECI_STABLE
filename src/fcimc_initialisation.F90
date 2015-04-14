@@ -112,7 +112,8 @@ module fcimc_initialisation
     use csf, only: get_csf_helement
     use tau_search, only: init_tau_search
     use fcimc_helper, only: CalcParentFlag, update_run_reference
-    use cont_time_rates, only: spawn_rate_full
+    use cont_time_rates, only: spawn_rate_full, oversample_factors, &
+                               secondary_gen_store, ostag
     use get_excit, only: make_double
     use sltcnd_mod, only: sltcnd_0
     use Parallel_neci
@@ -3239,6 +3240,35 @@ contains
         end do
 
     end subroutine assign_reference_dets
+
+    subroutine init_cont_time()
+
+        integer :: ierr
+        character(*), parameter :: this_routine = 'init_cont_time'
+        character(*), parameter :: t_r = this_routine
+
+        call clean_cont_time()
+
+        allocate(oversample_factors(1:2, LMS:nel), stat=ierr)
+        log_alloc(oversample_factors, ostag, ierr)
+        oversample_factors = 1.0_dp
+
+        ! We need somewhere for our nested excitation generators to call home
+        call init_excit_gen_store(secondary_gen_store)
+
+    end subroutine
+
+    subroutine clean_cont_time()
+
+        character(*), parameter :: this_routine = 'clean_cont_time'
+
+        if (allocated(oversample_factors)) then
+            deallocate(oversample_factors)
+            log_dealloc(ostag)
+        end if
+
+    end subroutine
+
 
 end module fcimc_initialisation
 

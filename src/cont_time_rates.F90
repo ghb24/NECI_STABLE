@@ -5,18 +5,24 @@ module cont_time_rates
     ! cont_time_fcimc.F90. It is split out for circuit breaking purposes
     ! (due to mutual dependencies of Annihilation.F90)
 
+    use procedure_pointers, only: generate_excitation, encode_child, &
+                                  get_spawn_helement
+    use CalcData, only: tContTimeFull, DiagSft, cont_time_max_overspawn
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use CalcData, only: tContTimeFull, DiagSft
+    use FciMCData, only: excit_gen_store_type
     use Determinants, only: get_helement
     use SymExcit3, only: GenExcitations3
+    use MemoryManager, only: TagIntType
     use DetBitOps, only: EncodeBitDet
     use bit_rep_data, only: NIfTot
-    use SystemData, only: nel
+    use SystemData, only: nel, LMS
     use constants
+    use util_mod
     implicit none
     save
 
-    real(dp) :: oversample_factors(:,:)
+    type(excit_gen_store_type) :: secondary_gen_store
+    real(dp), allocatable :: oversample_factors(:,:)
     integer(TagIntType) :: ostag
 
 contains
@@ -127,9 +133,10 @@ contains
     end subroutine
 
     subroutine cont_time_gen_excit(det, ilut, rate, hdiag, det_spwn, &
-                                        ilut_spwn, hoffdiag, ic, part_type)
+                                   ilut_spwn, hoffdiag, ic, part_type, nopen, &
+                                   nspawn, store)
 
-        integer, intent(in) :: det(nel), part_type
+        integer, intent(in) :: det(nel), part_type, nopen
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         real(dp), intent(in) :: rate, hdiag
         integer, intent(out) :: det_spwn(nel)
@@ -140,8 +147,8 @@ contains
         character(*), parameter :: this_routine = 'cont_time_gen_excit_full'
 
         real(dp) :: probs(2), pgen, old, new_fac
-        real(dp) :: rate_diag, rate_offdiag, pdiag, r
-        integer :: ex(2,2)
+        real(dp) :: rate_diag, rate_offdiag, pdiag, r, pneeded, pkeep
+        integer :: ex(2,2), i, j
         logical :: tParity
         HElement_t :: helgen
 
@@ -175,7 +182,7 @@ contains
         if (IsNullDet(det_spwn)) then
 
             ! Get the diagonal matrix element
-            hoffdiag = get_spawn_helement(det, det_spwn, ilut, ilut_spawn, &
+            hoffdiag = get_spawn_helement(det, det_spwn, ilut, ilut_spwn, &
                                           ic, ex, tParity, helgen)
 
             ! What is the required acceptance rate?
@@ -204,16 +211,18 @@ contains
 
                 ! We shouldn't be spawning this particle at all
                 det_spwn(1) = 0
-                nspawn(1) = 0
+                nspawn = 0
 
             else
 
                 ! We are sampling enough --> This is the normal path
                 nspawn = stochastic_round_r(pkeep, r)
 
+            end if
+
 
             ! If this is going to survive, then encode it!
-            if (npspawn /= 0) &
+            if (nspawn /= 0) &
                 call encode_child(ilut, ilut_spwn, ic, ex)
 
         end if

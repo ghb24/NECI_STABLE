@@ -8,10 +8,12 @@ module cont_time
                             create_particle, create_particle_with_hash_table, &
                             SumEContrib, end_iter_stats
     use cont_time_rates, only: spawn_rate_full, cont_time_gen_excit_full, &
-                               oversample_factors, cont_time_gen_excit, ostag
+                               oversample_factors, cont_time_gen_excit, ostag,&
+                               secondary_gen_store
     use hash, only: remove_hash_table_entry, clear_hash_table
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs
     use global_det_data, only: det_diagH, get_spawn_rate
+    use GenRandSymExcitNUMod, only: init_excit_gen_store
     use Determinants, only: get_helement, write_det
     use orthogonalise, only: orthogonalise_replicas
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -28,8 +30,6 @@ module cont_time
     use util_mod
     implicit none
     save
-
-    type(excit_gen_store_type) :: secondary_gen_store
 
 contains
 
@@ -313,34 +313,5 @@ contains
 
 
     end function
-
-
-    subroutine init_cont_time()
-
-        integer :: ierr
-        character(*), parameter :: this_routine = 'init_cont_time'
-        character(*), parameter :: t_r = this_routine
-
-        call clean_cont_time()
-
-        allocate(oversample_factors(1:2, LMS:nel), stat=ierr)
-        log_alloc(oversample_factors, ostag, ierr)
-        oversample_factors = 1.0_dp
-
-        ! We need somewhere for our nested excitation generators to call home
-        call init_excit_gen_store(secondary_gen_store)
-
-    end subroutine
-
-    subroutine clean_cont_time()
-
-        character(*), parameter :: this_routine = 'clean_cont_time'
-
-        if (allocated(oversample_factors)) then
-            deallocate(oversample_factors)
-            log_dealloc(ostag)
-        end if
-
-    end subroutine
 
 end module
