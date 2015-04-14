@@ -170,17 +170,17 @@ def read_cols (f, last_iter=None, last_im_time=None):
     col_labels = {
         'iter': ('Step', 'Iter.'),
         'shift': (('Shift. (cyc)', 'Shift') +
-                    tuple(('Shift ({})'.format(run+1) for run in range(max_runs)))),
+                    tuple(('Shift ({0})'.format(run+1) for run in range(max_runs)))),
         'growth': ('GrowRate', 'Growth fac.'),
         'parts': (('TotWalkers', 'Tot. parts') +
-                    tuple(('Parts ({})'.format(run+1) for run in range(max_runs)))),
+                    tuple(('Parts ({0})'.format(run+1) for run in range(max_runs)))),
         'ref_parts': (('NoatHF', 'Tot. ref') +
-                        tuple(('Ref ({})'.format(run+1) for run in range(max_runs)))),
+                        tuple(('Ref ({0})'.format(run+1) for run in range(max_runs)))),
         'im_time': ('TotImagTime', 'Im. time'),
         'it_time': ('Iter. time', "IterTime"),
         'proje_corr': ('Proj.E.ThisCyc', 'Proj. E (cyc)'),
         'proje_tot': (('Tot-Proj.E.ThisCyc', 'Tot. Proj. E') +
-                    tuple(('Tot ProjE ({})'.format(run+1) for run in range(max_runs)))),
+                    tuple(('Tot ProjE ({0})'.format(run+1) for run in range(max_runs)))),
         'exp_av_proje': (),
         'av_proje': ('Proj.E',),
         'av_shift': ('Av.Shift',),
