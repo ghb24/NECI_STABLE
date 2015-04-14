@@ -28,6 +28,7 @@ contains
         ! stores the corresponding eigenvectors.
 
         use DetCalcData, only: nkry, nblk, b2l, ncycle
+        use sort_mod, only: sort
         use SystemData, only: nel, tHPHF
 
         integer, intent(in) :: det_list(:,:)
@@ -94,6 +95,12 @@ contains
 
         ! The above routine returns *minus* the eigenvalues. Remove this factor:
         evals = -evals
+
+        ! Sometimes eigenvalues and eigenvectors aren't returned in the correct
+        ! order, so reorder them so that the lowest-energy ones are first.
+        ! If they are degenerate, then we still need to use a fixed ordering,
+        ! so that different compilers are consistent.
+        call sort(evals, evecs)
 
         deallocate(evecs_space, &
                    A_Arr, &
