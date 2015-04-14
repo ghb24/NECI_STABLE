@@ -252,5 +252,6 @@ real(sp) :: s_global_start
 
 ! Use continuous time FCIQMC
 logical :: tContTimeFCIMC, tContTimeFull
+real(dp) :: cont_time_max_overspawn
 
 end module CalcData

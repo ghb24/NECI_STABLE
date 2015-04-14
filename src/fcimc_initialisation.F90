@@ -1209,6 +1209,9 @@ contains
             ! elements, i.e. CurrentH; now global_determinant_data).
             call init_global_det_data()
 
+            ! If we are doing cont time, then initialise it here
+            call init_cont_time()
+
             WRITE(iout,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned, &
                     " particles to be spawned in any one iteration per core."
             ALLOCATE(SpawnVec(0:NIftot,MaxSpawned),stat=ierr)
@@ -1617,6 +1620,9 @@ contains
 
         ! Cleanup storage for spin projection
         call clean_yama_store ()
+
+        ! Cleanup cont time
+        call clean_cont_time()
 
         if (tSemiStochastic) call end_semistoch()
 

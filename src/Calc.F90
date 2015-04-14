@@ -316,6 +316,7 @@ contains
           ! Continuous time FCIQMC control
           tContTimeFCIMC = .false.
           tContTimeFull = .false.
+          cont_time_max_overspawn = 4.0
 
         end subroutine SetCalcDefaults
 
@@ -1996,6 +1997,12 @@ contains
                 ! --> Needs to calculate the spawning rate for each det as it
                 !     appears, so is slow
                 tContTimeFull = .true.
+
+            case("CONT-TIME-MAX-OVERSPAWN")
+                ! Efficient continuous time propagation requires a fine
+                ! interplay between the oversampling rate, and the maximum
+                ! spawn allowed
+                call readf(cont_time_max_overspawn)
 
             case default
                 call report("Keyword "                                &

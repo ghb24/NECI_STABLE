@@ -14,6 +14,10 @@ module cont_time_rates
     use SystemData, only: nel
     use constants
     implicit none
+    save
+
+    real(dp) :: oversample_factors(:,:)
+    integer(TagIntType) :: ostag
 
 contains
 
@@ -119,6 +123,100 @@ contains
         ilut_spwn = 0
         call EncodeBitDet(det_spwn, ilut_spwn)
         ic = 99
+
+    end subroutine
+
+    subroutine cont_time_gen_excit(det, ilut, rate, hdiag, det_spwn, &
+                                        ilut_spwn, hoffdiag, ic, part_type)
+
+        integer, intent(in) :: det(nel), part_type
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        real(dp), intent(in) :: rate, hdiag
+        integer, intent(out) :: det_spwn(nel)
+        integer(n_int), intent(out) :: ilut_spwn(0:NIfTot)
+        HElement_t, intent(out) :: hoffdiag
+        integer, intent(out) :: ic, nspawn
+        type(excit_gen_store_type), intent(inout) :: store
+        character(*), parameter :: this_routine = 'cont_time_gen_excit_full'
+
+        real(dp) :: probs(2), pgen, old, new_fac
+        real(dp) :: rate_diag, rate_offdiag, pdiag, r
+        integer :: ex(2,2)
+        logical :: tParity
+        HElement_t :: helgen
+
+        ! By default we spawn one particle
+        nspawn = 1
+
+        ! Test the diagonal element first (as it will be by far the largest
+        ! term in the cumulative sum). If we are generating this, only worry
+        ! about the IC value, which is tested by the outer routine.
+        rate_diag = abs(hdiag - DiagSft(part_type))
+        pdiag = rate_diag / rate
+        r = genrand_real2_dSFMT()
+        if (pdiag >= r) then
+            det_spwn = det
+            ic = 0
+            return
+        end if
+
+        ! Adjust the random number so that it is accross [0, 1)
+        r = (r - pdiag) / (1.0_dp - pdiag)
+        rate_offdiag = rate - rate_diag
+
+        ! Obtain the singles/doubles probability from the oversampling
+        pSingles = oversample_factors(1, nopen) / rate_offdiag
+        pDoubles = oversample_factors(2, nopen) / rate_offdiag
+        probs = (/ pSingles, pDoubles /)
+
+        call generate_excitation(det, ilut, det_spwn, ilut_spwn, 3, ic, ex, &
+                                 tParity, pgen, helgen, store)
+
+        if (IsNullDet(det_spwn)) then
+
+            ! Get the diagonal matrix element
+            hoffdiag = get_spawn_helement(det, det_spwn, ilut, ilut_spawn, &
+                                          ic, ex, tParity, helgen)
+
+            ! What is the required acceptance rate?
+            pneeded = abs(hoffdiag) / rate_offdiag
+
+            ! Is our generation rate high enough to give the correct
+            ! distribution, or do we need to increase our oversampling?
+            pkeep = pneeded / pgen
+            if (pkeep > cont_time_max_overspawn) then
+
+                old = oversample_factors(ic, nopen)
+                new_fac = abs(hoffdiag) * probs(ic) &
+                        / (pgen * cont_time_max_overspawn)
+                if (new_fac > old) then
+                    oversample_factors(ic, nopen) = new_fac
+
+                    write(iout, '("New oversampling factors")')
+                    do j = 1, 2
+                        write(iout, '("ic",i1," ")', advance='no') j
+                        write(iout, *) (oversample_factors(j,i),i=LMS,nel,2)
+                    end do
+                end if
+                nspawn = stochastic_round_r(cont_time_max_overspawn, r)
+
+            else if (pneeded == 0) then
+
+                ! We shouldn't be spawning this particle at all
+                det_spwn(1) = 0
+                nspawn(1) = 0
+
+            else
+
+                ! We are sampling enough --> This is the normal path
+                nspawn = stochastic_round_r(pkeep, r)
+
+
+            ! If this is going to survive, then encode it!
+            if (npspawn /= 0) &
+                call encode_child(ilut, ilut_spwn, ic, ex)
+
+        end if
 
     end subroutine
 

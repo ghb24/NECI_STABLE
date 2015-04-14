@@ -7,8 +7,10 @@ module cont_time
     use fcimc_helper, only: rezero_iter_stats_each_iter, CalcParentFlag, &
                             create_particle, create_particle_with_hash_table, &
                             SumEContrib, end_iter_stats
-    use cont_time_rates, only: spawn_rate_full, cont_time_gen_excit_full
+    use cont_time_rates, only: spawn_rate_full, cont_time_gen_excit_full, &
+                               oversample_factors, cont_time_gen_excit, ostag
     use hash, only: remove_hash_table_entry, clear_hash_table
+    use DetBitOps, only: FindBitExcitLevel, count_open_orbs
     use global_det_data, only: det_diagH, get_spawn_rate
     use Determinants, only: get_helement, write_det
     use orthogonalise, only: orthogonalise_replicas
@@ -17,14 +19,17 @@ module cont_time
     use bit_reps, only: nullify_ilut, encode_sign
     use fcimc_iter_utils, only: update_iter_data
     use hphf_integrals, only: hphf_diag_helement
-    use DetBitOps, only: FindBitExcitLevel
+    use SystemData, only: nel, tHPHF, LMS
     use bit_reps, only: extract_bit_rep
     use LoggingData, only: FCIMCDebug
-    use SystemData, only: nel, tHPHF
     use bit_rep_data, only: NIfTot
     use FciMCData
     use constants
+    use util_mod
     implicit none
+    save
+
+    type(excit_gen_store_type) :: secondary_gen_store
 
 contains
 
@@ -38,7 +43,7 @@ contains
 
         real(dp) :: sgn(lenof_sign), rate, hdiag
         integer :: sgn_abs, iunused, flags, det(nel), j, p, TotWalkersNew
-        integer :: part_type, ic_hf
+        integer :: part_type, ic_hf, nopen
         logical :: survives
 
         if (lenof_sign /= 1) then
@@ -85,8 +90,7 @@ contains
             hdiag = det_diagH(j)
             if (tContTimeFull) then
                 rate = get_spawn_rate(j)
-            else
-                call stop_all(this_routine, "Not Yet implemented")
+                ASSERT(rate == spawn_rate_full(det, CurrentDets(:,j)))
             end if
 
             ! Calculate the flags that ought to be carried through
@@ -98,6 +102,9 @@ contains
             call SumEContrib(det, ic_hf, sgn, CurrentDets(:,j), hdiag, 1.0_dp,&
                              .false., j)
 
+            ! Needed for calculating oversample factors
+            nopen = count_open_orbs(CurrentDets(:,j))
+
             ! Loop over determinants, and the particles on the determinant
             do part_type = 1, lenof_sign
 
@@ -108,7 +115,8 @@ contains
                     survives = process_part_cont_time( &
                                       CurrentDets(:,j), det, sgn(part_type), &
                                       part_type, rate, totimagtime, &
-                                      totimagtime + tau, hdiag, iter_data)
+                                      totimagtime + tau, hdiag, iter_data, &
+                                      nopen, fcimc_excit_gen_store)
 
                     if (.not. survives) then
                         iter_data%ndied = iter_data%ndied + 1
@@ -161,19 +169,21 @@ contains
 
     recursive function process_part_cont_time (ilut, det, sgn, part_type, &
                                                rate, curr_time, annihil_time, &
-                                               hdiag, iter_data) &
+                                               hdiag, iter_data, nopen, &
+                                               store) &
                                                result(survives)
 
         integer(n_int), intent(in) :: ilut(0:NifTot)
-        integer, intent(in) :: det(nel), part_type
+        integer, intent(in) :: det(nel), part_type, nopen
         real(dp), intent(in) :: sgn, curr_time, annihil_time, rate, hdiag
         type(fcimc_iter_data), intent(inout) :: iter_data
         logical :: survives
+        type(excit_gen_store_type), intent(inout) :: store
         character(*), parameter :: this_routine = 'process_part_cont_time'
 
         real(dp) :: time, child(lenof_sign), dt, rate_adj, rate_spwn
         real(dp) :: hdiag_spwn, spwn_sgn
-        integer :: nspawn, spawn_sgn, det_spwn(nel), ic, i, y
+        integer :: nspawn, spawn_sgn, det_spwn(nel), ic, i, y, nopen_spwn
         integer(n_int) :: ilut_spwn(0:NIfTot)
         logical :: child_survives
         HElement_t :: hoffdiag, htmp
@@ -194,7 +204,8 @@ contains
             if (tContTimeFull) then
                 rate_adj = rate + abs(hdiag - DiagSft(part_type))
             else
-                call stop_all(this_routine, "not yet implemented")
+                rate_adj = sum(oversample_factors(:, nopen)) &
+                         + abs(hdiag - DiagSft(part_type))
             end if
 
             ! Generate the next spawning event
@@ -208,7 +219,9 @@ contains
                                                det_spwn, ilut_spwn, &
                                                hoffdiag, ic, part_type)
             else
-                call stop_all(this_routine, "not yet implemented")
+                call cont_time_gen_excit (det, ilut, rate_adj, hdiag, &
+                                          det_spwn, ilut_spwn, hoffdiag, &
+                                          ic, part_type, nopen, nspawn, store)
             end if
 
             if (.not. IsNullDet(det_spwn)) then
@@ -222,27 +235,41 @@ contains
                     exit
                 end if
 
+                ! We need the diagonal matrix element for calculating further
+                ! spawning rates
                 if (tHPHF) then
                     htmp = hphf_diag_helement (det_spwn, ilut_spwn)
                 else
                     htmp = get_helement (det_spwn, det_spwn, 0)
                 end if
                 hdiag_spwn = real(htmp, dp) - Hii
+
+                ! Calculate full rate if needed
+                if (tContTimeFull) &
+                    rate_spwn = spawn_rate_full(det_spwn, ilut_spwn)
+
+                ! Particle accountancy
                 iter_data%nborn = iter_data%nborn + nspawn
                 NoBorn = NoBorn + nspawn
-                if (tContTimeFull) then
-                    rate_spwn = spawn_rate_full(det_spwn, ilut_spwn)
-                else
-                    call stop_all(this_routine, 'not yet implemented')
-                end if
+
+                ! This is the spawning coefficient. n.b. it is possible to
+                ! spawn more than one particle whilst adjusting the overspawn
+                ! factors
                 spwn_sgn = - sign(1.0_dp, sgn) * sign(real(nspawn), hoffdiag)
+
+                ! Need this for calculating further oversampling factors
+                nopen_spwn = count_open_orbs(ilut_spwn)
+
+                ! We can't store data in this structure recursively...
+                secondary_gen_store%tFilled = .false.
 
                 do i = 1, nspawn
 
                     child_survives = process_part_cont_time( &
                                         ilut_spwn, det_spwn, spwn_sgn, &
                                         part_type, rate_spwn, time, &
-                                        annihil_time, hdiag_spwn, iter_data)
+                                        annihil_time, hdiag_spwn, iter_data, &
+                                        nopen_spwn, secondary_gen_store)
 
                     if (.not. child_survives) then
                         iter_data%ndied = iter_data%ndied + 1
@@ -286,5 +313,34 @@ contains
 
 
     end function
+
+
+    subroutine init_cont_time()
+
+        integer :: ierr
+        character(*), parameter :: this_routine = 'init_cont_time'
+        character(*), parameter :: t_r = this_routine
+
+        call clean_cont_time()
+
+        allocate(oversample_factors(1:2, LMS:nel), stat=ierr)
+        log_alloc(oversample_factors, ostag, ierr)
+        oversample_factors = 1.0_dp
+
+        ! We need somewhere for our nested excitation generators to call home
+        call init_excit_gen_store(secondary_gen_store)
+
+    end subroutine
+
+    subroutine clean_cont_time()
+
+        character(*), parameter :: this_routine = 'clean_cont_time'
+
+        if (allocated(oversample_factors)) then
+            deallocate(oversample_factors)
+            log_dealloc(ostag)
+        end if
+
+    end subroutine
 
 end module
