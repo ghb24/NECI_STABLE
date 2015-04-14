@@ -5,7 +5,8 @@ module cont_time
                         orthogonalise_iter, use_spawn_hash_table, &
                         tTruncInitiator, DiagSft, tau
     use fcimc_helper, only: rezero_iter_stats_each_iter, CalcParentFlag, &
-                            create_particle, create_particle_with_hash_table
+                            create_particle, create_particle_with_hash_table, &
+                            SumEContrib
     use cont_time_rates, only: spawn_rate_full, cont_time_gen_excit_full
     use hash, only: remove_hash_table_entry, clear_hash_table
     use global_det_data, only: det_diagH, get_spawn_rate
@@ -16,6 +17,7 @@ module cont_time
     use bit_reps, only: nullify_ilut, encode_sign
     use fcimc_iter_utils, only: update_iter_data
     use hphf_integrals, only: hphf_diag_helement
+    use DetBitOps, only: FindBitExcitLevel
     use bit_reps, only: extract_bit_rep
     use LoggingData, only: FCIMCDebug
     use SystemData, only: nel, tHPHF
@@ -36,7 +38,7 @@ contains
 
         real(dp) :: sgn(lenof_sign), rate, hdiag
         integer :: sgn_abs, iunused, flags, det(nel), j, p, TotWalkersNew
-        integer :: part_type
+        integer :: part_type, ic_hf
         logical :: survives
 
         if (lenof_sign /= 1) then
@@ -90,6 +92,11 @@ contains
             ! Calculate the flags that ought to be carried through
             if (tTruncInitiator) &
                 call CalcParentFlag(j, iunused, hdiag)
+
+            ! Sum in the energy terms, yeah!
+            ic_hf = FindBitExcitLevel(ilutRef, CurrentDets(:,j))
+            call SumEContrib(det, ic_hf, sgn, CurrentDets(:,j), hdiag, 1.0_dp,&
+                             .false., j)
 
             ! Loop over determinants, and the particles on the determinant
             do part_type = 1, lenof_sign
