@@ -13,12 +13,12 @@ module cont_time
     use orthogonalise, only: orthogonalise_replicas
     use dSFMT_interface, only: genrand_real2_dSFMT
     use AnnihilationMod, only: DirectAnnihilation
+    use bit_reps, only: nullify_ilut, encode_sign
     use fcimc_iter_utils, only: update_iter_data
     use hphf_integrals, only: hphf_diag_helement
     use bit_reps, only: extract_bit_rep
     use LoggingData, only: FCIMCDebug
     use SystemData, only: nel, tHPHF
-    use bit_reps, only: nullify_ilut
     use bit_rep_data, only: NIfTot
     use FciMCData
     use constants
@@ -58,11 +58,16 @@ contains
         ! Loop over the main list
         do j = 1, int(TotWalkers, sizeof_int)
 
-            ! We are working in a non-contiguous list.
             fcimc_excit_gen_store%tFilled = .false.
             call extract_bit_rep(CurrentDets(:, j), det, sgn, flags, &
                                  fcimc_excit_gen_store)
-            if (IsUnoccDet(sgn)) cycle
+
+            ! As the main list is not contiguous, skip (but store) empty sites.
+            if (IsUnoccDet(sgn)) then
+                iEndFreeSlot = iEndFreeSlot + 1
+                FreeSlot(iEndFreeSlot) = j
+                cycle
+            end if
 
             IFDEBUG(FCIMCDebug, 3) then
                 write(iout, "(A,I10,a)", advance='no') 'TW:', j, '['
@@ -116,7 +121,8 @@ contains
                 iEndFreeSlot = iEndFreeSlot + 1
                 FreeSlot(iEndFreeSlot) = j
                 call nullify_ilut(CurrentDets(:, j))
-
+            else
+                call encode_sign(CurrentDets(:,j), sgn)
             end if
 
         end do
