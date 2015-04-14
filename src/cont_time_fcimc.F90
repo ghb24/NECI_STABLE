@@ -6,7 +6,7 @@ module cont_time
                         tTruncInitiator, DiagSft, tau
     use fcimc_helper, only: rezero_iter_stats_each_iter, CalcParentFlag, &
                             create_particle, create_particle_with_hash_table, &
-                            SumEContrib
+                            SumEContrib, end_iter_stats
     use cont_time_rates, only: spawn_rate_full, cont_time_gen_excit_full
     use hash, only: remove_hash_table_entry, clear_hash_table
     use global_det_data, only: det_diagH, get_spawn_rate
@@ -136,9 +136,14 @@ contains
         IFDEBUG(FCIMCDebug, 2) write(iout, '("Finnished loop over sites")')
         call halt_timer(walker_time)
 
+        ! Update statistics. This is done before annihilation as the output
+        ! statistics normally apply to the iteration _before_ the one that has
+        ! just run (as they are accumulated during the normal loop)
+        TotWalkersNew = int(TotWalkers, sizeof_int)
+        call end_iter_stats(TotWalkersNew)
+
         ! Send walkers to the correct nodes, and annihilate
         call set_timer(annihil_time)
-        TotWalkersNew = int(TotWalkers, sizeof_int)
         call DirectAnnihilation(TotWalkersNew, iter_data, .false.)
         TotWalkers = TotWalkersNew
         call halt_timer(annihil_time)
@@ -171,7 +176,7 @@ contains
         integer :: nspawn, spawn_sgn, det_spwn(nel), ic, i, y
         integer(n_int) :: ilut_spwn(0:NIfTot)
         logical :: child_survives
-        HElement_t :: hoffdiag
+        HElement_t :: hoffdiag, htmp
 
         ! A quick sanity check that we have calculated the spawning rate
         ! reasonably
@@ -218,10 +223,11 @@ contains
                 end if
 
                 if (tHPHF) then
-                    hdiag_spwn = hphf_diag_helement (det_spwn, ilut_spwn)
+                    htmp = hphf_diag_helement (det_spwn, ilut_spwn)
                 else
-                    hdiag_spwn = get_helement (det_spwn, det_spwn, 0)
+                    htmp = get_helement (det_spwn, det_spwn, 0)
                 end if
+                hdiag_spwn = real(htmp, dp) - Hii
                 iter_data%nborn = iter_data%nborn + nspawn
                 NoBorn = NoBorn + nspawn
                 if (tContTimeFull) then
@@ -229,8 +235,7 @@ contains
                 else
                     call stop_all(this_routine, 'not yet implemented')
                 end if
-                spwn_sgn = sign(real(nspawn), hoffdiag)
-
+                spwn_sgn = - sign(1.0_dp, sgn) * sign(real(nspawn), hoffdiag)
 
                 do i = 1, nspawn
 
