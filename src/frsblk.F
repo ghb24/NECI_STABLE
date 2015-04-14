@@ -104,6 +104,23 @@ C ====================================================================
       real(sp) t1,t2,t3,tarr(2)
 C..temp
       real(dp) ::  H(*)
+
+      interface
+          subroutine neci_kryref(m, n, nkry, nconv, v0, v, am, bm, t, 
+     &                           ldt, wt, ldwt, h, scr, lscr, iscr,
+     &                           liscr, nhpsi, lab, nrow, tLargest,
+     &                           tDie2, tFail)
+            use constants
+            integer :: m, n, nkry, nconv, ldt, iscr(liscr), nhpsi
+            integer :: lab(m, *), nrow(m)
+            real(dp) :: v0(m, *), v(m, n, nkry+1), am(n, n, nkry+1)
+            real(dp) :: bm(n, n, nkry), wt(ldwt), h(*), scr(lscr)
+            real(dp) :: t(ldt)
+            logical :: tLargest, tDie2, tFail
+          end subroutine
+      end interface
+
+
 C..temp
 C ==-----------------------------------------------------------------==
       proc_timer%timer_name='    FRSBLK'
@@ -334,17 +351,19 @@ C ======================================================================
       IF(MA*IBEG.GT.M) STOP ' MA+IBEG.GT.M'
       IF(NA*JBEG.GT.N) STOP ' MA+IBEG.GT.M'
       IF(CHAR.EQ.'N') THEN 
-        DO J=1,NA
-          DO I=1,MA 
-            T(I+MA*(IBEG-1),J+NA*(JBEG-1))=A(I,J)
-          ENDDO
-        ENDDO
+c        DO J=1,NA
+c          DO I=1,MA 
+c            T(I+MA*(IBEG-1),J+NA*(JBEG-1))=A(I,J)
+c          ENDDO
+c        ENDDO
+        T((ibeg-1)*MA+1:ibeg*MA, (jbeg-1)*MA+1:jbeg*MA) = A
       ELSEIF(CHAR.EQ.'T') THEN 
-        DO J=1,NA
-          DO I=1,MA 
-            T(I+MA*(IBEG-1),J+NA*(JBEG-1))=A(J,I)
-          ENDDO
-        ENDDO
+c        DO J=1,NA
+c          DO I=1,MA 
+c            T(I+MA*(IBEG-1),J+NA*(JBEG-1))=A(J,I)
+c          ENDDO
+c        ENDDO
+        T((ibeg-1)*MA+1:ibeg*MA, (jbeg-1)*MA+1:jbeg*MA) = transpose(A)
       ELSE
         STOP 'ILLEGAL CHAR'
       ENDIF
@@ -405,7 +424,8 @@ C     ==================================================================
       integer :: N,M,LAB(M,*),NROW(M),LSCR,LDWT,LDT,NKRY
       integer :: LISCR,J,NCONV,NHPSI,I,ISCR(LISCR)
       real(dp) :: V0(M,*),V(M,N,NKRY+1),AM(N,N,NKRY+1),BM(N,N,NKRY)
-      real(dp) :: T(LDT),WT(LDWT),H(*),SCR(LSCR)
+      real(dp) :: WT(LDWT),H(*),SCR(LSCR)
+      real(dp) :: T(LDT)
       LOGICAL :: TLargest,tDie2,tFail
       type(timer), save :: proc_timer
 C     ==================================================================
@@ -450,6 +470,7 @@ C        ENDDO
       ENDDO                     !  End loop over ikry
 C ==================================================================
 C..Setup T-matrix. First diagonal terms      
+
       I=NKRY
       T(1:(I*N)**2)=0
       CALL NECI_PUTTMAT('N',T,I*N,I*N,AM(1,1,1),N,N,1,1)

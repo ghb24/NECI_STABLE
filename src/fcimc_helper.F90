@@ -1801,12 +1801,14 @@ contains
             if (tSemiStochastic) &
                 call recalc_core_hamil_diag(old_Hii, Hii)
 
-            ! Ensure that the energy references for all of the runs are
-            ! relative to the new Hii
-            do i = 1, inum_runs
-                proje_ref_energy_offsets(i) = proje_ref_energy_offsets(i) &
-                                            + old_hii - hii
-            end do
+            if (tReplicaReferencesDiffer) then
+                ! Ensure that the energy references for all of the runs are
+                ! relative to the new Hii
+                do i = 1, inum_runs
+                    proje_ref_energy_offsets(i) = proje_ref_energy_offsets(i) &
+                                                + old_hii - hii
+                end do
+            end if
 
         end if ! run == 1
 
@@ -1821,8 +1823,6 @@ contains
         endif
         proje_ref_energy_offsets(run) = real(h_tmp, dp) - Hii
 
-    end subroutine
-
-
+    end subroutine update_run_reference
 
 end module
