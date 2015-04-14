@@ -26,6 +26,9 @@ module cont_time_rates
     real(dp), allocatable :: oversample_factors(:,:)
     integer(TagIntType) :: ostag
 
+    integer :: cont_spawn_attempts
+    integer :: cont_spawn_success
+
 contains
 
     function spawn_rate_full(det, ilut) result(rate)
@@ -177,6 +180,7 @@ contains
         pDoubles = oversample_factors(2, nopen) / rate_offdiag
         probs = (/ pSingles, pDoubles /)
 
+        cont_spawn_attempts = cont_spawn_attempts + 1
         call generate_excitation(det, ilut, det_spwn, ilut_spwn, 3, ic, ex, &
                                  tParity, pgen, helgen, store)
         IFDEBUG(FCIMCDebug,3) then
@@ -232,6 +236,9 @@ contains
                 call encode_child(ilut, ilut_spwn, ic, ex)
 
         end if
+        
+        ! Keep track of spawning successes
+        cont_spawn_success = cont_spawn_success + nspawn
 
     end subroutine
 

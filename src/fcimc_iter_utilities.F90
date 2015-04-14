@@ -9,7 +9,9 @@ module fcimc_iter_utils
                         tLetInitialPopDie, InitWalkers, tCheckHighestPop, &
                         HFPopThresh, DiagSft, tShiftOnHFPop, iRestartWalkNum, &
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, &
-                        nShiftEquilSteps, TargetGrowRateWalk
+                        nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
+                        tContTimeFull
+    use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables
     use semi_stoch_procs, only: recalc_core_hamil_diag
     use fcimc_helper, only: update_run_reference
@@ -47,7 +49,11 @@ contains
         IterTime = IterTime / real(StepsSft,sp)
 
         ! Calculate the acceptance ratio
-        AccRat = real(Acceptances, dp) / SumWalkersCyc
+        if (tContTimeFCIMC .and. .not. tContTimeFull) then
+            AccRat = real(cont_spawn_success) / real(cont_spawn_attempts)
+        else
+            AccRat = real(Acceptances, dp) / SumWalkersCyc
+        end if
 
 
 #ifndef __CMPLX
@@ -814,6 +820,9 @@ contains
         iter_data%tot_parts_old = tot_parts_new_all
 
         max_cyc_spawn = 0
+
+        cont_spawn_attempts = 0
+        cont_spawn_success = 0
 
     end subroutine rezero_iter_stats_update_cycle
 
