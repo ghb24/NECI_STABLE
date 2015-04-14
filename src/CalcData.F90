@@ -250,4 +250,7 @@ logical :: use_spawn_hash_table
 ! Keep track of when the calculation began (globally)
 real(sp) :: s_global_start
 
+! Use continuous time FCIQMC
+logical :: tContTimeFCIMC, tContTimeFull
+
 end module CalcData
