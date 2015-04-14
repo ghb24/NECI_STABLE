@@ -9,12 +9,12 @@ module cont_time
     use cont_time_rates, only: spawn_rate_full, cont_time_gen_excit_full
     use hash, only: remove_hash_table_entry, clear_hash_table
     use global_det_data, only: det_diagH, get_spawn_rate
+    use Determinants, only: get_helement, write_det
     use orthogonalise, only: orthogonalise_replicas
     use dSFMT_interface, only: genrand_real2_dSFMT
     use AnnihilationMod, only: DirectAnnihilation
     use fcimc_iter_utils, only: update_iter_data
     use hphf_integrals, only: hphf_diag_helement
-    use Determinants, only: get_helement
     use bit_reps, only: extract_bit_rep
     use LoggingData, only: FCIMCDebug
     use SystemData, only: nel, tHPHF
@@ -63,6 +63,16 @@ contains
             call extract_bit_rep(CurrentDets(:, j), det, sgn, flags, &
                                  fcimc_excit_gen_store)
             if (IsUnoccDet(sgn)) cycle
+
+            IFDEBUG(FCIMCDebug, 3) then
+                write(iout, "(A,I10,a)", advance='no') 'TW:', j, '['
+                do part_type = 1, lenof_sign
+                    write(iout, "(f10.5)", advance='no') sgn(part_type)
+                end do
+                write(iout, '(a)', advance='no') '] '
+                call WriteBitDet(iout, CurrentDets(:,j), .true.)
+                call neci_flush(iout) 
+            end if
 
             ! Global stored data to make things efficient
             hdiag = det_diagH(j)
@@ -145,7 +155,7 @@ contains
 
         real(dp) :: time, child(lenof_sign), dt, rate_adj, rate_spwn
         real(dp) :: hdiag_spwn, spwn_sgn
-        integer :: nspawn, spawn_sgn, det_spwn(nel), ic, i
+        integer :: nspawn, spawn_sgn, det_spwn(nel), ic, i, y
         integer(n_int) :: ilut_spwn(0:NIfTot)
         logical :: child_survives
         HElement_t :: hoffdiag
@@ -190,6 +200,7 @@ contains
                 ! the current particle, rather than generating antiparticles.
                 if (ic == 0) then
                     survives = .false.
+                    IFDEBUG(FCIMCDebug, 3) write(iout, '("Particle died")')
                     exit
                 end if
 
@@ -229,6 +240,18 @@ contains
                 if (spwn_sgn /= 0) then
                     child = 0
                     child(part_type) = spwn_sgn
+
+                    IFDEBUG(FCIMCDebug, 3) then
+                        write(iout, '(a)', advance='no') 'SP: ['
+                        do y = 1, lenof_sign
+                            write(iout, '(f12.5)', advance='no') &
+                                child(y)
+                        end do
+                        write(iout, '("] ")', advance='no')
+                        call write_det(6, det_spwn, .true.)
+                        call neci_flush(iout) 
+                    end if
+
                     if (use_spawn_hash_table) then
                         call create_particle_with_hash_table( &
                                          det_spwn, ilut_spwn, child, &
