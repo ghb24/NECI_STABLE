@@ -8,11 +8,12 @@ module cont_time_rates
     use procedure_pointers, only: generate_excitation, encode_child, &
                                   get_spawn_helement
     use CalcData, only: tContTimeFull, DiagSft, cont_time_max_overspawn
+    use Determinants, only: get_helement, write_det
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData, only: excit_gen_store_type
-    use Determinants, only: get_helement
     use SymExcit3, only: GenExcitations3
     use MemoryManager, only: TagIntType
+    use LoggingData, only: FCIMCDebug
     use DetBitOps, only: EncodeBitDet
     use bit_rep_data, only: NIfTot
     use SystemData, only: nel, LMS
@@ -178,8 +179,13 @@ contains
 
         call generate_excitation(det, ilut, det_spwn, ilut_spwn, 3, ic, ex, &
                                  tParity, pgen, helgen, store)
+        IFDEBUG(FCIMCDebug,3) then
+            write(iout, '("SP att: ",f12.5)', advance='no') pgen
+            call write_det(iout, det_spwn, .true.)
+            call neci_flush(iout)
+        end if
 
-        if (IsNullDet(det_spwn)) then
+        if (.not. IsNullDet(det_spwn)) then
 
             ! Get the diagonal matrix element
             hoffdiag = get_spawn_helement(det, det_spwn, ilut, ilut_spwn, &

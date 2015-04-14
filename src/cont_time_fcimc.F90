@@ -190,7 +190,7 @@ contains
 
         ! A quick sanity check that we have calculated the spawning rate
         ! reasonably
-        ASSERT(rate > 0)
+        ASSERT(rate > 0 .or. .not. tContTimeFull)
 
         ! The starting time for the spawning
         time = curr_time
