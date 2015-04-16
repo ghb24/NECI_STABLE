@@ -6,7 +6,8 @@
       double precision znuc(3),zcor(3)
       include "common/maxatm"
       include "common/tapes"
-      include "common/dumpinfow"
+!      include "common/dumpinfow"
+#include "common/dumpinfow.fh"
       include "common/cstate"
       include "common/maxbfn"
       include "common/corbdim"
@@ -94,7 +95,8 @@
       include "common/cpar"
 #include "common/cpfil.fh"
       include "common/maxatm"
-      include "common/dumpinfow"
+!      include "common/dumpinfow"
+#include "common/dumpinfow.fh"
       include "common/tapes"
       include "common/clseg"
       logical exists

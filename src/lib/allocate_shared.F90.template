@@ -202,6 +202,7 @@ module shared_alloc
     public :: shared_allocate, shared_deallocate, shared_allocate_iluts
 #endif
     
+#ifdef __SHARED_MEM
     interface
         subroutine alloc_shared_worker (nm, pt, sz, proc) bind(c)
             use iso_c_hack
@@ -240,6 +241,7 @@ module shared_alloc
 #endif
         end function
     end interface
+#endif
 
 contains
 

@@ -21,6 +21,7 @@ allrealcoeff
 realspawncutoff 0.01
 semi-stochastic
 doubles-core
+stochastic-hf-spawning
 endcalc
 
 integral

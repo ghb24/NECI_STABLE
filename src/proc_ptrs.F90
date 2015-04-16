@@ -191,6 +191,7 @@ module procedure_pointers
     procedure(generate_excitation_t), pointer :: generate_excitation
     procedure(attempt_create_t), pointer :: attempt_create
     procedure(get_spawn_helement_t), pointer :: get_spawn_helement
+    procedure(get_spawn_helement_t), pointer :: get_conn_helement
     procedure(encode_child_t), pointer :: encode_child
     procedure(new_child_stats_t), pointer :: new_child_stats
     procedure(attempt_die_t), pointer :: attempt_die

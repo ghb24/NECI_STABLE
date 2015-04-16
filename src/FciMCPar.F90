@@ -7,7 +7,10 @@ module FciMCParMod
     use CalcData, only: tFTLM, tSpecLanc, tExactSpec, tDetermProj, tMaxBloom, &
                         tUseRealCoeffs, tWritePopsNorm, tExactDiagAllSym, &
                         AvMCExcits, pops_norm_unit, iExitWalkers, &
-                        iFullSpaceIter, semistoch_shift_iter
+                        iFullSpaceIter, semistoch_shift_iter, &
+                        tOrthogonaliseReplicas, orthogonalise_iter, &
+                        tDetermHFSpawning, use_spawn_hash_table, &
+                        semistoch_shift_iter, ss_space_in, s_global_start
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, &
@@ -27,12 +30,14 @@ module FciMCParMod
                                 determ_projection, average_determ_vector
     use trial_wf_gen, only: update_compare_trial_file, &
                             update_compare_trial_file
+    use hash, only: clear_hash_table
     use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
     use bit_reps, only: set_flag, clr_flag, add_ilut_lists
     use exact_diag, only: perform_exact_diag_all_symmetry
     use spectral_lanczos, only: perform_spectral_lanczos
     use bit_rep_data, only: nOffFlag, flag_determ_parent
     use errors, only: standalone_errors, error_analysis
+    use orthogonalise, only: orthogonalise_replicas
     use PopsFileMod, only: WriteToPopsFileParOneArr
     use AnnihilationMod, only: DirectAnnihilation
     use exact_spectrum, only: get_exact_spectrum
@@ -198,7 +203,7 @@ module FciMCParMod
             if (semistoch_shift_iter /= 0 .and. all(.not. tSinglePartPhase)) then
                 if ((Iter - maxval(VaryShiftIter)) == semistoch_shift_iter + 1) then
                     tSemiStochastic = .true.
-                    call init_semi_stochastic()
+                    call init_semi_stochastic(ss_space_in)
                 end if
             end if
             
@@ -271,7 +276,7 @@ module FciMCParMod
                 ! things). Generally, collate information from all processors,
                 ! update statistics and output them to the user.
                 call set_timer(Stats_Comms_Time)
-                call calculate_new_shift_wrapper (iter_data_fciqmc, TotParts)
+                call calculate_new_shift_wrapper (iter_data_fciqmc, TotParts, .false.)
                 call halt_timer(Stats_Comms_Time)
 
                 if(tRestart) cycle
@@ -292,7 +297,8 @@ module FciMCParMod
                     ENDIF
                 ENDIF
 
-                if(iProcIndex.eq.root) TotalTime8=real(s_end,dp)
+                if(iProcIndex.eq.root) &
+                    TotalTime8 = real(s_end - s_global_start, dp)
                 call MPIBCast(TotalTime8)    !TotalTime is local - broadcast to all procs
 
 !This routine will check for a CHANGEVARS file and change the parameters of the calculation accordingly.
@@ -495,7 +501,7 @@ module FciMCParMod
         end if
         
         iroot=1
-        CALL GetSym(ProjEDet,NEl,G1,NBasisMax,RefSym)
+        CALL GetSym(ProjEDet(:,1),NEl,G1,NBasisMax,RefSym)
         isymh=int(RefSym%Sym%S,sizeof_int)+1
         write (iout,10101) iroot,isymh
 10101   format(//'RESULTS FOR STATE',i2,'.',i1/'====================='/)
@@ -631,6 +637,9 @@ module FciMCParMod
         iStartFreeSlot=1
         iEndFreeSlot=0
 
+        ! Clear the hash table for the spawning array.
+        if (use_spawn_hash_table) call clear_hash_table(spawn_ht)
+
         ! Index for counting deterministic states.
         determ_index = 1
         
@@ -681,7 +690,7 @@ module FciMCParMod
                 IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter)
             endif
         endif
-        
+
         do j=1,int(TotWalkers,sizeof_int)
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
@@ -764,7 +773,6 @@ module FciMCParMod
             if (tTruncInitiator) &
                 call CalcParentFlag (j, parent_flags, HDiagCurr)
 
-
             ! As the main list (which is storing a hash table) no longer needs
             ! to be contiguous, we need to skip sites that are empty.
             if(IsUnoccDet(SignCurr)) then
@@ -801,7 +809,18 @@ module FciMCParMod
             ! Sum in any energy contribution from the determinant, including 
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
-            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, j)
+            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, .false., j)
+
+            ! If we're on the Hartree-Fock, and all singles and doubles are in
+            ! the core space, then there will be no stochastic spawning from
+            ! this determinant, so we can the rest of this loop.
+            if (ss_space_in%tDoubles .and. walkExcitLevel_toHF == 0 .and. tDetermHFSpawning) then
+                if (tFillingStochRDMonFly) then
+                    call set_av_sgn(j, AvSignCurr)
+                    call set_iter_occ(j, IterRDMStartCurr)
+                endif
+                cycle
+            end if
 
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles
@@ -809,7 +828,7 @@ module FciMCParMod
             !                 --> part_type == 1, 2; real and complex walkers
             !                 --> OR double run
             !                 --> part_type == 1, 2; population sets 1 and 2, both real
-            do part_type=1,lenof_sign
+            do part_type = 1, lenof_sign
             
                 TempSpawnedPartsInd = 0
 
@@ -880,7 +899,7 @@ module FciMCParMod
                     ! Children have been chosen to be spawned.
                     if (any(child /= 0)) then
 
-                        !Encode child if not done already
+                        ! Encode child if not done already.
                         if(.not. (tSemiStochastic)) call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
                         ! FindExcitBitDet copies the parent flags so that unwanted flags must be unset.
                         ! Should it really do this?
@@ -890,21 +909,24 @@ module FciMCParMod
                         end if
 
                         call new_child_stats (iter_data, CurrentDets(:,j), &
-                                              nJ, iLutnJ, ic, walkExcitLevel,&
+                                              nJ, iLutnJ, ic, walkExcitLevel, &
                                               child, parent_flags, part_type)
-                        call create_particle (nJ, iLutnJ, child, &
-                                              parent_flags, part_type,& 
-                                              CurrentDets(:,j),SignCurr,p,&
-                                              RDMBiasFacCurr, WalkersToSpawn)
-                                              ! RDMBiasFacCurr is only used if we're 
-                                              ! doing an RDM calculation.
+
+                        if (use_spawn_hash_table) then
+                            call create_particle_with_hash_table (nJ, ilutnJ, child, &
+                                                                  part_type, CurrentDets(:,j))
+                        else
+                            call create_particle (nJ, iLutnJ, child, part_type, & 
+                                                  CurrentDets(:,j),SignCurr,p, &
+                                                  RDMBiasFacCurr, WalkersToSpawn)
+                        end if
 
                     endif ! (child /= 0). Child created
 
                 enddo ! Cycling over mulitple particles on same determinant.
 
             enddo   ! Cycling over 'type' of particle on a given determinant.
-            
+
             if (tSemiStochastic) then
                 ! If we are performing a semi-stochastic simulation and this state is in the
                 ! deterministic space, then the death step is performed deterministically later.
@@ -975,6 +997,11 @@ module FciMCParMod
 
         CALL halt_timer(Annihil_Time)
         IFDEBUG(FCIMCDebug,2) WRITE(iout,*) "Finished Annihilation step"
+        
+        ! If we are orthogonalising the replica wavefunctions, to generate
+        ! excited states, then do that here.
+        if (tOrthogonaliseReplicas .and. iter > orthogonalise_iter) &
+            call orthogonalise_replicas(iter_data)
 
         call update_iter_data(iter_data)
 

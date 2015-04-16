@@ -21,9 +21,10 @@ module AnnihilationMod
     use bit_reps, only: decode_bit_det, &
                         encode_sign, test_flag, set_flag, &
                         flag_initiator, encode_part_sign, &
-                        extract_part_sign, &
+                        extract_part_sign, extract_bit_rep, &
                         nullify_ilut_part, clear_has_been_initiator, &
-                        set_has_been_initiator, flag_has_been_initiator
+                        set_has_been_initiator, flag_has_been_initiator, &
+                        encode_flags
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
     use global_det_data, only: set_det_diagH, get_iter_occ, &
@@ -243,6 +244,15 @@ module AnnihilationMod
                 !               copy it across rather than explicitly searching
                 !               the list.
 
+                ! If this one entry has no amplitude then don't add it to the
+                ! compressed list, but just cycle.
+                call extract_sign (SpawnedParts(:, BeginningBlockDet), temp_sign)
+                if ( (sum(abs(temp_sign)) < 1.e-12_dp) .and. (.not. (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib))) ) then
+                    DetsMerged = DetsMerged + 1
+                    BeginningBlockDet = CurrentBlockDet 
+                    cycle
+                end if
+
                 ! Transfer all info to the other array.
                 SpawnedParts2(:,VecInd) = SpawnedParts(:, BeginningBlockDet)   
 
@@ -302,7 +312,7 @@ module AnnihilationMod
             end if
 
             ! Reset the cumulative determinant
-            cum_det = 0
+            cum_det = 0_n_int
             cum_det (0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
         
             if (tFillingStochRDMonFly.and.(.not.tNoNewRDmContrib)) then
@@ -318,8 +328,8 @@ module AnnihilationMod
                 Spawned_Parents_Index(2,VecInd) = 0
             end if
 
-            ! Annihilate in this block seperately for real and imag walkers.
-            do part_type = 1, lenof_sign   
+            ! Annihilate in this block seperately for walkers of different types.
+            do part_type = 1, lenof_sign
 
                 do i = BeginningBlockDet, EndBlockDet
                     if (tHistSpawn) then
@@ -444,17 +454,7 @@ module AnnihilationMod
         real(dp) :: new_sgn, cum_sgn, updated_sign, sgn_prod
         integer :: run
 
-        ! Obtain the signs and sign product. Ignore new particle if zero.
         new_sgn = extract_part_sign (new_det, part_type)
-
-        if (new_sgn == 0.0_dp) then
-            ! New sign is just an entry from SpawnedParts - this should only ever be zero
-            ! in the complex case. 
-            ! If it is 0 and we're not filling the RDM (and therefore filling up the 
-            ! Spawned_Parents array), can just ignore the zero entry.
-            if (.not. tFillingStochRDMonFly) return
-        end if
-
         cum_sgn = extract_part_sign (cum_det, part_type)
 
         ! If the cumulative and new signs for this replica are both non-zero
@@ -478,7 +478,7 @@ module AnnihilationMod
                 + 2 * min(abs(cum_sgn), abs(new_sgn))
         end if
 
-        ! Update the cumulative sign count
+        ! Update the cumulative sign count.
         updated_sign = cum_sgn + new_sgn
         call encode_part_sign (cum_det, updated_sign, part_type)
 
@@ -548,8 +548,7 @@ module AnnihilationMod
         integer :: ExcitLevel, DetHash, nJ(nel)
         logical :: tSuccess, tSuc, tPrevOcc, tDetermState
         character(len=*), parameter :: t_r = "AnnihilateSpawnedParts"
-        integer :: run, tmp
-        type(ll_node), pointer :: TempNode
+        integer :: run
 
         ! Only node roots to do this.
         if (.not. bNodeRoot) return
@@ -704,7 +703,7 @@ module AnnihilationMod
                         if ( .not. test_flag (SpawnedParts(:,i), flag_initiator(j)) ) then
                             ! If this option is on, include the walker to be
                             ! cancelled in the trial energy estimate.
-                            if (tIncCancelledInitEnergy) call add_trial_energy_contrib(SpawnedParts(:,i), SignTemp(j))
+                            if (tIncCancelledInitEnergy) call add_trial_energy_contrib(SpawnedParts(:,i), SignTemp(j), j)
 
                             ! Walkers came from outside initiator space.
                             NoAborted(j) = NoAborted(j) + abs(SignTemp(j))
@@ -852,7 +851,8 @@ module AnnihilationMod
         integer, intent(in) :: DetHash, nJ(nel)
         integer :: DetPosition
         HElement_t :: HDiag
-        real(dp) :: trial_amp
+        real(dp) :: trial_amps(ntrial_excits)
+        logical :: tTrial, tCon
         character(len=*), parameter :: t_r = "AddNewHashDet"
 
         if (iStartFreeSlot <= iEndFreeSlot) then
@@ -869,7 +869,7 @@ module AnnihilationMod
             end if
             CurrentDets(:,DetPosition) = iLutCurr(:)
         end if
-        
+
         ! Calculate the diagonal hamiltonian matrix element for the new particle to be merged.
         if (tHPHF) then
             HDiag = hphf_diag_helement (nJ,CurrentDets(:,DetPosition))
@@ -889,16 +889,34 @@ module AnnihilationMod
         ! There is at least one spawning count here
         call inc_spawn_count(DetPosition)
 
-        ! If using a trial wavefunction, search to see if this state is in either the trial or
-        ! connected space. If so, bin_search_trial sets the correct flag and returns the corresponding
-        ! amplitude, which is stored.
+        ! If using a trial wavefunction, search to see if this state is in
+        ! either the trial or connected space. If so, *_search_trial returns
+        ! the corresponding amplitude, which is stored.
         if (tTrialWavefunction) then
+            ! Search to see if this is a trial or connected state, and
+            ! retreive the corresponding amplitude (zero if neither a trial or
+            ! connected state).
             if (tTrialHash) then
-                call hash_search_trial(CurrentDets(:,DetPosition), nJ, trial_amp)
+                call hash_search_trial(CurrentDets(:,DetPosition), nJ, trial_amps, tTrial, tCon)
             else
-                call bin_search_trial(CurrentDets(:,DetPosition), trial_amp)
+                call bin_search_trial(CurrentDets(:,DetPosition), trial_amps, tTrial, tCon)
             end if
-            current_trial_amps(DetPosition) = trial_amp
+
+            ! Set the appropraite flag (if any). Unset flags which aren't
+            ! appropriate, just in case.
+            if (tTrial) then
+                call set_flag(CurrentDets(:,DetPosition), flag_trial, .true.)
+                call set_flag(CurrentDets(:,DetPosition), flag_connected, .false.)
+            else if (tCon) then
+                call set_flag(CurrentDets(:,DetPosition), flag_trial, .false.)
+                call set_flag(CurrentDets(:,DetPosition), flag_connected, .true.)
+            else
+                call set_flag(CurrentDets(:,DetPosition), flag_trial, .false.)
+                call set_flag(CurrentDets(:,DetPosition), flag_connected, .false.)
+            end if
+
+            ! Set the amplitude (which may be zero).
+            current_trial_amps(:,DetPosition) = trial_amps
         end if
 
         ! Add the new determinant to the hash table.
@@ -908,13 +926,13 @@ module AnnihilationMod
 
     subroutine CalcHashTableStats(TotWalkersNew, iter_data)
 
-        use nElRDMMod, only: det_removed_fill_diag_rdm 
+        use nElRDMMod, only: det_removed_fill_diag_rdm
         use util_mod, only: abs_sign
         use CalcData, only: tCheckHighestPop
 
         integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
-        integer :: i, j, AnnihilatedDet
+        integer :: i, j, AnnihilatedDet, lbnd, ubnd
         real(dp) :: CurrentSign(lenof_sign), SpawnedSign(lenof_sign)
         real(dp) :: pRemove, r
         integer :: nI(nel), run
@@ -1016,10 +1034,14 @@ module AnnihilationMod
                         !
                         ! Record the highest weighted determinant on each 
                         ! processor. If double run, only consider set 1 to keep things simple.
-                        if (abs_sign(ceiling(CurrentSign)) > iHighestPop) then
-                            iHighestPop = int(abs_sign(ceiling(CurrentSign)))
-                            HighestPopDet(:)=CurrentDets(:,i)
-                        end if
+                        do run = 1, inum_runs
+                            lbnd = min_part_type(run)
+                            ubnd = max_part_type(run)
+                            if (abs_sign(CurrentSign(lbnd:ubnd)) > iHighestPop(run)) then
+                                iHighestPop(run) = int(abs_sign(CurrentSign(lbnd:ubnd)))
+                                HighestPopDet(:,run)=CurrentDets(:,i)
+                            end if
+                        end do
                     end if
                 end if
 

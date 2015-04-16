@@ -9,8 +9,9 @@ module semi_stoch_procs
     use bit_reps, only: decode_bit_det
     use CalcData
     use constants
-    use FciMCData, only: determ_sizes, determ_displs, determ_space_size, SpawnedParts
-    use FciMCData, only: TotWalkers, CurrentDets, core_space
+    use FciMCData, only: determ_sizes, determ_displs, determ_space_size, &
+                         SpawnedParts, TotWalkers, CurrentDets, core_space, &
+                         MaxSpawned
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg
     use sparse_arrays, only: sparse_core_ham
     use SystemData, only: nel
@@ -192,19 +193,23 @@ contains
         real(dp) :: Hii_shift
         integer :: i, j
 
-        write(6,'(a56)') "Recalculating diagonal elements of the core Hamiltonian."
+        ! Only attempt this if we have already performed the semi-stochastic
+        ! initialisation, in which case determ_sizes will have been allocated.
+        if (allocated(determ_sizes)) then
+            write(6,'(a56)') "Recalculating diagonal elements of the core Hamiltonian."
 
-        Hii_shift = old_Hii - new_Hii
+            Hii_shift = old_Hii - new_Hii
 
-        do i = 1, determ_sizes(iProcIndex)
-            do j = 1, sparse_core_ham(i)%num_elements
-                if (sparse_core_ham(i)%positions(j) == i + determ_displs(iProcIndex)) then
-                    sparse_core_ham(i)%elements(j) = sparse_core_ham(i)%elements(j) + Hii_shift
-                end if
+            do i = 1, determ_sizes(iProcIndex)
+                do j = 1, sparse_core_ham(i)%num_elements
+                    if (sparse_core_ham(i)%positions(j) == i + determ_displs(iProcIndex)) then
+                        sparse_core_ham(i)%elements(j) = sparse_core_ham(i)%elements(j) + Hii_shift
+                    end if
+                end do
             end do
-        end do
 
-        core_ham_diag = core_ham_diag + Hii_shift
+            core_ham_diag = core_ham_diag + Hii_shift
+        end if
 
     end subroutine recalc_core_hamil_diag
 
@@ -336,31 +341,6 @@ contains
         end do
 
     end subroutine initialise_core_hash_table
-
-    subroutine remove_repeated_states(list, list_size)
-
-        use DetBitOps, only: ilut_lt, ilut_gt
-        use sort_mod, only: sort
-
-        integer, intent(inout) :: list_size
-        integer(n_int), intent(inout) :: list(0:NIfTot, list_size)
-        integer :: i, counter
-
-        ! Annihilation-like steps to remove repeated states.
-        call sort(list(:, 1:list_size), ilut_lt, ilut_gt)
-        counter = 1
-        do i = 2, list_size
-            ! If this state and the previous one were identical, don't add this state to the
-            ! list so that repeats aren't included.
-            if (.not. all(list(0:NIfD, i-1) == list(0:NIfD, i)) ) then
-                counter = counter + 1
-                list(:, counter) = list(:, i)
-            end if
-        end do
-
-        list_size = counter
-
-    end subroutine remove_repeated_states
 
     subroutine remove_high_energy_orbs(ilut_list, num_states, target_num_states, tParallel)
 
@@ -612,7 +592,7 @@ contains
 
         ! Only let the root process write the states.
         if (iProcIndex == root) then
-            open(iunit, file='CORESPACE', status='replace')
+            open(iunit, file='DETFILE', status='replace')
 
             do i = 1, determ_space_size
                 do k = 0, NIfDBO
@@ -725,8 +705,17 @@ contains
         real(dp) :: walker_sign(lenof_sign)
         type(ll_node), pointer :: temp_node
         logical :: tSuccess
+        character(*), parameter :: this_routine = 'add_core_states_currentdet'
 
         nwalkers = int(TotWalkers,sizeof_int)
+
+        ! Test that SpawnedParts is going to be big enough
+        if (determ_sizes(iProcIndex) > MaxSpawned) then
+            write(6,*) 'Spawned parts array will not be big enough for &
+                       &Semi-Stochastic initialisation'
+            write(6,*) 'Please increase MEMORYFACSPAWN'
+            call stop_all(this_routine, "Insufficient memory assigned")
+        end if
 
         ! First find which CurrentDet states are in the core space.
         ! The warning above refers to this bit of code: If a core determinant is not in the
@@ -768,6 +757,16 @@ contains
         do i = 1, int(TotWalkers,sizeof_int)
             if (.not. test_flag(CurrentDets(:,i), flag_deterministic)) then
                 i_non_core = i_non_core + 1
+
+                ! Add a quick test in, to ensure that we don't overflow the
+                ! spawned parts array...
+                if (i_non_core > MaxSpawned) then
+                    write(6,*) 'Spawned parts array too small for &
+                               &semi-stochastic initialisation'
+                    write(6,*) 'Please increase MEMORYFACSPAWN'
+                    call stop_all(this_routine, 'Insufficient memory assigned')
+                end if
+                
                 SpawnedParts(:,i_non_core) = CurrentDets(:,i)
             end if
         end do
@@ -1035,7 +1034,7 @@ contains
             end if
         end do
 
-        if (ncore /= determ_sizes(iProcIndex)) call stop_all("t_r", "The number of &
+        if (ncore /= determ_sizes(iProcIndex)) call stop_all(t_r, "The number of &
             &core determinants counted is less than was previously counted.")
 
     end subroutine copy_core_dets_to_spawnedparts

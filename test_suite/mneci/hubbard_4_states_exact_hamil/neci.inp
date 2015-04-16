@@ -1,0 +1,46 @@
+system hubbard
+system-replicas 8
+cell 12 1 1
+b -1
+u 1
+spin-restrict 0
+sym 6 0 0 0
+kpoints
+nonuniformrandexcits nosymgen
+lattice-excitgen
+electrons 12
+endsys
+
+calc
+tau 0.01
+totalwalkers 18000
+startsinglepart 20000
+shiftdamp 0.5
+diagshift 0.0
+stepsshift 1
+memoryfacpart 2.0
+memoryfacspawn 2.0
+allrealcoeff
+realspawncutoff 0.01
+semi-stochastic
+doubles-core
+endcalc
+
+kp-fciqmc
+doubles-trial
+excited-state-kp 4
+nreports 7
+num-iters-between-reports 20
+num-repeats-per-init-config 1
+averagemcexcits-hamil 100.0
+exact-hamil-spawning
+exact-hamil-spawning-frac 0.0
+end-kp-fciqmc
+
+integral
+endint
+
+logging
+popsfile -1
+endlog
+end

@@ -28,6 +28,8 @@ for f in *; do
         rm -f SpaceMCStats
         rm -f SPECTRAL_DATA
         rm -f FTLM_EIGV
+        rm -f fciqmc_data*
+        rm -f EIGV_DATA
 
         cd ..
     fi

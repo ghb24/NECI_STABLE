@@ -96,8 +96,6 @@ program lowdin
         do j = i, nrows
             read(hamil_unit, *, iostat=stat) int1, int2, overlap_estimates
 
-            write(*,*) overlap_estimates
-
             do k = 1, nrepeats
                 overlap_mean(i,j) = overlap_mean(i,j) + overlap_estimates(k)
             end do

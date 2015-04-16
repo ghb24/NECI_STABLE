@@ -3,7 +3,7 @@
 module kp_fciqmc
 
     use kp_fciqmc_init
-    use kp_fciqmc_hamil
+    use kp_fciqmc_proj_est
     use kp_fciqmc_procs
 
     use AnnihilationMod, only: DirectAnnihilation
@@ -11,6 +11,7 @@ module kp_fciqmc
     use bit_reps, only: flag_deterministic, flag_determ_parent, set_flag
     use bit_reps, only: extract_bit_rep
     use CalcData, only: AvMCExcits, tSemiStochastic, tTruncInitiator, StepsSft
+    use CalcData, only: tDetermHFSpawning, ss_space_in
     use constants
     use DetBitOps, only: FindBitExcitLevel, return_ms
     use FciMCData, only: fcimc_excit_gen_store, FreeSlot, iEndFreeSlot
@@ -18,15 +19,15 @@ module kp_fciqmc
     use FciMCData, only: iter_data_fciqmc, TotParts, exFlag, iter
     use FciMCData, only: indices_of_determ_states, partial_determ_vecs
     use FciMCData, only: full_determ_vecs, walker_time, annihil_time
-    use FciMCData, only: Stats_Comms_Time
+    use FciMCData, only: Stats_Comms_Time, iLutHF_True
     use fcimc_initialisation, only: CalcApproxpDoubles
-    use fcimc_helper, only: SumEContrib, end_iter_stats, &
+    use fcimc_helper, only: SumEContrib, end_iter_stats, create_particle_with_hash_table, &
                             CalcParentFlag, walker_death, decide_num_to_spawn
     use fcimc_output, only: end_iteration_print_warn, WriteFCIMCStats, &
                             write_fcimcstats2
     use fcimc_iter_utils, only: calculate_new_shift_wrapper, update_iter_data
     use global_det_data, only: det_diagH
-    use LoggingData, only: tPopsFile
+    use LoggingData, only: tPopsFile, tPrintDataTables
     use Parallel_neci, only: iProcIndex
     use ParallelHelper, only: root
     use PopsFileMod, only: WriteToPopsFileParOneArr
@@ -35,6 +36,7 @@ module kp_fciqmc
     use semi_stoch_procs, only: is_core_state, check_determ_flag, determ_projection
     use soft_exit, only: ChangeVars
     use SystemData, only: nel, lms, nbasis, tAllSymSectors, nOccAlpha, nOccBeta
+    use SystemData, only: tRef_Not_HF
     use timing_neci, only: set_timer, halt_timer
 
     implicit none
@@ -43,12 +45,11 @@ contains
 
     subroutine perform_kp_fciqmc(kp)
 
-        use fcimc_helper, only: create_particle
-
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: iiter, idet, ireplica, ispawn, ierr
         integer :: iconfig, irepeat, ivec, nlowdin
-        integer :: nspawn, parent_flags, unused_flags, ex_level_to_ref
+        integer :: nspawn, parent_flags, unused_flags
+        integer :: ex_level_to_ref, ex_level_to_hf
         integer :: TotWalkersNew, determ_ind, ic, ex(2,2), ms_parent
         integer :: nI_parent(nel), nI_child(nel)
         integer(n_int) :: ilut_child(0:NIfTot)
@@ -96,7 +97,7 @@ contains
                 hamil_matrix(:,:) = 0.0_dp
 
                 call init_kp_fciqmc_repeat(iconfig, irepeat, kp%nrepeats, kp%nvecs)
-                call WriteFCIMCStats()
+                if (tPrintDataTables) call WriteFCIMCStats()
 
                 do ivec = 1, kp%nvecs
 
@@ -156,6 +157,11 @@ contains
                                                   fcimc_excit_gen_store)
 
                             ex_level_to_ref = FindBitExcitLevel(iLutRef, ilut_parent, max_calc_ex_level)
+                            if(tRef_Not_HF) then
+                                ex_level_to_hf = FindBitExcitLevel (iLutHF_true, ilut_parent, max_calc_ex_level)
+                            else
+                                ex_level_to_hf = ex_level_to_ref
+                            endif
 
                             tParentIsDeterm = check_determ_flag(ilut_parent)
                             tParentUnoccupied = IsUnoccDet(parent_sign)
@@ -189,7 +195,13 @@ contains
                             if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
 
                             call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
-                                               parent_hdiag, 1.0_dp, idet)
+                                               parent_hdiag, 1.0_dp, tPairedKPReplicas, idet)
+
+                            ! If we're on the Hartree-Fock, and all singles and
+                            ! doubles are in the core space, then there will be
+                            ! no stochastic spawning from this determinant, so
+                            ! we can the rest of this loop.
+                            if (ss_space_in%tDoubles .and. ex_level_to_hf == 0 .and. tDetermHFSpawning) cycle
 
                             if (tAllSymSectors) then
                                 ms_parent = return_ms(ilut_parent)
@@ -245,12 +257,11 @@ contains
                                         if ((any(child_sign /= 0)) .and. (ic /= 0) .and. (ic <= 2)) then
 
                                             call new_child_stats (iter_data_fciqmc, ilut_parent, &
-                                                                  nI_child, ilut_child, ic, ex_level_to_ref,&
+                                                                  nI_child, ilut_child, ic, ex_level_to_ref, &
                                                                   child_sign, parent_flags, ireplica)
 
-                                            call create_particle (nI_child, ilut_child, child_sign, parent_flags, &
-                                                                  ireplica, ilut_parent, parent_sign, &
-                                                                  ispawn, unused_rdm_real, nspawn)
+                                            call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
+                                                                                   ireplica, ilut_parent)
 
                                         end if ! If a child was spawned.
 
@@ -290,7 +301,7 @@ contains
 
                         if (mod(iter, StepsSft) == 0) then
                             call set_timer(Stats_Comms_Time)
-                            call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts)
+                            call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts, tPairedKPReplicas)
                             call halt_timer(Stats_Comms_Time)
 
                             call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)
@@ -329,7 +340,7 @@ contains
             if (iProcIndex == root) then
                 call average_kp_matrices_wrapper(iconfig, kp%nrepeats, overlap_matrices, hamil_matrices, &
                                                  kp_overlap_mean, kp_hamil_mean, kp_overlap_se, kp_hamil_se)
-                call find_and_output_lowdin_eigv(iconfig, kp%nvecs, kp_overlap_mean, kp_hamil_mean, nlowdin, lowdin_evals)
+                call find_and_output_lowdin_eigv(iconfig, kp%nvecs, kp_overlap_mean, kp_hamil_mean, nlowdin, lowdin_evals, .true.)
 
                 ! Calculate data for the testsuite.
                 s_sum = sum(kp_overlap_mean)
@@ -351,13 +362,14 @@ contains
     subroutine perform_subspace_fciqmc(kp)
 
         use fcimc_helper, only: create_particle_with_hash_table
-        use FciMCData, only: HashIndex
+        use FciMCData, only: HashIndex, nWalkerHashes
 
         type(kp_fciqmc_data), intent(inout) :: kp
 
         integer :: iiter, idet, ireplica, ispawn, ierr
         integer :: iconfig, irepeat, ireport, nlowdin
-        integer :: nspawn, parent_flags, unused_flags, ex_level_to_ref
+        integer :: nspawn, parent_flags, unused_flags
+        integer :: ex_level_to_ref, ex_level_to_hf
         integer :: TotWalkersNew, determ_ind, ic, ex(2,2)
         integer :: nI_parent(nel), nI_child(nel), unused_vecslot
         integer(n_int) :: ilut_child(0:NIfTot)
@@ -365,17 +377,21 @@ contains
         real(dp) :: prob, unused_rdm_real, parent_hdiag
         real(dp) :: child_sign(lenof_sign), parent_sign(lenof_sign)
         real(dp) :: unused_sign1(lenof_sign), unused_sign2(lenof_sign)
-        real(dp), allocatable :: lowdin_evals(:,:)
+        real(dp), allocatable :: lowdin_evals(:,:), lowdin_spin(:,:)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
         logical :: tParity, tSoftExitFound, tSingBiasChange, tWritePopsFound
         HElement_t :: HElGen
 
-        ! Stores of the overlap and projected Hamiltonian matrices.
+        ! Stores of the overlap, projected Hamiltonian and spin matrices.
         real(dp), pointer :: overlap_matrices(:,:,:,:)
         real(dp), pointer :: hamil_matrices(:,:,:,:)
+        real(dp), pointer :: spin_matrices(:,:,:,:)
         ! Pointers to the matrices for a given report and repeat only.
         real(dp), pointer :: overlap_matrix(:,:)
         real(dp), pointer :: hamil_matrix(:,:)
+        real(dp), pointer :: spin_matrix(:,:)
+
+        type(ll_node), pointer :: temp_node
 
         ! Variables to hold information output for the test suite.
         real(dp) :: s_sum, h_sum
@@ -388,6 +404,13 @@ contains
         overlap_matrices = 0.0_dp
         hamil_matrices = 0.0_dp
         lowdin_evals = 0.0_dp
+
+        if (tCalcSpin) then
+            allocate(spin_matrices(kp%nvecs, kp%nvecs, kp%nrepeats, kp%nreports), stat=ierr)
+            allocate(lowdin_spin(kp%nvecs, kp%nvecs), stat=ierr)
+            spin_matrices = 0.0_dp
+            lowdin_spin = 0.0_dp
+        end if
 
         outer_loop: do irepeat = 1, kp%nrepeats
 
@@ -403,6 +426,10 @@ contains
                 hamil_matrix => hamil_matrices(:,:,irepeat,ireport)
                 overlap_matrix(:,:) = 0.0_dp
                 hamil_matrix(:,:) = 0.0_dp
+                if (tCalcSpin) then
+                    spin_matrix => spin_matrices(:,:,irepeat,ireport)
+                    spin_matrix(:,:) = 0.0_dp
+                end if
 
                 call calc_overlap_matrix(kp%nvecs, CurrentDets, int(TotWalkers, sizeof_int), overlap_matrix)
 
@@ -418,17 +445,53 @@ contains
                     end if
                 end if
 
+                !write(6,*) "CurrentDets before:"
+                !do idet = 1, int(TotWalkers, sizeof_int)
+                !    call extract_bit_rep(CurrentDets(:, idet), nI_parent, parent_sign, unused_flags, &
+                !                          fcimc_excit_gen_store)
+                !    if (tUseFlags) then
+                !        write(6,'(i7, i12, 4x, 3(f18.7, 4x), l1)') idet, CurrentDets(0,idet), parent_sign, &
+                !            test_flag(CurrentDets(:,idet), flag_deterministic)
+                !    else
+                !        write(6,'(i7, i12, 3(4x, f18.7))') idet, CurrentDets(0,idet), parent_sign
+                !    end if
+                !end do
+
+                !write(6,"(A)") "Hash Table: "
+                !do idet = 1, nWalkerHashes
+                !    temp_node => HashIndex(idet)
+                !    if (temp_node%ind /= 0) then
+                !        write(6,'(i9)',advance='no') idet
+                !        do while (associated(temp_node))
+                !            write(6,'(i9)',advance='no') temp_node%ind
+                !            temp_node => temp_node%next
+                !        end do
+                !        write(6,'()',advance='yes')
+                !    end if
+                !end do
+
                 ! Sum the overlap and projected Hamiltonian matrices from the various processors.
-                call communicate_kp_matrices(overlap_matrix, hamil_matrix)
+                if (tCalcSpin) then
+                    ! Calculate the spin squared projected into the subspace.
+                    call calc_projected_spin(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers, sizeof_int), spin_matrix)
+                    call communicate_kp_matrices(overlap_matrix, hamil_matrix, spin_matrix)
+                else
+                    call communicate_kp_matrices(overlap_matrix, hamil_matrix)
+                end if
 
                 if (iProcIndex == root) then
                     call output_kp_matrices_wrapper(iter, overlap_matrices(:,:,1:irepeat,ireport), &
                                                             hamil_matrices(:,:,1:irepeat,ireport))
-                    call average_kp_matrices_wrapper(iter, irepeat, overlap_matrices(:,:,1:irepeat,ireport), &
-                                                     hamil_matrices(:,:,1:irepeat,ireport), kp_overlap_mean, &
-                                                     kp_hamil_mean, kp_overlap_se, kp_hamil_se)
-                    call find_and_output_lowdin_eigv(iter, kp%nvecs, overlap_matrix, hamil_matrix, nlowdin, lowdin_evals)
-                    call write_ex_state_data(iter, nlowdin, lowdin_evals, hamil_matrix, overlap_matrix)
+                    if (tCalcSpin) then
+                        call find_and_output_lowdin_eigv(iter, kp%nvecs, overlap_matrix, hamil_matrix, nlowdin, &
+                                                         lowdin_evals, .false., spin_matrix, lowdin_spin)
+                        call write_ex_state_data(iter, nlowdin, lowdin_evals, hamil_matrix, overlap_matrix, &
+                                                 spin_matrix, lowdin_spin)
+                    else
+                        call find_and_output_lowdin_eigv(iter, kp%nvecs, overlap_matrix, hamil_matrix, nlowdin, &
+                                                         lowdin_evals, .false.)
+                        call write_ex_state_data(iter, nlowdin, lowdin_evals, hamil_matrix, overlap_matrix)
+                    end if
                 end if
 
                 do iiter = 1, kp%niters(ireport)
@@ -453,6 +516,11 @@ contains
                                               fcimc_excit_gen_store)
 
                         ex_level_to_ref = FindBitExcitLevel(iLutRef, ilut_parent, max_calc_ex_level)
+                        if(tRef_Not_HF) then
+                            ex_level_to_hf = FindBitExcitLevel (iLutHF_true, ilut_parent, max_calc_ex_level)
+                        else
+                            ex_level_to_hf = ex_level_to_ref
+                        endif
 
                         tParentIsDeterm = check_determ_flag(ilut_parent)
                         tParentUnoccupied = IsUnoccDet(parent_sign)
@@ -486,7 +554,13 @@ contains
                         if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
 
                         call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
-                                           parent_hdiag, 1.0_dp, idet)
+                                           parent_hdiag, 1.0_dp, tPairedKPReplicas, idet)
+
+                        ! If we're on the Hartree-Fock, and all singles and
+                        ! doubles are in the core space, then there will be no
+                        ! stochastic spawning from this determinant, so we can
+                        ! the rest of this loop.
+                        if (ss_space_in%tDoubles .and. ex_level_to_hf == 0 .and. tDetermHFSpawning) cycle
 
                         do ireplica = 1, lenof_sign
 
@@ -534,8 +608,9 @@ contains
                                                           nI_child, ilut_child, ic, ex_level_to_ref,&
                                                           child_sign, parent_flags, ireplica)
 
+
                                     call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
-                                                                           parent_flags, ireplica, ilut_parent)
+                                                                           ireplica, ilut_parent)
 
                                 end if ! If a child was spawned.
 
@@ -572,7 +647,7 @@ contains
 
                     if (mod(iter, StepsSft) == 0) then
                         call set_timer(Stats_Comms_Time)
-                        call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts)
+                        call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts, tPairedKPReplicas)
                         call halt_timer(Stats_Comms_Time)
 
                         call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)
@@ -586,6 +661,25 @@ contains
             end do ! Over all report cycles.
 
         end do outer_loop ! Over all repeats of the whole calculation.
+
+        ! Output the Lowdin estimates for the final *averaged* matrices.
+        if (iProcIndex == root) then
+            iter = 0
+            do ireport = 1, kp%nreports
+                call average_kp_matrices_wrapper(iter, kp%nrepeats, overlap_matrices(:,:,1:kp%nrepeats,ireport), &
+                                                 hamil_matrices(:,:,1:kp%nrepeats,ireport), kp_overlap_mean, &
+                                                 kp_hamil_mean, kp_overlap_se, kp_hamil_se)
+                if (tCalcSpin) then
+                    call find_and_output_lowdin_eigv(iter, kp%nvecs, kp_overlap_mean, kp_hamil_mean, nlowdin, &
+                                                     lowdin_evals, .true., spin_matrix, lowdin_spin)
+                else
+                    call find_and_output_lowdin_eigv(iter, kp%nvecs, kp_overlap_mean, kp_hamil_mean, nlowdin, &
+                                                     lowdin_evals, .true.)
+                end if
+                ! Update the iteration label.
+                iter = iter + kp%niters(ireport)
+            end do
+        end if
 
         ! Calculate data for the testsuite.
         s_sum = sum(kp_overlap_mean)
