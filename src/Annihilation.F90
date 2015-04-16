@@ -5,8 +5,9 @@ module AnnihilationMod
     use SystemData, only: NEl, tHPHF
     use CalcData, only: tEnhanceRemainder, &
                           tTruncInitiator, OccupiedThresh, tSemiStochastic, &
-                          tTrialWavefunction, tKP_FCIQMC, &
-                          InitiatorOccupiedThresh, tInitOccThresh
+                          tTrialWavefunction, tKP_FCIQMC, tContTimeFCIMC, &
+                          InitiatorOccupiedThresh, tInitOccThresh, &
+                          tContTimeFull
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -25,9 +26,10 @@ module AnnihilationMod
                         nullify_ilut_part, clear_has_been_initiator, &
                         set_has_been_initiator, flag_has_been_initiator, &
                         encode_flags
+    use cont_time_rates, only: spawn_rate_full
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
-    use global_det_data, only: set_det_diagH, get_iter_occ, &
+    use global_det_data, only: set_det_diagH, get_iter_occ, set_spawn_rate, &
                                global_determinant_data, set_part_init_time, &
                                inc_spawn_count, get_spawn_count, pos_spawn_cnt
     use searching
@@ -917,6 +919,12 @@ module AnnihilationMod
 
             ! Set the amplitude (which may be zero).
             current_trial_amps(:,DetPosition) = trial_amps
+        end if
+
+        ! If we are storing spawning rates for continuous time propagation, do
+        ! it here
+        if (tContTimeFCIMC .and. tContTimeFull) then
+            call set_spawn_rate(DetPosition, spawn_rate_full(nJ, ilutCurr))
         end if
 
         ! Add the new determinant to the hash table.

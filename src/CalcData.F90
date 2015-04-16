@@ -250,4 +250,8 @@ logical :: use_spawn_hash_table
 ! Keep track of when the calculation began (globally)
 real(sp) :: s_global_start
 
+! Use continuous time FCIQMC
+logical :: tContTimeFCIMC, tContTimeFull
+real(dp) :: cont_time_max_overspawn
+
 end module CalcData

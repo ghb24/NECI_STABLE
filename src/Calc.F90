@@ -314,6 +314,11 @@ contains
 
           use_spawn_hash_table = .false.
 
+          ! Continuous time FCIQMC control
+          tContTimeFCIMC = .false.
+          tContTimeFull = .false.
+          cont_time_max_overspawn = 4.0
+
         end subroutine SetCalcDefaults
 
         SUBROUTINE CalcReadInput()
@@ -1999,6 +2004,19 @@ contains
             case("USE-SPAWN-HASH-TABLE")
                 use_spawn_hash_table = .true.
 
+            case("CONT-TIME-FULL")
+                ! Use the full continuous time scheme, not the approximated
+                ! oversampled scheme
+                ! --> Needs to calculate the spawning rate for each det as it
+                !     appears, so is slow
+                tContTimeFull = .true.
+
+            case("CONT-TIME-MAX-OVERSPAWN")
+                ! Efficient continuous time propagation requires a fine
+                ! interplay between the oversampling rate, and the maximum
+                ! spawn allowed
+                call readf(cont_time_max_overspawn)
+
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)
@@ -2495,12 +2513,15 @@ contains
       subroutine inpgetmethod(I_HMAX,NWHTAY,I_V)
          use constants
          use input_neci
-         use UMatCache , only : TSTARSTORE
-         use CalcData , only : CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TMCDIRECTSUM,g_Multiweight,G_VMC_FAC,TMPTHEORY
-         use CalcData, only : STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph,TStarTrips,THDiag,TMCStar,TFCIMC,TMCDets
-         use CalcData , only : TRhoElems,TReturnPathMC, tUseProcsAsNodes,tRPA_QBA, tDetermProj, tFTLM, tSpecLanc
-         use CalcData, only: tExactSpec, tExactDiagAllSym
-         use RPA_Mod, only : tDirectRPA
+         use UMatCache, only: tStarStore
+         use CalcData, only: calcp_sub2vstar, calcp_logWeight, tMCDirectSum, &
+                             g_multiweight, g_vmc_fac, tMPTheory, StarProd, &
+                             tDiagNodes, tStarStars, tGraphMorph, tStarTrips, &
+                             tHDiag, tMCStar, tFCIMC, tMCDets, tRhoElems, &
+                             tReturnPathMC, tUseProcsAsNodes, tRPA_QBA, &
+                             tDetermProj, tFTLM, TSpecLanc, tContTimeFCIMC, &
+                             tExactSpec, tExactDiagAllSym
+         use RPA_Mod, only: tDirectRPA
          use LoggingData, only: tCalcFCIMCPsi
          implicit none
          integer I_HMAX,NWHTAY,I_V
@@ -2518,6 +2539,8 @@ contains
                    do while(item.lt.nitems)
                       call readu(w)
                       select case(w)
+                      case("CONT-TIME")
+                          tContTimeFCIMC = .true.
                       case("MCDIFFUSION")
 !                          TMCDiffusion=.true.
                           CALL Stop_All("inpgetmethod","MCDIFFUSION option depreciated")
