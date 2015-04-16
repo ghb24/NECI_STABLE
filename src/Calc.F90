@@ -1303,6 +1303,14 @@ contains
                 if (item < nitems) then
                     call getf(pop_change_min)
                 endif
+
+            case("NO-CHANGEREF")
+
+                ! Now that changing the reference determinant is default
+                ! behaviour, we want a way to turn that off!
+
+                tReadPopsChangeRef = .false.
+                tChangeProjEDet = .false.
                 
             case("AVGROWTHRATE")
 
