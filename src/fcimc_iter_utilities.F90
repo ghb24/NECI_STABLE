@@ -1,4 +1,5 @@
 #include "macros.h"
+
 module fcimc_iter_utils
 
     use SystemData, only: nel, tHPHF, tNoBrillouin, tRef_Not_HF
@@ -25,6 +26,7 @@ module fcimc_iter_utils
     use FciMCData
     use constants
     use util_mod
+
     implicit none
 
 contains
@@ -126,7 +128,9 @@ contains
     end subroutine iter_diagnostics
 
     subroutine population_check ()
+
         use HPHFRandExcitMod, only: ReturnAlphaOpenDet
+
         integer :: pop_highest(inum_runs), proc_highest(inum_runs)
         real(dp) :: pop_change, old_Hii
         integer :: det(nel), i, error, ierr, run
@@ -137,9 +141,7 @@ contains
         character(*), parameter :: t_r = this_routine
 
         ! If we aren't doing this, then bail out...
-        if (.not. tCheckHighestPop) &
-            return
-
+        if (.not. tCheckHighestPop) return
 
         ! If we are accumulating RDMs, then a temporary spawning array is
         ! required of <~ the size of the largest occupied det.
@@ -237,7 +239,6 @@ contains
                            'not reference det: ', pop_highest, abs_sign(AllNoAtHF)
 
                 if (tChangeProjEDet) then
-
                     !
                     ! Here we are changing the reference det on the fly.
                     ! --> else block for restarting simulation.
@@ -303,11 +304,10 @@ contains
 
                 endif
 
-
             endif
         end do
 
-    end subroutine
+    end subroutine population_check
 
     subroutine collate_iter_data (iter_data, tot_parts_new, tot_parts_new_all, tPairedReplicas)
 
@@ -464,6 +464,7 @@ contains
     end subroutine collate_iter_data
 
     subroutine update_shift (iter_data)
+
         use CalcData, only : tInstGrowthRate
      
         type(fcimc_iter_data), intent(in) :: iter_data
@@ -768,8 +769,6 @@ contains
 
     end subroutine update_shift 
 
-
-
     subroutine rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
         
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -800,7 +799,7 @@ contains
         !OldAllHFCyc is the average HF value for this update cycle
         OldAllHFCyc = AllHFCyc/real(StepsSft,dp)
         !OldAllAvWalkersCyc gives the average number of walkers per iteration in the last update cycle
-      !TODO CMO: are these summed across real/complex? 
+        !TODO CMO: are these summed across real/complex? 
         OldAllAvWalkersCyc = AllSumWalkersCyc/real(StepsSft,dp)
 
         ! Also the cumulative global variables
@@ -816,7 +815,7 @@ contains
 
         max_cyc_spawn = 0
 
-    end subroutine
+    end subroutine rezero_iter_stats_update_cycle
 
     subroutine calculate_new_shift_wrapper (iter_data, tot_parts_new, tPairedReplicas)
 
@@ -852,4 +851,5 @@ contains
         iter_data%update_iters = iter_data%update_iters + 1
 
     end subroutine update_iter_data
-end module
+
+end module fcimc_iter_utils

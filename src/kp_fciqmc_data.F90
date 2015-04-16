@@ -229,5 +229,12 @@ module kp_fciqmc_data_mod
     ! are identical, otherwise the first array gives access to the first set
     ! of vectors and the second array to the second set.
     integer, allocatable :: kp_ind_1(:), kp_ind_2(:)
+
+    ! If true then perform an orthogonalisation step at the end of each
+    ! iteration. This only applies to the CFQMC approach.
+    logical :: tOrthogKPReplicas
+    ! After which iteration should we start performing the orthogonalisation
+    ! step?
+    integer :: orthog_kp_iter
     
 end module
