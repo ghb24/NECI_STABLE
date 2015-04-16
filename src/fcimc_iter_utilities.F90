@@ -9,7 +9,7 @@ module fcimc_iter_utils
                         tLetInitialPopDie, InitWalkers, tCheckHighestPop, &
                         HFPopThresh, DiagSft, tShiftOnHFPop, iRestartWalkNum, &
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, &
-                        nShiftEquilSteps, TargetGrowRateWalk
+                        nShiftEquilSteps, TargetGrowRateWalk, pop_change_min
     use LoggingData, only: tFCIMCStats2, tPrintDataTables
     use semi_stoch_procs, only: recalc_core_hamil_diag
     use fcimc_helper, only: update_run_reference
@@ -229,9 +229,9 @@ contains
             else
                 pop_change = FracLargerDet * abs(AllNoATHF(1))
             endif
-
+!            write(iout,*) "***",AllNoAtHF,FracLargerDet,pop_change, pop_highest,proc_highest
             ! Do we need to do a change?
-            if (pop_change < pop_highest(run) .and. pop_highest(run) > 50) then
+            if (pop_change < pop_highest(run) .and. pop_highest(run) > pop_change_min) then
 
                 ! Write out info!
                 changed_any = .true.

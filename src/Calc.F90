@@ -306,6 +306,7 @@ contains
           init_survival_mult = 3.0_dp
           MaxTau = 1.0_dp
           tMultiReplicaInitiators = .false.
+          pop_change_min = 50
           tOrthogonaliseReplicas = .false.
           tOrthogonaliseSymmetric = .false.
           orthogonalise_iter = 0
@@ -1280,11 +1281,23 @@ contains
 !This will find the energy by projection of the configuration of walkers onto the MP2 wavefunction.
                 TProjEMP2=.true.
             case("PROJE-CHANGEREF")
+
+                ! If there is a determinant larger than the current reference,
+                ! then swap references on the fly
+                ! 
+                ! The first parameter specifies the relative weights to trigger
+                ! the change.
+
+                ! The second parameter specifies an absolute minimum weight.
+
                 tCheckHighestPop=.true.
                 tChangeProjEDet=.true.
                 IF(item.lt.nitems) then
                     call Getf(FracLargerDet)
                 ENDIF
+                if (item < nitems) then
+                    call getf(pop_change_min)
+                endif
                 
             case("AVGROWTHRATE")
 
