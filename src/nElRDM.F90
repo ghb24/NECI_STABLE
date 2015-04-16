@@ -6426,7 +6426,7 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
 
     SUBROUTINE PrintROFCIDUMP_RDM(filename)
 !This prints out a new FCIDUMP file in the same format as the old one.
-        INTEGER :: i,j,k,l,iunit
+        INTEGER :: i,j,k,l,iunit, orb
         character(len=9) :: filename
 
 !        PrintROFCIDUMP_Time%timer_name='PrintROFCIDUMP'
@@ -6466,20 +6466,11 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
             enddo
             WRITE(iunit,'(A8)',advance='no') 'SYMLZ='
             do i=1,NoOrbs
-                if(i.eq.NoOrbs) then
-                    IF(tStoreSpinOrbs) THEN
-                        WRITE(iunit,'(I2,A1)') INT(G1(i)%Ml),','
-                    ELSE
-                        WRITE(iunit,'(I2,A1)') INT(G1(i*2)%Ml),','
-                    ENDIF
-                else
-                    IF(tStoreSpinOrbs) THEN
-                        WRITE(iunit,'(I2,A1)',advance='no') INT(G1(i)%Ml),','
-                    ELSE
-                        WRITE(iunit,'(I2,A1)',advance='no') INT(G1(i*2)%Ml),','
-                    ENDIF
-                endif
+                orb = i
+                if (.not. tStoreSpinOrbs) orb = 2 * orb
+                write(iunit, '(i3,",")', advance='no') int(g1(orb)%ml)
             enddo
+            write(iunit,*)
         endif
         WRITE(iunit,'(A5)') '&END'
        
