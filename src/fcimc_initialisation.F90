@@ -3236,7 +3236,9 @@ contains
 
         write(6,*) 'Generated reference determinants:'
         do run = 1, inum_runs
-            call write_det(6, ProjEDet(:, run), .true.)
+            call write_det(6, ProjEDet(:, run), .false.)
+            write(6, '(" E = ", f16.9)') &
+                real(get_helement(ProjEDet(:, run), ProjEDet(:, run), 0), dp)
         end do
 
     end subroutine assign_reference_dets
