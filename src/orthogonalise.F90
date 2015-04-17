@@ -4,10 +4,11 @@ module orthogonalise
     use FciMCData, only: TotWalkers, CurrentDets, all_norm_psi_squared, &
                          NoBorn, NoDied, fcimc_iter_data, replica_overlaps, &
                          HolesInList
+    use CalcData, only: OccupiedThresh, tOrthogonaliseSymmetric, tSemiStochastic
     use dSFMT_interface, only: genrand_real2_dSFMT
     use AnnihilationMod, only: CalcHashTableStats
     use bit_reps, only: extract_sign, encode_sign
-    use CalcData, only: OccupiedThresh, tOrthogonaliseSymmetric
+    use semi_stoch_procs, only: check_determ_flag
     use Parallel_neci
     use constants
     use util_mod
@@ -27,6 +28,7 @@ contains
         real(dp) :: norms(inum_runs), overlaps(inum_runs, inum_runs)
         real(dp) :: all_norms(inum_runs), all_overlaps(inum_runs, inum_runs)
         real(dp) :: sgn(lenof_sign), sgn_orig, delta, r
+        logical :: tCoreDet
         character(*), parameter :: this_routine = 'orthogonalise_replicas'
 
         ASSERT(inum_runs == lenof_sign)
@@ -50,7 +52,8 @@ contains
 
                 ! n.b. We are using a non-contiguous list (Hash algorithm)
                 call extract_sign(CurrentDets(:,j), sgn)
-                if (IsUnoccDet(sgn)) then
+                tCoreDet = check_determ_flag(CurrentDets(:,j))
+                if (IsUnoccDet(sgn) .and. (.not. tCoreDet)) then
                     HolesInList = HolesInList + 1
                     cycle
                 end if
@@ -78,7 +81,11 @@ contains
                 ! Note that we shouldn't be able to kill all particles on a
                 ! site, as we can only change a run if there are particles in
                 ! a lower indexed run to change...
-                ASSERT(.not. IsUnoccDet(sgn))
+                ! The exception is when using semi-stochastic, where
+                ! unoccupied determinants can be stored.
+                if (.not. tSemiStochastic) then
+                    ASSERT(.not. IsUnoccDet(sgn))
+                end if
 
                 ! Now we need to to our accounting to make sure that NoBorn/
                 ! Died/etc. counters remain reasonable.
@@ -174,6 +181,7 @@ contains
         real(dp) :: norms(inum_runs/2), overlaps(inum_runs, inum_runs)
         real(dp) :: all_norms(inum_runs/2), all_overlaps(inum_runs, inum_runs)
         real(dp) :: sgn(lenof_sign), sgn_orig(2), delta, r
+        logical :: tCoreDet
         character(len=*), parameter :: this_routine = "orthogonalise_replica_pairs"
 
         ASSERT(inum_runs == lenof_sign)
@@ -192,7 +200,8 @@ contains
 
                 ! n.b. We are using a non-contiguous list (Hash algorithm).
                 call extract_sign(CurrentDets(:,j), sgn)
-                if (IsUnoccDet(sgn)) then
+                tCoreDet = check_determ_flag(CurrentDets(:,j))
+                if (IsUnoccDet(sgn) .and. (.not. tCoreDet)) then
                     HolesInList = HolesInList + 1
                     cycle
                 end if
@@ -231,7 +240,11 @@ contains
                 ! Note that we shouldn't be able to kill all particles on a
                 ! site, as we can only change a run if there are particles in
                 ! a lower indexed run to change...
-                ASSERT(.not. IsUnoccDet(sgn))
+                ! The exception is when using semi-stochastic, where
+                ! unoccupied determinants can be stored.
+                if (.not. tSemiStochastic) then
+                    ASSERT(.not. IsUnoccDet(sgn))
+                end if
 
                 ! Now we need to to our accounting to make sure that NoBorn/
                 ! Died/etc. counters remain reasonable.
@@ -374,7 +387,11 @@ contains
             ! Note that we shouldn't be able to kill all particles on a site,
             ! as we can only change run 2 if run 1 is occupied, and run 1
             ! doesn't change...
-            ASSERT(.not. IsUnoccDet(sgn))
+            ! The exception is when using semi-stochastic, where
+            ! unoccupied determinants can be stored.
+            if (.not. tSemiStochastic) then
+                ASSERT(.not. IsUnoccDet(sgn))
+            end if
 
             ! Now we need to do our accounting to make sure that the NoBorn/
             ! Died/etc. counters remain reasonable.
@@ -437,10 +454,9 @@ contains
         real(dp) :: evecs(inum_runs, inum_runs), evecs_t(inum_runs, inum_runs)
         real(dp) :: S_half(inum_runs, inum_runs)
         real(dp) :: elem, sgn(lenof_sign), norm, sgn_orig(lenof_sign)
-
         real(dp) :: work(3*inum_runs-1), evals(inum_runs)
-
         integer :: j, run, runa, runb, info, TotWalkersNew
+        logical :: tCoreDet
 
         ! Not implemented for complex (yet)
         ASSERT(inum_runs == lenof_sign)
@@ -507,7 +523,8 @@ contains
 
             ! n.b. We are using a non-contiguous list (Hash algorith)
             call extract_sign(CurrentDets(:,j), sgn_orig)
-            if (IsUnoccDet(sgn_orig)) then
+            tCoreDet = check_determ_flag(CurrentDets(:,j))
+            if (IsUnoccDet(sgn_orig) .and. (.not. tCoreDet)) then
                 HolesInList = HolesInList + 1
                 cycle
             end if
@@ -517,8 +534,11 @@ contains
             call encode_sign(CurrentDets(:,j), sgn)
 
             ! We should not be able to kill all particles on a site. This is
-            ! a rotation.
-            ASSERT(.not. IsUnoccDet(sgn))
+            ! a rotation. The exception is when using semi-stochastic, where
+            ! unoccupied determinants can be stored.
+            if (.not. tSemiStochastic) then
+                ASSERT(.not. IsUnoccDet(sgn))
+            end if
 
             ! Do some particle accounting
             do run = 1, inum_runs

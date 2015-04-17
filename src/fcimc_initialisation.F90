@@ -28,7 +28,8 @@ module fcimc_initialisation
                         TargetGrowRateWalk, InputTargetGrowRate, &
                         InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
                         use_spawn_hash_table, tReplicaSingleDetStart, &
-                        ss_space_in, trial_space_in, init_trial_in
+                        ss_space_in, trial_space_in, init_trial_in, &
+                        tContTimeFCIMC, tContTimeFull
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -99,7 +100,7 @@ module fcimc_initialisation
                                     set_trial_states
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                clean_global_det_data, init_global_det_data, &
-                               set_part_init_time
+                               set_part_init_time, set_spawn_rate
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
@@ -111,6 +112,8 @@ module fcimc_initialisation
     use csf, only: get_csf_helement
     use tau_search, only: init_tau_search
     use fcimc_helper, only: CalcParentFlag, update_run_reference
+    use cont_time_rates, only: spawn_rate_full, oversample_factors, &
+                               secondary_gen_store, ostag
     use get_excit, only: make_double
     use sltcnd_mod, only: sltcnd_0
     use Parallel_neci
@@ -1207,6 +1210,9 @@ contains
             ! elements, i.e. CurrentH; now global_determinant_data).
             call init_global_det_data()
 
+            ! If we are doing cont time, then initialise it here
+            call init_cont_time()
+
             WRITE(iout,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned, &
                     " particles to be spawned in any one iteration per core."
             ALLOCATE(SpawnVec(0:NIftot,MaxSpawned),stat=ierr)
@@ -1616,6 +1622,9 @@ contains
         ! Cleanup storage for spin projection
         call clean_yama_store ()
 
+        ! Cleanup cont time
+        call clean_cont_time()
+
         if (tSemiStochastic) call end_semistoch()
 
         if (tTrialWavefunction) call end_trial_wf()
@@ -1684,6 +1693,9 @@ contains
 
             ! Set the initial iteration number
             call set_part_init_time(1, TotImagTime)
+
+            if (tContTimeFCIMC .and. tContTimeFull) &
+                call set_spawn_rate(1, spawn_rate_full(HFDet, ilutHF))
 
             ! Obtain the initial sign
             InitialSign = 0.0_dp
@@ -3228,6 +3240,35 @@ contains
         end do
 
     end subroutine assign_reference_dets
+
+    subroutine init_cont_time()
+
+        integer :: ierr
+        character(*), parameter :: this_routine = 'init_cont_time'
+        character(*), parameter :: t_r = this_routine
+
+        call clean_cont_time()
+
+        allocate(oversample_factors(1:2, LMS:nel), stat=ierr)
+        log_alloc(oversample_factors, ostag, ierr)
+        oversample_factors = 1.0_dp
+
+        ! We need somewhere for our nested excitation generators to call home
+        call init_excit_gen_store(secondary_gen_store)
+
+    end subroutine
+
+    subroutine clean_cont_time()
+
+        character(*), parameter :: this_routine = 'clean_cont_time'
+
+        if (allocated(oversample_factors)) then
+            deallocate(oversample_factors)
+            log_dealloc(ostag)
+        end if
+
+    end subroutine
+
 
 end module fcimc_initialisation
 

@@ -10,7 +10,8 @@ module FciMCParMod
                         iFullSpaceIter, semistoch_shift_iter, &
                         tOrthogonaliseReplicas, orthogonalise_iter, &
                         tDetermHFSpawning, use_spawn_hash_table, &
-                        semistoch_shift_iter, ss_space_in, s_global_start
+                        semistoch_shift_iter, ss_space_in, s_global_start, &
+                        tContTimeFCIMC
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, &
@@ -42,6 +43,7 @@ module FciMCParMod
     use AnnihilationMod, only: DirectAnnihilation
     use exact_spectrum, only: get_exact_spectrum
     use determ_proj, only: perform_determ_proj
+    use cont_time, only: iterate_cont_time
     use global_det_data, only: det_diagH
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
@@ -209,8 +211,12 @@ module FciMCParMod
             if(tRDMonFly .and. (.not. tFillingExplicRDMonFly) &
                 & .and. (.not.tFillingStochRDMonFly)) call check_start_rdm()
 
-            if (.not. (tSpinProject .and. spin_proj_interval == -1)) &
-                call PerformFciMCycPar(iter_data_fciqmc)
+            if (tContTimeFCIMC) then
+                call iterate_cont_time(iter_data_fciqmc)
+            else
+                if (.not. (tSpinProject .and. spin_proj_interval == -1)) &
+                    call PerformFciMCycPar(iter_data_fciqmc)
+            end if
 
             ! Are we projecting the spin out between iterations?
             if (tSpinProject .and. (mod(Iter, spin_proj_interval) == 0 .or. &
