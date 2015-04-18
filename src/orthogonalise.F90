@@ -453,8 +453,10 @@ contains
         real(dp) :: S(inum_runs, inum_runs), S_all(inum_runs, inum_runs)
         real(dp) :: evecs(inum_runs, inum_runs), evecs_t(inum_runs, inum_runs)
         real(dp) :: S_half(inum_runs, inum_runs)
-        real(dp) :: elem, sgn(lenof_sign), norm, sgn_orig(lenof_sign)
+        real(dp) :: elem, sgn(lenof_sign), sgn_orig(lenof_sign)
         real(dp) :: work(3*inum_runs-1), evals(inum_runs)
+        real(dp) :: sgn_orig_norm(lenof_sign), sgn_norm(lenof_sign)
+        real(dp) :: norm(inum_runs)
         integer :: j, run, runa, runb, info, TotWalkersNew
         logical :: tCoreDet
 
@@ -486,9 +488,9 @@ contains
         ! constants)
         S = S_all
         do run = 1, inum_runs
-            norm = sqrt(S_all(run, run))
-            S(run, :) = S(run, :) / norm
-            S(:, run) = S(:, run) / norm
+            norm(run) = sqrt(S_all(run, run))
+            S(run, :) = S(run, :) / norm(run)
+            S(:, run) = S(:, run) / norm(run)
         end do
         evecs = S
 
@@ -529,8 +531,13 @@ contains
                 cycle
             end if
 
+            ! Ultimately, we want to use normalised signs for the Lowdin
+            ! expressions
+            sgn_orig_norm = sgn_orig / norm
+
             ! Obtain the new sign values
-            sgn = matmul(S_half, sgn_orig)
+            sgn_norm = matmul(S_half, sgn_orig)
+            sgn = sgn_norm * norm
             call encode_sign(CurrentDets(:,j), sgn)
 
             ! We should not be able to kill all particles on a site. This is

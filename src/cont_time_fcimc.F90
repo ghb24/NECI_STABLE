@@ -255,7 +255,11 @@ contains
                 ! This is the spawning coefficient. n.b. it is possible to
                 ! spawn more than one particle whilst adjusting the overspawn
                 ! factors
-                spwn_sgn = - sign(1.0_dp, sgn) * sign(real(nspawn), hoffdiag)
+#ifndef __CMPLX
+                spwn_sgn = - sign(1.0_dp, sgn) * sign(real(nspawn,dp),hoffdiag)
+#else
+                call stop_all(this_routine, "Not implemented")
+#endif
 
                 ! Need this for calculating further oversampling factors
                 nopen_spwn = count_open_orbs(ilut_spwn)
