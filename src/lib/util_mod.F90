@@ -85,6 +85,26 @@ contains
 
     end function
 
+    function stochastic_round_r (num, r) result(i)
+
+        ! Perform the stochastic rounding of the above function where the 
+        ! random number is already specified.
+
+        real(dp), intent(in) :: num, r
+        integer :: i
+        real(dp) :: res
+        character(*), parameter :: this_routine = 'stochastic_round_r'
+
+        i = int(num)
+        res = num - real(i, dp)
+
+        if (res /= 0) then
+            if (abs(res) > r) &
+                i = i + nint(sign(1.0_dp, num))
+        end if
+
+    end function
+
     subroutine print_cstr (str) bind(c, name='print_cstr')
 
         ! Write a string outputted by calling fort_printf in C.

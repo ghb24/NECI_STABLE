@@ -9,7 +9,9 @@ module fcimc_iter_utils
                         tLetInitialPopDie, InitWalkers, tCheckHighestPop, &
                         HFPopThresh, DiagSft, tShiftOnHFPop, iRestartWalkNum, &
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, &
-                        nShiftEquilSteps, TargetGrowRateWalk
+                        nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
+                        tContTimeFull, pop_change_min
+    use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables
     use semi_stoch_procs, only: recalc_core_hamil_diag
     use fcimc_helper, only: update_run_reference
@@ -47,7 +49,11 @@ contains
         IterTime = IterTime / real(StepsSft,sp)
 
         ! Calculate the acceptance ratio
-        AccRat = real(Acceptances, dp) / SumWalkersCyc
+        if (tContTimeFCIMC .and. .not. tContTimeFull) then
+            AccRat = real(cont_spawn_success) / real(cont_spawn_attempts)
+        else
+            AccRat = real(Acceptances, dp) / SumWalkersCyc
+        end if
 
 
 #ifndef __CMPLX
@@ -229,9 +235,9 @@ contains
             else
                 pop_change = FracLargerDet * abs(AllNoATHF(1))
             endif
-
+!            write(iout,*) "***",AllNoAtHF,FracLargerDet,pop_change, pop_highest,proc_highest
             ! Do we need to do a change?
-            if (pop_change < pop_highest(run) .and. pop_highest(run) > 50) then
+            if (pop_change < pop_highest(run) .and. pop_highest(run) > pop_change_min) then
 
                 ! Write out info!
                 changed_any = .true.
@@ -814,6 +820,9 @@ contains
         iter_data%tot_parts_old = tot_parts_new_all
 
         max_cyc_spawn = 0
+
+        cont_spawn_attempts = 0
+        cont_spawn_success = 0
 
     end subroutine rezero_iter_stats_update_cycle
 

@@ -143,7 +143,7 @@ real(dp) :: g_MultiWeight(0:10),G_VMC_PI,G_VMC_FAC,BETAEQ
 real(dp) :: G_VMC_EXCITWEIGHT(10),G_VMC_EXCITWEIGHTS(6,10)
 real(dp) :: BETAP,RHOEPSILON,DBETA,STARCONV,GraphBias
 real(dp) :: GrowGraphsExpo,Tau,SftDamp,ScaleWalkers
-real(dp) :: PRet,FracLargerDet
+real(dp) :: PRet,FracLargerDet,pop_change_min
 real(dp) :: MemoryFacPart
 real(dp) :: MemoryFacSpawn,SinglesBias,TauFactor,StepsSftImag
 
@@ -249,5 +249,9 @@ logical :: use_spawn_hash_table
 
 ! Keep track of when the calculation began (globally)
 real(sp) :: s_global_start
+
+! Use continuous time FCIQMC
+logical :: tContTimeFCIMC, tContTimeFull
+real(dp) :: cont_time_max_overspawn
 
 end module CalcData
