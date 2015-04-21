@@ -701,9 +701,10 @@ contains
                     TempHii = get_helement (ProjEDet(:,run), ProjEDet(:,run), 0)
                 endif
                 proje_ref_energy_offsets(run) = real(TempHii, dp) - Hii
-                ! Comment this out for now, so that we can instead set each
-                ! shift manually.
-                !DiagSft(run) = DiagSft(run) + real(TempHii, dp) - Hii
+
+                ! This is a bit of a hack...
+                if (all(InputDiagSft == 0)) &
+                    DiagSft(run) = DiagSft(run) + real(TempHii, dp) - Hii
             end do
         end if
 

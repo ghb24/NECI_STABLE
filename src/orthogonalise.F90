@@ -536,7 +536,7 @@ contains
             sgn_orig_norm = sgn_orig / norm
 
             ! Obtain the new sign values
-            sgn_norm = matmul(S_half, sgn_orig)
+            sgn_norm = matmul(S_half, sgn_orig_norm)
             sgn = sgn_norm * norm
             call encode_sign(CurrentDets(:,j), sgn)
 
