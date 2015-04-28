@@ -239,12 +239,13 @@ contains
             ! Do we need to do a change?
             if (pop_change < pop_highest(run) .and. pop_highest(run) > pop_change_min) then
 
-                ! Write out info!
-                changed_any = .true.
-                root_print 'Highest weighted determinant on run', run, &
-                           'not reference det: ', pop_highest, abs_sign(AllNoAtHF)
-
                 if (tChangeProjEDet) then
+
+                    ! Write out info!
+                    changed_any = .true.
+                    root_print 'Highest weighted determinant on run', run, &
+                               'not reference det: ', pop_highest, abs_sign(AllNoAtHF)
+
                     !
                     ! Here we are changing the reference det on the fly.
                     ! --> else block for restarting simulation.
