@@ -247,6 +247,9 @@ type(subspace_in) :: init_trial_in
 ! determinant multiple times.
 logical :: use_spawn_hash_table
 
+logical :: tMultipleInitialRefs = .false.
+integer, allocatable :: initial_refs(:,:)
+
 ! Keep track of when the calculation began (globally)
 real(sp) :: s_global_start
 

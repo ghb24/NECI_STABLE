@@ -341,7 +341,7 @@ contains
           CHARACTER (LEN=100) w
           CHARACTER (LEN=100) input_string
           CHARACTER(*),PARAMETER :: t_r='CalcReadInput'
-          integer :: l, i, j, ierr
+          integer :: l, i, j, line, ierr
           integer :: tempMaxNoatHF,tempHFPopThresh
           logical :: tExitNow
           integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
@@ -744,6 +744,18 @@ contains
                 do i=1,NEl
                     call geti(DefDet(i))
                 enddo
+
+            case("MULTIPLE-INITIAL-REFS")
+                tMultipleInitialRefs = .true.
+                allocate(initial_refs(nel, inum_runs), stat=ierr)
+                initial_refs = 0
+
+                do line = 1, inum_runs
+                    call read_line(eof)
+                    do i = 1, nel
+                        call geti(initial_refs(i, line))
+                    end do
+                end do
 
             case("FINDGUIDINGFUNCTION")
 ! At the end of a calculation, this keyword sets the spawning calculation to print out the iGuideDets
