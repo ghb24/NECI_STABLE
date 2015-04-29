@@ -250,6 +250,13 @@ logical :: use_spawn_hash_table
 logical :: tMultipleInitialRefs = .false.
 integer, allocatable :: initial_refs(:,:)
 
+! Array to specify how to reorder the trial states (which are by default
+! ordered by the energy in the trial space).
+! First the trial states for the energy estimates:
+integer, allocatable :: trial_est_reorder(:)
+! And also the trial states used for the intial states:
+integer, allocatable :: trial_init_reorder(:)
+
 ! Keep track of when the calculation began (globally)
 real(sp) :: s_global_start
 

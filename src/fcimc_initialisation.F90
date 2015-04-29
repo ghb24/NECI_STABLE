@@ -30,7 +30,7 @@ module fcimc_initialisation
                         use_spawn_hash_table, tReplicaSingleDetStart, &
                         ss_space_in, trial_space_in, init_trial_in, &
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
-                        initial_refs
+                        initial_refs, trial_init_reorder
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -1888,6 +1888,7 @@ contains
         type(basisfn) :: sym
         real(dp) :: evals(inum_runs)
         real(dp), allocatable :: evecs_this_proc(:,:)
+        integer :: temp_reorder(inum_runs)
         integer(MPIArg) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
         character(*), parameter :: this_routine = 'InitFCIMC_trial'
 
@@ -1899,7 +1900,7 @@ contains
         ! Create the trial excited states
         call calc_trial_states(init_trial_in, nexcit, ndets_this_proc, &
                                SpawnedParts, evecs_this_proc, evals, &
-                               space_sizes, space_displs)
+                               space_sizes, space_displs, trial_init_reorder)
         ! Determine the walker populations associated with these states
         call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
         ! Set the trial excited states as the FCIQMC wave functions

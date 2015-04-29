@@ -1130,6 +1130,18 @@ contains
                 trial_space_in%tHeisenbergFCI = .true.
             case("TRIAL-BIN-SEARCH")
                 tTrialHash = .false.
+            case("TRIAL-ESTIMATE-REORDER")
+                allocate(trial_est_reorder(inum_runs))
+                trial_est_reorder = 0
+                do i = 1, inum_runs
+                    call geti(trial_est_reorder(i))
+                end do
+            case("TRIAL-INIT-REORDER")
+                allocate(trial_init_reorder(inum_runs))
+                trial_init_reorder = 0
+                do i = 1, inum_runs
+                    call geti(trial_init_reorder(i))
+                end do
             case("START-FROM-HF")
                 tStartCoreGroundState = .false.
             case("INC-CANCELLED-INIT-ENERGY")
