@@ -1067,6 +1067,9 @@ contains
             case("MAX-TRIAL-SIZE")
                 trial_space_in%tLimitSpace = .true.
                 call geti(trial_space_in%max_size)
+            case("MP1-TRIAL")
+                trial_space_in%tMP1 = .true.
+                call geti(trial_space_in%mp1_ndets)
             case("DOUBLES-TRIAL")
                 trial_space_in%tDoubles = .true.
             case("CAS-TRIAL")

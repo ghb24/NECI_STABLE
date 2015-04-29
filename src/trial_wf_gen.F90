@@ -107,7 +107,7 @@ contains
                     real(con_space_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp," Mb"; call neci_flush(6)
             allocate(con_space(0:NIfTot, con_space_size), stat=ierr)
             call LogMemAlloc('con_space', con_space_size*(NIfTot+1), size_n_int, t_r, ConTag, ierr)
-            con_space = 0
+            con_space = 0_n_int
 
             write(6,'(a50,1X,i8)') "States found on this processor, including repeats:", con_space_size
 
