@@ -257,6 +257,10 @@ integer, allocatable :: trial_est_reorder(:)
 ! And also the trial states used for the intial states:
 integer, allocatable :: trial_init_reorder(:)
 
+! If true then, when using the orthogonalise-replicas option, print out the
+! overlaps between replicas in a separate file.
+logical :: tPrintReplicaOverlaps = .true.
+
 ! Keep track of when the calculation began (globally)
 real(sp) :: s_global_start
 

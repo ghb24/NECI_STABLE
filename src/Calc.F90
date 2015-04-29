@@ -2036,6 +2036,11 @@ contains
                 ! this option
                 tReplicaSingleDetStart = .true.
 
+            case("DONT-PRINT-OVERLAPS")
+                ! Don't print overlaps between replicas when using the
+                ! orthogonalise-replicas option.
+                tPrintReplicaOverlaps = .false.
+
             case("USE-SPAWN-HASH-TABLE")
                 use_spawn_hash_table = .true.
 
