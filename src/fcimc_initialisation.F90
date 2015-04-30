@@ -30,7 +30,7 @@ module fcimc_initialisation
                         use_spawn_hash_table, tReplicaSingleDetStart, &
                         ss_space_in, trial_space_in, init_trial_in, &
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
-                        initial_refs, trial_init_reorder
+                        initial_refs, trial_init_reorder, tStartTrialLater
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -1382,6 +1382,14 @@ contains
             else
                 call init_trial_wf(trial_space_in, 1)
             end if
+        else if (tStartTrialLater) then
+            ! If we are going to turn on the use of a trial wave function
+            ! later in the calculation, then zero the trial estimate arrays
+            ! for now, to prevent junk being printed before then.
+            trial_numerator = 0.0_dp
+            tot_trial_numerator = 0.0_dp
+            trial_denom = 0.0_dp
+            tot_trial_denom = 0.0_dp
         end if
 
         replica_overlaps(:, :) = 0
@@ -1630,7 +1638,6 @@ contains
         if (tSemiStochastic) call end_semistoch()
 
         if (tTrialWavefunction) call end_trial_wf()
-
 
 !There seems to be some problems freeing the derived mpi type.
 !        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN

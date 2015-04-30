@@ -205,6 +205,12 @@ logical :: tTrialWavefunction ! Use a trial wavefunction-based energy estimator.
 ! Input type describing which space(s) type to use.
 type(subspace_in) :: trial_space_in
 
+! If true then start using a trial estimator later on in the calculation.
+logical :: tStartTrialLater = .false.
+! How many iterations after the shift starts to vary should be turn on the use
+! of trial estimators?
+integer :: trial_shift_iter
+
 ! True if running a kp-fciqmc calculation.
 logical :: tKP_FCIQMC
 

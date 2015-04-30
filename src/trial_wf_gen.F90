@@ -217,7 +217,7 @@ contains
             write(6,'(2X,g16.9e3)', advance='no') trial_energies(i)
         end do
         write(6,'(/,"Trial wavefunction initialisation complete.")')
-        write(6,'("Total time (seconds) taken for trial wavefunction initialisation:", f9.3)') &
+        write(6,'("Total time (seconds) taken for trial wavefunction initialisation:",f9.3,/)') &
                    get_total_time(Trial_Init_Time)
         call neci_flush(6)
 
@@ -605,6 +605,15 @@ contains
             end if
         end do
 
+        ! No longer need these arrays in this form.
+        if (allocated(trial_space)) then
+            deallocate(trial_space, stat=ierr)
+            call LogMemDealloc(t_r, TrialTag, ierr)
+        end if
+        if (allocated(trial_wfs)) then
+            deallocate(trial_wfs, stat=ierr)
+        end if
+
         ! Create the connected space hash table.
 
         allocate(con_ht(con_space_size), stat=ierr)
@@ -644,14 +653,7 @@ contains
             end if
         end do
 
-        ! No longer need these trial and connected spaces stored in this form.
-        if (allocated(trial_space)) then
-            deallocate(trial_space, stat=ierr)
-            call LogMemDealloc(t_r, TrialTag, ierr)
-        end if
-        if (allocated(trial_wfs)) then
-            deallocate(trial_wfs, stat=ierr)
-        end if
+        ! No longer need these arrays in this form.
         if (allocated(con_space)) then
             deallocate(con_space, stat=ierr)
             call LogMemDealloc(t_r, ConTag, ierr)
