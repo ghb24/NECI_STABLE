@@ -39,6 +39,7 @@ contains
         integer :: i, ierr, num_states_on_proc, con_space_size_old
         integer :: excit, tot_trial_space_size, tot_con_space_size
         integer :: min_elem, max_elem, num_elem
+        integer :: temp_reorder(nexcit)
         integer(MPIArg) :: trial_counts(0:nProcessors-1), trial_displs(0:nProcessors-1)
         integer(MPIArg) :: con_sendcounts(0:nProcessors-1), con_recvcounts(0:nProcessors-1)
         integer(MPIArg) :: con_senddispls(0:nProcessors-1), con_recvdispls(0:nProcessors-1)
@@ -77,7 +78,7 @@ contains
         write(6,'(a29)') "Generating the trial space..."; call neci_flush(6)
 
         call calc_trial_states(trial_in, nexcit, trial_space_size, trial_space, trial_wfs, &
-                               trial_energies, trial_counts, trial_displs)
+                               trial_energies, trial_counts, trial_displs, trial_est_reorder)
 
         write(6,'(a38,1X,i8)') "Size of trial space on this processor:", trial_space_size; call neci_flush(6)
 

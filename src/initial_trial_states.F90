@@ -9,7 +9,7 @@ module initial_trial_states
 contains
 
     subroutine calc_trial_states(space_in, nexcit, ndets_this_proc, trial_iluts, evecs_this_proc, evals, &
-                                 space_sizes, space_displs)
+                                 space_sizes, space_displs, reorder)
 
         use bit_reps, only: decode_bit_det
         use CalcData, only: subspace_in
@@ -30,10 +30,12 @@ contains
         real(dp), allocatable, intent(out) :: evecs_this_proc(:,:)
         real(dp), intent(out) :: evals(:)
         integer(MPIArg), intent(out) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
+        integer, optional, intent(in) :: reorder(nexcit)
 
         integer(n_int), allocatable :: ilut_list(:,:)
         integer, allocatable :: det_list(:,:)
         integer :: i, j, max_elem_ind(1), ierr
+        integer :: temp_reorder(nexcit)
         integer(MPIArg) :: ndets_all_procs, ndets_this_proc_mpi
         integer(MPIArg) :: sndcnts(0:nProcessors-1), displs(0:nProcessors-1)
         integer(MPIArg) :: rcvcnts
@@ -135,6 +137,14 @@ contains
 
             deallocate(det_list)
             deallocate(evec_abs)
+
+            ! Reorder the trial states, if the user has asked for this to be done.
+            if (present(reorder)) then
+                temp_reorder = reorder
+                call sort(temp_reorder, evals)
+                temp_reorder = reorder
+                call sort(temp_reorder, evecs)
+            end if
 
             ! Unfortunately to perform the MPIScatterV call we need the transpose
             ! of the eigenvector array.

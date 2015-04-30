@@ -13,7 +13,7 @@ module fcimc_output
                          AllHistogramEnergy
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
                         DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
-                        StepsSft
+                        StepsSft, tPrintReplicaOverlaps
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
     use IntegralsData, only: frozen_orb_list, frozen_orb_reverse_map, &
@@ -576,8 +576,12 @@ contains
                 call stats_out (state, .false., &
                                 AllNoAtDoubs(p), &
                                 'Doubs (' // trim(adjustl(tmpc)) // ")")
+            end do
 
-                if (tOrthogonaliseReplicas) then
+            ! Print overlaps between replicas at the end.
+            do p = 1, inum_runs
+                write(tmpc, '(i5)') p
+                if (tOrthogonaliseReplicas .and. tPrintReplicaOverlaps) then
                     do q = p+1, inum_runs
                         write(tmpc2, '(i5)') q
                         call stats_out(state, .false., replica_overlaps(p, q),&

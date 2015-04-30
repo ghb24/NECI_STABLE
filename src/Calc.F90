@@ -341,7 +341,7 @@ contains
           CHARACTER (LEN=100) w
           CHARACTER (LEN=100) input_string
           CHARACTER(*),PARAMETER :: t_r='CalcReadInput'
-          integer :: l, i, j, ierr
+          integer :: l, i, j, line, ierr
           integer :: tempMaxNoatHF,tempHFPopThresh
           logical :: tExitNow
           integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
@@ -745,6 +745,18 @@ contains
                     call geti(DefDet(i))
                 enddo
 
+            case("MULTIPLE-INITIAL-REFS")
+                tMultipleInitialRefs = .true.
+                allocate(initial_refs(nel, inum_runs), stat=ierr)
+                initial_refs = 0
+
+                do line = 1, inum_runs
+                    call read_line(eof)
+                    do i = 1, nel
+                        call geti(initial_refs(i, line))
+                    end do
+                end do
+
             case("FINDGUIDINGFUNCTION")
 ! At the end of a calculation, this keyword sets the spawning calculation to print out the iGuideDets
 ! most populated determinants, to be read in as a guiding (or annihilating) function in a following calculation.
@@ -1118,6 +1130,18 @@ contains
                 trial_space_in%tHeisenbergFCI = .true.
             case("TRIAL-BIN-SEARCH")
                 tTrialHash = .false.
+            case("TRIAL-ESTIMATE-REORDER")
+                allocate(trial_est_reorder(inum_runs))
+                trial_est_reorder = 0
+                do i = 1, inum_runs
+                    call geti(trial_est_reorder(i))
+                end do
+            case("TRIAL-INIT-REORDER")
+                allocate(trial_init_reorder(inum_runs))
+                trial_init_reorder = 0
+                do i = 1, inum_runs
+                    call geti(trial_init_reorder(i))
+                end do
             case("START-FROM-HF")
                 tStartCoreGroundState = .false.
             case("INC-CANCELLED-INIT-ENERGY")
@@ -2011,6 +2035,11 @@ contains
                 ! chosen fairly naively as excited states of the HF, then use
                 ! this option
                 tReplicaSingleDetStart = .true.
+
+            case("DONT-PRINT-OVERLAPS")
+                ! Don't print overlaps between replicas when using the
+                ! orthogonalise-replicas option.
+                tPrintReplicaOverlaps = .false.
 
             case("USE-SPAWN-HASH-TABLE")
                 use_spawn_hash_table = .true.
