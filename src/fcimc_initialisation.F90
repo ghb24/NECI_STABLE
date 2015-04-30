@@ -29,7 +29,8 @@ module fcimc_initialisation
                         InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
                         use_spawn_hash_table, tReplicaSingleDetStart, &
                         ss_space_in, trial_space_in, init_trial_in, &
-                        tContTimeFCIMC, tContTimeFull
+                        tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
+                        initial_refs, trial_init_reorder
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -1887,6 +1888,7 @@ contains
         type(basisfn) :: sym
         real(dp) :: evals(inum_runs)
         real(dp), allocatable :: evecs_this_proc(:,:)
+        integer :: temp_reorder(inum_runs)
         integer(MPIArg) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
         character(*), parameter :: this_routine = 'InitFCIMC_trial'
 
@@ -1898,15 +1900,16 @@ contains
         ! Create the trial excited states
         call calc_trial_states(init_trial_in, nexcit, ndets_this_proc, &
                                SpawnedParts, evecs_this_proc, evals, &
-                               space_sizes, space_displs)
+                               space_sizes, space_displs, trial_init_reorder)
         ! Determine the walker populations associated with these states
         call set_trial_populations(nexcit, ndets_this_proc, evecs_this_proc)
         ! Set the trial excited states as the FCIQMC wave functions
         call set_trial_states(ndets_this_proc, evecs_this_proc, SpawnedParts, &
                               .false., .false.)
-        call set_initial_run_references()
 
         deallocate(evecs_this_proc)
+
+        call set_initial_run_references()
 
         ! Add an initialisation check on symmetries
         do i = 1, TotWalkers
@@ -1927,36 +1930,43 @@ contains
         real(dp) :: largest_coeff, sgn
         integer(n_int) :: largest_det(0:NIfTot)
         integer :: run, j, proc_highest
+        integer(n_int) :: ilut(0:NIfTot)
         integer(int32) :: int_tmp(2)
         character(*), parameter :: this_routine = 'set_initial_run_references'
 
         ASSERT(inum_runs == lenof_sign)
         do run = 1, inum_runs
 
-            ! Find the largest det on this processor
-            largest_coeff = 0
-            do j = 1, TotWalkers
-                sgn = extract_part_sign(CurrentDets(:,j), run)
-                if (abs(sgn) > largest_coeff) then
-                    largest_coeff = abs(sgn)
-                    largest_det = CurrentDets(:,j)
-                end if
-            end do
-            
-            ! Find the largest det on any processor (n.b. discard the
-            ! non-integer part. This isn't all that important).
-            call MPIAllReduceDatatype(&
-                (/int(largest_coeff, int32), int(iProcIndex, int32)/), 1, &
-                MPI_MAXLOC, MPI_2INTEGER, int_tmp)
-            proc_highest = int_tmp(2)
-            call MPIBCast(largest_det, NIfTot+1, proc_highest)
+            if (tMultipleInitialRefs) then
+                ! Use user specified reference states.
+                call EncodeBitDet(initial_refs(:,run), ilut)
+                call update_run_reference(ilut, run)
+            else
+                ! Find the largest det on this processor
+                largest_coeff = 0
+                do j = 1, TotWalkers
+                    sgn = extract_part_sign(CurrentDets(:,j), run)
+                    if (abs(sgn) > largest_coeff) then
+                        largest_coeff = abs(sgn)
+                        largest_det = CurrentDets(:,j)
+                    end if
+                end do
 
-            write(6,*) 'Setting ref', run
-            call writebitdet(6, largest_det, .true.)
+                ! Find the largest det on any processor (n.b. discard the
+                ! non-integer part. This isn't all that important).
+                call MPIAllReduceDatatype(&
+                    (/int(largest_coeff, int32), int(iProcIndex, int32)/), 1, &
+                    MPI_MAXLOC, MPI_2INTEGER, int_tmp)
+                proc_highest = int_tmp(2)
+                call MPIBCast(largest_det, NIfTot+1, proc_highest)
 
-            ! Set this det as the reference
-            call update_run_reference(largest_det, run)
+                write(6,*) 'Setting ref', run
+                call writebitdet(6, largest_det, .true.)
 
+                ! Set this det as the reference
+                call update_run_reference(largest_det, run)
+
+             end if
         end do
 
     end subroutine set_initial_run_references
