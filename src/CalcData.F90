@@ -201,7 +201,13 @@ integer :: semistoch_shift_iter
 logical :: tDetermHFSpawning
 
 ! Options relating to the trial wavefunction.
-logical :: tTrialWavefunction ! Use a trial wavefunction-based energy estimator.
+
+! If true at a given point during a simulation then we are currently
+! calculating trial wave function-based energy estimates.
+logical :: tTrialWavefunction
+! How many excited states to calculate in the trial space, for the
+! trial wave functions estimates
+integer :: ntrial_ex_calc = 0
 ! Input type describing which space(s) type to use.
 type(subspace_in) :: trial_space_in
 

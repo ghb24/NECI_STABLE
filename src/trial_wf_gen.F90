@@ -13,7 +13,7 @@ module trial_wf_gen
 
 contains
 
-    subroutine init_trial_wf(trial_in, nexcit)
+    subroutine init_trial_wf(trial_in, nexcit_calc, nexcit_keep)
 
         use DetBitOps, only: ilut_lt, ilut_gt
         use enumerate_excitations, only: generate_connected_space
@@ -23,7 +23,7 @@ contains
         use FciMCData, only: OccConTag, CurrentTrialTag, current_trial_amps
         use FciMCData, only: MaxWalkersPart, tTrialHash, tIncCancelledInitEnergy
         use FciMCData, only: con_space_vecs, ntrial_excits, trial_numerator, trial_denom
-        use FciMCData, only: tot_trial_numerator, tot_trial_denom
+        use FciMCData, only: tot_trial_numerator, tot_trial_denom, HashIndex
         use initial_trial_states, only: calc_trial_states
         use LoggingData, only: tWriteTrial, tCompareTrialAmps
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
@@ -34,18 +34,17 @@ contains
         use SystemData, only: tAllSymSectors
 
         type(subspace_in) :: trial_in
-        integer, intent(in) :: nexcit
+        integer, intent(in) :: nexcit_calc, nexcit_keep
 
         integer :: i, ierr, num_states_on_proc, con_space_size_old
         integer :: excit, tot_trial_space_size, tot_con_space_size
         integer :: min_elem, max_elem, num_elem
-        integer :: temp_reorder(nexcit)
         integer(MPIArg) :: trial_counts(0:nProcessors-1), trial_displs(0:nProcessors-1)
         integer(MPIArg) :: con_sendcounts(0:nProcessors-1), con_recvcounts(0:nProcessors-1)
         integer(MPIArg) :: con_senddispls(0:nProcessors-1), con_recvdispls(0:nProcessors-1)
         integer(n_int), allocatable, dimension(:,:) :: temp_space
-        real(dp), allocatable :: trial_wfs_all_procs(:,:)
-        real(dp) :: trial_amp
+        real(dp), allocatable :: trial_wfs_all_procs(:,:), temp_wfs(:,:)
+        real(dp) :: trial_amp, temp_energies(nexcit_calc)
         character (len=*), parameter :: t_r = "init_trial_wf"
 
 #ifdef __CMPLX
@@ -59,28 +58,46 @@ contains
                                &trial-bin-search option.")
         if (.not. tUseRealCoeffs) call stop_all(t_r, "To use a trial wavefunction you must also &
             &use real coefficients.")
+        if (nexcit_keep > nexcit_calc) call stop_all(t_r, "The number of required trial wave functions &
+                               &is more than the number that has been requested to be calculated.")
 
         call set_timer(Trial_Init_Time)
 
         write(6,'()')
         write(6,'(a56)') "=========== Trial wavefunction initialisation =========="
 
-        ntrial_excits = nexcit
+        ntrial_excits = nexcit_keep
 
         ! Simply allocate the trial vector to have up to 1 million elements for now...
         allocate(trial_space(0:NIfTot, 1000000), stat=ierr)
         call LogMemAlloc('trial_space', 1000000*(NIfTot+1), size_n_int, t_r, TrialTag, ierr)
 
-        allocate(trial_energies(nexcit))
+        allocate(trial_energies(nexcit_keep))
 
         trial_space = 0_n_int
 
         write(6,'(a29)') "Generating the trial space..."; call neci_flush(6)
 
-        call calc_trial_states(trial_in, nexcit, trial_space_size, trial_space, trial_wfs, &
-                               trial_energies, trial_counts, trial_displs, trial_est_reorder)
+        call calc_trial_states(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
+                               temp_energies, trial_counts, trial_displs, trial_est_reorder)
 
         write(6,'(a38,1X,i8)') "Size of trial space on this processor:", trial_space_size; call neci_flush(6)
+
+        ! Allocate the array to hold the final trial wave functions which we
+        ! decide to keep, in the correct order.
+        allocate(trial_wfs(nexcit_keep, trial_space_size), stat=ierr)
+        if (ierr /= 0) call stop_all(t_r, "Error allocating trial_wfs.")
+        ! Go through each replica and find which trial state matches it best.
+        if (nexcit_calc > 1) then
+            call assign_trial_states(CurrentDets, HashIndex, trial_space, temp_wfs, trial_wfs, &
+                                     temp_energies, trial_energies)
+        else
+            !ASSERT(nexcit_calc == nexcit_keep)
+            trial_wfs = temp_wfs
+            trial_energies = temp_energies
+        end if
+        deallocate(temp_wfs, stat=ierr)
+        if (ierr /= 0) call stop_all(t_r, "Error deallocating temp_wfs.")
 
         ! At this point, each processor has only those states which reside on them, and
         ! have only counted those states. Send all states to all processors for the next bit.
@@ -183,13 +200,13 @@ contains
         call neci_flush(6)
 
         ! Create the trial wavefunction from all processors, on all processors.
-        allocate(trial_wfs_all_procs(nexcit, tot_trial_space_size), stat=ierr)
+        allocate(trial_wfs_all_procs(nexcit_keep, tot_trial_space_size), stat=ierr)
         call MPIAllGatherV(trial_wfs, trial_wfs_all_procs, trial_counts, trial_displs)
 
         call sort_space_by_proc(SpawnedParts(:, 1:tot_trial_space_size), tot_trial_space_size, trial_counts)
 
         write(6,'(a47)') "Generating the vector \sum_j H_{ij} \psi^T_j..."; call neci_flush(6)
-        allocate(con_space_vecs(nexcit, con_space_size), stat=ierr)
+        allocate(con_space_vecs(nexcit_keep, con_space_size), stat=ierr)
         call LogMemAlloc('con_space_vecs', con_space_size, 8, t_r, ConVecTag, ierr)
         call generate_connected_space_vector(SpawnedParts, trial_wfs_all_procs, con_space, con_space_vecs)
 
@@ -198,11 +215,11 @@ contains
         if (tWriteTrial) call write_trial_space()
         if (tCompareTrialAmps) call update_compare_trial_file(.true.)
 
-        allocate(current_trial_amps(nexcit, MaxWalkersPart), stat=ierr)
-        call LogMemAlloc('current_trial_amps', nexcit*MaxWalkersPart, 8, t_r, CurrentTrialTag, ierr)
+        allocate(current_trial_amps(nexcit_keep, MaxWalkersPart), stat=ierr)
+        call LogMemAlloc('current_trial_amps', nexcit_keep*MaxWalkersPart, 8, t_r, CurrentTrialTag, ierr)
         call init_current_trial_amps()
 
-        if (tTrialHash) call create_trial_hashtables(nexcit)
+        if (tTrialHash) call create_trial_hashtables(nexcit_keep)
 
         ! Set these to zero, to prevent junk being printed in the initial report.
         trial_numerator = 0.0_dp
@@ -213,7 +230,7 @@ contains
         call halt_timer(Trial_Init_Time)
 
         write(6,'("Energy eigenvalue(s) of the trial space:")', advance='no')
-        do i = 1, nexcit
+        do i = 1, nexcit_keep
             write(6,'(2X,g16.9e3)', advance='no') trial_energies(i)
         end do
         write(6,'(/,"Trial wavefunction initialisation complete.")')
@@ -222,6 +239,65 @@ contains
         call neci_flush(6)
 
     end subroutine init_trial_wf
+
+    subroutine assign_trial_states(ilut_list, ilut_ht, trial_dets, trial_amps, trials_kept, energies, energies_kept)
+
+        ! Calculate the overlaps between each trial state and FCIQMC replica
+        ! pair. For each replica, keep the trial state which has the largest
+        ! overlap (by magnitude).
+
+        use bit_reps, only: extract_sign
+        use FciMCData, only: ll_node
+        use hash, only: hash_table_lookup
+
+        integer(n_int), intent(in) :: ilut_list(0:,:)
+        type(ll_node), pointer, intent(inout) :: ilut_ht(:)
+        integer(n_int), intent(in) :: trial_dets(0:,:)
+        real(dp), intent(in) :: trial_amps(:,:)
+        real(dp), intent(out) :: trials_kept(:,:)
+        real(dp), intent(in) :: energies(:)
+        real(dp), intent(out) :: energies_kept(:)
+
+        integer :: idet, itrial, ireplica, det_ind, hash_val
+        integer :: nI(nel), best_trial(1)
+        real(dp) :: fciqmc_amps(lenof_sign)
+        real(dp) :: overlaps(lenof_sign, size(trial_amps,1))
+        real(dp) :: all_overlaps(lenof_sign, size(trial_amps,1))
+        logical :: tDetFound
+
+        overlaps = 0.0_dp
+        all_overlaps = 0.0_dp
+
+        ! Loop over all basis states (determinants) in the trial space.
+        ! For each, add the overlap for each trial amplitude to a running
+        ! total for replica-trial state combinations.
+
+        do idet = 1, size(trial_amps,2)
+            ! Find if this determinant is occupied in any of the FCIQMC wave
+            ! functions.
+            call decode_bit_det(nI, trial_dets(0:NIfTot,idet))
+            ! Search the hash table for this determinant.
+            call hash_table_lookup(nI, trial_dets(:,idet), NIfDBO, ilut_ht, ilut_list, det_ind, hash_val, tDetFound)
+            if (tDetFound) then
+                call extract_sign(ilut_list(:,det_ind), fciqmc_amps)
+                ! Add in the outer product between fciqmc_amps and the trial
+                ! state amplitudes.
+                do itrial = 1, size(trial_amps,1)
+                    overlaps(:,itrial) = overlaps(:,itrial) + trial_amps(itrial,idet)*fciqmc_amps
+                end do
+            end if
+        end do
+
+        call MPISumAll(overlaps, all_overlaps)
+
+        ! Now, find the best trial state for each FCIQMC replica:
+        do ireplica = 1, lenof_sign
+            best_trial = maxloc(abs(all_overlaps(ireplica,:)))
+            trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
+            energies_kept(ireplica) = energies(best_trial(1))
+        end do
+
+    end subroutine assign_trial_states
 
     subroutine remove_states_not_on_proc(ilut_list, ilut_list_size, update_trial_vector)
         
@@ -566,11 +642,7 @@ contains
         ! Create the trial space hash table.
 
         allocate(trial_ht(trial_space_size), stat=ierr)
-        if (ierr /= 0) then
-            write(6,*) "ierr:", ierr
-            call neci_flush(6)
-            call stop_all("t_r", "Error in allocating trial_ht array.")
-        end if
+        if (ierr /= 0) call stop_all(t_r, "Error allocating trial_ht.")
 
         do i = 1, trial_space_size
             trial_ht(i)%nclash = 0

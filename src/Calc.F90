@@ -1077,6 +1077,8 @@ contains
                     tStartTrialLater = .true.
                     call geti(trial_shift_iter)
                 end if
+            case("NUM-TRIAL-STATES-CALC")
+                call geti(ntrial_ex_calc)
             case("MAX-TRIAL-SIZE")
                 trial_space_in%tLimitSpace = .true.
                 call geti(trial_space_in%max_size)

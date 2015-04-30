@@ -12,7 +12,7 @@ module FciMCParMod
                         tDetermHFSpawning, use_spawn_hash_table, &
                         semistoch_shift_iter, ss_space_in, s_global_start, &
                         tContTimeFCIMC, trial_shift_iter, tStartTrialLater, &
-                        tTrialWavefunction, tSemiStochastic
+                        tTrialWavefunction, tSemiStochastic, ntrial_ex_calc
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, &
@@ -216,11 +216,11 @@ module FciMCParMod
                     tTrialWavefunction = .true.
 
                     if (tOrthogonaliseReplicas .or. (tExcitedStateKP .and. .not. tPairedKPReplicas)) then
-                        call init_trial_wf(trial_space_in, inum_runs)
+                        call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs)
                     else if (tExcitedStateKP .and. tPairedKPReplicas) then
-                        call init_trial_wf(trial_space_in, inum_runs/2)
+                        call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs/2)
                     else
-                        call init_trial_wf(trial_space_in, 1)
+                        call init_trial_wf(trial_space_in, ntrial_ex_calc, 1)
                     end if
                 end if
             end if
