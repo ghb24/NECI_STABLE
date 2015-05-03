@@ -3,7 +3,7 @@ MODULE System
 
     use SystemData
     use CalcData, only: TAU, tTruncInitiator, InitiatorWalkNo, &
-                        occCASorbs, virtCASorbs
+                        occCASorbs, virtCASorbs, tPairedReplicas
 
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList

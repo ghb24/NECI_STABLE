@@ -280,4 +280,8 @@ real(sp) :: s_global_start
 logical :: tContTimeFCIMC, tContTimeFull
 real(dp) :: cont_time_max_overspawn
 
+! Are we doing an mneci run where each state is represented by two FCIQMC
+! replicas?
+logical :: tPairedReplicas = .false.
+
 end module CalcData

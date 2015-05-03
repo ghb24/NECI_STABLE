@@ -31,7 +31,7 @@ module fcimc_initialisation
                         ss_space_in, trial_space_in, init_trial_in, &
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
                         initial_refs, trial_init_reorder, tStartTrialLater, &
-                        ntrial_ex_calc
+                        ntrial_ex_calc, tPairedReplicas
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -106,7 +106,7 @@ module fcimc_initialisation
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
-    use kp_fciqmc_data_mod, only: tExcitedStateKP, tPairedKPReplicas
+    use kp_fciqmc_data_mod, only: tExcitedStateKP
     use sym_general_mod, only: ClassCountInd
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
     use ueg_excit_gens, only: gen_ueg_excit
@@ -1382,12 +1382,10 @@ contains
         ! diagonalising the trial space to find the trial wavefunction and calculating the vector
         ! in the connected space, required for the energy estimator.
         if (tTrialWavefunction) then
-            if (tOrthogonaliseReplicas .or. (tExcitedStateKP .and. .not. tPairedKPReplicas)) then
-                call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs)
-            else if (tExcitedStateKP .and. tPairedKPReplicas) then
-                call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs/2)
+            if (tPairedReplicas) then
+                call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs/2, .true.)
             else
-                call init_trial_wf(trial_space_in, ntrial_ex_calc, 1)
+                call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs, .false.)
             end if
         else if (tStartTrialLater) then
             ! If we are going to turn on the use of a trial wave function

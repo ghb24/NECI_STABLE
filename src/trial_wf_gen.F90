@@ -13,7 +13,7 @@ module trial_wf_gen
 
 contains
 
-    subroutine init_trial_wf(trial_in, nexcit_calc, nexcit_keep)
+    subroutine init_trial_wf(trial_in, nexcit_calc, nexcit_keep, replica_pairs)
 
         use DetBitOps, only: ilut_lt, ilut_gt
         use enumerate_excitations, only: generate_connected_space
@@ -35,6 +35,7 @@ contains
 
         type(subspace_in) :: trial_in
         integer, intent(in) :: nexcit_calc, nexcit_keep
+        logical, intent(in) :: replica_pairs
 
         integer :: i, ierr, num_states_on_proc, con_space_size_old
         integer :: excit, tot_trial_space_size, tot_con_space_size
@@ -89,8 +90,8 @@ contains
         if (ierr /= 0) call stop_all(t_r, "Error allocating trial_wfs.")
         ! Go through each replica and find which trial state matches it best.
         if (nexcit_calc > 1) then
-            call assign_trial_states(CurrentDets, HashIndex, trial_space, temp_wfs, trial_wfs, &
-                                     temp_energies, trial_energies)
+            call assign_trial_states(replica_pairs, CurrentDets, HashIndex, trial_space, temp_wfs, &
+                                     trial_wfs, temp_energies, trial_energies)
         else
             !ASSERT(nexcit_calc == nexcit_keep)
             trial_wfs = temp_wfs
@@ -240,7 +241,8 @@ contains
 
     end subroutine init_trial_wf
 
-    subroutine assign_trial_states(ilut_list, ilut_ht, trial_dets, trial_amps, trials_kept, energies, energies_kept)
+    subroutine assign_trial_states(replica_pairs, ilut_list, ilut_ht, trial_dets, trial_amps, &
+                                    trials_kept, energies, energies_kept)
 
         ! Calculate the overlaps between each trial state and FCIQMC replica
         ! pair. For each replica, keep the trial state which has the largest
@@ -250,6 +252,7 @@ contains
         use FciMCData, only: ll_node
         use hash, only: hash_table_lookup
 
+        logical, intent(in) :: replica_pairs
         integer(n_int), intent(in) :: ilut_list(0:,:)
         type(ll_node), pointer, intent(inout) :: ilut_ht(:)
         integer(n_int), intent(in) :: trial_dets(0:,:)
@@ -258,11 +261,11 @@ contains
         real(dp), intent(in) :: energies(:)
         real(dp), intent(out) :: energies_kept(:)
 
-        integer :: idet, itrial, ireplica, det_ind, hash_val
+        integer :: i, idet, itrial, ireplica, det_ind, hash_val
         integer :: nI(nel), best_trial(1)
-        real(dp) :: fciqmc_amps(lenof_sign)
-        real(dp) :: overlaps(lenof_sign, size(trial_amps,1))
-        real(dp) :: all_overlaps(lenof_sign, size(trial_amps,1))
+        real(dp) :: fciqmc_amps(size(energies_kept)), all_fciqmc_amps(lenof_sign)
+        real(dp) :: overlaps(size(energies_kept), size(trial_amps,1))
+        real(dp) :: all_overlaps(size(energies_kept), size(trial_amps,1))
         logical :: tDetFound
 
         overlaps = 0.0_dp
@@ -279,7 +282,15 @@ contains
             ! Search the hash table for this determinant.
             call hash_table_lookup(nI, trial_dets(:,idet), NIfDBO, ilut_ht, ilut_list, det_ind, hash_val, tDetFound)
             if (tDetFound) then
-                call extract_sign(ilut_list(:,det_ind), fciqmc_amps)
+                call extract_sign(ilut_list(:,det_ind), all_fciqmc_amps)
+                if (replica_pairs) then
+                    do i = 1, lenof_sign/2
+                        ! Hen using pairs of replicas, average their amplitudes.
+                        fciqmc_amps(i) = sum(all_fciqmc_amps(2*i-1:2*i))/2.0_dp
+                    end do
+                else
+                    fciqmc_amps = all_fciqmc_amps
+                end if
                 ! Add in the outer product between fciqmc_amps and the trial
                 ! state amplitudes.
                 do itrial = 1, size(trial_amps,1)
@@ -291,11 +302,19 @@ contains
         call MPISumAll(overlaps, all_overlaps)
 
         ! Now, find the best trial state for each FCIQMC replica:
-        do ireplica = 1, lenof_sign
-            best_trial = maxloc(abs(all_overlaps(ireplica,:)))
-            trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
-            energies_kept(ireplica) = energies(best_trial(1))
-        end do
+        if (replica_pairs) then
+            do ireplica = 1, lenof_sign/2
+                best_trial = maxloc(abs(all_overlaps(ireplica,:)))
+                trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
+                energies_kept(ireplica) = energies(best_trial(1))
+            end do
+        else
+            do ireplica = 1, lenof_sign
+                best_trial = maxloc(abs(all_overlaps(ireplica,:)))
+                trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
+                energies_kept(ireplica) = energies(best_trial(1))
+            end do
+        end if
 
     end subroutine assign_trial_states
 

@@ -215,12 +215,10 @@ module FciMCParMod
                 if ((Iter - maxval(VaryShiftIter)) == trial_shift_iter + 1) then
                     tTrialWavefunction = .true.
 
-                    if (tOrthogonaliseReplicas .or. (tExcitedStateKP .and. .not. tPairedKPReplicas)) then
-                        call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs)
-                    else if (tExcitedStateKP .and. tPairedKPReplicas) then
-                        call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs/2)
+                    if (tPairedReplicas) then
+                        call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs/2, .true.)
                     else
-                        call init_trial_wf(trial_space_in, ntrial_ex_calc, 1)
+                        call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs, .false.)
                     end if
                 end if
             end if
@@ -831,7 +829,7 @@ module FciMCParMod
             ! Sum in any energy contribution from the determinant, including 
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
-            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, .false., j)
+            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
 
             ! If we're on the Hartree-Fock, and all singles and doubles are in
             ! the core space, then there will be no stochastic spawning from
