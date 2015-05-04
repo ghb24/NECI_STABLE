@@ -30,7 +30,8 @@ module fcimc_initialisation
                         use_spawn_hash_table, tReplicaSingleDetStart, &
                         ss_space_in, trial_space_in, init_trial_in, &
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
-                        initial_refs, trial_init_reorder
+                        initial_refs, trial_init_reorder, tStartTrialLater, &
+                        ntrial_ex_calc, tPairedReplicas
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
     use Determinants, only: GetH0Element3, GetH0Element4, tDefineDet, &
                             get_helement, get_helement_det_only
@@ -105,7 +106,7 @@ module fcimc_initialisation
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
-    use kp_fciqmc_data_mod, only: tExcitedStateKP, tPairedKPReplicas
+    use kp_fciqmc_data_mod, only: tExcitedStateKP
     use sym_general_mod, only: ClassCountInd
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
     use ueg_excit_gens, only: gen_ueg_excit
@@ -1370,21 +1371,33 @@ contains
         ! arrays required to store and distribute the vectors in the deterministic space later.
         if (tSemiStochastic) call init_semi_stochastic(ss_space_in)
 
+        ! If the number of trial states to calculate hasn't been set by the
+        ! user, then simply use the minimum number
+        if ((tTrialWavefunction .or. tStartTrialLater) .and. (ntrial_ex_calc == 0)) then
+            ntrial_ex_calc = inum_runs
+        end if
+
         ! Initialise the trial wavefunction information which can be used for the energy estimator.
         ! This includes generating the trial space, generating the space connected to the trial space,
         ! diagonalising the trial space to find the trial wavefunction and calculating the vector
         ! in the connected space, required for the energy estimator.
         if (tTrialWavefunction) then
-            if (tOrthogonaliseReplicas .or. (tExcitedStateKP .and. .not. tPairedKPReplicas)) then
-                call init_trial_wf(trial_space_in, inum_runs)
-            else if (tExcitedStateKP .and. tPairedKPReplicas) then
-                call init_trial_wf(trial_space_in, inum_runs/2)
+            if (tPairedReplicas) then
+                call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs/2, .true.)
             else
-                call init_trial_wf(trial_space_in, 1)
+                call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs, .false.)
             end if
+        else if (tStartTrialLater) then
+            ! If we are going to turn on the use of a trial wave function
+            ! later in the calculation, then zero the trial estimate arrays
+            ! for now, to prevent junk being printed before then.
+            trial_numerator = 0.0_dp
+            tot_trial_numerator = 0.0_dp
+            trial_denom = 0.0_dp
+            tot_trial_denom = 0.0_dp
         end if
 
-        replica_overlaps(:, :) = 0
+        replica_overlaps(:, :) = 0.0_dp
 
     end subroutine InitFCIMCCalcPar
 
@@ -1630,7 +1643,6 @@ contains
         if (tSemiStochastic) call end_semistoch()
 
         if (tTrialWavefunction) call end_trial_wf()
-
 
 !There seems to be some problems freeing the derived mpi type.
 !        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
@@ -1888,7 +1900,6 @@ contains
         type(basisfn) :: sym
         real(dp) :: evals(inum_runs)
         real(dp), allocatable :: evecs_this_proc(:,:)
-        integer :: temp_reorder(inum_runs)
         integer(MPIArg) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
         character(*), parameter :: this_routine = 'InitFCIMC_trial'
 

@@ -1071,11 +1071,14 @@ contains
                 tDetermHFSpawning = .false.
 
             case("TRIAL-WAVEFUNCTION")
-                tTrialWavefunction = .true.
-                if (item < nitems) then
-                    call geti(trial_space_in%mp1_ndets)
-                    trial_space_in%tMP1 = .true.
+                if (item == nitems) then
+                    tTrialWavefunction = .true.
+                else if (item < nitems) then
+                    tStartTrialLater = .true.
+                    call geti(trial_shift_iter)
                 end if
+            case("NUM-TRIAL-STATES-CALC")
+                call geti(ntrial_ex_calc)
             case("MAX-TRIAL-SIZE")
                 trial_space_in%tLimitSpace = .true.
                 call geti(trial_space_in%max_size)
