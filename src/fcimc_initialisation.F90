@@ -1905,9 +1905,6 @@ contains
 
         nexcit = inum_runs
 
-        ! For now, use the doubles to generate this space
-        init_trial_in%tDoubles = .true.
-
         ! Create the trial excited states
         call calc_trial_states(init_trial_in, nexcit, ndets_this_proc, &
                                SpawnedParts, evecs_this_proc, evals, &
