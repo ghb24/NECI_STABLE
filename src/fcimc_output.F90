@@ -585,7 +585,7 @@ contains
             ! Print overlaps between replicas at the end.
             do p = 1, inum_runs
                 write(tmpc, '(i5)') p
-                if (tOrthogonaliseReplicas .and. tPrintReplicaOverlaps) then
+                if (tPrintReplicaOverlaps) then
                     do q = p+1, inum_runs
                         write(tmpc2, '(i5)') q
                         call stats_out(state, .false., replica_overlaps(p, q),&

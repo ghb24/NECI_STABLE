@@ -582,4 +582,53 @@ contains
 
     end subroutine
 
+    subroutine calc_replica_overlaps()
+
+        ! A routine for just calculating the overlap, in cases where
+        ! orthogonalisation is not being performed.
+
+        integer :: j, run, tgt_run, src_run
+        real(dp) :: sgn(lenof_sign)
+        real(dp) :: norms(inum_runs), overlaps(inum_runs, inum_runs)
+        real(dp) :: all_norms(inum_runs), all_overlaps(inum_runs, inum_runs)
+
+        norms = 0.0_dp
+        overlaps = 0.0_dp
+        do tgt_run = 1, inum_runs
+
+            do j = 1, int(TotWalkers, sizeof_int)
+
+                ! n.b. We are using a non-contiguous list (Hash algorithm)
+                call extract_sign(CurrentDets(:,j), sgn)
+                if (IsUnoccDet(sgn)) cycle
+
+                norms(tgt_run) = norms(tgt_run) + sgn(tgt_run)**2
+                do run = tgt_run + 1, inum_runs
+                    overlaps(tgt_run, run) = overlaps(tgt_run, run) &
+                                           + sgn(tgt_run) * sgn(run)
+                    overlaps(run, tgt_run) = 99999999.0_dp ! invalid
+                end do
+
+            end do
+
+            ! And ensure that the norm/overlap data is accumulated onto all
+            ! of the processors.
+            call MPISumAll(norms, all_norms)
+            call MPISumAll(overlaps, all_overlaps)
+
+        end do
+
+        ! Store a normalised overlap matrix for each of the replicas.
+        do src_run = 1, inum_runs - 1
+            do tgt_run = src_run + 1, inum_runs
+                replica_overlaps(src_run, tgt_run) = &
+                    all_overlaps(src_run, tgt_run) / &
+                    sqrt(all_norms(src_run) * all_norms(tgt_run))
+                replica_overlaps(src_run, tgt_run) = &
+                    replica_overlaps(src_run, tgt_run)
+            end do
+        end do
+
+    end subroutine calc_replica_overlaps
+
 end module
