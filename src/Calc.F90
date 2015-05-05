@@ -1071,11 +1071,14 @@ contains
                 tDetermHFSpawning = .false.
 
             case("TRIAL-WAVEFUNCTION")
-                tTrialWavefunction = .true.
-                if (item < nitems) then
-                    call geti(trial_space_in%mp1_ndets)
-                    trial_space_in%tMP1 = .true.
+                if (item == nitems) then
+                    tTrialWavefunction = .true.
+                else if (item < nitems) then
+                    tStartTrialLater = .true.
+                    call geti(trial_shift_iter)
                 end if
+            case("NUM-TRIAL-STATES-CALC")
+                call geti(ntrial_ex_calc)
             case("MAX-TRIAL-SIZE")
                 trial_space_in%tLimitSpace = .true.
                 call geti(trial_space_in%max_size)
@@ -1142,6 +1145,55 @@ contains
                 do i = 1, inum_runs
                     call geti(trial_init_reorder(i))
                 end do
+            case("MP1-INIT")
+                init_trial_in%tMP1 = .true.
+                call geti(init_trial_in%mp1_ndets)
+            case("DOUBLES-INIT")
+                init_trial_in%tDoubles = .true.
+            case("CAS-INIT")
+                init_trial_in%tCAS = .true.
+                tSpn = .true.
+                call geti(init_trial_in%occ_cas) ! Number of electrons in CAS
+                call geti(init_trial_in%virt_cas) ! Number of virtual spin-orbitals in CAS
+            case("RAS-INIT")
+                init_trial_in%tRAS = .true.
+                call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
+                call geti(ras_size_2)  ! Number of spatial orbitals in RAS2.
+                call geti(ras_size_3)  ! Number of spatial orbitals in RAS3.
+                call geti(ras_min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs.
+                call geti(ras_max_3)  ! Max number of electrons (alpha and beta) in RAS3 orbs.
+                init_trial_in%ras%size_1 = int(ras_size_1,sp)
+                init_trial_in%ras%size_2 = int(ras_size_2,sp)
+                init_trial_in%ras%size_3 = int(ras_size_3,sp)
+                init_trial_in%ras%min_1 = int(ras_min_1,sp)
+                init_trial_in%ras%max_3 = int(ras_max_3,sp)
+            case("OPTIMISED-INIT")
+                init_trial_in%tOptimised = .true.
+            case("OPTIMISED-INIT-CUTOFF-AMP")
+                init_trial_in%opt_data%tAmpCutoff = .true.
+                init_trial_in%opt_data%ngen_loops = nitems - 1
+                allocate(init_trial_in%opt_data%cutoff_amps(init_trial_in%opt_data%ngen_loops))
+                do I = 1, init_trial_in%opt_data%ngen_loops
+                    call getf(init_trial_in%opt_data%cutoff_amps(I))
+                end do
+            case("OPTIMISED-INIT-CUTOFF-NUM")
+                init_trial_in%opt_data%tAmpCutoff = .false.
+                init_trial_in%opt_data%ngen_loops = nitems - 1
+                allocate(init_trial_in%opt_data%cutoff_nums(init_trial_in%opt_data%ngen_loops))
+                do I = 1, init_trial_in%opt_data%ngen_loops
+                    call geti(init_trial_in%opt_data%cutoff_nums(I))
+                end do
+            case("HF-INIT")
+                init_trial_in%tHF = .true.
+            case("POPS-INIT")
+                init_trial_in%tPops = .true.
+                call geti(init_trial_in%npops)
+            case("READ-INIT")
+                init_trial_in%tRead = .true.
+            case("FCI-INIT")
+                init_trial_in%tFCI = .true.
+            case("HEISENBERG-FCI-INIT")
+                init_trial_in%tHeisenbergFCI = .true.
             case("START-FROM-HF")
                 tStartCoreGroundState = .false.
             case("INC-CANCELLED-INIT-ENERGY")

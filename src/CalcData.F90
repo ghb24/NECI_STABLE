@@ -201,9 +201,21 @@ integer :: semistoch_shift_iter
 logical :: tDetermHFSpawning
 
 ! Options relating to the trial wavefunction.
-logical :: tTrialWavefunction ! Use a trial wavefunction-based energy estimator.
+
+! If true at a given point during a simulation then we are currently
+! calculating trial wave function-based energy estimates.
+logical :: tTrialWavefunction
+! How many excited states to calculate in the trial space, for the
+! trial wave functions estimates
+integer :: ntrial_ex_calc = 0
 ! Input type describing which space(s) type to use.
 type(subspace_in) :: trial_space_in
+
+! If true then start using a trial estimator later on in the calculation.
+logical :: tStartTrialLater = .false.
+! How many iterations after the shift starts to vary should be turn on the use
+! of trial estimators?
+integer :: trial_shift_iter
 
 ! True if running a kp-fciqmc calculation.
 logical :: tKP_FCIQMC
@@ -267,5 +279,9 @@ real(sp) :: s_global_start
 ! Use continuous time FCIQMC
 logical :: tContTimeFCIMC, tContTimeFull
 real(dp) :: cont_time_max_overspawn
+
+! Are we doing an mneci run where each state is represented by two FCIQMC
+! replicas?
+logical :: tPairedReplicas = .false.
 
 end module CalcData

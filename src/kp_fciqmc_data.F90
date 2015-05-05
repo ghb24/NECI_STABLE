@@ -220,10 +220,6 @@ module kp_fciqmc_data_mod
     ! Type for the trial wave function space for excited-state calculations.
     type(subspace_in) :: kp_trial_space_in
 
-    ! If true then perform two replicas for each excited state. Otherwise,
-    ! only perform one for each.
-    logical :: tPairedKPReplicas
-
     ! Arrays used to access the signs of different Krylov vector signs in the
     ! Krylov vector arrays. If tPairedReplicas is .false. then these arrays
     ! are identical, otherwise the first array gives access to the first set

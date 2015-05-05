@@ -11,7 +11,7 @@ module kp_fciqmc
     use bit_reps, only: flag_deterministic, flag_determ_parent, set_flag
     use bit_reps, only: extract_bit_rep
     use CalcData, only: AvMCExcits, tSemiStochastic, tTruncInitiator, StepsSft
-    use CalcData, only: tDetermHFSpawning, ss_space_in
+    use CalcData, only: tDetermHFSpawning, ss_space_in, tPairedReplicas
     use constants
     use DetBitOps, only: FindBitExcitLevel, return_ms
     use FciMCData, only: fcimc_excit_gen_store, FreeSlot, iEndFreeSlot
@@ -195,7 +195,7 @@ contains
                             if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
 
                             call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
-                                               parent_hdiag, 1.0_dp, tPairedKPReplicas, idet)
+                                               parent_hdiag, 1.0_dp, tPairedReplicas, idet)
 
                             ! If we're on the Hartree-Fock, and all singles and
                             ! doubles are in the core space, then there will be
@@ -301,7 +301,7 @@ contains
 
                         if (mod(iter, StepsSft) == 0) then
                             call set_timer(Stats_Comms_Time)
-                            call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts, tPairedKPReplicas)
+                            call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts, tPairedReplicas)
                             call halt_timer(Stats_Comms_Time)
 
                             call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)
@@ -555,7 +555,7 @@ contains
                         if (tTruncInitiator) call CalcParentFlag(idet, parent_flags, parent_hdiag)
 
                         call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, ilut_parent, &
-                                           parent_hdiag, 1.0_dp, tPairedKPReplicas, idet)
+                                           parent_hdiag, 1.0_dp, tPairedReplicas, idet)
 
                         ! If we're on the Hartree-Fock, and all singles and
                         ! doubles are in the core space, then there will be no
@@ -645,7 +645,7 @@ contains
                     call halt_timer(annihil_time)
 
                     if (tOrthogKPReplicas .and. iter > orthog_kp_iter) then
-                        if (tPairedKPReplicas) then
+                        if (tPairedReplicas) then
                             call orthogonalise_replica_pairs(iter_data_fciqmc)
                         else
                             call orthogonalise_replicas(iter_data_fciqmc)
@@ -656,7 +656,7 @@ contains
 
                     if (mod(iter, StepsSft) == 0) then
                         call set_timer(Stats_Comms_Time)
-                        call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts, tPairedKPReplicas)
+                        call calculate_new_shift_wrapper(iter_data_fciqmc, TotParts, tPairedReplicas)
                         call halt_timer(Stats_Comms_Time)
 
                         call ChangeVars(tSingBiasChange, tSoftExitFound, tWritePopsFound)

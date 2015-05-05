@@ -11,7 +11,8 @@ module FciMCParMod
                         tOrthogonaliseReplicas, orthogonalise_iter, &
                         tDetermHFSpawning, use_spawn_hash_table, &
                         semistoch_shift_iter, ss_space_in, s_global_start, &
-                        tContTimeFCIMC
+                        tContTimeFCIMC, trial_shift_iter, tStartTrialLater, &
+                        tTrialWavefunction, tSemiStochastic, ntrial_ex_calc
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
                            compare_amps_period, PopsFileTimer, &
@@ -30,7 +31,7 @@ module FciMCParMod
     use semi_stoch_procs, only: is_core_state, check_determ_flag, &
                                 determ_projection, average_determ_vector
     use trial_wf_gen, only: update_compare_trial_file, &
-                            update_compare_trial_file
+                            update_compare_trial_file, init_trial_wf
     use hash, only: clear_hash_table
     use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
     use bit_reps, only: set_flag, clr_flag, add_ilut_lists
@@ -205,6 +206,20 @@ module FciMCParMod
                 if ((Iter - maxval(VaryShiftIter)) == semistoch_shift_iter + 1) then
                     tSemiStochastic = .true.
                     call init_semi_stochastic(ss_space_in)
+                end if
+            end if
+
+            ! Is this an iteration where trial-wavefunction estimators are
+            ! turned on?
+            if (tStartTrialLater .and. all(.not. tSinglePartPhase)) then
+                if ((Iter - maxval(VaryShiftIter)) == trial_shift_iter + 1) then
+                    tTrialWavefunction = .true.
+
+                    if (tPairedReplicas) then
+                        call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs/2, .true.)
+                    else
+                        call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs, .false.)
+                    end if
                 end if
             end if
             
@@ -814,7 +829,7 @@ module FciMCParMod
             ! Sum in any energy contribution from the determinant, including 
             ! other parameters, such as excitlevel info.
             ! This is where the projected energy is calculated.
-            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, .false., j)
+            call SumEContrib (DetCurr, WalkExcitLevel,SignCurr, CurrentDets(:,j), HDiagCurr, 1.0_dp, tPairedReplicas, j)
 
             ! If we're on the Hartree-Fock, and all singles and doubles are in
             ! the core space, then there will be no stochastic spawning from
