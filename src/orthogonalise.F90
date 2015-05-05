@@ -594,29 +594,28 @@ contains
 
         norms = 0.0_dp
         overlaps = 0.0_dp
-        do tgt_run = 1, inum_runs
+        do j = 1, int(TotWalkers, sizeof_int)
 
-            do j = 1, int(TotWalkers, sizeof_int)
+            ! n.b. We are using a non-contiguous list (Hash algorithm)
+            call extract_sign(CurrentDets(:,j), sgn)
+            if (IsUnoccDet(sgn)) cycle
 
-                ! n.b. We are using a non-contiguous list (Hash algorithm)
-                call extract_sign(CurrentDets(:,j), sgn)
-                if (IsUnoccDet(sgn)) cycle
+            norms = norms + sgn*sgn
 
-                norms(tgt_run) = norms(tgt_run) + sgn(tgt_run)**2
+            do tgt_run = 1, inum_runs
                 do run = tgt_run + 1, inum_runs
                     overlaps(tgt_run, run) = overlaps(tgt_run, run) &
                                            + sgn(tgt_run) * sgn(run)
                     overlaps(run, tgt_run) = 99999999.0_dp ! invalid
                 end do
-
             end do
 
-            ! And ensure that the norm/overlap data is accumulated onto all
-            ! of the processors.
-            call MPISumAll(norms, all_norms)
-            call MPISumAll(overlaps, all_overlaps)
-
         end do
+
+        ! And ensure that the norm/overlap data is accumulated onto all
+        ! of the processors.
+        call MPISumAll(norms, all_norms)
+        call MPISumAll(overlaps, all_overlaps)
 
         ! Store a normalised overlap matrix for each of the replicas.
         do src_run = 1, inum_runs - 1
