@@ -34,12 +34,12 @@ module FciMCParMod
                             update_compare_trial_file, init_trial_wf
     use hash, only: clear_hash_table
     use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
+    use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps
     use bit_reps, only: set_flag, clr_flag, add_ilut_lists
     use exact_diag, only: perform_exact_diag_all_symmetry
     use spectral_lanczos, only: perform_spectral_lanczos
     use bit_rep_data, only: nOffFlag, flag_determ_parent
     use errors, only: standalone_errors, error_analysis
-    use orthogonalise, only: orthogonalise_replicas
     use PopsFileMod, only: WriteToPopsFileParOneArr
     use AnnihilationMod, only: DirectAnnihilation
     use exact_spectrum, only: get_exact_spectrum
@@ -1020,8 +1020,11 @@ module FciMCParMod
         
         ! If we are orthogonalising the replica wavefunctions, to generate
         ! excited states, then do that here.
-        if (tOrthogonaliseReplicas .and. iter > orthogonalise_iter) &
+        if (tOrthogonaliseReplicas .and. iter > orthogonalise_iter) then
             call orthogonalise_replicas(iter_data)
+        else if (tPrintReplicaOverlaps .and. inum_runs > 1) then
+            call calc_replica_overlaps()
+        end if
 
         call update_iter_data(iter_data)
 

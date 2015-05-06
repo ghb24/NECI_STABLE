@@ -12,6 +12,7 @@ module kp_fciqmc
     use bit_reps, only: extract_bit_rep
     use CalcData, only: AvMCExcits, tSemiStochastic, tTruncInitiator, StepsSft
     use CalcData, only: tDetermHFSpawning, ss_space_in, tPairedReplicas
+    use CalcData, only: tPrintReplicaOverlaps
     use constants
     use DetBitOps, only: FindBitExcitLevel, return_ms
     use FciMCData, only: fcimc_excit_gen_store, FreeSlot, iEndFreeSlot
@@ -44,6 +45,8 @@ module kp_fciqmc
 contains
 
     subroutine perform_kp_fciqmc(kp)
+
+        use orthogonalise, only: calc_replica_overlaps
 
         type(kp_fciqmc_data), intent(inout) :: kp
         integer :: iiter, idet, ireplica, ispawn, ierr
@@ -297,6 +300,8 @@ contains
 
                         call halt_timer(annihil_time)
 
+                        if (tPrintReplicaOverlaps) call calc_replica_overlaps()
+
                         call update_iter_data(iter_data_fciqmc)
 
                         if (mod(iter, StepsSft) == 0) then
@@ -364,6 +369,7 @@ contains
         use fcimc_helper, only: create_particle_with_hash_table
         use FciMCData, only: HashIndex, nWalkerHashes
         use orthogonalise, only: orthogonalise_replicas, orthogonalise_replica_pairs
+        use orthogonalise, only: calc_replica_overlaps
 
         type(kp_fciqmc_data), intent(inout) :: kp
 
@@ -650,6 +656,8 @@ contains
                         else
                             call orthogonalise_replicas(iter_data_fciqmc)
                         end if
+                    else if (tPrintReplicaOverlaps) then
+                        call calc_replica_overlaps()
                     end if
 
                     call update_iter_data(iter_data_fciqmc)
