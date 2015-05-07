@@ -1919,13 +1919,15 @@ contains
 
         call set_initial_run_references()
 
-        ! Add an initialisation check on symmetries
-        do i = 1, TotWalkers
-            call decode_bit_det(det, CurrentDets(:,i))
-            call getsym_wrapper(det, sym)
-            if (sym%sym%S /= HFSym%sym%S .or. sym%ml /= HFSym%Ml) &
-                call stop_all(this_routine, "Invalid det found")
-        end do
+        ! Add an initialisation check on symmetries.
+        if ((.not. tHub) .and. (.not. tUEG)) then
+            do i = 1, TotWalkers
+                call decode_bit_det(det, CurrentDets(:,i))
+                call getsym_wrapper(det, sym)
+                if (sym%sym%S /= HFSym%sym%S .or. sym%ml /= HFSym%Ml) &
+                    call stop_all(this_routine, "Invalid det found")
+            end do
+        end if
 
     end subroutine InitFCIMC_trial
 
