@@ -284,4 +284,8 @@ real(dp) :: cont_time_max_overspawn
 ! replicas?
 logical :: tPairedReplicas = .false.
 
+! If true then swap the sign of the FCIQMC wave function if the sign of the
+! Hartree-Fock population becomes negative.
+logical :: tPositiveHFSign = .false.
+
 end module CalcData
