@@ -10,7 +10,7 @@ module fcimc_iter_utils
                         HFPopThresh, DiagSft, tShiftOnHFPop, iRestartWalkNum, &
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, &
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
-                        tContTimeFull, pop_change_min
+                        tContTimeFull, pop_change_min, tPositiveHFSign
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables
     use semi_stoch_procs, only: recalc_core_hamil_diag
@@ -57,7 +57,7 @@ contains
 
 
 #ifndef __CMPLX
-        if (.not. tKP_FCIQMC) then
+        if (tPositiveHFSign) then
             do part_type = 1, lenof_sign
                 if ((.not.tFillingStochRDMonFly).or.(inum_runs.eq.1)) then
                     if (AllNoAtHF(part_type) < 0.0_dp) then

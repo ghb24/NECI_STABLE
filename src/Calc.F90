@@ -2109,6 +2109,9 @@ contains
                 ! spawn allowed
                 call readf(cont_time_max_overspawn)
 
+            case("POSITIVE-HF-SIGN")
+                tPositiveHFSign = .true.
+
             case default
                 call report("Keyword "                                &
      &            //trim(w)//" not recognized in CALC block",.true.)
