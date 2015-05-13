@@ -21,7 +21,8 @@ truncinitiator
 addtoinitiator 3
 allrealcoeff
 realspawncutoff 0.01
-trial-wavefunction 500
+trial-wavefunction
+mp1-trial 500
 endcalc
 
 integral

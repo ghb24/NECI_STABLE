@@ -24,7 +24,8 @@ allrealcoeff
 realspawncutoff 0.01
 semi-stochastic
 mp1-core 50
-trial-wavefunction 200
+trial-wavefunction
+mp1-trial 200
 endcalc
 
 integral
