@@ -193,7 +193,7 @@ MODULE ReadInput_neci
                             tMultiReplicaInitiators, tRealCoeffByExcitLevel, &
                             tAllRealCoeff, tUseRealCoeffs, tChangeProjEDet, &
                             tOrthogonaliseReplicas, tReadPops, tStartMP1, &
-                            tStartCAS
+                            tStartCAS, tUniqueHFNode
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -205,6 +205,7 @@ MODULE ReadInput_neci
                            tCalcVariationalEnergy, tCalcInstantS2Init, &
                            tPopsFile
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
+        use load_balance, only: tLoadBalanceBlocks
         use input_neci
         use constants
         use global_utilities
@@ -554,6 +555,11 @@ MODULE ReadInput_neci
                 call stop_all(t_r, "MP1 or CAS starting not implemented for &
                                    &orthogonalised calculations")
             end if
+        end if
+
+        if (tLoadBalanceBlocks .and. tUniqueHFNode) then
+            call stop_all(t_r, "UNIQUE-HF-NODE requires disabling &
+                               &LOAD-BALANCE-BLOCKS")
         end if
 
     end subroutine checkinput

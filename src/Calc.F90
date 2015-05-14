@@ -29,6 +29,7 @@ MODULE Calc
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets, tSearchTauOption
     use ras_data, only: core_ras, trial_ras
+    use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
     use spectral_data
     use spectral_lanczos, only: n_lanc_vecs_sl
@@ -318,6 +319,8 @@ contains
           tContTimeFCIMC = .false.
           tContTimeFull = .false.
           cont_time_max_overspawn = 4.0
+
+          tLoadBalanceBlocks = .false.
 
         end subroutine SetCalcDefaults
 
@@ -2111,6 +2114,21 @@ contains
 
             case("POSITIVE-HF-SIGN")
                 tPositiveHFSign = .true.
+
+            case("LOAD-BALANCE-BLOCKS")
+                ! When load balancing, have more blocks to distribute than
+                ! there are processors to do the redistributing. This allows
+                ! us to shuffle walkers around in the system
+                tLoadBalanceBlocks = .true.
+                if (item < nitems) then
+                    call readu(w)
+                    select case(w)
+                    case("OFF", "NO", "DISABLE")
+                        tLoadBalanceBlocks = .false.
+                    case default
+                        tLoadBalanceBlocks = .true.
+                    end select
+                end if
 
             case default
                 call report("Keyword "                                &

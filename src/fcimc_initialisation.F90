@@ -109,6 +109,7 @@ module fcimc_initialisation
     use kp_fciqmc_data_mod, only: tExcitedStateKP
     use sym_general_mod, only: ClassCountInd
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
+    use load_balance, only: clean_load_balance, init_load_balance
     use ueg_excit_gens, only: gen_ueg_excit
     use gndts_mod, only: gndts
     use csf, only: get_csf_helement
@@ -643,6 +644,8 @@ contains
         !Now broadcast to all processors
         CALL MPIBCast(RandomOrbIndex,nBasis)
         call MPIBCast(RandomHash2,nBasis)
+
+        call init_load_balance()
 
         IF(tHPHF) THEN
             !IF(tLatticeGens) CALL Stop_All("SetupParameters","Cannot use HPHF with model systems currently.")
@@ -1639,6 +1642,9 @@ contains
 
         ! Cleanup cont time
         call clean_cont_time()
+
+        ! Cleanup the load balancing
+        call clean_load_balance()
 
         if (tSemiStochastic) call end_semistoch()
 
