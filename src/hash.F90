@@ -7,9 +7,10 @@ module hash
     use constants
     use FciMCData, only: hash_iter, hash_shift, RandomHash2, HFDet, ll_node
     use Parallel_neci, only: nNodes
-    use csf_data, only: csf_orbital_mask
     use Systemdata, only: nel, tCSF, nBasis
-    use CalcData, only: tUniqueHFNode, tSemiStochastic
+    use csf_data, only: csf_orbital_mask
+    use CalcData, only: tUniqueHFNode, tSemiStochastic, tTrialWavefunction, &
+                        tContTimeFCIMC, tContTimeFull
 
     implicit none
 

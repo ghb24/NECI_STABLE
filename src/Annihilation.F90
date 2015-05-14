@@ -14,8 +14,6 @@ module AnnihilationMod
     use FciMCData
     use DetBitOps, only: DetBitEQ, FindBitExcitLevel, ilut_lt, &
                          ilut_gt, DetBitZero
-    use Determinants, only: get_helement
-    use hphf_integrals, only: hphf_diag_helement
     use sort_mod
     use constants, only: n_int, lenof_sign, null_part, sizeof_int
     use bit_rep_data
@@ -26,13 +24,10 @@ module AnnihilationMod
                         nullify_ilut_part, clear_has_been_initiator, &
                         set_has_been_initiator, flag_has_been_initiator, &
                         encode_flags
-    use cont_time_rates, only: spawn_rate_full
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
-    use global_det_data, only: set_det_diagH, get_iter_occ, set_spawn_rate, &
-                               global_determinant_data, set_part_init_time, &
-                               inc_spawn_count, get_spawn_count, pos_spawn_cnt
-    use load_balance, only: DetermineDetNode
+    use load_balance, only: DetermineDetNode, AddNewHashDet
+    use global_det_data, only: get_iter_occ, inc_spawn_count
     use searching
     use hash
 
@@ -841,97 +836,6 @@ module AnnihilationMod
         call halt_timer(AnnMain_time)
 
     end subroutine AnnihilateSpawnedParts
-
-    subroutine AddNewHashDet(TotWalkersNew, iLutCurr, DetHash, nJ)
-
-        ! Add a new determinant to the main list. This involves updating the
-        ! list length, copying it across, updating its flag, adding its diagonal
-        ! helement (if neccessary). We also need to update the hash table to
-        ! point at it correctly.
-
-        integer, intent(inout) :: TotWalkersNew 
-        integer(n_int), intent(inout) :: iLutCurr(0:NIfTot)
-        integer, intent(in) :: DetHash, nJ(nel)
-        integer :: DetPosition
-        HElement_t :: HDiag
-        real(dp) :: trial_amps(ntrial_excits)
-        logical :: tTrial, tCon
-        character(len=*), parameter :: t_r = "AddNewHashDet"
-
-        if (iStartFreeSlot <= iEndFreeSlot) then
-            ! We can slot it into a free slot in the main list, rather than increase its length
-            DetPosition = FreeSlot(iStartFreeSlot)
-            CurrentDets(:, DetPosition) = iLutCurr(:)
-            iStartFreeSlot = iStartFreeSlot + 1
-        else
-            ! We must increase the length of the main list to slot the new walker in
-            TotWalkersNew = TotWalkersNew + 1
-            DetPosition = TotWalkersNew
-            if (TotWalkersNew >= MaxWalkersPart) then
-                call stop_all(t_r, "Not enough memory to merge walkers into main list. Increase MemoryFacPart")
-            end if
-            CurrentDets(:,DetPosition) = iLutCurr(:)
-        end if
-
-        ! Calculate the diagonal hamiltonian matrix element for the new particle to be merged.
-        if (tHPHF) then
-            HDiag = hphf_diag_helement (nJ,CurrentDets(:,DetPosition))
-        else
-            HDiag = get_helement (nJ, nJ, 0)
-        end if
-
-        ! For the RDM code we need to set all of the elements of CurrentH to 0,
-        ! except the first one, holding the diagonal Hamiltonian element.
-        global_determinant_data(:,DetPosition) = 0.0_dp
-        call set_det_diagH(DetPosition, real(HDiag,dp) - Hii)
-
-        ! Store the iteration, as this is the iteration on which the particle
-        ! is created
-        call set_part_init_time(DetPosition, TotImagTime)
-
-        ! There is at least one spawning count here
-        call inc_spawn_count(DetPosition)
-
-        ! If using a trial wavefunction, search to see if this state is in
-        ! either the trial or connected space. If so, *_search_trial returns
-        ! the corresponding amplitude, which is stored.
-        if (tTrialWavefunction) then
-            ! Search to see if this is a trial or connected state, and
-            ! retreive the corresponding amplitude (zero if neither a trial or
-            ! connected state).
-            if (tTrialHash) then
-                call hash_search_trial(CurrentDets(:,DetPosition), nJ, trial_amps, tTrial, tCon)
-            else
-                call bin_search_trial(CurrentDets(:,DetPosition), trial_amps, tTrial, tCon)
-            end if
-
-            ! Set the appropraite flag (if any). Unset flags which aren't
-            ! appropriate, just in case.
-            if (tTrial) then
-                call set_flag(CurrentDets(:,DetPosition), flag_trial, .true.)
-                call set_flag(CurrentDets(:,DetPosition), flag_connected, .false.)
-            else if (tCon) then
-                call set_flag(CurrentDets(:,DetPosition), flag_trial, .false.)
-                call set_flag(CurrentDets(:,DetPosition), flag_connected, .true.)
-            else
-                call set_flag(CurrentDets(:,DetPosition), flag_trial, .false.)
-                call set_flag(CurrentDets(:,DetPosition), flag_connected, .false.)
-            end if
-
-            ! Set the amplitude (which may be zero).
-            current_trial_amps(:,DetPosition) = trial_amps
-        end if
-
-        ! If we are storing spawning rates for continuous time propagation, do
-        ! it here
-        if (tContTimeFCIMC .and. tContTimeFull) then
-            call set_spawn_rate(DetPosition, spawn_rate_full(nJ, ilutCurr))
-        end if
-
-        ! Add the new determinant to the hash table.
-        call add_hash_table_entry(HashIndex, DetPosition, DetHash)
-
-    end subroutine AddNewHashDet
 
     subroutine CalcHashTableStats(TotWalkersNew, iter_data)
 
