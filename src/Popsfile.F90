@@ -13,7 +13,8 @@ MODULE PopsfileMod
                         pops_norm, tWritePopsNorm
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt
-    use hash, only: DetermineDetNode, FindWalkerHash, clear_hash_table, &
+    use load_balance, only: DetermineDetNode, RandomOrbIndex
+    use hash, only: FindWalkerHash, clear_hash_table, &
                     fill_in_hash_table
     use Determinants, only: get_helement, write_det
     use hphf_integrals, only: hphf_diag_helement
@@ -1711,9 +1712,11 @@ r_loop: do while(.not.tStoreDet)
         end if
 
         ! Store the random hash in the header to allow later processing
+        ! n.b. RandomHash has been renamed to RandomOrbIndex for clarity
+        !      but we need to retain the POPSFILE format for compatibility
         write(iunit, '(a)', advance='no') "PopRandomHash= "
         do i = 1, nbasis
-            write(iunit,'(i12,",")', advance='no') RandomHash(i)
+            write(iunit,'(i12,",")', advance='no') RandomOrbIndex(i)
         end do
         write(iunit, *)
 

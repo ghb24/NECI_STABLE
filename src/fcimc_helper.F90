@@ -44,7 +44,8 @@ module fcimc_helper
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
     use DetCalcData, only: FCIDetIndex, ICILevel, det
-    use hash, only: DetermineDetNode, remove_hash_table_entry
+    use hash, only: remove_hash_table_entry
+    use load_balance, only: DetermineDetNode
     use nElRDMMod, only: store_parent_with_spawned, det_removed_fill_diag_rdm,&
                          extract_bit_rep_avsign_norm
     use Parallel_neci

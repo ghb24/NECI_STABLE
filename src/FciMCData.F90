@@ -319,9 +319,6 @@ MODULE FciMCData
                                                              !and external orbitals in the cas space
       INTEGER(KIND=n_int) , ALLOCATABLE :: CoreMask(:)       !These are masking arrays for the Core orbitals in the cas space
 
-      INTEGER , ALLOCATABLE :: RandomHash(:)    !This is a random indexing scheme by which the orbital indices 
-                                                !are randomised to attempt to provide a better hashing performance
-
       ! A second random hash, for use with hashing the location of walkers
       ! inside the main particle list.
       integer, allocatable :: RandomHash2(:)

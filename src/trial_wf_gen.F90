@@ -321,7 +321,7 @@ contains
     subroutine remove_states_not_on_proc(ilut_list, ilut_list_size, update_trial_vector)
         
         use FciMCData, only: trial_wfs
-        use hash, only: DetermineDetNode
+        use load_balance, only: DetermineDetNode
 
         integer, intent(inout) :: ilut_list_size
         integer(n_int), intent(inout) :: ilut_list(0:,:)

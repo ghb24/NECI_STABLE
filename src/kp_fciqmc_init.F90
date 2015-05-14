@@ -947,7 +947,8 @@ contains
         use dSFMT_interface, only: genrand_real2_dSFMT
         use FciMCData, only: HashIndex, determ_sizes, determ_displs, TotWalkers, CurrentDets, HFDet
         use FciMCData, only: TotParts, TotPartsOld, AllTotParts, AllTotPartsOld, core_space, ilutHF
-        use hash, only: DetermineDetNode, rm_unocc_dets_from_hash_table, hash_table_lookup
+        use load_balance, only: DetermineDetNode
+        use hash, only: rm_unocc_dets_from_hash_table, hash_table_lookup
         use hash, only: add_hash_table_entry
         use hilbert_space_size, only: CreateRandomExcitLevDetUnbias, create_rand_heisenberg_det
         use hilbert_space_size, only: create_rand_det_no_sym

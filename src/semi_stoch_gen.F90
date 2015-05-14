@@ -266,7 +266,7 @@ contains
         ! In (optional): nI_in - A list of the occupied orbitals in the determinant.
 
         use DetBitOps, only: IsAllowedHPHF
-        use hash, only: DetermineDetNode
+        use load_balance, only: DetermineDetNode
         use SystemData, only: nel
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)

@@ -32,6 +32,7 @@ module AnnihilationMod
     use global_det_data, only: set_det_diagH, get_iter_occ, set_spawn_rate, &
                                global_determinant_data, set_part_init_time, &
                                inc_spawn_count, get_spawn_count, pos_spawn_cnt
+    use load_balance, only: DetermineDetNode
     use searching
     use hash
 
