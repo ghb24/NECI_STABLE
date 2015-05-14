@@ -535,15 +535,17 @@ contains
 
     end subroutine init_kp_fciqmc
 
-    subroutine init_kp_fciqmc_repeat(iconfig, irepeat, nrepeats, nvecs)
+    subroutine init_kp_fciqmc_repeat(iconfig, irepeat, nrepeats, nvecs, iter_data)
 
         use CalcData, only: tStartSinglePart, InitialPart, InitWalkers, DiagSft, iPopsFileNoRead
         use CalcData, only: tPairedReplicas
         use FciMCData, only: iter, InputDiagSft, PreviousCycles, OldAllAvWalkersCyc, proje_iter
-        use FciMCData, only: proje_iter_tot, AllGrowRate, SpawnedParts
+        use FciMCData, only: proje_iter_tot, AllGrowRate, SpawnedParts, fcimc_iter_data
         use FciMCParMod, only: tSinglePartPhase
+        use fcimc_output, only: WriteFCIMCStats, write_fcimcstats2
         use hash, only: clear_hash_table
         use initial_trial_states
+        use LoggingData, only: tFCIMCStats2, tPrintDataTables
         use util_mod, only: int_fmt
 
         integer, intent(in) :: iconfig, irepeat, nrepeats, nvecs
@@ -552,6 +554,7 @@ contains
         real(dp), allocatable :: evals(:)
         real(dp), allocatable :: evecs_this_proc(:,:), init_vecs(:,:)
         integer(MPIArg) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
+        type(fcimc_iter_data), intent(in) :: iter_data
 
         write(6,'(1x,a22,'//int_fmt(irepeat,1)//')') "Starting repeat number", irepeat
 
@@ -620,6 +623,15 @@ contains
 
         ! Setting this variable to true stops the shift from varying instantly.
         tSinglePartPhase = tSinglePartPhaseKPInit
+
+        ! Print out initial stats.
+        if (tPrintDataTables) then
+            if (tFCIMCStats2) then
+                call write_fcimcstats2(iter_data)
+            else
+                call WriteFCIMCStats()
+            end if
+        end if
 
     end subroutine init_kp_fciqmc_repeat
 
