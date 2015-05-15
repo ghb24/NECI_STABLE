@@ -262,6 +262,11 @@ module FciMCParMod
                 IterTime=IterTime+(s_end-s_start)
             endif
 
+            ! Add some load balancing magic!
+            if (tLoadBalanceBlocks .and. mod(iter, 1000) == 0) then
+                call adjust_load_balance(iter_data_fciqmc)
+            end if
+
             if (mod(Iter, StepsSft) == 0) then
 
                 ! Has there been a particle bloom this update cycle? Loop
@@ -1039,9 +1044,6 @@ module FciMCParMod
                 CALL Fill_ExplicitRDM_this_Iter(TotWalkers)
             ENDIF
         ENDIF
-
-        if (tLoadBalanceBlocks .and. mod(iter, 1000) == 0) &
-            call adjust_load_balance(iter_data)
 
     end subroutine
 

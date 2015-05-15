@@ -200,7 +200,7 @@ contains
 
         write(6, '("Load balancing distribution:")')
         write(6, '("node #, particles")')
-        do j = 1, nNodes - 1
+        do j = 0, nNodes - 1
             write(6,'(i7,i9)') j, proc_parts(j)
         end do
         write(6,*) '--'
