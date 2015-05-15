@@ -501,7 +501,7 @@ contains
 
         ! And also output the number of states on each processor in the space.
 
-        use load_balance, only: DetermineDetNode
+        use load_balance_calcnodes, only: DetermineDetNode
         use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
 
         integer, intent(in) :: ilut_list_size
@@ -1016,7 +1016,7 @@ contains
         ! This routine will copy all the core determinants *ON THIS PROCESS
         ! ONLY* to the SpawnedParts array.
 
-        use load_balance, only: DetermineDetNode
+        use load_balance_calcnodes, only: DetermineDetNode
 
         integer :: i, ncore, proc
         integer :: nI(nel)

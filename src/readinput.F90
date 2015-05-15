@@ -205,7 +205,7 @@ MODULE ReadInput_neci
                            tCalcVariationalEnergy, tCalcInstantS2Init, &
                            tPopsFile
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
-        use load_balance, only: tLoadBalanceBlocks
+        use load_balance_calcnodes, only: tLoadBalanceBlocks
         use input_neci
         use constants
         use global_utilities

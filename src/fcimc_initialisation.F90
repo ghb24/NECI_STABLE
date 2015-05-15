@@ -81,7 +81,7 @@ module fcimc_initialisation
                                        gen_excit_4ind_weighted, &
                                        gen_excit_4ind_reverse
     use hash, only: FindWalkerHash, add_hash_table_entry, init_hash_table
-    use load_balance, only: DetermineDetNode, RandomOrbIndex
+    use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD , only : InitHistInitPops

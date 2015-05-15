@@ -66,7 +66,7 @@ contains
         use bit_rep_data, only: NIfDBO, extract_sign
         use DetBitOps, only: DetBitEq, EncodeBitDet, ilut_lt, ilut_gt
         use gndts_mod, only: gndts
-        use load_balance, only: DetermineDetNode
+        use load_balance_calcnodes, only: DetermineDetNode
         use sort_mod, only: sort
         use SystemData, only: nbasis, nel, BRR, nBasisMax, G1, tSpn, LMS, tParity, SymRestrict
         use util_mod, only: choose
