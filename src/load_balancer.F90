@@ -11,7 +11,7 @@ module load_balance
     use bit_rep_data, only: flag_initiator, NIfDBO, flag_has_been_initiator, &
                             flag_connected, flag_trial
     use bit_reps, only: set_flag, nullify_ilut_part, clear_has_been_initiator,&
-                        encode_part_sign
+                        encode_part_sign, nullify_ilut
     use searching, only: hash_search_trial, bin_search_trial
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets
     use Determinants, only: get_helement, write_det
@@ -74,8 +74,6 @@ contains
             LoadBalanceMapping(i) = int((i - 1) / oversample_factor)
         end do
 
-        write(6,*) 'INITIAL map', LoadBalanceMapping
-
     end subroutine
 
     subroutine clean_load_balance()
@@ -115,7 +113,6 @@ contains
 
             call extract_sign(CurrentDets(:,j), sgn)
             if (IsUnoccDet(sgn)) then
-                write(6,*) 'skip'
                 cycle
             end if
 
@@ -123,7 +120,6 @@ contains
             ! computational cost...
             call decode_bit_det(det, CurrentDets(:,j))
             block = get_det_block(nel, det, 0)
-            write(6,*) 'SITE', sgn, block
             block_parts(block) = block_parts(block) + sum(ceiling(abs(sgn)))
         end do
 
@@ -131,11 +127,6 @@ contains
         call MPISum(block_parts, block_parts_all)
 
         do while (.true.)
-
-            write(6,*)
-            write(6,*) '================='
-            write(6,*) 'TotWalkers', TotWalkers
-            write(6,*) 'TotParts', TotParts
 
             ! n.b. the required data is only available on the root node.
             if (iProcIndex == root) then
@@ -161,8 +152,6 @@ contains
                 ASSERT(min_proc >= 0)
                 ASSERT(max_proc >= 0)
 
-                write(6,*) 'pts', avg_parts, max_parts, min_parts
-                write(6,*) 'min, max', min_proc, max_proc
                 if (min_proc > nProcessors-1 .or. max_proc > nProcessors-1)&
                     call stop_all(this_routine, 'invalid value')
 
@@ -172,11 +161,9 @@ contains
                 smallest_size = -1
                 do block = 1, balance_blocks
                     if (LoadBalanceMapping(block) == max_proc) then
-                        !write(6,*) 'bk', block, block_parts(block)
                         if (block_parts(block) > 0 .and. &
                             (block_parts(block) < smallest_size .or. &
                                 smallest_size == -1)) then
-                            write(6,*) 'saving', block, block_parts(block)
                             smallest_block = block
                             smallest_size = block_parts(block)
                         end if
@@ -197,10 +184,6 @@ contains
                 endif
             end if
             call MPIBcast(unbalanced)
-
-            if (IProcIndex == 0) &
-                write(6,*) "BLKS", smallest_block, smallest_size, min_proc, max_proc
-            write(6,*) "UN?", unbalanced
 
             ! If this is sufficiently balanced, then we make no (further)
             ! changes.
@@ -245,9 +228,6 @@ contains
         src_proc = LoadBalanceMapping(block)
 
         ! Provide some feedback to the user.
-        write(6,*)
-        write(6,*) '--'
-        write(6,*) 'iProcIndex', iprocindex, src_proc, tgt_proc
         if (iProcIndex == root) then
             write(6,'(a,i6,a,i6,a,i6)') 'Moving load balancing block ', &
                      block, ' from processor ', src_proc, ' to ', tgt_proc
@@ -266,22 +246,20 @@ contains
 
                 call decode_bit_det(det, CurrentDets(:,j))
                 det_block = get_det_block(nel, det, 0)
-                write(6,*) 'blk', det_block
                 if (det_block == block) then
                     nsend = nsend + 1
                     SpawnedParts(:,nsend) = CurrentDets(:,j)
 
                     ! Remove the det from the main list.
+                    call nullify_ilut(CurrentDets(:,j))
                     call remove_hash_table_entry(HashIndex, det, j)
                     iEndFreeSlot = iEndFreeSlot + 1
                     FreeSlot(iEndFreeSlot) = j
-                    write(6,*) 'Added part', CurrentDets(:,j)
                 end if
             end do
 
             ! And send the data to the relevant (target) processor
             nelem = nsend * (1 + NIfTot)
-            write(6,*) 'NS', nsend, nelem
             call MPISend(nsend, 1, tgt_proc, mpi_tag_nsend, ierr)
             call MPISend(SpawnedParts(:, 1:nsend), nelem, tgt_proc, &
                          mpi_tag_dets, ierr)
@@ -295,20 +273,14 @@ contains
             call MPIRecv(nsend, 1, src_proc, mpi_tag_nsend, ierr)
             nelem = nsend * (1 + NIfTot)
             call MPIRecv(SpawnedParts, nelem, src_proc, mpi_tag_dets, ierr)
-            write(6,*) 'NS', nsend, nelem
 
-            write(6,*) 'TotWalkers', TotWalkers
             do j = 1, nsend
-                write(6,*) "RECV", SpawnedParts(:,j)
                 call decode_bit_det(det, SpawnedParts(:,j))
-                call write_det(6, det, .false.)
                 call extract_sign(SpawnedParts(:,j), sgn)
-                write(6,*) sgn
                 hash_val = FindWalkerHash(det, size(HashIndex))
                 call AddNewHashDet(TotWalkers, SpawnedParts(:, j), &
                                    hash_val, det)
             end do
-            write(6,*) 'TotWalkersNew', TotWalkers
 
             ! Todo: remember to regenerate global stored data!
 
