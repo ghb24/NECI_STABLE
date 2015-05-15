@@ -28,18 +28,13 @@ module load_balance
 
     implicit none
 
-
     ! TODO:
-    ! - Initialise mapping
-    ! - Modify DetermineDetNode to use the mapping
-    ! - Add mechanism to shuffle walkers around
-    ! - Add redistribution of walkers
     ! - Integrate with POPSFILES. Need to output the mapping for restarts.
     ! - Ensure that we never re-load balance once using SemiStochastic
     ! - Consider if we want to load balance based on sync-time rather than
     !   particles?
+    ! - Move global data around
 
-    ! - Every 1000 iterations?
     ! - Automatically at the start of the semi-stochastic initialisation
 
 contains
@@ -286,8 +281,6 @@ contains
                 call AddNewHashDet(TotWalkers, SpawnedParts(:, j), &
                                    hash_val, det)
             end do
-
-            ! Todo: remember to regenerate global stored data!
 
             ! We have filled in some of the holes in the list (possibly all)
             ! and possibly extended the list
