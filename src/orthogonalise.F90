@@ -6,7 +6,7 @@ module orthogonalise
                          HolesInList
     use CalcData, only: OccupiedThresh, tOrthogonaliseSymmetric, tSemiStochastic
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use AnnihilationMod, only: CalcHashTableStats
+    use load_balance, only: CalcHashTableStats
     use bit_reps, only: extract_sign, encode_sign
     use semi_stoch_procs, only: check_determ_flag
     use Parallel_neci

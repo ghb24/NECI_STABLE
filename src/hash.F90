@@ -2,15 +2,13 @@
 
 module hash
 
-    use bit_rep_data, only: NIfTot, extract_sign, test_flag, flag_deterministic
-    use bit_reps, only: set_flag, decode_bit_det
-    use constants
     use FciMCData, only: hash_iter, hash_shift, RandomHash2, HFDet, ll_node
-    use Parallel_neci, only: nNodes
+    use bit_rep_data, only: flag_deterministic, test_flag
+    use bit_reps, only: extract_sign, decode_bit_det
     use Systemdata, only: nel, tCSF, nBasis
     use csf_data, only: csf_orbital_mask
-    use CalcData, only: tUniqueHFNode, tSemiStochastic, tTrialWavefunction, &
-                        tContTimeFCIMC, tContTimeFull
+    use CalcData, only: tSemiStochastic
+    use constants
 
     implicit none
 
@@ -326,5 +324,5 @@ module hash
         nullify(temp_node)
 
     end subroutine hash_table_lookup
-      
+
 end module hash
