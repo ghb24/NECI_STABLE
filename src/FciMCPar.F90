@@ -1040,7 +1040,7 @@ module FciMCParMod
             ENDIF
         ENDIF
 
-        if (tLoadBalanceBlocks) &
+        if (tLoadBalanceBlocks .and. mod(iter, 1000) == 0) &
             call adjust_load_balance(iter_data)
 
     end subroutine

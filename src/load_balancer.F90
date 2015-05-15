@@ -138,8 +138,6 @@ contains
                     proc_parts(proc) = proc_parts(proc) + block_parts_all(block)
                 end do
 
-                write(6,*) 'PROC PARTS', proc_parts
-
                 ! Where are the minimal and maximal values found?
                 ! n.b. min/maxloc treat all arrays as starting at index 1. sigh
                 avg_parts = real(sum(proc_parts), dp) / real(nProcessors, dp)
@@ -199,6 +197,13 @@ contains
             call move_block(smallest_block, min_proc)
 
         end do
+
+        write(6, '("Load balancing distribution:")')
+        write(6, '("node #, particles")')
+        do j = 1, nNodes - 1
+            write(6,'(i7,i9)') j, proc_parts(j)
+        end do
+        write(6,*) '--'
 
         ! TODO: Only call this if we have made changes!
         call CalcHashTableStats(TotWalkers, iter_data)
