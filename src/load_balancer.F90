@@ -286,6 +286,9 @@ contains
             call MPISend(SpawnedParts(:, 1:nsend), nelem, tgt_proc, &
                          mpi_tag_dets, ierr)
 
+            ! We have now created lots of holes in the main list
+            HolesInList = HolesInList + nsend
+
         else if (iProcIndex == tgt_proc) then
 
             ! Receive walkers!
@@ -308,6 +311,11 @@ contains
             write(6,*) 'TotWalkersNew', TotWalkers
 
             ! Todo: remember to regenerate global stored data!
+
+            ! We have filled in some of the holes in the list (possibly all)
+            ! and possibly extended the list
+            HolesInList = max(0, HolesInList - nsend)
+
         end if
 
         ! Adjust the load balancing mapping
