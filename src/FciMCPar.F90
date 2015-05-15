@@ -263,7 +263,8 @@ module FciMCParMod
             endif
 
             ! Add some load balancing magic!
-            if (tLoadBalanceBlocks .and. mod(iter, 1000) == 0) then
+            if (tLoadBalanceBlocks .and. mod(iter, 1000) == 0 .and. &
+                .not. tSemiStochastic) then
                 call adjust_load_balance(iter_data_fciqmc)
             end if
 

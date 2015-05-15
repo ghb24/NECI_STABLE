@@ -35,9 +35,11 @@ contains
         use FciMCData, only: partial_determ_vecs, determ_space_size, determ_space_size_int
         use FciMCData, only: TotWalkers, TotWalkersOld, indices_of_determ_states, SpawnedParts
         use FciMCData, only: FDetermTag, FDetermAvTag, PDetermTag, IDetermTag, SemiStoch_Init_Time
-        use FciMCData, only: tStartCoreGroundState
+        use FciMCData, only: tStartCoreGroundState, iter_data_fciqmc
         use sort_mod, only: sort
         use SystemData, only: nel
+        use load_balance, only: adjust_load_balance
+        use load_balance_calcnodes, only: tLoadBalanceBlocks
 
         type(subspace_in) :: core_in
 
@@ -45,6 +47,14 @@ contains
         integer :: nI(nel)
         integer(MPIArg) :: mpi_temp
         character (len=*), parameter :: t_r = "init_semi_stochastic"
+
+        !
+        ! If we are load balancing, this gets disabled once semi stochastic
+        ! has been initialised. Therefore we should do a last-gasp load
+        ! adjustment at this point.
+        if (tLoadBalanceBlocks) then
+            call adjust_load_balance(iter_data_fciqmc)
+        end if
 
 #ifdef __CMPLX
         call stop_all(t_r, "Semi-stochastic has not been implemented with complex coefficients.")

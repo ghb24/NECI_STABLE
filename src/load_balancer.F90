@@ -30,12 +30,7 @@ module load_balance
 
     ! TODO:
     ! - Integrate with POPSFILES. Need to output the mapping for restarts.
-    ! - Ensure that we never re-load balance once using SemiStochastic
-    ! - Consider if we want to load balance based on sync-time rather than
-    !   particles?
     ! - Move global data around
-
-    ! - Automatically at the start of the semi-stochastic initialisation
 
 contains
 
@@ -99,8 +94,7 @@ contains
         ! TODO: Need to ensure we don't move around the semi-stochastic sites,
         ! or we need to be a bit more clever!!!
         ! TODO: What happens if we move reference sites around?
-        if (tSemiStochastic) &
-            call stop_all(this_routine, "Not yet implemented")
+        ASSERT(.not. tSemiStochastic)
 
         ! Count the number of particles inside each of the blocks
         block_parts = 0
