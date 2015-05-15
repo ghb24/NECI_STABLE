@@ -31,6 +31,7 @@ module load_balance
     ! TODO:
     ! - Integrate with POPSFILES. Need to output the mapping for restarts.
     ! - Move global data around
+    ! - Note if we move any of the reference sites around!!!!!!
 
 contains
 
