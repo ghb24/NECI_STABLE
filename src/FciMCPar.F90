@@ -734,13 +734,9 @@ module FciMCParMod
             ! Is this state is in the deterministic space?
             tCoreDet = check_determ_flag(CurrentDets(:,j))
 
-            write(6,*) '>>> j'
-            call neci_flush(6)
             call extract_bit_rep_avsign (CurrentDets(:,j), j, &
                                         DetCurr, SignCurr, FlagsCurr, IterRDMStartCurr, &
                                         AvSignCurr, fcimc_excit_gen_store)
-            write(6,*) '<<< j'
-            call neci_flush(6)
 
             ! We only need to find out if determinant is connected to the
             ! reference (so no ex. level above 2 required, 

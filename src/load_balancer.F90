@@ -161,11 +161,11 @@ contains
                 smallest_size = -1
                 do block = 1, balance_blocks
                     if (LoadBalanceMapping(block) == max_proc) then
-                        if (block_parts(block) > 0 .and. &
-                            (block_parts(block) < smallest_size .or. &
+                        if (block_parts_all(block) > 0 .and. &
+                            (block_parts_all(block) < smallest_size .or. &
                                 smallest_size == -1)) then
                             smallest_block = block
-                            smallest_size = block_parts(block)
+                            smallest_size = block_parts_all(block)
                         end if
                     end if
                 end do
