@@ -5,7 +5,7 @@ module DetBitOps
     ! A collection of useful operations to perform on the bit-representation
     ! of determinants.
 
-    use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level
+    use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level, tOddS_HPHF
     use CalcData, only: tTruncInitiator, tSemiStochastic
     use bit_rep_data, only: NIfY, NIfTot, NIfD, NOffFlag, NIfFlag, &
                             test_flag, NIfDBO, NOffSgn, extract_sign
@@ -923,10 +923,14 @@ module DetBitOps
         integer(n_int), intent(in) :: ilut(0:NIfD)
         integer(n_int) :: ilut_tmp(0:NIfD)
         integer(n_int), intent(out), optional :: sym_ilut(0:NIfD)
-        logical :: bAllowed
+        logical :: bAllowed, tCS
 
-        if (TestClosedShellDet(ilut)) then
+        tCS = TestClosedShellDet(ilut)
+
+        if (tCS .and. (.not. tOddS_HPHF)) then
             bAllowed = .true.
+        else if (tCS .and. tOddS_HPHF) then
+            bAllowed = .false.
         else
             call spin_sym_ilut (ilut, ilut_tmp)
             if (DetBitLt(ilut, ilut_tmp, NIfD, .false.) > 0) then

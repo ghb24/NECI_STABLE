@@ -213,7 +213,8 @@ contains
 
                    ! KPFCIQMC
                    TotPartsInit, &
-                   AllTotPartsInit)
+                   AllTotPartsInit, &
+                   tSinglePartPhaseKPInit)
 
         call clean_iter_data(iter_data_fciqmc)
 

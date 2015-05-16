@@ -3,7 +3,7 @@ module cont_time
 
     use CalcData, only: tContTimeFull, tOrthogonaliseReplicas, &
                         orthogonalise_iter, use_spawn_hash_table, &
-                        tTruncInitiator, DiagSft, tau
+                        tTruncInitiator, DiagSft, tau, tPairedReplicas
     use fcimc_helper, only: rezero_iter_stats_each_iter, CalcParentFlag, &
                             create_particle, create_particle_with_hash_table, &
                             SumEContrib, end_iter_stats
@@ -100,7 +100,7 @@ contains
             ! Sum in the energy terms, yeah!
             ic_hf = FindBitExcitLevel(ilutRef, CurrentDets(:,j))
             call SumEContrib(det, ic_hf, sgn, CurrentDets(:,j), hdiag, 1.0_dp,&
-                             .false., j)
+                             tPairedReplicas, j)
 
             ! Needed for calculating oversample factors
             nopen = count_open_orbs(CurrentDets(:,j))

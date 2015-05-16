@@ -13,7 +13,7 @@ module fcimc_output
                          AllHistogramEnergy
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
                         DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
-                        StepsSft, tPrintReplicaOverlaps
+                        StepsSft, tPrintReplicaOverlaps, tStartTrialLater
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
     use IntegralsData, only: frozen_orb_list, frozen_orb_reverse_map, &
@@ -90,7 +90,7 @@ contains
                   &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
                   &26.HF weight    27.|Psi|     28.Inst S^2 29.Inst S^2 30.AbsProjE &
                   &31.|Semistoch|/|Psi|   32.PartsDiffProc"
-           if (tTrialWavefunction) then 
+           if (tTrialWavefunction .or. tStartTrialLater) then 
                   write(fcimcstats_unit2, "(A)", advance = 'no') &
                   "  33.TrialNumerator  34.TrialDenom  35.TrialOverlap"
            end if
@@ -103,7 +103,7 @@ contains
                       &WalkerCng       GrowRate        TotWalkers      Annihil         &
                       &NoDied          NoBorn          Proj.E          Av.Shift        &
                       &Proj.E.Cyc"
-                if (tTrialWavefunction) write(iout, "(A)", advance = 'no') &
+                if (tTrialWavefunction .or. tStartTrialLater) write(iout, "(A)", advance = 'no') &
                       "    Trial.E.Cyc "
                 write(iout, "(A)", advance = 'yes') "      NoatHF          NoatDoubs       &
                 &AccRat        UniqueDets    NumDetsSpawned   IterTime"
@@ -123,7 +123,7 @@ contains
                   &26.HF weight    27.|Psi|     28.Inst S^2 &
                   &29.Inst S^2   30.AbsProjE   31.PartsDiffProc &
                   &32.|Semistoch|/|Psi|  33.MaxCycSpawn"
-           if (tTrialWavefunction) then 
+           if (tTrialWavefunction .or. tStartTrialLater) then 
                   write(fcimcstats_unit, "(A)", advance = 'no') &
                   "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
            end if
@@ -280,7 +280,7 @@ contains
                 PartsDiffProc, &                           ! 31.
                 norm_semistoch(2)/norm_psi(2), &           ! 32.
                 all_max_cyc_spawn                          ! 33.
-                if (tTrialWavefunction) then
+                if (tTrialWavefunction .or. tStartTrialLater) then
                     write(fcimcstats_unit2, "(3(1X,es17.10))", advance = 'no') &
                     (tot_trial_numerator(2) / StepsSft), &
                     (tot_trial_denom(2) / StepsSft), &
@@ -326,7 +326,7 @@ contains
                 PartsDiffProc, &                           ! 31.
                 norm_semistoch(1)/norm_psi(1), &           ! 32.
                 all_max_cyc_spawn                          ! 33.
-                if (tTrialWavefunction) then
+                if (tTrialWavefunction .or. tStartTrialLater) then
                     write(fcimcstats_unit, "(3(1X,es18.11))", advance = 'no') &
                     (tot_trial_numerator(1) / StepsSft), &              ! 34.
                     (tot_trial_denom(1) / StepsSft), &                  ! 35.
@@ -347,8 +347,12 @@ contains
                     ProjectionE(1), &
                     AvDiagSft(1), &
                     proje_iter(1)
-                if (tTrialWavefunction) write(iout, "(G20.11)", advance = 'no') &
-                    (tot_trial_numerator(1)/tot_trial_denom(1))
+                if (tTrialWavefunction) then
+                     write(iout, "(G20.11)", advance = 'no') &
+                         (tot_trial_numerator(1)/tot_trial_denom(1))
+                else if (tStartTrialLater) then
+                     write(iout, "(G20.11)", advance = 'no') 0.0_dp
+                end if
                 write (iout, "(3G16.7,2I12,G13.5)", advance = 'yes') &
                     AllNoatHF(1), &
                     AllNoatDoubs(1), &
@@ -555,7 +559,7 @@ contains
                                 (AllENumCyc(p) + Hii*AllHFCyc(p)) / StepsSft,&
                                 'ProjE Num (' // trim(adjustl(tmpc)) // ")")
 
-                if (tTrialWavefunction) then
+                if (tTrialWavefunction .or. tStartTrialLater) then
                     call stats_out (state, .false., &
                                     tot_trial_numerator(p) / StepsSft, &
                                     'TrialE Num (' // trim(adjustl(tmpc)) // ")")
@@ -581,7 +585,7 @@ contains
             ! Print overlaps between replicas at the end.
             do p = 1, inum_runs
                 write(tmpc, '(i5)') p
-                if (tOrthogonaliseReplicas .and. tPrintReplicaOverlaps) then
+                if (tPrintReplicaOverlaps) then
                     do q = p+1, inum_runs
                         write(tmpc2, '(i5)') q
                         call stats_out(state, .false., replica_overlaps(p, q),&

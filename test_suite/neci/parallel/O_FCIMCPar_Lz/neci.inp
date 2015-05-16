@@ -26,6 +26,7 @@ shiftdamp 0.1
 memoryfacpart 1.75
 memoryfacspawn 0.5
 stepsshift 10
+positive-hf-sign
 endcalc
 
 integral

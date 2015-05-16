@@ -16,7 +16,7 @@ test_data = [
     ['energy_ground','GROUND', -1],
     ['ref_energy','<D0|H|D0>', -1],
     ['energy_summed','Summed', -1],
-    ['energy_rdm','*TOTAL ENERGY* CALCULATED USING THE REDUCED DENSITY MATRICES', -1],
+    ['energy_rdm','*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*', -1],
     ['max_error_rdm','MAX ABS ERROR IN HERMITICITY', 1],
     ['sum_error_rdm','SUM ABS ERROR IN HERMITICITY', 1],
     ['overlap_sum','Sum of H', -1],
