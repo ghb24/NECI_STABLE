@@ -122,6 +122,9 @@ contains
                          &correctly determined")
         end if
 
+        ! And do a load balancing before anything else happens
+        call adjust_load_balance(iter_data_fciqmc)
+
     end subroutine
 
     subroutine clean_load_balance()
