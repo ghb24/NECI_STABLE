@@ -193,7 +193,10 @@ MODULE ReadInput_neci
                             tMultiReplicaInitiators, tRealCoeffByExcitLevel, &
                             tAllRealCoeff, tUseRealCoeffs, tChangeProjEDet, &
                             tOrthogonaliseReplicas, tReadPops, tStartMP1, &
-                            tStartCAS, tUniqueHFNode
+                            tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
+                            tContTimeFull, tSurvivalInitiatorThreshold, &
+                            tSurvivalInitMultThresh, &
+                            tSpawnCountInitiatorThreshold
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
@@ -203,7 +206,7 @@ MODULE ReadInput_neci
         use LoggingData, only: iLogging, tCalcFCIMCPsi, tRDMOnFly, &
                            tCalcInstantS2, tDiagAllSpaceEver, &
                            tCalcVariationalEnergy, tCalcInstantS2Init, &
-                           tPopsFile
+                           tPopsFile, tRDMOnFly, tExplicitAllRDM
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
         use load_balance_calcnodes, only: tLoadBalanceBlocks
         use input_neci
@@ -567,7 +570,16 @@ MODULE ReadInput_neci
             ! a great deal of sense, and only slows things down...
             if (nNodes == 1) then
                 write(6,*) 'Disabling load balancing for single node calculation'
-                tLoadBalanceBlocks = 0
+                tLoadBalanceBlocks = .false.
+            end if
+
+            if ((tRDMOnFly .and. .not. tExplicitAllRDM) .or. &
+                tSurvivalInitiatorThreshold .or. tSurvivalInitMultThresh .or. &
+                tSpawnCountInitiatorThreshold .or. &
+                (tContTimeFCIMC .and. tContTimeFull)) then
+                call stop_all(t_r, 'Load balancing not yet usable for &
+                             &calculations requiring accumulated determinant &
+                             &specific global data')
             end if
         end if
 
