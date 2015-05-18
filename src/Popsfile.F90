@@ -37,7 +37,7 @@ MODULE PopsfileMod
     use fcimc_helper, only: update_run_reference
     use replica_data, only: set_initial_global_data
     use load_balance, only: pops_init_balance_blocks
-    use load_balance_calcnodes, only: tLoadBalanceBlocks
+    use load_balance_calcnodes, only: tLoadBalanceBlocks, balance_blocks
 
     implicit none
 
@@ -209,11 +209,6 @@ contains
             close(iunit)
         endif
 
-        ! If we are doing load balancing, do an initial balance now that we
-        ! have read the particles in
-        if (tLoadBalanceBlocks) &
-            call pops_init_balance_blocks(PopBalanceBlocks)
-
         ! Test we have still got all determinants
         write(6,*) "CurrWalkers: ", CurrWalkers
         call MPISum(CurrWalkers, 1, AllCurrWalkers)
@@ -285,6 +280,14 @@ contains
             enddo
 
         end if
+
+        ! If we are doing load balancing, do an initial balance now that we
+        ! have read the particles in
+        ! n.b. This must be done after the hash tables have been initialised
+        ! properly, or everything will break!
+        if (tLoadBalanceBlocks .and. tCalcExtraInfo) &
+            call pops_init_balance_blocks(PopBalanceBlocks)
+
 
         call mpibarrier(err)
 
@@ -915,6 +918,18 @@ r_loop: do while(.not.tStoreDet)
 
         call set_initial_global_data(TotWalkers, CurrentDets)
 
+        ! If we are doing load balancing, do an initial balance now that we
+        ! have read the particles in
+        ! n.b. This must be done after the hash tables have been initialised
+        ! properly, or everything will break!
+        if (tLoadBalanceBlocks) then
+            ! n.b. The free-slot list will be empty after reading from POPS
+            ! (which are densely packed). Not otherwised initialised by here.
+            iStartFreeSlot=1
+            iEndFreeSlot=0
+            call pops_init_balance_blocks(PopBalanceBlocks)
+        end if
+
     end subroutine InitFCIMC_pops
     
     subroutine CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
@@ -1215,6 +1230,7 @@ r_loop: do while(.not.tStoreDet)
         call MPIBCast(PopGammaPar)
         call MPIBcast(PopMaxDeathCpt)
         call MPIBcast(PopRandomHash)
+        call MPIBcast(PopBalanceBlocks)
         tPop64Bit=Pop64Bit
         tPopHPHF=PopHPHF
         tPopLz=PopLz
@@ -1715,6 +1731,9 @@ r_loop: do while(.not.tStoreDet)
                                       ',PopGammaOpp=', gamma_opp, &
                                       ',PopGammaPar=', gamma_par, &
                                       ',PopMaxDeathCpt=', max_death_cpt
+
+        if (tLoadBalanceBlocks) &
+            write(iunit, '(a,i7)') 'PopBalanceBlocks=', balance_blocks
 
         if (.not. tSplitPops) then
             ! Write out the number of particles on each processor.

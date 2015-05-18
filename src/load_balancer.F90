@@ -87,6 +87,8 @@ contains
             return
         end if
 
+        write(6,"('Initialising load balancing blocks from data in POPSFILE')")
+
         ! We can only initialise blocking in this manner if the blocks match
         ! the number of blocks in the popsfile
         if (pops_blocks /= balance_blocks) &

@@ -1105,7 +1105,7 @@ contains
         !Variables from popsfile header...
         logical :: tPop64Bit,tPopHPHF,tPopLz
         integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,Popinum_runs
-        integer :: PopRandomHash(1024)
+        integer :: PopRandomHash(1024), PopBalanceBlocks
         integer(int64) :: iPopAllTotWalkers
         integer :: i
         real(dp) :: PopDiagSft(1:inum_runs)
@@ -1147,6 +1147,7 @@ contains
                     ! The following values were not read in...
                     read_tau = 0.0_dp
                     read_nnodes = 0
+                    PopBalanceBlocks = -1
                 elseif(PopsVersion.eq.4) then
                     ! The only difference between 3 & 4 is just that 4 reads 
                     ! in via a namelist, so that we can add more details 
@@ -1155,7 +1156,8 @@ contains
                             iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
                             PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
                             read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
-                            read_pparallel, read_nnodes, read_walkers_on_nodes)
+                            read_pparallel, read_nnodes, read_walkers_on_nodes,&
+                            PopBalanceBlocks)
                     ! Use the random hash from the Popsfile. This is so that,
                     ! if we are using the same number of processors as the job
                     ! which produced the Popsfile, we can send the determinants
@@ -1279,7 +1281,8 @@ contains
             ! If we have a popsfile, read the walkers in now.
             if(tReadPops .and. .not.tPopsAlreadyRead) then
                 call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, iPopNel, read_nnodes, &
-                                    read_walkers_on_nodes, pops_pert)
+                                    read_walkers_on_nodes, pops_pert, &
+                                    PopBalanceBLocks)
             else
                 if(tStartMP1) then
                     !Initialise walkers according to mp1 amplitude.
