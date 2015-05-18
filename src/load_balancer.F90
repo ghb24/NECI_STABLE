@@ -12,8 +12,8 @@ module load_balance
                             flag_connected, flag_trial
     use bit_reps, only: set_flag, nullify_ilut_part, clear_has_been_initiator,&
                         encode_part_sign, nullify_ilut
+    use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc
     use searching, only: hash_search_trial, bin_search_trial
-    use FciMCData, only: HashIndex, FreeSlot, CurrentDets
     use Determinants, only: get_helement, write_det
     use nElRDMMod, only: det_removed_fill_diag_rdm
     use hphf_integrals, only: hphf_diag_helement
@@ -64,6 +64,61 @@ contains
         do i = 1, balance_blocks
             LoadBalanceMapping(i) = int((i - 1) / oversample_factor)
         end do
+
+    end subroutine
+
+    subroutine pops_init_balance_blocks(pops_blocks)
+
+        integer, intent(in) :: pops_blocks
+        integer :: det(nel), block, j
+        integer :: mapping_tmp(balance_blocks)
+        integer :: mapping_test(balance_blocks)
+        integer :: mapping_test_all(balance_blocks)
+        real(dp) :: sgn(lenof_sign)
+        character(*), parameter :: this_routine = 'pops_init_balance_blocks'
+
+        ! If the particles have been read in using the 'general' routine, then
+        ! they will have been distributed according to the already-initialised
+        ! blocking structure
+        ! --> all we need to do is rebalance things
+        ASSERT(allocated(LoadBalanceMapping))
+        if (pops_blocks == -1) then
+            call adjust_load_balance(iter_data_fciqmc)
+            return
+        end if
+
+        ! We can only initialise blocking in this manner if the blocks match
+        ! the number of blocks in the popsfile
+        if (pops_blocks /= balance_blocks) &
+            call stop_all(this_routine, 'Incorrect number of load balancing &
+                                        &blocks.')
+
+        ! Determine which blocks are found on which processors. Do this by
+        ! setting all the blocks to zero, seeing what is on each processor and
+        ! then summing.
+        mapping_tmp = 0
+        mapping_test = 0
+        do j = 1, int(TotWalkers)
+            call extract_sign(CurrentDets(:,j), sgn)
+            if (IsUnoccDet(sgn)) cycle
+
+            ! Use ceiling as part-integer particles involve the same
+            ! computational cost...
+            call decode_bit_det(det, CurrentDets(:,j))
+            block = get_det_block(nel, det, 0)
+
+            mapping_tmp(block) = iProcIndex
+            mapping_test(block) = 1
+        end do
+        call MPISumAll(mapping_tmp, LoadBalanceMapping)
+
+        ! Ensure that all of the mappings are set on one, and only one
+        ! processor.
+        call MPISumAll(mapping_test, mapping_test_all)
+        if (.not. all(mapping_test_all == 1)) then
+            call stop_all(this_routine, "Multi-processor mapping not &
+                         &correctly determined")
+        end if
 
     end subroutine
 
