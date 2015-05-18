@@ -557,9 +557,18 @@ MODULE ReadInput_neci
             end if
         end if
 
-        if (tLoadBalanceBlocks .and. tUniqueHFNode) then
-            call stop_all(t_r, "UNIQUE-HF-NODE requires disabling &
-                               &LOAD-BALANCE-BLOCKS")
+        if (tLoadBalanceBlocks) then
+            if (tUniqueHFNode) then
+                call stop_all(t_r, "UNIQUE-HF-NODE requires disabling &
+                                   &LOAD-BALANCE-BLOCKS")
+            end if
+
+            ! If there is only one node, then load balancing doesn't make
+            ! a great deal of sense, and only slows things down...
+            if (nNodes == 1) then
+                write(6,*) 'Disabling load balancing for single node calculation'
+                tLoadBalanceBlocks = 0
+            end if
         end if
 
     end subroutine checkinput
