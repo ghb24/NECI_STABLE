@@ -429,7 +429,8 @@ contains
     subroutine create_particle_kp_estimates (nI_child, ilut_child, child_sign, tNearlyFull)
 
         use bit_rep_data, only: NOffSgn
-        use hash, only: DetermineDetNode, hash_table_lookup, add_hash_table_entry
+        use load_balance_calcnodes, only: DetermineDetNode
+        use hash, only: hash_table_lookup, add_hash_table_entry
         use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots, SpawnedParts, spawn_ht
         use kp_fciqmc_data_mod, only: MaxSpawnedEachProc
         use SystemData, only: nel
