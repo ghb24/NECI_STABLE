@@ -6,6 +6,7 @@ for f in *; do
 
         rm -f test.*
         rm -f FCIMCStats*
+        rm -f fciqmc_stats*
         rm -f INITIATORStats
         rm -f HAMIL
         rm -f TMAT

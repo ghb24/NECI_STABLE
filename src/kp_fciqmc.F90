@@ -24,11 +24,10 @@ module kp_fciqmc
     use fcimc_initialisation, only: CalcApproxpDoubles
     use fcimc_helper, only: SumEContrib, end_iter_stats, create_particle_with_hash_table, &
                             CalcParentFlag, walker_death, decide_num_to_spawn
-    use fcimc_output, only: end_iteration_print_warn, WriteFCIMCStats, &
-                            write_fcimcstats2
+    use fcimc_output, only: end_iteration_print_warn
     use fcimc_iter_utils, only: calculate_new_shift_wrapper, update_iter_data
     use global_det_data, only: det_diagH
-    use LoggingData, only: tPopsFile, tPrintDataTables
+    use LoggingData, only: tPopsFile
     use Parallel_neci, only: iProcIndex
     use ParallelHelper, only: root
     use PopsFileMod, only: WriteToPopsFileParOneArr
@@ -99,8 +98,7 @@ contains
                 overlap_matrix(:,:) = 0.0_dp
                 hamil_matrix(:,:) = 0.0_dp
 
-                call init_kp_fciqmc_repeat(iconfig, irepeat, kp%nrepeats, kp%nvecs)
-                if (tPrintDataTables) call WriteFCIMCStats()
+                call init_kp_fciqmc_repeat(iconfig, irepeat, kp%nrepeats, kp%nvecs, iter_data_fciqmc)
 
                 do ivec = 1, kp%nvecs
 
@@ -421,8 +419,7 @@ contains
 
         outer_loop: do irepeat = 1, kp%nrepeats
 
-            call init_kp_fciqmc_repeat(iconfig, irepeat, kp%nrepeats, kp%nvecs)
-            call write_fcimcstats2(iter_data_fciqmc)
+            call init_kp_fciqmc_repeat(iconfig, irepeat, kp%nrepeats, kp%nvecs, iter_data_fciqmc)
             if (iProcIndex == root) call write_ex_state_header(kp%nvecs, irepeat)
 
             do ireport = 1, kp%nreports
