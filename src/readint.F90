@@ -273,7 +273,7 @@ contains
 !         endif
         
          !For Molpro, ISPINS should always be 2, and therefore NORB is spatial, and len is spin orbtials
-         IF(LEN.NE.ISPINS*NORB) STOP 'LEN .NE. NORB in GETFCIBASIS'
+         IF(LEN.NE.ISPINS*NORB) call stop_all(t_r, 'LEN .NE. NORB in GETFCIBASIS')
          G1(1:LEN)=NullBasisFn
          ARR=0.0_dp
 
@@ -303,7 +303,7 @@ contains
 
              IF(TBIN) THEN
                 if(tMolpro) call stop_all(t_r,'UHF Bin read not functional through molpro')
-                IF(UHF.or.tROHF) STOP 'UHF Bin read not functional'
+                IF(UHF.or.tROHF) call stop_all(t_r, 'UHF Bin read not functional')
                 MASK=(2**16)-1
                 
                 !IND contains all the indices in an integer(int64) - use mask of 16bit to extract them
@@ -778,7 +778,7 @@ contains
                         UMAT(UMatInd(I,K,J,L,0,0))=Z
                     ENDIF
                 ELSEIF(TSTARSTORE.and.(.not.TUMAT2D)) THEN
-                    STOP 'Need UMAT2D with TSTARSTORE'
+                    call stop_all(t_r, 'Need UMAT2D with TSTARSTORE')
                 ELSEIF(tCacheFCIDUMPInts.or.tRIIntegrals) THEN
                     CALL Stop_All("ReadFCIInts","TUMAT2D should be set")
                 ELSE
@@ -874,6 +874,7 @@ contains
          integer(int64) MASK,IND
          INTEGER I,J,K,L,X,Y, iunit
          LOGICAL LWRITE
+         character(*), parameter :: this_routine = 'READFCIINTBIN'
          !NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,UHF
          LWRITE=.FALSE.
          !UHF=.FALSE.
@@ -949,7 +950,7 @@ contains
                     UMAT(UMatInd(I,K,J,L,0,0))=Z
                 ENDIF
             ELSEIF(TSTARSTORE.and.(.not.TUMAT2D)) THEN
-                STOP 'Need UMAT2D with TSTARSTORE'
+                call stop_all(this_routine, 'Need UMAT2D with TSTARSTORE')
             ELSE
                 UMAT(UMatInd(I,K,J,L,0,0))=Z
             ENDIF

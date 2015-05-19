@@ -110,7 +110,7 @@ C.. Diagonalize
          CALL DSYEV('V','L',NLIST,RIJMAT,NLIST,WLIST,WORK,WORKL,INFO)
          IF(INFO.NE.0) THEN
             WRITE(6,*) 'DYSEV error: ',INFO
-            STOP
+            call stop_all(thisroutine, "DSYEV error")
          ENDIF
          deallocate(WORK)
          call LogMemDealloc(thisroutine,tagWORK)
@@ -319,7 +319,7 @@ C.. Diagonalize
      &            RIJMAT,NLIST,WLIST,WORK,WORKL,INFO)
                IF(INFO.NE.0) THEN
                   WRITE(6,*) 'DYSEV error: ',INFO
-                  STOP
+                  call stop_all(thisroutine, "DSYEV error")
                ENDIF
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
                SI=0.0_dp
@@ -428,6 +428,7 @@ C         CLOSE(36)
          INTEGER I,J
          real(dp) SI
          real(dp) RII
+         character(*), parameter :: this_routine = 'RHODIAG_CP'
          RII=RHOIJ(0,0)
 C.. Diagonalize
          proc_timer%timer_name='RHODIAG_CP'
@@ -451,7 +452,7 @@ C         WRITE(6,*) ((RIJMAT(I,J),J=1,I_V),I=1,I_V)
 C         WRITE(6,*) (WLIST(I),I=1,I_V)
          IF(INFO.NE.0) THEN
             WRITE(6,*) 'DYSEV error: ',INFO
-            STOP
+            call stop_all(this_routine, "DSYEV error")
          ENDIF
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
          SI=0.0_dp
@@ -504,6 +505,7 @@ C.. do we subtract out lower vertices here or later?
          real(dp) HDiag_CPPRES
          real(dp) R,S,DLWDB,DD2
          real(dp) RII
+         character(*), parameter :: this_routine = 'HDIAG_CPP'
 ! Optimise the 1V case
          IF(I_V.EQ.1) THEN
             DLWDB=HIJ(1,1)
@@ -552,7 +554,7 @@ CIMISS-1
      &            WLIST,WORK,3*I_V,INFO)
             IF(INFO.NE.0) THEN
                WRITE(6,*) 'DYSEV error: ',INFO
-               STOP
+               call stop_all(this_routine, "DSYEV error")
             ENDIF
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
 C.. now calculate exp(-beta lambda) for each eigenvalue, with the 
@@ -581,7 +583,7 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
      &            WLIST,NWORK,4*I_V,WORK,INFO)
             IF(INFO.NE.0) THEN
                WRITE(6,*) 'ZHEEV error: ',INFO
-               STOP
+               call stop_all(this_routine, "ZHEEV error")
             ENDIF
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
 C.. now calculate exp(-beta lambda) for each eigenvalue, with the 
@@ -638,6 +640,7 @@ C.. do we subtract out lower vertices here or later?
          real(dp) RhoDiag_CPPRES
          real(dp) DBETA
          LOGICAL tLogWeight
+         character(*), parameter :: this_routine = 'RHODIAG_CPP'
 ! Optimise the 1V case
          IF(I_V.EQ.1) THEN
             DLWDB=HIJS(1)
@@ -704,7 +707,7 @@ C         WRITE(6,*) I_V
      &            WLIST,WORK,3*I_V,INFO)
             IF(INFO.NE.0) THEN
                WRITE(6,*) 'DYSEV error: ',INFO
-               STOP
+               call stop_all(this_routine, "DSYEV error")
             ENDIF
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
 C.. divide through by RHOII^P
@@ -746,7 +749,7 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
      &            WLIST,NWORK,4*I_V,WORK,INFO)
             IF(INFO.NE.0) THEN
                WRITE(6,*) 'ZHEEV error: ',INFO
-               STOP
+               call stop_all(this_routine, "ZHEEV error")
             ENDIF
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
 C.. divide through by RHOII^P
@@ -822,6 +825,7 @@ C.. do we subtract out lower vertices here or later?
          real(dp) DLWDB,RII
          real(dp) RhoDiag_CPPS2VS
          real(dp) DBETA
+         character(*), parameter :: this_routine = 'RHODIAG_CPPS2VS'
 ! Optimise the 1V case
          IF(I_V.EQ.1) THEN
             RII=HIJS(1)
@@ -847,7 +851,7 @@ C         WRITE(6,*) "...",I_V,IMISS
      &            WLIST,WORK,3*I_V,INFO)
             IF(INFO.NE.0) THEN
                WRITE(6,*) 'DYSEV error: ',INFO
-               STOP
+               call stop_all(this_routine, "DSYEV error")
             ENDIF
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
 C.. divide through by RHOII^P
@@ -880,7 +884,7 @@ C            WRITE(6,*) I_V,DLWDB
      &            WLIST,NWORK,4*I_V,WORK,INFO)
             IF(INFO.NE.0) THEN
                WRITE(6,*) 'ZHEEV error: ',INFO
-               STOP
+               call stop_all(this_routine, "ZHEEV error")
             ENDIF
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
 C.. divide through by RHOII^P
@@ -934,6 +938,7 @@ C.. do we subtract out lower vertices here or later?
          real(dp) HDiag_CPPS2VS
          real(dp) R,S,DLWDB
          real(dp) RII
+         character(*), parameter :: this_routine = 'HDIAG_CPPS2VS'
          call stop_all('HDIAG_CPPS2VS','Routine depreciated')
          j=1
 ! Optimise the 1V case
@@ -967,7 +972,7 @@ C.. remove up to IMISS
      &            WLIST,WORK,3*I_V,INFO)
             IF(INFO.NE.0) THEN
                WRITE(6,*) 'DYSEV error: ',INFO
-               STOP
+               call stop_all(this_routine, "DSYEV error")
             ENDIF
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
 C.. now calculate exp(-beta lambda) for each eigenvalue, with the 
@@ -996,7 +1001,7 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
      &            WLIST,NWORK,4*I_V,WORK,INFO)
             IF(INFO.NE.0) THEN
                WRITE(6,*) 'ZHEEV error: ',INFO
-               STOP
+               call stop_all(this_routine, "ZHEEV error")
             ENDIF
 C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
 C.. now calculate exp(-beta lambda) for each eigenvalue, with the 

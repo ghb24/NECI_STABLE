@@ -359,6 +359,7 @@ MODULE ISKRandExcit
         integer :: icunused, exunused(2,2)
         logical :: tParityunused, tTmp
         type(excit_gen_store_type) :: store
+        character(*), parameter :: this_routine = 'TestGenRandISKExcit'
         HElement_t :: HEl
 
         tUseBrillouin=.false.
@@ -512,9 +513,7 @@ MODULE ISKRandExcit
         WRITE(6,*) "There are ",iUniqueBeta," unique ISK wavefunctions from the inverted determinant, " &
         & //"which are not in the alpha version."
         IF(iUniqueBeta.ne.0) THEN
-            WRITE(6,*) "ISK from beta, but not from alpha!"
-            CALL neci_flush(6)
-            STOP
+            call stop_all(this_routine, "ISK from beta, but not from alpha!")
         ENDIF
 
         ALLOCATE(UniqueHPHFList(0:NIfTot,iUniqueHPHF))

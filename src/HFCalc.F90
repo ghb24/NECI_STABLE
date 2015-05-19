@@ -77,7 +77,7 @@ MODULE HFCalc
             !THIS ROUTINE NO LONGER WORKS WITH NEW TMAT/UMAT MODULARISATION
             IF(THFBASIS) THEN
                WRITE(6,*) "Allocating TMAT2"
-               IF(TSTARSTORE) STOP 'TSTARSTORE WITH HFBASIS?!'
+               IF(TSTARSTORE) call stop_all(this_routine, 'TSTARSTORE WITH HFBASIS?!')
                CALL SetupTMAT2(nBasis,2,TMATINT)
                NORBUSED=NBASIS-NTFROZEN
                IF(TREADTUMAT) THEN
