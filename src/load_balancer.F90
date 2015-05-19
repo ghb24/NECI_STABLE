@@ -12,7 +12,8 @@ module load_balance
                             flag_connected, flag_trial
     use bit_reps, only: set_flag, nullify_ilut_part, clear_has_been_initiator,&
                         encode_part_sign, nullify_ilut
-    use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc
+    use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
+                         tFillingStochRDMOnFly
     use searching, only: hash_search_trial, bin_search_trial
     use Determinants, only: get_helement, write_det
     use nElRDMMod, only: det_removed_fill_diag_rdm
@@ -156,6 +157,7 @@ contains
         ! or we need to be a bit more clever!!!
         ! TODO: What happens if we move reference sites around?
         ASSERT(.not. tSemiStochastic)
+        ASSERT(.not. tFillingStochRDMOnFly)
 
         ! Count the number of particles inside each of the blocks
         block_parts = 0
