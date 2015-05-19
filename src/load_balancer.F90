@@ -146,7 +146,7 @@ contains
         integer(int64) :: block_parts_all(balance_blocks)
         integer(int64) :: proc_parts(0:nProcessors-1)
         integer(int64) :: smallest_size
-        integer :: j, proc, nblocks, det(nel), block
+        integer :: j, proc, nblocks, det(nel), block, TotWalkersTmp
         integer :: min_parts, max_parts, min_proc, max_proc
         integer :: smallest_block
         real(dp) :: sgn(lenof_sign), avg_parts
@@ -258,7 +258,9 @@ contains
         write(6,*) '--'
 
         ! TODO: Only call this if we have made changes!
-        call CalcHashTableStats(TotWalkers, iter_data)
+        TotWalkersTmp = int(TotWalkers, sizeof_int)
+        call CalcHashTableStats(TotWalkersTmp, iter_data)
+        TotWalkers = TotWalkersTmp
 
         !   -- Test if sufficiently uniform
         !   -- If not, pick largest, and smallest, sites
