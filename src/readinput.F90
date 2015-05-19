@@ -573,8 +573,7 @@ MODULE ReadInput_neci
                 tLoadBalanceBlocks = .false.
             end if
 
-            if ((tRDMOnFly .and. .not. tExplicitAllRDM) .or. &
-                tSurvivalInitiatorThreshold .or. tSurvivalInitMultThresh .or. &
+            if (tSurvivalInitiatorThreshold .or. tSurvivalInitMultThresh .or. &
                 tSpawnCountInitiatorThreshold .or. &
                 (tContTimeFCIMC .and. tContTimeFull)) then
                 call stop_all(t_r, 'Load balancing not yet usable for &
