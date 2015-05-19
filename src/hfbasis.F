@@ -130,11 +130,13 @@ C.. Generic spatial symmetry
          type(timer), save :: proc_timer
          INTEGER ID1,ID2,ID3,ID4,NHG,NORBUSED
          LOGICAL LSPN
+         character(*), parameter :: this_routine = 'CALCHFUMAT'
          NHG=NBASIS
          proc_timer%timer_name='CALCHFUMAT'
          call set_timer(proc_timer)
          WRITE(6,*) 'CALCULATING HF UMAT'
-       STOP "HF UMAT calc broken through U/TMAT reindexing. Please fix"
+       call stop_all(this_routine,
+     &    "HF UMAT calc broken through U/TMAT reindexing. Please fix")
 #ifdef __CMPLX
          call stop_all('CALCHFUMAT', 
      &                 'HF not implemented for complex orbitals.')
@@ -239,16 +241,19 @@ C..Symmetries not needed by UMatInd
          INTEGER I,L,J,NB,NE,IG
          real(dp) VAL
          INTEGER IFINDBASISFN
+         character(*), parameter :: this_routine = 'READHFBASIS'
          WRITE(6,*) "Loading HF BASIS"
          OPEN(10,FILE='HFBASIS',STATUS='OLD')
          READ(10,*)
          READ(10,*) NB,NE
 C.. NE is NEVAL, and NB is NBASIS/2
 C.. NBASIS is the number of orbitals, so *2 to get # spinorbitals
-C         IF(NE.NE.NEL) STOP 'NEL in HFBASIS <> NEL'
+C         IF(NE.NE.NEL) call stop_all(this_routine, 'NEL in HFBASIS <> NEL')
 
-         IF(NE.NE.NB) STOP 'NEVAL <> NBASIS in HFBASIS not supported'
-         IF(NB*2.NE.NBASIS) STOP 'NBASIS in HFBASIS <> NHG'
+         IF(NE.NE.NB) call stop_all(this_routine,
+     &                'NEVAL <> NBASIS in HFBASIS not supported')
+         IF(NB*2.NE.NBASIS) call stop_all(this_routine,
+     &                 'NBASIS in HFBASIS <> NHG')
          DO I=1,NB
             DO L=-1,1,2
                READ(10,*)
@@ -303,7 +308,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          character(*),parameter :: this_routine='CALCHFBASIS'
 C.. Allocate mem etc.
 C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
-C         IF(TRHF) STOP 'RHF not supported'
+C         IF(TRHF) call stop_all(this_routine, 'RHF not supported')
          NSPINS=1+(NBASISMAX(4,2)-NBASISMAX(4,1))/2
          NSBASIS=NBASIS/NSPINS
 C         IF(TRHF) NSPINS=1
@@ -635,7 +640,8 @@ C.. Now sum in the alpha and beta block of u matrix
 
          INTEGER*4 INFO
          HElement_t TOT,TOT2
-         INTEGER ISPN,I,J,K         
+         INTEGER ISPN,I,J,K
+         character(*), parameter :: this_routine = 'DIAGFMAT'
 
 C.. First calculate the HF energy double counting contrib
          TOT=0.0_dp
@@ -662,7 +668,7 @@ C.. eigenvector N is in FMAT(i,N,ISPN), where i is the component of the
 C.. vector
             IF(INFO.NE.0) THEN
                WRITE(6,*) 'DYSEV error: ',INFO
-               STOP
+               call stop_all(this_routine, "DSYEV error")
             ENDIF
             IF(HFLogLevel.gt.0) 
      &      CALL WRITE_HEMATRIX("EIGVEC",NSBASIS,NSBASIS,FMAT(1,1,ISPN))
@@ -972,8 +978,10 @@ C         real(dp) RMSD
          INTEGER HFDET(*)
          
          real(dp) GETHELEMENT2T
+         character(*), parameter :: this_routine = 'UHFGRADDESC'
          irhfb = 0
-         IF(NSBASIS.GT.99) STOP 'ERROR - hardcoded NSBASIS limit of 100'
+         IF(NSBASIS.GT.99) call stop_all(this_routine,
+     &                    'ERROR - hardcoded NSBASIS limit of 100')
          ELAST=1.D20
          WRITE(6,*) "Performing Hartree-Fock Gradient Descent..."
          IF(IHFMETHOD.EQ.1) THEN
@@ -1386,16 +1394,19 @@ C.. Here A and C correspond to J and B corresponds to K
          real(dp) VAL
          INTEGER IFINDBASISFN
          LOGICAL TRANSP
+         character(*), parameter :: this_routine = 'READHFFMAT'
          WRITE(6,*) "Loading HF BASIS"
          OPEN(10,FILE='HFBASIS',STATUS='OLD')
          READ(10,*)
          READ(10,*) NB,NE
 C.. NE is NEVAL, and NB is NBASIS/2
 C.. NBASIS is the number of orbitals, so *2 to get # spinorbitals
-C         IF(NE.NE.NEL) STOP 'NEL in HFBASIS <> NEL'
+C         IF(NE.NE.NEL) call stop_all(this_routine, 'NEL in HFBASIS <> NEL')
 
-         IF(NE.NE.NB) STOP 'NEVAL <> NBASIS in HFBASIS not supported'
-         IF(NB*2.NE.NBASIS) STOP 'NBASIS in HFBASIS <> NHG'
+         IF(NE.NE.NB) call stop_all(this_routine,
+     &                  'NEVAL <> NBASIS in HFBASIS not supported')
+         IF(NB*2.NE.NBASIS) call stop_all(this_routine,
+     &                      'NBASIS in HFBASIS <> NHG')
          DO I=1,NB
             DO L=-1,1,2
                READ(10,*)
@@ -1425,6 +1436,7 @@ C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
 C.. HFBASIS(HFBASISFN,PRIMBASISFN) has PRIMBASISFN varying slowest
          INTEGER I,J,IBF,ITOT,NEL,FDET(NEL),ICUR
          real(dp) MX,OEN
+         character(*), parameter :: this_routine = 'ORDERBASISHF'
          ICUR=1
          DO I=1,NBASIS
              if (ICUR < NEL) then
@@ -1443,7 +1455,8 @@ C.. The largest element isn't big enough, so we abort
                WRITE(6,*) "Largest coeff of HF basis fn ",I," is ",MX
                WRITE(6,*) "Aborting ORDERBASISHF"
                CALL neci_flush(6)
-               STOP "ORDERBASISHF failed - HF Basis not converged"
+               call stop_all(this_routine,
+     &           "ORDERBASISHF failed - HF Basis not converged")
             ENDIF
             ARR(I,1)=HFE(I)
             ARR(IBF,2)=HFE(I)

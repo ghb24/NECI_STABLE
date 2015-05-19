@@ -92,7 +92,7 @@ C.. Diagonalize
             ENDIF
             IF(INFO.NE.0) THEN
                WRITE(6,*) 'DYSEV error: ',INFO
-               STOP
+               call stop_all(t_r, "DSYEV error")
             ENDIF
             IF(W(NBS).LT.GSEN) GSEN=W(NBS)
 ! This is commented out develomental code to label the determinants
@@ -114,7 +114,7 @@ C.. Diagonalize
 !                        exit
 !                    endif
 !                enddo
-!                if(k.eq.ndet+1) stop 'Error in finding spin-coup dets'
+!                if(k.eq.ndet+1) call stop_all(this_routine, 'Error in finding spin-coup dets')
 !                write(69,"(I4,4G20.10,3I5)") j,CK(j,1:4),Excit,nopen,k
 !            enddo
 !
@@ -141,6 +141,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          real(dp) MinS,MaxS,RangeBins
          INTEGER , ALLOCATABLE :: SHist(:,:)
          real(dp) , ALLOCATABLE :: RangeHist(:)
+         character(*), parameter :: t_r = 'ExcitChangeTest'
 
 !Vals(1) contains ground state
 !Check that eigenvectors are correct by multiplying matrix by first eigenvector
@@ -207,7 +208,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
                  IF(abs(KMAT(i,j)).gt.0.0_dp) NExcit=NExcit+1
              enddo
 
-!             IF(NExcit.lt.1) STOP 'ERROR IN COUNTING EXCITS'
+!             IF(NExcit.lt.1) call stop_all(this_routine, 'ERROR IN COUNTING EXCITS')
 
              do j=1,NDET
                  IF(i.eq.j) CYCLE
@@ -257,7 +258,8 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
                      do while(S(i,j).ge.RangeHist(Bin+1))
                          Bin=Bin+1
                      enddo
-                     IF(Bin.gt.NBins) STOP 'Error in creating histogram'
+                     IF(Bin.gt.NBins)
+     &                  call stop_all(t_r,'Error in creating histogram')
                      SHist(i,Bin)=SHist(i,Bin)+1
 
                  ENDIF
@@ -350,7 +352,7 @@ C.. Diagonalize
             CALL DSYEV('V','L',NBLK,CK,NBLK,W,WORK,3*NBLKMAX,INFO)
             IF(INFO.NE.0) THEN
                WRITE(6,*) 'DYSEV error: ',INFO
-               STOP
+               call stop_all(this_routine, "DSYEV error")
             ENDIF
 C.. Now work out exact wi etc.
             CALL GETSYMDEGEN(BLOCKSYM(I+1),NBASISMAX,IDEG)

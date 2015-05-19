@@ -236,7 +236,7 @@ c      csum=csum/dfloat(n1*n2*n3)
 c      sum=sqrt(real(csum)**2+dimag(csum)**2)
 c      write(6,*) csum,1.0_dp/sqrt(x*x+y*y+z*z) 
 c      write(6,*) sum
-c      stop
+c      st--op
       RETURN
       END
 C ============================================================

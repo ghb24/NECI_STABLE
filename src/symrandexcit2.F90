@@ -3582,6 +3582,7 @@ SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
     INTEGER :: IC,ExcitMat(2,2),nI(NEl),nJ(NEl),ExcitLevel,iGetExcitLevel
     INTEGER :: KOcc,KUnocc,SymprodnJ,SymprodnI,i
     integer(n_int) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
+    character(*), parameter :: this_routine = 'IsSymAllowedExcit'
 
      Excitlevel=iGetExcitLevel(nI,nJ,NEl)
      IF(Excitlevel.ne.IC) THEN
@@ -3594,7 +3595,7 @@ SUBROUTINE IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
          WRITE(6,*) "INVALID DET"
          call write_det (6, nI, .true.)
          call write_det (6, nJ, .true.)
-         STOP "INVALID DET"
+         call stop_all(this_routine, "INVALID DET")
      ENDIF
 
      SymprodnI=0

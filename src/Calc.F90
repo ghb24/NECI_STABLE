@@ -2203,7 +2203,7 @@ contains
 
 !          IF(G_VMC_FAC.LE.0) THEN
 !             WRITE(6,*) "G_VMC_FAC=",G_VMC_FAC
-!             STOP "G_VNC_FAC LE 0"
+!             call stop_all(this_routine, "G_VNC_FAC LE 0")
 !          ENDIF
 
           IF(BETAP.NE.0.0_dp) THEN 
@@ -2311,7 +2311,7 @@ contains
              CALL GENSYMDETSS(MDK,NEL,G1,BRR,NBASIS,MCDET,NLIST,NBASISMAX)
              IF(NLIST.EQ.0) THEN
 !C.. we couldn't find a det of that symmetry
-                STOP 'Cannot find MC start determinant of correct symmetry'
+                call stop_all(this_routine, 'Cannot find MC start determinant of correct symmetry')
              ENDIF
           ELSE
 !C             CALL GENRANDOMDET(NEL,NBASIS,MCDET)
@@ -2367,6 +2367,7 @@ contains
           real(dp) EN,WeightDum,EnerDum
           integer iSeed,iunit
           type(kp_fciqmc_data), intent(inout) :: kp
+          character(*), parameter :: this_routine = 'CalcDoCalc'
           iSeed=7 
 
 !C.. we need to calculate a value for RHOEPS, so we approximate that
@@ -2472,7 +2473,7 @@ contains
              IF(NTAY(1).GT.0) THEN
                 WRITE(6,*) "Using approx RHOs generated on the fly, NTAY=",NTAY(1)
 !C.. NMAX is now ARR
-                STOP "DMONTECARLO2 is now non-functional."
+                call stop_all(this_routine, "DMONTECARLO2 is now non-functional.")
              ELSEIF(NTAY(1).EQ.0) THEN
                 IF(TENERGY) THEN
                    WRITE(6,*) "Using exact RHOs generated on the fly"
@@ -2484,12 +2485,12 @@ contains
 !C..         UMAT=NDET
 !C..         ALAT=NMRKS
 !C..         NMAX=ARR
-                STOP "DMONTECARLO2 is now non-functional."
+                call stop_all(this_routine, "DMONTECARLO2 is now non-functional.")
 !                   EN=DMONTECARLO2(MCDET,I_P,BETA,DBETA,I_HMAX,I_VMAX,IMCSTEPS,             &
 !     &                G1,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS,                                 &
 !     &                NEVAL,W,CK,ARR,NMRKS,NDET,NTAY,RHOEPS,NWHTAY,ILOGGING,ECORE,BETAEQ)
                 ELSE
-                   STOP "TENERGY not set, but NTAY=0" 
+                   call stop_all(this_routine, "TENERGY not set, but NTAY=0" )
                 ENDIF
              ENDIF
              WRITE(6,*) "MC Energy:",EN
@@ -2515,6 +2516,7 @@ contains
           INTEGER iDeg, III, iunit
           Type(BasisFN) iSym
           LOGICAL tWarn
+          character(*), parameter :: this_routine = 'DoExactVertexCalc'
           
           real(dp) CalcMCEn, CalcDLWDB, DoExMC
             
@@ -2565,7 +2567,7 @@ contains
              EN=DOEXMC(NDET,NEVAL,CK,W,BETA,I_P,ILOGGING,0.0_dp,IMCSTEPS,G1,NMRKS,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS)
           ENDIF
           IF(TBEGRAPH) THEN
-             STOP 'BEGRAPH not implemented'
+             call stop_all(this_routine, 'BEGRAPH not implemented')
              IF(TENERGY) THEN
                 IF(NTAY(1).NE.0) THEN
 !                   CALL DOBEGRAPH(NDET,NEVAL,CK,W,I_P,ILOGGING,G1,NMRKS,nEl,NBASISMAX,nBasis,BRR)
