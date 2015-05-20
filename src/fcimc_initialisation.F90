@@ -80,8 +80,8 @@ module fcimc_initialisation
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
                                        gen_excit_4ind_weighted, &
                                        gen_excit_4ind_reverse
-    use hash, only: DetermineDetNode, FindWalkerHash, add_hash_table_entry, &
-                    init_hash_table
+    use hash, only: FindWalkerHash, add_hash_table_entry, init_hash_table
+    use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD , only : InitHistInitPops
@@ -98,8 +98,8 @@ module fcimc_initialisation
                                  new_child_stats_normal, &
                                  null_encode_child, attempt_die_normal
     use csf_data, only: csf_orbital_mask
-    use initial_trial_states, only: calc_trial_states, set_trial_populations, &
-                                    set_trial_states
+    use initial_trial_states, only: calc_trial_states_lanczos, &
+                                    set_trial_populations, set_trial_states
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                clean_global_det_data, init_global_det_data, &
                                set_part_init_time, set_spawn_rate
@@ -109,6 +109,7 @@ module fcimc_initialisation
     use kp_fciqmc_data_mod, only: tExcitedStateKP
     use sym_general_mod, only: ClassCountInd
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
+    use load_balance, only: clean_load_balance, init_load_balance
     use ueg_excit_gens, only: gen_ueg_excit
     use gndts_mod, only: gndts
     use csf, only: get_csf_helement
@@ -547,11 +548,11 @@ contains
         ! Option tRandomiseHashOrbs has now been removed.
         ! Its behaviour is now considered default
         ! --> Create a random mapping for the orbitals 
-        ALLOCATE(RandomHash(nBasis),stat=ierr)
+        ALLOCATE(RandomOrbIndex(nBasis),stat=ierr)
         IF(ierr.ne.0) THEN
-            CALL Stop_All(t_r,"Error in allocating RandomHash")
+            CALL Stop_All(t_r,"Error in allocating RandomOrbIndex")
         ENDIF
-        RandomHash(:)=0
+        RandomOrbIndex(:)=0
 
         ! We want another independent randomizing array for the hash table, so
         ! we do not introduce correlations between the two
@@ -566,7 +567,7 @@ contains
                 ! spin paired orbitals must be set equal
                 if (tSpatialOnlyHash) then
                     if (.not. btest(i, 0)) then
-                        RandomHash(i) = RandomHash(i - 1)
+                        RandomOrbIndex(i) = RandomOrbIndex(i - 1)
                         cycle
                     endif
                 endif
@@ -579,12 +580,12 @@ contains
 
                     ! Check all values which have already been set.
                     do j=1,nBasis
-                        IF(RandomHash(j).eq.ChosenOrb) EXIT
+                        IF(RandomOrbIndex(j).eq.ChosenOrb) EXIT
                     enddo
 
                     ! If not already used, then we can move on
                     if (j == nBasis+1) FoundPair = .true.
-                    RandomHash(i) = ChosenOrb
+                    RandomOrbIndex(i) = ChosenOrb
                 enddo
             enddo
 
@@ -624,14 +625,14 @@ contains
                 step = 1
             endif
             do i=1,nBasis
-                IF((RandomHash(i).eq.0).or.(RandomHash(i).gt.nBasis*1000)) THEN
+                IF((RandomOrbIndex(i).eq.0).or.(RandomOrbIndex(i).gt.nBasis*1000)) THEN
                     CALL Stop_All(t_r,"Random Hash incorrectly calculated")
                 ENDIF
                 IF((RandomHash2(i).eq.0).or.(RandomHash2(i).gt.nBasis*1000)) THEN
                     CALL Stop_All(t_r,"Random Hash 2 incorrectly calculated")
                 ENDIF
                 do j = i+step, nBasis, step
-                    IF(RandomHash(i).eq.RandomHash(j)) THEN
+                    IF(RandomOrbIndex(i).eq.RandomOrbIndex(j)) THEN
                         CALL Stop_All(t_r,"Random Hash incorrectly calculated")
                     ENDIF
                     IF(RandomHash2(i).eq.RandomHash2(j)) THEN
@@ -641,8 +642,10 @@ contains
             enddo
         ENDIF
         !Now broadcast to all processors
-        CALL MPIBCast(RandomHash,nBasis)
+        CALL MPIBCast(RandomOrbIndex,nBasis)
         call MPIBCast(RandomHash2,nBasis)
+
+        call init_load_balance()
 
         IF(tHPHF) THEN
             !IF(tLatticeGens) CALL Stop_All("SetupParameters","Cannot use HPHF with model systems currently.")
@@ -1102,7 +1105,7 @@ contains
         !Variables from popsfile header...
         logical :: tPop64Bit,tPopHPHF,tPopLz
         integer :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot,Popinum_runs
-        integer :: PopRandomHash(1024)
+        integer :: PopRandomHash(1024), PopBalanceBlocks
         integer(int64) :: iPopAllTotWalkers
         integer :: i
         real(dp) :: PopDiagSft(1:inum_runs)
@@ -1144,6 +1147,7 @@ contains
                     ! The following values were not read in...
                     read_tau = 0.0_dp
                     read_nnodes = 0
+                    PopBalanceBlocks = -1
                 elseif(PopsVersion.eq.4) then
                     ! The only difference between 3 & 4 is just that 4 reads 
                     ! in via a namelist, so that we can add more details 
@@ -1152,7 +1156,8 @@ contains
                             iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
                             PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
                             read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
-                            read_pparallel, read_nnodes, read_walkers_on_nodes)
+                            read_pparallel, read_nnodes, read_walkers_on_nodes,&
+                            PopBalanceBlocks)
                     ! Use the random hash from the Popsfile. This is so that,
                     ! if we are using the same number of processors as the job
                     ! which produced the Popsfile, we can send the determinants
@@ -1276,7 +1281,8 @@ contains
             ! If we have a popsfile, read the walkers in now.
             if(tReadPops .and. .not.tPopsAlreadyRead) then
                 call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, iPopNel, read_nnodes, &
-                                    read_walkers_on_nodes, pops_pert)
+                                    read_walkers_on_nodes, pops_pert, &
+                                    PopBalanceBLocks)
             else
                 if(tStartMP1) then
                     !Initialise walkers according to mp1 amplitude.
@@ -1596,7 +1602,7 @@ contains
         DEALLOCATE(iLutHF_True)
         DEALLOCATE(HFDet_True)
         IF(ALLOCATED(HighestPopDet)) DEALLOCATE(HighestPopDet)
-        IF(ALLOCATED(RandomHash)) DEALLOCATE(RandomHash)
+        IF(ALLOCATED(RandomOrbIndex)) DEALLOCATE(RandomOrbIndex)
 
         IF(ALLOCATED(SpinInvBrr)) THEN
             CALL LogMemDealloc(this_routine,SpinInvBRRTag)
@@ -1639,6 +1645,9 @@ contains
 
         ! Cleanup cont time
         call clean_cont_time()
+
+        ! Cleanup the load balancing
+        call clean_load_balance()
 
         if (tSemiStochastic) call end_semistoch()
 
@@ -1906,7 +1915,7 @@ contains
         nexcit = inum_runs
 
         ! Create the trial excited states
-        call calc_trial_states(init_trial_in, nexcit, ndets_this_proc, &
+        call calc_trial_states_lanczos(init_trial_in, nexcit, ndets_this_proc, &
                                SpawnedParts, evecs_this_proc, evals, &
                                space_sizes, space_displs, trial_init_reorder)
         ! Determine the walker populations associated with these states

@@ -32,9 +32,9 @@ module FciMCParMod
                                 determ_projection, average_determ_vector
     use trial_wf_gen, only: update_compare_trial_file, &
                             update_compare_trial_file, init_trial_wf
-    use hash, only: clear_hash_table
     use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps
+    use load_balance, only: tLoadBalanceBlocks, adjust_load_balance
     use bit_reps, only: set_flag, clr_flag, add_ilut_lists
     use exact_diag, only: perform_exact_diag_all_symmetry
     use spectral_lanczos, only: perform_spectral_lanczos
@@ -49,6 +49,7 @@ module FciMCParMod
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
     use ftlm_neci, only: perform_ftlm
+    use hash, only: clear_hash_table
     use soft_exit, only: ChangeVars
     use fcimc_initialisation
     use fcimc_iter_utils
@@ -260,6 +261,12 @@ module FciMCParMod
                 s_end=neci_etime(tend)
                 IterTime=IterTime+(s_end-s_start)
             endif
+
+            ! Add some load balancing magic!
+            if (tLoadBalanceBlocks .and. mod(iter, 1000) == 0 .and. &
+                .not. tSemiStochastic .and. .not. tFillingStochRDMOnFly) then
+                call adjust_load_balance(iter_data_fciqmc)
+            end if
 
             if (mod(Iter, StepsSft) == 0) then
 

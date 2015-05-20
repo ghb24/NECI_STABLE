@@ -24,7 +24,7 @@ contains
         use FciMCData, only: MaxWalkersPart, tTrialHash, tIncCancelledInitEnergy
         use FciMCData, only: con_space_vecs, ntrial_excits, trial_numerator, trial_denom
         use FciMCData, only: tot_trial_numerator, tot_trial_denom, HashIndex
-        use initial_trial_states, only: calc_trial_states
+        use initial_trial_states, only: calc_trial_states_lanczos
         use LoggingData, only: tWriteTrial, tCompareTrialAmps
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
         use ParallelHelper, only: root
@@ -79,8 +79,8 @@ contains
 
         write(6,'(a29)') "Generating the trial space..."; call neci_flush(6)
 
-        call calc_trial_states(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
-                               temp_energies, trial_counts, trial_displs, trial_est_reorder)
+        call calc_trial_states_lanczos(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
+                                       temp_energies, trial_counts, trial_displs, trial_est_reorder)
 
         write(6,'(a38,1X,i8)') "Size of trial space on this processor:", trial_space_size; call neci_flush(6)
 
@@ -321,7 +321,7 @@ contains
     subroutine remove_states_not_on_proc(ilut_list, ilut_list_size, update_trial_vector)
         
         use FciMCData, only: trial_wfs
-        use hash, only: DetermineDetNode
+        use load_balance_calcnodes, only: DetermineDetNode
 
         integer, intent(inout) :: ilut_list_size
         integer(n_int), intent(inout) :: ilut_list(0:,:)

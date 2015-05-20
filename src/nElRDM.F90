@@ -91,7 +91,7 @@ MODULE nElRDMMod
                             core_connections
     use SymExcit3, only: GenExcitations3
     use OneEInts, only: TMAT2D
-    use hash, only: DetermineDetNode
+    use load_balance_calcnodes, only: DetermineDetNode
     use global_det_data, only: get_iter_occ, get_av_sgn
     use constants
     use util_mod

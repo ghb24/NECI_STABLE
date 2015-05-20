@@ -44,7 +44,9 @@ module fcimc_helper
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
     use DetCalcData, only: FCIDetIndex, ICILevel, det
-    use hash, only: DetermineDetNode, remove_hash_table_entry
+    use hash, only: remove_hash_table_entry
+    use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
+    use load_balance, only: adjust_load_balance
     use nElRDMMod, only: store_parent_with_spawned, det_removed_fill_diag_rdm,&
                          extract_bit_rep_avsign_norm
     use Parallel_neci
@@ -1684,6 +1686,12 @@ contains
                 tFillingExplicRDMonFly = .true.
                 if(tHistSpawn) NHistEquilSteps = Iter
             else
+                
+                ! If we are load balancing, this will disable the load balancer
+                ! so we should do a last-gasp balance at this point.
+                if (tLoadBalanceBlocks) &
+                    call adjust_load_balance(iter_data_fciqmc)
+
                 extract_bit_rep_avsign => extract_bit_rep_avsign_norm
                 !By default - we will do a stochastic calculation of the RDM.
                 tFillingStochRDMonFly = .true.

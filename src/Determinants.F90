@@ -673,6 +673,7 @@ END MODULE Determinants
         integer i,j
         INTEGER GG(*),Lz
         Type(BasisFn) s
+        character(*), parameter :: this_routine = 'DetFreezeBasis'
 !C.. Deal with FDET
 !C.. GG(I) is the new position in G of the (old) orb I
          IF(FDET(1).NE.0) THEN
@@ -690,7 +691,7 @@ END MODULE Determinants
             IF(J.NE.NEL-NFROZEN-NFROZENIN) THEN
                WRITE(6,*) "Failed Freezing Det:"
                call write_det (6, FDET, .true.)
-               STOP "After Freezing, FDET has wrong number of electrons"
+               call stop_all(this_routine, "After Freezing, FDET has wrong number of electrons")
             ENDIF
          ENDIF
          IF(nUHFDet(1).NE.0) THEN
@@ -708,7 +709,7 @@ END MODULE Determinants
             IF(J.NE.NEL-NFROZEN-NFROZENIN) THEN
                WRITE(6,*) "Failed Freezing Det:"
                call write_det (6, nUHFDET, .true.)
-               STOP "After Freezing, UHFDET has wrong number of electrons"
+               call stop_all(this_routine, "After Freezing, UHFDET has wrong number of electrons")
             ENDIF
          ENDIF
          WRITE(6,"(A)",advance='no') " Post-Freeze Fermi det (D0):"
