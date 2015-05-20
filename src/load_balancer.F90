@@ -277,7 +277,7 @@ contains
 
         integer, intent(in) :: block, tgt_proc
         integer :: src_proc, ierr, nsend, nelem, j, det_block, hash_val
-        integer :: det(nel)
+        integer :: det(nel), TotWalkersTmp
         real(dp) :: sgn(lenof_sign)
         
         ! A tag is used to identify this send/recv pair over any others
@@ -337,8 +337,13 @@ contains
                 call decode_bit_det(det, SpawnedParts(:,j))
                 call extract_sign(SpawnedParts(:,j), sgn)
                 hash_val = FindWalkerHash(det, size(HashIndex))
+
+                ! n.b. Ensure that Totwalkers passed in always has the correct
+                !      type even on 32-bit machines
+                TotWalkersTmp = TotWalkers
                 call AddNewHashDet(TotWalkers, SpawnedParts(:, j), &
                                    hash_val, det)
+                TotWalkers = TotWalkersTmp
             end do
 
             ! We have filled in some of the holes in the list (possibly all)

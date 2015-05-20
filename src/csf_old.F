@@ -824,7 +824,7 @@ C                        CALL WRITEDET(6,NMRKS(1,NDET-1),NEL,.TRUE.)
 C                        CALL WRITEDET(6,NMRKS(1,NDET),NEL,.TRUE.)
 C                        WRITE(6,*) NDET,ICMPDETS(NMRKS(1,NDET),
 C     &                     NMRKS(1,NDET-1),NEL)
-C                        STOP "Sort Error"
+C                        call stop_all(this_routine, "Sort Error")
 C                     ENDIF
 C.. remove NDCH if necessary
                   IF(TCHKEX.AND.
@@ -1031,6 +1031,7 @@ C.. if SORDER2(1) is non-zero, we store SORDER in there on return
          LOGICAL TDONE
 
          INTEGER BINOMIAL
+         character(*), parameter :: this_routine = 'CSFGENOPENDETS'
          CALL CSFGETCSFDATA(NCI,NEL,ICLOSED,NCLOSED,IOPEN,NOPEN,SZ,S,
      &      SORDER)
          IF(ISTART.EQ.0) THEN
@@ -1073,7 +1074,8 @@ C.. an alpha
             ICOUNT=ICOUNT+1
             CALL CSFINCCHOOSEINDICES(INDICES,NOPEN,NBETA,TDONE)
          ENDDO
-         IF(ICOUNT.LT.IEN) STOP "NOT ENOUGH CSF determinants found"
+         IF(ICOUNT.LT.IEN) call stop_all(this_routine,
+     &                         "NOT ENOUGH CSF determinants found")
          IF(SORDER2(1).NE.0) CALL NECI_ICOPY(NOPEN,SORDER,1,SORDER2,1)
          RETURN
       END
@@ -1090,10 +1092,12 @@ C..   We can use a method based on traversing a tree (21/4/05)
          INTEGER BINOMIAL
 
          INTEGER N,R,INDX,BIN
+         character(*), parameter :: this_routine = 'CSFGETCHOOSEINDICES'
 
          IF(ICHOOSE.GT.NCHOOSE) RETURN
          IF(ICHOOSE.GT.BINOMIAL(NITEMS,NCHOOSE))
-     &     STOP "ERROR in CSFGETCHOOISEINDICES - IND too large"
+     &     call stop_all(this_routine,
+     &                  "ERROR in CSFGETCHOOISEINDICES - IND too large")
          R=NCHOOSE
          N=NITEMS
          INDX=ICHOOSE
@@ -1164,6 +1168,7 @@ C..   method of creating this CSF - 1 is a + and 0 is a -.
          INTEGER IOPEN(NEL),NOPEN,SZ,S,SORDER(NEL)
          
          INTEGER I,J,K
+         character(*), parameter :: this_routine = 'CSFGETCSFDATA'
          NCLOSED=0
          NOPEN=0
          SZ=0
@@ -1178,7 +1183,8 @@ C.. check and alpha comes after a beta
                IF(NCLOSED.GT.1.AND.IAND(J,1).EQ.0
      &            .AND.ICLOSED(NCLOSED-1).NE.J-1) THEN
                      call write_det (6, NCI, .true.)
-                     STOP "CSF has unpaired 'closed orbitals'"
+                     call stop_all(this_routine,
+     &                        "CSF has unpaired 'closed orbitals'")
                ENDIF
             ELSE
 C.. an open orbital

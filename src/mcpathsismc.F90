@@ -75,6 +75,7 @@ module mcpathsismc
          real(dp) PREJ,PGR
          REAL(sp) OTIME,NTIME,tarr(2)
          integer(int64) LP
+         character(*), parameter :: this_routine = 'MCPATHSR4'
          HElement_t :: hel
 
          ISEED=0  !Init the seed
@@ -132,7 +133,7 @@ module mcpathsismc
      &         INT(LOG(NWHTAY/(G_VMC_FAC**4))/LOG(2.0_dp)+1), &
      &      DLWDBCORE/WCORE,WCore)  
             IF(G_VMC_FAC.GT.1.0_dp.OR.G_VMC_FAC.LT.-1.0_dp)     &
-     &       STOP "Invalid MULTI MC BIAS"
+     &       call stop_all(this_routine, "Invalid MULTI MC BIAS")
             WRITE(6,*) "MCPATHSR4 MultiMC.  Bias=",G_VMC_FAC
          ELSE
             DLWDBCORE=HIJS(0)
@@ -286,7 +287,7 @@ module mcpathsismc
                     R=RAN2(ISEED)
                     ICHANGED=0
                     IF(I_HMAX.EQ.-13) THEN
-                        STOP "I_HMAX=-13 no longer supported"
+                        call stop_all(this_routine, "I_HMAX=-13 no longer supported")
 !                   !
                     ELSEIF(I_HMAX.EQ.-7.OR.I_HMAX.EQ.-19) THEN
 !C.. We decide on a graph size.  See 22/8/05 #1,2
@@ -478,7 +479,7 @@ module mcpathsismc
 !                   !
                     ELSEIF(I_HMAX.EQ.-12) THEN
 !C.. Markov chain with special generation - does not work
-                        STOP "FMCPR4D3 has been removed."
+                        call stop_all(this_routine, "FMCPR4D3 has been removed.")
 !                   !
                     ENDIF
                   ENDIF
@@ -767,8 +768,9 @@ module mcpathsismc
          INTEGER I,J,K,IEX,IEXL2
          LOGICAL BR
          real(dp) RAN2
+         character(*), parameter :: this_routine = 'GENRANDOMEXCIT'
          IF(IEXLEVEL.GT.2)                                     &
-     &    STOP "Cannot handle more than double excitations."
+     &    call stop_all(this_routine, "Cannot handle more than double excitations.")
          IF(IEXLEVEL.LT.2) IEXL2=IEXLEVEL
          IF(IEXLEVEL.EQ.2) THEN
             IEX=int(RAN2(ISEED)*real((NBASIS-NEL)*NEL,dp)*                     &
@@ -1173,7 +1175,7 @@ module mcpathsismc
             IPATH(1)=1
             M(1,1)=1.0_dp
             RET=0.0_dp
-!C            STOP 'Cannot handle new path gen with IV_MAX>3'
+!C            call stop_all(this_routine, 'Cannot handle new path gen with IV_MAX>3')
             CALL GETPP2_R(IPATH,XIJ,M,I_V,2,RET,1.0_dp,INV)
             GETPATHPROB2=RET
          ENDIF
@@ -1326,10 +1328,11 @@ module mcpathsismc
          INTEGER I,J,K,IEX,IEXL2
          LOGICAL BR,BR2
          real(dp) RAN2
+         character(*), parameter :: this_routine = 'GENRANDOMEXCITSYM'
          IF(IEXLEVEL.GT.2)                                              &
-     &    STOP "Cannot handle more than double excitations."
+     &    call stop_all(this_routine, "Cannot handle more than double excitations.")
          IF(IEXLEVEL.LT.2) THEN
-            STOP "No sym excitations for IEXLEVEL<2"
+            call stop_all(this_routine, "No sym excitations for IEXLEVEL<2")
          ENDIF
          IEXL2=IEXLEVEL
          BR2=.TRUE.
@@ -1536,6 +1539,7 @@ module mcpathsismc
          real(dp) PFAC
          real(dp) RAN2
          real(dp) MPEs(2:i_VMax)
+         character(*), parameter :: this_routine = 'FMCPR4D2'
          
 !C.. Take a copy of the old path and rho matrix etc.
          IF(OWEIGHT.ne.0.0_dp) THEN
@@ -1565,7 +1569,7 @@ module mcpathsismc
                IF(IC.GT.10000) THEN
                   WRITE(6,*) "Have thrown away 10000 graphs with pGen<",   &
      &               PGenEpsilon 
-              STOP "Have thrown away 10000 graphs with pGen<pGenEpsilon"
+              call stop_all(this_routine, "Have thrown away 10000 graphs with pGen<pGenEpsilon")
                ENDIF
             ENDDO
             ICLS=0
@@ -1742,6 +1746,7 @@ module mcpathsismc
          real(dp) RAN2
          real(dp) pGen,pGen2
          HElement_t :: hel
+         character(*), parameter :: this_routine = 'FMCPR4D2GENGRAPH'
 
          !Deallocate Excitation Generators after precalc
          IF(I_HMAX.EQ.154) THEN
@@ -1749,7 +1754,7 @@ module mcpathsismc
                  deallocate(PVERTMEMS2(I)%p)
              ENDDO
              RETURN
-!          STOP 'I_HMAX of 154 should not be called here (mcpathsismc.F)'
+!          call stop_all(this_routine, 'I_HMAX of 154 should not be called here (mcpathsismc.F)')
           ENDIF
 !C.. PEXCIT(NODE) is the probability of selecting NODE and
 !C.. those before it.
@@ -1819,7 +1824,7 @@ module mcpathsismc
             IF(.NOT.ISVALIDDET(INODE,NEL)) THEN
                WRITE(6,*) "INVALID DET"
                call write_det (6, INODE, .true.)
-               STOP "INVALID DET"
+               call stop_all(this_routine, "INVALID DET")
             ENDIF
             IF(.NOT.LISINPATH(INODE,IPATH,NEL,I_VNEXT,-1)) THEN
                CALL NECI_ICOPY(NEL,INODE,1,IPATH(1,I_VNEXT),1)

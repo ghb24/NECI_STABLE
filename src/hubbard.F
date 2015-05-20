@@ -110,8 +110,10 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
          INTEGER DX,DY,DZ,LX,LY,LZ
          LOGICAL TTILT,TREAL,TPBC
          real(dp) TOTSUM
+         character(*), parameter :: this_routine = 'CALCTMATHUB'
          IF(iProcIndex.eq.0) OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
-         IF(TSTARSTORE) STOP 'Using TSTARSTORE with HUB?!'
+         IF(TSTARSTORE) call stop_all(this_routine,
+     &                       'Using TSTARSTORE with HUB?!')
          CALL SetupTMAT(NBASIS,2,iSize)
          TOTSUM=0.0_dp
          LX=NBASISMAX(1,2)-NBASISMAX(1,1)
@@ -246,6 +248,7 @@ C         ENDIF
          INTEGER nBasisMax(5,*),NMAXX,NMAXY,NMAXZ,LEN
          LOGICAL TPBC
          INTEGER ITILTX,ITILTY
+         character(*), parameter :: this_routine = 'SETBASISLIM_HUBTILT'
          IF(TPBC) THEN
 C.. Indicate tilted
             NBASISMAX(1,3)=1
@@ -258,12 +261,14 @@ C.. Not periodic boundaries
          NBASISMAX(1,1)=-NBASISMAX(1,2)
 C+1-MOD(NMAXX,2)
          IF(NMAXY.NE.NMAXX)
-     &      STOP 'CANNOT HANDLE NON-SQUARE TILTED HUBBARD'
+     &      call stop_all(this_routine,
+     &                   'CANNOT HANDLE NON-SQUARE TILTED HUBBARD')
          NBASISMAX(2,2)=int(real(NMAXX,dp)*        
      &          (real(ITILTY+ITILTX,dp)/2.0_dp),sizeof_int)
          NBASISMAX(2,1)=-NBASISMAX(2,2)
 C+1-MOD(NMAXX,2)
-         IF(NMAXZ.GT.1) STOP 'CANNOT HANDLE TILTED 3D HUBBARD'
+         IF(NMAXZ.GT.1) call stop_all(this_routine,
+     &                          'CANNOT HANDLE TILTED 3D HUBBARD')
          NBASISMAX(3,2)=0
          NBASISMAX(3,1)=0
          NBASISMAX(1,4)=ITILTX
@@ -358,7 +363,8 @@ C.. Setup the symmetry product table
             IF(J.EQ.0) THEN 
                WRITE(6,*) "Cannot Find symmetry conjugate to basis fn ",
      &            I*2
-               STOP "Cannot find symmetry conjugate."
+               call stop_all(this_routine,
+     &                     "Cannot find symmetry conjugate.")
             ENDIF
             SymConjTab(SymClasses(I))=SymClasses(J/2)
             DO J=1,nBasis/2
@@ -370,7 +376,8 @@ C.. Setup the symmetry product table
                IF(K.EQ.0) THEN 
                 WRITE(6,*) "Cannot find symmetry product of basis fns ",
      &               I*2, J*2
-                  STOP "Cannot find symmetry product."
+                  call stop_all(this_routine,
+     &                        "Cannot find symmetry product.")
                ENDIF
                SymTable(SymClasses(I),SymClasses(J))=
      &            SymLabels(SymClasses(K/2))

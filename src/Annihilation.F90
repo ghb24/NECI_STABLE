@@ -110,7 +110,11 @@ module AnnihilationMod
            disps(1)=0
            if (nNodes>1) then
               sendcounts(2:nNodes)=0
-              disps(2:nNodes)=int(ValidSpawnedList(1),MPIArg)
+              ! n.b. work around PGI bug.
+              do i = 2, nNodes
+                  disps(i) = int(ValidSpawnedList(1), MPIArg)
+              end do
+              !disps(2:nNodes)=int(ValidSpawnedList(1),MPIArg)
            end if
                                                                        
         else

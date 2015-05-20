@@ -1109,7 +1109,7 @@ system: do
       endif
       if(tStoreAsExcitations) THEN
          write(6,'(A)') "  Storing determinants as excitations from the HF determinant.  WARNING this may not work!"
-         IF(nEL.lt.8) STOP '  tStoreAsExcitations requires nEl>=8.'
+         IF(nEL.lt.8) call stop_all(this_routine, '  tStoreAsExcitations requires nEl>=8.')
       endif
  
       ! Conditions for using old CSF routines
@@ -1418,7 +1418,7 @@ system: do
                       deallocate(arr_tmp, brr_tmp, stat=ierr)
                   else
                       WRITE(6,*) " LEN=",LEN,"IG=",IG
-                      STOP ' LEN NE IG ' 
+                      call stop_all(this_routine, ' LEN NE IG ')
                   endif
               ENDIF
 
@@ -1457,7 +1457,7 @@ system: do
               CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
           endif
 
-          IF(NEL.GT.NBASIS) STOP 'MORE ELECTRONS THAN BASIS FUNCTIONS'
+          IF(NEL.GT.NBASIS) call stop_all(this_routine, 'MORE ELECTRONS THAN BASIS FUNCTIONS')
           CALL neci_flush(6)    
 
       !This is used in a test in UMatInd
@@ -1547,7 +1547,7 @@ system: do
                     ELSEIF(IPARITY(I).EQ.-1) THEN
                       CPAR(I)='U'
                     ELSE 
-                      STOP ' !!! PROBLEM WITH PARITY !!! '
+                      call stop_all(this_routine, ' !!! PROBLEM WITH PARITY !!! ')
                     ENDIF
                 ENDDO
                 CPARITY=CPAR(1)//CPAR(2)//CPAR(3)
@@ -1582,7 +1582,7 @@ system: do
              WRITE(6,'(1X,A,F19.5)') '  HUBBARD T : ' , BHUB
              WRITE(6,'(1X,A,F19.5)') '  HUBBARD U : ' , UHUB
              IF(TTILT) WRITE(6,*) ' TILTED LATTICE: ',ITILTX, ",",ITILTY
-             IF(TTILT.AND.ITILTX.GT.ITILTY) STOP 'ERROR: ITILTX>ITILTY'
+             IF(TTILT.AND.ITILTX.GT.ITILTY) call stop_all(this_routine, 'ERROR: ITILTX>ITILTY')
           ELSE
              WRITE(6,'(1X,A,F19.5)') '  BOX LENGTH : ' , BOX
              WRITE(6,'(1X,A,F19.5)') '  B/A : ' , BOA
@@ -1654,7 +1654,7 @@ system: do
           IF(THUB) THEN
              IF(TTILT) THEN
                 CALL SETBASISLIM_HUBTILT(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,TPBC,ITILTX,ITILTY)
-                IF(TREAL) STOP 'REAL TILTED HUBBARD NOT SUPPORTED'
+                IF(TREAL) call stop_all(this_routine, 'REAL TILTED HUBBARD NOT SUPPORTED')
               ELSE
                 CALL SETBASISLIM_HUB(NBASISMAX,NMAXX,NMAXY,NMAXZ,LEN,TPBC,TREAL)
              ENDIF
@@ -1802,7 +1802,7 @@ system: do
                deallocate(arr_tmp, brr_tmp, stat=ierr)
             else
                WRITE(6,*) " LEN=",LEN,"IG=",IG
-               STOP ' LEN NE IG ' 
+               call stop_all(this_routine, ' LEN NE IG ')
             endif
          ENDIF
          if (.not. tHub) CALL GENMOLPSYMTABLE(1,G1,NBASIS)
@@ -1838,7 +1838,8 @@ system: do
           !If we are calling from molpro, we write the basis later (after reordering)
           CALL WRITEBASIS(6,G1,nBasis,ARR,BRR)
       endif
-      IF(NEL.GT.NBASIS) STOP 'MORE ELECTRONS THAN BASIS FUNCTIONS'
+      IF(NEL.GT.NBASIS) &
+          call stop_all(this_routine, 'MORE ELECTRONS THAN BASIS FUNCTIONS')
       CALL neci_flush(6)
       IF(TREAL.AND.THUB) THEN
 !C.. we need to allow integrals between different spins
@@ -2264,6 +2265,7 @@ SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
   real(dp) ARR(NBASIS,2),ARR2(NBASIS,2)
   INTEGER IDONE,I,J,IBFN,ITOT,ITYPE,ISPIN
   real(dp) OEN
+  character(*), parameter :: this_routine = 'ORDERBASIS'
   IDONE=0
   ITOT=0
 !.. copy the default ordered energies.
@@ -2282,7 +2284,7 @@ SUBROUTINE ORDERBASIS(NBASIS,ARR,BRR,ORBORDER,NBASISMAX,G1)
                  IBFN=IBFN+1
               ENDDO
               IF(IBFN.GT.NBASIS) THEN
-                 STOP "Cannot find enough basis fns of correct symmetry"
+                 call stop_all(this_routine, "Cannot find enough basis fns of correct symmetry")
               ENDIF
               IDONE=IDONE+1 
               BRR2(IDONE)=IBFN

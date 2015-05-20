@@ -38,6 +38,7 @@ MODULE PopsfileMod
     use replica_data, only: set_initial_global_data
     use load_balance, only: pops_init_balance_blocks
     use load_balance_calcnodes, only: tLoadBalanceBlocks, balance_blocks
+    use util_mod
 
     implicit none
 
@@ -1847,12 +1848,13 @@ r_loop: do while(.not.tStoreDet)
         integer :: NIfWriteOut, pos, orb, PopsVersion, iunit, iunit_3, run
         real(dp) :: r, FracPart, Gap, DiagSftTemp, tmp_dp
         HElement_t :: HElemTemp
-        CHARACTER(len=*), PARAMETER :: this_routine='ReadFromPopsfilePar'
         character(255) :: popsfile,FirstLine
         character(len=24) :: junk,junk2,junk3,junk4
         LOGICAL :: tPop64BitDets,tPopHPHF,tPopLz,tPopInitiator
         integer(n_int) :: ilut_largest(0:NIfTot, inum_runs)
         real(dp) :: sign_largest(inum_runs)
+        character(*), parameter :: this_routine = 'ReadFromPopsfilePar'
+        character(*), parameter :: t_r = this_routine
 
         WRITE(6,*) "THIS IS THE POPSFILE ROUTINE WE'RE USING"
 
