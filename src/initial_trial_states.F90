@@ -8,8 +8,8 @@ module initial_trial_states
 
 contains
 
-    subroutine calc_trial_states(space_in, nexcit, ndets_this_proc, trial_iluts, evecs_this_proc, evals, &
-                                 space_sizes, space_displs, reorder)
+    subroutine calc_trial_states_lanczos(space_in, nexcit, ndets_this_proc, trial_iluts, evecs_this_proc, evals, &
+                                         space_sizes, space_displs, reorder)
 
         use bit_reps, only: decode_bit_det
         use CalcData, only: subspace_in
@@ -41,7 +41,7 @@ contains
         integer(MPIArg) :: rcvcnts
         integer, allocatable :: evec_abs(:)
         real(dp), allocatable :: evecs(:,:), evecs_transpose(:,:)
-        character(len=*), parameter :: t_r = "calc_trial_states"
+        character(len=*), parameter :: t_r = "calc_trial_states_lanczos"
 
         ndets_this_proc = 0
         trial_iluts = 0_n_int
@@ -174,7 +174,7 @@ contains
         if (iProcIndex == root) deallocate(evecs)
         deallocate(evecs_transpose)
 
-    end subroutine calc_trial_states
+    end subroutine calc_trial_states_lanczos
 
     subroutine set_trial_populations(nexcit, ndets_this_proc, trial_vecs)
 

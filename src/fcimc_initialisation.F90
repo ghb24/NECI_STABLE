@@ -98,8 +98,8 @@ module fcimc_initialisation
                                  new_child_stats_normal, &
                                  null_encode_child, attempt_die_normal
     use csf_data, only: csf_orbital_mask
-    use initial_trial_states, only: calc_trial_states, set_trial_populations, &
-                                    set_trial_states
+    use initial_trial_states, only: calc_trial_states_lanczos, &
+                                    set_trial_populations, set_trial_states
     use global_det_data, only: global_determinant_data, set_det_diagH, &
                                clean_global_det_data, init_global_det_data, &
                                set_part_init_time, set_spawn_rate
@@ -1915,7 +1915,7 @@ contains
         nexcit = inum_runs
 
         ! Create the trial excited states
-        call calc_trial_states(init_trial_in, nexcit, ndets_this_proc, &
+        call calc_trial_states_lanczos(init_trial_in, nexcit, ndets_this_proc, &
                                SpawnedParts, evecs_this_proc, evals, &
                                space_sizes, space_displs, trial_init_reorder)
         ! Determine the walker populations associated with these states

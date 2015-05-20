@@ -341,7 +341,7 @@ contains
                 ! n.b. Ensure that Totwalkers passed in always has the correct
                 !      type even on 32-bit machines
                 TotWalkersTmp = TotWalkers
-                call AddNewHashDet(TotWalkers, SpawnedParts(:, j), &
+                call AddNewHashDet(TotWalkersTmp, SpawnedParts(:, j), &
                                    hash_val, det)
                 TotWalkers = TotWalkersTmp
             end do
