@@ -1282,7 +1282,7 @@ contains
             if(tReadPops .and. .not.tPopsAlreadyRead) then
                 call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, iPopNel, read_nnodes, &
                                     read_walkers_on_nodes, pops_pert, &
-                                    PopBalanceBLocks)
+                                    PopBalanceBLocks, PopDiagSft)
             else
                 if(tStartMP1) then
                     !Initialise walkers according to mp1 amplitude.

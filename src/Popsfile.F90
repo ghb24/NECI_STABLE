@@ -8,7 +8,7 @@ MODULE PopsfileMod
                         ScaleWalkers, tReadPopsRestart, &
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
                         iWeightPopRead, iPopsFileNoRead, Tau, &
-                        InitiatorWalkNo, MemoryFacPart, &
+                        InitiatorWalkNo, MemoryFacPart, tLetInitialPopDie, &
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
                         pops_norm, tWritePopsNorm
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
@@ -845,15 +845,17 @@ r_loop: do while(.not.tStoreDet)
         if (iProcIndex == root) close(iunithead)
 
         call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, PopNel, read_nnodes, &
-                            read_walkers_on_nodes, perturbs, PopBalanceBlocks)
+                            read_walkers_on_nodes, perturbs, PopBalanceBlocks,&
+                            PopDiagSft)
 
         ! If requested output the norm of the *unperturbed* walkers in the POPSFILE.
         if (tWritePopsNorm) call write_pops_norm()
 
     end subroutine read_popsfile_wrapper
 
-    subroutine InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, PopNel, pops_nnodes, &
-                              pops_walkers, perturbs, PopBalanceBlocks)
+    subroutine InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, PopNel, &
+                              pops_nnodes, pops_walkers, perturbs, &
+                              PopBalanceBlocks, PopDiagSft)
 
         use CalcData, only : iReadWalkersRoot
         use hash, only: clear_hash_table, fill_in_hash_table
@@ -868,9 +870,11 @@ r_loop: do while(.not.tStoreDet)
         integer, intent(inout) :: PopNel
         integer, intent(in) :: pops_nnodes
         integer(int64), intent(in) :: pops_walkers(0:nProcessors-1)
+        real(dp), intent(in) :: PopDiagSft(inum_runs)
         ! Perturbation operators to apply to the determinants after they have
         ! been read in.
         type(perturbation), intent(in), allocatable, optional :: perturbs(:)
+        integer(int64) :: tot_walkers
         integer :: run, ReadBatch
         integer :: nI(nel)
         logical :: apply_pert
@@ -931,6 +935,29 @@ r_loop: do while(.not.tStoreDet)
             call pops_init_balance_blocks(PopBalanceBlocks)
         end if
 
+        ! If tWalkContGrow has been set, and therefore the shift reset, in
+        ! when the POPSFILE header was read, check that we aren't already
+        ! beyond the walker threshold. Otherwise unexpected (but technically
+        ! "correct") behaviour occurs.
+        if (tWalkContGrow) then
+            tot_walkers = InitWalkers * int(nNodes, int64)
+            do run = 1, inum_runs
+#ifdef __CMPLX
+                if ((tLetInitialPopDie .and. sum(AllTotParts) < tot_walkers) .or. &
+                    ((.not. tLetInitialPopDie) .and. sum(AllTotParts) > tot_walkers)) then
+                    tSinglePartPhase = .false.
+                    DiagSft = PopDiagSft
+                end if
+#else
+                if ((tLetInitialPopDie .and. AllTotParts(run) < tot_walkers) .or. &
+                    ((.not. tLetInitialPopDie) .and. AllTotParts(run) > tot_walkers)) then
+                    tSinglePartPhase(run) = .false.
+                    DiagSft(run) = PopDiagSft(run)
+                end if
+#endif
+            end do
+        end if
+
     end subroutine InitFCIMC_pops
     
     subroutine CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
@@ -988,9 +1015,9 @@ r_loop: do while(.not.tStoreDet)
         endif
 
 
-        IF(.not.tWalkContGrow) THEN
+        if (.not. tWalkContGrow) then
             DiagSft = PopDiagSft
-        ENDIF
+        end if
 
         if(PopDiagSft(1) .eq. 0.0_dp) then
             !If the popsfile has a shift of zero, continue letting the population grow
