@@ -939,8 +939,11 @@ r_loop: do while(.not.tStoreDet)
         ! when the POPSFILE header was read, check that we aren't already
         ! beyond the walker threshold. Otherwise unexpected (but technically
         ! "correct") behaviour occurs.
+        !
+        ! n.b. 0.95 makes this a soft limit. Otherwise on restarting a calc
+        !      it might have (randomly) dropped just below the target.
         if (tWalkContGrow) then
-            tot_walkers = InitWalkers * int(nNodes, int64)
+            tot_walkers = 0.95 * InitWalkers * int(nNodes, int64)
             do run = 1, inum_runs
 #ifdef __CMPLX
                 if ((tLetInitialPopDie .and. sum(AllTotParts) < tot_walkers) .or. &
