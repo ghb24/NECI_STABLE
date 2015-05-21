@@ -55,4 +55,3 @@ tolerance = (4.5e-8, None, 'hamil_sum'), (2.1e-7, None, 'overlap_sum')
 [categories]
 
 _default_ = neci kneci mneci
-kp_fciqmc = mneci/kpfciqmc_*
