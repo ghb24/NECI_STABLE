@@ -183,9 +183,11 @@ contains
                                      trial_iluts, evecs_this_proc, space_sizes, space_displs)
 
         use CalcData, only: subspace_in
+        use DetBitOps, only: ilut_lt, ilut_gt
         use FciMCData, only: ilutHF
         use Parallel_neci, only: nProcessors
         use semi_stoch_gen
+        use sort_mod, only: sort
         use SystemData, only: tAllSymSectors
 
         type(subspace_in) :: space_in
@@ -244,6 +246,8 @@ contains
         do i = 1, nProcessors-1
             space_displs(i) = sum(space_sizes(:i-1))
         end do
+
+        call sort(trial_iluts(:,1:ndets_this_proc), ilut_lt, ilut_gt)
 
         allocate(evecs_this_proc(nexcit, ndets_this_proc), stat=ierr)
 
