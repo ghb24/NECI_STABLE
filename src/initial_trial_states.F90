@@ -1,3 +1,5 @@
+#include "macros.h"
+
 module initial_trial_states
 
     use bit_rep_data
@@ -76,6 +78,7 @@ contains
         if (ndets_all_procs < nexcit) call stop_all(t_r, "The number of excited states that you have asked &
             &for is larger than the size of the trial space used to create the excited states. Since this &
             &routine generates trial states that are orthogonal, this is not possible.")
+
         space_displs(0) = 0_MPIArg
         do i = 1, nProcessors-1
             space_displs(i) = sum(space_sizes(:i-1))
@@ -175,6 +178,145 @@ contains
         deallocate(evecs_transpose)
 
     end subroutine calc_trial_states_lanczos
+
+    subroutine calc_trial_states_qmc(space_in, nexcit, qmc_iluts, qmc_ht, paired_replicas, ndets_this_proc, &
+                                     trial_iluts, evecs_this_proc, space_sizes, space_displs)
+
+        use CalcData, only: subspace_in
+        use DetBitOps, only: ilut_lt, ilut_gt
+        use FciMCData, only: ilutHF
+        use Parallel_neci, only: nProcessors
+        use semi_stoch_gen
+        use sort_mod, only: sort
+        use SystemData, only: tAllSymSectors
+
+        type(subspace_in) :: space_in
+        integer, intent(in) :: nexcit
+        integer(n_int), intent(in) :: qmc_iluts(0:,:)
+        type(ll_node), pointer, intent(inout) :: qmc_ht(:)
+        logical, intent(in) :: paired_replicas
+        integer, intent(out) :: ndets_this_proc
+        integer(n_int), intent(out) :: trial_iluts(0:,:)
+        real(dp), allocatable, intent(out) :: evecs_this_proc(:,:)
+        integer(MPIArg), intent(out) :: space_sizes(0:nProcessors-1), space_displs(0:nProcessors-1)
+
+        integer(n_int), allocatable :: ilut_list(:,:)
+        integer, allocatable :: det_list(:,:)
+        integer :: i, j, ierr
+        integer(MPIArg) :: ndets_all_procs, ndets_this_proc_mpi
+        character(len=*), parameter :: t_r = "calc_trial_states_qmc"
+
+        if (paired_replicas) then
+            ASSERT(nexcit == lenof_sign/2)
+        else
+            ASSERT(nexcit == lenof_sign)
+        end if
+
+        ndets_this_proc = 0
+        trial_iluts = 0_n_int
+
+        ! Choose the correct generating routine.
+        if (space_in%tHF) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
+        if (space_in%tPops) call generate_space_most_populated(space_in%npops, trial_iluts, ndets_this_proc)
+        if (space_in%tRead) call generate_space_from_file('DETFILE', trial_iluts, ndets_this_proc)
+        if (space_in%tDoubles) call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
+        if (space_in%tCAS) call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)
+        if (space_in%tRAS) call generate_ras(space_in%ras, trial_iluts, ndets_this_proc)
+        if (space_in%tOptimised) call generate_optimised_space(space_in%opt_data, space_in%tLimitSpace, &
+                                                         trial_iluts, ndets_this_proc, space_in%max_size)
+        if (space_in%tMP1) call generate_using_mp1_criterion(space_in%mp1_ndets, trial_iluts, ndets_this_proc)
+        if (space_in%tFCI) then
+            if (tAllSymSectors) then
+                call gndts_all_sym_this_proc(trial_iluts, .true., ndets_this_proc)
+            else
+                call generate_fci_core(trial_iluts, ndets_this_proc)
+            end if
+        end if
+
+        if (.not. (space_in%tPops .or. space_in%tRead .or. space_in%tDoubles .or. space_in%tCAS .or. &
+                   space_in%tRAS .or. space_in%tOptimised .or. space_in%tMP1 .or. space_in%tFCI)) then
+            call stop_all(t_r, "A space for the trial functions was not chosen.")
+        end if
+
+        ndets_this_proc_mpi = int(ndets_this_proc, MPIArg)
+        call MPIAllGather(ndets_this_proc_mpi, space_sizes, ierr)
+        ndets_all_procs = sum(space_sizes)
+
+        space_displs(0) = 0_MPIArg
+        do i = 1, nProcessors-1
+            space_displs(i) = sum(space_sizes(:i-1))
+        end do
+
+        call sort(trial_iluts(:,1:ndets_this_proc), ilut_lt, ilut_gt)
+
+        allocate(evecs_this_proc(nexcit, ndets_this_proc), stat=ierr)
+
+        call get_qmc_trial_weights(trial_iluts, ndets_this_proc, qmc_iluts, qmc_ht, nexcit, paired_replicas, evecs_this_proc)
+
+    end subroutine calc_trial_states_qmc
+
+    subroutine get_qmc_trial_weights(trial_iluts, ntrial, qmc_iluts, qmc_ht, nexcit, paired_replicas, evecs_this_proc)
+
+        use bit_reps, only: decode_bit_det
+        use hash, only: hash_table_lookup
+        use Parallel_neci, only: MPISumAll
+        use SystemData, only: nel
+
+        integer(n_int), intent(in) :: trial_iluts(0:,:)
+        integer, intent(in) :: ntrial
+        integer(n_int), intent(in) :: qmc_iluts(0:,:)
+        type(ll_node), pointer, intent(inout) :: qmc_ht(:)
+        integer, intent(in) :: nexcit
+        logical, intent(in) :: paired_replicas
+        real(dp), intent(out) :: evecs_this_proc(:,:)
+
+        integer :: i, j, ind, hash_val
+        integer :: nI(nel)
+        real(dp) :: qmc_sign(lenof_sign), trial_sign(nexcit)
+        real(dp) :: norm(nexcit), tot_norm(nexcit)
+        logical :: found
+
+        if (paired_replicas) then
+            ASSERT(nexcit == lenof_sign/2)
+        else
+            ASSERT(nexcit == lenof_sign)
+        end if
+
+        norm = 0.0_dp
+
+        ! Loop over all trial states.
+        do i = 1, ntrial
+            ! Check the QMC hash table to see if this state exists in the
+            ! QMC list. 
+            call decode_bit_det(nI, trial_iluts(:,i)) 
+            call hash_table_lookup(nI, trial_iluts(:,i), NIfDBO, qmc_ht, &
+                                   qmc_iluts, ind, hash_val, found)
+            if (found) then
+                call extract_sign(qmc_iluts(:,ind), qmc_sign)
+
+                ! If using paired replicas then average the sign on each pair.
+                if (paired_replicas) then
+                    do j = 2, lenof_sign, 2
+                        trial_sign(j/2) = sum(qmc_sign(j-1:j)/2.0_dp)
+                    end do
+                else
+                    trial_sign = qmc_sign
+                end if
+
+                norm = norm + trial_sign**2
+                evecs_this_proc(:,i) = trial_sign
+            else
+                evecs_this_proc(:,i) = 0.0_dp
+            end if
+        end do
+
+        call MPISumAll(norm, tot_norm)
+
+        do i = 1, ntrial
+            evecs_this_proc(:,i) = evecs_this_proc(:,i)/sqrt(tot_norm)
+        end do
+
+    end subroutine get_qmc_trial_weights
 
     subroutine set_trial_populations(nexcit, ndets_this_proc, trial_vecs)
 
