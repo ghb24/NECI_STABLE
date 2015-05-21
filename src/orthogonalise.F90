@@ -601,7 +601,9 @@ contains
             call extract_sign(CurrentDets(:,j), sgn)
             if (IsUnoccDet(sgn)) cycle
 
+#ifndef __CMPLX
             norms = norms + sgn*sgn
+#endif
 
             do tgt_run = 1, inum_runs
                 do run = tgt_run + 1, inum_runs
