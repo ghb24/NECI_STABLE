@@ -83,7 +83,7 @@ contains
         write(6,'(a29)') "Generating the trial space..."; call neci_flush(6)
 
         if (qmc_trial_wf) then
-            call calc_trial_states_qmc(trial_in, nexcit_calc, CurrentDets, HashIndex, replica_pairs, &
+            call calc_trial_states_qmc(trial_in, nexcit_keep, CurrentDets, HashIndex, replica_pairs, &
                                        trial_space_size, trial_space, trial_wfs, trial_counts, trial_displs)
         else
             call calc_trial_states_lanczos(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
