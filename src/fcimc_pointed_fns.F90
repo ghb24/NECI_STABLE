@@ -13,7 +13,7 @@ module fcimc_pointed_fns
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use bit_rep_data, only: NIfTot
     use tau_search, only: log_death_magnitude, log_spawn_magnitude
-    use nElRDMMod, only: calc_rdmbiasfac
+    use rdms, only: calc_rdmbiasfac
     use hist, only: add_hist_excit_tofrom
     use searching, only: BinSearchParts2
     use util_mod

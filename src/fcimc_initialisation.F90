@@ -84,10 +84,10 @@ module fcimc_initialisation
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
-    use FciMCLoggingMOD , only : InitHistInitPops
+    use FciMCLoggingMOD, only : InitHistInitPops
     use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2
-    use nElRDMMod, only: DeallocateRDM, InitRDM, fill_rdm_diag_currdet_norm, &
-                         extract_bit_rep_avsign_no_rdm
+    use rdms, only: DeallocateRDM, InitRDM, fill_rdm_diag_currdet_norm, &
+                    extract_bit_rep_avsign_no_rdm
     use DetBitOps, only: FindBitExcitLevel, CountBits, TestClosedShellDet, &
                          FindExcitBitDet, IsAllowedHPHF, DetBitEq, &
                          EncodeBitDet

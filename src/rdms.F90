@@ -1,4 +1,5 @@
-MODULE nElRDMMod
+MODULE rdms
+
 ! This file contains the routines used to find the full n electron reduced density matrix (nElRDM).
 ! This is done on the fly to avoid having to histogram the full wavefunction which is extremely 
 ! time and memory inefficient.
@@ -8442,7 +8443,4 @@ SUBROUTINE Calc_Energy_from_RDM(Norm_2RDM)
 
     end subroutine CalcDipoles
 
-
-END MODULE nElRDMMod
-
-
+END MODULE rdms
