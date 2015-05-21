@@ -217,6 +217,13 @@ logical :: tStartTrialLater = .false.
 ! of trial estimators?
 integer :: trial_shift_iter
 
+! If false then create the trial wave function by diagonalising the
+! Hamiltonian in the trial subspace.
+! If true then create the trial wave function by taking the weights from the
+! QMC simulation in the trial subspace, at the point the that the trial
+! wave function is turned on.
+logical :: qmc_trial_wf = .false.
+
 ! True if running a kp-fciqmc calculation.
 logical :: tKP_FCIQMC
 

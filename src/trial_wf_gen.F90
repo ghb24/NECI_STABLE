@@ -1,3 +1,5 @@
+#include "macros.h"
+
 module trial_wf_gen
 
     use bit_rep_data, only: NIfTot, NIfDBO, flag_trial, flag_connected
@@ -24,7 +26,7 @@ contains
         use FciMCData, only: MaxWalkersPart, tTrialHash, tIncCancelledInitEnergy
         use FciMCData, only: con_space_vecs, ntrial_excits, trial_numerator, trial_denom
         use FciMCData, only: tot_trial_numerator, tot_trial_denom, HashIndex
-        use initial_trial_states, only: calc_trial_states_lanczos
+        use initial_trial_states, only: calc_trial_states_lanczos, calc_trial_states_qmc
         use LoggingData, only: tWriteTrial, tCompareTrialAmps
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
         use ParallelHelper, only: root
@@ -75,30 +77,38 @@ contains
 
         allocate(trial_energies(nexcit_keep))
 
+        trial_energies = 0.0_dp
         trial_space = 0_n_int
 
         write(6,'(a29)') "Generating the trial space..."; call neci_flush(6)
 
-        call calc_trial_states_lanczos(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
-                                       temp_energies, trial_counts, trial_displs, trial_est_reorder)
+        if (qmc_trial_wf) then
+            call calc_trial_states_qmc(trial_in, nexcit_calc, CurrentDets, HashIndex, replica_pairs, &
+                                       trial_space_size, trial_space, trial_wfs, trial_counts, trial_displs)
+        else
+            call calc_trial_states_lanczos(trial_in, nexcit_calc, trial_space_size, trial_space, temp_wfs, &
+                                           temp_energies, trial_counts, trial_displs, trial_est_reorder)
+        end if
 
         write(6,'(a38,1X,i8)') "Size of trial space on this processor:", trial_space_size; call neci_flush(6)
 
-        ! Allocate the array to hold the final trial wave functions which we
-        ! decide to keep, in the correct order.
-        allocate(trial_wfs(nexcit_keep, trial_space_size), stat=ierr)
-        if (ierr /= 0) call stop_all(t_r, "Error allocating trial_wfs.")
-        ! Go through each replica and find which trial state matches it best.
-        if (nexcit_calc > 1) then
-            call assign_trial_states(replica_pairs, CurrentDets, HashIndex, trial_space, temp_wfs, &
-                                     trial_wfs, temp_energies, trial_energies)
-        else
-            !ASSERT(nexcit_calc == nexcit_keep)
-            trial_wfs = temp_wfs
-            trial_energies = temp_energies
+        if (.not. qmc_trial_wf) then
+            ! Allocate the array to hold the final trial wave functions which we
+            ! decide to keep, in the correct order.
+            allocate(trial_wfs(nexcit_keep, trial_space_size), stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, "Error allocating trial_wfs.")
+            ! Go through each replica and find which trial state matches it best.
+            if (nexcit_calc > 1) then
+                call assign_trial_states(replica_pairs, CurrentDets, HashIndex, trial_space, temp_wfs, &
+                                         trial_wfs, temp_energies, trial_energies)
+            else
+                ASSERT(nexcit_calc == nexcit_keep)
+                trial_wfs = temp_wfs
+                trial_energies = temp_energies
+            end if
+            deallocate(temp_wfs, stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, "Error deallocating temp_wfs.")
         end if
-        deallocate(temp_wfs, stat=ierr)
-        if (ierr /= 0) call stop_all(t_r, "Error deallocating temp_wfs.")
 
         ! At this point, each processor has only those states which reside on them, and
         ! have only counted those states. Send all states to all processors for the next bit.
@@ -230,10 +240,12 @@ contains
 
         call halt_timer(Trial_Init_Time)
 
-        write(6,'("Energy eigenvalue(s) of the trial space:")', advance='no')
-        do i = 1, nexcit_keep
-            write(6,'(2X,g16.9e3)', advance='no') trial_energies(i)
-        end do
+        if (.not. qmc_trial_wf) then
+            write(6,'("Energy eigenvalue(s) of the trial space:")', advance='no')
+            do i = 1, nexcit_keep
+                write(6,'(2X,g16.9e3)', advance='no') trial_energies(i)
+            end do
+        end if
         write(6,'(/,"Trial wavefunction initialisation complete.")')
         write(6,'("Total time (seconds) taken for trial wavefunction initialisation:",f9.3,/)') &
                    get_total_time(Trial_Init_Time)
@@ -413,13 +425,21 @@ contains
             call decode_bit_det(nI, con_space(0:NIfTot, i))
             do j = 1, size(trial_vecs,2)
                 call decode_bit_det(nJ, trial_space(0:NIfTot, j))
-                ! Note that, because the connected and trial spaces do not contain any common
-                ! states, we never have diagonal Hamiltonian elements.
-                if (.not. tHPHF) then
-                    H_ij = get_helement(nI, nJ, con_space(:,i), trial_space(:,j))
+
+                if (all(con_space(0:NIfDBO, i) == trial_space(0:NIfDBO, j))) then
+                    if (.not. tHPHF) then
+                        H_ij = get_helement(nI, nJ, 0)
+                    else
+                        H_ij = hphf_diag_helement(nI, trial_space(:,j))
+                    end if
                 else
-                    H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
+                    if (.not. tHPHF) then
+                        H_ij = get_helement(nI, nJ, con_space(:,i), trial_space(:,j))
+                    else
+                        H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
+                    end if
                 end if
+
                 con_vecs(:,i) = con_vecs(:,i) + H_ij*trial_vecs(:,j)
             end do
         end do

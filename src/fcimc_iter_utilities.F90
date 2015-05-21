@@ -10,7 +10,8 @@ module fcimc_iter_utils
                         HFPopThresh, DiagSft, tShiftOnHFPop, iRestartWalkNum, &
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, &
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
-                        tContTimeFull, pop_change_min, tPositiveHFSign
+                        tContTimeFull, pop_change_min, tPositiveHFSign, &
+                        qmc_trial_wf
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables
     use semi_stoch_procs, only: recalc_core_hamil_diag
@@ -439,19 +440,21 @@ contains
             call MPIAllReduce(trial_numerator, MPI_SUM, tot_trial_numerator)
             call MPIAllReduce(trial_denom, MPI_SUM, tot_trial_denom)
 
-            ! Becuase tot_trial_numerator/tot_trial_denom is the energy
-            ! relative to the the trial energy, add on this contribution to
-            ! make it relative to the HF energy.
-            if (ntrial_excits == 1) then
-                tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies(1))
-            else
-                if (tPairedReplicas) then
-                    do run = 2, inum_runs, 2
-                        tot_trial_numerator(run-1:run) = tot_trial_numerator(run-1:run) + &
-                            tot_trial_denom(run-1:run)*trial_energies(run/2)
-                    end do
+            if (.not. qmc_trial_wf) then
+                ! Becuase tot_trial_numerator/tot_trial_denom is the energy
+                ! relative to the the trial energy, add on this contribution to
+                ! make it relative to the HF energy.
+                if (ntrial_excits == 1) then
+                    tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies(1))
                 else
-                    tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies)
+                    if (tPairedReplicas) then
+                        do run = 2, inum_runs, 2
+                            tot_trial_numerator(run-1:run) = tot_trial_numerator(run-1:run) + &
+                                tot_trial_denom(run-1:run)*trial_energies(run/2)
+                        end do
+                    else
+                        tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies)
+                    end if
                 end if
             end if
         end if
