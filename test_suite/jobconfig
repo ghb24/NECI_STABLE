@@ -6,7 +6,7 @@ nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
 
-[mneci/*/]
+[mneci/*/*/]
 program = mneci
 nprocs = 2
 min_nprocs = 2
@@ -36,19 +36,19 @@ tolerance = (5e-10, None, 'energy_summed')
 program = neci
 tolerance = (5e-10, None, 'energy_summed')
 
-[mneci/kpfciqmc_fci_all_sym/]
+[mneci/kpfciqmc/fci_all_sym/]
 program = mneci
 tolerance = (2e-8, None, 'hamil_sum')
 
-[mneci/ftlm_hub_6/]
+[mneci/ftlm/hub_6/]
 program = mneci
 tolerance = (2e-9, None, 'overlap_sum')
 
-[mneci/HeHe_5_states/]
+[mneci/cfqmc/HeHe_5_states/]
 program = mneci
 tolerance = (3e-8, None, 'hamil_sum'), (2e-7, None, 'overlap_sum')
 
-[mneci/HeHe_5_states_exact_hamil/]
+[mneci/cfqmc/HeHe_5_states_exact_hamil/]
 program = mneci
 tolerance = (4.5e-8, None, 'hamil_sum'), (2.1e-7, None, 'overlap_sum')
 
