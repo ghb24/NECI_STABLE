@@ -1082,6 +1082,8 @@ contains
                 end if
             case("NUM-TRIAL-STATES-CALC")
                 call geti(ntrial_ex_calc)
+            case("QMC-TRIAL-WF")
+               qmc_trial_wf = .true.
             case("MAX-TRIAL-SIZE")
                 trial_space_in%tLimitSpace = .true.
                 call geti(trial_space_in%max_size)

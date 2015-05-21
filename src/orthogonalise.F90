@@ -593,9 +593,6 @@ contains
         real(dp) :: all_norms(inum_runs), all_overlaps(inum_runs, inum_runs)
         character(*), parameter :: this_routine = 'calc_replica_overlaps'
 
-#ifndef __PROG_NUMRUNS
-        call stop_all(this_routine, "orthogonalise replicas requires mneci.x")
-#else
         norms = 0.0_dp
         overlaps = 0.0_dp
         do j = 1, int(TotWalkers, sizeof_int)
@@ -604,7 +601,9 @@ contains
             call extract_sign(CurrentDets(:,j), sgn)
             if (IsUnoccDet(sgn)) cycle
 
+#ifndef __CMPLX
             norms = norms + sgn*sgn
+#endif
 
             do tgt_run = 1, inum_runs
                 do run = tgt_run + 1, inum_runs
@@ -631,7 +630,6 @@ contains
                     replica_overlaps(src_run, tgt_run)
             end do
         end do
-#endif
 
     end subroutine calc_replica_overlaps
 

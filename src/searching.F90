@@ -218,6 +218,33 @@ contains
 
     end subroutine hash_search_trial
 
+    subroutine get_con_amp_trial_space(ilut, amps)
+
+        ! WARNING: This routines expects that the state passed in, ilut, is
+        ! definitely in the trial space, and performs a stop_all if not.
+
+        integer(n_int), intent(in) :: ilut(0:)
+        real(dp), intent(out) :: amps(:)
+
+        integer :: i, hash_val
+        integer :: nI(nel)
+
+        amps = 0.0_dp
+        call decode_bit_det(nI, ilut)
+
+        hash_val = FindWalkerHash(nI, con_space_size)
+        ! Loop over all hash clashes for this hash value.
+        do i = 1, con_ht(hash_val)%nclash
+            if (all(ilut(0:NIfDBO) == con_ht(hash_val)%states(0:NIfDBO,i))) then
+                amps = transfer(con_ht(hash_val)%states(NIfDBO+1:,i), amps)
+                return
+            end if
+        end do
+
+        call stop_all("get_trial_wf_amp","The input state is not in the trial space.")
+
+    end subroutine get_con_amp_trial_space
+
     subroutine add_trial_energy_contrib(ilut, RealwSign, ireplica)
     
         integer(n_int), intent(in) :: ilut(0:)

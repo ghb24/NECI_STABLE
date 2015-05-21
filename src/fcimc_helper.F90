@@ -269,6 +269,9 @@ contains
     subroutine SumEContrib (nI, ExcitLevel, RealWSign, ilut, HDiagCurr, &
                             dProbFin, tPairedReplicas, ind)
 
+        use CalcData, only: qmc_trial_wf
+        use searching, only: get_con_amp_trial_space
+
         integer, intent(in) :: nI(nel), ExcitLevel
         real(dp), intent(in) :: RealwSign(lenof_sign)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -289,6 +292,8 @@ contains
         integer :: doub_parity, doub_parity2, parity
         character(*), parameter :: this_routine = 'SumEContrib'
 
+        real(dp) :: amps(size(current_trial_amps,1))
+
         if (tReplicaReferencesDiffer) then
             call SumEContrib_different_refs(nI, realWSign, ilut, dProbFin, tPairedReplicas, ind)
             return
@@ -305,6 +310,17 @@ contains
                 else if (ntrial_excits == lenof_sign) then
                     trial_denom = trial_denom + current_trial_amps(:,ind)*RealwSign
                 end if
+
+                if (qmc_trial_wf) then
+                    call get_con_amp_trial_space(ilut, amps)
+
+                    if (ntrial_excits == 1) then
+                        trial_numerator = trial_numerator + amps(1)*RealwSign
+                    else if (ntrial_excits == lenof_sign) then
+                        trial_numerator = trial_numerator + amps*RealwSign
+                    end if
+                end if
+
             else if (test_flag(ilut, flag_connected)) then
                 ! Note, only attempt to add in a contribution from the
                 ! connected space if we're not also in the trial space.
@@ -429,6 +445,9 @@ contains
 
     subroutine SumEContrib_different_refs(nI, sgn, ilut, dProbFin, tPairedReplicas, ind)
 
+        use CalcData, only: qmc_trial_wf
+        use searching, only: get_con_amp_trial_space
+
         ! This is a modified version of SumEContrib for use where the
         ! projected energies need to be calculated relative to differing
         ! references.
@@ -450,6 +469,8 @@ contains
         real(dp) :: sgn_run
         HElement_t :: hoffdiag
         character(*), parameter :: this_routine = 'SumEContrib_different_refs'
+
+        real(dp) :: amps(size(current_trial_amps,1))
 
         ASSERT(inum_runs == lenof_sign)
         ASSERT(tReplicaReferencesDiffer)
@@ -477,6 +498,23 @@ contains
                         trial_denom = trial_denom + current_trial_amps(:,ind)*sgn
                     end if
                 end if
+
+                if (qmc_trial_wf) then
+                    call get_con_amp_trial_space(ilut, amps)
+
+                    if (ntrial_excits == 1) then
+                        trial_numerator = trial_numerator + amps(1)*sgn
+                    else
+                        if (tPairedReplicas) then
+                            do run = 2, inum_runs, 2
+                                trial_numerator(run-1:run) = trial_numerator(run-1:run) + amps(run/2)*sgn(run-1:run)
+                            end do
+                        else
+                            trial_numerator = trial_numerator + amps*sgn
+                        end if
+                    end if
+                end if
+
             else if (test_flag(ilut, flag_connected)) then
                 ! Note, only attempt to add in a contribution from the
                 ! connected space if we're not also in the trial space.
