@@ -1,5 +1,3 @@
-#include "macros.h"
-
 module trial_wf_gen
 
     use bit_rep_data, only: NIfTot, NIfDBO, flag_trial, flag_connected
@@ -102,7 +100,6 @@ contains
                 call assign_trial_states(replica_pairs, CurrentDets, HashIndex, trial_space, temp_wfs, &
                                          trial_wfs, temp_energies, trial_energies)
             else
-                ASSERT(nexcit_calc == nexcit_keep)
                 trial_wfs = temp_wfs
                 trial_energies = temp_energies
             end if

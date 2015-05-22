@@ -21,10 +21,9 @@ module FciMCParMod
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
                             attempt_die_spin_proj
-    use nElRDMMod, only: tCalc_RDMEnergy, FinaliseRDM, calc_energy_from_rdm, &
-                         fill_explicitrdm_this_iter, &
-                         fill_rdm_offdiag_deterministic, &
-                         fill_hist_explicitrdm_this_iter
+    use rdms, only: tCalc_RDMEnergy, FinaliseRDM, calc_energy_from_rdm, &
+                    fill_explicitrdm_this_iter, fill_rdm_offdiag_deterministic, &
+                    fill_hist_explicitrdm_this_iter
     use procedure_pointers, only: attempt_die_t, generate_excitation_t, &
                                   get_spawn_helement_t
     use semi_stoch_gen, only: write_most_pop_core_at_end, init_semi_stochastic

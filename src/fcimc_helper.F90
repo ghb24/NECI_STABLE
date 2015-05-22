@@ -47,7 +47,7 @@ module fcimc_helper
     use hash, only: remove_hash_table_entry
     use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
     use load_balance, only: adjust_load_balance
-    use nElRDMMod, only: store_parent_with_spawned, det_removed_fill_diag_rdm,&
+    use rdms, only: store_parent_with_spawned, det_removed_fill_diag_rdm,&
                          extract_bit_rep_avsign_norm
     use Parallel_neci
     use FciMCLoggingMod, only: HistInitPopulations, WriteInitPops
@@ -1682,11 +1682,12 @@ contains
 
     end subroutine
 
-    
-
     subroutine check_start_rdm()
-! This routine checks if we should start filling the RDMs - and does so if we should.        
-        use nElRDMMod , only : DeAlloc_Alloc_SpawnedParts
+
+        ! This routine checks if we should start filling the RDMs - 
+        ! and does so if we should. 
+
+        use rdms , only : DeAlloc_Alloc_SpawnedParts
         use LoggingData, only: tReadRDMs
         implicit none
         logical :: tFullVaryshift

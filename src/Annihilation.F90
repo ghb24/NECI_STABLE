@@ -539,7 +539,7 @@ module AnnihilationMod
         ! to zero.  These will be deleted at the end of the total annihilation
         ! step.
 
-        use nElRDMMod, only: check_fillRDM_DiDj
+        use rdms, only: check_fillRDM_DiDj
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(inout) :: TotWalkersNew
