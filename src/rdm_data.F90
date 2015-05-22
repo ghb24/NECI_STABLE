@@ -38,8 +38,9 @@ real(dp), allocatable :: AllNodes_bbbb_RDM(:,:), AllNodes_baba_RDM(:,:), AllNode
 real(dp), allocatable :: UMATTemp(:,:), Rho_ii(:)
 real(dp), allocatable :: Lagrangian(:,:)
 
-real(dp) :: OneEl_Gap,TwoEl_Gap, Normalisation,Trace_2RDM_Inst, Trace_2RDM, Trace_1RDM, norm
 logical :: tCalc_RDMEnergy
+
+real(dp) :: OneEl_Gap, TwoEl_Gap, Normalisation, Trace_2RDM_Inst, Trace_2RDM, Trace_1RDM, norm
 type(timer), save :: nElRDM_Time, FinaliseRDM_time, RDMEnergy_time
 
 logical :: tRotatedNOs = .false.
