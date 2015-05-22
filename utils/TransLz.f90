@@ -757,7 +757,8 @@ PROGRAM TransLz
                          STOP 'Complex integral found'
                      ENDIF
                      IF(ABS(DBLE(CompZ)).gt.1.D-9) THEN
-                         WRITE(8,'(1X,G20.14,4I3)') DBLE(CompZ),i,j,k,l
+                         WRITE(8,*) DBLE(CompZ),i,j,k,l
+!                         WRITE(8,'(1X,G20.14,4I3)') DBLE(CompZ),i,j,k,l
                      ENDIF
 
                 ENDDO
@@ -892,17 +893,20 @@ PROGRAM TransLz
                 STOP 'Complex integral found'
             ENDIF
             IF(ABS(DBLE(CompZ)).gt.1.D-09) THEN
-                WRITE(8,'(1X,G20.14,4I3)') DBLE(CompZ),i,j,0,0
+                WRITE(8,*) DBLE(CompZ),i,j,0,0
+                !WRITE(8,'(1X,G20.14,4I3)') DBLE(CompZ),i,j,0,0
             ENDIF
 
         ENDDO
     ENDDO
 
     DO i=1,NORB
-        WRITE(8,'(1X,G20.12,4I3)') Arr(i),i,0,0,0
+        WRITE(8,*) Arr(i),i,0,0,0
+        !WRITE(8,'(1X,G20.12,4I3)') Arr(i),i,0,0,0
     ENDDO
 
-    WRITE(8,'(1X,G20.12,4I3)') ECore,0,0,0,0
+    WRITE(8,*) ECore,0,0,0,0
+    !WRITE(8,'(1X,G20.12,4I3)') ECore,0,0,0,0
 
     if(tError) then
         CLOSE(8,status='delete')
