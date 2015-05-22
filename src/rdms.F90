@@ -435,21 +435,21 @@ contains
 
 ! This array actually contains the excitations in blocks of the processor they will be sent to.        
 ! Only needed if the 1-RDM is the only thing being calculated.
-            allocate(Sing_ExcDjs(0:NIfTot,NINT((NEl*nBasis)*MemoryFacPart)),stat=ierr)
+            allocate(Sing_ExcDjs(0:NIfTot,nint((NEl*nBasis)*MemoryFacPart)),stat=ierr)
             if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating Sing_ExcDjs array.')
-            call LogMemAlloc('Sing_ExcDjs',NINT(NEl*nBasis*MemoryFacPart)*(NIfTot+1),&
+            call LogMemAlloc('Sing_ExcDjs',nint(NEl*nBasis*MemoryFacPart)*(NIfTot+1),&
                                             size_n_int,this_routine,Sing_ExcDjsTag,ierr)
 
-            allocate(Sing_ExcDjs2(0:NIfTot,NINT((NEl*nBasis)*MemoryFacPart)),stat=ierr)
+            allocate(Sing_ExcDjs2(0:NIfTot,nint((NEl*nBasis)*MemoryFacPart)),stat=ierr)
             if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating Sing_ExcDjs2 array.')
-            call LogMemAlloc('Sing_ExcDjs2',NINT(NEl*nBasis*MemoryFacPart)*(NIfTot+1),&
+            call LogMemAlloc('Sing_ExcDjs2',nint(NEl*nBasis*MemoryFacPart)*(NIfTot+1),&
                                             size_n_int,this_routine,Sing_ExcDjs2Tag,ierr)
 
             Sing_ExcDjs(:,:)=0
             Sing_ExcDjs2(:,:)=0
 
-            MemoryAlloc = MemoryAlloc + ( (NIfTot + 1) * NINT((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 ) 
-            MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 1) * NINT((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 ) 
+            MemoryAlloc = MemoryAlloc + ( (NIfTot + 1) * nint((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 ) 
+            MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 1) * nint((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 ) 
 
 ! We need room to potentially generate N*M single excitations but these will be 
 ! spread across each processor.        
@@ -460,7 +460,7 @@ contains
             allocate(Sing_InitExcSlots(0:(nProcessors-1)),stat=ierr)
             if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating Sing_InitExcSlots array,')
             do i=0,nProcessors-1
-                Sing_InitExcSlots(i)=NINT(OneEl_Gap*i)+1
+                Sing_InitExcSlots(i)=nint(OneEl_Gap*i)+1
             end do
 
 ! This array contains the current position of the excitations as they're added.
@@ -471,18 +471,18 @@ contains
             if (RDMExcitLevel.ne.1) then
 ! This array actually contains the excitations in blocks of the processor 
 ! they will be sent to.        
-                allocate(Doub_ExcDjs(0:NIfTot,NINT(((NEl*nBasis)**2)*MemoryFacPart)),stat=ierr)
+                allocate(Doub_ExcDjs(0:NIfTot,nint(((NEl*nBasis)**2)*MemoryFacPart)),stat=ierr)
                 if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating Doub_ExcDjs array.')
-                call LogMemAlloc('Doub_ExcDjs',NINT(((NEl*nBasis)**2)*MemoryFacPart)&
+                call LogMemAlloc('Doub_ExcDjs',nint(((NEl*nBasis)**2)*MemoryFacPart)&
                                 *(NIfTot+1),size_n_int,this_routine,Doub_ExcDjsTag,ierr)
 
-                allocate(Doub_ExcDjs2(0:NIfTot,NINT(((NEl*nBasis)**2)*MemoryFacPart)),stat=ierr)
+                allocate(Doub_ExcDjs2(0:NIfTot,nint(((NEl*nBasis)**2)*MemoryFacPart)),stat=ierr)
                 if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating Doub_ExcDjs2 array.')
-                call LogMemAlloc('Doub_ExcDjs2',NINT(((NEl*nBasis)**2)*MemoryFacPart)&
+                call LogMemAlloc('Doub_ExcDjs2',nint(((NEl*nBasis)**2)*MemoryFacPart)&
                                 *(NIfTot+1),size_n_int,this_routine,Doub_ExcDjs2Tag,ierr)
 
-                MemoryAlloc = MemoryAlloc + ( (NIfTot + 1) * NINT(((NEl*nBasis)**2)*MemoryFacPart) * size_n_int * 2 ) 
-                MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 1) * NINT(((NEl*nBasis)**2)*MemoryFacPart) * size_n_int * 2 ) 
+                MemoryAlloc = MemoryAlloc + ( (NIfTot + 1) * nint(((NEl*nBasis)**2)*MemoryFacPart) * size_n_int * 2 ) 
+                MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 1) * nint(((NEl*nBasis)**2)*MemoryFacPart) * size_n_int * 2 ) 
 
 ! We need room to potentially generate (N*M)^2 double excitations but these 
 ! will be spread across each processor.        
@@ -495,7 +495,7 @@ contains
                 allocate(Doub_InitExcSlots(0:(nProcessors-1)),stat=ierr)
                 if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating Doub_InitExcSlots array,')
                 do i=0,nProcessors-1
-                    Doub_InitExcSlots(i)=NINT(TwoEl_Gap*i)+1
+                    Doub_InitExcSlots(i)=nint(TwoEl_Gap*i)+1
                 end do
 
 ! This array contains the current position of the excitations as they're added.
@@ -846,7 +846,7 @@ contains
 ! Brr is always in spin orbitals.
 !        write(6,*) 'BRR'
 !        do i=1,nBasis
-!            write(6,*) i, BRR(i), INT(G1(BRR(i))%sym%S)
+!            write(6,*) i, BRR(i), int(G1(BRR(i))%sym%S)
 !        end do
 !        call neci_flush(6)
 !        call Stop_All('','')
@@ -864,25 +864,25 @@ contains
                 SymLabelList2_rot(i+SpatOrbs) = BRR((2*i)-1)
 
                 if (tFixLz) then
-                    SpatSym = INT(G1(BRR(2*i))%sym%S)
-                    LzSym = INT(G1(BRR(2*i))%Ml)
+                    SpatSym = int(G1(BRR(2*i))%sym%S)
+                    LzSym = int(G1(BRR(2*i))%Ml)
                     SymOrbs_rot(i) = ( SpatSym * ((2 * iMaxLz) + 1) ) + ( LzSym + iMaxLz )
 
-                    SpatSym = INT(G1(BRR((2*i)-1))%sym%S)
-                    LzSym = INT(G1(BRR((2*i)-1))%Ml)
+                    SpatSym = int(G1(BRR((2*i)-1))%sym%S)
+                    LzSym = int(G1(BRR((2*i)-1))%Ml)
                     SymOrbs_rot(i+SpatOrbs) = ( SpatSym * ((2 * iMaxLz) + 1) ) + ( LzSym + iMaxLz )
                 else
-                    SymOrbs_rot(i) = INT(G1(BRR(2*i))%sym%S) 
-                    SymOrbs_rot(i+SpatOrbs) = INT(G1(BRR((2*i)-1))%sym%S) 
+                    SymOrbs_rot(i) = int(G1(BRR(2*i))%sym%S) 
+                    SymOrbs_rot(i+SpatOrbs) = int(G1(BRR((2*i)-1))%sym%S) 
                 end if
             else
                 SymLabelList2_rot(i) = gtID(BRR(2*i))
                 if (tFixLz) then
-                    SpatSym = INT(G1(BRR(2*i))%sym%S)
-                    LzSym = INT(G1(BRR(2*i))%Ml)
+                    SpatSym = int(G1(BRR(2*i))%sym%S)
+                    LzSym = int(G1(BRR(2*i))%Ml)
                     SymOrbs_rot(i) = ( SpatSym * ((2 * iMaxLz) + 1) ) + ( LzSym + iMaxLz )
                 else
-                    SymOrbs_rot(i) = INT(G1(BRR(2*i))%sym%S) 
+                    SymOrbs_rot(i) = int(G1(BRR(2*i))%sym%S) 
                 end if
                 ! Orbital BRR(2*i) for i = 1 will be the beta orbital with the 
                 ! second lowest energy - want the spatial orbital index to go with this.
@@ -973,12 +973,12 @@ contains
 !        write(6,*) 'Sym label list (i.e the orbitals in symm order), &
 !                               & and their symmetries according to G1'
 !        do i=1,SpatOrbs
-!            write(6,*) i,SymLabelList2_rot(i),INT(G1(2*SymLabelList2_rot(i))%sym%S)
+!            write(6,*) i,SymLabelList2_rot(i),int(G1(2*SymLabelList2_rot(i))%sym%S)
 !        end do
 !        write(6,*) 'i','ARR(SymLabelList2_rot(i),1)','ARR(SymLabelList2_rot(i),2)','Sym'
 !        do i=1,SpatOrbs
 !             write(6,*) i,ARR(2*SymLabelList2_rot(i),1),ARR(2*SymLabelList2_rot(i),2),&
-!                                               INT(G1(2*SymLabelList2_rot(i))%sym%S)
+!                                               int(G1(2*SymLabelList2_rot(i))%sym%S)
 !        end do
 !
 !        write(6,*) 'Sym label list (i.e the orbitals in symm order), and its inverse'
@@ -1145,15 +1145,21 @@ contains
     end subroutine extract_bit_rep_avsign_norm
     
     subroutine fill_rdm_diag_currdet_norm(iLutnI, nI, j, ExcitLevelI, tCoreSpaceDet)
-! This routine calculates the diagonal RDM contribution, and explicit connections to the HF, from the 
-! current determinant. 
-! j --> Which element of the main list CurrentDets are we considering?
-! IterLastRDMFill is the number of iterations since the last time the RDM contributions were added in 
-! (often the frequency of the RDM energy calculation). 
-! For the instantaneous RDMs we need to multiply the RDM contributions by either this, or the number of iterations 
-! the determinant has been occupied, which ever is fewer.
-! For the full RDMs we need to multiply the RDM contributions by the number of iterations the 
-! determinant has been occupied.
+
+        ! This routine calculates the diagonal RDM contribution, and explicit
+        ! connections to the HF, from the current determinant. 
+
+        ! j --> Which element of the main list CurrentDets are we considering?
+        ! IterLastRDMFill is the number of iterations since the last time the
+        ! RDM contributions were added in (often the frequency of the RDM
+        ! energy calculation). 
+
+        ! For the instantaneous RDMs we need to multiply the RDM contributions
+        ! by either this, or the number of iterations the determinant has been
+        ! occupied, which ever is fewer. For the full RDMs we need to multiply
+        ! the RDM contributions by the number of iterations the determinant has
+        ! been occupied.
+
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         integer, intent(in) :: nI(nel), ExcitLevelI, j
         logical, intent(in), optional :: tCoreSpaceDet
@@ -1167,12 +1173,13 @@ contains
         IterDetOcc(1:lenof_sign) = real(Iter+PreviousCycles,dp) - get_iter_occ(j) + 1.0_dp
         AvSignIters = min(IterDetOcc(1), IterDetOcc(inum_runs))
         
-        ! IterLastRDMFill is the number of iterations from the last time the energy was calculated 
+        ! IterLastRDMFill is the number of iterations from the last time the
+        ! energy was calculated.
         IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter)
         
 
         ! The number of iterations we want to weight this RDM contribution by is:
-        if (IterLastRDMFill.gt.0) then
+        if (IterLastRDMFill .gt. 0) then
             IterRDM = min(AvSignIters,IterLastRDMFill)
         else
             IterRDM = AvSignIters
@@ -1185,8 +1192,9 @@ contains
                 call Fill_Diag_RDM(nI, AvSignCurr/SQRT(2.0_dp), tCoreSpaceDet, IterRDM)
 
                 
-! C_X D_X = C_X / SQRT(2) [ D_I +/- D_I'] - for open shell dets, divide stored C_X by SQRT(2). 
-! Add in I.
+                ! C_X D_X = C_X / SQRT(2) [ D_I +/- D_I'] - for open shell dets,
+                ! divide stored C_X by SQRT(2). 
+                ! Add in I.
                 call FindExcitBitDetSym(iLutnI, SpinCoupDet)
                 call decode_bit_det (nSpinCoup, SpinCoupDet)
                 ! Find out if it's + or - in the above expression.
@@ -1194,11 +1202,10 @@ contains
 
                 call Fill_Diag_RDM(nSpinCoup, real(SignFac,dp)*AvSignCurr/SQRT(2.0_dp), tCoreSpaceDet, IterRDM)
 
-! For HPHF we're considering < D_I + D_I' | a_a+ a_b+ a_j a_i | D_I + D_I' >
-! Not only do we have diagonal < D_I | a_a+ a_b+ a_j a_i | D_I > terms, but also cross terms
-! < D_I | a_a+ a_b+ a_j a_i | D_I' > if D_I and D_I' can be connected by a single or double 
-! excitation.
-! Find excitation level between D_I and D_I' and add in the contribution if connected.
+                ! For HPHF we're considering < D_I + D_I' | a_a+ a_b+ a_j a_i | D_I + D_I' >
+                ! Not only do we have diagonal < D_I | a_a+ a_b+ a_j a_i | D_I > terms, but also cross terms
+                ! < D_I | a_a+ a_b+ a_j a_i | D_I' > if D_I and D_I' can be connected by a single or double 
+                ! excitation. Find excitation level between D_I and D_I' and add in the contribution if connected.
                 HPHFExcitLevel = FindBitExcitLevel (iLutnI, SpinCoupDet, 2)
                 if (HPHFExcitLevel.le.2) then 
                     call Add_RDM_From_IJ_Pair(nI, nSpinCoup, IterRDM*AvSignCurr(1)/SQRT(2.0_dp), &
@@ -1206,37 +1213,39 @@ contains
                 end if
             else
 
-                ! HPHF on, but determinant closed shell.
+                ! HPHFs on, but determinant closed shell.
                 call Fill_Diag_RDM(nI, AvSignCurr, tCoreSpaceDet, IterRDM)
 
             end if
             call Add_RDM_HFConnections_HPHF(iLutnI, nI, AvSignCurr, ExcitLevelI, IterRDM)   
 
         else
-            ! No HPHF
-            if (AvSignCurr(1)*AvSignCurr(lenof_sign).ne.0) call Fill_Diag_RDM(nI, AvSignCurr, tCoreSpaceDet, IterRDM)
+            ! Not using HPHFs.
+            if (AvSignCurr(1)*AvSignCurr(lenof_sign) .ne. 0) call Fill_Diag_RDM(nI, AvSignCurr, tCoreSpaceDet, IterRDM)
             call Add_RDM_HFConnections_Norm(iLutnI, nI, AvSignCurr, ExcitLevelI, IterRDM)   
 
         end if
 
     end subroutine fill_rdm_diag_currdet_norm
 
-
     subroutine det_removed_fill_diag_rdm( iLutnI, j)
-! This routine is called if a determinant is removed from the list of currently occupied.  
-! At this point we need to add in its diagonal contribution for the number of iterations it has 
-! been occupied (or since the contribution was last included). 
-! j --> which element of the main list CurrentDets are we considering
+
+        ! This routine is called if a determinant is removed from the list of
+        ! currently occupied. At this point we need to add in its diagonal
+        ! contribution for the number of iterations it has been occupied (or
+        ! since the contribution was last included). j --> which element of
+        ! the main list CurrentDets are we considering.
+
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         integer, intent(in) :: j
         integer :: nI(nel), ExcitLevel, IterLastRDMFill
 
-        ! If the determinant is removed on an iteration that the diagonal RDM elements are 
-        ! already being calculated, it will already have been counted.
+        ! If the determinant is removed on an iteration that the diagonal RDM
+        ! elements are  already being calculated, it will already have been
+        ! counted.
 
         if (.not.((Iter.eq.NMCyc).or.(mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0))) then
-        ! The elements described above will have been already added in
-
+            ! The elements described above will have been already added in
             call decode_bit_det (nI, iLutnI)
             if (tRef_Not_HF) then
                 ExcitLevel = FindBitExcitLevel (iLutHF_true, iLutnI, 2)
@@ -1248,7 +1257,6 @@ contains
             !    call fill_rdm_diag_currdet_hfsd(iLutnI, nI, CurrH_I, ExcitLevel, .false., &
             !                                    IterLastRDMFill, tFinalRDMContrib, tDetRemoved)
             !else
-
             call fill_rdm_diag_currdet_norm(iLutnI, nI, j, ExcitLevel, .false.)
             !end if
 
@@ -1256,35 +1264,37 @@ contains
 
     end subroutine det_removed_fill_diag_rdm
 
-!!!!!!!!!!! CMO up to here
+! CMO up to here
 
-    subroutine Add_RDM_HFConnections_Norm(iLutJ,nJ,AvSignJ,walkExcitLevel, IterRDM)
-! This is called when we run over all TotWalkers in CurrentDets.    
-! It is called for each CurrentDet which is a single or double of the HF.
-! It explicitly adds in the HF - S/D connection, as if the HF were D_i and 
-! the single or double D_j.
-! This is the standard full space RDM calc (No HPHF).
-! In this case the diagonal elements wll already be taken care of.
+    subroutine Add_RDM_HFConnections_Norm(iLutJ, nJ, AvSignJ, walkExcitLevel, IterRDM)
+
+        ! This is called when we run over all TotWalkers in CurrentDets.    
+        ! It is called for each CurrentDet which is a single or double of the HF.
+        ! It explicitly adds in the HF - S/D connection, as if the HF were D_i and 
+        ! the single or double D_j. This is the standard full space RDM calc (No HPHF).
+        ! In this case the diagonal elements wll already be taken care of.
+
         integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
-        integer , intent(in) :: nJ(NEl)
-        real(dp) , dimension(lenof_sign), intent(in) :: AvSignJ
-        integer , intent(in) :: IterRDM
-        integer , intent(in) :: walkExcitLevel
+        integer, intent(in) :: nJ(NEl)
+        real(dp), dimension(lenof_sign), intent(in) :: AvSignJ
+        integer, intent(in) :: IterRDM
+        integer, intent(in) :: walkExcitLevel
         integer(kind=n_int) :: SpinCoupDet(0:niftot)
         integer :: nSpinCoup(NEl), HPHFExcitLevel, part_type
 
-! Quick check that the HF population is being calculated correctly.
+        ! Quick check that the HF population is being calculated correctly.
         if (.not.tFullHFAv) then
-            !If tFullHFAv, we continue the accumulation of AvNoAtHF even when InstNoAtHF is zero
-            !Therefore, AvNoAtHF is allowed to be different to the AvSignJ stored in CurrentH for this det
+            ! If tFullHFAv, we continue the accumulation of AvNoAtHF even when
+            ! InstNoAtHF is zero. Therefore, AvNoAtHF is allowed to be different
+            ! to the AvSignJ stored in CurrentH for this det.
             if (walkExcitLevel.eq.0) then
                 do part_type=1,lenof_sign
-                    if (abs(AvSignJ(part_type)-AvNoatHF(part_type)).gt.1.0e-10_dp) then
-                        write(6,*) 'HFDet_True',HFDet_True
-                        write(6,*) 'nJ',nJ
-                        write(6,*) 'iLutJ',iLutJ
-                        write(6,*) 'AvSignJ',AvSignJ
-                        write(6,*) 'AvNoatHF',AvNoatHF
+                    if (abs(AvSignJ(part_type)-AvNoatHF(part_type)) .gt. 1.0e-10_dp) then
+                        write(6,*) 'HFDet_True', HFDet_True
+                        write(6,*) 'nJ', nJ
+                        write(6,*) 'iLutJ', iLutJ
+                        write(6,*) 'AvSignJ', AvSignJ
+                        write(6,*) 'AvNoatHF', AvNoatHF
                         write(6,*) "instnoathf", instnoathf
                         call Stop_All('Add_RDM_HFConnections_Norm','Incorrect average HF population.')
                     end if
@@ -1292,19 +1302,25 @@ contains
             end if
         end if
 
-! If we have a single or double, add in the connection to the HF, symmetrically.       
-        if ((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) then
-            call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF(1),(1.0_dp/real(lenof_sign,dp))*IterRDM*AvSignJ(lenof_sign),.true.)
-            call Add_RDM_From_IJ_Pair(HFDet_True,nJ,AvNoatHF(lenof_sign),(1.0_dp/real(lenof_sign,dp))*IterRDM*AvSignJ(1),.true.)
+        ! If we have a single or double, add in the connection to the HF,
+        ! symmetrically.
+        if ((walkExcitLevel .eq. 1) .or. (walkExcitLevel .eq. 2)) then
+            call Add_RDM_From_IJ_Pair(HFDet_True, nJ, AvNoatHF(1), &
+                                      (1.0_dp/real(lenof_sign,dp))*IterRDM*AvSignJ(lenof_sign), .true.)
+
+            call Add_RDM_From_IJ_Pair(HFDet_True, nJ, AvNoatHF(lenof_sign), &
+                                      (1.0_dp/real(lenof_sign,dp))*IterRDM*AvSignJ(1), .true.)
         end if
 
     end subroutine Add_RDM_HFConnections_Norm
 
     subroutine Add_RDM_HFConnections_HPHF(iLutJ,nJ,AvSignJ,walkExcitLevel,IterRDM)
-! This is called when we run over all TotWalkers in CurrentDets.    
-! It is called for each CurrentDet which is a single or double of the HF.
-! It adds in the HF - S/D connection.
-! The diagonal elements will already have been taken care of by the extract routine.
+
+        ! This is called when we run over all TotWalkers in CurrentDets.
+        ! It is called for each CurrentDet which is a single or double of the HF.
+        ! It adds in the HF - S/D connection. The diagonal elements will already
+        ! have been taken care of by the extract routine.
+
         integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
         integer , intent(in) :: nJ(NEl)
         integer , intent(in) :: IterRDM
@@ -1313,11 +1329,12 @@ contains
         integer(kind=n_int) :: SpinCoupDet(0:niftot)
         integer :: nSpinCoup(NEl), HPHFExcitLevel, part_type
 
-        if (.not.tFullHFAv) then
-            !If tFullHFAv, we continue the accumulation of AvNoAtHF even when InstNoAtHF is zero
-            !Therefore, AvNoAtHF is allowed to be different to the AvSignJ stored in CurrentH for this det
+        if (.not. tFullHFAv) then
+            ! If tFullHFAv, we continue the accumulation of AvNoAtHF even
+            ! when InstNoAtHF is zero. Therefore, AvNoAtHF is allowed to be
+            ! different to the AvSignJ stored in CurrentH for this det.
             if (walkExcitLevel.eq.0) then
-                do part_type=1,lenof_sign
+                do part_type = 1,lenof_sign
                     if (AvSignJ(part_type).ne.AvNoatHF(part_type)) then
                         write(6,*) 'AvSignJ',AvSignJ
                         write(6,*) 'AvNoatHF',AvNoatHF
@@ -1327,11 +1344,11 @@ contains
             end if
         end if
 
-! Now if the determinant is connected to the HF (i.e. single or double), add in the diagonal elements
-! of this connection as well - symmetrically because no probabilities are involved.
-        if ((walkExcitLevel.eq.1).or.(walkExcitLevel.eq.2)) &
-            call Fill_Spin_Coupled_RDM_v2(iLutHF_True,iLutJ,HFDet_True,nJ,&
-                                            AvNoatHF(1),IterRDM*AvSignJ(lenof_sign),.true.)
+        ! Now if the determinant is connected to the HF (i.e. single or double),
+        ! add in the diagonal elements of this connection as well -
+        ! symmetrically because no probabilities are involved.
+        if ((walkExcitLevel .eq. 1) .or. (walkExcitLevel .eq. 2)) &
+            call Fill_Spin_Coupled_RDM_v2(iLutHF_True, iLutJ, HFDet_True, nJ, AvNoatHF(1), IterRDM*AvSignJ(lenof_sign), .true.)
 
     end subroutine Add_RDM_HFConnections_HPHF
 
@@ -1410,23 +1427,27 @@ contains
 !    end subroutine Add_RDM_HFConnections_HF_S_D
 
     subroutine calc_rdmbiasfac(p_spawn_rdmfac,p_gen,SignCurr,RDMBiasFacCurr)
+
         real(dp), intent(in) :: p_gen
         real(dp), intent(in) :: SignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: p_spawn_rdmfac
         real(dp) :: p_notlist_rdmfac, p_spawn, p_not_spawn, p_max_walktospawn
 
-        ! We eventually turn this real bias factor into an integer to be passed around 
-        ! with the spawned children and their parents - this only works with 64 bit at the mo.
-        if (n_int.eq.4) call Stop_All('attempt_create_normal', &
+        ! We eventually turn this real bias factor into an integer to be passed
+        ! around with the spawned children and their parents - this only works
+        ! with 64 bit at the moment.
+        if (n_int .eq. 4) call Stop_All('attempt_create_normal', &
                         'the bias factor currently does not work with 32 bit integers.')
 
-        ! Otherwise calculate the 'sign' of Di we are eventually going to add in as Di.Dj.                                
-        ! Because we only add in Di.Dj when we successfully spawn from Di.Dj, we need to unbias (scale up) 
-        ! Di by the probability of this happening.
-        ! We need the probability that the determinant i, with population n_i, will spawn on j.
-        ! We only consider one instance of a pair Di,Dj, so just want the probability of any of the n_i 
-        ! walkers spawning at least once on Dj.
+        ! Otherwise calculate the 'sign' of Di we are eventually going to add
+        ! in as Di.Dj. Because we only add in Di.Dj when we successfully spawn
+        ! from Di.Dj, we need to unbias (scale up) Di by the probability of this
+        ! happening. We need the probability that the determinant i, with
+        ! population n_i, will spawn on j. We only consider one instance of a
+        ! pair Di,Dj, so just want the probability of any of the n_i walkers
+        ! spawning at least once on Dj.
+
         ! P_successful_spawn(j | i)[n_i] =  1 - P_not_spawn(j | i)[n_i]
         ! P_not_spawn(j | i )[n_i] is the probability of none of the n_i walkers spawning on j from i.
         ! This requires either not generating j, or generating j and not succesfully spawning, n_i times.
@@ -1434,34 +1455,36 @@ contains
 
         p_notlist_rdmfac = ( 1.0_dp - p_gen ) + ( p_gen * (1.0_dp - p_spawn_rdmfac) )
 
-        ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i]
-       
+        ! The bias fac is now n_i / P_successful_spawn(j | i)[n_i].
 
         if (real(int(SignCurr),dp).ne.SignCurr) then
-            !There's a non-integer population on this determinant
-            !We need to consider both possibilities - whether we attempted to spawn 
-            !int(SignCurr) times or int(SignCurr)+1 times
-            p_max_walktospawn=abs(SignCurr-real(int(SignCurr),dp))
+            ! There's a non-integer population on this determinant. We need to
+            ! consider both possibilities - whether we attempted to spawn 
+            ! int(SignCurr) times or int(SignCurr)+1 times.
+            p_max_walktospawn = abs(SignCurr-real(int(SignCurr),dp))
             p_not_spawn = (1.0_dp - p_max_walktospawn)*(p_notlist_rdmfac**abs(int(SignCurr))) + &
                         p_max_walktospawn*(p_notlist_rdmfac**(abs(int(SignCurr))+1))
 
         else
-            p_not_spawn=p_notlist_rdmfac**(abs(SignCurr))
+            p_not_spawn = p_notlist_rdmfac**(abs(SignCurr))
         end if
 
-        p_spawn=abs(1.0_dp - p_not_spawn)
+        p_spawn = abs(1.0_dp - p_not_spawn)
         
-        !Always use instantaneous signs for stochastically sampled off-diag elements (see CMO thesis)
-        RDMBiasFacCurr = SignCurr / p_spawn  
+        ! Always use instantaneous signs for stochastically sampled off-diag
+        ! elements (see CMO thesis).
+        RDMBiasFacCurr = SignCurr / p_spawn
 
     end subroutine calc_rdmbiasfac
 
     subroutine store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, DetSpawningAttempts, iLutJ, procJ, part_type)
-    !We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
-    !This routine stores the parent (D_i) with the spawned child (D_j) so that we can
-    !add in Ci.Cj to the RDM later on.
-    !The parent is NIfDBO integers long, and stored in the second part of the SpawnedParts array 
-    !from NIfTot+1 -> NIfTot+1 + NIfDBO.
+
+        ! We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
+        ! This routine stores the parent (D_i) with the spawned child (D_j) so
+        ! that we can add in Ci.Cj to the RDM later on. The parent is NIfDBO
+        ! integers long, and stored in the second part of the SpawnedParts array 
+        ! from NIfTot+1 -> NIfTot+1 + NIfDBO.
+
         real(dp), intent(in) :: RDMBiasFacCurr
         integer, intent(in) :: WalkerNumber, procJ
         integer, intent(in) :: DetSpawningAttempts
@@ -1493,7 +1516,7 @@ contains
                 if (DetBitEQ(iLutJ(0:NIfDBO),TempSpawnedParts(0:NIfDBO,j),NIfDBO)) then
                     ! If this Dj is found, we do not want to store the parent with this spawned walker.
                     tRDMStoreParent = .false.
-                    EXIT
+                    exit
                 end if
             end do
 
@@ -1529,12 +1552,14 @@ contains
 
     end subroutine store_parent_with_spawned
 
+    subroutine check_fillRDM_DiDj(Spawned_No, iLutJ, realSignJ)
 
-    subroutine check_fillRDM_DiDj(Spawned_No,iLutJ,realSignJ)
-! The spawned parts contain the Dj's spawned by the Di's in CurrentDets.
-! If the SpawnedPart is found in the CurrentDets list, it means that the Dj has a non-zero 
-! cj - and therefore the Di.Dj pair will have a non-zero ci.cj to contribute to the RDM.
-! The index i tells us where to look in the parent array, for the Di's to go with this Dj.
+        ! The spawned parts contain the Dj's spawned by the Di's in CurrentDets.
+        ! If the SpawnedPart is found in the CurrentDets list, it means that
+        ! the Dj has a non-zero cj - and therefore the Di.Dj pair will have a
+        ! non-zero ci.cj to contribute to the RDM. The index i tells us where
+        ! to look in the parent array, for the Di's to go with this Dj.
+
         integer , intent(in) :: Spawned_No
         integer(kind=n_int) , intent(in) :: iLutJ(0:NIfTot)
         real(dp) , dimension(lenof_sign), intent(in) :: realSignJ
@@ -1544,9 +1569,9 @@ contains
         ! connections to the HF, so we don't want to re add any pair 
         ! containing the HF.
         !if (tHF_S_D) then 
-            ! In the case of the HF S D matrix (symmetric), Di and Dj can both 
-            ! be the HF, singles or doubles.
-            ! This is the excitation level of Dj.
+        !    ! In the case of the HF S D matrix (symmetric), Di and Dj can both 
+        !    ! be the HF, singles or doubles.
+        !    ! This is the excitation level of Dj.
         !    ExcitLevel = FindBitExcitLevel (iLutHF_True, iLutJ, 2)
         !    if ((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) &
         !        call DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
@@ -1558,18 +1583,20 @@ contains
         !    if ((ExcitLevel.le.4).and.(ExcitLevel.ne.0)) &
         !        call DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
         !else if (.not.DetBitEQ(iLutHF_True,iLutJ,NIfDBO)) then
-        if (.not.DetBitEQ(iLutHF_True,iLutJ,NIfDBO)) then
-                call DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
+
+        if (.not. DetBitEQ(iLutHF_True, iLutJ, NIfDBO)) then
+                call DiDj_Found_FillRDM(Spawned_No, iLutJ, realSignJ)
         end if
 
     end subroutine check_fillRDM_DiDj
  
+    subroutine DiDj_Found_FillRDM(Spawned_No, iLutJ, realSignJ)
 
-    subroutine DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
-! This routine is called when we have found a Di (or multiple Di's) spawning onto a Dj 
-! with sign /= 0 (i.e. occupied).
-! We then want to run through all the Di, Dj pairs and add their coefficients 
-! (with appropriate de-biasing factors) into the 1 and 2 electron RDM.
+        ! This routine is called when we have found a Di (or multiple Di's)
+        ! spawning onto a Dj with sign /= 0 (i.e. occupied). We then want to
+        ! run through all the Di, Dj pairs and add their coefficients 
+        ! (with appropriate de-biasing factors) into the 1 and 2 electron RDM.
+
         use bit_rep_data, only : flag_deterministic, test_flag
         integer , intent(in) :: Spawned_No
         integer(kind=n_int) , intent(in) :: iLutJ(0:NIfTot)
@@ -1579,28 +1606,20 @@ contains
         integer :: dest_part_type, source_part_type
         logical :: tParity, tDetAdded
 
-! Spawning from multiple parents, to iLutJ, which has SignJ.        
+        ! Spawning from multiple parents, to iLutJ, which has SignJ.        
 
-! We are at position Spawned_No in the SpawnedParts array.
-! Spawned_Parents_Index(1,Spawned_No) is therefore the start position of the list of parents (Di's) 
-! which spawned on the Dj in SpawnedParts(Spawned_No)
-! There are Spawned_Parents_Index(2,Spawned_No) of these parent Di's.
-! Spawned_Parents(0:NIfDBO,x) is the determinant Di, Spawned_Parents(NIfDBO+1,x) is the un-biased ci.
+        ! We are at position Spawned_No in the SpawnedParts array.
+        ! Spawned_Parents_Index(1,Spawned_No) is therefore the start position
+        ! of the list of parents (Di's) which spawned on the Dj in
+        ! SpawnedParts(Spawned_No). There are Spawned_Parents_Index(2,Spawned_No)
+        ! of these parent Di's. Spawned_Parents(0:NIfDBO,x) is the determinant Di,
+        ! Spawned_Parents(NIfDBO+1,x) is the un-biased ci.
+
         ! Run through all Di's.
 
         do i = Spawned_Parents_Index(1,Spawned_No), &
                 Spawned_Parents_Index(1,Spawned_No) + Spawned_Parents_Index(2,Spawned_No) - 1 
 
-            !if (tHF_S_D_Ref.or.tHF_S_D) then
-                ! In the case of the HF_S_D_Ref option, we'll only be in 
-                ! this loop if the Dj is le 4.
-                ! And for HF_S_D if Dj has excitation level le 2.
-                ! Calc excitation level of Di - this needs to be 1 or 2 in 
-                ! both cases (connections to the HF have already been included).
-            !    walkExcitLevel = FindBitExcitLevel (iLutHF_True, Spawned_Parents(0:NIfDBO,i), 2)
-            !    if (walkExcitLevel.gt.2) CYCLE
-            !    if (walkExcitLevel.eq.0) CYCLE
-            !else if (DetBitEQ(iLutHF_True,Spawned_Parents(0:NIfDBO,i),NIfDBO)) then
             if (DetBitEQ(iLutHF_True,Spawned_Parents(0:NIfDBO,i),NIfDBO)) then
                 ! We've already added HF - S, and HF - D symmetrically.
                 ! Any connection with the HF has therefore already been added.
@@ -1613,20 +1632,21 @@ contains
 
             part_realSignI = transfer( Spawned_Parents(NIfDBO+1,i), part_realSignI )
 
-            !The original spawning event (and the RealSignI) came from this population
+            ! The original spawning event (and the RealSignI) came from this population.
             source_part_type=Spawned_Parents(NIfDBO+2,i)
 
-            !The sign contribution from J must come from the other population
+            !The sign contribution from J must come from the other population.
             if (source_part_type.eq.1) then
                 dest_part_type=lenof_sign
             else
                 dest_part_type=1
             end if
 
-            ! Given the Di,Dj and Ci,Cj - find the orbitals involved in the excitation, 
-            ! and therefore the RDM elements we want to add the Ci.Cj to.
-            ! We have to halve the contributions for DR as we're summing in pairs that originated
-            ! from spawning events in both pop 1 and pop 2 -- i.e. doublecounted wrt diagonal elements
+            ! Given the Di,Dj and Ci,Cj - find the orbitals involved in the
+            ! excitation, and therefore the RDM elements we want to add the
+            ! Ci.Cj to. We have to halve the contributions for DR as we're
+            ! summing in pairs that originated from spawning events in both
+            ! pop 1 and pop 2 -- i.e. doublecounted wrt diagonal elements
             if (tHPHF) then
                 call Fill_Spin_Coupled_RDM_v2(Spawned_Parents(0:NIfDBO,i), iLutJ, nI, nJ, &
                            (1.0_dp/real(lenof_sign,dp))*part_realSignI, realSignJ(dest_part_type), .false.)
@@ -1638,9 +1658,12 @@ contains
 
     end subroutine DiDj_Found_FillRDM
 
-! This routine does the same as Fill_Spin_Coupled_RDM, but hopefully more efficiently!
-! It takes to HPHF functions, and calculate what needs to be summed into the RDMs
     subroutine Fill_Spin_Coupled_RDM_v2(iLutnI,iLutnJ,nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
+
+        ! This routine does the same as Fill_Spin_Coupled_RDM, but hopefully
+        ! more efficiently! It takes to HPHF functions, and calculate what
+        ! needs to be summed into the RDMs
+
         integer(n_int), intent(in) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
         real(dp) , intent(in) :: realSignI, realSignJ
         integer, intent(in) :: nI(NEl),nJ(NEl)
@@ -1649,7 +1672,7 @@ contains
         integer :: nI2(NEl),nJ2(NEl)
         real(dp) :: NewSignJ,NewSignI,PermSignJ,PermSignI
         integer :: I_J_ExcLevel,ICoup_J_ExcLevel
-        character(*), parameter :: t_r='Fill_Spin_Coupled_RDM_v2'
+        character(*), parameter :: t_r = 'Fill_Spin_Coupled_RDM_v2'
 
         if (TestClosedShellDet(iLutnI)) then
             if (tOddS_HPHF) then
@@ -1657,36 +1680,29 @@ contains
             end if
 
             if (TestClosedShellDet(iLutnJ)) then
-                !Closed shell -> Closed shell - just as in determinant case
-!                write(6,*) "CS -> CS "
+                ! Closed shell -> Closed shell - just as in determinant case
                 call Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
-!                write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),realSignI,realSignJ
             else
-                !Closed shell -> open shell.
-!                write(6,*) "CS -> OS "
+                ! Closed shell -> open shell.
                 call FindDetSpinSym(nJ,nJ2,NEl)
                 NewSignJ = realSignJ/Root2
                 call Add_RDM_From_IJ_Pair(nI,nJ,realSignI,NewSignJ,tFill_CiCj_Symm)
-!                write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),realSignI,NewSignJ
-                !What is the permutation between Di and Dj'
+                ! What is the permutation between Di and Dj'
                 NewSignJ = NewSignJ * hphf_sign(iLutnJ)
                 call Add_RDM_From_IJ_Pair(nI,nJ2,realSignI,NewSignJ,tFill_CiCj_Symm)
-!                write(6,"(A,4I4,2F12.6)") "I -> J' : ",nI(:),nJ2(:),realSignI,NewSignJ
             end if
+
         else if (TestClosedShellDet(iLutnJ)) then
-            !Open shell -> closed shell
-!            write(6,*) "OS -> CS "
+            ! Open shell -> closed shell
             call FindDetSpinSym(nI,nI2,NEl)
             NewSignI = realSignI/Root2
             call Add_RDM_From_IJ_Pair(nI,nJ,NewSignI,realSignJ,tFill_CiCj_Symm)
-!            write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),NewSignI,realSignJ
-            !What is the permutation between Di' and Dj 
+            ! What is the permutation between Di' and Dj?
             NewSignI = NewSignI * hphf_sign(iLutnI)
             call Add_RDM_From_IJ_Pair(nI2,nJ,NewSignI,realSignJ,tFill_CiCj_Symm)
-!            write(6,"(A,4I4,2F12.6)") "I' -> J : ",nI2(:),nJ(:),NewSignI,realSignJ
+
         else
-!            write(6,*) "OS -> OS "
-            !Open shell -> open shell
+            ! Open shell -> open shell
             NewSignI = realSignI/Root2
             NewSignJ = realSignJ/Root2
             PermSignJ = NewSignJ * real(hphf_sign(iLutnJ),dp)
@@ -1696,34 +1712,34 @@ contains
             call FindDetSpinSym(nJ,nJ2,NEl)
             I_J_ExcLevel = FindBitExcitLevel(iLutnI, iLutnJ,2)
             ICoup_J_ExcLevel = FindBitExcitLevel(iLutnI2,iLutnJ,2)
-            if (I_J_ExcLevel.le.2) then
+
+            if (I_J_ExcLevel .le. 2) then
                 call Add_RDM_From_IJ_Pair(nI,nJ,NewSignI,NewSignJ,tFill_CiCj_Symm) 
-                !Di -> Dj
-!               write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),NewSignI,NewSignJ
+                ! Di -> Dj
                 call Add_RDM_From_IJ_Pair(nI2,nJ2,PermSignI,PermSignJ,tFill_CiCj_Symm)   
-                !Di' -> Dj'  (both permuted sign)
-!                write(6,"(A,4I4,2F12.6)") "I' -> J' : ",nI2(:),nJ2(:),PermSignI,PermSignJ
+                ! Di' -> Dj'  (both permuted sign)
             end if
-            if (ICoup_J_ExcLevel.le.2) then
+
+            if (ICoup_J_ExcLevel .le. 2) then
                 call Add_RDM_From_IJ_Pair(nI2,nJ,PermSignI,NewSignJ,tFill_CiCj_Symm)    
-                !Di' -> Dj  (i permuted sign)
-!                write(6,"(A,4I4,2F12.6)") "I' -> J : ",nI2(:),nJ(:),PermSignI,NewSignJ
+                ! Di' -> Dj  (i permuted sign)
                 call Add_RDM_From_IJ_Pair(nI,nJ2,NewSignI,PermSignJ,tFill_CiCj_Symm)     
-                !Di  -> Dj'  (j permuted sign)
-!                write(6,"(A,4I4,2F12.6)") "I -> J' : ",nI(:),nJ2(:),NewSignI,PermSignJ
+                ! Di  -> Dj'  (j permuted sign)
             end if
         end if
 
     end subroutine Fill_Spin_Coupled_RDM_v2
 
     subroutine Fill_Spin_Coupled_RDM(iLutnI,iLutnJ,nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
-!Above Fill_Spin_Coupled_RDM_v2 is more efficient version of this routine.
-!If the two HPHF determinants we're considering consist of I + I' and J + J', 
-!where X' is the spin coupled (all spins flipped) version of X,
-!then we have already considered the I -> J excitation.
-!And if I and J are connected by a double excitation, tDoubleConnection is true and we have 
-!also considered I' -> J'.
-!But we need to also account for I -> J' and I' -> J.
+
+        ! Above Fill_Spin_Coupled_RDM_v2 is more efficient version of this routine.
+        ! If the two HPHF determinants we're considering consist of I + I' and J + J', 
+        ! where X' is the spin coupled (all spins flipped) version of X,
+        ! then we have already considered the I -> J excitation.
+        ! And if I and J are connected by a double excitation, tDoubleConnection is
+        ! true and we have also considered I' -> J'.
+        ! But we need to also account for I -> J' and I' -> J.
+
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
         integer , intent(in) :: nI(NEl), nJ(NEl)
         real(dp) , intent(in) :: realSignI, realSignJ
@@ -1734,50 +1750,29 @@ contains
         logical :: tParity
         real(dp) :: realSignFacI, realSignFacJ
 
-!First we flip the spin of both determinants, and store I' and J'.
-!Actually if I and J are related by a double excitation, we don't need J'.        
+        ! First we flip the spin of both determinants, and store I' and J'.
+        ! Actually if I and J are related by a double excitation, we don't need J'.        
 
-!First we flip the spin of I', and find out the excitation level between I' and J.
-!If this is a double excitation, we don't actually need to find J' - we can just invert 
-!the excitation matrix of the I' -> J transition.
-!If this is anything above a double, we likewise don't need to find J', because I -> J' 
-!will also have a 0 matrix element.
-
-!        write(6,*) '***'
-!        write(6,'(A5)',advance='no') 'nI'
-!        do i = 1,4
-!            write(6,'(I5)',advance='no') nI(i)
-!        end do
-!        write(6,*) ''
-!        write(6,'(A5)',advance='no') 'nJ'
-!        do i = 1,4
-!            write(6,'(I5)',advance='no') nJ(i)
-!        end do
-!        write(6,*) ''
-!        write(6,*) 'realSignI',realSignI
-!        write(6,*) 'realSignJ',realSignJ
+        ! First we flip the spin of I', and find out the excitation level between I' and J.
+        ! If this is a double excitation, we don't actually need to find J' - we can just invert 
+        ! the excitation matrix of the I' -> J transition.
+        ! If this is anything above a double, we likewise don't need to find J', because I -> J' 
+        ! will also have a 0 matrix element.
 
         I_J_ExcLevel = FindBitExcitLevel (iLutnI, iLutnJ, 2)
 
         if (.not. TestClosedShellDet(iLutnI)) then
 
             ! I is open shell, and so a spin coupled determinant I' exists.
-!            write(6,*) 'I open shell'
 
-            !Find I'.
+            ! Find I'.
             call FindExcitBitDetSym(iLutnI, iLutnI2)
             call decode_bit_det (nI2, iLutnI2)
             SignFacI = hphf_sign(iLutnI)
             realSignFacI = real(SignFacI,dp) / SQRT(2.0_dp)
 
-!            write(6,*) 'spin coupled nI'
-!            do i = 1,4
-!                write(6,'(I5)',advance='no') nI2(i)
-!            end do
-!            write(6,*) ''
-
-            !Find excitation level between I' and J - not necessarily the same as 
-            !that between I and J.
+            ! Find excitation level between I' and J - not necessarily the same as 
+            ! that between I and J.
             SpinCoupI_J_ExcLevel = FindBitExcitLevel (iLutnI2, iLutnJ, 2)
 
             if ( (.not.(I_J_ExcLevel.le.2)) .and. (.not.(SpinCoupI_J_ExcLevel.le.2)) ) &
@@ -1787,26 +1782,21 @@ contains
                 
                 ! Both I and J are open shell, need all 4 combinations.
 
-                !Find J'.
+                ! Find J'.
                 call FindExcitBitDetSym(iLutnJ, iLutnJ2)
                 call decode_bit_det (nJ2, iLutnJ2)
                 SignFacJ = hphf_sign(iLutnJ)
                 realSignFacJ = real(SignFacJ,dp) / SQRT(2.0_dp)
-
-!                write(6,*) "OS -> OS "
 
                 if (I_J_ExcLevel.le.2) then
 
                     ! I -> J.
                     call Add_RDM_From_IJ_Pair(nI,nJ,(realSignI/SQRT(2.0_dp)),&
                                                 (realSignJ/SQRT(2.0_dp)),tFill_CiCj_Symm)
-!                    write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),realSignI/SQRT(2.0_dp),realSignJ/SQRT(2.0_dp)
  
                     ! I' -> J'.
                     call Add_RDM_From_IJ_Pair(nI2,nJ2,(realSignFacI*realSignI),&
                                               (realSignFacJ*realSignJ),tFill_CiCj_Symm)
-!                    write(6,"(A,4I4,2F12.6)") "I' -> J' : ",nI2(:),nJ2(:),(realSignFacI*realSignI),(realSignFacJ*realSignJ)
-
                 end if
 
                 if (SpinCoupI_J_ExcLevel.le.2) then
@@ -1815,12 +1805,9 @@ contains
                     call Add_RDM_From_IJ_Pair(nI2,nJ,(realSignFacI*realSignI),&
                                                 (realSignJ/SQRT(2.0_dp)),tFill_CiCj_Symm)
 
-!                    write(6,"(A,4I4,2F12.6)") "I' -> J : ",nI2(:),nJ(:),realSignFacI*realSignI,realSignJ/SQRT(2.0_dp)
                     ! I -> J'.
                     call Add_RDM_From_IJ_Pair(nI, nJ2,(realSignI/SQRT(2.0_dp)),&
                                                  (realSignFacJ*realSignJ),tFill_CiCj_Symm)
-
-!                    write(6,"(A,4I4,2F12.6)") "I -> J' : ",nI(:),nJ2(:),realSignI/SQRT(2.0_dp),realSignFacJ*realSignJ
 
                 end if
 
@@ -1829,12 +1816,11 @@ contains
                 ! I is open shell, but J is not.
                 ! Need I -> J and I' -> J.
 
-!                write(6,*) "OS -> CS "
                 ! I -> J.
 
                 call Add_RDM_From_IJ_Pair(nI,nJ,(realSignI/SQRT(2.0_dp)),&
                                                         realSignJ,tFill_CiCj_Symm)
-!                write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),realSignI/SQRT(2.0_dp),realSignJ
+
                 ! I' -> J.
                 call Add_RDM_From_IJ_Pair(nI2,nJ,(realSignFacI*realSignI),&
                                                         realSignJ,tFill_CiCj_Symm)
@@ -1846,18 +1832,16 @@ contains
             ! This is the case where I is closed shell, but J is not.
             ! Need I -> J and I -> J'. 
 
-!            write(6,*) "CS -> OS "
             ! I -> J.
             if (I_J_ExcLevel.le.2) call Add_RDM_From_IJ_Pair(nI,nJ,realSignI,&
                                                (realSignJ/SQRT(2.0_dp)),tFill_CiCj_Symm)
-!            write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),realSignI,realSignJ/SQRT(2.0_dp)
 
             ! Find J'.
             call FindExcitBitDetSym(iLutnJ, iLutnJ2)
             SignFacJ = hphf_sign(iLutnJ)
             realSignFacJ = real(SignFacJ,dp) / SQRT(2.0_dp)
 
-            !Find excitation level between I and J'.
+            ! Find excitation level between I and J'.
             SpinCoupI_J_ExcLevel = FindBitExcitLevel (iLutnI, iLutnJ2, 2)
 
             if (SpinCoupI_J_ExcLevel.le.2) then
@@ -1866,26 +1850,25 @@ contains
                 ! I -> J'.
                 call Add_RDM_From_IJ_Pair(nI,nJ2,realSignI,&
                                             (realSignFacJ*realSignJ),tFill_CiCj_Symm)
-!                write(6,"(A,4I4,2F12.6)") "I -> J' : ",nI(:),nJ2(:),realSignI,realSignFacJ*realSignJ
 
            end if
 
-       else if (I_J_ExcLevel.le.2) then
+       else if (I_J_ExcLevel .le. 2) then
 
             ! I and J are both closed shell.
 
             ! Just I -> J.
             call Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
-!            write(6,*) "CS -> CS "
-!            write(6,"(A,4I4,2F12.6)") "I -> J : ",nI(:),nJ(:),realSignI,realSignJ
 
        end if
 
     end subroutine Fill_Spin_Coupled_RDM
 
     subroutine Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
-! This routine takes a pair of different determinants Di and Dj, and figures out which type 
-! of elements need to be added in to the RDM.
+
+        ! This routine takes a pair of different determinants Di and Dj, and
+        ! figures out which type of elements need to be added in to the RDM.
+
         integer , intent(in) :: nI(NEl), nJ(NEl)
         real(dp) , intent(in) :: realSignI, realSignJ
         logical , intent(in) :: tFill_CiCj_Symm
@@ -1893,13 +1876,13 @@ contains
         logical :: tParity
 
         Ex(:,:) = 0
-        Ex(1,1) = 2         ! Maximum excitation level - we know they are connected by 
+        Ex(1,1) = 2         ! Maximum excitation level - we know they are connected by
                             ! a double or single.
         tParity = .false.
 
         call GetExcitation(nI,nJ,NEl,Ex,tParity)
-! Ex(1,:) comes out as the orbital(s) excited from, i.e. i,j 
-! Ex(2,:) comes out as the orbital(s) excited to, i.e. a,b.         
+        ! Ex(1,:) comes out as the orbital(s) excited from, i.e. i,j
+        ! Ex(2,:) comes out as the orbital(s) excited to, i.e. a,b.
 
         if (Ex(1,1).le.0) then
             ! Error.
@@ -1916,17 +1899,18 @@ contains
                     'Excitation level between pair not 1 or 2 as it should be.')
         end if
 
-        if ((Ex(1,2).eq.0).and.(Ex(2,2).eq.0)) then
+        if ((Ex(1,2) .eq. 0) .and. (Ex(2,2) .eq. 0)) then
             
             ! Di and Dj are separated by a single excitation.
             ! Add in the contribution from this pair into the 1- and 2-RDM.
             
             call Fill_Sings_RDM(nI,Ex,tParity,realSignI,realSignJ,tFill_CiCj_Symm)
     
-        else if (RDMExcitLevel.ne.1) then
+        else if (RDMExcitLevel .ne. 1) then
 
             ! Otherwise Di and Dj are connected by a double excitation.
-            ! Add in this contribution to the 2-RDM (as long as we're calculating this obv).
+            ! Add in this contribution to the 2-RDM (as long as we're
+            ! calculating this obv).
             call Fill_Doubs_RDM(Ex,tParity,realSignI,realSignJ,tFill_CiCj_Symm)
 
         end if
@@ -1936,8 +1920,9 @@ contains
 ! =======================================================================================    
 ! EXPLICIT ROUTINES    
 ! =======================================================================================    
+
     subroutine Fill_ExplicitRDM_this_Iter(TotWalkers)
-        integer(int64) , INTENT(IN) :: TotWalkers
+        integer(int64) , intent(in) :: TotWalkers
         integer(kind=n_int) :: iLutnI(0:NIfTot)
         integer(int64) :: MaxTotWalkers,TotWalkIn(2),TotWalkOut(2)
         integer :: i,error
@@ -1945,9 +1930,10 @@ contains
         logical :: blank_det
         integer, DIMENSION(lenof_sign) :: SignI, SignI2
 
-! Run through the current determinants.
-! Find the max number of determinants on a processor - all need to run through this 
-! number so that the communication can be done at all stages.
+        ! Run through the current determinants.
+        ! Find the max number of determinants on a processor - all need to
+        ! run through this number so that the communication can be done at
+        ! all stages.
 
         TotWalkIn(1)=TotWalkers
         TotWalkIn(2)=iProcIndex
@@ -1956,129 +1942,64 @@ contains
 
         MaxTotWalkers=TotWalkOut(1)
 
-! This little commented routine calculates the normalisation factor for the coefficients 
-! at this iteration.
-! It appears this is not necessary, and in reality it is fine to just add in 
-! C_i * AllTotPartsCurr / AllTotParts , and then scale the density matrices at the end so 
-! that their traces are correct.
-! This also means the contributions are weighted by the number of walkers in the system 
-! at the time.
-!        Normalisation = 0.0_dp
-!        NormalisationTemp = 0.0_dp
-!        do i = 1, TotWalkers
-!            call extract_sign (CurrentDets(:,I), SignI)
-!            NormalisationTemp = NormalisationTemp + ( real(SignI(1)) * real(SignI(1)) )
-!        end do
-!        write(6,*) 'NormalisationTemp',NormalisationTemp
-
-!        call MPIAllReduce(NormalisationTemp,MPI_SUM,Normalisation)
-
-!        Normalisation = SQRT( Normalisation )
-!        write(6,*) 'Normalisation',Normalisation
-!        Sum_Coeffs = SQRT( Normalisation )
-
-!        do I = 1, TotWalkers
-!            SignI2 = 0
-!            call extract_sign (CurrentDets(:,I), SignI)
-!            SignI2(1) = NINT(real(SignI(1)) * ( 1.0_dp / Sum_Coeffs ))
-!            call encode_sign(CurrentDets(:,I), SignI2)
-!        end do
-
         call set_timer(nElRDM_Time,30)
 
-        do i=1,int(MaxTotWalkers,sizeof_int)
+        do i = 1,int(MaxTotWalkers,sizeof_int)
 
-! But if the actual number of determinants on this processor is less than the number 
-! we're running through, feed in 0 determinants and 0 sign.
-            if (i.gt.TotWalkers) then
-                iLutnI(:)=0
-                blank_det=.true.
+            ! But if the actual number of determinants on this processor is
+            ! less than the number  we're running through, feed in 0
+            ! determinants and 0 sign.
+            if (i .gt. TotWalkers) then
+                iLutnI(:) = 0
+                blank_det = .true.
             else
-                iLutnI(:)=CurrentDets(:,i)
-                blank_det=.false.
+                iLutnI(:) = CurrentDets(:,i)
+                blank_det = .false.
             end if
 
             call Add_ExplicitRDM_Contrib(iLutnI,blank_det)
 
         end do
+
         call halt_timer(nElRDM_Time)
 
     end subroutine Fill_ExplicitRDM_this_Iter
 
-
     subroutine Fill_Hist_ExplicitRDM_this_Iter(TotWalkers)
-        integer(int64) , INTENT(IN) :: TotWalkers
+
+        integer(int64) , intent(in) :: TotWalkers
         integer(kind=n_int) :: iLutnI(0:NIfTot)
         integer :: i,error
         real(dp) :: TempTotParts, NormalisationTemp, Sum_Coeffs,AllNode_norm
         logical :: blank_det
         real(dp), DIMENSION(lenof_sign) :: TempSign
 
-! Run through the current determinants.
-! Find the max number of determinants on a processor - all need to run through this 
-! number so that the communication can be done at all stages.
-
-!        TotWalkIn(1)=TotWalkers
-!        TotWalkIn(2)=iProcIndex
-!
-!        call MPIAllReduceDatatype(TotWalkIn,1,MPI_MAXLOC,MPI_2integer,TotWalkOut)
-!
-!        MaxTotWalkers=TotWalkOut(1)
-
-! This little commented routine calculates the normalisation factor for the coefficients 
-! at this iteration.
-! It appears this is not necessary, and in reality it is fine to just add in 
-! C_i * AllTotPartsCurr / AllTotParts , and then scale the density matrices at the end so 
-! that their traces are correct.
-! This also means the contributions are weighted by the number of walkers in the system 
-! at the time.
-!        Normalisation = 0.0_dp
-!        NormalisationTemp = 0.0_dp
-!        do i = 1, TotWalkers
-!            call extract_sign (CurrentDets(:,I), SignI)
-!            NormalisationTemp = NormalisationTemp + ( real(SignI(1)) * real(SignI(1)) )
-!        end do
-!        write(6,*) 'NormalisationTemp',NormalisationTemp
-
-!        call MPIAllReduce(NormalisationTemp,MPI_SUM,Normalisation)
-
-!        Normalisation = SQRT( Normalisation )
-!        write(6,*) 'Normalisation',Normalisation
-!        Sum_Coeffs = SQRT( Normalisation )
-
-!        do I = 1, TotWalkers
-!            SignI2 = 0
-!            call extract_sign (CurrentDets(:,I), SignI)
-!            SignI2(1) = NINT(real(SignI(1)) * ( 1.0_dp / Sum_Coeffs ))
-!            call encode_sign(CurrentDets(:,I), SignI2)
-!        end do
-
         call set_timer(nElRDM_Time,30)
 
-        call MPISumAll(Histogram,AllHistogram)
+        call MPISumAll(Histogram, AllHistogram)
 
-        norm=0.0_dp
-        if (iProcIndex.eq.0) then
-            do i=1,Det
-                norm=norm+AllHistogram(1,i)**2
+        norm = 0.0_dp
+        if (iProcIndex .eq. 0) then
+            do i = 1, Det
+                norm = norm + AllHistogram(1,i)**2
             end do
-            norm=SQRT(norm)
+            norm = sqrt(norm)
         end if
 
-        call MPISumAll(norm,allNode_norm)
-        norm=allNode_norm
+        call MPISumAll(norm, allNode_norm)
+        norm = allNode_norm
  
-        do i=1,Det
+        do i = 1, Det
 
-! But if the actual number of determinants on this processor is less than the number 
-! we're running through, feed in 0 determinants and 0 sign.
-!            if (AllHistogram(1,i).eq.0.0_dp) then
-            if (Histogram(1,i).eq.0.0_dp) then
-                iLutnI(:)=0
-                blank_det=.true.
+            ! But if the actual number of determinants on this processor is
+            ! less than the number we're running through, feed in 0
+            ! determinants and 0 sign.
+            if (Histogram(1,i) .eq. 0.0_dp) then
+                iLutnI(:) = 0
+                blank_det = .true.
             else
-                iLutnI(:)=FCIDets(:,i)
-                blank_det=.false.
+                iLutnI(:) = FCIDets(:,i)
+                blank_det = .false.
             end if
 
             TempSign(1) = real(i,dp)
@@ -2087,23 +2008,27 @@ contains
             call Add_Hist_ExplicitRDM_Contrib(iLutnI,blank_det)
 
         end do
+
         call halt_timer(nElRDM_Time)
 
     end subroutine Fill_Hist_ExplicitRDM_this_Iter
 
-
     subroutine Add_ExplicitRDM_Contrib(iLutnI,blank_det)
-! This is the general routine for taking a particular determinant in the spawned list, 
-! D_i and adding it's contribution to the reduced density matrix.
-        integer(kind=n_int), INTENT(IN) :: iLutnI(0:NIfTot)
-        logical, INTENT(IN) :: blank_det
+
+        ! This is the general routine for taking a particular determinant in
+        ! the spawned list, D_i and adding it's contribution to the reduced
+        ! density matrix.
+
+        integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
+        logical, intent(in) :: blank_det
         integer :: i
         
-! Set up excitation arrays.
-! These are blocked according to the processor the excitation would be on if occupied.
-! In each block, the first entry is the sign of determinant D_i and the second the bit 
-! string of the determinant (these need to be sent along with the excitations).
-! Each processor will have a different Di.
+        ! Set up excitation arrays.
+        ! These are blocked according to the processor the excitation would be
+        ! on if occupied. In each block, the first entry is the sign of
+        ! determinant D_i and the second the bit string of the determinant
+        ! (these need to be sent along with the excitations). Each processor
+        ! will have a different Di.
 
         Sing_ExcDjs(:,:)=0
         Sing_ExcList(:)=0
@@ -2125,30 +2050,34 @@ contains
         end if
 
         if (.not.blank_det) call GenExcDjs(iLutnI)
-! Out of here we will get a filled ExcDjs array with all the single or double excitations 
-! from Dj, this will be done for each proc. 
+        ! Out of here we will get a filled ExcDjs array with all the single or
+        ! double excitations from Dj, this will be done for each proc. 
 
-! We then need to send the excitations to the relevant processors.
+        ! We then need to send the excitations to the relevant processors.
         call SendProcExcDjs()
-! This routine then calls SearchOccDets which takes each excitation and and binary 
-! searches the occupied determinants for this.
-! If found, we re-find the orbitals and parity involved in the excitation, and add the 
-! c_i*c_j contributions to the corresponding matrix element.
+        ! This routine then calls SearchOccDets which takes each excitation
+        ! and and binary searches the occupied determinants for this. If found,
+        ! we re-find the orbitals and parity involved in the excitation, and
+        ! add the c_i*c_j contributions to the corresponding matrix element.
 
     end subroutine Add_ExplicitRDM_Contrib
 
     subroutine Add_Hist_ExplicitRDM_Contrib(iLutnI,blank_det)
-! This is the general routine for taking a particular determinant in the spawned list, 
-! D_i and adding it's contribution to the reduced density matrix.
-        integer(kind=n_int), INTENT(IN) :: iLutnI(0:NIfTot)
-        logical, INTENT(IN) :: blank_det
+
+        ! This is the general routine for taking a particular determinant in
+        ! the spawned list, D_i and adding it's contribution to the reduced
+        ! density matrix.
+
+        integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
+        logical, intent(in) :: blank_det
         integer :: i
         
-! Set up excitation arrays.
-! These are blocked according to the processor the excitation would be on if occupied.
-! In each block, the first entry is the sign of determinant D_i and the second the bit 
-! string of the determinant (these need to be sent along with the excitations).
-! Each processor will have a different Di.
+        ! Set up excitation arrays.
+        ! These are blocked according to the processor the excitation would be
+        ! on if occupied. In each block, the first entry is the sign of
+        ! determinant D_i and the second the bit string of the determinant
+        ! (these need to be sent along with the excitations). Each processor
+        ! will have a different Di.
 
         Sing_ExcDjs(:,:)=0
         Sing_ExcList(:)=0
@@ -2170,24 +2099,26 @@ contains
         end if
 
         if (.not.blank_det) call Gen_Hist_ExcDjs(iLutnI)
-! Out of here we will get a filled ExcDjs array with all the single or double excitations 
-! from Dj, this will be done for each proc. 
+        ! Out of here we will get a filled ExcDjs array with all the single or
+        ! double excitations  from Dj, this will be done for each proc. 
 
-! We then need to send the excitations to the relevant processors.
+        ! We then need to send the excitations to the relevant processors.
         call Send_Hist_ProcExcDjs()
-! This routine then calls SearchOccDets which takes each excitation and and binary 
-! searches the occupied determinants for this.
-! If found, we re-find the orbitals and parity involved in the excitation, and add the 
-! c_i*c_j contributions to the corresponding matrix element.
+        ! This routine then calls SearchOccDets which takes each excitation
+        ! and and binary searches the occupied determinants for this. If found,
+        ! we re-find the orbitals and parity involved in the excitation, and add
+        ! the c_i*c_j contributions to the corresponding matrix element.
 
     end subroutine Add_Hist_ExplicitRDM_Contrib
 
-
     subroutine GenExcDjs(iLutnI)
-! This uses GenExcitations3 in symexcit3.F90 to generate all the possible either 
-! single or double excitations from D_i, finds the processor they would be on if occupied, 
-! and puts them in the SingExcDjs array according to that processor.
-        integer(kind=n_int) , INTENT(IN) :: iLutnI(0:NIfTot)
+
+        ! This uses GenExcitations3 in symexcit3.F90 to generate all the
+        ! possible either single or double excitations from D_i, finds the
+        ! processor they would be on if occupied, and puts them in the
+        ! SingExcDjs array according to that processor.
+
+        integer(kind=n_int) , intent(in) :: iLutnI(0:NIfTot)
         integer(kind=n_int) :: iLutnJ(0:NIfTot)
         real(dp), dimension(lenof_sign) :: SignDi, SignDi2
         integer :: ExcitMat3(2,2), nI(NEl), nJ(NEl), Proc, FlagsDi
@@ -2195,81 +2126,76 @@ contains
         logical :: tAllExcitFound, tParity
 
         call extract_bit_rep (iLutnI, nI, SignDi, FlagsDi)
-! Unfortunately uses the decoded determinant - might want to look at this.        
+        ! Unfortunately uses the decoded determinant - might want to look at this.        
 
         call Fill_Diag_RDM(nI,SignDi,.false.)
 
 !        CountTemp = 0
 
         ExcitMat3(:,:)=0
-! Zeros in ExcitMat3 starts off at the first single excitation.        
+        ! Zeros in ExcitMat3 starts off at the first single excitation.
         tAllExcitFound=.false.
-! This becomes true when all the excitations have been found.        
+        ! This becomes true when all the excitations have been found.
 
         do while (.not.tAllExcitFound)
-!                write(6,*) 'generating singles'
-!                call neci_flush(6)
             exflag = 1
             call GenExcitations3(nI,iLutnI,nJ,exflag,ExcitMat3(:,:),tParity,&
                                                         tAllExcitFound,.true.)            
-! Passed out of here is the singly excited determinant, nJ.
-! Information such as the orbitals involved in the excitation and the parity is also found 
-! in this step, we are not currently storing this, and it is re-calculated later on 
-! (after the determinants are passed to the relevant processor) - but the speed of sending 
-! this information vs recalculating it will be tested.
-! RDMExcitLevel is passed through, if this is 1, only singles are generated, 
-! if it is 2 only doubles are found.
+            ! Passed out of here is the singly excited determinant, nJ.
+            ! Information such as the orbitals involved in the excitation and
+            ! the parity is also found in this step, we are not currently
+            ! storing this, and it is re-calculated later on (after the
+            ! determinants are passed to the relevant processor) - but the
+            ! speed of sending this information vs recalculating it will be
+            ! tested. RDMExcitLevel is passed through, if this is 1, only
+            ! singles are generated, if it is 2 only doubles are found.
 
-            if (tAllExcitFound) EXIT
+            if (tAllExcitFound) exit
 
-            iLutnJ(:)=0
+            iLutnJ(:) = 0
             call EncodeBitDet(nJ,iLutnJ)
 
             Proc = DetermineDetNode(nel,nJ,0)   
-            !This will return a value between 0 -> nProcessors-1
+            ! This will return a value between 0 -> nProcessors-1
             Sing_ExcDjs(:,Sing_ExcList(Proc)) = iLutnJ(:)
             Sing_ExcList(Proc) = Sing_ExcList(Proc)+1
-!                CountTemp = CountTemp + 1
+!            CountTemp = CountTemp + 1
 
-!                if ((nI(1).eq.5).and.(nI(2).eq.6)) write(6,*) CountTemp,': nJ',nJ
-
-! Want a quick test to see if arrays are getting full.            
-            if (Sing_ExcList(Proc).gt.NINT(OneEl_Gap*(Proc+1))) then
+            ! Want a quick test to see if arrays are getting full.
+            if (Sing_ExcList(Proc).gt.nint(OneEl_Gap*(Proc+1))) then
                 write(6,*) 'Proc',Proc
                 write(6,*) 'Sing_ExcList',Sing_ExcList
-                write(6,*) 'No. spaces for each proc',NINT(OneEl_Gap)
+                write(6,*) 'No. spaces for each proc',nint(OneEl_Gap)
                 call Stop_All('GenExcDjs',&
                             'Too many excitations for space available.')
             end if
         end do
 
-        if (RDMExcitLevel.ne.1) then            
+        if (RDMExcitLevel .ne. 1) then            
 
-            ExcitMat3(:,:)=0
-! Zeros in ExcitMat3 starts off at the first single excitation.        
-            tAllExcitFound=.false.
-! This becomes true when all the excitations have been found.        
+            ExcitMat3(:,:) = 0
+            ! Zeros in ExcitMat3 starts off at the first single excitation.
+            tAllExcitFound = .false.
+            ! This becomes true when all the excitations have been found.
 
-!            write(6,*) 'Generating from nI',nI
-!            write(6,*) 'bit rep',iLutnI
-
-            do while (.not.tAllExcitFound)
-!                write(6,*) 'generating doubles'
-!                call neci_flush(6)
+            do while (.not. tAllExcitFound)
                 exflag = 2
                 call GenExcitations3(nI,iLutnI,nJ,exflag,ExcitMat3(:,:),tParity,&
                                                             tAllExcitFound,.true.)            
-! Passed out of here is the doubly excited determinant, nJ.
-! Information such as the orbitals involved in the excitation and the parity is 
-! also found in this step, we are not currently storing this, and it is re-calculated 
-! later on (after the determinants are passed to the relevant processor) - but the speed 
-! of sending this information vs recalculating it will be tested.
-! RDMExcitLevel is passed through, if this is 1, only singles are generated, 
-! if it is 2 only doubles are found.
 
-                if (tAllExcitFound) EXIT
+                ! Passed out of here is the doubly excited determinant, nJ.
+                ! Information such as the orbitals involved in the excitation
+                ! and the parity is  also found in this step, we are not
+                ! currently storing this, and it is re-calculated later on
+                ! (after the determinants are passed to the relevant processor)
+                ! - but the speed of sending this information vs recalculating
+                ! it will be tested. RDMExcitLevel is passed through, if this
+                ! is 1, only singles are generated, if it is 2 only doubles are
+                ! found.
 
-                iLutnJ(:)=0
+                if (tAllExcitFound) exit
+
+                iLutnJ(:) = 0
                 call EncodeBitDet(nJ,iLutnJ)
 
                 Proc = DetermineDetNode(nel,nJ,0)   
@@ -2280,30 +2206,26 @@ contains
 
                 Doub_ExcList(Proc) = Doub_ExcList(Proc)+1
 
-!                if ((nI(1).eq.5).and.(nI(2).eq.6)) write(6,*) CountTemp,': nJ',nJ
-!                if ((nI(1).eq.5).and.(nI(2).eq.6)) write(6,*) 'Ind', &
-!                                                (( (nJ(2)-2) * (nJ(2)-1) ) / 2 ) + nJ(1)
-
-! Want a quick test to see if arrays are getting full.            
-                if (Doub_ExcList(Proc).gt.NINT(TwoEl_Gap*(Proc+1))) then
+                ! Want a quick test to see if arrays are getting full.
+                if (Doub_ExcList(Proc).gt.nint(TwoEl_Gap*(Proc+1))) then
                     write(6,*) 'Proc',Proc
                     write(6,*) 'Doub_ExcList',Doub_ExcList
-                    write(6,*) 'No. spaces for each proc',NINT(TwoEl_Gap)
+                    write(6,*) 'No. spaces for each proc',nint(TwoEl_Gap)
                     call Stop_All('GenExcDjs','Too many excitations for space available.')
                 end if
             end do
         end if
 
-!        if ((nI(1).eq.5).and.(nI(2).eq.6)) call Stop_All('','')
-
     end subroutine GenExcDjs
 
-
     subroutine Gen_Hist_ExcDjs(iLutnI)
-! This uses GenExcitations3 in symexcit3.F90 to generate all the possible either 
-! single or double excitations from D_i, finds the processor they would be on if occupied, 
-! and puts them in the SingExcDjs array according to that processor.
-        integer(kind=n_int) , INTENT(IN) :: iLutnI(0:NIfTot)
+
+        ! This uses GenExcitations3 in symexcit3.F90 to generate all the
+        ! possible either single or double excitations from D_i, finds the
+        ! processor they would be on if occupied, and puts them in the
+        ! SingExcDjs array according to that processor.
+
+        integer(kind=n_int) , intent(in) :: iLutnI(0:NIfTot)
         integer(kind=n_int) :: iLutnJ(0:NIfTot)
         integer, dimension(lenof_sign) :: HistPos
         real(dp), dimension(lenof_sign) :: RealHistPos
@@ -2313,7 +2235,7 @@ contains
         real(dp), dimension(lenof_sign) :: realSignDi
 
         call extract_bit_rep (iLutnI, nI, RealHistPos, FlagsDi)
-! Unfortunately uses the decoded determinant - might want to look at this.        
+        ! Unfortunately uses the decoded determinant - might want to look at this.
         HistPos=int(RealHistPos)
         
         realSignDi(1) = AllHistogram(1,HistPos(1))/norm
@@ -2323,110 +2245,101 @@ contains
 
 !        CountTemp = 0
 
-        ExcitMat3(:,:)=0
-! Zeros in ExcitMat3 starts off at the first single excitation.        
-        tAllExcitFound=.false.
-! This becomes true when all the excitations have been found.        
+        ExcitMat3(:,:)= 0
+        ! Zeros in ExcitMat3 starts off at the first single excitation.
+        tAllExcitFound= .false.
+        ! This becomes true when all the excitations have been found.        
 
-        do while (.not.tAllExcitFound)
-!                write(6,*) 'generating singles'
-!                call neci_flush(6)
+        do while (.not. tAllExcitFound)
             exflag = 1
             call GenExcitations3(nI,iLutnI,nJ,exflag,ExcitMat3(:,:),tParity,&
                                                         tAllExcitFound,.true.)            
-! Passed out of here is the singly excited determinant, nJ.
-! Information such as the orbitals involved in the excitation and the parity is also found 
-! in this step, we are not currently storing this, and it is re-calculated later on 
-! (after the determinants are passed to the relevant processor) - but the speed of sending 
-! this information vs recalculating it will be tested.
-! RDMExcitLevel is passed through, if this is 1, only singles are generated, 
-! if it is 2 only doubles are found.
 
-            if (tAllExcitFound) EXIT
+            ! Passed out of here is the singly excited determinant, nJ.
+            ! Information such as the orbitals involved in the excitation and
+            ! the parity is also found in this step, we are not currently
+            ! storing this, and it is re-calculated later on (after the
+            ! determinants are passed to the relevant processor) - but the speed
+            ! of sending this information vs recalculating it will be tested.
+            ! RDMExcitLevel is passed through, if this is 1, only singles are
+            ! generated, if it is 2 only doubles are found.
 
-            iLutnJ(:)=0
+            if (tAllExcitFound) exit
+
+            iLutnJ(:) = 0
             call EncodeBitDet(nJ,iLutnJ)
 
             Proc = DetermineDetNode(nel,nJ,0)   
-            !This will return a value between 0 -> nProcessors-1
+            ! This will return a value between 0 -> nProcessors-1.
             Sing_ExcDjs(:,Sing_ExcList(Proc)) = iLutnJ(:)
             Sing_ExcList(Proc) = Sing_ExcList(Proc)+1
-!                CountTemp = CountTemp + 1
+!            CountTemp = CountTemp + 1
 
-!                if ((nI(1).eq.5).and.(nI(2).eq.6)) write(6,*) CountTemp,': nJ',nJ
-
-! Want a quick test to see if arrays are getting full.            
-            if (Sing_ExcList(Proc).gt.NINT(OneEl_Gap*(Proc+1))) then
-                write(6,*) 'Proc',Proc
-                write(6,*) 'Sing_ExcList',Sing_ExcList
-                write(6,*) 'No. spaces for each proc',NINT(OneEl_Gap)
+            ! Want a quick test to see if arrays are getting full.
+            if (Sing_ExcList(Proc) .gt. nint(OneEl_Gap*(Proc+1))) then
+                write(6,*) 'Proc', Proc
+                write(6,*) 'Sing_ExcList', Sing_ExcList
+                write(6,*) 'No. spaces for each proc', nint(OneEl_Gap)
                 call Stop_All('GenExcDjs',&
                             'Too many excitations for space available.')
             end if
         end do
 
-        if (RDMExcitLevel.ne.1) then            
+        if (RDMExcitLevel .ne. 1) then            
 
-            ExcitMat3(:,:)=0
-! Zeros in ExcitMat3 starts off at the first single excitation.        
+            ExcitMat3(:,:) = 0
+            ! Zeros in ExcitMat3 starts off at the first single excitation.
             tAllExcitFound=.false.
-! This becomes true when all the excitations have been found.        
+            ! This becomes true when all the excitations have been found.
 
-!            write(6,*) 'Generating from nI',nI
-!            write(6,*) 'bit rep',iLutnI
-
-            do while (.not.tAllExcitFound)
-!                write(6,*) 'generating doubles'
-!                call neci_flush(6)
+            do while (.not. tAllExcitFound)
                 exflag = 2
                 call GenExcitations3(nI,iLutnI,nJ,exflag,ExcitMat3(:,:),tParity,&
                                                             tAllExcitFound,.true.)            
-! Passed out of here is the doubly excited determinant, nJ.
-! Information such as the orbitals involved in the excitation and the parity is 
-! also found in this step, we are not currently storing this, and it is re-calculated 
-! later on (after the determinants are passed to the relevant processor) - but the speed 
-! of sending this information vs recalculating it will be tested.
-! RDMExcitLevel is passed through, if this is 1, only singles are generated, 
-! if it is 2 only doubles are found.
 
-                if (tAllExcitFound) EXIT
+                ! Passed out of here is the doubly excited determinant, nJ.
+                ! Information such as the orbitals involved in the excitation
+                ! and the parity is also found in this step, we are not currently
+                ! storing this, and it is re-calculated  later on (after the
+                ! determinants are passed to the relevant processor) - but the
+                ! speed of sending this information vs recalculating it will be
+                ! tested. RDMExcitLevel is passed through, if this is 1, only
+                ! singles are generated, if it is 2 only doubles are found.
 
-                iLutnJ(:)=0
+                if (tAllExcitFound) exit
+
+                iLutnJ(:) = 0
                 call EncodeBitDet(nJ,iLutnJ)
 
                 Proc = DetermineDetNode(nel,nJ,0)   
-                !This will return a value between 0 -> nProcessors-1
+                ! This will return a value between 0 -> nProcessors-1.
                 Doub_ExcDjs(:,Doub_ExcList(Proc)) = iLutnJ(:)
-                ! All the double excitations from this particular nI are being 
+                ! All the double excitations from this particular nI are being
                 ! stored in Doub_ExcDjs.
 
-                Doub_ExcList(Proc) = Doub_ExcList(Proc)+1
+                Doub_ExcList(Proc) = Doub_ExcList(Proc) + 1
 
-!                if ((nI(1).eq.5).and.(nI(2).eq.6)) write(6,*) CountTemp,': nJ',nJ
-!                if ((nI(1).eq.5).and.(nI(2).eq.6)) write(6,*) 'Ind', &
-!                                                (( (nJ(2)-2) * (nJ(2)-1) ) / 2 ) + nJ(1)
-
-! Want a quick test to see if arrays are getting full.            
-                if (Doub_ExcList(Proc).gt.NINT(TwoEl_Gap*(Proc+1))) then
+                ! Want a quick test to see if arrays are getting full.            
+                if (Doub_ExcList(Proc).gt.nint(TwoEl_Gap*(Proc+1))) then
                     write(6,*) 'Proc',Proc
                     write(6,*) 'Doub_ExcList',Doub_ExcList
-                    write(6,*) 'No. spaces for each proc',NINT(TwoEl_Gap)
+                    write(6,*) 'No. spaces for each proc',nint(TwoEl_Gap)
                     call Stop_All('GenExcDjs','Too many excitations for space available.')
                 end if
             end do
         end if
 
-!        if ((nI(1).eq.5).and.(nI(2).eq.6)) call Stop_All('','')
-
     end subroutine Gen_Hist_ExcDjs
 
-
     subroutine SendProcExcDjs()
-! In this routine the excitations are sent to the relevant processors.
-! Sent with them will be the Di they were excited from and its sign.
-! Each processor will receive nProcessor number of lists with different Di determinants.
-! The original Di's will (I think) still be in the original InitSingExcSlots positions.
-! This follows the directannihilation algorithm closely.
+
+        ! In this routine the excitations are sent to the relevant processors.
+        ! Sent with them will be the Di they were excited from and its sign.
+        ! Each processor will receive nProcessor number of lists with different
+        ! Di determinants. The original Di's will (I think) still be in the
+        ! original InitSingExcSlots positions. This follows the
+        ! directannihilation algorithm closely.
+
         integer :: i,j
         integer(MPIArg) :: sendcounts(nProcessors),disps(nProcessors)
         integer(MPIArg) :: sing_recvcounts(nProcessors)
@@ -2434,36 +2347,40 @@ contains
         integer(MPIArg) :: sing_recvdisps(nProcessors)
         integer(MPIArg) :: doub_recvcounts(nProcessors),doub_recvdisps(nProcessors)
 
-        do i=0,nProcessors-1
-            sendcounts(i+1)=int(Sing_ExcList(i)-(NINT(OneEl_Gap*i)+1),MPIArg)
-! Sendcounts is the number of singly excited determinants we want to send for 
-! each processor (but goes from 1, not 0).            
-            disps(i+1)=NINT(OneEl_Gap*i,MPIArg)
-! and I think disps is the first slot for each processor - 1.            
+        do i = 0, nProcessors-1
+            sendcounts(i+1) = int(Sing_ExcList(i)-(nint(OneEl_Gap*i)+1),MPIArg)
+            ! Sendcounts is the number of singly excited determinants we want
+            ! to send for each processor (but goes from 1, not 0).
+            disps(i+1) = nint(OneEl_Gap*i,MPIArg)
+            ! and I think disps is the first slot for each processor - 1.            
         end do
 
-        MaxSendIndex=Sing_ExcList(nProcessors-1)-1
+        MaxSendIndex = Sing_ExcList(nProcessors-1)-1
 
-! We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
+        ! We now need to calculate the recvcounts and recvdisps -
+        ! this is a job for AlltoAll
         sing_recvcounts(1:nProcessors)=0
         call MPIAlltoAll(sendcounts,1,sing_recvcounts,1,error)
-! I think recvcounts(i) is the number of determinants sent from processor i.        
+        ! I think recvcounts(i) is the number of determinants sent from
+        ! processor i.
 
-! We can now get recvdisps from recvcounts, since we want the data to be 
-! contiguous after the move.
-        sing_recvdisps(1)=0
-        do i=2,nProcessors
-            sing_recvdisps(i)=sing_recvdisps(i-1)+sing_recvcounts(i-1)
+        ! We can now get recvdisps from recvcounts, since we want the data to
+        ! be contiguous after the move.
+        sing_recvdisps(1) = 0
+        do i = 2, nProcessors
+            sing_recvdisps(i) = sing_recvdisps(i-1) + sing_recvcounts(i-1)
         end do
 
-        MaxIndex=sing_recvdisps(nProcessors)+sing_recvcounts(nProcessors)
-! But the actual number of integers we need to send is the calculated values * NIfTot+1.
-        do i=1,nProcessors
-            sendcounts(i)=sendcounts(i)*(int(NIfTot+1,MPIArg))
-            disps(i)=disps(i)*(int(NIfTot+1,MPIArg))
-            sing_recvcounts(i)=sing_recvcounts(i)*(int(NIfTot+1,MPIArg))
-            sing_recvdisps(i)=sing_recvdisps(i)*(int(NIfTot+1,MPIArg))
+        MaxIndex = sing_recvdisps(nProcessors) + sing_recvcounts(nProcessors)
+        ! But the actual number of integers we need to send is the calculated
+        ! values * NIfTot+1.
+        do i = 1, nProcessors
+            sendcounts(i) = sendcounts(i)*(int(NIfTot+1,MPIArg))
+            disps(i) = disps(i)*(int(NIfTot+1,MPIArg))
+            sing_recvcounts(i) = sing_recvcounts(i)*(int(NIfTot+1,MPIArg))
+            sing_recvdisps(i) = sing_recvdisps(i)*(int(NIfTot+1,MPIArg))
         end do
+
 #ifdef PARALLEL
         call MPIAlltoAllv(Sing_ExcDjs(:,1:MaxSendIndex),sendcounts,disps,&
                             Sing_ExcDjs2,sing_recvcounts,sing_recvdisps,error)
@@ -2473,32 +2390,35 @@ contains
 
         call Sing_SearchOccDets(sing_recvcounts,sing_recvdisps)
 
-
-        if (RDMExcitLevel.ne.1) then
-            do i=0,nProcessors-1
-                sendcounts(i+1)=int(Doub_ExcList(i)-(NINT(TwoEl_Gap*i)+1),MPIArg)
-! Sendcounts is the number of singly excited determinants we want to send for 
-! each processor (but goes from 1, not 0).            
-                disps(i+1)=NINT(TwoEl_Gap*i,MPIArg)
-! and I think disps is the first slot for each processor - 1.            
+        if (RDMExcitLevel .ne. 1) then
+            do i = 0, nProcessors-1
+                sendcounts(i+1) = int(Doub_ExcList(i)-(nint(TwoEl_Gap*i)+1),MPIArg)
+                ! Sendcounts is the number of singly excited determinants we
+                ! want to send for
+                ! each processor (but goes from 1, not 0).
+                disps(i+1) = nint(TwoEl_Gap*i,MPIArg)
+                ! and I think disps is the first slot for each processor - 1.            
             end do
 
             MaxSendIndex = Doub_ExcList(nProcessors-1)-1
 
-! We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
+            ! We now need to calculate the recvcounts and recvdisps -
+            ! this is a job for AlltoAll
             doub_recvcounts(1:nProcessors)=0
             call MPIAlltoAll(sendcounts,1,doub_recvcounts,1,error)
-! I think recvcounts(i) is the number of determinants sent from processor i.        
+            ! I think recvcounts(i) is the number of determinants sent from
+            ! processor i.
 
-! We can now get recvdisps from recvcounts, since we want the data to be contiguous 
-! after the move.
+            ! We can now get recvdisps from recvcounts, since we want the data
+            ! to be contiguous after the move.
             doub_recvdisps(1)=0
             do i=2,nProcessors
                 doub_recvdisps(i)=doub_recvdisps(i-1)+doub_recvcounts(i-1)
             end do
 
             MaxIndex=doub_recvdisps(nProcessors)+doub_recvcounts(nProcessors)
-! But the actual number of integers we need to send is the calculated values * NIfTot+1.
+            ! But the actual number of integers we need to send is the
+            ! calculated values * NIfTot+1.
             do i=1,nProcessors
                 sendcounts(i)=sendcounts(i)*(int(NIfTot+1,MPIArg))
                 disps(i)=disps(i)*(int(NIfTot+1,MPIArg))
@@ -2506,7 +2426,8 @@ contains
                 doub_recvdisps(i)=doub_recvdisps(i)*(int(NIfTot+1,MPIArg))
             end do
 
-! This is the main send of all the single excitations to the corresponding processors.        
+            ! This is the main send of all the single excitations to the
+            ! corresponding processors.
 #ifdef PARALLEL
             call MPIAlltoAllv(Doub_ExcDjs(:,1:MaxSendIndex),sendcounts,disps,&
                                     Doub_ExcDjs2,doub_recvcounts,doub_recvdisps,error)
@@ -2516,16 +2437,18 @@ contains
             call Doub_SearchOccDets(doub_recvcounts,doub_recvdisps)
 
         end if
-
         
     end subroutine SendProcExcDjs
 
     subroutine Send_Hist_ProcExcDjs()
-! In this routine the excitations are sent to the relevant processors.
-! Sent with them will be the Di they were excited from and its sign.
-! Each processor will receive nProcessor number of lists with different Di determinants.
-! The original Di's will (I think) still be in the original InitSingExcSlots positions.
-! This follows the directannihilation algorithm closely.
+
+        ! In this routine the excitations are sent to the relevant processors.
+        ! Sent with them will be the Di they were excited from and its sign.
+        ! Each processor will receive nProcessor number of lists with different
+        ! Di determinants. The original Di's will (I think) still be in the
+        ! original InitSingExcSlots positions. This follows the
+        ! directannihilation algorithm closely.
+
         integer :: i,j
         integer(MPIArg) :: sendcounts(nProcessors),disps(nProcessors)
         integer(MPIArg) :: sing_recvcounts(nProcessors)
@@ -2533,30 +2456,32 @@ contains
         integer(MPIArg) :: sing_recvdisps(nProcessors)
         integer(MPIArg) :: doub_recvcounts(nProcessors),doub_recvdisps(nProcessors)
 
-        do i=0,nProcessors-1
-            sendcounts(i+1)=int(Sing_ExcList(i)-(NINT(OneEl_Gap*i)+1),MPIArg)
-! Sendcounts is the number of singly excited determinants we want to send for 
-! each processor (but goes from 1, not 0).            
-            disps(i+1)=NINT(OneEl_Gap*i,MPIArg)
-! and I think disps is the first slot for each processor - 1.            
+        do i = 0, nProcessors-1
+            sendcounts(i+1)=int(Sing_ExcList(i)-(nint(OneEl_Gap*i)+1),MPIArg)
+            ! Sendcounts is the number of singly excited determinants we want to send for
+            ! each processor (but goes from 1, not 0).
+            disps(i+1)=nint(OneEl_Gap*i,MPIArg)
+            ! and I think disps is the first slot for each processor - 1.
         end do
 
         MaxSendIndex=Sing_ExcList(nProcessors-1)-1
 
-! We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
+        ! We now need to calculate the recvcounts and recvdisps -
+        ! this is a job for AlltoAll
         sing_recvcounts(1:nProcessors)=0
         call MPIAlltoAll(sendcounts,1,sing_recvcounts,1,error)
-! I think recvcounts(i) is the number of determinants sent from processor i.        
+        ! I think recvcounts(i) is the number of determinants sent from processor i.
 
-! We can now get recvdisps from recvcounts, since we want the data to be 
-! contiguous after the move.
-        sing_recvdisps(1)=0
-        do i=2,nProcessors
-            sing_recvdisps(i)=sing_recvdisps(i-1)+sing_recvcounts(i-1)
+        ! We can now get recvdisps from recvcounts, since we want the data to
+        ! be contiguous after the move.
+        sing_recvdisps(1) = 0
+        do i = 2, nProcessors
+            sing_recvdisps(i) = sing_recvdisps(i-1)+sing_recvcounts(i-1)
         end do
 
         MaxIndex=sing_recvdisps(nProcessors)+sing_recvcounts(nProcessors)
-! But the actual number of integers we need to send is the calculated values * NIfTot+1.
+        ! But the actual number of integers we need to send is the calculated
+        ! values * NIfTot+1.
         do i=1,nProcessors
             sendcounts(i)=sendcounts(i)*(int(NIfTot+1,MPIArg))
             disps(i)=disps(i)*(int(NIfTot+1,MPIArg))
@@ -2574,38 +2499,42 @@ contains
 
 
         if (RDMExcitLevel.ne.1) then            
-            do i=0,nProcessors-1
-                sendcounts(i+1)=int(Doub_ExcList(i)-(NINT(TwoEl_Gap*i)+1),MPIArg)
-! Sendcounts is the number of singly excited determinants we want to send for 
-! each processor (but goes from 1, not 0).            
-                disps(i+1)=NINT(TwoEl_Gap*i,MPIArg)
-! and I think disps is the first slot for each processor - 1.            
+            do i = 0, nProcessors-1
+                sendcounts(i+1)=int(Doub_ExcList(i)-(nint(TwoEl_Gap*i)+1),MPIArg)
+                ! Sendcounts is the number of singly excited determinants we
+                ! want to send for each processor (but goes from 1, not 0).
+                disps(i+1)=nint(TwoEl_Gap*i,MPIArg)
+                ! and I think disps is the first slot for each processor - 1.            
             end do
 
             MaxSendIndex = Doub_ExcList(nProcessors-1)-1
 
-! We now need to calculate the recvcounts and recvdisps - this is a job for AlltoAll
+            ! We now need to calculate the recvcounts and recvdisps -
+            ! this is a job for AlltoAll
             doub_recvcounts(1:nProcessors)=0
             call MPIAlltoAll(sendcounts,1,doub_recvcounts,1,error)
-! I think recvcounts(i) is the number of determinants sent from processor i.        
+            ! I think recvcounts(i) is the number of determinants sent from
+            ! processor i.
 
-! We can now get recvdisps from recvcounts, since we want the data to be contiguous 
-! after the move.
-            doub_recvdisps(1)=0
-            do i=2,nProcessors
-                doub_recvdisps(i)=doub_recvdisps(i-1)+doub_recvcounts(i-1)
+            ! We can now get recvdisps from recvcounts, since we want the data
+            ! to be contiguous after the move.
+            doub_recvdisps(1) = 0
+            do i = 2, nProcessors
+                doub_recvdisps(i) = doub_recvdisps(i-1) + doub_recvcounts(i-1)
             end do
 
-            MaxIndex=doub_recvdisps(nProcessors)+doub_recvcounts(nProcessors)
-! But the actual number of integers we need to send is the calculated values * NIfTot+1.
-            do i=1,nProcessors
+            MaxIndex= doub_recvdisps(nProcessors) + doub_recvcounts(nProcessors)
+            ! But the actual number of integers we need to send is the calculated
+            ! values * NIfTot+1.
+            do i = 1, nProcessors
                 sendcounts(i)=sendcounts(i)*(int(NIfTot+1,MPIArg))
                 disps(i)=disps(i)*(int(NIfTot+1,MPIArg))
                 doub_recvcounts(i)=doub_recvcounts(i)*(int(NIfTot+1,MPIArg))
                 doub_recvdisps(i)=doub_recvdisps(i)*(int(NIfTot+1,MPIArg))
             end do
 
-! This is the main send of all the single excitations to the corresponding processors.        
+            ! This is the main send of all the single excitations to the
+            ! corresponding processors.
 #ifdef PARALLEL
             call MPIAlltoAllv(Doub_ExcDjs(:,1:MaxSendIndex),sendcounts,disps,&
                                     Doub_ExcDjs2,doub_recvcounts,doub_recvdisps,error)
@@ -2616,16 +2545,16 @@ contains
 
         end if
 
-        
     end subroutine Send_Hist_ProcExcDjs
 
-
     subroutine Sing_SearchOccDets(recvcounts,recvdisps)
-! We now have arrays SingExcDjs2 which contain all the single excitations from 
-! each processor.
-! These number sent from processor i is recvcounts(i), and the first 2 have information 
-! about the determinant Di from which the Dj's are single excitations (and it's sign).
-        integer(MPIArg), INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
+
+        ! We now have arrays SingExcDjs2 which contain all the single
+        ! excitations from each processor. These number sent from processor i
+        ! is recvcounts(i), and the first 2 have information about the
+        ! determinant Di from which the Dj's are single excitations (and it's sign).
+
+        integer(MPIArg), intent(in) :: recvcounts(nProcessors),recvdisps(nProcessors)
         integer(kind=n_int) :: iLutnJ(0:NIfTot)
         real(dp), dimension(lenof_sign) :: SignDi,SignDj, SignDi2,SignDj2
         integer :: i, j, NoDets, StartDets, PartInd
@@ -2633,52 +2562,52 @@ contains
         logical :: tDetFound, tParity
         real(dp) :: realSignDi, realSignDj
 
-! Take each Dj, and binary search the CurrentDets to see if it is occupied.
+        ! Take each Dj, and binary search CurrentDets to see if it is occupied.
 
         do i=1,nProcessors
-! Doing determinants from each processor separately because each has a different 
-! D_i it was excited from.
-
+            ! Doing determinants from each processor separately because each
+            ! has a different D_i it was excited from.
             NoDets=recvcounts(i)/(NIfTot+1)
             StartDets=(recvdisps(i)/(NIfTot+1))+1
 
-            if (NoDets.gt.1) then
+            if (NoDets .gt. 1) then
                 call extract_bit_rep (Sing_ExcDjs2(:,StartDets), nI, SignDi, FlagsDi)
 
                 realSignDi = real(SignDi(1),dp)
 
-                do j=StartDets+1,(NoDets+StartDets-1)
-! D_i is in the first spot - start from the second.                
-                
+                do j = StartDets+1, (NoDets+StartDets-1)
+
+                    ! D_i is in the first spot - start from the second.                
                     iLutnJ(:)=Sing_ExcDjs2(:,j)
-! This binary searches CurrentDets between 1 and TotWalkers for determinant iLutnJ.
-! If found, tDetFound will be true, and PartInd the index in CurrentDets where the 
-! determinant is.
+                    ! This binary searches CurrentDets between 1 and
+                    ! TotWalkers for determinant iLutnJ. If found, tDetFound
+                    ! will be true, and PartInd the index in CurrentDets where
+                    ! the determinant is.
                     call BinSearchParts_rdm(iLutnJ,1,int(TotWalkers,sizeof_int),PartInd,tDetFound)
                     if (tDetFound) then
-! Determinant occupied; add c_i*c_j to the relevant element of nElRDM.                    
-! Need to first find the orbitals involved in the excitation from D_i -> D_j and the parity.
-
-                        Ex(:,:)=0
-! Ex(1,1) goes in as the max number of excitations - we know this is an excitation of 
-! level RDMExcitLevel. 
-                        Ex(1,1)=1
+                        ! Determinant occupied; add c_i*c_j to the relevant
+                        ! element of nElRDM. Need to first find the orbitals
+                        ! involved in the excitation from D_i -> D_j and the parity.
+                        Ex(:,:) = 0
+                        ! Ex(1,1) goes in as the max number of excitations -
+                        ! we know this is an excitation of level RDMExcitLevel. 
+                        Ex(1,1) = 1
                         tParity = .false.
 
                         call extract_bit_rep (CurrentDets(:,PartInd), nJ, SignDj, FlagsDj)
 
                         realSignDj = real(SignDj(1),dp)
 
-! Ex(1,:) comes out as the orbital(s) excited from, Ex(2,:) comes out as the orbital(s) 
-! excited to.    
+                        ! Ex(1,:) comes out as the orbital(s) excited from,
+                        ! Ex(2,:) comes out as the orbital(s) excited to.
                         call GetExcitation(nI,nJ,NEl,Ex,tParity)
 
                         if (Ex(1,1).le.0) call Stop_All('Sing_SearchOccDets',&
                                             'nJ is not the correct excitation of nI.')
 
-                        call Fill_Sings_RDM(nI,Ex,tParity,realSignDi,realSignDj,.true.)
+                        call Fill_Sings_RDM(nI, Ex, tParity, realSignDi, realSignDj, .true.)
 
-! No normalisation factor just yet - possibly need to revise.                    
+                        ! No normalisation factor just yet - possibly need to revise.
                     end if
 
                 end do
@@ -2687,13 +2616,14 @@ contains
       
     end subroutine Sing_SearchOccDets
 
-
     subroutine Doub_SearchOccDets(recvcounts,recvdisps)
-! We now have arrays SingExcDjs2 which contain all the single excitations 
-! from each processor.
-! These number sent from processor i is recvcounts(i), and the first 2 have information 
-! about the determinant Di from which the Dj's are single excitations (and it's sign).
-        integer(MPIArg), INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
+
+        ! We now have arrays SingExcDjs2 which contain all the single excitations
+        ! from each processor. These number sent from processor i is
+        ! recvcounts(i), and the first 2 have information  about the determinant
+        ! Di from which the Dj's are single excitations (and it's sign).
+
+        integer(MPIArg), intent(in) :: recvcounts(nProcessors),recvdisps(nProcessors)
         integer(kind=n_int) :: iLutnJ(0:NIfTot)
         real(dp), dimension(lenof_sign) :: SignDi,SignDj, SignDi2, SignDj2
         integer :: i, j, NoDets, StartDets, PartInd
@@ -2701,14 +2631,11 @@ contains
         logical :: tDetFound, tParity
         real(dp) :: realSignDi,realSignDj
 
-! Take each Dj, and binary search the CurrentDets to see if it is occupied.
+        ! Take each Dj, and binary search CurrentDets to see if it is occupied.
     
-!        write(6,*) 'Searching for generated nJs in occupied list'
-
-        do i=1,nProcessors
-! Doing determinants from each processor separately because each has a different D_i 
-! it was excited from.
-
+        do i = 1, nProcessors
+            ! Doing determinants from each processor separately because each
+            ! has a different D_i it was excited from.
             NoDets=recvcounts(i)/(NIfTot+1)
             StartDets=(recvdisps(i)/(NIfTot+1))+1
 
@@ -2718,32 +2645,31 @@ contains
                 realSignDi = real(SignDi(1),dp)
 
                 do j=StartDets+1,(NoDets+StartDets-1)
-! D_i is in the first spot - start from the second.                
-                
+                    ! D_i is in the first spot - start from the second.
                     iLutnJ(:)=Doub_ExcDjs2(:,j)
 
-! This binary searches CurrentDets between 1 and TotWalkers for determinant iLutnJ.
-! If found, tDetFound will be true, and PartInd the index in CurrentDets where the 
-! determinant is.
+                    ! This binary searches CurrentDets between 1 and TotWalkers
+                    ! for determinant iLutnJ. If found, tDetFound will be true,
+                    ! and PartInd the index in CurrentDets where the determinant is.
                     call BinSearchParts_rdm(iLutnJ,1,int(TotWalkers,sizeof_int),PartInd,tDetFound)
 
                     if (tDetFound) then
-! Determinant occupied; add c_i*c_j to the relevant element of nElRDM.                    
-! Need to first find the orbitals involved in the excitation from D_i -> D_j and 
-! the parity.
-
-                        Ex(:,:)=0
-! Ex(1,1) goes in as the max number of excitations - we know this is an excitation of 
-! level RDMExcitLevel. 
-                        Ex(1,1)=2
+                        ! Determinant occupied; add c_i*c_j to the relevant
+                        ! element of nElRDM. Need to first find the orbitals
+                        ! involved in the excitation from D_i -> D_j and 
+                        ! the parity.
+                        Ex(:,:) = 0
+                        ! Ex(1,1) goes in as the max number of excitations -
+                        ! we know this is an excitation of level RDMExcitLevel. 
+                        Ex(1,1) = 2
                         tParity = .false.
 
                         call extract_bit_rep (CurrentDets(:,PartInd), nJ, SignDj, FlagsDj)
 
                         realSignDj = real(SignDj(1),dp)
 
-! Ex(1,:) comes out as the orbital(s) excited from, Ex(2,:) comes out as the orbital(s) 
-! excited to. 
+                        ! Ex(1,:) comes out as the orbital(s) excited from,
+                        ! Ex(2,:) comes out as the orbital(s) excited to. 
                         call GetExcitation(nI,nJ,NEl,Ex,tParity)
 
                         if (Ex(1,1).le.0) call Stop_All('SearchOccDets',&
@@ -2759,14 +2685,14 @@ contains
       
     end subroutine Doub_SearchOccDets
 
-
     subroutine Sing_Hist_SearchOccDets(recvcounts,recvdisps)
-! We now have arrays SingExcDjs2 which contain all the single excitations from 
-! each processor.
-! These number sent from processor i is recvcounts(i), and the first 2 have information 
-! about the determinant Di from which the Dj's are single excitations (and it's sign).
-!        use AnnihilationMod , only : BinSearchParts
-        integer(MPIArg), INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
+
+        ! We now have arrays SingExcDjs2 which contain all the single
+        ! excitations from each processor. These number sent from processor i
+        ! is recvcounts(i), and the first 2 have information about the
+        ! determinant Di from which the Dj's are single excitations (and it's sign).
+
+        integer(MPIArg), intent(in) :: recvcounts(nProcessors),recvdisps(nProcessors)
         integer(kind=n_int) :: iLutnJ(0:NIfTot)
         integer, dimension(lenof_sign) :: HistPos
         real(dp), dimension(lenof_sign) :: RealHistPos
@@ -2776,12 +2702,12 @@ contains
         logical :: tDetFound, tParity
         real(dp) :: realSignDi, realSignDj
 
-! Take each Dj, and binary search the CurrentDets to see if it is occupied.
+        ! Take each Dj, and binary search CurrentDets to see if it is occupied.
 
-        do i=1,nProcessors
-! Doing determinants from each processor separately because each has a different 
-! D_i it was excited from.
+        do i = 1, nProcessors
 
+            ! Doing determinants from each processor separately because each
+            ! has a different D_i it was excited from.
             NoDets=recvcounts(i)/(NIfTot+1)
             StartDets=(recvdisps(i)/(NIfTot+1))+1
 
@@ -2793,36 +2719,34 @@ contains
                 realSignDi = AllHistogram(1,HistPos(1))/norm
 
                 do j=StartDets+1,(NoDets+StartDets-1)
-! D_i is in the first spot - start from the second.                
-                
+
+                    ! D_i is in the first spot - start from the second.                
                     iLutnJ(:)=Sing_ExcDjs2(:,j)
-! This binary searches CurrentDets between 1 and TotWalkers for determinant iLutnJ.
-! If found, tDetFound will be true, and PartInd the index in CurrentDets where the 
-! determinant is.
+                    ! This binary searches CurrentDets between 1 and TotWalkers
+                    ! for determinant iLutnJ. If found, tDetFound will be true,
+                    ! and PartInd the index in CurrentDets where the determinant is.
                     call BinSearchParts_rdm(iLutnJ,1,int(TotWalkers,sizeof_int),PartInd,tDetFound)
 
                     ExcitLevel = FindBitExcitLevel (iLutHF_true, iLutnJ, NEl)
                     call find_hist_coeff_explicit (iLutnJ, ExcitLevel,PartInd,tDetFound)
 
                     if (tDetFound) then
-! Determinant occupied; add c_i*c_j to the relevant element of nElRDM.                    
-! Need to first find the orbitals involved in the excitation from D_i -> D_j and the parity.
-
-                        Ex(:,:)=0
-! Ex(1,1) goes in as the max number of excitations - we know this is an excitation of 
-! level RDMExcitLevel. 
-                        Ex(1,1)=1
+                        ! Determinant occupied; add c_i*c_j to the relevant
+                        ! element of nElRDM. Need to first find the orbitals
+                        ! involved in the excitation from D_i -> D_j and the
+                        ! parity.
+                        Ex(:,:) = 0
+                        ! Ex(1,1) goes in as the max number of excitations - we
+                        ! know this is an excitation of level RDMExcitLevel. 
+                        Ex(1,1) = 1
                         tParity = .false.
-
-!                        call extract_bit_rep (CurrentDets(:,PartInd), nJ, SignDj, FlagsDj)
-!                        realSignDj = real(SignDj(1))
 
                         call decode_bit_det(nJ,iLutnJ)
 
                         realSignDj = AllHistogram(1,PartInd)/norm
 
-! Ex(1,:) comes out as the orbital(s) excited from, Ex(2,:) comes out as the orbital(s) 
-! excited to.    
+                        ! Ex(1,:) comes out as the orbital(s) excited from,
+                        ! Ex(2,:) comes out as the orbital(s) excited to.    
                         call GetExcitation(nI,nJ,NEl,Ex,tParity)
 
                         if (Ex(1,1).le.0) call Stop_All('Sing_SearchOccDets',&
@@ -2830,7 +2754,7 @@ contains
 
                         call Fill_Sings_RDM(nI,Ex,tParity,realSignDi,realSignDj,.true.)
 
-! No normalisation factor just yet - possibly need to revise.                    
+                        ! No normalisation factor just yet - possibly need to revise.                    
                     end if
 
                 end do
@@ -2839,13 +2763,14 @@ contains
       
     end subroutine Sing_Hist_SearchOccDets
 
-
     subroutine Doub_Hist_SearchOccDets(recvcounts,recvdisps)
-! We now have arrays SingExcDjs2 which contain all the single excitations 
-! from each processor.
-! These number sent from processor i is recvcounts(i), and the first 2 have information 
-! about the determinant Di from which the Dj's are single excitations (and it's sign).
-        integer(MPIArg), INTENT(IN) :: recvcounts(nProcessors),recvdisps(nProcessors)
+
+        ! We now have arrays SingExcDjs2 which contain all the single excitations
+        ! from each processor. These number sent from processor i is recvcounts(i),
+        ! and the first 2 have information about the determinant Di from which
+        ! the Dj's are single excitations (and it's sign).
+
+        integer(MPIArg), intent(in) :: recvcounts(nProcessors),recvdisps(nProcessors)
         integer(kind=n_int) :: iLutnJ(0:NIfTot)
         integer, dimension(lenof_sign) :: HistPos
         real(dp), dimension(lenof_sign) :: RealHistPos
@@ -2854,14 +2779,12 @@ contains
         logical :: tDetFound, tParity
         real(dp) :: realSignDi,realSignDj
 
-! Take each Dj, and binary search the CurrentDets to see if it is occupied.
-    
-!        write(6,*) 'Searching for generated nJs in occupied list'
-
+        ! Take each Dj, and binary search the CurrentDets to see if it is occupied.
+        
         do i=1,nProcessors
-! Doing determinants from each processor separately because each has a different D_i 
-! it was excited from.
 
+            ! Doing determinants from each processor separately because each
+            ! has a different D_i it was excited from.
             NoDets=recvcounts(i)/(NIfTot+1)
             StartDets=(recvdisps(i)/(NIfTot+1))+1
 
@@ -2873,37 +2796,34 @@ contains
                 realSignDi = AllHistogram(1,HistPos(1))/norm
 
                 do j=StartDets+1,(NoDets+StartDets-1)
-! D_i is in the first spot - start from the second.                
-                
+
+                    ! D_i is in the first spot - start from the second. 
                     iLutnJ(:)=Doub_ExcDjs2(:,j)
 
-! This binary searches CurrentDets between 1 and TotWalkers for determinant iLutnJ.
-! If found, tDetFound will be true, and PartInd the index in CurrentDets where the 
-! determinant is.
+                    ! This binary searches CurrentDets between 1 and TotWalkers
+                    ! for determinant iLutnJ. If found, tDetFound will be true,
+                    ! and PartInd the index in CurrentDets where the  determinant is.
                     call BinSearchParts_rdm(iLutnJ,1,int(TotWalkers,sizeof_int),PartInd,tDetFound)
 
                     ExcitLevel = FindBitExcitLevel (iLutHF_True, iLutnJ, NEl)
                     call find_hist_coeff_explicit (iLutnJ, ExcitLevel, PartInd, tDetFound)
 
                     if (tDetFound) then
-! Determinant occupied; add c_i*c_j to the relevant element of nElRDM.                    
-! Need to first find the orbitals involved in the excitation from D_i -> D_j and 
-! the parity.
-
+                        ! Determinant occupied; add c_i*c_j to the relevant
+                        ! element of nElRDM. Need to first find the orbitals
+                        ! involved in the excitation from D_i -> D_j and
+                        ! the parity.
                         Ex(:,:)=0
-! Ex(1,1) goes in as the max number of excitations - we know this is an excitation of 
-! level RDMExcitLevel. 
+                        ! Ex(1,1) goes in as the max number of excitations - we
+                        ! know this is an excitation of level RDMExcitLevel. 
                         Ex(1,1)=2
                         tParity = .false.
-
-!                        call extract_bit_rep (CurrentDets(:,PartInd), nJ, SignDj, FlagsDj)
-!                        realSignDj = real(SignDj(1))
 
                         call decode_bit_det(nJ,iLutnJ)
                         realSignDj = AllHistogram(1,PartInd)/norm
 
-! Ex(1,:) comes out as the orbital(s) excited from, Ex(2,:) comes out as the orbital(s) 
-! excited to. 
+                        ! Ex(1,:) comes out as the orbital(s) excited from,
+                        ! Ex(2,:) comes out as the orbital(s) excited to. 
                         call GetExcitation(nI,nJ,NEl,Ex,tParity)
 
                         if (Ex(1,1).le.0) call Stop_All('SearchOccDets',&
@@ -2917,7 +2837,6 @@ contains
         end do
       
     end subroutine Doub_Hist_SearchOccDets
-
 
 ! =======================================================================================    
 ! THESE NEXT ROUTINES ARE GENERAL TO BOTH STOCHASTIC AND EXPLICIT    
@@ -5813,15 +5732,15 @@ contains
                 tDiffSym = .false.
                 tDiffLzSym = .false.
                 if (tOpenShell) then
-                    if ((INT(G1(SymLabelList2_rot(i))%sym%S).ne.&
-                        INT(G1(SymLabelList2_rot(j))%sym%S))) tDiffSym = .true.
-                    if ((INT(G1(SymLabelList2_rot(i))%Ml).ne.&
-                        INT(G1(SymLabelList2_rot(j))%Ml))) tDiffLzSym = .true.
+                    if ((int(G1(SymLabelList2_rot(i))%sym%S).ne.&
+                        int(G1(SymLabelList2_rot(j))%sym%S))) tDiffSym = .true.
+                    if ((int(G1(SymLabelList2_rot(i))%Ml).ne.&
+                        int(G1(SymLabelList2_rot(j))%Ml))) tDiffLzSym = .true.
                 else
-                    if ((INT(G1(2*SymLabelList2_rot(i))%sym%S).ne.&
-                        INT(G1(2*SymLabelList2_rot(j))%sym%S))) tDiffSym = .true.
-                    if ((INT(G1(2*SymLabelList2_rot(i))%Ml).ne.&
-                        INT(G1(2*SymLabelList2_rot(j))%Ml))) tDiffLzSym = .true.
+                    if ((int(G1(2*SymLabelList2_rot(i))%sym%S).ne.&
+                        int(G1(2*SymLabelList2_rot(j))%sym%S))) tDiffSym = .true.
+                    if ((int(G1(2*SymLabelList2_rot(i))%Ml).ne.&
+                        int(G1(2*SymLabelList2_rot(j))%Ml))) tDiffLzSym = .true.
                 end if
                 if (tDiffSym) then
                     if (ABS(NatOrbMat(i,j)).ge.1.0E-15_dp) then
@@ -5829,12 +5748,12 @@ contains
                                                                 'Sym j','Matrix value'
                         if (tOpenShell) then                                                              
                             write(6,'(6I3,F40.20)') i,j,SymLabelList2_rot(i),SymLabelList2_rot(j),&
-                                    INT(G1(SymLabelList2_rot(i))%sym%S),&
-                                    INT(G1(SymLabelList2_rot(j))%sym%S),NatOrbMat(i,j)
+                                    int(G1(SymLabelList2_rot(i))%sym%S),&
+                                    int(G1(SymLabelList2_rot(j))%sym%S),NatOrbMat(i,j)
                         else
                             write(6,'(6I3,F40.20)') i,j,SymLabelList2_rot(i),SymLabelList2_rot(j),&
-                                    INT(G1(2*SymLabelList2_rot(i))%sym%S),&
-                                    INT(G1(2*SymLabelList2_rot(j))%sym%S),NatOrbMat(i,j)
+                                    int(G1(2*SymLabelList2_rot(i))%sym%S),&
+                                    int(G1(2*SymLabelList2_rot(j))%sym%S),NatOrbMat(i,j)
                         end if
                         if (tUseMP2VarDenMat) then
                             write(6,*) '**WARNING** - There is a non-zero NatOrbMat &
@@ -5859,12 +5778,12 @@ contains
                                                                 'Lz j','Matrix value'
                         if (tOpenShell) then                                                              
                             write(6,'(6I8,F40.20)') i,j,SymLabelList2_rot(i),SymLabelList2_rot(j),&
-                                    INT(G1(SymLabelList2_rot(i))%Ml),&
-                                    INT(G1(SymLabelList2_rot(j))%Ml),NatOrbMat(i,j)
+                                    int(G1(SymLabelList2_rot(i))%Ml),&
+                                    int(G1(SymLabelList2_rot(j))%Ml),NatOrbMat(i,j)
                         else
                             write(6,'(6I8,F40.20)') i,j,SymLabelList2_rot(i),SymLabelList2_rot(j),&
-                                    INT(G1(2*SymLabelList2_rot(i))%Ml),&
-                                    INT(G1(2*SymLabelList2_rot(j))%Ml),NatOrbMat(i,j)
+                                    int(G1(2*SymLabelList2_rot(i))%Ml),&
+                                    int(G1(2*SymLabelList2_rot(j))%Ml),NatOrbMat(i,j)
                         end if
                         write(6,'(A)') ' **WARNING** - There is a non-zero NatOrbMat element &
                         &between orbitals of different Lz symmetry.'
@@ -6294,7 +6213,7 @@ contains
 ! Refill ARR(:,1) (ordered in terms of energies), and ARR(:,2) 
 ! (ordered in terms of orbital number).
 ! ARR(:,2) needs to be ordered in terms of symmetry and then energy (like SymLabelList), 
-! so currently this ordering will not be correct when reading in qchem INTDUMPS as the 
+! so currently this ordering will not be correct when reading in qchem intDUMPS as the 
 ! orbital number ordering is by energy.
 
         do j=1,nBasis
@@ -6449,12 +6368,12 @@ contains
         write(iunit,'(A9)',advance='no') 'ORBSYM='
         do i=1,NoOrbs
             if (tStoreSpinOrbs) then
-                write(iunit,'(I1,A1)',advance='no') INT(G1(i)%sym%S)+1,','
+                write(iunit,'(I1,A1)',advance='no') int(G1(i)%sym%S)+1,','
             else
                 if (tRotatedNOs.and.tBrokenSymNOs) then
                     write(iunit,'(I1,A1)',advance='no') 1,','
                 else
-                    write(iunit,'(I1,A1)',advance='no') INT(G1(i*2)%sym%S)+1,','
+                    write(iunit,'(I1,A1)',advance='no') int(G1(i*2)%sym%S)+1,','
                 end if
             end if
         end do
@@ -7235,7 +7154,7 @@ contains
     real(dp) :: WfRecord
     character(len=*), parameter :: t_r='convert_mats_Molpforces'
 
-#ifdef __INT64
+#ifdef __int64
     intrel=1
 #else
     intrel=2
