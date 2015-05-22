@@ -1226,12 +1226,7 @@ contains
                 ExcitLevel = FindBitExcitLevel (iLutRef, iLutnI, 2)
             end if
 
-            !if (tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
-            !    call fill_rdm_diag_currdet_hfsd(iLutnI, nI, CurrH_I, ExcitLevel, .false., &
-            !                                    IterLastRDMFill, tFinalRDMContrib, tDetRemoved)
-            !else
             call fill_rdm_diag_currdet_norm(iLutnI, nI, j, ExcitLevel, .false.)
-            !end if
 
         end if
 
@@ -1324,80 +1319,6 @@ contains
             call Fill_Spin_Coupled_RDM_v2(iLutHF_True, iLutJ, HFDet_True, nJ, AvNoatHF(1), IterRDM*AvSignJ(lenof_sign), .true.)
 
     end subroutine Add_RDM_HFConnections_HPHF
-
-!    subroutine Add_RDM_HFConnections_HF_S_D(iLutJ,nJ,SignJ,walkExcitLevel, tCoreSpaceDet)
-! This is called when we run over all TotWalkers in CurrentDets.    
-! This finds all the connections to the HF when doing some sort of truncated RDM 
-! calculation.
-! Here, the diagonal elements will not have been added in by the extract routines.
-! In the case of HF_Ref_Explicit, this routine does all the work.
-!        integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
-!        integer, intent(in) :: nJ(NEl)
-!        real(dp), dimension(lenof_sign), intent(in) :: SignJ
-!        integer, intent(in) :: walkExcitLevel
-!        logical,intent(in) :: tCoreSpaceDet
-!        integer(kind=n_int) :: SpinCoupDet(0:niftot)
-!        integer :: nSpinCoup(NEl), HPHFExcitLevel, part_type
-
-! Add diagonal elements to reduced density matrices.
-
-! If HF_S_D_Ref, we are only considering determinants connected to the HF, 
-! doubles and singles (so theoretically up to quadruples).
-! But for the diagonal elements - only consider doubles and singles (and HF).
-
-        ! In all of these cases the HF is a diagonal element.
-!        if (walkExcitLevel.eq.0) then
-!            
-!            call Fill_Diag_RDM(nJ, SignJ, tCoreSpaceDet)
-!            AccumRDMNorm_Inst = AccumRDMNorm_Inst+(SignJ(1)*SignJ(lenof_sign))
-!    
-!            do part_type=1,lenof_sign
-!                if (SignJ(part_type).ne.InstNoatHF(part_type)) then
-!                    write(6,*) 'AvSignJ',SignJ
-!                    write(6,*) 'InstNoatHF',InstNoatHF
-!                    call stop_all('Add_RDM_HFConnections_HF_S_D','HF population is incorrect.')
-!                end if
-!            end do
-!
-!            ! The HF is always closed shell (at the moment), 
-!            ! so don't need to account for HPHF here.
-!
-!        else if (walkExcitLevel.le.2) then
-!
-!            if (tHF_Ref_Explicit) then
-!                
-!                if (tHPHF) then
-!
-!                    ! Now if the determinant is connected to the HF (i.e. single or double), 
-!                    ! add in the elements of this connection as well - symmetrically 
-!                    ! because no probabilities are involved.
-!                    call Fill_Spin_Coupled_RDM_v2(iLutHF_True,iLutJ,HFDet_True,nJ,&
-!                                InstNoatHF(1),SignJ(lenof_sign),.false.)
-!
-!                else
-!
-!                    ! The singles and doubles are connected and explicitly calculated 
-!                    ! - but not symmetrically.
-!                    call Add_RDM_From_IJ_Pair(HFDet_True, nJ, InstNoatHF(1), &
-!                                                SignJ(lenof_sign),.false.)
-!
-!                end if
-!
-!            else
-!                ! For the HF,S,D symmetric case, and the HF,S,D reference, the S and D
-!                ! are diagonal terms too.
-!                ! These options are not set up for HPHF.
-!                
-!                call Fill_Diag_RDM(nJ, SignJ, tCoreSpaceDet)
-!                AccumRDMNorm_Inst = AccumRDMNorm_Inst+(SignJ(1)*SignJ(lenof_sign))
-!
-!                call Add_RDM_From_IJ_Pair(HFDet_True,nJ,InstNoatHF(1),SignJ(lenof_sign),.true.)
-!
-!            end if
-!
-!        end if
-!
-!    end subroutine Add_RDM_HFConnections_HF_S_D
 
     subroutine calc_rdmbiasfac(p_spawn_rdmfac,p_gen,SignCurr,RDMBiasFacCurr)
 
@@ -1538,25 +1459,6 @@ contains
         real(dp), dimension(lenof_sign), intent(in) :: realSignJ
         integer :: ExcitLevel
     
-        ! In all cases, we've already symmetrically added in 
-        ! connections to the HF, so we don't want to re add any pair 
-        ! containing the HF.
-        !if (tHF_S_D) then 
-        !    ! In the case of the HF S D matrix (symmetric), Di and Dj can both 
-        !    ! be the HF, singles or doubles.
-        !    ! This is the excitation level of Dj.
-        !    ExcitLevel = FindBitExcitLevel (iLutHF_True, iLutJ, 2)
-        !    if ((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) &
-        !        call DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
-        !else if (tHF_S_D_Ref) then
-        !    ! In the case of the HF and singles and doubles Ref, 
-        !    ! Di is only ever the HF, and Dj is 
-        !    ! anything connected - i.e. up to quadruples.
-        !    ExcitLevel = FindBitExcitLevel (iLutHf_True, iLutJ, 4)
-        !    if ((ExcitLevel.le.4).and.(ExcitLevel.ne.0)) &
-        !        call DiDj_Found_FillRDM(Spawned_No,iLutJ,realSignJ)
-        !else if (.not.DetBitEQ(iLutHF_True,iLutJ,NIfDBO)) then
-
         if (.not. DetBitEQ(iLutHF_True, iLutJ, NIfDBO)) then
                 call DiDj_Found_FillRDM(Spawned_No, iLutJ, realSignJ)
         end if
@@ -3466,8 +3368,6 @@ contains
 
         if (tExplicitAllRDM) then
             write(6,*) '**** RDMs CALCULATED EXPLICITLY **** '
-        !else if (tHF_Ref_Explicit) then
-        !    write(6,'(A)') ' **** RDMs CALCULATED EXPLICITLY USING THE HF AS A REFERENCE**** '
         else
             write(6,*) '**** RDMs CALCULATED STOCHASTIcallY **** '
         end if
@@ -3545,9 +3445,6 @@ contains
         Norm_1RDM = 0.0_dp
         AllAccumRDMNorm = 0.0_dp
 
-        !if (tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) &
-        !    call MPIReduce(AccumRDMNorm,MPI_SUM,AllAccumRDMNorm)
-
         if (RDMExcitLevel.eq.1) then
 
             allocate(AllNode_NatOrbMat(NoOrbs,NoOrbs),stat=ierr)
@@ -3572,7 +3469,6 @@ contains
             ! be necessary.
             ! The HF_Ref and HF_S_D_Ref cases are not hermitian by definition.
             if (RDMExcitLevel.eq.1) then
-            !if ((RDMExcitLevel.eq.1).and.(.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref))) then
                 call make_1e_rdm_hermitian(Norm_1RDM)
                 
                 if (tForceCauchySchwarz)then
@@ -3610,22 +3506,8 @@ contains
             Trace_1RDM = Trace_1RDM + NatOrbMat(i,i)
         end do
 
-        !if (tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) then
+        Norm_1RDM = ( real(NEl,dp) / Trace_1RDM )
         
-        !Norm_1RDM = 1.0_dp / AllAccumRDMNorm
-        !else
-            ! Sum of diagonal elements of 1 electron RDM must equal NEl, 
-            ! number of electrons.
-            Norm_1RDM = ( real(NEl,dp) / Trace_1RDM )
-        
-        !end if
-
-!        if (tFinalRDMEnergy) then
-!            write(6,*) 'AllAccumRDMNorm',AllAccumRDMNorm
-!            write(6,*) 'Norm_1RDM',Norm_1RDM
-!            write(6,*) 'Trace_1RDM',Trace_1RDM
-!        end if
-
         ! Need to multiply each element of the 1 electron reduced density matrices 
         ! by NEl / Trace_1RDM,
         ! and then add it's contribution to the energy.
@@ -3768,7 +3650,6 @@ contains
             do j = 1, nBasis
                 if (tOpenShell) then
                     if (NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)).ne.0.0_dp) then 
-                        !if (tNormalise.and.((i.le.j).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
                         if (tNormalise.and.(i.le.j)) then
                             write(OneRDM_unit,"(2I6,G25.17)") i,j, & 
                                 NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) * Norm_1RDM
@@ -3783,7 +3664,6 @@ contains
                     iSpat = gtID(i)
                     jSpat = gtID(j)
                     if (NatOrbMat(SymLabelListInv_rot(iSpat),SymLabelListInv_rot(jSpat)).ne.0.0_dp) then 
-                        !if (tNormalise.and.((i.le.j).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
                         if (tNormalise.and.(i.le.j)) then
                             if (((mod(i,2).eq.0).and.(mod(j,2).eq.0)).or.&
                                 ((mod(i,2).ne.0).and.(mod(j,2).ne.0))) then
@@ -3880,10 +3760,6 @@ contains
             end if
 
             AllAccumRDMNorm_Inst = 0.0_dp
-            ! if (tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) then
-            !     call MPIReduce(AccumRDMNorm_Inst,MPI_SUM,AllAccumRDMNorm_Inst)
-            !     AllAccumRDMNorm = AllAccumRDMNorm + AllAccumRDMNorm_Inst
-            ! end if
         end if
             
         if (iProcIndex.eq.0) then
@@ -3898,8 +3774,6 @@ contains
             ! Print out the relevant 2-RDMs.
             if ( tFinalRDMEnergy .or. &
                 ( tWriteMultRDMs .and. (mod((Iter+PreviousCycles - IterRDMStart)+1,IterWriteRDMs).eq.0) ) ) then
-
-                ! if (.not.(tHF_Ref_Explicit.or.tHF_S_D_Ref)) tmake_herm = .true.
 
                 ! ********************************************
                 ! SDS:
@@ -3969,25 +3843,11 @@ contains
         Norm_2RDM_Inst = 0.0_dp
         Norm_2RDM = 0.0_dp
 
-        !if (tHF_S_D_Ref.or.tHF_Ref_Explicit.or.tHF_S_D) then
-        !    Norm_2RDM_Inst = 1.0_dp / AllAccumRDMNorm_Inst
-        !    Norm_2RDM = 1.0_dp / AllAccumRDMNorm
-        !else
-            ! Sum of diagonal elements of 2 electron RDM must equal number of 
-            ! pairs of electrons, = NEl ( NEl - 1 ) / 2
-            if (tRDMInstEnergy) Norm_2RDM_Inst = ( (0.50_dp * (real(NEl,dp) * (real(NEl,dp) - 1.0_dp))) / Trace_2RDM_Inst )
-            Norm_2RDM = ( (0.50_dp * (real(NEl,dp) * (real(NEl,dp) - 1.0_dp))) / Trace_2RDM )
-        !end if
+        if (tRDMInstEnergy) Norm_2RDM_Inst = ( (0.50_dp * (real(NEl,dp) * (real(NEl,dp) - 1.0_dp))) / Trace_2RDM_Inst )
+        Norm_2RDM = ( (0.50_dp * (real(NEl,dp) * (real(NEl,dp) - 1.0_dp))) / Trace_2RDM )
 
-!        if (tFinalRDMEnergy) then
-!            write(6,*) 'AllAccumRDMNorm',AllAccumRDMNorm
-!            write(6,*) 'Norm_2RDM',Norm_2RDM
-!            write(6,*) 'Trace_2RDM',Trace_2RDM
-!        end if
-
-        !Need to multiply each element of the 1 electron reduced density matrices 
-        !by NEl / Trace_1RDM,
-        !and then add it's contribution to the energy.
+        ! Need to multiply each element of the 1 electron reduced density
+        ! matrices by NEl / Trace_1RDM, and then add it's contribution to the energy.
 
     end subroutine calc_2e_norms
 
@@ -4194,7 +4054,6 @@ contains
                                 ! need to write out Ind1 < Ind2.
                                 ! Otherwise we print out Ind1, Ind2 and Ind2, Ind1 so we can 
                                 ! find the hermiticity error in the final matrix (after all runs).
-                                !if (tNormalise.and.((Ind1_aa.le.Ind2_aa).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
                                 if (tNormalise.and.(Ind1_aa.le.Ind2_aa)) then
                                     
                                     if ((abs((aaaa_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
@@ -4248,7 +4107,6 @@ contains
                                     ! need to write out Ind1 < Ind2.
                                     ! Otherwise we print out Ind1, Ind2 and Ind2, Ind1 so we can 
                                     ! find the hermiticity error in the final matrix (after all runs).
-                                    !if (tNormalise.and.((Ind1_aa.le.Ind2_aa).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
                                     if (tNormalise.and.(Ind1_aa.le.Ind2_aa)) then
 
                                         if ((abs((bbbb_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
@@ -4385,7 +4243,7 @@ contains
 
                                 if ( (abba_RDM_full(Ind1_aa,Ind2_aa).ne.0.0_dp).or.&
                                     (abba_RDM_full(Ind2_aa,Ind1_aa).ne.0.0_dp) ) then
-                                    !if (tNormalise.and.((Ind1_aa.le.Ind2_aa).or.tHF_Ref_Explicit.or.tHF_S_D_Ref)) then
+
                                     if (tNormalise.and.(Ind1_aa.le.Ind2_aa)) then
                                         if ((abs((abba_RDM_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
                                                 - (abba_RDM_full(Ind2_aa,Ind1_aa)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
@@ -6920,7 +6778,6 @@ contains
                 call LogMemDeAlloc(this_routine,Doub_ExcDjs2Tag)
             end if
 
-        !else if (.not.tHF_Ref_Explicit) then
         else
 
             if (allocated(Spawned_Parents)) then

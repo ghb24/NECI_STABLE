@@ -473,7 +473,6 @@ module FciMCParMod
 
         IF(tFillingStochRDMonFly.or.&
             tFillingExplicRDMonFly) CALL FinaliseRDM()
-            !tFillingExplicRDMonFly.or.tHF_Ref_Explicit) CALL FinaliseRDM()
 
         call PrintHighPops()
 

@@ -1407,9 +1407,9 @@ contains
 
     end subroutine InitFCIMCCalcPar
 
-    subroutine init_fcimc_fn_pointers ()
+    subroutine init_fcimc_fn_pointers()
 
-        ! Select the excitation generator
+        ! Select the excitation generator.
         if (tHPHF) then
             generate_excitation => gen_hphf_excit
         elseif (tUEGNewGenerator) then
@@ -1504,15 +1504,12 @@ contains
 
         extract_bit_rep_avsign => extract_bit_rep_avsign_no_rdm
 
-        !if(tHF_Ref_Explicit.or.tHF_S_D.or.tHF_S_D_Ref) then
-        !    fill_rdm_diag_currdet => fill_rdm_diag_currdet_hfsd
-        !else
-            fill_rdm_diag_currdet => fill_rdm_diag_currdet_norm
-        !endif
+        fill_rdm_diag_currdet => fill_rdm_diag_currdet_norm
 
-    end subroutine
+    end subroutine init_fcimc_fn_pointers
 
-    SUBROUTINE DeallocFCIMCMemPar()
+    subroutine DeallocFCIMCMemPar()
+
         CHARACTER(len=*), PARAMETER :: this_routine='DeallocFciMCMemPar'
         type(ll_node), pointer :: Curr, Prev
         integer :: i, ierr
@@ -1589,7 +1586,7 @@ contains
         CALL LogMemDealloc(this_routine,SpawnVecTag)
         DEALLOCATE(SpawnVec2)
         CALL LogMemDealloc(this_routine,SpawnVec2Tag)
-        !if(tRDMonFly.and.(.not.tExplicitAllRDM).and.(.not.tHF_Ref_Explicit)) then
+
         if(allocated(TempSpawnedParts)) then
             deallocate(TempSpawnedParts)
             log_dealloc(TempSpawnedPartsTag)
@@ -1669,7 +1666,7 @@ contains
 !            ENDIF
 !        ENDIF
 
-    END SUBROUTINE DeallocFCIMCMemPar
+    end subroutine DeallocFCIMCMemPar
 
     subroutine InitFCIMC_HF()
 

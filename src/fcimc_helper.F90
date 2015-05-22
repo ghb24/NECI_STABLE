@@ -1734,7 +1734,7 @@ contains
                 extract_bit_rep_avsign => extract_bit_rep_avsign_norm
                 !By default - we will do a stochastic calculation of the RDM.
                 tFillingStochRDMonFly = .true.
-                !if(.not.tHF_Ref_Explicit) call DeAlloc_Alloc_SpawnedParts()
+
                 call DeAlloc_Alloc_SpawnedParts()
                 !The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
                 !parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
