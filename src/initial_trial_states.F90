@@ -204,7 +204,7 @@ contains
         integer, allocatable :: det_list(:,:)
         integer :: i, j, ierr
         integer(MPIArg) :: ndets_all_procs, ndets_this_proc_mpi
-        character(len=*), parameter :: t_r = "calc_trial_states_qmc"
+        character(len=*), parameter :: this_routine = "calc_trial_states_qmc"
 
         if (paired_replicas) then
             ASSERT(nexcit == lenof_sign/2)
@@ -235,7 +235,7 @@ contains
 
         if (.not. (space_in%tPops .or. space_in%tRead .or. space_in%tDoubles .or. space_in%tCAS .or. &
                    space_in%tRAS .or. space_in%tOptimised .or. space_in%tMP1 .or. space_in%tFCI)) then
-            call stop_all(t_r, "A space for the trial functions was not chosen.")
+            call stop_all(this_routine, "A space for the trial functions was not chosen.")
         end if
 
         ndets_this_proc_mpi = int(ndets_this_proc, MPIArg)
@@ -275,6 +275,7 @@ contains
         real(dp) :: qmc_sign(lenof_sign), trial_sign(nexcit)
         real(dp) :: norm(nexcit), tot_norm(nexcit)
         logical :: found
+        character(*), parameter :: this_routine = 'get_qmc_trial_weights'
 
         if (paired_replicas) then
             ASSERT(nexcit == lenof_sign/2)
