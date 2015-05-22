@@ -160,14 +160,14 @@ contains
 
         ! Only spatial orbitals for the 2-RDMs (and F12).
                 
-        if (tStoreSpinOrbs.and.(RDMExcitLevel.ne.1)) &
-            call stop_all(this_routine,'2-RDM calculations not set up for systems stored &
-                                        &as spin orbitals.')
+        if (tStoreSpinOrbs .and. (RDMExcitLevel .ne. 1)) &
+            call stop_all(this_routine, '2-RDM calculations not set up for systems stored &
+                                         &as spin orbitals.')
 
         if (tROHF .or. tStoreSpinOrbs) then
-            tOpenShell=.true.
+            tOpenShell = .true.
         else
-            tOpenShell=.false.
+            tOpenShell = .false.
         end if
 
         if (tExplicitAllRDM) then
@@ -176,11 +176,11 @@ contains
         else
             write(6,'(A)') " Stochastically calculating the reduced density matrices from the &
                             &FCIQMC wavefunction" 
-            write(6,'(A)',advance='no') " incl. explicit connections to the following HF determinant:"
+            write(6,'(A)', advance='no') " incl. explicit connections to the following HF determinant:"
             call write_det (6, HFDet_True, .true.)
         end if
 
-        if (RDMExcitLevel.eq.1) then
+        if (RDMExcitLevel .eq. 1) then
             tCalc_RDMEnergy = .false.
         else
             ! If the RDMExcitLevel is 2 or 3 - and we're calculating the 2-RDM, 
@@ -197,122 +197,114 @@ contains
 
         ! Have not got HPHF working with the explicit or truncated methods yet.
         ! Neither of these would be too difficult to implement.
-        if (tHPHF.and.tExplicitAllRDM) call Stop_All('InitRDM',&
+        if (tHPHF .and. tExplicitAllRDM) call Stop_All('InitRDM',&
                 'HPHF not set up with the explicit calculation of the RDM.')
 
-        !if (tHPHF.and.(tHF_S_D_Ref.or.tHF_S_D)) call Stop_All('InitRDM',&
-        !        'HPHF not set up when doing a HF, S, D calculation.')
-
-        ! Can't diagonalise the non-hermitian matrix.                
-        !if (tDiagRDM.and.(tHF_S_D_Ref.or.tHF_Ref_Explicit)) then
-        !    write(6,*) 'Ignoring request to diagonalise the 1-RDM calculated using the HF or HF, S, D &
-        !        &as a reference - this is not an appropriate matrix for natural orbitals.'
-        !    tDiagRDM = .false.
-        !end if
-
-        SpatOrbs=nBasis/2
+        SpatOrbs = nBasis/2
         if (tOpenShell) then
-            NoOrbs=nBasis
+            NoOrbs = nBasis
         else
-            NoOrbs=SpatOrbs
+            NoOrbs = SpatOrbs
         end if
 
-! Here we're allocating arrays for the actual calculation of the RDM.
-
+        ! Here we're allocating arrays for the actual calculation of the RDM.
         MemoryAlloc = 0
-        MemoryAlloc_Root = 0            ! Memory allocated in bytes.
+        MemoryAlloc_Root = 0   ! Memory allocated in bytes.
 
-! First for the storage of the actual 1- or 2-RMD.
-        if (RDMExcitLevel.eq.1) then
+        ! First for the storage of the actual 1- or 2-RMD.
+        if (RDMExcitLevel .eq. 1) then
 
-! This is the AllnElRDM, called NatOrbMat simply because we use the natural 
-! orbital routines to diagonalise etc.        
-! We don't have an instantaneous 1-RDM.
-            allocate(NatOrbMat(NoOrbs,NoOrbs),stat=ierr)
-            if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating NatOrbMat array,')
-            call LogMemAlloc('NatOrbMat',NoOrbs**2,8,this_routine,NatOrbMatTag,ierr)
-            NatOrbMat(:,:)=0.0_dp
+            ! This is the AllnElRDM, called NatOrbMat simply because we use the
+            ! natural orbital routines to diagonalise etc. We don't have an
+            ! instantaneous 1-RDM.
+            allocate(NatOrbMat(NoOrbs, NoOrbs), stat=ierr)
+            if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating NatOrbMat array,')
+            call LogMemAlloc('NatOrbMat', NoOrbs**2, 8, this_routine, NatOrbMatTag, ierr)
+            NatOrbMat(:,:) = 0.0_dp
 
             MemoryAlloc = MemoryAlloc + ( NoOrbs * NoOrbs * 8 ) 
             MemoryAlloc_Root = MemoryAlloc_Root + ( NoOrbs * NoOrbs * 8 ) 
         else
-            ! If we're calculating the 2-RDM, the 1-RDM does not need to be calculated as well 
-            ! because all its info is in the 2-RDM anyway.
+            ! If we're calculating the 2-RDM, the 1-RDM does not need to be
+            ! calculated as well because all its info is in the 2-RDM anyway.
 
-            ! The 2-RDM of the type alpha alpha alpha alpha ( = beta beta beta beta).
-            ! These *do not* include any 2-RDM(i,j,a,b) terms where i=j or a=b (if they're the same 
-            ! spin this can't happen).
+            ! The 2-RDM of the type alpha alpha alpha alpha (= beta beta beta beta).
+            ! These *do not* include any 2-RDM(i,j,a,b) terms where i=j or a=b (if
+            ! they're the same spin this can't happen).
+
             if (tRDMInstEnergy) then
-                !We will be filling up aaaa_RDM_inst as we go along, which need to be allocated per core
-                !When calculating the energy, these will be summed over cores using an _inplace type command
-                !To calculate the full energy of the RDM (i.e. over full accum. period), we need to allocate
-                ! aaaa_RDM_full on the head nodes
+                ! We will be filling up aaaa_RDM_inst as we go along, which need
+                ! to be allocated per core.
+                ! When calculating the energy, these will be summed over cores
+                ! using an _inplace type command.
+                ! To calculate the full energy of the RDM (i.e. over full accum.
+                ! period), we need to allocate aaaa_RDM_full on the head nodes
 
-                allocate(aaaa_RDM_inst(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
-                if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating aaaa_RDM_inst array,')
+                allocate(aaaa_RDM_inst(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
+                if (ierr .ne. 0) call Stop_All(this_routine,'Problem allocating aaaa_RDM_inst array,')
                 call LogMemAlloc('aaaa_RDM_inst',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,aaaa_RDM_instTag,ierr)
                 aaaa_RDM_inst(:,:)=0.0_dp
 
-                ! The 2-RDM of the type alpha beta beta alpha ( = beta alpha alpha beta).
-                ! These also *do not* also include 2-RDM(i,j,a,b) terms where i=j or a=b 
-                !  (these are the same as the abab elements).
-                allocate(abba_RDM_inst(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
-                if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating abba_RDM_inst array,')
-                call LogMemAlloc('abba_RDM_inst',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,abba_RDM_instTag,ierr)
-                abba_RDM_inst(:,:)=0.0_dp
+                ! The 2-RDM of the type alpha beta beta alpha (= beta alpha alpha beta).
+                ! These also *do not* also include 2-RDM(i,j,a,b) terms where i=j or a=b
+                ! (these are the same as the abab elements).
+                allocate(abba_RDM_inst(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
+                if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating abba_RDM_inst array,')
+                call LogMemAlloc('abba_RDM_inst', (((SpatOrbs*(SpatOrbs-1))/2)**2), 8, this_routine, abba_RDM_instTag, ierr)
+                abba_RDM_inst(:,:) = 0.0_dp
 
                 MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
                 MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
 
                 ! The 2-RDM of the type alpha beta alpha beta ( = beta alpha beta alpha).
-                ! These *do* include 2-RDM(i,j,a,b) terms where i=j or a=b, if they're different spin this 
-                ! is possible - hence the slightly different size to the aaaa array.
-                allocate(abab_RDM_inst(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
-                if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating abab_RDM_inst array,')
-                call LogMemAlloc('abab_RDM_inst',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,abab_RDM_instTag,ierr)
-                abab_RDM_inst(:,:)=0.0_dp
+                ! These *do* include 2-RDM(i,j,a,b) terms where i=j or a=b, if they're
+                ! different spin this is possible - hence the slightly different size to
+                ! the aaaa array.
+                allocate(abab_RDM_inst(((SpatOrbs*(SpatOrbs+1))/2), ((SpatOrbs*(SpatOrbs+1))/2)), stat=ierr)
+                if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating abab_RDM_inst array,')
+                call LogMemAlloc('abab_RDM_inst', (((SpatOrbs*(SpatOrbs+1))/2)**2), 8, this_routine, abab_RDM_instTag, ierr)
+                abab_RDM_inst(:,:) = 0.0_dp
 
                 MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
                 MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
 
-                ! Extra arrays for open shell systems
+                ! Extra arrays for open shell systems.
                 if (tOpenShell) then
-                    allocate(bbbb_RDM_inst(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
-                    if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating bbbb_RDM_inst array,')
-                    call LogMemAlloc('bbbb_RDM_inst',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,bbbb_RDM_instTag,ierr)
-                    bbbb_RDM_inst(:,:)=0.0_dp
+                    allocate(bbbb_RDM_inst(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
+                    if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating bbbb_RDM_inst array,')
+                    call LogMemAlloc('bbbb_RDM_inst', (((SpatOrbs*(SpatOrbs-1))/2)**2), 8, this_routine, bbbb_RDM_instTag, ierr)
+                    bbbb_RDM_inst(:,:) = 0.0_dp
 
-                    allocate(baab_RDM_inst(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
-                    if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating baab_RDM_inst array,')
-                    call LogMemAlloc('baab_RDM_inst',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,baab_RDM_instTag,ierr)
-                    baab_RDM_inst(:,:)=0.0_dp
-                    MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
+                    allocate(baab_RDM_inst(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
+                    if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating baab_RDM_inst array,')
+                    call LogMemAlloc('baab_RDM_inst',(((SpatOrbs*(SpatOrbs-1))/2)**2), 8, this_routine, baab_RDM_instTag, ierr)
+                    baab_RDM_inst(:,:) = 0.0_dp
+                    MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 )
                     MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 )
 
-                    allocate(baba_RDM_inst(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
-                    if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating baba_RDM_inst array,')
-                    call LogMemAlloc('baba_RDM_inst',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,baba_RDM_instTag,ierr)
-                    baba_RDM_inst(:,:)=0.0_dp     
+                    allocate(baba_RDM_inst(((SpatOrbs*(SpatOrbs+1))/2), ((SpatOrbs*(SpatOrbs+1))/2)), stat=ierr)
+                    if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating baba_RDM_inst array,')
+                    call LogMemAlloc('baba_RDM_inst', (((SpatOrbs*(SpatOrbs+1))/2)**2), 8, this_routine, baba_RDM_instTag, ierr)
+                    baba_RDM_inst(:,:) = 0.0_dp
                     MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
                     MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 )
                 end if
 
-
-                if (iProcIndex.eq.0) then
-                    allocate(aaaa_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
-                    if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating aaaa_RDM_full array,')
-                    call LogMemAlloc('aaaa_RDM_full',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,aaaa_RDM_fullTag,ierr)
+                if (iProcIndex .eq. 0) then
+                    allocate(aaaa_RDM_full(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
+                    if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating aaaa_RDM_full array,')
+                    call LogMemAlloc('aaaa_RDM_full', (((SpatOrbs*(SpatOrbs-1))/2)**2), 8, this_routine, aaaa_RDM_fullTag, ierr)
                     aaaa_RDM_full(:,:)=0.0_dp
 
-                    allocate(abab_RDM_full(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
-                    if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating abab_RDM_full array,')
-                    call LogMemAlloc('abab_RDM_full',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,abab_RDM_fullTag,ierr)
-                    abab_RDM_full(:,:)=0.0_dp
+                    allocate(abab_RDM_full(((SpatOrbs*(SpatOrbs+1))/2), ((SpatOrbs*(SpatOrbs+1))/2)), stat=ierr)
+                    if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating abab_RDM_full array,')
+                    call LogMemAlloc('abab_RDM_full', (((SpatOrbs*(SpatOrbs+1))/2)**2), 8, this_routine, abab_RDM_fullTag, ierr)
+                    abab_RDM_full(:,:) = 0.0_dp
 
-                    allocate(abba_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
-                    if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating abba_RDM_full array,')
-                    call LogMemAlloc('abba_RDM_full',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,abba_RDM_fullTag,ierr)
-                    abba_RDM_full(:,:)=0.0_dp
+                    allocate(abba_RDM_full(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat = ierr)
+                    if (ierr .ne. 0) call Stop_All(this_routine,'Problem allocating abba_RDM_full array,')
+                    call LogMemAlloc('abba_RDM_full', (((SpatOrbs*(SpatOrbs-1))/2)**2), 8, this_routine, abba_RDM_fullTag, ierr)
+                    abba_RDM_full(:,:) = 0.0_dp
 
                     MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
                     MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 8 ) 
@@ -320,20 +312,20 @@ contains
                     MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 8 ) 
 
                     if (tOpenShell) then
-                        allocate(bbbb_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
-                        if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating bbbb_RDM_full array,')
-                        call LogMemAlloc('bbbb_RDM_full',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,bbbb_RDM_fullTag,ierr)
-                        bbbb_RDM_full(:,:)=0.0_dp
+                        allocate(bbbb_RDM_full(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
+                        if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating bbbb_RDM_full array,')
+                        call LogMemAlloc('bbbb_RDM_full', (((SpatOrbs*(SpatOrbs-1))/2)**2), 8, this_routine,bbbb_RDM_fullTag,ierr)
+                        bbbb_RDM_full(:,:) = 0.0_dp
 
                         allocate(baba_RDM_full(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
-                        if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating baba_RDM_full array,')
-                        call LogMemAlloc('baba_RDM_full',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,baba_RDM_fullTag,ierr)
-                        baba_RDM_full(:,:)=0.0_dp
+                        if (ierr .ne. 0) call Stop_All(this_routine,'Problem allocating baba_RDM_full array,')
+                        call LogMemAlloc('baba_RDM_full',(((SpatOrbs*(SpatOrbs+1))/2)**2), 8,this_routine, baba_RDM_fullTag, ierr)
+                        baba_RDM_full(:,:) = 0.0_dp
 
-                        allocate(baab_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
-                        if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating baab_RDM_full array,')
-                        call LogMemAlloc('baab_RDM_full',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,baab_RDM_fullTag,ierr)
-                        baab_RDM_full(:,:)=0.0_dp
+                        allocate(baab_RDM_full(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
+                        if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating baab_RDM_full array,')
+                        call LogMemAlloc('baab_RDM_full',(((SpatOrbs*(SpatOrbs-1))/2)**2), 8,this_routine, baab_RDM_fullTag, ierr)
+                        baab_RDM_full(:,:) = 0.0_dp
 
                         MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
                         MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 8 ) 
@@ -355,31 +347,33 @@ contains
                 end if
 
             else
-                !We're not calculating an instantaneous RDM energy
-                !Put RDM contributions directly into 'full' arrays, which are now allocated every core
-                
-                allocate(aaaa_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
-                if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating aaaa_RDM_full array,')
-                call LogMemAlloc('aaaa_RDM_full',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,aaaa_RDM_fullTag,ierr)
-                aaaa_RDM_full(:,:)=0.0_dp
+                ! We're not calculating an instantaneous RDM energy.
+                ! Put RDM contributions directly into 'full' arrays, which are
+                ! now allocated every core
+                allocate(aaaa_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
+                if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating aaaa_RDM_full array,')
+                call LogMemAlloc('aaaa_RDM_full', (((SpatOrbs*(SpatOrbs-1))/2)**2), 8, this_routine,aaaa_RDM_fullTag,ierr)
+                aaaa_RDM_full(:,:) = 0.0_dp
 
                 ! The 2-RDM of the type alpha beta beta alpha ( = beta alpha alpha beta).
-                ! These also *do not* also include 2-RDM(i,j,a,b) terms where i=j or a=b (these are the same as the abab elements).
+                ! These also *do not* also include 2-RDM(i,j,a,b) terms where i=j or a=b
+                ! (these are the same as the abab elements).
                 allocate(abba_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
-                if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating abba_RDM_full array,')
-                call LogMemAlloc('abba_RDM_full',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,abba_RDM_fullTag,ierr)
-                abba_RDM_full(:,:)=0.0_dp
+                if (ierr .ne. 0) call Stop_All(this_routine,'Problem allocating abba_RDM_full array,')
+                call LogMemAlloc('abba_RDM_full', (((SpatOrbs*(SpatOrbs-1))/2)**2), 8, this_routine, abba_RDM_fullTag, ierr)
+                abba_RDM_full(:,:) = 0.0_dp
 
                 MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
                 MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
 
                 ! The 2-RDM of the type alpha beta alpha beta ( = beta alpha beta alpha).
-                ! These *do* include 2-RDM(i,j,a,b) terms where i=j or a=b, if they're different spin this 
-                ! is possible - hence the slightly different size to the aaaa array.
-                allocate(abab_RDM_full(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
-                if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating abab_RDM_full array,')
-                call LogMemAlloc('abab_RDM_full',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,abab_RDM_fullTag,ierr)
-                abab_RDM_full(:,:)=0.0_dp
+                ! These *do* include 2-RDM(i,j,a,b) terms where i=j or a=b, if they're
+                ! different spin this is possible - hence the slightly different size
+                ! to the aaaa array.
+                allocate(abab_RDM_full(((SpatOrbs*(SpatOrbs+1))/2), ((SpatOrbs*(SpatOrbs+1))/2)), stat=ierr)
+                if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating abab_RDM_full array,')
+                call LogMemAlloc('abab_RDM_full', (((SpatOrbs*(SpatOrbs+1))/2)**2), 8, this_routine, abab_RDM_fullTag, ierr)
+                abab_RDM_full(:,:) = 0.0_dp
 
                 MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
                 MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
@@ -389,22 +383,22 @@ contains
                 abab_RDM => abab_RDM_full
 
                 if (tOpenShell) then
-                    allocate(bbbb_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
-                    if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating bbbb_RDM_full array,')
-                    call LogMemAlloc('bbbb_RDM_full',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,bbbb_RDM_fullTag,ierr)
-                    bbbb_RDM_full(:,:)=0.0_dp
+                    allocate(bbbb_RDM_full(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
+                    if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating bbbb_RDM_full array,')
+                    call LogMemAlloc('bbbb_RDM_full', (((SpatOrbs*(SpatOrbs-1))/2)**2), 8, this_routine, bbbb_RDM_fullTag, ierr)
+                    bbbb_RDM_full(:,:) = 0.0_dp
 
                     allocate(baab_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
-                    if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating baab_RDM_full array,')
-                    call LogMemAlloc('baab_RDM_full',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,baab_RDM_fullTag,ierr)
-                    baab_RDM_full(:,:)=0.0_dp
+                    if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating baab_RDM_full array,')
+                    call LogMemAlloc('baab_RDM_full', (((SpatOrbs*(SpatOrbs-1))/2)**2), 8, this_routine, baab_RDM_fullTag, ierr)
+                    baab_RDM_full(:,:) = 0.0_dp
                     MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
                     MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
 
-                    allocate(baba_RDM_full(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
-                    if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating baba_RDM_full array,')
-                    call LogMemAlloc('baba_RDM_full',(((SpatOrbs*(SpatOrbs+1))/2)**2),8,this_routine,baba_RDM_fullTag,ierr)
-                    baba_RDM_full(:,:)=0.0_dp
+                    allocate(baba_RDM_full(((SpatOrbs*(SpatOrbs+1))/2), ((SpatOrbs*(SpatOrbs+1))/2)), stat=ierr)
+                    if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating baba_RDM_full array,')
+                    call LogMemAlloc('baba_RDM_full',(((SpatOrbs*(SpatOrbs+1))/2)**2), 8, this_routine, baba_RDM_fullTag, ierr)
+                    baba_RDM_full(:,:) = 0.0_dp
                     MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
                     MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
       
@@ -412,111 +406,116 @@ contains
                     baab_RDM => baab_RDM_full
                     baba_RDM => baba_RDM_full
                 end if
-            end if  ! not instantaneous
+            end if ! not instantaneous
 
-            if (iProcindex.eq.0) then
-                if (tDiagRDM.or.tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
+            if (iProcindex .eq. 0) then
+                if (tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
                     ! Still need to allocate 1-RDM to get nat orb occupation numbers.
-                    allocate(NatOrbMat(NoOrbs,NoOrbs),stat=ierr)
-                    if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating NatOrbMat array,')
-                    call LogMemAlloc('NatOrbMat',NoOrbs**2,8,this_routine,NatOrbMatTag,ierr)
-                    NatOrbMat(:,:)=0.0_dp
+                    allocate(NatOrbMat(NoOrbs, NoOrbs), stat=ierr)
+                    if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating NatOrbMat array,')
+                    call LogMemAlloc('NatOrbMat', NoOrbs**2,8, this_routine, NatOrbMatTag, ierr)
+                    NatOrbMat(:,:) = 0.0_dp
                     MemoryAlloc_Root = MemoryAlloc_Root + ( NoOrbs * NoOrbs * 8 ) 
                 end if
             end if
 
         end if            
 
-! We then need to allocate the arrays for excitations etc when doing the explicit all calculation.        
-        if (tExplicitAllRDM) then            
+        ! We then need to allocate the arrays for excitations etc when doing
+        ! the explicit all calculation.
+        if (tExplicitAllRDM) then
 
-            ! We always calculate the single stuff - and if RDMExcitLevel is 1, this is all,
-            ! otherwise calculate the double stuff too.
+            ! We always calculate the single stuff - and if RDMExcitLevel is 1,
+            ! this is all, otherwise calculate the double stuff too.
 
-! This array actually contains the excitations in blocks of the processor they will be sent to.        
-! Only needed if the 1-RDM is the only thing being calculated.
-            allocate(Sing_ExcDjs(0:NIfTot,nint((NEl*nBasis)*MemoryFacPart)),stat=ierr)
-            if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating Sing_ExcDjs array.')
-            call LogMemAlloc('Sing_ExcDjs',nint(NEl*nBasis*MemoryFacPart)*(NIfTot+1),&
-                                            size_n_int,this_routine,Sing_ExcDjsTag,ierr)
+            ! This array actually contains the excitations in blocks of the
+            ! processor they will be sent to. Only needed if the 1-RDM is the
+            ! only thing being calculated.
+            allocate(Sing_ExcDjs(0:NIfTot, nint((NEl*nBasis)*MemoryFacPart)), stat=ierr)
+            if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating Sing_ExcDjs array.')
+            call LogMemAlloc('Sing_ExcDjs', nint(NEl*nBasis*MemoryFacPart)*(NIfTot+1),&
+                                            size_n_int, this_routine, Sing_ExcDjsTag, ierr)
 
-            allocate(Sing_ExcDjs2(0:NIfTot,nint((NEl*nBasis)*MemoryFacPart)),stat=ierr)
-            if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating Sing_ExcDjs2 array.')
-            call LogMemAlloc('Sing_ExcDjs2',nint(NEl*nBasis*MemoryFacPart)*(NIfTot+1),&
-                                            size_n_int,this_routine,Sing_ExcDjs2Tag,ierr)
+            allocate(Sing_ExcDjs2(0:NIfTot, nint((NEl*nBasis)*MemoryFacPart)), stat=ierr)
+            if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating Sing_ExcDjs2 array.')
+            call LogMemAlloc('Sing_ExcDjs2', nint(NEl*nBasis*MemoryFacPart)*(NIfTot+1),&
+                                            size_n_int, this_routine, Sing_ExcDjs2Tag, ierr)
 
-            Sing_ExcDjs(:,:)=0
-            Sing_ExcDjs2(:,:)=0
+            Sing_ExcDjs(:,:) = 0
+            Sing_ExcDjs2(:,:) = 0
 
             MemoryAlloc = MemoryAlloc + ( (NIfTot + 1) * nint((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 ) 
             MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 1) * nint((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 ) 
 
-! We need room to potentially generate N*M single excitations but these will be 
-! spread across each processor.        
+            ! We need room to potentially generate N*M single excitations but
+            ! these will be spread across each processor.
 
             OneEl_Gap=(real(NEl,dp)*real(nBasis,dp)*MemoryFacPart)/real(nProcessors,dp)
 
-! This array contains the initial positions of the excitations for each processor.
-            allocate(Sing_InitExcSlots(0:(nProcessors-1)),stat=ierr)
-            if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating Sing_InitExcSlots array,')
-            do i=0,nProcessors-1
-                Sing_InitExcSlots(i)=nint(OneEl_Gap*i)+1
+            ! This array contains the initial positions of the excitations
+            ! for each processor.
+            allocate(Sing_InitExcSlots(0:(nProcessors-1)), stat=ierr)
+            if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating Sing_InitExcSlots array,')
+            do i = 0, nProcessors - 1
+                Sing_InitExcSlots(i) = nint(OneEl_Gap*i) + 1
             end do
 
-! This array contains the current position of the excitations as they're added.
-            allocate(Sing_ExcList(0:(nProcessors-1)),stat=ierr)
-            if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating Sing_ExcList array,')
-            Sing_ExcList(:)=Sing_InitExcSlots(:)
+            ! This array contains the current position of the excitations as
+            ! they're added.
+            allocate(Sing_ExcList(0:(nProcessors-1)), stat=ierr)
+            if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating Sing_ExcList array,')
+            Sing_ExcList(:) = Sing_InitExcSlots(:)
 
-            if (RDMExcitLevel.ne.1) then
-! This array actually contains the excitations in blocks of the processor 
-! they will be sent to.        
-                allocate(Doub_ExcDjs(0:NIfTot,nint(((NEl*nBasis)**2)*MemoryFacPart)),stat=ierr)
-                if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating Doub_ExcDjs array.')
-                call LogMemAlloc('Doub_ExcDjs',nint(((NEl*nBasis)**2)*MemoryFacPart)&
-                                *(NIfTot+1),size_n_int,this_routine,Doub_ExcDjsTag,ierr)
+            if (RDMExcitLevel .ne. 1) then
+                ! This array actually contains the excitations in blocks of
+                ! the processor they will be sent to.
+                allocate(Doub_ExcDjs(0:NIfTot,nint(((NEl*nBasis)**2)*MemoryFacPart)), stat=ierr)
+                if (ierr .ne. 0) call Stop_All(this_routine,'Problem allocating Doub_ExcDjs array.')
+                call LogMemAlloc('Doub_ExcDjs', nint(((NEl*nBasis)**2)*MemoryFacPart)&
+                                *(NIfTot+1), size_n_int, this_routine, Doub_ExcDjsTag, ierr)
 
-                allocate(Doub_ExcDjs2(0:NIfTot,nint(((NEl*nBasis)**2)*MemoryFacPart)),stat=ierr)
-                if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating Doub_ExcDjs2 array.')
+                allocate(Doub_ExcDjs2(0:NIfTot, nint(((NEl*nBasis)**2)*MemoryFacPart)), stat=ierr)
+                if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating Doub_ExcDjs2 array.')
                 call LogMemAlloc('Doub_ExcDjs2',nint(((NEl*nBasis)**2)*MemoryFacPart)&
-                                *(NIfTot+1),size_n_int,this_routine,Doub_ExcDjs2Tag,ierr)
+                                *(NIfTot+1), size_n_int, this_routine, Doub_ExcDjs2Tag, ierr)
 
                 MemoryAlloc = MemoryAlloc + ( (NIfTot + 1) * nint(((NEl*nBasis)**2)*MemoryFacPart) * size_n_int * 2 ) 
                 MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 1) * nint(((NEl*nBasis)**2)*MemoryFacPart) * size_n_int * 2 ) 
 
-! We need room to potentially generate (N*M)^2 double excitations but these 
-! will be spread across each processor.        
-                TwoEl_Gap=(((real(NEl,dp)*real(nBasis,dp))**2)*MemoryFacPart)/real(nProcessors,dp)
+                ! We need room to potentially generate (N*M)^2 double excitations
+                ! but these will be spread across each processor.        
+                TwoEl_Gap = (((real(NEl,dp)*real(nBasis,dp))**2)*MemoryFacPart)/real(nProcessors,dp)
 
-                Doub_ExcDjs(:,:)=0
-                Doub_ExcDjs2(:,:)=0
+                Doub_ExcDjs(:,:) = 0
+                Doub_ExcDjs2(:,:) = 0
 
-! This array contains the initial positions of the excitations for each processor.
-                allocate(Doub_InitExcSlots(0:(nProcessors-1)),stat=ierr)
-                if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating Doub_InitExcSlots array,')
-                do i=0,nProcessors-1
-                    Doub_InitExcSlots(i)=nint(TwoEl_Gap*i)+1
+                ! This array contains the initial positions of the excitations
+                ! for each processor.
+                allocate(Doub_InitExcSlots(0:(nProcessors-1)), stat=ierr)
+                if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating Doub_InitExcSlots array,')
+                do i = 0, nProcessors-1
+                    Doub_InitExcSlots(i) = nint(TwoEl_Gap*i) + 1
                 end do
 
-! This array contains the current position of the excitations as they're added.
-                allocate(Doub_ExcList(0:(nProcessors-1)),stat=ierr)
-                if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating Doub_ExcList array,')
-                Doub_ExcList(:)=Doub_InitExcSlots(:)
+                ! This array contains the current position of the excitations
+                ! as they're added.
+                allocate(Doub_ExcList(0:(nProcessors-1)), stat=ierr)
+                if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating Doub_ExcList array,')
+                Doub_ExcList(:) = Doub_InitExcSlots(:)
             end if
 
-        !else if (.not.tHF_Ref_Explicit) then
         else
 
-! Finally, we need to hold onto the parents of the spawned particles.            
-! This is not necessary if we're doing completely explicit calculations.
-            allocate(Spawned_Parents(0:(NIfDBO+2),MaxSpawned),stat=ierr)
-            if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating Spawned_Parents array,')
-            call LogMemAlloc('Spawned_Parents',MaxSpawned*(NIfDBO+3),size_n_int,&
-                                                this_routine,Spawned_ParentsTag,ierr)
+            ! Finally, we need to hold onto the parents of the spawned particles.
+            ! This is not necessary if we're doing completely explicit calculations.
+            allocate(Spawned_Parents(0:(NIfDBO+2), MaxSpawned), stat=ierr)
+            if (ierr .ne. 0) call Stop_All(this_routine,'Problem allocating Spawned_Parents array,')
+            call LogMemAlloc('Spawned_Parents', MaxSpawned*(NIfDBO+3), size_n_int,&
+                                                this_routine,Spawned_ParentsTag, ierr)
             allocate(Spawned_Parents_Index(2,MaxSpawned),stat=ierr)
-            if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating Spawned_Parents_Index array,')
-            call LogMemAlloc('Spawned_Parents_Index',MaxSpawned*2,4,this_routine,&
-                                                        Spawned_Parents_IndexTag,ierr)
+            if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating Spawned_Parents_Index array,')
+            call LogMemAlloc('Spawned_Parents_Index', MaxSpawned*2,4, this_routine,&
+                                                        Spawned_Parents_IndexTag, ierr)
 
             MemoryAlloc = MemoryAlloc + ( (NIfTot + 2) * MaxSpawned * size_n_int ) 
             MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 2) * MaxSpawned * size_n_int ) 
@@ -526,14 +525,14 @@ contains
 
         end if
 
-        if (iProcIndex.eq.0) then
+        if (iProcIndex .eq. 0) then
             write(6,"(A,F14.6,A,F14.6,A)") " Main RDM memory arrays consists of : ", &
                     & real(MemoryAlloc_Root,dp)/1048576.0_dp," Mb/Processor on the root, and ", &
                     & real(MemoryAlloc,dp)/1048576.0_dp," Mb/Processor on other processors."
         end if
 
-        ! These parameters are set for the set up of the symmetry arrays, which are later used 
-        ! for the diagonalisation / rotation of the 1-RDMs.
+        ! These parameters are set for the set up of the symmetry arrays, which
+        ! are later used for the diagonalisation / rotation of the 1-RDMs.
 
         if (tOpenShell) then
             if (tFixLz) then
@@ -549,38 +548,37 @@ contains
             end if
         end if
 
-        if ((RDMExcitLevel.eq.1).or.tDiagRDM.or.tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
-            ! These arrays contain indexing systems to order the 1-RDM orbitals in terms of 
-            ! symmetry.
-            ! This allows the diagonalisation of the RDMs to be done in symmetry blocks (a lot 
-            ! quicker/easier).
+        if ((RDMExcitLevel .eq. 1) .or. tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
+            ! These arrays contain indexing systems to order the 1-RDM orbitals
+            ! in terms of symmetry. This allows the diagonalisation of the RDMs
+            ! to be done in symmetry blocks (a lot quicker/easier).
             ! The 2-RDM does not need to be reordered as it's never diagonalised. 
 
-            allocate(SymLabelCounts2_rot(2,NoSymLabelCounts),stat=ierr)
-            if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating SymLabelCounts2_rot array,')
-            call LogMemAlloc('SymLabelCounts2_rot',2*NoSymLabelCounts,4,this_routine,SymLabelCounts2_rotTag,ierr)
-            SymLabelCounts2_rot(:,:)=0
+            allocate(SymLabelCounts2_rot(2,NoSymLabelCounts), stat=ierr)
+            if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating SymLabelCounts2_rot array,')
+            call LogMemAlloc('SymLabelCounts2_rot', 2*NoSymLabelCounts, 4, this_routine, SymLabelCounts2_rotTag, ierr)
+            SymLabelCounts2_rot(:,:) = 0
 
-            allocate(SymLabelList2_rot(NoOrbs),stat=ierr)
-            if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating SymLabelList2_rot array,')
-            call LogMemAlloc('SymLabelList2_rot',NoOrbs,4,this_routine,SymLabelList2_rotTag,ierr)
-            SymLabelList2_rot(:)=0                     
+            allocate(SymLabelList2_rot(NoOrbs), stat=ierr)
+            if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating SymLabelList2_rot array,')
+            call LogMemAlloc('SymLabelList2_rot', NoOrbs, 4, this_routine, SymLabelList2_rotTag, ierr)
+            SymLabelList2_rot(:) = 0
      
-            allocate(SymLabelListInv_rot(NoOrbs),stat=ierr)
-            if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating SymLabelListInv_rot array,')
-            call LogMemAlloc('SymLabelListInv_rot',NoOrbs,4,this_routine,SymLabelListInv_rotTag,ierr)
-            SymLabelListInv_rot(:)=0   
+            allocate(SymLabelListInv_rot(NoOrbs), stat=ierr)
+            if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating SymLabelListInv_rot array,')
+            call LogMemAlloc('SymLabelListInv_rot', NoOrbs, 4, this_routine, SymLabelListInv_rotTag, ierr)
+            SymLabelListInv_rot(:) = 0   
 
-            if ((iProcIndex.eq.0).and.tDiagRDM) then
-                allocate(Evalues(NoOrbs),stat=ierr)
-                if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating Evalues array,')
-                call LogMemAlloc('Evalues',NoOrbs,8,this_routine,EvaluesTag,ierr)
-                Evalues(:)=0.0_dp
+            if ((iProcIndex .eq. 0) .and. tDiagRDM) then
+                allocate(Evalues(NoOrbs), stat=ierr)
+                if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating Evalues array,')
+                call LogMemAlloc('Evalues', NoOrbs, 8, this_routine, EvaluesTag, ierr)
+                Evalues(:) = 0.0_dp
 
-                allocate(Rho_ii(NoOrbs),stat=ierr)
-                if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating Rho_ii array,')
-                call LogMemAlloc('Rho_ii',NoOrbs,8,this_routine,Rho_iiTag,ierr)
-                Rho_ii(:)=0.0_dp
+                allocate(Rho_ii(NoOrbs), stat=ierr)
+                if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating Rho_ii array,')
+                call LogMemAlloc('Rho_ii', NoOrbs, 8, this_routine, Rho_iiTag, ierr)
+                Rho_ii(:) = 0.0_dp
 
             end if
 
@@ -595,7 +593,7 @@ contains
         ! Open file to keep track of RDM Energies (if they're being calculated). 
         if ((iProcIndex.eq.0).and.tCalc_RDMEnergy) then
             Energies_unit = get_free_unit()
-            open(Energies_unit,file='RDMEstimates',status='unknown',position='append')
+            open(Energies_unit, file='RDMEstimates', status='unknown', position='append')
 
             write(Energies_unit, "('#', 4X, 'Iteration', 6X, 'Energy numerator', 6X, 'Spin^2 numerator', 9X, 'Normalisation')")
         end if
@@ -605,11 +603,11 @@ contains
         Trace_2RDM_Inst = 0.0_dp
         AccumRDMNorm = 0.0_dp
         AccumRDMNorm_Inst = 0.0_dp
-        ! AccumRDMNorm is the normalisation for the case where we're using a limited reference to calculate
-        ! the RDM.
+        ! AccumRDMNorm is the normalisation for the case where we're using a
+        ! limited reference to calculate the RDM.
 
-        ! Reads in the RDMs from a previous calculation, sets the accumulating normalisations, 
-        ! writes out the starting energy.
+        ! Reads in the RDMs from a previous calculation, sets the accumulating
+        ! normalisations, writes out the starting energy.
         if (tReadRDMs) then
             if (tSinglePartPhase(1) .or. tSinglePartPhase(inum_runs)) then
                 write(6,'(A)') 'WARNING - Asking to read in the RDMs, but not varying shift from &
@@ -621,14 +619,15 @@ contains
             end if
         end if
 
-        ! By default, if we're writing out a popsfile (and doing an RDM calculation), we also 
-        ! write out the unnormalised RDMs that can be read in when restarting a calculation.
-        ! If the NORDMSTOREAD option is on, these wont be printed.  
-        if (TPopsFile.and.(.not.tno_RDMs_to_read)) twrite_RDMs_to_read = .true.
+        ! By default, if we're writing out a popsfile (and doing an RDM
+        ! calculation), we also write out the unnormalised RDMs that can be
+        ! read in when restarting a calculation. If the NORDMSTOREAD option
+        ! is on, these wont be printed.  
+        if (TPopsFile .and. (.not. tno_RDMs_to_read)) twrite_RDMs_to_read = .true.
 
-        nElRDM_Time%timer_name='nElRDMTime'
-        FinaliseRDM_Time%timer_name='FinaliseRDMTime'
-        RDMEnergy_Time%timer_name='RDMEnergyTime'
+        nElRDM_Time%timer_name = 'nElRDMTime'
+        FinaliseRDM_Time%timer_name = 'FinaliseRDMTime'
+        RDMEnergy_Time%timer_name = 'RDMEnergyTime'
 
     end subroutine InitRDM
 
@@ -660,12 +659,15 @@ contains
         AccumRDMNorm = 0.0_dp
         AccumRDMNorm_Inst = 0.0_dp
 
-    end subroutine
+    end subroutine zero_rdms
 
     subroutine Read_In_RDMs()
-! Reads in the arrays to restart the RDM calculation (and continue accumulating).
-! These arrays are not normalised, so the trace is also calculated.
-! The energy is then calculated (if required) from the RDMs read in only.
+
+        ! Reads in the arrays to restart the RDM calculation (and continue
+        ! accumulating). These arrays are not normalised, so the trace is
+        ! also calculated. The energy is then calculated (if required) from
+        ! the RDMs read in only.
+
         logical :: exists_one
         logical :: exists_aaaa,exists_abab,exists_abba
         logical :: exists_bbbb,exists_baba,exists_baab
@@ -679,18 +681,18 @@ contains
 
                 write(6,'(A)') ' Reading in the 1-RDM'
 
-                ! The OneRDM will have been printed exactly as is.  Without having been 
-                ! made hermitian, without being normalised, and in spatial orbitals if 
-                ! tStoreSpinOrbs is false.
+                ! The OneRDM will have been printed exactly as is. Without
+                ! having been made hermitian, without being normalised, and in
+                ! spatial orbitals if tStoreSpinOrbs is false.
 
-                inquire(file='OneRDM_POPS',EXIST=exists_one)
+                inquire(file='OneRDM_POPS', EXIST=exists_one)
                 if (exists_one) then
                     RDM_unit = get_free_unit()
-                    open(RDM_unit,file='OneRDM_POPS',status='old',form='unformatted')
+                    open(RDM_unit, file='OneRDM_POPS', status='old', form='unformatted')
                     do while (.true.)
                         read(RDM_unit,iostat=FileEnd) i,j,Temp_RDM_Element
-                        if (FileEnd.gt.0) call stop_all("Read_In_RDMs","Error reading OneRDM_POPS")
-                        if (FileEnd.lt.0) exit
+                        if (FileEnd .gt. 0) call stop_all("Read_In_RDMs", "Error reading OneRDM_POPS")
+                        if (FileEnd .lt. 0) exit
 
                         NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = Temp_RDM_Element
                     end do
@@ -704,28 +706,29 @@ contains
 
                 write(6,'(A)') ' Reading in the 2-RDMs'
 
-                ! The TwoRDMs will have been printed exactly as they were.  Without having been 
-                ! made hermitian, without being normalised, and in spatial orbitals. 
+                ! The TwoRDMs will have been printed exactly as they were.
+                ! Without having been made hermitian, without being
+                ! normalised, and in spatial orbitals. 
 
                 ! Only read in the 2-RDMs (the 1-RDM becomes redundant).
-                inquire(file='TwoRDM_POPS_aaaa',EXIST=exists_aaaa)
-                inquire(file='TwoRDM_POPS_abab',EXIST=exists_abab)
-                inquire(file='TwoRDM_POPS_abba',EXIST=exists_abba)
+                inquire(file='TwoRDM_POPS_aaaa', EXIST=exists_aaaa)
+                inquire(file='TwoRDM_POPS_abab', EXIST=exists_abab)
+                inquire(file='TwoRDM_POPS_abba', EXIST=exists_abba)
 
                 if (tOpenShell)then
-                    inquire(file='TwoRDM_POPS_bbbb',EXIST=exists_bbbb)
-                    inquire(file='TwoRDM_POPS_baba',EXIST=exists_baba)
-                    inquire(file='TwoRDM_POPS_baab',EXIST=exists_baab)
+                    inquire(file='TwoRDM_POPS_bbbb', EXIST=exists_bbbb)
+                    inquire(file='TwoRDM_POPS_baba', EXIST=exists_baba)
+                    inquire(file='TwoRDM_POPS_baab', EXIST=exists_baab)
                 end if
 
-                if (exists_aaaa.and.exists_abab.and.exists_abba) then
+                if (exists_aaaa .and. exists_abab .and. exists_abba) then
                     ! All TOREAD RDM files are present - read in.
                     RDM_unit = get_free_unit()
-                    open(RDM_unit,file='TwoRDM_POPS_aaaa',status='old',form='unformatted')
+                    open(RDM_unit, file='TwoRDM_POPS_aaaa', status='old', form='unformatted')
                     do while (.true.)
-                        read(RDM_unit,iostat=FileEnd) i,j,a,b,Temp_RDM_Element 
-                        if (FileEnd.gt.0) call stop_all("Read_In_RDMs","Error reading TwoRDM_POPS_aaaa")
-                        if (FileEnd.lt.0) exit
+                        read(RDM_unit,iostat=FileEnd) i, j, a, b, Temp_RDM_Element 
+                        if (FileEnd .gt. 0) call stop_all("Read_In_RDMs", "Error reading TwoRDM_POPS_aaaa")
+                        if (FileEnd .lt. 0) exit
 
                         Ind1 = ( ( (j-2) * (j-1) ) / 2 ) + i
                         Ind2 = ( ( (b-2) * (b-1) ) / 2 ) + a
@@ -733,11 +736,11 @@ contains
                     end do
                     close(RDM_unit)
 
-                    open(RDM_unit,file='TwoRDM_POPS_abab',status='old',form='unformatted')
+                    open(RDM_unit, file='TwoRDM_POPS_abab', status='old', form='unformatted')
                     do while (.true.)
-                        read(RDM_unit,iostat=FileEnd) i,j,a,b,Temp_RDM_Element 
-                        if (FileEnd.gt.0) call stop_all("Read_In_RDMs","Error reading TwoRDM_POPS_abab")
-                        if (FileEnd.lt.0) exit
+                        read(RDM_unit,iostat=FileEnd) i, j, a, b, Temp_RDM_Element 
+                        if (FileEnd .gt. 0) call stop_all("Read_In_RDMs", "Error reading TwoRDM_POPS_abab")
+                        if (FileEnd .lt. 0) exit
 
                         Ind1 = ( ( (j-1) * j ) / 2 ) + i
                         Ind2 = ( ( (b-1) * b ) / 2 ) + a
@@ -745,11 +748,11 @@ contains
                     end do
                     close(RDM_unit)
 
-                    open(RDM_unit,file='TwoRDM_POPS_abba',status='old',form='unformatted')
+                    open(RDM_unit, file='TwoRDM_POPS_abba', status='old', form='unformatted')
                     do while (.true.)
                         read(RDM_unit,iostat=FileEnd) i,j,a,b,Temp_RDM_Element 
-                        if (FileEnd.gt.0) call stop_all("Read_In_RDMs","Error reading TwoRDM_POPS_abba")
-                        if (FileEnd.lt.0) exit
+                        if (FileEnd .gt. 0) call stop_all("Read_In_RDMs", "Error reading TwoRDM_POPS_abba")
+                        if (FileEnd .lt. 0) exit
 
                         Ind1 = ( ( (j-2) * (j-1) ) / 2 ) + i
                         Ind2 = ( ( (b-2) * (b-1) ) / 2 ) + a
@@ -758,22 +761,22 @@ contains
                     close(RDM_unit)
 
                 else
-                    write(6,*) 'exists_aaaa',exists_aaaa
-                    write(6,*) 'exists_abab',exists_abab
-                    write(6,*) 'exists_abba',exists_abba
+                    write(6,*) 'exists_aaaa', exists_aaaa
+                    write(6,*) 'exists_abab', exists_abab
+                    write(6,*) 'exists_abba', exists_abba
                     call neci_flush(6)
                     call Stop_All('Read_in_RDMs',"Attempting to read in the RDMs, &
                                     &but at least one of the TwoRDM_a***_TOREAD files are missing.")
                 end if
 
-                if (tOpenShell .and. exists_bbbb.and.exists_baba.and.exists_baab) then
+                if (tOpenShell .and. exists_bbbb .and. exists_baba .and. exists_baab) then
                     ! All TOREAD RDM files for open shell RDMs are present - read in.
                     RDM_unit = get_free_unit()
-                    open(RDM_unit,file='TwoRDM_POPS_bbbb',status='old',form='unformatted')
+                    open(RDM_unit, file='TwoRDM_POPS_bbbb', status='old', form='unformatted')
                     do while (.true.)
-                        read(RDM_unit,iostat=FileEnd) i,j,a,b,Temp_RDM_Element 
-                        if (FileEnd.gt.0) call stop_all("Read_In_RDMs","Error reading TwoRDM_POPS_bbbb")
-                        if (FileEnd.lt.0) exit
+                        read(RDM_unit, iostat=FileEnd) i, j, a, b, Temp_RDM_Element 
+                        if (FileEnd .gt. 0) call stop_all("Read_In_RDMs", "Error reading TwoRDM_POPS_bbbb")
+                        if (FileEnd .lt. 0) exit
 
                         Ind1 = ( ( (j-2) * (j-1) ) / 2 ) + i
                         Ind2 = ( ( (b-2) * (b-1) ) / 2 ) + a
@@ -781,9 +784,9 @@ contains
                     end do
                     close(RDM_unit)
 
-                    open(RDM_unit,file='TwoRDM_POPS_baba',status='old',form='unformatted')
+                    open(RDM_unit, file='TwoRDM_POPS_baba', status='old', form='unformatted')
                     do while (.true.)
-                        read(RDM_unit,iostat=FileEnd) i,j,a,b,Temp_RDM_Element 
+                        read(RDM_unit, iostat = FileEnd) i, j, a, b, Temp_RDM_Element 
                         if (FileEnd.gt.0) call stop_all("Read_In_RDMs","Error reading TwoRDM_POPS_baba")
                         if (FileEnd.lt.0) exit
 
@@ -795,9 +798,9 @@ contains
 
                     open(RDM_unit,file='TwoRDM_POPS_baab',status='old',form='unformatted')
                     do while (.true.)
-                        read(RDM_unit,iostat=FileEnd) i,j,a,b,Temp_RDM_Element 
-                        if (FileEnd.gt.0) call stop_all("Read_In_RDMs","Error reading TwoRDM_POPS_baab")
-                        if (FileEnd.lt.0) exit
+                        read(RDM_unit, iostat = FileEnd) i, j, a, b, Temp_RDM_Element 
+                        if (FileEnd .gt. 0) call stop_all("Read_In_RDMs","Error reading TwoRDM_POPS_baab")
+                        if (FileEnd .lt. 0) exit
 
                         Ind1 = ( ( (j-2) * (j-1) ) / 2 ) + i
                         Ind2 = ( ( (b-2) * (b-1) ) / 2 ) + a
@@ -806,9 +809,9 @@ contains
                     close(RDM_unit)
 
                 else if (tOpenShell) then
-                    write(6,*) 'exists_bbbb',exists_bbbb
-                    write(6,*) 'exists_baba',exists_baba
-                    write(6,*) 'exists_baab',exists_baab
+                    write(6,*) 'exists_bbbb', exists_bbbb
+                    write(6,*) 'exists_baba', exists_baba
+                    write(6,*) 'exists_baab', exists_baab
                     call neci_flush(6)
                     call Stop_All('Read_in_RDMs',"Attempting to read in the RDMs, &
                                     &but at least one of the TwoRDM_b***_TOREAD files are missing.")
@@ -817,20 +820,23 @@ contains
             end if
         end if
 
-        ! Calculate the energy for the matrices read in (if we're calculating more than the 1-RDM).
+        ! Calculate the energy for the matrices read in (if we're calculating more
+        ! than the 1-RDM).
         if (tCalc_RDMEnergy) then
             call Calc_Energy_from_RDM(Norm_2RDM)
         end if
 
-! Continue calculating the RDMs from the first iteration when the POPSfileS (and RDMs) are read in.
-! This overwrites the iteration number put in the input.
+        ! Continue calculating the RDMs from the first iteration when the popsfiles
+        ! (and RDMs) are read in. This overwrites the iteration number put in the input.
         IterRDMonFly = 0
 
     end subroutine Read_In_RDMs
 
     subroutine SetUpSymLabels_RDM() 
-! This routine just sets up the symmetry labels so that
-! the orbitals are ordered according to symmetry (all beta then all alpha if spin orbs).
+
+        ! This routine just sets up the symmetry labels so that the orbitals
+        ! are ordered according to symmetry (all beta then all alpha if spin orbs).
+
         integer , allocatable :: SymOrbs_rot(:)
         integer :: LabOrbsTag, SymOrbs_rotTag, ierr, i , j, SpatSym, LzSym 
         integer :: lo, hi, Symi, SymCurr, Symi2, SymCurr2
@@ -839,27 +845,17 @@ contains
         ! This is only allocated temporarily to be used to order the orbitals by.
         allocate(SymOrbs_rot(NoOrbs),stat=ierr)
         call LogMemAlloc('SymOrbs_rot',NoOrbs,4,this_routine,SymOrbs_rotTag,ierr)
-        if (ierr.ne.0) call Stop_All(this_routine,"Mem allocation for SymOrbs_rot failed.")
+        if (ierr .ne. 0) call Stop_All(this_routine,"Mem allocation for SymOrbs_rot failed.")
 
-! Brr has the orbital numbers in order of energy... i.e Brr(2) = the orbital index 
-! with the second lowest energy.
-! Brr is always in spin orbitals.
-!        write(6,*) 'BRR'
-!        do i=1,nBasis
-!            write(6,*) i, BRR(i), int(G1(BRR(i))%sym%S)
-!        end do
-!        call neci_flush(6)
-!        call Stop_All('','')
-
-! Now we want to put the spatial orbital index, followed by the symmetry.        
+        ! Now we want to put the spatial orbital index, followed by the symmetry.
         SymLabelList2_rot(:) = 0
         SymOrbs_rot(:)=0
 
-! *** STEP 1 *** Fill SymLabelList2_rot.
-! find the orbitals and order them in terms of symmetry.
+        ! *** STEP 1 *** Fill SymLabelList2_rot.
+        ! Find the orbitals and order them in terms of symmetry.
         do i=1,SpatOrbs
             if (tOpenShell) then
-                ! for open shell systems, all alpha are followed by all beta.
+                ! For open shell systems, all alpha are followed by all beta.
                 SymLabelList2_rot(i) = BRR(2*i)
                 SymLabelList2_rot(i+SpatOrbs) = BRR((2*i)-1)
 
@@ -882,7 +878,7 @@ contains
                     LzSym = int(G1(BRR(2*i))%Ml)
                     SymOrbs_rot(i) = ( SpatSym * ((2 * iMaxLz) + 1) ) + ( LzSym + iMaxLz )
                 else
-                    SymOrbs_rot(i) = int(G1(BRR(2*i))%sym%S) 
+                    SymOrbs_rot(i) = int(G1(BRR(2*i))%sym%S)
                 end if
                 ! Orbital BRR(2*i) for i = 1 will be the beta orbital with the 
                 ! second lowest energy - want the spatial orbital index to go with this.
@@ -892,18 +888,23 @@ contains
         end do
 
         call sort (SymOrbs_rot(1:SpatOrbs), SymLabelList2_rot(1:SpatOrbs))
-        ! Sorts SymLabelList2_rot according to the order of SymOrbs_rot (i.e. in terms of symmetry). 
+        ! Sorts SymLabelList2_rot according to the order of SymOrbs_rot
+        ! (i.e. in terms of symmetry).
         if (tOpenShell) &
             call sort (SymOrbs_rot(SpatOrbs+1:nBasis), SymLabelList2_rot(SpatOrbs+1:nBasis))
             ! Also do this for the beta set if spin orbitals.
 
-!*** STEP 2 *** Fill SymLabelCounts2_rot_rot. This is like SymLabelCounts2_rot, but has a different ordering - BEWARE
-!SymLabelCounts(1,:) contains the position in SymLabelList2_rot where the symmetry index starts,
-!SymLabelCounts(2,:) contains the number of orbitals in that symmetry index.
-!Again if spin orbs, all alpha are followed by all beta - i.e. first 8 refer to alpha, second 8 to beta.
+        ! *** STEP 2 *** Fill SymLabelCounts2_rot_rot. This is like
+        ! SymLabelCounts2_rot, but has a different ordering - BEWARE.
+        ! SymLabelCounts(1,:) contains the position in SymLabelList2_rot
+        ! where the symmetry index starts, SymLabelCounts(2,:) contains the
+        ! number of orbitals in that symmetry index. Again if spin orbs, all
+        ! alpha are followed by all beta - i.e. first 8 refer to alpha, second
+        ! 8 to beta.
 
         if (lNoSymmetry) then
-            ! if we are ignoring symmetry, all orbitals essentially have symmetry 0.
+            ! If we are ignoring symmetry, all orbitals essentially have
+            ! symmetry 0.
             SymLabelCounts2_rot(1,1) = 1
             SymLabelCounts2_rot(2,1) = SpatOrbs
             if (tOpenShell) then
@@ -911,35 +912,36 @@ contains
                 SymLabelCounts2_rot(2,9) = SpatOrbs
             end if
         else 
-            ! otherwise we run through the occupied orbitals, counting the number with 
-            ! each symmetry (spatial and Lz) and noting where in SymLabelList2_rot each symmetry block starts.
+            ! Otherwise we run through the occupied orbitals, counting the
+            ! number with each symmetry (spatial and Lz) and noting where in
+            ! SymLabelList2_rot each symmetry block starts.
             SymCurr = 0
             SymLabelCounts2_rot(1,1) = 1
             if (tOpenShell) then
                 SymCurr2 = 0
                 SymLabelCounts2_rot(1,9) = SpatOrbs + 1
             end if
-            do i=1,SpatOrbs
+            do i = 1,SpatOrbs
                 if (tOpenShell) then
-                    Symi=SymOrbs_rot(i)
-                    Symi2=SymOrbs_rot(i + SpatOrbs)
+                    Symi = SymOrbs_rot(i)
+                    Symi2 = SymOrbs_rot(i + SpatOrbs)
                 else
-                    Symi=SymOrbs_rot(i)
+                    Symi = SymOrbs_rot(i)
                 end if
-                SymLabelCounts2_rot(2,(Symi+1))= SymLabelCounts2_rot(2,(Symi+1))+1
-                if (Symi.ne.SymCurr) then
+                SymLabelCounts2_rot(2,(Symi+1)) = SymLabelCounts2_rot(2,(Symi+1)) + 1
+                if (Symi .ne. SymCurr) then
                     do j = SymCurr + 1, Symi
-                        SymLabelCounts2_rot(1,(j+1))=i
+                        SymLabelCounts2_rot(1,(j+1)) = i
                     end do
-                    SymCurr=Symi
+                    SymCurr = Symi
                 end if
                 if (tOpenShell) then
-                    SymLabelCounts2_rot(2,(Symi2+9))= SymLabelCounts2_rot(2,(Symi2+9))+1
-                    if (Symi2.ne.SymCurr2) then
+                    SymLabelCounts2_rot(2,(Symi2+9)) = SymLabelCounts2_rot(2,(Symi2+9))+1
+                    if (Symi2 .ne. SymCurr2) then
                         do j = SymCurr2 + 1, Symi2
-                            SymLabelCounts2_rot(1,(j+9))=i + SpatOrbs
+                            SymLabelCounts2_rot(1,(j+9)) = i + SpatOrbs
                         end do
-                        SymCurr2=Symi2
+                        SymCurr2 = Symi2
                     end if
                 end if
             end do
@@ -947,56 +949,36 @@ contains
 
         ! Go through each symmetry group, making sure the orbitals are 
         ! ordered lowest to highest within each symmetry.
-        do i=1,NoSymLabelCounts
-            if (SymLabelCounts2_rot(2,i).ne.0) then
+        do i = 1, NoSymLabelCounts
+            if (SymLabelCounts2_rot(2,i) .ne. 0) then
                 lo = SymLabelCounts2_rot(1, i)
                 hi = lo + SymLabelCounts2_rot(2, i) - 1
                 call sort (SymLabelList2_rot (lo:hi))
             end if
         end do
 
-        ! Construct the inverse matrix.  While SymLabelList2_rot takes a position and tells us 
-        ! what orbital is in it, we also might need to take an orbital and find out what 
-        ! position to put its contribution in.
-        do i=1,NoOrbs
-            SymLabelListInv_rot(SymLabelList2_rot(i))=i
+        ! Construct the inverse matrix. While SymLabelList2_rot takes a
+        ! position and tells us what orbital is in it, we also might need to
+        ! take an orbital and find out what position to put its contribution in.
+        do i = 1, NoOrbs
+            SymLabelListInv_rot(SymLabelList2_rot(i)) = i
         end do
 
-! Deallocate the arrays just used in this routine.
+        ! Deallocate the arrays just used in this routine.
         deallocate(SymOrbs_rot)
         call LogMemDealloc(this_routine,SymOrbs_rotTag)
-
-!        write(6,*) 'Sym Label Counts'
-!        do i=1,8
-!            write(6,*) i,SymLabelCounts2_rot(1,i),SymLabelCounts2_rot(2,i)
-!        end do
-!        write(6,*) 'Sym label list (i.e the orbitals in symm order), &
-!                               & and their symmetries according to G1'
-!        do i=1,SpatOrbs
-!            write(6,*) i,SymLabelList2_rot(i),int(G1(2*SymLabelList2_rot(i))%sym%S)
-!        end do
-!        write(6,*) 'i','ARR(SymLabelList2_rot(i),1)','ARR(SymLabelList2_rot(i),2)','Sym'
-!        do i=1,SpatOrbs
-!             write(6,*) i,ARR(2*SymLabelList2_rot(i),1),ARR(2*SymLabelList2_rot(i),2),&
-!                                               int(G1(2*SymLabelList2_rot(i))%sym%S)
-!        end do
-!
-!        write(6,*) 'Sym label list (i.e the orbitals in symm order), and its inverse'
-!        do i=1,SpatOrbs
-!            write(6,*) SymLabelList2_rot(i),SymLabelListInv_rot(i)
-!        end do
-!        call neci_flush(6)
-!        call Stop_All('SetUpSymLabels_RDM','Checking orbital labelling.')
 
     end subroutine SetUpSymLabels_RDM
 
     subroutine DeAlloc_Alloc_SpawnedParts()
-! When calculating the RDMs, we need to store the parent from which a child is spawned along with the 
-! children in the spawned array.
-! This means a slightly larger array is communicated between processors, which there is no point in doing 
-! for the first part of the calculation.
-! When we start calculating the RDMs this routine is called and the SpawnedParts array is made larger to 
-! accommodate the parents.
+
+        ! When calculating the RDMs, we need to store the parent from which a
+        ! child is spawned along with the children in the spawned array. This
+        ! means a slightly larger array is communicated between processors,
+        ! which there is no point in doing for the first part of the calculation.
+        ! When we start calculating the RDMs this routine is called and the
+        ! SpawnedParts array is made larger to accommodate the parents.
+
         integer :: ierr                               
         character(len=*), parameter :: this_routine='DeAlloc_Alloc_SpawnedParts'
         
@@ -1013,9 +995,9 @@ contains
 !        SpawnVec(:,:)=0
 !        SpawnVec2(:,:)=0
 
-!Point at correct spawning arrays
-        SpawnedParts=>SpawnVec
-        SpawnedParts2=>SpawnVec2
+        ! Point at correct spawning arrays
+        SpawnedParts => SpawnVec
+        SpawnedParts2 => SpawnVec2
 
         write(6,'(A54,F10.4,A4,F10.4,A13)') 'Memory requirement for spawned arrays increased from ',&
                                         real(((NIfTot+1)*MaxSpawned*2*size_n_int),dp)/1048576.0_dp,' to ',&
@@ -1023,8 +1005,8 @@ contains
 
     end subroutine DeAlloc_Alloc_SpawnedParts
 
-    subroutine extract_bit_rep_avsign_no_rdm(iLutnI, j, nI, SignI, FlagsI, &
-                                             IterRDMStartI, AvSignI, Store)
+    subroutine extract_bit_rep_avsign_no_rdm(iLutnI, j, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
+
         ! This is just the standard extract_bit_rep routine for when we're not
         ! calculating the RDMs.    
 
@@ -1038,27 +1020,31 @@ contains
         ! This extracts everything.
         call extract_bit_rep (iLutnI, nI, SignI, FlagsI, store)
 
-        IterRDMStartI(:)= 0.0_dp
+        IterRDMStartI(:) = 0.0_dp
         AvSignI(:) = 0.0_dp
 
     end subroutine extract_bit_rep_avsign_no_rdm
 
-    subroutine extract_bit_rep_avsign_norm(iLutnI, j, nI, SignI, FlagsI, &
-                                           IterRDMStartI, AvSignI, Store)
-! The following extract_bit_rep_avsign routine extracts the bit representation 
-! of the current determinant, and calculate the average sign since this determinant became 
-! occupied. 
-! In double run, we have to be particularly careful -- we need to start a new average 
-! when the determinant becomes newly occupied or unoccupied in either population (see CMO thesis).
-! Additionally, we're also setting it up so that averages get restarted whenever we calculate the energy
-! which saves a lot of faffing about, and storage of an extra set of RDMs, and is still unbiased.
-! This is called for each determinant in the occupied list at the beginning of its FCIQMC cycle. 
-! It is used if we're calculating the RDMs with or without HPHF. 
-! Input:    iLutnI (bit rep of current determinant).
-!           j - Which element in the CurrentDets array are we considering?
-! Output:   nI, SignI, FlagsI after extract.                                              
-!           IterRDMStartI - new iteration the determinant became occupied (as a real).
-!           AvSignI - the new average walker population during this time (also real).
+    subroutine extract_bit_rep_avsign_norm(iLutnI, j, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
+
+        ! The following extract_bit_rep_avsign routine extracts the bit
+        ! representation of the current determinant, and calculate the average
+        ! sign since this determinant became occupied. 
+
+        ! In double run, we have to be particularly careful -- we need to start
+        ! a new average when the determinant becomes newly occupied or
+        ! unoccupied in either population (see CMO thesis). Additionally, we're
+        ! also setting it up so that averages get restarted whenever we
+        ! calculate the energy which saves a lot of faffing about, and storage
+        ! of an extra set of RDMs, and is still unbiased. This is called for
+        ! each determinant in the occupied list at the beginning of its FCIQMC
+        ! cycle. It is used if we're calculating the RDMs with or without HPHF. 
+
+        ! Input:    iLutnI (bit rep of current determinant).
+        !           j - Which element in the CurrentDets array are we considering?
+        ! Output:   nI, SignI, FlagsI after extract.                                              
+        !           IterRDMStartI - new iteration the determinant became occupied (as a real).
+        !           AvSignI - the new average walker population during this time (also real).
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         integer, intent(out) :: nI(nel), FlagsI
         integer, intent(in) :: j
@@ -1074,7 +1060,7 @@ contains
         call extract_bit_rep (iLutnI, nI, SignI, FlagsI)
             
         if (((Iter+PreviousCycles-IterRDMStart).gt.0) .and. &
-            & (mod(((Iter-1)+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0)) then 
+            & (mod(((Iter-1)+PreviousCycles - IterRDMStart + 1),RDMEnergyIter) .eq. 0)) then 
             ! The previous iteration was one where we added in diagonal elements
             ! To keep things unbiased, we need to set up a new averaging block now.
             ! NB: if doing single run cutoff, note that doing things this way is now
@@ -1083,44 +1069,45 @@ contains
             ! as one calculates the RDM energy less frequently.  As this method is
             ! biased anyway, I'm not going to lose sleep over it.
             do part_ind = 1, lenof_sign
-                AvSignI(part_ind)=SignI(part_ind)
-                IterRDMStartI(part_ind)=real(Iter+PreviousCycles,dp)
+                AvSignI(part_ind) = SignI(part_ind)
+                IterRDMStartI(part_ind) = real(Iter + PreviousCycles,dp)
             end do
         else
-            !Now let's consider other instances in which we need to start a new block:
+            ! Now let's consider other instances in which we need to start a new block:
             if (inum_runs.eq.2) then
 #if defined(__DOUBLERUN) || defined(__PROG_NUMRUNS) || defined(__CMPLX)
                 if ((SignI(1).eq.0).and.(IterRDMStartI(1).ne.0)) then
-                    ! The population has just gone to zero on population 1
-                    ! Therefore, we need to start a new averaging block
-                    AvSignI(1)=0
-                    IterRDMStartI(1)=0
-                    AvSignI(2)=SignI(2)
-                    IterRDMStartI(2)=real(Iter+PreviousCycles,dp)
-                else if ((SignI(2).eq.0).and.(IterRDMStartI(2).ne.0)) then
-                    ! The population has just gone to zero on population 2
-                    ! Therefore, we need to start a new averaging block
-                    AvSignI(2)=0
-                    IterRDMStartI(2)=0
-                    AvSignI(1)=SignI(1)
-                    IterRDMStartI(1)=real(Iter+PreviousCycles,dp)
-                else if ((SignI(1).ne.0).and.(IterRDMStartI(1).eq.0)) then
-                    !Population 1 has just become occupied
-                    IterRDMStartI(1)=real(Iter+PreviousCycles,dp)
-                    IterRDMStartI(2)=real(Iter+PreviousCycles,dp)
-                    AvSignI(1)=SignI(1)
-                    AvSignI(2)=SignI(2)
-                    if (SignI(2).eq.0) IterRDMStartI(2)=0
-                else if ((SignI(2).ne.0).and.(IterRDMStartI(2).eq.0)) then
-                    !Population 2 has just become occupied
-                    IterRDMStartI(1)=real(Iter+PreviousCycles,dp)
-                    IterRDMStartI(2)=real(Iter+PreviousCycles,dp)
-                    AvSignI(1)=SignI(1)
-                    AvSignI(2)=SignI(2)
-                    if (SignI(1).eq.0) IterRDMStartI(1)=0
+                    ! The population has just gone to zero on population 1.
+                    ! Therefore, we need to start a new averaging block.
+                    AvSignI(1) = 0
+                    IterRDMStartI(1) = 0
+                    AvSignI(2) = SignI(2)
+                    IterRDMStartI(2) = real(Iter + PreviousCycles,dp)
+                else if ((SignI(2) .eq. 0) .and. (IterRDMStartI(2) .ne. 0)) then
+                    ! The population has just gone to zero on population 2.
+                    ! Therefore, we need to start a new averaging block.
+                    AvSignI(2) = 0
+                    IterRDMStartI(2) = 0
+                    AvSignI(1) = SignI(1)
+                    IterRDMStartI(1) = real(Iter + PreviousCycles,dp)
+                else if ((SignI(1) .ne. 0) .and. (IterRDMStartI(1) .eq. 0)) then
+                    ! Population 1 has just become occupied.
+                    IterRDMStartI(1) = real(Iter + PreviousCycles,dp)
+                    IterRDMStartI(2) = real(Iter + PreviousCycles,dp)
+                    AvSignI(1) = SignI(1)
+                    AvSignI(2) = SignI(2)
+                    if (SignI(2) .eq. 0) IterRDMStartI(2) = 0
+                else if ((SignI(2) .ne. 0) .and. (IterRDMStartI(2) .eq. 0)) then
+                    ! Population 2 has just become occupied.
+                    IterRDMStartI(1) = real(Iter + PreviousCycles,dp)
+                    IterRDMStartI(2) = real(Iter + PreviousCycles,dp)
+                    AvSignI(1) = SignI(1)
+                    AvSignI(2) = SignI(2)
+                    if (SignI(1) .eq. 0) IterRDMStartI(1) = 0
                 else
-                    !Nothing unusual has happened so update both populations as normal
-                    do part_ind=1,lenof_sign
+                    ! Nothing unusual has happened so update both populations
+                    ! as normal.
+                    do part_ind = 1, lenof_sign
                         ! Update the average population.
                         AvSignI(part_ind) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * get_av_sgn(j, part_ind))&
                             + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
@@ -1128,14 +1115,14 @@ contains
                 end if
 #endif
             else
-                do part_ind=1,lenof_sign
-                   ! If there is nothing stored there yet, the first iteration the determinant 
-                   ! became occupied is this one.
-                    if (IterRDMStartI(part_ind).eq.0.0_dp) IterRDMStartI(part_ind) = real(Iter+PreviousCycles, dp)
-                    ! Update the average population.
-                    ! This just comes out as the current population (SignI) if this is the first 
-                    ! time the determinant has become occupied.
+                do part_ind = 1, lenof_sign
+                    ! If there is nothing stored there yet, the first iteration
+                    ! the determinant became occupied is this one.
+                    if (IterRDMStartI(part_ind) .eq. 0.0_dp) IterRDMStartI(part_ind) = real(Iter+PreviousCycles, dp)
 
+                    ! Update the average population. This just comes out as the
+                    ! current population (SignI) if this is the first  time the
+                    ! determinant has become occupied.
                     AvSignI(part_ind) = ( ((real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind)) * get_av_sgn(j,part_ind)) &
                                     + SignI(part_ind) ) / ( real(Iter+PreviousCycles,dp) - IterRDMStartI(part_ind) + 1.0_dp )
                 end do
@@ -5556,7 +5543,7 @@ contains
                 allocate(FourIndInts(NoOrbs,NoOrbs,NoOrbs,NoOrbs),stat=ierr)
                 call LogMemAlloc('FourIndInts',(NoOrbs**4),8,this_routine,&
                                                         FourIndIntsTag,ierr)
-                if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating FourIndInts array,')
+                if (ierr .ne. 0) call Stop_All(this_routine,'Problem allocating FourIndInts array,')
 
 ! Then, transform2ElInts
                 write(6,*) ''
@@ -5829,15 +5816,15 @@ contains
 
                 allocate(NOMSym(NoSymBlock,NoSymBlock),stat=ierr)
                 call LogMemAlloc('NOMSym',NoSymBlock**2,8,this_routine,NOMSymTag,ierr)
-                if (ierr.ne.0) call Stop_All(this_routine,"Problem allocating NOMSym.")
+                if (ierr .ne. 0) call Stop_All(this_routine,"Problem allocating NOMSym.")
                 allocate(EvaluesSym(NoSymBlock),stat=ierr)
                 call LogMemAlloc('EvaluesSym',NoSymBlock,8,this_routine,EvaluesSymTag,ierr)
-                if (ierr.ne.0) call Stop_All(this_routine,"Problem allocating EvaluesSym.")
+                if (ierr .ne. 0) call Stop_All(this_routine,"Problem allocating EvaluesSym.")
 
                 LWORK2=3*NoSymBlock+1
                 allocate(WORK2(LWORK2),stat=ierr)
                 call LogMemAlloc('WORK2',LWORK2,8,this_routine,WORK2Tag,ierr)
-                if (ierr.ne.0) call Stop_All(this_routine,"Problem allocating WORK2.")
+                if (ierr .ne. 0) call Stop_All(this_routine,"Problem allocating WORK2.")
 
                 do j=1,NoSymBlock
                     do i=1,NoSymBlock
@@ -6057,7 +6044,7 @@ contains
         allocate(Temp4indints(NoOrbs,NoOrbs),stat=ierr)
         call LogMemAlloc('Temp4indints',NoOrbs**2,8,&
                             'Transform2ElIntsMemSave_RDM',Temp4indintsTag,ierr)
-        if (ierr.ne.0) call Stop_All('Transform2ElIntsMemSave_RDM',&
+        if (ierr .ne. 0) call Stop_All('Transform2ElIntsMemSave_RDM',&
                                     'Problem allocating memory to Temp4indints.')
  
         FourIndInts(:,:,:,:)=0.0_dp
@@ -6140,7 +6127,7 @@ contains
 ! that we actually need.
 
         allocate(ArrDiagNew(nBasis),stat=ierr)
-        if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating ArrDiagNew array,')
+        if (ierr .ne. 0) call Stop_All(this_routine,'Problem allocating ArrDiagNew array,')
         call LogMemAlloc('ArrDiagNew',nBasis,8,this_routine,ArrDiagNewTag,ierr)
         ArrDiagNew(:)=0.0_dp                     
 
@@ -6248,7 +6235,7 @@ contains
 
         ! TMAT2D is always in spin orbitals.
         allocate(TMAT2DPart(nBasis,nBasis),stat=ierr)
-        if (ierr.ne.0) call Stop_All(this_routine,'Problem allocating TMAT2DPart array,')
+        if (ierr .ne. 0) call Stop_All(this_routine,'Problem allocating TMAT2DPart array,')
         call LogMemAlloc('TMAT2DPart',nBasis*nBasis,8,&
                                     'RefillUMAT_RDM',TMAT2DPartTag,ierr)
         TMAT2DPart(:,:)=0.0_dp
@@ -7853,7 +7840,7 @@ contains
             call clearvar('DMZ')
 
             allocate(zints(isize,3),stat=ierr)
-            if (ierr.ne.0) then
+            if (ierr .ne. 0) then
                 write(6,*) "Alloc failed: ",ierr
                 call stop_all(t_r,'Alloc failed')
             end if
