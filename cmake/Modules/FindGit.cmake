@@ -23,9 +23,12 @@ IF(Git_EXECUTABLE)
 				WORKING_DIRECTORY ${dir}
 				OUTPUT_VARIABLE ${prefix}_WC_REVISION_NAME
 				OUTPUT_STRIP_TRAILING_WHITESPACE)
-			EXECUTE_PROCESS(COMMAND ${Git_EXECUTABLE} diff --exit-code --quiet && ${Git_EXECUTABLE} diff --exit-code --cached --quiet
+			EXECUTE_PROCESS(COMMAND ${Git_EXECUTABLE} diff --exit-code --quiet
 				WORKING_DIRECTORY ${dir}
 				RESULT_VARIABLE ${prefix}_WC_CHANGES)
+			EXECUTE_PROCESS(COMMAND ${Git_EXECUTABLE} diff --exit-code --cached --quiet
+				WORKING_DIRECTORY ${dir}
+				RESULT_VARIABLE ${prefix}_WC_CACHED_CHANGES)
 		ENDIF(NOT ${Git_error} EQUAL 0)
 	ENDMACRO(Git_WC_INFO)
 ENDIF(Git_EXECUTABLE)
