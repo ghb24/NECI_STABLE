@@ -48,7 +48,7 @@ foreach(template_file ${F90_TEMPLATE_FILES})
 
 	add_custom_command(
 		OUTPUT ${target_filename}
-		COMMAND tools/f90_template.py ${template_file} ${target_filename}
+		COMMAND ${CMAKE_SOURCE_DIR}/tools/f90_template.py ${template_file} ${target_filename}
 		DEPENDS ${template_file}
 	)
 
@@ -83,6 +83,9 @@ if (${Git_FOUND})
 	Git_WC_INFO("." "DIR")
 	add_definitions(-D_VCS_VER='${DIR_WC_REVISION_HASH}')
 	message("-- Git has been found")
+	message("-- Git revision: ${DIR_WC_REVISION_HASH}")
+	message("-- Git name: ${DIR_WC_REVISION_NAME}")
+	message("-- Git changes: ${DIR_WC_CHANGES}")
 else()
 	add_definitions(-D_VCS_VER='[Unknown]')
 	message("-- Could NOT find git")
@@ -100,7 +103,12 @@ add_definitions(-DDSFMT_MEXP=19937)
 add_definitions(-D_CONFIG="CMake-new")
 
 # This is a real build. Consider kneci...
-add_definitions(-DHElement_t=real\(dp\))
+target_compile_definitions(neci PUBLIC -DHElement_t=real\(dp\))
+target_compile_definitions(dneci PUBLIC -DHElement_t=real\(dp\))
+target_compile_definitions(mneci PUBLIC -DHElement_t=real\(dp\))
+target_compile_definitions(kneci PUBLIC -DHElement_t=complex\(dp\))
+
+include_directories(BEFORE SYSTEM ${CMAKE_SOURCE_DIR}/src)
 
 #
 # Some form of lapack is always needed (be that acml, mkl, LAPACK, ...)
@@ -113,6 +121,7 @@ find_package(FFTW)
 if (${FFTW_FOUND})
 	set(NECI_LIBRARIES ${NECI_LIBRARIES} ${FFTW_LIBRARIES})
 else()
+	message("Disabling FFTW")
 	add_definitions(-DDISABLE_FFTW)
 endif()
 
