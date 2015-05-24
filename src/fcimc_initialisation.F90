@@ -86,8 +86,8 @@ module fcimc_initialisation
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD, only : InitHistInitPops
     use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2
-    use rdms, only: DeallocateRDM, InitRDM, fill_rdm_diag_currdet_norm, &
-                    extract_bit_rep_avsign_no_rdm
+    use rdm_general, only: DeallocateRDM, InitRDM, extract_bit_rep_avsign_no_rdm
+    use rdm_filling, only: fill_rdm_diag_currdet_norm
     use DetBitOps, only: FindBitExcitLevel, CountBits, TestClosedShellDet, &
                          FindExcitBitDet, IsAllowedHPHF, DetBitEq, &
                          EncodeBitDet

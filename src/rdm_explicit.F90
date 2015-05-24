@@ -235,7 +235,7 @@ contains
         use Parallel_neci, only: nProcessors
         use rdm_data, only: Sing_ExcList, Doub_ExcList, OneEl_Gap, TwoEl_Gap
         use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs
-        use rdms, only: Fill_Diag_RDM
+        use rdm_filling, only: Fill_Diag_RDM
         use SymExcit3, only: GenExcitations3
         use SystemData, only: nel
 
@@ -351,7 +351,7 @@ contains
         use Parallel_neci, only: nProcessors
         use rdm_data, only: Sing_ExcList, Doub_ExcList, norm, OneEl_Gap, TwoEl_Gap
         use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs
-        use rdms, only: Fill_Diag_RDM
+        use rdm_filling, only: Fill_Diag_RDM
         use SymExcit3, only: GenExcitations3
         use SystemData, only: nel
 
@@ -689,7 +689,7 @@ contains
         use FciMCData, only: CurrentDets, TotWalkers
         use Parallel_neci, only: nProcessors, MPIArg
         use rdm_data, only: Sing_ExcDjs, Sing_ExcDjs2
-        use rdms, only: Fill_Sings_RDM
+        use rdm_filling, only: Fill_Sings_RDM
         use searching, only: BinSearchParts_rdm
         use SystemData, only: nel
 
@@ -764,7 +764,7 @@ contains
         use FciMCData, only: CurrentDets, TotWalkers
         use Parallel_neci, only: nProcessors, MPIArg
         use rdm_data, only: Doub_ExcDjs, Doub_ExcDjs2
-        use rdms, only: Fill_Doubs_RDM
+        use rdm_filling, only: Fill_Doubs_RDM
         use searching, only: BinSearchParts_rdm
         use SystemData, only: nel
 
@@ -842,7 +842,7 @@ contains
         use hist_data, only: AllHistogram
         use Parallel_neci, only: nProcessors, MPIArg
         use rdm_data, only: Sing_ExcDjs, Sing_ExcDjs2, norm
-        use rdms, only: Fill_Sings_RDM
+        use rdm_filling, only: Fill_Sings_RDM
         use searching, only: BinSearchParts_rdm
         use SystemData, only: nel
 
@@ -930,7 +930,7 @@ contains
         use hist_data, only: AllHistogram
         use Parallel_neci, only: nProcessors, MPIArg
         use rdm_data, only: Doub_ExcDjs, Doub_ExcDjs2, norm
-        use rdms, only: Fill_Doubs_RDM
+        use rdm_filling, only: Fill_Doubs_RDM
         use searching, only: BinSearchParts_rdm
         use SystemData, only: nel
 
