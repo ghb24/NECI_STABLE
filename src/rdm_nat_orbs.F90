@@ -1,14 +1,14 @@
 module rdm_nat_orbs
 
-! This contains routines related to natural orbitals calculations from the
-! stochastically sampled reduced density matrices.
+    ! This contains routines related to natural orbitals calculations from the
+    ! stochastically sampled reduced density matrices.
 
-use constants
-use NatOrbsMod, only: NatOrbMat, NatOrbMatTag, Evalues, EvaluesTag
-use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot
-use RotateOrbsData, only: SymLabelListInv_rot, NoOrbs, SpatOrbs
-use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag
-use RotateOrbsData, only: SymLabelListInv_rotTag
+    use constants
+    use NatOrbsMod, only: NatOrbMat, NatOrbMatTag, Evalues, EvaluesTag
+    use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot
+    use RotateOrbsData, only: SymLabelListInv_rot, NoOrbs, SpatOrbs
+    use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag
+    use RotateOrbsData, only: SymLabelListInv_rotTag
 
     implicit none
 

@@ -1,5 +1,8 @@
 module rdm_estimators
 
+    ! Routines related to the calculation of properties from RDMs, such as the
+    ! RDM energy, spin, and dipole moments.
+
     use bit_rep_data, only: NIfTot
     use constants
 

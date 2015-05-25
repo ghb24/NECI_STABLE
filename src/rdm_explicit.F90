@@ -1,5 +1,12 @@
 module rdm_explicit
 
+    ! Routines used for calculating the RDM for a pair of FCIQMC wave functions
+    ! explicitly, i.e., the RDM is calculated exactly for given wave functions.
+    ! Note that this does not mean that the calculated RDMs are exact, since
+    ! the wave functions themselves are not exact.
+
+    ! This is slow and should only be used for testing.
+
     use bit_rep_data, only: NIfTot
     use constants
 

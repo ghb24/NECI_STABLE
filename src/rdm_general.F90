@@ -1,32 +1,21 @@
 module rdm_general
 
-! This file contains the routines used to calculate 1- and 2-RDM estimates.
-! This is done on the fly to avoid having to histogram the full wavefunction
-! which is extremely time and memory inefficient. In this way, these routines
-! differ slightly from those in NatOrbsMod (which take a histogrammed 
-! wavefunction usually truncated around double excitations and form the one
-! electron RDM) but the basic formula is still the same.
+    ! This module contains general routines related to RDM calculation in
+    ! FCIQMC. This includes the initialisation and end routines, and also a
+    ! few routines (such as calc_rdmbiasfac and store_parent_with_spawned) used
+    ! during the main simulation.
 
-! For example, he elements of the one electron reduced density matrix are given
-! by:
-!
-! 1RDM_pq   = < Psi | a_p+ a_q | Psi > 
-!           = < sum_i c_i D_i | a_p+ a_q | sum_j c_j D_j >
-!
-! where |Psi> is the full wavefunction, a_p+ is the creation operator and a_q is
-! the annihilation operator. The elements 1RDM_pq therefore come from the sum
-! of the contributions c_i*c_j from all pairs of determinants D_i and D_j which
-! are related by a single excitation between p and q.
+    use bit_rep_data, only: NIfTot, NIfDBO
+    use SystemData, only: NEl, nBasis
+    use constants
+    use util_mod
+    use rdm_data
 
-use bit_rep_data, only: NIfTot, NIfDBO
-use SystemData, only: NEl, nBasis
-use constants
-use util_mod
-use rdm_data
-
-implicit none
+    implicit none
 
 contains
+
+    ! Initialisation routines.
 
     subroutine InitRDM()
 
@@ -50,7 +39,7 @@ contains
         use SystemData, only: tStoreSpinOrbs, tHPHF, tFixLz, iMaxLz, tROHF
 
         integer :: ierr,i, MemoryAlloc, MemoryAlloc_Root
-        character(len=*), parameter :: this_routine='InitRDM'
+        character(len=*), parameter :: this_routine = 'InitRDM'
 
         ! First thing is to check we're not trying to fill the RDMs in a way
         ! that is not compatible with the code (not every case has been
@@ -890,6 +879,11 @@ contains
 
     end subroutine SetUpSymLabels_RDM
 
+
+    ! Routine called when RDM accumulation is turned on, usually midway through
+    ! an FCIQMC simulation.
+
+
     subroutine DeAlloc_Alloc_SpawnedParts()
 
         ! When calculating the RDMs, we need to store the parent from which a
@@ -927,6 +921,10 @@ contains
                                         real(((NIfTot+NIfDBO+3)*MaxSpawned*2*size_n_int),dp)/1048576.0_dp, ' Mb/Processor'
 
     end subroutine DeAlloc_Alloc_SpawnedParts
+
+
+    ! Routines called at the end of a simulation.
+
 
     subroutine FinaliseRDM()
 
@@ -1460,6 +1458,10 @@ contains
 
 
     end subroutine DeallocateRDM
+
+
+    ! Some general routines used during the main simulation.
+
 
     subroutine extract_bit_rep_avsign_no_rdm(iLutnI, j, nI, SignI, FlagsI, IterRDMStartI, AvSignI, Store)
 

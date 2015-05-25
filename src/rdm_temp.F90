@@ -1,7 +1,7 @@
 module rdm_temp
 
-! This is a temporary module to prevent circular dependencies. These should be
-! sorted later when altering the call structure of the routines.
+    ! This is a temporary module to prevent circular dependencies. These should
+    ! be sorted later when altering the call structure of the routines.
 
     use constants
 

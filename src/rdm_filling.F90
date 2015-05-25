@@ -1,5 +1,8 @@
 module rdm_filling
 
+    ! This module contains routines used to perform filling of the RDM arrays,
+    !  as done on-the-fly during an FCIQMC simulation.
+
     use bit_rep_data, only: NIfTot, NIfDBO
     use constants
 
