@@ -18,13 +18,10 @@ module rdm_general
 ! of the contributions c_i*c_j from all pairs of determinants D_i and D_j which
 ! are related by a single excitation between p and q.
 
-use Global_Utilities
-use Parallel_neci
 use bit_rep_data, only: NIfTot, NIfDBO
 use SystemData, only: NEl, nBasis
 use constants
 use util_mod
-use sort_mod
 use rdm_data
 
 implicit none
@@ -46,6 +43,7 @@ contains
         use LoggingData, only: tRDMInstEnergy, RDMExcitLevel, tExplicitAllRDM, tPrint1RDM
         use LoggingData, only: tDiagRDM, tReadRDMs, tPopsfile, tDumpForcesInfo, tDipoles
         use NatOrbsMod, only: NatOrbMat, NatOrbMatTag, Evalues, EvaluesTag
+        use Parallel_neci, only: iProcIndex, nProcessors
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
         use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs
@@ -579,6 +577,7 @@ contains
         use LoggingData, only: IterRDMonFly
         use LoggingData, only: RDMExcitLevel
         use NatOrbsMod, only: NatOrbMat
+        use Parallel_neci, only: iProcIndex
         use rdm_estimators, only: Calc_Energy_From_RDM
         use RotateOrbsData, only: SymLabelListInv_rot
         use SystemData, only: tStoreSpinOrbs
@@ -653,7 +652,7 @@ contains
 
                     open(RDM_unit, file='TwoRDM_POPS_abab', status='old', form='unformatted')
                     do while (.true.)
-                        read(RDM_unit,iostat=FileEnd) i, j, a, b, Temp_RDM_Element 
+                        read(RDM_unit, iostat=FileEnd) i, j, a, b, Temp_RDM_Element 
                         if (FileEnd .gt. 0) call stop_all("Read_In_RDMs", "Error reading TwoRDM_POPS_abab")
                         if (FileEnd .lt. 0) exit
 
@@ -754,6 +753,7 @@ contains
 
         use RotateOrbsData, only: SymLabelList2_rot, SymLabelCounts2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: NoOrbs, SpatOrbs
+        use sort_mod, only: sort
         use SystemData, only: G1, BRR, lNoSymmetry, tFixLz, iMaxLz
         use UMatCache, only: gtID
 
@@ -915,8 +915,8 @@ contains
         allocate(SpawnVec2(0:(NIfTot+NIfDBO+2),MaxSpawned),stat=ierr)
         call LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+NIfDBO+3),size_n_int,this_routine,SpawnVec2Tag,ierr)
 
-!        SpawnVec(:,:)=0
-!        SpawnVec2(:,:)=0
+!        SpawnVec(:,:) = 0
+!        SpawnVec2(:,:) = 0
 
         ! Point at correct spawning arrays
         SpawnedParts => SpawnVec
@@ -938,6 +938,7 @@ contains
         use FciMCData, only: tFinalRDMEnergy
         use LoggingData, only: tBrokenSymNOs, occ_numb_diff, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tPrint1RDM, tDiagRDM, tDumpForcesInfo, tDipoles
+        use Parallel_neci, only: iProcIndex, MPIBarrier
         use rdm_estimators, only: Calc_Lagrangian_from_RDM, convert_mats_Molpforces
         use rdm_estimators, only: Calc_Energy_From_RDM, CalcDipoles
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
@@ -1024,6 +1025,7 @@ contains
         use LoggingData, only: twrite_RDMs_to_read, twrite_normalised_RDMs, tForceCauchySchwarz
         use LoggingData, only: RDMExcitLevel
         use NatOrbsMod, only: NatOrbMat
+        use Parallel_neci, only: iProcIndex, MPISumAll
         use RotateOrbsData, only: NoOrbs
                              
         integer :: i, ierr
