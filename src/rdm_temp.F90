@@ -9,14 +9,14 @@ module rdm_temp
 
 contains
 
-    subroutine Finalise_2e_RDM(Norm_2RDM_Inst, Norm_2RDM)
+    subroutine Finalise_2e_RDM()
 
         ! This routine sums, normalises, hermitian-ises, and prints the 2-RDMs.
         ! This may be called multiple times if we want to print multiple 2-RDMs.
 
         use FciMCData, only: Iter, PreviousCycles, IterRDMStart, tFinalRDMEnergy, VaryShiftIter
-        use LoggingData, only: IterRDMonFly, tWrite_normalised_RDMs, IterWriteRDMs, tWriteMultRDMs
-        use LoggingData, only: tRDMInstEnergy, RDMEnergyIter, tWrite_RDMs_to_read
+        use LoggingData, only: IterRDMonFly
+        use LoggingData, only: tRDMInstEnergy, RDMEnergyIter
         use Parallel_neci, only: iProcIndex, MPISumAll
         use rdm_data, only: aaaa_RDM, bbbb_RDM, abab_RDM, baba_RDM, abba_RDM, baab_RDM
         use rdm_data, only: aaaa_RDM, bbbb_RDM, abab_RDM, baba_RDM, abba_RDM, baab_RDM
@@ -27,8 +27,6 @@ contains
         use rdm_data, only: tCalc_RDMEnergy, tOpenShell
         use RotateOrbsData, only: SpatOrbs
 
-        real(dp), intent(out) :: Norm_2RDM_Inst, Norm_2RDM
-        logical :: tMake_Herm
         real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity
         integer :: ierr
 
@@ -92,41 +90,6 @@ contains
                     baab_RDM_full(:,:) = baab_RDM_full(:,:) + baab_RDM(:,:)
                 end if
             end if
-        end if
-            
-        if (iProcIndex .eq. 0) then
-            
-            ! Calculate the normalisations.
-            call calc_2e_norms(Norm_2RDM_Inst, Norm_2RDM)
-
-            ! There's no need to explicitly make the RDM hermitian here, as the
-            ! integrals are already hermitian -- when we calculate the energy,
-            ! it comes out in the wash.
-            
-            ! Print out the relevant 2-RDMs.
-            if ( tFinalRDMEnergy .or. &
-                ( tWriteMultRDMs .and. (mod((Iter+PreviousCycles - IterRDMStart)+1, IterWriteRDMs) .eq. 0) ) ) then
-
-                ! ********************************************
-                ! SDS:
-                ! WARNING: This variable has been set because otherwise
-                !          conditional choices are made based on an
-                !          uninitialised variable. This was set according to
-                !          the current behaviour in the tests, but I have NO
-                !          idea if that is correct.
-                !          CMO: please advise.
-                ! ********************************************
-                tMake_Herm = .true.
-
-                if (tFinalRDMEnergy) then
-                    ! Only ever want to print the POPS 2-RDMs (for reading in) at the end.
-                    if (tWrite_RDMs_to_read) call Write_out_2RDM(Norm_2RDM, .false., .false.)
-                end if
-
-                ! This writes out the normalised, hermitian 2-RDMs.
-                if (tWrite_normalised_RDMs) call Write_out_2RDM(Norm_2RDM, .true., tMake_Herm)
-
-             end if
         end if
 
     end subroutine Finalise_2e_RDM
