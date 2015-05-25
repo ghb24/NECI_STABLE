@@ -184,9 +184,6 @@ contains
         if (tRDMInstEnergy) Norm_2RDM_Inst = ( (0.50_dp * (real(NEl,dp) * (real(NEl,dp) - 1.0_dp))) / Trace_2RDM_Inst )
         Norm_2RDM = ( (0.50_dp * (real(NEl,dp) * (real(NEl,dp) - 1.0_dp))) / Trace_2RDM )
 
-        ! Need to multiply each element of the 1 electron reduced density
-        ! matrices by NEl / Trace_1RDM, and then add it's contribution to the energy.
-
     end subroutine calc_2e_norms
 
     subroutine Write_out_2RDM(Norm_2RDM, tNormalise, tMake_Herm)

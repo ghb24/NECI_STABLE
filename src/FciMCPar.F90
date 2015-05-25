@@ -24,7 +24,7 @@ module FciMCParMod
     use rdm_data, only: tCalc_RDMEnergy
     use rdm_general, only: FinaliseRDM
     use rdm_filling, only: fill_rdm_offdiag_deterministic
-    use rdm_estimators, only: calc_energy_from_rdm
+    use rdm_estimators, only: rdm_output_wrapper
     use rdm_explicit, only: fill_explicitrdm_this_iter, fill_hist_explicitrdm_this_iter
     use procedure_pointers, only: attempt_die_t, generate_excitation_t, &
                                   get_spawn_helement_t
@@ -411,7 +411,7 @@ module FciMCParMod
                 ! and this is an iteration where the energy should be calculated, do so.
                 if(tCalc_RDMEnergy .and. ((Iter - maxval(VaryShiftIter)) .gt. IterRDMonFly) &
                     .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) .eq. 0) ) &
-                        call Calc_Energy_from_RDM(Norm_2RDM)
+                        call rdm_output_wrapper(Norm_2RDM)
             end if
 
             if(tChangeVarsRDM) then

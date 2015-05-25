@@ -530,7 +530,7 @@ contains
         use LoggingData, only: RDMExcitLevel
         use NatOrbsMod, only: NatOrbMat
         use Parallel_neci, only: iProcIndex
-        use rdm_estimators, only: Calc_Energy_From_RDM
+        use rdm_estimators, only: rdm_output_wrapper
         use RotateOrbsData, only: SymLabelListInv_rot
         use SystemData, only: tStoreSpinOrbs
 
@@ -688,9 +688,7 @@ contains
 
         ! Calculate the energy for the matrices read in (if we're calculating more
         ! than the 1-RDM).
-        if (tCalc_RDMEnergy) then
-            call Calc_Energy_from_RDM(Norm_2RDM)
-        end if
+        if (tCalc_RDMEnergy) call rdm_output_wrapper(Norm_2RDM)
 
         ! Continue calculating the RDMs from the first iteration when the popsfiles
         ! (and RDMs) are read in. This overwrites the iteration number put in the input.
@@ -901,7 +899,7 @@ contains
         use LoggingData, only: tPrint1RDM, tDiagRDM, tDumpForcesInfo, tDipoles
         use Parallel_neci, only: iProcIndex, MPIBarrier
         use rdm_estimators, only: Calc_Lagrangian_from_RDM, convert_mats_Molpforces
-        use rdm_estimators, only: Calc_Energy_From_RDM, CalcDipoles
+        use rdm_estimators, only: rdm_output_wrapper, CalcDipoles
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
 
         integer :: error
@@ -934,7 +932,7 @@ contains
             tFinalRDMEnergy = .true.
 
             ! 1RDM is contructed here (in calc_1RDM_energy).
-            call Calc_Energy_from_RDM(Norm_2RDM)
+            call rdm_output_wrapper(Norm_2RDM)
 
             if (tPrint1RDM) then
                 call Finalise_1e_RDM(Norm_1RDM)
@@ -942,7 +940,7 @@ contains
                 call calc_1e_norms(Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
                 write(6,*) ''
                 write(6,'(A55,F30.20)') ' SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY &
-                                            &HF ORBITALS: ',SumN_Rho_ii
+                                            &HF ORBITALS: ', SumN_Rho_ii
             end if
             if (tDumpForcesInfo) then
                 if (.not. tPrint1RDM) call Finalise_1e_RDM(Norm_1RDM)

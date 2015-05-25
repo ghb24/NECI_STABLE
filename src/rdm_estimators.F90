@@ -10,7 +10,64 @@ module rdm_estimators
 
 contains
 
-    subroutine Calc_Energy_from_RDM(Norm_2RDM)
+    subroutine rdm_output_wrapper(Norm_2RDM)
+
+        use FciMCData, only: tFinalRDMEnergy, Iter, PreviousCycles
+        use LoggingData, only: tRDMInstEnergy
+        use Parallel_neci, only: iProcIndex
+        use rdm_data, only: tOpenShell, Trace_2RDM, Trace_2RDM_inst, Energies_unit
+        use rdm_data, only: aaaa_RDM, bbbb_RDM, abab_RDM, baba_RDM, abba_RDM, baab_RDM
+        use rdm_temp, only: Finalise_2e_RDM
+
+        real(dp), intent(out) :: Norm_2RDM
+
+        real(dp) :: Norm_2RDM_Inst, Trace_2RDM_New, spin_est
+        real(dp) :: RDMEnergy, RDMEnergy1, RDMEnergy2, RDMEnergy_Inst
+
+        ! Normalise, make Hermitian, etc.
+        call Finalise_2e_RDM(Norm_2RDM_Inst, Norm_2RDM)
+
+        call Calc_Energy_from_RDM(Norm_2RDM, Norm_2RDM_Inst, Trace_2RDM_New, RDMEnergy, RDMEnergy1, RDMEnergy2, RDMEnergy_Inst)
+
+        if (iProcIndex == 0) then
+            ! Calculate the instantaneous estimate of <S^2> using the 2RDM.
+            spin_est = calc_2rdm_spin_estimate(Norm_2RDM_Inst)
+
+            if (tRDMInstEnergy) then
+                write(Energies_unit, "(1X,I13,3(2X,es20.13))") Iter+PreviousCycles, RDMEnergy_Inst, spin_est, 1.0_dp/Norm_2RDM_Inst
+            else
+                write(Energies_unit, "(I31,F30.15)") Iter+PreviousCycles, RDMEnergy
+            end if
+            call neci_flush(Energies_unit)
+
+            if (tFinalRDMEnergy) then
+                write(6,*) 'Trace of 2-el-RDM before normalisation : ', Trace_2RDM
+                write(6,*) 'Trace of 2-el-RDM after normalisation : ', Trace_2RDM_New
+                write(6,*) 'Energy contribution from the 1-RDM: ', RDMEnergy1
+                write(6,*) 'Energy contribution from the 2-RDM: ', RDMEnergy2
+                write(6,'(A64,F30.20)') ' *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:', RDMEnergy
+                close(Energies_unit) 
+            end if
+        end if
+
+        ! Zero all of the instantaneous RDM arrays and data.
+        if (tRDMInstEnergy) then
+            aaaa_RDM(:,:) = 0.0_dp
+            abab_RDM(:,:) = 0.0_dp
+            abba_RDM(:,:) = 0.0_dp
+
+            if (tOpenShell)then
+                bbbb_RDM(:,:) = 0.0_dp
+                baba_RDM(:,:) = 0.0_dp
+                baab_RDM(:,:) = 0.0_dp
+            end if
+
+            Trace_2RDM_Inst = 0.0_dp
+        end if
+
+    end subroutine rdm_output_wrapper
+
+    subroutine Calc_Energy_from_RDM(Norm_2RDM, Norm_2RDM_Inst, Trace_2RDM_New, RDMEnergy, RDMEnergy1, RDMEnergy2, RDMEnergy_Inst)
 
         ! This routine takes the 1 electron and 2 electron reduced density
         ! matrices and calculated the energy they give.
@@ -24,30 +81,27 @@ contains
         !   Tr(h1 1RDM) = Sum_i,j [ h1(i,j) 1RDM(j,i) ]
         !   Tr(h2 2RDM) = Sum_i,j;k,l [ h2(i,j;k,l) 2RDM(k,l;i,j) ]
 
-        use FciMCData, only: tFinalRDMEnergy, Iter, PreviousCycles
+        use FciMCData, only: tFinalRDMEnergy
         use global_utilities, only: set_timer, halt_timer
         use IntegralsData, only: umat
         use LoggingData, only: tRDMInstEnergy
         use Parallel_neci, only: iProcIndex
         use rdm_data, only: RDMEnergy_Time, tOpenShell, aaaa_RDM, bbbb_RDM
-        use rdm_data, only: abab_RDM, baba_RDM, abba_RDM, baab_RDM, Trace_2RDM_Inst
+        use rdm_data, only: abab_RDM, baba_RDM, abba_RDM, baab_RDM
         use rdm_data, only: aaaa_RDM_full, bbbb_RDM_full, abab_RDM_full, Trace_2RDM
-        use rdm_data, only: baba_RDM_full, abba_RDM_full, baab_RDM_full, Trace_2RDM_Inst
-        use rdm_data, only: Energies_unit
-        use rdm_temp, only: Finalise_2e_RDM
+        use rdm_data, only: baba_RDM_full, abba_RDM_full, baab_RDM_full
         use RotateOrbsData, only: SpatOrbs
         use SystemData, only: tStoreSpinOrbs, ecore
         use UMatCache, only: UMatInd
 
-        real(dp), intent(out) :: Norm_2RDM
+        real(dp), intent(in) :: Norm_2RDM, Norm_2RDM_Inst
+        real(dp), intent(out) :: Trace_2RDM_New, RDMEnergy, RDMEnergy1, RDMEnergy2, RDMEnergy_Inst
 
-        real(dp) :: Norm_2RDM_Inst
         integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab, ierr
         integer :: iSpin, jSpin, error
-        real(dp) :: RDMEnergy_Inst, RDMEnergy, Coul, Exch, Parity_Factor
+        real(dp) :: Coul, Exch, Parity_Factor
         real(dp) :: Coul_aaaa, Coul_bbbb, Coul_abba, Coul_baab, Coul_abab, Coul_baba
         real(dp) :: Exch_aaaa, Exch_bbbb, Exch_abba, Exch_baab, Exch_abab, Exch_baba
-        real(dp) :: Trace_2RDM_New, RDMEnergy1, RDMEnergy2, spin_est
 
         call set_timer(RDMEnergy_Time, 30)
 
@@ -57,14 +111,9 @@ contains
         RDMEnergy2 = 0.0_dp
         RDMEnergy = 0.0_dp
     
-        ! Normalise, make hermitian, print etc.
-        call Finalise_2e_RDM(Norm_2RDM_Inst, Norm_2RDM)
+        if (tFinalRDMEnergy) write(6,'(/,"Calculating the final RDM energy")')
 
-        if (tFinalRDMEnergy) then
-            write(6,*) ''
-            write(6,*) 'Calculating the final RDM energy'
-        end if
-
+        ! Only calculate RDM energy on the root processor.
         if (iProcIndex .eq. 0) then
 
             do i = 1, SpatOrbs
@@ -137,7 +186,7 @@ contains
                                 end if  
 
 
-                                if (Ind1_aa.eq.Ind2_aa) then
+                                if (Ind1_aa .eq. Ind2_aa) then
                                     Trace_2RDM_New = Trace_2RDM_New + &
                                                         aaaa_RDM_full(Ind1_aa,Ind2_aa) * Norm_2RDM
                                     if (tOpenShell) Trace_2RDM_New = Trace_2RDM_New + &
@@ -147,8 +196,8 @@ contains
                                 ! For abab cases, coul element will be non-zero, exchange zero.
 
                                 if (tStoreSpinOrbs) then
-                                    Coul_abab=real(UMAT(UMatInd(2*i, 2*j-1, 2*a, 2*b-1, 0, 0)),dp)
-                                    Coul_baba=real(UMAT(UMatInd(2*i-1, 2*j, 2*a-1, 2*b, 0, 0)),dp)
+                                    Coul_abab = real(UMAT(UMatInd(2*i, 2*j-1, 2*a, 2*b-1, 0, 0)), dp)
+                                    Coul_baba = real(UMAT(UMatInd(2*i-1, 2*j, 2*a-1, 2*b, 0, 0)), dp)
 
                                     call neci_flush(6)
 
@@ -181,7 +230,7 @@ contains
 
                                 end if 
 
-                                if (Ind1_ab.eq.Ind2_ab) then
+                                if (Ind1_ab .eq. Ind2_ab) then
                                     Trace_2RDM_New = Trace_2RDM_New + &
                                                         abab_RDM_full(Ind1_ab,Ind2_ab) * Norm_2RDM
                                     if (tOpenShell) Trace_2RDM_New = Trace_2RDM_New + &
@@ -191,8 +240,8 @@ contains
                                 ! For abba cases, coul element will be zero, exchange non-zero.
 
                                 if (tStoreSpinOrbs) then
-                                    Exch_abba=real(UMAT(UMatInd(2*i, 2*j-1, 2*b, 2*a-1, 0, 0)),dp)
-                                    Exch_baab=real(UMAT(UMatInd(2*i-1, 2*j, 2*b-1, 2*a, 0, 0)),dp)
+                                    Exch_abba = real(UMAT(UMatInd(2*i, 2*j-1, 2*b, 2*a-1, 0, 0)), dp)
+                                    Exch_baab = real(UMAT(UMatInd(2*i-1, 2*j, 2*b-1, 2*a, 0, 0)), dp)
 
                                     if (tRDMInstEnergy) then 
                                         RDMEnergy_Inst = RDMEnergy_Inst - ( abba_RDM(Ind1_aa,Ind2_aa) &
@@ -229,12 +278,12 @@ contains
                                 ! For abab/baba Exch = 0, and for abba/baab Coul=0
                                 ! abba/baab saved in abab/baba. Changes the sign. 
                                 if (tStoreSpinOrbs) then
-                                    Coul_abab=real(UMAT(UMatInd(2*i, 2*j-1, 2*a, 2*b-1, 0, 0)),dp)
-                                    Coul_baba=real(UMAT(UMatInd(2*i-1, 2*j, 2*a-1, 2*b, 0, 0)),dp)
+                                    Coul_abab = real(UMAT(UMatInd(2*i, 2*j-1, 2*a, 2*b-1, 0, 0)), dp)
+                                    Coul_baba = real(UMAT(UMatInd(2*i-1, 2*j, 2*a-1, 2*b, 0, 0)), dp)
 
                                     if ( (i .eq. j) .and. (a .eq. b) ) then
                                         ! This term is saved in abab only
-                                        Exch_abba=real(UMAT(UMatInd(2*i, 2*j-1, 2*b, 2*a-1, 0, 0)),dp)
+                                        Exch_abba = real(UMAT(UMatInd(2*i, 2*j-1, 2*b, 2*a-1, 0, 0)), dp)
     
                                         if (tRDMInstEnergy) then
                                             RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * abab_RDM(Ind1_ab,Ind2_ab) &
@@ -248,8 +297,8 @@ contains
                                     else if (i .eq. j) then
                                         ! i = j : Swap first indeces to get abba/baab terms
                                         ! abba saved in baba, baab saved in abab (sign changes)
-                                        Exch_abba=real(UMAT(UMatInd(2*j, 2*i-1, 2*b, 2*a-1, 0, 0)),dp) 
-                                        Exch_baab=real(UMAT(UMatInd(2*j-1, 2*i, 2*b-1, 2*a, 0, 0)),dp) 
+                                        Exch_abba = real(UMAT(UMatInd(2*j, 2*i-1, 2*b, 2*a-1, 0, 0)), dp)
+                                        Exch_baab = real(UMAT(UMatInd(2*j-1, 2*i, 2*b-1, 2*a, 0, 0)), dp)
     
                                         if (tRDMInstEnergy) then
                                             RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * abab_RDM(Ind1_ab,Ind2_ab) &
@@ -269,8 +318,8 @@ contains
                                     else if (a .eq. b) then
                                         ! a = b : Swap last indeces to get abba/baab terms
                                         ! abba saved in abab, baab saved in baba (sign changes)
-                                        Exch_abba=real(UMAT(UMatInd(2*i, 2*j-1, 2*a, 2*b-1, 0, 0)),dp)
-                                        Exch_baab=real(UMAT(UMatInd(2*i-1, 2*j, 2*a-1, 2*b, 0, 0)),dp)
+                                        Exch_abba = real(UMAT(UMatInd(2*i, 2*j-1, 2*a, 2*b-1, 0, 0)), dp)
+                                        Exch_baab = real(UMAT(UMatInd(2*i-1, 2*j, 2*a-1, 2*b, 0, 0)), dp)
     
                                         if (tRDMInstEnergy) then
                                             RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * abab_RDM(Ind1_ab,Ind2_ab) &
@@ -307,7 +356,7 @@ contains
 
                                 end if 
 
-                                if (Ind1_ab.eq.Ind2_ab) then
+                                if (Ind1_ab .eq. Ind2_ab) then
                                     Trace_2RDM_New = Trace_2RDM_New + &
                                                         abab_RDM_full(Ind1_ab,Ind2_ab) * Norm_2RDM
                                     if (tOpenShell) then
@@ -324,46 +373,11 @@ contains
                 end do
             end do
 
+            ! The total energy from the 'instantaneous' RDM.
             if (tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + Ecore/Norm_2RDM_Inst
-            RDMEnergy = RDMEnergy1 + RDMEnergy2 + Ecore 
+            ! The total energy from the 'full' RDM.
+            RDMEnergy = RDMEnergy1 + RDMEnergy2 + Ecore
 
-            ! Calculate the instantaneous estimate of <S^2> using the 2RDM.
-            spin_est = calc_2rdm_spin_estimate(Norm_2RDM_Inst)
-
-            ! Obviously this 'instantaneous' energy is actually accumulated between energy 
-            ! print outs.
-            if (tRDMInstEnergy) then
-                write(Energies_unit, "(1X,I13,3(2X,es20.13))") Iter+PreviousCycles, RDMEnergy_Inst, spin_est, &
-                                                                1.0_dp/Norm_2RDM_Inst
-            else
-                write(Energies_unit, "(I31,F30.15)") Iter+PreviousCycles, RDMEnergy
-            end if
-            call neci_flush(Energies_unit)
-
-            if (tFinalRDMEnergy) then
-                write(6,*) 'Trace of 2-el-RDM before normalisation : ', Trace_2RDM
-                write(6,*) 'Trace of 2-el-RDM after normalisation : ', Trace_2RDM_New
-                write(6,*) 'Energy contribution from the 1-RDM: ', RDMEnergy1
-                write(6,*) 'Energy contribution from the 2-RDM: ', RDMEnergy2
-                write(6,'(A64,F30.20)') ' *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:', RDMEnergy
-                close(Energies_unit) 
-            end if
-
-        end if
-
-        ! Zero all the 'instantaneous' stuff.
-        if (tRDMInstEnergy) then
-            aaaa_RDM(:,:) = 0.0_dp
-            abab_RDM(:,:) = 0.0_dp
-            abba_RDM(:,:) = 0.0_dp
-
-            if (tOpenShell)then
-                bbbb_RDM(:,:) = 0.0_dp
-                baba_RDM(:,:) = 0.0_dp
-                baab_RDM(:,:) = 0.0_dp
-            end if
-
-            Trace_2RDM_Inst = 0.0_dp
         end if
 
         call halt_timer(RDMEnergy_Time)
