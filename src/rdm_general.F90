@@ -26,8 +26,8 @@ contains
         use DeterminantData, only: write_det
         use CalcData, only: MemoryFacPart
         use FciMCData, only: MaxSpawned, Spawned_Parents, Spawned_Parents_Index
-        use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag, AccumRDMNorm_Inst
-        use FciMCData, only: AccumRDMNorm, tSinglePartPhase, HFDet_True, tFinalRDMEnergy
+        use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag
+        use FciMCData, only: tSinglePartPhase, HFDet_True, tFinalRDMEnergy
         use LoggingData, only: tDo_Not_Calc_RDMEnergy, tNo_RDMs_To_Read, tWrite_RDMs_to_read
         use LoggingData, only: tRDMInstEnergy, RDMExcitLevel, tExplicitAllRDM, tPrint1RDM
         use LoggingData, only: tDiagRDM, tReadRDMs, tPopsfile, tDumpForcesInfo, tDipoles
@@ -493,10 +493,6 @@ contains
 
         Trace_2RDM = 0.0_dp
         Trace_2RDM_Inst = 0.0_dp
-        ! AccumRDMNorm is the normalisation for the case where we're using a
-        ! limited reference to calculate the RDM.
-        AccumRDMNorm = 0.0_dp
-        AccumRDMNorm_Inst = 0.0_dp
 
         ! Reads in the RDMs from a previous calculation, sets the accumulating
         ! normalisations, writes out the starting energy.
@@ -525,7 +521,6 @@ contains
 
     subroutine zero_rdms()
 
-        use FciMCData, only: AccumRDMNorm_Inst, AccumRDMNorm
         use LoggingData, only: RDMExcitLevel
         use NatOrbsMod, only: NatOrbMat
 
@@ -551,8 +546,6 @@ contains
 
         Trace_2RDM = 0.0_dp
         Trace_2RDM_Inst = 0.0_dp
-        AccumRDMNorm = 0.0_dp
-        AccumRDMNorm_Inst = 0.0_dp
 
     end subroutine zero_rdms
 
@@ -1019,7 +1012,6 @@ contains
         ! hermitian if required, and prints out the versions we're interested
         ! in. This is only ever called at the very end of a calculation.
 
-        use FciMCData, only: AllAccumRDMNorm
         use LoggingData, only: twrite_RDMs_to_read, twrite_normalised_RDMs, tForceCauchySchwarz
         use LoggingData, only: RDMExcitLevel
         use NatOrbsMod, only: NatOrbMat
@@ -1032,7 +1024,6 @@ contains
         real(dp), allocatable :: AllNode_NatOrbMat(:,:)
 
         Norm_1RDM = 0.0_dp
-        AllAccumRDMNorm = 0.0_dp
 
         if (RDMExcitLevel .eq. 1) then
 

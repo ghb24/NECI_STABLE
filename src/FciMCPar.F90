@@ -405,14 +405,15 @@ module FciMCParMod
             IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.0).and.(.not.tRDMonFly)) THEN
                 CALL WriteHistogram()
             ENDIF
-            IF(tRDMonFly.and.(.not.tSinglePartPhase(1)).and. &
-                        (.not.(tSinglePartPhase(inum_runs)))) THEN
+
+            if (tRDMonFly .and. (.not. tSinglePartPhase(1)) .and. (.not. tSinglePartPhase(inum_runs))) then
                 ! If we wish to calculate the energy, have started accumulating the RDMs, 
                 ! and this is an iteration where the energy should be calculated, do so.
-                if(tCalc_RDMEnergy .and. ((Iter - maxval(VaryShiftIter)).gt.IterRDMonFly) &
-                    .and. (mod((Iter+PreviousCycles - IterRDMStart)+1,RDMEnergyIter).eq.0) ) &
-                        CALL Calc_Energy_from_RDM(Norm_2RDM)  
-            ENDIF
+                if(tCalc_RDMEnergy .and. ((Iter - maxval(VaryShiftIter)) .gt. IterRDMonFly) &
+                    .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) .eq. 0) ) &
+                        call Calc_Energy_from_RDM(Norm_2RDM)
+            end if
+
             if(tChangeVarsRDM) then
                 ! Decided during the CHANGEVARS that the RDMs should be calculated.
                 call InitRDM() 
@@ -473,7 +474,7 @@ module FciMCParMod
             CALL PrintOrbOccs(OrbOccs)
         ENDIF
 
-        IF(tFillingStochRDMonFly .or. tFillingExplicRDMonFly) call FinaliseRDM()
+        if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) call FinaliseRDM()
 
         call PrintHighPops()
 

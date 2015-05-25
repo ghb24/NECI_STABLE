@@ -24,7 +24,7 @@ contains
         !   Tr(h1 1RDM) = Sum_i,j [ h1(i,j) 1RDM(j,i) ]
         !   Tr(h2 2RDM) = Sum_i,j;k,l [ h2(i,j;k,l) 2RDM(k,l;i,j) ]
 
-        use FciMCData, only: tFinalRDMEnergy, Iter, PreviousCycles, AccumRDMNorm_Inst
+        use FciMCData, only: tFinalRDMEnergy, Iter, PreviousCycles
         use global_utilities, only: set_timer, halt_timer
         use IntegralsData, only: umat
         use LoggingData, only: tRDMInstEnergy
@@ -363,7 +363,6 @@ contains
                 baab_RDM(:,:) = 0.0_dp
             end if
 
-            AccumRDMNorm_Inst = 0.0_dp
             Trace_2RDM_Inst = 0.0_dp
         end if
 
