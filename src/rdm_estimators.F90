@@ -15,10 +15,12 @@ contains
         use FciMCData, only: tFinalRDMEnergy, Iter, IterRDMStart, PreviousCycles
         use LoggingData, only: tRDMInstEnergy, tWriteMultRDMs, IterWriteRDMs
         use LoggingData, only: tWrite_RDMs_to_read, tWrite_normalised_RDMs
+        use LoggingData, only: tWriteSpinFreeRDM
         use Parallel_neci, only: iProcIndex
         use rdm_data, only: tOpenShell, Trace_2RDM, Trace_2RDM_inst, Energies_unit
         use rdm_data, only: aaaa_RDM, bbbb_RDM, abab_RDM, baba_RDM, abba_RDM, baab_RDM
         use rdm_temp, only: Finalise_2e_RDM, calc_2e_norms, Write_out_2RDM
+        use rdm_temp, only: Write_spinfree_RDM
 
         real(dp), intent(out) :: Norm_2RDM
 
@@ -39,14 +41,18 @@ contains
             ! Print out the relevant 2-RDMs.
             if (tFinalRDMEnergy .or. (tWriteMultRDMs .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, IterWriteRDMs) .eq. 0))) then
 
-                if (tFinalRDMEnergy) then
-                    ! Only ever want to print the 2-RDMs (for reading in) at the end.
-                    if (tWrite_RDMs_to_read) call Write_out_2RDM(Norm_2RDM, .false., .false.)
+                ! Only ever want to print the 2-RDMs (for reading in) at the end.
+                if (tFinalRDMEnergy .and. tWrite_RDMs_to_read) then
+                    call Write_out_2RDM(Norm_2RDM, .false., .false.)
+                    if (tWriteSpinFreeRDM) call Write_spinfree_RDM(Norm_2RDM)
                 end if
 
                 ! This writes out the normalised, hermitian 2-RDMs.
                 ! IMPORTANT NOTE: We assume that we want tMake_Herm=.true. here.
-                if (tWrite_normalised_RDMs) call Write_out_2RDM(Norm_2RDM, .true., .true.)
+                if (tWrite_normalised_RDMs) then
+                    call Write_out_2RDM(Norm_2RDM, .true., .true.)
+                    if (tWriteSpinFreeRDM) call Write_spinfree_RDM(Norm_2RDM)
+                end if
 
              end if
 

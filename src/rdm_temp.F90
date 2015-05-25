@@ -161,7 +161,7 @@ contains
         ! the aaaa elements.
 
         use FciMCData, only: tFinalRDMEnergy, Iter, PreviousCycles
-        use LoggingData, only: tWriteSpinFreeRDM, tWriteMultRDMs
+        use LoggingData, only: tWriteMultRDMs
         use rdm_data, only: aaaa_RDM_full, bbbb_RDM_full, abab_RDM_full, baba_RDM_full, abba_RDM_full, baab_RDM_full
         use rdm_data, only: aaaa_RDM_full, bbbb_RDM_full, abab_RDM_full, baba_RDM_full, abba_RDM_full, baab_RDM_full
         use rdm_data, only: tOpenShell
@@ -444,7 +444,7 @@ contains
                                             write(baab_RDM_unit,"(4I6,G25.17)") i,j,a,b, &
                                                 ( ((baab_RDM_full(Ind1_aa,Ind2_aa) + baab_RDM_full(Ind2_aa,Ind1_aa))/2.0_dp) &
                                                                         * Norm_2RDM ) / Divide_Factor
-                                        end if  ! tFinalRDMEnergy = .true.
+                                        end if  ! tFinalRDMEnergy = .true./.false.
 
                                     else if (.not.tNormalise) then
                                         write(baab_RDM_unit) i, j, a, b, baab_RDM_full(Ind1_aa,Ind2_aa) 
@@ -630,8 +630,6 @@ contains
             close(baba_RDM_unit)
             close(baab_RDM_unit)
         end if
-
-        if (tWriteSpinFreeRDM) call Write_spinfree_RDM(Norm_2RDM)
 
         if (tNormalise) then
             write(6,'(I15,F30.20,A20,A39)') Iter+PreviousCycles, Max_Error_Hermiticity, &
