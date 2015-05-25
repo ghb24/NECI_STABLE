@@ -1705,16 +1705,8 @@ contains
         ! IterRDMonFly is the number of iterations after the shift has changed that we want 
         ! to fill the RDMs.  If this many iterations have passed, start accumulating the RDMs! 
         
-            IterRDMStart = Iter+PreviousCycles
-            IterRDM_HF = Iter+PreviousCycles
-
-            !if(tReadRDMs .and. tReadRDMAvPop) then
-                !We need to read in the values of IterRDMStart and IterRDM_HF
-            !    iunit_4=get_free_unit()
-            !    OPEN(iunit_4,FILE='ITERRDMSTART',status='old')
-            !    read(iunit_4, *) IterRDMStart, IterRDM_HF, AvNoAtHF
-
-            !endif
+            IterRDMStart = Iter + PreviousCycles
+            IterRDM_HF = Iter + PreviousCycles
 
             ! We have reached the iteration where we want to start filling the RDM.
             if(tExplicitAllRDM) then
