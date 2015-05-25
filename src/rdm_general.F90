@@ -519,36 +519,6 @@ contains
 
     end subroutine InitRDM
 
-    subroutine zero_rdms()
-
-        use LoggingData, only: RDMExcitLevel
-        use NatOrbsMod, only: NatOrbMat
-
-        if (RDMExcitLevel .eq. 1) then
-            NatOrbMat(:,:) = 0.0_dp
-        else
-            aaaa_RDM(:,:) = 0.0_dp
-            abab_RDM(:,:) = 0.0_dp
-            abba_RDM(:,:) = 0.0_dp
-            AllNodes_aaaa_RDM(:,:) = 0.0_dp
-            AllNodes_abab_RDM(:,:) = 0.0_dp
-            AllNodes_abba_RDM(:,:) = 0.0_dp
-
-            if (tOpenShell) then
-                bbbb_RDM(:,:) = 0.0_dp
-                baba_RDM(:,:) = 0.0_dp
-                baab_RDM(:,:) = 0.0_dp
-                AllNodes_bbbb_RDM(:,:) = 0.0_dp
-                AllNodes_baba_RDM(:,:) = 0.0_dp
-                AllNodes_baab_RDM(:,:) = 0.0_dp
-            end if
-        end if
-
-        Trace_2RDM = 0.0_dp
-        Trace_2RDM_Inst = 0.0_dp
-
-    end subroutine zero_rdms
-
     subroutine Read_In_RDMs()
 
         ! Reads in the arrays to restart the RDM calculation (and continue
