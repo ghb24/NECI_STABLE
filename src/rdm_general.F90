@@ -134,7 +134,7 @@ contains
 
                 allocate(aaaa_RDM_inst(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
                 if (ierr .ne. 0) call Stop_All(this_routine,'Problem allocating aaaa_RDM_inst array,')
-                call LogMemAlloc('aaaa_RDM_inst',(((SpatOrbs*(SpatOrbs-1))/2)**2),8,this_routine,aaaa_RDM_instTag,ierr)
+                call LogMemAlloc('aaaa_RDM_inst', (((SpatOrbs*(SpatOrbs-1))/2)**2), 8, this_routine, aaaa_RDM_instTag, ierr)
                 aaaa_RDM_inst(:,:)=0.0_dp
 
                 ! The 2-RDM of the type alpha beta beta alpha (= beta alpha alpha beta).
@@ -1355,66 +1355,65 @@ contains
             call LogMemDeAlloc(this_routine,SymLabelListInv_rotTag)
         end if
 
-        if (allocated(aaaa_RDM_inst)) then
+        if (associated(aaaa_RDM_inst)) then
             deallocate(aaaa_RDM_inst)
             call LogMemDeAlloc(this_routine,aaaa_RDM_instTag)
         end if
 
-        if (allocated(abab_RDM_inst)) then
+        if (associated(abab_RDM_inst)) then
             deallocate(abab_RDM_inst)
             call LogMemDeAlloc(this_routine,abab_RDM_instTag)
         end if
 
-        if (allocated(abba_RDM_inst)) then
+        if (associated(abba_RDM_inst)) then
             deallocate(abba_RDM_inst)
             call LogMemDeAlloc(this_routine,abba_RDM_instTag)
         end if
 
-        if (allocated(bbbb_RDM_inst)) then
+        if (associated(bbbb_RDM_inst)) then
             deallocate(bbbb_RDM_inst)
             call LogMemDeAlloc(this_routine,bbbb_RDM_instTag)
         end if
 
-        if (allocated(baba_RDM_inst)) then
+        if (associated(baba_RDM_inst)) then
             deallocate(baba_RDM_inst)
             call LogMemDeAlloc(this_routine,baba_RDM_instTag)
         end if
 
-        if (allocated(baab_RDM_inst)) then
+        if (associated(baab_RDM_inst)) then
             deallocate(baab_RDM_inst)
             call LogMemDeAlloc(this_routine,baab_RDM_instTag)
         end if
 
-        if (allocated(aaaa_RDM_full)) then
+        if (associated(aaaa_RDM_full)) then
             deallocate(aaaa_RDM_full)
             call LogMemDeAlloc(this_routine,aaaa_RDM_fullTag)
         end if
 
-        if (allocated(abab_RDM_full)) then
+        if (associated(abab_RDM_full)) then
             deallocate(abab_RDM_full)
             call LogMemDeAlloc(this_routine,abab_RDM_fullTag)
         end if
 
-        if (allocated(abba_RDM_full)) then
+        if (associated(abba_RDM_full)) then
             deallocate(abba_RDM_full)
             call LogMemDeAlloc(this_routine,abba_RDM_fullTag)
         end if
 
-        if (allocated(bbbb_RDM_full)) then
+        if (associated(bbbb_RDM_full)) then
             deallocate(bbbb_RDM_full)
             call LogMemDeAlloc(this_routine,bbbb_RDM_fullTag)
         end if
 
-        if (allocated(baba_RDM_full)) then
+        if (associated(baba_RDM_full)) then
             deallocate(baba_RDM_full)
             call LogMemDeAlloc(this_routine,baba_RDM_fullTag)
         end if
 
-        if (allocated(baab_RDM_full)) then
+        if (associated(baab_RDM_full)) then
             deallocate(baab_RDM_full)
             call LogMemDeAlloc(this_routine,baab_RDM_fullTag)
         end if
-
 
     end subroutine DeallocateRDM
 

@@ -39,13 +39,12 @@ contains
                       & .or. ((Iter-VaryShiftIter(inum_runs)) .le. IterRDMonFly) &
                       & .or. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) .ne. 0)))) then
 
-
             allocate(AllNodes_aaaa_RDM(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
             allocate(AllNodes_abba_RDM(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
             allocate(AllNodes_abab_RDM(((SpatOrbs*(SpatOrbs+1))/2), ((SpatOrbs*(SpatOrbs+1))/2)), stat=ierr)
             
             ! The aaaa_RDM may be either inst or full, depending on whether we
-            ! are calculating inst. energies or not
+            ! are calculating instantaneous energies or not.
             call MPISumAll(aaaa_RDM(:,:), AllNodes_aaaa_RDM(:,:))
             call MPISumAll(abab_RDM(:,:), AllNodes_abab_RDM(:,:))
             call MPISumAll(abba_RDM(:,:), AllNodes_abba_RDM(:,:))
@@ -75,7 +74,6 @@ contains
                 deallocate(AllNodes_baba_RDM)
                 deallocate(AllNodes_baab_RDM)
             end if
-
 
             ! The TwoElRDM on the root is now the sum of all 'instantaneous' RDMs
             ! (summed over the energy update cycle). Whereas TwoElRDM_full is

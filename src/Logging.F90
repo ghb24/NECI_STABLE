@@ -146,8 +146,8 @@ MODULE Logging
       rottwo = 0
       rotthree = 0
       rotfour = 0
-      tRDMInstEnergy=.true.
-      tFullHFAv=.false.
+      tRDMInstEnergy = .true.
+      tFullHFAv = .false.
       tPrintDataTables = .true.
 
 #ifdef __PROG_NUMRUNS
@@ -163,8 +163,6 @@ MODULE Logging
       ENDIF
 
     end subroutine SetLogDefaults
-
-
 
     subroutine LogReadInput()
 

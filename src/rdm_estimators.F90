@@ -189,7 +189,7 @@ contains
 
                                 if (tRDMInstEnergy) then
                                     RDMEnergy_Inst = RDMEnergy_Inst + (aaaa_RDM(Ind1_aa,Ind2_aa) &
-                                                                *( Coul - Exch ) )
+                                                                * ( Coul - Exch ) )
                                 end if
 
                                 RDMEnergy2 = RDMEnergy2 + ( aaaa_RDM_full(Ind1_aa,Ind2_aa) &
@@ -198,7 +198,7 @@ contains
                                 if (tOpenShell) then
                                     if (tRDMInstEnergy) then 
                                         RDMEnergy_Inst = RDMEnergy_Inst + (bbbb_RDM(Ind1_aa,Ind2_aa) &
-                                                      *( Coul - Exch ) )
+                                                      * ( Coul - Exch ) )
                                     end if
 
                                     RDMEnergy2 = RDMEnergy2 + ( bbbb_RDM_full(Ind1_aa,Ind2_aa) &
@@ -533,15 +533,15 @@ contains
                             ! of CI energies).  We will keep it outside for now, consistent with the storage
                             ! within neci
 
-                            do t=1, SpatOrbs
+                            do t = 1, SpatOrbs
                                 
                                 !Integral (pr|st) = <ps|rt>
                                 !Give indices in PHYSICAL NOTATION
                                 !NB, FCIDUMP is labelled in chemical notation
-                                Coul = real(UMAT(UMatInd(p,s,r,t,0,0)),8)
+                                Coul = real(UMAT(UMatInd(p, s, r, t, 0, 0)),8)
 
-                                qrst = Find_Spatial_2RDM_Chem(q,r,s,t, Norm_2RDM)
-                                rqst = Find_Spatial_2RDM_Chem(r,q,s,t, Norm_2RDM)
+                                qrst = Find_Spatial_2RDM_Chem(q, r, s, t, Norm_2RDM)
+                                rqst = Find_Spatial_2RDM_Chem(r, q, s, t, Norm_2RDM)
                                 
                                 Lagrangian(p,q) = Lagrangian(p,q) + 0.5_dp*Coul*(qrst+rqst)
                             end do
@@ -595,9 +595,9 @@ contains
         use RotateOrbsMod, only: SymLabelListInv_rot
         use SystemData, only: nel
 
-        integer, intent(in) :: i,j,a,iSpin,jSpin
+        integer, intent(in) :: i, j, a, iSpin, jSpin
         real(dp), intent(in) :: Norm_2RDM, Norm_2RDM_Inst
-        real(dp), intent(inout) :: RDMEnergy_Inst, RDMEnergy1,RDmEnergy2
+        real(dp), intent(inout) :: RDMEnergy_Inst, RDMEnergy1, RDMEnergy2
         real(dp) :: Parity_Factor, fac_doublecount
         integer :: Ind1_1e_ab, Ind2_1e_ab
         integer :: Ind1_1e_aa, Ind2_1e_aa
@@ -662,7 +662,7 @@ contains
                            ( (abab_RDM(Ind2_1e_ab, Ind1_1e_ab) ) &
                                                * real(TMAT2D(jSpin_abab,iSpin_abab),dp) &
                                                * (1.0_dp / real(NEl - 1,dp)) )
-                if (tOpenShell) then !add baba terms
+                if (tOpenShell) then ! add baba terms
                     if (.not. t_abab_only) then
                         RDMEnergy_Inst = RDMEnergy_Inst + &
                                        ( (baba_RDM(Ind1_1e_ab,Ind2_1e_ab) ) &
@@ -699,7 +699,7 @@ contains
                      if (t_opposite_contri) RDMEnergy1 = RDMEnergy1 + ( (baba_RDM_full(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM) &
                                  * real(TMAT2D(jSpin_baba,iSpin_baba),dp) &
                                  * (1.0_dp / real(NEl - 1,dp)) )
-                else ! baba_RDM saved in abab_RDM  & t_opposite_contri = false
+                else ! baba_RDM saved in abab_RDM & t_opposite_contri = false
                     RDMEnergy1 = RDMEnergy1 + ( (abab_RDM_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
                                  * real(TMAT2D(iSpin_baba,jSpin_baba),dp) &
                                  * (1.0_dp / real(NEl - 1,dp)) )
@@ -887,7 +887,7 @@ contains
                Parity_Factor = -1.0_dp
            end if
           
-           if (tRDmInstEnergy) then
+           if (tRDMInstEnergy) then
                RDMEnergy_Inst = RDMEnergy_Inst + &
                           ( (aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) ) &
                                                 * real(TMAT2D(iSpin,jSpin),dp) &
