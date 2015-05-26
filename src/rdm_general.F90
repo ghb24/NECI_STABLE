@@ -865,10 +865,10 @@ contains
         deallocate(SpawnVec2)
         call LogMemDealloc(this_routine,SpawnVec2Tag)
  
-        allocate(SpawnVec(0:(NIftot+NIfDBO+2),MaxSpawned),stat=ierr)
-        call LogMemAlloc('SpawnVec',MaxSpawned*(NIfTot+NIfDBO+3),size_n_int,this_routine,SpawnVecTag,ierr)
-        allocate(SpawnVec2(0:(NIfTot+NIfDBO+2),MaxSpawned),stat=ierr)
-        call LogMemAlloc('SpawnVec2',MaxSpawned*(NIfTot+NIfDBO+3),size_n_int,this_routine,SpawnVec2Tag,ierr)
+        allocate(SpawnVec(0:(NIftot+NIfDBO+2), MaxSpawned), stat=ierr)
+        call LogMemAlloc('SpawnVec', MaxSpawned*(NIfTot+NIfDBO+3), size_n_int, this_routine, SpawnVecTag, ierr)
+        allocate(SpawnVec2(0:(NIfTot+NIfDBO+2), MaxSpawned),stat=ierr)
+        call LogMemAlloc('SpawnVec2', MaxSpawned*(NIfTot+NIfDBO+3), size_n_int, this_routine, SpawnVec2Tag, ierr)
 
 !        SpawnVec(:,:) = 0
 !        SpawnVec2(:,:) = 0

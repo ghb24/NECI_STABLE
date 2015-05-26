@@ -302,20 +302,20 @@ contains
             part_realSignI = transfer( Spawned_Parents(NIfDBO+1,i), part_realSignI )
 
             ! The original spawning event (and the RealSignI) came from this population.
-            source_part_type=Spawned_Parents(NIfDBO+2,i)
+            source_part_type = Spawned_Parents(NIfDBO+2,i)
 
-            !The sign contribution from J must come from the other population.
-            if (source_part_type.eq.1) then
-                dest_part_type=lenof_sign
+            ! The sign contribution from J must come from the other population.
+            if (source_part_type .eq. 1) then
+                dest_part_type = lenof_sign
             else
-                dest_part_type=1
+                dest_part_type = 1
             end if
 
             ! Given the Di,Dj and Ci,Cj - find the orbitals involved in the
             ! excitation, and therefore the RDM elements we want to add the
             ! Ci.Cj to. We have to halve the contributions for DR as we're
             ! summing in pairs that originated from spawning events in both
-            ! pop 1 and pop 2 -- i.e. doublecounted wrt diagonal elements
+            ! pop 1 and pop 2 -- i.e., double counted wrt diagonal elements.
             if (tHPHF) then
                 call Fill_Spin_Coupled_RDM_v2(Spawned_Parents(0:NIfDBO,i), iLutJ, nI, nJ, &
                            (1.0_dp/real(lenof_sign,dp))*part_realSignI, realSignJ(dest_part_type), .false.)
@@ -327,7 +327,7 @@ contains
 
     end subroutine DiDj_Found_FillRDM
 
-    subroutine Fill_Spin_Coupled_RDM_v2(iLutnI,iLutnJ,nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
+    subroutine Fill_Spin_Coupled_RDM_v2(iLutnI, iLutnJ, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
 
         ! This routine does the same as Fill_Spin_Coupled_RDM, but hopefully
         ! more efficiently! It takes to HPHF functions, and calculate what

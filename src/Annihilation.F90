@@ -596,7 +596,7 @@ module AnnihilationMod
                     call encode_sign(SpawnedParts(:,i), null_part)
 
                     ! If we are spawning onto a site and growing it, then
-                    ! count that spawn for initiator purposes
+                    ! count that spawn for initiator purposes.
                     if (any(signprod > 0)) call inc_spawn_count(PartInd)
 
                     do j = 1, lenof_sign
@@ -665,8 +665,8 @@ module AnnihilationMod
                             ! spawned walker yet to find this determinant).
                             call remove_hash_table_entry(HashIndex, nJ, PartInd)
                             ! Add to "freeslot" list so it can be filled in.
-                            iEndFreeSlot=iEndFreeSlot+1
-                            FreeSlot(iEndFreeSlot)=PartInd
+                            iEndFreeSlot = iEndFreeSlot + 1
+                            FreeSlot(iEndFreeSlot) = PartInd
                         end if
                     end if
 
