@@ -43,7 +43,7 @@ module rdm_data
 
     real(dp), allocatable :: Lagrangian(:,:)
 
-    real(dp) :: Trace_1RDM, Trace_2RDM, Trace_2RDM_Inst
+    real(dp) :: Trace_2RDM, Trace_2RDM_Inst
 
     ! Timers.
     type(timer), save :: nElRDM_Time, FinaliseRDM_time, RDMEnergy_time
@@ -84,7 +84,8 @@ module rdm_data
         real(dp), allocatable :: Lagrangian(:,:)
         integer :: Rho_iiTag
 
-        real(dp) :: Trace_1RDM, Trace_2RDM, Trace_2RDM_Inst
+        ! RDM traces.
+        real(dp) :: Trace_2RDM, Trace_2RDM_Inst
 
     end type rdm_t
 
