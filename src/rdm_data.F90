@@ -73,7 +73,7 @@ module rdm_data
     real(dp), allocatable :: Lagrangian(:,:)
     integer :: Rho_iiTag
 
-    real(dp) :: OneEl_Gap, TwoEl_Gap, Normalisation
+    real(dp) :: OneEl_Gap, TwoEl_Gap
     real(dp) :: Trace_2RDM_Inst, Trace_2RDM, Trace_1RDM
 
     ! Timers.
