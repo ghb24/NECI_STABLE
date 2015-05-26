@@ -116,9 +116,6 @@ MODULE Logging
       RDMExcitLevel=1
       tDo_Not_Calc_RDMEnergy = .false.
       tExplicitAllRDM = .false.
-!      tHF_S_D_Ref = .false.
-!      tHF_S_D = .false.
-!      tHF_Ref_Explicit = .false.
       twrite_normalised_RDMs = .true. 
       tWriteSpinFreeRDM = .false.
       twrite_RDMs_to_read = .false.
@@ -612,20 +609,6 @@ MODULE Logging
         case("EXPLICITALLRDM")
 !Explicitly calculates all the elements of the RDM.            
             tExplicitAllRDM = .true.
-
-!        case("HFREFRDMEXPLICIT")
-!Uses the HF as a reference and explicitly calculates the RDM to find the energy - should be same as projected energy, 
-!when printing out every shift update.
-!            tHF_Ref_Explicit = .true.
-
-!        case("HFSDRDM")
-!Calculate the RDM for the HF, singles and doubles only - symmetrically.            
-!            tHF_S_D = .true.
-
-!        case("HFSDREFRDM")
-            ! Uses the HF, singles and doubles as a multiconfigurational
-            ! reference and calculates the RDM to find the energy.
-!            tHF_S_D_Ref = .true.
 
         case("WRITEINITIATORS")
             ! Requires a popsfile to be written out.  Writes out the initiator
