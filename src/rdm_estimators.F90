@@ -17,7 +17,7 @@ contains
         use LoggingData, only: tWrite_RDMs_to_read, tWrite_normalised_RDMs
         use LoggingData, only: tWriteSpinFreeRDM
         use Parallel_neci, only: iProcIndex
-        use rdm_data, only: tOpenShell, Trace_2RDM, Trace_2RDM_inst, Energies_unit
+        use rdm_data, only: tOpenShell, Trace_2RDM, Trace_2RDM_inst, rdm_estimates_unit
         use rdm_data, only: aaaa_RDM, bbbb_RDM, abab_RDM, baba_RDM, abba_RDM, baab_RDM
         use rdm_temp, only: Finalise_2e_RDM, calc_2e_norms, Write_out_2RDM
         use rdm_temp, only: Write_spinfree_RDM
@@ -58,11 +58,12 @@ contains
             spin_est = calc_2rdm_spin_estimate(Norm_2RDM_Inst)
 
             if (tRDMInstEnergy) then
-                write(Energies_unit, "(1X,I13,3(2X,es20.13))") Iter+PreviousCycles, RDMEnergy_Inst, spin_est, 1.0_dp/Norm_2RDM_Inst
+                write(rdm_estimates_unit, "(1X,I13,3(2X,es20.13))") Iter+PreviousCycles, RDMEnergy_Inst, &
+                                                                    spin_est, 1.0_dp/Norm_2RDM_Inst
             else
-                write(Energies_unit, "(I31,F30.15)") Iter+PreviousCycles, RDMEnergy
+                write(rdm_estimates_unit, "(I31,F30.15)") Iter+PreviousCycles, RDMEnergy
             end if
-            call neci_flush(Energies_unit)
+            call neci_flush(rdm_estimates_unit)
 
             if (tFinalRDMEnergy) then
                 write(6,*) 'Trace of 2-el-RDM before normalisation : ', Trace_2RDM
@@ -70,7 +71,7 @@ contains
                 write(6,*) 'Energy contribution from the 1-RDM: ', RDMEnergy1
                 write(6,*) 'Energy contribution from the 2-RDM: ', RDMEnergy2
                 write(6,'(A64,F30.20)') ' *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:', RDMEnergy
-                close(Energies_unit)
+                close(rdm_estimates_unit)
             end if
         end if
 

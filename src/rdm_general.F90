@@ -484,10 +484,10 @@ contains
 
         ! Open file to keep track of RDM Energies (if they're being calculated). 
         if ((iProcIndex.eq.0).and.tCalc_RDMEnergy) then
-            Energies_unit = get_free_unit()
-            open(Energies_unit, file='RDMEstimates', status='unknown', position='append')
+            rdm_estimates_unit = get_free_unit()
+            open(rdm_estimates_unit, file='RDMEstimates', status='unknown', position='append')
 
-            write(Energies_unit, "('#', 4X, 'Iteration', 6X, 'Energy numerator', 6X, 'Spin^2 numerator', 9X, 'Normalisation')")
+            write(rdm_estimates_unit,"('#', 4X, 'Iteration', 6X, 'Energy numerator', 6X, 'Spin^2 numerator', 9X, 'Normalisation')")
         end if
         tFinalRDMEnergy = .false.
 

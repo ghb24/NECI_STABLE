@@ -705,7 +705,7 @@ module FciMCParMod
         ! being printed.
         tFill_RDM = .false.
         if(tFillingStochRDMonFly) then
-            if(mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0) then 
+            if(mod((Iter+PreviousCycles - IterRDMStart + 1), RDMEnergyIter).eq.0) then 
                 ! RDM energy is being printed, calculate the diagonal elements for 
                 ! the last RDMEnergyIter iterations.
                 tFill_RDM = .true.
@@ -714,7 +714,7 @@ module FciMCParMod
                 ! Last iteration, calculate the diagonal element for the iterations 
                 ! since the last time they were included.
                 tFill_RDM = .true.
-                IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter)
+                IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1), RDMEnergyIter)
             endif
         endif
 
@@ -762,8 +762,8 @@ module FciMCParMod
                 ! found in extract_bit_rep_avsign.
                 call set_av_sgn(j, AvSignCurr)
                 call set_iter_occ(j, IterRDMStartCurr)
-                ! If this is an iteration where print out the RDM energy,
-                ! calculate the diagonal contribution to the RDM for this
+                ! If this is an iteration where we print out the RDM energy,
+                ! add in the diagonal contribution to the RDM for this
                 ! determinant.
                 if(tFill_RDM .and. (.not. tNoNewRDMContrib)) then
                     call fill_rdm_diag_currdet(CurrentDets(:,j), DetCurr, j, &
