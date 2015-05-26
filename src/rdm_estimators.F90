@@ -18,7 +18,6 @@ contains
         use LoggingData, only: tWriteSpinFreeRDM
         use Parallel_neci, only: iProcIndex
         use rdm_data, only: tOpenShell, Trace_2RDM, Trace_2RDM_inst, rdm_estimates_unit
-        use rdm_data, only: aaaa_RDM, bbbb_RDM, abab_RDM, baba_RDM, abba_RDM, baab_RDM
         use rdm_data, only: rdms
         use rdm_temp, only: Finalise_2e_RDM, calc_2e_norms, Write_out_2RDM
         use rdm_temp, only: Write_spinfree_RDM
@@ -57,7 +56,7 @@ contains
                                       RDMEnergy1, RDMEnergy2, RDMEnergy_Inst)
 
             ! Calculate the instantaneous estimate of <S^2> using the 2RDM.
-            spin_est = calc_2rdm_spin_estimate(Norm_2RDM_Inst)
+            spin_est = calc_2rdm_spin_estimate(rdms(1), Norm_2RDM_Inst)
 
             if (tRDMInstEnergy) then
                 write(rdm_estimates_unit, "(1X,I13,3(2X,es20.13))") Iter+PreviousCycles, RDMEnergy_Inst, &
@@ -79,14 +78,14 @@ contains
 
         ! Zero all of the instantaneous RDM arrays and data.
         if (tRDMInstEnergy) then
-            aaaa_RDM(:,:) = 0.0_dp
-            abab_RDM(:,:) = 0.0_dp
-            abba_RDM(:,:) = 0.0_dp
+            rdms(1)%aaaa(:,:) = 0.0_dp
+            rdms(1)%abab(:,:) = 0.0_dp
+            rdms(1)%abba(:,:) = 0.0_dp
 
             if (tOpenShell)then
-                bbbb_RDM(:,:) = 0.0_dp
-                baba_RDM(:,:) = 0.0_dp
-                baab_RDM(:,:) = 0.0_dp
+                rdms(1)%bbbb(:,:) = 0.0_dp
+                rdms(1)%baba(:,:) = 0.0_dp
+                rdms(1)%baab(:,:) = 0.0_dp
             end if
 
             Trace_2RDM_Inst = 0.0_dp
@@ -114,8 +113,7 @@ contains
         use IntegralsData, only: umat
         use LoggingData, only: tRDMInstEnergy
         use Parallel_neci, only: iProcIndex
-        use rdm_data, only: RDMEnergy_Time, tOpenShell, aaaa_RDM, bbbb_RDM
-        use rdm_data, only: abab_RDM, baba_RDM, abba_RDM, baab_RDM
+        use rdm_data, only: RDMEnergy_Time, tOpenShell
         use rdm_data, only: rdm_t, Trace_2RDM
         use RotateOrbsData, only: SpatOrbs
         use SystemData, only: tStoreSpinOrbs, ecore
@@ -177,9 +175,9 @@ contains
                                 Exch_bbbb = real(UMAT(UMatInd(2*i-1, 2*j-1, 2*b-1, 2*a-1, 0, 0)),dp)     
 
                                 if (tRDMInstEnergy) then 
-                                    RDMEnergy_Inst = RDMEnergy_Inst + (aaaa_RDM(Ind1_aa,Ind2_aa) &
+                                    RDMEnergy_Inst = RDMEnergy_Inst + (rdm%aaaa(Ind1_aa,Ind2_aa) &
                                                       *( Coul_aaaa - Exch_aaaa ) )
-                                    RDMEnergy_Inst = RDMEnergy_Inst + (bbbb_RDM(Ind1_aa,Ind2_aa) &
+                                    RDMEnergy_Inst = RDMEnergy_Inst + (rdm%bbbb(Ind1_aa,Ind2_aa) &
                                                       *  ( Coul_bbbb - Exch_bbbb ) )
                                 end if
 
@@ -191,7 +189,7 @@ contains
                             else 
 
                                 if (tRDMInstEnergy) then
-                                    RDMEnergy_Inst = RDMEnergy_Inst + (aaaa_RDM(Ind1_aa,Ind2_aa) &
+                                    RDMEnergy_Inst = RDMEnergy_Inst + (rdm%aaaa(Ind1_aa,Ind2_aa) &
                                                                 * ( Coul - Exch ) )
                                 end if
 
@@ -200,7 +198,7 @@ contains
 
                                 if (tOpenShell) then
                                     if (tRDMInstEnergy) then 
-                                        RDMEnergy_Inst = RDMEnergy_Inst + (bbbb_RDM(Ind1_aa,Ind2_aa) &
+                                        RDMEnergy_Inst = RDMEnergy_Inst + (rdm%bbbb(Ind1_aa,Ind2_aa) &
                                                       * ( Coul - Exch ) )
                                     end if
 
@@ -227,14 +225,14 @@ contains
                                 call neci_flush(6)
 
                                 if (tRDMInstEnergy) then
-                                    RDMEnergy_Inst = RDMEnergy_Inst + ( abab_RDM(Ind1_ab,Ind2_ab) &
+                                    RDMEnergy_Inst = RDMEnergy_Inst + ( rdm%abab(Ind1_ab,Ind2_ab) &
                                                                     *  Coul_abab )
                                 end if
                                 RDMEnergy2 = RDMEnergy2 + ( rdm%abab_full(Ind1_ab,Ind2_ab) &
                                                         * Norm_2RDM * Coul_abab ) 
 
                                 if (tRDMInstEnergy) then
-                                    RDMEnergy_Inst = RDMEnergy_Inst + ( baba_RDM(Ind1_ab,Ind2_ab) &
+                                    RDMEnergy_Inst = RDMEnergy_Inst + ( rdm%baba(Ind1_ab,Ind2_ab) &
                                                                     *  Coul_baba )
                                 end if
                                 RDMEnergy2 = RDMEnergy2 + ( rdm%baba_full(Ind1_ab,Ind2_ab) &
@@ -242,9 +240,9 @@ contains
 
                             else 
                                 if (tRDMInstEnergy) then
-                                    RDMEnergy_Inst = RDMEnergy_Inst + ( abab_RDM(Ind1_ab,Ind2_ab) &
+                                    RDMEnergy_Inst = RDMEnergy_Inst + ( rdm%abab(Ind1_ab,Ind2_ab) &
                                                                     *  Coul )
-                                    if (tOpenShell) RDMEnergy_Inst = RDMEnergy_Inst + ( baba_RDM(Ind1_ab,Ind2_ab) &
+                                    if (tOpenShell) RDMEnergy_Inst = RDMEnergy_Inst + ( rdm%baba(Ind1_ab,Ind2_ab) &
                                                                     *  Coul )
                                 end if
 
@@ -269,9 +267,9 @@ contains
                                 Exch_baab = real(UMAT(UMatInd(2*i-1, 2*j, 2*b-1, 2*a, 0, 0)), dp)
 
                                 if (tRDMInstEnergy) then 
-                                    RDMEnergy_Inst = RDMEnergy_Inst - ( abba_RDM(Ind1_aa,Ind2_aa) &
+                                    RDMEnergy_Inst = RDMEnergy_Inst - ( rdm%abba(Ind1_aa,Ind2_aa) &
                                                                     * Exch_abba )
-                                    RDMEnergy_Inst = RDMEnergy_Inst - ( baab_RDM(Ind1_aa,Ind2_aa) &
+                                    RDMEnergy_Inst = RDMEnergy_Inst - ( rdm%baab(Ind1_aa,Ind2_aa) &
                                                                     * Exch_baab )
                                 end if
 
@@ -283,9 +281,9 @@ contains
                             else 
 
                                 if (tRDMInstEnergy) then 
-                                    RDMEnergy_Inst = RDMEnergy_Inst - ( abba_RDM(Ind1_aa,Ind2_aa) &
+                                    RDMEnergy_Inst = RDMEnergy_Inst - ( rdm%abba(Ind1_aa,Ind2_aa) &
                                                                     * Exch )
-                                    if (tOpenShell) RDMEnergy_Inst = RDMEnergy_Inst - ( baab_RDM(Ind1_aa,Ind2_aa) &
+                                    if (tOpenShell) RDMEnergy_Inst = RDMEnergy_Inst - ( rdm%baab(Ind1_aa,Ind2_aa) &
                                                                     *  Exch )
                                 end if
 
@@ -311,7 +309,7 @@ contains
                                     Exch_abba = real(UMAT(UMatInd(2*i, 2*j-1, 2*b, 2*a-1, 0, 0)), dp)
 
                                     if (tRDMInstEnergy) then
-                                        RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * abab_RDM(Ind1_ab,Ind2_ab) &
+                                        RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * rdm%abab(Ind1_ab,Ind2_ab) &
                                                                           * (Coul_abab+Exch_abba)
                                
                                     end if 
@@ -326,9 +324,9 @@ contains
                                     Exch_baab = real(UMAT(UMatInd(2*j-1, 2*i, 2*b-1, 2*a, 0, 0)), dp)
 
                                     if (tRDMInstEnergy) then
-                                        RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * abab_RDM(Ind1_ab,Ind2_ab) &
+                                        RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * rdm%abab(Ind1_ab,Ind2_ab) &
                                                                           *  (Coul_abab+Exch_baab)
-                                        RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * baba_RDM(Ind1_ab,Ind2_ab) &
+                                        RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * rdm%baba(Ind1_ab,Ind2_ab) &
                                                                           *  (Coul_baba+Exch_abba)
                                     end if 
 
@@ -347,9 +345,9 @@ contains
                                     Exch_baab = real(UMAT(UMatInd(2*i-1, 2*j, 2*a-1, 2*b, 0, 0)), dp)
 
                                     if (tRDMInstEnergy) then
-                                        RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * abab_RDM(Ind1_ab,Ind2_ab) &
+                                        RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * rdm%abab(Ind1_ab,Ind2_ab) &
                                                                     *(Coul_abab+Exch_abba)
-                                        RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * baba_RDM(Ind1_ab,Ind2_ab) &
+                                        RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * rdm%baba(Ind1_ab,Ind2_ab) &
                                                                     * (Coul_baba+Exch_baab)
                                     end if 
 
@@ -364,10 +362,10 @@ contains
                             else
 
                                 if (tRDMInstEnergy) then 
-                                    RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * abab_RDM(Ind1_ab,Ind2_ab) &
+                                    RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * rdm%abab(Ind1_ab,Ind2_ab) &
                                                                     * (Coul+Exch)
                                     if (tOpenShell) RDMEnergy_Inst = RDMEnergy_Inst  &
-                                                                    + 0.5_dp *baba_RDM(Ind1_ab,Ind2_ab) &
+                                                                    + 0.5_dp *rdm%baba(Ind1_ab,Ind2_ab) &
                                                                     *  (Coul+Exch)
                                 end if 
 
@@ -408,17 +406,18 @@ contains
 
     end subroutine Calc_Energy_from_RDM
     
-    function calc_2rdm_spin_estimate(Norm_2RDM_Inst) result(spin_est)
+    function calc_2rdm_spin_estimate(rdm, Norm_2RDM_Inst) result(spin_est)
 
         ! Return the (unnormalised) estimate of <S^2> from the instantaneous
         ! 2RDM estimates.
 
-        use rdm_data, only: tOpenShell, aaaa_RDM, bbbb_RDM
-        use rdm_Data, only: abab_RDM, baba_RDM, abba_RDM, baab_RDM
+        use rdm_data, only: rdm_t, tOpenShell
         use RotateOrbsData, only: SpatOrbs
         use SystemData, only: nel
-
+ 
+        type(rdm_t), intent(in) :: rdm
         real(dp), intent(in) :: Norm_2RDM_Inst
+
         integer :: i, j
         integer :: Ind1_aa, Ind1_ab
         real(dp) :: spin_est
@@ -432,14 +431,14 @@ contains
                 Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + i
                 Ind1_ab = ( ( (j-1) * j ) / 2 ) + i
 
-                spin_est = spin_est + 2*aaaa_RDM(Ind1_aa, Ind1_aa) &
-                                    - 2*abab_RDM(Ind1_ab, Ind1_ab) &
-                                    + 4*abba_RDM(Ind1_aa, Ind1_aa)
+                spin_est = spin_est + 2*rdm%aaaa(Ind1_aa, Ind1_aa) &
+                                    - 2*rdm%abab(Ind1_ab, Ind1_ab) &
+                                    + 4*rdm%abba(Ind1_aa, Ind1_aa)
 
                 if (tOpenShell) then
-                    spin_est = spin_est + 2*bbbb_RDM(Ind1_aa, Ind1_aa) &
-                                        - 2*baba_RDM(Ind1_ab, Ind1_ab) &
-                                        + 4*baab_RDM(Ind1_aa, Ind1_aa)
+                    spin_est = spin_est + 2*rdm%bbbb(Ind1_aa, Ind1_aa) &
+                                        - 2*rdm%baba(Ind1_ab, Ind1_ab) &
+                                        + 4*rdm%baab(Ind1_aa, Ind1_aa)
                 end if
 
             end do
@@ -447,8 +446,8 @@ contains
             ! i = j term.
             Ind1_ab = ( ( (i-1) * i ) / 2 ) + i
 
-            spin_est = spin_est - 6*abab_RDM(Ind1_ab, Ind1_ab)
-            if (tOpenShell) spin_est = spin_est - 6*baba_RDM(Ind1_ab, Ind1_ab)
+            spin_est = spin_est - 6*rdm%abab(Ind1_ab, Ind1_ab)
+            if (tOpenShell) spin_est = spin_est - 6*rdm%baba(Ind1_ab, Ind1_ab)
 
         end do 
 
@@ -594,7 +593,6 @@ contains
         use OneEInts, only: TMAT2D
         use LoggingData, only: tDiagRDM, tDumpForcesInfo, tDipoles, tRDMInstEnergy, tPrint1RDM
         use NatOrbsMod, only: NatOrbMat
-        use rdm_data, only: aaaa_RDM, bbbb_RDM, abab_RDM, baba_RDM, abba_RDM, baab_RDM
         use rdm_data, only: rdm_t, tOpenShell
         use RotateOrbsMod, only: SymLabelListInv_rot
         use SystemData, only: nel
@@ -660,28 +658,28 @@ contains
 
             if (tRDMInstEnergy) then
                 RDMEnergy_Inst = RDMEnergy_Inst + &
-                           fac_doublecount*( (abab_RDM(Ind1_1e_ab,Ind2_1e_ab) ) &
+                           fac_doublecount*( (rdm%abab(Ind1_1e_ab,Ind2_1e_ab) ) &
                                                * real(TMAT2D(iSpin_abab,jSpin_abab),dp) &
                                                * (1.0_dp / real(NEl - 1,dp)) )
 
                 if (t_opposite_contri) RDMEnergy_Inst = RDMEnergy_Inst + &
-                           ( (abab_RDM(Ind2_1e_ab, Ind1_1e_ab) ) &
+                           ( (rdm%abab(Ind2_1e_ab, Ind1_1e_ab) ) &
                                                * real(TMAT2D(jSpin_abab,iSpin_abab),dp) &
                                                * (1.0_dp / real(NEl - 1,dp)) )
                 if (tOpenShell) then ! add baba terms
                     if (.not. t_abab_only) then
                         RDMEnergy_Inst = RDMEnergy_Inst + &
-                                       ( (baba_RDM(Ind1_1e_ab,Ind2_1e_ab) ) &
+                                       ( (rdm%baba(Ind1_1e_ab,Ind2_1e_ab) ) &
                                        * real(TMAT2D(iSpin_baba,jSpin_baba),dp) &
                                        * (1.0_dp / real(NEl - 1,dp)) )
 
                         if (t_opposite_contri)  RDMEnergy_Inst = RDMEnergy_Inst + &
-                                       ( (baba_RDM(Ind2_1e_ab,Ind1_1e_ab) ) &
+                                       ( (rdm%baba(Ind2_1e_ab,Ind1_1e_ab) ) &
                                        * real(TMAT2D(jSpin_baba,iSpin_baba),dp) &
                                        * (1.0_dp / real(NEl - 1,dp)) )
-                    else   ! i=j=a -> baba_RDM saved in abab_RDM & t_opposite_contri = false
+                    else   ! i=j=a -> rdm%baba saved in rdm%abab & t_opposite_contri = false
                         RDMEnergy_Inst = RDMEnergy_Inst + &
-                                       ( (abab_RDM(Ind1_1e_ab,Ind2_1e_ab) ) &
+                                       ( (rdm%abab(Ind1_1e_ab,Ind2_1e_ab) ) &
                                        * real(TMAT2D(iSpin_baba,jSpin_baba),dp) &
                                        * (1.0_dp / real(NEl - 1,dp)) )
                     end if
@@ -705,7 +703,7 @@ contains
                      if (t_opposite_contri) RDMEnergy1 = RDMEnergy1 + ( (rdm%baba_full(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM) &
                                  * real(TMAT2D(jSpin_baba,iSpin_baba),dp) &
                                  * (1.0_dp / real(NEl - 1,dp)) )
-                else ! baba_RDM saved in abab_RDM & t_opposite_contri = false
+                else ! rdm%baba saved in rdm%abab & t_opposite_contri = false
                     RDMEnergy1 = RDMEnergy1 + ( (rdm%abab_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
                                  * real(TMAT2D(iSpin_baba,jSpin_baba),dp) &
                                  * (1.0_dp / real(NEl - 1,dp)) )
@@ -793,13 +791,13 @@ contains
 
                if (tRDMInstEnergy) then
                    RDMEnergy_Inst = RDMEnergy_Inst - &
-                                                  ( (abba_RDM(Ind1_1e_aa,Ind2_1e_aa) ) &
+                                                  ( (rdm%abba(Ind1_1e_aa,Ind2_1e_aa) ) &
                                                   * real(TMAT2D(iSpin_abba,jSpin_abba),dp) &
                                                   * (1.0_dp / real(NEl - 1,dp)) )
 
                    if (t_opposite_contri .and. (.not. tOpenShell) ) then
                        RDMEnergy_Inst = RDMEnergy_Inst - &
-                                                 ( (abba_RDM(Ind2_1e_aa,Ind1_1e_aa) ) &
+                                                 ( (rdm%abba(Ind2_1e_aa,Ind1_1e_aa) ) &
                                                   * real(TMAT2D(jSpin_abba,iSpin_abba),dp) &
                                                   * (1.0_dp / real(NEl - 1,dp)) )
                    end if
@@ -807,17 +805,17 @@ contains
                    if (tOpenShell) then
                        ! abba becomes baab when i and j are swapped for the opposite contribution
                        if (t_opposite_contri ) RDMEnergy_Inst = RDMEnergy_Inst - &
-                                                 ( (baab_RDM(Ind2_1e_aa,Ind1_1e_aa) ) &
+                                                 ( (rdm%baab(Ind2_1e_aa,Ind1_1e_aa) ) &
                                                   * real(TMAT2D(jSpin_abba,iSpin_abba),dp) &
                                                   * (1.0_dp / real(NEl - 1,dp)) )
 
                        RDMEnergy_Inst = RDMEnergy_Inst - &
-                                                  ( (baab_RDM(Ind1_1e_aa,Ind2_1e_aa) ) &
+                                                  ( (rdm%baab(Ind1_1e_aa,Ind2_1e_aa) ) &
                                                   * real(TMAT2D(iSpin_baab,jSpin_baab),dp) &
                                                   * (1.0_dp / real(NEl - 1,dp)) )
 
                        if (t_opposite_contri) RDMEnergy_Inst = RDMEnergy_Inst - &
-                                                 ( (abba_RDM(Ind2_1e_aa,Ind1_1e_aa) ) &
+                                                 ( (rdm%abba(Ind2_1e_aa,Ind1_1e_aa) ) &
                                                   * real(TMAT2D(jSpin_baab,iSpin_baab),dp) &
                                                   * (1.0_dp / real(NEl - 1,dp)) )
                    end if
@@ -895,21 +893,21 @@ contains
           
            if (tRDMInstEnergy) then
                RDMEnergy_Inst = RDMEnergy_Inst + &
-                          ( (aaaa_RDM(Ind1_1e_aa,Ind2_1e_aa) ) &
+                          ( (rdm%aaaa(Ind1_1e_aa,Ind2_1e_aa) ) &
                                                 * real(TMAT2D(iSpin,jSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
                if (t_opposite_contri) RDMEnergy_Inst = RDMEnergy_Inst + &
-                          ( (aaaa_RDM(Ind2_1e_aa,Ind1_1e_aa) ) &
+                          ( (rdm%aaaa(Ind2_1e_aa,Ind1_1e_aa) ) &
                                                 * real(TMAT2D(jSpin,iSpin),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
                if (tOpenShell) then
                    RDMEnergy_Inst = RDMEnergy_Inst +&
-                          ( (bbbb_RDM(Ind1_1e_aa,Ind2_1e_aa)) &
+                          ( (rdm%bbbb(Ind1_1e_aa,Ind2_1e_aa)) &
                                                 * real(TMAT2D(iSpin-1,jSpin-1),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor)
 
                    if (t_opposite_contri) RDMEnergy_Inst = RDMEnergy_Inst +&
-                          ( (bbbb_RDM(Ind2_1e_aa,Ind1_1e_aa)) &
+                          ( (rdm%bbbb(Ind2_1e_aa,Ind1_1e_aa)) &
                                                 * real(TMAT2D(jSpin-1,iSpin-1),dp) &
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor)
                end if

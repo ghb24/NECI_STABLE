@@ -242,7 +242,7 @@ contains
         use LoggingData, only: RDMExcitLevel
         use Parallel_neci, only: nProcessors
         use rdm_data, only: Sing_ExcList, Doub_ExcList, OneEl_Gap, TwoEl_Gap
-        use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs
+        use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs, rdms
         use rdm_filling, only: Fill_Diag_RDM
         use SymExcit3, only: GenExcitations3
         use SystemData, only: nel
@@ -257,7 +257,7 @@ contains
         ! Unfortunately uses the decoded determinant - might want to look at this.
         call extract_bit_rep(iLutnI, nI, SignDi, FlagsDi)
 
-        call Fill_Diag_RDM(nI, SignDi, .false.)
+        call Fill_Diag_RDM(rdms(1), nI, SignDi, .false.)
 
         ! Zeros in ExcitMat3 starts off at the first single excitation.
         ExcitMat3(:,:) = 0
@@ -358,13 +358,13 @@ contains
         use LoggingData, only: RDMExcitLevel
         use Parallel_neci, only: nProcessors
         use rdm_data, only: Sing_ExcList, Doub_ExcList, ExcNorm, OneEl_Gap, TwoEl_Gap
-        use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs
+        use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs, rdms
         use rdm_filling, only: Fill_Diag_RDM
         use SymExcit3, only: GenExcitations3
         use SystemData, only: nel
 
-        integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
-        integer(kind=n_int) :: iLutnJ(0:NIfTot)
+        integer(n_int), intent(in) :: iLutnI(0:NIfTot)
+        integer(n_int) :: iLutnJ(0:NIfTot)
         integer, dimension(lenof_sign) :: HistPos
         real(dp), dimension(lenof_sign) :: RealHistPos
         integer :: ExcitMat3(2,2), nI(NEl), nJ(NEl), Proc, FlagsDi
@@ -380,7 +380,7 @@ contains
         realSignDi(1) = AllHistogram(1, HistPos(1))/ExcNorm
         realSignDi(lenof_sign) = AllHistogram(1,HistPos(1))/ExcNorm
         
-        call Fill_Diag_RDM(nI, realSignDi, .false.)
+        call Fill_Diag_RDM(rdms(1), nI, realSignDi, .false.)
 
         ! Zeros in ExcitMat3 starts off at the first single excitation.
         ExcitMat3(:,:) = 0
@@ -696,13 +696,14 @@ contains
         use bit_reps, only: extract_bit_rep
         use FciMCData, only: CurrentDets, TotWalkers
         use Parallel_neci, only: nProcessors, MPIArg
-        use rdm_data, only: Sing_ExcDjs, Sing_ExcDjs2
+        use rdm_data, only: Sing_ExcDjs, Sing_ExcDjs2, rdms
         use rdm_filling, only: Fill_Sings_RDM
         use searching, only: BinSearchParts_rdm
         use SystemData, only: nel
 
         integer(MPIArg), intent(in) :: recvcounts(nProcessors),recvdisps(nProcessors)
-        integer(kind=n_int) :: iLutnJ(0:NIfTot)
+
+        integer(n_int) :: iLutnJ(0:NIfTot)
         real(dp), dimension(lenof_sign) :: SignDi,SignDj, SignDi2,SignDj2
         integer :: i, j, NoDets, StartDets, PartInd
         integer :: nI(NEl), nJ(NEl), Ex(2,2), FlagsDi, FlagsDj
@@ -750,7 +751,7 @@ contains
 
                         if (Ex(1,1) .le. 0) call Stop_All('Sing_SearchOccDets', 'nJ is not the correct excitation of nI.')
 
-                        call Fill_Sings_RDM(nI, Ex, tParity, realSignDi, realSignDj, .true.)
+                        call Fill_Sings_RDM(rdms(1), nI, Ex, tParity, realSignDi, realSignDj, .true.)
 
                         ! No normalisation factor just yet - possibly need to revise.
                     end if
@@ -771,7 +772,7 @@ contains
         use bit_reps, only: extract_bit_rep
         use FciMCData, only: CurrentDets, TotWalkers
         use Parallel_neci, only: nProcessors, MPIArg
-        use rdm_data, only: Doub_ExcDjs, Doub_ExcDjs2
+        use rdm_data, only: Doub_ExcDjs, Doub_ExcDjs2, rdms
         use rdm_filling, only: Fill_Doubs_RDM
         use searching, only: BinSearchParts_rdm
         use SystemData, only: nel
@@ -827,7 +828,7 @@ contains
                         if (Ex(1,1) .le. 0) call Stop_All('SearchOccDets',&
                                             'nJ is not the correct excitation of nI.')
 
-                        call Fill_Doubs_RDM(Ex, tParity, realSignDi, realSignDj, .true.)
+                        call Fill_Doubs_RDM(rdms(1), Ex, tParity, realSignDi, realSignDj, .true.)
                         
                     end if
                 end do
@@ -849,7 +850,7 @@ contains
         use hist, only: find_hist_coeff_explicit
         use hist_data, only: AllHistogram
         use Parallel_neci, only: nProcessors, MPIArg
-        use rdm_data, only: Sing_ExcDjs, Sing_ExcDjs2, ExcNorm
+        use rdm_data, only: Sing_ExcDjs, Sing_ExcDjs2, ExcNorm, rdms
         use rdm_filling, only: Fill_Sings_RDM
         use searching, only: BinSearchParts_rdm
         use SystemData, only: nel
@@ -913,7 +914,7 @@ contains
                         if (Ex(1,1).le.0) call Stop_All('Sing_SearchOccDets',&
                                             'nJ is not the correct excitation of nI.')
 
-                        call Fill_Sings_RDM(nI, Ex, tParity, realSignDi, realSignDj, .true.)
+                        call Fill_Sings_RDM(rdms(1), nI, Ex, tParity, realSignDi, realSignDj, .true.)
 
                         ! No normalisation factor just yet - possibly need to revise.                    
                     end if
@@ -937,7 +938,7 @@ contains
         use hist, only: find_hist_coeff_explicit
         use hist_data, only: AllHistogram
         use Parallel_neci, only: nProcessors, MPIArg
-        use rdm_data, only: Doub_ExcDjs, Doub_ExcDjs2, ExcNorm
+        use rdm_data, only: Doub_ExcDjs, Doub_ExcDjs2, ExcNorm, rdms
         use rdm_filling, only: Fill_Doubs_RDM
         use searching, only: BinSearchParts_rdm
         use SystemData, only: nel
@@ -998,7 +999,7 @@ contains
                         call GetExcitation(nI, nJ, NEl, Ex, tParity)
 
                         if (Ex(1,1) .le. 0) call Stop_All('SearchOccDets', 'nJ is not the correct excitation of nI.')
-                        call Fill_Doubs_RDM(Ex, tParity, realSignDi, realSignDj, .true.)
+                        call Fill_Doubs_RDM(rdms(1), Ex, tParity, realSignDi, realSignDj, .true.)
                         
                         
                     end if

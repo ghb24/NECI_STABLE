@@ -18,8 +18,6 @@ contains
         use LoggingData, only: IterRDMonFly
         use LoggingData, only: tRDMInstEnergy, RDMEnergyIter
         use Parallel_neci, only: iProcIndex, MPISumAll
-        use rdm_data, only: aaaa_RDM, bbbb_RDM, abab_RDM, baba_RDM, abba_RDM, baab_RDM
-        use rdm_data, only: aaaa_RDM, bbbb_RDM, abab_RDM, baba_RDM, abba_RDM, baab_RDM
         use rdm_data, only: AllNodes_RDM_small, AllNodes_RDM_large
         use rdm_data, only: rdm_t, tCalc_RDMEnergy, tOpenShell
         use RotateOrbsData, only: SpatOrbs
@@ -45,24 +43,24 @@ contains
             
             ! The RDM arrays may be either inst or full, depending on whether
             ! we are calculating instantaneous energies or not.
-            call MPISumAll(aaaa_RDM(:,:), AllNodes_RDM_small(:,:))
-            aaaa_RDM(:,:) = AllNodes_RDM_small(:,:)
+            call MPISumAll(rdm%aaaa(:,:), AllNodes_RDM_small(:,:))
+            rdm%aaaa(:,:) = AllNodes_RDM_small(:,:)
 
-            call MPISumAll(abba_RDM(:,:), AllNodes_RDM_small(:,:))
-            abba_RDM(:,:) = AllNodes_RDM_small(:,:)
+            call MPISumAll(rdm%abba(:,:), AllNodes_RDM_small(:,:))
+            rdm%abba(:,:) = AllNodes_RDM_small(:,:)
 
-            call MPISumAll(abab_RDM(:,:), AllNodes_RDM_large(:,:))
-            abab_RDM(:,:) = AllNodes_RDM_large(:,:)
+            call MPISumAll(rdm%abab(:,:), AllNodes_RDM_large(:,:))
+            rdm%abab(:,:) = AllNodes_RDM_large(:,:)
 
             if (tOpenShell) then
-                call MPISumAll(bbbb_RDM(:,:), AllNodes_RDM_small(:,:))
-                bbbb_RDM(:,:) = AllNodes_RDM_small(:,:)
+                call MPISumAll(rdm%bbbb(:,:), AllNodes_RDM_small(:,:))
+                rdm%bbbb(:,:) = AllNodes_RDM_small(:,:)
 
-                call MPISumAll(baab_RDM(:,:), AllNodes_RDM_small(:,:))
-                baab_RDM(:,:) = AllNodes_RDM_small(:,:)
+                call MPISumAll(rdm%baab(:,:), AllNodes_RDM_small(:,:))
+                rdm%baab(:,:) = AllNodes_RDM_small(:,:)
 
-                call MPISumAll(baba_RDM(:,:), AllNodes_RDM_large(:,:))
-                baba_RDM(:,:) = AllNodes_RDM_large(:,:)
+                call MPISumAll(rdm%baba(:,:), AllNodes_RDM_large(:,:))
+                rdm%baba(:,:) = AllNodes_RDM_large(:,:)
             end if
 
             deallocate(AllNodes_RDM_small)
@@ -72,13 +70,13 @@ contains
             ! (summed over the energy update cycle). Whereas TwoElRDM_full is
             ! accumulated over the entire run.
             if (tRDMInstEnergy .and. (iProcIndex .eq. 0)) then
-                rdm%aaaa_full(:,:) = rdm%aaaa_full(:,:) + aaaa_RDM(:,:)
-                rdm%abba_full(:,:) = rdm%abba_full(:,:) + abba_RDM(:,:)
-                rdm%abab_full(:,:) = rdm%abab_full(:,:) + abab_RDM(:,:)
+                rdm%aaaa_full(:,:) = rdm%aaaa_full(:,:) + rdm%aaaa(:,:)
+                rdm%abba_full(:,:) = rdm%abba_full(:,:) + rdm%abba(:,:)
+                rdm%abab_full(:,:) = rdm%abab_full(:,:) + rdm%abab(:,:)
                 if (tOpenShell) then
-                    rdm%bbbb_full(:,:) = rdm%bbbb_full(:,:) + bbbb_RDM(:,:)
-                    rdm%baab_full(:,:) = rdm%baab_full(:,:) + baab_RDM(:,:)
-                    rdm%baba_full(:,:) = rdm%baba_full(:,:) + baba_RDM(:,:)
+                    rdm%bbbb_full(:,:) = rdm%bbbb_full(:,:) + rdm%bbbb(:,:)
+                    rdm%baab_full(:,:) = rdm%baab_full(:,:) + rdm%baab(:,:)
+                    rdm%baba_full(:,:) = rdm%baba_full(:,:) + rdm%baba(:,:)
                 end if
             end if
         end if
@@ -97,7 +95,6 @@ contains
         ! system = 1/2 N ( N - 1), so we can do the same for the 2RDM.
 
         use LoggingData, only: tRDMInstEnergy
-        use rdm_data, only: aaaa_RDM, bbbb_RDM, abab_RDM, baba_RDM
         use rdm_data, only: Trace_2RDM_Inst, Trace_2RDM
         use rdm_data, only: rdm_t, tOpenShell
         use RotateOrbsData, only: SpatOrbs
@@ -116,8 +113,8 @@ contains
         do i = 1, ((SpatOrbs*(SpatOrbs+1))/2)
             if (i .le. ((SpatOrbs*(SpatOrbs-1))/2)) then
                 if (tRDMInstEnergy) then
-                    Trace_2RDM_Inst = Trace_2RDM_Inst + aaaa_RDM(i,i)
-                    if (tOpenShell) Trace_2RDM_Inst = Trace_2RDM_Inst + bbbb_RDM(i,i)
+                    Trace_2RDM_Inst = Trace_2RDM_Inst + rdm%aaaa(i,i)
+                    if (tOpenShell) Trace_2RDM_Inst = Trace_2RDM_Inst + rdm%bbbb(i,i)
                 end if
 
                 Trace_2RDM = Trace_2RDM + rdm%aaaa_full(i,i)
@@ -125,8 +122,8 @@ contains
             end if
 
             if (tRDMInstEnergy) then
-                Trace_2RDM_Inst = Trace_2RDM_Inst + abab_RDM(i,i)
-                if (tOpenShell) Trace_2RDM_Inst = Trace_2RDM_Inst + baba_RDM(i,i)
+                Trace_2RDM_Inst = Trace_2RDM_Inst + rdm%abab(i,i)
+                if (tOpenShell) Trace_2RDM_Inst = Trace_2RDM_Inst + rdm%baba(i,i)
             end if
 
             Trace_2RDM = Trace_2RDM + rdm%abab_full(i,i)

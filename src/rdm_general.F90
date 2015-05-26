@@ -172,7 +172,7 @@ contains
                 ! Extra arrays for open shell systems.
                 if (tOpenShell) then
                     allocate(rdms(1)%bbbb_inst(rdm_size_1, rdm_size_1), stat=ierr)
-                    if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating bbbb_RDM_inst array,')
+                    if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating bbbb_inst RDM array,')
                     call LogMemAlloc('rdms(1)%bbbb_inst', (rdm_size_1**2), 8, this_routine, rdms(1)%bbbb_instTag, ierr)
                     rdms(1)%bbbb_inst(:,:) = 0.0_dp
 
@@ -237,14 +237,14 @@ contains
 
                 end if
                 
-                aaaa_RDM => rdms(1)%aaaa_inst
-                abba_RDM => rdms(1)%abba_inst
-                abab_RDM => rdms(1)%abab_inst
+                rdms(1)%aaaa => rdms(1)%aaaa_inst
+                rdms(1)%abba => rdms(1)%abba_inst
+                rdms(1)%abab => rdms(1)%abab_inst
 
                 if (tOpenShell) then
-                    bbbb_RDM => rdms(1)%bbbb_inst
-                    baab_RDM => rdms(1)%baab_inst
-                    baba_RDM => rdms(1)%baba_inst
+                    rdms(1)%bbbb => rdms(1)%bbbb_inst
+                    rdms(1)%baab => rdms(1)%baab_inst
+                    rdms(1)%baba => rdms(1)%baba_inst
                 end if
 
             else
@@ -252,7 +252,7 @@ contains
                 ! Put RDM contributions directly into 'full' arrays, which are
                 ! now allocated every core
                 allocate(rdms(1)%aaaa_full(rdm_size_1,rdm_size_1), stat=ierr)
-                if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating aaaa_RDM_full array,')
+                if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating aaaa_full RDM array,')
                 call LogMemAlloc('rdms(1)%aaaa_full', (rdm_size_1**2), 8, this_routine,rdms(1)%aaaa_fullTag,ierr)
                 rdms(1)%aaaa_full(:,:) = 0.0_dp
 
@@ -279,9 +279,9 @@ contains
                 MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
                 MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8
                 
-                aaaa_RDM => rdms(1)%aaaa_full
-                abba_RDM => rdms(1)%abba_full
-                abab_RDM => rdms(1)%abab_full
+                rdms(1)%aaaa => rdms(1)%aaaa_full
+                rdms(1)%abba => rdms(1)%abba_full
+                rdms(1)%abab => rdms(1)%abab_full
 
                 if (tOpenShell) then
                     allocate(rdms(1)%bbbb_full(rdm_size_1, rdm_size_1), stat=ierr)
@@ -303,9 +303,9 @@ contains
                     MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
                     MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8
       
-                    bbbb_RDM => rdms(1)%bbbb_full
-                    baab_RDM => rdms(1)%baab_full
-                    baba_RDM => rdms(1)%baba_full
+                    rdms(1)%bbbb => rdms(1)%bbbb_full
+                    rdms(1)%baab => rdms(1)%baab_full
+                    rdms(1)%baba => rdms(1)%baba_full
                 end if
             end if ! not instantaneous
 

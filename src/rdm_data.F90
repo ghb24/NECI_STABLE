@@ -22,15 +22,6 @@ module rdm_data
     ! spin^2) are output.
     integer :: rdm_estimates_unit
 
-    ! Pointers which can point to *_inst or *_full, depending on what the user
-    ! has asked for.
-    real(dp), pointer :: aaaa_RDM(:,:) => null()
-    real(dp), pointer :: abab_RDM(:,:) => null()
-    real(dp), pointer :: abba_RDM(:,:) => null()
-    real(dp), pointer :: bbbb_RDM(:,:) => null()
-    real(dp), pointer :: baba_RDM(:,:) => null()
-    real(dp), pointer :: baab_RDM(:,:) => null()
-
     ! Arrays used as storage when summing RDMs over all processors.
     real(dp), allocatable :: AllNodes_RDM_small(:,:), AllNodes_RDM_large(:,:)
 
