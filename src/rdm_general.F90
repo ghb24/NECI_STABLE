@@ -35,7 +35,7 @@ contains
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag, OneEl_Gap, TwoEl_Gap
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
-        use rdm_data, only: Rho_ii, Rho_iiTag, Trace_2RDM, Trace_2RDM_Inst, rdm_estimates_unit
+        use rdm_data, only: Trace_2RDM, Trace_2RDM_Inst, rdm_estimates_unit
         use rdm_data, only: nElRDM_Time, FinaliseRDM_time, RDMEnergy_time
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
@@ -481,10 +481,10 @@ contains
                 call LogMemAlloc('Evalues', NoOrbs, 8, this_routine, EvaluesTag, ierr)
                 Evalues(:) = 0.0_dp
 
-                allocate(Rho_ii(NoOrbs), stat=ierr)
+                allocate(rdms(1)%Rho_ii(NoOrbs), stat=ierr)
                 if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating Rho_ii array,')
-                call LogMemAlloc('Rho_ii', NoOrbs, 8, this_routine, Rho_iiTag, ierr)
-                Rho_ii(:) = 0.0_dp
+                call LogMemAlloc('Rho_ii', NoOrbs, 8, this_routine, rdms(1)%Rho_iiTag, ierr)
+                rdms(1)%Rho_ii(:) = 0.0_dp
 
             end if
 
@@ -945,7 +945,7 @@ contains
         ! Combine the 1- or 2-RDM from all processors etc.
 
         if (RDMExcitLevel .eq. 1) then
-            call Finalise_1e_RDM(Norm_1RDM)  
+            call Finalise_1e_RDM(rdms(1), Norm_1RDM)
         else
             ! We always want to calculate one final RDM energy, whether or not we're 
             ! calculating the energy throughout the calculation.
@@ -958,15 +958,16 @@ contains
             call rdm_output_wrapper(Norm_2RDM)
 
             if (tPrint1RDM) then
-                call Finalise_1e_RDM(Norm_1RDM)
+                call Finalise_1e_RDM(rdms(1), Norm_1RDM)
             else if (tDiagRDM .and. (iProcIndex .eq. 0)) then
-                call calc_1e_norms(Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
+                call calc_1e_norms(rdms(1), Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
                 write(6,*) ''
                 write(6,'(A55,F30.20)') ' SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY &
                                             &HF ORBITALS: ', SumN_Rho_ii
             end if
+
             if (tDumpForcesInfo) then
-                if (.not. tPrint1RDM) call Finalise_1e_RDM(Norm_1RDM)
+                if (.not. tPrint1RDM) call Finalise_1e_RDM(rdms(1), Norm_1RDM)
                 call Calc_Lagrangian_from_RDM(rdms(1), Norm_1RDM, Norm_2RDM)
                 call convert_mats_Molpforces(rdms(1), Norm_1RDM, Norm_2RDM)
             end if
@@ -978,12 +979,12 @@ contains
         ! Call the routines from NatOrbs that diagonalise the one electron
         ! reduced density matrix.
         tRotatedNOs = .false. ! Needed for BrokenSymNo routine
-        if (tDiagRDM) call find_nat_orb_occ_numbers()
+        if (tDiagRDM) call find_nat_orb_occ_numbers(rdms(1))
 
         ! This is where we would likely call any further calculations of
         ! forces, etc.
         if (tDipoles) then
-            if (.not. tPrint1RDM) call Finalise_1e_RDM(Norm_1RDM)
+            if (.not. tPrint1RDM) call Finalise_1e_RDM(rdms(1), Norm_1RDM)
             call CalcDipoles(Norm_1RDM)
         end if
 
@@ -997,7 +998,7 @@ contains
     
     end subroutine FinaliseRDM
 
-    subroutine Finalise_1e_RDM(Norm_1RDM) 
+    subroutine Finalise_1e_RDM(rdm, Norm_1RDM) 
 
         ! This routine takes the 1-RDM (NatOrbMat), normalises it, makes it 
         ! hermitian if required, and prints out the versions we're interested
@@ -1007,10 +1008,13 @@ contains
         use LoggingData, only: RDMExcitLevel
         use NatOrbsMod, only: NatOrbMat
         use Parallel_neci, only: iProcIndex, MPISumAll
+        use rdm_data, only: rdm_t
         use RotateOrbsData, only: NoOrbs
+
+        type(rdm_t), intent(inout) :: rdm
+        real(dp), intent(out) :: Norm_1RDM
                              
         integer :: i, ierr
-        real(dp), intent(out) :: Norm_1RDM
         real(dp) :: Trace_1RDM, SumN_Rho_ii
         real(dp), allocatable :: AllNode_NatOrbMat(:,:)
 
@@ -1030,16 +1034,16 @@ contains
         if (iProcIndex .eq. 0) then 
 
             ! Find the normalisation.
-            call calc_1e_norms(Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
+            call calc_1e_norms(rdm, Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
 
             ! Write out the unnormalised, non-hermitian OneRDM_POPS.
-            if (twrite_RDMs_to_read) call Write_out_1RDM(Norm_1RDM,.false.)
+            if (twrite_RDMs_to_read) call Write_out_1RDM(Norm_1RDM, .false.)
 
             ! Enforce the hermiticity condition.  If the RDMExcitLevel is not 1, the 
             ! 1-RDM has been constructed from the hermitian 2-RDM, so this will not 
             ! be necessary.
             ! The HF_Ref and HF_S_D_Ref cases are not hermitian by definition.
-            if (RDMExcitLevel.eq.1) then
+            if (RDMExcitLevel .eq. 1) then
                 call make_1e_rdm_hermitian(Norm_1RDM)
                 
                 if (tForceCauchySchwarz)then
@@ -1049,15 +1053,15 @@ contains
             end if
             
             ! Write out the final, normalised, hermitian OneRDM.                
-            if (twrite_normalised_RDMs) call Write_out_1RDM(Norm_1RDM,.true.)
+            if (twrite_normalised_RDMs) call Write_out_1RDM(Norm_1RDM, .true.)
 
-            write(6,'(A55,F30.20)') ' SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS: ',SumN_Rho_ii
+            write(6,'(A55,F30.20)') ' SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS: ', SumN_Rho_ii
 
         end if
 
     end subroutine Finalise_1e_RDM
 
-    subroutine calc_1e_norms(Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
+    subroutine calc_1e_norms(rdm, Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
 
         ! We want to 'normalise' the reduced density matrices. These are not
         ! even close to being normalised at the moment, because of the way
@@ -1070,12 +1074,14 @@ contains
         use FciMCData, only: HFDet_True
         use LoggingData, only: tDiagRDM
         use NatOrbsMod, only: NatOrbMat
-        use rdm_data, only: tOpenShell, Rho_ii
+        use rdm_data, only: rdm_t, tOpenShell
         use RotateOrbsData, only: SymLabelListInv_rot, NoOrbs
         use SystemData, only: BRR
         use UMatCache, only: gtID
 
+        type(rdm_t), intent(inout) :: rdm
         real(dp), intent(out) :: Trace_1RDM, Norm_1RDM, SumN_Rho_ii
+
         integer :: i, HFDet_ID, BRR_ID
 
         Trace_1RDM = 0.0_dp
@@ -1108,10 +1114,10 @@ contains
 
             if (tDiagRDM) then
                 if (tOpenShell) then
-                    Rho_ii(i) = NatOrbMat(SymLabelListInv_rot(BRR(i)),SymLabelListInv_rot(BRR(i))) * Norm_1RDM
+                    rdm%Rho_ii(i) = NatOrbMat(SymLabelListInv_rot(BRR(i)),SymLabelListInv_rot(BRR(i))) * Norm_1RDM
                 else
                     BRR_ID = gtID(BRR(2*i))
-                    Rho_ii(i) = NatOrbMat(SymLabelListInv_rot(BRR_ID),SymLabelListInv_rot(BRR_ID)) * Norm_1RDM
+                    rdm%Rho_ii(i) = NatOrbMat(SymLabelListInv_rot(BRR_ID),SymLabelListInv_rot(BRR_ID)) * Norm_1RDM
                 end if
             end if
     
@@ -1205,7 +1211,7 @@ contains
 
     end subroutine Force_Cauchy_Schwarz
 
-    subroutine Write_out_1RDM(Norm_1RDM,tNormalise)
+    subroutine Write_out_1RDM(Norm_1RDM, tNormalise)
 
         ! This routine writes out the OneRDM. If tNormalise is true, we are
         ! printing the normalised, hermitian matrix. Otherwise, Norm_1RDM is
@@ -1289,7 +1295,7 @@ contains
         use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag
         use LoggingData, only: RDMExcitLevel, tExplicitAllRDM
         use NatOrbsMod, only: NatOrbMat, NatOrbMatTag, Evalues, EvaluesTag
-        use rdm_data, only: rdms, Rho_ii, Rho_iiTag, Sing_ExcDjs, Doub_ExcDjs
+        use rdm_data, only: rdms, Sing_ExcDjs, Doub_ExcDjs
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
@@ -1362,9 +1368,9 @@ contains
             call LogMemDeAlloc(this_routine,EvaluesTag)
         end if
 
-        if (allocated(Rho_ii)) then
-            deallocate(Rho_ii)
-            call LogMemDeAlloc(this_routine,Rho_iiTag)
+        if (allocated(rdms(1)%Rho_ii)) then
+            deallocate(rdms(1)%Rho_ii)
+            call LogMemDeAlloc(this_routine,rdms(1)%Rho_iiTag)
         end if
 
         if (allocated(FourIndInts)) then

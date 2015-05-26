@@ -41,10 +41,7 @@ module rdm_data
     ! Variables related to the space in explicit RDM arrays above.
     real(dp) :: OneEl_Gap, TwoEl_Gap
 
-    ! Arrays to hold the diagonal of the 1-RDM, and the Lagrangian.
-    real(dp), allocatable :: Rho_ii(:)
     real(dp), allocatable :: Lagrangian(:,:)
-    integer :: Rho_iiTag
 
     real(dp) :: Trace_1RDM, Trace_2RDM, Trace_2RDM_Inst
 
