@@ -139,7 +139,7 @@ contains
                 ! When calculating the energy, these will be summed over cores
                 ! using an _inplace type command.
                 ! To calculate the full energy of the RDM (i.e. over full accum.
-                ! period), we need to allocate aaaa_RDM_full on the head nodes
+                ! period), we need to allocate rdms(i)%aaaa_full on the head nodes.
 
                 allocate(rdms(1)%aaaa_inst(rdm_size_1, rdm_size_1), stat=ierr)
                 if (ierr .ne. 0) call Stop_All(this_routine,'Problem allocating aaaa_inst RDM array,')
@@ -192,10 +192,10 @@ contains
                 end if
 
                 if (iProcIndex .eq. 0) then
-                    allocate(aaaa_RDM_full(rdm_size_1, rdm_size_1), stat=ierr)
-                    if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating aaaa_RDM_full array,')
-                    call LogMemAlloc('aaaa_RDM_full', (rdm_size_1**2), 8, this_routine, aaaa_RDM_fullTag, ierr)
-                    aaaa_RDM_full(:,:)=0.0_dp
+                    allocate(rdms(1)%aaaa_full(rdm_size_1, rdm_size_1), stat=ierr)
+                    if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating aaaa_full RDM array,')
+                    call LogMemAlloc('rdms(1)%aaaa_full', (rdm_size_1**2), 8, this_routine, rdms(1)%aaaa_fullTag, ierr)
+                    rdms(1)%aaaa_full(:,:) = 0.0_dp
 
                     allocate(abab_RDM_full(rdm_size_2, rdm_size_2), stat=ierr)
                     if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating abab_RDM_full array,')
@@ -251,10 +251,10 @@ contains
                 ! We're not calculating an instantaneous RDM energy.
                 ! Put RDM contributions directly into 'full' arrays, which are
                 ! now allocated every core
-                allocate(aaaa_RDM_full(rdm_size_1,rdm_size_1), stat=ierr)
+                allocate(rdms(1)%aaaa_full(rdm_size_1,rdm_size_1), stat=ierr)
                 if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating aaaa_RDM_full array,')
-                call LogMemAlloc('aaaa_RDM_full', (rdm_size_1**2), 8, this_routine,aaaa_RDM_fullTag,ierr)
-                aaaa_RDM_full(:,:) = 0.0_dp
+                call LogMemAlloc('rdms(1)%aaaa_full', (rdm_size_1**2), 8, this_routine,rdms(1)%aaaa_fullTag,ierr)
+                rdms(1)%aaaa_full(:,:) = 0.0_dp
 
                 ! The 2-RDM of the type alpha beta beta alpha ( = beta alpha alpha beta).
                 ! These also *do not* also include 2-RDM(i,j,a,b) terms where i=j or a=b
@@ -279,7 +279,7 @@ contains
                 MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
                 MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8
                 
-                aaaa_RDM => aaaa_RDM_full
+                aaaa_RDM => rdms(1)%aaaa_full
                 abba_RDM => abba_RDM_full
                 abab_RDM => abab_RDM_full
 
@@ -512,7 +512,7 @@ contains
                 write(6,'(A)') 'Ignoring the request to read in the RDMs and starting again.'
                 tReadRDMs = .false.
             else
-                call Read_In_RDMs()
+                call Read_In_RDMs(rdms(1))
             end if
         end if
 
@@ -528,7 +528,7 @@ contains
 
     end subroutine InitRDM
 
-    subroutine Read_In_RDMs()
+    subroutine Read_In_RDMs(rdm)
 
         ! Reads in the arrays to restart the RDM calculation (and continue
         ! accumulating). These arrays are not normalised, so the trace is
@@ -543,11 +543,13 @@ contains
         use RotateOrbsData, only: SymLabelListInv_rot
         use SystemData, only: tStoreSpinOrbs
 
+        type(rdm_t), intent(inout) :: rdm
+
         logical :: exists_one
-        logical :: exists_aaaa,exists_abab,exists_abba
-        logical :: exists_bbbb,exists_baba,exists_baab
+        logical :: exists_aaaa, exists_abab, exists_abba
+        logical :: exists_bbbb, exists_baba, exists_baab
         integer :: RDM_unit, FileEnd
-        integer :: i,j,a,b,Ind1,Ind2
+        integer :: i, j, a, b, Ind1, Ind2
         real(dp) :: Temp_RDM_Element, Norm_2RDM
 
         if (iProcIndex .eq. 0) then 
@@ -607,7 +609,7 @@ contains
 
                         Ind1 = ( ( (j-2) * (j-1) ) / 2 ) + i
                         Ind2 = ( ( (b-2) * (b-1) ) / 2 ) + a
-                        aaaa_RDM_full(Ind1,Ind2) = Temp_RDM_Element
+                        rdm%aaaa_full(Ind1,Ind2) = Temp_RDM_Element
                     end do
                     close(RDM_unit)
 
@@ -914,7 +916,7 @@ contains
         integer :: error
         real(dp) :: Norm_2RDM, Norm_2RDM_Inst
         real(dp) :: Norm_1RDM, Trace_1RDM, SumN_Rho_ii
-        character(len=*), parameter :: this_routine='FinaliseRDM'
+        character(len=*), parameter :: this_routine = 'FinaliseRDM'
 
         call set_timer(FinaliseRDM_Time)
 
@@ -953,8 +955,8 @@ contains
             end if
             if (tDumpForcesInfo) then
                 if (.not. tPrint1RDM) call Finalise_1e_RDM(Norm_1RDM)
-                call Calc_Lagrangian_from_RDM(Norm_1RDM, Norm_2RDM)
-                call convert_mats_Molpforces(Norm_1RDM, Norm_2RDM)
+                call Calc_Lagrangian_from_RDM(rdms(1), Norm_1RDM, Norm_2RDM)
+                call convert_mats_Molpforces(rdms(1), Norm_1RDM, Norm_2RDM)
             end if
 
         end if
@@ -1394,9 +1396,9 @@ contains
             call LogMemDeAlloc(this_routine,rdms(1)%baab_instTag)
         end if
 
-        if (associated(aaaa_RDM_full)) then
-            deallocate(aaaa_RDM_full)
-            call LogMemDeAlloc(this_routine,aaaa_RDM_fullTag)
+        if (associated(rdms(1)%aaaa_full)) then
+            deallocate(rdms(1)%aaaa_full)
+            call LogMemDeAlloc(this_routine,rdms(1)%aaaa_fullTag)
         end if
 
         if (associated(abab_RDM_full)) then
