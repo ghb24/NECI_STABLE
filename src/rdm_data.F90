@@ -117,4 +117,7 @@ module rdm_data
 
     end type rdm_t
 
+    ! Array of type rdm_t, for holding multiple different RDM instances.
+    type(rdm_t), allocatable :: rdms(:)
+
 end module rdm_data

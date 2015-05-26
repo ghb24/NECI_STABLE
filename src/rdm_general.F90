@@ -38,7 +38,8 @@ contains
         use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs, NoSymLabelCounts
         use SystemData, only: tStoreSpinOrbs, tHPHF, tFixLz, iMaxLz, tROHF
 
-        integer :: ierr,i, MemoryAlloc, MemoryAlloc_Root
+        integer :: ierr, i, rdm_size_1, rdm_size_2
+        integer :: MemoryAlloc, MemoryAlloc_Root
         character(len=*), parameter :: this_routine = 'InitRDM'
 
         ! First thing is to check we're not trying to fill the RDMs in a way
@@ -49,6 +50,9 @@ contains
         CAll Stop_All(this_routine,'Filling of reduced density matrices not working with &
                                     &complex walkers yet.')
 #endif
+
+        ! For now, just allocate one rdm.
+        allocate(rdms(1))
 
         ! Only spatial orbitals for the 2-RDMs (and F12).
                 
@@ -99,6 +103,11 @@ contains
             NoOrbs = SpatOrbs
         end if
 
+        ! There are two different size arrays to allocate, as given by these
+        ! array sizes (the RDMs are there sizes squared).
+        rdm_size_1 = (SpatOrbs*(SpatOrbs-1))/2
+        rdm_size_2 = (SpatOrbs*(SpatOrbs+1))/2
+
         ! Here we're allocating arrays for the actual calculation of the RDM.
         MemoryAlloc = 0
         MemoryAlloc_Root = 0   ! Memory allocated in bytes.
@@ -114,8 +123,8 @@ contains
             call LogMemAlloc('NatOrbMat', NoOrbs**2, 8, this_routine, NatOrbMatTag, ierr)
             NatOrbMat(:,:) = 0.0_dp
 
-            MemoryAlloc = MemoryAlloc + ( NoOrbs * NoOrbs * 8 ) 
-            MemoryAlloc_Root = MemoryAlloc_Root + ( NoOrbs * NoOrbs * 8 ) 
+            MemoryAlloc = MemoryAlloc + ( NoOrbs * NoOrbs * 8 )
+            MemoryAlloc_Root = MemoryAlloc_Root + ( NoOrbs * NoOrbs * 8 )
         else
             ! If we're calculating the 2-RDM, the 1-RDM does not need to be
             ! calculated as well because all its info is in the 2-RDM anyway.
@@ -132,97 +141,97 @@ contains
                 ! To calculate the full energy of the RDM (i.e. over full accum.
                 ! period), we need to allocate aaaa_RDM_full on the head nodes
 
-                allocate(aaaa_RDM_inst(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
+                allocate(aaaa_RDM_inst(rdm_size_1, rdm_size_1), stat=ierr)
                 if (ierr .ne. 0) call Stop_All(this_routine,'Problem allocating aaaa_RDM_inst array,')
-                call LogMemAlloc('aaaa_RDM_inst', (((SpatOrbs*(SpatOrbs-1))/2)**2), 8, this_routine, aaaa_RDM_instTag, ierr)
-                aaaa_RDM_inst(:,:)=0.0_dp
+                call LogMemAlloc('aaaa_RDM_inst', (rdm_size_1**2), 8, this_routine, aaaa_RDM_instTag, ierr)
+                aaaa_RDM_inst(:,:) = 0.0_dp
 
                 ! The 2-RDM of the type alpha beta beta alpha (= beta alpha alpha beta).
                 ! These also *do not* also include 2-RDM(i,j,a,b) terms where i=j or a=b
                 ! (these are the same as the abab elements).
-                allocate(abba_RDM_inst(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
+                allocate(abba_RDM_inst(rdm_size_1, rdm_size_1), stat=ierr)
                 if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating abba_RDM_inst array,')
-                call LogMemAlloc('abba_RDM_inst', (((SpatOrbs*(SpatOrbs-1))/2)**2), 8, this_routine, abba_RDM_instTag, ierr)
+                call LogMemAlloc('abba_RDM_inst', (rdm_size_1**2), 8, this_routine, abba_RDM_instTag, ierr)
                 abba_RDM_inst(:,:) = 0.0_dp
 
-                MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
-                MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
+                MemoryAlloc = MemoryAlloc + (rdm_size_1**2)*2*8
+                MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_1**2)*2*8
 
                 ! The 2-RDM of the type alpha beta alpha beta ( = beta alpha beta alpha).
                 ! These *do* include 2-RDM(i,j,a,b) terms where i=j or a=b, if they're
                 ! different spin this is possible - hence the slightly different size to
                 ! the aaaa array.
-                allocate(abab_RDM_inst(((SpatOrbs*(SpatOrbs+1))/2), ((SpatOrbs*(SpatOrbs+1))/2)), stat=ierr)
+                allocate(abab_RDM_inst(rdm_size_2, rdm_size_2), stat=ierr)
                 if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating abab_RDM_inst array,')
-                call LogMemAlloc('abab_RDM_inst', (((SpatOrbs*(SpatOrbs+1))/2)**2), 8, this_routine, abab_RDM_instTag, ierr)
+                call LogMemAlloc('abab_RDM_inst', (rdm_size_2**2), 8, this_routine, abab_RDM_instTag, ierr)
                 abab_RDM_inst(:,:) = 0.0_dp
 
-                MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
-                MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
+                MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
+                MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8 
 
                 ! Extra arrays for open shell systems.
                 if (tOpenShell) then
-                    allocate(bbbb_RDM_inst(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
+                    allocate(bbbb_RDM_inst(rdm_size_1, rdm_size_1), stat=ierr)
                     if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating bbbb_RDM_inst array,')
-                    call LogMemAlloc('bbbb_RDM_inst', (((SpatOrbs*(SpatOrbs-1))/2)**2), 8, this_routine, bbbb_RDM_instTag, ierr)
+                    call LogMemAlloc('bbbb_RDM_inst', (rdm_size_1**2), 8, this_routine, bbbb_RDM_instTag, ierr)
                     bbbb_RDM_inst(:,:) = 0.0_dp
 
-                    allocate(baab_RDM_inst(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
+                    allocate(baab_RDM_inst(rdm_size_1, rdm_size_1), stat=ierr)
                     if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating baab_RDM_inst array,')
-                    call LogMemAlloc('baab_RDM_inst',(((SpatOrbs*(SpatOrbs-1))/2)**2), 8, this_routine, baab_RDM_instTag, ierr)
+                    call LogMemAlloc('baab_RDM_inst', (rdm_size_1**2), 8, this_routine, baab_RDM_instTag, ierr)
                     baab_RDM_inst(:,:) = 0.0_dp
-                    MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 )
-                    MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 )
+                    MemoryAlloc = MemoryAlloc + (rdm_size_1**2)*2*8
+                    MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_1**2)*2*8
 
-                    allocate(baba_RDM_inst(((SpatOrbs*(SpatOrbs+1))/2), ((SpatOrbs*(SpatOrbs+1))/2)), stat=ierr)
+                    allocate(baba_RDM_inst(rdm_size_2, rdm_size_2), stat=ierr)
                     if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating baba_RDM_inst array,')
-                    call LogMemAlloc('baba_RDM_inst', (((SpatOrbs*(SpatOrbs+1))/2)**2), 8, this_routine, baba_RDM_instTag, ierr)
+                    call LogMemAlloc('baba_RDM_inst', (rdm_size_2**2), 8, this_routine, baba_RDM_instTag, ierr)
                     baba_RDM_inst(:,:) = 0.0_dp
-                    MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
-                    MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 )
+                    MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
+                    MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8
                 end if
 
                 if (iProcIndex .eq. 0) then
-                    allocate(aaaa_RDM_full(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
+                    allocate(aaaa_RDM_full(rdm_size_1, rdm_size_1), stat=ierr)
                     if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating aaaa_RDM_full array,')
-                    call LogMemAlloc('aaaa_RDM_full', (((SpatOrbs*(SpatOrbs-1))/2)**2), 8, this_routine, aaaa_RDM_fullTag, ierr)
+                    call LogMemAlloc('aaaa_RDM_full', (rdm_size_1**2), 8, this_routine, aaaa_RDM_fullTag, ierr)
                     aaaa_RDM_full(:,:)=0.0_dp
 
-                    allocate(abab_RDM_full(((SpatOrbs*(SpatOrbs+1))/2), ((SpatOrbs*(SpatOrbs+1))/2)), stat=ierr)
+                    allocate(abab_RDM_full(rdm_size_2, rdm_size_2), stat=ierr)
                     if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating abab_RDM_full array,')
-                    call LogMemAlloc('abab_RDM_full', (((SpatOrbs*(SpatOrbs+1))/2)**2), 8, this_routine, abab_RDM_fullTag, ierr)
+                    call LogMemAlloc('abab_RDM_full', (rdm_size_2**2), 8, this_routine, abab_RDM_fullTag, ierr)
                     abab_RDM_full(:,:) = 0.0_dp
 
-                    allocate(abba_RDM_full(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat = ierr)
+                    allocate(abba_RDM_full(rdm_size_1, rdm_size_1), stat = ierr)
                     if (ierr .ne. 0) call Stop_All(this_routine,'Problem allocating abba_RDM_full array,')
-                    call LogMemAlloc('abba_RDM_full', (((SpatOrbs*(SpatOrbs-1))/2)**2), 8, this_routine, abba_RDM_fullTag, ierr)
+                    call LogMemAlloc('abba_RDM_full', (rdm_size_1**2), 8, this_routine, abba_RDM_fullTag, ierr)
                     abba_RDM_full(:,:) = 0.0_dp
 
-                    MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
-                    MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 8 ) 
-                    MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
-                    MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 8 ) 
+                    MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_1**2)*2*8
+                    MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8
+                    MemoryAlloc = MemoryAlloc + (rdm_size_1**2)*2*8
+                    MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
 
                     if (tOpenShell) then
-                        allocate(bbbb_RDM_full(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
+                        allocate(bbbb_RDM_full(rdm_size_1, rdm_size_1), stat=ierr)
                         if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating bbbb_RDM_full array,')
-                        call LogMemAlloc('bbbb_RDM_full', (((SpatOrbs*(SpatOrbs-1))/2)**2), 8, this_routine,bbbb_RDM_fullTag,ierr)
+                        call LogMemAlloc('bbbb_RDM_full', (rdm_size_1**2), 8, this_routine,bbbb_RDM_fullTag,ierr)
                         bbbb_RDM_full(:,:) = 0.0_dp
 
-                        allocate(baba_RDM_full(((SpatOrbs*(SpatOrbs+1))/2),((SpatOrbs*(SpatOrbs+1))/2)),stat=ierr)
+                        allocate(baba_RDM_full(rdm_size_2,rdm_size_2),stat=ierr)
                         if (ierr .ne. 0) call Stop_All(this_routine,'Problem allocating baba_RDM_full array,')
-                        call LogMemAlloc('baba_RDM_full',(((SpatOrbs*(SpatOrbs+1))/2)**2), 8,this_routine, baba_RDM_fullTag, ierr)
+                        call LogMemAlloc('baba_RDM_full',(rdm_size_2**2), 8,this_routine, baba_RDM_fullTag, ierr)
                         baba_RDM_full(:,:) = 0.0_dp
 
-                        allocate(baab_RDM_full(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
+                        allocate(baab_RDM_full(rdm_size_1, rdm_size_1), stat=ierr)
                         if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating baab_RDM_full array,')
-                        call LogMemAlloc('baab_RDM_full',(((SpatOrbs*(SpatOrbs-1))/2)**2), 8,this_routine, baab_RDM_fullTag, ierr)
+                        call LogMemAlloc('baab_RDM_full',(rdm_size_1**2), 8,this_routine, baab_RDM_fullTag, ierr)
                         baab_RDM_full(:,:) = 0.0_dp
 
-                        MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
-                        MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 8 ) 
-                        MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
-                        MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 ) * 8 ) 
+                        MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_1**2)*2*8
+                        MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8
+                        MemoryAlloc = MemoryAlloc + (rdm_size_1**2)*2*8
+                        MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
 
                     end if
 
@@ -242,57 +251,57 @@ contains
                 ! We're not calculating an instantaneous RDM energy.
                 ! Put RDM contributions directly into 'full' arrays, which are
                 ! now allocated every core
-                allocate(aaaa_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
+                allocate(aaaa_RDM_full(rdm_size_1,rdm_size_1), stat=ierr)
                 if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating aaaa_RDM_full array,')
-                call LogMemAlloc('aaaa_RDM_full', (((SpatOrbs*(SpatOrbs-1))/2)**2), 8, this_routine,aaaa_RDM_fullTag,ierr)
+                call LogMemAlloc('aaaa_RDM_full', (rdm_size_1**2), 8, this_routine,aaaa_RDM_fullTag,ierr)
                 aaaa_RDM_full(:,:) = 0.0_dp
 
                 ! The 2-RDM of the type alpha beta beta alpha ( = beta alpha alpha beta).
                 ! These also *do not* also include 2-RDM(i,j,a,b) terms where i=j or a=b
                 ! (these are the same as the abab elements).
-                allocate(abba_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+                allocate(abba_RDM_full(rdm_size_1,rdm_size_1),stat=ierr)
                 if (ierr .ne. 0) call Stop_All(this_routine,'Problem allocating abba_RDM_full array,')
-                call LogMemAlloc('abba_RDM_full', (((SpatOrbs*(SpatOrbs-1))/2)**2), 8, this_routine, abba_RDM_fullTag, ierr)
+                call LogMemAlloc('abba_RDM_full', (rdm_size_1**2), 8, this_routine, abba_RDM_fullTag, ierr)
                 abba_RDM_full(:,:) = 0.0_dp
 
-                MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
-                MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
+                MemoryAlloc = MemoryAlloc + (rdm_size_1**2)*2*8
+                MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_1**2)*2*8
 
                 ! The 2-RDM of the type alpha beta alpha beta ( = beta alpha beta alpha).
                 ! These *do* include 2-RDM(i,j,a,b) terms where i=j or a=b, if they're
                 ! different spin this is possible - hence the slightly different size
                 ! to the aaaa array.
-                allocate(abab_RDM_full(((SpatOrbs*(SpatOrbs+1))/2), ((SpatOrbs*(SpatOrbs+1))/2)), stat=ierr)
+                allocate(abab_RDM_full(rdm_size_2, rdm_size_2), stat=ierr)
                 if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating abab_RDM_full array,')
-                call LogMemAlloc('abab_RDM_full', (((SpatOrbs*(SpatOrbs+1))/2)**2), 8, this_routine, abab_RDM_fullTag, ierr)
+                call LogMemAlloc('abab_RDM_full', (rdm_size_2**2), 8, this_routine, abab_RDM_fullTag, ierr)
                 abab_RDM_full(:,:) = 0.0_dp
 
-                MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
-                MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
+                MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
+                MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8
                 
                 aaaa_RDM => aaaa_RDM_full
                 abba_RDM => abba_RDM_full
                 abab_RDM => abab_RDM_full
 
                 if (tOpenShell) then
-                    allocate(bbbb_RDM_full(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
+                    allocate(bbbb_RDM_full(rdm_size_1, rdm_size_1), stat=ierr)
                     if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating bbbb_RDM_full array,')
-                    call LogMemAlloc('bbbb_RDM_full', (((SpatOrbs*(SpatOrbs-1))/2)**2), 8, this_routine, bbbb_RDM_fullTag, ierr)
+                    call LogMemAlloc('bbbb_RDM_full', (rdm_size_1**2), 8, this_routine, bbbb_RDM_fullTag, ierr)
                     bbbb_RDM_full(:,:) = 0.0_dp
 
-                    allocate(baab_RDM_full(((SpatOrbs*(SpatOrbs-1))/2),((SpatOrbs*(SpatOrbs-1))/2)),stat=ierr)
+                    allocate(baab_RDM_full(rdm_size_1,rdm_size_1),stat=ierr)
                     if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating baab_RDM_full array,')
-                    call LogMemAlloc('baab_RDM_full', (((SpatOrbs*(SpatOrbs-1))/2)**2), 8, this_routine, baab_RDM_fullTag, ierr)
+                    call LogMemAlloc('baab_RDM_full', (rdm_size_1**2), 8, this_routine, baab_RDM_fullTag, ierr)
                     baab_RDM_full(:,:) = 0.0_dp
-                    MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
-                    MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs-1))/2 ) ** 2 ) * 2 * 8 ) 
+                    MemoryAlloc = MemoryAlloc + (rdm_size_1**2)*2*8
+                    MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_1**2)*2*8
 
-                    allocate(baba_RDM_full(((SpatOrbs*(SpatOrbs+1))/2), ((SpatOrbs*(SpatOrbs+1))/2)), stat=ierr)
+                    allocate(baba_RDM_full(rdm_size_2, rdm_size_2), stat=ierr)
                     if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating baba_RDM_full array,')
-                    call LogMemAlloc('baba_RDM_full',(((SpatOrbs*(SpatOrbs+1))/2)**2), 8, this_routine, baba_RDM_fullTag, ierr)
+                    call LogMemAlloc('baba_RDM_full',(rdm_size_2**2), 8, this_routine, baba_RDM_fullTag, ierr)
                     baba_RDM_full(:,:) = 0.0_dp
-                    MemoryAlloc = MemoryAlloc + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
-                    MemoryAlloc_Root = MemoryAlloc_Root + ( ( ( (SpatOrbs*(SpatOrbs+1))/2 ) ** 2 )* 8 ) 
+                    MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
+                    MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8
       
                     bbbb_RDM => bbbb_RDM_full
                     baab_RDM => baab_RDM_full
