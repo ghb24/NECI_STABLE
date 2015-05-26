@@ -65,13 +65,16 @@ module rdm_data
     integer :: Sing_ExcDjsTag, Sing_ExcDjs2Tag
     integer :: Doub_ExcDjsTag, Doub_ExcDjs2Tag
 
+    ! Normalisation factor used in explicit RDM code.
+    real(dp) :: ExcNorm
+
     ! Arrays to hold the diagonal of the 1-RDM, and the Lagrangian.
     real(dp), allocatable :: Rho_ii(:)
     real(dp), allocatable :: Lagrangian(:,:)
     integer :: Rho_iiTag
 
     real(dp) :: OneEl_Gap, TwoEl_Gap, Normalisation
-    real(dp) :: Trace_2RDM_Inst, Trace_2RDM, Trace_1RDM, norm
+    real(dp) :: Trace_2RDM_Inst, Trace_2RDM, Trace_1RDM
 
     ! Timers.
     type(timer), save :: nElRDM_Time, FinaliseRDM_time, RDMEnergy_time

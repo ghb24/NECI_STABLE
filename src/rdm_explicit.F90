@@ -72,7 +72,7 @@ contains
         use hist_data, only: AllHistogram, Histogram
         use global_utilities, only: set_timer, halt_timer
         use Parallel_neci, only: iProcIndex, MPISumAll
-        use rdm_data, only: nElRDM_Time, norm
+        use rdm_data, only: nElRDM_Time, ExcNorm
 
         integer(int64), intent(in) :: TotWalkers
         integer(kind=n_int) :: iLutnI(0:NIfTot)
@@ -85,16 +85,16 @@ contains
 
         call MPISumAll(Histogram, AllHistogram)
 
-        norm = 0.0_dp
+        ExcNorm = 0.0_dp
         if (iProcIndex .eq. 0) then
             do i = 1, Det
-                norm = norm + AllHistogram(1,i)**2
+                ExcNorm = ExcNorm + AllHistogram(1,i)**2
             end do
-            norm = sqrt(norm)
+            ExcNorm = sqrt(ExcNorm)
         end if
 
-        call MPISumAll(norm, allNode_norm)
-        norm = allNode_norm
+        call MPISumAll(ExcNorm, allNode_norm)
+        ExcNorm = allNode_norm
  
         do i = 1, Det
 
@@ -357,7 +357,7 @@ contains
         use load_balance_calcnodes, only: DetermineDetNode
         use LoggingData, only: RDMExcitLevel
         use Parallel_neci, only: nProcessors
-        use rdm_data, only: Sing_ExcList, Doub_ExcList, norm, OneEl_Gap, TwoEl_Gap
+        use rdm_data, only: Sing_ExcList, Doub_ExcList, ExcNorm, OneEl_Gap, TwoEl_Gap
         use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs
         use rdm_filling, only: Fill_Diag_RDM
         use SymExcit3, only: GenExcitations3
@@ -377,8 +377,8 @@ contains
 
         HistPos = int(RealHistPos)
         
-        realSignDi(1) = AllHistogram(1,HistPos(1))/norm
-        realSignDi(lenof_sign) = AllHistogram(1,HistPos(1))/norm
+        realSignDi(1) = AllHistogram(1,HistPos(1))/ExcNorm
+        realSignDi(lenof_sign) = AllHistogram(1,HistPos(1))/ExcNorm
         
         call Fill_Diag_RDM(nI,realSignDi,.false.)
 
@@ -849,7 +849,7 @@ contains
         use hist, only: find_hist_coeff_explicit
         use hist_data, only: AllHistogram
         use Parallel_neci, only: nProcessors, MPIArg
-        use rdm_data, only: Sing_ExcDjs, Sing_ExcDjs2, norm
+        use rdm_data, only: Sing_ExcDjs, Sing_ExcDjs2, ExcNorm
         use rdm_filling, only: Fill_Sings_RDM
         use searching, only: BinSearchParts_rdm
         use SystemData, only: nel
@@ -877,7 +877,7 @@ contains
 
                 HistPos=int(RealHistPos)
 
-                realSignDi = AllHistogram(1,HistPos(1))/norm
+                realSignDi = AllHistogram(1,HistPos(1))/ExcNorm
 
                 do j=StartDets+1,(NoDets+StartDets-1)
 
@@ -904,7 +904,7 @@ contains
 
                         call decode_bit_det(nJ,iLutnJ)
 
-                        realSignDj = AllHistogram(1,PartInd)/norm
+                        realSignDj = AllHistogram(1,PartInd)/ExcNorm
 
                         ! Ex(1,:) comes out as the orbital(s) excited from,
                         ! Ex(2,:) comes out as the orbital(s) excited to.    
@@ -937,7 +937,7 @@ contains
         use hist, only: find_hist_coeff_explicit
         use hist_data, only: AllHistogram
         use Parallel_neci, only: nProcessors, MPIArg
-        use rdm_data, only: Doub_ExcDjs, Doub_ExcDjs2, norm
+        use rdm_data, only: Doub_ExcDjs, Doub_ExcDjs2, ExcNorm
         use rdm_filling, only: Fill_Doubs_RDM
         use searching, only: BinSearchParts_rdm
         use SystemData, only: nel
@@ -964,7 +964,7 @@ contains
 
                 HistPos = int(RealHistPos)
 
-                realSignDi = AllHistogram(1,HistPos(1))/norm
+                realSignDi = AllHistogram(1,HistPos(1))/ExcNorm
 
                 do j = StartDets + 1, (NoDets+StartDets-1)
 
@@ -991,7 +991,7 @@ contains
                         tParity = .false.
 
                         call decode_bit_det(nJ,iLutnJ)
-                        realSignDj = AllHistogram(1,PartInd)/norm
+                        realSignDj = AllHistogram(1,PartInd)/ExcNorm
 
                         ! Ex(1,:) comes out as the orbital(s) excited from,
                         ! Ex(2,:) comes out as the orbital(s) excited to. 
