@@ -24,7 +24,7 @@ module FciMCParMod
     use rdm_data, only: tCalc_RDMEnergy
     use rdm_general, only: FinaliseRDM
     use rdm_filling, only: fill_rdm_offdiag_deterministic
-    use rdm_estimators, only: calc_energy_from_rdm
+    use rdm_estimators, only: rdm_output_wrapper
     use rdm_explicit, only: fill_explicitrdm_this_iter, fill_hist_explicitrdm_this_iter
     use procedure_pointers, only: attempt_die_t, generate_excitation_t, &
                                   get_spawn_helement_t
@@ -405,14 +405,15 @@ module FciMCParMod
             IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.0).and.(.not.tRDMonFly)) THEN
                 CALL WriteHistogram()
             ENDIF
-            IF(tRDMonFly.and.(.not.tSinglePartPhase(1)).and. &
-                        (.not.(tSinglePartPhase(inum_runs)))) THEN
+
+            if (tRDMonFly .and. (.not. tSinglePartPhase(1)) .and. (.not. tSinglePartPhase(inum_runs))) then
                 ! If we wish to calculate the energy, have started accumulating the RDMs, 
                 ! and this is an iteration where the energy should be calculated, do so.
-                if(tCalc_RDMEnergy .and. ((Iter - maxval(VaryShiftIter)).gt.IterRDMonFly) &
-                    .and. (mod((Iter+PreviousCycles - IterRDMStart)+1,RDMEnergyIter).eq.0) ) &
-                        CALL Calc_Energy_from_RDM(Norm_2RDM)  
-            ENDIF
+                if(tCalc_RDMEnergy .and. ((Iter - maxval(VaryShiftIter)) .gt. IterRDMonFly) &
+                    .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) .eq. 0) ) &
+                        call rdm_output_wrapper(Norm_2RDM)
+            end if
+
             if(tChangeVarsRDM) then
                 ! Decided during the CHANGEVARS that the RDMs should be calculated.
                 call InitRDM() 
@@ -473,7 +474,7 @@ module FciMCParMod
             CALL PrintOrbOccs(OrbOccs)
         ENDIF
 
-        IF(tFillingStochRDMonFly .or. tFillingExplicRDMonFly) call FinaliseRDM()
+        if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) call FinaliseRDM()
 
         call PrintHighPops()
 
@@ -704,7 +705,7 @@ module FciMCParMod
         ! being printed.
         tFill_RDM = .false.
         if(tFillingStochRDMonFly) then
-            if(mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0) then 
+            if(mod((Iter+PreviousCycles - IterRDMStart + 1), RDMEnergyIter).eq.0) then 
                 ! RDM energy is being printed, calculate the diagonal elements for 
                 ! the last RDMEnergyIter iterations.
                 tFill_RDM = .true.
@@ -713,7 +714,7 @@ module FciMCParMod
                 ! Last iteration, calculate the diagonal element for the iterations 
                 ! since the last time they were included.
                 tFill_RDM = .true.
-                IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter)
+                IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1), RDMEnergyIter)
             endif
         endif
 
@@ -761,8 +762,8 @@ module FciMCParMod
                 ! found in extract_bit_rep_avsign.
                 call set_av_sgn(j, AvSignCurr)
                 call set_iter_occ(j, IterRDMStartCurr)
-                ! If this is an iteration where print out the RDM energy,
-                ! calculate the diagonal contribution to the RDM for this
+                ! If this is an iteration where we print out the RDM energy,
+                ! add in the diagonal contribution to the RDM for this
                 ! determinant.
                 if(tFill_RDM .and. (.not. tNoNewRDMContrib)) then
                     call fill_rdm_diag_currdet(CurrentDets(:,j), DetCurr, j, &

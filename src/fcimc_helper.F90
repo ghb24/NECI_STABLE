@@ -1697,26 +1697,18 @@ contains
 
         if (.not. tSinglePartPhase(1).and.(.not.tSinglePartPhase(inum_runs))) tFullVaryShift=.true.
 
-        !If we're reading in the RDMs we've already started accumulating them in a previous calculation
+        ! If we're reading in the RDMs we've already started accumulating them in a previous calculation
         ! We don't want to put in an arbitrary break now!
-        if(tReadRDMs)   IterRDMonFly=0
+        if (tReadRDMs) IterRDMonFly=0
 
-        IF(tFullVaryShift .and. ((Iter - maxval(VaryShiftIter)).eq.(IterRDMonFly+1))) THEN
+        if (tFullVaryShift .and. ((Iter - maxval(VaryShiftIter)).eq.(IterRDMonFly+1))) then
         ! IterRDMonFly is the number of iterations after the shift has changed that we want 
         ! to fill the RDMs.  If this many iterations have passed, start accumulating the RDMs! 
         
-            IterRDMStart = Iter+PreviousCycles
-            IterRDM_HF = Iter+PreviousCycles
+            IterRDMStart = Iter + PreviousCycles
+            IterRDM_HF = Iter + PreviousCycles
 
-            !if(tReadRDMs .and. tReadRDMAvPop) then
-                !We need to read in the values of IterRDMStart and IterRDM_HF
-            !    iunit_4=get_free_unit()
-            !    OPEN(iunit_4,FILE='ITERRDMSTART',status='old')
-            !    read(iunit_4, *) IterRDMStart, IterRDM_HF, AvNoAtHF
-
-            !endif
-
-            !We have reached the iteration where we want to start filling the RDM.
+            ! We have reached the iteration where we want to start filling the RDM.
             if(tExplicitAllRDM) then
                 ! Explicitly calculating all connections - expensive...
                 if(inum_runs.eq.2) call stop_all('check_start_rdm',"Cannot yet do replica RDM sampling with explicit RDMs. &
@@ -1732,21 +1724,22 @@ contains
                     call adjust_load_balance(iter_data_fciqmc)
 
                 extract_bit_rep_avsign => extract_bit_rep_avsign_norm
-                !By default - we will do a stochastic calculation of the RDM.
+                ! By default - we will do a stochastic calculation of the RDM.
                 tFillingStochRDMonFly = .true.
 
                 call DeAlloc_Alloc_SpawnedParts()
-                !The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
-                !parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
-                !Don't need any of this if we're just doing HF_Ref_Explicit calculation.
-                !This is all done in the add_rdm_hfconnections routine.
-            endif
-            if(RDMExcitLevel.eq.1) then
-                WRITE(6,'(A)') 'Calculating the 1 electron density matrix on the fly.'
+                ! The SpawnedParts array now needs to carry both the spawned parts Dj, and also it's 
+                ! parent Di (and it's sign, Ci). - We deallocate it and reallocate it with the larger size.
+                ! Don't need any of this if we're just doing HF_Ref_Explicit calculation.
+                ! This is all done in the add_rdm_hfconnections routine.
+            end if
+
+            if (RDMExcitLevel .eq. 1) then
+                write(6,'(A)') 'Calculating the 1 electron density matrix on the fly.'
             else
-                WRITE(6,'(A)') 'Calculating the 2 electron density matrix on the fly.'
-            endif
-            WRITE(6,'(A,I10)') 'Beginning to fill the RDMs during iteration',Iter
+                write(6,'(A)') 'Calculating the 2 electron density matrix on the fly.'
+            end if
+            write(6,'(A,I10)') 'Beginning to fill the RDMs during iteration', Iter
         ENDIF
 
     end subroutine check_start_rdm
