@@ -10,7 +10,89 @@ module rdm_estimators
 
 contains
 
-    subroutine Calc_Energy_from_RDM(Norm_2RDM)
+    subroutine rdm_output_wrapper(Norm_2RDM)
+
+        use FciMCData, only: tFinalRDMEnergy, Iter, IterRDMStart, PreviousCycles
+        use LoggingData, only: tRDMInstEnergy, tWriteMultRDMs, IterWriteRDMs
+        use LoggingData, only: tWrite_RDMs_to_read, tWrite_normalised_RDMs
+        use LoggingData, only: tWriteSpinFreeRDM
+        use Parallel_neci, only: iProcIndex
+        use rdm_data, only: tOpenShell, Trace_2RDM, Trace_2RDM_inst, rdm_estimates_unit
+        use rdm_data, only: aaaa_RDM, bbbb_RDM, abab_RDM, baba_RDM, abba_RDM, baab_RDM
+        use rdm_temp, only: Finalise_2e_RDM, calc_2e_norms, Write_out_2RDM
+        use rdm_temp, only: Write_spinfree_RDM
+
+        real(dp), intent(out) :: Norm_2RDM
+
+        real(dp) :: Norm_2RDM_Inst, Trace_2RDM_New, spin_est
+        real(dp) :: RDMEnergy, RDMEnergy1, RDMEnergy2, RDMEnergy_Inst
+
+        ! Normalise, make Hermitian, etc.
+        call Finalise_2e_RDM()
+
+        if (iProcIndex == 0) then
+            ! Calculate the normalisations.
+            call calc_2e_norms(Norm_2RDM_Inst, Norm_2RDM)
+
+            ! There's no need to explicitly make the RDM hermitian here, as the
+            ! integrals are already hermitian -- when we calculate the energy,
+            ! it comes out in the wash.
+            
+            ! Print out the relevant 2-RDMs.
+            if (tFinalRDMEnergy .or. (tWriteMultRDMs .and. (mod((Iter+PreviousCycles-IterRDMStart)+1,IterWriteRDMs) .eq. 0))) then
+
+                ! Only ever want to print the 2-RDMs (for reading in) at the end.
+                if (tFinalRDMEnergy .and. tWrite_RDMs_to_read) call Write_out_2RDM(Norm_2RDM, .false., .false.)
+
+                ! This writes out the normalised, hermitian 2-RDMs.
+                ! IMPORTANT NOTE: We assume that we want tMake_Herm=.true. here.
+                if (tWrite_normalised_RDMs) call Write_out_2RDM(Norm_2RDM, .true., .true.)
+
+                if (tWriteSpinFreeRDM) call Write_spinfree_RDM(Norm_2RDM)
+
+             end if
+
+            call Calc_Energy_from_RDM(Norm_2RDM, Norm_2RDM_Inst, Trace_2RDM_New, RDMEnergy, RDMEnergy1, RDMEnergy2, RDMEnergy_Inst)
+
+            ! Calculate the instantaneous estimate of <S^2> using the 2RDM.
+            spin_est = calc_2rdm_spin_estimate(Norm_2RDM_Inst)
+
+            if (tRDMInstEnergy) then
+                write(rdm_estimates_unit, "(1X,I13,3(2X,es20.13))") Iter+PreviousCycles, RDMEnergy_Inst, &
+                                                                    spin_est, 1.0_dp/Norm_2RDM_Inst
+            else
+                write(rdm_estimates_unit, "(I31,F30.15)") Iter+PreviousCycles, RDMEnergy
+            end if
+            call neci_flush(rdm_estimates_unit)
+
+            if (tFinalRDMEnergy) then
+                write(6,*) 'Trace of 2-el-RDM before normalisation : ', Trace_2RDM
+                write(6,*) 'Trace of 2-el-RDM after normalisation : ', Trace_2RDM_New
+                write(6,*) 'Energy contribution from the 1-RDM: ', RDMEnergy1
+                write(6,*) 'Energy contribution from the 2-RDM: ', RDMEnergy2
+                write(6,'(A64,F30.20)') ' *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:', RDMEnergy
+                close(rdm_estimates_unit)
+            end if
+        end if
+
+        ! Zero all of the instantaneous RDM arrays and data.
+        if (tRDMInstEnergy) then
+            aaaa_RDM(:,:) = 0.0_dp
+            abab_RDM(:,:) = 0.0_dp
+            abba_RDM(:,:) = 0.0_dp
+
+            if (tOpenShell)then
+                bbbb_RDM(:,:) = 0.0_dp
+                baba_RDM(:,:) = 0.0_dp
+                baab_RDM(:,:) = 0.0_dp
+            end if
+
+            Trace_2RDM_Inst = 0.0_dp
+        end if
+
+    end subroutine rdm_output_wrapper
+
+    subroutine Calc_Energy_from_RDM(Norm_2RDM, Norm_2RDM_Inst, Trace_2RDM_New, RDMEnergy, RDMEnergy1, RDMEnergy2, RDMEnergy_Inst)
 
         ! This routine takes the 1 electron and 2 electron reduced density
         ! matrices and calculated the energy they give.
@@ -24,30 +106,27 @@ contains
         !   Tr(h1 1RDM) = Sum_i,j [ h1(i,j) 1RDM(j,i) ]
         !   Tr(h2 2RDM) = Sum_i,j;k,l [ h2(i,j;k,l) 2RDM(k,l;i,j) ]
 
-        use FciMCData, only: tFinalRDMEnergy, Iter, PreviousCycles, AccumRDMNorm_Inst
+        use FciMCData, only: tFinalRDMEnergy
         use global_utilities, only: set_timer, halt_timer
         use IntegralsData, only: umat
         use LoggingData, only: tRDMInstEnergy
         use Parallel_neci, only: iProcIndex
         use rdm_data, only: RDMEnergy_Time, tOpenShell, aaaa_RDM, bbbb_RDM
-        use rdm_data, only: abab_RDM, baba_RDM, abba_RDM, baab_RDM, Trace_2RDM_Inst
+        use rdm_data, only: abab_RDM, baba_RDM, abba_RDM, baab_RDM
         use rdm_data, only: aaaa_RDM_full, bbbb_RDM_full, abab_RDM_full, Trace_2RDM
-        use rdm_data, only: baba_RDM_full, abba_RDM_full, baab_RDM_full, Trace_2RDM_Inst
-        use rdm_data, only: Energies_unit
-        use rdm_temp, only: Finalise_2e_RDM
+        use rdm_data, only: baba_RDM_full, abba_RDM_full, baab_RDM_full
         use RotateOrbsData, only: SpatOrbs
         use SystemData, only: tStoreSpinOrbs, ecore
         use UMatCache, only: UMatInd
 
-        real(dp), intent(out) :: Norm_2RDM
+        real(dp), intent(in) :: Norm_2RDM, Norm_2RDM_Inst
+        real(dp), intent(out) :: Trace_2RDM_New, RDMEnergy, RDMEnergy1, RDMEnergy2, RDMEnergy_Inst
 
-        real(dp) :: Norm_2RDM_Inst
         integer :: i, j, a, b, Ind1_aa, Ind1_ab, Ind2_aa, Ind2_ab, ierr
         integer :: iSpin, jSpin, error
-        real(dp) :: RDMEnergy_Inst, RDMEnergy, Coul, Exch, Parity_Factor
+        real(dp) :: Coul, Exch, Parity_Factor
         real(dp) :: Coul_aaaa, Coul_bbbb, Coul_abba, Coul_baab, Coul_abab, Coul_baba
         real(dp) :: Exch_aaaa, Exch_bbbb, Exch_abba, Exch_baab, Exch_abab, Exch_baba
-        real(dp) :: Trace_2RDM_New, RDMEnergy1, RDMEnergy2, spin_est
 
         call set_timer(RDMEnergy_Time, 30)
 
@@ -57,315 +136,270 @@ contains
         RDMEnergy2 = 0.0_dp
         RDMEnergy = 0.0_dp
     
-        ! Normalise, make hermitian, print etc.
-        call Finalise_2e_RDM(Norm_2RDM_Inst, Norm_2RDM)
+        if (tFinalRDMEnergy) write(6,'(/,"Calculating the final RDM energy")')
 
-        if (tFinalRDMEnergy) then
-            write(6,*) ''
-            write(6,*) 'Calculating the final RDM energy'
-        end if
+        do i = 1, SpatOrbs
+            iSpin = 2 * i
 
-        if (iProcIndex .eq. 0) then
+            do j = i, SpatOrbs
+                jSpin = 2 * j
 
-            do i = 1, SpatOrbs
-                iSpin = 2 * i
+                Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + i
+                Ind1_ab = ( ( (j-1) * j ) / 2 ) + i
 
-                do j = i, SpatOrbs
-                    jSpin = 2 * j
+                do a = 1, SpatOrbs
 
-                    Ind1_aa = ( ( (j-2) * (j-1) ) / 2 ) + i
-                    Ind1_ab = ( ( (j-1) * j ) / 2 ) + i
+                    ! Adding in contributions effectively from the 1-RDM (although these are calculated 
+                    ! from the 2-RDM.
+                    call calc_1RDM_energy(i, j, a, iSpin,jSpin, Norm_2RDM, Norm_2RDM_Inst, &
+                                                   RDMEnergy_Inst, RDMEnergy1, RDMEnergy2)
+                    
+                    do b = a, SpatOrbs
 
-                    do a = 1, SpatOrbs
+                        Ind2_aa = ( ( (b-2) * (b-1) ) / 2 ) + a
+                        Ind2_ab = ( ( (b-1) * b ) / 2 ) + a
 
-                        ! Adding in contributions effectively from the 1-RDM (although these are calculated 
-                        ! from the 2-RDM.
-                        call calc_1RDM_energy(i, j, a, iSpin,jSpin, Norm_2RDM, Norm_2RDM_Inst, &
-                                                       RDMEnergy_Inst, RDMEnergy1, RDMEnergy2)
+                        ! UMAT in chemical notation.
+                        ! In spin or spatial orbitals.
+                        Coul = real(UMAT(UMatInd(i, j, a, b, 0, 0)), dp)
+                        Exch = real(UMAT(UMatInd(i, j, b, a, 0, 0)), dp)
                         
-                        do b = a, SpatOrbs
+                        if ((i .ne. j) .and. (a .ne. b)) then
+                            ! Cannot get i=j or a=b contributions in aaaa.
 
-                            Ind2_aa = ( ( (b-2) * (b-1) ) / 2 ) + a
-                            Ind2_ab = ( ( (b-1) * b ) / 2 ) + a
+                            if (tStoreSpinOrbs)then
+                                Coul_aaaa = real(UMAT(UMatInd(2*i, 2*j, 2*a, 2*b, 0, 0)),dp)
+                                Coul_bbbb = real(UMAT(UMatInd(2*i-1, 2*j-1, 2*a-1, 2*b-1, 0, 0)),dp)
+                                Exch_aaaa = real(UMAT(UMatInd(2*i, 2*j, 2*b, 2*a, 0, 0)),dp)
+                                Exch_bbbb = real(UMAT(UMatInd(2*i-1, 2*j-1, 2*b-1, 2*a-1, 0, 0)),dp)     
 
-                            ! UMAT in chemical notation.
-                            ! In spin or spatial orbitals.
-                            Coul = real(UMAT(UMatInd(i, j, a, b, 0, 0)), dp)
-                            Exch = real(UMAT(UMatInd(i, j, b, a, 0, 0)), dp)
-                            
-                            if ((i .ne. j) .and. (a .ne. b)) then
-                                ! Cannot get i=j or a=b contributions in aaaa.
-
-                                if (tStoreSpinOrbs)then
-                                    Coul_aaaa = real(UMAT(UMatInd(2*i, 2*j, 2*a, 2*b, 0, 0)),dp)
-                                    Coul_bbbb = real(UMAT(UMatInd(2*i-1, 2*j-1, 2*a-1, 2*b-1, 0, 0)),dp)
-                                    Exch_aaaa = real(UMAT(UMatInd(2*i, 2*j, 2*b, 2*a, 0, 0)),dp)
-                                    Exch_bbbb = real(UMAT(UMatInd(2*i-1, 2*j-1, 2*b-1, 2*a-1, 0, 0)),dp)     
-
-                                    if (tRDMInstEnergy) then 
-                                        RDMEnergy_Inst = RDMEnergy_Inst + (aaaa_RDM(Ind1_aa,Ind2_aa) &
-                                                          *( Coul_aaaa - Exch_aaaa ) )
-                                        RDMEnergy_Inst = RDMEnergy_Inst + (bbbb_RDM(Ind1_aa,Ind2_aa) &
-                                                          *  ( Coul_bbbb - Exch_bbbb ) )
-                                    end if
-
-                                    RDMEnergy2 = RDMEnergy2 + ( aaaa_RDM_full(Ind1_aa,Ind2_aa) &
-                                                          * Norm_2RDM * ( Coul_aaaa - Exch_aaaa ) )
-                                    RDMEnergy2 = RDMEnergy2 + ( bbbb_RDM_full(Ind1_aa,Ind2_aa) &
-                                                          * Norm_2RDM * ( Coul_bbbb - Exch_bbbb ) )
- 
-                                else 
-
-                                    if (tRDMInstEnergy) then
-                                        RDMEnergy_Inst = RDMEnergy_Inst + (aaaa_RDM(Ind1_aa,Ind2_aa) &
-                                                                    *( Coul - Exch ) )
-                                    end if
-
-                                    RDMEnergy2 = RDMEnergy2 + ( aaaa_RDM_full(Ind1_aa,Ind2_aa) &
-                                                            * Norm_2RDM * ( Coul - Exch ) ) 
-
-                                    if (tOpenShell) then
-                                        if (tRDMInstEnergy) then 
-                                            RDMEnergy_Inst = RDMEnergy_Inst + (bbbb_RDM(Ind1_aa,Ind2_aa) &
-                                                          *( Coul - Exch ) )
-                                        end if
-
-                                        RDMEnergy2 = RDMEnergy2 + ( bbbb_RDM_full(Ind1_aa,Ind2_aa) &
-                                                          * Norm_2RDM * ( Coul - Exch ) )
-                                    end if 
-
-                                end if  
-
-
-                                if (Ind1_aa.eq.Ind2_aa) then
-                                    Trace_2RDM_New = Trace_2RDM_New + &
-                                                        aaaa_RDM_full(Ind1_aa,Ind2_aa) * Norm_2RDM
-                                    if (tOpenShell) Trace_2RDM_New = Trace_2RDM_New + &
-                                                        bbbb_RDM_full(Ind1_aa,Ind2_aa) * Norm_2RDM
+                                if (tRDMInstEnergy) then 
+                                    RDMEnergy_Inst = RDMEnergy_Inst + (aaaa_RDM(Ind1_aa,Ind2_aa) &
+                                                      *( Coul_aaaa - Exch_aaaa ) )
+                                    RDMEnergy_Inst = RDMEnergy_Inst + (bbbb_RDM(Ind1_aa,Ind2_aa) &
+                                                      *  ( Coul_bbbb - Exch_bbbb ) )
                                 end if
- 
-                                ! For abab cases, coul element will be non-zero, exchange zero.
 
-                                if (tStoreSpinOrbs) then
-                                    Coul_abab=real(UMAT(UMatInd(2*i, 2*j-1, 2*a, 2*b-1, 0, 0)),dp)
-                                    Coul_baba=real(UMAT(UMatInd(2*i-1, 2*j, 2*a-1, 2*b, 0, 0)),dp)
+                                RDMEnergy2 = RDMEnergy2 + ( aaaa_RDM_full(Ind1_aa,Ind2_aa) &
+                                                      * Norm_2RDM * ( Coul_aaaa - Exch_aaaa ) )
+                                RDMEnergy2 = RDMEnergy2 + ( bbbb_RDM_full(Ind1_aa,Ind2_aa) &
+                                                      * Norm_2RDM * ( Coul_bbbb - Exch_bbbb ) )
 
-                                    call neci_flush(6)
+                            else 
 
-                                    if (tRDMInstEnergy) then
-                                        RDMEnergy_Inst = RDMEnergy_Inst + ( abab_RDM(Ind1_ab,Ind2_ab) &
-                                                                        *  Coul_abab )
-                                    end if
-                                    RDMEnergy2 = RDMEnergy2 + ( abab_RDM_full(Ind1_ab,Ind2_ab) &
-                                                            * Norm_2RDM * Coul_abab ) 
+                                if (tRDMInstEnergy) then
+                                    RDMEnergy_Inst = RDMEnergy_Inst + (aaaa_RDM(Ind1_aa,Ind2_aa) &
+                                                                *( Coul - Exch ) )
+                                end if
 
-                                    if (tRDMInstEnergy) then
-                                        RDMEnergy_Inst = RDMEnergy_Inst + ( baba_RDM(Ind1_ab,Ind2_ab) &
-                                                                        *  Coul_baba )
-                                    end if
-                                    RDMEnergy2 = RDMEnergy2 + ( baba_RDM_full(Ind1_ab,Ind2_ab) &
-                                                            * Norm_2RDM * Coul_baba ) 
+                                RDMEnergy2 = RDMEnergy2 + ( aaaa_RDM_full(Ind1_aa,Ind2_aa) &
+                                                        * Norm_2RDM * ( Coul - Exch ) ) 
 
-                                else 
-                                    if (tRDMInstEnergy) then
-                                        RDMEnergy_Inst = RDMEnergy_Inst + ( abab_RDM(Ind1_ab,Ind2_ab) &
-                                                                        *  Coul )
-                                        if (tOpenShell) RDMEnergy_Inst = RDMEnergy_Inst + ( baba_RDM(Ind1_ab,Ind2_ab) &
-                                                                        *  Coul )
+                                if (tOpenShell) then
+                                    if (tRDMInstEnergy) then 
+                                        RDMEnergy_Inst = RDMEnergy_Inst + (bbbb_RDM(Ind1_aa,Ind2_aa) &
+                                                      *( Coul - Exch ) )
                                     end if
 
-                                    RDMEnergy2 = RDMEnergy2 + ( abab_RDM_full(Ind1_ab,Ind2_ab) &
-                                                            * Norm_2RDM * Coul ) 
-                                    if (tOpenShell) RDMEnergy2 = RDMEnergy2 + ( baba_RDM_full(Ind1_ab,Ind2_ab) &
-                                                            * Norm_2RDM * Coul) 
-
+                                    RDMEnergy2 = RDMEnergy2 + ( bbbb_RDM_full(Ind1_aa,Ind2_aa) &
+                                                      * Norm_2RDM * ( Coul - Exch ) )
                                 end if 
 
-                                if (Ind1_ab.eq.Ind2_ab) then
-                                    Trace_2RDM_New = Trace_2RDM_New + &
-                                                        abab_RDM_full(Ind1_ab,Ind2_ab) * Norm_2RDM
-                                    if (tOpenShell) Trace_2RDM_New = Trace_2RDM_New + &
-                                                        baba_RDM_full(Ind1_ab,Ind2_ab) * Norm_2RDM
+                            end if  
+
+
+                            if (Ind1_aa .eq. Ind2_aa) then
+                                Trace_2RDM_New = Trace_2RDM_New + &
+                                                    aaaa_RDM_full(Ind1_aa,Ind2_aa) * Norm_2RDM
+                                if (tOpenShell) Trace_2RDM_New = Trace_2RDM_New + &
+                                                    bbbb_RDM_full(Ind1_aa,Ind2_aa) * Norm_2RDM
+                            end if
+
+                            ! For abab cases, coul element will be non-zero, exchange zero.
+
+                            if (tStoreSpinOrbs) then
+                                Coul_abab = real(UMAT(UMatInd(2*i, 2*j-1, 2*a, 2*b-1, 0, 0)), dp)
+                                Coul_baba = real(UMAT(UMatInd(2*i-1, 2*j, 2*a-1, 2*b, 0, 0)), dp)
+
+                                call neci_flush(6)
+
+                                if (tRDMInstEnergy) then
+                                    RDMEnergy_Inst = RDMEnergy_Inst + ( abab_RDM(Ind1_ab,Ind2_ab) &
+                                                                    *  Coul_abab )
+                                end if
+                                RDMEnergy2 = RDMEnergy2 + ( abab_RDM_full(Ind1_ab,Ind2_ab) &
+                                                        * Norm_2RDM * Coul_abab ) 
+
+                                if (tRDMInstEnergy) then
+                                    RDMEnergy_Inst = RDMEnergy_Inst + ( baba_RDM(Ind1_ab,Ind2_ab) &
+                                                                    *  Coul_baba )
+                                end if
+                                RDMEnergy2 = RDMEnergy2 + ( baba_RDM_full(Ind1_ab,Ind2_ab) &
+                                                        * Norm_2RDM * Coul_baba ) 
+
+                            else 
+                                if (tRDMInstEnergy) then
+                                    RDMEnergy_Inst = RDMEnergy_Inst + ( abab_RDM(Ind1_ab,Ind2_ab) &
+                                                                    *  Coul )
+                                    if (tOpenShell) RDMEnergy_Inst = RDMEnergy_Inst + ( baba_RDM(Ind1_ab,Ind2_ab) &
+                                                                    *  Coul )
                                 end if
 
-                                ! For abba cases, coul element will be zero, exchange non-zero.
+                                RDMEnergy2 = RDMEnergy2 + ( abab_RDM_full(Ind1_ab,Ind2_ab) &
+                                                        * Norm_2RDM * Coul ) 
+                                if (tOpenShell) RDMEnergy2 = RDMEnergy2 + ( baba_RDM_full(Ind1_ab,Ind2_ab) &
+                                                        * Norm_2RDM * Coul) 
 
-                                if (tStoreSpinOrbs) then
-                                    Exch_abba=real(UMAT(UMatInd(2*i, 2*j-1, 2*b, 2*a-1, 0, 0)),dp)
-                                    Exch_baab=real(UMAT(UMatInd(2*i-1, 2*j, 2*b-1, 2*a, 0, 0)),dp)
+                            end if 
 
-                                    if (tRDMInstEnergy) then 
-                                        RDMEnergy_Inst = RDMEnergy_Inst - ( abba_RDM(Ind1_aa,Ind2_aa) &
-                                                                        * Exch_abba )
-                                        RDMEnergy_Inst = RDMEnergy_Inst - ( baab_RDM(Ind1_aa,Ind2_aa) &
-                                                                        * Exch_baab )
-                                    end if
+                            if (Ind1_ab .eq. Ind2_ab) then
+                                Trace_2RDM_New = Trace_2RDM_New + &
+                                                    abab_RDM_full(Ind1_ab,Ind2_ab) * Norm_2RDM
+                                if (tOpenShell) Trace_2RDM_New = Trace_2RDM_New + &
+                                                    baba_RDM_full(Ind1_ab,Ind2_ab) * Norm_2RDM
+                            end if
 
-                                    RDMEnergy2 = RDMEnergy2 - ( abba_RDM_full(Ind1_aa,Ind2_aa) &
-                                                            * Norm_2RDM * Exch_abba ) 
-                                    RDMEnergy2 = RDMEnergy2 - ( baab_RDM_full(Ind1_aa,Ind2_aa) &
-                                                            * Norm_2RDM * Exch_baab ) 
+                            ! For abba cases, coul element will be zero, exchange non-zero.
 
-                                else 
+                            if (tStoreSpinOrbs) then
+                                Exch_abba = real(UMAT(UMatInd(2*i, 2*j-1, 2*b, 2*a-1, 0, 0)), dp)
+                                Exch_baab = real(UMAT(UMatInd(2*i-1, 2*j, 2*b-1, 2*a, 0, 0)), dp)
 
-                                    if (tRDMInstEnergy) then 
-                                        RDMEnergy_Inst = RDMEnergy_Inst - ( abba_RDM(Ind1_aa,Ind2_aa) &
-                                                                        * Exch )
-                                        if (tOpenShell) RDMEnergy_Inst = RDMEnergy_Inst - ( baab_RDM(Ind1_aa,Ind2_aa) &
-                                                                        *  Exch )
-                                    end if
+                                if (tRDMInstEnergy) then 
+                                    RDMEnergy_Inst = RDMEnergy_Inst - ( abba_RDM(Ind1_aa,Ind2_aa) &
+                                                                    * Exch_abba )
+                                    RDMEnergy_Inst = RDMEnergy_Inst - ( baab_RDM(Ind1_aa,Ind2_aa) &
+                                                                    * Exch_baab )
+                                end if
 
-                                    RDMEnergy2 = RDMEnergy2 - ( abba_RDM_full(Ind1_aa,Ind2_aa) &
-                                                            * Norm_2RDM * Exch ) 
-                                    if (tOpenShell) RDMEnergy2 = RDMEnergy2 - ( baab_RDM_full(Ind1_aa,Ind2_aa) &
-                                                            * Norm_2RDM * Exch ) 
+                                RDMEnergy2 = RDMEnergy2 - ( abba_RDM_full(Ind1_aa,Ind2_aa) &
+                                                        * Norm_2RDM * Exch_abba ) 
+                                RDMEnergy2 = RDMEnergy2 - ( baab_RDM_full(Ind1_aa,Ind2_aa) &
+                                                        * Norm_2RDM * Exch_baab ) 
 
-                               end if 
+                            else 
 
-                           else if ( (i .eq. j) .or. (a .eq. b) )then
-                                ! i = j or a = b
-                                ! abab has both abab and abba elements in them effectively.
-                                ! half will have non-zero coul, and half non-zero exchange.
-                                ! For abab/baba Exch = 0, and for abba/baab Coul=0
-                                ! abba/baab saved in abab/baba. Changes the sign. 
-                                if (tStoreSpinOrbs) then
-                                    Coul_abab=real(UMAT(UMatInd(2*i, 2*j-1, 2*a, 2*b-1, 0, 0)),dp)
-                                    Coul_baba=real(UMAT(UMatInd(2*i-1, 2*j, 2*a-1, 2*b, 0, 0)),dp)
+                                if (tRDMInstEnergy) then 
+                                    RDMEnergy_Inst = RDMEnergy_Inst - ( abba_RDM(Ind1_aa,Ind2_aa) &
+                                                                    * Exch )
+                                    if (tOpenShell) RDMEnergy_Inst = RDMEnergy_Inst - ( baab_RDM(Ind1_aa,Ind2_aa) &
+                                                                    *  Exch )
+                                end if
 
-                                    if ( (i .eq. j) .and. (a .eq. b) ) then
-                                        ! This term is saved in abab only
-                                        Exch_abba=real(UMAT(UMatInd(2*i, 2*j-1, 2*b, 2*a-1, 0, 0)),dp)
-    
-                                        if (tRDMInstEnergy) then
-                                            RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * abab_RDM(Ind1_ab,Ind2_ab) &
-                                                                              * (Coul_abab+Exch_abba)
-                                   
-                                        end if 
-    
-                                        RDMEnergy2 = RDMEnergy2 + 0.5_dp * abab_RDM_full(Ind1_ab,Ind2_ab) &
-                                                                  * Norm_2RDM * (Coul_abab+Exch_abba)
+                                RDMEnergy2 = RDMEnergy2 - ( abba_RDM_full(Ind1_aa,Ind2_aa) &
+                                                        * Norm_2RDM * Exch ) 
+                                if (tOpenShell) RDMEnergy2 = RDMEnergy2 - ( baab_RDM_full(Ind1_aa,Ind2_aa) &
+                                                        * Norm_2RDM * Exch ) 
 
-                                    else if (i .eq. j) then
-                                        ! i = j : Swap first indeces to get abba/baab terms
-                                        ! abba saved in baba, baab saved in abab (sign changes)
-                                        Exch_abba=real(UMAT(UMatInd(2*j, 2*i-1, 2*b, 2*a-1, 0, 0)),dp) 
-                                        Exch_baab=real(UMAT(UMatInd(2*j-1, 2*i, 2*b-1, 2*a, 0, 0)),dp) 
-    
-                                        if (tRDMInstEnergy) then
-                                            RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * abab_RDM(Ind1_ab,Ind2_ab) &
-                                                                              *  (Coul_abab+Exch_baab)
-                                            RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * baba_RDM(Ind1_ab,Ind2_ab) &
-                                                                              *  (Coul_baba+Exch_abba)
-                                        end if 
-    
-                                        RDMEnergy2 = RDMEnergy2 +  0.5_dp * abab_RDM_full(Ind1_ab,Ind2_ab) &
-                                                                   * Norm_2RDM * (Coul_abab+Exch_baab)
+                           end if 
 
+                       else if ( (i .eq. j) .or. (a .eq. b) )then
+                            ! i = j or a = b
+                            ! abab has both abab and abba elements in them effectively.
+                            ! half will have non-zero coul, and half non-zero exchange.
+                            ! For abab/baba Exch = 0, and for abba/baab Coul=0
+                            ! abba/baab saved in abab/baba. Changes the sign. 
+                            if (tStoreSpinOrbs) then
+                                Coul_abab = real(UMAT(UMatInd(2*i, 2*j-1, 2*a, 2*b-1, 0, 0)), dp)
+                                Coul_baba = real(UMAT(UMatInd(2*i-1, 2*j, 2*a-1, 2*b, 0, 0)), dp)
 
-                                        RDMEnergy2 = RDMEnergy2 +  0.5_dp * baba_RDM_full(Ind1_ab,Ind2_ab) &
-                                                                   * Norm_2RDM * (Coul_baba+Exch_abba)
+                                if ( (i .eq. j) .and. (a .eq. b) ) then
+                                    ! This term is saved in abab only
+                                    Exch_abba = real(UMAT(UMatInd(2*i, 2*j-1, 2*b, 2*a-1, 0, 0)), dp)
 
-
-                                    else if (a .eq. b) then
-                                        ! a = b : Swap last indeces to get abba/baab terms
-                                        ! abba saved in abab, baab saved in baba (sign changes)
-                                        Exch_abba=real(UMAT(UMatInd(2*i, 2*j-1, 2*a, 2*b-1, 0, 0)),dp)
-                                        Exch_baab=real(UMAT(UMatInd(2*i-1, 2*j, 2*a-1, 2*b, 0, 0)),dp)
-    
-                                        if (tRDMInstEnergy) then
-                                            RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * abab_RDM(Ind1_ab,Ind2_ab) &
-                                                                        *(Coul_abab+Exch_abba)
-                                            RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * baba_RDM(Ind1_ab,Ind2_ab) &
-                                                                        * (Coul_baba+Exch_baab)
-                                        end if 
-    
-                                        RDMEnergy2 = RDMEnergy2 + 0.5_dp * abab_RDM_full(Ind1_ab,Ind2_ab) &
-                                                                * Norm_2RDM * (Coul_abab+Exch_abba)
-
-
-                                        RDMEnergy2 = RDMEnergy2 + 0.5_dp * baba_RDM_full(Ind1_ab,Ind2_ab) &
-                                                                * Norm_2RDM * (Coul_baba+Exch_baab)
-                                    end if
-
-                                else
-
-                                    if (tRDMInstEnergy) then 
+                                    if (tRDMInstEnergy) then
                                         RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * abab_RDM(Ind1_ab,Ind2_ab) &
-                                                                        * (Coul+Exch)
-                                        if (tOpenShell) RDMEnergy_Inst = RDMEnergy_Inst  &
-                                                                        + 0.5_dp *baba_RDM(Ind1_ab,Ind2_ab) &
-                                                                        *  (Coul+Exch)
+                                                                          * (Coul_abab+Exch_abba)
+                               
                                     end if 
 
                                     RDMEnergy2 = RDMEnergy2 + 0.5_dp * abab_RDM_full(Ind1_ab,Ind2_ab) &
-                                                            * Norm_2RDM * (Coul+Exch)
+                                                              * Norm_2RDM * (Coul_abab+Exch_abba)
+
+                                else if (i .eq. j) then
+                                    ! i = j : Swap first indeces to get abba/baab terms
+                                    ! abba saved in baba, baab saved in abab (sign changes)
+                                    Exch_abba = real(UMAT(UMatInd(2*j, 2*i-1, 2*b, 2*a-1, 0, 0)), dp)
+                                    Exch_baab = real(UMAT(UMatInd(2*j-1, 2*i, 2*b-1, 2*a, 0, 0)), dp)
+
+                                    if (tRDMInstEnergy) then
+                                        RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * abab_RDM(Ind1_ab,Ind2_ab) &
+                                                                          *  (Coul_abab+Exch_baab)
+                                        RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * baba_RDM(Ind1_ab,Ind2_ab) &
+                                                                          *  (Coul_baba+Exch_abba)
+                                    end if 
+
+                                    RDMEnergy2 = RDMEnergy2 +  0.5_dp * abab_RDM_full(Ind1_ab,Ind2_ab) &
+                                                               * Norm_2RDM * (Coul_abab+Exch_baab)
 
 
-                                    if (tOpenShell) RDMEnergy2 = RDMEnergy2 &
-                                                            + 0.5_dp * baba_RDM_full(Ind1_ab,Ind2_ab) &
-                                                            * Norm_2RDM * (Coul+Exch)
+                                    RDMEnergy2 = RDMEnergy2 +  0.5_dp * baba_RDM_full(Ind1_ab,Ind2_ab) &
+                                                               * Norm_2RDM * (Coul_baba+Exch_abba)
 
-                                end if 
 
-                                if (Ind1_ab.eq.Ind2_ab) then
-                                    Trace_2RDM_New = Trace_2RDM_New + &
-                                                        abab_RDM_full(Ind1_ab,Ind2_ab) * Norm_2RDM
-                                    if (tOpenShell) then
-                                        Trace_2RDM_New = Trace_2RDM_New + &
-                                                        baba_RDM_full(Ind1_ab,Ind2_ab) * Norm_2RDM
-                                    end if  
+                                else if (a .eq. b) then
+                                    ! a = b : Swap last indeces to get abba/baab terms
+                                    ! abba saved in abab, baab saved in baba (sign changes)
+                                    Exch_abba = real(UMAT(UMatInd(2*i, 2*j-1, 2*a, 2*b-1, 0, 0)), dp)
+                                    Exch_baab = real(UMAT(UMatInd(2*i-1, 2*j, 2*a-1, 2*b, 0, 0)), dp)
+
+                                    if (tRDMInstEnergy) then
+                                        RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * abab_RDM(Ind1_ab,Ind2_ab) &
+                                                                    *(Coul_abab+Exch_abba)
+                                        RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * baba_RDM(Ind1_ab,Ind2_ab) &
+                                                                    * (Coul_baba+Exch_baab)
+                                    end if 
+
+                                    RDMEnergy2 = RDMEnergy2 + 0.5_dp * abab_RDM_full(Ind1_ab,Ind2_ab) &
+                                                            * Norm_2RDM * (Coul_abab+Exch_abba)
+
+
+                                    RDMEnergy2 = RDMEnergy2 + 0.5_dp * baba_RDM_full(Ind1_ab,Ind2_ab) &
+                                                            * Norm_2RDM * (Coul_baba+Exch_baab)
                                 end if
 
+                            else
+
+                                if (tRDMInstEnergy) then 
+                                    RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * abab_RDM(Ind1_ab,Ind2_ab) &
+                                                                    * (Coul+Exch)
+                                    if (tOpenShell) RDMEnergy_Inst = RDMEnergy_Inst  &
+                                                                    + 0.5_dp *baba_RDM(Ind1_ab,Ind2_ab) &
+                                                                    *  (Coul+Exch)
+                                end if 
+
+                                RDMEnergy2 = RDMEnergy2 + 0.5_dp * abab_RDM_full(Ind1_ab,Ind2_ab) &
+                                                        * Norm_2RDM * (Coul+Exch)
+
+
+                                if (tOpenShell) RDMEnergy2 = RDMEnergy2 &
+                                                        + 0.5_dp * baba_RDM_full(Ind1_ab,Ind2_ab) &
+                                                        * Norm_2RDM * (Coul+Exch)
+
+                            end if 
+
+                            if (Ind1_ab .eq. Ind2_ab) then
+                                Trace_2RDM_New = Trace_2RDM_New + &
+                                                    abab_RDM_full(Ind1_ab,Ind2_ab) * Norm_2RDM
+                                if (tOpenShell) then
+                                    Trace_2RDM_New = Trace_2RDM_New + &
+                                                    baba_RDM_full(Ind1_ab,Ind2_ab) * Norm_2RDM
+                                end if  
                             end if
 
-                       end do
+                        end if
 
-                    end do
+                   end do
+
                 end do
             end do
+        end do
 
-            if (tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + Ecore/Norm_2RDM_Inst
-            RDMEnergy = RDMEnergy1 + RDMEnergy2 + Ecore 
+        ! The total energy from the 'instantaneous' RDM.
+        if (tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + Ecore/Norm_2RDM_Inst
+        ! The total energy from the 'full' RDM.
+        RDMEnergy = RDMEnergy1 + RDMEnergy2 + Ecore
 
-            ! Calculate the instantaneous estimate of <S^2> using the 2RDM.
-            spin_est = calc_2rdm_spin_estimate(Norm_2RDM_Inst)
-
-            ! Obviously this 'instantaneous' energy is actually accumulated between energy 
-            ! print outs.
-            if (tRDMInstEnergy) then
-                write(Energies_unit, "(1X,I13,3(2X,es20.13))") Iter+PreviousCycles, RDMEnergy_Inst, spin_est, &
-                                                                1.0_dp/Norm_2RDM_Inst
-            else
-                write(Energies_unit, "(I31,F30.15)") Iter+PreviousCycles, RDMEnergy
-            end if
-            call neci_flush(Energies_unit)
-
-            if (tFinalRDMEnergy) then
-                write(6,*) 'Trace of 2-el-RDM before normalisation : ', Trace_2RDM
-                write(6,*) 'Trace of 2-el-RDM after normalisation : ', Trace_2RDM_New
-                write(6,*) 'Energy contribution from the 1-RDM: ', RDMEnergy1
-                write(6,*) 'Energy contribution from the 2-RDM: ', RDMEnergy2
-                write(6,'(A64,F30.20)') ' *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:', RDMEnergy
-                close(Energies_unit) 
-            end if
-
-        end if
-
-        ! Zero all the 'instantaneous' stuff.
-        if (tRDMInstEnergy) then
-            aaaa_RDM(:,:) = 0.0_dp
-            abab_RDM(:,:) = 0.0_dp
-            abba_RDM(:,:) = 0.0_dp
-
-            if (tOpenShell)then
-                bbbb_RDM(:,:) = 0.0_dp
-                baba_RDM(:,:) = 0.0_dp
-                baab_RDM(:,:) = 0.0_dp
-            end if
-
-            AccumRDMNorm_Inst = 0.0_dp
-            Trace_2RDM_Inst = 0.0_dp
-        end if
 
         call halt_timer(RDMEnergy_Time)
 

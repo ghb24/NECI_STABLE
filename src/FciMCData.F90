@@ -126,7 +126,6 @@ MODULE FciMCData
       real(dp), allocatable :: norm_semistoch(:)
 
       INTEGER :: exFlag=3
-      real(dp) :: AccumRDMNorm, AccumRDMNorm_Inst, AllAccumRDMNorm
       
       !Hash tables to point to the correct determinants in CurrentDets
       type(ll_node), pointer :: HashIndex(:) 

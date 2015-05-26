@@ -26,8 +26,8 @@ contains
         use DeterminantData, only: write_det
         use CalcData, only: MemoryFacPart
         use FciMCData, only: MaxSpawned, Spawned_Parents, Spawned_Parents_Index
-        use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag, AccumRDMNorm_Inst
-        use FciMCData, only: AccumRDMNorm, tSinglePartPhase, HFDet_True, tFinalRDMEnergy
+        use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag
+        use FciMCData, only: tSinglePartPhase, HFDet_True, tFinalRDMEnergy
         use LoggingData, only: tDo_Not_Calc_RDMEnergy, tNo_RDMs_To_Read, tWrite_RDMs_to_read
         use LoggingData, only: tRDMInstEnergy, RDMExcitLevel, tExplicitAllRDM, tPrint1RDM
         use LoggingData, only: tDiagRDM, tReadRDMs, tPopsfile, tDumpForcesInfo, tDipoles
@@ -484,19 +484,15 @@ contains
 
         ! Open file to keep track of RDM Energies (if they're being calculated). 
         if ((iProcIndex.eq.0).and.tCalc_RDMEnergy) then
-            Energies_unit = get_free_unit()
-            open(Energies_unit, file='RDMEstimates', status='unknown', position='append')
+            rdm_estimates_unit = get_free_unit()
+            open(rdm_estimates_unit, file='RDMEstimates', status='unknown', position='append')
 
-            write(Energies_unit, "('#', 4X, 'Iteration', 6X, 'Energy numerator', 6X, 'Spin^2 numerator', 9X, 'Normalisation')")
+            write(rdm_estimates_unit,"('#', 4X, 'Iteration', 6X, 'Energy numerator', 6X, 'Spin^2 numerator', 9X, 'Normalisation')")
         end if
         tFinalRDMEnergy = .false.
 
         Trace_2RDM = 0.0_dp
         Trace_2RDM_Inst = 0.0_dp
-        ! AccumRDMNorm is the normalisation for the case where we're using a
-        ! limited reference to calculate the RDM.
-        AccumRDMNorm = 0.0_dp
-        AccumRDMNorm_Inst = 0.0_dp
 
         ! Reads in the RDMs from a previous calculation, sets the accumulating
         ! normalisations, writes out the starting energy.
@@ -515,46 +511,13 @@ contains
         ! calculation), we also write out the unnormalised RDMs that can be
         ! read in when restarting a calculation. If the NORDMSTOREAD option
         ! is on, these wont be printed.  
-        if (TPopsFile .and. (.not. tno_RDMs_to_read)) twrite_RDMs_to_read = .true.
+        if (tPopsfile .and. (.not. tno_RDMs_to_read)) twrite_RDMs_to_read = .true.
 
         nElRDM_Time%timer_name = 'nElRDMTime'
         FinaliseRDM_Time%timer_name = 'FinaliseRDMTime'
         RDMEnergy_Time%timer_name = 'RDMEnergyTime'
 
     end subroutine InitRDM
-
-    subroutine zero_rdms()
-
-        use FciMCData, only: AccumRDMNorm_Inst, AccumRDMNorm
-        use LoggingData, only: RDMExcitLevel
-        use NatOrbsMod, only: NatOrbMat
-
-        if (RDMExcitLevel .eq. 1) then
-            NatOrbMat(:,:) = 0.0_dp
-        else
-            aaaa_RDM(:,:) = 0.0_dp
-            abab_RDM(:,:) = 0.0_dp
-            abba_RDM(:,:) = 0.0_dp
-            AllNodes_aaaa_RDM(:,:) = 0.0_dp
-            AllNodes_abab_RDM(:,:) = 0.0_dp
-            AllNodes_abba_RDM(:,:) = 0.0_dp
-
-            if (tOpenShell) then
-                bbbb_RDM(:,:) = 0.0_dp
-                baba_RDM(:,:) = 0.0_dp
-                baab_RDM(:,:) = 0.0_dp
-                AllNodes_bbbb_RDM(:,:) = 0.0_dp
-                AllNodes_baba_RDM(:,:) = 0.0_dp
-                AllNodes_baab_RDM(:,:) = 0.0_dp
-            end if
-        end if
-
-        Trace_2RDM = 0.0_dp
-        Trace_2RDM_Inst = 0.0_dp
-        AccumRDMNorm = 0.0_dp
-        AccumRDMNorm_Inst = 0.0_dp
-
-    end subroutine zero_rdms
 
     subroutine Read_In_RDMs()
 
@@ -567,7 +530,7 @@ contains
         use LoggingData, only: RDMExcitLevel
         use NatOrbsMod, only: NatOrbMat
         use Parallel_neci, only: iProcIndex
-        use rdm_estimators, only: Calc_Energy_From_RDM
+        use rdm_estimators, only: rdm_output_wrapper
         use RotateOrbsData, only: SymLabelListInv_rot
         use SystemData, only: tStoreSpinOrbs
 
@@ -725,9 +688,7 @@ contains
 
         ! Calculate the energy for the matrices read in (if we're calculating more
         ! than the 1-RDM).
-        if (tCalc_RDMEnergy) then
-            call Calc_Energy_from_RDM(Norm_2RDM)
-        end if
+        if (tCalc_RDMEnergy) call rdm_output_wrapper(Norm_2RDM)
 
         ! Continue calculating the RDMs from the first iteration when the popsfiles
         ! (and RDMs) are read in. This overwrites the iteration number put in the input.
@@ -938,7 +899,7 @@ contains
         use LoggingData, only: tPrint1RDM, tDiagRDM, tDumpForcesInfo, tDipoles
         use Parallel_neci, only: iProcIndex, MPIBarrier
         use rdm_estimators, only: Calc_Lagrangian_from_RDM, convert_mats_Molpforces
-        use rdm_estimators, only: Calc_Energy_From_RDM, CalcDipoles
+        use rdm_estimators, only: rdm_output_wrapper, CalcDipoles
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
 
         integer :: error
@@ -971,7 +932,7 @@ contains
             tFinalRDMEnergy = .true.
 
             ! 1RDM is contructed here (in calc_1RDM_energy).
-            call Calc_Energy_from_RDM(Norm_2RDM)
+            call rdm_output_wrapper(Norm_2RDM)
 
             if (tPrint1RDM) then
                 call Finalise_1e_RDM(Norm_1RDM)
@@ -979,7 +940,7 @@ contains
                 call calc_1e_norms(Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
                 write(6,*) ''
                 write(6,'(A55,F30.20)') ' SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY &
-                                            &HF ORBITALS: ',SumN_Rho_ii
+                                            &HF ORBITALS: ', SumN_Rho_ii
             end if
             if (tDumpForcesInfo) then
                 if (.not. tPrint1RDM) call Finalise_1e_RDM(Norm_1RDM)
@@ -1019,7 +980,6 @@ contains
         ! hermitian if required, and prints out the versions we're interested
         ! in. This is only ever called at the very end of a calculation.
 
-        use FciMCData, only: AllAccumRDMNorm
         use LoggingData, only: twrite_RDMs_to_read, twrite_normalised_RDMs, tForceCauchySchwarz
         use LoggingData, only: RDMExcitLevel
         use NatOrbsMod, only: NatOrbMat
@@ -1032,7 +992,6 @@ contains
         real(dp), allocatable :: AllNode_NatOrbMat(:,:)
 
         Norm_1RDM = 0.0_dp
-        AllAccumRDMNorm = 0.0_dp
 
         if (RDMExcitLevel .eq. 1) then
 

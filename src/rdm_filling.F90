@@ -591,7 +591,7 @@ contains
 ! THESE NEXT ROUTINES ARE GENERAL TO BOTH STOCHASTIC AND EXPLICIT    
 ! =======================================================================================    
 
-    subroutine Fill_Diag_RDM(nI, realSignDi, tCoreSpaceDet, RDMItersIn)
+    subroutine Fill_Diag_RDM(nI, realSignDi, tCoreSpaceDetIn, RDMItersIn)
 
         ! Fill diagonal elements of 1- and 2-RDM.
         ! These are < Di | a_i+ a_i | Di > and < Di | a_i+ a_j+ a_j a_i | Di >.
@@ -605,24 +605,24 @@ contains
 
         integer, intent(in) :: nI(NEl)
         real(dp), intent(in) :: realSignDi(lenof_sign)
-        logical, intent(in), optional :: tCoreSpaceDet
+        logical, intent(in), optional :: tCoreSpaceDetIn
         integer, intent(in), optional :: RDMItersIn
+
         integer :: i, j, iSpat, jSpat, Ind, iInd
         real(dp) :: ScaleContribFac
         integer :: RDMIters
+        logical :: tCoreSpaceDet
 
-        ! Need to add in the diagonal elements.
-        
         ScaleContribFac = 1.0
         
-        if (.not. present(RDMItersIn)) then
-            RDMIters = 1.0_dp
-        else
-            RDMIters = RDMItersIn
-        end if
+        RDMIters = 1.0_dp
+        if (present(RDMItersIn)) RDMIters = RDMItersIn
+
+        tCoreSpaceDet = .false.
+        if (present(tCoreSpaceDetIn)) tCoreSpaceDet = tCoreSpaceDetIn
 
         ! This is the single-run cutoff being applied (do not use in DR mode):
-        if ((.not. tCoreSpaceDet) .or. .not. present(tCoreSpaceDet)) then
+        if (.not. tCoreSpaceDetIn) then
             ! Dets in the core space are never removed from main list, so
             ! strictly do not require corrections
             if (tThreshOccRDMDiag .and. (abs(RealSignDi(1)) .le. ThreshOccRDM)) ScaleContribFac = 0.0_dp

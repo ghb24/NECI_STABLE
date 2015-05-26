@@ -120,7 +120,6 @@ MODULE Logging
       tWriteSpinFreeRDM = .false.
       twrite_RDMs_to_read = .false.
       tno_RDMs_to_read = .false.
-      !tReadRDMAvPop=.false.
       tReadRDMs = .false.
       tNoNewRDMContrib=.false.
       IterWriteRDMs = 10000
@@ -632,17 +631,6 @@ MODULE Logging
                 twrite_RDMs_to_read = .true. 
                 tno_RDMs_to_read = .false. 
             ENDIF
-
-       ! case("READRDMAVPOP")
-            ! Use in conjunction with READRDMS.  This can be used in the
-            ! previous calculation had "WRITEBINRDMNODIAG" switched on. We will
-            ! read in the information in RDM_Av_Pop which contains some of the
-            ! data from CurrentH in the previous round -- the cumulative sum of
-            ! this determinant's populations during its lifetime (updated every
-            ! iter), and the number of iters it has been occupied. This
-            ! information will get assigned into currentH and allow us to
-            ! continue the RDM accumulation without bias.
-        !    tReadRDMAvPop=.true.
 
         case("NONORMRDMS")            
             ! Does not print out the normalised (final) RDMs - to be used if
