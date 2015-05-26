@@ -9,7 +9,6 @@ module rdm_general
     use SystemData, only: NEl, nBasis
     use constants
     use util_mod
-    use rdm_data
 
     implicit none
 
@@ -33,6 +32,12 @@ contains
         use LoggingData, only: tDiagRDM, tReadRDMs, tPopsfile, tDumpForcesInfo, tDipoles
         use NatOrbsMod, only: NatOrbMat, NatOrbMatTag, Evalues, EvaluesTag
         use Parallel_neci, only: iProcIndex, nProcessors
+        use rdm_data, only: rdms, tOpenShell, tCalc_RDMEnergy, Sing_ExcDjs, Doub_ExcDjs
+        use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
+        use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag, OneEl_Gap, TwoEl_Gap
+        use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
+        use rdm_data, only: Rho_ii, Rho_iiTag, Trace_2RDM, Trace_2RDM_Inst, rdm_estimates_unit
+        use rdm_data, only: nElRDM_Time, FinaliseRDM_time, RDMEnergy_time
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
         use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs, NoSymLabelCounts
@@ -539,6 +544,7 @@ contains
         use LoggingData, only: RDMExcitLevel
         use NatOrbsMod, only: NatOrbMat
         use Parallel_neci, only: iProcIndex
+        use rdm_data, only: rdm_t, tOpenShell, tCalc_RDMEnergy
         use rdm_estimators, only: rdm_output_wrapper
         use RotateOrbsData, only: SymLabelListInv_rot
         use SystemData, only: tStoreSpinOrbs
@@ -712,6 +718,7 @@ contains
         ! This routine just sets up the symmetry labels so that the orbitals
         ! are ordered according to symmetry (all beta then all alpha if spin orbs).
 
+        use rdm_data, only: tOpenShell
         use RotateOrbsData, only: SymLabelList2_rot, SymLabelCounts2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: NoOrbs, SpatOrbs, NoSymLabelCounts
         use sort_mod, only: sort
@@ -909,6 +916,7 @@ contains
         use LoggingData, only: tBrokenSymNOs, occ_numb_diff, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tPrint1RDM, tDiagRDM, tDumpForcesInfo, tDipoles
         use Parallel_neci, only: iProcIndex, MPIBarrier
+        use rdm_data, only: rdms, tRotatedNos, FinaliseRDM_Time
         use rdm_estimators, only: Calc_Lagrangian_from_RDM, convert_mats_Molpforces
         use rdm_estimators, only: rdm_output_wrapper, CalcDipoles
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
@@ -1058,6 +1066,7 @@ contains
         use FciMCData, only: HFDet_True
         use LoggingData, only: tDiagRDM
         use NatOrbsMod, only: NatOrbMat
+        use rdm_data, only: tOpenShell, Rho_ii
         use RotateOrbsData, only: SymLabelListInv_rot, NoOrbs
         use SystemData, only: BRR
         use UMatCache, only: gtID
@@ -1082,6 +1091,7 @@ contains
         ! Given the HF orbitals, SymLabelListInv_rot tells us their position
         ! in the 1-RDM.
         SumN_Rho_ii = 0.0_dp
+
         do i = 1, NoOrbs
 
             ! Rho_ii is the diagonal elements of the 1-RDM. We want this
@@ -1199,6 +1209,7 @@ contains
         ! for the OneRDM_POPS file to be read in in a restart calculation.
 
         use NatOrbsMod, only: NatOrbMat
+        use rdm_data, only: tOpenShell
         use RotateOrbsData, only: SymLabelListInv_rot
         use UMatCache, only: gtID
 
@@ -1273,6 +1284,10 @@ contains
         use FciMCData, only: Spawned_ParentsTag, Spawned_Parents_IndexTag
         use LoggingData, only: RDMExcitLevel, tExplicitAllRDM
         use NatOrbsMod, only: NatOrbMat, NatOrbMatTag, Evalues, EvaluesTag
+        use rdm_data, only: rdms, Rho_ii, Rho_iiTag, Sing_ExcDjs, Doub_ExcDjs
+        use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
+        use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag
+        use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag
         use RotateOrbsData, only: SymLabelListInv_rotTag
@@ -1642,7 +1657,7 @@ contains
         logical :: tRDMStoreParent
         integer :: j
 
-        if (RDMBiasFacCurr.eq.0.0_dp) then
+        if (RDMBiasFacCurr .eq. 0.0_dp) then
             ! If RDMBiasFacCurr is exactly zero, any contribution from Ci.Cj will be zero 
             ! so it is not worth carrying on. 
             SpawnedParts(niftot+1:niftot+nifdbo+2, ValidSpawnedList(procJ)) = 0
