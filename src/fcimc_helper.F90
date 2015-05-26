@@ -1583,20 +1583,19 @@ contains
     end subroutine decide_num_to_spawn
 
     subroutine walker_death (iter_data, DetCurr, iLutCurr, Kii, RealwSign, &
-                            wAvSign, IterRDMStartCurr, DetPosition, walkExcitLevel)
+                             DetPosition, walkExcitLevel)
 
         integer, intent(in) :: DetCurr(nel) 
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         integer(kind=n_int), intent(in) :: iLutCurr(0:niftot)
         real(dp), intent(in) :: Kii
-        real(dp), intent(in), dimension(lenof_sign) :: wAvSign, IterRDMStartCurr
         integer, intent(in) :: DetPosition
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp), dimension(lenof_sign) :: iDie
         real(dp), dimension(lenof_sign) :: CopySign
         integer, intent(in) :: walkExcitLevel
         integer :: i
-        character(len=*), parameter :: t_r="walker_death"
+        character(len=*), parameter :: t_r = "walker_death"
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
@@ -1644,10 +1643,6 @@ contains
             ! For the hashed walker main list, the particles don't move.
             ! Therefore just adjust the weight.
             call encode_sign (CurrentDets(:,DetPosition), CopySign)
-            if (tFillingStochRDMonFly) then
-                call set_av_sgn(DetPosition, wAvSign)
-                call set_iter_occ(DetPosition, IterRDMStartCurr)
-            endif
         else
             ! All walkers died.
             if(tFillingStochRDMonFly) then

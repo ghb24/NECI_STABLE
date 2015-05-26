@@ -785,13 +785,7 @@ module FciMCParMod
                 ! The deterministic states are always kept in CurrentDets, even when
                 ! the amplitude is zero. Hence we must check if the amplitude is zero,
                 ! and if so, skip the state.
-                if (IsUnoccDet(SignCurr)) then
-                    if (tFillingStochRDMonFly) then
-                        call set_av_sgn(j, AvSignCurr)
-                        call set_iter_occ(j, IterRDMStartCurr)
-                    endif
-                    cycle
-                end if
+                if (IsUnoccDet(SignCurr)) cycle
             end if
 
             ! The current diagonal matrix element is stored persistently.
@@ -841,13 +835,7 @@ module FciMCParMod
             ! If we're on the Hartree-Fock, and all singles and doubles are in
             ! the core space, then there will be no stochastic spawning from
             ! this determinant, so we can the rest of this loop.
-            if (ss_space_in%tDoubles .and. walkExcitLevel_toHF == 0 .and. tDetermHFSpawning) then
-                if (tFillingStochRDMonFly) then
-                    call set_av_sgn(j, AvSignCurr)
-                    call set_iter_occ(j, IterRDMStartCurr)
-                endif
-                cycle
-            end if
+            if (ss_space_in%tDoubles .and. walkExcitLevel_toHF == 0 .and. tDetermHFSpawning) cycle
 
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles
@@ -944,7 +932,7 @@ module FciMCParMod
                                                                   part_type, CurrentDets(:,j))
                         else
                             call create_particle (nJ, iLutnJ, child, part_type, & 
-                                                  CurrentDets(:,j),SignCurr,p, &
+                                                  CurrentDets(:,j), SignCurr, p, &
                                                   RDMBiasFacCurr, WalkersToSpawn)
                         end if
 
@@ -954,25 +942,11 @@ module FciMCParMod
 
             enddo   ! Cycling over 'type' of particle on a given determinant.
 
-            if (tSemiStochastic) then
-                ! If we are performing a semi-stochastic simulation and this
-                ! state is in the deterministic space, then the death step is
-                ! performed deterministically later.
-                if (.not. tCoreDet) then
-                    call walker_death (iter_data, DetCurr, &
-                                       CurrentDets(:,j), HDiagCurr, SignCurr, &
-                                       AvSignCurr, IterRDMStartCurr, j, WalkExcitLevel)
-                else
-                    if (tFillingStochRDMonFly) then
-                        call set_av_sgn(j, AvSignCurr)
-                        call set_iter_occ(j, IterRDMStartCurr)
-                    endif
-                end if
-            else
-                call walker_death (iter_data, DetCurr, &
-                                   CurrentDets(:,j), HDiagCurr, SignCurr, &
-                                   AvSignCurr, IterRDMStartCurr, j, WalkExcitLevel)
-            end if
+            ! If we are performing a semi-stochastic simulation and this state
+            ! is in the deterministic space, then the death step is performed
+            ! deterministically later. Otherwise, perform the death step now.
+            if (.not. tCoreDet) call walker_death (iter_data, DetCurr, CurrentDets(:,j), &
+                                                   HDiagCurr, SignCurr, j, WalkExcitLevel)
 
         enddo ! Loop over determinants.
         IFDEBUGTHEN(FCIMCDebug,2) 
