@@ -22,20 +22,11 @@ module rdm_data
     ! spin^2) are output.
     integer :: rdm_estimates_unit
 
-    ! Arrays to hold instantaneous estimates of 2-RDMs.
-    ! The following three arrays are always used.
-    real(dp), pointer :: abab_RDM_inst(:,:), abba_RDM_inst(:,:)
-    ! And the following three arrays are only used for open shell calculations
-    ! (and possibly UHF systems in the future?).
-    real(dp), pointer :: bbbb_RDM_inst(:,:), baba_RDM_inst(:,:), baab_RDM_inst(:,:)
-
     ! Arrays to hold estimates of 2-RDMs, summed over the whole RDM calculation.
     real(dp), pointer :: aaaa_RDM_full(:,:), abab_RDM_full(:,:), abba_RDM_full(:,:)
     real(dp), pointer :: bbbb_RDM_full(:,:), baba_RDM_full(:,:), baab_RDM_full(:,:)
 
     ! Tags for the memory manager for the above RDM arrays.
-    integer :: aaaa_RDM_instTag, abab_RDM_instTag, abba_RDM_instTag
-    integer :: bbbb_RDM_instTag, baba_RDM_instTag, baab_RDM_instTag
     integer :: aaaa_RDM_fullTag, abab_RDM_fullTag, abba_RDM_fullTag
     integer :: bbbb_RDM_fullTag, baba_RDM_fullTag, baab_RDM_fullTag
 

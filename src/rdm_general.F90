@@ -149,10 +149,10 @@ contains
                 ! The 2-RDM of the type alpha beta beta alpha (= beta alpha alpha beta).
                 ! These also *do not* also include 2-RDM(i,j,a,b) terms where i=j or a=b
                 ! (these are the same as the abab elements).
-                allocate(abba_RDM_inst(rdm_size_1, rdm_size_1), stat=ierr)
-                if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating abba_RDM_inst array,')
-                call LogMemAlloc('abba_RDM_inst', (rdm_size_1**2), 8, this_routine, abba_RDM_instTag, ierr)
-                abba_RDM_inst(:,:) = 0.0_dp
+                allocate(rdms(1)%abba_inst(rdm_size_1, rdm_size_1), stat=ierr)
+                if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating abba_inst RDM array,')
+                call LogMemAlloc('rdms(1)%abba_inst', (rdm_size_1**2), 8, this_routine, rdms(1)%abba_instTag, ierr)
+                rdms(1)%abba_inst(:,:) = 0.0_dp
 
                 MemoryAlloc = MemoryAlloc + (rdm_size_1**2)*2*8
                 MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_1**2)*2*8
@@ -161,32 +161,32 @@ contains
                 ! These *do* include 2-RDM(i,j,a,b) terms where i=j or a=b, if they're
                 ! different spin this is possible - hence the slightly different size to
                 ! the aaaa array.
-                allocate(abab_RDM_inst(rdm_size_2, rdm_size_2), stat=ierr)
-                if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating abab_RDM_inst array,')
-                call LogMemAlloc('abab_RDM_inst', (rdm_size_2**2), 8, this_routine, abab_RDM_instTag, ierr)
-                abab_RDM_inst(:,:) = 0.0_dp
+                allocate(rdms(1)%abab_inst(rdm_size_2, rdm_size_2), stat=ierr)
+                if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating abab_inst RDM array,')
+                call LogMemAlloc('rdms(1)%abab_inst', (rdm_size_2**2), 8, this_routine, rdms(1)%abab_instTag, ierr)
+                rdms(1)%abab_inst(:,:) = 0.0_dp
 
                 MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
                 MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8 
 
                 ! Extra arrays for open shell systems.
                 if (tOpenShell) then
-                    allocate(bbbb_RDM_inst(rdm_size_1, rdm_size_1), stat=ierr)
+                    allocate(rdms(1)%bbbb_inst(rdm_size_1, rdm_size_1), stat=ierr)
                     if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating bbbb_RDM_inst array,')
-                    call LogMemAlloc('bbbb_RDM_inst', (rdm_size_1**2), 8, this_routine, bbbb_RDM_instTag, ierr)
-                    bbbb_RDM_inst(:,:) = 0.0_dp
+                    call LogMemAlloc('rdms(1)%bbbb_inst', (rdm_size_1**2), 8, this_routine, rdms(1)%bbbb_instTag, ierr)
+                    rdms(1)%bbbb_inst(:,:) = 0.0_dp
 
-                    allocate(baab_RDM_inst(rdm_size_1, rdm_size_1), stat=ierr)
-                    if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating baab_RDM_inst array,')
-                    call LogMemAlloc('baab_RDM_inst', (rdm_size_1**2), 8, this_routine, baab_RDM_instTag, ierr)
-                    baab_RDM_inst(:,:) = 0.0_dp
+                    allocate(rdms(1)%baab_inst(rdm_size_1, rdm_size_1), stat=ierr)
+                    if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating baab_inst RDM array,')
+                    call LogMemAlloc('rdms(1)%baab_inst', (rdm_size_1**2), 8, this_routine, rdms(1)%baab_instTag, ierr)
+                    rdms(1)%baab_inst(:,:) = 0.0_dp
                     MemoryAlloc = MemoryAlloc + (rdm_size_1**2)*2*8
                     MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_1**2)*2*8
 
-                    allocate(baba_RDM_inst(rdm_size_2, rdm_size_2), stat=ierr)
-                    if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating baba_RDM_inst array,')
-                    call LogMemAlloc('baba_RDM_inst', (rdm_size_2**2), 8, this_routine, baba_RDM_instTag, ierr)
-                    baba_RDM_inst(:,:) = 0.0_dp
+                    allocate(rdms(1)%baba_inst(rdm_size_2, rdm_size_2), stat=ierr)
+                    if (ierr .ne. 0) call Stop_All(this_routine, 'Problem allocating baba_inst RDM array,')
+                    call LogMemAlloc('rdms(1)%baba_inst', (rdm_size_2**2), 8, this_routine, rdms(1)%baba_instTag, ierr)
+                    rdms(1)%baba_inst(:,:) = 0.0_dp
                     MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
                     MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8
                 end if
@@ -238,13 +238,13 @@ contains
                 end if
                 
                 aaaa_RDM => rdms(1)%aaaa_inst
-                abba_RDM => abba_RDM_inst
-                abab_RDM => abab_RDM_inst
+                abba_RDM => rdms(1)%abba_inst
+                abab_RDM => rdms(1)%abab_inst
 
                 if (tOpenShell) then
-                    bbbb_RDM => bbbb_RDM_inst
-                    baab_RDM => baab_RDM_inst
-                    baba_RDM => baba_RDM_inst
+                    bbbb_RDM => rdms(1)%bbbb_inst
+                    baab_RDM => rdms(1)%baab_inst
+                    baba_RDM => rdms(1)%baba_inst
                 end if
 
             else
@@ -1369,29 +1369,29 @@ contains
             call LogMemDeAlloc(this_routine,rdms(1)%aaaa_instTag)
         end if
 
-        if (associated(abab_RDM_inst)) then
-            deallocate(abab_RDM_inst)
-            call LogMemDeAlloc(this_routine,abab_RDM_instTag)
+        if (associated(rdms(1)%abab_inst)) then
+            deallocate(rdms(1)%abab_inst)
+            call LogMemDeAlloc(this_routine,rdms(1)%abab_instTag)
         end if
 
-        if (associated(abba_RDM_inst)) then
-            deallocate(abba_RDM_inst)
-            call LogMemDeAlloc(this_routine,abba_RDM_instTag)
+        if (associated(rdms(1)%abba_inst)) then
+            deallocate(rdms(1)%abba_inst)
+            call LogMemDeAlloc(this_routine,rdms(1)%abba_instTag)
         end if
 
-        if (associated(bbbb_RDM_inst)) then
-            deallocate(bbbb_RDM_inst)
-            call LogMemDeAlloc(this_routine,bbbb_RDM_instTag)
+        if (associated(rdms(1)%bbbb_inst)) then
+            deallocate(rdms(1)%bbbb_inst)
+            call LogMemDeAlloc(this_routine,rdms(1)%bbbb_instTag)
         end if
 
-        if (associated(baba_RDM_inst)) then
-            deallocate(baba_RDM_inst)
-            call LogMemDeAlloc(this_routine,baba_RDM_instTag)
+        if (associated(rdms(1)%baba_inst)) then
+            deallocate(rdms(1)%baba_inst)
+            call LogMemDeAlloc(this_routine,rdms(1)%baba_instTag)
         end if
 
-        if (associated(baab_RDM_inst)) then
-            deallocate(baab_RDM_inst)
-            call LogMemDeAlloc(this_routine,baab_RDM_instTag)
+        if (associated(rdms(1)%baab_inst)) then
+            deallocate(rdms(1)%baab_inst)
+            call LogMemDeAlloc(this_routine,rdms(1)%baab_instTag)
         end if
 
         if (associated(aaaa_RDM_full)) then
