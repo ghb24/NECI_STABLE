@@ -377,10 +377,10 @@ contains
 
         HistPos = int(RealHistPos)
         
-        realSignDi(1) = AllHistogram(1,HistPos(1))/ExcNorm
+        realSignDi(1) = AllHistogram(1, HistPos(1))/ExcNorm
         realSignDi(lenof_sign) = AllHistogram(1,HistPos(1))/ExcNorm
         
-        call Fill_Diag_RDM(nI,realSignDi,.false.)
+        call Fill_Diag_RDM(nI, realSignDi, .false.)
 
         ! Zeros in ExcitMat3 starts off at the first single excitation.
         ExcitMat3(:,:) = 0
@@ -409,7 +409,7 @@ contains
             Proc = DetermineDetNode(nel,nJ,0)
             ! This will return a value between 0 -> nProcessors-1.
             Sing_ExcDjs(:,Sing_ExcList(Proc)) = iLutnJ(:)
-            Sing_ExcList(Proc) = Sing_ExcList(Proc)+1
+            Sing_ExcList(Proc) = Sing_ExcList(Proc) + 1
 
             ! Want a quick test to see if arrays are getting full.
             if (Sing_ExcList(Proc) .gt. nint(OneEl_Gap*(Proc+1))) then
@@ -827,7 +827,7 @@ contains
                         if (Ex(1,1) .le. 0) call Stop_All('SearchOccDets',&
                                             'nJ is not the correct excitation of nI.')
 
-                        call Fill_Doubs_RDM(Ex,tParity,realSignDi,realSignDj,.true.)
+                        call Fill_Doubs_RDM(Ex, tParity, realSignDi, realSignDj, .true.)
                         
                     end if
                 end do
@@ -913,7 +913,7 @@ contains
                         if (Ex(1,1).le.0) call Stop_All('Sing_SearchOccDets',&
                                             'nJ is not the correct excitation of nI.')
 
-                        call Fill_Sings_RDM(nI,Ex,tParity,realSignDi,realSignDj,.true.)
+                        call Fill_Sings_RDM(nI, Ex, tParity, realSignDi, realSignDj, .true.)
 
                         ! No normalisation factor just yet - possibly need to revise.                    
                     end if

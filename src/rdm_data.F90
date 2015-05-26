@@ -22,8 +22,6 @@ module rdm_data
     ! spin^2) are output.
     integer :: rdm_estimates_unit
 
-    integer :: NoSymLabelCounts
-
     ! Arrays to hold instantaneous estimates of 2-RDMs.
     ! The following three arrays are always used.
     real(dp), allocatable, target :: aaaa_RDM_inst(:,:), abab_RDM_inst(:,:), abba_RDM_inst(:,:)

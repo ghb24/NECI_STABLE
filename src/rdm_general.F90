@@ -35,7 +35,7 @@ contains
         use Parallel_neci, only: iProcIndex, nProcessors
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
-        use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs
+        use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs, NoSymLabelCounts
         use SystemData, only: tStoreSpinOrbs, tHPHF, tFixLz, iMaxLz, tROHF
 
         integer :: ierr,i, MemoryAlloc, MemoryAlloc_Root
@@ -702,7 +702,7 @@ contains
         ! are ordered according to symmetry (all beta then all alpha if spin orbs).
 
         use RotateOrbsData, only: SymLabelList2_rot, SymLabelCounts2_rot, SymLabelListInv_rot
-        use RotateOrbsData, only: NoOrbs, SpatOrbs
+        use RotateOrbsData, only: NoOrbs, SpatOrbs, NoSymLabelCounts
         use sort_mod, only: sort
         use SystemData, only: G1, BRR, lNoSymmetry, tFixLz, iMaxLz
         use UMatCache, only: gtID
