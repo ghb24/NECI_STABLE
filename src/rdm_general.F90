@@ -511,7 +511,7 @@ contains
         ! calculation), we also write out the unnormalised RDMs that can be
         ! read in when restarting a calculation. If the NORDMSTOREAD option
         ! is on, these wont be printed.  
-        if (TPopsFile .and. (.not. tno_RDMs_to_read)) twrite_RDMs_to_read = .true.
+        if (tPopsfile .and. (.not. tno_RDMs_to_read)) twrite_RDMs_to_read = .true.
 
         nElRDM_Time%timer_name = 'nElRDMTime'
         FinaliseRDM_Time%timer_name = 'FinaliseRDMTime'

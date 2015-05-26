@@ -39,20 +39,16 @@ contains
             ! it comes out in the wash.
             
             ! Print out the relevant 2-RDMs.
-            if (tFinalRDMEnergy .or. (tWriteMultRDMs .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, IterWriteRDMs) .eq. 0))) then
+            if (tFinalRDMEnergy .or. (tWriteMultRDMs .and. (mod((Iter+PreviousCycles-IterRDMStart)+1,IterWriteRDMs) .eq. 0))) then
 
                 ! Only ever want to print the 2-RDMs (for reading in) at the end.
-                if (tFinalRDMEnergy .and. tWrite_RDMs_to_read) then
-                    call Write_out_2RDM(Norm_2RDM, .false., .false.)
-                    if (tWriteSpinFreeRDM) call Write_spinfree_RDM(Norm_2RDM)
-                end if
+                if (tFinalRDMEnergy .and. tWrite_RDMs_to_read) call Write_out_2RDM(Norm_2RDM, .false., .false.)
 
                 ! This writes out the normalised, hermitian 2-RDMs.
                 ! IMPORTANT NOTE: We assume that we want tMake_Herm=.true. here.
-                if (tWrite_normalised_RDMs) then
-                    call Write_out_2RDM(Norm_2RDM, .true., .true.)
-                    if (tWriteSpinFreeRDM) call Write_spinfree_RDM(Norm_2RDM)
-                end if
+                if (tWrite_normalised_RDMs) call Write_out_2RDM(Norm_2RDM, .true., .true.)
+
+                if (tWriteSpinFreeRDM) call Write_spinfree_RDM(Norm_2RDM)
 
              end if
 
