@@ -39,7 +39,7 @@ module fcimc_helper
                         init_survival_mult, MaxWalkerBloom, &
                         tMultiReplicaInitiators, NMCyc, iSampleRDMIters, &
                         tSpawnCountInitiatorThreshold, init_spawn_thresh, &
-                        tOrthogonaliseReplicas
+                        tOrthogonaliseReplicas, tPairedReplicas
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign
@@ -1875,5 +1875,41 @@ contains
         proje_ref_energy_offsets(run) = real(h_tmp, dp) - Hii
 
     end subroutine update_run_reference
+
+    subroutine calc_inst_proje()
+
+        ! Calculate an instantaneous value of the projected energy for the
+        ! given walkers distributions
+
+        integer :: ex_level, det(nel), j
+        real(dp) :: sgn(lenof_sign)
+
+        ! Reset the accumulators
+        HFCyc = 0
+        ENumCyc = 0
+
+        ! Main loop
+        do j = 1, int(TotWalkers, sizeof_int)
+
+            ! n.b. non-contiguous list
+            call extract_sign(CurrentDets(:,j), sgn)
+            if (IsUnoccDet(sgn)) cycle
+
+            ex_level = FindBitExcitLevel (iLutRef, CurrentDets(:,j))
+
+            call decode_bit_det(det, CurrentDets(:,j))
+            call SumEContrib(det, ex_level, sgn, CurrentDets(:,j), 0.0_dp, &
+                             1.0_dp, tPairedReplicas, j)
+        end do
+
+        ! Accumulate values over all processors
+        call MPISum(HFCyc, AllHFCyc)
+        call MPISum(ENumCyc, AllENumCyc)
+
+        proje_iter = AllENumCyc / AllHFCyc + proje_ref_energy_offsets
+
+        write(6,*) 'Calculated instantaneous projected energy', proje_iter
+
+    end subroutine
 
 end module
