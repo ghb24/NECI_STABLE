@@ -14,7 +14,7 @@ module rdm_data
 
     integer :: Sing_ExcDjsTag, Sing_ExcDjs2Tag
     integer :: Doub_ExcDjsTag, Doub_ExcDjs2Tag, UMATTempTag
-    integer :: Energies_unit, ActualStochSign_unit
+    integer :: Energies_unit
     integer :: NoSymLabelCounts, Rho_iiTag
 
     real(dp), allocatable, target :: aaaa_RDM_inst(:,:), abab_RDM_inst(:,:), abba_RDM_inst(:,:)
@@ -37,7 +37,8 @@ module rdm_data
     real(dp), allocatable :: AllNodes_aaaa_RDM(:,:), AllNodes_abab_RDM(:,:), AllNodes_abba_RDM(:,:) 
     real(dp), allocatable :: AllNodes_bbbb_RDM(:,:), AllNodes_baba_RDM(:,:), AllNodes_baab_RDM(:,:)  
 
-    real(dp), allocatable :: UMATTemp(:,:), Rho_ii(:)
+    real(dp), allocatable :: UMATTemp(:,:)
+    real(dp), allocatable :: Rho_ii(:)
     real(dp), allocatable :: Lagrangian(:,:)
 
     logical :: tCalc_RDMEnergy
