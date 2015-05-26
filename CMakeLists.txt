@@ -25,6 +25,8 @@ message("CMake compiler name: " ${Fortran_COMPILER_NAME})
 message("CMake compiler name: " ${CMAKE_C_COMPILER})
 message("CMake compiler name: " ${CMAKE_CXX_COMPILER})
 message("Shared link: " ${CMAKE_SHARED_LIBRARY_LINK_Fortran_FLAGS})
+message("System: " ${CMAKE_SYSTEM_NAME})
+message("Platform: " ${CMAKE_TARGET_BUILD_PLATFORM})
 
 # Deal with compiler specific issues
 if (Fortran_COMPILER_NAME MATCHES "ifort.*")
