@@ -480,10 +480,10 @@ contains
 
         end if            
 
-        if (iProcIndex.eq.0) write(6,'(A)') " RDM memory allocation successful... "                    
+        if (iProcIndex .eq. 0) write(6,'(A)') " RDM memory allocation successful... "                    
 
         ! Open file to keep track of RDM Energies (if they're being calculated). 
-        if ((iProcIndex.eq.0).and.tCalc_RDMEnergy) then
+        if ((iProcIndex .eq. 0) .and. tCalc_RDMEnergy) then
             rdm_estimates_unit = get_free_unit()
             open(rdm_estimates_unit, file='RDMEstimates', status='unknown', position='append')
 
