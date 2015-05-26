@@ -35,8 +35,7 @@ contains
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag, OneEl_Gap, TwoEl_Gap
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
-        use rdm_data, only: Trace_2RDM, Trace_2RDM_Inst, rdm_estimates_unit
-        use rdm_data, only: nElRDM_Time, FinaliseRDM_time, RDMEnergy_time
+        use rdm_data, only: rdm_estimates_unit, nElRDM_Time, FinaliseRDM_time, RDMEnergy_time
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
         use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs, NoSymLabelCounts
@@ -504,9 +503,6 @@ contains
             write(rdm_estimates_unit,"('#', 4X, 'Iteration', 6X, 'Energy numerator', 6X, 'Spin^2 numerator', 9X, 'Normalisation')")
         end if
         tFinalRDMEnergy = .false.
-
-        Trace_2RDM = 0.0_dp
-        Trace_2RDM_Inst = 0.0_dp
 
         ! Reads in the RDMs from a previous calculation, sets the accumulating
         ! normalisations, writes out the starting energy.

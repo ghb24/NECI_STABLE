@@ -17,14 +17,13 @@ contains
         use LoggingData, only: tWrite_RDMs_to_read, tWrite_normalised_RDMs
         use LoggingData, only: tWriteSpinFreeRDM
         use Parallel_neci, only: iProcIndex
-        use rdm_data, only: tOpenShell, Trace_2RDM, Trace_2RDM_inst, rdm_estimates_unit
-        use rdm_data, only: rdms
+        use rdm_data, only: rdms, tOpenShell, rdm_estimates_unit
         use rdm_temp, only: Finalise_2e_RDM, calc_2e_norms, Write_out_2RDM
         use rdm_temp, only: Write_spinfree_RDM
 
         real(dp), intent(out) :: Norm_2RDM
 
-        real(dp) :: Norm_2RDM_Inst, Trace_2RDM_New, spin_est
+        real(dp) :: Norm_2RDM_Inst, Trace_2RDM, Trace_2RDM_New, spin_est
         real(dp) :: RDMEnergy, RDMEnergy1, RDMEnergy2, RDMEnergy_Inst
 
         ! Normalise, make Hermitian, etc.
@@ -32,7 +31,7 @@ contains
 
         if (iProcIndex == 0) then
             ! Calculate the normalisations.
-            call calc_2e_norms(rdms(1), Norm_2RDM_Inst, Norm_2RDM)
+            call calc_2e_norms(rdms(1), Norm_2RDM_Inst, Norm_2RDM, Trace_2RDM)
 
             ! There's no need to explicitly make the RDM hermitian here, as the
             ! integrals are already hermitian -- when we calculate the energy,
@@ -87,8 +86,6 @@ contains
                 rdms(1)%baba(:,:) = 0.0_dp
                 rdms(1)%baab(:,:) = 0.0_dp
             end if
-
-            Trace_2RDM_Inst = 0.0_dp
         end if
 
     end subroutine rdm_output_wrapper
@@ -114,7 +111,7 @@ contains
         use LoggingData, only: tRDMInstEnergy
         use Parallel_neci, only: iProcIndex
         use rdm_data, only: RDMEnergy_Time, tOpenShell
-        use rdm_data, only: rdm_t, Trace_2RDM
+        use rdm_data, only: rdm_t
         use RotateOrbsData, only: SpatOrbs
         use SystemData, only: tStoreSpinOrbs, ecore
         use UMatCache, only: UMatInd
@@ -401,7 +398,6 @@ contains
         ! The total energy from the 'full' RDM.
         RDMEnergy = RDMEnergy1 + RDMEnergy2 + Ecore
 
-
         call halt_timer(RDMEnergy_Time)
 
     end subroutine Calc_Energy_from_RDM
@@ -489,7 +485,7 @@ contains
         integer :: p,q,r,s,t,ierr,stat
         integer :: pSpin, qSpin, rSpin, error
         real(dp) :: RDMEnergy_Inst, RDMEnergy, Coul, Exch, Parity_Factor 
-        real(dp) :: Trace_2RDM_New, RDMEnergy1, RDMEnergy2
+        real(dp) :: RDMEnergy1, RDMEnergy2
         real(dp) :: qrst, rqst
         real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity, Temp
 

@@ -83,7 +83,7 @@ contains
 
     end subroutine Finalise_2e_RDM
 
-    subroutine calc_2e_norms(rdm, Norm_2RDM_Inst, Norm_2RDM)
+    subroutine calc_2e_norms(rdm, Norm_2RDM_Inst, Norm_2RDM, Trace_2RDM)
 
         ! We want to 'normalise' the reduced density matrices. These are not
         ! even close to being normalised at the moment, because of the way
@@ -95,14 +95,16 @@ contains
         ! system = 1/2 N ( N - 1), so we can do the same for the 2RDM.
 
         use LoggingData, only: tRDMInstEnergy
-        use rdm_data, only: Trace_2RDM_Inst, Trace_2RDM
         use rdm_data, only: rdm_t, tOpenShell
         use RotateOrbsData, only: SpatOrbs
         use SystemData, only: nel
 
         type(rdm_t), intent(inout) :: rdm
         real(dp), intent(out) :: Norm_2RDM_Inst, Norm_2RDM
+        real(dp), intent(out) :: Trace_2RDM
+
         integer :: i
+        real(dp) :: Trace_2RDM_Inst
 
         ! Find the current, unnormalised trace of each matrix.
         ! TODO: This can be merged into the spin averaging when everything is working.
