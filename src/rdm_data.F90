@@ -24,7 +24,7 @@ module rdm_data
 
     ! Arrays to hold instantaneous estimates of 2-RDMs.
     ! The following three arrays are always used.
-    real(dp), pointer :: aaaa_RDM_inst(:,:), abab_RDM_inst(:,:), abba_RDM_inst(:,:)
+    real(dp), pointer :: abab_RDM_inst(:,:), abba_RDM_inst(:,:)
     ! And the following three arrays are only used for open shell calculations
     ! (and possibly UHF systems in the future?).
     real(dp), pointer :: bbbb_RDM_inst(:,:), baba_RDM_inst(:,:), baab_RDM_inst(:,:)

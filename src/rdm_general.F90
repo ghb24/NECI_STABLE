@@ -134,17 +134,17 @@ contains
             ! they're the same spin this can't happen).
 
             if (tRDMInstEnergy) then
-                ! We will be filling up aaaa_RDM_inst as we go along, which need
+                ! We will be filling up rdms(i)%aaaa_inst as we go along, which need
                 ! to be allocated per core.
                 ! When calculating the energy, these will be summed over cores
                 ! using an _inplace type command.
                 ! To calculate the full energy of the RDM (i.e. over full accum.
                 ! period), we need to allocate aaaa_RDM_full on the head nodes
 
-                allocate(aaaa_RDM_inst(rdm_size_1, rdm_size_1), stat=ierr)
-                if (ierr .ne. 0) call Stop_All(this_routine,'Problem allocating aaaa_RDM_inst array,')
-                call LogMemAlloc('aaaa_RDM_inst', (rdm_size_1**2), 8, this_routine, aaaa_RDM_instTag, ierr)
-                aaaa_RDM_inst(:,:) = 0.0_dp
+                allocate(rdms(1)%aaaa_inst(rdm_size_1, rdm_size_1), stat=ierr)
+                if (ierr .ne. 0) call Stop_All(this_routine,'Problem allocating aaaa_inst RDM array,')
+                call LogMemAlloc('rdms(1)%aaaa_inst', (rdm_size_1**2), 8, this_routine, rdms(1)%aaaa_instTag, ierr)
+                rdms(1)%aaaa_inst(:,:) = 0.0_dp
 
                 ! The 2-RDM of the type alpha beta beta alpha (= beta alpha alpha beta).
                 ! These also *do not* also include 2-RDM(i,j,a,b) terms where i=j or a=b
@@ -237,7 +237,7 @@ contains
 
                 end if
                 
-                aaaa_RDM => aaaa_RDM_inst
+                aaaa_RDM => rdms(1)%aaaa_inst
                 abba_RDM => abba_RDM_inst
                 abab_RDM => abab_RDM_inst
 
@@ -1364,9 +1364,9 @@ contains
             call LogMemDeAlloc(this_routine,SymLabelListInv_rotTag)
         end if
 
-        if (associated(aaaa_RDM_inst)) then
-            deallocate(aaaa_RDM_inst)
-            call LogMemDeAlloc(this_routine,aaaa_RDM_instTag)
+        if (associated(rdms(1)%aaaa_inst)) then
+            deallocate(rdms(1)%aaaa_inst)
+            call LogMemDeAlloc(this_routine,rdms(1)%aaaa_instTag)
         end if
 
         if (associated(abab_RDM_inst)) then
