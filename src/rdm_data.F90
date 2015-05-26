@@ -41,8 +41,6 @@ module rdm_data
     ! Variables related to the space in explicit RDM arrays above.
     real(dp) :: OneEl_Gap, TwoEl_Gap
 
-    real(dp), allocatable :: Lagrangian(:,:)
-
     ! Timers.
     type(timer), save :: nElRDM_Time, FinaliseRDM_time, RDMEnergy_time
 

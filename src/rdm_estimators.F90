@@ -472,7 +472,7 @@ contains
         use NatOrbsMod, only: NatOrbMat
         use OneEInts, only: TMAT2D
         use Parallel_neci, only: iProcIndex
-        use rdm_data, only: rdm_t, tOpenShell, Lagrangian
+        use rdm_data, only: rdm_t, tOpenShell
         use rdm_temp, only: Find_Spatial_2RDM_Chem
         use RotateOrbsMod, only: SymLabelList2_rot, SymLabelListInv_rot, SpatOrbs
         use UMatCache, only: gtID, UMatInd
@@ -489,8 +489,8 @@ contains
         real(dp) :: qrst, rqst
         real(dp) :: Max_Error_Hermiticity, Sum_Error_Hermiticity, Temp
 
-        allocate(Lagrangian(SpatOrbs,SpatOrbs), stat=ierr)
-        Lagrangian(:,:) = 0.0_dp
+        allocate(rdm%Lagrangian(SpatOrbs,SpatOrbs), stat=ierr)
+        rdm%Lagrangian(:,:) = 0.0_dp
         
         ! We will begin by calculating the Lagrangian in chemical notation - we will explicitely calculate
         ! both halves (X_pq and X_qp) in order to check if it is symmetric or not.
@@ -513,14 +513,14 @@ contains
                         ! We made sure earlier that the 1RDM is contructed, so we can call directly from this
                         if (tOpenShell) then
                             ! Include both aa and bb contributions 
-                            Lagrangian(p,q) = Lagrangian(p,q) + (NatOrbMat(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r)))*&
-                                                                real(TMAT2D(pSpin,rSpin),8)*Norm_1RDM
-                            Lagrangian(p,q) = Lagrangian(p,q) + (NatOrbMat(SymLabelListInv_rot(2*q-1),SymLabelListInv_rot(2*r-1)))*&
-                                                                real(TMAT2D(pSpin-1,rSpin-1),8)*Norm_1RDM
+                            rdm%Lagrangian(p,q) = rdm%Lagrangian(p,q) + (NatOrbMat(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r)))*&
+                                                                         real(TMAT2D(pSpin,rSpin),8)*Norm_1RDM
+                            rdm%Lagrangian(p,q) = rdm%Lagrangian(p,q) + (NatOrbMat(SymLabelListInv_rot(2*q-1),SymLabelListInv_rot(2*r-1)))*&
+                                                                         real(TMAT2D(pSpin-1,rSpin-1),8)*Norm_1RDM
                         else
                             !We will be here most often (?)
-                            Lagrangian(p,q)=Lagrangian(p,q)+NatOrbMat(SymLabelListInv_rot(q),SymLabelListInv_rot(r))* &
-                                                                real(TMAT2D(pSpin,rSpin),8)*Norm_1RDM
+                            rdm%Lagrangian(p,q) = rdm%Lagrangian(p,q) + NatOrbMat(SymLabelListInv_rot(q),SymLabelListInv_rot(r))* &
+                                                                                  real(TMAT2D(pSpin,rSpin),8)*Norm_1RDM
                         end if
 
                         do s = 1, SpatOrbs
@@ -543,7 +543,7 @@ contains
                                 qrst = Find_Spatial_2RDM_Chem(rdm, q, r, s, t, Norm_2RDM)
                                 rqst = Find_Spatial_2RDM_Chem(rdm, r, q, s, t, Norm_2RDM)
                                 
-                                Lagrangian(p,q) = Lagrangian(p,q) + 0.5_dp*Coul*(qrst+rqst)
+                                rdm%Lagrangian(p,q) = rdm%Lagrangian(p,q) + 0.5_dp*Coul*(qrst+rqst)
                             end do
                         end do
                     end do
@@ -556,14 +556,14 @@ contains
             Sum_Error_Hermiticity = 0.0_dp
             do p = 1, SpatOrbs
                 do q = p, SpatOrbs
-                    if (abs(Lagrangian(p,q) - Lagrangian(q,p)).gt.Max_Error_Hermiticity) &
-                        Max_Error_Hermiticity = abs(Lagrangian(p,q)-Lagrangian(q,p))
+                    if (abs(rdm%Lagrangian(p,q) - rdm%Lagrangian(q,p)) .gt. Max_Error_Hermiticity) &
+                        Max_Error_Hermiticity = abs(rdm%Lagrangian(p,q) - rdm%Lagrangian(q,p))
 
-                    Sum_Error_Hermiticity = Sum_Error_Hermiticity+abs(Lagrangian(p,q) - Lagrangian(q,p))
+                    Sum_Error_Hermiticity = Sum_Error_Hermiticity+abs(rdm%Lagrangian(p,q) - rdm%Lagrangian(q,p))
 
-                    Temp = (Lagrangian(p,q) + Lagrangian(q,p))/2.0_dp
-                    Lagrangian(p,q) = Temp
-                    Lagrangian(q,p) = Temp
+                    Temp = (rdm%Lagrangian(p,q) + rdm%Lagrangian(q,p))/2.0_dp
+                    rdm%Lagrangian(p,q) = Temp
+                    rdm%Lagrangian(q,p) = Temp
                 end do
             end do
 
@@ -977,7 +977,7 @@ contains
         use IntegralsData, only: nFrozen
         use NatOrbsMod, only: NatOrbMat
         use Parallel_neci, only: iProcIndex
-        use rdm_data, only: rdm_t, tOpenShell, Lagrangian
+        use rdm_data, only: rdm_t, tOpenShell
         use rdm_temp, only: Find_Spatial_2RDM_Chem
         use RotateOrbsData, only: SpatOrbs, SymLabelListInv_rot
         use sym_mod
@@ -999,7 +999,7 @@ contains
         integer, dimension(8) :: icore, iclos 
         integer, dimension(nSymLabels):: blockstart1, blockstart2
         integer, dimension(nSymLabels) :: elements_assigned1, elements_assigned2
-        integer :: FC_Lag_Len  !Length of the Frozen Core Lagrangian
+        integer :: FC_Lag_Len  ! Length of the Frozen Core Lagrangian
         integer :: Len_1RDM, Len_2RDM, FCLag_Len
         real(dp) :: ijkl, jikl
         real(dp), intent(in) :: Norm_1RDM, Norm_2RDM
@@ -1114,9 +1114,10 @@ contains
 
                         ! Add in the symmetrised Lagrangian contribution to the
                         ! sym-packed Lagrangian
-                        SymmetryPackedLagrangian(posn1) = Lagrangian(i,j)
+                        SymmetryPackedLagrangian(posn1) = rdm%Lagrangian(i,j)
                         elements_assigned1(Sym_i+1) = elements_assigned1(Sym_i+1) + 1
                     end if
+
                     do k = 1, SpatOrbs
                         do l = 1, k
                             Sym_k = SpinOrbSymLabel(2*k)  ! Consider only alpha orbitals
