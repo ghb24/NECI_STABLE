@@ -22,8 +22,7 @@ contains
         use rdm_data, only: aaaa_RDM, bbbb_RDM, abab_RDM, baba_RDM, abba_RDM, baab_RDM
         use rdm_data, only: aaaa_RDM_full, bbbb_RDM_full, abab_RDM_full, baba_RDM_full, abba_RDM_full, baab_RDM_full
         use rdm_data, only: aaaa_RDM_full, bbbb_RDM_full, abab_RDM_full, baba_RDM_full, abba_RDM_full, baab_RDM_full
-        use rdm_data, only: AllNodes_aaaa_RDM, AllNodes_bbbb_RDM, AllNodes_abab_RDM
-        use rdm_data, only: AllNodes_baba_RDM, AllNodes_abba_RDM, AllNodes_baab_RDM
+        use rdm_data, only: AllNodes_RDM_small, AllNodes_RDM_large
         use rdm_data, only: tCalc_RDMEnergy, tOpenShell
         use RotateOrbsData, only: SpatOrbs
 
@@ -39,53 +38,47 @@ contains
                       & .or. ((Iter-VaryShiftIter(inum_runs)) .le. IterRDMonFly) &
                       & .or. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) .ne. 0)))) then
 
-            allocate(AllNodes_aaaa_RDM(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
-            allocate(AllNodes_abba_RDM(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
-            allocate(AllNodes_abab_RDM(((SpatOrbs*(SpatOrbs+1))/2), ((SpatOrbs*(SpatOrbs+1))/2)), stat=ierr)
+            ! Two different sizes arrays are needed, due to *_abab and *_baba
+            ! RDMs being a bit bigger.
+            allocate(AllNodes_RDM_small(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
+            allocate(AllNodes_RDM_large(((SpatOrbs*(SpatOrbs+1))/2), ((SpatOrbs*(SpatOrbs+1))/2)), stat=ierr)
             
-            ! The aaaa_RDM may be either inst or full, depending on whether we
-            ! are calculating instantaneous energies or not.
-            call MPISumAll(aaaa_RDM(:,:), AllNodes_aaaa_RDM(:,:))
-            call MPISumAll(abab_RDM(:,:), AllNodes_abab_RDM(:,:))
-            call MPISumAll(abba_RDM(:,:), AllNodes_abba_RDM(:,:))
-            
-            aaaa_RDM(:,:) = AllNodes_aaaa_RDM(:,:)
-            abab_RDM(:,:) = AllNodes_abab_RDM(:,:)
-            abba_RDM(:,:) = AllNodes_abba_RDM(:,:)
+            ! The RDM arrays may be either inst or full, depending on whether
+            ! we are calculating instantaneous energies or not.
+            call MPISumAll(aaaa_RDM(:,:), AllNodes_RDM_small(:,:))
+            aaaa_RDM(:,:) = AllNodes_RDM_small(:,:)
 
-            deallocate(AllNodes_aaaa_RDM)
-            deallocate(AllNodes_abab_RDM)
-            deallocate(AllNodes_abba_RDM)
+            call MPISumAll(abba_RDM(:,:), AllNodes_RDM_small(:,:))
+            abba_RDM(:,:) = AllNodes_RDM_small(:,:)
+
+            call MPISumAll(abab_RDM(:,:), AllNodes_RDM_large(:,:))
+            abab_RDM(:,:) = AllNodes_RDM_large(:,:)
 
             if (tOpenShell) then
-                allocate(AllNodes_bbbb_RDM(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
-                allocate(AllNodes_baab_RDM(((SpatOrbs*(SpatOrbs-1))/2), ((SpatOrbs*(SpatOrbs-1))/2)), stat=ierr)
-                allocate(AllNodes_baba_RDM(((SpatOrbs*(SpatOrbs+1))/2), ((SpatOrbs*(SpatOrbs+1))/2)), stat=ierr)
-         
-                call MPISumAll(bbbb_RDM(:,:), AllNodes_bbbb_RDM(:,:))
-                call MPISumAll(baba_RDM(:,:), AllNodes_baba_RDM(:,:))
-                call MPISumAll(baab_RDM(:,:), AllNodes_baab_RDM(:,:))
-                
-                bbbb_RDM(:,:) = AllNodes_bbbb_RDM(:,:)
-                baba_RDM(:,:) = AllNodes_baba_RDM(:,:)
-                baab_RDM(:,:) = AllNodes_baab_RDM(:,:)
+                call MPISumAll(bbbb_RDM(:,:), AllNodes_RDM_small(:,:))
+                bbbb_RDM(:,:) = AllNodes_RDM_small(:,:)
 
-                deallocate(AllNodes_bbbb_RDM)
-                deallocate(AllNodes_baba_RDM)
-                deallocate(AllNodes_baab_RDM)
+                call MPISumAll(baab_RDM(:,:), AllNodes_RDM_small(:,:))
+                baab_RDM(:,:) = AllNodes_RDM_small(:,:)
+
+                call MPISumAll(baba_RDM(:,:), AllNodes_RDM_large(:,:))
+                baba_RDM(:,:) = AllNodes_RDM_large(:,:)
             end if
+
+            deallocate(AllNodes_RDM_small)
+            deallocate(AllNodes_RDM_large)
 
             ! The TwoElRDM on the root is now the sum of all 'instantaneous' RDMs
             ! (summed over the energy update cycle). Whereas TwoElRDM_full is
             ! accumulated over the entire run.
             if (tRDMInstEnergy .and. (iProcIndex .eq. 0)) then
                 aaaa_RDM_full(:,:) = aaaa_RDM_full(:,:) + aaaa_RDM(:,:)
-                abab_RDM_full(:,:) = abab_RDM_full(:,:) + abab_RDM(:,:)
                 abba_RDM_full(:,:) = abba_RDM_full(:,:) + abba_RDM(:,:)
+                abab_RDM_full(:,:) = abab_RDM_full(:,:) + abab_RDM(:,:)
                 if (tOpenShell) then
                     bbbb_RDM_full(:,:) = bbbb_RDM_full(:,:) + bbbb_RDM(:,:)
-                    baba_RDM_full(:,:) = baba_RDM_full(:,:) + baba_RDM(:,:)
                     baab_RDM_full(:,:) = baab_RDM_full(:,:) + baab_RDM(:,:)
+                    baba_RDM_full(:,:) = baba_RDM_full(:,:) + baba_RDM(:,:)
                 end if
             end if
         end if

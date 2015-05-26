@@ -49,8 +49,7 @@ module rdm_data
     real(dp), pointer :: baab_RDM(:,:) => null()
 
     ! Arrays used as storage when summing RDMs over all processors.
-    real(dp), allocatable :: AllNodes_aaaa_RDM(:,:), AllNodes_abab_RDM(:,:), AllNodes_abba_RDM(:,:) 
-    real(dp), allocatable :: AllNodes_bbbb_RDM(:,:), AllNodes_baba_RDM(:,:), AllNodes_baab_RDM(:,:)  
+    real(dp), allocatable :: AllNodes_RDM_small(:,:), AllNodes_RDM_large(:,:)
 
     ! Arrays for when filling arrays explicitly. See rdm_explicit for the
     ! relevant routines in that case.
