@@ -7,7 +7,7 @@ MODULE Logging
     use MemoryManager, only: LogMemAlloc, LogMemDealloc,TagIntType
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter
-    use CalcData, only: tCheckHighestPop, semistoch_shift_iter, tPairedReplicas
+    use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, tPairedReplicas
     use constants, only: n_int, size_n_int, bits_n_int
     use bit_rep_data, only: NIfTot, NIfD
     use DetBitOps, only: EncodeBitDet
@@ -507,6 +507,9 @@ MODULE Logging
             if (IterRDMOnFly < semistoch_shift_iter) call stop_all(t_r,"Semi-stochastic needs to be turned on before &
                                                                         &RDMs are turned on.")
 
+            if (IterRDMOnFly < trial_shift_iter) call stop_all(t_r,"Trial wavefunctions needs to be turned on before &
+                                                                        &RDMs are turned on.")
+
         case("DIAGFLYONERDM")
 !This sets the calculation to diagonalise the *1* electron reduced density matrix.   
 !The eigenvalues give the occupation numbers of the natural orbitals (eigenfunctions).
@@ -646,11 +649,11 @@ MODULE Logging
             tReadRDMs = .true.
         
         case("NONEWRDMCONTRIB")
-            !To be used with READRDMs.  This option makes sure that we don't add in any 
-            !new contributions to the RDM if filling stochastically
-            !This is useful if we want to read in an RDM from another calculation and then 
-            !just print out the analysis, without adding in any more information.
-            tNoNewRDMContrib=.true.
+            ! To be used with READRDMs.  This option makes sure that we don't add in any 
+            ! new contributions to the RDM if filling stochastically
+            ! This is useful if we want to read in an RDM from another calculation and then 
+            ! just print out the analysis, without adding in any more information.
+            tNoNewRDMContrib = .true.
 
         case("WRITERDMSEVERY")
 ! Write out the normalised, hermitian RDMs every IterWriteRDMs iterations.  
@@ -658,9 +661,9 @@ MODULE Logging
             call readi(IterWriteRDMs)
 
         case("THRESHOCCONLYRDMDIAG")
-            !Only add in a contribution to the diagonal elements of the RDM if the average sign 
-            !of the determinant is greater than [ThreshOccRDM]
-            tThreshOccRDMDiag=.true.
+            ! Only add in a contribution to the diagonal elements of the RDM if the average sign 
+            ! of the determinant is greater than [ThreshOccRDM]
+            tThreshOccRDMDiag = .true.
             call Getf(ThreshOccRDM)
 
         case("DUMPFORCESINFO")
