@@ -718,7 +718,7 @@ module FciMCParMod
             endif
         endif
 
-        do j=1,int(TotWalkers,sizeof_int)
+        do j = 1, int(TotWalkers,sizeof_int)
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
 
@@ -948,15 +948,16 @@ module FciMCParMod
                                                   RDMBiasFacCurr, WalkersToSpawn)
                         end if
 
-                    endif ! (child /= 0). Child created
+                    endif ! (child /= 0), Child created.
 
                 enddo ! Cycling over mulitple particles on same determinant.
 
             enddo   ! Cycling over 'type' of particle on a given determinant.
 
             if (tSemiStochastic) then
-                ! If we are performing a semi-stochastic simulation and this state is in the
-                ! deterministic space, then the death step is performed deterministically later.
+                ! If we are performing a semi-stochastic simulation and this
+                ! state is in the deterministic space, then the death step is
+                ! performed deterministically later.
                 if (.not. tCoreDet) then
                     call walker_death (iter_data, DetCurr, &
                                        CurrentDets(:,j), HDiagCurr, SignCurr, &
@@ -976,7 +977,7 @@ module FciMCParMod
         enddo ! Loop over determinants.
         IFDEBUGTHEN(FCIMCDebug,2) 
             write(iout,*) 'Finished loop over determinants'
-            write(iout,*) "Holes in list: ",iEndFreeSlot
+            write(iout,*) "Holes in list: ", iEndFreeSlot
         ENDIFDEBUG
 
         if (tSemiStochastic) then
@@ -1000,7 +1001,7 @@ module FciMCParMod
 
         ! With this algorithm, the determinants do not move, and therefore
         ! TotWalkersNew is simply equal to TotWalkers
-        TotWalkersNew=int(TotWalkers,sizeof_int)
+        TotWalkersNew = int(TotWalkers,sizeof_int)
 
         ! Update the statistics for the end of an iteration.
         ! Why is this done here - before annihilation!
@@ -1016,11 +1017,11 @@ module FciMCParMod
         call set_timer (annihil_time, 30)
         !HolesInList is returned from direct annihilation with the number of unoccupied determinants in the list
         !They have already been removed from the hash table though.
-        call DirectAnnihilation (totWalkersNew, iter_data,.false.) !.false. for not single processor
+        call DirectAnnihilation (totWalkersNew, iter_data, .false.) !.false. for not single processor
 
         ! This indicates the number of determinants in the list + the number
         ! of holes that have been introduced due to annihilation.
-        TotWalkers=TotWalkersNew
+        TotWalkers = TotWalkersNew
 
         CALL halt_timer(Annihil_Time)
         IFDEBUG(FCIMCDebug,2) WRITE(iout,*) "Finished Annihilation step"

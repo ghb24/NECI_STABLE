@@ -1676,11 +1676,11 @@ contains
             call encode_sign(CurrentDets(:,DetPosition),null_part)
         endif
 
-        !Test - testsuite, RDM still work, both still work with Linscalealgo (all in debug)
-        !Null particle not kept if antiparticles aborted.
-        !When are the null particles removed?
+        ! Test - testsuite, RDM still work, both still work with Linscalealgo (all in debug)
+        ! Null particle not kept if antiparticles aborted.
+        ! When are the null particles removed?
 
-    end subroutine
+    end subroutine walker_death
 
     subroutine check_start_rdm()
 
