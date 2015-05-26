@@ -8,7 +8,6 @@ module rdm_general
     use bit_rep_data, only: NIfTot, NIfDBO
     use SystemData, only: NEl, nBasis
     use constants
-    use util_mod
 
     implicit none
 
@@ -42,6 +41,7 @@ contains
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
         use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs, NoSymLabelCounts
         use SystemData, only: tStoreSpinOrbs, tHPHF, tFixLz, iMaxLz, tROHF
+        use util_mod, only: get_free_unit, LogMemAlloc
 
         integer :: ierr, i, rdm_size_1, rdm_size_2
         integer :: MemoryAlloc, MemoryAlloc_Root
@@ -548,6 +548,7 @@ contains
         use rdm_estimators, only: rdm_output_wrapper
         use RotateOrbsData, only: SymLabelListInv_rot
         use SystemData, only: tStoreSpinOrbs
+        use util_mod, only: get_free_unit
 
         type(rdm_t), intent(inout) :: rdm
 
@@ -724,6 +725,7 @@ contains
         use sort_mod, only: sort
         use SystemData, only: G1, BRR, lNoSymmetry, tFixLz, iMaxLz
         use UMatCache, only: gtID
+        use util_mod, only: LogMemAlloc, LogMemDealloc
 
         integer, allocatable :: SymOrbs_rot(:)
         integer :: LabOrbsTag, SymOrbs_rotTag, ierr, i, j, SpatSym, LzSym 
@@ -874,6 +876,7 @@ contains
 
         use FciMCData, only: MaxSpawned, SpawnVec, SpawnVec2, SpawnVecTag, SpawnVec2Tag
         use FciMCData, only: SpawnedParts, SpawnedParts2
+        use util_mod, only: LogMemAlloc, LogMemDealloc
 
         integer :: ierr                               
         character(len=*), parameter :: this_routine = 'DeAlloc_Alloc_SpawnedParts'
@@ -920,6 +923,7 @@ contains
         use rdm_estimators, only: Calc_Lagrangian_from_RDM, convert_mats_Molpforces
         use rdm_estimators, only: rdm_output_wrapper, CalcDipoles
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
+        use util_mod, only: set_timer, halt_timer
 
         integer :: error
         real(dp) :: Norm_2RDM, Norm_2RDM_Inst
@@ -1212,6 +1216,7 @@ contains
         use rdm_data, only: tOpenShell
         use RotateOrbsData, only: SymLabelListInv_rot
         use UMatCache, only: gtID
+        use util_mod, only: get_free_unit
 
         real(dp), intent(in) :: Norm_1RDM
         logical, intent(in) :: tNormalise
@@ -1292,6 +1297,7 @@ contains
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag
         use RotateOrbsData, only: SymLabelListInv_rotTag
         use RotateOrbsMod, only: FourIndInts, FourIndIntsTag
+        use util_mod, only: LogMemDealloc
 
         character(len=*), parameter :: this_routine='DeallocateRDM'
 
