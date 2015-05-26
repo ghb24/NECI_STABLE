@@ -581,7 +581,7 @@ contains
             ! Otherwise Di and Dj are connected by a double excitation.
             ! Add in this contribution to the 2-RDM (as long as we're
             ! calculating this obv).
-            call Fill_Doubs_RDM(Ex,tParity,realSignI,realSignJ,tFill_CiCj_Symm)
+            call Fill_Doubs_RDM(Ex, tParity, realSignI, realSignJ, tFill_CiCj_Symm)
 
         end if
 

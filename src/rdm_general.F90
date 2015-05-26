@@ -35,7 +35,7 @@ contains
         use Parallel_neci, only: iProcIndex, nProcessors
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
-        use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs
+        use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs, NoSymLabelCounts
         use SystemData, only: tStoreSpinOrbs, tHPHF, tFixLz, iMaxLz, tROHF
 
         integer :: ierr,i, MemoryAlloc, MemoryAlloc_Root
@@ -480,10 +480,10 @@ contains
 
         end if            
 
-        if (iProcIndex.eq.0) write(6,'(A)') " RDM memory allocation successful... "                    
+        if (iProcIndex .eq. 0) write(6,'(A)') " RDM memory allocation successful... "                    
 
         ! Open file to keep track of RDM Energies (if they're being calculated). 
-        if ((iProcIndex.eq.0).and.tCalc_RDMEnergy) then
+        if ((iProcIndex .eq. 0) .and. tCalc_RDMEnergy) then
             rdm_estimates_unit = get_free_unit()
             open(rdm_estimates_unit, file='RDMEstimates', status='unknown', position='append')
 
@@ -702,7 +702,7 @@ contains
         ! are ordered according to symmetry (all beta then all alpha if spin orbs).
 
         use RotateOrbsData, only: SymLabelList2_rot, SymLabelCounts2_rot, SymLabelListInv_rot
-        use RotateOrbsData, only: NoOrbs, SpatOrbs
+        use RotateOrbsData, only: NoOrbs, SpatOrbs, NoSymLabelCounts
         use sort_mod, only: sort
         use SystemData, only: G1, BRR, lNoSymmetry, tFixLz, iMaxLz
         use UMatCache, only: gtID
