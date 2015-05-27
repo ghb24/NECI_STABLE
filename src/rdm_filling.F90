@@ -302,20 +302,20 @@ contains
             part_realSignI = transfer( Spawned_Parents(NIfDBO+1,i), part_realSignI )
 
             ! The original spawning event (and the RealSignI) came from this population.
-            source_part_type=Spawned_Parents(NIfDBO+2,i)
+            source_part_type = Spawned_Parents(NIfDBO+2,i)
 
-            !The sign contribution from J must come from the other population.
-            if (source_part_type.eq.1) then
-                dest_part_type=lenof_sign
+            ! The sign contribution from J must come from the other population.
+            if (source_part_type .eq. 1) then
+                dest_part_type = lenof_sign
             else
-                dest_part_type=1
+                dest_part_type = 1
             end if
 
             ! Given the Di,Dj and Ci,Cj - find the orbitals involved in the
             ! excitation, and therefore the RDM elements we want to add the
             ! Ci.Cj to. We have to halve the contributions for DR as we're
             ! summing in pairs that originated from spawning events in both
-            ! pop 1 and pop 2 -- i.e. doublecounted wrt diagonal elements
+            ! pop 1 and pop 2 -- i.e., double counted wrt diagonal elements.
             if (tHPHF) then
                 call Fill_Spin_Coupled_RDM_v2(Spawned_Parents(0:NIfDBO,i), iLutJ, nI, nJ, &
                            (1.0_dp/real(lenof_sign,dp))*part_realSignI, realSignJ(dest_part_type), .false.)
@@ -327,7 +327,7 @@ contains
 
     end subroutine DiDj_Found_FillRDM
 
-    subroutine Fill_Spin_Coupled_RDM_v2(iLutnI,iLutnJ,nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
+    subroutine Fill_Spin_Coupled_RDM_v2(iLutnI, iLutnJ, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
 
         ! This routine does the same as Fill_Spin_Coupled_RDM, but hopefully
         ! more efficiently! It takes to HPHF functions, and calculate what
@@ -581,7 +581,7 @@ contains
             ! Otherwise Di and Dj are connected by a double excitation.
             ! Add in this contribution to the 2-RDM (as long as we're
             ! calculating this obv).
-            call Fill_Doubs_RDM(Ex,tParity,realSignI,realSignJ,tFill_CiCj_Symm)
+            call Fill_Doubs_RDM(Ex, tParity, realSignI, realSignJ, tFill_CiCj_Symm)
 
         end if
 
@@ -591,7 +591,7 @@ contains
 ! THESE NEXT ROUTINES ARE GENERAL TO BOTH STOCHASTIC AND EXPLICIT    
 ! =======================================================================================    
 
-    subroutine Fill_Diag_RDM(nI, realSignDi, tCoreSpaceDet, RDMItersIn)
+    subroutine Fill_Diag_RDM(nI, realSignDi, tCoreSpaceDetIn, RDMItersIn)
 
         ! Fill diagonal elements of 1- and 2-RDM.
         ! These are < Di | a_i+ a_i | Di > and < Di | a_i+ a_j+ a_j a_i | Di >.
@@ -605,24 +605,24 @@ contains
 
         integer, intent(in) :: nI(NEl)
         real(dp), intent(in) :: realSignDi(lenof_sign)
-        logical, intent(in), optional :: tCoreSpaceDet
+        logical, intent(in), optional :: tCoreSpaceDetIn
         integer, intent(in), optional :: RDMItersIn
+
         integer :: i, j, iSpat, jSpat, Ind, iInd
         real(dp) :: ScaleContribFac
         integer :: RDMIters
+        logical :: tCoreSpaceDet
 
-        ! Need to add in the diagonal elements.
-        
         ScaleContribFac = 1.0
         
-        if (.not. present(RDMItersIn)) then
-            RDMIters = 1.0_dp
-        else
-            RDMIters = RDMItersIn
-        end if
+        RDMIters = 1.0_dp
+        if (present(RDMItersIn)) RDMIters = RDMItersIn
+
+        tCoreSpaceDet = .false.
+        if (present(tCoreSpaceDetIn)) tCoreSpaceDet = tCoreSpaceDetIn
 
         ! This is the single-run cutoff being applied (do not use in DR mode):
-        if ((.not. tCoreSpaceDet) .or. .not. present(tCoreSpaceDet)) then
+        if (.not. tCoreSpaceDetIn) then
             ! Dets in the core space are never removed from main list, so
             ! strictly do not require corrections
             if (tThreshOccRDMDiag .and. (abs(RealSignDi(1)) .le. ThreshOccRDM)) ScaleContribFac = 0.0_dp

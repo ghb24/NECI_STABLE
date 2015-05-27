@@ -153,7 +153,7 @@ contains
         ! If we are accumulating RDMs, then a temporary spawning array is
         ! required of <~ the size of the largest occupied det.
         !
-        ! This memry holds walkers spawned from one determinant. This
+        ! This memory holds walkers spawned from one determinant. This
         ! allows us to test if we are spawning onto the same Dj multiple
         ! times. If only using connections to the HF (tHF_Ref_Explicit)
         ! no stochastic RDM construction is done, and this is not

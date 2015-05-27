@@ -290,7 +290,7 @@ module AnnihilationMod
                         end if
                         
                         ! The first NIfDBO of the Spawned_Parents entry is the
-                        ! parent determinant, the NIfDBO + 1 entry is the biased Ci.
+                        ! parent determinant, the NIfDBO + 1 entry is the Ci.
                         ! Parent_Array_Ind keeps track of the position in
                         ! Spawned_Parents.
                         Spawned_Parents_Index(1,VecInd) = Parent_Array_Ind
@@ -489,7 +489,7 @@ module AnnihilationMod
         ! actually being stored - and is therefore not zero.
         if (((tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) .and. &
             (.not. DetBitZero(new_det(NIfTot+1:NIfTot+NIfDBO+1), NIfDBO)))) then
-            if (new_sgn /= 0) then
+            if (abs(new_sgn) > 1.e-12_dp) then
                 ! No matter what the final sign is, always want to add any Di stored in 
                 ! SpawnedParts to the parent array.
                 Spawned_Parents(0:NIfDBO+1,Parent_Array_Ind) = new_det(NIfTot+1:NIfTot+NIfDBO+2)
@@ -596,7 +596,7 @@ module AnnihilationMod
                     call encode_sign(SpawnedParts(:,i), null_part)
 
                     ! If we are spawning onto a site and growing it, then
-                    ! count that spawn for initiator purposes
+                    ! count that spawn for initiator purposes.
                     if (any(signprod > 0)) call inc_spawn_count(PartInd)
 
                     do j = 1, lenof_sign
@@ -665,8 +665,8 @@ module AnnihilationMod
                             ! spawned walker yet to find this determinant).
                             call remove_hash_table_entry(HashIndex, nJ, PartInd)
                             ! Add to "freeslot" list so it can be filled in.
-                            iEndFreeSlot=iEndFreeSlot+1
-                            FreeSlot(iEndFreeSlot)=PartInd
+                            iEndFreeSlot = iEndFreeSlot + 1
+                            FreeSlot(iEndFreeSlot) = PartInd
                         end if
                     end if
 

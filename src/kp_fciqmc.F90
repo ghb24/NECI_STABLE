@@ -58,7 +58,7 @@ contains
         integer(n_int), pointer :: ilut_parent(:)
         real(dp) :: prob, unused_rdm_real, parent_hdiag
         real(dp) :: child_sign(lenof_sign), parent_sign(lenof_sign)
-        real(dp) :: unused_sign1(lenof_sign), unused_sign2(lenof_sign)
+        real(dp) :: unused_sign(lenof_sign)
         real(dp), allocatable :: lowdin_evals(:,:)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
         logical :: tParity, tSoftExitFound, tSingBiasChange, tWritePopsFound
@@ -248,7 +248,7 @@ contains
 
                                             child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
                                                                 nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                                                                ex_level_to_ref, ireplica, unused_sign2, unused_rdm_real)
+                                                                ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
 
                                         else
                                             child_sign = 0.0_dp
@@ -276,8 +276,7 @@ contains
                             ! determ_projection.
                             if (.not. tParentIsDeterm) then
                                 call walker_death (iter_data_fciqmc, nI_parent, ilut_parent, parent_hdiag, &
-                                                    parent_sign, unused_sign2, unused_sign1, idet, &
-                                                    ex_level_to_ref)
+                                                    parent_sign, idet, ex_level_to_ref)
                             end if
 
                         end do ! Over all determinants.
@@ -381,7 +380,7 @@ contains
         integer(n_int), pointer :: ilut_parent(:)
         real(dp) :: prob, unused_rdm_real, parent_hdiag
         real(dp) :: child_sign(lenof_sign), parent_sign(lenof_sign)
-        real(dp) :: unused_sign1(lenof_sign), unused_sign2(lenof_sign)
+        real(dp) :: unused_sign(lenof_sign)
         real(dp), allocatable :: lowdin_evals(:,:), lowdin_spin(:,:)
         logical :: tChildIsDeterm, tParentIsDeterm, tParentUnoccupied
         logical :: tParity, tSoftExitFound, tSingBiasChange, tWritePopsFound
@@ -600,7 +599,7 @@ contains
 
                                     child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
                                                         nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                                                        ex_level_to_ref, ireplica, unused_sign2, unused_rdm_real)
+                                                        ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
                                 else
                                     child_sign = 0.0_dp
                                 end if
@@ -626,7 +625,7 @@ contains
                         ! determ_projection.
                         if (.not. tParentIsDeterm) then
                             call walker_death (iter_data_fciqmc, nI_parent, ilut_parent, parent_hdiag, &
-                                                parent_sign, unused_sign2, unused_sign1, idet, ex_level_to_ref)
+                                                parent_sign, idet, ex_level_to_ref)
                         end if
 
                     end do ! Over all determinants.

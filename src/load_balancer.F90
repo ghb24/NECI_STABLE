@@ -161,10 +161,12 @@ contains
 
         ! Count the number of particles inside each of the blocks
         block_parts = 0
+        HolesInList = 0
         do j = 1, int(TotWalkers, sizeof_int)
 
             call extract_sign(CurrentDets(:,j), sgn)
             if (IsUnoccDet(sgn)) then
+                HolesInList = HolesInList = 1
                 cycle
             end if
 
@@ -250,12 +252,14 @@ contains
 
         end do
 
-        write(6, '("Load balancing distribution:")')
-        write(6, '("node #, particles")')
-        do j = 0, nNodes - 1
-            write(6,'(i7,i9)') j, proc_parts(j)
-        end do
-        write(6,*) '--'
+        if (iProcIndex == root) then
+            write(6, '("Load balancing distribution:")')
+            write(6, '("node #, particles")')
+            do j = 0, nNodes - 1
+                write(6,'(i7,i9)') j, proc_parts(j)
+            end do
+            write(6,*) '--'
+        end if
 
         ! TODO: Only call this if we have made changes!
         TotWalkersTmp = int(TotWalkers, sizeof_int)
