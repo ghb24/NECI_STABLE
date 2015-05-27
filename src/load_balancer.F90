@@ -166,7 +166,7 @@ contains
 
             call extract_sign(CurrentDets(:,j), sgn)
             if (IsUnoccDet(sgn)) then
-                HolesInList = HolesInList = 1
+                HolesInList = HolesInList + 1
                 cycle
             end if
 
