@@ -1869,7 +1869,8 @@ contains
         ! Calculate an instantaneous value of the projected energy for the
         ! given walkers distributions
 
-        integer :: ex_level, det(nel), j
+        integer :: ex_level, det(nel), j, run
+        real(dp), dimension(max(lenof_sign,inum_runs)) :: RealAllHFCyc
         real(dp) :: sgn(lenof_sign)
 
         ! Reset the accumulators
@@ -1891,8 +1892,12 @@ contains
         end do
 
         ! Accumulate values over all processors
-        call MPISum(HFCyc, AllHFCyc)
+        call MPISum(HFCyc, RealAllHFCyc)
         call MPISum(ENumCyc, AllENumCyc)
+
+        do run = 1, inum_runs
+            AllHFCyc(run) = ARR_RE_OR_CPLX(RealAllHFCyc, run)
+        end do
 
         proje_iter = AllENumCyc / AllHFCyc + proje_ref_energy_offsets
 
