@@ -557,6 +557,6 @@ MODULE FciMCData
 
       type(perturbation), allocatable :: pops_pert(:)
 
-      real(dp), allocatable :: replica_overlaps(:, :)
+      real(dp), allocatable :: replica_overlaps(:,:)
 
 END MODULE FciMCData

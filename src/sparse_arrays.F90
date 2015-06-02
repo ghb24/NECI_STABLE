@@ -462,7 +462,7 @@ contains
             end do
 
             deallocate(sparse_mat, stat=ierr)
-            if (ierr /= 0) write(6,'("Error when deallocating sparse matrix:",1X,i8)') ierr
+            if (ierr /= 0) write(6,'("Error when deallocating sparse matrix array:",1X,i8)') ierr
         end if
 
     end subroutine deallocate_sparse_matrix_int
@@ -486,5 +486,25 @@ contains
         end if
 
     end subroutine deallocate_core_hashtable
+
+    subroutine deallocate_trial_hashtable(ht)
+
+        type(trial_hashtable), intent(inout), allocatable :: ht(:)
+
+        integer :: i, ierr
+
+        if (allocated(ht)) then
+            do i = 1, size(ht)
+                if (allocated(ht(i)%states)) then
+                    deallocate(ht(i)%states, stat=ierr)
+                    if (ierr /= 0) write(6,'("Error when deallocating trial hashtable states array:",1X,i8)') ierr
+                end if
+            end do
+
+            deallocate(ht, stat=ierr)
+            if (ierr /= 0) write(6,'("Error when deallocating core hashtable:",1X,i8)') ierr
+        end if
+
+    end subroutine deallocate_trial_hashtable
 
 end module sparse_arrays
