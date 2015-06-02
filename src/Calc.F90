@@ -321,6 +321,7 @@ contains
           cont_time_max_overspawn = 4.0
 
           tLoadBalanceBlocks = .false.
+          tPopsJumpShift = .false.
 
         end subroutine SetCalcDefaults
 
@@ -2131,6 +2132,15 @@ contains
                         tLoadBalanceBlocks = .true.
                     end select
                 end if
+            
+            case("POPS-JUMP-SHIFT")
+                ! Use the same logic as JUMP-SHIFT, but reset the shift value
+                ! after restarting with a POPSFILE
+                !
+                ! --> This prevents undesirable behaviour if the simulation is
+                !     restarted with a different FCIDUMP file (i.e. during
+                !     CASSCF calculations).
+                tPopsJumpShift = .true.
 
             case default
                 call report("Keyword "                                &

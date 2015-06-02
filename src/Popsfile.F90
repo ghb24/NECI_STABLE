@@ -5,7 +5,7 @@ MODULE PopsfileMod
     use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin, &
                           AB_elec_pairs, par_elec_pairs, tMultiReplicas
     use CalcData, only: tTruncInitiator, DiagSft, tWalkContGrow, nEquilSteps, &
-                        ScaleWalkers, tReadPopsRestart, &
+                        ScaleWalkers, tReadPopsRestart, tPopsJumpShift, &
                         InitWalkers, tReadPopsChangeRef, nShiftEquilSteps, &
                         iWeightPopRead, iPopsFileNoRead, Tau, &
                         InitiatorWalkNo, MemoryFacPart, tLetInitialPopDie, &
@@ -34,7 +34,7 @@ MODULE PopsfileMod
         max_death_cpt
     use global_det_data, only: global_determinant_data, set_iter_occ, &
                                init_global_det_data, set_det_diagH
-    use fcimc_helper, only: update_run_reference
+    use fcimc_helper, only: update_run_reference, calc_inst_proje
     use replica_data, only: set_initial_global_data
     use load_balance, only: pops_init_balance_blocks
     use load_balance_calcnodes, only: tLoadBalanceBlocks, balance_blocks
@@ -964,6 +964,14 @@ r_loop: do while(.not.tStoreDet)
 #endif
             end do
         end if
+
+        ! If necessary, recalculate the instantaneous projected energy, and
+        ! then update the shift to that value.
+        if (tPopsJumpShift .and. .not. tWalkContGrow) then
+            call calc_inst_proje()
+            DiagSft = real(proje_iter, dp)
+        end if
+
 
     end subroutine InitFCIMC_pops
     
