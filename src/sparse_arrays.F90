@@ -443,4 +443,48 @@ contains
 
     end subroutine deallocate_sparse_ham
 
+    subroutine deallocate_sparse_matrix_int(sparse_mat)
+
+        type(sparse_matrix_int), intent(inout), allocatable :: sparse_mat(:)
+
+        integer :: i, ierr
+
+        if (allocated(sparse_mat)) then
+            do i = 1, size(sparse_mat)
+                if (allocated(sparse_mat(i)%elements)) then
+                    deallocate(sparse_mat(i)%elements, stat=ierr)
+                    if (ierr /= 0) write(6,'("Error when deallocating sparse matrix elements array:",1X,i8)') ierr
+                end if
+                if (allocated(sparse_mat(i)%positions)) then
+                    deallocate(sparse_mat(i)%positions, stat=ierr)
+                    if (ierr /= 0) write(6,'("Error when deallocating sparse matrix positions array:",1X,i8)') ierr
+                end if
+            end do
+
+            deallocate(sparse_mat, stat=ierr)
+            if (ierr /= 0) write(6,'("Error when deallocating sparse matrix:",1X,i8)') ierr
+        end if
+
+    end subroutine deallocate_sparse_matrix_int
+
+    subroutine deallocate_core_hashtable(ht)
+
+        type(core_hashtable), intent(inout), allocatable :: ht(:)
+
+        integer :: i, ierr
+
+        if (allocated(ht)) then
+            do i = 1, size(ht)
+                if (allocated(ht(i)%ind)) then
+                    deallocate(ht(i)%ind, stat=ierr)
+                    if (ierr /= 0) write(6,'("Error when deallocating core hashtable ind array:",1X,i8)') ierr
+                end if
+            end do
+
+            deallocate(ht, stat=ierr)
+            if (ierr /= 0) write(6,'("Error when deallocating core hashtable:",1X,i8)') ierr
+        end if
+
+    end subroutine deallocate_core_hashtable
+
 end module sparse_arrays
