@@ -616,9 +616,9 @@ module FciMCParMod
         endif
 #endif
         write(iout,"(/)")
- 
-        !Deallocate memory
-        CALL DeallocFCIMCMemPar()
+
+        ! Deallocate memory
+        call DeallocFCIMCMemPar()
 
     END SUBROUTINE FciMCPar
 

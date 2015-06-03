@@ -780,9 +780,13 @@ contains
         use FciMCData, only: OccConTag, TrialTempTag, current_trial_amps
         use FciMCData, only: trial_wfs, trial_energies
         use MemoryManager, only: LogMemDealloc
+        use sparse_arrays, only: deallocate_trial_hashtable
 
         character(len=*), parameter :: t_r = "end_trial_wf"
         integer :: ierr
+
+        call deallocate_trial_hashtable(trial_ht)
+        call deallocate_trial_hashtable(con_ht)
 
         if (allocated(trial_space)) then
             deallocate(trial_space, stat=ierr)
@@ -791,6 +795,10 @@ contains
         if (allocated(trial_wfs)) then
             deallocate(trial_wfs, stat=ierr)
             call LogMemDealloc(t_r, TrialWFTag, ierr)
+        end if
+        if (allocated(trial_energies)) then
+            deallocate(trial_energies, stat=ierr)
+            if (ierr /= 0) write(6,'("Error when deallocating trial_energies:",1X,i8)') ierr
         end if
         if (allocated(con_space)) then
             deallocate(con_space, stat=ierr)
@@ -804,7 +812,6 @@ contains
             deallocate(current_trial_amps, stat=ierr)
             call LogMemDealloc(t_r, CurrentTrialTag, ierr)
         end if
-        if (allocated(trial_energies)) deallocate(trial_energies)
 
     end subroutine end_trial_wf
 
