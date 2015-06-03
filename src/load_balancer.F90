@@ -16,7 +16,7 @@ module load_balance
                          tFillingStochRDMOnFly
     use searching, only: hash_search_trial, bin_search_trial
     use Determinants, only: get_helement, write_det
-    use rdms, only: det_removed_fill_diag_rdm
+    use rdm_filling, only: det_removed_fill_diag_rdm
     use hphf_integrals, only: hphf_diag_helement
     use cont_time_rates, only: spawn_rate_full
     use SystemData, only: nel, tHPHF
@@ -161,10 +161,12 @@ contains
 
         ! Count the number of particles inside each of the blocks
         block_parts = 0
+        HolesInList = 0
         do j = 1, int(TotWalkers, sizeof_int)
 
             call extract_sign(CurrentDets(:,j), sgn)
             if (IsUnoccDet(sgn)) then
+                HolesInList = HolesInList + 1
                 cycle
             end if
 
@@ -250,12 +252,14 @@ contains
 
         end do
 
-        write(6, '("Load balancing distribution:")')
-        write(6, '("node #, particles")')
-        do j = 0, nNodes - 1
-            write(6,'(i7,i9)') j, proc_parts(j)
-        end do
-        write(6,*) '--'
+        if (iProcIndex == root) then
+            write(6, '("Load balancing distribution:")')
+            write(6, '("node #, particles")')
+            do j = 0, nNodes - 1
+                write(6,'(i7,i9)') j, proc_parts(j)
+            end do
+            write(6,*) '--'
+        end if
 
         ! TODO: Only call this if we have made changes!
         TotWalkersTmp = int(TotWalkers, sizeof_int)

@@ -21,9 +21,11 @@ module FciMCParMod
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
                             attempt_die_spin_proj
-    use rdms, only: tCalc_RDMEnergy, FinaliseRDM, calc_energy_from_rdm, &
-                    fill_explicitrdm_this_iter, fill_rdm_offdiag_deterministic, &
-                    fill_hist_explicitrdm_this_iter
+    use rdm_data, only: tCalc_RDMEnergy
+    use rdm_general, only: FinaliseRDM
+    use rdm_filling, only: fill_rdm_offdiag_deterministic
+    use rdm_estimators, only: rdm_output_wrapper
+    use rdm_explicit, only: fill_explicitrdm_this_iter, fill_hist_explicitrdm_this_iter
     use procedure_pointers, only: attempt_die_t, generate_excitation_t, &
                                   get_spawn_helement_t
     use semi_stoch_gen, only: write_most_pop_core_at_end, init_semi_stochastic
@@ -403,14 +405,15 @@ module FciMCParMod
             IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.0).and.(.not.tRDMonFly)) THEN
                 CALL WriteHistogram()
             ENDIF
-            IF(tRDMonFly.and.(.not.tSinglePartPhase(1)).and. &
-                        (.not.(tSinglePartPhase(inum_runs)))) THEN
+
+            if (tRDMonFly .and. (.not. tSinglePartPhase(1)) .and. (.not. tSinglePartPhase(inum_runs))) then
                 ! If we wish to calculate the energy, have started accumulating the RDMs, 
                 ! and this is an iteration where the energy should be calculated, do so.
-                if(tCalc_RDMEnergy .and. ((Iter - maxval(VaryShiftIter)).gt.IterRDMonFly) &
-                    .and. (mod((Iter+PreviousCycles - IterRDMStart)+1,RDMEnergyIter).eq.0) ) &
-                        CALL Calc_Energy_from_RDM(Norm_2RDM)  
-            ENDIF
+                if(tCalc_RDMEnergy .and. ((Iter - maxval(VaryShiftIter)) .gt. IterRDMonFly) &
+                    .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) .eq. 0) ) &
+                        call rdm_output_wrapper(Norm_2RDM)
+            end if
+
             if(tChangeVarsRDM) then
                 ! Decided during the CHANGEVARS that the RDMs should be calculated.
                 call InitRDM() 
@@ -471,9 +474,7 @@ module FciMCParMod
             CALL PrintOrbOccs(OrbOccs)
         ENDIF
 
-        IF(tFillingStochRDMonFly.or.&
-            tFillingExplicRDMonFly) CALL FinaliseRDM()
-            !tFillingExplicRDMonFly.or.tHF_Ref_Explicit) CALL FinaliseRDM()
+        if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) call FinaliseRDM()
 
         call PrintHighPops()
 
@@ -615,9 +616,9 @@ module FciMCParMod
         endif
 #endif
         write(iout,"(/)")
- 
-        !Deallocate memory
-        CALL DeallocFCIMCMemPar()
+
+        ! Deallocate memory
+        call DeallocFCIMCMemPar()
 
     END SUBROUTINE FciMCPar
 
@@ -704,7 +705,7 @@ module FciMCParMod
         ! being printed.
         tFill_RDM = .false.
         if(tFillingStochRDMonFly) then
-            if(mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter).eq.0) then 
+            if(mod((Iter+PreviousCycles - IterRDMStart + 1), RDMEnergyIter).eq.0) then 
                 ! RDM energy is being printed, calculate the diagonal elements for 
                 ! the last RDMEnergyIter iterations.
                 tFill_RDM = .true.
@@ -713,11 +714,11 @@ module FciMCParMod
                 ! Last iteration, calculate the diagonal element for the iterations 
                 ! since the last time they were included.
                 tFill_RDM = .true.
-                IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1),RDMEnergyIter)
+                IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1), RDMEnergyIter)
             endif
         endif
 
-        do j=1,int(TotWalkers,sizeof_int)
+        do j = 1, int(TotWalkers,sizeof_int)
             ! N.B. j indicates the number of determinants, not the number
             !      of walkers.
 
@@ -761,8 +762,8 @@ module FciMCParMod
                 ! found in extract_bit_rep_avsign.
                 call set_av_sgn(j, AvSignCurr)
                 call set_iter_occ(j, IterRDMStartCurr)
-                ! If this is an iteration where print out the RDM energy,
-                ! calculate the diagonal contribution to the RDM for this
+                ! If this is an iteration where we print out the RDM energy,
+                ! add in the diagonal contribution to the RDM for this
                 ! determinant.
                 if(tFill_RDM .and. (.not. tNoNewRDMContrib)) then
                     call fill_rdm_diag_currdet(CurrentDets(:,j), DetCurr, j, &
@@ -784,13 +785,7 @@ module FciMCParMod
                 ! The deterministic states are always kept in CurrentDets, even when
                 ! the amplitude is zero. Hence we must check if the amplitude is zero,
                 ! and if so, skip the state.
-                if (IsUnoccDet(SignCurr)) then
-                    if (tFillingStochRDMonFly) then
-                        call set_av_sgn(j, AvSignCurr)
-                        call set_iter_occ(j, IterRDMStartCurr)
-                    endif
-                    cycle
-                end if
+                if (IsUnoccDet(SignCurr)) cycle
             end if
 
             ! The current diagonal matrix element is stored persistently.
@@ -840,13 +835,7 @@ module FciMCParMod
             ! If we're on the Hartree-Fock, and all singles and doubles are in
             ! the core space, then there will be no stochastic spawning from
             ! this determinant, so we can the rest of this loop.
-            if (ss_space_in%tDoubles .and. walkExcitLevel_toHF == 0 .and. tDetermHFSpawning) then
-                if (tFillingStochRDMonFly) then
-                    call set_av_sgn(j, AvSignCurr)
-                    call set_iter_occ(j, IterRDMStartCurr)
-                endif
-                cycle
-            end if
+            if (ss_space_in%tDoubles .and. walkExcitLevel_toHF == 0 .and. tDetermHFSpawning) cycle
 
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles
@@ -943,39 +932,26 @@ module FciMCParMod
                                                                   part_type, CurrentDets(:,j))
                         else
                             call create_particle (nJ, iLutnJ, child, part_type, & 
-                                                  CurrentDets(:,j),SignCurr,p, &
+                                                  CurrentDets(:,j), SignCurr, p, &
                                                   RDMBiasFacCurr, WalkersToSpawn)
                         end if
 
-                    endif ! (child /= 0). Child created
+                    endif ! (child /= 0), Child created.
 
                 enddo ! Cycling over mulitple particles on same determinant.
 
             enddo   ! Cycling over 'type' of particle on a given determinant.
 
-            if (tSemiStochastic) then
-                ! If we are performing a semi-stochastic simulation and this state is in the
-                ! deterministic space, then the death step is performed deterministically later.
-                if (.not. tCoreDet) then
-                    call walker_death (iter_data, DetCurr, &
-                                       CurrentDets(:,j), HDiagCurr, SignCurr, &
-                                       AvSignCurr, IterRDMStartCurr, j, WalkExcitLevel)
-                else
-                    if (tFillingStochRDMonFly) then
-                        call set_av_sgn(j, AvSignCurr)
-                        call set_iter_occ(j, IterRDMStartCurr)
-                    endif
-                end if
-            else
-                call walker_death (iter_data, DetCurr, &
-                                   CurrentDets(:,j), HDiagCurr, SignCurr, &
-                                   AvSignCurr, IterRDMStartCurr, j, WalkExcitLevel)
-            end if
+            ! If we are performing a semi-stochastic simulation and this state
+            ! is in the deterministic space, then the death step is performed
+            ! deterministically later. Otherwise, perform the death step now.
+            if (.not. tCoreDet) call walker_death (iter_data, DetCurr, CurrentDets(:,j), &
+                                                   HDiagCurr, SignCurr, j, WalkExcitLevel)
 
         enddo ! Loop over determinants.
         IFDEBUGTHEN(FCIMCDebug,2) 
             write(iout,*) 'Finished loop over determinants'
-            write(iout,*) "Holes in list: ",iEndFreeSlot
+            write(iout,*) "Holes in list: ", iEndFreeSlot
         ENDIFDEBUG
 
         if (tSemiStochastic) then
@@ -999,7 +975,7 @@ module FciMCParMod
 
         ! With this algorithm, the determinants do not move, and therefore
         ! TotWalkersNew is simply equal to TotWalkers
-        TotWalkersNew=int(TotWalkers,sizeof_int)
+        TotWalkersNew = int(TotWalkers,sizeof_int)
 
         ! Update the statistics for the end of an iteration.
         ! Why is this done here - before annihilation!
@@ -1015,11 +991,11 @@ module FciMCParMod
         call set_timer (annihil_time, 30)
         !HolesInList is returned from direct annihilation with the number of unoccupied determinants in the list
         !They have already been removed from the hash table though.
-        call DirectAnnihilation (totWalkersNew, iter_data,.false.) !.false. for not single processor
+        call DirectAnnihilation (totWalkersNew, iter_data, .false.) !.false. for not single processor
 
         ! This indicates the number of determinants in the list + the number
         ! of holes that have been introduced due to annihilation.
-        TotWalkers=TotWalkersNew
+        TotWalkers = TotWalkersNew
 
         CALL halt_timer(Annihil_Time)
         IFDEBUG(FCIMCDebug,2) WRITE(iout,*) "Finished Annihilation step"

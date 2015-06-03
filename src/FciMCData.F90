@@ -126,7 +126,6 @@ MODULE FciMCData
       real(dp), allocatable :: norm_semistoch(:)
 
       INTEGER :: exFlag=3
-      real(dp) :: AccumRDMNorm, AccumRDMNorm_Inst, AllAccumRDMNorm
       
       !Hash tables to point to the correct determinants in CurrentDets
       type(ll_node), pointer :: HashIndex(:) 
@@ -558,6 +557,6 @@ MODULE FciMCData
 
       type(perturbation), allocatable :: pops_pert(:)
 
-      real(dp), allocatable :: replica_overlaps(:, :)
+      real(dp), allocatable :: replica_overlaps(:,:)
 
 END MODULE FciMCData
