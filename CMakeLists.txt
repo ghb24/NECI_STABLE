@@ -11,6 +11,12 @@ file(GLOB_RECURSE F90_FILES src/*.F90 src/*.F src/*.cpp)
 file(GLOB_RECURSE F90_TEMPLATE_FILES src/*.F90.template)
 list(REMOVE_ITEM F90_FILES ${CMAKE_SOURCE_DIR}/src/libstub.F)
 
+file(GLOB_RECURSE UNIT_TEST_FILES unit_tests/*.F90 unit_tests/*.f90)
+message("UTF: " ${UNIT_TEST_FILES})
+message("FF: " ${F90_FILES})
+set(UNIT_TEST_FILES ${UNIT_TEST_FILES} ${F90_FILES})
+list(REMOVE_ITEM UNIT_TEST_FILES ${CMAKE_SOURCE_DIR}/src/necimain.F90)
+
 get_filename_component(Fortran_COMPILER_NAME ${CMAKE_Fortran_COMPILER} NAME)
 message("CMake compiler " ${CMAKE_Fortran_COMPILER})
 message("CMake binary_dir " ${CMAKE_BINARY_DIR})
@@ -27,6 +33,8 @@ message("CMake compiler name: " ${CMAKE_CXX_COMPILER})
 message("Shared link: " ${CMAKE_SHARED_LIBRARY_LINK_Fortran_FLAGS})
 message("System: " ${CMAKE_SYSTEM_NAME})
 message("Platform: " ${CMAKE_TARGET_BUILD_PLATFORM})
+message("Module dir: " ${CMAKE_Fortran_MODULE_DIRECTORY})
+message("Module dir: " ${Fortran_MODULE_DIRECTORY})
 
 # Deal with compiler specific issues
 if (Fortran_COMPILER_NAME MATCHES "ifort.*")
@@ -63,12 +71,22 @@ add_executable(mneci ${F90_FILES} ${TEMPLATE_TARGETS})
 add_executable(dneci ${F90_FILES} ${TEMPLATE_TARGETS})
 add_executable(kneci ${F90_FILES} ${TEMPLATE_TARGETS})
 
+# Add the testing executables
+add_executable(neci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
+add_executable(mneci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
+add_executable(dneci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
+add_executable(kneci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
+
 # Neci is fundamentally a fortran program, so don't default to using
 # C to link things...
 set_target_properties(neci PROPERTIES LINKER_LANGUAGE Fortran)
 set_target_properties(mneci PROPERTIES LINKER_LANGUAGE Fortran)
 set_target_properties(dneci PROPERTIES LINKER_LANGUAGE Fortran)
 set_target_properties(kneci PROPERTIES LINKER_LANGUAGE Fortran)
+set_target_properties(neci_test PROPERTIES LINKER_LANGUAGE Fortran)
+set_target_properties(mneci_test PROPERTIES LINKER_LANGUAGE Fortran)
+set_target_properties(dneci_test PROPERTIES LINKER_LANGUAGE Fortran)
+set_target_properties(kneci_test PROPERTIES LINKER_LANGUAGE Fortran)
 
 # TODO:
 # Test for compiler features, to enable specific flags
@@ -106,9 +124,13 @@ add_definitions(-D_CONFIG="CMake-new")
 
 # This is a real build. Consider kneci...
 target_compile_definitions(neci PUBLIC -DHElement_t=real\(dp\))
-target_compile_definitions(dneci PUBLIC -DHElement_t=real\(dp\))
-target_compile_definitions(mneci PUBLIC -DHElement_t=real\(dp\))
+target_compile_definitions(dneci PUBLIC -DHElement_t=real\(dp\) -D__DOUBLERUN)
+target_compile_definitions(mneci PUBLIC -DHElement_t=real\(dp\) -D__PROG_NUMRUNS)
 target_compile_definitions(kneci PUBLIC -DHElement_t=complex\(dp\))
+target_compile_definitions(neci_test PUBLIC -DHElement_t=real\(dp\))
+target_compile_definitions(dneci_test PUBLIC -DHElement_t=real\(dp\) -D__DOUBLERUN)
+target_compile_definitions(mneci_test PUBLIC -DHElement_t=real\(dp\) -D__PROG_NUMRUNS)
+target_compile_definitions(kneci_test PUBLIC -DHElement_t=complex\(dp\))
 
 include_directories(BEFORE SYSTEM ${CMAKE_SOURCE_DIR}/src)
 
@@ -136,3 +158,7 @@ target_link_libraries(neci ${NECI_LIBRARIES})
 target_link_libraries(mneci ${NECI_LIBRARIES})
 target_link_libraries(dneci ${NECI_LIBRARIES})
 target_link_libraries(kneci ${NECI_LIBRARIES})
+target_link_libraries(neci_test ${NECI_LIBRARIES})
+target_link_libraries(mneci_test ${NECI_LIBRARIES})
+target_link_libraries(dneci_test ${NECI_LIBRARIES})
+target_link_libraries(kneci_test ${NECI_LIBRARIES})
