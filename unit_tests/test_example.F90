@@ -1,3 +1,4 @@
+#include "test_macros.h"
 module example_test
     use fruit
     implicit none
@@ -11,7 +12,7 @@ contains
     end subroutine
 
     subroutine example_test_driver
-        call test_example
+        TEST(test_example)
     end subroutine
 
 end module

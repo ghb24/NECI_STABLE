@@ -12,8 +12,6 @@ file(GLOB_RECURSE F90_TEMPLATE_FILES src/*.F90.template)
 list(REMOVE_ITEM F90_FILES ${CMAKE_SOURCE_DIR}/src/libstub.F)
 
 file(GLOB_RECURSE UNIT_TEST_FILES unit_tests/*.F90 unit_tests/*.f90)
-message("UTF: " ${UNIT_TEST_FILES})
-message("FF: " ${F90_FILES})
 set(UNIT_TEST_FILES ${UNIT_TEST_FILES} ${F90_FILES})
 list(REMOVE_ITEM UNIT_TEST_FILES ${CMAKE_SOURCE_DIR}/src/necimain.F90)
 
@@ -132,7 +130,7 @@ target_compile_definitions(dneci_test PUBLIC -DHElement_t=real\(dp\) -D__DOUBLER
 target_compile_definitions(mneci_test PUBLIC -DHElement_t=real\(dp\) -D__PROG_NUMRUNS)
 target_compile_definitions(kneci_test PUBLIC -DHElement_t=complex\(dp\))
 
-include_directories(BEFORE SYSTEM ${CMAKE_SOURCE_DIR}/src)
+include_directories(BEFORE SYSTEM ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/unit_tests)
 
 #
 # Some form of lapack is always needed (be that acml, mkl, LAPACK, ...)
