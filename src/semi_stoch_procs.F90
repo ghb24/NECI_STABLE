@@ -1111,14 +1111,22 @@ contains
 
         use FciMCData, only: partial_determ_vecs, full_determ_vecs, full_determ_vecs_av
         use FciMCData, only: PDetermTag, FDetermTag, FDetermAvTag, IDetermTag
-        use FciMCData, only: indices_of_determ_states
+        use FciMCData, only: indices_of_determ_states, core_ham_diag, hamiltonian
+        use FciMCData, only: core_space, determ_sizes, determ_displs, HamTag
+        use FciMCData, only: CoreSpaceTag
         use MemoryManager, only: LogMemDealloc
-        use sparse_arrays, only: SparseCoreHamilTags, deallocate_sparse_ham
+        use sparse_arrays, only: SparseCoreHamilTags, deallocate_sparse_ham, core_ht
+        use sparse_arrays, only: core_connections, deallocate_core_hashtable
+        use sparse_arrays, only: deallocate_sparse_matrix_int
 
         character(len=*), parameter :: t_r = "end_semistoch"
         integer :: ierr
 
         call deallocate_sparse_ham(sparse_core_ham, 'sparse_core_ham', SparseCoreHamilTags)
+
+        call deallocate_core_hashtable(core_ht)
+
+        call deallocate_sparse_matrix_int(core_connections)
 
         if (allocated(partial_determ_vecs)) then
             deallocate(partial_determ_vecs, stat=ierr)
@@ -1135,6 +1143,26 @@ contains
         if (allocated(indices_of_determ_states)) then
             deallocate(indices_of_determ_states, stat=ierr)
             call LogMemDealloc(t_r, IDetermTag, ierr)
+        end if
+        if (allocated(core_ham_diag)) then
+            deallocate(core_ham_diag, stat=ierr)
+            call LogMemDealloc(t_r, IDetermTag, ierr)
+        end if
+        if (allocated(core_space)) then
+            deallocate(core_space, stat=ierr)
+            call LogMemDealloc(t_r, CoreSpaceTag, ierr)
+        end if
+        if (allocated(hamiltonian)) then
+            deallocate(hamiltonian, stat=ierr)
+            call LogMemDealloc(t_r, HamTag, ierr)
+        end if
+        if (allocated(determ_sizes)) then
+            deallocate(determ_sizes, stat=ierr)
+            if (ierr /= 0) write(6,'("Error when deallocating determ_sizes:",1X,i8)') ierr
+        end if
+        if (allocated(determ_displs)) then
+            deallocate(determ_displs, stat=ierr)
+            if (ierr /= 0) write(6,'("Error when deallocating determ_displs:",1X,i8)') ierr
         end if
 
     end subroutine end_semistoch
