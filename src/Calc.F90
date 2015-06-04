@@ -1068,6 +1068,7 @@ contains
                 call geti(ss_space_in%mp1_ndets)
             case("READ-CORE")
                 ss_space_in%tRead = .true.
+                ss_space_in%read_filename = 'CORESPACE'
             case("MAX-CORE-SIZE")
                 ss_space_in%tLimitSpace = .true.
                 call geti(ss_space_in%max_size)
@@ -1133,6 +1134,7 @@ contains
                 call geti(trial_space_in%npops)
             case("READ-TRIAL")
                 trial_space_in%tRead = .true.
+                trial_space_in%read_filename = 'TRIALSPACE'
             case("FCI-TRIAL")
                 trial_space_in%tFCI = .true.
             case("HEISENBERG-FCI-TRIAL")
