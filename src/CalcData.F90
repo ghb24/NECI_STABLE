@@ -75,6 +75,8 @@ type subspace_in
     integer :: npops = 0
     ! When using the tMP1Core option, this specifies how many determinants to keep.
     integer :: mp1_ndets = 0
+
+    character(255) :: read_filename
 end type subspace_in
 
 LOGICAL :: TSTAR,TTROT,TGrowInitGraph

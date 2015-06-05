@@ -499,11 +499,11 @@ contains
             if (iProcIndex == i) then
 
                 if (i == 0) then
-                    open(iunit, file='DETFILE', status='replace')
+                    open(iunit, file='TRIALSPACE', status='replace')
                 else
-                    inquire(file='DETFILE',exist=texist)
-                    if(.not.texist) call stop_all(t_r,'"DETFILE" file not found')
-                    open(iunit, file='DETFILE', status='old', position='append')
+                    inquire(file='TRIALSPACE',exist=texist)
+                    if(.not.texist) call stop_all(t_r,'"TRIALSPACE" file not found')
+                    open(iunit, file='TRIALSPACE', status='old', position='append')
                 end if
                 
                 do j = 1, trial_space_size 
