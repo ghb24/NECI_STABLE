@@ -198,7 +198,7 @@ contains
         ! Call the requested generating routines.
         if (core_in%tHF) call add_state_to_space(ilutHF, SpawnedParts, space_size)
         if (core_in%tPops) call generate_space_most_populated(core_in%npops, SpawnedParts, space_size)
-        if (core_in%tRead) call generate_space_from_file('DETFILE', SpawnedParts, space_size)
+        if (core_in%tRead) call generate_space_from_file(core_in%read_filename, SpawnedParts, space_size)
         if (.not. tCSFCore) then
             if (core_in%tDoubles) call generate_sing_doub_determinants(SpawnedParts, space_size, core_in%tHFConn)
             if (core_in%tCAS) call generate_cas(core_in%occ_cas, core_in%virt_cas, SpawnedParts, space_size)
@@ -967,7 +967,7 @@ contains
 
         use util_mod, only: get_free_unit
 
-        character(*), intent(in) :: filename
+        character(255), intent(in) :: filename
         integer(n_int), intent(inout) :: ilut_list(0:,:)
         integer, intent(inout) :: space_size
 
@@ -975,12 +975,12 @@ contains
         integer(n_int) :: ilut(0:NIfTot)
         logical :: does_exist
 
-        inquire(file=filename, exist=does_exist)
+        inquire(file=trim(filename), exist=does_exist)
         if (.not. does_exist) call stop_all("generate_space_from_file", &
-                                            "No "//filename//" file detected.")
+                                            "No "//trim(filename)//" file detected.")
 
         iunit = get_free_unit()
-        open(iunit, file=filename, status='old')
+        open(iunit, file=trim(filename), status='old')
 
         ilut = 0_n_int
 
