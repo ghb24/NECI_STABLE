@@ -187,7 +187,8 @@ contains
             CurrWalkers = read_pops_splitpops (iunit, PopNel, TempnI, BinPops, &
                                                Dets, DetsLen, iunit_3, PopNIfSgn)
         else if (pops_nnodes == nProcessors .and. PopsVersion == 4 .and. &
-                 .not. PopBalanceBlocks == -1) then
+                 (balance_blocks == PopBalanceBlocks .or. &
+                  (.not. tLoadBalanceBlocks .and. PopBalanceBlocks == -1))) then
             CurrWalkers = read_pops_nnodes (iunit, PopNel, TempnI, BinPops, Dets, &
                                             DetsLen, read_walkers_on_nodes, &
                                             iunit_3, PopNIfSgn, iPopAllTotWalkers)

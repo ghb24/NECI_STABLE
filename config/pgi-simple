@@ -2,7 +2,7 @@
 fc = mpif90 
 compiler = PGI-pgf95-on-LINUX
 cc = mpic++
-ccd = g+
+ccd = g++
 cpp = cpp -traditional
 cppflags =  -D__Linux -DPOINTER8 -DPARALLEL -DHAVE_SSE2 -D__INT64 -D__PGI -D__SHARED_MEM -DDISABLE_FFTW
 ld = mpif90
