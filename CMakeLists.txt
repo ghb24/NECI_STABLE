@@ -124,11 +124,11 @@ add_definitions(-D_CONFIG="CMake-new")
 target_compile_definitions(neci PUBLIC -DHElement_t=real\(dp\))
 target_compile_definitions(dneci PUBLIC -DHElement_t=real\(dp\) -D__DOUBLERUN)
 target_compile_definitions(mneci PUBLIC -DHElement_t=real\(dp\) -D__PROG_NUMRUNS)
-target_compile_definitions(kneci PUBLIC -DHElement_t=complex\(dp\))
+target_compile_definitions(kneci PUBLIC -DHElement_t=complex\(dp\) -D__CMPLX)
 target_compile_definitions(neci_test PUBLIC -DHElement_t=real\(dp\))
 target_compile_definitions(dneci_test PUBLIC -DHElement_t=real\(dp\) -D__DOUBLERUN)
 target_compile_definitions(mneci_test PUBLIC -DHElement_t=real\(dp\) -D__PROG_NUMRUNS)
-target_compile_definitions(kneci_test PUBLIC -DHElement_t=complex\(dp\))
+target_compile_definitions(kneci_test PUBLIC -DHElement_t=complex\(dp\) -D__CMPLX)
 
 include_directories(BEFORE SYSTEM ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/unit_tests)
 
