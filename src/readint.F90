@@ -563,6 +563,8 @@ contains
          INTEGER , ALLOCATABLE :: CacheInd(:)
          character(len=*), parameter :: t_r='READFCIINT'
          real(dp) :: diff
+         integer :: start_ind, end_ind
+         integer, parameter :: chunk_size = 1000000
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,ISYM,IUHF,UHF,SYML,SYMLZ,PROPBITLEN,NPROP
          LWRITE=.FALSE.
          UHF=.FALSE.
@@ -822,8 +824,17 @@ contains
          ENDIF
          IF((.not.tRIIntegrals).and.(.not.tCacheFCIDUMPInts)) THEN
              CALL GetUMATSize(nBasis,NEl,UMatSize)
-!This is not an , as it is actually passed in as a real(dp), even though it is HElem in IntegralsData
-             CALL MPIBCast(UMAT,UMatSize)    
+
+             ! If we are on a 64bit system, the maximum dimensions for MPI are
+             ! still limited by 32bit limits.
+             ! --> We need to loop around this
+             start_ind = 1
+             end_ind = min(UMatSize, chunk_size)
+             do while(end_ind < UMatSize)
+                 call MPIBcast(UMat(start_ind:end_ind), end_ind-start_ind+1)
+                 start_ind = end_ind + 1
+                 end_ind = min(UMatSize, end_ind + chunk_size)
+             end do
          ENDIF
          IF(tCacheFCIDUMPInts) THEN
 !Need to broadcast the cache...
