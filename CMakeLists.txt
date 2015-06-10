@@ -16,23 +16,23 @@ set(UNIT_TEST_FILES ${UNIT_TEST_FILES} ${F90_FILES})
 list(REMOVE_ITEM UNIT_TEST_FILES ${CMAKE_SOURCE_DIR}/src/necimain.F90)
 
 get_filename_component(Fortran_COMPILER_NAME ${CMAKE_Fortran_COMPILER} NAME)
-message("CMake compiler " ${CMAKE_Fortran_COMPILER})
-message("CMake binary_dir " ${CMAKE_BINARY_DIR})
-message("CMake project_binary_dir " ${CMAKE_PROJECT_BINARY_DIR})
-message("CMake build dir: " ${CMAKE_BUILD_DIRECTORY})
-message("CMake build files dir: " ${CMAKE_BUILD_FILES_DIRECTORY})
-message("CMake runtime output: " ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-message("CMake executable path: " ${EXECUTABLE_OUTPUT_PATH})
-message("CMake cachefile dir: " ${CMAKE_CACHEFILE_DIR})
-message("CMake compiler name: " ${CMAKE_Fortran_COMPILER})
-message("CMake compiler name: " ${Fortran_COMPILER_NAME})
-message("CMake compiler name: " ${CMAKE_C_COMPILER})
-message("CMake compiler name: " ${CMAKE_CXX_COMPILER})
-message("Shared link: " ${CMAKE_SHARED_LIBRARY_LINK_Fortran_FLAGS})
-message("System: " ${CMAKE_SYSTEM_NAME})
-message("Platform: " ${CMAKE_TARGET_BUILD_PLATFORM})
-message("Module dir: " ${CMAKE_Fortran_MODULE_DIRECTORY})
-message("Module dir: " ${Fortran_MODULE_DIRECTORY})
+#message("CMake compiler " ${CMAKE_Fortran_COMPILER})
+#message("CMake binary_dir " ${CMAKE_BINARY_DIR})
+#message("CMake project_binary_dir " ${CMAKE_PROJECT_BINARY_DIR})
+#message("CMake build dir: " ${CMAKE_BUILD_DIRECTORY})
+#message("CMake build files dir: " ${CMAKE_BUILD_FILES_DIRECTORY})
+#message("CMake runtime output: " ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+#message("CMake executable path: " ${EXECUTABLE_OUTPUT_PATH})
+#message("CMake cachefile dir: " ${CMAKE_CACHEFILE_DIR})
+#message("CMake compiler name: " ${CMAKE_Fortran_COMPILER})
+#message("CMake compiler name: " ${Fortran_COMPILER_NAME})
+#message("CMake compiler name: " ${CMAKE_C_COMPILER})
+#message("CMake compiler name: " ${CMAKE_CXX_COMPILER})
+#message("Shared link: " ${CMAKE_SHARED_LIBRARY_LINK_Fortran_FLAGS})
+#message("System: " ${CMAKE_SYSTEM_NAME})
+#message("Platform: " ${CMAKE_TARGET_BUILD_PLATFORM})
+#message("Module dir: " ${CMAKE_Fortran_MODULE_DIRECTORY})
+#message("Module dir: " ${Fortran_MODULE_DIRECTORY})
 
 # Deal with compiler specific issues
 if (Fortran_COMPILER_NAME MATCHES "ifort.*")
@@ -51,7 +51,7 @@ foreach(template_file ${F90_TEMPLATE_FILES})
 	# command which depends on the templated file, and produces a .F90
 	# file which is added to the list of dependencies for the executable.
 	get_filename_component(base_filename ${template_file} NAME_WE)
-	set(target_filename ${base_filename}.F90)
+	set(target_filename ${CMAKE_BINARY_DIR}/templated/${base_filename}.F90)
 	set(TEMPLATE_TARGETS ${TEMPLATE_TARGETS} ${target_filename})
 
 	add_custom_command(
@@ -61,6 +61,7 @@ foreach(template_file ${F90_TEMPLATE_FILES})
 	)
 
 endforeach(template_file)
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/templated)
 
 #
 # Build the executable!
@@ -75,22 +76,23 @@ add_executable(mneci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
 add_executable(dneci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
 add_executable(kneci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
 
-# Neci is fundamentally a fortran program, so don't default to using
-# C to link things...
-set_target_properties(neci PROPERTIES LINKER_LANGUAGE Fortran)
-set_target_properties(mneci PROPERTIES LINKER_LANGUAGE Fortran)
-set_target_properties(dneci PROPERTIES LINKER_LANGUAGE Fortran)
-set_target_properties(kneci PROPERTIES LINKER_LANGUAGE Fortran)
-set_target_properties(neci_test PROPERTIES LINKER_LANGUAGE Fortran)
-set_target_properties(mneci_test PROPERTIES LINKER_LANGUAGE Fortran)
-set_target_properties(dneci_test PROPERTIES LINKER_LANGUAGE Fortran)
-set_target_properties(kneci_test PROPERTIES LINKER_LANGUAGE Fortran)
+# List of targets. Then loop over repeated target properties
+set(TARGETS neci mneci dneci kneci neci_test mneci_test dneci_test kneci_test)
+foreach(target ${TARGETS})
+
+	# Set the fortran modules directory for cleanliness, and to avoid collisions
+	# between targets
+	set_target_properties(${target} PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/modules/${target})
+
+	# Ensure that we use the Fortran compiler for linking
+	set_target_properties(neci PROPERTIES LINKER_LANGUAGE Fortran)
+
+endforeach(target)
 
 # TODO:
 # Test for compiler features, to enable specific flags
 # Add librt, libm as required
 # Enable shared memory
-# Be able to build kneci, dneci., mneci
 # Select optimised, debug or production builds
 
 
