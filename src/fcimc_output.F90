@@ -499,7 +499,7 @@ contains
             state%cols = 0
             state%cols_mc = 0
             state%mc_out = tMCOutput
-            call stats_out(state,.true., iter, 'Iter.')
+            call stats_out(state,.true., iter + PreviousCycles, 'Iter.')
             if (.not. tOrthogonaliseReplicas) then
                 call stats_out(state,.true., sum(abs(AllTotParts)), 'Tot. parts')
                 call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
