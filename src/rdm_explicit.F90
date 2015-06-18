@@ -57,7 +57,7 @@ contains
                 blank_det = .false.
             end if
 
-            call Add_ExplicitRDM_Contrib(iLutnI,blank_det)
+            call Add_ExplicitRDM_Contrib(iLutnI, blank_det)
 
         end do
 

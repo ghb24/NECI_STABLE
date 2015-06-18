@@ -620,8 +620,7 @@ module FciMCParMod
         ! Deallocate memory
         call DeallocFCIMCMemPar()
 
-    END SUBROUTINE FciMCPar
-
+    end subroutine FciMCPar
 
     subroutine PerformFCIMCycPar(iter_data)
         
@@ -766,7 +765,7 @@ module FciMCParMod
                 ! add in the diagonal contribution to the RDM for this
                 ! determinant.
                 if(tFill_RDM .and. (.not. tNoNewRDMContrib)) then
-                    call fill_rdm_diag_currdet(CurrentDets(:,j), DetCurr, j, &
+                    call fill_rdm_diag_currdet(rdms(1), CurrentDets(:,j), DetCurr, j, &
                                                 walkExcitLevel_toHF, tCoreDet)
                 endif
             endif
@@ -1013,16 +1012,15 @@ module FciMCParMod
         ! This routine will take the CurrentDets and search the array to find all single and double 
         ! connections - adding them into the RDM's. 
         ! This explicit way of doing this is very expensive, but o.k for very small systems.
-        IF(tFillingExplicRDMonFly) THEN
-            IF(tHistSpawn) THEN
-                CALL Fill_Hist_ExplicitRDM_this_Iter(TotWalkers)
-            ELSE
-                CALL Fill_ExplicitRDM_this_Iter(TotWalkers)
-            ENDIF
-        ENDIF
+        if (tFillingExplicRDMonFly) then
+            if (tHistSpawn) THEN
+                call Fill_Hist_ExplicitRDM_this_Iter(TotWalkers)
+            else
+                call Fill_ExplicitRDM_this_Iter(TotWalkers)
+            end if
+        end if
 
-    end subroutine
-
+    end subroutine PerformFCIMCycPar
 
     subroutine test_routine()
 
