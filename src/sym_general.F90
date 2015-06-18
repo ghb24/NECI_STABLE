@@ -254,6 +254,9 @@ contains
         logical :: IsValidDet ! In .F file.
         integer :: iGetExcitLevel ! In .F file
 
+        ! Default initial value
+        bValid = .true.
+
         ! Check reported excitation level
         exLevel = iGetExcitLevel(nI, nJ, nel)
         if (exLevel /= ic) &
@@ -292,8 +295,8 @@ contains
 
         ! Check that Lz angular momentum projection is preserved if necessary
         if (tFixLz) then
-            ml1 = sum(G1(ex(1:ic, 1))%ml)
-            ml2 = sum(G1(ex(1:ic, 2))%ml)
+            ml1 = sum(G1(ex(1, 1:ic))%ml)
+            ml2 = sum(G1(ex(2, 1:ic))%ml)
             if (ml1 /= ml2) bValid = .false.
         end if
 
