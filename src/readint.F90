@@ -830,7 +830,7 @@ contains
              ! --> We need to loop around this
              start_ind = 1
              end_ind = min(UMatSize, chunk_size)
-             do while(end_ind < UMatSize)
+             do while(start_ind <= UMatSize)
                  call MPIBcast(UMat(start_ind:end_ind), end_ind-start_ind+1)
                  start_ind = end_ind + 1
                  end_ind = min(UMatSize, end_ind + chunk_size)
