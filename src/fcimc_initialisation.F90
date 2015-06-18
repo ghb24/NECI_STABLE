@@ -86,7 +86,7 @@ module fcimc_initialisation
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD, only : InitHistInitPops
     use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2
-    use rdm_general, only: DeallocateRDM, InitRDM, extract_bit_rep_avsign_no_rdm
+    use rdm_general, only: DeallocateRDM, InitRDMs, extract_bit_rep_avsign_no_rdm
     use rdm_filling, only: fill_rdm_diag_currdet_norm
     use DetBitOps, only: FindBitExcitLevel, CountBits, TestClosedShellDet, &
                          FindExcitBitDet, IsAllowedHPHF, DetBitEq, &
@@ -1355,7 +1355,7 @@ contains
             call init_yama_store ()
         endif
     
-        IF(tRDMonFly) CALL InitRDM()
+        IF(tRDMonFly) CALL InitRDMs()
         !This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
         !Initialises RDM stuff for both explicit and stochastic calculations of RDM.
 

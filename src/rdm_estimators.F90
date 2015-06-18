@@ -135,7 +135,7 @@ contains
         RDMEnergy2 = 0.0_dp
         RDMEnergy = 0.0_dp
     
-        if (tFinalRDMEnergy) write(6,'(/,"Calculating the final RDM energy")')
+        if (tFinalRDMEnergy) write(6,'(/,1X,"Calculating the final RDM energy")')
 
         do i = 1, SpatOrbs
             iSpin = 2 * i

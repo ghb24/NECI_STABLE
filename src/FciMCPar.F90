@@ -416,7 +416,7 @@ module FciMCParMod
 
             if(tChangeVarsRDM) then
                 ! Decided during the CHANGEVARS that the RDMs should be calculated.
-                call InitRDM() 
+                call InitRDMs() 
                 tRDMonFly = .true.
                 tChangeVarsRDM = .false.
             endif

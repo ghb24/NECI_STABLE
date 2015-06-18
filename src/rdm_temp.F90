@@ -172,7 +172,7 @@ contains
         real(dp) :: Temp
 
         if (tNormalise) then
-            write(6,*) 'Writing out the *normalised* 2 electron density matrix to file'
+            write(6,'("Writing out the *normalised* 2 electron density matrix to file")')
             call neci_flush(6)
             ! This takes the TwoRDM_aaaa, and if tWriteMultPops is true (and given that we've put 
             ! .true. in the 3rd position, it'll find the next unused TwoRDM_aaaa.X file name.
@@ -203,7 +203,7 @@ contains
             end if
 
         else
-            write(6,*) 'Writing out the *unnormalised* 2 electron density matrix to file for reading in'
+            write(6,'("Writing out the *unnormalised* 2 electron density matrix to file for reading in")')
             call neci_flush(6)
             aaaa_RDM_unit = get_free_unit()
             open(aaaa_RDM_unit, file='TwoRDM_POPS_aaaa', status='unknown', form='unformatted')
@@ -647,7 +647,7 @@ contains
         integer :: read_stat
         integer :: spinfree_RDM_unit
 
-        write(6, '("Writing out the spinfree RDM")')
+        write(6, '(1X,"Writing out the spinfree RDM")')
         spinfree_RDM_unit = get_free_unit()
         open(spinfree_RDM_unit, file="spinfree_TwoRDM", status="replace")
         
