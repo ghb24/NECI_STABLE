@@ -422,7 +422,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
 
 #ifdef __DEBUG
         ! For debugging purposes only (O[N] operation).
-        if (.not. SymAllowedExcit) &
+        if (.not. SymAllowedExcit(nI, nJ, 1, ExcitMat)) &
             call stop_all(this_routine, 'Invalid excitation generated')
 #endif
 
