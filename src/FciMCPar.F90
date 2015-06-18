@@ -21,7 +21,7 @@ module FciMCParMod
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
                             attempt_die_spin_proj
-    use rdm_data, only: tCalc_RDMEnergy
+    use rdm_data, only: tCalc_RDMEnergy, rdms
     use rdm_general, only: FinaliseRDM
     use rdm_filling, only: fill_rdm_offdiag_deterministic
     use rdm_estimators, only: rdm_output_wrapper
@@ -70,23 +70,23 @@ module FciMCParMod
     SUBROUTINE FciMCPar(Weight,Energyxw)
 
 #ifdef MOLPRO
-        integer :: nv,ityp(1)
+        integer :: nv, ityp(1)
 #endif
-        integer :: iroot,isymh
-        real(dp) :: Weight, Energyxw,BestEnergy
+        integer :: iroot, isymh
+        real(dp) :: Weight, Energyxw, BestEnergy
         INTEGER :: error
-        LOGICAL :: TIncrement,tWritePopsFound,tSoftExitFound,tSingBiasChange,tPrintWarn
-        REAL(sp) :: s_start,s_end,tstart(2),tend(2),totaltime
+        LOGICAL :: TIncrement, tWritePopsFound, tSoftExitFound, tSingBiasChange, tPrintWarn
+        REAL(sp) :: s_start, s_end, tstart(2), tend(2), totaltime
         real(dp) :: TotalTime8
-        INTEGER(int64) :: MaxWalkers,MinWalkers
-        real(dp) :: AllTotWalkers,MeanWalkers,Inpair(2),Outpair(2)
+        INTEGER(int64) :: MaxWalkers, MinWalkers
+        real(dp) :: AllTotWalkers,MeanWalkers, Inpair(2), Outpair(2)
         integer, dimension(lenof_sign) :: tmp_sgn
         integer :: tmp_int(lenof_sign), i, istart, iRDMSamplingIter
-        real(dp) :: grow_rate,EnergyDiff,Norm_2RDM
+        real(dp) :: grow_rate, EnergyDiff, Norm_2RDM
         TYPE(BasisFn) RefSym
-        real(dp) :: mean_ProjE_re,mean_ProjE_im,mean_Shift
-        real(dp) :: ProjE_Err_re,ProjE_Err_im,Shift_Err
-        logical :: tNoProjEValue,tNoShiftValue
+        real(dp) :: mean_ProjE_re, mean_ProjE_im, mean_Shift
+        real(dp) :: ProjE_Err_re, ProjE_Err_im, Shift_Err
+        logical :: tNoProjEValue, tNoShiftValue
         real(dp) :: BestErr
         real(dp) :: start_time, stop_time
 #ifdef MOLPRO
@@ -108,14 +108,14 @@ module FciMCParMod
         ! values for the testcode to pick up...
         Energyxw = 0.0_dp
 
-        if(tJustBlocking) then
-            !Just reblock the current data, and do not perform an fcimc calculation
+        if (tJustBlocking) then
+            ! Just reblock the current data, and do not perform an fcimc calculation.
             write(6,"(A)") "Skipping FCIQMC calculation and simply reblocking previous output"
             call Standalone_Errors()
             return
         endif
 
-        TDebug=.false.  !Set debugging flag
+        TDebug = .false.  ! Set debugging flag
                     
 !OpenMPI does not currently support MPI_Comm_set_errhandler - a bug in its F90 interface code.
 !Ask Nick McLaren if we need to change the err handler - he has a fix/bypass.
@@ -411,7 +411,7 @@ module FciMCParMod
                 ! and this is an iteration where the energy should be calculated, do so.
                 if(tCalc_RDMEnergy .and. ((Iter - maxval(VaryShiftIter)) .gt. IterRDMonFly) &
                     .and. (mod((Iter+PreviousCycles-IterRDMStart)+1, RDMEnergyIter) .eq. 0) ) &
-                        call rdm_output_wrapper(Norm_2RDM)
+                        call rdm_output_wrapper(rdms(1), Norm_2RDM)
             end if
 
             if(tChangeVarsRDM) then

@@ -702,7 +702,7 @@ contains
 
         ! Calculate the energy for the matrices read in (if we're calculating more
         ! than the 1-RDM).
-        if (tCalc_RDMEnergy) call rdm_output_wrapper(Norm_2RDM)
+        if (tCalc_RDMEnergy) call rdm_output_wrapper(rdm, Norm_2RDM)
 
         ! Continue calculating the RDMs from the first iteration when the popsfiles
         ! (and RDMs) are read in. This overwrites the iteration number put in the input.
@@ -951,14 +951,13 @@ contains
             tFinalRDMEnergy = .true.
 
             ! 1RDM is contructed here (in calc_1RDM_energy).
-            call rdm_output_wrapper(Norm_2RDM)
+            call rdm_output_wrapper(rdms(1), Norm_2RDM)
 
             if (tPrint1RDM) then
                 call Finalise_1e_RDM(rdms(1), Norm_1RDM)
             else if (tDiagRDM .and. (iProcIndex .eq. 0)) then
                 call calc_1e_norms(rdms(1), Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
-                write(6,*) ''
-                write(6,'(1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
+                write(6,'(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
             end if
 
             if (tDumpForcesInfo) then

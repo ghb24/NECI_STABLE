@@ -10,28 +10,29 @@ module rdm_estimators
 
 contains
 
-    subroutine rdm_output_wrapper(Norm_2RDM)
+    subroutine rdm_output_wrapper(rdm, Norm_2RDM)
 
         use FciMCData, only: tFinalRDMEnergy, Iter, IterRDMStart, PreviousCycles
         use LoggingData, only: tRDMInstEnergy, tWriteMultRDMs, IterWriteRDMs
         use LoggingData, only: tWrite_RDMs_to_read, tWrite_normalised_RDMs
         use LoggingData, only: tWriteSpinFreeRDM
         use Parallel_neci, only: iProcIndex
-        use rdm_data, only: rdms, tOpenShell, rdm_estimates_unit
+        use rdm_data, only: rdm_t, rdms, tOpenShell, rdm_estimates_unit
         use rdm_temp, only: Finalise_2e_RDM, calc_2e_norms, Write_out_2RDM
         use rdm_temp, only: Write_spinfree_RDM
 
+        type(rdm_t), intent(inout) :: rdm
         real(dp), intent(out) :: Norm_2RDM
 
         real(dp) :: Norm_2RDM_Inst, Trace_2RDM, Trace_2RDM_New, spin_est
         real(dp) :: RDMEnergy, RDMEnergy1, RDMEnergy2, RDMEnergy_Inst
 
         ! Normalise, make Hermitian, etc.
-        call Finalise_2e_RDM(rdms(1))
+        call Finalise_2e_RDM(rdm)
 
         if (iProcIndex == 0) then
             ! Calculate the normalisations.
-            call calc_2e_norms(rdms(1), Norm_2RDM_Inst, Norm_2RDM, Trace_2RDM)
+            call calc_2e_norms(rdm, Norm_2RDM_Inst, Norm_2RDM, Trace_2RDM)
 
             ! There's no need to explicitly make the RDM hermitian here, as the
             ! integrals are already hermitian -- when we calculate the energy,
@@ -41,21 +42,21 @@ contains
             if (tFinalRDMEnergy .or. (tWriteMultRDMs .and. (mod((Iter+PreviousCycles-IterRDMStart)+1,IterWriteRDMs) .eq. 0))) then
 
                 ! Only ever want to print the 2-RDMs (for reading in) at the end.
-                if (tFinalRDMEnergy .and. tWrite_RDMs_to_read) call Write_out_2RDM(rdms(1), Norm_2RDM, .false., .false.)
+                if (tFinalRDMEnergy .and. tWrite_RDMs_to_read) call Write_out_2RDM(rdm, Norm_2RDM, .false., .false.)
 
                 ! This writes out the normalised, hermitian 2-RDMs.
                 ! IMPORTANT NOTE: We assume that we want tMake_Herm=.true. here.
-                if (tWrite_normalised_RDMs) call Write_out_2RDM(rdms(1), Norm_2RDM, .true., .true.)
+                if (tWrite_normalised_RDMs) call Write_out_2RDM(rdm, Norm_2RDM, .true., .true.)
 
-                if (tWriteSpinFreeRDM) call Write_spinfree_RDM(rdms(1), Norm_2RDM)
+                if (tWriteSpinFreeRDM) call Write_spinfree_RDM(rdm, Norm_2RDM)
 
              end if
 
-            call Calc_Energy_from_RDM(rdms(1), Norm_2RDM, Norm_2RDM_Inst, Trace_2RDM_New, RDMEnergy, &
+            call Calc_Energy_from_RDM(rdm, Norm_2RDM, Norm_2RDM_Inst, Trace_2RDM_New, RDMEnergy, &
                                       RDMEnergy1, RDMEnergy2, RDMEnergy_Inst)
 
             ! Calculate the instantaneous estimate of <S^2> using the 2RDM.
-            spin_est = calc_2rdm_spin_estimate(rdms(1), Norm_2RDM_Inst)
+            spin_est = calc_2rdm_spin_estimate(rdm, Norm_2RDM_Inst)
 
             if (tRDMInstEnergy) then
                 write(rdm_estimates_unit, "(1X,I13,3(2X,es20.13))") Iter+PreviousCycles, RDMEnergy_Inst, &
@@ -77,14 +78,14 @@ contains
 
         ! Zero all of the instantaneous RDM arrays and data.
         if (tRDMInstEnergy) then
-            rdms(1)%aaaa(:,:) = 0.0_dp
-            rdms(1)%abab(:,:) = 0.0_dp
-            rdms(1)%abba(:,:) = 0.0_dp
+            rdm%aaaa(:,:) = 0.0_dp
+            rdm%abab(:,:) = 0.0_dp
+            rdm%abba(:,:) = 0.0_dp
 
             if (tOpenShell)then
-                rdms(1)%bbbb(:,:) = 0.0_dp
-                rdms(1)%baba(:,:) = 0.0_dp
-                rdms(1)%baab(:,:) = 0.0_dp
+                rdm%bbbb(:,:) = 0.0_dp
+                rdm%baba(:,:) = 0.0_dp
+                rdm%baab(:,:) = 0.0_dp
             end if
         end if
 
