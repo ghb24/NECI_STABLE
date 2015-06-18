@@ -1355,9 +1355,9 @@ contains
             call init_yama_store ()
         endif
     
-        IF(tRDMonFly) CALL InitRDMs()
-        !This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
-        !Initialises RDM stuff for both explicit and stochastic calculations of RDM.
+        if (tRDMonFly) call InitRDMs(1)
+        ! This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
+        ! Initialises RDM stuff for both explicit and stochastic calculations of RDM.
 
         tFillingStochRDMonFly = .false.      
         tFillingExplicRDMonFly = .false.      
@@ -1365,7 +1365,7 @@ contains
 
         !If the iteration specified to start filling the RDM has already been, want to 
         !start filling as soon as possible.
-        if(tRDMonFly) then
+        if (tRDMonFly) then
             do run=1,inum_runs
                 if(.not.tSinglePartPhase(run)) VaryShiftIter(run) = 0
             enddo

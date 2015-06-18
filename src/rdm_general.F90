@@ -15,7 +15,7 @@ contains
 
     ! Initialisation routines.
 
-    subroutine InitRDMs()
+    subroutine InitRDMs(nrdms)
 
         ! This routine initialises any of the arrays needed to calculate the
         ! reduced density matrix. It is used for both the explicit and
@@ -42,7 +42,9 @@ contains
         use SystemData, only: tStoreSpinOrbs, tHPHF, tFixLz, iMaxLz, tROHF
         use util_mod, only: get_free_unit, LogMemAlloc
 
-        integer :: ierr, i, rdm_size_1, rdm_size_2
+        integer, intent(in) :: nrdms
+
+        integer :: ierr, i, iproc, rdm_size_1, rdm_size_2
         integer :: MemoryAlloc, MemoryAlloc_Root
         character(len=*), parameter :: t_r = 'InitRDMs'
 
@@ -51,12 +53,12 @@ contains
         ! accounted for yet).
 
 #ifdef __CMPLX
-        CAll Stop_All(t_r,'Filling of reduced density matrices not working with &
+        call stop_all(t_r,'Filling of reduced density matrices not working with &
                                     &complex walkers yet.')
 #endif
 
         ! For now, just allocate one rdm.
-        allocate(rdms(1))
+        allocate(rdms(nrdms))
 
         ! Only spatial orbitals for the 2-RDMs (and F12).
         if (tStoreSpinOrbs .and. (RDMExcitLevel .ne. 1)) &
@@ -86,14 +88,14 @@ contains
                 tCalc_RDMEnergy = .false.            
             else
                 tCalc_RDMEnergy = .true.
-                write(6,'(1X,A)') 'Calculating the energy from the reduced &
-                &density matrix. This requires the 2 electron RDM from which the 1-RDM can also be constructed.'
+                write(6,'(1X,"Calculating the energy from the reduced density matrix. &
+                              &This requires the 2 electron RDM from which the 1-RDM can also be constructed.")')
             end if
         end if
 
         ! Have not got HPHF working with the explicit or truncated methods yet.
         ! Neither of these would be too difficult to implement.
-        if (tHPHF .and. tExplicitAllRDM) call Stop_All(t_r, 'HPHF not set up with the explicit calculation of the RDM.')
+        if (tHPHF .and. tExplicitAllRDM) call stop_all(t_r, 'HPHF not set up with the explicit calculation of the RDM.')
 
         SpatOrbs = nBasis/2
         if (tOpenShell) then
@@ -109,7 +111,7 @@ contains
 
         ! Here we're allocating arrays for the actual calculation of the RDM.
         MemoryAlloc = 0
-        MemoryAlloc_Root = 0   ! Memory allocated in bytes.
+        MemoryAlloc_Root = 0 ! Memory allocated in bytes.
 
         ! First for the storage of the actual 1- or 2-RMD.
         if (RDMExcitLevel .eq. 1) then
@@ -118,7 +120,7 @@ contains
             ! natural orbital routines to diagonalise etc. We don't have an
             ! instantaneous 1-RDM.
             allocate(NatOrbMat(NoOrbs, NoOrbs), stat=ierr)
-            if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating NatOrbMat array,')
+            if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating NatOrbMat array,')
             call LogMemAlloc('NatOrbMat', NoOrbs**2, 8, t_r, NatOrbMatTag, ierr)
             NatOrbMat(:,:) = 0.0_dp
 
@@ -132,190 +134,192 @@ contains
             ! These *do not* include any 2-RDM(i,j,a,b) terms where i=j or a=b (if
             ! they're the same spin this can't happen).
 
-            if (tRDMInstEnergy) then
-                ! We will be filling up rdms(i)%aaaa_inst as we go along, which need
-                ! to be allocated per core.
-                ! When calculating the energy, these will be summed over cores
-                ! using an _inplace type command.
-                ! To calculate the full energy of the RDM (i.e. over full accum.
-                ! period), we need to allocate rdms(i)%aaaa_full on the head nodes.
+            do i = 1, nrdms
+                if (tRDMInstEnergy) then
+                    ! We will be filling up rdms(i)%aaaa_inst as we go along, which need
+                    ! to be allocated per core.
+                    ! When calculating the energy, these will be summed over cores
+                    ! using an _inplace type command.
+                    ! To calculate the full energy of the RDM (i.e. over full accum.
+                    ! period), we need to allocate rdms(i)%aaaa_full on the head nodes.
 
-                allocate(rdms(1)%aaaa_inst(rdm_size_1, rdm_size_1), stat=ierr)
-                if (ierr .ne. 0) call Stop_All(t_r,'Problem allocating aaaa_inst RDM array,')
-                call LogMemAlloc('rdms(1)%aaaa_inst', (rdm_size_1**2), 8, t_r, rdms(1)%aaaa_instTag, ierr)
-                rdms(1)%aaaa_inst(:,:) = 0.0_dp
+                    allocate(rdms(i)%aaaa_inst(rdm_size_1, rdm_size_1), stat=ierr)
+                    if (ierr .ne. 0) call stop_all(t_r,'Problem allocating aaaa_inst RDM array,')
+                    call LogMemAlloc('rdms(i)%aaaa_inst', (rdm_size_1**2), 8, t_r, rdms(i)%aaaa_instTag, ierr)
+                    rdms(i)%aaaa_inst(:,:) = 0.0_dp
 
-                ! The 2-RDM of the type alpha beta beta alpha (= beta alpha alpha beta).
-                ! These also *do not* also include 2-RDM(i,j,a,b) terms where i=j or a=b
-                ! (these are the same as the abab elements).
-                allocate(rdms(1)%abba_inst(rdm_size_1, rdm_size_1), stat=ierr)
-                if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating abba_inst RDM array,')
-                call LogMemAlloc('rdms(1)%abba_inst', (rdm_size_1**2), 8, t_r, rdms(1)%abba_instTag, ierr)
-                rdms(1)%abba_inst(:,:) = 0.0_dp
+                    ! The 2-RDM of the type alpha beta beta alpha (= beta alpha alpha beta).
+                    ! These also *do not* also include 2-RDM(i,j,a,b) terms where i=j or a=b
+                    ! (these are the same as the abab elements).
+                    allocate(rdms(i)%abba_inst(rdm_size_1, rdm_size_1), stat=ierr)
+                    if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating abba_inst RDM array,')
+                    call LogMemAlloc('rdms(i)%abba_inst', (rdm_size_1**2), 8, t_r, rdms(i)%abba_instTag, ierr)
+                    rdms(i)%abba_inst(:,:) = 0.0_dp
 
-                MemoryAlloc = MemoryAlloc + (rdm_size_1**2)*2*8
-                MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_1**2)*2*8
-
-                ! The 2-RDM of the type alpha beta alpha beta ( = beta alpha beta alpha).
-                ! These *do* include 2-RDM(i,j,a,b) terms where i=j or a=b, if they're
-                ! different spin this is possible - hence the slightly different size to
-                ! the aaaa array.
-                allocate(rdms(1)%abab_inst(rdm_size_2, rdm_size_2), stat=ierr)
-                if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating abab_inst RDM array,')
-                call LogMemAlloc('rdms(1)%abab_inst', (rdm_size_2**2), 8, t_r, rdms(1)%abab_instTag, ierr)
-                rdms(1)%abab_inst(:,:) = 0.0_dp
-
-                MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
-                MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8 
-
-                ! Extra arrays for open shell systems.
-                if (tOpenShell) then
-                    allocate(rdms(1)%bbbb_inst(rdm_size_1, rdm_size_1), stat=ierr)
-                    if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating bbbb_inst RDM array,')
-                    call LogMemAlloc('rdms(1)%bbbb_inst', (rdm_size_1**2), 8, t_r, rdms(1)%bbbb_instTag, ierr)
-                    rdms(1)%bbbb_inst(:,:) = 0.0_dp
-
-                    allocate(rdms(1)%baab_inst(rdm_size_1, rdm_size_1), stat=ierr)
-                    if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating baab_inst RDM array,')
-                    call LogMemAlloc('rdms(1)%baab_inst', (rdm_size_1**2), 8, t_r, rdms(1)%baab_instTag, ierr)
-                    rdms(1)%baab_inst(:,:) = 0.0_dp
                     MemoryAlloc = MemoryAlloc + (rdm_size_1**2)*2*8
                     MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_1**2)*2*8
 
-                    allocate(rdms(1)%baba_inst(rdm_size_2, rdm_size_2), stat=ierr)
-                    if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating baba_inst RDM array,')
-                    call LogMemAlloc('rdms(1)%baba_inst', (rdm_size_2**2), 8, t_r, rdms(1)%baba_instTag, ierr)
-                    rdms(1)%baba_inst(:,:) = 0.0_dp
+                    ! The 2-RDM of the type alpha beta alpha beta ( = beta alpha beta alpha).
+                    ! These *do* include 2-RDM(i,j,a,b) terms where i=j or a=b, if they're
+                    ! different spin this is possible - hence the slightly different size to
+                    ! the aaaa array.
+                    allocate(rdms(i)%abab_inst(rdm_size_2, rdm_size_2), stat=ierr)
+                    if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating abab_inst RDM array,')
+                    call LogMemAlloc('rdms(i)%abab_inst', (rdm_size_2**2), 8, t_r, rdms(i)%abab_instTag, ierr)
+                    rdms(i)%abab_inst(:,:) = 0.0_dp
+
                     MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
-                    MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8
-                end if
+                    MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8 
 
-                if (iProcIndex .eq. 0) then
-                    allocate(rdms(1)%aaaa_full(rdm_size_1, rdm_size_1), stat=ierr)
-                    if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating aaaa_full RDM array,')
-                    call LogMemAlloc('rdms(1)%aaaa_full', (rdm_size_1**2), 8, t_r, rdms(1)%aaaa_fullTag, ierr)
-                    rdms(1)%aaaa_full(:,:) = 0.0_dp
-
-                    allocate(rdms(1)%abab_full(rdm_size_2, rdm_size_2), stat=ierr)
-                    if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating abab_full RDM array,')
-                    call LogMemAlloc('rdms(1)%abab_full', (rdm_size_2**2), 8, t_r, rdms(1)%abab_fullTag, ierr)
-                    rdms(1)%abab_full(:,:) = 0.0_dp
-
-                    allocate(rdms(1)%abba_full(rdm_size_1, rdm_size_1), stat = ierr)
-                    if (ierr .ne. 0) call Stop_All(t_r,'Problem allocating abba_full RDM array,')
-                    call LogMemAlloc('rdms(1)%abba_full', (rdm_size_1**2), 8, t_r, rdms(1)%abba_fullTag, ierr)
-                    rdms(1)%abba_full(:,:) = 0.0_dp
-
-                    MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_1**2)*2*8
-                    MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8
-                    MemoryAlloc = MemoryAlloc + (rdm_size_1**2)*2*8
-                    MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
-
+                    ! Extra arrays for open shell systems.
                     if (tOpenShell) then
-                        allocate(rdms(1)%bbbb_full(rdm_size_1, rdm_size_1), stat=ierr)
-                        if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating bbbb_full RDM array,')
-                        call LogMemAlloc('rdms(1)%bbbb_full', (rdm_size_1**2), 8, t_r,rdms(1)%bbbb_fullTag,ierr)
-                        rdms(1)%bbbb_full(:,:) = 0.0_dp
+                        allocate(rdms(i)%bbbb_inst(rdm_size_1, rdm_size_1), stat=ierr)
+                        if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating bbbb_inst RDM array,')
+                        call LogMemAlloc('rdms(i)%bbbb_inst', (rdm_size_1**2), 8, t_r, rdms(i)%bbbb_instTag, ierr)
+                        rdms(i)%bbbb_inst(:,:) = 0.0_dp
 
-                        allocate(rdms(1)%baba_full(rdm_size_2,rdm_size_2),stat=ierr)
-                        if (ierr .ne. 0) call Stop_All(t_r,'Problem allocating baba_full RDM array,')
-                        call LogMemAlloc('rdms(1)%baba_full', (rdm_size_2**2), 8,t_r, rdms(1)%baba_fullTag, ierr)
-                        rdms(1)%baba_full(:,:) = 0.0_dp
+                        allocate(rdms(i)%baab_inst(rdm_size_1, rdm_size_1), stat=ierr)
+                        if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating baab_inst RDM array,')
+                        call LogMemAlloc('rdms(i)%baab_inst', (rdm_size_1**2), 8, t_r, rdms(i)%baab_instTag, ierr)
+                        rdms(i)%baab_inst(:,:) = 0.0_dp
+                        MemoryAlloc = MemoryAlloc + (rdm_size_1**2)*2*8
+                        MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_1**2)*2*8
 
-                        allocate(rdms(1)%baab_full(rdm_size_1, rdm_size_1), stat=ierr)
-                        if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating baab_full array,')
-                        call LogMemAlloc('rdms(1)%baab_full', (rdm_size_1**2), 8,t_r, rdms(1)%baab_fullTag, ierr)
-                        rdms(1)%baab_full(:,:) = 0.0_dp
+                        allocate(rdms(i)%baba_inst(rdm_size_2, rdm_size_2), stat=ierr)
+                        if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating baba_inst RDM array,')
+                        call LogMemAlloc('rdms(i)%baba_inst', (rdm_size_2**2), 8, t_r, rdms(i)%baba_instTag, ierr)
+                        rdms(i)%baba_inst(:,:) = 0.0_dp
+                        MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
+                        MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8
+                    end if
+
+                    if (iProcIndex .eq. 0) then
+                        allocate(rdms(i)%aaaa_full(rdm_size_1, rdm_size_1), stat=ierr)
+                        if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating aaaa_full RDM array,')
+                        call LogMemAlloc('rdms(i)%aaaa_full', (rdm_size_1**2), 8, t_r, rdms(i)%aaaa_fullTag, ierr)
+                        rdms(i)%aaaa_full(:,:) = 0.0_dp
+
+                        allocate(rdms(i)%abab_full(rdm_size_2, rdm_size_2), stat=ierr)
+                        if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating abab_full RDM array,')
+                        call LogMemAlloc('rdms(i)%abab_full', (rdm_size_2**2), 8, t_r, rdms(i)%abab_fullTag, ierr)
+                        rdms(i)%abab_full(:,:) = 0.0_dp
+
+                        allocate(rdms(i)%abba_full(rdm_size_1, rdm_size_1), stat = ierr)
+                        if (ierr .ne. 0) call stop_all(t_r,'Problem allocating abba_full RDM array,')
+                        call LogMemAlloc('rdms(i)%abba_full', (rdm_size_1**2), 8, t_r, rdms(i)%abba_fullTag, ierr)
+                        rdms(i)%abba_full(:,:) = 0.0_dp
 
                         MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_1**2)*2*8
                         MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8
                         MemoryAlloc = MemoryAlloc + (rdm_size_1**2)*2*8
                         MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
 
+                        if (tOpenShell) then
+                            allocate(rdms(i)%bbbb_full(rdm_size_1, rdm_size_1), stat=ierr)
+                            if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating bbbb_full RDM array,')
+                            call LogMemAlloc('rdms(i)%bbbb_full', (rdm_size_1**2), 8, t_r,rdms(i)%bbbb_fullTag,ierr)
+                            rdms(i)%bbbb_full(:,:) = 0.0_dp
+
+                            allocate(rdms(i)%baba_full(rdm_size_2,rdm_size_2),stat=ierr)
+                            if (ierr .ne. 0) call stop_all(t_r,'Problem allocating baba_full RDM array,')
+                            call LogMemAlloc('rdms(i)%baba_full', (rdm_size_2**2), 8,t_r, rdms(i)%baba_fullTag, ierr)
+                            rdms(i)%baba_full(:,:) = 0.0_dp
+
+                            allocate(rdms(i)%baab_full(rdm_size_1, rdm_size_1), stat=ierr)
+                            if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating baab_full array,')
+                            call LogMemAlloc('rdms(i)%baab_full', (rdm_size_1**2), 8,t_r, rdms(i)%baab_fullTag, ierr)
+                            rdms(i)%baab_full(:,:) = 0.0_dp
+
+                            MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_1**2)*2*8
+                            MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8
+                            MemoryAlloc = MemoryAlloc + (rdm_size_1**2)*2*8
+                            MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
+
+                        end if
+
+                    end if
+                    
+                    rdms(i)%aaaa => rdms(i)%aaaa_inst
+                    rdms(i)%abba => rdms(i)%abba_inst
+                    rdms(i)%abab => rdms(i)%abab_inst
+
+                    if (tOpenShell) then
+                        rdms(i)%bbbb => rdms(i)%bbbb_inst
+                        rdms(i)%baab => rdms(i)%baab_inst
+                        rdms(i)%baba => rdms(i)%baba_inst
                     end if
 
-                end if
-                
-                rdms(1)%aaaa => rdms(1)%aaaa_inst
-                rdms(1)%abba => rdms(1)%abba_inst
-                rdms(1)%abab => rdms(1)%abab_inst
+                else
+                    ! We're not calculating an instantaneous RDM energy.
+                    ! Put RDM contributions directly into 'full' arrays, which are
+                    ! now allocated every core
+                    allocate(rdms(i)%aaaa_full(rdm_size_1,rdm_size_1), stat=ierr)
+                    if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating aaaa_full RDM array,')
+                    call LogMemAlloc('rdms(i)%aaaa_full', (rdm_size_1**2), 8, t_r,rdms(i)%aaaa_fullTag,ierr)
+                    rdms(i)%aaaa_full(:,:) = 0.0_dp
 
-                if (tOpenShell) then
-                    rdms(1)%bbbb => rdms(1)%bbbb_inst
-                    rdms(1)%baab => rdms(1)%baab_inst
-                    rdms(1)%baba => rdms(1)%baba_inst
-                end if
+                    ! The 2-RDM of the type alpha beta beta alpha ( = beta alpha alpha beta).
+                    ! These also *do not* also include 2-RDM(i,j,a,b) terms where i=j or a=b
+                    ! (these are the same as the abab elements).
+                    allocate(rdms(i)%abba_full(rdm_size_1,rdm_size_1),stat=ierr)
+                    if (ierr .ne. 0) call stop_all(t_r,'Problem allocating abba_full RDM array,')
+                    call LogMemAlloc('rdms(i)%abba_full', (rdm_size_1**2), 8, t_r, rdms(i)%abba_fullTag, ierr)
+                    rdms(i)%abba_full(:,:) = 0.0_dp
 
-            else
-                ! We're not calculating an instantaneous RDM energy.
-                ! Put RDM contributions directly into 'full' arrays, which are
-                ! now allocated every core
-                allocate(rdms(1)%aaaa_full(rdm_size_1,rdm_size_1), stat=ierr)
-                if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating aaaa_full RDM array,')
-                call LogMemAlloc('rdms(1)%aaaa_full', (rdm_size_1**2), 8, t_r,rdms(1)%aaaa_fullTag,ierr)
-                rdms(1)%aaaa_full(:,:) = 0.0_dp
-
-                ! The 2-RDM of the type alpha beta beta alpha ( = beta alpha alpha beta).
-                ! These also *do not* also include 2-RDM(i,j,a,b) terms where i=j or a=b
-                ! (these are the same as the abab elements).
-                allocate(rdms(1)%abba_full(rdm_size_1,rdm_size_1),stat=ierr)
-                if (ierr .ne. 0) call Stop_All(t_r,'Problem allocating abba_full RDM array,')
-                call LogMemAlloc('rdms(1)%abba_full', (rdm_size_1**2), 8, t_r, rdms(1)%abba_fullTag, ierr)
-                rdms(1)%abba_full(:,:) = 0.0_dp
-
-                MemoryAlloc = MemoryAlloc + (rdm_size_1**2)*2*8
-                MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_1**2)*2*8
-
-                ! The 2-RDM of the type alpha beta alpha beta ( = beta alpha beta alpha).
-                ! These *do* include 2-RDM(i,j,a,b) terms where i=j or a=b, if they're
-                ! different spin this is possible - hence the slightly different size
-                ! to the aaaa array.
-                allocate(rdms(1)%abab_full(rdm_size_2, rdm_size_2), stat=ierr)
-                if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating abab_full RDM array,')
-                call LogMemAlloc('rdms(1)%abab_full', (rdm_size_2**2), 8, t_r, rdms(1)%abab_fullTag, ierr)
-                rdms(1)%abab_full(:,:) = 0.0_dp
-
-                MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
-                MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8
-                
-                rdms(1)%aaaa => rdms(1)%aaaa_full
-                rdms(1)%abba => rdms(1)%abba_full
-                rdms(1)%abab => rdms(1)%abab_full
-
-                if (tOpenShell) then
-                    allocate(rdms(1)%bbbb_full(rdm_size_1, rdm_size_1), stat=ierr)
-                    if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating bbbb_full RDM array,')
-                    call LogMemAlloc('rdms(1)%bbbb_full', (rdm_size_1**2), 8, t_r, rdms(1)%bbbb_fullTag, ierr)
-                    rdms(1)%bbbb_full(:,:) = 0.0_dp
-
-                    allocate(rdms(1)%baab_full(rdm_size_1,rdm_size_1),stat=ierr)
-                    if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating baab_full array,')
-                    call LogMemAlloc('rdms(1)%baab_full', (rdm_size_1**2), 8, t_r, rdms(1)%baab_fullTag, ierr)
-                    rdms(1)%baab_full(:,:) = 0.0_dp
                     MemoryAlloc = MemoryAlloc + (rdm_size_1**2)*2*8
                     MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_1**2)*2*8
 
-                    allocate(rdms(1)%baba_full(rdm_size_2, rdm_size_2), stat=ierr)
-                    if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating baba_full RDM array,')
-                    call LogMemAlloc('rdms(1)%baba_full', (rdm_size_2**2), 8, t_r, rdms(1)%baba_fullTag, ierr)
-                    rdms(1)%baba_full(:,:) = 0.0_dp
+                    ! The 2-RDM of the type alpha beta alpha beta ( = beta alpha beta alpha).
+                    ! These *do* include 2-RDM(i,j,a,b) terms where i=j or a=b, if they're
+                    ! different spin this is possible - hence the slightly different size
+                    ! to the aaaa array.
+                    allocate(rdms(i)%abab_full(rdm_size_2, rdm_size_2), stat=ierr)
+                    if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating abab_full RDM array,')
+                    call LogMemAlloc('rdms(i)%abab_full', (rdm_size_2**2), 8, t_r, rdms(i)%abab_fullTag, ierr)
+                    rdms(i)%abab_full(:,:) = 0.0_dp
+
                     MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
                     MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8
-      
-                    rdms(1)%bbbb => rdms(1)%bbbb_full
-                    rdms(1)%baab => rdms(1)%baab_full
-                    rdms(1)%baba => rdms(1)%baba_full
-                end if
-            end if ! not instantaneous
+                    
+                    rdms(i)%aaaa => rdms(i)%aaaa_full
+                    rdms(i)%abba => rdms(i)%abba_full
+                    rdms(i)%abab => rdms(i)%abab_full
+
+                    if (tOpenShell) then
+                        allocate(rdms(i)%bbbb_full(rdm_size_1, rdm_size_1), stat=ierr)
+                        if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating bbbb_full RDM array,')
+                        call LogMemAlloc('rdms(i)%bbbb_full', (rdm_size_1**2), 8, t_r, rdms(i)%bbbb_fullTag, ierr)
+                        rdms(i)%bbbb_full(:,:) = 0.0_dp
+
+                        allocate(rdms(i)%baab_full(rdm_size_1,rdm_size_1),stat=ierr)
+                        if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating baab_full array,')
+                        call LogMemAlloc('rdms(i)%baab_full', (rdm_size_1**2), 8, t_r, rdms(i)%baab_fullTag, ierr)
+                        rdms(i)%baab_full(:,:) = 0.0_dp
+                        MemoryAlloc = MemoryAlloc + (rdm_size_1**2)*2*8
+                        MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_1**2)*2*8
+
+                        allocate(rdms(i)%baba_full(rdm_size_2, rdm_size_2), stat=ierr)
+                        if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating baba_full RDM array,')
+                        call LogMemAlloc('rdms(i)%baba_full', (rdm_size_2**2), 8, t_r, rdms(i)%baba_fullTag, ierr)
+                        rdms(i)%baba_full(:,:) = 0.0_dp
+                        MemoryAlloc = MemoryAlloc + (rdm_size_2**2)*8
+                        MemoryAlloc_Root = MemoryAlloc_Root + (rdm_size_2**2)*8
+          
+                        rdms(i)%bbbb => rdms(i)%bbbb_full
+                        rdms(i)%baab => rdms(i)%baab_full
+                        rdms(i)%baba => rdms(i)%baba_full
+                    end if
+                end if ! Not instantaneous
+            end do ! Looping over all RDMs.
 
             if (iProcindex .eq. 0) then
                 if (tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
                     ! Still need to allocate 1-RDM to get nat orb occupation numbers.
                     allocate(NatOrbMat(NoOrbs, NoOrbs), stat=ierr)
-                    if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating NatOrbMat array,')
+                    if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating NatOrbMat array,')
                     call LogMemAlloc('NatOrbMat', NoOrbs**2,8, t_r, NatOrbMatTag, ierr)
                     NatOrbMat(:,:) = 0.0_dp
-                    MemoryAlloc_Root = MemoryAlloc_Root + ( NoOrbs * NoOrbs * 8 ) 
+                    MemoryAlloc_Root = MemoryAlloc_Root + ( NoOrbs * NoOrbs * 8 )
                 end if
             end if
 
@@ -332,20 +336,20 @@ contains
             ! processor they will be sent to. Only needed if the 1-RDM is the
             ! only thing being calculated.
             allocate(Sing_ExcDjs(0:NIfTot, nint((NEl*nBasis)*MemoryFacPart)), stat=ierr)
-            if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating Sing_ExcDjs array.')
+            if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Sing_ExcDjs array.')
             call LogMemAlloc('Sing_ExcDjs', nint(NEl*nBasis*MemoryFacPart)*(NIfTot+1),&
                                             size_n_int, t_r, Sing_ExcDjsTag, ierr)
 
             allocate(Sing_ExcDjs2(0:NIfTot, nint((NEl*nBasis)*MemoryFacPart)), stat=ierr)
-            if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating Sing_ExcDjs2 array.')
+            if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Sing_ExcDjs2 array.')
             call LogMemAlloc('Sing_ExcDjs2', nint(NEl*nBasis*MemoryFacPart)*(NIfTot+1),&
                                             size_n_int, t_r, Sing_ExcDjs2Tag, ierr)
 
             Sing_ExcDjs(:,:) = 0
             Sing_ExcDjs2(:,:) = 0
 
-            MemoryAlloc = MemoryAlloc + ( (NIfTot + 1) * nint((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 ) 
-            MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 1) * nint((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 ) 
+            MemoryAlloc = MemoryAlloc + ( (NIfTot + 1) * nint((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 )
+            MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 1) * nint((NEl*nBasis)*MemoryFacPart) * size_n_int * 2 )
 
             ! We need room to potentially generate N*M single excitations but
             ! these will be spread across each processor.
@@ -355,32 +359,32 @@ contains
             ! This array contains the initial positions of the excitations
             ! for each processor.
             allocate(Sing_InitExcSlots(0:(nProcessors-1)), stat=ierr)
-            if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating Sing_InitExcSlots array,')
-            do i = 0, nProcessors - 1
-                Sing_InitExcSlots(i) = nint(OneEl_Gap*i) + 1
+            if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Sing_InitExcSlots array,')
+            do iproc = 0, nProcessors - 1
+                Sing_InitExcSlots(iproc) = nint(OneEl_Gap*iproc) + 1
             end do
 
             ! This array contains the current position of the excitations as
             ! they're added.
             allocate(Sing_ExcList(0:(nProcessors-1)), stat=ierr)
-            if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating Sing_ExcList array,')
+            if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Sing_ExcList array,')
             Sing_ExcList(:) = Sing_InitExcSlots(:)
 
             if (RDMExcitLevel .ne. 1) then
                 ! This array actually contains the excitations in blocks of
                 ! the processor they will be sent to.
                 allocate(Doub_ExcDjs(0:NIfTot,nint(((NEl*nBasis)**2)*MemoryFacPart)), stat=ierr)
-                if (ierr .ne. 0) call Stop_All(t_r,'Problem allocating Doub_ExcDjs array.')
+                if (ierr .ne. 0) call stop_all(t_r,'Problem allocating Doub_ExcDjs array.')
                 call LogMemAlloc('Doub_ExcDjs', nint(((NEl*nBasis)**2)*MemoryFacPart)&
                                 *(NIfTot+1), size_n_int, t_r, Doub_ExcDjsTag, ierr)
 
                 allocate(Doub_ExcDjs2(0:NIfTot, nint(((NEl*nBasis)**2)*MemoryFacPart)), stat=ierr)
-                if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating Doub_ExcDjs2 array.')
+                if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Doub_ExcDjs2 array.')
                 call LogMemAlloc('Doub_ExcDjs2',nint(((NEl*nBasis)**2)*MemoryFacPart)&
                                 *(NIfTot+1), size_n_int, t_r, Doub_ExcDjs2Tag, ierr)
 
-                MemoryAlloc = MemoryAlloc + ( (NIfTot + 1) * nint(((NEl*nBasis)**2)*MemoryFacPart) * size_n_int * 2 ) 
-                MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 1) * nint(((NEl*nBasis)**2)*MemoryFacPart) * size_n_int * 2 ) 
+                MemoryAlloc = MemoryAlloc + ( (NIfTot + 1) * nint(((NEl*nBasis)**2)*MemoryFacPart) * size_n_int * 2 )
+                MemoryAlloc_Root = MemoryAlloc_Root + ( (NIfTot + 1) * nint(((NEl*nBasis)**2)*MemoryFacPart) * size_n_int * 2 )
 
                 ! We need room to potentially generate (N*M)^2 double excitations
                 ! but these will be spread across each processor.        
@@ -392,15 +396,15 @@ contains
                 ! This array contains the initial positions of the excitations
                 ! for each processor.
                 allocate(Doub_InitExcSlots(0:(nProcessors-1)), stat=ierr)
-                if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating Doub_InitExcSlots array,')
-                do i = 0, nProcessors-1
-                    Doub_InitExcSlots(i) = nint(TwoEl_Gap*i) + 1
+                if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Doub_InitExcSlots array,')
+                do iproc = 0, nProcessors-1
+                    Doub_InitExcSlots(iproc) = nint(TwoEl_Gap*iproc) + 1
                 end do
 
                 ! This array contains the current position of the excitations
                 ! as they're added.
                 allocate(Doub_ExcList(0:(nProcessors-1)), stat=ierr)
-                if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating Doub_ExcList array,')
+                if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Doub_ExcList array,')
                 Doub_ExcList(:) = Doub_InitExcSlots(:)
             end if
 
@@ -409,11 +413,11 @@ contains
             ! Finally, we need to hold onto the parents of the spawned particles.
             ! This is not necessary if we're doing completely explicit calculations.
             allocate(Spawned_Parents(0:(NIfDBO+2), MaxSpawned), stat=ierr)
-            if (ierr .ne. 0) call Stop_All(t_r,'Problem allocating Spawned_Parents array,')
+            if (ierr .ne. 0) call stop_all(t_r,'Problem allocating Spawned_Parents array,')
             call LogMemAlloc('Spawned_Parents', MaxSpawned*(NIfDBO+3), size_n_int,&
                                                 t_r,Spawned_ParentsTag, ierr)
             allocate(Spawned_Parents_Index(2,MaxSpawned),stat=ierr)
-            if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating Spawned_Parents_Index array,')
+            if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Spawned_Parents_Index array,')
             call LogMemAlloc('Spawned_Parents_Index', MaxSpawned*2,4, t_r,&
                                                         Spawned_Parents_IndexTag, ierr)
 
@@ -455,53 +459,54 @@ contains
             ! The 2-RDM does not need to be reordered as it's never diagonalised. 
 
             allocate(SymLabelCounts2_rot(2, NoSymLabelCounts), stat=ierr)
-            if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating SymLabelCounts2_rot array,')
+            if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating SymLabelCounts2_rot array,')
             call LogMemAlloc('SymLabelCounts2_rot', 2*NoSymLabelCounts, 4, t_r, SymLabelCounts2_rotTag, ierr)
             SymLabelCounts2_rot(:,:) = 0
 
             allocate(SymLabelList2_rot(NoOrbs), stat=ierr)
-            if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating SymLabelList2_rot array,')
+            if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating SymLabelList2_rot array,')
             call LogMemAlloc('SymLabelList2_rot', NoOrbs, 4, t_r, SymLabelList2_rotTag, ierr)
             SymLabelList2_rot(:) = 0
      
             allocate(SymLabelListInv_rot(NoOrbs), stat=ierr)
-            if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating SymLabelListInv_rot array,')
+            if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating SymLabelListInv_rot array,')
             call LogMemAlloc('SymLabelListInv_rot', NoOrbs, 4, t_r, SymLabelListInv_rotTag, ierr)
             SymLabelListInv_rot(:) = 0   
 
             if ((iProcIndex .eq. 0) .and. tDiagRDM) then
                 allocate(Evalues(NoOrbs), stat=ierr)
-                if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating Evalues array,')
+                if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Evalues array,')
                 call LogMemAlloc('Evalues', NoOrbs, 8, t_r, EvaluesTag, ierr)
                 Evalues(:) = 0.0_dp
 
                 allocate(rdms(1)%Rho_ii(NoOrbs), stat=ierr)
-                if (ierr .ne. 0) call Stop_All(t_r, 'Problem allocating Rho_ii array,')
+                if (ierr .ne. 0) call stop_all(t_r, 'Problem allocating Rho_ii array,')
                 call LogMemAlloc('Rho_ii', NoOrbs, 8, t_r, rdms(1)%Rho_iiTag, ierr)
                 rdms(1)%Rho_ii(:) = 0.0_dp
-
             end if
 
             ! This routine actually sets up the symmetry labels for the 1-RDM.
-            ! TODO : Merge this routine (and rotations later) with the NatOrbs file.
+            ! TODO: Merge this routine (and rotations later) with the NatOrbs file.
             call SetUpSymLabels_RDM() 
 
         end if            
 
-        if (iProcIndex .eq. 0) write(6,'(A)') " RDM memory allocation successful... "                    
+        if (iProcIndex .eq. 0) write(6,'(1X,"RDM memory allocation successful...")')
 
         ! Open file to keep track of RDM Energies (if they're being calculated). 
         if ((iProcIndex .eq. 0) .and. tCalc_RDMEnergy) then
             rdm_estimates_unit = get_free_unit()
             open(rdm_estimates_unit, file='RDMEstimates', status='unknown', position='append')
 
-            write(rdm_estimates_unit,"('#', 4X, 'Iteration', 6X, 'Energy numerator', 6X, 'Spin^2 numerator', 9X, 'Normalisation')")
+            write(rdm_estimates_unit, &
+                "('#', 4X, 'Iteration', 6X, 'Energy numerator', 6X, 'Spin^2 numerator', 9X, 'Normalisation')")
         end if
         tFinalRDMEnergy = .false.
 
         ! Reads in the RDMs from a previous calculation, sets the accumulating
         ! normalisations, writes out the starting energy.
         if (tReadRDMs) then
+            if (nrdms > 1) call stop_all(t_r, "Reading in multiple RDMs in not yet supported.")
             if (tSinglePartPhase(1) .or. tSinglePartPhase(inum_runs)) then
                 write(6,'(A)') 'WARNING - Asking to read in the RDMs, but not varying shift from &
                                 & the beginning of the calculation.'
@@ -640,7 +645,7 @@ contains
                     write(6,*) 'exists_abab', exists_abab
                     write(6,*) 'exists_abba', exists_abba
                     call neci_flush(6)
-                    call Stop_All(t_r,"Attempting to read in the RDMs, &
+                    call stop_all(t_r,"Attempting to read in the RDMs, &
                                     &but at least one of the TwoRDM_a***_TOREAD files are missing.")
                 end if
 
@@ -688,7 +693,7 @@ contains
                     write(6,*) 'exists_baba', exists_baba
                     write(6,*) 'exists_baab', exists_baab
                     call neci_flush(6)
-                    call Stop_All(t_r, "Attempting to read in the RDMs, &
+                    call stop_all(t_r, "Attempting to read in the RDMs, &
                                   &but at least one of the TwoRDM_b***_TOREAD files are missing.")
                 end if
 
@@ -726,11 +731,11 @@ contains
         ! This is only allocated temporarily to be used to order the orbitals by.
         allocate(SymOrbs_rot(NoOrbs), stat=ierr)
         call LogMemAlloc('SymOrbs_rot', NoOrbs, 4, t_r, SymOrbs_rotTag, ierr)
-        if (ierr .ne. 0) call Stop_All(t_r,"Mem allocation for SymOrbs_rot failed.")
+        if (ierr .ne. 0) call stop_all(t_r, "Mem allocation for SymOrbs_rot failed.")
 
         ! Now we want to put the spatial orbital index, followed by the symmetry.
         SymLabelList2_rot(:) = 0
-        SymOrbs_rot(:)=0
+        SymOrbs_rot(:) = 0
 
         ! *** STEP 1 *** Fill SymLabelList2_rot.
         ! Find the orbitals and order them in terms of symmetry.

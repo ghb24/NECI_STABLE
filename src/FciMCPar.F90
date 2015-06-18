@@ -414,9 +414,9 @@ module FciMCParMod
                         call rdm_output_wrapper(rdms(1), Norm_2RDM)
             end if
 
-            if(tChangeVarsRDM) then
+            if (tChangeVarsRDM) then
                 ! Decided during the CHANGEVARS that the RDMs should be calculated.
-                call InitRDMs() 
+                call InitRDMs(1)
                 tRDMonFly = .true.
                 tChangeVarsRDM = .false.
             endif
