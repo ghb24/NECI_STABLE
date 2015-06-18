@@ -958,8 +958,7 @@ contains
             else if (tDiagRDM .and. (iProcIndex .eq. 0)) then
                 call calc_1e_norms(rdms(1), Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
                 write(6,*) ''
-                write(6,'(A55,F30.20)') ' SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY &
-                                            &HF ORBITALS: ', SumN_Rho_ii
+                write(6,'(1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
             end if
 
             if (tDumpForcesInfo) then

@@ -66,11 +66,11 @@ contains
             call neci_flush(rdm_estimates_unit)
 
             if (tFinalRDMEnergy) then
-                write(6,*) 'Trace of 2-el-RDM before normalisation : ', Trace_2RDM
-                write(6,*) 'Trace of 2-el-RDM after normalisation : ', Trace_2RDM_New
-                write(6,*) 'Energy contribution from the 1-RDM: ', RDMEnergy1
-                write(6,*) 'Energy contribution from the 2-RDM: ', RDMEnergy2
-                write(6,'(A64,F30.20)') ' *TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:', RDMEnergy
+                write(6,'(1X,"Trace of 2-el-RDM before normalisation:",1X,es17.10)') Trace_2RDM
+                write(6,'(1X,"Trace of 2-el-RDM after normalisation:",1X,es17.10)') Trace_2RDM_New
+                write(6,'(1X,"Energy contribution from the 1-RDM:",1X,es17.10)') RDMEnergy1
+                write(6,'(1X,"Energy contribution from the 2-RDM:",1X,es17.10)') RDMEnergy2
+                write(6,'(1X,"*TOTAL ENERGY* CALCULATED USING THE *REDUCED DENSITY MATRICES*:",1X,es20.13)') RDMEnergy
                 close(rdm_estimates_unit)
             end if
         end if
