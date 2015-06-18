@@ -22,6 +22,7 @@ module tau_search
     use bit_rep_data, only: NIfTot
     use DetBitOps, only: FindBitExcitLevel, TestClosedShellDet, &
                          EncodeBitDet
+    use sym_general_mod, only: SymAllowedExcit
     use Parallel_neci
     use constants
     implicit none
@@ -426,6 +427,12 @@ contains
                 endif
                 call EncodeBitDet (nJ, iLutnJ)
             endif
+
+            ! Exclude an excitation if it isn't symmetry allowed.
+            ! Note that GenExcitations3 is not perfect, especially if there
+            ! additional restrictions, such as LzSymmetry.
+            if (.not. SymAllowedExcit(ProjEDet(:,1), nJ, ic, ex)) &
+                cycle
 
             !Find Hij
             if(tHPHF) then
