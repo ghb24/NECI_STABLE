@@ -10,8 +10,8 @@ module FciMCParMod
                         iFullSpaceIter, semistoch_shift_iter, &
                         tOrthogonaliseReplicas, orthogonalise_iter, &
                         tDetermHFSpawning, use_spawn_hash_table, &
-                        semistoch_shift_iter, ss_space_in, s_global_start, &
-                        tContTimeFCIMC, trial_shift_iter, tStartTrialLater, &
+                        ss_space_in, s_global_start, tContTimeFCIMC, &
+                        trial_shift_iter, tStartTrialLater, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
@@ -835,7 +835,7 @@ module FciMCParMod
             ! If we're on the Hartree-Fock, and all singles and doubles are in
             ! the core space, then there will be no stochastic spawning from
             ! this determinant, so we can the rest of this loop.
-            if (ss_space_in%tDoubles .and. walkExcitLevel_toHF == 0 .and. tDetermHFSpawning) cycle
+            if (tSemiStochastic .and. ss_space_in%tDoubles .and. walkExcitLevel_toHF == 0 .and. tDetermHFSpawning) cycle
 
             ! Loop over the 'type' of particle. 
             ! lenof_sign == 1 --> Only real particles
