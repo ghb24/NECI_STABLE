@@ -42,13 +42,12 @@ module rdm_data
     real(dp) :: OneEl_Gap, TwoEl_Gap
 
     ! Timers.
-    type(timer), save :: nElRDM_Time, FinaliseRDM_time, RDMEnergy_time
+    type(timer), save :: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time
 
     ! Derived type to hold data for each RDM - other global data will be
     ! removed after purification work.
 
     type rdm_t
-
         ! Arrays to hold instantaneous estimates of 2-RDMs.
         ! The following three arrays are always used.
         real(dp), pointer :: aaaa_inst(:,:), abab_inst(:,:), abba_inst(:,:)
@@ -79,7 +78,6 @@ module rdm_data
         real(dp), allocatable :: Rho_ii(:)
         real(dp), allocatable :: Lagrangian(:,:)
         integer :: Rho_iiTag
-
     end type rdm_t
 
     ! Array of type rdm_t, for holding multiple different RDM instances.

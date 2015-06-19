@@ -446,9 +446,9 @@ contains
                                 if ( (rdm%abba_full(Ind1_aa,Ind2_aa) .ne. 0.0_dp) .or. &
                                      (rdm%abba_full(Ind2_aa,Ind1_aa) .ne. 0.0_dp) ) then
 
-                                    if (tNormalise.and.(Ind1_aa.le.Ind2_aa)) then
+                                    if (tNormalise .and. (Ind1_aa .le. Ind2_aa)) then
                                         if ((abs((rdm%abba_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
-                                                - (rdm%abba_full(Ind2_aa,Ind1_aa)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                                                - (rdm%abba_full(Ind2_aa,Ind1_aa)*Norm_2RDM))) .gt. Max_Error_Hermiticity) &
                                         Max_Error_Hermiticity = abs((rdm%abba_full(Ind1_aa,Ind2_aa)*Norm_2RDM) &
                                                 - (rdm%abba_full(Ind2_aa,Ind1_aa)*Norm_2RDM))
 
@@ -477,7 +477,7 @@ contains
                                                 ( ((rdm%abba_full(Ind1_aa,Ind2_aa) + rdm%abba_full(Ind2_aa,Ind1_aa))/2.0_dp) &
                                                                     * Norm_2RDM ) / Divide_Factor
                                         end if
-                                    else if (.not.tNormalise) then
+                                    else if (.not. tNormalise) then
                                         write(abba_RDM_unit) i, j, a, b, rdm%abba_full(Ind1_aa,Ind2_aa) 
                                     end if
                                 end if
@@ -567,19 +567,19 @@ contains
 
                          else if (tOpenShell) then !a=b & i=j -> baba term saved in abab
 
-                            if ( (rdm%abab_full(Ind1_ab,Ind2_ab).ne.0.0_dp).or.&
-                                (rdm%abab_full(Ind2_ab,Ind1_ab).ne.0.0_dp) ) then
+                            if ( (rdm%abab_full(Ind1_ab,Ind2_ab) .ne. 0.0_dp) .or. &
+                                (rdm%abab_full(Ind2_ab,Ind1_ab) .ne. 0.0_dp) ) then
 
                                 if ((abs((rdm%abab_full(Ind1_ab,Ind2_ab)*Norm_2RDM) &
-                                            - (rdm%abab_full(Ind2_ab,Ind1_ab)*Norm_2RDM))).gt.Max_Error_Hermiticity) &
+                                            - (rdm%abab_full(Ind2_ab,Ind1_ab)*Norm_2RDM))) .gt. Max_Error_Hermiticity) &
                                     Max_Error_Hermiticity = abs((rdm%abab_full(Ind1_ab,Ind2_ab)*Norm_2RDM) &
                                             - (rdm%abab_full(Ind2_ab,Ind1_ab)*Norm_2RDM))
 
-                                Sum_Error_Hermiticity = Sum_Error_Hermiticity +     &
+                                Sum_Error_Hermiticity = Sum_Error_Hermiticity + &
                                                         abs((rdm%abab_full(Ind1_ab,Ind2_ab)*Norm_2RDM) &
                                                             - (rdm%abab_full(Ind2_ab,Ind1_ab)*Norm_2RDM))
 
-                                Sum_Herm_Percent = Sum_Herm_Percent +   &
+                                Sum_Herm_Percent = Sum_Herm_Percent + &
                                                     (abs((rdm%abab_full(Ind1_ab,Ind2_ab)*Norm_2RDM) &
                                                         - (rdm%abab_full(Ind2_ab,Ind1_ab)*Norm_2RDM)) / &
                                                     (abs((rdm%abab_full(Ind1_ab,Ind2_ab)*Norm_2RDM) &

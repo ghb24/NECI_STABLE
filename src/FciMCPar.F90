@@ -22,7 +22,7 @@ module FciMCParMod
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
                             attempt_die_spin_proj
     use rdm_data, only: tCalc_RDMEnergy, rdms
-    use rdm_general, only: FinaliseRDM
+    use rdm_general, only: FinaliseRDMs
     use rdm_filling, only: fill_rdm_offdiag_deterministic
     use rdm_estimators, only: rdm_output_wrapper
     use rdm_explicit, only: fill_explicitrdm_this_iter, fill_hist_explicitrdm_this_iter
@@ -474,7 +474,7 @@ module FciMCParMod
             CALL PrintOrbOccs(OrbOccs)
         ENDIF
 
-        if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) call FinaliseRDM()
+        if (tFillingStochRDMonFly .or. tFillingExplicRDMonFly) call FinaliseRDMs(rdms)
 
         call PrintHighPops()
 

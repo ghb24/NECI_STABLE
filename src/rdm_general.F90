@@ -35,7 +35,7 @@ contains
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag, OneEl_Gap, TwoEl_Gap
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
-        use rdm_data, only: rdm_estimates_unit, nElRDM_Time, FinaliseRDM_time, RDMEnergy_time
+        use rdm_data, only: rdm_estimates_unit, nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time
         use RotateOrbsData, only: SymLabelCounts2_rot,SymLabelList2_rot, SymLabelListInv_rot
         use RotateOrbsData, only: SymLabelCounts2_rotTag, SymLabelList2_rotTag, NoOrbs
         use RotateOrbsData, only: SymLabelListInv_rotTag, SpatOrbs, NoSymLabelCounts
@@ -53,9 +53,15 @@ contains
         ! accounted for yet).
 
 #ifdef __CMPLX
-        call stop_all(t_r,'Filling of reduced density matrices not working with &
-                                    &complex walkers yet.')
+        call stop_all(t_r, 'Filling of reduced density matrices not working with complex walkers yet.')
 #endif
+
+        if (nrdms > 1 .and. (tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles .or. RDMExcitLevel == 1)) then
+            call stop_all(t_r, 'The RDM feature you have requested is not currently implemented &
+                               &with multiple RDMs. In particular, forces, dipole moments, printing &
+                               &1-RDMs, diagonalising 1-RDMs, or anything to do with natural orbitals &
+                               & has not yet been implemented for more than one RDM.')
+        end if
 
         ! For now, just allocate one rdm.
         allocate(rdms(nrdms))
@@ -506,7 +512,7 @@ contains
         ! Reads in the RDMs from a previous calculation, sets the accumulating
         ! normalisations, writes out the starting energy.
         if (tReadRDMs) then
-            if (nrdms > 1) call stop_all(t_r, "Reading in multiple RDMs in not yet supported.")
+            if (nrdms > 1) call stop_all(t_r, "Reading in multiple RDMs is not yet supported.")
             if (tSinglePartPhase(1) .or. tSinglePartPhase(inum_runs)) then
                 write(6,'(A)') 'WARNING - Asking to read in the RDMs, but not varying shift from &
                                 & the beginning of the calculation.'
@@ -524,7 +530,7 @@ contains
         if (tPopsfile .and. (.not. tno_RDMs_to_read)) twrite_RDMs_to_read = .true.
 
         nElRDM_Time%timer_name = 'nElRDMTime'
-        FinaliseRDM_Time%timer_name = 'FinaliseRDMTime'
+        FinaliseRDMs_Time%timer_name = 'FinaliseRDMsTime'
         RDMEnergy_Time%timer_name = 'RDMEnergyTime'
 
     end subroutine InitRDMs
@@ -897,29 +903,30 @@ contains
 
     ! Routines called at the end of a simulation.
 
-    subroutine FinaliseRDM()
+    subroutine FinaliseRDMs(rdms)
 
-        ! This routine finalises the one electron reduced density matrix stuff
-        ! at the point of a softexit. This includes summing each of the
-        ! individual matrices from each processor, and calling the
+        ! This routine performs some finalisation, including summing each of
+        ! the individual matrices from each processor, and calling the
         ! diagonalisation routines if we want to get the occupation numbers.
 
         use FciMCData, only: tFinalRDMEnergy
         use LoggingData, only: tBrokenSymNOs, occ_numb_diff, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tPrint1RDM, tDiagRDM, tDumpForcesInfo, tDipoles
         use Parallel_neci, only: iProcIndex, MPIBarrier
-        use rdm_data, only: rdms, tRotatedNos, FinaliseRDM_Time
+        use rdm_data, only: rdm_t, tRotatedNos, FinaliseRDMs_Time
         use rdm_estimators, only: Calc_Lagrangian_from_RDM, convert_mats_Molpforces
         use rdm_estimators, only: rdm_output_wrapper, CalcDipoles
         use rdm_nat_orbs, only: find_nat_orb_occ_numbers, BrokenSymNo
         use util_mod, only: set_timer, halt_timer
 
-        integer :: error
+        type(rdm_t), intent(inout) :: rdms(:)
+
+        integer :: i, error
         real(dp) :: Norm_2RDM, Norm_2RDM_Inst
         real(dp) :: Norm_1RDM, Trace_1RDM, SumN_Rho_ii
-        character(len=*), parameter :: t_r = 'FinaliseRDM'
+        character(len=*), parameter :: t_r = 'FinaliseRDMs'
 
-        call set_timer(FinaliseRDM_Time)
+        call set_timer(FinaliseRDMs_Time)
 
         if (tExplicitAllRDM) then
             write(6,'(/,"**** RDMs CALCULATED EXPLICITLY ****",1X,/)')
@@ -929,57 +936,61 @@ contains
 
         ! Combine the 1- or 2-RDM from all processors, etc.
 
-        if (RDMExcitLevel .eq. 1) then
-            call Finalise_1e_RDM(rdms(1), Norm_1RDM)
-        else
-            ! We always want to calculate one final RDM energy, whether or not we're 
-            ! calculating the energy throughout the calculation.
-            ! Unless of course, only the 1-RDM is being calculated.
+        do i = 1, size(rdms)
 
-            ! Calculate the energy one last time - and write out everything we need.
-            tFinalRDMEnergy = .true.
+            if (RDMExcitLevel .eq. 1) then
+                call Finalise_1e_RDM(rdms(i), Norm_1RDM)
+            else
+                ! We always want to calculate one final RDM energy, whether or not we're 
+                ! calculating the energy throughout the calculation.
+                ! Unless of course, only the 1-RDM is being calculated.
 
-            ! 1RDM is contructed here (in calc_1RDM_energy).
-            call rdm_output_wrapper(rdms(1), Norm_2RDM)
+                ! Calculate the energy one last time - and write out everything we need.
+                tFinalRDMEnergy = .true.
 
-            if (tPrint1RDM) then
-                call Finalise_1e_RDM(rdms(1), Norm_1RDM)
-            else if (tDiagRDM .and. (iProcIndex .eq. 0)) then
-                call calc_1e_norms(rdms(1), Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
-                write(6,'(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
+                ! 1-RDM is constructed here (in calc_1RDM_energy).
+                call rdm_output_wrapper(rdms(i), Norm_2RDM)
+
+                if (tPrint1RDM) then
+                    call Finalise_1e_RDM(rdms(i), Norm_1RDM)
+                else if (tDiagRDM .and. (iProcIndex .eq. 0)) then
+                    call calc_1e_norms(rdms(i), Trace_1RDM, Norm_1RDM, SumN_Rho_ii)
+                    write(6,'(/,1X,"SUM OF 1-RDM(i,i) FOR THE N LOWEST ENERGY HF ORBITALS:",1X,F20.13)') SumN_Rho_ii
+                end if
+
+                if (tDumpForcesInfo) then
+                    if (.not. tPrint1RDM) call Finalise_1e_RDM(rdms(i), Norm_1RDM)
+                    call Calc_Lagrangian_from_RDM(rdms(i), Norm_1RDM, Norm_2RDM)
+                    call convert_mats_Molpforces(rdms(i), Norm_1RDM, Norm_2RDM)
+                end if
+
             end if
 
-            if (tDumpForcesInfo) then
-                if (.not. tPrint1RDM) call Finalise_1e_RDM(rdms(1), Norm_1RDM)
-                call Calc_Lagrangian_from_RDM(rdms(1), Norm_1RDM, Norm_2RDM)
-                call convert_mats_Molpforces(rdms(1), Norm_1RDM, Norm_2RDM)
+            call MPIBarrier(error)
+
+            ! Call the routines from NatOrbs that diagonalise the one electron
+            ! reduced density matrix.
+            tRotatedNOs = .false. ! Needed for BrokenSymNo routine
+            if (tDiagRDM) call find_nat_orb_occ_numbers(rdms(i))
+
+            ! This is where we would likely call any further calculations of
+            ! forces, etc.
+            if (tDipoles) then
+                if (.not. tPrint1RDM) call Finalise_1e_RDM(rdms(i), Norm_1RDM)
+                call CalcDipoles(Norm_1RDM)
             end if
 
-        end if
+            ! After all the NO calculations are finished we'd like to do another
+            ! rotation to obtain symmetry-broken natural orbitals
+            if (tBrokenSymNOs) then
+                call BrokenSymNO(occ_numb_diff)
+            end if
 
-        call MPIBarrier(error)
+        end do
 
-        ! Call the routines from NatOrbs that diagonalise the one electron
-        ! reduced density matrix.
-        tRotatedNOs = .false. ! Needed for BrokenSymNo routine
-        if (tDiagRDM) call find_nat_orb_occ_numbers(rdms(1))
-
-        ! This is where we would likely call any further calculations of
-        ! forces, etc.
-        if (tDipoles) then
-            if (.not. tPrint1RDM) call Finalise_1e_RDM(rdms(1), Norm_1RDM)
-            call CalcDipoles(Norm_1RDM)
-        end if
-
-        ! After all the NO calculations are finished we'd like to do another
-        ! rotation to obtain symmetry-broken natural orbitals
-        if (tBrokenSymNOs) then
-            call BrokenSymNO(occ_numb_diff)
-        end if
-
-        call halt_timer(FinaliseRDM_Time)
+        call halt_timer(FinaliseRDMs_Time)
     
-    end subroutine FinaliseRDM
+    end subroutine FinaliseRDMs
 
     subroutine Finalise_1e_RDM(rdm, Norm_1RDM) 
 

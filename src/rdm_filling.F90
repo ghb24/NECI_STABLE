@@ -797,17 +797,17 @@ contains
                 kSpat = gtID(nI(k))
                 if (tOpenShell) kSpat = (nI(k)-1)/2 + 1
 
-                if (nI(k).ne.Ex(1,1)) then
+                if (nI(k) .ne. Ex(1,1)) then
 
-                    if ((iSpat.eq.kSpat).or.(aSpat.eq.kSpat)) then
+                    if ((iSpat .eq. kSpat) .or. (aSpat .eq. kSpat)) then
                         ! It is possible for i = k or a = k if they 
                         ! have different spins. the only arrays with
                         ! i = j or a = b are abab/baba.
                         ! -> abba/baab terms must be reordered to
                         ! become abab/baba
 
-                        Indik=( ( (max(iSpat,kSpat)-1) * max(iSpat,kSpat) ) / 2 ) + min(iSpat,kSpat)
-                        Indak=( ( (max(aSpat,kSpat)-1) * max(aSpat,kSpat) ) / 2 ) + min(aSpat,kSpat)
+                        Indik = ( ( (max(iSpat,kSpat)-1) * max(iSpat,kSpat) ) / 2 ) + min(iSpat,kSpat)
+                        Indak = ( ( (max(aSpat,kSpat)-1) * max(aSpat,kSpat) ) / 2 ) + min(aSpat,kSpat)
 
                         if ((iSpat .eq. aSpat) .or. (.not. tOpenShell) ) then
 
@@ -965,7 +965,7 @@ contains
                                 Indik = ( ( (max(iSpat,kSpat)-1) * max(iSpat,kSpat) ) / 2 ) + min(iSpat,kSpat)
                                 Indak = ( ( (max(aSpat,kSpat)-1) * max(aSpat,kSpat) ) / 2 ) + min(aSpat,kSpat)
 
-                                !Ex(1,1) (i spin orb): first index even or odd 
+                                ! Ex(1,1) (i spin orb): first index even or odd 
                                 if ((mod(Ex(1,1),2).eq.0) .or. (.not. tOpenShell)) then
                                     rdm%abab( Indik, Indak ) = rdm%abab( Indik, Indak ) + ( ParityFactor * &
                                                                                  realSignDi * realSignDj )

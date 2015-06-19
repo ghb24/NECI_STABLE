@@ -59,10 +59,10 @@ contains
             spin_est = calc_2rdm_spin_estimate(rdm, Norm_2RDM_Inst)
 
             if (tRDMInstEnergy) then
-                write(rdm_estimates_unit, "(1X,I13,3(2X,es20.13))") Iter+PreviousCycles, RDMEnergy_Inst, &
+                write(rdm_estimates_unit, '(1X,I13,3(2X,es20.13))') Iter+PreviousCycles, RDMEnergy_Inst, &
                                                                     spin_est, 1.0_dp/Norm_2RDM_Inst
             else
-                write(rdm_estimates_unit, "(I31,F30.15)") Iter+PreviousCycles, RDMEnergy
+                write(rdm_estimates_unit, '(I31,F30.15)') Iter+PreviousCycles, RDMEnergy
             end if
             call neci_flush(rdm_estimates_unit)
 
@@ -394,6 +394,8 @@ contains
             end do
         end do
 
+        ! Finally, add in the core energy:
+
         ! The total energy from the 'instantaneous' RDM.
         if (tRDMInstEnergy) RDMEnergy_Inst = RDMEnergy_Inst + Ecore/Norm_2RDM_Inst
         ! The total energy from the 'full' RDM.
@@ -482,9 +484,9 @@ contains
         real(dp), intent(in) :: Norm_2RDM
         real(dp), intent(in) :: Norm_1RDM
 
-        real(dp) :: Norm_2RDM_Inst
-        integer :: p,q,r,s,t,ierr,stat
+        integer :: p, q, r, s, t, ierr, stat
         integer :: pSpin, qSpin, rSpin, error
+        real(dp) :: Norm_2RDM_Inst
         real(dp) :: RDMEnergy_Inst, RDMEnergy, Coul, Exch, Parity_Factor 
         real(dp) :: RDMEnergy1, RDMEnergy2
         real(dp) :: qrst, rqst
@@ -499,8 +501,7 @@ contains
         !    coupled-perturbed coefficients when calculating the Forces later on 
         !    (see Sherrill, Analytic Gradients of CI Energies eq38)
 
-        write(6,*) ''
-        write(6,*) 'Calculating the Lagrangian X from the final density matrices'
+        write(6,'(/,"Calculating the Lagrangian, X, from the final density matrices.")')
 
         ! Calculating the Lagrangian X in terms of spatial orbitals.
         if (iProcIndex .eq. 0) then
@@ -509,17 +510,19 @@ contains
                 pSpin = 2*p    ! Picks out beta component
                 do q = 1, SpatOrbs  !Want to calculate X(p,q) separately from X(q,p) for now to see if we're symmetric
                     do r = 1, SpatOrbs
-                        rSpin=2*r
-                        ! Adding in contributions effectively from the 1-RDM
-                        ! We made sure earlier that the 1RDM is contructed, so we can call directly from this
+                        rSpin = 2*r
+                        ! Adding in contributions effectively from the 1-RDM.
+                        ! We made sure earlier that the 1RDM is contructed, so we can call directly from this.
                         if (tOpenShell) then
                             ! Include both aa and bb contributions 
-                            rdm%Lagrangian(p,q) = rdm%Lagrangian(p,q) + (NatOrbMat(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r)))*&
-                                                                         real(TMAT2D(pSpin,rSpin),8)*Norm_1RDM
-                            rdm%Lagrangian(p,q) = rdm%Lagrangian(p,q) + (NatOrbMat(SymLabelListInv_rot(2*q-1),SymLabelListInv_rot(2*r-1)))*&
-                                                                         real(TMAT2D(pSpin-1,rSpin-1),8)*Norm_1RDM
+                            rdm%Lagrangian(p,q) = rdm%Lagrangian(p,q) + &
+                                                      (NatOrbMat(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r)))*&
+                                                      real(TMAT2D(pSpin,rSpin),8)*Norm_1RDM
+                            rdm%Lagrangian(p,q) = rdm%Lagrangian(p,q) + &
+                                                      (NatOrbMat(SymLabelListInv_rot(2*q-1),SymLabelListInv_rot(2*r-1)))*&
+                                                      real(TMAT2D(pSpin-1,rSpin-1),8)*Norm_1RDM
                         else
-                            !We will be here most often (?)
+                            ! We will be here most often (?)
                             rdm%Lagrangian(p,q) = rdm%Lagrangian(p,q) + NatOrbMat(SymLabelListInv_rot(q),SymLabelListInv_rot(r))* &
                                                                                   real(TMAT2D(pSpin,rSpin),8)*Norm_1RDM
                         end if
@@ -569,8 +572,8 @@ contains
             end do
 
             ! Output the hermiticity errors.
-            write(6,'(A40,F30.20)') ' MAX ABS ERROR IN Lagrangian HERMITICITY', Max_Error_Hermiticity
-            write(6,'(A40,F30.20)') ' SUM ABS ERROR IN Lagrangian HERMITICITY', Sum_Error_Hermiticity
+            write(6,'(1X,"MAX ABS ERROR IN Lagrangian HERMITICITY",F30.20)') Max_Error_Hermiticity
+            write(6,'(1X,"SUM ABS ERROR IN Lagrangian HERMITICITY",F30.20)') Sum_Error_Hermiticity
 
         end if
 
@@ -756,7 +759,7 @@ contains
  
        end if ! abab & baba terms
 
-       !abba & baab & aaaa & bbbb terms
+       ! abba & baab & aaaa & bbbb terms
        if ((i.ne.a).and.(j.ne.a)) then   
            Ind1_1e_aa = ( ( (max(i,a)-2) * (max(i,a)-1) ) / 2 ) + min(i,a)
            Ind2_1e_aa = ( ( (max(j,a)-2) * (max(j,a)-1) ) / 2 ) + min(j,a)
@@ -1156,7 +1159,7 @@ contains
 
         implicit double precision(a-h,o-z)
         implicit integer(i-n)
-        character(len=*), parameter :: t_r='molpro_set_igrdsav'
+        character(len=*), parameter :: t_r = 'molpro_set_igrdsav'
 
 #ifdef MOLPRO
         include "common/cwsave"
@@ -1406,7 +1409,7 @@ contains
                 nt_frz(i+1) = SymLabelCounts2(2,ClassCountInd(1,i,0))
             end do
 
-            do i = 2,8
+            do i = 2, 8
                 ntd_frz(i) = ntd_frz(i-1) + (nt_frz(i-1)*(nt_frz(i-1)+1))/2
             end do
 
@@ -1425,7 +1428,7 @@ contains
                             call stop_all(t_r,'Error filling rdm')
                         end if
 
-                        SymmetryPacked1RDM(posn1)=NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM
+                        SymmetryPacked1RDM(posn1) = NatOrbMat(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM
                         if (i .ne. j) then
                             ! Double the off-diagonal elements of the 1RDM, so
                             ! that when we contract over the symmetry packed
@@ -1458,7 +1461,6 @@ contains
             call GetDipMomInts(zints, isize, znuc, zcor, nt_frz, ntd_frz)
 
             do ipr = 1, 3
-            
 !                call pget(zints,ipr,znuc,zcor)
 
                 ! Now, contract.
@@ -1468,9 +1470,7 @@ contains
                 dipmom(ipr) = dipmom(ipr) + znuc(ipr) - zcor(ipr)
             end do
 
-            write(iout,"(A)") ""
-            write(iout,"(A,3f15.8)") "DIPOLE MOMENT: ", dipmom(1:3)
-            write(iout,"(A)") ""
+            write(iout,'(/,"DIPOLE MOMENT:",1X,3f15.8,/)') dipmom(1:3)
             call output_result('FCIQMC','Dipole moment', dipmom(1:3), 1, isyref, numberformat='3f15.8', debye=.TRUE.)
             mxv = 1
             call setvar('DMX', dipmom(1), 'AU', 1, 1, mxv, -1)
