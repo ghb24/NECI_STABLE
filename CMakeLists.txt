@@ -1,0 +1,164 @@
+cmake_minimum_required(VERSION 2.8.4)
+project(neci Fortran CXX C)
+
+# Add our custom Modules directory, so that we can search for libraries
+# that are not provided with finders by default
+# (see www.cmake.org/Wiki/CMake:How_To_Find_Libraries)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules")
+
+# Consider the possible source files
+file(GLOB_RECURSE F90_FILES src/*.F90 src/*.F src/*.cpp)
+file(GLOB_RECURSE F90_TEMPLATE_FILES src/*.F90.template)
+list(REMOVE_ITEM F90_FILES ${CMAKE_SOURCE_DIR}/src/libstub.F)
+
+file(GLOB_RECURSE UNIT_TEST_FILES unit_tests/*.F90 unit_tests/*.f90)
+set(UNIT_TEST_FILES ${UNIT_TEST_FILES} ${F90_FILES})
+list(REMOVE_ITEM UNIT_TEST_FILES ${CMAKE_SOURCE_DIR}/src/necimain.F90)
+
+get_filename_component(Fortran_COMPILER_NAME ${CMAKE_Fortran_COMPILER} NAME)
+#message("CMake compiler " ${CMAKE_Fortran_COMPILER})
+#message("CMake binary_dir " ${CMAKE_BINARY_DIR})
+#message("CMake project_binary_dir " ${CMAKE_PROJECT_BINARY_DIR})
+#message("CMake build dir: " ${CMAKE_BUILD_DIRECTORY})
+#message("CMake build files dir: " ${CMAKE_BUILD_FILES_DIRECTORY})
+#message("CMake runtime output: " ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
+#message("CMake executable path: " ${EXECUTABLE_OUTPUT_PATH})
+#message("CMake cachefile dir: " ${CMAKE_CACHEFILE_DIR})
+#message("CMake compiler name: " ${CMAKE_Fortran_COMPILER})
+#message("CMake compiler name: " ${Fortran_COMPILER_NAME})
+#message("CMake compiler name: " ${CMAKE_C_COMPILER})
+#message("CMake compiler name: " ${CMAKE_CXX_COMPILER})
+#message("Shared link: " ${CMAKE_SHARED_LIBRARY_LINK_Fortran_FLAGS})
+#message("System: " ${CMAKE_SYSTEM_NAME})
+#message("Platform: " ${CMAKE_TARGET_BUILD_PLATFORM})
+#message("Module dir: " ${CMAKE_Fortran_MODULE_DIRECTORY})
+#message("Module dir: " ${Fortran_MODULE_DIRECTORY})
+
+# Deal with compiler specific issues
+if (Fortran_COMPILER_NAME MATCHES "ifort.*")
+	# -i_dynamic is incorrectly added in CMake ifort configuration
+	set(CMAKE_SHARED_LIBRARY_LINK_Fortran_FLAGS "")
+endif()
+message("Shared link: " ${CMAKE_SHARED_LIBRARY_LINK_Fortran_FLAGS})
+
+#
+# Deal with the additional build step introduced by the templated
+# files
+set(TEMPLATE_TARGETS "")
+foreach(template_file ${F90_TEMPLATE_FILES})
+
+	# For each of the templated files, we create a custom build command
+	# command which depends on the templated file, and produces a .F90
+	# file which is added to the list of dependencies for the executable.
+	get_filename_component(base_filename ${template_file} NAME_WE)
+	set(target_filename ${CMAKE_BINARY_DIR}/templated/${base_filename}.F90)
+	set(TEMPLATE_TARGETS ${TEMPLATE_TARGETS} ${target_filename})
+
+	add_custom_command(
+		OUTPUT ${target_filename}
+		COMMAND ${CMAKE_SOURCE_DIR}/tools/f90_template.py ${template_file} ${target_filename}
+		DEPENDS ${template_file}
+	)
+
+endforeach(template_file)
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/templated)
+
+#
+# Build the executable!
+add_executable(neci ${F90_FILES} ${TEMPLATE_TARGETS})
+add_executable(mneci ${F90_FILES} ${TEMPLATE_TARGETS})
+add_executable(dneci ${F90_FILES} ${TEMPLATE_TARGETS})
+add_executable(kneci ${F90_FILES} ${TEMPLATE_TARGETS})
+
+# Add the testing executables
+add_executable(neci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
+add_executable(mneci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
+add_executable(dneci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
+add_executable(kneci_test ${TEMPLATE_TARGETS} ${UNIT_TEST_FILES})
+
+# List of targets. Then loop over repeated target properties
+set(TARGETS neci mneci dneci kneci neci_test mneci_test dneci_test kneci_test)
+foreach(target ${TARGETS})
+
+	# Set the fortran modules directory for cleanliness, and to avoid collisions
+	# between targets
+	set_target_properties(${target} PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/modules/${target})
+
+	# Ensure that we use the Fortran compiler for linking
+	set_target_properties(neci PROPERTIES LINKER_LANGUAGE Fortran)
+
+endforeach(target)
+
+# TODO:
+# Test for compiler features, to enable specific flags
+# Add librt, libm as required
+# Enable shared memory
+# Select optimised, debug or production builds
+
+
+#
+# If we can get the repository details, then do so.
+find_package(Git)
+if (${Git_FOUND})
+	message("-- Git has been found")
+	Git_WC_INFO("." "DIR")
+	add_definitions(-D_VCS_VER='${DIR_WC_REVISION_HASH}')
+	if (${DIR_WC_CHANGES} OR ${DIR_WC_CACHED_CHANGES})
+		add_definitions(-D_WORKING_DIR_CHANGES)
+	endif()
+else()
+	add_definitions(-D_VCS_VER='[Unknown]')
+	message("-- Could NOT find git")
+endif()
+
+# Add the compile definitions
+add_definitions(-D__Linux)
+add_definitions(-DPOINTER8)
+add_definitions(-DHAVE_SSE2)
+add_definitions(-D__INT64)
+#add_definitions(-D__IFORT)
+add_definitions(-D__GFORTRAN__)
+add_definitions(-DMAXMEM=99999)
+add_definitions(-DDSFMT_MEXP=19937)
+add_definitions(-D_CONFIG="CMake-new")
+
+# This is a real build. Consider kneci...
+target_compile_definitions(neci PUBLIC -DHElement_t=real\(dp\))
+target_compile_definitions(dneci PUBLIC -DHElement_t=real\(dp\) -D__DOUBLERUN)
+target_compile_definitions(mneci PUBLIC -DHElement_t=real\(dp\) -D__PROG_NUMRUNS)
+target_compile_definitions(kneci PUBLIC -DHElement_t=complex\(dp\) -D__CMPLX)
+target_compile_definitions(neci_test PUBLIC -DHElement_t=real\(dp\))
+target_compile_definitions(dneci_test PUBLIC -DHElement_t=real\(dp\) -D__DOUBLERUN)
+target_compile_definitions(mneci_test PUBLIC -DHElement_t=real\(dp\) -D__PROG_NUMRUNS)
+target_compile_definitions(kneci_test PUBLIC -DHElement_t=complex\(dp\) -D__CMPLX)
+
+include_directories(BEFORE SYSTEM ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/unit_tests)
+
+#
+# Some form of lapack is always needed (be that acml, mkl, LAPACK, ...)
+find_package(LAPACK REQUIRED)
+set(NECI_LIBRARIES ${LAPACK_LIBRARIES})
+message("Using LAPACK libraries: " ${LAPACK_LIBRARIES})
+
+# If FFTW is present, then we want to use it. Otherwise disable it in NECI
+find_package(FFTW)
+if (${FFTW_FOUND})
+	set(NECI_LIBRARIES ${NECI_LIBRARIES} ${FFTW_LIBRARIES})
+else()
+	message("Disabling FFTW")
+	add_definitions(-DDISABLE_FFTW)
+endif()
+
+# Look for MPI...
+find_package(MPI)
+set(NECI_LIBRARIES ${NECI_LIBRARIES} ${MPI_Fortran_LIBRARIES})
+
+# Ensure that all of our executables link correctly
+target_link_libraries(neci ${NECI_LIBRARIES})
+target_link_libraries(mneci ${NECI_LIBRARIES})
+target_link_libraries(dneci ${NECI_LIBRARIES})
+target_link_libraries(kneci ${NECI_LIBRARIES})
+target_link_libraries(neci_test ${NECI_LIBRARIES})
+target_link_libraries(mneci_test ${NECI_LIBRARIES})
+target_link_libraries(dneci_test ${NECI_LIBRARIES})
+target_link_libraries(kneci_test ${NECI_LIBRARIES})
