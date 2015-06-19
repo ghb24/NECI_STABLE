@@ -152,6 +152,11 @@ contains
         ! Move the states to CurrentDets.
         call add_core_states_currentdet_hash()
 
+        ! If using a trial wavefunction, and that initialisation has already
+        ! been performed, then the current_trial_amps array needs correcting
+        ! after the core states were added and sorted into CurrentDets.
+        call reinit_current_trial_amps()
+
         ! If starting from a popsfile then global_determinant_data will not
         ! have been initialised, or if in the middle of a calculation then new
         ! determinants may have been added.
