@@ -150,8 +150,8 @@ contains
 
                     ! Adding in contributions effectively from the 1-RDM (although these are calculated 
                     ! from the 2-RDM.
-                    call calc_1RDM_energy(rdm, i, j, a, iSpin,jSpin, Norm_2RDM, Norm_2RDM_Inst, &
-                                          RDMEnergy_Inst, RDMEnergy1, RDMEnergy2)
+                    call calc_1RDM_and_1RDM_energy(rdm, i, j, a, iSpin,jSpin, Norm_2RDM, Norm_2RDM_Inst, &
+                                                   RDMEnergy_Inst, RDMEnergy1)
                     
                     do b = a, SpatOrbs
 
@@ -579,15 +579,16 @@ contains
 
     end subroutine Calc_Lagrangian_from_RDM
 
-    subroutine calc_1RDM_energy(rdm, i, j, a, iSpin, jSpin, Norm_2RDM, Norm_2RDM_Inst, &
-                                RDMEnergy_Inst, RDMEnergy1, RDMEnergy2)
+    subroutine calc_1RDM_and_1RDM_energy(rdm, i, j, a, iSpin, jSpin, Norm_2RDM, Norm_2RDM_Inst, &
+                                         RDMEnergy_Inst, RDMEnergy1)
 
         ! This routine calculates the 1-RDM part of the RDM energy, and
-        ! constructs the 1-RDM if required for diagonalisation or something.
+        ! also constructs the 1-RDM if required, both from the 2-RDM.
+
         ! gamma(i,j) = [1/(NEl - 1)] * SUM_a Gamma(i,a,j,a) 
         ! want to calculate:    gamma(i,j) * h_ij
         ! h_ij => TMAT2D(iSpin,jSpin)
-        ! iSpin = 2*i, jSpin = 2*j  -> alpha orbs
+        ! iSpin = 2*i, jSpin = 2*j -> alpha orbs
 
         use FciMCData, only: tFinalRDMEnergy
         use OneEInts, only: TMAT2D
@@ -600,7 +601,7 @@ contains
         type(rdm_t), intent(in) :: rdm
         integer, intent(in) :: i, j, a, iSpin, jSpin
         real(dp), intent(in) :: Norm_2RDM, Norm_2RDM_Inst
-        real(dp), intent(inout) :: RDMEnergy_Inst, RDMEnergy1, RDMEnergy2
+        real(dp), intent(inout) :: RDMEnergy_Inst, RDMEnergy1
         real(dp) :: Parity_Factor, fac_doublecount
 
         integer :: Ind1_1e_ab, Ind2_1e_ab
@@ -973,7 +974,7 @@ contains
 
        end if 
 
-    end subroutine calc_1RDM_energy
+    end subroutine calc_1RDM_and_1RDM_energy
 
     subroutine convert_mats_Molpforces(rdm, Norm_1RDM, Norm_2RDM)
 

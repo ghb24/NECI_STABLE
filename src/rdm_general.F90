@@ -948,7 +948,7 @@ contains
                 ! Calculate the energy one last time - and write out everything we need.
                 tFinalRDMEnergy = .true.
 
-                ! 1-RDM is constructed here (in calc_1RDM_energy).
+                ! 1-RDM is constructed here (in calc_1RDM_and_1RDM_energy).
                 call rdm_output_wrapper(rdms(i), Norm_2RDM)
 
                 if (tPrint1RDM) then
