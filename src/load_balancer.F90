@@ -458,6 +458,8 @@ contains
 
     subroutine CalcHashTableStats(TotWalkersNew, iter_data)
 
+        use rdm_data, only: rdms
+
         integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer :: i, j, AnnihilatedDet, lbnd, ubnd
@@ -597,11 +599,11 @@ contains
                             ! At least one of the signs has just gone to zero or just become reoccupied
                             ! so we need to consider adding in diagonal elements and connections to HF
                             ! The block that's just ended was occupied in at least one population.
-                            call det_removed_fill_diag_rdm(CurrentDets(:,i), i)
+                            call det_removed_fill_diag_rdm(rdms(1), CurrentDets(:,i), i)
                         end if
                     else
                         if (IsUnoccDet(CurrentSign)) then
-                            call det_removed_fill_diag_rdm(CurrentDets(:,i), i)
+                            call det_removed_fill_diag_rdm(rdms(1), CurrentDets(:,i), i)
                         end if
                     end if
                 end if
