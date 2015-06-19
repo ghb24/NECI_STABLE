@@ -36,10 +36,10 @@ contains
         use FciMCData, only: TotWalkers, TotWalkersOld, indices_of_determ_states, SpawnedParts
         use FciMCData, only: FDetermTag, FDetermAvTag, PDetermTag, IDetermTag, SemiStoch_Init_Time
         use FciMCData, only: tStartCoreGroundState, iter_data_fciqmc
-        use sort_mod, only: sort
-        use SystemData, only: nel
         use load_balance, only: adjust_load_balance
         use load_balance_calcnodes, only: tLoadBalanceBlocks
+        use sort_mod, only: sort
+        use SystemData, only: nel
 
         type(subspace_in) :: core_in
 
@@ -48,7 +48,6 @@ contains
         integer(MPIArg) :: mpi_temp
         character (len=*), parameter :: t_r = "init_semi_stochastic"
 
-        !
         ! If we are load balancing, this gets disabled once semi stochastic
         ! has been initialised. Therefore we should do a last-gasp load
         ! adjustment at this point.
