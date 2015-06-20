@@ -1,7 +1,7 @@
 module rdm_filling
 
     ! This module contains routines used to perform filling of the RDM arrays,
-    !  as done on-the-fly during an FCIQMC simulation.
+    ! as done on-the-fly during an FCIQMC simulation.
 
     use bit_rep_data, only: NIfTot, NIfDBO
     use constants
@@ -10,7 +10,7 @@ module rdm_filling
 
 contains
 
-    subroutine fill_rdm_diag_currdet_norm(iLutnI, nI, j, ExcitLevelI, tCoreSpaceDet)
+    subroutine fill_rdm_diag_currdet_norm(rdm, iLutnI, nI, j, ExcitLevelI, tCoreSpaceDet)
 
         ! This routine calculates the diagonal RDM contribution, and explicit
         ! connections to the HF, from the current determinant. 
@@ -33,11 +33,14 @@ contains
         use hphf_integrals, only: hphf_sign
         use HPHFRandExcitMod, only: FindExcitBitDetSym
         use LoggingData, only: RDMEnergyIter
+        use rdm_data, only: rdm_t
         use SystemData, only: nel, tHPHF
 
+        type(rdm_t), intent(inout) :: rdm
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         integer, intent(in) :: nI(nel), ExcitLevelI, j
         logical, intent(in), optional :: tCoreSpaceDet
+
         real(dp), dimension(lenof_sign) :: IterDetOcc
         integer(n_int) :: SpinCoupDet(0:nIfTot)
         integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel, part_type
@@ -54,7 +57,7 @@ contains
 
         ! The number of iterations we want to weight this RDM contribution by is:
         if (IterLastRDMFill .gt. 0) then
-            IterRDM = min(AvSignIters,IterLastRDMFill)
+            IterRDM = min(AvSignIters, IterLastRDMFill)
         else
             IterRDM = AvSignIters
         end if
@@ -63,7 +66,7 @@ contains
 
         if (tHPHF) then
             if (.not. TestClosedShellDet(iLutnI)) then
-                call Fill_Diag_RDM(nI, AvSignCurr/sqrt(2.0_dp), tCoreSpaceDet, IterRDM)
+                call Fill_Diag_RDM(rdm, nI, AvSignCurr/sqrt(2.0_dp), tCoreSpaceDet, IterRDM)
 
                 ! C_X D_X = C_X / sqrt(2) [ D_I +/- D_I'] - for open shell dets,
                 ! divide stored C_X by sqrt(2). 
@@ -73,7 +76,7 @@ contains
                 ! Find out if it's + or - in the above expression.
                 SignFac = hphf_sign(iLutnI)
 
-                call Fill_Diag_RDM(nSpinCoup, real(SignFac,dp)*AvSignCurr/sqrt(2.0_dp), tCoreSpaceDet, IterRDM)
+                call Fill_Diag_RDM(rdm, nSpinCoup, real(SignFac,dp)*AvSignCurr/sqrt(2.0_dp), tCoreSpaceDet, IterRDM)
 
                 ! For HPHF we're considering < D_I + D_I' | a_a+ a_b+ a_j a_i | D_I + D_I' >
                 ! Not only do we have diagonal < D_I | a_a+ a_b+ a_j a_i | D_I > terms, but also cross terms
@@ -81,27 +84,27 @@ contains
                 ! excitation. Find excitation level between D_I and D_I' and add in the contribution if connected.
                 HPHFExcitLevel = FindBitExcitLevel (iLutnI, SpinCoupDet, 2)
                 if (HPHFExcitLevel .le. 2) then 
-                    call Add_RDM_From_IJ_Pair(nI, nSpinCoup, IterRDM*AvSignCurr(1)/sqrt(2.0_dp), &
-                                            (real(SignFac,dp)*AvSignCurr(lenof_sign))/sqrt(2.0_dp), .true.)
+                    call Add_RDM_From_IJ_Pair(rdm, nI, nSpinCoup, IterRDM*AvSignCurr(1)/sqrt(2.0_dp), &
+                                              (real(SignFac,dp)*AvSignCurr(lenof_sign))/sqrt(2.0_dp), .true.)
                 end if
             else
 
                 ! HPHFs on, but determinant closed shell.
-                call Fill_Diag_RDM(nI, AvSignCurr, tCoreSpaceDet, IterRDM)
+                call Fill_Diag_RDM(rdm, nI, AvSignCurr, tCoreSpaceDet, IterRDM)
 
             end if
-            call Add_RDM_HFConnections_HPHF(iLutnI, nI, AvSignCurr, ExcitLevelI, IterRDM)   
+            call Add_RDM_HFConnections_HPHF(rdm, iLutnI, nI, AvSignCurr, ExcitLevelI, IterRDM)
 
         else
             ! Not using HPHFs.
-            if (AvSignCurr(1)*AvSignCurr(lenof_sign) .ne. 0) call Fill_Diag_RDM(nI, AvSignCurr, tCoreSpaceDet, IterRDM)
-            call Add_RDM_HFConnections_Norm(iLutnI, nI, AvSignCurr, ExcitLevelI, IterRDM)   
+            if (AvSignCurr(1)*AvSignCurr(lenof_sign) .ne. 0) call Fill_Diag_RDM(rdm, nI, AvSignCurr, tCoreSpaceDet, IterRDM)
+            call Add_RDM_HFConnections_Norm(rdm, iLutnI, nI, AvSignCurr, ExcitLevelI, IterRDM)
 
         end if
 
     end subroutine fill_rdm_diag_currdet_norm
 
-    subroutine det_removed_fill_diag_rdm(iLutnI, j)
+    subroutine det_removed_fill_diag_rdm(rdm, iLutnI, j)
 
         ! This routine is called if a determinant is removed from the list of
         ! currently occupied. At this point we need to add in its diagonal
@@ -115,10 +118,13 @@ contains
         use CalcData, only: NMCyc
         use FciMCData, only: iLutRef, iLutHF_True, Iter, IterRDMStart, PreviousCycles
         use LoggingData, only: RDMEnergyIter
+        use rdm_data, only: rdm_t
         use SystemData, only: nel, tRef_Not_HF
 
+        type(rdm_t), intent(inout) :: rdm
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         integer, intent(in) :: j
+
         integer :: nI(nel), ExcitLevel, IterLastRDMFill
 
         ! If the determinant is removed on an iteration that the diagonal RDM
@@ -134,13 +140,13 @@ contains
                 ExcitLevel = FindBitExcitLevel (iLutRef, iLutnI, 2)
             end if
 
-            call fill_rdm_diag_currdet_norm(iLutnI, nI, j, ExcitLevel, .false.)
+            call fill_rdm_diag_currdet_norm(rdm, iLutnI, nI, j, ExcitLevel, .false.)
 
         end if
 
     end subroutine det_removed_fill_diag_rdm
 
-    subroutine Add_RDM_HFConnections_Norm(iLutJ, nJ, AvSignJ, walkExcitLevel, IterRDM)
+    subroutine Add_RDM_HFConnections_Norm(rdm, iLutJ, nJ, AvSignJ, walkExcitLevel, IterRDM)
 
         ! This is called when we run over all TotWalkers in CurrentDets.    
         ! It is called for each CurrentDet which is a single or double of the HF.
@@ -150,14 +156,17 @@ contains
 
         use FciMCData, only: InstNoatHF, HFDet_True, AvNoatHF
         use LoggingData, only: tFullHFAv
+        use rdm_data, only: rdm_t
         use SystemData, only: nel
 
-        integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
+        type(rdm_t), intent(inout) :: rdm
+        integer(n_int), intent(in) :: iLutJ(0:NIfTot)
         integer, intent(in) :: nJ(NEl)
         real(dp), dimension(lenof_sign), intent(in) :: AvSignJ
         integer, intent(in) :: IterRDM
         integer, intent(in) :: walkExcitLevel
-        integer(kind=n_int) :: SpinCoupDet(0:niftot)
+
+        integer(n_int) :: SpinCoupDet(0:niftot)
         integer :: nSpinCoup(NEl), HPHFExcitLevel, part_type
 
         ! Quick check that the HF population is being calculated correctly.
@@ -183,16 +192,16 @@ contains
         ! If we have a single or double, add in the connection to the HF,
         ! symmetrically.
         if ((walkExcitLevel .eq. 1) .or. (walkExcitLevel .eq. 2)) then
-            call Add_RDM_From_IJ_Pair(HFDet_True, nJ, AvNoatHF(1), &
+            call Add_RDM_From_IJ_Pair(rdm, HFDet_True, nJ, AvNoatHF(1), &
                                       (1.0_dp/real(lenof_sign,dp))*IterRDM*AvSignJ(lenof_sign), .true.)
 
-            call Add_RDM_From_IJ_Pair(HFDet_True, nJ, AvNoatHF(lenof_sign), &
+            call Add_RDM_From_IJ_Pair(rdm, HFDet_True, nJ, AvNoatHF(lenof_sign), &
                                       (1.0_dp/real(lenof_sign,dp))*IterRDM*AvSignJ(1), .true.)
         end if
 
     end subroutine Add_RDM_HFConnections_Norm
 
-    subroutine Add_RDM_HFConnections_HPHF(iLutJ, nJ, AvSignJ, walkExcitLevel, IterRDM)
+    subroutine Add_RDM_HFConnections_HPHF(rdm, iLutJ, nJ, AvSignJ, walkExcitLevel, IterRDM)
 
         ! This is called when we run over all TotWalkers in CurrentDets.
         ! It is called for each CurrentDet which is a single or double of the HF.
@@ -201,14 +210,17 @@ contains
 
         use FciMCData, only: HFDet_True, iLutHF_True, AvNoatHF
         use LoggingData, only: tFullHFAv
+        use rdm_data, only: rdm_t
         use SystemData, only: nel
 
-        integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
+        type(rdm_t), intent(inout) :: rdm
+        integer(n_int), intent(in) :: iLutJ(0:NIfTot)
         integer, intent(in) :: nJ(NEl)
         integer, intent(in) :: IterRDM
         real(dp), dimension(lenof_sign), intent(in) :: AvSignJ
         integer, intent(in) :: walkExcitLevel
-        integer(kind=n_int) :: SpinCoupDet(0:niftot)
+
+        integer(n_int) :: SpinCoupDet(0:niftot)
         integer :: nSpinCoup(NEl), HPHFExcitLevel, part_type
 
         if (.not. tFullHFAv) then
@@ -230,11 +242,12 @@ contains
         ! add in the diagonal elements of this connection as well -
         ! symmetrically because no probabilities are involved.
         if ((walkExcitLevel .eq. 1) .or. (walkExcitLevel .eq. 2)) &
-            call Fill_Spin_Coupled_RDM_v2(iLutHF_True, iLutJ, HFDet_True, nJ, AvNoatHF(1), IterRDM*AvSignJ(lenof_sign), .true.)
+            call Fill_Spin_Coupled_RDM_v2(rdm, iLutHF_True, iLutJ, HFDet_True, nJ, AvNoatHF(1), &
+                                          IterRDM*AvSignJ(lenof_sign), .true.)
 
     end subroutine Add_RDM_HFConnections_HPHF
 
-    subroutine check_fillRDM_DiDj(Spawned_No, iLutJ, realSignJ)
+    subroutine check_fillRDM_DiDj(rdm, Spawned_No, iLutJ, realSignJ)
 
         ! The spawned parts contain the Dj's spawned by the Di's in CurrentDets.
         ! If the SpawnedPart is found in the CurrentDets list, it means that
@@ -244,19 +257,22 @@ contains
 
         use DetBitOps, only: DetBitEq
         use FciMCData, only: iLutHF_True
+        use rdm_data, only: rdm_t
 
+        type(rdm_t), intent(inout) :: rdm
         integer, intent(in) :: Spawned_No
         integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
         real(dp), intent(in) :: realSignJ(lenof_sign)
+
         integer :: ExcitLevel
     
         if (.not. DetBitEQ(iLutHF_True, iLutJ, NIfDBO)) then
-                call DiDj_Found_FillRDM(Spawned_No, iLutJ, realSignJ)
+                call DiDj_Found_FillRDM(rdm, Spawned_No, iLutJ, realSignJ)
         end if
 
     end subroutine check_fillRDM_DiDj
  
-    subroutine DiDj_Found_FillRDM(Spawned_No, iLutJ, realSignJ)
+    subroutine DiDj_Found_FillRDM(rdm, Spawned_No, iLutJ, realSignJ)
 
         ! This routine is called when we have found a Di (or multiple Di's)
         ! spawning onto a Dj with sign /= 0 (i.e. occupied). We then want to
@@ -266,11 +282,14 @@ contains
         use bit_reps, only: decode_bit_det
         use DetBitOps, only: DetBitEq
         use FciMCData, only: Spawned_Parents, Spawned_Parents_Index, iLutHF_True
+        use rdm_data, only: rdm_t
         use SystemData, only: nel, tHPHF
 
+        type(rdm_t), intent(inout) :: rdm
         integer, intent(in) :: Spawned_No
-        integer(kind=n_int), intent(in) :: iLutJ(0:NIfTot)
+        integer(n_int), intent(in) :: iLutJ(0:NIfTot)
         real(dp),dimension(lenof_sign), intent(in) :: realSignJ
+
         integer :: i, j, nI(NEl), nJ(NEl), walkExcitLevel
         real(dp) :: part_realSignI
         integer :: dest_part_type, source_part_type
@@ -317,17 +336,18 @@ contains
             ! summing in pairs that originated from spawning events in both
             ! pop 1 and pop 2 -- i.e., double counted wrt diagonal elements.
             if (tHPHF) then
-                call Fill_Spin_Coupled_RDM_v2(Spawned_Parents(0:NIfDBO,i), iLutJ, nI, nJ, &
+                call Fill_Spin_Coupled_RDM_v2(rdm, Spawned_Parents(0:NIfDBO,i), iLutJ, nI, nJ, &
                            (1.0_dp/real(lenof_sign,dp))*part_realSignI, realSignJ(dest_part_type), .false.)
             else
-                call Add_RDM_From_IJ_Pair(nI, nJ, (1.0_dp/real(lenof_sign,dp))*part_realSignI, realSignJ(dest_part_type), .false.)
+                call Add_RDM_From_IJ_Pair(rdm, nI, nJ, (1.0_dp/real(lenof_sign,dp))*part_realSignI, &
+                                          realSignJ(dest_part_type), .false.)
             end if
 
         end do
 
     end subroutine DiDj_Found_FillRDM
 
-    subroutine Fill_Spin_Coupled_RDM_v2(iLutnI, iLutnJ, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
+    subroutine Fill_Spin_Coupled_RDM_v2(rdm, iLutnI, iLutnJ, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
 
         ! This routine does the same as Fill_Spin_Coupled_RDM, but hopefully
         ! more efficiently! It takes to HPHF functions, and calculate what
@@ -336,12 +356,15 @@ contains
         use DetBitOps, only: TestClosedShellDet, FindBitExcitLevel
         use hphf_integrals, only: hphf_sign
         use HPHFRandExcitMod, only: FindExcitBitDetSym, FindDetSpinSym
+        use rdm_data, only: rdm_t
         use SystemData, only: nel, tOddS_hphf
 
+        type(rdm_t), intent(inout) :: rdm
         integer(n_int), intent(in) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
         real(dp), intent(in) :: realSignI, realSignJ
         integer, intent(in) :: nI(NEl),nJ(NEl)
         logical, intent(in) :: tFill_CiCj_Symm
+
         integer(n_int) :: iLutnI2(0:NIfTot)
         integer :: nI2(NEl),nJ2(NEl)
         real(dp) :: NewSignJ,NewSignI,PermSignJ,PermSignI
@@ -355,25 +378,25 @@ contains
 
             if (TestClosedShellDet(iLutnJ)) then
                 ! Closed shell -> Closed shell - just as in determinant case
-                call Add_RDM_From_IJ_Pair(nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair(rdm, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
             else
                 ! Closed shell -> open shell.
                 call FindDetSpinSym(nJ,nJ2,NEl)
                 NewSignJ = realSignJ/Root2
-                call Add_RDM_From_IJ_Pair(nI, nJ, realSignI, NewSignJ, tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair(rdm, nI, nJ, realSignI, NewSignJ, tFill_CiCj_Symm)
                 ! What is the permutation between Di and Dj'
                 NewSignJ = NewSignJ * hphf_sign(iLutnJ)
-                call Add_RDM_From_IJ_Pair(nI, nJ2, realSignI, NewSignJ, tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair(rdm, nI, nJ2, realSignI, NewSignJ, tFill_CiCj_Symm)
             end if
 
         else if (TestClosedShellDet(iLutnJ)) then
             ! Open shell -> closed shell
             call FindDetSpinSym(nI,nI2,NEl)
             NewSignI = realSignI/Root2
-            call Add_RDM_From_IJ_Pair(nI, nJ, NewSignI, realSignJ, tFill_CiCj_Symm)
+            call Add_RDM_From_IJ_Pair(rdm, nI, nJ, NewSignI, realSignJ, tFill_CiCj_Symm)
             ! What is the permutation between Di' and Dj?
             NewSignI = NewSignI * hphf_sign(iLutnI)
-            call Add_RDM_From_IJ_Pair(nI2, nJ, NewSignI, realSignJ, tFill_CiCj_Symm)
+            call Add_RDM_From_IJ_Pair(rdm, nI2, nJ, NewSignI, realSignJ, tFill_CiCj_Symm)
 
         else
             ! Open shell -> open shell
@@ -388,23 +411,23 @@ contains
             ICoup_J_ExcLevel = FindBitExcitLevel(iLutnI2, iLutnJ, 2)
 
             if (I_J_ExcLevel .le. 2) then
-                call Add_RDM_From_IJ_Pair(nI, nJ, NewSignI, NewSignJ, tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair(rdm, nI, nJ, NewSignI, NewSignJ, tFill_CiCj_Symm)
                 ! Di -> Dj
-                call Add_RDM_From_IJ_Pair(nI2, nJ2, PermSignI, PermSignJ, tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair(rdm, nI2, nJ2, PermSignI, PermSignJ, tFill_CiCj_Symm)
                 ! Di' -> Dj'  (both permuted sign)
             end if
 
             if (ICoup_J_ExcLevel .le. 2) then
-                call Add_RDM_From_IJ_Pair(nI2, nJ, PermSignI, NewSignJ, tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair(rdm, nI2, nJ, PermSignI, NewSignJ, tFill_CiCj_Symm)
                 ! Di' -> Dj  (i permuted sign)
-                call Add_RDM_From_IJ_Pair(nI, nJ2, NewSignI, PermSignJ, tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair(rdm, nI, nJ2, NewSignI, PermSignJ, tFill_CiCj_Symm)
                 ! Di  -> Dj'  (j permuted sign)
             end if
         end if
 
     end subroutine Fill_Spin_Coupled_RDM_v2
 
-    subroutine Fill_Spin_Coupled_RDM(iLutnI, iLutnJ, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
+    subroutine Fill_Spin_Coupled_RDM(rdm, iLutnI, iLutnJ, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
 
         ! Above Fill_Spin_Coupled_RDM_v2 is more efficient version of this routine.
         ! If the two HPHF determinants we're considering consist of I + I' and J + J', 
@@ -418,13 +441,16 @@ contains
         use DetBitOps, only: FindBitExcitLevel, TestClosedShellDet
         use hphf_integrals, only: hphf_sign
         use HPHFRandExcitMod, only: FindExcitBitDetSym
+        use rdm_data, only: rdm_t
         use SystemData, only: nel
 
-        integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
+        type(rdm_t), intent(inout) :: rdm
+        integer(n_int), intent(in) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
         integer, intent(in) :: nI(NEl), nJ(NEl)
         real(dp), intent(in) :: realSignI, realSignJ
         logical, intent(in) :: tFill_CiCj_Symm
-        integer(kind=n_int) :: iLutnI2(0:NIfTot),iLutnJ2(0:NIfTot)
+
+        integer(n_int) :: iLutnI2(0:NIfTot), iLutnJ2(0:NIfTot)
         integer :: Ex(2,2), SpinCoupI_J_ExcLevel, nI2(NEl), nJ2(NEl)
         integer :: SignFacI, SignFacJ, I_J_ExcLevel
         logical :: tParity
@@ -471,19 +497,19 @@ contains
                 if (I_J_ExcLevel.le.2) then
 
                     ! I -> J.
-                    call Add_RDM_From_IJ_Pair(nI, nJ, (realSignI/sqrt(2.0_dp)), (realSignJ/sqrt(2.0_dp)),tFill_CiCj_Symm)
+                    call Add_RDM_From_IJ_Pair(rdm, nI, nJ, (realSignI/sqrt(2.0_dp)), (realSignJ/sqrt(2.0_dp)),tFill_CiCj_Symm)
  
                     ! I' -> J'.
-                    call Add_RDM_From_IJ_Pair(nI2, nJ2, (realSignFacI*realSignI), (realSignFacJ*realSignJ),tFill_CiCj_Symm)
+                    call Add_RDM_From_IJ_Pair(rdm, nI2, nJ2, (realSignFacI*realSignI), (realSignFacJ*realSignJ),tFill_CiCj_Symm)
                 end if
 
                 if (SpinCoupI_J_ExcLevel .le. 2) then
 
                     ! I' -> J.
-                    call Add_RDM_From_IJ_Pair(nI2, nJ,( realSignFacI*realSignI), (realSignJ/sqrt(2.0_dp)), tFill_CiCj_Symm)
+                    call Add_RDM_From_IJ_Pair(rdm, nI2, nJ,( realSignFacI*realSignI), (realSignJ/sqrt(2.0_dp)), tFill_CiCj_Symm)
 
                     ! I -> J'.
-                    call Add_RDM_From_IJ_Pair(nI, nJ2, (realSignI/sqrt(2.0_dp)), (realSignFacJ*realSignJ),tFill_CiCj_Symm)
+                    call Add_RDM_From_IJ_Pair(rdm, nI, nJ2, (realSignI/sqrt(2.0_dp)), (realSignFacJ*realSignJ),tFill_CiCj_Symm)
 
                 end if
 
@@ -492,10 +518,10 @@ contains
                 ! Need I -> J and I' -> J.
 
                 ! I -> J.
-                call Add_RDM_From_IJ_Pair(nI, nJ, (realSignI/sqrt(2.0_dp)), realSignJ, tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair(rdm, nI, nJ, (realSignI/sqrt(2.0_dp)), realSignJ, tFill_CiCj_Symm)
 
                 ! I' -> J.
-                call Add_RDM_From_IJ_Pair(nI2, nJ, (realSignFacI*realSignI), realSignJ, tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair(rdm, nI2, nJ, (realSignFacI*realSignI), realSignJ, tFill_CiCj_Symm)
             end if
 
         else if ( .not. TestClosedShellDet(iLutnJ) ) then
@@ -503,7 +529,7 @@ contains
             ! Need I -> J and I -> J'. 
 
             ! I -> J.
-            if (I_J_ExcLevel .le. 2) call Add_RDM_From_IJ_Pair(nI, nJ, realSignI, (realSignJ/sqrt(2.0_dp)), tFill_CiCj_Symm)
+            if (I_J_ExcLevel .le. 2) call Add_RDM_From_IJ_Pair(rdm, nI, nJ, realSignI, (realSignJ/sqrt(2.0_dp)), tFill_CiCj_Symm)
 
             ! Find J'.
             call FindExcitBitDetSym(iLutnJ, iLutnJ2)
@@ -517,7 +543,7 @@ contains
                 call decode_bit_det (nJ2, iLutnJ2)
                 
                 ! I -> J'.
-                call Add_RDM_From_IJ_Pair(nI, nJ2, realSignI, (realSignFacJ*realSignJ), tFill_CiCj_Symm)
+                call Add_RDM_From_IJ_Pair(rdm, nI, nJ2, realSignI, (realSignFacJ*realSignJ), tFill_CiCj_Symm)
 
            end if
 
@@ -526,23 +552,26 @@ contains
             ! I and J are both closed shell.
 
             ! Just I -> J.
-            call Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
+            call Add_RDM_From_IJ_Pair(rdm, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
 
        end if
 
     end subroutine Fill_Spin_Coupled_RDM
 
-    subroutine Add_RDM_From_IJ_Pair(nI,nJ,realSignI,realSignJ,tFill_CiCj_Symm)
+    subroutine Add_RDM_From_IJ_Pair(rdm, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
 
         ! This routine takes a pair of different determinants Di and Dj, and
         ! figures out which type of elements need to be added in to the RDM.
 
         use LoggingData, only: RDMExcitLevel
+        use rdm_data, only: rdm_t
         use SystemData, only: nel
 
+        type(rdm_t), intent(inout) :: rdm
         integer, intent(in) :: nI(NEl), nJ(NEl)
         real(dp), intent(in) :: realSignI, realSignJ
         logical, intent(in) :: tFill_CiCj_Symm
+
         integer :: Ex(2,2),j
         logical :: tParity
 
@@ -574,14 +603,14 @@ contains
             ! Di and Dj are separated by a single excitation.
             ! Add in the contribution from this pair into the 1-RDM.
             
-            call Fill_Sings_RDM(nI, Ex, tParity, realSignI, realSignJ, tFill_CiCj_Symm)
+            call Fill_Sings_RDM(rdm, nI, Ex, tParity, realSignI, realSignJ, tFill_CiCj_Symm)
     
         else if (RDMExcitLevel .ne. 1) then
 
             ! Otherwise Di and Dj are connected by a double excitation.
             ! Add in this contribution to the 2-RDM (as long as we're
             ! calculating this obv).
-            call Fill_Doubs_RDM(Ex, tParity, realSignI, realSignJ, tFill_CiCj_Symm)
+            call Fill_Doubs_RDM(rdm, Ex, tParity, realSignI, realSignJ, tFill_CiCj_Symm)
 
         end if
 
@@ -591,18 +620,19 @@ contains
 ! THESE NEXT ROUTINES ARE GENERAL TO BOTH STOCHASTIC AND EXPLICIT    
 ! =======================================================================================    
 
-    subroutine Fill_Diag_RDM(nI, realSignDi, tCoreSpaceDetIn, RDMItersIn)
+    subroutine Fill_Diag_RDM(rdm, nI, realSignDi, tCoreSpaceDetIn, RDMItersIn)
 
         ! Fill diagonal elements of 1- and 2-RDM.
         ! These are < Di | a_i+ a_i | Di > and < Di | a_i+ a_j+ a_j a_i | Di >.
 
-        use rdm_data, only: tOpenShell, aaaa_RDM, bbbb_RDM, abab_RDM, baba_RDM
+        use rdm_data, only: rdm_t, tOpenShell
         use LoggingData, only: RDMExcitLevel, ThreshOccRDM, tThreshOccRDMDiag
         use NatOrbsMod, only: NatOrbMat
         use RotateOrbsData, only: SymLabelListInv_rot
         use SystemData, only: nel
         use UMatCache, only: gtID
 
+        type(rdm_t), intent(inout) :: rdm
         integer, intent(in) :: nI(NEl)
         real(dp), intent(in) :: realSignDi(lenof_sign)
         logical, intent(in), optional :: tCoreSpaceDetIn
@@ -660,12 +690,12 @@ contains
                         Ind = ( ( (jSpat-2) * (jSpat-1) ) / 2 ) + iSpat
                         if (( mod(nI(i),2).eq.0) .or. (.not. tOpenShell))then
                             ! nI(i) is even --> aaaa.
-                            aaaa_RDM( Ind, Ind ) = aaaa_RDM( Ind, Ind ) &
+                            rdm%aaaa( Ind, Ind ) = rdm%aaaa( Ind, Ind ) &
                                           + ( realSignDi(1) * realSignDi(lenof_sign) * RDMIters)*ScaleContribFac
 
                         else if ( mod(nI(i),2) .eq. 1)then
                             ! nI(i) is odd --> bbbb.
-                            bbbb_RDM( Ind, Ind ) = bbbb_RDM( Ind, Ind ) &
+                            rdm%bbbb( Ind, Ind ) = rdm%bbbb( Ind, Ind ) &
                                           + ( realSignDi(1) * realSignDi(lenof_sign) * RDMIters)*ScaleContribFac
 
                         end if
@@ -678,18 +708,18 @@ contains
                         if (jSpat .eq. iSpat)then
                                 ! aSpat == bSpat == iSpat == jSpat terms are
                                 ! saved in abab only.
-                                abab_RDM( Ind, Ind ) = abab_RDM( Ind, Ind ) &
+                                rdm%abab( Ind, Ind ) = rdm%abab( Ind, Ind ) &
                                                 + ( realSignDi(1) * realSignDi(lenof_sign) * RDMIters)*ScaleContribFac
 
                         else 
 
                             if ((mod(nI(i),2) .eq. 0) .or. (.not. tOpenShell)) then
                                 ! nI(i) is even ---> abab.
-                                abab_RDM( Ind, Ind ) = abab_RDM( Ind, Ind ) &
+                                rdm%abab( Ind, Ind ) = rdm%abab( Ind, Ind ) &
                                           + ( realSignDi(1) * realSignDi(lenof_sign) * RDMIters)*ScaleContribFac
                             else if (mod(nI(i),2).eq.1)then
                                 ! nI(i) is odd ---> baba.
-                                baba_RDM( Ind, Ind ) = baba_RDM( Ind, Ind ) &
+                                rdm%baba( Ind, Ind ) = rdm%baba( Ind, Ind ) &
                                                + ( realSignDi(1) * realSignDi(lenof_sign) * RDMIters)*ScaleContribFac
                             end if
 
@@ -703,22 +733,24 @@ contains
 
     end subroutine Fill_Diag_RDM
 
-    subroutine Fill_Sings_RDM(nI,Ex,tParity,realSignDi,realSignDj,tFill_CiCj_Symm)
+    subroutine Fill_Sings_RDM(rdm, nI, Ex, tParity, realSignDi, realSignDj, tFill_CiCj_Symm)
 
         ! This routine adds in the contribution to the 1- and 2-RDM from
         ! determinants connected by a single excitation.
 
-        use rdm_data, only: tOpenShell, aaaa_RDM, bbbb_RDM, abab_RDM, baba_RDM, abba_RDM, baab_RDM
+        use rdm_data, only: rdm_t, tOpenShell
         use LoggingData, only: RDMExcitLevel
         use NatOrbsMod, only: NatOrbMat
         use RotateOrbsData, only: SymLabelListInv_rot
         use SystemData, only: nel
         use UMatCache, only: gtID
 
+        type(rdm_t), intent(in) :: rdm
         integer, intent(in) :: nI(NEl), Ex(2,2)
         logical, intent(in) :: tParity
         real(dp), intent(in) :: realSignDi, realSignDj
         logical, intent(in) :: tFill_CiCj_Symm
+
         integer :: k, Indik, Indak, iSpat, aSpat, kSpat, iInd, aInd
         real(dp) :: ParityFactor, ParityFactor2
 
@@ -765,26 +797,26 @@ contains
                 kSpat = gtID(nI(k))
                 if (tOpenShell) kSpat = (nI(k)-1)/2 + 1
 
-                if (nI(k).ne.Ex(1,1)) then
+                if (nI(k) .ne. Ex(1,1)) then
 
-                    if ((iSpat.eq.kSpat).or.(aSpat.eq.kSpat)) then
+                    if ((iSpat .eq. kSpat) .or. (aSpat .eq. kSpat)) then
                         ! It is possible for i = k or a = k if they 
                         ! have different spins. the only arrays with
                         ! i = j or a = b are abab/baba.
                         ! -> abba/baab terms must be reordered to
                         ! become abab/baba
 
-                        Indik=( ( (max(iSpat,kSpat)-1) * max(iSpat,kSpat) ) / 2 ) + min(iSpat,kSpat)
-                        Indak=( ( (max(aSpat,kSpat)-1) * max(aSpat,kSpat) ) / 2 ) + min(aSpat,kSpat)
+                        Indik = ( ( (max(iSpat,kSpat)-1) * max(iSpat,kSpat) ) / 2 ) + min(iSpat,kSpat)
+                        Indak = ( ( (max(aSpat,kSpat)-1) * max(aSpat,kSpat) ) / 2 ) + min(aSpat,kSpat)
 
                         if ((iSpat .eq. aSpat) .or. (.not. tOpenShell) ) then
 
                             ! The iSpat == jSpat == aSpat == bSpat term is
                             ! saved in the abab array only (not in baba).
-                            abab_RDM( Indik, Indak ) = abab_RDM( Indik, Indak ) + ( ParityFactor * &
+                            rdm%abab( Indik, Indak ) = rdm%abab( Indik, Indak ) + ( ParityFactor * &
                                                                          realSignDi * realSignDj )
                             if (tFill_CiCj_Symm) then
-                                abab_RDM( Indak, Indik ) = abab_RDM( Indak, Indik ) + ( ParityFactor * &
+                                rdm%abab( Indak, Indik ) = rdm%abab( Indak, Indik ) + ( ParityFactor * &
                                                                          realSignDi * realSignDj )
                             end if
 
@@ -804,18 +836,18 @@ contains
                             if (aSpat .gt. kSpat) then
 
                                 if ( (mod(Ex(2,1),2) .eq. 1) .or. (.not. tOpenShell) )then ! ki, ka -> last index beta
-                                    abab_RDM( Indik, Indak ) = abab_RDM( Indik, Indak ) + ( ParityFactor * &
+                                    rdm%abab( Indik, Indak ) = rdm%abab( Indik, Indak ) + ( ParityFactor * &
                                                                          realSignDi * realSignDj )
                                     if (tFill_CiCj_Symm) then
-                                        abab_RDM( Indak, Indik ) = abab_RDM( Indak, Indik ) + ( ParityFactor * &
+                                        rdm%abab( Indak, Indik ) = rdm%abab( Indak, Indik ) + ( ParityFactor * &
                                                                             realSignDi * realSignDj )
                                     end if
 
                                 else if (mod(Ex(2,1),2) .eq. 0)then ! ki, ka -> last index alpha
-                                    baba_RDM( Indik, Indak ) = baba_RDM( Indik, Indak ) + ( ParityFactor * &
+                                    rdm%baba( Indik, Indak ) = rdm%baba( Indik, Indak ) + ( ParityFactor * &
                                                                          realSignDi * realSignDj )
                                     if (tFill_CiCj_Symm) then
-                                        baba_RDM( Indak, Indik ) = baba_RDM( Indak, Indik ) + ( ParityFactor * &
+                                        rdm%baba( Indak, Indik ) = rdm%baba( Indak, Indik ) + ( ParityFactor * &
                                                                             realSignDi * realSignDj )
                                     end if
                                 end if
@@ -823,17 +855,17 @@ contains
                             else if  (aSpat .lt. kSpat) then
 
                                 if ( (mod(Ex(2,1),2) .eq. 0) .or. (.not. tOpenShell) )then ! ik, ak -> third index alpha
-                                    abab_RDM( Indik, Indak ) = abab_RDM( Indik, Indak ) + ( ParityFactor * &
+                                    rdm%abab( Indik, Indak ) = rdm%abab( Indik, Indak ) + ( ParityFactor * &
                                                                          realSignDi * realSignDj )
                                     if (tFill_CiCj_Symm) then
-                                        abab_RDM( Indak, Indik ) = abab_RDM( Indak, Indik ) + ( ParityFactor * &
+                                        rdm%abab( Indak, Indik ) = rdm%abab( Indak, Indik ) + ( ParityFactor * &
                                                                             realSignDi * realSignDj )
                                     end if
                                 else if (mod(Ex(2,1),2) .eq. 1)then ! ik, ak -> third index beta
-                                    baba_RDM( Indik, Indak ) = baba_RDM( Indik, Indak ) + ( ParityFactor * &
+                                    rdm%baba( Indik, Indak ) = rdm%baba( Indik, Indak ) + ( ParityFactor * &
                                                                          realSignDi * realSignDj )
                                     if (tFill_CiCj_Symm) then
-                                        baba_RDM( Indak, Indik ) = baba_RDM( Indak, Indik ) + ( ParityFactor * &
+                                        rdm%baba( Indak, Indik ) = rdm%baba( Indak, Indik ) + ( ParityFactor * &
                                                                             realSignDi * realSignDj )
                                     end if
                                 end if
@@ -844,17 +876,17 @@ contains
 
                             if (iSpat .gt. kSpat) then 
                                 if ( (mod(Ex(1,1),2) .eq. 1) .or. (.not. tOpenShell) )then ! ki, ka -> second index beta
-                                    abab_RDM( Indik, Indak ) = abab_RDM( Indik, Indak ) + ( ParityFactor * &
+                                    rdm%abab( Indik, Indak ) = rdm%abab( Indik, Indak ) + ( ParityFactor * &
                                                                          realSignDi * realSignDj )
                                     if (tFill_CiCj_Symm) then
-                                        abab_RDM( Indak, Indik ) = abab_RDM( Indak, Indik ) + ( ParityFactor * &
+                                        rdm%abab( Indak, Indik ) = rdm%abab( Indak, Indik ) + ( ParityFactor * &
                                                                             realSignDi * realSignDj )
                                     end if
                                 else if (mod(Ex(1,1),2) .eq. 0)then ! ki, ka -> second index alpha
-                                    baba_RDM( Indik, Indak ) = baba_RDM( Indik, Indak ) + ( ParityFactor * &
+                                    rdm%baba( Indik, Indak ) = rdm%baba( Indik, Indak ) + ( ParityFactor * &
                                                                          realSignDi * realSignDj )
                                     if (tFill_CiCj_Symm) then
-                                        baba_RDM( Indak, Indik ) = baba_RDM( Indak, Indik ) + ( ParityFactor * &
+                                        rdm%baba( Indak, Indik ) = rdm%baba( Indak, Indik ) + ( ParityFactor * &
                                                                             realSignDi * realSignDj )
                                     end if
                                 end if
@@ -862,17 +894,17 @@ contains
                             else if  (iSpat .lt. kSpat) then
 
                                 if ( (mod(Ex(1,1),2).eq.0) .or. (.not. tOpenShell) )then ! ik, ak -> first index alpha
-                                    abab_RDM( Indik, Indak ) = abab_RDM( Indik, Indak ) + ( ParityFactor * &
+                                    rdm%abab( Indik, Indak ) = rdm%abab( Indik, Indak ) + ( ParityFactor * &
                                                                          realSignDi * realSignDj )
                                     if (tFill_CiCj_Symm) then
-                                        abab_RDM( Indak, Indik ) = abab_RDM( Indak, Indik ) + ( ParityFactor * &
+                                        rdm%abab( Indak, Indik ) = rdm%abab( Indak, Indik ) + ( ParityFactor * &
                                                                             realSignDi * realSignDj )
                                     end if
                                 else if (mod(Ex(1,1),2) .eq. 1)then ! ik, ak -> first index beta
-                                    baba_RDM( Indik, Indak ) = baba_RDM( Indik, Indak ) + ( ParityFactor * &
+                                    rdm%baba( Indik, Indak ) = rdm%baba( Indik, Indak ) + ( ParityFactor * &
                                                                          realSignDi * realSignDj )
                                     if (tFill_CiCj_Symm) then
-                                        baba_RDM( Indak, Indik ) = baba_RDM( Indak, Indik ) + ( ParityFactor * &
+                                        rdm%baba( Indak, Indik ) = rdm%baba( Indak, Indik ) + ( ParityFactor * &
                                                                             realSignDi * realSignDj )
                                     end if
                                 end if
@@ -905,18 +937,18 @@ contains
 
                             ! nI(k) even or odd. odd=bbbb, even=aaaa.                          
                             if ((mod(nI(k),2) .eq. 0) .or. (.not. tOpenShell)) then
-                                aaaa_RDM( Indik, Indak ) = aaaa_RDM( Indik, Indak ) + ( ParityFactor2 * &
+                                rdm%aaaa( Indik, Indak ) = rdm%aaaa( Indik, Indak ) + ( ParityFactor2 * &
                                                                                     realSignDi * realSignDj )
                                 if (tFill_CiCj_Symm) then
-                                    aaaa_RDM( Indak, Indik ) = aaaa_RDM( Indak, Indik ) + ( ParityFactor2 * &
+                                    rdm%aaaa( Indak, Indik ) = rdm%aaaa( Indak, Indik ) + ( ParityFactor2 * &
                                                                                     realSignDi * realSignDj )
                                 end if
 
                             else if (mod(nI(k),2) .eq. 1) then
-                                bbbb_RDM( Indik, Indak ) = bbbb_RDM( Indik, Indak ) + ( ParityFactor2 * &
+                                rdm%bbbb( Indik, Indak ) = rdm%bbbb( Indik, Indak ) + ( ParityFactor2 * &
                                                                                  realSignDi * realSignDj )
                                 if (tFill_CiCj_Symm) then
-                                        bbbb_RDM( Indak, Indik ) = bbbb_RDM( Indak, Indik ) + ( ParityFactor2 * &
+                                        rdm%bbbb( Indak, Indik ) = rdm%bbbb( Indak, Indik ) + ( ParityFactor2 * &
                                                                                  realSignDi * realSignDj )
                                 end if
                             end if
@@ -933,19 +965,19 @@ contains
                                 Indik = ( ( (max(iSpat,kSpat)-1) * max(iSpat,kSpat) ) / 2 ) + min(iSpat,kSpat)
                                 Indak = ( ( (max(aSpat,kSpat)-1) * max(aSpat,kSpat) ) / 2 ) + min(aSpat,kSpat)
 
-                                !Ex(1,1) (i spin orb): first index even or odd 
+                                ! Ex(1,1) (i spin orb): first index even or odd 
                                 if ((mod(Ex(1,1),2).eq.0) .or. (.not. tOpenShell)) then
-                                    abab_RDM( Indik, Indak ) = abab_RDM( Indik, Indak ) + ( ParityFactor * &
+                                    rdm%abab( Indik, Indak ) = rdm%abab( Indik, Indak ) + ( ParityFactor * &
                                                                                  realSignDi * realSignDj )
                                     if (tFill_CiCj_Symm) then
-                                        abab_RDM( Indak, Indik ) = abab_RDM( Indak, Indik ) + ( ParityFactor * &
+                                        rdm%abab( Indak, Indik ) = rdm%abab( Indak, Indik ) + ( ParityFactor * &
                                                                                     realSignDi * realSignDj )
                                     end if
                                 else if (mod(Ex(1,1),2).eq.1)then
-                                    baba_RDM( Indik, Indak ) = baba_RDM( Indik, Indak ) + ( ParityFactor * &
+                                    rdm%baba( Indik, Indak ) = rdm%baba( Indik, Indak ) + ( ParityFactor * &
                                                                                  realSignDi * realSignDj )
                                     if (tFill_CiCj_Symm) then
-                                            baba_RDM( Indak, Indik ) = baba_RDM( Indak, Indik ) + ( ParityFactor * &
+                                            rdm%baba( Indak, Indik ) = rdm%baba( Indak, Indik ) + ( ParityFactor * &
                                                                                     realSignDi * realSignDj ) 
                                     end if
                                 end if
@@ -958,19 +990,19 @@ contains
 
                                 !Ex(1,1) (i spin orb): second index even or odd 
                                 if ((mod(Ex(1,1),2).eq.1) .or. (.not. tOpenShell)) then
-                                    abab_RDM( Indik, Indak ) = abab_RDM( Indik, Indak ) + ( ParityFactor * &
+                                    rdm%abab( Indik, Indak ) = rdm%abab( Indik, Indak ) + ( ParityFactor * &
                                                                                  realSignDi * realSignDj )
 
                                     if (tFill_CiCj_Symm) then
-                                        abab_RDM( Indak, Indik ) = abab_RDM( Indak, Indik ) + ( ParityFactor * &
+                                        rdm%abab( Indak, Indik ) = rdm%abab( Indak, Indik ) + ( ParityFactor * &
                                                                                     realSignDi * realSignDj ) 
                                     end if
                                 else if (mod(Ex(1,1),2).eq.0) then
-                                    baba_RDM( Indik, Indak ) = baba_RDM( Indik, Indak ) + ( ParityFactor * &
+                                    rdm%baba( Indik, Indak ) = rdm%baba( Indik, Indak ) + ( ParityFactor * &
                                                                                  realSignDi * realSignDj )
 
                                     if (tFill_CiCj_Symm) then
-                                            baba_RDM( Indak, Indik ) = baba_RDM( Indak, Indik ) + ( ParityFactor * &
+                                            rdm%baba( Indak, Indik ) = rdm%baba( Indak, Indik ) + ( ParityFactor * &
                                                                                     realSignDi * realSignDj )  
                                     end if
                                 end if
@@ -985,24 +1017,24 @@ contains
 
                                 !i spin orb: second odd or even. 
                                 if ((mod(Ex(1,1),2) .eq. 1) .or. (.not. tOpenShell))then
-                                    abba_RDM( Indik, Indak ) = abba_RDM( Indik, Indak ) - ( ParityFactor * &
+                                    rdm%abba( Indik, Indak ) = rdm%abba( Indik, Indak ) - ( ParityFactor * &
                                                                                  realSignDi * realSignDj )
 
                                     if (tFill_CiCj_Symm ) then
                                         if (.not. tOpenShell) then
-                                            abba_RDM( Indak, Indik ) = abba_RDM( Indak, Indik ) - ( ParityFactor * &
+                                            rdm%abba( Indak, Indik ) = rdm%abba( Indak, Indik ) - ( ParityFactor * &
                                                                                     realSignDi * realSignDj )
                                         else
-                                            baab_RDM( Indak, Indik ) = baab_RDM( Indak, Indik ) - ( ParityFactor * &
+                                            rdm%baab( Indak, Indik ) = rdm%baab( Indak, Indik ) - ( ParityFactor * &
                                                                                     realSignDi * realSignDj )
                                         end if
                                     end if
 
                                 else if (mod(Ex(1,1),2) .eq. 0)then
-                                    baab_RDM( Indik, Indak ) = baab_RDM( Indik, Indak ) - ( ParityFactor * &
+                                    rdm%baab( Indik, Indak ) = rdm%baab( Indik, Indak ) - ( ParityFactor * &
                                                                                  realSignDi * realSignDj )
                                     if (tFill_CiCj_Symm) then
-                                        abba_RDM( Indak, Indik ) = abba_RDM( Indak, Indik ) - ( ParityFactor * &
+                                        rdm%abba( Indak, Indik ) = rdm%abba( Indak, Indik ) - ( ParityFactor * &
                                                                                      realSignDi * realSignDj )
                                     end if
                                 end if
@@ -1016,23 +1048,23 @@ contains
 
                                 !i spin orb: first index odd or even.
                                 if ((mod(Ex(1,1),2) .eq. 0) .or. (.not. tOpenShell)) then
-                                    abba_RDM( Indik, Indak ) = abba_RDM( Indik, Indak ) - ( ParityFactor * &
+                                    rdm%abba( Indik, Indak ) = rdm%abba( Indik, Indak ) - ( ParityFactor * &
                                                                                  realSignDi * realSignDj )
                                     if (tFill_CiCj_Symm) then
                                         if (.not. tOpenShell) then
-                                            abba_RDM( Indak, Indik ) = abba_RDM( Indak, Indik ) - ( ParityFactor * &
+                                            rdm%abba( Indak, Indik ) = rdm%abba( Indak, Indik ) - ( ParityFactor * &
                                                                                     realSignDi * realSignDj )
                                         else
-                                            baab_RDM( Indak, Indik ) = baab_RDM( Indak, Indik ) - ( ParityFactor * &
+                                            rdm%baab( Indak, Indik ) = rdm%baab( Indak, Indik ) - ( ParityFactor * &
                                                                                     realSignDi * realSignDj )
                                         end if
                                     end if
 
                                 else if (mod(Ex(1,1),2) .eq. 1) then
-                                    baab_RDM( Indik, Indak ) = baab_RDM( Indik, Indak ) - ( ParityFactor * &
+                                    rdm%baab( Indik, Indak ) = rdm%baab( Indik, Indak ) - ( ParityFactor * &
                                                                                  realSignDi * realSignDj )
                                     if (tFill_CiCj_Symm) then
-                                        abba_RDM( Indak, Indik ) = abba_RDM( Indak, Indik ) - ( ParityFactor * &
+                                        rdm%abba( Indak, Indik ) = rdm%abba( Indak, Indik ) - ( ParityFactor * &
                                                                                  realSignDi * realSignDj )
                                     end if
                                 end if
@@ -1049,18 +1081,20 @@ contains
 
     end subroutine Fill_Sings_RDM
 
-    subroutine Fill_Doubs_RDM(Ex, tParity, realSignDi, realSignDj, tFill_CiCj_Symm)
+    subroutine Fill_Doubs_RDM(rdm, Ex, tParity, realSignDi, realSignDj, tFill_CiCj_Symm)
 
         ! This routine adds in the contribution to the 2-RDM from determinants
         ! connected by a double excitation.
 
-        use rdm_data, only: tOpenShell, aaaa_RDM, bbbb_RDM, abab_RDM, baba_RDM, abba_RDM, baab_RDM
+        use rdm_data, only: rdm_t, tOpenShell
         use UMatCache, only: gtID
 
+        type(rdm_t), intent(in) :: rdm
         integer, intent(in) :: Ex(2,2)
         logical, intent(in) :: tParity
         real(dp), intent(in) :: realSignDi, realSignDj
         logical, intent(in) :: tFill_CiCj_Symm
+
         integer :: Indij, Indab, iSpat, jSpat, aSpat, bSpat
         real(dp) :: ParityFactor
 
@@ -1094,10 +1128,10 @@ contains
             if ((iSpat.eq.jSpat).and.(aSpat.eq.bSpat)) then
                 ! abab and baba terms are equal and are saved in abab only.
 
-                abab_RDM( Indij, Indab ) = abab_RDM( Indij, Indab ) + ( ParityFactor * &
+                rdm%abab( Indij, Indab ) = rdm%abab( Indij, Indab ) + ( ParityFactor * &
                                                          realSignDi * realSignDj )
                 if (tFill_CiCj_Symm) then
-                    abab_RDM( Indab, Indij ) = abab_RDM( Indab, Indij ) + ( ParityFactor * &
+                    rdm%abab( Indab, Indij ) = rdm%abab( Indab, Indij ) + ( ParityFactor * &
                                                             realSignDi * realSignDj )
                 end if
 
@@ -1105,17 +1139,17 @@ contains
                ! i and j may have to be swapped to get abab/baba term -> get
                ! spin from a (third index).
                if ((mod(Ex(2,1),2) .eq. 0) .or. (.not. tOpenShell)) then
-                    abab_RDM( Indij, Indab ) = abab_RDM( Indij, Indab ) + ( ParityFactor * &
+                    rdm%abab( Indij, Indab ) = rdm%abab( Indij, Indab ) + ( ParityFactor * &
                                                                 realSignDi * realSignDj )
                    if (tFill_CiCj_Symm) then
-                        abab_RDM( Indab, Indij ) = abab_RDM( Indab, Indij ) + ( ParityFactor * &
+                        rdm%abab( Indab, Indij ) = rdm%abab( Indab, Indij ) + ( ParityFactor * &
                                                                 realSignDi * realSignDj )
                    end if
                else if (mod(Ex(2,1),2) .eq. 1) then
-                    baba_RDM( Indij, Indab ) = baba_RDM( Indij, Indab ) + ( ParityFactor * &
+                    rdm%baba( Indij, Indab ) = rdm%baba( Indij, Indab ) + ( ParityFactor * &
                                                                   realSignDi * realSignDj )
                    if (tFill_CiCj_Symm) then
-                        baba_RDM( Indab, Indij ) = baba_RDM( Indab, Indij ) + ( ParityFactor * &
+                        rdm%baba( Indab, Indij ) = rdm%baba( Indab, Indij ) + ( ParityFactor * &
                                                                 realSignDi * realSignDj )
                    end if
                end if
@@ -1125,17 +1159,17 @@ contains
                ! a and b may have to be swapped to get abab/baba term -> get
                ! spin from i (first index)
                if ((mod(Ex(1,1),2) .eq. 0) .or. (.not. tOpenShell)) then
-                    abab_RDM( Indij, Indab ) = abab_RDM( Indij, Indab ) + ( ParityFactor * &
+                    rdm%abab( Indij, Indab ) = rdm%abab( Indij, Indab ) + ( ParityFactor * &
                                                                 realSignDi * realSignDj )
                    if (tFill_CiCj_Symm) then
-                        abab_RDM( Indab, Indij ) = abab_RDM( Indab, Indij ) + ( ParityFactor * &
+                        rdm%abab( Indab, Indij ) = rdm%abab( Indab, Indij ) + ( ParityFactor * &
                                                                 realSignDi * realSignDj )
                    end if
                else if (mod(Ex(1,1),2) .eq. 1) then
-                    baba_RDM( Indij, Indab ) = baba_RDM( Indij, Indab ) + ( ParityFactor * &
+                    rdm%baba( Indij, Indab ) = rdm%baba( Indij, Indab ) + ( ParityFactor * &
                                                                   realSignDi * realSignDj )
                    if (tFill_CiCj_Symm) then
-                        baba_RDM( Indab, Indij ) = baba_RDM( Indab, Indij ) + ( ParityFactor * &
+                        rdm%baba( Indab, Indij ) = rdm%baba( Indab, Indij ) + ( ParityFactor * &
                                                                 realSignDi * realSignDj )
                    end if
                end if
@@ -1155,18 +1189,18 @@ contains
                 Indab = ( ( (bSpat-2) * (bSpat-1) ) / 2 ) + aSpat
 
                 if ((mod(Ex(1,1),2) .eq. 0) .or. (.not. tOpenShell)) then
-                    aaaa_RDM( Indij, Indab ) = aaaa_RDM( Indij, Indab ) + ( ParityFactor * &
+                    rdm%aaaa( Indij, Indab ) = rdm%aaaa( Indij, Indab ) + ( ParityFactor * &
                                                                  realSignDi * realSignDj )
                     if (tFill_CiCj_Symm) then
-                            aaaa_RDM( Indab, Indij ) = aaaa_RDM( Indab, Indij ) + ( ParityFactor * &
+                            rdm%aaaa( Indab, Indij ) = rdm%aaaa( Indab, Indij ) + ( ParityFactor * &
                                                                     realSignDi * realSignDj )
                     end if
 
                 else if (mod(Ex(1,1),2) .eq. 1)then
-                    bbbb_RDM( Indij, Indab ) = bbbb_RDM( Indij, Indab ) + ( ParityFactor * &
+                    rdm%bbbb( Indij, Indab ) = rdm%bbbb( Indij, Indab ) + ( ParityFactor * &
                                                                  realSignDi * realSignDj )
                     if (tFill_CiCj_Symm) then
-                          bbbb_RDM( Indab, Indij ) = bbbb_RDM( Indab, Indij ) + (ParityFactor * &
+                          rdm%bbbb( Indab, Indij ) = rdm%bbbb( Indab, Indij ) + (ParityFactor * &
                                                                     realSignDi * realSignDj )
                     end if
                 end if
@@ -1184,17 +1218,17 @@ contains
                     Indab=( ( (bSpat-1) * bSpat ) / 2 ) + aSpat
 
                     if ((mod(Ex(1,1), 2) .eq. 0) .or. (.not. tOpenShell)) then
-                        abab_RDM( Indij, Indab ) = abab_RDM( Indij, Indab ) + ( ParityFactor * &
+                        rdm%abab( Indij, Indab ) = rdm%abab( Indij, Indab ) + ( ParityFactor * &
                                                                  realSignDi * realSignDj )
                         if (tFill_CiCj_Symm) then
-                            abab_RDM( Indab, Indij ) = abab_RDM( Indab, Indij ) + ( ParityFactor * &
+                            rdm%abab( Indab, Indij ) = rdm%abab( Indab, Indij ) + ( ParityFactor * &
                                                                     realSignDi * realSignDj )
                         end if
                     else if (mod(Ex(1,1), 2) .eq. 1) then
-                        baba_RDM( Indij, Indab ) = baba_RDM( Indij, Indab ) + ( ParityFactor * &
+                        rdm%baba( Indij, Indab ) = rdm%baba( Indij, Indab ) + ( ParityFactor * &
                                                                  realSignDi * realSignDj )
                         if (tFill_CiCj_Symm) then
-                                baba_RDM( Indab, Indij ) = baba_RDM( Indab, Indij ) + ( ParityFactor * &
+                                rdm%baba( Indab, Indij ) = rdm%baba( Indab, Indij ) + ( ParityFactor * &
                                                                     realSignDi * realSignDj )
                         end if
                     end if
@@ -1209,24 +1243,24 @@ contains
                     Indab = ( ( (bSpat-2) * (bSpat-1) ) / 2 ) + aSpat
 
                     if ((mod(Ex(1,1),2) .eq. 0) .or. (.not. tOpenShell))then
-                        abba_RDM( Indij, Indab ) = abba_RDM( Indij, Indab ) + ( ParityFactor * &
+                        rdm%abba( Indij, Indab ) = rdm%abba( Indij, Indab ) + ( ParityFactor * &
                                                                  realSignDi * realSignDj )
                         if (tFill_CiCj_Symm) then
                             if (.not. tOpenShell)then
-                                abba_RDM( Indab, Indij ) = abba_RDM( Indab, Indij ) + ( ParityFactor * &
+                                rdm%abba( Indab, Indij ) = rdm%abba( Indab, Indij ) + ( ParityFactor * &
                                                                         realSignDi * realSignDj )
                             else
-                                baab_RDM( Indab, Indij ) = baab_RDM( Indab, Indij ) + ( ParityFactor * &
+                                rdm%baab( Indab, Indij ) = rdm%baab( Indab, Indij ) + ( ParityFactor * &
                                                                         realSignDi * realSignDj )
                             end if
                         end if
 
                     else if (mod(Ex(1,1),2) .eq. 1)then
 
-                        baab_RDM( Indij, Indab ) = baab_RDM( Indij, Indab ) + ( ParityFactor * &
+                        rdm%baab( Indij, Indab ) = rdm%baab( Indij, Indab ) + ( ParityFactor * &
                                                                 realSignDi * realSignDj )
                         if (tFill_CiCj_Symm) then
-                                abba_RDM( Indab, Indij ) = abba_RDM( Indab, Indij ) + ( ParityFactor * &
+                                rdm%abba( Indab, Indij ) = rdm%abba( Indab, Indij ) + ( ParityFactor * &
                                                                     realSignDi * realSignDj )
                         end if
 
@@ -1247,6 +1281,7 @@ contains
         use FciMCData, only: core_space, determ_sizes, determ_displs, full_determ_vecs_av
         use LoggingData, only: RDMExcitLevel, RDMEnergyIter
         use Parallel_neci, only: iProcIndex
+        use rdm_data, only: rdms
         use sparse_arrays, only: sparse_core_ham, core_connections
         use SystemData, only: nel, tHPHF
 
@@ -1314,7 +1349,7 @@ contains
                  if (tHPHF) then
                      call decode_bit_det(nJ, iLutJ)
 
-                     call Fill_Spin_Coupled_RDM_v2(iLutI, iLutJ, nI, nJ, AvSignI*IterRDM, AvSignJ,.false.)
+                     call Fill_Spin_Coupled_RDM_v2(rdms(1), iLutI, iLutJ, nI, nJ, AvSignI*IterRDM, AvSignJ, .false.)
                  else
                      if (IC .eq. 1) then
                          ! Single excitation - contributes to 1- and 2-RDM
@@ -1328,14 +1363,14 @@ contains
                          ! No need to explicitly fill symmetrically as we'll
                          ! generate pairs of determinants both ways around using
                          ! the connectivity matrix.
-                         call Fill_Sings_RDM(nI, Ex, tParity, AvSignI*IterRDM, AvSignJ, .false.)
+                         call Fill_Sings_RDM(rdms(1), nI, Ex, tParity, AvSignI*IterRDM, AvSignJ, .false.)
 
                      else if ((IC .eq. 2) .and. (RDMExcitLevel .ne. 1)) then
                          
                          ! Note: get_bit_excitmat may be buggy (DetBitOps),
                          ! but will do for now as we need the Ex...
                          call get_bit_excitmat(iLutI(0:NIfD), iLutJ(0:NIfD), Ex, IC)
-                         call Fill_Doubs_RDM(Ex, tParity, AvSignI*IterRDM, AvSignJ, .false.)
+                         call Fill_Doubs_RDM(rdms(1), Ex, tParity, AvSignI*IterRDM, AvSignJ, .false.)
                      end if
                  end if
              end do

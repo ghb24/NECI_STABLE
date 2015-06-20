@@ -22,35 +22,8 @@ module rdm_data
     ! spin^2) are output.
     integer :: rdm_estimates_unit
 
-    ! Arrays to hold instantaneous estimates of 2-RDMs.
-    ! The following three arrays are always used.
-    real(dp), allocatable, target :: aaaa_RDM_inst(:,:), abab_RDM_inst(:,:), abba_RDM_inst(:,:)
-    ! And the following three arrays are only used for open shell calculations
-    ! (and possibly UHF systems in the future?).
-    real(dp), allocatable, target :: bbbb_RDM_inst(:,:), baba_RDM_inst(:,:), baab_RDM_inst(:,:)
-
-    ! Arrays to hold estimates of 2-RDMs, summed over the whole RDM calculation.
-    real(dp), allocatable, target :: aaaa_RDM_full(:,:), abab_RDM_full(:,:), abba_RDM_full(:,:)
-    real(dp), allocatable, target :: bbbb_RDM_full(:,:), baba_RDM_full(:,:), baab_RDM_full(:,:)
-
-    ! Tags for the memory manager for the above RDM arrays.
-    integer :: aaaa_RDM_instTag, abab_RDM_instTag, abba_RDM_instTag
-    integer :: bbbb_RDM_instTag, baba_RDM_instTag, baab_RDM_instTag
-    integer :: aaaa_RDM_fullTag, abab_RDM_fullTag, abba_RDM_fullTag
-    integer :: bbbb_RDM_fullTag, baba_RDM_fullTag, baab_RDM_fullTag
-
-    ! Pointers which can point to *_inst or *_full, depending on what the user
-    ! has asked for.
-    real(dp), pointer :: aaaa_RDM(:,:) => null()
-    real(dp), pointer :: abab_RDM(:,:) => null()
-    real(dp), pointer :: abba_RDM(:,:) => null()
-    real(dp), pointer :: bbbb_RDM(:,:) => null()
-    real(dp), pointer :: baba_RDM(:,:) => null()
-    real(dp), pointer :: baab_RDM(:,:) => null()
-
     ! Arrays used as storage when summing RDMs over all processors.
-    real(dp), allocatable :: AllNodes_aaaa_RDM(:,:), AllNodes_abab_RDM(:,:), AllNodes_abba_RDM(:,:) 
-    real(dp), allocatable :: AllNodes_bbbb_RDM(:,:), AllNodes_baba_RDM(:,:), AllNodes_baab_RDM(:,:)  
+    real(dp), allocatable :: AllNodes_RDM_small(:,:), AllNodes_RDM_large(:,:)
 
     ! Arrays for when filling arrays explicitly. See rdm_explicit for the
     ! relevant routines in that case.
@@ -68,14 +41,46 @@ module rdm_data
     ! Variables related to the space in explicit RDM arrays above.
     real(dp) :: OneEl_Gap, TwoEl_Gap
 
-    ! Arrays to hold the diagonal of the 1-RDM, and the Lagrangian.
-    real(dp), allocatable :: Rho_ii(:)
-    real(dp), allocatable :: Lagrangian(:,:)
-    integer :: Rho_iiTag
-
-    real(dp) :: Trace_1RDM, Trace_2RDM, Trace_2RDM_Inst
-
     ! Timers.
-    type(timer), save :: nElRDM_Time, FinaliseRDM_time, RDMEnergy_time
+    type(timer), save :: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time
+
+    ! Derived type to hold data for each RDM - other global data will be
+    ! removed after purification work.
+
+    type rdm_t
+        ! Arrays to hold instantaneous estimates of 2-RDMs.
+        ! The following three arrays are always used.
+        real(dp), pointer :: aaaa_inst(:,:), abab_inst(:,:), abba_inst(:,:)
+        ! And the following three arrays are only used for open shell calculations
+        ! (and possibly UHF systems in the future?).
+        real(dp), pointer :: bbbb_inst(:,:), baba_inst(:,:), baab_inst(:,:)
+
+        ! Arrays to hold estimates of 2-RDMs, summed over the whole RDM calculation.
+        real(dp), pointer :: aaaa_full(:,:), abab_full(:,:), abba_full(:,:)
+        real(dp), pointer :: bbbb_full(:,:), baba_full(:,:), baab_full(:,:)
+
+        ! Tags for the memory manager for the above RDM arrays.
+        integer :: aaaa_instTag, abab_instTag, abba_instTag
+        integer :: bbbb_instTag, baba_instTag, baab_instTag
+        integer :: aaaa_fullTag, abab_fullTag, abba_fullTag
+        integer :: bbbb_fullTag, baba_fullTag, baab_fullTag
+
+        ! Pointers which can point to *_inst or *_full, depending on what the user
+        ! has asked for.
+        real(dp), pointer :: aaaa(:,:) => null()
+        real(dp), pointer :: abab(:,:) => null()
+        real(dp), pointer :: abba(:,:) => null()
+        real(dp), pointer :: bbbb(:,:) => null()
+        real(dp), pointer :: baba(:,:) => null()
+        real(dp), pointer :: baab(:,:) => null()
+
+        ! Arrays to hold the diagonal of the 1-RDM, and the Lagrangian.
+        real(dp), allocatable :: Rho_ii(:)
+        real(dp), allocatable :: Lagrangian(:,:)
+        integer :: Rho_iiTag
+    end type rdm_t
+
+    ! Array of type rdm_t, for holding multiple different RDM instances.
+    type(rdm_t), allocatable :: rdms(:)
 
 end module rdm_data

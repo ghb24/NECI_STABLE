@@ -192,7 +192,7 @@ type(subspace_in) :: ss_space_in
 logical :: tCSFCore ! Use CSFs for the core states.
 logical :: tSparseCoreHamil ! Use a sparse representation of the core Hamiltonian.
 
-! If this is non-zero then we turn semi-stochastic semistoch_shift_iter
+! If this is non-zero then we turn semi-stochastic on semistoch_shift_iter
 ! iterations after the shift starts to vary.
 integer :: semistoch_shift_iter
 

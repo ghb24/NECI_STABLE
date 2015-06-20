@@ -86,7 +86,7 @@ module fcimc_initialisation
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
     use FciMCLoggingMOD, only : InitHistInitPops
     use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2
-    use rdm_general, only: DeallocateRDM, InitRDM, extract_bit_rep_avsign_no_rdm
+    use rdm_general, only: DeallocateRDM, InitRDMs, extract_bit_rep_avsign_no_rdm
     use rdm_filling, only: fill_rdm_diag_currdet_norm
     use DetBitOps, only: FindBitExcitLevel, CountBits, TestClosedShellDet, &
                          FindExcitBitDet, IsAllowedHPHF, DetBitEq, &
@@ -1355,9 +1355,9 @@ contains
             call init_yama_store ()
         endif
     
-        IF(tRDMonFly) CALL InitRDM()
-        !This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
-        !Initialises RDM stuff for both explicit and stochastic calculations of RDM.
+        if (tRDMonFly) call InitRDMs(1)
+        ! This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
+        ! Initialises RDM stuff for both explicit and stochastic calculations of RDM.
 
         tFillingStochRDMonFly = .false.      
         tFillingExplicRDMonFly = .false.      
@@ -1365,7 +1365,7 @@ contains
 
         !If the iteration specified to start filling the RDM has already been, want to 
         !start filling as soon as possible.
-        if(tRDMonFly) then
+        if (tRDMonFly) then
             do run=1,inum_runs
                 if(.not.tSinglePartPhase(run)) VaryShiftIter(run) = 0
             enddo
