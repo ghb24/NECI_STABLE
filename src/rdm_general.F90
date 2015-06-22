@@ -1661,7 +1661,7 @@ contains
         real(dp), intent(in) :: RDMBiasFacCurr
         integer, intent(in) :: WalkerNumber, procJ
         integer, intent(in) :: DetSpawningAttempts
-        integer(kind=n_int), intent(in) :: iLutI(0:niftot),iLutJ(0:niftot)
+        integer(n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
         integer, intent(in) :: part_type
         logical :: tRDMStoreParent
         integer :: j
@@ -1674,7 +1674,7 @@ contains
 
             ! First we want to check if this Di.Dj pair has already been accounted for.
             ! This means searching the Dj's that have already been spawned from this Di, to make sure 
-            ! the new Di being spawned on here is not the same.
+            ! the new Dj being spawned on here is not the same.
             ! The Dj children spawned by the current Di are being stored in the array TempSpawnedParts, 
             ! so that the reaccurance of a Di.Dj pair may be monitored.
 
@@ -1707,12 +1707,12 @@ contains
                 SpawnedParts(niftot+1:niftot+nifdbo+1, ValidSpawnedList(procJ)) = iLutI(0:nifdbo) 
 
                 ! We need to carry with the child (and the parent), the sign of the parent.
-                ! In actual fact this is the sign of the parent divided by the probability of generating 
+                ! In actual fact this is the sign of the parent divided by the probability of generating
                 ! that pair Di and Dj, to account for the 
                 ! fact that Di and Dj are not always added to the RDM, but only when Di spawns on Dj.
                 ! This RDMBiasFacCurr factor is turned into an integer to pass around to the relevant processors.
                 SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(procJ)) = &
-                    transfer(RDMBiasFacCurr,SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(procJ)))
+                    transfer(RDMBiasFacCurr, SpawnedParts(niftot+nifdbo+2, ValidSpawnedList(procJ)))
 
             else
                 ! This Di has already spawned on this Dj - don't store the Di parent with this child, 
