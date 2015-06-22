@@ -241,13 +241,13 @@ contains
 
         type(rdm_t), intent(inout) :: rdm
         integer(n_int), intent(in) :: iLutJ(0:NIfTot)
-        integer, intent(in) :: nJ(NEl)
+        integer, intent(in) :: nJ(nel)
         integer, intent(in) :: IterRDM
         real(dp), intent(in) :: AvSignJ(nreplicas)
         integer, intent(in) :: walkExcitLevel
 
         integer(n_int) :: SpinCoupDet(0:niftot)
-        integer :: nSpinCoup(NEl), HPHFExcitLevel, part_type
+        integer :: nSpinCoup(nel), HPHFExcitLevel, part_type
 
         !if (.not. tFullHFAv) then
         !    ! If tFullHFAv, we continue the accumulation of AvNoAtHF even
@@ -316,7 +316,7 @@ contains
         integer(n_int), intent(in) :: iLutJ(0:NIfTot)
         real(dp), intent(in) :: realSignJ(lenof_sign)
 
-        integer :: i, j, rdm_ind, nI(NEl), nJ(NEl), walkExcitLevel
+        integer :: i, j, rdm_ind, nI(nel), nJ(nel), walkExcitLevel
         real(dp) :: part_realSignI
         integer :: dest_part_type, source_part_type
         logical :: tParity, tDetAdded
@@ -399,13 +399,13 @@ contains
         use SystemData, only: nel, tOddS_hphf
 
         type(rdm_t), intent(inout) :: rdm
-        integer(n_int), intent(in) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
+        integer(n_int), intent(in) :: iLutnI(0:NIfTot), iLutnJ(0:NIfTot)
         real(dp), intent(in) :: realSignI, realSignJ
-        integer, intent(in) :: nI(NEl),nJ(NEl)
+        integer, intent(in) :: nI(nel),nJ(nel)
         logical, intent(in) :: tFill_CiCj_Symm
 
         integer(n_int) :: iLutnI2(0:NIfTot)
-        integer :: nI2(NEl), nJ2(NEl)
+        integer :: nI2(nel), nJ2(nel)
         real(dp) :: NewSignJ, NewSignI, PermSignJ, PermSignI
         integer :: I_J_ExcLevel, ICoup_J_ExcLevel
         character(*), parameter :: t_r = 'Fill_Spin_Coupled_RDM'
@@ -420,7 +420,7 @@ contains
                 call Add_RDM_From_IJ_Pair(rdm, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
             else
                 ! Closed shell -> open shell.
-                call FindDetSpinSym(nJ,nJ2,NEl)
+                call FindDetSpinSym(nJ, nJ2, nel)
                 NewSignJ = realSignJ/Root2
                 call Add_RDM_From_IJ_Pair(rdm, nI, nJ, realSignI, NewSignJ, tFill_CiCj_Symm)
                 ! What is the permutation between Di and Dj'
@@ -430,7 +430,7 @@ contains
 
         else if (TestClosedShellDet(iLutnJ)) then
             ! Open shell -> closed shell
-            call FindDetSpinSym(nI,nI2,NEl)
+            call FindDetSpinSym(nI,nI2,nel)
             NewSignI = realSignI/Root2
             call Add_RDM_From_IJ_Pair(rdm, nI, nJ, NewSignI, realSignJ, tFill_CiCj_Symm)
             ! What is the permutation between Di' and Dj?
@@ -444,8 +444,8 @@ contains
             PermSignJ = NewSignJ * real(hphf_sign(iLutnJ),dp)
             PermSignI = NewSignI * real(hphf_sign(iLutnI),dp)
             call FindExcitBitDetSym(iLutnI, iLutnI2)
-            call FindDetSpinSym(nI, nI2, NEl)
-            call FindDetSpinSym(nJ, nJ2, NEl)
+            call FindDetSpinSym(nI, nI2, nel)
+            call FindDetSpinSym(nJ, nJ2, nel)
             I_J_ExcLevel = FindBitExcitLevel(iLutnI, iLutnJ, 2)
             ICoup_J_ExcLevel = FindBitExcitLevel(iLutnI2, iLutnJ, 2)
 
@@ -476,11 +476,11 @@ contains
         use SystemData, only: nel
 
         type(rdm_t), intent(inout) :: rdm
-        integer, intent(in) :: nI(NEl), nJ(NEl)
+        integer, intent(in) :: nI(nel), nJ(nel)
         real(dp), intent(in) :: realSignI, realSignJ
         logical, intent(in) :: tFill_CiCj_Symm
 
-        integer :: Ex(2,2),j
+        integer :: Ex(2,2), j
         logical :: tParity
 
         Ex(:,:) = 0
@@ -488,9 +488,9 @@ contains
                             ! a double or single.
         tParity = .false.
 
-        ! Ex(1,:) comes out as the orbital(s) excited from, i.e. i,j
+        ! Ex(1,:) comes out as the orbital(s) excited from, i.e. i,j.
         ! Ex(2,:) comes out as the orbital(s) excited to, i.e. a,b.
-        call GetExcitation(nI, nJ, NEl, Ex, tParity)
+        call GetExcitation(nI, nJ, nel, Ex, tParity)
 
         if (Ex(1,1) .le. 0) then
             ! Error.
@@ -503,7 +503,7 @@ contains
             write(6,*) 'realSignJ', realSignJ
             write(6,*) '*'
             call neci_flush(6)
-            call Stop_All('Add_RDM_From_IJ_Pair', 'Excitation level between pair not 1 or 2 as it should be.')
+            call stop_all('Add_RDM_From_IJ_Pair', 'Excitation level between pair not 1 or 2 as it should be.')
         end if
 
         if ((Ex(1,2) .eq. 0) .and. (Ex(2,2) .eq. 0)) then
@@ -541,8 +541,8 @@ contains
         use UMatCache, only: gtID
 
         type(rdm_t), intent(inout) :: rdm
-        integer, intent(in) :: nI(NEl)
-        real(dp), intent(in) :: realSignDi(lenof_sign)
+        integer, intent(in) :: nI(nel)
+        real(dp), intent(in) :: realSignDi(nreplicas)
         logical, intent(in), optional :: tCoreSpaceDetIn
         integer, intent(in), optional :: RDMItersIn
 
@@ -562,12 +562,12 @@ contains
         ! This is the single-run cutoff being applied (do not use in DR mode):
         if (.not. tCoreSpaceDetIn) then
             ! Dets in the core space are never removed from main list, so
-            ! strictly do not require corrections
+            ! strictly do not require corrections.
             if (tThreshOccRDMDiag .and. (abs(RealSignDi(1)) .le. ThreshOccRDM)) ScaleContribFac = 0.0_dp
         end if
         
         if (RDMExcitLevel .eq. 1) then
-            do i = 1, NEl
+            do i = 1, nel
                 if (tOpenShell) then
                     iInd = SymLabelListInv_rot(nI(i))
                 else 
@@ -575,60 +575,61 @@ contains
                     iInd = SymLabelListInv_rot(gtID(nI(i)))
                 end if
                 NatOrbMat(iInd,iInd) = NatOrbMat(iInd,iInd) &
-                                          + ( realSignDi(1) * realSignDi(lenof_sign) * RDMIters )*ScaleContribFac 
+                                          + ( realSignDi(1) * realSignDi(nreplicas) * RDMIters )*ScaleContribFac 
             end do
         else
             ! Only calculating 2-RDM.
             ! nI(i) - spin orbital label. Odd=beta, even=alpha.
-            do i = 1,NEl - 1
+            do i = 1, nel - 1
                 iSpat = gtID(nI(i))
                 if (tOpenShell) iSpat = (nI(i)-1)/2 + 1
 
                 ! Orbitals in nI ordered lowest to highest so nI(j) > nI(i),
                 ! and jSpat >= iSpat (can only be equal if different spin).
-                do j = i+1, NEl
+                do j = i+1, nel
                     jSpat = gtID(nI(j))
                      if (tOpenShell) jSpat = (nI(j)-1)/2 + 1 
                
-                    ! either alpha alpha or beta beta -> aaaa/bbbb arrays.
+                    ! Either alpha alpha or beta beta -> aaaa/bbbb arrays.
                     if ( ((mod(nI(i),2) .eq. 1) .and. (mod(nI(j),2) .eq. 1)) .or. &
                         ((mod(nI(i),2) .eq. 0) .and. (mod(nI(j),2) .eq. 0)) ) then
 
                         ! Ind doesn't include diagonal terms (when iSpat == jSpat).
                         Ind = ( ( (jSpat-2) * (jSpat-1) ) / 2 ) + iSpat
-                        if (( mod(nI(i),2).eq.0) .or. (.not. tOpenShell))then
+                        if (( mod(nI(i),2) .eq. 0) .or. (.not. tOpenShell))then
                             ! nI(i) is even --> aaaa.
                             rdm%aaaa( Ind, Ind ) = rdm%aaaa( Ind, Ind ) &
-                                          + ( realSignDi(1) * realSignDi(lenof_sign) * RDMIters)*ScaleContribFac
+                                          + ( realSignDi(1) * realSignDi(nreplicas) * RDMIters)*ScaleContribFac
 
                         else if ( mod(nI(i),2) .eq. 1)then
                             ! nI(i) is odd --> bbbb.
                             rdm%bbbb( Ind, Ind ) = rdm%bbbb( Ind, Ind ) &
-                                          + ( realSignDi(1) * realSignDi(lenof_sign) * RDMIters)*ScaleContribFac
+                                          + ( realSignDi(1) * realSignDi(nreplicas) * RDMIters)*ScaleContribFac
 
                         end if
-                    ! either alpha beta or beta alpha -> abab/baba arrays.                                              
+
+                    ! Either alpha beta or beta alpha -> abab/baba arrays.
                     else
 
                         ! Ind does include diagonal terms (when iSpat == jSpat).
                         Ind = ( ( (jSpat-1) * jSpat ) / 2 ) + iSpat
 
-                        if (jSpat .eq. iSpat)then
+                        if (jSpat .eq. iSpat) then
                                 ! aSpat == bSpat == iSpat == jSpat terms are
                                 ! saved in abab only.
                                 rdm%abab( Ind, Ind ) = rdm%abab( Ind, Ind ) &
-                                                + ( realSignDi(1) * realSignDi(lenof_sign) * RDMIters)*ScaleContribFac
+                                                + ( realSignDi(1) * realSignDi(nreplicas) * RDMIters)*ScaleContribFac
 
-                        else 
+                        else
 
                             if ((mod(nI(i),2) .eq. 0) .or. (.not. tOpenShell)) then
                                 ! nI(i) is even ---> abab.
                                 rdm%abab( Ind, Ind ) = rdm%abab( Ind, Ind ) &
-                                          + ( realSignDi(1) * realSignDi(lenof_sign) * RDMIters)*ScaleContribFac
-                            else if (mod(nI(i),2).eq.1)then
+                                          + ( realSignDi(1) * realSignDi(nreplicas) * RDMIters)*ScaleContribFac
+                            else if (mod(nI(i),2) .eq. 1) then
                                 ! nI(i) is odd ---> baba.
                                 rdm%baba( Ind, Ind ) = rdm%baba( Ind, Ind ) &
-                                               + ( realSignDi(1) * realSignDi(lenof_sign) * RDMIters)*ScaleContribFac
+                                               + ( realSignDi(1) * realSignDi(nreplicas) * RDMIters)*ScaleContribFac
                             end if
 
                        end if 
@@ -654,7 +655,7 @@ contains
         use UMatCache, only: gtID
 
         type(rdm_t), intent(inout) :: rdm
-        integer, intent(in) :: nI(NEl), Ex(2,2)
+        integer, intent(in) :: nI(nel), Ex(2,2)
         logical, intent(in) :: tParity
         real(dp), intent(in) :: realSignDi, realSignDj
         logical, intent(in) :: tFill_CiCj_Symm
@@ -700,7 +701,7 @@ contains
                 aSpat = (Ex(2,1)-1)/2 + 1
             end if
 
-            do k = 1, NEl
+            do k = 1, nel
 
                 kSpat = gtID(nI(k))
                 if (tOpenShell) kSpat = (nI(k)-1)/2 + 1
@@ -1122,8 +1123,8 @@ contains
                 if ( ((mod(Ex(1,1),2) .eq. 0) .and. (mod(Ex(2,1),2) .eq. 0)) .or. &
                      ((mod(Ex(1,1),2) .eq. 1) .and. (mod(Ex(2,1),2) .eq. 1)) ) then
 
-                    Indij=( ( (jSpat-1) * jSpat ) / 2 ) + iSpat
-                    Indab=( ( (bSpat-1) * bSpat ) / 2 ) + aSpat
+                    Indij = ( ( (jSpat-1) * jSpat ) / 2 ) + iSpat
+                    Indab = ( ( (bSpat-1) * bSpat ) / 2 ) + aSpat
 
                     if ((mod(Ex(1,1), 2) .eq. 0) .or. (.not. tOpenShell)) then
                         rdm%abab( Indij, Indab ) = rdm%abab( Indij, Indab ) + ( ParityFactor * &
@@ -1163,7 +1164,7 @@ contains
                             end if
                         end if
 
-                    else if (mod(Ex(1,1),2) .eq. 1)then
+                    else if (mod(Ex(1,1),2) .eq. 1) then
 
                         rdm%baab( Indij, Indab ) = rdm%baab( Indij, Indab ) + ( ParityFactor * &
                                                                 realSignDi * realSignDj )
