@@ -745,7 +745,7 @@ contains
         use SystemData, only: nel
         use UMatCache, only: gtID
 
-        type(rdm_t), intent(in) :: rdm
+        type(rdm_t), intent(inout) :: rdm
         integer, intent(in) :: nI(NEl), Ex(2,2)
         logical, intent(in) :: tParity
         real(dp), intent(in) :: realSignDi, realSignDj
@@ -1089,7 +1089,7 @@ contains
         use rdm_data, only: rdm_t, tOpenShell
         use UMatCache, only: gtID
 
-        type(rdm_t), intent(in) :: rdm
+        type(rdm_t), intent(inout) :: rdm
         integer, intent(in) :: Ex(2,2)
         logical, intent(in) :: tParity
         real(dp), intent(in) :: realSignDi, realSignDj
