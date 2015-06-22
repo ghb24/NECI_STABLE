@@ -18,6 +18,9 @@
 #define get_beta(orb) (ibclr(orb-1,0)+1)
 #define get_alpha(orb) (ibset(orb-1,0)+1)
 
+! Get the index of the replica that is paired with ind:
+#define paired_replica(ind) (ind+2*mod(ind,2)-1)
+
 ! The spin where 1=alpha, 2=beta
 #define get_spin(orb) (1+iand(orb,1))
 ! The spin where 1=alpha, -1=beta

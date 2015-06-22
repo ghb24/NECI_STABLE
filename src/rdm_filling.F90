@@ -10,10 +10,11 @@ module rdm_filling
 
 contains
 
-    subroutine fill_rdm_diag_currdet_norm(rdm, iLutnI, nI, j, ExcitLevelI, tCoreSpaceDet)
+    subroutine fill_rdm_diag_currdet_norm(rdms, iLutnI, nI, j, ExcitLevelI, tCoreSpaceDet)
 
         ! This routine calculates the diagonal RDM contribution, and explicit
-        ! connections to the HF, from the current determinant. 
+        ! connections to the HF, from the current determinant, for *every* RDM
+        ! passed in through the rdms array.
 
         ! j --> Which element of the main list CurrentDets are we considering?
         ! IterLastRDMFill is the number of iterations since the last time the
@@ -36,80 +37,104 @@ contains
         use rdm_data, only: rdm_t
         use SystemData, only: nel, tHPHF
 
-        type(rdm_t), intent(inout) :: rdm
+        type(rdm_t), intent(inout) :: rdms(:)
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         integer, intent(in) :: nI(nel), ExcitLevelI, j
         logical, intent(in), optional :: tCoreSpaceDet
 
-        real(dp), dimension(lenof_sign) :: IterDetOcc
+        real(dp) :: IterDetOcc_all(lenof_sign), IterDetOcc_sing(nreplicas)
+        real(dp) :: AvSignCurr_all(lenof_sign), AvSignCurr_sing(nreplicas)
         integer(n_int) :: SpinCoupDet(0:nIfTot)
-        integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel, part_type
-        real(dp) :: AvSignCurr(lenof_sign)
-        integer :: IterLastRDMFill, AvSignIters, IterRDM
-        
-        ! This is the number of iterations this determinant has been occupied.
-        IterDetOcc(1:lenof_sign) = real(Iter+PreviousCycles,dp) - get_iter_occ(j) + 1.0_dp
-        AvSignIters = min(IterDetOcc(1), IterDetOcc(inum_runs))
-        
+        integer :: nSpinCoup(nel), SignFac, HPHFExcitLevel, part_type, i
+        integer :: IterLastRDMFill, AvSignIters, IterRDM, sign_ind_1, sign_ind_2
+
+        ! This is the number of iterations this determinant has been occupied,
+        ! over *all* replicas.
+        IterDetOcc_all(1:lenof_sign) = real(Iter+PreviousCycles,dp) - get_iter_occ(j) + 1.0_dp
+
+        ! All signs from all RDMs.
+        AvSignCurr_all = get_av_sgn(j)
+
         ! IterLastRDMFill is the number of iterations from the last time the
         ! energy was calculated.
         IterLastRDMFill = mod((Iter+PreviousCycles - IterRDMStart + 1), RDMEnergyIter)
 
-        ! The number of iterations we want to weight this RDM contribution by is:
-        if (IterLastRDMFill .gt. 0) then
-            IterRDM = min(AvSignIters, IterLastRDMFill)
-        else
-            IterRDM = AvSignIters
-        end if
+        ! Loop over all RDMs passed in, all of which need to be considered.
+        do i = 1, size(rdms)
 
-        AvSignCurr = get_av_sgn(j)
+            ! The indices of the signs for the RDM that we are considering.
+            sign_ind_1 = nreplicas*i-nreplicas+1
+            sign_ind_2 = nreplicas*i
 
-        if (tHPHF) then
-            if (.not. TestClosedShellDet(iLutnI)) then
-                call Fill_Diag_RDM(rdm, nI, AvSignCurr/sqrt(2.0_dp), tCoreSpaceDet, IterRDM)
+            ! This is the number of iterations this determinant has been occupied,
+            ! over the replicas relevant for the requested RDM.
+            IterDetOcc_sing(1:nreplicas) = IterDetOcc_all(sign_ind_1:sign_ind_2)
 
-                ! C_X D_X = C_X / sqrt(2) [ D_I +/- D_I'] - for open shell dets,
-                ! divide stored C_X by sqrt(2). 
-                ! Add in I.
-                call FindExcitBitDetSym(iLutnI, SpinCoupDet)
-                call decode_bit_det(nSpinCoup, SpinCoupDet)
-                ! Find out if it's + or - in the above expression.
-                SignFac = hphf_sign(iLutnI)
+            AvSignIters = min(IterDetOcc_sing(1), IterDetOcc_sing(nreplicas))
 
-                call Fill_Diag_RDM(rdm, nSpinCoup, real(SignFac,dp)*AvSignCurr/sqrt(2.0_dp), tCoreSpaceDet, IterRDM)
-
-                ! For HPHF we're considering < D_I + D_I' | a_a+ a_b+ a_j a_i | D_I + D_I' >
-                ! Not only do we have diagonal < D_I | a_a+ a_b+ a_j a_i | D_I > terms, but also cross terms
-                ! < D_I | a_a+ a_b+ a_j a_i | D_I' > if D_I and D_I' can be connected by a single or double 
-                ! excitation. Find excitation level between D_I and D_I' and add in the contribution if connected.
-                HPHFExcitLevel = FindBitExcitLevel (iLutnI, SpinCoupDet, 2)
-                if (HPHFExcitLevel .le. 2) then 
-                    call Add_RDM_From_IJ_Pair(rdm, nI, nSpinCoup, IterRDM*AvSignCurr(1)/sqrt(2.0_dp), &
-                                              (real(SignFac,dp)*AvSignCurr(lenof_sign))/sqrt(2.0_dp), .true.)
-                end if
+            ! The number of iterations we want to weight this RDM contribution by is:
+            if (IterLastRDMFill .gt. 0) then
+                IterRDM = min(AvSignIters, IterLastRDMFill)
             else
+                IterRDM = AvSignIters
+            end if
 
-                ! HPHFs on, but determinant closed shell.
-                call Fill_Diag_RDM(rdm, nI, AvSignCurr, tCoreSpaceDet, IterRDM)
+            ! The signs corresponding to this RDM.
+            AvSignCurr_sing = AvSignCurr_all(sign_ind_1:sign_ind_2)
+
+            if (tHPHF) then
+                if (.not. TestClosedShellDet(iLutnI)) then
+                    call Fill_Diag_RDM(rdms(i), nI, AvSignCurr_sing/sqrt(2.0_dp), tCoreSpaceDet, IterRDM)
+
+                    ! C_X D_X = C_X / sqrt(2) [ D_I +/- D_I'] - for open shell dets,
+                    ! divide stored C_X by sqrt(2). 
+                    ! Add in I.
+                    call FindExcitBitDetSym(iLutnI, SpinCoupDet)
+                    call decode_bit_det(nSpinCoup, SpinCoupDet)
+                    ! Find out if it's + or - in the above expression
+                    SignFac = hphf_sign(iLutnI)
+
+                    call Fill_Diag_RDM(rdms(i), nSpinCoup, real(SignFac,dp)*AvSignCurr_sing/sqrt(2.0_dp), &
+                                       tCoreSpaceDet, IterRDM)
+
+                    ! For HPHF we're considering < D_I + D_I' | a_a+ a_b+ a_j a_i | D_I + D_I' >
+                    ! Not only do we have diagonal < D_I | a_a+ a_b+ a_j a_i | D_I > terms, but also cross terms
+                    ! < D_I | a_a+ a_b+ a_j a_i | D_I' > if D_I and D_I' can be connected by a single or double 
+                    ! excitation. Find excitation level between D_I and D_I' and add in the contribution if connected.
+                    HPHFExcitLevel = FindBitExcitLevel(iLutnI, SpinCoupDet, 2)
+                    if (HPHFExcitLevel .le. 2) then 
+                        call Add_RDM_From_IJ_Pair(rdms(i), nI, nSpinCoup, IterRDM*AvSignCurr_sing(1)/sqrt(2.0_dp), &
+                                                  (real(SignFac,dp)*AvSignCurr_sing(nreplicas))/sqrt(2.0_dp), .true.)
+                    end if
+                else
+
+                    ! HPHFs on, but determinant closed shell.
+                    call Fill_Diag_RDM(rdms(i), nI, AvSignCurr_sing, tCoreSpaceDet, IterRDM)
+
+                end if
+                call Add_RDM_HFConnections_HPHF(rdms(i), iLutnI, nI, AvSignCurr_sing, ExcitLevelI, IterRDM)
+
+            else
+                ! Not using HPHFs.
+                if (AvSignCurr_sing(1)*AvSignCurr_sing(nreplicas) .ne. 0) &
+                    call Fill_Diag_RDM(rdms(i), nI, AvSignCurr_sing, tCoreSpaceDet, IterRDM)
+
+                call Add_RDM_HFConnections_Norm(rdms(i), iLutnI, nI, AvSignCurr_sing, ExcitLevelI, IterRDM)
 
             end if
-            call Add_RDM_HFConnections_HPHF(rdm, iLutnI, nI, AvSignCurr, ExcitLevelI, IterRDM)
 
-        else
-            ! Not using HPHFs.
-            if (AvSignCurr(1)*AvSignCurr(lenof_sign) .ne. 0) call Fill_Diag_RDM(rdm, nI, AvSignCurr, tCoreSpaceDet, IterRDM)
-            call Add_RDM_HFConnections_Norm(rdm, iLutnI, nI, AvSignCurr, ExcitLevelI, IterRDM)
-
-        end if
+        end do
 
     end subroutine fill_rdm_diag_currdet_norm
 
-    subroutine det_removed_fill_diag_rdm(rdm, iLutnI, j)
+    subroutine det_removed_fill_diag_rdm(rdms, iLutnI, j)
 
         ! This routine is called if a determinant is removed from the list of
         ! currently occupied. At this point we need to add in its diagonal
         ! contribution for the number of iterations it has been occupied (or
         ! since the contribution was last included).
+
+        ! This is done for *all* RDMs passed in through the rdms array.
 
         ! j --> which element of the main list CurrentDets are we considering.
 
@@ -121,26 +146,25 @@ contains
         use rdm_data, only: rdm_t
         use SystemData, only: nel, tRef_Not_HF
 
-        type(rdm_t), intent(inout) :: rdm
+        type(rdm_t), intent(inout) :: rdms(:)
         integer(n_int), intent(in) :: iLutnI(0:nIfTot)
         integer, intent(in) :: j
 
         integer :: nI(nel), ExcitLevel, IterLastRDMFill
 
-        ! If the determinant is removed on an iteration that the diagonal RDM
-        ! elements are  already being calculated, it will already have been
-        ! counted.
+        ! If the determinant is removed on an iteration that the diagonal
+        ! RDM elements are  already being calculated, it will already have
+        ! been counted. So check this isn't the case first.
 
         if (.not. ((Iter .eq. NMCyc) .or. (mod((Iter+PreviousCycles - IterRDMStart + 1), RDMEnergyIter) .eq. 0))) then
-            ! The elements described above will have been already added in
             call decode_bit_det (nI, iLutnI)
             if (tRef_Not_HF) then
-                ExcitLevel = FindBitExcitLevel (iLutHF_True, iLutnI, 2)
+                ExcitLevel = FindBitExcitLevel(iLutHF_True, iLutnI, 2)
             else
-                ExcitLevel = FindBitExcitLevel (iLutRef, iLutnI, 2)
+                ExcitLevel = FindBitExcitLevel(iLutRef, iLutnI, 2)
             end if
 
-            call fill_rdm_diag_currdet_norm(rdm, iLutnI, nI, j, ExcitLevel, .false.)
+            call fill_rdm_diag_currdet_norm(rdms, iLutnI, nI, j, ExcitLevel, .false.)
 
         end if
 
@@ -161,42 +185,42 @@ contains
 
         type(rdm_t), intent(inout) :: rdm
         integer(n_int), intent(in) :: iLutJ(0:NIfTot)
-        integer, intent(in) :: nJ(NEl)
-        real(dp), dimension(lenof_sign), intent(in) :: AvSignJ
+        integer, intent(in) :: nJ(nel)
+        real(dp), intent(in) :: AvSignJ(nreplicas)
         integer, intent(in) :: IterRDM
         integer, intent(in) :: walkExcitLevel
 
         integer(n_int) :: SpinCoupDet(0:niftot)
-        integer :: nSpinCoup(NEl), HPHFExcitLevel, part_type
+        integer :: nSpinCoup(nel), HPHFExcitLevel, part_type
 
-        ! Quick check that the HF population is being calculated correctly.
-        if (.not. tFullHFAv) then
-            ! If tFullHFAv, we continue the accumulation of AvNoAtHF even when
-            ! InstNoAtHF is zero. Therefore, AvNoAtHF is allowed to be different
-            ! to the AvSignJ stored in CurrentH for this det.
-            if (walkExcitLevel .eq. 0) then
-                do part_type = 1, lenof_sign
-                    if (abs(AvSignJ(part_type)-AvNoatHF(part_type)) .gt. 1.0e-10_dp) then
-                        write(6,*) 'HFDet_True', HFDet_True
-                        write(6,*) 'nJ', nJ
-                        write(6,*) 'iLutJ', iLutJ
-                        write(6,*) 'AvSignJ', AvSignJ
-                        write(6,*) 'AvNoatHF', AvNoatHF
-                        write(6,*) "instnoathf", instnoathf
-                        call Stop_All('Add_RDM_HFConnections_Norm','Incorrect average HF population.')
-                    end if
-                end do
-            end if
-        end if
+        !! Quick check that the HF population is being calculated correctly.
+        !if (.not. tFullHFAv) then
+        !    ! If tFullHFAv, we continue the accumulation of AvNoAtHF even when
+        !    ! InstNoAtHF is zero. Therefore, AvNoAtHF is allowed to be different
+        !    ! to the AvSignJ stored in CurrentH for this det.
+        !    if (walkExcitLevel .eq. 0) then
+        !        do part_type = 1, lenof_sign
+        !            if (abs(AvSignJ(part_type)-AvNoatHF(part_type)) .gt. 1.0e-10_dp) then
+        !                write(6,*) 'HFDet_True', HFDet_True
+        !                write(6,*) 'nJ', nJ
+        !                write(6,*) 'iLutJ', iLutJ
+        !                write(6,*) 'AvSignJ', AvSignJ
+        !                write(6,*) 'AvNoatHF', AvNoatHF
+        !                write(6,*) "instnoathf", instnoathf
+        !                call Stop_All('Add_RDM_HFConnections_Norm','Incorrect average HF population.')
+        !            end if
+        !        end do
+        !    end if
+        !end if
 
         ! If we have a single or double, add in the connection to the HF,
         ! symmetrically.
         if ((walkExcitLevel .eq. 1) .or. (walkExcitLevel .eq. 2)) then
             call Add_RDM_From_IJ_Pair(rdm, HFDet_True, nJ, AvNoatHF(1), &
-                                      (1.0_dp/real(lenof_sign,dp))*IterRDM*AvSignJ(lenof_sign), .true.)
+                                      (1.0_dp/real(lenof_sign,dp))*IterRDM*AvSignJ(nreplicas), .true.)
 
-            call Add_RDM_From_IJ_Pair(rdm, HFDet_True, nJ, AvNoatHF(lenof_sign), &
-                                      (1.0_dp/real(lenof_sign,dp))*IterRDM*AvSignJ(1), .true.)
+            call Add_RDM_From_IJ_Pair(rdm, HFDet_True, nJ, AvNoatHF(nreplicas), &
+                                      (1.0_dp/real(nreplicas,dp))*IterRDM*AvSignJ(1), .true.)
         end if
 
     end subroutine Add_RDM_HFConnections_Norm

@@ -1648,7 +1648,7 @@ contains
         else
             ! All walkers died.
             if(tFillingStochRDMonFly) then
-                call det_removed_fill_diag_rdm(rdms(1), CurrentDets(:,DetPosition), DetPosition)
+                call det_removed_fill_diag_rdm(rdms, CurrentDets(:,DetPosition), DetPosition)
                 ! Set the average sign and occupation iteration to zero, so
                 ! that the same contribution will not be added in in
                 ! CalcHashTableStats, if this determinant is not overwritten

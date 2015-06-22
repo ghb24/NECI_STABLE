@@ -153,7 +153,7 @@ module procedure_pointers
 
         !
         ! Generic fill_rdm_diag_currdet routine
-        subroutine fill_rdm_diag_currdet_t (rdm, ilutI, nI, j, ExcitLevelI, &
+        subroutine fill_rdm_diag_currdet_t (rdms, ilutI, nI, j, ExcitLevelI, &
                                             tCoreSpaceDet)
 
             ! j --> Which slot in CurrentDets are we examining.
@@ -164,7 +164,7 @@ module procedure_pointers
             use SystemData, only: nel
             implicit none
 
-            type(rdm_t), intent(inout) :: rdm
+            type(rdm_t), intent(inout) :: rdms(:)
             integer(n_int), intent(in) :: ilutI(0:NIfTot)
             integer, intent(in) :: nI(nel), ExcitLevelI, j
             logical, intent(in), optional :: tCoreSpaceDet

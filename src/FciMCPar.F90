@@ -764,8 +764,8 @@ module FciMCParMod
                 ! If this is an iteration where we print out the RDM energy,
                 ! add in the diagonal contribution to the RDM for this
                 ! determinant.
-                if(tFill_RDM .and. (.not. tNoNewRDMContrib)) then
-                    call fill_rdm_diag_currdet(rdms(1), CurrentDets(:,j), DetCurr, j, &
+                if (tFill_RDM .and. (.not. tNoNewRDMContrib)) then
+                    call fill_rdm_diag_currdet(rdms, CurrentDets(:,j), DetCurr, j, &
                                                 walkExcitLevel_toHF, tCoreDet)
                 endif
             endif
