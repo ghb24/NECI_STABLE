@@ -268,7 +268,7 @@ contains
         ! add in the diagonal elements of this connection as well -
         ! symmetrically because no probabilities are involved.
         if ((walkExcitLevel .eq. 1) .or. (walkExcitLevel .eq. 2)) &
-            call Fill_Spin_Coupled_RDM_v2(rdm, iLutHF_True, iLutJ, HFDet_True, nJ, AvNoatHF(1), &
+            call Fill_Spin_Coupled_RDM(rdm, iLutHF_True, iLutJ, HFDet_True, nJ, AvNoatHF(1), &
                                           IterRDM*AvSignJ(nreplicas), .true.)
 
     end subroutine Add_RDM_HFConnections_HPHF
@@ -369,7 +369,7 @@ contains
             ! summing in pairs that originated from spawning events in both
             ! pop 1 and pop 2 -- i.e., double counted wrt diagonal elements.
             if (tHPHF) then
-                call Fill_Spin_Coupled_RDM_v2(rdms(rdm_ind), Spawned_Parents(0:NIfDBO,i), iLutJ, nI, nJ, &
+                call Fill_Spin_Coupled_RDM(rdms(rdm_ind), Spawned_Parents(0:NIfDBO,i), iLutJ, nI, nJ, &
                            (1.0_dp/real(nreplicas,dp))*part_realSignI, realSignJ(dest_part_type), .false.)
             else
                 call Add_RDM_From_IJ_Pair(rdms(rdm_ind), nI, nJ, (1.0_dp/real(nreplicas,dp))*part_realSignI, &
@@ -380,11 +380,17 @@ contains
 
     end subroutine DiDj_Found_FillRDM
 
-    subroutine Fill_Spin_Coupled_RDM_v2(rdm, iLutnI, iLutnJ, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
+    subroutine Fill_Spin_Coupled_RDM(rdm, iLutnI, iLutnJ, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
 
-        ! This routine does the same as Fill_Spin_Coupled_RDM, but hopefully
-        ! more efficiently! It takes to HPHF functions, and calculate what
-        ! needs to be summed into the RDMs
+        ! It takes to HPHF functions, and calculates what needs to be summed
+        ! into the RDMs.
+
+        ! If the two HPHF determinants we're considering consist of I + I' and 
+        ! J + J', where X' is the spin coupled (all spins flipped) version of X,
+        ! then we have already considered the I -> J excitation. And if I and
+        ! J are connected by a double excitation, tDoubleConnection is true
+        ! and we have also considered I' -> J'. But we need to also account
+        ! for I -> J' and I' -> J.
 
         use DetBitOps, only: TestClosedShellDet, FindBitExcitLevel
         use hphf_integrals, only: hphf_sign
@@ -402,7 +408,7 @@ contains
         integer :: nI2(NEl), nJ2(NEl)
         real(dp) :: NewSignJ, NewSignI, PermSignJ, PermSignI
         integer :: I_J_ExcLevel, ICoup_J_ExcLevel
-        character(*), parameter :: t_r = 'Fill_Spin_Coupled_RDM_v2'
+        character(*), parameter :: t_r = 'Fill_Spin_Coupled_RDM'
 
         if (TestClosedShellDet(iLutnI)) then
             if (tOddS_HPHF) then
@@ -457,137 +463,6 @@ contains
                 ! Di  -> Dj'  (j permuted sign)
             end if
         end if
-
-    end subroutine Fill_Spin_Coupled_RDM_v2
-
-    subroutine Fill_Spin_Coupled_RDM(rdm, iLutnI, iLutnJ, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
-
-        ! Above Fill_Spin_Coupled_RDM_v2 is more efficient version of this routine.
-        ! If the two HPHF determinants we're considering consist of I + I' and J + J', 
-        ! where X' is the spin coupled (all spins flipped) version of X,
-        ! then we have already considered the I -> J excitation.
-        ! And if I and J are connected by a double excitation, tDoubleConnection is
-        ! true and we have also considered I' -> J'.
-        ! But we need to also account for I -> J' and I' -> J.
-
-        use bit_reps, only: decode_bit_det
-        use DetBitOps, only: FindBitExcitLevel, TestClosedShellDet
-        use hphf_integrals, only: hphf_sign
-        use HPHFRandExcitMod, only: FindExcitBitDetSym
-        use rdm_data, only: rdm_t
-        use SystemData, only: nel
-
-        type(rdm_t), intent(inout) :: rdm
-        integer(n_int), intent(in) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot)
-        integer, intent(in) :: nI(NEl), nJ(NEl)
-        real(dp), intent(in) :: realSignI, realSignJ
-        logical, intent(in) :: tFill_CiCj_Symm
-
-        integer(n_int) :: iLutnI2(0:NIfTot), iLutnJ2(0:NIfTot)
-        integer :: Ex(2,2), SpinCoupI_J_ExcLevel, nI2(NEl), nJ2(NEl)
-        integer :: SignFacI, SignFacJ, I_J_ExcLevel
-        logical :: tParity
-        real(dp) :: realSignFacI, realSignFacJ
-
-        ! First we flip the spin of both determinants, and store I' and J'.
-        ! Actually if I and J are related by a double excitation, we don't need J'.        
-
-        ! First we flip the spin of I', and find out the excitation level between I' and J.
-        ! If this is a double excitation, we don't actually need to find J' - we can just invert 
-        ! the excitation matrix of the I' -> J transition.
-        ! If this is anything above a double, we likewise don't need to find J', because I -> J' 
-        ! will also have a 0 matrix element.
-
-        I_J_ExcLevel = FindBitExcitLevel (iLutnI, iLutnJ, 2)
-
-        if (.not. TestClosedShellDet(iLutnI)) then
-
-            ! I is open shell, and so a spin coupled determinant I' exists.
-
-            ! Find I'.
-            call FindExcitBitDetSym(iLutnI, iLutnI2)
-            call decode_bit_det (nI2, iLutnI2)
-            SignFacI = hphf_sign(iLutnI)
-            realSignFacI = real(SignFacI,dp) / sqrt(2.0_dp)
-
-            ! Find excitation level between I' and J - not necessarily the same as 
-            ! that between I and J.
-            SpinCoupI_J_ExcLevel = FindBitExcitLevel (iLutnI2, iLutnJ, 2)
-
-            if ( (.not.(I_J_ExcLevel.le.2)) .and. (.not.(SpinCoupI_J_ExcLevel.le.2)) ) &
-                call Stop_All('Fill_Spin_Coupled_RDM','No spin combination are connected.')
-                
-            if ( .not. TestClosedShellDet(iLutnJ) ) then
-                
-                ! Both I and J are open shell, need all 4 combinations.
-
-                ! Find J'.
-                call FindExcitBitDetSym(iLutnJ, iLutnJ2)
-                call decode_bit_det (nJ2, iLutnJ2)
-                SignFacJ = hphf_sign(iLutnJ)
-                realSignFacJ = real(SignFacJ,dp) / sqrt(2.0_dp)
-
-                if (I_J_ExcLevel.le.2) then
-
-                    ! I -> J.
-                    call Add_RDM_From_IJ_Pair(rdm, nI, nJ, (realSignI/sqrt(2.0_dp)), (realSignJ/sqrt(2.0_dp)),tFill_CiCj_Symm)
- 
-                    ! I' -> J'.
-                    call Add_RDM_From_IJ_Pair(rdm, nI2, nJ2, (realSignFacI*realSignI), (realSignFacJ*realSignJ),tFill_CiCj_Symm)
-                end if
-
-                if (SpinCoupI_J_ExcLevel .le. 2) then
-
-                    ! I' -> J.
-                    call Add_RDM_From_IJ_Pair(rdm, nI2, nJ,( realSignFacI*realSignI), (realSignJ/sqrt(2.0_dp)), tFill_CiCj_Symm)
-
-                    ! I -> J'.
-                    call Add_RDM_From_IJ_Pair(rdm, nI, nJ2, (realSignI/sqrt(2.0_dp)), (realSignFacJ*realSignJ),tFill_CiCj_Symm)
-
-                end if
-
-            else
-                ! I is open shell, but J is not.
-                ! Need I -> J and I' -> J.
-
-                ! I -> J.
-                call Add_RDM_From_IJ_Pair(rdm, nI, nJ, (realSignI/sqrt(2.0_dp)), realSignJ, tFill_CiCj_Symm)
-
-                ! I' -> J.
-                call Add_RDM_From_IJ_Pair(rdm, nI2, nJ, (realSignFacI*realSignI), realSignJ, tFill_CiCj_Symm)
-            end if
-
-        else if ( .not. TestClosedShellDet(iLutnJ) ) then
-            ! This is the case where I is closed shell, but J is not.
-            ! Need I -> J and I -> J'. 
-
-            ! I -> J.
-            if (I_J_ExcLevel .le. 2) call Add_RDM_From_IJ_Pair(rdm, nI, nJ, realSignI, (realSignJ/sqrt(2.0_dp)), tFill_CiCj_Symm)
-
-            ! Find J'.
-            call FindExcitBitDetSym(iLutnJ, iLutnJ2)
-            SignFacJ = hphf_sign(iLutnJ)
-            realSignFacJ = real(SignFacJ,dp) / sqrt(2.0_dp)
-
-            ! Find excitation level between I and J'.
-            SpinCoupI_J_ExcLevel = FindBitExcitLevel (iLutnI, iLutnJ2, 2)
-
-            if (SpinCoupI_J_ExcLevel.le.2) then
-                call decode_bit_det (nJ2, iLutnJ2)
-                
-                ! I -> J'.
-                call Add_RDM_From_IJ_Pair(rdm, nI, nJ2, realSignI, (realSignFacJ*realSignJ), tFill_CiCj_Symm)
-
-           end if
-
-       else if (I_J_ExcLevel .le. 2) then
-
-            ! I and J are both closed shell.
-
-            ! Just I -> J.
-            call Add_RDM_From_IJ_Pair(rdm, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
-
-       end if
 
     end subroutine Fill_Spin_Coupled_RDM
 
@@ -1382,7 +1257,7 @@ contains
                  if (tHPHF) then
                      call decode_bit_det(nJ, iLutJ)
 
-                     call Fill_Spin_Coupled_RDM_v2(rdms(1), iLutI, iLutJ, nI, nJ, AvSignI*IterRDM, AvSignJ, .false.)
+                     call Fill_Spin_Coupled_RDM(rdms(1), iLutI, iLutJ, nI, nJ, AvSignI*IterRDM, AvSignJ, .false.)
                  else
                      if (IC .eq. 1) then
                          ! Single excitation - contributes to 1- and 2-RDM
