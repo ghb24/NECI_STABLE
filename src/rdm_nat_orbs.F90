@@ -14,11 +14,12 @@ module rdm_nat_orbs
 
 contains
 
-    subroutine find_nat_orb_occ_numbers()
+    subroutine find_nat_orb_occ_numbers(rdm)
 
         use LoggingData, only: tPrintRODump
         use MemoryManager, only: LogMemAlloc
         use Parallel_neci, only: iProcIndex
+        use rdm_data, only: rdm_t
         use RotateOrbsMod, only: FourIndInts, FourIndIntsTag
         use SystemData, only: tROHF, nel, G1, ARR, BRR
 
@@ -26,6 +27,8 @@ contains
         ! NatOrbMat holds the eigenfunctions of the 1-RDM (the matrix
         ! transforming the MO's into the NOs). This also gets the NO
         ! occupation numbers (evaluse) and correlation entropy.
+
+        type(rdm_t), intent(inout) :: rdm
 
         integer :: ierr
         real(dp) :: SumDiag
@@ -39,7 +42,7 @@ contains
             call DiagRDM(SumDiag)
 
             ! Writes out the NO occupation numbers and evectors to files.
-            call write_evales_and_transform_mat(SumDiag)
+            call write_evales_and_transform_mat(rdm, SumDiag)
 
             if (tPrintRODump .and. tROHF) then               
                 write(6,*) 'ROFCIDUMP not implemented for ROHF. Skip generation of ROFCIDUMP file.'
@@ -71,15 +74,17 @@ contains
 
     end subroutine find_nat_orb_occ_numbers
 
-    subroutine write_evales_and_transform_mat(SumDiag)
+    subroutine write_evales_and_transform_mat(rdm, SumDiag)
 
         use LoggingData, only: tNoNOTransform
-        use rdm_data, only: tOpenShell, Rho_ii
+        use rdm_data, only: rdm_t, tOpenShell
         use SystemData, only: nbasis, nel, BRR
         use UMatCache, only: gtID
         use util_mod, only: get_free_unit
 
+        type(rdm_t), intent(inout) :: rdm
         real(dp), intent(in) :: SumDiag
+
         integer :: i, j, Evalues_unit, NatOrbs_unit, jSpat, jInd, NO_Number
         integer :: i_no,i_normal
         real(dp) :: Corr_Entropy, Norm_Evalues, SumN_NO_Occ
@@ -108,7 +113,7 @@ contains
         do i = 1, NoOrbs
             if (tOpenShell) then
                 write(Evalues_unit,'(I6,G35.17,I15,G35.17)') i, Evalues(i)/Norm_Evalues, &
-                                                                BRR(i), Rho_ii(i)
+                                                                BRR(i), rdm%Rho_ii(i)
                 if (Evalues(i) .gt. 0.0_dp) then
                     Corr_Entropy = Corr_Entropy - ( abs(Evalues(i)/ Norm_Evalues) &
                                                     * LOG(abs(Evalues(i)/ Norm_Evalues)) )
@@ -118,7 +123,7 @@ contains
                 if (i .le. NEl) SumN_NO_Occ = SumN_NO_Occ + (Evalues(i)/Norm_Evalues)
             else
                 write(Evalues_unit,'(I6,G35.17,I15,G35.17)') (2*i)-1,Evalues(i)/Norm_Evalues, &
-                                                            BRR((2*i)-1), Rho_ii(i)/2.0_dp
+                                                            BRR((2*i)-1), rdm%Rho_ii(i)/2.0_dp
                 if (Evalues(i).gt.0.0_dp) then
                     Corr_Entropy = Corr_Entropy - (2.0_dp * ( abs(Evalues(i)/Norm_Evalues) &
                                                     * LOG(abs(Evalues(i)/Norm_Evalues)) ) )
@@ -126,7 +131,7 @@ contains
                     tNegEvalue = .true.
                 end if
                 write(Evalues_unit,'(I6,G35.17,I15,G35.17)') 2*i,Evalues(i)/Norm_Evalues, &
-                                                            BRR(2*i), Rho_ii(i)/2.0_dp
+                                                            BRR(2*i), rdm%Rho_ii(i)/2.0_dp
                 if (i .le. (NEl/2)) SumN_NO_Occ = SumN_NO_Occ + (2.0_dp * (Evalues(i)/Norm_Evalues))
             end if
         end do

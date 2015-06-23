@@ -4,6 +4,7 @@ module get_excit
     use SystemData, only: nel
     use bit_rep_data, only: NIfTot
     use DeterminantData, only: write_det
+    use sym_general_mod, only: SymAllowedExcit
     implicit none
 
 
@@ -14,7 +15,7 @@ contains
         integer, intent(in) :: nI(nel), elec, tgt
         integer, intent(out) :: ex(2,2), nJ(nel)
         logical, intent(out) :: tParity
-        character(*), parameter :: this_routine = 'make_excit'
+        character(*), parameter :: this_routine = 'make_single'
         integer :: i, src
 
         ! Initialise return values, Returned excitation matrix includes the
@@ -58,7 +59,8 @@ contains
 
 #ifdef __DEBUG
         ! This is a useful (but O[N]) check to test the generated determinant.
-        call IsSymAllowedExcit(nI, nJ, 1, ex)
+        if (.not. SymAllowedExcit(nI, nJ, 1, ex)) &
+            call stop_all(this_routine, 'Generating invalid excitation')
 #endif
 
     end subroutine
@@ -69,7 +71,7 @@ contains
         integer, intent(in) :: nI(nel), elec1, elec2, tgt1, tgt2
         integer, intent(out) :: ex(2,2), nJ(nel)
         logical, intent(out) :: tParity
-        character(*), parameter :: this_routine = 'make_excit'
+        character(*), parameter :: this_routine = 'make_double'
         integer :: i, k, elecs(2), srcs(2), tgts(2), pos_moved
 
         ! Get the source/target terms in order!
@@ -143,7 +145,8 @@ contains
 
 #ifdef __DEBUG
         ! This is a useful (but O[N]) check to test the generated determinant.
-        call IsSymAllowedExcit(nI, nJ, 2, ex)
+        if (.not. SymAllowedExcit(nI, nJ, 2, ex)) &
+            call stop_all(this_routine, 'Generated invalid excitation')
 #endif
 
     end subroutine

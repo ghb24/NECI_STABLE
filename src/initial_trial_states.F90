@@ -358,7 +358,7 @@ contains
         use replica_data, only: set_initial_global_data
         use hash, only: clear_hash_table, fill_in_hash_table
         use semi_stoch_procs, only: fill_in_diag_helements, copy_core_dets_to_spawnedparts
-        use semi_stoch_procs, only: add_core_states_currentdet_hash
+        use semi_stoch_procs, only: add_core_states_currentdet_hash, reinit_current_trial_amps
 
         integer, intent(in) :: ndets_this_proc
         real(dp), intent(in) :: init_vecs(:,:)
@@ -420,55 +420,5 @@ contains
         call set_initial_global_data(TotWalkers, CurrentDets)
 
     end subroutine set_trial_states
-
-    subroutine reinit_current_trial_amps()
-
-        ! Recreate current trial amps, without using arrays such as trial_space
-        ! and trial_wfs, which are deallocated after the first init_trial_wf
-        ! call.
-
-        use bit_reps, only: decode_bit_det, set_flag
-        use FciMCData, only: CurrentDets, TotWalkers, HashIndex, nWalkerHashes
-        use FciMCData, only: tTrialHash, current_trial_amps, ntrial_excits
-        use searching, only: hash_search_trial, bin_search_trial
-        use SystemData, only: nel
-
-        integer :: i
-        integer :: nI(nel)
-        real(dp) :: trial_amps(ntrial_excits)
-        logical :: tTrial, tCon
-
-        ! Don't do anything is this is called before the trial wave function
-        ! initialisation.
-        if (.not. allocated(current_trial_amps)) return
-
-        current_trial_amps = 0.0_dp
-
-        do i = 1, TotWalkers
-            if (tTrialHash) then
-                call decode_bit_det(nI, CurrentDets(:,i))
-                call hash_search_trial(CurrentDets(:,i), nI, trial_amps, tTrial, tCon)
-            else
-                call bin_search_trial(CurrentDets(:,i), trial_amps, tTrial, tCon)
-            end if
-
-            ! Set the appropraite flag (if any). Unset flags which aren't
-            ! appropriate, just in case.
-            if (tTrial) then
-                call set_flag(CurrentDets(:,i), flag_trial, .true.)
-                call set_flag(CurrentDets(:,i), flag_connected, .false.)
-            else if (tCon) then
-                call set_flag(CurrentDets(:,i), flag_trial, .false.)
-                call set_flag(CurrentDets(:,i), flag_connected, .true.)
-            else
-                call set_flag(CurrentDets(:,i), flag_trial, .false.)
-                call set_flag(CurrentDets(:,i), flag_connected, .false.)
-            end if
-
-            ! Set the amplitude (which may be zero).
-            current_trial_amps(:,i) = trial_amps
-        end do
-
-    end subroutine reinit_current_trial_amps
 
 end module initial_trial_states
